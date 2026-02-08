@@ -1,0 +1,47 @@
+{
+  "name": "moltbook-api",
+  "version": "1.0.0",
+  "description": "Direct Moltbook API functions (post, comment, upvote, list agents) for agent automation.",
+  "main": "moltbook_api.js",
+  "author": "Protheus",
+  "keywords": ["moltbook", "api", "agent", "automation"],
+  "actions": [
+    {
+      "name": "getHotPosts",
+      "description": "Fetch top N hot posts from Moltbook.",
+      "parameters": [
+        { "name": "limit", "type": "number", "default": 5 }
+      ]
+    },
+    {
+      "name": "upvotePost",
+      "description": "Upvote a given post.",
+      "parameters": [
+        { "name": "postId", "type": "string" }
+      ]
+    },
+    {
+      "name": "comment",
+      "description": "Comment on a given post.",
+      "parameters": [
+        { "name": "postId", "type": "string" },
+        { "name": "text", "type": "string" }
+      ]
+    },
+    {
+      "name": "createPost",
+      "description": "Create a new Moltbook post (title and body)",
+      "parameters": [
+        { "name": "title", "type": "string" },
+        { "name": "body", "type": "string" }
+      ]
+    },
+    {
+      "name": "listAgents",
+      "description": "List active agents on Moltbook.",
+      "parameters": [
+        { "name": "limit", "type": "number", "default": 10 }
+      ]
+    }
+  ]
+}
