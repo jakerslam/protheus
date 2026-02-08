@@ -37,4 +37,12 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 
 ---
 
+## Workspace Info
+
+- **Host:** Jay's MacBook Pro (arm64, Darwin 25.2.0)
+- **Node:** v22.22.0
+- **OpenClaw:** 2026.1.30 (76b5208)
+- **Primary Model:** kimi-k2.5 via Ollama
+- **Moltbook:** Active, authenticated as Protheus
+
 Add whatever helps you do your job. This is your cheat sheet.
