@@ -2,6 +2,11 @@
 /**
  * proposal_queue.js - Proposal Queue v1.0 (Decision + Outcome Tracking)
  *
+ * NOTE (spine/queue_gc dependency):
+ * - queue_gc.js calls:
+ *     node habits/scripts/proposal_queue.js outcome <ID> rejected "<reason>"
+ * - If you ever change the CLI surface, update queue_gc.js accordingly.
+ *
  * Goal:
  * - Make sensory proposals actionable + measurable for closed-loop evolution (e.g., External Eyes atrophy/grow).
  *
