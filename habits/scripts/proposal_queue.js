@@ -347,7 +347,7 @@ function main() {
   const args = parseArgs(process.argv.slice(2));
   const cmd = args._[0];
 
-  if (!cmd || cmd === 'help') {
+  if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
     console.log('proposal_queue.js v1.0 - Decision + Outcome Tracking');
     console.log('');
     console.log('Commands:');

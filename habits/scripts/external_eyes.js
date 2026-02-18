@@ -872,7 +872,7 @@ function parseArgs() {
 async function main() {
   const { cmd, opts, positional } = parseArgs();
   
-  if (!cmd || cmd === 'help') {
+  if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
     console.log('external_eyes.js v1.0 - External Eyes Framework');
     console.log('');
     console.log('Commands:');
