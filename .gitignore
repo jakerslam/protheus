@@ -23,8 +23,12 @@ state/git/outcomes_cursor.json
 state/sensory/raw/*.jsonl
 state/sensory/eyes/raw/*.jsonl
 state/sensory/eyes/evolution.jsonl
+state/sensory/eyes/metrics/*.json
 state/sensory/anomalies/*.json
 state/sensory/digests/*.md
+state/sensory/proposals/*.json
+state/queue/decisions/*.jsonl
+state/spine/runs/*.jsonl
 
 # Router/autonomy runtime caches (generated)
 state/routing/model_health.json
@@ -37,6 +41,7 @@ state/autonomy/cooldowns.json
 state/autonomy/calibration.json
 state/autonomy/improvements/*.json
 state/autonomy/improvements/*.jsonl
+state/autonomy/habit_crystallizer/*.jsonl
 state/autonomy/receipts/*.jsonl
 state/habits/receipts/*.jsonl
 state/security/skill_quarantine/install_receipts/*.jsonl
