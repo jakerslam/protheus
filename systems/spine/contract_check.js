@@ -107,6 +107,25 @@ function main() {
     ["git_outcomes.js", "run"]
   );
 
+  // autonomy_controller.js is optional by flag, but contract should remain valid.
+  checkScript(
+    "systems/autonomy/autonomy_controller.js",
+    ["autonomy_controller.js", "run", "status"]
+  );
+
+  // route_execute.js is called by autonomy_controller run path.
+  checkScript(
+    "systems/routing/route_execute.js",
+    ["route_execute.js", "--task"]
+  );
+
+  // route_task.js is the decision contract consumed by route_execute.
+  checkUsage(
+    "systems/routing/route_task.js",
+    ["--task", "contract_check_probe", "--tokens_est", "0", "--repeats_14d", "0", "--errors_30d", "0"],
+    ["decision", "gate_decision"]
+  );
+
   console.log("contract_check: OK");
 }
 

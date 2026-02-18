@@ -85,6 +85,7 @@ function main() {
   const invoked = [
     "systems/spine/spine.js",
     "systems/security/guard.js",
+    "systems/security/directive_gate.js",
     "habits/scripts/external_eyes.js",
     "habits/scripts/eyes_insight.js",
     "habits/scripts/sensory_queue.js",
@@ -92,6 +93,9 @@ function main() {
     "habits/scripts/git_outcomes.js",
     "habits/scripts/dopamine_engine.js",
     "habits/scripts/sensory_digest.js",
+    "systems/autonomy/autonomy_controller.js",
+    "systems/routing/route_execute.js",
+    "systems/routing/route_task.js",
     "habits/scripts/queue_gc.js",
     "habits/scripts/proposal_queue.js"
   ];
@@ -129,6 +133,11 @@ function main() {
   run("node", ["habits/scripts/sensory_queue.js", "list", `--date=${dateStr}`]);
 
   if (mode === "daily") {
+    if (String(process.env.AUTONOMY_ENABLED || "") === "1") {
+      // Bounded autonomy loop (WIP=1) behind feature flag.
+      run("node", ["systems/autonomy/autonomy_controller.js", "run", dateStr]);
+    }
+
     // DAILY MODE (orchestration only)
     // 1) auto-record shipped outcomes from git tags
     run("node", ["habits/scripts/git_outcomes.js", "run", dateStr]);
