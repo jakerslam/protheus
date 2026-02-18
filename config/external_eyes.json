@@ -7,14 +7,14 @@
       "name": "Hacker News Front Page",
       "status": "active",
       "cadence_hours": 6,
-      "allowed_domains": ["news.ycombinator.com"],
+      "allowed_domains": ["news.ycombinator.com", "hnrss.org"],
       "budgets": {
         "max_items": 20,
         "max_seconds": 10,
         "max_bytes": 524288,
         "max_requests": 1
       },
-      "parser_type": "hn_frontpage",
+      "parser_type": "hn_rss",
       "topics": ["startups", "dev_tools", "ai", "security", "infra"],
       "last_run": null,
       "last_success": null,
