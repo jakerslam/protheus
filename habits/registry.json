@@ -1,0 +1,178 @@
+{
+  "version": 1.5,
+  "max_active": 25,
+  "gc": {
+    "inactive_days": 30,
+    "min_uses_30d": 1
+  },
+  "habits": [
+    {
+      "id": "rebuild_validate_memory",
+      "name": "Rebuild and Validate Memory",
+      "description": "Runs rebuild_exclusive.js and logs violation summary to daily file as SNIP",
+      "created_at": "2026-02-14T20:30:00Z",
+      "last_used_at": "2026-02-15T04:06:41.717Z",
+      "uses_30d": 4,
+      "lifetime_uses": 4,
+      "success_rate": 1,
+      "avg_tokens_in": null,
+      "avg_tokens_out": null,
+      "estimated_tokens_saved": 0,
+      "rollback_plan": "Revert via git checkout if SNIP malformed; manually fix memory/YYYY-MM-DD.md",
+      "test_plan": "Run with --json '{\"notes\":\"test\"}' twice; verify SNIP appended",
+      "idempotent": true,
+      "inputs_schema": {
+        "type": "object",
+        "required": [],
+        "properties": {
+          "notes": {
+            "type": "string",
+            "description": "Optional notes to include in SNIP"
+          }
+        }
+      },
+      "entrypoint": "habits/routines/rebuild_validate_memory.js",
+      "permissions": {
+        "network": "deny",
+        "write_paths_allowlist": [
+          "memory/*.md",
+          "habits/logs/*",
+          "habits/registry.json"
+        ],
+        "exec_allowlist": [
+          "node memory/tools/rebuild_exclusive.js"
+        ]
+      },
+      "status": "active",
+      "outcome": {
+        "last_outcome_score": 1,
+        "last_delta_value": null,
+        "outcome_unit": null
+      },
+      "governance": {
+        "state": "active",
+        "promote": {
+          "min_success_runs": 3,
+          "min_outcome_score": 0.7
+        },
+        "demote": {
+          "max_consecutive_errors": 2,
+          "min_outcome_score": 0.4,
+          "cooldown_minutes": 0
+        },
+        "pinned": false,
+        "consecutive_errors": 0
+      },
+      "metrics": {
+        "baseline": {
+          "avg_duration_ms": null,
+          "avg_tokens_est": null,
+          "avg_error_rate": null
+        },
+        "rolling": {
+          "avg_duration_ms_30d": 736.5,
+          "avg_tokens_est_30d": null,
+          "error_rate_30d": 0,
+          "window_runs": [
+            {
+              "duration_ms": 1166,
+              "success": true,
+              "ts": 1771128020204
+            },
+            {
+              "duration_ms": 307,
+              "success": true,
+              "ts": 1771128401717
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "safe_cron_swap",
+      "name": "Safe Cron Swap",
+      "description": "Atomic cron job replacement with verification gates and rollback protection",
+      "created_at": "2026-02-14T20:51:00Z",
+      "last_used_at": null,
+      "uses_30d": 0,
+      "lifetime_uses": 0,
+      "success_rate": 0,
+      "avg_tokens_in": null,
+      "avg_tokens_out": null,
+      "estimated_tokens_saved": 5000,
+      "rollback_plan": "Re-add old job, remove new job, verify via openclaw cron list",
+      "test_plan": "Run with dry_run=true first, then with real job swap",
+      "idempotent": true,
+      "inputs_schema": {
+        "type": "object",
+        "required": [
+          "old_job_id",
+          "new_job_cli",
+          "verify_name"
+        ],
+        "properties": {
+          "old_job_id": {
+            "type": "string",
+            "description": "ID of the job to replace"
+          },
+          "new_job_cli": {
+            "type": "string",
+            "description": "Full openclaw cron add CLI command for the new job"
+          },
+          "verify_name": {
+            "type": "string",
+            "description": "Unique temporary name of the new job for verification"
+          }
+        }
+      },
+      "entrypoint": "habits/routines/safe_cron_swap.js",
+      "permissions": {
+        "network": "deny",
+        "write_paths_allowlist": [
+          "memory/*.md",
+          "habits/logs/*",
+          "habits/registry.json",
+          "config/*.json"
+        ],
+        "exec_allowlist": [
+          "openclaw cron list",
+          "openclaw cron add",
+          "openclaw cron remove"
+        ]
+      },
+      "status": "candidate",
+      "outcome": {
+        "last_outcome_score": null,
+        "last_delta_value": null,
+        "outcome_unit": null
+      },
+      "governance": {
+        "state": "candidate",
+        "promote": {
+          "min_success_runs": 2,
+          "min_outcome_score": 0.85
+        },
+        "demote": {
+          "max_consecutive_errors": 1,
+          "min_outcome_score": 0.5,
+          "cooldown_minutes": 0
+        },
+        "pinned": false,
+        "consecutive_errors": 0
+      },
+      "metrics": {
+        "baseline": {
+          "avg_duration_ms": null,
+          "avg_tokens_est": null,
+          "avg_error_rate": null
+        },
+        "rolling": {
+          "avg_duration_ms_30d": null,
+          "avg_tokens_est_30d": null,
+          "error_rate_30d": null,
+          "window_runs": []
+        }
+      }
+    }
+  ]
+}

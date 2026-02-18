@@ -4,18 +4,18 @@
   "eyes": [
     {
       "id": "hn_frontpage",
-      "name": "Hacker News Front Page",
-      "status": "probation",
+      "name": "Hacker News Frontpage (RSS)",
+      "status": "active",
       "cadence_hours": 6,
-      "allowed_domains": ["news.ycombinator.com", "hn.algolia.com"],
+      "allowed_domains": ["news.ycombinator.com", "hnrss.org"],
       "budgets": {
-        "max_items": 15,
-        "max_seconds": 30,
-        "max_bytes": 1048576,
+        "max_items": 20,
+        "max_seconds": 10,
+        "max_bytes": 524288,
         "max_requests": 2
       },
-      "parser_type": "stub",
-      "topics": ["startups", "ai_agents", "llm", "programming", "system_design"],
+      "parser_type": "hn_rss",
+      "topics": ["ai_agents", "llm", "automation", "devtools"],
       "last_run": null,
       "last_success": null,
       "error_rate": 0.0,

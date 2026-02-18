@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "description": "Work roots for sensory capture layer",
+  "roots": [
+    "/Users/jay/.openclaw/workspace",
+    "/Users/jay/projects",
+    "/Users/jay/Documents/Protheus",
+    "/Users/jay/Documents/Project management"
+  ],
+  "ignore_patterns": [
+    "node_modules",
+    ".git",
+    "dist",
+    "build",
+    ".cache",
+    ".DS_Store",
+    "__pycache__",
+    ".pyc",
+    ".log",
+    "state/daily_logs",
+    "state/sensory"
+  ],
+  "limits": {
+    "max_events_per_run": 50,
+    "max_files_per_root": 25,
+    "lookback_hours_default": 24
+  }
+}

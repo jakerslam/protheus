@@ -87,7 +87,11 @@ function main() {
     "systems/security/guard.js",
     "habits/scripts/external_eyes.js",
     "habits/scripts/eyes_insight.js",
-    "habits/scripts/sensory_queue.js"
+    "habits/scripts/sensory_queue.js",
+    // daily-mode extras (only executed in daily, but declared here for guard)
+    "habits/scripts/git_outcomes.js",
+    "habits/scripts/dopamine_engine.js",
+    "habits/scripts/sensory_digest.js"
   ];
 
   // daily mode adds optional deterministic helpers (still habits)
@@ -120,8 +124,18 @@ function main() {
   run("node", ["habits/scripts/sensory_queue.js", "list", `--date=${dateStr}`]);
 
   if (mode === "daily") {
-    // deterministic: auto-record shipped outcomes from git commit tags
+    // DAILY MODE (orchestration only)
+    // 1) auto-record shipped outcomes from git tags
     run("node", ["habits/scripts/git_outcomes.js", "run", dateStr]);
+
+    // 2) baseline dopamine score snapshot
+    run("node", ["habits/scripts/dopamine_engine.js", "score", dateStr]);
+
+    // 3) end-of-day closeout
+    run("node", ["habits/scripts/dopamine_engine.js", "closeout", dateStr]);
+
+    // 4) sensory digest + anomalies
+    run("node", ["habits/scripts/sensory_digest.js", "run", dateStr]);
   }
 
   appendLedger(dateStr, {

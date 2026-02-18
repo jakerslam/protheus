@@ -17,6 +17,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
+const { collectHnRss } = require('./eyes_collectors/hn_rss');
 
 // Paths
 const WORKSPACE_DIR = path.join(__dirname, '..', '..');
@@ -294,8 +295,26 @@ function appendRawLog(dateStr, event) {
   fs.appendFileSync(logPath, line, 'utf8');
 }
 
+/**
+ * Collector dispatch (deterministic)
+ * - Keep collectors tiny and explicit
+ * - No LLM calls inside collectors
+ */
+async function collectEye(eyeConfig) {
+  const budgets = eyeConfig.budgets || {};
+
+  // Parser selection
+  if (eyeConfig.parser_type === 'hn_rss') {
+    const r = await collectHnRss(eyeConfig, budgets);
+    return r;
+  }
+
+  // Fallback: existing stub
+  return stubCollect(eyeConfig, budgets);
+}
+
 // RUN: Execute eligible eyes based on cadence and status
-function run(opts = {}) {
+async function run(opts = {}) {
   ensureDirs();
   
   const config = loadConfig();
@@ -345,8 +364,8 @@ function run(opts = {}) {
     appendRawLog(today, startEvent);
     
     try {
-      // STUB: In v1.0, collection is stubbed
-      const result = stubCollect(eyeConfig, eyeConfig.budgets);
+      // Deterministic collector dispatch (real collectors + stub fallback)
+      const result = await collectEye(eyeConfig);
       
       if (result.success) {
         // Emit items
@@ -850,7 +869,7 @@ function parseArgs() {
 }
 
 // Main
-function main() {
+async function main() {
   const { cmd, opts, positional } = parseArgs();
   
   if (!cmd || cmd === 'help') {
@@ -873,7 +892,7 @@ function main() {
   
   switch (cmd) {
     case 'run':
-      run(opts);
+      await run(opts);
       break;
     case 'score':
       score(positional[0] || null);
