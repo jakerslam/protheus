@@ -1,80 +1,16 @@
 [
   {
-    "id": "P001",
-    "title": "Stabilize high-churn files: file0.js, file1.js, file2.js, file3.js, file4.js, ...",
-    "type": "refactor",
-    "evidence": [
-      {
-        "source": "anomaly",
-        "path": "state/sensory/anomalies/2026-02-17.json",
-        "match": "high_churn: File 'file0.js' modified across 4 days (high churn detected)"
-      },
-      {
-        "source": "anomaly",
-        "path": "state/sensory/anomalies/2026-02-17.json",
-        "match": "high_churn: File 'file1.js' modified across 4 days (high churn detected)"
-      },
-      {
-        "source": "anomaly",
-        "path": "state/sensory/anomalies/2026-02-17.json",
-        "match": "high_churn: File 'file2.js' modified across 4 days (high churn detected)"
-      },
-      {
-        "source": "anomaly",
-        "path": "state/sensory/anomalies/2026-02-17.json",
-        "match": "high_churn: File 'file3.js' modified across 4 days (high churn detected)"
-      },
-      {
-        "source": "anomaly",
-        "path": "state/sensory/anomalies/2026-02-17.json",
-        "match": "high_churn: File 'file4.js' modified across 4 days (high churn detected)"
-      },
-      {
-        "source": "anomaly",
-        "path": "state/sensory/anomalies/2026-02-17.json",
-        "match": "high_churn: File 'file5.js' modified across 4 days (high churn detected)"
-      },
-      {
-        "source": "anomaly",
-        "path": "state/sensory/anomalies/2026-02-17.json",
-        "match": "high_churn: File 'file6.js' modified across 4 days (high churn detected)"
-      },
-      {
-        "source": "anomaly",
-        "path": "state/sensory/anomalies/2026-02-17.json",
-        "match": "high_churn: File 'file7.js' modified across 4 days (high churn detected)"
-      },
-      {
-        "source": "anomaly",
-        "path": "state/sensory/anomalies/2026-02-17.json",
-        "match": "high_churn: File 'file8.js' modified across 4 days (high churn detected)"
-      },
-      {
-        "source": "anomaly",
-        "path": "state/sensory/anomalies/2026-02-17.json",
-        "match": "high_churn: File 'file9.js' modified across 4 days (high churn detected)"
-      }
-    ],
-    "expected_impact": "medium",
-    "risk": "medium",
-    "validation": [
-      "Add regression tests for churn files",
-      "Refactor to reduce surface area",
-      "Document why these files change frequently",
-      "Expect high_churn anomalies to decrease"
-    ],
-    "suggested_next_command": "npm test -- files with highest churn"
-  },
-  {
-    "id": "EYE-776a013ef7faf917",
+    "id": "EYE-8e2312aaef07134e",
     "type": "external_intel",
-    "title": "[Eyes:unknown_eye] [STUB] X/Twitter Trends item 1",
+    "title": "[Eyes:x_trends] [STUB] X/Twitter Trends item 1",
     "evidence": [
       {
         "source": "eyes_raw",
         "path": "state/sensory/eyes/raw/YYYY-MM-DD.jsonl",
         "match": "[STUB] X/Twitter Trends item 1 | https://api.twitter.com/item/0",
-        "evidence_ref": "eye:unknown_eye"
+        "evidence_ref": "eye:x_trends",
+        "evidence_url": "https://api.twitter.com/item/0",
+        "evidence_item_hash": "bde8c777e537d549"
       }
     ],
     "expected_impact": "low",
@@ -86,7 +22,7 @@
     ],
     "suggested_next_command": "open \"https://api.twitter.com/item/0\"",
     "meta": {
-      "source_eye": "unknown_eye",
+      "source_eye": "x_trends",
       "url": "https://api.twitter.com/item/0",
       "topics": [
         "ai_agents",
@@ -98,15 +34,17 @@
     }
   },
   {
-    "id": "EYE-4480e7dcae8826fa",
+    "id": "EYE-7ae742be7c665c47",
     "type": "external_intel",
-    "title": "[Eyes:unknown_eye] [STUB] X/Twitter Trends item 2",
+    "title": "[Eyes:x_trends] [STUB] X/Twitter Trends item 2",
     "evidence": [
       {
         "source": "eyes_raw",
         "path": "state/sensory/eyes/raw/YYYY-MM-DD.jsonl",
         "match": "[STUB] X/Twitter Trends item 2 | https://api.twitter.com/item/1",
-        "evidence_ref": "eye:unknown_eye"
+        "evidence_ref": "eye:x_trends",
+        "evidence_url": "https://api.twitter.com/item/1",
+        "evidence_item_hash": "49463cd4fcaba9df"
       }
     ],
     "expected_impact": "low",
@@ -118,7 +56,7 @@
     ],
     "suggested_next_command": "open \"https://api.twitter.com/item/1\"",
     "meta": {
-      "source_eye": "unknown_eye",
+      "source_eye": "x_trends",
       "url": "https://api.twitter.com/item/1",
       "topics": [
         "ai_agents",
@@ -130,15 +68,17 @@
     }
   },
   {
-    "id": "EYE-9e5ae1e78ead9d43",
+    "id": "EYE-31c2031a0f27833c",
     "type": "external_intel",
-    "title": "[Eyes:unknown_eye] [STUB] X/Twitter Trends item 3",
+    "title": "[Eyes:x_trends] [STUB] X/Twitter Trends item 3",
     "evidence": [
       {
         "source": "eyes_raw",
         "path": "state/sensory/eyes/raw/YYYY-MM-DD.jsonl",
         "match": "[STUB] X/Twitter Trends item 3 | https://api.twitter.com/item/2",
-        "evidence_ref": "eye:unknown_eye"
+        "evidence_ref": "eye:x_trends",
+        "evidence_url": "https://api.twitter.com/item/2",
+        "evidence_item_hash": "7d7637a9dfae00bd"
       }
     ],
     "expected_impact": "low",
@@ -150,7 +90,7 @@
     ],
     "suggested_next_command": "open \"https://api.twitter.com/item/2\"",
     "meta": {
-      "source_eye": "unknown_eye",
+      "source_eye": "x_trends",
       "url": "https://api.twitter.com/item/2",
       "topics": [
         "ai_agents",
@@ -162,15 +102,17 @@
     }
   },
   {
-    "id": "EYE-0ec67010b50d20a5",
+    "id": "EYE-65dd0c14c2efa337",
     "type": "external_intel",
-    "title": "[Eyes:unknown_eye] [STUB] Moltbook Community Feed item 1",
+    "title": "[Eyes:moltbook_feed] [STUB] Moltbook Community Feed item 1",
     "evidence": [
       {
         "source": "eyes_raw",
         "path": "state/sensory/eyes/raw/YYYY-MM-DD.jsonl",
         "match": "[STUB] Moltbook Community Feed item 1 | https://www.moltbook.com/item/0",
-        "evidence_ref": "eye:unknown_eye"
+        "evidence_ref": "eye:moltbook_feed",
+        "evidence_url": "https://www.moltbook.com/item/0",
+        "evidence_item_hash": "4ae6733a1a01b6ac"
       }
     ],
     "expected_impact": "low",
@@ -182,7 +124,7 @@
     ],
     "suggested_next_command": "open \"https://www.moltbook.com/item/0\"",
     "meta": {
-      "source_eye": "unknown_eye",
+      "source_eye": "moltbook_feed",
       "url": "https://www.moltbook.com/item/0",
       "topics": [
         "agent_innovation",
@@ -194,15 +136,17 @@
     }
   },
   {
-    "id": "EYE-d0a0582d2645a0b5",
+    "id": "EYE-3555923cbd1fe4df",
     "type": "external_intel",
-    "title": "[Eyes:unknown_eye] [STUB] Moltbook Community Feed item 2",
+    "title": "[Eyes:moltbook_feed] [STUB] Moltbook Community Feed item 2",
     "evidence": [
       {
         "source": "eyes_raw",
         "path": "state/sensory/eyes/raw/YYYY-MM-DD.jsonl",
         "match": "[STUB] Moltbook Community Feed item 2 | https://www.moltbook.com/item/1",
-        "evidence_ref": "eye:unknown_eye"
+        "evidence_ref": "eye:moltbook_feed",
+        "evidence_url": "https://www.moltbook.com/item/1",
+        "evidence_item_hash": "e57f53b131eb95be"
       }
     ],
     "expected_impact": "low",
@@ -214,7 +158,7 @@
     ],
     "suggested_next_command": "open \"https://www.moltbook.com/item/1\"",
     "meta": {
-      "source_eye": "unknown_eye",
+      "source_eye": "moltbook_feed",
       "url": "https://www.moltbook.com/item/1",
       "topics": [
         "agent_innovation",

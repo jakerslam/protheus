@@ -1,0 +1,21 @@
+{
+  "date": "2026-02-15",
+  "generated": "2026-02-17T06:25:49.734Z",
+  "anomalies": [
+    {
+      "type": "file_change_spike",
+      "severity": "high",
+      "message": "File change volume (250) exceeds threshold (avg: 13.3, cap: 2x) at 2026-02-15",
+      "timestamp": "2026-02-15T10:00:00.000Z"
+    }
+  ],
+  "metrics": {
+    "file_changes": 280,
+    "git_dirty_events": 4,
+    "git_dirty_changed_count_max": 61,
+    "git_dirty_changed_count_avg": 55,
+    "git_dirty_changed_count_last": 50,
+    "aqs": 50,
+    "signal_ratio": 0.91
+  }
+}

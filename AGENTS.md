@@ -12,8 +12,12 @@ Before doing anything else:
 
 1. Read `SOUL.md` — this is who you are
 2. Read `USER.md` — this is who you're helping
-3. Read `memory/YYYY-MM-DD.md` (today + yesterday) for recent context
-4. **If in MAIN SESSION** (direct chat with your human): Also read `MEMORY.md`
+3. **Read `MEMORY.md`** — traversal protocol (new node-based system)
+4. **Read `MEMORY_INDEX.md`** — find relevant node_ids if needed
+5. **Read only specific node sections** from `memory/YYYY-MM-DD.md`
+6. **If in MAIN SESSION** (direct chat with your human): Also load any specific nodes referenced
+
+**NEVER read full daily files unless explicitly told — always use index first.**
 
 Don't ask permission. Just do it.
 
@@ -21,10 +25,23 @@ Don't ask permission. Just do it.
 
 You wake up fresh each session. These files are your continuity:
 
-- **Daily notes:** `memory/YYYY-MM-DD.md` (create `memory/` if needed) — raw logs of what happened
-- **Long-term:** `MEMORY.md` — your curated memories, like a human's long-term memory
+- **Root navigator:** `MEMORY.md` — traversal protocol, not full content
+- **Index:** `MEMORY_INDEX.md` — tabular node lookup by tag/keyword
+- **Tag index:** `TAGS_INDEX.md` — inverted tag → node_id mapping
+- **Daily nodes:** `memory/YYYY-MM-DD.md` — specific node sections only
 
-Capture what matters. Decisions, context, things to remember. Skip the secrets unless asked to keep them.
+### How It Works
+
+1. **Search TAGS_INDEX.md** for tag → get node_ids (<50 tokens)
+2. **Query MEMORY_INDEX.md** for file location, summary
+3. **Read only the node** from daily file
+4. **Follow edges_to** only if task requires
+
+### New Constraint
+
+**Never read entire daily files.** Nodes are isolated sections with clear boundaries. Each session, load only what you need via the indices.
+
+Capture what matters: decisions, context, things to remember. Skip secrets unless asked.
 
 ### 🧠 MEMORY.md - Your Long-Term Memory
 
@@ -207,6 +224,56 @@ Think of it like a human reviewing their journal and updating their mental model
 
 The goal: Be helpful without being annoying. Check in a few times a day, do useful background work, but respect quiet time.
 
+>>>>>>> YOURS
+
 ## Make It Yours
 
 This is a starting point. Add your own conventions, style, and rules as you figure out what works.
+
+## Memory Traversal Protocol (New System)
+
+### Boot Sequence (Every Session)
+
+1. **SOUL.md** — who I am
+2. **USER.md** — who you're helping  
+3. **MEMORY.md** — root navigator (read protocol, not full content)
+4. **MEMORY_INDEX.md** — find node_id by tag/keyword
+5. **TAGS_INDEX.md** — optional tag-based inverted lookup
+6. **memory/YYYY-MM-DD.md** — read ONLY the specific node section
+
+### Rules To Follow Forever
+
+1. **Never read more than one daily file** unless explicitly told
+2. **Always start with MEMORY_INDEX.md or TAGS_INDEX.md** for lookups
+3. **Follow edges_to** only if task explicitly requires related context
+4. **Show node_id and file reference** before answering past decisions
+5. **Regenerate indices** every Sunday 6pm or after 5+ new nodes
+
+### Search Order
+
+```
+Need context? → TAGS_INDEX.md (find tag → node_ids)
+           → MEMORY_INDEX.md (get metadata, file location)
+           → [YYYY-MM-DD].md (read specific node only)
+```
+
+### Index Regeneration Schedule
+
+- **MEMORY_INDEX.md**: Every Sunday 6pm or after 5+ new nodes
+- **TAGS_INDEX.md**: Derived from MEMORY_INDEX.md, same schedule
+
+### Node File Format
+
+Daily files have YAML frontmatter with node_id, tags, edges:
+
+```yaml
+---
+date: 2026-02-13
+node_id: moltstack-v1
+tags: [project, income, cron]
+edges_to: [x-engagement, multi-agent-pivot]
+---
+```
+
+**Critical**: When reading memory, grep/load ONLY the node matching your query, skip unrelated sections.
+<<<<<<< YOURS

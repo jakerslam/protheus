@@ -1,0 +1,22 @@
+{
+  "allowlist_roots": [
+    "/Users/jay/.openclaw/workspace/habits/routines"
+  ],
+  "trusted_files": {
+    "/Users/jay/.openclaw/workspace/habits/routines/rebuild_validate_memory.js": {
+      "sha256": "dd5e08bad7bcebae991e021abb9b7186b3393c6e165584fcbedae11b905d25c1",
+      "approved_by": "jay",
+      "approved_at": "2026-02-14",
+      "note": "Core validation habit - runs rebuild and logs violations as SNIP"
+    },
+    "/Users/jay/.openclaw/workspace/habits/routines/safe_cron_swap.js": {
+      "sha256": "a82a19961c36846ed1ec36189e9ad35b1d160723fb575728fd6bf6b77afbb333",
+      "approved_by": "jay",
+      "approved_at": "2026-02-14",
+      "note": "Safe cron swap - atomic job replacement with verification gates (CANDIDATE until proven)"
+    }
+  },
+  "break_glass": {
+    "enabled": false
+  }
+}

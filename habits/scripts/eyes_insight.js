@@ -115,29 +115,38 @@ function scoreItem(item) {
 }
 
 function buildProposalFromItem(item) {
-  const source = normalizeText(item.eye_id) || 'unknown_eye';
+  // Prefer explicit eye_id from external_eyes raw events (stable attribution key)
+  const eyeId = normalizeText(item.eye_id) || normalizeText(item.source) || 'unknown_eye';
   const url = normalizeText(item.url);
   const title = normalizeText(item.title) || 'External item';
   const topics = Array.isArray(item.topics) ? item.topics : [];
   const preview = normalizeText(item.content_preview);
-  // Stable ID: use eye_id + item_hash (external_eyes already computes this)
-  // Titles can change; item_hash is already a sha256(url) or content hash
-  const h = sha16(`${source}:${item.item_hash || url}`);
 
-  // Proposal ID is deterministic per item hash (stable across runs)
+  // Stable key:
+  // - If item_hash exists, use it (best)
+  // - Else fall back to URL (acceptable)
+  // IMPORTANT: do NOT include title/preview in the hash; those can change and cause ID churn.
+  const itemHash = normalizeText(item.item_hash);
+  const stableKey = itemHash || url || '';
+  const h = sha16(`${eyeId}:${stableKey}`);
+
+  // Proposal ID is deterministic and stable across runs & minor content changes
   const id = `EYE-${h}`;
 
   return {
     id,
     type: 'external_intel',
-    title: `[Eyes:${source}] ${title}`.slice(0, 120),
+    title: `[Eyes:${eyeId}] ${title}`.slice(0, 120),
     evidence: [
       {
         source: 'eyes_raw',
         path: `state/sensory/eyes/raw/${item.collected_at ? String(item.collected_at).slice(0, 10) : 'YYYY-MM-DD'}.jsonl`,
         match: `${title} | ${url}`.slice(0, 200),
-        // Include URL when available so outcome attribution has richer evidence
-        evidence_ref: url ? `eye:${source} url:${url}` : `eye:${source}`
+        // Keep attribution strictly machine-parseable (first token only)
+        evidence_ref: `eye:${eyeId}`,
+        // Store the rest as explicit fields so formatting changes never break attribution.
+        evidence_url: url || null,
+        evidence_item_hash: itemHash || null
       }
     ],
     expected_impact: scoreItem(item) >= 60 ? 'medium' : 'low',
@@ -149,7 +158,7 @@ function buildProposalFromItem(item) {
     ],
     suggested_next_command: `open "${url}"`,
     meta: {
-      source_eye: source,
+      source_eye: eyeId,
       url,
       topics,
       score: scoreItem(item),
