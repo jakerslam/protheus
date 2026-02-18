@@ -77,6 +77,8 @@ const AUTONOMY_CALIBRATION_ENABLED = String(process.env.AUTONOMY_CALIBRATION_ENA
 const AUTONOMY_CALIBRATION_WINDOW_DAYS = Number(process.env.AUTONOMY_CALIBRATION_WINDOW_DAYS || 7);
 const AUTONOMY_CALIBRATION_MIN_EXECUTED = Number(process.env.AUTONOMY_CALIBRATION_MIN_EXECUTED || 4);
 const AUTONOMY_CALIBRATION_MAX_DELTA = Number(process.env.AUTONOMY_CALIBRATION_MAX_DELTA || 10);
+const AUTONOMY_SCORECARD_WINDOW_DAYS = Number(process.env.AUTONOMY_SCORECARD_WINDOW_DAYS || 7);
+const AUTONOMY_SCORECARD_MIN_ATTEMPTS = Number(process.env.AUTONOMY_SCORECARD_MIN_ATTEMPTS || 3);
 const AUTONOMY_DISALLOWED_PARSER_TYPES = new Set(
   String(process.env.AUTONOMY_DISALLOWED_PARSER_TYPES || 'stub')
     .split(',')
@@ -406,6 +408,105 @@ function consecutiveNoProgressRuns(events) {
 
 function shippedCount(events) {
   return events.filter(e => e && e.type === 'autonomy_run' && e.result === 'executed' && e.outcome === 'shipped').length;
+}
+
+function tallyByResult(events) {
+  const out = {};
+  for (const e of events) {
+    if (!e || e.type !== 'autonomy_run') continue;
+    const k = String(e.result || 'unknown');
+    out[k] = Number(out[k] || 0) + 1;
+  }
+  return out;
+}
+
+function sortedCounts(mapObj) {
+  const items = Object.entries(mapObj || {}).map(([result, count]) => ({ result, count: Number(count || 0) }));
+  items.sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return a.result.localeCompare(b.result);
+  });
+  return items;
+}
+
+function scorecardCmd(dateStr) {
+  const requestedDays = Number(parseArg('days'));
+  const days = clampNumber(
+    Number.isFinite(requestedDays) && requestedDays > 0 ? requestedDays : AUTONOMY_SCORECARD_WINDOW_DAYS,
+    1,
+    30
+  );
+  const dates = dateWindow(dateStr, days);
+  const events = [];
+  for (const d of dates) {
+    events.push(...readRuns(d));
+  }
+
+  const attempts = events.filter(isAttemptRunEvent);
+  const executed = events.filter(e => e && e.type === 'autonomy_run' && e.result === 'executed');
+  const shipped = executed.filter(e => String(e.outcome || '') === 'shipped');
+  const reverted = executed.filter(e => String(e.outcome || '') === 'reverted');
+  const noChange = executed.filter(e => String(e.outcome || '') === 'no_change');
+  const noProgress = attempts.filter(isNoProgressRun);
+  const stopCounts = sortedCounts(
+    tallyByResult(events.filter(e => e && e.type === 'autonomy_run' && String(e.result || '').startsWith('stop_')))
+  );
+  const initGateCounts = sortedCounts(
+    tallyByResult(events.filter(e => e && e.type === 'autonomy_run' && (
+      String(e.result || '').startsWith('init_gate_') || String(e.result || '').startsWith('stop_init_gate_')
+    )))
+  );
+  const repeatGateCounts = sortedCounts(
+    tallyByResult(events.filter(e => e && e.type === 'autonomy_run' && String(e.result || '').startsWith('stop_repeat_gate_')))
+  );
+
+  const attemptsN = attempts.length;
+  const executedN = executed.length;
+  const shippedN = shipped.length;
+  const revertedN = reverted.length;
+  const noChangeN = noChange.length;
+  const noProgressN = noProgress.length;
+
+  const attemptToShipRate = attemptsN > 0 ? shippedN / attemptsN : 0;
+  const execToShipRate = executedN > 0 ? shippedN / executedN : 0;
+  const revertedRate = executedN > 0 ? revertedN / executedN : 0;
+  const noChangeRate = executedN > 0 ? noChangeN / executedN : 0;
+  const noProgressRate = attemptsN > 0 ? noProgressN / attemptsN : 0;
+
+  let recommendation = 'insufficient_data';
+  if (attemptsN >= AUTONOMY_SCORECARD_MIN_ATTEMPTS) {
+    if (attemptToShipRate >= 0.35 && execToShipRate >= 0.45) recommendation = 'scale_attempts_carefully';
+    else if (noProgressRate >= 0.7) recommendation = 'raise_signal_actionability_quality';
+    else if (revertedRate >= 0.2) recommendation = 'tighten_preflight_and_safety';
+    else recommendation = 'focus_on_gate_bottleneck_reduction';
+  }
+
+  const out = {
+    ts: nowIso(),
+    date: dateStr,
+    window_days: days,
+    window_start: dates.length ? dates[dates.length - 1] : dateStr,
+    window_end: dates.length ? dates[0] : dateStr,
+    sample_size: {
+      attempts: attemptsN,
+      executed: executedN,
+      shipped: shippedN
+    },
+    kpis: {
+      attempt_to_ship_rate: Number(attemptToShipRate.toFixed(3)),
+      executed_to_ship_rate: Number(execToShipRate.toFixed(3)),
+      reverted_rate: Number(revertedRate.toFixed(3)),
+      no_change_rate: Number(noChangeRate.toFixed(3)),
+      no_progress_attempt_rate: Number(noProgressRate.toFixed(3))
+    },
+    top_stops: stopCounts.slice(0, 10),
+    top_init_gates: initGateCounts.slice(0, 10),
+    top_repeat_gates: repeatGateCounts.slice(0, 10),
+    dominant_bottleneck: stopCounts.length ? stopCounts[0] : null,
+    recommendation
+  };
+
+  process.stdout.write(JSON.stringify(out, null, 2) + '\n');
 }
 
 function loadDopamineSnapshot(dateStr) {
@@ -2437,6 +2538,7 @@ function usage() {
   console.log('Usage:');
   console.log('  node systems/autonomy/autonomy_controller.js run [YYYY-MM-DD]');
   console.log('  node systems/autonomy/autonomy_controller.js status [YYYY-MM-DD]');
+  console.log('  node systems/autonomy/autonomy_controller.js scorecard [YYYY-MM-DD] [--days=N]');
   console.log('  node systems/autonomy/autonomy_controller.js reset [YYYY-MM-DD] [--scope=gates|budget|all] [--note=...]');
 }
 
@@ -2452,6 +2554,7 @@ function main() {
 
   if (cmd === 'status') return statusCmd(dateStr);
   if (cmd === 'run') return runCmd(dateStr);
+  if (cmd === 'scorecard') return scorecardCmd(dateStr);
   if (cmd === 'reset') return resetCmd(dateStr);
 
   usage();
