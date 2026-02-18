@@ -91,13 +91,10 @@ function main() {
     // daily-mode extras (only executed in daily, but declared here for guard)
     "habits/scripts/git_outcomes.js",
     "habits/scripts/dopamine_engine.js",
-    "habits/scripts/sensory_digest.js"
+    "habits/scripts/sensory_digest.js",
+    "habits/scripts/queue_gc.js",
+    "habits/scripts/proposal_queue.js"
   ];
-
-  // daily mode adds optional deterministic helpers (still habits)
-  if (mode === "daily") {
-    invoked.push("habits/scripts/git_outcomes.js");
-  }
 
   // Clearance gate
   guard(invoked);
@@ -121,6 +118,14 @@ function main() {
 
   run("node", ["habits/scripts/eyes_insight.js", "run", dateStr]);
   run("node", ["habits/scripts/sensory_queue.js", "ingest", dateStr]);
+
+  if (mode === "daily") {
+    // Backpressure + auto-triage (deterministic). Keeps queue from growing without bound.
+    // Defaults: cap_per_eye=10, ttl_hours=48 (low-impact only)
+    run("node", ["habits/scripts/queue_gc.js", "run", dateStr]);
+  }
+
+  // Always list after ingest (+ optional GC) so you see final queue state.
   run("node", ["habits/scripts/sensory_queue.js", "list", `--date=${dateStr}`]);
 
   if (mode === "daily") {
