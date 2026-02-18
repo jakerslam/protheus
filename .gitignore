@@ -7,3 +7,21 @@ node_modules/
 *.tmp
 *.swp
 *~
+
+# Runtime/ops outputs (high churn, non-source artifacts)
+logs/tool_raw/
+tmp/
+memory/_snapshots/
+memory/*.backup.*
+habits/scripts/*.bak.*
+
+# Generated state streams/snapshots
+state/daily_logs/*.json
+state/dopamine_state.json
+state/git/outcomes/*.jsonl
+state/git/outcomes_cursor.json
+state/sensory/raw/*.jsonl
+state/sensory/eyes/raw/*.jsonl
+state/sensory/eyes/evolution.jsonl
+state/sensory/anomalies/*.json
+state/sensory/digests/*.md

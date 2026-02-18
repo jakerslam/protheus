@@ -566,7 +566,7 @@ function parseArgs() {
 function main() {
   const { cmd, opts } = parseArgs();
   
-  if (!cmd || cmd === 'help') {
+  if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
     console.log('sensory_queue.js - Proposal queue management');
     console.log('');
     console.log('Commands:');

@@ -142,7 +142,13 @@ function main() {
   const capPerEye = asInt(arg("cap-per-eye"), 10);
   const ttlHours = asInt(arg("ttl-hours"), 48);
 
-  if (!mode || mode !== "run") {
+  if (!mode || mode === "--help" || mode === "-h") {
+    console.log("Usage:");
+    console.log("  node habits/scripts/queue_gc.js run [YYYY-MM-DD] [--cap-per-eye=N] [--ttl-hours=N]");
+    process.exit(0);
+  }
+
+  if (mode !== "run") {
     console.error("Usage:");
     console.error("  node habits/scripts/queue_gc.js run [YYYY-MM-DD] [--cap-per-eye=N] [--ttl-hours=N]");
     process.exit(2);
