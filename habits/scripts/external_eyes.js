@@ -17,6 +17,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
+const https = require('https');
 const { collectHnRss } = require('./eyes_collectors/hn_rss');
 
 // Paths
@@ -295,6 +296,108 @@ function appendRawLog(dateStr, event) {
   fs.appendFileSync(logPath, line, 'utf8');
 }
 
+function httpGet(url, timeoutMs = 8000) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, { headers: { 'User-Agent': 'openclaw-external-eyes/1.0' } }, (res) => {
+      const chunks = [];
+      res.on('data', (d) => chunks.push(d));
+      res.on('end', () => {
+        const buf = Buffer.concat(chunks);
+        resolve({
+          status: res.statusCode || 0,
+          headers: res.headers || {},
+          body: buf
+        });
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error(`timeout after ${timeoutMs}ms`));
+    });
+  });
+}
+
+function inferTopicsFromTitle(title) {
+  const t = String(title || '').toLowerCase();
+  const topics = new Set();
+
+  // AI
+  if (/\b(ai|ml|llm|agent|agents|gpt|diffusion|transformer)\b/.test(t)) topics.add('ai');
+  // Security
+  if (/\b(vuln|cve|exploit|security|auth|oauth|credential|attack)\b/.test(t)) topics.add('security');
+  // Infra
+  if (/\b(infra|kubernetes|k8s|docker|postgres|mysql|redis|latency|scale|distributed)\b/.test(t)) topics.add('infra');
+  // Dev tools
+  if (/\b(cli|sdk|framework|library|compiler|runtime|typescript|rust|go|python|node)\b/.test(t)) topics.add('dev_tools');
+  // Startups / product
+  if (/\b(startup|launch|raising|funding|acquired|acquisition|product)\b/.test(t)) topics.add('startups');
+
+  // Deterministic fallback
+  if (topics.size === 0) topics.add('hn');
+  return Array.from(topics).slice(0, 5);
+}
+
+async function collectHnFrontpage(eyeConfig, budgets) {
+  const started = Date.now();
+  const url = 'https://news.ycombinator.com/';
+  const maxItems = Math.max(1, Math.min(budgets.max_items || 20, 50));
+  const timeoutMs = Math.max(1000, Math.min((budgets.max_seconds || 10) * 1000, 20000));
+
+  // Respect request budget (HN frontpage is 1 request)
+  const maxRequests = budgets.max_requests ?? 1;
+  if (maxRequests < 1) {
+    return { success: true, items: [], duration_ms: 0, requests: 0, bytes: 0 };
+  }
+
+  // Only fetch allowlisted domain
+  if (!isDomainAllowed(eyeConfig, url)) {
+    throw new Error(`domain not allowlisted for ${eyeConfig.id}: ${url}`);
+  }
+
+  const resp = await httpGet(url, timeoutMs);
+  if (resp.status < 200 || resp.status >= 300) {
+    throw new Error(`HN fetch failed: status=${resp.status}`);
+  }
+
+  const html = resp.body.toString('utf8');
+  const bytes = resp.body.byteLength || Buffer.byteLength(html, 'utf8');
+
+  // Hard cap bytes to budget (we still fetched; but we can refuse to emit items if over budget)
+  const maxBytes = budgets.max_bytes ?? 524288;
+  if (bytes > maxBytes) {
+    throw new Error(`HN response too large: bytes=${bytes} > max_bytes=${maxBytes}`);
+  }
+
+  // HN markup commonly includes: <span class="titleline"><a href="...">Title</a></span>
+  const re = /<span class="titleline">\s*<a\s+href="([^"]+)"[^>]*>(.*?)<\/a>/g;
+  const items = [];
+  let m;
+  while ((m = re.exec(html)) && items.length < maxItems) {
+    const href = m[1] || '';
+    const rawTitle = m[2] || '';
+    const title = rawTitle.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&#x2F;/g, '/').trim();
+    const absUrl = href.startsWith('http') ? href : new URL(href, url).toString();
+    const itemHash = computeHash(absUrl);
+    items.push({
+      id: itemHash,
+      collected_at: new Date().toISOString(),
+      url: absUrl,
+      title,
+      topics: inferTopicsFromTitle(title),
+      bytes: Buffer.byteLength(title, 'utf8') + Buffer.byteLength(absUrl, 'utf8')
+    });
+  }
+
+  const duration_ms = Date.now() - started;
+  return {
+    success: true,
+    items,
+    duration_ms,
+    requests: 1,
+    bytes
+  };
+}
+
 /**
  * Collector dispatch (deterministic)
  * - Keep collectors tiny and explicit
@@ -306,6 +409,11 @@ async function collectEye(eyeConfig) {
   // Parser selection
   if (eyeConfig.parser_type === 'hn_rss') {
     const r = await collectHnRss(eyeConfig, budgets);
+    return r;
+  }
+
+  if (eyeConfig.parser_type === 'hn_frontpage' || eyeConfig.id === 'hn_frontpage') {
+    const r = await collectHnFrontpage(eyeConfig, budgets);
     return r;
   }
 

@@ -1,37 +1,36 @@
 {
   "version": "1.0",
-  "last_updated": "2026-02-18T00:20:55.882Z",
+  "last_updated": "2026-02-18T05:14:51.241Z",
   "eyes": [
     {
       "id": "hn_frontpage",
       "name": "Hacker News Front Page",
-      "status": "probation",
+      "status": "active",
       "cadence_hours": 6,
       "allowed_domains": [
-        "news.ycombinator.com",
         "news.ycombinator.com"
       ],
       "budgets": {
-        "max_items": 15,
-        "max_seconds": 30,
-        "max_bytes": 1048576,
-        "max_requests": 2
+        "max_items": 20,
+        "max_seconds": 10,
+        "max_bytes": 524288,
+        "max_requests": 1
       },
-      "parser_type": "stub",
+      "parser_type": "hn_frontpage",
       "topics": [
         "startups",
-        "ai_agents",
-        "llm",
-        "programming",
-        "system_design"
+        "dev_tools",
+        "ai",
+        "security",
+        "infra"
       ],
-      "last_run": "2026-02-18T00:20:55.064Z",
-      "last_success": "2026-02-18T00:20:55.064Z",
+      "last_run": "2026-02-18T05:14:51.241Z",
+      "last_success": "2026-02-18T05:14:51.241Z",
       "error_rate": 0,
       "score_ema": 50,
       "notes": "Hacker News front page - monitoring for startup/tech/agent relevance",
-      "run_count": 1,
-      "total_items": 20,
+      "run_count": 2,
+      "total_items": 40,
       "total_errors": 0,
       "outcomes_window_days": 14,
       "outcomes_total": 0,
