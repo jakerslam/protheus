@@ -34,7 +34,8 @@ const {
   strategyRankingWeights,
   strategyAllowsProposalType,
   strategyMaxRiskPerAction,
-  strategyDuplicateWindowHours
+  strategyDuplicateWindowHours,
+  strategyCanaryDailyExecLimit
 } = require('../../lib/strategy_resolver.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
@@ -109,12 +110,21 @@ const AUTONOMY_CALIBRATION_ENABLED = String(process.env.AUTONOMY_CALIBRATION_ENA
 const AUTONOMY_CALIBRATION_WINDOW_DAYS = Number(process.env.AUTONOMY_CALIBRATION_WINDOW_DAYS || 7);
 const AUTONOMY_CALIBRATION_MIN_EXECUTED = Number(process.env.AUTONOMY_CALIBRATION_MIN_EXECUTED || 4);
 const AUTONOMY_CALIBRATION_MAX_DELTA = Number(process.env.AUTONOMY_CALIBRATION_MAX_DELTA || 10);
+const AUTONOMY_CALIBRATION_TIGHTEN_MIN_EXECUTED = Number(process.env.AUTONOMY_CALIBRATION_TIGHTEN_MIN_EXECUTED || 8);
+const AUTONOMY_CALIBRATION_TIGHTEN_MIN_SHIPPED_RATE = Number(process.env.AUTONOMY_CALIBRATION_TIGHTEN_MIN_SHIPPED_RATE || 0.25);
+const AUTONOMY_CALIBRATION_LOOSEN_LOW_SHIPPED_RATE = Number(process.env.AUTONOMY_CALIBRATION_LOOSEN_LOW_SHIPPED_RATE || 0.2);
+const AUTONOMY_CALIBRATION_LOOSEN_EXHAUSTED_THRESHOLD = Number(process.env.AUTONOMY_CALIBRATION_LOOSEN_EXHAUSTED_THRESHOLD || 2);
 const AUTONOMY_SCORECARD_WINDOW_DAYS = Number(process.env.AUTONOMY_SCORECARD_WINDOW_DAYS || 7);
 const AUTONOMY_SCORECARD_MIN_ATTEMPTS = Number(process.env.AUTONOMY_SCORECARD_MIN_ATTEMPTS || 3);
 const AUTONOMY_MODEL_CATALOG_ENABLED = String(process.env.AUTONOMY_MODEL_CATALOG_ENABLED || '1') !== '0';
 const AUTONOMY_MODEL_CATALOG_INTERVAL_DAYS = Number(process.env.AUTONOMY_MODEL_CATALOG_INTERVAL_DAYS || 7);
-const AUTONOMY_MODEL_CATALOG_SOURCE = String(process.env.AUTONOMY_MODEL_CATALOG_SOURCE || 'local');
+const AUTONOMY_MODEL_CATALOG_SOURCE = String(process.env.AUTONOMY_MODEL_CATALOG_SOURCE || 'auto');
+const AUTONOMY_MODEL_CATALOG_AUTO_APPLY = String(process.env.AUTONOMY_MODEL_CATALOG_AUTO_APPLY || '0') === '1';
+const AUTONOMY_MODEL_CATALOG_AUTO_APPROVAL_NOTE = String(process.env.AUTONOMY_MODEL_CATALOG_AUTO_APPROVAL_NOTE || '').trim();
+const AUTONOMY_MODEL_CATALOG_AUTO_BREAK_GLASS = String(process.env.AUTONOMY_MODEL_CATALOG_AUTO_BREAK_GLASS || '0') === '1';
 const AUTONOMY_REQUIRE_READINESS_FOR_EXECUTE = String(process.env.AUTONOMY_REQUIRE_READINESS_FOR_EXECUTE || '1') !== '0';
+const AUTONOMY_CANARY_DAILY_EXEC_LIMIT = Number(process.env.AUTONOMY_CANARY_DAILY_EXEC_LIMIT || 1);
+const AUTONOMY_SCORE_ONLY_EVIDENCE = String(process.env.AUTONOMY_SCORE_ONLY_EVIDENCE || '1') !== '0';
 const AUTONOMY_DISALLOWED_PARSER_TYPES = new Set(
   String(process.env.AUTONOMY_DISALLOWED_PARSER_TYPES || 'stub')
     .split(',')
@@ -151,12 +161,20 @@ function effectiveStrategyExecutionMode() {
   return strategyExecutionMode(strategyProfile(), 'execute');
 }
 
+function effectiveStrategyCanaryExecLimit() {
+  return strategyCanaryDailyExecLimit(strategyProfile(), AUTONOMY_CANARY_DAILY_EXEC_LIMIT);
+}
+
 function effectiveStrategyExploration() {
   return strategyExplorationPolicy(strategyProfile(), {
     fraction: AUTONOMY_EXPLORE_FRACTION,
     every_n: AUTONOMY_EXPLORE_EVERY_N,
     min_eligible: AUTONOMY_EXPLORE_MIN_ELIGIBLE
   });
+}
+
+function isExecuteMode(mode) {
+  return mode === 'execute' || mode === 'canary_execute';
 }
 
 function ensureDir(dir) {
@@ -1099,6 +1117,65 @@ function collectOutcomeStats(endDateStr, days) {
   };
 }
 
+function computeCalibrationDeltas(input = {}) {
+  const zero = {
+    min_signal_quality: 0,
+    min_sensory_signal_score: 0,
+    min_sensory_relevance_score: 0,
+    min_directive_fit: 0,
+    min_actionability_score: 0,
+    min_eye_score_ema: 0
+  };
+
+  const executedCount = Number(input.executedCount || 0);
+  const shippedRate = Number(input.shippedRate || 0);
+  const noChangeRate = Number(input.noChangeRate || 0);
+  const revertedRate = Number(input.revertedRate || 0);
+  const exhausted = Number(input.exhausted || 0);
+  const deltas = { ...zero };
+
+  const tightenEligible = executedCount >= Math.max(AUTONOMY_CALIBRATION_MIN_EXECUTED, AUTONOMY_CALIBRATION_TIGHTEN_MIN_EXECUTED);
+  const loosenEligible = executedCount >= AUTONOMY_CALIBRATION_MIN_EXECUTED;
+  const lowShipHighExhaustion = (
+    loosenEligible
+    && shippedRate < AUTONOMY_CALIBRATION_LOOSEN_LOW_SHIPPED_RATE
+    && exhausted >= AUTONOMY_CALIBRATION_LOOSEN_EXHAUSTED_THRESHOLD
+  );
+
+  if (lowShipHighExhaustion) {
+    // If we are not shipping and repeatedly exhausting gates, loosen intake thresholds.
+    deltas.min_signal_quality -= 3;
+    deltas.min_directive_fit -= 3;
+    deltas.min_actionability_score -= 2;
+    deltas.min_sensory_relevance_score -= 1;
+  } else if (tightenEligible) {
+    // Tightening requires both enough volume and a non-trivial shipped baseline.
+    if (noChangeRate >= 0.6 && shippedRate >= AUTONOMY_CALIBRATION_TIGHTEN_MIN_SHIPPED_RATE) {
+      deltas.min_signal_quality += 3;
+      deltas.min_directive_fit += 3;
+      deltas.min_actionability_score += 2;
+      deltas.min_sensory_relevance_score += 2;
+    }
+    if (revertedRate >= 0.15) {
+      deltas.min_signal_quality += 2;
+      deltas.min_actionability_score += 2;
+    }
+    if (shippedRate >= 0.45 && exhausted >= 2) {
+      deltas.min_signal_quality -= 2;
+      deltas.min_directive_fit -= 2;
+      deltas.min_actionability_score -= 1;
+    }
+  } else if (exhausted >= 3) {
+    deltas.min_signal_quality -= 1;
+    deltas.min_directive_fit -= 1;
+  }
+
+  for (const k of Object.keys(deltas)) {
+    deltas[k] = clampNumber(deltas[k], -AUTONOMY_CALIBRATION_MAX_DELTA, AUTONOMY_CALIBRATION_MAX_DELTA);
+  }
+  return deltas;
+}
+
 function computeCalibrationProfile(dateStr, persist = true) {
   const base = baseThresholds();
   const zeroDeltas = {
@@ -1143,31 +1220,13 @@ function computeCalibrationProfile(dateStr, persist = true) {
   const noChangeRate = executedCount > 0 ? noChange / executedCount : 0;
   const revertedRate = executedCount > 0 ? reverted / executedCount : 0;
 
-  const deltas = { ...zeroDeltas };
-  if (executedCount >= AUTONOMY_CALIBRATION_MIN_EXECUTED) {
-    if (noChangeRate >= 0.6) {
-      deltas.min_signal_quality += 3;
-      deltas.min_directive_fit += 3;
-      deltas.min_actionability_score += 2;
-      deltas.min_sensory_relevance_score += 2;
-    }
-    if (revertedRate >= 0.15) {
-      deltas.min_signal_quality += 2;
-      deltas.min_actionability_score += 2;
-    }
-    if (shippedRate >= 0.45 && exhausted >= 2) {
-      deltas.min_signal_quality -= 2;
-      deltas.min_directive_fit -= 2;
-      deltas.min_actionability_score -= 1;
-    }
-  } else if (exhausted >= 3) {
-    deltas.min_signal_quality -= 1;
-    deltas.min_directive_fit -= 1;
-  }
-
-  for (const k of Object.keys(deltas)) {
-    deltas[k] = clampNumber(deltas[k], -AUTONOMY_CALIBRATION_MAX_DELTA, AUTONOMY_CALIBRATION_MAX_DELTA);
-  }
+  const deltas = computeCalibrationDeltas({
+    executedCount,
+    shippedRate,
+    noChangeRate,
+    revertedRate,
+    exhausted
+  });
 
   const outcomeStats = collectOutcomeStats(dateStr, windowDays);
   const profile = {
@@ -1346,11 +1405,18 @@ function proposalDirectiveText(p) {
   const parts = [];
   parts.push(String((p && p.title) || ''));
   parts.push(String((p && p.type) || ''));
+  parts.push(String((p && p.summary) || ''));
+  parts.push(String((p && p.notes) || ''));
   parts.push(String((p && p.expected_impact) || ''));
   parts.push(String((p && p.risk) || ''));
   const meta = (p && p.meta) || {};
   parts.push(String(meta.preview || ''));
   parts.push(String(meta.url || ''));
+  parts.push(String(meta.normalized_objective || ''));
+  parts.push(String(meta.normalized_expected_outcome || ''));
+  parts.push(String(meta.normalized_validation_metric || ''));
+  if (Array.isArray(meta.normalized_hint_tokens)) parts.push(meta.normalized_hint_tokens.join(' '));
+  if (Array.isArray(meta.normalized_archetypes)) parts.push(meta.normalized_archetypes.join(' '));
   if (Array.isArray(meta.topics)) parts.push(meta.topics.join(' '));
   if (Array.isArray(p && p.validation)) parts.push(p.validation.join(' '));
   if (Array.isArray(p && p.evidence)) {
@@ -2317,6 +2383,31 @@ function maybeRunModelCatalogLoop(dateStr) {
       required_clearance: 3,
       required_command: `node systems/autonomy/model_catalog_loop.js apply --id=${proposalId} --approval-note="<reason>"`
     });
+
+    if (AUTONOMY_MODEL_CATALOG_AUTO_APPLY) {
+      if (!AUTONOMY_MODEL_CATALOG_AUTO_APPROVAL_NOTE) {
+        writeRun(dateStr, {
+          ts: nowIso(),
+          type: 'autonomy_model_catalog_run',
+          step: 'apply',
+          result: 'skipped_missing_approval_note',
+          proposal_id: proposalId
+        });
+      } else {
+        const applyArgs = [`--id=${proposalId}`, `--approval-note=${AUTONOMY_MODEL_CATALOG_AUTO_APPROVAL_NOTE}`];
+        if (AUTONOMY_MODEL_CATALOG_AUTO_BREAK_GLASS) applyArgs.push('--break-glass=1');
+        const apply = runModelCatalogLoop('apply', applyArgs);
+        writeRun(dateStr, {
+          ts: nowIso(),
+          type: 'autonomy_model_catalog_run',
+          step: 'apply',
+          result: apply.ok ? 'ok' : 'failed',
+          proposal_id: proposalId,
+          code: apply.code,
+          error: apply.ok ? null : shortText(apply.stderr || apply.stdout || 'apply_failed', 180)
+        });
+      }
+    }
   }
 }
 
@@ -2410,6 +2501,9 @@ function statusCmd(dateStr) {
   const strategyBudget = effectiveStrategyBudget();
   const strategyExplore = effectiveStrategyExploration();
   const executionMode = effectiveStrategyExecutionMode();
+  const canaryDailyExecLimit = executionMode === 'canary_execute'
+    ? effectiveStrategyCanaryExecLimit()
+    : null;
   const allowedRisks = effectiveAllowedRisksSet();
   const calibrationProfile = computeCalibrationProfile(dateStr, false);
   const thresholds = calibrationProfile.effective_thresholds || baseThresholds();
@@ -2443,6 +2537,7 @@ function statusCmd(dateStr) {
       gate_exhaustion_limit: AUTONOMY_REPEAT_EXHAUSTED_LIMIT,
       gate_exhaustion_cooldown_minutes: AUTONOMY_REPEAT_EXHAUSTED_COOLDOWN_MINUTES,
       shipped_today: shippedToday,
+      executed_today: executedRuns.length,
       attempts_today: attemptsToday,
       max_runs_per_day: maxRunsPerDay,
       min_minutes_between_runs: AUTONOMY_MIN_MINUTES_BETWEEN_RUNS,
@@ -2489,6 +2584,7 @@ function statusCmd(dateStr) {
           status: strategy.status,
           file: path.relative(REPO_ROOT, strategy.file).replace(/\\/g, '/'),
           execution_mode: executionMode,
+          canary_daily_exec_limit: strategyCanaryDailyExecLimit(strategy, AUTONOMY_CANARY_DAILY_EXEC_LIMIT),
           allowed_risks: Array.isArray(strategy.risk_policy && strategy.risk_policy.allowed_risks)
             ? strategy.risk_policy.allowed_risks
             : [],
@@ -2499,6 +2595,7 @@ function statusCmd(dateStr) {
     strategy: {
       execution_mode: executionMode,
       require_readiness_for_execute: AUTONOMY_REQUIRE_READINESS_FOR_EXECUTE,
+      canary_daily_exec_limit: canaryDailyExecLimit,
       daily_runs_cap: maxRunsPerDay,
       daily_token_cap: budget.token_cap,
       max_tokens_per_action: Number.isFinite(Number(strategyBudget.max_tokens_per_action))
@@ -2561,8 +2658,9 @@ function statusCmd(dateStr) {
   process.stdout.write(JSON.stringify(out, null, 2) + '\n');
 }
 
-function runCmd(dateStr) {
-  if (String(process.env.AUTONOMY_ENABLED || '') !== '1') {
+function runCmd(dateStr, opts = {}) {
+  const shadowOnly = opts && opts.shadowOnly === true;
+  if (!shadowOnly && String(process.env.AUTONOMY_ENABLED || '') !== '1') {
     process.stdout.write(JSON.stringify({
       ok: true,
       skipped: true,
@@ -2593,7 +2691,7 @@ function runCmd(dateStr) {
 
   const strategy = strategyProfile();
   const strategyBudget = effectiveStrategyBudget();
-  const executionMode = effectiveStrategyExecutionMode();
+  const executionMode = shadowOnly ? 'score_only' : effectiveStrategyExecutionMode();
   if (
     String(process.env.AUTONOMY_STRATEGY_STRICT || '') === '1'
     && strategy
@@ -2620,7 +2718,7 @@ function runCmd(dateStr) {
   if (
     AUTONOMY_REQUIRE_READINESS_FOR_EXECUTE
     && strategy
-    && executionMode === 'execute'
+    && isExecuteMode(executionMode)
   ) {
     const minDays = strategy
       && strategy.promotion_policy
@@ -2653,7 +2751,9 @@ function runCmd(dateStr) {
     }
   }
 
-  maybeRunModelCatalogLoop(dateStr);
+  if (!shadowOnly) {
+    maybeRunModelCatalogLoop(dateStr);
+  }
   const modelCatalogSnapshot = modelCatalogStatusSnapshot();
   process.stderr.write(`AUTONOMY_SUMMARY model_catalog_apply_pending=${Number(modelCatalogSnapshot.pending_apply || 0)}\n`);
 
@@ -2741,6 +2841,7 @@ function runCmd(dateStr) {
   const priorRuns = runsSinceReset(readRuns(dateStr));
   const priorAttempts = attemptEvents(priorRuns);
   const attemptsToday = priorAttempts.length;
+  const executedToday = priorRuns.filter(e => e && e.type === 'autonomy_run' && e.result === 'executed').length;
   const lastAttempt = priorAttempts.length ? priorAttempts[priorAttempts.length - 1] : null;
   const lastAttemptMinutesAgo = lastAttempt ? minutesSinceTs(lastAttempt.ts) : null;
   const noProgressStreak = consecutiveNoProgressRuns(priorRuns);
@@ -2749,6 +2850,9 @@ function runCmd(dateStr) {
   const maxRunsPerDay = Number.isFinite(Number(strategyBudget.daily_runs_cap))
     ? Number(strategyBudget.daily_runs_cap)
     : AUTONOMY_MAX_RUNS_PER_DAY;
+  const canaryDailyExecLimit = executionMode === 'canary_execute'
+    ? effectiveStrategyCanaryExecLimit()
+    : null;
   const dopamine = loadDopamineSnapshot(dateStr);
   const decisionEvents = allDecisionEvents();
   const eyesMap = loadEyesMap();
@@ -2756,7 +2860,7 @@ function runCmd(dateStr) {
   const calibrationProfile = computeCalibrationProfile(dateStr, true);
   const thresholds = calibrationProfile.effective_thresholds || baseThresholds();
 
-  if (maxRunsPerDay > 0 && attemptsToday >= maxRunsPerDay) {
+  if (!shadowOnly && maxRunsPerDay > 0 && attemptsToday >= maxRunsPerDay) {
     writeRun(dateStr, {
       ts: nowIso(),
       type: 'autonomy_run',
@@ -2775,6 +2879,34 @@ function runCmd(dateStr) {
   }
 
   if (
+    !shadowOnly
+    && executionMode === 'canary_execute'
+    && Number.isFinite(Number(canaryDailyExecLimit))
+    && Number(canaryDailyExecLimit) > 0
+    && executedToday >= Number(canaryDailyExecLimit)
+  ) {
+    writeRun(dateStr, {
+      ts: nowIso(),
+      type: 'autonomy_run',
+      result: 'stop_repeat_gate_canary_cap',
+      execution_mode: executionMode,
+      executed_today: executedToday,
+      canary_daily_exec_limit: Number(canaryDailyExecLimit)
+    });
+    process.stdout.write(JSON.stringify({
+      ok: true,
+      result: 'stop_repeat_gate_canary_cap',
+      execution_mode: executionMode,
+      executed_today: executedToday,
+      canary_daily_exec_limit: Number(canaryDailyExecLimit),
+      ts: nowIso()
+    }) + '\n');
+    return;
+  }
+
+  if (
+    !shadowOnly
+    &&
     AUTONOMY_MIN_MINUTES_BETWEEN_RUNS > 0
     && lastAttemptMinutesAgo != null
     && lastAttemptMinutesAgo < AUTONOMY_MIN_MINUTES_BETWEEN_RUNS
@@ -2797,6 +2929,8 @@ function runCmd(dateStr) {
   }
 
   if (
+    !shadowOnly
+    &&
     AUTONOMY_REPEAT_EXHAUSTED_LIMIT > 0
     && AUTONOMY_REPEAT_EXHAUSTED_COOLDOWN_MINUTES > 0
     && gateExhaustionStreak >= AUTONOMY_REPEAT_EXHAUSTED_LIMIT
@@ -2824,7 +2958,7 @@ function runCmd(dateStr) {
     return;
   }
 
-  if (AUTONOMY_REPEAT_NO_PROGRESS_LIMIT > 0 && noProgressStreak >= AUTONOMY_REPEAT_NO_PROGRESS_LIMIT) {
+  if (!shadowOnly && AUTONOMY_REPEAT_NO_PROGRESS_LIMIT > 0 && noProgressStreak >= AUTONOMY_REPEAT_NO_PROGRESS_LIMIT) {
     writeRun(dateStr, {
       ts: nowIso(),
       type: 'autonomy_run',
@@ -2844,7 +2978,7 @@ function runCmd(dateStr) {
     return;
   }
 
-  if (noProgressStreak > 0 && shippedToday === 0 && dopamine.momentum_ok !== true) {
+  if (!shadowOnly && noProgressStreak > 0 && shippedToday === 0 && dopamine.momentum_ok !== true) {
     writeRun(dateStr, {
       ts: nowIso(),
       type: 'autonomy_run',
@@ -2958,6 +3092,36 @@ function runCmd(dateStr) {
     });
     selection = chooseSelectionMode(eligible, priorRuns);
     pick = eligible[selection.index] || eligible[0];
+  }
+
+  if (!pick && shadowOnly && pool.length > 0) {
+    const fallback = pool[0];
+    const q = assessSignalQuality(fallback.proposal, eyesMap, thresholds, calibrationProfile);
+    const dfit = assessDirectiveFit(fallback.proposal, directiveProfile, thresholds);
+    const actionability = assessActionability(fallback.proposal, dfit, thresholds);
+    const compositeScore = compositeEligibilityScore(q.score, dfit.score, actionability.score);
+    pick = {
+      ...fallback,
+      quality: q,
+      directive_fit: dfit,
+      actionability,
+      composite_score: compositeScore,
+      eye_no_progress_24h: countEyeOutcomesInLastHours(decisionEvents, sourceEyeRef(fallback.proposal), 'no_change', 24),
+      strategy_rank: strategyRankForCandidate({
+        ...fallback,
+        quality: q,
+        directive_fit: dfit,
+        actionability,
+        composite_score: compositeScore
+      }, strategy)
+    };
+    selection = {
+      mode: 'shadow_fallback',
+      index: 0,
+      explore_used: 0,
+      explore_quota: 0,
+      exploit_used: 0
+    };
   }
 
   if (!pick) {
@@ -3137,10 +3301,72 @@ function runCmd(dateStr) {
   }
 
   if (executionMode === 'score_only') {
+    let previewReceiptId = null;
+    let previewVerification = null;
+    let previewSummary = null;
+    let previewMode = shadowOnly ? 'shadow_only' : 'score_only';
+    const shouldCaptureEvidence = shadowOnly || AUTONOMY_SCORE_ONLY_EVIDENCE;
+
+    if (shouldCaptureEvidence) {
+      const estTokens = estimateTokens(p);
+      const eyeRef = sourceEyeRef(p);
+      const eyeId = sourceEyeId(p);
+      const repeats14d = Math.max(1, countEyeProposalsInWindow(eyeId, proposalDate, 14));
+      const errors30d = countEyeOutcomesInWindow(decisionEvents, eyeRef, 'reverted', proposalDate, 30);
+      const routeTokensEst = repeats14d >= 3 ? Math.max(estTokens, AUTONOMY_MIN_ROUTE_TOKENS) : estTokens;
+      previewReceiptId = `preview_${Date.now()}_${String(p.id).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 48)}`;
+      const previewRes = actuationSpec
+        ? runActuationExecute(actuationSpec, true)
+        : runRouteExecute(makeTaskFromProposal(p), routeTokensEst, repeats14d, errors30d, true);
+      const preSummary = previewRes.summary || null;
+      const preBlocked = !previewRes.ok
+        || !preSummary
+        || preSummary.executable !== true
+        || preSummary.gate_decision === 'MANUAL'
+        || preSummary.gate_decision === 'DENY';
+      const checks = [
+        { name: 'preview_command_ok', pass: !!previewRes.ok },
+        { name: 'preview_executable', pass: !preBlocked }
+      ];
+      const failed = checks.filter(c => c.pass !== true).map(c => c.name);
+      const primaryFailure = !previewRes.ok
+        ? (actuationSpec ? `actuation_exit_${previewRes.code}` : `route_exit_${previewRes.code}`)
+        : (preBlocked ? 'preflight_not_executable' : null);
+      previewVerification = {
+        checks,
+        failed,
+        passed: failed.length === 0,
+        outcome: failed.length === 0 ? 'shipped' : 'no_change',
+        primary_failure: primaryFailure
+      };
+      previewSummary = preSummary;
+      writeReceipt(dateStr, {
+        ts: nowIso(),
+        type: 'autonomy_action_receipt',
+        receipt_id: previewReceiptId,
+        proposal_id: p.id,
+        proposal_date: proposalDate,
+        verdict: previewVerification.passed ? 'pass' : 'fail',
+        intent: {
+          task_hash: hashObj({ task: makeTaskFromProposal(p) }),
+          actuation: actuationSpec ? { kind: actuationSpec.kind } : null,
+          mode: previewMode,
+          score_only: true,
+          route_tokens_est: routeTokensEst,
+          repeats_14d: repeats14d,
+          errors_30d: errors30d
+        },
+        execution: {
+          preview: compactCmdResult(previewRes)
+        },
+        verification: previewVerification
+      });
+    }
+
     writeRun(dateStr, {
       ts: nowIso(),
       type: 'autonomy_run',
-      result: 'score_only_preview',
+      result: shadowOnly ? 'score_only_evidence' : 'score_only_preview',
       strategy_id: strategy ? strategy.id : null,
       execution_mode: executionMode,
       proposal_id: p.id,
@@ -3153,11 +3379,15 @@ function runCmd(dateStr) {
       strategy_rank: pick.strategy_rank || null,
       selection_mode: selection.mode,
       selection_index: selection.index,
-      admission: admissionSummary
+      admission: admissionSummary,
+      preview_mode: previewMode,
+      preview_receipt_id: previewReceiptId,
+      preview_verification: previewVerification,
+      preview_summary: previewSummary
     });
     process.stdout.write(JSON.stringify({
       ok: true,
-      result: 'score_only_preview',
+      result: shadowOnly ? 'score_only_evidence' : 'score_only_preview',
       strategy_id: strategy ? strategy.id : null,
       execution_mode: executionMode,
       proposal_id: p.id,
@@ -3167,6 +3397,10 @@ function runCmd(dateStr) {
       selection_mode: selection.mode,
       selection_index: selection.index,
       admission: admissionSummary,
+      preview_mode: previewMode,
+      preview_receipt_id: previewReceiptId,
+      preview_verification: previewVerification,
+      preview_summary: previewSummary,
       ts: nowIso()
     }) + '\n');
     return;
@@ -3535,7 +3769,10 @@ function runCmd(dateStr) {
       `daily_token_cap=${budget.token_cap}`,
       `no_change_limit=${NO_CHANGE_LIMIT}`,
       'reverted_count>=1',
-      'gate decision DENY or MANUAL'
+      'gate decision DENY or MANUAL',
+      ...(executionMode === 'canary_execute' && canaryDailyExecLimit
+        ? [`canary_daily_exec_limit=${Number(canaryDailyExecLimit)}`]
+        : [])
     ],
     task
   };
@@ -3774,6 +4011,7 @@ function resetCmd(dateStr) {
 function usage() {
   console.log('Usage:');
   console.log('  node systems/autonomy/autonomy_controller.js run [YYYY-MM-DD]');
+  console.log('  node systems/autonomy/autonomy_controller.js evidence [YYYY-MM-DD]');
   console.log('  node systems/autonomy/autonomy_controller.js status [YYYY-MM-DD]');
   console.log('  node systems/autonomy/autonomy_controller.js scorecard [YYYY-MM-DD] [--days=N]');
   console.log('  node systems/autonomy/autonomy_controller.js reset [YYYY-MM-DD] [--scope=gates|budget|all] [--note=...]');
@@ -3791,6 +4029,7 @@ function main() {
 
   if (cmd === 'status') return statusCmd(dateStr);
   if (cmd === 'run') return runCmd(dateStr);
+  if (cmd === 'evidence') return runCmd(dateStr, { shadowOnly: true });
   if (cmd === 'scorecard') return scorecardCmd(dateStr);
   if (cmd === 'reset') return resetCmd(dateStr);
 
@@ -3806,5 +4045,6 @@ module.exports = {
   estimateTokens,
   candidatePool,
   evaluateDoD,
-  diffDoDEvidence
+  diffDoDEvidence,
+  computeCalibrationDeltas
 };
