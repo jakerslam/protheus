@@ -356,7 +356,14 @@ function applyInternal(id, approvalNote, breakGlass) {
     snapshot: snapshotAbs
   });
 
-  return { ok: true, code: 0, id, added_models: (trial.passed_models || []).length, snapshot: snapshotAbs };
+  return {
+    ok: true,
+    code: 0,
+    id,
+    added_models: (trial.passed_models || []).length,
+    added_models_list: Array.isArray(trial.passed_models) ? trial.passed_models.slice(0, 128) : [],
+    snapshot: snapshotAbs
+  };
 }
 
 function cmdApply(args) {
@@ -370,7 +377,13 @@ function cmdApply(args) {
     process.stdout.write(JSON.stringify({ ok: false, error: res.error, guard: res.guard || null }) + '\n');
     process.exit(res.code || 1);
   }
-  process.stdout.write(JSON.stringify({ ok: true, id: res.id, added_models: res.added_models, snapshot: res.snapshot }) + '\n');
+  process.stdout.write(JSON.stringify({
+    ok: true,
+    id: res.id,
+    added_models: res.added_models,
+    models: res.added_models_list || [],
+    snapshot: res.snapshot
+  }) + '\n');
 }
 
 function cmdReview(args) {
