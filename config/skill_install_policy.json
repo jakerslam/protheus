@@ -72,6 +72,44 @@
     "unknown_manifest": true,
     "risky_markers": true
   },
+  "autonomous_necessity_gate": {
+    "enabled": true,
+    "enforce_for_autonomous": true,
+    "enforce_for_manual": false,
+    "min_problem_len": 12,
+    "min_gap_len": 12,
+    "min_repeat_frequency": 3,
+    "min_expected_savings": 20,
+    "min_necessity_score": 70,
+    "allowed_risk_classes": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "novelty_terms": [
+      "cool",
+      "interesting",
+      "fun",
+      "hype",
+      "experiment"
+    ],
+    "operational_terms": [
+      "repeated",
+      "daily",
+      "workflow",
+      "blocked",
+      "failure",
+      "error",
+      "latency",
+      "token",
+      "time",
+      "cost",
+      "throughput",
+      "security",
+      "compliance",
+      "revenue"
+    ]
+  },
   "max_scan_files": 200,
   "max_scan_bytes": 262144
 }
