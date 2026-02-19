@@ -216,7 +216,9 @@ function addHabit(registry, params) {
       state: 'candidate',
       promote: {
         min_success_runs: 3,
-        min_outcome_score: 0.7
+        min_outcome_score: 0.7,
+        min_effect_value: 1,
+        effect_units_allowlist: ['ms_saved', 'tokens_saved', 'reported_delta']
       },
       demote: {
         max_consecutive_errors: 2,

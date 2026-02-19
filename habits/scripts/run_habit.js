@@ -7,6 +7,7 @@
  *   - Trusted (pinned sha256 exists)
  *   - lifetime_successes >= 3
  *   - avg outcome_score over last 3 runs >= 0.70
+ *   - measured effect/savings meets min_effect_value (default >= 1)
  *   - zero permission violations in last 10 runs
  *   - doctor.js passes after last modification
  * 
@@ -23,6 +24,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
+const { writeContractReceipt } = require('../../lib/action_receipts');
 
 const REGISTRY_PATH = '/Users/jay/.openclaw/workspace/habits/registry.json';
 const TRUSTED_HABITS_PATH = '/Users/jay/.openclaw/workspace/config/trusted_habits.json';
@@ -62,8 +64,10 @@ function writeReceipt(record) {
   const ts = String(record && record.ts || nowIso());
   const day = /^\d{4}-\d{2}-\d{2}/.test(ts) ? ts.slice(0, 10) : nowIso().slice(0, 10);
   const fp = path.join(RECEIPTS_DIR, `${day}.jsonl`);
-  fs.mkdirSync(path.dirname(fp), { recursive: true });
-  fs.appendFileSync(fp, JSON.stringify(record) + '\n', 'utf8');
+  const verified =
+    String(record && record.verdict || '').toLowerCase() === 'pass' &&
+    !!(record && record.verification && record.verification.passed === true);
+  writeContractReceipt(fp, record, { attempted: true, verified });
 }
 
 function verifyPostconditions(result, actions) {
@@ -153,6 +157,11 @@ function computeDeltaValue(durationMs, baseline) {
   return baseline.avg_duration_ms - durationMs;
 }
 
+function parseFiniteNumber(value, fallback = null) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 function updateRollingMetrics(habit, durationMs, success) {
   const metrics = habit.metrics || {};
   const rolling = metrics.rolling || { window_runs: [] };
@@ -233,6 +242,13 @@ function doctorPasses(habit) {
 function checkPromotion(habit) {
   const gov = habit.governance || {};
   if (gov.state !== 'candidate') return null;
+  const promote = gov.promote || {};
+  const minSuccessRuns = parseFiniteNumber(promote.min_success_runs, 3);
+  const minOutcomeScore = parseFiniteNumber(promote.min_outcome_score, 0.70);
+  const minEffectValue = parseFiniteNumber(promote.min_effect_value, 1);
+  const allowedEffectUnits = Array.isArray(promote.effect_units_allowlist)
+    ? promote.effect_units_allowlist.map(v => String(v))
+    : [];
   
   // Requirement 1: Trusted
   const trusted = loadTrustedHabits();
@@ -241,30 +257,43 @@ function checkPromotion(habit) {
     return { action: 'block', reason: 'not_trusted' };
   }
   
-  // Requirement 2: >= 3 successful runs
+  // Requirement 2: >= min_success_runs successful runs
   const successes = Math.floor(habit.lifetime_uses * habit.success_rate);
-  if (successes < 3) {
-    return { action: 'wait', reason: `need_3_successes (have ${successes})` };
+  if (successes < minSuccessRuns) {
+    return { action: 'wait', reason: `need_${minSuccessRuns}_successes (have ${successes})` };
   }
   
-  // Requirement 3: Avg outcome score last 3 runs >= 0.70
+  // Requirement 3: Avg outcome score last 3 runs >= min_outcome_score
   const scores = getLastNOutcomeScores(habit, 3);
   if (scores.length >= 3) {
     const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
-    if (avgScore < 0.70) {
-      return { action: 'wait', reason: `avg_score_${avgScore.toFixed(2)}_below_0.70` };
+    if (avgScore < minOutcomeScore) {
+      return { action: 'wait', reason: `avg_score_${avgScore.toFixed(2)}_below_${minOutcomeScore.toFixed(2)}` };
     }
   } else {
     return { action: 'wait', reason: `need_3_scores (have ${scores.length})` };
   }
+
+  // Requirement 4: Measured effect/savings must pass threshold
+  const effectValue = parseFiniteNumber(habit?.outcome?.last_delta_value, null);
+  const effectUnit = String(habit?.outcome?.outcome_unit || '');
+  if (effectValue === null) {
+    return { action: 'wait', reason: 'need_measured_effect' };
+  }
+  if (effectValue < minEffectValue) {
+    return { action: 'wait', reason: `effect_${effectValue.toFixed(2)}_below_${minEffectValue.toFixed(2)}` };
+  }
+  if (allowedEffectUnits.length > 0 && !allowedEffectUnits.includes(effectUnit)) {
+    return { action: 'wait', reason: `effect_unit_${effectUnit || 'unknown'}_not_allowed` };
+  }
   
-  // Requirement 4: Zero permission violations in last 10 runs
+  // Requirement 5: Zero permission violations in last 10 runs
   const permViolations = getRecentPermissionViolations(habit);
   if (permViolations > 0) {
     return { action: 'block', reason: `${permViolations}_permission_violations` };
   }
   
-  // Requirement 5: doctor.js passes
+  // Requirement 6: doctor.js passes
   if (!doctorPasses(habit)) {
     return { action: 'block', reason: 'doctor_failed' };
   }
@@ -689,8 +718,19 @@ async function main() {
       throw new Error(`POSTCONDITION_FAILED: ${verification.failed.join(', ')}`);
     }
     const outcomeScore = computeOutcomeScore(result, habit);
-    const deltaValue = computeDeltaValue(duration, habit.metrics?.baseline);
-    const outcomeUnit = deltaValue !== null ? 'ms_saved' : null;
+    let deltaValue = computeDeltaValue(duration, habit.metrics?.baseline);
+    let outcomeUnit = deltaValue !== null ? 'ms_saved' : null;
+    if (deltaValue === null) {
+      const reportedTokensSaved = parseFiniteNumber(result?.tokens_saved, null);
+      const reportedDeltaValue = parseFiniteNumber(result?.delta_value, null);
+      if (reportedTokensSaved !== null) {
+        deltaValue = reportedTokensSaved;
+        outcomeUnit = 'tokens_saved';
+      } else if (reportedDeltaValue !== null) {
+        deltaValue = reportedDeltaValue;
+        outcomeUnit = String(result?.outcome_unit || 'reported_delta').slice(0, 64);
+      }
+    }
     
     habit.outcome = {
       last_outcome_score: outcomeScore,
@@ -720,7 +760,7 @@ async function main() {
         habit_id: habitId,
         previous_state: oldState,
         new_state: 'active',
-        reason: 'PROMOTION: trusted(✓) + 3_successes(✓) + avg_score>=0.70(✓) + 0_violations(✓) + doctor_passed(✓)',
+        reason: 'PROMOTION: trusted(✓) + min_success_runs(✓) + min_outcome_score(✓) + measured_effect(✓) + 0_violations(✓) + doctor_passed(✓)',
         uses_30d: habit.uses_30d,
         consecutiveErrors: 0,
         avg_outcome_score: habit.outcome?.last_outcome_score,
