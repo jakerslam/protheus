@@ -40,7 +40,14 @@
     "daily_runs_cap": 4,
     "daily_token_cap": 4000,
     "max_tokens_per_action": 1600,
-    "per_capability_caps": {}
+    "per_capability_caps": {
+      "proposal": 3,
+      "proposal:collector_remediation": 2,
+      "proposal:infrastructure_outage": 1,
+      "proposal:external_intel": 2,
+      "actuation": 2,
+      "actuation:moltbook_publish": 1
+    }
   },
   "exploration_policy": {
     "fraction": 0.25,
