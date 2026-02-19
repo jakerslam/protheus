@@ -55,6 +55,8 @@ const ACTUATION_EXECUTOR_SCRIPT = path.join(REPO_ROOT, 'systems', 'actuation', '
 const MODEL_CATALOG_AUDIT_PATH = path.join(REPO_ROOT, 'state', 'routing', 'model_catalog_audit.jsonl');
 const MODEL_CATALOG_PROPOSALS_DIR = path.join(REPO_ROOT, 'state', 'routing', 'model_catalog_proposals');
 const MODEL_CATALOG_TRIALS_DIR = path.join(REPO_ROOT, 'state', 'routing', 'model_catalog_trials');
+const MODEL_CATALOG_CANARY_PATH = path.join(REPO_ROOT, 'state', 'routing', 'model_catalog_canary.json');
+const MODEL_CATALOG_ROLLBACK_SCRIPT = path.join(REPO_ROOT, 'systems', 'autonomy', 'model_catalog_rollback.js');
 
 const AUTONOMY_DIR = path.join(REPO_ROOT, 'state', 'autonomy');
 const RUNS_DIR = path.join(AUTONOMY_DIR, 'runs');
@@ -122,6 +124,12 @@ const AUTONOMY_MODEL_CATALOG_SOURCE = String(process.env.AUTONOMY_MODEL_CATALOG_
 const AUTONOMY_MODEL_CATALOG_AUTO_APPLY = String(process.env.AUTONOMY_MODEL_CATALOG_AUTO_APPLY || '0') === '1';
 const AUTONOMY_MODEL_CATALOG_AUTO_APPROVAL_NOTE = String(process.env.AUTONOMY_MODEL_CATALOG_AUTO_APPROVAL_NOTE || '').trim();
 const AUTONOMY_MODEL_CATALOG_AUTO_BREAK_GLASS = String(process.env.AUTONOMY_MODEL_CATALOG_AUTO_BREAK_GLASS || '0') === '1';
+const AUTONOMY_MODEL_CATALOG_CANARY_ENABLED = String(process.env.AUTONOMY_MODEL_CATALOG_CANARY_ENABLED || '1') !== '0';
+const AUTONOMY_MODEL_CATALOG_CANARY_MIN_SAMPLES = Number(process.env.AUTONOMY_MODEL_CATALOG_CANARY_MIN_SAMPLES || 3);
+const AUTONOMY_MODEL_CATALOG_CANARY_MAX_FAIL_RATE = Number(process.env.AUTONOMY_MODEL_CATALOG_CANARY_MAX_FAIL_RATE || 0.6);
+const AUTONOMY_MODEL_CATALOG_CANARY_MAX_ROUTE_BLOCK_RATE = Number(process.env.AUTONOMY_MODEL_CATALOG_CANARY_MAX_ROUTE_BLOCK_RATE || 0.5);
+const AUTONOMY_MODEL_CATALOG_CANARY_ROLLBACK_NOTE = String(process.env.AUTONOMY_MODEL_CATALOG_CANARY_ROLLBACK_NOTE || 'auto rollback: model catalog canary failed');
+const AUTONOMY_MODEL_CATALOG_CANARY_ROLLBACK_BREAK_GLASS = String(process.env.AUTONOMY_MODEL_CATALOG_CANARY_ROLLBACK_BREAK_GLASS || '0') === '1';
 const AUTONOMY_REQUIRE_READINESS_FOR_EXECUTE = String(process.env.AUTONOMY_REQUIRE_READINESS_FOR_EXECUTE || '1') !== '0';
 const AUTONOMY_CANARY_DAILY_EXEC_LIMIT = Number(process.env.AUTONOMY_CANARY_DAILY_EXEC_LIMIT || 1);
 const AUTONOMY_SCORE_ONLY_EVIDENCE = String(process.env.AUTONOMY_SCORE_ONLY_EVIDENCE || '1') !== '0';
@@ -2285,6 +2293,257 @@ function runModelCatalogLoop(cmd, extraArgs = []) {
   };
 }
 
+function modelCatalogCanaryThresholds() {
+  return {
+    min_samples: clampNumber(Math.round(AUTONOMY_MODEL_CATALOG_CANARY_MIN_SAMPLES), 1, 50),
+    max_fail_rate: clampNumber(AUTONOMY_MODEL_CATALOG_CANARY_MAX_FAIL_RATE, 0, 1),
+    max_route_block_rate: clampNumber(AUTONOMY_MODEL_CATALOG_CANARY_MAX_ROUTE_BLOCK_RATE, 0, 1)
+  };
+}
+
+function normalizeModelIds(input, limit = 128) {
+  const out = [];
+  const seen = new Set();
+  const arr = Array.isArray(input) ? input : [];
+  for (const raw of arr) {
+    const v = String(raw || '').trim();
+    if (!v || seen.has(v)) continue;
+    seen.add(v);
+    out.push(v);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+function readModelCatalogCanary() {
+  return loadJson(MODEL_CATALOG_CANARY_PATH, null);
+}
+
+function writeModelCatalogCanary(state) {
+  saveJson(MODEL_CATALOG_CANARY_PATH, state || {});
+}
+
+function startModelCatalogCanary(proposalId, applyPayload) {
+  if (!AUTONOMY_MODEL_CATALOG_CANARY_ENABLED) return null;
+  const models = normalizeModelIds(applyPayload && applyPayload.models);
+  const thresholds = modelCatalogCanaryThresholds();
+  const state = {
+    version: 1,
+    status: 'active',
+    started_ts: nowIso(),
+    proposal_id: String(proposalId || ''),
+    models,
+    snapshot: applyPayload && applyPayload.snapshot ? String(applyPayload.snapshot) : null,
+    added_models: Number(applyPayload && applyPayload.added_models || models.length || 0),
+    thresholds,
+    stats: {
+      samples: 0,
+      failed: 0,
+      route_blocked: 0,
+      fail_rate: 0,
+      route_block_rate: 0
+    },
+    rollback: null,
+    completed_ts: null,
+    last_eval_ts: null
+  };
+  writeModelCatalogCanary(state);
+  appendJsonl(MODEL_CATALOG_AUDIT_PATH, {
+    ts: nowIso(),
+    type: 'canary_started',
+    proposal_id: state.proposal_id,
+    models: state.models.slice(0, 24),
+    thresholds
+  });
+  return state;
+}
+
+function selectedModelFromRunEvent(evt) {
+  const s = evt && evt.route_summary;
+  if (!s || typeof s !== 'object') return null;
+  const direct = String(s.selected_model || s.model || s.selectedModel || s.chosen_model || '').trim();
+  return direct || null;
+}
+
+function modelCatalogCanaryRunEvents(startedTs) {
+  if (!fs.existsSync(RUNS_DIR)) return [];
+  const startMs = Date.parse(String(startedTs || ''));
+  const startDate = String(startedTs || '').slice(0, 10);
+  const files = fs.readdirSync(RUNS_DIR)
+    .filter(f => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f))
+    .sort();
+  const out = [];
+  for (const f of files) {
+    const day = f.replace(/\.jsonl$/, '');
+    if (startDate && day < startDate) continue;
+    const rows = readJsonl(path.join(RUNS_DIR, f));
+    for (const evt of rows) {
+      if (!evt || evt.type !== 'autonomy_run') continue;
+      if (Number.isFinite(startMs)) {
+        const ts = Date.parse(String(evt.ts || ''));
+        if (Number.isFinite(ts) && ts < startMs) continue;
+      }
+      out.push(evt);
+    }
+  }
+  return out;
+}
+
+function executeModelCatalogRollback(state, stats) {
+  const trigger = {
+    samples: Number(stats.samples || 0),
+    failed: Number(stats.failed || 0),
+    route_blocked: Number(stats.route_blocked || 0),
+    fail_rate: Number((stats.fail_rate || 0).toFixed(3)),
+    route_block_rate: Number((stats.route_block_rate || 0).toFixed(3)),
+    max_fail_rate: Number(stats.max_fail_rate || 0),
+    max_route_block_rate: Number(stats.max_route_block_rate || 0)
+  };
+  const note = shortText(
+    `${AUTONOMY_MODEL_CATALOG_CANARY_ROLLBACK_NOTE} proposal=${String(state && state.proposal_id || '')} fail_rate=${trigger.fail_rate}`,
+    220
+  );
+  const args = [MODEL_CATALOG_ROLLBACK_SCRIPT, 'latest', `--approval-note=${note}`];
+  if (AUTONOMY_MODEL_CATALOG_CANARY_ROLLBACK_BREAK_GLASS) args.push('--break-glass=1');
+  const res = spawnSync('node', args, {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+    env: { ...process.env, CLEARANCE: '3' }
+  });
+  const ok = res.status === 0;
+  const error = ok ? null : shortText(res.stderr || res.stdout || `rollback_exit_${res.status || 1}`, 220);
+  appendJsonl(MODEL_CATALOG_AUDIT_PATH, {
+    ts: nowIso(),
+    type: ok ? 'canary_rollback_success' : 'canary_rollback_failed',
+    proposal_id: String(state && state.proposal_id || ''),
+    trigger,
+    approval_note: note,
+    break_glass: AUTONOMY_MODEL_CATALOG_CANARY_ROLLBACK_BREAK_GLASS,
+    code: res.status || 0,
+    error
+  });
+  return {
+    ok,
+    code: res.status || 0,
+    error,
+    note,
+    break_glass: AUTONOMY_MODEL_CATALOG_CANARY_ROLLBACK_BREAK_GLASS,
+    trigger
+  };
+}
+
+function evaluateModelCatalogCanary(dateStr) {
+  if (!AUTONOMY_MODEL_CATALOG_CANARY_ENABLED) return { status: 'disabled' };
+  const state = readModelCatalogCanary();
+  if (!state || typeof state !== 'object') return { status: 'missing' };
+  if (String(state.status || '') !== 'active') return { status: String(state.status || 'inactive'), state };
+
+  const thresholds = {
+    ...modelCatalogCanaryThresholds(),
+    ...(state.thresholds && typeof state.thresholds === 'object' ? state.thresholds : {})
+  };
+  const modelSet = new Set(normalizeModelIds(state.models));
+  const events = modelCatalogCanaryRunEvents(state.started_ts);
+  let samples = 0;
+  let failed = 0;
+  let routeBlocked = 0;
+
+  for (const evt of events) {
+    if (!evt) continue;
+    if (evt.result !== 'executed' && evt.result !== 'init_gate_blocked_route') continue;
+    const selected = selectedModelFromRunEvent(evt);
+    if (modelSet.size > 0 && (!selected || !modelSet.has(selected))) continue;
+    samples++;
+    if (evt.result === 'init_gate_blocked_route') {
+      failed++;
+      routeBlocked++;
+      continue;
+    }
+    const verificationKnown = evt.verification && typeof evt.verification === 'object';
+    const verificationPass = verificationKnown ? evt.verification.passed === true : null;
+    const execOk = evt.exec_ok === undefined ? true : evt.exec_ok === true;
+    const outcome = String(evt.outcome || '');
+    const runFailed = verificationPass === false || execOk !== true || outcome === 'reverted';
+    if (runFailed) failed++;
+  }
+
+  const failRate = samples > 0 ? failed / samples : 0;
+  const routeBlockRate = samples > 0 ? routeBlocked / samples : 0;
+  state.stats = {
+    samples,
+    failed,
+    route_blocked: routeBlocked,
+    fail_rate: Number(failRate.toFixed(3)),
+    route_block_rate: Number(routeBlockRate.toFixed(3))
+  };
+  state.last_eval_ts = nowIso();
+  state.thresholds = thresholds;
+  writeModelCatalogCanary(state);
+
+  if (samples < thresholds.min_samples) {
+    return { status: 'active', waiting: true, state };
+  }
+
+  const rollbackNeeded = failRate > thresholds.max_fail_rate || routeBlockRate > thresholds.max_route_block_rate;
+  if (!rollbackNeeded) {
+    state.status = 'passed';
+    state.completed_ts = nowIso();
+    writeModelCatalogCanary(state);
+    appendJsonl(MODEL_CATALOG_AUDIT_PATH, {
+      ts: nowIso(),
+      type: 'canary_passed',
+      proposal_id: String(state.proposal_id || ''),
+      samples,
+      fail_rate: state.stats.fail_rate,
+      route_block_rate: state.stats.route_block_rate
+    });
+    writeRun(dateStr, {
+      ts: nowIso(),
+      type: 'autonomy_model_catalog_canary',
+      result: 'passed',
+      proposal_id: String(state.proposal_id || ''),
+      samples,
+      fail_rate: state.stats.fail_rate,
+      route_block_rate: state.stats.route_block_rate
+    });
+    return { status: 'passed', state };
+  }
+
+  const rollback = executeModelCatalogRollback(state, {
+    samples,
+    failed,
+    route_blocked: routeBlocked,
+    fail_rate: failRate,
+    route_block_rate: routeBlockRate,
+    max_fail_rate: thresholds.max_fail_rate,
+    max_route_block_rate: thresholds.max_route_block_rate
+  });
+  state.status = rollback.ok ? 'rolled_back' : 'rollback_failed';
+  state.completed_ts = nowIso();
+  state.rollback = {
+    ts: nowIso(),
+    ok: rollback.ok,
+    code: rollback.code,
+    note: rollback.note,
+    break_glass: rollback.break_glass,
+    error: rollback.error,
+    trigger: rollback.trigger
+  };
+  writeModelCatalogCanary(state);
+  writeRun(dateStr, {
+    ts: nowIso(),
+    type: 'autonomy_model_catalog_canary',
+    result: rollback.ok ? 'rollback_success' : 'rollback_failed',
+    proposal_id: String(state.proposal_id || ''),
+    samples,
+    fail_rate: state.stats.fail_rate,
+    route_block_rate: state.stats.route_block_rate,
+    rollback_code: rollback.code,
+    rollback_error: rollback.error
+  });
+  return { status: state.status, state, rollback_triggered: true, rollback_ok: rollback.ok, rollback_error: rollback.error };
+}
+
 function modelCatalogStatusSnapshot() {
   const audits = readJsonl(MODEL_CATALOG_AUDIT_PATH);
   const applied = new Set(audits.filter(e => e && e.type === 'apply_success' && e.id).map(e => String(e.id)));
@@ -2406,6 +2665,21 @@ function maybeRunModelCatalogLoop(dateStr) {
           code: apply.code,
           error: apply.ok ? null : shortText(apply.stderr || apply.stdout || 'apply_failed', 180)
         });
+        if (apply.ok) {
+          const canary = startModelCatalogCanary(proposalId, apply.payload || {});
+          if (canary) {
+            writeRun(dateStr, {
+              ts: nowIso(),
+              type: 'autonomy_model_catalog_canary',
+              result: 'started',
+              proposal_id: proposalId,
+              models: Array.isArray(canary.models) ? canary.models.length : 0,
+              min_samples: Number(canary.thresholds && canary.thresholds.min_samples || 0),
+              max_fail_rate: Number(canary.thresholds && canary.thresholds.max_fail_rate || 0),
+              max_route_block_rate: Number(canary.thresholds && canary.thresholds.max_route_block_rate || 0)
+            });
+          }
+        }
       }
     }
   }
@@ -2756,6 +3030,26 @@ function runCmd(dateStr, opts = {}) {
   }
   const modelCatalogSnapshot = modelCatalogStatusSnapshot();
   process.stderr.write(`AUTONOMY_SUMMARY model_catalog_apply_pending=${Number(modelCatalogSnapshot.pending_apply || 0)}\n`);
+  if (!shadowOnly) {
+    const modelCatalogCanary = evaluateModelCatalogCanary(dateStr);
+    if (modelCatalogCanary && modelCatalogCanary.rollback_triggered) {
+      writeRun(dateStr, {
+        ts: nowIso(),
+        type: 'autonomy_run',
+        result: 'stop_init_gate_model_catalog_rollback',
+        rollback_ok: modelCatalogCanary.rollback_ok === true,
+        rollback_error: modelCatalogCanary.rollback_error || null
+      });
+      process.stdout.write(JSON.stringify({
+        ok: true,
+        result: 'stop_init_gate_model_catalog_rollback',
+        rollback_ok: modelCatalogCanary.rollback_ok === true,
+        rollback_error: modelCatalogCanary.rollback_error || null,
+        ts: nowIso()
+      }) + '\n');
+      return;
+    }
+  }
 
   const proposalDate = latestProposalDate(dateStr);
   if (!proposalDate) {
