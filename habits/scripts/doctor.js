@@ -132,7 +132,7 @@ function checkClearTriggers() {
     
     // State-specific checks
     if (state === 'candidate') {
-      logCheck(`${habit.id}.promotion_ready`, 'INFO', 'Needs 3 successes + score>=0.70 + doctor_passes');
+      logCheck(`${habit.id}.promotion_ready`, 'INFO', 'Needs min_success_runs + min_outcome_score + measured_effect + doctor_passes');
     } else if (state === 'active') {
       logCheck(`${habit.id}.demotion_triggers`, 'OK', 'consecutiveErrors>=2 OR score<=0.40 OR permission_violation');
     } else if (state === 'disabled') {
