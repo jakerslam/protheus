@@ -129,9 +129,10 @@ node systems/security/emergency_stop.js release --approval-note="..."
 
 `systems/security/guard.js` supports source-aware gating:
 - Remote sources (for example `REQUEST_SOURCE=slack`) are proposal-only by default.
-- Direct apply from remote requires `REMOTE_DIRECT_OVERRIDE=1`, `BREAK_GLASS=1`, `APPROVER_ID`, `APPROVAL_NOTE`, `SECOND_APPROVER_ID`, `SECOND_APPROVAL_NOTE`, and a valid signed envelope (`REQUEST_TS`, `REQUEST_NONCE`, `REQUEST_SIG`) verified with `REQUEST_GATE_SECRET`.
+- Direct apply from remote requires `REMOTE_DIRECT_OVERRIDE=1`, `BREAK_GLASS=1`, `APPROVER_ID`, `APPROVAL_NOTE`, `SECOND_APPROVER_ID`, `SECOND_APPROVAL_NOTE`, and a valid signed envelope (`REQUEST_TS`, `REQUEST_NONCE`, `REQUEST_SIG`) verified with `REQUEST_GATE_SECRET` (or `REQUEST_KEY_ID` + `REQUEST_GATE_SECRET_<KEY_ID>`).
+- Signed nonces are replay-guarded for remote direct apply (one-time use during TTL window).
 - Use ingress wrapper to stamp metadata/signature:
-  `node systems/security/request_ingress.js run --source=slack --action=apply --guard-files=config/agent_routing_rules.json -- node systems/security/guard.js --files=config/agent_routing_rules.json`
+  `node systems/security/request_ingress.js run --source=slack --action=apply --guard-files=config/agent_routing_rules.json --key-id=primary.v1 -- node systems/security/guard.js --files=config/agent_routing_rules.json`
 
 ## Automation Policy
 

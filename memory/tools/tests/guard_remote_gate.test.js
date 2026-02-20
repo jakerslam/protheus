@@ -2,11 +2,13 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { stampGuardEnv } = require('../../../lib/request_envelope.js');
 
-function runGuard(repoRoot, env, filesArg, sign = false) {
+function runGuard(repoRoot, env, filesArg, sign = false, signOptions = {}) {
   const guardPath = path.join(repoRoot, 'systems', 'security', 'guard.js');
   const files = String(filesArg || '').split(',').map((x) => String(x || '').trim()).filter(Boolean);
   const finalEnv = {
@@ -18,7 +20,10 @@ function runGuard(repoRoot, env, filesArg, sign = false) {
     ? stampGuardEnv(finalEnv, {
         source: finalEnv.REQUEST_SOURCE || 'local',
         action: finalEnv.REQUEST_ACTION || 'apply',
-        files
+        files,
+        ts: signOptions.ts,
+        nonce: signOptions.nonce,
+        kid: signOptions.kid || finalEnv.REQUEST_KEY_ID
       })
     : finalEnv;
   const r = spawnSync('node', [guardPath, `--files=${filesArg}`], {
@@ -47,12 +52,18 @@ function run() {
   const repoRoot = path.resolve(__dirname, '..', '..', '..');
   const guardFiles = 'state/security/remote_request_gate.jsonl';
   const secret = 'remote-gate-test-secret';
+  const replayPath = path.join(os.tmpdir(), `guard-replay-${process.pid}.json`);
+
+  try {
+    fs.unlinkSync(replayPath);
+  } catch {}
 
   const blockedNoOverride = runGuard(repoRoot, {
     CLEARANCE: '4',
     REQUEST_SOURCE: 'slack',
     REQUEST_ACTION: 'apply',
-    REQUEST_GATE_SECRET: secret
+    REQUEST_GATE_SECRET: secret,
+    REQUEST_REPLAY_STATE_PATH: replayPath
   }, guardFiles);
   assertBlockedRemote(blockedNoOverride, 'remote_direct_apply_disallowed');
   assert.ok((blockedNoOverride.payload.remote_policy.missing || []).includes('remote_direct_override'));
@@ -61,7 +72,8 @@ function run() {
     CLEARANCE: '1',
     REQUEST_SOURCE: 'slack',
     REQUEST_ACTION: 'propose',
-    REQUEST_GATE_SECRET: secret
+    REQUEST_GATE_SECRET: secret,
+    REQUEST_REPLAY_STATE_PATH: replayPath
   }, guardFiles);
   assert.strictEqual(proposalAllowed.status, 0, `proposal action should pass: ${proposalAllowed.stderr}`);
   assert.ok(proposalAllowed.payload && proposalAllowed.payload.ok === true, 'proposal action should return ok=true');
@@ -74,7 +86,8 @@ function run() {
     BREAK_GLASS: '1',
     APPROVER_ID: 'jay',
     APPROVAL_NOTE: 'approved for urgent hotfix with oversight',
-    REQUEST_GATE_SECRET: secret
+    REQUEST_GATE_SECRET: secret,
+    REQUEST_REPLAY_STATE_PATH: replayPath
   }, guardFiles, true);
   assertBlockedRemote(blockedMissingSecond, 'remote_direct_apply_disallowed');
   assert.ok((blockedMissingSecond.payload.remote_policy.missing || []).includes('second_approval_note'));
@@ -90,7 +103,8 @@ function run() {
     APPROVAL_NOTE: 'approved for emergency supervised change',
     SECOND_APPROVER_ID: 'ops',
     SECOND_APPROVAL_NOTE: 'second approver confirms supervised execution',
-    REQUEST_GATE_SECRET: secret
+    REQUEST_GATE_SECRET: secret,
+    REQUEST_REPLAY_STATE_PATH: replayPath
   }, guardFiles, false);
   assertBlockedRemote(blockedMissingSignature, 'remote_direct_apply_disallowed');
   assert.ok((blockedMissingSignature.payload.remote_policy.missing || []).includes('request_signature'));
@@ -105,12 +119,33 @@ function run() {
     APPROVAL_NOTE: 'approved for emergency supervised change',
     SECOND_APPROVER_ID: 'ops',
     SECOND_APPROVAL_NOTE: 'second approver confirms supervised execution',
-    REQUEST_GATE_SECRET: secret
-  }, guardFiles, true);
+    REQUEST_GATE_SECRET: secret,
+    REQUEST_REPLAY_STATE_PATH: replayPath
+  }, guardFiles, true, { nonce: 'nonce-replay-guard-1' });
   assert.strictEqual(allowedDirect.status, 0, `direct apply with full approvals should pass: ${allowedDirect.stderr}`);
   assert.ok(allowedDirect.payload && allowedDirect.payload.ok === true, 'direct apply with full approvals should return ok=true');
   assert.ok(allowedDirect.payload.remote_policy && allowedDirect.payload.remote_policy.reason === 'remote_direct_apply_allowed');
   assert.strictEqual(allowedDirect.payload.remote_policy.signature_valid, true);
+
+  const blockedReplay = runGuard(repoRoot, {
+    CLEARANCE: '1',
+    REQUEST_SOURCE: 'slack',
+    REQUEST_ACTION: 'apply',
+    REMOTE_DIRECT_OVERRIDE: '1',
+    BREAK_GLASS: '1',
+    APPROVER_ID: 'jay',
+    APPROVAL_NOTE: 'approved for emergency supervised change',
+    SECOND_APPROVER_ID: 'ops',
+    SECOND_APPROVAL_NOTE: 'second approver confirms supervised execution',
+    REQUEST_GATE_SECRET: secret,
+    REQUEST_REPLAY_STATE_PATH: replayPath
+  }, guardFiles, true, { nonce: 'nonce-replay-guard-1' });
+  assertBlockedRemote(blockedReplay, 'remote_direct_apply_disallowed');
+  assert.ok((blockedReplay.payload.remote_policy.missing || []).includes('request_nonce_replay'));
+
+  try {
+    fs.unlinkSync(replayPath);
+  } catch {}
 
   console.log('guard_remote_gate.test.js: OK');
 }

@@ -13,18 +13,19 @@ function run() {
   const files = ['systems/security/guard.js', 'config/agent_routing_rules.json'];
 
   const env = stampGuardEnv(
-    { REQUEST_GATE_SECRET: secret },
-    { source: 'slack', action: 'apply', files, ts: 1735000000, nonce: 'nonce-123' }
+    { REQUEST_GATE_SECRET_PRIMARY_V1: secret, REQUEST_KEY_ID: 'primary.v1' },
+    { source: 'slack', action: 'apply', files, ts: 1735000000, nonce: 'nonce-123', kid: 'primary.v1' }
   );
 
   assert.strictEqual(env.REQUEST_SOURCE, 'slack');
   assert.strictEqual(env.REQUEST_ACTION, 'apply');
+  assert.strictEqual(env.REQUEST_KEY_ID, 'primary.v1');
   assert.strictEqual(env.REQUEST_TS, '1735000000');
   assert.strictEqual(env.REQUEST_NONCE, 'nonce-123');
   assert.ok(/^[a-f0-9]{64}$/.test(String(env.REQUEST_SIG || '')), 'signature should be sha256 hex');
 
   const ok = verifySignedEnvelopeFromEnv({
-    env: { ...env, REQUEST_GATE_SECRET: secret },
+    env: { ...env, REQUEST_GATE_SECRET_PRIMARY_V1: secret },
     files,
     maxSkewSec: 999999999,
     nowSec: 1735000100
@@ -32,7 +33,7 @@ function run() {
   assert.strictEqual(ok.ok, true, `expected valid signature, got ${ok.reason}`);
 
   const badSig = verifySignedEnvelopeFromEnv({
-    env: { ...env, REQUEST_GATE_SECRET: secret, REQUEST_ACTION: 'propose' },
+    env: { ...env, REQUEST_GATE_SECRET_PRIMARY_V1: secret, REQUEST_ACTION: 'propose' },
     files,
     maxSkewSec: 999999999,
     nowSec: 1735000100
@@ -41,7 +42,7 @@ function run() {
   assert.strictEqual(badSig.reason, 'signature_mismatch');
 
   const stale = verifySignedEnvelopeFromEnv({
-    env: { ...env, REQUEST_GATE_SECRET: secret },
+    env: { ...env, REQUEST_GATE_SECRET_PRIMARY_V1: secret },
     files,
     maxSkewSec: 60,
     nowSec: 1735009999
@@ -58,6 +59,7 @@ function run() {
     {
       source: 'slack',
       action: 'apply',
+      kid: 'primary.v1',
       ts: 1735000000,
       nonce: 'nonce-123',
       files
