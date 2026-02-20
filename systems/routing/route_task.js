@@ -116,15 +116,58 @@ function estimateComplexity(tokensEst, task, match, anyTrigger) {
 }
 
 function shouldUseRouter() {
-  return String(process.env.ROUTER_ENABLED || '').trim() === '1';
+  const raw = String(process.env.ROUTER_ENABLED == null ? '1' : process.env.ROUTER_ENABLED).trim().toLowerCase();
+  if (['0', 'false', 'off', 'no'].includes(raw)) return false;
+  return true;
 }
 
-function tryRouteModel({ gateRisk, complexity, intent, task, mode, forceModel }) {
+function shouldEmitFullRoute() {
+  if (process.argv.includes('--full-route') || process.argv.includes('--full_route')) return true;
+  const raw = String(process.env.ROUTE_TASK_FULL_ROUTE || '').trim().toLowerCase();
+  return ['1', 'true', 'yes', 'on'].includes(raw);
+}
+
+function compactRouteMeta(routeMeta) {
+  if (!routeMeta || typeof routeMeta !== 'object') return routeMeta;
+  if (shouldEmitFullRoute()) return routeMeta;
+  const handoff = routeMeta.handoff_packet && typeof routeMeta.handoff_packet === 'object'
+    ? routeMeta.handoff_packet
+    : null;
+  if (handoff) return handoff;
+  return {
+    selected_model: routeMeta.selected_model || null,
+    previous_model: routeMeta.previous_model || null,
+    model_changed: routeMeta.model_changed === true,
+    reason: routeMeta.reason || null,
+    tier: routeMeta.tier || null,
+    role: routeMeta.role || null,
+    slot: routeMeta.slot || null,
+    mode: routeMeta.mode || null,
+    route_class: routeMeta.route_class || null,
+    escalation_chain: Array.isArray(routeMeta.escalation_chain) ? routeMeta.escalation_chain.slice(0, 3) : [],
+    budget: routeMeta.budget && typeof routeMeta.budget === 'object'
+      ? {
+          pressure: routeMeta.budget.pressure || null,
+          projected_pressure: routeMeta.budget.projected_pressure || null
+        }
+      : null
+  };
+}
+
+function tryRouteModel({ gateRisk, complexity, intent, task, mode, forceModel, tokensEst }) {
   try {
     // Lazy require keeps route_task resilient if router file is missing.
     const { routeDecision } = require('../../systems/routing/model_router.js');
     const risk = gateRisk || 'medium';
-    return routeDecision({ risk, complexity, intent, task, mode, forceModel });
+    return routeDecision({
+      risk,
+      complexity,
+      intent,
+      task,
+      mode,
+      forceModel,
+      tokensEst
+    });
   } catch (err) {
     return {
       type: 'route_error',
@@ -209,13 +252,15 @@ function main() {
   const routeMeta = shouldUseRouter()
     ? tryRouteModel({
         gateRisk: gateResult.risk,
-        complexity,
-        intent,
-        task,
-        mode,
-        forceModel
-      })
+      complexity,
+      intent,
+      task,
+      mode,
+      forceModel,
+      tokensEst
+    })
     : null;
+  const routeOut = compactRouteMeta(routeMeta);
   
   // Build triggers_met array
   const whichMet = [
@@ -244,7 +289,7 @@ function main() {
       which_met: whichMet,
       thresholds: thresholds,
       gate_event: gateEvent,
-      route: routeMeta
+      route: routeOut
     };
     console.log(JSON.stringify(out, null, 2));
     process.exit(0);
@@ -264,7 +309,7 @@ function main() {
         thresholds: thresholds,
         gate_decision: gateResult.decision,
         gate_risk: gateResult.risk,
-        route: routeMeta
+        route: routeOut
       };
       console.log(JSON.stringify(out, null, 2));
       process.exit(0);
@@ -280,7 +325,7 @@ function main() {
         thresholds: thresholds,
         gate_decision: gateResult.decision,
         gate_risk: gateResult.risk,
-        route: routeMeta
+        route: routeOut
       };
       console.log(JSON.stringify(out, null, 2));
       process.exit(0);
@@ -299,7 +344,7 @@ function main() {
       thresholds: thresholds,
       gate_decision: gateResult.decision,
       gate_risk: gateResult.risk,
-      route: routeMeta
+      route: routeOut
     };
     console.log(JSON.stringify(out, null, 2));
     process.exit(0);
@@ -319,7 +364,7 @@ function main() {
         thresholds: thresholds,
         gate_decision: gateResult.decision,
         gate_risk: gateResult.risk,
-        route: routeMeta
+        route: routeOut
       };
       console.log(JSON.stringify(out, null, 2));
       process.exit(0);
@@ -335,7 +380,7 @@ function main() {
         thresholds: thresholds,
         gate_decision: gateResult.decision,
         gate_risk: gateResult.risk,
-        route: routeMeta
+        route: routeOut
       };
       console.log(JSON.stringify(out, null, 2));
       process.exit(0);
@@ -354,7 +399,7 @@ function main() {
       thresholds: thresholds,
       gate_decision: gateResult.decision,
       gate_risk: gateResult.risk,
-      route: routeMeta
+      route: routeOut
     };
     console.log(JSON.stringify(out, null, 2));
     process.exit(0);
@@ -384,7 +429,7 @@ function main() {
       thresholds: thresholds,
       gate_decision: gateResult.decision,
       gate_risk: gateResult.risk,
-      route: routeMeta
+      route: routeOut
     };
     console.log(JSON.stringify(out, null, 2));
     process.exit(0);
@@ -402,7 +447,7 @@ function main() {
     thresholds: thresholds,
     gate_decision: gateResult.decision,
     gate_risk: gateResult.risk,
-    route: routeMeta
+    route: routeOut
   };
   console.log(JSON.stringify(out, null, 2));
   process.exit(0);

@@ -220,17 +220,17 @@ function detectHardwareProfile() {
   }
 
   const envVram = envNumber(["ROUTER_GPU_VRAM_GB", "ROUTER_VRAM_GB"], null);
-  if (Number.isFinite(Number(envVram))) {
+  if (envVram != null && Number.isFinite(Number(envVram))) {
     base.gpu_vram_gb = Number(envVram);
     if (base.source === "os") base.source = "env_override";
   }
   const envCpu = envNumber(["ROUTER_CPU_THREADS"], null);
-  if (Number.isFinite(Number(envCpu))) {
+  if (envCpu != null && Number.isFinite(Number(envCpu))) {
     base.cpu_threads = Number(envCpu);
     if (base.source === "os") base.source = "env_override";
   }
   const envRam = envNumber(["ROUTER_RAM_GB"], null);
-  if (Number.isFinite(Number(envRam))) {
+  if (envRam != null && Number.isFinite(Number(envRam))) {
     base.ram_gb = Number(envRam);
     if (base.source === "os") base.source = "env_override";
   }
@@ -840,6 +840,54 @@ function detectCommunicationFastPath({ cfg, risk, complexity, intent, task, mode
   };
 }
 
+function normalizeRiskLevel(v) {
+  const r = normalizeKey(v || "");
+  if (r === "low" || r === "medium" || r === "high") return r;
+  return "medium";
+}
+
+function normalizeComplexityLevel(v) {
+  const c = normalizeKey(v || "");
+  if (c === "low" || c === "medium" || c === "high") return c;
+  return "medium";
+}
+
+function routeClassPolicy(cfg, routeClassRaw) {
+  const classes = cfg && cfg.routing && cfg.routing.route_classes && typeof cfg.routing.route_classes === "object"
+    ? cfg.routing.route_classes
+    : {};
+  const id = normalizeKey(routeClassRaw || "default") || "default";
+  const src = classes[id] && typeof classes[id] === "object" ? classes[id] : {};
+  const reflexFallback = id === "reflex"
+    ? {
+        force_risk: "low",
+        force_complexity: "low",
+        force_role: "reflex",
+        prefer_slot: "grunt",
+        prefer_model: "ollama/smallthinker",
+        fallback_slot: "fallback",
+        disable_fast_path: true,
+        max_tokens_est: 420
+      }
+    : {};
+  const merged = { ...reflexFallback, ...src };
+  const forceRiskRaw = normalizeKey(merged.force_risk || "");
+  const forceComplexityRaw = normalizeKey(merged.force_complexity || "");
+
+  const maxTokens = Number(merged.max_tokens_est);
+  return {
+    id,
+    force_risk: (forceRiskRaw === "low" || forceRiskRaw === "medium" || forceRiskRaw === "high") ? forceRiskRaw : null,
+    force_complexity: (forceComplexityRaw === "low" || forceComplexityRaw === "medium" || forceComplexityRaw === "high") ? forceComplexityRaw : null,
+    force_role: normalizeKey(merged.force_role || ""),
+    prefer_slot: String(merged.prefer_slot || "").trim() || null,
+    prefer_model: String(merged.prefer_model || "").trim() || null,
+    fallback_slot: String(merged.fallback_slot || "").trim() || null,
+    disable_fast_path: toBool(merged.disable_fast_path, false),
+    max_tokens_est: Number.isFinite(maxTokens) && maxTokens > 0 ? Math.max(50, Math.min(12000, Math.round(maxTokens))) : null
+  };
+}
+
 function routerBudgetPolicy(cfg) {
   const src = cfg?.routing?.router_budget_policy;
   const policy = src && typeof src === "object" ? src : {};
@@ -864,6 +912,8 @@ function routerBudgetPolicy(cfg) {
     state_dir: stateDir,
     soft_ratio: toBoundedNumber(policy.soft_ratio, 0.75, 0.2, 0.98),
     hard_ratio: toBoundedNumber(policy.hard_ratio, 0.92, 0.3, 0.995),
+    enforce_hard_cap: toBool(policy.enforce_hard_cap, true),
+    escalate_on_no_local_fallback: toBool(policy.escalate_on_no_local_fallback, true),
     cloud_penalty_soft: toBoundedNumber(policy.cloud_penalty_soft, 4, 0, 40),
     cloud_penalty_hard: toBoundedNumber(policy.cloud_penalty_hard, 10, 0, 60),
     cheap_local_bonus_soft: toBoundedNumber(policy.cheap_local_bonus_soft, 3, 0, 40),
@@ -1052,6 +1102,63 @@ function inferTier(risk, complexity) {
   return 1;
 }
 
+function buildHandoffPacket(decision) {
+  const d = decision && typeof decision === "object" ? decision : {};
+  const tier = Number(d.tier || 2);
+  const role = normalizeKey(d.role || "");
+  const out = {
+    selected_model: d.selected_model || null,
+    previous_model: d.previous_model || null,
+    model_changed: d.model_changed === true,
+    reason: d.reason || null,
+    tier,
+    role: role || null,
+    route_class: d.route_class || "default",
+    mode: d.mode || null,
+    slot: d.slot || null,
+    escalation_chain: Array.isArray(d.escalation_chain) ? d.escalation_chain.slice(0, Math.max(2, Math.min(4, tier + 1))) : []
+  };
+
+  if (d.fast_path && d.fast_path.matched === true) {
+    out.fast_path = "communication";
+  }
+
+  if (d.budget && typeof d.budget === "object") {
+    out.budget = {
+      pressure: d.budget.pressure || "none",
+      projected_pressure: d.budget.projected_pressure || d.budget.pressure || "none",
+      request_tokens_est: Number.isFinite(Number(d.budget.request_tokens_est))
+        ? Number(d.budget.request_tokens_est)
+        : null
+    };
+  }
+
+  if (tier >= 2 || ["coding", "tools", "swarm", "planning", "logic"].includes(role)) {
+    out.capability = d.capability || null;
+    out.fallback_slot = d.fallback_slot || null;
+  }
+
+  if (tier >= 3) {
+    out.guardrails = {
+      deep_thinker: !!d.deep_thinker,
+      verification_required: true
+    };
+    if (d.post_task_return_model) {
+      out.post_task_return_model = d.post_task_return_model;
+    }
+  }
+
+  if (d.budget_enforcement && typeof d.budget_enforcement === "object") {
+    out.budget_enforcement = {
+      action: d.budget_enforcement.action || null,
+      reason: d.budget_enforcement.reason || null,
+      blocked: d.budget_enforcement.blocked === true
+    };
+  }
+
+  return out;
+}
+
 function loadModeAdapters() {
   return loadJson(MODE_ADAPTERS_PATH, {});
 }
@@ -1078,7 +1185,12 @@ function applyModeAdjustments(mode, base) {
     ? adapters.mode_routing
     : null;
   if (modeRouting) {
-    const alias = modeRouting[m] || modeRouting.default || null;
+    const hasExplicit = Object.prototype.hasOwnProperty.call(modeRouting, m);
+    // Keep normal mode neutral unless explicitly configured.
+    const allowDefault = !(m === "normal" || m === "default");
+    const alias = hasExplicit
+      ? modeRouting[m]
+      : (allowDefault ? (modeRouting.default || null) : null);
     if (alias) {
       const mapped = tierAliasToAdjustment(alias, out);
       mapped.mode = m;
@@ -1615,9 +1727,9 @@ function modelProfilesFromConfig(cfg) {
   const profiles = cfg?.routing?.model_profiles;
   if (profiles && typeof profiles === "object") return profiles;
   return {
-    "ollama/smallthinker": { tiers: [1], roles: ["chat", "planning", "general"], class: "cheap_local" },
-    "ollama/qwen3:4b": { tiers: [1, 2], roles: ["coding", "tools", "logic", "general"], class: "cheap_local" },
-    "ollama/gemma3:4b": { tiers: [1, 2], roles: ["chat", "planning", "general"], class: "cheap_local" },
+    "ollama/smallthinker": { tiers: [1], roles: ["chat", "planning", "general", "reflex"], class: "cheap_local" },
+    "ollama/qwen3:4b": { tiers: [1, 2], roles: ["coding", "tools", "logic", "general", "reflex"], class: "cheap_local" },
+    "ollama/gemma3:4b": { tiers: [1, 2], roles: ["chat", "planning", "general", "reflex"], class: "cheap_local" },
     "ollama/kimi-k2.5:cloud": { tiers: [2, 3], roles: ["planning", "logic", "chat", "general"], class: "cloud_anchor" },
     "qwen3-coder:480b-cloud": { tiers: [2, 3], roles: ["coding", "tools", "logic"], class: "cloud_specialist" },
     "gpt-oss:120b-cloud": { tiers: [2, 3], roles: ["planning", "logic", "coding", "general"], class: "cloud_specialist" }
@@ -1974,6 +2086,63 @@ function pickTier1LocalCandidate(rankedLocals, localHealth) {
   return rankedLocals[0].model;
 }
 
+function enforceBudgetSelection({ selected, ranked, budgetState, budgetProjected }) {
+  const policy = budgetState && budgetState.policy ? budgetState.policy : {};
+  if (policy.enforce_hard_cap !== true) {
+    return {
+      selected_model: selected,
+      action: "none",
+      reason: "hard_cap_enforcement_disabled",
+      blocked: false
+    };
+  }
+  const projected = budgetProjected && typeof budgetProjected === "object" ? budgetProjected : {};
+  const pressure = String(projected.projected_pressure || projected.pressure || "none");
+  if (pressure !== "hard") {
+    return {
+      selected_model: selected,
+      action: "none",
+      reason: "budget_pressure_not_hard",
+      blocked: false
+    };
+  }
+  if (!selected) {
+    return {
+      selected_model: null,
+      action: "escalate",
+      reason: "hard_budget_no_selected_model",
+      blocked: policy.escalate_on_no_local_fallback === true
+    };
+  }
+  if (!isCloudModel(selected)) {
+    return {
+      selected_model: selected,
+      action: "none",
+      reason: "hard_budget_local_model_already_selected",
+      blocked: false
+    };
+  }
+  const localFallback = Array.isArray(ranked)
+    ? ranked.find((x) => x && x.model && isLocalOllamaModel(x.model))
+    : null;
+  if (localFallback && localFallback.model) {
+    return {
+      selected_model: localFallback.model,
+      action: "degrade",
+      reason: "hard_budget_force_local_fallback",
+      from_model: selected,
+      blocked: false
+    };
+  }
+  return {
+    selected_model: policy.escalate_on_no_local_fallback === true ? null : selected,
+    action: "escalate",
+    reason: "hard_budget_no_local_fallback",
+    from_model: selected,
+    blocked: policy.escalate_on_no_local_fallback === true
+  };
+}
+
 function getRouteState() {
   return loadJson(ROUTE_STATE_PATH, { last_selected_model: null, last_ts: null });
 }
@@ -1982,7 +2151,7 @@ function saveRouteState(s) {
   saveJson(ROUTE_STATE_PATH, s || {});
 }
 
-function routeDecision({ risk, complexity, intent, task, mode, forceModel, capability, tokensEst }) {
+function routeDecision({ risk, complexity, intent, task, mode, forceModel, capability, tokensEst, roleOverride, routeClass }) {
   const cfg = readConfig();
   const allowlist = modelsFromAllowlist(cfg);
   const hardwarePlan = resolveHardwarePlan(cfg, allowlist);
@@ -1993,38 +2162,53 @@ function routeDecision({ risk, complexity, intent, task, mode, forceModel, capab
     if (!hardwareFilterActive) return true;
     return eligibleLocals.has(String(modelId || ""));
   };
-  const requestedRisk = String(risk || "medium");
-  const requestedComplexity = String(complexity || "medium");
+  const classPolicy = routeClassPolicy(cfg, routeClass);
+  const requestedRisk = normalizeRiskLevel(risk || "medium");
+  const requestedComplexity = normalizeComplexityLevel(complexity || "medium");
+  const requestedRole = normalizeKey(roleOverride || inferRole(intent, task) || "general") || "general";
   const adjusted = applyModeAdjustments(mode, {
     risk: requestedRisk,
     complexity: requestedComplexity,
-    role: inferRole(intent, task)
+    role: requestedRole
   });
+  if (classPolicy.force_risk) adjusted.risk = classPolicy.force_risk;
+  if (classPolicy.force_complexity) adjusted.complexity = classPolicy.force_complexity;
+  if (classPolicy.force_role) adjusted.role = classPolicy.force_role;
   const fastPath = detectCommunicationFastPath({
     cfg,
-    risk: requestedRisk,
-    complexity: requestedComplexity,
+    risk: adjusted.risk,
+    complexity: adjusted.complexity,
     intent,
     task,
     mode: adjusted.mode
   });
 
-  risk = fastPath.matched ? "low" : adjusted.risk;
-  complexity = fastPath.matched ? "low" : adjusted.complexity;
+  const effectiveFastPath = classPolicy.disable_fast_path === true
+    ? { matched: false, reason: "route_class_fast_path_disabled" }
+    : fastPath;
+
+  risk = effectiveFastPath.matched ? "low" : normalizeRiskLevel(adjusted.risk);
+  complexity = effectiveFastPath.matched ? "low" : normalizeComplexityLevel(adjusted.complexity);
   const rulePickBase = pickFromSlotSelection(cfg, risk, complexity);
-  const rulePick = fastPath.matched
+  let rulePick = effectiveFastPath.matched
     ? {
-        slot: fastPath.slot || rulePickBase.slot || "grunt",
-        prefer_model: fastPath.prefer_model || rulePickBase.prefer_model || null,
-        fallback_slot: fastPath.fallback_slot || rulePickBase.fallback_slot || "fallback"
+        slot: effectiveFastPath.slot || rulePickBase.slot || "grunt",
+        prefer_model: effectiveFastPath.prefer_model || rulePickBase.prefer_model || null,
+        fallback_slot: effectiveFastPath.fallback_slot || rulePickBase.fallback_slot || "fallback"
       }
     : rulePickBase;
+  if (classPolicy.prefer_slot) rulePick = { ...rulePick, slot: classPolicy.prefer_slot };
+  if (classPolicy.prefer_model) rulePick = { ...rulePick, prefer_model: classPolicy.prefer_model };
+  if (classPolicy.fallback_slot) rulePick = { ...rulePick, fallback_slot: classPolicy.fallback_slot };
   const anchorModel = String(cfg?.routing?.default_anchor_model || "ollama/kimi-k2.5:cloud");
-  const role = fastPath.matched ? "chat" : adjusted.role;
+  const role = effectiveFastPath.matched ? "chat" : (normalizeKey(adjusted.role || requestedRole) || "general");
   const capabilityKey = normalizeCapabilityKey(capability || inferCapability(intent, task, role));
   const tier = inferTier(risk, complexity);
   const budgetState = routerBudgetState(cfg);
-  const requestTokensEst = estimateRequestTokens(tokensEst, intent, task);
+  let requestTokensEst = estimateRequestTokens(tokensEst, intent, task);
+  if (classPolicy.max_tokens_est != null && Number.isFinite(Number(classPolicy.max_tokens_est))) {
+    requestTokensEst = Math.min(requestTokensEst, Number(classPolicy.max_tokens_est));
+  }
   const budgetProjected = projectBudgetState(budgetState, requestTokensEst);
 
   const candidates = [];
@@ -2141,6 +2325,29 @@ function routeDecision({ risk, complexity, intent, task, mode, forceModel, capab
     if (!tried.includes(selected)) tried.push(selected);
   }
 
+  const budgetEnforcement = enforceBudgetSelection({
+    selected,
+    ranked,
+    budgetState,
+    budgetProjected
+  });
+  if (budgetEnforcement && budgetEnforcement.action === "degrade" && budgetEnforcement.selected_model) {
+    if (String(budgetEnforcement.selected_model) !== String(selected || "")) {
+      selected = budgetEnforcement.selected_model;
+      reason = `${reason}|${budgetEnforcement.reason || "budget_degrade"}`;
+      if (!tried.includes(selected)) tried.push(selected);
+    }
+  } else if (budgetEnforcement && budgetEnforcement.action === "escalate") {
+    if (budgetEnforcement.blocked === true) {
+      selected = null;
+      reason = `${reason}|${budgetEnforcement.reason || "budget_escalate_blocked"}`;
+    } else if (budgetEnforcement.selected_model && String(budgetEnforcement.selected_model) !== String(selected || "")) {
+      selected = budgetEnforcement.selected_model;
+      reason = `${reason}|${budgetEnforcement.reason || "budget_escalate"}`;
+      if (!tried.includes(selected)) tried.push(selected);
+    }
+  }
+
   const state = getRouteState();
   const prev = state.last_selected_model || null;
   const modelChanged = !!(selected && prev && selected !== prev);
@@ -2188,15 +2395,23 @@ function routeDecision({ risk, complexity, intent, task, mode, forceModel, capab
     forced_model: forced || null,
     tier1_local_first: T1_LOCAL_FIRST && Number(tier) === 1,
     tier1_escalation_reason: tier1EscalationReason,
-    fast_path: fastPath.matched
+    route_class: classPolicy.id,
+    route_class_policy: {
+      force_risk: classPolicy.force_risk || null,
+      force_complexity: classPolicy.force_complexity || null,
+      force_role: classPolicy.force_role || null,
+      max_tokens_est: classPolicy.max_tokens_est,
+      disable_fast_path: classPolicy.disable_fast_path === true
+    },
+    fast_path: effectiveFastPath.matched
       ? {
           matched: true,
-          reason: fastPath.reason,
-          matched_pattern: fastPath.matched_pattern,
-          text: fastPath.text,
-          skip_outcome_scan: fastPath.skip_outcome_scan === true
+          reason: effectiveFastPath.reason,
+          matched_pattern: effectiveFastPath.matched_pattern,
+          text: effectiveFastPath.text,
+          skip_outcome_scan: effectiveFastPath.skip_outcome_scan === true
         }
-      : { matched: false, reason: fastPath.reason || "not_checked" },
+      : { matched: false, reason: effectiveFastPath.reason || "not_checked" },
     budget: {
       enabled: budgetState.enabled === true,
       available: budgetState.available === true,
@@ -2208,6 +2423,12 @@ function routeDecision({ risk, complexity, intent, task, mode, forceModel, capab
       projected_pressure: budgetProjected.projected_pressure || budgetState.pressure || "none",
       projected_ratio: budgetProjected.projected_ratio,
       projected_used_est: budgetProjected.projected_used_est
+    },
+    budget_enforcement: {
+      action: budgetEnforcement.action || "none",
+      reason: budgetEnforcement.reason || null,
+      blocked: budgetEnforcement.blocked === true,
+      from_model: budgetEnforcement.from_model || null
     },
     cost_estimate: {
       request_tokens_est: requestTokensEst,
@@ -2232,6 +2453,8 @@ function routeDecision({ risk, complexity, intent, task, mode, forceModel, capab
       requires_model_diversity: true
     };
   }
+
+  decision.handoff_packet = buildHandoffPacket(decision);
 
   appendJsonl(DECISIONS_LOG, decision);
 
@@ -2597,9 +2820,11 @@ function cmdRoute() {
   const task = parseArg("task") || "";
   const mode = parseArg("mode") || process.env.AGENT_MODE || "normal";
   const capability = parseArg("capability") || "";
+  const role = parseArg("role") || "";
+  const routeClass = parseArg("route_class") || parseArg("route-class") || "";
   const tokensEstRaw = parseArg("tokens_est") || parseArg("tokens-est");
   const tokensEst = Number(tokensEstRaw || 0);
-  const d = routeDecision({ risk, complexity, intent, task, mode, capability, tokensEst });
+  const d = routeDecision({ risk, complexity, intent, task, mode, capability, tokensEst, roleOverride: role, routeClass });
   printJson(d);
 }
 
@@ -2693,7 +2918,7 @@ function main() {
   if (cmd === "hardware-plan") return cmdHardwarePlan();
 
   console.log("Usage:");
-  console.log("  node systems/routing/model_router.js route --risk=low|medium|high --complexity=low|medium|high [--intent=..] [--task=..] [--tokens_est=N] [--capability=..] [--mode=normal|narrative|creative|hyper-creative|deep-thinker]");
+  console.log("  node systems/routing/model_router.js route --risk=low|medium|high --complexity=low|medium|high [--intent=..] [--task=..] [--tokens_est=N] [--capability=..] [--mode=normal|narrative|creative|hyper-creative|deep-thinker] [--role=..] [--route_class=..]");
   console.log("  node systems/routing/model_router.js probe --model=ollama/<name>");
   console.log("  node systems/routing/model_router.js probe-all");
   console.log("  node systems/routing/model_router.js bans");

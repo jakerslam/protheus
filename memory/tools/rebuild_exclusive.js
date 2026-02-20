@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const memoryDir = process.env.MEMORY_DIR || '/Users/jay/.openclaw/workspace/memory';
 const whitelistRegex = /^\d{4}-\d{2}-\d{2}\.md$/;
@@ -17,6 +18,31 @@ const SNIPPET_WINDOW = 8;
 const EXCLUDE_PATHS = ['node_modules', 'dist', 'build', '.git', '.next', 'out', 'coverage'];
 const INCLUDE_EXTENSIONS = ['.md', '.txt', '.js', '.ts', '.json', '.yaml', '.yml', '.sh', '.py', '.rb', '.go', '.rs', '.c', '.cpp', '.h', '.java', '.kt', '.swift', '.php', '.pl', '.r', '.scala', '.groovy', '.clj', '.erl', '.ex', '.exs', '.lua', '.vim', '.el', '.lisp', '.scm', '.hs', '.ml', '.sql', '.css', '.scss', '.less', '.html', '.xml', '.toml', '.ini', '.cfg', '.conf', '.dockerfile', '.tf', '.hcl'];
 const WORKSPACE_ROOT = '/Users/jay/.openclaw/workspace';
+const DELTA_CACHE_PATH = path.join(memoryDir, '.rebuild_delta_cache.json');
+
+function sha1Text(content) {
+  return crypto.createHash('sha1').update(String(content || '')).digest('hex');
+}
+
+function loadDeltaCache() {
+  try {
+    if (!fs.existsSync(DELTA_CACHE_PATH)) return { version: 1, files: {} };
+    const parsed = JSON.parse(fs.readFileSync(DELTA_CACHE_PATH, 'utf8'));
+    if (!parsed || typeof parsed !== 'object') return { version: 1, files: {} };
+    if (!parsed.files || typeof parsed.files !== 'object') parsed.files = {};
+    return parsed;
+  } catch {
+    return { version: 1, files: {} };
+  }
+}
+
+function saveDeltaCache(cache) {
+  const payload = cache && typeof cache === 'object' ? cache : { version: 1, files: {} };
+  payload.version = 1;
+  payload.updated_at = new Date().toISOString();
+  if (!payload.files || typeof payload.files !== 'object') payload.files = {};
+  fs.writeFileSync(DELTA_CACHE_PATH, JSON.stringify(payload, null, 2));
+}
 
 function getProjectRegistryFromNodes() {
   const registry = { 'active-core': [], 'active-test': [], paused: [], retired: [] };
@@ -421,21 +447,18 @@ function validateNode(chunk, file, expectedDate) {
   };
 }
 
-// Parse files using separator-based splitting
-for (const file of dailyFiles) {
-  const content = fs.readFileSync(path.join(memoryDir, file), 'utf8');
-  const expectedDate = file.replace('.md', '');
-
-  const chunks = content.split(/\s*<!--\s*NODE\s*-->\s*/).filter(c => c.trim());
+function parseDailyFileRecords(file, content, expectedDate) {
+  const records = [];
+  const formatViolationsLocal = [];
+  const chunks = String(content || '').split(/\s*<!--\s*NODE\s*-->\s*/).filter(c => c.trim());
 
   for (const chunk of chunks) {
     const trimmed = chunk.trim();
     if (!trimmed) continue;
 
     const validation = validateNode(trimmed, file, expectedDate);
-
     if (!validation.valid) {
-      formatViolations.push({
+      formatViolationsLocal.push({
         file,
         node_id: validation.nodeId,
         reasons: validation.violations.join(', ')
@@ -444,18 +467,70 @@ for (const file of dailyFiles) {
     }
 
     const { nodeId, tags, body } = validation;
+    const tokenEstimate = estimateTokens(trimmed);
+    const firstBullet = body.match(/[-*]\s*(.+?)(?=\n|$)/);
+    const firstLine = body.split('\n')[0];
+    const summary = firstBullet ? firstBullet[1].trim().substring(0, 60)
+      : firstLine ? firstLine.substring(0, 60)
+        : 'Node content';
 
-    if (seenNodes.has(nodeId)) {
-      continue;
-    }
+    records.push({
+      node_id: nodeId,
+      tags,
+      file,
+      date: expectedDate,
+      token_estimate: tokenEstimate,
+      summary
+    });
+  }
+
+  return {
+    records,
+    format_violations: formatViolationsLocal
+  };
+}
+
+// Parse files with delta cache (changed files only).
+const priorDeltaCache = loadDeltaCache();
+const nextDeltaCache = { version: 1, files: {} };
+let deltaHits = 0;
+let deltaMisses = 0;
+
+for (const file of dailyFiles) {
+  const filePath = path.join(memoryDir, file);
+  const content = fs.readFileSync(filePath, 'utf8');
+  const expectedDate = file.replace('.md', '');
+  const fileHash = sha1Text(content);
+
+  const cached = priorDeltaCache.files && priorDeltaCache.files[file] ? priorDeltaCache.files[file] : null;
+  let parsed = null;
+  if (cached && cached.sha1 === fileHash && cached.parsed && Array.isArray(cached.parsed.records) && Array.isArray(cached.parsed.format_violations)) {
+    parsed = cached.parsed;
+    deltaHits++;
+  } else {
+    parsed = parseDailyFileRecords(file, content, expectedDate);
+    deltaMisses++;
+  }
+
+  const safeParsed = {
+    records: Array.isArray(parsed && parsed.records) ? parsed.records : [],
+    format_violations: Array.isArray(parsed && parsed.format_violations) ? parsed.format_violations : []
+  };
+  nextDeltaCache.files[file] = {
+    sha1: fileHash,
+    parsed: safeParsed
+  };
+
+  formatViolations.push(...safeParsed.format_violations);
+
+  for (const rec of safeParsed.records) {
+    const nodeId = String(rec && rec.node_id || '').trim();
+    if (!nodeId) continue;
+    if (seenNodes.has(nodeId)) continue;
     seenNodes.add(nodeId);
 
-    // NEW: Check tag/registry consistency BEFORE other processing
+    const tags = Array.isArray(rec.tags) ? rec.tags.map(t => String(t || '').trim()).filter(Boolean) : [];
     const inActiveCore = projectRegistry['active-core'].includes(nodeId);
-    const inActiveTest = projectRegistry['active-test'].includes(nodeId);
-    const inPaused = projectRegistry.paused.includes(nodeId);
-    const inRetired = projectRegistry.retired.includes(nodeId);
-    const inRegistry = inActiveCore || inActiveTest || inPaused || inRetired;
     const hasProjectTag = tags.includes('project');
 
     if (!inActiveCore && hasProjectTag) {
@@ -473,30 +548,24 @@ for (const file of dailyFiles) {
       });
     }
 
-    const tokenEstimate = estimateTokens(trimmed);
+    const tokenEstimate = Number.isFinite(Number(rec.token_estimate)) ? Number(rec.token_estimate) : 0;
     const cap = getNodeCap(nodeId);
-
     if (tokenEstimate > cap) {
       bloatWarnings.push({
         node_id: nodeId,
-        file,
+        file: rec.file || file,
         tokens: tokenEstimate,
         cap,
         excess: tokenEstimate - cap
       });
     }
 
-    const firstBullet = body.match(/[-*]\s*(.+?)(?=\n|$)/);
-    const firstLine = body.split('\n')[0];
-    const summary = firstBullet ? firstBullet[1].trim().substring(0, 60) :
-                    firstLine ? firstLine.substring(0, 60) : 'Node content';
-
     allNodes.push({
       node_id: nodeId,
       tags,
-      file,
-      summary,
-      date: expectedDate,
+      file: rec.file || file,
+      summary: String(rec.summary || 'Node content'),
+      date: rec.date || expectedDate,
       token_estimate: tokenEstimate,
       in_active_core: inActiveCore
     });
@@ -509,6 +578,9 @@ for (const file of dailyFiles) {
     }
   }
 }
+
+saveDeltaCache(nextDeltaCache);
+console.log(`Delta cache: hits=${deltaHits} misses=${deltaMisses}`);
 
 console.log(`Valid nodes indexed: ${allNodes.length}`);
 if (formatViolations.length > 0) {
