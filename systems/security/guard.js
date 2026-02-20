@@ -15,8 +15,10 @@
  *   APPROVAL_NOTE="..." (required if BREAK_GLASS=1)
  *   REQUEST_SOURCE=local|slack|... (optional; remote sources default to proposal-only)
  *   REQUEST_ACTION=apply|propose|dry_run|audit (optional; default: apply)
+ *   REQUEST_KEY_ID (optional key selector; uses REQUEST_GATE_SECRET_<KEY_ID>)
  *   REQUEST_TS / REQUEST_NONCE / REQUEST_SIG (optional; required for remote direct apply)
  *   REQUEST_GATE_SECRET (required for verifying remote direct signatures)
+ *   REQUEST_REPLAY_STATE_PATH (optional override for replay-state JSON path)
  *   REMOTE_DIRECT_OVERRIDE=1 (required for remote direct apply)
  *   APPROVER_ID / SECOND_APPROVER_ID + SECOND_APPROVAL_NOTE (required for remote direct apply)
  *
@@ -85,7 +87,10 @@ function loadPolicy() {
       require_break_glass_for_direct: true,
       require_dual_approval_for_direct: true,
       require_signed_envelope_for_remote_direct: true,
+      require_nonce_replay_guard: true,
       envelope_max_skew_sec: 900,
+      replay_ttl_sec: 7200,
+      replay_state_max_entries: 5000,
       min_approval_note_chars: 12
     }
   };
@@ -125,6 +130,90 @@ function logRemoteGate(entry) {
   }
 }
 
+function replayStatePath() {
+  const custom = String(process.env.REQUEST_REPLAY_STATE_PATH || "").trim();
+  if (custom) return path.resolve(custom);
+  return path.join(repoRoot(), "state", "security", "request_replay_nonces.json");
+}
+
+function loadReplayState(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) {
+      return { version: 1, entries: {} };
+    }
+    const raw = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    if (!raw || typeof raw !== "object") return { version: 1, entries: {} };
+    const entries = raw.entries && typeof raw.entries === "object" ? raw.entries : {};
+    return { version: 1, entries };
+  } catch {
+    return { version: 1, entries: {} };
+  }
+}
+
+function saveReplayState(filePath, state) {
+  const dir = path.dirname(filePath);
+  fs.mkdirSync(dir, { recursive: true });
+  const payload = {
+    version: 1,
+    updated_at: nowIso(),
+    entries: state && state.entries && typeof state.entries === "object" ? state.entries : {}
+  };
+  fs.writeFileSync(filePath, JSON.stringify(payload, null, 2));
+}
+
+function recordReplayNonce({ source, nonce, ts, ttlSec = 7200, maxEntries = 5000 }) {
+  const safeNonce = String(nonce || "").trim();
+  if (safeNonce.length < 8 || safeNonce.length > 128) {
+    return { ok: false, reason: "nonce_invalid" };
+  }
+  const safeSource = normalizeLower(source || "remote") || "remote";
+  const filePath = replayStatePath();
+  const nowMs = Date.now();
+  const ttl = Math.max(120, Number(ttlSec || 7200));
+  const max = Math.max(200, Number(maxEntries || 5000));
+  const baseMs = Number.isFinite(Number(ts)) ? Math.floor(Number(ts) * 1000) : nowMs;
+  const expiresMs = Math.max(nowMs, baseMs) + (ttl * 1000);
+  const key = `${safeSource}|${safeNonce}`;
+
+  try {
+    const state = loadReplayState(filePath);
+    const entries = state.entries || {};
+
+    for (const k of Object.keys(entries)) {
+      const exp = Number((entries[k] && entries[k].expires_ms) || 0);
+      if (!exp || exp <= nowMs) delete entries[k];
+    }
+
+    const existing = entries[key];
+    if (existing && Number(existing.expires_ms || 0) > nowMs) {
+      return { ok: false, reason: "nonce_replay", path: filePath };
+    }
+
+    entries[key] = {
+      ts: nowIso(),
+      source: safeSource,
+      nonce: safeNonce,
+      request_ts: Number.isFinite(Number(ts)) ? Math.floor(Number(ts)) : null,
+      expires_ms: expiresMs
+    };
+
+    const keys = Object.keys(entries);
+    if (keys.length > max) {
+      keys
+        .sort((a, b) => Number(entries[a].expires_ms || 0) - Number(entries[b].expires_ms || 0))
+        .slice(0, keys.length - max)
+        .forEach((k) => {
+          delete entries[k];
+        });
+    }
+
+    saveReplayState(filePath, { version: 1, entries });
+    return { ok: true, reason: "ok", path: filePath };
+  } catch {
+    return { ok: false, reason: "nonce_store_error", path: filePath };
+  }
+}
+
 function evaluateRemoteRequestGate(policy, ctx) {
   const gate = policy && policy.remote_request_gate ? policy.remote_request_gate : {};
   const remoteSources = new Set((gate.remote_sources || []).map(normalizeLower).filter(Boolean));
@@ -136,7 +225,10 @@ function evaluateRemoteRequestGate(policy, ctx) {
   const requireBreakGlass = gate.require_break_glass_for_direct !== false;
   const requireDual = gate.require_dual_approval_for_direct !== false;
   const requireSignature = gate.require_signed_envelope_for_remote_direct !== false;
+  const requireReplayNonce = gate.require_nonce_replay_guard !== false;
   const maxSkewSec = Math.max(30, Number(gate.envelope_max_skew_sec || 900));
+  const replayTtlSec = Math.max(120, Number(gate.replay_ttl_sec || 7200));
+  const replayMaxEntries = Math.max(200, Number(gate.replay_state_max_entries || 5000));
 
   const result = {
     enabled: true,
@@ -150,6 +242,9 @@ function evaluateRemoteRequestGate(policy, ctx) {
     signature_required: false,
     signature_valid: null,
     signature_reason: null,
+    replay_nonce_required: false,
+    replay_nonce_valid: null,
+    replay_nonce_reason: null,
     min_approval_note_chars: minChars
   };
 
@@ -191,6 +286,21 @@ function evaluateRemoteRequestGate(policy, ctx) {
     result.signature_reason = sigCheck.reason || null;
     if (!sigCheck.ok) {
       result.missing.push("request_signature");
+    }
+  }
+  if (requireReplayNonce && result.signature_valid === true) {
+    result.replay_nonce_required = true;
+    const replayCheck = recordReplayNonce({
+      source,
+      nonce: ctx && ctx.env ? ctx.env.REQUEST_NONCE : null,
+      ts: ctx && ctx.env ? ctx.env.REQUEST_TS : null,
+      ttlSec: replayTtlSec,
+      maxEntries: replayMaxEntries
+    });
+    result.replay_nonce_valid = replayCheck.ok === true;
+    result.replay_nonce_reason = replayCheck.reason || null;
+    if (!replayCheck.ok) {
+      result.missing.push("request_nonce_replay");
     }
   }
 
