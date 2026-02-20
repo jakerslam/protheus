@@ -24,6 +24,7 @@ const { spawnSync } = require('child_process');
 const { loadActiveDirectives } = require('../../lib/directive_resolver.js');
 const { writeContractReceipt } = require('../../lib/action_receipts.js');
 const { isEmergencyStopEngaged } = require('../../lib/emergency_stop.js');
+const { compactCommandOutput } = require('../../lib/command_output_compactor.js');
 const {
   loadActiveStrategy,
   applyThresholdOverrides,
@@ -85,6 +86,9 @@ const COOLDOWNS_PATH = process.env.AUTONOMY_COOLDOWNS_PATH
 const CALIBRATION_PATH = process.env.AUTONOMY_CALIBRATION_PATH
   ? path.resolve(process.env.AUTONOMY_CALIBRATION_PATH)
   : path.join(AUTONOMY_DIR, 'calibration.json');
+const SHORT_CIRCUIT_PATH = process.env.AUTONOMY_SHORT_CIRCUIT_PATH
+  ? path.resolve(process.env.AUTONOMY_SHORT_CIRCUIT_PATH)
+  : path.join(AUTONOMY_DIR, 'short_circuit.json');
 
 const DAILY_TOKEN_CAP = Number(process.env.AUTONOMY_DAILY_TOKEN_CAP || 4000);
 const NO_CHANGE_LIMIT = Number(process.env.AUTONOMY_NO_CHANGE_LIMIT || 2);
@@ -99,6 +103,8 @@ const AUTONOMY_MIN_ROUTE_TOKENS = Number(process.env.AUTONOMY_MIN_ROUTE_TOKENS |
 const AUTONOMY_SKIP_STUB = String(process.env.AUTONOMY_SKIP_STUB || '1') !== '0';
 const AUTONOMY_MAX_RUNS_PER_DAY = Number(process.env.AUTONOMY_MAX_RUNS_PER_DAY || 4);
 const AUTONOMY_MIN_MINUTES_BETWEEN_RUNS = Number(process.env.AUTONOMY_MIN_MINUTES_BETWEEN_RUNS || 15);
+const AUTONOMY_UNCHANGED_SHORT_CIRCUIT_ENABLED = String(process.env.AUTONOMY_UNCHANGED_SHORT_CIRCUIT_ENABLED || '1') !== '0';
+const AUTONOMY_UNCHANGED_SHORT_CIRCUIT_MINUTES = Number(process.env.AUTONOMY_UNCHANGED_SHORT_CIRCUIT_MINUTES || 30);
 const AUTONOMY_MAX_EYE_NO_PROGRESS_24H = Number(process.env.AUTONOMY_MAX_EYE_NO_PROGRESS_24H || 2);
 const AUTONOMY_DOD_ALLOW_PROPOSE_SHIPPED = String(process.env.AUTONOMY_DOD_ALLOW_PROPOSE_SHIPPED || '0') === '1';
 const AUTONOMY_DOD_MIN_ARTIFACT_DELTA = Number(process.env.AUTONOMY_DOD_MIN_ARTIFACT_DELTA || 1);
@@ -283,6 +289,87 @@ function loadJson(filePath, fallback) {
 function saveJson(filePath, obj) {
   ensureDir(path.dirname(filePath));
   fs.writeFileSync(filePath, JSON.stringify(obj, null, 2));
+}
+
+function loadShortCircuitState() {
+  const raw = loadJson(SHORT_CIRCUIT_PATH, {});
+  if (!raw || typeof raw !== 'object') return { entries: {} };
+  if (!raw.entries || typeof raw.entries !== 'object') raw.entries = {};
+  return raw;
+}
+
+function saveShortCircuitState(state) {
+  saveJson(SHORT_CIRCUIT_PATH, state && typeof state === 'object' ? state : { entries: {} });
+}
+
+function autonomyStateFingerprint({
+  dateStr,
+  proposalDate,
+  executionMode,
+  shadowOnly,
+  strategyId,
+  pool,
+  admission
+}) {
+  const sample = Array.isArray(pool)
+    ? pool.slice(0, 24).map((entry) => {
+        const p = entry && entry.proposal ? entry.proposal : {};
+        const scoreRaw = Number(entry && entry.score);
+        return {
+          id: String(p.id || ''),
+          type: String(p.type || ''),
+          risk: normalizedRisk(p.risk),
+          score: Number.isFinite(scoreRaw) ? Number(scoreRaw.toFixed(3)) : null,
+          status: String(entry && entry.status || ''),
+          source_eye: sourceEyeId(p),
+          key: String(entry && entry.dedup_key || '')
+        };
+      })
+    : [];
+  const payload = {
+    date: String(dateStr || ''),
+    proposal_date: String(proposalDate || ''),
+    execution_mode: String(executionMode || ''),
+    shadow_only: !!shadowOnly,
+    strategy_id: String(strategyId || ''),
+    sample,
+    admission: admission && typeof admission === 'object'
+      ? {
+          total: Number(admission.total || 0),
+          eligible: Number(admission.eligible || 0),
+          blocked: Number(admission.blocked || 0),
+          blocked_by_reason: admission.blocked_by_reason || {}
+        }
+      : null
+  };
+  return crypto.createHash('sha1').update(JSON.stringify(payload)).digest('hex');
+}
+
+function checkUnchangedShortCircuit(key, fingerprint, ttlMinutesRaw) {
+  const ttlMinutes = Number.isFinite(Number(ttlMinutesRaw))
+    ? Math.max(5, Math.min(240, Math.round(Number(ttlMinutesRaw))))
+    : 30;
+  const state = loadShortCircuitState();
+  const prev = state.entries && state.entries[key] ? state.entries[key] : null;
+  const nowMs = Date.now();
+  const prevMs = prev && prev.ts ? Date.parse(String(prev.ts)) : NaN;
+  const ageMinutes = Number.isFinite(prevMs) ? (nowMs - prevMs) / 60000 : null;
+  const same = !!(prev && String(prev.fingerprint || '') === String(fingerprint || ''));
+  const hit = same && ageMinutes != null && ageMinutes >= 0 && ageMinutes <= ttlMinutes;
+
+  state.entries = state.entries || {};
+  state.entries[key] = {
+    ts: nowIso(),
+    fingerprint: String(fingerprint || ''),
+    ttl_minutes: ttlMinutes
+  };
+  saveShortCircuitState(state);
+
+  return {
+    hit,
+    ttl_minutes: ttlMinutes,
+    age_minutes: ageMinutes == null ? null : Number(ageMinutes.toFixed(2))
+  };
 }
 
 function readJsonl(filePath) {
@@ -2851,12 +2938,20 @@ function hashObj(v) {
 
 function compactCmdResult(res) {
   if (!res) return null;
+  const stdoutCompacted = compactCommandOutput(res.stdout || '', 'autonomy_cmd:stdout');
+  const stderrCompacted = compactCommandOutput(res.stderr || '', 'autonomy_cmd:stderr');
+  const stdoutView = stdoutCompacted.compacted ? stdoutCompacted.text : shortText(stdoutCompacted.text, 200);
+  const stderrView = stderrCompacted.compacted ? stderrCompacted.text : shortText(stderrCompacted.text, 200);
   return {
     ok: !!res.ok,
     code: Number(res.code || 0),
     skipped: !!res.skipped,
-    stdout: shortText(res.stdout || '', 200),
-    stderr: shortText(res.stderr || '', 200)
+    stdout: stdoutView,
+    stderr: stderrView,
+    stdout_compacted: stdoutCompacted.compacted === true,
+    stdout_raw_path: stdoutCompacted.raw_path || null,
+    stderr_compacted: stderrCompacted.compacted === true,
+    stderr_raw_path: stderrCompacted.raw_path || null
   };
 }
 
@@ -3794,6 +3889,44 @@ function runCmd(dateStr, opts = {}) {
       reason: 'tools_labeled_as_eyes',
       warnings: terminologyWarnings
     });
+  }
+
+  if (AUTONOMY_UNCHANGED_SHORT_CIRCUIT_ENABLED) {
+    const shortCircuitKey = `${shadowOnly ? 'evidence' : 'run'}:${dateStr}`;
+    const fingerprint = autonomyStateFingerprint({
+      dateStr,
+      proposalDate,
+      executionMode,
+      shadowOnly,
+      strategyId: strategy ? strategy.id : null,
+      pool,
+      admission: admissionSummary
+    });
+    const shortCircuit = checkUnchangedShortCircuit(
+      shortCircuitKey,
+      fingerprint,
+      AUTONOMY_UNCHANGED_SHORT_CIRCUIT_MINUTES
+    );
+    if (shortCircuit.hit) {
+      writeRun(dateStr, {
+        ts: nowIso(),
+        type: 'autonomy_run',
+        result: 'stop_repeat_gate_unchanged_state',
+        key: shortCircuitKey,
+        fingerprint,
+        ttl_minutes: shortCircuit.ttl_minutes,
+        age_minutes: shortCircuit.age_minutes
+      });
+      process.stdout.write(JSON.stringify({
+        ok: true,
+        result: 'stop_repeat_gate_unchanged_state',
+        key: shortCircuitKey,
+        ttl_minutes: shortCircuit.ttl_minutes,
+        age_minutes: shortCircuit.age_minutes,
+        ts: nowIso()
+      }) + '\n');
+      return;
+    }
   }
 
   const priorRuns = runsSinceReset(readRuns(dateStr));

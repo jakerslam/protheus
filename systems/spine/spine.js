@@ -24,8 +24,10 @@
 const { spawnSync } = require("child_process");
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
 const { isEmergencyStopEngaged } = require("../../lib/emergency_stop.js");
 const { stampGuardEnv } = require("../../lib/request_envelope.js");
+const { compactCommandOutput } = require("../../lib/command_output_compactor.js");
 
 function arg(name) {
   const pref = `--${name}=`;
@@ -45,14 +47,18 @@ function run(cmd, args, opts = {}) {
 
 function runJson(cmd, args, opts = {}) {
   const r = spawnSync(cmd, args, { encoding: "utf8", ...opts });
-  const out = String(r.stdout || "").trim();
-  const err = String(r.stderr || "").trim();
+  const rawOut = String(r.stdout || "").trim();
+  const rawErr = String(r.stderr || "").trim();
+  const compactStdout = compactCommandOutput(rawOut, `${path.basename(String(args && args[0] || cmd || "command"))}:stdout`);
+  const compactStderr = compactCommandOutput(rawErr, `${path.basename(String(args && args[0] || cmd || "command"))}:stderr`);
+  const out = compactStdout.text;
+  const err = compactStderr.text;
   let payload = null;
-  if (out) {
+  if (rawOut) {
     try {
-      payload = JSON.parse(out);
+      payload = JSON.parse(rawOut);
     } catch {
-      const line = out.split("\n").find(x => x.trim().startsWith("{")) || out;
+      const line = rawOut.split("\n").find(x => x.trim().startsWith("{")) || rawOut;
       try { payload = JSON.parse(line); } catch {}
     }
   }
@@ -61,7 +67,11 @@ function runJson(cmd, args, opts = {}) {
     code: r.status == null ? 1 : r.status,
     payload,
     stdout: out,
-    stderr: err
+    stderr: err,
+    stdout_compacted: compactStdout.compacted === true,
+    stdout_raw_path: compactStdout.raw_path || null,
+    stderr_compacted: compactStderr.compacted === true,
+    stderr_raw_path: compactStderr.raw_path || null
   };
 }
 
@@ -289,6 +299,98 @@ function writeRoutingHealthState(obj) {
   const fp = routingHealthStatePath();
   fs.mkdirSync(path.dirname(fp), { recursive: true });
   fs.writeFileSync(fp, JSON.stringify(obj, null, 2));
+}
+
+function spineShortCircuitStatePath() {
+  return path.join(repoRoot(), "state", "spine", "short_circuit_state.json");
+}
+
+function readSpineShortCircuitState() {
+  try {
+    const fp = spineShortCircuitStatePath();
+    if (!fs.existsSync(fp)) return { entries: {} };
+    const parsed = JSON.parse(fs.readFileSync(fp, "utf8"));
+    if (!parsed || typeof parsed !== "object") return { entries: {} };
+    if (!parsed.entries || typeof parsed.entries !== "object") parsed.entries = {};
+    return parsed;
+  } catch {
+    return { entries: {} };
+  }
+}
+
+function writeSpineShortCircuitState(state) {
+  const fp = spineShortCircuitStatePath();
+  fs.mkdirSync(path.dirname(fp), { recursive: true });
+  fs.writeFileSync(fp, JSON.stringify(state || { entries: {} }, null, 2));
+}
+
+function hashFileOrMissing(fp) {
+  try {
+    if (!fs.existsSync(fp)) return "missing";
+    const st = fs.statSync(fp);
+    const h = crypto.createHash("sha1");
+    h.update(String(st.size));
+    h.update("|");
+    h.update(String(st.mtimeMs));
+    return h.digest("hex");
+  } catch {
+    return "error";
+  }
+}
+
+function spineStateFingerprint(mode, dateStr) {
+  const root = repoRoot();
+  const tracked = [
+    path.join(root, "state", "sensory", "eyes", "raw", `${dateStr}.jsonl`),
+    path.join(root, "state", "sensory", "eyes", "metrics", `${dateStr}.json`),
+    path.join(root, "state", "sensory", "proposals", `${dateStr}.json`),
+    path.join(root, "state", "queue", "decisions", `${dateStr}.jsonl`),
+    path.join(root, "state", "autonomy", "cooldowns.json")
+  ];
+  const payload = {
+    mode: String(mode || ""),
+    date: String(dateStr || ""),
+    files: tracked.map(fp => ({
+      path: path.relative(root, fp),
+      hash: hashFileOrMissing(fp)
+    }))
+  };
+  return crypto.createHash("sha1").update(JSON.stringify(payload)).digest("hex");
+}
+
+function shouldShortCircuitDaily(mode, dateStr) {
+  if (mode !== "daily") {
+    return { enabled: false, hit: false, reason: "mode_not_daily" };
+  }
+  if (String(process.env.SPINE_UNCHANGED_SHORT_CIRCUIT || "1") === "0") {
+    return { enabled: false, hit: false, reason: "feature_flag_disabled" };
+  }
+  const ttlMinutesRaw = Number(process.env.SPINE_UNCHANGED_SHORT_CIRCUIT_MINUTES || 45);
+  const ttlMinutes = Number.isFinite(ttlMinutesRaw) ? Math.max(5, Math.min(240, Math.round(ttlMinutesRaw))) : 45;
+  const key = `${mode}:${dateStr}`;
+  const fingerprint = spineStateFingerprint(mode, dateStr);
+  const state = readSpineShortCircuitState();
+  const prev = state.entries && state.entries[key] ? state.entries[key] : null;
+  const nowMs = Date.now();
+  const prevMs = prev && prev.ts ? Date.parse(String(prev.ts)) : NaN;
+  const ageMinutes = Number.isFinite(prevMs) ? (nowMs - prevMs) / 60000 : null;
+  const same = !!(prev && String(prev.fingerprint || "") === fingerprint);
+  const hit = same && ageMinutes != null && ageMinutes >= 0 && ageMinutes <= ttlMinutes;
+  state.entries = state.entries || {};
+  state.entries[key] = {
+    ts: nowIso(),
+    fingerprint,
+    ttl_minutes: ttlMinutes
+  };
+  writeSpineShortCircuitState(state);
+  return {
+    enabled: true,
+    hit,
+    key,
+    fingerprint,
+    ttl_minutes: ttlMinutes,
+    age_minutes: ageMinutes == null ? null : Number(ageMinutes.toFixed(2))
+  };
 }
 
 function main() {
@@ -621,6 +723,36 @@ function main() {
 
   // Always list after ingest (+ optional GC) so you see final queue state.
   run("node", ["habits/scripts/sensory_queue.js", "list", `--date=${dateStr}`]);
+
+  const shortCircuit = shouldShortCircuitDaily(mode, dateStr);
+  if (shortCircuit.enabled && shortCircuit.hit) {
+    appendLedger(dateStr, {
+      ts: nowIso(),
+      type: "spine_short_circuit",
+      mode,
+      date: dateStr,
+      reason: "unchanged_state",
+      key: shortCircuit.key,
+      fingerprint: shortCircuit.fingerprint,
+      ttl_minutes: shortCircuit.ttl_minutes,
+      age_minutes: shortCircuit.age_minutes
+    });
+    appendLedger(dateStr, {
+      ts: nowIso(),
+      type: "spine_run_ok",
+      mode,
+      date: dateStr,
+      signal_gate_ok: signalGateOk,
+      signal_slo_ok: signalSloOk,
+      short_circuit: true
+    });
+    console.log(
+      ` spine_short_circuit reason=unchanged_state ttl_minutes=${shortCircuit.ttl_minutes}` +
+      ` age_minutes=${shortCircuit.age_minutes == null ? "n/a" : shortCircuit.age_minutes}`
+    );
+    console.log(` ✅ spine complete (${mode}) for ${dateStr}`);
+    return;
+  }
 
   if (mode === "daily") {
     if (String(process.env.AUTONOMY_ENABLED || "") === "1") {
