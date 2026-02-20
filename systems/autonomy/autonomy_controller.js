@@ -157,6 +157,16 @@ const AUTONOMY_HARD_MAX_TOKENS_PER_ACTION = Number(process.env.AUTONOMY_HARD_MAX
 const AUTONOMY_HARD_MAX_RISK_PER_ACTION = Number(process.env.AUTONOMY_HARD_MAX_RISK_PER_ACTION || 70);
 const AUTONOMY_CANARY_DAILY_EXEC_LIMIT = Number(process.env.AUTONOMY_CANARY_DAILY_EXEC_LIMIT || 1);
 const AUTONOMY_SCORE_ONLY_EVIDENCE = String(process.env.AUTONOMY_SCORE_ONLY_EVIDENCE || '1') !== '0';
+const AUTONOMY_DIRECTIVE_PULSE_ENABLED = String(process.env.AUTONOMY_DIRECTIVE_PULSE_ENABLED || '1') !== '0';
+const AUTONOMY_DIRECTIVE_PULSE_WINDOW_DAYS = Number(process.env.AUTONOMY_DIRECTIVE_PULSE_WINDOW_DAYS || 14);
+const AUTONOMY_DIRECTIVE_PULSE_URGENCY_HOURS = Number(process.env.AUTONOMY_DIRECTIVE_PULSE_URGENCY_HOURS || 24);
+const AUTONOMY_DIRECTIVE_PULSE_NO_PROGRESS_LIMIT = Number(process.env.AUTONOMY_DIRECTIVE_PULSE_NO_PROGRESS_LIMIT || 3);
+const AUTONOMY_DIRECTIVE_PULSE_COOLDOWN_HOURS = Number(process.env.AUTONOMY_DIRECTIVE_PULSE_COOLDOWN_HOURS || 6);
+const AUTONOMY_DIRECTIVE_PULSE_T1_MIN_SHARE = Number(process.env.AUTONOMY_DIRECTIVE_PULSE_T1_MIN_SHARE || 0.5);
+const AUTONOMY_DIRECTIVE_PULSE_T2_MIN_SHARE = Number(process.env.AUTONOMY_DIRECTIVE_PULSE_T2_MIN_SHARE || 0.25);
+const AUTONOMY_DIRECTIVE_PULSE_RANK_BONUS = Number(process.env.AUTONOMY_DIRECTIVE_PULSE_RANK_BONUS || 0.3);
+const AUTONOMY_DIRECTIVE_PULSE_ESCALATE_AFTER = Number(process.env.AUTONOMY_DIRECTIVE_PULSE_ESCALATE_AFTER || 2);
+const AUTONOMY_DIRECTIVE_PULSE_ESCALATE_WINDOW_HOURS = Number(process.env.AUTONOMY_DIRECTIVE_PULSE_ESCALATE_WINDOW_HOURS || 24);
 const AUTONOMY_DISALLOWED_PARSER_TYPES = new Set(
   String(process.env.AUTONOMY_DISALLOWED_PARSER_TYPES || 'stub')
     .split(',')
@@ -519,6 +529,8 @@ function isNoProgressRun(evt) {
     || evt.result === 'init_gate_low_score'
     || evt.result === 'init_gate_blocked_route'
     || evt.result === 'stop_repeat_gate_capability_cap'
+    || evt.result === 'stop_repeat_gate_directive_pulse_cooldown'
+    || evt.result === 'stop_repeat_gate_directive_pulse_tier_reservation'
     || evt.result === 'stop_repeat_gate_stale_signal'
     || evt.result === 'stop_init_gate_quality_exhausted'
     || evt.result === 'stop_init_gate_directive_fit_exhausted'
@@ -548,6 +560,8 @@ function isAttemptRunEvent(evt) {
     || evt.result === 'init_gate_stub'
     || evt.result === 'init_gate_low_score'
     || evt.result === 'init_gate_blocked_route'
+    || evt.result === 'stop_repeat_gate_directive_pulse_cooldown'
+    || evt.result === 'stop_repeat_gate_directive_pulse_tier_reservation'
     || evt.result === 'stop_repeat_gate_capability_cap'
     || evt.result === 'stop_repeat_gate_stale_signal'
     || evt.result === 'stop_init_gate_quality_exhausted'
@@ -566,6 +580,8 @@ function isGateExhaustedAttempt(evt) {
   if (!evt || evt.type !== 'autonomy_run') return false;
   return evt.result === 'stop_repeat_gate_stale_signal'
     || evt.result === 'stop_repeat_gate_capability_cap'
+    || evt.result === 'stop_repeat_gate_directive_pulse_cooldown'
+    || evt.result === 'stop_repeat_gate_directive_pulse_tier_reservation'
     || evt.result === 'init_gate_blocked_route'
     || evt.result === 'stop_init_gate_quality_exhausted'
     || evt.result === 'stop_init_gate_directive_fit_exhausted'
@@ -1453,6 +1469,456 @@ function loadDirectiveFitProfile() {
   return profile;
 }
 
+function normalizeDirectiveTier(rawTier, fallback = 3) {
+  const n = Number(rawTier);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(1, Math.round(n));
+}
+
+function directiveTierWeight(tier) {
+  const t = normalizeDirectiveTier(tier, 3);
+  if (t <= 1) return 1.3;
+  if (t === 2) return 1.0;
+  if (t === 3) return 0.82;
+  return 0.7;
+}
+
+function directiveTierMinShare(tier) {
+  const t = normalizeDirectiveTier(tier, 3);
+  if (t <= 1) return clampNumber(Number(AUTONOMY_DIRECTIVE_PULSE_T1_MIN_SHARE || 0), 0, 1);
+  if (t === 2) return clampNumber(Number(AUTONOMY_DIRECTIVE_PULSE_T2_MIN_SHARE || 0), 0, 1);
+  return 0;
+}
+
+function compileDirectivePulseObjectives(directives) {
+  const input = Array.isArray(directives) ? directives : [];
+  const out = [];
+  const seen = new Set();
+  for (const d of input) {
+    if (!d || typeof d !== 'object') continue;
+    const data = d.data && typeof d.data === 'object' ? d.data : {};
+    const metadata = data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
+    const intent = data.intent && typeof data.intent === 'object' ? data.intent : {};
+    const scope = data.scope && typeof data.scope === 'object' ? data.scope : {};
+    const success = data.success_metrics && typeof data.success_metrics === 'object' ? data.success_metrics : {};
+    const id = String(metadata.id || d.id || '').trim();
+    if (!id || seen.has(id)) continue;
+    if (/^T0[_-]/i.test(id) || /^T0$/i.test(id)) continue;
+
+    const tier = normalizeDirectiveTier(
+      Number.isFinite(Number(d.tier)) ? Number(d.tier) : Number(metadata.tier),
+      3
+    );
+
+    const phrasesRaw = []
+      .concat(asStringArray(metadata.description))
+      .concat(asStringArray(intent.primary))
+      .concat(asStringArray(scope.included))
+      .concat(asStringArray(success.leading))
+      .concat(asStringArray(success.lagging));
+    const phrases = uniqSorted(
+      phrasesRaw
+        .map(normalizeDirectiveText)
+        .filter(Boolean)
+        .filter(x => x.length >= 6)
+    ).slice(0, 16);
+
+    const tokenSet = new Set();
+    for (const p of phrases) {
+      for (const tok of tokenizeDirectiveText(p)) tokenSet.add(tok);
+    }
+    const tokens = uniqSorted(Array.from(tokenSet)).slice(0, 64);
+
+    out.push({
+      id,
+      tier,
+      title: String(asStringArray(intent.primary)[0] || asStringArray(metadata.description)[0] || id),
+      tier_weight: directiveTierWeight(tier),
+      min_share: directiveTierMinShare(tier),
+      phrases,
+      tokens
+    });
+    seen.add(id);
+  }
+  out.sort((a, b) => {
+    if (a.tier !== b.tier) return a.tier - b.tier;
+    return String(a.id).localeCompare(String(b.id));
+  });
+  return out;
+}
+
+function loadDirectivePulseObjectives() {
+  if (!AUTONOMY_DIRECTIVE_PULSE_ENABLED) {
+    return {
+      enabled: false,
+      available: false,
+      objectives: [],
+      error: 'directive_pulse_disabled'
+    };
+  }
+  let directives = [];
+  try {
+    directives = loadActiveDirectives({ allowMissing: true });
+  } catch (err) {
+    return {
+      enabled: true,
+      available: false,
+      objectives: [],
+      error: String(err && err.message ? err.message : err).slice(0, 200)
+    };
+  }
+  const objectives = compileDirectivePulseObjectives(directives);
+  return {
+    enabled: true,
+    available: objectives.length > 0,
+    objectives,
+    error: objectives.length > 0 ? null : 'no_objectives'
+  };
+}
+
+function buildDirectivePulseStats(dateStr, windowDays) {
+  const days = clampNumber(Number(windowDays || AUTONOMY_DIRECTIVE_PULSE_WINDOW_DAYS), 1, 60);
+  const stats = new Map();
+  const tierAttemptsToday = {};
+  let attemptsToday = 0;
+  for (const d of dateWindow(dateStr, days)) {
+    const rows = readRuns(d);
+    for (const evt of rows) {
+      if (!evt || evt.type !== 'autonomy_run') continue;
+      if (!isAttemptRunEvent(evt)) continue;
+      const pulse = evt.directive_pulse && typeof evt.directive_pulse === 'object'
+        ? evt.directive_pulse
+        : null;
+      const objectiveId = String(pulse && pulse.objective_id || '').trim();
+      const tier = normalizeDirectiveTier(pulse && pulse.tier, 3);
+
+      if (d === dateStr) {
+        tierAttemptsToday[tier] = Number(tierAttemptsToday[tier] || 0) + 1;
+        attemptsToday += 1;
+      }
+
+      if (!objectiveId) continue;
+
+      const cur = stats.get(objectiveId) || {
+        objective_id: objectiveId,
+        tier,
+        attempts: 0,
+        shipped: 0,
+        no_change: 0,
+        reverted: 0,
+        no_progress_streak: 0,
+        last_attempt_ts: null,
+        last_shipped_ts: null
+      };
+      cur.attempts += 1;
+      cur.tier = tier;
+      cur.last_attempt_ts = String(evt.ts || cur.last_attempt_ts || '');
+      const shipped = evt.result === 'executed' && evt.outcome === 'shipped';
+      if (shipped) {
+        cur.shipped += 1;
+        cur.last_shipped_ts = String(evt.ts || cur.last_shipped_ts || '');
+        cur.no_progress_streak = 0;
+      } else {
+        if (evt.result === 'executed' && evt.outcome === 'no_change') cur.no_change += 1;
+        if (evt.result === 'executed' && evt.outcome === 'reverted') cur.reverted += 1;
+        if (isNoProgressRun(evt)) cur.no_progress_streak += 1;
+      }
+      stats.set(objectiveId, cur);
+    }
+  }
+  return {
+    stats,
+    tier_attempts_today: tierAttemptsToday,
+    attempts_today: attemptsToday
+  };
+}
+
+function buildDirectivePulseContext(dateStr) {
+  const cfg = loadDirectivePulseObjectives();
+  const hist = buildDirectivePulseStats(dateStr, AUTONOMY_DIRECTIVE_PULSE_WINDOW_DAYS);
+  return {
+    enabled: cfg.enabled === true,
+    available: cfg.available === true,
+    objectives: Array.isArray(cfg.objectives) ? cfg.objectives : [],
+    error: cfg.error || null,
+    window_days: clampNumber(Number(AUTONOMY_DIRECTIVE_PULSE_WINDOW_DAYS || 14), 1, 60),
+    urgency_hours: clampNumber(Number(AUTONOMY_DIRECTIVE_PULSE_URGENCY_HOURS || 24), 1, 240),
+    no_progress_limit: clampNumber(Number(AUTONOMY_DIRECTIVE_PULSE_NO_PROGRESS_LIMIT || 3), 1, 12),
+    cooldown_hours: clampNumber(Number(AUTONOMY_DIRECTIVE_PULSE_COOLDOWN_HOURS || 6), 1, 168),
+    tier_attempts_today: hist.tier_attempts_today,
+    attempts_today: hist.attempts_today,
+    objective_stats: hist.stats
+  };
+}
+
+function pulseObjectiveCooldownActive(stat, pulseCtx) {
+  if (!stat || typeof stat !== 'object') return false;
+  const streak = Number(stat.no_progress_streak || 0);
+  const limit = Number(pulseCtx && pulseCtx.no_progress_limit || AUTONOMY_DIRECTIVE_PULSE_NO_PROGRESS_LIMIT);
+  if (!Number.isFinite(streak) || streak < Math.max(1, limit)) return false;
+  const last = parseIsoTs(stat.last_attempt_ts);
+  if (!last) return false;
+  const ageHours = (Date.now() - last.getTime()) / (1000 * 60 * 60);
+  const cooldown = Number(pulseCtx && pulseCtx.cooldown_hours || AUTONOMY_DIRECTIVE_PULSE_COOLDOWN_HOURS);
+  return ageHours < Math.max(1, cooldown);
+}
+
+function pulseTierCoverageBonus(tier, pulseCtx) {
+  const minShare = directiveTierMinShare(tier);
+  const attemptsToday = Number(pulseCtx && pulseCtx.attempts_today || 0);
+  const byTier = pulseCtx && pulseCtx.tier_attempts_today && typeof pulseCtx.tier_attempts_today === 'object'
+    ? pulseCtx.tier_attempts_today
+    : {};
+  const current = Number(byTier[normalizeDirectiveTier(tier, 3)] || 0);
+  if (attemptsToday <= 0) {
+    if (normalizeDirectiveTier(tier, 3) <= 1) return 8;
+    if (normalizeDirectiveTier(tier, 3) === 2) return 4;
+    return 0;
+  }
+  if (minShare <= 0) return 0;
+  const expected = Math.ceil(attemptsToday * minShare);
+  const deficit = Math.max(0, expected - current);
+  return Math.min(18, deficit * 6);
+}
+
+function assessDirectivePulse(p, directiveFitScore, compositeScore, overlay, pulseCtx) {
+  if (!pulseCtx || pulseCtx.enabled !== true || pulseCtx.available !== true) {
+    return {
+      pass: true,
+      score: 0,
+      objective_id: null,
+      tier: null,
+      reasons: ['directive_pulse_unavailable']
+    };
+  }
+
+  const objectives = Array.isArray(pulseCtx.objectives) ? pulseCtx.objectives : [];
+  const text = proposalDirectiveText(p);
+  const tokens = tokenizeDirectiveText(text);
+  const tokenSet = new Set(tokens);
+  const stemSet = new Set(tokens.map(toStem));
+
+  let best = null;
+  for (const obj of objectives) {
+    const phraseHits = (obj.phrases || []).filter(ph => text.includes(ph));
+    const tokenHits = directiveTokenHits(tokenSet, stemSet, obj.tokens || []);
+    const align = clampNumber(Math.round((phraseHits.length * 20) + (Math.min(6, tokenHits.length) * 8)), 0, 100);
+    if (!best || align > best.alignment || (align === best.alignment && Number(obj.tier || 9) < Number(best.objective.tier || 9))) {
+      best = {
+        objective: obj,
+        alignment: align,
+        phrase_hits: phraseHits,
+        token_hits: tokenHits
+      };
+    }
+  }
+
+  if (!best || best.alignment <= 0) {
+    const weak = clampNumber(Math.round((Number(directiveFitScore || 0) * 0.35) + (Number(compositeScore || 0) * 0.15)), 0, 40);
+    return {
+      pass: true,
+      score: weak,
+      objective_id: null,
+      tier: null,
+      alignment: 0,
+      urgency: 1,
+      evidence_gap_multiplier: 1,
+      retry_penalty: 0,
+      coverage_bonus: 0,
+      reasons: ['no_objective_match'],
+      matched_positive: []
+    };
+  }
+
+  const obj = best.objective;
+  const stats = pulseCtx.objective_stats instanceof Map ? pulseCtx.objective_stats.get(obj.id) : null;
+  if (pulseObjectiveCooldownActive(stats, pulseCtx)) {
+    return {
+      pass: false,
+      score: 0,
+      objective_id: obj.id,
+      tier: obj.tier,
+      alignment: best.alignment,
+      reasons: ['objective_cooldown_active'],
+      cooldown: {
+        no_progress_streak: Number(stats && stats.no_progress_streak || 0),
+        cooldown_hours: Number(pulseCtx.cooldown_hours || AUTONOMY_DIRECTIVE_PULSE_COOLDOWN_HOURS),
+        last_attempt_ts: stats && stats.last_attempt_ts ? String(stats.last_attempt_ts) : null
+      },
+      matched_positive: uniqSorted([...(best.phrase_hits || []), ...(best.token_hits || [])]).slice(0, 6)
+    };
+  }
+
+  const nowMs = Date.now();
+  let urgency = 1.15;
+  const lastAttempt = parseIsoTs(stats && stats.last_attempt_ts);
+  if (lastAttempt) {
+    const ageHours = (nowMs - lastAttempt.getTime()) / (1000 * 60 * 60);
+    const horizon = Math.max(1, Number(pulseCtx.urgency_hours || AUTONOMY_DIRECTIVE_PULSE_URGENCY_HOURS));
+    urgency = clampNumber(ageHours / horizon, 0.6, 1.8);
+  }
+
+  const attempts = Number(stats && stats.attempts || 0);
+  const shipped = Number(stats && stats.shipped || 0);
+  const shippedRate = attempts > 0 ? shipped / attempts : 0;
+  let evidenceGapMultiplier = 1.0;
+  if (attempts === 0) evidenceGapMultiplier = 1.15;
+  else if (shippedRate < 0.2) evidenceGapMultiplier = 1.12;
+  else if (shippedRate > 0.6) evidenceGapMultiplier = 0.95;
+
+  const proposalNoChange = Number(overlay && overlay.outcomes && overlay.outcomes.no_change || 0);
+  const proposalReverted = Number(overlay && overlay.outcomes && overlay.outcomes.reverted || 0);
+  const objectiveNoProgress = Number(stats && stats.no_progress_streak || 0);
+  const retryPenalty = Math.min(45, (proposalNoChange * 6) + (proposalReverted * 10) + (objectiveNoProgress * 8));
+  const coverageBonus = pulseTierCoverageBonus(obj.tier, pulseCtx);
+
+  const base = (
+    (best.alignment * 0.55)
+    + (clampNumber(Number(directiveFitScore || 0), 0, 100) * 0.25)
+    + (clampNumber(Number(compositeScore || 0), 0, 100) * 0.2)
+  );
+  const weighted = (base * Number(obj.tier_weight || 1) * urgency * evidenceGapMultiplier) - retryPenalty + coverageBonus;
+  const score = clampNumber(Math.round(weighted), 0, 100);
+
+  return {
+    pass: true,
+    score,
+    objective_id: obj.id,
+    tier: obj.tier,
+    alignment: best.alignment,
+    urgency: Number(urgency.toFixed(3)),
+    evidence_gap_multiplier: Number(evidenceGapMultiplier.toFixed(3)),
+    retry_penalty: Number(retryPenalty.toFixed(3)),
+    coverage_bonus: Number(coverageBonus.toFixed(3)),
+    reasons: [],
+    matched_positive: uniqSorted([...(best.phrase_hits || []), ...(best.token_hits || [])]).slice(0, 6)
+  };
+}
+
+function directiveTierReservationNeed(eligible, pulseCtx) {
+  if (!pulseCtx || pulseCtx.enabled !== true || pulseCtx.available !== true) return null;
+  const candidates = Array.isArray(eligible) ? eligible : [];
+  const attemptsToday = Math.max(0, Number(pulseCtx.attempts_today || 0));
+  const byTier = pulseCtx.tier_attempts_today && typeof pulseCtx.tier_attempts_today === 'object'
+    ? pulseCtx.tier_attempts_today
+    : {};
+  const tiers = [1, 2];
+  for (const tier of tiers) {
+    const minShare = directiveTierMinShare(tier);
+    if (!(minShare > 0)) continue;
+    const current = Math.max(0, Number(byTier[tier] || 0));
+    const requiredAfterNext = Math.ceil((attemptsToday + 1) * minShare);
+    if (current >= requiredAfterNext) continue;
+    const candidateCount = candidates.filter(c => normalizeDirectiveTier(c && c.directive_pulse && c.directive_pulse.tier, 99) === tier).length;
+    return {
+      tier,
+      min_share: Number(minShare.toFixed(3)),
+      attempts_today: attemptsToday,
+      current_tier_attempts: current,
+      required_after_next: requiredAfterNext,
+      candidate_count: candidateCount
+    };
+  }
+  return null;
+}
+
+function recentDirectivePulseCooldownCount(dateStr, objectiveId, hours) {
+  const objId = String(objectiveId || '').trim();
+  if (!objId) return 0;
+  const h = Math.max(1, Number(hours || AUTONOMY_DIRECTIVE_PULSE_ESCALATE_WINDOW_HOURS));
+  const cutoff = Date.now() - (h * 60 * 60 * 1000);
+  const days = Math.max(1, Math.ceil(h / 24) + 1);
+  let count = 0;
+  for (const d of dateWindow(dateStr, days)) {
+    for (const evt of readRuns(d)) {
+      if (!evt || evt.type !== 'autonomy_run') continue;
+      if (String(evt.result || '') !== 'stop_repeat_gate_directive_pulse_cooldown') continue;
+      const ts = parseIsoTs(evt.ts);
+      if (!ts || ts.getTime() < cutoff) continue;
+      const evtObjective = String(
+        evt.objective_id
+        || (evt.sample_directive_pulse_cooldown && evt.sample_directive_pulse_cooldown.objective_id)
+        || ''
+      ).trim();
+      if (evtObjective !== objId) continue;
+      count++;
+    }
+  }
+  return count;
+}
+
+function ensureDirectivePulseEscalationProposal(dateStr, objectiveId, pulseCtx, sample) {
+  const objId = String(objectiveId || '').trim();
+  if (!objId) return { created: false, reason: 'missing_objective_id' };
+  const proposals = loadProposalsForDate(dateStr);
+  const existing = proposals.find((p) => (
+    p
+    && String(p.type || '') === 'directive_clarification'
+    && p.meta
+    && String(p.meta.directive_objective_id || '') === objId
+  ));
+  if (existing) {
+    return { created: false, reason: 'already_exists', proposal_id: String(existing.id || '') };
+  }
+
+  const obj = pulseCtx
+    && Array.isArray(pulseCtx.objectives)
+    ? pulseCtx.objectives.find(o => String(o && o.id || '') === objId) || null
+    : null;
+  const tier = normalizeDirectiveTier(obj && obj.tier, 2);
+  const titleTarget = String(obj && obj.title || objId);
+  const proposalId = `PULSE-${crypto.createHash('sha256').update(`${dateStr}|${objId}|directive_clarify`).digest('hex').slice(0, 16)}`;
+  const now = nowIso();
+  const cooldownHours = Math.max(1, Number(pulseCtx && pulseCtx.cooldown_hours || AUTONOMY_DIRECTIVE_PULSE_COOLDOWN_HOURS));
+  const noProgressLimit = Math.max(1, Number(pulseCtx && pulseCtx.no_progress_limit || AUTONOMY_DIRECTIVE_PULSE_NO_PROGRESS_LIMIT));
+
+  const proposal = {
+    id: proposalId,
+    type: 'directive_clarification',
+    title: `Clarify and replan directive objective: ${titleTarget}`,
+    summary: `Repeated no-progress cooldowns for objective ${objId}. Clarify scope/metrics and define a bounded next experiment.`,
+    expected_impact: tier <= 1 ? 'high' : 'medium',
+    risk: 'low',
+    validation: [
+      'Define one explicit metric with target window',
+      'Define one bounded next action with rollback condition',
+      'Run one score-only preview and verify executable route'
+    ],
+    suggested_next_command: `node systems/security/directive_intake.js validate --id=${objId} --file=config/directives/${objId}.yaml`,
+    evidence: [
+      {
+        source: 'autonomy_runs',
+        path: `state/autonomy/runs/${dateStr}.jsonl`,
+        match: `stop_repeat_gate_directive_pulse_cooldown objective=${objId}`,
+        evidence_ref: `eye:directive_pulse/${objId}`
+      }
+    ],
+    meta: {
+      source_eye: 'directive_pulse',
+      directive_objective_id: objId,
+      directive_objective_tier: tier,
+      directive_pulse_reason: 'repeated_no_progress_cooldown',
+      cooldown_hours: cooldownHours,
+      no_progress_limit: noProgressLimit,
+      generated_at: now,
+      topics: ['strategy', 'directive', 'autonomy', 'clarification'],
+      signal_quality_score: 72,
+      signal_quality_tier: 'medium',
+      relevance_score: 78,
+      relevance_tier: 'high'
+    },
+    notes: sample && sample.reasons
+      ? `cooldown_reasons=${sample.reasons.join(',')}`
+      : ''
+  };
+
+  const next = Array.isArray(proposals) ? proposals.slice() : [];
+  next.push(proposal);
+  const fp = path.join(PROPOSALS_DIR, `${dateStr}.json`);
+  saveJson(fp, next);
+  return { created: true, proposal_id: proposalId, objective_id: objId, date: dateStr };
+}
+
 function proposalDirectiveText(p) {
   const parts = [];
   parts.push(String((p && p.title) || ''));
@@ -2143,6 +2609,65 @@ function runRouteExecute(task, tokensEst, repeats14d = 1, errors30d = 0, dryRun 
   };
 }
 
+function isDirectiveClarificationProposal(p) {
+  return String(p && p.type || '').trim().toLowerCase() === 'directive_clarification';
+}
+
+function sanitizeDirectiveObjectiveId(v) {
+  const raw = String(v || '').trim();
+  if (!raw) return '';
+  if (!/^T[0-9]_[A-Za-z0-9_]+$/.test(raw)) return '';
+  return raw;
+}
+
+function parseDirectiveFileArgFromCommand(cmd) {
+  const text = String(cmd || '').trim();
+  if (!text) return '';
+  const m = text.match(/(?:^|\s)--file=(?:"([^"]+)"|'([^']+)'|([^\s]+))/);
+  const raw = String((m && (m[1] || m[2] || m[3])) || '').trim();
+  if (!raw) return '';
+  if (!/^config\/directives\/[A-Za-z0-9_]+\.ya?ml$/i.test(raw)) return '';
+  return raw.replace(/\\/g, '/');
+}
+
+function directiveClarificationExecSpec(p) {
+  if (!isDirectiveClarificationProposal(p)) return null;
+  const meta = p && p.meta && typeof p.meta === 'object' ? p.meta : {};
+  const objectiveId = sanitizeDirectiveObjectiveId(meta.directive_objective_id || '');
+  let relFile = objectiveId ? `config/directives/${objectiveId}.yaml` : '';
+  let source = objectiveId ? 'meta.directive_objective_id' : '';
+  if (!relFile) {
+    relFile = parseDirectiveFileArgFromCommand(p && p.suggested_next_command);
+    if (relFile) source = 'suggested_next_command';
+  }
+  if (!relFile) {
+    return {
+      ok: false,
+      reason: 'directive_clarification_missing_file'
+    };
+  }
+
+  const absFile = path.resolve(REPO_ROOT, relFile);
+  const directivesRoot = path.join(REPO_ROOT, 'config', 'directives') + path.sep;
+  if (!absFile.startsWith(directivesRoot) || !fs.existsSync(absFile)) {
+    return {
+      ok: false,
+      reason: 'directive_clarification_file_not_found',
+      file: relFile
+    };
+  }
+
+  const fileObjectiveId = path.basename(relFile).replace(/\.ya?ml$/i, '');
+  return {
+    ok: true,
+    decision: 'DIRECTIVE_VALIDATE',
+    objective_id: objectiveId || fileObjectiveId,
+    file: relFile,
+    source,
+    args: ['validate', `--file=${relFile}`]
+  };
+}
+
 function parseActuationSpec(p) {
   const meta = p && p.meta && typeof p.meta === 'object' ? p.meta : {};
   const actuation = meta && meta.actuation && typeof meta.actuation === 'object' ? meta.actuation : null;
@@ -2174,6 +2699,55 @@ function runActuationExecute(spec, dryRun = false) {
     stdout,
     stderr: (r.stderr || '').trim(),
     summary: payload && payload.summary ? payload.summary : null
+  };
+}
+
+function runDirectiveClarificationValidate(spec, dryRun = false) {
+  if (!spec || spec.ok !== true) {
+    const reason = spec && spec.reason ? String(spec.reason) : 'directive_clarification_spec_invalid';
+    return {
+      ok: false,
+      code: 2,
+      stdout: '',
+      stderr: reason,
+      summary: {
+        decision: 'DIRECTIVE_VALIDATE',
+        executable: false,
+        gate_decision: 'DENY',
+        reason,
+        dry_run: !!dryRun
+      }
+    };
+  }
+
+  const script = path.join(REPO_ROOT, 'systems', 'security', 'directive_intake.js');
+  const r = spawnSync('node', [script, ...spec.args], { cwd: REPO_ROOT, encoding: 'utf8' });
+  const stdout = String(r.stdout || '').trim();
+  const stderr = String(r.stderr || '').trim();
+  let payload = null;
+  if (stdout) {
+    try { payload = JSON.parse(stdout); } catch {}
+  }
+  const payloadOk = payload && payload.ok === true;
+  const ok = r.status === 0 && (payload ? payloadOk : true);
+
+  return {
+    ok,
+    code: r.status || 0,
+    stdout,
+    stderr,
+    summary: {
+      decision: 'DIRECTIVE_VALIDATE',
+      executable: ok,
+      gate_decision: ok ? 'ALLOW' : 'DENY',
+      objective_id: spec.objective_id || null,
+      file: spec.file || null,
+      source: spec.source || null,
+      dry_run: !!dryRun,
+      quality_ok: payload ? payload.ok === true : null,
+      missing: Array.isArray(payload && payload.missing) ? payload.missing.slice(0, 8) : [],
+      questions: Array.isArray(payload && payload.questions) ? payload.questions.slice(0, 8) : []
+    }
   };
 }
 
@@ -2288,7 +2862,11 @@ function compactCmdResult(res) {
 
 function verifyExecutionReceipt(execRes, dod, outcomeRes, postconditions) {
   const decision = String(execRes && execRes.summary && execRes.summary.decision || '');
-  const execCheckName = decision === 'ACTUATE' ? 'actuation_execute_ok' : 'route_execute_ok';
+  const execCheckName = decision === 'ACTUATE'
+    ? 'actuation_execute_ok'
+    : decision === 'DIRECTIVE_VALIDATE'
+      ? 'directive_validate_ok'
+      : 'route_execute_ok';
   const checks = [
     { name: execCheckName, pass: !!(execRes && execRes.ok === true) },
     { name: 'postconditions_ok', pass: !!(postconditions && postconditions.passed === true) },
@@ -2840,6 +3418,7 @@ function statusCmd(dateStr) {
   const calibrationProfile = computeCalibrationProfile(dateStr, false);
   const thresholds = calibrationProfile.effective_thresholds || baseThresholds();
   const runs = runsSinceReset(readRuns(dateStr));
+  const directivePulseCtx = buildDirectivePulseContext(dateStr);
   const attempts = attemptEvents(runs);
   const executedRuns = runs.filter(e => e && e.type === 'autonomy_run' && e.result === 'executed');
   const attemptsToday = attempts.length;
@@ -2901,6 +3480,25 @@ function statusCmd(dateStr) {
       directive_profile_available: directiveProfile.available === true,
       directive_profile_error: directiveProfile.error || null
     },
+    directive_pulse: {
+      enabled: directivePulseCtx.enabled === true,
+      available: directivePulseCtx.available === true,
+      error: directivePulseCtx.error || null,
+      window_days: directivePulseCtx.window_days,
+      urgency_hours: directivePulseCtx.urgency_hours,
+      no_progress_limit: directivePulseCtx.no_progress_limit,
+      cooldown_hours: directivePulseCtx.cooldown_hours,
+      rank_bonus: clampNumber(Number(AUTONOMY_DIRECTIVE_PULSE_RANK_BONUS || 0), 0, 1),
+      objectives: directivePulseCtx.objectives.slice(0, 10).map(o => ({
+        id: o.id,
+        tier: o.tier,
+        title: o.title,
+        tier_weight: o.tier_weight,
+        min_share: o.min_share
+      })),
+      attempts_today: Number(directivePulseCtx.attempts_today || 0),
+      tier_attempts_today: directivePulseCtx.tier_attempts_today || {}
+    },
     calibration: {
       enabled: calibrationProfile.enabled === true,
       window_days: calibrationProfile.window_days,
@@ -2959,6 +3557,7 @@ function statusCmd(dateStr) {
       const dfit = assessDirectiveFit(x.proposal, directiveProfile, thresholds);
       const act = assessActionability(x.proposal, dfit, thresholds);
       const composite = compositeEligibilityScore(q.score, dfit.score, act.score);
+      const pulse = assessDirectivePulse(x.proposal, dfit.score, composite, x.overlay, directivePulseCtx);
       return {
         id: x.proposal.id,
         title: x.proposal.title,
@@ -2983,7 +3582,14 @@ function statusCmd(dateStr) {
         actionability_pass: act.pass,
         actionability_reasons: act.reasons.slice(0, 3),
         composite_eligibility_score: composite,
-        composite_eligibility_pass: composite >= AUTONOMY_MIN_COMPOSITE_ELIGIBILITY
+        composite_eligibility_pass: composite >= AUTONOMY_MIN_COMPOSITE_ELIGIBILITY,
+        directive_pulse: {
+          pass: pulse.pass,
+          score: pulse.score,
+          objective_id: pulse.objective_id || null,
+          tier: pulse.tier == null ? null : pulse.tier,
+          reasons: Array.isArray(pulse.reasons) ? pulse.reasons.slice(0, 3) : []
+        }
       };
     })
   };
@@ -3211,6 +3817,7 @@ function runCmd(dateStr, opts = {}) {
   const directiveProfile = loadDirectiveFitProfile();
   const calibrationProfile = computeCalibrationProfile(dateStr, true);
   const thresholds = calibrationProfile.effective_thresholds || baseThresholds();
+  const directivePulseCtx = buildDirectivePulseContext(dateStr);
 
   if (!shadowOnly && maxRunsPerDay > 0 && attemptsToday >= maxRunsPerDay) {
     writeRun(dateStr, {
@@ -3351,11 +3958,13 @@ function runCmd(dateStr, opts = {}) {
   let pick = null;
   let selection = { mode: 'exploit', index: 0, explore_used: 0, explore_quota: exploreQuotaForDay(), exploit_used: 0 };
   const eligible = [];
-  const skipStats = { eye_no_progress: 0, low_quality: 0, low_directive_fit: 0, low_actionability: 0, low_composite: 0 };
+  const skipStats = { eye_no_progress: 0, low_quality: 0, low_directive_fit: 0, low_actionability: 0, low_composite: 0, directive_pulse_cooldown: 0 };
   let sampleLowQuality = null;
   let sampleLowDirectiveFit = null;
   let sampleLowActionability = null;
   let sampleLowComposite = null;
+  let sampleDirectivePulseCooldown = null;
+  let tierReservation = null;
   for (const cand of pool) {
     const q = assessSignalQuality(cand.proposal, eyesMap, thresholds, calibrationProfile);
     if (!q.pass) {
@@ -3421,29 +4030,90 @@ function runCmd(dateStr, opts = {}) {
       skipStats.eye_no_progress += 1;
       continue;
     }
+
+    const pulse = assessDirectivePulse(cand.proposal, dfit.score, compositeScore, cand.overlay, directivePulseCtx);
+    if (!pulse.pass) {
+      skipStats.directive_pulse_cooldown += 1;
+      if (!sampleDirectivePulseCooldown) {
+        sampleDirectivePulseCooldown = {
+          proposal_id: cand.proposal.id,
+          objective_id: pulse.objective_id || null,
+          tier: pulse.tier == null ? null : pulse.tier,
+          reasons: Array.isArray(pulse.reasons) ? pulse.reasons.slice(0, 3) : []
+        };
+      }
+      continue;
+    }
+
     eligible.push({
       ...cand,
       quality: q,
       directive_fit: dfit,
       actionability,
       composite_score: compositeScore,
-      eye_no_progress_24h: eyeNoProgress24h
+      eye_no_progress_24h: eyeNoProgress24h,
+      directive_pulse: pulse
     });
+  }
+
+  tierReservation = directiveTierReservationNeed(eligible, directivePulseCtx);
+  if (tierReservation && Number(tierReservation.candidate_count || 0) === 0) {
+    writeRun(dateStr, {
+      ts: nowIso(),
+      type: 'autonomy_run',
+      result: 'stop_repeat_gate_directive_pulse_tier_reservation',
+      reserved_tier: tierReservation.tier,
+      current_tier_attempts: tierReservation.current_tier_attempts,
+      required_after_next: tierReservation.required_after_next,
+      attempts_today: tierReservation.attempts_today,
+      min_share: tierReservation.min_share
+    });
+    process.stdout.write(JSON.stringify({
+      ok: true,
+      result: 'stop_repeat_gate_directive_pulse_tier_reservation',
+      reserved_tier: tierReservation.tier,
+      current_tier_attempts: tierReservation.current_tier_attempts,
+      required_after_next: tierReservation.required_after_next,
+      attempts_today: tierReservation.attempts_today,
+      min_share: tierReservation.min_share,
+      ts: nowIso()
+    }) + '\n');
+    return;
   }
 
   if (eligible.length > 0) {
     for (const cand of eligible) {
       cand.strategy_rank = strategyRankForCandidate(cand, strategy);
+      cand.strategy_rank_adjusted = Number((
+        Number(cand.strategy_rank && cand.strategy_rank.score || 0)
+        + (clampNumber(Number(AUTONOMY_DIRECTIVE_PULSE_RANK_BONUS || 0), 0, 1) * Number(cand.directive_pulse && cand.directive_pulse.score || 0))
+      ).toFixed(3));
     }
     eligible.sort((a, b) => {
-      const sa = Number(a.strategy_rank && a.strategy_rank.score || 0);
-      const sb = Number(b.strategy_rank && b.strategy_rank.score || 0);
+      const sa = Number(a.strategy_rank_adjusted != null ? a.strategy_rank_adjusted : (a.strategy_rank && a.strategy_rank.score || 0));
+      const sb = Number(b.strategy_rank_adjusted != null ? b.strategy_rank_adjusted : (b.strategy_rank && b.strategy_rank.score || 0));
       if (sb !== sa) return sb - sa;
       if (b.score !== a.score) return b.score - a.score;
       return String(a.proposal.id).localeCompare(String(b.proposal.id));
     });
-    selection = chooseSelectionMode(eligible, priorRuns);
-    pick = eligible[selection.index] || eligible[0];
+    if (tierReservation && Number(tierReservation.candidate_count || 0) > 0) {
+      const reservedTier = Number(tierReservation.tier);
+      const reservedIdx = eligible.findIndex(c => normalizeDirectiveTier(c && c.directive_pulse && c.directive_pulse.tier, 99) === reservedTier);
+      const idx = reservedIdx >= 0 ? reservedIdx : 0;
+      pick = eligible[idx] || eligible[0];
+      selection = {
+        mode: 'directive_reservation',
+        index: idx,
+        explore_used: 0,
+        explore_quota: 0,
+        exploit_used: 0,
+        reserved_tier: reservedTier,
+        reservation: tierReservation
+      };
+    } else {
+      selection = chooseSelectionMode(eligible, priorRuns);
+      pick = eligible[selection.index] || eligible[0];
+    }
   }
 
   if (!pick && shadowOnly && pool.length > 0) {
@@ -3452,6 +4122,7 @@ function runCmd(dateStr, opts = {}) {
     const dfit = assessDirectiveFit(fallback.proposal, directiveProfile, thresholds);
     const actionability = assessActionability(fallback.proposal, dfit, thresholds);
     const compositeScore = compositeEligibilityScore(q.score, dfit.score, actionability.score);
+    const pulse = assessDirectivePulse(fallback.proposal, dfit.score, compositeScore, fallback.overlay, directivePulseCtx);
     pick = {
       ...fallback,
       quality: q,
@@ -3459,13 +4130,24 @@ function runCmd(dateStr, opts = {}) {
       actionability,
       composite_score: compositeScore,
       eye_no_progress_24h: countEyeOutcomesInLastHours(decisionEvents, sourceEyeRef(fallback.proposal), 'no_change', 24),
+      directive_pulse: pulse,
       strategy_rank: strategyRankForCandidate({
         ...fallback,
         quality: q,
         directive_fit: dfit,
         actionability,
         composite_score: compositeScore
-      }, strategy)
+      }, strategy),
+      strategy_rank_adjusted: Number((
+        Number(strategyRankForCandidate({
+          ...fallback,
+          quality: q,
+          directive_fit: dfit,
+          actionability,
+          composite_score: compositeScore
+        }, strategy).score || 0)
+        + (clampNumber(Number(AUTONOMY_DIRECTIVE_PULSE_RANK_BONUS || 0), 0, 1) * Number(pulse.score || 0))
+      ).toFixed(3))
     };
     selection = {
       mode: 'shadow_fallback',
@@ -3477,6 +4159,58 @@ function runCmd(dateStr, opts = {}) {
   }
 
   if (!pick) {
+    if (
+      skipStats.directive_pulse_cooldown > 0
+      && skipStats.eye_no_progress === 0
+      && skipStats.low_quality === 0
+      && skipStats.low_directive_fit === 0
+      && skipStats.low_actionability === 0
+      && skipStats.low_composite === 0
+    ) {
+      const objectiveId = String(
+        sampleDirectivePulseCooldown && sampleDirectivePulseCooldown.objective_id
+          ? sampleDirectivePulseCooldown.objective_id
+          : ''
+      ).trim();
+      const priorCooldownHits = objectiveId
+        ? recentDirectivePulseCooldownCount(dateStr, objectiveId, AUTONOMY_DIRECTIVE_PULSE_ESCALATE_WINDOW_HOURS)
+        : 0;
+      const cooldownHitsWindow = priorCooldownHits + 1;
+      const escalateAfter = Math.max(1, Number(AUTONOMY_DIRECTIVE_PULSE_ESCALATE_AFTER || 2));
+      const shouldEscalate = !!objectiveId && cooldownHitsWindow >= escalateAfter;
+      const escalation = shouldEscalate
+        ? ensureDirectivePulseEscalationProposal(proposalDate, objectiveId, directivePulseCtx, sampleDirectivePulseCooldown)
+        : { created: false, reason: 'below_escalation_threshold' };
+
+      writeRun(dateStr, {
+        ts: nowIso(),
+        type: 'autonomy_run',
+        result: 'stop_repeat_gate_directive_pulse_cooldown',
+        objective_id: objectiveId || null,
+        cooldown_hits_window: cooldownHitsWindow,
+        escalate_after: escalateAfter,
+        escalation,
+        cooldown_hours: directivePulseCtx.cooldown_hours,
+        no_progress_limit: directivePulseCtx.no_progress_limit,
+        skipped_directive_pulse_cooldown: skipStats.directive_pulse_cooldown,
+        sample_directive_pulse_cooldown: sampleDirectivePulseCooldown
+      });
+      process.stdout.write(JSON.stringify({
+        ok: true,
+        result: 'stop_repeat_gate_directive_pulse_cooldown',
+        objective_id: objectiveId || null,
+        cooldown_hits_window: cooldownHitsWindow,
+        escalate_after: escalateAfter,
+        escalation,
+        cooldown_hours: directivePulseCtx.cooldown_hours,
+        no_progress_limit: directivePulseCtx.no_progress_limit,
+        skipped_directive_pulse_cooldown: skipStats.directive_pulse_cooldown,
+        sample_directive_pulse_cooldown: sampleDirectivePulseCooldown,
+        ts: nowIso()
+      }) + '\n');
+      return;
+    }
+
     if (
       skipStats.low_quality > 0
       && skipStats.eye_no_progress === 0
@@ -3587,30 +4321,34 @@ function runCmd(dateStr, opts = {}) {
       ts: nowIso(),
       type: 'autonomy_run',
       result: 'stop_repeat_gate_candidate_exhausted',
-      reason: `all_candidates_exhausted quality_or_directive_fit_or_actionability_or_composite_or_eye_no_progress`,
+      reason: `all_candidates_exhausted quality_or_directive_fit_or_actionability_or_composite_or_eye_no_progress_or_directive_pulse`,
       skipped_eye_no_progress: skipStats.eye_no_progress,
       skipped_low_quality: skipStats.low_quality,
       skipped_low_directive_fit: skipStats.low_directive_fit,
       skipped_low_actionability: skipStats.low_actionability,
       skipped_low_composite: skipStats.low_composite,
-      sample_low_quality: sampleLowQuality,
-      sample_low_directive_fit: sampleLowDirectiveFit,
-      sample_low_actionability: sampleLowActionability,
-      sample_low_composite: sampleLowComposite
-    });
-    process.stdout.write(JSON.stringify({
-      ok: true,
-      result: 'stop_repeat_gate_candidate_exhausted',
-      reason: `all_candidates_exhausted quality_or_directive_fit_or_actionability_or_composite_or_eye_no_progress`,
-      skipped_eye_no_progress: skipStats.eye_no_progress,
-      skipped_low_quality: skipStats.low_quality,
-      skipped_low_directive_fit: skipStats.low_directive_fit,
-      skipped_low_actionability: skipStats.low_actionability,
-      skipped_low_composite: skipStats.low_composite,
+      skipped_directive_pulse_cooldown: skipStats.directive_pulse_cooldown,
       sample_low_quality: sampleLowQuality,
       sample_low_directive_fit: sampleLowDirectiveFit,
       sample_low_actionability: sampleLowActionability,
       sample_low_composite: sampleLowComposite,
+      sample_directive_pulse_cooldown: sampleDirectivePulseCooldown
+    });
+    process.stdout.write(JSON.stringify({
+      ok: true,
+      result: 'stop_repeat_gate_candidate_exhausted',
+      reason: `all_candidates_exhausted quality_or_directive_fit_or_actionability_or_composite_or_eye_no_progress_or_directive_pulse`,
+      skipped_eye_no_progress: skipStats.eye_no_progress,
+      skipped_low_quality: skipStats.low_quality,
+      skipped_low_directive_fit: skipStats.low_directive_fit,
+      skipped_low_actionability: skipStats.low_actionability,
+      skipped_low_composite: skipStats.low_composite,
+      skipped_directive_pulse_cooldown: skipStats.directive_pulse_cooldown,
+      sample_low_quality: sampleLowQuality,
+      sample_low_directive_fit: sampleLowDirectiveFit,
+      sample_low_actionability: sampleLowActionability,
+      sample_low_composite: sampleLowComposite,
+      sample_directive_pulse_cooldown: sampleDirectivePulseCooldown,
       ts: nowIso()
     }) + '\n');
     return;
@@ -3618,7 +4356,11 @@ function runCmd(dateStr, opts = {}) {
 
   const p = pick.proposal;
   const ov = pick.overlay || { outcomes: { no_change: 0, reverted: 0 } };
-  const actuationSpec = parseActuationSpec(p);
+  const directiveClarification = directiveClarificationExecSpec(p);
+  const actuationSpec = directiveClarification ? null : parseActuationSpec(p);
+  const executionTarget = directiveClarification
+    ? 'directive'
+    : (actuationSpec ? 'actuation' : 'route');
   const capability = capabilityDescriptor(p, actuationSpec);
   const capabilityKey = String(capability && capability.key ? capability.key : 'unknown');
   const capabilityLimit = capabilityCap(strategyBudget, capability);
@@ -3626,6 +4368,7 @@ function runCmd(dateStr, opts = {}) {
   const noChangeCount = ov.outcomes?.no_change || 0;
   const revertedCount = ov.outcomes?.reverted || 0;
   const circuitCooldownHours = strategyCircuitCooldownHours(p, strategy);
+  const directivePulse = pick.directive_pulse || null;
 
   if (circuitCooldownHours > 0) {
     const reason = `auto:circuit_breaker cooldown_${circuitCooldownHours}h`;
@@ -3639,13 +4382,15 @@ function runCmd(dateStr, opts = {}) {
       cooldown_hours: circuitCooldownHours,
       error_code: String((p.meta && (p.meta.last_error_code || p.meta.last_error)) || ''),
       proposal_key: proposalDedupKey(p),
-      capability_key: capabilityKey
+      capability_key: capabilityKey,
+      directive_pulse: directivePulse
     });
     process.stdout.write(JSON.stringify({
       ok: true,
       result: 'stop_repeat_gate_circuit_breaker',
       proposal_id: p.id,
       strategy_id: strategy ? strategy.id : null,
+      directive_pulse: directivePulse,
       cooldown_hours: circuitCooldownHours,
       ts: nowIso()
     }) + '\n');
@@ -3667,9 +4412,11 @@ function runCmd(dateStr, opts = {}) {
       const errors30d = countEyeOutcomesInWindow(decisionEvents, eyeRef, 'reverted', proposalDate, 30);
       const routeTokensEst = repeats14d >= 3 ? Math.max(estTokens, AUTONOMY_MIN_ROUTE_TOKENS) : estTokens;
       previewReceiptId = `preview_${Date.now()}_${String(p.id).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 48)}`;
-      const previewRes = actuationSpec
-        ? runActuationExecute(actuationSpec, true)
-        : runRouteExecute(makeTaskFromProposal(p), routeTokensEst, repeats14d, errors30d, true);
+      const previewRes = directiveClarification
+        ? runDirectiveClarificationValidate(directiveClarification, true)
+        : actuationSpec
+          ? runActuationExecute(actuationSpec, true)
+          : runRouteExecute(makeTaskFromProposal(p), routeTokensEst, repeats14d, errors30d, true);
       const preSummary = previewRes.summary || null;
       const preBlocked = !previewRes.ok
         || !preSummary
@@ -3702,6 +4449,12 @@ function runCmd(dateStr, opts = {}) {
         intent: {
           task_hash: hashObj({ task: makeTaskFromProposal(p) }),
           actuation: actuationSpec ? { kind: actuationSpec.kind } : null,
+          directive_validation: directiveClarification
+            ? {
+                objective_id: directiveClarification.objective_id || null,
+                file: directiveClarification.file || null
+              }
+            : null,
           mode: previewMode,
           score_only: true,
           route_tokens_est: routeTokensEst,
@@ -3729,9 +4482,12 @@ function runCmd(dateStr, opts = {}) {
       capability_key: capabilityKey,
       score: Number(pick.score.toFixed(3)),
       strategy_rank: pick.strategy_rank || null,
+      strategy_rank_adjusted: Number(pick.strategy_rank_adjusted || (pick.strategy_rank && pick.strategy_rank.score) || 0),
+      directive_pulse: directivePulse,
       selection_mode: selection.mode,
       selection_index: selection.index,
       admission: admissionSummary,
+      execution_target: executionTarget,
       preview_mode: previewMode,
       preview_receipt_id: previewReceiptId,
       preview_verification: previewVerification,
@@ -3746,9 +4502,12 @@ function runCmd(dateStr, opts = {}) {
       proposal_date: proposalDate,
       score: Number(pick.score.toFixed(3)),
       strategy_rank: pick.strategy_rank || null,
+      strategy_rank_adjusted: Number(pick.strategy_rank_adjusted || (pick.strategy_rank && pick.strategy_rank.score) || 0),
+      directive_pulse: directivePulse,
       selection_mode: selection.mode,
       selection_index: selection.index,
       admission: admissionSummary,
+      execution_target: executionTarget,
       preview_mode: previewMode,
       preview_receipt_id: previewReceiptId,
       preview_verification: previewVerification,
@@ -3768,6 +4527,7 @@ function runCmd(dateStr, opts = {}) {
       result: 'stop_no_change',
       proposal_id: p.id,
       capability_key: capabilityKey,
+      directive_pulse: directivePulse,
       no_change: noChangeCount
     });
     process.stdout.write(JSON.stringify({
@@ -3775,6 +4535,7 @@ function runCmd(dateStr, opts = {}) {
       result: 'stop_no_change',
       proposal_id: p.id,
       capability_key: capabilityKey,
+      directive_pulse: directivePulse,
       ts: nowIso()
     }) + '\n');
     return;
@@ -3790,6 +4551,7 @@ function runCmd(dateStr, opts = {}) {
       result: 'stop_reverted',
       proposal_id: p.id,
       capability_key: capabilityKey,
+      directive_pulse: directivePulse,
       reverted: revertedCount
     });
     process.stdout.write(JSON.stringify({
@@ -3797,6 +4559,7 @@ function runCmd(dateStr, opts = {}) {
       result: 'stop_reverted',
       proposal_id: p.id,
       capability_key: capabilityKey,
+      directive_pulse: directivePulse,
       ts: nowIso()
     }) + '\n');
     return;
@@ -3811,6 +4574,7 @@ function runCmd(dateStr, opts = {}) {
       result: 'init_gate_stub',
       proposal_id: p.id,
       capability_key: capabilityKey,
+      directive_pulse: directivePulse,
       score: Number(pick.score.toFixed(3))
     });
     process.stdout.write(JSON.stringify({
@@ -3818,6 +4582,7 @@ function runCmd(dateStr, opts = {}) {
       result: 'init_gate_stub',
       proposal_id: p.id,
       capability_key: capabilityKey,
+      directive_pulse: directivePulse,
       score: Number(pick.score.toFixed(3)),
       ts: nowIso()
     }) + '\n');
@@ -3833,6 +4598,7 @@ function runCmd(dateStr, opts = {}) {
       result: 'init_gate_low_score',
       proposal_id: p.id,
       capability_key: capabilityKey,
+      directive_pulse: directivePulse,
       score: Number(pick.score.toFixed(3)),
       min_score: AUTONOMY_MIN_PROPOSAL_SCORE
     });
@@ -3841,6 +4607,7 @@ function runCmd(dateStr, opts = {}) {
       result: 'init_gate_low_score',
       proposal_id: p.id,
       capability_key: capabilityKey,
+      directive_pulse: directivePulse,
       score: Number(pick.score.toFixed(3)),
       min_score: AUTONOMY_MIN_PROPOSAL_SCORE,
       ts: nowIso()
@@ -3888,6 +4655,7 @@ function runCmd(dateStr, opts = {}) {
       result: 'stop_init_gate_per_action_token_cap',
       proposal_id: p.id,
       capability_key: capabilityKey,
+      directive_pulse: directivePulse,
       est_tokens: estTokens,
       route_tokens_est: routeTokensEst,
       max_tokens_per_action: maxTokensPerAction
@@ -3897,6 +4665,7 @@ function runCmd(dateStr, opts = {}) {
       result: 'stop_init_gate_per_action_token_cap',
       proposal_id: p.id,
       capability_key: capabilityKey,
+      directive_pulse: directivePulse,
       est_tokens: estTokens,
       route_tokens_est: routeTokensEst,
       max_tokens_per_action: maxTokensPerAction,
@@ -3911,6 +4680,7 @@ function runCmd(dateStr, opts = {}) {
       result: 'stop_repeat_gate_capability_cap',
       proposal_id: p.id,
       capability_key: capabilityKey,
+      directive_pulse: directivePulse,
       capability_attempts_today: capabilityAttemptsToday,
       capability_daily_cap: capabilityLimit
     });
@@ -3919,6 +4689,7 @@ function runCmd(dateStr, opts = {}) {
       result: 'stop_repeat_gate_capability_cap',
       proposal_id: p.id,
       capability_key: capabilityKey,
+      directive_pulse: directivePulse,
       capability_attempts_today: capabilityAttemptsToday,
       capability_daily_cap: capabilityLimit,
       ts: nowIso()
@@ -3937,6 +4708,7 @@ function runCmd(dateStr, opts = {}) {
       result: 'stop_init_gate_strategy_recheck',
       proposal_id: p.id,
       capability_key: capabilityKey,
+      directive_pulse: directivePulse,
       admission_reason: finalAdmission.reason || 'unknown'
     });
     process.stdout.write(JSON.stringify({
@@ -3944,6 +4716,7 @@ function runCmd(dateStr, opts = {}) {
       result: 'stop_init_gate_strategy_recheck',
       proposal_id: p.id,
       capability_key: capabilityKey,
+      directive_pulse: directivePulse,
       admission_reason: finalAdmission.reason || 'unknown',
       ts: nowIso()
     }) + '\n');
@@ -3953,9 +4726,11 @@ function runCmd(dateStr, opts = {}) {
   const task = makeTaskFromProposal(p);
   const receiptId = `auto_${Date.now()}_${String(p.id).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 48)}`;
 
-  const preflight = actuationSpec
-    ? runActuationExecute(actuationSpec, true)
-    : runRouteExecute(task, routeTokensEst, repeats14d, errors30d, true);
+  const preflight = directiveClarification
+    ? runDirectiveClarificationValidate(directiveClarification, true)
+    : actuationSpec
+      ? runActuationExecute(actuationSpec, true)
+      : runRouteExecute(task, routeTokensEst, repeats14d, errors30d, true);
   const preSummary = preflight.summary || null;
   const preBlocked = !preflight.ok
     || !preSummary
@@ -3965,7 +4740,7 @@ function runCmd(dateStr, opts = {}) {
 
   if (preBlocked) {
     const blockReason = !preflight.ok
-      ? `${actuationSpec ? 'actuation' : 'route'}_exit_${preflight.code}`
+      ? `${executionTarget}_exit_${preflight.code}`
       : (preSummary && preSummary.gate_decision === 'MANUAL')
         ? 'gate_manual'
         : (preSummary && preSummary.gate_decision === 'DENY')
@@ -3981,6 +4756,8 @@ function runCmd(dateStr, opts = {}) {
       proposal_id: p.id,
       proposal_date: proposalDate,
       capability_key: capabilityKey,
+      execution_target: executionTarget,
+      directive_pulse: directivePulse,
       score: Number(pick.score.toFixed(3)),
       route_summary: preSummary,
       route_code: preflight.code,
@@ -4020,6 +4797,8 @@ function runCmd(dateStr, opts = {}) {
       receipt_id: receiptId,
       proposal_id: p.id,
       capability_key: capabilityKey,
+      execution_target: executionTarget,
+      directive_pulse: directivePulse,
       route_block_reason: blockReason,
       route_summary: preSummary,
       repeats_14d: repeats14d,
@@ -4044,6 +4823,7 @@ function runCmd(dateStr, opts = {}) {
       proposal_id: p.id,
       proposal_date: proposalDate,
       capability_key: capabilityKey,
+      directive_pulse: directivePulse,
       score: Number(pick.score.toFixed(3)),
       accept_result: compactCmdResult(acceptRes),
       repeats_14d: repeats14d,
@@ -4059,6 +4839,12 @@ function runCmd(dateStr, opts = {}) {
       intent: {
         task_hash: hashObj({ task }),
         actuation: actuationSpec ? { kind: actuationSpec.kind } : null,
+        directive_validation: directiveClarification
+          ? {
+              objective_id: directiveClarification.objective_id || null,
+              file: directiveClarification.file || null
+            }
+          : null,
         route_tokens_est: routeTokensEst,
         repeats_14d: repeats14d,
         errors_30d: errors30d
@@ -4081,6 +4867,7 @@ function runCmd(dateStr, opts = {}) {
       receipt_id: receiptId,
       proposal_id: p.id,
       capability_key: capabilityKey,
+      directive_pulse: directivePulse,
       ts: nowIso()
     }) + '\n');
     return;
@@ -4105,6 +4892,7 @@ function runCmd(dateStr, opts = {}) {
     signal_quality: pick.quality,
     directive_fit: pick.directive_fit,
     actionability: pick.actionability,
+    directive_pulse: directivePulse,
     composite: {
       score: pick.composite_score,
       min_score: AUTONOMY_MIN_COMPOSITE_ELIGIBILITY,
@@ -4113,6 +4901,7 @@ function runCmd(dateStr, opts = {}) {
     selection_mode: selection.mode,
     selection_index: selection.index,
     strategy_rank: pick.strategy_rank || null,
+    strategy_rank_adjusted: Number(pick.strategy_rank_adjusted || (pick.strategy_rank && pick.strategy_rank.score) || 0),
     thresholds,
     calibration_metrics: calibrationProfile.metrics,
     route_preflight: preSummary,
@@ -4132,9 +4921,11 @@ function runCmd(dateStr, opts = {}) {
 
   const beforeEvidence = loadDoDEvidenceSnapshot(dateStr);
   const execStartMs = Date.now();
-  const execRes = actuationSpec
-    ? runActuationExecute(actuationSpec, false)
-    : runRouteExecute(task, routeTokensEst, repeats14d, errors30d, false);
+  const execRes = directiveClarification
+    ? runDirectiveClarificationValidate(directiveClarification, false)
+    : actuationSpec
+      ? runActuationExecute(actuationSpec, false)
+      : runRouteExecute(task, routeTokensEst, repeats14d, errors30d, false);
   const execEndMs = Date.now();
   const afterEvidence = loadDoDEvidenceSnapshot(dateStr);
   budget.used_est += estTokens;
@@ -4201,6 +4992,12 @@ function runCmd(dateStr, opts = {}) {
     intent: {
       task_hash: hashObj({ task }),
       actuation: actuationSpec ? { kind: actuationSpec.kind } : null,
+      directive_validation: directiveClarification
+        ? {
+            objective_id: directiveClarification.objective_id || null,
+            file: directiveClarification.file || null
+          }
+        : null,
       route_tokens_est: routeTokensEst,
       repeats_14d: repeats14d,
       errors_30d: errors30d
@@ -4233,11 +5030,13 @@ function runCmd(dateStr, opts = {}) {
     execution_mode: executionMode,
     proposal_id: p.id,
     capability_key: capabilityKey,
+    execution_target: executionTarget,
     proposal_date: proposalDate,
     proposal_type: String(p.type || ''),
     source_eye: sourceEyeId(p),
     proposal_key: proposalDedupKey(p),
     score: Number(pick.score.toFixed(3)),
+    strategy_rank_adjusted: Number(pick.strategy_rank_adjusted || (pick.strategy_rank && pick.strategy_rank.score) || 0),
     est_tokens: estTokens,
     route_tokens_est: routeTokensEst,
     repeats_14d: repeats14d,
@@ -4247,6 +5046,7 @@ function runCmd(dateStr, opts = {}) {
     signal_quality: pick.quality,
     directive_fit: pick.directive_fit,
     actionability: pick.actionability,
+    directive_pulse: directivePulse,
     composite: {
       score: pick.composite_score,
       min_score: AUTONOMY_MIN_COMPOSITE_ELIGIBILITY,
@@ -4278,7 +5078,9 @@ function runCmd(dateStr, opts = {}) {
     execution_mode: executionMode,
     proposal_id: p.id,
     capability_key: capabilityKey,
+    execution_target: executionTarget,
     proposal_date: proposalDate,
+    strategy_rank_adjusted: Number(pick.strategy_rank_adjusted || (pick.strategy_rank && pick.strategy_rank.score) || 0),
     est_tokens: estTokens,
     route_tokens_est: routeTokensEst,
     repeats_14d: repeats14d,
@@ -4288,6 +5090,7 @@ function runCmd(dateStr, opts = {}) {
     signal_quality: pick.quality,
     directive_fit: pick.directive_fit,
     actionability: pick.actionability,
+    directive_pulse: directivePulse,
     composite: {
       score: pick.composite_score,
       min_score: AUTONOMY_MIN_COMPOSITE_ELIGIBILITY,
@@ -4399,6 +5202,9 @@ module.exports = {
   evaluateDoD,
   diffDoDEvidence,
   computeCalibrationDeltas,
+  compileDirectivePulseObjectives,
+  buildDirectivePulseContext,
+  assessDirectivePulse,
   startModelCatalogCanary,
   evaluateModelCatalogCanary,
   readModelCatalogCanary
