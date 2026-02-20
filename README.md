@@ -39,6 +39,9 @@ node systems/spine/spine.js eyes [YYYY-MM-DD] [--max-eyes=N]
 # List sensory eyes (passive sources only)
 node habits/scripts/eyes_inventory.js [--json]
 
+# Create a new probationary eye linked to an active directive
+node habits/scripts/eyes_intake.js create --name="..." --parser=hn_rss --directive=T1_make_jay_billionaire_v1 --domains=example.com
+
 # Collector reliability doctor (per-eye fetch health/SLOs)
 node habits/scripts/external_eyes.js doctor
 
