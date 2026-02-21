@@ -59,6 +59,10 @@ const MODE_GOVERNOR_CANARY_MIN_PREVIEW_SUCCESS_CRITERIA_PASS_RATE = Number(proce
 const MODE_GOVERNOR_REQUIRE_QUALITY_LOCK_FOR_EXECUTE = String(
   process.env.AUTONOMY_MODE_GOVERNOR_REQUIRE_QUALITY_LOCK_FOR_EXECUTE || '1'
 ) !== '0';
+const MODE_GOVERNOR_QUALITY_LOCK_FLAP_THRESHOLD = Number(process.env.AUTONOMY_MODE_GOVERNOR_QUALITY_LOCK_FLAP_THRESHOLD || 2);
+const MODE_GOVERNOR_QUALITY_LOCK_FLAP_WINDOW_HOURS = Number(process.env.AUTONOMY_MODE_GOVERNOR_QUALITY_LOCK_FLAP_WINDOW_HOURS || 24);
+const MODE_GOVERNOR_EXECUTE_FREEZE_HOURS = Number(process.env.AUTONOMY_MODE_GOVERNOR_EXECUTE_FREEZE_HOURS || 12);
+const MODE_GOVERNOR_NOW_ISO = String(process.env.AUTONOMY_MODE_GOVERNOR_NOW_ISO || '').trim();
 const MODE_GOVERNOR_CANARY_RELAX_ENABLED = String(process.env.AUTONOMY_CANARY_RELAX_ENABLED || '1') !== '0';
 const MODE_GOVERNOR_CANARY_RELAX_READINESS_CHECKS = new Set(
   String(process.env.AUTONOMY_CANARY_RELAX_READINESS_CHECKS || 'success_criteria_pass_rate')
@@ -126,7 +130,15 @@ function readinessState(mode, readiness) {
 }
 
 function nowIso() {
-  return new Date().toISOString();
+  return new Date(nowMs()).toISOString();
+}
+
+function nowMs() {
+  if (MODE_GOVERNOR_NOW_ISO) {
+    const n = Date.parse(MODE_GOVERNOR_NOW_ISO);
+    if (Number.isFinite(n)) return n;
+  }
+  return Date.now();
 }
 
 function todayStr() {
@@ -201,10 +213,18 @@ function strategyStreak(state, strategyId) {
   const root = state && typeof state === 'object' ? state : {};
   const by = root.by_strategy && typeof root.by_strategy === 'object' ? root.by_strategy : {};
   const row = by[strategyId] && typeof by[strategyId] === 'object' ? by[strategyId] : {};
+  const demotionEvents = Array.isArray(row.quality_lock_demotion_events)
+    ? row.quality_lock_demotion_events
+      .map((v) => String(v || '').trim())
+      .filter(Boolean)
+    : [];
   return {
     escalate_ready_streak: Math.max(0, Number(row.escalate_ready_streak || 0)),
     demote_not_ready_streak: Math.max(0, Number(row.demote_not_ready_streak || 0)),
-    last_eval_ts: row.last_eval_ts ? String(row.last_eval_ts) : null
+    last_eval_ts: row.last_eval_ts ? String(row.last_eval_ts) : null,
+    quality_lock_demotion_events: demotionEvents,
+    execute_freeze_until_ts: row.execute_freeze_until_ts ? String(row.execute_freeze_until_ts) : null,
+    execute_freeze_reason: row.execute_freeze_reason ? String(row.execute_freeze_reason) : null
   };
 }
 
@@ -240,6 +260,9 @@ function governorPolicy() {
     canary_min_preview_success_criteria_receipts: Math.max(0, Number(MODE_GOVERNOR_CANARY_MIN_PREVIEW_SUCCESS_CRITERIA_RECEIPTS || 0)),
     canary_min_preview_success_criteria_pass_rate: Math.max(0, Math.min(1, Number(MODE_GOVERNOR_CANARY_MIN_PREVIEW_SUCCESS_CRITERIA_PASS_RATE || 0))),
     canary_require_quality_lock_for_execute: MODE_GOVERNOR_REQUIRE_QUALITY_LOCK_FOR_EXECUTE,
+    quality_lock_flap_threshold: Math.max(1, Number(MODE_GOVERNOR_QUALITY_LOCK_FLAP_THRESHOLD || 2)),
+    quality_lock_flap_window_hours: Math.max(1, Number(MODE_GOVERNOR_QUALITY_LOCK_FLAP_WINDOW_HOURS || 24)),
+    execute_freeze_hours: Math.max(1, Number(MODE_GOVERNOR_EXECUTE_FREEZE_HOURS || 12)),
     require_spc: MODE_GOVERNOR_REQUIRE_SPC,
     spc_baseline_days: Math.max(3, Number(MODE_GOVERNOR_SPC_BASELINE_DAYS || 21)),
     spc_baseline_min_days: Math.max(1, Number(MODE_GOVERNOR_SPC_BASELINE_MIN_DAYS || 7)),
@@ -272,11 +295,44 @@ function cooldownState(last, minHours) {
   const ts = new Date(String(last.ts));
   if (Number.isNaN(ts.getTime())) return out;
   const minMs = minHours * 60 * 60 * 1000;
-  const ageMs = Date.now() - ts.getTime();
+  const ageMs = nowMs() - ts.getTime();
   if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs >= minMs) return out;
   out.active = true;
   out.remaining_minutes = Math.ceil((minMs - ageMs) / (60 * 1000));
   return out;
+}
+
+function computeExecuteFreezeState(policy, prevStreak) {
+  const row = prevStreak && typeof prevStreak === 'object' ? prevStreak : {};
+  const now = nowMs();
+  const windowMs = Math.max(1, Number(policy.quality_lock_flap_window_hours || 24)) * 60 * 60 * 1000;
+  const rawEvents = Array.isArray(row.quality_lock_demotion_events) ? row.quality_lock_demotion_events : [];
+  const events = [];
+  for (const ts of rawEvents) {
+    const s = String(ts || '').trim();
+    if (!s) continue;
+    const ms = Date.parse(s);
+    if (!Number.isFinite(ms)) continue;
+    if (ms > now) continue;
+    if ((now - ms) > windowMs) continue;
+    events.push(new Date(ms).toISOString());
+  }
+  events.sort();
+  const untilRaw = String(row.execute_freeze_until_ts || '').trim();
+  const untilMs = untilRaw ? Date.parse(untilRaw) : NaN;
+  const active = Number.isFinite(untilMs) && untilMs > now;
+  const remainingMinutes = active ? Math.ceil((untilMs - now) / (60 * 1000)) : 0;
+  return {
+    active,
+    until_ts: active ? new Date(untilMs).toISOString() : null,
+    remaining_minutes: remainingMinutes,
+    reason: active ? String(row.execute_freeze_reason || 'quality_lock_flap_circuit_open') : null,
+    flap_threshold: Math.max(1, Number(policy.quality_lock_flap_threshold || 2)),
+    flap_window_hours: Math.max(1, Number(policy.quality_lock_flap_window_hours || 24)),
+    freeze_hours: Math.max(1, Number(policy.execute_freeze_hours || 12)),
+    recent_demotion_count: events.length,
+    recent_demotion_event_ts: events
+  };
 }
 
 function canaryMetrics(summary, policy, qualityLock) {
@@ -610,9 +666,13 @@ function buildStatus(dateStr, days, strategy, policy, prevStreak) {
     })
     : null;
   const nextStreak = computeStreakUpdate(mode, readiness, canary, effectivePolicy, spc, prevStreak);
+  const executeFreeze = computeExecuteFreezeState(effectivePolicy, prevStreak);
   const last = lastModeChangeEvent(strategy.id);
   const cooldown = cooldownState(last, effectivePolicy.min_hours_between_changes);
-  const transition = decideTransition(mode, readiness, canary, effectivePolicy, spc, nextStreak);
+  let transition = decideTransition(mode, readiness, canary, effectivePolicy, spc, nextStreak);
+  if (transition && String(transition.to_mode || '') === 'execute' && executeFreeze.active) {
+    transition = null;
+  }
   const readinessEval = readinessState(mode, readiness);
   const transitionBlockReason = (
     mode === 'score_only'
@@ -631,17 +691,27 @@ function buildStatus(dateStr, days, strategy, policy, prevStreak) {
         ? 'spc_gate_failed'
         : null
     );
-  const streakBlockReason = !transition && (mode === 'score_only' || mode === 'canary_execute')
-    && Number(nextStreak.escalate_ready_streak || 0) > 0
-    && Number(nextStreak.escalate_ready_streak || 0) < Number(effectivePolicy.min_escalate_streak || 1)
-      ? 'hysteresis_wait_escalate_streak'
-      : (
-        !transition && mode !== 'score_only'
-        && Number(nextStreak.demote_not_ready_streak || 0) > 0
-        && Number(nextStreak.demote_not_ready_streak || 0) < Number(effectivePolicy.min_demote_streak || 1)
-          ? 'hysteresis_wait_demote_streak'
-          : null
-      );
+  const freezeBlockReason = !transition
+    && mode === 'canary_execute'
+    && executeFreeze.active
+    && readinessEval.ready_for_execute === true
+    && canary
+    && canary.ready_for_execute === true
+    ? 'execute_freeze_active'
+    : null;
+  const streakBlockReason = !transition && !freezeBlockReason
+    ? ((mode === 'score_only' || mode === 'canary_execute')
+      && Number(nextStreak.escalate_ready_streak || 0) > 0
+      && Number(nextStreak.escalate_ready_streak || 0) < Number(effectivePolicy.min_escalate_streak || 1)
+        ? 'hysteresis_wait_escalate_streak'
+        : (
+          mode !== 'score_only'
+          && Number(nextStreak.demote_not_ready_streak || 0) > 0
+          && Number(nextStreak.demote_not_ready_streak || 0) < Number(effectivePolicy.min_demote_streak || 1)
+            ? 'hysteresis_wait_demote_streak'
+            : null
+        ))
+    : null;
   return {
     date: dateStr,
     days: windowDays,
@@ -651,6 +721,7 @@ function buildStatus(dateStr, days, strategy, policy, prevStreak) {
     readiness,
     readiness_effective: readinessEval,
     canary,
+    execute_freeze: executeFreeze,
     spc,
     streak: nextStreak,
     current_mode: mode,
@@ -662,7 +733,7 @@ function buildStatus(dateStr, days, strategy, policy, prevStreak) {
     } : null,
     cooldown,
     transition,
-    transition_block_reason: transitionBlockReason || streakBlockReason
+    transition_block_reason: transitionBlockReason || freezeBlockReason || streakBlockReason
   };
 }
 
@@ -685,6 +756,7 @@ function cmdStatus(args) {
     },
     readiness: status.readiness,
     canary: status.canary,
+    execute_freeze: status.execute_freeze,
     spc: status.spc,
     streak: status.streak,
     policy: status.policy,
@@ -703,15 +775,42 @@ function cmdRun(args) {
   const prevStreak = strategyStreak(state, strategy.id);
   const status = buildStatus(dateStr, args.days, strategy, policy, prevStreak);
   state.by_strategy = state.by_strategy && typeof state.by_strategy === 'object' ? state.by_strategy : {};
-  state.by_strategy[strategy.id] = {
+  const nextStateRow = {
     ...status.streak,
+    quality_lock_demotion_events: Array.isArray(status.execute_freeze && status.execute_freeze.recent_demotion_event_ts)
+      ? status.execute_freeze.recent_demotion_event_ts
+      : [],
+    execute_freeze_until_ts: status.execute_freeze && status.execute_freeze.active
+      ? String(status.execute_freeze.until_ts || '')
+      : null,
+    execute_freeze_reason: status.execute_freeze && status.execute_freeze.active
+      ? String(status.execute_freeze.reason || 'quality_lock_flap_circuit_open')
+      : null,
     updated_at: nowIso()
   };
+  state.by_strategy[strategy.id] = nextStateRow;
   saveGovernorState(state);
   const fromMode = status.current_mode;
   const transition = status.transition;
 
   if (!transition) {
+    if (status.transition_block_reason === 'execute_freeze_active') {
+      appendJsonl(MODE_AUDIT_LOG_PATH, {
+        ts: nowIso(),
+        type: 'strategy_mode_auto_blocked',
+        strategy_id: strategy.id,
+        file: path.relative(REPO_ROOT, strategy.file).replace(/\\/g, '/'),
+        from_mode: fromMode,
+        to_mode: 'execute',
+        reason: 'execute_freeze_active',
+        execute_freeze: status.execute_freeze,
+        governor_policy: policy,
+        readiness: status.readiness,
+        canary: status.canary,
+        spc: status.spc,
+        streak: status.streak
+      });
+    }
     process.stdout.write(JSON.stringify({
       ok: true,
       ts: nowIso(),
@@ -721,6 +820,7 @@ function cmdRun(args) {
       reason: status.transition_block_reason || 'no_transition_rule_triggered',
       readiness: status.readiness,
       canary: status.canary,
+      execute_freeze: status.execute_freeze,
       spc: status.spc,
       streak: status.streak
     }, null, 2) + '\n');
@@ -738,6 +838,7 @@ function cmdRun(args) {
       to_mode: transition.to_mode,
       reason: transition.reason,
       cooldown,
+      execute_freeze: status.execute_freeze,
       spc: status.spc,
       streak: status.streak
     }, null, 2) + '\n');
@@ -755,6 +856,7 @@ function cmdRun(args) {
       reason: transition.reason,
       readiness: status.readiness,
       canary: status.canary,
+      execute_freeze: status.execute_freeze,
       spc: status.spc,
       streak: status.streak
     }, null, 2) + '\n');
@@ -839,13 +941,56 @@ function cmdRun(args) {
     spc: status.spc,
     streak: status.streak
   };
+  if (transition.reason === 'quality_lock_inactive_demote_canary') {
+    const now = nowMs();
+    const windowMs = Math.max(1, Number(policy.quality_lock_flap_window_hours || 24)) * 60 * 60 * 1000;
+    const freezeMs = Math.max(1, Number(policy.execute_freeze_hours || 12)) * 60 * 60 * 1000;
+    const threshold = Math.max(1, Number(policy.quality_lock_flap_threshold || 2));
+    const priorEvents = Array.isArray(nextStateRow.quality_lock_demotion_events)
+      ? nextStateRow.quality_lock_demotion_events
+      : [];
+    const withCurrent = [...priorEvents, nowIso()];
+    const kept = [];
+    for (const ts of withCurrent) {
+      const ms = Date.parse(String(ts || ''));
+      if (!Number.isFinite(ms) || ms > now) continue;
+      if ((now - ms) > windowMs) continue;
+      kept.push(new Date(ms).toISOString());
+    }
+    kept.sort();
+    nextStateRow.quality_lock_demotion_events = kept;
+    const demotionCount = kept.length;
+    if (demotionCount >= threshold) {
+      const until = new Date(now + freezeMs).toISOString();
+      nextStateRow.execute_freeze_until_ts = until;
+      nextStateRow.execute_freeze_reason = 'quality_lock_flap_circuit_open';
+      evt.execute_freeze_armed = {
+        active: true,
+        until_ts: until,
+        reason: 'quality_lock_flap_circuit_open',
+        threshold,
+        flap_window_hours: Number(policy.quality_lock_flap_window_hours || 24),
+        freeze_hours: Number(policy.execute_freeze_hours || 12),
+        demotion_count: demotionCount
+      };
+      appendJsonl(MODE_AUDIT_LOG_PATH, {
+        ts: nowIso(),
+        type: 'strategy_mode_execute_freeze_armed',
+        strategy_id: strategy.id,
+        file: path.relative(REPO_ROOT, strategy.file).replace(/\\/g, '/'),
+        reason: 'quality_lock_flap_circuit_open',
+        execute_freeze: evt.execute_freeze_armed,
+        demotion_events: kept
+      });
+    }
+  }
   appendJsonl(MODE_AUDIT_LOG_PATH, evt);
 
   state.by_strategy[strategy.id] = {
+    ...nextStateRow,
     escalate_ready_streak: 0,
     demote_not_ready_streak: 0,
-    last_eval_ts: nowIso(),
-    updated_at: nowIso()
+    last_eval_ts: nowIso()
   };
   saveGovernorState(state);
 
