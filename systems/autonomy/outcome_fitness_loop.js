@@ -44,6 +44,12 @@ const HISTORY_DIR = path.join(OUT_DIR, 'outcome_fitness');
 const RECEIPTS_PATH = path.join(OUT_DIR, 'receipts.jsonl');
 const TYPE_MIN_OUTCOME_SAMPLES = clampInt(process.env.OUTCOME_FITNESS_TYPE_MIN_OUTCOME_SAMPLES, 2, 30, 3);
 const TYPE_OFFSET_LIMIT = clampInt(process.env.OUTCOME_FITNESS_TYPE_OFFSET_LIMIT, 1, 12, 4);
+const QUALITY_LOCK_HISTORY_LIMIT = clampInt(process.env.OUTCOME_FITNESS_QUALITY_LOCK_HISTORY_LIMIT, 3, 365, 90);
+const QUALITY_LOCK_MIN_STABLE_WINDOWS = clampInt(process.env.OUTCOME_FITNESS_QUALITY_LOCK_MIN_STABLE_WINDOWS, 1, 30, 3);
+const QUALITY_LOCK_RELEASE_UNSTABLE_WINDOWS = clampInt(process.env.OUTCOME_FITNESS_QUALITY_LOCK_RELEASE_UNSTABLE_WINDOWS, 1, 30, 2);
+const QUALITY_LOCK_MIN_REALIZED_SCORE = clampNumber(process.env.OUTCOME_FITNESS_QUALITY_LOCK_MIN_REALIZED_SCORE, 0, 100, 65);
+const QUALITY_LOCK_MIN_QUALITY_RECEIPTS = clampInt(process.env.OUTCOME_FITNESS_QUALITY_LOCK_MIN_QUALITY_RECEIPTS, 0, 10000, 6);
+const QUALITY_LOCK_MAX_INSUFFICIENT_RATE = clampNumber(process.env.OUTCOME_FITNESS_QUALITY_LOCK_MAX_INSUFFICIENT_RATE, 0, 1, 0.3);
 
 function nowIso() { return new Date().toISOString(); }
 function todayStr() { return new Date().toISOString().slice(0, 10); }
@@ -143,6 +149,16 @@ function rate(num, den) {
 }
 
 function normalizeProposalType(v) {
+  const key = String(v || '').trim().toLowerCase();
+  if (!key) return 'unknown';
+  return key
+    .replace(/[^a-z0-9_.:-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 64) || 'unknown';
+}
+
+function normalizeCriteriaMetric(v) {
   const key = String(v || '').trim().toLowerCase();
   if (!key) return 'unknown';
   return key
@@ -259,11 +275,14 @@ function summarizeReceipts(dates) {
     success_criteria_receipts: 0,
     success_criteria_required_receipts: 0,
     success_criteria_receipt_pass: 0,
+    success_criteria_quality_receipts: 0,
+    success_criteria_quality_insufficient_receipts: 0,
     success_criteria_rows_total: 0,
     success_criteria_rows_evaluated: 0,
     success_criteria_rows_passed: 0,
     success_criteria_rows_failed: 0,
-    success_criteria_rows_unknown: 0
+    success_criteria_rows_unknown: 0,
+    success_criteria_metric_stats: {}
   };
   for (const dateStr of dates) {
     const rows = readJsonl(path.join(RECEIPTS_DIR, `${dateStr}.jsonl`));
@@ -297,6 +316,43 @@ function summarizeReceipts(dates) {
         out.success_criteria_rows_passed += Number(criteria.passed_count || 0);
         out.success_criteria_rows_failed += Number(criteria.failed_count || 0);
         out.success_criteria_rows_unknown += Number(criteria.unknown_count || 0);
+        const checks = Array.isArray(criteria.checks) ? criteria.checks : [];
+        const unknownRate = Number(criteria.total_count || 0) > 0
+          ? (Number(criteria.unknown_count || 0) / Number(criteria.total_count || 1))
+          : (checks.length > 0
+            ? (checks.filter((c) => !(c && c.evaluated === true)).length / checks.length)
+            : 1);
+        const unsupportedRate = checks.length > 0
+          ? (checks.filter((c) => String(c && c.reason || '') === 'unsupported_metric').length / checks.length)
+          : 0;
+        const qualityInsufficient = verification.criteria_quality_insufficient === true
+          || criteria.synthesized === true
+          || unknownRate > 0.4
+          || unsupportedRate > 0.5;
+        if (qualityInsufficient) out.success_criteria_quality_insufficient_receipts += 1;
+        else out.success_criteria_quality_receipts += 1;
+        for (const check of checks) {
+          const metric = normalizeCriteriaMetric(check && check.metric);
+          const stat = out.success_criteria_metric_stats[metric] || {
+            metric,
+            total: 0,
+            evaluated: 0,
+            passed: 0,
+            failed: 0,
+            unknown: 0,
+            unsupported: 0
+          };
+          stat.total += 1;
+          const evaluated = check && check.evaluated === true;
+          const pass = check && check.pass === true;
+          const fail = check && check.pass === false;
+          if (evaluated) stat.evaluated += 1;
+          if (pass) stat.passed += 1;
+          if (fail) stat.failed += 1;
+          if (!evaluated) stat.unknown += 1;
+          if (String(check && check.reason || '') === 'unsupported_metric') stat.unsupported += 1;
+          out.success_criteria_metric_stats[metric] = stat;
+        }
       }
     }
   }
@@ -306,8 +362,25 @@ function summarizeReceipts(dates) {
   out.fail_rate = rate(out.fail, out.attempted);
   out.receipt_shipped_rate = rate(out.outcome_shipped, out.attempted);
   out.success_criteria_receipt_pass_rate = rate(out.success_criteria_receipt_pass, out.success_criteria_receipts);
+  out.success_criteria_quality_insufficient_rate = rate(
+    out.success_criteria_quality_insufficient_receipts,
+    out.success_criteria_receipts
+  );
   out.success_criteria_required_pass_rate = rate(out.success_criteria_receipt_pass, out.success_criteria_required_receipts);
   out.success_criteria_row_pass_rate = rate(out.success_criteria_rows_passed, out.success_criteria_rows_evaluated);
+  out.success_criteria_metric_stats = Object.fromEntries(
+    Object.entries(out.success_criteria_metric_stats)
+      .map(([metric, stat]) => {
+        const evaluated = Number(stat.evaluated || 0);
+        const total = Number(stat.total || 0);
+        return [metric, {
+          ...stat,
+          pass_rate: evaluated > 0 ? Number((Number(stat.passed || 0) / evaluated).toFixed(4)) : null,
+          unknown_rate: total > 0 ? Number((Number(stat.unknown || 0) / total).toFixed(4)) : null
+        }];
+      })
+      .sort((a, b) => Number(b[1].total || 0) - Number(a[1].total || 0) || String(a[0]).localeCompare(String(b[0])))
+  );
   return out;
 }
 
@@ -510,6 +583,219 @@ function deriveFocusDelta(runMetrics, blocks) {
   return 0;
 }
 
+function deriveSuccessCriteriaMetricWeights(receiptMetrics) {
+  const stats = receiptMetrics && receiptMetrics.success_criteria_metric_stats && typeof receiptMetrics.success_criteria_metric_stats === 'object'
+    ? receiptMetrics.success_criteria_metric_stats
+    : {};
+  const weights = {};
+  const audit = {};
+  for (const [metric, stat] of Object.entries(stats)) {
+    const total = Number(stat && stat.total || 0);
+    const evaluated = Number(stat && stat.evaluated || 0);
+    if (total < 2) continue;
+    const passRate = evaluated > 0 ? Number(stat.pass_rate || 0) : 0;
+    const unknownRate = total > 0 ? Number(stat.unknown_rate || 0) : 0;
+    let weight = 1;
+    const reasons = [];
+
+    if (unknownRate >= 0.45) {
+      weight -= 0.35;
+      reasons.push('high_unknown_rate');
+    } else if (unknownRate >= 0.25) {
+      weight -= 0.15;
+      reasons.push('moderate_unknown_rate');
+    }
+
+    if (evaluated >= 2 && passRate < 0.3) {
+      weight -= 0.35;
+      reasons.push('low_pass_rate');
+    } else if (evaluated >= 2 && passRate < 0.5) {
+      weight -= 0.2;
+      reasons.push('suboptimal_pass_rate');
+    } else if (evaluated >= 2 && passRate >= 0.75 && unknownRate < 0.2) {
+      weight += 0.15;
+      reasons.push('high_pass_rate');
+    }
+
+    const bounded = Number(clampNumber(weight, 0.4, 1.4, 1).toFixed(3));
+    if (Math.abs(bounded - 1) < 0.001) continue;
+    weights[metric] = bounded;
+    audit[metric] = {
+      total,
+      evaluated,
+      pass_rate: passRate,
+      unknown_rate: unknownRate,
+      reasons
+    };
+  }
+  return { weights, audit };
+}
+
+function historyPayloads(limit) {
+  try {
+    if (!fs.existsSync(HISTORY_DIR)) return [];
+    const files = fs.readdirSync(HISTORY_DIR)
+      .filter((name) => /^\d{4}-\d{2}-\d{2}\.json$/.test(name))
+      .sort();
+    const selected = files.slice(-Math.max(1, Number(limit || QUALITY_LOCK_HISTORY_LIMIT)));
+    const out = [];
+    for (const name of selected) {
+      const payload = readJson(path.join(HISTORY_DIR, name), null);
+      if (payload && typeof payload === 'object') out.push(payload);
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+function qualityWindowStable(realizedScore, receiptMetrics) {
+  const score = Number(realizedScore || 0);
+  const qualityReceipts = Number(receiptMetrics && receiptMetrics.success_criteria_quality_receipts || 0);
+  const insufficientRateRaw = Number(receiptMetrics && receiptMetrics.success_criteria_quality_insufficient_rate);
+  const insufficientRate = Number.isFinite(insufficientRateRaw) ? insufficientRateRaw : 1;
+  const stable = score >= QUALITY_LOCK_MIN_REALIZED_SCORE
+    && qualityReceipts >= QUALITY_LOCK_MIN_QUALITY_RECEIPTS
+    && insufficientRate <= QUALITY_LOCK_MAX_INSUFFICIENT_RATE;
+  return {
+    stable,
+    score,
+    quality_receipts: qualityReceipts,
+    insufficient_rate: insufficientRate
+  };
+}
+
+function stableWindowFromPayload(payload) {
+  const score = Number(payload && payload.realized_outcome_score || 0);
+  const receipts = payload && payload.metrics && payload.metrics.receipts && typeof payload.metrics.receipts === 'object'
+    ? payload.metrics.receipts
+    : {};
+  return qualityWindowStable(score, receipts).stable;
+}
+
+function computeQualityLockState(realizedScore, receiptMetrics) {
+  const history = historyPayloads(QUALITY_LOCK_HISTORY_LIMIT);
+  const latest = history.length ? history[history.length - 1] : null;
+  const wasLocked = !!(
+    latest
+    && latest.strategy_policy
+    && latest.strategy_policy.promotion_policy_audit
+    && latest.strategy_policy.promotion_policy_audit.quality_lock
+    && latest.strategy_policy.promotion_policy_audit.quality_lock.active === true
+  );
+  let trailingStable = 0;
+  let trailingUnstable = 0;
+  for (let i = history.length - 1; i >= 0; i--) {
+    const stable = stableWindowFromPayload(history[i]);
+    if (trailingStable > 0) {
+      if (stable) trailingStable += 1;
+      else break;
+      continue;
+    }
+    if (trailingUnstable > 0) {
+      if (!stable) trailingUnstable += 1;
+      else break;
+      continue;
+    }
+    if (stable) trailingStable = 1;
+    else trailingUnstable = 1;
+  }
+  const current = qualityWindowStable(realizedScore, receiptMetrics);
+  const stableStreak = current.stable ? trailingStable + 1 : 0;
+  const unstableStreak = current.stable ? 0 : (trailingStable > 0 ? 1 : trailingUnstable + 1);
+  const lockActive = wasLocked
+    ? unstableStreak < QUALITY_LOCK_RELEASE_UNSTABLE_WINDOWS
+    : stableStreak >= QUALITY_LOCK_MIN_STABLE_WINDOWS;
+  const reasons = [];
+  if (lockActive && !wasLocked) reasons.push('lock_armed_from_stable_windows');
+  if (lockActive && wasLocked) reasons.push('lock_retained_hysteresis');
+  if (!lockActive && wasLocked) reasons.push('lock_released_from_unstable_windows');
+  if (!lockActive && !wasLocked) reasons.push('stable_window_streak_below_threshold');
+  return {
+    active: lockActive,
+    was_locked: wasLocked,
+    stable_window_streak: stableStreak,
+    unstable_window_streak: unstableStreak,
+    min_stable_windows: QUALITY_LOCK_MIN_STABLE_WINDOWS,
+    release_unstable_windows: QUALITY_LOCK_RELEASE_UNSTABLE_WINDOWS,
+    min_realized_score: QUALITY_LOCK_MIN_REALIZED_SCORE,
+    min_quality_receipts: QUALITY_LOCK_MIN_QUALITY_RECEIPTS,
+    max_insufficient_rate: QUALITY_LOCK_MAX_INSUFFICIENT_RATE,
+    current_window: current,
+    reasons
+  };
+}
+
+function derivePromotionPolicyOverrides(receiptMetrics, qualityLock) {
+  const qualityReceipts = Number(receiptMetrics && receiptMetrics.success_criteria_quality_receipts || 0);
+  const qualityInsufficientRate = Number(receiptMetrics && receiptMetrics.success_criteria_quality_insufficient_rate || 0);
+  const overrides = {
+    disable_legacy_fallback_after_quality_receipts: 10,
+    max_success_criteria_quality_insufficient_rate: 0.4
+  };
+  const audit = {
+    quality_receipts: qualityReceipts,
+    quality_insufficient_rate: qualityInsufficientRate,
+    reasons: []
+  };
+
+  if (qualityReceipts >= 24 && qualityInsufficientRate <= 0.2) {
+    overrides.disable_legacy_fallback_after_quality_receipts = 8;
+    overrides.max_success_criteria_quality_insufficient_rate = 0.35;
+    audit.reasons.push('high_quality_sample_tighten_thresholds');
+  } else if (qualityReceipts >= 12) {
+    overrides.disable_legacy_fallback_after_quality_receipts = 10;
+    if (qualityInsufficientRate >= 0.45) {
+      overrides.max_success_criteria_quality_insufficient_rate = 0.45;
+      audit.reasons.push('quality_insufficient_elevated_temporal_relax');
+    } else {
+      overrides.max_success_criteria_quality_insufficient_rate = 0.4;
+      audit.reasons.push('moderate_quality_sample_keep_defaults');
+    }
+  } else if (qualityInsufficientRate >= 0.5) {
+    overrides.max_success_criteria_quality_insufficient_rate = 0.5;
+    audit.reasons.push('low_quality_sample_avoid_deadlock');
+  } else {
+    audit.reasons.push('insufficient_quality_sample_keep_defaults');
+  }
+
+  if (qualityLock && qualityLock.active === true) {
+    overrides.disable_legacy_fallback_after_quality_receipts = 0;
+    overrides.max_success_criteria_quality_insufficient_rate = Math.min(
+      Number(overrides.max_success_criteria_quality_insufficient_rate || 0.4),
+      Number(qualityLock.max_insufficient_rate || QUALITY_LOCK_MAX_INSUFFICIENT_RATE)
+    );
+    audit.reasons.push('quality_lock_active_force_quality_only');
+  }
+
+  const disableFallbackRaw = Number(overrides.disable_legacy_fallback_after_quality_receipts);
+  overrides.disable_legacy_fallback_after_quality_receipts = Math.max(
+    0,
+    Math.min(10000, Number.isFinite(disableFallbackRaw) ? disableFallbackRaw : 10)
+  );
+  overrides.max_success_criteria_quality_insufficient_rate = Number(
+    clampNumber(overrides.max_success_criteria_quality_insufficient_rate, 0, 1, 0.4).toFixed(3)
+  );
+  audit.quality_lock = qualityLock || {
+    active: false,
+    stable_window_streak: 0,
+    unstable_window_streak: 0,
+    min_stable_windows: QUALITY_LOCK_MIN_STABLE_WINDOWS,
+    release_unstable_windows: QUALITY_LOCK_RELEASE_UNSTABLE_WINDOWS,
+    min_realized_score: QUALITY_LOCK_MIN_REALIZED_SCORE,
+    min_quality_receipts: QUALITY_LOCK_MIN_QUALITY_RECEIPTS,
+    max_insufficient_rate: QUALITY_LOCK_MAX_INSUFFICIENT_RATE,
+    current_window: {
+      stable: false,
+      score: 0,
+      quality_receipts: qualityReceipts,
+      insufficient_rate: qualityInsufficientRate
+    },
+    reasons: ['quality_lock_default_inactive']
+  };
+  return { overrides, audit };
+}
+
 function computeRealizedOutcomeScore(runMetrics, receiptMetrics) {
   const criteriaRate = Number(receiptMetrics.success_criteria_receipt_pass_rate || 0) > 0
     ? Number(receiptMetrics.success_criteria_receipt_pass_rate || 0)
@@ -554,6 +840,9 @@ function buildPayload(dateStr, days) {
   const typeCalibration = deriveTypeThresholdOffsets(typeSummary);
   const rankingWeights = deriveRankingWeightOverride(baseWeights, runMetrics, receiptMetrics);
   const focusDelta = deriveFocusDelta(runMetrics, blockSummary);
+  const criteriaMetricWeights = deriveSuccessCriteriaMetricWeights(receiptMetrics);
+  const qualityLock = computeQualityLockState(realizedScore, receiptMetrics);
+  const promotionPolicy = derivePromotionPolicyOverrides(receiptMetrics, qualityLock);
   const minCriteriaCount = (
     receiptMetrics.verified_rate < 0.65
     || receiptMetrics.fail_rate > 0.3
@@ -584,14 +873,18 @@ function buildPayload(dateStr, days) {
       threshold_overrides: thresholdOverrides,
       proposal_type_threshold_offsets: typeCalibration.offsets,
       proposal_type_calibration_audit: typeCalibration.audit,
-      ranking_weights_override: rankingWeights
+      ranking_weights_override: rankingWeights,
+      promotion_policy_overrides: promotionPolicy.overrides,
+      promotion_policy_audit: promotionPolicy.audit
     },
     focus_policy: {
       min_focus_score_delta: focusDelta
     },
     proposal_filter_policy: {
       require_success_criteria: true,
-      min_success_criteria_count: minCriteriaCount
+      min_success_criteria_count: minCriteriaCount,
+      success_criteria_metric_weights: criteriaMetricWeights.weights,
+      success_criteria_metric_weight_audit: criteriaMetricWeights.audit
     }
   };
 }
