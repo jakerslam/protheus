@@ -167,6 +167,7 @@ node systems/security/emergency_stop.js release --approval-note="..."
 
 - See `docs/AUTOMATION_POLICY.md` for the explicit auto vs gated vs operator-approved contract.
 - See `docs/ARCHITECTURE_OWNERSHIP.md` for ownership boundaries and canonical adaptive mutation channels.
+- See `docs/OPERATOR_RUNBOOK.md` for incident response and rollback drill procedures.
 
 ## Autonomy Capability Note
 
