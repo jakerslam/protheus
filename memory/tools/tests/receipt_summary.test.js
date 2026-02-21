@@ -41,6 +41,7 @@ function run() {
       ts: '2026-02-19T05:00:01.000Z',
       type: 'autonomy_action_receipt',
       verdict: 'pass',
+      intent: { score_only: true },
       verification: {
         passed: true,
         failed: [],
@@ -137,6 +138,10 @@ function run() {
   assert.strictEqual(out.receipts.autonomy.success_criteria_receipt_pass, 1);
   assert.strictEqual(out.receipts.autonomy.success_criteria_receipt_pass_rate, 0.5);
   assert.strictEqual(out.receipts.autonomy.success_criteria_row_pass_rate, 0.75);
+  assert.strictEqual(out.receipts.autonomy.preview_receipts, 1);
+  assert.strictEqual(out.receipts.autonomy.success_criteria_preview_receipts, 1);
+  assert.strictEqual(out.receipts.autonomy.success_criteria_preview_pass, 1);
+  assert.strictEqual(out.receipts.autonomy.success_criteria_preview_pass_rate, 1);
 
   assert.strictEqual(out.receipts.actuation.total, 2);
   assert.strictEqual(out.receipts.actuation.skipped_not_attempted, 1);
@@ -148,6 +153,7 @@ function run() {
   assert.strictEqual(out.receipts.combined.verified, 2);
   assert.strictEqual(out.receipts.combined.verified_rate, 0.5);
   assert.strictEqual(out.receipts.combined.success_criteria_receipt_pass_rate, 0.5);
+  assert.strictEqual(out.receipts.combined.success_criteria_preview_pass_rate, 1);
   assert.strictEqual(Number(out.receipts.combined.top_failure_reasons.postconditions_ok || 0), 1);
   assert.strictEqual(Number(out.receipts.combined.top_failure_reasons.HTTP_429 || 0), 1);
 

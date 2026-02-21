@@ -207,8 +207,14 @@ function summarizeAutonomyReceipts(rows) {
   let criteriaRowsPassed = 0;
   let criteriaRowsFailed = 0;
   let criteriaRowsUnknown = 0;
+  let previewReceipts = 0;
+  let previewCriteriaReceipts = 0;
+  let previewCriteriaPass = 0;
 
   for (const rec of receipts) {
+    const intent = rec && rec.intent && typeof rec.intent === 'object' ? rec.intent : {};
+    const isPreview = intent.score_only === true;
+    if (isPreview) previewReceipts += 1;
     const verification = rec && rec.verification && typeof rec.verification === 'object'
       ? rec.verification
       : null;
@@ -219,6 +225,10 @@ function summarizeAutonomyReceipts(rows) {
     criteriaReceipts += 1;
     if (criteria.required === true) criteriaRequiredReceipts += 1;
     if (criteria.passed === true) criteriaReceiptPass += 1;
+    if (isPreview) {
+      previewCriteriaReceipts += 1;
+      if (criteria.passed === true) previewCriteriaPass += 1;
+    }
     criteriaRowsTotal += Number(criteria.total_count || 0);
     criteriaRowsEvaluated += Number(criteria.evaluated_count || 0);
     criteriaRowsPassed += Number(criteria.passed_count || 0);
@@ -248,6 +258,12 @@ function summarizeAutonomyReceipts(rows) {
     success_criteria_rows_unknown: criteriaRowsUnknown,
     success_criteria_row_pass_rate: criteriaRowsEvaluated
       ? Number((criteriaRowsPassed / criteriaRowsEvaluated).toFixed(3))
+      : null,
+    preview_receipts: previewReceipts,
+    success_criteria_preview_receipts: previewCriteriaReceipts,
+    success_criteria_preview_pass: previewCriteriaPass,
+    success_criteria_preview_pass_rate: previewCriteriaReceipts
+      ? Number((previewCriteriaPass / previewCriteriaReceipts).toFixed(3))
       : null
   };
 }
@@ -336,6 +352,7 @@ function summarizeForDate(dateStr, days) {
         verified_rate: attempted ? Number((verified / attempted).toFixed(3)) : null,
         success_criteria_receipt_pass_rate: autonomyReceipts.success_criteria_receipt_pass_rate,
         success_criteria_required_pass_rate: autonomyReceipts.success_criteria_required_pass_rate,
+        success_criteria_preview_pass_rate: autonomyReceipts.success_criteria_preview_pass_rate,
         top_failure_reasons: mergeTallies(
           autonomyReceipts.top_failure_reasons,
           actuationReceipts.top_failure_reasons
