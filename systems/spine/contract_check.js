@@ -264,7 +264,7 @@ function main() {
   // system_budget.js centralizes strategy-allocated caps + system enforcement + usage recording.
   checkScript(
     "systems/budget/system_budget.js",
-    ["system_budget.js", "status", "project", "record", "--request_tokens_est"]
+    ["system_budget.js", "status", "project", "record", "decision", "--request_tokens_est"]
   );
 
   // eyes_memory_bridge.js wires enriched sensory proposals into memory nodes + pointer logs.

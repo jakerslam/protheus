@@ -13,6 +13,7 @@
  *   node systems/budget/system_budget.js status [YYYY-MM-DD]
  *   node systems/budget/system_budget.js project [YYYY-MM-DD] --request_tokens_est=N
  *   node systems/budget/system_budget.js record [YYYY-MM-DD] --tokens_est=N [--module=name] [--capability=name]
+ *   node systems/budget/system_budget.js decision [YYYY-MM-DD] --module=name --capability=name --request_tokens_est=N --decision=allow|degrade|deny [--reason=...]
  *   node systems/budget/system_budget.js --help
  */
 
@@ -21,9 +22,10 @@ const path = require('path');
 const { loadActiveStrategy, strategyBudgetCaps } = require('../../lib/strategy_resolver.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
+const GLOBAL_BUDGET_DEFAULT_DIR = path.join(REPO_ROOT, 'state', 'autonomy', 'daily_budget');
 const DEFAULT_STATE_DIR = process.env.SYSTEM_BUDGET_STATE_DIR
   ? path.resolve(process.env.SYSTEM_BUDGET_STATE_DIR)
-  : path.join(REPO_ROOT, 'state', 'autonomy', 'daily_budget');
+  : GLOBAL_BUDGET_DEFAULT_DIR;
 const DEFAULT_EVENTS_PATH = process.env.SYSTEM_BUDGET_EVENTS_PATH
   ? path.resolve(process.env.SYSTEM_BUDGET_EVENTS_PATH)
   : path.join(REPO_ROOT, 'state', 'autonomy', 'budget_events.jsonl');
@@ -90,6 +92,7 @@ function usage() {
   console.log('  node systems/budget/system_budget.js status [YYYY-MM-DD]');
   console.log('  node systems/budget/system_budget.js project [YYYY-MM-DD] --request_tokens_est=N');
   console.log('  node systems/budget/system_budget.js record [YYYY-MM-DD] --tokens_est=N [--module=name] [--capability=name]');
+  console.log('  node systems/budget/system_budget.js decision [YYYY-MM-DD] --module=name --capability=name --request_tokens_est=N --decision=allow|degrade|deny [--reason=...]');
   console.log('  node systems/budget/system_budget.js --help');
 }
 
@@ -101,6 +104,11 @@ function normalizeDate(v) {
 
 function resolveStateDir(opts = {}) {
   const raw = String(opts.state_dir || DEFAULT_STATE_DIR);
+  return path.isAbsolute(raw) ? raw : path.resolve(REPO_ROOT, raw);
+}
+
+function resolveEventsPath(opts = {}) {
+  const raw = String(opts.events_path || DEFAULT_EVENTS_PATH);
   return path.isAbsolute(raw) ? raw : path.resolve(REPO_ROOT, raw);
 }
 
@@ -254,7 +262,7 @@ function recordSystemBudgetUsage(input, opts = {}) {
     used_est: Number(state.used_est || 0) + tokens,
     by_module: byModule
   }, opts);
-  appendJsonl(opts.events_path ? path.resolve(String(opts.events_path)) : DEFAULT_EVENTS_PATH, {
+  appendJsonl(resolveEventsPath(opts), {
     ts: nowIso(),
     type: 'system_budget_record',
     date,
@@ -266,6 +274,50 @@ function recordSystemBudgetUsage(input, opts = {}) {
     strategy_id: next.strategy_id || null
   });
   return next;
+}
+
+function normalizeBudgetDecision(input = {}) {
+  const decisionRaw = String(input.decision || '').trim().toLowerCase();
+  const decision = ['allow', 'degrade', 'deny'].includes(decisionRaw) ? decisionRaw : 'allow';
+  const requestTokens = toPositiveInt(input.request_tokens_est, 0);
+  const moduleName = String(input.module || 'unknown').trim() || 'unknown';
+  const capability = String(input.capability || '').trim() || null;
+  const reason = String(input.reason || '').trim().slice(0, 200) || null;
+  return {
+    date: normalizeDate(input.date),
+    module: moduleName,
+    capability,
+    decision,
+    request_tokens_est: requestTokens,
+    reason
+  };
+}
+
+function writeSystemBudgetDecision(input, opts = {}) {
+  const payload = normalizeBudgetDecision(input || {});
+  const state = loadSystemBudgetState(payload.date, opts);
+  const projection = projectSystemBudget(state, payload.request_tokens_est, {
+    soft_ratio: opts.soft_ratio,
+    hard_ratio: opts.hard_ratio
+  });
+  const row = {
+    ts: nowIso(),
+    type: 'system_budget_decision',
+    date: payload.date,
+    module: payload.module,
+    capability: payload.capability,
+    decision: payload.decision,
+    request_tokens_est: payload.request_tokens_est,
+    reason: payload.reason,
+    used_est_before: state.used_est,
+    token_cap: state.token_cap,
+    projected_used_est: projection.projected_used_est,
+    projected_ratio: projection.projected_ratio,
+    projected_pressure: projection.projected_pressure,
+    strategy_id: state.strategy_id || null
+  };
+  appendJsonl(resolveEventsPath(opts), row);
+  return row;
 }
 
 function cmdStatus(args) {
@@ -329,6 +381,28 @@ function cmdRecord(args) {
   }, null, 2) + '\n');
 }
 
+function cmdDecision(args) {
+  const date = normalizeDate(args._[1]);
+  const decision = writeSystemBudgetDecision({
+    date,
+    module: args.module || 'unknown',
+    capability: args.capability || null,
+    request_tokens_est: args.request_tokens_est,
+    decision: args.decision || 'allow',
+    reason: args.reason || null
+  }, {
+    state_dir: args['state-dir'] || args.state_dir,
+    events_path: args['events-path'] || args.events_path,
+    soft_ratio: args.soft_ratio,
+    hard_ratio: args.hard_ratio
+  });
+  process.stdout.write(JSON.stringify({
+    ok: true,
+    ts: nowIso(),
+    decision
+  }, null, 2) + '\n');
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const cmd = String(args._[0] || '').trim().toLowerCase();
@@ -339,6 +413,7 @@ function main() {
   if (cmd === 'status') return cmdStatus(args);
   if (cmd === 'project') return cmdProject(args);
   if (cmd === 'record') return cmdRecord(args);
+  if (cmd === 'decision') return cmdDecision(args);
   usage();
   process.exit(2);
 }
@@ -348,11 +423,15 @@ if (require.main === module) {
 }
 
 module.exports = {
+  GLOBAL_BUDGET_DEFAULT_DIR,
+  DEFAULT_STATE_DIR,
+  DEFAULT_EVENTS_PATH,
   effectiveStrategyBudget,
   loadSystemBudgetState,
   saveSystemBudgetState,
   projectSystemBudget,
   recordSystemBudgetUsage,
+  writeSystemBudgetDecision,
+  normalizeBudgetDecision,
   normalizeDate
 };
-

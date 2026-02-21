@@ -23,6 +23,7 @@ async function run() {
   const envBefore = {
     FOCUS_SENSORY_DIR: process.env.FOCUS_SENSORY_DIR,
     FOCUS_FETCH_ENABLED: process.env.FOCUS_FETCH_ENABLED,
+    FOCUS_BUDGET_ENABLED: process.env.FOCUS_BUDGET_ENABLED,
     OUTCOME_FITNESS_POLICY_PATH: process.env.OUTCOME_FITNESS_POLICY_PATH
   };
 
@@ -31,6 +32,7 @@ async function run() {
     mkDir(tmpRoot);
     process.env.FOCUS_SENSORY_DIR = path.join(tmpRoot, 'state', 'sensory');
     process.env.FOCUS_FETCH_ENABLED = '0';
+    process.env.FOCUS_BUDGET_ENABLED = '0';
     process.env.OUTCOME_FITNESS_POLICY_PATH = path.join(tmpRoot, 'no_outcome_policy.json');
 
     const sensoryDir = process.env.FOCUS_SENSORY_DIR;
@@ -152,6 +154,8 @@ async function run() {
     else process.env.FOCUS_SENSORY_DIR = envBefore.FOCUS_SENSORY_DIR;
     if (envBefore.FOCUS_FETCH_ENABLED == null) delete process.env.FOCUS_FETCH_ENABLED;
     else process.env.FOCUS_FETCH_ENABLED = envBefore.FOCUS_FETCH_ENABLED;
+    if (envBefore.FOCUS_BUDGET_ENABLED == null) delete process.env.FOCUS_BUDGET_ENABLED;
+    else process.env.FOCUS_BUDGET_ENABLED = envBefore.FOCUS_BUDGET_ENABLED;
     if (envBefore.OUTCOME_FITNESS_POLICY_PATH == null) delete process.env.OUTCOME_FITNESS_POLICY_PATH;
     else process.env.OUTCOME_FITNESS_POLICY_PATH = envBefore.OUTCOME_FITNESS_POLICY_PATH;
 

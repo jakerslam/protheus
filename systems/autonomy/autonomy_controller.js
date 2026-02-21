@@ -53,6 +53,7 @@ const {
   summarizeExceptionMemory
 } = require('./tier1_governance.js');
 const {
+  DEFAULT_STATE_DIR: GLOBAL_BUDGET_STATE_DIR,
   loadSystemBudgetState,
   saveSystemBudgetState
 } = require('../budget/system_budget.js');
@@ -97,7 +98,7 @@ const EXPERIMENTS_DIR = process.env.AUTONOMY_EXPERIMENTS_DIR
   : path.join(AUTONOMY_DIR, 'experiments');
 const DAILY_BUDGET_DIR = process.env.AUTONOMY_DAILY_BUDGET_DIR
   ? path.resolve(process.env.AUTONOMY_DAILY_BUDGET_DIR)
-  : path.join(AUTONOMY_DIR, 'daily_budget');
+  : GLOBAL_BUDGET_STATE_DIR;
 const RECEIPTS_DIR = process.env.AUTONOMY_RECEIPTS_DIR
   ? path.resolve(process.env.AUTONOMY_RECEIPTS_DIR)
   : path.join(AUTONOMY_DIR, 'receipts');
