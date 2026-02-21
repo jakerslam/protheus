@@ -39,6 +39,7 @@ const MODE_GOVERNOR_CANARY_MIN_VERIFIED_RATE = Number(process.env.AUTONOMY_MODE_
 const MODE_GOVERNOR_CANARY_MAX_FAIL_RATE = Number(process.env.AUTONOMY_MODE_GOVERNOR_CANARY_MAX_FAIL_RATE || 0.25);
 const MODE_GOVERNOR_CANARY_MIN_SHIPPED = Number(process.env.AUTONOMY_MODE_GOVERNOR_CANARY_MIN_SHIPPED || 1);
 const MODE_GOVERNOR_CANARY_MIN_SUCCESS_CRITERIA_PASS_RATE = Number(process.env.AUTONOMY_MODE_GOVERNOR_CANARY_MIN_SUCCESS_CRITERIA_PASS_RATE || 0.6);
+const MODE_GOVERNOR_CANARY_MIN_PREVIEW_SUCCESS_CRITERIA_PASS_RATE = Number(process.env.AUTONOMY_MODE_GOVERNOR_CANARY_MIN_PREVIEW_SUCCESS_CRITERIA_PASS_RATE || 0.55);
 
 function usage() {
   console.log('Usage:');
@@ -135,7 +136,8 @@ function governorPolicy() {
     canary_min_verified_rate: Math.max(0, Math.min(1, Number(MODE_GOVERNOR_CANARY_MIN_VERIFIED_RATE || 0))),
     canary_max_fail_rate: Math.max(0, Math.min(1, Number(MODE_GOVERNOR_CANARY_MAX_FAIL_RATE || 1))),
     canary_min_shipped: Math.max(0, Number(MODE_GOVERNOR_CANARY_MIN_SHIPPED || 0)),
-    canary_min_success_criteria_pass_rate: Math.max(0, Math.min(1, Number(MODE_GOVERNOR_CANARY_MIN_SUCCESS_CRITERIA_PASS_RATE || 0)))
+    canary_min_success_criteria_pass_rate: Math.max(0, Math.min(1, Number(MODE_GOVERNOR_CANARY_MIN_SUCCESS_CRITERIA_PASS_RATE || 0))),
+    canary_min_preview_success_criteria_pass_rate: Math.max(0, Math.min(1, Number(MODE_GOVERNOR_CANARY_MIN_PREVIEW_SUCCESS_CRITERIA_PASS_RATE || 0)))
   };
 }
 
@@ -176,6 +178,8 @@ function canaryMetrics(summary, policy) {
   const actuationFail = Number(summary?.receipts?.actuation?.failed || 0);
   const criteriaReceipts = Number(summary?.receipts?.autonomy?.success_criteria_receipts || 0);
   const criteriaPassRate = Number(summary?.receipts?.autonomy?.success_criteria_receipt_pass_rate || 0);
+  const previewCriteriaReceipts = Number(summary?.receipts?.autonomy?.success_criteria_preview_receipts || 0);
+  const previewCriteriaPassRate = Number(summary?.receipts?.autonomy?.success_criteria_preview_pass_rate || 0);
   const failCount = autonomyFail + actuationFail;
   const failRate = attempted > 0 ? failCount / attempted : 1;
   const shipped = Number(summary?.runs?.executed_outcomes?.shipped || 0);
@@ -209,11 +213,18 @@ function canaryMetrics(summary, policy) {
       pass: criteriaReceipts <= 0 || criteriaPassRate >= policy.canary_min_success_criteria_pass_rate,
       value: criteriaReceipts <= 0 ? null : Number(criteriaPassRate.toFixed(3)),
       target: criteriaReceipts <= 0 ? 'n/a(no_data)' : `>=${policy.canary_min_success_criteria_pass_rate}`
+    },
+    {
+      name: 'preview_success_criteria_pass_rate',
+      pass: previewCriteriaReceipts <= 0 || previewCriteriaPassRate >= policy.canary_min_preview_success_criteria_pass_rate,
+      value: previewCriteriaReceipts <= 0 ? null : Number(previewCriteriaPassRate.toFixed(3)),
+      target: previewCriteriaReceipts <= 0 ? 'n/a(no_preview_data)' : `>=${policy.canary_min_preview_success_criteria_pass_rate}`
     }
   ];
   const failed = checks.filter(c => c.pass !== true).map(c => c.name);
   return {
     ready_for_execute: failed.length === 0,
+    preview_ready_for_canary: previewCriteriaReceipts <= 0 || previewCriteriaPassRate >= policy.canary_min_preview_success_criteria_pass_rate,
     failed_checks: failed,
     checks,
     metrics: {
@@ -222,7 +233,9 @@ function canaryMetrics(summary, policy) {
       fail_rate: Number(failRate.toFixed(3)),
       shipped,
       success_criteria_receipts: criteriaReceipts,
-      success_criteria_pass_rate: criteriaReceipts <= 0 ? null : Number(criteriaPassRate.toFixed(3))
+      success_criteria_pass_rate: criteriaReceipts <= 0 ? null : Number(criteriaPassRate.toFixed(3)),
+      preview_success_criteria_receipts: previewCriteriaReceipts,
+      preview_success_criteria_pass_rate: previewCriteriaReceipts <= 0 ? null : Number(previewCriteriaPassRate.toFixed(3))
     }
   };
 }
@@ -246,7 +259,7 @@ function decideTransition(currentMode, readiness, canary, policy) {
   const ready = !!(readiness && readiness.ready_for_execute === true);
   if (mode === 'score_only') {
     if (!policy.promote_canary) return null;
-    if (ready) {
+    if (ready && canary && canary.preview_ready_for_canary !== false) {
       return {
         to_mode: 'canary_execute',
         reason: 'readiness_pass_promote_canary',
@@ -306,6 +319,12 @@ function buildStatus(dateStr, days, strategy, policy) {
   const last = lastModeChangeEvent(strategy.id);
   const cooldown = cooldownState(last, policy.min_hours_between_changes);
   const transition = decideTransition(mode, readiness, canary, policy);
+  const transitionBlockReason = (
+    mode === 'score_only'
+    && !!(readiness && readiness.ready_for_execute === true)
+    && canary
+    && canary.preview_ready_for_canary === false
+  ) ? 'preview_success_criteria_below_min' : null;
   return {
     date: dateStr,
     days: windowDays,
@@ -322,7 +341,8 @@ function buildStatus(dateStr, days, strategy, policy) {
       to_mode: String(last.to_mode || '')
     } : null,
     cooldown,
-    transition
+    transition,
+    transition_block_reason: transitionBlockReason
   };
 }
 
@@ -365,7 +385,7 @@ function cmdRun(args) {
       result: 'no_change',
       strategy_id: strategy.id,
       mode: fromMode,
-      reason: 'no_transition_rule_triggered',
+      reason: status.transition_block_reason || 'no_transition_rule_triggered',
       readiness: status.readiness,
       canary: status.canary
     }, null, 2) + '\n');

@@ -6865,6 +6865,44 @@ function runCmd(dateStr, opts = {}) {
       };
       previewSummary = preSummary;
       previewTokenUsage = computeExecutionTokenUsage(preSummary, previewRes.execution_metrics, routeTokensEst, estTokens);
+      const criteriaPolicy = successCriteriaRequirement();
+      const previewSuccessCriteria = evaluateSuccessCriteria(
+        p,
+        {
+          phase: 'preview',
+          outcome: previewVerification.outcome,
+          exec_ok: previewRes && previewRes.ok === true,
+          dod_passed: previewVerification.passed === true,
+          postconditions_ok: previewVerification.passed === true,
+          queue_outcome_logged: true,
+          duration_ms: Number(previewRes && previewRes.execution_metrics && previewRes.execution_metrics.duration_ms || 0),
+          token_usage: previewTokenUsage,
+          dod_diff: {}
+        },
+        {
+          required: criteriaPolicy.required,
+          min_count: criteriaPolicy.min_count
+        }
+      );
+      previewVerification.success_criteria = previewSuccessCriteria;
+      if (previewSuccessCriteria.passed === false && previewVerification.passed === true) {
+        previewVerification.passed = false;
+        previewVerification.outcome = 'no_change';
+        previewVerification.primary_failure = previewSuccessCriteria.primary_failure || 'success_criteria_failed';
+        previewVerification.failed = Array.from(new Set([...(previewVerification.failed || []), 'success_criteria_met']));
+        previewVerification.checks = Array.isArray(previewVerification.checks)
+          ? previewVerification.checks
+          : [];
+        previewVerification.checks.push({ name: 'success_criteria_met', pass: false });
+      } else if (previewSuccessCriteria.passed === false) {
+        previewVerification.failed = Array.from(new Set([...(previewVerification.failed || []), 'success_criteria_met']));
+        previewVerification.checks = Array.isArray(previewVerification.checks)
+          ? previewVerification.checks
+          : [];
+        previewVerification.checks.push({ name: 'success_criteria_met', pass: false });
+      } else if (previewSuccessCriteria.passed === true) {
+        previewVerification.checks.push({ name: 'success_criteria_met', pass: true });
+      }
       writeReceipt(dateStr, {
         ts: nowIso(),
         type: 'autonomy_action_receipt',
