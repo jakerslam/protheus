@@ -8,10 +8,10 @@
  * - NO LLM usage, uses ProductHunt public API
  */
 
-const https = require("https");
 const crypto = require("crypto");
 const { classifyCollectorError, httpStatusToCode, makeCollectorError } = require("./collector_errors");
 const { loadCollectorCache, saveCollectorCache } = require("./cache_store");
+const { egressFetchText, EgressGatewayError } = require("../../../lib/egress_gateway");
 
 function sha16(s) {
   return crypto.createHash("sha256").update(String(s)).digest("hex").slice(0, 16);
@@ -22,59 +22,49 @@ function nowIso() {
 }
 
 function fetchGraphQL(query, variables = {}, timeoutMs = 15000) {
-  return new Promise((resolve, reject) => {
+  return (async () => {
     const payload = JSON.stringify({ query, variables });
-    const options = {
-      hostname: "www.producthunt.com",
-      path: "/api/graphql",
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "User-Agent": "OpenClaw-Eyes/1.0",
-        "Content-Length": Buffer.byteLength(payload),
-      },
-    };
-    
-    const req = https.request(options, (res) => {
-      if (res.statusCode && res.statusCode >= 400) {
-        reject(makeCollectorError(
-          httpStatusToCode(res.statusCode),
-          `HTTP ${res.statusCode}`,
-          { http_status: Number(res.statusCode) }
-        ));
-        res.resume();
-        return;
+    const url = "https://www.producthunt.com/api/graphql";
+    try {
+      const res = await egressFetchText(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "User-Agent": "OpenClaw-Eyes/1.0",
+        },
+        body: payload
+      }, {
+        scope: "sensory.collector.producthunt_launches",
+        caller: "systems/sensory/eyes_collectors/producthunt_launches",
+        runtime_allowlist: ["www.producthunt.com"],
+        timeout_ms: timeoutMs,
+        meta: { collector: "producthunt_launches" }
+      });
+      if (res.status >= 400) {
+        throw makeCollectorError(
+          httpStatusToCode(res.status),
+          `HTTP ${res.status}`,
+          { http_status: Number(res.status) }
+        );
       }
-      let bytes = 0;
-      const chunks = [];
-      res.on("data", (d) => {
-        bytes += d.length;
-        chunks.push(d);
-      });
-      res.on("end", () => {
-        const text = Buffer.concat(chunks).toString("utf8");
-        try {
-          const json = JSON.parse(text);
-          resolve({ json, bytes });
-        } catch {
-          resolve({ text, bytes, json: null });
-        }
-      });
-    });
-    
-    req.on("error", (err) => {
-      reject(makeCollectorError("network_error", err.message));
-    });
-    
-    req.setTimeout(timeoutMs, () => {
-      req.destroy();
-      reject(makeCollectorError("timeout", `Request timeout after ${timeoutMs}ms`));
-    });
-    
-    req.write(payload);
-    req.end();
-  });
+      const text = String(res.text || "");
+      try {
+        return { json: JSON.parse(text), bytes: Buffer.byteLength(text, "utf8") };
+      } catch {
+        return { text, bytes: Buffer.byteLength(text, "utf8"), json: null };
+      }
+    } catch (err) {
+      if (err instanceof EgressGatewayError) {
+        throw makeCollectorError(
+          "env_blocked",
+          `egress_denied:${String(err.details && err.details.code || "policy")}`.slice(0, 220)
+        );
+      }
+      const c = classifyCollectorError(err);
+      throw makeCollectorError(c.code, c.message, { http_status: c.http_status });
+    }
+  })();
 }
 
 // Affiliate-friendly categories

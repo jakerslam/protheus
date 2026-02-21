@@ -7,11 +7,9 @@
  * - No LLM usage
  */
 
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
 const crypto = require('crypto');
 const { moltbook_getHotPosts } = require('../../../skills/moltbook/moltbook_api');
+const { issueSecretHandle, loadSecretById } = require('../../../lib/secret_broker');
 const { classifyCollectorError, makeCollectorError } = require('./collector_errors');
 const { loadCollectorCache, saveCollectorCache } = require('./cache_store');
 
@@ -23,25 +21,15 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function loadApiKey() {
-  if (process.env.MOLTBOOK_TOKEN && String(process.env.MOLTBOOK_TOKEN).trim()) {
-    return String(process.env.MOLTBOOK_TOKEN).trim();
-  }
-  const candidates = [
-    path.join(os.homedir(), '.openclaw', 'workspace', 'config', 'moltbook', 'credentials.json'),
-    path.join(os.homedir(), '.config', 'moltbook', 'credentials.json')
-  ];
-  for (const p of candidates) {
-    try {
-      if (!fs.existsSync(p)) continue;
-      const raw = JSON.parse(fs.readFileSync(p, 'utf8'));
-      const k = raw && raw.api_key ? String(raw.api_key).trim() : '';
-      if (k) return k;
-    } catch {
-      // continue
-    }
-  }
-  return '';
+function issueMoltbookApiHandle() {
+  const res = issueSecretHandle({
+    secret_id: 'moltbook_api_key',
+    scope: 'sensory.collector.moltbook_hot',
+    caller: 'systems/sensory/eyes_collectors/moltbook_hot',
+    ttl_sec: 300,
+    reason: 'collector_fetch'
+  });
+  return res && res.ok ? String(res.handle || '') : '';
 }
 
 function normalizePosts(payload) {
@@ -73,11 +61,11 @@ function preflightMoltbookHot(eyeConfig, budgets) {
   const checks = [];
   const failures = [];
 
-  const apiKey = loadApiKey();
-  if (!apiKey) {
+  const secret = loadSecretById('moltbook_api_key');
+  if (!secret || secret.ok !== true) {
     failures.push({ code: 'auth_missing', message: 'missing_moltbook_api_key' });
   } else {
-    checks.push({ name: 'api_key_present', ok: true });
+    checks.push({ name: 'api_key_handle_issued', ok: true });
   }
 
   const maxItems = Number(budgets && budgets.max_items);
@@ -119,7 +107,12 @@ async function collectMoltbookHot(eyeConfig, budgets) {
   const maxItems = Math.max(1, Math.min(Number(budgets && budgets.max_items || 20), 50));
   let payload;
   try {
-    payload = await moltbook_getHotPosts(maxItems, loadApiKey());
+    const apiKeyHandle = issueMoltbookApiHandle();
+    payload = await moltbook_getHotPosts(maxItems, {
+      apiKeyHandle,
+      scope: 'sensory.collector.moltbook_hot',
+      caller: 'systems/sensory/eyes_collectors/moltbook_hot'
+    });
   } catch (err) {
     const c = classifyCollectorError(err);
     const fallbackCodes = new Set([

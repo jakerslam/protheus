@@ -8,10 +8,10 @@
  * - NO LLM usage, uses Upwork RSS API
  */
 
-const https = require("https");
 const crypto = require("crypto");
 const { classifyCollectorError, httpStatusToCode, makeCollectorError } = require("./collector_errors");
 const { loadCollectorCache, saveCollectorCache } = require("./cache_store");
+const { egressFetchText, EgressGatewayError } = require("../../../lib/egress_gateway");
 
 function sha16(s) {
   return crypto.createHash("sha256").update(String(s)).digest("hex").slice(0, 16);
@@ -22,42 +22,44 @@ function nowIso() {
 }
 
 function fetchXml(url, timeoutMs = 15000) {
-  return new Promise((resolve, reject) => {
-    const req = https.get(url, { 
-      headers: { 
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Accept": "application/rss+xml,application/xml,text/xml,*/*",
-        "Accept-Language": "en-US,en;q=0.9",
-      } 
-    }, (res) => {
-      if (res.statusCode && res.statusCode >= 400) {
-        reject(makeCollectorError(
-          httpStatusToCode(res.statusCode),
-          `HTTP ${res.statusCode} for ${url}`,
-          { http_status: Number(res.statusCode), url }
-        ));
-        res.resume();
-        return;
+  return (async () => {
+    try {
+      const host = new URL(url).hostname;
+      const res = await egressFetchText(url, {
+        method: "GET",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Accept": "application/rss+xml,application/xml,text/xml,*/*",
+          "Accept-Language": "en-US,en;q=0.9",
+        }
+      }, {
+        scope: "sensory.collector.upwork_gigs",
+        caller: "systems/sensory/eyes_collectors/upwork_gigs",
+        runtime_allowlist: [host],
+        timeout_ms: timeoutMs,
+        meta: { collector: "upwork_gigs" }
+      });
+      if (res.status >= 400) {
+        throw makeCollectorError(
+          httpStatusToCode(res.status),
+          `HTTP ${res.status} for ${url}`,
+          { http_status: Number(res.status), url }
+        );
       }
-      let bytes = 0;
-      const chunks = [];
-      res.on("data", (d) => {
-        bytes += d.length;
-        chunks.push(d);
-      });
-      res.on("end", () => {
-        const text = Buffer.concat(chunks).toString("utf8");
-        resolve({ text, bytes });
-      });
-    });
-    req.on("error", (err) => {
-      reject(makeCollectorError("network_error", err.message, { url }));
-    });
-    req.setTimeout(timeoutMs, () => {
-      req.destroy();
-      reject(makeCollectorError("timeout", `Request timeout after ${timeoutMs}ms`, { url }));
-    });
-  });
+      const text = String(res.text || "");
+      return { text, bytes: Buffer.byteLength(text, "utf8") };
+    } catch (err) {
+      if (err instanceof EgressGatewayError) {
+        throw makeCollectorError(
+          "env_blocked",
+          `egress_denied:${String(err.details && err.details.code || "policy")} for ${url}`.slice(0, 220),
+          { url }
+        );
+      }
+      const c = classifyCollectorError(err);
+      throw makeCollectorError(c.code, c.message, { url, http_status: c.http_status });
+    }
+  })();
 }
 
 function parseUpworkRss(xml) {
