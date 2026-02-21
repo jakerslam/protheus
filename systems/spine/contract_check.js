@@ -240,7 +240,7 @@ function main() {
   // improvement_controller.js manages bounded trial + rollback for self-improvements.
   checkScript(
     "systems/autonomy/improvement_controller.js",
-    ["improvement_controller.js", "start", "evaluate", "status"]
+    ["improvement_controller.js", "start", "start-validated", "evaluate", "status"]
   );
 
   // model_catalog_loop.js manages built-in model catalog propose/trial/report/apply capability.

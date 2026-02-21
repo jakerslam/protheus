@@ -9,6 +9,7 @@
  *
  * Usage:
  *   node systems/autonomy/improvement_controller.js start [YYYY-MM-DD] --commit=<sha> [--trial-days=N] [--scorecard-days=N] [--auto-revert=1] [--note=...]
+ *   node systems/autonomy/improvement_controller.js start-validated [YYYY-MM-DD] --commit=<sha> [--trial-days=N] [--scorecard-days=N] [--auto-revert=1] [--verify-steps=contract,schema] [--note=...]
  *   node systems/autonomy/improvement_controller.js evaluate [YYYY-MM-DD] [--id=<trial_id>] [--force=1] [--auto-revert=1]
  *   node systems/autonomy/improvement_controller.js status [--id=<trial_id>]
  */
@@ -16,6 +17,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { writeContractReceipt } = require('../../lib/action_receipts.js');
 const { beginChange, completeChange, recoverIfInterrupted, writeAtomicJson } = require('./self_change_failsafe');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
@@ -25,6 +27,7 @@ const IMPROVEMENT_DIR = path.join(REPO_ROOT, 'state', 'autonomy', 'improvements'
 const TRIALS_PATH = path.join(IMPROVEMENT_DIR, 'trials.json');
 const EVENTS_PATH = path.join(IMPROVEMENT_DIR, 'events.jsonl');
 const REVERT_TX_PATH = path.join(IMPROVEMENT_DIR, 'revert_tx.json');
+const PHASE_RECEIPTS_DIR = path.join(IMPROVEMENT_DIR, 'phase_receipts');
 
 const DEFAULT_TRIAL_DAYS = Number(process.env.IMPROVEMENT_DEFAULT_TRIAL_DAYS || 3);
 const DEFAULT_SCORECARD_DAYS = Number(process.env.IMPROVEMENT_SCORECARD_DAYS || 7);
@@ -32,6 +35,25 @@ const DEFAULT_MIN_ATTEMPTS = Number(process.env.IMPROVEMENT_MIN_ATTEMPTS || 3);
 const DEFAULT_MAX_REVERTED_RATE = Number(process.env.IMPROVEMENT_MAX_REVERTED_RATE || 0.15);
 const DEFAULT_MAX_SHIP_RATE_REGRESSION = Number(process.env.IMPROVEMENT_MAX_SHIP_RATE_REGRESSION || 0.05);
 const DEFAULT_MAX_NO_PROGRESS_DELTA = Number(process.env.IMPROVEMENT_MAX_NO_PROGRESS_DELTA || 0.1);
+const IMPROVEMENT_VERIFY_STEP_TIMEOUT_MS = Number(process.env.IMPROVEMENT_VERIFY_STEP_TIMEOUT_MS || 120000);
+const IMPROVEMENT_VERIFY_STDOUT_MAX = Number(process.env.IMPROVEMENT_VERIFY_STDOUT_MAX || 300);
+const IMPROVEMENT_VERIFY_STDERR_MAX = Number(process.env.IMPROVEMENT_VERIFY_STDERR_MAX || 300);
+const IMPROVEMENT_DEFAULT_VERIFY_STEPS = String(process.env.IMPROVEMENT_DEFAULT_VERIFY_STEPS || 'contract,schema');
+
+const VERIFY_STEP_LIBRARY = Object.freeze({
+  contract: {
+    id: 'contract_check',
+    command: [process.execPath, path.join(REPO_ROOT, 'systems', 'spine', 'contract_check.js')]
+  },
+  schema: {
+    id: 'schema_contract_check',
+    command: [process.execPath, path.join(REPO_ROOT, 'systems', 'security', 'schema_contract_check.js'), 'run']
+  },
+  adaptive: {
+    id: 'adaptive_layer_guard_strict',
+    command: [process.execPath, path.join(REPO_ROOT, 'systems', 'sensory', 'adaptive_layer_guard.js'), 'run', '--strict']
+  }
+});
 
 function nowIso() {
   return new Date().toISOString();
@@ -78,6 +100,120 @@ function saveJson(filePath, obj) {
 function appendJsonl(filePath, obj) {
   ensureDir(path.dirname(filePath));
   fs.appendFileSync(filePath, JSON.stringify(obj) + '\n');
+}
+
+function compactText(v, maxLen) {
+  const n = Number(maxLen);
+  const limit = Number.isFinite(n) && n > 0 ? Math.floor(n) : 240;
+  return String(v == null ? '' : v)
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, limit);
+}
+
+function phaseReceiptPath(dateStr) {
+  const day = isDateStr(dateStr) ? dateStr : todayStr();
+  ensureDir(PHASE_RECEIPTS_DIR);
+  return path.join(PHASE_RECEIPTS_DIR, `${day}.jsonl`);
+}
+
+function parseVerifyStepNames(raw) {
+  const src = String(raw == null ? IMPROVEMENT_DEFAULT_VERIFY_STEPS : raw);
+  return src
+    .split(',')
+    .map((s) => String(s || '').trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function resolveVerifyStep(name) {
+  const key = String(name || '').trim().toLowerCase();
+  if (!key) return null;
+  const def = VERIFY_STEP_LIBRARY[key];
+  if (!def || !Array.isArray(def.command) || def.command.length < 1) return null;
+  return {
+    key,
+    id: String(def.id || key),
+    command: def.command.slice(0)
+  };
+}
+
+function defaultVerifyPlan() {
+  const names = parseVerifyStepNames(IMPROVEMENT_DEFAULT_VERIFY_STEPS);
+  const seen = new Set();
+  const out = [];
+  for (const name of names) {
+    const step = resolveVerifyStep(name);
+    if (!step) continue;
+    if (seen.has(step.id)) continue;
+    seen.add(step.id);
+    out.push(step);
+  }
+  if (out.length > 0) return out;
+  return [resolveVerifyStep('contract'), resolveVerifyStep('schema')].filter(Boolean);
+}
+
+function verifyPlanFromCli() {
+  const raw = String(optValue('verify-steps', IMPROVEMENT_DEFAULT_VERIFY_STEPS) || '');
+  const names = parseVerifyStepNames(raw);
+  if (!names.length) return defaultVerifyPlan();
+  const seen = new Set();
+  const out = [];
+  for (const name of names) {
+    const step = resolveVerifyStep(name);
+    if (!step) continue;
+    if (seen.has(step.id)) continue;
+    seen.add(step.id);
+    out.push(step);
+  }
+  return out.length > 0 ? out : defaultVerifyPlan();
+}
+
+function rootCauseFromVerification(steps) {
+  const list = Array.isArray(steps) ? steps : [];
+  const failed = list.find((row) => row && row.ok !== true);
+  if (!failed) return null;
+  if (failed.error) return `verify_step_error:${String(failed.id || 'unknown')}`;
+  return `verify_step_failed:${String(failed.id || 'unknown')}:exit_${Number(failed.exit_code || 1)}`;
+}
+
+function runVerificationPlan(steps, opts = {}) {
+  const rows = Array.isArray(steps) ? steps : [];
+  const runner = typeof opts.runner === 'function'
+    ? opts.runner
+    : (cmd, args) => spawnSync(cmd, args, {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      timeout: IMPROVEMENT_VERIFY_STEP_TIMEOUT_MS
+    });
+  const stdoutMax = Number(opts.stdout_max || IMPROVEMENT_VERIFY_STDOUT_MAX);
+  const stderrMax = Number(opts.stderr_max || IMPROVEMENT_VERIFY_STDERR_MAX);
+  const results = [];
+  for (const step of rows) {
+    if (!step || !Array.isArray(step.command) || step.command.length < 1) continue;
+    const cmd = String(step.command[0]);
+    const args = step.command.slice(1).map((a) => String(a));
+    const started = Date.now();
+    const r = runner(cmd, args, step) || {};
+    const exitCode = Number.isFinite(Number(r.status)) ? Number(r.status) : 1;
+    const row = {
+      id: String(step.id || 'unknown'),
+      key: String(step.key || ''),
+      command: [cmd, ...args].join(' '),
+      exit_code: exitCode,
+      ok: exitCode === 0,
+      duration_ms: Math.max(0, Date.now() - started),
+      stdout: compactText(r.stdout, stdoutMax),
+      stderr: compactText(r.stderr, stderrMax),
+      error: r.error ? compactText(r.error && r.error.message ? r.error.message : String(r.error), stderrMax) : null
+    };
+    results.push(row);
+    if (!row.ok) break;
+  }
+  return {
+    ok: results.length > 0 && results.every((row) => row.ok === true),
+    steps: results,
+    root_cause: rootCauseFromVerification(results)
+  };
 }
 
 function markRevertTx(payload) {
@@ -152,6 +288,11 @@ function resolveCommit(commitArg) {
 
 function verifyCommitExists(commit) {
   const r = runGit(['cat-file', '-e', `${commit}^{commit}`]);
+  return r.status === 0;
+}
+
+function isCommitOnHead(commit) {
+  const r = runGit(['merge-base', '--is-ancestor', commit, 'HEAD']);
   return r.status === 0;
 }
 
@@ -344,6 +485,53 @@ function recoverInterruptedRevert() {
   };
 }
 
+function createTrialRecord(store, dateStr, options) {
+  const trialDays = clampNumber(Number(options && options.trial_days), 1, 30);
+  const scorecardDays = clampNumber(Number(options && options.scorecard_days), 1, 30);
+  const autoRevert = options && options.auto_revert === true;
+  const commit = String(options && options.commit || '').trim();
+  const note = compactText(options && options.note || '', 240);
+  const thresholds = options && options.thresholds ? options.thresholds : trialThresholds();
+  const baseline = scorecard(dateStr, scorecardDays);
+  const id = `trial_${Date.now()}_${String(commit).slice(0, 7)}`;
+  const trial = {
+    id,
+    status: 'running',
+    created_ts: nowIso(),
+    start_date: dateStr,
+    end_date: addDays(dateStr, trialDays - 1),
+    trial_days: trialDays,
+    scorecard_days: scorecardDays,
+    commit,
+    auto_revert: autoRevert,
+    note,
+    thresholds,
+    baseline: {
+      ts: baseline.ts,
+      date: baseline.date,
+      sample_size: baseline.sample_size,
+      kpis: baseline.kpis,
+      dominant_bottleneck: baseline.dominant_bottleneck || null
+    },
+    last_evaluation: null,
+    outcome: null
+  };
+  store.trials.push(trial);
+  saveTrialsStore(store);
+  appendJsonl(EVENTS_PATH, {
+    ts: nowIso(),
+    type: 'improvement_trial_started',
+    trial_id: id,
+    commit,
+    start_date: dateStr,
+    end_date: trial.end_date,
+    trial_days: trialDays,
+    scorecard_days: scorecardDays,
+    auto_revert: autoRevert
+  });
+  return trial;
+}
+
 function startCmd(dateStr) {
   const store = trialsStore();
   const existing = store.trials.find(t => t && t.status === 'running');
@@ -369,53 +557,210 @@ function startCmd(dateStr) {
 
   const trialDays = clampNumber(Number(optValue('trial-days', DEFAULT_TRIAL_DAYS)), 1, 30);
   const scorecardDays = clampNumber(Number(optValue('scorecard-days', DEFAULT_SCORECARD_DAYS)), 1, 30);
-  const baseline = scorecard(dateStr, scorecardDays);
   const autoRevert = optEnabled('auto-revert', false);
-  const note = String(optValue('note', '') || '').slice(0, 240);
+  const note = compactText(optValue('note', ''), 240);
   const thresholds = trialThresholds();
-
-  const id = `trial_${Date.now()}_${String(commit).slice(0, 7)}`;
-  const trial = {
-    id,
-    status: 'running',
-    created_ts: nowIso(),
-    start_date: dateStr,
-    end_date: addDays(dateStr, trialDays - 1),
+  const trial = createTrialRecord(store, dateStr, {
+    commit,
     trial_days: trialDays,
     scorecard_days: scorecardDays,
-    commit,
     auto_revert: autoRevert,
     note,
-    thresholds,
-    baseline: {
-      ts: baseline.ts,
-      date: baseline.date,
-      sample_size: baseline.sample_size,
-      kpis: baseline.kpis,
-      dominant_bottleneck: baseline.dominant_bottleneck || null
-    },
-    last_evaluation: null,
-    outcome: null
-  };
-
-  store.trials.push(trial);
-  saveTrialsStore(store);
-  appendJsonl(EVENTS_PATH, {
-    ts: nowIso(),
-    type: 'improvement_trial_started',
-    trial_id: id,
-    commit,
-    start_date: dateStr,
-    end_date: trial.end_date,
-    trial_days: trialDays,
-    scorecard_days: scorecardDays,
-    auto_revert: autoRevert
+    thresholds
   });
 
   process.stdout.write(JSON.stringify({
     ok: true,
     result: 'trial_started',
     trial,
+    ts: nowIso()
+  }) + '\n');
+}
+
+function writeTwoPhaseReceipt(dateStr, payload, verified) {
+  const record = {
+    ts: nowIso(),
+    type: 'improvement_two_phase_execution',
+    ...payload
+  };
+  writeContractReceipt(phaseReceiptPath(dateStr), record, {
+    attempted: true,
+    verified: verified === true
+  });
+}
+
+function startValidatedCmd(dateStr) {
+  const store = trialsStore();
+  const existing = store.trials.find(t => t && t.status === 'running');
+  if (existing) {
+    const rootCause = 'running_trial_exists';
+    const out = {
+      ok: false,
+      error: rootCause,
+      running_trial_id: existing.id,
+      ts: nowIso()
+    };
+    writeTwoPhaseReceipt(dateStr, {
+      verdict: 'fail',
+      root_cause: rootCause,
+      phases: {
+        plan: { ok: false, reason: rootCause },
+        apply: { ok: false, skipped: true },
+        verify: { ok: false, skipped: true },
+        commit: { ok: false, skipped: true }
+      }
+    }, false);
+    process.stdout.write(JSON.stringify(out) + '\n');
+    process.exit(2);
+  }
+
+  const commit = resolveCommit(optValue('commit', ''));
+  if (!verifyCommitExists(commit)) {
+    const rootCause = `unknown_commit:${commit}`;
+    const out = {
+      ok: false,
+      error: rootCause,
+      ts: nowIso()
+    };
+    writeTwoPhaseReceipt(dateStr, {
+      verdict: 'fail',
+      commit,
+      root_cause: rootCause,
+      phases: {
+        plan: { ok: false, reason: rootCause },
+        apply: { ok: false, skipped: true },
+        verify: { ok: false, skipped: true },
+        commit: { ok: false, skipped: true }
+      }
+    }, false);
+    process.stdout.write(JSON.stringify(out) + '\n');
+    process.exit(2);
+  }
+
+  const trialDays = clampNumber(Number(optValue('trial-days', DEFAULT_TRIAL_DAYS)), 1, 30);
+  const scorecardDays = clampNumber(Number(optValue('scorecard-days', DEFAULT_SCORECARD_DAYS)), 1, 30);
+  const autoRevert = optEnabled('auto-revert', true);
+  const note = compactText(optValue('note', ''), 240);
+  const thresholds = trialThresholds();
+  const verifySteps = verifyPlanFromCli();
+
+  const phases = {
+    plan: {
+      ok: true,
+      commit,
+      trial_days: trialDays,
+      scorecard_days: scorecardDays,
+      verify_steps: verifySteps.map((s) => s.id),
+      auto_revert: autoRevert
+    },
+    apply: {
+      ok: false,
+      commit_exists: true,
+      commit_on_head: false
+    },
+    verify: {
+      ok: false,
+      skipped: true,
+      steps: []
+    },
+    commit: {
+      ok: false,
+      action: null
+    }
+  };
+
+  phases.apply.commit_on_head = isCommitOnHead(commit);
+  phases.apply.ok = phases.apply.commit_exists && phases.apply.commit_on_head;
+
+  let rootCause = null;
+  if (!phases.apply.ok) {
+    rootCause = phases.apply.commit_on_head ? 'apply_failed' : 'apply_commit_not_on_head';
+  } else {
+    const verify = runVerificationPlan(verifySteps);
+    phases.verify = {
+      ok: verify.ok,
+      skipped: false,
+      steps: verify.steps
+    };
+    if (!verify.ok) rootCause = verify.root_cause || 'verify_failed';
+  }
+
+  let revertResult = null;
+  let trial = null;
+
+  if (!rootCause) {
+    trial = createTrialRecord(store, dateStr, {
+      commit,
+      trial_days: trialDays,
+      scorecard_days: scorecardDays,
+      auto_revert: autoRevert,
+      note,
+      thresholds
+    });
+    phases.commit = {
+      ok: true,
+      action: 'trial_started',
+      trial_id: trial.id
+    };
+  } else if (autoRevert && phases.apply.ok) {
+    revertResult = gitRevert(commit);
+    phases.commit = {
+      ok: revertResult.ok === true,
+      action: 'auto_revert',
+      revert: revertResult
+    };
+    if (revertResult.ok !== true) {
+      rootCause = `rollback_failed:${String(revertResult.reason || 'unknown')}`;
+    }
+  } else {
+    phases.commit = {
+      ok: false,
+      action: 'blocked_no_revert'
+    };
+  }
+
+  appendJsonl(EVENTS_PATH, {
+    ts: nowIso(),
+    type: 'improvement_two_phase_executed',
+    commit,
+    ok: !rootCause,
+    root_cause: rootCause,
+    auto_revert: autoRevert,
+    trial_id: trial ? trial.id : null,
+    revert: revertResult
+  });
+
+  const success = !rootCause && trial != null;
+  writeTwoPhaseReceipt(dateStr, {
+    verdict: success ? 'pass' : 'fail',
+    commit,
+    root_cause: rootCause,
+    auto_revert: autoRevert,
+    trial_id: trial ? trial.id : null,
+    phases,
+    revert: revertResult
+  }, success);
+
+  if (!success) {
+    process.stdout.write(JSON.stringify({
+      ok: false,
+      result: 'start_validated_failed',
+      commit,
+      root_cause: rootCause,
+      auto_revert: autoRevert,
+      phases,
+      revert: revertResult,
+      ts: nowIso()
+    }) + '\n');
+    process.exit(1);
+  }
+
+  process.stdout.write(JSON.stringify({
+    ok: true,
+    result: 'trial_started_validated',
+    commit,
+    trial,
+    phases,
     ts: nowIso()
   }) + '\n');
 }
@@ -565,6 +910,7 @@ function statusCmd() {
 function usage() {
   console.log('Usage:');
   console.log('  node systems/autonomy/improvement_controller.js start [YYYY-MM-DD] --commit=<sha> [--trial-days=N] [--scorecard-days=N] [--auto-revert=1] [--note=...]');
+  console.log('  node systems/autonomy/improvement_controller.js start-validated [YYYY-MM-DD] --commit=<sha> [--trial-days=N] [--scorecard-days=N] [--auto-revert=1] [--verify-steps=contract,schema] [--note=...]');
   console.log('  node systems/autonomy/improvement_controller.js evaluate [YYYY-MM-DD] [--id=<trial_id>] [--force=1] [--auto-revert=1]');
   console.log('  node systems/autonomy/improvement_controller.js status [--id=<trial_id>]');
 }
@@ -583,6 +929,7 @@ function main() {
   }
 
   if (cmd === 'start') return startCmd(dateStr);
+  if (cmd === 'start-validated') return startValidatedCmd(dateStr);
   if (cmd === 'evaluate') return evaluateCmd(dateStr);
   if (cmd === 'status') return statusCmd();
 
@@ -594,5 +941,8 @@ if (require.main === module) main();
 module.exports = {
   evaluateMetrics,
   elapsedDaysInclusive,
-  addDays
+  addDays,
+  defaultVerifyPlan,
+  runVerificationPlan,
+  rootCauseFromVerification
 };
