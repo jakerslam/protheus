@@ -101,10 +101,14 @@ function run() {
     AUTONOMY_MODE_GOVERNOR_CANARY_MAX_FAIL_RATE: '0.5',
     AUTONOMY_MODE_GOVERNOR_CANARY_MIN_SHIPPED: '1',
     AUTONOMY_MODE_GOVERNOR_REQUIRE_QUALITY_LOCK_FOR_EXECUTE: '1',
+    AUTONOMY_MODE_GOVERNOR_QUALITY_LOCK_FLAP_THRESHOLD: '2',
+    AUTONOMY_MODE_GOVERNOR_QUALITY_LOCK_FLAP_WINDOW_HOURS: '24',
+    AUTONOMY_MODE_GOVERNOR_EXECUTE_FREEZE_HOURS: '2',
     OUTCOME_FITNESS_POLICY_PATH: outcomePolicyPath
   };
+  const runAt = (iso) => runScript(repoRoot, ['run', date, '--days=1'], { ...env, AUTONOMY_MODE_GOVERNOR_NOW_ISO: iso });
 
-  let r = runScript(repoRoot, ['run', date, '--days=1'], env);
+  let r = runAt(`${date}T01:00:00.000Z`);
   assert.strictEqual(r.status, 0, `governor run without quality lock should pass: ${r.stderr}`);
   let out = parseJson(r.stdout);
   assert.strictEqual(out.result, 'no_change');
@@ -126,7 +130,7 @@ function run() {
     }
   });
 
-  r = runScript(repoRoot, ['run', date, '--days=1'], env);
+  r = runAt(`${date}T02:00:00.000Z`);
   assert.strictEqual(r.status, 0, `governor run with quality lock should pass: ${r.stderr}`);
   out = parseJson(r.stdout);
   assert.strictEqual(out.result, 'mode_changed');
@@ -148,7 +152,7 @@ function run() {
     }
   });
 
-  r = runScript(repoRoot, ['run', date, '--days=1'], env);
+  r = runAt(`${date}T03:00:00.000Z`);
   assert.strictEqual(r.status, 0, `governor run after quality lock loss should pass: ${r.stderr}`);
   out = parseJson(r.stdout);
   assert.strictEqual(out.result, 'mode_changed');
@@ -157,6 +161,79 @@ function run() {
   assert.strictEqual(out.reason, 'quality_lock_inactive_demote_canary');
   after = readJson(strategyPath);
   assert.strictEqual(after.execution_policy.mode, 'canary_execute');
+
+  writeJson(outcomePolicyPath, {
+    version: '1.0',
+    ts: `${date}T04:00:00.000Z`,
+    strategy_policy: {
+      promotion_policy_audit: {
+        quality_lock: {
+          active: true,
+          stable_window_streak: 3
+        }
+      }
+    }
+  });
+  r = runAt(`${date}T04:00:00.000Z`);
+  assert.strictEqual(r.status, 0, `governor run should allow execute before freeze armed: ${r.stderr}`);
+  out = parseJson(r.stdout);
+  assert.strictEqual(out.result, 'mode_changed');
+  assert.strictEqual(out.from_mode, 'canary_execute');
+  assert.strictEqual(out.to_mode, 'execute');
+  after = readJson(strategyPath);
+  assert.strictEqual(after.execution_policy.mode, 'execute');
+
+  writeJson(outcomePolicyPath, {
+    version: '1.0',
+    ts: `${date}T05:00:00.000Z`,
+    strategy_policy: {
+      promotion_policy_audit: {
+        quality_lock: {
+          active: false,
+          stable_window_streak: 0
+        }
+      }
+    }
+  });
+  r = runAt(`${date}T05:00:00.000Z`);
+  assert.strictEqual(r.status, 0, `governor run should demote and arm freeze on second flap: ${r.stderr}`);
+  out = parseJson(r.stdout);
+  assert.strictEqual(out.result, 'mode_changed');
+  assert.strictEqual(out.from_mode, 'execute');
+  assert.strictEqual(out.to_mode, 'canary_execute');
+  assert.strictEqual(out.reason, 'quality_lock_inactive_demote_canary');
+  assert.ok(out.execute_freeze_armed && out.execute_freeze_armed.active === true, 'freeze should arm on repeated lock-loss flap');
+  after = readJson(strategyPath);
+  assert.strictEqual(after.execution_policy.mode, 'canary_execute');
+
+  writeJson(outcomePolicyPath, {
+    version: '1.0',
+    ts: `${date}T06:00:00.000Z`,
+    strategy_policy: {
+      promotion_policy_audit: {
+        quality_lock: {
+          active: true,
+          stable_window_streak: 4
+        }
+      }
+    }
+  });
+  r = runAt(`${date}T06:00:00.000Z`);
+  assert.strictEqual(r.status, 0, `governor run during freeze should be blocked: ${r.stderr}`);
+  out = parseJson(r.stdout);
+  assert.strictEqual(out.result, 'no_change');
+  assert.strictEqual(out.mode, 'canary_execute');
+  assert.strictEqual(out.reason, 'execute_freeze_active');
+  assert.ok(out.execute_freeze && out.execute_freeze.active === true, 'freeze should be active');
+
+  r = runAt(`${date}T08:30:00.000Z`);
+  assert.strictEqual(r.status, 0, `governor run after freeze expiry should allow execute: ${r.stderr}`);
+  out = parseJson(r.stdout);
+  assert.strictEqual(out.result, 'mode_changed');
+  assert.strictEqual(out.from_mode, 'canary_execute');
+  assert.strictEqual(out.to_mode, 'execute');
+  after = readJson(strategyPath);
+  assert.strictEqual(after.execution_policy.mode, 'execute');
 
   console.log('strategy_mode_governor_quality_lock_gate.test.js: OK');
 }
