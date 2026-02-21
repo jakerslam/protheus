@@ -22,6 +22,7 @@ const { loadActiveDirectives } = require('../../lib/directive_resolver.js');
 const { loadActiveStrategy } = require('../../lib/strategy_resolver.js');
 const { loadOutcomeFitnessPolicy } = require('../../lib/outcome_fitness.js');
 const { ensureCatalog } = require('../../lib/eyes_catalog.js');
+const { egressFetch, EgressGatewayError } = require('../../lib/egress_gateway.js');
 const {
   DEFAULT_STATE_DIR: GLOBAL_BUDGET_STATE_DIR,
   DEFAULT_EVENTS_PATH: GLOBAL_BUDGET_EVENTS_PATH,
@@ -911,10 +912,20 @@ async function fetchFocusDetails(item, policy) {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, {
+    const host = new URL(url).hostname;
+    const res = await egressFetch(url, {
       method: 'GET',
       headers: { 'User-Agent': 'openclaw-focus/1.0' },
       signal: controller.signal
+    }, {
+      scope: 'sensory.focus_fetch',
+      caller: 'systems/sensory/focus_controller',
+      runtime_allowlist: [host],
+      timeout_ms: timeoutMs,
+      meta: {
+        eye_id: String(item && item.eye_id || '').slice(0, 120),
+        item_id: String(item && item.id || '').slice(0, 120)
+      }
     });
     const ct = String(res.headers.get('content-type') || '').toLowerCase();
     const lenHeader = Number(res.headers.get('content-length'));
@@ -944,6 +955,12 @@ async function fetchFocusDetails(item, policy) {
       description: extractDescription(trimmed)
     };
   } catch (err) {
+    if (err instanceof EgressGatewayError) {
+      return {
+        fetched: false,
+        reason: `egress_denied:${String(err.details && err.details.code || 'policy').slice(0, 40)}`
+      };
+    }
     return {
       fetched: false,
       reason: String(err && err.name ? err.name : err || 'fetch_failed').slice(0, 80)

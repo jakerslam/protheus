@@ -7,10 +7,10 @@
  * - NO LLM usage, uses GitHub API (no auth required for public repos)
  */
 
-const https = require("https");
 const crypto = require("crypto");
 const { classifyCollectorError, httpStatusToCode, makeCollectorError } = require("./collector_errors");
 const { loadCollectorCache, saveCollectorCache } = require("./cache_store");
+const { egressFetchText, EgressGatewayError } = require("../../../lib/egress_gateway");
 
 function sha16(s) {
   return crypto.createHash("sha256").update(String(s)).digest("hex").slice(0, 16);
@@ -21,46 +21,47 @@ function nowIso() {
 }
 
 function fetchJson(url, timeoutMs = 15000) {
-  return new Promise((resolve, reject) => {
-    const req = https.get(url, { 
-      headers: { 
-        "User-Agent": "OpenClaw-Eyes/1.0",
-        "Accept": "application/vnd.github+json",
-      } 
-    }, (res) => {
-      if (res.statusCode && res.statusCode >= 400) {
-        reject(makeCollectorError(
-          httpStatusToCode(res.statusCode),
-          `HTTP ${res.statusCode} for ${url}`,
-          { http_status: Number(res.statusCode), url }
-        ));
-        res.resume();
-        return;
-      }
-      let bytes = 0;
-      const chunks = [];
-      res.on("data", (d) => {
-        bytes += d.length;
-        chunks.push(d);
-      });
-      res.on("end", () => {
-        const text = Buffer.concat(chunks).toString("utf8");
-        try {
-          const json = JSON.parse(text);
-          resolve({ json, bytes });
-        } catch {
-          resolve({ text, bytes, json: null });
+  return (async () => {
+    try {
+      const host = new URL(url).hostname;
+      const res = await egressFetchText(url, {
+        method: "GET",
+        headers: {
+          "User-Agent": "OpenClaw-Eyes/1.0",
+          "Accept": "application/vnd.github+json",
         }
+      }, {
+        scope: "sensory.collector.github_repo",
+        caller: "systems/sensory/eyes_collectors/github_repo",
+        runtime_allowlist: [host],
+        timeout_ms: timeoutMs,
+        meta: { collector: "github_repo" }
       });
-    });
-    req.on("error", (err) => {
-      reject(makeCollectorError("network_error", err.message, { url }));
-    });
-    req.setTimeout(timeoutMs, () => {
-      req.destroy();
-      reject(makeCollectorError("timeout", `Request timeout after ${timeoutMs}ms`, { url }));
-    });
-  });
+      if (res.status >= 400) {
+        throw makeCollectorError(
+          httpStatusToCode(res.status),
+          `HTTP ${res.status} for ${url}`,
+          { http_status: Number(res.status), url }
+        );
+      }
+      const text = String(res.text || "");
+      try {
+        return { json: JSON.parse(text), bytes: Buffer.byteLength(text, "utf8") };
+      } catch {
+        return { text, bytes: Buffer.byteLength(text, "utf8"), json: null };
+      }
+    } catch (err) {
+      if (err instanceof EgressGatewayError) {
+        throw makeCollectorError(
+          "env_blocked",
+          `egress_denied:${String(err.details && err.details.code || "policy")} for ${url}`.slice(0, 220),
+          { url }
+        );
+      }
+      const c = classifyCollectorError(err);
+      throw makeCollectorError(c.code, c.message, { url, http_status: c.http_status });
+    }
+  })();
 }
 
 async function run({ owner, repo, maxItems = 10, minHours = 4, force = false } = {}) {

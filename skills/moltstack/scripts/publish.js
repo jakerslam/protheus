@@ -5,65 +5,78 @@
  * Usage: node publish.js '{"title":"...","content":"..."}'
  */
 
-const fs = require('fs');
-const path = require('path');
-const https = require('https');
+const { egressFetch, EgressGatewayError } = require('../../../lib/egress_gateway');
+const { issueSecretHandle, resolveSecretHandle } = require('../../../lib/secret_broker');
 
-// Load credentials
-const credentialsPath = path.join(process.env.HOME, '.config', 'moltstack', 'credentials.json');
-
-function loadCredentials() {
-  try {
-    const data = fs.readFileSync(credentialsPath, 'utf8');
-    return JSON.parse(data);
-  } catch (err) {
-    console.error('Error loading credentials:', err.message);
-    console.error('Expected at:', credentialsPath);
-    process.exit(1);
+function issueMoltstackHandle() {
+  const issued = issueSecretHandle({
+    secret_id: 'moltstack_api_key',
+    scope: 'skill.moltstack.publish',
+    caller: 'skills/moltstack/scripts/publish.js',
+    ttl_sec: 600,
+    reason: 'publish_post'
+  });
+  if (!issued || issued.ok !== true || !issued.handle) {
+    throw new Error(`Missing MoltStack api_key (${issued && issued.error ? issued.error : 'unknown'})`);
   }
+  return issued.handle;
 }
 
-function publishPost(credentials, postData) {
-  return new Promise((resolve, reject) => {
-    const payload = JSON.stringify({
-      title: postData.title,
-      content: postData.content,
-      publishNow: true
-    });
+function resolveMoltstackApiKey(handle) {
+  const resolved = resolveSecretHandle(handle, {
+    scope: 'skill.moltstack.publish',
+    caller: 'skills/moltstack/scripts/publish.js'
+  });
+  if (!resolved || resolved.ok !== true || !resolved.value) {
+    throw new Error(`MoltStack api_key handle resolve failed (${resolved && resolved.error ? resolved.error : 'unknown'})`);
+  }
+  return String(resolved.value).trim();
+}
 
-    const options = {
-      hostname: 'moltstack.net',
-      port: 443,
-      path: '/api/posts',
+async function publishPost(apiKeyHandle, postData) {
+  const payload = JSON.stringify({
+    title: postData.title,
+    content: postData.content,
+    publishNow: true
+  });
+  const apiKey = resolveMoltstackApiKey(apiKeyHandle);
+  let res;
+  try {
+    res = await egressFetch('https://moltstack.net/api/posts', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${credentials.api_key}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload)
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', (chunk) => data += chunk);
-      res.on('end', () => {
-        try {
-          const response = JSON.parse(data);
-          if (response.success) {
-            resolve(response);
-          } else {
-            reject(new Error(response.error || 'Unknown error'));
-          }
-        } catch (e) {
-          reject(new Error('Invalid JSON response: ' + data));
-        }
-      });
+      },
+      body: payload
+    }, {
+      scope: 'skill.moltstack.publish',
+      caller: 'skills/moltstack/scripts/publish.js',
+      runtime_allowlist: ['moltstack.net'],
+      timeout_ms: Number(process.env.MOLTSTACK_API_TIMEOUT_MS || 20000),
+      meta: { action: 'publish_post' }
     });
+  } catch (err) {
+    if (err instanceof EgressGatewayError) {
+      throw new Error(`Egress denied: ${err.details && err.details.code ? err.details.code : 'policy'}`);
+    }
+    throw err;
+  }
 
-    req.on('error', (err) => reject(err));
-    req.write(payload);
-    req.end();
-  });
+  const data = await res.text();
+  let response = null;
+  try {
+    response = data ? JSON.parse(data) : null;
+  } catch {
+    throw new Error('Invalid JSON response: ' + data);
+  }
+  if (!res.ok) {
+    throw new Error((response && (response.error || response.message)) || `HTTP ${res.status}`);
+  }
+  if (!response || response.success !== true) {
+    throw new Error((response && response.error) || 'Unknown error');
+  }
+  return response;
 }
 
 async function main() {
@@ -87,13 +100,12 @@ async function main() {
     process.exit(1);
   }
 
-  // Load credentials
-  const credentials = loadCredentials();
+  const apiKeyHandle = issueMoltstackHandle();
 
   // Publish
   try {
     console.log(`Publishing: ${postData.title}`);
-    const result = await publishPost(credentials, postData);
+    const result = await publishPost(apiKeyHandle, postData);
     console.log('✓ Published successfully');
     console.log(`URL: ${result.post.url}`);
     console.log(`Published at: ${result.post.published_at}`);

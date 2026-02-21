@@ -1,6 +1,9 @@
 // skills/moltbook/moltbook_api.js
 // Core Moltbook functions for agent automation
 
+const { egressFetch, EgressGatewayError } = require('../../lib/egress_gateway');
+const { resolveSecretHandle } = require('../../lib/secret_broker');
+
 const DEFAULT_API_BASES = ['https://www.moltbook.com/api/v1', 'https://api.moltbook.com/api/v1'];
 const getAuthHeader = (apiKey) => ({ 'Authorization': 'Bearer ' + apiKey });
 
@@ -40,10 +43,40 @@ async function parseBodySafe(res) {
   }
 }
 
-function assertAuth(apiKey) {
-  if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim()) {
-    throw new MoltbookApiError('Missing apiKey', { code: 'AUTH_MISSING' });
+function authInputToOptions(apiInput, defaultScope = 'skill.moltbook.api') {
+  if (apiInput && typeof apiInput === 'object') {
+    return {
+      apiKey: typeof apiInput.apiKey === 'string' ? apiInput.apiKey.trim() : '',
+      apiKeyHandle: typeof apiInput.apiKeyHandle === 'string' ? apiInput.apiKeyHandle.trim() : '',
+      auth_scope: typeof apiInput.scope === 'string' && apiInput.scope.trim() ? apiInput.scope.trim() : defaultScope,
+      auth_caller: typeof apiInput.caller === 'string' && apiInput.caller.trim() ? apiInput.caller.trim() : 'skills/moltbook/moltbook_api'
+    };
   }
+  return {
+    apiKey: typeof apiInput === 'string' ? apiInput.trim() : '',
+    apiKeyHandle: '',
+    auth_scope: defaultScope,
+    auth_caller: 'skills/moltbook/moltbook_api'
+  };
+}
+
+function resolveAuthApiKey({ apiKey, apiKeyHandle, auth_scope, auth_caller }) {
+  const raw = String(apiKey || '').trim();
+  if (raw) return raw;
+  const handle = String(apiKeyHandle || '').trim();
+  if (handle) {
+    const resolved = resolveSecretHandle(handle, {
+      scope: String(auth_scope || 'skill.moltbook.api').trim(),
+      caller: String(auth_caller || 'skills/moltbook/moltbook_api').trim()
+    });
+    if (!resolved.ok || !resolved.value) {
+      throw new MoltbookApiError(`Secret handle resolve failed: ${resolved.error || 'unknown'}`, {
+        code: 'AUTH_HANDLE_INVALID'
+      });
+    }
+    return String(resolved.value).trim();
+  }
+  throw new MoltbookApiError('Missing apiKey', { code: 'AUTH_MISSING' });
 }
 
 function parseErrorMessage(payload, status, fallback) {
@@ -90,24 +123,44 @@ function networkCauseCode(err) {
   return 'NETWORK_ERROR';
 }
 
-async function request(path, { method = 'GET', apiKey, body } = {}) {
-  assertAuth(apiKey);
+async function request(path, { method = 'GET', apiKey, apiKeyHandle, auth_scope, auth_caller, body } = {}) {
+  const authApiKey = resolveAuthApiKey({ apiKey, apiKeyHandle, auth_scope, auth_caller });
+  const egressScope = String(auth_scope || 'skill.moltbook.api').trim() || 'skill.moltbook.api';
+  const egressCaller = String(auth_caller || 'skills/moltbook/moltbook_api').trim() || 'skills/moltbook/moltbook_api';
   const bases = resolveApiBases();
   const allowFailover = String(method || 'GET').toUpperCase() === 'GET';
   let lastErr = null;
 
   for (let i = 0; i < bases.length; i++) {
     const base = bases[i];
+    const reqUrl = `${base}${path}`;
     let res;
     try {
-      res = await fetch(`${base}${path}`, {
+      const host = new URL(reqUrl).hostname;
+      res = await egressFetch(reqUrl, {
         method,
         headers: body == null
-          ? getAuthHeader(apiKey)
-          : { ...getAuthHeader(apiKey), 'Content-Type': 'application/json' },
+          ? getAuthHeader(authApiKey)
+          : { ...getAuthHeader(authApiKey), 'Content-Type': 'application/json' },
         body: body == null ? undefined : JSON.stringify(body)
+      }, {
+        scope: egressScope,
+        caller: egressCaller,
+        runtime_allowlist: [host],
+        timeout_ms: Number(process.env.MOLTBOOK_API_TIMEOUT_MS || 15000),
+        meta: {
+          path: String(path || '').slice(0, 180),
+          base: String(base || '').slice(0, 180)
+        }
       });
     } catch (err) {
+      if (err instanceof EgressGatewayError) {
+        lastErr = new MoltbookApiError(
+          `${method} ${path} blocked by egress gateway: ${err.details && err.details.code ? err.details.code : 'egress_denied'}`,
+          { method, path, base, code: 'EGRESS_DENIED', cause_code: err.details && err.details.code ? err.details.code : '' }
+        );
+        throw lastErr;
+      }
       const code = networkCauseCode(err);
       const causeCode = String((err && err.cause && err.cause.code) || err && err.code || '').toUpperCase();
       lastErr = new MoltbookApiError(
@@ -167,6 +220,7 @@ function assertPostsPayload(payload, path) {
 }
 
 async function moltbook_getHotPosts(limit = 5, apiKey) {
+  const auth = authInputToOptions(apiKey, 'skill.moltbook.api');
   const n = Number(limit) || 5;
   const candidates = [
     `/posts?sort=hot&limit=${n}`,
@@ -175,7 +229,7 @@ async function moltbook_getHotPosts(limit = 5, apiKey) {
   let lastErr = null;
   for (const p of candidates) {
     try {
-      const payload = await request(p, { method: 'GET', apiKey });
+      const payload = await request(p, { method: 'GET', ...auth });
       assertPostsPayload(payload, p);
       return payload;
     } catch (err) {
@@ -189,8 +243,9 @@ async function moltbook_getHotPosts(limit = 5, apiKey) {
 }
 
 async function moltbook_upvotePost(postId, apiKey) {
+  const auth = authInputToOptions(apiKey, 'skill.moltbook.api');
   if (!postId) throw new Error('Missing postId');
-  const payload = await request(`/posts/${postId}/upvote`, { method: 'POST', apiKey });
+  const payload = await request(`/posts/${postId}/upvote`, { method: 'POST', ...auth });
   if (!payload || typeof payload !== 'object') {
     throw new MoltbookApiError('Unexpected upvote response schema', { code: 'SCHEMA_ERROR' });
   }
@@ -198,11 +253,12 @@ async function moltbook_upvotePost(postId, apiKey) {
 }
 
 async function moltbook_comment(postId, text, apiKey) {
+  const auth = authInputToOptions(apiKey, 'skill.moltbook.api');
   if (!postId) throw new Error('Missing postId');
   if (!text || typeof text !== 'string') throw new Error('Missing comment text');
   const payload = await request(`/posts/${postId}/comments`, {
     method: 'POST',
-    apiKey,
+    ...auth,
     body: { text }
   });
   if (!payload || typeof payload !== 'object') {
@@ -324,7 +380,7 @@ function extractVerification(payload) {
   return null;
 }
 
-async function completeVerificationIfPresent(createdPayload, apiKey) {
+async function completeVerificationIfPresent(createdPayload, auth) {
   const verification = extractVerification(createdPayload);
   if (!verification) return { needed: false, verified: true, method: 'not_required' };
 
@@ -337,7 +393,7 @@ async function completeVerificationIfPresent(createdPayload, apiKey) {
   const answer = solveVerificationChallenge(challengeText);
   await request('/verify', {
     method: 'POST',
-    apiKey,
+    ...auth,
     body: {
       verification_code: verificationCode,
       answer
@@ -346,12 +402,12 @@ async function completeVerificationIfPresent(createdPayload, apiKey) {
   return { needed: true, verified: true, method: 'challenge_verify', answer_format: 'fixed_2' };
 }
 
-async function verifyCreatedPost(postPayload, { title, content, apiKey }) {
+async function verifyCreatedPost(postPayload, { title, content, auth }) {
   const postId = extractPostId(postPayload);
 
   if (postId) {
     try {
-      const fetched = await request(`/posts/${postId}`, { method: 'GET', apiKey });
+      const fetched = await request(`/posts/${postId}`, { method: 'GET', ...auth });
       const post = fetched && fetched.post ? fetched.post : fetched;
       if (samePostByContent(post, title, content)) {
         return {
@@ -374,7 +430,7 @@ async function verifyCreatedPost(postPayload, { title, content, apiKey }) {
   ];
   for (const p of candidates) {
     try {
-      const payload = await request(p, { method: 'GET', apiKey });
+      const payload = await request(p, { method: 'GET', ...auth });
       const posts = assertPostsPayload(payload, p);
       const found = posts.find((x) => samePostByContent(x, title, content));
       if (found) {
@@ -401,12 +457,13 @@ async function verifyCreatedPost(postPayload, { title, content, apiKey }) {
 // - "submolt_name" is required
 // Keep legacy call shape: (title, body, apiKey, submoltName?)
 async function moltbook_createPost(title, body, apiKey, submoltName = 'general') {
+  const auth = authInputToOptions(apiKey, 'skill.moltbook.api');
   if (!title || typeof title !== 'string') throw new Error('Missing title');
   if (!body || typeof body !== 'string') throw new Error('Missing body');
   if (!submoltName || typeof submoltName !== 'string') throw new Error('Missing submoltName');
   const created = await request('/posts', {
     method: 'POST',
-    apiKey,
+    ...auth,
     body: {
       title,
       content: body,
@@ -416,11 +473,11 @@ async function moltbook_createPost(title, body, apiKey, submoltName = 'general')
   if (!created || typeof created !== 'object') {
     throw new MoltbookApiError('Unexpected create post response schema', { code: 'SCHEMA_ERROR' });
   }
-  const challenge = await completeVerificationIfPresent(created, apiKey);
+  const challenge = await completeVerificationIfPresent(created, auth);
   const verification = await verifyCreatedPost(created, {
     title,
     content: body,
-    apiKey
+    auth
   });
 
   const normalizedPostId = verification.post_id || extractPostId(created);
@@ -436,8 +493,9 @@ async function moltbook_createPost(title, body, apiKey, submoltName = 'general')
 }
 
 async function moltbook_listAgents(limit = 10, apiKey) {
+  const auth = authInputToOptions(apiKey, 'skill.moltbook.api');
   const path = `/agents?sort=active&limit=${Number(limit) || 10}`;
-  const payload = await request(path, { method: 'GET', apiKey });
+  const payload = await request(path, { method: 'GET', ...auth });
   const agents = payload && (Array.isArray(payload) || Array.isArray(payload.agents) || (payload.data && Array.isArray(payload.data.agents)));
   if (!agents) {
     throw new MoltbookApiError('Unexpected agents response schema', {
@@ -451,9 +509,10 @@ async function moltbook_listAgents(limit = 10, apiKey) {
 }
 
 async function moltbook_capabilities(apiKey) {
+  const auth = authInputToOptions(apiKey, 'skill.moltbook.api');
   const checks = [
-    { name: 'posts_hot', fn: () => request('/posts?sort=hot&limit=1', { method: 'GET', apiKey }) },
-    { name: 'agents_list', fn: () => request('/agents?sort=active&limit=1', { method: 'GET', apiKey }) }
+    { name: 'posts_hot', fn: () => request('/posts?sort=hot&limit=1', { method: 'GET', ...auth }) },
+    { name: 'agents_list', fn: () => request('/agents?sort=active&limit=1', { method: 'GET', ...auth }) }
   ];
   const out = {};
   for (const c of checks) {

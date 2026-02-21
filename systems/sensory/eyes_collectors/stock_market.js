@@ -8,10 +8,10 @@
  * - NO LLM usage, uses Yahoo Finance HTML scraping or Finnhub API if available
  */
 
-const https = require("https");
 const crypto = require("crypto");
 const { classifyCollectorError, httpStatusToCode, makeCollectorError } = require("./collector_errors");
 const { loadCollectorCache, saveCollectorCache } = require("./cache_store");
+const { egressFetchText, EgressGatewayError } = require("../../../lib/egress_gateway");
 
 function sha16(s) {
   return crypto.createHash("sha256").update(String(s)).digest("hex").slice(0, 16);
@@ -22,55 +22,52 @@ function nowIso() {
 }
 
 function fetchJson(url, timeoutMs = 15000) {
-  return new Promise((resolve, reject) => {
-    const req = https.get(url, { 
-      headers: { 
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-        "Accept": "application/json,text/html,*/*",
-        "Accept-Language": "en-US,en;q=0.9",
-      } 
-    }, (res) => {
-      if (res.statusCode && res.statusCode >= 400) {
-        reject(makeCollectorError(
-          httpStatusToCode(res.statusCode),
-          `HTTP ${res.statusCode} for ${url}`,
-          { http_status: Number(res.statusCode), url }
-        ));
-        res.resume();
-        return;
-      }
-      let bytes = 0;
-      const chunks = [];
-      res.on("data", (d) => {
-        bytes += d.length;
-        chunks.push(d);
-      });
-      res.on("end", () => {
-        const text = Buffer.concat(chunks).toString("utf8");
-        try {
-          const json = JSON.parse(text);
-          resolve({ json, bytes });
-        } catch (e) {
-          resolve({ text, bytes, isJson: false });
+  return (async () => {
+    try {
+      const host = new URL(url).hostname;
+      const res = await egressFetchText(url, {
+        method: "GET",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "Accept": "application/json,text/html,*/*",
+          "Accept-Language": "en-US,en;q=0.9",
         }
+      }, {
+        scope: "sensory.collector.stock_market",
+        caller: "systems/sensory/eyes_collectors/stock_market",
+        runtime_allowlist: [host],
+        timeout_ms: timeoutMs,
+        meta: { collector: "stock_market" }
       });
-    });
-    req.on("error", (err) => {
+      if (res.status >= 400) {
+        throw makeCollectorError(
+          httpStatusToCode(res.status),
+          `HTTP ${res.status} for ${url}`,
+          { http_status: Number(res.status), url }
+        );
+      }
+      const text = String(res.text || "");
+      try {
+        return { json: JSON.parse(text), bytes: Buffer.byteLength(text, "utf8") };
+      } catch {
+        return { text, bytes: Buffer.byteLength(text, "utf8"), isJson: false };
+      }
+    } catch (err) {
+      if (err instanceof EgressGatewayError) {
+        throw makeCollectorError(
+          "env_blocked",
+          `egress_denied:${String(err.details && err.details.code || "policy")} for ${url}`.slice(0, 220),
+          { url }
+        );
+      }
       const c = classifyCollectorError(err);
-      reject(makeCollectorError(
+      throw makeCollectorError(
         c.code,
         `${c.message} for ${url}`.slice(0, 200),
         { http_status: c.http_status, url }
-      ));
-    });
-    req.setTimeout(timeoutMs, () => {
-      req.destroy(makeCollectorError(
-        "timeout",
-        `Timeout after ${timeoutMs}ms for ${url}`,
-        { url }
-      ));
-    });
-  });
+      );
+    }
+  })();
 }
 
 /**

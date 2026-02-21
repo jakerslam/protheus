@@ -7,7 +7,6 @@
  * - No LLM usage, minimal dependencies
  */
 
-const https = require("https");
 const crypto = require("crypto");
 const {
   classifyCollectorError,
@@ -15,6 +14,7 @@ const {
   makeCollectorError,
 } = require("./collector_errors");
 const { loadCollectorCache, saveCollectorCache } = require("./cache_store");
+const { egressFetchText, EgressGatewayError } = require("../../../lib/egress_gateway");
 
 function sha16(s) {
   return crypto.createHash("sha256").update(String(s)).digest("hex").slice(0, 16);
@@ -25,70 +25,56 @@ function nowIso() {
 }
 
 function fetchJson(url, timeoutMs = 10000) {
-  return new Promise((resolve, reject) => {
-    const req = https.get(
-      url,
-      {
+  return (async () => {
+    try {
+      const host = new URL(url).hostname;
+      const res = await egressFetchText(url, {
+        method: "GET",
         headers: {
           "User-Agent": "openclaw-eyes/1.0",
           Accept: "application/json",
         },
-      },
-      (res) => {
-        if (res.statusCode && res.statusCode >= 400) {
-          reject(
-            makeCollectorError(
-              httpStatusToCode(res.statusCode),
-              `HTTP ${res.statusCode} for ${url}`,
-              { http_status: Number(res.statusCode), url }
-            )
-          );
-          res.resume();
-          return;
-        }
-        let bytes = 0;
-        const chunks = [];
-        res.on("data", (d) => {
-          bytes += d.length;
-          chunks.push(d);
-        });
-        res.on("end", () => {
-          try {
-            const text = Buffer.concat(chunks).toString("utf8");
-            const data = JSON.parse(text);
-            resolve({ data, bytes });
-          } catch (e) {
-            reject(
-              makeCollectorError(
-                "parse_error",
-                `Failed to parse JSON from ${url}`,
-                { url }
-              )
-            );
-          }
-        });
+      }, {
+        scope: "sensory.collector.moltstack_discover",
+        caller: "systems/sensory/eyes_collectors/moltstack_discover",
+        runtime_allowlist: [host],
+        timeout_ms: timeoutMs,
+        meta: { collector: "moltstack_discover" }
+      });
+      if (res.status >= 400) {
+        throw makeCollectorError(
+          httpStatusToCode(res.status),
+          `HTTP ${res.status} for ${url}`,
+          { http_status: Number(res.status), url }
+        );
       }
-    );
-    req.on("error", (err) => {
-      const c = classifyCollectorError(err);
-      reject(
-        makeCollectorError(
-          c.code,
-          `${c.message} for ${url}`.slice(0, 200),
-          { http_status: c.http_status, url }
-        )
-      );
-    });
-    req.setTimeout(timeoutMs, () => {
-      req.destroy(
-        makeCollectorError(
-          "timeout",
-          `Timeout after ${timeoutMs}ms for ${url}`,
+      try {
+        const text = String(res.text || "");
+        const data = JSON.parse(text);
+        return { data, bytes: Buffer.byteLength(text, "utf8") };
+      } catch {
+        throw makeCollectorError(
+          "parse_error",
+          `Failed to parse JSON from ${url}`,
           { url }
-        )
+        );
+      }
+    } catch (err) {
+      if (err instanceof EgressGatewayError) {
+        throw makeCollectorError(
+          "env_blocked",
+          `egress_denied:${String(err.details && err.details.code || "policy")} for ${url}`.slice(0, 220),
+          { url }
+        );
+      }
+      const c = classifyCollectorError(err);
+      throw makeCollectorError(
+        c.code,
+        `${c.message} for ${url}`.slice(0, 200),
+        { http_status: c.http_status, url }
       );
-    });
-  });
+    }
+  })();
 }
 
 function keywordTopics(title, configuredTopics = []) {

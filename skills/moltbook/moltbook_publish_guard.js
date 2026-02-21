@@ -3,9 +3,10 @@
 
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 const { moltbook_createPost, MoltbookApiError } = require('./moltbook_api');
 const { writeContractReceipt } = require('../../lib/action_receipts');
+const { egressFetch, EgressGatewayError } = require('../../lib/egress_gateway');
+const { issueSecretHandle, resolveSecretHandle } = require('../../lib/secret_broker');
 
 const RECEIPTS_PATH = path.resolve(__dirname, '..', '..', 'state', 'moltbook', 'publish_receipts.jsonl');
 const API_BASE = 'https://www.moltbook.com/api/v1';
@@ -28,28 +29,37 @@ function parseArgs(argv) {
   return out;
 }
 
-function readJson(p) { return JSON.parse(fs.readFileSync(p, 'utf8')); }
 function nowIso() { return new Date().toISOString(); }
 
 function printJson(obj) {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
-function loadApiKey() {
-  const candidates = [
-    path.join(os.homedir(), '.openclaw', 'workspace', 'config', 'moltbook', 'credentials.json'),
-    path.join(os.homedir(), '.config', 'moltbook', 'credentials.json')
-  ];
-  for (const p of candidates) {
-    if (!fs.existsSync(p)) continue;
-    try {
-      const key = readJson(p).api_key;
-      if (typeof key === 'string' && key.trim()) return { apiKey: key.trim(), source: p };
-    } catch {
-      // continue
+function issueMoltbookHandle() {
+  return issueSecretHandle({
+    secret_id: 'moltbook_api_key',
+    scope: 'skill.moltbook.publish_guard',
+    caller: 'skills/moltbook/moltbook_publish_guard',
+    ttl_sec: 600,
+    reason: 'publish_guard'
+  });
+}
+
+function resolveApiKeyFromAuth(authInput) {
+  if (typeof authInput === 'string' && authInput.trim()) return authInput.trim();
+  if (authInput && typeof authInput === 'object') {
+    if (typeof authInput.apiKey === 'string' && authInput.apiKey.trim()) return authInput.apiKey.trim();
+    const handle = String(authInput.apiKeyHandle || '').trim();
+    if (handle) {
+      const resolved = resolveSecretHandle(handle, {
+        scope: String(authInput.scope || 'skill.moltbook.publish_guard').trim() || 'skill.moltbook.publish_guard',
+        caller: String(authInput.caller || 'skills/moltbook/moltbook_publish_guard').trim() || 'skills/moltbook/moltbook_publish_guard'
+      });
+      if (resolved.ok && resolved.value) return String(resolved.value).trim();
+      throw new Error(`api_key_handle_resolve_failed:${resolved.error || 'unknown'}`);
     }
   }
-  throw new Error('Missing Moltbook api_key in credentials.json');
+  throw new Error('missing_moltbook_auth');
 }
 
 function resolveIfExists(p) {
@@ -77,11 +87,28 @@ function sameByContent(post, title, body) {
   return (tt && t === tt) || (bb && c.includes(bb.slice(0, 40)));
 }
 
-async function fetchJson(pathPart, apiKey) {
-  const res = await fetch(`${API_BASE}${pathPart}`, {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${apiKey}` }
-  });
+async function fetchJson(pathPart, authInput) {
+  const apiKey = resolveApiKeyFromAuth(authInput);
+  const url = `${API_BASE}${pathPart}`;
+  const host = new URL(url).hostname;
+  let res;
+  try {
+    res = await egressFetch(url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${apiKey}` }
+    }, {
+      scope: 'skill.moltbook.publish_guard',
+      caller: 'skills/moltbook/moltbook_publish_guard',
+      runtime_allowlist: [host],
+      timeout_ms: Number(process.env.MOLTBOOK_API_TIMEOUT_MS || 15000),
+      meta: { path: String(pathPart || '').slice(0, 200) }
+    });
+  } catch (err) {
+    if (err instanceof EgressGatewayError) {
+      return { ok: false, status: 0, payload: { error: 'egress_denied', code: err.details && err.details.code ? err.details.code : null } };
+    }
+    throw err;
+  }
   const txt = await res.text();
   let payload = null;
   try { payload = txt ? JSON.parse(txt) : null; } catch { payload = { raw: txt.slice(0, 400) }; }
@@ -95,10 +122,10 @@ function normalizePosts(payload) {
   return [];
 }
 
-async function verifyVisible(apiKey, created, title, body) {
+async function verifyVisible(authInput, created, title, body) {
   const postId = created && created.post_id;
   if (postId) {
-    const direct = await fetchJson(`/posts/${postId}`, apiKey);
+    const direct = await fetchJson(`/posts/${postId}`, authInput);
     if (direct.ok) {
       const post = direct.payload && direct.payload.post ? direct.payload.post : direct.payload;
       if (sameByContent(post, title, body)) {
@@ -108,7 +135,7 @@ async function verifyVisible(apiKey, created, title, body) {
   }
 
   for (const route of ['/posts?sort=new&limit=20', '/posts?sort=hot&limit=20']) {
-    const feed = await fetchJson(route, apiKey);
+    const feed = await fetchJson(route, authInput);
     if (!feed.ok) continue;
     const posts = normalizePosts(feed.payload);
     const found = posts.find((p) => sameByContent(p, title, body));
@@ -124,7 +151,7 @@ async function run(argv, deps = {}) {
   const createPost = deps.createPost || moltbook_createPost;
   const verifier = deps.verifyVisible || verifyVisible;
   const writer = deps.appendReceipt || ((r, meta) => writeContractReceipt(RECEIPTS_PATH, r, meta));
-  const getCreds = deps.loadApiKey || loadApiKey;
+  const issueHandle = deps.issueHandle || issueMoltbookHandle;
   const args = parseArgs(argv);
 
   if (args.help || argv.length === 0) {
@@ -140,7 +167,15 @@ async function run(argv, deps = {}) {
   if (!title) throw new Error('Missing title: use --title or --title-file');
   if (!body) throw new Error('Missing body: use --body or --body-file');
 
-  const creds = getCreds();
+  const issued = issueHandle();
+  if (!issued || issued.ok !== true || !issued.handle) {
+    throw new Error(`missing_moltbook_api_key_handle:${issued && issued.error ? issued.error : 'unknown'}`);
+  }
+  const auth = {
+    apiKeyHandle: issued.handle,
+    scope: 'skill.moltbook.publish_guard',
+    caller: 'skills/moltbook/moltbook_publish_guard'
+  };
   if (dryRun) {
     const out = { ok: true, mode: 'dry_run', title_length: title.length, body_length: body.length, submolt_name: submolt };
     printJson(out);
@@ -151,7 +186,7 @@ async function run(argv, deps = {}) {
   const receipt = { ts, action: 'publish_guard', submolt_name: submolt, title_length: title.length, body_length: body.length };
 
   try {
-    const created = await createPost(title, body, creds.apiKey, submolt);
+    const created = await createPost(title, body, auth, submolt);
     receipt.create = {
       verified: created.verified === true,
       post_id: created.post_id || null,
@@ -167,7 +202,7 @@ async function run(argv, deps = {}) {
       return { exitCode: 1, out: receipt };
     }
 
-    const refetch = await verifier(creds.apiKey, created, title, body);
+    const refetch = await verifier(auth, created, title, body);
     receipt.refetch = refetch;
 
     if (refetch.verified !== true) {
