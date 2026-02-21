@@ -37,6 +37,7 @@ const LANE_EVENTS_PATH = path.join(IMPROVEMENT_DIR, 'lane_events.jsonl');
 const DEFAULT_SCORECARD_DAYS = Number(process.env.IMPROVEMENT_LANE_SCORECARD_DAYS || 7);
 const DEFAULT_TRIAL_DAYS = Number(process.env.IMPROVEMENT_LANE_TRIAL_DAYS || 3);
 const FALLBACK_STRATEGY_GENERATION_MODE = String(process.env.STRATEGY_GENERATION_MODE || 'hyper-creative');
+const IMPROVEMENT_LANE_VALIDATED_START = String(process.env.IMPROVEMENT_LANE_VALIDATED_START || '1') !== '0';
 
 function nowIso() {
   return new Date().toISOString();
@@ -504,8 +505,9 @@ function startNextCmd(dateStr) {
     process.exit(2);
   }
 
+  const startCommand = IMPROVEMENT_LANE_VALIDATED_START ? 'start-validated' : 'start';
   const args = [
-    'start',
+    startCommand,
     dateStr,
     `--commit=${commit}`,
     `--trial-days=${trialDays}`,
@@ -528,7 +530,9 @@ function startNextCmd(dateStr) {
   }
 
   const r = runNodeJsonLoose(IMPROVEMENT_CONTROLLER, args);
-  if (!r.ok || !r.json || r.json.ok !== true || r.json.result !== 'trial_started') {
+  const startResult = r && r.json ? String(r.json.result || '') : '';
+  const startOk = startResult === 'trial_started' || startResult === 'trial_started_validated';
+  if (!r.ok || !r.json || r.json.ok !== true || !startOk) {
     process.stdout.write(JSON.stringify({
       ok: false,
       result: 'trial_start_failed',
