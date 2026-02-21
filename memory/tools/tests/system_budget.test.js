@@ -10,7 +10,8 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
 const {
   loadSystemBudgetState,
   projectSystemBudget,
-  recordSystemBudgetUsage
+  recordSystemBudgetUsage,
+  writeSystemBudgetDecision
 } = require(path.join(REPO_ROOT, 'systems', 'budget', 'system_budget.js'));
 
 function main() {
@@ -49,6 +50,32 @@ function main() {
     assert.strictEqual(Number(projected.projected_used_est), 1000);
     assert.strictEqual(Number(projected.projected_ratio), 1);
     assert.strictEqual(String(projected.projected_pressure), 'hard');
+
+    const eventsPath = path.join(tempRoot, 'budget_events.jsonl');
+    const decision = writeSystemBudgetDecision({
+      date: day,
+      module: 'sensory_focus',
+      capability: 'focus_fetch',
+      request_tokens_est: 820,
+      decision: 'degrade',
+      reason: 'focus_budget_pressure'
+    }, {
+      state_dir: stateDir,
+      events_path: eventsPath,
+      soft_ratio: 0.75,
+      hard_ratio: 0.92
+    });
+    assert.strictEqual(String(decision.decision), 'degrade');
+    assert.strictEqual(Number(decision.request_tokens_est), 820);
+    assert.strictEqual(String(decision.module), 'sensory_focus');
+    assert.strictEqual(String(decision.type), 'system_budget_decision');
+    assert.ok(fs.existsSync(eventsPath), 'decision ledger should be written');
+    const lines = fs.readFileSync(eventsPath, 'utf8').trim().split('\n').filter(Boolean);
+    assert.ok(lines.length >= 1, 'decision ledger should have rows');
+    const last = JSON.parse(lines[lines.length - 1]);
+    assert.strictEqual(String(last.type), 'system_budget_decision');
+    assert.strictEqual(String(last.decision), 'degrade');
+    assert.strictEqual(String(last.reason), 'focus_budget_pressure');
 
     console.log('✅ system_budget.test.js PASS');
   } finally {

@@ -23,6 +23,14 @@ const { loadActiveStrategy } = require('../../lib/strategy_resolver.js');
 const { loadOutcomeFitnessPolicy } = require('../../lib/outcome_fitness.js');
 const { ensureCatalog } = require('../../lib/eyes_catalog.js');
 const {
+  DEFAULT_STATE_DIR: GLOBAL_BUDGET_STATE_DIR,
+  DEFAULT_EVENTS_PATH: GLOBAL_BUDGET_EVENTS_PATH,
+  loadSystemBudgetState,
+  projectSystemBudget,
+  recordSystemBudgetUsage,
+  writeSystemBudgetDecision
+} = require('../budget/system_budget.js');
+const {
   ensureFocusState,
   mutateFocusState
 } = require('../adaptive/sensory/eyes/focus_trigger_store.js');
@@ -40,6 +48,15 @@ const EYES_REGISTRY_PATH = path.join(EYES_STATE_DIR, 'registry.json');
 const EYES_RAW_DIR = path.join(EYES_STATE_DIR, 'raw');
 const EYES_CATALOG_PATH = path.join(REPO_ROOT, 'adaptive', 'sensory', 'eyes', 'catalog.json');
 const CROSS_SIGNAL_HYPOTHESES_DIR = path.join(SENSORY_DIR, 'cross_signal', 'hypotheses');
+const FOCUS_BUDGET_ENABLED = String(process.env.FOCUS_BUDGET_ENABLED || '1') !== '0';
+const FOCUS_BUDGET_TOKENS_PER_FETCH = clamp(process.env.FOCUS_BUDGET_TOKENS_PER_FETCH || 35, 1, 2000, 35);
+const FOCUS_BUDGET_MODULE = String(process.env.FOCUS_BUDGET_MODULE || 'sensory_focus').trim() || 'sensory_focus';
+const FOCUS_BUDGET_STATE_DIR = process.env.FOCUS_BUDGET_STATE_DIR
+  ? path.resolve(process.env.FOCUS_BUDGET_STATE_DIR)
+  : GLOBAL_BUDGET_STATE_DIR;
+const FOCUS_BUDGET_EVENTS_PATH = process.env.FOCUS_BUDGET_EVENTS_PATH
+  ? path.resolve(process.env.FOCUS_BUDGET_EVENTS_PATH)
+  : GLOBAL_BUDGET_EVENTS_PATH;
 
 const TOKEN_STOPWORDS = new Set([
   'the', 'and', 'for', 'with', 'from', 'into', 'through', 'that', 'this', 'those', 'these', 'your', 'you',
@@ -936,6 +953,78 @@ async function fetchFocusDetails(item, policy) {
   }
 }
 
+function evaluateFocusBudget(dateStr, selectedCount) {
+  const requestedCount = Math.max(0, Math.round(Number(selectedCount || 0)));
+  const tokensPerFetch = Math.max(1, Math.round(Number(FOCUS_BUDGET_TOKENS_PER_FETCH || 35)));
+  if (!FOCUS_BUDGET_ENABLED || requestedCount <= 0) {
+    return {
+      enabled: FOCUS_BUDGET_ENABLED,
+      decision: 'allow',
+      reason: FOCUS_BUDGET_ENABLED ? null : 'focus_budget_disabled',
+      requested_count: requestedCount,
+      allowed_count: requestedCount,
+      request_tokens_est: requestedCount * tokensPerFetch,
+      tokens_per_fetch: tokensPerFetch,
+      projection: null
+    };
+  }
+
+  const state = loadSystemBudgetState(dateStr, {
+    state_dir: FOCUS_BUDGET_STATE_DIR
+  });
+  const requestTokens = requestedCount * tokensPerFetch;
+  const projection = projectSystemBudget(state, requestTokens, {
+    soft_ratio: 0.75,
+    hard_ratio: 0.92
+  });
+  const cap = Number(state && state.token_cap);
+  const used = Number(state && state.used_est);
+  const validCap = Number.isFinite(cap) && cap > 0 && Number.isFinite(used) && used >= 0;
+  const availableTokens = validCap ? Math.max(0, cap - used) : requestTokens;
+  const allowedCount = Math.max(
+    0,
+    Math.min(
+      requestedCount,
+      Math.floor(availableTokens / tokensPerFetch)
+    )
+  );
+  const decision = allowedCount <= 0
+    ? 'deny'
+    : (allowedCount < requestedCount ? 'degrade' : 'allow');
+  const reason = decision === 'deny'
+    ? 'focus_budget_cap_exceeded'
+    : (decision === 'degrade' ? 'focus_budget_pressure' : null);
+
+  writeSystemBudgetDecision({
+    date: dateStr,
+    module: FOCUS_BUDGET_MODULE,
+    capability: 'focus_fetch',
+    request_tokens_est: requestTokens,
+    decision,
+    reason
+  }, {
+    state_dir: FOCUS_BUDGET_STATE_DIR,
+    events_path: FOCUS_BUDGET_EVENTS_PATH,
+    soft_ratio: 0.75,
+    hard_ratio: 0.92
+  });
+
+  return {
+    enabled: true,
+    decision,
+    reason,
+    requested_count: requestedCount,
+    allowed_count: allowedCount,
+    request_tokens_est: requestTokens,
+    tokens_per_fetch: tokensPerFetch,
+    projection,
+    state: {
+      token_cap: Number.isFinite(cap) ? cap : null,
+      used_est: Number.isFinite(used) ? used : null
+    }
+  };
+}
+
 async function evaluateFocusForEye(opts = {}) {
   const eye = opts.eye && typeof opts.eye === 'object' ? opts.eye : {};
   const eyeId = String(eye.id || '');
@@ -995,8 +1084,21 @@ async function evaluateFocusForEye(opts = {}) {
 
   const selectedByIndex = new Map();
   const focusEvents = [];
-  for (const row of selected) {
-    const detail = await fetchFocusDetails(row.item, policy);
+  const focusBudget = evaluateFocusBudget(dateStr, selected.length);
+  const detailFetchCap = focusBudget.enabled === true
+    ? Math.max(0, Number(focusBudget.allowed_count || 0))
+    : selected.length;
+  let detailFetchUsed = 0;
+  for (let i = 0; i < selected.length; i++) {
+    const row = selected[i];
+    let detail = null;
+    let detailSkippedReason = null;
+    if (i < detailFetchCap) {
+      detail = await fetchFocusDetails(row.item, policy);
+      detailFetchUsed += 1;
+    } else {
+      detailSkippedReason = String(focusBudget.reason || 'focus_budget_denied');
+    }
     const enriched = {
       ...(row.item || {}),
       focus_mode: 'focus',
@@ -1005,7 +1107,8 @@ async function evaluateFocusForEye(opts = {}) {
       focus_lens_hits: row.lens_hits.slice(0, 8),
       focus_lens_exclude_hits: row.lens_exclude_hits.slice(0, 8),
       focus_lens_delta: Number(row.lens_delta || 0),
-      focus_details: detail
+      focus_details: detail,
+      focus_detail_skipped_reason: detailSkippedReason
     };
     selectedByIndex.set(row.idx, enriched);
     focusEvents.push({
@@ -1021,7 +1124,20 @@ async function evaluateFocusForEye(opts = {}) {
       lens_hits: row.lens_hits.slice(0, 8),
       lens_exclude_hits: row.lens_exclude_hits.slice(0, 8),
       lens_delta: Number(row.lens_delta || 0),
-      detail_fetched: !!(detail && detail.fetched === true)
+      detail_fetched: !!(detail && detail.fetched === true),
+      detail_skipped_reason: detailSkippedReason
+    });
+  }
+
+  if (FOCUS_BUDGET_ENABLED && detailFetchUsed > 0) {
+    recordSystemBudgetUsage({
+      date: dateStr,
+      module: FOCUS_BUDGET_MODULE,
+      capability: 'focus_fetch',
+      tokens_est: detailFetchUsed * Math.max(1, Number(focusBudget.tokens_per_fetch || FOCUS_BUDGET_TOKENS_PER_FETCH))
+    }, {
+      state_dir: FOCUS_BUDGET_STATE_DIR,
+      events_path: FOCUS_BUDGET_EVENTS_PATH
     });
   }
 
@@ -1115,6 +1231,8 @@ async function evaluateFocusForEye(opts = {}) {
     min_focus_score_base: gate.base,
     dynamic_focus_gate: gate,
     selected_count: selected.length,
+    detail_fetch_used: detailFetchUsed,
+    focus_budget: focusBudget,
     selected_fingerprints: selected.map((x) => x.fingerprint),
     items: outputItems,
     focus_events: focusEvents

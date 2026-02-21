@@ -22,10 +22,13 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const {
+  DEFAULT_STATE_DIR: GLOBAL_BUDGET_STATE_DIR,
+  DEFAULT_EVENTS_PATH: GLOBAL_BUDGET_EVENTS_PATH,
   loadSystemBudgetState,
   saveSystemBudgetState,
   projectSystemBudget,
-  recordSystemBudgetUsage
+  recordSystemBudgetUsage,
+  writeSystemBudgetDecision
 } = require('../budget/system_budget.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
@@ -39,7 +42,10 @@ const STATE_PATH = path.join(STATE_DIR, 'allocations.json');
 const EVENTS_PATH = path.join(STATE_DIR, 'events.jsonl');
 const TOKEN_BUDGET_DIR = process.env.SPAWN_TOKEN_BUDGET_DIR
   ? path.resolve(process.env.SPAWN_TOKEN_BUDGET_DIR)
-  : path.join(STATE_DIR, 'token_budget');
+  : GLOBAL_BUDGET_STATE_DIR;
+const TOKEN_BUDGET_EVENTS_PATH = process.env.SPAWN_TOKEN_BUDGET_EVENTS_PATH
+  ? path.resolve(process.env.SPAWN_TOKEN_BUDGET_EVENTS_PATH)
+  : GLOBAL_BUDGET_EVENTS_PATH;
 const ROUTER_SCRIPT = process.env.SPAWN_ROUTER_SCRIPT
   ? path.resolve(process.env.SPAWN_ROUTER_SCRIPT)
   : path.join(REPO_ROOT, 'systems', 'routing', 'model_router.js');
@@ -596,8 +602,29 @@ function cmdRequest(args) {
   const grantedCells = tokenBudget.allow
     ? Math.max(0, Math.min(budgetRequestedCells, limits.max_cells))
     : 0;
+  const budgetDecision = (() => {
+    if (tokenBudget.allow !== true) return 'deny';
+    if (tokenBudget.action === 'degrade') return 'degrade';
+    return 'allow';
+  })();
 
   const leaseExpiresAt = resolveLeaseExpires(policy, args);
+
+  if (tokenBudget.enabled) {
+    writeSystemBudgetDecision({
+      date: String(tokenBudgetState.date || budgetDateStr()),
+      module: moduleName,
+      capability: 'spawn',
+      request_tokens_est: requestedTokens,
+      decision: budgetDecision,
+      reason: tokenBudget.reason || null
+    }, {
+      state_dir: TOKEN_BUDGET_DIR,
+      events_path: TOKEN_BUDGET_EVENTS_PATH,
+      soft_ratio: policy.token_budget.soft_ratio,
+      hard_ratio: policy.token_budget.hard_ratio
+    });
+  }
 
   if (apply) {
     const allocations = { ...(state.allocations || {}) };
@@ -639,7 +666,8 @@ function cmdRequest(args) {
         module: moduleName,
         capability: 'spawn'
       }, {
-        state_dir: TOKEN_BUDGET_DIR
+        state_dir: TOKEN_BUDGET_DIR,
+        events_path: TOKEN_BUDGET_EVENTS_PATH
       });
     }
   }
