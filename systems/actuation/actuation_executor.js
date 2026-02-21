@@ -17,8 +17,12 @@ const { writeContractReceipt } = require('../../lib/action_receipts');
 const { isEmergencyStopEngaged } = require('../../lib/emergency_stop.js');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const RECEIPTS_DIR = path.join(ROOT, 'state', 'actuation', 'receipts');
-const ADAPTERS_CONFIG = path.join(ROOT, 'config', 'actuation_adapters.json');
+const RECEIPTS_DIR = process.env.ACTUATION_RECEIPTS_DIR
+  ? path.resolve(process.env.ACTUATION_RECEIPTS_DIR)
+  : path.join(ROOT, 'state', 'actuation', 'receipts');
+const ADAPTERS_CONFIG = process.env.ACTUATION_ADAPTERS_CONFIG
+  ? path.resolve(process.env.ACTUATION_ADAPTERS_CONFIG)
+  : path.join(ROOT, 'config', 'actuation_adapters.json');
 
 function nowIso() { return new Date().toISOString(); }
 function dayStr() { return nowIso().slice(0, 10); }
