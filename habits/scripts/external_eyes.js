@@ -25,6 +25,7 @@ const {
   maybeRefreshFocusTriggers,
   evaluateFocusForEye
 } = require('../../systems/sensory/focus_controller.js');
+const { loadSystemBudgetState } = require('../../systems/budget/system_budget.js');
 const { analyzeTemporalPatterns } = require('../../systems/sensory/temporal_patterns.js');
 const { resolveCatalogPath, ensureCatalog } = require('../../lib/eyes_catalog.js');
 
@@ -1017,6 +1018,27 @@ async function run(opts = {}) {
   const selfHealEnabled = !selfHealPass && String(process.env.EYES_SELF_HEAL_ENABLED || '1') !== '0';
   const outageStart = updateOutageMode(config, registry);
   const focusEnabled = String(process.env.EYES_FOCUS_ENABLED || '1') !== '0';
+  const parallelEnabled = String(process.env.EYES_PARALLEL_ENABLED || '1') !== '0';
+  const requestedParallel = Math.max(
+    1,
+    Number(process.env.EYES_MAX_PARALLEL || config.global_limits.max_concurrent_runs || 1) || 1
+  );
+  let budgetRatio = null;
+  try {
+    const budgetState = loadSystemBudgetState(today, {
+      allow_strategy: true
+    });
+    const used = Number(budgetState && budgetState.used_est || 0);
+    const cap = Number(budgetState && budgetState.token_cap || 0);
+    if (cap > 0) budgetRatio = used / cap;
+  } catch {
+    budgetRatio = null;
+  }
+  let maxParallel = Math.max(1, Math.min(maxEyes, requestedParallel));
+  if (Number.isFinite(budgetRatio) && budgetRatio >= 0.9) maxParallel = 1;
+  else if (Number.isFinite(budgetRatio) && budgetRatio >= 0.75) maxParallel = Math.min(maxParallel, 2);
+  const useParallel = parallelEnabled && maxParallel > 1;
+  const activeRuns = [];
   let focusRefresh = null;
   if (focusEnabled) {
     try {
@@ -1035,6 +1057,9 @@ async function run(opts = {}) {
   console.log('═══════════════════════════════════════════════════════════');
   console.log('   EXTERNAL EYES - RUN CYCLE');
   console.log('═══════════════════════════════════════════════════════════');
+  if (useParallel) {
+    console.log(`⚡ Parallel mode: max_parallel=${maxParallel}${Number.isFinite(budgetRatio) ? ` budget_ratio=${budgetRatio.toFixed(3)}` : ''}`);
+  }
   if (focusEnabled && focusRefresh && focusRefresh.refreshed) {
     console.log(`🎯 Focus triggers refreshed: ${Number(focusRefresh.trigger_count || 0)} active`);
   } else if (focusEnabled && focusRefresh && focusRefresh.ok === false) {
@@ -1060,94 +1085,8 @@ async function run(opts = {}) {
   
   let runCount = 0;
   let eyesRun = [];
-  
-  for (const eyeConfig of config.eyes) {
-    let registryEye = registry.eyes.find(e => e.id === eyeConfig.id);
-    if (!registryEye) {
-      registryEye = {
-        ...eyeConfig,
-        run_count: 0,
-        total_runs: 0,
-        total_items: 0,
-        total_errors: 0,
-        consecutive_failures: 0
-      };
-      registry.eyes.push(registryEye);
-    }
-    const runtimeEye = effectiveEye(eyeConfig, registryEye);
-    const parserType = String(runtimeEye.parser_type || eyeConfig.parser_type || '').toLowerCase();
-    const isForced = forceEyeId && eyeConfig.id === forceEyeId;
-    const probationStaleHours = Math.max(12, Number(process.env.EYES_PROBATION_STALE_HOURS || 24));
-    const probationDormantFailures = Math.max(2, Number(process.env.EYES_PROBATION_DORMANT_FAILURES || 2));
-    const probationDormantCooldownHours = Math.max(
-      1,
-      Number(process.env.EYES_PROBATION_DORMANT_COOLDOWN_HOURS || process.env.EYES_FAIL_PARK_HOURS || 24)
-    );
-    const probationSelfHealAttempts = Math.max(1, Number(process.env.EYES_PROBATION_DORMANT_SELF_HEAL_ATTEMPTS || 2));
 
-    if (specificEye && eyeConfig.id !== specificEye) continue;
-    if (runCount >= maxEyes) break;
-
-    // Self-heal guard: stale probation eyes with repeated failures (or repeated no-recovery probes)
-    // are temporarily parked to avoid endless warn noise and churn.
-    if (!isForced && String(registryEye.status || runtimeEye.status || '').toLowerCase() === 'probation') {
-      const signalAgeHours = hoursSince(registryEye.last_success || registryEye.last_real_signal_ts || registryEye.last_run);
-      const staleProbation = Number.isFinite(signalAgeHours) && signalAgeHours >= probationStaleHours;
-      const consecutiveFailures = Number(registryEye.consecutive_failures || 0);
-      const selfHealAttempts = Number(registryEye.self_heal_attempts || 0);
-      const selfHealRecoveries = Number(registryEye.self_heal_recoveries || 0);
-      const repeatedNoRecovery = selfHealAttempts >= probationSelfHealAttempts && selfHealRecoveries <= 0;
-      if (staleProbation && (consecutiveFailures >= probationDormantFailures || repeatedNoRecovery)) {
-        registryEye.status = 'dormant';
-        registryEye.cooldown_until = new Date(Date.now() + (probationDormantCooldownHours * 60 * 60 * 1000)).toISOString();
-        const reason = consecutiveFailures >= probationDormantFailures
-          ? 'probation_stale_failures'
-          : 'probation_stale_no_recovery';
-        appendRawLog(today, {
-          ts: new Date().toISOString(),
-          type: 'eye_auto_dormant',
-          eye_id: eyeConfig.id,
-          reason,
-          stale_hours: Number(signalAgeHours.toFixed(2)),
-          consecutive_failures: consecutiveFailures,
-          self_heal_attempts: selfHealAttempts,
-          self_heal_recoveries: selfHealRecoveries,
-          cooldown_hours: probationDormantCooldownHours
-        });
-        console.log(
-          `   ⚠️  Auto-dormant: ${eyeConfig.id} reason=${reason} stale_h=${signalAgeHours.toFixed(1)} cooldown=${probationDormantCooldownHours}h`
-        );
-      }
-    }
-    
-    // Check status
-    if (runtimeEye.status === 'retired') {
-      console.log(`⏭️  Skipping ${eyeConfig.id}: retired`);
-      continue;
-    }
-
-    // Cooldown gate after repeated failures (auto-park).
-    if (!isForced && registryEye.cooldown_until) {
-      const until = new Date(String(registryEye.cooldown_until));
-      if (!isNaN(until.getTime()) && Date.now() < until.getTime()) {
-        const hrs = Math.max(0, (until.getTime() - Date.now()) / (1000 * 60 * 60));
-        console.log(`⏭️  Skipping ${eyeConfig.id}: cooldown (${hrs.toFixed(1)}h left)`);
-        continue;
-      }
-      // Cooldown expired: clear marker and move to probation for controlled retry.
-      registryEye.cooldown_until = null;
-      if (registryEye.status === 'dormant') registryEye.status = 'probation';
-    }
-    
-    // Check cadence
-    const lastRun = registryEye?.last_run ? new Date(registryEye.last_run) : null;
-    const hoursSinceLastRun = lastRun ? (Date.now() - lastRun) / (1000 * 60 * 60) : Infinity;
-    
-    if (!isForced && hoursSinceLastRun < runtimeEye.cadence_hours) {
-      console.log(`⏭️  Skipping ${eyeConfig.id}: cadence (${Math.round(hoursSinceLastRun)}h < ${runtimeEye.cadence_hours}h)`);
-      continue;
-    }
-    
+  async function executeEyeRun(eyeConfig, registryEye, runtimeEye, parserType, isForced) {
     // RUN the eye
     if (isForced) {
       console.log(`🚦 Canary forcing ${eyeConfig.id} (bypass cadence/cooldown)`);
@@ -1354,8 +1293,116 @@ async function run(opts = {}) {
       
       console.log(`   ❌ Failed: ${c.code} ${c.message}`);
     }
+  }
+  
+  for (const eyeConfig of config.eyes) {
+    let registryEye = registry.eyes.find(e => e.id === eyeConfig.id);
+    if (!registryEye) {
+      registryEye = {
+        ...eyeConfig,
+        run_count: 0,
+        total_runs: 0,
+        total_items: 0,
+        total_errors: 0,
+        consecutive_failures: 0
+      };
+      registry.eyes.push(registryEye);
+    }
+    const runtimeEye = effectiveEye(eyeConfig, registryEye);
+    const parserType = String(runtimeEye.parser_type || eyeConfig.parser_type || '').toLowerCase();
+    const isForced = forceEyeId && eyeConfig.id === forceEyeId;
+    const probationStaleHours = Math.max(12, Number(process.env.EYES_PROBATION_STALE_HOURS || 24));
+    const probationDormantFailures = Math.max(2, Number(process.env.EYES_PROBATION_DORMANT_FAILURES || 2));
+    const probationDormantCooldownHours = Math.max(
+      1,
+      Number(process.env.EYES_PROBATION_DORMANT_COOLDOWN_HOURS || process.env.EYES_FAIL_PARK_HOURS || 24)
+    );
+    const probationSelfHealAttempts = Math.max(1, Number(process.env.EYES_PROBATION_DORMANT_SELF_HEAL_ATTEMPTS || 2));
+
+    if (specificEye && eyeConfig.id !== specificEye) continue;
+    if (runCount >= maxEyes) break;
+
+    // Self-heal guard: stale probation eyes with repeated failures (or repeated no-recovery probes)
+    // are temporarily parked to avoid endless warn noise and churn.
+    if (!isForced && String(registryEye.status || runtimeEye.status || '').toLowerCase() === 'probation') {
+      const signalAgeHours = hoursSince(registryEye.last_success || registryEye.last_real_signal_ts || registryEye.last_run);
+      const staleProbation = Number.isFinite(signalAgeHours) && signalAgeHours >= probationStaleHours;
+      const consecutiveFailures = Number(registryEye.consecutive_failures || 0);
+      const selfHealAttempts = Number(registryEye.self_heal_attempts || 0);
+      const selfHealRecoveries = Number(registryEye.self_heal_recoveries || 0);
+      const repeatedNoRecovery = selfHealAttempts >= probationSelfHealAttempts && selfHealRecoveries <= 0;
+      if (staleProbation && (consecutiveFailures >= probationDormantFailures || repeatedNoRecovery)) {
+        registryEye.status = 'dormant';
+        registryEye.cooldown_until = new Date(Date.now() + (probationDormantCooldownHours * 60 * 60 * 1000)).toISOString();
+        const reason = consecutiveFailures >= probationDormantFailures
+          ? 'probation_stale_failures'
+          : 'probation_stale_no_recovery';
+        appendRawLog(today, {
+          ts: new Date().toISOString(),
+          type: 'eye_auto_dormant',
+          eye_id: eyeConfig.id,
+          reason,
+          stale_hours: Number(signalAgeHours.toFixed(2)),
+          consecutive_failures: consecutiveFailures,
+          self_heal_attempts: selfHealAttempts,
+          self_heal_recoveries: selfHealRecoveries,
+          cooldown_hours: probationDormantCooldownHours
+        });
+        console.log(
+          `   ⚠️  Auto-dormant: ${eyeConfig.id} reason=${reason} stale_h=${signalAgeHours.toFixed(1)} cooldown=${probationDormantCooldownHours}h`
+        );
+      }
+    }
     
+    // Check status
+    if (runtimeEye.status === 'retired') {
+      console.log(`⏭️  Skipping ${eyeConfig.id}: retired`);
+      continue;
+    }
+
+    // Cooldown gate after repeated failures (auto-park).
+    if (!isForced && registryEye.cooldown_until) {
+      const until = new Date(String(registryEye.cooldown_until));
+      if (!isNaN(until.getTime()) && Date.now() < until.getTime()) {
+        const hrs = Math.max(0, (until.getTime() - Date.now()) / (1000 * 60 * 60));
+        console.log(`⏭️  Skipping ${eyeConfig.id}: cooldown (${hrs.toFixed(1)}h left)`);
+        continue;
+      }
+      // Cooldown expired: clear marker and move to probation for controlled retry.
+      registryEye.cooldown_until = null;
+      if (registryEye.status === 'dormant') registryEye.status = 'probation';
+    }
+    
+    // Check cadence
+    const lastRun = registryEye?.last_run ? new Date(registryEye.last_run) : null;
+    const hoursSinceLastRun = lastRun ? (Date.now() - lastRun) / (1000 * 60 * 60) : Infinity;
+    
+    if (!isForced && hoursSinceLastRun < runtimeEye.cadence_hours) {
+      console.log(`⏭️  Skipping ${eyeConfig.id}: cadence (${Math.round(hoursSinceLastRun)}h < ${runtimeEye.cadence_hours}h)`);
+      continue;
+    }
+    
+    if (useParallel) {
+      let p = null;
+      p = executeEyeRun(eyeConfig, registryEye, runtimeEye, parserType, isForced)
+        .finally(() => {
+          const idx = activeRuns.indexOf(p);
+          if (idx >= 0) activeRuns.splice(idx, 1);
+        });
+      activeRuns.push(p);
+      runCount++;
+      if (activeRuns.length >= maxParallel) {
+        await Promise.race(activeRuns);
+      }
+      continue;
+    }
+
+    await executeEyeRun(eyeConfig, registryEye, runtimeEye, parserType, isForced);
     runCount++;
+  }
+
+  if (useParallel && activeRuns.length > 0) {
+    await Promise.allSettled(activeRuns);
   }
 
   const outageEnd = updateOutageMode(config, registry);
