@@ -1,2 +1,4 @@
-const mod = require('./cache_store.js');
-export = mod;
+// @ts-nocheck
+'use strict';
+
+module.exports = require('../../../adaptive/sensory/eyes/collectors/cache_store.js');
