@@ -52,6 +52,9 @@ function runEval(repoRoot, code, env) {
 }
 
 function makeEnv(base, cfgPath, adaptersPath, stateDir, runsDir, budgetDir, budgetDate) {
+  const budgetAutonomyDir = path.dirname(budgetDir);
+  const budgetEventsPath = path.join(budgetAutonomyDir, 'budget_events.jsonl');
+  const budgetAutopausePath = path.join(budgetAutonomyDir, 'budget_autopause.json');
   return {
     ...process.env,
     ...base,
@@ -62,6 +65,8 @@ function makeEnv(base, cfgPath, adaptersPath, stateDir, runsDir, budgetDir, budg
     ROUTER_AUTONOMY_RUNS_DIR: runsDir,
     ROUTER_BUDGET_DIR: budgetDir,
     ROUTER_BUDGET_TODAY: budgetDate,
+    ROUTER_BUDGET_EVENTS_PATH: budgetEventsPath,
+    ROUTER_BUDGET_AUTOPAUSE_PATH: budgetAutopausePath,
     ROUTER_PROBE_TTL_MS: '3600000'
   };
 }
@@ -517,6 +522,83 @@ function runCaseProjectedBudgetFromRequest(repoRoot, root) {
   );
 }
 
+function runCaseGlobalBudgetAutopause(repoRoot, root) {
+  const cfgPath = path.join(root, 'config', 'agent_routing_rules.json');
+  const adaptersPath = path.join(root, 'config', 'model_adapters.json');
+  const stateDir = path.join(root, 'state', 'routing');
+  const runsDir = path.join(root, 'state', 'autonomy', 'runs');
+  const budgetDir = path.join(root, 'state', 'autonomy', 'daily_budget');
+  const budgetAutopausePath = path.join(root, 'state', 'autonomy', 'budget_autopause.json');
+  mkDir(runsDir);
+  mkDir(budgetDir);
+
+  writeJson(cfgPath, {
+    version: 1,
+    routing: {
+      default_anchor_model: 'ollama/kimi-k2.5:cloud',
+      spawn_model_allowlist: ['ollama/smallthinker', 'ollama/kimi-k2.5:cloud'],
+      model_profiles: {
+        'ollama/smallthinker': { tiers: [1, 2], roles: ['chat', 'general'], class: 'cheap_local' },
+        'ollama/kimi-k2.5:cloud': { tiers: [2, 3], roles: ['chat', 'general'], class: 'cloud_anchor' }
+      },
+      communication_fast_path: { enabled: false },
+      router_budget_policy: {
+        enabled: true,
+        allow_strategy_override: false,
+        state_dir: budgetDir,
+        soft_ratio: 0.75,
+        hard_ratio: 0.92
+      },
+      slot_selection: [
+        {
+          when: { risk: 'medium', complexity: ['medium', 'high'] },
+          use_slot: 'agent',
+          prefer_model: 'ollama/kimi-k2.5:cloud',
+          fallback_slot: 'master'
+        }
+      ]
+    }
+  });
+  writeJson(adaptersPath, { mode_routing: {} });
+  writeHealthSnapshot(stateDir, {
+    'ollama/smallthinker': { available: true, follows_instructions: true, latency_ms: 1100 }
+  });
+  writeJson(budgetAutopausePath, {
+    schema_id: 'system_budget_autopause',
+    schema_version: '1.0.0',
+    active: true,
+    set_ts: new Date().toISOString(),
+    source: 'model_router_routing_features.test',
+    reason: 'manual_pause',
+    pressure: 'hard',
+    date: '2026-02-22',
+    until_ms: Date.now() + (60 * 60 * 1000),
+    until: new Date(Date.now() + (60 * 60 * 1000)).toISOString(),
+    cleared_ts: null,
+    clear_reason: null,
+    updated_at: new Date().toISOString()
+  });
+
+  const env = makeEnv({}, cfgPath, adaptersPath, stateDir, runsDir, budgetDir, todayStr());
+  const r = runEval(repoRoot, `
+    const router = require('./systems/routing/model_router.js');
+    const d = router.routeDecision({
+      risk: 'medium',
+      complexity: 'medium',
+      intent: 'summarize status',
+      task: 'summarize weekly status',
+      mode: 'normal'
+    });
+    process.stdout.write(JSON.stringify(d));
+  `, env);
+  assert.strictEqual(r.status, 0, `global-autopause eval failed: ${r.stderr}`);
+  const out = JSON.parse(String(r.stdout || '{}'));
+  assert.strictEqual(out.selected_model, null, 'global budget autopause should block model selection');
+  assert.strictEqual(!!(out.budget_enforcement && out.budget_enforcement.blocked), true, 'global budget autopause should hard-block execution');
+  assert.strictEqual(String(out.budget_enforcement && out.budget_enforcement.reason || '').includes('budget_autopause_active'), true, 'budget block reason should reference active autopause');
+  assert.strictEqual(!!(out.budget_global_guard && out.budget_global_guard.autopause_active), true, 'decision should expose active global autopause');
+}
+
 function runCaseFallbackClassification(repoRoot, root) {
   const cfgPath = path.join(root, 'config', 'agent_routing_rules.json');
   const adaptersPath = path.join(root, 'config', 'model_adapters.json');
@@ -742,6 +824,7 @@ function run() {
   runCaseTaskTypeOutcomeContext(repoRoot, path.join(tmpRoot, 'task_type_outcome_context'));
   runCaseBudgetPressure(repoRoot, path.join(tmpRoot, 'budget_pressure'));
   runCaseProjectedBudgetFromRequest(repoRoot, path.join(tmpRoot, 'projected_budget'));
+  runCaseGlobalBudgetAutopause(repoRoot, path.join(tmpRoot, 'global_budget_autopause'));
   runCaseFallbackClassification(repoRoot, path.join(tmpRoot, 'fallback_classification'));
   runCaseEyesSignalInfluence(repoRoot, path.join(tmpRoot, 'eyes_signal_influence'));
   runCasePromptCacheInfluence(repoRoot, path.join(tmpRoot, 'prompt_cache_influence'));

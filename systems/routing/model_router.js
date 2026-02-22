@@ -16,7 +16,11 @@ const crypto = require("crypto");
 const { spawnSync } = require("child_process");
 const {
   loadSystemBudgetState,
-  projectSystemBudget
+  projectSystemBudget,
+  evaluateSystemBudgetGuard,
+  loadSystemBudgetAutopauseState,
+  writeSystemBudgetDecision,
+  setSystemBudgetAutopause
 } = require("../budget/system_budget.js");
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
@@ -33,6 +37,9 @@ const OUTCOME_STATS_PATH = path.join(STATE_DIR, "model_outcomes.json");
 const HARDWARE_PLAN_PATH = path.join(STATE_DIR, "hardware_plan.json");
 const ROUTER_BUDGET_DIR = process.env.ROUTER_BUDGET_DIR || path.join(REPO_ROOT, "state", "autonomy", "daily_budget");
 const ROUTER_BUDGET_TODAY = process.env.ROUTER_BUDGET_TODAY || "";
+const ROUTER_BUDGET_EVENTS_PATH = process.env.ROUTER_BUDGET_EVENTS_PATH || path.join(REPO_ROOT, "state", "autonomy", "budget_events.jsonl");
+const ROUTER_BUDGET_AUTOPAUSE_PATH = process.env.ROUTER_BUDGET_AUTOPAUSE_PATH || path.join(REPO_ROOT, "state", "autonomy", "budget_autopause.json");
+const ROUTER_BUDGET_MODULE = String(process.env.ROUTER_BUDGET_MODULE || "model_router").trim() || "model_router";
 const ROUTER_SPEND_DIR = process.env.ROUTER_SPEND_DIR || path.join(STATE_DIR, "spend");
 const EYES_REGISTRY_PATH = path.join(REPO_ROOT, "state", "sensory", "eyes", "registry.json");
 const PROMPT_CACHE_INDEX_PATH = path.join(STATE_DIR, "prompt_cache_index.json");
@@ -1186,6 +1193,90 @@ function projectBudgetState(budgetState, requestTokens) {
     projected_used_est: projected.projected_used_est,
     projected_ratio: projected.projected_ratio,
     projected_pressure: projected.projected_pressure || budgetState.pressure || "none"
+  };
+}
+
+function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy }) {
+  const date = budgetDateStr();
+  const stateDir = budgetPolicy && budgetPolicy.state_dir
+    ? String(budgetPolicy.state_dir)
+    : ROUTER_BUDGET_DIR;
+  const opts = {
+    state_dir: stateDir,
+    events_path: ROUTER_BUDGET_EVENTS_PATH,
+    autopause_path: ROUTER_BUDGET_AUTOPAUSE_PATH
+  };
+  const autopause = loadSystemBudgetAutopauseState(opts);
+  if (autopause.active === true) {
+    writeSystemBudgetDecision({
+      date,
+      module: ROUTER_BUDGET_MODULE,
+      capability: "route_decision",
+      request_tokens_est: requestTokensEst,
+      decision: "deny",
+      reason: "budget_autopause_active"
+    }, opts);
+    return {
+      enabled: true,
+      blocked: true,
+      reason: "budget_autopause_active",
+      autopause_active: true,
+      autopause: {
+        source: autopause.source || null,
+        reason: autopause.reason || null,
+        until: autopause.until || null
+      },
+      guard: null
+    };
+  }
+
+  const guard = evaluateSystemBudgetGuard({
+    date,
+    request_tokens_est: requestTokensEst,
+    attempts_today: 1
+  }, opts);
+  if (guard.hard_stop === true) {
+    const hardReason = String((guard.hard_stop_reasons && guard.hard_stop_reasons[0]) || "budget_guard_hard_stop");
+    writeSystemBudgetDecision({
+      date,
+      module: ROUTER_BUDGET_MODULE,
+      capability: "route_decision",
+      request_tokens_est: requestTokensEst,
+      decision: "deny",
+      reason: hardReason
+    }, opts);
+    const nextAutopause = setSystemBudgetAutopause({
+      source: "model_router",
+      reason: hardReason,
+      pressure: "hard",
+      date,
+      minutes: 60
+    }, opts);
+    return {
+      enabled: true,
+      blocked: true,
+      reason: hardReason,
+      autopause_active: nextAutopause.active === true,
+      autopause: {
+        source: nextAutopause.source || null,
+        reason: nextAutopause.reason || null,
+        until: nextAutopause.until || null
+      },
+      guard
+    };
+  }
+
+  return {
+    enabled: true,
+    blocked: false,
+    reason: null,
+    autopause_active: false,
+    autopause: {
+      source: autopause.source || null,
+      reason: autopause.reason || null,
+      until: autopause.until || null
+    },
+    guard
   };
 }
 
@@ -2768,6 +2859,10 @@ function routeDecision({ risk, complexity, intent, task, mode, forceModel, capab
   const tier = inferTier(risk, complexity);
   const budgetState = routerBudgetState(cfg);
   const budgetProjected = projectBudgetState(budgetState, requestTokensEst);
+  const globalBudgetGate = evaluateRouterGlobalBudgetGate({
+    requestTokensEst,
+    budgetPolicy: budgetState && budgetState.policy ? budgetState.policy : null
+  });
   const eyesSignal = eyesRoutingSignal(cfg);
   const promptCache = promptCacheSignal(cfg, {
     intent,
@@ -2897,7 +2992,7 @@ function routeDecision({ risk, complexity, intent, task, mode, forceModel, capab
     if (!tried.includes(selected)) tried.push(selected);
   }
 
-  const budgetEnforcement = enforceBudgetSelection({
+  let budgetEnforcement = enforceBudgetSelection({
     selected,
     ranked,
     budgetState,
@@ -2918,6 +3013,18 @@ function routeDecision({ risk, complexity, intent, task, mode, forceModel, capab
       reason = `${reason}|${budgetEnforcement.reason || "budget_escalate"}`;
       if (!tried.includes(selected)) tried.push(selected);
     }
+  }
+  if (globalBudgetGate.blocked === true) {
+    budgetEnforcement = {
+      ...(budgetEnforcement || {}),
+      action: "escalate",
+      blocked: true,
+      reason: globalBudgetGate.reason || "global_budget_guard_blocked",
+      selected_model: null,
+      from_model: selected || (budgetEnforcement && budgetEnforcement.from_model) || null
+    };
+    selected = null;
+    reason = `${reason}|${globalBudgetGate.reason || "global_budget_guard_blocked"}`;
   }
 
   const state = getRouteState();
@@ -3014,6 +3121,14 @@ function routeDecision({ risk, complexity, intent, task, mode, forceModel, capab
       reason: budgetEnforcement.reason || null,
       blocked: budgetEnforcement.blocked === true,
       from_model: budgetEnforcement.from_model || null
+    },
+    budget_global_guard: {
+      enabled: globalBudgetGate.enabled === true,
+      blocked: globalBudgetGate.blocked === true,
+      reason: globalBudgetGate.reason || null,
+      autopause_active: globalBudgetGate.autopause_active === true,
+      autopause: globalBudgetGate.autopause || null,
+      guard: globalBudgetGate.guard || null
     },
     eyes_signal: {
       enabled: eyesSignal.enabled === true,
