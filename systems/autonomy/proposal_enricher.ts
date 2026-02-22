@@ -69,6 +69,23 @@ const SUCCESS_METRIC_RE = /\b(metric|kpi|target|rate|count|latency|error|uptime|
 const SUCCESS_TIMEBOUND_RE = /\b(\d+\s*(h|hr|hour|hours|d|day|days|w|week|weeks|min|mins|minute|minutes)|daily|weekly|monthly|quarterly)\b/i;
 const SUCCESS_RELAXED_RUN_HORIZON_RE = /\b(next|this)\s+(run|cycle)\b/i;
 const SUCCESS_COMPARATOR_RE = /\b(>=|<=|>|<|at least|at most|less than|more than|within|under|over)\b/i;
+const EVALUABLE_SUCCESS_METRICS = new Set([
+  'execution_success',
+  'postconditions_ok',
+  'queue_outcome_logged',
+  'artifact_count',
+  'entries_count',
+  'revenue_actions_count',
+  'outreach_artifact',
+  'reply_or_interview_count',
+  'token_usage',
+  'duration_ms'
+]);
+const CRITERIA_HARDENING_ROWS = [
+  { metric: 'postconditions_ok', target: 'postconditions pass', horizon: 'next run' },
+  { metric: 'queue_outcome_logged', target: 'outcome receipt logged', horizon: 'next run' },
+  { metric: 'execution_success', target: 'execution success', horizon: 'next run' }
+];
 const DIRECTIVE_OBJECTIVE_ID_RE = /^T[0-9]_[A-Za-z0-9_]+$/;
 const ARCHETYPE_RULES = [
   {
@@ -651,6 +668,102 @@ function parseSuccessCriteriaRows(proposal) {
   }));
 }
 
+function dedupeCriteriaRows(rows) {
+  const out = [];
+  const seen = new Set();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const metric = normalizeText(row && row.metric).toLowerCase();
+    const target = normalizeText(row && row.target);
+    const horizon = normalizeText(row && row.horizon);
+    if (!metric) continue;
+    const key = `${metric}|${target.toLowerCase()}|${horizon.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ metric, target: target || metric, horizon });
+  }
+  return out;
+}
+
+function hardenProposalSuccessCriteria(proposal, outcomePolicy) {
+  const p = proposal && typeof proposal === 'object' ? proposal : {};
+  const criteriaPolicy = successCriteriaRequirement(outcomePolicy);
+  const proposalType = normalizeText(p.type).toLowerCase();
+  const nextCmd = normalizeText(p.suggested_next_command);
+  const actionSpecIn = p.action_spec && typeof p.action_spec === 'object' ? p.action_spec : null;
+  const executable = !!(nextCmd || actionSpecIn);
+  const exempt = executable && isSuccessCriteriaExemptProposal(proposalType, criteriaPolicy);
+  const required = executable && criteriaPolicy.required && !exempt;
+
+  const compiled = compileProposalSuccessCriteria(p, {
+    include_verify: true,
+    include_validation: true,
+    allow_fallback: false
+  });
+  const compiledRows = dedupeCriteriaRows(compiled.map((row) => ({
+    metric: normalizeText(row && row.metric).toLowerCase(),
+    target: normalizeText(row && row.target),
+    horizon: normalizeText(row && row.horizon)
+  })));
+  const knownMetricCount = compiledRows.filter((row) => EVALUABLE_SUCCESS_METRICS.has(row.metric)).length;
+
+  let rowsOut = compiledRows.slice();
+  let addedFallbackRows = 0;
+  let hardeningApplied = false;
+  let hardeningReason = '';
+  const textBlob = normalizeFitText([
+    p.title,
+    p.summary,
+    p.notes,
+    p.expected_impact,
+    nextCmd,
+    Array.isArray(p.validation) ? p.validation.join(' ') : ''
+  ].join(' '));
+  const allowFallback = ACTION_VERB_RE.test(normalizeText(p.title))
+    || OPPORTUNITY_MARKER_RE.test(textBlob)
+    || CONCRETE_TARGET_RE.test(textBlob);
+
+  if (required && allowFallback && rowsOut.length < criteriaPolicy.min_count) {
+    for (const row of CRITERIA_HARDENING_ROWS) {
+      if (rowsOut.length >= criteriaPolicy.min_count) break;
+      const exists = rowsOut.some((it) => it.metric === row.metric);
+      if (exists) continue;
+      rowsOut.push({ ...row });
+      addedFallbackRows += 1;
+    }
+    hardeningApplied = addedFallbackRows > 0;
+    hardeningReason = hardeningApplied ? 'criteria_hardening_applied' : '';
+  }
+
+  rowsOut = dedupeCriteriaRows(rowsOut);
+  const actionSpecOut = rowsOut.length > 0
+    ? {
+        ...(actionSpecIn || {}),
+        success_criteria: rowsOut
+      }
+    : actionSpecIn;
+
+  const proposalOut = actionSpecOut
+    ? { ...p, action_spec: actionSpecOut }
+    : p;
+
+  return {
+    proposal: proposalOut,
+    meta: {
+      required,
+      exempt,
+      executable,
+      min_count: criteriaPolicy.min_count,
+      compiled_count: compiledRows.length,
+      final_count: rowsOut.length,
+      known_metric_count: knownMetricCount,
+      unknown_metric_count: Math.max(0, compiledRows.length - knownMetricCount),
+      fallback_rows_added: addedFallbackRows,
+      hardening_applied: hardeningApplied,
+      hardening_reason: hardeningReason || null
+    }
+  };
+}
+
 function successCriteriaRequirement(outcomePolicy) {
   const src = outcomePolicy && outcomePolicy.proposal_filter_policy && typeof outcomePolicy.proposal_filter_policy === 'object'
     ? outcomePolicy.proposal_filter_policy
@@ -1164,7 +1277,9 @@ function admission(meta, eye, risk, t, proposal, strategy, outcomePolicy) {
 
 function enrichOne(proposal, ctx) {
   const raw = proposal && typeof proposal === 'object' ? proposal : {};
-  const p = normalizeProposalForAdmission(raw);
+  const p0 = normalizeProposalForAdmission(raw);
+  const criteriaHardening = hardenProposalSuccessCriteria(p0, ctx.outcomePolicy);
+  const p = criteriaHardening.proposal;
   const srcEye = sourceEyeId(p);
   const eye = ctx.eyes.get(srcEye) || null;
   const risk = normalizedRisk(p.risk);
@@ -1195,6 +1310,12 @@ function enrichOne(proposal, ctx) {
     success_criteria_measurable_count: a.success_criteria ? Number(a.success_criteria.measurable_count || 0) : 0,
     success_criteria_weighted_count: a.success_criteria ? Number(a.success_criteria.weighted_count || 0) : 0,
     success_criteria_total_count: a.success_criteria ? Number(a.success_criteria.total_count || 0) : 0,
+    success_criteria_compiled_count: Number(criteriaHardening.meta.compiled_count || 0),
+    success_criteria_known_metric_count: Number(criteriaHardening.meta.known_metric_count || 0),
+    success_criteria_unknown_metric_count: Number(criteriaHardening.meta.unknown_metric_count || 0),
+    success_criteria_hardening_applied: criteriaHardening.meta.hardening_applied === true,
+    success_criteria_hardening_reason: criteriaHardening.meta.hardening_reason || null,
+    success_criteria_fallback_rows_added: Number(criteriaHardening.meta.fallback_rows_added || 0),
     objective_id: objectiveBinding.objective_id || '',
     directive_objective_id: objectiveBinding.directive_objective_id || '',
     objective_binding_required: objectiveBinding.binding_required === true,
@@ -1254,6 +1375,12 @@ function enrichOne(proposal, ctx) {
     success_criteria_measurable_count: a.success_criteria ? Number(a.success_criteria.measurable_count || 0) : 0,
     success_criteria_weighted_count: a.success_criteria ? Number(a.success_criteria.weighted_count || 0) : 0,
     success_criteria_total_count: a.success_criteria ? Number(a.success_criteria.total_count || 0) : 0,
+    success_criteria_compiled_count: Number(criteriaHardening.meta.compiled_count || 0),
+    success_criteria_known_metric_count: Number(criteriaHardening.meta.known_metric_count || 0),
+    success_criteria_unknown_metric_count: Number(criteriaHardening.meta.unknown_metric_count || 0),
+    success_criteria_hardening_applied: criteriaHardening.meta.hardening_applied === true,
+    success_criteria_hardening_reason: criteriaHardening.meta.hardening_reason || null,
+    success_criteria_fallback_rows_added: Number(criteriaHardening.meta.fallback_rows_added || 0),
     composite_eligibility_score: comp,
     composite_eligibility_pass: comp >= t.min_composite_eligibility,
     type_threshold_offsets: typeThresholds.offsets,
@@ -1289,7 +1416,7 @@ function enrichOne(proposal, ctx) {
 
   const changed = JSON.stringify(prevMeta) !== JSON.stringify(nextMeta)
     || String(p.risk || '') !== risk
-    || JSON.stringify(p.action_spec || null) !== JSON.stringify(next.action_spec || null);
+    || JSON.stringify(raw.action_spec || null) !== JSON.stringify(next.action_spec || null);
   return {
     proposal: next,
     changed,
