@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * exec_compacted.js - Global exec wrapper with compaction
  * 
@@ -34,11 +33,12 @@ function isAlreadyCompacted(text) {
  * @returns {Promise<{ok: boolean, toolName: string, text: string, raw_path: string|null, exit_code: number}>}
  */
 async function execCompacted(command, options = {}) {
+  const opts = (options && typeof options === 'object' ? options : {}) as Record<string, any>;
   const {
     toolName = 'exec:unknown',
     execOptions = {},
     skipDirectiveCheck = false  // For internal/bootstrap use
-  } = options;
+  } = opts;
 
   // NEW: Tiered Directives enforcement (unless skipped)
   if (!skipDirectiveCheck) {
@@ -144,10 +144,11 @@ async function execCompacted(command, options = {}) {
  * @returns {Promise<{ok: boolean, toolName: string, text: string, raw_path: string|null, exit_code: number}>}
  */
 function execFileCompacted(file, args = [], options = {}) {
+  const opts = (options && typeof options === 'object' ? options : {}) as Record<string, any>;
   const {
     toolName = `exec:${require('path').basename(file)}`,
     execOptions = {}
-  } = options;
+  } = opts;
 
   return new Promise((resolve) => {
     execFile(file, args, {
@@ -207,3 +208,4 @@ module.exports = {
 // Every direct child_process.exec/execFile call is a security/compaction bypass.
 // Audit command: grep -r "require.*child_process" --include="*.js" .
 // Migrate all findings to use execCompacted() or execFileCompacted().
+export {};

@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use strict';
 
 const path = require('path');
@@ -149,11 +148,12 @@ function readHabitState(filePath, fallback = null) {
 
 function ensureHabitState(filePath, meta = {}) {
   const abs = asStorePath(filePath);
+  const m = (meta && typeof meta === 'object' ? meta : {}) as Record<string, any>;
   return normalizeState(
     ensureJson(abs, defaultHabitState, {
-      ...meta,
-      source: meta.source || 'systems/adaptive/habits/habit_store.js',
-      reason: meta.reason || 'ensure_habit_state'
+      ...m,
+      source: m.source || 'systems/adaptive/habits/habit_store.js',
+      reason: m.reason || 'ensure_habit_state'
     }),
     defaultHabitState()
   );
@@ -161,12 +161,13 @@ function ensureHabitState(filePath, meta = {}) {
 
 function setHabitState(filePath, nextState, meta = {}) {
   const abs = asStorePath(filePath);
+  const m = (meta && typeof meta === 'object' ? meta : {}) as Record<string, any>;
   const normalized = normalizeState(nextState, defaultHabitState());
   return normalizeState(
     setJson(abs, normalized, {
-      ...meta,
-      source: meta.source || 'systems/adaptive/habits/habit_store.js',
-      reason: meta.reason || 'set_habit_state'
+      ...m,
+      source: m.source || 'systems/adaptive/habits/habit_store.js',
+      reason: m.reason || 'set_habit_state'
     }),
     defaultHabitState()
   );
@@ -174,6 +175,7 @@ function setHabitState(filePath, nextState, meta = {}) {
 
 function mutateHabitState(filePath, mutator, meta = {}) {
   const abs = asStorePath(filePath);
+  const m = (meta && typeof meta === 'object' ? meta : {}) as Record<string, any>;
   if (typeof mutator !== 'function') throw new Error('habit_store: mutator must be function');
   return normalizeState(
     mutateJson(
@@ -189,9 +191,9 @@ function mutateHabitState(filePath, mutator, meta = {}) {
         return normalizeState(next, base);
       },
       {
-        ...meta,
-        source: meta.source || 'systems/adaptive/habits/habit_store.js',
-        reason: meta.reason || 'mutate_habit_state'
+        ...m,
+        source: m.source || 'systems/adaptive/habits/habit_store.js',
+        reason: m.reason || 'mutate_habit_state'
       }
     ),
     defaultHabitState()

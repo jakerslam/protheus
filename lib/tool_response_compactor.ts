@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * Tool Response Compactor
  * 
@@ -126,7 +125,8 @@ function extractSummary(data, toolName) {
  * Main compaction function
  */
 function compactToolResponse(data, options = {}) {
-  const toolName = options.toolName || 'unknown';
+  const opts = (options && typeof options === 'object' ? options : {}) as Record<string, any>;
+  const toolName = opts.toolName || 'unknown';
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const rawContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
   
@@ -203,3 +203,4 @@ if (require.main === module) {
     }
   });
 }
+export {};
