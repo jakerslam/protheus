@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 'use strict';
 
 /**
@@ -98,7 +97,7 @@ function readJsonl(p) {
 }
 
 function parseArgs(argv) {
-  const out = { _: [] };
+  const out = { _: [] } as Record<string, any>;
   for (const raw of argv) {
     if (!raw.startsWith('--')) {
       out._.push(raw);
@@ -253,9 +252,10 @@ function collectTelemetry(days) {
   for (const f of recentDateFiles(SPEND_DIR, '.json', days)) {
     const payload = readJson(path.join(SPEND_DIR, f.name), null);
     if (!payload || typeof payload !== 'object') continue;
-    const rows = payload.by_model && typeof payload.by_model === 'object' ? payload.by_model : {};
+    const rows = (payload.by_model && typeof payload.by_model === 'object' ? payload.by_model : {}) as Record<string, any>;
     daysSeen.add(f.date);
-    for (const [modelRaw, row] of Object.entries(rows)) {
+    for (const [modelRaw, rowRaw] of Object.entries(rows)) {
+      const row = (rowRaw && typeof rowRaw === 'object' ? rowRaw : {}) as Record<string, any>;
       const model = normalizeModel(modelRaw);
       if (!model) continue;
       if (!byModel[model]) {
@@ -333,8 +333,9 @@ function collectTelemetry(days) {
   let requestsTotal = 0;
   let actualSamplesTotal = 0;
   let effectiveSamplesTotal = 0;
-  for (const [model, rec] of Object.entries(byModel)) {
-    const out = {
+  for (const [model, recRaw] of Object.entries(byModel)) {
+    const rec = (recRaw && typeof recRaw === 'object' ? recRaw : {}) as Record<string, any>;
+    const out: Record<string, any> = {
       model,
       requests: Math.round(rec.requests),
       request_tokens_est_total: Math.round(rec.request_tokens_est_total),
@@ -685,7 +686,7 @@ function main() {
     }
     const res = applyPlan(plan, args);
     process.stdout.write(`${JSON.stringify({ ...plan, apply_result: res })}\n`);
-    process.exit(res.ok ? 0 : (res.code || 1));
+    process.exit(res.ok ? 0 : ((typeof res === 'object' && res && 'code' in res) ? Number((res as any).code || 1) : 1));
     return;
   }
 
@@ -703,3 +704,4 @@ module.exports = {
   buildPlan,
   calibrationOptions
 };
+export {};
