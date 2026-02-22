@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 'use strict';
 
 /**
@@ -41,7 +40,7 @@ function usage() {
 }
 
 function parseArgs(argv) {
-  const out = { _: [] };
+  const out = { _: [] } as Record<string, any>;
   for (const arg of argv) {
     if (!arg.startsWith('--')) {
       out._.push(arg);
@@ -272,7 +271,8 @@ function validateSystemBudgetContract() {
   if (!stateRequired.length) failures.push('system_budget:required_paths_missing:state');
   failures.push(...validateRequiredPaths('system_budget:state', stateRequired, artifacts.state));
   for (const [eventType, eventSpec] of Object.entries(eventSpecs)) {
-    const required = eventSpec && Array.isArray(eventSpec.required_paths) ? eventSpec.required_paths : [];
+    const specRow = (eventSpec && typeof eventSpec === 'object' ? eventSpec : {}) as Record<string, any>;
+    const required = Array.isArray(specRow.required_paths) ? specRow.required_paths : [];
     if (!required.length) {
       failures.push(`system_budget:required_paths_missing:${eventType}`);
       continue;
@@ -334,3 +334,4 @@ module.exports = {
   sampleEnrichedProposal,
   sampleSystemBudgetArtifacts
 };
+export {};
