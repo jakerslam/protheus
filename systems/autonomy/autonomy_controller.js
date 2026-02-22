@@ -4426,6 +4426,15 @@ function verifyExecutionReceipt(execRes, dod, outcomeRes, postconditions, succes
     : decision === 'DIRECTIVE_VALIDATE'
       ? 'directive_validate_ok'
       : 'route_execute_ok';
+  const routeAttestation = execRes
+    && execRes.execution_metrics
+    && execRes.execution_metrics.route_model_attestation
+    && typeof execRes.execution_metrics.route_model_attestation === 'object'
+      ? execRes.execution_metrics.route_model_attestation
+      : null;
+  const routeAttestationStatus = String(routeAttestation && routeAttestation.status || '').toLowerCase();
+  const routeExpectedModel = String(routeAttestation && routeAttestation.expected_model || '').trim();
+  const routeAttestationMismatch = !!routeExpectedModel && routeAttestationStatus === 'mismatch';
   const criteria = toSuccessCriteriaRecord(successCriteria, { required: false, min_count: 0 });
   const criteriaRequired = criteria.required === true;
   const criteriaPass = criteriaRequired ? criteria.passed === true : true;
@@ -4434,11 +4443,14 @@ function verifyExecutionReceipt(execRes, dod, outcomeRes, postconditions, succes
     { name: 'postconditions_ok', pass: !!(postconditions && postconditions.passed === true) },
     { name: 'dod_passed', pass: !!(dod && dod.passed === true) },
     { name: 'success_criteria_met', pass: criteriaPass },
-    { name: 'queue_outcome_logged', pass: !!(outcomeRes && outcomeRes.ok === true) }
+    { name: 'queue_outcome_logged', pass: !!(outcomeRes && outcomeRes.ok === true) },
+    { name: 'route_model_attested', pass: !routeAttestationMismatch }
   ];
+  const checkMap = Object.create(null);
+  for (const check of checks) checkMap[check.name] = check.pass === true;
   let outcome = 'shipped';
-  if (!checks[0].pass || !checks[1].pass || !checks[4].pass) outcome = 'reverted';
-  else if (!checks[2].pass || !checks[3].pass) outcome = 'no_change';
+  if (!checkMap[execCheckName] || !checkMap.postconditions_ok || !checkMap.queue_outcome_logged || !checkMap.route_model_attested) outcome = 'reverted';
+  else if (!checkMap.dod_passed || !checkMap.success_criteria_met) outcome = 'no_change';
   const failed = checks.filter(c => !c.pass).map(c => c.name);
   const verification = withSuccessCriteriaVerification({
     checks,
@@ -4451,6 +4463,14 @@ function verifyExecutionReceipt(execRes, dod, outcomeRes, postconditions, succes
         : failed[0])
       : null
   }, criteria);
+  verification.route_model_attestation = routeAttestation
+    ? {
+      status: routeAttestationStatus || null,
+      expected_model: routeExpectedModel || null,
+      observed_model: String(routeAttestation.observed_model || '').trim() || null,
+      mismatch: routeAttestationMismatch
+    }
+    : null;
   return withSuccessCriteriaQualityAudit(verification);
 }
 
