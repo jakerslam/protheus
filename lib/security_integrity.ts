@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use strict';
 
 const crypto = require('crypto');
@@ -119,7 +118,7 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
 }
 
 function collectPresentProtectedFiles(policy) {
-  const out = new Set();
+  const out = new Set<string>();
 
   for (const rootRel of policy.target_roots) {
     const absRoot = path.resolve(REPO_ROOT, rootRel);
@@ -211,13 +210,14 @@ function verifyIntegrity(policyPath = DEFAULT_POLICY_PATH) {
 function sealIntegrity(policyPath = DEFAULT_POLICY_PATH, options = {}) {
   const existing = loadPolicy(policyPath);
   const presentPaths = collectPresentProtectedFiles(existing);
-  const hashes = {};
+  const hashes: Record<string, string> = {};
   for (const rel of presentPaths) {
     const abs = path.resolve(REPO_ROOT, rel);
     hashes[rel] = hashFileSha256(abs);
   }
-  const note = String(options.approval_note || '').trim();
-  const next = {
+  const opts = (options && typeof options === 'object' ? options : {}) as Record<string, unknown>;
+  const note = String(opts.approval_note || '').trim();
+  const next: Record<string, unknown> = {
     version: existing.version || '1.0',
     target_roots: existing.target_roots,
     target_extensions: existing.target_extensions,
@@ -225,7 +225,7 @@ function sealIntegrity(policyPath = DEFAULT_POLICY_PATH, options = {}) {
     exclude_paths: existing.exclude_paths,
     hashes: toSortedObject(hashes),
     sealed_at: new Date().toISOString(),
-    sealed_by: String(options.sealed_by || process.env.USER || 'unknown')
+    sealed_by: String(opts.sealed_by || process.env.USER || 'unknown')
   };
   if (note) next.last_approval_note = note.slice(0, 240);
 
@@ -261,3 +261,4 @@ module.exports = {
   sealIntegrity,
   appendIntegrityEvent
 };
+export {};

@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use strict';
 
 const fs = require('fs');
@@ -112,3 +111,4 @@ module.exports = {
   withReceiptContract,
   writeContractReceipt
 };
+export {};
