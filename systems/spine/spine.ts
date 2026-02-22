@@ -2096,6 +2096,65 @@ function main() {
       console.log(" autonomy_health skipped reason=feature_flag_disabled flag=SPINE_AUTONOMY_HEALTH_ENABLED");
     }
 
+    // 4d) weekly strategic alignment oracle + escalation artifacting.
+    if (String(process.env.SPINE_ALIGNMENT_ORACLE_ENABLED || "1") !== "0") {
+      const strict = String(process.env.SPINE_ALIGNMENT_ORACLE_STRICT || "0") === "1";
+      const threshold = Math.max(10, Math.min(95, Number(process.env.SPINE_ALIGNMENT_ORACLE_THRESHOLD || 60) || 60));
+      const minWeekSamples = Math.max(1, Number(process.env.SPINE_ALIGNMENT_ORACLE_MIN_WEEK_SAMPLES || 3) || 3);
+      const escalationEnabled = String(process.env.SPINE_ALIGNMENT_ORACLE_ESCALATE || "1") !== "0";
+      const oracle = runJson("node", [
+        "systems/autonomy/alignment_oracle.js",
+        "run",
+        dateStr,
+        `--threshold=${threshold}`,
+        `--min-week-samples=${minWeekSamples}`,
+        `--escalate=${escalationEnabled ? 1 : 0}`
+      ]);
+      const payload = oracle.payload && typeof oracle.payload === "object" ? oracle.payload : null;
+      const escalation = payload && payload.escalation && typeof payload.escalation === "object"
+        ? payload.escalation
+        : null;
+      appendLedger(dateStr, {
+        ts: nowIso(),
+        type: "spine_alignment_oracle",
+        mode,
+        date: dateStr,
+        ok: oracle.ok && !!payload,
+        alignment_score: payload ? Number(payload.alignment_score || 0) : null,
+        escalate: payload && payload.alignment ? payload.alignment.escalate === true : null,
+        threshold: payload && payload.alignment ? Number(payload.alignment.threshold || threshold) : threshold,
+        min_week_samples: payload && payload.alignment ? Number(payload.alignment.min_week_samples || minWeekSamples) : minWeekSamples,
+        escalation_emitted: escalation ? escalation.emitted === true : null,
+        escalation_reason: escalation ? String(escalation.reason || "") : null,
+        report_path: payload ? payload.report_path || null : null,
+        reason: (!oracle.ok || !payload)
+          ? String(oracle.stderr || oracle.stdout || `alignment_oracle_exit_${oracle.code}`).slice(0, 180)
+          : null
+      });
+      if (!oracle.ok || !payload) {
+        const reason = String(oracle.stderr || oracle.stdout || "unknown").slice(0, 120);
+        console.log(` alignment_oracle unavailable reason=${reason}`);
+        if (strict) process.exit(oracle.code || 1);
+      } else {
+        console.log(
+          ` alignment_oracle score=${Number(payload.alignment_score || 0)}` +
+          ` escalate=${payload.alignment && payload.alignment.escalate === true ? "yes" : "no"}` +
+          ` escalation_emitted=${escalation && escalation.emitted === true ? "yes" : "no"}`
+        );
+      }
+    } else {
+      appendLedger(dateStr, {
+        ts: nowIso(),
+        type: "spine_alignment_oracle_skipped",
+        mode,
+        date: dateStr,
+        reason: "feature_flag_disabled",
+        flag: "SPINE_ALIGNMENT_ORACLE_ENABLED",
+        flag_value: String(process.env.SPINE_ALIGNMENT_ORACLE_ENABLED || "")
+      });
+      console.log(" alignment_oracle skipped reason=feature_flag_disabled flag=SPINE_ALIGNMENT_ORACLE_ENABLED");
+    }
+
     // 4d) ops dashboard summary over recent daily+weekly health reports.
     if (String(process.env.SPINE_OPS_DASHBOARD_ENABLED || "1") !== "0") {
       const dashboardDays = Math.max(2, Number(process.env.SPINE_OPS_DASHBOARD_DAYS || 7) || 7);
