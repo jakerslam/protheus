@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-// @ts-nocheck
 'use strict';
+export {};
 
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 const { getStopState } = require('../../lib/emergency_stop.js');
+
+type AnyObj = Record<string, any>;
 
 const ROOT = path.resolve(__dirname, '..', '..');
 
@@ -116,8 +118,8 @@ function usage() {
   console.log('  node systems/autonomy/health_status.js --help');
 }
 
-function parseArgs(argv) {
-  const out = { _: [] };
+function parseArgs(argv: string[]): AnyObj {
+  const out: AnyObj = { _: [] };
   for (const arg of argv) {
     if (!arg.startsWith('--')) {
       out._.push(arg);
@@ -335,7 +337,7 @@ function routingHealthCacheSummary() {
   }
   const schemaVersion = Number(snap.schema_version || 0) || null;
   const runtimes = [];
-  const byRuntimeCounts = {};
+  const byRuntimeCounts: AnyObj = {};
   if (snap.runtimes && typeof snap.runtimes === 'object') {
     for (const [runtime, map] of Object.entries(snap.runtimes)) {
       if (!map || typeof map !== 'object') continue;
@@ -774,8 +776,8 @@ function assessExecuteQualityLockInvariant(governorStatusResult, strategyReadine
   };
 }
 
-function summarizeSlo(checksMap) {
-  const checks = Object.values(checksMap || {});
+function summarizeSlo(checksMap: AnyObj): AnyObj {
+  const checks = Object.values(checksMap || {}) as AnyObj[];
   const warns = checks.filter((c) => c && c.level === 'warn');
   const critical = checks.filter((c) => c && c.level === 'critical');
   const failed = checks.filter((c) => c && c.ok !== true);
@@ -794,8 +796,8 @@ function summarizeSlo(checksMap) {
   };
 }
 
-function makeAlertRows(dateStr, windowLabel, windowDays, slo) {
-  const checks = Object.values(slo && slo.checks ? slo.checks : {});
+function makeAlertRows(dateStr: string, windowLabel: string, windowDays: number, slo: AnyObj): AnyObj[] {
+  const checks = Object.values(slo && slo.checks ? slo.checks : {}) as AnyObj[];
   const rows = [];
   for (const check of checks) {
     if (!check || check.ok === true) continue;
