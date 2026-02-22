@@ -4,7 +4,9 @@
     "test:ci:stateful": "node memory/tools/tests/run_ci_suite.js --include-stateful",
     "typecheck:systems": "node systems/ops/typecheck_systems.js",
     "guard:merge": "node systems/security/merge_guard.js run",
-    "guard:merge:fast": "node systems/security/merge_guard.js run --skip-tests"
+    "guard:merge:fast": "node systems/security/merge_guard.js run --skip-tests",
+    "integrity:check": "node systems/security/integrity_reseal.js check",
+    "integrity:reseal": "node systems/security/integrity_reseal.js apply"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

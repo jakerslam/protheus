@@ -56,6 +56,7 @@ function runGuard(opts = {}) {
   const options = (opts && typeof opts === 'object' ? opts : {}) as Record<string, any>;
   const checks = [];
   checks.push(runCmd('contract_check', 'node', ['systems/spine/contract_check.js']));
+  checks.push(runCmd('integrity_kernel_check', 'node', ['systems/security/integrity_kernel.js', 'run']));
   checks.push(runCmd('schema_contract_check', 'node', ['systems/security/schema_contract_check.js', 'run']));
   checks.push(runCmd('adaptive_layer_guard_strict', 'node', ['systems/sensory/adaptive_layer_guard.js', 'run', '--strict']));
   checks.push(runCmd('memory_layer_guard_strict', 'node', ['systems/memory/memory_layer_guard.js', 'run', '--strict']));
