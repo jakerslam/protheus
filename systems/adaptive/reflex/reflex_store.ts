@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use strict';
 
 const path = require('path');
@@ -147,11 +146,12 @@ function readReflexState(filePath, fallback = null) {
 
 function ensureReflexState(filePath, meta = {}) {
   const abs = asStorePath(filePath);
+  const m = (meta && typeof meta === 'object' ? meta : {}) as Record<string, any>;
   return normalizeState(
     ensureJson(abs, defaultReflexState, {
-      ...meta,
-      source: meta.source || 'systems/adaptive/reflex/reflex_store.js',
-      reason: meta.reason || 'ensure_reflex_state'
+      ...m,
+      source: m.source || 'systems/adaptive/reflex/reflex_store.js',
+      reason: m.reason || 'ensure_reflex_state'
     }),
     defaultReflexState()
   );
@@ -159,12 +159,13 @@ function ensureReflexState(filePath, meta = {}) {
 
 function setReflexState(filePath, nextState, meta = {}) {
   const abs = asStorePath(filePath);
+  const m = (meta && typeof meta === 'object' ? meta : {}) as Record<string, any>;
   const normalized = normalizeState(nextState, defaultReflexState());
   return normalizeState(
     setJson(abs, normalized, {
-      ...meta,
-      source: meta.source || 'systems/adaptive/reflex/reflex_store.js',
-      reason: meta.reason || 'set_reflex_state'
+      ...m,
+      source: m.source || 'systems/adaptive/reflex/reflex_store.js',
+      reason: m.reason || 'set_reflex_state'
     }),
     defaultReflexState()
   );
@@ -172,6 +173,7 @@ function setReflexState(filePath, nextState, meta = {}) {
 
 function mutateReflexState(filePath, mutator, meta = {}) {
   const abs = asStorePath(filePath);
+  const m = (meta && typeof meta === 'object' ? meta : {}) as Record<string, any>;
   if (typeof mutator !== 'function') throw new Error('reflex_store: mutator must be function');
   return normalizeState(
     mutateJson(
@@ -187,9 +189,9 @@ function mutateReflexState(filePath, mutator, meta = {}) {
         return normalizeState(next, base);
       },
       {
-        ...meta,
-        source: meta.source || 'systems/adaptive/reflex/reflex_store.js',
-        reason: meta.reason || 'mutate_reflex_state'
+        ...m,
+        source: m.source || 'systems/adaptive/reflex/reflex_store.js',
+        reason: m.reason || 'mutate_reflex_state'
       }
     ),
     defaultReflexState()

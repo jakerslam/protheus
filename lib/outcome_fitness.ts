@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use strict';
 
 const fs = require('fs');
@@ -76,7 +75,7 @@ function normalizeThresholdOverrides(raw) {
 }
 
 function normalizeRankingWeights(raw) {
-  const src = raw && typeof raw === 'object' ? raw : {};
+  const src = (raw && typeof raw === 'object' ? raw : {}) as Record<string, any>;
   const out = {};
   let total = 0;
   for (const key of RANKING_WEIGHT_KEYS) {
@@ -88,7 +87,8 @@ function normalizeRankingWeights(raw) {
   if (total <= 0) return null;
   const normalized = {};
   for (const [key, value] of Object.entries(out)) {
-    normalized[key] = Number((value / total).toFixed(6));
+    const n = Number(value);
+    normalized[key] = Number((n / total).toFixed(6));
   }
   return normalized;
 }
@@ -108,8 +108,8 @@ function normalizeProposalTypeThresholdOffsets(raw) {
 }
 
 function normalizePromotionPolicyOverrides(raw) {
-  const src = raw && typeof raw === 'object' ? raw : {};
-  const out = {};
+  const src = (raw && typeof raw === 'object' ? raw : {}) as Record<string, any>;
+  const out: Record<string, any> = {};
   if (Object.prototype.hasOwnProperty.call(src, 'disable_legacy_fallback_after_quality_receipts')) {
     out.disable_legacy_fallback_after_quality_receipts = clampInt(
       src.disable_legacy_fallback_after_quality_receipts,
@@ -213,3 +213,4 @@ module.exports = {
   normalizeProposalTypeKey,
   proposalTypeThresholdOffsetsFor
 };
+export {};

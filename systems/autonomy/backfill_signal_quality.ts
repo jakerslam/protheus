@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * backfill_signal_quality.js
  *
@@ -197,4 +196,4 @@ function main() {
 if (require.main === module) {
   main();
 }
-
+export {};

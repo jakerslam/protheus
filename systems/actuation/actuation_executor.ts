@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 'use strict';
 
 /**
@@ -29,7 +28,7 @@ function nowIso() { return new Date().toISOString(); }
 function dayStr() { return nowIso().slice(0, 10); }
 
 function parseArgs(argv) {
-  const out = { _: [] };
+  const out = { _: [] } as Record<string, any>;
   for (const a of argv) {
     if (!a.startsWith('--')) { out._.push(a); continue; }
     const i = a.indexOf('=');
@@ -203,3 +202,4 @@ main().catch((err) => {
   process.stdout.write(JSON.stringify({ ok: false, error: String(err && err.message ? err.message : err) }) + '\n');
   process.exit(1);
 });
+export {};

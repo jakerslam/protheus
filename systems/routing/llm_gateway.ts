@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 'use strict';
 
 /**
@@ -58,9 +57,10 @@ function isUnknownFlagError(text) {
 }
 
 function listLocalOllamaModels(opts = {}) {
-  const timeoutMs = Number.isFinite(Number(opts.timeoutMs)) ? Number(opts.timeoutMs) : 5000;
-  const cwd = opts.cwd ? String(opts.cwd) : REPO_ROOT;
-  const source = String(opts.source || 'llm_gateway').trim() || 'llm_gateway';
+  const o = (opts && typeof opts === 'object' ? opts : {}) as Record<string, any>;
+  const timeoutMs = Number.isFinite(Number(o.timeoutMs)) ? Number(o.timeoutMs) : 5000;
+  const cwd = o.cwd ? String(o.cwd) : REPO_ROOT;
+  const source = String(o.source || 'llm_gateway').trim() || 'llm_gateway';
   const started = Date.now();
   const r = spawnSync('ollama', ['list'], { encoding: 'utf8', timeout: timeoutMs, cwd });
   const latencyMs = Date.now() - started;
@@ -128,13 +128,14 @@ function runOllamaPromptRaw(model, prompt, timeoutMs, extraArgs = [], cwd = REPO
 }
 
 function runLocalOllamaPrompt(opts = {}) {
-  const model = normalizeModelName(opts.model);
-  const prompt = String(opts.prompt || '');
-  const timeoutMs = Number.isFinite(Number(opts.timeoutMs)) ? Number(opts.timeoutMs) : 25000;
-  const phase = String(opts.phase || 'general').trim() || 'general';
-  const source = String(opts.source || 'llm_gateway').trim() || 'llm_gateway';
-  const cwd = opts.cwd ? String(opts.cwd) : REPO_ROOT;
-  const allowFlagFallback = opts.allowFlagFallback !== false;
+  const o = (opts && typeof opts === 'object' ? opts : {}) as Record<string, any>;
+  const model = normalizeModelName(o.model);
+  const prompt = String(o.prompt || '');
+  const timeoutMs = Number.isFinite(Number(o.timeoutMs)) ? Number(o.timeoutMs) : 25000;
+  const phase = String(o.phase || 'general').trim() || 'general';
+  const source = String(o.source || 'llm_gateway').trim() || 'llm_gateway';
+  const cwd = o.cwd ? String(o.cwd) : REPO_ROOT;
+  const allowFlagFallback = o.allowFlagFallback !== false;
 
   if (!model) {
     return { ok: false, stdout: '', stderr: 'no_local_model_selected', code: 2, signal: null, timed_out: false, error: null, latency_ms: 0 };
@@ -146,7 +147,7 @@ function runLocalOllamaPrompt(opts = {}) {
   if (!primary.ok && allowFlagFallback && (isUnknownFlagError(primary.stderr) || isUnknownFlagError(primary.error))) {
     fallbackAttempted = true;
     const fallback = runOllamaPromptRaw(model, prompt, timeoutMs, [], cwd);
-    final = fallback.ok ? fallback : { ...fallback, flag_fallback_attempted: true };
+    final = fallback;
   }
 
   appendJsonl(GATEWAY_LOG_PATH, {
@@ -180,4 +181,4 @@ module.exports = {
   isUnknownFlagError,
   normalizeModelName
 };
-
+export {};
