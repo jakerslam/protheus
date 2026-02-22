@@ -224,11 +224,20 @@ function run() {
     );
     assert.ok(Array.isArray(low.meta.directive_fit_positive) && low.meta.directive_fit_positive.length >= 1, 'normalizer should produce directive-fit positives');
     assert.ok(low.meta && low.meta.admission_preview && low.meta.admission_preview.eligible === true, 'low-risk OPEN proposal should be eligible');
-    assert.ok(missing.meta && missing.meta.admission_preview && missing.meta.admission_preview.eligible === false, 'missing success criteria should be blocked');
+    assert.ok(
+      missing.action_spec
+        && Array.isArray(missing.action_spec.success_criteria)
+        && missing.action_spec.success_criteria.length >= 1,
+      'enricher should compile canonical success criteria into action_spec'
+    );
+    assert.ok(
+      Number((missing.meta && missing.meta.success_criteria_compiled_count) || 0) >= 1,
+      'compiled criteria count should be tracked in meta'
+    );
     assert.ok(
       Array.isArray(missing.meta.admission_preview.blocked_by)
-        && missing.meta.admission_preview.blocked_by.includes('success_criteria_missing'),
-      'missing success criteria should include success_criteria_missing blocker'
+        && !missing.meta.admission_preview.blocked_by.includes('success_criteria_missing'),
+      'compiled criteria should clear success_criteria_missing blocker'
     );
     assert.ok(
       !objectiveId || (low.meta && low.meta.objective_binding_required === true),
