@@ -1,10 +1,11 @@
-// @ts-nocheck
 'use strict';
 
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-const crypto = require('crypto');
+export {};
+
+const fs = require('fs') as typeof import('fs');
+const os = require('os') as typeof import('os');
+const path = require('path') as typeof import('path');
+const crypto = require('crypto') as typeof import('crypto');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const STATE_PATH = process.env.SECRET_BROKER_STATE_PATH
@@ -21,20 +22,20 @@ const DEFAULT_TTL_SEC = Number(process.env.SECRET_BROKER_DEFAULT_TTL_SEC || 300)
 const MIN_TTL_SEC = Number(process.env.SECRET_BROKER_MIN_TTL_SEC || 30);
 const MAX_TTL_SEC = Number(process.env.SECRET_BROKER_MAX_TTL_SEC || 3600);
 
-function nowMs(input) {
+function nowMs(input: unknown): number {
   if (Number.isFinite(Number(input))) return Number(input);
   return Date.now();
 }
 
-function nowIso(ms) {
+function nowIso(ms?: unknown): string {
   return new Date(nowMs(ms)).toISOString();
 }
 
-function ensureDir(dirPath) {
+function ensureDir(dirPath: string): void {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
-function readJsonSafe(filePath, fallback) {
+function readJsonSafe<T>(filePath: string, fallback: T): T {
   try {
     if (!fs.existsSync(filePath)) return fallback;
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -43,19 +44,19 @@ function readJsonSafe(filePath, fallback) {
   }
 }
 
-function writeJsonAtomic(filePath, value) {
+function writeJsonAtomic(filePath: string, value: unknown): void {
   ensureDir(path.dirname(filePath));
   const tmp = `${filePath}.tmp-${Date.now()}`;
   fs.writeFileSync(tmp, JSON.stringify(value, null, 2), 'utf8');
   fs.renameSync(tmp, filePath);
 }
 
-function appendJsonl(filePath, row) {
+function appendJsonl(filePath: string, row: Record<string, unknown>): void {
   ensureDir(path.dirname(filePath));
   fs.appendFileSync(filePath, JSON.stringify(row) + '\n', 'utf8');
 }
 
-function clampInt(v, lo, hi, fallback) {
+function clampInt(v: unknown, lo: number, hi: number, fallback: number): number {
   const n = Number(v);
   if (!Number.isFinite(n)) return fallback;
   const i = Math.floor(n);
@@ -64,11 +65,11 @@ function clampInt(v, lo, hi, fallback) {
   return i;
 }
 
-function normalizeText(v, maxLen = 240) {
+function normalizeText(v: unknown, maxLen = 240): string {
   return String(v == null ? '' : v).trim().slice(0, maxLen);
 }
 
-function base64urlEncode(input) {
+function base64urlEncode(input: string): string {
   return Buffer.from(String(input), 'utf8')
     .toString('base64')
     .replace(/\+/g, '-')
@@ -76,18 +77,18 @@ function base64urlEncode(input) {
     .replace(/=+$/g, '');
 }
 
-function base64urlDecode(input) {
+function base64urlDecode(input: string): string {
   const raw = String(input || '').replace(/-/g, '+').replace(/_/g, '/');
   const pad = raw.length % 4;
   const padded = pad === 0 ? raw : raw + '='.repeat(4 - pad);
   return Buffer.from(padded, 'base64').toString('utf8');
 }
 
-function stableHash16(v) {
+function stableHash16(v: unknown): string {
   return crypto.createHash('sha256').update(String(v || ''), 'utf8').digest('hex').slice(0, 16);
 }
 
-function readTextSafe(filePath) {
+function readTextSafe(filePath: string): string {
   try {
     if (!fs.existsSync(filePath)) return '';
     return String(fs.readFileSync(filePath, 'utf8') || '').trim();
@@ -96,7 +97,7 @@ function readTextSafe(filePath) {
   }
 }
 
-function loadOrCreateLocalKey() {
+function loadOrCreateLocalKey(): string {
   const existing = readTextSafe(LOCAL_KEY_PATH);
   if (existing) return existing;
   const generated = crypto.randomBytes(32).toString('hex');
@@ -105,7 +106,7 @@ function loadOrCreateLocalKey() {
   return generated;
 }
 
-function secretBrokerKey() {
+function secretBrokerKey(): string {
   const envKey = normalizeText(
     process.env.SECRET_BROKER_KEY
       || process.env.REQUEST_GATE_SECRET
@@ -117,7 +118,7 @@ function secretBrokerKey() {
   return normalizeText(loadOrCreateLocalKey(), 4096);
 }
 
-function requireSecretBrokerKey() {
+function requireSecretBrokerKey(): { ok: true; key: string } | { ok: false; error: string } {
   const key = secretBrokerKey();
   if (!key) {
     return { ok: false, error: 'secret_broker_key_missing' };
@@ -125,18 +126,18 @@ function requireSecretBrokerKey() {
   return { ok: true, key };
 }
 
-function sign(body, key) {
+function sign(body: string, key: string): string {
   return crypto.createHmac('sha256', key).update(String(body), 'utf8').digest('hex');
 }
 
-function safeTimingEqual(a, b) {
+function safeTimingEqual(a: string, b: string): boolean {
   const left = Buffer.from(String(a || ''), 'utf8');
   const right = Buffer.from(String(b || ''), 'utf8');
   if (left.length !== right.length) return false;
   return crypto.timingSafeEqual(left, right);
 }
 
-function loadState() {
+function loadState(): Record<string, any> {
   const raw = readJsonSafe(STATE_PATH, null);
   if (!raw || typeof raw !== 'object') {
     return { version: '1.0', issued: {} };
@@ -147,22 +148,22 @@ function loadState() {
   };
 }
 
-function saveState(state) {
+function saveState(state: Record<string, any>): void {
   writeJsonAtomic(STATE_PATH, state);
 }
 
-function audit(entry) {
+function audit(entry: Record<string, unknown>): void {
   appendJsonl(AUDIT_PATH, {
     ts: nowIso(),
     ...(entry && typeof entry === 'object' ? entry : {})
   });
 }
 
-function makeHandleId() {
+function makeHandleId(): string {
   return `sh_${crypto.randomBytes(8).toString('hex')}`;
 }
 
-function parseHandle(handle) {
+function parseHandle(handle: unknown): Record<string, any> {
   const raw = normalizeText(handle, 8192);
   const parts = raw.split('.');
   if (parts.length !== 2) return { ok: false, error: 'handle_malformed' };
@@ -178,7 +179,7 @@ function parseHandle(handle) {
   return { ok: true, body, sig, payload };
 }
 
-function loadMoltbookApiKey() {
+function loadMoltbookApiKey(): string {
   if (process.env.MOLTBOOK_TOKEN && String(process.env.MOLTBOOK_TOKEN).trim()) {
     return String(process.env.MOLTBOOK_TOKEN).trim();
   }
@@ -199,7 +200,7 @@ function loadMoltbookApiKey() {
   return '';
 }
 
-function loadMoltstackApiKey() {
+function loadMoltstackApiKey(): string {
   if (process.env.MOLTSTACK_TOKEN && String(process.env.MOLTSTACK_TOKEN).trim()) {
     return String(process.env.MOLTSTACK_TOKEN).trim();
   }
@@ -214,12 +215,12 @@ function loadMoltstackApiKey() {
   }
 }
 
-const SECRET_LOADERS = {
+const SECRET_LOADERS: Record<string, () => string> = {
   moltbook_api_key: loadMoltbookApiKey,
   moltstack_api_key: loadMoltstackApiKey
 };
 
-function loadSecretById(secretId) {
+function loadSecretById(secretId: unknown): Record<string, any> {
   const key = normalizeText(secretId, 120);
   const loader = SECRET_LOADERS[key];
   if (typeof loader !== 'function') {
@@ -237,7 +238,7 @@ function loadSecretById(secretId) {
   };
 }
 
-function issueSecretHandle(opts = {}) {
+function issueSecretHandle(opts: Record<string, any> = {}): Record<string, any> {
   const keyRes = requireSecretBrokerKey();
   if (!keyRes.ok) return keyRes;
 
@@ -320,7 +321,7 @@ function issueSecretHandle(opts = {}) {
   };
 }
 
-function resolveSecretHandle(handle, opts = {}) {
+function resolveSecretHandle(handle: unknown, opts: Record<string, any> = {}): Record<string, any> {
   const keyRes = requireSecretBrokerKey();
   if (!keyRes.ok) return keyRes;
 
