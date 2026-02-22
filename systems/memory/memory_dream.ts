@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 'use strict';
 
 /**
@@ -56,7 +55,7 @@ function usage() {
 }
 
 function parseArgs(argv) {
-  const out = { _: [] };
+  const out = { _: [] } as Record<string, any>;
   for (let i = 0; i < argv.length; i++) {
     const a = String(argv[i] || '');
     if (!a.startsWith('--')) {
@@ -199,7 +198,7 @@ function parseMemoryIndexEntries(filePath) {
       continue;
     }
     if (!headers) continue;
-    const row = {};
+    const row: Record<string, any> = {};
     for (let i = 0; i < headers.length; i++) row[headers[i]] = String(cells[i] || '').trim();
     const nodeId = String(row.node_id || '').replace(/`/g, '').trim();
     const file = String(row.file || '').replace(/`/g, '').trim();
@@ -444,7 +443,7 @@ function status(dateStr) {
   if (!fs.existsSync(fp)) {
     return { ok: true, type: 'memory_dream_status', date: dateStr, exists: false };
   }
-  let parsed = {};
+  let parsed: Record<string, any> = {};
   try { parsed = JSON.parse(fs.readFileSync(fp, 'utf8')); } catch {}
   return {
     ok: true,
@@ -494,3 +493,4 @@ module.exports = {
   parseMemoryIndexEntries,
   enrichThemesWithOlderMemory
 };
+export {};
