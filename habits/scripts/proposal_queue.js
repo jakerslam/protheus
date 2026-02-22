@@ -162,9 +162,10 @@ function normalizedStatus(proposal, overlayEntry, sensoryEntry = null) {
   if (sensoryEntry && sensoryEntry.status) {
     const sensoryStatus = String(sensoryEntry.status).trim().toLowerCase();
     if (sensoryStatus === 'rejected' || sensoryStatus === 'filtered') return 'rejected';
-    if (sensoryStatus === 'accepted' || sensoryStatus === 'done') return 'accepted';
+    if (sensoryStatus === 'accepted') return 'accepted';
     if (
-      sensoryStatus === 'closed'
+      sensoryStatus === 'done'
+      || sensoryStatus === 'closed'
       || sensoryStatus === 'resolved'
       || sensoryStatus === 'shipped'
       || sensoryStatus === 'no_change'
