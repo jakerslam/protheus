@@ -20,7 +20,11 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { collectWithDriver, preflightWithDriver } = require('../../systems/sensory/collector_driver.js');
-const { classifyCollectorError, isTransportFailureCode } = require('../../adaptive/sensory/eyes/collectors/collector_errors');
+const {
+  classifyCollectorError,
+  isTransportFailureCode,
+  makeCollectorError
+} = require('../../adaptive/sensory/eyes/collectors/collector_errors');
 const {
   maybeRefreshFocusTriggers,
   evaluateFocusForEye
@@ -131,6 +135,148 @@ function loadRegistry() {
 function saveRegistry(registry) {
   registry.last_updated = new Date().toISOString();
   fs.writeFileSync(REGISTRY_PATH, JSON.stringify(registry, null, 2));
+}
+
+const DEFAULT_FAILURE_CODE_POLICIES = Object.freeze({
+  env_blocked: {
+    cooldown_hours: 24,
+    set_status: 'dormant',
+    count_as_error: false,
+    count_as_failure: false,
+    reason: 'environment_unavailable'
+  },
+  auth_missing: {
+    cooldown_hours: 24,
+    set_status: 'dormant',
+    count_as_error: true,
+    count_as_failure: false,
+    reason: 'credentials_missing'
+  },
+  auth_unauthorized: {
+    cooldown_hours: 24,
+    set_status: 'dormant',
+    count_as_error: true,
+    count_as_failure: false,
+    reason: 'credentials_rejected'
+  },
+  auth_forbidden: {
+    cooldown_hours: 24,
+    set_status: 'dormant',
+    count_as_error: true,
+    count_as_failure: false,
+    reason: 'access_forbidden'
+  },
+  endpoint_unsupported: {
+    cooldown_hours: 48,
+    set_status: 'dormant',
+    count_as_error: true,
+    count_as_failure: false,
+    reason: 'endpoint_unsupported'
+  },
+  rate_limited: {
+    cooldown_hours: 2,
+    set_status: 'probation',
+    count_as_error: true,
+    count_as_failure: false,
+    reason: 'rate_limited'
+  },
+  collector_error: {
+    cooldown_hours: 2,
+    set_status: 'probation',
+    count_as_error: true,
+    count_as_failure: true,
+    reason: 'unknown_collector_failure'
+  }
+});
+
+function normalizePolicyStatus(v) {
+  const s = String(v || '').trim().toLowerCase();
+  if (s === 'active' || s === 'probation' || s === 'dormant' || s === 'retired') return s;
+  return null;
+}
+
+function normalizeFailureCodePolicyEntry(v) {
+  if (!v || typeof v !== 'object') return null;
+  const cooldownHoursRaw = Number(v.cooldown_hours);
+  const cooldownHours = Number.isFinite(cooldownHoursRaw) && cooldownHoursRaw > 0
+    ? Math.min(cooldownHoursRaw, 24 * 7)
+    : 0;
+  const setStatus = normalizePolicyStatus(v.set_status);
+  const reason = String(v.reason || '').trim().slice(0, 80) || null;
+  return {
+    cooldown_hours: cooldownHours,
+    set_status: setStatus,
+    count_as_error: v.count_as_error !== false,
+    count_as_failure: v.count_as_failure !== false,
+    reason
+  };
+}
+
+function loadFailureCodePolicies(config) {
+  const out = {};
+  const apply = (source) => {
+    if (!source || typeof source !== 'object') return;
+    for (const [codeRaw, entryRaw] of Object.entries(source)) {
+      const code = String(codeRaw || '').trim().toLowerCase();
+      if (!code) continue;
+      const normalized = normalizeFailureCodePolicyEntry(entryRaw);
+      if (!normalized) continue;
+      out[code] = normalized;
+    }
+  };
+  apply(DEFAULT_FAILURE_CODE_POLICIES);
+  if (config && config.self_healing && typeof config.self_healing === 'object') {
+    apply(config.self_healing.failure_code_policies);
+  }
+  const envPolicyRaw = String(process.env.EYES_FAILURE_CODE_POLICY_JSON || '').trim();
+  if (envPolicyRaw) {
+    try {
+      const parsed = JSON.parse(envPolicyRaw);
+      apply(parsed);
+    } catch {
+      // Ignore malformed env override to keep run path deterministic.
+    }
+  }
+  return out;
+}
+
+function failureCodePolicyFor(policies, code) {
+  const key = String(code || '').trim().toLowerCase();
+  if (!key || !policies || typeof policies !== 'object') return null;
+  return policies[key] || null;
+}
+
+function applyFailureCodePolicy(registryEye, code, policy) {
+  if (!registryEye || !policy || typeof policy !== 'object') return null;
+  const nowTs = new Date().toISOString();
+  let changed = false;
+  let cooldownUntil = null;
+  if (Number(policy.cooldown_hours || 0) > 0) {
+    const next = new Date(Date.now() + (Number(policy.cooldown_hours) * 60 * 60 * 1000)).toISOString();
+    const currentMs = Date.parse(String(registryEye.cooldown_until || ''));
+    const nextMs = Date.parse(next);
+    if (!Number.isFinite(currentMs) || currentMs < nextMs) {
+      registryEye.cooldown_until = next;
+      changed = true;
+    }
+    cooldownUntil = registryEye.cooldown_until;
+  }
+  if (policy.set_status) {
+    const currentStatus = String(registryEye.status || '').toLowerCase();
+    if (currentStatus !== 'retired' && currentStatus !== String(policy.set_status)) {
+      registryEye.status = String(policy.set_status);
+      changed = true;
+    }
+  }
+  registryEye.last_failure_policy_code = String(code || '').slice(0, 64);
+  registryEye.last_failure_policy_ts = nowTs;
+  registryEye.last_failure_policy_reason = policy.reason || null;
+  return {
+    changed,
+    cooldown_until: cooldownUntil,
+    set_status: policy.set_status || null,
+    reason: policy.reason || null
+  };
 }
 function clamp(n, lo, hi) {
   return Math.max(lo, Math.min(hi, n));
@@ -1045,6 +1191,7 @@ async function run(opts = {}) {
   
   const config = loadConfig();
   const registry = loadRegistry();
+  const failureCodePolicies = loadFailureCodePolicies(config);
   const today = getToday();
   const { eye: specificEye, maxEyes = config.global_limits.max_concurrent_runs, forceEyeId = null } = opts;
   const selfHealPass = opts.selfHealPass === true;
@@ -1140,6 +1287,21 @@ async function run(opts = {}) {
     try {
       // Deterministic collector dispatch (real collectors + stub fallback)
       const result = await collectEye(eyeConfig);
+      if (!result || result.success !== true) {
+        const hasStructuredError = !!(result && (result.error_code || result.error_http_status));
+        const failed = hasStructuredError
+          ? {
+              code: String(result.error_code || 'collector_error'),
+              message: String(result.error || 'collector_failed').slice(0, 180),
+              http_status: result.error_http_status == null ? null : Number(result.error_http_status)
+            }
+          : normalizeFailure(result && result.error ? result.error : 'collector_failed');
+        throw makeCollectorError(
+          failed.code || 'collector_error',
+          failed.message || 'collector_failed',
+          { http_status: failed.http_status }
+        );
+      }
       
       if (result.success) {
         let focused = {
@@ -1278,7 +1440,25 @@ async function run(opts = {}) {
       
     } catch (err) {
       const c = normalizeFailure(err);
-      const envBlocked = String(c.code || '') === 'env_blocked';
+      const failurePolicy = failureCodePolicyFor(failureCodePolicies, c.code);
+      const policyResult = applyFailureCodePolicy(registryEye, c.code, failurePolicy);
+      const suppressErrorAccounting = failurePolicy && failurePolicy.count_as_error === false;
+      const suppressFailurePenaltyByPolicy = failurePolicy && failurePolicy.count_as_failure === false;
+      if (policyResult && policyResult.changed) {
+        appendRawLog(today, {
+          ts: new Date().toISOString(),
+          type: 'eye_failure_policy_applied',
+          eye_id: eyeConfig.id,
+          error_code: c.code,
+          policy_reason: policyResult.reason,
+          set_status: policyResult.set_status,
+          cooldown_until: policyResult.cooldown_until
+        });
+        console.log(
+          `   🩺 Failure policy: code=${c.code} status=${policyResult.set_status || 'unchanged'} ` +
+          `cooldown_until=${policyResult.cooldown_until || 'none'}`
+        );
+      }
       // Emit breadcrumb: eye_run_failed
       appendRawLog(today, {
         ts: new Date().toISOString(),
@@ -1291,7 +1471,7 @@ async function run(opts = {}) {
       });
       
       registryEye.last_run = new Date().toISOString();
-      if (!envBlocked) {
+      if (!suppressErrorAccounting) {
         registryEye.total_runs = Number(registryEye.total_runs || 0) + 1;
         registryEye.total_errors++;
       }
@@ -1299,7 +1479,7 @@ async function run(opts = {}) {
       registryEye.last_error_code = c.code;
       registryEye.last_error_http_status = c.http_status;
       registryEye.last_error_ts = new Date().toISOString();
-      if (!envBlocked) {
+      if (!suppressErrorAccounting) {
         const runs = Math.max(1, Number(registryEye.total_runs || registryEye.run_count || 0));
         registryEye.error_rate = registryEye.total_errors / runs;
       }
@@ -1308,8 +1488,8 @@ async function run(opts = {}) {
       const FAIL_PARK_HOURS = Number(process.env.EYES_FAIL_PARK_HOURS || 24);
       const outageStateNow = ensureOutageModeState(registry);
       const suppressPenalty = outageStateNow.active === true && parserType !== 'stub';
-      if (envBlocked) {
-        console.log(`   ⚠️  Environment blocked: failure penalty suppressed for ${eyeConfig.id}`);
+      if (suppressFailurePenaltyByPolicy) {
+        console.log(`   ⚠️  Failure penalty suppressed by policy: ${eyeConfig.id} code=${c.code}`);
       } else if (suppressPenalty) {
         console.log(`   ⚠️  Outage mode: failure penalty suppressed for ${eyeConfig.id}`);
       } else {

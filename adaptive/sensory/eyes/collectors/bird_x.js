@@ -9,7 +9,7 @@
 
 const { execSync } = require("child_process");
 const crypto = require("crypto");
-const { makeCollectorError } = require("./collector_errors");
+const { classifyCollectorError, makeCollectorError } = require("./collector_errors");
 const { loadCollectorCache, saveCollectorCache } = require("./cache_store");
 
 function sha16(s) {
@@ -110,6 +110,7 @@ async function collectBirdX(options = {}) {
   const startTime = Date.now();
   
   const allPosts = [];
+  const queryFailures = [];
   let totalBytes = 0;
   let requests = 0;
   
@@ -139,6 +140,12 @@ async function collectBirdX(options = {}) {
         }
       }
     } catch (err) {
+      const classified = classifyCollectorError(err);
+      queryFailures.push({
+        code: classified.code,
+        message: classified.message,
+        http_status: classified.http_status
+      });
       // Continue with other queries if one fails
       console.error(`   ⚠️  Query failed: ${query} - ${err.message || err.code}`);
     }
@@ -148,6 +155,23 @@ async function collectBirdX(options = {}) {
   const cacheItems = Array.from(seenIds).slice(-100).map(id => ({ tweet_id: id }));
   saveCollectorCache("bird_x", cacheItems);
   
+  if (allPosts.length === 0 && queryFailures.length > 0) {
+    const primary = queryFailures[0];
+    return {
+      ok: false,
+      success: false,
+      items: [],
+      bytes: totalBytes,
+      duration_ms: Date.now() - startTime,
+      requests,
+      error: primary.message || 'bird_x_all_queries_failed',
+      error_code: primary.code || 'collector_error',
+      error_http_status: primary.http_status == null ? null : Number(primary.http_status),
+      failure_count: queryFailures.length,
+      failures: queryFailures.slice(0, 3)
+    };
+  }
+
   return {
     ok: allPosts.length > 0,
     success: allPosts.length > 0,
