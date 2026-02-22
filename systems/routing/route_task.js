@@ -302,6 +302,16 @@ function main() {
     })
     : null;
   const routeOut = compactRouteMeta(routeMeta);
+  const routeBudgetBlocked = !!(
+    routeMeta &&
+    routeMeta.budget_enforcement &&
+    routeMeta.budget_enforcement.blocked === true
+  );
+  const routeGlobalBudgetBlocked = !!(
+    routeMeta &&
+    routeMeta.budget_global_guard &&
+    routeMeta.budget_global_guard.blocked === true
+  );
   const reflexPreferred = String(process.env.ROUTE_TASK_REFLEX_PREFERRED || '1') !== '0';
   const reflexMaxTokens = Number(process.env.ROUTE_TASK_REFLEX_MAX_TOKENS || 420);
   const reflexRoutines = loadReflexRoutines();
@@ -322,6 +332,28 @@ function main() {
     B: { tokens_min: 2000, met: triggerB },
     C: { errors_30d_min: 2, met: triggerC }
   };
+  if (routeBudgetBlocked || routeGlobalBudgetBlocked) {
+    const blockReason = String(
+      routeMeta && routeMeta.budget_enforcement && routeMeta.budget_enforcement.reason
+        || routeMeta && routeMeta.budget_global_guard && routeMeta.budget_global_guard.reason
+        || 'router_budget_blocked'
+    ).slice(0, 120);
+    const out = {
+      decision: 'MANUAL',
+      reason: `Router budget guard blocked execution: ${blockReason}`,
+      executor: null,
+      route_budget_blocked: true,
+      gate_decision: gateResult.decision,
+      gate_risk: gateResult.risk,
+      gate_reasons: gateResult.reasons,
+      which_met: whichMet,
+      thresholds: thresholds,
+      gate_event: gateEvent,
+      route: routeOut
+    };
+    console.log(JSON.stringify(out, null, 2));
+    process.exit(0);
+  }
   
   // v1.1: Gate can force MANUAL even for active habits
   if (gateOverridesToManual) {
