@@ -748,8 +748,38 @@ function assessDarkEyes(now, registry) {
 }
 
 function assessProposalStarvation(now, proposalRows, queueEvents, runEvents, autonomyEnabled = true) {
+  const terminalProposalIds = new Set();
+  for (const evt of (Array.isArray(queueEvents) ? queueEvents : [])) {
+    if (!evt || typeof evt !== 'object') continue;
+    const pid = String(evt.proposal_id || '').trim();
+    if (!pid) continue;
+    const t = String(evt.type || '').trim().toLowerCase();
+    if (t === 'outcome') {
+      terminalProposalIds.add(pid);
+      continue;
+    }
+    if (t === 'decision' && isTerminalQueueDecision(evt.decision)) {
+      terminalProposalIds.add(pid);
+    }
+  }
   const eligible = proposalRows.filter((row) => {
     const p = row && row.proposal && typeof row.proposal === 'object' ? row.proposal : {};
+    const proposalId = String(p.id || '').trim();
+    if (proposalId && terminalProposalIds.has(proposalId)) return false;
+    const explicitStatus = String(p.status || p.state || '').trim().toLowerCase();
+    if (
+      explicitStatus === 'resolved'
+      || explicitStatus === 'done'
+      || explicitStatus === 'closed'
+      || explicitStatus === 'shipped'
+      || explicitStatus === 'no_change'
+      || explicitStatus === 'reverted'
+      || explicitStatus === 'rejected'
+      || explicitStatus === 'filtered'
+      || explicitStatus === 'superseded'
+      || explicitStatus === 'archived'
+      || explicitStatus === 'dropped'
+    ) return false;
     const meta = p.meta && typeof p.meta === 'object' ? p.meta : {};
     const admission = meta.admission_preview && typeof meta.admission_preview === 'object'
       ? meta.admission_preview

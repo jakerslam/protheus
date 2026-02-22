@@ -3263,6 +3263,7 @@ async function main() {
     console.log('  evolve [YYYY-MM-DD]                   Adjust cadence/status based on scores');
     console.log('  temporal [YYYY-MM-DD]                 Analyze temporal signal trends + dark eyes');
     console.log('  list                                  Show all eyes and status');
+    console.log('  status                                Alias for list');
     console.log('  doctor                                Collector reliability health report');
     console.log('  reconcile                             Apply config static fields to registry');
     console.log('  propose "<name>" "<domain>" "<notes>"  Propose new eye (requires manual review)');
@@ -3302,6 +3303,7 @@ async function main() {
       evolve(positional[0] || null);
       break;
     case 'list':
+    case 'status':
       list();
       break;
     case 'temporal':
