@@ -1,8 +1,9 @@
-// @ts-nocheck
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
+export {};
+
+const fs = require('fs') as typeof import('fs');
+const path = require('path') as typeof import('path');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const DEFAULT_POLICY_PATH = process.env.EGRESS_GATEWAY_POLICY_PATH
@@ -16,27 +17,29 @@ const DEFAULT_AUDIT_PATH = process.env.EGRESS_GATEWAY_AUDIT_PATH
   : path.join(REPO_ROOT, 'state', 'security', 'egress_audit.jsonl');
 
 class EgressGatewayError extends Error {
-  constructor(message, details = {}) {
+  details: Record<string, unknown>;
+
+  constructor(message: string, details: Record<string, unknown> = {}) {
     super(message);
     this.name = 'EgressGatewayError';
     this.details = details;
   }
 }
 
-function nowMs(input) {
+function nowMs(input: unknown): number {
   if (Number.isFinite(Number(input))) return Number(input);
   return Date.now();
 }
 
-function nowIso(ms) {
+function nowIso(ms?: unknown): string {
   return new Date(nowMs(ms)).toISOString();
 }
 
-function ensureDir(dirPath) {
+function ensureDir(dirPath: string): void {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
-function readJsonSafe(filePath, fallback) {
+function readJsonSafe<T>(filePath: string, fallback: T): T {
   try {
     if (!fs.existsSync(filePath)) return fallback;
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -45,31 +48,31 @@ function readJsonSafe(filePath, fallback) {
   }
 }
 
-function writeJsonAtomic(filePath, value) {
+function writeJsonAtomic(filePath: string, value: unknown): void {
   ensureDir(path.dirname(filePath));
   const tmp = `${filePath}.tmp-${Date.now()}`;
   fs.writeFileSync(tmp, JSON.stringify(value, null, 2), 'utf8');
   fs.renameSync(tmp, filePath);
 }
 
-function appendJsonl(filePath, row) {
+function appendJsonl(filePath: string, row: Record<string, unknown>): void {
   ensureDir(path.dirname(filePath));
   fs.appendFileSync(filePath, JSON.stringify(row) + '\n', 'utf8');
 }
 
-function normalizeText(v, maxLen = 240) {
+function normalizeText(v: unknown, maxLen = 240): string {
   return String(v == null ? '' : v).trim().slice(0, maxLen);
 }
 
-function normalizeScope(v) {
+function normalizeScope(v: unknown): string {
   return normalizeText(v, 180).toLowerCase();
 }
 
-function normalizeMethod(v) {
+function normalizeMethod(v: unknown): string {
   return normalizeText(v || 'GET', 16).toUpperCase();
 }
 
-function clampInt(v, lo, hi, fallback) {
+function clampInt(v: unknown, lo: number, hi: number, fallback: number): number {
   const n = Number(v);
   if (!Number.isFinite(n)) return fallback;
   const i = Math.floor(n);
@@ -78,7 +81,7 @@ function clampInt(v, lo, hi, fallback) {
   return i;
 }
 
-function normalizeDomains(raw) {
+function normalizeDomains(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   const out = [];
   for (const d of raw) {
@@ -89,28 +92,33 @@ function normalizeDomains(raw) {
   return out;
 }
 
-function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
+function loadPolicy(policyPath = DEFAULT_POLICY_PATH): Record<string, any> {
   const fallback = {
     version: '1.0',
     default_decision: 'deny',
     global_rate_caps: { per_hour: 0, per_day: 0 },
     scopes: {}
   };
-  const raw = readJsonSafe(policyPath, {});
+  const raw = readJsonSafe<Record<string, any>>(policyPath, {});
   const scopes = {};
-  const srcScopes = raw && raw.scopes && typeof raw.scopes === 'object' ? raw.scopes : {};
+  const srcScopes = raw && raw.scopes && typeof raw.scopes === 'object'
+    ? (raw.scopes as Record<string, any>)
+    : {};
   for (const [scopeName, scopeRaw] of Object.entries(srcScopes)) {
     const scope = normalizeScope(scopeName);
     if (!scope) continue;
-    const methods = Array.isArray(scopeRaw && scopeRaw.methods)
-      ? Array.from(new Set(scopeRaw.methods.map(normalizeMethod).filter(Boolean)))
+    const scopeObj = scopeRaw && typeof scopeRaw === 'object'
+      ? (scopeRaw as Record<string, any>)
+      : {};
+    const methods = Array.isArray(scopeObj.methods)
+      ? Array.from(new Set(scopeObj.methods.map(normalizeMethod).filter(Boolean)))
       : [];
-    const domains = normalizeDomains(scopeRaw && scopeRaw.domains);
-    const rateCaps = scopeRaw && typeof scopeRaw.rate_caps === 'object' ? scopeRaw.rate_caps : {};
+    const domains = normalizeDomains(scopeObj.domains);
+    const rateCaps = scopeObj && typeof scopeObj.rate_caps === 'object' ? scopeObj.rate_caps : {};
     scopes[scope] = {
       methods,
       domains,
-      require_runtime_allowlist: scopeRaw && scopeRaw.require_runtime_allowlist === true,
+      require_runtime_allowlist: scopeObj && scopeObj.require_runtime_allowlist === true,
       rate_caps: {
         per_hour: clampInt(rateCaps.per_hour, 0, 10000000, 0),
         per_day: clampInt(rateCaps.per_day, 0, 10000000, 0)
@@ -129,7 +137,7 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   };
 }
 
-function loadState(statePath = DEFAULT_STATE_PATH) {
+function loadState(statePath = DEFAULT_STATE_PATH): Record<string, any> {
   const raw = readJsonSafe(statePath, null);
   if (!raw || typeof raw !== 'object') {
     return { version: '1.0', per_hour: {}, per_day: {} };
@@ -141,18 +149,18 @@ function loadState(statePath = DEFAULT_STATE_PATH) {
   };
 }
 
-function saveState(state, statePath = DEFAULT_STATE_PATH) {
+function saveState(state: Record<string, any>, statePath = DEFAULT_STATE_PATH): void {
   writeJsonAtomic(statePath, state);
 }
 
-function audit(entry, auditPath = DEFAULT_AUDIT_PATH) {
+function audit(entry: Record<string, unknown>, auditPath = DEFAULT_AUDIT_PATH): void {
   appendJsonl(auditPath, {
     ts: nowIso(),
     ...(entry && typeof entry === 'object' ? entry : {})
   });
 }
 
-function pruneCounters(state) {
+function pruneCounters(state: Record<string, any>): void {
   const now = Date.now();
   const keepHourAfter = now - (72 * 60 * 60 * 1000);
   const keepDayAfter = now - (45 * 24 * 60 * 60 * 1000);
@@ -166,7 +174,7 @@ function pruneCounters(state) {
   }
 }
 
-function getCounterBucket(container, key) {
+function getCounterBucket(container: Record<string, any>, key: string): Record<string, any> {
   if (!container[key] || typeof container[key] !== 'object') {
     container[key] = { total: 0, scopes: {} };
   }
@@ -177,7 +185,7 @@ function getCounterBucket(container, key) {
   return container[key];
 }
 
-function periodKeys(ms) {
+function periodKeys(ms: unknown): { day: string; hour: string } {
   const iso = nowIso(ms);
   return {
     day: iso.slice(0, 10),
@@ -185,7 +193,7 @@ function periodKeys(ms) {
   };
 }
 
-function domainAllowed(domain, patterns) {
+function domainAllowed(domain: unknown, patterns: unknown[]): boolean {
   const d = normalizeText(domain, 255).toLowerCase();
   if (!d) return false;
   for (const raw of patterns || []) {
@@ -203,7 +211,7 @@ function domainAllowed(domain, patterns) {
   return false;
 }
 
-function authorizeEgress(opts = {}) {
+function authorizeEgress(opts: Record<string, any> = {}): Record<string, any> {
   const scope = normalizeScope(opts.scope || '');
   const caller = normalizeText(opts.caller || 'unknown', 180);
   const method = normalizeMethod(opts.method || 'GET');
@@ -235,7 +243,7 @@ function authorizeEgress(opts = {}) {
     return out;
   }
 
-  let parsedUrl;
+  let parsedUrl: URL;
   try {
     parsedUrl = new URL(String(opts.url || ''));
   } catch {
@@ -350,7 +358,7 @@ function authorizeEgress(opts = {}) {
   return out;
 }
 
-async function egressFetch(url, fetchOptions = {}, gateOptions = {}) {
+async function egressFetch(url: string, fetchOptions: Record<string, any> = {}, gateOptions: Record<string, any> = {}): Promise<Response> {
   const method = normalizeMethod(fetchOptions.method || gateOptions.method || 'GET');
   const decision = authorizeEgress({
     scope: gateOptions.scope,
@@ -382,7 +390,7 @@ async function egressFetch(url, fetchOptions = {}, gateOptions = {}) {
       method,
       signal: controller.signal
     });
-    res.__egress_decision = decision;
+    (res as Response & { __egress_decision?: Record<string, any> }).__egress_decision = decision;
     return res;
   } catch (err) {
     audit({
@@ -400,7 +408,7 @@ async function egressFetch(url, fetchOptions = {}, gateOptions = {}) {
   }
 }
 
-async function egressFetchText(url, fetchOptions = {}, gateOptions = {}) {
+async function egressFetchText(url: string, fetchOptions: Record<string, any> = {}, gateOptions: Record<string, any> = {}): Promise<Record<string, any>> {
   const res = await egressFetch(url, fetchOptions, gateOptions);
   const text = await res.text();
   return {
@@ -408,7 +416,7 @@ async function egressFetchText(url, fetchOptions = {}, gateOptions = {}) {
     status: Number(res.status || 0),
     text,
     headers: res.headers,
-    decision: res.__egress_decision || null
+    decision: (res as Response & { __egress_decision?: Record<string, any> }).__egress_decision || null
   };
 }
 
