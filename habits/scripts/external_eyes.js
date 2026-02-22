@@ -511,6 +511,7 @@ function resolveCollectorPreflightPainProposals(healthyEyeIds, reason) {
     .sort();
   let resolved = 0;
   let touched = 0;
+  const resolvedIds = [];
   for (const f of files) {
     const filePath = path.join(SENSORY_PROPOSALS_DIR, f);
     const { container, proposals } = loadProposalsForDate(String(f).replace(/\.json$/, ''));
@@ -526,6 +527,7 @@ function resolveCollectorPreflightPainProposals(healthyEyeIds, reason) {
       if (!matchedHealthy) return p;
       changed = true;
       resolved += 1;
+      if (p.id) resolvedIds.push(String(p.id));
       return {
         ...p,
         status: 'resolved',
@@ -538,6 +540,8 @@ function resolveCollectorPreflightPainProposals(healthyEyeIds, reason) {
       saveProposalsForDate(filePath, next, container);
     }
   }
+  const eventTs = new Date().toISOString();
+  for (const id of resolvedIds) emitProposalDoneEvent(id, reason || 'collector_preflight_recovered', eventTs);
   return { resolved, files: touched };
 }
 
@@ -948,6 +952,7 @@ function resolveInfrastructureOutageProposals(reason, resolvedAt) {
     .filter(f => /^\d{4}-\d{2}-\d{2}\.json$/.test(f))
     .sort();
   let resolved = 0;
+  const resolvedIds = [];
   for (const f of files) {
     const fp = path.join(SENSORY_PROPOSALS_DIR, f);
     const { container, proposals } = loadProposalsForDate(String(f).replace(/\.json$/, ''));
@@ -958,6 +963,7 @@ function resolveInfrastructureOutageProposals(reason, resolvedAt) {
       if (String(p.status || '').toLowerCase() === 'resolved') return p;
       changed = true;
       resolved++;
+      if (p.id) resolvedIds.push(String(p.id));
       return {
         ...p,
         status: 'resolved',
@@ -969,6 +975,8 @@ function resolveInfrastructureOutageProposals(reason, resolvedAt) {
       saveProposalsForDate(fp, next, container);
     }
   }
+  const eventTs = resolvedAt || new Date().toISOString();
+  for (const id of resolvedIds) emitProposalDoneEvent(id, reason || 'outage_recovered', eventTs);
   return { resolved };
 }
 
@@ -1603,6 +1611,27 @@ function appendRawLog(dateStr, event) {
   const logPath = path.join(RAW_DIR, `${dateStr}.jsonl`);
   const line = JSON.stringify(event) + '\n';
   fs.appendFileSync(logPath, line, 'utf8');
+}
+
+function appendSensoryQueueEvent(event) {
+  try {
+    ensureDir(path.dirname(SENSORY_QUEUE_LOG_PATH));
+    fs.appendFileSync(SENSORY_QUEUE_LOG_PATH, JSON.stringify(event) + '\n', 'utf8');
+  } catch {
+    // Keep collector runs resilient if queue log append fails.
+  }
+}
+
+function emitProposalDoneEvent(proposalId, reason, ts = null) {
+  const id = String(proposalId || '').trim();
+  if (!id) return;
+  appendSensoryQueueEvent({
+    ts: ts || new Date().toISOString(),
+    type: 'proposal_done',
+    proposal_id: id,
+    outcome: 'no_change',
+    reason: String(reason || 'resolved_by_controller').slice(0, 140)
+  });
 }
 
 /**
