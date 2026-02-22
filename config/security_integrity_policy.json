@@ -27,7 +27,7 @@
     "config/directives/T1_northstars.yaml": "dbababba9f2dc49b0d24ada4a1a70117cdafe0767ba2ec4a69ec7f80c1721610",
     "lib/directive_resolver.js": "9e78016ee4d5443a103b94d619b327d9390b69ababa5ffc73be0ff7b98f6e192",
     "lib/eyes_catalog.js": "c2c8069a931b4a1740c7e1a731ab30b4e9926a2cee6887f2759572459e03927e",
-    "systems/adaptive/core/layer_store.js": "fd2d60fa083ab751785be676a822acff5e7ea84001fa1634b57bf8a7e045c765",
+    "systems/adaptive/core/layer_store.js": "b221984bcf57235db0f80a6cbe5a2508baaf617422eece3811d3c66090c544e4",
     "systems/adaptive/sensory/eyes/catalog_store.js": "c731fb9a0e3f1d8ef8813ad557b8fbb494724ada9f0bbca5785d74a57d8e97c0",
     "systems/security/architecture_guard.js": "3783ca23d223e59025b9f4f097577303738259e75d9ea3a9fdeafdf18e1b7c9d",
     "systems/security/capability_lease.js": "5d2c441b9cf1a38a11947e5dde180966194fa4a3282839db5fc5c53fdaf3153e",
@@ -38,8 +38,9 @@
     "systems/security/guard.js": "7360c951bc5749a500199ac2c66d85aaf1fed1655db631c4fe5a5ea07d0a6aa1",
     "systems/security/habit_hygiene_guard.js": "31a5632856de71b03135b817903dc0916960daf285b2bb4a7640814a70391ab7",
     "systems/security/integrity_kernel.js": "bfecd33bc3539f0894cbca905730894aa706bb8db6140e5681b9a059bed7ec1f",
+    "systems/security/integrity_reseal.js": "d282348e35f777c184fb997a0a84ae452b6754664ce779070ff919c6f8cef58d",
     "systems/security/llm_gateway_guard.js": "00e62885ea05343d277b29af22e5f8d436b0146633f978a336c5ecc57dde9bdb",
-    "systems/security/merge_guard.js": "a427ac5fd902b08f81078939c48af1fe162315b5429982d74a76bfa2e6961d16",
+    "systems/security/merge_guard.js": "047c78dba33e4ca69fb72f9eeebe48411144cb76d9fca9755621631923189653",
     "systems/security/policy_rootd.js": "bbd04839468ccbadff8f1b9b5be1f55ac829cacaed8b8a391b3302770d54fdfb",
     "systems/security/repo_hygiene_guard.js": "5e2d5cc92741df20d5021ae40c0d790ff6dd468aa39115e9fe5be4bb0067c4f4",
     "systems/security/request_ingress.js": "1441b58e26f8f3824384db41cbaa469cb4b1a98f915b21893bf26085dcf80399",
@@ -51,7 +52,7 @@
     "systems/security/workspace_dump_guard.js": "fa94a0e44f65203cae3fc1c6dc8c20ce0199710d3be6867e1b7821eb825859c3",
     "systems/sensory/adaptive_layer_guard.js": "9fdf1f12e9e6d9eb0ebd1e1af536ea0fd1e96ffe963f35a39840ce7e2252ddbd"
   },
-  "sealed_at": "2026-02-22T06:23:12.551Z",
+  "sealed_at": "2026-02-22T07:45:20.184Z",
   "sealed_by": "jay",
-  "last_approval_note": "architecture guard matcher tuning and queue-backfill hardening"
+  "last_approval_note": "reason for reseal"
 }

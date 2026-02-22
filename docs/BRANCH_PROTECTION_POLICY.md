@@ -18,6 +18,7 @@ Apply to `main`:
 From workflow `Required Checks`:
 
 - `contract_check`
+- `integrity_kernel_check`
 - `schema_contract_check`
 - `adaptive_layer_guard_strict`
 - `ci_suite`
@@ -49,3 +50,8 @@ Fast variant without full test suite:
 - `guard:merge` is a local non-bypass operator routine; branch protection is the remote merge gate.
 - Policy changes to required checks or code owner scopes must be reviewed by code owners.
 
+## Integrity Reseal Workflow
+
+- Check integrity before commit/PR: `npm run integrity:check`
+- Reseal after intentional security/config edits:
+  - `INTEGRITY_RESEAL_NOTE="intentional security update" npm run integrity:reseal`
