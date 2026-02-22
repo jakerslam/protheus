@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * approval_gate.js - Approval Queue and Gate System
  * 
@@ -143,7 +142,8 @@ function parseValue(val) {
 function saveQueue(queue) {
   const lines = ['# Approval Queue', `# Updated: ${new Date().toISOString()}`, ''];
   
-  for (const [section, entries] of Object.entries(queue)) {
+  for (const [section, sectionEntries] of Object.entries(queue || {})) {
+    const entries = Array.isArray(sectionEntries) ? sectionEntries : [];
     if (entries.length === 0) {
       // Empty section: use explicit [] for clarity and round-trip safety
       lines.push(`${section}: []`);
@@ -351,3 +351,4 @@ module.exports = {
   parseApprovalCommand,
   generateApprovalMessage
 };
+export {};

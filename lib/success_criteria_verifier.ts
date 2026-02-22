@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use strict';
 
 function clampInt(v, lo, hi, fallback) {
@@ -283,7 +282,7 @@ function evaluateSuccessCriteria(proposal, context, policy) {
   const required = src.required !== false;
   const minCount = clampInt(src.min_count, 0, 10, 1);
   const results = rows.map((row, idx) => {
-    const evald = evaluateRow(row, context);
+    const evald = evaluateRow(row, context) as Record<string, unknown>;
     return {
       index: idx + 1,
       source: String(row.source || ''),
@@ -342,3 +341,4 @@ module.exports = {
   parseSuccessCriteriaRows,
   evaluateSuccessCriteria
 };
+export {};
