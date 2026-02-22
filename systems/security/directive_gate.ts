@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * directive_gate.js v1.0 - Directive Gate Enforcement
  *
@@ -269,6 +268,7 @@ function evaluateTask(task) {
  * Structured event for audit trail
  */
 function logGateDecision(task, result, metadata = {}) {
+  const meta = (metadata && typeof metadata === 'object' ? metadata : {}) as Record<string, any>;
   const event = {
     ts: new Date().toISOString(),
     type: result.decision === 'DENY' ? 'violation_blocked' : 'approval_queued',
@@ -277,8 +277,8 @@ function logGateDecision(task, result, metadata = {}) {
     gate_risk: result.risk,
     gate_reasons: result.reasons,
     metadata: {
-      tokens_est: metadata.tokens_est || 0,
-      source: metadata.source || 'route_task'
+      tokens_est: meta.tokens_est || 0,
+      source: meta.source || 'route_task'
     }
   };
   
@@ -315,3 +315,4 @@ if (require.main === module) {
   
   process.exit(result.decision === 'DENY' ? 1 : 0);
 }
+export {};
