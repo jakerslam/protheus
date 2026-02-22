@@ -73,25 +73,58 @@ function loadConfig() {
   return ensureCatalog(CONFIG_PATH);
 }
 
+function parseJsonWithRecovery(rawText) {
+  const text = String(rawText || '').trim();
+  if (!text) return { ok: false, value: null, recovered: false };
+  try {
+    return { ok: true, value: JSON.parse(text), recovered: false };
+  } catch {}
+  const starts = [];
+  const objStart = text.indexOf('{');
+  if (objStart >= 0) starts.push({ start: objStart, close: '}' });
+  const arrStart = text.indexOf('[');
+  if (arrStart >= 0) starts.push({ start: arrStart, close: ']' });
+  starts.sort((a, b) => a.start - b.start);
+  for (const cand of starts) {
+    for (let idx = text.length - 1; idx > cand.start; idx -= 1) {
+      if (text[idx] !== cand.close) continue;
+      try {
+        return {
+          ok: true,
+          value: JSON.parse(text.slice(cand.start, idx + 1)),
+          recovered: true
+        };
+      } catch {}
+    }
+  }
+  return { ok: false, value: null, recovered: false };
+}
+
 // Load or initialize registry (runtime state)
 function loadRegistry() {
   ensureDirs(); // Ensure state directory exists before writing
+  const config = loadConfig();
+  const freshRegistry = {
+    version: '1.0',
+    last_updated: new Date().toISOString(),
+    eyes: config.eyes.map(eye => ({
+      ...eye,
+      run_count: 0,
+      total_items: 0,
+      total_errors: 0
+    }))
+  };
   if (!fs.existsSync(REGISTRY_PATH)) {
-    const config = loadConfig();
-    const registry = {
-      version: '1.0',
-      last_updated: new Date().toISOString(),
-      eyes: config.eyes.map(eye => ({
-        ...eye,
-        run_count: 0,
-        total_items: 0,
-        total_errors: 0
-      }))
-    };
-    fs.writeFileSync(REGISTRY_PATH, JSON.stringify(registry, null, 2));
-    return registry;
+    fs.writeFileSync(REGISTRY_PATH, JSON.stringify(freshRegistry, null, 2));
+    return freshRegistry;
   }
-  return JSON.parse(fs.readFileSync(REGISTRY_PATH, 'utf8'));
+  const parsed = parseJsonWithRecovery(fs.readFileSync(REGISTRY_PATH, 'utf8'));
+  if (parsed.ok && parsed.value && Array.isArray(parsed.value.eyes)) {
+    if (parsed.recovered) fs.writeFileSync(REGISTRY_PATH, JSON.stringify(parsed.value, null, 2));
+    return parsed.value;
+  }
+  fs.writeFileSync(REGISTRY_PATH, JSON.stringify(freshRegistry, null, 2));
+  return freshRegistry;
 }
 
 // Save registry

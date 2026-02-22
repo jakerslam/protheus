@@ -96,6 +96,8 @@ const LOOP_STALL_CRITICAL_HOURS = Number(process.env.AUTONOMY_HEALTH_LOOP_STALL_
 const ROUTING_DOWN_WARN = Number(process.env.AUTONOMY_HEALTH_ROUTING_DOWN_WARN || 1);
 const ROUTING_DOWN_CRITICAL = Number(process.env.AUTONOMY_HEALTH_ROUTING_DOWN_CRITICAL || 3);
 const BUDGET_DEGRADE_WARN_COUNT = Number(process.env.AUTONOMY_HEALTH_BUDGET_DEGRADE_WARN_COUNT || 3);
+const ROUTE_ATTESTATION_WARN = Number(process.env.AUTONOMY_HEALTH_ROUTE_ATTESTATION_WARN || 1);
+const ROUTE_ATTESTATION_CRITICAL = Number(process.env.AUTONOMY_HEALTH_ROUTE_ATTESTATION_CRITICAL || 3);
 
 const SPC_BASELINE_DAYS = Number(process.env.AUTONOMY_HEALTH_SPC_BASELINE_DAYS || 21);
 const SPC_SIGMA = Number(process.env.AUTONOMY_HEALTH_SPC_SIGMA || 3);
@@ -199,10 +201,38 @@ function runJson(script, args) {
   return { ok: r.status === 0, code: r.status || 0, payload, stderr: String(r.stderr || '').trim() };
 }
 
+function parseJsonWithRecovery(rawText) {
+  const text = String(rawText || '').trim();
+  if (!text) return { ok: false, value: null, recovered: false };
+  try {
+    return { ok: true, value: JSON.parse(text), recovered: false };
+  } catch {}
+  const starts = [];
+  const objStart = text.indexOf('{');
+  if (objStart >= 0) starts.push({ start: objStart, close: '}' });
+  const arrStart = text.indexOf('[');
+  if (arrStart >= 0) starts.push({ start: arrStart, close: ']' });
+  starts.sort((a, b) => a.start - b.start);
+  for (const cand of starts) {
+    for (let idx = text.length - 1; idx > cand.start; idx -= 1) {
+      if (text[idx] !== cand.close) continue;
+      try {
+        return {
+          ok: true,
+          value: JSON.parse(text.slice(cand.start, idx + 1)),
+          recovered: true
+        };
+      } catch {}
+    }
+  }
+  return { ok: false, value: null, recovered: false };
+}
+
 function readJson(fp, fallback) {
   try {
     if (!fs.existsSync(fp)) return fallback;
-    return JSON.parse(fs.readFileSync(fp, 'utf8'));
+    const parsed = parseJsonWithRecovery(fs.readFileSync(fp, 'utf8'));
+    return parsed.ok ? parsed.value : fallback;
   } catch {
     return fallback;
   }
@@ -730,6 +760,52 @@ function assessBudgetGuard(now, dateSet) {
   };
 }
 
+function assessRouteAttestation(receiptSummaryResult) {
+  const payload = receiptSummaryResult && receiptSummaryResult.payload && typeof receiptSummaryResult.payload === 'object'
+    ? receiptSummaryResult.payload
+    : {};
+  const receipts = payload && payload.receipts && typeof payload.receipts === 'object'
+    ? payload.receipts
+    : {};
+  const combined = receipts.combined && typeof receipts.combined === 'object' ? receipts.combined : {};
+  const autonomy = receipts.autonomy && typeof receipts.autonomy === 'object' ? receipts.autonomy : {};
+  const reasonMap = (combined.top_failure_reasons && typeof combined.top_failure_reasons === 'object')
+    ? combined.top_failure_reasons
+    : ((autonomy.top_failure_reasons && typeof autonomy.top_failure_reasons === 'object') ? autonomy.top_failure_reasons : {});
+  let mismatchFailures = 0;
+  const matchedReasons = [];
+  for (const [reason, countRaw] of Object.entries(reasonMap)) {
+    const reasonText = String(reason || '').toLowerCase();
+    if (!reasonText.includes('route_model_attested') && !reasonText.includes('route_model_mismatch')) continue;
+    const count = Number(countRaw || 0);
+    if (!Number.isFinite(count) || count <= 0) continue;
+    mismatchFailures += count;
+    matchedReasons.push({ reason: String(reason || ''), count });
+  }
+  matchedReasons.sort((a, b) => (b.count - a.count) || a.reason.localeCompare(b.reason));
+  let level = 'ok';
+  if (mismatchFailures >= Number(ROUTE_ATTESTATION_CRITICAL || 3)) level = 'critical';
+  else if (mismatchFailures >= Number(ROUTE_ATTESTATION_WARN || 1)) level = 'warn';
+  return {
+    name: 'route_attestation',
+    ok: level === 'ok',
+    level,
+    reason: level === 'ok'
+      ? 'route_model_attestation_clean'
+      : `route_model_attestation_failures=${mismatchFailures}`,
+    metrics: {
+      mismatch_failures: mismatchFailures,
+      attempted_receipts: Number(combined.attempted || 0),
+      verified_rate: Number.isFinite(Number(combined.verified_rate)) ? Number(combined.verified_rate) : null,
+      matched_failure_reasons: matchedReasons.slice(0, 5)
+    },
+    thresholds: {
+      warn: Number(ROUTE_ATTESTATION_WARN || 1),
+      critical: Number(ROUTE_ATTESTATION_CRITICAL || 3)
+    }
+  };
+}
+
 function assessIntegrity(integrityResult) {
   const payload = integrityResult && integrityResult.payload && typeof integrityResult.payload === 'object'
     ? integrityResult.payload
@@ -1050,6 +1126,7 @@ function main() {
     drift: assessDrift(spc),
     routing_degraded: assessRoutingDegraded(routing),
     budget_guard: assessBudgetGuard(now, dates),
+    route_attestation: assessRouteAttestation(receiptSummary),
     criteria_quality_gate: assessCriteriaQualityGate(strategyReadiness, receiptSummary),
     execute_quality_lock_invariant: assessExecuteQualityLockInvariant(strategyModeGovernor, strategyReadiness),
     integrity: assessIntegrity(integrity)
@@ -1137,6 +1214,7 @@ module.exports = {
   assessDrift,
   assessRoutingDegraded,
   assessBudgetGuard,
+  assessRouteAttestation,
   assessCriteriaQualityGate,
   assessExecuteQualityLockInvariant,
   assessIntegrity,
