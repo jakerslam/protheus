@@ -1,0 +1,15 @@
+{
+  "schema_id": "system_budget_autopause",
+  "schema_version": "1.0.0",
+  "active": false,
+  "set_ts": null,
+  "source": "system_budget",
+  "reason": null,
+  "pressure": null,
+  "date": null,
+  "until_ms": 0,
+  "until": null,
+  "cleared_ts": null,
+  "clear_reason": null,
+  "updated_at": "2026-02-22T16:45:16.998Z"
+}
