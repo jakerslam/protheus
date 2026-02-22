@@ -61,7 +61,11 @@ const {
 const {
   DEFAULT_STATE_DIR: GLOBAL_BUDGET_STATE_DIR,
   loadSystemBudgetState,
-  saveSystemBudgetState
+  saveSystemBudgetState,
+  recordSystemBudgetUsage,
+  writeSystemBudgetDecision,
+  loadSystemBudgetAutopauseState,
+  setSystemBudgetAutopause
 } = require('../budget/system_budget.js');
 
 type AnyObj = Record<string, any>;
@@ -180,6 +184,7 @@ const AUTONOMY_MIN_EYE_SCORE_EMA = Number(process.env.AUTONOMY_MIN_EYE_SCORE_EMA
 const AUTONOMY_MAX_PROPOSAL_FILE_AGE_HOURS = Number(process.env.AUTONOMY_MAX_PROPOSAL_FILE_AGE_HOURS || 48);
 const AUTONOMY_REPEAT_EXHAUSTED_LIMIT = Number(process.env.AUTONOMY_REPEAT_EXHAUSTED_LIMIT || 3);
 const AUTONOMY_REPEAT_EXHAUSTED_COOLDOWN_MINUTES = Number(process.env.AUTONOMY_REPEAT_EXHAUSTED_COOLDOWN_MINUTES || 90);
+const AUTONOMY_BUDGET_AUTOPAUSE_MINUTES = Math.max(5, Number(process.env.AUTONOMY_BUDGET_AUTOPAUSE_MINUTES || 60));
 const AUTONOMY_EXPLORE_FRACTION = Number(process.env.AUTONOMY_EXPLORE_FRACTION || 0.25);
 const AUTONOMY_EXPLORE_EVERY_N = Number(process.env.AUTONOMY_EXPLORE_EVERY_N || 3);
 const AUTONOMY_EXPLORE_MIN_ELIGIBLE = Number(process.env.AUTONOMY_EXPLORE_MIN_ELIGIBLE || 3);
@@ -5382,6 +5387,7 @@ function statusCmd(dateStr) {
   const effectiveDate = latestProposalDate(dateStr) || dateStr;
   const pool = candidatePool(effectiveDate);
   const budget = loadDailyBudget(dateStr);
+  const budgetAutopause = loadSystemBudgetAutopauseState();
   const eyesMap = loadEyesMap();
   const directiveProfile = loadDirectiveFitProfile();
   const strategy = strategyProfile();
@@ -5427,6 +5433,13 @@ function statusCmd(dateStr) {
     autonomy_enabled: String(process.env.AUTONOMY_ENABLED || '') === '1',
     token_cap: budget.token_cap,
     token_used_est: budget.used_est,
+    budget_autopause: {
+      active: budgetAutopause && budgetAutopause.active === true,
+      source: budgetAutopause && budgetAutopause.source ? String(budgetAutopause.source) : null,
+      reason: budgetAutopause && budgetAutopause.reason ? String(budgetAutopause.reason) : null,
+      pressure: budgetAutopause && budgetAutopause.pressure ? String(budgetAutopause.pressure) : null,
+      until: budgetAutopause && budgetAutopause.until ? String(budgetAutopause.until) : null
+    },
     repeat_gate: {
       no_progress_streak: noProgressStreak,
       no_progress_limit: AUTONOMY_REPEAT_NO_PROGRESS_LIMIT,
@@ -8032,7 +8045,61 @@ function runCmd(dateStr, opts: AnyObj = {}) {
     return;
   }
   const budget = loadDailyBudget(dateStr);
+  const budgetAutopause = loadSystemBudgetAutopauseState();
+  if (budgetAutopause && budgetAutopause.active === true && Number(budgetAutopause.until_ms || 0) > Date.now()) {
+    writeRun(dateStr, {
+      ts: nowIso(),
+      type: 'autonomy_run',
+      result: 'stop_init_gate_budget_autopause',
+      proposal_id: p.id,
+      capability_key: capabilityKey,
+      directive_pulse: directivePulse,
+      budget_autopause: {
+        source: budgetAutopause.source || null,
+        reason: budgetAutopause.reason || null,
+        pressure: budgetAutopause.pressure || null,
+        until: budgetAutopause.until || null
+      }
+    });
+    process.stdout.write(JSON.stringify({
+      ok: true,
+      result: 'stop_init_gate_budget_autopause',
+      proposal_id: p.id,
+      capability_key: capabilityKey,
+      directive_pulse: directivePulse,
+      budget_autopause: {
+        source: budgetAutopause.source || null,
+        reason: budgetAutopause.reason || null,
+        pressure: budgetAutopause.pressure || null,
+        until: budgetAutopause.until || null
+      },
+      ts: nowIso()
+    }) + '\n');
+    return;
+  }
   if ((budget.used_est + estTokens) > budget.token_cap) {
+    try {
+      writeSystemBudgetDecision({
+        date: dateStr,
+        module: 'autonomy_controller',
+        capability: capabilityKey || null,
+        request_tokens_est: estTokens,
+        decision: 'deny',
+        reason: 'autonomy_budget_cap_exceeded'
+      }, {
+        state_dir: DAILY_BUDGET_DIR,
+        allow_strategy: false
+      });
+      setSystemBudgetAutopause({
+        date: dateStr,
+        source: 'autonomy_controller',
+        pressure: 'hard',
+        reason: 'autonomy_budget_cap_exceeded',
+        minutes: AUTONOMY_BUDGET_AUTOPAUSE_MINUTES
+      });
+    } catch {
+      // fail-open: budget telemetry should never block execution gates
+    }
     writeRun(dateStr, {
       ts: nowIso(),
       type: 'autonomy_run',
@@ -8459,8 +8526,17 @@ function runCmd(dateStr, opts: AnyObj = {}) {
   const execEndMs = Date.now();
   const afterEvidence = loadDoDEvidenceSnapshot(dateStr);
   const execTokenUsage = computeExecutionTokenUsage(execRes.summary || null, execRes.execution_metrics || null, routeTokensEst, estTokens);
-  budget.used_est += Number(execTokenUsage.effective_tokens || estTokens || 0);
-  saveDailyBudget(budget);
+  const recordedBudget = recordSystemBudgetUsage({
+    date: dateStr,
+    module: 'autonomy_controller',
+    capability: capabilityKey || null,
+    tokens_est: Number(execTokenUsage.effective_tokens || estTokens || 0)
+  }, {
+    state_dir: DAILY_BUDGET_DIR,
+    allow_strategy: false
+  });
+  budget.used_est = Number(recordedBudget.used_est || budget.used_est || 0);
+  budget.token_cap = Number(recordedBudget.token_cap || budget.token_cap || 0);
 
   const summary = execRes.summary || {};
   const postconditions = runPostconditions(actuationSpec);

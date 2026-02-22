@@ -12,7 +12,10 @@ const {
   projectSystemBudget,
   recordSystemBudgetUsage,
   writeSystemBudgetDecision,
-  migrateSystemBudgetState
+  migrateSystemBudgetState,
+  loadSystemBudgetAutopauseState,
+  setSystemBudgetAutopause,
+  clearSystemBudgetAutopause
 } = require(path.join(REPO_ROOT, 'systems', 'budget', 'system_budget.js'));
 
 function main() {
@@ -20,6 +23,7 @@ function main() {
   try {
     const stateDir = path.join(tempRoot, 'budget');
     const eventsPath = path.join(tempRoot, 'budget_events.jsonl');
+    const autopausePath = path.join(tempRoot, 'budget_autopause.json');
     const day = '2026-02-21';
 
     const initial = loadSystemBudgetState(day, {
@@ -102,6 +106,29 @@ function main() {
     assert.strictEqual(String(migrated.schema_version), '1.0.0');
     assert.strictEqual(String(migrated.date), legacyDay);
     assert.strictEqual(Number(migrated.token_cap), 900);
+
+    const autopauseInitial = loadSystemBudgetAutopauseState({ autopause_path: autopausePath });
+    assert.strictEqual(Boolean(autopauseInitial.active), false);
+    assert.strictEqual(Number(autopauseInitial.until_ms || 0), 0);
+
+    const autopauseSet = setSystemBudgetAutopause({
+      source: 'system_budget_test',
+      reason: 'test_pause',
+      pressure: 'hard',
+      minutes: 15
+    }, { autopause_path: autopausePath });
+    assert.strictEqual(Boolean(autopauseSet.active), true);
+    assert.strictEqual(String(autopauseSet.source), 'system_budget_test');
+    assert.ok(Number(autopauseSet.until_ms) > Date.now(), 'autopause set should create future until_ms');
+
+    const autopauseCleared = clearSystemBudgetAutopause({
+      source: 'system_budget_test',
+      reason: 'test_clear'
+    }, { autopause_path: autopausePath });
+    assert.strictEqual(Boolean(autopauseCleared.active), false);
+    assert.strictEqual(Number(autopauseCleared.until_ms || 0), 0);
+    assert.strictEqual(String(autopauseCleared.source), 'system_budget_test');
+    assert.strictEqual(String(autopauseCleared.clear_reason), 'test_clear');
 
     console.log('✅ system_budget.test.js PASS');
   } finally {
