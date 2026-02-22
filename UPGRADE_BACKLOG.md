@@ -66,6 +66,16 @@ Status legend:
 | BL-007 | done | Backup integrity checks | Catch silent backup corruption | Scheduled hash verification and alert on mismatch |
 | BL-008 | done | Repo hygiene CI check for generated artifacts | Prevent noisy files slipping into PRs | CI fails if generated paths are staged unexpectedly |
 
+## V1 Hardening (Required for 6-Month Autopilot)
+
+| ID | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|
+| V1H-001 | todo | Full-pipeline integration/e2e hardening | Current tests cover slices; unattended autonomy needs deterministic coverage across all major handoffs | CI suite includes deterministic e2e for `spine -> eyes -> insight -> queue -> autonomy -> actuation -> receipt -> scoring` plus failure-path tests (timeout, rate-limit, rollback), and blocks merge on regressions |
+| V1H-002 | todo | Release-gate + canary/rollback enforcement expansion | Existing checks exist but canary/rollback discipline must be mandatory for self-change and high-risk lanes | All high-risk/autonomous writes require canary receipts, rollback plan presence, and automatic rollback on failed postchecks; merge/deploy gates fail when required rollback signals are missing |
+| V1H-003 | todo | Observability + SLO + runbook completion pass | Metrics/runbooks exist but unattended mode needs complete coverage with actionable alerts | Define and enforce SLOs for proposal throughput, verification pass-rate, dark-eye detection, dream degradation, and budget pressure; alert routes are wired and each alert maps to runbook procedures with tested drill evidence |
+| V1H-004 | todo | Threat-model-driven security test pack | Governance controls need explicit abuse-path validation before long unattended windows | Maintain threat model doc with prioritized abuse paths; add deterministic tests for prompt injection, unauthorized mutation, egress bypass, secret exfiltration, and policy tamper attempts; CI fails on any regression |
+| V1H-005 | todo | Contract/version governance closure across adaptive boundaries | Schema/versioning exists, but cross-layer drift checks must be exhaustive to prevent silent corruption | All adaptive/system interfaces publish versioned contracts with compatibility rules, migration checks run in CI, and startup fails closed on incompatible contract drift |
+
 ## V2
 
 | ID | Status | Upgrade | Why | Exit Criteria |
@@ -77,6 +87,11 @@ Status legend:
 | V2-007 | todo | Self-experimentation framework with promotion gates | Let system improve methods safely via evidence-based trials | A/B harness compares incumbent vs candidate workflows on matched tasks, promotion requires statistically meaningful improvement + safety parity, and failed experiments auto-revert with receipts and summary reports |
 | V2-008 | todo | Global capability switchboard (security-locked) | Allow rapid feature/capability deactivation under drift or threat without allowing model-driven disablement of security controls | Add signed policy switchboard covering major feature lanes (autonomy, reflex, dreams, sensory depth/focus, routing modes, external actuation), enforce dual-control + clearance for toggles, deny all security-layer deactivation paths in code and policy, and emit immutable toggle audit receipts |
 | V2-009 | todo | Exterior anti-sabotage shield + instant auto-reset | Prevent rogue external AI or out-of-channel mutations from silently corrupting system behavior | Add real-time mutation provenance monitor over protected system/config/adaptive-control paths, trigger immediate rollback to last attested-good snapshot on unauthorized writes, quarantine offending process/session, and emit immutable incident receipts with recovery SLA metrics |
+| V2-010 | todo | Chaos testing program (adaptive + orchestration lanes) | Stress resilience under controlled failures once V1 hardening is stable | Scheduled chaos scenarios inject collector, routing, actuation, and state faults with pass/fail recovery metrics and no data-integrity violations |
+| V2-011 | todo | Scale/performance benchmarking harness | Quantify headroom and bottlenecks before broader deployment | Reproducible load harness reports throughput, latency, error budget, and token efficiency at increasing workload tiers; baseline + regression thresholds enforced |
+| V2-012 | todo | External security assessment and pen-test cycle | Independent validation reduces blind spots in internal security assumptions | Complete third-party security assessment with tracked findings, remediation plans, and verified closure receipts |
+| V2-013 | todo | Compliance/reporting automation (optional enterprise track) | Enterprise deployment often requires auditable policy/report workflows | Automated generation of governance/security/change reports from receipts and logs with configurable retention and export controls |
+| V2-014 | todo | Multi-team/multi-environment release governance | Support organization-scale ownership without destabilizing autonomy | Environment promotion policy (dev/stage/prod), ownership boundaries, and approval flows are codified and enforced in CI/CD with immutable audit trails |
 
 ## Notes
 
