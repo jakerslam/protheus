@@ -137,7 +137,28 @@ function buildOverlay(events) {
   return byId;
 }
 
-function normalizedStatus(overlayEntry, sensoryEntry = null) {
+function normalizedStatus(proposal, overlayEntry, sensoryEntry = null) {
+  const explicit = String(proposal && (proposal.status || proposal.state) || '').trim().toLowerCase();
+  if (explicit) {
+    if (explicit === 'accepted' || explicit === 'accept' || explicit === 'admitted' || explicit === 'queued') return 'accepted';
+    if (explicit === 'parked' || explicit === 'snoozed') return 'parked';
+    if (
+      explicit === 'rejected'
+      || explicit === 'reject'
+      || explicit === 'filtered'
+      || explicit === 'superseded'
+      || explicit === 'archived'
+      || explicit === 'dropped'
+    ) return 'rejected';
+    if (
+      explicit === 'resolved'
+      || explicit === 'done'
+      || explicit === 'closed'
+      || explicit === 'shipped'
+      || explicit === 'no_change'
+      || explicit === 'reverted'
+    ) return 'accepted';
+  }
   if (sensoryEntry && sensoryEntry.status) {
     const sensoryStatus = String(sensoryEntry.status).trim().toLowerCase();
     if (sensoryStatus === 'rejected' || sensoryStatus === 'filtered') return 'rejected';
@@ -214,7 +235,7 @@ function listCmd(opts) {
   const enriched = proposals.map(p => {
     const ov = overlay.get(p.id) || null;
     const sensory = sensoryOverlay.get(String(p && p.id || '')) || null;
-    const status = normalizedStatus(ov, sensory);
+    const status = normalizedStatus(p, ov, sensory);
     return {
       ...p,
       __status: status,
@@ -306,7 +327,7 @@ function metricsCmd(opts) {
   const enriched = proposals.map(p => {
     const ov = overlay.get(p.id) || null;
     const sensory = sensoryOverlay.get(String(p && p.id || '')) || null;
-    const status = normalizedStatus(ov, sensory);
+    const status = normalizedStatus(p, ov, sensory);
     return { ...p, __status: status, __outcome: ov?.outcome || null };
   });
 
