@@ -28,6 +28,11 @@ const crypto = require("crypto");
 const { isEmergencyStopEngaged } = require("../../lib/emergency_stop.js");
 const { stampGuardEnv } = require("../../lib/request_envelope.js");
 const { compactCommandOutput } = require("../../lib/command_output_compactor.js");
+const {
+  setSystemBudgetAutopause,
+  clearSystemBudgetAutopause,
+  loadSystemBudgetAutopauseState
+} = require("../budget/system_budget.js");
 
 function arg(name) {
   const pref = `--${name}=`;
@@ -405,6 +410,27 @@ function evaluateBudgetGuard(dateStr, budgetHealth) {
     last_updated: nowIso()
   };
   writeBudgetGuardState(nextState);
+  try {
+    if (action === "pause" && pausedUntilMs > nowMs) {
+      setSystemBudgetAutopause({
+        date: dateStr,
+        source: "spine_budget_guard",
+        reason,
+        pressure,
+        until_ms: pausedUntilMs
+      });
+    } else {
+      const autopause = loadSystemBudgetAutopauseState();
+      if (autopause && autopause.active === true && String(autopause.source || "") === "spine_budget_guard") {
+        clearSystemBudgetAutopause({
+          source: "spine_budget_guard",
+          reason: `spine_budget_guard_${reason}`
+        });
+      }
+    }
+  } catch {
+    // fail-open: global budget autopause sync should never block spine
+  }
 
   let suggestionPath = null;
   let suggestionWritten = false;

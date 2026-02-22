@@ -33,12 +33,19 @@ const DEFAULT_STATE_DIR = process.env.SYSTEM_BUDGET_STATE_DIR
 const DEFAULT_EVENTS_PATH = process.env.SYSTEM_BUDGET_EVENTS_PATH
   ? path.resolve(process.env.SYSTEM_BUDGET_EVENTS_PATH)
   : path.join(REPO_ROOT, 'state', 'autonomy', 'budget_events.jsonl');
+const DEFAULT_AUTOPAUSE_PATH = process.env.SYSTEM_BUDGET_AUTOPAUSE_PATH
+  ? path.resolve(process.env.SYSTEM_BUDGET_AUTOPAUSE_PATH)
+  : path.join(REPO_ROOT, 'state', 'autonomy', 'budget_autopause.json');
 const SYSTEM_BUDGET_STATE_SCHEMA = Object.freeze({
   schema_id: 'system_budget_state',
   schema_version: '1.0.0'
 });
 const SYSTEM_BUDGET_EVENT_SCHEMA = Object.freeze({
   schema_id: 'system_budget_event',
+  schema_version: '1.0.0'
+});
+const SYSTEM_BUDGET_AUTOPAUSE_SCHEMA = Object.freeze({
+  schema_id: 'system_budget_autopause',
   schema_version: '1.0.0'
 });
 const LEGACY_STATE_SCHEMA_VERSION = '0.0.0';
@@ -106,6 +113,9 @@ function usage() {
   console.log('  node systems/budget/system_budget.js project [YYYY-MM-DD] --request_tokens_est=N');
   console.log('  node systems/budget/system_budget.js record [YYYY-MM-DD] --tokens_est=N [--module=name] [--capability=name]');
   console.log('  node systems/budget/system_budget.js decision [YYYY-MM-DD] --module=name --capability=name --request_tokens_est=N --decision=allow|degrade|deny [--reason=...]');
+  console.log('  node systems/budget/system_budget.js autopause status');
+  console.log('  node systems/budget/system_budget.js autopause set [--minutes=N] [--until-ms=UNIX_MS] [--reason=...] [--source=...] [--pressure=soft|hard]');
+  console.log('  node systems/budget/system_budget.js autopause clear [--reason=...] [--source=...]');
   console.log('  node systems/budget/system_budget.js migrate [YYYY-MM-DD]');
   console.log('  node systems/budget/system_budget.js --help');
 }
@@ -123,6 +133,11 @@ function resolveStateDir(opts: AnyObj = {}): string {
 
 function resolveEventsPath(opts: AnyObj = {}): string {
   const raw = String(opts.events_path || DEFAULT_EVENTS_PATH);
+  return path.isAbsolute(raw) ? raw : path.resolve(REPO_ROOT, raw);
+}
+
+function resolveAutopausePath(opts: AnyObj = {}): string {
+  const raw = String(opts.autopause_path || DEFAULT_AUTOPAUSE_PATH);
   return path.isAbsolute(raw) ? raw : path.resolve(REPO_ROOT, raw);
 }
 
@@ -177,6 +192,92 @@ function withEventContract(type: string, payload: AnyObj = {}): AnyObj {
     ts: nowIso(),
     ...(payload && typeof payload === 'object' ? payload : {})
   };
+}
+
+function normalizeAutopauseState(raw: unknown, opts: AnyObj = {}): AnyObj {
+  const nowMs = Date.now();
+  const src: AnyObj = raw && typeof raw === 'object' ? raw as AnyObj : {};
+  const untilMsRaw = Number(src.until_ms != null ? src.until_ms : 0);
+  const untilMs = Number.isFinite(untilMsRaw) && untilMsRaw > nowMs ? Math.round(untilMsRaw) : 0;
+  const active = src.active === true && untilMs > nowMs;
+  const defaultSource = String(opts.default_source || src.source || 'system_budget').trim() || 'system_budget';
+  return {
+    schema_id: SYSTEM_BUDGET_AUTOPAUSE_SCHEMA.schema_id,
+    schema_version: SYSTEM_BUDGET_AUTOPAUSE_SCHEMA.schema_version,
+    active,
+    set_ts: src.set_ts ? String(src.set_ts) : null,
+    source: active ? String(src.source || defaultSource).trim() || defaultSource : String(src.source || defaultSource).trim() || defaultSource,
+    reason: src.reason ? String(src.reason).trim().slice(0, 200) : null,
+    pressure: src.pressure ? String(src.pressure).trim().toLowerCase() : null,
+    date: src.date ? normalizeDate(src.date) : null,
+    until_ms: active ? untilMs : 0,
+    until: active ? new Date(untilMs).toISOString() : null,
+    cleared_ts: src.cleared_ts ? String(src.cleared_ts) : null,
+    clear_reason: src.clear_reason ? String(src.clear_reason).trim().slice(0, 200) : null,
+    updated_at: nowIso()
+  };
+}
+
+function loadSystemBudgetAutopauseState(opts: AnyObj = {}): AnyObj {
+  const fp = resolveAutopausePath(opts);
+  const raw = readJson(fp, null);
+  const normalized = normalizeAutopauseState(raw, opts);
+  if (!raw || JSON.stringify(raw) !== JSON.stringify(normalized)) {
+    writeJsonAtomic(fp, normalized);
+  }
+  return {
+    ...normalized,
+    path: fp
+  };
+}
+
+function saveSystemBudgetAutopauseState(state: unknown, opts: AnyObj = {}): AnyObj {
+  const fp = resolveAutopausePath(opts);
+  const normalized = normalizeAutopauseState(state, opts);
+  writeJsonAtomic(fp, normalized);
+  return {
+    ...normalized,
+    path: fp
+  };
+}
+
+function setSystemBudgetAutopause(input: AnyObj = {}, opts: AnyObj = {}): AnyObj {
+  const current = loadSystemBudgetAutopauseState(opts);
+  const nowMs = Date.now();
+  const minutes = toPositiveInt(input.minutes, 0);
+  let untilMs = Number(input.until_ms != null ? input.until_ms : 0);
+  if (!Number.isFinite(untilMs) || untilMs <= nowMs) {
+    const mins = minutes > 0 ? minutes : 60;
+    untilMs = nowMs + (mins * 60 * 1000);
+  }
+  const next = saveSystemBudgetAutopauseState({
+    ...current,
+    active: true,
+    set_ts: nowIso(),
+    source: String(input.source || current.source || 'system_budget').trim().slice(0, 80) || 'system_budget',
+    reason: input.reason ? String(input.reason).trim().slice(0, 200) : null,
+    pressure: input.pressure ? String(input.pressure).trim().toLowerCase() : null,
+    date: input.date ? normalizeDate(input.date) : current.date,
+    until_ms: Math.round(untilMs),
+    until: new Date(untilMs).toISOString(),
+    cleared_ts: null,
+    clear_reason: null
+  }, opts);
+  return next;
+}
+
+function clearSystemBudgetAutopause(input: AnyObj = {}, opts: AnyObj = {}): AnyObj {
+  const current = loadSystemBudgetAutopauseState(opts);
+  const next = saveSystemBudgetAutopauseState({
+    ...current,
+    active: false,
+    until_ms: 0,
+    until: null,
+    cleared_ts: nowIso(),
+    clear_reason: input && input.reason ? String(input.reason).trim().slice(0, 200) : null,
+    source: input && input.source ? String(input.source).trim().slice(0, 80) : current.source
+  }, opts);
+  return next;
 }
 
 function effectiveStrategyBudget(opts: AnyObj = {}): AnyObj {
@@ -530,6 +631,43 @@ function cmdMigrate(args: AnyObj): void {
   }, null, 2) + '\n');
 }
 
+function cmdAutopause(args: AnyObj): void {
+  const sub = String(args._[1] || 'status').trim().toLowerCase();
+  const opts = {
+    autopause_path: args['autopause-path'] || args.autopause_path
+  };
+  if (sub === 'status') {
+    const state = loadSystemBudgetAutopauseState(opts);
+    process.stdout.write(JSON.stringify({ ok: true, ts: nowIso(), state }, null, 2) + '\n');
+    return;
+  }
+  if (sub === 'set') {
+    const state = setSystemBudgetAutopause({
+      minutes: args.minutes,
+      until_ms: args['until-ms'] != null ? args['until-ms'] : args.until_ms,
+      reason: args.reason || null,
+      source: args.source || null,
+      pressure: args.pressure || null,
+      date: args.date || null
+    }, opts);
+    process.stdout.write(JSON.stringify({ ok: true, ts: nowIso(), state }, null, 2) + '\n');
+    return;
+  }
+  if (sub === 'clear') {
+    const state = clearSystemBudgetAutopause({
+      reason: args.reason || null,
+      source: args.source || null
+    }, opts);
+    process.stdout.write(JSON.stringify({ ok: true, ts: nowIso(), state }, null, 2) + '\n');
+    return;
+  }
+  process.stdout.write(JSON.stringify({
+    ok: false,
+    error: `invalid autopause subcommand "${sub}" (expected: status|set|clear)`
+  }, null, 2) + '\n');
+  process.exitCode = 2;
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const cmd = String(args._[0] || '').trim().toLowerCase();
@@ -541,6 +679,7 @@ function main() {
   if (cmd === 'project') return cmdProject(args);
   if (cmd === 'record') return cmdRecord(args);
   if (cmd === 'decision') return cmdDecision(args);
+  if (cmd === 'autopause') return cmdAutopause(args);
   if (cmd === 'migrate') return cmdMigrate(args);
   usage();
   process.exit(2);
@@ -554,8 +693,10 @@ module.exports = {
   GLOBAL_BUDGET_DEFAULT_DIR,
   DEFAULT_STATE_DIR,
   DEFAULT_EVENTS_PATH,
+  DEFAULT_AUTOPAUSE_PATH,
   SYSTEM_BUDGET_STATE_SCHEMA,
   SYSTEM_BUDGET_EVENT_SCHEMA,
+  SYSTEM_BUDGET_AUTOPAUSE_SCHEMA,
   LEGACY_STATE_SCHEMA_VERSION,
   effectiveStrategyBudget,
   hasStateContract,
@@ -568,6 +709,12 @@ module.exports = {
   projectSystemBudget,
   recordSystemBudgetUsage,
   writeSystemBudgetDecision,
+  resolveAutopausePath,
+  normalizeAutopauseState,
+  loadSystemBudgetAutopauseState,
+  saveSystemBudgetAutopauseState,
+  setSystemBudgetAutopause,
+  clearSystemBudgetAutopause,
   normalizeBudgetDecision,
   normalizeDate
 };
