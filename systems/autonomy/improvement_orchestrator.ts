@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * systems/autonomy/improvement_orchestrator.js — closed-loop improvement lane
  *
@@ -22,6 +21,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+export {};
 const { beginChange, completeChange, recoverIfInterrupted, writeAtomicJson } = require('./self_change_failsafe');
 const { loadActiveStrategy, strategyGenerationMode } = require('../../lib/strategy_resolver.js');
 

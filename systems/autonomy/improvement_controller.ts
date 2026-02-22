@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 /**
  * improvement_controller.js — bounded self-improvement trial manager
  *
@@ -18,8 +17,11 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+export {};
 const { writeContractReceipt } = require('../../lib/action_receipts.js');
 const { beginChange, completeChange, recoverIfInterrupted, writeAtomicJson } = require('./self_change_failsafe');
+
+type AnyObj = Record<string, any>;
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const AUTONOMY_CONTROLLER_PATH = path.join(REPO_ROOT, 'systems', 'autonomy', 'autonomy_controller.js');
@@ -177,7 +179,7 @@ function rootCauseFromVerification(steps) {
   return `verify_step_failed:${String(failed.id || 'unknown')}:exit_${Number(failed.exit_code || 1)}`;
 }
 
-function runVerificationPlan(steps, opts = {}) {
+function runVerificationPlan(steps: AnyObj[], opts: AnyObj = {}): AnyObj {
   const rows = Array.isArray(steps) ? steps : [];
   const runner = typeof opts.runner === 'function'
     ? opts.runner
@@ -645,7 +647,7 @@ function startValidatedCmd(dateStr) {
   const thresholds = trialThresholds();
   const verifySteps = verifyPlanFromCli();
 
-  const phases = {
+  const phases: AnyObj = {
     plan: {
       ok: true,
       commit,
