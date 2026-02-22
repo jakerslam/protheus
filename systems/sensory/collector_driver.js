@@ -132,6 +132,10 @@ function normalizeCollectResult(result) {
     duration_ms: toNumber(raw.duration_ms, 0),
     requests: toNumber(raw.requests, 0),
     error: raw.error || null,
+    error_code: raw.error_code || null,
+    error_http_status: Number.isFinite(Number(raw.error_http_status))
+      ? Number(raw.error_http_status)
+      : null,
     degraded: raw.degraded === true,
     cache_hit: raw.cache_hit === true
   };
@@ -149,7 +153,9 @@ async function collectWithDriver(eyeConfig) {
       bytes: 0,
       duration_ms: 0,
       requests: 0,
-      error: loaded.error || 'collector_module_missing'
+      error: loaded.error || 'collector_module_missing',
+      error_code: loaded.error || 'collector_module_missing',
+      error_http_status: null
     };
   }
 
@@ -162,7 +168,9 @@ async function collectWithDriver(eyeConfig) {
       bytes: 0,
       duration_ms: 0,
       requests: 0,
-      error: 'collector_collect_fn_missing'
+      error: 'collector_collect_fn_missing',
+      error_code: 'collector_collect_fn_missing',
+      error_http_status: null
     };
   }
 
