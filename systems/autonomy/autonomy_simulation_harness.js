@@ -33,6 +33,7 @@ const YIELD_FAIL = Number(process.env.AUTONOMY_SIM_YIELD_FAIL || 0.08);
 const SAFETY_WARN = Number(process.env.AUTONOMY_SIM_SAFETY_WARN || 0.25);
 const SAFETY_FAIL = Number(process.env.AUTONOMY_SIM_SAFETY_FAIL || 0.45);
 const MIN_ATTEMPTS = Math.max(1, Number(process.env.AUTONOMY_SIM_MIN_ATTEMPTS || 5));
+const MAX_WINDOW_DAYS = Math.max(1, Math.floor(Number(process.env.AUTONOMY_SIM_MAX_DAYS || 180)));
 
 function usage() {
   console.log('Usage:');
@@ -70,7 +71,7 @@ function resolveDate(args) {
   return todayStr();
 }
 
-function toInt(v, fallback, lo = 1, hi = 60) {
+function toInt(v, fallback, lo = 1, hi = 365) {
   const n = Number(v);
   if (!Number.isFinite(n)) return fallback;
   const i = Math.floor(n);
@@ -296,7 +297,7 @@ function main() {
   }
 
   const dateStr = resolveDate(args);
-  const days = toInt(args.days, 14, 1, 60);
+  const days = toInt(args.days, 14, 1, MAX_WINDOW_DAYS);
   const strict = args.strict === true;
   const write = String(args.write == null ? '1' : args.write).trim() !== '0';
   const payload = computeSimulation(dateStr, days);

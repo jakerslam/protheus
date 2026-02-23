@@ -601,10 +601,10 @@
       "status": "active",
       "weight": 41,
       "cooldown_minutes": 90,
-      "hit_count": 74,
-      "last_hit_ts": "2026-02-23T02:29:06.275Z",
+      "hit_count": 75,
+      "last_hit_ts": "2026-02-23T05:32:43.105Z",
       "created_ts": "2026-02-21T06:43:30.470Z",
-      "updated_ts": "2026-02-23T04:29:07.778Z"
+      "updated_ts": "2026-02-23T05:32:43.105Z"
     },
     {
       "uid": "ftg64r8hve5xzfow9a37ev3y",
@@ -619,10 +619,10 @@
       "status": "active",
       "weight": 40,
       "cooldown_minutes": 90,
-      "hit_count": 55,
-      "last_hit_ts": "2026-02-23T02:47:06.887Z",
+      "hit_count": 58,
+      "last_hit_ts": "2026-02-23T05:32:43.105Z",
       "created_ts": "2026-02-21T02:43:27.698Z",
-      "updated_ts": "2026-02-23T04:29:07.778Z"
+      "updated_ts": "2026-02-23T05:32:43.105Z"
     },
     {
       "uid": "ft4hmlg5mrj2v6mmba6ldmhy",
@@ -823,10 +823,10 @@
       "status": "active",
       "weight": 26,
       "cooldown_minutes": 90,
-      "hit_count": 0,
-      "last_hit_ts": null,
+      "hit_count": 1,
+      "last_hit_ts": "2026-02-23T05:32:41.420Z",
       "created_ts": "2026-02-22T18:57:07.977Z",
-      "updated_ts": "2026-02-23T04:29:07.778Z"
+      "updated_ts": "2026-02-23T05:32:41.420Z"
     },
     {
       "uid": "ft1xracoifksfn7xpa6b54la",
@@ -1417,10 +1417,10 @@
         "growth",
         "engineering"
       ],
-      "focus_hits_total": 40,
-      "update_count": 11,
+      "focus_hits_total": 42,
+      "update_count": 12,
       "created_ts": "2026-02-21T04:03:43.974Z",
-      "updated_ts": "2026-02-23T04:29:07.809Z"
+      "updated_ts": "2026-02-23T05:32:41.420Z"
     },
     "moltstack_discover": {
       "eye_id": "moltstack_discover",
@@ -1622,10 +1622,10 @@
         "gemini_gems",
         "search_trends"
       ],
-      "focus_hits_total": 76,
-      "update_count": 18,
+      "focus_hits_total": 78,
+      "update_count": 19,
       "created_ts": "2026-02-21T04:03:43.974Z",
-      "updated_ts": "2026-02-23T04:29:07.809Z"
+      "updated_ts": "2026-02-23T05:32:43.105Z"
     },
     "reddit_ai_automation": {
       "eye_id": "reddit_ai_automation",
@@ -1722,11 +1722,14 @@
     "id:17b0988cd40d8187": "2026-02-23T02:29:04.651Z",
     "id:d6b949e8e040802c": "2026-02-23T02:29:04.651Z",
     "id:1c731051e648e3b0": "2026-02-23T00:00:11.206Z",
-    "id:81dc0ed17314ee6e": "2026-02-23T02:29:06.275Z",
+    "id:81dc0ed17314ee6e": "2026-02-23T05:32:43.105Z",
     "id:b39046d9c25f7d03": "2026-02-23T00:00:13.439Z",
     "id:4d5f7272f9447ae2": "2026-02-23T02:47:06.887Z",
     "id:a16f5cf006c11e94": "2026-02-23T02:29:04.687Z",
-    "id:b4a1a1affa0c39ea": "2026-02-23T02:29:06.275Z"
+    "id:b4a1a1affa0c39ea": "2026-02-23T02:29:06.275Z",
+    "id:107d9daf2d823bf9": "2026-02-23T05:32:41.420Z",
+    "id:73accc106a2cd293": "2026-02-23T05:32:41.420Z",
+    "id:fe20ac6763a36f96": "2026-02-23T05:32:43.105Z"
   },
   "last_refresh_ts": "2026-02-23T04:29:07.778Z",
   "last_refresh_sources": {
@@ -1747,7 +1750,7 @@
   "stats": {
     "refresh_count": 10,
     "lens_refresh_count": 7,
-    "focused_items_total": 215,
-    "last_focus_ts": "2026-02-23T02:47:06.887Z"
+    "focused_items_total": 219,
+    "last_focus_ts": "2026-02-23T05:32:43.105Z"
   }
 }

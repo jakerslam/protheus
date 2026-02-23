@@ -48,6 +48,14 @@ function normalizeText(v) {
   return String(v == null ? '' : v).trim();
 }
 
+function truthyFlag(v: any, fallback = false): boolean {
+  if (v == null) return fallback;
+  if (typeof v === 'boolean') return v;
+  const s = normalizeText(v).toLowerCase();
+  if (!s) return fallback;
+  return s === '1' || s === 'true' || s === 'yes' || s === 'on';
+}
+
 function readJsonSafe(filePath, fallback) {
   try {
     if (!fs.existsSync(filePath)) return fallback;
@@ -142,7 +150,9 @@ function extractExpectedValueScore(evt) {
 }
 
 function avg(arr) {
-  const vals = (arr || []).map(Number).filter(Number.isFinite);
+  const vals = (arr || [])
+    .map((v) => (v == null ? NaN : Number(v)))
+    .filter(Number.isFinite);
   if (!vals.length) return null;
   return vals.reduce((s, x) => s + x, 0) / vals.length;
 }
@@ -158,6 +168,26 @@ function ema(values, alpha) {
 
 function executedRuns(events) {
   return (events || []).filter((e) => e && e.type === 'autonomy_run' && e.result === 'executed');
+}
+
+function hasAlignmentObjective(evt: AnyObj = {}): boolean {
+  const direct = normalizeText(evt.objective_id || '');
+  if (direct) return true;
+  const meta = evt.meta && typeof evt.meta === 'object' ? evt.meta : null;
+  const viaMeta = normalizeText(meta && meta.objective_id || '');
+  return Boolean(viaMeta);
+}
+
+function hasAlignmentSignals(evt: AnyObj = {}): boolean {
+  return extractExpectedValueScore(evt) != null
+    || extractDirectiveFitScore(evt) != null
+    || extractCompositeScore(evt) != null;
+}
+
+function isLegacyExecutedRow(evt: AnyObj = {}): boolean {
+  if (!hasAlignmentObjective(evt)) return true;
+  if (!hasAlignmentSignals(evt)) return true;
+  return false;
 }
 
 function dailyTokenTotals(executedEvents) {
@@ -344,14 +374,24 @@ function evaluateDrift(opts: AnyObj = {}): AnyObj {
   };
 }
 
-function weeklyAlignmentScore(executedEvents, endDateStr) {
+function weeklyAlignmentScore(executedEvents, endDateStr, opts: AnyObj = {}) {
+  const includeLegacyExecuted = truthyFlag(
+    opts.includeLegacyExecuted == null
+      ? (process.env.AUTONOMY_ALIGNMENT_INCLUDE_LEGACY_EXECUTED || '0')
+      : opts.includeLegacyExecuted
+  );
   const start = shiftDate(endDateStr, -6);
-  const rows = executedEvents.filter((e) => String(e.__date || '') >= start && String(e.__date || '') <= endDateStr);
+  const sourceRows = executedEvents.filter((e) => String(e.__date || '') >= start && String(e.__date || '') <= endDateStr);
+  const rows = includeLegacyExecuted ? sourceRows : sourceRows.filter((e) => !isLegacyExecutedRow(e));
+  const filteredLegacyCount = Math.max(0, sourceRows.length - rows.length);
   if (!rows.length) {
     return {
       start,
       end: endDateStr,
       sample: 0,
+      sample_raw: sourceRows.length,
+      filtered_legacy: filteredLegacyCount,
+      include_legacy_executed: includeLegacyExecuted,
       score: null,
       components: {
         revenue_potential: null,
@@ -386,6 +426,9 @@ function weeklyAlignmentScore(executedEvents, endDateStr) {
     start,
     end: endDateStr,
     sample: rows.length,
+    sample_raw: sourceRows.length,
+    filtered_legacy: filteredLegacyCount,
+    include_legacy_executed: includeLegacyExecuted,
     score: Number(score.toFixed(2)),
     components: {
       revenue_potential: revenuePotential == null ? null : Number(revenuePotential.toFixed(2)),
@@ -401,16 +444,22 @@ function evaluateStrategicAlignment(opts: AnyObj = {}): AnyObj {
   const dateStr = dateArgOrToday(opts.dateStr);
   const threshold = clampNumber(Number(opts.threshold || 60), 10, 95);
   const minWeekSamples = Math.max(1, Number(opts.minWeekSamples || 3));
+  const includeLegacyExecuted = truthyFlag(
+    opts.includeLegacyExecuted == null
+      ? (process.env.AUTONOMY_ALIGNMENT_INCLUDE_LEGACY_EXECUTED || '0')
+      : opts.includeLegacyExecuted
+  );
   const events = loadRunEvents(runsDir, dateStr, 21);
   const executed = executedRuns(events);
-  const currentWeek = weeklyAlignmentScore(executed, dateStr);
+  const currentWeek = weeklyAlignmentScore(executed, dateStr, { includeLegacyExecuted });
   const prevWeekEnd = shiftDate(dateStr, -7);
-  const previousWeek = weeklyAlignmentScore(executed, prevWeekEnd);
+  const previousWeek = weeklyAlignmentScore(executed, prevWeekEnd, { includeLegacyExecuted });
   const currentLow = currentWeek.score != null && currentWeek.score < threshold && currentWeek.sample >= minWeekSamples;
   const previousLow = previousWeek.score != null && previousWeek.score < threshold && previousWeek.sample >= minWeekSamples;
   const lowStreak = currentLow && previousLow;
   return {
     enabled: true,
+    include_legacy_executed: includeLegacyExecuted,
     threshold,
     min_week_samples: minWeekSamples,
     current_week: currentWeek,
