@@ -20,6 +20,7 @@ const fs = require('fs');
 const path = require('path');
 const { stableUid } = require('../../lib/uid.js');
 const { enforceMutationProvenance, recordMutationAudit } = require('../../lib/mutation_provenance.js');
+const { mapCrossDomainRows } = require('./cross_domain_mapper.js');
 
 const SCRIPT_SOURCE = 'systems/memory/creative_links.js';
 
@@ -49,6 +50,13 @@ const MIN_OLDER_REFS = clampInt(process.env.CREATIVE_LINKS_MIN_OLDER_REFS || 1, 
 const MIN_ROW_REFS = clampInt(process.env.CREATIVE_LINKS_MIN_ROW_REFS || 2, 0, 20);
 const HYPER_TOKEN_WORDS = clampInt(process.env.CREATIVE_LINKS_HYPER_TOKEN_WORDS || 4, 2, 8);
 const HYPER_MAX_ROWS = clampInt(process.env.CREATIVE_LINKS_HYPER_MAX_ROWS || 4000, 50, 50000);
+const CROSS_DOMAIN_ENABLED = String(process.env.CREATIVE_LINKS_CROSS_DOMAIN_ENABLED || '1').trim() !== '0';
+const CROSS_DOMAIN_MAX = clampInt(process.env.CREATIVE_LINKS_CROSS_DOMAIN_MAX || 8, 1, 24);
+const CROSS_DOMAIN_MIN_PAIR_SCORE = clampNumber(process.env.CREATIVE_LINKS_CROSS_DOMAIN_MIN_PAIR_SCORE || 8, 1, 200);
+const CROSS_DOMAIN_MIN_VALUE_SCORE = clampNumber(process.env.CREATIVE_LINKS_CROSS_DOMAIN_MIN_VALUE_SCORE || 8, 1, 200);
+const CROSS_DOMAIN_REQUIRE_OBJECTIVE = String(process.env.CREATIVE_LINKS_CROSS_DOMAIN_REQUIRE_OBJECTIVE || '1').trim() !== '0';
+const CROSS_DOMAIN_REQUIRE_T1_ROOT = String(process.env.CREATIVE_LINKS_CROSS_DOMAIN_REQUIRE_T1_ROOT || '1').trim() !== '0';
+const CROSS_DOMAIN_DEFAULT_OBJECTIVE_ID = String(process.env.CREATIVE_LINKS_CROSS_DOMAIN_DEFAULT_OBJECTIVE_ID || '').trim();
 const HYPER_STOPWORDS = new Set([
   'and', 'the', 'for', 'with', 'from', 'into', 'that', 'this', 'then', 'than',
   'task', 'mode', 'normal', 'creative', 'hyper', 'thinker', 'deep', 'route'
@@ -457,6 +465,69 @@ function collectThemes(dateStr, days, top) {
   return mergeEvidenceRows([...dreamThemes, ...hyperThemes]);
 }
 
+function buildCrossDomainEvidence(dreamThemes, hyperThemes, registry) {
+  if (!CROSS_DOMAIN_ENABLED) {
+    return {
+      rows: [],
+      summary: {
+        enabled: false,
+        selected: 0
+      }
+    };
+  }
+  const candidates = registry && registry.candidates && typeof registry.candidates === 'object'
+    ? registry.candidates
+    : {};
+  const noveltyIndex = {};
+  for (const token of Object.keys(candidates)) {
+    noveltyIndex[token] = Number(candidates[token] && candidates[token].sample_count || 1);
+  }
+  const mapped = mapCrossDomainRows({
+    domain_a: 'memory_dream',
+    rows_a: dreamThemes,
+    domain_b: 'hyper_creative_mode',
+    rows_b: hyperThemes
+  }, {
+    max_mappings: CROSS_DOMAIN_MAX,
+    min_pair_score: CROSS_DOMAIN_MIN_PAIR_SCORE,
+    min_value_score: CROSS_DOMAIN_MIN_VALUE_SCORE,
+    require_objective: CROSS_DOMAIN_REQUIRE_OBJECTIVE,
+    require_t1_root: CROSS_DOMAIN_REQUIRE_T1_ROOT,
+    default_objective_id: CROSS_DOMAIN_DEFAULT_OBJECTIVE_ID || '',
+    novelty_index: noveltyIndex
+  });
+  const selected = Array.isArray(mapped && mapped.selected) ? mapped.selected : [];
+  const rows = selected.map((m) => ({
+    token: m.token,
+    occurrences_window: Number(m.pair_count || 0),
+    avg_score_window: Number(m.value_score || 0),
+    max_score_window: Number(m.base_score || m.value_score || 0),
+    sample_count: Number(m.pair_count || 0),
+    older_refs_window: 0,
+    row_refs_window: Array.isArray(m.refs) ? m.refs.length : 0,
+    observed_dates: [],
+    latest_score: Number(m.value_score || 0),
+    latest_date: null,
+    refs: Array.isArray(m.refs) ? m.refs.slice(0, 16) : [],
+    source_types: ['cross_domain_mapper'],
+    source_counts: { cross_domain_mapper: Number(m.pair_count || 0) },
+    objective_id: String(m.objective_id || '').trim(),
+    root_objective_id: String(m.root_objective_id || '').trim(),
+    lineage_path: Array.isArray(m.lineage_path) ? m.lineage_path.slice(0, 12) : []
+  }));
+  return {
+    rows,
+    summary: {
+      enabled: true,
+      scanned_pairs: Number(mapped && mapped.scanned_pairs || 0),
+      candidates: Number(mapped && mapped.candidates || 0),
+      selected: selected.length,
+      rejected: mapped && mapped.rejected ? mapped.rejected : {},
+      policy: mapped && mapped.policy ? mapped.policy : {}
+    }
+  };
+}
+
 function passGate(e) {
   const gateOccurrences = Number(e.occurrences_window || 0) >= MIN_OCCURRENCES;
   const gateSignal = Number(e.avg_score_window || 0) >= MIN_AVG_SCORE;
@@ -610,7 +681,11 @@ function runCmd(dateStr, days, top, maxPromotions) {
     context: `run:${dateStr}`
   });
   const registry = loadRegistry();
-  const evidence = collectThemes(dateStr, days, top);
+  const dreamThemes = collectDreamThemes(dateStr, days, top);
+  const hyperThemes = collectHyperCreativeThemes(dateStr, days);
+  const baseEvidence = mergeEvidenceRows([...dreamThemes, ...hyperThemes]);
+  const crossDomain = buildCrossDomainEvidence(dreamThemes, hyperThemes, registry);
+  const evidence = mergeEvidenceRows([...baseEvidence, ...(crossDomain.rows || [])]);
   const candidates = upsertCandidates(registry, evidence);
 
   const promotable = candidates
@@ -652,6 +727,7 @@ function runCmd(dateStr, days, top, maxPromotions) {
     candidates_total: Object.keys(registry.candidates || {}).length,
     promotable_count: promotable.length,
     promoted_count: promotions.length,
+    cross_domain_mapper: crossDomain.summary,
     promotions
   };
   appendJsonl(LEDGER_PATH, {
@@ -661,7 +737,8 @@ function runCmd(dateStr, days, top, maxPromotions) {
     days,
     themes_considered: out.themes_considered,
     candidates_total: out.candidates_total,
-    promoted_count: out.promoted_count
+    promoted_count: out.promoted_count,
+    cross_domain_selected: Number(crossDomain.summary && crossDomain.summary.selected || 0)
   });
   const touched = [
     path.relative(REPO_ROOT, REGISTRY_PATH).replace(/\\/g, '/'),
@@ -683,7 +760,8 @@ function runCmd(dateStr, days, top, maxPromotions) {
       themes_considered: out.themes_considered,
       candidates_total: out.candidates_total,
       promotable_count: out.promotable_count,
-      promoted_count: out.promoted_count
+      promoted_count: out.promoted_count,
+      cross_domain_selected: Number(crossDomain.summary && crossDomain.summary.selected || 0)
     }
   });
   return out;
