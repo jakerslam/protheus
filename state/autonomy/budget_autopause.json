@@ -2,14 +2,14 @@
   "schema_id": "system_budget_autopause",
   "schema_version": "1.0.0",
   "active": true,
-  "set_ts": "2026-02-23T18:00:56.049Z",
+  "set_ts": "2026-02-23T19:30:22.761Z",
   "source": "idle_dream_cycle",
   "reason": "burn_rate_exceeded",
   "pressure": "hard",
   "date": "2026-02-23",
-  "until_ms": 1771873256049,
-  "until": "2026-02-23T19:00:56.049Z",
+  "until_ms": 1771878622761,
+  "until": "2026-02-23T20:30:22.761Z",
   "cleared_ts": null,
   "clear_reason": null,
-  "updated_at": "2026-02-23T18:30:56.843Z"
+  "updated_at": "2026-02-23T19:46:19.709Z"
 }

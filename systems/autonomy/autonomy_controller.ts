@@ -5531,6 +5531,52 @@ function compactCmdResult(res) {
   };
 }
 
+function routeExecutionPolicyHold(summary, executionTarget) {
+  const target = String(executionTarget || '').trim().toLowerCase();
+  const out = {
+    hold: false,
+    hold_scope: null,
+    hold_reason: null,
+    route_block_reason: null
+  };
+  if (target !== 'route') return out;
+  const s = summary && typeof summary === 'object' ? summary : {};
+  const gateDecision = String(s.gate_decision || '').trim().toUpperCase();
+  const routeDecision = String(s.route_decision_raw || s.decision || '').trim().toUpperCase();
+  const needsManualReview = s.needs_manual_review === true;
+  const executable = s.executable !== false;
+  const budgetBlocked = s.budget_blocked === true
+    || (s.budget_global_guard && s.budget_global_guard.blocked === true)
+    || (s.budget_enforcement && s.budget_enforcement.blocked === true);
+  const budgetReason = normalizeSpaces(
+    s.budget_block_reason
+      || (s.budget_enforcement && s.budget_enforcement.reason)
+      || (s.budget_global_guard && s.budget_global_guard.reason)
+      || ''
+  );
+  if (budgetBlocked) {
+    const reason = budgetReason || 'budget_guard_blocked';
+    return {
+      hold: true,
+      hold_scope: 'budget',
+      hold_reason: reason,
+      route_block_reason: reason
+    };
+  }
+  const manualBlocked = gateDecision === 'MANUAL'
+    || routeDecision === 'MANUAL'
+    || needsManualReview === true;
+  if (manualBlocked && !executable) {
+    return {
+      hold: true,
+      hold_scope: 'proposal',
+      hold_reason: 'gate_manual',
+      route_block_reason: 'gate_manual'
+    };
+  }
+  return out;
+}
+
 function verifyExecutionReceipt(execRes, dod, outcomeRes, postconditions, successCriteria) {
   const decision = String(execRes && execRes.summary && execRes.summary.decision || '');
   const execCheckName = decision === 'ACTUATE'
@@ -10381,6 +10427,222 @@ function runCmd(dateStr, opts: AnyObj = {}) {
   budget.token_cap = Number(recordedBudget.token_cap || budget.token_cap || 0);
 
   const summary = execRes.summary || {};
+  const routeExecutionHold = routeExecutionPolicyHold(summary, executionTarget);
+  if (routeExecutionHold.hold && execRes.ok) {
+    const holdReason = `auto:execute_route_hold ${routeExecutionHold.hold_reason || 'route_blocked'} cooldown_${AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS}h`;
+    setCooldown(p.id, AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS, holdReason);
+    const routeCooldown = cooldownEntry(p.id);
+    const routeNextClearAt = routeCooldown ? (routeCooldown.until || null) : null;
+    const holdEvidence = `proposal:${p.id} ${eyeRef} receipt:${receiptId} auto:route_hold:${routeExecutionHold.hold_reason || 'route_blocked'}`.slice(0, 220);
+    const holdOutcomeRes = runProposalQueue('park', p.id, holdReason);
+    const holdCriteriaPolicy = successCriteriaPolicyForProposal(p);
+    const holdMetricValues = extractSuccessCriteriaMetricValues(p, {
+      exec_summary: execRes && execRes.summary,
+      execution_metrics: execRes && execRes.execution_metrics,
+      exec_details: execRes && execRes.details,
+      exec_stdout: execRes && execRes.stdout,
+      outcome_stdout: holdOutcomeRes && holdOutcomeRes.stdout,
+      dod_diff: {}
+    });
+    const holdSuccessCriteria = evaluateSuccessCriteria(
+      p,
+      {
+        phase: 'execute_blocked',
+        capability_key: capabilityKey,
+        outcome: 'no_change',
+        exec_ok: false,
+        dod_passed: false,
+        postconditions_ok: false,
+        queue_outcome_logged: holdOutcomeRes && holdOutcomeRes.ok === true,
+        duration_ms: Math.max(0, Number(execEndMs || 0) - Number(execStartMs || 0)),
+        token_usage: execTokenUsage,
+        dod_diff: {},
+        metric_values: holdMetricValues || {}
+      },
+      {
+        required: holdCriteriaPolicy.required,
+        min_count: holdCriteriaPolicy.min_count,
+        capability_key: capabilityKey
+      }
+    );
+    const holdVerificationBase = withSuccessCriteriaVerification({
+      checks: [
+        { name: 'route_execute_ok', pass: true },
+        { name: 'route_executable', pass: false },
+        { name: 'queue_outcome_logged', pass: !!(holdOutcomeRes && holdOutcomeRes.ok) }
+      ],
+      failed: ['route_executable'],
+      passed: false,
+      outcome: 'no_change',
+      primary_failure: `route_policy_hold:${routeExecutionHold.route_block_reason || 'route_blocked'}`
+    }, holdSuccessCriteria, {
+      fallback: { required: holdCriteriaPolicy.required, min_count: holdCriteriaPolicy.min_count },
+      enforceNoChangeOnFailure: true
+    });
+    const holdVerification = withSuccessCriteriaQualityAudit(holdVerificationBase);
+    writeReceipt(dateStr, {
+      ts: nowIso(),
+      type: 'autonomy_action_receipt',
+      receipt_id: receiptId,
+      proposal_id: p.id,
+      proposal_date: proposalDate,
+      verdict: 'fail',
+      intent: {
+        task_hash: hashObj({ task }),
+        objective_id: executionObjectiveId || null,
+        actuation: actuationSpec ? { kind: actuationSpec.kind } : null,
+        directive_validation: directiveAction
+          ? {
+              decision: directiveAction.decision || null,
+              objective_id: directiveAction.objective_id || null,
+              file: directiveClarification ? (directiveClarification.file || null) : null
+            }
+          : null,
+        route_tokens_est: routeTokensEst,
+        repeats_14d: repeats14d,
+        errors_30d: errors30d,
+        success_criteria_policy: {
+          required: holdCriteriaPolicy.required === true,
+          min_count: Number(holdCriteriaPolicy.min_count || 0)
+        }
+      },
+      execution: {
+        preflight: compactCmdResult(preflight),
+        accept: compactCmdResult(acceptRes),
+        execute: compactCmdResult(execRes),
+        outcome: compactCmdResult(holdOutcomeRes),
+        token_usage: execTokenUsage,
+        outcome_retry_attempted: false,
+        postconditions: {
+          checks: [],
+          failed: ['route_executable'],
+          passed: false
+        }
+      },
+      verification: {
+        ...holdVerification,
+        dod: {
+          passed: false,
+          class: null,
+          reason: `route_policy_hold:${routeExecutionHold.route_block_reason || 'route_blocked'}`
+        },
+        cooldown_applied_hours: AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS
+      }
+    });
+    writeRun(dateStr, {
+      ts: nowIso(),
+      type: 'autonomy_run',
+      result: 'init_gate_blocked_route',
+      legacy_result: 'executed',
+      policy_hold: true,
+      hold_scope: routeExecutionHold.hold_scope || 'proposal',
+      hold_reason: routeExecutionHold.hold_reason || 'route_blocked',
+      route_block_phase: 'execute',
+      receipt_id: receiptId,
+      strategy_id: strategy ? strategy.id : null,
+      execution_mode: executionMode,
+      proposal_id: p.id,
+      objective_id: executionObjectiveId || null,
+      capability_key: capabilityKey,
+      execution_target: executionTarget,
+      proposal_date: proposalDate,
+      proposal_type: String(p.type || ''),
+      risk: proposalRisk,
+      source_eye: sourceEyeId(p),
+      proposal_key: proposalDedupKey(p),
+      score: Number(pick.score.toFixed(3)),
+      strategy_rank_adjusted: Number(pick.strategy_rank_adjusted || (pick.strategy_rank && pick.strategy_rank.score) || 0),
+      est_tokens: estTokens,
+      route_tokens_est: routeTokensEst,
+      token_usage: execTokenUsage,
+      repeats_14d: repeats14d,
+      errors_30d: errors30d,
+      used_est_after: budget.used_est,
+      dopamine,
+      signal_quality: pick.quality,
+      directive_fit: pick.directive_fit,
+      actionability: pick.actionability,
+      value_signal: pick.value_signal || null,
+      objective_binding: objectiveBinding,
+      directive_pulse: directivePulse,
+      campaign_match: campaignMatch,
+      campaign_plan: campaignPlan,
+      composite: {
+        score: pick.composite_score,
+        min_score: compositeMinScore,
+        base_min_score: AUTONOMY_MIN_COMPOSITE_ELIGIBILITY,
+        pass: pick.composite_score >= compositeMinScore
+      },
+      selection_mode: selection.mode,
+      selection_index: selection.index,
+      strategy_rank: pick.strategy_rank || null,
+      strategy_rank_bonus: pick.strategy_rank_bonus || null,
+      explore_used_before: selection.explore_used,
+      explore_quota: selection.explore_quota,
+      thresholds,
+      route_summary: summary,
+      admission: admissionSummary,
+      route_block_reason: routeExecutionHold.route_block_reason || 'route_blocked',
+      cooldown_hours: AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS,
+      next_clear_at: routeNextClearAt,
+      exec_ok: execRes.ok,
+      exec_code: execRes.code,
+      outcome_write_ok: !!(holdOutcomeRes && holdOutcomeRes.ok),
+      outcome: 'no_change',
+      evidence: holdEvidence
+    });
+    process.stdout.write(JSON.stringify({
+      ok: true,
+      result: 'init_gate_blocked_route',
+      legacy_result: 'executed',
+      policy_hold: true,
+      hold_scope: routeExecutionHold.hold_scope || 'proposal',
+      hold_reason: routeExecutionHold.hold_reason || 'route_blocked',
+      route_block_phase: 'execute',
+      receipt_id: receiptId,
+      strategy_id: strategy ? strategy.id : null,
+      execution_mode: executionMode,
+      proposal_id: p.id,
+      objective_id: executionObjectiveId || null,
+      capability_key: capabilityKey,
+      execution_target: executionTarget,
+      proposal_date: proposalDate,
+      risk: proposalRisk,
+      strategy_rank_adjusted: Number(pick.strategy_rank_adjusted || (pick.strategy_rank && pick.strategy_rank.score) || 0),
+      est_tokens: estTokens,
+      route_tokens_est: routeTokensEst,
+      token_usage: execTokenUsage,
+      repeats_14d: repeats14d,
+      errors_30d: errors30d,
+      used_est_after: budget.used_est,
+      signal_quality: pick.quality,
+      directive_fit: pick.directive_fit,
+      actionability: pick.actionability,
+      value_signal: pick.value_signal || null,
+      objective_binding: objectiveBinding,
+      directive_pulse: directivePulse,
+      composite: {
+        score: pick.composite_score,
+        min_score: compositeMinScore,
+        base_min_score: AUTONOMY_MIN_COMPOSITE_ELIGIBILITY,
+        pass: pick.composite_score >= compositeMinScore
+      },
+      selection_mode: selection.mode,
+      selection_index: selection.index,
+      strategy_rank: pick.strategy_rank || null,
+      strategy_rank_bonus: pick.strategy_rank_bonus || null,
+      explore_used_before: selection.explore_used,
+      explore_quota: selection.explore_quota,
+      outcome_write_ok: !!(holdOutcomeRes && holdOutcomeRes.ok),
+      route_summary: summary,
+      admission: admissionSummary,
+      route_block_reason: routeExecutionHold.route_block_reason || 'route_blocked',
+      cooldown_hours: AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS,
+      next_clear_at: routeNextClearAt,
+      ts: nowIso()
+    }) + '\n');
+    return;
+  }
   const postconditions = runPostconditions(actuationSpec, execRes);
   const dod = evaluateDoD({
     summary,
