@@ -18,7 +18,7 @@
       "priority": 48,
       "last_run_ts": null,
       "created_ts": "2026-02-22T17:47:28.458Z",
-      "updated_ts": "2026-02-22T22:03:29.659Z"
+      "updated_ts": "2026-02-23T16:04:38.125Z"
     },
     {
       "uid": "r46f1k9j1xqn6aamflt2r50r",
@@ -30,7 +30,7 @@
       "priority": 48,
       "last_run_ts": null,
       "created_ts": "2026-02-22T17:47:28.431Z",
-      "updated_ts": "2026-02-22T22:03:29.659Z"
+      "updated_ts": "2026-02-23T16:04:38.125Z"
     },
     {
       "uid": "r2bxo0a4pun89m7ayh05u3ls",
@@ -42,7 +42,19 @@
       "priority": 48,
       "last_run_ts": null,
       "created_ts": "2026-02-22T17:47:28.491Z",
-      "updated_ts": "2026-02-22T22:03:29.659Z"
+      "updated_ts": "2026-02-23T16:04:38.125Z"
+    },
+    {
+      "uid": "r38nves7qk7ce8xda895z1nq",
+      "key": "pain_external_eyes_a86a891d7237",
+      "name": "Pain Reflex external_eyes collector_preflight:collector_error",
+      "trigger": "pain_signal:external_eyes:collector_preflight:collector_error",
+      "action": "stabilize sensory via deterministic recovery playbook",
+      "status": "disabled",
+      "priority": 48,
+      "last_run_ts": null,
+      "created_ts": "2026-02-23T16:04:38.125Z",
+      "updated_ts": "2026-02-23T16:04:38.125Z"
     },
     {
       "uid": "r1u7htzq4xcif7ntgj2mzkmu",
@@ -54,11 +66,11 @@
       "priority": 48,
       "last_run_ts": null,
       "created_ts": "2026-02-22T22:03:29.659Z",
-      "updated_ts": "2026-02-22T22:03:29.659Z"
+      "updated_ts": "2026-02-23T16:04:38.125Z"
     }
   ],
   "metrics": {
-    "total_created": 4,
+    "total_created": 5,
     "total_updated": 0,
     "total_gc_deleted": 0,
     "last_gc_ts": null

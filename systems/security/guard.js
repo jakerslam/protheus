@@ -511,20 +511,25 @@ function main() {
   }
 
   const riskyToggleGate = detectRiskyEnvToggles(process.env, approvalNote);
+  const requestActionNormalized = normalizeLower(requestAction || "apply") || "apply";
+  const nonApplyActionExempt = requestActionNormalized !== "apply";
   const remoteApprovedDirectApply = !!(
     remoteGate
     && remoteGate.is_remote === true
     && remoteGate.allowed === true
-    && String(remoteGate.action || "").toLowerCase() === "apply"
+    && normalizeLower(remoteGate.action || "") === "apply"
     && isTruthyEnv(process.env.REMOTE_DIRECT_OVERRIDE)
     && isTruthyEnv(process.env.BREAK_GLASS)
   );
-  const effectiveRiskyToggleGate = remoteApprovedDirectApply
+  const effectiveRiskyToggleGate = (nonApplyActionExempt || remoteApprovedDirectApply)
     ? {
         ...riskyToggleGate,
         ok: true,
-        reason: "remote_direct_apply_guarded_by_remote_gate",
-        bypassed_by_remote_gate: true
+        reason: nonApplyActionExempt
+          ? "non_apply_action_risky_toggle_exempt"
+          : "remote_direct_apply_guarded_by_remote_gate",
+        bypassed_by_remote_gate: remoteApprovedDirectApply === true,
+        bypassed_for_non_apply_action: nonApplyActionExempt === true
       }
     : riskyToggleGate;
   logRiskyToggleGate({
@@ -536,6 +541,7 @@ function main() {
     active_toggles: effectiveRiskyToggleGate.active_toggles || [],
     missing_note_keys: effectiveRiskyToggleGate.missing_note_keys || [],
     bypassed_by_remote_gate: effectiveRiskyToggleGate.bypassed_by_remote_gate === true,
+    bypassed_for_non_apply_action: effectiveRiskyToggleGate.bypassed_for_non_apply_action === true,
     files
   });
   if (effectiveRiskyToggleGate.ok !== true) {
@@ -619,7 +625,7 @@ function main() {
       request_source: requestSource || "local",
       request_action: requestAction || "apply",
       remote_policy: remoteGate,
-      risky_toggle_policy: riskyToggleGate
+      risky_toggle_policy: effectiveRiskyToggleGate
     });
     return;
   }
@@ -646,7 +652,7 @@ function main() {
     request_source: requestSource || "local",
     request_action: requestAction || "apply",
     remote_policy: remoteGate,
-    risky_toggle_policy: riskyToggleGate,
+    risky_toggle_policy: effectiveRiskyToggleGate,
     reasons
   });
   process.exit(1);

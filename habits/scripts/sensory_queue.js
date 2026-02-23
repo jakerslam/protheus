@@ -40,6 +40,8 @@ const SENSORY_QUEUE_LINEAGE_REQUIRED = String(process.env.SENSORY_QUEUE_LINEAGE_
 const SENSORY_QUEUE_LINEAGE_REQUIRE_T1_ROOT = String(process.env.SENSORY_QUEUE_LINEAGE_REQUIRE_T1_ROOT || '1') !== '0';
 const SENSORY_QUEUE_LINEAGE_BLOCK_MISSING_OBJECTIVE = String(process.env.SENSORY_QUEUE_LINEAGE_BLOCK_MISSING_OBJECTIVE || '1') !== '0';
 const SENSORY_QUEUE_OBJECTIVE_AUTOFILL = String(process.env.SENSORY_QUEUE_OBJECTIVE_AUTOFILL || '1') !== '0';
+const SENSORY_QUEUE_OBJECTIVE_AUTOFILL_ALLOW_DEFAULT = String(process.env.SENSORY_QUEUE_OBJECTIVE_AUTOFILL_ALLOW_DEFAULT || '0') === '1';
+const SENSORY_QUEUE_REQUIRE_EXPLICIT_OBJECTIVE = String(process.env.SENSORY_QUEUE_REQUIRE_EXPLICIT_OBJECTIVE || '1') !== '0';
 const SENSORY_QUEUE_DIRECTIVE_COMPILER_CACHE_TTL_MS = Math.max(
   1000,
   Number(process.env.SENSORY_QUEUE_DIRECTIVE_COMPILER_CACHE_TTL_MS || 30000)
@@ -170,7 +172,7 @@ function parseObjectiveIdFromEvidence(proposal) {
   for (const row of evidence) {
     const ref = normalizeText(row && row.evidence_ref);
     if (!ref) continue;
-    const m = ref.match(/\b(T[0-9]_[A-Za-z0-9_]+)\b/);
+    const m = ref.match(/\b(T[0-9][A-Za-z0-9:_-]*)\b/);
     const id = normalizeDirectiveId(m && m[1]);
     if (id) return id;
   }
@@ -275,7 +277,7 @@ function autofillProposalObjectiveContext(proposal, compiler) {
       source = 'evidence_ref';
     }
   }
-  if (!candidate) {
+  if (!candidate && SENSORY_QUEUE_OBJECTIVE_AUTOFILL_ALLOW_DEFAULT) {
     const fallback = defaultObjectiveIdFromCompiler(compiler);
     if (fallback) {
       candidate = fallback;
@@ -681,6 +683,25 @@ function evaluateObjectiveLineageGate(proposal, compiler) {
   };
 }
 
+function evaluateObjectivePresenceGate(proposal) {
+  if (!SENSORY_QUEUE_REQUIRE_EXPLICIT_OBJECTIVE) {
+    return { allow: true, reason: null, gated: false };
+  }
+  if (!proposalNeedsObjectiveLineage(proposal)) {
+    return { allow: true, reason: null, gated: false };
+  }
+  const objectiveId = extractObjectiveIdFromProposal(proposal);
+  if (objectiveId) {
+    return { allow: true, reason: null, gated: true };
+  }
+  return {
+    allow: false,
+    reason: 'objective_missing',
+    gated: true,
+    details: ['explicit objective_id required for actionable proposal']
+  };
+}
+
 function normalizeBlockedReason(admissionPreview) {
   const blocked = admissionPreview && Array.isArray(admissionPreview.blocked_by)
     ? admissionPreview.blocked_by
@@ -694,6 +715,9 @@ function evaluateQueueQualityGate(proposal, compiler = null) {
 
   const actionSpecGate = evaluateActionSpecGate(proposal);
   if (!actionSpecGate.allow) return actionSpecGate;
+
+  const objectivePresenceGate = evaluateObjectivePresenceGate(proposal);
+  if (!objectivePresenceGate.allow) return objectivePresenceGate;
 
   const lineageGate = evaluateObjectiveLineageGate(proposal, compiler || loadDirectiveCompilerCached());
   if (!lineageGate.allow) return lineageGate;

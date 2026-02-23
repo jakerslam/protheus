@@ -75,7 +75,8 @@ function runRouteTask({ task, tokensEst, repeats14d, errors30d, skipHabitId, mod
     '--task', task,
     '--tokens_est', String(tokensEst),
     '--repeats_14d', String(repeats14d),
-    '--errors_30d', String(errors30d)
+    '--errors_30d', String(errors30d),
+    '--execution_intent', '1'
   ];
   if (skipHabitId) args.push('--skip_habit_id', String(skipHabitId));
   if (mode) args.push('--mode', String(mode));

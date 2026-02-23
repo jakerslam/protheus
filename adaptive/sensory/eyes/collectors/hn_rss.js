@@ -63,6 +63,26 @@ function fetchText(url, timeoutMs = 8000) {
   })();
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+}
+
+async function fetchTextWithRetry(url, timeoutMs = 8000, maxAttempts = 2) {
+  const attempts = Math.max(1, Number(maxAttempts || 1));
+  let lastErr = null;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fetchText(url, timeoutMs);
+    } catch (err) {
+      lastErr = err;
+      const classified = classifyCollectorError(err);
+      if (!classified.retryable || i >= attempts - 1) break;
+      await sleep(120 * (i + 1));
+    }
+  }
+  throw lastErr || makeCollectorError("collector_error", `fetch_failed for ${url}`);
+}
+
 function stripCdata(s) {
   return String(s || "").replace("<![CDATA[", "").replace("]]>", "").trim();
 }
@@ -192,12 +212,20 @@ async function collectHnRss(eyeConfig, budgets) {
     );
   }
   const uniqueCandidates = Array.isArray(pf.candidates) ? pf.candidates : [];
+  const retryAttempts = Math.max(1, Math.min(
+    Number(process.env.EYES_COLLECTOR_FETCH_RETRY_ATTEMPTS || 2) || 2,
+    4
+  ));
   let text = "";
   let bytes = 0;
   const failures = [];
   for (const feedUrl of uniqueCandidates) {
     try {
-      const r = await fetchText(feedUrl, Math.min(9000, (budgets?.max_seconds || 10) * 1000));
+      const r = await fetchTextWithRetry(
+        feedUrl,
+        Math.min(9000, (budgets?.max_seconds || 10) * 1000),
+        retryAttempts
+      );
       text = r.text;
       bytes = r.bytes;
       break;

@@ -56,6 +56,7 @@ const {
   annotateCampaignPriority,
   buildCampaignDecompositionPlans
 } = require('../../lib/strategy_campaign_scheduler.js');
+const { classifyProposalType } = require('../../lib/proposal_type_classifier.js');
 const {
   evaluateTier1Governance,
   classifyAndRecordException,
@@ -161,6 +162,11 @@ const REVERT_COOLDOWN_HOURS = Number(process.env.AUTONOMY_REVERT_COOLDOWN_HOURS 
 const AUTONOMY_REPEAT_NO_PROGRESS_LIMIT = Number(process.env.AUTONOMY_REPEAT_NO_PROGRESS_LIMIT || 2);
 const AUTONOMY_MIN_PROPOSAL_SCORE = Number(process.env.AUTONOMY_MIN_PROPOSAL_SCORE || 0);
 const AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS = Number(process.env.AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS || 12);
+const AUTONOMY_ROUTE_BLOCK_PREFILTER_ENABLED = String(process.env.AUTONOMY_ROUTE_BLOCK_PREFILTER_ENABLED || '1') !== '0';
+const AUTONOMY_ROUTE_BLOCK_PREFILTER_WINDOW_HOURS = Math.max(1, Number(process.env.AUTONOMY_ROUTE_BLOCK_PREFILTER_WINDOW_HOURS || 24));
+const AUTONOMY_ROUTE_BLOCK_PREFILTER_MAX_EVENTS = Math.max(50, Number(process.env.AUTONOMY_ROUTE_BLOCK_PREFILTER_MAX_EVENTS || 800));
+const AUTONOMY_ROUTE_BLOCK_PREFILTER_MIN_OBSERVATIONS = Math.max(1, Number(process.env.AUTONOMY_ROUTE_BLOCK_PREFILTER_MIN_OBSERVATIONS || 2));
+const AUTONOMY_ROUTE_BLOCK_PREFILTER_MAX_RATE = clampNumber(Number(process.env.AUTONOMY_ROUTE_BLOCK_PREFILTER_MAX_RATE || 0.7), 0.2, 1);
 const AUTONOMY_MIN_DOPAMINE_LAST_SCORE = Number(process.env.AUTONOMY_MIN_DOPAMINE_LAST_SCORE || 0);
 const AUTONOMY_MIN_DOPAMINE_AVG7 = Number(process.env.AUTONOMY_MIN_DOPAMINE_AVG7 || 0);
 const AUTONOMY_MIN_ROUTE_TOKENS = Number(process.env.AUTONOMY_MIN_ROUTE_TOKENS || 500);
@@ -168,6 +174,27 @@ const AUTONOMY_SKIP_STUB = String(process.env.AUTONOMY_SKIP_STUB || '1') !== '0'
 const AUTONOMY_MAX_RUNS_PER_DAY = Number(process.env.AUTONOMY_MAX_RUNS_PER_DAY || 4);
 const AUTONOMY_MIN_DAILY_EXECUTIONS = Math.max(0, Number(process.env.AUTONOMY_MIN_DAILY_EXECUTIONS || 1));
 const AUTONOMY_MIN_MINUTES_BETWEEN_RUNS = Number(process.env.AUTONOMY_MIN_MINUTES_BETWEEN_RUNS || 15);
+const AUTONOMY_POLICY_HOLD_COOLDOWN_MINUTES = Number(process.env.AUTONOMY_POLICY_HOLD_COOLDOWN_MINUTES || AUTONOMY_MIN_MINUTES_BETWEEN_RUNS);
+const AUTONOMY_POLICY_HOLD_PRESSURE_WINDOW_HOURS = Math.max(1, Number(process.env.AUTONOMY_POLICY_HOLD_PRESSURE_WINDOW_HOURS || 24));
+const AUTONOMY_POLICY_HOLD_PRESSURE_MIN_SAMPLES = Math.max(1, Number(process.env.AUTONOMY_POLICY_HOLD_PRESSURE_MIN_SAMPLES || 6));
+const AUTONOMY_POLICY_HOLD_PRESSURE_WARN_RATE = clampNumber(
+  Number(process.env.AUTONOMY_POLICY_HOLD_PRESSURE_WARN_RATE || 0.25),
+  0.05,
+  1
+);
+const AUTONOMY_POLICY_HOLD_PRESSURE_HARD_RATE = clampNumber(
+  Number(process.env.AUTONOMY_POLICY_HOLD_PRESSURE_HARD_RATE || 0.4),
+  AUTONOMY_POLICY_HOLD_PRESSURE_WARN_RATE,
+  1
+);
+const AUTONOMY_POLICY_HOLD_COOLDOWN_WARN_MINUTES = Math.max(
+  AUTONOMY_POLICY_HOLD_COOLDOWN_MINUTES,
+  Number(process.env.AUTONOMY_POLICY_HOLD_COOLDOWN_WARN_MINUTES || Math.max(AUTONOMY_POLICY_HOLD_COOLDOWN_MINUTES * 2, 30))
+);
+const AUTONOMY_POLICY_HOLD_COOLDOWN_HARD_MINUTES = Math.max(
+  AUTONOMY_POLICY_HOLD_COOLDOWN_WARN_MINUTES,
+  Number(process.env.AUTONOMY_POLICY_HOLD_COOLDOWN_HARD_MINUTES || Math.max(AUTONOMY_POLICY_HOLD_COOLDOWN_MINUTES * 4, 60))
+);
 const AUTONOMY_UNCHANGED_SHORT_CIRCUIT_ENABLED = String(process.env.AUTONOMY_UNCHANGED_SHORT_CIRCUIT_ENABLED || '1') !== '0';
 const AUTONOMY_UNCHANGED_SHORT_CIRCUIT_MINUTES = Number(process.env.AUTONOMY_UNCHANGED_SHORT_CIRCUIT_MINUTES || 30);
 const AUTONOMY_MAX_EYE_NO_PROGRESS_24H = Number(process.env.AUTONOMY_MAX_EYE_NO_PROGRESS_24H || 2);
@@ -243,6 +270,7 @@ const AUTONOMY_SPC_BASELINE_DAYS = Number(process.env.AUTONOMY_SPC_BASELINE_DAYS
 const AUTONOMY_SPC_BASELINE_MIN_DAYS = Number(process.env.AUTONOMY_SPC_BASELINE_MIN_DAYS || 7);
 const AUTONOMY_SPC_SIGMA = Number(process.env.AUTONOMY_SPC_SIGMA || 3);
 const AUTONOMY_RUN_LOCK_STALE_MINUTES = Number(process.env.AUTONOMY_RUN_LOCK_STALE_MINUTES || 90);
+const AUTONOMY_RUN_LOCK_DEAD_PID_GRACE_MINUTES = Math.max(0, Number(process.env.AUTONOMY_RUN_LOCK_DEAD_PID_GRACE_MINUTES || 1));
 const AUTONOMY_HARD_MAX_DAILY_RUNS_CAP = Number(process.env.AUTONOMY_HARD_MAX_DAILY_RUNS_CAP || 20);
 const AUTONOMY_HARD_MAX_DAILY_TOKEN_CAP = Number(process.env.AUTONOMY_HARD_MAX_DAILY_TOKEN_CAP || 12000);
 const AUTONOMY_HARD_MAX_TOKENS_PER_ACTION = Number(process.env.AUTONOMY_HARD_MAX_TOKENS_PER_ACTION || 4000);
@@ -303,6 +331,7 @@ const AUTONOMY_DIRECTIVE_PULSE_ESCALATE_AFTER = Number(process.env.AUTONOMY_DIRE
 const AUTONOMY_DIRECTIVE_PULSE_ESCALATE_WINDOW_HOURS = Number(process.env.AUTONOMY_DIRECTIVE_PULSE_ESCALATE_WINDOW_HOURS || 24);
 const AUTONOMY_DIRECTIVE_PULSE_RESERVATION_HARD = String(process.env.AUTONOMY_DIRECTIVE_PULSE_RESERVATION_HARD || '0') === '1';
 const AUTONOMY_OBJECTIVE_BINDING_REQUIRED = String(process.env.AUTONOMY_OBJECTIVE_BINDING_REQUIRED || '1') !== '0';
+const AUTONOMY_OBJECTIVE_BINDING_FALLBACK_DIRECTIVES = String(process.env.AUTONOMY_OBJECTIVE_BINDING_FALLBACK_DIRECTIVES || '1') !== '0';
 const AUTONOMY_EXECUTE_REQUIRE_T1 = String(process.env.AUTONOMY_EXECUTE_REQUIRE_T1 || '1') !== '0';
 const AUTONOMY_OBJECTIVE_ALLOCATION_RANK_BONUS = Number(process.env.AUTONOMY_OBJECTIVE_ALLOCATION_RANK_BONUS || 0.25);
 const AUTONOMY_OBJECTIVE_MIX_ENABLED = String(process.env.AUTONOMY_OBJECTIVE_MIX_ENABLED || '1') !== '0';
@@ -943,7 +972,18 @@ function normalizeStoredProposalStatus(raw, fallback = 'pending') {
 function normalizeStoredProposalRow(proposal, fallback = 'pending') {
   if (!proposal || typeof proposal !== 'object') return proposal;
   const next = { ...proposal };
+  const meta = next.meta && typeof next.meta === 'object' ? next.meta : {};
+  const typeDecision = classifyProposalType(next, {
+    source_eye: normalizeSpaces(meta.source_eye)
+  });
+  next.type = String(typeDecision && typeDecision.type || 'local_state_fallback').trim().toLowerCase() || 'local_state_fallback';
   next.status = normalizeStoredProposalStatus(next.status, fallback);
+  next.meta = {
+    ...meta,
+    normalized_proposal_type: next.type,
+    proposal_type_source: String(typeDecision && typeDecision.source || ''),
+    proposal_type_inferred: !!(typeDecision && typeDecision.inferred === true)
+  };
   return next;
 }
 
@@ -1346,6 +1386,89 @@ function parseIsoTs(ts) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+function isPolicyHoldResult(result): boolean {
+  const r = String(result || '').trim();
+  if (!r) return false;
+  return r.startsWith('no_candidates_policy_')
+    || r === 'stop_init_gate_budget_autopause'
+    || r === 'stop_init_gate_readiness'
+    || r === 'stop_init_gate_readiness_blocked'
+    || r === 'stop_init_gate_criteria_quality_insufficient'
+    || r === 'score_only_fallback_route_block'
+    || r === 'score_only_fallback_low_execution_confidence';
+}
+
+function isPolicyHoldRunEvent(evt): boolean {
+  if (!evt || evt.type !== 'autonomy_run') return false;
+  if (evt.policy_hold === true) return true;
+  return isPolicyHoldResult(evt.result);
+}
+
+function latestPolicyHoldRunEvent(events) {
+  const rows = Array.isArray(events) ? events : [];
+  for (let i = rows.length - 1; i >= 0; i -= 1) {
+    const evt = rows[i];
+    if (!evt || evt.type !== 'autonomy_run') continue;
+    if (!isPolicyHoldRunEvent(evt)) continue;
+    return evt;
+  }
+  return null;
+}
+
+function policyHoldPressureSnapshot(events, opts: AnyObj = {}) {
+  const rows = Array.isArray(events) ? events : [];
+  const windowHours = Math.max(
+    1,
+    Number(opts.window_hours || AUTONOMY_POLICY_HOLD_PRESSURE_WINDOW_HOURS || 24)
+  );
+  const minSamples = Math.max(
+    1,
+    Number(opts.min_samples || AUTONOMY_POLICY_HOLD_PRESSURE_MIN_SAMPLES || 1)
+  );
+  const cutoffMs = Date.now() - (windowHours * 3600000);
+  let attempts = 0;
+  let policyHolds = 0;
+  for (const evt of rows) {
+    if (!evt || evt.type !== 'autonomy_run') continue;
+    const result = String(evt.result || '');
+    if (!result || result === 'lock_busy' || result === 'stop_repeat_gate_interval') continue;
+    const t = parseIsoTs(evt.ts);
+    if (t && t.getTime() < cutoffMs) continue;
+    attempts += 1;
+    if (isPolicyHoldRunEvent(evt)) policyHolds += 1;
+  }
+  const rate = attempts > 0 ? clampNumber(policyHolds / attempts, 0, 1) : 0;
+  const applicable = attempts >= minSamples;
+  const level = !applicable
+    ? 'normal'
+    : rate >= AUTONOMY_POLICY_HOLD_PRESSURE_HARD_RATE
+      ? 'hard'
+      : rate >= AUTONOMY_POLICY_HOLD_PRESSURE_WARN_RATE
+        ? 'warn'
+        : 'normal';
+  return {
+    window_hours: windowHours,
+    min_samples: minSamples,
+    samples: attempts,
+    policy_holds: policyHolds,
+    rate: Number(rate.toFixed(3)),
+    level,
+    applicable
+  };
+}
+
+function policyHoldCooldownMinutesForPressure(baseMinutes, pressure) {
+  let cooldown = Math.max(0, Number(baseMinutes || 0));
+  const snapshot = pressure && typeof pressure === 'object' ? pressure : {};
+  const level = String(snapshot.level || '').toLowerCase();
+  if (snapshot.applicable === true && level === 'hard') {
+    cooldown = Math.max(cooldown, AUTONOMY_POLICY_HOLD_COOLDOWN_HARD_MINUTES);
+  } else if (snapshot.applicable === true && level === 'warn') {
+    cooldown = Math.max(cooldown, AUTONOMY_POLICY_HOLD_COOLDOWN_WARN_MINUTES);
+  }
+  return Math.max(0, Math.round(cooldown));
+}
+
 function ageHours(dateStr) {
   const start = new Date(`${dateStr}T00:00:00.000Z`);
   return (Date.now() - start.getTime()) / (1000 * 60 * 60);
@@ -1505,6 +1628,78 @@ function isAttemptRunEvent(evt) {
 
 function attemptEvents(events) {
   return events.filter(isAttemptRunEvent);
+}
+
+function runEventProposalId(evt) {
+  if (!evt || typeof evt !== 'object') return '';
+  const topEscalation = evt.top_escalation && typeof evt.top_escalation === 'object'
+    ? evt.top_escalation
+    : {};
+  return normalizeSpaces(
+    evt.proposal_id
+    || evt.selected_proposal_id
+    || topEscalation.proposal_id
+    || ''
+  );
+}
+
+function runEventObjectiveId(evt) {
+  if (!evt || typeof evt !== 'object') return '';
+  const pulse = evt.directive_pulse && typeof evt.directive_pulse === 'object'
+    ? evt.directive_pulse
+    : {};
+  const binding = evt.objective_binding && typeof evt.objective_binding === 'object'
+    ? evt.objective_binding
+    : {};
+  const topEscalation = evt.top_escalation && typeof evt.top_escalation === 'object'
+    ? evt.top_escalation
+    : {};
+  return sanitizeDirectiveObjectiveId(
+    pulse.objective_id
+    || evt.objective_id
+    || binding.objective_id
+    || topEscalation.objective_id
+    || ''
+  ) || '';
+}
+
+function isCapacityCountedAttemptEvent(evt): boolean {
+  if (!evt || evt.type !== 'autonomy_run') return false;
+  const result = String(evt.result || '');
+  if (!result) return false;
+  if (evt.policy_hold === true) return false;
+  if (isPolicyHoldRunEvent(evt)) return false;
+  if (result === 'lock_busy' || result === 'stop_repeat_gate_interval') return false;
+  if (isScoreOnlyResult(result)) return false;
+  if (result === 'executed') return true;
+  if (isAttemptRunEvent(evt) && !!runEventProposalId(evt)) return true;
+  return false;
+}
+
+function capacityCountedAttemptEvents(events) {
+  return (events || []).filter(isCapacityCountedAttemptEvent);
+}
+
+function deriveRepeatGateAnchor(evt) {
+  if (!evt || typeof evt !== 'object') return {};
+  const proposalId = runEventProposalId(evt);
+  const objectiveId = runEventObjectiveId(evt);
+  const out: AnyObj = {};
+  if (proposalId) out.proposal_id = proposalId;
+  if (objectiveId) out.objective_id = objectiveId;
+  const binding = evt.objective_binding && typeof evt.objective_binding === 'object'
+    ? evt.objective_binding
+    : null;
+  if (binding && objectiveId) {
+    out.objective_binding = {
+      pass: binding.pass !== false,
+      required: binding.required === true,
+      objective_id: objectiveId,
+      source: binding.source || 'repeat_gate_anchor',
+      valid: binding.valid !== false
+    };
+  }
+  return out;
 }
 
 function isScoreOnlyResult(result): boolean {
@@ -3947,6 +4142,113 @@ function countEyeOutcomesInLastHours(events, eyeRef, outcome, hours) {
   return count;
 }
 
+function isRouteExecutionSampleEvent(evt) {
+  if (!evt || evt.type !== 'autonomy_run') return false;
+  const result = String(evt.result || '').trim();
+  if (!result) return false;
+  if (result === 'score_only_fallback_route_block' || result === 'init_gate_blocked_route') return true;
+  if (String(evt.execution_target || '').trim().toLowerCase() === 'route') {
+    return result === 'executed';
+  }
+  if (result === 'executed' && evt.route_summary && typeof evt.route_summary === 'object') return true;
+  return false;
+}
+
+function recentAutonomyRunEventsInLastHours(hours, maxEvents = 800) {
+  const h = Math.max(1, Number(hours || 1));
+  const cap = Math.max(50, Number(maxEvents || 800));
+  const cutoffMs = Date.now() - (h * 60 * 60 * 1000);
+  if (!fs.existsSync(RUNS_DIR)) return [];
+  const files = fs.readdirSync(RUNS_DIR)
+    .filter(f => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f))
+    .sort()
+    .reverse();
+  const out = [];
+  for (const file of files) {
+    const rows = readJsonl(path.join(RUNS_DIR, file));
+    for (let i = rows.length - 1; i >= 0; i -= 1) {
+      const evt = rows[i];
+      if (!evt || evt.type !== 'autonomy_run') continue;
+      const ts = parseIsoTs(evt.ts);
+      if (!ts) continue;
+      const tsMs = ts.getTime();
+      if (!Number.isFinite(tsMs) || tsMs < cutoffMs) continue;
+      out.push(evt);
+      if (out.length >= cap) return out;
+    }
+  }
+  return out;
+}
+
+function summarizeRecentRouteBlockTelemetry(hours, maxEvents = 800) {
+  const events = recentAutonomyRunEventsInLastHours(hours, maxEvents);
+  const byCapability = {};
+  for (const evt of events) {
+    if (!isRouteExecutionSampleEvent(evt)) continue;
+    const key = String(evt.capability_key || '').trim().toLowerCase();
+    if (!key) continue;
+    if (!byCapability[key]) {
+      byCapability[key] = { attempts: 0, route_blocked: 0, route_block_rate: 0 };
+    }
+    byCapability[key].attempts += 1;
+    if (evt.result === 'score_only_fallback_route_block' || evt.result === 'init_gate_blocked_route') {
+      byCapability[key].route_blocked += 1;
+    }
+  }
+  for (const key of Object.keys(byCapability)) {
+    const row = byCapability[key];
+    row.route_block_rate = row.attempts > 0
+      ? Number((Number(row.route_blocked || 0) / Number(row.attempts || 1)).toFixed(3))
+      : 0;
+  }
+  return {
+    window_hours: Math.max(1, Number(hours || 1)),
+    sample_events: events.length,
+    by_capability: byCapability
+  };
+}
+
+function evaluateRouteBlockPrefilter(telemetry, capabilityKey) {
+  const key = String(capabilityKey || '').trim().toLowerCase();
+  const out = {
+    enabled: AUTONOMY_ROUTE_BLOCK_PREFILTER_ENABLED,
+    applicable: false,
+    pass: true,
+    reason: 'disabled',
+    capability_key: key || null,
+    window_hours: AUTONOMY_ROUTE_BLOCK_PREFILTER_WINDOW_HOURS,
+    min_observations: AUTONOMY_ROUTE_BLOCK_PREFILTER_MIN_OBSERVATIONS,
+    max_block_rate: AUTONOMY_ROUTE_BLOCK_PREFILTER_MAX_RATE,
+    attempts: 0,
+    route_blocked: 0,
+    route_block_rate: 0
+  };
+  if (!AUTONOMY_ROUTE_BLOCK_PREFILTER_ENABLED) return out;
+  out.reason = 'missing_capability_key';
+  if (!key) return out;
+  out.applicable = true;
+  const rows = telemetry && telemetry.by_capability && typeof telemetry.by_capability === 'object'
+    ? telemetry.by_capability
+    : {};
+  const row = rows[key] && typeof rows[key] === 'object' ? rows[key] : null;
+  out.reason = 'no_recent_route_samples';
+  if (!row) return out;
+  out.attempts = Math.max(0, Number(row.attempts || 0));
+  out.route_blocked = Math.max(0, Number(row.route_blocked || 0));
+  out.route_block_rate = clampNumber(Number(row.route_block_rate || 0), 0, 1);
+  if (out.attempts < AUTONOMY_ROUTE_BLOCK_PREFILTER_MIN_OBSERVATIONS) {
+    out.reason = 'insufficient_observations';
+    return out;
+  }
+  if (out.route_block_rate >= AUTONOMY_ROUTE_BLOCK_PREFILTER_MAX_RATE) {
+    out.pass = false;
+    out.reason = 'route_block_rate_exceeded';
+    return out;
+  }
+  out.reason = 'pass';
+  return out;
+}
+
 function proposalStatus(overlayEnt) {
   if (!overlayEnt || !overlayEnt.decision) return 'pending';
   if (overlayEnt.decision === 'accept') return 'accepted';
@@ -4461,6 +4763,31 @@ function parseActuationSpec(p) {
   return { kind, params };
 }
 
+let objectiveBindingFallbackCache = null;
+
+function loadFallbackDirectiveObjectiveIds() {
+  if (objectiveBindingFallbackCache && Array.isArray(objectiveBindingFallbackCache.ids)) {
+    return objectiveBindingFallbackCache.ids.slice();
+  }
+  let directives = [];
+  try {
+    directives = loadActiveDirectives({ allowMissing: true });
+  } catch {
+    directives = [];
+  }
+  const ids = [];
+  const seen = new Set();
+  for (const row of directives) {
+    const id = sanitizeDirectiveObjectiveId(row && row.id);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  ids.sort((a, b) => String(a).localeCompare(String(b)));
+  objectiveBindingFallbackCache = { ids };
+  return ids.slice();
+}
+
 function objectiveIdsFromPulseContext(pulseCtx) {
   const set = new Set();
   const objectives = pulseCtx && Array.isArray(pulseCtx.objectives)
@@ -4470,6 +4797,12 @@ function objectiveIdsFromPulseContext(pulseCtx) {
     const id = String(row && row.id || '').trim();
     if (!id) continue;
     set.add(id);
+  }
+  if (set.size === 0 && AUTONOMY_OBJECTIVE_BINDING_FALLBACK_DIRECTIVES) {
+    for (const id of loadFallbackDirectiveObjectiveIds()) {
+      if (!id) continue;
+      set.add(id);
+    }
   }
   return set;
 }
@@ -4931,6 +5264,9 @@ function extractSuccessCriteriaMetricValues(proposal, opts: AnyObj = {}) {
   setMetric('artifact_count', artifactsDelta);
   setMetric('entries_count', entriesDelta);
   setMetric('revenue_actions_count', revenueDelta);
+  setDefaultMetric('artifact_count', artifactsDelta != null ? artifactsDelta : 0);
+  setDefaultMetric('entries_count', entriesDelta != null ? entriesDelta : 0);
+  setDefaultMetric('revenue_actions_count', revenueDelta != null ? revenueDelta : 0);
 
   const outreachArtifact = readFirstNumericMetric(sources, [
     'outreach_artifact',
@@ -6251,11 +6587,15 @@ function statusCmd(dateStr) {
   const runs = runsSinceReset(readRuns(dateStr));
   const directivePulseCtx = buildDirectivePulseContext(dateStr);
   const attempts = attemptEvents(runs);
+  const capAttempts = capacityCountedAttemptEvents(runs);
   const executedRuns = runs.filter(e => e && e.type === 'autonomy_run' && e.result === 'executed');
   const mediumExecuted = executedCountByRisk(executedRuns, 'medium');
   const attemptsToday = attempts.length;
+  const attemptsTodayForCap = capAttempts.length;
   const lastAttempt = attempts.length ? attempts[attempts.length - 1] : null;
+  const lastCapacityAttempt = capAttempts.length ? capAttempts[capAttempts.length - 1] : lastAttempt;
   const lastAttemptMinutesAgo = lastAttempt ? minutesSinceTs(lastAttempt.ts) : null;
+  const lastCapacityAttemptMinutesAgo = lastCapacityAttempt ? minutesSinceTs(lastCapacityAttempt.ts) : null;
   const noProgressStreak = consecutiveNoProgressRuns(runs);
   const gateExhaustionStreak = consecutiveGateExhaustedAttempts(attempts);
   const shippedToday = shippedCount(runs);
@@ -6296,10 +6636,13 @@ function statusCmd(dateStr) {
       shipped_today: shippedToday,
       executed_today: executedRuns.length,
       medium_executed_today: mediumExecuted,
-      attempts_today: attemptsToday,
+      attempts_today: attemptsTodayForCap,
+      attempts_total: attemptsToday,
+      attempts_counted_for_cap: attemptsTodayForCap,
       max_runs_per_day: maxRunsPerDay,
       min_minutes_between_runs: AUTONOMY_MIN_MINUTES_BETWEEN_RUNS,
-      last_attempt_minutes_ago: lastAttemptMinutesAgo == null ? null : Number(lastAttemptMinutesAgo.toFixed(2)),
+      last_attempt_minutes_ago: lastCapacityAttemptMinutesAgo == null ? null : Number(lastCapacityAttemptMinutesAgo.toFixed(2)),
+      last_attempt_minutes_ago_any: lastAttemptMinutesAgo == null ? null : Number(lastAttemptMinutesAgo.toFixed(2)),
       max_eye_no_progress_24h: AUTONOMY_MAX_EYE_NO_PROGRESS_24H,
       explore_used: exploreUsed,
       exploit_used: exploitUsed,
@@ -6630,7 +6973,9 @@ function readinessCmd(dateStr) {
 
   const runs = runsSinceReset(readRuns(dateStr));
   const attempts = attemptEvents(runs);
+  const capAttempts = capacityCountedAttemptEvents(runs);
   const attemptsToday = attempts.length;
+  const attemptsTodayForCap = capAttempts.length;
   const executedRuns = runs.filter(e => e && e.type === 'autonomy_run' && e.result === 'executed');
   const executedToday = executedRuns.length;
   const executionQuotaDeficit = needsExecutionQuota(executionMode, false, executedToday);
@@ -6639,7 +6984,9 @@ function readinessCmd(dateStr) {
   const noProgressStreak = consecutiveNoProgressRuns(runs);
   const gateExhaustionStreak = consecutiveGateExhaustedAttempts(attempts);
   const lastAttempt = attempts.length ? attempts[attempts.length - 1] : null;
+  const lastCapacityAttempt = capAttempts.length ? capAttempts[capAttempts.length - 1] : lastAttempt;
   const lastAttemptMinutesAgo = lastAttempt ? minutesSinceTs(lastAttempt.ts) : null;
+  const lastCapacityAttemptMinutesAgo = lastCapacityAttempt ? minutesSinceTs(lastCapacityAttempt.ts) : null;
   const tier1Governance = evaluateTier1GovernanceSnapshot(dateStr, attemptsToday, 0, {
     execution_mode: executionMode,
     strategy_budget: strategyBudget
@@ -6683,10 +7030,14 @@ function readinessCmd(dateStr) {
     });
   }
 
-  if (!executionQuotaDeficit && maxRunsPerDay > 0 && attemptsToday >= maxRunsPerDay) {
+  if (!executionQuotaDeficit && maxRunsPerDay > 0 && attemptsTodayForCap >= maxRunsPerDay) {
     addBlocker('daily_cap', 'daily run cap reached', {
       next_at: startOfNextUtcDay(dateStr),
-      meta: { attempts_today: attemptsToday, max_runs_per_day: maxRunsPerDay }
+      meta: {
+        attempts_today: attemptsTodayForCap,
+        attempts_total: attemptsToday,
+        max_runs_per_day: maxRunsPerDay
+      }
     });
   }
 
@@ -6705,14 +7056,15 @@ function readinessCmd(dateStr) {
 
   if (
     AUTONOMY_MIN_MINUTES_BETWEEN_RUNS > 0
-    && lastAttemptMinutesAgo != null
-    && lastAttemptMinutesAgo < AUTONOMY_MIN_MINUTES_BETWEEN_RUNS
+    && lastCapacityAttemptMinutesAgo != null
+    && lastCapacityAttemptMinutesAgo < AUTONOMY_MIN_MINUTES_BETWEEN_RUNS
     && !executionQuotaDeficit
   ) {
     addBlocker('interval', 'minimum interval between runs not elapsed', {
-      next_at: isoAfterMinutes(AUTONOMY_MIN_MINUTES_BETWEEN_RUNS - lastAttemptMinutesAgo),
+      next_at: isoAfterMinutes(AUTONOMY_MIN_MINUTES_BETWEEN_RUNS - lastCapacityAttemptMinutesAgo),
       meta: {
-        last_attempt_minutes_ago: Number(lastAttemptMinutesAgo.toFixed(2)),
+        last_attempt_minutes_ago: Number(lastCapacityAttemptMinutesAgo.toFixed(2)),
+        last_attempt_minutes_ago_any: lastAttemptMinutesAgo == null ? null : Number(lastAttemptMinutesAgo.toFixed(2)),
         min_minutes_between_runs: AUTONOMY_MIN_MINUTES_BETWEEN_RUNS
       }
     });
@@ -6892,6 +7244,46 @@ function runCmd(dateStr, opts: AnyObj = {}) {
     return;
   }
 
+  const priorRunsForPolicyHoldCooldown = runsSinceReset(readRuns(dateStr));
+  const lastPolicyHoldRun = latestPolicyHoldRunEvent(priorRunsForPolicyHoldCooldown);
+  const policyHoldPressure = policyHoldPressureSnapshot(priorRunsForPolicyHoldCooldown);
+  const policyHoldCooldownMinutes = policyHoldCooldownMinutesForPressure(
+    Math.max(0, Number(AUTONOMY_POLICY_HOLD_COOLDOWN_MINUTES || 0)),
+    policyHoldPressure
+  );
+  const lastPolicyHoldMinutesAgo = lastPolicyHoldRun ? minutesSinceTs(lastPolicyHoldRun.ts) : null;
+  if (
+    !shadowOnly
+    && policyHoldCooldownMinutes > 0
+    && lastPolicyHoldMinutesAgo != null
+    && lastPolicyHoldMinutesAgo < policyHoldCooldownMinutes
+  ) {
+    const remainingMinutes = Math.max(0, policyHoldCooldownMinutes - Number(lastPolicyHoldMinutesAgo || 0));
+    writeRun(dateStr, {
+      ts: nowIso(),
+      type: 'autonomy_run',
+      result: 'stop_repeat_gate_interval',
+      interval_scope: 'policy_hold',
+      last_policy_hold_result: String(lastPolicyHoldRun.result || ''),
+      last_policy_hold_minutes_ago: Number(lastPolicyHoldMinutesAgo.toFixed(2)),
+      min_minutes_between_runs: policyHoldCooldownMinutes,
+      policy_hold_pressure: policyHoldPressure,
+      next_runnable_at: isoAfterMinutes(remainingMinutes)
+    });
+    process.stdout.write(JSON.stringify({
+      ok: true,
+      result: 'stop_repeat_gate_interval',
+      interval_scope: 'policy_hold',
+      last_policy_hold_result: String(lastPolicyHoldRun.result || ''),
+      last_policy_hold_minutes_ago: Number(lastPolicyHoldMinutesAgo.toFixed(2)),
+      min_minutes_between_runs: policyHoldCooldownMinutes,
+      policy_hold_pressure: policyHoldPressure,
+      next_runnable_at: isoAfterMinutes(remainingMinutes),
+      ts: nowIso()
+    }) + '\n');
+    return;
+  }
+
   if (
     AUTONOMY_REQUIRE_READINESS_FOR_EXECUTE
     && strategy
@@ -6918,10 +7310,16 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       const readinessStopResult = readinessFailedChecks.includes('success_criteria_quality_insufficient_rate')
         ? 'stop_init_gate_criteria_quality_insufficient'
         : 'stop_init_gate_readiness';
+      const readinessHoldReason = readinessStopResult === 'stop_init_gate_criteria_quality_insufficient'
+        ? 'success_criteria_quality_insufficient_rate'
+        : 'strategy_readiness';
       writeRun(dateStr, {
         ts: nowIso(),
         type: 'autonomy_run',
         result: readinessStopResult,
+        policy_hold: true,
+        hold_scope: 'readiness',
+        hold_reason: readinessHoldReason,
         strategy_id: strategy.id,
         execution_mode: executionMode,
         readiness_code: readiness.code,
@@ -6931,6 +7329,9 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       process.stdout.write(JSON.stringify({
         ok: true,
         result: readinessStopResult,
+        policy_hold: true,
+        hold_scope: 'readiness',
+        hold_reason: readinessHoldReason,
         strategy_id: strategy.id,
         execution_mode: executionMode,
         readiness: readinessDetails,
@@ -7151,12 +7552,16 @@ function runCmd(dateStr, opts: AnyObj = {}) {
 
   const priorRuns = runsSinceReset(readRuns(dateStr));
   const priorAttempts = attemptEvents(priorRuns);
+  const priorCapAttempts = capacityCountedAttemptEvents(priorRuns);
   const attemptsToday = priorAttempts.length;
+  const attemptsTodayForCap = priorCapAttempts.length;
   const executedToday = priorRuns.filter(e => e && e.type === 'autonomy_run' && e.result === 'executed').length;
   const executionQuotaDeficit = needsExecutionQuota(executionMode, shadowOnly, executedToday);
   const mediumExecutedToday = executedCountByRisk(priorRuns, 'medium');
   const lastAttempt = priorAttempts.length ? priorAttempts[priorAttempts.length - 1] : null;
+  const lastCapacityAttempt = priorCapAttempts.length ? priorCapAttempts[priorCapAttempts.length - 1] : lastAttempt;
   const lastAttemptMinutesAgo = lastAttempt ? minutesSinceTs(lastAttempt.ts) : null;
+  const lastCapacityAttemptMinutesAgo = lastCapacityAttempt ? minutesSinceTs(lastCapacityAttempt.ts) : null;
   const noProgressStreak = consecutiveNoProgressRuns(priorRuns);
   const gateExhaustionStreak = consecutiveGateExhaustedAttempts(priorAttempts);
   const shippedToday = shippedCount(priorRuns);
@@ -7176,10 +7581,11 @@ function runCmd(dateStr, opts: AnyObj = {}) {
   const calibrationProfile: AnyObj = computeCalibrationProfile(dateStr, true);
   const thresholds = calibrationProfile.effective_thresholds || baseThresholds();
   const directivePulseCtx = buildDirectivePulseContext(dateStr);
+  const repeatGateAnchor = deriveRepeatGateAnchor(lastCapacityAttempt || lastAttempt);
   const dailyCapOverride = consumeHumanCanaryDailyCapOverrideIfAllowed({
     dateStr,
     executionMode,
-    attemptsToday,
+    attemptsToday: attemptsTodayForCap,
     maxRunsPerDay,
     shadowOnly
   });
@@ -7188,21 +7594,25 @@ function runCmd(dateStr, opts: AnyObj = {}) {
     !shadowOnly
     && !executionQuotaDeficit
     && maxRunsPerDay > 0
-    && attemptsToday >= maxRunsPerDay
+    && attemptsTodayForCap >= maxRunsPerDay
     && dailyCapOverride.consumed !== true
   ) {
     writeRun(dateStr, {
       ts: nowIso(),
       type: 'autonomy_run',
       result: 'stop_repeat_gate_daily_cap',
-      attempts_today: attemptsToday,
-      max_runs_per_day: maxRunsPerDay
+      attempts_today: attemptsTodayForCap,
+      attempts_total: attemptsToday,
+      max_runs_per_day: maxRunsPerDay,
+      ...repeatGateAnchor
     });
     process.stdout.write(JSON.stringify({
       ok: true,
       result: 'stop_repeat_gate_daily_cap',
-      attempts_today: attemptsToday,
+      attempts_today: attemptsTodayForCap,
+      attempts_total: attemptsToday,
       max_runs_per_day: maxRunsPerDay,
+      ...repeatGateAnchor,
       ts: nowIso()
     }) + '\n');
     return;
@@ -7239,22 +7649,26 @@ function runCmd(dateStr, opts: AnyObj = {}) {
     !shadowOnly
     &&
     AUTONOMY_MIN_MINUTES_BETWEEN_RUNS > 0
-    && lastAttemptMinutesAgo != null
-    && lastAttemptMinutesAgo < AUTONOMY_MIN_MINUTES_BETWEEN_RUNS
+    && lastCapacityAttemptMinutesAgo != null
+    && lastCapacityAttemptMinutesAgo < AUTONOMY_MIN_MINUTES_BETWEEN_RUNS
     && !executionQuotaDeficit
   ) {
     writeRun(dateStr, {
       ts: nowIso(),
       type: 'autonomy_run',
       result: 'stop_repeat_gate_interval',
-      last_attempt_minutes_ago: Number(lastAttemptMinutesAgo.toFixed(2)),
-      min_minutes_between_runs: AUTONOMY_MIN_MINUTES_BETWEEN_RUNS
+      last_attempt_minutes_ago: Number(lastCapacityAttemptMinutesAgo.toFixed(2)),
+      last_attempt_minutes_ago_any: lastAttemptMinutesAgo == null ? null : Number(lastAttemptMinutesAgo.toFixed(2)),
+      min_minutes_between_runs: AUTONOMY_MIN_MINUTES_BETWEEN_RUNS,
+      ...repeatGateAnchor
     });
     process.stdout.write(JSON.stringify({
       ok: true,
       result: 'stop_repeat_gate_interval',
-      last_attempt_minutes_ago: Number(lastAttemptMinutesAgo.toFixed(2)),
+      last_attempt_minutes_ago: Number(lastCapacityAttemptMinutesAgo.toFixed(2)),
+      last_attempt_minutes_ago_any: lastAttemptMinutesAgo == null ? null : Number(lastAttemptMinutesAgo.toFixed(2)),
       min_minutes_between_runs: AUTONOMY_MIN_MINUTES_BETWEEN_RUNS,
+      ...repeatGateAnchor,
       ts: nowIso()
     }) + '\n');
     return;
@@ -7298,7 +7712,8 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       result: 'stop_repeat_gate_no_progress',
       no_progress_streak: noProgressStreak,
       no_progress_limit: AUTONOMY_REPEAT_NO_PROGRESS_LIMIT,
-      shipped_today: shippedToday
+      shipped_today: shippedToday,
+      ...repeatGateAnchor
     });
     process.stdout.write(JSON.stringify({
       ok: true,
@@ -7306,6 +7721,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       no_progress_streak: noProgressStreak,
       no_progress_limit: AUTONOMY_REPEAT_NO_PROGRESS_LIMIT,
       shipped_today: shippedToday,
+      ...repeatGateAnchor,
       ts: nowIso()
     }) + '\n');
     return;
@@ -7317,13 +7733,15 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       type: 'autonomy_run',
       result: 'stop_repeat_gate_dopamine',
       no_progress_streak: noProgressStreak,
-      dopamine
+      dopamine,
+      ...repeatGateAnchor
     });
     process.stdout.write(JSON.stringify({
       ok: true,
       result: 'stop_repeat_gate_dopamine',
       no_progress_streak: noProgressStreak,
       dopamine,
+      ...repeatGateAnchor,
       ts: nowIso()
     }) + '\n');
     return;
@@ -7433,6 +7851,13 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       require_executable: AUTONOMY_CANARY_REQUIRE_EXECUTABLE,
       block_generic_route_task: AUTONOMY_CANARY_BLOCK_GENERIC_ROUTE_TASK
     },
+    route_block_prefilter: {
+      enabled: AUTONOMY_ROUTE_BLOCK_PREFILTER_ENABLED,
+      window_hours: AUTONOMY_ROUTE_BLOCK_PREFILTER_WINDOW_HOURS,
+      min_observations: AUTONOMY_ROUTE_BLOCK_PREFILTER_MIN_OBSERVATIONS,
+      max_block_rate: AUTONOMY_ROUTE_BLOCK_PREFILTER_MAX_RATE,
+      sample_events: 0
+    },
     optimization_policy: {
       high_accuracy_mode: AUTONOMY_OPTIMIZATION_HIGH_ACCURACY_MODE,
       min_delta_percent: optimizationMinDeltaPercent(),
@@ -7473,6 +7898,21 @@ function runCmd(dateStr, opts: AnyObj = {}) {
     });
   };
   let tierReservation = null;
+  const routeBlockPrefilterTelemetry = (
+    !shadowOnly
+    && isExecuteMode(executionMode)
+    && AUTONOMY_ROUTE_BLOCK_PREFILTER_ENABLED
+  )
+    ? summarizeRecentRouteBlockTelemetry(
+      AUTONOMY_ROUTE_BLOCK_PREFILTER_WINDOW_HOURS,
+      AUTONOMY_ROUTE_BLOCK_PREFILTER_MAX_EVENTS
+    )
+    : {
+      window_hours: AUTONOMY_ROUTE_BLOCK_PREFILTER_WINDOW_HOURS,
+      sample_events: 0,
+      by_capability: {}
+    };
+  candidateAuditPolicy.route_block_prefilter.sample_events = Number(routeBlockPrefilterTelemetry.sample_events || 0);
   for (const cand of pool) {
     const proposalId = String(cand && cand.proposal && cand.proposal.id || '');
     const proposalType = String(cand && cand.proposal && cand.proposal.type || '');
@@ -7786,6 +8226,43 @@ function runCmd(dateStr, opts: AnyObj = {}) {
         };
       }
       continue;
+    }
+
+    if (!shadowOnly && isExecuteMode(executionMode) && capKeyCand) {
+      const routePrefilter = evaluateRouteBlockPrefilter(routeBlockPrefilterTelemetry, capKeyCand);
+      if (!routePrefilter.pass && routePrefilter.applicable) {
+        skipStats.capability_cooldown += 1;
+        bumpCount(candidateRejectedByGate, 'route_block_prefilter');
+        pushCandidateAudit({
+          proposal_id: proposalId,
+          proposal_type: proposalType,
+          risk,
+          pass: false,
+          gate: 'route_block_prefilter',
+          score: Number(cand.score || 0),
+          capability_key: capKeyCand,
+          route_block_prefilter: {
+            window_hours: routePrefilter.window_hours,
+            min_observations: routePrefilter.min_observations,
+            max_block_rate: routePrefilter.max_block_rate,
+            attempts: routePrefilter.attempts,
+            route_blocked: routePrefilter.route_blocked,
+            route_block_rate: routePrefilter.route_block_rate
+          },
+          reasons: [routePrefilter.reason || 'route_block_rate_exceeded']
+        });
+        if (!sampleCapabilityCooldown) {
+          sampleCapabilityCooldown = {
+            proposal_id: cand.proposal.id,
+            capability_key: capKeyCand,
+            reason: routePrefilter.reason || 'route_block_rate_exceeded',
+            attempts: routePrefilter.attempts,
+            route_blocked: routePrefilter.route_blocked,
+            route_block_rate: routePrefilter.route_block_rate
+          };
+        }
+        continue;
+      }
     }
 
     const compositeScoreRaw = compositeEligibilityScore(q.score, dfit.score, actionability.score);
@@ -9263,6 +9740,9 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       ts: nowIso(),
       type: 'autonomy_run',
       result: 'stop_init_gate_budget_autopause',
+      policy_hold: true,
+      hold_scope: 'budget',
+      hold_reason: budgetAutopause && budgetAutopause.reason ? String(budgetAutopause.reason) : 'budget_autopause',
       proposal_id: p.id,
       capability_key: capabilityKey,
       directive_pulse: directivePulse,
@@ -9276,6 +9756,9 @@ function runCmd(dateStr, opts: AnyObj = {}) {
     process.stdout.write(JSON.stringify({
       ok: true,
       result: 'stop_init_gate_budget_autopause',
+      policy_hold: true,
+      hold_scope: 'budget',
+      hold_reason: budgetAutopause && budgetAutopause.reason ? String(budgetAutopause.reason) : 'budget_autopause',
       proposal_id: p.id,
       capability_key: capabilityKey,
       directive_pulse: directivePulse,
@@ -10286,8 +10769,7 @@ function acquireAutonomyRunLock(meta) {
         && processAlive === false
         && (
           !Number.isFinite(ageMinutes)
-          || staleMinutes <= 0
-          || ageMinutes > staleMinutes
+          || ageMinutes > AUTONOMY_RUN_LOCK_DEAD_PID_GRACE_MINUTES
         );
       const malformed = !existing || typeof existing !== 'object';
       const stale = staleByAge || staleByDeadPid || malformed;
@@ -10473,6 +10955,11 @@ module.exports = {
   compileDirectivePulseObjectives,
   buildDirectivePulseContext,
   assessDirectivePulse,
+  isPolicyHoldResult,
+  isPolicyHoldRunEvent,
+  latestPolicyHoldRunEvent,
+  policyHoldPressureSnapshot,
+  policyHoldCooldownMinutesForPressure,
   startModelCatalogCanary,
   evaluateModelCatalogCanary,
   readModelCatalogCanary,

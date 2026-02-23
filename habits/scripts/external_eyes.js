@@ -96,6 +96,11 @@ const EYES_LINKAGE_RETIRE_MIN_PROPOSED = Math.max(1, Number(process.env.EYES_LIN
 const EYES_LINKAGE_RETIRE_MIN_YIELD = Math.max(0, Number(process.env.EYES_LINKAGE_RETIRE_MIN_YIELD || 0.12));
 const EYES_LINKAGE_RUN_GATE_ENABLED = String(process.env.EYES_LINKAGE_RUN_GATE_ENABLED || '1') !== '0';
 const EYES_LINKAGE_RUN_GATE_ALLOW_STUB = String(process.env.EYES_LINKAGE_RUN_GATE_ALLOW_STUB || '1') !== '0';
+const EYES_LINKAGE_AUTOBIND_ENABLED = String(process.env.EYES_LINKAGE_AUTOBIND_ENABLED || '1') !== '0';
+const EYES_LINKAGE_AUTOBIND_DIRECTIVE = String(process.env.EYES_LINKAGE_AUTOBIND_DIRECTIVE || '').trim();
+const EYES_LINKAGE_RUN_GATE_FAIL_OPEN_ENABLED = String(process.env.EYES_LINKAGE_RUN_GATE_FAIL_OPEN_ENABLED || '1') !== '0';
+const EYES_LINKAGE_RUN_GATE_FAIL_OPEN_MIN_COUNT = Math.max(1, Number(process.env.EYES_LINKAGE_RUN_GATE_FAIL_OPEN_MIN_COUNT || 4));
+const EYES_LINKAGE_RUN_GATE_FAIL_OPEN_MIN_RATIO = Math.max(0.5, Math.min(1, Number(process.env.EYES_LINKAGE_RUN_GATE_FAIL_OPEN_MIN_RATIO || 0.75) || 0.75));
 const EYES_HEALTH_QUARANTINE_ENABLED = String(process.env.EYES_HEALTH_QUARANTINE_ENABLED || '1') !== '0';
 const EYES_HEALTH_QUARANTINE_HOURS = Math.max(1, Number(process.env.EYES_HEALTH_QUARANTINE_HOURS || 4));
 const EYES_HEALTH_QUARANTINE_FAIL_THRESHOLD = Math.max(1, Number(process.env.EYES_HEALTH_QUARANTINE_FAIL_THRESHOLD || 2));
@@ -672,7 +677,7 @@ function loadActiveDirectiveIdsForSprout() {
     const data = d && d.data && typeof d.data === 'object' ? d.data : {};
     const meta = data && data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
     const id = String(d && d.id ? d.id : meta.id || '').trim();
-    if (!/^T[0-9]_[A-Za-z0-9_]+$/.test(id)) continue;
+    if (!/^T[0-9][A-Za-z0-9:_-]*$/.test(id)) continue;
     const tierRaw = Number(d && d.tier);
     const metaTierRaw = Number(meta && meta.tier);
     const tier = Number.isFinite(tierRaw) ? tierRaw : (Number.isFinite(metaTierRaw) ? metaTierRaw : 99);
@@ -780,6 +785,9 @@ function reconcileEyeLinkage(config, registry, opts = {}) {
   const reg = registry && typeof registry === 'object' ? registry : { eyes: [] };
   if (!Array.isArray(reg.eyes)) reg.eyes = [];
   const activeDirectives = new Set(loadActiveDirectiveIdsForSprout());
+  const fallbackDirectiveRef = EYES_LINKAGE_AUTOBIND_ENABLED
+    ? resolveDirectiveForSprout(EYES_LINKAGE_AUTOBIND_DIRECTIVE || opts.directive_ref || '')
+    : '';
   const strategyCtx = loadActiveStrategyContext();
   const nowTs = new Date().toISOString();
   const changes = [];
@@ -803,7 +811,12 @@ function reconcileEyeLinkage(config, registry, opts = {}) {
     }
 
     const oldStatus = String(regEye.status || eyeCfg.status || 'probation').toLowerCase();
-    const directiveRef = String(regEye.directive_ref || eyeCfg.directive_ref || '').trim();
+    let directiveRef = String(regEye.directive_ref || eyeCfg.directive_ref || '').trim();
+    if (!directiveRef && fallbackDirectiveRef) {
+      directiveRef = fallbackDirectiveRef;
+      regEye.directive_ref = fallbackDirectiveRef;
+      changes.push({ eye_id: eyeCfg.id, event: 'directive_autobound', directive_ref: fallbackDirectiveRef });
+    }
     const currentStrategy = String(regEye.strategy_id || eyeCfg.strategy_id || '').trim().toLowerCase();
     const currentCampaigns = normalizeRefList(regEye.campaign_ids || eyeCfg.campaign_ids || []);
 
@@ -844,7 +857,7 @@ function reconcileEyeLinkage(config, registry, opts = {}) {
       }
       const atrophyReason = String(regEye.atrophy_reason || '').toLowerCase();
       const wasLinkageAtrophied = atrophyReason === 'linkage_disconnected' || atrophyReason.includes('linkage_disconnected');
-      if (EYES_LINKAGE_AUTO_REACTIVATE && oldStatus === 'dormant' && wasLinkageAtrophied) {
+      if (EYES_LINKAGE_AUTO_REACTIVATE && (oldStatus === 'dormant' || oldStatus === 'retired') && wasLinkageAtrophied) {
         regEye.status = 'probation';
         regEye.cooldown_until = null;
         regEye.atrophy_reason = null;
@@ -906,6 +919,35 @@ function reconcileEyeLinkage(config, registry, opts = {}) {
     dormant_atrophy: dormantAtrophy,
     retired_atrophy: retiredAtrophy,
     changes
+  };
+}
+
+function summarizeLinkageGateHealth(config, registry) {
+  const cfgEyes = Array.isArray(config && config.eyes) ? config.eyes : [];
+  const regEyes = Array.isArray(registry && registry.eyes) ? registry.eyes : [];
+  const regMap = new Map(regEyes.map((row) => [String(row && row.id || ''), row]));
+  let eligible = 0;
+  let disconnected = 0;
+  for (const eyeCfg of cfgEyes) {
+    if (!eyeCfg || !eyeCfg.id) continue;
+    const regEye = regMap.get(String(eyeCfg.id)) || {};
+    const runtimeEye = effectiveEye(eyeCfg, regEye);
+    const parserType = String(runtimeEye.parser_type || eyeCfg.parser_type || '').toLowerCase();
+    const status = String(runtimeEye.status || eyeCfg.status || '').toLowerCase();
+    if (status === 'retired') continue;
+    if (!EYES_LINKAGE_RUN_GATE_ALLOW_STUB && parserType === 'stub') continue;
+    eligible += 1;
+    if (String(regEye.linkage_status || '').trim().toLowerCase() === 'disconnected') disconnected += 1;
+  }
+  const ratio = eligible > 0 ? Number((disconnected / eligible).toFixed(3)) : 0;
+  const failOpen = EYES_LINKAGE_RUN_GATE_FAIL_OPEN_ENABLED
+    && eligible >= EYES_LINKAGE_RUN_GATE_FAIL_OPEN_MIN_COUNT
+    && ratio >= EYES_LINKAGE_RUN_GATE_FAIL_OPEN_MIN_RATIO;
+  return {
+    eligible_count: eligible,
+    disconnected_count: disconnected,
+    disconnected_ratio: ratio,
+    fail_open: failOpen
   };
 }
 
@@ -3216,6 +3258,8 @@ async function run(opts = {}) {
   const config = loadConfig();
   const registry = loadRegistry();
   const linkage = reconcileEyeLinkage(config, registry, { source: 'run' });
+  const linkageGateHealth = summarizeLinkageGateHealth(config, registry);
+  const linkageGateFailOpen = linkageGateHealth.fail_open === true;
   const failureCodePolicies = loadFailureCodePolicies(config);
   const today = getToday();
   const { eye: specificEye, maxEyes = config.global_limits.max_concurrent_runs, forceEyeId = null } = opts;
@@ -3275,6 +3319,20 @@ async function run(opts = {}) {
       `🧬 Eye linkage reconcile: changed=${Number(linkage.changed || 0)}` +
       ` dormant=${Number(linkage.dormant_atrophy || 0)} retired=${Number(linkage.retired_atrophy || 0)}`
     );
+  }
+  if (linkageGateFailOpen) {
+    console.log(
+      `⚠️  Linkage gate fail-open: disconnected=${Number(linkageGateHealth.disconnected_count || 0)}` +
+      `/${Number(linkageGateHealth.eligible_count || 0)}` +
+      ` ratio=${Number(linkageGateHealth.disconnected_ratio || 0).toFixed(3)}`
+    );
+    appendRawLog(today, {
+      ts: new Date().toISOString(),
+      type: 'eye_linkage_gate_fail_open',
+      disconnected_count: Number(linkageGateHealth.disconnected_count || 0),
+      eligible_count: Number(linkageGateHealth.eligible_count || 0),
+      disconnected_ratio: Number(linkageGateHealth.disconnected_ratio || 0)
+    });
   }
   if (outageStart.transition === 'enter') {
     console.log(`🚨 Outage mode ENTER: failed_transport_eyes=${outageStart.failed_transport_eyes}/${outageStart.min_eyes} window=${outageStart.window_hours}h`);
@@ -3583,6 +3641,11 @@ async function run(opts = {}) {
   }
   
   const orderedEyes = eyeExecutionOrder(config.eyes || [], registry, { specificEye, forceEyeId });
+  const dormantProbeEnabled = String(process.env.EYES_DORMANT_PROBE_ENABLED || '1') !== '0';
+  const dormantProbeMinHours = Math.max(1, Number(process.env.EYES_DORMANT_PROBE_MIN_HOURS || 24));
+  const dormantProbeMaxPerRun = Math.max(1, Number(process.env.EYES_DORMANT_PROBE_MAX_PER_RUN || 2));
+  const failsafeCanaryEnabled = String(process.env.EYES_FAILSAFE_CANARY_ENABLED || '1') !== '0';
+  let dormantProbesScheduled = 0;
   for (const eyeConfig of orderedEyes) {
     let registryEye = registry.eyes.find(e => e.id === eyeConfig.id);
     if (!registryEye) {
@@ -3600,6 +3663,7 @@ async function run(opts = {}) {
     const parserType = String(runtimeEye.parser_type || eyeConfig.parser_type || '').toLowerCase();
     const isForced = forceEyeId && eyeConfig.id === forceEyeId;
     const dormantAutoWake = String(process.env.EYES_DORMANT_AUTO_WAKE || '0').trim() === '1';
+    const connectedDormantWakeOnCooldown = String(process.env.EYES_CONNECTED_DORMANT_WAKE_ON_COOLDOWN || '1') !== '0';
     const probationStaleHours = Math.max(12, Number(process.env.EYES_PROBATION_STALE_HOURS || 12));
     const probationDormantFailures = Math.max(2, Number(process.env.EYES_PROBATION_DORMANT_FAILURES || 2));
     const probationDormantCooldownHours = Math.max(
@@ -3646,6 +3710,7 @@ async function run(opts = {}) {
     if (
       !isForced
       && EYES_LINKAGE_RUN_GATE_ENABLED
+      && !linkageGateFailOpen
       && (EYES_LINKAGE_RUN_GATE_ALLOW_STUB ? true : parserType !== 'stub')
     ) {
       const linkageStatus = String(registryEye.linkage_status || '').trim().toLowerCase();
@@ -3662,13 +3727,48 @@ async function run(opts = {}) {
         continue;
       }
     }
-    
+
+    const dormantLastRun = registryEye?.last_run ? new Date(registryEye.last_run) : null;
+    const dormantHoursSinceLastRun = dormantLastRun ? (Date.now() - dormantLastRun) / (1000 * 60 * 60) : Infinity;
+    const linkageStatus = String(registryEye.linkage_status || '').trim().toLowerCase();
+    const dormantCooldownHours = cooldownHoursRemaining(registryEye.cooldown_until);
+    const dormantQuarantineHours = cooldownHoursRemaining(registryEye.health_quarantine_until);
+    const runAsDormantProbe = !isForced
+      && runtimeEye.status === 'dormant'
+      && dormantProbeEnabled
+      && dormantProbesScheduled < dormantProbeMaxPerRun
+      && (!linkageStatus || linkageStatus === 'connected' || linkageStatus === 'unset')
+      && dormantHoursSinceLastRun >= dormantProbeMinHours
+      && dormantCooldownHours <= 0
+      && dormantQuarantineHours <= 0;
+
+    if (runAsDormantProbe) {
+      dormantProbesScheduled += 1;
+      registryEye.status = 'probation';
+      appendRawLog(today, {
+        ts: new Date().toISOString(),
+        type: 'eye_dormant_probe_scheduled',
+        eye_id: eyeConfig.id,
+        dormant_hours_since_last_run: Number.isFinite(dormantHoursSinceLastRun)
+          ? Number(dormantHoursSinceLastRun.toFixed(2))
+          : null,
+        min_hours: dormantProbeMinHours,
+        probe_slot: dormantProbesScheduled,
+        probe_slots_max: dormantProbeMaxPerRun
+      });
+      console.log(
+        `🧪 Dormant probe ${dormantProbesScheduled}/${dormantProbeMaxPerRun}: ${eyeConfig.id}` +
+        ` (${Number.isFinite(dormantHoursSinceLastRun) ? `${Math.round(dormantHoursSinceLastRun)}h` : 'never-run'})`
+      );
+    }
+
     // Check status
     if (runtimeEye.status === 'retired') {
       console.log(`⏭️  Skipping ${eyeConfig.id}: retired`);
       continue;
     }
-    if (!isForced && runtimeEye.status === 'dormant' && !dormantAutoWake) {
+    const hasDormantCooldownMarker = !!registryEye.cooldown_until;
+    if (!isForced && runtimeEye.status === 'dormant' && !dormantAutoWake && !runAsDormantProbe && !hasDormantCooldownMarker) {
       console.log(`⏭️  Skipping ${eyeConfig.id}: dormant`);
       continue;
     }
@@ -3684,7 +3784,9 @@ async function run(opts = {}) {
       // Cooldown expired: clear marker and move to probation for controlled retry.
       registryEye.cooldown_until = null;
       if (registryEye.status === 'dormant') {
-        if (dormantAutoWake) registryEye.status = 'probation';
+        const linkageWake = connectedDormantWakeOnCooldown
+          && ['connected', 'unset', ''].includes(String(registryEye.linkage_status || '').trim().toLowerCase());
+        if (dormantAutoWake || runAsDormantProbe || linkageWake) registryEye.status = 'probation';
         else {
           console.log(`⏭️  Skipping ${eyeConfig.id}: dormant`);
           continue;
@@ -3707,7 +3809,7 @@ async function run(opts = {}) {
     const lastRun = registryEye?.last_run ? new Date(registryEye.last_run) : null;
     const hoursSinceLastRun = lastRun ? (Date.now() - lastRun) / (1000 * 60 * 60) : Infinity;
     
-    if (!isForced && hoursSinceLastRun < runtimeEye.cadence_hours) {
+    if (!isForced && !runAsDormantProbe && hoursSinceLastRun < runtimeEye.cadence_hours) {
       console.log(`⏭️  Skipping ${eyeConfig.id}: cadence (${Math.round(hoursSinceLastRun)}h < ${runtimeEye.cadence_hours}h)`);
       continue;
     }
@@ -3733,6 +3835,38 @@ async function run(opts = {}) {
 
   if (useParallel && activeRuns.length > 0) {
     await Promise.allSettled(activeRuns);
+  }
+
+  if (
+    !selfHealPass
+    && failsafeCanaryEnabled
+    && !specificEye
+    && !forceEyeId
+    && runCount === 0
+    && eyesRun.length === 0
+    && runCount < maxEyes
+  ) {
+    const fallbackPick = pickSignalCanaryEye(config, registry) || pickCanaryEye(config, registry);
+    const fallbackEyeId = String(fallbackPick && fallbackPick.id || '').trim();
+    if (fallbackEyeId) {
+      const fallbackCfg = orderedEyes.find((e) => e && e.id === fallbackEyeId)
+        || (config.eyes || []).find((e) => e && e.id === fallbackEyeId);
+      const fallbackReg = (registry.eyes || []).find((e) => e && e.id === fallbackEyeId)
+        || { id: fallbackEyeId };
+      if (fallbackCfg) {
+        const fallbackRuntime = effectiveEye(fallbackCfg, fallbackReg);
+        const fallbackParser = String(fallbackRuntime.parser_type || fallbackCfg.parser_type || '').toLowerCase();
+        appendRawLog(today, {
+          ts: new Date().toISOString(),
+          type: 'eye_failsafe_canary',
+          eye_id: fallbackEyeId,
+          reason: 'no_eligible_eyes_ran'
+        });
+        console.log(`🛟 Failsafe canary: ${fallbackEyeId} (no eligible eyes ran)`);
+        await executeEyeRun(fallbackCfg, fallbackReg, fallbackRuntime, fallbackParser, true);
+        runCount += 1;
+      }
+    }
   }
 
   const outageEnd = updateOutageMode(config, registry);
@@ -4018,6 +4152,9 @@ async function run(opts = {}) {
   
   console.log('───────────────────────────────────────────────────────────');
   console.log(`🎯 Ran ${eyesRun.length}/${runCount} eyes eligible`);
+  if (dormantProbesScheduled > 0) {
+    console.log(`🧪 Dormant probes scheduled: ${dormantProbesScheduled}/${dormantProbeMaxPerRun}`);
+  }
   eyesRun.forEach(e => console.log(`   - ${e.id}: ${e.items} items (${Number(e.real_items || 0)} real, ${Number(e.focus || 0)} focus) in ${e.duration_ms}ms`));
   if (selfHealEnabled && selfHealStats.attempted > 0) {
     console.log(
@@ -4032,7 +4169,12 @@ async function run(opts = {}) {
     eyes: eyesRun,
     self_heal: selfHealStats,
     sprout: sproutStats,
-    linkage
+    dormant_probes_scheduled: dormantProbesScheduled,
+    linkage,
+    linkage_gate: {
+      ...linkageGateHealth,
+      fail_open: linkageGateFailOpen
+    }
   };
 }
 

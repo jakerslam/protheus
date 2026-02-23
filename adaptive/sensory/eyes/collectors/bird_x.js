@@ -52,6 +52,27 @@ function runBird(args, timeoutMs = 15000) {
   }
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+}
+
+async function runBirdWithRetry(args, timeoutMs = 15000, maxAttempts = 2) {
+  const attempts = Math.max(1, Number(maxAttempts || 1));
+  let lastErr = null;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return runBird(args, timeoutMs);
+    } catch (err) {
+      lastErr = err;
+      const classified = classifyCollectorError(err);
+      const retryable = classified.retryable || String(classified.code || '') === 'parse_failed';
+      if (!retryable || i >= attempts - 1) break;
+      await sleep(120 * (i + 1));
+    }
+  }
+  throw lastErr || makeCollectorError('collector_error', 'bird_command_failed', { args });
+}
+
 /**
  * Extract posts from bird search results
  */
@@ -115,8 +136,14 @@ async function collectBirdX(options = {}) {
   ];
   
   const cacheRaw = loadCollectorCache("bird_x");
-  const seenIds = new Set(cacheRaw?.items?.map(i => i.tweet_id) || []);
+  const cachedItems = Array.isArray(cacheRaw && cacheRaw.items) ? cacheRaw.items : [];
+  const seenIds = new Set(cachedItems.map(i => i && (i.tweet_id || i.id)).filter(Boolean));
   const startTime = Date.now();
+  const queryTimeoutMs = Math.max(5000, Number(options.timeoutMs || 15000));
+  const retryAttempts = Math.max(1, Math.min(
+    Number(options.retryAttempts || process.env.EYES_COLLECTOR_FETCH_RETRY_ATTEMPTS || 2) || 2,
+    4
+  ));
   
   const allPosts = [];
   const queryFailures = [];
@@ -125,7 +152,11 @@ async function collectBirdX(options = {}) {
   
   for (const query of searchQueries.slice(0, 3)) {
     try {
-      const results = runBird(`search "${query}" -n ${options.maxItemsPerQuery || 10}`, options.timeoutMs);
+      const results = await runBirdWithRetry(
+        `search "${query}" -n ${options.maxItemsPerQuery || 10}`,
+        queryTimeoutMs,
+        retryAttempts
+      );
       requests++;
       
       const posts = extractPosts(results);
@@ -160,11 +191,35 @@ async function collectBirdX(options = {}) {
     }
   }
   
-  // Save cache with seen tweet IDs
-  const cacheItems = Array.from(seenIds).slice(-100).map(id => ({ tweet_id: id }));
-  saveCollectorCache("bird_x", cacheItems);
-  
   if (allPosts.length === 0 && queryFailures.length > 0) {
+    const fallbackCodes = new Set([
+      'dns_unreachable',
+      'connection_refused',
+      'connection_reset',
+      'timeout',
+      'tls_error',
+      'network_error',
+      'http_5xx',
+      'rate_limited',
+      'env_blocked',
+      'parse_failed',
+      'collector_error'
+    ]);
+    const allFallbackEligible = queryFailures.every((f) => fallbackCodes.has(String(f.code || '')));
+    if (allFallbackEligible && cachedItems.length > 0) {
+      const maxItems = Math.max(1, Number(options.maxItems || 15));
+      return {
+        ok: true,
+        success: true,
+        items: cachedItems.slice(0, maxItems),
+        bytes: cachedItems.reduce((s, it) => s + Number((it && it.bytes) || 0), 0),
+        duration_ms: Date.now() - startTime,
+        requests,
+        cache_hit: true,
+        failure_count: queryFailures.length,
+        failures: queryFailures.slice(0, 3)
+      };
+    }
     const primary = queryFailures[0];
     return {
       ok: false,
@@ -179,6 +234,10 @@ async function collectBirdX(options = {}) {
       failure_count: queryFailures.length,
       failures: queryFailures.slice(0, 3)
     };
+  }
+
+  if (allPosts.length > 0) {
+    saveCollectorCache("bird_x", allPosts.slice(0, 120));
   }
 
   return {

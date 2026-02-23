@@ -62,6 +62,11 @@ const HOST_CACHE_MAX_STALE_MS = Number(process.env.ROUTER_HOST_CACHE_MAX_STALE_M
 const PROBE_ACCEPT_OK_TOKEN = String(process.env.ROUTER_PROBE_ACCEPT_OK_TOKEN || "1") !== "0";
 const ROUTER_MIN_REQUEST_TOKENS = Number(process.env.ROUTER_MIN_REQUEST_TOKENS || 120);
 const ROUTER_MAX_REQUEST_TOKENS = Number(process.env.ROUTER_MAX_REQUEST_TOKENS || 12000);
+const ROUTER_BUDGET_ENFORCE_EXECUTION_ONLY = String(process.env.ROUTER_BUDGET_ENFORCE_EXECUTION_ONLY || "1") !== "0";
+const ROUTER_BUDGET_NONEXEC_MAX_TOKENS = Math.max(
+  ROUTER_MIN_REQUEST_TOKENS,
+  Number(process.env.ROUTER_BUDGET_NONEXEC_MAX_TOKENS || 900) || 900
+);
 const LOCAL_WARMUP_INTERVAL_MS = Number(process.env.ROUTER_LOCAL_WARMUP_INTERVAL_MS || 45 * 60 * 1000);
 const LOCAL_WARMUP_STALE_MS = Number(process.env.ROUTER_LOCAL_WARMUP_STALE_MS || Math.max(2 * 60 * 60 * 1000, PROBE_TTL_MS * 3));
 const LOCAL_WARMUP_MAX_PROBES = Number(process.env.ROUTER_LOCAL_WARMUP_MAX_PROBES || 2);
@@ -1384,8 +1389,9 @@ function projectBudgetState(budgetState, requestTokens) {
   };
 }
 
-function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy, dryRun }) {
+function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy, dryRun, executionIntent = false }: AnyObj) {
   const dryRunMode = dryRun === true || String(dryRun || '').trim() === '1';
+  const executionMode = executionIntent === true || String(executionIntent || '').trim() === '1';
   const date = budgetDateStr();
   const stateDir = budgetPolicy && budgetPolicy.state_dir
     ? String(budgetPolicy.state_dir)
@@ -1396,6 +1402,25 @@ function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy, dryRun
     autopause_path: ROUTER_BUDGET_AUTOPAUSE_PATH
   };
   let autopause = loadSystemBudgetAutopauseState(opts);
+  const nonExecuteBypass = ROUTER_BUDGET_ENFORCE_EXECUTION_ONLY
+    && !executionMode
+    && Number(requestTokensEst || 0) <= ROUTER_BUDGET_NONEXEC_MAX_TOKENS;
+  if (nonExecuteBypass) {
+    return {
+      enabled: true,
+      blocked: false,
+      deferred: false,
+      bypassed: true,
+      reason: "budget_guard_nonexecute_bypass",
+      autopause_active: autopause.active === true,
+      autopause: {
+        source: autopause.source || null,
+        reason: autopause.reason || null,
+        until: autopause.until || null
+      },
+      guard: null
+    };
+  }
   let guard = null;
   if (autopause.active === true && String(autopause.source || '').trim() === 'model_router') {
     guard = evaluateSystemBudgetGuard({
@@ -3008,8 +3033,9 @@ function pickTier1LocalCandidate(rankedLocals, localHealth) {
   return rankedLocals[0].model;
 }
 
-function enforceBudgetSelection({ selected, ranked, budgetState, budgetProjected }) {
+function enforceBudgetSelection({ selected, ranked, budgetState, budgetProjected, executionIntent = false }: AnyObj) {
   const policy = budgetState && budgetState.policy ? budgetState.policy : {};
+  const executionMode = executionIntent === true || String(executionIntent || '').trim() === '1';
   if (policy.enforce_hard_cap !== true) {
     return {
       selected_model: selected,
@@ -3020,6 +3046,14 @@ function enforceBudgetSelection({ selected, ranked, budgetState, budgetProjected
   }
   const projected = budgetProjected && typeof budgetProjected === "object" ? budgetProjected : {};
   const pressure = String(projected.projected_pressure || projected.pressure || "none");
+  if (!executionMode && pressure === "hard") {
+    return {
+      selected_model: selected,
+      action: "none",
+      reason: "hard_budget_nonexecute_tolerated",
+      blocked: false
+    };
+  }
   if (pressure !== "hard") {
     return {
       selected_model: selected,
@@ -3073,7 +3107,7 @@ function saveRouteState(s) {
   saveJson(ROUTE_STATE_PATH, s || {});
 }
 
-function routeDecision({ risk, complexity, intent, task, mode, forceModel = "", capability, tokensEst, roleOverride, routeClass }: AnyObj) {
+function routeDecision({ risk, complexity, intent, task, mode, forceModel = "", capability, tokensEst, roleOverride, routeClass, executionIntent = false }: AnyObj) {
   const cfg = readConfig();
   const allowlist = modelsFromAllowlist(cfg);
   const profiles = modelProfilesFromConfig(cfg);
@@ -3174,7 +3208,8 @@ function routeDecision({ risk, complexity, intent, task, mode, forceModel = "", 
   const globalBudgetGate = evaluateRouterGlobalBudgetGate({
     requestTokensEst,
     budgetPolicy: budgetState && budgetState.policy ? budgetState.policy : null,
-    dryRun: routerBudgetDryRun
+    dryRun: routerBudgetDryRun,
+    executionIntent
   });
   const eyesSignal = eyesRoutingSignal(cfg);
   const promptCache = promptCacheSignal(cfg, {
@@ -3309,7 +3344,8 @@ function routeDecision({ risk, complexity, intent, task, mode, forceModel = "", 
     selected,
     ranked,
     budgetState,
-    budgetProjected
+    budgetProjected,
+    executionIntent
   });
   if (budgetEnforcement && budgetEnforcement.action === "degrade" && budgetEnforcement.selected_model) {
     if (String(budgetEnforcement.selected_model) !== String(selected || "")) {
@@ -3380,6 +3416,7 @@ function routeDecision({ risk, complexity, intent, task, mode, forceModel = "", 
     role,
     capability: capabilityKey,
     task_type: taskTypeKey,
+    execution_intent: executionIntent === true,
     slot: rulePick.slot || null,
     fallback_slot: rulePick.fallback_slot || null,
     anchor_model: anchorModel,

@@ -37,7 +37,7 @@
     "systems/security/directive_intake.js": "6f8169c477e99d8755b1c2f0de447a45af4c336497eb183196f7c77a5acf9ab6",
     "systems/security/egress_gateway.js": "138dcef50f0b2a57fddcee0000fb468044f1cfddf3552bc85b1e1d6e67273a82",
     "systems/security/emergency_stop.js": "1fac350b1bd90017cf6a5db2eb25522a4ff4bbca39114772852a404be242bf13",
-    "systems/security/guard.js": "fdf99192f5b41934633be8b1ee45b7f045f1208b0ca627499a4107571fb5f240",
+    "systems/security/guard.js": "b26f286bdc3ec2de3df97e5192b82a0b361c420c4813c7b09164c8a32fa6bf66",
     "systems/security/habit_hygiene_guard.js": "04a35763481356cc28f12a813cb1845a03709d4d73cda6cd98bcd5d0e223abef",
     "systems/security/integrity_kernel.js": "bfecd33bc3539f0894cbca905730894aa706bb8db6140e5681b9a059bed7ec1f",
     "systems/security/integrity_reseal.js": "940ece4eaae2ad71ee9436854863b9a30b3876a276fceca1cf09b78a34980549",
@@ -54,7 +54,7 @@
     "systems/security/workspace_dump_guard.js": "fa94a0e44f65203cae3fc1c6dc8c20ce0199710d3be6867e1b7821eb825859c3",
     "systems/sensory/adaptive_layer_guard.js": "5443d35d5a28c918ec374f1d01b88edac9546233276bdc86e2a677543f52461a"
   },
-  "sealed_at": "2026-02-23T09:44:06.391Z",
+  "sealed_at": "2026-02-23T17:11:44.598Z",
   "sealed_by": "jay",
-  "last_approval_note": "seal new security files for autonomy readiness"
+  "last_approval_note": "update guard and simulation flow patches"
 }

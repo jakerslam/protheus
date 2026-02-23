@@ -57,6 +57,8 @@ function main() {
   const reportsDir = path.join(stateDir, 'autonomy', 'health_reports');
   const budgetEventsPath = path.join(stateDir, 'autonomy', 'budget_events.jsonl');
   const budgetAutopausePath = path.join(stateDir, 'autonomy', 'budget_autopause.json');
+  const driftPolicyPath = path.join(tmpRoot, 'config', 'drift_target_governor_policy.json');
+  const driftStatePath = path.join(stateDir, 'autonomy', 'drift_target_governor_state.json');
 
   writeJson(path.join(sensoryDir, 'eyes', 'registry.json'), {
     eyes: [
@@ -116,6 +118,30 @@ function main() {
     until_ms: 0,
     until: null,
     updated_at: nowIso
+  });
+  writeJson(driftPolicyPath, {
+    version: '1.0',
+    enabled: true,
+    metric: {
+      key: 'error_rate_recent',
+      fallback_keys: ['spc_stop_ratio', 'simulation_drift_rate'],
+      initial_target_rate: 0.03,
+      floor_target_rate: 0.005,
+      ceiling_target_rate: 0.12
+    },
+    ratchet: {
+      tighten_step_rate: 0.0015,
+      loosen_step_rate: 0.0025,
+      good_window_streak_required: 2,
+      bad_window_streak_required: 1,
+      min_windows_between_adjustments: 1,
+      history_limit: 60
+    },
+    guards: {
+      min_samples: 6,
+      min_verified_rate: 0.6,
+      min_shipped_rate: 0.2
+    }
   });
 
   writeStubScript(path.join(stubsDir, 'autonomy_controller.js'), { ok: true, status: 'idle' });
@@ -195,6 +221,8 @@ function main() {
     AUTONOMY_HEALTH_ACTUATION_RECEIPTS_DIR: path.join(stateDir, 'actuation', 'receipts'),
     AUTONOMY_HEALTH_SYSTEM_BUDGET_EVENTS_PATH: budgetEventsPath,
     AUTONOMY_HEALTH_SYSTEM_BUDGET_AUTOPAUSE_PATH: budgetAutopausePath,
+    AUTONOMY_HEALTH_DRIFT_TARGET_POLICY_PATH: driftPolicyPath,
+    AUTONOMY_HEALTH_DRIFT_TARGET_STATE_PATH: driftStatePath,
     AUTONOMY_HEALTH_ALERTS_DIR: alertsDir,
     AUTONOMY_HEALTH_REPORTS_DIR: reportsDir
   };
@@ -216,6 +244,8 @@ function main() {
   assert.strictEqual(first.slo.failed_checks.includes('budget_guard'), false, 'budget guard should pass in fixture');
   assert.strictEqual(first.slo.failed_checks.includes('integrity'), false, 'integrity should pass in fixture');
   assert.strictEqual(Boolean(first.gates && first.gates.budget_autopause_active), false, 'budget autopause gate should be false in fixture');
+  assert.ok(first.drift_target_governor && first.drift_target_governor.enabled === true, 'drift governor should run');
+  assert.strictEqual(typeof first.gates.drift_target_rate, 'number', 'drift target rate should be exposed in gates');
   assert.ok(first.report && first.report.written === true && fs.existsSync(first.report.path), 'report should be written');
   assert.ok(first.alerts && fs.existsSync(first.alerts.path), 'alerts file should exist');
   assert.ok(Number(first.alerts.written || 0) >= 5, 'first run should emit multiple alerts');
@@ -227,6 +257,7 @@ function main() {
   const alertLinesSecond = fs.readFileSync(second.alerts.path, 'utf8').split('\n').filter(Boolean).length;
   assert.strictEqual(Number(second.alerts.written || 0), 0, 'second run should dedupe existing alerts');
   assert.strictEqual(alertLinesSecond, alertLinesFirst, 'second run should not append duplicate alerts');
+  assert.strictEqual(Boolean(second.drift_target_governor && second.drift_target_governor.replay), true, 'second run should replay same-day drift window');
 
   writeStubScript(path.join(stubsDir, 'pipeline_spc_gate.js'), {
     ok: true,
