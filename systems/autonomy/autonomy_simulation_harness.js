@@ -182,23 +182,50 @@ function worstVerdict(a, b) {
   return av >= bv ? String(a || 'pass') : String(b || 'pass');
 }
 
+const LEGACY_POLICY_HOLD_RESULTS = new Set([
+  'stop_repeat_gate_preview_structural_cooldown',
+  'stop_repeat_gate_preview_churn_cooldown',
+  'stop_repeat_gate_human_escalation_pending',
+  'stop_init_gate_budget_autopause'
+]);
+
+function isRouteBudgetHoldEvent(evt) {
+  if (!evt || evt.type !== 'autonomy_run') return false;
+  if (String(evt.result || '') !== 'init_gate_blocked_route') return false;
+  const routeSummary = evt.route_summary && typeof evt.route_summary === 'object'
+    ? evt.route_summary
+    : {};
+  const blockReason = String(evt.route_block_reason || '').trim().toLowerCase();
+  return routeSummary.budget_deferred === true
+    || routeSummary.budget_blocked === true
+    || (routeSummary.budget_global_guard && routeSummary.budget_global_guard.deferred === true)
+    || blockReason === 'burn_rate_exceeded'
+    || blockReason === 'budget_deferred_preview';
+}
+
 function isPolicyHoldEvent(evt) {
   if (!evt || evt.type !== 'autonomy_run') return false;
   if (evt.policy_hold === true) return true;
   const result = String(evt.result || '');
   if (!result) return false;
+  if (result.startsWith('no_candidates_policy_')) return true;
+  if (LEGACY_POLICY_HOLD_RESULTS.has(result)) return true;
+  if (isRouteBudgetHoldEvent(evt)) return true;
   return result.startsWith('no_candidates_policy_')
     || result === 'score_only_fallback_route_block'
     || result === 'score_only_fallback_low_execution_confidence';
 }
 
-function isAttemptRun(evt) {
+function isAttemptRunRaw(evt) {
   if (!evt || evt.type !== 'autonomy_run') return false;
-  if (isPolicyHoldEvent(evt)) return false;
   const result = String(evt.result || '');
   if (!result) return false;
   if (result === 'lock_busy' || result === 'stop_repeat_gate_interval') return false;
   return true;
+}
+
+function isAttemptRun(evt) {
+  return isAttemptRunRaw(evt) && !isPolicyHoldEvent(evt);
 }
 
 function isNoProgress(evt) {
@@ -374,8 +401,11 @@ function computeSimulation(endDateStr, days) {
     runs.push(...readJsonl(path.join(RUNS_DIR, `${d}.jsonl`)));
   }
   const runRows = runs.filter((row) => row && row.type === 'autonomy_run');
-  const baselineAttempts = runRows.filter(isAttemptRun);
-  const baselineExecuted = runRows.filter((row) => row && row.result === 'executed');
+  const baselineAttemptsRaw = runRows.filter(isAttemptRunRaw);
+  const baselinePolicyHolds = baselineAttemptsRaw.filter(isPolicyHoldEvent);
+  const baselineAttempts = baselineAttemptsRaw.filter((row) => !isPolicyHoldEvent(row));
+  const baselineExecutedRaw = runRows.filter((row) => row && row.result === 'executed');
+  const baselineExecuted = baselineExecutedRaw.filter((row) => !isPolicyHoldEvent(row));
   const baselineShipped = baselineExecuted.filter((row) => String(row.outcome || '') === 'shipped');
   const baselineNoProgress = baselineAttempts.filter(isNoProgress);
   const baselineSafetyStops = baselineAttempts.filter(isSafetyStop);
@@ -383,16 +413,17 @@ function computeSimulation(endDateStr, days) {
   const proposalIndex = proposalIndexForWindow(dates);
   const directiveCompiler = compileDirectiveLineage();
   const compilerProjection = applyDirectiveCompilerProjection(
-    baselineAttempts,
+    baselineAttemptsRaw,
     proposalIndex,
     directiveCompiler
   );
 
-  const attempts = compilerProjection.accepted;
+  const attempts = compilerProjection.accepted.filter((row) => !isPolicyHoldEvent(row));
   const executed = attempts.filter((row) => row && row.result === 'executed');
   const shipped = executed.filter((row) => String(row.outcome || '') === 'shipped');
   const noProgress = attempts.filter(isNoProgress);
   const safetyStops = attempts.filter(isSafetyStop);
+  const effectivePolicyHolds = compilerProjection.accepted.filter(isPolicyHoldEvent);
 
   const objectiveCounts = {};
   for (const row of executed) {
@@ -403,18 +434,20 @@ function computeSimulation(endDateStr, days) {
 
   const queue = queueSnapshotForWindow(dates);
   const baselineCounters = {
-    attempts: baselineAttempts.length,
+    attempts: baselineAttemptsRaw.length,
     executed: baselineExecuted.length,
     shipped: baselineShipped.length,
     no_progress: baselineNoProgress.length,
-    safety_stops: baselineSafetyStops.length
+    safety_stops: baselineSafetyStops.length,
+    policy_holds: baselinePolicyHolds.length
   };
   const effectiveCounters = {
     attempts: attempts.length,
     executed: executed.length,
     shipped: shipped.length,
     no_progress: noProgress.length,
-    safety_stops: safetyStops.length
+    safety_stops: safetyStops.length,
+    policy_holds: effectivePolicyHolds.length
   };
   const checksRaw = buildChecks(baselineCounters);
   const checksEffective = buildChecks(effectiveCounters);
@@ -458,7 +491,8 @@ function computeSimulation(endDateStr, days) {
       executed: baselineCounters.executed,
       shipped: baselineCounters.shipped,
       no_progress: baselineCounters.no_progress,
-      safety_stops: baselineCounters.safety_stops
+      safety_stops: baselineCounters.safety_stops,
+      policy_holds: baselineCounters.policy_holds
     },
     baseline_counters: baselineCounters,
     effective_counters: effectiveCounters,

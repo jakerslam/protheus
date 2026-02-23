@@ -79,3 +79,5 @@
 {"ts":"2026-02-23T08:01:06.908Z","type":"provider_recovered","provider":"ollama","source":"idle_dream_cycle_idle","latency_ms":81,"model_count":11}
 {"ts":"2026-02-23T08:45:46.229Z","type":"provider_outage_pain","provider":"ollama","reason":"env_blocked","code":1,"emitted":true}
 {"ts":"2026-02-23T08:45:46.230Z","type":"provider_down","provider":"ollama","source":"model_router_route","reason":"env_blocked","code":1,"failure_streak":1,"circuit_open_until_ts":"2026-02-23T08:46:31.130Z","pain_emitted":true}
+{"ts":"2026-02-23T09:03:43.096Z","type":"provider_down","provider":"ollama","source":"model_router_route","reason":"env_blocked","code":1,"failure_streak":2,"circuit_open_until_ts":"2026-02-23T09:04:27.710Z","pain_emitted":false}
+{"ts":"2026-02-23T09:07:49.034Z","type":"provider_down","provider":"ollama","source":"model_router_route","reason":"env_blocked","code":1,"failure_streak":3,"circuit_open_until_ts":"2026-02-23T09:08:32.839Z","pain_emitted":false}
