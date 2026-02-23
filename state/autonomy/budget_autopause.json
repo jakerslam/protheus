@@ -2,14 +2,14 @@
   "schema_id": "system_budget_autopause",
   "schema_version": "1.0.0",
   "active": false,
-  "set_ts": "2026-02-23T03:58:34.691Z",
+  "set_ts": "2026-02-23T10:17:39.796Z",
   "source": "model_router",
-  "reason": "test_stale",
+  "reason": "burn_rate_exceeded",
   "pressure": "hard",
   "date": "2026-02-23",
   "until_ms": 0,
   "until": null,
-  "cleared_ts": "2026-02-23T03:58:34.852Z",
+  "cleared_ts": "2026-02-23T10:17:54.284Z",
   "clear_reason": "auto_clear_guard_recovered:none",
-  "updated_at": "2026-02-23T09:07:53.922Z"
+  "updated_at": "2026-02-23T10:43:15.400Z"
 }

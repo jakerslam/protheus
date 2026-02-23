@@ -1,7 +1,7 @@
 {
   "ok": true,
   "type": "weekly_strategy_synthesis",
-  "ts": "2026-02-23T05:34:05.586Z",
+  "ts": "2026-02-23T10:02:16.873Z",
   "date": "2026-02-23",
   "days": 7,
   "write": true,
@@ -11,30 +11,14 @@
   },
   "summary": {
     "totals": {
-      "outcomes": 24,
+      "outcomes": 25,
       "proposal_types": 6,
       "shipped": 8,
-      "no_change": 16,
+      "no_change": 17,
       "rejected": 0,
       "failed": 0
     },
     "by_proposal_type": [
-      {
-        "proposal_type": "cross_signal_opportunity",
-        "total": 1,
-        "shipped": 1,
-        "no_change": 0,
-        "rejected": 0,
-        "failed": 0,
-        "other": 0,
-        "source_eyes": {
-          "cross_signal_engine": 1
-        },
-        "shipped_rate": 1,
-        "fail_rate": 0,
-        "no_change_rate": 0,
-        "score": 100
-      },
       {
         "proposal_type": "unknown",
         "total": 3,
@@ -50,6 +34,22 @@
         "fail_rate": 0,
         "no_change_rate": 0.333,
         "score": 60.04
+      },
+      {
+        "proposal_type": "cross_signal_opportunity",
+        "total": 2,
+        "shipped": 1,
+        "no_change": 1,
+        "rejected": 0,
+        "failed": 0,
+        "other": 0,
+        "source_eyes": {
+          "cross_signal_engine": 2
+        },
+        "shipped_rate": 0.5,
+        "fail_rate": 0,
+        "no_change_rate": 0.5,
+        "score": 40
       },
       {
         "proposal_type": "external_intel",
@@ -136,6 +136,22 @@
         "fail_rate": 0,
         "no_change_rate": 0.333,
         "score": 60.04
+      },
+      {
+        "proposal_type": "cross_signal_opportunity",
+        "total": 2,
+        "shipped": 1,
+        "no_change": 1,
+        "rejected": 0,
+        "failed": 0,
+        "other": 0,
+        "source_eyes": {
+          "cross_signal_engine": 2
+        },
+        "shipped_rate": 0.5,
+        "fail_rate": 0,
+        "no_change_rate": 0.5,
+        "score": 40
       }
     ],
     "losers": [
@@ -191,6 +207,11 @@
     "recommended_weight_updates": [
       {
         "proposal_type": "unknown",
+        "delta": 0.1,
+        "reason": "high_ship_rate"
+      },
+      {
+        "proposal_type": "cross_signal_opportunity",
         "delta": 0.1,
         "reason": "high_ship_rate"
       },
@@ -402,6 +423,14 @@
         "outcome": "no_change",
         "source_eye": "pain_signal:idle_dream_cycle",
         "evidence_ref": "proposal_queue_reconcile_v2:status_sync"
+      },
+      {
+        "ts": "2026-02-23T09:18:57.693Z",
+        "proposal_id": "CSG-542500e23579a4de",
+        "proposal_type": "cross_signal_opportunity",
+        "outcome": "no_change",
+        "source_eye": "cross_signal_engine",
+        "evidence_ref": "proposal:CSG-542500e23579a4de eye:cross_signal_engine receipt:auto_1771838259893_CSG-542500e23579a4de auto:autonomy dod_fail:decision_manual"
       }
     ]
   }

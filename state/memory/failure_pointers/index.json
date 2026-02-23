@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated_ts": "2026-02-23T05:32:45.585Z",
+  "updated_ts": "2026-02-23T10:02:13.438Z",
   "item_hashes": {
     "322525e41384fb34": {
       "node_id": "failure-t1-322525e4",
@@ -191,6 +191,16 @@
       "source": "external_eyes",
       "code": "collector_preflight:collector_error",
       "ts": "2026-02-23T05:32:45.585Z"
+    },
+    "hesc_mlyysr92_9e24e1f1": {
+      "node_id": "failure-t2-hesc_mly-2",
+      "uid": "6717b524ec9c7d1df19b895a",
+      "memory_file": "memory/2026-02-23.md",
+      "date": "2026-02-23",
+      "failure_tier": 2,
+      "source": "autonomy_human_escalation",
+      "code": "human_escalation:success_criteria_failed:artifact_delta_check",
+      "ts": "2026-02-23T10:02:13.438Z"
     }
   }
 }

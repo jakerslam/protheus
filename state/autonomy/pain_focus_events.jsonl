@@ -4,3 +4,5 @@
 {"ts":"2026-02-22T18:01:05.622Z","type":"pain_focus_session_stopped","session_id":"PFOCUS-5aa4040013557216","source":"codex","task":"unit_test_nodefer","stop_reason":"unit_test_complete"}
 {"ts":"2026-02-22T18:01:28.283Z","type":"pain_focus_session_started","session_id":"PFOCUS-4f0332681b8cff2b","ttl_minutes":5,"source":"codex","task":"smoke","reason":null}
 {"ts":"2026-02-22T18:01:28.286Z","type":"pain_focus_session_stopped","session_id":"PFOCUS-4f0332681b8cff2b","source":"codex","task":"smoke","stop_reason":"smoke"}
+{"ts":"2026-02-23T09:17:46.504Z","type":"pain_focus_session_started","session_id":"PFOCUS-4b206f3961edada8","ttl_minutes":30,"source":"autonomy_controller","task":"execute:CSG-542500e23579a4de","reason":"active_autonomy_execution"}
+{"ts":"2026-02-23T09:17:51.693Z","type":"pain_focus_session_stopped","session_id":"PFOCUS-4b206f3961edada8","source":"autonomy_controller","task":"execute:CSG-542500e23579a4de","stop_reason":"execution_complete"}

@@ -1,15 +1,15 @@
 {
   "ok": true,
-  "generated_at": "2026-02-23T05:45:02.252Z",
+  "generated_at": "2026-02-23T10:35:56.533Z",
   "date": "2026-02-23",
   "outcomes": {
     "window_days": 14,
-    "attempted": 179,
-    "executed": 12,
+    "attempted": 209,
+    "executed": 13,
     "shipped": 6,
-    "no_change": 6,
+    "no_change": 7,
     "reverted": 0,
-    "shipped_rate": 0.5
+    "shipped_rate": 0.462
   },
   "criteria": [
     {
@@ -34,13 +34,25 @@
       "id": "sensory_continuity",
       "weight": 2,
       "pass": true,
-      "detail": "dark_eyes + queue_backlog + proposal_starvation_preview_nonblocking"
+      "detail": "dark_eyes + queue_backlog + proposal_starvation"
     },
     {
       "id": "drift_control",
       "weight": 2,
       "pass": true,
-      "detail": "spc_quality_stopratio_low_sample_nonblocking"
+      "detail": "spc_in_control"
+    },
+    {
+      "id": "verification_pass_rate",
+      "weight": 2,
+      "pass": true,
+      "detail": "verification_pass_rate_healthy"
+    },
+    {
+      "id": "slo_runbook_coverage",
+      "weight": 2,
+      "pass": true,
+      "detail": "missing_checks=0 missing_sections=0"
     },
     {
       "id": "budget_governor",
@@ -64,7 +76,7 @@
       "id": "outcome_throughput",
       "weight": 2,
       "pass": true,
-      "detail": "executed=12 shipped_rate=0.5"
+      "detail": "executed=13 shipped_rate=0.462"
     }
   ],
   "score": {
@@ -75,6 +87,45 @@
   "next_steps": [
     "Hold current policies and continue periodic checkpoint audits."
   ],
-  "health_report_ts": "2026-02-23T05:45:02.238Z",
+  "health_report_ts": "2026-02-23T10:35:55.448Z",
+  "slo_runbook_check": {
+    "ok": true,
+    "ts": "2026-02-23T10:35:56.510Z",
+    "type": "slo_runbook_check",
+    "date": "2026-02-23",
+    "runbook_path": "docs/OPERATOR_RUNBOOK.md",
+    "checks_seen": [
+      "budget_guard",
+      "criteria_quality_gate",
+      "dark_eyes",
+      "dream_degradation",
+      "drift",
+      "execute_quality_lock_invariant",
+      "integrity",
+      "loop_stall",
+      "proposal_starvation",
+      "queue_backlog",
+      "route_attestation",
+      "routing_degraded",
+      "routing_recovery_pulse",
+      "startup_attestation",
+      "verification_pass_rate"
+    ],
+    "required_checks": [
+      "proposal_starvation",
+      "queue_backlog",
+      "dark_eyes",
+      "loop_stall",
+      "drift",
+      "budget_pressure",
+      "dream_degradation",
+      "verification_pass_rate"
+    ],
+    "missing_checks": [],
+    "missing_mappings": [],
+    "missing_runbook_sections": [],
+    "health_ok": true,
+    "health_error": null
+  },
   "queue_hygiene_summary_ts": "2026-02-23T00:01:19.864Z"
 }

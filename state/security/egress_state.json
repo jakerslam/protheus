@@ -215,6 +215,25 @@
       "scopes": {
         "sensory.collector.moltbook_hot": 8
       }
+    },
+    "2026-02-23T09": {
+      "total": 41,
+      "scopes": {
+        "sensory.collector.google_trends": 1,
+        "sensory.collector.medium_rss": 40
+      }
+    },
+    "2026-02-23T10": {
+      "total": 53,
+      "scopes": {
+        "sensory.collector.medium_rss": 40,
+        "sensory.collector.google_trends": 2,
+        "sensory.collector.ollama_search": 5,
+        "sensory.collector.moltbook_hot": 3,
+        "sensory.collector.upwork_gigs": 1,
+        "sensory.collector.stock_market": 1,
+        "sensory.focus_fetch": 1
+      }
     }
   },
   "per_day": {
@@ -248,17 +267,17 @@
       }
     },
     "2026-02-23": {
-      "total": 131,
+      "total": 225,
       "scopes": {
-        "sensory.collector.ollama_search": 32,
-        "sensory.collector.upwork_gigs": 3,
-        "sensory.collector.google_trends": 7,
-        "sensory.focus_fetch": 27,
-        "sensory.collector.moltbook_hot": 17,
-        "sensory.collector.stock_market": 4,
+        "sensory.collector.ollama_search": 37,
+        "sensory.collector.upwork_gigs": 4,
+        "sensory.collector.google_trends": 10,
+        "sensory.focus_fetch": 28,
+        "sensory.collector.moltbook_hot": 20,
+        "sensory.collector.stock_market": 5,
         "sensory.collector.github_repo": 4,
         "sensory.collector.hn_rss": 32,
-        "sensory.collector.medium_rss": 5
+        "sensory.collector.medium_rss": 85
       }
     }
   }

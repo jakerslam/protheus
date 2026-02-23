@@ -1,7 +1,7 @@
 {
   "ok": true,
   "type": "autonomy_simulation_harness",
-  "ts": "2026-02-23T09:36:24.692Z",
+  "ts": "2026-02-23T10:35:46.655Z",
   "end_date": "2026-02-23",
   "days": 180,
   "verdict": "pass",
@@ -9,7 +9,7 @@
   "verdict_effective": "pass",
   "checks": {
     "drift_rate": {
-      "value": 0.224,
+      "value": 0.228,
       "warn": 0.65,
       "fail": 0.85,
       "status": "pass"
@@ -27,7 +27,7 @@
       "status": "pass"
     },
     "attempt_volume": {
-      "value": 196,
+      "value": 197,
       "min": 5,
       "status": "pass"
     }
@@ -62,22 +62,22 @@
     "baseline_preserved": true,
     "effective_projection_present": true,
     "denominator_reduction_only": true,
-    "denominator_delta": 119
+    "denominator_delta": 120
   },
   "counters": {
-    "run_rows": 208,
-    "attempts": 196,
+    "run_rows": 209,
+    "attempts": 197,
     "executed": 13,
     "shipped": 6,
-    "no_progress": 44,
+    "no_progress": 45,
     "safety_stops": 4,
     "policy_holds": 56
   },
   "baseline_counters": {
-    "attempts": 196,
+    "attempts": 197,
     "executed": 13,
     "shipped": 6,
-    "no_progress": 44,
+    "no_progress": 45,
     "safety_stops": 4,
     "policy_holds": 56
   },
@@ -97,9 +97,9 @@
     "compiler_hash": "40cc5cf18353cd99",
     "compiler_active_count": 3,
     "accepted_attempts": 106,
-    "rejected_attempts": 90,
+    "rejected_attempts": 91,
     "rejected_by_reason": {
-      "objective_context_missing": 69,
+      "objective_context_missing": 70,
       "objective_missing": 21
     },
     "sample_rejected": [
@@ -146,7 +146,7 @@
         "reason": "objective_context_missing"
       },
       {
-        "result": "init_gate_canary_relaxed_readiness",
+        "result": "stop_init_gate_readiness_blocked",
         "proposal_id": null,
         "objective_id": null,
         "reason": "objective_context_missing"
@@ -154,8 +154,8 @@
     ]
   },
   "queue": {
-    "total": 128,
-    "pending": 32,
+    "total": 135,
+    "pending": 38,
     "stale_pending_72h": 0
   },
   "objective_mix": {
