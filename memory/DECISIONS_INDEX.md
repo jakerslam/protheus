@@ -1,5 +1,5 @@
 # DECISIONS_INDEX.md
-# Last regenerated: 2026-02-21
+# Last regenerated: 2026-02-23
 # Only open decisions, sorted by check_on
 
 | id | date | domain | check_on | metric | file | preview |
