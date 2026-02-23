@@ -64,8 +64,8 @@ function run() {
       type: 'route',
       mode: 'hyper-creative',
       tier: 2,
-      intent: 'creative link synthesis from routing',
-      task: 'bridge memory signals into adaptive strategy'
+      intent: 'memory graph signal bridge',
+      task: 'bridge memory graph signals into adaptive strategy'
     }) + '\n',
     'utf8'
   );
@@ -108,6 +108,8 @@ function run() {
         { token: 'memory-graph-bridge', weight: 82, synthesis: 'High-repeat bridge pattern with execution relevance', source_uids: ['fake_uid_1'] }
       ]
     }),
+    IDLE_DREAM_CROSS_DOMAIN_ENABLED: '1',
+    IDLE_DREAM_CROSS_DOMAIN_REQUIRE_OBJECTIVE: '0',
     IDLE_DREAM_REM_MIN_IDLE_RUNS: '1',
     IDLE_DREAM_REM_MIN_MINUTES: '1'
   };
@@ -123,6 +125,14 @@ function run() {
   assert.ok(out.idle && out.idle.skipped === false, 'idle phase should run');
   assert.ok(Number(out.idle.failure_seed_count || 0) >= 1, 'idle pass should reserve failure seeds');
   assert.ok(out.rem && out.rem.skipped === false, 'rem phase should run');
+  const firstIdleArtifact = path.join(idleDir, `${testDate}__${String(out.idle.row_uid || '').trim()}.json`);
+  assert.ok(fs.existsSync(firstIdleArtifact), 'idle artifact json should exist');
+  const firstIdlePayload = JSON.parse(fs.readFileSync(firstIdleArtifact, 'utf8'));
+  assert.ok(
+    Array.isArray(firstIdlePayload.seeds)
+      && firstIdlePayload.seeds.some((s) => Array.isArray(s && s.sources) && s.sources.includes('cross_domain_mapper')),
+    'idle seeds should include cross-domain mapper output'
+  );
 
   const idleRows = fs.readFileSync(path.join(idleDir, `${testDate}.jsonl`), 'utf8').trim().split(/\r?\n/);
   assert.ok(idleRows.length >= 1, 'idle jsonl row should be written');
@@ -137,7 +147,7 @@ function run() {
 
   const envFailure = {
     ...env,
-    IDLE_DREAM_FAKE_MODEL_FAILURES: 'smallthinker:timeout'
+    IDLE_DREAM_FAKE_MODEL_FAILURES: 'qwen3:4b:timeout,smallthinker:timeout'
   };
   r = spawnSync('node', [script, 'run', testDate, '--force=1'], {
     cwd: repoRoot,
@@ -189,8 +199,11 @@ function run() {
   assert.ok(out.rem_exists_today === true, 'status should report rem output');
   assert.ok(
     Array.isArray(out.active_model_cooldowns)
-      && out.active_model_cooldowns.some((row) => String(row && row.model || '') === 'smallthinker'),
-    'status should report active cooldown for failed model'
+      && out.active_model_cooldowns.some((row) => {
+        const model = String(row && row.model || '');
+        return model === 'smallthinker' || model === 'qwen3:4b';
+      }),
+    'status should report active cooldown for a failed model'
   );
 
   console.log('idle_dream_cycle.test.js: OK');

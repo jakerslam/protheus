@@ -107,6 +107,8 @@ function run() {
   assert.strictEqual(Number(out.promoted_count || 0), 1, 'should promote one creative link');
   assert.strictEqual(Array.isArray(out.promotions), true);
   assert.strictEqual(out.promotions.length, 1);
+  assert.ok(out.cross_domain_mapper && typeof out.cross_domain_mapper === 'object', 'cross-domain mapper summary should be present');
+  assert.strictEqual(Boolean(out.cross_domain_mapper.enabled), true, 'cross-domain mapper should be enabled by default');
 
   const memoryFile = path.join(memoryDir, '2026-02-21.md');
   assert.ok(fs.existsSync(memoryFile), 'memory node file should be created');
@@ -126,6 +128,12 @@ function run() {
   assert.ok(
     Array.isArray(hyperCandidate.source_types) && hyperCandidate.source_types.includes('hyper_creative_mode'),
     'hyper-creative candidate should record source type'
+  );
+  const crossDomainCandidate = reg.candidates && reg.candidates['memory-graph'];
+  assert.ok(crossDomainCandidate, 'cross-domain token should remain represented in registry');
+  assert.ok(
+    Array.isArray(crossDomainCandidate.source_types) && crossDomainCandidate.source_types.includes('cross_domain_mapper'),
+    'cross-domain mapper should contribute source evidence for shared tokens'
   );
 
   r = spawnSync('node', [script, 'run', '2026-02-21', '--days=2', '--top=8', '--max-promotions=2'], {
