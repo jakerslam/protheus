@@ -9,9 +9,11 @@
  * Usage:
  *   node systems/security/integrity_reseal.js check [--policy=/abs/path.json] [--staged=1|0]
  *   node systems/security/integrity_reseal.js apply [--policy=/abs/path.json] [--approval-note="..."] [--force=1]
+ *   node systems/security/integrity_reseal.js auto [--policy=/abs/path.json] [--approval-note="..."]
  *   node systems/security/integrity_reseal.js --help
  */
 
+const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const {
@@ -19,13 +21,24 @@ const {
   loadPolicy,
   verifyIntegrity,
   sealIntegrity,
-  collectPresentProtectedFiles
+  collectPresentProtectedFiles,
+  appendIntegrityEvent
 } = require('../../lib/security_integrity.js');
+
+const ROOT = path.resolve(__dirname, '..', '..');
+const STARTUP_ATTESTATION_SCRIPT = process.env.INTEGRITY_RESEAL_STARTUP_ATTESTATION_SCRIPT
+  ? path.resolve(String(process.env.INTEGRITY_RESEAL_STARTUP_ATTESTATION_SCRIPT))
+  : path.join(ROOT, 'systems', 'security', 'startup_attestation.js');
+const INTEGRITY_RESEAL_AUDIT_PATH = process.env.INTEGRITY_RESEAL_AUDIT_PATH
+  ? path.resolve(String(process.env.INTEGRITY_RESEAL_AUDIT_PATH))
+  : path.join(ROOT, 'state', 'security', 'integrity_reseal_audit.jsonl');
+const INTEGRITY_RESEAL_AUTO_ATTEST = String(process.env.INTEGRITY_RESEAL_AUTO_ATTEST || '1') !== '0';
 
 function usage() {
   console.log('Usage:');
   console.log('  node systems/security/integrity_reseal.js check [--policy=/abs/path.json] [--staged=1|0]');
   console.log('  node systems/security/integrity_reseal.js apply [--policy=/abs/path.json] [--approval-note="..."] [--force=1]');
+  console.log('  node systems/security/integrity_reseal.js auto [--policy=/abs/path.json] [--approval-note="..."]');
   console.log('  node systems/security/integrity_reseal.js --help');
 }
 
@@ -45,6 +58,15 @@ function parseArgs(argv) {
 
 function normalizeRel(p) {
   return String(p || '').trim().replace(/\\/g, '/');
+}
+
+function appendResealAudit(row) {
+  try {
+    fs.mkdirSync(path.dirname(INTEGRITY_RESEAL_AUDIT_PATH), { recursive: true });
+    fs.appendFileSync(INTEGRITY_RESEAL_AUDIT_PATH, JSON.stringify(row) + '\n', 'utf8');
+  } catch {
+    // best-effort only
+  }
 }
 
 function gitChangedPaths(staged = true) {
@@ -84,8 +106,37 @@ function cmdCheck(policyPath, staged = true) {
     violation_counts: verify.violation_counts || {},
     violations: Array.isArray(verify.violations) ? verify.violations.slice(0, 12) : []
   };
+  appendResealAudit({
+    ts: out.ts,
+    type: out.type,
+    policy_path: out.policy_path,
+    staged,
+    ok: out.ok,
+    reseal_required: out.reseal_required,
+    protected_changes: changed.slice(0, 64),
+    violation_counts: out.violation_counts
+  });
   process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
   if (!out.ok) process.exit(1);
+}
+
+function issueStartupAttestation() {
+  const r = spawnSync('node', [STARTUP_ATTESTATION_SCRIPT, 'issue'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout: 15000
+  });
+  const stdout = String(r.stdout || '').trim();
+  let payload = null;
+  if (stdout) {
+    try { payload = JSON.parse(stdout); } catch {}
+  }
+  return {
+    ok: r.status === 0 && !!payload && payload.ok === true,
+    code: r.status == null ? 1 : r.status,
+    payload,
+    stderr: String(r.stderr || '').trim().slice(0, 220)
+  };
 }
 
 function cmdApply(policyPath, note, force = false) {
@@ -99,6 +150,15 @@ function cmdApply(policyPath, note, force = false) {
       applied: false,
       reason: 'already_sealed'
     };
+    appendResealAudit({
+      ts: out.ts,
+      type: out.type,
+      policy_path: out.policy_path,
+      applied: false,
+      ok: out.ok,
+      reason: out.reason,
+      force
+    });
     process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
     return;
   }
@@ -119,6 +179,20 @@ function cmdApply(policyPath, note, force = false) {
     sealed_by: process.env.USER || 'unknown'
   });
   const verify = verifyIntegrity(policyPath);
+  appendIntegrityEvent({
+    ts: new Date().toISOString(),
+    type: 'integrity_reseal_apply',
+    policy_path: path.resolve(policyPath),
+    force,
+    approval_note: approvalNote.slice(0, 240),
+    verify_ok_before: first.ok === true,
+    verify_ok_after: verify.ok === true,
+    violation_counts_before: first.violation_counts || {},
+    violation_counts_after: verify.violation_counts || {}
+  });
+  const startupAttestation = (verify.ok === true && INTEGRITY_RESEAL_AUTO_ATTEST)
+    ? issueStartupAttestation()
+    : { ok: null, skipped: true, reason: 'auto_attest_disabled_or_verify_failed' };
   const out = {
     ok: verify.ok === true,
     ts: new Date().toISOString(),
@@ -130,10 +204,47 @@ function cmdApply(policyPath, note, force = false) {
       ok: verify.ok === true,
       violation_counts: verify.violation_counts || {},
       violations: Array.isArray(verify.violations) ? verify.violations.slice(0, 12) : []
-    }
+    },
+    startup_attestation: startupAttestation
   };
+  appendResealAudit({
+    ts: out.ts,
+    type: out.type,
+    policy_path: out.policy_path,
+    applied: true,
+    ok: out.ok,
+    force,
+    approval_note: approvalNote.slice(0, 240),
+    verify_ok_before: first.ok === true,
+    verify_ok_after: verify.ok === true,
+    violation_counts_before: first.violation_counts || {},
+    violation_counts_after: verify.violation_counts || {},
+    startup_attestation: {
+      ok: startupAttestation && startupAttestation.ok === true,
+      code: startupAttestation && startupAttestation.code != null ? Number(startupAttestation.code) : null,
+      skipped: startupAttestation && startupAttestation.skipped === true
+    }
+  });
   process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
   if (!out.ok) process.exit(1);
+}
+
+function cmdAuto(policyPath, note) {
+  const verify = verifyIntegrity(policyPath);
+  if (verify.ok === true) {
+    const out = {
+      ok: true,
+      ts: new Date().toISOString(),
+      type: 'integrity_reseal_auto',
+      policy_path: path.resolve(policyPath),
+      applied: false,
+      reason: 'already_sealed'
+    };
+    appendResealAudit(out);
+    process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
+    return;
+  }
+  return cmdApply(policyPath, note, false);
 }
 
 function main() {
@@ -153,6 +264,10 @@ function main() {
     const force = String(args.force || '').trim() === '1';
     const note = String(args['approval-note'] || args.approval_note || '').trim();
     return cmdApply(policyPath, note, force);
+  }
+  if (cmd === 'auto') {
+    const note = String(args['approval-note'] || args.approval_note || '').trim();
+    return cmdAuto(policyPath, note);
   }
 
   usage();

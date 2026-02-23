@@ -20,6 +20,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const { stableUid } = require('../../lib/uid.js');
 const { listLocalOllamaModels, runLocalOllamaPrompt, stripAnsi } = require('../routing/llm_gateway.js');
+const { evaluateLocalProviderGate } = require('../routing/provider_readiness.js');
 const { emitPainSignal } = require('../autonomy/pain_signal.js');
 const { enforceMutationProvenance, recordMutationAudit } = require('../../lib/mutation_provenance.js');
 const {
@@ -127,6 +128,12 @@ const IDLE_MODEL_ORDER = parseCsvOrder(
 const REM_MODEL_ORDER = parseCsvOrder(
   process.env.IDLE_DREAM_REM_MODEL_ORDER
   || 'qwen3:4b,gemma3:4b,qwen3:1.7b,smallthinker'
+);
+const HARD_WATCHDOG_ENABLED = String(process.env.IDLE_DREAM_HARD_WATCHDOG_ENABLED || '1').trim() !== '0';
+const HARD_WATCHDOG_TIMEOUT_MS = clampInt(
+  process.env.IDLE_DREAM_HARD_WATCHDOG_TIMEOUT_MS || 180000,
+  15000,
+  30 * 60 * 1000
 );
 const REM_STRATEGY = String(process.env.IDLE_DREAM_REM_STRATEGY || 'deterministic').trim().toLowerCase();
 
@@ -704,6 +711,19 @@ function pickModelWithProviderExclusions(order, available, state, blockedProvide
     if (filtered.length > 0) pool = filtered;
   }
   return pickModel(order, pool, state);
+}
+
+function compactProviderGate(gate) {
+  if (!gate || typeof gate !== 'object' || gate.applicable !== true) return null;
+  return {
+    provider: gate.provider || 'ollama',
+    available: gate.available === true,
+    reason: gate.reason || null,
+    source: gate.source || null,
+    circuit_open: gate.circuit_open === true,
+    circuit_open_until_ts: gate.circuit_open_until_ts || null,
+    last_check_ts: gate.last_check_ts || null
+  };
 }
 
 function isCloudDreamModel(model) {
@@ -1550,6 +1570,32 @@ function runIdlePass(dateStr, state, force) {
     };
   }
   const failureSeedCount = seeds.filter((s) => Array.isArray(s && s.sources) && s.sources.includes('failure_memory')).length;
+  const localProviderGate = evaluateLocalProviderGate('ollama/smallthinker', {
+    source: 'idle_dream_cycle_idle',
+    force_check: force === true
+  });
+  if (localProviderGate.applicable === true && localProviderGate.available !== true) {
+    const links = normalizeIdleLinks(null, seeds);
+    const row = writeIdleRow(dateStr, null, seeds, links, {
+      strategy: 'deterministic_fallback',
+      reason: 'provider_unavailable',
+      provider_gate: compactProviderGate(localProviderGate)
+    });
+    return {
+      ok: true,
+      skipped: false,
+      degraded: true,
+      reason: 'deterministic_idle_fallback',
+      fallback_reason: 'provider_unavailable',
+      model: null,
+      attempted_models: [],
+      provider_gate: compactProviderGate(localProviderGate),
+      seed_count: seeds.length,
+      failure_seed_count: failureSeedCount,
+      link_count: links.length,
+      row_uid: row.uid
+    };
+  }
 
   const availableModels = listLocalModels(state);
   const blockedProviders = new Set();
@@ -1562,7 +1608,8 @@ function runIdlePass(dateStr, state, force) {
       seed_count: seeds.length,
       failure_seed_count: failureSeedCount,
       available_models: availableModels,
-      cooling_models: pick.skipped_models
+      cooling_models: pick.skipped_models,
+      provider_gate: compactProviderGate(localProviderGate)
     };
   }
 
@@ -1777,6 +1824,33 @@ function runRemPass(dateStr, state, force) {
       };
     }
 
+    const localProviderGate = evaluateLocalProviderGate('ollama/qwen3:4b', {
+      source: 'idle_dream_cycle_rem',
+      force_check: force === true
+    });
+    if (localProviderGate.applicable === true && localProviderGate.available !== true) {
+      const quantized = fallbackQuantized(materialRows);
+      const rem = writeRemResult(dateStr, null, materialRows, quantized, {
+        strategy: 'deterministic_fallback',
+        reason: 'provider_unavailable',
+        provider_gate: compactProviderGate(localProviderGate)
+      });
+      return {
+        ok: true,
+        skipped: false,
+        degraded: true,
+        reason: 'deterministic_rem_fallback',
+        fallback_reason: 'provider_unavailable',
+        strategy,
+        model: null,
+        attempted_models: [],
+        provider_gate: compactProviderGate(localProviderGate),
+        source_idle_rows: materialRows.length,
+        quantized_count: quantized.length,
+        rem_uid: rem.uid
+      };
+    }
+
     const availableModels = listLocalModels(state);
     const blockedProviders = new Set();
     const pick = pickModelWithProviderExclusions(REM_MODEL_ORDER, availableModels, state, blockedProviders);
@@ -1787,7 +1861,8 @@ function runRemPass(dateStr, state, force) {
         reason: pick.skipped_models.length > 0 ? 'all_local_models_cooling_down_for_rem' : 'no_local_model_available_for_rem',
         strategy,
         available_models: availableModels,
-        cooling_models: pick.skipped_models
+        cooling_models: pick.skipped_models,
+        provider_gate: compactProviderGate(localProviderGate)
       };
     }
     const prompt = buildRemPrompt(materialRows, dateStr);
@@ -2179,6 +2254,101 @@ function runCycle(dateStr, opts = {}) {
   return out;
 }
 
+function parseCyclePayload(stdout) {
+  const text = String(stdout || '').trim();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {}
+  const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i--) {
+    try {
+      return JSON.parse(lines[i]);
+    } catch {}
+  }
+  return null;
+}
+
+function buildWatchdogFallback(dateStr, opts = {}, reason = 'watchdog_child_failed', details = {}) {
+  const force = opts.force === true;
+  const remOnly = opts.remOnly === true;
+  const idle = remOnly
+    ? { ok: true, skipped: true, reason: 'rem_only' }
+    : {
+      ok: true,
+      skipped: false,
+      degraded: true,
+      reason: 'watchdog_fallback',
+      fallback_reason: reason,
+      model: null,
+      link_count: 0
+    };
+  const rem = {
+    ok: true,
+    skipped: false,
+    degraded: true,
+    reason: 'watchdog_fallback',
+    fallback_reason: reason,
+    strategy: 'deterministic',
+    model: null,
+    quantized_count: 0
+  };
+  const idlePain = emitDreamPainSignal(dateStr, 'idle', idle);
+  const remPain = emitDreamPainSignal(dateStr, 'rem', rem);
+  appendJsonl(LEDGER_PATH, {
+    ts: nowIso(),
+    type: 'idle_dream_cycle_watchdog_fallback',
+    date: dateStr,
+    reason: String(reason || 'watchdog_child_failed'),
+    force,
+    rem_only: remOnly,
+    details: details && typeof details === 'object' ? details : null
+  });
+  return {
+    ok: true,
+    type: 'idle_dream_cycle',
+    date: dateStr,
+    force,
+    rem_only: remOnly,
+    idle,
+    rem,
+    pain_signals: { idle: idlePain, rem: remPain },
+    watchdog_fallback: true,
+    watchdog_reason: String(reason || 'watchdog_child_failed'),
+    watchdog_details: details && typeof details === 'object' ? details : null
+  };
+}
+
+function runCycleWithWatchdog(dateStr, opts = {}) {
+  const force = opts.force === true;
+  const remOnly = opts.remOnly === true;
+  if (!HARD_WATCHDOG_ENABLED || opts.watchdogChild === true) {
+    return runCycle(dateStr, { force, remOnly });
+  }
+  const childArgs = [__filename, 'run', dateStr, '--watchdog-child=1'];
+  if (force) childArgs.push('--force=1');
+  if (remOnly) childArgs.push('--rem-only=1');
+  const child = spawnSync(process.execPath, childArgs, {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+    timeout: HARD_WATCHDOG_TIMEOUT_MS
+  });
+  const payload = parseCyclePayload(child.stdout);
+  if (child.status === 0 && payload && payload.ok === true) {
+    return payload;
+  }
+  let reason = 'watchdog_child_failed';
+  if (child.error && /ETIMEDOUT/i.test(String(child.error))) reason = 'watchdog_timeout';
+  else if (child.signal) reason = `watchdog_signal_${String(child.signal).toLowerCase()}`;
+  else if (payload && payload.ok !== true) reason = 'watchdog_child_invalid_payload';
+  return buildWatchdogFallback(dateStr, { force, remOnly }, reason, {
+    status: child.status == null ? null : Number(child.status),
+    signal: child.signal || null,
+    error: child.error ? String(child.error).slice(0, 220) : null,
+    stderr: String(child.stderr || '').slice(0, 220)
+  });
+}
+
 function status() {
   const state = loadState();
   const today = toDate();
@@ -2220,7 +2390,8 @@ function main() {
     const dateStr = toDate(args._[1]);
     const force = String(args.force || '') === '1' || args.force === true;
     const remOnly = String(args['rem-only'] || '') === '1' || args['rem-only'] === true;
-    process.stdout.write(JSON.stringify(runCycle(dateStr, { force, remOnly })) + '\n');
+    const watchdogChild = String(args['watchdog-child'] || '').trim() === '1' || args.watchdog_child === true;
+    process.stdout.write(JSON.stringify(runCycleWithWatchdog(dateStr, { force, remOnly, watchdogChild })) + '\n');
     return;
   }
   if (cmd === 'status') {
@@ -2237,6 +2408,7 @@ if (require.main === module) {
 
 module.exports = {
   runCycle,
+  runCycleWithWatchdog,
   status,
   buildIdleSeedSet,
   collectDreamSeeds,

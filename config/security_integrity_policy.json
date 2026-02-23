@@ -19,7 +19,7 @@
   ],
   "exclude_paths": [],
   "hashes": {
-    "config/adaptive_layer_guard_policy.json": "1e509a93114c9c0c95ad0d276549fc1d57d7797bd2b1ed4751e4ecdceb7e8a14",
+    "config/adaptive_layer_guard_policy.json": "53750ffe5578de70f1142733588d6c13c25046b25531a1b2d7ed9ff5e600e09a",
     "config/directives/ACTIVE.yaml": "8fc63b734d79f72aefe4058a959b345df685a4ecfe1afd8e0503a9c63d601818",
     "config/directives/T0_invariants.yaml": "e9d185792805e205794b3d7ea81cb6562891fef1873cbb6f65cbef73f41276f9",
     "config/directives/T1_generational_wealth_v1.yaml": "def757e86e8136c75766e35098414c8b8ca7b1f75707c4c9c3f474b35da78107",
@@ -38,7 +38,7 @@
     "systems/security/guard.js": "2b3c168b7392d82e7db2d02746ba87ebb220b8ef4a995d0701a3d08186c946c3",
     "systems/security/habit_hygiene_guard.js": "04a35763481356cc28f12a813cb1845a03709d4d73cda6cd98bcd5d0e223abef",
     "systems/security/integrity_kernel.js": "bfecd33bc3539f0894cbca905730894aa706bb8db6140e5681b9a059bed7ec1f",
-    "systems/security/integrity_reseal.js": "d282348e35f777c184fb997a0a84ae452b6754664ce779070ff919c6f8cef58d",
+    "systems/security/integrity_reseal.js": "940ece4eaae2ad71ee9436854863b9a30b3876a276fceca1cf09b78a34980549",
     "systems/security/llm_gateway_guard.js": "00e62885ea05343d277b29af22e5f8d436b0146633f978a336c5ecc57dde9bdb",
     "systems/security/merge_guard.js": "047c78dba33e4ca69fb72f9eeebe48411144cb76d9fca9755621631923189653",
     "systems/security/policy_rootd.js": "bbd04839468ccbadff8f1b9b5be1f55ac829cacaed8b8a391b3302770d54fdfb",
@@ -50,9 +50,9 @@
     "systems/security/skill_quarantine.js": "4fd57a207a558a0fc079a2ce2477100bb9e5d0aec15b6a4bcbd7a7ae71963947",
     "systems/security/startup_attestation.js": "1915618dbe23e1f600986f3545ee1525bf67f0d84fe09258601b56fdead08e0d",
     "systems/security/workspace_dump_guard.js": "fa94a0e44f65203cae3fc1c6dc8c20ce0199710d3be6867e1b7821eb825859c3",
-    "systems/sensory/adaptive_layer_guard.js": "9fdf1f12e9e6d9eb0ebd1e1af536ea0fd1e96ffe963f35a39840ce7e2252ddbd"
+    "systems/sensory/adaptive_layer_guard.js": "5443d35d5a28c918ec374f1d01b88edac9546233276bdc86e2a677543f52461a"
   },
-  "sealed_at": "2026-02-22T19:36:56.298Z",
+  "sealed_at": "2026-02-23T01:48:20.428Z",
   "sealed_by": "jay",
-  "last_approval_note": "codex: align policy with intentional guard/autonomy updates"
+  "last_approval_note": "Intentional adaptive guard and reseal workflow hardening; reseal protected integrity hashes."
 }

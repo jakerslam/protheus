@@ -17,6 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
+const { evaluateLocalProviderGate } = require('./provider_readiness.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const GATEWAY_LOG_PATH = process.env.LLM_GATEWAY_LOG_PATH
@@ -216,6 +217,48 @@ function listLocalOllamaModels(opts = {}) {
   const timeoutMs = Number.isFinite(Number(opts.timeoutMs)) ? Number(opts.timeoutMs) : 5000;
   const cwd = opts.cwd ? String(opts.cwd) : REPO_ROOT;
   const source = String(opts.source || 'llm_gateway').trim() || 'llm_gateway';
+  const skipProviderGate = opts.skipProviderGate === true
+    || opts.skip_provider_gate === true
+    || String(opts.skipProviderGate || opts.skip_provider_gate || '').trim() === '1';
+  let providerGate = null;
+  if (!skipProviderGate) {
+    providerGate = evaluateLocalProviderGate('ollama/smallthinker', {
+      source: `${source}_list`
+    });
+    if (providerGate.applicable === true && providerGate.available !== true) {
+      appendJsonl(GATEWAY_LOG_PATH, {
+        ts: nowIso(),
+        type: 'llm_gateway_list',
+        ok: false,
+        source,
+        latency_ms: 0,
+        code: 1,
+        reason: 'provider_gate_blocked',
+        provider_gate: {
+          provider: providerGate.provider || 'ollama',
+          reason: providerGate.reason || 'provider_unavailable',
+          source: providerGate.source || null,
+          circuit_open: providerGate.circuit_open === true,
+          circuit_open_until_ts: providerGate.circuit_open_until_ts || null
+        }
+      });
+      return {
+        ok: false,
+        models: [],
+        latency_ms: 0,
+        code: 1,
+        stderr: `provider_unavailable:${String(providerGate.reason || 'provider_unavailable')}`,
+        provider_gate: {
+          provider: providerGate.provider || 'ollama',
+          available: providerGate.available === true,
+          reason: providerGate.reason || 'provider_unavailable',
+          source: providerGate.source || null,
+          circuit_open: providerGate.circuit_open === true,
+          circuit_open_until_ts: providerGate.circuit_open_until_ts || null
+        }
+      };
+    }
+  }
   const started = Date.now();
   const r = spawnSync('ollama', ['list'], { encoding: 'utf8', timeout: timeoutMs, cwd });
   const latencyMs = Date.now() - started;
@@ -342,6 +385,59 @@ function runLocalOllamaPrompt(opts = {}) {
         cache_key: cacheKey
       };
     }
+  }
+
+  const providerGate = evaluateLocalProviderGate(`ollama/${model}`, {
+    source: `${source}_run`
+  });
+  if (providerGate.applicable === true && providerGate.available !== true) {
+    appendJsonl(GATEWAY_LOG_PATH, {
+      ts: nowIso(),
+      type: 'llm_gateway_run',
+      ok: false,
+      source,
+      phase,
+      model,
+      timeout_ms: timeoutMs,
+      latency_ms: 0,
+      code: 1,
+      signal: null,
+      timed_out: false,
+      fallback_attempted: false,
+      cache_hit: false,
+      reason: 'provider_gate_blocked',
+      provider_gate: {
+        provider: providerGate.provider || 'ollama',
+        reason: providerGate.reason || 'provider_unavailable',
+        source: providerGate.source || null,
+        circuit_open: providerGate.circuit_open === true,
+        circuit_open_until_ts: providerGate.circuit_open_until_ts || null
+      },
+      cache_key: cacheKey.slice(0, 16)
+    });
+    return {
+      ok: false,
+      stdout: '',
+      stderr: `provider_unavailable:${String(providerGate.reason || 'provider_unavailable')}`,
+      code: 1,
+      signal: null,
+      timed_out: false,
+      error: 'provider_unavailable',
+      latency_ms: 0,
+      model,
+      phase,
+      fallback_attempted: false,
+      cache_hit: false,
+      cache_key: cacheKey,
+      provider_gate: {
+        provider: providerGate.provider || 'ollama',
+        available: providerGate.available === true,
+        reason: providerGate.reason || 'provider_unavailable',
+        source: providerGate.source || null,
+        circuit_open: providerGate.circuit_open === true,
+        circuit_open_until_ts: providerGate.circuit_open_until_ts || null
+      }
+    };
   }
 
   const primary = runOllamaPromptRaw(model, prompt, timeoutMs, ['--hidethinking', '--nowordwrap'], cwd);

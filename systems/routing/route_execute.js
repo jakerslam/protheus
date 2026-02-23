@@ -69,7 +69,7 @@ const ROUTE_TASK_SCRIPT = process.env.ROUTE_EXECUTE_ROUTE_TASK_SCRIPT
   ? path.resolve(process.env.ROUTE_EXECUTE_ROUTE_TASK_SCRIPT)
   : path.join(repoRoot(), 'systems', 'routing', 'route_task.js');
 
-function runRouteTask({ task, tokensEst, repeats14d, errors30d, skipHabitId, mode, forceModel }) {
+function runRouteTask({ task, tokensEst, repeats14d, errors30d, skipHabitId, mode, forceModel, dryRun }) {
   const args = [
     ROUTE_TASK_SCRIPT,
     '--task', task,
@@ -80,10 +80,12 @@ function runRouteTask({ task, tokensEst, repeats14d, errors30d, skipHabitId, mod
   if (skipHabitId) args.push('--skip_habit_id', String(skipHabitId));
   if (mode) args.push('--mode', String(mode));
   if (forceModel) args.push('--force_model', String(forceModel));
+  const env = { ...process.env };
+  env.ROUTER_BUDGET_DRY_RUN = dryRun ? '1' : '0';
   const r = spawnSync('node', args, {
     cwd: repoRoot(),
     encoding: 'utf8',
-    env: process.env
+    env
   });
   return r;
 }
@@ -530,7 +532,7 @@ function main() {
     process.exit(0);
   }
 
-  const routed = runRouteTask({ task, tokensEst, repeats14d, errors30d, skipHabitId, mode });
+  const routed = runRouteTask({ task, tokensEst, repeats14d, errors30d, skipHabitId, mode, dryRun });
   const parsedPrimary = parseRouteTaskOutput(routed);
   if (!parsedPrimary.ok) {
     console.error(`route_execute: ${parsedPrimary.error}`);
@@ -637,7 +639,8 @@ function main() {
         errors30d,
         skipHabitId,
         mode,
-        forceModel: modelId
+        forceModel: modelId,
+        dryRun
       });
       const parsedSecondary = parseRouteTaskOutput(routedSecondary);
       if (!parsedSecondary.ok) {

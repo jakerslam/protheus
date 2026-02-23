@@ -89,6 +89,15 @@ function normalizeTopic(v) {
     .slice(0, 80);
 }
 
+function isUsableTopic(v, minLen = 4) {
+  const topic = normalizeTopic(v);
+  if (!topic) return false;
+  if (topic.length < Number(minLen || 4)) return false;
+  if (!/[a-z]/.test(topic)) return false;
+  if (/^\d+$/.test(topic)) return false;
+  return true;
+}
+
 function tokenizeTitle(title) {
   const s = String(title || '')
     .toLowerCase()
@@ -153,8 +162,13 @@ function buildHypothesisId(prefix, bits) {
   return `${prefix}-${sha16(bits.join('|'))}`;
 }
 
-function collectObservations(dates) {
+function collectObservations(dates, limits = {}) {
+  const safeLimits = (limits && typeof limits === 'object' ? limits : {}) as Record<string, any>;
+  const maxTopicsPerItem = clamp(safeLimits.maxTopicsPerItem, 1, 12, 6);
+  const maxObsPerEyeTopicPerDay = clamp(safeLimits.maxObsPerEyeTopicPerDay, 1, 100, 8);
+  const minTopicLength = clamp(safeLimits.minTopicLength, 3, 16, 4);
   const topicObs = new Map(); // topic -> [{ eye_id, ts_ms, date, title }]
+  const perEyeTopicDayCounts = new Map();
 
   for (const d of dates) {
     const filePath = path.join(EYES_RAW_DIR, `${d}.jsonl`);
@@ -166,10 +180,16 @@ function collectObservations(dates) {
       const title = String(ev.title || '');
       if (title.toUpperCase().includes('[STUB]')) continue;
       const topics = Array.isArray(ev.topics) ? ev.topics : [];
-      const mergedTopics = sortUnique([...topics.map(normalizeTopic).filter(Boolean), ...tokenizeTitle(title)]);
+      const mergedTopics = sortUnique([...topics, ...tokenizeTitle(title)])
+        .filter((topic) => isUsableTopic(topic, minTopicLength))
+        .slice(0, maxTopicsPerItem);
       if (!mergedTopics.length) continue;
       const tsMs = eventTsMs(ev, d);
       for (const topic of mergedTopics) {
+        const capKey = `${topic}|${eyeId}|${d}`;
+        const seen = Number(perEyeTopicDayCounts.get(capKey) || 0);
+        if (seen >= maxObsPerEyeTopicPerDay) continue;
+        perEyeTopicDayCounts.set(capKey, seen + 1);
         const arr = topicObs.get(topic) || [];
         arr.push({
           eye_id: eyeId,
@@ -221,7 +241,6 @@ function analyze(opts = {}) {
   const lookbackDays = clamp(o.lookbackDays, 3, 30, 7);
   const dates = datesInWindow(lookbackDays, dateStr);
   const baselineDates = dates.slice(0, -1);
-  const topicObs = collectObservations(dates);
 
   const minEyeSupport = clamp(process.env.CROSS_SIGNAL_MIN_EYES, 2, 10, 2);
   const minTopicEvents = clamp(process.env.CROSS_SIGNAL_MIN_TOPIC_EVENTS, 3, 200, 4);
@@ -229,8 +248,16 @@ function analyze(opts = {}) {
   const maxLeadLagHours = clamp(process.env.CROSS_SIGNAL_MAX_LEAD_LAG_HOURS, 1, 168, 48);
   const minDivergenceToday = clamp(process.env.CROSS_SIGNAL_MIN_DIVERGENCE_TODAY, 2, 100, 2);
   const maxHypotheses = clamp(process.env.CROSS_SIGNAL_MAX_HYPOTHESES, 10, 500, 120);
+  const maxTopicsPerItem = clamp(process.env.CROSS_SIGNAL_MAX_TOPICS_PER_ITEM, 1, 12, 6);
+  const maxObsPerEyeTopicPerDay = clamp(process.env.CROSS_SIGNAL_MAX_OBS_PER_EYE_TOPIC_DAY, 1, 100, 8);
+  const minTopicLength = clamp(process.env.CROSS_SIGNAL_MIN_TOPIC_LENGTH, 3, 16, 4);
 
   const hypotheses = [];
+  const topicObs = collectObservations(dates, {
+    maxTopicsPerItem,
+    maxObsPerEyeTopicPerDay,
+    minTopicLength
+  });
 
   for (const [topic, obsRaw] of topicObs.entries()) {
     const obs = Array.isArray(obsRaw) ? obsRaw.slice().sort((a, b) => a.ts_ms - b.ts_ms) : [];
@@ -361,6 +388,11 @@ function analyze(opts = {}) {
     date: dateStr,
     lookback_days: lookbackDays,
     source: 'systems/sensory/cross_signal_engine.js',
+    noise_controls: {
+      max_topics_per_item: maxTopicsPerItem,
+      max_obs_per_eye_topic_day: maxObsPerEyeTopicPerDay,
+      min_topic_length: minTopicLength
+    },
     total_detected: totalDetected,
     hypothesis_count: cappedHypotheses.length,
     hypotheses: cappedHypotheses

@@ -1383,7 +1383,8 @@ function projectBudgetState(budgetState, requestTokens) {
   };
 }
 
-function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy }) {
+function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy, dryRun }) {
+  const dryRunMode = dryRun === true || String(dryRun || '').trim() === '1';
   const date = budgetDateStr();
   const stateDir = budgetPolicy && budgetPolicy.state_dir
     ? String(budgetPolicy.state_dir)
@@ -1395,6 +1396,29 @@ function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy }) {
   };
   const autopause = loadSystemBudgetAutopauseState(opts);
   if (autopause.active === true) {
+    if (dryRunMode) {
+      writeSystemBudgetDecision({
+        date,
+        module: ROUTER_BUDGET_MODULE,
+        capability: "route_decision",
+        request_tokens_est: requestTokensEst,
+        decision: "defer",
+        reason: "budget_autopause_active_dry_run"
+      }, opts);
+      return {
+        enabled: true,
+        blocked: false,
+        deferred: true,
+        reason: "budget_autopause_active_dry_run",
+        autopause_active: true,
+        autopause: {
+          source: autopause.source || null,
+          reason: autopause.reason || null,
+          until: autopause.until || null
+        },
+        guard: null
+      };
+    }
     writeSystemBudgetDecision({
       date,
       module: ROUTER_BUDGET_MODULE,
@@ -1406,6 +1430,7 @@ function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy }) {
     return {
       enabled: true,
       blocked: true,
+      deferred: false,
       reason: "budget_autopause_active",
       autopause_active: true,
       autopause: {
@@ -1424,6 +1449,29 @@ function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy }) {
   }, opts);
   if (guard.hard_stop === true) {
     const hardReason = String((guard.hard_stop_reasons && guard.hard_stop_reasons[0]) || "budget_guard_hard_stop");
+    if (dryRunMode) {
+      writeSystemBudgetDecision({
+        date,
+        module: ROUTER_BUDGET_MODULE,
+        capability: "route_decision",
+        request_tokens_est: requestTokensEst,
+        decision: "defer",
+        reason: `${hardReason}_dry_run`
+      }, opts);
+      return {
+        enabled: true,
+        blocked: false,
+        deferred: true,
+        reason: `${hardReason}_dry_run`,
+        autopause_active: autopause.active === true,
+        autopause: {
+          source: autopause.source || null,
+          reason: autopause.reason || null,
+          until: autopause.until || null
+        },
+        guard
+      };
+    }
     writeSystemBudgetDecision({
       date,
       module: ROUTER_BUDGET_MODULE,
@@ -1442,6 +1490,7 @@ function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy }) {
     return {
       enabled: true,
       blocked: true,
+      deferred: false,
       reason: hardReason,
       autopause_active: nextAutopause.active === true,
       autopause: {
@@ -1456,6 +1505,7 @@ function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy }) {
   return {
     enabled: true,
     blocked: false,
+    deferred: false,
     reason: null,
     autopause_active: false,
     autopause: {
@@ -3076,9 +3126,11 @@ function routeDecision({ risk, complexity, intent, task, mode, forceModel = "", 
   const tier = inferTier(risk, complexity);
   const budgetState = routerBudgetState(cfg);
   const budgetProjected = projectBudgetState(budgetState, requestTokensEst);
+  const routerBudgetDryRun = String(process.env.ROUTER_BUDGET_DRY_RUN || '').trim() === '1';
   const globalBudgetGate = evaluateRouterGlobalBudgetGate({
     requestTokensEst,
-    budgetPolicy: budgetState && budgetState.policy ? budgetState.policy : null
+    budgetPolicy: budgetState && budgetState.policy ? budgetState.policy : null,
+    dryRun: routerBudgetDryRun
   });
   const eyesSignal = eyesRoutingSignal(cfg);
   const promptCache = promptCacheSignal(cfg, {

@@ -35,6 +35,7 @@ const {
 } = require("../budget/system_budget.js");
 const { emitPainSignal } = require("../autonomy/pain_signal.js");
 const { computeEvidenceRunPlan } = require("./evidence_run_plan.js");
+const { evaluateProviderGate } = require("../routing/provider_readiness.js");
 
 let ACTIVE_SPINE_CONTEXT = { mode: null, date: null };
 
@@ -731,6 +732,46 @@ function collectorPreflightSummary() {
   };
 }
 
+function providerRecoveryPulse() {
+  if (String(process.env.SPINE_PROVIDER_RECOVERY_PULSE || "1") === "0") {
+    return {
+      ok: true,
+      skipped: true,
+      reason: "feature_flag_disabled",
+      flag: "SPINE_PROVIDER_RECOVERY_PULSE",
+      flag_value: String(process.env.SPINE_PROVIDER_RECOVERY_PULSE || "")
+    };
+  }
+  const forceCheck = String(process.env.SPINE_PROVIDER_RECOVERY_FORCE_CHECK || "1") !== "0";
+  try {
+    const gate = evaluateProviderGate("ollama", {
+      source: "spine_startup_pulse",
+      force_check: forceCheck
+    });
+    return {
+      ok: true,
+      skipped: false,
+      provider: gate && gate.provider ? gate.provider : "ollama",
+      available: !!(gate && gate.available === true),
+      reason: gate && gate.reason ? String(gate.reason) : null,
+      source: gate && gate.source ? String(gate.source) : null,
+      checked: gate && gate.checked === true,
+      circuit_open: !!(gate && gate.circuit_open === true),
+      circuit_open_until_ts: gate && gate.circuit_open_until_ts ? gate.circuit_open_until_ts : null,
+      last_check_ts: gate && gate.last_check_ts ? gate.last_check_ts : null
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      skipped: false,
+      provider: "ollama",
+      available: null,
+      reason: "provider_recovery_pulse_failed",
+      error: String(err && err.message ? err.message : err).slice(0, 180)
+    };
+  }
+}
+
 function realExternalItemsToday(dateStr) {
   const fp = path.join(repoRoot(), "state", "sensory", "eyes", "raw", `${dateStr}.jsonl`);
   const events = readJsonl(fp);
@@ -758,6 +799,237 @@ function writeRoutingHealthState(obj) {
   const fp = routingHealthStatePath();
   fs.mkdirSync(path.dirname(fp), { recursive: true });
   fs.writeFileSync(fp, JSON.stringify(obj, null, 2));
+}
+
+function providerRecoveryStatePath() {
+  return path.join(repoRoot(), "state", "spine", "provider_recovery_state.json");
+}
+
+function readProviderRecoveryState() {
+  try {
+    const fp = providerRecoveryStatePath();
+    if (!fs.existsSync(fp)) {
+      return {
+        ts: null,
+        last_provider: "ollama",
+        last_available: null,
+        last_reason: null,
+        last_transition_ts: null,
+        last_warmup_ts: null,
+        last_warmup_ok: null
+      };
+    }
+    const parsed = JSON.parse(fs.readFileSync(fp, "utf8"));
+    return {
+      ts: parsed && parsed.ts ? String(parsed.ts) : null,
+      last_provider: parsed && parsed.last_provider ? String(parsed.last_provider) : "ollama",
+      last_available: parsed && typeof parsed.last_available === "boolean" ? parsed.last_available : null,
+      last_reason: parsed && parsed.last_reason ? String(parsed.last_reason) : null,
+      last_transition_ts: parsed && parsed.last_transition_ts ? String(parsed.last_transition_ts) : null,
+      last_warmup_ts: parsed && parsed.last_warmup_ts ? String(parsed.last_warmup_ts) : null,
+      last_warmup_ok: parsed && typeof parsed.last_warmup_ok === "boolean" ? parsed.last_warmup_ok : null
+    };
+  } catch {
+    return {
+      ts: null,
+      last_provider: "ollama",
+      last_available: null,
+      last_reason: null,
+      last_transition_ts: null,
+      last_warmup_ts: null,
+      last_warmup_ok: null
+    };
+  }
+}
+
+function writeProviderRecoveryState(state) {
+  const fp = providerRecoveryStatePath();
+  fs.mkdirSync(path.dirname(fp), { recursive: true });
+  fs.writeFileSync(fp, JSON.stringify(state || {}, null, 2));
+}
+
+function runProviderRecoveryWarmup() {
+  if (String(process.env.SPINE_PROVIDER_RECOVERY_WARMUP_ENABLED || "1") === "0") {
+    return {
+      ok: true,
+      skipped: true,
+      reason: "feature_flag_disabled",
+      flag: "SPINE_PROVIDER_RECOVERY_WARMUP_ENABLED",
+      flag_value: String(process.env.SPINE_PROVIDER_RECOVERY_WARMUP_ENABLED || "")
+    };
+  }
+  const maxProbesRaw = Number(process.env.SPINE_PROVIDER_RECOVERY_WARMUP_MAX_PROBES || 2);
+  const maxProbes = Number.isFinite(maxProbesRaw) && maxProbesRaw > 0
+    ? Math.max(1, Math.min(6, Math.round(maxProbesRaw)))
+    : 2;
+  const args = [
+    "systems/routing/model_router.js",
+    "warmup",
+    "--force=1",
+    `--max-probes=${maxProbes}`
+  ];
+  const rep = runJson("node", args);
+  const payload = rep.payload && typeof rep.payload === "object" ? rep.payload : null;
+  if (!rep.ok || !payload) {
+    return {
+      ok: false,
+      skipped: false,
+      reason: "warmup_failed",
+      error: String(rep.stderr || rep.stdout || `warmup_exit_${rep.code}`).slice(0, 180)
+    };
+  }
+  return {
+    ok: true,
+    skipped: false,
+    reason: payload.reason || "warmup_ok",
+    warmed_count: Number(payload.warmed_count || 0),
+    candidate_count: Number(payload.candidate_count || 0),
+    recovered_count: Number(payload.recovered_count || 0),
+    local_health: payload.local_health || null
+  };
+}
+
+function providerRecoveryTestOverride(kind) {
+  const key = `SPINE_PROVIDER_RECOVERY_TEST_FORCE_${String(kind || "").trim().toUpperCase()}`;
+  const raw = String(process.env[key] || "").trim().toLowerCase();
+  if (!raw) return null;
+  const forcedReason = String(process.env.SPINE_PROVIDER_RECOVERY_TEST_FORCE_REASON || "").trim().slice(0, 120);
+  if (raw === "ok" || raw === "success" || raw === "pass") {
+    if (String(kind || "").toUpperCase() === "PATH_PULSE") {
+      return {
+        ok: true,
+        skipped: false,
+        reason: forcedReason || "forced_test_ok",
+        reflex: { ok: true, selected_model: "forced_test_model" },
+        dream: { ok: true, idle_ok: true, rem_ok: true }
+      };
+    }
+    return {
+      ok: true,
+      skipped: false,
+      reason: forcedReason || "forced_test_ok",
+      warmed_count: 1,
+      candidate_count: 1,
+      recovered_count: 1
+    };
+  }
+  if (raw === "skip" || raw === "skipped") {
+    return {
+      ok: true,
+      skipped: true,
+      reason: forcedReason || "forced_test_skip"
+    };
+  }
+  if (raw === "fail" || raw === "error") {
+    if (String(kind || "").toUpperCase() === "PATH_PULSE") {
+      return {
+        ok: false,
+        skipped: false,
+        reason: forcedReason || "forced_test_fail",
+        reflex: { ok: false, reason: "forced_test_fail" },
+        dream: { ok: false, reason: "forced_test_fail" }
+      };
+    }
+    return {
+      ok: false,
+      skipped: false,
+      reason: forcedReason || "forced_test_fail",
+      error: forcedReason || "forced_test_fail"
+    };
+  }
+  return null;
+}
+
+function runProviderRecoveryPathPulse(dateStr) {
+  if (String(process.env.SPINE_PROVIDER_RECOVERY_PATH_PULSE_ENABLED || "1") === "0") {
+    return {
+      ok: true,
+      skipped: true,
+      reason: "feature_flag_disabled",
+      flag: "SPINE_PROVIDER_RECOVERY_PATH_PULSE_ENABLED",
+      flag_value: String(process.env.SPINE_PROVIDER_RECOVERY_PATH_PULSE_ENABLED || "")
+    };
+  }
+  const reflexTask = String(process.env.SPINE_PROVIDER_RECOVERY_REFLEX_TASK || "provider recovery route pulse").slice(0, 160);
+  const reflexTokensRaw = Number(process.env.SPINE_PROVIDER_RECOVERY_REFLEX_TOKENS_EST || 80);
+  const reflexTokens = Number.isFinite(reflexTokensRaw) && reflexTokensRaw > 0
+    ? Math.max(50, Math.min(420, Math.round(reflexTokensRaw)))
+    : 80;
+  const reflex = runJson("node", [
+    "systems/reflex/reflex_worker.js",
+    "once",
+    `--task=${reflexTask}`,
+    "--intent=spine_provider_recovery",
+    `--tokens_est=${reflexTokens}`,
+    "--worker-id=spine-recovery"
+  ]);
+  const reflexPayload = reflex.payload && typeof reflex.payload === "object" ? reflex.payload : null;
+  const reflexSummary = {
+    ok: reflex.ok && !!reflexPayload,
+    selected_model: reflexPayload && reflexPayload.route ? reflexPayload.route.selected_model || null : null,
+    local_provider_forced_cloud_bias: reflexPayload ? reflexPayload.local_provider_forced_cloud_bias === true : null,
+    reason: !reflex.ok ? String(reflex.stderr || reflex.stdout || `reflex_recovery_exit_${reflex.code}`).slice(0, 160) : null
+  };
+
+  const dreamRemStrategy = String(process.env.SPINE_PROVIDER_RECOVERY_DREAM_REM_STRATEGY || "local").trim() || "local";
+  const dreamAttemptsRaw = Number(process.env.SPINE_PROVIDER_RECOVERY_DREAM_MODEL_MAX_ATTEMPTS || 1);
+  const dreamAttempts = Number.isFinite(dreamAttemptsRaw) && dreamAttemptsRaw > 0
+    ? Math.max(1, Math.min(2, Math.round(dreamAttemptsRaw)))
+    : 1;
+  const dreamModelsPerPassRaw = Number(process.env.SPINE_PROVIDER_RECOVERY_DREAM_MAX_MODELS_PER_PASS || 1);
+  const dreamModelsPerPass = Number.isFinite(dreamModelsPerPassRaw) && dreamModelsPerPassRaw > 0
+    ? Math.max(1, Math.min(2, Math.round(dreamModelsPerPassRaw)))
+    : 1;
+  const dreamIdlePassMaxMsRaw = Number(process.env.SPINE_PROVIDER_RECOVERY_DREAM_IDLE_PASS_MAX_MS || 45000);
+  const dreamRemPassMaxMsRaw = Number(process.env.SPINE_PROVIDER_RECOVERY_DREAM_REM_PASS_MAX_MS || 45000);
+  const dreamEnv = {
+    ...process.env,
+    IDLE_DREAM_REM_STRATEGY: dreamRemStrategy,
+    IDLE_DREAM_MODEL_MAX_ATTEMPTS: String(dreamAttempts),
+    IDLE_DREAM_MAX_MODELS_PER_PASS: String(dreamModelsPerPass),
+    IDLE_DREAM_IDLE_PASS_MAX_MS: String(
+      Number.isFinite(dreamIdlePassMaxMsRaw)
+        ? Math.max(15000, Math.min(120000, Math.round(dreamIdlePassMaxMsRaw)))
+        : 45000
+    ),
+    IDLE_DREAM_REM_PASS_MAX_MS: String(
+      Number.isFinite(dreamRemPassMaxMsRaw)
+        ? Math.max(15000, Math.min(120000, Math.round(dreamRemPassMaxMsRaw)))
+        : 45000
+    )
+  };
+  const dream = runJson("node", [
+    "systems/memory/idle_dream_cycle.js",
+    "run",
+    String(dateStr || "").slice(0, 10),
+    "--force=1"
+  ], {
+    env: dreamEnv
+  });
+  const dreamPayload = dream.payload && typeof dream.payload === "object" ? dream.payload : null;
+  const dreamIdle = dreamPayload && dreamPayload.idle && typeof dreamPayload.idle === "object" ? dreamPayload.idle : null;
+  const dreamRem = dreamPayload && dreamPayload.rem && typeof dreamPayload.rem === "object" ? dreamPayload.rem : null;
+  const dreamSummary = {
+    ok: dream.ok && !!dreamPayload && dreamPayload.ok === true,
+    idle_ok: dreamIdle ? dreamIdle.ok === true : null,
+    idle_skipped: dreamIdle ? dreamIdle.skipped === true : null,
+    idle_reason: dreamIdle ? (dreamIdle.reason || dreamIdle.fallback_reason || null) : null,
+    idle_model: dreamIdle ? (dreamIdle.model || dreamIdle.failed_model || null) : null,
+    rem_ok: dreamRem ? dreamRem.ok === true : null,
+    rem_skipped: dreamRem ? dreamRem.skipped === true : null,
+    rem_reason: dreamRem ? (dreamRem.reason || dreamRem.fallback_reason || null) : null,
+    rem_model: dreamRem ? (dreamRem.model || dreamRem.failed_model || null) : null,
+    reason: !dream.ok ? String(dream.stderr || dream.stdout || `dream_recovery_exit_${dream.code}`).slice(0, 160) : null
+  };
+
+  const overallOk = reflexSummary.ok === true && dreamSummary.ok === true;
+  return {
+    ok: overallOk,
+    skipped: false,
+    reason: overallOk ? "path_pulse_ok" : "path_pulse_partial_or_failed",
+    reflex: reflexSummary,
+    dream: dreamSummary
+  };
 }
 
 function spineShortCircuitStatePath() {
@@ -919,6 +1191,7 @@ function main() {
     "systems/ops/openclaw_backup_retention.js",
     "systems/memory/eyes_memory_bridge.js",
     "systems/memory/failure_memory_bridge.js",
+    "systems/memory/idle_dream_cycle.js",
     "systems/memory/memory_dream.js",
     "systems/memory/uid_connections.js",
     "systems/memory/creative_links.js",
@@ -932,8 +1205,10 @@ function main() {
     "systems/routing/route_execute.js",
     "systems/routing/route_task.js",
     "systems/routing/model_router.js",
+    "systems/routing/provider_readiness.js",
     "systems/routing/router_budget_calibration.js",
     "systems/budget/system_budget.js",
+    "systems/reflex/reflex_worker.js",
     "habits/scripts/queue_gc.js",
     "habits/scripts/proposal_queue.js",
     "config/security_integrity_policy.json"
@@ -1053,7 +1328,178 @@ function main() {
     }
   }
 
-  const routingCache = routingCacheSummary();
+  const providerPulse = providerRecoveryPulse();
+  appendLedger(dateStr, {
+    ts: nowIso(),
+    type: "spine_provider_recovery_pulse",
+    mode,
+    date: dateStr,
+    ...providerPulse
+  });
+  if (providerPulse.ok) {
+    if (providerPulse.skipped) {
+      console.log(` provider_recovery_pulse skipped reason=${String(providerPulse.reason || "unknown").slice(0, 120)}`);
+    } else {
+      console.log(
+        ` provider_recovery_pulse provider=${String(providerPulse.provider || "ollama")}` +
+        ` available=${providerPulse.available === true ? 1 : 0}` +
+        ` reason=${String(providerPulse.reason || "unknown").slice(0, 120)}` +
+        ` checked=${providerPulse.checked === true ? 1 : 0}`
+      );
+    }
+  } else {
+    console.log(` provider_recovery_pulse unavailable reason=${String(providerPulse.error || providerPulse.reason || "unknown").slice(0, 120)}`);
+  }
+
+  const providerRecoveryState = readProviderRecoveryState();
+  const pulseHasAvailability = providerPulse && providerPulse.ok === true && providerPulse.skipped !== true && typeof providerPulse.available === "boolean";
+  const providerRecovered = !!(
+    pulseHasAvailability
+    && providerPulse.available === true
+    && providerRecoveryState.last_available === false
+  );
+  let recoveryWarmup = {
+    ok: true,
+    skipped: true,
+    reason: providerRecovered ? "warmup_not_attempted" : "no_down_to_up_transition"
+  };
+  if (providerRecovered) {
+    const warmupOverride = providerRecoveryTestOverride("WARMUP");
+    recoveryWarmup = warmupOverride || runProviderRecoveryWarmup();
+  }
+  appendLedger(dateStr, {
+    ts: nowIso(),
+    type: "spine_provider_recovery_warmup",
+    mode,
+    date: dateStr,
+    provider: providerPulse && providerPulse.provider ? providerPulse.provider : "ollama",
+    provider_recovered: providerRecovered,
+    ...recoveryWarmup
+  });
+  if (providerRecovered) {
+    if (recoveryWarmup.ok) {
+      if (recoveryWarmup.skipped) {
+        console.log(` provider_recovery_warmup skipped reason=${String(recoveryWarmup.reason || "unknown").slice(0, 120)}`);
+      } else {
+        console.log(
+          ` provider_recovery_warmup ok warmed=${Number(recoveryWarmup.warmed_count || 0)}` +
+          ` recovered=${Number(recoveryWarmup.recovered_count || 0)}`
+        );
+      }
+    } else {
+      console.log(` provider_recovery_warmup fail reason=${String(recoveryWarmup.error || recoveryWarmup.reason || "unknown").slice(0, 120)}`);
+    }
+  }
+  let recoveryPathPulse = {
+    ok: true,
+    skipped: true,
+    reason: providerRecovered ? "warmup_not_ready" : "no_down_to_up_transition"
+  };
+  if (providerRecovered && recoveryWarmup.ok && recoveryWarmup.skipped !== true) {
+    const pathOverride = providerRecoveryTestOverride("PATH_PULSE");
+    recoveryPathPulse = pathOverride || runProviderRecoveryPathPulse(dateStr);
+  }
+  appendLedger(dateStr, {
+    ts: nowIso(),
+    type: "spine_provider_recovery_path_pulse",
+    mode,
+    date: dateStr,
+    provider: providerPulse && providerPulse.provider ? providerPulse.provider : "ollama",
+    provider_recovered: providerRecovered,
+    warmup_ok: recoveryWarmup.ok === true,
+    warmup_skipped: recoveryWarmup.skipped === true,
+    ...recoveryPathPulse
+  });
+  if (providerRecovered) {
+    if (recoveryPathPulse.ok) {
+      if (recoveryPathPulse.skipped) {
+        console.log(` provider_recovery_path_pulse skipped reason=${String(recoveryPathPulse.reason || "unknown").slice(0, 120)}`);
+      } else {
+        const reflexOk = recoveryPathPulse.reflex && recoveryPathPulse.reflex.ok === true ? 1 : 0;
+        const dreamOk = recoveryPathPulse.dream && recoveryPathPulse.dream.ok === true ? 1 : 0;
+        console.log(` provider_recovery_path_pulse ok reflex_ok=${reflexOk} dream_ok=${dreamOk}`);
+      }
+    } else {
+      console.log(` provider_recovery_path_pulse fail reason=${String(recoveryPathPulse.reason || "unknown").slice(0, 120)}`);
+    }
+  }
+  if (
+    providerRecovered
+    && recoveryPathPulse
+    && recoveryPathPulse.ok !== true
+    && !(recoveryPathPulse.skipped === true && String(recoveryPathPulse.reason || "") === "feature_flag_disabled")
+  ) {
+    const providerName = String(providerPulse && providerPulse.provider ? providerPulse.provider : "ollama");
+    const reflexOk = recoveryPathPulse && recoveryPathPulse.reflex && recoveryPathPulse.reflex.ok === true ? 1 : 0;
+    const dreamOk = recoveryPathPulse && recoveryPathPulse.dream && recoveryPathPulse.dream.ok === true ? 1 : 0;
+    emitSpinePainSignal(
+      mode,
+      dateStr,
+      "provider_recovery_path_pulse_failed",
+      "Provider recovered but post-recovery path pulse failed",
+      `provider=${providerName} pulse_reason=${String(recoveryPathPulse.reason || "unknown").slice(0, 120)} reflex_ok=${reflexOk} dream_ok=${dreamOk} warmup_ok=${recoveryWarmup.ok === true ? 1 : 0}`,
+      { signature_extra: `provider_recovery_path_pulse:${providerName}` }
+    );
+    appendLedger(dateStr, {
+      ts: nowIso(),
+      type: "spine_provider_recovery_alert",
+      mode,
+      date: dateStr,
+      severity: "warning",
+      alert: "provider_recovery_path_pulse_failed",
+      provider: providerName,
+      reason: String(recoveryPathPulse.reason || "unknown").slice(0, 120),
+      reflex_ok: reflexOk === 1,
+      dream_ok: dreamOk === 1,
+      warmup_ok: recoveryWarmup.ok === true
+    });
+  }
+  const nextAvailability = pulseHasAvailability
+    ? providerPulse.available === true
+    : providerRecoveryState.last_available;
+  writeProviderRecoveryState({
+    ts: nowIso(),
+    last_provider: providerPulse && providerPulse.provider ? String(providerPulse.provider) : String(providerRecoveryState.last_provider || "ollama"),
+    last_available: typeof nextAvailability === "boolean" ? nextAvailability : null,
+    last_reason: providerPulse && providerPulse.reason ? String(providerPulse.reason) : (providerRecoveryState.last_reason || null),
+    last_transition_ts: providerRecovered ? nowIso() : (providerRecoveryState.last_transition_ts || null),
+    last_warmup_ts: providerRecovered ? nowIso() : (providerRecoveryState.last_warmup_ts || null),
+    last_warmup_ok: providerRecovered ? (recoveryWarmup.ok === true) : providerRecoveryState.last_warmup_ok
+  });
+
+  let routingCache;
+  const skipRoutingCacheOnProviderDown = String(process.env.SPINE_ROUTING_CACHE_SKIP_ON_PROVIDER_DOWN || "1") !== "0";
+  if (
+    skipRoutingCacheOnProviderDown
+    && providerPulse
+    && providerPulse.ok === true
+    && providerPulse.skipped !== true
+    && providerPulse.available === false
+  ) {
+    routingCache = {
+      ok: false,
+      reason: `provider_down:${String(providerPulse.reason || "provider_unavailable").slice(0, 80)}`,
+      source: "provider_recovery_pulse"
+    };
+    appendLedger(dateStr, {
+      ts: nowIso(),
+      type: "spine_router_cache_summary_skipped",
+      mode,
+      date: dateStr,
+      reason: "provider_down_from_startup_pulse",
+      provider: providerPulse.provider || "ollama",
+      provider_reason: providerPulse.reason || null,
+      flag: "SPINE_ROUTING_CACHE_SKIP_ON_PROVIDER_DOWN",
+      flag_value: String(process.env.SPINE_ROUTING_CACHE_SKIP_ON_PROVIDER_DOWN || "")
+    });
+    console.log(
+      ` routing_cache_summary skipped reason=provider_down` +
+      ` provider=${String(providerPulse.provider || "ollama")}` +
+      ` detail=${String(providerPulse.reason || "provider_unavailable").slice(0, 120)}`
+    );
+  } else {
+    routingCache = routingCacheSummary();
+  }
 
   if (mode === "daily" && String(process.env.SPINE_ROUTER_PROBE_ALL || "1") !== "0") {
     const probeAll = routingTelemetrySummary(routingCache);

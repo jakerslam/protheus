@@ -28,6 +28,7 @@
  *   - park <proposal_id> "<reason>"
  *   - outcome <proposal_id> shipped|reverted|no_change "<evidence_ref>"
  *   - metrics [--date=YYYY-MM-DD]
+ *   - slo [--days=N] [--apply=1] [--strict]
  */
 
 const fs = require('fs');
@@ -41,9 +42,10 @@ const SENSORY_QUEUE_LOG = path.join(REPO_ROOT, 'state', 'sensory', 'queue_log.js
 const QUEUE_DIR = path.join(REPO_ROOT, 'state', 'queue');
 const DECISIONS_DIR = path.join(QUEUE_DIR, 'decisions');
 const METRICS_DIR = path.join(QUEUE_DIR, 'metrics');
+const SLO_REPORTS_DIR = path.join(QUEUE_DIR, 'slo');
 
 function ensureDirs() {
-  [QUEUE_DIR, DECISIONS_DIR, METRICS_DIR].forEach(dir => {
+  [QUEUE_DIR, DECISIONS_DIR, METRICS_DIR, SLO_REPORTS_DIR].forEach(dir => {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   });
 }
@@ -254,6 +256,48 @@ function listProposalFiles(opts = {}) {
     });
   }
   return files;
+}
+
+function toDateMs(dateStr) {
+  const ms = Date.parse(`${String(dateStr || '')}T00:00:00.000Z`);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function proposalAgeHours(row, nowMs = Date.now()) {
+  const dateMs = toDateMs(row && row.date);
+  if (!Number.isFinite(dateMs)) return null;
+  return Math.max(0, (nowMs - dateMs) / (1000 * 60 * 60));
+}
+
+function queueRowsForWindow(days) {
+  const files = listProposalFiles({ days });
+  const events = readDecisionEventsAll();
+  const overlay = buildOverlay(events);
+  const sensoryOverlay = buildSensoryOverlay(readJsonlEventsSafe(SENSORY_QUEUE_LOG));
+  const rows = [];
+  for (const file of files) {
+    const date = String(file).slice(0, 10);
+    const raw = readJsonSafe(path.join(SENSORY_PROPOSALS_DIR, file));
+    const shaped = normalizeProposalsShape(raw);
+    if (!shaped || !Array.isArray(shaped.proposals)) continue;
+    for (const proposal of shaped.proposals) {
+      const p = proposal && typeof proposal === 'object' ? proposal : null;
+      if (!p || !p.id) continue;
+      const id = String(p.id);
+      const ov = overlay.get(id) || null;
+      const sensory = sensoryOverlay.get(id) || null;
+      const status = normalizedStatus(p, ov, sensory);
+      rows.push({
+        date,
+        proposal_id: id,
+        proposal: p,
+        status,
+        overlay: ov,
+        sensory
+      });
+    }
+  }
+  return rows;
 }
 
 function readDecisionEventsAll() {
@@ -591,6 +635,95 @@ function metricsCmd(opts) {
   console.log(`File: ${mp}`);
 }
 
+function queueSloCmd(args) {
+  ensureDirs();
+  const days = Math.max(1, Number(args.days || 14));
+  const apply = String(args.apply || '0').trim() === '1';
+  const strict = args.strict === true;
+  const maxPending = Math.max(1, Number(args.max_pending || process.env.QUEUE_SLO_MAX_PENDING || 80));
+  const maxAgeHours = Math.max(1, Number(args.max_age_hours || process.env.QUEUE_SLO_MAX_AGE_HOURS || 72));
+  const drainFraction = Math.min(1, Math.max(0.05, Number(args.drain_fraction || process.env.QUEUE_SLO_DRAIN_FRACTION || 0.25)));
+  const maxActions = Math.max(1, Number(args.max_actions || process.env.QUEUE_SLO_MAX_ACTIONS || 25));
+  const nowMs = Date.now();
+
+  const rows = queueRowsForWindow(days);
+  const pending = rows
+    .filter((row) => row && row.status === 'pending')
+    .map((row) => ({ ...row, age_hours: proposalAgeHours(row, nowMs) }))
+    .sort((a, b) => {
+      const aAge = Number(a && a.age_hours || 0);
+      const bAge = Number(b && b.age_hours || 0);
+      if (bAge !== aAge) return bAge - aAge;
+      if (String(a.date || '') !== String(b.date || '')) return String(a.date || '').localeCompare(String(b.date || ''));
+      return String(a.proposal_id || '').localeCompare(String(b.proposal_id || ''));
+    });
+
+  const stalePending = pending.filter((row) => Number(row && row.age_hours || 0) >= maxAgeHours);
+  const overflow = Math.max(0, pending.length - maxPending);
+  const breached = overflow > 0 || stalePending.length > 0;
+
+  let drainCount = 0;
+  if (breached) {
+    const pressureCount = Math.ceil(pending.length * drainFraction);
+    drainCount = Math.max(overflow, stalePending.length, pressureCount);
+    drainCount = Math.min(drainCount, maxActions, pending.length);
+  }
+  const plan = pending.slice(0, drainCount).map((row) => ({
+    proposal_id: row.proposal_id,
+    date: row.date,
+    age_hours: Number((row.age_hours || 0).toFixed(2)),
+    reason: `queue_slo_drain pending=${pending.length} max_pending=${maxPending} age_h=${Number((row.age_hours || 0).toFixed(1))}`
+  }));
+
+  const applied = [];
+  if (apply && plan.length > 0) {
+    const ts = new Date().toISOString();
+    const decisionsPath = decisionsPathFor(todayStr());
+    for (const item of plan) {
+      const evt = {
+        ts,
+        type: 'decision',
+        proposal_id: item.proposal_id,
+        decision: 'park',
+        reason: item.reason
+      };
+      appendJsonl(decisionsPath, evt);
+      applied.push(item);
+    }
+  }
+
+  const out = {
+    ok: !breached,
+    type: 'proposal_queue_slo',
+    ts: new Date().toISOString(),
+    window_days: days,
+    thresholds: {
+      max_pending: maxPending,
+      max_age_hours: maxAgeHours,
+      drain_fraction: drainFraction,
+      max_actions: maxActions
+    },
+    queue: {
+      total_rows: rows.length,
+      pending: pending.length,
+      stale_pending: stalePending.length,
+      overflow
+    },
+    breach: breached,
+    plan_count: plan.length,
+    planned: plan.slice(0, 50),
+    applied_count: applied.length,
+    applied: applied.slice(0, 50),
+    apply
+  };
+
+  const reportPath = path.join(SLO_REPORTS_DIR, `${todayStr()}.json`);
+  fs.writeFileSync(reportPath, JSON.stringify(out, null, 2) + '\n');
+  out.report_path = reportPath;
+  process.stdout.write(JSON.stringify(out, null, 2) + '\n');
+  if (strict && breached && !apply) process.exit(2);
+}
+
 function proposeCmd(args) {
   // Placeholder for propose if needed; currently proposals come from sensory_insight
   console.log('Proposals are generated by sensory_insight.js. To add proposals, run:');
@@ -611,6 +744,7 @@ function main() {
     console.log('  park   <proposal_id> "<reason>"');
     console.log('  outcome <proposal_id> shipped|reverted|no_change "<evidence_ref>"');
     console.log('  metrics [--date=YYYY-MM-DD]');
+    console.log('  slo [--days=N] [--apply=1] [--strict] [--max_pending=N] [--max_age_hours=N]');
     console.log('  reconcile [--days=N|--date=YYYY-MM-DD|--all=1] [--dry-run=1]');
     console.log('');
     console.log('Status: pending|accepted|closed|rejected|parked');
@@ -637,6 +771,9 @@ function main() {
     case 'metrics':
       metricsCmd(args);
       break;
+    case 'slo':
+      queueSloCmd(args);
+      break;
     case 'reconcile':
       reconcileCmd(args);
       break;
@@ -658,6 +795,7 @@ module.exports = {
   normalizedStatus,
   listCmd,
   metricsCmd,
+  queueSloCmd,
   reconcileCmd,
   recordDecision,
   recordOutcome,

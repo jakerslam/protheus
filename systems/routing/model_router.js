@@ -14,6 +14,7 @@ const os = require("os");
 const path = require("path");
 const crypto = require("crypto");
 const { spawnSync } = require("child_process");
+const { evaluateLocalProviderGate } = require("./provider_readiness.js");
 const {
   loadSystemBudgetState,
   projectSystemBudget,
@@ -596,6 +597,52 @@ function runPeriodicLocalWarmup({
   const probeLimit = Math.max(1, Math.min(6, Number(maxProbes || LOCAL_WARMUP_MAX_PROBES || 2)));
   const state = loadLocalWarmupState();
   const nowMs = Date.now();
+  const providerGate = evaluateLocalProviderGate("ollama/smallthinker", {
+    source: "model_router_warmup",
+    force_check: force === true
+  });
+
+  if (providerGate.applicable === true && providerGate.available !== true) {
+    const nextState = {
+      last_warmup_ts: nowIso(),
+      last_warmup_ms: nowMs,
+      last_reason: `${reason}|provider_unavailable`,
+      last_models: [],
+      last_recovered_models: []
+    };
+    saveLocalWarmupState(nextState);
+    appendJsonl(DECISIONS_LOG, {
+      ts: nowIso(),
+      type: "local_health_warmup_pulse",
+      reason,
+      ran: true,
+      warmed_count: 0,
+      candidate_count: 0,
+      recovered_count: 0,
+      skipped_reason: "provider_unavailable",
+      provider_gate: {
+        provider: providerGate.provider || "ollama",
+        reason: providerGate.reason || "provider_unavailable",
+        circuit_open: providerGate.circuit_open === true,
+        circuit_open_until_ts: providerGate.circuit_open_until_ts || null
+      }
+    });
+    return {
+      ran: true,
+      warmed_count: 0,
+      candidate_count: 0,
+      recovered_count: 0,
+      skipped_reason: "provider_unavailable",
+      provider_gate: {
+        provider: providerGate.provider || "ollama",
+        available: providerGate.available === true,
+        reason: providerGate.reason || "provider_unavailable",
+        source: providerGate.source || null,
+        circuit_open: providerGate.circuit_open === true,
+        circuit_open_until_ts: providerGate.circuit_open_until_ts || null
+      }
+    };
+  }
 
   if (!force && intervalMs > 0 && (nowMs - Number(state.last_warmup_ms || 0)) < intervalMs) {
     return {
@@ -1378,7 +1425,8 @@ function projectBudgetState(budgetState, requestTokens) {
   };
 }
 
-function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy }) {
+function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy, dryRun }) {
+  const dryRunMode = dryRun === true || String(dryRun || '').trim() === '1';
   const date = budgetDateStr();
   const stateDir = budgetPolicy && budgetPolicy.state_dir
     ? String(budgetPolicy.state_dir)
@@ -1390,6 +1438,29 @@ function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy }) {
   };
   const autopause = loadSystemBudgetAutopauseState(opts);
   if (autopause.active === true) {
+    if (dryRunMode) {
+      writeSystemBudgetDecision({
+        date,
+        module: ROUTER_BUDGET_MODULE,
+        capability: "route_decision",
+        request_tokens_est: requestTokensEst,
+        decision: "defer",
+        reason: "budget_autopause_active_dry_run"
+      }, opts);
+      return {
+        enabled: true,
+        blocked: false,
+        deferred: true,
+        reason: "budget_autopause_active_dry_run",
+        autopause_active: true,
+        autopause: {
+          source: autopause.source || null,
+          reason: autopause.reason || null,
+          until: autopause.until || null
+        },
+        guard: null
+      };
+    }
     writeSystemBudgetDecision({
       date,
       module: ROUTER_BUDGET_MODULE,
@@ -1401,6 +1472,7 @@ function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy }) {
     return {
       enabled: true,
       blocked: true,
+      deferred: false,
       reason: "budget_autopause_active",
       autopause_active: true,
       autopause: {
@@ -1419,6 +1491,29 @@ function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy }) {
   }, opts);
   if (guard.hard_stop === true) {
     const hardReason = String((guard.hard_stop_reasons && guard.hard_stop_reasons[0]) || "budget_guard_hard_stop");
+    if (dryRunMode) {
+      writeSystemBudgetDecision({
+        date,
+        module: ROUTER_BUDGET_MODULE,
+        capability: "route_decision",
+        request_tokens_est: requestTokensEst,
+        decision: "defer",
+        reason: `${hardReason}_dry_run`
+      }, opts);
+      return {
+        enabled: true,
+        blocked: false,
+        deferred: true,
+        reason: `${hardReason}_dry_run`,
+        autopause_active: autopause.active === true,
+        autopause: {
+          source: autopause.source || null,
+          reason: autopause.reason || null,
+          until: autopause.until || null
+        },
+        guard
+      };
+    }
     writeSystemBudgetDecision({
       date,
       module: ROUTER_BUDGET_MODULE,
@@ -1437,6 +1532,7 @@ function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy }) {
     return {
       enabled: true,
       blocked: true,
+      deferred: false,
       reason: hardReason,
       autopause_active: nextAutopause.active === true,
       autopause: {
@@ -1451,6 +1547,7 @@ function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy }) {
   return {
     enabled: true,
     blocked: false,
+    deferred: false,
     reason: null,
     autopause_active: false,
     autopause: {
@@ -1980,6 +2077,27 @@ function probeLocalModel(modelId) {
   const started = Date.now();
   if (!isLocalOllamaModel(modelId)) {
     return { model: modelId, available: null, skipped: true, reason: "not_local_ollama" };
+  }
+  const providerGate = evaluateLocalProviderGate(modelId, {
+    source: "model_router_probe"
+  });
+  if (providerGate.applicable === true && providerGate.available !== true) {
+    return {
+      model: modelId,
+      available: false,
+      skipped: true,
+      probe_blocked: true,
+      latency_ms: 0,
+      reason: `provider_gate:${String(providerGate.reason || "provider_unavailable")}`.slice(0, 80),
+      provider_gate: {
+        provider: providerGate.provider || "ollama",
+        available: providerGate.available === true,
+        reason: providerGate.reason || "provider_unavailable",
+        source: providerGate.source || null,
+        circuit_open: providerGate.circuit_open === true,
+        circuit_open_until_ts: providerGate.circuit_open_until_ts || null
+      }
+    };
   }
   const policy = resolveLocalProbePolicy(modelId);
   const prompt = "Return exactly: OK";
@@ -2987,8 +3105,12 @@ function routeDecision({ risk, complexity, intent, task, mode, forceModel, capab
   const hardwarePlan = resolveHardwarePlan(cfg, allowlist);
   const hardwareFilterActive = localHardwareFilterEnabled(hardwarePlan);
   const eligibleLocals = effectiveLocalModelSet(hardwarePlan);
+  const localProviderGate = evaluateLocalProviderGate("ollama/smallthinker", {
+    source: "model_router_route"
+  });
   const localModelAllowed = (modelId) => {
     if (!isLocalOllamaModel(modelId)) return true;
+    if (localProviderGate.applicable === true && localProviderGate.available !== true) return false;
     if (!hardwareFilterActive) return true;
     return eligibleLocals.has(String(modelId || ""));
   };
@@ -3070,9 +3192,11 @@ function routeDecision({ risk, complexity, intent, task, mode, forceModel, capab
   const tier = inferTier(risk, complexity);
   const budgetState = routerBudgetState(cfg);
   const budgetProjected = projectBudgetState(budgetState, requestTokensEst);
+  const routerBudgetDryRun = String(process.env.ROUTER_BUDGET_DRY_RUN || '').trim() === '1';
   const globalBudgetGate = evaluateRouterGlobalBudgetGate({
     requestTokensEst,
-    budgetPolicy: budgetState && budgetState.policy ? budgetState.policy : null
+    budgetPolicy: budgetState && budgetState.policy ? budgetState.policy : null,
+    dryRun: routerBudgetDryRun
   });
   const eyesSignal = eyesRoutingSignal(cfg);
   const promptCache = promptCacheSignal(cfg, {
@@ -3092,6 +3216,20 @@ function routeDecision({ risk, complexity, intent, task, mode, forceModel, capab
 
   for (const m of candidates) {
     tried.push(m);
+    if (isLocalOllamaModel(m) && localProviderGate.applicable === true && localProviderGate.available !== true) {
+      localHealth[m] = {
+        model: m,
+        available: false,
+        timeout: false,
+        banned: false,
+        reason: `provider_gate:${String(localProviderGate.reason || "provider_unavailable")}`,
+        provider_gate: true,
+        provider: localProviderGate.provider || "ollama",
+        circuit_open: localProviderGate.circuit_open === true,
+        circuit_open_until_ts: localProviderGate.circuit_open_until_ts || null
+      };
+      continue;
+    }
     if (!localModelAllowed(m)) continue;
     if (isBanned(m)) continue;
     if (isLocalOllamaModel(m)) {
@@ -3312,6 +3450,16 @@ function routeDecision({ risk, complexity, intent, task, mode, forceModel, capab
           warmed_count: Number(localWarmup.warmed_count || 0),
           recovered_count: Number(localWarmup.recovered_count || 0),
           skipped_reason: localWarmup.skipped_reason || null
+        }
+      : null,
+    local_provider_gate: localProviderGate && localProviderGate.applicable === true
+      ? {
+          provider: localProviderGate.provider || "ollama",
+          available: localProviderGate.available === true,
+          reason: localProviderGate.reason || null,
+          source: localProviderGate.source || null,
+          circuit_open: localProviderGate.circuit_open === true,
+          circuit_open_until_ts: localProviderGate.circuit_open_until_ts || null
         }
       : null,
     fast_path: effectiveFastPath.matched

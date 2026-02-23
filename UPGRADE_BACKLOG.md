@@ -96,6 +96,22 @@ Status legend:
 | V2-016 | todo | Dynamic optimization floor by objective criticality | Prevent endless low-impact self-tuning while allowing tighter thresholds for accuracy-critical domains | Classify objective criticality (safety/financial/reliability/standard ops), auto-set optimization floor bands (e.g., 10/5/2%), detect steady-state plateaus, and emit explicit `good_enough` decisions with override policy + audit receipts |
 | V2-017 | todo | Optimization aperture sensing controller (risk-adaptive) | Automatically adjust how aggressively the system pursues optimization based on sensed risk profile of active work | Add a sensing controller that ingests current directive risk/impact context, computes an optimization aperture level per run/lane, writes policy decisions with receipts, and drives optimization gates/floors without hardcoded task-specific logic |
 
+## Backlog Policy
+
+- Lower-impact items (<9% estimated gain) are intentionally parked below to protect V1 focus.
+- Estimated impact values are directional deltas against current baseline behavior (throughput, quality, or token efficiency), not guarantees.
+
+## Future Optimizations (<9% Estimated Impact)
+
+| ID | Status | Optimization | Estimated Impact | Why It’s Deferred |
+|---|---|---|---|---|
+| OPT-001 | todo | Eyes signal weighting retune in router ranking | 6% | Current eyes-to-routing bridge is functional; additional weighting passes are incremental and lower leverage than gating/contract fixes. |
+| OPT-002 | todo | Prompt cache policy split by lane (reflex/autonomy/dream) | 5% | Existing TTL cache is live; lane-specific caching can improve hit rate but is not currently a top execution blocker. |
+| OPT-003 | todo | Dream fallback quality scoring before proposal injection | 7% | Dreams already bridge upstream; adding stricter fallback-quality filters is valuable but secondary to core autonomy flow reliability. |
+| OPT-004 | todo | Proposal semantic dedupe (near-duplicate clustering) | 8% | Queue dedupe exists; semantic clustering would reduce residual noise further but is not the largest current bottleneck. |
+| OPT-005 | todo | Outcome correlation expansion (task-type x eye-source x model) | 8% | Task-type learning is already active; adding higher-order correlation improves tuning but is not critical-path for V1 stability. |
+| OPT-006 | todo | Focus-controller trigger adaptation cadence tuning | 4% | Dynamic focus+pupil is deployed; cadence tuning gives smaller gains and can wait until higher-priority controls settle. |
+
 ## Notes
 
 - Keep this file focused on upgrades (not daily tasks).
