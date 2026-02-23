@@ -48,3 +48,5 @@
 {"ts":"2026-02-23T16:26:39.414Z","type":"pain_adaptive_router_run","date":"2026-02-23","scanned":25,"routed":0,"routed_reflex":0,"routed_habit":0,"skipped":25}
 {"ts":"2026-02-23T16:26:44.670Z","type":"pain_adaptive_router_run","date":"2026-02-23","scanned":25,"routed":0,"routed_reflex":0,"routed_habit":0,"skipped":25}
 {"ts":"2026-02-23T16:26:50.118Z","type":"pain_adaptive_router_run","date":"2026-02-23","scanned":25,"routed":0,"routed_reflex":0,"routed_habit":0,"skipped":25}
+{"ts":"2026-02-23T20:31:06.447Z","type":"pain_adaptive_route","signature":"b08c5c3826289c9d","source":"idle_dream_cycle","code":"dream_rem:local_model_unavailable","total_count":34,"layer":"habit","route_reason":"recurring_or_complex_pattern","route_scores":{"reflex":70,"habit":108},"recent_count":34,"gate_reason":"habit_threshold_met","candidate_id":"pain_idle_dream_cycle_b08c5c382628","candidate_op":"created","proposal_id":"PAINRT-088167b5e07ff0e3","proposal_added":true,"proposal_updated":false}
+{"ts":"2026-02-23T20:31:06.449Z","type":"pain_adaptive_router_run","date":"2026-02-23","scanned":26,"routed":1,"routed_reflex":0,"routed_habit":1,"skipped":25}

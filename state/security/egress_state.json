@@ -270,6 +270,12 @@
         "sensory.collector.github_repo": 2,
         "sensory.collector.upwork_gigs": 1
       }
+    },
+    "2026-02-23T20": {
+      "total": 8,
+      "scopes": {
+        "sensory.collector.ollama_search": 8
+      }
     }
   },
   "per_day": {
@@ -303,9 +309,9 @@
       }
     },
     "2026-02-23": {
-      "total": 576,
+      "total": 584,
       "scopes": {
-        "sensory.collector.ollama_search": 107,
+        "sensory.collector.ollama_search": 115,
         "sensory.collector.upwork_gigs": 8,
         "sensory.collector.google_trends": 81,
         "sensory.focus_fetch": 120,

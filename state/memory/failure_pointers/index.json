@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated_ts": "2026-02-23T16:26:50.280Z",
+  "updated_ts": "2026-02-23T20:31:06.658Z",
   "item_hashes": {
     "322525e41384fb34": {
       "node_id": "failure-t1-322525e4",
@@ -271,6 +271,16 @@
       "source": "external_eyes",
       "code": "collector_escalation:collector_error",
       "ts": "2026-02-23T16:26:33.849Z"
+    },
+    "b08c5c3826289c9d": {
+      "node_id": "failure-t1-b08c5c38",
+      "uid": "96b8f7d2ec70db30fac98035",
+      "memory_file": "memory/2026-02-23.md",
+      "date": "2026-02-23",
+      "failure_tier": 1,
+      "source": "idle_dream_cycle",
+      "code": "dream_rem:local_model_unavailable",
+      "ts": "2026-02-23T20:31:06.658Z"
     }
   }
 }

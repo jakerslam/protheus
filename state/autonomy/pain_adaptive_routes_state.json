@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated_ts": "2026-02-23T16:26:50.117Z",
+  "updated_ts": "2026-02-23T20:31:06.449Z",
   "routes": {
     "4278015a179efcf9": {
       "source": "external_eyes",
@@ -92,6 +92,19 @@
       "last_total_count": 3,
       "last_candidate_id": "pain_external_eyes_a86a891d7237",
       "last_proposal_id": "PAINRT-4b855bf5fe767721"
+    },
+    "b08c5c3826289c9d": {
+      "source": "idle_dream_cycle",
+      "subsystem": "memory",
+      "code": "dream_rem:local_model_unavailable",
+      "last_layer": "habit",
+      "last_route_ts": "2026-02-23T20:31:06.447Z",
+      "cooldown_until_ts": "2026-02-24T02:31:06.446Z",
+      "last_reflex_count": 0,
+      "last_habit_count": 34,
+      "last_total_count": 34,
+      "last_candidate_id": "pain_idle_dream_cycle_b08c5c382628",
+      "last_proposal_id": "PAINRT-088167b5e07ff0e3"
     }
   }
 }

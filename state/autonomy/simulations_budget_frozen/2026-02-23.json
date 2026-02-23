@@ -1,7 +1,7 @@
 {
   "ok": true,
   "type": "autonomy_simulation_harness",
-  "ts": "2026-02-23T21:32:17.676Z",
+  "ts": "2026-02-23T20:23:58.140Z",
   "end_date": "2026-02-23",
   "days": 180,
   "verdict": "warn",
@@ -9,7 +9,7 @@
   "verdict_effective": "warn",
   "checks": {
     "drift_rate": {
-      "value": 0.243,
+      "value": 0.242,
       "warn": 0.65,
       "fail": 0.85,
       "status": "pass"
@@ -27,12 +27,12 @@
       "status": "pass"
     },
     "attempt_volume": {
-      "value": 214,
+      "value": 211,
       "min": 5,
       "status": "pass"
     },
     "policy_hold_rate": {
-      "value": 0.304,
+      "value": 0.303,
       "warn": 0.2,
       "fail": 0.35,
       "enforce_fail": false,
@@ -46,9 +46,9 @@
       "status": "pass"
     },
     "budget_autopause_active": {
-      "value": false,
-      "fail_when_active": true,
-      "status": "pass"
+      "value": true,
+      "fail_when_active": false,
+      "status": "warn"
     }
   },
   "checks_effective": {
@@ -71,12 +71,12 @@
       "status": "pass"
     },
     "attempt_volume": {
-      "value": 95,
+      "value": 94,
       "min": 5,
       "status": "pass"
     },
     "policy_hold_rate": {
-      "value": 0.389,
+      "value": 0.383,
       "warn": 0.2,
       "fail": 0.35,
       "enforce_fail": false,
@@ -90,9 +90,9 @@
       "status": "pass"
     },
     "budget_autopause_active": {
-      "value": false,
-      "fail_when_active": true,
-      "status": "pass"
+      "value": true,
+      "fail_when_active": false,
+      "status": "warn"
     }
   },
   "metric_integrity": {
@@ -100,46 +100,46 @@
     "baseline_preserved": true,
     "effective_projection_present": true,
     "denominator_reduction_only": true,
-    "denominator_delta": 119
+    "denominator_delta": 117
   },
   "counters": {
-    "run_rows": 229,
-    "attempts": 214,
+    "run_rows": 224,
+    "attempts": 211,
     "executed": 14,
     "shipped": 6,
-    "no_progress": 52,
+    "no_progress": 51,
     "safety_stops": 4,
-    "policy_holds": 65,
+    "policy_holds": 64,
     "budget_holds": 7
   },
   "baseline_counters": {
-    "attempts": 214,
+    "attempts": 211,
     "executed": 14,
     "shipped": 6,
-    "no_progress": 52,
+    "no_progress": 51,
     "safety_stops": 4,
-    "policy_holds": 65,
+    "policy_holds": 64,
     "budget_holds": 7
   },
   "effective_counters": {
-    "attempts": 95,
+    "attempts": 94,
     "executed": 9,
     "shipped": 6,
     "no_progress": 3,
     "safety_stops": 0,
-    "policy_holds": 37,
+    "policy_holds": 36,
     "budget_holds": 7
   },
   "budget_autopause": {
     "path": "/Users/jay/.openclaw/workspace/state/autonomy/budget_autopause.json",
     "active": true,
-    "currently_active": false,
-    "active_relevant": false,
+    "currently_active": true,
+    "active_relevant": true,
     "source": "idle_dream_cycle",
     "reason": "burn_rate_exceeded",
     "pressure": "hard",
-    "until": "2026-02-23T21:31:05.075Z",
-    "updated_at": "2026-02-23T21:04:26.962Z",
+    "until": "2026-02-23T20:30:22.761Z",
+    "updated_at": "2026-02-23T20:20:17.259Z",
     "observed_in_window": true,
     "active_at_window_end": false,
     "signal_source": "route_summary.autopause",
@@ -155,12 +155,12 @@
     "rolling_context_enabled": false,
     "compiler_hash": "40cc5cf18353cd99",
     "compiler_active_count": 3,
-    "accepted_attempts": 132,
+    "accepted_attempts": 130,
     "rejected_attempts": 0,
-    "skipped_attempts": 82,
+    "skipped_attempts": 81,
     "rejected_by_reason": {},
     "skipped_by_reason": {
-      "non_proposal_gate": 77,
+      "non_proposal_gate": 76,
       "legacy_unbound_eye_no_change": 5
     },
     "sample_rejected": [],
@@ -204,8 +204,8 @@
     ]
   },
   "queue": {
-    "total": 147,
-    "pending": 47,
+    "total": 145,
+    "pending": 45,
     "stale_pending_72h": 0
   },
   "objective_mix": {
@@ -217,6 +217,7 @@
     }
   },
   "recommendations": [
-    "Reduce policy-hold churn: tighten admission routing, quarantine low-actionability proposals, and cut retry pressure during governance holds."
+    "Reduce policy-hold churn: tighten admission routing, quarantine low-actionability proposals, and cut retry pressure during governance holds.",
+    "Budget autopause is active for the current window; treat the lane as flow-blocked until autopause clears or budget policy is adjusted."
   ]
 }

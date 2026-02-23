@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated_ts": "2026-02-23T17:36:58.076Z",
+  "updated_ts": "2026-02-23T20:20:15.269Z",
   "signatures": {
     "4278015a179efcf9": {
       "source": "external_eyes",
@@ -517,7 +517,7 @@
       "severity": "high",
       "risk": "medium",
       "signature": "ed445d71f2fee5f7",
-      "total_count": 20,
+      "total_count": 22,
       "events": [
         {
           "ts": "2026-02-23T10:43:15.428Z",
@@ -582,9 +582,17 @@
         {
           "ts": "2026-02-23T17:36:58.064Z",
           "code": "dream_idle:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T20:05:48.738Z",
+          "code": "dream_idle:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T20:20:15.262Z",
+          "code": "dream_idle:local_model_unavailable"
         }
       ],
-      "last_ts": "2026-02-23T17:36:58.064Z",
+      "last_ts": "2026-02-23T20:20:15.262Z",
       "last_summary": "Dream idle phase degraded or blocked (local_model_unavailable)",
       "last_details": "ok=false skipped=true degraded=false failed_model=none timed_out=false cooldown_until=none",
       "cooldown_until_ts": "2026-02-23T06:00:59.336Z",
@@ -906,7 +914,7 @@
       "severity": "high",
       "risk": "medium",
       "signature": "b08c5c3826289c9d",
-      "total_count": 30,
+      "total_count": 34,
       "events": [
         {
           "ts": "2026-02-23T16:48:31.870Z",
@@ -1027,9 +1035,25 @@
         {
           "ts": "2026-02-23T17:36:58.075Z",
           "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T20:05:48.628Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T20:05:48.745Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T20:20:15.153Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T20:20:15.269Z",
+          "code": "dream_rem:local_model_unavailable"
         }
       ],
-      "last_ts": "2026-02-23T17:36:58.075Z",
+      "last_ts": "2026-02-23T20:20:15.269Z",
       "last_summary": "Dream rem phase degraded or blocked (local_model_unavailable)",
       "last_details": "ok=false skipped=true degraded=false failed_model=none timed_out=false cooldown_until=none",
       "cooldown_until_ts": "2026-02-23T22:48:32.467Z",

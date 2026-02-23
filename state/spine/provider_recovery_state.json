@@ -1,9 +1,9 @@
 {
-  "ts": "2026-02-23T16:26:48.989Z",
+  "ts": "2026-02-23T20:31:05.103Z",
   "last_provider": "ollama",
-  "last_available": false,
-  "last_reason": "env_blocked",
-  "last_transition_ts": "2026-02-23T02:11:49.051Z",
-  "last_warmup_ts": "2026-02-23T02:11:49.051Z",
+  "last_available": true,
+  "last_reason": "provider_recovered",
+  "last_transition_ts": "2026-02-23T20:31:05.103Z",
+  "last_warmup_ts": "2026-02-23T20:31:05.103Z",
   "last_warmup_ok": true
 }
