@@ -1,7 +1,7 @@
 {
-  "last_warmup_ts": "2026-02-23T07:18:51.858Z",
-  "last_warmup_ms": 1771831131666,
-  "last_reason": "self_heal:autonomy_preflight_test|provider_unavailable",
+  "last_warmup_ts": "2026-02-23T08:45:46.230Z",
+  "last_warmup_ms": 1771836346230,
+  "last_reason": "route_decision|provider_unavailable",
   "last_models": [],
   "last_recovered_models": []
 }

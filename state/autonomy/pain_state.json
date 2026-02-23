@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated_ts": "2026-02-23T04:46:32.405Z",
+  "updated_ts": "2026-02-23T08:45:46.228Z",
   "signatures": {
     "4278015a179efcf9": {
       "source": "external_eyes",
@@ -552,20 +552,24 @@
       "subsystem": "routing",
       "code": "provider_outage:ollama:env_blocked",
       "summary": "Provider ollama unavailable",
-      "details": "reason=env_blocked code=1 latency_ms=60",
+      "details": "reason=env_blocked code=1 latency_ms=92",
       "severity": "low",
       "risk": "low",
       "signature": "5ded14bc3908ca66",
-      "total_count": 1,
+      "total_count": 2,
       "events": [
         {
           "ts": "2026-02-23T01:56:38.271Z",
           "code": "provider_outage:ollama:env_blocked"
+        },
+        {
+          "ts": "2026-02-23T08:45:46.226Z",
+          "code": "provider_outage:ollama:env_blocked"
         }
       ],
-      "last_ts": "2026-02-23T01:56:38.271Z",
+      "last_ts": "2026-02-23T08:45:46.226Z",
       "last_summary": "Provider ollama unavailable",
-      "last_details": "reason=env_blocked code=1 latency_ms=60",
+      "last_details": "reason=env_blocked code=1 latency_ms=92",
       "cooldown_until_ts": null,
       "last_escalation_ts": null,
       "last_proposal_id": null,

@@ -1,13 +1,40 @@
 {
   "ok": true,
   "type": "autonomy_simulation_harness",
-  "ts": "2026-02-23T08:30:08.445Z",
+  "ts": "2026-02-23T08:49:16.013Z",
   "end_date": "2026-02-23",
   "days": 180,
   "verdict": "pass",
+  "verdict_raw": "pass",
+  "verdict_effective": "pass",
   "checks": {
     "drift_rate": {
-      "value": 0.159,
+      "value": 0.445,
+      "warn": 0.65,
+      "fail": 0.85,
+      "status": "pass"
+    },
+    "yield_rate": {
+      "value": 0.5,
+      "warn": 0.2,
+      "fail": 0.08,
+      "status": "pass"
+    },
+    "safety_stop_rate": {
+      "value": 0.04,
+      "warn": 0.25,
+      "fail": 0.45,
+      "status": "pass"
+    },
+    "attempt_volume": {
+      "value": 173,
+      "min": 5,
+      "status": "pass"
+    }
+  },
+  "checks_effective": {
+    "drift_rate": {
+      "value": 0.157,
       "warn": 0.65,
       "fail": 0.85,
       "status": "pass"
@@ -25,25 +52,39 @@
       "status": "pass"
     },
     "attempt_volume": {
-      "value": 88,
+      "value": 89,
       "min": 5,
       "status": "pass"
     }
   },
+  "metric_integrity": {
+    "mode": "dual_track",
+    "baseline_preserved": true,
+    "effective_projection_present": true,
+    "denominator_reduction_only": true,
+    "denominator_delta": 84
+  },
   "counters": {
-    "run_rows": 179,
-    "attempts": 88,
+    "run_rows": 181,
+    "attempts": 173,
+    "executed": 12,
+    "shipped": 6,
+    "no_progress": 77,
+    "safety_stops": 7
+  },
+  "baseline_counters": {
+    "attempts": 173,
+    "executed": 12,
+    "shipped": 6,
+    "no_progress": 77,
+    "safety_stops": 7
+  },
+  "effective_counters": {
+    "attempts": 89,
     "executed": 6,
     "shipped": 5,
     "no_progress": 14,
     "safety_stops": 3
-  },
-  "baseline_counters": {
-    "attempts": 171,
-    "executed": 12,
-    "shipped": 6,
-    "no_progress": 76,
-    "safety_stops": 7
   },
   "compiler_projection": {
     "enabled": true,
@@ -52,13 +93,19 @@
     "filter_contextless_attempts": true,
     "compiler_hash": "40cc5cf18353cd99",
     "compiler_active_count": 3,
-    "accepted_attempts": 88,
-    "rejected_attempts": 83,
+    "accepted_attempts": 89,
+    "rejected_attempts": 84,
     "rejected_by_reason": {
-      "objective_context_missing": 62,
+      "objective_context_missing": 63,
       "objective_missing": 21
     },
     "sample_rejected": [
+      {
+        "result": "stop_init_gate_spc",
+        "proposal_id": null,
+        "objective_id": null,
+        "reason": "objective_context_missing"
+      },
       {
         "result": "init_gate_canary_relaxed_readiness",
         "proposal_id": null,
@@ -91,12 +138,6 @@
       },
       {
         "result": "stop_repeat_gate_unchanged_state",
-        "proposal_id": null,
-        "objective_id": null,
-        "reason": "objective_context_missing"
-      },
-      {
-        "result": "stop_repeat_gate_daily_cap",
         "proposal_id": null,
         "objective_id": null,
         "reason": "objective_context_missing"
