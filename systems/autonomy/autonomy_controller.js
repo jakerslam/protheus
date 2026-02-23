@@ -344,6 +344,52 @@ const AUTONOMY_MEDIUM_RISK_VALUE_SIGNAL_BONUS = Number(process.env.AUTONOMY_MEDI
 const AUTONOMY_LANE_NO_CHANGE_WINDOW_DAYS = Number(process.env.AUTONOMY_LANE_NO_CHANGE_WINDOW_DAYS || 7);
 const AUTONOMY_LANE_NO_CHANGE_LIMIT = Number(process.env.AUTONOMY_LANE_NO_CHANGE_LIMIT || 3);
 const AUTONOMY_LANE_NO_CHANGE_COOLDOWN_HOURS = Number(process.env.AUTONOMY_LANE_NO_CHANGE_COOLDOWN_HOURS || 24);
+const AUTONOMY_QOS_LANES_ENABLED = String(process.env.AUTONOMY_QOS_LANES_ENABLED || '1') !== '0';
+const AUTONOMY_QOS_BACKPRESSURE_ENABLED = String(process.env.AUTONOMY_QOS_BACKPRESSURE_ENABLED || '1') !== '0';
+const AUTONOMY_QOS_QUEUE_PENDING_WARN_RATIO = clampNumber(
+  Number(process.env.AUTONOMY_QOS_QUEUE_PENDING_WARN_RATIO || 0.3),
+  0.05,
+  0.95
+);
+const AUTONOMY_QOS_QUEUE_PENDING_CRITICAL_RATIO = clampNumber(
+  Number(process.env.AUTONOMY_QOS_QUEUE_PENDING_CRITICAL_RATIO || 0.45),
+  AUTONOMY_QOS_QUEUE_PENDING_WARN_RATIO,
+  0.98
+);
+const AUTONOMY_QOS_QUEUE_PENDING_WARN_COUNT = Math.max(
+  5,
+  Number(process.env.AUTONOMY_QOS_QUEUE_PENDING_WARN_COUNT || 45)
+);
+const AUTONOMY_QOS_QUEUE_PENDING_CRITICAL_COUNT = Math.max(
+  AUTONOMY_QOS_QUEUE_PENDING_WARN_COUNT,
+  Number(process.env.AUTONOMY_QOS_QUEUE_PENDING_CRITICAL_COUNT || 80)
+);
+const AUTONOMY_QOS_LANE_WEIGHT_CRITICAL = Math.max(
+  0.5,
+  Number(process.env.AUTONOMY_QOS_LANE_WEIGHT_CRITICAL || 4)
+);
+const AUTONOMY_QOS_LANE_WEIGHT_STANDARD = Math.max(
+  0.5,
+  Number(process.env.AUTONOMY_QOS_LANE_WEIGHT_STANDARD || 3)
+);
+const AUTONOMY_QOS_LANE_WEIGHT_EXPLORE = Math.max(
+  0,
+  Number(process.env.AUTONOMY_QOS_LANE_WEIGHT_EXPLORE || 2)
+);
+const AUTONOMY_QOS_LANE_WEIGHT_QUARANTINE = Math.max(
+  0,
+  Number(process.env.AUTONOMY_QOS_LANE_WEIGHT_QUARANTINE || 1)
+);
+const AUTONOMY_QOS_EXPLORE_MAX_SHARE = clampNumber(
+  Number(process.env.AUTONOMY_QOS_EXPLORE_MAX_SHARE || 0.35),
+  0.05,
+  0.9
+);
+const AUTONOMY_QOS_QUARANTINE_MAX_SHARE = clampNumber(
+  Number(process.env.AUTONOMY_QOS_QUARANTINE_MAX_SHARE || 0.2),
+  0.01,
+  0.9
+);
 const AUTONOMY_CANDIDATE_AUDIT_MAX_ROWS = Number(process.env.AUTONOMY_CANDIDATE_AUDIT_MAX_ROWS || 25);
 const AUTONOMY_SCORE_ONLY_EVIDENCE = String(process.env.AUTONOMY_SCORE_ONLY_EVIDENCE || '1') !== '0';
 const AUTONOMY_SCORE_ONLY_STRUCTURAL_COOLDOWN_HOURS = Math.max(
@@ -8035,6 +8081,236 @@ function candidatePool(dateStr) {
   return backfillPool.slice(0, AUTONOMY_QUEUE_UNDERFLOW_BACKFILL_MAX);
 }
 
+function proposalStatusForQueuePressure(proposal, overlayEntry) {
+  const hasOverlayDecision = !!(overlayEntry && overlayEntry.decision);
+  let status = proposalStatus(overlayEntry);
+  if (hasOverlayDecision) return status;
+  const explicit = normalizeStoredProposalStatus(proposal && proposal.status, 'pending');
+  if (
+    explicit === 'accepted'
+    || explicit === 'closed'
+    || explicit === 'rejected'
+    || explicit === 'parked'
+  ) {
+    status = explicit;
+  }
+  return status;
+}
+
+function queuePressureSnapshot(dateStr) {
+  const proposals = loadProposalsForDate(dateStr);
+  const overlay = buildOverlay(allDecisionEvents());
+  let total = 0;
+  let pending = 0;
+  let accepted = 0;
+  let closed = 0;
+  let rejected = 0;
+  let parked = 0;
+  for (const proposal of proposals) {
+    if (!proposal || !proposal.id) continue;
+    total += 1;
+    const ov = overlay.get(proposal.id) || null;
+    const status = proposalStatusForQueuePressure(proposal, ov);
+    if (status === 'pending') pending += 1;
+    else if (status === 'accepted') accepted += 1;
+    else if (status === 'closed') closed += 1;
+    else if (status === 'rejected') rejected += 1;
+    else if (status === 'parked') parked += 1;
+  }
+  const pendingRatio = total > 0 ? pending / total : 0;
+  let pressure = 'normal';
+  if (
+    pending >= AUTONOMY_QOS_QUEUE_PENDING_CRITICAL_COUNT
+    || pendingRatio >= AUTONOMY_QOS_QUEUE_PENDING_CRITICAL_RATIO
+  ) {
+    pressure = 'critical';
+  } else if (
+    pending >= AUTONOMY_QOS_QUEUE_PENDING_WARN_COUNT
+    || pendingRatio >= AUTONOMY_QOS_QUEUE_PENDING_WARN_RATIO
+  ) {
+    pressure = 'warning';
+  }
+  return {
+    total,
+    pending,
+    accepted,
+    closed,
+    rejected,
+    parked,
+    pending_ratio: Number(pendingRatio.toFixed(6)),
+    pressure,
+    warn_ratio: Number(AUTONOMY_QOS_QUEUE_PENDING_WARN_RATIO.toFixed(6)),
+    critical_ratio: Number(AUTONOMY_QOS_QUEUE_PENDING_CRITICAL_RATIO.toFixed(6)),
+    warn_count: AUTONOMY_QOS_QUEUE_PENDING_WARN_COUNT,
+    critical_count: AUTONOMY_QOS_QUEUE_PENDING_CRITICAL_COUNT
+  };
+}
+
+function qosLaneFromCandidate(cand) {
+  const c = cand && typeof cand === 'object' ? cand : {};
+  const proposal = c.proposal && typeof c.proposal === 'object' ? c.proposal : {};
+  const proposalType = String(proposal && proposal.type || '').trim().toLowerCase();
+  const pulseTier = normalizeDirectiveTier(c && c.directive_pulse && c.directive_pulse.tier, 99);
+  const risk = String(c.risk || normalizedRisk(proposal && proposal.risk)).trim().toLowerCase();
+  if (c.queue_underflow_backfill === true) return 'quarantine';
+  if (pulseTier <= 1) return 'critical';
+  if (proposalType === 'directive_clarification' || proposalType === 'directive_decomposition') return 'critical';
+  if (isDeprioritizedSourceProposal(proposal)) return 'quarantine';
+  if (risk === 'medium') return 'explore';
+  return 'standard';
+}
+
+function qosLaneWeights(queuePressure = {}) {
+  const pressure = String(queuePressure && queuePressure.pressure || 'normal').trim().toLowerCase();
+  const weights = {
+    critical: AUTONOMY_QOS_LANE_WEIGHT_CRITICAL,
+    standard: AUTONOMY_QOS_LANE_WEIGHT_STANDARD,
+    explore: AUTONOMY_QOS_LANE_WEIGHT_EXPLORE,
+    quarantine: AUTONOMY_QOS_LANE_WEIGHT_QUARANTINE
+  };
+  if (pressure === 'warning') {
+    weights.explore = Number((weights.explore * 0.75).toFixed(6));
+    weights.quarantine = Number((weights.quarantine * 0.35).toFixed(6));
+  } else if (pressure === 'critical') {
+    weights.critical = Number((weights.critical * 1.2).toFixed(6));
+    weights.standard = Number((weights.standard * 1.1).toFixed(6));
+    weights.explore = Number((weights.explore * 0.3).toFixed(6));
+    weights.quarantine = Number((weights.quarantine * 0.1).toFixed(6));
+  }
+  return weights;
+}
+
+function qosLaneUsageFromRuns(priorRuns) {
+  const out = {
+    critical: 0,
+    standard: 0,
+    explore: 0,
+    quarantine: 0
+  };
+  for (const evt of Array.isArray(priorRuns) ? priorRuns : []) {
+    if (!evt || evt.type !== 'autonomy_run' || evt.result !== 'executed') continue;
+    const mode = String(evt.selection_mode || '').toLowerCase();
+    const m = mode.match(/qos_(critical|standard|explore|quarantine)_/);
+    if (m && m[1]) out[m[1]] = Number(out[m[1]] || 0) + 1;
+  }
+  return out;
+}
+
+function qosLaneShareCapExceeded(lane, usage, executedCount) {
+  if (!executedCount || executedCount <= 0) return false;
+  if (lane === 'explore') {
+    return (Number(usage.explore || 0) / executedCount) >= AUTONOMY_QOS_EXPLORE_MAX_SHARE;
+  }
+  if (lane === 'quarantine') {
+    return (Number(usage.quarantine || 0) / executedCount) >= AUTONOMY_QOS_QUARANTINE_MAX_SHARE;
+  }
+  return false;
+}
+
+function chooseQosLaneSelection(eligible, priorRuns, opts = {}) {
+  const candidates = Array.isArray(eligible) ? eligible : [];
+  if (!candidates.length) return null;
+  const shadowOnly = opts && opts.shadowOnly === true;
+  const queuePressure = opts && opts.queuePressure && typeof opts.queuePressure === 'object'
+    ? opts.queuePressure
+    : { pressure: 'normal' };
+  const pressure = String(queuePressure.pressure || 'normal').trim().toLowerCase();
+  const weights = qosLaneWeights(queuePressure);
+  const executedCount = (Array.isArray(priorRuns) ? priorRuns : [])
+    .filter((e) => e && e.type === 'autonomy_run' && e.result === 'executed')
+    .length;
+  const usage = qosLaneUsageFromRuns(priorRuns);
+  const laneOrder = ['critical', 'standard', 'explore', 'quarantine'];
+  const laneBuckets = {
+    critical: [],
+    standard: [],
+    explore: [],
+    quarantine: []
+  };
+  for (const cand of candidates) {
+    const lane = String(cand && cand.qos_lane || qosLaneFromCandidate(cand));
+    if (!laneBuckets[lane]) laneBuckets.standard.push(cand);
+    else laneBuckets[lane].push(cand);
+    if (cand && typeof cand === 'object') cand.qos_lane = laneBuckets[lane] ? lane : 'standard';
+  }
+  const laneCounts = {
+    critical: laneBuckets.critical.length,
+    standard: laneBuckets.standard.length,
+    explore: laneBuckets.explore.length,
+    quarantine: laneBuckets.quarantine.length
+  };
+  const coreAvailable = (laneCounts.critical + laneCounts.standard) > 0;
+  const blockedLanes = new Set();
+  if (AUTONOMY_QOS_BACKPRESSURE_ENABLED && coreAvailable) {
+    if (pressure === 'warning') {
+      blockedLanes.add('quarantine');
+    } else if (pressure === 'critical') {
+      blockedLanes.add('quarantine');
+      blockedLanes.add('explore');
+    }
+  }
+
+  const chooseLane = (allowBlocked, allowShareExceeded) => {
+    let selected = null;
+    let selectedScore = -Infinity;
+    for (const lane of laneOrder) {
+      const rows = laneBuckets[lane];
+      if (!rows.length) continue;
+      if (!allowBlocked && blockedLanes.has(lane)) continue;
+      if (!allowShareExceeded && coreAvailable && qosLaneShareCapExceeded(lane, usage, executedCount)) continue;
+      const laneWeight = Number(weights[lane] || 0);
+      const laneScore = laneWeight / (1 + Number(usage[lane] || 0));
+      if (laneScore > selectedScore) {
+        selected = lane;
+        selectedScore = laneScore;
+      }
+    }
+    return selected;
+  };
+
+  let selectedLane = chooseLane(false, false);
+  if (!selectedLane) selectedLane = chooseLane(true, false);
+  if (!selectedLane) selectedLane = chooseLane(true, true);
+  if (!selectedLane) return null;
+
+  const laneEligible = laneBuckets[selectedLane];
+  const laneSelection = shadowOnly
+    ? chooseEvidenceSelectionMode(laneEligible, priorRuns, 'evidence')
+    : chooseSelectionMode(laneEligible, priorRuns);
+  const lanePick = laneEligible[laneSelection.index] || laneEligible[0];
+  const fullIdx = candidates.findIndex((cand) => (
+    String(cand && cand.proposal && cand.proposal.id || '') === String(lanePick && lanePick.proposal && lanePick.proposal.id || '')
+  ));
+  const modeSuffix = laneSelection.mode === 'explore' ? 'explore' : 'exploit';
+  const selectionMode = shadowOnly
+    ? String(laneSelection.mode || 'evidence_sample')
+    : `qos_${selectedLane}_${modeSuffix}`;
+  const selection = {
+    ...laneSelection,
+    mode: selectionMode,
+    index: fullIdx >= 0 ? fullIdx : 0,
+    qos_lane: selectedLane
+  };
+  return {
+    pick: lanePick,
+    selection,
+    telemetry: {
+      pressure,
+      backpressure_applied: AUTONOMY_QOS_BACKPRESSURE_ENABLED && blockedLanes.size > 0,
+      blocked_lanes: Array.from(blockedLanes),
+      selected_lane: selectedLane,
+      lane_counts: laneCounts,
+      lane_usage: usage,
+      lane_weights: weights,
+      queue: {
+        total: Number(queuePressure.total || 0),
+        pending: Number(queuePressure.pending || 0),
+        pending_ratio: Number(queuePressure.pending_ratio || 0)
+      }
+    }
+  };
+}
+
 function exploreQuotaForDay() {
   const caps = effectiveStrategyBudget();
   const exp = effectiveStrategyExploration();
@@ -9748,6 +10024,8 @@ function runCmd(dateStr, opts = {}) {
   const candidateAuditLimit = clampNumber(Math.round(AUTONOMY_CANDIDATE_AUDIT_MAX_ROWS), 5, 200);
   const candidateRejectedByGate = {};
   const candidateAuditRows = [];
+  const budgetPacingState = budgetPacingSnapshot(dateStr);
+  const queuePressureState = queuePressureSnapshot(proposalDate);
   const candidateAuditPolicy = {
     strategy_id: strategy ? strategy.id : null,
     execution_mode: executionMode,
@@ -9801,7 +10079,8 @@ function runCmd(dateStr, opts = {}) {
       enabled: AUTONOMY_BUDGET_PACING_ENABLED,
       min_remaining_ratio: AUTONOMY_BUDGET_PACING_MIN_REMAINING_RATIO,
       high_token_threshold: AUTONOMY_BUDGET_PACING_HIGH_TOKEN_THRESHOLD,
-      min_value_signal_score: AUTONOMY_BUDGET_PACING_MIN_VALUE_SIGNAL
+      min_value_signal_score: AUTONOMY_BUDGET_PACING_MIN_VALUE_SIGNAL,
+      snapshot: budgetPacingState
     },
     execute_confidence_policy: {
       adaptive_enabled: AUTONOMY_EXECUTE_CONFIDENCE_ADAPTIVE_ENABLED,
@@ -9813,6 +10092,25 @@ function runCmd(dateStr, opts = {}) {
     queue_underflow_backfill: {
       enabled: AUTONOMY_QUEUE_UNDERFLOW_BACKFILL_MAX > 0,
       max_candidates: AUTONOMY_QUEUE_UNDERFLOW_BACKFILL_MAX
+    },
+    qos_lanes: {
+      enabled: AUTONOMY_QOS_LANES_ENABLED,
+      backpressure_enabled: AUTONOMY_QOS_BACKPRESSURE_ENABLED,
+      queue_pending_warn_ratio: AUTONOMY_QOS_QUEUE_PENDING_WARN_RATIO,
+      queue_pending_critical_ratio: AUTONOMY_QOS_QUEUE_PENDING_CRITICAL_RATIO,
+      queue_pending_warn_count: AUTONOMY_QOS_QUEUE_PENDING_WARN_COUNT,
+      queue_pending_critical_count: AUTONOMY_QOS_QUEUE_PENDING_CRITICAL_COUNT,
+      lane_weights_base: {
+        critical: AUTONOMY_QOS_LANE_WEIGHT_CRITICAL,
+        standard: AUTONOMY_QOS_LANE_WEIGHT_STANDARD,
+        explore: AUTONOMY_QOS_LANE_WEIGHT_EXPLORE,
+        quarantine: AUTONOMY_QOS_LANE_WEIGHT_QUARANTINE
+      },
+      lane_share_caps: {
+        explore_max_share: AUTONOMY_QOS_EXPLORE_MAX_SHARE,
+        quarantine_max_share: AUTONOMY_QOS_QUARANTINE_MAX_SHARE
+      },
+      pressure_snapshot: queuePressureState
     },
     execution_quota: {
       min_daily_executions: AUTONOMY_MIN_DAILY_EXECUTIONS,
@@ -9854,6 +10152,7 @@ function runCmd(dateStr, opts = {}) {
   };
   let tierReservation = null;
   let objectiveMix = null;
+  let qosSelectionTelemetry = null;
   const routeBlockPrefilterTelemetry = (
     !shadowOnly
     && isExecuteMode(executionMode)
@@ -9868,9 +10167,7 @@ function runCmd(dateStr, opts = {}) {
       sample_events: 0,
       by_capability: {}
     };
-  const budgetPacingState = budgetPacingSnapshot(dateStr);
   candidateAuditPolicy.route_block_prefilter.sample_events = Number(routeBlockPrefilterTelemetry.sample_events || 0);
-  candidateAuditPolicy.budget_pacing.snapshot = budgetPacingState;
   for (const cand of pool) {
     const proposalId = String(cand && cand.proposal && cand.proposal.id || '');
     const proposalType = String(cand && cand.proposal && cand.proposal.type || '');
@@ -10672,6 +10969,11 @@ function runCmd(dateStr, opts = {}) {
       continue;
     }
 
+    const qosLane = qosLaneFromCandidate({
+      ...cand,
+      risk,
+      directive_pulse: pulse
+    });
     eligible.push({
       ...cand,
       quality: q,
@@ -10686,6 +10988,7 @@ function runCmd(dateStr, opts = {}) {
       objective_binding: objectiveBinding,
       optimization_link: optimizationLink,
       directive_pulse: pulse,
+      qos_lane: qosLane,
       objective_runtime: objectiveRuntimeDecision,
       execute_confidence_policy: executeConfidencePolicyCand
     });
@@ -10694,6 +10997,7 @@ function runCmd(dateStr, opts = {}) {
       proposal_type: proposalType,
       risk,
       queue_underflow_backfill: cand.queue_underflow_backfill === true,
+      qos_lane: qosLane,
       pass: true,
       gate: 'eligible',
       score: Number(cand.score || 0),
@@ -10861,6 +11165,16 @@ function runCmd(dateStr, opts = {}) {
           : (laneSelection.mode === 'explore' ? 'source_diversity_explore' : 'source_diversity_exploit'),
         index: fullIdx >= 0 ? fullIdx : 0
       };
+    } else if (!tierReservation && AUTONOMY_QOS_LANES_ENABLED) {
+      const qosSelection = chooseQosLaneSelection(eligible, priorRuns, {
+        shadowOnly,
+        queuePressure: queuePressureState
+      });
+      if (qosSelection && qosSelection.pick) {
+        pick = qosSelection.pick;
+        selection = qosSelection.selection;
+        qosSelectionTelemetry = qosSelection.telemetry;
+      }
     } else if (tierReservation && Number(tierReservation.candidate_count || 0) > 0) {
       const reservedTier = Number(tierReservation.tier);
       const reservedIdx = eligible.findIndex(c => normalizeDirectiveTier(c && c.directive_pulse && c.directive_pulse.tier, 99) === reservedTier);
@@ -10886,6 +11200,21 @@ function runCmd(dateStr, opts = {}) {
         ...selection,
         mode: `queue_underflow_${String(selection && selection.mode || 'exploit')}`
       };
+    }
+    if (qosSelectionTelemetry && qosSelectionTelemetry.backpressure_applied) {
+      writeRun(dateStr, {
+        ts: nowIso(),
+        type: 'autonomy_qos_backpressure',
+        result: 'active',
+        pressure: qosSelectionTelemetry.pressure || null,
+        blocked_lanes: Array.isArray(qosSelectionTelemetry.blocked_lanes)
+          ? qosSelectionTelemetry.blocked_lanes.slice(0, 8)
+          : [],
+        selected_lane: qosSelectionTelemetry.selected_lane || null,
+        lane_counts: qosSelectionTelemetry.lane_counts || {},
+        lane_usage: qosSelectionTelemetry.lane_usage || {},
+        queue: qosSelectionTelemetry.queue || {}
+      });
     }
   }
 
@@ -14238,6 +14567,9 @@ module.exports = {
   compileDirectivePulseObjectives,
   buildDirectivePulseContext,
   assessDirectivePulse,
+  qosLaneFromCandidate,
+  chooseQosLaneSelection,
+  queuePressureSnapshot,
   adaptiveExecutionCaps,
   isPolicyHoldResult,
   isPolicyHoldRunEvent,
