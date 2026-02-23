@@ -151,14 +151,41 @@ function rate(num, den) {
   return Number((n / d).toFixed(4));
 }
 
-function normalizeProposalType(v) {
-  const key = String(v || '').trim().toLowerCase();
-  if (!key) return 'unknown';
-  return key
+function normalizeProposalType(v, row = null) {
+  const normalizeKey = (value) => String(value || '').trim().toLowerCase()
     .replace(/[^a-z0-9_.:-]+/g, '_')
     .replace(/_+/g, '_')
     .replace(/^_+|_+$/g, '')
-    .slice(0, 64) || 'unknown';
+    .slice(0, 64);
+
+  const direct = normalizeKey(v);
+  if (direct && direct !== 'unknown') return direct;
+
+  const r = row && typeof row === 'object' ? row : {};
+  const cap = normalizeKey(r.capability_key);
+  if (cap.startsWith('proposal:') && cap !== 'proposal:unknown') {
+    const fromCap = normalizeKey(cap.slice('proposal:'.length));
+    if (fromCap && fromCap !== 'unknown') return fromCap;
+  }
+
+  const sourceEye = normalizeKey(r.source_eye);
+  if (sourceEye) {
+    if (sourceEye === 'local_state_fallback' || sourceEye === 'tier1_exception') return 'local_state_fallback';
+    if (sourceEye === 'directive_pulse' || sourceEye.includes('directive')) return 'directive_clarification';
+    if (sourceEye !== 'unknown_eye') return 'external_intel';
+  }
+
+  const titleBlob = normalizeKey([r.title, r.summary, r.notes].filter(Boolean).join(' '));
+  if (/(freelance|contract|gig|client|lead|opportunity|outreach|reply|interview)/.test(titleBlob)) return 'external_intel';
+  if (/(routing|governance|autonomy|memory|security|spine|queue|budget)/.test(titleBlob)) return 'local_state_fallback';
+
+  const proposalId = String(r.proposal_id || r.id || '').trim().toUpperCase();
+  if (proposalId.startsWith('COLLECTOR-')) return 'collector_remediation';
+  if (proposalId.startsWith('PAIN-')) return 'pain_adaptive_candidate';
+  if (proposalId.startsWith('INFRA-')) return 'local_state_fallback';
+  if (proposalId.startsWith('EYE-') || proposalId.startsWith('PRP-')) return 'external_intel';
+
+  return direct || 'unknown';
 }
 
 function normalizeCriteriaMetric(v) {
@@ -220,7 +247,7 @@ function summarizeTypeOutcomes(dates) {
     const rows = readJsonl(path.join(RUNS_DIR, `${dateStr}.jsonl`));
     for (const row of rows) {
       if (!row || row.type !== 'autonomy_run') continue;
-      const proposalType = normalizeProposalType(row.proposal_type);
+      const proposalType = normalizeProposalType(row.proposal_type, row);
       const rec = byType[proposalType] || {
         proposal_type: proposalType,
         attempted: 0,

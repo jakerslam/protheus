@@ -23,6 +23,15 @@ const IDLE_DREAM_SKIP_TIMEOUT_MS = Math.max(5000, Math.min(
   15 * 60 * 1000,
   Number(process.env.SPINE_HEARTBEAT_IDLE_DREAM_TIMEOUT_MS || 120000) || 120000
 ));
+const SPINE_HEARTBEAT_RUN_TIMEOUT_MS = Math.max(30000, Math.min(
+  60 * 60 * 1000,
+  Number(process.env.SPINE_HEARTBEAT_RUN_TIMEOUT_MS || 300000) || 300000
+));
+const SPINE_HEARTBEAT_RETRY_WITHOUT_DREAM = String(process.env.SPINE_HEARTBEAT_RETRY_WITHOUT_DREAM || '1') !== '0';
+const SPINE_HEARTBEAT_RETRY_TIMEOUT_MS = Math.max(30000, Math.min(
+  60 * 60 * 1000,
+  Number(process.env.SPINE_HEARTBEAT_RETRY_TIMEOUT_MS || 180000) || 180000
+));
 
 function nowIso() { return new Date().toISOString(); }
 function todayStr() { return new Date().toISOString().slice(0, 10); }
@@ -58,11 +67,28 @@ function lastSpineRunStarted(mode, dateStr) {
   return events.length ? events[events.length - 1] : null;
 }
 
-function runSpine(mode, dateStr, maxEyes) {
+function runSpine(mode, dateStr, maxEyes, opts = {}) {
   const args = [path.join('systems', 'spine', 'spine.js'), mode, dateStr];
   if (maxEyes != null && maxEyes !== '') args.push(`--max-eyes=${maxEyes}`);
-  const r = spawnSync('node', args, { cwd: ROOT, stdio: 'inherit' });
-  return { ok: r.status === 0, code: r.status == null ? 1 : r.status };
+  const runEnv = opts.env && typeof opts.env === 'object'
+    ? { ...process.env, ...opts.env }
+    : process.env;
+  const timeoutMs = Math.max(1000, Number(opts.timeout_ms || SPINE_HEARTBEAT_RUN_TIMEOUT_MS));
+  const r = spawnSync('node', args, {
+    cwd: ROOT,
+    stdio: 'inherit',
+    env: runEnv,
+    timeout: timeoutMs
+  });
+  const spawnError = r.error ? String(r.error && r.error.message ? r.error.message : r.error) : '';
+  const timedOut = /\bETIMEDOUT\b/i.test(spawnError);
+  return {
+    ok: r.status === 0,
+    code: r.status == null ? 1 : r.status,
+    timed_out: timedOut,
+    timeout_ms: timeoutMs,
+    error: spawnError || null
+  };
 }
 
 function runIdleDreamCycle(dateStr) {
@@ -139,13 +165,39 @@ function cmdRun() {
     return;
   }
 
-  const r = runSpine(mode, dateStr, maxEyes);
+  let r = runSpine(mode, dateStr, maxEyes, {
+    timeout_ms: SPINE_HEARTBEAT_RUN_TIMEOUT_MS
+  });
+  let retry = null;
+  if (!r.ok && r.timed_out === true && SPINE_HEARTBEAT_RETRY_WITHOUT_DREAM) {
+    retry = runSpine(mode, dateStr, maxEyes, {
+      timeout_ms: SPINE_HEARTBEAT_RETRY_TIMEOUT_MS,
+      env: {
+        IDLE_DREAM_CYCLE_ENABLED: '0'
+      }
+    });
+    if (retry.ok === true) r = retry;
+  }
   process.stdout.write(JSON.stringify({
     ok: r.ok,
-    result: r.ok ? 'triggered' : 'spine_failed',
+    result: r.ok
+      ? (retry && retry.ok === true ? 'triggered_retry_without_dream' : 'triggered')
+      : 'spine_failed',
     mode,
     date: dateStr,
     min_hours: minHours,
+    timeout_ms: Number(r.timeout_ms || SPINE_HEARTBEAT_RUN_TIMEOUT_MS),
+    timed_out: r.timed_out === true,
+    error: r.error || null,
+    retry_without_dream: retry
+      ? {
+          attempted: true,
+          ok: retry.ok === true,
+          timeout_ms: Number(retry.timeout_ms || SPINE_HEARTBEAT_RETRY_TIMEOUT_MS),
+          timed_out: retry.timed_out === true,
+          error: retry.error || null
+        }
+      : { attempted: false },
     ts: nowIso()
   }) + '\n');
   if (!r.ok) process.exit(r.code || 1);

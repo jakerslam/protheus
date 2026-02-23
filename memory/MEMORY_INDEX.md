@@ -67,9 +67,17 @@
 | x-browse-1 |  | #bird #x-browse #cron #social #insights | 2026-02-14.md | Startup defensibility: shifting from model access to relatio |
 | x-browse-1-log |  | #bird #x-browse #cron #log | 2026-02-14.md | agent economics). |
 | weekly-compound-2026-07 |  | #weekly #compound #index | 2026-02-14.md | *Child Nodes:** |
+| rebuild-validate-1771127215487 |  | #ops #log #rebuild #validation | 2026-02-14.md | Nodes: 45 | Tokens: 4184 | Projects: 0 |
+| rebuild-validate-1771128020203 |  | #ops #log #rebuild #validation | 2026-02-14.md | Nodes: 45 | Tokens: 4228 | Projects: 0 |
+| rebuild-validate-1771128401716 |  | #ops #log #rebuild #validation | 2026-02-14.md | Nodes: 45 | Tokens: 4274 | Projects: 0 |
+| habit-state-run_memory_rebuild_and_validate-1771128418560 |  | #ops #log #habit #state | 2026-02-14.md | Transition: none → candidate |
+| habit-governance-v1 |  | #policy #habits #governance #automation #infrastructure | 2026-02-14.md | Crystallization is opt-in only. |
+| habit-state-archive-ref |  | #ops #log #archive #reference | 2026-02-14.md | *Archive Location:** `habit-state-archive-2026-02-14.md` |
+| learnings-ingest-2026-02-16 |  | #learnings #moltbook #community-insights #optimization | 2026-02-16.md | Structured handoff packets reduce spawn drift. Preferred sch |
+| moltstack-post-2026-02-20 |  | #moltstack #publish #cron #ai #memory-systems | 2026-02-20.md | 0672-4c44-b946-4581da3eb68f`). |
 | eye-upwork_gigs-324be047 | 1b32fa4730ebe0abd2bd9e96 | #eyes #sensory #upwork_gigs #memory-bridge #revenue #freelance | 2026-02-20.md | Source eye: upwork_gigs |
-| eye-medium_com-7d719655 | 6d66b070aa579a66c4e23a11 | #eyes #sensory #medium_com #memory-bridge #ai #startups | 2026-02-20.md | Source eye: medium_com |
-| eye-medium_com-45a399e3 | 05e90454ab4c6768ddcd32d6 | #eyes #sensory #medium_com #memory-bridge #ai #startups | 2026-02-20.md | Source eye: medium_com |
+| eye-medium_com-7d719655 | 6d66b070aa579a66c4e23a11 | #eyes #sensory #medium_com #memory-bridge #ai #startups | 2026-02-20.md | Source eye: `medium_com` |
+| eye-medium_com-45a399e3 | 05e90454ab4c6768ddcd32d6 | #eyes #sensory #medium_com #memory-bridge #ai #startups | 2026-02-20.md | Source eye: `medium_com` (startups feed duplicate) |
 | eye-upwork_gigs-35909358 | fba8c00d1c3afd48ce2adfbf | #eyes #sensory #upwork_gigs #memory-bridge #revenue #freelance | 2026-02-20.md | Source eye: upwork_gigs |
 | eye-upwork_gigs-2a650d28 | 663aa56a0a1b900a9e080759 | #eyes #sensory #upwork_gigs #memory-bridge #revenue #freelance | 2026-02-20.md | Source eye: upwork_gigs |
 | eye-hn_frontpage-af0784cc | 67dd3baf1fa01ef9d55010cc | #eyes #sensory #hn_frontpage #memory-bridge #startups #dev_tools | 2026-02-21.md | Source eye: hn_frontpage |
@@ -149,3 +157,25 @@
 | eye-upwork_gigs-d6b949e8 | cd373dfca2d9f3761ce8ed80 | #eyes #sensory #upwork_gigs #memory-bridge #revenue #freelance | 2026-02-23.md | Source eye: upwork_gigs |
 | creative-link-failure-5toxo4 | clm3uak2y3zcu8ceahviejsj | #creative-link #dream #memory #failure | 2026-02-23.md | Theme token: failure |
 | creative-link-sensory-pkq966 | clmlzanmqewpzhl73opb4k75 | #creative-link #dream #memory #sensory | 2026-02-23.md | Theme token: sensory |
+| eye-cross_signal_engine-79f4839b | ca44d1b0a40be2f1078bb799 | #eyes #sensory #cross_signal_engine #memory-bridge | 2026-02-23.md | Source eye: cross_signal_engine |
+| eye-provider_memory_trends-81dc0ed1 | 8c31857ac5a24751f3a69d5b | #eyes #sensory #provider_memory_trends #memory-bridge #market_demand #trends | 2026-02-23.md | Source eye: provider_memory_trends |
+| failure-t2-hesc_mly | 589804898887de598a6593c8 | #failure #failure-tier-2 #autonomy_human_escalation #governance #human-escalation #preflight_route | 2026-02-23.md | Tier: 2 |
+| failure-t3-5ded14bc | 8ccb2b45c99a6da93758da25 | #failure #failure-tier-3 #provider_readiness #routing | 2026-02-23.md | Tier: 3 |
+| eye-cross_signal_engine-5df3dd2c | dd4fde881f2d1678db766a48 | #eyes #sensory #cross_signal_engine #memory-bridge | 2026-02-23.md | Source eye: cross_signal_engine |
+| failure-t1-fe8ce8c0 | 173818e470c3bfb2772e5046 | #failure #failure-tier-1 #spine #orchestration | 2026-02-23.md | Tier: 1 |
+| failure-t2-a86a891d | 494cb2627e3edbc9ab8b6f4e | #failure #failure-tier-2 #external_eyes #sensory | 2026-02-23.md | Tier: 2 |
+| eye-provider_memory_trends-a16f5cf0 | c1c5b8b036216386b022968c | #eyes #sensory #provider_memory_trends #memory-bridge #market_demand #trends | 2026-02-23.md | Source eye: provider_memory_trends |
+| failure-t2-hesc_mly-2 | 6717b524ec9c7d1df19b895a | #failure #failure-tier-2 #autonomy_human_escalation #governance #human-escalation #verify_route | 2026-02-23.md | Tier: 2 |
+| eye-cross_signal_engine-a0e3a89c | bfca2aaced850a49ddbd8878 | #eyes #sensory #cross_signal_engine #memory-bridge | 2026-02-23.md | Source eye: cross_signal_engine |
+| eye-cross_signal_engine-448c2211 | 6fa94e532b9055e36f5b13f1 | #eyes #sensory #cross_signal_engine #memory-bridge | 2026-02-23.md | Source eye: cross_signal_engine |
+| eye-strategy_campaign-228f9c09 | 8a5a6465fd2455a4ee76b282 | #eyes #sensory #strategy_campaign #memory-bridge | 2026-02-23.md | Source eye: strategy_campaign |
+| failure-t2-52e95f7b | 3bdab9e402194e033fda055d | #failure #failure-tier-2 #idle_dream_cycle #memory | 2026-02-23.md | Tier: 2 |
+| failure-t2-a6e958c5 | 10ece3831f9657a05ebed828 | #failure #failure-tier-2 #idle_dream_cycle #memory | 2026-02-23.md | Tier: 2 |
+| failure-t2-17edacff | 7f078af782df3dd4c9f574f5 | #failure #failure-tier-2 #idle_dream_cycle #memory | 2026-02-23.md | Tier: 2 |
+| failure-t2-1be2986a | 640eccd160f9d3def2fa0c33 | #failure #failure-tier-2 #external_eyes #sensory | 2026-02-23.md | Tier: 2 |
+| failure-t2-0b933e01 | da95fe218416a0ca638568f0 | #failure #failure-tier-2 #external_eyes #sensory | 2026-02-23.md | Tier: 2 |
+| failure-t2-65ff815e | eb52379a79bc7e8fba6f3841 | #failure #failure-tier-2 #external_eyes #sensory | 2026-02-23.md | Tier: 2 |
+| eye-cross_signal_engine-ec50f43d | f3808ffd23665e285edd1023 | #eyes #sensory #cross_signal_engine #memory-bridge | 2026-02-23.md | Source eye: cross_signal_engine |
+| eye-cross_signal_engine-f8ef18a3 | e73e8fe4384d002ff4840325 | #eyes #sensory #cross_signal_engine #memory-bridge | 2026-02-23.md | Source eye: cross_signal_engine |
+| eye-producthunt_launches-ff0c3b4c | 7da0e75fe2966fde96668ef8 | #eyes #sensory #producthunt_launches #memory-bridge #revenue #affiliate | 2026-02-23.md | Source eye: producthunt_launches |
+| failure-t2-e28ba856 | f8dc2be09c35fbe605de1068 | #failure #failure-tier-2 #external_eyes #sensory | 2026-02-23.md | Tier: 2 |

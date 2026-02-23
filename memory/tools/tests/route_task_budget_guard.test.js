@@ -144,7 +144,8 @@ function run() {
       '--task', 'quick status ping',
       '--tokens_est', '120',
       '--repeats_14d', '0',
-      '--errors_30d', '0'
+      '--errors_30d', '0',
+      '--execution_intent', '1'
     ], { cwd: repoRoot, encoding: 'utf8', env });
 
     assert.strictEqual(r.status, 0, `route_task should exit 0 when budget blocks: ${r.stderr}`);

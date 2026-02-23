@@ -30,6 +30,7 @@ const {
 } = require('../../lib/outcome_fitness.js');
 const { compileProposalSuccessCriteria } = require('../../lib/success_criteria_compiler.js');
 const { evaluateProposalQuorum } = require('../../lib/quorum_validator.js');
+const { classifyProposalType } = require('../../lib/proposal_type_classifier.js');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const SENSORY_DIR = process.env.SENSORY_TEST_DIR
@@ -944,10 +945,14 @@ function inferArchetypeHints(text) {
 function normalizeProposalForAdmission(proposal) {
   const p = proposal && typeof proposal === 'object' ? proposal : {};
   const meta = p.meta && typeof p.meta === 'object' ? p.meta : {};
+  const typeDecision = classifyProposalType(p, {
+    source_eye: sourceEyeId(p) || normalizeText(meta.source_eye)
+  });
+  const proposalType = normalizeText(typeDecision.type).toLowerCase() || 'local_state_fallback';
   const title = titleSansPrefix(p.title);
   const combinedText = [
     title,
-    p.type,
+    proposalType,
     p.summary,
     p.notes,
     p.expected_impact,
@@ -972,10 +977,15 @@ function normalizeProposalForAdmission(proposal) {
 
   return {
     ...p,
+    type: proposalType,
     summary,
     notes,
     meta: {
       ...meta,
+      source_eye: sourceEyeId(p) || normalizeText(meta.source_eye) || 'unknown_eye',
+      normalized_proposal_type: proposalType,
+      proposal_type_source: String(typeDecision.source || ''),
+      proposal_type_inferred: typeDecision.inferred === true,
       normalized_action_verb: actionVerb,
       normalized_objective: objective,
       normalized_expected_outcome: expectedOutcome.slice(0, 180),

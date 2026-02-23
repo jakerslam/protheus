@@ -7,6 +7,10 @@ const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 const { getStopState } = require('../../lib/emergency_stop.js');
 const { resolveCatalogPath } = require('../../lib/eyes_catalog.js');
+const {
+  deriveMetricsFromHealthPayload: deriveDriftTargetMetrics,
+  evaluateWindow: evaluateDriftTargetWindow
+} = require('./drift_target_governor.js');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 
@@ -151,6 +155,14 @@ const EXECUTE_LOCK_AUTO_DEMOTE = String(process.env.AUTONOMY_HEALTH_EXECUTE_LOCK
 const SPC_BASELINE_DAYS = Number(process.env.AUTONOMY_HEALTH_SPC_BASELINE_DAYS || 21);
 const SPC_SIGMA = Number(process.env.AUTONOMY_HEALTH_SPC_SIGMA || 3);
 const SPC_STOP_RATIO_MIN_DENOM = Number(process.env.AUTONOMY_HEALTH_SPC_STOP_RATIO_MIN_DENOM || 4);
+const DRIFT_TARGET_GOVERNOR_ENABLED = String(process.env.AUTONOMY_HEALTH_DRIFT_TARGET_GOVERNOR_ENABLED || '1') !== '0';
+const DRIFT_TARGET_GOVERNOR_WRITE = String(process.env.AUTONOMY_HEALTH_DRIFT_TARGET_GOVERNOR_WRITE || '1') !== '0';
+const DRIFT_TARGET_GOVERNOR_POLICY_PATH = String(process.env.AUTONOMY_HEALTH_DRIFT_TARGET_POLICY_PATH || '').trim()
+  ? path.resolve(String(process.env.AUTONOMY_HEALTH_DRIFT_TARGET_POLICY_PATH).trim())
+  : null;
+const DRIFT_TARGET_GOVERNOR_STATE_PATH = String(process.env.AUTONOMY_HEALTH_DRIFT_TARGET_STATE_PATH || '').trim()
+  ? path.resolve(String(process.env.AUTONOMY_HEALTH_DRIFT_TARGET_STATE_PATH).trim())
+  : null;
 
 function nowMs() {
   if (NOW_ISO_OVERRIDE) {
@@ -1853,6 +1865,50 @@ function assessExecuteQualityLockInvariant(governorStatusResult, strategyReadine
   };
 }
 
+function runDriftTargetGovernor(dateStr, healthPayload, writeEnabled) {
+  if (!DRIFT_TARGET_GOVERNOR_ENABLED) {
+    return {
+      ok: true,
+      enabled: false,
+      skipped: true,
+      reason: 'disabled'
+    };
+  }
+  try {
+    const metrics = deriveDriftTargetMetrics(healthPayload || {});
+    const out = evaluateDriftTargetWindow(
+      {
+        ...metrics,
+        source: 'health_status'
+      },
+      {
+        dateStr,
+        write: writeEnabled === true,
+        policyPath: DRIFT_TARGET_GOVERNOR_POLICY_PATH || undefined,
+        statePath: DRIFT_TARGET_GOVERNOR_STATE_PATH || undefined
+      }
+    );
+    return {
+      ok: true,
+      enabled: true,
+      write: writeEnabled === true,
+      replay: out.replay === true,
+      decision: out.decision || null,
+      metrics: out.metrics || {},
+      state: out.state || null,
+      policy: out.policy || null,
+      state_path: out.state_path || DRIFT_TARGET_GOVERNOR_STATE_PATH || null
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      enabled: true,
+      write: writeEnabled === true,
+      error: String(err && err.message ? err.message : err)
+    };
+  }
+}
+
 function summarizeSlo(checksMap) {
   const checks = Object.values(checksMap || {});
   const warns = checks.filter((c) => c && c.level === 'warn');
@@ -1970,6 +2026,7 @@ function main() {
   const dateStr = resolveDateArg(args);
   const windowCfg = resolveWindow(args);
   const writeArtifacts = toBool(args.write, true);
+  const driftTargetGovernorWrite = writeArtifacts && DRIFT_TARGET_GOVERNOR_WRITE;
   const alertsEnabled = toBool(args.alerts, true);
   const strict = !!args.strict;
   const dates = dateRange(dateStr, windowCfg.days);
@@ -2109,6 +2166,15 @@ function main() {
       path: null
     }
   };
+  const driftTargetGovernor = runDriftTargetGovernor(dateStr, out, driftTargetGovernorWrite);
+  out.drift_target_governor = driftTargetGovernor;
+  out.gates.drift_target_rate = driftTargetGovernor && driftTargetGovernor.state
+    ? Number(driftTargetGovernor.state.current_target_rate)
+    : null;
+  out.gates.drift_target_action = driftTargetGovernor && driftTargetGovernor.decision
+    ? String(driftTargetGovernor.decision.action || '')
+    : null;
+  out.gates.drift_target_replay = driftTargetGovernor && driftTargetGovernor.replay === true;
 
   if (alertsEnabled) {
     const alertRows = makeAlertRows(dateStr, windowCfg.label, windowCfg.days, slo);
@@ -2148,6 +2214,7 @@ module.exports = {
   assessVerificationPassRate,
   assessCriteriaQualityGate,
   assessExecuteQualityLockInvariant,
+  runDriftTargetGovernor,
   assessIntegrity,
   makeAlertRows
 };

@@ -1,12 +1,12 @@
 {
   "ok": true,
   "type": "alignment_pressure",
-  "ts": "2026-02-23T07:49:59.693Z",
+  "ts": "2026-02-23T16:26:53.820Z",
   "date": "2026-02-23",
   "active": false,
   "threshold": 60,
-  "score": 68.22,
-  "sample": 2,
+  "score": 63.51,
+  "sample": 4,
   "deficit_points": 0,
   "deficit_ratio": 0,
   "focus_objective_ids": [

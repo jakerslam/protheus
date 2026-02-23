@@ -234,6 +234,42 @@
         "sensory.collector.stock_market": 1,
         "sensory.focus_fetch": 1
       }
+    },
+    "2026-02-23T15": {
+      "total": 14,
+      "scopes": {
+        "sensory.collector.github_repo": 2,
+        "sensory.focus_fetch": 5,
+        "sensory.collector.ollama_search": 1,
+        "sensory.collector.medium_rss": 5,
+        "sensory.collector.google_trends": 1
+      }
+    },
+    "2026-02-23T16": {
+      "total": 248,
+      "scopes": {
+        "sensory.focus_fetch": 87,
+        "sensory.collector.moltstack_discover": 4,
+        "sensory.collector.ollama_search": 21,
+        "sensory.collector.stock_market": 4,
+        "sensory.collector.hn_rss": 12,
+        "sensory.collector.moltbook_hot": 20,
+        "sensory.collector.google_trends": 34,
+        "sensory.collector.producthunt_launches": 1,
+        "sensory.collector.upwork_gigs": 3,
+        "sensory.collector.github_repo": 2,
+        "sensory.collector.medium_rss": 60
+      }
+    },
+    "2026-02-23T17": {
+      "total": 89,
+      "scopes": {
+        "sensory.collector.google_trends": 36,
+        "sensory.collector.ollama_search": 48,
+        "sensory.collector.producthunt_launches": 2,
+        "sensory.collector.github_repo": 2,
+        "sensory.collector.upwork_gigs": 1
+      }
     }
   },
   "per_day": {
@@ -267,17 +303,19 @@
       }
     },
     "2026-02-23": {
-      "total": 225,
+      "total": 576,
       "scopes": {
-        "sensory.collector.ollama_search": 37,
-        "sensory.collector.upwork_gigs": 4,
-        "sensory.collector.google_trends": 10,
-        "sensory.focus_fetch": 28,
-        "sensory.collector.moltbook_hot": 20,
-        "sensory.collector.stock_market": 5,
-        "sensory.collector.github_repo": 4,
-        "sensory.collector.hn_rss": 32,
-        "sensory.collector.medium_rss": 85
+        "sensory.collector.ollama_search": 107,
+        "sensory.collector.upwork_gigs": 8,
+        "sensory.collector.google_trends": 81,
+        "sensory.focus_fetch": 120,
+        "sensory.collector.moltbook_hot": 40,
+        "sensory.collector.stock_market": 9,
+        "sensory.collector.github_repo": 10,
+        "sensory.collector.hn_rss": 44,
+        "sensory.collector.medium_rss": 150,
+        "sensory.collector.moltstack_discover": 4,
+        "sensory.collector.producthunt_launches": 3
       }
     }
   }

@@ -498,11 +498,12 @@
       }
     },
     "2026-02-14.md": {
-      "sha1": "de8a79ffcfd1deb7c4045660695ee5bab1088c1e",
+      "sha1": "b323a8e148510a76a2296aad11d222bd85f3a697",
       "parsed": {
         "records": [
           {
             "node_id": "x-browse-1",
+            "uid": null,
             "tags": [
               "bird",
               "x-browse",
@@ -517,6 +518,7 @@
           },
           {
             "node_id": "x-browse-1-log",
+            "uid": null,
             "tags": [
               "bird",
               "x-browse",
@@ -530,6 +532,7 @@
           },
           {
             "node_id": "x-output-contract",
+            "uid": null,
             "tags": [
               "policy",
               "x-engagement",
@@ -542,6 +545,7 @@
           },
           {
             "node_id": "decision-journal-policy",
+            "uid": null,
             "tags": [
               "system",
               "policy",
@@ -555,6 +559,7 @@
           },
           {
             "node_id": "skill-supply-chain-gate",
+            "uid": null,
             "tags": [
               "system",
               "security",
@@ -567,6 +572,7 @@
           },
           {
             "node_id": "weekly-compound-2026-07",
+            "uid": null,
             "tags": [
               "weekly",
               "compound",
@@ -574,36 +580,139 @@
             ],
             "file": "2026-02-14.md",
             "date": "2026-02-14",
-            "token_estimate": 772,
+            "token_estimate": 128,
             "summary": "*Child Nodes:**"
+          },
+          {
+            "node_id": "rebuild-validate-1771127215487",
+            "uid": null,
+            "tags": [
+              "ops",
+              "log",
+              "rebuild",
+              "validation"
+            ],
+            "file": "2026-02-14.md",
+            "date": "2026-02-14",
+            "token_estimate": 61,
+            "summary": "Nodes: 45 | Tokens: 4184 | Projects: 0"
+          },
+          {
+            "node_id": "rebuild-validate-1771128020203",
+            "uid": null,
+            "tags": [
+              "ops",
+              "log",
+              "rebuild",
+              "validation"
+            ],
+            "file": "2026-02-14.md",
+            "date": "2026-02-14",
+            "token_estimate": 61,
+            "summary": "Nodes: 45 | Tokens: 4228 | Projects: 0"
+          },
+          {
+            "node_id": "rebuild-validate-1771128401716",
+            "uid": null,
+            "tags": [
+              "ops",
+              "log",
+              "rebuild",
+              "validation"
+            ],
+            "file": "2026-02-14.md",
+            "date": "2026-02-14",
+            "token_estimate": 61,
+            "summary": "Nodes: 45 | Tokens: 4274 | Projects: 0"
+          },
+          {
+            "node_id": "habit-state-run_memory_rebuild_and_validate-1771128418560",
+            "uid": null,
+            "tags": [
+              "ops",
+              "log",
+              "habit",
+              "state"
+            ],
+            "file": "2026-02-14.md",
+            "date": "2026-02-14",
+            "token_estimate": 68,
+            "summary": "Transition: none → candidate"
+          },
+          {
+            "node_id": "habit-governance-v1",
+            "uid": null,
+            "tags": [
+              "policy",
+              "habits",
+              "governance",
+              "automation",
+              "infrastructure"
+            ],
+            "file": "2026-02-14.md",
+            "date": "2026-02-14",
+            "token_estimate": 124,
+            "summary": "Crystallization is opt-in only."
+          },
+          {
+            "node_id": "habit-state-archive-ref",
+            "uid": null,
+            "tags": [
+              "ops",
+              "log",
+              "archive",
+              "reference"
+            ],
+            "file": "2026-02-14.md",
+            "date": "2026-02-14",
+            "token_estimate": 87,
+            "summary": "*Archive Location:** `habit-state-archive-2026-02-14.md`"
           }
         ],
-        "format_violations": [
-          {
-            "file": "2026-02-14.md",
-            "node_id": "habit-state-archive-ref",
-            "reasons": "H1 mismatch: \"Habit\" != \"habit-state-archive-ref\""
-          }
-        ]
+        "format_violations": []
       }
     },
     "2026-02-16.md": {
-      "sha1": "dbc72700b5b12592edda12786ed47647c52b4797",
+      "sha1": "8521747a2e4876d517206fe0fa398636db7509e8",
       "parsed": {
-        "records": [],
-        "format_violations": [
+        "records": [
           {
-            "file": "2026-02-16.md",
             "node_id": "learnings-ingest-2026-02-16",
-            "reasons": "H1 mismatch: \"Community\" != \"learnings-ingest-2026-02-16\""
+            "uid": null,
+            "tags": [
+              "learnings",
+              "moltbook",
+              "community-insights",
+              "optimization"
+            ],
+            "file": "2026-02-16.md",
+            "date": "2026-02-16",
+            "token_estimate": 155,
+            "summary": "Structured handoff packets reduce spawn drift. Preferred sch"
           }
-        ]
+        ],
+        "format_violations": []
       }
     },
     "2026-02-20.md": {
-      "sha1": "228a5d8450ec44d4219a3325f7c0815e389a012d",
+      "sha1": "85841bc9e75295d9f5b1dd017d0e36784a61406f",
       "parsed": {
         "records": [
+          {
+            "node_id": "moltstack-post-2026-02-20",
+            "uid": null,
+            "tags": [
+              "moltstack",
+              "publish",
+              "cron",
+              "ai",
+              "memory-systems"
+            ],
+            "file": "2026-02-20.md",
+            "date": "2026-02-20",
+            "token_estimate": 101,
+            "summary": "0672-4c44-b946-4581da3eb68f`)."
+          },
           {
             "node_id": "eye-upwork_gigs-324be047",
             "uid": "1b32fa4730ebe0abd2bd9e96",
@@ -633,8 +742,8 @@
             ],
             "file": "2026-02-20.md",
             "date": "2026-02-20",
-            "token_estimate": 236,
-            "summary": "Source eye: medium_com"
+            "token_estimate": 108,
+            "summary": "Source eye: `medium_com`"
           },
           {
             "node_id": "eye-medium_com-45a399e3",
@@ -649,8 +758,8 @@
             ],
             "file": "2026-02-20.md",
             "date": "2026-02-20",
-            "token_estimate": 236,
-            "summary": "Source eye: medium_com"
+            "token_estimate": 95,
+            "summary": "Source eye: `medium_com` (startups feed duplicate)"
           },
           {
             "node_id": "eye-upwork_gigs-35909358",
@@ -685,13 +794,7 @@
             "summary": "Source eye: upwork_gigs"
           }
         ],
-        "format_violations": [
-          {
-            "file": "2026-02-20.md",
-            "node_id": "moltstack-post-2026-02-20",
-            "reasons": "H1 mismatch: \"MoltStack\" != \"moltstack-post-2026-02-20\""
-          }
-        ]
+        "format_violations": []
       }
     },
     "2026-02-21.md": {
@@ -1721,7 +1824,7 @@
       }
     },
     "2026-02-23.md": {
-      "sha1": "9788691bb448ab037fa6791d3ffb4bfccd8de2b9",
+      "sha1": "508ef20904d94777e2139fc6b57c21ed51f8df24",
       "parsed": {
         "records": [
           {
@@ -1825,11 +1928,329 @@
             "date": "2026-02-23",
             "token_estimate": 97,
             "summary": "Theme token: sensory"
+          },
+          {
+            "node_id": "eye-cross_signal_engine-79f4839b",
+            "uid": "ca44d1b0a40be2f1078bb799",
+            "tags": [
+              "eyes",
+              "sensory",
+              "cross_signal_engine",
+              "memory-bridge"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 187,
+            "summary": "Source eye: cross_signal_engine"
+          },
+          {
+            "node_id": "eye-provider_memory_trends-81dc0ed1",
+            "uid": "8c31857ac5a24751f3a69d5b",
+            "tags": [
+              "eyes",
+              "sensory",
+              "provider_memory_trends",
+              "memory-bridge",
+              "market_demand",
+              "trends"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 184,
+            "summary": "Source eye: provider_memory_trends"
+          },
+          {
+            "node_id": "failure-t2-hesc_mly",
+            "uid": "589804898887de598a6593c8",
+            "tags": [
+              "failure",
+              "failure-tier-2",
+              "autonomy_human_escalation",
+              "governance",
+              "human-escalation",
+              "preflight_route"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 136,
+            "summary": "Tier: 2"
+          },
+          {
+            "node_id": "failure-t3-5ded14bc",
+            "uid": "8ccb2b45c99a6da93758da25",
+            "tags": [
+              "failure",
+              "failure-tier-3",
+              "provider_readiness",
+              "routing"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 129,
+            "summary": "Tier: 3"
+          },
+          {
+            "node_id": "eye-cross_signal_engine-5df3dd2c",
+            "uid": "dd4fde881f2d1678db766a48",
+            "tags": [
+              "eyes",
+              "sensory",
+              "cross_signal_engine",
+              "memory-bridge"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 165,
+            "summary": "Source eye: cross_signal_engine"
+          },
+          {
+            "node_id": "failure-t1-fe8ce8c0",
+            "uid": "173818e470c3bfb2772e5046",
+            "tags": [
+              "failure",
+              "failure-tier-1",
+              "spine",
+              "orchestration"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 137,
+            "summary": "Tier: 1"
+          },
+          {
+            "node_id": "failure-t2-a86a891d",
+            "uid": "494cb2627e3edbc9ab8b6f4e",
+            "tags": [
+              "failure",
+              "failure-tier-2",
+              "external_eyes",
+              "sensory"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 136,
+            "summary": "Tier: 2"
+          },
+          {
+            "node_id": "eye-provider_memory_trends-a16f5cf0",
+            "uid": "c1c5b8b036216386b022968c",
+            "tags": [
+              "eyes",
+              "sensory",
+              "provider_memory_trends",
+              "memory-bridge",
+              "market_demand",
+              "trends"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 179,
+            "summary": "Source eye: provider_memory_trends"
+          },
+          {
+            "node_id": "failure-t2-hesc_mly-2",
+            "uid": "6717b524ec9c7d1df19b895a",
+            "tags": [
+              "failure",
+              "failure-tier-2",
+              "autonomy_human_escalation",
+              "governance",
+              "human-escalation",
+              "verify_route"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 136,
+            "summary": "Tier: 2"
+          },
+          {
+            "node_id": "eye-cross_signal_engine-a0e3a89c",
+            "uid": "bfca2aaced850a49ddbd8878",
+            "tags": [
+              "eyes",
+              "sensory",
+              "cross_signal_engine",
+              "memory-bridge"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 165,
+            "summary": "Source eye: cross_signal_engine"
+          },
+          {
+            "node_id": "eye-cross_signal_engine-448c2211",
+            "uid": "6fa94e532b9055e36f5b13f1",
+            "tags": [
+              "eyes",
+              "sensory",
+              "cross_signal_engine",
+              "memory-bridge"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 165,
+            "summary": "Source eye: cross_signal_engine"
+          },
+          {
+            "node_id": "eye-strategy_campaign-228f9c09",
+            "uid": "8a5a6465fd2455a4ee76b282",
+            "tags": [
+              "eyes",
+              "sensory",
+              "strategy_campaign",
+              "memory-bridge"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 152,
+            "summary": "Source eye: strategy_campaign"
+          },
+          {
+            "node_id": "failure-t2-52e95f7b",
+            "uid": "3bdab9e402194e033fda055d",
+            "tags": [
+              "failure",
+              "failure-tier-2",
+              "idle_dream_cycle",
+              "memory"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 139,
+            "summary": "Tier: 2"
+          },
+          {
+            "node_id": "failure-t2-a6e958c5",
+            "uid": "10ece3831f9657a05ebed828",
+            "tags": [
+              "failure",
+              "failure-tier-2",
+              "idle_dream_cycle",
+              "memory"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 139,
+            "summary": "Tier: 2"
+          },
+          {
+            "node_id": "failure-t2-17edacff",
+            "uid": "7f078af782df3dd4c9f574f5",
+            "tags": [
+              "failure",
+              "failure-tier-2",
+              "idle_dream_cycle",
+              "memory"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 139,
+            "summary": "Tier: 2"
+          },
+          {
+            "node_id": "failure-t2-1be2986a",
+            "uid": "640eccd160f9d3def2fa0c33",
+            "tags": [
+              "failure",
+              "failure-tier-2",
+              "external_eyes",
+              "sensory"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 136,
+            "summary": "Tier: 2"
+          },
+          {
+            "node_id": "failure-t2-0b933e01",
+            "uid": "da95fe218416a0ca638568f0",
+            "tags": [
+              "failure",
+              "failure-tier-2",
+              "external_eyes",
+              "sensory"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 144,
+            "summary": "Tier: 2"
+          },
+          {
+            "node_id": "failure-t2-65ff815e",
+            "uid": "eb52379a79bc7e8fba6f3841",
+            "tags": [
+              "failure",
+              "failure-tier-2",
+              "external_eyes",
+              "sensory"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 137,
+            "summary": "Tier: 2"
+          },
+          {
+            "node_id": "eye-cross_signal_engine-ec50f43d",
+            "uid": "f3808ffd23665e285edd1023",
+            "tags": [
+              "eyes",
+              "sensory",
+              "cross_signal_engine",
+              "memory-bridge"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 187,
+            "summary": "Source eye: cross_signal_engine"
+          },
+          {
+            "node_id": "eye-cross_signal_engine-f8ef18a3",
+            "uid": "e73e8fe4384d002ff4840325",
+            "tags": [
+              "eyes",
+              "sensory",
+              "cross_signal_engine",
+              "memory-bridge"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 184,
+            "summary": "Source eye: cross_signal_engine"
+          },
+          {
+            "node_id": "eye-producthunt_launches-ff0c3b4c",
+            "uid": "7da0e75fe2966fde96668ef8",
+            "tags": [
+              "eyes",
+              "sensory",
+              "producthunt_launches",
+              "memory-bridge",
+              "revenue",
+              "affiliate"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 172,
+            "summary": "Source eye: producthunt_launches"
+          },
+          {
+            "node_id": "failure-t2-e28ba856",
+            "uid": "f8dc2be09c35fbe605de1068",
+            "tags": [
+              "failure",
+              "failure-tier-2",
+              "external_eyes",
+              "sensory"
+            ],
+            "file": "2026-02-23.md",
+            "date": "2026-02-23",
+            "token_estimate": 141,
+            "summary": "Tier: 2"
           }
         ],
         "format_violations": []
       }
     }
   },
-  "updated_at": "2026-02-23T01:10:05.729Z"
+  "updated_at": "2026-02-23T17:36:52.209Z"
 }

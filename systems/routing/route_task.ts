@@ -195,7 +195,7 @@ function compactRouteMeta(routeMeta) {
   };
 }
 
-function tryRouteModel({ gateRisk, complexity, intent, task, mode, forceModel, tokensEst }) {
+function tryRouteModel({ gateRisk, complexity, intent, task, mode, forceModel, tokensEst, executionIntent = false }) {
   try {
     // Lazy require keeps route_task resilient if router file is missing.
     const { routeDecision } = require('../../systems/routing/model_router.js');
@@ -207,7 +207,8 @@ function tryRouteModel({ gateRisk, complexity, intent, task, mode, forceModel, t
       task,
       mode,
       forceModel,
-      tokensEst
+      tokensEst,
+      executionIntent
     });
   } catch (err) {
     return {
@@ -225,6 +226,7 @@ function main() {
   const skipHabitId = getArg('--skip_habit_id', '') || getArg('--skip-habit-id', '');
   const mode = getArg('--mode', process.env.AGENT_MODE || 'normal');
   const forceModel = getArg('--force_model', process.env.ROUTER_FORCE_MODEL || '');
+  const executionIntent = String(getArg('--execution_intent', process.env.ROUTER_EXECUTION_INTENT || '0')).trim() === '1';
 
   const emergency = isEmergencyStopEngaged('routing');
   if (emergency.engaged) {
@@ -298,7 +300,8 @@ function main() {
       task,
       mode,
       forceModel,
-      tokensEst
+      tokensEst,
+      executionIntent
     })
     : null;
   const routeOut = compactRouteMeta(routeMeta);

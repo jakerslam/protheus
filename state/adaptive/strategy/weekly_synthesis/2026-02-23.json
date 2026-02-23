@@ -1,7 +1,7 @@
 {
   "ok": true,
   "type": "weekly_strategy_synthesis",
-  "ts": "2026-02-23T10:02:16.873Z",
+  "ts": "2026-02-23T16:26:51.284Z",
   "date": "2026-02-23",
   "days": 7,
   "write": true,
@@ -11,10 +11,10 @@
   },
   "summary": {
     "totals": {
-      "outcomes": 25,
+      "outcomes": 29,
       "proposal_types": 6,
       "shipped": 8,
-      "no_change": 17,
+      "no_change": 21,
       "rejected": 0,
       "failed": 0
     },
@@ -72,6 +72,38 @@
         "score": 34.6
       },
       {
+        "proposal_type": "pain_adaptive_candidate",
+        "total": 6,
+        "shipped": 0,
+        "no_change": 6,
+        "rejected": 0,
+        "failed": 0,
+        "other": 0,
+        "source_eyes": {
+          "pain_adaptive_router": 6
+        },
+        "shipped_rate": 0,
+        "fail_rate": 0,
+        "no_change_rate": 1,
+        "score": -20
+      },
+      {
+        "proposal_type": "dream_cycle_escalation",
+        "total": 4,
+        "shipped": 0,
+        "no_change": 4,
+        "rejected": 0,
+        "failed": 0,
+        "other": 0,
+        "source_eyes": {
+          "pain_signal:idle_dream_cycle": 4
+        },
+        "shipped_rate": 0,
+        "fail_rate": 0,
+        "no_change_rate": 1,
+        "score": -20
+      },
+      {
         "proposal_type": "collector_preflight_remediation",
         "total": 3,
         "shipped": 0,
@@ -81,38 +113,6 @@
         "other": 0,
         "source_eyes": {
           "pain_signal:external_eyes": 3
-        },
-        "shipped_rate": 0,
-        "fail_rate": 0,
-        "no_change_rate": 1,
-        "score": -20
-      },
-      {
-        "proposal_type": "dream_cycle_escalation",
-        "total": 3,
-        "shipped": 0,
-        "no_change": 3,
-        "rejected": 0,
-        "failed": 0,
-        "other": 0,
-        "source_eyes": {
-          "pain_signal:idle_dream_cycle": 3
-        },
-        "shipped_rate": 0,
-        "fail_rate": 0,
-        "no_change_rate": 1,
-        "score": -20
-      },
-      {
-        "proposal_type": "pain_adaptive_candidate",
-        "total": 3,
-        "shipped": 0,
-        "no_change": 3,
-        "rejected": 0,
-        "failed": 0,
-        "other": 0,
-        "source_eyes": {
-          "pain_adaptive_router": 3
         },
         "shipped_rate": 0,
         "fail_rate": 0,
@@ -156,6 +156,38 @@
     ],
     "losers": [
       {
+        "proposal_type": "pain_adaptive_candidate",
+        "total": 6,
+        "shipped": 0,
+        "no_change": 6,
+        "rejected": 0,
+        "failed": 0,
+        "other": 0,
+        "source_eyes": {
+          "pain_adaptive_router": 6
+        },
+        "shipped_rate": 0,
+        "fail_rate": 0,
+        "no_change_rate": 1,
+        "score": -20
+      },
+      {
+        "proposal_type": "dream_cycle_escalation",
+        "total": 4,
+        "shipped": 0,
+        "no_change": 4,
+        "rejected": 0,
+        "failed": 0,
+        "other": 0,
+        "source_eyes": {
+          "pain_signal:idle_dream_cycle": 4
+        },
+        "shipped_rate": 0,
+        "fail_rate": 0,
+        "no_change_rate": 1,
+        "score": -20
+      },
+      {
         "proposal_type": "collector_preflight_remediation",
         "total": 3,
         "shipped": 0,
@@ -165,38 +197,6 @@
         "other": 0,
         "source_eyes": {
           "pain_signal:external_eyes": 3
-        },
-        "shipped_rate": 0,
-        "fail_rate": 0,
-        "no_change_rate": 1,
-        "score": -20
-      },
-      {
-        "proposal_type": "dream_cycle_escalation",
-        "total": 3,
-        "shipped": 0,
-        "no_change": 3,
-        "rejected": 0,
-        "failed": 0,
-        "other": 0,
-        "source_eyes": {
-          "pain_signal:idle_dream_cycle": 3
-        },
-        "shipped_rate": 0,
-        "fail_rate": 0,
-        "no_change_rate": 1,
-        "score": -20
-      },
-      {
-        "proposal_type": "pain_adaptive_candidate",
-        "total": 3,
-        "shipped": 0,
-        "no_change": 3,
-        "rejected": 0,
-        "failed": 0,
-        "other": 0,
-        "source_eyes": {
-          "pain_adaptive_router": 3
         },
         "shipped_rate": 0,
         "fail_rate": 0,
@@ -216,7 +216,7 @@
         "reason": "high_ship_rate"
       },
       {
-        "proposal_type": "collector_preflight_remediation",
+        "proposal_type": "pain_adaptive_candidate",
         "delta": -0.1,
         "reason": "low_effective_yield"
       },
@@ -226,7 +226,7 @@
         "reason": "low_effective_yield"
       },
       {
-        "proposal_type": "pain_adaptive_candidate",
+        "proposal_type": "collector_preflight_remediation",
         "delta": -0.1,
         "reason": "low_effective_yield"
       }
@@ -431,6 +431,38 @@
         "outcome": "no_change",
         "source_eye": "cross_signal_engine",
         "evidence_ref": "proposal:CSG-542500e23579a4de eye:cross_signal_engine receipt:auto_1771838259893_CSG-542500e23579a4de auto:autonomy dod_fail:decision_manual"
+      },
+      {
+        "ts": "2026-02-23T15:41:15.239Z",
+        "proposal_id": "PAINRT-43f0e508cdd117b1",
+        "proposal_type": "pain_adaptive_candidate",
+        "outcome": "no_change",
+        "source_eye": "pain_adaptive_router",
+        "evidence_ref": "proposal:PAINRT-43f0e508cdd117b1 eye:pain_adaptive_router receipt:auto_1771861265180_PAINRT-43f0e508cdd117b1 auto:autonomy dod_fail:decision_manual"
+      },
+      {
+        "ts": "2026-02-23T16:03:50.321Z",
+        "proposal_id": "PAINRT-838bb02f864669ee",
+        "proposal_type": "pain_adaptive_candidate",
+        "outcome": "no_change",
+        "source_eye": "pain_adaptive_router",
+        "evidence_ref": "proposal_queue_reconcile_v2:status_sync"
+      },
+      {
+        "ts": "2026-02-23T16:03:50.322Z",
+        "proposal_id": "PAINRT-21c6d7381b499978",
+        "proposal_type": "pain_adaptive_candidate",
+        "outcome": "no_change",
+        "source_eye": "pain_adaptive_router",
+        "evidence_ref": "proposal_queue_reconcile_v2:status_sync"
+      },
+      {
+        "ts": "2026-02-23T16:03:50.322Z",
+        "proposal_id": "PAIN-f6d9de1fe23c1b69",
+        "proposal_type": "dream_cycle_escalation",
+        "outcome": "no_change",
+        "source_eye": "pain_signal:idle_dream_cycle",
+        "evidence_ref": "proposal_queue_reconcile_v2:status_sync"
       }
     ]
   }

@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "generated_at": "2026-02-23T10:35:56.533Z",
+  "generated_at": "2026-02-23T10:47:59.166Z",
   "date": "2026-02-23",
   "outcomes": {
     "window_days": 14,
@@ -87,10 +87,10 @@
   "next_steps": [
     "Hold current policies and continue periodic checkpoint audits."
   ],
-  "health_report_ts": "2026-02-23T10:35:55.448Z",
+  "health_report_ts": "2026-02-23T10:47:56.909Z",
   "slo_runbook_check": {
     "ok": true,
-    "ts": "2026-02-23T10:35:56.510Z",
+    "ts": "2026-02-23T10:47:59.129Z",
     "type": "slo_runbook_check",
     "date": "2026-02-23",
     "runbook_path": "docs/OPERATOR_RUNBOOK.md",

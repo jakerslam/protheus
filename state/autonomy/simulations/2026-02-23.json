@@ -1,60 +1,94 @@
 {
   "ok": true,
   "type": "autonomy_simulation_harness",
-  "ts": "2026-02-23T10:35:46.655Z",
+  "ts": "2026-02-23T18:29:42.296Z",
   "end_date": "2026-02-23",
   "days": 180,
-  "verdict": "pass",
-  "verdict_raw": "pass",
-  "verdict_effective": "pass",
+  "verdict": "fail",
+  "verdict_raw": "fail",
+  "verdict_effective": "fail",
   "checks": {
     "drift_rate": {
-      "value": 0.228,
+      "value": 0.243,
       "warn": 0.65,
       "fail": 0.85,
       "status": "pass"
     },
     "yield_rate": {
-      "value": 0.462,
+      "value": 0.429,
       "warn": 0.2,
       "fail": 0.08,
       "status": "pass"
     },
     "safety_stop_rate": {
-      "value": 0.02,
+      "value": 0.019,
       "warn": 0.25,
       "fail": 0.45,
       "status": "pass"
     },
     "attempt_volume": {
-      "value": 197,
+      "value": 210,
       "min": 5,
       "status": "pass"
+    },
+    "policy_hold_rate": {
+      "value": 0.3,
+      "warn": 0.2,
+      "fail": 0.35,
+      "status": "warn"
+    },
+    "budget_hold_rate": {
+      "value": 0.033,
+      "warn": 0.12,
+      "fail": 0.25,
+      "status": "pass"
+    },
+    "budget_autopause_active": {
+      "value": true,
+      "fail_when_active": true,
+      "status": "fail"
     }
   },
   "checks_effective": {
     "drift_rate": {
-      "value": 0.026,
+      "value": 0.347,
       "warn": 0.65,
       "fail": 0.85,
       "status": "pass"
     },
     "yield_rate": {
-      "value": 0.714,
+      "value": 0.429,
       "warn": 0.2,
       "fail": 0.08,
       "status": "pass"
     },
     "safety_stop_rate": {
-      "value": 0,
+      "value": 0.027,
       "warn": 0.25,
       "fail": 0.45,
       "status": "pass"
     },
     "attempt_volume": {
-      "value": 77,
+      "value": 147,
       "min": 5,
       "status": "pass"
+    },
+    "policy_hold_rate": {
+      "value": 0.429,
+      "warn": 0.2,
+      "fail": 0.35,
+      "status": "fail"
+    },
+    "budget_hold_rate": {
+      "value": 0.048,
+      "warn": 0.12,
+      "fail": 0.25,
+      "status": "pass"
+    },
+    "budget_autopause_active": {
+      "value": true,
+      "fail_when_active": true,
+      "status": "fail"
     }
   },
   "metric_integrity": {
@@ -62,32 +96,46 @@
     "baseline_preserved": true,
     "effective_projection_present": true,
     "denominator_reduction_only": true,
-    "denominator_delta": 120
+    "denominator_delta": 63
   },
   "counters": {
-    "run_rows": 209,
-    "attempts": 197,
-    "executed": 13,
+    "run_rows": 222,
+    "attempts": 210,
+    "executed": 14,
     "shipped": 6,
-    "no_progress": 45,
+    "no_progress": 51,
     "safety_stops": 4,
-    "policy_holds": 56
+    "policy_holds": 63,
+    "budget_holds": 7
   },
   "baseline_counters": {
-    "attempts": 197,
-    "executed": 13,
+    "attempts": 210,
+    "executed": 14,
     "shipped": 6,
-    "no_progress": 45,
+    "no_progress": 51,
     "safety_stops": 4,
-    "policy_holds": 56
+    "policy_holds": 63,
+    "budget_holds": 7
   },
   "effective_counters": {
-    "attempts": 77,
-    "executed": 7,
-    "shipped": 5,
-    "no_progress": 2,
-    "safety_stops": 0,
-    "policy_holds": 29
+    "attempts": 147,
+    "executed": 14,
+    "shipped": 6,
+    "no_progress": 51,
+    "safety_stops": 4,
+    "policy_holds": 63,
+    "budget_holds": 7
+  },
+  "budget_autopause": {
+    "path": "/Users/jay/.openclaw/workspace/state/autonomy/budget_autopause.json",
+    "active": true,
+    "currently_active": true,
+    "active_relevant": true,
+    "source": "idle_dream_cycle",
+    "reason": "burn_rate_exceeded",
+    "pressure": "hard",
+    "until": "2026-02-23T19:00:56.049Z",
+    "updated_at": "2026-02-23T18:18:37.697Z"
   },
   "compiler_projection": {
     "enabled": true,
@@ -96,75 +144,29 @@
     "filter_contextless_attempts": true,
     "compiler_hash": "40cc5cf18353cd99",
     "compiler_active_count": 3,
-    "accepted_attempts": 106,
-    "rejected_attempts": 91,
-    "rejected_by_reason": {
-      "objective_context_missing": 70,
-      "objective_missing": 21
-    },
-    "sample_rejected": [
-      {
-        "result": "stop_init_gate_spc",
-        "proposal_id": null,
-        "objective_id": null,
-        "reason": "objective_context_missing"
-      },
-      {
-        "result": "stop_init_gate_spc",
-        "proposal_id": null,
-        "objective_id": null,
-        "reason": "objective_context_missing"
-      },
-      {
-        "result": "no_candidates_policy_canary_cap",
-        "proposal_id": null,
-        "objective_id": null,
-        "reason": "objective_context_missing"
-      },
-      {
-        "result": "no_candidates_policy_canary_cap",
-        "proposal_id": null,
-        "objective_id": null,
-        "reason": "objective_context_missing"
-      },
-      {
-        "result": "no_candidates_policy_canary_cap",
-        "proposal_id": null,
-        "objective_id": null,
-        "reason": "objective_context_missing"
-      },
-      {
-        "result": "no_candidates_policy_unchanged_state",
-        "proposal_id": null,
-        "objective_id": null,
-        "reason": "objective_context_missing"
-      },
-      {
-        "result": "no_candidates_policy_canary_cap",
-        "proposal_id": null,
-        "objective_id": null,
-        "reason": "objective_context_missing"
-      },
-      {
-        "result": "stop_init_gate_readiness_blocked",
-        "proposal_id": null,
-        "objective_id": null,
-        "reason": "objective_context_missing"
-      }
-    ]
+    "accepted_attempts": 210,
+    "rejected_attempts": 0,
+    "skipped_attempts": 0,
+    "rejected_by_reason": {},
+    "skipped_by_reason": {},
+    "sample_rejected": [],
+    "sample_skipped": []
   },
   "queue": {
-    "total": 135,
-    "pending": 38,
+    "total": 145,
+    "pending": 45,
     "stale_pending_72h": 0
   },
   "objective_mix": {
-    "executed_total": 7,
+    "executed_total": 14,
     "objective_count": 2,
     "counts": {
-      "T1_generational_wealth_v1": 3,
+      "T1_generational_wealth_v1": 4,
       "T1_make_jay_billionaire_v1": 4
     }
   },
-  "recommendations": []
+  "recommendations": [
+    "Reduce policy-hold churn: tighten admission routing, quarantine low-actionability proposals, and cut retry pressure during governance holds.",
+    "Budget autopause is active for the current window; treat the lane as flow-blocked until autopause clears or budget policy is adjusted."
+  ]
 }

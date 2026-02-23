@@ -5,14 +5,14 @@
 # Source paths: workspace (excluding node_modules, dist, build, .git, binaries)
 
 ## Stats
-- Total markers: 71
+- Total markers: 87
 - Unique tags: 12
 
 ## Snippets by Tag
 | tag | file | line_start | line_end | preview |
 |-----|------|------------|----------|---------|
-| #tag1 | memory/SNIPPET_INDEX.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-21 # Snippet  |
-| #tag2 | memory/SNIPPET_INDEX.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-21 # Snippet  |
+| #tag1 | memory/SNIPPET_INDEX.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-23 # Snippet  |
+| #tag2 | memory/SNIPPET_INDEX.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-23 # Snippet  |
 | #tag1 | memory/_snapshots/SNIPPET_INDEX-2026-02-13-2158.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-14 # Snippet  |
 | #tag2 | memory/_snapshots/SNIPPET_INDEX-2026-02-13-2158.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-14 # Snippet  |
 | #tag1 | memory/_snapshots/SNIPPET_INDEX-2026-02-13-2159.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-14 # Snippet  |
@@ -69,6 +69,22 @@
 | #tag2 | memory/_snapshots/SNIPPET_INDEX-2026-02-20-1836.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-20 # Snippet  |
 | #tag1 | memory/_snapshots/SNIPPET_INDEX-2026-02-22-1810.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-21 # Snippet  |
 | #tag2 | memory/_snapshots/SNIPPET_INDEX-2026-02-22-1810.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-21 # Snippet  |
+| #tag1 | memory/_snapshots/SNIPPET_INDEX-2026-02-23-1003.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-23 # Snippet  |
+| #tag2 | memory/_snapshots/SNIPPET_INDEX-2026-02-23-1003.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-23 # Snippet  |
+| #tag1 | memory/_snapshots/SNIPPET_INDEX-2026-02-23-1004.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-23 # Snippet  |
+| #tag2 | memory/_snapshots/SNIPPET_INDEX-2026-02-23-1004.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-23 # Snippet  |
+| #tag1 | memory/_snapshots/SNIPPET_INDEX-2026-02-23-1013.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-23 # Snippet  |
+| #tag2 | memory/_snapshots/SNIPPET_INDEX-2026-02-23-1013.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-23 # Snippet  |
+| #tag1 | memory/_snapshots/SNIPPET_INDEX-2026-02-23-1017.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-23 # Snippet  |
+| #tag2 | memory/_snapshots/SNIPPET_INDEX-2026-02-23-1017.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-23 # Snippet  |
+| #tag1 | memory/_snapshots/SNIPPET_INDEX-2026-02-23-1020.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-23 # Snippet  |
+| #tag2 | memory/_snapshots/SNIPPET_INDEX-2026-02-23-1020.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-23 # Snippet  |
+| #tag1 | memory/_snapshots/SNIPPET_INDEX-2026-02-23-1021.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-23 # Snippet  |
+| #tag2 | memory/_snapshots/SNIPPET_INDEX-2026-02-23-1021.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-23 # Snippet  |
+| #tag1 | memory/_snapshots/SNIPPET_INDEX-2026-02-23-1022.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-23 # Snippet  |
+| #tag2 | memory/_snapshots/SNIPPET_INDEX-2026-02-23-1022.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-23 # Snippet  |
+| #tag1 | memory/_snapshots/SNIPPET_INDEX-2026-02-23-1036.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-23 # Snippet  |
+| #tag2 | memory/_snapshots/SNIPPET_INDEX-2026-02-23-1036.md | 1 | 11 | # SNIPPET_INDEX.md # Last regenerated: 2026-02-23 # Snippet  |
 | #stoplight | notes/stoplight.md | 1 | 16 | # Stoplight Billboard Hardware Notes Initial prototype spec |
 | #hardware | notes/stoplight.md | 1 | 16 | # Stoplight Billboard Hardware Notes Initial prototype spec |
 | #weight | notes/stoplight.md | 1 | 16 | # Stoplight Billboard Hardware Notes Initial prototype spec |
@@ -84,8 +100,8 @@
 | #120v | notes/stoplight.md | 14 | 29 | First attempt used a clamp system that attached to the stopl |
 
 ## Top Tags by Frequency
-1. #tag1: 29 occurrences
-2. #tag2: 29 occurrences
+1. #tag1: 37 occurrences
+2. #tag2: 37 occurrences
 3. #stoplight: 3 occurrences
 4. #installation: 2 occurrences
 5. #hardware: 1 occurrences

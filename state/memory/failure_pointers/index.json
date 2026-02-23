@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated_ts": "2026-02-23T10:02:13.438Z",
+  "updated_ts": "2026-02-23T16:26:50.280Z",
   "item_hashes": {
     "322525e41384fb34": {
       "node_id": "failure-t1-322525e4",
@@ -201,6 +201,76 @@
       "source": "autonomy_human_escalation",
       "code": "human_escalation:success_criteria_failed:artifact_delta_check",
       "ts": "2026-02-23T10:02:13.438Z"
+    },
+    "52e95f7b78770d36": {
+      "node_id": "failure-t2-52e95f7b",
+      "uid": "3bdab9e402194e033fda055d",
+      "memory_file": "memory/2026-02-23.md",
+      "date": "2026-02-23",
+      "failure_tier": 2,
+      "source": "idle_dream_cycle",
+      "code": "dream_rem:model_timeout",
+      "ts": "2026-02-23T15:30:27.936Z"
+    },
+    "a6e958c5992f5e88": {
+      "node_id": "failure-t2-a6e958c5",
+      "uid": "10ece3831f9657a05ebed828",
+      "memory_file": "memory/2026-02-23.md",
+      "date": "2026-02-23",
+      "failure_tier": 2,
+      "source": "idle_dream_cycle",
+      "code": "dream_idle:model_timeout",
+      "ts": "2026-02-23T15:30:27.962Z"
+    },
+    "17edacff98b0c33a": {
+      "node_id": "failure-t2-17edacff",
+      "uid": "7f078af782df3dd4c9f574f5",
+      "memory_file": "memory/2026-02-23.md",
+      "date": "2026-02-23",
+      "failure_tier": 2,
+      "source": "idle_dream_cycle",
+      "code": "dream_idle:idle_pass_time_budget_exceeded",
+      "ts": "2026-02-23T15:30:28.010Z"
+    },
+    "1be2986a486eac84": {
+      "node_id": "failure-t2-1be2986a",
+      "uid": "640eccd160f9d3def2fa0c33",
+      "memory_file": "memory/2026-02-23.md",
+      "date": "2026-02-23",
+      "failure_tier": 2,
+      "source": "external_eyes",
+      "code": "collector_escalation:collector_error",
+      "ts": "2026-02-23T16:03:49.501Z"
+    },
+    "0b933e01d8439579": {
+      "node_id": "failure-t2-0b933e01",
+      "uid": "da95fe218416a0ca638568f0",
+      "memory_file": "memory/2026-02-23.md",
+      "date": "2026-02-23",
+      "failure_tier": 2,
+      "source": "external_eyes",
+      "code": "collector_escalation:collector_error",
+      "ts": "2026-02-23T16:03:49.502Z"
+    },
+    "65ff815ee4ee998a": {
+      "node_id": "failure-t2-65ff815e",
+      "uid": "eb52379a79bc7e8fba6f3841",
+      "memory_file": "memory/2026-02-23.md",
+      "date": "2026-02-23",
+      "failure_tier": 2,
+      "source": "external_eyes",
+      "code": "collector_escalation:collector_error",
+      "ts": "2026-02-23T16:03:49.502Z"
+    },
+    "e28ba8566e94559c": {
+      "node_id": "failure-t2-e28ba856",
+      "uid": "f8dc2be09c35fbe605de1068",
+      "memory_file": "memory/2026-02-23.md",
+      "date": "2026-02-23",
+      "failure_tier": 2,
+      "source": "external_eyes",
+      "code": "collector_escalation:collector_error",
+      "ts": "2026-02-23T16:26:33.849Z"
     }
   }
 }

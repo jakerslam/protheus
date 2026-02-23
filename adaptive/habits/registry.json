@@ -19,7 +19,7 @@
         "last_used_ts": null
       },
       "created_ts": "2026-02-23T00:00:13.902Z",
-      "updated_ts": "2026-02-23T00:00:13.919Z"
+      "updated_ts": "2026-02-23T15:30:26.991Z"
     },
     {
       "uid": "h63c93y89php6m0vtx7bzmhz",
@@ -34,7 +34,7 @@
         "last_used_ts": null
       },
       "created_ts": "2026-02-23T00:00:13.872Z",
-      "updated_ts": "2026-02-23T00:00:13.919Z"
+      "updated_ts": "2026-02-23T15:30:26.991Z"
     },
     {
       "uid": "h3xhvd9zjg1blxys93gwgmwj",
@@ -49,7 +49,7 @@
         "last_used_ts": null
       },
       "created_ts": "2026-02-23T00:00:13.919Z",
-      "updated_ts": "2026-02-23T00:00:13.919Z"
+      "updated_ts": "2026-02-23T15:30:26.991Z"
     },
     {
       "uid": "h1uloqpwv586fu3qkjag0t7v",
@@ -64,11 +64,26 @@
         "last_used_ts": null
       },
       "created_ts": "2026-02-22T22:03:29.590Z",
-      "updated_ts": "2026-02-23T00:00:13.919Z"
+      "updated_ts": "2026-02-23T15:30:26.991Z"
+    },
+    {
+      "uid": "h2j4cwftgeb6odbe52uyho2z",
+      "id": "pain_idle_dream_cycle_ed445d71f2fe",
+      "name": "Pain Habit idle_dream_cycle dream_idle:local_model_unavailab",
+      "summary": "Dream idle phase degraded or blocked (local_model_unavailable)",
+      "routine_path": "habits/routines/pain_idle_dream_cycle_ed445d71f2fe.js",
+      "status": "disabled",
+      "usage": {
+        "uses_total": 0,
+        "uses_30d": 0,
+        "last_used_ts": null
+      },
+      "created_ts": "2026-02-23T15:30:26.991Z",
+      "updated_ts": "2026-02-23T15:30:26.991Z"
     }
   ],
   "metrics": {
-    "total_created": 4,
+    "total_created": 5,
     "total_updated": 0,
     "total_gc_deleted": 0,
     "last_gc_ts": null

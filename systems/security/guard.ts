@@ -511,19 +511,56 @@ function main() {
   }
 
   const riskyToggleGate = detectRiskyEnvToggles(process.env, approvalNote);
+  const requestActionNormalized = normalizeLower(requestAction || "apply") || "apply";
+  const nonApplyActionExempt = requestActionNormalized !== "apply";
+  const remoteApprovedDirectApply = !!(
+    remoteGate
+    && remoteGate.is_remote === true
+    && remoteGate.allowed === true
+    && normalizeLower(remoteGate.action || "") === "apply"
+    && isTruthyEnv(process.env.REMOTE_DIRECT_OVERRIDE)
+    && isTruthyEnv(process.env.BREAK_GLASS)
+  );
+  const effectiveRiskyToggleGate = (nonApplyActionExempt || remoteApprovedDirectApply)
+    ? {
+        ...riskyToggleGate,
+        ok: true,
+        reason: nonApplyActionExempt
+          ? "non_apply_action_risky_toggle_exempt"
+          : "remote_direct_apply_guarded_by_remote_gate",
+        bypassed_by_remote_gate: remoteApprovedDirectApply === true,
+        bypassed_for_non_apply_action: nonApplyActionExempt === true
+      }
+    : riskyToggleGate;
+  const effectiveRiskyToggleGateMeta = effectiveRiskyToggleGate;
+  const bypassedByRemoteGate = (effectiveRiskyToggleGateMeta as any).bypassed_by_remote_gate === true;
+  const bypassedForNonApplyAction = (effectiveRiskyToggleGateMeta as any).bypassed_for_non_apply_action === true;
+  const riskyTogglePolicy = {
+    ...effectiveRiskyToggleGate,
+    active_toggles: Array.isArray(effectiveRiskyToggleGate.active_toggles)
+      ? effectiveRiskyToggleGate.active_toggles
+      : [],
+    missing_note_keys: Array.isArray(effectiveRiskyToggleGate.missing_note_keys)
+      ? effectiveRiskyToggleGate.missing_note_keys
+      : [],
+    bypassed_by_remote_gate: bypassedByRemoteGate,
+    bypassed_for_non_apply_action: bypassedForNonApplyAction
+  };
   logRiskyToggleGate({
     ts: nowIso(),
     source: requestSource || "local",
     action: requestAction || "apply",
-    allowed: riskyToggleGate.ok === true,
-    reason: riskyToggleGate.reason || null,
-    active_toggles: riskyToggleGate.active_toggles || [],
-    missing_note_keys: riskyToggleGate.missing_note_keys || [],
+    allowed: riskyTogglePolicy.ok === true,
+    reason: riskyTogglePolicy.reason || null,
+    active_toggles: riskyTogglePolicy.active_toggles,
+    missing_note_keys: riskyTogglePolicy.missing_note_keys,
+    bypassed_by_remote_gate: riskyTogglePolicy.bypassed_by_remote_gate === true,
+    bypassed_for_non_apply_action: riskyTogglePolicy.bypassed_for_non_apply_action === true,
     files
   });
-  if (riskyToggleGate.ok !== true) {
+  if (riskyTogglePolicy.ok !== true) {
     process.stderr.write("guard: BLOCKED (risky env toggle gate)\n");
-    process.stderr.write(`  active_toggles=${(riskyToggleGate.active_toggles || []).join(",")}\n`);
+    process.stderr.write(`  active_toggles=${riskyTogglePolicy.active_toggles.join(",")}\n`);
     process.stderr.write('  approval_note must include "env_toggle" + each risky env key name\n');
     emitJson({
       ok: false,
@@ -538,7 +575,7 @@ function main() {
       request_source: requestSource || "local",
       request_action: requestAction || "apply",
       remote_policy: remoteGate,
-      risky_toggle_policy: riskyToggleGate,
+      risky_toggle_policy: riskyTogglePolicy,
       reasons
     });
     process.exit(1);
@@ -556,7 +593,7 @@ function main() {
       request_source: requestSource || "local",
       request_action: requestAction || "apply",
       remote_policy: remoteGate,
-      risky_toggle_policy: riskyToggleGate
+      risky_toggle_policy: riskyTogglePolicy
     });
     return;
   }
@@ -602,7 +639,7 @@ function main() {
       request_source: requestSource || "local",
       request_action: requestAction || "apply",
       remote_policy: remoteGate,
-      risky_toggle_policy: riskyToggleGate
+      risky_toggle_policy: riskyTogglePolicy
     });
     return;
   }
@@ -629,7 +666,7 @@ function main() {
     request_source: requestSource || "local",
     request_action: requestAction || "apply",
     remote_policy: remoteGate,
-    risky_toggle_policy: riskyToggleGate,
+    risky_toggle_policy: riskyTogglePolicy,
     reasons
   });
   process.exit(1);

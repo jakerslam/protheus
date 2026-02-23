@@ -257,5 +257,79 @@
     "sprouted_eye_id": "proto_affc19cbf503b0d7",
     "sprouted_ts": "2026-02-23T10:00:16.299Z",
     "last_result": "already_exists"
+  },
+  {
+    "id": "proto_hkuds_clawwork_repo",
+    "name": "HKUDS/ClawWork Repo",
+    "proposed_domains": [
+      "github"
+    ],
+    "proposed_parser_type": "stub",
+    "directive_ref": "T1_generational_wealth_v1",
+    "proposed_strategy_id": "default_general",
+    "proposed_campaign_ids": [
+      "objective_flow"
+    ],
+    "notes": "Watching HKUDS ClawWork multi-agent research repo for releases, commits, and updates",
+    "proposed_status": "probation",
+    "proposed_cadence_hours": 24,
+    "proposed_budgets": {
+      "max_items": 10,
+      "max_seconds": 30,
+      "max_bytes": 1048576,
+      "max_requests": 3
+    },
+    "proposed_topics": [],
+    "proposed_date": "2026-02-23",
+    "proposed_by": "external_eyes.js propose",
+    "status": "blocked",
+    "blocked_reason": "unknown_parser_type",
+    "last_attempt_ts": "2026-02-23T15:21:01.120Z",
+    "attempt_count": 1
+  },
+  {
+    "id": "proto_0d5097942d9a12e9",
+    "type": "eye_sprout",
+    "name": "Watch www.producthunt.com",
+    "proposed_domains": [
+      "www.producthunt.com"
+    ],
+    "proposed_parser_type": "producthunt_launches",
+    "directive_ref": "T1_generational_wealth_v1",
+    "proposed_strategy_id": "default_general",
+    "proposed_campaign_ids": [
+      "objective_flow"
+    ],
+    "proposed_topics": [
+      "revenue",
+      "affiliate",
+      "product_launches",
+      "producthunt",
+      "launch"
+    ],
+    "notes": "Auto-sprout candidate: domain seen 6 times across 1 eyes",
+    "auto_candidate_kind": "linkage_gap",
+    "source_stats": {
+      "hits": 6,
+      "support_eyes": [
+        "producthunt_launches"
+      ],
+      "sample_title": "AffiliateBoard — Affiliate Opportunity"
+    },
+    "proposed_status": "probation",
+    "proposed_cadence_hours": 12,
+    "proposed_budgets": {
+      "max_items": 10,
+      "max_seconds": 20,
+      "max_bytes": 524288,
+      "max_requests": 2
+    },
+    "proposed_date": "2026-02-23",
+    "proposed_by": "external_eyes.auto_sprout",
+    "auto_candidate": true,
+    "status": "sprouted",
+    "sprouted_eye_id": "proto_0d5097942d9a12e9",
+    "sprouted_ts": "2026-02-23T17:03:53.065Z",
+    "last_result": "created"
   }
 ]

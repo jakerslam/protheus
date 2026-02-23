@@ -31,10 +31,14 @@ function run() {
   const routingPath = path.join(tmpRoot, 'state', 'routing', 'routing_decisions.jsonl');
   const statePath = path.join(dreamsDir, 'idle_state.json');
   const ledgerPath = path.join(dreamsDir, 'idle_runs.jsonl');
+  const budgetStateDir = path.join(tmpRoot, 'state', 'autonomy', 'daily_budget');
+  const budgetEventsPath = path.join(tmpRoot, 'state', 'autonomy', 'budget_events.jsonl');
+  const budgetAutopausePath = path.join(tmpRoot, 'state', 'autonomy', 'budget_autopause.json');
   const testDate = new Date().toISOString().slice(0, 10);
 
   mkDir(dreamsDir);
   mkDir(path.dirname(routingPath));
+  writeJson(budgetAutopausePath, { active: false, updated_at: new Date().toISOString() });
 
   writeJson(path.join(dreamsDir, '2026-02-21.json'), {
     ts: `${testDate}T12:00:00.000Z`,
@@ -94,6 +98,9 @@ function run() {
     IDLE_DREAM_ROUTING_DECISIONS_PATH: routingPath,
     IDLE_DREAM_STATE_PATH: statePath,
     IDLE_DREAM_LEDGER_PATH: ledgerPath,
+    IDLE_DREAM_BUDGET_STATE_DIR: budgetStateDir,
+    IDLE_DREAM_BUDGET_EVENTS_PATH: budgetEventsPath,
+    IDLE_DREAM_BUDGET_AUTOPAUSE_PATH: budgetAutopausePath,
     IDLE_DREAM_FAILURE_POINTERS_DIR: failurePointersDir,
     IDLE_DREAM_SPAWN_BUDGET_ENABLED: '0',
     IDLE_DREAM_FAKE_MODELS: 'smallthinker,qwen3:4b',

@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated_at": "2026-02-23T09:18:57.741Z",
+  "updated_at": "2026-02-23T15:41:15.246Z",
   "patterns": {
     "proposal:cross_signal_opportunity|artifact_count": {
       "failures": 3,
@@ -31,6 +31,30 @@
       "passes": 1,
       "last_failure_ts": null,
       "last_pass_ts": "2026-02-23T09:18:57.739Z"
+    },
+    "proposal:pain_adaptive_candidate|postconditions_ok": {
+      "failures": 0,
+      "passes": 2,
+      "last_failure_ts": null,
+      "last_pass_ts": "2026-02-23T15:41:15.246Z"
+    },
+    "proposal:pain_adaptive_candidate|queue_outcome_logged": {
+      "failures": 0,
+      "passes": 1,
+      "last_failure_ts": null,
+      "last_pass_ts": "2026-02-23T15:41:15.246Z"
+    },
+    "proposal:pain_adaptive_candidate|artifact_count": {
+      "failures": 1,
+      "passes": 1,
+      "last_failure_ts": "2026-02-23T15:41:15.246Z",
+      "last_pass_ts": "2026-02-23T15:41:15.246Z"
+    },
+    "proposal:pain_adaptive_candidate|execution_success": {
+      "failures": 0,
+      "passes": 2,
+      "last_failure_ts": null,
+      "last_pass_ts": "2026-02-23T15:41:15.246Z"
     }
   }
 }

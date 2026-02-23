@@ -1,8 +1,8 @@
 {
   "type": "startup_attestation",
   "version": "1.0",
-  "ts": "2026-02-23T10:32:04.930Z",
-  "expires_at": "2026-02-24T10:32:04.931Z",
+  "ts": "2026-02-23T18:17:49.664Z",
+  "expires_at": "2026-02-24T18:17:49.665Z",
   "ttl_hours": 24,
   "policy_path": "config/startup_attestation_policy.json",
   "critical_hashes": [
@@ -13,18 +13,18 @@
     },
     {
       "path": "config/security_integrity_policy.json",
-      "sha256": "4f9e7e3112b719316925081fbf1b3663c076218928a899c94e3c15f38071bbcf",
-      "size_bytes": 4446
+      "sha256": "773d57a305d43c81dacdc520626cae3d3b81ec9ee334934827748ab23b145265",
+      "size_bytes": 4440
     },
     {
       "path": "config/strategies/default.json",
-      "sha256": "1e2821344f481c994516fcac372941298441573513838a320e01aca3b03ea742",
-      "size_bytes": 3275
+      "sha256": "81a472ee4115d2e6014bff12d36b75dfa0173f2f973576e27023b2a646e9274e",
+      "size_bytes": 3309
     },
     {
       "path": "systems/autonomy/autonomy_controller.js",
-      "sha256": "ceba4f5a63426de5f027d323c36fa02926f0badcaf814ff6828e5667086a7608",
-      "size_bytes": 491193
+      "sha256": "44487d4446d6606a000b575bd8b7b2573e5b348619de17f0c63447933354845c",
+      "size_bytes": 523157
     },
     {
       "path": "systems/security/capability_lease.js",
@@ -33,8 +33,8 @@
     },
     {
       "path": "systems/security/guard.js",
-      "sha256": "fdf99192f5b41934633be8b1ee45b7f045f1208b0ca627499a4107571fb5f240",
-      "size_bytes": 22177
+      "sha256": "b26f286bdc3ec2de3df97e5192b82a0b361c420c4813c7b09164c8a32fa6bf66",
+      "size_bytes": 22654
     },
     {
       "path": "systems/security/integrity_kernel.js",
@@ -53,5 +53,5 @@
     }
   ],
   "missing_paths": [],
-  "signature": "9a14717c22c04bfce9f27c0c5448b47afb8136dab050ac4e9505f1e916637670"
+  "signature": "5874aa6fc00248a2020bee05eb09e498e6ed8cf9316bac1e95df11d46c83e9f3"
 }

@@ -37,6 +37,11 @@ const YIELD_WARN = Number(process.env.AUTONOMY_SIM_YIELD_WARN || 0.2);
 const YIELD_FAIL = Number(process.env.AUTONOMY_SIM_YIELD_FAIL || 0.08);
 const SAFETY_WARN = Number(process.env.AUTONOMY_SIM_SAFETY_WARN || 0.25);
 const SAFETY_FAIL = Number(process.env.AUTONOMY_SIM_SAFETY_FAIL || 0.45);
+const POLICY_HOLD_WARN = Number(process.env.AUTONOMY_SIM_POLICY_HOLD_WARN || 0.2);
+const POLICY_HOLD_FAIL = Number(process.env.AUTONOMY_SIM_POLICY_HOLD_FAIL || 0.35);
+const BUDGET_HOLD_WARN = Number(process.env.AUTONOMY_SIM_BUDGET_HOLD_WARN || 0.12);
+const BUDGET_HOLD_FAIL = Number(process.env.AUTONOMY_SIM_BUDGET_HOLD_FAIL || 0.25);
+const BUDGET_AUTOPAUSE_ACTIVE_FAIL = String(process.env.AUTONOMY_SIM_AUTOPAUSE_ACTIVE_FAIL || '1').trim() !== '0';
 const MIN_ATTEMPTS = Math.max(1, Number(process.env.AUTONOMY_SIM_MIN_ATTEMPTS || 5));
 const MAX_WINDOW_DAYS = Math.max(1, Math.floor(Number(process.env.AUTONOMY_SIM_MAX_DAYS || 180)));
 const SIM_LINEAGE_REQUIRED = String(process.env.AUTONOMY_SIM_LINEAGE_REQUIRED || '1').trim() !== '0';
@@ -102,6 +107,27 @@ function readJson(fp, fallback) {
   }
 }
 
+function readBudgetAutopauseSnapshot(endDateStr) {
+  const fp = path.join(ROOT, 'state', 'autonomy', 'budget_autopause.json');
+  const raw = readJson(fp, {});
+  const active = raw && raw.active === true;
+  const untilMs = Number(raw && raw.until_ms || 0);
+  const nowMs = Date.now();
+  const currentlyActive = active && (!Number.isFinite(untilMs) || untilMs > nowMs);
+  const activeRelevant = currentlyActive && String(endDateStr || '') === todayStr();
+  return {
+    path: fp,
+    active: active === true,
+    currently_active: currentlyActive === true,
+    active_relevant: activeRelevant === true,
+    source: String(raw && raw.source || '').trim() || null,
+    reason: String(raw && raw.reason || '').trim() || null,
+    pressure: String(raw && raw.pressure || '').trim() || null,
+    until: String(raw && raw.until || '').trim() || null,
+    updated_at: String(raw && raw.updated_at || '').trim() || null
+  };
+}
+
 function readJsonl(fp) {
   if (!fs.existsSync(fp)) return [];
   return fs.readFileSync(fp, 'utf8')
@@ -132,15 +158,20 @@ function safeRate(num, den) {
   return n / d;
 }
 
-function buildChecks(input) {
+function buildChecks(input, context = {}) {
   const attempts = Number(input && input.attempts || 0);
   const executed = Number(input && input.executed || 0);
   const shipped = Number(input && input.shipped || 0);
   const noProgress = Number(input && input.no_progress || 0);
   const safetyStops = Number(input && input.safety_stops || 0);
+  const policyHolds = Number(input && input.policy_holds || 0);
+  const budgetHolds = Number(context && context.budget_holds || 0);
+  const autopauseActive = context && context.autopause_active === true;
   const driftRate = safeRate(noProgress, attempts);
   const yieldRate = safeRate(shipped, executed);
   const safetyRate = safeRate(safetyStops, attempts);
+  const policyHoldRate = safeRate(policyHolds, attempts);
+  const budgetHoldRate = safeRate(budgetHolds, attempts);
   return {
     drift_rate: {
       value: Number(driftRate.toFixed(3)),
@@ -164,6 +195,23 @@ function buildChecks(input) {
       value: attempts,
       min: MIN_ATTEMPTS,
       status: attempts < MIN_ATTEMPTS ? 'warn' : 'pass'
+    },
+    policy_hold_rate: {
+      value: Number(policyHoldRate.toFixed(3)),
+      warn: POLICY_HOLD_WARN,
+      fail: POLICY_HOLD_FAIL,
+      status: policyHoldRate >= POLICY_HOLD_FAIL ? 'fail' : policyHoldRate >= POLICY_HOLD_WARN ? 'warn' : 'pass'
+    },
+    budget_hold_rate: {
+      value: Number(budgetHoldRate.toFixed(3)),
+      warn: BUDGET_HOLD_WARN,
+      fail: BUDGET_HOLD_FAIL,
+      status: budgetHoldRate >= BUDGET_HOLD_FAIL ? 'fail' : budgetHoldRate >= BUDGET_HOLD_WARN ? 'warn' : 'pass'
+    },
+    budget_autopause_active: {
+      value: autopauseActive,
+      fail_when_active: BUDGET_AUTOPAUSE_ACTIVE_FAIL,
+      status: autopauseActive ? (BUDGET_AUTOPAUSE_ACTIVE_FAIL ? 'fail' : 'warn') : 'pass'
     }
   };
 }
@@ -233,6 +281,20 @@ function isPolicyHoldEvent(evt) {
     || result === 'score_only_fallback_low_execution_confidence';
 }
 
+function isBudgetHoldEvent(evt) {
+  if (!evt || evt.type !== 'autonomy_run') return false;
+  if (isRouteBudgetHoldEvent(evt)) return true;
+  const result = String(evt.result || '').toLowerCase();
+  const holdReason = String(evt.policy_hold_reason || '').toLowerCase();
+  const blockReason = String(evt.route_block_reason || '').toLowerCase();
+  return result === 'stop_init_gate_budget_autopause'
+    || result.includes('budget_autopause')
+    || holdReason.includes('budget')
+    || holdReason.includes('burn_rate')
+    || blockReason.includes('budget')
+    || blockReason.includes('burn_rate');
+}
+
 function isAttemptRunRaw(evt) {
   if (!evt || evt.type !== 'autonomy_run') return false;
   const result = String(evt.result || '');
@@ -296,6 +358,23 @@ function proposalIdFromRun(evt) {
   return id;
 }
 
+function isProposalScopedRun(evt) {
+  if (!evt || evt.type !== 'autonomy_run') return false;
+  return !!(proposalIdFromRun(evt) || objectiveIdFromRun(evt));
+}
+
+function isContextlessGateResult(evt) {
+  if (!evt || evt.type !== 'autonomy_run') return false;
+  const result = String(evt.result || '');
+  if (!result) return false;
+  return result.startsWith('stop_repeat_gate_')
+    || result.startsWith('stop_init_gate_')
+    || result.startsWith('init_gate_')
+    || result.startsWith('no_candidates_policy_')
+    || result === 'no_candidates'
+    || result === 'stop_emergency_stop';
+}
+
 function normalizeProposalRows(raw) {
   if (Array.isArray(raw)) return raw;
   if (raw && Array.isArray(raw.proposals)) return raw.proposals;
@@ -339,11 +418,52 @@ function resolveRunContext(evt, proposalIndex) {
 function applyDirectiveCompilerProjection(attempts, proposalIndex, directiveCompiler) {
   const accepted = [];
   const rejected = [];
+  const skipped = [];
   const rejectedByReason = {};
+  let rollingContext = { proposal_id: null, objective_id: null };
+  const proposalObjectiveCache = new Map();
 
   for (const evt of attempts) {
-    const ctx = resolveRunContext(evt, proposalIndex);
+    let ctx = resolveRunContext(evt, proposalIndex);
+    if (ctx.proposal_id && !ctx.objective_id && proposalObjectiveCache.has(ctx.proposal_id)) {
+      ctx = {
+        proposal_id: ctx.proposal_id,
+        objective_id: proposalObjectiveCache.get(ctx.proposal_id) || null,
+        source: 'proposal_objective_cache'
+      };
+    }
+    if (!ctx.objective_id && !ctx.proposal_id && (rollingContext.objective_id || rollingContext.proposal_id) && isContextlessGateResult(evt)) {
+      ctx = {
+        proposal_id: ctx.proposal_id || rollingContext.proposal_id || null,
+        objective_id: ctx.objective_id || rollingContext.objective_id || null,
+        source: 'rolling_prior_attempt'
+      };
+    }
+    if (ctx.proposal_id && ctx.objective_id) {
+      proposalObjectiveCache.set(ctx.proposal_id, ctx.objective_id);
+    }
+    if (ctx.objective_id || ctx.proposal_id) {
+      rollingContext = {
+        proposal_id: ctx.proposal_id || rollingContext.proposal_id || null,
+        objective_id: ctx.objective_id || rollingContext.objective_id || null
+      };
+    }
+
     if (SIM_LINEAGE_FILTER_CONTEXTLESS && !ctx.objective_id && !ctx.proposal_id) {
+      if (isContextlessGateResult(evt) && !isProposalScopedRun(evt)) {
+        skipped.push({
+          evt,
+          context: ctx,
+          lineage: {
+            pass: true,
+            reason: 'non_proposal_gate',
+            objective_id: null,
+            root_objective_id: null,
+            lineage_path: []
+          }
+        });
+        continue;
+      }
       const row = {
         pass: false,
         reason: 'objective_context_missing',
@@ -377,12 +497,22 @@ function applyDirectiveCompilerProjection(attempts, proposalIndex, directiveComp
       continue;
     }
 
+    if (ctx.source === 'rolling_prior_attempt') {
+      accepted.push({
+        ...evt,
+        proposal_id: proposalIdFromRun(evt) || ctx.proposal_id || null,
+        objective_id: objectiveIdFromRun(evt) || ctx.objective_id || null,
+        context_source: ctx.source
+      });
+      continue;
+    }
     accepted.push(evt);
   }
 
   return {
     accepted,
     rejected,
+    skipped,
     rejected_by_reason: rejectedByReason
   };
 }
@@ -420,6 +550,7 @@ function computeSimulation(endDateStr, days) {
   const runRows = runs.filter((row) => row && row.type === 'autonomy_run');
   const baselineAttemptsRaw = runRows.filter(isAttemptRunRaw);
   const baselinePolicyHolds = baselineAttemptsRaw.filter(isPolicyHoldEvent);
+  const baselineBudgetHolds = baselinePolicyHolds.filter(isBudgetHoldEvent);
   const baselineAttempts = baselineAttemptsRaw.filter((row) => !isPolicyHoldEvent(row));
   const baselineExecutedRaw = runRows.filter((row) => row && row.result === 'executed');
   const baselineExecuted = baselineExecutedRaw.filter((row) => !isPolicyHoldEvent(row));
@@ -441,6 +572,7 @@ function computeSimulation(endDateStr, days) {
   const noProgress = attempts.filter(isNoProgress);
   const safetyStops = attempts.filter(isSafetyStop);
   const effectivePolicyHolds = compilerProjection.accepted.filter(isPolicyHoldEvent);
+  const effectiveBudgetHolds = effectivePolicyHolds.filter(isBudgetHoldEvent);
 
   const objectiveCounts = {};
   for (const row of executed) {
@@ -450,13 +582,15 @@ function computeSimulation(endDateStr, days) {
   }
 
   const queue = queueSnapshotForWindow(dates);
+  const budgetAutopause = readBudgetAutopauseSnapshot(endDateStr);
   const baselineCounters = {
     attempts: baselineAttemptsRaw.length,
     executed: baselineExecuted.length,
     shipped: baselineShipped.length,
     no_progress: baselineNoProgress.length,
     safety_stops: baselineSafetyStops.length,
-    policy_holds: baselinePolicyHolds.length
+    policy_holds: baselinePolicyHolds.length,
+    budget_holds: baselineBudgetHolds.length
   };
   const effectiveCounters = {
     attempts: attempts.length,
@@ -464,10 +598,17 @@ function computeSimulation(endDateStr, days) {
     shipped: shipped.length,
     no_progress: noProgress.length,
     safety_stops: safetyStops.length,
-    policy_holds: effectivePolicyHolds.length
+    policy_holds: effectivePolicyHolds.length,
+    budget_holds: effectiveBudgetHolds.length
   };
-  const checksRaw = buildChecks(baselineCounters);
-  const checksEffective = buildChecks(effectiveCounters);
+  const checksRaw = buildChecks(baselineCounters, {
+    budget_holds: baselineCounters.budget_holds,
+    autopause_active: budgetAutopause.active_relevant === true
+  });
+  const checksEffective = buildChecks(effectiveCounters, {
+    budget_holds: effectiveCounters.budget_holds,
+    autopause_active: budgetAutopause.active_relevant === true
+  });
   const verdictRaw = verdictFromChecks(checksRaw);
   const verdictEffective = verdictFromChecks(checksEffective);
   const integrity = {
@@ -485,6 +626,15 @@ function computeSimulation(endDateStr, days) {
   }
   if (checksRaw.yield_rate.status !== 'pass' || checksEffective.yield_rate.status !== 'pass') {
     recommendations.push('Bias selection toward high-value, executable proposals and reduce medium-risk capacity until shipped rate recovers.');
+  }
+  if (checksRaw.policy_hold_rate.status !== 'pass' || checksEffective.policy_hold_rate.status !== 'pass') {
+    recommendations.push('Reduce policy-hold churn: tighten admission routing, quarantine low-actionability proposals, and cut retry pressure during governance holds.');
+  }
+  if (checksRaw.budget_hold_rate.status !== 'pass' || checksEffective.budget_hold_rate.status !== 'pass') {
+    recommendations.push('Budget holds are elevated; reduce action frequency or projected token cost before resuming full autonomy cadence.');
+  }
+  if (checksRaw.budget_autopause_active.status !== 'pass') {
+    recommendations.push('Budget autopause is active for the current window; treat the lane as flow-blocked until autopause clears or budget policy is adjusted.');
   }
   if (queue.pending > 80 || queue.stale_pending_72h > 10) {
     recommendations.push('Run proposal queue SLO drain to park stale backlog and reduce queue pressure.');
@@ -509,10 +659,12 @@ function computeSimulation(endDateStr, days) {
       shipped: baselineCounters.shipped,
       no_progress: baselineCounters.no_progress,
       safety_stops: baselineCounters.safety_stops,
-      policy_holds: baselineCounters.policy_holds
+      policy_holds: baselineCounters.policy_holds,
+      budget_holds: baselineCounters.budget_holds
     },
     baseline_counters: baselineCounters,
     effective_counters: effectiveCounters,
+    budget_autopause: budgetAutopause,
     compiler_projection: {
       enabled: SIM_LINEAGE_REQUIRED === true,
       lineage_require_t1_root: SIM_LINEAGE_REQUIRE_T1_ROOT === true,
@@ -522,8 +674,20 @@ function computeSimulation(endDateStr, days) {
       compiler_active_count: Number(directiveCompiler.active_count || 0),
       accepted_attempts: compilerProjection.accepted.length,
       rejected_attempts: compilerProjection.rejected.length,
+      skipped_attempts: Array.isArray(compilerProjection.skipped) ? compilerProjection.skipped.length : 0,
       rejected_by_reason: compilerProjection.rejected_by_reason || {},
+      skipped_by_reason: (Array.isArray(compilerProjection.skipped) ? compilerProjection.skipped : []).reduce((acc, row) => {
+        const key = String(row && row.lineage && row.lineage.reason || 'unknown');
+        acc[key] = Number(acc[key] || 0) + 1;
+        return acc;
+      }, {}),
       sample_rejected: compilerProjection.rejected.slice(0, 8).map((row) => ({
+        result: String(row && row.evt && row.evt.result || ''),
+        proposal_id: row && row.context ? row.context.proposal_id : null,
+        objective_id: row && row.context ? row.context.objective_id : null,
+        reason: row && row.lineage ? row.lineage.reason || null : null
+      })),
+      sample_skipped: (Array.isArray(compilerProjection.skipped) ? compilerProjection.skipped : []).slice(0, 6).map((row) => ({
         result: String(row && row.evt && row.evt.result || ''),
         proposal_id: row && row.context ? row.context.proposal_id : null,
         objective_id: row && row.context ? row.context.objective_id : null,

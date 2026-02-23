@@ -1,9 +1,9 @@
 {
   "ok": true,
   "type": "alignment_oracle",
-  "ts": "2026-02-23T07:49:59.692Z",
+  "ts": "2026-02-23T16:26:53.820Z",
   "date": "2026-02-23",
-  "alignment_score": 68.22,
+  "alignment_score": 63.51,
   "alignment": {
     "enabled": true,
     "include_legacy_executed": false,
@@ -12,16 +12,16 @@
     "current_week": {
       "start": "2026-02-17",
       "end": "2026-02-23",
-      "sample": 2,
-      "sample_raw": 12,
+      "sample": 4,
+      "sample_raw": 14,
       "filtered_legacy": 10,
       "include_legacy_executed": false,
-      "score": 68.22,
+      "score": 63.51,
       "components": {
-        "revenue_potential": 59,
-        "compounding_value": 68.75,
-        "risk_reduction": 100,
-        "learning_velocity": 40
+        "revenue_potential": 54.5,
+        "compounding_value": 64.38,
+        "risk_reduction": 80,
+        "learning_velocity": 64
       }
     },
     "previous_week": {
@@ -49,7 +49,9 @@
       "auto_1771628338422_PRP-9eca862955cf4462",
       "auto_1771628824347_PRP-d97b20e8b824f700",
       "auto_1771697621319_PRP-28492a3aa16ac61f",
-      "auto_1771699848911_CSG-3c7677ecc41e6fba"
+      "auto_1771699848911_CSG-3c7677ecc41e6fba",
+      "auto_1771838259893_CSG-542500e23579a4de",
+      "auto_1771861265180_PAINRT-43f0e508cdd117b1"
     ],
     "proposal_ids": [
       "EYE-8e2312aaef07134e",
@@ -62,7 +64,9 @@
       "PRP-9eca862955cf4462",
       "PRP-d97b20e8b824f700",
       "PRP-28492a3aa16ac61f",
-      "CSG-3c7677ecc41e6fba"
+      "CSG-3c7677ecc41e6fba",
+      "CSG-542500e23579a4de",
+      "PAINRT-43f0e508cdd117b1"
     ],
     "objective_ids": [
       "T1_generational_wealth_v1"

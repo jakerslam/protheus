@@ -42,7 +42,7 @@ const ANOMALIES_DIR = path.join(SENSORY_DIR, 'anomalies');
 const RECEIPTS_DIR = path.join(SENSORY_DIR, 'receipts');
 const CROSS_SIGNAL_HYPOTHESES_DIR = path.join(SENSORY_DIR, 'cross_signal', 'hypotheses');
 const EYES_CONFIG_PATH = resolveCatalogPath(path.join(__dirname, '..', '..'));
-const EYES_STATE_REGISTRY_PATH = path.join(__dirname, '..', '..', 'state', 'sensory', 'eyes', 'registry.json');
+const EYES_STATE_REGISTRY_PATH = path.join(SENSORY_DIR, 'eyes', 'registry.json');
 
 const SENSORY_MIN_RELEVANCE_SCORE = Number(process.env.SENSORY_MIN_RELEVANCE_SCORE || 42);
 const SENSORY_MIN_DIRECTIVE_FIT = Number(process.env.SENSORY_MIN_DIRECTIVE_FIT || 25);
@@ -1439,6 +1439,8 @@ function proposalPreGate(proposal) {
     : [];
   const actionSpec = proposal.action_spec && typeof proposal.action_spec === 'object' ? proposal.action_spec : null;
   const blob = [title, command, validation.join(' ')].join(' ').trim();
+  const hasOpportunity = OPPORTUNITY_MARKER_RE.test(blob.toLowerCase());
+  const hasConcreteChange = CONCRETE_CHANGE_RE.test(blob);
   if (!title || title.length < 12) return { allow: false, reason: 'title_too_short' };
   if (!command || command.length < 8) return { allow: false, reason: 'missing_command' };
   if (!COMMAND_PREFIX_RE.test(command)) return { allow: false, reason: 'command_not_executable' };
@@ -1450,7 +1452,8 @@ function proposalPreGate(proposal) {
     const nextCmd = normalizeText(actionSpec && actionSpec.next_command);
     if (!actionSpec || !nextCmd || verify.length === 0 || !rollback) return { allow: false, reason: 'action_spec_missing' };
   }
-  if (META_COORDINATION_RE.test(blob) && !CONCRETE_CHANGE_RE.test(blob) && !MEASURABLE_OUTCOME_RE.test(blob)) {
+  if (!hasConcreteChange && !hasOpportunity) return { allow: false, reason: 'concrete_delta_missing' };
+  if (META_COORDINATION_RE.test(blob) && !hasConcreteChange && !MEASURABLE_OUTCOME_RE.test(blob)) {
     return { allow: false, reason: 'meta_noop' };
   }
   return { allow: true, reason: null };

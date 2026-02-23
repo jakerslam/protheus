@@ -55,6 +55,7 @@ const {
   annotateCampaignPriority,
   buildCampaignDecompositionPlans
 } = require('../../lib/strategy_campaign_scheduler.js');
+const { classifyProposalType } = require('../../lib/proposal_type_classifier.js');
 const {
   evaluateTier1Governance,
   classifyAndRecordException,
@@ -172,6 +173,11 @@ const AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS = Number(process.env.AUTONOMY_ROUTE_BL
 const AUTONOMY_ROUTE_BLOCK_SELF_HEAL_ENABLED = String(process.env.AUTONOMY_ROUTE_BLOCK_SELF_HEAL_ENABLED || '1') !== '0';
 const AUTONOMY_ROUTE_BLOCK_SELF_HEAL_MAX_PROBES = Math.max(1, Math.min(6, Number(process.env.AUTONOMY_ROUTE_BLOCK_SELF_HEAL_MAX_PROBES || 2)));
 const AUTONOMY_ROUTE_BLOCK_FALLBACK_SCORE_ONLY = String(process.env.AUTONOMY_ROUTE_BLOCK_FALLBACK_SCORE_ONLY || '1') !== '0';
+const AUTONOMY_ROUTE_BLOCK_PREFILTER_ENABLED = String(process.env.AUTONOMY_ROUTE_BLOCK_PREFILTER_ENABLED || '1') !== '0';
+const AUTONOMY_ROUTE_BLOCK_PREFILTER_WINDOW_HOURS = Math.max(1, Number(process.env.AUTONOMY_ROUTE_BLOCK_PREFILTER_WINDOW_HOURS || 24));
+const AUTONOMY_ROUTE_BLOCK_PREFILTER_MAX_EVENTS = Math.max(50, Number(process.env.AUTONOMY_ROUTE_BLOCK_PREFILTER_MAX_EVENTS || 800));
+const AUTONOMY_ROUTE_BLOCK_PREFILTER_MIN_OBSERVATIONS = Math.max(1, Number(process.env.AUTONOMY_ROUTE_BLOCK_PREFILTER_MIN_OBSERVATIONS || 2));
+const AUTONOMY_ROUTE_BLOCK_PREFILTER_MAX_RATE = clampNumber(Number(process.env.AUTONOMY_ROUTE_BLOCK_PREFILTER_MAX_RATE || 0.7), 0.2, 1);
 const AUTONOMY_MIN_DOPAMINE_LAST_SCORE = Number(process.env.AUTONOMY_MIN_DOPAMINE_LAST_SCORE || 0);
 const AUTONOMY_MIN_DOPAMINE_AVG7 = Number(process.env.AUTONOMY_MIN_DOPAMINE_AVG7 || 0);
 const AUTONOMY_MIN_ROUTE_TOKENS = Number(process.env.AUTONOMY_MIN_ROUTE_TOKENS || 500);
@@ -179,6 +185,27 @@ const AUTONOMY_SKIP_STUB = String(process.env.AUTONOMY_SKIP_STUB || '1') !== '0'
 const AUTONOMY_MAX_RUNS_PER_DAY = Number(process.env.AUTONOMY_MAX_RUNS_PER_DAY || 4);
 const AUTONOMY_MIN_DAILY_EXECUTIONS = Math.max(0, Number(process.env.AUTONOMY_MIN_DAILY_EXECUTIONS || 1));
 const AUTONOMY_MIN_MINUTES_BETWEEN_RUNS = Number(process.env.AUTONOMY_MIN_MINUTES_BETWEEN_RUNS || 15);
+const AUTONOMY_POLICY_HOLD_COOLDOWN_MINUTES = Number(process.env.AUTONOMY_POLICY_HOLD_COOLDOWN_MINUTES || AUTONOMY_MIN_MINUTES_BETWEEN_RUNS);
+const AUTONOMY_POLICY_HOLD_PRESSURE_WINDOW_HOURS = Math.max(1, Number(process.env.AUTONOMY_POLICY_HOLD_PRESSURE_WINDOW_HOURS || 24));
+const AUTONOMY_POLICY_HOLD_PRESSURE_MIN_SAMPLES = Math.max(1, Number(process.env.AUTONOMY_POLICY_HOLD_PRESSURE_MIN_SAMPLES || 6));
+const AUTONOMY_POLICY_HOLD_PRESSURE_WARN_RATE = clampNumber(
+  Number(process.env.AUTONOMY_POLICY_HOLD_PRESSURE_WARN_RATE || 0.25),
+  0.05,
+  1
+);
+const AUTONOMY_POLICY_HOLD_PRESSURE_HARD_RATE = clampNumber(
+  Number(process.env.AUTONOMY_POLICY_HOLD_PRESSURE_HARD_RATE || 0.4),
+  AUTONOMY_POLICY_HOLD_PRESSURE_WARN_RATE,
+  1
+);
+const AUTONOMY_POLICY_HOLD_COOLDOWN_WARN_MINUTES = Math.max(
+  AUTONOMY_POLICY_HOLD_COOLDOWN_MINUTES,
+  Number(process.env.AUTONOMY_POLICY_HOLD_COOLDOWN_WARN_MINUTES || Math.max(AUTONOMY_POLICY_HOLD_COOLDOWN_MINUTES * 2, 30))
+);
+const AUTONOMY_POLICY_HOLD_COOLDOWN_HARD_MINUTES = Math.max(
+  AUTONOMY_POLICY_HOLD_COOLDOWN_WARN_MINUTES,
+  Number(process.env.AUTONOMY_POLICY_HOLD_COOLDOWN_HARD_MINUTES || Math.max(AUTONOMY_POLICY_HOLD_COOLDOWN_MINUTES * 4, 60))
+);
 const AUTONOMY_UNCHANGED_SHORT_CIRCUIT_ENABLED = String(process.env.AUTONOMY_UNCHANGED_SHORT_CIRCUIT_ENABLED || '1') !== '0';
 const AUTONOMY_UNCHANGED_SHORT_CIRCUIT_MINUTES = Number(process.env.AUTONOMY_UNCHANGED_SHORT_CIRCUIT_MINUTES || 30);
 const AUTONOMY_CANDIDATE_EXHAUSTED_REFRESH_ENABLED = String(process.env.AUTONOMY_CANDIDATE_EXHAUSTED_REFRESH_ENABLED || '1') !== '0';
@@ -255,6 +282,7 @@ const AUTONOMY_SPC_BASELINE_DAYS = Number(process.env.AUTONOMY_SPC_BASELINE_DAYS
 const AUTONOMY_SPC_BASELINE_MIN_DAYS = Number(process.env.AUTONOMY_SPC_BASELINE_MIN_DAYS || 7);
 const AUTONOMY_SPC_SIGMA = Number(process.env.AUTONOMY_SPC_SIGMA || 3);
 const AUTONOMY_RUN_LOCK_STALE_MINUTES = Number(process.env.AUTONOMY_RUN_LOCK_STALE_MINUTES || 90);
+const AUTONOMY_RUN_LOCK_DEAD_PID_GRACE_MINUTES = Math.max(0, Number(process.env.AUTONOMY_RUN_LOCK_DEAD_PID_GRACE_MINUTES || 1));
 const AUTONOMY_HARD_MAX_DAILY_RUNS_CAP = Number(process.env.AUTONOMY_HARD_MAX_DAILY_RUNS_CAP || 20);
 const AUTONOMY_HARD_MAX_DAILY_TOKEN_CAP = Number(process.env.AUTONOMY_HARD_MAX_DAILY_TOKEN_CAP || 12000);
 const AUTONOMY_HARD_MAX_TOKENS_PER_ACTION = Number(process.env.AUTONOMY_HARD_MAX_TOKENS_PER_ACTION || 4000);
@@ -325,6 +353,20 @@ const AUTONOMY_PREEXEC_CRITERIA_GATE_ENABLED = String(process.env.AUTONOMY_PREEX
 const AUTONOMY_PREEXEC_CRITERIA_COOLDOWN_HOURS = Math.max(1, Number(process.env.AUTONOMY_PREEXEC_CRITERIA_COOLDOWN_HOURS || AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS));
 const AUTONOMY_EXECUTE_CONFIDENCE_MARGIN = Math.max(0, Number(process.env.AUTONOMY_EXECUTE_CONFIDENCE_MARGIN || 4));
 const AUTONOMY_EXECUTE_MIN_VALUE_SIGNAL_BONUS = Math.max(0, Number(process.env.AUTONOMY_EXECUTE_MIN_VALUE_SIGNAL_BONUS || 5));
+const AUTONOMY_EXECUTE_CONFIDENCE_ADAPTIVE_ENABLED = String(process.env.AUTONOMY_EXECUTE_CONFIDENCE_ADAPTIVE_ENABLED || '1') !== '0';
+const AUTONOMY_EXECUTE_CONFIDENCE_HISTORY_DAYS = Math.max(1, Number(process.env.AUTONOMY_EXECUTE_CONFIDENCE_HISTORY_DAYS || 7));
+const AUTONOMY_EXECUTE_CONFIDENCE_LOW_RISK_RELAX_COMPOSITE = Math.max(0, Number(process.env.AUTONOMY_EXECUTE_CONFIDENCE_LOW_RISK_RELAX_COMPOSITE || 2));
+const AUTONOMY_EXECUTE_CONFIDENCE_LOW_RISK_RELAX_VALUE = Math.max(0, Number(process.env.AUTONOMY_EXECUTE_CONFIDENCE_LOW_RISK_RELAX_VALUE || 4));
+const AUTONOMY_EXECUTE_CONFIDENCE_FALLBACK_RELAX_EVERY = Math.max(1, Number(process.env.AUTONOMY_EXECUTE_CONFIDENCE_FALLBACK_RELAX_EVERY || 3));
+const AUTONOMY_EXECUTE_CONFIDENCE_FALLBACK_RELAX_STEP = Math.max(0, Number(process.env.AUTONOMY_EXECUTE_CONFIDENCE_FALLBACK_RELAX_STEP || 1));
+const AUTONOMY_EXECUTE_CONFIDENCE_FALLBACK_RELAX_MAX = Math.max(0, Number(process.env.AUTONOMY_EXECUTE_CONFIDENCE_FALLBACK_RELAX_MAX || 3));
+const AUTONOMY_EXECUTE_CONFIDENCE_NO_CHANGE_TIGHTEN_MIN_EXECUTED = Math.max(1, Number(process.env.AUTONOMY_EXECUTE_CONFIDENCE_NO_CHANGE_TIGHTEN_MIN_EXECUTED || 3));
+const AUTONOMY_EXECUTE_CONFIDENCE_NO_CHANGE_TIGHTEN_THRESHOLD = clampNumber(Number(process.env.AUTONOMY_EXECUTE_CONFIDENCE_NO_CHANGE_TIGHTEN_THRESHOLD || 0.8), 0, 1);
+const AUTONOMY_EXECUTE_CONFIDENCE_NO_CHANGE_TIGHTEN_STEP = Math.max(0, Number(process.env.AUTONOMY_EXECUTE_CONFIDENCE_NO_CHANGE_TIGHTEN_STEP || 1));
+const AUTONOMY_EXECUTE_CONFIDENCE_LANE_COOLDOWN_HOURS = Math.max(
+  1,
+  Number(process.env.AUTONOMY_EXECUTE_CONFIDENCE_LANE_COOLDOWN_HOURS || AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS)
+);
 const AUTONOMY_CRITERIA_PATTERN_WINDOW_DAYS = Math.max(1, Number(process.env.AUTONOMY_CRITERIA_PATTERN_WINDOW_DAYS || 14));
 const AUTONOMY_CRITERIA_PATTERN_FAIL_THRESHOLD = Math.max(1, Number(process.env.AUTONOMY_CRITERIA_PATTERN_FAIL_THRESHOLD || 2));
 const AUTONOMY_CRITERIA_PATTERN_PENALTY_PER_HIT = Math.max(1, Number(process.env.AUTONOMY_CRITERIA_PATTERN_PENALTY_PER_HIT || 6));
@@ -345,6 +387,7 @@ const AUTONOMY_DIRECTIVE_PULSE_ESCALATE_AFTER = Number(process.env.AUTONOMY_DIRE
 const AUTONOMY_DIRECTIVE_PULSE_ESCALATE_WINDOW_HOURS = Number(process.env.AUTONOMY_DIRECTIVE_PULSE_ESCALATE_WINDOW_HOURS || 24);
 const AUTONOMY_DIRECTIVE_PULSE_RESERVATION_HARD = String(process.env.AUTONOMY_DIRECTIVE_PULSE_RESERVATION_HARD || '0') === '1';
 const AUTONOMY_OBJECTIVE_BINDING_REQUIRED = String(process.env.AUTONOMY_OBJECTIVE_BINDING_REQUIRED || '1') !== '0';
+const AUTONOMY_OBJECTIVE_BINDING_FALLBACK_DIRECTIVES = String(process.env.AUTONOMY_OBJECTIVE_BINDING_FALLBACK_DIRECTIVES || '1') !== '0';
 const AUTONOMY_EXECUTE_REQUIRE_T1 = String(process.env.AUTONOMY_EXECUTE_REQUIRE_T1 || '1') !== '0';
 const AUTONOMY_OBJECTIVE_ALLOCATION_RANK_BONUS = Number(process.env.AUTONOMY_OBJECTIVE_ALLOCATION_RANK_BONUS || 0.25);
 const AUTONOMY_ALIGNMENT_DEFICIT_RANK_BONUS = clampNumber(Number(process.env.AUTONOMY_ALIGNMENT_DEFICIT_RANK_BONUS || 0.7), 0, 2);
@@ -578,7 +621,8 @@ function adaptiveExecutionCaps({
   executedNoProgressStreak,
   gateExhaustionStreak,
   shippedToday,
-  admission
+  admission,
+  policyHoldPressure
 }) {
   const baseDaily = normalizeExecutionCap(baseDailyCap, AUTONOMY_MAX_RUNS_PER_DAY, 1);
   const canaryEnabled = String(executionMode || '') === 'canary_execute';
@@ -586,6 +630,19 @@ function adaptiveExecutionCaps({
     ? normalizeExecutionCap(baseCanaryCap, AUTONOMY_CANARY_DAILY_EXEC_LIMIT, 1)
     : null;
   const summary = admission && typeof admission === 'object' ? admission : { total: 0, eligible: 0, blocked: 0 };
+  const pressure = policyHoldPressure && typeof policyHoldPressure === 'object'
+    ? policyHoldPressure
+    : { rate: 0, samples: 0, level: 'normal', applicable: false };
+  const pressureRate = clampNumber(Number(pressure.rate || 0), 0, 1);
+  const pressureSamples = Math.max(0, Number(pressure.samples || 0));
+  const pressureApplicable = pressure.applicable === true
+    || pressureSamples >= AUTONOMY_POLICY_HOLD_PRESSURE_MIN_SAMPLES;
+  const pressureLevelRaw = String(pressure.level || '').toLowerCase();
+  const pressureHard = pressureApplicable
+    && (pressureLevelRaw === 'hard' || pressureRate >= AUTONOMY_POLICY_HOLD_PRESSURE_HARD_RATE);
+  const pressureWarn = pressureApplicable
+    && !pressureHard
+    && (pressureLevelRaw === 'warn' || pressureRate >= AUTONOMY_POLICY_HOLD_PRESSURE_WARN_RATE);
   const total = Math.max(0, Number(summary.total || 0));
   const eligible = Math.max(0, Number(summary.eligible || 0));
   const eligibleRate = total > 0 ? clampNumber(eligible / total, 0, 1) : null;
@@ -598,6 +655,8 @@ function adaptiveExecutionCaps({
       && Number(shippedToday || 0) <= 0
       && eligibleRate != null
       && eligibleRate < 0.35)
+    || pressureWarn
+    || pressureHard
   );
   const highYield = (
     Number(shippedToday || 0) > 0
@@ -607,6 +666,8 @@ function adaptiveExecutionCaps({
     && eligible >= AUTONOMY_ADAPTIVE_CAPS_MIN_ELIGIBLE_FOR_UPSHIFT
     && eligibleRate != null
     && eligibleRate >= AUTONOMY_ADAPTIVE_CAPS_MIN_ELIGIBLE_RATE_FOR_UPSHIFT
+    && !pressureWarn
+    && !pressureHard
   );
 
   let daily = baseDaily;
@@ -614,18 +675,29 @@ function adaptiveExecutionCaps({
   const reasons = [];
 
   if (AUTONOMY_ADAPTIVE_CAPS_ENABLED && lowYield) {
+    const downshiftFactor = pressureHard
+      ? Math.min(AUTONOMY_ADAPTIVE_CAPS_DOWNSHIFT_FACTOR, 0.25)
+      : pressureWarn
+        ? Math.min(AUTONOMY_ADAPTIVE_CAPS_DOWNSHIFT_FACTOR, 0.4)
+        : AUTONOMY_ADAPTIVE_CAPS_DOWNSHIFT_FACTOR;
     const downshiftedDaily = Math.max(
       1,
-      Math.min(baseDaily, Math.floor(baseDaily * AUTONOMY_ADAPTIVE_CAPS_DOWNSHIFT_FACTOR))
+      Math.min(baseDaily, Math.floor(baseDaily * downshiftFactor))
     );
     if (downshiftedDaily < daily) {
       daily = downshiftedDaily;
       reasons.push('downshift_low_yield');
     }
+    if (pressureHard) {
+      if (daily > 1) daily = 1;
+      reasons.push('downshift_policy_hold_hard');
+    } else if (pressureWarn) {
+      reasons.push('downshift_policy_hold_warn');
+    }
     if (canaryEnabled && canary != null) {
       const downshiftedCanary = Math.max(
         1,
-        Math.min(baseCanary, Math.floor(baseCanary * AUTONOMY_ADAPTIVE_CAPS_DOWNSHIFT_FACTOR))
+        Math.min(baseCanary, Math.floor(baseCanary * downshiftFactor))
       );
       if (downshiftedCanary < canary) {
         canary = downshiftedCanary;
@@ -665,6 +737,12 @@ function adaptiveExecutionCaps({
     daily_runs_cap: daily,
     base_canary_daily_exec_limit: baseCanary,
     canary_daily_exec_limit: canary,
+    policy_hold_pressure: {
+      rate: Number(pressureRate.toFixed(3)),
+      samples: pressureSamples,
+      level: pressureHard ? 'hard' : pressureWarn ? 'warn' : 'normal',
+      applicable: pressureApplicable
+    },
     eligible_rate: eligibleRate == null ? null : Number(eligibleRate.toFixed(3)),
     low_yield: lowYield,
     high_yield: highYield,
@@ -1134,7 +1212,18 @@ function normalizeStoredProposalStatus(raw, fallback = 'pending') {
 function normalizeStoredProposalRow(proposal, fallback = 'pending') {
   if (!proposal || typeof proposal !== 'object') return proposal;
   const next = { ...proposal };
+  const meta = next.meta && typeof next.meta === 'object' ? next.meta : {};
+  const typeDecision = classifyProposalType(next, {
+    source_eye: normalizeSpaces(meta.source_eye)
+  });
+  next.type = String(typeDecision && typeDecision.type || 'local_state_fallback').trim().toLowerCase() || 'local_state_fallback';
   next.status = normalizeStoredProposalStatus(next.status, fallback);
+  next.meta = {
+    ...meta,
+    normalized_proposal_type: next.type,
+    proposal_type_source: String(typeDecision && typeDecision.source || ''),
+    proposal_type_inferred: !!(typeDecision && typeDecision.inferred === true)
+  };
   return next;
 }
 
@@ -1541,6 +1630,10 @@ function isPolicyHoldResult(result) {
   const r = String(result || '').trim();
   if (!r) return false;
   return r.startsWith('no_candidates_policy_')
+    || r === 'stop_init_gate_budget_autopause'
+    || r === 'stop_init_gate_readiness'
+    || r === 'stop_init_gate_readiness_blocked'
+    || r === 'stop_init_gate_criteria_quality_insufficient'
     || r === 'score_only_fallback_route_block'
     || r === 'score_only_fallback_low_execution_confidence';
 }
@@ -1568,6 +1661,71 @@ function latestAutonomyRunByResult(events, result) {
     return evt;
   }
   return null;
+}
+
+function latestPolicyHoldRunEvent(events) {
+  const rows = Array.isArray(events) ? events : [];
+  for (let i = rows.length - 1; i >= 0; i -= 1) {
+    const evt = rows[i];
+    if (!evt || evt.type !== 'autonomy_run') continue;
+    if (!isPolicyHoldRunEvent(evt)) continue;
+    return evt;
+  }
+  return null;
+}
+
+function policyHoldPressureSnapshot(events, opts = {}) {
+  const rows = Array.isArray(events) ? events : [];
+  const windowHours = Math.max(
+    1,
+    Number(opts.window_hours || AUTONOMY_POLICY_HOLD_PRESSURE_WINDOW_HOURS || 24)
+  );
+  const minSamples = Math.max(
+    1,
+    Number(opts.min_samples || AUTONOMY_POLICY_HOLD_PRESSURE_MIN_SAMPLES || 1)
+  );
+  const cutoffMs = Date.now() - (windowHours * 3600000);
+  let attempts = 0;
+  let policyHolds = 0;
+  for (const evt of rows) {
+    if (!evt || evt.type !== 'autonomy_run') continue;
+    const result = String(evt.result || '');
+    if (!result || result === 'lock_busy' || result === 'stop_repeat_gate_interval') continue;
+    const t = parseIsoTs(evt.ts);
+    if (t && t.getTime() < cutoffMs) continue;
+    attempts += 1;
+    if (isPolicyHoldRunEvent(evt)) policyHolds += 1;
+  }
+  const rate = attempts > 0 ? clampNumber(policyHolds / attempts, 0, 1) : 0;
+  const applicable = attempts >= minSamples;
+  const level = !applicable
+    ? 'normal'
+    : rate >= AUTONOMY_POLICY_HOLD_PRESSURE_HARD_RATE
+      ? 'hard'
+      : rate >= AUTONOMY_POLICY_HOLD_PRESSURE_WARN_RATE
+        ? 'warn'
+        : 'normal';
+  return {
+    window_hours: windowHours,
+    min_samples: minSamples,
+    samples: attempts,
+    policy_holds: policyHolds,
+    rate: Number(rate.toFixed(3)),
+    level,
+    applicable
+  };
+}
+
+function policyHoldCooldownMinutesForPressure(baseMinutes, pressure) {
+  let cooldown = Math.max(0, Number(baseMinutes || 0));
+  const snapshot = pressure && typeof pressure === 'object' ? pressure : {};
+  const level = String(snapshot.level || '').toLowerCase();
+  if (snapshot.applicable === true && level === 'hard') {
+    cooldown = Math.max(cooldown, AUTONOMY_POLICY_HOLD_COOLDOWN_HARD_MINUTES);
+  } else if (snapshot.applicable === true && level === 'warn') {
+    cooldown = Math.max(cooldown, AUTONOMY_POLICY_HOLD_COOLDOWN_WARN_MINUTES);
+  }
+  return Math.max(0, Math.round(cooldown));
 }
 
 function ageHours(dateStr) {
@@ -1651,6 +1809,28 @@ function setCapabilityCooldown(capabilityKey, hours, reason) {
 
 function capabilityCooldownActive(capabilityKey) {
   const key = capabilityCooldownKey(capabilityKey);
+  if (!key) return false;
+  return cooldownActive(key);
+}
+
+function executeConfidenceCooldownKey(capabilityKey, objectiveId, proposalType) {
+  const objective = sanitizeDirectiveObjectiveId(objectiveId || '');
+  if (objective) {
+    return `exec_confidence:objective:${String(objective).toLowerCase().replace(/[^a-z0-9:_-]/g, '_')}`;
+  }
+  const capKey = String(capabilityKey || '').trim().toLowerCase();
+  if (capKey) {
+    return `exec_confidence:capability:${capKey.replace(/[^a-z0-9:_-]/g, '_')}`;
+  }
+  const type = String(proposalType || '').trim().toLowerCase();
+  if (type) {
+    return `exec_confidence:type:${type.replace(/[^a-z0-9:_-]/g, '_')}`;
+  }
+  return '';
+}
+
+function executeConfidenceCooldownActive(capabilityKey, objectiveId, proposalType) {
+  const key = executeConfidenceCooldownKey(capabilityKey, objectiveId, proposalType);
   if (!key) return false;
   return cooldownActive(key);
 }
@@ -1763,6 +1943,78 @@ function isAttemptRunEvent(evt) {
 
 function attemptEvents(events) {
   return events.filter(isAttemptRunEvent);
+}
+
+function runEventProposalId(evt) {
+  if (!evt || typeof evt !== 'object') return '';
+  const topEscalation = evt.top_escalation && typeof evt.top_escalation === 'object'
+    ? evt.top_escalation
+    : {};
+  return normalizeSpaces(
+    evt.proposal_id
+    || evt.selected_proposal_id
+    || topEscalation.proposal_id
+    || ''
+  );
+}
+
+function runEventObjectiveId(evt) {
+  if (!evt || typeof evt !== 'object') return '';
+  const pulse = evt.directive_pulse && typeof evt.directive_pulse === 'object'
+    ? evt.directive_pulse
+    : {};
+  const binding = evt.objective_binding && typeof evt.objective_binding === 'object'
+    ? evt.objective_binding
+    : {};
+  const topEscalation = evt.top_escalation && typeof evt.top_escalation === 'object'
+    ? evt.top_escalation
+    : {};
+  return sanitizeDirectiveObjectiveId(
+    pulse.objective_id
+    || evt.objective_id
+    || binding.objective_id
+    || topEscalation.objective_id
+    || ''
+  ) || '';
+}
+
+function isCapacityCountedAttemptEvent(evt) {
+  if (!evt || evt.type !== 'autonomy_run') return false;
+  const result = String(evt.result || '');
+  if (!result) return false;
+  if (evt.policy_hold === true) return false;
+  if (isPolicyHoldRunEvent(evt)) return false;
+  if (result === 'lock_busy' || result === 'stop_repeat_gate_interval') return false;
+  if (isScoreOnlyResult(result)) return false;
+  if (result === 'executed') return true;
+  if (isAttemptRunEvent(evt) && !!runEventProposalId(evt)) return true;
+  return false;
+}
+
+function capacityCountedAttemptEvents(events) {
+  return (events || []).filter(isCapacityCountedAttemptEvent);
+}
+
+function deriveRepeatGateAnchor(evt) {
+  if (!evt || typeof evt !== 'object') return {};
+  const proposalId = runEventProposalId(evt);
+  const objectiveId = runEventObjectiveId(evt);
+  const out = {};
+  if (proposalId) out.proposal_id = proposalId;
+  if (objectiveId) out.objective_id = objectiveId;
+  const binding = evt.objective_binding && typeof evt.objective_binding === 'object'
+    ? evt.objective_binding
+    : null;
+  if (binding && objectiveId) {
+    out.objective_binding = {
+      pass: binding.pass !== false,
+      required: binding.required === true,
+      objective_id: objectiveId,
+      source: binding.source || 'repeat_gate_anchor',
+      valid: binding.valid !== false
+    };
+  }
+  return out;
 }
 
 function isScoreOnlyResult(result) {
@@ -4224,6 +4476,238 @@ function countEyeOutcomesInLastHours(events, eyeRef, outcome, hours) {
   return count;
 }
 
+function executeConfidenceHistoryMatch(evt, proposalType, capabilityKey) {
+  if (!evt || evt.type !== 'autonomy_run') return false;
+  const capKey = String(capabilityKey || '').trim().toLowerCase();
+  const evtCap = String(evt.capability_key || '').trim().toLowerCase();
+  if (capKey && evtCap) return evtCap === capKey;
+  const type = String(proposalType || '').trim().toLowerCase();
+  const evtType = String(evt.proposal_type || '').trim().toLowerCase();
+  if (type && evtType) return evtType === type;
+  return false;
+}
+
+function collectExecuteConfidenceHistory(dateStr, proposalType, capabilityKey, days = 7) {
+  const windowDays = clampNumber(Number(days || 7), 1, 30);
+  const out = {
+    window_days: windowDays,
+    proposal_type: String(proposalType || '').trim().toLowerCase() || null,
+    capability_key: String(capabilityKey || '').trim().toLowerCase() || null,
+    matched_events: 0,
+    confidence_fallback: 0,
+    route_blocked: 0,
+    executed: 0,
+    shipped: 0,
+    no_change: 0,
+    reverted: 0,
+    no_change_rate: 0,
+    reverted_rate: 0
+  };
+  for (const d of dateWindow(dateStr, windowDays)) {
+    for (const evt of readRuns(d)) {
+      if (!executeConfidenceHistoryMatch(evt, proposalType, capabilityKey)) continue;
+      out.matched_events += 1;
+      const result = String(evt.result || '').trim();
+      if (result === 'score_only_fallback_low_execution_confidence') {
+        out.confidence_fallback += 1;
+        continue;
+      }
+      if (result === 'score_only_fallback_route_block' || result === 'init_gate_blocked_route') {
+        out.route_blocked += 1;
+        continue;
+      }
+      if (result !== 'executed') continue;
+      out.executed += 1;
+      const outcome = String(evt.outcome || '').trim().toLowerCase();
+      if (outcome === 'shipped') out.shipped += 1;
+      else if (outcome === 'no_change') out.no_change += 1;
+      else if (outcome === 'reverted') out.reverted += 1;
+    }
+  }
+  if (out.executed > 0) {
+    out.no_change_rate = Number((out.no_change / out.executed).toFixed(3));
+    out.reverted_rate = Number((out.reverted / out.executed).toFixed(3));
+  }
+  return out;
+}
+
+function computeExecuteConfidencePolicy(dateStr, proposal, capabilityKey, proposalRisk, executionMode) {
+  const type = String(proposal && proposal.type || '').trim().toLowerCase();
+  const risk = normalizedRisk(proposalRisk);
+  const baseCompositeMargin = Math.max(0, Number(AUTONOMY_EXECUTE_CONFIDENCE_MARGIN || 0));
+  const baseValueMargin = Math.max(0, Number(AUTONOMY_EXECUTE_MIN_VALUE_SIGNAL_BONUS || 0));
+  let compositeMargin = baseCompositeMargin;
+  let valueMargin = baseValueMargin;
+  const reasons = [];
+  const history = collectExecuteConfidenceHistory(
+    dateStr,
+    type,
+    capabilityKey,
+    AUTONOMY_EXECUTE_CONFIDENCE_HISTORY_DAYS
+  );
+  if (
+    AUTONOMY_EXECUTE_CONFIDENCE_ADAPTIVE_ENABLED
+    && String(executionMode || '') === 'canary_execute'
+    && risk === 'low'
+  ) {
+    compositeMargin = Math.max(0, compositeMargin - AUTONOMY_EXECUTE_CONFIDENCE_LOW_RISK_RELAX_COMPOSITE);
+    valueMargin = Math.max(0, valueMargin - AUTONOMY_EXECUTE_CONFIDENCE_LOW_RISK_RELAX_VALUE);
+    reasons.push('low_risk_canary_relax');
+  }
+  if (
+    AUTONOMY_EXECUTE_CONFIDENCE_ADAPTIVE_ENABLED
+    && history.reverted === 0
+    && history.confidence_fallback >= AUTONOMY_EXECUTE_CONFIDENCE_FALLBACK_RELAX_EVERY
+  ) {
+    const relaxSteps = Math.floor(history.confidence_fallback / AUTONOMY_EXECUTE_CONFIDENCE_FALLBACK_RELAX_EVERY);
+    const relaxRaw = relaxSteps * AUTONOMY_EXECUTE_CONFIDENCE_FALLBACK_RELAX_STEP;
+    const relax = clampNumber(relaxRaw, 0, AUTONOMY_EXECUTE_CONFIDENCE_FALLBACK_RELAX_MAX);
+    if (relax > 0) {
+      compositeMargin = Math.max(0, compositeMargin - relax);
+      valueMargin = Math.max(0, valueMargin - relax);
+      reasons.push('fallback_churn_relax');
+    }
+  }
+  if (
+    AUTONOMY_EXECUTE_CONFIDENCE_ADAPTIVE_ENABLED
+    && history.executed >= AUTONOMY_EXECUTE_CONFIDENCE_NO_CHANGE_TIGHTEN_MIN_EXECUTED
+    && history.no_change_rate >= AUTONOMY_EXECUTE_CONFIDENCE_NO_CHANGE_TIGHTEN_THRESHOLD
+  ) {
+    compositeMargin += AUTONOMY_EXECUTE_CONFIDENCE_NO_CHANGE_TIGHTEN_STEP;
+    valueMargin += AUTONOMY_EXECUTE_CONFIDENCE_NO_CHANGE_TIGHTEN_STEP;
+    reasons.push('high_no_change_tighten');
+  }
+  if (history.reverted > 0) {
+    compositeMargin = Math.max(compositeMargin, baseCompositeMargin);
+    valueMargin = Math.max(valueMargin, baseValueMargin);
+    reasons.push('reverted_restore_base');
+  }
+  return {
+    adaptive_enabled: AUTONOMY_EXECUTE_CONFIDENCE_ADAPTIVE_ENABLED,
+    proposal_type: type || null,
+    capability_key: String(capabilityKey || '').trim().toLowerCase() || null,
+    risk,
+    execution_mode: String(executionMode || ''),
+    base: {
+      composite_margin: baseCompositeMargin,
+      value_margin: baseValueMargin
+    },
+    applied: {
+      composite_margin: Math.max(0, Number(compositeMargin || 0)),
+      value_margin: Math.max(0, Number(valueMargin || 0))
+    },
+    history,
+    reasons
+  };
+}
+
+function isRouteExecutionSampleEvent(evt) {
+  if (!evt || evt.type !== 'autonomy_run') return false;
+  const result = String(evt.result || '').trim();
+  if (!result) return false;
+  if (result === 'score_only_fallback_route_block' || result === 'init_gate_blocked_route') return true;
+  if (String(evt.execution_target || '').trim().toLowerCase() === 'route') {
+    return result === 'executed';
+  }
+  if (result === 'executed' && evt.route_summary && typeof evt.route_summary === 'object') return true;
+  return false;
+}
+
+function recentAutonomyRunEventsInLastHours(hours, maxEvents = 800) {
+  const h = Math.max(1, Number(hours || 1));
+  const cap = Math.max(50, Number(maxEvents || 800));
+  const cutoffMs = Date.now() - (h * 60 * 60 * 1000);
+  if (!fs.existsSync(RUNS_DIR)) return [];
+  const files = fs.readdirSync(RUNS_DIR)
+    .filter(f => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f))
+    .sort()
+    .reverse();
+  const out = [];
+  for (const file of files) {
+    const rows = readJsonl(path.join(RUNS_DIR, file));
+    for (let i = rows.length - 1; i >= 0; i -= 1) {
+      const evt = rows[i];
+      if (!evt || evt.type !== 'autonomy_run') continue;
+      const ts = parseIsoTs(evt.ts);
+      if (!ts) continue;
+      const tsMs = ts.getTime();
+      if (!Number.isFinite(tsMs) || tsMs < cutoffMs) continue;
+      out.push(evt);
+      if (out.length >= cap) return out;
+    }
+  }
+  return out;
+}
+
+function summarizeRecentRouteBlockTelemetry(hours, maxEvents = 800) {
+  const events = recentAutonomyRunEventsInLastHours(hours, maxEvents);
+  const byCapability = {};
+  for (const evt of events) {
+    if (!isRouteExecutionSampleEvent(evt)) continue;
+    const key = String(evt.capability_key || '').trim().toLowerCase();
+    if (!key) continue;
+    if (!byCapability[key]) {
+      byCapability[key] = { attempts: 0, route_blocked: 0, route_block_rate: 0 };
+    }
+    byCapability[key].attempts += 1;
+    if (evt.result === 'score_only_fallback_route_block' || evt.result === 'init_gate_blocked_route') {
+      byCapability[key].route_blocked += 1;
+    }
+  }
+  for (const key of Object.keys(byCapability)) {
+    const row = byCapability[key];
+    row.route_block_rate = row.attempts > 0
+      ? Number((Number(row.route_blocked || 0) / Number(row.attempts || 1)).toFixed(3))
+      : 0;
+  }
+  return {
+    window_hours: Math.max(1, Number(hours || 1)),
+    sample_events: events.length,
+    by_capability: byCapability
+  };
+}
+
+function evaluateRouteBlockPrefilter(telemetry, capabilityKey) {
+  const key = String(capabilityKey || '').trim().toLowerCase();
+  const out = {
+    enabled: AUTONOMY_ROUTE_BLOCK_PREFILTER_ENABLED,
+    applicable: false,
+    pass: true,
+    reason: 'disabled',
+    capability_key: key || null,
+    window_hours: AUTONOMY_ROUTE_BLOCK_PREFILTER_WINDOW_HOURS,
+    min_observations: AUTONOMY_ROUTE_BLOCK_PREFILTER_MIN_OBSERVATIONS,
+    max_block_rate: AUTONOMY_ROUTE_BLOCK_PREFILTER_MAX_RATE,
+    attempts: 0,
+    route_blocked: 0,
+    route_block_rate: 0
+  };
+  if (!AUTONOMY_ROUTE_BLOCK_PREFILTER_ENABLED) return out;
+  out.reason = 'missing_capability_key';
+  if (!key) return out;
+  out.applicable = true;
+  const rows = telemetry && telemetry.by_capability && typeof telemetry.by_capability === 'object'
+    ? telemetry.by_capability
+    : {};
+  const row = rows[key] && typeof rows[key] === 'object' ? rows[key] : null;
+  out.reason = 'no_recent_route_samples';
+  if (!row) return out;
+  out.attempts = Math.max(0, Number(row.attempts || 0));
+  out.route_blocked = Math.max(0, Number(row.route_blocked || 0));
+  out.route_block_rate = clampNumber(Number(row.route_block_rate || 0), 0, 1);
+  if (out.attempts < AUTONOMY_ROUTE_BLOCK_PREFILTER_MIN_OBSERVATIONS) {
+    out.reason = 'insufficient_observations';
+    return out;
+  }
+  if (out.route_block_rate >= AUTONOMY_ROUTE_BLOCK_PREFILTER_MAX_RATE) {
+    out.pass = false;
+    out.reason = 'route_block_rate_exceeded';
+    return out;
+  }
+  out.reason = 'pass';
+  return out;
+}
+
 function proposalStatus(overlayEnt) {
   if (!overlayEnt || !overlayEnt.decision) return 'pending';
   if (overlayEnt.decision === 'accept') return 'accepted';
@@ -4869,6 +5353,31 @@ function parseActuationSpec(p) {
   return { kind, params };
 }
 
+let objectiveBindingFallbackCache = null;
+
+function loadFallbackDirectiveObjectiveIds() {
+  if (objectiveBindingFallbackCache && Array.isArray(objectiveBindingFallbackCache.ids)) {
+    return objectiveBindingFallbackCache.ids.slice();
+  }
+  let directives = [];
+  try {
+    directives = loadActiveDirectives({ allowMissing: true });
+  } catch {
+    directives = [];
+  }
+  const ids = [];
+  const seen = new Set();
+  for (const row of directives) {
+    const id = sanitizeDirectiveObjectiveId(row && row.id);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  ids.sort((a, b) => String(a).localeCompare(String(b)));
+  objectiveBindingFallbackCache = { ids };
+  return ids.slice();
+}
+
 function objectiveIdsFromPulseContext(pulseCtx) {
   const set = new Set();
   const objectives = pulseCtx && Array.isArray(pulseCtx.objectives)
@@ -4878,6 +5387,12 @@ function objectiveIdsFromPulseContext(pulseCtx) {
     const id = String(row && row.id || '').trim();
     if (!id) continue;
     set.add(id);
+  }
+  if (set.size === 0 && AUTONOMY_OBJECTIVE_BINDING_FALLBACK_DIRECTIVES) {
+    for (const id of loadFallbackDirectiveObjectiveIds()) {
+      if (!id) continue;
+      set.add(id);
+    }
   }
   return set;
 }
@@ -5471,6 +5986,9 @@ function extractSuccessCriteriaMetricValues(proposal, opts = {}) {
   setMetric('artifact_count', artifactsDelta);
   setMetric('entries_count', entriesDelta);
   setMetric('revenue_actions_count', revenueDelta);
+  setDefaultMetric('artifact_count', artifactsDelta != null ? artifactsDelta : 0);
+  setDefaultMetric('entries_count', entriesDelta != null ? entriesDelta : 0);
+  setDefaultMetric('revenue_actions_count', revenueDelta != null ? revenueDelta : 0);
 
   const outreachArtifact = readFirstNumericMetric(sources, [
     'outreach_artifact',
@@ -7159,11 +7677,16 @@ function statusCmd(dateStr) {
   const runs = runsSinceReset(readRuns(dateStr));
   const directivePulseCtx = buildDirectivePulseContext(dateStr);
   const attempts = attemptEvents(runs);
+  const capAttempts = capacityCountedAttemptEvents(runs);
   const executedRuns = runs.filter(e => e && e.type === 'autonomy_run' && e.result === 'executed');
+  const policyHoldPressure = policyHoldPressureSnapshot(runs);
   const mediumExecuted = executedCountByRisk(executedRuns, 'medium');
   const attemptsToday = attempts.length;
+  const attemptsTodayForCap = capAttempts.length;
   const lastAttempt = attempts.length ? attempts[attempts.length - 1] : null;
+  const lastCapacityAttempt = capAttempts.length ? capAttempts[capAttempts.length - 1] : lastAttempt;
   const lastAttemptMinutesAgo = lastAttempt ? minutesSinceTs(lastAttempt.ts) : null;
+  const lastCapacityAttemptMinutesAgo = lastCapacityAttempt ? minutesSinceTs(lastCapacityAttempt.ts) : null;
   const noProgressStreak = consecutiveNoProgressRuns(runs);
   const executedNoProgressStreak = consecutiveExecutedNoProgressRuns(runs);
   const gateExhaustionStreak = consecutiveGateExhaustedAttempts(attempts);
@@ -7180,12 +7703,13 @@ function statusCmd(dateStr) {
     executionMode,
     baseDailyCap: baseMaxRunsPerDay,
     baseCanaryCap: baseCanaryDailyExecLimit,
-    attemptsToday,
+    attemptsToday: attemptsTodayForCap,
     noProgressStreak,
     executedNoProgressStreak,
     gateExhaustionStreak,
     shippedToday,
-    admission: poolAdmissionSummary
+    admission: poolAdmissionSummary,
+    policyHoldPressure
   });
   const maxRunsPerDay = adaptiveCaps.daily_runs_cap;
   const canaryDailyExecLimit = executionMode === 'canary_execute'
@@ -7233,12 +7757,16 @@ function statusCmd(dateStr) {
       shipped_today: shippedToday,
       executed_today: executedRuns.length,
       medium_executed_today: mediumExecuted,
-      attempts_today: attemptsToday,
+      attempts_today: attemptsTodayForCap,
+      attempts_total: attemptsToday,
+      attempts_counted_for_cap: attemptsTodayForCap,
       base_max_runs_per_day: baseMaxRunsPerDay,
       max_runs_per_day: maxRunsPerDay,
       adaptive_caps: adaptiveCaps,
+      policy_hold_pressure: policyHoldPressure,
       min_minutes_between_runs: AUTONOMY_MIN_MINUTES_BETWEEN_RUNS,
-      last_attempt_minutes_ago: lastAttemptMinutesAgo == null ? null : Number(lastAttemptMinutesAgo.toFixed(2)),
+      last_attempt_minutes_ago: lastCapacityAttemptMinutesAgo == null ? null : Number(lastCapacityAttemptMinutesAgo.toFixed(2)),
+      last_attempt_minutes_ago_any: lastAttemptMinutesAgo == null ? null : Number(lastAttemptMinutesAgo.toFixed(2)),
       max_eye_no_progress_24h: AUTONOMY_MAX_EYE_NO_PROGRESS_24H,
       explore_used: exploreUsed,
       exploit_used: exploitUsed,
@@ -7616,7 +8144,10 @@ function readinessCmd(dateStr) {
 
   const runs = runsSinceReset(readRuns(dateStr));
   const attempts = attemptEvents(runs);
+  const capAttempts = capacityCountedAttemptEvents(runs);
+  const policyHoldPressure = policyHoldPressureSnapshot(runs);
   const attemptsToday = attempts.length;
+  const attemptsTodayForCap = capAttempts.length;
   const executedRuns = runs.filter(e => e && e.type === 'autonomy_run' && e.result === 'executed');
   const executedToday = executedRuns.length;
   const shippedToday = shippedCount(runs);
@@ -7624,16 +8155,19 @@ function readinessCmd(dateStr) {
   const executedNoProgressStreak = consecutiveExecutedNoProgressRuns(runs);
   const gateExhaustionStreak = consecutiveGateExhaustedAttempts(attempts);
   const lastAttempt = attempts.length ? attempts[attempts.length - 1] : null;
+  const lastCapacityAttempt = capAttempts.length ? capAttempts[capAttempts.length - 1] : lastAttempt;
   const lastAttemptMinutesAgo = lastAttempt ? minutesSinceTs(lastAttempt.ts) : null;
+  const lastCapacityAttemptMinutesAgo = lastCapacityAttempt ? minutesSinceTs(lastCapacityAttempt.ts) : null;
   const adaptiveCaps = adaptiveExecutionCaps({
     executionMode,
     baseDailyCap: baseMaxRunsPerDay,
     baseCanaryCap: baseCanaryDailyExecLimit,
-    attemptsToday,
+    attemptsToday: attemptsTodayForCap,
     noProgressStreak,
     executedNoProgressStreak,
     gateExhaustionStreak,
-    shippedToday
+    shippedToday,
+    policyHoldPressure
   });
   const maxRunsPerDay = adaptiveCaps.daily_runs_cap;
   const canaryDailyExecLimit = executionMode === 'canary_execute'
@@ -7703,10 +8237,14 @@ function readinessCmd(dateStr) {
     });
   }
 
-  if (maxRunsPerDay > 0 && attemptsToday >= maxRunsPerDay && !executionQuotaDeficit) {
+  if (maxRunsPerDay > 0 && attemptsTodayForCap >= maxRunsPerDay && !executionQuotaDeficit) {
     addBlocker('daily_cap', 'daily run cap reached', {
       next_at: startOfNextUtcDay(dateStr),
-      meta: { attempts_today: attemptsToday, max_runs_per_day: maxRunsPerDay }
+      meta: {
+        attempts_today: attemptsTodayForCap,
+        attempts_total: attemptsToday,
+        max_runs_per_day: maxRunsPerDay
+      }
     });
   }
 
@@ -7725,14 +8263,15 @@ function readinessCmd(dateStr) {
 
   if (
     AUTONOMY_MIN_MINUTES_BETWEEN_RUNS > 0
-    && lastAttemptMinutesAgo != null
-    && lastAttemptMinutesAgo < AUTONOMY_MIN_MINUTES_BETWEEN_RUNS
+    && lastCapacityAttemptMinutesAgo != null
+    && lastCapacityAttemptMinutesAgo < AUTONOMY_MIN_MINUTES_BETWEEN_RUNS
     && !executionQuotaDeficit
   ) {
     addBlocker('interval', 'minimum interval between runs not elapsed', {
-      next_at: isoAfterMinutes(AUTONOMY_MIN_MINUTES_BETWEEN_RUNS - lastAttemptMinutesAgo),
+      next_at: isoAfterMinutes(AUTONOMY_MIN_MINUTES_BETWEEN_RUNS - lastCapacityAttemptMinutesAgo),
       meta: {
-        last_attempt_minutes_ago: Number(lastAttemptMinutesAgo.toFixed(2)),
+        last_attempt_minutes_ago: Number(lastCapacityAttemptMinutesAgo.toFixed(2)),
+        last_attempt_minutes_ago_any: lastAttemptMinutesAgo == null ? null : Number(lastAttemptMinutesAgo.toFixed(2)),
         min_minutes_between_runs: AUTONOMY_MIN_MINUTES_BETWEEN_RUNS
       }
     });
@@ -7978,6 +8517,46 @@ function runCmd(dateStr, opts = {}) {
     return;
   }
 
+  const priorRunsForPolicyHoldCooldown = runsSinceReset(readRuns(dateStr));
+  const lastPolicyHoldRun = latestPolicyHoldRunEvent(priorRunsForPolicyHoldCooldown);
+  const policyHoldPressure = policyHoldPressureSnapshot(priorRunsForPolicyHoldCooldown);
+  const policyHoldCooldownMinutes = policyHoldCooldownMinutesForPressure(
+    Math.max(0, Number(AUTONOMY_POLICY_HOLD_COOLDOWN_MINUTES || 0)),
+    policyHoldPressure
+  );
+  const lastPolicyHoldMinutesAgo = lastPolicyHoldRun ? minutesSinceTs(lastPolicyHoldRun.ts) : null;
+  if (
+    !shadowOnly
+    && policyHoldCooldownMinutes > 0
+    && lastPolicyHoldMinutesAgo != null
+    && lastPolicyHoldMinutesAgo < policyHoldCooldownMinutes
+  ) {
+    const remainingMinutes = Math.max(0, policyHoldCooldownMinutes - Number(lastPolicyHoldMinutesAgo || 0));
+    writeRun(dateStr, {
+      ts: nowIso(),
+      type: 'autonomy_run',
+      result: 'stop_repeat_gate_interval',
+      interval_scope: 'policy_hold',
+      last_policy_hold_result: String(lastPolicyHoldRun.result || ''),
+      last_policy_hold_minutes_ago: Number(lastPolicyHoldMinutesAgo.toFixed(2)),
+      min_minutes_between_runs: policyHoldCooldownMinutes,
+      policy_hold_pressure: policyHoldPressure,
+      next_runnable_at: isoAfterMinutes(remainingMinutes)
+    });
+    process.stdout.write(JSON.stringify({
+      ok: true,
+      result: 'stop_repeat_gate_interval',
+      interval_scope: 'policy_hold',
+      last_policy_hold_result: String(lastPolicyHoldRun.result || ''),
+      last_policy_hold_minutes_ago: Number(lastPolicyHoldMinutesAgo.toFixed(2)),
+      min_minutes_between_runs: policyHoldCooldownMinutes,
+      policy_hold_pressure: policyHoldPressure,
+      next_runnable_at: isoAfterMinutes(remainingMinutes),
+      ts: nowIso()
+    }) + '\n');
+    return;
+  }
+
   if (
     AUTONOMY_REQUIRE_READINESS_FOR_EXECUTE
     && strategy
@@ -8004,10 +8583,16 @@ function runCmd(dateStr, opts = {}) {
       const readinessStopResult = readinessFailedChecks.includes('success_criteria_quality_insufficient_rate')
         ? 'stop_init_gate_criteria_quality_insufficient'
         : 'stop_init_gate_readiness';
+      const readinessHoldReason = readinessStopResult === 'stop_init_gate_criteria_quality_insufficient'
+        ? 'success_criteria_quality_insufficient_rate'
+        : 'strategy_readiness';
       writeRun(dateStr, {
         ts: nowIso(),
         type: 'autonomy_run',
         result: readinessStopResult,
+        policy_hold: true,
+        hold_scope: 'readiness',
+        hold_reason: readinessHoldReason,
         strategy_id: strategy.id,
         execution_mode: executionMode,
         readiness_code: readiness.code,
@@ -8017,6 +8602,9 @@ function runCmd(dateStr, opts = {}) {
       process.stdout.write(JSON.stringify({
         ok: true,
         result: readinessStopResult,
+        policy_hold: true,
+        hold_scope: 'readiness',
+        hold_reason: readinessHoldReason,
         strategy_id: strategy.id,
         execution_mode: executionMode,
         readiness: readinessDetails,
@@ -8274,11 +8862,15 @@ function runCmd(dateStr, opts = {}) {
 
   const priorRuns = runsSinceReset(readRuns(dateStr));
   const priorAttempts = attemptEvents(priorRuns);
+  const priorCapAttempts = capacityCountedAttemptEvents(priorRuns);
   const attemptsToday = priorAttempts.length;
+  const attemptsTodayForCap = priorCapAttempts.length;
   const executedToday = priorRuns.filter(e => e && e.type === 'autonomy_run' && e.result === 'executed').length;
   const mediumExecutedToday = executedCountByRisk(priorRuns, 'medium');
   const lastAttempt = priorAttempts.length ? priorAttempts[priorAttempts.length - 1] : null;
+  const lastCapacityAttempt = priorCapAttempts.length ? priorCapAttempts[priorCapAttempts.length - 1] : lastAttempt;
   const lastAttemptMinutesAgo = lastAttempt ? minutesSinceTs(lastAttempt.ts) : null;
+  const lastCapacityAttemptMinutesAgo = lastCapacityAttempt ? minutesSinceTs(lastCapacityAttempt.ts) : null;
   const noProgressStreak = consecutiveNoProgressRuns(priorRuns);
   const executedNoProgressStreak = consecutiveExecutedNoProgressRuns(priorRuns);
   const gateExhaustionStreak = consecutiveGateExhaustedAttempts(priorAttempts);
@@ -8300,7 +8892,8 @@ function runCmd(dateStr, opts = {}) {
     executedNoProgressStreak,
     gateExhaustionStreak,
     shippedToday,
-    admission: admissionSummary
+    admission: admissionSummary,
+    policyHoldPressure
   });
   const maxRunsPerDay = adaptiveCaps.daily_runs_cap;
   const canaryDailyExecLimit = executionMode === 'canary_execute'
@@ -8316,6 +8909,7 @@ function runCmd(dateStr, opts = {}) {
   const calibrationProfile = computeCalibrationProfile(dateStr, true);
   const thresholds = calibrationProfile.effective_thresholds || baseThresholds();
   const directivePulseCtx = buildDirectivePulseContext(dateStr);
+  const repeatGateAnchor = deriveRepeatGateAnchor(lastCapacityAttempt || lastAttempt);
   const objectiveRuntime = objectiveRuntimeSnapshot(dateStr);
   const poolObjectiveIds = Array.from(new Set(
     pool
@@ -8328,12 +8922,12 @@ function runCmd(dateStr, opts = {}) {
   const dailyCapOverride = consumeHumanCanaryDailyCapOverrideIfAllowed({
     dateStr,
     executionMode,
-    attemptsToday,
+    attemptsToday: attemptsTodayForCap,
     maxRunsPerDay,
     shadowOnly
   });
 
-  if (!shadowOnly && maxRunsPerDay > 0 && attemptsToday >= maxRunsPerDay && dailyCapOverride.consumed !== true && !executionQuotaDeficit) {
+  if (!shadowOnly && maxRunsPerDay > 0 && attemptsTodayForCap >= maxRunsPerDay && dailyCapOverride.consumed !== true && !executionQuotaDeficit) {
     writeRun(dateStr, {
       ts: nowIso(),
       type: 'autonomy_run',
@@ -8342,9 +8936,11 @@ function runCmd(dateStr, opts = {}) {
       policy_hold: true,
       hold_scope: 'capacity',
       hold_reason: 'daily_cap',
-      attempts_today: attemptsToday,
+      attempts_today: attemptsTodayForCap,
+      attempts_total: attemptsToday,
       max_runs_per_day: maxRunsPerDay,
-      adaptive_caps: adaptiveCaps
+      adaptive_caps: adaptiveCaps,
+      ...repeatGateAnchor
     });
     process.stdout.write(JSON.stringify({
       ok: true,
@@ -8353,9 +8949,11 @@ function runCmd(dateStr, opts = {}) {
       policy_hold: true,
       hold_scope: 'capacity',
       hold_reason: 'daily_cap',
-      attempts_today: attemptsToday,
+      attempts_today: attemptsTodayForCap,
+      attempts_total: attemptsToday,
       max_runs_per_day: maxRunsPerDay,
       adaptive_caps: adaptiveCaps,
+      ...repeatGateAnchor,
       ts: nowIso()
     }) + '\n');
     return;
@@ -8402,22 +9000,26 @@ function runCmd(dateStr, opts = {}) {
     !shadowOnly
     &&
     AUTONOMY_MIN_MINUTES_BETWEEN_RUNS > 0
-    && lastAttemptMinutesAgo != null
-    && lastAttemptMinutesAgo < AUTONOMY_MIN_MINUTES_BETWEEN_RUNS
+    && lastCapacityAttemptMinutesAgo != null
+    && lastCapacityAttemptMinutesAgo < AUTONOMY_MIN_MINUTES_BETWEEN_RUNS
     && !executionQuotaDeficit
   ) {
     writeRun(dateStr, {
       ts: nowIso(),
       type: 'autonomy_run',
       result: 'stop_repeat_gate_interval',
-      last_attempt_minutes_ago: Number(lastAttemptMinutesAgo.toFixed(2)),
-      min_minutes_between_runs: AUTONOMY_MIN_MINUTES_BETWEEN_RUNS
+      last_attempt_minutes_ago: Number(lastCapacityAttemptMinutesAgo.toFixed(2)),
+      last_attempt_minutes_ago_any: lastAttemptMinutesAgo == null ? null : Number(lastAttemptMinutesAgo.toFixed(2)),
+      min_minutes_between_runs: AUTONOMY_MIN_MINUTES_BETWEEN_RUNS,
+      ...repeatGateAnchor
     });
     process.stdout.write(JSON.stringify({
       ok: true,
       result: 'stop_repeat_gate_interval',
-      last_attempt_minutes_ago: Number(lastAttemptMinutesAgo.toFixed(2)),
+      last_attempt_minutes_ago: Number(lastCapacityAttemptMinutesAgo.toFixed(2)),
+      last_attempt_minutes_ago_any: lastAttemptMinutesAgo == null ? null : Number(lastAttemptMinutesAgo.toFixed(2)),
       min_minutes_between_runs: AUTONOMY_MIN_MINUTES_BETWEEN_RUNS,
+      ...repeatGateAnchor,
       ts: nowIso()
     }) + '\n');
     return;
@@ -8462,7 +9064,8 @@ function runCmd(dateStr, opts = {}) {
       no_progress_streak: noProgressStreak,
       executed_no_progress_streak: executedNoProgressStreak,
       no_progress_limit: AUTONOMY_REPEAT_NO_PROGRESS_LIMIT,
-      shipped_today: shippedToday
+      shipped_today: shippedToday,
+      ...repeatGateAnchor
     });
     process.stdout.write(JSON.stringify({
       ok: true,
@@ -8471,6 +9074,7 @@ function runCmd(dateStr, opts = {}) {
       executed_no_progress_streak: executedNoProgressStreak,
       no_progress_limit: AUTONOMY_REPEAT_NO_PROGRESS_LIMIT,
       shipped_today: shippedToday,
+      ...repeatGateAnchor,
       ts: nowIso()
     }) + '\n');
     return;
@@ -8483,7 +9087,8 @@ function runCmd(dateStr, opts = {}) {
       result: 'stop_repeat_gate_dopamine',
       no_progress_streak: noProgressStreak,
       executed_no_progress_streak: executedNoProgressStreak,
-      dopamine
+      dopamine,
+      ...repeatGateAnchor
     });
     process.stdout.write(JSON.stringify({
       ok: true,
@@ -8491,6 +9096,7 @@ function runCmd(dateStr, opts = {}) {
       no_progress_streak: noProgressStreak,
       executed_no_progress_streak: executedNoProgressStreak,
       dopamine,
+      ...repeatGateAnchor,
       ts: nowIso()
     }) + '\n');
     return;
@@ -8678,12 +9284,23 @@ function runCmd(dateStr, opts = {}) {
       require_executable: AUTONOMY_CANARY_REQUIRE_EXECUTABLE,
       block_generic_route_task: AUTONOMY_CANARY_BLOCK_GENERIC_ROUTE_TASK
     },
+    route_block_prefilter: {
+      enabled: AUTONOMY_ROUTE_BLOCK_PREFILTER_ENABLED,
+      window_hours: AUTONOMY_ROUTE_BLOCK_PREFILTER_WINDOW_HOURS,
+      min_observations: AUTONOMY_ROUTE_BLOCK_PREFILTER_MIN_OBSERVATIONS,
+      max_block_rate: AUTONOMY_ROUTE_BLOCK_PREFILTER_MAX_RATE,
+      sample_events: 0
+    },
     optimization_policy: {
       high_accuracy_mode: AUTONOMY_OPTIMIZATION_HIGH_ACCURACY_MODE,
       min_delta_percent: optimizationMinDeltaPercent(),
       min_delta_percent_default: AUTONOMY_OPTIMIZATION_MIN_DELTA_PERCENT,
       min_delta_percent_high_accuracy: AUTONOMY_OPTIMIZATION_MIN_DELTA_PERCENT_HIGH_ACCURACY,
       require_explicit_delta: AUTONOMY_OPTIMIZATION_REQUIRE_DELTA
+    },
+    execute_confidence_policy: {
+      adaptive_enabled: AUTONOMY_EXECUTE_CONFIDENCE_ADAPTIVE_ENABLED,
+      lane_cooldown_hours: AUTONOMY_EXECUTE_CONFIDENCE_LANE_COOLDOWN_HOURS
     },
     campaign_scheduler: {
       enabled: Array.isArray(strategy && strategy.campaigns) && strategy.campaigns.length > 0
@@ -8732,6 +9349,21 @@ function runCmd(dateStr, opts = {}) {
   };
   let tierReservation = null;
   let objectiveMix = null;
+  const routeBlockPrefilterTelemetry = (
+    !shadowOnly
+    && isExecuteMode(executionMode)
+    && AUTONOMY_ROUTE_BLOCK_PREFILTER_ENABLED
+  )
+    ? summarizeRecentRouteBlockTelemetry(
+      AUTONOMY_ROUTE_BLOCK_PREFILTER_WINDOW_HOURS,
+      AUTONOMY_ROUTE_BLOCK_PREFILTER_MAX_EVENTS
+    )
+    : {
+      window_hours: AUTONOMY_ROUTE_BLOCK_PREFILTER_WINDOW_HOURS,
+      sample_events: 0,
+      by_capability: {}
+    };
+  candidateAuditPolicy.route_block_prefilter.sample_events = Number(routeBlockPrefilterTelemetry.sample_events || 0);
   for (const cand of pool) {
     const proposalId = String(cand && cand.proposal && cand.proposal.id || '');
     const proposalType = String(cand && cand.proposal && cand.proposal.type || '');
@@ -9045,6 +9677,73 @@ function runCmd(dateStr, opts = {}) {
         };
       }
       continue;
+    }
+
+    const executeConfidenceCooldownKeyCand = executeConfidenceCooldownKey(
+      capKeyCand,
+      objectiveBinding.objective_id,
+      proposalType
+    );
+    if (!shadowOnly && executeConfidenceCooldownKeyCand && cooldownActive(executeConfidenceCooldownKeyCand)) {
+      skipStats.capability_cooldown += 1;
+      bumpCount(candidateRejectedByGate, 'execute_confidence_cooldown');
+      pushCandidateAudit({
+        proposal_id: proposalId,
+        proposal_type: proposalType,
+        risk,
+        pass: false,
+        gate: 'execute_confidence_cooldown',
+        score: Number(cand.score || 0),
+        capability_key: capKeyCand || null,
+        execute_confidence_cooldown_key: executeConfidenceCooldownKeyCand,
+        reasons: ['execute_confidence_lane_cooldown_active']
+      });
+      if (!sampleCapabilityCooldown) {
+        sampleCapabilityCooldown = {
+          proposal_id: cand.proposal.id,
+          capability_key: capKeyCand || null,
+          reason: 'execute_confidence_lane_cooldown_active',
+          execute_confidence_cooldown_key: executeConfidenceCooldownKeyCand
+        };
+      }
+      continue;
+    }
+
+    if (!shadowOnly && isExecuteMode(executionMode) && capKeyCand) {
+      const routePrefilter = evaluateRouteBlockPrefilter(routeBlockPrefilterTelemetry, capKeyCand);
+      if (!routePrefilter.pass && routePrefilter.applicable) {
+        skipStats.capability_cooldown += 1;
+        bumpCount(candidateRejectedByGate, 'route_block_prefilter');
+        pushCandidateAudit({
+          proposal_id: proposalId,
+          proposal_type: proposalType,
+          risk,
+          pass: false,
+          gate: 'route_block_prefilter',
+          score: Number(cand.score || 0),
+          capability_key: capKeyCand,
+          route_block_prefilter: {
+            window_hours: routePrefilter.window_hours,
+            min_observations: routePrefilter.min_observations,
+            max_block_rate: routePrefilter.max_block_rate,
+            attempts: routePrefilter.attempts,
+            route_blocked: routePrefilter.route_blocked,
+            route_block_rate: routePrefilter.route_block_rate
+          },
+          reasons: [routePrefilter.reason || 'route_block_rate_exceeded']
+        });
+        if (!sampleCapabilityCooldown) {
+          sampleCapabilityCooldown = {
+            proposal_id: cand.proposal.id,
+            capability_key: capKeyCand,
+            reason: routePrefilter.reason || 'route_block_rate_exceeded',
+            attempts: routePrefilter.attempts,
+            route_blocked: routePrefilter.route_blocked,
+            route_block_rate: routePrefilter.route_block_rate
+          };
+        }
+        continue;
+      }
     }
 
     const compositeScoreRaw = compositeEligibilityScore(q.score, dfit.score, actionability.score);
@@ -10898,6 +11597,9 @@ function runCmd(dateStr, opts = {}) {
       ts: nowIso(),
       type: 'autonomy_run',
       result: 'stop_init_gate_budget_autopause',
+      policy_hold: true,
+      hold_scope: 'budget',
+      hold_reason: budgetAutopause && budgetAutopause.reason ? String(budgetAutopause.reason) : 'budget_autopause',
       proposal_id: p.id,
       capability_key: capabilityKey,
       directive_pulse: directivePulse,
@@ -10911,6 +11613,9 @@ function runCmd(dateStr, opts = {}) {
     process.stdout.write(JSON.stringify({
       ok: true,
       result: 'stop_init_gate_budget_autopause',
+      policy_hold: true,
+      hold_scope: 'budget',
+      hold_reason: budgetAutopause && budgetAutopause.reason ? String(budgetAutopause.reason) : 'budget_autopause',
       proposal_id: p.id,
       capability_key: capabilityKey,
       directive_pulse: directivePulse,
@@ -11464,11 +12169,36 @@ function runCmd(dateStr, opts = {}) {
     return;
   }
 
-  const executeConfidenceMinComposite = Math.max(0, Number(compositeMinScore || 0) + AUTONOMY_EXECUTE_CONFIDENCE_MARGIN);
+  const executeConfidencePolicy = computeExecuteConfidencePolicy(
+    dateStr,
+    p,
+    capabilityKey,
+    proposalRisk,
+    executionMode
+  );
+  const executeConfidenceCompositeMargin = Math.max(
+    0,
+    Number(
+      executeConfidencePolicy
+      && executeConfidencePolicy.applied
+      && executeConfidencePolicy.applied.composite_margin
+      || AUTONOMY_EXECUTE_CONFIDENCE_MARGIN
+    )
+  );
+  const executeConfidenceValueMargin = Math.max(
+    0,
+    Number(
+      executeConfidencePolicy
+      && executeConfidencePolicy.applied
+      && executeConfidencePolicy.applied.value_margin
+      || AUTONOMY_EXECUTE_MIN_VALUE_SIGNAL_BONUS
+    )
+  );
+  const executeConfidenceMinComposite = Math.max(0, Number(compositeMinScore || 0) + executeConfidenceCompositeMargin);
   const executeConfidenceMinValue = Math.max(
     0,
     Number(AUTONOMY_MIN_VALUE_SIGNAL_SCORE || 0)
-      + AUTONOMY_EXECUTE_MIN_VALUE_SIGNAL_BONUS
+      + executeConfidenceValueMargin
       + (proposalRisk === 'medium' ? Number(AUTONOMY_MEDIUM_RISK_VALUE_SIGNAL_BONUS || 0) : 0)
   );
   const executeValueSignal = Number(pick && pick.value_signal ? pick.value_signal.score || 0 : 0);
@@ -11481,7 +12211,20 @@ function runCmd(dateStr, opts = {}) {
     )
   ) {
     const confidenceHoldReason = `auto:execute_confidence_fallback cooldown_${AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS}h`;
+    const confidenceLaneHours = Math.max(1, Number(AUTONOMY_EXECUTE_CONFIDENCE_LANE_COOLDOWN_HOURS || AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS));
+    const confidenceLaneKey = executeConfidenceCooldownKey(
+      capabilityKey,
+      executionObjectiveId,
+      String(p.type || '')
+    );
     setCooldown(p.id, AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS, confidenceHoldReason);
+    if (confidenceLaneKey) {
+      setCooldown(
+        confidenceLaneKey,
+        confidenceLaneHours,
+        `${confidenceHoldReason} lane:${confidenceLaneKey}`
+      );
+    }
     const confidenceCooldown = cooldownEntry(p.id);
     const confidenceNextClearAt = confidenceCooldown ? (confidenceCooldown.until || null) : null;
     writeRun(dateStr, {
@@ -11499,6 +12242,8 @@ function runCmd(dateStr, opts = {}) {
       execution_mode: executionMode,
       score: Number(pick.score.toFixed(3)),
       cooldown_hours: AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS,
+      execute_confidence_lane_cooldown_hours: confidenceLaneHours,
+      execute_confidence_cooldown_key: confidenceLaneKey || null,
       next_clear_at: confidenceNextClearAt,
       hold_reason: confidenceHoldReason,
       confidence_gate: {
@@ -11506,8 +12251,9 @@ function runCmd(dateStr, opts = {}) {
         composite_min_required: executeConfidenceMinComposite,
         value_signal_score: executeValueSignal,
         value_signal_min_required: executeConfidenceMinValue,
-        margin_composite: AUTONOMY_EXECUTE_CONFIDENCE_MARGIN,
-        margin_value_signal: AUTONOMY_EXECUTE_MIN_VALUE_SIGNAL_BONUS
+        margin_composite: executeConfidenceCompositeMargin,
+        margin_value_signal: executeConfidenceValueMargin,
+        policy: executeConfidencePolicy
       }
     });
     process.stdout.write(JSON.stringify({
@@ -11520,6 +12266,8 @@ function runCmd(dateStr, opts = {}) {
       capability_key: capabilityKey,
       execution_mode: executionMode,
       cooldown_hours: AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS,
+      execute_confidence_lane_cooldown_hours: confidenceLaneHours,
+      execute_confidence_cooldown_key: confidenceLaneKey || null,
       next_clear_at: confidenceNextClearAt,
       hold_reason: confidenceHoldReason,
       confidence_gate: {
@@ -11527,8 +12275,9 @@ function runCmd(dateStr, opts = {}) {
         composite_min_required: executeConfidenceMinComposite,
         value_signal_score: executeValueSignal,
         value_signal_min_required: executeConfidenceMinValue,
-        margin_composite: AUTONOMY_EXECUTE_CONFIDENCE_MARGIN,
-        margin_value_signal: AUTONOMY_EXECUTE_MIN_VALUE_SIGNAL_BONUS
+        margin_composite: executeConfidenceCompositeMargin,
+        margin_value_signal: executeConfidenceValueMargin,
+        policy: executeConfidencePolicy
       },
       ts: nowIso()
     }) + '\n');
@@ -12288,8 +13037,7 @@ function acquireAutonomyRunLock(meta) {
         && processAlive === false
         && (
           !Number.isFinite(ageMinutes)
-          || staleMinutes <= 0
-          || ageMinutes > staleMinutes
+          || ageMinutes > AUTONOMY_RUN_LOCK_DEAD_PID_GRACE_MINUTES
         );
       const malformed = !existing || typeof existing !== 'object';
       const stale = staleByAge || staleByDeadPid || malformed;
@@ -12476,6 +13224,14 @@ module.exports = {
   compileDirectivePulseObjectives,
   buildDirectivePulseContext,
   assessDirectivePulse,
+  adaptiveExecutionCaps,
+  isPolicyHoldResult,
+  isPolicyHoldRunEvent,
+  latestPolicyHoldRunEvent,
+  policyHoldPressureSnapshot,
+  policyHoldCooldownMinutesForPressure,
+  executeConfidenceCooldownKey,
+  executeConfidenceCooldownActive,
   objectiveRuntimeSnapshot,
   startModelCatalogCanary,
   evaluateModelCatalogCanary,

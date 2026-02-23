@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated_ts": "2026-02-23T10:43:15.444Z",
+  "updated_ts": "2026-02-23T17:36:58.076Z",
   "signatures": {
     "4278015a179efcf9": {
       "source": "external_eyes",
@@ -517,26 +517,74 @@
       "severity": "high",
       "risk": "medium",
       "signature": "ed445d71f2fee5f7",
-      "total_count": 5,
+      "total_count": 20,
       "events": [
-        {
-          "ts": "2026-02-23T00:00:59.336Z",
-          "code": "dream_idle:local_model_unavailable"
-        },
-        {
-          "ts": "2026-02-23T00:22:54.231Z",
-          "code": "dream_idle:local_model_unavailable"
-        },
-        {
-          "ts": "2026-02-23T04:46:32.400Z",
-          "code": "dream_idle:local_model_unavailable"
-        },
         {
           "ts": "2026-02-23T10:43:15.428Z",
           "code": "dream_idle:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T16:48:32.437Z",
+          "code": "dream_idle:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T16:50:37.307Z",
+          "code": "dream_idle:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T16:54:33.653Z",
+          "code": "dream_idle:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:03:11.283Z",
+          "code": "dream_idle:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:03:58.474Z",
+          "code": "dream_idle:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:05:41.502Z",
+          "code": "dream_idle:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:12:11.512Z",
+          "code": "dream_idle:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:13:11.313Z",
+          "code": "dream_idle:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:17:41.128Z",
+          "code": "dream_idle:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:20:51.676Z",
+          "code": "dream_idle:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:21:38.465Z",
+          "code": "dream_idle:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:22:29.218Z",
+          "code": "dream_idle:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:23:34.093Z",
+          "code": "dream_idle:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:36:57.458Z",
+          "code": "dream_idle:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:36:58.064Z",
+          "code": "dream_idle:local_model_unavailable"
         }
       ],
-      "last_ts": "2026-02-23T10:43:15.428Z",
+      "last_ts": "2026-02-23T17:36:58.064Z",
       "last_summary": "Dream idle phase degraded or blocked (local_model_unavailable)",
       "last_details": "ok=false skipped=true degraded=false failed_model=none timed_out=false cooldown_until=none",
       "cooldown_until_ts": "2026-02-23T06:00:59.336Z",
@@ -552,24 +600,24 @@
       "subsystem": "routing",
       "code": "provider_outage:ollama:env_blocked",
       "summary": "Provider ollama unavailable",
-      "details": "reason=env_blocked code=1 latency_ms=92",
+      "details": "reason=env_blocked code=1 latency_ms=80",
       "severity": "low",
       "risk": "low",
       "signature": "5ded14bc3908ca66",
-      "total_count": 2,
+      "total_count": 3,
       "events": [
-        {
-          "ts": "2026-02-23T01:56:38.271Z",
-          "code": "provider_outage:ollama:env_blocked"
-        },
         {
           "ts": "2026-02-23T08:45:46.226Z",
           "code": "provider_outage:ollama:env_blocked"
+        },
+        {
+          "ts": "2026-02-23T15:23:10.516Z",
+          "code": "provider_outage:ollama:env_blocked"
         }
       ],
-      "last_ts": "2026-02-23T08:45:46.226Z",
+      "last_ts": "2026-02-23T15:23:10.516Z",
       "last_summary": "Provider ollama unavailable",
-      "last_details": "reason=env_blocked code=1 latency_ms=92",
+      "last_details": "reason=env_blocked code=1 latency_ms=80",
       "cooldown_until_ts": null,
       "last_escalation_ts": null,
       "last_proposal_id": null,
@@ -614,19 +662,379 @@
       "severity": "medium",
       "risk": "medium",
       "signature": "a86a891d7237fa0d",
-      "total_count": 1,
+      "total_count": 8,
       "events": [
         {
           "ts": "2026-02-23T03:57:57.795Z",
           "code": "collector_preflight:collector_error"
+        },
+        {
+          "ts": "2026-02-23T16:03:45.044Z",
+          "code": "collector_preflight:collector_error"
+        },
+        {
+          "ts": "2026-02-23T16:04:36.759Z",
+          "code": "collector_preflight:collector_error"
+        },
+        {
+          "ts": "2026-02-23T16:06:10.820Z",
+          "code": "collector_preflight:collector_error"
+        },
+        {
+          "ts": "2026-02-23T16:26:32.613Z",
+          "code": "collector_preflight:collector_error"
+        },
+        {
+          "ts": "2026-02-23T16:26:38.375Z",
+          "code": "collector_preflight:collector_error"
+        },
+        {
+          "ts": "2026-02-23T16:26:43.629Z",
+          "code": "collector_preflight:collector_error"
+        },
+        {
+          "ts": "2026-02-23T16:26:49.078Z",
+          "code": "collector_preflight:collector_error"
         }
       ],
-      "last_ts": "2026-02-23T03:57:57.795Z",
+      "last_ts": "2026-02-23T16:26:49.078Z",
       "last_summary": "Collector preflight failed for ollama_search",
       "last_details": "ollama_search parser=ollama_search message=fetch failed for https://ollama.com/search?o=newest",
+      "cooldown_until_ts": "2026-02-24T04:03:45.045Z",
+      "last_escalation_ts": "2026-02-23T16:03:45.051Z",
+      "last_proposal_id": "PAIN-cdb31be14065976a",
+      "defer_count": 0,
+      "last_defer_ts": null,
+      "last_defer_reason": null,
+      "last_focus_session_id": null
+    },
+    "17edacff98b0c33a": {
+      "source": "idle_dream_cycle",
+      "subsystem": "memory",
+      "code": "dream_idle:idle_pass_time_budget_exceeded",
+      "summary": "Dream idle phase degraded or blocked (idle_pass_time_budget_exceeded)",
+      "details": "ok=true skipped=false degraded=true failed_model=qwen3:4b timed_out=false cooldown_until=2026-02-23T12:31:07.911Z",
+      "severity": "medium",
+      "risk": "medium",
+      "signature": "17edacff98b0c33a",
+      "total_count": 1,
+      "events": [
+        {
+          "ts": "2026-02-23T12:25:07.923Z",
+          "code": "dream_idle:idle_pass_time_budget_exceeded"
+        }
+      ],
+      "last_ts": "2026-02-23T12:25:07.923Z",
+      "last_summary": "Dream idle phase degraded or blocked (idle_pass_time_budget_exceeded)",
+      "last_details": "ok=true skipped=false degraded=true failed_model=qwen3:4b timed_out=false cooldown_until=2026-02-23T12:31:07.911Z",
       "cooldown_until_ts": null,
       "last_escalation_ts": null,
       "last_proposal_id": null,
+      "defer_count": 0,
+      "last_defer_ts": null,
+      "last_defer_reason": null,
+      "last_focus_session_id": null
+    },
+    "a6e958c5992f5e88": {
+      "source": "idle_dream_cycle",
+      "subsystem": "memory",
+      "code": "dream_idle:model_timeout",
+      "summary": "Dream idle phase degraded or blocked (model_timeout)",
+      "details": "ok=true skipped=false degraded=true failed_model=none timed_out=false cooldown_until=none",
+      "severity": "medium",
+      "risk": "medium",
+      "signature": "a6e958c5992f5e88",
+      "total_count": 1,
+      "events": [
+        {
+          "ts": "2026-02-23T12:25:07.948Z",
+          "code": "dream_idle:model_timeout"
+        }
+      ],
+      "last_ts": "2026-02-23T12:25:07.948Z",
+      "last_summary": "Dream idle phase degraded or blocked (model_timeout)",
+      "last_details": "ok=true skipped=false degraded=true failed_model=none timed_out=false cooldown_until=none",
+      "cooldown_until_ts": null,
+      "last_escalation_ts": null,
+      "last_proposal_id": null,
+      "defer_count": 0,
+      "last_defer_ts": null,
+      "last_defer_reason": null,
+      "last_focus_session_id": null
+    },
+    "52e95f7b78770d36": {
+      "source": "idle_dream_cycle",
+      "subsystem": "memory",
+      "code": "dream_rem:model_timeout",
+      "summary": "Dream rem phase degraded or blocked (model_timeout)",
+      "details": "ok=true skipped=false degraded=true failed_model=none timed_out=false cooldown_until=none",
+      "severity": "medium",
+      "risk": "medium",
+      "signature": "52e95f7b78770d36",
+      "total_count": 1,
+      "events": [
+        {
+          "ts": "2026-02-23T12:25:07.952Z",
+          "code": "dream_rem:model_timeout"
+        }
+      ],
+      "last_ts": "2026-02-23T12:25:07.952Z",
+      "last_summary": "Dream rem phase degraded or blocked (model_timeout)",
+      "last_details": "ok=true skipped=false degraded=true failed_model=none timed_out=false cooldown_until=none",
+      "cooldown_until_ts": null,
+      "last_escalation_ts": null,
+      "last_proposal_id": null,
+      "defer_count": 0,
+      "last_defer_ts": null,
+      "last_defer_reason": null,
+      "last_focus_session_id": null
+    },
+    "65ff815ee4ee998a": {
+      "source": "external_eyes",
+      "subsystem": "sensory",
+      "code": "collector_escalation:collector_error",
+      "summary": "Persistent collector failure for moltstack_discover exceeded threshold",
+      "details": "moltstack_discover_fetch_failed (fetch failed for https://moltstack.net/api/posts)",
+      "severity": "medium",
+      "risk": "medium",
+      "signature": "65ff815ee4ee998a",
+      "total_count": 1,
+      "events": [
+        {
+          "ts": "2026-02-23T16:03:19.549Z",
+          "code": "collector_escalation:collector_error"
+        }
+      ],
+      "last_ts": "2026-02-23T16:03:19.549Z",
+      "last_summary": "Persistent collector failure for moltstack_discover exceeded threshold",
+      "last_details": "moltstack_discover_fetch_failed (fetch failed for https://moltstack.net/api/posts)",
+      "cooldown_until_ts": null,
+      "last_escalation_ts": null,
+      "last_proposal_id": null,
+      "defer_count": 0,
+      "last_defer_ts": null,
+      "last_defer_reason": null,
+      "last_focus_session_id": null
+    },
+    "0b933e01d8439579": {
+      "source": "external_eyes",
+      "subsystem": "sensory",
+      "code": "collector_escalation:collector_error",
+      "summary": "Persistent collector failure for hn_frontpage exceeded threshold",
+      "details": "hn_rss_fetch_failed (https://news.ycombinator.com/rss: collector_error:fetch failed for https://news.ycombinator.com/rss | https://hnrss.org/frontpage: collector_error:fetch failed",
+      "severity": "medium",
+      "risk": "medium",
+      "signature": "0b933e01d8439579",
+      "total_count": 1,
+      "events": [
+        {
+          "ts": "2026-02-23T16:03:46.047Z",
+          "code": "collector_escalation:collector_error"
+        }
+      ],
+      "last_ts": "2026-02-23T16:03:46.047Z",
+      "last_summary": "Persistent collector failure for hn_frontpage exceeded threshold",
+      "last_details": "hn_rss_fetch_failed (https://news.ycombinator.com/rss: collector_error:fetch failed for https://news.ycombinator.com/rss | https://hnrss.org/frontpage: collector_error:fetch failed",
+      "cooldown_until_ts": null,
+      "last_escalation_ts": null,
+      "last_proposal_id": null,
+      "defer_count": 0,
+      "last_defer_ts": null,
+      "last_defer_reason": null,
+      "last_focus_session_id": null
+    },
+    "1be2986a486eac84": {
+      "source": "external_eyes",
+      "subsystem": "sensory",
+      "code": "collector_escalation:collector_error",
+      "summary": "Persistent collector failure for ollama_search exceeded threshold",
+      "details": "fetch failed for https://ollama.com/search?o=newest",
+      "severity": "medium",
+      "risk": "medium",
+      "signature": "1be2986a486eac84",
+      "total_count": 1,
+      "events": [
+        {
+          "ts": "2026-02-23T16:03:46.399Z",
+          "code": "collector_escalation:collector_error"
+        }
+      ],
+      "last_ts": "2026-02-23T16:03:46.399Z",
+      "last_summary": "Persistent collector failure for ollama_search exceeded threshold",
+      "last_details": "fetch failed for https://ollama.com/search?o=newest",
+      "cooldown_until_ts": null,
+      "last_escalation_ts": null,
+      "last_proposal_id": null,
+      "defer_count": 0,
+      "last_defer_ts": null,
+      "last_defer_reason": null,
+      "last_focus_session_id": null
+    },
+    "e28ba8566e94559c": {
+      "source": "external_eyes",
+      "subsystem": "sensory",
+      "code": "collector_escalation:collector_error",
+      "summary": "Persistent collector failure for watch_medium_com exceeded threshold",
+      "details": "medium_rss_fetch_failed (https://medium.com/feed/tag/artificial-intelligence: collector_error:fetch failed for https://medium.com/feed/tag/artificial-intelligence | https://medium.",
+      "severity": "medium",
+      "risk": "medium",
+      "signature": "e28ba8566e94559c",
+      "total_count": 1,
+      "events": [
+        {
+          "ts": "2026-02-23T16:21:33.835Z",
+          "code": "collector_escalation:collector_error"
+        }
+      ],
+      "last_ts": "2026-02-23T16:21:33.835Z",
+      "last_summary": "Persistent collector failure for watch_medium_com exceeded threshold",
+      "last_details": "medium_rss_fetch_failed (https://medium.com/feed/tag/artificial-intelligence: collector_error:fetch failed for https://medium.com/feed/tag/artificial-intelligence | https://medium.",
+      "cooldown_until_ts": null,
+      "last_escalation_ts": null,
+      "last_proposal_id": null,
+      "defer_count": 0,
+      "last_defer_ts": null,
+      "last_defer_reason": null,
+      "last_focus_session_id": null
+    },
+    "b08c5c3826289c9d": {
+      "source": "idle_dream_cycle",
+      "subsystem": "memory",
+      "code": "dream_rem:local_model_unavailable",
+      "summary": "Dream rem phase degraded or blocked (local_model_unavailable)",
+      "details": "ok=false skipped=true degraded=false failed_model=none timed_out=false cooldown_until=none",
+      "severity": "high",
+      "risk": "medium",
+      "signature": "b08c5c3826289c9d",
+      "total_count": 30,
+      "events": [
+        {
+          "ts": "2026-02-23T16:48:31.870Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T16:48:32.467Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T16:50:37.167Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T16:50:37.313Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T16:54:33.516Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T16:54:33.661Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:03:11.171Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:03:11.289Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:03:58.357Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:03:58.480Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:05:41.219Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:05:41.525Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:12:11.401Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:12:11.518Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:13:11.201Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:13:11.320Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:17:41.017Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:17:41.133Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:20:51.566Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:20:51.682Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:21:38.350Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:21:38.472Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:22:29.108Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:22:29.224Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:23:33.981Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:23:34.099Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:36:57.339Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:36:57.465Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:36:57.914Z",
+          "code": "dream_rem:local_model_unavailable"
+        },
+        {
+          "ts": "2026-02-23T17:36:58.075Z",
+          "code": "dream_rem:local_model_unavailable"
+        }
+      ],
+      "last_ts": "2026-02-23T17:36:58.075Z",
+      "last_summary": "Dream rem phase degraded or blocked (local_model_unavailable)",
+      "last_details": "ok=false skipped=true degraded=false failed_model=none timed_out=false cooldown_until=none",
+      "cooldown_until_ts": "2026-02-23T22:48:32.467Z",
+      "last_escalation_ts": "2026-02-23T16:48:32.481Z",
+      "last_proposal_id": "PAIN-78ddb2fc2ec420a8",
       "defer_count": 0,
       "last_defer_ts": null,
       "last_defer_reason": null,

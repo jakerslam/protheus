@@ -36,6 +36,48 @@ const {
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const SCRIPT_SOURCE = 'systems/memory/idle_dream_cycle.js';
+
+function loadDreamEnvDefaults(repoRoot) {
+  const configured = String(process.env.IDLE_DREAM_ENV_FILE || '').trim();
+  const fallback = path.join(repoRoot, 'config', 'dream_cloud_routing.env');
+  const envPath = path.resolve(configured || fallback);
+  if (!envPath || !fs.existsSync(envPath)) {
+    return { loaded: false, path: envPath, applied: 0, reason: 'env_file_missing' };
+  }
+  let raw = '';
+  try {
+    raw = String(fs.readFileSync(envPath, 'utf8') || '');
+  } catch {
+    return { loaded: false, path: envPath, applied: 0, reason: 'env_file_unreadable' };
+  }
+  const lines = raw.split(/\r?\n/);
+  let applied = 0;
+  for (const line of lines) {
+    const trimmed = String(line || '').trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const body = trimmed.startsWith('export ')
+      ? trimmed.slice('export '.length).trim()
+      : trimmed;
+    const eq = body.indexOf('=');
+    if (eq <= 0) continue;
+    const key = String(body.slice(0, eq) || '').trim();
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue;
+    const existing = String(process.env[key] || '').trim();
+    if (existing) continue;
+    let value = String(body.slice(eq + 1) || '').trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"'))
+      || (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    process.env[key] = value;
+    applied += 1;
+  }
+  return { loaded: true, path: envPath, applied, reason: null };
+}
+
+const DREAM_ENV_BOOTSTRAP = loadDreamEnvDefaults(REPO_ROOT);
 const DREAMS_DIR = process.env.IDLE_DREAM_DREAMS_DIR
   ? path.resolve(String(process.env.IDLE_DREAM_DREAMS_DIR))
   : path.join(REPO_ROOT, 'state', 'memory', 'dreams');
@@ -129,6 +171,7 @@ const MODEL_PREFLIGHT_PROMPT = 'Return exactly: OK';
 const MODEL_PROBATION_ENABLED = String(process.env.IDLE_DREAM_MODEL_PROBATION_ENABLED || '1').trim() !== '0';
 const MODEL_PROBATION_FAILURE_STREAK = clampInt(process.env.IDLE_DREAM_MODEL_PROBATION_FAILURE_STREAK || 2, 2, 12);
 const MODEL_PROBATION_TTL_MS = clampInt(process.env.IDLE_DREAM_MODEL_PROBATION_TTL_MS || 45 * 60 * 1000, 60 * 1000, 12 * 60 * 60 * 1000);
+const MODEL_LIST_TIMEOUT_MS = clampInt(process.env.IDLE_DREAM_MODEL_LIST_TIMEOUT_MS || 12000, 1000, 60000);
 
 const IDLE_MODEL_ORDER = parseCsvOrder(
   process.env.IDLE_DREAM_MODEL_ORDER
@@ -423,7 +466,7 @@ function listLocalModels(state = null) {
   const fake = String(process.env.IDLE_DREAM_FAKE_MODELS || '').trim();
   if (fake) return parseCsvOrder(fake).map(normalizeModelName).filter(Boolean);
   const listed = listLocalOllamaModels({
-    timeoutMs: 5000,
+    timeoutMs: MODEL_LIST_TIMEOUT_MS,
     cwd: REPO_ROOT,
     source: 'idle_dream_cycle'
   });
@@ -714,12 +757,22 @@ function pickModel(order, available, state) {
 function pickModelWithProviderExclusions(order, available, state, blockedProviders) {
   const blocked = blockedProviders instanceof Set ? blockedProviders : new Set();
   const basePool = Array.isArray(available) ? available : [];
-  let pool = basePool;
   if (blocked.size > 0) {
     const filtered = basePool.filter((m) => !blocked.has(modelProviderKey(m)));
-    if (filtered.length > 0) pool = filtered;
+    if (filtered.length === 0) {
+      const skipped = basePool
+        .map(normalizeModelName)
+        .filter(Boolean)
+        .map((model) => ({
+          model,
+          skipped_by: 'provider_blocked',
+          provider: modelProviderKey(model)
+        }));
+      return { model: null, skipped_models: skipped };
+    }
+    return pickModel(order, filtered, state);
   }
-  return pickModel(order, pool, state);
+  return pickModel(order, basePool, state);
 }
 
 function compactProviderGate(gate) {
@@ -2305,6 +2358,14 @@ function runCycle(dateStr, opts = {}) {
   const force = opts.force === true;
   const remOnly = opts.remOnly === true;
   const state = loadState();
+  if (DREAM_ENV_BOOTSTRAP && DREAM_ENV_BOOTSTRAP.loaded === true && DREAM_ENV_BOOTSTRAP.applied > 0) {
+    appendJsonl(LEDGER_PATH, {
+      ts: nowIso(),
+      type: 'idle_dream_env_bootstrap',
+      path: DREAM_ENV_BOOTSTRAP.path,
+      applied: DREAM_ENV_BOOTSTRAP.applied
+    });
+  }
   const before = { ...state };
   let idleResult = { ok: true, skipped: true, reason: 'rem_only' };
   if (!remOnly) {

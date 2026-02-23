@@ -587,7 +587,8 @@ function runCaseGlobalBudgetAutopause(repoRoot, root) {
       complexity: 'medium',
       intent: 'summarize status',
       task: 'summarize weekly status',
-      mode: 'normal'
+      mode: 'normal',
+      executionIntent: true
     });
     process.stdout.write(JSON.stringify(d));
   `, env);
