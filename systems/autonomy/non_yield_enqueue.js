@@ -80,10 +80,65 @@ function queueIds(queue) {
   return ids;
 }
 
+function normalizeCandidateId(raw) {
+  const out = String(raw || '').replace(/[^a-z0-9_-]/gi, '').toLowerCase();
+  return out || 'unknown';
+}
+
+function candidateIdFromActionId(actionId) {
+  const id = String(actionId || '').trim().toLowerCase();
+  const m = /^act_autophagy_([a-z0-9_-]+)(?:_|$)/.exec(id);
+  return m ? String(m[1] || '') : '';
+}
+
+function activeAutophagyCandidateIds(queue) {
+  const ids = new Set();
+  for (const section of ['pending', 'approved']) {
+    const rows = Array.isArray(queue && queue[section]) ? queue[section] : [];
+    for (const row of rows) {
+      const id = candidateIdFromActionId(row && row.action_id);
+      if (!id) continue;
+      ids.add(id);
+    }
+  }
+  return ids;
+}
+
 function actionIdForCandidate(candidate, endDate) {
-  const cid = String(candidate && candidate.candidate_id || 'unknown').replace(/[^a-z0-9_-]/gi, '').toLowerCase();
+  const cid = normalizeCandidateId(candidate && candidate.candidate_id);
   const datePart = String(endDate || '').replace(/[^0-9]/g, '') || 'unknown';
   return `act_autophagy_${cid}_${datePart}`;
+}
+
+function candidateImpactScore(candidate) {
+  const row = candidate && typeof candidate === 'object' ? candidate : {};
+  const deltas = row.deltas_vs_baseline && typeof row.deltas_vs_baseline === 'object'
+    ? row.deltas_vs_baseline
+    : {};
+  const support = Math.max(0, Number(row.support_count || 0));
+  const confidence = Math.max(0, Math.min(1, Number(row.confidence || 0)));
+  const driftGain = Math.max(0, -Number(deltas.drift_rate || 0));
+  const yieldGain = Math.max(0, Number(deltas.yield_rate || 0));
+  const safetyGain = Math.max(0, -Number(deltas.safety_stop_rate || 0));
+  const impact = (driftGain * 1200) + (yieldGain * 700) + (safetyGain * 900) + (support * 0.35) + (confidence * 25);
+  return Number(impact.toFixed(6));
+}
+
+function rankReplayPassCandidates(rows) {
+  const arr = Array.isArray(rows) ? rows.slice() : [];
+  arr.sort((a, b) => {
+    const ai = candidateImpactScore(a);
+    const bi = candidateImpactScore(b);
+    if (bi !== ai) return bi - ai;
+    const ac = Number(a && a.confidence || 0);
+    const bc = Number(b && b.confidence || 0);
+    if (bc !== ac) return bc - ac;
+    const as = Number(a && a.support_count || 0);
+    const bs = Number(b && b.support_count || 0);
+    if (bs !== as) return bs - as;
+    return String(a && a.candidate_id || '').localeCompare(String(b && b.candidate_id || ''));
+  });
+  return arr;
 }
 
 function summarizeCandidate(candidate) {
@@ -91,7 +146,8 @@ function summarizeCandidate(candidate) {
   const reason = String(candidate && candidate.reason || 'unknown');
   const support = Number(candidate && candidate.support_count || 0);
   const conf = Number(candidate && candidate.confidence || 0);
-  return `[Autophagy] ${category}/${reason} support=${support} conf=${conf.toFixed(3)}`;
+  const impact = candidateImpactScore(candidate);
+  return `[Autophagy] ${category}/${reason} support=${support} conf=${conf.toFixed(3)} impact=${impact.toFixed(2)}`;
 }
 
 function reasonForQueue(candidate) {
@@ -120,22 +176,42 @@ function run(opts = {}) {
   const replay = readJson(replayPath);
   const endDate = String(replay && replay.end_date || '');
   const passRows = Array.isArray(replay && replay.replay_pass_candidates) ? replay.replay_pass_candidates : [];
+  const rankedPassRows = rankReplayPassCandidates(passRows);
 
   const queue = loadQueue();
   const existingIds = queueIds(queue);
+  const activeCandidateIds = activeAutophagyCandidateIds(queue);
 
   let scanned = 0;
   let queued = 0;
   let skippedExisting = 0;
+  let skippedDuplicateCandidate = 0;
   const actions = [];
 
-  for (const candidate of passRows) {
+  for (const candidate of rankedPassRows) {
     if (scanned >= maxItems) break;
     scanned += 1;
+    const candidateId = normalizeCandidateId(candidate && candidate.candidate_id);
     const actionId = actionIdForCandidate(candidate, endDate);
+    const impactScore = candidateImpactScore(candidate);
+    if (activeCandidateIds.has(candidateId)) {
+      skippedDuplicateCandidate += 1;
+      actions.push({
+        action_id: actionId,
+        candidate_id: candidateId,
+        status: 'SKIPPED_DUPLICATE_CANDIDATE',
+        impact_score: impactScore
+      });
+      continue;
+    }
     if (existingIds.has(actionId)) {
       skippedExisting += 1;
-      actions.push({ action_id: actionId, status: 'SKIPPED_EXISTING' });
+      actions.push({
+        action_id: actionId,
+        candidate_id: candidateId,
+        status: 'SKIPPED_EXISTING',
+        impact_score: impactScore
+      });
       continue;
     }
 
@@ -148,7 +224,13 @@ function run(opts = {}) {
     const gateReason = reasonForQueue(candidate);
 
     if (dryRun) {
-      actions.push({ action_id: actionId, status: 'DRY_RUN_PENDING', summary: envelope.summary });
+      actions.push({
+        action_id: actionId,
+        candidate_id: candidateId,
+        status: 'DRY_RUN_PENDING',
+        impact_score: impactScore,
+        summary: envelope.summary
+      });
       continue;
     }
 
@@ -161,10 +243,13 @@ function run(opts = {}) {
     });
 
     const res = queueForApproval(envelope, gateReason);
+    activeCandidateIds.add(candidateId);
     queued += 1;
     actions.push({
       action_id: actionId,
+      candidate_id: candidateId,
       status: String(res && res.status || 'PENDING'),
+      impact_score: impactScore,
       payload_path: payloadPath,
       summary: envelope.summary
     });
@@ -181,7 +266,8 @@ function run(opts = {}) {
       replay_pass_candidates: passRows.length,
       scanned,
       queued,
-      skipped_existing: skippedExisting
+      skipped_existing: skippedExisting,
+      skipped_duplicate_candidate: skippedDuplicateCandidate
     },
     actions
   };
