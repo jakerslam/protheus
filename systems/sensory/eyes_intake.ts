@@ -53,6 +53,8 @@ function usage() {
   console.log('  node systems/sensory/eyes_intake.js create --name="..." --parser=<parser_type> --directive=<directive_id> [--domains=d1,d2]');
   console.log('    Optional:');
   console.log('      --id=<eye_id> --topics=t1,t2 --notes="..." --status=probation|active --cadence=6');
+  console.log('      --strategy=<strategy_id> --campaigns=id1,id2');
+  console.log('      --dry-run');
   console.log('      --max-items=10 --max-seconds=15 --max-bytes=524288 --max-requests=1');
   console.log('      --parser-options=\'{"owner":"x","repo":"y"}\'');
   console.log('  node systems/sensory/eyes_intake.js validate --directive=<directive_id>');
@@ -125,6 +127,31 @@ function asList(v) {
     .split(',')
     .map((x) => String(x || '').trim())
     .filter(Boolean);
+}
+
+function normalizeRef(v, maxLen = 64) {
+  const out = String(v == null ? '' : v)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9:_-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  if (!out) return '';
+  return out.slice(0, Math.max(8, Number(maxLen) || 64));
+}
+
+function normalizeRefList(v, maxItems = 12, maxLen = 64) {
+  const src = Array.isArray(v) ? v : asList(v);
+  const out = [];
+  const seen = new Set();
+  for (const row of src) {
+    const id = normalizeRef(row, maxLen);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+    if (out.length >= Math.max(1, Number(maxItems) || 12)) break;
+  }
+  return out;
 }
 
 function asInt(v, fallback) {
@@ -234,6 +261,7 @@ function defaultBudgets(args) {
 }
 
 function createEye(args) {
+  const dryRun = args['dry-run'] === true || args.dry_run === true;
   const name = String(args.name || '').trim();
   const parserType = String(args.parser || '').trim().toLowerCase();
   const directiveRef = checkDirectiveOrExit(args.directive);
@@ -268,6 +296,12 @@ function createEye(args) {
 
   const parserOptions = normalizeParserOptions(args['parser-options'] || args.parser_options);
   validateParserSpecific(parserType, parserOptions);
+  const strategyId = normalizeRef(args.strategy);
+  const campaignIds = normalizeRefList(args.campaigns);
+  if (campaignIds.length > 0 && !strategyId) {
+    console.error('eyes_intake: --campaigns requires --strategy');
+    process.exit(2);
+  }
 
   const domains = asList(args.domains);
   const allowedDomains = domains.length ? domains : (DEFAULT_DOMAINS[parserType] || ['example.com']);
@@ -291,8 +325,26 @@ function createEye(args) {
     created_ts: new Date().toISOString(),
     updated_ts: new Date().toISOString()
   };
+  if (strategyId) eye.strategy_id = strategyId;
+  if (campaignIds.length > 0) eye.campaign_ids = campaignIds;
   if (parserOptions && Object.keys(parserOptions).length) {
     eye.parser_options = parserOptions;
+  }
+
+  if (dryRun) {
+    process.stdout.write(JSON.stringify({
+      ok: true,
+      dry_run: true,
+      eye_id: eyeId,
+      parser_type: parserType,
+      directive_ref: directiveRef,
+      strategy_id: strategyId || null,
+      campaign_ids: campaignIds,
+      status: eye.status,
+      config_path: CONFIG_PATH,
+      registry_path: REGISTRY_PATH
+    }, null, 2) + '\n');
+    return;
   }
 
   ensureGuardOrExit();
@@ -325,6 +377,8 @@ function createEye(args) {
     eye_id: eyeId,
     parser_type: parserType,
     directive_ref: directiveRef,
+    strategy_id: strategyId || null,
+    campaign_ids: campaignIds,
     status: eye.status,
     config_path: CONFIG_PATH,
     registry_path: REGISTRY_PATH

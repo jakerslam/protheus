@@ -13,6 +13,17 @@ Each `*.json` here is declarative policy consumed by generic controllers.
   "name": "Default General Strategy",
   "status": "active",
   "objective": { "primary": "...", "fitness_metric": "verified_progress_rate", "target_window_days": 14 },
+  "campaigns": [
+    {
+      "id": "objective_flow",
+      "status": "active",
+      "priority": 20,
+      "phases": [
+        { "id": "discover", "status": "active", "order": 1, "priority": 70, "proposal_types": ["external_intel"] },
+        { "id": "stabilize", "status": "active", "order": 2, "priority": 60, "proposal_types": ["collector_remediation"] }
+      ]
+    }
+  ],
   "risk_policy": { "allowed_risks": ["low"], "max_risk_per_action": 35 },
   "admission_policy": { "allowed_types": [], "blocked_types": [], "max_remediation_depth": 2, "duplicate_window_hours": 24 },
   "ranking_weights": { "composite": 0.35, "actionability": 0.2, "directive_fit": 0.15, "signal_quality": 0.15, "expected_value": 0.1, "risk_penalty": 0.05 },
@@ -56,3 +67,7 @@ Each `*.json` here is declarative policy consumed by generic controllers.
 - Strategy lifecycle grading can be generated via:
   - `node systems/strategy/strategy_learner.js run [YYYY-MM-DD] --days=14`
   - Output defaults to `state/adaptive/strategy/scorecards/` with stages: `theory -> trial -> validated -> scaled`.
+- Campaign scheduling (v1):
+  - Optional `campaigns[]` lets strategy profiles prioritize proposal sequencing by campaign phase before flat ranking.
+  - Matching keys are phase/campaign `proposal_types`, `source_eyes`, `tags`, and optional `objective_id`.
+  - Scheduler is additive: unmatched proposals still flow through normal ranking/gates.

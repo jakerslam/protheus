@@ -144,8 +144,16 @@ function buildOverlay(events) {
 }
 
 function normalizedStatus(proposal, overlayEntry, sensoryEntry = null) {
+  const overlayLike = overlayEntry || (
+    proposal
+      && typeof proposal === 'object'
+      && (proposal.decision || proposal.outcome)
+      ? proposal
+      : null
+  );
   const explicit = String(proposal && (proposal.status || proposal.state) || '').trim().toLowerCase();
   if (explicit) {
+    if (explicit === 'open' || explicit === 'pending' || explicit === 'new' || explicit === 'generated') return 'pending';
     if (explicit === 'accepted' || explicit === 'accept' || explicit === 'admitted' || explicit === 'queued') return 'accepted';
     if (explicit === 'parked' || explicit === 'snoozed') return 'parked';
     if (
@@ -167,6 +175,7 @@ function normalizedStatus(proposal, overlayEntry, sensoryEntry = null) {
   }
   if (sensoryEntry && sensoryEntry.status) {
     const sensoryStatus = String(sensoryEntry.status).trim().toLowerCase();
+    if (sensoryStatus === 'pending' || sensoryStatus === 'open' || sensoryStatus === 'new') return 'pending';
     if (sensoryStatus === 'rejected' || sensoryStatus === 'filtered') return 'rejected';
     if (sensoryStatus === 'accepted') return 'accepted';
     if (
@@ -179,8 +188,8 @@ function normalizedStatus(proposal, overlayEntry, sensoryEntry = null) {
     ) return 'closed';
     if (sensoryStatus === 'parked' || sensoryStatus === 'snoozed') return 'parked';
   }
-  if (overlayEntry && overlayEntry.outcome) {
-    const outcome = String(overlayEntry.outcome).trim().toLowerCase();
+  if (overlayLike && overlayLike.outcome) {
+    const outcome = String(overlayLike.outcome).trim().toLowerCase();
     if (
       outcome === 'shipped'
       || outcome === 'no_change'
@@ -190,10 +199,10 @@ function normalizedStatus(proposal, overlayEntry, sensoryEntry = null) {
       || outcome === 'closed'
     ) return 'closed';
   }
-  if (!overlayEntry || !overlayEntry.decision) return 'pending';
-  if (overlayEntry.decision === 'accept') return 'accepted';
-  if (overlayEntry.decision === 'reject') return 'rejected';
-  if (overlayEntry.decision === 'park') return 'parked';
+  if (!overlayLike || !overlayLike.decision) return 'pending';
+  if (overlayLike.decision === 'accept') return 'accepted';
+  if (overlayLike.decision === 'reject') return 'rejected';
+  if (overlayLike.decision === 'park') return 'parked';
   return 'pending';
 }
 
@@ -236,6 +245,17 @@ function terminalStatusLabel(status, overlayEntry, sensoryEntry) {
   if (sensoryStatus === 'shipped' || sensoryStatus === 'reverted' || sensoryStatus === 'no_change') return sensoryStatus;
   if (sensoryStatus === 'done' || sensoryStatus === 'resolved') return 'done';
   return 'closed';
+}
+
+function canonicalWritableStatus(status, overlayEntry, sensoryEntry) {
+  const normalized = String(status || '').trim().toLowerCase();
+  if (normalized === 'rejected' || normalized === 'closed') {
+    return terminalStatusLabel(normalized, overlayEntry, sensoryEntry);
+  }
+  if (normalized === 'accepted' || normalized === 'parked' || normalized === 'pending') {
+    return normalized;
+  }
+  return 'pending';
 }
 
 function listProposalFiles(opts = {}) {
@@ -371,24 +391,24 @@ function reconcileCmd(opts) {
       const ov = overlay.get(id) || null;
       const sensory = sensoryOverlay.get(id) || null;
       const target = normalizedStatus(p, ov, sensory);
-      if (target === 'rejected' || target === 'closed') {
-        const desired = terminalStatusLabel(target, ov, sensory);
-        const current = String(p && (p.status || p.state) || '').trim().toLowerCase();
-        if (current !== desired) {
-          p.status = desired;
-          p.queue_synced_ts = now;
-          p.queue_synced_reason = String((ov && ov.reason) || (sensory && sensory.reason) || `reconcile_${target}`);
-          p.queue_synced_source = 'proposal_queue_reconcile_v1';
-          changedInFile += 1;
-          proposalsUpdated += 1;
-          if (sample.length < 20) {
-            sample.push({
-              file,
-              proposal_id: id,
-              from: current || null,
-              to: desired
-            });
-          }
+      const desired = canonicalWritableStatus(target, ov, sensory);
+      const current = String(p && (p.status || p.state) || '').trim().toLowerCase();
+      if (current !== desired || String(p && p.state || '').trim().toLowerCase() !== desired) {
+        if (current && current !== desired) p.legacy_status = current;
+        p.status = desired;
+        p.state = desired;
+        p.queue_synced_ts = now;
+        p.queue_synced_reason = String((ov && ov.reason) || (sensory && sensory.reason) || `reconcile_${target}`);
+        p.queue_synced_source = 'proposal_queue_reconcile_v2';
+        changedInFile += 1;
+        proposalsUpdated += 1;
+        if (sample.length < 20) {
+          sample.push({
+            file,
+            proposal_id: id,
+            from: current || null,
+            to: desired
+          });
         }
       }
       next.push(p);

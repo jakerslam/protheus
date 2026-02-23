@@ -19,6 +19,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
+const { spawnSync } = require('child_process');
 const { collectWithDriver, preflightWithDriver } = require('../../systems/sensory/collector_driver.js');
 const {
   classifyCollectorError,
@@ -31,7 +32,9 @@ const {
 } = require('../../systems/sensory/focus_controller.js');
 const { loadSystemBudgetState } = require('../../systems/budget/system_budget.js');
 const { analyzeTemporalPatterns } = require('../../systems/sensory/temporal_patterns.js');
-const { resolveCatalogPath, ensureCatalog } = require('../../lib/eyes_catalog.js');
+const { resolveCatalogPath, ensureCatalog, setCatalog } = require('../../lib/eyes_catalog.js');
+const { loadActiveDirectives } = require('../../lib/directive_resolver.js');
+const { loadActiveStrategy, strategyCampaigns } = require('../../lib/strategy_resolver.js');
 const { emitPainSignal } = require('../../systems/autonomy/pain_signal.js');
 
 // Paths
@@ -47,6 +50,8 @@ const RAW_DIR = path.join(STATE_DIR, 'raw');
 const METRICS_DIR = path.join(STATE_DIR, 'metrics');
 const PROPOSALS_DIR = path.join(STATE_DIR, 'proposals');
 const REGISTRY_PATH = path.join(STATE_DIR, 'registry.json');
+const EYES_INTAKE_SCRIPT = path.join(WORKSPACE_DIR, 'systems', 'sensory', 'eyes_intake.js');
+const ADAPTIVE_COLLECTOR_DIR = path.join(WORKSPACE_DIR, 'adaptive', 'sensory', 'eyes', 'collectors');
 
 // Sensory proposals (from eyes_insight.js)
 const SENSORY_PROPOSALS_DIR = process.env.EYES_SENSORY_PROPOSALS_DIR
@@ -71,6 +76,58 @@ const EYES_SLO_AUTO_PAUSE_FAIL_THRESHOLD = Math.max(1, Number(process.env.EYES_S
 const EYES_SLO_AUTO_PAUSE_COOLDOWN_HOURS = Math.max(1, Number(process.env.EYES_SLO_AUTO_PAUSE_COOLDOWN_HOURS || 6));
 const EYES_SLO_AUTO_PAUSE_MAX_PER_RUN = Math.max(1, Number(process.env.EYES_SLO_AUTO_PAUSE_MAX_PER_RUN || 3));
 const EYES_SLO_EMIT_PAIN = String(process.env.EYES_SLO_EMIT_PAIN || '1') !== '0';
+const EYES_AUTO_SPROUT_ENABLED = String(process.env.EYES_AUTO_SPROUT_ENABLED || '1') !== '0';
+const EYES_AUTO_SPROUT_MIN_DOMAIN_HITS = Math.max(2, Number(process.env.EYES_AUTO_SPROUT_MIN_DOMAIN_HITS || 4));
+const EYES_AUTO_SPROUT_MIN_SUPPORT_EYES = Math.max(1, Number(process.env.EYES_AUTO_SPROUT_MIN_SUPPORT_EYES || 2));
+const EYES_AUTO_SPROUT_MAX_CANDIDATES_PER_RUN = Math.max(0, Number(process.env.EYES_AUTO_SPROUT_MAX_CANDIDATES_PER_RUN || 2));
+const EYES_AUTO_SPROUT_MAX_APPLY_PER_RUN = Math.max(0, Number(process.env.EYES_AUTO_SPROUT_MAX_APPLY_PER_RUN || 1));
+const EYES_AUTO_SPROUT_ALLOW_STUB = String(process.env.EYES_AUTO_SPROUT_ALLOW_STUB || '0') === '1';
+const EYES_AUTO_SPROUT_REQUIRE_LINKAGE = String(process.env.EYES_AUTO_SPROUT_REQUIRE_LINKAGE || '1') !== '0';
+const EYES_LINKAGE_ATROPHY_ENABLED = String(process.env.EYES_LINKAGE_ATROPHY_ENABLED || '1') !== '0';
+const EYES_LINKAGE_DORMANT_STREAK = Math.max(1, Number(process.env.EYES_LINKAGE_DORMANT_STREAK || 2));
+const EYES_LINKAGE_RETIRE_STREAK = Math.max(EYES_LINKAGE_DORMANT_STREAK, Number(process.env.EYES_LINKAGE_RETIRE_STREAK || 6));
+const EYES_LINKAGE_AUTO_REACTIVATE = String(process.env.EYES_LINKAGE_AUTO_REACTIVATE || '1') !== '0';
+const EYES_LINKAGE_PROTECT_PRODUCTIVE_EYES = String(process.env.EYES_LINKAGE_PROTECT_PRODUCTIVE_EYES || '1') !== '0';
+const EYES_LINKAGE_RETIRE_MIN_PROPOSED = Math.max(1, Number(process.env.EYES_LINKAGE_RETIRE_MIN_PROPOSED || 6));
+const EYES_LINKAGE_RETIRE_MIN_YIELD = Math.max(0, Number(process.env.EYES_LINKAGE_RETIRE_MIN_YIELD || 0.12));
+const EYES_LINKAGE_RUN_GATE_ENABLED = String(process.env.EYES_LINKAGE_RUN_GATE_ENABLED || '1') !== '0';
+const EYES_LINKAGE_RUN_GATE_ALLOW_STUB = String(process.env.EYES_LINKAGE_RUN_GATE_ALLOW_STUB || '1') !== '0';
+const EYES_HEALTH_QUARANTINE_ENABLED = String(process.env.EYES_HEALTH_QUARANTINE_ENABLED || '1') !== '0';
+const EYES_HEALTH_QUARANTINE_HOURS = Math.max(1, Number(process.env.EYES_HEALTH_QUARANTINE_HOURS || 4));
+const EYES_HEALTH_QUARANTINE_FAIL_THRESHOLD = Math.max(1, Number(process.env.EYES_HEALTH_QUARANTINE_FAIL_THRESHOLD || 2));
+const EYES_HEALTH_QUARANTINE_NO_SIGNAL_THRESHOLD = Math.max(1, Number(process.env.EYES_HEALTH_QUARANTINE_NO_SIGNAL_THRESHOLD || 3));
+const EYES_HEALTH_PRIORITY_FAIL_WEIGHT = Math.max(0, Number(process.env.EYES_HEALTH_PRIORITY_FAIL_WEIGHT || 2.5));
+const EYES_HEALTH_PRIORITY_NO_SIGNAL_WEIGHT = Math.max(0, Number(process.env.EYES_HEALTH_PRIORITY_NO_SIGNAL_WEIGHT || 1.5));
+const EYES_HEALTH_PRIORITY_ERROR_RATE_WEIGHT = Math.max(0, Number(process.env.EYES_HEALTH_PRIORITY_ERROR_RATE_WEIGHT || 8));
+const EYES_HEALTH_PRIORITY_QUARANTINE_WEIGHT = Math.max(0, Number(process.env.EYES_HEALTH_PRIORITY_QUARANTINE_WEIGHT || 6));
+const EYES_PREFLIGHT_SELF_HEAL_ENABLED = String(process.env.EYES_PREFLIGHT_SELF_HEAL_ENABLED || '1') !== '0';
+const EYES_COLLECT_RETRY_MAX_ATTEMPTS = Math.max(1, Number(process.env.EYES_COLLECT_RETRY_MAX_ATTEMPTS || 2));
+const EYES_COLLECT_RETRY_BACKOFF_MS = Math.max(50, Number(process.env.EYES_COLLECT_RETRY_BACKOFF_MS || 250));
+const DOMAIN_PARSER_HINTS = Object.freeze([
+  { re: /(^|\.)news\.ycombinator\.com$|(^|\.)hnrss\.org$/i, parser: 'hn_rss' },
+  { re: /(^|\.)moltbook\.com$|(^|\.)api\.moltbook\.com$/i, parser: 'moltbook_hot' },
+  { re: /(^|\.)x\.com$|(^|\.)twitter\.com$/i, parser: 'bird_x' },
+  { re: /(^|\.)ollama\.com$/i, parser: 'ollama_search' },
+  { re: /(^|\.)trends\.google\.com$/i, parser: 'google_trends' },
+  { re: /(^|\.)finance\.yahoo\.com$|(^|\.)query1\.finance\.yahoo\.com$/i, parser: 'stock_market' },
+  { re: /(^|\.)upwork\.com$/i, parser: 'upwork_gigs' },
+  { re: /(^|\.)producthunt\.com$|(^|\.)api\.producthunt\.com$/i, parser: 'producthunt_launches' },
+  { re: /(^|\.)medium\.com$/i, parser: 'medium_rss' },
+  { re: /(^|\.)local\.workspace$/i, parser: 'local_state_digest' }
+]);
+const PARSER_DOMAIN_DEFAULTS = Object.freeze({
+  hn_rss: ['news.ycombinator.com', 'hnrss.org'],
+  moltbook_hot: ['www.moltbook.com', 'api.moltbook.com'],
+  local_state_digest: ['local.workspace'],
+  ollama_search: ['ollama.com', 'www.ollama.com'],
+  bird_x: ['x.com', 'twitter.com'],
+  stock_market: ['finance.yahoo.com', 'query1.finance.yahoo.com'],
+  google_trends: ['trends.google.com'],
+  github_repo: ['api.github.com', 'github.com'],
+  upwork_gigs: ['www.upwork.com', 'upwork.com'],
+  producthunt_launches: ['www.producthunt.com', 'api.producthunt.com'],
+  medium_rss: ['medium.com']
+});
 
 // Ensure directories exist
 function ensureDirs() {
@@ -343,13 +400,21 @@ function eyeExecutionOrder(eyes, registry, opts = {}) {
     const statusWeight = status === 'active' ? 1.5 : status === 'probation' ? 0.8 : status === 'dormant' ? -0.5 : status === 'retired' ? -1.5 : 0;
     const forcedBoost = forceEyeId && String(eye.id) === forceEyeId ? 1000 : 0;
     const score = Number(runtime.score_ema || eye.score_ema || 50);
-    const priority = forcedBoost + (overdueRatio * 4) + Math.min(6, staleRatio * 2) + statusWeight + (score / 200);
+    const failPenalty = Math.max(0, Number(reg.consecutive_failures || 0)) * EYES_HEALTH_PRIORITY_FAIL_WEIGHT;
+    const noSignalPenalty = Math.max(0, Number(reg.consecutive_no_signal_runs || 0)) * EYES_HEALTH_PRIORITY_NO_SIGNAL_WEIGHT;
+    const errorRatePenalty = clamp(Number(reg.error_rate || 0), 0, 1) * EYES_HEALTH_PRIORITY_ERROR_RATE_WEIGHT;
+    const quarantinePenalty = cooldownHoursRemaining(reg.health_quarantine_until || reg.quarantine_until) > 0
+      ? EYES_HEALTH_PRIORITY_QUARANTINE_WEIGHT
+      : 0;
+    const healthPenalty = failPenalty + noSignalPenalty + errorRatePenalty + quarantinePenalty;
+    const priority = forcedBoost + (overdueRatio * 4) + Math.min(6, staleRatio * 2) + statusWeight + (score / 200) - healthPenalty;
     rows.push({
       eye,
       priority,
       overdue_ratio: overdueRatio,
       stale_ratio: staleRatio,
-      score
+      score,
+      health_penalty: healthPenalty
     });
   }
   rows.sort((a, b) => {
@@ -442,6 +507,668 @@ function isDomainAllowed(eye, url) {
   }
 }
 
+function normalizeKey(value, maxLen = 40) {
+  const clean = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  if (!clean) return '';
+  return clean.slice(0, maxLen);
+}
+
+function hostnameFromUrl(url) {
+  try {
+    return String(new URL(String(url || '')).hostname || '').trim().toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function normalizeDomainList(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((v) => String(v || '').trim().toLowerCase())
+      .filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map((v) => String(v || '').trim().toLowerCase())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function domainsCoveredByEyes(config) {
+  const set = new Set();
+  for (const eye of (config && Array.isArray(config.eyes) ? config.eyes : [])) {
+    for (const domain of normalizeDomainList(eye && eye.allowed_domains)) {
+      set.add(domain);
+    }
+  }
+  return set;
+}
+
+function domainIsCovered(hostname, allowedDomains) {
+  const host = String(hostname || '').trim().toLowerCase();
+  if (!host) return false;
+  for (const domain of (allowedDomains || [])) {
+    const d = String(domain || '').trim().toLowerCase();
+    if (!d) continue;
+    if (host === d || host.endsWith(`.${d}`)) return true;
+  }
+  return false;
+}
+
+function inferParserTypeForDomain(domain) {
+  const d = String(domain || '').trim().toLowerCase();
+  if (!d) return 'stub';
+  for (const hint of DOMAIN_PARSER_HINTS) {
+    if (hint && hint.re && hint.re.test(d)) return String(hint.parser || '').trim().toLowerCase() || 'stub';
+  }
+  return 'stub';
+}
+
+function parserDefaultDomains(parserType) {
+  const key = String(parserType || '').trim().toLowerCase();
+  return normalizeDomainList(PARSER_DOMAIN_DEFAULTS[key] || []);
+}
+
+function parserTypeSupportedInAdaptive(parserType) {
+  const key = String(parserType || '').trim().toLowerCase();
+  if (!key || key === 'stub') return false;
+  try {
+    const filePath = path.join(ADAPTIVE_COLLECTOR_DIR, `${key}.js`);
+    return fs.existsSync(filePath);
+  } catch {
+    return false;
+  }
+}
+
+function normalizedSensoryProposalStatus(raw, fallback = 'open') {
+  const base = String(fallback || 'open').trim().toLowerCase() || 'open';
+  const s = String(raw || '').trim().toLowerCase();
+  if (!s || s === 'unknown' || s === 'new' || s === 'queued') return base;
+  if (s === 'pending' || s === 'admitted') return base;
+  if (s === 'closed_won' || s === 'won' || s === 'paid' || s === 'verified') return 'closed';
+  return s;
+}
+
+function normalizeSensoryProposalRow(row, fallback = 'open') {
+  if (!row || typeof row !== 'object') return row;
+  const next = { ...row };
+  next.status = normalizedSensoryProposalStatus(next.status, fallback);
+  return next;
+}
+
+function failureCodesFromStaticPreflight(staticRep) {
+  const failures = Array.isArray(staticRep && staticRep.failures) ? staticRep.failures : [];
+  const codes = new Set();
+  for (const row of failures) {
+    const code = String(row && row.code || '').trim().toLowerCase();
+    if (code) codes.add(code);
+  }
+  return codes;
+}
+
+function attemptPreflightSelfHealForEye(eyeConfig, staticRep) {
+  const eye = eyeConfig && typeof eyeConfig === 'object' ? eyeConfig : null;
+  if (!eye) return { changed: false, reasons: [] };
+  if (staticRep && staticRep.ok === true) return { changed: false, reasons: [] };
+  const parserType = String(eye.parser_type || '').trim().toLowerCase();
+  const codes = failureCodesFromStaticPreflight(staticRep);
+  const reasons = [];
+  let changed = false;
+
+  if (codes.has('domain_not_allowlisted') || codes.has('allowlist_mismatch')) {
+    const defaults = parserDefaultDomains(parserType);
+    if (defaults.length > 0) {
+      const merged = Array.from(new Set([...normalizeDomainList(eye.allowed_domains), ...defaults]));
+      if (JSON.stringify(merged) !== JSON.stringify(normalizeDomainList(eye.allowed_domains))) {
+        eye.allowed_domains = merged;
+        changed = true;
+        reasons.push('allowlist_repaired');
+      }
+    }
+  }
+
+  if (codes.has('unknown_parser_type') || codes.has('parser_not_supported') || codes.has('unsupported_parser')) {
+    const host = normalizeDomainList(eye.allowed_domains)[0] || '';
+    const inferred = inferParserTypeForDomain(host);
+    if (inferred && inferred !== 'stub' && inferred !== parserType && parserTypeSupportedInAdaptive(inferred)) {
+      eye.parser_type = inferred;
+      changed = true;
+      reasons.push(`parser_repaired:${parserType}->${inferred}`);
+    }
+  }
+
+  if (changed) eye.updated_ts = new Date().toISOString();
+  return { changed, reasons };
+}
+
+function loadActiveDirectiveIdsForSprout() {
+  let directives = [];
+  try {
+    directives = loadActiveDirectives({ allowMissing: true, allowWeakTier1: true });
+  } catch {
+    return [];
+  }
+  const rows = [];
+  for (const d of directives) {
+    const data = d && d.data && typeof d.data === 'object' ? d.data : {};
+    const meta = data && data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
+    const id = String(d && d.id ? d.id : meta.id || '').trim();
+    if (!/^T[0-9]_[A-Za-z0-9_]+$/.test(id)) continue;
+    const tierRaw = Number(d && d.tier);
+    const metaTierRaw = Number(meta && meta.tier);
+    const tier = Number.isFinite(tierRaw) ? tierRaw : (Number.isFinite(metaTierRaw) ? metaTierRaw : 99);
+    if (Number.isFinite(tier) && tier < 1) continue;
+    rows.push({ id, tier: Number.isFinite(tier) ? tier : 99 });
+  }
+  rows.sort((a, b) => {
+    if (a.tier !== b.tier) return a.tier - b.tier;
+    return String(a.id || '').localeCompare(String(b.id || ''));
+  });
+  const seen = new Set();
+  const out = [];
+  for (const row of rows) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    out.push(row.id);
+  }
+  return out;
+}
+
+function resolveDirectiveForSprout(preferredDirective) {
+  const preferred = String(preferredDirective || '').trim();
+  const activeIds = loadActiveDirectiveIdsForSprout();
+  if (preferred && activeIds.includes(preferred)) return preferred;
+  return activeIds[0] || '';
+}
+
+function normalizeRefList(value, maxItems = 8) {
+  const src = Array.isArray(value)
+    ? value
+    : (typeof value === 'string'
+      ? String(value).split(',')
+      : []);
+  const out = [];
+  const seen = new Set();
+  for (const row of src) {
+    const id = String(row || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9:_-]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+    if (out.length >= maxItems) break;
+  }
+  return out;
+}
+
+function loadActiveStrategyContext() {
+  let strategy = null;
+  try {
+    strategy = loadActiveStrategy({ allowMissing: true });
+  } catch {
+    strategy = null;
+  }
+  const strategyId = String(strategy && strategy.id || '').trim().toLowerCase();
+  const campaignsRaw = strategyCampaigns(strategy, true);
+  const campaigns = [];
+  const byId = new Map();
+  for (const row of campaignsRaw) {
+    const id = String(row && row.id || '').trim().toLowerCase();
+    if (!id || byId.has(id)) continue;
+    const objectiveId = String(row && row.objective_id || '').trim();
+    const entry = { id, objective_id: objectiveId || '' };
+    campaigns.push(entry);
+    byId.set(id, entry);
+  }
+  return {
+    strategy_id: strategyId || '',
+    campaigns,
+    campaign_ids: campaigns.map((c) => c.id),
+    campaign_map: byId
+  };
+}
+
+function linkageForDirective(directiveRef, preferred = {}) {
+  const ctx = loadActiveStrategyContext();
+  const directiveId = String(directiveRef || '').trim();
+  const preferredStrategy = String(preferred.strategy_id || '').trim().toLowerCase();
+  const preferredCampaignIds = normalizeRefList(preferred.campaign_ids || preferred.proposed_campaign_ids || []);
+
+  const strategyId = ctx.strategy_id && (!preferredStrategy || preferredStrategy === ctx.strategy_id)
+    ? ctx.strategy_id
+    : (ctx.strategy_id || '');
+
+  const objectiveMatched = ctx.campaigns
+    .filter((c) => !c.objective_id || !directiveId || c.objective_id === directiveId)
+    .map((c) => c.id);
+  let campaignIds = objectiveMatched.length > 0 ? objectiveMatched : ctx.campaign_ids.slice(0, 1);
+  if (preferredCampaignIds.length > 0) {
+    const filtered = preferredCampaignIds.filter((id) => ctx.campaign_map.has(id));
+    if (filtered.length > 0) campaignIds = filtered;
+  }
+  campaignIds = normalizeRefList(campaignIds);
+
+  return {
+    strategy_id: strategyId || '',
+    campaign_ids: campaignIds
+  };
+}
+
+function reconcileEyeLinkage(config, registry, opts = {}) {
+  const cfg = config && typeof config === 'object' ? config : { eyes: [] };
+  const reg = registry && typeof registry === 'object' ? registry : { eyes: [] };
+  if (!Array.isArray(reg.eyes)) reg.eyes = [];
+  const activeDirectives = new Set(loadActiveDirectiveIdsForSprout());
+  const strategyCtx = loadActiveStrategyContext();
+  const nowTs = new Date().toISOString();
+  const changes = [];
+  let dormantAtrophy = 0;
+  let retiredAtrophy = 0;
+
+  for (const eyeCfg of (Array.isArray(cfg.eyes) ? cfg.eyes : [])) {
+    if (!eyeCfg || !eyeCfg.id) continue;
+    let regEye = reg.eyes.find((row) => row && row.id === eyeCfg.id);
+    if (!regEye) {
+      regEye = {
+        ...eyeCfg,
+        run_count: 0,
+        total_runs: 0,
+        total_items: 0,
+        total_errors: 0,
+        consecutive_failures: 0
+      };
+      reg.eyes.push(regEye);
+      changes.push({ eye_id: eyeCfg.id, event: 'registry_seeded' });
+    }
+
+    const oldStatus = String(regEye.status || eyeCfg.status || 'probation').toLowerCase();
+    const directiveRef = String(regEye.directive_ref || eyeCfg.directive_ref || '').trim();
+    const currentStrategy = String(regEye.strategy_id || eyeCfg.strategy_id || '').trim().toLowerCase();
+    const currentCampaigns = normalizeRefList(regEye.campaign_ids || eyeCfg.campaign_ids || []);
+
+    if (directiveRef) {
+      const resolved = linkageForDirective(directiveRef, {
+        strategy_id: currentStrategy,
+        campaign_ids: currentCampaigns
+      });
+      if (resolved.strategy_id && resolved.strategy_id !== currentStrategy) {
+        regEye.strategy_id = resolved.strategy_id;
+        changes.push({ eye_id: eyeCfg.id, event: 'strategy_linked', strategy_id: resolved.strategy_id });
+      }
+      if (resolved.campaign_ids.length > 0 && JSON.stringify(currentCampaigns) !== JSON.stringify(resolved.campaign_ids)) {
+        regEye.campaign_ids = resolved.campaign_ids;
+        changes.push({ eye_id: eyeCfg.id, event: 'campaigns_linked', campaign_ids: resolved.campaign_ids });
+      }
+    }
+
+    const strategyId = String(regEye.strategy_id || '').trim().toLowerCase();
+    const campaignIds = normalizeRefList(regEye.campaign_ids || []);
+    const directiveConnected = !!directiveRef && activeDirectives.has(directiveRef);
+    const strategyConnected = !!strategyId && (!!strategyCtx.strategy_id && strategyId === strategyCtx.strategy_id);
+    const campaignConnected = campaignIds.some((id) => {
+      const campaign = strategyCtx.campaign_map.get(id);
+      if (!campaign) return false;
+      if (campaign.objective_id && directiveRef && campaign.objective_id !== directiveRef) return false;
+      return true;
+    });
+    const fullyConnected = directiveConnected && strategyConnected && campaignConnected;
+
+    const streak = Math.max(0, Number(regEye.linkage_decay_streak || 0));
+    if (fullyConnected) {
+      if (streak > 0 || regEye.linkage_status === 'disconnected') {
+        regEye.linkage_decay_streak = 0;
+        regEye.linkage_status = 'connected';
+        regEye.linkage_last_connected_ts = nowTs;
+        changes.push({ eye_id: eyeCfg.id, event: 'linkage_recovered' });
+      }
+      const atrophyReason = String(regEye.atrophy_reason || '').toLowerCase();
+      const wasLinkageAtrophied = atrophyReason === 'linkage_disconnected' || atrophyReason.includes('linkage_disconnected');
+      if (EYES_LINKAGE_AUTO_REACTIVATE && oldStatus === 'dormant' && wasLinkageAtrophied) {
+        regEye.status = 'probation';
+        regEye.cooldown_until = null;
+        regEye.atrophy_reason = null;
+        regEye.atrophy_ts = null;
+        changes.push({ eye_id: eyeCfg.id, event: 'linkage_reactivated', from_status: oldStatus, to_status: 'probation' });
+      }
+      continue;
+    }
+
+    regEye.linkage_decay_streak = streak + 1;
+    regEye.linkage_status = 'disconnected';
+    regEye.linkage_last_disconnected_ts = nowTs;
+    regEye.linkage_reason = [
+      directiveConnected ? null : 'directive_disconnected',
+      strategyConnected ? null : 'strategy_disconnected',
+      campaignConnected ? null : 'campaign_disconnected'
+    ].filter(Boolean).join('|') || 'linkage_disconnected';
+
+    if (!EYES_LINKAGE_ATROPHY_ENABLED) continue;
+    const nextStreak = Number(regEye.linkage_decay_streak || 0);
+    if (nextStreak >= EYES_LINKAGE_RETIRE_STREAK && oldStatus !== 'retired') {
+      const proposedTotal = Math.max(0, Number(regEye.proposed_total || 0));
+      const yieldRate = Math.max(0, Number(regEye.yield_rate || 0));
+      const protectProductive = EYES_LINKAGE_PROTECT_PRODUCTIVE_EYES
+        && proposedTotal >= EYES_LINKAGE_RETIRE_MIN_PROPOSED
+        && yieldRate >= EYES_LINKAGE_RETIRE_MIN_YIELD;
+      if (protectProductive) {
+        if (oldStatus !== 'dormant') {
+          regEye.status = 'dormant';
+          dormantAtrophy += 1;
+        }
+        regEye.atrophy_reason = 'linkage_disconnected_productive_hold';
+        regEye.atrophy_ts = nowTs;
+        changes.push({
+          eye_id: eyeCfg.id,
+          event: 'linkage_retire_protected',
+          streak: nextStreak,
+          proposed_total: proposedTotal,
+          yield_rate: Number(yieldRate.toFixed(3))
+        });
+      } else {
+        regEye.status = 'retired';
+        regEye.atrophy_reason = 'linkage_disconnected';
+        regEye.atrophy_ts = nowTs;
+        retiredAtrophy += 1;
+        changes.push({ eye_id: eyeCfg.id, event: 'linkage_atrophy_retired', streak: nextStreak });
+      }
+    } else if (nextStreak >= EYES_LINKAGE_DORMANT_STREAK && oldStatus === 'active') {
+      regEye.status = 'dormant';
+      regEye.atrophy_reason = 'linkage_disconnected';
+      regEye.atrophy_ts = nowTs;
+      dormantAtrophy += 1;
+      changes.push({ eye_id: eyeCfg.id, event: 'linkage_atrophy_dormant', streak: nextStreak });
+    }
+  }
+
+  return {
+    changed: changes.length,
+    dormant_atrophy: dormantAtrophy,
+    retired_atrophy: retiredAtrophy,
+    changes
+  };
+}
+
+function loadEyeSproutQueue(dateStr) {
+  const filePath = path.join(PROPOSALS_DIR, `${dateStr}.json`);
+  if (!fs.existsSync(filePath)) return { filePath, proposals: [] };
+  try {
+    const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    return { filePath, proposals: Array.isArray(parsed) ? parsed : [] };
+  } catch {
+    return { filePath, proposals: [] };
+  }
+}
+
+function saveEyeSproutQueue(filePath, proposals) {
+  ensureDirs();
+  fs.writeFileSync(filePath, JSON.stringify(proposals, null, 2));
+}
+
+function collectAutoSproutCandidates(dateStr, config, existingQueue) {
+  const rawPath = path.join(RAW_DIR, `${dateStr}.jsonl`);
+  const events = safeReadJsonl(rawPath);
+  const coveredDomains = domainsCoveredByEyes(config);
+  const queuedByDomain = new Set(
+    (Array.isArray(existingQueue) ? existingQueue : [])
+      .flatMap((row) => normalizeDomainList(row && row.proposed_domains))
+  );
+  const stats = new Map();
+
+  for (const ev of events) {
+    if (!ev || ev.type !== 'external_item') continue;
+    const item = ev.item && typeof ev.item === 'object' ? ev.item : ev;
+    const host = hostnameFromUrl(item && item.url);
+    if (!host) continue;
+    if (host === 'local.workspace') continue;
+    if (domainIsCovered(host, coveredDomains)) continue;
+    if (queuedByDomain.has(host)) continue;
+    const row = stats.get(host) || {
+      domain: host,
+      hits: 0,
+      source_eyes: new Set(),
+      topics: new Set(),
+      sample_title: ''
+    };
+    row.hits += 1;
+    const sourceEye = String((item && item.eye_id) || ev.eye_id || '').trim();
+    if (sourceEye) row.source_eyes.add(sourceEye);
+    for (const topic of (Array.isArray(item && item.topics) ? item.topics : [])) {
+      const t = String(topic || '').trim().toLowerCase();
+      if (t) row.topics.add(t);
+    }
+    if (!row.sample_title) row.sample_title = String(item && item.title || '').trim().slice(0, 120);
+    stats.set(host, row);
+  }
+
+  return Array.from(stats.values())
+    .filter((row) => row.hits >= EYES_AUTO_SPROUT_MIN_DOMAIN_HITS)
+    .filter((row) => row.source_eyes.size >= EYES_AUTO_SPROUT_MIN_SUPPORT_EYES)
+    .sort((a, b) => Number(b.hits || 0) - Number(a.hits || 0) || String(a.domain || '').localeCompare(String(b.domain || '')))
+    .slice(0, EYES_AUTO_SPROUT_MAX_CANDIDATES_PER_RUN);
+}
+
+function emitAutoSproutProposals(dateStr, config) {
+  if (!EYES_AUTO_SPROUT_ENABLED || EYES_AUTO_SPROUT_MAX_CANDIDATES_PER_RUN <= 0) {
+    return { added: 0, candidates: 0, skipped: 0, path: path.join(PROPOSALS_DIR, `${dateStr}.json`) };
+  }
+  const { filePath, proposals } = loadEyeSproutQueue(dateStr);
+  const next = Array.isArray(proposals) ? [...proposals] : [];
+  const existingIds = new Set(next.map((row) => String(row && row.id || '')).filter(Boolean));
+  const candidates = collectAutoSproutCandidates(dateStr, config, next);
+  const directiveRef = resolveDirectiveForSprout('');
+  const linkage = linkageForDirective(directiveRef, {});
+  let added = 0;
+  let skipped = 0;
+
+  for (const cand of candidates) {
+    const parserType = inferParserTypeForDomain(cand.domain);
+    if (parserType === 'stub' && !EYES_AUTO_SPROUT_ALLOW_STUB) {
+      skipped += 1;
+      continue;
+    }
+    if (EYES_AUTO_SPROUT_REQUIRE_LINKAGE) {
+      if (!directiveRef || !linkage.strategy_id || !Array.isArray(linkage.campaign_ids) || linkage.campaign_ids.length === 0) {
+        skipped += 1;
+        continue;
+      }
+    }
+    const id = `proto_${computeHash(`auto_sprout:${cand.domain}`)}`;
+    if (existingIds.has(id)) {
+      skipped += 1;
+      continue;
+    }
+    const eyeName = `Watch ${cand.domain}`;
+    next.push({
+      id,
+      name: eyeName,
+      proposed_domains: [cand.domain],
+      proposed_parser_type: parserType,
+      directive_ref: directiveRef || null,
+      proposed_strategy_id: linkage.strategy_id || null,
+      proposed_campaign_ids: linkage.campaign_ids || [],
+      proposed_topics: Array.from(cand.topics).slice(0, 5),
+      notes: `Auto-sprout candidate: domain seen ${cand.hits} times across ${cand.source_eyes.size} eyes`,
+      source_stats: {
+        hits: Number(cand.hits || 0),
+        support_eyes: Array.from(cand.source_eyes).slice(0, 8),
+        sample_title: String(cand.sample_title || '').slice(0, 120)
+      },
+      proposed_status: 'probation',
+      proposed_cadence_hours: 12,
+      proposed_budgets: {
+        max_items: 10,
+        max_seconds: 20,
+        max_bytes: 524288,
+        max_requests: 2
+      },
+      proposed_date: dateStr,
+      proposed_by: 'external_eyes.auto_sprout',
+      auto_candidate: true,
+      status: 'pending_review'
+    });
+    existingIds.add(id);
+    added += 1;
+  }
+
+  if (added > 0) saveEyeSproutQueue(filePath, next);
+  return { added, candidates: candidates.length, skipped, path: filePath };
+}
+
+function applyAutoSproutQueue(dateStr, config) {
+  if (!EYES_AUTO_SPROUT_ENABLED || EYES_AUTO_SPROUT_MAX_APPLY_PER_RUN <= 0) {
+    return { applied: 0, blocked: 0, skipped: 0, touched: 0, path: path.join(PROPOSALS_DIR, `${dateStr}.json`) };
+  }
+  const { filePath, proposals } = loadEyeSproutQueue(dateStr);
+  if (!Array.isArray(proposals) || proposals.length === 0) {
+    return { applied: 0, blocked: 0, skipped: 0, touched: 0, path: filePath };
+  }
+
+  const next = [...proposals];
+  const existingEyes = new Set((config && Array.isArray(config.eyes) ? config.eyes : []).map((eye) => String(eye && eye.id || '')));
+  let applied = 0;
+  let blocked = 0;
+  let skipped = 0;
+  let changed = 0;
+
+  for (let i = 0; i < next.length; i += 1) {
+    const row = next[i];
+    if (!row || typeof row !== 'object') continue;
+    const status = String(row.status || 'pending_review').toLowerCase();
+    if (status !== 'pending_review') {
+      skipped += 1;
+      continue;
+    }
+    if (applied >= EYES_AUTO_SPROUT_MAX_APPLY_PER_RUN) break;
+
+    const domains = normalizeDomainList(row.proposed_domains);
+    const primaryDomain = domains[0] || '';
+    const parserType = String(
+      row.proposed_parser_type
+      || row.parser_type
+      || inferParserTypeForDomain(primaryDomain)
+      || 'stub'
+    ).trim().toLowerCase();
+    const directiveRef = resolveDirectiveForSprout(row.directive_ref);
+    const linkage = linkageForDirective(directiveRef, {
+      strategy_id: row.proposed_strategy_id || row.strategy_id,
+      campaign_ids: row.proposed_campaign_ids || row.campaign_ids
+    });
+    const eyeName = String(row.name || (primaryDomain ? `Watch ${primaryDomain}` : '')).trim();
+    const eyeId = normalizeKey(row.proposed_eye_id || row.eye_id || row.id || row.name, 40);
+
+    const markBlocked = (reason) => {
+      next[i] = {
+        ...row,
+        status: 'blocked',
+        blocked_reason: String(reason || 'sprout_blocked').slice(0, 120),
+        last_attempt_ts: new Date().toISOString(),
+        attempt_count: Number(row.attempt_count || 0) + 1
+      };
+      blocked += 1;
+      changed += 1;
+    };
+
+    if (!eyeName || !eyeId) {
+      markBlocked('invalid_name_or_eye_id');
+      continue;
+    }
+    if (!directiveRef) {
+      markBlocked('missing_active_directive');
+      continue;
+    }
+    if (EYES_AUTO_SPROUT_REQUIRE_LINKAGE) {
+      if (!linkage.strategy_id) {
+        markBlocked('missing_active_strategy_link');
+        continue;
+      }
+      if (!Array.isArray(linkage.campaign_ids) || linkage.campaign_ids.length === 0) {
+        markBlocked('missing_active_campaign_link');
+        continue;
+      }
+    }
+    if (parserType === 'stub' && !EYES_AUTO_SPROUT_ALLOW_STUB) {
+      markBlocked('unknown_parser_type');
+      continue;
+    }
+    if (existingEyes.has(eyeId)) {
+      next[i] = {
+        ...row,
+        status: 'sprouted',
+        sprouted_eye_id: eyeId,
+        sprouted_ts: new Date().toISOString(),
+        last_result: 'already_exists'
+      };
+      skipped += 1;
+      changed += 1;
+      continue;
+    }
+
+    const args = [
+      EYES_INTAKE_SCRIPT,
+      'create',
+      `--name=${eyeName}`,
+      `--id=${eyeId}`,
+      `--parser=${parserType}`,
+      `--directive=${directiveRef}`
+    ];
+    if (domains.length > 0) args.push(`--domains=${domains.join(',')}`);
+    const topics = normalizeDomainList(row.proposed_topics);
+    if (topics.length > 0) args.push(`--topics=${topics.join(',')}`);
+    const notes = String(row.notes || '').trim();
+    if (notes) args.push(`--notes=${notes.slice(0, 180)}`);
+    if (linkage.strategy_id) args.push(`--strategy=${linkage.strategy_id}`);
+    if (Array.isArray(linkage.campaign_ids) && linkage.campaign_ids.length > 0) {
+      args.push(`--campaigns=${linkage.campaign_ids.join(',')}`);
+    }
+    if (row.proposed_status) args.push(`--status=${String(row.proposed_status)}`);
+    if (Number.isFinite(Number(row.proposed_cadence_hours))) {
+      args.push(`--cadence=${Math.max(1, Number(row.proposed_cadence_hours))}`);
+    }
+    const budgets = row.proposed_budgets && typeof row.proposed_budgets === 'object' ? row.proposed_budgets : {};
+    if (Number.isFinite(Number(budgets.max_items))) args.push(`--max-items=${Math.max(1, Number(budgets.max_items))}`);
+    if (Number.isFinite(Number(budgets.max_seconds))) args.push(`--max-seconds=${Math.max(1, Number(budgets.max_seconds))}`);
+    if (Number.isFinite(Number(budgets.max_bytes))) args.push(`--max-bytes=${Math.max(1024, Number(budgets.max_bytes))}`);
+    if (Number.isFinite(Number(budgets.max_requests))) args.push(`--max-requests=${Math.max(0, Number(budgets.max_requests))}`);
+
+    const execRes = spawnSync(process.execPath, args, { cwd: WORKSPACE_DIR, encoding: 'utf8', env: process.env });
+    const parsed = parseJsonWithRecovery(execRes.stdout || '');
+    const payload = parsed.ok ? parsed.value : null;
+    const ok = execRes.status === 0 && payload && payload.ok === true;
+    if (!ok) {
+      const errText = String(execRes.stderr || '').trim() || String(payload && payload.error || '').trim() || 'eyes_intake_create_failed';
+      markBlocked(errText.slice(0, 180));
+      continue;
+    }
+
+    const createdEyeId = String(payload.eye_id || eyeId || '').trim();
+    next[i] = {
+      ...row,
+      status: 'sprouted',
+      sprouted_eye_id: createdEyeId,
+      sprouted_ts: new Date().toISOString(),
+      directive_ref: directiveRef,
+      proposed_strategy_id: linkage.strategy_id || null,
+      proposed_campaign_ids: Array.isArray(linkage.campaign_ids) ? linkage.campaign_ids : [],
+      proposed_parser_type: parserType,
+      last_result: 'created'
+    };
+    existingEyes.add(createdEyeId);
+    applied += 1;
+    changed += 1;
+  }
+
+  if (changed > 0) saveEyeSproutQueue(filePath, next);
+  return { applied, blocked, skipped, touched: changed, path: filePath };
+}
+
 function safeReadJson(filePath, fallback = null) {
   try {
     if (!fs.existsSync(filePath)) return fallback;
@@ -491,9 +1218,15 @@ function loadProposalsForDate(dateStr) {
   if (!fs.existsSync(filePath)) return { filePath, container: null, proposals: [] };
   try {
     const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    if (Array.isArray(parsed)) return { filePath, container: null, proposals: parsed };
+    if (Array.isArray(parsed)) {
+      return { filePath, container: null, proposals: parsed.map((p) => normalizeSensoryProposalRow(p, 'open')) };
+    }
     if (parsed && typeof parsed === 'object' && Array.isArray(parsed.proposals)) {
-      return { filePath, container: parsed, proposals: parsed.proposals };
+      return {
+        filePath,
+        container: parsed,
+        proposals: parsed.proposals.map((p) => normalizeSensoryProposalRow(p, 'open'))
+      };
     }
     return { filePath, container: null, proposals: [] };
   } catch {
@@ -1794,6 +2527,25 @@ function emitProposalDoneEvent(proposalId, reason, ts = null) {
   });
 }
 
+function collectRetryableCode(code) {
+  const c = String(code || '').trim().toLowerCase();
+  return (
+    c === 'timeout'
+    || c === 'network_error'
+    || c === 'dns_unreachable'
+    || c === 'connection_refused'
+    || c === 'connection_reset'
+    || c === 'tls_error'
+    || c === 'http_5xx'
+    || c === 'rate_limited'
+    || c === 'collector_error'
+  );
+}
+
+function waitMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+}
+
 /**
  * Collector dispatch (deterministic)
  * - Keep collectors tiny and explicit
@@ -1803,15 +2555,27 @@ async function collectEye(eyeConfig) {
   if (String(eyeConfig && eyeConfig.parser_type || '').toLowerCase() === 'stub') {
     return stubCollect(eyeConfig, eyeConfig.budgets || {});
   }
-  const out = await collectWithDriver(eyeConfig);
-  if (out && out.success === true) return out;
+  let attempts = 0;
+  let last = null;
+  while (attempts < EYES_COLLECT_RETRY_MAX_ATTEMPTS) {
+    attempts += 1;
+    const out = await collectWithDriver(eyeConfig);
+    last = out;
+    if (out && out.success === true) return out;
+    const failed = normalizeFailure(out && out.error ? out.error : 'collector_failed', out && out.error_code ? out.error_code : null);
+    const retryable = collectRetryableCode(out && out.error_code ? out.error_code : failed.code) || failed.retryable === true;
+    if (!retryable || attempts >= EYES_COLLECT_RETRY_MAX_ATTEMPTS) break;
+    await waitMs(EYES_COLLECT_RETRY_BACKOFF_MS * attempts);
+  }
   return {
     success: false,
     items: [],
-    duration_ms: Number(out && out.duration_ms) || 0,
-    requests: Number(out && out.requests) || 0,
-    bytes: Number(out && out.bytes) || 0,
-    error: out && out.error ? out.error : 'collector_failed'
+    duration_ms: Number(last && last.duration_ms) || 0,
+    requests: Number(last && last.requests) || 0,
+    bytes: Number(last && last.bytes) || 0,
+    error: last && last.error ? last.error : 'collector_failed',
+    error_code: last && last.error_code ? last.error_code : null,
+    retries_attempted: Math.max(0, attempts - 1)
   };
 }
 
@@ -1822,10 +2586,14 @@ function staticPreflightEye(eyeConfig) {
 async function preflight(opts = {}) {
   ensureDirs();
   const config = loadConfig();
+  const registry = loadRegistry();
   const report = [];
+  let configMutated = false;
+  let registryMutated = false;
+  let selfHealApplied = 0;
+  const selfHealEyes = [];
 
   for (const eyeConfig of (config.eyes || [])) {
-    const parserType = String(eyeConfig.parser_type || '').toLowerCase();
     const status = String(eyeConfig.status || '').toLowerCase();
     let staticRep = staticPreflightEye(eyeConfig) || { ok: false, checks: [], failures: [] };
     
@@ -1833,17 +2601,81 @@ async function preflight(opts = {}) {
     if (staticRep instanceof Promise) {
       staticRep = await staticRep.catch(() => ({ ok: false, checks: [], failures: [{ code: 'preflight_error', message: 'Async preflight failed' }] }));
     }
+    let selfHeal = { applied: false, reasons: [] };
+    if (EYES_PREFLIGHT_SELF_HEAL_ENABLED && status !== 'retired') {
+      const parserBefore = String(eyeConfig.parser_type || '').trim().toLowerCase();
+      const domainsBefore = JSON.stringify(normalizeDomainList(eyeConfig.allowed_domains));
+      const repaired = attemptPreflightSelfHealForEye(eyeConfig, staticRep);
+      if (repaired.changed) {
+        configMutated = true;
+        selfHeal = { applied: true, reasons: Array.isArray(repaired.reasons) ? repaired.reasons.slice(0, 4) : [] };
+        selfHealApplied += 1;
+        selfHealEyes.push(String(eyeConfig.id || ''));
+        const regEye = Array.isArray(registry.eyes)
+          ? registry.eyes.find((row) => row && row.id === eyeConfig.id)
+          : null;
+        if (regEye) {
+          let regEyeMutated = false;
+          const parserAfter = String(eyeConfig.parser_type || '').trim().toLowerCase();
+          const domainsAfter = normalizeDomainList(eyeConfig.allowed_domains);
+          if (parserAfter && parserAfter !== String(regEye.parser_type || '').trim().toLowerCase()) {
+            regEye.parser_type = parserAfter;
+            regEyeMutated = true;
+            registryMutated = true;
+          }
+          if (JSON.stringify(domainsAfter) !== JSON.stringify(normalizeDomainList(regEye.allowed_domains))) {
+            regEye.allowed_domains = domainsAfter;
+            regEyeMutated = true;
+            registryMutated = true;
+          }
+          if (regEyeMutated) regEye.updated_ts = new Date().toISOString();
+          if (parserBefore !== parserAfter || domainsBefore !== JSON.stringify(domainsAfter)) {
+            regEye.last_repair_ts = new Date().toISOString();
+            regEye.last_repair_reason = selfHeal.reasons.join('|').slice(0, 120) || 'preflight_self_heal';
+          }
+        }
+        staticRep = staticPreflightEye(eyeConfig) || staticRep;
+        if (staticRep instanceof Promise) {
+          staticRep = await staticRep.catch(() => ({ ok: false, checks: [], failures: [{ code: 'preflight_error', message: 'Async preflight failed after repair' }] }));
+        }
+      }
+    }
     
+    const effectiveParserType = String(eyeConfig.parser_type || '').toLowerCase();
+    const effectiveStatus = String(eyeConfig.status || '').toLowerCase();
     const row = {
       eye_id: String(eyeConfig.id || ''),
-      parser_type: parserType,
-      status,
-      runnable: status !== 'retired' && status !== 'dormant' && parserType !== 'stub',
+      parser_type: effectiveParserType,
+      status: effectiveStatus,
+      runnable: effectiveStatus !== 'retired' && effectiveStatus !== 'dormant' && effectiveParserType !== 'stub',
       ok: !!staticRep.ok,
       checks: Array.isArray(staticRep.checks) ? staticRep.checks : [],
-      failures: Array.isArray(staticRep.failures) ? staticRep.failures : []
+      failures: Array.isArray(staticRep.failures) ? staticRep.failures : [],
+      self_heal: selfHeal
     };
     report.push(row);
+  }
+
+  let selfHealPersistError = null;
+  if (configMutated) {
+    try {
+      setCatalog(CONFIG_PATH, config, {
+        source: 'habits/scripts/external_eyes.js',
+        reason: 'collector_preflight_self_heal',
+        actor: process.env.USER || 'unknown'
+      });
+    } catch (err) {
+      selfHealPersistError = String(err && err.message ? err.message : err || 'catalog_set_failed').slice(0, 200);
+    }
+  }
+  if (registryMutated) {
+    try {
+      saveRegistry(registry);
+    } catch (err) {
+      if (!selfHealPersistError) {
+        selfHealPersistError = String(err && err.message ? err.message : err || 'registry_save_failed').slice(0, 200);
+      }
+    }
   }
 
   const failingRunnable = report.filter(r => r.runnable && r.ok !== true);
@@ -1862,6 +2694,9 @@ async function preflight(opts = {}) {
     checked: report.length,
     failed_runnable_eyes: failingRunnable.length,
     failure_code_counts: failureCodeCounts,
+    preflight_self_heal_applied: selfHealApplied,
+    preflight_self_heal_eyes: selfHealEyes.slice(0, 12),
+    preflight_self_heal_persist_error: selfHealPersistError,
     report
   };
   if (failingRunnable.length === 0) {
@@ -1919,6 +2754,7 @@ async function run(opts = {}) {
   
   const config = loadConfig();
   const registry = loadRegistry();
+  const linkage = reconcileEyeLinkage(config, registry, { source: 'run' });
   const failureCodePolicies = loadFailureCodePolicies(config);
   const today = getToday();
   const { eye: specificEye, maxEyes = config.global_limits.max_concurrent_runs, forceEyeId = null } = opts;
@@ -1972,6 +2808,12 @@ async function run(opts = {}) {
     console.log(`🎯 Focus triggers refreshed: ${Number(focusRefresh.trigger_count || 0)} active`);
   } else if (focusEnabled && focusRefresh && focusRefresh.ok === false) {
     console.log(`⚠️  Focus refresh failed: ${String(focusRefresh.error || 'unknown').slice(0, 120)}`);
+  }
+  if (Number(linkage.changed || 0) > 0) {
+    console.log(
+      `🧬 Eye linkage reconcile: changed=${Number(linkage.changed || 0)}` +
+      ` dormant=${Number(linkage.dormant_atrophy || 0)} retired=${Number(linkage.retired_atrophy || 0)}`
+    );
   }
   if (outageStart.transition === 'enter') {
     console.log(`🚨 Outage mode ENTER: failed_transport_eyes=${outageStart.failed_transport_eyes}/${outageStart.min_eyes} window=${outageStart.window_hours}h`);
@@ -2134,6 +2976,8 @@ async function run(opts = {}) {
           }
         }
         registryEye.cooldown_until = null;
+        registryEye.health_quarantine_until = null;
+        registryEye.health_quarantine_reason = null;
         registryEye.last_error = null;
         registryEye.last_error_code = null;
         registryEye.last_error_http_status = null;
@@ -2245,6 +3089,32 @@ async function run(opts = {}) {
           registryEye.cooldown_until = new Date(Date.now() + (FAIL_PARK_HOURS * 60 * 60 * 1000)).toISOString();
           console.log(`   ⚠️  Auto-parked: consecutive_failures=${registryEye.consecutive_failures} cooldown=${FAIL_PARK_HOURS}h`);
         }
+        if (EYES_HEALTH_QUARANTINE_ENABLED && parserType !== 'stub') {
+          const failStreak = Number(registryEye.consecutive_failures || 0);
+          const noSignalRuns = Number(registryEye.consecutive_no_signal_runs || 0);
+          if (failStreak >= EYES_HEALTH_QUARANTINE_FAIL_THRESHOLD || noSignalRuns >= EYES_HEALTH_QUARANTINE_NO_SIGNAL_THRESHOLD) {
+            const reason = failStreak >= EYES_HEALTH_QUARANTINE_FAIL_THRESHOLD
+              ? 'health_quarantine_fail_streak'
+              : 'health_quarantine_no_signal_streak';
+            const untilIso = new Date(Date.now() + (EYES_HEALTH_QUARANTINE_HOURS * 60 * 60 * 1000)).toISOString();
+            const existingUntil = Date.parse(String(registryEye.health_quarantine_until || ''));
+            const minExtendMs = Date.now() + Math.floor(EYES_HEALTH_QUARANTINE_HOURS * 0.5 * 60 * 60 * 1000);
+            if (!Number.isFinite(existingUntil) || existingUntil < minExtendMs) {
+              registryEye.health_quarantine_until = untilIso;
+              registryEye.health_quarantine_reason = reason;
+              appendRawLog(today, {
+                ts: new Date().toISOString(),
+                type: 'eye_health_quarantine_set',
+                eye_id: eyeConfig.id,
+                parser_type: parserType,
+                reason,
+                consecutive_failures: failStreak,
+                consecutive_no_signal_runs: noSignalRuns,
+                cooldown_hours: EYES_HEALTH_QUARANTINE_HOURS
+              });
+            }
+          }
+        }
       }
       
       console.log(`   ❌ Failed: ${c.code} ${c.message}`);
@@ -2311,6 +3181,26 @@ async function run(opts = {}) {
         );
       }
     }
+
+    if (
+      !isForced
+      && EYES_LINKAGE_RUN_GATE_ENABLED
+      && (EYES_LINKAGE_RUN_GATE_ALLOW_STUB ? true : parserType !== 'stub')
+    ) {
+      const linkageStatus = String(registryEye.linkage_status || '').trim().toLowerCase();
+      if (linkageStatus === 'disconnected') {
+        const linkageReason = String(registryEye.linkage_reason || 'linkage_disconnected').slice(0, 120);
+        appendRawLog(today, {
+          ts: new Date().toISOString(),
+          type: 'eye_skipped_linkage_gate',
+          eye_id: eyeConfig.id,
+          parser_type: parserType,
+          reason: linkageReason
+        });
+        console.log(`⏭️  Skipping ${eyeConfig.id}: linkage gate (${linkageReason})`);
+        continue;
+      }
+    }
     
     // Check status
     if (runtimeEye.status === 'retired') {
@@ -2339,6 +3229,17 @@ async function run(opts = {}) {
           continue;
         }
       }
+    }
+
+    if (!isForced && EYES_HEALTH_QUARANTINE_ENABLED && registryEye.health_quarantine_until) {
+      const until = new Date(String(registryEye.health_quarantine_until));
+      if (!isNaN(until.getTime()) && Date.now() < until.getTime()) {
+        const hrs = Math.max(0, (until.getTime() - Date.now()) / (1000 * 60 * 60));
+        console.log(`⏭️  Skipping ${eyeConfig.id}: health quarantine (${hrs.toFixed(1)}h left)`);
+        continue;
+      }
+      registryEye.health_quarantine_until = null;
+      registryEye.health_quarantine_reason = null;
     }
     
     // Check cadence
@@ -2424,6 +3325,32 @@ async function run(opts = {}) {
   );
   if (starvedCheck.starved) {
     console.log(`⚠️  collector_starved window=${starvedCheck.window_hours}h path=${starvedCheck.path}`);
+  }
+  let sproutStats = null;
+  if (!selfHealPass && EYES_AUTO_SPROUT_ENABLED) {
+    const emitted = emitAutoSproutProposals(today, config);
+    const applied = applyAutoSproutQueue(today, loadConfig());
+    sproutStats = { ...emitted, ...applied };
+    appendRawLog(today, {
+      ts: new Date().toISOString(),
+      type: 'eye_auto_sprout',
+      candidates: Number(emitted.candidates || 0),
+      proposals_added: Number(emitted.added || 0),
+      proposals_skipped: Number(emitted.skipped || 0),
+      applied: Number(applied.applied || 0),
+      blocked: Number(applied.blocked || 0),
+      skipped: Number(applied.skipped || 0),
+      queue_path: String(applied.path || emitted.path || '')
+    });
+    if (Number(emitted.added || 0) > 0) {
+      console.log(`🌱 Eye sprout candidates queued: ${emitted.added}/${emitted.candidates} path=${emitted.path}`);
+    }
+    if (Number(applied.applied || 0) > 0 || Number(applied.blocked || 0) > 0) {
+      console.log(
+        `🌱 Eye auto-sprout apply: created=${Number(applied.applied || 0)}` +
+        ` blocked=${Number(applied.blocked || 0)} skipped=${Number(applied.skipped || 0)}`
+      );
+    }
   }
   const sloResult = signalSlo(today, { silent: true });
   const sloActuator = applySignalSloActuator(today, sloResult, config, registry);
@@ -2630,7 +3557,13 @@ async function run(opts = {}) {
   }
   console.log('═══════════════════════════════════════════════════════════');
   
-  return { ran: eyesRun.length, eyes: eyesRun, self_heal: selfHealStats };
+  return {
+    ran: eyesRun.length,
+    eyes: eyesRun,
+    self_heal: selfHealStats,
+    sprout: sproutStats,
+    linkage
+  };
 }
 
 function pickCanaryEye(config, registry) {
@@ -3165,6 +4098,7 @@ function list() {
     const boundedErrors = Math.min(Math.max(totalErrors, 0), Math.max(totalRuns, 0));
     const successRate = totalRuns > 0 ? ((totalRuns - boundedErrors) / totalRuns) : 0;
     const lastSuccessHours = hoursSince(reg && reg.last_success);
+    const healthQuarantineHours = cooldownHoursRemaining(reg && reg.health_quarantine_until);
     const statusEmoji = {
       active: '✅',
       probation: '🔍',
@@ -3179,6 +4113,9 @@ function list() {
     console.log(`   Topics: ${eye.topics?.join(', ') || 'none'}`);
     console.log(`   Runs: ${reg?.run_count || 0}, Items: ${reg?.total_items || 0}`);
     console.log(`   Health: success_rate=${(successRate * 100).toFixed(1)}%, consecutive_failures=${reg?.consecutive_failures || 0}, last_success_h=${lastSuccessHours == null ? 'n/a' : lastSuccessHours.toFixed(1)}`);
+    if (healthQuarantineHours > 0) {
+      console.log(`   Health quarantine: ${healthQuarantineHours.toFixed(1)}h left (${String(reg && reg.health_quarantine_reason || 'unspecified').slice(0, 80)})`);
+    }
     if (reg && reg.last_error_code) {
       console.log(`   Last error: ${reg.last_error_code} ${String(reg.last_error || '').slice(0, 100)}`);
     }
@@ -3347,21 +4284,31 @@ function reconcile() {
 }
 
 // PROPOSE: Create a new eye proposal
-function propose(name, domain, notes) {
+function propose(name, domain, notes, opts = {}) {
   ensureDirs();
   
   if (!name || !domain) {
-    console.error('Usage: propose "<name>" "<domain>" "<notes>"');
+    console.error('Usage: propose "<name>" "<domain>" "<notes>" [--parser=<parser>] [--directive=<directive_id>] [--strategy=<id>] [--campaigns=id1,id2]');
     return null;
   }
   
   const id = name.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 20);
   const date = getToday();
+  const parserType = String(opts && opts.parser ? opts.parser : inferParserTypeForDomain(domain)).trim().toLowerCase() || 'stub';
+  const directiveRef = resolveDirectiveForSprout(opts && opts.directive ? opts.directive : '');
+  const linkage = linkageForDirective(directiveRef, {
+    strategy_id: opts && opts.strategy ? opts.strategy : '',
+    campaign_ids: opts && opts.campaigns ? opts.campaigns : ''
+  });
   
   const proposal = {
     id: `proto_${id}`,
     name,
     proposed_domains: [domain],
+    proposed_parser_type: parserType,
+    directive_ref: directiveRef || null,
+    proposed_strategy_id: linkage.strategy_id || null,
+    proposed_campaign_ids: linkage.campaign_ids || [],
     notes,
     proposed_status: 'probation',
     proposed_cadence_hours: 24,
@@ -3392,10 +4339,14 @@ function propose(name, domain, notes) {
   console.log(`ID: ${proposal.id}`);
   console.log(`Name: ${name}`);
   console.log(`Domain: ${domain}`);
+  console.log(`Parser: ${proposal.proposed_parser_type}`);
+  console.log(`Directive: ${proposal.directive_ref || '(none active)'}`);
+  console.log(`Strategy: ${proposal.proposed_strategy_id || '(none active)'}`);
+  console.log(`Campaigns: ${Array.isArray(proposal.proposed_campaign_ids) && proposal.proposed_campaign_ids.length ? proposal.proposed_campaign_ids.join(',') : '(none active)'}`);
   console.log(`Status: pending_review`);
   console.log(`File: ${proposalPath}`);
   console.log('');
-  console.log('⏭️  Next: Review proposal and add to the eyes catalog through eyes_intake');
+  console.log('⏭️  Next: run cycle will auto-sprout when gates pass');
   console.log('═══════════════════════════════════════════════════════════');
   
   return proposal;
@@ -3408,7 +4359,8 @@ function parseArgs() {
   const opts = {};
   const positional = [];
   
-  for (const arg of args.slice(1)) {
+  for (let i = 1; i < args.length; i += 1) {
+    const arg = args[i];
     if (arg.startsWith('--eye=')) {
       opts.eye = arg.slice(6);
     } else if (arg.startsWith('--max-eyes=')) {
@@ -3418,7 +4370,19 @@ function parseArgs() {
     } else if (arg === '--network' || arg === '--network=1') {
       opts.network = true;
     } else if (arg.startsWith('--')) {
-      // Other flags
+      const eq = arg.indexOf('=');
+      if (eq >= 0) {
+        opts[arg.slice(2, eq)] = arg.slice(eq + 1);
+      } else {
+        const key = arg.slice(2);
+        const next = args[i + 1];
+        if (next != null && !String(next).startsWith('-')) {
+          opts[key] = next;
+          i += 1;
+        } else {
+          opts[key] = true;
+        }
+      }
     } else if (!arg.startsWith('-') && positional.length < 3) {
       positional.push(arg);
     }
@@ -3447,7 +4411,7 @@ async function main() {
     console.log('  status                                Alias for list');
     console.log('  doctor                                Collector reliability health report');
     console.log('  reconcile                             Apply config static fields to registry');
-    console.log('  propose "<name>" "<domain>" "<notes>"  Propose new eye (requires manual review)');
+    console.log('  propose "<name>" "<domain>" "<notes>" [--parser=p] [--directive=id] [--strategy=id] [--campaigns=id1,id2]  Queue eye for auto-sprout');
     console.log('');
     console.log('Constraints:');
     console.log('  - Budgets enforced (max_items, max_seconds, max_bytes, max_requests)');
@@ -3501,7 +4465,7 @@ async function main() {
         console.error('Usage: propose "<name>" "<domain>" ["<notes>"]');
         process.exit(1);
       }
-      propose(positional[0], positional[1], positional[2] || '');
+      propose(positional[0], positional[1], positional[2] || '', opts);
       break;
     default:
       console.error(`Unknown command: ${cmd}`);
@@ -3523,6 +4487,10 @@ module.exports = {
   temporal,
   reconcile,
   propose,
+  emitAutoSproutProposals,
+  applyAutoSproutQueue,
+  inferParserTypeForDomain,
+  resolveDirectiveForSprout,
   loadConfig,
   loadRegistry,
   saveRegistry,

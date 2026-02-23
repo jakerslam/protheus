@@ -898,6 +898,125 @@ function resolveMinFocusScore(policy, recentMap, nowMs = Date.now(), outcomePoli
   };
 }
 
+function resolveOutcomeTuning(outcomePolicy) {
+  const realized = clamp(
+    outcomePolicy && outcomePolicy.realized_outcome_score,
+    0,
+    100,
+    50
+  );
+  if (realized < 45) {
+    return {
+      realized_score: realized,
+      lens_step_up_delta: -1,
+      lens_step_down_delta: 1,
+      prune_budget_multiplier: 1.5,
+      prune_stale_scale: 0.7
+    };
+  }
+  if (realized > 70) {
+    return {
+      realized_score: realized,
+      lens_step_up_delta: 1,
+      lens_step_down_delta: 0,
+      prune_budget_multiplier: 0.6,
+      prune_stale_scale: 1.2
+    };
+  }
+  return {
+    realized_score: realized,
+    lens_step_up_delta: 0,
+    lens_step_down_delta: 0,
+    prune_budget_multiplier: 1,
+    prune_stale_scale: 1
+  };
+}
+
+function triggerPriorityScore(trigger, nowMs = Date.now()) {
+  const t = trigger && typeof trigger === 'object' ? trigger : {};
+  const weight = clamp((t as AnyObj).weight, 1, 100, 1);
+  const hits = clamp((t as AnyObj).hit_count, 0, 100000000, 0);
+  const seenTs = Date.parse(String((t as AnyObj).last_hit_ts || (t as AnyObj).updated_ts || (t as AnyObj).created_ts || ''));
+  const ageHours = Number.isFinite(seenTs) ? Math.max(0, (nowMs - seenTs) / (1000 * 60 * 60)) : 9999;
+  const recency = ageHours <= 24 ? (24 - ageHours) / 6 : 0;
+  return (weight * 0.7) + (Math.log10(hits + 1) * 8) + recency;
+}
+
+function pruneFocusTriggerRows(rows, policy, outcomePolicy, nowMs = Date.now()) {
+  const src = Array.isArray(rows) ? rows.map((row) => ({ ...(row || {}) })) : [];
+  const pol = policy && typeof policy === 'object' ? policy : {};
+  if ((pol as AnyObj).trigger_prune_enabled === false) {
+    return { triggers: src, pruned: 0, forced_pruned: 0 };
+  }
+  const tuning = resolveOutcomeTuning(outcomePolicy);
+  const maxTriggers = clamp((pol as AnyObj).max_triggers, 8, 200, 48);
+  const minHitCount = clamp((pol as AnyObj).trigger_prune_min_hit_count, 0, 1000, 1);
+  const keepRatio = clamp((pol as AnyObj).trigger_prune_keep_ratio, 0.1, 1, 0.6);
+  const keepFloor = Math.max(8, Math.floor(maxTriggers * keepRatio));
+  const pruneLimit = Math.max(
+    1,
+    Math.floor(clamp((pol as AnyObj).trigger_prune_max_per_run, 1, 200, 8) * clamp(tuning.prune_budget_multiplier, 0.4, 2.5, 1))
+  );
+  const staleHours = Math.max(
+    6,
+    Math.floor(clamp((pol as AnyObj).trigger_prune_stale_hours, 6, 24 * 30, 72) * clamp(tuning.prune_stale_scale, 0.5, 2, 1))
+  );
+
+  const survivors: AnyObj[] = [];
+  const pruneCandidates: AnyObj[] = [];
+  for (const row of src) {
+    const source = normalizeText((row as AnyObj).source).toLowerCase();
+    if (source === 'manual') {
+      survivors.push(row as AnyObj);
+      continue;
+    }
+    const seenTs = Date.parse(String((row as AnyObj).last_hit_ts || (row as AnyObj).updated_ts || (row as AnyObj).created_ts || ''));
+    const ageHours = Number.isFinite(seenTs) ? Math.max(0, (nowMs - seenTs) / (1000 * 60 * 60)) : Infinity;
+    const hitCount = Number((row as AnyObj).hit_count || 0);
+    const stale = ageHours >= staleHours;
+    if (stale && hitCount <= minHitCount) {
+      pruneCandidates.push({ row, ageHours, priority: triggerPriorityScore(row, nowMs) });
+    } else {
+      survivors.push(row as AnyObj);
+    }
+  }
+  pruneCandidates.sort((a, b) => {
+    if (b.ageHours !== a.ageHours) return b.ageHours - a.ageHours;
+    if (a.priority !== b.priority) return a.priority - b.priority;
+    return String(a.row && a.row.key || '').localeCompare(String(b.row && b.row.key || ''));
+  });
+
+  let pruned = 0;
+  for (const cand of pruneCandidates) {
+    if (pruned >= pruneLimit) {
+      survivors.push(cand.row);
+      continue;
+    }
+    if (survivors.length <= keepFloor) {
+      survivors.push(cand.row);
+      continue;
+    }
+    pruned += 1;
+  }
+
+  survivors.sort((a, b) => {
+    const sa = triggerPriorityScore(a, nowMs);
+    const sb = triggerPriorityScore(b, nowMs);
+    if (sb !== sa) return sb - sa;
+    return String(a && a.key || '').localeCompare(String(b && b.key || ''));
+  });
+  let forcedPruned = 0;
+  if (survivors.length > maxTriggers) {
+    forcedPruned = survivors.length - maxTriggers;
+  }
+  const limited = survivors.slice(0, maxTriggers);
+  return {
+    triggers: limited,
+    pruned,
+    forced_pruned: forcedPruned
+  };
+}
+
 function extractTitle(html) {
   const m = String(html || '').match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   return m ? normalizeText(m[1].replace(/\s+/g, ' ')).slice(0, 180) : '';
@@ -1295,8 +1414,19 @@ async function evaluateFocusForEye(opts: AnyObj = {}) {
           }
           : null;
         const ts = nowIso();
-        const lensStepUp = clamp(next.policy && next.policy.lens_step_up, 1, 10, 2);
-        const lensStepDown = clamp(next.policy && next.policy.lens_step_down, 1, 10, 1);
+        const tuning = resolveOutcomeTuning(outcomePolicy);
+        const lensStepUp = clamp(
+          clamp(next.policy && next.policy.lens_step_up, 1, 10, 2) + Number(tuning.lens_step_up_delta || 0),
+          1,
+          10,
+          2
+        );
+        const lensStepDown = clamp(
+          clamp(next.policy && next.policy.lens_step_down, 1, 10, 1) + Number(tuning.lens_step_down_delta || 0),
+          1,
+          10,
+          1
+        );
         const lensMinWeight = clamp(next.policy && next.policy.lens_min_weight, 1, 40, 2);
         const lensMaxWeight = clamp(next.policy && next.policy.lens_max_weight, 1, 60, 20);
         for (const row of selected) {
@@ -1327,7 +1457,9 @@ async function evaluateFocusForEye(opts: AnyObj = {}) {
           }
         }
         next.recent_focus_items = recent;
-        next.triggers = Array.from(triggerMap.values());
+        const triggerRows = Array.from(triggerMap.values());
+        const pruned = pruneFocusTriggerRows(triggerRows, next.policy || {}, outcomePolicy, Date.now());
+        next.triggers = pruned.triggers;
         if (lens && eyeKey) {
           lens.updated_ts = ts;
           lens.update_count = Number(lens.update_count || 0) + 1;
@@ -1337,6 +1469,10 @@ async function evaluateFocusForEye(opts: AnyObj = {}) {
         next.stats = {
           ...(next.stats || {}),
           focused_items_total: Number((next.stats && next.stats.focused_items_total) || 0) + selected.length,
+          trigger_pruned_total: Number((next.stats && next.stats.trigger_pruned_total) || 0)
+            + Number(pruned.pruned || 0)
+            + Number(pruned.forced_pruned || 0),
+          last_trigger_prune_ts: ts,
           last_focus_ts: ts
         };
         return next;
@@ -1358,6 +1494,7 @@ async function evaluateFocusForEye(opts: AnyObj = {}) {
     selected_count: selected.length,
     detail_fetch_used: detailFetchUsed,
     focus_budget: focusBudget,
+    outcome_tuning: resolveOutcomeTuning(outcomePolicy),
     selected_fingerprints: selected.map((x) => x.fingerprint),
     items: outputItems,
     focus_events: focusEvents
@@ -1380,6 +1517,7 @@ function focusStatus() {
     ts: nowIso(),
     policy: state.policy || {},
     dynamic_focus_gate: gate,
+    outcome_tuning: resolveOutcomeTuning(outcomePolicy),
     last_refresh_ts: state.last_refresh_ts || null,
     trigger_count: triggerRows.length,
     top_triggers: triggerRows

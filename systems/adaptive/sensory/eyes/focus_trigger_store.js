@@ -83,7 +83,12 @@ function defaultFocusState() {
       focus_fetch_max_bytes: 131072,
       llm_backstop_enabled: false,
       llm_uncertain_min_score: 48,
-      llm_uncertain_max_score: 57
+      llm_uncertain_max_score: 57,
+      trigger_prune_enabled: true,
+      trigger_prune_stale_hours: 72,
+      trigger_prune_min_hit_count: 1,
+      trigger_prune_max_per_run: 8,
+      trigger_prune_keep_ratio: 0.6
     },
     triggers: [],
     eye_lenses: {},
@@ -200,7 +205,12 @@ function normalizePolicy(raw) {
     focus_fetch_max_bytes: clampNumber(src.focus_fetch_max_bytes, 4096, 1048576, defaults.focus_fetch_max_bytes),
     llm_backstop_enabled: src.llm_backstop_enabled === true,
     llm_uncertain_min_score: clampNumber(src.llm_uncertain_min_score, 1, 99, defaults.llm_uncertain_min_score),
-    llm_uncertain_max_score: clampNumber(src.llm_uncertain_max_score, 1, 100, defaults.llm_uncertain_max_score)
+    llm_uncertain_max_score: clampNumber(src.llm_uncertain_max_score, 1, 100, defaults.llm_uncertain_max_score),
+    trigger_prune_enabled: src.trigger_prune_enabled === false ? false : defaults.trigger_prune_enabled,
+    trigger_prune_stale_hours: clampNumber(src.trigger_prune_stale_hours, 6, 24 * 30, defaults.trigger_prune_stale_hours),
+    trigger_prune_min_hit_count: clampNumber(src.trigger_prune_min_hit_count, 0, 1000, defaults.trigger_prune_min_hit_count),
+    trigger_prune_max_per_run: clampNumber(src.trigger_prune_max_per_run, 1, 200, defaults.trigger_prune_max_per_run),
+    trigger_prune_keep_ratio: clampNumber(src.trigger_prune_keep_ratio, 0.1, 1, defaults.trigger_prune_keep_ratio)
   };
 }
 

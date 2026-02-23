@@ -45,7 +45,9 @@ function run() {
       '--parser=hn_rss',
       '--directive=T1_make_jay_billionaire_v1',
       '--domains=example.com,news.ycombinator.com',
-      '--topics=market,signal'
+      '--topics=market,signal',
+      '--strategy=strategy_alpha',
+      '--campaigns=camp_launch,camp_scale'
     ], { cwd: repoRoot, encoding: 'utf8', env });
     assert.strictEqual(ok.status, 0, `create should pass: ${ok.stderr}`);
 
@@ -55,11 +57,15 @@ function run() {
     assert.strictEqual(cfg.eyes[0].id, eyeId);
     assert.strictEqual(cfg.eyes[0].directive_ref, 'T1_make_jay_billionaire_v1');
     assert.strictEqual(cfg.eyes[0].status, 'probation');
+    assert.strictEqual(cfg.eyes[0].strategy_id, 'strategy_alpha');
+    assert.deepStrictEqual(cfg.eyes[0].campaign_ids, ['camp_launch', 'camp_scale']);
 
     const reg = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
     assert.strictEqual(Array.isArray(reg.eyes), true);
     assert.strictEqual(reg.eyes.length, 1);
     assert.strictEqual(reg.eyes[0].id, eyeId);
+    assert.strictEqual(reg.eyes[0].strategy_id, 'strategy_alpha');
+    assert.deepStrictEqual(reg.eyes[0].campaign_ids, ['camp_launch', 'camp_scale']);
 
     const dup = spawnSync(process.execPath, [
       scriptPath,

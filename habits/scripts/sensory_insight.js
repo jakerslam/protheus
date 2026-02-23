@@ -17,6 +17,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 // v1.2.0: Support SENSORY_TEST_DIR for isolated testing
 const testDir = process.env.SENSORY_TEST_DIR;
@@ -25,6 +26,12 @@ const DIGESTS_DIR = path.join(SENSORY_DIR, 'digests');
 const ANOMALIES_DIR = path.join(SENSORY_DIR, 'anomalies');
 const INSIGHTS_DIR = path.join(SENSORY_DIR, 'insights');
 const PROPOSALS_DIR = path.join(SENSORY_DIR, 'proposals');
+const SENSORY_INSIGHT_MIN_VALIDATION = Math.max(1, Number(process.env.SENSORY_INSIGHT_MIN_VALIDATION || 1));
+const SENSORY_INSIGHT_REQUIRE_COMMAND = String(process.env.SENSORY_INSIGHT_REQUIRE_COMMAND || '1') !== '0';
+const META_COORDINATION_RE = /\b(review|prioriti[sz]e|triage|assess|evaluate|health check|high leverage)\b/i;
+const CONCRETE_CHANGE_RE = /\b(file|config|script|collector|parser|test|queue|registry|policy|budget|endpoint|model|hook|cadence|capture|digest)\b/i;
+const MEASURABLE_OUTCOME_RE = /\b(\d+|rate|ratio|latency|error|count|threshold|target|coverage|artifact|pass|fail|increase|decrease|drop|rise|recover|clear|above|below)\b/i;
+const COMMAND_PREFIX_RE = /^(node|npm|npx|python|python3|bash|sh|git|curl)\b/i;
 
 // v1.2.0: HARD CONSTRAINT - This module ONLY reads digests and anomalies
 // Raw JSONL event logs are INTENTIONALLY NOT USED - NEVER read from raw logs
@@ -75,6 +82,21 @@ function generateProposalId() {
   return `P${String(proposalCounter).padStart(3, '0')}`;
 }
 
+function normalizeText(v) {
+  return String(v == null ? '' : v).trim();
+}
+
+function normalizeLine(v) {
+  return normalizeText(v)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function sha16(s) {
+  return crypto.createHash('sha256').update(String(s || '')).digest('hex').slice(0, 16);
+}
+
 // Proposal builder
 function createProposal(type, title, expectedImpact, risk, validation, suggestedCommand) {
   return {
@@ -86,6 +108,108 @@ function createProposal(type, title, expectedImpact, risk, validation, suggested
     risk,
     validation: validation || [],
     suggested_next_command: suggestedCommand
+  };
+}
+
+function normalizeImpactWeight(v) {
+  const raw = normalizeText(v).toLowerCase();
+  if (raw === 'high') return 3;
+  if (raw === 'medium') return 2;
+  if (raw === 'low') return 1;
+  return 0;
+}
+
+function proposalQualityScore(p) {
+  const validation = Array.isArray(p && p.validation) ? p.validation : [];
+  const commandLen = normalizeText(p && p.suggested_next_command).length;
+  return (normalizeImpactWeight(p && p.expected_impact) * 10) + validation.length + Math.min(5, Math.floor(commandLen / 40));
+}
+
+function proposalPreGate(proposal) {
+  if (!proposal || typeof proposal !== 'object') return { allow: false, reason: 'invalid_proposal' };
+  const title = normalizeText(proposal.title);
+  const command = normalizeText(proposal.suggested_next_command);
+  const validation = Array.isArray(proposal.validation) ? proposal.validation.map((v) => normalizeText(v)).filter(Boolean) : [];
+  const blob = `${title} ${command} ${validation.join(' ')}`.trim();
+  if (!title || title.length < 12) return { allow: false, reason: 'title_too_short' };
+  if (SENSORY_INSIGHT_REQUIRE_COMMAND) {
+    if (!command || command.length < 8) return { allow: false, reason: 'missing_command' };
+    if (!COMMAND_PREFIX_RE.test(command)) return { allow: false, reason: 'command_not_executable' };
+  }
+  if (validation.length < SENSORY_INSIGHT_MIN_VALIDATION) return { allow: false, reason: 'validation_missing' };
+  if (!validation.some((row) => MEASURABLE_OUTCOME_RE.test(row))) return { allow: false, reason: 'validation_not_measurable' };
+  if (META_COORDINATION_RE.test(blob) && !CONCRETE_CHANGE_RE.test(blob) && !MEASURABLE_OUTCOME_RE.test(blob)) {
+    return { allow: false, reason: 'meta_noop' };
+  }
+  return { allow: true, reason: null };
+}
+
+function proposalDedupeKey(proposal) {
+  if (!proposal || typeof proposal !== 'object') return '';
+  const type = normalizeLine(proposal.type || 'unknown');
+  const titleTokens = normalizeLine(proposal.title)
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 8)
+    .join('_');
+  const commandHead = normalizeLine(proposal.suggested_next_command)
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 3)
+    .join('_');
+  if (!titleTokens && !commandHead) return '';
+  return `${type}|${titleTokens}|${commandHead}`;
+}
+
+function normalizeProposalForQueue(proposal) {
+  const p = proposal && typeof proposal === 'object' ? { ...proposal } : {};
+  const validation = Array.isArray(p.validation) ? p.validation.map((v) => normalizeText(v)).filter(Boolean) : [];
+  p.title = normalizeText(p.title);
+  p.type = normalizeText(p.type);
+  p.expected_impact = normalizeText(p.expected_impact).toLowerCase() || 'medium';
+  p.risk = normalizeText(p.risk).toLowerCase() || 'low';
+  p.validation = validation;
+  p.suggested_next_command = normalizeText(p.suggested_next_command);
+  p.status = 'pending';
+  p.meta = p.meta && typeof p.meta === 'object'
+    ? { ...p.meta, proposal_prepared_by: 'sensory_insight' }
+    : { proposal_prepared_by: 'sensory_insight' };
+  if (!p.id) {
+    const seed = `${p.type}|${p.title}|${p.suggested_next_command}`;
+    p.id = `PRP-${sha16(seed)}`;
+  }
+  return p;
+}
+
+function prepareProposalsForQueue(proposals) {
+  const src = Array.isArray(proposals) ? proposals : [];
+  const byKey = new Map();
+  const droppedByReason = {};
+  let deduped = 0;
+  for (const raw of src) {
+    const proposal = normalizeProposalForQueue(raw);
+    const gate = proposalPreGate(proposal);
+    if (!gate.allow) {
+      const reason = String(gate.reason || 'filtered');
+      droppedByReason[reason] = Number(droppedByReason[reason] || 0) + 1;
+      continue;
+    }
+    const key = proposalDedupeKey(proposal) || `id:${String(proposal.id || '')}`;
+    const prev = byKey.get(key);
+    if (!prev) {
+      byKey.set(key, proposal);
+      continue;
+    }
+    deduped += 1;
+    if (proposalQualityScore(proposal) > proposalQualityScore(prev)) {
+      byKey.set(key, proposal);
+    }
+  }
+  return {
+    proposals: Array.from(byKey.values()),
+    dropped: Object.values(droppedByReason).reduce((sum, n) => sum + Number(n || 0), 0),
+    deduped,
+    dropped_by_reason: droppedByReason
   };
 }
 
@@ -122,7 +246,7 @@ function generateDailyProposals(dateStr, digestContent, anomalyData) {
         'Reduce max_events_per_run in config/work_roots.json',
         'Add more ignore_patterns for build/cache dirs',
         'Reduce lookback_hours_default',
-        'Expect file_change_spike to drop in next digest'
+        'Expect file_change_spike count <= 0 in next digest'
       ],
       'node habits/scripts/sensory_capture.js capture --lookback-hours=12'
     );
@@ -557,13 +681,14 @@ function main() {
       }
       
       const proposals = generateDailyProposals(dateStr, digestContent, anomalyData);
+      const prepared = prepareProposalsForQueue(proposals);
       
       // Generate outputs
-      const insightsMd = generateInsightsMarkdown(dateStr, proposals, false);
+      const insightsMd = generateInsightsMarkdown(dateStr, prepared.proposals, false);
       const insightsPath = path.join(INSIGHTS_DIR, `${dateStr}.md`);
       fs.writeFileSync(insightsPath, insightsMd);
       
-      const proposalsPath = saveProposalsJSON(dateStr, proposals);
+      const proposalsPath = saveProposalsJSON(dateStr, prepared.proposals);
       
       // v1.2.1: Optionally ingest proposals into queue (best-effort, non-blocking)
       try {
@@ -574,17 +699,23 @@ function main() {
       }
       
       console.log(`✅ Insights: ${insightsPath}`);
-      console.log(`✅ Proposals: ${proposalsPath} (${proposals.length} generated)`);
+      console.log(`✅ Proposals: ${proposalsPath} (${prepared.proposals.length} generated, ${prepared.deduped} deduped, ${prepared.dropped} filtered)`);
       
-      if (proposals.length > 0) {
+      if (prepared.proposals.length > 0) {
         console.log(`\n📊 Proposal breakdown:`);
         const byType = {};
-        proposals.forEach(p => {
+        prepared.proposals.forEach(p => {
           byType[p.type] = (byType[p.type] || 0) + 1;
         });
         Object.entries(byType).forEach(([type, count]) => {
           console.log(`   ${type}: ${count}`);
         });
+        const filteredReasons = Object.entries(prepared.dropped_by_reason || {})
+          .map(([k, v]) => `${k}:${v}`)
+          .join(', ');
+        if (filteredReasons) {
+          console.log(`   filtered: ${filteredReasons}`);
+        }
       } else {
         console.log('\n🟢 No proposals - system operating normally');
       }
@@ -616,13 +747,14 @@ function main() {
       }
       
       const proposals = generateWeeklyProposals(dates, dailyAnalyses);
+      const prepared = prepareProposalsForQueue(proposals);
       
       // Generate outputs
-      const insightsMd = generateInsightsMarkdown(weekKey, proposals, true);
+      const insightsMd = generateInsightsMarkdown(weekKey, prepared.proposals, true);
       const insightsPath = path.join(INSIGHTS_DIR, `${weekKey}.md`);
       fs.writeFileSync(insightsPath, insightsMd);
       
-      const proposalsPath = saveProposalsJSON(weekKey, proposals);
+      const proposalsPath = saveProposalsJSON(weekKey, prepared.proposals);
       
       // v1.2.1: Optionally ingest proposals into queue (best-effort, non-blocking)
       try {
@@ -633,7 +765,7 @@ function main() {
       }
       
       console.log(`✅ Weekly Insights: ${insightsPath}`);
-      console.log(`✅ Weekly Proposals: ${proposalsPath} (${proposals.length} generated)`);
+      console.log(`✅ Weekly Proposals: ${proposalsPath} (${prepared.proposals.length} generated, ${prepared.deduped} deduped, ${prepared.dropped} filtered)`);
       console.log(`   Analyzed ${dailyAnalyses.length} days`);
       break;
     }
@@ -666,6 +798,7 @@ module.exports = {
   parseDigestMetrics,
   extractHighChurnPaths,
   generateProposals,
+  prepareProposalsForQueue,
   saveProposalsJSON,
   getWeekKey,
   getLastNDates,

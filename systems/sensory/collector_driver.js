@@ -8,6 +8,9 @@ const WORKSPACE_DIR = path.join(__dirname, '..', '..');
 const ADAPTIVE_COLLECTOR_DIR = process.env.ADAPTIVE_EYES_COLLECTOR_DIR
   ? path.resolve(process.env.ADAPTIVE_EYES_COLLECTOR_DIR)
   : path.join(WORKSPACE_DIR, 'adaptive', 'sensory', 'eyes', 'collectors');
+const COLLECTOR_DRIVER_MAX_ATTEMPTS = Math.max(1, Number(process.env.COLLECTOR_DRIVER_MAX_ATTEMPTS || 2));
+const COLLECTOR_DRIVER_RETRY_BACKOFF_MS = Math.max(50, Number(process.env.COLLECTOR_DRIVER_RETRY_BACKOFF_MS || 200));
+const COLLECTOR_DRIVER_MAX_TIMEOUT_MS = Math.max(1000, Number(process.env.COLLECTOR_DRIVER_MAX_TIMEOUT_MS || 60000));
 
 function normalizeKey(v) {
   return String(v || '').trim().toLowerCase();
@@ -80,6 +83,51 @@ function runOptions(eyeConfig, budgets) {
   const sec = Number(budgets && budgets.max_seconds);
   if (Number.isFinite(sec) && sec > 0) opts.timeoutMs = Math.round(sec * 1000);
   return opts;
+}
+
+function waitMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+}
+
+function withTimeout(promise, timeoutMs) {
+  const ms = Math.max(500, Number(timeoutMs) || 5000);
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`collector_timeout_${ms}ms`));
+    }, ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
+function collectRetryableCode(code) {
+  const c = String(code || '').trim().toLowerCase();
+  return (
+    c === 'timeout'
+    || c === 'network_error'
+    || c === 'dns_unreachable'
+    || c === 'connection_refused'
+    || c === 'connection_reset'
+    || c === 'tls_error'
+    || c === 'http_5xx'
+    || c === 'rate_limited'
+    || c === 'collector_error'
+  );
+}
+
+function isRetryableCollectResult(out) {
+  const code = String(out && out.error_code || '').trim().toLowerCase();
+  if (collectRetryableCode(code)) return true;
+  const msg = String(out && out.error || '').toLowerCase();
+  return (
+    msg.includes('timeout')
+    || msg.includes('network')
+    || msg.includes('dns')
+    || msg.includes('connection')
+    || msg.includes('tls')
+  );
 }
 
 async function callCollect(f, eyeConfig, budgets) {
@@ -204,8 +252,58 @@ async function collectWithDriver(eyeConfig) {
     };
   }
 
-  const out = await callCollect(collectFn, eyeConfig, budgets);
-  return normalizeCollectResult(out);
+  const budgetTimeoutMs = Number(budgets && budgets.max_seconds) > 0
+    ? Math.max(500, Math.min(COLLECTOR_DRIVER_MAX_TIMEOUT_MS, Math.round(Number(budgets.max_seconds) * 1000)))
+    : COLLECTOR_DRIVER_MAX_TIMEOUT_MS;
+
+  let lastOut = null;
+  for (let attempt = 1; attempt <= COLLECTOR_DRIVER_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const out = await withTimeout(callCollect(collectFn, eyeConfig, budgets), budgetTimeoutMs);
+      const normalized = normalizeCollectResult(out);
+      lastOut = normalized;
+      if (normalized.success === true) return normalized;
+      if (attempt < COLLECTOR_DRIVER_MAX_ATTEMPTS && isRetryableCollectResult(normalized)) {
+        await waitMs(COLLECTOR_DRIVER_RETRY_BACKOFF_MS * attempt);
+        continue;
+      }
+      return normalized;
+    } catch (err) {
+      const message = String(err && err.message ? err.message : err || 'collector_failed');
+      const code = message.toLowerCase().includes('timeout') ? 'timeout' : 'collector_error';
+      lastOut = {
+        ok: false,
+        success: false,
+        items: [],
+        bytes: 0,
+        duration_ms: 0,
+        requests: 0,
+        error: message.slice(0, 240),
+        error_code: code,
+        error_http_status: null,
+        degraded: false,
+        cache_hit: false
+      };
+      if (attempt < COLLECTOR_DRIVER_MAX_ATTEMPTS && collectRetryableCode(code)) {
+        await waitMs(COLLECTOR_DRIVER_RETRY_BACKOFF_MS * attempt);
+        continue;
+      }
+      return lastOut;
+    }
+  }
+  return lastOut || {
+    ok: false,
+    success: false,
+    items: [],
+    bytes: 0,
+    duration_ms: 0,
+    requests: 0,
+    error: 'collector_failed',
+    error_code: 'collector_error',
+    error_http_status: null,
+    degraded: false,
+    cache_hit: false
+  };
 }
 
 async function preflightWithDriver(eyeConfig) {

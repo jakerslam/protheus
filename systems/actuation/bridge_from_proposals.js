@@ -65,6 +65,80 @@ function normalizeParams(v) {
   return v && typeof v === 'object' ? v : {};
 }
 
+function normalizeRef(v) {
+  return normalizeText(v)
+    .toLowerCase()
+    .replace(/[^a-z0-9:_-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 64);
+}
+
+function normalizeRefList(v) {
+  const src = Array.isArray(v) ? v : (typeof v === 'string' ? v.split(',') : []);
+  const out = [];
+  const seen = new Set();
+  for (const row of src) {
+    const id = normalizeRef(row);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+    if (out.length >= 12) break;
+  }
+  return out;
+}
+
+function inferEyesCreateParams(p) {
+  const proposal = p && typeof p === 'object' ? p : {};
+  const meta = proposal.meta && typeof proposal.meta === 'object' ? proposal.meta : {};
+  const type = normalizeText(proposal.type).toLowerCase();
+  const hasShape = !!(
+    normalizeText(meta.directive_ref || proposal.directive_ref || meta.directive_objective_id || proposal.directive_objective_id)
+    && (Array.isArray(meta.proposed_domains) || Array.isArray(proposal.proposed_domains))
+    && normalizeText(meta.proposed_name || proposal.proposed_name || proposal.name || proposal.title || meta.proposed_eye_id || proposal.proposed_eye_id || proposal.id)
+  );
+  const sproutFlag = meta.eye_sprout === true
+    || meta.auto_sprout === true
+    || type === 'eye_sprout'
+    || type === 'sensor_expansion'
+    || hasShape;
+  if (!sproutFlag) return null;
+
+  const domains = Array.isArray(meta.proposed_domains || proposal.proposed_domains)
+    ? (meta.proposed_domains || proposal.proposed_domains).map((v) => normalizeText(v).toLowerCase()).filter(Boolean)
+    : [];
+  const parserType = normalizeText(meta.proposed_parser_type || proposal.proposed_parser_type || meta.parser_type || proposal.parser_type || '').toLowerCase();
+  const directiveRef = normalizeText(
+    meta.directive_ref
+    || proposal.directive_ref
+    || meta.directive_objective_id
+    || proposal.directive_objective_id
+    || meta.objective_id
+    || proposal.objective_id
+    || (proposal.action_spec && proposal.action_spec.objective_id)
+  );
+  const name = normalizeText(meta.proposed_name || proposal.proposed_name || proposal.name || proposal.title);
+  const eyeId = normalizeText(meta.proposed_eye_id || proposal.proposed_eye_id || meta.eye_id || proposal.eye_id || proposal.id).toLowerCase();
+  const strategyId = normalizeRef(meta.proposed_strategy_id || proposal.proposed_strategy_id || meta.strategy_id || proposal.strategy_id);
+  const campaignIds = normalizeRefList(meta.proposed_campaign_ids || proposal.proposed_campaign_ids || meta.campaign_ids || proposal.campaign_ids);
+  if (!name || !directiveRef || !eyeId) return null;
+  if (campaignIds.length > 0 && !strategyId) return null;
+
+  return {
+    id: eyeId,
+    name,
+    directive_ref: directiveRef,
+    proposed_strategy_id: strategyId || undefined,
+    proposed_campaign_ids: campaignIds.length > 0 ? campaignIds : undefined,
+    proposed_parser_type: parserType || undefined,
+    proposed_domains: domains,
+    proposed_topics: Array.isArray(meta.proposed_topics || proposal.proposed_topics) ? (meta.proposed_topics || proposal.proposed_topics) : undefined,
+    proposed_budgets: (meta.proposed_budgets && typeof meta.proposed_budgets === 'object')
+      ? meta.proposed_budgets
+      : ((proposal.proposed_budgets && typeof proposal.proposed_budgets === 'object') ? proposal.proposed_budgets : undefined)
+  };
+}
+
 function requiresActionSpecContract(proposal) {
   if (!proposal || typeof proposal !== 'object') return false;
   const id = String(proposal.id || '').toUpperCase();
@@ -232,6 +306,15 @@ function applyBridge(p) {
   // Rule 2: actuation_task + title marker
   if (!kind && String(p.type || '') === 'actuation_task') {
     kind = inferKindFromTitle(p.title);
+  }
+
+  // Rule 3: eye sprout proposal -> eyes_create adapter
+  if (!kind) {
+    const inferred = inferEyesCreateParams(next);
+    if (inferred) {
+      kind = 'eyes_create';
+      params = inferred;
+    }
   }
 
   if (!kind) {

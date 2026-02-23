@@ -227,6 +227,8 @@ function normalizeAutopauseState(raw, opts = {}) {
   const source = String(src.source || defaultSource).trim() || defaultSource;
   const pressure = src.pressure ? String(src.pressure).trim().toLowerCase() : null;
   const recoveredSpinePause = active && source === 'spine_budget_guard' && pressure === 'none';
+  const staleInactivePause = !active && src.active === true && untilMsRaw > 0 && untilMsRaw <= nowMs;
+  const autoCleared = recoveredSpinePause || staleInactivePause;
   if (recoveredSpinePause) active = false;
   return {
     schema_id: SYSTEM_BUDGET_AUTOPAUSE_SCHEMA.schema_id,
@@ -239,9 +241,9 @@ function normalizeAutopauseState(raw, opts = {}) {
     date: src.date ? normalizeDate(src.date) : null,
     until_ms: active ? untilMs : 0,
     until: active ? new Date(untilMs).toISOString() : null,
-    cleared_ts: recoveredSpinePause ? tsNow : (src.cleared_ts ? String(src.cleared_ts) : null),
-    clear_reason: recoveredSpinePause
-      ? 'auto_clear_recovered_pressure'
+    cleared_ts: autoCleared ? tsNow : (src.cleared_ts ? String(src.cleared_ts) : null),
+    clear_reason: autoCleared
+      ? (recoveredSpinePause ? 'auto_clear_recovered_pressure' : 'auto_clear_stale_autopause')
       : (src.clear_reason ? String(src.clear_reason).trim().slice(0, 200) : null),
     updated_at: tsNow
   };
