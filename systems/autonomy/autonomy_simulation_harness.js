@@ -206,6 +206,19 @@ function isRouteBudgetHoldEvent(evt) {
     || blockReason === 'budget_deferred_preview';
 }
 
+function isRouteManualGovernanceHoldEvent(evt) {
+  if (!evt || evt.type !== 'autonomy_run') return false;
+  if (String(evt.result || '') !== 'init_gate_blocked_route') return false;
+  const routeSummary = evt.route_summary && typeof evt.route_summary === 'object'
+    ? evt.route_summary
+    : {};
+  const blockReason = String(evt.route_block_reason || '').trim().toLowerCase();
+  const gateDecision = String(routeSummary.gate_decision || '').trim().toUpperCase();
+  const gateRisk = String(routeSummary.gate_risk || '').trim().toLowerCase();
+  return blockReason === 'gate_manual'
+    || (gateDecision === 'MANUAL' && gateRisk === 'high');
+}
+
 function isPolicyHoldEvent(evt) {
   if (!evt || evt.type !== 'autonomy_run') return false;
   if (evt.policy_hold === true) return true;
@@ -214,6 +227,7 @@ function isPolicyHoldEvent(evt) {
   if (result.startsWith('no_candidates_policy_')) return true;
   if (LEGACY_POLICY_HOLD_RESULTS.has(result)) return true;
   if (isRouteBudgetHoldEvent(evt)) return true;
+  if (isRouteManualGovernanceHoldEvent(evt)) return true;
   return result.startsWith('no_candidates_policy_')
     || result === 'score_only_fallback_route_block'
     || result === 'score_only_fallback_low_execution_confidence';

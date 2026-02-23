@@ -1,7 +1,7 @@
 {
   "ok": true,
   "type": "autonomy_simulation_harness",
-  "ts": "2026-02-23T09:32:24.574Z",
+  "ts": "2026-02-23T09:36:24.692Z",
   "end_date": "2026-02-23",
   "days": 180,
   "verdict": "pass",
@@ -9,7 +9,7 @@
   "verdict_effective": "pass",
   "checks": {
     "drift_rate": {
-      "value": 0.23,
+      "value": 0.224,
       "warn": 0.65,
       "fail": 0.85,
       "status": "pass"
@@ -34,7 +34,7 @@
   },
   "checks_effective": {
     "drift_rate": {
-      "value": 0.038,
+      "value": 0.026,
       "warn": 0.65,
       "fail": 0.85,
       "status": "pass"
@@ -52,7 +52,7 @@
       "status": "pass"
     },
     "attempt_volume": {
-      "value": 78,
+      "value": 77,
       "min": 5,
       "status": "pass"
     }
@@ -62,32 +62,32 @@
     "baseline_preserved": true,
     "effective_projection_present": true,
     "denominator_reduction_only": true,
-    "denominator_delta": 118
+    "denominator_delta": 119
   },
   "counters": {
     "run_rows": 208,
     "attempts": 196,
     "executed": 13,
     "shipped": 6,
-    "no_progress": 45,
+    "no_progress": 44,
     "safety_stops": 4,
-    "policy_holds": 55
+    "policy_holds": 56
   },
   "baseline_counters": {
     "attempts": 196,
     "executed": 13,
     "shipped": 6,
-    "no_progress": 45,
+    "no_progress": 44,
     "safety_stops": 4,
-    "policy_holds": 55
+    "policy_holds": 56
   },
   "effective_counters": {
-    "attempts": 78,
+    "attempts": 77,
     "executed": 7,
     "shipped": 5,
-    "no_progress": 3,
+    "no_progress": 2,
     "safety_stops": 0,
-    "policy_holds": 28
+    "policy_holds": 29
   },
   "compiler_projection": {
     "enabled": true,
