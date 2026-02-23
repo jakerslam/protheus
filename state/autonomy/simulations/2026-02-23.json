@@ -1,7 +1,7 @@
 {
   "ok": true,
   "type": "autonomy_simulation_harness",
-  "ts": "2026-02-23T08:49:16.013Z",
+  "ts": "2026-02-23T08:59:39.430Z",
   "end_date": "2026-02-23",
   "days": 180,
   "verdict": "pass",
