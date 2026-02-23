@@ -11432,10 +11432,16 @@ function runCmd(dateStr, opts = {}) {
       || executeValueSignal < executeConfidenceMinValue
     )
   ) {
+    const confidenceHoldReason = `auto:execute_confidence_fallback cooldown_${AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS}h`;
+    setCooldown(p.id, AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS, confidenceHoldReason);
+    const confidenceCooldown = cooldownEntry(p.id);
+    const confidenceNextClearAt = confidenceCooldown ? (confidenceCooldown.until || null) : null;
     writeRun(dateStr, {
       ts: nowIso(),
       type: 'autonomy_run',
       result: 'score_only_fallback_low_execution_confidence',
+      policy_hold: true,
+      hold_scope: 'proposal',
       proposal_id: p.id,
       objective_id: executionObjectiveId || null,
       proposal_date: proposalDate,
@@ -11444,6 +11450,9 @@ function runCmd(dateStr, opts = {}) {
       capability_key: capabilityKey,
       execution_mode: executionMode,
       score: Number(pick.score.toFixed(3)),
+      cooldown_hours: AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS,
+      next_clear_at: confidenceNextClearAt,
+      hold_reason: confidenceHoldReason,
       confidence_gate: {
         composite_score: Number(pick && pick.composite_score || 0),
         composite_min_required: executeConfidenceMinComposite,
@@ -11456,10 +11465,15 @@ function runCmd(dateStr, opts = {}) {
     process.stdout.write(JSON.stringify({
       ok: true,
       result: 'score_only_fallback_low_execution_confidence',
+      policy_hold: true,
+      hold_scope: 'proposal',
       proposal_id: p.id,
       objective_id: executionObjectiveId || null,
       capability_key: capabilityKey,
       execution_mode: executionMode,
+      cooldown_hours: AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS,
+      next_clear_at: confidenceNextClearAt,
+      hold_reason: confidenceHoldReason,
       confidence_gate: {
         composite_score: Number(pick && pick.composite_score || 0),
         composite_min_required: executeConfidenceMinComposite,
