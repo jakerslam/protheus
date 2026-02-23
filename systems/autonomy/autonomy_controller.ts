@@ -357,6 +357,14 @@ const AUTONOMY_EXECUTE_CONFIDENCE_LANE_COOLDOWN_HOURS = Math.max(
   1,
   Number(process.env.AUTONOMY_EXECUTE_CONFIDENCE_LANE_COOLDOWN_HOURS || AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS)
 );
+const AUTONOMY_EXECUTE_CONFIDENCE_LOOP_ESCALATE_THRESHOLD = Math.max(
+  2,
+  Number(process.env.AUTONOMY_EXECUTE_CONFIDENCE_LOOP_ESCALATE_THRESHOLD || 3)
+);
+const AUTONOMY_EXECUTE_CONFIDENCE_LOOP_COOLDOWN_HOURS = Math.max(
+  1,
+  Number(process.env.AUTONOMY_EXECUTE_CONFIDENCE_LOOP_COOLDOWN_HOURS || 24)
+);
 const AUTONOMY_CRITERIA_PATTERN_WINDOW_DAYS = Math.max(1, Number(process.env.AUTONOMY_CRITERIA_PATTERN_WINDOW_DAYS || 14));
 const AUTONOMY_CRITERIA_PATTERN_FAIL_THRESHOLD = Math.max(1, Number(process.env.AUTONOMY_CRITERIA_PATTERN_FAIL_THRESHOLD || 2));
 const AUTONOMY_CRITERIA_PATTERN_PENALTY_PER_HIT = Math.max(1, Number(process.env.AUTONOMY_CRITERIA_PATTERN_PENALTY_PER_HIT || 6));
@@ -11100,19 +11108,42 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       || executeValueSignal < executeConfidenceMinValue
     )
   ) {
-    const confidenceHoldReason = `auto:execute_confidence_fallback cooldown_${AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS}h`;
-    const confidenceLaneHours = Math.max(1, Number(AUTONOMY_EXECUTE_CONFIDENCE_LANE_COOLDOWN_HOURS || AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS));
+    const confidenceHistory = executeConfidencePolicy && executeConfidencePolicy.history && typeof executeConfidencePolicy.history === 'object'
+      ? executeConfidencePolicy.history
+      : {};
+    const confidenceFallbackHits = Math.max(0, Number(confidenceHistory.confidence_fallback || 0));
+    const confidenceLoopDetected = (confidenceFallbackHits + 1) >= AUTONOMY_EXECUTE_CONFIDENCE_LOOP_ESCALATE_THRESHOLD;
+    const confidenceProposalCooldownHours = confidenceLoopDetected
+      ? Math.max(AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS, AUTONOMY_EXECUTE_CONFIDENCE_LOOP_COOLDOWN_HOURS)
+      : AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS;
+    const confidenceLaneHoursBase = Math.max(
+      1,
+      Number(AUTONOMY_EXECUTE_CONFIDENCE_LANE_COOLDOWN_HOURS || AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS)
+    );
+    const confidenceLaneHours = confidenceLoopDetected
+      ? Math.max(confidenceLaneHoursBase, confidenceProposalCooldownHours)
+      : confidenceLaneHoursBase;
+    const confidenceHoldReason = confidenceLoopDetected
+      ? `auto:execute_confidence_fallback_loop cooldown_${confidenceProposalCooldownHours}h hits_${confidenceFallbackHits + 1}`
+      : `auto:execute_confidence_fallback cooldown_${confidenceProposalCooldownHours}h`;
     const confidenceLaneKey = executeConfidenceCooldownKey(
       capabilityKey,
       executionObjectiveId,
       String(p.type || '')
     );
-    setCooldown(p.id, AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS, confidenceHoldReason);
+    setCooldown(p.id, confidenceProposalCooldownHours, confidenceHoldReason);
     if (confidenceLaneKey) {
       setCooldown(
         confidenceLaneKey,
         confidenceLaneHours,
         `${confidenceHoldReason} lane:${confidenceLaneKey}`
+      );
+    }
+    if (confidenceLoopDetected && capabilityKey) {
+      setCapabilityCooldown(
+        capabilityKey,
+        confidenceLaneHours,
+        `${confidenceHoldReason} capability:${capabilityKey}`
       );
     }
     const confidenceCooldown = cooldownEntry(p.id);
@@ -11143,9 +11174,11 @@ function runCmd(dateStr, opts: AnyObj = {}) {
           }
         : null,
       score: Number(pick.score.toFixed(3)),
-      cooldown_hours: AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS,
+      cooldown_hours: confidenceProposalCooldownHours,
       execute_confidence_lane_cooldown_hours: confidenceLaneHours,
       execute_confidence_cooldown_key: confidenceLaneKey || null,
+      execute_confidence_fallback_hits_window: confidenceFallbackHits + 1,
+      execute_confidence_loop_detected: confidenceLoopDetected,
       next_clear_at: confidenceNextClearAt,
       hold_reason: confidenceHoldReason,
       confidence_gate: {
@@ -11179,9 +11212,11 @@ function runCmd(dateStr, opts: AnyObj = {}) {
             objective_allocation_score: Number(directivePulse.objective_allocation_score || 0)
           }
         : null,
-      cooldown_hours: AUTONOMY_ROUTE_BLOCK_COOLDOWN_HOURS,
+      cooldown_hours: confidenceProposalCooldownHours,
       execute_confidence_lane_cooldown_hours: confidenceLaneHours,
       execute_confidence_cooldown_key: confidenceLaneKey || null,
+      execute_confidence_fallback_hits_window: confidenceFallbackHits + 1,
+      execute_confidence_loop_detected: confidenceLoopDetected,
       next_clear_at: confidenceNextClearAt,
       hold_reason: confidenceHoldReason,
       confidence_gate: {
