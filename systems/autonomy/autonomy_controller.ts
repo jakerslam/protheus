@@ -235,6 +235,8 @@ const AUTONOMY_HARD_MAX_RISK_PER_ACTION = Number(process.env.AUTONOMY_HARD_MAX_R
 const AUTONOMY_CANARY_DAILY_EXEC_LIMIT = Number(process.env.AUTONOMY_CANARY_DAILY_EXEC_LIMIT || 1);
 const AUTONOMY_CANARY_MEDIUM_RISK_DAILY_EXEC_LIMIT = Number(process.env.AUTONOMY_CANARY_MEDIUM_RISK_DAILY_EXEC_LIMIT || 1);
 const AUTONOMY_CANARY_LOW_RISK_COMPOSITE_RELAX = Number(process.env.AUTONOMY_CANARY_LOW_RISK_COMPOSITE_RELAX || 4);
+const AUTONOMY_CANARY_REQUIRE_EXECUTABLE = String(process.env.AUTONOMY_CANARY_REQUIRE_EXECUTABLE || '1') !== '0';
+const AUTONOMY_CANARY_BLOCK_GENERIC_ROUTE_TASK = String(process.env.AUTONOMY_CANARY_BLOCK_GENERIC_ROUTE_TASK || '1') !== '0';
 const AUTONOMY_MEDIUM_RISK_MIN_COMPOSITE_ELIGIBILITY = Number(process.env.AUTONOMY_MEDIUM_RISK_MIN_COMPOSITE_ELIGIBILITY || 70);
 const AUTONOMY_MEDIUM_RISK_MIN_DIRECTIVE_FIT = Number(process.env.AUTONOMY_MEDIUM_RISK_MIN_DIRECTIVE_FIT || 45);
 const AUTONOMY_MEDIUM_RISK_MIN_ACTIONABILITY = Number(process.env.AUTONOMY_MEDIUM_RISK_MIN_ACTIONABILITY || 55);
@@ -3655,6 +3657,8 @@ function assessActionability(p, directiveFit, thresholds) {
     pass,
     score: finalScore,
     reasons,
+    executable: isExecutableProposal,
+    generic_next_command_template: genericRouteTask,
     success_criteria: {
       required: criteriaRequirementApplied,
       exempt_type: criteriaPolicy.exempt_type === true,
@@ -4008,15 +4012,41 @@ function timeToValueScore(p) {
   return 70;
 }
 
+function estimateTokensForCandidate(cand, proposal) {
+  const p = proposal && typeof proposal === 'object' ? proposal : {};
+  const meta = p.meta && typeof p.meta === 'object' ? p.meta : {};
+  const direct = Number(cand && cand.est_tokens);
+  if (Number.isFinite(direct) && direct > 0) return clampNumber(Math.round(direct), 80, 12000);
+  const routeEst = Number(meta.route_tokens_est);
+  if (Number.isFinite(routeEst) && routeEst > 0) return clampNumber(Math.round(routeEst), 80, 12000);
+  return clampNumber(estimateTokens(p), 80, 12000);
+}
+
+function valueDensityScore(expectedValue, estTokens) {
+  const value = clampNumber(Number(expectedValue || 0), 0, 100);
+  const tokens = clampNumber(Number(estTokens || 0), 80, 12000);
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  const score = (value * 1000) / Math.max(80, tokens);
+  return clampNumber(Math.round(score), 0, 100);
+}
+
 function strategyRankForCandidate(cand, strategy) {
   const p = cand && cand.proposal ? cand.proposal : {};
   const weights = strategyRankingWeights(strategy);
+  const expectedValue = expectedValueScore(p);
+  const estimatedTokens = estimateTokensForCandidate(cand, p);
+  const valueDensity = valueDensityScore(expectedValue, estimatedTokens);
+  const valueDensityWeight = Number.isFinite(Number(weights && weights.value_density))
+    ? Number(weights.value_density)
+    : 0.08;
   const components = {
     composite: clampNumber(Number(cand && cand.composite_score || 0), 0, 100),
     actionability: clampNumber(Number(cand && cand.actionability && cand.actionability.score || 0), 0, 100),
     directive_fit: clampNumber(Number(cand && cand.directive_fit && cand.directive_fit.score || 0), 0, 100),
     signal_quality: clampNumber(Number(cand && cand.quality && cand.quality.score || 0), 0, 100),
-    expected_value: expectedValueScore(p),
+    expected_value: expectedValue,
+    estimated_tokens: estimatedTokens,
+    value_density: valueDensity,
     risk_penalty: riskPenalty(p) * 50,
     time_to_value: timeToValueScore(p)
   };
@@ -4026,13 +4056,17 @@ function strategyRankForCandidate(cand, strategy) {
     + Number(weights.directive_fit || 0) * components.directive_fit
     + Number(weights.signal_quality || 0) * components.signal_quality
     + Number(weights.expected_value || 0) * components.expected_value
+    + valueDensityWeight * components.value_density
     - Number(weights.risk_penalty || 0) * components.risk_penalty
     + Number(weights.time_to_value || 0) * components.time_to_value
   );
   return {
     score: Number(raw.toFixed(3)),
     components,
-    weights
+    weights: {
+      ...weights,
+      value_density: valueDensityWeight
+    }
   };
 }
 
@@ -5226,19 +5260,35 @@ function ensureNovelExceptionEscalationProposal(dateStr, escalation) {
   const errCode = String(escalation && escalation.error_code || '').trim();
   const risk = String(escalation && escalation.risk || '').trim().toLowerCase();
   const titleCode = errCode || 'unknown_error';
+  const statusCmd = `node systems/autonomy/autonomy_controller.js status ${dateStr}`;
+  const verifyCmd = `node systems/spine/contract_check.js`;
   const proposal = {
     id: proposalId,
     type: 'human_escalation',
     title: `Human review required: novel autonomy exception (${titleCode})`,
-    summary: `Novel exception detected at ${stage || 'unknown_stage'}. Pause and confirm remediation path before further autonomous execution.`,
+    summary: `Novel exception detected at ${stage || 'unknown_stage'} with signature ${signature.slice(0, 12)}. Execute bounded verification, choose one remediation, then close escalation.`,
     expected_impact: 'high',
     risk: risk === 'high' ? 'high' : 'high',
     validation: [
-      'Review exception signature and stage from escalation log',
-      'Approve one bounded remediation command or explicitly defer',
-      'Re-run readiness/status and confirm escalation window cleared'
+      `Run "${statusCmd}" and confirm escalation_id ${escId || signature} is still open`,
+      `Run "${verifyCmd}" and confirm result contains "\"ok\": true"`,
+      `Record one bounded remediation step and close escalation only after 2 clean autonomy runs`
     ],
-    suggested_next_command: `node systems/autonomy/autonomy_controller.js status ${dateStr}`,
+    success_criteria: [
+      { metric: 'execution_success', target: '>= 1 successful verification run', horizon: 'within 1 run' },
+      { metric: 'postconditions_ok', target: 'checks pass >= 1', horizon: 'within 1 run' },
+      { metric: 'queue_outcome_logged', target: 'queue outcome logged >= 1', horizon: 'within 1 run' }
+    ],
+    action_spec: {
+      kind: 'manual_review_packet',
+      command: statusCmd,
+      verify: [
+        { metric: 'execution_success', target: '>= 1 successful verification run', horizon: 'within 1 run' },
+        { metric: 'postconditions_ok', target: 'checks pass >= 1', horizon: 'within 1 run' }
+      ],
+      rollback_plan: 'Keep escalation open and defer remediation if verification fails or risk remains unclear.'
+    },
+    suggested_next_command: statusCmd,
     evidence: [
       {
         source: 'autonomy_human_escalation',
@@ -5255,6 +5305,10 @@ function ensureNovelExceptionEscalationProposal(dateStr, escalation) {
       exception_error_code: errCode || null,
       requires_human_review: true,
       manual_only: true,
+      escalation_packet: {
+        status_command: statusCmd,
+        verify_command: verifyCmd
+      },
       generated_at: nowIso(),
       topics: ['governance', 'autonomy', 'exceptions', 'human_review'],
       signal_quality_score: 90,
@@ -7071,6 +7125,10 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       required: AUTONOMY_OBJECTIVE_BINDING_REQUIRED,
       objective_allocation_rank_bonus: AUTONOMY_OBJECTIVE_ALLOCATION_RANK_BONUS
     },
+    canary_executable_policy: {
+      require_executable: AUTONOMY_CANARY_REQUIRE_EXECUTABLE,
+      block_generic_route_task: AUTONOMY_CANARY_BLOCK_GENERIC_ROUTE_TASK
+    },
     optimization_policy: {
       high_accuracy_mode: AUTONOMY_OPTIMIZATION_HIGH_ACCURACY_MODE,
       min_delta_percent: optimizationMinDeltaPercent(),
@@ -7207,6 +7265,43 @@ function runCmd(dateStr, opts: AnyObj = {}) {
         };
       }
       continue;
+    }
+
+    if (!shadowOnly && executionMode === 'canary_execute' && AUTONOMY_CANARY_REQUIRE_EXECUTABLE) {
+      const executableBlocked = actionability.executable !== true;
+      const genericBlocked = AUTONOMY_CANARY_BLOCK_GENERIC_ROUTE_TASK
+        && actionability.generic_next_command_template === true;
+      if (executableBlocked || genericBlocked) {
+        skipStats.low_actionability += 1;
+        bumpCount(candidateRejectedByGate, 'canary_executable');
+        const reasons = [];
+        if (executableBlocked) reasons.push('canary_requires_executable_action');
+        if (genericBlocked) reasons.push('canary_disallows_generic_route_task');
+        pushCandidateAudit({
+          proposal_id: proposalId,
+          proposal_type: proposalType,
+          risk,
+          pass: false,
+          gate: 'canary_executable',
+          score: Number(cand.score || 0),
+          scores: {
+            actionability: actionability.score
+          },
+          thresholds: {
+            require_executable: AUTONOMY_CANARY_REQUIRE_EXECUTABLE,
+            block_generic_route_task: AUTONOMY_CANARY_BLOCK_GENERIC_ROUTE_TASK
+          },
+          reasons
+        });
+        if (!sampleLowActionability) {
+          sampleLowActionability = {
+            proposal_id: cand.proposal.id,
+            score: actionability.score,
+            reasons: reasons.slice(0, 3)
+          };
+        }
+        continue;
+      }
     }
 
     const optimizationGate = assessOptimizationGoodEnough(cand.proposal, risk);
@@ -8760,7 +8855,24 @@ function runCmd(dateStr, opts: AnyObj = {}) {
   }
   const budget = loadDailyBudget(dateStr);
   const budgetAutopause = loadSystemBudgetAutopauseState();
-  if (budgetAutopause && budgetAutopause.active === true && Number(budgetAutopause.until_ms || 0) > Date.now()) {
+  const autopauseActive = !!(budgetAutopause && budgetAutopause.active === true && Number(budgetAutopause.until_ms || 0) > Date.now());
+  if (autopauseActive && shadowOnly) {
+    writeRun(dateStr, {
+      ts: nowIso(),
+      type: 'autonomy_run',
+      result: 'budget_autopause_shadow_bypass',
+      proposal_id: p.id,
+      capability_key: capabilityKey,
+      directive_pulse: directivePulse,
+      budget_autopause: {
+        source: budgetAutopause.source || null,
+        reason: budgetAutopause.reason || null,
+        pressure: budgetAutopause.pressure || null,
+        until: budgetAutopause.until || null
+      }
+    });
+  }
+  if (autopauseActive && !shadowOnly) {
     writeRun(dateStr, {
       ts: nowIso(),
       type: 'autonomy_run',
@@ -9734,6 +9846,20 @@ function lockAgeMinutes(lock) {
   return Math.max(0, (Date.now() - ts) / (60 * 1000));
 }
 
+function pidAlive(pid) {
+  const id = Number(pid);
+  if (!Number.isInteger(id) || id <= 0) return null;
+  try {
+    process.kill(id, 0);
+    return true;
+  } catch (err) {
+    const code = String(err && (err as AnyObj).code || '');
+    if (code === 'ESRCH') return false;
+    if (code === 'EPERM') return true;
+    return null;
+  }
+}
+
 function acquireAutonomyRunLock(meta) {
   const payload = {
     ts: nowIso(),
@@ -9755,7 +9881,12 @@ function acquireAutonomyRunLock(meta) {
       }
       const existing = readRunLockState();
       const ageMinutes = lockAgeMinutes(existing);
-      const stale = Number.isFinite(ageMinutes) && staleMinutes > 0 && ageMinutes > staleMinutes;
+      const existingPid = Number(existing && (existing as AnyObj).pid);
+      const processAlive = pidAlive(existingPid);
+      const staleByAge = Number.isFinite(ageMinutes) && staleMinutes > 0 && ageMinutes > staleMinutes;
+      const staleByDeadPid = Number.isInteger(existingPid) && existingPid > 0 && existingPid !== process.pid && processAlive === false;
+      const malformed = !existing || typeof existing !== 'object';
+      const stale = staleByAge || staleByDeadPid || malformed;
       if (stale) {
         try {
           fs.unlinkSync(AUTONOMY_RUN_LOCK_PATH);
@@ -9767,7 +9898,8 @@ function acquireAutonomyRunLock(meta) {
         code: 'lock_held',
         detail: 'another_autonomy_run_in_progress',
         lock: existing || null,
-        age_minutes: ageMinutes
+        age_minutes: ageMinutes,
+        process_alive: processAlive
       };
     }
   }
@@ -9901,6 +10033,7 @@ function main() {
         lock_detail: lockRes.detail || null,
         lock: lockRes.lock || null,
         lock_age_minutes: Number.isFinite(Number(lockRes.age_minutes)) ? Number(lockRes.age_minutes.toFixed(3)) : null,
+        lock_process_alive: typeof lockRes.process_alive === 'boolean' ? lockRes.process_alive : null,
         ts: nowIso()
       }) + '\n');
       return;

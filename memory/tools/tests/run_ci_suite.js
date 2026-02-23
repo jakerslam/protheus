@@ -54,6 +54,15 @@ function printOutput(prefix, text) {
 }
 
 function main() {
+  console.log('=== CI SUITE: typecheck_systems ===');
+  const typecheck = runNode(['systems/ops/typecheck_systems.js']);
+  printOutput('  ', typecheck.stdout);
+  printOutput('  ', typecheck.stderr);
+  if (!typecheck.ok) {
+    console.error(`typecheck_systems failed (exit ${typecheck.status})`);
+    process.exit(typecheck.status || 1);
+  }
+
   console.log('=== CI SUITE: contract_check ===');
   const contract = runNode(['systems/spine/contract_check.js']);
   printOutput('  ', contract.stdout);

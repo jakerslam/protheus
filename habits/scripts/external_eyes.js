@@ -63,6 +63,14 @@ const ANOMALIES_DIR = path.join(SENSORY_ROOT_DIR, 'anomalies');
 const SENSORY_QUEUE_LOG_PATH = process.env.EYES_SENSORY_QUEUE_LOG_PATH
   ? path.resolve(process.env.EYES_SENSORY_QUEUE_LOG_PATH)
   : path.join(WORKSPACE_DIR, 'state', 'sensory', 'queue_log.jsonl');
+const SLO_STATE_PATH = process.env.EYES_SLO_STATE_PATH
+  ? path.resolve(process.env.EYES_SLO_STATE_PATH)
+  : path.join(STATE_DIR, 'slo_state.json');
+const EYES_SLO_ACTUATOR_FAIL_STREAK = Math.max(1, Number(process.env.EYES_SLO_ACTUATOR_FAIL_STREAK || 2));
+const EYES_SLO_AUTO_PAUSE_FAIL_THRESHOLD = Math.max(1, Number(process.env.EYES_SLO_AUTO_PAUSE_FAIL_THRESHOLD || 2));
+const EYES_SLO_AUTO_PAUSE_COOLDOWN_HOURS = Math.max(1, Number(process.env.EYES_SLO_AUTO_PAUSE_COOLDOWN_HOURS || 6));
+const EYES_SLO_AUTO_PAUSE_MAX_PER_RUN = Math.max(1, Number(process.env.EYES_SLO_AUTO_PAUSE_MAX_PER_RUN || 3));
+const EYES_SLO_EMIT_PAIN = String(process.env.EYES_SLO_EMIT_PAIN || '1') !== '0';
 
 // Ensure directories exist
 function ensureDirs() {
@@ -441,6 +449,41 @@ function safeReadJson(filePath, fallback = null) {
   } catch {
     return fallback;
   }
+}
+
+function saveJson(filePath, value) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify(value, null, 2));
+}
+
+function loadSloState() {
+  const raw = safeReadJson(SLO_STATE_PATH, {});
+  const base = raw && typeof raw === 'object' ? raw : {};
+  return {
+    version: '1.0',
+    fail_streak: Math.max(0, Number(base.fail_streak || 0)),
+    last_ok_ts: base.last_ok_ts ? String(base.last_ok_ts) : null,
+    last_fail_ts: base.last_fail_ts ? String(base.last_fail_ts) : null,
+    last_reason: base.last_reason ? String(base.last_reason) : null,
+    last_pause_ts: base.last_pause_ts ? String(base.last_pause_ts) : null,
+    paused_eyes_last_run: Array.isArray(base.paused_eyes_last_run)
+      ? base.paused_eyes_last_run.map((v) => String(v || '').trim()).filter(Boolean).slice(0, 20)
+      : []
+  };
+}
+
+function saveSloState(state) {
+  const next = state && typeof state === 'object' ? state : {};
+  saveJson(SLO_STATE_PATH, {
+    version: '1.0',
+    updated_ts: new Date().toISOString(),
+    fail_streak: Math.max(0, Number(next.fail_streak || 0)),
+    last_ok_ts: next.last_ok_ts || null,
+    last_fail_ts: next.last_fail_ts || null,
+    last_reason: next.last_reason || null,
+    last_pause_ts: next.last_pause_ts || null,
+    paused_eyes_last_run: Array.isArray(next.paused_eyes_last_run) ? next.paused_eyes_last_run.slice(0, 20) : []
+  });
 }
 
 function loadProposalsForDate(dateStr) {
@@ -1056,7 +1099,7 @@ function emitCollectorStarvedAnomaly(config, windowHours = 24) {
   };
 }
 
-function signalSlo(dateStr) {
+function signalSlo(dateStr, opts = {}) {
   ensureDirs();
   const date = dateStr || getToday();
   const config = loadConfig();
@@ -1127,8 +1170,122 @@ function signalSlo(dateStr) {
     }
   };
 
-  process.stdout.write(JSON.stringify(payload) + '\n');
+  if (!(opts && opts.silent === true)) {
+    process.stdout.write(JSON.stringify(payload) + '\n');
+  }
   return payload;
+}
+
+function applySignalSloActuator(dateStr, slo, config, registry) {
+  const state = loadSloState();
+  const ts = new Date().toISOString();
+  const nonStubIds = new Set(
+    (config && Array.isArray(config.eyes) ? config.eyes : [])
+      .filter((eye) => String(eye && eye.parser_type || '').toLowerCase() !== 'stub')
+      .map((eye) => String(eye && eye.id || '').trim())
+      .filter(Boolean)
+  );
+  if (!slo || slo.ok === true) {
+    state.fail_streak = 0;
+    state.last_ok_ts = ts;
+    state.last_reason = null;
+    state.paused_eyes_last_run = [];
+    saveSloState(state);
+    return {
+      checked: true,
+      ok: true,
+      fail_streak: 0,
+      threshold: EYES_SLO_ACTUATOR_FAIL_STREAK,
+      triggered: false,
+      paused_eyes: []
+    };
+  }
+  state.fail_streak = Math.max(0, Number(state.fail_streak || 0)) + 1;
+  state.last_fail_ts = ts;
+  state.last_reason = Array.isArray(slo.failed_checks) && slo.failed_checks.length
+    ? String(slo.failed_checks[0])
+    : 'signal_slo_failed';
+
+  const out = {
+    checked: true,
+    ok: false,
+    fail_streak: state.fail_streak,
+    threshold: EYES_SLO_ACTUATOR_FAIL_STREAK,
+    triggered: false,
+    paused_eyes: [],
+    failed_checks: Array.isArray(slo.failed_checks) ? slo.failed_checks.slice(0, 6) : []
+  };
+
+  if (state.fail_streak < EYES_SLO_ACTUATOR_FAIL_STREAK) {
+    saveSloState(state);
+    return out;
+  }
+
+  const nowMs = Date.now();
+  const candidates = (registry && Array.isArray(registry.eyes) ? registry.eyes : [])
+    .filter((eye) => eye && nonStubIds.has(String(eye.id || '').trim()))
+    .filter((eye) => String(eye.status || '').toLowerCase() !== 'retired')
+    .filter((eye) => Number(eye.consecutive_failures || 0) >= EYES_SLO_AUTO_PAUSE_FAIL_THRESHOLD || hasRecentTransportFailure(eye, 24))
+    .sort((a, b) => {
+      const aFail = Number(a && a.consecutive_failures || 0);
+      const bFail = Number(b && b.consecutive_failures || 0);
+      if (bFail !== aFail) return bFail - aFail;
+      const aTs = Date.parse(String(a && (a.last_success || a.last_run) || ''));
+      const bTs = Date.parse(String(b && (b.last_success || b.last_run) || ''));
+      if (Number.isFinite(aTs) && Number.isFinite(bTs) && aTs !== bTs) return aTs - bTs;
+      return String(a && a.id || '').localeCompare(String(b && b.id || ''));
+    });
+
+  for (const eye of candidates.slice(0, EYES_SLO_AUTO_PAUSE_MAX_PER_RUN)) {
+    const id = String(eye && eye.id || '').trim();
+    if (!id) continue;
+    eye.status = 'dormant';
+    eye.cooldown_until = new Date(nowMs + (EYES_SLO_AUTO_PAUSE_COOLDOWN_HOURS * 60 * 60 * 1000)).toISOString();
+    eye.last_error_code = eye.last_error_code || 'signal_slo_autopause';
+    eye.last_error = eye.last_error || 'signal_slo_autopause';
+    out.paused_eyes.push(id);
+  }
+
+  out.triggered = out.paused_eyes.length > 0;
+  state.last_pause_ts = out.triggered ? ts : state.last_pause_ts;
+  state.paused_eyes_last_run = out.paused_eyes.slice(0, 20);
+  saveSloState(state);
+
+  appendRawLog(dateStr, {
+    ts,
+    type: 'signal_slo_actuator',
+    ok: false,
+    fail_streak: state.fail_streak,
+    threshold: EYES_SLO_ACTUATOR_FAIL_STREAK,
+    failed_checks: out.failed_checks,
+    triggered: out.triggered,
+    paused_eyes: out.paused_eyes
+  });
+
+  if (out.triggered && EYES_SLO_EMIT_PAIN) {
+    try {
+      emitPainSignal({
+        source: 'external_eyes',
+        type: 'signal_slo_breach',
+        severity: 'medium',
+        summary: `Signal SLO failed ${state.fail_streak} consecutive runs`,
+        details: [
+          `failed_checks=${out.failed_checks.join(',') || 'unknown'}`,
+          `paused_eyes=${out.paused_eyes.join(',') || 'none'}`,
+          `threshold=${EYES_SLO_ACTUATOR_FAIL_STREAK}`
+        ],
+        dedupe: {
+          key: `signal_slo:${dateStr}`,
+          cooldown_hours: 6
+        },
+        suggested_next_command: 'node habits/scripts/external_eyes.js doctor'
+      });
+    } catch {
+      // best-effort only
+    }
+  }
+
+  return out;
 }
 
 function buildCollectorRemediationProposal(eyeConfig, registryEye, threshold) {
@@ -2267,6 +2424,25 @@ async function run(opts = {}) {
   );
   if (starvedCheck.starved) {
     console.log(`⚠️  collector_starved window=${starvedCheck.window_hours}h path=${starvedCheck.path}`);
+  }
+  const sloResult = signalSlo(today, { silent: true });
+  const sloActuator = applySignalSloActuator(today, sloResult, config, registry);
+  if (!sloResult.ok) {
+    console.log(
+      `⚠️  signal_slo failed checks=${Array.isArray(sloResult.failed_checks) ? sloResult.failed_checks.join(',') : 'unknown'}` +
+      ` streak=${Number(sloActuator.fail_streak || 0)}`
+    );
+    if (sloActuator.triggered) {
+      console.log(`🛑 signal_slo actuator paused eyes: ${sloActuator.paused_eyes.join(', ')}`);
+      const remediation = emitCollectorRemediationProposals(today, config, registry);
+      if (remediation.added > 0) {
+        console.log(
+          `🛠️  signal_slo remediation queued: total=${remediation.added}` +
+          ` remediation=${Number(remediation.added_remediation || 0)}` +
+          ` escalation=${Number(remediation.added_escalation || 0)}`
+        );
+      }
+    }
   }
 
   let temporalReport = null;
