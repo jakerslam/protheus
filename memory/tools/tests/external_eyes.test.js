@@ -351,6 +351,19 @@ test('evolve applies outcome-based score_ema adjustments', () => {
   // Ensure registry exists
   eyes.ensureDirs();
   const reg = eyes.loadRegistry();
+  if (!Array.isArray(reg.eyes)) reg.eyes = [];
+  if (reg.eyes.length === 0) {
+    reg.eyes.push({
+      id: 'test_seed_eye',
+      name: 'Test Seed Eye',
+      status: 'active',
+      parser_type: 'hn_rss',
+      allowed_domains: ['news.ycombinator.com'],
+      cadence_hours: 4,
+      score_ema: 50
+    });
+    eyes.saveRegistry(reg);
+  }
   
   // Find a known eye id from config
   const eyeId = (reg.eyes.find(e => e.id === 'moltbook_feed') || reg.eyes[0]).id;
@@ -431,6 +444,82 @@ test('evolve applies outcome-based score_ema adjustments', () => {
   cleanup();
 });
 
+// Test 10: parser inference picks known collectors for domains
+test('auto sprout parser inference maps known domains', () => {
+  assert.strictEqual(eyes.inferParserTypeForDomain('medium.com'), 'medium_rss');
+  assert.strictEqual(eyes.inferParserTypeForDomain('news.ycombinator.com'), 'hn_rss');
+  assert.strictEqual(eyes.inferParserTypeForDomain('unknown.example.org'), 'stub');
+});
+
+// Test 11: auto sprout emits proposals for repeated uncovered domains
+test('auto sprout emits proposals for repeated uncovered domains', () => {
+  setup();
+  const today = new Date().toISOString().slice(0, 10);
+  const rawDir = path.join(process.env.EYES_STATE_DIR, 'raw');
+  const proposalsDir = path.join(process.env.EYES_STATE_DIR, 'proposals');
+  fs.mkdirSync(rawDir, { recursive: true });
+  fs.mkdirSync(proposalsDir, { recursive: true });
+
+  const rawPath = path.join(rawDir, `${today}.jsonl`);
+  const events = [
+    { ts: `${today}T01:00:00Z`, type: 'external_item', item: { eye_id: 'hn_frontpage', url: 'https://medium.com/@x/a', title: 'A', topics: ['ai'] } },
+    { ts: `${today}T01:05:00Z`, type: 'external_item', item: { eye_id: 'hn_frontpage', url: 'https://medium.com/@x/b', title: 'B', topics: ['ai'] } },
+    { ts: `${today}T01:10:00Z`, type: 'external_item', item: { eye_id: 'x_trends', url: 'https://medium.com/@x/c', title: 'C', topics: ['agents'] } },
+    { ts: `${today}T01:15:00Z`, type: 'external_item', item: { eye_id: 'x_trends', url: 'https://medium.com/@x/d', title: 'D', topics: ['agents'] } }
+  ];
+  fs.writeFileSync(rawPath, events.map((e) => JSON.stringify(e)).join('\n') + '\n', 'utf8');
+
+  const cfg = {
+    eyes: [
+      {
+        id: 'hn_frontpage',
+        allowed_domains: ['news.ycombinator.com', 'hnrss.org'],
+        parser_type: 'hn_rss',
+        status: 'active'
+      },
+      {
+        id: 'x_trends',
+        allowed_domains: ['x.com', 'twitter.com'],
+        parser_type: 'bird_x',
+        status: 'active'
+      }
+    ]
+  };
+
+  const out = eyes.emitAutoSproutProposals(today, cfg);
+  assert.ok(Number(out.added || 0) >= 1, `expected added>=1, got ${JSON.stringify(out)}`);
+  const queued = JSON.parse(fs.readFileSync(path.join(proposalsDir, `${today}.json`), 'utf8'));
+  const mediumProposal = queued.find((p) => Array.isArray(p.proposed_domains) && p.proposed_domains.includes('medium.com'));
+  assert.ok(mediumProposal, 'expected medium.com proposal');
+  assert.strictEqual(String(mediumProposal.proposed_parser_type || ''), 'medium_rss');
+
+  cleanup();
+});
+
+// Test 12: auto sprout queue blocks invalid pending proposals safely
+test('auto sprout queue blocks invalid pending proposals safely', () => {
+  setup();
+  const today = new Date().toISOString().slice(0, 10);
+  const proposalsDir = path.join(process.env.EYES_STATE_DIR, 'proposals');
+  fs.mkdirSync(proposalsDir, { recursive: true });
+  const queuePath = path.join(proposalsDir, `${today}.json`);
+  fs.writeFileSync(queuePath, JSON.stringify([
+    {
+      id: 'proto_invalid',
+      name: 'Watch Unknown',
+      proposed_domains: ['unknown.example.org'],
+      status: 'pending_review'
+    }
+  ], null, 2), 'utf8');
+
+  const out = eyes.applyAutoSproutQueue(today, { eyes: [] });
+  assert.ok(Number(out.blocked || 0) >= 1, `expected blocked>=1, got ${JSON.stringify(out)}`);
+  const next = JSON.parse(fs.readFileSync(queuePath, 'utf8'));
+  assert.strictEqual(String(next[0].status || ''), 'blocked');
+
+  cleanup();
+});
+
 // Summary
 console.log('\n═══════════════════════════════════════════════════════════');
 if (failed) {
@@ -439,7 +528,7 @@ if (failed) {
   process.exit(1);
 }
 
-console.log('   ✅ ALL EXTERNAL EYES TESTS PASS (9/9)');
+console.log('   ✅ ALL EXTERNAL EYES TESTS PASS (12/12)');
 console.log('═══════════════════════════════════════════════════════════');
 console.log('\n📋 Coverage:');
 console.log('   1. ✅ registry/config loads');
@@ -451,4 +540,7 @@ console.log('   6. ✅ isDomainAllowed validates domains');
 console.log('   7. ✅ computeHash is consistent');
 console.log('   8. ✅ propose creates valid structure');
 console.log('   9. ✅ evolve applies outcome-based score_ema adjustments');
+console.log('  10. ✅ parser inference for auto sprout');
+console.log('  11. ✅ auto sprout proposal emission');
+console.log('  12. ✅ auto sprout queue safe blocking');
 console.log('\n🎯 External Eyes v1.0 Ready - NO LLM, budgets enforced, deterministic, closed-loop outcome tracking');

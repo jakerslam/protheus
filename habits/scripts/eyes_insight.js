@@ -54,6 +54,8 @@ const SENSORY_CROSS_SIGNAL_MAX_PROPOSALS = Number(process.env.SENSORY_CROSS_SIGN
 const SENSORY_CROSS_SIGNAL_STALE_HOURS = Number(process.env.SENSORY_CROSS_SIGNAL_STALE_HOURS || 36);
 const SENSORY_CROSS_SIGNAL_STALE_PENALTY = Number(process.env.SENSORY_CROSS_SIGNAL_STALE_PENALTY || 18);
 const SENSORY_CROSS_SIGNAL_MAX_STALE_HOURS = Number(process.env.SENSORY_CROSS_SIGNAL_MAX_STALE_HOURS || 120);
+const SENSORY_PROPOSAL_PRE_GATE_MIN_VALIDATION = Math.max(1, Number(process.env.SENSORY_PROPOSAL_PRE_GATE_MIN_VALIDATION || 1));
+const SENSORY_PROPOSAL_PRE_GATE_REQUIRE_ACTION_SPEC = String(process.env.SENSORY_PROPOSAL_PRE_GATE_REQUIRE_ACTION_SPEC || '1') !== '0';
 const SENSORY_DISALLOWED_PARSER_TYPES = new Set(
   String(process.env.SENSORY_DISALLOWED_PARSER_TYPES || 'stub')
     .split(',')
@@ -82,6 +84,7 @@ const META_COORDINATION_RE = /\b(review|prioritize|triage|health\s*check|high\s*
 const CONCRETE_CHANGE_RE = /\b(file|script|collector|parser|endpoint|model|config|test|hook|queue|ledger|registry|adapter|workflow|commit|tag|routing|transport|fallback|sensor|retry|dns|network|probe)\b/i;
 const MEASURABLE_OUTCOME_RE = /\b(\d+|threshold|target|baseline|delta|rate|ratio|latency|error|count|coverage|artifact|log|test|commit|tag|id)\b/i;
 const OPPORTUNITY_MARKER_RE = /\b(opportunity|freelance|job|jobs|hiring|contract|contractor|gig|client|rfp|request for proposal|seeking|looking for)\b/i;
+const COMMAND_PREFIX_RE = /^(node|npm|npx|python|python3|bash|sh|git|curl)\b/i;
 const EXPLAINER_TITLE_RE = /^(why|what|how)\b/i;
 const LOCAL_SIGNAL_KIND_RE = /\/signals\/\d{4}-\d{2}-\d{2}\/([^/?#]+)/i;
 const LOCAL_FALLBACK_ALLOWED_KINDS = new Set(
@@ -1396,6 +1399,94 @@ function dedupeByObjectiveTopic(proposals) {
   return { proposals: out, deduped };
 }
 
+function proposalExecutionSignature(proposal) {
+  if (!proposal || typeof proposal !== 'object') return '';
+  const type = normalizeText(proposal.type).toLowerCase() || 'unknown';
+  const meta = proposal.meta && typeof proposal.meta === 'object' ? proposal.meta : {};
+  const sourceEye = normalizeText(meta.source_eye).toLowerCase() || 'unknown';
+  const target = normalizeText(
+    proposal.action_spec && proposal.action_spec.target
+      ? proposal.action_spec.target
+      : meta.action_spec_target
+  ).toLowerCase();
+  const topic = primaryProposalTopic(proposal);
+  const anchor = target || topic || normalizeFitText(proposal.title || '').split(' ').slice(0, 6).join('_');
+  if (!anchor) return '';
+  return `${type}|${sourceEye}|${anchor}`;
+}
+
+function proposalPreGate(proposal) {
+  if (!proposal || typeof proposal !== 'object') return { allow: false, reason: 'invalid_proposal' };
+  const title = normalizeText(proposal.title);
+  const command = normalizeText(proposal.suggested_next_command);
+  const validation = Array.isArray(proposal.validation)
+    ? proposal.validation.map((v) => normalizeText(v)).filter(Boolean)
+    : [];
+  const actionSpec = proposal.action_spec && typeof proposal.action_spec === 'object' ? proposal.action_spec : null;
+  const blob = [title, command, validation.join(' ')].join(' ').trim();
+  if (!title || title.length < 12) return { allow: false, reason: 'title_too_short' };
+  if (!command || command.length < 8) return { allow: false, reason: 'missing_command' };
+  if (!COMMAND_PREFIX_RE.test(command)) return { allow: false, reason: 'command_not_executable' };
+  if (validation.length < SENSORY_PROPOSAL_PRE_GATE_MIN_VALIDATION) return { allow: false, reason: 'validation_missing' };
+  if (!validation.some((row) => MEASURABLE_OUTCOME_RE.test(row))) return { allow: false, reason: 'validation_not_measurable' };
+  if (SENSORY_PROPOSAL_PRE_GATE_REQUIRE_ACTION_SPEC) {
+    const verify = Array.isArray(actionSpec && actionSpec.verify) ? actionSpec.verify.map((v) => normalizeText(v)).filter(Boolean) : [];
+    const rollback = normalizeText(actionSpec && actionSpec.rollback);
+    const nextCmd = normalizeText(actionSpec && actionSpec.next_command);
+    if (!actionSpec || !nextCmd || verify.length === 0 || !rollback) return { allow: false, reason: 'action_spec_missing' };
+  }
+  if (META_COORDINATION_RE.test(blob) && !CONCRETE_CHANGE_RE.test(blob) && !MEASURABLE_OUTCOME_RE.test(blob)) {
+    return { allow: false, reason: 'meta_noop' };
+  }
+  return { allow: true, reason: null };
+}
+
+function applyProposalPreGate(proposals) {
+  const src = Array.isArray(proposals) ? proposals : [];
+  const accepted = [];
+  const droppedByReason = {};
+  for (const proposal of src) {
+    const gate = proposalPreGate(proposal);
+    if (gate.allow) {
+      accepted.push(proposal);
+      continue;
+    }
+    const reason = normalizeText(gate.reason) || 'filtered';
+    droppedByReason[reason] = Number(droppedByReason[reason] || 0) + 1;
+  }
+  return {
+    proposals: accepted,
+    dropped: src.length - accepted.length,
+    dropped_by_reason: sortedObject(droppedByReason)
+  };
+}
+
+function dedupeByExecutionSignature(proposals) {
+  const src = Array.isArray(proposals) ? proposals : [];
+  const out = [];
+  const index = new Map();
+  let deduped = 0;
+  for (const proposal of src) {
+    if (!proposal || typeof proposal !== 'object') continue;
+    const key = proposalExecutionSignature(proposal);
+    if (!key) {
+      out.push(proposal);
+      continue;
+    }
+    const existingIdx = index.get(key);
+    if (existingIdx == null) {
+      index.set(key, out.length);
+      out.push(proposal);
+      continue;
+    }
+    const prev = out[existingIdx];
+    const keepCurrent = proposalPriorityScore(proposal) > proposalPriorityScore(prev);
+    if (keepCurrent) out[existingIdx] = proposal;
+    deduped += 1;
+  }
+  return { proposals: out, deduped };
+}
+
 function hydrateExisting(existingProposal, incomingProposal) {
   const e = existingProposal && typeof existingProposal === 'object' ? existingProposal : {};
   const i = incomingProposal && typeof incomingProposal === 'object' ? incomingProposal : {};
@@ -1657,7 +1748,9 @@ function mergeIntoDailyProposals(dateStr, maxCount = 5) {
     lineageIndex
   );
   const objectiveTopicDedup = dedupeByObjectiveTopic(newOnesLineage);
-  const newOnes = objectiveTopicDedup.proposals;
+  const pregated = applyProposalPreGate(objectiveTopicDedup.proposals);
+  const executionDedup = dedupeByExecutionSignature(pregated.proposals);
+  const newOnes = executionDedup.proposals;
   const rawPath = generatedEye.rawPath;
 
   const mergedRes = mergeById(existing, newOnes);
@@ -1693,6 +1786,9 @@ function mergeIntoDailyProposals(dateStr, maxCount = 5) {
     generated_eye_stats: generatedEye.stats,
     generated_cross_signal_stats: generatedCross.stats,
     objective_topic_deduped: Number(objectiveTopicDedup.deduped || 0),
+    proposal_pre_gate_filtered: Number(pregated.dropped || 0),
+    proposal_pre_gate_reasons: pregated.dropped_by_reason || {},
+    execution_signature_deduped: Number(executionDedup.deduped || 0),
     no_actionable_signal: noActionableSignal,
     rejected_samples: generatedEye.rejected_samples
   };
@@ -1743,6 +1839,13 @@ function main() {
     }
     if (res.generated_cross_signal_stats) {
       console.log(`Cross-signal emitted: ${res.generated_cross_signal_stats.emitted_proposals}/${res.generated_cross_signal_stats.total_hypotheses}`);
+    }
+    if (Number(res.proposal_pre_gate_filtered || 0) > 0) {
+      const reasons = Object.entries(res.proposal_pre_gate_reasons || {}).map(([k, v]) => `${k}:${v}`).join(',');
+      console.log(`Pre-gate filtered: ${res.proposal_pre_gate_filtered}${reasons ? ` (${reasons})` : ''}`);
+    }
+    if (Number(res.execution_signature_deduped || 0) > 0) {
+      console.log(`Execution-signature deduped: ${res.execution_signature_deduped}`);
     }
     if (res.no_actionable_signal && res.no_actionable_signal.emitted) {
       console.log(`Anomaly receipt: ${res.no_actionable_signal.receipt_path}`);

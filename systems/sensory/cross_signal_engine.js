@@ -234,6 +234,55 @@ function dailyCounts(obs, dates) {
   return out;
 }
 
+function hypothesisSignature(h) {
+  if (!h || typeof h !== 'object') return '';
+  const type = String(h.type || '').trim().toLowerCase() || 'unknown';
+  const topic = String(h.topic || '').trim().toLowerCase() || 'unknown';
+  if (type === 'lead_lag') {
+    return `${type}|${topic}|${String(h.leader_eye || '').trim().toLowerCase()}|${String(h.follower_eye || '').trim().toLowerCase()}`;
+  }
+  return `${type}|${topic}`;
+}
+
+function compactHypotheses(rows, opts = {}) {
+  const src = Array.isArray(rows) ? rows : [];
+  const minConfidence = clamp(opts.minConfidence, 1, 100, 40);
+  const maxPerTopic = clamp(opts.maxPerTopic, 1, 20, 3);
+  const maxPerTopicType = clamp(opts.maxPerTopicType, 1, 10, 2);
+  const dedupBySignature = new Map();
+  for (const row of src) {
+    if (!row || typeof row !== 'object') continue;
+    if (Number(row.confidence || 0) < minConfidence) continue;
+    const sig = hypothesisSignature(row);
+    if (!sig) continue;
+    const prev = dedupBySignature.get(sig);
+    if (!prev || Number(row.confidence || 0) > Number(prev.confidence || 0)) {
+      dedupBySignature.set(sig, row);
+    }
+  }
+  const deduped = Array.from(dedupBySignature.values());
+  const byTopicType = new Map();
+  const byTopic = new Map();
+  const compacted = [];
+  for (const row of deduped) {
+    const topic = String(row.topic || '').trim().toLowerCase() || 'unknown';
+    const type = String(row.type || '').trim().toLowerCase() || 'unknown';
+    const ttKey = `${topic}|${type}`;
+    const ttCount = Number(byTopicType.get(ttKey) || 0);
+    const topicCount = Number(byTopic.get(topic) || 0);
+    if (ttCount >= maxPerTopicType) continue;
+    if (topicCount >= maxPerTopic) continue;
+    byTopicType.set(ttKey, ttCount + 1);
+    byTopic.set(topic, topicCount + 1);
+    compacted.push(row);
+  }
+  return {
+    hypotheses: compacted,
+    dropped: Math.max(0, src.length - compacted.length),
+    dropped_low_confidence: Math.max(0, src.filter((h) => Number(h && h.confidence || 0) < minConfidence).length)
+  };
+}
+
 function analyze(opts = {}) {
   const dateStr = /^\d{4}-\d{2}-\d{2}$/.test(String(opts.dateStr || '')) ? String(opts.dateStr) : todayStr();
   const lookbackDays = clamp(opts.lookbackDays, 3, 30, 7);
@@ -246,6 +295,9 @@ function analyze(opts = {}) {
   const maxLeadLagHours = clamp(process.env.CROSS_SIGNAL_MAX_LEAD_LAG_HOURS, 1, 168, 48);
   const minDivergenceToday = clamp(process.env.CROSS_SIGNAL_MIN_DIVERGENCE_TODAY, 2, 100, 2);
   const maxHypotheses = clamp(process.env.CROSS_SIGNAL_MAX_HYPOTHESES, 10, 500, 120);
+  const minConfidence = clamp(process.env.CROSS_SIGNAL_MIN_CONFIDENCE, 1, 100, 48);
+  const maxPerTopic = clamp(process.env.CROSS_SIGNAL_MAX_PER_TOPIC, 1, 20, 3);
+  const maxPerTopicType = clamp(process.env.CROSS_SIGNAL_MAX_PER_TOPIC_TYPE, 1, 10, 2);
   const maxTopicsPerItem = clamp(process.env.CROSS_SIGNAL_MAX_TOPICS_PER_ITEM, 1, 12, 6);
   const maxObsPerEyeTopicPerDay = clamp(process.env.CROSS_SIGNAL_MAX_OBS_PER_EYE_TOPIC_DAY, 1, 100, 8);
   const minTopicLength = clamp(process.env.CROSS_SIGNAL_MIN_TOPIC_LENGTH, 3, 16, 4);
@@ -378,7 +430,12 @@ function analyze(opts = {}) {
     return String(a.id || '').localeCompare(String(b.id || ''));
   });
   const totalDetected = hypotheses.length;
-  const cappedHypotheses = hypotheses.slice(0, maxHypotheses);
+  const compacted = compactHypotheses(hypotheses, {
+    minConfidence,
+    maxPerTopic,
+    maxPerTopicType
+  });
+  const cappedHypotheses = compacted.hypotheses.slice(0, maxHypotheses);
 
   return {
     ts: new Date().toISOString(),
@@ -387,11 +444,17 @@ function analyze(opts = {}) {
     lookback_days: lookbackDays,
     source: 'systems/sensory/cross_signal_engine.js',
     noise_controls: {
+      min_confidence: minConfidence,
+      max_per_topic: maxPerTopic,
+      max_per_topic_type: maxPerTopicType,
       max_topics_per_item: maxTopicsPerItem,
       max_obs_per_eye_topic_day: maxObsPerEyeTopicPerDay,
       min_topic_length: minTopicLength
     },
     total_detected: totalDetected,
+    compacted_count: compacted.hypotheses.length,
+    compacted_dropped: compacted.dropped,
+    compacted_dropped_low_confidence: compacted.dropped_low_confidence,
     hypothesis_count: cappedHypotheses.length,
     hypotheses: cappedHypotheses
   };

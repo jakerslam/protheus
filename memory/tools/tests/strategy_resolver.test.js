@@ -27,6 +27,26 @@ function run() {
     id: 'default_general',
     status: 'active',
     objective: { primary: 'test objective' },
+    campaigns: [
+      {
+        id: 'campaign_alpha',
+        status: 'active',
+        priority: 10,
+        objective_id: 'T1_test',
+        phases: [
+          {
+            id: 'phase_discover',
+            order: 1,
+            proposal_types: ['external_intel']
+          },
+          {
+            id: 'phase_execute',
+            order: 2,
+            proposal_types: ['collector_remediation']
+          }
+        ]
+      }
+    ],
     generation_policy: { mode: 'hyper-creative' },
     risk_policy: { allowed_risks: ['low'] },
     execution_policy: { mode: 'canary_execute', canary_daily_exec_limit: 2 },
@@ -78,6 +98,10 @@ function run() {
   assert.strictEqual(active.id, 'default_general');
   assert.strictEqual(active.execution_policy.mode, 'canary_execute');
   assert.strictEqual(active.validation.strict_ok, true);
+  assert.ok(!active.validation.warnings.includes('unknown_top_level_key:campaigns'));
+  assert.ok(Array.isArray(active.campaigns), 'campaigns should be normalized');
+  assert.strictEqual(active.campaigns.length, 1, 'expected one active campaign');
+  assert.strictEqual(active.campaigns[0].phases.length, 2, 'expected two normalized phases');
 
   const requested = resolver.loadActiveStrategy({ dir: strategyDir, id: 'archived_profile' });
   assert.strictEqual(requested.id, 'archived_profile');

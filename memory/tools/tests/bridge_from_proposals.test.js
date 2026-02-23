@@ -55,6 +55,18 @@ function run() {
         signal_quality_score: 72,
         relevance_score: 74
       }
+    },
+    {
+      id: 'EYE-SPROUT-1',
+      type: 'eye_sprout',
+      title: 'Watch medium.com creator trends',
+      directive_ref: 'T1_make_jay_billionaire_v1',
+      proposed_eye_id: 'watch_medium',
+      proposed_name: 'Watch medium.com',
+      proposed_domains: ['medium.com'],
+      proposed_parser_type: 'medium_rss',
+      proposed_strategy_id: 'strategy_alpha',
+      proposed_campaign_ids: ['camp_launch']
     }
   ]);
 
@@ -67,16 +79,23 @@ function run() {
   assert.strictEqual(r.status, 0, `bridge run should pass: ${r.stderr}`);
   const out = parseJson(r.stdout);
   assert.strictEqual(out.ok, true);
-  assert.strictEqual(out.changed, 1);
+  assert.strictEqual(out.changed, 2);
 
   const rows = JSON.parse(fs.readFileSync(fp, 'utf8'));
-  assert.ok(Array.isArray(rows) && rows.length === 1);
+  assert.ok(Array.isArray(rows) && rows.length === 2);
   const p = rows[0];
   assert.ok(p.action_spec && typeof p.action_spec === 'object', 'action_spec should be synthesized');
   assert.ok(Array.isArray(p.action_spec.verify) && p.action_spec.verify.length >= 1, 'verify should be present');
   assert.ok(Array.isArray(p.action_spec.success_criteria) && p.action_spec.success_criteria.length >= 1, 'success_criteria should be present');
   assert.ok(typeof p.action_spec.next_command === 'string' && p.action_spec.next_command.length > 10);
   assert.ok(p.meta && typeof p.meta.action_spec_target === 'string' && p.meta.action_spec_target.length > 0);
+
+  const sprout = rows[1];
+  assert.ok(sprout.meta && sprout.meta.actuation && sprout.meta.actuation.kind === 'eyes_create', 'sprout should bridge to eyes_create');
+  const params = sprout.meta.actuation.params || {};
+  assert.strictEqual(params.directive_ref, 'T1_make_jay_billionaire_v1');
+  assert.strictEqual(params.proposed_strategy_id, 'strategy_alpha');
+  assert.deepStrictEqual(params.proposed_campaign_ids, ['camp_launch']);
 
   console.log('bridge_from_proposals.test.js: OK');
 }

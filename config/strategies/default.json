@@ -16,6 +16,47 @@
     "fitness_metric": "verified_progress_rate",
     "target_window_days": 14
   },
+  "campaigns": [
+    {
+      "id": "objective_flow",
+      "name": "Objective Flow",
+      "status": "active",
+      "priority": 20,
+      "phases": [
+        {
+          "id": "discover",
+          "status": "active",
+          "order": 1,
+          "priority": 70,
+          "proposal_types": [
+            "external_intel"
+          ]
+        },
+        {
+          "id": "stabilize",
+          "status": "active",
+          "order": 2,
+          "priority": 60,
+          "proposal_types": [
+            "collector_remediation",
+            "collector_preflight_remediation",
+            "infrastructure_outage"
+          ]
+        },
+        {
+          "id": "execute",
+          "status": "active",
+          "order": 3,
+          "priority": 55,
+          "proposal_types": [
+            "actuation_moltbook_publish",
+            "pain_adaptive_candidate",
+            "window_shoppr_contribution"
+          ]
+        }
+      ]
+    }
+  ],
   "generation_policy": {
     "mode": "hyper-creative"
   },

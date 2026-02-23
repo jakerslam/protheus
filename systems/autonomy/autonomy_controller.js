@@ -50,6 +50,7 @@ const {
   strategyDuplicateWindowHours,
   strategyCanaryDailyExecLimit
 } = require('../../lib/strategy_resolver.js');
+const { annotateCampaignPriority } = require('../../lib/strategy_campaign_scheduler.js');
 const {
   evaluateTier1Governance,
   classifyAndRecordException,
@@ -883,13 +884,29 @@ function listProposalFiles() {
     .sort();
 }
 
+function normalizeStoredProposalStatus(raw, fallback = 'pending') {
+  const base = String(fallback || 'pending').trim().toLowerCase() || 'pending';
+  const s = String(raw || '').trim().toLowerCase();
+  if (!s || s === 'unknown' || s === 'new' || s === 'queued') return base;
+  if (s === 'open' || s === 'admitted') return base;
+  if (s === 'closed_won' || s === 'won' || s === 'paid' || s === 'verified') return 'closed';
+  return s;
+}
+
+function normalizeStoredProposalRow(proposal, fallback = 'pending') {
+  if (!proposal || typeof proposal !== 'object') return proposal;
+  const next = { ...proposal };
+  next.status = normalizeStoredProposalStatus(next.status, fallback);
+  return next;
+}
+
 function loadProposalsForDate(dateStr) {
   const fp = path.join(PROPOSALS_DIR, `${dateStr}.json`);
   if (!fs.existsSync(fp)) return [];
   try {
     const parsed = JSON.parse(fs.readFileSync(fp, 'utf8'));
-    if (Array.isArray(parsed)) return parsed;
-    if (parsed && Array.isArray(parsed.proposals)) return parsed.proposals;
+    if (Array.isArray(parsed)) return parsed.map((p) => normalizeStoredProposalRow(p, 'pending'));
+    if (parsed && Array.isArray(parsed.proposals)) return parsed.proposals.map((p) => normalizeStoredProposalRow(p, 'pending'));
     return [];
   } catch {
     return [];
@@ -7296,6 +7313,7 @@ function runCmd(dateStr, opts = {}) {
 
   let pick = null;
   let selection = { mode: 'exploit', index: 0, explore_used: 0, explore_quota: exploreQuotaForDay(), exploit_used: 0 };
+  let campaignPlan = { enabled: false, campaign_count: 0, matched_count: 0 };
   const eligible = [];
   const skipStats = {
     eye_no_progress: 0,
@@ -7369,6 +7387,9 @@ function runCmd(dateStr, opts = {}) {
       min_delta_percent_default: AUTONOMY_OPTIMIZATION_MIN_DELTA_PERCENT,
       min_delta_percent_high_accuracy: AUTONOMY_OPTIMIZATION_MIN_DELTA_PERCENT_HIGH_ACCURACY,
       require_explicit_delta: AUTONOMY_OPTIMIZATION_REQUIRE_DELTA
+    },
+    campaign_scheduler: {
+      enabled: Array.isArray(strategy && strategy.campaigns) && strategy.campaigns.length > 0
     },
     queue_underflow_backfill: {
       enabled: AUTONOMY_QUEUE_UNDERFLOW_BACKFILL_MAX > 0,
@@ -8044,7 +8065,20 @@ function runCmd(dateStr, opts = {}) {
       cand.strategy_rank_adjusted = adjusted.adjusted;
       cand.strategy_rank_bonus = adjusted.bonus;
     }
+    campaignPlan = annotateCampaignPriority(eligible, strategy);
     eligible.sort((a, b) => {
+      const aCampaignBucket = Number(a && a.campaign_sort_bucket || 0);
+      const bCampaignBucket = Number(b && b.campaign_sort_bucket || 0);
+      if (bCampaignBucket !== aCampaignBucket) return bCampaignBucket - aCampaignBucket;
+      const aCampaignScore = Number(a && a.campaign_sort_score || 0);
+      const bCampaignScore = Number(b && b.campaign_sort_score || 0);
+      if (bCampaignScore !== aCampaignScore) return bCampaignScore - aCampaignScore;
+      const aCampaignPriority = Number(a && a.campaign_match && a.campaign_match.campaign_priority != null ? a.campaign_match.campaign_priority : 999);
+      const bCampaignPriority = Number(b && b.campaign_match && b.campaign_match.campaign_priority != null ? b.campaign_match.campaign_priority : 999);
+      if (aCampaignPriority !== bCampaignPriority) return aCampaignPriority - bCampaignPriority;
+      const aPhaseOrder = Number(a && a.campaign_match && a.campaign_match.phase_order != null ? a.campaign_match.phase_order : 999);
+      const bPhaseOrder = Number(b && b.campaign_match && b.campaign_match.phase_order != null ? b.campaign_match.phase_order : 999);
+      if (aPhaseOrder !== bPhaseOrder) return aPhaseOrder - bPhaseOrder;
       const sa = Number(a.strategy_rank_adjusted != null ? a.strategy_rank_adjusted : (a.strategy_rank && a.strategy_rank.score || 0));
       const sb = Number(b.strategy_rank_adjusted != null ? b.strategy_rank_adjusted : (b.strategy_rank && b.strategy_rank.score || 0));
       if (sb !== sa) return sb - sa;
@@ -8722,6 +8756,9 @@ function runCmd(dateStr, opts = {}) {
   const revertedCount = ov.outcomes?.reverted || 0;
   const circuitCooldownHours = strategyCircuitCooldownHours(p, strategy);
   const directivePulse = pick.directive_pulse || null;
+  const campaignMatch = pick && pick.campaign_match && pick.campaign_match.matched === true
+    ? pick.campaign_match
+    : null;
   const objectiveBinding = pick.objective_binding || resolveObjectiveBinding(p, directivePulseCtx);
   const executionObjectiveId = objectiveIdForExecution(p, directivePulse, directiveClarification, objectiveBinding);
 
@@ -8966,6 +9003,8 @@ function runCmd(dateStr, opts = {}) {
       value_signal: pick.value_signal || null,
       objective_binding: objectiveBinding,
       directive_pulse: directivePulse,
+      campaign_match: campaignMatch,
+      campaign_plan: campaignPlan,
       selection_mode: selection.mode,
       selection_index: selection.index,
       admission: admissionSummary,
@@ -8991,6 +9030,8 @@ function runCmd(dateStr, opts = {}) {
       value_signal: pick.value_signal || null,
       objective_binding: objectiveBinding,
       directive_pulse: directivePulse,
+      campaign_match: campaignMatch,
+      campaign_plan: campaignPlan,
       selection_mode: selection.mode,
       selection_index: selection.index,
       admission: admissionSummary,
@@ -9752,6 +9793,8 @@ function runCmd(dateStr, opts = {}) {
     value_signal: pick.value_signal || null,
     objective_binding: objectiveBinding,
     directive_pulse: directivePulse,
+    campaign_match: campaignMatch,
+    campaign_plan: campaignPlan,
     composite: {
       score: pick.composite_score,
       min_score: compositeMinScore,
@@ -10033,6 +10076,8 @@ function runCmd(dateStr, opts = {}) {
     value_signal: pick.value_signal || null,
     objective_binding: objectiveBinding,
     directive_pulse: directivePulse,
+    campaign_match: campaignMatch,
+    campaign_plan: campaignPlan,
     composite: {
       score: pick.composite_score,
       min_score: compositeMinScore,

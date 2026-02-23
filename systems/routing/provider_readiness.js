@@ -38,6 +38,8 @@ const TIMEOUT_MS_DEFAULT = clampInt(process.env.PROVIDER_READINESS_TIMEOUT_MS ||
 const FAILURES_TO_OPEN_DEFAULT = clampInt(process.env.PROVIDER_READINESS_FAILURES_TO_OPEN || 1, 1, 12);
 const CIRCUIT_OPEN_BASE_MS_DEFAULT = clampInt(process.env.PROVIDER_READINESS_CIRCUIT_BASE_MS || 2 * 60 * 1000, 1000, 12 * 60 * 60 * 1000);
 const CIRCUIT_OPEN_MAX_MS_DEFAULT = clampInt(process.env.PROVIDER_READINESS_CIRCUIT_MAX_MS || 45 * 60 * 1000, CIRCUIT_OPEN_BASE_MS_DEFAULT, 24 * 60 * 60 * 1000);
+const ENV_BLOCKED_FAILURES_TO_OPEN_DEFAULT = clampInt(process.env.PROVIDER_READINESS_ENV_BLOCKED_FAILURES_TO_OPEN || 1, 1, 3);
+const ENV_BLOCKED_CIRCUIT_MS_DEFAULT = clampInt(process.env.PROVIDER_READINESS_ENV_BLOCKED_CIRCUIT_MS || 45 * 1000, 5000, 10 * 60 * 1000);
 const PAIN_ENABLED_DEFAULT = String(process.env.PROVIDER_READINESS_EMIT_PAIN || '1').trim() !== '0';
 const PAIN_COOLDOWN_MS_DEFAULT = clampInt(process.env.PROVIDER_READINESS_PAIN_COOLDOWN_MS || 6 * 60 * 60 * 1000, 60 * 1000, 14 * 24 * 60 * 60 * 1000);
 
@@ -410,6 +412,16 @@ function evaluateProviderGate(providerInput, opts = {}) {
   const failuresToOpen = clampInt(opts.failures_to_open || FAILURES_TO_OPEN_DEFAULT, 1, 12);
   const circuitBaseMs = clampInt(opts.circuit_open_base_ms || CIRCUIT_OPEN_BASE_MS_DEFAULT, 1000, 12 * 60 * 60 * 1000);
   const circuitMaxMs = clampInt(opts.circuit_open_max_ms || CIRCUIT_OPEN_MAX_MS_DEFAULT, circuitBaseMs, 24 * 60 * 60 * 1000);
+  const envBlockedFailuresToOpen = clampInt(
+    opts.env_blocked_failures_to_open || ENV_BLOCKED_FAILURES_TO_OPEN_DEFAULT,
+    1,
+    3
+  );
+  const envBlockedCircuitMs = clampInt(
+    opts.env_blocked_circuit_ms || ENV_BLOCKED_CIRCUIT_MS_DEFAULT,
+    5000,
+    circuitMaxMs
+  );
 
   const state = loadState();
   if (!state.providers || typeof state.providers !== 'object') state.providers = {};
@@ -522,10 +534,13 @@ function evaluateProviderGate(providerInput, opts = {}) {
   row.last_error = String(probe.reason || 'provider_unavailable');
   row.success_streak = 0;
   row.failure_streak = clampInt(Number(row.failure_streak || 0) + 1, 1, 10000);
-  const shouldOpen = row.failure_streak >= failuresToOpen;
+  const envBlocked = String(probe.reason || '') === 'env_blocked';
+  const openThreshold = envBlocked ? envBlockedFailuresToOpen : failuresToOpen;
+  const shouldOpen = row.failure_streak >= openThreshold;
   if (shouldOpen) {
-    const exp = Math.max(0, row.failure_streak - failuresToOpen);
-    const openMs = Math.min(circuitMaxMs, circuitBaseMs * Math.pow(2, exp));
+    const exp = Math.max(0, row.failure_streak - openThreshold);
+    let openMs = Math.min(circuitMaxMs, circuitBaseMs * Math.pow(2, exp));
+    if (envBlocked) openMs = Math.min(openMs, envBlockedCircuitMs);
     row.circuit_open_until_ts = new Date(nowMs + openMs).toISOString();
     row.circuit_reason = String(probe.reason || 'provider_unavailable');
   } else {

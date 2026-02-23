@@ -21,7 +21,8 @@ const {
   evaluateSystemBudgetGuard,
   loadSystemBudgetAutopauseState,
   writeSystemBudgetDecision,
-  setSystemBudgetAutopause
+  setSystemBudgetAutopause,
+  clearSystemBudgetAutopause
 } = require("../budget/system_budget.js");
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
@@ -1436,7 +1437,30 @@ function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy, dryRun
     events_path: ROUTER_BUDGET_EVENTS_PATH,
     autopause_path: ROUTER_BUDGET_AUTOPAUSE_PATH
   };
-  const autopause = loadSystemBudgetAutopauseState(opts);
+  let autopause = loadSystemBudgetAutopauseState(opts);
+  let guard = null;
+  if (autopause.active === true && String(autopause.source || '').trim() === 'model_router') {
+    guard = evaluateSystemBudgetGuard({
+      date,
+      request_tokens_est: requestTokensEst,
+      attempts_today: 1
+    }, opts);
+    const guardPressure = String(guard.projected_pressure || guard.pressure || "none").toLowerCase();
+    if (!dryRunMode && guard.hard_stop !== true && guardPressure !== "hard") {
+      autopause = clearSystemBudgetAutopause({
+        source: "model_router",
+        reason: `auto_clear_guard_recovered:${guardPressure || "none"}`
+      }, opts);
+      writeSystemBudgetDecision({
+        date,
+        module: ROUTER_BUDGET_MODULE,
+        capability: "route_decision",
+        request_tokens_est: requestTokensEst,
+        decision: "allow",
+        reason: "budget_autopause_auto_cleared"
+      }, opts);
+    }
+  }
   if (autopause.active === true) {
     if (dryRunMode) {
       writeSystemBudgetDecision({
@@ -1458,7 +1482,7 @@ function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy, dryRun
           reason: autopause.reason || null,
           until: autopause.until || null
         },
-        guard: null
+        guard
       };
     }
     writeSystemBudgetDecision({
@@ -1480,11 +1504,11 @@ function evaluateRouterGlobalBudgetGate({ requestTokensEst, budgetPolicy, dryRun
         reason: autopause.reason || null,
         until: autopause.until || null
       },
-      guard: null
+      guard
     };
   }
 
-  const guard = evaluateSystemBudgetGuard({
+  guard = guard || evaluateSystemBudgetGuard({
     date,
     request_tokens_est: requestTokensEst,
     attempts_today: 1
