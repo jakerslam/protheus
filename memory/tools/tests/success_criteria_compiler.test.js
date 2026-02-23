@@ -35,6 +35,19 @@ function run() {
   assert.strictEqual(proposalRows.length, 1, 'proposal compile should preserve explicit rows');
   assert.strictEqual(proposalRows[0].metric, 'artifact_count', 'collector_success_runs should normalize to machine-verifiable metric');
 
+  const remappedRows = compileProposalSuccessCriteria({
+    action_spec: {
+      success_criteria: [{ metric: 'reply_or_interview_count', target: '>=1 reply/interview signal', horizon: '7d' }]
+    }
+  }, {
+    include_verify: false,
+    include_validation: false,
+    allow_fallback: false,
+    capability_key: 'proposal:collector_remediation'
+  });
+  assert.strictEqual(remappedRows.length, 1, 'remapped compile should emit one row');
+  assert.strictEqual(remappedRows[0].metric, 'artifact_count', 'non-outreach proposal capability should remap reply metric to artifact_count');
+
   const noFallbackRows = compileProposalSuccessCriteria(
     { action_spec: {}, validation: ['do something'] },
     { include_verify: false, include_validation: false, allow_fallback: false }
@@ -50,4 +63,3 @@ try {
   console.error(`success_criteria_compiler.test.js: FAIL: ${err.message}`);
   process.exit(1);
 }
-

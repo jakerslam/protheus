@@ -1,6 +1,6 @@
 # V1 Hardening Checkpoint (2026-02-23)
 
-Generated: 2026-02-23T01:12:12.069Z
+Generated: 2026-02-23T05:45:02.252Z
 Window days: 14
 
 ## Score
@@ -15,9 +15,9 @@ Window days: 14
 |---|---:|---:|---|
 | security_integrity | yes | 3 | integrity_kernel + architecture_guard |
 | startup_attestation | yes | 2 | startup_attestation_verified |
-| routing_health | yes | 2 | local_routing_healthy |
+| routing_health | yes | 2 | local_routing_healthy_soft_latency_escalation |
 | sensory_continuity | yes | 2 | dark_eyes + queue_backlog + proposal_starvation_preview_nonblocking |
-| drift_control | yes | 2 | spc_preview_outcome_data_gap_manual_mode |
+| drift_control | yes | 2 | spc_quality_stopratio_low_sample_nonblocking |
 | budget_governor | yes | 2 | budget_guard_clear |
 | execute_readiness | yes | 2 | ready_for_execute |
 | queue_hygiene | yes | 1 | open=21 stale_open=0 |
@@ -28,7 +28,7 @@ Window days: 14
 ```json
 {
   "window_days": 14,
-  "attempted": 168,
+  "attempted": 179,
   "executed": 12,
   "shipped": 6,
   "no_change": 6,

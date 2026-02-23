@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated_ts": "2026-02-23T02:11:50.011Z",
+  "updated_ts": "2026-02-23T05:32:45.585Z",
   "item_hashes": {
     "322525e41384fb34": {
       "node_id": "failure-t1-322525e4",
@@ -181,6 +181,16 @@
       "source": "spine",
       "code": "provider_recovery_path_pulse_failed",
       "ts": "2026-02-23T02:11:50.010Z"
+    },
+    "a86a891d7237fa0d": {
+      "node_id": "failure-t2-a86a891d",
+      "uid": "494cb2627e3edbc9ab8b6f4e",
+      "memory_file": "memory/2026-02-23.md",
+      "date": "2026-02-23",
+      "failure_tier": 2,
+      "source": "external_eyes",
+      "code": "collector_preflight:collector_error",
+      "ts": "2026-02-23T05:32:45.585Z"
     }
   }
 }

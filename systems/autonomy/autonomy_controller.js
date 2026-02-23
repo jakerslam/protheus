@@ -95,6 +95,7 @@ const MODEL_CATALOG_LOOP_SCRIPT = path.join(REPO_ROOT, 'systems', 'autonomy', 'm
 const PROPOSAL_ENRICHER_SCRIPT = path.join(REPO_ROOT, 'systems', 'autonomy', 'proposal_enricher.js');
 const STRATEGY_READINESS_SCRIPT = path.join(REPO_ROOT, 'systems', 'autonomy', 'strategy_readiness.js');
 const ACTUATION_EXECUTOR_SCRIPT = path.join(REPO_ROOT, 'systems', 'actuation', 'actuation_executor.js');
+const DIRECTIVE_HIERARCHY_CONTROLLER_SCRIPT = path.join(REPO_ROOT, 'systems', 'security', 'directive_hierarchy_controller.js');
 const MODEL_CATALOG_AUDIT_PATH = process.env.AUTONOMY_MODEL_CATALOG_AUDIT_PATH
   ? path.resolve(process.env.AUTONOMY_MODEL_CATALOG_AUDIT_PATH)
   : path.join(REPO_ROOT, 'state', 'routing', 'model_catalog_audit.jsonl');
@@ -434,6 +435,11 @@ const AUTONOMY_CAMPAIGN_DECOMPOSE_MAX_PER_RUN = Math.max(0, Number(process.env.A
 const AUTONOMY_CAMPAIGN_DECOMPOSE_MIN_OPEN_PER_TYPE = Math.max(1, Number(process.env.AUTONOMY_CAMPAIGN_DECOMPOSE_MIN_OPEN_PER_TYPE || 1));
 const AUTONOMY_CAMPAIGN_DECOMPOSE_DEFAULT_RISK = String(process.env.AUTONOMY_CAMPAIGN_DECOMPOSE_DEFAULT_RISK || 'low').trim().toLowerCase() || 'low';
 const AUTONOMY_CAMPAIGN_DECOMPOSE_DEFAULT_IMPACT = String(process.env.AUTONOMY_CAMPAIGN_DECOMPOSE_DEFAULT_IMPACT || 'medium').trim().toLowerCase() || 'medium';
+const AUTONOMY_DIRECTIVE_DECOMPOSE_ENABLED = String(process.env.AUTONOMY_DIRECTIVE_DECOMPOSE_ENABLED || '1') !== '0';
+const AUTONOMY_DIRECTIVE_DECOMPOSE_MAX_PER_RUN = Math.max(0, Number(process.env.AUTONOMY_DIRECTIVE_DECOMPOSE_MAX_PER_RUN || 2));
+const AUTONOMY_DIRECTIVE_DECOMPOSE_PARENT_MAX_TIER = clampNumber(Number(process.env.AUTONOMY_DIRECTIVE_DECOMPOSE_PARENT_MAX_TIER || 1), 0, 9, 1);
+const AUTONOMY_DIRECTIVE_DECOMPOSE_DEFAULT_RISK = String(process.env.AUTONOMY_DIRECTIVE_DECOMPOSE_DEFAULT_RISK || 'low').trim().toLowerCase() || 'low';
+const AUTONOMY_DIRECTIVE_DECOMPOSE_DEFAULT_IMPACT = String(process.env.AUTONOMY_DIRECTIVE_DECOMPOSE_DEFAULT_IMPACT || 'medium').trim().toLowerCase() || 'medium';
 let STRATEGY_CACHE = undefined;
 let OUTCOME_FITNESS_POLICY_CACHE = undefined;
 
@@ -4640,6 +4646,10 @@ function isDirectiveClarificationProposal(p) {
   return String(p && p.type || '').trim().toLowerCase() === 'directive_clarification';
 }
 
+function isDirectiveDecompositionProposal(p) {
+  return String(p && p.type || '').trim().toLowerCase() === 'directive_decomposition';
+}
+
 function sanitizeDirectiveObjectiveId(v) {
   const raw = String(v || '').trim();
   if (!raw) return '';
@@ -4655,6 +4665,15 @@ function parseDirectiveFileArgFromCommand(cmd) {
   if (!raw) return '';
   if (!/^config\/directives\/[A-Za-z0-9_]+\.ya?ml$/i.test(raw)) return '';
   return raw.replace(/\\/g, '/');
+}
+
+function parseDirectiveObjectiveArgFromCommand(cmd) {
+  const text = normalizeSpaces(cmd);
+  if (!text) return '';
+  const m = text.match(/(?:^|\s)--id=(?:"([^"]+)"|'([^']+)'|([^\s]+))/);
+  const raw = normalizeSpaces(m && (m[1] || m[2] || m[3]));
+  const id = sanitizeDirectiveObjectiveId(raw);
+  return id || '';
 }
 
 function directiveClarificationExecSpec(p) {
@@ -4692,6 +4711,28 @@ function directiveClarificationExecSpec(p) {
     file: relFile,
     source,
     args: ['validate', `--file=${relFile}`]
+  };
+}
+
+function directiveDecompositionExecSpec(p) {
+  if (!isDirectiveDecompositionProposal(p)) return null;
+  const meta = p && p.meta && typeof p.meta === 'object' ? p.meta : {};
+  const objectiveId = sanitizeDirectiveObjectiveId(meta.directive_objective_id || '');
+  const commandId = parseDirectiveObjectiveArgFromCommand(p && p.suggested_next_command);
+  const chosenId = objectiveId || commandId;
+  const source = objectiveId ? 'meta.directive_objective_id' : (commandId ? 'suggested_next_command' : '');
+  if (!chosenId) {
+    return {
+      ok: false,
+      reason: 'directive_decomposition_missing_objective_id'
+    };
+  }
+  return {
+    ok: true,
+    decision: 'DIRECTIVE_DECOMPOSE',
+    objective_id: chosenId,
+    source,
+    args: ['decompose', `--id=${chosenId}`]
   };
 }
 
@@ -4819,14 +4860,14 @@ function resolveObjectiveBinding(p, pulseCtx) {
   };
 }
 
-function objectiveIdForExecution(p, directivePulse, directiveClarification, objectiveBinding) {
+function objectiveIdForExecution(p, directivePulse, directiveAction, objectiveBinding) {
   const proposal = p && typeof p === 'object' ? p : {};
   const meta = proposal.meta && typeof proposal.meta === 'object' ? proposal.meta : {};
   const actionSpec = proposal.action_spec && typeof proposal.action_spec === 'object' ? proposal.action_spec : {};
   const candidates = [
     objectiveBinding && objectiveBinding.objective_id,
     directivePulse && directivePulse.objective_id,
-    directiveClarification && directiveClarification.objective_id,
+    directiveAction && directiveAction.objective_id,
     meta.objective_id,
     meta.directive_objective_id,
     actionSpec.objective_id
@@ -5040,6 +5081,65 @@ function runDirectiveClarificationValidate(spec, dryRun = false) {
       quality_ok: payload ? payload.ok === true : null,
       missing: Array.isArray(payload && payload.missing) ? payload.missing.slice(0, 8) : [],
       questions: Array.isArray(payload && payload.questions) ? payload.questions.slice(0, 8) : []
+    }
+  };
+}
+
+function runDirectiveDecomposition(spec, dryRun = false) {
+  if (!spec || spec.ok !== true || !sanitizeDirectiveObjectiveId(spec.objective_id)) {
+    const reason = spec && spec.reason ? String(spec.reason) : 'directive_decomposition_spec_invalid';
+    return {
+      ok: false,
+      code: 2,
+      stdout: '',
+      stderr: reason,
+      summary: {
+        decision: 'DIRECTIVE_DECOMPOSE',
+        executable: false,
+        gate_decision: 'DENY',
+        reason,
+        dry_run: !!dryRun
+      }
+    };
+  }
+
+  const args = Array.isArray(spec.args) ? spec.args.slice() : ['decompose', `--id=${spec.objective_id}`];
+  if (dryRun) {
+    args.push('--dry-run=1');
+  } else {
+    args.push('--apply=1');
+  }
+  const r = spawnSync('node', [DIRECTIVE_HIERARCHY_CONTROLLER_SCRIPT, ...args], { cwd: REPO_ROOT, encoding: 'utf8' });
+  const stdout = String(r.stdout || '').trim();
+  const stderr = String(r.stderr || '').trim();
+  const payload = parseFirstJsonLine(stdout);
+  const payloadOk = !!(payload && payload.ok === true);
+  const created = Math.max(0, Number(payload && payload.created_count || 0));
+  const expired = Math.max(0, Number(payload && payload.expired_count || 0));
+  const executable = payloadOk && (created > 0 || expired > 0);
+  const ok = r.status === 0 && payloadOk && (dryRun ? executable : true);
+  const reason = !payloadOk
+    ? String((payload && payload.error) || stderr || `directive_decomposition_exit_${Number(r.status || 1)}`)
+    : (dryRun && !executable ? 'no_decomposition_needed' : '');
+
+  return {
+    ok,
+    code: r.status || 0,
+    stdout,
+    stderr,
+    summary: {
+      decision: 'DIRECTIVE_DECOMPOSE',
+      executable: !!executable,
+      gate_decision: executable ? 'ALLOW' : 'DENY',
+      objective_id: spec.objective_id || null,
+      source: spec.source || null,
+      dry_run: !!dryRun,
+      quality_ok: payloadOk,
+      created_count: created,
+      created_ids: Array.isArray(payload && payload.created_ids) ? payload.created_ids.slice(0, 8) : [],
+      expired_count: expired,
+      expired_ids: Array.isArray(payload && payload.expired_ids) ? payload.expired_ids.slice(0, 8) : [],
+      reason: reason || null
     }
   };
 }
@@ -5518,6 +5618,8 @@ function verifyExecutionReceipt(execRes, dod, outcomeRes, postconditions, succes
     ? 'actuation_execute_ok'
     : decision === 'DIRECTIVE_VALIDATE'
       ? 'directive_validate_ok'
+      : decision === 'DIRECTIVE_DECOMPOSE'
+        ? 'directive_decompose_ok'
       : 'route_execute_ok';
   const routeAttestation = execRes
     && execRes.execution_metrics
@@ -6556,6 +6658,192 @@ function primaryDirectiveObjectiveId() {
   return best ? best.id : '';
 }
 
+function runDirectiveHierarchyStatus(objectiveId = '') {
+  const args = ['status'];
+  const id = sanitizeDirectiveObjectiveId(objectiveId);
+  if (id) args.push(`--id=${id}`);
+  const r = spawnSync('node', [DIRECTIVE_HIERARCHY_CONTROLLER_SCRIPT, ...args], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8'
+  });
+  const payload = parseLastJsonLine(r.stdout || '');
+  return {
+    ok: r.status === 0 && !!(payload && payload.ok === true),
+    code: Number(r.status || 0),
+    stdout: String(r.stdout || '').trim(),
+    stderr: String(r.stderr || '').trim(),
+    payload
+  };
+}
+
+function runDirectiveHierarchyDecomposePreview(objectiveId) {
+  const id = sanitizeDirectiveObjectiveId(objectiveId);
+  if (!id) return { ok: false, code: 2, stdout: '', stderr: 'invalid_objective_id', payload: null };
+  const r = spawnSync('node', [
+    DIRECTIVE_HIERARCHY_CONTROLLER_SCRIPT,
+    'decompose',
+    `--id=${id}`,
+    '--dry-run=1'
+  ], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8'
+  });
+  const payload = parseLastJsonLine(r.stdout || '');
+  const createdCount = Math.max(0, Number(payload && payload.created_count || 0));
+  return {
+    ok: r.status === 0 && !!(payload && payload.ok === true && createdCount > 0),
+    code: Number(r.status || 0),
+    stdout: String(r.stdout || '').trim(),
+    stderr: String(r.stderr || '').trim(),
+    payload
+  };
+}
+
+function ensureDirectiveDecompositionProposal(dateStr, objectiveId, parentTier = null) {
+  const objId = sanitizeDirectiveObjectiveId(objectiveId);
+  if (!objId) return { created: false, reason: 'invalid_objective_id' };
+  const proposals = loadProposalsForDate(dateStr);
+  const existing = proposals.find((p) => {
+    if (!p || String(p.type || '') !== 'directive_decomposition') return false;
+    const meta = p.meta && typeof p.meta === 'object' ? p.meta : {};
+    return String(meta.directive_objective_id || '') === objId;
+  });
+  if (existing) {
+    return { created: false, reason: 'already_exists', proposal_id: String(existing.id || '') };
+  }
+
+  const proposalId = `DDEC-${crypto.createHash('sha256').update(`${dateStr}|${objId}|directive_decompose`).digest('hex').slice(0, 16)}`;
+  const tier = Number.isFinite(Number(parentTier)) ? normalizeDirectiveTier(Number(parentTier), 9) : null;
+  const proposal = {
+    id: proposalId,
+    type: 'directive_decomposition',
+    title: `Decompose high-tier directive into bounded child directives (${objId})`,
+    summary: `Create constrained Tier+1 plan/execute child directives for ${objId} via hierarchy controller gates.`,
+    expected_impact: AUTONOMY_DIRECTIVE_DECOMPOSE_DEFAULT_IMPACT,
+    risk: AUTONOMY_DIRECTIVE_DECOMPOSE_DEFAULT_RISK,
+    validation: [
+      'Child directives are auto-generated with lineage and bounded risk limits',
+      'ACTIVE registry updated through guarded controller path only',
+      'No direct file mutations outside security controller'
+    ],
+    suggested_next_command: `node systems/security/directive_hierarchy_controller.js decompose --id=${objId} --apply=1`,
+    evidence: [
+      {
+        source: 'directive_hierarchy_status',
+        path: 'systems/security/directive_hierarchy_controller.js',
+        match: `status --id=${objId}`,
+        evidence_ref: `directive:${objId}`
+      }
+    ],
+    meta: {
+      source_eye: 'directive_hierarchy',
+      directive_objective_id: objId,
+      directive_objective_tier: tier,
+      generated_at: nowIso(),
+      topics: ['directive', 'hierarchy', 'decomposition', 'autonomy'],
+      signal_quality_score: 74,
+      signal_quality_tier: 'high',
+      relevance_score: 81,
+      relevance_tier: 'high'
+    }
+  };
+  const next = Array.isArray(proposals) ? proposals.slice() : [];
+  next.push(proposal);
+  saveJson(path.join(PROPOSALS_DIR, `${dateStr}.json`), next);
+  return { created: true, proposal_id: proposalId, objective_id: objId, date: dateStr };
+}
+
+function applyDirectiveDecompositionSeeds(dateStr, strategy, opts = {}) {
+  if (!AUTONOMY_DIRECTIVE_DECOMPOSE_ENABLED) {
+    return { ok: true, enabled: false, created: 0, proposal_ids: [] };
+  }
+  if (!strategyAllowsProposalType(strategy, 'directive_decomposition')) {
+    return { ok: true, enabled: true, created: 0, proposal_ids: [], reason: 'strategy_type_filtered' };
+  }
+
+  const status = runDirectiveHierarchyStatus();
+  if (!status.ok) {
+    return {
+      ok: false,
+      enabled: true,
+      created: 0,
+      proposal_ids: [],
+      reason: 'directive_hierarchy_status_failed',
+      status_code: status.code
+    };
+  }
+  const rows = status.payload && Array.isArray(status.payload.rows) ? status.payload.rows : [];
+  const candidates = rows
+    .map((row) => {
+      const rawTier = Number(row && row.parent_tier);
+      return {
+        parent_id: sanitizeDirectiveObjectiveId(row && row.parent_id || ''),
+        parent_tier: Number.isFinite(rawTier) ? Math.round(rawTier) : 9,
+        child_count: Math.max(0, Number(row && row.child_count || 0))
+      };
+    })
+    .filter((row) => (
+      row.parent_id
+      && row.parent_tier >= 1
+      && row.parent_tier <= AUTONOMY_DIRECTIVE_DECOMPOSE_PARENT_MAX_TIER
+      && row.child_count <= 0
+    ))
+    .sort((a, b) => {
+      if (a.parent_tier !== b.parent_tier) return a.parent_tier - b.parent_tier;
+      return String(a.parent_id).localeCompare(String(b.parent_id));
+    });
+
+  const maxAdditions = Math.max(0, Number(AUTONOMY_DIRECTIVE_DECOMPOSE_MAX_PER_RUN || 0));
+  const additions = [];
+  const skipped = [];
+  for (const row of candidates) {
+    if (additions.length >= maxAdditions) break;
+    const preview = runDirectiveHierarchyDecomposePreview(row.parent_id);
+    if (!preview.ok) {
+      skipped.push({
+        parent_id: row.parent_id,
+        reason: preview.payload && preview.payload.error
+          ? String(preview.payload.error)
+          : `preview_exit_${preview.code}`
+      });
+      continue;
+    }
+    const created = ensureDirectiveDecompositionProposal(dateStr, row.parent_id, row.parent_tier);
+    if (created && created.created === true) {
+      additions.push(created);
+    } else if (created && created.reason) {
+      skipped.push({
+        parent_id: row.parent_id,
+        reason: String(created.reason)
+      });
+    }
+  }
+
+  if (opts.logRun === true) {
+    writeRun(dateStr, {
+      ts: nowIso(),
+      type: 'autonomy_directive_decomposition',
+      result: additions.length > 0 ? 'seeded' : 'no_change',
+      created: additions.length,
+      proposal_ids: additions.map((row) => String(row && row.proposal_id || '')).filter(Boolean).slice(0, 32),
+      candidates_considered: candidates.length,
+      max_additions: maxAdditions,
+      parent_tier_cap: AUTONOMY_DIRECTIVE_DECOMPOSE_PARENT_MAX_TIER,
+      skipped: skipped.slice(0, 16)
+    });
+  }
+  return {
+    ok: true,
+    enabled: true,
+    created: additions.length,
+    proposal_ids: additions.map((row) => String(row && row.proposal_id || '')).filter(Boolean),
+    candidates_considered: candidates.length,
+    max_additions: maxAdditions,
+    parent_tier_cap: AUTONOMY_DIRECTIVE_DECOMPOSE_PARENT_MAX_TIER,
+    skipped: skipped.slice(0, 16)
+  };
+}
+
 function applyCampaignDecompositionSeeds(dateStr, strategy, opts = {}) {
   if (!AUTONOMY_CAMPAIGN_DECOMPOSE_ENABLED) {
     return { ok: true, enabled: false, created: 0, proposal_ids: [] };
@@ -7368,6 +7656,7 @@ function readinessCmd(dateStr) {
     });
   }
 
+  const directiveDecomposition = applyDirectiveDecompositionSeeds(dateStr, strategy, { logRun: false });
   const proposalDate = latestProposalDate(dateStr);
   let pool = [];
   let campaignDecomposition = {
@@ -7453,6 +7742,13 @@ function readinessCmd(dateStr) {
     min_daily_executions: AUTONOMY_MIN_DAILY_EXECUTIONS,
     proposal_date: proposalDate || null,
     candidate_pool_size: Array.isArray(pool) ? pool.length : 0,
+    directive_decomposition: {
+      enabled: directiveDecomposition && directiveDecomposition.enabled === true,
+      created: Number(directiveDecomposition && directiveDecomposition.created || 0),
+      proposal_ids: Array.isArray(directiveDecomposition && directiveDecomposition.proposal_ids)
+        ? directiveDecomposition.proposal_ids.slice(0, 16)
+        : []
+    },
     campaign_decomposition: {
       enabled: campaignDecomposition && campaignDecomposition.enabled === true,
       created: Number(campaignDecomposition && campaignDecomposition.created || 0),
@@ -7696,10 +7992,35 @@ function runCmd(dateStr, opts = {}) {
     }
   }
 
+  const directiveDecompositionSeed = applyDirectiveDecompositionSeeds(dateStr, strategy, {
+    logRun: !shadowOnly
+  });
   const proposalDate = latestProposalDate(dateStr);
   if (!proposalDate) {
-    writeRun(dateStr, { ts: nowIso(), type: 'autonomy_run', result: 'no_proposals' });
-    process.stdout.write(JSON.stringify({ ok: true, result: 'no_proposals', ts: nowIso() }) + '\n');
+    writeRun(dateStr, {
+      ts: nowIso(),
+      type: 'autonomy_run',
+      result: 'no_proposals',
+      directive_decomposition: {
+        enabled: directiveDecompositionSeed && directiveDecompositionSeed.enabled === true,
+        created: Number(directiveDecompositionSeed && directiveDecompositionSeed.created || 0),
+        proposal_ids: Array.isArray(directiveDecompositionSeed && directiveDecompositionSeed.proposal_ids)
+          ? directiveDecompositionSeed.proposal_ids.slice(0, 16)
+          : []
+      }
+    });
+    process.stdout.write(JSON.stringify({
+      ok: true,
+      result: 'no_proposals',
+      directive_decomposition: {
+        enabled: directiveDecompositionSeed && directiveDecompositionSeed.enabled === true,
+        created: Number(directiveDecompositionSeed && directiveDecompositionSeed.created || 0),
+        proposal_ids: Array.isArray(directiveDecompositionSeed && directiveDecompositionSeed.proposal_ids)
+          ? directiveDecompositionSeed.proposal_ids.slice(0, 16)
+          : []
+      },
+      ts: nowIso()
+    }) + '\n');
     return;
   }
 
@@ -9738,10 +10059,12 @@ function runCmd(dateStr, opts = {}) {
     : compositeEligibilityMin(proposalRisk, executionMode));
   const ov = pick.overlay || { outcomes: { no_change: 0, reverted: 0 } };
   const directiveClarification = directiveClarificationExecSpec(p);
-  const actuationSpec = directiveClarification ? null : parseActuationSpec(p);
+  const directiveDecomposition = directiveClarification ? null : directiveDecompositionExecSpec(p);
+  const directiveAction = directiveClarification || directiveDecomposition;
+  const actuationSpec = directiveAction ? null : parseActuationSpec(p);
   const executionTarget = directiveClarification
     ? 'directive'
-    : (actuationSpec ? 'actuation' : 'route');
+    : (directiveDecomposition ? 'directive' : (actuationSpec ? 'actuation' : 'route'));
   const capability = capabilityDescriptor(p, actuationSpec);
   const capabilityKey = String(capability && capability.key ? capability.key : 'unknown');
   const capabilityLimit = capabilityCap(strategyBudget, capability);
@@ -9755,7 +10078,7 @@ function runCmd(dateStr, opts = {}) {
     ? pick.campaign_match
     : null;
   const objectiveBinding = pick.objective_binding || resolveObjectiveBinding(p, directivePulseCtx);
-  const executionObjectiveId = objectiveIdForExecution(p, directivePulse, directiveClarification, objectiveBinding);
+  const executionObjectiveId = objectiveIdForExecution(p, directivePulse, directiveAction, objectiveBinding);
 
   if (circuitCooldownHours > 0) {
     const reason = `auto:circuit_breaker cooldown_${circuitCooldownHours}h`;
@@ -9844,6 +10167,8 @@ function runCmd(dateStr, opts = {}) {
       previewReceiptId = `preview_${Date.now()}_${String(p.id).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 48)}`;
       const previewRes = directiveClarification
         ? runDirectiveClarificationValidate(directiveClarification, true)
+        : directiveDecomposition
+          ? runDirectiveDecomposition(directiveDecomposition, true)
         : actuationSpec
           ? runActuationExecute(actuationSpec, true)
           : runRouteExecute(makeTaskFromProposal(p), routeTokensEst, repeats14d, errors30d, true);
@@ -9860,7 +10185,7 @@ function runCmd(dateStr, opts = {}) {
       ];
       const failed = checks.filter(c => c.pass !== true).map(c => c.name);
       const primaryFailure = !previewRes.ok
-        ? (actuationSpec ? `actuation_exit_${previewRes.code}` : `route_exit_${previewRes.code}`)
+        ? `${executionTarget}_exit_${previewRes.code}`
         : (preBlocked ? 'preflight_not_executable' : null);
       previewVerification = {
         checks,
@@ -9916,10 +10241,11 @@ function runCmd(dateStr, opts = {}) {
           task_hash: hashObj({ task: makeTaskFromProposal(p) }),
           objective_id: executionObjectiveId || null,
           actuation: actuationSpec ? { kind: actuationSpec.kind } : null,
-          directive_validation: directiveClarification
+          directive_validation: directiveAction
             ? {
-                objective_id: directiveClarification.objective_id || null,
-                file: directiveClarification.file || null
+                decision: directiveAction.decision || null,
+                objective_id: directiveAction.objective_id || null,
+                file: directiveClarification ? (directiveClarification.file || null) : null
               }
             : null,
           mode: previewMode,
@@ -10488,6 +10814,8 @@ function runCmd(dateStr, opts = {}) {
 
   let preflight = directiveClarification
     ? runDirectiveClarificationValidate(directiveClarification, true)
+    : directiveDecomposition
+      ? runDirectiveDecomposition(directiveDecomposition, true)
     : actuationSpec
       ? runActuationExecute(actuationSpec, true)
       : runRouteExecute(task, routeTokensEst, repeats14d, errors30d, true);
@@ -10879,10 +11207,11 @@ function runCmd(dateStr, opts = {}) {
         task_hash: hashObj({ task }),
         objective_id: executionObjectiveId || null,
         actuation: actuationSpec ? { kind: actuationSpec.kind } : null,
-        directive_validation: directiveClarification
+        directive_validation: directiveAction
           ? {
-              objective_id: directiveClarification.objective_id || null,
-              file: directiveClarification.file || null
+              decision: directiveAction.decision || null,
+              objective_id: directiveAction.objective_id || null,
+              file: directiveClarification ? (directiveClarification.file || null) : null
             }
           : null,
         route_tokens_est: routeTokensEst,
@@ -10939,6 +11268,7 @@ function runCmd(dateStr, opts = {}) {
     directive_pulse: directivePulse,
     campaign_match: campaignMatch,
     campaign_plan: campaignPlan,
+    directive_decomposition_seed: directiveDecompositionSeed,
     campaign_decomposition: campaignDecomposition,
     min_daily_executions: AUTONOMY_MIN_DAILY_EXECUTIONS,
     execution_quota_deficit: executionQuotaDeficit,
@@ -10993,6 +11323,8 @@ function runCmd(dateStr, opts = {}) {
   const execStartMs = Date.now();
   const execRes = directiveClarification
     ? runDirectiveClarificationValidate(directiveClarification, false)
+    : directiveDecomposition
+      ? runDirectiveDecomposition(directiveDecomposition, false)
     : actuationSpec
       ? runActuationExecute(actuationSpec, false)
       : runRouteExecute(task, routeTokensEst, repeats14d, errors30d, false);
@@ -11202,10 +11534,11 @@ function runCmd(dateStr, opts = {}) {
       task_hash: hashObj({ task }),
       objective_id: executionObjectiveId || null,
       actuation: actuationSpec ? { kind: actuationSpec.kind } : null,
-      directive_validation: directiveClarification
+      directive_validation: directiveAction
         ? {
-            objective_id: directiveClarification.objective_id || null,
-            file: directiveClarification.file || null
+            decision: directiveAction.decision || null,
+            objective_id: directiveAction.objective_id || null,
+            file: directiveClarification ? (directiveClarification.file || null) : null
           }
         : null,
       route_tokens_est: routeTokensEst,
@@ -11269,6 +11602,8 @@ function runCmd(dateStr, opts = {}) {
     directive_pulse: directivePulse,
     campaign_match: campaignMatch,
     campaign_plan: campaignPlan,
+    directive_decomposition_seed: directiveDecompositionSeed,
+    campaign_decomposition: campaignDecomposition,
     objective_runtime: objectiveRuntimeCompact,
     composite: {
       score: pick.composite_score,
@@ -11336,6 +11671,7 @@ function runCmd(dateStr, opts = {}) {
     value_signal: pick.value_signal || null,
     objective_binding: objectiveBinding,
     directive_pulse: directivePulse,
+    directive_decomposition_seed: directiveDecompositionSeed,
     campaign_decomposition: campaignDecomposition,
     objective_runtime: objectiveRuntimeCompact,
     min_daily_executions: AUTONOMY_MIN_DAILY_EXECUTIONS,

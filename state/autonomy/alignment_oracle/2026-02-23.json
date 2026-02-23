@@ -1,29 +1,36 @@
 {
   "ok": true,
   "type": "alignment_oracle",
-  "ts": "2026-02-23T01:12:43.997Z",
+  "ts": "2026-02-23T07:49:59.692Z",
   "date": "2026-02-23",
-  "alignment_score": 44.93,
+  "alignment_score": 68.22,
   "alignment": {
     "enabled": true,
+    "include_legacy_executed": false,
     "threshold": 60,
     "min_week_samples": 3,
     "current_week": {
       "start": "2026-02-17",
       "end": "2026-02-23",
-      "sample": 12,
-      "score": 44.93,
+      "sample": 2,
+      "sample_raw": 12,
+      "filtered_legacy": 10,
+      "include_legacy_executed": false,
+      "score": 68.22,
       "components": {
-        "revenue_potential": 22.83,
-        "compounding_value": 32.67,
-        "risk_reduction": 80,
-        "learning_velocity": 100
+        "revenue_potential": 59,
+        "compounding_value": 68.75,
+        "risk_reduction": 100,
+        "learning_velocity": 40
       }
     },
     "previous_week": {
       "start": "2026-02-10",
       "end": "2026-02-16",
       "sample": 0,
+      "sample_raw": 0,
+      "filtered_legacy": 0,
+      "include_legacy_executed": false,
       "score": null,
       "components": {
         "revenue_potential": null,

@@ -83,6 +83,8 @@ const EYES_AUTO_SPROUT_MAX_CANDIDATES_PER_RUN = Math.max(0, Number(process.env.E
 const EYES_AUTO_SPROUT_MAX_APPLY_PER_RUN = Math.max(0, Number(process.env.EYES_AUTO_SPROUT_MAX_APPLY_PER_RUN || 1));
 const EYES_AUTO_SPROUT_ALLOW_STUB = String(process.env.EYES_AUTO_SPROUT_ALLOW_STUB || '0') === '1';
 const EYES_AUTO_SPROUT_REQUIRE_LINKAGE = String(process.env.EYES_AUTO_SPROUT_REQUIRE_LINKAGE || '1') !== '0';
+const EYES_AUTO_SPROUT_LINKAGE_GAP_ENABLED = String(process.env.EYES_AUTO_SPROUT_LINKAGE_GAP_ENABLED || '1') !== '0';
+const EYES_AUTO_SPROUT_LINKAGE_GAP_MIN_HITS = Math.max(1, Number(process.env.EYES_AUTO_SPROUT_LINKAGE_GAP_MIN_HITS || 6));
 const EYES_LINKAGE_ATROPHY_ENABLED = String(process.env.EYES_LINKAGE_ATROPHY_ENABLED || '1') !== '0';
 const EYES_LINKAGE_DORMANT_STREAK = Math.max(1, Number(process.env.EYES_LINKAGE_DORMANT_STREAK || 2));
 const EYES_LINKAGE_RETIRE_STREAK = Math.max(EYES_LINKAGE_DORMANT_STREAK, Number(process.env.EYES_LINKAGE_RETIRE_STREAK || 6));
@@ -540,6 +542,15 @@ function normalizeDomainList(value) {
   return [];
 }
 
+function normalizeRef(value, maxLen = 64) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9:_-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, maxLen);
+}
+
 function domainsCoveredByEyes(config) {
   const set = new Set();
   for (const eye of (config && Array.isArray(config.eyes) ? config.eyes : [])) {
@@ -912,6 +923,197 @@ function saveEyeSproutQueue(filePath, proposals) {
   fs.writeFileSync(filePath, JSON.stringify(proposals, null, 2));
 }
 
+function loadSensoryProposals(dateStr) {
+  const filePath = path.join(SENSORY_PROPOSALS_DIR, `${dateStr}.json`);
+  if (!fs.existsSync(filePath)) return { filePath, proposals: [] };
+  try {
+    const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    if (Array.isArray(parsed)) return { filePath, proposals: parsed };
+    if (parsed && Array.isArray(parsed.proposals)) return { filePath, proposals: parsed.proposals };
+    return { filePath, proposals: [] };
+  } catch {
+    return { filePath, proposals: [] };
+  }
+}
+
+function saveSensoryProposals(filePath, proposals) {
+  ensureDirs();
+  fs.writeFileSync(filePath, JSON.stringify(proposals, null, 2));
+}
+
+function shellQuoteDouble(v) {
+  return String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function buildEyesIntakeCommand(payload) {
+  const data = payload && typeof payload === 'object' ? payload : {};
+  const chunks = [
+    'node systems/sensory/eyes_intake.js create',
+    `--name="${shellQuoteDouble(String(data.name || '').trim())}"`,
+    `--id=${shellQuoteDouble(String(data.eye_id || '').trim())}`,
+    `--parser=${shellQuoteDouble(String(data.parser_type || '').trim())}`,
+    `--directive=${shellQuoteDouble(String(data.directive_ref || '').trim())}`
+  ];
+  if (Array.isArray(data.domains) && data.domains.length > 0) {
+    chunks.push(`--domains=${data.domains.map((d) => shellQuoteDouble(d)).join(',')}`);
+  }
+  if (Array.isArray(data.topics) && data.topics.length > 0) {
+    chunks.push(`--topics=${data.topics.map((t) => shellQuoteDouble(t)).join(',')}`);
+  }
+  if (String(data.strategy_id || '').trim()) {
+    chunks.push(`--strategy=${shellQuoteDouble(String(data.strategy_id || '').trim())}`);
+  }
+  if (Array.isArray(data.campaign_ids) && data.campaign_ids.length > 0) {
+    chunks.push(`--campaigns=${data.campaign_ids.map((id) => shellQuoteDouble(id)).join(',')}`);
+  }
+  if (data.budgets && typeof data.budgets === 'object') {
+    const b = data.budgets;
+    if (Number.isFinite(Number(b.max_items))) chunks.push(`--max-items=${Math.max(1, Number(b.max_items))}`);
+    if (Number.isFinite(Number(b.max_seconds))) chunks.push(`--max-seconds=${Math.max(1, Number(b.max_seconds))}`);
+    if (Number.isFinite(Number(b.max_bytes))) chunks.push(`--max-bytes=${Math.max(1024, Number(b.max_bytes))}`);
+    if (Number.isFinite(Number(b.max_requests))) chunks.push(`--max-requests=${Math.max(0, Number(b.max_requests))}`);
+  }
+  return chunks.join(' ');
+}
+
+function handoffSproutToSensoryProposals(dateStr, payload) {
+  const data = payload && typeof payload === 'object' ? payload : {};
+  const directiveRef = String(data.directive_ref || '').trim();
+  const eyeId = normalizeKey(data.eye_id, 40);
+  const eyeName = String(data.name || '').trim();
+  const parserType = String(data.parser_type || 'stub').trim().toLowerCase();
+  const domains = normalizeDomainList(data.domains || []);
+  const strategyId = normalizeRef(data.strategy_id || '');
+  const campaignIds = normalizeRefList(data.campaign_ids || []);
+  if (!directiveRef || !eyeId || !eyeName || !parserType || domains.length === 0) {
+    return { ok: false, reason: 'invalid_handoff_payload' };
+  }
+
+  const sourceQueueId = String(data.source_queue_id || '').trim();
+  const proposalId = `SPROUT-${computeHash(`handoff:${eyeId}:${directiveRef}:${strategyId}:${campaignIds.join(',')}`)}`;
+  const actuationParams = {
+    id: eyeId,
+    name: eyeName,
+    directive_ref: directiveRef,
+    proposed_strategy_id: strategyId || undefined,
+    proposed_campaign_ids: campaignIds.length > 0 ? campaignIds : undefined,
+    proposed_parser_type: parserType,
+    proposed_domains: domains,
+    proposed_topics: normalizeDomainList(data.topics || []),
+    proposed_budgets: data.budgets && typeof data.budgets === 'object' ? data.budgets : undefined
+  };
+  const nextCommand = buildEyesIntakeCommand({
+    name: eyeName,
+    eye_id: eyeId,
+    parser_type: parserType,
+    directive_ref: directiveRef,
+    domains,
+    topics: normalizeDomainList(data.topics || []),
+    strategy_id: strategyId,
+    campaign_ids: campaignIds,
+    budgets: data.budgets || {}
+  });
+
+  const now = new Date().toISOString();
+  const proposal = {
+    id: proposalId,
+    type: 'eye_sprout',
+    title: `[Eye Sprout] Link directive coverage for ${domains[0]}`,
+    summary: `Create linked sensory eye ${eyeId} (${parserType}) for ${domains[0]} under ${directiveRef}.`,
+    expected_impact: 'medium',
+    risk: 'low',
+    validation: [
+      `Eye ${eyeId} exists in adaptive sensory catalog`,
+      `Eye ${eyeId} links directive ${directiveRef}`,
+      `Eye ${eyeId} has strategy/campaign linkage and runs without guard violation`
+    ],
+    suggested_next_command: nextCommand,
+    action_spec: {
+      version: 1,
+      objective: `Create linked sensory eye ${eyeId} for domain ${domains[0]}`,
+      target: `sensory_eye:${eyeId}`,
+      next_command: nextCommand,
+      verify: [
+        `Eye ${eyeId} exists in adaptive sensory catalog`,
+        `Eye ${eyeId} links directive ${directiveRef}`,
+        `Eye ${eyeId} has strategy/campaign linkage and runs without guard violation`
+      ],
+      success_criteria: [
+        { metric: 'execution_success', target: 'execution success', horizon: 'next run' },
+        { metric: 'postconditions_ok', target: 'postconditions pass', horizon: 'next run' },
+        { metric: 'artifact_count', target: '>=1 artifact', horizon: '24h' }
+      ],
+      rollback: `Remove eye ${eyeId} and restore prior catalog snapshot`,
+      objective_id: directiveRef
+    },
+    evidence: [
+      {
+        source: 'eyes_raw',
+        path: `state/sensory/eyes/raw/${dateStr}.jsonl`,
+        match: `auto_sprout_domain=${domains[0]} parser=${parserType}`,
+        evidence_ref: sourceQueueId ? `eye_sprout_queue:${sourceQueueId}` : `eye_sprout:${eyeId}`,
+        evidence_url: `https://${domains[0]}`
+      }
+    ],
+    meta: {
+      source_eye: 'external_eyes',
+      eye_sprout: true,
+      auto_sprout: true,
+      source_queue_id: sourceQueueId || null,
+      source_queue_path: `state/sensory/eyes/proposals/${dateStr}.json`,
+      proposed_eye_id: eyeId,
+      proposed_name: eyeName,
+      proposed_domains: domains,
+      proposed_parser_type: parserType,
+      directive_ref: directiveRef,
+      proposed_strategy_id: strategyId || null,
+      proposed_campaign_ids: campaignIds,
+      proposed_topics: normalizeDomainList(data.topics || []),
+      proposed_budgets: data.budgets && typeof data.budgets === 'object' ? data.budgets : undefined,
+      objective_id: directiveRef,
+      directive_objective_id: directiveRef,
+      handoff_reason: String(data.reason || 'guard_blocked_clearance').slice(0, 120),
+      handoff_ts: now,
+      actuation: {
+        kind: 'eyes_create',
+        params: actuationParams
+      }
+    },
+    notes: String(data.notes || '').trim().slice(0, 220),
+    status: 'pending'
+  };
+
+  const { filePath, proposals } = loadSensoryProposals(dateStr);
+  const next = Array.isArray(proposals) ? [...proposals] : [];
+  const idx = next.findIndex((row) => row && (String(row.id || '') === proposalId || String(row && row.meta && row.meta.source_queue_id || '') === sourceQueueId));
+  if (idx >= 0) {
+    const prev = next[idx] && typeof next[idx] === 'object' ? next[idx] : {};
+    const prevMeta = prev.meta && typeof prev.meta === 'object' ? prev.meta : {};
+    const merged = {
+      ...prev,
+      id: String(prev.id || proposalId),
+      meta: {
+        ...prevMeta,
+        ...proposal.meta,
+        handoff_refresh_ts: now
+      }
+    };
+    if (!String(merged.title || '').trim()) merged.title = proposal.title;
+    if (!String(merged.summary || '').trim()) merged.summary = proposal.summary;
+    if (!Array.isArray(merged.validation) || merged.validation.length === 0) merged.validation = proposal.validation;
+    if (!merged.action_spec || typeof merged.action_spec !== 'object') merged.action_spec = proposal.action_spec;
+    if (!Array.isArray(merged.evidence) || merged.evidence.length === 0) merged.evidence = proposal.evidence;
+    if (!String(merged.suggested_next_command || '').trim()) merged.suggested_next_command = proposal.suggested_next_command;
+    if (!String(merged.notes || '').trim()) merged.notes = proposal.notes;
+    if (!String(merged.status || '').trim()) merged.status = proposal.status;
+    next[idx] = merged;
+  } else {
+    next.push(proposal);
+  }
+  saveSensoryProposals(filePath, next);
+  return { ok: true, proposal_id: proposalId, path: filePath, updated: idx >= 0 };
+}
+
 function collectAutoSproutCandidates(dateStr, config, existingQueue) {
   const rawPath = path.join(RAW_DIR, `${dateStr}.jsonl`);
   const events = safeReadJsonl(rawPath);
@@ -952,42 +1154,181 @@ function collectAutoSproutCandidates(dateStr, config, existingQueue) {
     .filter((row) => row.hits >= EYES_AUTO_SPROUT_MIN_DOMAIN_HITS)
     .filter((row) => row.source_eyes.size >= EYES_AUTO_SPROUT_MIN_SUPPORT_EYES)
     .sort((a, b) => Number(b.hits || 0) - Number(a.hits || 0) || String(a.domain || '').localeCompare(String(b.domain || '')))
-    .slice(0, EYES_AUTO_SPROUT_MAX_CANDIDATES_PER_RUN);
+    .slice(0, EYES_AUTO_SPROUT_MAX_CANDIDATES_PER_RUN)
+    .map((row) => ({ ...row, candidate_kind: 'domain_discovery' }));
+}
+
+function externalItemUrl(item) {
+  const src = item && typeof item === 'object' ? item : {};
+  return String(src.url || src.link || src.href || src.permalink || '').trim();
+}
+
+function sproutCandidateKey(kind, domain, parserType, directiveRef, strategyId, campaignIds) {
+  return [
+    String(kind || 'domain_discovery').trim().toLowerCase(),
+    String(domain || '').trim().toLowerCase(),
+    String(parserType || '').trim().toLowerCase(),
+    String(directiveRef || '').trim(),
+    String(strategyId || '').trim().toLowerCase(),
+    normalizeRefList(campaignIds).join(',')
+  ].join('|');
+}
+
+function existingSproutKeys(existingQueue) {
+  const out = new Set();
+  for (const row of (Array.isArray(existingQueue) ? existingQueue : [])) {
+    if (!row || typeof row !== 'object') continue;
+    const domains = normalizeDomainList(row.proposed_domains);
+    const domain = String(domains[0] || row.domain || '').trim().toLowerCase();
+    const parserType = String(row.proposed_parser_type || row.parser_type || '').trim().toLowerCase();
+    const directiveRef = String(row.directive_ref || '').trim();
+    const strategyId = String(row.proposed_strategy_id || row.strategy_id || '').trim().toLowerCase();
+    const campaignIds = row.proposed_campaign_ids || row.campaign_ids || [];
+    const kind = String(row.auto_candidate_kind || 'domain_discovery').trim().toLowerCase();
+    if (!domain) continue;
+    out.add(sproutCandidateKey(kind, domain, parserType, directiveRef, strategyId, campaignIds));
+  }
+  return out;
+}
+
+function eyeMatchesLinkage(eye, directiveRef, strategyId, campaignIds) {
+  const cfg = eye && typeof eye === 'object' ? eye : {};
+  if (!cfg.directive_ref || String(cfg.directive_ref).trim() !== String(directiveRef || '').trim()) return false;
+  if (strategyId) {
+    if (!cfg.strategy_id || String(cfg.strategy_id).trim().toLowerCase() !== String(strategyId || '').trim().toLowerCase()) {
+      return false;
+    }
+  }
+  if (campaignIds.length > 0) {
+    const linked = normalizeRefList(cfg.campaign_ids || []);
+    const overlap = linked.some((id) => campaignIds.includes(id));
+    if (!overlap) return false;
+  }
+  return true;
+}
+
+function collectLinkageGapSproutCandidates(dateStr, config, existingQueue, directiveRef, linkage) {
+  if (!EYES_AUTO_SPROUT_LINKAGE_GAP_ENABLED) return [];
+  if (!directiveRef) return [];
+  if (!linkage || !linkage.strategy_id || !Array.isArray(linkage.campaign_ids) || linkage.campaign_ids.length === 0) {
+    return [];
+  }
+
+  const strategyId = String(linkage.strategy_id || '').trim().toLowerCase();
+  const campaignIds = normalizeRefList(linkage.campaign_ids || []);
+  const queuedKeys = existingSproutKeys(existingQueue);
+  const rawPath = path.join(RAW_DIR, `${dateStr}.jsonl`);
+  const events = safeReadJsonl(rawPath);
+  const existingEyes = Array.isArray(config && config.eyes) ? config.eyes : [];
+  const stats = new Map();
+
+  for (const ev of events) {
+    if (!ev || ev.type !== 'external_item') continue;
+    const item = ev.item && typeof ev.item === 'object' ? ev.item : ev;
+    const host = hostnameFromUrl(externalItemUrl(item));
+    if (!host || host === 'local.workspace') continue;
+    const parserType = String(item.parser_type || ev.parser_type || inferParserTypeForDomain(host) || 'stub').trim().toLowerCase();
+    if (parserType === 'stub' && !EYES_AUTO_SPROUT_ALLOW_STUB) continue;
+    const statKey = `${host}|${parserType}`;
+    const row = stats.get(statKey) || {
+      domain: host,
+      parser_type: parserType,
+      hits: 0,
+      source_eyes: new Set(),
+      topics: new Set(),
+      sample_title: '',
+      candidate_kind: 'linkage_gap'
+    };
+    row.hits += 1;
+    const sourceEye = String((item && item.eye_id) || ev.eye_id || '').trim();
+    if (sourceEye) row.source_eyes.add(sourceEye);
+    const topics = []
+      .concat(Array.isArray(item && item.topics) ? item.topics : [])
+      .concat(Array.isArray(item && item.tags) ? item.tags : []);
+    for (const topic of topics) {
+      const t = String(topic || '').trim().toLowerCase();
+      if (t) row.topics.add(t);
+    }
+    if (!row.sample_title) row.sample_title = String(item && item.title || '').trim().slice(0, 120);
+    stats.set(statKey, row);
+  }
+
+  const out = [];
+  for (const row of stats.values()) {
+    if (Number(row.hits || 0) < EYES_AUTO_SPROUT_LINKAGE_GAP_MIN_HITS) continue;
+    if (row.source_eyes.size < EYES_AUTO_SPROUT_MIN_SUPPORT_EYES) continue;
+    const hasCoverage = existingEyes.some((eye) => {
+      if (!eye || typeof eye !== 'object') return false;
+      const status = String(eye.status || 'probation').trim().toLowerCase();
+      if (status === 'retired') return false;
+      if (String(eye.parser_type || '').trim().toLowerCase() !== String(row.parser_type || '').trim().toLowerCase()) return false;
+      if (!eyeMatchesLinkage(eye, directiveRef, strategyId, campaignIds)) return false;
+      return domainIsCovered(row.domain, normalizeDomainList(eye.allowed_domains));
+    });
+    if (hasCoverage) continue;
+
+    const key = sproutCandidateKey('linkage_gap', row.domain, row.parser_type, directiveRef, strategyId, campaignIds);
+    if (queuedKeys.has(key)) continue;
+    queuedKeys.add(key);
+    out.push(row);
+  }
+
+  return out.sort((a, b) => Number(b.hits || 0) - Number(a.hits || 0) || String(a.domain || '').localeCompare(String(b.domain || '')));
 }
 
 function emitAutoSproutProposals(dateStr, config) {
   if (!EYES_AUTO_SPROUT_ENABLED || EYES_AUTO_SPROUT_MAX_CANDIDATES_PER_RUN <= 0) {
-    return { added: 0, candidates: 0, skipped: 0, path: path.join(PROPOSALS_DIR, `${dateStr}.json`) };
+    return {
+      added: 0,
+      candidates: 0,
+      skipped: 0,
+      skip_reasons: {},
+      path: path.join(PROPOSALS_DIR, `${dateStr}.json`)
+    };
   }
   const { filePath, proposals } = loadEyeSproutQueue(dateStr);
   const next = Array.isArray(proposals) ? [...proposals] : [];
   const existingIds = new Set(next.map((row) => String(row && row.id || '')).filter(Boolean));
-  const candidates = collectAutoSproutCandidates(dateStr, config, next);
   const directiveRef = resolveDirectiveForSprout('');
   const linkage = linkageForDirective(directiveRef, {});
+  const domainCandidates = collectAutoSproutCandidates(dateStr, config, next);
+  const linkageCandidates = collectLinkageGapSproutCandidates(dateStr, config, next, directiveRef, linkage);
+  const allCandidates = [...domainCandidates, ...linkageCandidates]
+    .sort((a, b) => Number(b.hits || 0) - Number(a.hits || 0) || String(a.domain || '').localeCompare(String(b.domain || '')))
+    .slice(0, EYES_AUTO_SPROUT_MAX_CANDIDATES_PER_RUN);
   let added = 0;
   let skipped = 0;
+  const skipReasons = {};
+  const noteSkip = (reason) => {
+    skipped += 1;
+    const key = String(reason || 'sprout_skipped').trim().toLowerCase() || 'sprout_skipped';
+    skipReasons[key] = Number(skipReasons[key] || 0) + 1;
+  };
 
-  for (const cand of candidates) {
-    const parserType = inferParserTypeForDomain(cand.domain);
+  for (const cand of allCandidates) {
+    const parserType = String(cand.parser_type || inferParserTypeForDomain(cand.domain) || 'stub').trim().toLowerCase();
+    const kind = String(cand.candidate_kind || 'domain_discovery').trim().toLowerCase();
     if (parserType === 'stub' && !EYES_AUTO_SPROUT_ALLOW_STUB) {
-      skipped += 1;
+      noteSkip('unknown_parser_type');
       continue;
     }
     if (EYES_AUTO_SPROUT_REQUIRE_LINKAGE) {
       if (!directiveRef || !linkage.strategy_id || !Array.isArray(linkage.campaign_ids) || linkage.campaign_ids.length === 0) {
-        skipped += 1;
+        noteSkip('missing_linkage_context');
         continue;
       }
     }
-    const id = `proto_${computeHash(`auto_sprout:${cand.domain}`)}`;
+    const id = `proto_${computeHash(
+      `auto_sprout:${sproutCandidateKey(kind, cand.domain, parserType, directiveRef, linkage.strategy_id, linkage.campaign_ids)}`
+    )}`;
     if (existingIds.has(id)) {
-      skipped += 1;
+      noteSkip('duplicate_candidate');
       continue;
     }
     const eyeName = `Watch ${cand.domain}`;
     next.push({
       id,
+      type: 'eye_sprout',
       name: eyeName,
       proposed_domains: [cand.domain],
       proposed_parser_type: parserType,
@@ -996,6 +1337,7 @@ function emitAutoSproutProposals(dateStr, config) {
       proposed_campaign_ids: linkage.campaign_ids || [],
       proposed_topics: Array.from(cand.topics).slice(0, 5),
       notes: `Auto-sprout candidate: domain seen ${cand.hits} times across ${cand.source_eyes.size} eyes`,
+      auto_candidate_kind: kind,
       source_stats: {
         hits: Number(cand.hits || 0),
         support_eyes: Array.from(cand.source_eyes).slice(0, 8),
@@ -1019,30 +1361,66 @@ function emitAutoSproutProposals(dateStr, config) {
   }
 
   if (added > 0) saveEyeSproutQueue(filePath, next);
-  return { added, candidates: candidates.length, skipped, path: filePath };
+  return {
+    added,
+    candidates: allCandidates.length,
+    skipped,
+    skip_reasons: skipReasons,
+    path: filePath
+  };
 }
 
 function applyAutoSproutQueue(dateStr, config) {
   if (!EYES_AUTO_SPROUT_ENABLED || EYES_AUTO_SPROUT_MAX_APPLY_PER_RUN <= 0) {
-    return { applied: 0, blocked: 0, skipped: 0, touched: 0, path: path.join(PROPOSALS_DIR, `${dateStr}.json`) };
+    return {
+      applied: 0,
+      blocked: 0,
+      deferred: 0,
+      handed_off: 0,
+      blocked_reasons: {},
+      deferred_reasons: {},
+      handoff_reasons: {},
+      skipped: 0,
+      touched: 0,
+      path: path.join(PROPOSALS_DIR, `${dateStr}.json`)
+    };
   }
   const { filePath, proposals } = loadEyeSproutQueue(dateStr);
   if (!Array.isArray(proposals) || proposals.length === 0) {
-    return { applied: 0, blocked: 0, skipped: 0, touched: 0, path: filePath };
+    return {
+      applied: 0,
+      blocked: 0,
+      deferred: 0,
+      handed_off: 0,
+      blocked_reasons: {},
+      deferred_reasons: {},
+      handoff_reasons: {},
+      skipped: 0,
+      touched: 0,
+      path: filePath
+    };
   }
 
   const next = [...proposals];
   const existingEyes = new Set((config && Array.isArray(config.eyes) ? config.eyes : []).map((eye) => String(eye && eye.id || '')));
   let applied = 0;
   let blocked = 0;
+  let deferred = 0;
+  let handedOff = 0;
   let skipped = 0;
   let changed = 0;
+  const blockedReasons = {};
+  const deferredReasons = {};
+  const handoffReasons = {};
 
   for (let i = 0; i < next.length; i += 1) {
     const row = next[i];
     if (!row || typeof row !== 'object') continue;
     const status = String(row.status || 'pending_review').toLowerCase();
-    if (status !== 'pending_review') {
+    const blockedReason = String(row.blocked_reason || '').toLowerCase();
+    const retryableBlocked = status === 'blocked'
+      && (blockedReason.includes('guard: blocked') || blockedReason.includes('clearance='));
+    if (status !== 'pending_review' && !retryableBlocked) {
       skipped += 1;
       continue;
     }
@@ -1074,6 +1452,22 @@ function applyAutoSproutQueue(dateStr, config) {
       };
       blocked += 1;
       changed += 1;
+      const key = String(reason || 'sprout_blocked').trim().toLowerCase() || 'sprout_blocked';
+      blockedReasons[key] = Number(blockedReasons[key] || 0) + 1;
+    };
+    const markDeferred = (reason) => {
+      next[i] = {
+        ...row,
+        status: 'pending_review',
+        blocked_reason: null,
+        deferred_reason: String(reason || 'sprout_deferred').slice(0, 120),
+        last_attempt_ts: new Date().toISOString(),
+        attempt_count: Number(row.attempt_count || 0) + 1
+      };
+      deferred += 1;
+      changed += 1;
+      const key = String(reason || 'sprout_deferred').trim().toLowerCase() || 'sprout_deferred';
+      deferredReasons[key] = Number(deferredReasons[key] || 0) + 1;
     };
 
     if (!eyeName || !eyeId) {
@@ -1144,6 +1538,36 @@ function applyAutoSproutQueue(dateStr, config) {
     const ok = execRes.status === 0 && payload && payload.ok === true;
     if (!ok) {
       const errText = String(execRes.stderr || '').trim() || String(payload && payload.error || '').trim() || 'eyes_intake_create_failed';
+      const retryableGuard = /guard:\s*blocked|clearance=|integrity_violation/i.test(errText);
+      if (retryableGuard) {
+        const handoff = handoffSproutToSensoryProposals(dateStr, {
+          source_queue_id: String(row.id || eyeId || '').trim(),
+          eye_id: eyeId,
+          name: eyeName,
+          parser_type: parserType,
+          domains,
+          directive_ref: directiveRef,
+          strategy_id: linkage.strategy_id,
+          campaign_ids: linkage.campaign_ids,
+          topics,
+          budgets,
+          notes,
+          reason: 'guard_blocked_clearance'
+        });
+        markDeferred('guard_blocked_clearance');
+        if (handoff && handoff.ok === true) {
+          handedOff += 1;
+          const key = 'guard_blocked_clearance';
+          handoffReasons[key] = Number(handoffReasons[key] || 0) + 1;
+          next[i] = {
+            ...next[i],
+            autonomy_handoff_proposal_id: String(handoff.proposal_id || ''),
+            autonomy_handoff_path: String(handoff.path || ''),
+            autonomy_handoff_ts: new Date().toISOString()
+          };
+        }
+        continue;
+      }
       markBlocked(errText.slice(0, 180));
       continue;
     }
@@ -1166,7 +1590,18 @@ function applyAutoSproutQueue(dateStr, config) {
   }
 
   if (changed > 0) saveEyeSproutQueue(filePath, next);
-  return { applied, blocked, skipped, touched: changed, path: filePath };
+  return {
+    applied,
+    blocked,
+    deferred,
+    handed_off: handedOff,
+    blocked_reasons: blockedReasons,
+    deferred_reasons: deferredReasons,
+    handoff_reasons: handoffReasons,
+    skipped,
+    touched: changed,
+    path: filePath
+  };
 }
 
 function safeReadJson(filePath, fallback = null) {
@@ -3337,18 +3772,27 @@ async function run(opts = {}) {
       candidates: Number(emitted.candidates || 0),
       proposals_added: Number(emitted.added || 0),
       proposals_skipped: Number(emitted.skipped || 0),
+      proposal_skip_reasons: emitted.skip_reasons && typeof emitted.skip_reasons === 'object' ? emitted.skip_reasons : {},
       applied: Number(applied.applied || 0),
       blocked: Number(applied.blocked || 0),
+      deferred: Number(applied.deferred || 0),
+      handed_off: Number(applied.handed_off || 0),
+      blocked_reasons: applied.blocked_reasons && typeof applied.blocked_reasons === 'object' ? applied.blocked_reasons : {},
+      deferred_reasons: applied.deferred_reasons && typeof applied.deferred_reasons === 'object' ? applied.deferred_reasons : {},
+      handoff_reasons: applied.handoff_reasons && typeof applied.handoff_reasons === 'object' ? applied.handoff_reasons : {},
       skipped: Number(applied.skipped || 0),
       queue_path: String(applied.path || emitted.path || '')
     });
     if (Number(emitted.added || 0) > 0) {
       console.log(`🌱 Eye sprout candidates queued: ${emitted.added}/${emitted.candidates} path=${emitted.path}`);
     }
-    if (Number(applied.applied || 0) > 0 || Number(applied.blocked || 0) > 0) {
+    if (Number(applied.applied || 0) > 0 || Number(applied.blocked || 0) > 0 || Number(applied.deferred || 0) > 0) {
       console.log(
         `🌱 Eye auto-sprout apply: created=${Number(applied.applied || 0)}` +
-        ` blocked=${Number(applied.blocked || 0)} skipped=${Number(applied.skipped || 0)}`
+        ` blocked=${Number(applied.blocked || 0)}` +
+        ` deferred=${Number(applied.deferred || 0)}` +
+        ` handed_off=${Number(applied.handed_off || 0)}` +
+        ` skipped=${Number(applied.skipped || 0)}`
       );
     }
   }

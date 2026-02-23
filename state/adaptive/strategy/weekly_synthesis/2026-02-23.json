@@ -1,7 +1,7 @@
 {
   "ok": true,
   "type": "weekly_strategy_synthesis",
-  "ts": "2026-02-23T01:12:41.092Z",
+  "ts": "2026-02-23T05:34:05.586Z",
   "date": "2026-02-23",
   "days": 7,
   "write": true,
@@ -11,10 +11,10 @@
   },
   "summary": {
     "totals": {
-      "outcomes": 15,
-      "proposal_types": 3,
+      "outcomes": 24,
+      "proposal_types": 6,
       "shipped": 8,
-      "no_change": 7,
+      "no_change": 16,
       "rejected": 0,
       "failed": 0
     },
@@ -70,6 +70,54 @@
         "fail_rate": 0,
         "no_change_rate": 0.545,
         "score": 34.6
+      },
+      {
+        "proposal_type": "collector_preflight_remediation",
+        "total": 3,
+        "shipped": 0,
+        "no_change": 3,
+        "rejected": 0,
+        "failed": 0,
+        "other": 0,
+        "source_eyes": {
+          "pain_signal:external_eyes": 3
+        },
+        "shipped_rate": 0,
+        "fail_rate": 0,
+        "no_change_rate": 1,
+        "score": -20
+      },
+      {
+        "proposal_type": "dream_cycle_escalation",
+        "total": 3,
+        "shipped": 0,
+        "no_change": 3,
+        "rejected": 0,
+        "failed": 0,
+        "other": 0,
+        "source_eyes": {
+          "pain_signal:idle_dream_cycle": 3
+        },
+        "shipped_rate": 0,
+        "fail_rate": 0,
+        "no_change_rate": 1,
+        "score": -20
+      },
+      {
+        "proposal_type": "pain_adaptive_candidate",
+        "total": 3,
+        "shipped": 0,
+        "no_change": 3,
+        "rejected": 0,
+        "failed": 0,
+        "other": 0,
+        "source_eyes": {
+          "pain_adaptive_router": 3
+        },
+        "shipped_rate": 0,
+        "fail_rate": 0,
+        "no_change_rate": 1,
+        "score": -20
       }
     ],
     "winners": [
@@ -90,12 +138,76 @@
         "score": 60.04
       }
     ],
-    "losers": [],
+    "losers": [
+      {
+        "proposal_type": "collector_preflight_remediation",
+        "total": 3,
+        "shipped": 0,
+        "no_change": 3,
+        "rejected": 0,
+        "failed": 0,
+        "other": 0,
+        "source_eyes": {
+          "pain_signal:external_eyes": 3
+        },
+        "shipped_rate": 0,
+        "fail_rate": 0,
+        "no_change_rate": 1,
+        "score": -20
+      },
+      {
+        "proposal_type": "dream_cycle_escalation",
+        "total": 3,
+        "shipped": 0,
+        "no_change": 3,
+        "rejected": 0,
+        "failed": 0,
+        "other": 0,
+        "source_eyes": {
+          "pain_signal:idle_dream_cycle": 3
+        },
+        "shipped_rate": 0,
+        "fail_rate": 0,
+        "no_change_rate": 1,
+        "score": -20
+      },
+      {
+        "proposal_type": "pain_adaptive_candidate",
+        "total": 3,
+        "shipped": 0,
+        "no_change": 3,
+        "rejected": 0,
+        "failed": 0,
+        "other": 0,
+        "source_eyes": {
+          "pain_adaptive_router": 3
+        },
+        "shipped_rate": 0,
+        "fail_rate": 0,
+        "no_change_rate": 1,
+        "score": -20
+      }
+    ],
     "recommended_weight_updates": [
       {
         "proposal_type": "unknown",
         "delta": 0.1,
         "reason": "high_ship_rate"
+      },
+      {
+        "proposal_type": "collector_preflight_remediation",
+        "delta": -0.1,
+        "reason": "low_effective_yield"
+      },
+      {
+        "proposal_type": "dream_cycle_escalation",
+        "delta": -0.1,
+        "reason": "low_effective_yield"
+      },
+      {
+        "proposal_type": "pain_adaptive_candidate",
+        "delta": -0.1,
+        "reason": "low_effective_yield"
       }
     ],
     "trace": [
@@ -218,6 +330,78 @@
         "outcome": "shipped",
         "source_eye": "cross_signal_engine",
         "evidence_ref": "proposal:CSG-3c7677ecc41e6fba eye:cross_signal_engine receipt:auto_1771699848911_CSG-3c7677ecc41e6fba auto:autonomy dod_pass:habit_log_verified"
+      },
+      {
+        "ts": "2026-02-23T04:46:32.324Z",
+        "proposal_id": "PAIN-54ee381b21e8889f",
+        "proposal_type": "collector_preflight_remediation",
+        "outcome": "no_change",
+        "source_eye": "pain_signal:external_eyes",
+        "evidence_ref": "proposal_queue_reconcile_v2:status_sync"
+      },
+      {
+        "ts": "2026-02-23T04:46:32.324Z",
+        "proposal_id": "PAIN-40008f2e9050b524",
+        "proposal_type": "collector_preflight_remediation",
+        "outcome": "no_change",
+        "source_eye": "pain_signal:external_eyes",
+        "evidence_ref": "proposal_queue_reconcile_v2:status_sync"
+      },
+      {
+        "ts": "2026-02-23T04:46:32.325Z",
+        "proposal_id": "PAIN-63aa4ef174305712",
+        "proposal_type": "collector_preflight_remediation",
+        "outcome": "no_change",
+        "source_eye": "pain_signal:external_eyes",
+        "evidence_ref": "proposal_queue_reconcile_v2:status_sync"
+      },
+      {
+        "ts": "2026-02-23T04:46:32.325Z",
+        "proposal_id": "PAINRT-c2d6e30612a70764",
+        "proposal_type": "pain_adaptive_candidate",
+        "outcome": "no_change",
+        "source_eye": "pain_adaptive_router",
+        "evidence_ref": "proposal_queue_reconcile_v2:status_sync"
+      },
+      {
+        "ts": "2026-02-23T04:46:32.325Z",
+        "proposal_id": "PAINRT-46f0848c698a2710",
+        "proposal_type": "pain_adaptive_candidate",
+        "outcome": "no_change",
+        "source_eye": "pain_adaptive_router",
+        "evidence_ref": "proposal_queue_reconcile_v2:status_sync"
+      },
+      {
+        "ts": "2026-02-23T04:46:32.325Z",
+        "proposal_id": "PAINRT-aa465b0b444d61e9",
+        "proposal_type": "pain_adaptive_candidate",
+        "outcome": "no_change",
+        "source_eye": "pain_adaptive_router",
+        "evidence_ref": "proposal_queue_reconcile_v2:status_sync"
+      },
+      {
+        "ts": "2026-02-23T04:46:32.327Z",
+        "proposal_id": "PAIN-778c77095fb04bd3",
+        "proposal_type": "dream_cycle_escalation",
+        "outcome": "no_change",
+        "source_eye": "pain_signal:idle_dream_cycle",
+        "evidence_ref": "proposal_queue_reconcile_v2:status_sync"
+      },
+      {
+        "ts": "2026-02-23T04:46:32.327Z",
+        "proposal_id": "PAIN-ab622214f9c188ff",
+        "proposal_type": "dream_cycle_escalation",
+        "outcome": "no_change",
+        "source_eye": "pain_signal:idle_dream_cycle",
+        "evidence_ref": "proposal_queue_reconcile_v2:status_sync"
+      },
+      {
+        "ts": "2026-02-23T04:46:32.327Z",
+        "proposal_id": "PAIN-9539e7ff6027ca2a",
+        "proposal_type": "dream_cycle_escalation",
+        "outcome": "no_change",
+        "source_eye": "pain_signal:idle_dream_cycle",
+        "evidence_ref": "proposal_queue_reconcile_v2:status_sync"
       }
     ]
   }

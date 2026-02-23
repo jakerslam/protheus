@@ -113,7 +113,7 @@ function run() {
   assert.strictEqual(replyUnknown.evaluated, false, 'reply/interview row should stay unknown without explicit signal');
   assert.strictEqual(replyUnknown.reason, 'reply_or_interview_count_unavailable');
 
-  const contractBlocked = evaluateSuccessCriteria(
+  const contractRemapped = evaluateSuccessCriteria(
     opportunityProposal,
     {
       capability_key: 'proposal:collector_remediation',
@@ -127,14 +127,15 @@ function run() {
     },
     { required: true, min_count: 1 }
   );
-  assert.strictEqual(contractBlocked.passed, false, 'proposal remediation lane should reject outreach-only criteria');
+  assert.strictEqual(contractRemapped.passed, true, 'proposal remediation lane should remap outreach-only criteria to supported metrics');
   assert.ok(
-    /metric_not_allowed_for_capability|insufficient_supported_metrics/.test(String(contractBlocked.primary_failure || '')),
-    'contract block should fail on capability contract or supported-metric minimum'
+    contractRemapped.checks.some((c) => c.metric === 'artifact_count'),
+    'remapped criteria should include supported artifact_count metric'
   );
-  assert.ok(
-    Number(contractBlocked.contract && contractBlocked.contract.not_allowed_count || 0) >= 1,
-    'contract should track at least one capability-metric violation'
+  assert.strictEqual(
+    Number(contractRemapped.contract && contractRemapped.contract.not_allowed_count || 0),
+    0,
+    'remapped proposal criteria should avoid capability-metric violations'
   );
 
   const contractAllowed = evaluateSuccessCriteria(

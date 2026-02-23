@@ -1,10 +1,10 @@
 {
   "ok": true,
-  "generated_at": "2026-02-23T01:12:12.069Z",
+  "generated_at": "2026-02-23T05:45:02.252Z",
   "date": "2026-02-23",
   "outcomes": {
     "window_days": 14,
-    "attempted": 168,
+    "attempted": 179,
     "executed": 12,
     "shipped": 6,
     "no_change": 6,
@@ -28,7 +28,7 @@
       "id": "routing_health",
       "weight": 2,
       "pass": true,
-      "detail": "local_routing_healthy"
+      "detail": "local_routing_healthy_soft_latency_escalation"
     },
     {
       "id": "sensory_continuity",
@@ -40,7 +40,7 @@
       "id": "drift_control",
       "weight": 2,
       "pass": true,
-      "detail": "spc_preview_outcome_data_gap_manual_mode"
+      "detail": "spc_quality_stopratio_low_sample_nonblocking"
     },
     {
       "id": "budget_governor",
@@ -75,6 +75,6 @@
   "next_steps": [
     "Hold current policies and continue periodic checkpoint audits."
   ],
-  "health_report_ts": "2026-02-23T01:12:12.053Z",
+  "health_report_ts": "2026-02-23T05:45:02.238Z",
   "queue_hygiene_summary_ts": "2026-02-23T00:01:19.864Z"
 }

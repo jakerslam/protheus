@@ -202,9 +202,18 @@
       }
     },
     "2026-02-23T05": {
-      "total": 4,
+      "total": 15,
       "scopes": {
-        "sensory.collector.ollama_search": 4
+        "sensory.collector.ollama_search": 5,
+        "sensory.collector.medium_rss": 5,
+        "sensory.focus_fetch": 4,
+        "sensory.collector.google_trends": 1
+      }
+    },
+    "2026-02-23T07": {
+      "total": 8,
+      "scopes": {
+        "sensory.collector.moltbook_hot": 8
       }
     }
   },
@@ -239,16 +248,17 @@
       }
     },
     "2026-02-23": {
-      "total": 112,
+      "total": 131,
       "scopes": {
-        "sensory.collector.ollama_search": 31,
+        "sensory.collector.ollama_search": 32,
         "sensory.collector.upwork_gigs": 3,
-        "sensory.collector.google_trends": 6,
-        "sensory.focus_fetch": 23,
-        "sensory.collector.moltbook_hot": 9,
+        "sensory.collector.google_trends": 7,
+        "sensory.focus_fetch": 27,
+        "sensory.collector.moltbook_hot": 17,
         "sensory.collector.stock_market": 4,
         "sensory.collector.github_repo": 4,
-        "sensory.collector.hn_rss": 32
+        "sensory.collector.hn_rss": 32,
+        "sensory.collector.medium_rss": 5
       }
     }
   }
