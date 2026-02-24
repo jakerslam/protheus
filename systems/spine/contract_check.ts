@@ -32,7 +32,10 @@ function runCapture(args) {
 function missingTokens(text, tokens) {
   const missing = [];
   for (const t of tokens) {
-    if (!text.includes(t)) missing.push(t);
+    if (text.includes(t)) continue;
+    const compactJsonToken = String(t || '').replace(/":\s+/g, '":');
+    if (compactJsonToken !== t && text.includes(compactJsonToken)) continue;
+    missing.push(t);
   }
   return missing;
 }
