@@ -36,7 +36,7 @@
     "systems/security/directive_hierarchy_controller.js": "32afdb8107864200628427d2fae14f8ce67414519555e8002df0b76f2c2c36df",
     "systems/security/directive_intake.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/egress_gateway.js": "8d982011923ddf706eb70c318a377119ac1f67d6495ad39af0b5de40a8af6174",
-    "systems/security/emergency_stop.js": "7b7154917d4d0db0f3c9b3558eee1edcdec1c7031ca8f40e0748b8b1b48ba04a",
+    "systems/security/emergency_stop.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/guard.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/habit_hygiene_guard.js": "7e13f5a60c9e412655e536edccab0b9f47c54b7af009eb37b1f3c2a4fe97df9a",
     "systems/security/integrity_kernel.js": "768839126ca7e829a6dadd055ea87147a50d51a5f4119461a76ee8c1dadac6a1",
@@ -54,7 +54,7 @@
     "systems/security/workspace_dump_guard.js": "fa94a0e44f65203cae3fc1c6dc8c20ce0199710d3be6867e1b7821eb825859c3",
     "systems/sensory/adaptive_layer_guard.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2"
   },
-  "sealed_at": "2026-02-24T02:25:50.650Z",
+  "sealed_at": "2026-02-24T02:45:05.150Z",
   "sealed_by": "jay",
-  "last_approval_note": "ts shim migration for policy root and capability lease"
+  "last_approval_note": "ts shim migration for emergency stop cli"
 }
