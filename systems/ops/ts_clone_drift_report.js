@@ -72,7 +72,7 @@ function isTsBootstrapWrapper(jsCode) {
   const withoutUseStrict = text
     .replace(/^(['"])use strict\1;\s*/i, '')
     .trim();
-  return /^require\((['"])(?:\.{1,2}\/)+lib\/ts_bootstrap\1\)\.bootstrap\(__filename,\s*module\);\s*$/m.test(withoutUseStrict);
+  return /^require\((['"])(?:(?:\.{1,2}\/)+lib\/ts_bootstrap|\.\/ts_bootstrap)\1\)\.bootstrap\(__filename,\s*module\);\s*$/m.test(withoutUseStrict);
 }
 
 function jaccard(left, right) {
