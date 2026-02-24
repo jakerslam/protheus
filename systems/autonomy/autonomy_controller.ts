@@ -40,6 +40,7 @@ const {
 const { resolveCatalogPath } = require('../../lib/eyes_catalog');
 const { evaluatePipelineSpcGate } = require('./pipeline_spc_gate');
 const {
+  listStrategies,
   loadActiveStrategy,
   applyThresholdOverrides,
   effectiveAllowedRisks,
@@ -565,12 +566,35 @@ const AUTONOMY_DEPRIORITIZED_SOURCE_EYES = new Set(
     .map(s => s.trim().toLowerCase())
     .filter(Boolean)
 );
+const AUTONOMY_UNKNOWN_TYPE_QUARANTINE_ENABLED = String(process.env.AUTONOMY_UNKNOWN_TYPE_QUARANTINE_ENABLED || '1') !== '0';
+const AUTONOMY_UNKNOWN_TYPE_QUARANTINE_TYPES = new Set(
+  parseLowerList(process.env.AUTONOMY_UNKNOWN_TYPE_QUARANTINE_TYPES || 'unknown')
+);
+const AUTONOMY_UNKNOWN_TYPE_QUARANTINE_ALLOW_TIER1 = String(process.env.AUTONOMY_UNKNOWN_TYPE_QUARANTINE_ALLOW_TIER1 || '1') !== '0';
+const AUTONOMY_UNKNOWN_TYPE_QUARANTINE_ALLOW_DIRECTIVE = String(process.env.AUTONOMY_UNKNOWN_TYPE_QUARANTINE_ALLOW_DIRECTIVE || '1') !== '0';
 const AUTONOMY_CAMPAIGN_DECOMPOSE_ENABLED = String(process.env.AUTONOMY_CAMPAIGN_DECOMPOSE_ENABLED || '1') !== '0';
 const AUTONOMY_CAMPAIGN_DECOMPOSE_MAX_PER_RUN = Math.max(0, Number(process.env.AUTONOMY_CAMPAIGN_DECOMPOSE_MAX_PER_RUN || 2));
 const AUTONOMY_CAMPAIGN_DECOMPOSE_MIN_OPEN_PER_TYPE = Math.max(1, Number(process.env.AUTONOMY_CAMPAIGN_DECOMPOSE_MIN_OPEN_PER_TYPE || 1));
 const AUTONOMY_CAMPAIGN_DECOMPOSE_DEFAULT_RISK = String(process.env.AUTONOMY_CAMPAIGN_DECOMPOSE_DEFAULT_RISK || 'low').trim().toLowerCase() || 'low';
 const AUTONOMY_CAMPAIGN_DECOMPOSE_DEFAULT_IMPACT = String(process.env.AUTONOMY_CAMPAIGN_DECOMPOSE_DEFAULT_IMPACT || 'medium').trim().toLowerCase() || 'medium';
+const AUTONOMY_STRATEGY_RANK_NON_YIELD_PENALTY_ENABLED = String(process.env.AUTONOMY_STRATEGY_RANK_NON_YIELD_PENALTY_ENABLED || '1') !== '0';
+const AUTONOMY_STRATEGY_RANK_NON_YIELD_WINDOW_HOURS = Math.max(1, Number(process.env.AUTONOMY_STRATEGY_RANK_NON_YIELD_WINDOW_HOURS || 72));
+const AUTONOMY_STRATEGY_RANK_NON_YIELD_MIN_SAMPLES = Math.max(1, Number(process.env.AUTONOMY_STRATEGY_RANK_NON_YIELD_MIN_SAMPLES || 2));
+const AUTONOMY_STRATEGY_RANK_NON_YIELD_POLICY_HOLD_WEIGHT = Math.max(0, Number(process.env.AUTONOMY_STRATEGY_RANK_NON_YIELD_POLICY_HOLD_WEIGHT || 18));
+const AUTONOMY_STRATEGY_RANK_NON_YIELD_NO_PROGRESS_WEIGHT = Math.max(0, Number(process.env.AUTONOMY_STRATEGY_RANK_NON_YIELD_NO_PROGRESS_WEIGHT || 22));
+const AUTONOMY_STRATEGY_RANK_NON_YIELD_STOP_WEIGHT = Math.max(0, Number(process.env.AUTONOMY_STRATEGY_RANK_NON_YIELD_STOP_WEIGHT || 10));
+const AUTONOMY_STRATEGY_RANK_NON_YIELD_SHIPPED_RELIEF_WEIGHT = Math.max(0, Number(process.env.AUTONOMY_STRATEGY_RANK_NON_YIELD_SHIPPED_RELIEF_WEIGHT || 8));
+const AUTONOMY_STRATEGY_RANK_NON_YIELD_MAX_PENALTY = Math.max(0, Number(process.env.AUTONOMY_STRATEGY_RANK_NON_YIELD_MAX_PENALTY || 30));
+const AUTONOMY_MULTI_STRATEGY_CANARY_ENABLED = String(process.env.AUTONOMY_MULTI_STRATEGY_CANARY_ENABLED || '1') !== '0';
+const AUTONOMY_MULTI_STRATEGY_CANARY_FRACTION = clampNumber(Number(process.env.AUTONOMY_MULTI_STRATEGY_CANARY_FRACTION || 0.25), 0, 0.9);
+const AUTONOMY_MULTI_STRATEGY_MAX_ACTIVE = Math.max(1, Number(process.env.AUTONOMY_MULTI_STRATEGY_MAX_ACTIVE || 3));
+const AUTONOMY_MULTI_STRATEGY_CANARY_ALLOW_EXECUTE = String(process.env.AUTONOMY_MULTI_STRATEGY_CANARY_ALLOW_EXECUTE || '0') === '1';
+const STRATEGY_SCORECARD_LATEST_PATH = process.env.AUTONOMY_STRATEGY_SCORECARD_LATEST_PATH
+  ? path.resolve(process.env.AUTONOMY_STRATEGY_SCORECARD_LATEST_PATH)
+  : path.join(REPO_ROOT, 'state', 'adaptive', 'strategy', 'scorecards', 'latest.json');
 let STRATEGY_CACHE = undefined;
+let STRATEGY_VARIANTS_CACHE = undefined;
+let STRATEGY_SCORECARD_CACHE = undefined;
 let OUTCOME_FITNESS_POLICY_CACHE = undefined;
 
 function strategyProfile() {
@@ -579,14 +603,155 @@ function strategyProfile() {
   return STRATEGY_CACHE;
 }
 
+function activeStrategyVariants() {
+  if (STRATEGY_VARIANTS_CACHE !== undefined) return STRATEGY_VARIANTS_CACHE;
+  let listed = [];
+  try {
+    listed = listStrategies();
+  } catch {
+    listed = [];
+  }
+  const out = [];
+  const seen = new Set();
+  for (const row of Array.isArray(listed) ? listed : []) {
+    if (!row || typeof row !== 'object') continue;
+    if (String(row.status || '').trim().toLowerCase() !== 'active') continue;
+    if (row.validation && row.validation.strict_ok === false) continue;
+    const id = String(row.id || '').trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(row);
+  }
+  const primary = strategyProfile();
+  if (primary && primary.id && !seen.has(String(primary.id))) out.push(primary);
+  out.sort((a, b) => String(a && a.id || '').localeCompare(String(b && b.id || '')));
+  STRATEGY_VARIANTS_CACHE = out;
+  return STRATEGY_VARIANTS_CACHE;
+}
+
+function strategyScorecardSummaries() {
+  if (STRATEGY_SCORECARD_CACHE !== undefined) return STRATEGY_SCORECARD_CACHE;
+  const payload = loadJson(STRATEGY_SCORECARD_LATEST_PATH, null);
+  const summaries = Array.isArray(payload && payload.summaries) ? payload.summaries : [];
+  const byId = {};
+  for (const row of summaries) {
+    const id = String(row && row.strategy_id || '').trim();
+    if (!id) continue;
+    byId[id] = {
+      score: Number(row && row.metrics && row.metrics.score || 0),
+      confidence: Number(row && row.metrics && row.metrics.confidence || 0),
+      stage: String(row && row.stage || '').trim().toLowerCase() || null
+    };
+  }
+  STRATEGY_SCORECARD_CACHE = {
+    path: STRATEGY_SCORECARD_LATEST_PATH,
+    ts: payload && payload.ts ? String(payload.ts) : null,
+    by_id: byId
+  };
+  return STRATEGY_SCORECARD_CACHE;
+}
+
+function stableSelectionIndex(seed, size) {
+  const n = Math.max(0, Math.floor(Number(size || 0)));
+  if (n <= 0) return 0;
+  const hex = crypto.createHash('sha256').update(String(seed || '')).digest('hex').slice(0, 12);
+  const num = Number.parseInt(hex, 16);
+  if (!Number.isFinite(num) || num < 0) return 0;
+  return num % n;
+}
+
+function selectStrategyForRun(dateStr, priorRuns = []) {
+  const variants = activeStrategyVariants();
+  const primary = strategyProfile();
+  const fallback = primary || (variants.length ? variants[0] : null);
+  const attempts = (Array.isArray(priorRuns) ? priorRuns : []).filter((evt) => evt && evt.type === 'autonomy_run').length;
+  const attemptIndex = attempts + 1;
+  if (!fallback) {
+    return {
+      strategy: null,
+      mode: 'none',
+      canary_enabled: AUTONOMY_MULTI_STRATEGY_CANARY_ENABLED,
+      canary_due: false,
+      active_count: 0,
+      attempt_index: attemptIndex,
+      ranked: []
+    };
+  }
+
+  const scorecards = strategyScorecardSummaries();
+  const ranked = variants
+    .map((s) => {
+      const id = String(s && s.id || '');
+      const scoreRow = scorecards && scorecards.by_id && scorecards.by_id[id]
+        ? scorecards.by_id[id]
+        : {};
+      return {
+        strategy: s,
+        id,
+        score: Number.isFinite(Number(scoreRow.score)) ? Number(scoreRow.score) : 0,
+        confidence: Number.isFinite(Number(scoreRow.confidence)) ? Number(scoreRow.confidence) : 0,
+        stage: scoreRow.stage || null,
+        execution_mode: strategyExecutionMode(s, 'score_only')
+      };
+    })
+    .sort((a, b) => Number(b.score || 0) - Number(a.score || 0) || String(a.id || '').localeCompare(String(b.id || '')))
+    .slice(0, Math.max(1, AUTONOMY_MULTI_STRATEGY_MAX_ACTIVE));
+
+  const defaultRow = ranked[0] || {
+    strategy: fallback,
+    id: String(fallback.id || ''),
+    score: 0,
+    confidence: 0,
+    stage: null,
+    execution_mode: strategyExecutionMode(fallback, 'score_only')
+  };
+
+  const canaryPool = ranked.filter((row, idx) => {
+    if (idx === 0) return false;
+    if (!row || !row.strategy) return false;
+    if (AUTONOMY_MULTI_STRATEGY_CANARY_ALLOW_EXECUTE) return true;
+    return String(row.execution_mode || '') !== 'execute';
+  });
+  const canaryEvery = AUTONOMY_MULTI_STRATEGY_CANARY_FRACTION > 0
+    ? Math.max(2, Math.round(1 / AUTONOMY_MULTI_STRATEGY_CANARY_FRACTION))
+    : Number.POSITIVE_INFINITY;
+  const canaryDue = AUTONOMY_MULTI_STRATEGY_CANARY_ENABLED
+    && canaryPool.length > 0
+    && Number.isFinite(canaryEvery)
+    && canaryEvery > 0
+    && (attemptIndex % canaryEvery === 0);
+  const canaryIdx = canaryDue
+    ? stableSelectionIndex(`${dateStr}|${attemptIndex}|${canaryPool.map((row) => row.id).join(',')}`, canaryPool.length)
+    : 0;
+  const selectedRow = canaryDue ? canaryPool[canaryIdx] : defaultRow;
+
+  return {
+    strategy: selectedRow && selectedRow.strategy ? selectedRow.strategy : fallback,
+    mode: canaryDue ? 'canary_variant' : 'primary_best',
+    canary_enabled: AUTONOMY_MULTI_STRATEGY_CANARY_ENABLED,
+    canary_due: canaryDue,
+    canary_every: Number.isFinite(canaryEvery) ? canaryEvery : null,
+    attempt_index: attemptIndex,
+    active_count: ranked.length,
+    ranked: ranked.map((row) => ({
+      strategy_id: row.id,
+      score: Number(row.score || 0),
+      confidence: Number(row.confidence || 0),
+      stage: row.stage || null,
+      execution_mode: row.execution_mode
+    }))
+  };
+}
+
 function outcomeFitnessPolicy() {
   if (OUTCOME_FITNESS_POLICY_CACHE !== undefined) return OUTCOME_FITNESS_POLICY_CACHE;
   OUTCOME_FITNESS_POLICY_CACHE = loadOutcomeFitnessPolicy(REPO_ROOT);
   return OUTCOME_FITNESS_POLICY_CACHE;
 }
 
-function effectiveStrategyBudget() {
-  const caps = strategyBudgetCaps(strategyProfile(), {
+function effectiveStrategyBudget(strategyOverride = null) {
+  const strategy = strategyOverride || strategyProfile();
+  const caps = strategyBudgetCaps(strategy, {
     daily_runs_cap: AUTONOMY_MAX_RUNS_PER_DAY,
     daily_token_cap: DAILY_TOKEN_CAP
   });
@@ -612,16 +777,16 @@ function effectiveStrategyBudget() {
   return out;
 }
 
-function effectiveStrategyExecutionMode() {
-  return strategyExecutionMode(strategyProfile(), 'execute');
+function effectiveStrategyExecutionMode(strategyOverride = null) {
+  return strategyExecutionMode(strategyOverride || strategyProfile(), 'execute');
 }
 
-function effectiveStrategyCanaryExecLimit() {
-  return strategyCanaryDailyExecLimit(strategyProfile(), AUTONOMY_CANARY_DAILY_EXEC_LIMIT);
+function effectiveStrategyCanaryExecLimit(strategyOverride = null) {
+  return strategyCanaryDailyExecLimit(strategyOverride || strategyProfile(), AUTONOMY_CANARY_DAILY_EXEC_LIMIT);
 }
 
-function effectiveStrategyExploration() {
-  return strategyExplorationPolicy(strategyProfile(), {
+function effectiveStrategyExploration(strategyOverride = null) {
+  return strategyExplorationPolicy(strategyOverride || strategyProfile(), {
     fraction: AUTONOMY_EXPLORE_FRACTION,
     every_n: AUTONOMY_EXPLORE_EVERY_N,
     min_eligible: AUTONOMY_EXPLORE_MIN_ELIGIBLE
@@ -2801,7 +2966,46 @@ function isDeprioritizedSourceProposal(p) {
   return AUTONOMY_DEPRIORITIZED_SOURCE_EYES.has(eyeId);
 }
 
-function baseThresholds() {
+function proposalUnknownTypeQuarantineDecision(proposal, objectiveBinding = null) {
+  const p = proposal && typeof proposal === 'object' ? proposal : {};
+  const type = String(p.type || '').trim().toLowerCase();
+  if (!AUTONOMY_UNKNOWN_TYPE_QUARANTINE_ENABLED) {
+    return { block: false, proposal_type: type || null, reason: null };
+  }
+  if (!type || !AUTONOMY_UNKNOWN_TYPE_QUARANTINE_TYPES.has(type)) {
+    return { block: false, proposal_type: type || null, reason: null };
+  }
+  if (
+    AUTONOMY_UNKNOWN_TYPE_QUARANTINE_ALLOW_DIRECTIVE
+    && (type === 'directive_clarification' || type === 'directive_decomposition')
+  ) {
+    return { block: false, proposal_type: type, reason: 'directive_exempt' };
+  }
+  const binding = objectiveBinding && typeof objectiveBinding === 'object' ? objectiveBinding : {};
+  const meta = p.meta && typeof p.meta === 'object' ? p.meta : {};
+  const objectiveId = sanitizeDirectiveObjectiveId(
+    binding.objective_id
+    || meta.objective_id
+    || meta.directive_objective_id
+    || ''
+  );
+  if (AUTONOMY_UNKNOWN_TYPE_QUARANTINE_ALLOW_TIER1 && isTier1ObjectiveId(objectiveId)) {
+    return {
+      block: false,
+      proposal_type: type,
+      reason: 'tier1_objective_exempt',
+      objective_id: objectiveId
+    };
+  }
+  return {
+    block: true,
+    proposal_type: type,
+    reason: 'unknown_type_quarantine',
+    objective_id: objectiveId || null
+  };
+}
+
+function baseThresholds(strategyOverride = null) {
   const base = {
     min_signal_quality: AUTONOMY_MIN_SIGNAL_QUALITY,
     min_sensory_signal_score: AUTONOMY_MIN_SENSORY_SIGNAL_SCORE,
@@ -2810,11 +3014,11 @@ function baseThresholds() {
     min_actionability_score: AUTONOMY_MIN_ACTIONABILITY_SCORE,
     min_eye_score_ema: AUTONOMY_MIN_EYE_SCORE_EMA
   };
-  return applyThresholdOverrides(base, strategyProfile());
+  return applyThresholdOverrides(base, strategyOverride || strategyProfile());
 }
 
-function effectiveAllowedRisksSet() {
-  return effectiveAllowedRisks(AUTONOMY_ALLOWED_RISKS, strategyProfile());
+function effectiveAllowedRisksSet(strategyOverride = null) {
+  return effectiveAllowedRisks(AUTONOMY_ALLOWED_RISKS, strategyOverride || strategyProfile());
 }
 
 function mediumRiskThresholds(baseThresholdsObj) {
@@ -5360,7 +5564,114 @@ function evaluateBudgetPacingGate(cand, valueSignal, risk, snapshot) {
   return out;
 }
 
-function strategyRankForCandidate(cand, strategy) {
+function runEventProposalType(evt) {
+  const direct = String(evt && evt.proposal_type || '').trim().toLowerCase();
+  if (direct) return direct;
+  const cap = String(evt && evt.capability_key || '').trim().toLowerCase();
+  if (cap.startsWith('proposal:') && cap.length > 'proposal:'.length) {
+    return cap.slice('proposal:'.length);
+  }
+  return '';
+}
+
+function candidateNonYieldPenaltySignal(cand, opts: AnyObj = {}) {
+  const out = {
+    applied: false,
+    penalty: 0,
+    samples: 0,
+    policy_holds: 0,
+    no_progress: 0,
+    stops: 0,
+    shipped: 0,
+    policy_hold_rate: 0,
+    no_progress_rate: 0,
+    stop_rate: 0,
+    shipped_rate: 0,
+    window_hours: AUTONOMY_STRATEGY_RANK_NON_YIELD_WINDOW_HOURS,
+    min_samples: AUTONOMY_STRATEGY_RANK_NON_YIELD_MIN_SAMPLES,
+    objective_id: null,
+    capability_key: null,
+    proposal_type: null
+  };
+  if (!AUTONOMY_STRATEGY_RANK_NON_YIELD_PENALTY_ENABLED) return out;
+
+  const priorRuns = Array.isArray(opts.priorRuns) ? opts.priorRuns : [];
+  if (!priorRuns.length) return out;
+
+  const proposal = cand && cand.proposal && typeof cand.proposal === 'object' ? cand.proposal : {};
+  const objectiveBinding = cand && cand.objective_binding && typeof cand.objective_binding === 'object'
+    ? cand.objective_binding
+    : {};
+  const objectiveId = sanitizeDirectiveObjectiveId(
+    objectiveBinding.objective_id
+    || cand && cand.directive_pulse && cand.directive_pulse.objective_id
+    || proposal && proposal.meta && proposal.meta.objective_id
+    || proposal && proposal.meta && proposal.meta.directive_objective_id
+    || ''
+  );
+  const proposalType = String(proposal && proposal.type || '').trim().toLowerCase();
+  const capabilityKey = String(
+    cand && cand.capability_key
+    || capabilityDescriptor(proposal, parseActuationSpec(proposal)).key
+    || ''
+  ).trim().toLowerCase();
+
+  out.objective_id = objectiveId || null;
+  out.proposal_type = proposalType || null;
+  out.capability_key = capabilityKey || null;
+
+  const cutoffMs = Date.now() - (AUTONOMY_STRATEGY_RANK_NON_YIELD_WINDOW_HOURS * 3600000);
+  const matches = (evt) => {
+    if (!evt || evt.type !== 'autonomy_run') return false;
+    if (objectiveId) {
+      const evtObjectiveId = runEventObjectiveId(evt);
+      if (evtObjectiveId && evtObjectiveId === objectiveId) return true;
+    }
+    if (capabilityKey) {
+      const evtCapabilityKey = String(evt.capability_key || '').trim().toLowerCase();
+      if (evtCapabilityKey && evtCapabilityKey === capabilityKey) return true;
+    }
+    if (proposalType) {
+      const evtProposalType = runEventProposalType(evt);
+      if (evtProposalType && evtProposalType === proposalType) return true;
+    }
+    return false;
+  };
+
+  for (const evt of priorRuns) {
+    if (!evt || evt.type !== 'autonomy_run') continue;
+    const t = parseIsoTs(evt.ts);
+    if (t && t.getTime() < cutoffMs) continue;
+    if (!matches(evt)) continue;
+    const result = String(evt.result || '');
+    if (!result || result === 'lock_busy' || result === 'stop_repeat_gate_interval') continue;
+    out.samples += 1;
+    if (isPolicyHoldRunEvent(evt)) out.policy_holds += 1;
+    if (isNoProgressRun(evt)) out.no_progress += 1;
+    if (result.startsWith('stop_')) out.stops += 1;
+    if (result === 'executed' && String(evt.outcome || '') === 'shipped') out.shipped += 1;
+  }
+
+  if (out.samples < AUTONOMY_STRATEGY_RANK_NON_YIELD_MIN_SAMPLES) return out;
+  out.applied = true;
+  out.policy_hold_rate = Number((out.policy_holds / out.samples).toFixed(4));
+  out.no_progress_rate = Number((out.no_progress / out.samples).toFixed(4));
+  out.stop_rate = Number((out.stops / out.samples).toFixed(4));
+  out.shipped_rate = Number((out.shipped / out.samples).toFixed(4));
+
+  const rawPenalty = (
+    (out.policy_hold_rate * AUTONOMY_STRATEGY_RANK_NON_YIELD_POLICY_HOLD_WEIGHT)
+    + (out.no_progress_rate * AUTONOMY_STRATEGY_RANK_NON_YIELD_NO_PROGRESS_WEIGHT)
+    + (out.stop_rate * AUTONOMY_STRATEGY_RANK_NON_YIELD_STOP_WEIGHT)
+    - (out.shipped_rate * AUTONOMY_STRATEGY_RANK_NON_YIELD_SHIPPED_RELIEF_WEIGHT)
+  );
+  out.penalty = Number(
+    clampNumber(rawPenalty, 0, AUTONOMY_STRATEGY_RANK_NON_YIELD_MAX_PENALTY).toFixed(3)
+  );
+  return out;
+}
+
+function strategyRankForCandidate(cand, strategy, opts: AnyObj = {}) {
   const p = cand && cand.proposal ? cand.proposal : {};
   const weights = strategyRankingWeights(strategy);
   const expectedValueSignal = expectedValueSignalForProposal(p);
@@ -5370,6 +5681,7 @@ function strategyRankForCandidate(cand, strategy) {
   const valueDensityWeight = Number.isFinite(Number(weights && weights.value_density))
     ? Number(weights.value_density)
     : 0.08;
+  const nonYieldPenalty = candidateNonYieldPenaltySignal(cand, opts);
   const components = {
     composite: clampNumber(Number(cand && cand.composite_score || 0), 0, 100),
     actionability: clampNumber(Number(cand && cand.actionability && cand.actionability.score || 0), 0, 100),
@@ -5385,7 +5697,13 @@ function strategyRankForCandidate(cand, strategy) {
     estimated_tokens: estimatedTokens,
     value_density: valueDensity,
     risk_penalty: riskPenalty(p) * 50,
-    time_to_value: timeToValueScore(p)
+    time_to_value: timeToValueScore(p),
+    non_yield_penalty: Number(nonYieldPenalty.penalty || 0),
+    non_yield_samples: Number(nonYieldPenalty.samples || 0),
+    non_yield_policy_hold_rate: Number(nonYieldPenalty.policy_hold_rate || 0),
+    non_yield_no_progress_rate: Number(nonYieldPenalty.no_progress_rate || 0),
+    non_yield_stop_rate: Number(nonYieldPenalty.stop_rate || 0),
+    non_yield_shipped_rate: Number(nonYieldPenalty.shipped_rate || 0)
   };
   const raw = (
     Number(weights.composite || 0) * components.composite
@@ -5396,10 +5714,14 @@ function strategyRankForCandidate(cand, strategy) {
     + valueDensityWeight * components.value_density
     - Number(weights.risk_penalty || 0) * components.risk_penalty
     + Number(weights.time_to_value || 0) * components.time_to_value
+    - Number(nonYieldPenalty.penalty || 0)
   );
   return {
     score: Number(raw.toFixed(3)),
     components,
+    adjustments: {
+      non_yield_penalty: nonYieldPenalty
+    },
     weights: {
       ...weights,
       value_density: valueDensityWeight
@@ -7474,10 +7796,10 @@ function maybeRunModelCatalogLoop(dateStr) {
   }
 }
 
-function candidatePool(dateStr) {
+function candidatePool(dateStr, strategyOverride = null) {
   const proposals = loadProposalsForDate(dateStr);
   const overlay = buildOverlay(allDecisionEvents());
-  const strategy = strategyProfile();
+  const strategy = strategyOverride || strategyProfile();
   const allowedRisks = effectiveAllowedRisksSet();
   const duplicateWindowHours = strategyDuplicateWindowHours(strategy, 24);
   const recentKeyCounts = recentProposalKeyCounts(dateStr, duplicateWindowHours);
@@ -8175,7 +8497,7 @@ function readinessCmd(dateStr) {
     ? Number(strategyBudget.daily_runs_cap)
     : AUTONOMY_MAX_RUNS_PER_DAY;
   const canaryDailyExecLimit = executionMode === 'canary_execute'
-    ? effectiveStrategyCanaryExecLimit()
+    ? effectiveStrategyCanaryExecLimit(strategy)
     : null;
   const autonomyEnabled = executionAllowedByFeatureFlag(executionMode, false);
   if (!autonomyEnabled) {
@@ -8463,9 +8785,14 @@ function runCmd(dateStr, opts: AnyObj = {}) {
     return;
   }
 
-  const strategy = strategyProfile();
-  const strategyBudget = effectiveStrategyBudget();
-  const executionMode = shadowOnly ? 'score_only' : effectiveStrategyExecutionMode();
+  const priorRunsForStrategySelection = runsSinceReset(readRuns(dateStr));
+  const strategySelection = selectStrategyForRun(dateStr, priorRunsForStrategySelection);
+  const strategy = strategySelection && strategySelection.strategy
+    ? strategySelection.strategy
+    : strategyProfile();
+  STRATEGY_CACHE = strategy || STRATEGY_CACHE;
+  const strategyBudget = effectiveStrategyBudget(strategy);
+  const executionMode = shadowOnly ? 'score_only' : effectiveStrategyExecutionMode(strategy);
   if (!executionAllowedByFeatureFlag(executionMode, shadowOnly)) {
     process.stdout.write(JSON.stringify({
       ok: true,
@@ -8477,7 +8804,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
     }) + '\n');
     return;
   }
-  const allowedRiskSet = effectiveAllowedRisksSet();
+  const allowedRiskSet = effectiveAllowedRisksSet(strategy);
   if (
     String(process.env.AUTONOMY_STRATEGY_STRICT || '') === '1'
     && strategy
@@ -8501,7 +8828,25 @@ function runCmd(dateStr, opts: AnyObj = {}) {
     return;
   }
 
-  const priorRunsForPolicyHoldCooldown = runsSinceReset(readRuns(dateStr));
+  if (!shadowOnly && strategySelection && Number(strategySelection.active_count || 0) > 1) {
+    writeRun(dateStr, {
+      ts: nowIso(),
+      type: 'autonomy_strategy_selection',
+      selected_strategy_id: strategy && strategy.id ? String(strategy.id) : null,
+      selection_mode: strategySelection.mode || null,
+      canary_due: strategySelection.canary_due === true,
+      canary_every: Number.isFinite(Number(strategySelection.canary_every))
+        ? Number(strategySelection.canary_every)
+        : null,
+      attempt_index: Number(strategySelection.attempt_index || 0),
+      active_count: Number(strategySelection.active_count || 0),
+      ranked: Array.isArray(strategySelection.ranked)
+        ? strategySelection.ranked.slice(0, 5)
+        : []
+    });
+  }
+
+  const priorRunsForPolicyHoldCooldown = priorRunsForStrategySelection;
   const lastPolicyHoldRun = latestPolicyHoldRunEvent(priorRunsForPolicyHoldCooldown);
   const policyHoldPressure = policyHoldPressureSnapshot(priorRunsForPolicyHoldCooldown);
   const policyHoldCooldownMinutes = policyHoldCooldownMinutesForResult(
@@ -8795,7 +9140,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
     ? enrichPayload.admission
     : { total: 0, eligible: 0, blocked: 0, blocked_by_reason: {} };
 
-  const pool = candidatePool(proposalDate);
+  const pool = candidatePool(proposalDate, strategy);
   if (!pool.length) {
     writeRun(dateStr, {
       ts: nowIso(),
@@ -8882,7 +9227,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
     ? Number(strategyBudget.daily_runs_cap)
     : AUTONOMY_MAX_RUNS_PER_DAY;
   const canaryDailyExecLimit = executionMode === 'canary_execute'
-    ? effectiveStrategyCanaryExecLimit()
+    ? effectiveStrategyCanaryExecLimit(strategy)
     : null;
   const mediumCanaryDailyExecLimit = executionMode === 'canary_execute'
     ? Math.max(0, Number(AUTONOMY_CANARY_MEDIUM_RISK_DAILY_EXEC_LIMIT || 0))
@@ -8892,7 +9237,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
   const eyesMap = loadEyesMap();
   const directiveProfile = loadDirectiveFitProfile();
   const calibrationProfile: AnyObj = computeCalibrationProfile(dateStr, true);
-  const thresholds = calibrationProfile.effective_thresholds || baseThresholds();
+  const thresholds = calibrationProfile.effective_thresholds || baseThresholds(strategy);
   const repeatGateAnchor = deriveRepeatGateAnchor(lastCapacityAttempt || lastAttempt);
   const dailyCapOverride = consumeHumanCanaryDailyCapOverrideIfAllowed({
     dateStr,
@@ -9110,6 +9455,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
   let campaignPlan: AnyObj = { enabled: false, campaign_count: 0, matched_count: 0 };
   const eligible = [];
   const skipStats = {
+    unknown_type_quarantine: 0,
     eye_no_progress: 0,
     low_quality: 0,
     low_directive_fit: 0,
@@ -9125,6 +9471,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
     medium_daily_cap: 0,
     directive_pulse_cooldown: 0
   };
+  let sampleUnknownTypeQuarantine = null;
   let sampleLowQuality = null;
   let sampleLowDirectiveFit = null;
   let sampleLowActionability = null;
@@ -9146,6 +9493,19 @@ function runCmd(dateStr, opts: AnyObj = {}) {
   const queuePressureState = queuePressureSnapshot(proposalDate);
   const candidateAuditPolicy = {
     strategy_id: strategy ? strategy.id : null,
+    strategy_selection: strategySelection
+      ? {
+        mode: strategySelection.mode || null,
+        canary_enabled: strategySelection.canary_enabled === true,
+        canary_due: strategySelection.canary_due === true,
+        canary_every: Number.isFinite(Number(strategySelection.canary_every))
+          ? Number(strategySelection.canary_every)
+          : null,
+        attempt_index: Number(strategySelection.attempt_index || 0),
+        active_count: Number(strategySelection.active_count || 0),
+        ranked: Array.isArray(strategySelection.ranked) ? strategySelection.ranked.slice(0, 5) : []
+      }
+      : null,
     execution_mode: executionMode,
     shadow_only: shadowOnly,
     directive_pulse_reservation_hard: AUTONOMY_DIRECTIVE_PULSE_RESERVATION_HARD,
@@ -9200,6 +9560,12 @@ function runCmd(dateStr, opts: AnyObj = {}) {
     queue_underflow_backfill: {
       enabled: AUTONOMY_QUEUE_UNDERFLOW_BACKFILL_MAX > 0,
       max_candidates: AUTONOMY_QUEUE_UNDERFLOW_BACKFILL_MAX
+    },
+    unknown_type_quarantine: {
+      enabled: AUTONOMY_UNKNOWN_TYPE_QUARANTINE_ENABLED,
+      proposal_types: Array.from(AUTONOMY_UNKNOWN_TYPE_QUARANTINE_TYPES),
+      allow_tier1: AUTONOMY_UNKNOWN_TYPE_QUARANTINE_ALLOW_TIER1,
+      allow_directive: AUTONOMY_UNKNOWN_TYPE_QUARANTINE_ALLOW_DIRECTIVE
     },
     qos_lanes: {
       enabled: AUTONOMY_QOS_LANES_ENABLED,
@@ -9981,6 +10347,35 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       continue;
     }
 
+    const unknownTypeQuarantine = proposalUnknownTypeQuarantineDecision(cand.proposal, objectiveBinding);
+    if (unknownTypeQuarantine.block) {
+      skipStats.unknown_type_quarantine += 1;
+      bumpCount(candidateRejectedByGate, 'unknown_type_quarantine');
+      pushCandidateAudit({
+        proposal_id: proposalId,
+        proposal_type: proposalType,
+        risk,
+        pass: false,
+        gate: 'unknown_type_quarantine',
+        score: Number(cand.score || 0),
+        objective_binding: {
+          required: objectiveBinding.required === true,
+          objective_id: objectiveBinding.objective_id || null,
+          source: objectiveBinding.source || null
+        },
+        reasons: [unknownTypeQuarantine.reason || 'unknown_type_quarantine']
+      });
+      if (!sampleUnknownTypeQuarantine) {
+        sampleUnknownTypeQuarantine = {
+          proposal_id: cand.proposal.id,
+          proposal_type: unknownTypeQuarantine.proposal_type || null,
+          objective_id: unknownTypeQuarantine.objective_id || null,
+          reason: unknownTypeQuarantine.reason || 'unknown_type_quarantine'
+        };
+      }
+      continue;
+    }
+
     const qosLane = qosLaneFromCandidate({
       ...cand,
       risk,
@@ -10085,7 +10480,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
 
   if (eligible.length > 0) {
     for (const cand of eligible) {
-      cand.strategy_rank = strategyRankForCandidate(cand, strategy);
+      cand.strategy_rank = strategyRankForCandidate(cand, strategy, { priorRuns });
       const adjusted = strategyRankAdjustedForCandidate(cand, executionMode);
       cand.strategy_rank_adjusted = adjusted.adjusted;
       cand.strategy_rank_bonus = adjusted.bonus;
@@ -10214,7 +10609,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       composite_score: compositeScore,
       composite_min_score: compositeMin,
       risk: fallbackRisk
-    }, strategy);
+    }, strategy, { priorRuns });
     const fallbackAdjusted = strategyRankAdjustedForCandidate({
       ...fallback,
       directive_pulse: pulse,
@@ -10255,6 +10650,40 @@ function runCmd(dateStr, opts: AnyObj = {}) {
   );
 
   if (!pick) {
+    if (
+      skipStats.unknown_type_quarantine > 0
+      && skipStats.eye_no_progress === 0
+      && skipStats.low_quality === 0
+      && skipStats.low_directive_fit === 0
+      && skipStats.low_actionability === 0
+      && skipStats.optimization_good_enough === 0
+      && skipStats.objective_binding === 0
+      && skipStats.low_value_signal === 0
+      && skipStats.budget_pacing === 0
+      && skipStats.low_composite === 0
+      && skipStats.capability_cooldown === 0
+      && skipStats.medium_risk_guard === 0
+      && skipStats.medium_policy_blocked === 0
+      && skipStats.medium_daily_cap === 0
+      && skipStats.directive_pulse_cooldown === 0
+    ) {
+      writeRun(dateStr, {
+        ts: nowIso(),
+        type: 'autonomy_run',
+        result: 'stop_init_gate_unknown_type_quarantine',
+        skipped_unknown_type_quarantine: skipStats.unknown_type_quarantine,
+        sample_unknown_type_quarantine: sampleUnknownTypeQuarantine
+      });
+      process.stdout.write(JSON.stringify({
+        ok: true,
+        result: 'stop_init_gate_unknown_type_quarantine',
+        skipped_unknown_type_quarantine: skipStats.unknown_type_quarantine,
+        sample_unknown_type_quarantine: sampleUnknownTypeQuarantine,
+        ts: nowIso()
+      }) + '\n');
+      return;
+    }
+
     if (
       skipStats.medium_daily_cap > 0
       && skipStats.eye_no_progress === 0
@@ -12976,6 +13405,8 @@ module.exports = {
   expectedValueScore,
   expectedValueSignalForProposal,
   strategyRankForCandidate,
+  candidateNonYieldPenaltySignal,
+  selectStrategyForRun,
   estimateTokens,
   candidatePool,
   evaluateDoD,

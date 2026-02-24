@@ -114,18 +114,47 @@ function baseBucket(id) {
   return {
     strategy_id: id,
     attempted: 0,
+    proposal_attempted: 0,
+    non_proposal_gate_attempted: 0,
     executed: 0,
     shipped: 0,
     no_change: 0,
     reverted: 0,
     stopped: 0,
+    proposal_stopped: 0,
+    non_proposal_gate_stopped: 0,
     no_candidate: 0,
     score_only: 0
   };
 }
 
+function runEventProposalId(evt) {
+  if (!evt || typeof evt !== 'object') return '';
+  return String(
+    evt.proposal_id
+    || evt.selected_proposal_id
+    || ''
+  ).trim();
+}
+
+function isProposalAttemptForStrategy(evt) {
+  if (!evt || typeof evt !== 'object') return false;
+  if (runEventProposalId(evt)) return true;
+  const proposalType = String(evt.proposal_type || '').trim().toLowerCase();
+  if (proposalType && proposalType !== 'unknown') return true;
+  const capabilityKey = String(evt.capability_key || '').trim().toLowerCase();
+  if (capabilityKey.startsWith('proposal:') && capabilityKey !== 'proposal:unknown') return true;
+  return false;
+}
+
 function classifyStage(m) {
-  if (m.attempted < 3) return 'theory';
+  const attemptedForStage = Math.max(
+    0,
+    Number(m.proposal_attempted || 0) > 0
+      ? Number(m.proposal_attempted || 0)
+      : Number(m.attempted || 0)
+  );
+  if (attemptedForStage < 3 && Number(m.executed || 0) < 2) return 'theory';
   if (m.executed < 2 || m.shipped < 1) return 'trial';
   if (m.attempted >= 12 && m.shipped_rate >= 0.35 && m.reverted_rate <= 0.15 && m.stop_ratio <= 0.5) return 'scaled';
   if (m.shipped_rate >= 0.2 && m.reverted_rate <= 0.25) return 'validated';
@@ -160,9 +189,16 @@ function aggregateForWindow(endDate, days) {
       }
 
       b.attempted += 1;
+      const proposalAttempt = isProposalAttemptForStrategy(evt);
+      if (proposalAttempt) b.proposal_attempted += 1;
+      else b.non_proposal_gate_attempted += 1;
       if (result === 'executed') b.executed += 1;
       if (result === 'score_only_preview' || result === 'score_only_evidence') b.score_only += 1;
-      if (result.startsWith('stop_')) b.stopped += 1;
+      if (result.startsWith('stop_')) {
+        b.stopped += 1;
+        if (proposalAttempt) b.proposal_stopped += 1;
+        else b.non_proposal_gate_stopped += 1;
+      }
 
       if (outcome === 'shipped') b.shipped += 1;
       if (outcome === 'no_change') b.no_change += 1;
@@ -173,15 +209,21 @@ function aggregateForWindow(endDate, days) {
   const summaries = (Object.values(buckets) as Array<Record<string, any>>)
     .map((bucket) => {
       const b = (bucket && typeof bucket === 'object' ? bucket : {}) as Record<string, any>;
+      const proposalAttempted = Math.max(0, Number(b.proposal_attempted || 0));
+      const nonProposalAttempted = Math.max(0, Number(b.non_proposal_gate_attempted || 0));
+      const proposalStopped = Math.max(0, Number(b.proposal_stopped || 0));
+      const attemptedForScoring = proposalAttempted > 0 ? proposalAttempted : Math.max(1, Number(b.attempted || 0));
       const shippedRate = safeRate(b.shipped, b.executed);
       const revertedRate = safeRate(b.reverted, b.executed);
-      const stopRatio = safeRate(b.stopped, b.attempted);
-      const progressRate = safeRate(b.shipped, b.attempted);
-      const confidence = Number(Math.max(0.05, Math.min(1, b.attempted / 20)).toFixed(3));
+      const stopRatio = safeRate(proposalStopped, attemptedForScoring);
+      const progressRate = safeRate(b.shipped, attemptedForScoring);
+      const nonProposalGateRate = safeRate(nonProposalAttempted, Math.max(1, Number(b.attempted || 0)));
+      const confidence = Number(Math.max(0.05, Math.min(1, attemptedForScoring / 20)).toFixed(3));
       const score = Number((
         (progressRate * 60)
         + ((1 - revertedRate) * 20)
         + ((1 - stopRatio) * 20)
+        - (nonProposalGateRate * 10)
       ).toFixed(2));
 
       const metrics = {
@@ -189,6 +231,8 @@ function aggregateForWindow(endDate, days) {
         shipped_rate: shippedRate,
         reverted_rate: revertedRate,
         stop_ratio: stopRatio,
+        proposal_stop_ratio: stopRatio,
+        non_proposal_gate_rate: nonProposalGateRate,
         progress_rate: progressRate,
         confidence,
         score
