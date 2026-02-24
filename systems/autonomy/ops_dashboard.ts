@@ -100,6 +100,14 @@ function summarize(rows) {
     loop_stall: { fail: 0 },
     drift: { fail: 0 }
   };
+  const branchHealth = {
+    reports_with_branch_health: 0,
+    queue_open_peak: 0,
+    active_cells_peak: 0,
+    active_leases_peak: 0,
+    active_cooldowns_peak: 0,
+    policy_holds_total: 0
+  };
 
   for (const row of rows) {
     const checks = row && row.slo && Array.isArray(row.slo.checks) ? row.slo.checks : [];
@@ -117,9 +125,26 @@ function summarize(rows) {
       if (id === 'loop_stall') slo.loop_stall.fail += 1;
       if (id === 'drift') slo.drift.fail += 1;
     }
+
+    const branch = row && row.branch_health && typeof row.branch_health === 'object'
+      ? row.branch_health
+      : null;
+    if (branch) {
+      branchHealth.reports_with_branch_health += 1;
+      const queueOpen = Number(branch && branch.queue && branch.queue.open_count || 0);
+      const activeCells = Number(branch && branch.workers && branch.workers.active_cells || 0);
+      const activeLeases = Number(branch && branch.leases && branch.leases.active || 0);
+      const activeCooldowns = Number(branch && branch.cooldowns && branch.cooldowns.active || 0);
+      const policyHolds = Number(branch && branch.policy_holds && branch.policy_holds.count || 0);
+      branchHealth.queue_open_peak = Math.max(branchHealth.queue_open_peak, queueOpen);
+      branchHealth.active_cells_peak = Math.max(branchHealth.active_cells_peak, activeCells);
+      branchHealth.active_leases_peak = Math.max(branchHealth.active_leases_peak, activeLeases);
+      branchHealth.active_cooldowns_peak = Math.max(branchHealth.active_cooldowns_peak, activeCooldowns);
+      branchHealth.policy_holds_total += Math.max(0, policyHolds);
+    }
   }
 
-  return { totals, slo };
+  return { totals, slo, branch_health: branchHealth };
 }
 
 function summarizeDreams(dates) {
