@@ -20,6 +20,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 const { writeContractReceipt } = require('../../lib/action_receipts');
+const { resolveRolloutPlan } = require('./autonomy_rollout_controller');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const RUNS_DIR = process.env.AUTONOMY_RUNS_DIR
@@ -142,11 +143,19 @@ function schedulerQuality(attempted, verified, failReason) {
 
 function cmdStatus(dateStr) {
   const readiness = runNodeJson('systems/autonomy/autonomy_controller.js', ['readiness', dateStr]);
+  const rollout = resolveRolloutPlan(dateStr, { autoEvaluate: false });
   process.stdout.write(JSON.stringify({
     ok: readiness.ok && !!(readiness.payload && readiness.payload.ok === true),
     ts: nowIso(),
     date: dateStr,
     readiness: readiness.payload || null,
+    rollout: rollout && rollout.ok
+      ? {
+          stage: rollout.state && rollout.state.stage ? rollout.state.stage : null,
+          decision: rollout.decision && rollout.decision.controller_cmd ? rollout.decision.controller_cmd : null,
+          sampled_live: !!(rollout.decision && rollout.decision.sampled_live)
+        }
+      : null,
     error: readiness.ok ? null : shortText(readiness.stderr || readiness.stdout || `readiness_exit_${readiness.code}`, 200)
   }, null, 2) + '\n');
 }
@@ -155,9 +164,25 @@ function cmdRun(dateStr, opts = {}) {
   const ts = nowIso();
   const o = (opts && typeof opts === 'object' ? opts : {}) as Record<string, any>;
   const runOnce = !!(o.runOnce === true);
-  const runEnv = runOnce ? { AUTONOMY_ENABLED: '1' } : null;
+  const rollout = !runOnce
+    ? resolveRolloutPlan(dateStr, { autoEvaluate: true })
+    : null;
+  const rolloutDecision = rollout && rollout.ok && rollout.decision && typeof rollout.decision === 'object'
+    ? rollout.decision
+    : {};
+  const controllerCmd = runOnce
+    ? 'run'
+    : (String(rolloutDecision.controller_cmd || '').trim().toLowerCase() === 'evidence' ? 'evidence' : 'run');
+  const rolloutEnv = !runOnce && rolloutDecision && rolloutDecision.env && typeof rolloutDecision.env === 'object'
+    ? rolloutDecision.env
+    : null;
+  const runEnv = {
+    ...(runOnce ? { AUTONOMY_ENABLED: '1' } : {}),
+    ...(rolloutEnv || {})
+  };
+  const requireReadiness = !runOnce && controllerCmd === 'run';
   const requireStartupAttestation = String(process.env.AUTONOMY_REQUIRE_STARTUP_ATTESTATION || '0') === '1';
-  if (requireStartupAttestation && !runOnce) {
+  if (requireStartupAttestation && requireReadiness) {
     const att = runNodeJson('systems/security/startup_attestation.js', ['verify', '--strict']);
     const attPayload = att.payload && typeof att.payload === 'object' ? att.payload : null;
     const attOk = att.ok && !!(attPayload && attPayload.ok === true);
@@ -199,6 +224,10 @@ function cmdRun(dateStr, opts = {}) {
         result: failCode,
         can_run: null,
         readiness: null,
+        rollout: {
+          stage: rollout && rollout.state ? rollout.state.stage || null : null,
+          decision: controllerCmd
+        },
         scheduler_receipt_id: rec.receipt_id,
         scheduler_quality: quality,
         error: shortText((attPayload && attPayload.reason) || att.stderr || att.stdout || `startup_attestation_exit_${att.code}`, 200)
@@ -207,13 +236,15 @@ function cmdRun(dateStr, opts = {}) {
     }
   }
 
-  const readiness = runNodeJson('systems/autonomy/autonomy_controller.js', ['readiness', dateStr], runEnv);
-  const readinessPayload = readiness.payload && typeof readiness.payload === 'object'
+  const readiness = requireReadiness
+    ? runNodeJson('systems/autonomy/autonomy_controller.js', ['readiness', dateStr], runEnv)
+    : { ok: true, code: 0, payload: { ok: true, can_run: true, shadow_only: true }, stdout: '', stderr: '' };
+  const readinessPayload = readiness && readiness.payload && typeof readiness.payload === 'object'
     ? readiness.payload
     : null;
-  const readinessOk = readiness.ok && !!(readinessPayload && readinessPayload.ok === true);
+  const readinessOk = !!(readiness && readiness.ok && readinessPayload && readinessPayload.ok === true);
 
-  if (!readinessOk && !runOnce) {
+  if (!readinessOk && requireReadiness) {
     const failCode = 'readiness_unavailable';
     const quality = schedulerQuality(false, false, failCode);
     writeRunEvent(dateStr, {
@@ -248,6 +279,10 @@ function cmdRun(dateStr, opts = {}) {
       result: failCode,
       can_run: null,
       readiness: null,
+      rollout: {
+        stage: rollout && rollout.state ? rollout.state.stage || null : null,
+        decision: controllerCmd
+      },
       scheduler_receipt_id: rec.receipt_id,
       scheduler_quality: quality,
       error: shortText(readiness.stderr || readiness.stdout || `readiness_exit_${readiness.code}`, 200)
@@ -255,7 +290,7 @@ function cmdRun(dateStr, opts = {}) {
     return;
   }
 
-  if (!runOnce && readinessPayload.can_run !== true) {
+  if (requireReadiness && readinessPayload && readinessPayload.can_run !== true) {
     const blocker = firstBlocker(readinessPayload);
     const blockerCode = String(blocker && blocker.code || 'readiness_blocked');
     const quality = schedulerQuality(false, false, blockerCode);
@@ -298,21 +333,30 @@ function cmdRun(dateStr, opts = {}) {
       result: 'skipped_blocked',
       can_run: false,
       readiness: readinessPayload,
+      rollout: {
+        stage: rollout && rollout.state ? rollout.state.stage || null : null,
+        decision: controllerCmd,
+        sampled_live: !!(rolloutDecision && rolloutDecision.sampled_live)
+      },
       scheduler_receipt_id: rec.receipt_id,
       scheduler_quality: quality
     }, null, 2) + '\n');
     return;
   }
 
-  const runRep = runNodeJson('systems/autonomy/autonomy_controller.js', ['run', dateStr], runEnv);
+  const runRep = runNodeJson('systems/autonomy/autonomy_controller.js', [controllerCmd, dateStr], runEnv);
   const runPayload = runRep.payload && typeof runRep.payload === 'object' ? runRep.payload : null;
   const receiptFromRun = !!(runPayload && (runPayload.receipt_id || runPayload.preview_receipt_id));
   const runResult = String(runPayload && runPayload.result || (runRep.ok ? 'unknown' : `run_exit_${runRep.code}`));
-  const runVerified = !!(
-    runPayload
-    && runPayload.verification
-    && runPayload.verification.passed === true
-  ) || (runRep.ok && runResult === 'executed');
+  const runVerified = controllerCmd === 'evidence'
+    ? runRep.ok
+    : (
+      !!(
+        runPayload
+        && runPayload.verification
+        && runPayload.verification.passed === true
+      ) || (runRep.ok && runResult === 'executed')
+    );
   const runPrimaryFailure = runPayload && runPayload.verification && runPayload.verification.primary_failure
     ? String(runPayload.verification.primary_failure)
     : null;
@@ -328,7 +372,10 @@ function cmdRun(dateStr, opts = {}) {
         verdict: passed ? 'pass' : 'fail',
         execution: {
           scheduler: true,
-          readiness_ok: true,
+          readiness_ok: requireReadiness ? true : null,
+          controller_cmd: controllerCmd,
+          rollout_stage: rollout && rollout.state ? rollout.state.stage || null : null,
+          rollout_sampled_live: !!(rolloutDecision && rolloutDecision.sampled_live),
           run_ok: runRep.ok,
           run_result: runResult,
           run_code: runRep.code
@@ -350,9 +397,25 @@ function cmdRun(dateStr, opts = {}) {
     ts,
     date: dateStr,
     run_once: runOnce,
+    controller_cmd: controllerCmd,
     result: String(runPayload && runPayload.result || (runRep.ok ? 'run_ok' : 'run_unavailable')),
     can_run: true,
     readiness: readinessPayload,
+    rollout: {
+      stage: rollout && rollout.state ? rollout.state.stage || null : null,
+      decision: controllerCmd,
+      sampled_live: !!(rolloutDecision && rolloutDecision.sampled_live),
+      sample_value: rolloutDecision && rolloutDecision.sample_value != null
+        ? Number(rolloutDecision.sample_value)
+        : null,
+      evaluate: rollout && rollout.evaluate && rollout.evaluate.ok === true
+        ? {
+            transition: !!(rollout.evaluate.transition && rollout.evaluate.transition.transition),
+            reason: rollout.evaluate.transition ? rollout.evaluate.transition.reason || null : null,
+            stage_after: rollout.evaluate.after ? rollout.evaluate.after.stage || null : null
+          }
+        : null
+    },
     scheduler_quality: quality,
     run: {
       ok: runRep.ok,
