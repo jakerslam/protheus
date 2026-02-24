@@ -55,6 +55,8 @@ function main() {
   const runsDir = path.join(stateDir, 'autonomy', 'runs');
   const alertsDir = path.join(stateDir, 'autonomy', 'health_alerts');
   const reportsDir = path.join(stateDir, 'autonomy', 'health_reports');
+  const spawnAllocationsPath = path.join(stateDir, 'spawn', 'allocations.json');
+  const capabilityLeasesPath = path.join(stateDir, 'security', 'capability_leases.json');
   const budgetEventsPath = path.join(stateDir, 'autonomy', 'budget_events.jsonl');
   const budgetAutopausePath = path.join(stateDir, 'autonomy', 'budget_autopause.json');
   const driftPolicyPath = path.join(tmpRoot, 'config', 'drift_target_governor_policy.json');
@@ -83,7 +85,53 @@ function main() {
   ]);
   writeJsonl(path.join(queueDecisionsDir, `${date}.jsonl`), []);
 
-  writeJsonl(path.join(runsDir, `${date}.jsonl`), []);
+  writeJsonl(path.join(runsDir, `${date}.jsonl`), [
+    { ts: '2026-02-20T08:00:00.000Z', type: 'autonomy_run', result: 'stop_repeat_gate', policy_hold: true }
+  ]);
+
+  writeJson(spawnAllocationsPath, {
+    version: 1,
+    ts: nowIso,
+    allocations: {
+      autonomy_backlog: {
+        module: 'autonomy_backlog',
+        cells: 2,
+        ts: nowIso,
+        lease_expires_at: '2026-02-21T20:45:00.000Z'
+      },
+      dreaming_rem: {
+        module: 'dreaming_rem',
+        cells: 1,
+        ts: nowIso,
+        lease_expires_at: '2026-02-21T19:00:00.000Z'
+      }
+    }
+  });
+  writeJson(capabilityLeasesPath, {
+    version: '1.0',
+    issued: {
+      lease_active: {
+        id: 'lease_active',
+        scope: 'strategy_mode_escalation',
+        issued_at: '2026-02-21T19:45:00.000Z',
+        expires_at: '2026-02-21T20:30:00.000Z',
+        issued_by: 'test'
+      },
+      lease_consumed: {
+        id: 'lease_consumed',
+        scope: 'strategy_mode_escalation',
+        issued_at: '2026-02-21T19:00:00.000Z',
+        expires_at: '2026-02-21T19:30:00.000Z',
+        issued_by: 'test'
+      }
+    },
+    consumed: {
+      lease_consumed: {
+        ts: '2026-02-21T19:10:00.000Z',
+        reason: 'policy_root_authorize:test'
+      }
+    }
+  });
 
   writeJson(path.join(stateDir, 'spine', 'router_health.json'), {
     ts: '2026-02-21T19:59:00.000Z',
@@ -223,6 +271,8 @@ function main() {
     AUTONOMY_HEALTH_SYSTEM_BUDGET_AUTOPAUSE_PATH: budgetAutopausePath,
     AUTONOMY_HEALTH_DRIFT_TARGET_POLICY_PATH: driftPolicyPath,
     AUTONOMY_HEALTH_DRIFT_TARGET_STATE_PATH: driftStatePath,
+    AUTONOMY_HEALTH_SPAWN_ALLOCATIONS_PATH: spawnAllocationsPath,
+    AUTONOMY_HEALTH_CAPABILITY_LEASES_PATH: capabilityLeasesPath,
     AUTONOMY_HEALTH_ALERTS_DIR: alertsDir,
     AUTONOMY_HEALTH_REPORTS_DIR: reportsDir
   };
@@ -246,6 +296,11 @@ function main() {
   assert.strictEqual(Boolean(first.gates && first.gates.budget_autopause_active), false, 'budget autopause gate should be false in fixture');
   assert.ok(first.drift_target_governor && first.drift_target_governor.enabled === true, 'drift governor should run');
   assert.strictEqual(typeof first.gates.drift_target_rate, 'number', 'drift target rate should be exposed in gates');
+  assert.ok(first.branch_health && typeof first.branch_health === 'object', 'branch_health snapshot should be present');
+  assert.strictEqual(Number(first.branch_health.workers.total_cells || 0), 3, 'branch_health should include spawn cell totals');
+  assert.strictEqual(Number(first.branch_health.workers.active_cells || 0), 2, 'branch_health should include active spawn cells');
+  assert.strictEqual(Number(first.branch_health.leases.active || 0), 1, 'branch_health should include active capability lease count');
+  assert.strictEqual(Number(first.branch_health.policy_holds.count || 0), 1, 'branch_health should include policy hold count');
   assert.ok(first.report && first.report.written === true && fs.existsSync(first.report.path), 'report should be written');
   assert.ok(first.alerts && fs.existsSync(first.alerts.path), 'alerts file should exist');
   assert.ok(Number(first.alerts.written || 0) >= 5, 'first run should emit multiple alerts');

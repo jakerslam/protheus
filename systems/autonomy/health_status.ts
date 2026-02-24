@@ -76,6 +76,12 @@ const PROPOSALS_DIR = process.env.AUTONOMY_HEALTH_PROPOSALS_DIR
 const QUEUE_DECISIONS_DIR = process.env.AUTONOMY_HEALTH_QUEUE_DECISIONS_DIR
   ? path.resolve(process.env.AUTONOMY_HEALTH_QUEUE_DECISIONS_DIR)
   : path.join(ROOT, 'state', 'queue', 'decisions');
+const SPAWN_ALLOCATIONS_PATH = process.env.AUTONOMY_HEALTH_SPAWN_ALLOCATIONS_PATH
+  ? path.resolve(process.env.AUTONOMY_HEALTH_SPAWN_ALLOCATIONS_PATH)
+  : path.join(ROOT, 'state', 'spawn', 'allocations.json');
+const CAPABILITY_LEASES_PATH = process.env.AUTONOMY_HEALTH_CAPABILITY_LEASES_PATH
+  ? path.resolve(process.env.AUTONOMY_HEALTH_CAPABILITY_LEASES_PATH)
+  : path.join(ROOT, 'state', 'security', 'capability_leases.json');
 const AUTONOMY_RUNS_DIR = process.env.AUTONOMY_HEALTH_AUTONOMY_RUNS_DIR
   ? path.resolve(process.env.AUTONOMY_HEALTH_AUTONOMY_RUNS_DIR)
   : path.join(ROOT, 'state', 'autonomy', 'runs');
@@ -514,6 +520,178 @@ function readAutonomyRunEvents(dates) {
     }
   }
   return rows;
+}
+
+function spawnWorkersSnapshot(now) {
+  const raw = readJson(SPAWN_ALLOCATIONS_PATH, {});
+  const allocations = raw && raw.allocations && typeof raw.allocations === 'object'
+    ? raw.allocations
+    : {};
+  const rows: AnyObj[] = [];
+  let totalCells = 0;
+  let activeCells = 0;
+  let expiredLeases = 0;
+  let expiringSoonLeases = 0;
+  for (const [moduleId, value] of Object.entries(allocations)) {
+    const row = value && typeof value === 'object' ? value : {};
+    const cells = Math.max(0, Number(row.cells || 0));
+    const leaseExpiresAt = row.lease_expires_at || row.lease_expiry || row.expires_at || null;
+    const leaseMs = toMs(leaseExpiresAt);
+    const active = leaseMs == null || leaseMs > now;
+    totalCells += cells;
+    if (active) activeCells += cells;
+    if (leaseMs != null && leaseMs <= now) expiredLeases += 1;
+    if (leaseMs != null && leaseMs > now && (leaseMs - now) <= 3600000) expiringSoonLeases += 1;
+    rows.push({
+      module: String(moduleId || row.module || 'unknown'),
+      cells,
+      active,
+      lease_expires_at: leaseMs != null ? new Date(leaseMs).toISOString() : null
+    });
+  }
+  const topModules = rows
+    .sort((a, b) => Number(b.cells || 0) - Number(a.cells || 0) || String(a.module || '').localeCompare(String(b.module || '')))
+    .slice(0, 8);
+  return {
+    path: SPAWN_ALLOCATIONS_PATH,
+    modules: rows.length,
+    total_cells: totalCells,
+    active_cells: activeCells,
+    expired_leases: expiredLeases,
+    expiring_soon_leases: expiringSoonLeases,
+    top_modules: topModules
+  };
+}
+
+function capabilityLeaseSnapshot(now) {
+  const raw = readJson(CAPABILITY_LEASES_PATH, {});
+  const issued = raw && raw.issued && typeof raw.issued === 'object' ? raw.issued : {};
+  const consumed = raw && raw.consumed && typeof raw.consumed === 'object' ? raw.consumed : {};
+  const consumedSet = new Set(Object.keys(consumed || {}));
+  const scopeCounts: AnyObj = {};
+  let active = 0;
+  let expiredUnconsumed = 0;
+  for (const [leaseId, value] of Object.entries(issued)) {
+    const row = value && typeof value === 'object' ? value : {};
+    const scope = String(row.scope || 'unknown');
+    scopeCounts[scope] = Number(scopeCounts[scope] || 0) + 1;
+    const consumedLease = consumedSet.has(String(leaseId || ''));
+    const expiresAt = row.expires_at || row.expiry || null;
+    const expiresMs = toMs(expiresAt);
+    if (consumedLease) continue;
+    if (expiresMs != null && expiresMs <= now) expiredUnconsumed += 1;
+    else active += 1;
+  }
+  let orphanConsumed = 0;
+  for (const leaseId of consumedSet) {
+    if (!Object.prototype.hasOwnProperty.call(issued, leaseId)) orphanConsumed += 1;
+  }
+  return {
+    path: CAPABILITY_LEASES_PATH,
+    issued_total: Object.keys(issued).length,
+    consumed_total: Object.keys(consumed).length,
+    active,
+    expired_unconsumed: expiredUnconsumed,
+    orphan_consumed: orphanConsumed,
+    top_scopes: topReasonCounts(scopeCounts, 6)
+  };
+}
+
+function cooldownSnapshot(cooldowns, now) {
+  const out = {
+    total: 0,
+    active: 0,
+    expiring_soon: 0
+  };
+  for (const value of Object.values(cooldowns || {})) {
+    out.total += 1;
+    const row = value && typeof value === 'object' ? value : {};
+    const explicitMs = Number(
+      row.until_ms
+      || row.expires_ms
+      || row.cooldown_until_ms
+      || (typeof value === 'number' ? value : 0)
+    );
+    const untilMs = Number.isFinite(explicitMs) && explicitMs > 0
+      ? explicitMs
+      : toMs(row.until || row.expires_at || row.cooldown_until || row.until_ts || null);
+    if (untilMs == null || untilMs <= now) continue;
+    out.active += 1;
+    if ((untilMs - now) <= 3600000) out.expiring_soon += 1;
+  }
+  return out;
+}
+
+function isPolicyHoldRunEventLite(row) {
+  if (!row || typeof row !== 'object') return false;
+  if (String(row.type || '') !== 'autonomy_run') return false;
+  if (row.policy_hold === true) return true;
+  const holdClass = String(row.hold_class || row.hold_type || '').toLowerCase();
+  if (holdClass.includes('policy')) return true;
+  const result = String(row.result || '').toLowerCase();
+  if (!result) return false;
+  if (result.includes('policy_hold')) return true;
+  if (result.startsWith('stop_') && (
+    result.includes('gate')
+    || result.includes('cooldown')
+    || result.includes('quota')
+    || result.includes('objective_runtime')
+    || result.includes('readiness_blocked')
+    || result.includes('budget')
+  )) {
+    return true;
+  }
+  return false;
+}
+
+function policyHoldSnapshot(runEvents, windowDays = 1) {
+  const holds = (runEvents || []).filter(isPolicyHoldRunEventLite);
+  const reasons = {};
+  let latest = null;
+  for (const row of holds) {
+    const reason = String(row.reason || row.result || 'policy_hold').trim().toLowerCase();
+    if (reason) reasons[reason] = Number(reasons[reason] || 0) + 1;
+    const ts = toMs(row.ts);
+    if (Number.isFinite(ts) && (latest == null || ts > latest)) latest = ts;
+  }
+  const days = Math.max(1, Number(windowDays || 1));
+  return {
+    count: holds.length,
+    per_day_rate: Number((holds.length / days).toFixed(3)),
+    top_reasons: topReasonCounts(reasons, 8),
+    latest_ts: latest != null ? new Date(latest).toISOString() : null
+  };
+}
+
+function summarizeBranchHealth(now, cooldowns, runEvents, checks, windowDays = 1) {
+  const queueBacklogMetrics = checks
+    && checks.queue_backlog
+    && checks.queue_backlog.metrics
+    && typeof checks.queue_backlog.metrics === 'object'
+      ? checks.queue_backlog.metrics
+      : {};
+  const starvationMetrics = checks
+    && checks.proposal_starvation
+    && checks.proposal_starvation.metrics
+    && typeof checks.proposal_starvation.metrics === 'object'
+      ? checks.proposal_starvation.metrics
+      : {};
+  return {
+    ts: new Date(now).toISOString(),
+    workers: spawnWorkersSnapshot(now),
+    leases: capabilityLeaseSnapshot(now),
+    queue: {
+      open_count: Number(queueBacklogMetrics.open_count || 0),
+      unique_proposals: Number(queueBacklogMetrics.unique_proposals || 0),
+      queue_progress_events: Number(queueBacklogMetrics.queue_progress_events || 0),
+      queue_progress_per_day: Number(queueBacklogMetrics.queue_progress_per_day || 0),
+      queue_accept_count: Number(starvationMetrics.queue_accept_count || 0),
+      queue_outcome_count: Number(starvationMetrics.queue_outcome_count || 0),
+      eligible_count: Number(starvationMetrics.eligible_count || 0)
+    },
+    cooldowns: cooldownSnapshot(cooldowns, now),
+    policy_holds: policyHoldSnapshot(runEvents, windowDays)
+  };
 }
 
 function readIdleDreamEvents(dates) {
@@ -2153,6 +2331,7 @@ function main() {
     execute_quality_lock_invariant: assessExecuteQualityLockInvariant(strategyModeGovernor, strategyReadiness),
     integrity: assessIntegrity(integrity)
   };
+  const branchHealth = summarizeBranchHealth(now, cooldowns, runEvents, checks, windowCfg.days);
   const slo = summarizeSlo(checks);
 
   const out: AnyObj = {
@@ -2190,6 +2369,7 @@ function main() {
         ? checks.budget_guard.metrics.autopause_active === true
         : false
     },
+    branch_health: branchHealth,
     observed: {
       proposal_rows: proposalRows.length,
       queue_events: queueEvents.length,

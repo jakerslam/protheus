@@ -33,6 +33,13 @@ try {
         { name: 'loop_stall', pass: false },
         { name: 'drift', pass: true }
       ]
+    },
+    branch_health: {
+      workers: { active_cells: 3 },
+      leases: { active: 2 },
+      queue: { open_count: 11 },
+      cooldowns: { active: 1 },
+      policy_holds: { count: 4 }
     }
   });
 
@@ -41,6 +48,9 @@ try {
   assert.ok(r.payload && r.payload.ok === true, 'ok expected');
   assert.strictEqual(r.payload.summary.slo.dark_eye.fail, 1, 'dark_eye fail count expected');
   assert.strictEqual(r.payload.summary.slo.loop_stall.fail, 1, 'loop_stall fail count expected');
+  assert.strictEqual(r.payload.summary.branch_health.queue_open_peak, 11, 'branch health should surface queue peak');
+  assert.strictEqual(r.payload.summary.branch_health.active_cells_peak, 3, 'branch health should surface active cell peak');
+  assert.strictEqual(r.payload.summary.branch_health.policy_holds_total, 4, 'branch health should aggregate policy holds');
 
   fs.rmSync(tmp, { recursive: true, force: true });
   console.log('ops_dashboard.test.js: OK');
