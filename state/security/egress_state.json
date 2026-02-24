@@ -288,6 +288,12 @@
       "scopes": {
         "sensory.collector.ollama_search": 20
       }
+    },
+    "2026-02-24T00": {
+      "total": 24,
+      "scopes": {
+        "sensory.collector.ollama_search": 24
+      }
     }
   },
   "per_day": {
@@ -334,6 +340,12 @@
         "sensory.collector.medium_rss": 150,
         "sensory.collector.moltstack_discover": 4,
         "sensory.collector.producthunt_launches": 3
+      }
+    },
+    "2026-02-24": {
+      "total": 24,
+      "scopes": {
+        "sensory.collector.ollama_search": 24
       }
     }
   }

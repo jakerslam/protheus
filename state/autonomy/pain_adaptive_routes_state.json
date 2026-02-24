@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated_ts": "2026-02-23T20:31:06.449Z",
+  "updated_ts": "2026-02-24T00:00:13.049Z",
   "routes": {
     "4278015a179efcf9": {
       "source": "external_eyes",
@@ -72,11 +72,11 @@
       "subsystem": "memory",
       "code": "dream_idle:local_model_unavailable",
       "last_layer": "habit",
-      "last_route_ts": "2026-02-23T15:30:27.014Z",
-      "cooldown_until_ts": "2026-02-23T21:30:27.014Z",
+      "last_route_ts": "2026-02-24T00:00:13.029Z",
+      "cooldown_until_ts": "2026-02-24T06:00:13.029Z",
       "last_reflex_count": 0,
-      "last_habit_count": 5,
-      "last_total_count": 5,
+      "last_habit_count": 30,
+      "last_total_count": 30,
       "last_candidate_id": "pain_idle_dream_cycle_ed445d71f2fe",
       "last_proposal_id": "PAINRT-2146831a6195a8b1"
     },
@@ -84,14 +84,14 @@
       "source": "external_eyes",
       "subsystem": "sensory",
       "code": "collector_preflight:collector_error",
-      "last_layer": "reflex",
-      "last_route_ts": "2026-02-23T16:04:38.144Z",
-      "cooldown_until_ts": "2026-02-23T22:04:38.144Z",
+      "last_layer": "habit",
+      "last_route_ts": "2026-02-24T00:00:13.049Z",
+      "cooldown_until_ts": "2026-02-24T06:00:13.049Z",
       "last_reflex_count": 3,
-      "last_habit_count": 0,
-      "last_total_count": 3,
+      "last_habit_count": 8,
+      "last_total_count": 8,
       "last_candidate_id": "pain_external_eyes_a86a891d7237",
-      "last_proposal_id": "PAINRT-4b855bf5fe767721"
+      "last_proposal_id": "PAINRT-aa3f14398a2b8fc1"
     },
     "b08c5c3826289c9d": {
       "source": "idle_dream_cycle",
