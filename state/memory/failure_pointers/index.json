@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated_ts": "2026-02-24T00:00:13.222Z",
+  "updated_ts": "2026-02-24T17:26:30.391Z",
   "item_hashes": {
     "322525e41384fb34": {
       "node_id": "failure-t1-322525e4",
@@ -126,11 +126,11 @@
       "node_id": "failure-t1-ed445d71",
       "uid": "7f819575356d9adafa5c3721",
       "memory_file": "memory/2026-02-22.md",
-      "date": "2026-02-23",
+      "date": "2026-02-24",
       "failure_tier": 1,
       "source": "idle_dream_cycle",
       "code": "dream_idle:local_model_unavailable",
-      "ts": "2026-02-23T00:27:46.977Z"
+      "ts": "2026-02-24T17:25:15.462Z"
     },
     "32f42c233cd8487f": {
       "node_id": "failure-t2-32f42c23",
@@ -226,11 +226,11 @@
       "node_id": "failure-t2-17edacff",
       "uid": "7f078af782df3dd4c9f574f5",
       "memory_file": "memory/2026-02-23.md",
-      "date": "2026-02-23",
+      "date": "2026-02-24",
       "failure_tier": 2,
       "source": "idle_dream_cycle",
       "code": "dream_idle:idle_pass_time_budget_exceeded",
-      "ts": "2026-02-23T15:30:28.010Z"
+      "ts": "2026-02-24T17:26:30.391Z"
     },
     "1be2986a486eac84": {
       "node_id": "failure-t2-1be2986a",
@@ -276,11 +276,31 @@
       "node_id": "failure-t1-b08c5c38",
       "uid": "96b8f7d2ec70db30fac98035",
       "memory_file": "memory/2026-02-23.md",
-      "date": "2026-02-23",
+      "date": "2026-02-24",
       "failure_tier": 1,
       "source": "idle_dream_cycle",
       "code": "dream_rem:local_model_unavailable",
-      "ts": "2026-02-23T20:31:06.658Z"
+      "ts": "2026-02-24T17:25:15.462Z"
+    },
+    "9b327733eb0f626c": {
+      "node_id": "failure-t2-9b327733",
+      "uid": "0ae56e856721aefce4544721",
+      "memory_file": "memory/2026-02-24.md",
+      "date": "2026-02-24",
+      "failure_tier": 2,
+      "source": "external_eyes",
+      "code": "unknown_code",
+      "ts": "2026-02-24T17:25:15.461Z"
+    },
+    "d54c1e1a5439610b": {
+      "node_id": "failure-t2-d54c1e1a",
+      "uid": "54c02c2df82137717c254afb",
+      "memory_file": "memory/2026-02-24.md",
+      "date": "2026-02-24",
+      "failure_tier": 2,
+      "source": "external_eyes",
+      "code": "collector_escalation:collector_error",
+      "ts": "2026-02-24T17:25:15.461Z"
     }
   }
 }

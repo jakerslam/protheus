@@ -36,3 +36,5 @@
 {"ts":"2026-02-23T16:26:48.624Z","type":"backup_integrity_check","ok":true,"strict":false,"checked_channels":2,"failed_channels":0,"failed_required_channels":0}
 {"ts":"2026-02-23T16:26:53.878Z","type":"backup_integrity_check","ok":true,"strict":false,"checked_channels":2,"failed_channels":0,"failed_required_channels":0}
 {"ts":"2026-02-23T20:31:11.087Z","type":"backup_integrity_check","ok":true,"strict":false,"checked_channels":2,"failed_channels":0,"failed_required_channels":0}
+{"ts":"2026-02-24T17:25:42.934Z","type":"backup_integrity_check","ok":true,"strict":false,"checked_channels":2,"failed_channels":0,"failed_required_channels":0}
+{"ts":"2026-02-24T17:26:57.133Z","type":"backup_integrity_check","ok":true,"strict":false,"checked_channels":2,"failed_channels":0,"failed_required_channels":0}
