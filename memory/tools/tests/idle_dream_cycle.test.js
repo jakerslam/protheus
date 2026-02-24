@@ -40,7 +40,7 @@ function run() {
   mkDir(path.dirname(routingPath));
   writeJson(budgetAutopausePath, { active: false, updated_at: new Date().toISOString() });
 
-  writeJson(path.join(dreamsDir, '2026-02-21.json'), {
+  writeJson(path.join(dreamsDir, `${testDate}.json`), {
     ts: `${testDate}T12:00:00.000Z`,
     date: testDate,
     themes: [
@@ -48,14 +48,14 @@ function run() {
         token: 'memory-graph',
         score: 18,
         rows: [
-          { memory_file: 'memory/2026-02-20.md', node_id: 'uid-connections' }
+          { memory_file: `memory/${testDate}.md`, node_id: 'uid-connections' }
         ]
       },
       {
         token: 'strategy-signal',
         score: 14,
         rows: [
-          { memory_file: 'memory/2026-02-20.md', node_id: 'strategy-learning' }
+          { memory_file: `memory/${testDate}.md`, node_id: 'strategy-learning' }
         ]
       }
     ]
@@ -106,7 +106,7 @@ function run() {
     IDLE_DREAM_FAKE_MODELS: 'smallthinker,qwen3:4b',
     IDLE_DREAM_FAKE_IDLE_JSON: JSON.stringify({
       dream_links: [
-        { token: 'memory-graph-bridge', hint: 'Bridge old and new memory nodes', confidence: 4, refs: ['memory/2026-02-20.md#uid-connections'] },
+        { token: 'memory-graph-bridge', hint: 'Bridge old and new memory nodes', confidence: 4, refs: [`memory/${testDate}.md#uid-connections`] },
         { token: 'strategy-signal-loop', hint: 'Route strong sensory signal into strategy updates', confidence: 3, refs: [] }
       ]
     }),
