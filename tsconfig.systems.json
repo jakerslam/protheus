@@ -117,6 +117,7 @@
     "systems/autonomy/pipeline_spc_gate.ts",
     "systems/autonomy/quorum_validator.ts",
     "systems/autonomy/receipt_summary.ts",
+    "systems/autonomy/self_documentation_closeout.ts",
     "systems/autonomy/self_change_failsafe.ts",
     "systems/autonomy/suggestion_lane.ts",
     "systems/autonomy/strategy_doctor.ts",
