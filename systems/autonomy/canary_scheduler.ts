@@ -141,6 +141,41 @@ function schedulerQuality(attempted, verified, failReason) {
   };
 }
 
+function readinessVerdict(readinessPayload) {
+  const payload = readinessPayload && typeof readinessPayload === 'object'
+    ? readinessPayload
+    : {};
+  const explicit = payload.preexec_verdict && typeof payload.preexec_verdict === 'object'
+    ? payload.preexec_verdict
+    : null;
+  if (explicit) {
+    return {
+      verdict: String(explicit.verdict || 'unknown'),
+      confidence: Number.isFinite(Number(explicit.confidence)) ? Number(explicit.confidence) : null,
+      blocker_count: Number(explicit.blocker_count || 0),
+      blocker_codes: Array.isArray(explicit.blocker_codes) ? explicit.blocker_codes.slice(0, 12) : [],
+      manual_action_required: explicit.manual_action_required === true,
+      next_runnable_at: explicit.next_runnable_at || null,
+      signals: explicit.signals && typeof explicit.signals === 'object' ? explicit.signals : {}
+    };
+  }
+  const blockers = Array.isArray(payload.blockers) ? payload.blockers : [];
+  const blockerCodes = blockers
+    .map((b) => String(b && b.code || '').trim())
+    .filter(Boolean)
+    .slice(0, 12);
+  const manualActionRequired = blockers.some((b) => b && b.retryable !== true);
+  return {
+    verdict: blockers.length === 0 ? 'proceed' : (manualActionRequired ? 'reject' : 'defer'),
+    confidence: null,
+    blocker_count: blockers.length,
+    blocker_codes: blockerCodes,
+    manual_action_required: manualActionRequired,
+    next_runnable_at: payload.next_runnable_at || null,
+    signals: {}
+  };
+}
+
 function cmdStatus(dateStr) {
   const readiness = runNodeJson('systems/autonomy/autonomy_controller.js', ['readiness', dateStr]);
   const rollout = resolveRolloutPlan(dateStr, { autoEvaluate: false });
@@ -243,6 +278,7 @@ function cmdRun(dateStr, opts = {}) {
     ? readiness.payload
     : null;
   const readinessOk = !!(readiness && readiness.ok && readinessPayload && readinessPayload.ok === true);
+  const preexecVerdict = readinessVerdict(readinessPayload);
 
   if (!readinessOk && requireReadiness) {
     const failCode = 'readiness_unavailable';
@@ -261,7 +297,8 @@ function cmdRun(dateStr, opts = {}) {
         verdict: 'fail',
         execution: {
           scheduler: true,
-          readiness_ok: false
+          readiness_ok: false,
+          preexec_verdict: preexecVerdict
         },
         verification: {
           passed: false,
@@ -279,6 +316,7 @@ function cmdRun(dateStr, opts = {}) {
       result: failCode,
       can_run: null,
       readiness: null,
+      preexec_verdict: preexecVerdict,
       rollout: {
         stage: rollout && rollout.state ? rollout.state.stage || null : null,
         decision: controllerCmd
@@ -304,7 +342,8 @@ function cmdRun(dateStr, opts = {}) {
       readiness_blocker: blockerCode,
       blocker_count: Array.isArray(readinessPayload.blockers) ? readinessPayload.blockers.length : 0,
       manual_action_required: readinessPayload.manual_action_required === true,
-      next_runnable_at: readinessPayload.next_runnable_at || null
+      next_runnable_at: readinessPayload.next_runnable_at || null,
+      preexec_verdict: preexecVerdict
     });
     const rec = writeSchedulerReceipt(
       dateStr,
@@ -315,7 +354,8 @@ function cmdRun(dateStr, opts = {}) {
           scheduler: true,
           readiness_ok: true,
           blocked: true,
-          blocker_code: blockerCode
+          blocker_code: blockerCode,
+          preexec_verdict: preexecVerdict
         },
         verification: {
           passed: false,
@@ -333,6 +373,7 @@ function cmdRun(dateStr, opts = {}) {
       result: 'skipped_blocked',
       can_run: false,
       readiness: readinessPayload,
+      preexec_verdict: preexecVerdict,
       rollout: {
         stage: rollout && rollout.state ? rollout.state.stage || null : null,
         decision: controllerCmd,
@@ -373,6 +414,7 @@ function cmdRun(dateStr, opts = {}) {
         execution: {
           scheduler: true,
           readiness_ok: requireReadiness ? true : null,
+          preexec_verdict: preexecVerdict,
           controller_cmd: controllerCmd,
           rollout_stage: rollout && rollout.state ? rollout.state.stage || null : null,
           rollout_sampled_live: !!(rolloutDecision && rolloutDecision.sampled_live),
@@ -401,6 +443,7 @@ function cmdRun(dateStr, opts = {}) {
     result: String(runPayload && runPayload.result || (runRep.ok ? 'run_ok' : 'run_unavailable')),
     can_run: true,
     readiness: readinessPayload,
+    preexec_verdict: preexecVerdict,
     rollout: {
       stage: rollout && rollout.state ? rollout.state.stage || null : null,
       decision: controllerCmd,

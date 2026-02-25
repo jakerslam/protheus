@@ -118,6 +118,7 @@
     "systems/autonomy/quorum_validator.ts",
     "systems/autonomy/receipt_summary.ts",
     "systems/autonomy/self_change_failsafe.ts",
+    "systems/autonomy/suggestion_lane.ts",
     "systems/autonomy/strategy_doctor.ts",
     "systems/autonomy/strategy_mode.ts",
     "systems/autonomy/tier1_governance.ts",

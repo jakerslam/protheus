@@ -7143,6 +7143,121 @@ function shortText(v, max = 220) {
   return s.length <= max ? s : `${s.slice(0, max)}...`;
 }
 
+function normalizedSignalStatus(value, fallback = 'unknown') {
+  const raw = normalizeSpaces(value).toLowerCase();
+  if (raw === 'pass' || raw === 'warn' || raw === 'fail') return raw;
+  return fallback;
+}
+
+function preexecVerdictFromSignals(blockers, signals, nextRunnableAt) {
+  const blockerRows = Array.isArray(blockers) ? blockers : [];
+  const signalMap = signals && typeof signals === 'object' ? signals : {};
+  const blockerCodes = blockerRows
+    .map((b) => String(b && b.code || '').trim())
+    .filter(Boolean)
+    .slice(0, 16);
+  const manualActionRequired = blockerRows.some((b) => b && b.retryable !== true);
+  const retryableOnly = blockerRows.length > 0 && blockerRows.every((b) => b && b.retryable === true);
+  let verdict = 'proceed';
+  if (blockerRows.length > 0) {
+    verdict = manualActionRequired ? 'reject' : (retryableOnly ? 'defer' : 'reject');
+  }
+
+  let failCount = 0;
+  let warnCount = 0;
+  for (const row of Object.values(signalMap as AnyObj)) {
+    const signal = row && typeof row === 'object' ? row : {};
+    const status = normalizedSignalStatus(signal.status, 'unknown');
+    if (status === 'fail') failCount += 1;
+    else if (status === 'warn') warnCount += 1;
+  }
+  const blockerPenalty = blockerRows.length > 0
+    ? Math.min(0.42, blockerRows.length * 0.06)
+    : 0;
+  let confidence = 1
+    - (failCount * 0.22)
+    - (warnCount * 0.08)
+    - blockerPenalty;
+  confidence = clampNumber(confidence, 0.05, 1, 0.5);
+  if (verdict === 'reject') confidence = Math.min(confidence, 0.49);
+  if (verdict === 'defer') confidence = Math.min(confidence, 0.69);
+
+  return {
+    verdict,
+    confidence: Number(confidence.toFixed(3)),
+    blocker_count: blockerRows.length,
+    blocker_codes: blockerCodes,
+    manual_action_required: manualActionRequired,
+    next_runnable_at: verdict === 'proceed' ? nowIso() : (nextRunnableAt || null),
+    signals: signalMap
+  };
+}
+
+function sanitizedDirectiveIdList(rows, limit = 12) {
+  const out = [];
+  const seen = new Set();
+  for (const raw of Array.isArray(rows) ? rows : []) {
+    if (out.length >= limit) break;
+    const id = sanitizeDirectiveObjectiveId(raw);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
+function proposalDependencySummary(proposal, directiveAction, actionSummary = null) {
+  const action = directiveAction && typeof directiveAction === 'object' ? directiveAction : null;
+  if (!action) return null;
+  const p = proposal && typeof proposal === 'object' ? proposal : {};
+  const summary = actionSummary && typeof actionSummary === 'object' ? actionSummary : {};
+  const decision = normalizeSpaces(action.decision || '').toUpperCase();
+  if (!decision) return null;
+  const parentObjectiveId = sanitizeDirectiveObjectiveId(action.objective_id || '');
+  const createdIds = sanitizedDirectiveIdList(summary.created_ids, 16);
+  const nodes = [];
+  const edges = [];
+  if (parentObjectiveId) {
+    nodes.push({
+      id: parentObjectiveId,
+      kind: 'directive',
+      role: 'parent'
+    });
+  }
+  for (const childId of createdIds) {
+    nodes.push({
+      id: childId,
+      kind: 'directive',
+      role: 'child'
+    });
+    if (parentObjectiveId) {
+      edges.push({
+        from: parentObjectiveId,
+        to: childId,
+        relation: 'parent_child'
+      });
+    }
+  }
+  const chain = parentObjectiveId
+    ? [parentObjectiveId, ...createdIds]
+    : createdIds.slice();
+  return {
+    proposal_id: String(p.id || '').trim() || null,
+    decision,
+    source: String(action.source || '').trim() || null,
+    parent_objective_id: parentObjectiveId || null,
+    child_objective_ids: createdIds,
+    edge_count: edges.length,
+    nodes: nodes.slice(0, 20),
+    edges: edges.slice(0, 20),
+    chain,
+    dry_run: summary.dry_run === true,
+    created_count: Number(summary.created_count || createdIds.length || 0),
+    quality_ok: summary.quality_ok === true,
+    reason: summary.reason || null
+  };
+}
+
 function numberOrNull(v) {
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 ? n : null;
@@ -9261,6 +9376,13 @@ function readinessCmd(dateStr) {
   const strategy = strategyProfile();
   const executionMode = effectiveStrategyExecutionMode();
   const strategyBudget = effectiveStrategyBudget();
+  const readinessRequired = AUTONOMY_REQUIRE_READINESS_FOR_EXECUTE && isExecuteMode(executionMode);
+  const strategyReadinessSignal: AnyObj = {
+    status: readinessRequired ? 'warn' : 'pass',
+    required: readinessRequired,
+    ready_for_execute: readinessRequired ? null : true,
+    failed_checks: []
+  };
   const maxRunsPerDay = Number.isFinite(Number(strategyBudget.daily_runs_cap))
     ? Number(strategyBudget.daily_runs_cap)
     : AUTONOMY_MAX_RUNS_PER_DAY;
@@ -9293,10 +9415,7 @@ function readinessCmd(dateStr) {
     });
   }
 
-  if (
-    AUTONOMY_REQUIRE_READINESS_FOR_EXECUTE
-    && isExecuteMode(executionMode)
-  ) {
+  if (readinessRequired) {
     const minDays = strategy
       && strategy.promotion_policy
       && Number.isFinite(Number(strategy.promotion_policy.min_days))
@@ -9304,7 +9423,21 @@ function readinessCmd(dateStr) {
         : null;
     const readiness = runStrategyReadiness(dateStr, strategy ? strategy.id : null, minDays);
     const payload = readiness.payload && typeof readiness.payload === 'object' ? readiness.payload : null;
+    const readinessDetails = payload && payload.readiness && typeof payload.readiness === 'object'
+      ? payload.readiness
+      : {};
+    const failedChecks = Array.isArray(readinessDetails.failed_checks)
+      ? readinessDetails.failed_checks.map((x) => String(x || '').trim()).filter(Boolean)
+      : [];
     const ready = !!(readiness.ok && payload && payload.ok === true && payload.readiness && payload.readiness.ready_for_execute === true);
+    strategyReadinessSignal.status = ready ? 'pass' : 'fail';
+    strategyReadinessSignal.ready_for_execute = ready;
+    strategyReadinessSignal.failed_checks = failedChecks.slice(0, 8);
+    strategyReadinessSignal.strategy_id = strategy ? strategy.id || null : null;
+    strategyReadinessSignal.readiness_code = Number(readiness.code || 0);
+    if (!readiness.ok) {
+      strategyReadinessSignal.error = shortText(readiness.stderr || readiness.stdout || `readiness_exit_${readiness.code}`, 180);
+    }
     if (!ready) {
       addBlocker('strategy_readiness', 'strategy is not ready for execute mode', {
         retryable: false,
@@ -9449,6 +9582,7 @@ function readinessCmd(dateStr) {
       meta: { dopamine }
     });
   }
+  const budgetPacing = budgetPacingSnapshot(dateStr);
 
   const proposalDate = latestProposalDate(dateStr);
   let pool = [];
@@ -9507,6 +9641,58 @@ function readinessCmd(dateStr) {
   const nextRunnableAt = retryableOnly && timedMs.length
     ? new Date(Math.max(...timedMs)).toISOString()
     : null;
+  const blockerCodeSet = new Set(
+    blockers
+      .map((b) => String(b && b.code || '').trim())
+      .filter(Boolean)
+  );
+  const preexecSignals = {
+    strategy_readiness: {
+      ...strategyReadinessSignal,
+      status: normalizedSignalStatus(strategyReadinessSignal.status, readinessRequired ? 'warn' : 'pass')
+    },
+    tier1_governance: {
+      status: tier1Governance.enabled === true
+        ? (tier1Governance.hard_stop === true ? 'fail' : 'pass')
+        : 'pass',
+      enabled: tier1Governance.enabled === true,
+      hard_stop: tier1Governance.hard_stop === true,
+      blockers: Array.isArray(tier1Governance.blockers) ? tier1Governance.blockers.slice(0, 6) : []
+    },
+    dopamine_momentum: {
+      status: noProgressStreak > 0
+        ? (dopamine.momentum_ok === true ? 'warn' : 'fail')
+        : 'pass',
+      no_progress_streak: noProgressStreak,
+      shipped_today: shippedToday,
+      momentum_ok: dopamine.momentum_ok === true,
+      verified_progress_today: dopamine.verified_progress_today === true
+    },
+    budget_pacing: {
+      status: budgetPacing.autopause_active === true
+        ? 'fail'
+        : (budgetPacing.tight === true ? 'warn' : 'pass'),
+      pressure: String(budgetPacing.pressure || 'none'),
+      autopause_active: budgetPacing.autopause_active === true,
+      remaining_ratio: Number(budgetPacing.remaining_ratio || 0),
+      remaining_tokens: Number(budgetPacing.remaining_tokens || 0),
+      token_cap: Number(budgetPacing.token_cap || 0)
+    },
+    queue_supply: {
+      status: !proposalDate
+        ? 'fail'
+        : (Array.isArray(pool) && pool.length > 0 ? 'pass' : 'fail'),
+      proposal_date: proposalDate || null,
+      candidate_pool_size: Array.isArray(pool) ? pool.length : 0,
+      stale_signal: blockerCodeSet.has('stale_signal')
+    },
+    human_escalation: {
+      status: activeEscalations.length > 0 ? 'warn' : 'pass',
+      active_count: activeEscalations.length,
+      blocking_enabled: AUTONOMY_HUMAN_ESCALATION_BLOCK_RUNS === true
+    }
+  };
+  const preexecVerdict = preexecVerdictFromSignals(blockers, preexecSignals, nextRunnableAt);
 
   const out = {
     ok: true,
@@ -9526,6 +9712,7 @@ function readinessCmd(dateStr) {
     canary_daily_exec_limit: canaryDailyExecLimit,
     proposal_date: proposalDate || null,
     candidate_pool_size: Array.isArray(pool) ? pool.length : 0,
+    preexec_verdict: preexecVerdict,
     blockers
   };
   process.stdout.write(JSON.stringify(out, null, 2) + '\n');
@@ -12082,6 +12269,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
   const directiveClarification = directiveClarificationExecSpec(p);
   const directiveDecomposition = directiveClarification ? null : directiveDecompositionExecSpec(p);
   const directiveAction = directiveClarification || directiveDecomposition;
+  const proposalDependenciesBase = proposalDependencySummary(p, directiveAction, null);
   const actuationSpec = directiveAction ? null : parseActuationSpec(p);
   const executionTarget = directiveClarification
     ? 'directive'
@@ -12291,6 +12479,11 @@ function runCmd(dateStr, opts: AnyObj = {}) {
         enforceNoChangeOnFailure: true
       });
       previewVerification = withSuccessCriteriaQualityAudit(previewVerification);
+      const previewDependencies = proposalDependencySummary(
+        p,
+        directiveAction,
+        previewSummary || preSummary || null
+      ) || proposalDependenciesBase;
       writeReceipt(dateStr, {
         ts: nowIso(),
         type: 'autonomy_action_receipt',
@@ -12304,11 +12497,12 @@ function runCmd(dateStr, opts: AnyObj = {}) {
           actuation: actuationSpec ? { kind: actuationSpec.kind } : null,
           directive_validation: directiveAction
             ? {
-                decision: directiveAction.decision || null,
-                objective_id: directiveAction.objective_id || null,
-                file: directiveClarification ? (directiveClarification.file || null) : null
-              }
-            : null,
+              decision: directiveAction.decision || null,
+              objective_id: directiveAction.objective_id || null,
+              file: directiveClarification ? (directiveClarification.file || null) : null
+            }
+          : null,
+          proposal_dependencies: previewDependencies,
           mode: previewMode,
           score_only: true,
           route_tokens_est: routeTokensEst,
@@ -12396,6 +12590,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       preview_receipt_id: previewReceiptId,
       preview_verification: previewVerification,
       preview_summary: previewSummary,
+      proposal_dependencies: proposalDependencySummary(p, directiveAction, previewSummary || null) || proposalDependenciesBase,
       token_usage: previewTokenUsage
     });
     process.stdout.write(JSON.stringify({
@@ -12423,6 +12618,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       preview_receipt_id: previewReceiptId,
       preview_verification: previewVerification,
       preview_summary: previewSummary,
+      proposal_dependencies: proposalDependencySummary(p, directiveAction, previewSummary || null) || proposalDependenciesBase,
       token_usage: previewTokenUsage,
       ts: nowIso()
     }) + '\n');
@@ -12807,6 +13003,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
     || preSummary.gate_decision === 'MANUAL'
     || preSummary.gate_decision === 'DENY';
   const preTokenUsage = computeExecutionTokenUsage(preSummary, preflight.execution_metrics, routeTokensEst, estTokens);
+  const proposalDependencies = proposalDependencySummary(p, directiveAction, preSummary || null) || proposalDependenciesBase;
 
   if (preBlocked) {
     const blockReason = !preflight.ok
@@ -12850,6 +13047,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       proposal_date: proposalDate,
       capability_key: capabilityKey,
       execution_target: executionTarget,
+      proposal_dependencies: proposalDependencies,
       directive_pulse: directivePulse,
       score: Number(pick.score.toFixed(3)),
       route_summary: preSummary,
@@ -12911,6 +13109,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
         task_hash: hashObj({ task }),
         objective_id: executionObjectiveId || null,
         actuation: actuationSpec ? { kind: actuationSpec.kind } : null,
+        proposal_dependencies: proposalDependencies,
         route_tokens_est: routeTokensEst,
         repeats_14d: repeats14d,
         errors_30d: errors30d,
@@ -12933,6 +13132,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       objective_id: executionObjectiveId || null,
       capability_key: capabilityKey,
       execution_target: executionTarget,
+      proposal_dependencies: proposalDependencies,
       directive_pulse: directivePulse,
       route_block_reason: blockReason,
       exception_novelty: preflightException,
@@ -12992,6 +13192,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       proposal_date: proposalDate,
       capability_key: capabilityKey,
       execution_target: executionTarget,
+      proposal_dependencies: proposalDependencies,
       directive_pulse: directivePulse,
       score: Number(pick.score.toFixed(3)),
       route_summary: preSummary,
@@ -13021,6 +13222,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
         task_hash: hashObj({ task }),
         objective_id: executionObjectiveId || null,
         actuation: actuationSpec ? { kind: actuationSpec.kind } : null,
+        proposal_dependencies: proposalDependencies,
         route_tokens_est: routeTokensEst,
         repeats_14d: repeats14d,
         errors_30d: errors30d,
@@ -13044,6 +13246,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       objective_id: executionObjectiveId || null,
       capability_key: capabilityKey,
       execution_target: executionTarget,
+      proposal_dependencies: proposalDependencies,
       directive_pulse: directivePulse,
       route_summary: preSummary,
       token_usage: preTokenUsage,
@@ -13235,6 +13438,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       objective_id: executionObjectiveId || null,
       proposal_date: proposalDate,
       capability_key: capabilityKey,
+      proposal_dependencies: proposalDependencies,
       directive_pulse: directivePulse,
       score: Number(pick.score.toFixed(3)),
       accept_result: compactCmdResult(acceptRes),
@@ -13299,6 +13503,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
               file: directiveClarification ? (directiveClarification.file || null) : null
             }
           : null,
+        proposal_dependencies: proposalDependencies,
         route_tokens_est: routeTokensEst,
         repeats_14d: repeats14d,
         errors_30d: errors30d,
@@ -13321,6 +13526,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       proposal_id: p.id,
       objective_id: executionObjectiveId || null,
       capability_key: capabilityKey,
+      proposal_dependencies: proposalDependencies,
       directive_pulse: directivePulse,
       token_usage: preTokenUsage,
       ts: nowIso()
@@ -13353,6 +13559,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
     directive_pulse: directivePulse,
     campaign_match: campaignMatch,
     campaign_plan: campaignPlan,
+    proposal_dependencies: proposalDependencies,
     composite: {
       score: pick.composite_score,
       min_score: compositeMinScore,
@@ -13508,6 +13715,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
               file: directiveClarification ? (directiveClarification.file || null) : null
             }
           : null,
+        proposal_dependencies: proposalDependencies,
         route_tokens_est: routeTokensEst,
         repeats_14d: repeats14d,
         errors_30d: errors30d,
@@ -13555,6 +13763,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       objective_id: executionObjectiveId || null,
       capability_key: capabilityKey,
       execution_target: executionTarget,
+      proposal_dependencies: proposalDependencies,
       proposal_date: proposalDate,
       proposal_type: String(p.type || ''),
       risk: proposalRisk,
@@ -13616,6 +13825,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
       objective_id: executionObjectiveId || null,
       capability_key: capabilityKey,
       execution_target: executionTarget,
+      proposal_dependencies: proposalDependencies,
       proposal_date: proposalDate,
       risk: proposalRisk,
       strategy_rank_adjusted: Number(pick.strategy_rank_adjusted || (pick.strategy_rank && pick.strategy_rank.score) || 0),
@@ -13830,6 +14040,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
             file: directiveClarification ? (directiveClarification.file || null) : null
           }
         : null,
+      proposal_dependencies: proposalDependencies,
       route_tokens_est: routeTokensEst,
       repeats_14d: repeats14d,
       errors_30d: errors30d,
@@ -13871,6 +14082,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
     objective_id: executionObjectiveId || null,
     capability_key: capabilityKey,
     execution_target: executionTarget,
+    proposal_dependencies: proposalDependencies,
     proposal_date: proposalDate,
     proposal_type: String(p.type || ''),
     risk: proposalRisk,
@@ -13931,6 +14143,7 @@ function runCmd(dateStr, opts: AnyObj = {}) {
     objective_id: executionObjectiveId || null,
     capability_key: capabilityKey,
     execution_target: executionTarget,
+    proposal_dependencies: proposalDependencies,
     proposal_date: proposalDate,
     risk: proposalRisk,
     strategy_rank_adjusted: Number(pick.strategy_rank_adjusted || (pick.strategy_rank && pick.strategy_rank.score) || 0),
