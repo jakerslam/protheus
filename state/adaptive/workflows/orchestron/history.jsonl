@@ -1,2 +1,4 @@
 {"ts":"2026-02-25T18:46:59.731Z","type":"orchestron_adaptive_run","date":"2026-02-25","strategy_id":"default_general","run_rows":241,"candidates":4,"passing":0,"drafts":0,"red_team_critical_fail_cases":1,"principle_score":1}
 {"ts":"2026-02-25T18:48:37.502Z","type":"orchestron_adaptive_run","date":"2026-02-25","strategy_id":"default_general","run_rows":241,"candidates":4,"passing":0,"drafts":4,"promotable_drafts":0,"red_team_critical_fail_cases":1,"principle_score":1}
+{"ts":"2026-02-25T18:51:56.782Z","type":"orchestron_adaptive_run","date":"2026-02-25","strategy_id":"default_general","run_rows":241,"candidates":4,"passing":0,"drafts":4,"promotable_drafts":0,"red_team_critical_fail_cases":1,"principle_score":1}
+{"ts":"2026-02-25T18:53:16.799Z","type":"orchestron_adaptive_run","date":"2026-02-25","strategy_id":"default_general","run_rows":241,"candidates":4,"passing":3,"drafts":4,"promotable_drafts":3,"red_team_critical_fail_cases":1,"principle_score":1}
