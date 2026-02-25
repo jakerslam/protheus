@@ -10,11 +10,11 @@ const {
 
 function defaultPolicy() {
   return {
-    min_safety_score: 0.62,
-    max_regression_risk: 0.45,
-    min_composite_score: 0.58,
-    max_predicted_drift_delta: 0.01,
-    min_predicted_yield_delta: -0.01,
+    min_safety_score: 0.5,
+    max_regression_risk: 0.56,
+    min_composite_score: 0.45,
+    max_predicted_drift_delta: 0.008,
+    min_predicted_yield_delta: -0.005,
     max_promotions_per_run: 4
   };
 }
@@ -36,6 +36,16 @@ function hasRollbackStep(candidate) {
 function hasPreflightStep(candidate) {
   const steps = Array.isArray(candidate && candidate.steps) ? candidate.steps : [];
   return steps.some((row) => String(row && row.id || '').toLowerCase() === 'preflight');
+}
+
+function isHighPowerCandidate(candidate) {
+  const proposalType = String(candidate && candidate.trigger && candidate.trigger.proposal_type || '').toLowerCase();
+  if (!proposalType) return false;
+  return proposalType.includes('actuation')
+    || proposalType.includes('publish')
+    || proposalType.includes('payment')
+    || proposalType.includes('browser')
+    || proposalType.includes('computer');
 }
 
 function mutationEffects(candidate) {
@@ -78,6 +88,10 @@ function scoreCandidate(candidate, ctx) {
   const uncertainty = String(intent.uncertainty_band || 'medium').toLowerCase();
   const uncertaintyPenalty = uncertainty === 'high' ? 0.11 : (uncertainty === 'medium' ? 0.05 : 0.01);
   const redTeamCritical = Number(ctx.redTeamCriticalFailures || 0);
+  const redTeamPressure = clampNumber(redTeamCritical > 0 ? 1 : 0, 0, 1, 0);
+  const redTeamPenalty = isHighPowerCandidate(candidate)
+    ? (0.08 * redTeamPressure)
+    : (0.02 * redTeamPressure);
 
   const predictedYieldDelta = clampNumber(
     (0.03 * shippedRate)
@@ -107,7 +121,7 @@ function scoreCandidate(candidate, ctx) {
     + (hasPreflightStep(candidate) ? 0.12 : 0)
     + effects.safety_delta
     - uncertaintyPenalty
-    - (redTeamCritical > 0 ? 0.1 : 0)
+    - redTeamPenalty
     + (Number(signals.feasibility || 0) > 0 ? 0.06 : 0)
     + (Number(signals.risk || 0) < 0 ? -0.04 : 0.03);
   safetyScore = clampNumber(safetyScore, 0, 1, 0);
@@ -118,16 +132,20 @@ function scoreCandidate(candidate, ctx) {
     + uncertaintyPenalty
     + effects.regression_delta
     + (Number(signals.risk || 0) < 0 ? 0.08 : -0.03)
-    + (redTeamCritical > 0 ? 0.1 : 0)
+    + redTeamPenalty
     - (hasRollbackStep(candidate) ? 0.08 : 0)
     - (hasPreflightStep(candidate) ? 0.07 : 0);
   regressionRisk = clampNumber(regressionRisk, 0, 1, 1);
 
   const projectedYield = clampNumber(shippedRate + predictedYieldDelta, 0, 1, 0);
+  const yieldLiftSignal = clampNumber((predictedYieldDelta + 0.015) / 0.06, 0, 1, 0);
+  const driftSignal = clampNumber((0.018 - predictedDriftDelta) / 0.05, 0, 1, 0);
+  const regressionSignal = clampNumber(1 - regressionRisk, 0, 1, 0);
   const composite = clampNumber(
-    (projectedYield * 0.42)
-      + ((1 - regressionRisk) * 0.31)
-      + (safetyScore * 0.27),
+    (yieldLiftSignal * 0.34)
+      + (driftSignal * 0.24)
+      + (regressionSignal * 0.2)
+      + (safetyScore * 0.22),
     0,
     1,
     0

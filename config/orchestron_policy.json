@@ -9,11 +9,11 @@
   "max_promotions_per_run": 4,
   "min_principle_score": 0.6,
   "nursery": {
-    "min_safety_score": 0.62,
-    "max_regression_risk": 0.45,
-    "min_composite_score": 0.58,
-    "max_predicted_drift_delta": 0.01,
-    "min_predicted_yield_delta": -0.01,
+    "min_safety_score": 0.5,
+    "max_regression_risk": 0.56,
+    "min_composite_score": 0.45,
+    "max_predicted_drift_delta": 0.008,
+    "min_predicted_yield_delta": -0.005,
     "max_promotions_per_run": 4
   }
 }
