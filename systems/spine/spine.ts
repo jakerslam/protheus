@@ -3197,6 +3197,58 @@ function main() {
       console.log(" trit_shadow_report skipped reason=feature_flag_disabled flag=SPINE_TRIT_SHADOW_REPORT_ENABLED");
     }
 
+    // 4e) unify pulsed suggestion sources into a single capped suggestion lane.
+    if (String(process.env.SPINE_SUGGESTION_LANE_ENABLED || "1") !== "0") {
+      const laneCap = Math.max(1, Number(process.env.SPINE_SUGGESTION_LANE_CAP || 24) || 24);
+      const lane = runJson("node", [
+        "systems/autonomy/suggestion_lane.js",
+        "run",
+        dateStr,
+        `--cap=${laneCap}`
+      ]);
+      const lanePayload = lane.payload && typeof lane.payload === "object"
+        ? lane.payload
+        : null;
+      appendLedger(dateStr, {
+        ts: nowIso(),
+        type: "spine_suggestion_lane",
+        mode,
+        date: dateStr,
+        ok: lane.ok && !!lanePayload && lanePayload.ok === true,
+        cap: lanePayload ? Number(lanePayload.cap || laneCap) : laneCap,
+        merged_count: lanePayload ? Number(lanePayload.merged_count || 0) : null,
+        total_candidates: lanePayload ? Number(lanePayload.total_candidates || 0) : null,
+        capped: lanePayload ? lanePayload.capped === true : null,
+        sources: lanePayload && lanePayload.sources && typeof lanePayload.sources === "object"
+          ? lanePayload.sources
+          : null,
+        lane_path: lanePayload ? lanePayload.lane_path || null : null,
+        reason: (!lane.ok || !lanePayload || lanePayload.ok !== true)
+          ? String(lane.stderr || lane.stdout || `suggestion_lane_exit_${lane.code}`).slice(0, 180)
+          : null
+      });
+      if (lane.ok && lanePayload && lanePayload.ok === true) {
+        console.log(
+          ` suggestion_lane merged=${Number(lanePayload.merged_count || 0)}` +
+          ` candidates=${Number(lanePayload.total_candidates || 0)}` +
+          ` cap=${Number(lanePayload.cap || laneCap)}`
+        );
+      } else {
+        console.log(` suggestion_lane unavailable reason=${String(lane.stderr || lane.stdout || "unknown").slice(0, 120)}`);
+      }
+    } else {
+      appendLedger(dateStr, {
+        ts: nowIso(),
+        type: "spine_suggestion_lane_skipped",
+        mode,
+        date: dateStr,
+        reason: "feature_flag_disabled",
+        flag: "SPINE_SUGGESTION_LANE_ENABLED",
+        flag_value: String(process.env.SPINE_SUGGESTION_LANE_ENABLED || "")
+      });
+      console.log(" suggestion_lane skipped reason=feature_flag_disabled flag=SPINE_SUGGESTION_LANE_ENABLED");
+    }
+
     // 5) optional external state backup (outside git workspace)
     if (String(process.env.STATE_BACKUP_ENABLED || "") === "1") {
       const backupArgs = ["systems/ops/state_backup.js", "run", `--date=${dateStr}`];
