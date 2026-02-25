@@ -22,6 +22,11 @@ Orchestron integration defaults to shadow mode in `config/orchestron_policy.json
 - `--orchestron-apply=1` includes passing Orchestron drafts in registry apply only when policy `shadow_only=false`
 - `--orchestron-auto=1` enables dynamic auto-apply gate (policy + runtime signal checks)
 
+Auto-trigger default behavior:
+- If `--orchestron-auto` is not provided, auto-trigger defaults to ON when strategy execution mode is `execute` (full automation mode).
+- In `score_only` or `canary_execute`, auto-trigger defaults to OFF unless explicitly enabled.
+- `WORKFLOW_ORCHESTRON_AUTO_APPLY` still overrides defaults.
+
 Dynamic auto-apply gate (`auto_apply`) checks:
 - minimum promotable drafts
 - principle score floor
