@@ -108,6 +108,8 @@
     "systems/strategy/strategy_controller.ts",
     "systems/strategy/strategy_learner.ts",
     "systems/strategy/weekly_strategy_synthesis.ts",
+    "systems/fractal/morph_planner.ts",
+    "systems/fractal/genome_ledger.ts",
     "systems/autonomy/backfill_signal_quality.ts",
     "systems/autonomy/improvement_controller.ts",
     "systems/autonomy/improvement_orchestrator.ts",
