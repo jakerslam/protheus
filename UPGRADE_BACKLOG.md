@@ -81,6 +81,21 @@ Status legend:
 
 ## V2
 
+### V2 Active Priority (Within Version)
+
+| Order | ID | Status | Upgrade | Why This Order |
+|---|---|---|---|---|
+| 1 | `V2-001` | doing | Full repo TypeScript conversion (`.js` -> `.ts`) | Highest leverage for contract safety and migration debt reduction across all V2 work |
+| 2 | `V2-003` | doing | Dist runtime cutover + legacy paired JS retirement | Required to complete migration economics and avoid dual-runtime drift |
+| 3 | `V2-009` | doing | Exterior anti-sabotage shield + instant auto-reset | Hardens runtime integrity before more aggressive adaptive upgrades |
+| 4 | `V2-041` | todo | Per-candidate adversarial simulation lane | Converts heuristic risk into direct evidence before promotion |
+| 5 | `V2-045` | todo | Identity Organ (alignment anchor) | Must exist before deeper self-morphing/autonomous branching |
+| 6 | `V2-046` | todo | Regime Organ (task/environment sensing + morph trigger) | Enables adaptive topology routing once alignment anchor is in place |
+| 7 | `V2-047` | todo | Mirror Organ (active self-observation + self-critique) | Safe self-improvement loop after identity/regime foundations |
+| 8 | `V2-044` | todo | In-run workflow evolution lane | Runtime mutation should follow stronger gating and critique layers |
+| 9 | `V2-042` | todo | Holo-viz native workflow birth/rewrite stream | Visibility enhancement after core behavior upgrades are stable |
+| 10 | `V2-012` | blocked | External security assessment and pen-test cycle | Important but externally gated; execute as soon as assessor dependency clears |
+
 | ID | Status | Upgrade | Why | Exit Criteria |
 |---|---|---|---|---|
 | V2-001 | doing | Full repo TypeScript conversion (`.js` -> `.ts`) | Improve long-term maintainability and refactor safety once V1 critical-path typing is stable | Migration scaffold + drift guard + build/verify are active (`tsconfig.systems*.json`, `systems/ops/typecheck_systems.ts`, `systems/ops/ts_clone_drift_guard.ts`); remaining work is retiring residual unpaired JS across non-critical paths |
@@ -131,6 +146,30 @@ Status legend:
 | V2-047 | todo | Mirror Organ (active self-observation and self-critique) | Upgrade read-only observer into a controlled self-improvement loop | `systems/autonomy/mirror_organ.ts` turns introspection signals into proposal-only self-critique outputs (epigenetic tags, split/prune suggestions), with confidence scoring, replayable evidence, and no direct mutation path. Spec reference: `tmp/grok_fractal_organs_2026-02-25.md` |
 
 ## V3 (Lamp / Super-Intelligence Containment)
+
+### V3 Active Priority (Within Version)
+
+| Order | ID | Status | Upgrade | Why This Order |
+|---|---|---|---|---|
+| 1 | `V3-001` | todo | Recursive goal-preservation kernel | Non-negotiable alignment foundation for all higher-capability autonomy |
+| 2 | `V3-002` | todo | Capability ceiling + containment envelopes | Prevents capability overhang while expansion features are added |
+| 3 | `V3-004` | todo | Dual-control constitutional change governance | Stops unilateral weakening of safety/constitution layers |
+| 4 | `V3-003` | todo | New-model vaccine sandbox | Mandatory onboarding containment for stronger/new models |
+| 5 | `V3-005` | todo | External anti-sabotage provenance net | Detect/recover tampering before advanced self-modification lanes |
+| 6 | `V3-016` | todo | Central Eye kernel (`systems/eye`) | Control-plane needed to coordinate advanced organs under governance |
+| 7 | `V3-017` | todo | Full real-world claws actuation bundle | Execution expansion after Eye + containment primitives exist |
+| 8 | `V3-013` | todo | Independent child-organ runtime stack | Structured recursion after safety/control-plane baseline is proven |
+| 9 | `V3-014` | todo | In-flight workflow mutation engine | Runtime adaptation after isolated child-organ governance is in place |
+| 10 | `V3-018` | todo | Research Organ | Long-horizon branch generation after runtime containment matures |
+| 11 | `V3-019` | todo | Forge Organ | Rapid capability assembly only after research + containment controls |
+| 12 | `V3-015` | todo | Consent-gated cross-workflow learning conduit | Training moat expansion after execution and containment are stable |
+| 13 | `V3-006` | todo | Recursive mini-core instancing | Deeper recursion deferred until prior recursion layers are robust |
+| 14 | `V3-007` | todo | Self-code evolution sandbox + guarded merge | Highest-risk autonomy lane, delayed until governance stack is hardened |
+| 15 | `V3-008` | todo | Runtime symbiotic fusion execution chamber | Advanced emergence feature after core safety/runtime maturity |
+| 16 | `V3-009` | todo | Resonance field actuation gates | Bounded actuation of harmony signals after other control layers settle |
+| 17 | `V3-010` | todo | Global molt cycle | Periodic compaction after system topology stabilizes |
+| 18 | `V3-011` | todo | Full emergence cockpit overlays | Full operator overlay after behavior/control contracts stabilize |
+| 19 | `V3-012` | todo | Product positioning/architecture narrative pack | Packaging/documentation after technical sequencing is locked |
 
 | ID | Status | Upgrade | Why | Exit Criteria |
 |---|---|---|---|---|
