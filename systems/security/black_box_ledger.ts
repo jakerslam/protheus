@@ -29,6 +29,9 @@ const SPINE_RUNS_DIR = process.env.BLACK_BOX_SPINE_RUNS_DIR
 const AUTONOMY_RUNS_DIR = process.env.BLACK_BOX_AUTONOMY_RUNS_DIR
   ? path.resolve(process.env.BLACK_BOX_AUTONOMY_RUNS_DIR)
   : path.join(ROOT, 'state', 'autonomy', 'runs');
+const EXTERNAL_ATTESTATION_DIR = process.env.BLACK_BOX_EXTERNAL_ATTESTATION_DIR
+  ? path.resolve(process.env.BLACK_BOX_EXTERNAL_ATTESTATION_DIR)
+  : path.join(LEDGER_DIR, 'attestations');
 
 function usage() {
   console.log('Usage:');
@@ -156,6 +159,52 @@ function compactEvent(row, source) {
   return out;
 }
 
+function allowedAttestationType(type) {
+  const t = String(type || '').trim().toLowerCase();
+  if (!t) return false;
+  return t === 'external_boundary_attestation'
+    || t === 'boundary_attestation'
+    || t === 'cross_runtime_attestation'
+    || t === 'cross_service_attestation';
+}
+
+function compactAttestationEvent(row) {
+  const evt = row && typeof row === 'object' ? row : {};
+  const sourceSystem = String(evt.system || evt.source_system || evt.attestor || '').trim() || null;
+  const boundary = String(evt.boundary || evt.scope || '').trim() || null;
+  const chainHash = String(evt.chain_hash || evt.receipt_hash || evt.hash || '').trim() || null;
+  const signature = String(evt.signature || evt.sig || '').trim() || null;
+  const out = {
+    ts: String(evt.ts || evt.timestamp || '').trim() || null,
+    source: 'boundary_attestation',
+    type: 'external_boundary_attestation',
+    proposal_id: null,
+    result: null,
+    outcome: null,
+    objective_id: String(evt.objective_id || '').trim() || null,
+    risk: null,
+    ok: typeof evt.ok === 'boolean' ? evt.ok : null,
+    reason: boundary || null,
+    external_attestation: {
+      system: sourceSystem,
+      boundary,
+      chain_hash: chainHash,
+      signature,
+      signer: String(evt.signer || evt.attestor || '').trim() || null
+    }
+  };
+  return out;
+}
+
+function loadExternalAttestations(dateStr) {
+  const fp = path.join(EXTERNAL_ATTESTATION_DIR, `${dateStr}.jsonl`);
+  const rows = readJsonl(fp)
+    .filter((row) => allowedAttestationType(row && row.type))
+    .map((row) => compactAttestationEvent(row))
+    .filter((row) => row.external_attestation && row.external_attestation.chain_hash);
+  return rows;
+}
+
 function loadCriticalEvents(dateStr) {
   const spineRows = readJsonl(path.join(SPINE_RUNS_DIR, `${dateStr}.jsonl`))
     .filter((row) => allowedSpineType(row && row.type))
@@ -163,14 +212,20 @@ function loadCriticalEvents(dateStr) {
   const autonomyRows = readJsonl(path.join(AUTONOMY_RUNS_DIR, `${dateStr}.jsonl`))
     .filter((row) => allowedAutonomyType(row && row.type))
     .map((row) => compactEvent(row, 'autonomy'));
-  const all = [...spineRows, ...autonomyRows].sort((a, b) => {
+  const externalRows = loadExternalAttestations(dateStr);
+  const all = [...spineRows, ...autonomyRows, ...externalRows].sort((a, b) => {
     const ta = Date.parse(String(a.ts || ''));
     const tb = Date.parse(String(b.ts || ''));
     const va = Number.isFinite(ta) ? ta : 0;
     const vb = Number.isFinite(tb) ? tb : 0;
     return va - vb;
   });
-  return { all, spineCount: spineRows.length, autonomyCount: autonomyRows.length };
+  return {
+    all,
+    spineCount: spineRows.length,
+    autonomyCount: autonomyRows.length,
+    externalCount: externalRows.length
+  };
 }
 
 function detailPath(dateStr, rollupSeq = 1) {
@@ -257,6 +312,7 @@ function makeChainRow(dateStr, mode, digest, stats, rollupSeq) {
     prev_hash: prevHash,
     spine_events: Number(stats.spineCount || 0),
     autonomy_events: Number(stats.autonomyCount || 0),
+    external_events: Number(stats.externalCount || 0),
     total_events: Number(stats.total || 0)
   };
   const hash = hashOf(payload);
@@ -270,6 +326,7 @@ function cmdRollup(dateStr, mode) {
   const chainRow = makeChainRow(dateStr, mode, detail.digest, {
     spineCount: stats.spineCount,
     autonomyCount: stats.autonomyCount,
+    externalCount: stats.externalCount,
     total: stats.all.length
   }, rollupSeq);
   const upsert = upsertChainRow(chainRow);
@@ -282,6 +339,7 @@ function cmdRollup(dateStr, mode) {
     appended: upsert.appended,
     spine_events: stats.spineCount,
     autonomy_events: stats.autonomyCount,
+    external_events: stats.externalCount,
     total_events: stats.all.length,
     digest: detail.digest,
     chain_hash: upsert.hash || chainRow.hash,
@@ -343,6 +401,9 @@ function cmdVerify() {
       autonomy_events: row.autonomy_events,
       total_events: row.total_events
     } as Record<string, any>;
+    if (Object.prototype.hasOwnProperty.call(row, 'external_events')) {
+      payload.external_events = row.external_events;
+    }
     if (Object.prototype.hasOwnProperty.call(row, 'detail_file')) {
       payload.detail_file = row.detail_file;
     }
@@ -407,6 +468,7 @@ function cmdStatus() {
     last_date: last.date || null,
     last_mode: last.mode || null,
     last_rollup_seq: Number(last.rollup_seq || 1),
+    last_external_events: Number(last.external_events || 0),
     last_hash: last.hash || null,
     chain_path: path.relative(ROOT, CHAIN_PATH).replace(/\\/g, '/')
   })}\n`);
