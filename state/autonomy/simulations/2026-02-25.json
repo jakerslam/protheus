@@ -1,15 +1,15 @@
 {
   "ok": true,
   "type": "autonomy_simulation_harness",
-  "ts": "2026-02-25T07:09:53.899Z",
+  "ts": "2026-02-25T17:59:21.417Z",
   "end_date": "2026-02-25",
-  "days": 14,
+  "days": 180,
   "verdict": "warn",
   "verdict_raw": "warn",
   "verdict_effective": "warn",
   "checks": {
     "drift_rate": {
-      "value": 0.242,
+      "value": 0.238,
       "warn": 0.65,
       "fail": 0.85,
       "status": "pass"
@@ -27,19 +27,19 @@
       "status": "pass"
     },
     "attempt_volume": {
-      "value": 219,
+      "value": 223,
       "min": 5,
       "status": "pass"
     },
     "policy_hold_rate": {
-      "value": 0.301,
+      "value": 0.296,
       "warn": 0.2,
       "fail": 0.35,
       "enforce_fail": false,
       "status": "warn"
     },
     "budget_hold_rate": {
-      "value": 0.032,
+      "value": 0.031,
       "warn": 0.12,
       "fail": 0.25,
       "enforce_fail": false,
@@ -53,7 +53,7 @@
   },
   "checks_effective": {
     "drift_rate": {
-      "value": 0.031,
+      "value": 0.029,
       "warn": 0.65,
       "fail": 0.85,
       "status": "pass"
@@ -71,19 +71,19 @@
       "status": "pass"
     },
     "attempt_volume": {
-      "value": 98,
+      "value": 102,
       "min": 5,
       "status": "pass"
     },
     "policy_hold_rate": {
-      "value": 0.388,
+      "value": 0.373,
       "warn": 0.2,
       "fail": 0.35,
       "enforce_fail": false,
       "status": "warn"
     },
     "budget_hold_rate": {
-      "value": 0.071,
+      "value": 0.069,
       "warn": 0.12,
       "fail": 0.25,
       "enforce_fail": false,
@@ -103,8 +103,8 @@
     "denominator_delta": 121
   },
   "counters": {
-    "run_rows": 236,
-    "attempts": 219,
+    "run_rows": 240,
+    "attempts": 223,
     "executed": 14,
     "shipped": 6,
     "no_progress": 53,
@@ -113,7 +113,7 @@
     "budget_holds": 7
   },
   "baseline_counters": {
-    "attempts": 219,
+    "attempts": 223,
     "executed": 14,
     "shipped": 6,
     "no_progress": 53,
@@ -122,7 +122,7 @@
     "budget_holds": 7
   },
   "effective_counters": {
-    "attempts": 98,
+    "attempts": 102,
     "executed": 9,
     "shipped": 6,
     "no_progress": 3,
@@ -139,7 +139,7 @@
     "reason": "burn_rate_exceeded",
     "pressure": "hard",
     "until": null,
-    "updated_at": "2026-02-25T07:00:44.999Z",
+    "updated_at": "2026-02-25T17:57:45.651Z",
     "observed_in_window": true,
     "active_at_window_end": false,
     "signal_source": "route_summary.autopause",
@@ -155,7 +155,7 @@
     "rolling_context_enabled": false,
     "compiler_hash": "40cc5cf18353cd99",
     "compiler_active_count": 3,
-    "accepted_attempts": 136,
+    "accepted_attempts": 140,
     "rejected_attempts": 0,
     "skipped_attempts": 83,
     "rejected_by_reason": {},
@@ -204,8 +204,8 @@
     ]
   },
   "queue": {
-    "total": 160,
-    "pending": 58,
+    "total": 162,
+    "pending": 60,
     "stale_pending_72h": 11
   },
   "objective_mix": {

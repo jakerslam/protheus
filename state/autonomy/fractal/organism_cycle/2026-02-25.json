@@ -1,7 +1,7 @@
 {
   "ok": true,
   "type": "fractal_organism_cycle",
-  "ts": "2026-02-25T09:28:33.883Z",
+  "ts": "2026-02-25T18:26:57.490Z",
   "date": "2026-02-25",
   "proposal_only": true,
   "dream_consolidation": {
@@ -29,12 +29,21 @@
     "path": "state/autonomy/fractal/pheromones/2026-02-25.json"
   },
   "resonance": {
-    "score": 0.58,
-    "band": "steady"
+    "score": 0.78,
+    "band": "high"
   },
   "archetype_pool": {
     "count": 0,
     "path": "state/autonomy/fractal/archetype_pool.json"
+  },
+  "archetype_delta": {
+    "new_count": 0,
+    "confidence_shift_count": 0,
+    "signal_count": 0,
+    "novelty_alert": false,
+    "threshold_confidence_delta": 0.08,
+    "sample_new_ids": [],
+    "sample_confidence_shifts": []
   },
   "recommendations": []
 }

@@ -1,9 +1,9 @@
 {
   "schema_id": "autonomy_genome_topology",
   "schema_version": "1.0.0",
-  "ts": "2026-02-25T09:28:33.659Z",
+  "ts": "2026-02-25T18:26:57.286Z",
   "date": "2026-02-25",
-  "modules_total": 17,
+  "modules_total": 19,
   "modules": [
     "actuation",
     "adaptive",
@@ -15,13 +15,15 @@
     "memory",
     "nursery",
     "ops",
+    "polyglot",
     "reflex",
     "routing",
     "security",
     "sensory",
     "spawn",
     "spine",
-    "strategy"
+    "strategy",
+    "workflow"
   ],
   "module_weights": {
     "actuation": 1,
@@ -34,6 +36,7 @@
     "memory": 1,
     "nursery": 1,
     "ops": 1,
+    "polyglot": 1,
     "reflex": 1,
     "routing": 1,
     "security": 1,
@@ -41,25 +44,20 @@
     "spawn": 1,
     "spine": 1,
     "strategy": 1,
+    "workflow": 1,
     "objective_binding_assistant": 1.1
   },
   "morph_plan": {
-    "plan_id": "morph_f6c290dd2fe8c0d6",
+    "plan_id": "morph_9011c708fc5deaf4",
     "objective_id": "T1_generational_wealth_v1",
     "actions": [
       {
-        "id": "mpa_90aefde49a04e7de",
-        "kind": "prune",
-        "target": "lane:explore",
-        "risk": "low"
-      },
-      {
-        "id": "mpa_f5cc00d9ddd70173",
+        "id": "mpa_9bc66591fe5479ba",
         "kind": "spawn",
         "target": "module:objective_binding_assistant",
         "risk": "medium"
       }
     ],
-    "action_count": 2
+    "action_count": 1
   }
 }
