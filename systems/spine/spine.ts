@@ -3249,6 +3249,65 @@ function main() {
       console.log(" suggestion_lane skipped reason=feature_flag_disabled flag=SPINE_SUGGESTION_LANE_ENABLED");
     }
 
+    // 4f) self-documentation closeout (daily MEMORY.md session summary with significance gating).
+    if (String(process.env.SPINE_SELF_DOCUMENTATION_ENABLED || "1") !== "0") {
+      const selfDocArgs = [
+        "systems/autonomy/self_documentation_closeout.js",
+        "run",
+        dateStr
+      ];
+      const requireApprovalRaw = String(process.env.SPINE_SELF_DOCUMENTATION_REQUIRE_APPROVAL || "").trim();
+      if (requireApprovalRaw) {
+        selfDocArgs.push(`--require-approval=${requireApprovalRaw}`);
+      }
+      const thresholdRaw = String(process.env.SPINE_SELF_DOCUMENTATION_SIGNIFICANT_THRESHOLD || "").trim();
+      if (thresholdRaw) {
+        selfDocArgs.push(`--significant-threshold=${thresholdRaw}`);
+      }
+      const selfDoc = runJson("node", selfDocArgs);
+      const selfDocPayload = selfDoc.payload && typeof selfDoc.payload === "object"
+        ? selfDoc.payload
+        : null;
+      appendLedger(dateStr, {
+        ts: nowIso(),
+        type: "spine_self_documentation",
+        mode,
+        date: dateStr,
+        ok: selfDoc.ok && !!selfDocPayload && selfDocPayload.ok === true,
+        applied: selfDocPayload ? selfDocPayload.applied === true : null,
+        requires_review: selfDocPayload ? selfDocPayload.requires_review === true : null,
+        significant: selfDocPayload ? selfDocPayload.significant === true : null,
+        significance_score: selfDocPayload ? Number(selfDocPayload.significance_score || 0) : null,
+        significance_reasons: selfDocPayload && Array.isArray(selfDocPayload.significance_reasons)
+          ? selfDocPayload.significance_reasons.slice(0, 8)
+          : null,
+        output_path: selfDocPayload ? selfDocPayload.output_path || null : null,
+        reason: (!selfDoc.ok || !selfDocPayload || selfDocPayload.ok !== true)
+          ? String(selfDoc.stderr || selfDoc.stdout || `self_documentation_closeout_exit_${selfDoc.code}`).slice(0, 180)
+          : null
+      });
+      if (selfDoc.ok && selfDocPayload && selfDocPayload.ok === true) {
+        console.log(
+          ` self_documentation applied=${selfDocPayload.applied === true ? "yes" : "no"}` +
+          ` review=${selfDocPayload.requires_review === true ? "required" : "none"}` +
+          ` significant=${selfDocPayload.significant === true ? "yes" : "no"}`
+        );
+      } else {
+        console.log(` self_documentation unavailable reason=${String(selfDoc.stderr || selfDoc.stdout || "unknown").slice(0, 120)}`);
+      }
+    } else {
+      appendLedger(dateStr, {
+        ts: nowIso(),
+        type: "spine_self_documentation_skipped",
+        mode,
+        date: dateStr,
+        reason: "feature_flag_disabled",
+        flag: "SPINE_SELF_DOCUMENTATION_ENABLED",
+        flag_value: String(process.env.SPINE_SELF_DOCUMENTATION_ENABLED || "")
+      });
+      console.log(" self_documentation skipped reason=feature_flag_disabled flag=SPINE_SELF_DOCUMENTATION_ENABLED");
+    }
+
     // 5) optional external state backup (outside git workspace)
     if (String(process.env.STATE_BACKUP_ENABLED || "") === "1") {
       const backupArgs = ["systems/ops/state_backup.js", "run", `--date=${dateStr}`];
