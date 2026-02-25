@@ -2,10 +2,10 @@
   "version": "1.0",
   "stage": "shadow",
   "stage_since": "2026-02-24T04:06:30.117Z",
-  "last_evaluated_at": "2026-02-24T17:25:20.236Z",
+  "last_evaluated_at": "2026-02-25T07:00:42.707Z",
   "last_eval": {
-    "ts": "2026-02-24T17:25:20.236Z",
-    "end_date": "2026-02-24",
+    "ts": "2026-02-25T07:00:42.707Z",
+    "end_date": "2026-02-25",
     "days": 180,
     "metrics": {
       "effective_drift_rate": 0.031,

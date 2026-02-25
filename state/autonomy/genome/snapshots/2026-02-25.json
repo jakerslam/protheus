@@ -1,0 +1,65 @@
+{
+  "schema_id": "autonomy_genome_topology",
+  "schema_version": "1.0.0",
+  "ts": "2026-02-25T09:28:33.659Z",
+  "date": "2026-02-25",
+  "modules_total": 17,
+  "modules": [
+    "actuation",
+    "adaptive",
+    "autonomy",
+    "budget",
+    "continuity",
+    "fractal",
+    "habits",
+    "memory",
+    "nursery",
+    "ops",
+    "reflex",
+    "routing",
+    "security",
+    "sensory",
+    "spawn",
+    "spine",
+    "strategy"
+  ],
+  "module_weights": {
+    "actuation": 1,
+    "adaptive": 1,
+    "autonomy": 1,
+    "budget": 1,
+    "continuity": 1,
+    "fractal": 1,
+    "habits": 1,
+    "memory": 1,
+    "nursery": 1,
+    "ops": 1,
+    "reflex": 1,
+    "routing": 1,
+    "security": 1,
+    "sensory": 1,
+    "spawn": 1,
+    "spine": 1,
+    "strategy": 1,
+    "objective_binding_assistant": 1.1
+  },
+  "morph_plan": {
+    "plan_id": "morph_f6c290dd2fe8c0d6",
+    "objective_id": "T1_generational_wealth_v1",
+    "actions": [
+      {
+        "id": "mpa_90aefde49a04e7de",
+        "kind": "prune",
+        "target": "lane:explore",
+        "risk": "low"
+      },
+      {
+        "id": "mpa_f5cc00d9ddd70173",
+        "kind": "spawn",
+        "target": "module:objective_binding_assistant",
+        "risk": "medium"
+      }
+    ],
+    "action_count": 2
+  }
+}

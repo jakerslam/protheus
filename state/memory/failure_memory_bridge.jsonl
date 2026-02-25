@@ -27,3 +27,11 @@
 {"ts":"2026-02-24T17:26:30.392Z","type":"failure_memory_bridge_run","date":"2026-02-24","candidates":5,"eligible_candidates":1,"selected":1,"created_nodes":0,"revisit_pointers":1}
 {"ts":"2026-02-25T02:10:05.510Z","type":"failure_memory_bridge_run","date":"2026-02-25","candidates":0,"eligible_candidates":0,"selected":0,"created_nodes":0,"revisit_pointers":0}
 {"ts":"2026-02-25T05:54:13.070Z","type":"failure_memory_bridge_run","date":"2026-02-25","candidates":0,"eligible_candidates":0,"selected":0,"created_nodes":0,"revisit_pointers":0}
+{"ts":"2026-02-25T07:00:39.476Z","type":"failure_memory_bridge_run","date":"2026-02-25","candidates":0,"eligible_candidates":0,"selected":0,"created_nodes":0,"revisit_pointers":0}
+{"ts":"2026-02-25T07:45:39.456Z","type":"failure_memory_bridge_run","date":"2026-02-25","candidates":0,"eligible_candidates":0,"selected":0,"created_nodes":0,"revisit_pointers":0}
+{"ts":"2026-02-25T07:46:24.853Z","type":"failure_memory_bridge_run","date":"2026-02-25","candidates":0,"eligible_candidates":0,"selected":0,"created_nodes":0,"revisit_pointers":0}
+{"ts":"2026-02-25T08:21:07.681Z","type":"failure_memory_bridge_run","date":"2026-02-25","candidates":0,"eligible_candidates":0,"selected":0,"created_nodes":0,"revisit_pointers":0}
+{"ts":"2026-02-25T08:39:48.223Z","type":"failure_memory_bridge_run","date":"2026-02-25","candidates":0,"eligible_candidates":0,"selected":0,"created_nodes":0,"revisit_pointers":0}
+{"ts":"2026-02-25T09:24:20.024Z","type":"failure_memory_bridge_run","date":"2026-02-25","candidates":0,"eligible_candidates":0,"selected":0,"created_nodes":0,"revisit_pointers":0}
+{"ts":"2026-02-25T09:27:35.441Z","type":"failure_memory_bridge_run","date":"2026-02-25","candidates":0,"eligible_candidates":0,"selected":0,"created_nodes":0,"revisit_pointers":0}
+{"ts":"2026-02-25T13:38:29.027Z","type":"failure_memory_bridge_run","date":"2026-02-25","candidates":0,"eligible_candidates":0,"selected":0,"created_nodes":0,"revisit_pointers":0}

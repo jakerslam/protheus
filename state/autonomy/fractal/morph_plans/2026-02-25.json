@@ -1,0 +1,50 @@
+{
+  "ok": true,
+  "type": "fractal_morph_plan",
+  "ts": "2026-02-25T09:28:33.451Z",
+  "date": "2026-02-25",
+  "plan_id": "morph_f6c290dd2fe8c0d6",
+  "objective_id": "T1_generational_wealth_v1",
+  "max_actions": 6,
+  "governance_required": true,
+  "execution_mode": "proposal_only",
+  "actions": [
+    {
+      "id": "mpa_90aefde49a04e7de",
+      "kind": "prune",
+      "target": "lane:explore",
+      "reason": "effective drift 0.0310 is above target",
+      "risk": "low",
+      "ttl_hours": 24
+    },
+    {
+      "id": "mpa_f5cc00d9ddd70173",
+      "kind": "spawn",
+      "target": "module:objective_binding_assistant",
+      "reason": "effective yield 0.6670 indicates directive fit pressure",
+      "risk": "medium",
+      "ttl_hours": 48
+    }
+  ],
+  "context": {
+    "ts": "2026-02-25T09:28:33.449Z",
+    "date": "2026-02-25",
+    "objective_id": "T1_generational_wealth_v1",
+    "sim": {
+      "drift": 0.031,
+      "yieldRate": 0.667
+    },
+    "queue": {
+      "pending": 0,
+      "total": 0,
+      "ratio": 0,
+      "pressure": "normal"
+    },
+    "lane": {
+      "merged": 0,
+      "candidates": 0,
+      "capped": false
+    }
+  },
+  "summary": "2 bounded morph action(s); governance-required, no direct self-mutation."
+}

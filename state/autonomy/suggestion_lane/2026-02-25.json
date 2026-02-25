@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "type": "autonomy_suggestion_lane",
+  "ts": "2026-02-25T09:28:32.996Z",
+  "date": "2026-02-25",
+  "cap": 24,
+  "total_candidates": 0,
+  "merged_count": 0,
+  "capped": false,
+  "sources": {
+    "budget_guard": 0,
+    "adaptive_memory": 0,
+    "trit_shadow_adaptation": 0
+  },
+  "lane": []
+}
