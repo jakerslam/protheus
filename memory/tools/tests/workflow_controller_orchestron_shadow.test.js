@@ -159,6 +159,7 @@ function run() {
     '--apply=1',
     '--orchestron=1',
     '--orchestron-apply=0',
+    '--orchestron-auto=0',
     `--policy=${workflowPolicyPath}`,
     `--orchestron-policy=${orchestronPolicyPath}`
   ], {
@@ -184,6 +185,7 @@ function run() {
     '--apply=1',
     '--orchestron=1',
     '--orchestron-apply=1',
+    '--orchestron-auto=0',
     `--policy=${workflowPolicyPath}`,
     `--orchestron-policy=${orchestronPolicyPath}`
   ], {

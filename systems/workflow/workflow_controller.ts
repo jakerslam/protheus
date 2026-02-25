@@ -17,6 +17,10 @@ const fs = require('fs');
 const path = require('path');
 const { generateDrafts, loadPolicy } = require('./workflow_generator');
 const {
+  loadActiveStrategy,
+  strategyExecutionMode
+} = require('../../lib/strategy_resolver');
+const {
   generateAdaptiveDrafts,
   loadPolicy: loadOrchestronPolicy
 } = require('./orchestron/adaptive_controller');
@@ -225,6 +229,29 @@ function mergeDrafts(baseDrafts, extraDrafts) {
   return Array.from(map.values());
 }
 
+function hasArg(args, key) {
+  return Object.prototype.hasOwnProperty.call(args || {}, String(key || ''));
+}
+
+function activeStrategyExecutionMode() {
+  try {
+    const strategy = loadActiveStrategy({ allowMissing: true });
+    const mode = String(strategyExecutionMode(strategy, 'execute') || '').trim().toLowerCase();
+    const normalized = mode === 'score_only' || mode === 'canary_execute' || mode === 'execute'
+      ? mode
+      : 'execute';
+    return {
+      mode: normalized,
+      full_automation: normalized === 'execute'
+    };
+  } catch {
+    return {
+      mode: 'execute',
+      full_automation: true
+    };
+  }
+}
+
 function normalizeAutoApplyPolicy(raw, fallbackPrincipleScore = 0.6) {
   const src = raw && typeof raw === 'object' ? raw : {};
   return {
@@ -303,6 +330,7 @@ function evaluateAutoApplyGate(context) {
 function runCmd(dateStr, args) {
   const policyPath = path.resolve(String(args.policy || process.env.WORKFLOW_POLICY_PATH || DEFAULT_POLICY_PATH));
   const policy = loadPolicy(policyPath);
+  const strategyMode = activeStrategyExecutionMode();
   const apply = boolFlag(args.apply, true);
   const baseline = generateDrafts(dateStr, {
     policy,
@@ -317,10 +345,13 @@ function runCmd(dateStr, args) {
     args['orchestron-apply'],
     boolFlag(process.env.WORKFLOW_ORCHESTRON_APPLY, false)
   );
-  const orchestronAutoRequested = boolFlag(
-    args['orchestron-auto'],
-    boolFlag(process.env.WORKFLOW_ORCHESTRON_AUTO_APPLY, false)
-  );
+  const orchestronAutoArgPresent = hasArg(args, 'orchestron-auto');
+  const orchestronAutoRequested = orchestronAutoArgPresent
+    ? boolFlag(args['orchestron-auto'], false)
+    : boolFlag(
+        process.env.WORKFLOW_ORCHESTRON_AUTO_APPLY,
+        strategyMode.full_automation === true
+      );
   const orchestronPolicyPath = path.resolve(String(
     args['orchestron-policy']
       || process.env.ORCHESTRON_POLICY_PATH
@@ -424,6 +455,8 @@ function runCmd(dateStr, args) {
     type: 'workflow_controller_run',
     date: dateStr,
     apply,
+    strategy_execution_mode: strategyMode.mode,
+    full_automation_mode: strategyMode.full_automation === true,
     drafts: generatedDrafts.length,
     baseline_drafts: baseline && Array.isArray(baseline.drafts) ? baseline.drafts.length : 0,
     orchestron_enabled: orchestronEnabled,

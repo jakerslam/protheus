@@ -28,8 +28,8 @@ function parsePayload(stdout) {
   return null;
 }
 
-function runController(scriptPath, root, env, dateStr, workflowPolicyPath, orchestronPolicyPath) {
-  return spawnSync(process.execPath, [
+function runController(scriptPath, root, env, dateStr, workflowPolicyPath, orchestronPolicyPath, opts = {}) {
+  const args = [
     scriptPath,
     'run',
     dateStr,
@@ -38,10 +38,11 @@ function runController(scriptPath, root, env, dateStr, workflowPolicyPath, orche
     '--apply=1',
     '--orchestron=1',
     '--orchestron-apply=0',
-    '--orchestron-auto=1',
     `--policy=${workflowPolicyPath}`,
     `--orchestron-policy=${orchestronPolicyPath}`
-  ], {
+  ];
+  if (opts.autoArg != null) args.push(`--orchestron-auto=${opts.autoArg ? '1' : '0'}`);
+  return spawnSync(process.execPath, args, {
     cwd: root,
     encoding: 'utf8',
     env
@@ -71,6 +72,7 @@ function run() {
     status: 'active',
     objective: { primary: 'Generate adaptive workflows with bounded dynamic promotion.' },
     risk_policy: { allowed_risks: ['low'], max_risk_per_action: 35 },
+    execution_policy: { mode: 'execute' },
     promotion_policy: { min_success_criteria_receipts: 1, min_success_criteria_pass_rate: 0.6 },
     budget_policy: { daily_runs_cap: 8, daily_token_cap: 9000, max_tokens_per_action: 1800 },
     ranking_weights: {
@@ -170,6 +172,9 @@ function run() {
   assert.strictEqual(passRun.status, 0, passRun.stderr || 'auto pass run should pass');
   const passOut = parsePayload(passRun.stdout);
   assert.ok(passOut && passOut.ok === true, 'auto pass output should be ok');
+  assert.strictEqual(passOut.full_automation_mode, true, 'full automation mode should be true');
+  assert.strictEqual(passOut.strategy_execution_mode, 'execute', 'strategy mode should be execute');
+  assert.strictEqual(passOut.orchestron_auto_requested, true, 'auto should default on in full automation mode');
   assert.strictEqual(passOut.orchestron_auto_enabled, true, 'auto apply should be enabled');
   assert.strictEqual(passOut.orchestron_auto_pass, true, 'auto gate should pass');
   assert.strictEqual(passOut.orchestron_apply_effective, true, 'auto pass should activate apply');
