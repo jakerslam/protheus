@@ -309,6 +309,36 @@ Objective: close remaining enterprise-operability gaps not already covered by ex
 | P1 | RM-133 | V3 | todo | SOC2 Type II execution track (post-Type-I) | Type I readiness exists, but ongoing control operation evidence is needed for enterprise trust | 90+ day control operation evidence windows are automatically compiled, exceptions tracked to closure, and auditor-ready attestation bundle is generated on demand |
 | P1 | RM-134 | V3 | todo | Predictive capacity forecasting + preemptive scaling playbook | Current capacity response is mostly reactive; forecast-driven ops reduces saturation incidents | 7/30-day forecasts for queue depth/latency/token burn/model cooldown risk are published daily with threshold-based scaling recommendations and realized-error tracking |
 
+## Grok Intake (Normalized, 2026-02-26)
+
+These proposals were normalized to avoid duplicate tracking with existing backlog items.
+
+| Proposal Theme | Resolution | Existing Coverage |
+|---|---|---|
+| Phone seed + automatic hardware adaptation | mapped (no duplicate item added) | `RM-124`, `RM-125`, `RM-126`, `RM-127`, `V3-020`, `V3-021` |
+| Eye kernel central control plane | mapped (no duplicate item added) | `V3-016`, `RM-101`, `RM-102` |
+| Full real-world claws | mapped (no duplicate item added) | `V3-017`, `RM-103` |
+| Research organ | mapped (no duplicate item added) | `V3-018` |
+| Forge organ | mapped (no duplicate item added) | `V3-019` |
+| Holographic full-integration asks | mapped (no duplicate item added) | `V3-011`, `RM-110` |
+
+### Net-New Items Added
+
+| ID | Version | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|---|
+| V2-053 | V2 | todo | Inversion live-activation readiness certification | Inversion is the highest-sensitivity mechanism and must be explicitly certified before live enablement | Live inversion remains blocked by default; certification requires `INV-001..INV-010` + `INV-012` green, 30-day shadow run with zero critical failures, first-N human veto enforcement evidence, and explicit policy-root activation receipt |
+| V2-054 | V2 | todo | Execution + Doctor GA reliability pack | Execution gap closure needs production-grade recovery behavior, not just best-effort orchestration | 30-day rolling window has zero unhandled executor failures, doctor auto-handles >=99% known failure signatures with rollback receipts, and unknown signatures always route to research queue with no silent drops |
+| V2-055 | V2 | todo | Config rationalization wave 2 (central config plane pilot) | JSON/config sprawl remains a maintenance and drift risk | Introduce typed central config plane for top 20 high-churn policies, reduce duplicated config keys by >=50%, and publish migration map + compatibility shims with no policy-root regressions |
+| V2-056 | V2 | todo | Dual-brain production routing hardening | Dual-brain must be governed and resource-aware under sustained load | Left-brain ownership is enforced for governance/identity/critical lanes (100% policy compliance), right-brain activation is resource-gated, and 30-day SLO comparison shows no reliability regression in critical lanes |
+| V2-057 | V2 | todo | Operational maturity closure pack | Enterprise readiness still depends on consistent alerting, escalation, and self-healing behavior | All P0/P1 alerts map to runbooks + owners, escalation path is test-verified, and at least 3 major failure classes (eyes, visualizer, alert transport) auto-remediate with bounded retries and receipts |
+| V3-022 | V3 | todo | Deep-tier inversion ladder (identity/directive scope, still human-gated) | Safe extension of inversion beyond tactical tiers requires stricter staged governance | Identity/directive inversion remains shadow-first, canary quotas + observer quorum are enforced, minimum simulation horizon scales with impact, and live apply requires dual human approval plus automatic rollback thresholds |
+| V3-023 | V3 | todo | Neural interface dormant seed (research-only, locked) | Preserve long-range BCI pathway without introducing near-term safety risk | Research artifacts/spec exist behind feature lock, no runtime activation path in production profiles, and governance review checklist is required before any non-simulated prototype work |
+| V4-001 | V4 | todo | Federated sovereign mesh runtime | Planetary-scale operation needs distributed cooperation without surrendering local sovereignty | Multi-instance federation supports attested peer discovery, shared archetype exchange with policy controls, and partition-safe continued local operation |
+| V4-002 | V4 | todo | Universal distribution plane (consumer seed at scale) | Broad adoption needs frictionless install and capability growth across low/high hardware envelopes | One-command install for desktop/mobile classes, deterministic baseline profile boots on target low-end class, and hardware-aware expansion contracts are verified end-to-end |
+| V4-003 | V4 | todo | Economic value distribution layer | Long-run value strategy needs explicit creation-and-distribution rails | Value/accounting primitives, policy-bound payout routing, and auditable distribution receipts are operational with abuse controls and rollback plans |
+| V4-004 | V4 | todo | Dire-case emergency autonomy protocol (existential only) | Extreme-case autonomy must be narrowly scoped, reversible, and externally auditable | Trigger requires multi-organ consensus + independent evidence classes, protocol is time-boxed, human override is always available, and all actions are black-box ledgered with post-incident replay |
+| V4-005 | V4 | todo | Civilizational symbiosis research track | Keep long-horizon symbiosis goals explicit without polluting near-term delivery lanes | Research charter, risk model, staged ethics/governance gates, and non-production sandbox milestones are published and reviewed before any deployment consideration |
+
 ## Holo-viz Track (Separated from Core Protheus)
 
 | ID | Version | Status | Upgrade | Why | Exit Criteria |
