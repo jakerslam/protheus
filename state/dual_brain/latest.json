@@ -1,7 +1,7 @@
 {
   "ok": true,
   "type": "dual_brain_decision",
-  "ts": "2026-02-26T10:36:05.658Z",
+  "ts": "2026-02-26T10:39:41.064Z",
   "context": "inversion",
   "task_class": "creative",
   "desired_lane": "auto",
@@ -41,11 +41,11 @@
   "signals": {
     "resource": {
       "cpu_count": 8,
-      "load_1m": 3.4404,
-      "load_per_cpu": 0.4301,
-      "rss_mb": 139.94,
-      "heap_used_mb": 34.55,
-      "free_mem_mb": 70.72,
+      "load_1m": 4.918,
+      "load_per_cpu": 0.6147,
+      "rss_mb": 145.14,
+      "heap_used_mb": 42.77,
+      "free_mem_mb": 102.33,
       "total_mem_mb": 8192,
       "ok": false
     },
