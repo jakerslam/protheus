@@ -55,5 +55,16 @@
     "max_regression_rate": 0.2,
     "cooldown_hours": 12,
     "require_checkpoint_parent": true
+  },
+  "training_conduit": {
+    "metadata_strict": true,
+    "owner_id": "",
+    "owner_type": "human_operator",
+    "license_id": "",
+    "consent_status": "granted",
+    "consent_mode": "operator_policy",
+    "consent_evidence_ref": "config/training_conduit_policy.json",
+    "retention_days": 365,
+    "delete_scope": "nursery_specialist_training"
   }
 }

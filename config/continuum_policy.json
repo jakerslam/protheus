@@ -104,7 +104,16 @@
   "training_queue": {
     "enabled": true,
     "path": "state/nursery/training/continuum_queue.jsonl",
-    "max_rows_per_pulse": 6
+    "max_rows_per_pulse": 6,
+    "metadata_strict": true,
+    "owner_id": "",
+    "owner_type": "human_operator",
+    "license_id": "",
+    "consent_status": "granted",
+    "consent_mode": "operator_policy",
+    "consent_evidence_ref": "config/training_conduit_policy.json",
+    "retention_days": 365,
+    "delete_scope": "continuum_training_queue"
   },
   "telemetry": {
     "emit_events": true,
