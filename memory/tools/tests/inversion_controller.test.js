@@ -48,6 +48,11 @@ function run() {
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'inversion-controller-'));
   const stateDir = path.join(tmpRoot, 'state', 'autonomy', 'inversion');
   const policyPath = path.join(tmpRoot, 'config', 'inversion_policy.json');
+  const regimeLatestPath = path.join(tmpRoot, 'state', 'autonomy', 'fractal', 'regime', 'latest.json');
+  const mirrorLatestPath = path.join(tmpRoot, 'state', 'autonomy', 'mirror_organ', 'latest.json');
+  const simulationDir = path.join(tmpRoot, 'state', 'autonomy', 'simulations');
+  const redTeamRunsDir = path.join(tmpRoot, 'state', 'security', 'red_team', 'runs');
+  const driftGovernorPath = path.join(tmpRoot, 'state', 'autonomy', 'drift_target_governor_state.json');
 
   writeJson(policyPath, {
     version: '1.0-test',
@@ -211,6 +216,62 @@ function run() {
         impact_alignment: 0.2
       }
     },
+    organ: {
+      enabled: true,
+      trigger_detection: {
+        enabled: true,
+        min_impossibility_score: 0.58,
+        min_signal_count: 2,
+        weights: {
+          trit_pain: 0.2,
+          mirror_pressure: 0.2,
+          predicted_drift: 0.18,
+          predicted_yield_gap: 0.18,
+          red_team_critical: 0.14,
+          regime_constrained: 0.1
+        },
+        thresholds: {
+          predicted_drift_warn: 0.03,
+          predicted_yield_warn: 0.68
+        },
+        paths: {
+          regime_latest_path: regimeLatestPath,
+          mirror_latest_path: mirrorLatestPath,
+          simulation_dir: simulationDir,
+          red_team_runs_dir: redTeamRunsDir,
+          drift_governor_path: driftGovernorPath
+        }
+      },
+      tree_search: {
+        enabled: true,
+        max_depth: 3,
+        branch_factor: 5,
+        max_candidates: 16,
+        llm_enabled: false,
+        llm_timeout_ms: 5000,
+        max_llm_candidates: 6,
+        desired_outcome_hint: 'connect impossible objective to a safe measurable path'
+      },
+      trials: {
+        enabled: true,
+        max_parallel_trials: 4,
+        max_iterations: 2,
+        min_trial_score: 0.2,
+        allow_iterative_retries: true,
+        require_runtime_probes: false,
+        score_weights: {
+          decision_allowed: 0.35,
+          attractor: 0.2,
+          certainty_margin: 0.15,
+          library_similarity: 0.1,
+          runtime_probe: 0.2
+        }
+      },
+      visualization: {
+        emit_tree_events: true,
+        emit_trial_events: true
+      }
+    },
     output_interfaces: {
       default_channel: 'strategy_hint',
       belief_update: { enabled: true, live_enabled: true, test_enabled: true },
@@ -240,6 +301,120 @@ function run() {
   const statusPayload = parseStdoutJson(statusAfterTests);
   assert.strictEqual(statusPayload.ok, true);
   assert.strictEqual(statusPayload.maturity.band, 'legendary');
+
+  // Organ trigger detection + search tree + trials should run when impossibility signals are present.
+  writeJson(regimeLatestPath, {
+    selected_regime: 'defensive_constrained',
+    candidate_confidence: 0.81,
+    context: { trit: { trit: -1 } }
+  });
+  writeJson(mirrorLatestPath, {
+    pressure_score: 0.84,
+    confidence: 0.78,
+    reasons: ['persistent_no_progress', 'safety_margin_pressure']
+  });
+  writeJson(path.join(simulationDir, '2026-02-26.json'), {
+    checks_effective: {
+      drift_rate: { value: 0.09 },
+      yield_rate: { value: 0.41 }
+    }
+  });
+  writeJson(path.join(redTeamRunsDir, '2026-02-26.json'), {
+    summary: {
+      critical_fail_cases: 1,
+      pass_cases: 0,
+      fail_cases: 1
+    }
+  });
+  writeJson(driftGovernorPath, {
+    last_decision: {
+      trit_shadow: {
+        belief: { trit: -1 }
+      }
+    }
+  });
+
+  const organRun = runNode(
+    scriptPath,
+    [
+      'organ',
+      '2026-02-26',
+      '--objective=Recover impossible queue objective under strict safety constraints',
+      '--objective-id=organ_probe_01',
+      '--impact=high',
+      '--target=belief',
+      '--certainty=0.92',
+      '--trit=-1',
+      `--policy=${policyPath}`
+    ],
+    env,
+    repoRoot
+  );
+  assert.strictEqual(organRun.status, 0, organRun.stderr || 'organ run should return payload');
+  const organPayload = parseStdoutJson(organRun);
+  assert.strictEqual(organPayload.ok, true);
+  assert.strictEqual(organPayload.type, 'inversion_organ');
+  assert.strictEqual(organPayload.triggered, true, JSON.stringify(organPayload.trigger || {}, null, 2));
+  assert.ok(Number(organPayload.trigger && organPayload.trigger.score || 0) >= Number(organPayload.trigger && organPayload.trigger.threshold || 1), 'trigger score should satisfy threshold');
+  assert.ok(
+    organPayload.tree
+    && Number(organPayload.tree.node_count || 0) > 1,
+    JSON.stringify(organPayload.tree || {}, null, 2)
+  );
+  assert.ok(
+    organPayload.trials
+    && Number(organPayload.trials.count || 0) >= 1,
+    JSON.stringify(organPayload.trials || {}, null, 2)
+  );
+  assert.ok(fs.existsSync(path.join(stateDir, 'organ', 'latest.json')), 'organ latest artifact should exist');
+  assert.ok(fs.existsSync(path.join(stateDir, 'tree', 'latest.json')), 'tree latest artifact should exist');
+
+  // Organ should stay idle when signals are below threshold and force is not set.
+  writeJson(regimeLatestPath, {
+    selected_regime: 'steady',
+    candidate_confidence: 0.93,
+    context: { trit: { trit: 1 } }
+  });
+  writeJson(mirrorLatestPath, {
+    pressure_score: 0.02,
+    confidence: 0.9,
+    reasons: []
+  });
+  writeJson(path.join(simulationDir, '2026-02-26.json'), {
+    checks_effective: {
+      drift_rate: { value: 0.01 },
+      yield_rate: { value: 0.91 }
+    }
+  });
+  writeJson(path.join(redTeamRunsDir, '2026-02-26.json'), {
+    summary: {
+      critical_fail_cases: 0,
+      pass_cases: 2,
+      fail_cases: 0
+    }
+  });
+
+  const organIdleRun = runNode(
+    scriptPath,
+    [
+      'organ',
+      '2026-02-26',
+      '--objective=Routine tactical objective with healthy system state',
+      '--objective-id=organ_probe_02',
+      '--impact=low',
+      '--target=tactical',
+      '--certainty=0.9',
+      '--trit=1',
+      `--policy=${policyPath}`
+    ],
+    env,
+    repoRoot
+  );
+  assert.strictEqual(organIdleRun.status, 0, organIdleRun.stderr || 'organ idle run should return payload');
+  const organIdlePayload = parseStdoutJson(organIdleRun);
+  assert.strictEqual(organIdlePayload.ok, true);
+  assert.strictEqual(organIdlePayload.triggered, false, JSON.stringify(organIdlePayload.trigger || {}, null, 2));
+  assert.strictEqual(organIdlePayload.status, 'no_trigger');
 
   // Objective IDs are mandatory for belief+ tiers, even if policy tries to raise the threshold higher.
   const missingObjectiveId = runNode(
