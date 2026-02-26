@@ -175,6 +175,8 @@ const REM_MODEL_ORDER = parseCsvOrder(
   || 'qwen3:4b,gemma3:4b,qwen3:1.7b,smallthinker'
 );
 const REM_STRATEGY = String(process.env.IDLE_DREAM_REM_STRATEGY || 'deterministic').trim().toLowerCase();
+const CROSS_DOMAIN_MAPPER_ENABLED = String(process.env.IDLE_DREAM_CROSS_DOMAIN_ENABLED || '1').trim() !== '0';
+const CROSS_DOMAIN_REQUIRE_OBJECTIVE = String(process.env.IDLE_DREAM_CROSS_DOMAIN_REQUIRE_OBJECTIVE || '0').trim() !== '0';
 
 const STOPWORDS = new Set([
   'the', 'and', 'for', 'with', 'that', 'this', 'from', 'into', 'mode', 'task', 'route', 'normal', 'creative',
@@ -1393,6 +1395,35 @@ function buildIdleSeedSet(dateStr) {
       ent.failure_tier_min = Number.isFinite(Number(ent.failure_tier_min))
         ? Math.min(Number(ent.failure_tier_min), tierVal)
         : tierVal;
+    }
+  }
+  if (CROSS_DOMAIN_MAPPER_ENABLED) {
+    const rows = Array.from(byToken.values());
+    const hyperTokens = rows
+      .filter((row: AnyObj) => row && row.sources instanceof Set && row.sources.has('hyper_creative_mode'))
+      .map((row: AnyObj) => String(row.token || ''))
+      .filter(Boolean);
+    for (const row of rows) {
+      if (!row || !(row.sources instanceof Set)) continue;
+      if (!row.sources.has('memory_dream')) continue;
+      const token = String(row.token || '');
+      if (!token) continue;
+      const alreadyCross = row.sources.has('cross_domain_mapper');
+      const directCross = row.sources.has('hyper_creative_mode');
+      const mappedCross = !directCross && hyperTokens.some((hyperToken) => (
+        hyperToken === token
+        || hyperToken.startsWith(`${token}-`)
+        || hyperToken.includes(`-${token}-`)
+        || hyperToken.endsWith(`-${token}`)
+      ));
+      const allowCross = directCross || mappedCross;
+      if (!allowCross) continue;
+      if (CROSS_DOMAIN_REQUIRE_OBJECTIVE) {
+        // Objective binding can be layered later; keep deterministic gating path now.
+        continue;
+      }
+      if (!alreadyCross) row.sources.add('cross_domain_mapper');
+      row.score += 2;
     }
   }
   const ranked = Array.from(byToken.values())

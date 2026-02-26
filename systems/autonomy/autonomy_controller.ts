@@ -481,6 +481,7 @@ const AUTONOMY_QOS_QUARANTINE_MAX_SHARE = clampNumber(
 );
 const AUTONOMY_CANDIDATE_AUDIT_MAX_ROWS = Number(process.env.AUTONOMY_CANDIDATE_AUDIT_MAX_ROWS || 25);
 const AUTONOMY_SCORE_ONLY_EVIDENCE = String(process.env.AUTONOMY_SCORE_ONLY_EVIDENCE || '1') !== '0';
+const AUTONOMY_FORCE_PROPOSAL_ID = String(process.env.AUTONOMY_FORCE_PROPOSAL_ID || '').trim();
 const AUTONOMY_SCORE_ONLY_STRUCTURAL_COOLDOWN_HOURS = Math.max(
   0,
   Number(process.env.AUTONOMY_SCORE_ONLY_STRUCTURAL_COOLDOWN_HOURS || 24)
@@ -9107,28 +9108,38 @@ function candidatePool(dateStr, strategyOverride = null) {
   const allowedRisks = effectiveAllowedRisksSet();
   const duplicateWindowHours = strategyDuplicateWindowHours(strategy, 24);
   const recentKeyCounts = recentProposalKeyCounts(dateStr, duplicateWindowHours);
+  const forcedProposalId = String(AUTONOMY_FORCE_PROPOSAL_ID || '').trim();
   const seenDedup = new Set();
   const pool = [];
   const backfillPool = [];
+  const forcedPool = [];
   for (const p of proposals) {
     if (!p || !p.id) continue;
+    const proposalId = String(p.id || '');
+    const forceSelected = forcedProposalId && proposalId === forcedProposalId;
     const ov = overlay.get(p.id) || null;
     const status = proposalStatus(ov);
-    if (status === 'rejected' || status === 'parked') continue;
+    if (!forceSelected && (status === 'rejected' || status === 'parked')) continue;
     const allowUnderflowBackfill = AUTONOMY_ONLY_OPEN_PROPOSALS
       && status !== 'pending'
       && canQueueUnderflowBackfill(status, ov);
-    if (AUTONOMY_ONLY_OPEN_PROPOSALS && status !== 'pending' && !allowUnderflowBackfill) continue;
+    if (!forceSelected && AUTONOMY_ONLY_OPEN_PROPOSALS && status !== 'pending' && !allowUnderflowBackfill) continue;
     const dedupKey = proposalDedupKey(p);
-    const admission = strategyAdmissionDecision(p, strategy, {
-      dedup_key: dedupKey,
-      recent_key_counts: recentKeyCounts
-    });
-    if (!admission.allow) continue;
+    const admission = forceSelected
+      ? {
+          allow: true,
+          reason: 'forced_proposal_id',
+          forced: true
+        }
+      : strategyAdmissionDecision(p, strategy, {
+          dedup_key: dedupKey,
+          recent_key_counts: recentKeyCounts
+        });
+    if (!admission.allow && !forceSelected) continue;
     const risk = normalizedRisk(p.risk);
-    if (allowedRisks.size > 0 && !allowedRisks.has(risk)) continue;
-    if (cooldownActive(p.id)) continue;
-    if (seenDedup.has(dedupKey)) continue;
+    if (!forceSelected && allowedRisks.size > 0 && !allowedRisks.has(risk)) continue;
+    if (!forceSelected && cooldownActive(p.id)) continue;
+    if (!forceSelected && seenDedup.has(dedupKey)) continue;
     seenDedup.add(dedupKey);
     const row = {
       proposal: p,
@@ -9136,8 +9147,13 @@ function candidatePool(dateStr, strategyOverride = null) {
       status,
       score: proposalScore(p, ov, dateStr),
       dedup_key: dedupKey,
-      admission
+      admission,
+      force_selected: forceSelected === true
     };
+    if (forceSelected) {
+      forcedPool.push(row);
+      continue;
+    }
     if (allowUnderflowBackfill) {
       backfillPool.push({
         ...row,
@@ -9151,6 +9167,13 @@ function candidatePool(dateStr, strategyOverride = null) {
     if (b.score !== a.score) return b.score - a.score;
     return String(a.proposal.id).localeCompare(String(b.proposal.id));
   });
+  if (forcedPool.length > 0) {
+    forcedPool.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return String(a.proposal.id).localeCompare(String(b.proposal.id));
+    });
+    return forcedPool;
+  }
   if (pool.length > 0) return pool;
   if (backfillPool.length <= 0) return backfillPool;
   backfillPool.sort((a, b) => {

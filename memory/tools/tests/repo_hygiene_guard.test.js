@@ -34,11 +34,18 @@ try {
   assert.ok(r.payload && r.payload.violations >= 1, 'expected violations >= 1');
 
   r = run(['run', '--strict', '--files=systems/spine/spine.ts']);
-  assert.strictEqual(r.status, 1, 'expected strict failure when JS pair change is missing');
+  assert.strictEqual(r.status, 0, 'expected pass for TS-only changes when JS pair is bootstrap wrapper');
+  assert.ok(
+    Array.isArray(r.payload.ts_pair_drift_violations) && r.payload.ts_pair_drift_violations.length === 0,
+    'bootstrap wrapper TS-only change should not trigger pair drift'
+  );
+
+  r = run(['run', '--strict', '--files=systems/fractal/regime_organ.ts']);
+  assert.strictEqual(r.status, 1, 'expected strict failure when non-wrapper JS pair change is missing');
   assert.ok(
     Array.isArray(r.payload.ts_pair_drift_violations)
-      && r.payload.ts_pair_drift_violations.some((v) => String(v || '').includes('systems/spine/spine.ts')),
-    'expected ts_pair_drift violation for ts-only change'
+      && r.payload.ts_pair_drift_violations.some((v) => String(v || '').includes('systems/fractal/regime_organ.ts')),
+    'expected ts_pair_drift violation for non-wrapper ts-only change'
   );
 
   console.log('repo_hygiene_guard.test.js: OK');
