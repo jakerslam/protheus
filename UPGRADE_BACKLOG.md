@@ -91,7 +91,7 @@ Status legend:
 | 4 | `V2-041` | done | Per-candidate adversarial simulation lane | Converts heuristic risk into direct evidence before promotion |
 | 5 | `V2-045` | done | Identity Organ (alignment anchor) | Must exist before deeper self-morphing/autonomous branching |
 | 6 | `V2-046` | done | Regime Organ (task/environment sensing + morph trigger) | Enables adaptive topology routing once alignment anchor is in place |
-| 7 | `V2-047` | todo | Mirror Organ (active self-observation + self-critique) | Safe self-improvement loop after identity/regime foundations |
+| 7 | `V2-047` | done | Mirror Organ (active self-observation + self-critique) | Safe self-improvement loop after identity/regime foundations |
 | 8 | `V2-044` | todo | In-run workflow evolution lane | Runtime mutation should follow stronger gating and critique layers |
 | 9 | `V2-042` | todo | Holo-viz native workflow birth/rewrite stream | Visibility enhancement after core behavior upgrades are stable |
 | 10 | `V2-012` | blocked | External security assessment and pen-test cycle | Important but externally gated; execute as soon as assessor dependency clears |
@@ -143,7 +143,7 @@ Status legend:
 | V2-044 | todo | In-run workflow evolution lane (step-boundary mutation apply) | Close the gap between generated adaptation and live execution adaptation | Runner can safely apply bounded mutation patches at step boundaries (guard/rollback/retry), with receipts + rollback on regression and policy-gated max mutations per run |
 | V2-045 | done | Identity Organ (alignment anchor over fractal branches) | Preserve directive/value coherence across aggressive adaptation and recursive branching | Implemented in `systems/identity/identity_anchor.ts` (plus `config/identity_anchor_policy.json`) with branch-level objective/value coherence checks over workflow grafts and morph plans, receipt emission under `state/autonomy/identity_anchor/`, workflow promotion blocking on identity violations, morph-action filtering, and spine telemetry stage (`spine_identity_anchor`). Spec reference: `tmp/grok_fractal_organs_2026-02-25.md` |
 | V2-046 | done | Regime Organ (task/environment regime sensing + morph trigger) | Enable sports-car adaptation by detecting current regime and rewiring priorities/topology safely | Implemented in `systems/fractal/regime_organ.ts` (+ runtime mirror `systems/fractal/regime_organ.js`) with regime scoring from queue/runs/simulation/trit/budget signals, hysteresis + dwell + cooldown state in `state/autonomy/fractal/regime/state.json`, proposal-only bounded morph actions, identity-anchor filtering, non-regression simulation gating before promotion, daily receipts in `state/autonomy/fractal/regime/YYYY-MM-DD.jsonl`, and spine telemetry stage (`spine_fractal_regime_organ`). Coverage: `memory/tools/tests/fractal_regime_organ.test.js`. Spec reference: `tmp/grok_fractal_organs_2026-02-25.md` |
-| V2-047 | todo | Mirror Organ (active self-observation and self-critique) | Upgrade read-only observer into a controlled self-improvement loop | `systems/autonomy/mirror_organ.ts` turns introspection signals into proposal-only self-critique outputs (epigenetic tags, split/prune suggestions), with confidence scoring, replayable evidence, and no direct mutation path. Spec reference: `tmp/grok_fractal_organs_2026-02-25.md` |
+| V2-047 | done | Mirror Organ (active self-observation and self-critique) | Upgrade read-only observer into a controlled self-improvement loop | Implemented via `systems/autonomy/mirror_organ.ts` + wrapper, with proposal-only outputs, confidence scoring, replayable evidence (`replay --proposal-id`), spine stage (`spine_mirror_organ`), continuum self-improvement integration, and suggestion-lane ingestion from `state/autonomy/mirror_organ/suggestions/`. Coverage: `memory/tools/tests/mirror_organ.test.js`, `memory/tools/tests/suggestion_lane.test.js`, `memory/tools/tests/continuum_core.test.js`. |
 
 ## V3 (Lamp / Super-Intelligence Containment)
 
@@ -156,20 +156,22 @@ Status legend:
 | 3 | `V3-004a..V3-004f` | todo | Constitution Protection Layer rollout (decomposed) | Locks alignment core before deeper recursion and high-power actuation layers, with auditable staged delivery |
 | 4 | `V3-003` | todo | New-model vaccine sandbox | Mandatory onboarding containment for stronger/new models |
 | 5 | `V3-005` | todo | External anti-sabotage provenance net | Detect/recover tampering before advanced self-modification lanes |
-| 6 | `V3-016` | todo | Central Eye kernel (`systems/eye`) | Control-plane needed to coordinate advanced organs under governance |
-| 7 | `V3-017` | todo | Full real-world claws actuation bundle | Execution expansion after Eye + containment primitives exist |
-| 8 | `V3-013` | todo | Independent child-organ runtime stack | Structured recursion after safety/control-plane baseline is proven |
-| 9 | `V3-014` | todo | In-flight workflow mutation engine | Runtime adaptation after isolated child-organ governance is in place |
-| 10 | `V3-018` | todo | Research Organ | Long-horizon branch generation after runtime containment matures |
-| 11 | `V3-019` | todo | Forge Organ | Rapid capability assembly only after research + containment controls |
-| 12 | `V3-015` | todo | Consent-gated cross-workflow learning conduit | Training moat expansion after execution and containment are stable |
-| 13 | `V3-006` | todo | Recursive mini-core instancing | Deeper recursion deferred until prior recursion layers are robust |
-| 14 | `V3-007` | todo | Self-code evolution sandbox + guarded merge | Highest-risk autonomy lane, delayed until governance stack is hardened |
-| 15 | `V3-008` | todo | Runtime symbiotic fusion execution chamber | Advanced emergence feature after core safety/runtime maturity |
-| 16 | `V3-009` | todo | Resonance field actuation gates | Bounded actuation of harmony signals after other control layers settle |
-| 17 | `V3-010` | todo | Global molt cycle | Periodic compaction after system topology stabilizes |
-| 18 | `V3-011` | todo | Full emergence cockpit overlays | Full operator overlay after behavior/control contracts stabilize |
-| 19 | `V3-012` | todo | Product positioning/architecture narrative pack | Packaging/documentation after technical sequencing is locked |
+| 6 | `V3-020` | todo | Protheus Prime seed profile (minimal viable core) | Defines the smallest self-bootstrapping nucleus before higher-complexity expansion |
+| 7 | `V3-016` | todo | Central Eye kernel (`systems/eye`) | Control-plane needed to coordinate advanced organs under governance |
+| 8 | `V3-021` | todo | Attested hardware assimilation plane | New hardware should convert directly into safe capacity, not ad-hoc complexity |
+| 9 | `V3-017` | todo | Full real-world claws actuation bundle | Execution expansion after Eye + containment primitives exist |
+| 10 | `V3-013` | todo | Independent child-organ runtime stack | Structured recursion after safety/control-plane baseline is proven |
+| 11 | `V3-014` | todo | In-flight workflow mutation engine | Runtime adaptation after isolated child-organ governance is in place |
+| 12 | `V3-018` | todo | Research Organ | Long-horizon branch generation after runtime containment matures |
+| 13 | `V3-019` | todo | Forge Organ | Rapid capability assembly only after research + containment controls |
+| 14 | `V3-015` | todo | Consent-gated cross-workflow learning conduit | Training moat expansion after execution and containment are stable |
+| 15 | `V3-006` | todo | Recursive mini-core instancing | Deeper recursion deferred until prior recursion layers are robust |
+| 16 | `V3-007` | todo | Self-code evolution sandbox + guarded merge | Highest-risk autonomy lane, delayed until governance stack is hardened |
+| 17 | `V3-008` | todo | Runtime symbiotic fusion execution chamber | Advanced emergence feature after core safety/runtime maturity |
+| 18 | `V3-009` | todo | Resonance field actuation gates | Bounded actuation of harmony signals after other control layers settle |
+| 19 | `V3-010` | todo | Global molt cycle | Periodic compaction after system topology stabilizes |
+| 20 | `V3-011` | todo | Full emergence cockpit overlays | Full operator overlay after behavior/control contracts stabilize |
+| 21 | `V3-012` | todo | Product positioning/architecture narrative pack | Packaging/documentation after technical sequencing is locked |
 
 | ID | Status | Upgrade | Why | Exit Criteria |
 |---|---|---|---|---|
@@ -194,10 +196,12 @@ Status legend:
 | V3-013 | todo | Independent child-organ runtime stack for recursive workflows | Move from structural child drafts to true autonomous child organs with isolated lifecycle and governance | Child workflows can run independent nursery/red-team/evolution loops with bounded resource envelopes, parent-child contracts, and deterministic rollback |
 | V3-014 | todo | In-flight workflow mutation engine (runtime step-level adaptation) | Achieve true live adaptation during execution rather than run-to-run mutation only | Runner can apply bounded step mutations mid-flight (guard add, rollback inject, retry retune), with safety gates, veto window, and automatic rollback receipts |
 | V3-015 | todo | Consent-gated cross-workflow learning conduit to master model queue | Convert workflow outcomes into long-horizon learning advantage without policy or rights drift | Outcome artifacts enter trainability queue only with explicit consent/provenance policy pass (source/license/retention/delete metadata) and canary-evaluated promotion path |
-| V3-016 | todo | Central Eye kernel (`systems/eye`) with governed subsumption adapters | Build the top-level orchestrator for multi-model/multi-system coordination without bypassing safety gates | Eye kernel routes via policy-root contracts, enforces per-vassal budgets/clearance, and can disable/adapt external adapters with deterministic audit receipts |
+| V3-016 | todo | Central Eye kernel (`systems/eye`) with governed subsumption adapters | Build the top-level orchestrator for multi-model/multi-system coordination without bypassing safety gates | Eye kernel owns a typed command bus for organ/vassal routing, enforces per-organ and per-vassal budgets/clearance envelopes, brokers adapter trust levels, and emits deterministic audit receipts for every route/deny/escalate decision |
 | V3-017 | todo | Full real-world claws actuation bundle | Close the execution gap so adaptive workflows can capture opportunities end-to-end | Policy-gated browser/API/payment/comms/file actuation primitives ship behind approval tiers, with sandbox dry-run proof, receipts, and strict rollback/escalation behavior |
 | V3-018 | todo | Research Organ (long-horizon closed-loop research sub-organ) | Add on-demand deep investigation capacity without bloating core runtime | `systems/research/research_organ.ts` can spawn bounded research branches (experiment/critique/synthesis loop), scale depth by trit uncertainty + value priority, and distill outputs into archetype proposals with promotion gates. Spec reference: `tmp/grok_fractal_organs_2026-02-25.md` |
-| V3-019 | todo | Forge Organ (rapid temporary capability assembly) | Allow fast capability growth by composing proven primitives while keeping permanence gated | `systems/forge/forge_organ.ts` assembles temporary vassal organs from archetypes/micro-LLM/skill bridges, enforces TTL + containment, and only grafts permanent capability after nursery evidence thresholds are met. Spec reference: `tmp/grok_fractal_organs_2026-02-25.md` |
+| V3-019 | todo | Forge Organ (rapid temporary capability assembly) | Allow fast capability growth by composing proven primitives while keeping permanence gated | `systems/forge/forge_organ.ts` assembles temporary vassal organs from archetypes/micro-LLM/skill bridges, enforces TTL + containment, maps capability packs to available hardware classes, and only grafts permanent capability after nursery evidence thresholds are met. Spec reference: `tmp/grok_fractal_organs_2026-02-25.md` |
+| V3-020 | todo | Protheus Prime seed profile + bounded-core manifest | Create a minimal reproducible seed that can bootstrap quickly and scale safely as hardware increases | Publish deterministic `protheus-prime` profile manifest with mandatory core organs (constitution/identity, Eye control stub, continuum, workflow, nursery/red-team), single-command bootstrap, and baseline drift/yield/safety/integrity receipts on constrained hardware |
+| V3-021 | todo | Attested hardware assimilation plane (node join + lease scheduler) | Convert additional hardware into immediate safe throughput without split-brain or trust drift | Nodes join only via signed attestation + constitution hash match + capability envelope negotiation; Eye assigns leased work with TTL/work-steal, idle nodes auto-dormant, and join/eject/scheduler actions are fully audited |
 
 ## Fractal Organ Rollout (Staged)
 
@@ -236,10 +240,12 @@ Status legend:
 | 22 | RM-108 | V3 | todo | Deletion and unlearning pipeline | Consent revocation and enterprise data rights require reversible data control | Per-subject deletion/unlearn requests propagate through queue, datasets, and checkpoints with receipts |
 | 23 | RM-109 | V3 | todo | Enterprise access controls (RBAC, MFA, tenant boundaries) | Multi-operator deployment requires explicit separation of duties | Critical operations require role-scoped authorization, MFA, and tenant isolation guards |
 | 24 | RM-110 | V3 | todo | Holo-viz control-plane overlays | Operators need real-time legibility for orchestration and risk states | Visualizer renders routing/trust/errors/provider lanes and maps them to auditable runtime events |
-| 25 | RM-201 | V4 | todo | Chaos engineering + self-healing automation | Validate resilience under real failure conditions and reduce MTTR | Scheduled fault injection + remediation playbooks + postmortem receipts are fully automated |
-| 26 | RM-202 | V4 | todo | Distributed runtime (leader election + replicated queue/state) | Single-node orchestration limits reliability and scale | Leader election, replicated state, and failover prove stable under load and failover drills |
-| 27 | RM-203 | V4 | todo | Cross-instance federated learning | Enable multi-instance improvement without centralized raw-data pooling | Federated aggregation works with privacy controls and measurable lift vs isolated learning |
-| 28 | RM-204 | V4 | todo | Formal verification for critical protocols | High-autonomy systems need stronger guarantees than tests alone | Formal specs/checks exist for deadlock/safety invariants on spine->autonomy->actuation critical paths |
+| 25 | RM-111 | V3 | todo | Protheus Prime seed packaging + bootstrap conformance | The seed needs a reproducible artifact, not only architecture intent | `protheus-prime` bootstrap provisions minimal core in one command, emits baseline receipts, and fails closed when mandatory governance organs are missing |
+| 26 | RM-112 | V3 | todo | Attested hardware join + elastic lease scheduling | Additional hardware should increase throughput automatically while preserving trust boundaries | Multi-node join requires signed attestation + compatibility checks, lease/work-steal scheduling is live, and scale up/down behavior is validated under budget and partition drills |
+| 27 | RM-201 | V4 | todo | Chaos engineering + self-healing automation | Validate resilience under real failure conditions and reduce MTTR | Scheduled fault injection + remediation playbooks + postmortem receipts are fully automated |
+| 28 | RM-202 | V4 | todo | Distributed runtime (leader election + replicated queue/state) | Single-node orchestration limits reliability and scale | Leader election, replicated state, network partition handling, and failover prove stable under sustained load and multi-failure drills |
+| 29 | RM-203 | V4 | todo | Cross-instance federated learning | Enable multi-instance improvement without centralized raw-data pooling | Federated aggregation works with privacy controls and measurable lift vs isolated learning |
+| 30 | RM-204 | V4 | todo | Formal verification for critical protocols | High-autonomy systems need stronger guarantees than tests alone | Formal specs/checks exist for deadlock/safety invariants on spine->autonomy->actuation critical paths |
 
 ## Backlog Policy
 

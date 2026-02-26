@@ -27,6 +27,9 @@ const ADAPTIVE_SUGGESTIONS_DIR = process.env.AUTONOMY_ADAPTIVE_SUGGESTIONS_DIR
 const TRIT_ADAPTATION_DIR = process.env.AUTONOMY_TRIT_SHADOW_ADAPTATION_DIR
   ? path.resolve(process.env.AUTONOMY_TRIT_SHADOW_ADAPTATION_DIR)
   : path.join(ROOT, 'state', 'autonomy', 'trit_shadow_adaptation');
+const MIRROR_ORGAN_SUGGESTIONS_DIR = process.env.AUTONOMY_MIRROR_ORGAN_SUGGESTIONS_DIR
+  ? path.resolve(process.env.AUTONOMY_MIRROR_ORGAN_SUGGESTIONS_DIR)
+  : path.join(ROOT, 'state', 'autonomy', 'mirror_organ', 'suggestions');
 const OUTPUT_DIR = process.env.AUTONOMY_SUGGESTION_LANE_DIR
   ? path.resolve(process.env.AUTONOMY_SUGGESTION_LANE_DIR)
   : path.join(ROOT, 'state', 'autonomy', 'suggestion_lane');
@@ -202,6 +205,43 @@ function normalizeTritAdaptation(payload, dateStr) {
   return out;
 }
 
+function normalizeMirrorOrgan(rows, dateStr) {
+  const src = Array.isArray(rows) ? rows : [];
+  const out = [];
+  for (const row of src) {
+    const sourceId = String(row && row.id || '').trim();
+    const kind = String(row && (row.kind || row.type) || 'mirror_self_critique_suggestion').trim() || 'mirror_self_critique_suggestion';
+    const confidence = Math.max(0, Math.min(1, Number(row && row.confidence || 0)));
+    const pressure = Math.max(0, Math.min(1, Number(row && row.pressure_score || 0)));
+    const priorityRaw = Number(row && row.priority);
+    const priority = Number.isFinite(priorityRaw)
+      ? Math.max(0, Math.min(1, priorityRaw))
+      : Math.max(0.45, Math.min(0.96, (confidence * 0.65) + (pressure * 0.35)));
+    const id = sourceId || stableId(`mirror|${dateStr}|${kind}|${row && row.title}`, 'mir');
+    out.push({
+      id,
+      source: 'mirror_organ',
+      source_ref: sourceId || null,
+      kind,
+      status: 'proposed',
+      date: dateStr,
+      priority: Number(priority.toFixed(3)),
+      title: compactText(row && row.title || 'Mirror self-critique suggestion', 110),
+      summary: compactText(row && row.summary || '', 220),
+      confidence: Number(confidence.toFixed(4)),
+      pressure_score: Number(pressure.toFixed(4)),
+      objective_id: String(row && row.objective_id || '').trim() || null,
+      action: row && row.action && typeof row.action === 'object'
+        ? row.action
+        : {},
+      evidence_refs: Array.isArray(row && row.evidence_refs)
+        ? row.evidence_refs.slice(0, 8)
+        : []
+    });
+  }
+  return out;
+}
+
 function scoreSort(a, b) {
   const pa = Number(a && a.priority || 0);
   const pb = Number(b && b.priority || 0);
@@ -222,11 +262,13 @@ function cmdRun(dateStr, capRaw) {
   const budgetFile = path.join(BUDGET_GUARD_DIR, `${dateStr}.json`);
   const adaptiveFile = path.join(ADAPTIVE_SUGGESTIONS_DIR, `${dateStr}.json`);
   const tritFile = path.join(TRIT_ADAPTATION_DIR, `${dateStr}.json`);
+  const mirrorFile = path.join(MIRROR_ORGAN_SUGGESTIONS_DIR, `${dateStr}.json`);
 
   const budgetRows = normalizeBudgetGuard(readJson(budgetFile, []), dateStr);
   const adaptiveRows = normalizeAdaptive(readJson(adaptiveFile, []), dateStr);
   const tritRows = normalizeTritAdaptation(readJson(tritFile, null), dateStr);
-  const merged = [...budgetRows, ...adaptiveRows, ...tritRows];
+  const mirrorRows = normalizeMirrorOrgan(readJson(mirrorFile, []), dateStr);
+  const merged = [...budgetRows, ...adaptiveRows, ...tritRows, ...mirrorRows];
   const deduped = [];
   const seen = new Set();
   for (const row of merged.sort(scoreSort)) {
@@ -252,7 +294,8 @@ function cmdRun(dateStr, capRaw) {
     sources: {
       budget_guard: budgetRows.length,
       adaptive_memory: adaptiveRows.length,
-      trit_shadow_adaptation: tritRows.length
+      trit_shadow_adaptation: tritRows.length,
+      mirror_organ: mirrorRows.length
     },
     lane: laneRows
   };

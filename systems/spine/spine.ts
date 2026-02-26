@@ -1120,6 +1120,7 @@ function main() {
     "systems/autonomy/red_team_harness.js",
     "systems/autonomy/collective_shadow.js",
     "systems/autonomy/observer_mirror.js",
+    "systems/autonomy/mirror_organ.js",
     "systems/continuum/continuum_core.js",
     "systems/strategy/strategy_principles.js",
     "systems/workflow/workflow_generator.js",
@@ -1138,6 +1139,7 @@ function main() {
     "config/red_team_policy.json",
     "config/collective_shadow_policy.json",
     "config/continuum_policy.json",
+    "config/mirror_organ_policy.json",
     "config/nursery_policy.json",
     "config/workflow_policy.json",
     "config/regime_organ_policy.json",
@@ -3978,7 +3980,114 @@ function main() {
       console.log(" observer_mirror skipped reason=feature_flag_disabled flag=SPINE_OBSERVER_MIRROR_ENABLED");
     }
 
-    // 4l) continuum organ pulse (background consolidation + anticipation, low-priority and bounded).
+    // 4l) mirror organ (proposal-only self-critique from introspection signals).
+    if (String(process.env.SPINE_MIRROR_ORGAN_ENABLED || "1") !== "0") {
+      const mirrorWindowDays = Math.max(1, Number(process.env.SPINE_MIRROR_ORGAN_WINDOW_DAYS || 3) || 3);
+      const mirrorMaxProposals = Math.max(1, Number(process.env.SPINE_MIRROR_ORGAN_MAX_PROPOSALS || 6) || 6);
+      const mirrorArgs = [
+        "systems/autonomy/mirror_organ.js",
+        "run",
+        dateStr,
+        `--days=${mirrorWindowDays}`,
+        `--max-proposals=${mirrorMaxProposals}`
+      ];
+      const mirrorPolicyPath = String(process.env.SPINE_MIRROR_ORGAN_POLICY_PATH || "").trim();
+      if (mirrorPolicyPath) mirrorArgs.push(`--policy=${mirrorPolicyPath}`);
+      if (String(process.env.SPINE_MIRROR_ORGAN_DRY_RUN || "0") === "1") mirrorArgs.push("--dry-run=1");
+
+      const mirror = runJson("node", mirrorArgs);
+      const payload = mirror.payload && typeof mirror.payload === "object"
+        ? mirror.payload
+        : null;
+      const mirrorOk = mirror.ok && !!payload && payload.ok === true;
+      const mirrorStrict = String(process.env.SPINE_MIRROR_ORGAN_STRICT || "0") === "1";
+      appendLedger(dateStr, {
+        ts: nowIso(),
+        type: "spine_mirror_organ",
+        mode,
+        date: dateStr,
+        ok: mirrorOk,
+        strict: mirrorStrict,
+        window_days: payload ? Number(payload.window_days || mirrorWindowDays) : mirrorWindowDays,
+        pressure_score: payload ? Number(payload.pressure_score || 0) : null,
+        confidence: payload ? Number(payload.confidence || 0) : null,
+        proposal_count: payload ? Number(payload.proposal_count || 0) : null,
+        execution_mode: payload ? payload.execution_mode || "proposal_only" : "proposal_only",
+        run_path: payload ? payload.run_path || null : null,
+        latest_path: payload ? payload.latest_path || null : null,
+        suggestions_path: payload ? payload.suggestions_path || null : null,
+        reason: (!mirrorOk)
+          ? String(mirror.stderr || mirror.stdout || `mirror_organ_exit_${mirror.code}`).slice(0, 180)
+          : null
+      });
+      if (mirrorOk) {
+        console.log(
+          ` mirror_organ proposals=${Number(payload.proposal_count || 0)}` +
+          ` pressure=${Number(payload.pressure_score || 0).toFixed(4)}` +
+          ` confidence=${Number(payload.confidence || 0).toFixed(4)}`
+        );
+      } else {
+        console.log(` mirror_organ unavailable reason=${String(mirror.stderr || mirror.stdout || "unknown").slice(0, 120)}`);
+      }
+      if (mirrorStrict && !mirrorOk) process.exit(mirror.code || 1);
+    } else {
+      appendLedger(dateStr, {
+        ts: nowIso(),
+        type: "spine_mirror_organ_skipped",
+        mode,
+        date: dateStr,
+        reason: "feature_flag_disabled",
+        flag: "SPINE_MIRROR_ORGAN_ENABLED",
+        flag_value: String(process.env.SPINE_MIRROR_ORGAN_ENABLED || "")
+      });
+      console.log(" mirror_organ skipped reason=feature_flag_disabled flag=SPINE_MIRROR_ORGAN_ENABLED");
+    }
+
+    // 4l1) optional post-mirror suggestion lane refresh so same-run mirror proposals are surfaced immediately.
+    if (
+      String(process.env.SPINE_SUGGESTION_LANE_ENABLED || "1") !== "0"
+      && String(process.env.SPINE_SUGGESTION_LANE_REFRESH_AFTER_MIRROR || "1") !== "0"
+    ) {
+      const laneCap = Math.max(1, Number(process.env.SPINE_SUGGESTION_LANE_CAP || 24) || 24);
+      const lane = runJson("node", [
+        "systems/autonomy/suggestion_lane.js",
+        "run",
+        dateStr,
+        `--cap=${laneCap}`
+      ]);
+      const lanePayload = lane.payload && typeof lane.payload === "object"
+        ? lane.payload
+        : null;
+      appendLedger(dateStr, {
+        ts: nowIso(),
+        type: "spine_suggestion_lane_refresh",
+        mode,
+        date: dateStr,
+        ok: lane.ok && !!lanePayload && lanePayload.ok === true,
+        cap: lanePayload ? Number(lanePayload.cap || laneCap) : laneCap,
+        merged_count: lanePayload ? Number(lanePayload.merged_count || 0) : null,
+        total_candidates: lanePayload ? Number(lanePayload.total_candidates || 0) : null,
+        capped: lanePayload ? lanePayload.capped === true : null,
+        sources: lanePayload && lanePayload.sources && typeof lanePayload.sources === "object"
+          ? lanePayload.sources
+          : null,
+        lane_path: lanePayload ? lanePayload.lane_path || null : null,
+        reason: (!lane.ok || !lanePayload || lanePayload.ok !== true)
+          ? String(lane.stderr || lane.stdout || `suggestion_lane_refresh_exit_${lane.code}`).slice(0, 180)
+          : null
+      });
+      if (lane.ok && lanePayload && lanePayload.ok === true) {
+        console.log(
+          ` suggestion_lane_refresh merged=${Number(lanePayload.merged_count || 0)}` +
+          ` candidates=${Number(lanePayload.total_candidates || 0)}` +
+          ` cap=${Number(lanePayload.cap || laneCap)}`
+        );
+      } else {
+        console.log(` suggestion_lane_refresh unavailable reason=${String(lane.stderr || lane.stdout || "unknown").slice(0, 120)}`);
+      }
+    }
+
+    // 4m) continuum organ pulse (background consolidation + anticipation, low-priority and bounded).
     if (String(process.env.SPINE_CONTINUUM_ENABLED || "1") !== "0") {
       const continuumTimeoutMs = Math.max(2000, Number(process.env.SPINE_CONTINUUM_TIMEOUT_MS || 22000) || 22000);
       const continuumProfile = String(process.env.SPINE_CONTINUUM_PROFILE || "spine").trim().toLowerCase() || "spine";
