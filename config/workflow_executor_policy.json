@@ -36,7 +36,7 @@
     "enabled": true,
     "initial_stage": "canary",
     "shadow_dry_run": true,
-    "canary_fraction": 0.35,
+    "canary_fraction": 0.5,
     "canary_min_fraction": 0.05,
     "canary_max_fraction": 0.8,
     "scale_up_step": 0.15,
@@ -44,7 +44,15 @@
     "min_consecutive_green_for_scale_up": 2,
     "min_consecutive_red_for_scale_down": 1,
     "promote_to_live_fraction": 0.6,
-    "demote_shadow_on_floor_breach": true
+    "demote_shadow_on_floor_breach": true,
+    "rollback_guard": {
+      "enabled": true,
+      "trigger_on_workflow_failure": true,
+      "trigger_on_workflow_blocked": true,
+      "min_execution_success_rate": 0.95,
+      "rollback_fraction_step": 0.2,
+      "demote_live_to_canary": true
+    }
   },
   "slo": {
     "min_execution_success_rate": 0.9,
@@ -63,6 +71,21 @@
       "composite_score_below_min"
     ],
     "max_candidates_considered": 32
+  },
+  "minimum_selection": {
+    "enabled": true,
+    "target_selected": 1,
+    "require_low_risk_presence": true,
+    "include_drafts": false,
+    "require_safe_commands": true,
+    "allow_eligibility_reasons": [
+      "composite_score_below_min"
+    ],
+    "max_candidates_considered": 64
+  },
+  "alerts": {
+    "live_zero_selection_streak_threshold": 2,
+    "history_scan_limit": 240
   },
   "runtime_mutation": {
     "enabled": true,

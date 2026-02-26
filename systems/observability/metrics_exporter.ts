@@ -113,6 +113,28 @@ function appendJsonl(filePath: string, row: AnyObj) {
   fs.appendFileSync(filePath, `${JSON.stringify(row)}\n`, 'utf8');
 }
 
+function readJsonl(filePath: string) {
+  try {
+    if (!fs.existsSync(filePath)) return [];
+    const lines = fs.readFileSync(filePath, 'utf8')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const out = [];
+    for (const line of lines) {
+      try {
+        const row = JSON.parse(line);
+        if (row && typeof row === 'object') out.push(row);
+      } catch {
+        // ignore malformed rows
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 function readJson(filePath: string, fallback: any) {
   try {
     if (!fs.existsSync(filePath)) return fallback;
@@ -143,6 +165,8 @@ function defaultPolicy() {
       health_reports_dir: 'state/autonomy/health_reports',
       workflow_executor_latest_path: 'state/adaptive/workflows/executor/latest.json',
       workflow_executor_latest_live_path: 'state/adaptive/workflows/executor/latest_live.json',
+      workflow_executor_history_path: 'state/adaptive/workflows/executor/history.jsonl',
+      workflow_executor_zero_selection_warn_streak: 2,
       ci_baseline_streak_path: 'state/ops/ci_baseline_streak.json',
       output_prometheus_path: 'state/observability/prometheus/current.prom',
       output_snapshot_path: 'state/observability/metrics/latest.json',
@@ -170,6 +194,13 @@ function loadPolicy(policyPathRaw: unknown) {
       health_reports_dir: resolvePath(src.health_reports_dir, base.metrics.health_reports_dir),
       workflow_executor_latest_path: resolvePath(src.workflow_executor_latest_path, base.metrics.workflow_executor_latest_path),
       workflow_executor_latest_live_path: resolvePath(src.workflow_executor_latest_live_path, base.metrics.workflow_executor_latest_live_path),
+      workflow_executor_history_path: resolvePath(src.workflow_executor_history_path, base.metrics.workflow_executor_history_path),
+      workflow_executor_zero_selection_warn_streak: clampInt(
+        src.workflow_executor_zero_selection_warn_streak,
+        1,
+        100,
+        base.metrics.workflow_executor_zero_selection_warn_streak
+      ),
       ci_baseline_streak_path: resolvePath(src.ci_baseline_streak_path, base.metrics.ci_baseline_streak_path),
       output_prometheus_path: resolvePath(src.output_prometheus_path, base.metrics.output_prometheus_path),
       output_snapshot_path: resolvePath(src.output_snapshot_path, base.metrics.output_snapshot_path),
@@ -229,7 +260,33 @@ function toPrometheus(metrics: Metric[]) {
   return `${lines.join('\n')}\n`;
 }
 
-function buildMetrics(dateStr: string, window: string, health: AnyObj, workflowLatest: AnyObj, ciStreak: AnyObj) {
+function computeLiveZeroSelectionStreak(historyRows: AnyObj[], maxScan = 240) {
+  const rows = Array.isArray(historyRows) ? historyRows : [];
+  const scanMax = clampInt(maxScan, 20, 5000, 240);
+  let streak = 0;
+  for (let i = rows.length - 1, scanned = 0; i >= 0 && scanned < scanMax; i -= 1, scanned += 1) {
+    const row = rows[i];
+    if (!row || typeof row !== 'object') continue;
+    if (row.dry_run === true) continue;
+    const selected = asNumber(row.workflows_selected, 0);
+    if (selected <= 0) {
+      streak += 1;
+      continue;
+    }
+    break;
+  }
+  return streak;
+}
+
+function buildMetrics(
+  dateStr: string,
+  window: string,
+  health: AnyObj,
+  workflowLatest: AnyObj,
+  ciStreak: AnyObj,
+  liveZeroSelectionStreak: number,
+  liveZeroSelectionWarnStreak: number
+) {
   const slo = health && health.slo && typeof health.slo === 'object' ? health.slo : {};
   const verification = slo.checks && slo.checks.verification_pass_rate && slo.checks.verification_pass_rate.metrics
     ? slo.checks.verification_pass_rate.metrics
@@ -325,6 +382,18 @@ function buildMetrics(dateStr: string, window: string, health: AnyObj, workflowL
       value: asRatio(wfMeasured.queue_drain_rate)
     },
     {
+      name: 'protheus_workflow_executor_live_zero_selection_streak',
+      help: 'Consecutive non-dry live executor runs with zero workflows selected.',
+      type: 'gauge',
+      value: Math.max(0, Math.floor(liveZeroSelectionStreak))
+    },
+    {
+      name: 'protheus_workflow_executor_live_zero_selection_warn_streak',
+      help: 'Warning threshold for live zero-selection streak.',
+      type: 'gauge',
+      value: Math.max(1, Math.floor(liveZeroSelectionWarnStreak))
+    },
+    {
       name: 'protheus_ci_baseline_streak_days',
       help: 'Current consecutive daily green CI streak.',
       type: 'gauge',
@@ -361,8 +430,24 @@ function runSnapshot(policy: AnyObj, dateStr: string, window: string, writeEnabl
     ? policy.metrics.workflow_executor_latest_live_path
     : policy.metrics.workflow_executor_latest_path;
   const workflowLatest = readJson(workflowLatestPath, {});
+  const workflowHistoryRows = readJsonl(policy.metrics.workflow_executor_history_path);
+  const liveZeroSelectionStreak = computeLiveZeroSelectionStreak(workflowHistoryRows, 240);
+  const liveZeroSelectionWarnStreak = clampInt(
+    policy.metrics.workflow_executor_zero_selection_warn_streak,
+    1,
+    100,
+    2
+  );
   const ciStreak = readJson(policy.metrics.ci_baseline_streak_path, {});
-  const metrics = buildMetrics(dateStr, window, health, workflowLatest, ciStreak);
+  const metrics = buildMetrics(
+    dateStr,
+    window,
+    health,
+    workflowLatest,
+    ciStreak,
+    liveZeroSelectionStreak,
+    liveZeroSelectionWarnStreak
+  );
   const promText = toPrometheus(metrics);
 
   const out = {
@@ -378,6 +463,9 @@ function runSnapshot(policy: AnyObj, dateStr: string, window: string, writeEnabl
     health_report_path: healthPath ? relPath(healthPath) : null,
     workflow_executor_path: relPath(workflowLatestPath),
     ci_baseline_path: relPath(policy.metrics.ci_baseline_streak_path),
+    workflow_executor_history_path: relPath(policy.metrics.workflow_executor_history_path),
+    workflow_executor_live_zero_selection_streak: liveZeroSelectionStreak,
+    workflow_executor_live_zero_selection_warn_streak: liveZeroSelectionWarnStreak,
     metrics_count: metrics.length,
     output: {
       prometheus_path: relPath(policy.metrics.output_prometheus_path),
@@ -394,7 +482,11 @@ function runSnapshot(policy: AnyObj, dateStr: string, window: string, writeEnabl
 
   if (!healthPath) out.warnings.push('health_report_missing');
   if (!fs.existsSync(workflowLatestPath)) out.warnings.push('workflow_executor_snapshot_missing');
+  if (!fs.existsSync(policy.metrics.workflow_executor_history_path)) out.warnings.push('workflow_executor_history_missing');
   if (!fs.existsSync(policy.metrics.ci_baseline_streak_path)) out.warnings.push('ci_baseline_streak_missing');
+  if (liveZeroSelectionStreak >= liveZeroSelectionWarnStreak) {
+    out.warnings.push(`workflow_executor_live_zero_selection_streak:${liveZeroSelectionStreak}`);
+  }
 
   if (writeEnabled) {
     if (policy.metrics.write_prometheus) {
