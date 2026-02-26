@@ -1,7 +1,7 @@
 {
   "ok": true,
   "type": "autonomy_simulation_harness",
-  "ts": "2026-02-26T10:19:51.477Z",
+  "ts": "2026-02-26T10:40:39.685Z",
   "end_date": "2026-02-26",
   "days": 180,
   "verdict": "warn",
@@ -141,7 +141,7 @@
     "reason": "burn_rate_exceeded",
     "pressure": "hard",
     "until": "2026-02-26T11:03:29.370Z",
-    "updated_at": "2026-02-26T10:19:49.522Z",
+    "updated_at": "2026-02-26T10:40:10.429Z",
     "observed_in_window": true,
     "active_at_window_end": false,
     "signal_source": "route_summary.autopause",
