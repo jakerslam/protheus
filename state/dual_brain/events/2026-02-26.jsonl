@@ -39,3 +39,5 @@
 {"ts":"2026-02-26T10:13:32.113Z","type":"dual_brain_event","stage":"inversion","mode":"left_only","right_requested":true,"right_permitted":false,"reasons":["hardware_gate","budget_autopause_active"]}
 {"ts":"2026-02-26T10:13:32.119Z","type":"dual_brain_event","stage":"inversion","mode":"left_only","right_requested":true,"right_permitted":false,"reasons":["hardware_gate","budget_autopause_active"]}
 {"ts":"2026-02-26T10:16:49.119Z","type":"dual_brain_event","stage":"manual_probe","mode":"left_only","right_requested":false,"right_permitted":false,"reasons":[]}
+{"ts":"2026-02-26T10:36:05.652Z","type":"dual_brain_event","stage":"inversion","mode":"left_only","right_requested":true,"right_permitted":false,"reasons":["hardware_gate","budget_autopause_active"]}
+{"ts":"2026-02-26T10:36:05.658Z","type":"dual_brain_event","stage":"inversion","mode":"left_only","right_requested":true,"right_permitted":false,"reasons":["hardware_gate","budget_autopause_active"]}

@@ -1,9 +1,9 @@
 {
   "ok": true,
   "type": "dual_brain_decision",
-  "ts": "2026-02-26T10:16:49.119Z",
-  "context": "manual_probe",
-  "task_class": "general",
+  "ts": "2026-02-26T10:36:05.658Z",
+  "context": "inversion",
+  "task_class": "creative",
   "desired_lane": "auto",
   "shadow_mode_active": true,
   "mode": "left_only",
@@ -15,7 +15,7 @@
   "right": {
     "id": "right_creative",
     "model": "qwen3:4b",
-    "requested": false,
+    "requested": true,
     "permitted": false,
     "shadow": false,
     "live": false
@@ -24,25 +24,28 @@
     "policy_enabled": true,
     "right_enabled": true,
     "forced_left": false,
-    "right_context_match": false,
-    "wants_right": false,
-    "gate_hardware": true,
-    "gate_budget": true,
+    "right_context_match": true,
+    "wants_right": true,
+    "gate_hardware": false,
+    "gate_budget": false,
     "gate_stability": true,
     "gate_safety": true,
     "gate_trit": true,
     "gate_training": true
   },
-  "trit": 1,
-  "reasons": [],
+  "trit": 0,
+  "reasons": [
+    "hardware_gate",
+    "budget_autopause_active"
+  ],
   "signals": {
     "resource": {
       "cpu_count": 8,
-      "load_1m": 3.9868,
-      "load_per_cpu": 0.4984,
-      "rss_mb": 120.78,
-      "heap_used_mb": 27.67,
-      "free_mem_mb": 434.02,
+      "load_1m": 3.4404,
+      "load_per_cpu": 0.4301,
+      "rss_mb": 139.94,
+      "heap_used_mb": 34.55,
+      "free_mem_mb": 70.72,
       "total_mem_mb": 8192,
       "ok": false
     },
