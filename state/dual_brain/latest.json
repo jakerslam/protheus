@@ -1,7 +1,7 @@
 {
   "ok": true,
   "type": "dual_brain_decision",
-  "ts": "2026-02-26T17:00:31.173Z",
+  "ts": "2026-02-26T17:41:51.567Z",
   "context": "inversion",
   "task_class": "creative",
   "desired_lane": "auto",
@@ -27,7 +27,7 @@
     "right_context_match": true,
     "wants_right": true,
     "gate_hardware": false,
-    "gate_budget": true,
+    "gate_budget": false,
     "gate_stability": true,
     "gate_safety": true,
     "gate_trit": true,
@@ -35,27 +35,30 @@
   },
   "trit": 0,
   "reasons": [
-    "hardware_gate"
+    "hardware_gate",
+    "budget_headroom_low",
+    "budget_burn_high",
+    "budget_autopause_active"
   ],
   "signals": {
     "resource": {
       "cpu_count": 8,
-      "load_1m": 8.084,
-      "load_per_cpu": 1.0105,
-      "rss_mb": 154.8,
-      "heap_used_mb": 46.48,
-      "free_mem_mb": 83.16,
+      "load_1m": 6.9404,
+      "load_per_cpu": 0.8676,
+      "rss_mb": 154.66,
+      "heap_used_mb": 46.65,
+      "free_mem_mb": 122.88,
       "total_mem_mb": 8192,
       "ok": false
     },
     "budget": {
       "available": true,
-      "token_cap": 6000,
-      "used_est": 3080,
-      "burn_pct": 51.3333,
-      "token_headroom_ratio": 0.486667,
-      "autopause_active": false,
-      "strategy_id": "default_general",
+      "token_cap": 4000,
+      "used_est": 4480,
+      "burn_pct": 112,
+      "token_headroom_ratio": 0,
+      "autopause_active": true,
+      "strategy_id": null,
       "path": "state/autonomy/daily_budget/2026-02-26.json"
     },
     "stability": {

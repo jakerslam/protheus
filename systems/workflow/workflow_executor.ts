@@ -301,7 +301,15 @@ function defaultPolicy() {
       min_consecutive_green_for_scale_up: 3,
       min_consecutive_red_for_scale_down: 1,
       promote_to_live_fraction: 0.6,
-      demote_shadow_on_floor_breach: true
+      demote_shadow_on_floor_breach: true,
+      rollback_guard: {
+        enabled: true,
+        trigger_on_workflow_failure: true,
+        trigger_on_workflow_blocked: true,
+        min_execution_success_rate: 0.95,
+        rollback_fraction_step: 0.2,
+        demote_live_to_canary: true
+      }
     },
     slo: {
       min_execution_success_rate: 0.9,
@@ -318,6 +326,19 @@ function defaultPolicy() {
       require_safe_commands: true,
       allow_eligibility_reasons: ['composite_score_below_min'],
       max_candidates_considered: 32
+    },
+    minimum_selection: {
+      enabled: true,
+      target_selected: 1,
+      require_low_risk_presence: true,
+      include_drafts: false,
+      require_safe_commands: true,
+      allow_eligibility_reasons: ['composite_score_below_min'],
+      max_candidates_considered: 64
+    },
+    alerts: {
+      live_zero_selection_streak_threshold: 2,
+      history_scan_limit: 240
     },
     runtime_mutation: {
       enabled: true,
@@ -377,6 +398,12 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
     : {};
   const fallbackSelection = raw && raw.fallback_selection && typeof raw.fallback_selection === 'object'
     ? raw.fallback_selection
+    : {};
+  const minimumSelection = raw && raw.minimum_selection && typeof raw.minimum_selection === 'object'
+    ? raw.minimum_selection
+    : {};
+  const alerts = raw && raw.alerts && typeof raw.alerts === 'object'
+    ? raw.alerts
     : {};
   const rm = raw && raw.runtime_mutation && typeof raw.runtime_mutation === 'object'
     ? raw.runtime_mutation
@@ -455,7 +482,25 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
         1,
         base.rollout.promote_to_live_fraction
       ),
-      demote_shadow_on_floor_breach: rollout.demote_shadow_on_floor_breach !== false
+      demote_shadow_on_floor_breach: rollout.demote_shadow_on_floor_breach !== false,
+      rollback_guard: {
+        enabled: !rollout.rollback_guard || rollout.rollback_guard.enabled !== false,
+        trigger_on_workflow_failure: !rollout.rollback_guard || rollout.rollback_guard.trigger_on_workflow_failure !== false,
+        trigger_on_workflow_blocked: !rollout.rollback_guard || rollout.rollback_guard.trigger_on_workflow_blocked !== false,
+        min_execution_success_rate: clampNumber(
+          rollout.rollback_guard && rollout.rollback_guard.min_execution_success_rate,
+          0,
+          1,
+          base.rollout.rollback_guard.min_execution_success_rate
+        ),
+        rollback_fraction_step: clampNumber(
+          rollout.rollback_guard && rollout.rollback_guard.rollback_fraction_step,
+          0.01,
+          1,
+          base.rollout.rollback_guard.rollback_fraction_step
+        ),
+        demote_live_to_canary: !rollout.rollback_guard || rollout.rollback_guard.demote_live_to_canary !== false
+      }
     },
     slo: {
       min_execution_success_rate: clampNumber(
@@ -504,6 +549,47 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
         1,
         256,
         base.fallback_selection.max_candidates_considered
+      )
+    },
+    minimum_selection: {
+      enabled: minimumSelection.enabled !== false,
+      target_selected: clampInt(
+        minimumSelection.target_selected,
+        1,
+        32,
+        base.minimum_selection.target_selected
+      ),
+      require_low_risk_presence: minimumSelection.require_low_risk_presence !== false,
+      include_drafts: minimumSelection.include_drafts === true,
+      require_safe_commands: minimumSelection.require_safe_commands !== false,
+      allow_eligibility_reasons: (() => {
+        const src = Array.isArray(minimumSelection.allow_eligibility_reasons)
+          ? minimumSelection.allow_eligibility_reasons
+          : base.minimum_selection.allow_eligibility_reasons;
+        const rows = src
+          .map((v) => cleanText(v || '', 96).toLowerCase())
+          .filter(Boolean);
+        return rows.length ? Array.from(new Set(rows)) : base.minimum_selection.allow_eligibility_reasons.slice(0);
+      })(),
+      max_candidates_considered: clampInt(
+        minimumSelection.max_candidates_considered,
+        1,
+        512,
+        base.minimum_selection.max_candidates_considered
+      )
+    },
+    alerts: {
+      live_zero_selection_streak_threshold: clampInt(
+        alerts.live_zero_selection_streak_threshold,
+        1,
+        100,
+        base.alerts.live_zero_selection_streak_threshold
+      ),
+      history_scan_limit: clampInt(
+        alerts.history_scan_limit,
+        20,
+        5000,
+        base.alerts.history_scan_limit
       )
     },
     runtime_mutation: {
@@ -868,6 +954,64 @@ function fallbackSelectionDecision(candidates: AnyObj[], excluded: AnyObj[], pol
     };
   }
   return { selected: null, reason: 'fallback_no_candidate' };
+}
+
+function minimumSelectionDecision(candidates: AnyObj[], selected: AnyObj[], policy: AnyObj, opts: AnyObj = {}) {
+  const cfg = policy && policy.minimum_selection && typeof policy.minimum_selection === 'object'
+    ? policy.minimum_selection
+    : defaultPolicy().minimum_selection;
+  if (cfg.enabled !== true) {
+    return { selected: null, reason: 'minimum_selection_disabled' };
+  }
+  const allowReasonSet = new Set(
+    Array.isArray(cfg.allow_eligibility_reasons) ? cfg.allow_eligibility_reasons.map((v: unknown) => String(v || '').toLowerCase()) : []
+  );
+  const selectedIds = new Set(
+    Array.isArray(selected)
+      ? selected.map((row: AnyObj) => String(row && row.id || '').trim()).filter(Boolean)
+      : []
+  );
+  const maxConsider = clampInt(cfg.max_candidates_considered, 1, 512, 64);
+  const candidateRows = Array.isArray(candidates) ? candidates.slice(0, maxConsider) : [];
+  const explicitId = opts && opts.explicit_id ? String(opts.explicit_id).trim() : '';
+  for (const row of candidateRows) {
+    const workflowId = String(row && row.id || '').trim();
+    if (!workflowId) continue;
+    if (explicitId && workflowId !== explicitId) continue;
+    if (selectedIds.has(workflowId)) continue;
+    if (cfg.require_safe_commands === true && !workflowAppearsSafeForFallback(row)) continue;
+    const gate = assessWorkflowEligibility(row, policy, { manual_id: !!explicitId });
+    const reasons = Array.isArray(gate && gate.reasons) ? gate.reasons : [];
+    const safeReasonOnly = reasons.length > 0 && reasons.every((r) => allowReasonSet.has(String(r || '').toLowerCase()));
+    if (gate.eligible !== true && !safeReasonOnly) continue;
+    return {
+      selected: row,
+      reason: gate.eligible === true
+        ? 'minimum_selection_safe_eligible'
+        : 'minimum_selection_safe_composite_only',
+      reasons
+    };
+  }
+  return { selected: null, reason: 'minimum_selection_no_candidate' };
+}
+
+function liveZeroSelectionStreak(rows: AnyObj[], maxScan = 240) {
+  const list = Array.isArray(rows) ? rows : [];
+  const scanMax = clampInt(maxScan, 20, 5000, 240);
+  let streak = 0;
+  for (let i = list.length - 1, scanned = 0; i >= 0 && scanned < scanMax; i -= 1, scanned += 1) {
+    const row = list[i];
+    if (!row || typeof row !== 'object') continue;
+    if (row.dry_run === true) continue;
+    const selected = Number(row.workflows_selected || 0);
+    if (!Number.isFinite(selected)) continue;
+    if (selected <= 0) {
+      streak += 1;
+      continue;
+    }
+    break;
+  }
+  return streak;
 }
 
 function interpolateTemplate(input: unknown, context: AnyObj) {
@@ -1547,7 +1691,13 @@ function selectWorkflows(
   const fallbackCfg = policy && policy.fallback_selection && typeof policy.fallback_selection === 'object'
     ? policy.fallback_selection
     : defaultPolicy().fallback_selection;
-  const includeDraft = boolFlag(args['include-draft'], fallbackCfg.include_drafts === true);
+  const minimumCfg = policy && policy.minimum_selection && typeof policy.minimum_selection === 'object'
+    ? policy.minimum_selection
+    : defaultPolicy().minimum_selection;
+  const includeDraft = boolFlag(
+    args['include-draft'],
+    fallbackCfg.include_drafts === true || minimumCfg.include_drafts === true
+  );
   const explicitId = String(args.id || '').trim();
   const enforceEligibility = boolFlag(args['enforce-eligibility'], true);
   const stage = normalizeStage(
@@ -1648,6 +1798,45 @@ function selectWorkflows(
     }
   }
 
+  let minimumSelectionApplied = false;
+  let minimumSelectionReason = '';
+  if (!explicitId && minimumCfg.enabled === true) {
+    const targetSelected = clampInt(minimumCfg.target_selected, 1, 32, 1);
+    const enforceLowRisk = minimumCfg.require_low_risk_presence === true;
+    const hasLowRiskSelected = selected.some((row) => workflowAppearsSafeForFallback(row));
+    const needsTargetCount = selected.length < targetSelected;
+    const needsLowRisk = enforceLowRisk && !hasLowRiskSelected;
+
+    const applyMinimumSelection = () => {
+      const floor = minimumSelectionDecision(candidates, selected, policy, { explicit_id: explicitId });
+      minimumSelectionReason = String(floor && floor.reason || 'minimum_selection_no_candidate');
+      if (!floor || !floor.selected) return false;
+      if (selected.length < max) {
+        selected.push(floor.selected);
+      } else {
+        const replaced = selected[selected.length - 1];
+        selected[selected.length - 1] = floor.selected;
+        excluded.push({
+          workflow_id: String(replaced && replaced.id || ''),
+          reason: 'minimum_selection_replaced',
+          details: [minimumSelectionReason]
+        });
+      }
+      minimumSelectionApplied = true;
+      return true;
+    };
+
+    if (needsTargetCount) {
+      while (selected.length < targetSelected) {
+        if (!applyMinimumSelection()) break;
+      }
+    }
+
+    if (needsLowRisk && !selected.some((row) => workflowAppearsSafeForFallback(row))) {
+      applyMinimumSelection();
+    }
+  }
+
   return {
     selected,
     excluded,
@@ -1655,7 +1844,9 @@ function selectWorkflows(
     canary_fraction: Number(canaryFraction.toFixed(6)),
     enforce_eligibility: enforceEligibility,
     fallback_applied: fallbackApplied,
-    fallback_reason: fallbackReason
+    fallback_reason: fallbackReason,
+    minimum_selection_applied: minimumSelectionApplied,
+    minimum_selection_reason: minimumSelectionReason
   };
 }
 
@@ -2084,7 +2275,25 @@ function computeSloWindow(historyRows: AnyObj[], runSlo: AnyObj, policy: AnyObj)
   };
 }
 
-function nextRolloutState(current: AnyObj, policy: AnyObj, scalePass: boolean, scaleEligible: boolean) {
+function rollbackGuardTriggered(runSignal: AnyObj, rollout: AnyObj) {
+  const guard = rollout && rollout.rollback_guard && typeof rollout.rollback_guard === 'object'
+    ? rollout.rollback_guard
+    : defaultPolicy().rollout.rollback_guard;
+  if (guard.enabled !== true) return false;
+  const failed = Number(runSignal && runSignal.workflows_failed || 0);
+  const blocked = Number(runSignal && runSignal.workflows_blocked || 0);
+  const successRate = safeRate(
+    Number(runSignal && runSignal.workflows_succeeded || 0),
+    Number(runSignal && runSignal.workflows_executed || 0),
+    0
+  );
+  if (guard.trigger_on_workflow_failure === true && failed > 0) return true;
+  if (guard.trigger_on_workflow_blocked === true && blocked > 0) return true;
+  if (Number.isFinite(successRate) && successRate < Number(guard.min_execution_success_rate || 0.95)) return true;
+  return false;
+}
+
+function nextRolloutState(current: AnyObj, policy: AnyObj, scalePass: boolean, scaleEligible: boolean, runSignal: AnyObj = {}) {
   const rollout = policy && policy.rollout && typeof policy.rollout === 'object'
     ? policy.rollout
     : defaultPolicy().rollout;
@@ -2110,6 +2319,46 @@ function nextRolloutState(current: AnyObj, policy: AnyObj, scalePass: boolean, s
   if (!scaleEligible) {
     next.last_slo_pass = null;
     next.last_scale_action = 'rollout_scale_skipped';
+    return next;
+  }
+
+  if (rollbackGuardTriggered(runSignal, rollout)) {
+    const guard = rollout && rollout.rollback_guard && typeof rollout.rollback_guard === 'object'
+      ? rollout.rollback_guard
+      : defaultPolicy().rollout.rollback_guard;
+    const rollbackStep = clampNumber(
+      Number(guard.rollback_fraction_step || 0.2),
+      0.01,
+      1,
+      0.2
+    );
+    if (next.stage === 'live' && guard.demote_live_to_canary !== false) {
+      next.stage = 'canary';
+      next.canary_fraction = clampNumber(
+        Number(rollout.promote_to_live_fraction || 0.6) - rollbackStep,
+        minFraction,
+        maxFraction,
+        minFraction
+      );
+      next.last_scale_action = 'rollback_guard_live_to_canary';
+    } else if (next.stage === 'canary') {
+      next.canary_fraction = clampNumber(
+        next.canary_fraction - rollbackStep,
+        minFraction,
+        maxFraction,
+        minFraction
+      );
+      const floorReached = next.canary_fraction <= (minFraction + 1e-9);
+      if (floorReached && rollout.demote_shadow_on_floor_breach === true) {
+        next.stage = 'shadow';
+        next.last_scale_action = 'rollback_guard_canary_to_shadow';
+      } else {
+        next.last_scale_action = 'rollback_guard_canary_step_down';
+      }
+    }
+    next.last_slo_pass = false;
+    next.consecutive_green = 0;
+    next.consecutive_red = 0;
     return next;
   }
 
@@ -2319,10 +2568,34 @@ function runCmd(dateStr: string, args: AnyObj) {
   const runSlo = computeRunSlo(results, selected.length, runStartedMs, policy);
   const historyRows = readJsonl(HISTORY_PATH);
   const sloWindow = computeSloWindow(historyRows, runSlo, policy);
+  const alertCfg = policy && policy.alerts && typeof policy.alerts === 'object'
+    ? policy.alerts
+    : defaultPolicy().alerts;
+  const projectedHistory = historyRows.concat([{
+    dry_run: options.dry_run === true,
+    workflows_selected: selected.length
+  }]);
+  const liveZeroStreak = liveZeroSelectionStreak(
+    projectedHistory,
+    Number(alertCfg.history_scan_limit || 240)
+  );
+  const liveZeroSelectionThreshold = clampInt(
+    alertCfg.live_zero_selection_streak_threshold,
+    1,
+    100,
+    defaultPolicy().alerts.live_zero_selection_streak_threshold
+  );
   const scaleEligible = options.dry_run !== true;
   const scalePass = sloWindow.sufficient_data === true
     ? sloWindow.pass === true
     : runSlo.pass === true;
+  const runSignal = {
+    workflows_selected: selected.length,
+    workflows_executed: results.length,
+    workflows_succeeded: succeeded,
+    workflows_failed: failed,
+    workflows_blocked: blocked
+  };
   const rolloutBefore = {
     stage: normalizeStage(rolloutState.stage, stage),
     canary_fraction: Number(clampNumber(
@@ -2336,7 +2609,7 @@ function runCmd(dateStr: string, args: AnyObj) {
     last_slo_pass: rolloutState.last_slo_pass == null ? null : rolloutState.last_slo_pass === true,
     last_scale_action: rolloutState.last_scale_action || null
   };
-  const rolloutAfter = nextRolloutState(rolloutState, policy, scalePass, scaleEligible);
+  const rolloutAfter = nextRolloutState(rolloutState, policy, scalePass, scaleEligible, runSignal);
   saveRolloutState(rolloutAfter);
 
   const payload = {
@@ -2379,7 +2652,11 @@ function runCmd(dateStr: string, args: AnyObj) {
     })(),
     fallback_applied: selection && selection.fallback_applied === true,
     fallback_reason: selection ? cleanText(selection.fallback_reason || '', 80) : '',
+    minimum_selection_applied: selection && selection.minimum_selection_applied === true,
+    minimum_selection_reason: selection ? cleanText(selection.minimum_selection_reason || '', 120) : '',
     enforce_eligibility: selection && selection.enforce_eligibility === true,
+    live_zero_selection_streak: options.dry_run === true ? null : liveZeroStreak,
+    live_zero_selection_streak_threshold: liveZeroSelectionThreshold,
     workflows_executed: results.length,
     workflows_succeeded: succeeded,
     workflows_failed: failed,
@@ -2420,6 +2697,10 @@ function runCmd(dateStr: string, args: AnyObj) {
     selection_excluded_by_reason: payload.selection_excluded_by_reason || {},
     fallback_applied: payload.fallback_applied === true,
     fallback_reason: payload.fallback_reason || '',
+    minimum_selection_applied: payload.minimum_selection_applied === true,
+    minimum_selection_reason: payload.minimum_selection_reason || '',
+    live_zero_selection_streak: payload.live_zero_selection_streak,
+    live_zero_selection_streak_threshold: payload.live_zero_selection_streak_threshold,
     workflows_executed: payload.workflows_executed,
     workflows_succeeded: payload.workflows_succeeded,
     workflows_failed: payload.workflows_failed,
@@ -2472,6 +2753,21 @@ function runCmd(dateStr: string, args: AnyObj) {
     });
   }
 
+  if (options.dry_run !== true && liveZeroStreak >= liveZeroSelectionThreshold) {
+    appendSystemHealthEvent({
+      severity: 'high',
+      risk: 'high',
+      code: 'workflow_executor_zero_selection_streak',
+      summary: `workflow executor selected=0 streak=${liveZeroStreak} threshold=${liveZeroSelectionThreshold}`.slice(0, 220),
+      run_id: runId,
+      date: dateStr,
+      workflows_selected: selected.length,
+      workflows_executed: results.length,
+      live_zero_selection_streak: liveZeroStreak,
+      live_zero_selection_streak_threshold: liveZeroSelectionThreshold
+    });
+  }
+
   process.stdout.write(`${JSON.stringify({
     ok: true,
     type: payload.type,
@@ -2479,6 +2775,8 @@ function runCmd(dateStr: string, args: AnyObj) {
     date: payload.date,
     workflows_selected: payload.workflows_selected,
     workflows_excluded: payload.workflows_excluded,
+    minimum_selection_applied: payload.minimum_selection_applied === true,
+    minimum_selection_reason: payload.minimum_selection_reason || '',
     workflows_executed: payload.workflows_executed,
     workflows_succeeded: payload.workflows_succeeded,
     workflows_failed: payload.workflows_failed,
@@ -2501,6 +2799,8 @@ function runCmd(dateStr: string, args: AnyObj) {
     runtime_mutation_enabled: payload.runtime_mutation_enabled,
     runtime_mutations_applied: payload.runtime_mutations_applied,
     runtime_mutations_rolled_back: payload.runtime_mutations_rolled_back,
+    live_zero_selection_streak: payload.live_zero_selection_streak,
+    live_zero_selection_streak_threshold: payload.live_zero_selection_streak_threshold,
     run_path: relPath(runPath),
     latest_path: relPath(LATEST_PATH),
     latest_live_path: relPath(LATEST_LIVE_PATH)
@@ -2542,6 +2842,8 @@ function statusCmd(dateArg: string) {
       : {},
     fallback_applied: payload.fallback_applied === true,
     fallback_reason: payload.fallback_reason || '',
+    minimum_selection_applied: payload.minimum_selection_applied === true,
+    minimum_selection_reason: payload.minimum_selection_reason || '',
     workflows_executed: Number(payload.workflows_executed || 0),
     workflows_succeeded: Number(payload.workflows_succeeded || 0),
     workflows_failed: Number(payload.workflows_failed || 0),
@@ -2558,6 +2860,12 @@ function statusCmd(dateArg: string) {
     time_to_first_execution_ms: payload.slo && payload.slo.measured
       ? payload.slo.measured.time_to_first_execution_ms
       : null,
+    live_zero_selection_streak: payload.live_zero_selection_streak == null
+      ? null
+      : Number(payload.live_zero_selection_streak),
+    live_zero_selection_streak_threshold: payload.live_zero_selection_streak_threshold == null
+      ? null
+      : Number(payload.live_zero_selection_streak_threshold),
     slo_pass: payload.slo ? payload.slo.pass === true : false,
     slo_window_pass: payload.slo_window ? payload.slo_window.pass === true : false,
     slo_window_sufficient_data: payload.slo_window ? payload.slo_window.sufficient_data === true : false

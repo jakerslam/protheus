@@ -1,7 +1,7 @@
 {
   "schema_id": "ci_baseline_streak",
   "schema_version": "1.0",
-  "updated_at": "2026-02-26T10:38:07.483Z",
+  "updated_at": "2026-02-26T17:43:56.286Z",
   "target_days": 7,
   "consecutive_daily_green_runs": 1,
   "latest_green_date": "2026-02-26",
@@ -130,6 +130,15 @@
       "passed": 233,
       "failed": 0,
       "total": 233,
+      "include_stateful": false
+    },
+    {
+      "ts": "2026-02-26T17:43:56.286Z",
+      "date": "2026-02-26",
+      "ok": true,
+      "passed": 235,
+      "failed": 0,
+      "total": 235,
       "include_stateful": false
     }
   ]

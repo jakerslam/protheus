@@ -1,7 +1,7 @@
 {
   "ok": true,
   "type": "identity_anchor_latest",
-  "ts": "2026-02-26T17:29:54.485Z",
+  "ts": "2026-02-26T17:45:17.761Z",
   "date": "2026-02-26",
   "scope": "workflows",
   "source": "workflow_controller_run",

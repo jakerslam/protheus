@@ -31,6 +31,12 @@ protheus_workflow_executor_execution_success_rate 1
 # HELP protheus_workflow_executor_queue_drain_rate Workflow executor measured queue drain rate.
 # TYPE protheus_workflow_executor_queue_drain_rate gauge
 protheus_workflow_executor_queue_drain_rate 1
+# HELP protheus_workflow_executor_live_zero_selection_streak Consecutive non-dry live executor runs with zero workflows selected.
+# TYPE protheus_workflow_executor_live_zero_selection_streak gauge
+protheus_workflow_executor_live_zero_selection_streak 0
+# HELP protheus_workflow_executor_live_zero_selection_warn_streak Warning threshold for live zero-selection streak.
+# TYPE protheus_workflow_executor_live_zero_selection_warn_streak gauge
+protheus_workflow_executor_live_zero_selection_warn_streak 2
 # HELP protheus_ci_baseline_streak_days Current consecutive daily green CI streak.
 # TYPE protheus_ci_baseline_streak_days gauge
 protheus_ci_baseline_streak_days 1
@@ -42,4 +48,4 @@ protheus_ci_baseline_target_days 7
 protheus_ci_baseline_streak_ratio 0.14285714285714285
 # HELP protheus_observability_snapshot_timestamp_seconds Unix timestamp of observability metrics snapshot.
 # TYPE protheus_observability_snapshot_timestamp_seconds gauge
-protheus_observability_snapshot_timestamp_seconds{date="2026-02-26",window="daily"} 1772126990
+protheus_observability_snapshot_timestamp_seconds{date="2026-02-26",window="daily"} 1772127943

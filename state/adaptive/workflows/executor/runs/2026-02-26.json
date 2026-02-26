@@ -1,8 +1,8 @@
 {
   "ok": true,
   "type": "workflow_executor_run",
-  "ts": "2026-02-26T17:29:41.313Z",
-  "run_id": "wfexec_mm3qn9cc_q3ryuz",
+  "ts": "2026-02-26T17:45:38.211Z",
+  "run_id": "wfexec_mm3r7v1h_u8xncn",
   "date": "2026-02-26",
   "dry_run": false,
   "forced_shadow_dry_run": false,
@@ -10,19 +10,19 @@
   "receipt_strict": true,
   "rollout_enabled": true,
   "rollout_stage": "canary",
-  "rollout_canary_fraction": 0.4,
+  "rollout_canary_fraction": 0.55,
   "rollout_scale_eligible": true,
   "rollout_state_before": {
     "stage": "canary",
-    "canary_fraction": 0.4,
+    "canary_fraction": 0.55,
     "consecutive_green": 0,
     "consecutive_red": 0,
-    "last_slo_pass": null,
-    "last_scale_action": "rollout_scale_skipped"
+    "last_slo_pass": true,
+    "last_scale_action": "canary_scale_up"
   },
   "rollout_state_after": {
     "stage": "canary",
-    "canary_fraction": 0.4,
+    "canary_fraction": 0.55,
     "consecutive_green": 1,
     "consecutive_red": 0,
     "last_slo_pass": true,
@@ -32,7 +32,7 @@
   "runtime_mutation_policy_path": "config/workflow_executor_policy.json",
   "registry_total": 16,
   "workflows_selected": 1,
-  "workflows_excluded": 15,
+  "workflows_excluded": 17,
   "selection_excluded": [
     {
       "workflow_id": "wfc_0d7f23c40175dcb9",
@@ -40,6 +40,12 @@
       "details": [
         "composite_score_below_min"
       ]
+    },
+    {
+      "workflow_id": "wfc_2d5f1833a867e5c3",
+      "reason": "canary_not_sampled",
+      "sample_unit": 0.820416,
+      "canary_fraction": 0.55
     },
     {
       "workflow_id": "wfc_545b11ab500ef289",
@@ -61,6 +67,12 @@
       "details": [
         "composite_score_below_min"
       ]
+    },
+    {
+      "workflow_id": "wfc_a44608bceb8564cf",
+      "reason": "canary_not_sampled",
+      "sample_unit": 0.581153,
+      "canary_fraction": 0.55
     },
     {
       "workflow_id": "wfc_c2077422278c77a1",
@@ -98,6 +110,12 @@
       ]
     },
     {
+      "workflow_id": "wfc_708d5d0247df6b21",
+      "reason": "canary_not_sampled",
+      "sample_unit": 0.717394,
+      "canary_fraction": 0.55
+    },
+    {
       "workflow_id": "wfc_7c82f6565f5e49c8",
       "reason": "ineligible",
       "details": [
@@ -119,28 +137,30 @@
       ]
     },
     {
-      "workflow_id": "wfc_a44608bceb8564cf",
-      "reason": "max_limit_reached",
-      "max": 1
-    },
-    {
-      "workflow_id": "wfc_708d5d0247df6b21",
-      "reason": "max_limit_reached",
-      "max": 1
-    },
-    {
       "workflow_id": "wfc_ecea8fd103aab192",
-      "reason": "max_limit_reached",
-      "max": 1
+      "reason": "canary_not_sampled",
+      "sample_unit": 0.776646,
+      "canary_fraction": 0.55
+    },
+    {
+      "workflow_id": "wfc_a44608bceb8564cf",
+      "reason": "canary_force_single_sample",
+      "sample_unit": 0.581153,
+      "canary_fraction": 0.55
     }
   ],
   "selection_excluded_by_reason": {
     "ineligible": 12,
-    "max_limit_reached": 3
+    "canary_not_sampled": 4,
+    "canary_force_single_sample": 1
   },
   "fallback_applied": false,
   "fallback_reason": "",
+  "minimum_selection_applied": false,
+  "minimum_selection_reason": "",
   "enforce_eligibility": true,
+  "live_zero_selection_streak": 0,
+  "live_zero_selection_streak_threshold": 2,
   "workflows_executed": 1,
   "workflows_succeeded": 1,
   "workflows_failed": 0,
@@ -161,7 +181,7 @@
     "measured": {
       "execution_success_rate": 1,
       "queue_drain_rate": 1,
-      "time_to_first_execution_ms": 14
+      "time_to_first_execution_ms": 22
     },
     "checks": {
       "execution_success_rate": true,
@@ -181,7 +201,7 @@
       "min_runs_for_decision": 3,
       "avg_execution_success_rate": 1,
       "avg_queue_drain_rate": 1,
-      "max_time_to_first_execution_ms": 14
+      "max_time_to_first_execution_ms": 22
     },
     "checks": {
       "execution_success_rate": true,
@@ -193,8 +213,8 @@
   },
   "results": [
     {
-      "workflow_id": "wfc_2d5f1833a867e5c3",
-      "name": "Adaptive cross_signal_opportunity workflow",
+      "workflow_id": "wfc_a44608bceb8564cf",
+      "name": "Adaptive infrastructure_outage workflow",
       "status": "succeeded",
       "ok": true,
       "blocked_by_gate": false,
@@ -205,9 +225,9 @@
       "rollback_source": null,
       "rollback_step_id": null,
       "rollback_trigger_reason": null,
-      "started_at": "2026-02-26T17:29:35.258Z",
-      "ended_at": "2026-02-26T17:29:41.310Z",
-      "duration_ms": 6052,
+      "started_at": "2026-02-26T17:45:36.507Z",
+      "ended_at": "2026-02-26T17:45:38.209Z",
+      "duration_ms": 1702,
       "step_count": 4,
       "execution_budget": {
         "attempts_cap": 24,
@@ -215,7 +235,7 @@
         "duration_cap_ms": 600000,
         "attempts_used": 4,
         "retries_used": 0,
-        "duration_ms_used": 6050
+        "duration_ms_used": 1701
       },
       "step_results": [
         {
@@ -235,10 +255,10 @@
               "exit_code": 0,
               "signal": null,
               "timed_out": false,
-              "started_at": "2026-02-26T17:29:35.258Z",
-              "ended_at": "2026-02-26T17:29:35.808Z",
-              "duration_ms": 550,
-              "stdout": "{\"ok\":true,\"result\":\"enriched\",\"date\":\"2026-02-26\",\"path\":\"/Users/jay/.openclaw/workspace/state/sensory/proposals/2026-02-26.json\",\"changed\":7,\"total\":7,\"directive_profile_available\":true,\"strategy_profile\":{\"id\":\"default_general\",\"name\":\"Default General Strategy\",\"status\":\"active\",\"file\":\"config/strategies/default.json\",\"execution_mode\":\"canary_execute\",\"allowed_risks\":[\"low\",\"medium\"],\"threshold_overrides\":{\"min_directive_fit\":41,\"min_actionability_score\":47,\"min_composite_eligibility\":64},\"validation\":{\"strict_ok\":true,\"errors\":[],\"warnings\":[]}},\"thresholds\":{\"min_signal_quality\":58,\"min_sensory_signal_score\":45,\"min_sensory_relevance_score\":42,\"min_directive_fit\":41,\"min_actionability_score\":47,\"min_composite_eligibility\":64,\"min_eye_score_ema\":45},\"admission\":{\"total\":7,\"eligible\":7,\"blocked\":0,\"blocked_by_reason\":{}},\"objective_binding\":{\"total\":7,\"required\":7,\"valid_required\":7,\"missing_required\":0,\"invalid_required\":0,\"source_meta_required\":7,\"source_fallback_required\":0,\"source_counts\":{\"meta.objective_id\":7},\"ok\":true},\"dream_alignment\":{\"available\":true,\"tokens_loaded\":23,\"source_counts\":{\"theme\":6,\"rem_daily\":8,\"rem_run\":8,\"rem_synthesis\":16,\"rem\":16},\"source_uid_count\":2,\"files\":{\"themes\":true,\"rem\":true,\"rem_runs\":[\"2026-02-26__rem1iskpj08vorfg28b0q87g.json\"]},\"proposals_with_hits\":7,\"proposals_with_bonus\":7,\"bonus_total\":42,\"rem_bonus_total\":14,\"top_hit_tokens\":[{\"token\":\"token\",\"count\":7},{\"token\":\"signal\",\"count\":5},{\"token\":\"eyes\",\"count\":4}]},\"cross_signal_no_change\":{\"window_days\":7,\"topics\":[]}}",
+              "started_at": "2026-02-26T17:45:36.508Z",
+              "ended_at": "2026-02-26T17:45:37.019Z",
+              "duration_ms": 511,
+              "stdout": "{\"ok\":true,\"result\":\"enriched\",\"date\":\"2026-02-26\",\"path\":\"/Users/jay/.openclaw/workspace/state/sensory/proposals/2026-02-26.json\",\"changed\":8,\"total\":8,\"directive_profile_available\":true,\"strategy_profile\":{\"id\":\"default_general\",\"name\":\"Default General Strategy\",\"status\":\"active\",\"file\":\"config/strategies/default.json\",\"execution_mode\":\"canary_execute\",\"allowed_risks\":[\"low\",\"medium\"],\"threshold_overrides\":{\"min_directive_fit\":41,\"min_actionability_score\":47,\"min_composite_eligibility\":64},\"validation\":{\"strict_ok\":true,\"errors\":[],\"warnings\":[]}},\"thresholds\":{\"min_signal_quality\":58,\"min_sensory_signal_score\":45,\"min_sensory_relevance_score\":42,\"min_directive_fit\":41,\"min_actionability_score\":47,\"min_composite_eligibility\":64,\"min_eye_score_ema\":45},\"admission\":{\"total\":8,\"eligible\":8,\"blocked\":0,\"blocked_by_reason\":{}},\"objective_binding\":{\"total\":8,\"required\":8,\"valid_required\":8,\"missing_required\":0,\"invalid_required\":0,\"source_meta_required\":7,\"source_fallback_required\":1,\"source_counts\":{\"meta.objective_id\":7,\"default_first_active_objective\":1},\"ok\":true},\"dream_alignment\":{\"available\":true,\"tokens_loaded\":23,\"source_counts\":{\"theme\":6,\"rem_daily\":8,\"rem_run\":8,\"rem_synthesis\":16,\"rem\":16},\"source_uid_count\":2,\"files\":{\"themes\":true,\"rem\":true,\"rem_runs\":[\"2026-02-26__rem1iskpj08vorfg28b0q87g.json\"]},\"proposals_with_hits\":8,\"proposals_with_bonus\":8,\"bonus_total\":48,\"rem_bonus_total\":16,\"top_hit_tokens\":[{\"token\":\"token\",\"count\":8},{\"token\":\"signal\",\"count\":5},{\"token\":\"eyes\",\"count\":4},{\"token\":\"failure\",\"count\":1}]},\"cross_signal_no_change\":{\"window_days\":7,\"topics\":[]}}",
               "stderr": "",
               "error": null,
               "criteria_pass": true,
@@ -273,11 +293,11 @@
               "exit_code": 0,
               "signal": null,
               "timed_out": false,
-              "started_at": "2026-02-26T17:29:35.809Z",
-              "ended_at": "2026-02-26T17:29:40.537Z",
-              "duration_ms": 4728,
-              "stdout": "{\"ok\":true,\"result\":\"init_gate_blocked_route\",\"legacy_result\":\"executed\",\"policy_hold\":true,\"hold_scope\":\"budget\",\"hold_reason\":\"burn_rate_exceeded\",\"route_block_phase\":\"execute\",\"receipt_id\":\"auto_1772126977938_CSG-1277d5a5ddcea6cb\",\"strategy_id\":\"default_general\",\"execution_mode\":\"canary_execute\",\"proposal_id\":\"CSG-1277d5a5ddcea6cb\",\"objective_id\":\"T1_make_jay_billionaire_v1\",\"capability_key\":\"proposal:cross_signal_opportunity\",\"execution_target\":\"route\",\"proposal_dependencies\":null,\"proposal_date\":\"2026-02-26\",\"risk\":\"low\",\"strategy_rank_adjusted\":99.562,\"est_tokens\":1400,\"route_tokens_est\":1400,\"token_usage\":{\"available\":false,\"source\":\"estimated_fallback\",\"actual_prompt_tokens\":null,\"actual_completion_tokens\":null,\"actual_total_tokens\":null,\"estimated_tokens\":1400,\"effective_tokens\":1400},\"repeats_14d\":48,\"errors_30d\":0,\"used_est_after\":4480,\"signal_quality\":{\"pass\":true,\"score\":84,\"score_source\":\"sensory_relevance_score\",\"eye_id\":\"cross_signal_engine\",\"sensory_relevance_score\":75,\"sensory_relevance_tier\":\"high\",\"sensory_quality_score\":88,\"sensory_quality_tier\":\"high\",\"eye_status\":null,\"eye_score_ema\":null,\"parser_type\":null,\"domain\":null,\"calibration_eye_bias\":0,\"calibration_topic_bias\":0,\"calibration_total_bias\":0,\"reasons\":[\"eye_unknown\"]},\"directive_fit\":{\"pass\":true,\"score\":54,\"profile_available\":true,\"active_directive_ids\":[\"T1_generational_wealth_v1\",\"T1_make_jay_billionaire_v1\"],\"matched_positive\":[\"automated\",\"rate\",\"systems\",\"verified\"],\"matched_negative\":[],\"reasons\":[]},\"actionability\":{\"pass\":true,\"score\":80,\"reasons\":[\"no_action_verb\"],\"executable\":true,\"rollback_signal\":true,\"generic_next_command_template\":false,\"subdirective_v2\":{\"required\":true,\"has_concrete_target\":true,\"has_expected_delta\":true,\"has_verification_step\":true,\"target_count\":1,\"verify_count\":3,\"success_criteria_count\":9},\"success_criteria\":{\"required\":true,\"exempt_type\":false,\"min_count\":2,\"measurable_count\":5,\"total_count\":9,\"pattern_penalty\":0,\"pattern_hits\":[]}},\"value_signal\"",
-              "stderr": "AUTONOMY_SUMMARY model_catalog_apply_pending=1",
+              "started_at": "2026-02-26T17:45:37.019Z",
+              "ended_at": "2026-02-26T17:45:37.688Z",
+              "duration_ms": 669,
+              "stdout": "{\"ok\":true,\"result\":\"stop_repeat_gate_interval\",\"interval_scope\":\"policy_hold\",\"last_policy_hold_result\":\"init_gate_blocked_route\",\"last_policy_hold_minutes_ago\":15.95,\"min_minutes_between_runs\":60,\"policy_hold_pressure\":{\"window_hours\":24,\"min_samples\":6,\"samples\":15,\"policy_holds\":6,\"rate\":0.4,\"level\":\"hard\",\"applicable\":true},\"next_runnable_at\":\"2026-02-26T18:29:40.527Z\",\"ts\":\"2026-02-26T17:45:37.682Z\"}",
+              "stderr": "",
               "error": null,
               "criteria_pass": true,
               "criteria_fail_reasons": []
@@ -311,10 +331,10 @@
               "exit_code": 0,
               "signal": null,
               "timed_out": false,
-              "started_at": "2026-02-26T17:29:40.537Z",
-              "ended_at": "2026-02-26T17:29:41.309Z",
-              "duration_ms": 772,
-              "stdout": "{\n  \"ok\": true,\n  \"ts\": \"2026-02-26T17:29:41.305Z\",\n  \"result\": \"ready\",\n  \"strategy_id\": \"default_general\",\n  \"consecutive_not_ready\": 0,\n  \"max_consecutive_not_ready\": 2,\n  \"readiness\": {\n    \"current_mode\": \"canary_execute\",\n    \"ready_for_execute\": true,\n    \"recommended_mode\": \"canary_execute\",\n    \"checks\": [\n      {\n        \"name\": \"window_days\",\n        \"pass\": true,\n        \"value\": 7,\n        \"target\": \">=7\"\n      },\n      {\n        \"name\": \"attempted\",\n        \"pass\": true,\n        \"value\": 109,\n        \"target\": \">=12\"\n      },\n      {\n        \"name\": \"verified_rate\",\n        \"pass\": true,\n        \"value\": 0.615,\n        \"target\": \">=0.5\"\n      },\n      {\n        \"name\": \"reverted_rate\",\n        \"pass\": true,\n        \"value\": 0,\n        \"target\": \"<=0.35\"\n      },\n      {\n        \"name\": \"stop_ratio\",\n        \"pass\": true,\n        \"value\": 0.351,\n        \"target\": \"<=0.75\"\n      },\n      {\n        \"name\": \"min_shipped\",\n        \"pass\": true,\n        \"value\": 5,\n        \"target\": \">=1\"\n      },\n      {\n        \"name\": \"success_criteria_receipts\",\n        \"pass\": true,\n        \"value\": 41,\n        \"target\": \">=2\"\n      },\n      {\n        \"name\": \"success_criteria_pass_rate\",\n        \"pass\": true,\n        \"value\": 0.78,\n        \"target\": \">=0.6\"\n      },\n      {\n        \"name\": \"success_criteria_quality_insufficient_rate\",\n        \"pass\": true,\n        \"value\": 0.358,\n        \"target\": \"<=0.45\"\n      },\n      {\n        \"name\": \"objective_coverage\",\n        \"pass\": true,\n        \"value\": 1.211,\n        \"target\": \">=0.25\"\n      },\n      {\n        \"name\": \"objective_no_progress_rate\",\n        \"pass\": true,\n        \"value\": 0.023,\n        \"target\": \"<=0.9\"\n      }\n    ],\n    \"failed_checks\": [],\n    \"metrics\": {\n      \"attempted\": 109,\n      \"verified_rate\": 0.615,\n      \"success_criteria_receipts\": 41,\n      \"success_criteria_source\": \"quality_forced\",\n      \"success_criteria_fallback_retired\": true,\n      \"success_criteria_quality_receipts\": 41,\n      \"succes",
+              "started_at": "2026-02-26T17:45:37.688Z",
+              "ended_at": "2026-02-26T17:45:38.209Z",
+              "duration_ms": 521,
+              "stdout": "{\n  \"ok\": true,\n  \"ts\": \"2026-02-26T17:45:38.201Z\",\n  \"result\": \"ready\",\n  \"strategy_id\": \"default_general\",\n  \"consecutive_not_ready\": 0,\n  \"max_consecutive_not_ready\": 2,\n  \"readiness\": {\n    \"current_mode\": \"canary_execute\",\n    \"ready_for_execute\": true,\n    \"recommended_mode\": \"canary_execute\",\n    \"checks\": [\n      {\n        \"name\": \"window_days\",\n        \"pass\": true,\n        \"value\": 7,\n        \"target\": \">=7\"\n      },\n      {\n        \"name\": \"attempted\",\n        \"pass\": true,\n        \"value\": 109,\n        \"target\": \">=12\"\n      },\n      {\n        \"name\": \"verified_rate\",\n        \"pass\": true,\n        \"value\": 0.615,\n        \"target\": \">=0.5\"\n      },\n      {\n        \"name\": \"reverted_rate\",\n        \"pass\": true,\n        \"value\": 0,\n        \"target\": \"<=0.35\"\n      },\n      {\n        \"name\": \"stop_ratio\",\n        \"pass\": true,\n        \"value\": 0.357,\n        \"target\": \"<=0.75\"\n      },\n      {\n        \"name\": \"min_shipped\",\n        \"pass\": true,\n        \"value\": 5,\n        \"target\": \">=1\"\n      },\n      {\n        \"name\": \"success_criteria_receipts\",\n        \"pass\": true,\n        \"value\": 41,\n        \"target\": \">=2\"\n      },\n      {\n        \"name\": \"success_criteria_pass_rate\",\n        \"pass\": true,\n        \"value\": 0.78,\n        \"target\": \">=0.6\"\n      },\n      {\n        \"name\": \"success_criteria_quality_insufficient_rate\",\n        \"pass\": true,\n        \"value\": 0.358,\n        \"target\": \"<=0.45\"\n      },\n      {\n        \"name\": \"objective_coverage\",\n        \"pass\": true,\n        \"value\": 1.211,\n        \"target\": \">=0.25\"\n      },\n      {\n        \"name\": \"objective_no_progress_rate\",\n        \"pass\": true,\n        \"value\": 0.023,\n        \"target\": \"<=0.9\"\n      }\n    ],\n    \"failed_checks\": [],\n    \"metrics\": {\n      \"attempted\": 109,\n      \"verified_rate\": 0.615,\n      \"success_criteria_receipts\": 41,\n      \"success_criteria_source\": \"quality_forced\",\n      \"success_criteria_fallback_retired\": true,\n      \"success_criteria_quality_receipts\": 41,\n      \"succes",
               "stderr": "",
               "error": null,
               "criteria_pass": true,
@@ -348,8 +368,8 @@
               "criteria_pass": true,
               "criteria_fail_reasons": [],
               "exit_code": 0,
-              "started_at": "2026-02-26T17:29:41.310Z",
-              "ended_at": "2026-02-26T17:29:41.310Z",
+              "started_at": "2026-02-26T17:45:38.209Z",
+              "ended_at": "2026-02-26T17:45:38.209Z",
               "duration_ms": 0,
               "timed_out": false,
               "stdout": "",

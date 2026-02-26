@@ -1,7 +1,7 @@
 {
   "ok": true,
   "type": "observability_metrics_exporter",
-  "ts": "2026-02-26T17:29:50.029Z",
+  "ts": "2026-02-26T17:45:43.033Z",
   "date": "2026-02-26",
   "window": "daily",
   "policy_path": "/Users/jay/.openclaw/workspace/config/observability_policy.json",
@@ -11,7 +11,10 @@
   "health_report_path": "state/autonomy/health_reports/2026-02-26.daily.json",
   "workflow_executor_path": "state/adaptive/workflows/executor/latest_live.json",
   "ci_baseline_path": "state/ops/ci_baseline_streak.json",
-  "metrics_count": 15,
+  "workflow_executor_history_path": "state/adaptive/workflows/executor/history.jsonl",
+  "workflow_executor_live_zero_selection_streak": 0,
+  "workflow_executor_live_zero_selection_warn_streak": 2,
+  "metrics_count": 17,
   "output": {
     "prometheus_path": "state/observability/prometheus/current.prom",
     "snapshot_path": "state/observability/metrics/latest.json",
@@ -168,6 +171,18 @@
       "value": 1
     },
     {
+      "name": "protheus_workflow_executor_live_zero_selection_streak",
+      "help": "Consecutive non-dry live executor runs with zero workflows selected.",
+      "type": "gauge",
+      "value": 0
+    },
+    {
+      "name": "protheus_workflow_executor_live_zero_selection_warn_streak",
+      "help": "Warning threshold for live zero-selection streak.",
+      "type": "gauge",
+      "value": 2
+    },
+    {
       "name": "protheus_ci_baseline_streak_days",
       "help": "Current consecutive daily green CI streak.",
       "type": "gauge",
@@ -189,7 +204,7 @@
       "name": "protheus_observability_snapshot_timestamp_seconds",
       "help": "Unix timestamp of observability metrics snapshot.",
       "type": "gauge",
-      "value": 1772126990,
+      "value": 1772127943,
       "labels": {
         "date": "2026-02-26",
         "window": "daily"

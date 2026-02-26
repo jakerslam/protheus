@@ -1,0 +1,12 @@
+{
+  "schema_id": "llm_test_opacity_state",
+  "schema_version": "1.0",
+  "updated_at": "2026-02-26T17:40:25.827Z",
+  "sources": {
+    "idle_dream_cycle": {
+      "blocked_attempts": [],
+      "locked_until": null
+    }
+  },
+  "global_blocked_attempts": []
+}

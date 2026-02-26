@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "updated_at": "2026-02-26T17:29:54.486Z",
-  "generated_at": "2026-02-26T17:29:54.485Z",
+  "updated_at": "2026-02-26T17:45:17.762Z",
+  "generated_at": "2026-02-26T17:45:17.762Z",
   "workflows": [
     {
       "id": "wfc_07aee5ce1dfb0f41",
@@ -160,7 +160,7 @@
           "novelty": 0
         },
         "source": "orchestron_adaptive_controller",
-        "ts": "2026-02-26T17:29:54.434Z",
+        "ts": "2026-02-26T17:45:17.711Z",
         "signature": "maximize_verified_progress_under_active_directives._default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
       },
       "parent_workflow_id": "wfc_c526a0ca51072aa5",
@@ -268,7 +268,7 @@
           "require_policy_root": false
         }
       ],
-      "generated_at": "2026-02-26T17:29:54.480Z",
+      "generated_at": "2026-02-26T17:45:17.756Z",
       "children_ids": [],
       "activated_at": "2026-02-26T17:28:18.621Z",
       "fractal_state": "child_active",
@@ -280,7 +280,7 @@
         "activation_mode": "update",
         "activated_at": "2026-02-26T17:28:18.621Z"
       },
-      "updated_at": "2026-02-26T17:29:54.485Z"
+      "updated_at": "2026-02-26T17:45:17.761Z"
     },
     {
       "id": "wfc_145ecc2f4cde0e52",
@@ -439,7 +439,7 @@
           "novelty": 0
         },
         "source": "orchestron_adaptive_controller",
-        "ts": "2026-02-26T17:29:54.434Z",
+        "ts": "2026-02-26T17:45:17.711Z",
         "signature": "maximize_verified_progress_under_active_directives._default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
       },
       "parent_workflow_id": null,
@@ -543,7 +543,7 @@
           "require_policy_root": false
         }
       ],
-      "generated_at": "2026-02-26T17:29:54.480Z",
+      "generated_at": "2026-02-26T17:45:17.757Z",
       "children_ids": [
         "wfc_c526a0ca51072aa5",
         "wfc_c2077422278c77a1",
@@ -559,7 +559,7 @@
         "activation_mode": "update",
         "activated_at": "2026-02-26T17:28:18.621Z"
       },
-      "updated_at": "2026-02-26T17:29:54.485Z"
+      "updated_at": "2026-02-26T17:45:17.761Z"
     },
     {
       "id": "wfc_545b11ab500ef289",
@@ -595,7 +595,7 @@
           "novelty": 0
         },
         "source": "orchestron_adaptive_controller",
-        "ts": "2026-02-26T17:29:54.434Z",
+        "ts": "2026-02-26T17:45:17.711Z",
         "signature": "maximize_verified_progress_under_active_directives._default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
       },
       "parent_workflow_id": "wfc_c526a0ca51072aa5",
@@ -703,7 +703,7 @@
           "require_policy_root": false
         }
       ],
-      "generated_at": "2026-02-26T17:29:54.480Z",
+      "generated_at": "2026-02-26T17:45:17.756Z",
       "children_ids": [],
       "activated_at": "2026-02-26T17:28:18.621Z",
       "fractal_state": "child_active",
@@ -715,7 +715,7 @@
         "activation_mode": "update",
         "activated_at": "2026-02-26T17:28:18.621Z"
       },
-      "updated_at": "2026-02-26T17:29:54.485Z"
+      "updated_at": "2026-02-26T17:45:17.761Z"
     },
     {
       "id": "wfc_5d55739830782563",
@@ -1001,7 +1001,7 @@
           "novelty": 0
         },
         "source": "orchestron_adaptive_controller",
-        "ts": "2026-02-26T17:29:54.434Z",
+        "ts": "2026-02-26T17:45:17.711Z",
         "signature": "maximize_verified_progress_under_active_directives._default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
       },
       "parent_workflow_id": "wfc_2d5f1833a867e5c3",
@@ -1109,7 +1109,7 @@
           "require_policy_root": false
         }
       ],
-      "generated_at": "2026-02-26T17:29:54.480Z",
+      "generated_at": "2026-02-26T17:45:17.757Z",
       "children_ids": [],
       "activated_at": "2026-02-26T17:28:18.621Z",
       "fractal_state": "child_active",
@@ -1121,7 +1121,7 @@
         "activation_mode": "update",
         "activated_at": "2026-02-26T17:28:18.621Z"
       },
-      "updated_at": "2026-02-26T17:29:54.485Z"
+      "updated_at": "2026-02-26T17:45:17.761Z"
     },
     {
       "id": "wfc_7c82f6565f5e49c8",
@@ -1403,7 +1403,7 @@
           "novelty": 0
         },
         "source": "orchestron_adaptive_controller",
-        "ts": "2026-02-26T17:29:54.434Z",
+        "ts": "2026-02-26T17:45:17.711Z",
         "signature": "maximize_verified_progress_under_active_directives._default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
       },
       "parent_workflow_id": "wfc_c526a0ca51072aa5",
@@ -1511,7 +1511,7 @@
           "require_policy_root": false
         }
       ],
-      "generated_at": "2026-02-26T17:29:54.480Z",
+      "generated_at": "2026-02-26T17:45:17.756Z",
       "children_ids": [],
       "activated_at": "2026-02-26T17:28:18.621Z",
       "fractal_state": "child_active",
@@ -1523,7 +1523,7 @@
         "activation_mode": "update",
         "activated_at": "2026-02-26T17:28:18.621Z"
       },
-      "updated_at": "2026-02-26T17:29:54.485Z"
+      "updated_at": "2026-02-26T17:45:17.761Z"
     },
     {
       "id": "wfc_a44608bceb8564cf",
@@ -1559,7 +1559,7 @@
           "novelty": 0
         },
         "source": "orchestron_adaptive_controller",
-        "ts": "2026-02-26T17:29:54.434Z",
+        "ts": "2026-02-26T17:45:17.711Z",
         "signature": "maximize_verified_progress_under_active_directives._default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
       },
       "parent_workflow_id": null,
@@ -1663,7 +1663,7 @@
           "require_policy_root": false
         }
       ],
-      "generated_at": "2026-02-26T17:29:54.480Z",
+      "generated_at": "2026-02-26T17:45:17.756Z",
       "children_ids": [],
       "activated_at": "2026-02-26T17:28:18.621Z",
       "fractal_state": "root_active",
@@ -1675,7 +1675,7 @@
         "activation_mode": "update",
         "activated_at": "2026-02-26T17:28:18.621Z"
       },
-      "updated_at": "2026-02-26T17:29:54.484Z"
+      "updated_at": "2026-02-26T17:45:17.761Z"
     },
     {
       "id": "wfc_b565c4e93d31b632",
@@ -1834,7 +1834,7 @@
           "novelty": 0
         },
         "source": "orchestron_adaptive_controller",
-        "ts": "2026-02-26T17:29:54.434Z",
+        "ts": "2026-02-26T17:45:17.711Z",
         "signature": "maximize_verified_progress_under_active_directives._default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
       },
       "parent_workflow_id": "wfc_2d5f1833a867e5c3",
@@ -1942,7 +1942,7 @@
           "require_policy_root": false
         }
       ],
-      "generated_at": "2026-02-26T17:29:54.480Z",
+      "generated_at": "2026-02-26T17:45:17.757Z",
       "children_ids": [],
       "activated_at": "2026-02-26T17:28:18.621Z",
       "fractal_state": "child_active",
@@ -1954,7 +1954,7 @@
         "activation_mode": "update",
         "activated_at": "2026-02-26T17:28:18.621Z"
       },
-      "updated_at": "2026-02-26T17:29:54.485Z"
+      "updated_at": "2026-02-26T17:45:17.761Z"
     },
     {
       "id": "wfc_c526a0ca51072aa5",
@@ -1990,7 +1990,7 @@
           "novelty": 0
         },
         "source": "orchestron_adaptive_controller",
-        "ts": "2026-02-26T17:29:54.434Z",
+        "ts": "2026-02-26T17:45:17.711Z",
         "signature": "maximize_verified_progress_under_active_directives._default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
       },
       "parent_workflow_id": "wfc_2d5f1833a867e5c3",
@@ -2098,7 +2098,7 @@
           "require_policy_root": false
         }
       ],
-      "generated_at": "2026-02-26T17:29:54.480Z",
+      "generated_at": "2026-02-26T17:45:17.756Z",
       "children_ids": [
         "wfc_0d7f23c40175dcb9",
         "wfc_a41a70667734f086",
@@ -2114,7 +2114,7 @@
         "activation_mode": "update",
         "activated_at": "2026-02-26T17:28:18.621Z"
       },
-      "updated_at": "2026-02-26T17:29:54.485Z"
+      "updated_at": "2026-02-26T17:45:17.761Z"
     },
     {
       "id": "wfc_ecea8fd103aab192",
