@@ -853,6 +853,12 @@ function main() {
     ["adaptive_controller.js", "run", "status", "--intent", "--max-candidates", "--value-currency", "--objective-id", "--policy"]
   );
 
+  // intent_analyzer.js must expose bounded intent contracts (objective/constraints/uncertainty/trit signals).
+  checkScript(
+    "systems/workflow/orchestron/intent_analyzer.js",
+    ["intent_analyzer.js", "run", "--intent"]
+  );
+
   // workflow_executor.js runs active workflow steps with retries/gate checks/receipt checks.
   checkScript(
     "systems/workflow/workflow_executor.js",

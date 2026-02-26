@@ -98,6 +98,7 @@ function normalizeIntent(rawIntent, strategy) {
     uncertainty_band: uncertainty,
     constraints,
     signals: normalizedSignals,
+    risk_signals: normalizedSignals,
     source: cleanText(src.source || 'orchestron_intent_analyzer', 80),
     ts: cleanText(src.ts || nowIso(), 64),
     signature

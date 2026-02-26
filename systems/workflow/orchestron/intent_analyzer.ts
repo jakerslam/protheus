@@ -141,7 +141,11 @@ function runCli(args) {
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const cmd = String(args._[0] || 'run').trim().toLowerCase();
-  if (cmd === '--help' || cmd === '-h' || cmd === 'help') {
+  if (args.help === true || args.h === true || cmd === '--help' || cmd === '-h' || cmd === 'help') {
+    usage();
+    return;
+  }
+  if (!args._.length) {
     usage();
     return;
   }
