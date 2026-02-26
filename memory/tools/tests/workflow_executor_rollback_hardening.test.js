@@ -48,6 +48,9 @@ function run() {
   const stepReceiptsDir = path.join(tmp, 'state', 'adaptive', 'workflows', 'executor', 'step_receipts');
   const mutationReceiptsDir = path.join(tmp, 'state', 'adaptive', 'workflows', 'executor', 'mutations');
   const policyPath = path.join(tmp, 'config', 'workflow_executor_policy.json');
+  const budgetStateDir = path.join(tmp, 'state', 'autonomy', 'daily_budget');
+  const budgetEventsPath = path.join(tmp, 'state', 'autonomy', 'budget_events.jsonl');
+  const budgetAutopausePath = path.join(tmp, 'state', 'autonomy', 'budget_autopause.json');
 
   const toolsDir = path.join(tmp, 'tools');
   const printScript = path.join(toolsDir, 'print_then_exit.js');
@@ -155,6 +158,17 @@ function run() {
       max_total_step_duration_ms_per_workflow: 600000
     }
   });
+  writeJson(budgetAutopausePath, {
+    schema_id: 'system_budget_autopause',
+    schema_version: '1.0.0',
+    active: false,
+    source: 'test',
+    reason: null,
+    pressure: null,
+    until_ms: 0,
+    until: null,
+    updated_at: new Date().toISOString()
+  });
 
   const env = {
     ...process.env,
@@ -165,7 +179,11 @@ function run() {
     WORKFLOW_EXECUTOR_ROLLOUT_STATE_PATH: rolloutStatePath,
     WORKFLOW_EXECUTOR_STEP_RECEIPTS_DIR: stepReceiptsDir,
     WORKFLOW_EXECUTOR_MUTATION_RECEIPTS_DIR: mutationReceiptsDir,
-    WORKFLOW_EXECUTOR_CWD: tmp
+    WORKFLOW_EXECUTOR_CWD: tmp,
+    SYSTEM_BUDGET_STATE_DIR: budgetStateDir,
+    SYSTEM_BUDGET_EVENTS_PATH: budgetEventsPath,
+    SYSTEM_BUDGET_AUTOPAUSE_PATH: budgetAutopausePath,
+    SYSTEM_BUDGET_DEFAULT_DAILY_TOKEN_CAP: '6000'
   };
 
   const criteriaFailWorkflow = {

@@ -135,5 +135,35 @@
       "timeout_ms": 8000,
       "script": "systems/security/soul_token_guard.js"
     }
+  },
+  "token_economics": {
+    "enabled": true,
+    "use_system_budget": true,
+    "run_token_cap": 0,
+    "fallback_run_token_cap": 1200,
+    "reserve_tokens_for_critical_lanes": 320,
+    "per_workflow_min_token_cap": 80,
+    "per_workflow_min_token_cap_critical": 140,
+    "per_workflow_max_token_cap": 2200,
+    "step_command_default_tokens": 40,
+    "step_gate_tokens": 18,
+    "step_receipt_tokens": 10,
+    "step_external_tokens": 120,
+    "envelope_headroom_multiplier": 1.6,
+    "throttle_floor_ratio": 0.35,
+    "defer_queue_enabled": true,
+    "defer_on_autopause": true,
+    "defer_on_guard_deny": true,
+    "allow_critical_when_autopause": false,
+    "critical_priority_floor": 4,
+    "critical_tags": [
+      "critical",
+      "security",
+      "doctor",
+      "repair",
+      "incident",
+      "compliance",
+      "recovery"
+    ]
   }
 }

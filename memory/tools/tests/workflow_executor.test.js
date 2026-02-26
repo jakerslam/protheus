@@ -45,6 +45,11 @@ function run() {
   const receiptPath = path.join(tmp, 'state', 'autonomy', 'receipts', `${dateStr}.jsonl`);
   const failOnceMarkerPath = path.join(tmp, 'state', 'tmp', 'fail_once_marker.txt');
   const mutationPolicyPath = path.join(tmp, 'config', 'workflow_executor_policy.json');
+  const tokenDeferPolicyPath = path.join(tmp, 'config', 'workflow_executor_token_defer_policy.json');
+  const deferQueuePath = path.join(tmp, 'state', 'adaptive', 'workflows', 'executor', 'defer_queue.jsonl');
+  const budgetStateDir = path.join(tmp, 'state', 'autonomy', 'daily_budget');
+  const budgetEventsPath = path.join(tmp, 'state', 'autonomy', 'budget_events.jsonl');
+  const budgetAutopausePath = path.join(tmp, 'state', 'autonomy', 'budget_autopause.json');
 
   fs.mkdirSync(toolsDir, { recursive: true });
   fs.writeFileSync(
@@ -90,6 +95,33 @@ function run() {
         retry_tuning: true
       }
     }
+  });
+  writeJson(tokenDeferPolicyPath, {
+    version: '1.0',
+    token_economics: {
+      enabled: true,
+      use_system_budget: false,
+      run_token_cap: 80,
+      fallback_run_token_cap: 80,
+      reserve_tokens_for_critical_lanes: 0,
+      per_workflow_min_token_cap: 30,
+      per_workflow_min_token_cap_critical: 30,
+      per_workflow_max_token_cap: 300,
+      throttle_floor_ratio: 0.9,
+      defer_queue_enabled: true,
+      critical_priority_floor: 5
+    }
+  });
+  writeJson(budgetAutopausePath, {
+    schema_id: 'system_budget_autopause',
+    schema_version: '1.0.0',
+    active: false,
+    source: 'test',
+    reason: null,
+    pressure: null,
+    until_ms: 0,
+    until: null,
+    updated_at: new Date().toISOString()
   });
 
   const successWorkflow = {
@@ -156,7 +188,12 @@ function run() {
     WORKFLOW_EXECUTOR_ROLLOUT_STATE_PATH: rolloutStatePath,
     WORKFLOW_EXECUTOR_STEP_RECEIPTS_DIR: stepReceiptsDir,
     WORKFLOW_EXECUTOR_MUTATION_RECEIPTS_DIR: mutationReceiptsDir,
-    WORKFLOW_EXECUTOR_CWD: tmp
+    WORKFLOW_EXECUTOR_DEFER_QUEUE_PATH: deferQueuePath,
+    WORKFLOW_EXECUTOR_CWD: tmp,
+    SYSTEM_BUDGET_STATE_DIR: budgetStateDir,
+    SYSTEM_BUDGET_EVENTS_PATH: budgetEventsPath,
+    SYSTEM_BUDGET_AUTOPAUSE_PATH: budgetAutopausePath,
+    SYSTEM_BUDGET_DEFAULT_DAILY_TOKEN_CAP: '6000'
   };
 
   const successRun = spawnSync(process.execPath, [
@@ -199,6 +236,75 @@ function run() {
   const statusOut = parsePayload(statusRun.stdout);
   assert.ok(statusOut && statusOut.ok === true, 'status output should be ok');
   assert.strictEqual(Number(statusOut.workflows_succeeded || 0), 1, 'status should report succeeded workflow');
+
+  const costlyWorkflow = {
+    id: 'wf_costly',
+    name: 'Costly Workflow',
+    status: 'active',
+    source: 'test',
+    updated_at: '2026-02-25T00:00:00.000Z',
+    steps: [
+      {
+        id: 'heavy_step',
+        type: 'command',
+        command: `${shellQuote(process.execPath)} -e ${shellQuote('process.exit(0)')}`,
+        estimated_tokens: 180,
+        retries: 0,
+        timeout_ms: 30000
+      },
+      {
+        id: 'gate',
+        type: 'gate',
+        command: `${shellQuote(process.execPath)} -e ${shellQuote('process.exit(0)')}`,
+        estimated_tokens: 40,
+        retries: 0,
+        timeout_ms: 30000
+      },
+      {
+        id: 'receipt',
+        type: 'receipt',
+        command: receiptPath,
+        estimated_tokens: 10,
+        retries: 0,
+        timeout_ms: 30000
+      }
+    ]
+  };
+  writeJson(registryPath, {
+    version: '1.0',
+    updated_at: null,
+    generated_at: null,
+    workflows: [costlyWorkflow]
+  });
+  const deferRun = spawnSync(process.execPath, [
+    scriptPath,
+    'run',
+    dateStr,
+    '--max=2',
+    '--dry-run=0',
+    '--runtime-mutation=0',
+    '--enforce-eligibility=1',
+    `--policy=${tokenDeferPolicyPath}`
+  ], {
+    cwd: root,
+    encoding: 'utf8',
+    env
+  });
+  assert.strictEqual(deferRun.status, 0, deferRun.stderr || 'defer run should return payload');
+  const deferOut = parsePayload(deferRun.stdout);
+  assert.ok(deferOut && deferOut.ok === true, 'defer run output should be ok');
+  assert.strictEqual(Number(deferOut.workflows_selected_initial || 0), 1, 'defer run should start with one selected workflow');
+  assert.strictEqual(Number(deferOut.workflows_selected || 0), 0, 'token economics should defer execution');
+  assert.strictEqual(Number(deferOut.workflows_deferred || 0), 1, 'one workflow should be deferred');
+  assert.strictEqual(Number(deferOut.workflows_executed || 0), 0, 'deferred workflow must not execute');
+  assert.ok(
+    Number((deferOut.token_predicted_total || 0)) > Number((deferOut.token_enveloped_total || 0)),
+    'predicted tokens should exceed enveloped tokens when deferred'
+  );
+  assert.ok(fs.existsSync(deferQueuePath), 'defer queue should be written');
+  const deferRows = fs.readFileSync(deferQueuePath, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  assert.ok(deferRows.length >= 1, 'defer queue should contain at least one entry');
+  assert.strictEqual(String(deferRows[deferRows.length - 1].workflow_id || ''), 'wf_costly', 'defer queue should record the deferred workflow');
 
   const failingWorkflow = {
     id: 'wf_fail',

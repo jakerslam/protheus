@@ -69,6 +69,7 @@ const SCRIPT_RED_TEAM = 'systems/autonomy/red_team_harness.js';
 const SCRIPT_AUTOTEST = 'systems/ops/autotest_controller.js';
 const SCRIPT_AUTOTEST_DOCTOR = 'systems/ops/autotest_doctor.js';
 const SCRIPT_ORGAN_ATROPHY = 'systems/ops/organ_atrophy_controller.js';
+const SCRIPT_WEAVER = 'systems/weaver/weaver_core.js';
 
 const ALLOWED_SCRIPTS = new Set([
   SCRIPT_MEMORY_DREAM,
@@ -81,7 +82,8 @@ const ALLOWED_SCRIPTS = new Set([
   SCRIPT_RED_TEAM,
   SCRIPT_AUTOTEST,
   SCRIPT_AUTOTEST_DOCTOR,
-  SCRIPT_ORGAN_ATROPHY
+  SCRIPT_ORGAN_ATROPHY,
+  SCRIPT_WEAVER
 ]);
 
 function usage() {
@@ -267,6 +269,7 @@ function defaultPolicy() {
     cooldown_sec: {
       dream_consolidation: 45 * 60,
       anticipation: 30 * 60,
+      value_weaving: 40 * 60,
       self_improvement: 25 * 60,
       creative_incubation: 60 * 60,
       security_vigilance: 35 * 60,
@@ -293,6 +296,15 @@ function defaultPolicy() {
         value_currency: 'adaptive_value',
         objective_id: 'continuum_anticipation',
         min_trit: 0,
+        max_trit: 1
+      },
+      value_weaving: {
+        enabled: true,
+        timeout_ms: 16000,
+        value_currency: 'adaptive_value',
+        objective_id: 'continuum_value_weaving',
+        apply: false,
+        min_trit: -1,
         max_trit: 1
       },
       self_improvement: {
@@ -447,6 +459,7 @@ function loadPolicy(policyPath: string) {
     cooldown_sec: {
       dream_consolidation: clampInt(cooldownSec.dream_consolidation, 0, 24 * 60 * 60, base.cooldown_sec.dream_consolidation),
       anticipation: clampInt(cooldownSec.anticipation, 0, 24 * 60 * 60, base.cooldown_sec.anticipation),
+      value_weaving: clampInt(cooldownSec.value_weaving, 0, 24 * 60 * 60, base.cooldown_sec.value_weaving),
       self_improvement: clampInt(cooldownSec.self_improvement, 0, 24 * 60 * 60, base.cooldown_sec.self_improvement),
       creative_incubation: clampInt(cooldownSec.creative_incubation, 0, 24 * 60 * 60, base.cooldown_sec.creative_incubation),
       security_vigilance: clampInt(cooldownSec.security_vigilance, 0, 24 * 60 * 60, base.cooldown_sec.security_vigilance),
@@ -457,6 +470,7 @@ function loadPolicy(policyPath: string) {
     tasks: {
       dream_consolidation: normalizeTaskGate(tasks.dream_consolidation, base.tasks.dream_consolidation),
       anticipation: normalizeTaskGate(tasks.anticipation, base.tasks.anticipation),
+      value_weaving: normalizeTaskGate(tasks.value_weaving, base.tasks.value_weaving),
       self_improvement: normalizeTaskGate(tasks.self_improvement, base.tasks.self_improvement),
       creative_incubation: normalizeTaskGate(tasks.creative_incubation, base.tasks.creative_incubation),
       security_vigilance: normalizeTaskGate(tasks.security_vigilance, base.tasks.security_vigilance),
@@ -939,6 +953,38 @@ function runAnticipation(dateStr: string, taskCfg: AnyObj, dryRun: boolean) {
   };
 }
 
+function runValueWeaving(dateStr: string, taskCfg: AnyObj, dryRun: boolean) {
+  const valueMetricInput = normalizeToken(taskCfg.value_currency || 'adaptive_value', 80) || 'adaptive_value';
+  const run = runNodeJson(SCRIPT_WEAVER, [
+    'run',
+    dateStr,
+    `--objective-id=${normalizeToken(taskCfg.objective_id || 'continuum_value_weaving', 120) || 'continuum_value_weaving'}`,
+    `--value-metrics=${valueMetricInput}`,
+    `--apply=${taskCfg.apply === true && dryRun !== true ? '1' : '0'}`,
+    `--dry-run=${dryRun ? '1' : '0'}`,
+    '--source=continuum_core'
+  ], {
+    timeout_ms: taskCfg.timeout_ms,
+    dry_run: dryRun
+  });
+  const summary = summarizeRun('weaver_core', run);
+  const valueContext = summary.payload && summary.payload.value_context && typeof summary.payload.value_context === 'object'
+    ? summary.payload.value_context
+    : {};
+  return {
+    ok: summary.ok,
+    primary_metric_id: cleanText(valueContext.primary_metric_id || '', 80) || null,
+    value_currency: cleanText(valueContext.value_currency || '', 80) || null,
+    guard_triggered: !!(
+      valueContext.monoculture_guard
+      && valueContext.monoculture_guard.triggered === true
+    ),
+    allocations_count: Array.isArray(valueContext.allocations) ? valueContext.allocations.length : 0,
+    apply_executed: summary.payload && summary.payload.apply_executed === true,
+    weaver_core: summary
+  };
+}
+
 function runSelfImprovement(dateStr: string, taskCfg: AnyObj, dryRun: boolean) {
   const observerMirrorRun = runNodeJson(SCRIPT_OBSERVER_MIRROR, [
     'run',
@@ -1113,6 +1159,7 @@ function dualBrainLaneForTask(taskId: string) {
   if (id === 'dream_consolidation') return 'right';
   if (id === 'creative_incubation') return 'right';
   if (id === 'anticipation') return 'right';
+  if (id === 'value_weaving') return 'left';
   if (id === 'organ_atrophy_shadow') return 'left';
   if (id === 'autotest_doctor') return 'left';
   return 'left';
@@ -1123,6 +1170,7 @@ function dualBrainTaskClassForTask(taskId: string) {
   if (id === 'dream_consolidation') return 'dream';
   if (id === 'creative_incubation') return 'creative';
   if (id === 'anticipation') return 'workflow_generation';
+  if (id === 'value_weaving') return 'identity';
   if (id === 'autotest_validation') return 'governance';
   if (id === 'autotest_doctor') return 'governance';
   if (id === 'organ_atrophy_shadow') return 'governance';
@@ -1302,6 +1350,7 @@ function pulse(dateStr: string, opts: AnyObj = {}) {
   const taskEvents = {
     dream: 0,
     anticipation: 0,
+    value_weaving: 0,
     self_improvement: 0,
     creative: 0,
     security: 0,
@@ -1392,6 +1441,7 @@ function pulse(dateStr: string, opts: AnyObj = {}) {
       delete metrics.fractal_introspection;
       delete metrics.creative_links;
       delete metrics.red_team_harness;
+      delete metrics.weaver_core;
       delete metrics.autotest_controller;
       delete metrics.autotest_doctor;
       delete metrics.organ_atrophy_controller;
@@ -1402,6 +1452,8 @@ function pulse(dateStr: string, opts: AnyObj = {}) {
     if (dreamOut.skipped !== true) taskEvents.dream += 1;
     const anticipationOut = runTask('anticipation', 'anticipation', () => runAnticipation(dateStr, taskCfg.anticipation, dryRun));
     if (anticipationOut.skipped !== true) taskEvents.anticipation += 1;
+    const weavingOut = runTask('value_weaving', 'value_weaving', () => runValueWeaving(dateStr, taskCfg.value_weaving, dryRun));
+    if (weavingOut.skipped !== true) taskEvents.value_weaving += 1;
     const selfImproveOut = runTask('self_improvement', 'self_improvement', () => runSelfImprovement(dateStr, taskCfg.self_improvement, dryRun));
     if (selfImproveOut.skipped !== true) taskEvents.self_improvement += 1;
     const creativeOut = runTask('creative_incubation', 'creative_incubation', () => runCreativeIncubation(dateStr, taskCfg.creative_incubation, dryRun));

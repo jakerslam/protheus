@@ -1,0 +1,134 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "shadow_only": false,
+  "allow_apply": true,
+  "metric_schema": {
+    "include_builtin_metrics": true,
+    "min_metric_weight": 0.04,
+    "default_primary_metric": "adaptive_value",
+    "extra_metrics": [
+      {
+        "metric_id": "joy",
+        "label": "Joy",
+        "unit": "score",
+        "default_weight": 0.08,
+        "value_currency": "user_value",
+        "tags": [
+          "wellbeing",
+          "alignment"
+        ]
+      },
+      {
+        "metric_id": "freedom",
+        "label": "Freedom",
+        "unit": "hours",
+        "default_weight": 0.08,
+        "value_currency": "time_savings",
+        "tags": [
+          "time",
+          "agency"
+        ]
+      },
+      {
+        "metric_id": "truth_seeking",
+        "label": "Truth Seeking",
+        "unit": "score",
+        "default_weight": 0.08,
+        "value_currency": "quality",
+        "tags": [
+          "accuracy",
+          "principles"
+        ]
+      }
+    ]
+  },
+  "arbitration": {
+    "floor_share": 0.04,
+    "soft_caps": [],
+    "currency_profiles": {
+      "learning": {
+        "uncertainty_bias": 0.08,
+        "drift_risk_bias": -0.04
+      },
+      "user_value": {
+        "impact_bias": 0.06,
+        "drift_risk_bias": -0.03
+      },
+      "quality": {
+        "confidence_bias": 0.07,
+        "drift_risk_bias": -0.05
+      }
+    },
+    "ranking_profiles": {},
+    "weights": {
+      "impact": 1.2,
+      "confidence": 1.05,
+      "uncertainty": 0.35,
+      "drift_risk": 1.15,
+      "cost_pressure": 1,
+      "mirror_pressure": 0.8,
+      "regime_alignment": 0.45
+    }
+  },
+  "monoculture_guard": {
+    "enabled": true,
+    "window_days": 21,
+    "max_single_metric_share": 0.68,
+    "metric_caps": {},
+    "currency_caps": {}
+  },
+  "constitutional_veto": {
+    "enabled": true,
+    "deny_on_directive_decision": [
+      "deny"
+    ],
+    "deny_on_identity_block": true,
+    "fallback_block_on_error": true,
+    "value_sovereignty": {
+      "enabled": true,
+      "min_combined_share": 0.24,
+      "protected_metric_ids": [
+        "adaptive_value",
+        "user_value",
+        "quality"
+      ],
+      "protected_value_currencies": [
+        "user_value",
+        "quality",
+        "learning"
+      ]
+    }
+  },
+  "creative_routing": {
+    "enabled": true,
+    "prefer_right_for_metric_ids": [
+      "joy",
+      "beauty",
+      "learning",
+      "truth_seeking",
+      "creative",
+      "play"
+    ],
+    "prefer_right_for_currencies": [
+      "learning",
+      "user_value"
+    ],
+    "task_class_default": "general",
+    "task_class_creative": "creative",
+    "persist_decisions": false
+  },
+  "pathways": {
+    "enabled": true,
+    "min_share_for_active": 0.08,
+    "dormant_after_days": 14,
+    "archive_candidate_after_days": 60,
+    "atrophy_gain_per_day": 0.03
+  },
+  "outputs": {
+    "emit_events": true,
+    "write_preview_overlay": true,
+    "emit_ide_events": true,
+    "emit_obsidian_projection": true
+  }
+}
