@@ -6,9 +6,11 @@ export {};
  * Workflow execution closure tracker (RM-113).
  *
  * Proves closure on the "all signal, no action" gap by tracking consecutive
- * daily passes where BOTH conditions hold:
+ * daily passes where all required conditions hold:
  * - accepted_items >= min_accepted_items
  * - workflows_executed >= min_workflows_executed
+ * - workflows_succeeded >= min_workflows_succeeded
+ * - workflow_success_ratio >= min_success_ratio
  */
 
 const fs = require('fs');

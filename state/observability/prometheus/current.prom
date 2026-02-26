@@ -27,7 +27,7 @@ protheus_observed_autonomy_runs{window="daily"} 17
 protheus_workflow_executor_slo_pass 1
 # HELP protheus_workflow_executor_execution_success_rate Workflow executor measured execution success rate.
 # TYPE protheus_workflow_executor_execution_success_rate gauge
-protheus_workflow_executor_execution_success_rate 1
+protheus_workflow_executor_execution_success_rate 0
 # HELP protheus_workflow_executor_queue_drain_rate Workflow executor measured queue drain rate.
 # TYPE protheus_workflow_executor_queue_drain_rate gauge
 protheus_workflow_executor_queue_drain_rate 1
@@ -37,6 +37,27 @@ protheus_workflow_executor_live_zero_selection_streak 0
 # HELP protheus_workflow_executor_live_zero_selection_warn_streak Warning threshold for live zero-selection streak.
 # TYPE protheus_workflow_executor_live_zero_selection_warn_streak gauge
 protheus_workflow_executor_live_zero_selection_warn_streak 2
+# HELP protheus_execution_reliability_slo_pass Execution reliability parity SLO pass flag (1=pass,0=fail).
+# TYPE protheus_execution_reliability_slo_pass gauge
+protheus_execution_reliability_slo_pass 1
+# HELP protheus_execution_reliability_success_rate Rolling execution reliability success rate.
+# TYPE protheus_execution_reliability_success_rate gauge
+protheus_execution_reliability_success_rate 1
+# HELP protheus_execution_reliability_queue_drain_rate Rolling execution reliability queue drain rate.
+# TYPE protheus_execution_reliability_queue_drain_rate gauge
+protheus_execution_reliability_queue_drain_rate 1
+# HELP protheus_execution_reliability_ttf_p95_ms Rolling p95 time-to-first-execution in milliseconds.
+# TYPE protheus_execution_reliability_ttf_p95_ms gauge
+protheus_execution_reliability_ttf_p95_ms 22
+# HELP protheus_execution_reliability_zero_shipped_streak_days Consecutive zero-shipped day streak from reliability tracker.
+# TYPE protheus_execution_reliability_zero_shipped_streak_days gauge
+protheus_execution_reliability_zero_shipped_streak_days 0
+# HELP protheus_ci_baseline_guard_pass CI baseline guard pass flag (1=pass,0=fail).
+# TYPE protheus_ci_baseline_guard_pass gauge
+protheus_ci_baseline_guard_pass 0
+# HELP protheus_ci_baseline_guard_streak_target_met CI baseline streak target met flag (1=met,0=not_met).
+# TYPE protheus_ci_baseline_guard_streak_target_met gauge
+protheus_ci_baseline_guard_streak_target_met 0
 # HELP protheus_ci_baseline_streak_days Current consecutive daily green CI streak.
 # TYPE protheus_ci_baseline_streak_days gauge
 protheus_ci_baseline_streak_days 1
@@ -48,4 +69,4 @@ protheus_ci_baseline_target_days 7
 protheus_ci_baseline_streak_ratio 0.14285714285714285
 # HELP protheus_observability_snapshot_timestamp_seconds Unix timestamp of observability metrics snapshot.
 # TYPE protheus_observability_snapshot_timestamp_seconds gauge
-protheus_observability_snapshot_timestamp_seconds{date="2026-02-26",window="daily"} 1772127943
+protheus_observability_snapshot_timestamp_seconds{date="2026-02-26",window="daily"} 1772130040

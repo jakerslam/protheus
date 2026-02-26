@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "window_days": 30,
+  "min_live_runs": 10,
+  "min_execution_success_rate": 0.97,
+  "min_queue_drain_rate": 0.9,
+  "max_time_to_first_execution_p95_ms": 120000,
+  "max_zero_shipped_streak_days": 6,
+  "max_history_rows": 400
+}
+

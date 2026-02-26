@@ -167,6 +167,8 @@ function defaultPolicy() {
       workflow_executor_latest_live_path: 'state/adaptive/workflows/executor/latest_live.json',
       workflow_executor_history_path: 'state/adaptive/workflows/executor/history.jsonl',
       workflow_executor_zero_selection_warn_streak: 2,
+      execution_reliability_slo_path: 'state/ops/execution_reliability_slo.json',
+      ci_baseline_guard_path: 'state/ops/ci_baseline_guard.json',
       ci_baseline_streak_path: 'state/ops/ci_baseline_streak.json',
       output_prometheus_path: 'state/observability/prometheus/current.prom',
       output_snapshot_path: 'state/observability/metrics/latest.json',
@@ -200,6 +202,14 @@ function loadPolicy(policyPathRaw: unknown) {
         1,
         100,
         base.metrics.workflow_executor_zero_selection_warn_streak
+      ),
+      execution_reliability_slo_path: resolvePath(
+        src.execution_reliability_slo_path,
+        base.metrics.execution_reliability_slo_path
+      ),
+      ci_baseline_guard_path: resolvePath(
+        src.ci_baseline_guard_path,
+        base.metrics.ci_baseline_guard_path
       ),
       ci_baseline_streak_path: resolvePath(src.ci_baseline_streak_path, base.metrics.ci_baseline_streak_path),
       output_prometheus_path: resolvePath(src.output_prometheus_path, base.metrics.output_prometheus_path),
@@ -284,6 +294,8 @@ function buildMetrics(
   health: AnyObj,
   workflowLatest: AnyObj,
   ciStreak: AnyObj,
+  executionReliability: AnyObj,
+  ciBaselineGuard: AnyObj,
   liveZeroSelectionStreak: number,
   liveZeroSelectionWarnStreak: number
 ) {
@@ -303,6 +315,12 @@ function buildMetrics(
   const wfMeasured = wfSlo && wfSlo.measured && typeof wfSlo.measured === 'object' ? wfSlo.measured : {};
   const ciTarget = asNumber(ciStreak && ciStreak.target_days, 7);
   const ciCurrent = asNumber(ciStreak && ciStreak.consecutive_daily_green_runs, 0);
+  const execMeasured = executionReliability && executionReliability.measured && typeof executionReliability.measured === 'object'
+    ? executionReliability.measured
+    : {};
+  const ciGuardChecks = ciBaselineGuard && ciBaselineGuard.checks && typeof ciBaselineGuard.checks === 'object'
+    ? ciBaselineGuard.checks
+    : {};
 
   const labels = { window };
 
@@ -394,6 +412,48 @@ function buildMetrics(
       value: Math.max(1, Math.floor(liveZeroSelectionWarnStreak))
     },
     {
+      name: 'protheus_execution_reliability_slo_pass',
+      help: 'Execution reliability parity SLO pass flag (1=pass,0=fail).',
+      type: 'gauge',
+      value: executionReliability && executionReliability.pass === true ? 1 : 0
+    },
+    {
+      name: 'protheus_execution_reliability_success_rate',
+      help: 'Rolling execution reliability success rate.',
+      type: 'gauge',
+      value: asRatio(execMeasured.execution_success_rate)
+    },
+    {
+      name: 'protheus_execution_reliability_queue_drain_rate',
+      help: 'Rolling execution reliability queue drain rate.',
+      type: 'gauge',
+      value: asRatio(execMeasured.queue_drain_rate)
+    },
+    {
+      name: 'protheus_execution_reliability_ttf_p95_ms',
+      help: 'Rolling p95 time-to-first-execution in milliseconds.',
+      type: 'gauge',
+      value: asNumber(execMeasured.time_to_first_execution_p95_ms, 0)
+    },
+    {
+      name: 'protheus_execution_reliability_zero_shipped_streak_days',
+      help: 'Consecutive zero-shipped day streak from reliability tracker.',
+      type: 'gauge',
+      value: asNumber(execMeasured.zero_shipped_streak_days, 0)
+    },
+    {
+      name: 'protheus_ci_baseline_guard_pass',
+      help: 'CI baseline guard pass flag (1=pass,0=fail).',
+      type: 'gauge',
+      value: ciBaselineGuard && ciBaselineGuard.pass === true ? 1 : 0
+    },
+    {
+      name: 'protheus_ci_baseline_guard_streak_target_met',
+      help: 'CI baseline streak target met flag (1=met,0=not_met).',
+      type: 'gauge',
+      value: ciGuardChecks.streak_target_met === true ? 1 : 0
+    },
+    {
       name: 'protheus_ci_baseline_streak_days',
       help: 'Current consecutive daily green CI streak.',
       type: 'gauge',
@@ -438,6 +498,8 @@ function runSnapshot(policy: AnyObj, dateStr: string, window: string, writeEnabl
     100,
     2
   );
+  const executionReliability = readJson(policy.metrics.execution_reliability_slo_path, {});
+  const ciBaselineGuard = readJson(policy.metrics.ci_baseline_guard_path, {});
   const ciStreak = readJson(policy.metrics.ci_baseline_streak_path, {});
   const metrics = buildMetrics(
     dateStr,
@@ -445,6 +507,8 @@ function runSnapshot(policy: AnyObj, dateStr: string, window: string, writeEnabl
     health,
     workflowLatest,
     ciStreak,
+    executionReliability,
+    ciBaselineGuard,
     liveZeroSelectionStreak,
     liveZeroSelectionWarnStreak
   );
@@ -466,6 +530,10 @@ function runSnapshot(policy: AnyObj, dateStr: string, window: string, writeEnabl
     workflow_executor_history_path: relPath(policy.metrics.workflow_executor_history_path),
     workflow_executor_live_zero_selection_streak: liveZeroSelectionStreak,
     workflow_executor_live_zero_selection_warn_streak: liveZeroSelectionWarnStreak,
+    execution_reliability_slo_path: relPath(policy.metrics.execution_reliability_slo_path),
+    execution_reliability_slo_pass: executionReliability && executionReliability.pass === true,
+    ci_baseline_guard_path: relPath(policy.metrics.ci_baseline_guard_path),
+    ci_baseline_guard_pass: ciBaselineGuard && ciBaselineGuard.pass === true,
     metrics_count: metrics.length,
     output: {
       prometheus_path: relPath(policy.metrics.output_prometheus_path),
@@ -483,9 +551,17 @@ function runSnapshot(policy: AnyObj, dateStr: string, window: string, writeEnabl
   if (!healthPath) out.warnings.push('health_report_missing');
   if (!fs.existsSync(workflowLatestPath)) out.warnings.push('workflow_executor_snapshot_missing');
   if (!fs.existsSync(policy.metrics.workflow_executor_history_path)) out.warnings.push('workflow_executor_history_missing');
+  if (!fs.existsSync(policy.metrics.execution_reliability_slo_path)) out.warnings.push('execution_reliability_slo_missing');
+  if (!fs.existsSync(policy.metrics.ci_baseline_guard_path)) out.warnings.push('ci_baseline_guard_missing');
   if (!fs.existsSync(policy.metrics.ci_baseline_streak_path)) out.warnings.push('ci_baseline_streak_missing');
   if (liveZeroSelectionStreak >= liveZeroSelectionWarnStreak) {
     out.warnings.push(`workflow_executor_live_zero_selection_streak:${liveZeroSelectionStreak}`);
+  }
+  if (executionReliability && executionReliability.pass === false) {
+    out.warnings.push(`execution_reliability_slo_fail:${String(executionReliability.result || 'fail')}`);
+  }
+  if (ciBaselineGuard && ciBaselineGuard.pass === false) {
+    out.warnings.push(`ci_baseline_guard_fail:${String(ciBaselineGuard.result || 'pending')}`);
   }
 
   if (writeEnabled) {

@@ -6,3 +6,4 @@
 {"ts":"2026-02-26T17:29:50.029Z","type":"observability_metrics_exporter","date":"2026-02-26","window":"daily","metrics_count":15,"health_report_found":true,"warnings":[]}
 {"ts":"2026-02-26T17:36:07.753Z","type":"observability_metrics_exporter","date":"2026-02-26","window":"daily","metrics_count":17,"health_report_found":true,"warnings":[]}
 {"ts":"2026-02-26T17:45:43.033Z","type":"observability_metrics_exporter","date":"2026-02-26","window":"daily","metrics_count":17,"health_report_found":true,"warnings":[]}
+{"ts":"2026-02-26T18:20:40.336Z","type":"observability_metrics_exporter","date":"2026-02-26","window":"daily","metrics_count":24,"health_report_found":true,"warnings":["ci_baseline_guard_fail:pending"]}
