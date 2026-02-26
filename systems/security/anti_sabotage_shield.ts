@@ -441,7 +441,14 @@ function cmdSnapshot(args) {
 function runVerifyOnce(policy, opts = {}) {
   const strict = toBool(opts.strict, policy.verify_strict_default);
   const autoReset = toBool(opts.autoReset, policy.auto_reset_default);
-  const loaded = loadSnapshotManifest(policy, opts.snapshot);
+  const bootstrapSnapshot = toBool(opts.bootstrapSnapshot, true);
+  let loaded = loadSnapshotManifest(policy, opts.snapshot);
+  let bootstrappedSnapshotId = null;
+  if (!loaded.ok && loaded.error === 'snapshot_not_found' && autoReset && bootstrapSnapshot) {
+    const snap = createSnapshot(policy, 'verify_bootstrap');
+    bootstrappedSnapshotId = snap && snap.snapshot_id ? String(snap.snapshot_id) : null;
+    loaded = loadSnapshotManifest(policy, bootstrappedSnapshotId || 'latest');
+  }
   if (!loaded.ok) {
     return {
       ok: false,
@@ -467,6 +474,8 @@ function runVerifyOnce(policy, opts = {}) {
     snapshot_id: loaded.snapshot_id,
     strict,
     auto_reset: autoReset,
+    bootstrap_snapshot_created: !!bootstrappedSnapshotId,
+    bootstrap_snapshot_id: bootstrappedSnapshotId,
     violated,
     mismatch_count: evalOut.mismatches.length,
     missing_count: evalOut.missing.length,
@@ -501,6 +510,7 @@ function cmdVerify(args) {
     snapshot: args.snapshot,
     strict: args.strict,
     autoReset: args['auto-reset'] || args.auto_reset,
+    bootstrapSnapshot: args['bootstrap-snapshot'] || args.bootstrap_snapshot,
     source: 'verify'
   });
   if (!result.incident) {
