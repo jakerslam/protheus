@@ -1,0 +1,88 @@
+{
+  "ok": true,
+  "type": "workflow_executor_run",
+  "ts": "2026-02-26T02:40:07.024Z",
+  "run_id": "wfexec_mm2uve5p_yzfuo4",
+  "date": "2026-02-26",
+  "dry_run": true,
+  "forced_shadow_dry_run": false,
+  "continue_on_error": false,
+  "receipt_strict": true,
+  "rollout_enabled": true,
+  "rollout_stage": "shadow",
+  "rollout_canary_fraction": 0.05,
+  "rollout_scale_eligible": false,
+  "rollout_state_before": {
+    "stage": "shadow",
+    "canary_fraction": 0.05,
+    "consecutive_green": 0,
+    "consecutive_red": 1,
+    "last_slo_pass": false,
+    "last_scale_action": null
+  },
+  "rollout_state_after": {
+    "stage": "shadow",
+    "canary_fraction": 0.05,
+    "consecutive_green": 0,
+    "consecutive_red": 1,
+    "last_slo_pass": null,
+    "last_scale_action": "rollout_scale_skipped"
+  },
+  "runtime_mutation_enabled": true,
+  "runtime_mutation_policy_path": "config/workflow_executor_policy.json",
+  "registry_total": 0,
+  "workflows_selected": 0,
+  "workflows_excluded": 0,
+  "selection_excluded": [],
+  "enforce_eligibility": true,
+  "workflows_executed": 0,
+  "workflows_succeeded": 0,
+  "workflows_failed": 0,
+  "workflows_blocked": 0,
+  "step_receipts_count": 0,
+  "step_receipts_path": null,
+  "runtime_mutations_attempted": 0,
+  "runtime_mutations_applied": 0,
+  "runtime_mutations_rolled_back": 0,
+  "runtime_mutation_receipts_path": null,
+  "slo": {
+    "thresholds": {
+      "min_execution_success_rate": 0.9,
+      "min_queue_drain_rate": 0.75,
+      "max_time_to_first_execution_ms": 180000
+    },
+    "measured": {
+      "execution_success_rate": 0,
+      "queue_drain_rate": 0,
+      "time_to_first_execution_ms": null
+    },
+    "checks": {
+      "execution_success_rate": false,
+      "queue_drain_rate": false,
+      "time_to_first_execution_ms": false
+    },
+    "pass": false
+  },
+  "slo_window": {
+    "thresholds": {
+      "min_execution_success_rate": 0.9,
+      "min_queue_drain_rate": 0.75,
+      "max_time_to_first_execution_ms": 180000
+    },
+    "aggregate": {
+      "runs_considered": 1,
+      "min_runs_for_decision": 3,
+      "avg_execution_success_rate": 0,
+      "avg_queue_drain_rate": 0,
+      "max_time_to_first_execution_ms": 0
+    },
+    "checks": {
+      "execution_success_rate": false,
+      "queue_drain_rate": false,
+      "time_to_first_execution_ms": true
+    },
+    "sufficient_data": false,
+    "pass": false
+  },
+  "results": []
+}
