@@ -4,3 +4,5 @@
 {"ts":"2026-02-26T04:32:49.767Z","type":"continuum_pulse","run_id":"cont_mm2ywcba_kkpesg","date":"2026-02-26","profile":"spine","skipped":true,"trit":1,"trit_label":"ok","tasks_executed":0,"training_queue_rows":5,"duration_ms":17}
 {"ts":"2026-02-26T08:36:36.020Z","type":"continuum_pulse","run_id":"cont_mm37lu0f_z4dbo4","date":"2026-02-26","profile":"spine","skipped":true,"trit":1,"trit_label":"ok","tasks_executed":0,"training_queue_rows":5,"duration_ms":5}
 {"ts":"2026-02-26T12:38:35.952Z","type":"continuum_pulse","run_id":"cont_mm3g91nu_7xb58s","date":"2026-02-26","profile":"spine","skipped":true,"trit":1,"trit_label":"ok","tasks_executed":0,"training_queue_rows":5,"duration_ms":6}
+{"ts":"2026-02-26T20:53:15.848Z","type":"continuum_pulse","run_id":"cont_mm3xx6so_ef6vk8","date":"2026-02-26","profile":"manual","skipped":false,"trit":1,"trit_label":"ok","tasks_executed":9,"training_queue_rows":6,"duration_ms":32}
+{"ts":"2026-02-26T20:53:43.156Z","type":"continuum_pulse","run_id":"cont_mm3xxruz_mmdk90","date":"2026-02-26","profile":"manual","skipped":false,"trit":1,"trit_label":"ok","tasks_executed":9,"training_queue_rows":6,"duration_ms":41}

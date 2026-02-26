@@ -393,6 +393,20 @@ Objective: harden anti-cloning, runtime trust, and compromise-response posture w
 | SEC-M05 | V3 | todo | Complete IP posture review (trade secrets/provisional patents) | Protect novel mechanisms and reduce strategic imitation risk | Counsel-reviewed IP strategy exists with filing decisions and evidence-retention plan for inventions/trade-secret controls |
 | SEC-M06 | V2 | todo | Provision secure external heartbeat endpoint | Required external control-plane for remote halt/rogue detection flows | Hardened endpoint (authn/authz, rate limits, audit logs, key rotation) is live and connected to security alerting runbook |
 
+## Governance + Intelligence Gap Intake (Grok, 2026-02-26)
+
+Objective: close remaining governance/intelligence gaps with stable versioned IDs and clear rollout order.
+
+| ID | Version | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|---|
+| V2-060 | V2 | todo | Comprehensive Consent, Provenance, and Data Rights Engine | Required for Obsidian, training pipelines, and future symbiosis interfaces; prevents silent data misuse and enables deterministic revocation/unlearning | End-to-end provenance on all ingested data (notes, memory nodes, training artifacts), consent revocation pipeline with bounded SLA, unlearning propagation to queues/datasets/checkpoints, and signed audit receipts for each rights event |
+| V2-061 | V2 | todo | Deep Ethical Reasoning and Value Evolution Layer | Prevents drift into narrow optimization and adds auditable long-horizon value correction beyond simple first-principle extraction | Dedicated ethical reasoning organ integrated with Weaver/Mirror, explicit tradeoff receipts on high-impact decisions, monoculture-risk detection and correction loops, and maturity-gated value-prior updates |
+| V2-062 | V2 | todo | Long-Term Memory Management and Cross-Instance Federation | Supports multi-year wisdom retention and selective sovereign sharing without centralizing raw private memory | Memory compaction/distillation pipeline with deterministic replay, policy-bound stale-knowledge pruning, and opt-in attested cross-instance archetype exchange with partition-safe local fallback |
+| V3-027 | V3 | todo | Formal Verification for Critical Paths | Tests and receipts are not sufficient alone for highest-risk control paths | Formal specs + model checks for Weaver arbitration, inversion gates, and constitution/0-point invariants; verification integrated into CI/release gates with fail-closed behavior |
+| V3-028 | V3 | todo | Pre-Neuralink Symbiosis Interface (“Just Think” Layer) | Builds a governed non-invasive bridge before any direct neural interface | Voice/attention/haptic interaction lane with local-first defaults, explicit consent states, policy-gated actions through Eye kernel, and seamless handoff contract to future neural interfaces |
+| V3-029 | V3 | todo | Autonomous Economic Entity Management | Revenue autonomy requires accounting, tax, and contract governance to avoid operational/compliance debt | Built-in accounting ledger, tax classification/report pipeline, contract signing/verification flow, and constitution-compliant payout routing with immutable receipts and human gates for high-risk filings |
+| V4-006 | V4 | todo | Succession and Continuity Planning | Long-lived systems need secure, auditable control transfer when primary operator is unavailable | Formal successor model with cryptographic delegation, time-delayed transfer controls, emergency stewardship policy, and full transfer audit trail that cannot bypass constitution/identity invariants |
+
 ## Obsidian Track (Isolated from Core Protheus)
 
 Policy: this track ships behind explicit feature flags and separate policies so Obsidian integration cannot bypass or destabilize core system lanes.

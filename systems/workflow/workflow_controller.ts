@@ -49,7 +49,7 @@ const DEFAULT_ORCHESTRON_POLICY_PATH = path.join(REPO_ROOT, 'config', 'orchestro
 
 function usage() {
   console.log('Usage:');
-  console.log('  node systems/workflow/workflow_controller.js run [YYYY-MM-DD] [--days=N] [--max=N] [--apply=1|0] [--policy=path] [--orchestron=1|0] [--orchestron-apply=1|0] [--orchestron-auto=1|0] [--intent=\"...\"] [--value-currency=<currency>] [--objective-id=<id>] [--orchestron-policy=path]');
+  console.log('  node systems/workflow/workflow_controller.js run [YYYY-MM-DD] [--days=N] [--max=N] [--apply=1|0] [--policy=path] [--orchestron=1|0] [--orchestron-apply=1|0] [--orchestron-auto=1|0] [--intent=\"...\"] [--value-currency=<currency>] [--value-metrics=<csv|json>] [--primary-metric=<id>] [--objective-id=<id>] [--orchestron-policy=path]');
   console.log('  node systems/workflow/workflow_controller.js promote [--source=promotable|passing|drafts] [--status=active|draft] [--id=<workflow_id[,workflow_id...]>] [--from=path] [--dry-run=1|0] [--ignore-threshold=1|0] [--approval-note="..."] [--approver-id=<id>] [--policy=path]');
   console.log('  node systems/workflow/workflow_controller.js list [--status=active|draft|all] [--limit=N]');
   console.log('  node systems/workflow/workflow_controller.js status [--policy=path] [--orchestron-latest=path]');
@@ -707,6 +707,8 @@ function runCmd(dateStr, args) {
         maxCandidates: args.max,
         intent: args.intent,
         valueCurrency: args['value-currency'],
+        valueMetrics: args['value-metrics'],
+        primaryMetric: args['primary-metric'],
         objectiveId: args['objective-id']
       });
       orchestronDraftsForApply = orchestronPayload && Array.isArray(orchestronPayload.promotable_drafts)

@@ -1,14 +1,14 @@
 {
   "ok": true,
   "type": "orchestron_adaptive_run",
-  "ts": "2026-02-26T08:36:04.132Z",
-  "run_id": "orcrun_111dcd62c9c017",
+  "ts": "2026-02-26T20:53:09.536Z",
+  "run_id": "orcrun_6d1b3fe4b86e11",
   "date": "2026-02-26",
-  "days": 1,
+  "days": 2,
   "policy": {
     "version": "1.0",
     "enabled": true,
-    "shadow_only": true,
+    "shadow_only": false,
     "default_window_days": 14,
     "min_pattern_occurrences": 2,
     "min_candidates": 3,
@@ -16,7 +16,7 @@
     "max_promotions_per_run": 4,
     "min_principle_score": 0.6,
     "auto_apply": {
-      "enabled": false,
+      "enabled": true,
       "min_promotable_drafts": 1,
       "min_principle_score": 0.75,
       "min_composite_score": 0.45,
@@ -93,49 +93,82 @@
   "birth_events_path": "state/adaptive/workflows/orchestron/birth_events.jsonl",
   "strategy_id": "default_general",
   "value_context": {
-    "objective_id": "T1_make_jay_billionaire_v1",
-    "value_currency": "revenue",
+    "objective_id": "weaver_smoke",
+    "value_currency": "user_value",
     "weights": {
-      "composite": 0.324074,
-      "actionability": 0.185185,
-      "directive_fit": 0.138889,
-      "signal_quality": 0.138889,
-      "expected_value": 0.12963,
-      "time_to_value": 0.055556,
-      "risk_penalty": 0.027778
+      "composite": 0.339806,
+      "actionability": 0.252427,
+      "directive_fit": 0.174757,
+      "signal_quality": 0.116505,
+      "expected_value": 0.07767,
+      "time_to_value": 0.019417,
+      "risk_penalty": 0.019417
     },
-    "applied_overrides": [
-      "objective:T1_make_jay_billionaire_v1",
-      "currency:revenue"
-    ]
+    "applied_overrides": [],
+    "weaver": {
+      "primary_metric_id": "adaptive_value",
+      "active_metric_ids": [
+        "adaptive_value",
+        "user_value",
+        "quality",
+        "truth_seeking",
+        "delivery",
+        "time_savings",
+        "joy",
+        "freedom"
+      ],
+      "reason_codes": [
+        "trit_weighted_arbitration",
+        "monoculture_soft_cap_ready",
+        "historical_metric_monoculture",
+        "rebalance_applied"
+      ],
+      "monoculture_guard": {
+        "triggered": true,
+        "top_changed": false,
+        "dominance": {
+          "total": 2,
+          "by_metric": {
+            "adaptive_value": 2
+          },
+          "by_currency": {
+            "user_value": 2
+          },
+          "top_metric": "adaptive_value",
+          "top_currency": "user_value",
+          "top_metric_share": 1,
+          "top_currency_share": 1
+        }
+      }
+    }
   },
   "objective_primary": "Maximize verified progress under active directives.",
   "intent": {
-    "id": "intent_031e372345abc0",
+    "id": "intent_688f901ff58842",
     "strategy_id": "default_general",
-    "objective": "harness runtime safety probe",
+    "objective": "balance revenue and user value without monoculture",
     "uncertainty_band": "medium",
     "constraints": {
-      "speed_weight": 0.1429,
-      "robustness_weight": 0.7142,
-      "cost_weight": 0.1429
+      "speed_weight": 0.34,
+      "robustness_weight": 0.33,
+      "cost_weight": 0.33
     },
     "signals": {
-      "feasibility": 1,
+      "feasibility": 0,
       "risk": 0,
       "novelty": 0
     },
     "risk_signals": {
-      "feasibility": 1,
+      "feasibility": 0,
       "risk": 0,
       "novelty": 0
     },
     "source": "orchestron_adaptive_controller",
-    "ts": "2026-02-26T08:36:04.104Z",
-    "signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+    "ts": "2026-02-26T20:53:09.501Z",
+    "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
   },
-  "run_rows": 12,
-  "pattern_rows": 1,
+  "run_rows": 44,
+  "pattern_rows": 3,
   "principles": {
     "available": true,
     "score": 1,
@@ -152,10 +185,10 @@
     "available": true,
     "ok": true,
     "summary": {
-      "selected_cases": 2,
-      "executed_cases": 2,
+      "selected_cases": 3,
+      "executed_cases": 3,
       "skipped_cases": 0,
-      "pass_cases": 2,
+      "pass_cases": 3,
       "fail_cases": 0,
       "critical_fail_cases": 0
     },
@@ -168,31 +201,19 @@
     "non_critical_findings": 0,
     "results": [
       {
-        "candidate_id": "wfc_a57d8982185b3460",
-        "parent_candidate_id": "wfc_07aee5ce1dfb0f41",
-        "depth": 1,
-        "proposal_type": "cross_signal_opportunity.execution",
+        "candidate_id": "wfc_43f2858f678e2aa1",
+        "parent_candidate_id": null,
+        "depth": 0,
+        "proposal_type": "pain_adaptive_candidate",
         "pass": true,
         "critical_failures": 0,
         "non_critical_findings": 0,
         "total_findings": 0,
         "findings": [],
-        "replay_artifact_path": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_a57d8982185b3460.json"
+        "replay_artifact_path": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_43f2858f678e2aa1.json"
       },
       {
-        "candidate_id": "wfc_5464a8f5bd845833",
-        "parent_candidate_id": "wfc_07aee5ce1dfb0f41",
-        "depth": 1,
-        "proposal_type": "cross_signal_opportunity.execution",
-        "pass": true,
-        "critical_failures": 0,
-        "non_critical_findings": 0,
-        "total_findings": 0,
-        "findings": [],
-        "replay_artifact_path": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_5464a8f5bd845833.json"
-      },
-      {
-        "candidate_id": "wfc_1968ec210cf8a2c0",
+        "candidate_id": "wfc_79aed5456e24fe93",
         "parent_candidate_id": null,
         "depth": 0,
         "proposal_type": "unknown",
@@ -201,11 +222,23 @@
         "non_critical_findings": 0,
         "total_findings": 0,
         "findings": [],
-        "replay_artifact_path": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_1968ec210cf8a2c0.json"
+        "replay_artifact_path": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_79aed5456e24fe93.json"
       },
       {
-        "candidate_id": "wfc_6e75071ce0bb0b92",
-        "parent_candidate_id": "wfc_1968ec210cf8a2c0",
+        "candidate_id": "wfc_0c9051d51f66e28a",
+        "parent_candidate_id": null,
+        "depth": 0,
+        "proposal_type": "cross_signal_opportunity",
+        "pass": true,
+        "critical_failures": 0,
+        "non_critical_findings": 0,
+        "total_findings": 0,
+        "findings": [],
+        "replay_artifact_path": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_0c9051d51f66e28a.json"
+      },
+      {
+        "candidate_id": "wfc_fe946f39a2547b1b",
+        "parent_candidate_id": "wfc_79aed5456e24fe93",
         "depth": 1,
         "proposal_type": "unknown.intake",
         "pass": true,
@@ -213,11 +246,11 @@
         "non_critical_findings": 0,
         "total_findings": 0,
         "findings": [],
-        "replay_artifact_path": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_6e75071ce0bb0b92.json"
+        "replay_artifact_path": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_fe946f39a2547b1b.json"
       },
       {
-        "candidate_id": "wfc_7cb467480f2b9b5a",
-        "parent_candidate_id": "wfc_1968ec210cf8a2c0",
+        "candidate_id": "wfc_2db052ed928358bd",
+        "parent_candidate_id": "wfc_79aed5456e24fe93",
         "depth": 1,
         "proposal_type": "unknown.execution",
         "pass": true,
@@ -225,11 +258,11 @@
         "non_critical_findings": 0,
         "total_findings": 0,
         "findings": [],
-        "replay_artifact_path": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_7cb467480f2b9b5a.json"
+        "replay_artifact_path": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_2db052ed928358bd.json"
       },
       {
-        "candidate_id": "wfc_9249a55d14dffc90",
-        "parent_candidate_id": "wfc_1968ec210cf8a2c0",
+        "candidate_id": "wfc_3a6b00684a202140",
+        "parent_candidate_id": "wfc_79aed5456e24fe93",
         "depth": 1,
         "proposal_type": "unknown.verification",
         "pass": true,
@@ -237,11 +270,11 @@
         "non_critical_findings": 0,
         "total_findings": 0,
         "findings": [],
-        "replay_artifact_path": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_9249a55d14dffc90.json"
+        "replay_artifact_path": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_3a6b00684a202140.json"
       },
       {
-        "candidate_id": "wfc_0cc8ea3844450f57",
-        "parent_candidate_id": "wfc_6e75071ce0bb0b92",
+        "candidate_id": "wfc_eb1e4a46c27f16e5",
+        "parent_candidate_id": "wfc_fe946f39a2547b1b",
         "depth": 2,
         "proposal_type": "unknown.intake.intake",
         "pass": true,
@@ -249,11 +282,11 @@
         "non_critical_findings": 0,
         "total_findings": 0,
         "findings": [],
-        "replay_artifact_path": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_0cc8ea3844450f57.json"
+        "replay_artifact_path": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_eb1e4a46c27f16e5.json"
       },
       {
-        "candidate_id": "wfc_f2cd18ebc6eea9b5",
-        "parent_candidate_id": "wfc_6e75071ce0bb0b92",
+        "candidate_id": "wfc_c845f7e816aead0f",
+        "parent_candidate_id": "wfc_fe946f39a2547b1b",
         "depth": 2,
         "proposal_type": "unknown.intake.execution",
         "pass": true,
@@ -261,11 +294,11 @@
         "non_critical_findings": 0,
         "total_findings": 0,
         "findings": [],
-        "replay_artifact_path": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_f2cd18ebc6eea9b5.json"
+        "replay_artifact_path": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_c845f7e816aead0f.json"
       },
       {
-        "candidate_id": "wfc_efc5366d5dcd2593",
-        "parent_candidate_id": "wfc_6e75071ce0bb0b92",
+        "candidate_id": "wfc_1bffa7f8beced301",
+        "parent_candidate_id": "wfc_fe946f39a2547b1b",
         "depth": 2,
         "proposal_type": "unknown.intake.verification",
         "pass": true,
@@ -273,59 +306,55 @@
         "non_critical_findings": 0,
         "total_findings": 0,
         "findings": [],
-        "replay_artifact_path": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_efc5366d5dcd2593.json"
+        "replay_artifact_path": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_1bffa7f8beced301.json"
       }
     ]
   },
   "candidates": [
     {
-      "id": "wfc_a57d8982185b3460",
-      "name": "Adaptive cross_signal_opportunity workflow :: execution (retry_tuning)",
+      "id": "wfc_43f2858f678e2aa1",
+      "name": "Adaptive pain_adaptive_candidate workflow",
       "status": "draft",
       "source": "orchestron_candidate_generator",
       "strategy_id": "default_general",
       "objective_id": "T1_generational_wealth_v1",
       "objective_primary": "Maximize verified progress under active directives.",
       "trigger": {
-        "proposal_type": "cross_signal_opportunity.execution",
-        "min_occurrences": 12,
-        "intent_signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+        "proposal_type": "pain_adaptive_candidate",
+        "min_occurrences": 2,
+        "intent_signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
       },
       "intent": {
-        "id": "intent_031e372345abc0",
+        "id": "intent_688f901ff58842",
         "strategy_id": "default_general",
-        "objective": "harness runtime safety probe",
+        "objective": "balance revenue and user value without monoculture",
         "uncertainty_band": "medium",
         "constraints": {
-          "speed_weight": 0.1429,
-          "robustness_weight": 0.7142,
-          "cost_weight": 0.1429
+          "speed_weight": 0.34,
+          "robustness_weight": 0.33,
+          "cost_weight": 0.33
         },
         "signals": {
-          "feasibility": 1,
+          "feasibility": 0,
           "risk": 0,
           "novelty": 0
         },
         "risk_signals": {
-          "feasibility": 1,
+          "feasibility": 0,
           "risk": 0,
           "novelty": 0
         },
         "source": "orchestron_adaptive_controller",
-        "ts": "2026-02-26T08:36:04.104Z",
-        "signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+        "ts": "2026-02-26T20:53:09.501Z",
+        "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
       },
-      "parent_workflow_id": "wfc_07aee5ce1dfb0f41",
-      "fractal_depth": 1,
-      "mutation": {
-        "kind": "retry_tuning",
-        "parent_workflow_id": "wfc_07aee5ce1dfb0f41",
-        "rationale": "tune retries/timeouts for transient instability"
-      },
+      "parent_workflow_id": null,
+      "fractal_depth": 0,
+      "mutation": null,
       "tradeoffs": {
-        "speed_weight": 0.1242,
-        "robustness_weight": 0.724,
-        "cost_weight": 0.1518
+        "speed_weight": 0.34,
+        "robustness_weight": 0.33,
+        "cost_weight": 0.33
       },
       "risk_policy": {
         "max_risk_per_action": 65,
@@ -336,164 +365,10 @@
       },
       "steps": [
         {
-          "id": "scope",
+          "id": "enrich",
           "type": "command",
           "command": "node systems/autonomy/proposal_enricher.js run <date>",
-          "purpose": "specialize execution branch and fallback routing",
-          "timeout_ms": 135000,
-          "retries": 2,
-          "adapter": null,
-          "provider": null,
-          "lane": null,
-          "risk": null,
-          "clearance": null,
-          "estimated_tokens": null,
-          "require_policy_root": false
-        },
-        {
-          "id": "execute_lane",
-          "type": "command",
-          "command": "node systems/autonomy/autonomy_controller.js run <date>",
-          "purpose": "execute sub-workflow lane",
-          "timeout_ms": 195000,
-          "retries": 2,
-          "adapter": null,
-          "provider": null,
-          "lane": null,
-          "risk": null,
-          "clearance": null,
-          "estimated_tokens": null,
-          "require_policy_root": false
-        },
-        {
-          "id": "verify",
-          "type": "gate",
-          "command": "node systems/autonomy/strategy_execute_guard.js run <date>",
-          "purpose": "verify lane safety and evidence",
-          "timeout_ms": 120000,
-          "retries": 0,
-          "adapter": null,
-          "provider": null,
-          "lane": null,
-          "risk": null,
-          "clearance": null,
-          "estimated_tokens": null,
-          "require_policy_root": false
-        },
-        {
-          "id": "receipt",
-          "type": "receipt",
-          "command": "state/autonomy/receipts/<date>.jsonl",
-          "purpose": "record lane receipt",
-          "timeout_ms": 30000,
-          "retries": 0,
-          "adapter": null,
-          "provider": null,
-          "lane": null,
-          "risk": null,
-          "clearance": null,
-          "estimated_tokens": null,
-          "require_policy_root": false
-        }
-      ],
-      "children": [],
-      "generated_at": "2026-02-26T08:36:04.118Z",
-      "metadata": {
-        "generation_kind": "mutation",
-        "priority": 0.5442,
-        "attempts": 39,
-        "shipped_rate": 0.0256,
-        "failure_rate": 0.0769,
-        "no_change_rate": 0,
-        "intent_trit_alignment": 0.42,
-        "trit_uncertainty": 0.58,
-        "trit_novelty": 0,
-        "trit_mutation_fit": 0.7012,
-        "value_currency": "revenue",
-        "value_priority_score": 0.6556,
-        "fractal_effective_max_depth": 4,
-        "explicit_tradeoffs": {
-          "speed_weight": 0.1242,
-          "robustness_weight": 0.724,
-          "cost_weight": 0.1518
-        },
-        "cost_profile": {
-          "estimated_tokens": 602,
-          "cost_weight": 0.1518,
-          "tier": "low"
-        },
-        "risk_profile": {
-          "level": "medium",
-          "max_risk_per_action": 65,
-          "allowed_risks": [
-            "low",
-            "medium"
-          ]
-        }
-      }
-    },
-    {
-      "id": "wfc_5464a8f5bd845833",
-      "name": "Adaptive cross_signal_opportunity workflow :: execution (guard_hardening)",
-      "status": "draft",
-      "source": "orchestron_candidate_generator",
-      "strategy_id": "default_general",
-      "objective_id": "T1_generational_wealth_v1",
-      "objective_primary": "Maximize verified progress under active directives.",
-      "trigger": {
-        "proposal_type": "cross_signal_opportunity.execution",
-        "min_occurrences": 12,
-        "intent_signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
-      },
-      "intent": {
-        "id": "intent_031e372345abc0",
-        "strategy_id": "default_general",
-        "objective": "harness runtime safety probe",
-        "uncertainty_band": "medium",
-        "constraints": {
-          "speed_weight": 0.1429,
-          "robustness_weight": 0.7142,
-          "cost_weight": 0.1429
-        },
-        "signals": {
-          "feasibility": 1,
-          "risk": 0,
-          "novelty": 0
-        },
-        "risk_signals": {
-          "feasibility": 1,
-          "risk": 0,
-          "novelty": 0
-        },
-        "source": "orchestron_adaptive_controller",
-        "ts": "2026-02-26T08:36:04.104Z",
-        "signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
-      },
-      "parent_workflow_id": "wfc_07aee5ce1dfb0f41",
-      "fractal_depth": 1,
-      "mutation": {
-        "kind": "guard_hardening",
-        "parent_workflow_id": "wfc_07aee5ce1dfb0f41",
-        "rationale": "insert preflight contract guard before receipt"
-      },
-      "tradeoffs": {
-        "speed_weight": 0.1063,
-        "robustness_weight": 0.7812,
-        "cost_weight": 0.1125
-      },
-      "risk_policy": {
-        "max_risk_per_action": 65,
-        "allowed_risks": [
-          "low",
-          "medium"
-        ]
-      },
-      "steps": [
-        {
-          "id": "scope",
-          "type": "command",
-          "command": "node systems/autonomy/proposal_enricher.js run <date>",
-          "purpose": "specialize execution branch and fallback routing",
+          "purpose": "normalize proposal shape",
           "timeout_ms": 120000,
           "retries": 1,
           "adapter": null,
@@ -505,10 +380,10 @@
           "require_policy_root": false
         },
         {
-          "id": "execute_lane",
+          "id": "rank",
           "type": "command",
           "command": "node systems/autonomy/autonomy_controller.js run <date>",
-          "purpose": "execute sub-workflow lane",
+          "purpose": "rank and execute/preview",
           "timeout_ms": 180000,
           "retries": 1,
           "adapter": null,
@@ -523,23 +398,8 @@
           "id": "verify",
           "type": "gate",
           "command": "node systems/autonomy/strategy_execute_guard.js run <date>",
-          "purpose": "verify lane safety and evidence",
+          "purpose": "enforce safety and evidence checks",
           "timeout_ms": 120000,
-          "retries": 0,
-          "adapter": null,
-          "provider": null,
-          "lane": null,
-          "risk": null,
-          "clearance": null,
-          "estimated_tokens": null,
-          "require_policy_root": false
-        },
-        {
-          "id": "preflight",
-          "type": "gate",
-          "command": "node systems/spine/contract_check.js",
-          "purpose": "preflight contract guard",
-          "timeout_ms": 60000,
           "retries": 0,
           "adapter": null,
           "provider": null,
@@ -553,7 +413,7 @@
           "id": "receipt",
           "type": "receipt",
           "command": "state/autonomy/receipts/<date>.jsonl",
-          "purpose": "record lane receipt",
+          "purpose": "record final receipt evidence",
           "timeout_ms": 30000,
           "retries": 0,
           "adapter": null,
@@ -566,29 +426,28 @@
         }
       ],
       "children": [],
-      "generated_at": "2026-02-26T08:36:04.118Z",
+      "generated_at": "2026-02-26T20:53:09.520Z",
       "metadata": {
-        "generation_kind": "mutation",
-        "priority": 0.5442,
-        "attempts": 39,
-        "shipped_rate": 0.0256,
-        "failure_rate": 0.0769,
+        "generation_kind": "pattern",
+        "priority": 0.7917,
+        "attempts": 4,
+        "shipped_rate": 0,
+        "failure_rate": 0,
         "no_change_rate": 0,
-        "intent_trit_alignment": 0.42,
-        "trit_uncertainty": 0.58,
+        "intent_trit_alignment": 0,
+        "trit_uncertainty": 1,
         "trit_novelty": 0,
-        "trit_mutation_fit": 0.5267,
-        "value_currency": "revenue",
-        "value_priority_score": 0.6556,
-        "fractal_effective_max_depth": 4,
+        "trit_mutation_fit": 0.6175,
+        "value_currency": "user_value",
+        "value_priority_score": 0.5417,
         "explicit_tradeoffs": {
-          "speed_weight": 0.1063,
-          "robustness_weight": 0.7812,
-          "cost_weight": 0.1125
+          "speed_weight": 0.34,
+          "robustness_weight": 0.33,
+          "cost_weight": 0.33
         },
         "cost_profile": {
-          "estimated_tokens": 624,
-          "cost_weight": 0.1125,
+          "estimated_tokens": 530,
+          "cost_weight": 0.33,
           "tier": "low"
         },
         "risk_profile": {
@@ -602,7 +461,7 @@
       }
     },
     {
-      "id": "wfc_1968ec210cf8a2c0",
+      "id": "wfc_79aed5456e24fe93",
       "name": "Adaptive unknown workflow",
       "status": "draft",
       "source": "orchestron_candidate_generator",
@@ -611,40 +470,40 @@
       "objective_primary": "Maximize verified progress under active directives.",
       "trigger": {
         "proposal_type": "unknown",
-        "min_occurrences": 5,
-        "intent_signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+        "min_occurrences": 12,
+        "intent_signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
       },
       "intent": {
-        "id": "intent_031e372345abc0",
+        "id": "intent_688f901ff58842",
         "strategy_id": "default_general",
-        "objective": "harness runtime safety probe",
+        "objective": "balance revenue and user value without monoculture",
         "uncertainty_band": "medium",
         "constraints": {
-          "speed_weight": 0.1429,
-          "robustness_weight": 0.7142,
-          "cost_weight": 0.1429
+          "speed_weight": 0.34,
+          "robustness_weight": 0.33,
+          "cost_weight": 0.33
         },
         "signals": {
-          "feasibility": 1,
+          "feasibility": 0,
           "risk": 0,
           "novelty": 0
         },
         "risk_signals": {
-          "feasibility": 1,
+          "feasibility": 0,
           "risk": 0,
           "novelty": 0
         },
         "source": "orchestron_adaptive_controller",
-        "ts": "2026-02-26T08:36:04.104Z",
-        "signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+        "ts": "2026-02-26T20:53:09.501Z",
+        "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
       },
       "parent_workflow_id": null,
       "fractal_depth": 0,
       "mutation": null,
       "tradeoffs": {
-        "speed_weight": 0.1429,
-        "robustness_weight": 0.7142,
-        "cost_weight": 0.1429
+        "speed_weight": 0.34,
+        "robustness_weight": 0.33,
+        "cost_weight": 0.33
       },
       "risk_policy": {
         "max_risk_per_action": 65,
@@ -717,7 +576,7 @@
       ],
       "children": [
         {
-          "id": "wfc_6e75071ce0bb0b92",
+          "id": "wfc_fe946f39a2547b1b",
           "name": "Adaptive unknown workflow :: intake",
           "status": "draft",
           "source": "orchestron_candidate_generator",
@@ -726,44 +585,44 @@
           "objective_primary": "Maximize verified progress under active directives.",
           "trigger": {
             "proposal_type": "unknown.intake",
-            "min_occurrences": 5,
-            "intent_signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+            "min_occurrences": 12,
+            "intent_signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
           },
           "intent": {
-            "id": "intent_031e372345abc0",
+            "id": "intent_688f901ff58842",
             "strategy_id": "default_general",
-            "objective": "harness runtime safety probe",
+            "objective": "balance revenue and user value without monoculture",
             "uncertainty_band": "medium",
             "constraints": {
-              "speed_weight": 0.1429,
-              "robustness_weight": 0.7142,
-              "cost_weight": 0.1429
+              "speed_weight": 0.34,
+              "robustness_weight": 0.33,
+              "cost_weight": 0.33
             },
             "signals": {
-              "feasibility": 1,
+              "feasibility": 0,
               "risk": 0,
               "novelty": 0
             },
             "risk_signals": {
-              "feasibility": 1,
+              "feasibility": 0,
               "risk": 0,
               "novelty": 0
             },
             "source": "orchestron_adaptive_controller",
-            "ts": "2026-02-26T08:36:04.104Z",
-            "signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+            "ts": "2026-02-26T20:53:09.501Z",
+            "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
           },
-          "parent_workflow_id": "wfc_1968ec210cf8a2c0",
+          "parent_workflow_id": "wfc_79aed5456e24fe93",
           "fractal_depth": 1,
           "mutation": {
             "kind": "fractal_split",
-            "parent_workflow_id": "wfc_1968ec210cf8a2c0",
+            "parent_workflow_id": "wfc_79aed5456e24fe93",
             "rationale": "spawned from unknown to isolate intake pressure lane"
           },
           "tradeoffs": {
-            "speed_weight": 0.1429,
-            "robustness_weight": 0.7142,
-            "cost_weight": 0.1429
+            "speed_weight": 0.34,
+            "robustness_weight": 0.33,
+            "cost_weight": 0.33
           },
           "risk_policy": {
             "max_risk_per_action": 65,
@@ -836,7 +695,7 @@
           ],
           "children": [
             {
-              "id": "wfc_0cc8ea3844450f57",
+              "id": "wfc_eb1e4a46c27f16e5",
               "name": "Adaptive unknown workflow :: intake :: intake",
               "status": "draft",
               "source": "orchestron_candidate_generator",
@@ -845,44 +704,44 @@
               "objective_primary": "Maximize verified progress under active directives.",
               "trigger": {
                 "proposal_type": "unknown.intake.intake",
-                "min_occurrences": 5,
-                "intent_signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+                "min_occurrences": 12,
+                "intent_signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
               },
               "intent": {
-                "id": "intent_031e372345abc0",
+                "id": "intent_688f901ff58842",
                 "strategy_id": "default_general",
-                "objective": "harness runtime safety probe",
+                "objective": "balance revenue and user value without monoculture",
                 "uncertainty_band": "medium",
                 "constraints": {
-                  "speed_weight": 0.1429,
-                  "robustness_weight": 0.7142,
-                  "cost_weight": 0.1429
+                  "speed_weight": 0.34,
+                  "robustness_weight": 0.33,
+                  "cost_weight": 0.33
                 },
                 "signals": {
-                  "feasibility": 1,
+                  "feasibility": 0,
                   "risk": 0,
                   "novelty": 0
                 },
                 "risk_signals": {
-                  "feasibility": 1,
+                  "feasibility": 0,
                   "risk": 0,
                   "novelty": 0
                 },
                 "source": "orchestron_adaptive_controller",
-                "ts": "2026-02-26T08:36:04.104Z",
-                "signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+                "ts": "2026-02-26T20:53:09.501Z",
+                "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
               },
-              "parent_workflow_id": "wfc_6e75071ce0bb0b92",
+              "parent_workflow_id": "wfc_fe946f39a2547b1b",
               "fractal_depth": 2,
               "mutation": {
                 "kind": "fractal_split",
-                "parent_workflow_id": "wfc_6e75071ce0bb0b92",
+                "parent_workflow_id": "wfc_fe946f39a2547b1b",
                 "rationale": "spawned from unknown.intake to isolate intake pressure lane"
               },
               "tradeoffs": {
-                "speed_weight": 0.1429,
-                "robustness_weight": 0.7142,
-                "cost_weight": 0.1429
+                "speed_weight": 0.34,
+                "robustness_weight": 0.33,
+                "cost_weight": 0.33
               },
               "risk_policy": {
                 "max_risk_per_action": 65,
@@ -954,29 +813,29 @@
                 }
               ],
               "children": [],
-              "generated_at": "2026-02-26T08:36:04.117Z",
+              "generated_at": "2026-02-26T20:53:09.521Z",
               "metadata": {
                 "generation_kind": "fractal_child",
-                "parent_workflow_id": "wfc_6e75071ce0bb0b92",
-                "attempts": 11,
+                "parent_workflow_id": "wfc_fe946f39a2547b1b",
+                "attempts": 37,
                 "shipped_rate": 0,
-                "failure_rate": 1.2727272727272727,
-                "intent_trit_alignment": 0.42,
-                "trit_uncertainty": 0.58,
+                "failure_rate": 0.7027027027027027,
+                "intent_trit_alignment": 0,
+                "trit_uncertainty": 1,
                 "trit_novelty": 0,
-                "trit_mutation_fit": 0.6612,
-                "value_currency": "revenue",
-                "value_priority_score": 0.3479,
+                "trit_mutation_fit": 0.6605,
+                "value_currency": "user_value",
+                "value_priority_score": 0.6014,
                 "fractal_effective_max_depth": 5,
                 "lane": "intake",
                 "explicit_tradeoffs": {
-                  "speed_weight": 0.1429,
-                  "robustness_weight": 0.7142,
-                  "cost_weight": 0.1429
+                  "speed_weight": 0.34,
+                  "robustness_weight": 0.33,
+                  "cost_weight": 0.33
                 },
                 "cost_profile": {
                   "estimated_tokens": 530,
-                  "cost_weight": 0.1429,
+                  "cost_weight": 0.33,
                   "tier": "low"
                 },
                 "risk_profile": {
@@ -990,7 +849,7 @@
               }
             },
             {
-              "id": "wfc_f2cd18ebc6eea9b5",
+              "id": "wfc_c845f7e816aead0f",
               "name": "Adaptive unknown workflow :: intake :: execution",
               "status": "draft",
               "source": "orchestron_candidate_generator",
@@ -999,44 +858,44 @@
               "objective_primary": "Maximize verified progress under active directives.",
               "trigger": {
                 "proposal_type": "unknown.intake.execution",
-                "min_occurrences": 5,
-                "intent_signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+                "min_occurrences": 12,
+                "intent_signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
               },
               "intent": {
-                "id": "intent_031e372345abc0",
+                "id": "intent_688f901ff58842",
                 "strategy_id": "default_general",
-                "objective": "harness runtime safety probe",
+                "objective": "balance revenue and user value without monoculture",
                 "uncertainty_band": "medium",
                 "constraints": {
-                  "speed_weight": 0.1429,
-                  "robustness_weight": 0.7142,
-                  "cost_weight": 0.1429
+                  "speed_weight": 0.34,
+                  "robustness_weight": 0.33,
+                  "cost_weight": 0.33
                 },
                 "signals": {
-                  "feasibility": 1,
+                  "feasibility": 0,
                   "risk": 0,
                   "novelty": 0
                 },
                 "risk_signals": {
-                  "feasibility": 1,
+                  "feasibility": 0,
                   "risk": 0,
                   "novelty": 0
                 },
                 "source": "orchestron_adaptive_controller",
-                "ts": "2026-02-26T08:36:04.104Z",
-                "signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+                "ts": "2026-02-26T20:53:09.501Z",
+                "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
               },
-              "parent_workflow_id": "wfc_6e75071ce0bb0b92",
+              "parent_workflow_id": "wfc_fe946f39a2547b1b",
               "fractal_depth": 2,
               "mutation": {
                 "kind": "fractal_split",
-                "parent_workflow_id": "wfc_6e75071ce0bb0b92",
+                "parent_workflow_id": "wfc_fe946f39a2547b1b",
                 "rationale": "spawned from unknown.intake to isolate execution pressure lane"
               },
               "tradeoffs": {
-                "speed_weight": 0.1429,
-                "robustness_weight": 0.7142,
-                "cost_weight": 0.1429
+                "speed_weight": 0.34,
+                "robustness_weight": 0.33,
+                "cost_weight": 0.33
               },
               "risk_policy": {
                 "max_risk_per_action": 65,
@@ -1108,29 +967,29 @@
                 }
               ],
               "children": [],
-              "generated_at": "2026-02-26T08:36:04.117Z",
+              "generated_at": "2026-02-26T20:53:09.522Z",
               "metadata": {
                 "generation_kind": "fractal_child",
-                "parent_workflow_id": "wfc_6e75071ce0bb0b92",
-                "attempts": 11,
+                "parent_workflow_id": "wfc_fe946f39a2547b1b",
+                "attempts": 37,
                 "shipped_rate": 0,
-                "failure_rate": 1.2727272727272727,
-                "intent_trit_alignment": 0.42,
-                "trit_uncertainty": 0.58,
+                "failure_rate": 0.7027027027027027,
+                "intent_trit_alignment": 0,
+                "trit_uncertainty": 1,
                 "trit_novelty": 0,
-                "trit_mutation_fit": 0.6612,
-                "value_currency": "revenue",
-                "value_priority_score": 0.3479,
+                "trit_mutation_fit": 0.6605,
+                "value_currency": "user_value",
+                "value_priority_score": 0.6014,
                 "fractal_effective_max_depth": 5,
                 "lane": "execution",
                 "explicit_tradeoffs": {
-                  "speed_weight": 0.1429,
-                  "robustness_weight": 0.7142,
-                  "cost_weight": 0.1429
+                  "speed_weight": 0.34,
+                  "robustness_weight": 0.33,
+                  "cost_weight": 0.33
                 },
                 "cost_profile": {
                   "estimated_tokens": 530,
-                  "cost_weight": 0.1429,
+                  "cost_weight": 0.33,
                   "tier": "low"
                 },
                 "risk_profile": {
@@ -1144,7 +1003,7 @@
               }
             },
             {
-              "id": "wfc_efc5366d5dcd2593",
+              "id": "wfc_1bffa7f8beced301",
               "name": "Adaptive unknown workflow :: intake :: verification",
               "status": "draft",
               "source": "orchestron_candidate_generator",
@@ -1153,44 +1012,44 @@
               "objective_primary": "Maximize verified progress under active directives.",
               "trigger": {
                 "proposal_type": "unknown.intake.verification",
-                "min_occurrences": 5,
-                "intent_signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+                "min_occurrences": 12,
+                "intent_signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
               },
               "intent": {
-                "id": "intent_031e372345abc0",
+                "id": "intent_688f901ff58842",
                 "strategy_id": "default_general",
-                "objective": "harness runtime safety probe",
+                "objective": "balance revenue and user value without monoculture",
                 "uncertainty_band": "medium",
                 "constraints": {
-                  "speed_weight": 0.1429,
-                  "robustness_weight": 0.7142,
-                  "cost_weight": 0.1429
+                  "speed_weight": 0.34,
+                  "robustness_weight": 0.33,
+                  "cost_weight": 0.33
                 },
                 "signals": {
-                  "feasibility": 1,
+                  "feasibility": 0,
                   "risk": 0,
                   "novelty": 0
                 },
                 "risk_signals": {
-                  "feasibility": 1,
+                  "feasibility": 0,
                   "risk": 0,
                   "novelty": 0
                 },
                 "source": "orchestron_adaptive_controller",
-                "ts": "2026-02-26T08:36:04.104Z",
-                "signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+                "ts": "2026-02-26T20:53:09.501Z",
+                "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
               },
-              "parent_workflow_id": "wfc_6e75071ce0bb0b92",
+              "parent_workflow_id": "wfc_fe946f39a2547b1b",
               "fractal_depth": 2,
               "mutation": {
                 "kind": "fractal_split",
-                "parent_workflow_id": "wfc_6e75071ce0bb0b92",
+                "parent_workflow_id": "wfc_fe946f39a2547b1b",
                 "rationale": "spawned from unknown.intake to isolate verification pressure lane"
               },
               "tradeoffs": {
-                "speed_weight": 0.1429,
-                "robustness_weight": 0.7142,
-                "cost_weight": 0.1429
+                "speed_weight": 0.34,
+                "robustness_weight": 0.33,
+                "cost_weight": 0.33
               },
               "risk_policy": {
                 "max_risk_per_action": 65,
@@ -1262,29 +1121,29 @@
                 }
               ],
               "children": [],
-              "generated_at": "2026-02-26T08:36:04.118Z",
+              "generated_at": "2026-02-26T20:53:09.522Z",
               "metadata": {
                 "generation_kind": "fractal_child",
-                "parent_workflow_id": "wfc_6e75071ce0bb0b92",
-                "attempts": 11,
+                "parent_workflow_id": "wfc_fe946f39a2547b1b",
+                "attempts": 37,
                 "shipped_rate": 0,
-                "failure_rate": 1.2727272727272727,
-                "intent_trit_alignment": 0.42,
-                "trit_uncertainty": 0.58,
+                "failure_rate": 0.7027027027027027,
+                "intent_trit_alignment": 0,
+                "trit_uncertainty": 1,
                 "trit_novelty": 0,
-                "trit_mutation_fit": 0.6612,
-                "value_currency": "revenue",
-                "value_priority_score": 0.3479,
+                "trit_mutation_fit": 0.6605,
+                "value_currency": "user_value",
+                "value_priority_score": 0.6014,
                 "fractal_effective_max_depth": 5,
                 "lane": "verification",
                 "explicit_tradeoffs": {
-                  "speed_weight": 0.1429,
-                  "robustness_weight": 0.7142,
-                  "cost_weight": 0.1429
+                  "speed_weight": 0.34,
+                  "robustness_weight": 0.33,
+                  "cost_weight": 0.33
                 },
                 "cost_profile": {
                   "estimated_tokens": 530,
-                  "cost_weight": 0.1429,
+                  "cost_weight": 0.33,
                   "tier": "low"
                 },
                 "risk_profile": {
@@ -1298,30 +1157,30 @@
               }
             }
           ],
-          "generated_at": "2026-02-26T08:36:04.117Z",
+          "generated_at": "2026-02-26T20:53:09.521Z",
           "metadata": {
             "generation_kind": "fractal_child",
-            "parent_workflow_id": "wfc_1968ec210cf8a2c0",
-            "attempts": 11,
+            "parent_workflow_id": "wfc_79aed5456e24fe93",
+            "attempts": 37,
             "shipped_rate": 0,
-            "failure_rate": 1.2727272727272727,
-            "intent_trit_alignment": 0.42,
-            "trit_uncertainty": 0.58,
+            "failure_rate": 0.7027027027027027,
+            "intent_trit_alignment": 0,
+            "trit_uncertainty": 1,
             "trit_novelty": 0,
-            "trit_mutation_fit": 0.6612,
-            "value_currency": "revenue",
-            "value_priority_score": 0.3479,
+            "trit_mutation_fit": 0.6605,
+            "value_currency": "user_value",
+            "value_priority_score": 0.6014,
             "fractal_effective_max_depth": 5,
             "lane": "intake",
             "fractal_children_count": 3,
             "explicit_tradeoffs": {
-              "speed_weight": 0.1429,
-              "robustness_weight": 0.7142,
-              "cost_weight": 0.1429
+              "speed_weight": 0.34,
+              "robustness_weight": 0.33,
+              "cost_weight": 0.33
             },
             "cost_profile": {
               "estimated_tokens": 530,
-              "cost_weight": 0.1429,
+              "cost_weight": 0.33,
               "tier": "low"
             },
             "risk_profile": {
@@ -1335,7 +1194,7 @@
           }
         },
         {
-          "id": "wfc_7cb467480f2b9b5a",
+          "id": "wfc_2db052ed928358bd",
           "name": "Adaptive unknown workflow :: execution",
           "status": "draft",
           "source": "orchestron_candidate_generator",
@@ -1344,44 +1203,44 @@
           "objective_primary": "Maximize verified progress under active directives.",
           "trigger": {
             "proposal_type": "unknown.execution",
-            "min_occurrences": 5,
-            "intent_signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+            "min_occurrences": 12,
+            "intent_signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
           },
           "intent": {
-            "id": "intent_031e372345abc0",
+            "id": "intent_688f901ff58842",
             "strategy_id": "default_general",
-            "objective": "harness runtime safety probe",
+            "objective": "balance revenue and user value without monoculture",
             "uncertainty_band": "medium",
             "constraints": {
-              "speed_weight": 0.1429,
-              "robustness_weight": 0.7142,
-              "cost_weight": 0.1429
+              "speed_weight": 0.34,
+              "robustness_weight": 0.33,
+              "cost_weight": 0.33
             },
             "signals": {
-              "feasibility": 1,
+              "feasibility": 0,
               "risk": 0,
               "novelty": 0
             },
             "risk_signals": {
-              "feasibility": 1,
+              "feasibility": 0,
               "risk": 0,
               "novelty": 0
             },
             "source": "orchestron_adaptive_controller",
-            "ts": "2026-02-26T08:36:04.104Z",
-            "signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+            "ts": "2026-02-26T20:53:09.501Z",
+            "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
           },
-          "parent_workflow_id": "wfc_1968ec210cf8a2c0",
+          "parent_workflow_id": "wfc_79aed5456e24fe93",
           "fractal_depth": 1,
           "mutation": {
             "kind": "fractal_split",
-            "parent_workflow_id": "wfc_1968ec210cf8a2c0",
+            "parent_workflow_id": "wfc_79aed5456e24fe93",
             "rationale": "spawned from unknown to isolate execution pressure lane"
           },
           "tradeoffs": {
-            "speed_weight": 0.1429,
-            "robustness_weight": 0.7142,
-            "cost_weight": 0.1429
+            "speed_weight": 0.34,
+            "robustness_weight": 0.33,
+            "cost_weight": 0.33
           },
           "risk_policy": {
             "max_risk_per_action": 65,
@@ -1453,29 +1312,29 @@
             }
           ],
           "children": [],
-          "generated_at": "2026-02-26T08:36:04.117Z",
+          "generated_at": "2026-02-26T20:53:09.521Z",
           "metadata": {
             "generation_kind": "fractal_child",
-            "parent_workflow_id": "wfc_1968ec210cf8a2c0",
-            "attempts": 11,
+            "parent_workflow_id": "wfc_79aed5456e24fe93",
+            "attempts": 37,
             "shipped_rate": 0,
-            "failure_rate": 1.2727272727272727,
-            "intent_trit_alignment": 0.42,
-            "trit_uncertainty": 0.58,
+            "failure_rate": 0.7027027027027027,
+            "intent_trit_alignment": 0,
+            "trit_uncertainty": 1,
             "trit_novelty": 0,
-            "trit_mutation_fit": 0.6612,
-            "value_currency": "revenue",
-            "value_priority_score": 0.3479,
+            "trit_mutation_fit": 0.6605,
+            "value_currency": "user_value",
+            "value_priority_score": 0.6014,
             "fractal_effective_max_depth": 5,
             "lane": "execution",
             "explicit_tradeoffs": {
-              "speed_weight": 0.1429,
-              "robustness_weight": 0.7142,
-              "cost_weight": 0.1429
+              "speed_weight": 0.34,
+              "robustness_weight": 0.33,
+              "cost_weight": 0.33
             },
             "cost_profile": {
               "estimated_tokens": 530,
-              "cost_weight": 0.1429,
+              "cost_weight": 0.33,
               "tier": "low"
             },
             "risk_profile": {
@@ -1489,7 +1348,7 @@
           }
         },
         {
-          "id": "wfc_9249a55d14dffc90",
+          "id": "wfc_3a6b00684a202140",
           "name": "Adaptive unknown workflow :: verification",
           "status": "draft",
           "source": "orchestron_candidate_generator",
@@ -1498,44 +1357,44 @@
           "objective_primary": "Maximize verified progress under active directives.",
           "trigger": {
             "proposal_type": "unknown.verification",
-            "min_occurrences": 5,
-            "intent_signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+            "min_occurrences": 12,
+            "intent_signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
           },
           "intent": {
-            "id": "intent_031e372345abc0",
+            "id": "intent_688f901ff58842",
             "strategy_id": "default_general",
-            "objective": "harness runtime safety probe",
+            "objective": "balance revenue and user value without monoculture",
             "uncertainty_band": "medium",
             "constraints": {
-              "speed_weight": 0.1429,
-              "robustness_weight": 0.7142,
-              "cost_weight": 0.1429
+              "speed_weight": 0.34,
+              "robustness_weight": 0.33,
+              "cost_weight": 0.33
             },
             "signals": {
-              "feasibility": 1,
+              "feasibility": 0,
               "risk": 0,
               "novelty": 0
             },
             "risk_signals": {
-              "feasibility": 1,
+              "feasibility": 0,
               "risk": 0,
               "novelty": 0
             },
             "source": "orchestron_adaptive_controller",
-            "ts": "2026-02-26T08:36:04.104Z",
-            "signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+            "ts": "2026-02-26T20:53:09.501Z",
+            "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
           },
-          "parent_workflow_id": "wfc_1968ec210cf8a2c0",
+          "parent_workflow_id": "wfc_79aed5456e24fe93",
           "fractal_depth": 1,
           "mutation": {
             "kind": "fractal_split",
-            "parent_workflow_id": "wfc_1968ec210cf8a2c0",
+            "parent_workflow_id": "wfc_79aed5456e24fe93",
             "rationale": "spawned from unknown to isolate verification pressure lane"
           },
           "tradeoffs": {
-            "speed_weight": 0.1429,
-            "robustness_weight": 0.7142,
-            "cost_weight": 0.1429
+            "speed_weight": 0.34,
+            "robustness_weight": 0.33,
+            "cost_weight": 0.33
           },
           "risk_policy": {
             "max_risk_per_action": 65,
@@ -1607,29 +1466,29 @@
             }
           ],
           "children": [],
-          "generated_at": "2026-02-26T08:36:04.117Z",
+          "generated_at": "2026-02-26T20:53:09.521Z",
           "metadata": {
             "generation_kind": "fractal_child",
-            "parent_workflow_id": "wfc_1968ec210cf8a2c0",
-            "attempts": 11,
+            "parent_workflow_id": "wfc_79aed5456e24fe93",
+            "attempts": 37,
             "shipped_rate": 0,
-            "failure_rate": 1.2727272727272727,
-            "intent_trit_alignment": 0.42,
-            "trit_uncertainty": 0.58,
+            "failure_rate": 0.7027027027027027,
+            "intent_trit_alignment": 0,
+            "trit_uncertainty": 1,
             "trit_novelty": 0,
-            "trit_mutation_fit": 0.6612,
-            "value_currency": "revenue",
-            "value_priority_score": 0.3479,
+            "trit_mutation_fit": 0.6605,
+            "value_currency": "user_value",
+            "value_priority_score": 0.6014,
             "fractal_effective_max_depth": 5,
             "lane": "verification",
             "explicit_tradeoffs": {
-              "speed_weight": 0.1429,
-              "robustness_weight": 0.7142,
-              "cost_weight": 0.1429
+              "speed_weight": 0.34,
+              "robustness_weight": 0.33,
+              "cost_weight": 0.33
             },
             "cost_profile": {
               "estimated_tokens": 530,
-              "cost_weight": 0.1429,
+              "cost_weight": 0.33,
               "tier": "low"
             },
             "risk_profile": {
@@ -1643,30 +1502,179 @@
           }
         }
       ],
-      "generated_at": "2026-02-26T08:36:04.117Z",
+      "generated_at": "2026-02-26T20:53:09.520Z",
       "metadata": {
         "generation_kind": "pattern",
-        "priority": 0.6692,
-        "attempts": 11,
+        "priority": 0.7522,
+        "attempts": 37,
         "shipped_rate": 0,
-        "failure_rate": 1.2727,
+        "failure_rate": 0.7027,
         "no_change_rate": 0,
-        "intent_trit_alignment": 0.42,
-        "trit_uncertainty": 0.58,
+        "intent_trit_alignment": 0,
+        "trit_uncertainty": 1,
         "trit_novelty": 0,
-        "trit_mutation_fit": 0.6008,
-        "value_currency": "revenue",
-        "value_priority_score": 0.3479,
+        "trit_mutation_fit": 0.572,
+        "value_currency": "user_value",
+        "value_priority_score": 0.6014,
         "fractal_children_count": 3,
         "fractal_effective_max_depth": 5,
         "explicit_tradeoffs": {
-          "speed_weight": 0.1429,
-          "robustness_weight": 0.7142,
-          "cost_weight": 0.1429
+          "speed_weight": 0.34,
+          "robustness_weight": 0.33,
+          "cost_weight": 0.33
         },
         "cost_profile": {
           "estimated_tokens": 530,
-          "cost_weight": 0.1429,
+          "cost_weight": 0.33,
+          "tier": "low"
+        },
+        "risk_profile": {
+          "level": "medium",
+          "max_risk_per_action": 65,
+          "allowed_risks": [
+            "low",
+            "medium"
+          ]
+        }
+      }
+    },
+    {
+      "id": "wfc_0c9051d51f66e28a",
+      "name": "Adaptive cross_signal_opportunity workflow",
+      "status": "draft",
+      "source": "orchestron_candidate_generator",
+      "strategy_id": "default_general",
+      "objective_id": "T1_make_jay_billionaire_v1",
+      "objective_primary": "Maximize verified progress under active directives.",
+      "trigger": {
+        "proposal_type": "cross_signal_opportunity",
+        "min_occurrences": 2,
+        "intent_signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
+      },
+      "intent": {
+        "id": "intent_688f901ff58842",
+        "strategy_id": "default_general",
+        "objective": "balance revenue and user value without monoculture",
+        "uncertainty_band": "medium",
+        "constraints": {
+          "speed_weight": 0.34,
+          "robustness_weight": 0.33,
+          "cost_weight": 0.33
+        },
+        "signals": {
+          "feasibility": 0,
+          "risk": 0,
+          "novelty": 0
+        },
+        "risk_signals": {
+          "feasibility": 0,
+          "risk": 0,
+          "novelty": 0
+        },
+        "source": "orchestron_adaptive_controller",
+        "ts": "2026-02-26T20:53:09.501Z",
+        "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
+      },
+      "parent_workflow_id": null,
+      "fractal_depth": 0,
+      "mutation": null,
+      "tradeoffs": {
+        "speed_weight": 0.34,
+        "robustness_weight": 0.33,
+        "cost_weight": 0.33
+      },
+      "risk_policy": {
+        "max_risk_per_action": 65,
+        "allowed_risks": [
+          "low",
+          "medium"
+        ]
+      },
+      "steps": [
+        {
+          "id": "enrich",
+          "type": "command",
+          "command": "node systems/autonomy/proposal_enricher.js run <date>",
+          "purpose": "normalize proposal shape",
+          "timeout_ms": 120000,
+          "retries": 1,
+          "adapter": null,
+          "provider": null,
+          "lane": null,
+          "risk": null,
+          "clearance": null,
+          "estimated_tokens": null,
+          "require_policy_root": false
+        },
+        {
+          "id": "rank",
+          "type": "command",
+          "command": "node systems/autonomy/autonomy_controller.js run <date>",
+          "purpose": "rank and execute/preview",
+          "timeout_ms": 180000,
+          "retries": 1,
+          "adapter": null,
+          "provider": null,
+          "lane": null,
+          "risk": null,
+          "clearance": null,
+          "estimated_tokens": null,
+          "require_policy_root": false
+        },
+        {
+          "id": "verify",
+          "type": "gate",
+          "command": "node systems/autonomy/strategy_execute_guard.js run <date>",
+          "purpose": "enforce safety and evidence checks",
+          "timeout_ms": 120000,
+          "retries": 0,
+          "adapter": null,
+          "provider": null,
+          "lane": null,
+          "risk": null,
+          "clearance": null,
+          "estimated_tokens": null,
+          "require_policy_root": false
+        },
+        {
+          "id": "receipt",
+          "type": "receipt",
+          "command": "state/autonomy/receipts/<date>.jsonl",
+          "purpose": "record final receipt evidence",
+          "timeout_ms": 30000,
+          "retries": 0,
+          "adapter": null,
+          "provider": null,
+          "lane": null,
+          "risk": null,
+          "clearance": null,
+          "estimated_tokens": null,
+          "require_policy_root": false
+        }
+      ],
+      "children": [],
+      "generated_at": "2026-02-26T20:53:09.520Z",
+      "metadata": {
+        "generation_kind": "pattern",
+        "priority": 0.7592,
+        "attempts": 3,
+        "shipped_rate": 0,
+        "failure_rate": 0.3333,
+        "no_change_rate": 0.3333,
+        "intent_trit_alignment": 0,
+        "trit_uncertainty": 1,
+        "trit_novelty": 0,
+        "trit_mutation_fit": 0.5871,
+        "value_currency": "user_value",
+        "value_priority_score": 0.5208,
+        "explicit_tradeoffs": {
+          "speed_weight": 0.34,
+          "robustness_weight": 0.33,
+          "cost_weight": 0.33
+        },
+        "cost_profile": {
+          "estimated_tokens": 530,
+          "cost_weight": 0.33,
           "tier": "low"
         },
         "risk_profile": {
@@ -1682,410 +1690,275 @@
   ],
   "scorecards": [
     {
-      "candidate_id": "wfc_5464a8f5bd845833",
+      "candidate_id": "wfc_43f2858f678e2aa1",
       "pass": true,
-      "base_shipped_rate": 0.0256,
-      "predicted_yield_delta": 0.0066,
-      "predicted_drift_delta": -0.0048,
-      "safety_score": 0.7484,
-      "regression_risk": 0.3424,
-      "candidate_red_team_pressure": 0.095,
-      "red_team_penalty": 0.0086,
-      "adversarial_critical_failures": 0,
-      "adversarial_non_critical_findings": 0,
-      "adversarial_penalty": 0,
-      "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_5464a8f5bd845833.json",
-      "trit_alignment": 0.42,
-      "composite_score": 0.5528,
-      "reasons": [],
-      "tested_at": "2026-02-26T08:36:04.124Z"
-    },
-    {
-      "candidate_id": "wfc_1968ec210cf8a2c0",
-      "pass": false,
       "base_shipped_rate": 0,
-      "predicted_yield_delta": 0.0057,
-      "predicted_drift_delta": 0.0121,
-      "safety_score": 0.5096,
+      "predicted_yield_delta": 0.0095,
+      "predicted_drift_delta": -0.0108,
+      "safety_score": 0.4802,
       "regression_risk": 0.5198,
       "candidate_red_team_pressure": 0.22,
       "red_team_penalty": 0.0198,
       "adversarial_critical_failures": 0,
       "adversarial_non_critical_findings": 0,
       "adversarial_penalty": 0,
-      "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_1968ec210cf8a2c0.json",
-      "trit_alignment": 0.42,
-      "composite_score": 0.3954,
-      "reasons": [
-        "predicted_drift_regression",
-        "composite_score_low"
-      ],
-      "tested_at": "2026-02-26T08:36:04.124Z"
+      "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_43f2858f678e2aa1.json",
+      "trit_alignment": 0,
+      "composite_score": 0.4831,
+      "reasons": [],
+      "tested_at": "2026-02-26T20:53:09.527Z"
     },
     {
-      "candidate_id": "wfc_a57d8982185b3460",
+      "candidate_id": "wfc_0c9051d51f66e28a",
       "pass": false,
-      "base_shipped_rate": 0.0256,
-      "predicted_yield_delta": 0.0127,
-      "predicted_drift_delta": 0.0162,
-      "safety_score": 0.4703,
-      "regression_risk": 0.5704,
-      "candidate_red_team_pressure": 0.295,
-      "red_team_penalty": 0.0265,
+      "base_shipped_rate": 0,
+      "predicted_yield_delta": 0.0025,
+      "predicted_drift_delta": -0.0015,
+      "safety_score": 0.4802,
+      "regression_risk": 0.5198,
+      "candidate_red_team_pressure": 0.22,
+      "red_team_penalty": 0.0198,
       "adversarial_critical_failures": 0,
       "adversarial_non_critical_findings": 0,
       "adversarial_penalty": 0,
-      "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_a57d8982185b3460.json",
-      "trit_alignment": 0.42,
-      "composite_score": 0.393,
+      "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_0c9051d51f66e28a.json",
+      "trit_alignment": 0,
+      "composite_score": 0.4084,
+      "reasons": [
+        "composite_score_low"
+      ],
+      "tested_at": "2026-02-26T20:53:09.527Z"
+    },
+    {
+      "candidate_id": "wfc_79aed5456e24fe93",
+      "pass": false,
+      "base_shipped_rate": 0,
+      "predicted_yield_delta": -0.001,
+      "predicted_drift_delta": 0.0018,
+      "safety_score": 0.4802,
+      "regression_risk": 0.5198,
+      "candidate_red_team_pressure": 0.22,
+      "red_team_penalty": 0.0198,
+      "adversarial_critical_failures": 0,
+      "adversarial_non_critical_findings": 0,
+      "adversarial_penalty": 0,
+      "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_79aed5456e24fe93.json",
+      "trit_alignment": 0,
+      "composite_score": 0.3773,
+      "reasons": [
+        "composite_score_low"
+      ],
+      "tested_at": "2026-02-26T20:53:09.527Z"
+    },
+    {
+      "candidate_id": "wfc_2db052ed928358bd",
+      "pass": false,
+      "base_shipped_rate": 0,
+      "predicted_yield_delta": -0.0226,
+      "predicted_drift_delta": 0.0244,
+      "safety_score": 0.4783,
+      "regression_risk": 0.5493,
+      "candidate_red_team_pressure": 0.325,
+      "red_team_penalty": 0.0292,
+      "adversarial_critical_failures": 0,
+      "adversarial_non_critical_findings": 0,
+      "adversarial_penalty": 0,
+      "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_2db052ed928358bd.json",
+      "trit_alignment": 0,
+      "composite_score": 0.2326,
+      "reasons": [
+        "safety_below_threshold",
+        "predicted_drift_regression",
+        "yield_lift_insufficient",
+        "composite_score_low"
+      ],
+      "tested_at": "2026-02-26T20:53:09.527Z"
+    },
+    {
+      "candidate_id": "wfc_3a6b00684a202140",
+      "pass": false,
+      "base_shipped_rate": 0,
+      "predicted_yield_delta": -0.0226,
+      "predicted_drift_delta": 0.0244,
+      "safety_score": 0.4783,
+      "regression_risk": 0.5493,
+      "candidate_red_team_pressure": 0.325,
+      "red_team_penalty": 0.0292,
+      "adversarial_critical_failures": 0,
+      "adversarial_non_critical_findings": 0,
+      "adversarial_penalty": 0,
+      "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_3a6b00684a202140.json",
+      "trit_alignment": 0,
+      "composite_score": 0.2326,
+      "reasons": [
+        "safety_below_threshold",
+        "predicted_drift_regression",
+        "yield_lift_insufficient",
+        "composite_score_low"
+      ],
+      "tested_at": "2026-02-26T20:53:09.527Z"
+    },
+    {
+      "candidate_id": "wfc_fe946f39a2547b1b",
+      "pass": false,
+      "base_shipped_rate": 0,
+      "predicted_yield_delta": -0.0226,
+      "predicted_drift_delta": 0.0244,
+      "safety_score": 0.4783,
+      "regression_risk": 0.5493,
+      "candidate_red_team_pressure": 0.325,
+      "red_team_penalty": 0.0292,
+      "adversarial_critical_failures": 0,
+      "adversarial_non_critical_findings": 0,
+      "adversarial_penalty": 0,
+      "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_fe946f39a2547b1b.json",
+      "trit_alignment": 0,
+      "composite_score": 0.2326,
+      "reasons": [
+        "safety_below_threshold",
+        "predicted_drift_regression",
+        "yield_lift_insufficient",
+        "composite_score_low"
+      ],
+      "tested_at": "2026-02-26T20:53:09.527Z"
+    },
+    {
+      "candidate_id": "wfc_1bffa7f8beced301",
+      "pass": false,
+      "base_shipped_rate": 0,
+      "predicted_yield_delta": -0.0477,
+      "predicted_drift_delta": 0.0396,
+      "safety_score": 0.4635,
+      "regression_risk": 0.5715,
+      "candidate_red_team_pressure": 0.35,
+      "red_team_penalty": 0.0315,
+      "adversarial_critical_failures": 0,
+      "adversarial_non_critical_findings": 0,
+      "adversarial_penalty": 0,
+      "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_1bffa7f8beced301.json",
+      "trit_alignment": 0,
+      "composite_score": 0.2254,
       "reasons": [
         "safety_below_threshold",
         "regression_risk_high",
         "predicted_drift_regression",
-        "composite_score_low"
-      ],
-      "tested_at": "2026-02-26T08:36:04.123Z"
-    },
-    {
-      "candidate_id": "wfc_6e75071ce0bb0b92",
-      "pass": false,
-      "base_shipped_rate": 0,
-      "predicted_yield_delta": -0.0193,
-      "predicted_drift_delta": 0.0404,
-      "safety_score": 0.5077,
-      "regression_risk": 0.5493,
-      "candidate_red_team_pressure": 0.325,
-      "red_team_penalty": 0.0292,
-      "adversarial_critical_failures": 0,
-      "adversarial_non_critical_findings": 0,
-      "adversarial_penalty": 0,
-      "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_6e75071ce0bb0b92.json",
-      "trit_alignment": 0.42,
-      "composite_score": 0.2648,
-      "reasons": [
-        "predicted_drift_regression",
         "yield_lift_insufficient",
         "composite_score_low"
       ],
-      "tested_at": "2026-02-26T08:36:04.124Z"
+      "tested_at": "2026-02-26T20:53:09.528Z"
     },
     {
-      "candidate_id": "wfc_7cb467480f2b9b5a",
+      "candidate_id": "wfc_c845f7e816aead0f",
       "pass": false,
       "base_shipped_rate": 0,
-      "predicted_yield_delta": -0.0193,
-      "predicted_drift_delta": 0.0404,
-      "safety_score": 0.5077,
-      "regression_risk": 0.5493,
-      "candidate_red_team_pressure": 0.325,
-      "red_team_penalty": 0.0292,
-      "adversarial_critical_failures": 0,
-      "adversarial_non_critical_findings": 0,
-      "adversarial_penalty": 0,
-      "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_7cb467480f2b9b5a.json",
-      "trit_alignment": 0.42,
-      "composite_score": 0.2648,
-      "reasons": [
-        "predicted_drift_regression",
-        "yield_lift_insufficient",
-        "composite_score_low"
-      ],
-      "tested_at": "2026-02-26T08:36:04.124Z"
-    },
-    {
-      "candidate_id": "wfc_9249a55d14dffc90",
-      "pass": false,
-      "base_shipped_rate": 0,
-      "predicted_yield_delta": -0.0193,
-      "predicted_drift_delta": 0.0404,
-      "safety_score": 0.5077,
-      "regression_risk": 0.5493,
-      "candidate_red_team_pressure": 0.325,
-      "red_team_penalty": 0.0292,
-      "adversarial_critical_failures": 0,
-      "adversarial_non_critical_findings": 0,
-      "adversarial_penalty": 0,
-      "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_9249a55d14dffc90.json",
-      "trit_alignment": 0.42,
-      "composite_score": 0.2648,
-      "reasons": [
-        "predicted_drift_regression",
-        "yield_lift_insufficient",
-        "composite_score_low"
-      ],
-      "tested_at": "2026-02-26T08:36:04.124Z"
-    },
-    {
-      "candidate_id": "wfc_0cc8ea3844450f57",
-      "pass": false,
-      "base_shipped_rate": 0,
-      "predicted_yield_delta": -0.0444,
-      "predicted_drift_delta": 0.0555,
-      "safety_score": 0.4929,
+      "predicted_yield_delta": -0.0477,
+      "predicted_drift_delta": 0.0396,
+      "safety_score": 0.4635,
       "regression_risk": 0.5715,
       "candidate_red_team_pressure": 0.35,
       "red_team_penalty": 0.0315,
       "adversarial_critical_failures": 0,
       "adversarial_non_critical_findings": 0,
       "adversarial_penalty": 0,
-      "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_0cc8ea3844450f57.json",
-      "trit_alignment": 0.42,
-      "composite_score": 0.2576,
+      "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_c845f7e816aead0f.json",
+      "trit_alignment": 0,
+      "composite_score": 0.2254,
       "reasons": [
+        "safety_below_threshold",
         "regression_risk_high",
         "predicted_drift_regression",
         "yield_lift_insufficient",
         "composite_score_low"
       ],
-      "tested_at": "2026-02-26T08:36:04.124Z"
+      "tested_at": "2026-02-26T20:53:09.528Z"
     },
     {
-      "candidate_id": "wfc_efc5366d5dcd2593",
+      "candidate_id": "wfc_eb1e4a46c27f16e5",
       "pass": false,
       "base_shipped_rate": 0,
-      "predicted_yield_delta": -0.0444,
-      "predicted_drift_delta": 0.0555,
-      "safety_score": 0.4929,
+      "predicted_yield_delta": -0.0477,
+      "predicted_drift_delta": 0.0396,
+      "safety_score": 0.4635,
       "regression_risk": 0.5715,
       "candidate_red_team_pressure": 0.35,
       "red_team_penalty": 0.0315,
       "adversarial_critical_failures": 0,
       "adversarial_non_critical_findings": 0,
       "adversarial_penalty": 0,
-      "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_efc5366d5dcd2593.json",
-      "trit_alignment": 0.42,
-      "composite_score": 0.2576,
+      "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_eb1e4a46c27f16e5.json",
+      "trit_alignment": 0,
+      "composite_score": 0.2254,
       "reasons": [
+        "safety_below_threshold",
         "regression_risk_high",
         "predicted_drift_regression",
         "yield_lift_insufficient",
         "composite_score_low"
       ],
-      "tested_at": "2026-02-26T08:36:04.124Z"
-    },
-    {
-      "candidate_id": "wfc_f2cd18ebc6eea9b5",
-      "pass": false,
-      "base_shipped_rate": 0,
-      "predicted_yield_delta": -0.0444,
-      "predicted_drift_delta": 0.0555,
-      "safety_score": 0.4929,
-      "regression_risk": 0.5715,
-      "candidate_red_team_pressure": 0.35,
-      "red_team_penalty": 0.0315,
-      "adversarial_critical_failures": 0,
-      "adversarial_non_critical_findings": 0,
-      "adversarial_penalty": 0,
-      "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_f2cd18ebc6eea9b5.json",
-      "trit_alignment": 0.42,
-      "composite_score": 0.2576,
-      "reasons": [
-        "regression_risk_high",
-        "predicted_drift_regression",
-        "yield_lift_insufficient",
-        "composite_score_low"
-      ],
-      "tested_at": "2026-02-26T08:36:04.124Z"
+      "tested_at": "2026-02-26T20:53:09.528Z"
     }
   ],
-  "passing": [],
+  "passing": [
+    {
+      "candidate_id": "wfc_43f2858f678e2aa1",
+      "scorecard": {
+        "candidate_id": "wfc_43f2858f678e2aa1",
+        "pass": true,
+        "base_shipped_rate": 0,
+        "predicted_yield_delta": 0.0095,
+        "predicted_drift_delta": -0.0108,
+        "safety_score": 0.4802,
+        "regression_risk": 0.5198,
+        "candidate_red_team_pressure": 0.22,
+        "red_team_penalty": 0.0198,
+        "adversarial_critical_failures": 0,
+        "adversarial_non_critical_findings": 0,
+        "adversarial_penalty": 0,
+        "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_43f2858f678e2aa1.json",
+        "trit_alignment": 0,
+        "composite_score": 0.4831,
+        "reasons": [],
+        "tested_at": "2026-02-26T20:53:09.527Z"
+      }
+    }
+  ],
   "drafts": [
     {
-      "id": "wfc_5464a8f5bd845833",
-      "name": "Adaptive cross_signal_opportunity workflow :: execution (guard_hardening)",
+      "id": "wfc_43f2858f678e2aa1",
+      "name": "Adaptive pain_adaptive_candidate workflow",
       "status": "draft",
       "source": "orchestron_adaptive_controller",
       "strategy_id": "default_general",
       "objective_id": "T1_generational_wealth_v1",
       "objective_primary": "Maximize verified progress under active directives.",
       "trigger": {
-        "proposal_type": "cross_signal_opportunity.execution",
-        "min_occurrences": 12,
-        "intent_signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+        "proposal_type": "pain_adaptive_candidate",
+        "min_occurrences": 2,
+        "intent_signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
       },
       "intent": {
-        "id": "intent_031e372345abc0",
+        "id": "intent_688f901ff58842",
         "strategy_id": "default_general",
-        "objective": "harness runtime safety probe",
+        "objective": "balance revenue and user value without monoculture",
         "uncertainty_band": "medium",
         "constraints": {
-          "speed_weight": 0.1429,
-          "robustness_weight": 0.7142,
-          "cost_weight": 0.1429
+          "speed_weight": 0.34,
+          "robustness_weight": 0.33,
+          "cost_weight": 0.33
         },
         "signals": {
-          "feasibility": 1,
+          "feasibility": 0,
           "risk": 0,
           "novelty": 0
         },
         "risk_signals": {
-          "feasibility": 1,
+          "feasibility": 0,
           "risk": 0,
           "novelty": 0
         },
         "source": "orchestron_adaptive_controller",
-        "ts": "2026-02-26T08:36:04.104Z",
-        "signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
-      },
-      "parent_workflow_id": "wfc_07aee5ce1dfb0f41",
-      "fractal_depth": 1,
-      "mutation": {
-        "kind": "guard_hardening",
-        "parent_workflow_id": "wfc_07aee5ce1dfb0f41",
-        "rationale": "insert preflight contract guard before receipt"
-      },
-      "principles": {
-        "score": 1,
-        "band": "strong",
-        "ids": [
-          "objective_clarity",
-          "risk_bounded",
-          "evidence_first",
-          "budget_discipline",
-          "ranking_balance"
-        ]
-      },
-      "metrics": {
-        "attempts": 39,
-        "shipped_rate": 0.0256,
-        "failure_rate": 0.0769,
-        "value_currency": "revenue",
-        "value_priority_score": 0.6556,
-        "score": 0.5528,
-        "predicted_yield_delta": 0.0066,
-        "predicted_drift_delta": -0.0048,
-        "safety_score": 0.7484,
-        "regression_risk": 0.3424,
-        "adversarial_critical_failures": 0,
-        "adversarial_non_critical_findings": 0,
-        "adversarial_penalty": 0,
-        "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_5464a8f5bd845833.json",
-        "trit_alignment": 0.42,
-        "scorecard_pass": true
-      },
-      "risk_policy": {
-        "max_risk_per_action": 65,
-        "allowed_risks": [
-          "low",
-          "medium"
-        ]
-      },
-      "steps": [
-        {
-          "id": "scope",
-          "type": "command",
-          "command": "node systems/autonomy/proposal_enricher.js run <date>",
-          "purpose": "specialize execution branch and fallback routing",
-          "timeout_ms": 120000,
-          "retries": 1,
-          "adapter": null,
-          "provider": null,
-          "lane": null,
-          "risk": null,
-          "clearance": null,
-          "estimated_tokens": null,
-          "require_policy_root": false
-        },
-        {
-          "id": "execute_lane",
-          "type": "command",
-          "command": "node systems/autonomy/autonomy_controller.js run <date>",
-          "purpose": "execute sub-workflow lane",
-          "timeout_ms": 180000,
-          "retries": 1,
-          "adapter": null,
-          "provider": null,
-          "lane": null,
-          "risk": null,
-          "clearance": null,
-          "estimated_tokens": null,
-          "require_policy_root": false
-        },
-        {
-          "id": "verify",
-          "type": "gate",
-          "command": "node systems/autonomy/strategy_execute_guard.js run <date>",
-          "purpose": "verify lane safety and evidence",
-          "timeout_ms": 120000,
-          "retries": 0,
-          "adapter": null,
-          "provider": null,
-          "lane": null,
-          "risk": null,
-          "clearance": null,
-          "estimated_tokens": null,
-          "require_policy_root": false
-        },
-        {
-          "id": "preflight",
-          "type": "gate",
-          "command": "node systems/spine/contract_check.js",
-          "purpose": "preflight contract guard",
-          "timeout_ms": 60000,
-          "retries": 0,
-          "adapter": null,
-          "provider": null,
-          "lane": null,
-          "risk": null,
-          "clearance": null,
-          "estimated_tokens": null,
-          "require_policy_root": false
-        },
-        {
-          "id": "receipt",
-          "type": "receipt",
-          "command": "state/autonomy/receipts/<date>.jsonl",
-          "purpose": "record lane receipt",
-          "timeout_ms": 30000,
-          "retries": 0,
-          "adapter": null,
-          "provider": null,
-          "lane": null,
-          "risk": null,
-          "clearance": null,
-          "estimated_tokens": null,
-          "require_policy_root": false
-        }
-      ],
-      "children": [],
-      "generated_at": "2026-02-26T08:36:04.132Z"
-    },
-    {
-      "id": "wfc_1968ec210cf8a2c0",
-      "name": "Adaptive unknown workflow",
-      "status": "draft",
-      "source": "orchestron_adaptive_controller",
-      "strategy_id": "default_general",
-      "objective_id": "T1_make_jay_billionaire_v1",
-      "objective_primary": "Maximize verified progress under active directives.",
-      "trigger": {
-        "proposal_type": "unknown",
-        "min_occurrences": 5,
-        "intent_signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
-      },
-      "intent": {
-        "id": "intent_031e372345abc0",
-        "strategy_id": "default_general",
-        "objective": "harness runtime safety probe",
-        "uncertainty_band": "medium",
-        "constraints": {
-          "speed_weight": 0.1429,
-          "robustness_weight": 0.7142,
-          "cost_weight": 0.1429
-        },
-        "signals": {
-          "feasibility": 1,
-          "risk": 0,
-          "novelty": 0
-        },
-        "risk_signals": {
-          "feasibility": 1,
-          "risk": 0,
-          "novelty": 0
-        },
-        "source": "orchestron_adaptive_controller",
-        "ts": "2026-02-26T08:36:04.104Z",
-        "signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+        "ts": "2026-02-26T20:53:09.501Z",
+        "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
       },
       "parent_workflow_id": null,
       "fractal_depth": 0,
@@ -2102,21 +1975,303 @@
         ]
       },
       "metrics": {
-        "attempts": 11,
+        "attempts": 4,
         "shipped_rate": 0,
-        "failure_rate": 1,
-        "value_currency": "revenue",
-        "value_priority_score": 0.3479,
-        "score": 0.3954,
-        "predicted_yield_delta": 0.0057,
-        "predicted_drift_delta": 0.0121,
-        "safety_score": 0.5096,
+        "failure_rate": 0,
+        "value_currency": "user_value",
+        "value_priority_score": 0.5417,
+        "score": 0.4831,
+        "predicted_yield_delta": 0.0095,
+        "predicted_drift_delta": -0.0108,
+        "safety_score": 0.4802,
         "regression_risk": 0.5198,
         "adversarial_critical_failures": 0,
         "adversarial_non_critical_findings": 0,
         "adversarial_penalty": 0,
-        "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_1968ec210cf8a2c0.json",
-        "trit_alignment": 0.42,
+        "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_43f2858f678e2aa1.json",
+        "trit_alignment": 0,
+        "scorecard_pass": true
+      },
+      "risk_policy": {
+        "max_risk_per_action": 65,
+        "allowed_risks": [
+          "low",
+          "medium"
+        ]
+      },
+      "steps": [
+        {
+          "id": "enrich",
+          "type": "command",
+          "command": "node systems/autonomy/proposal_enricher.js run <date>",
+          "purpose": "normalize proposal shape",
+          "timeout_ms": 120000,
+          "retries": 1,
+          "adapter": null,
+          "provider": null,
+          "lane": null,
+          "risk": null,
+          "clearance": null,
+          "estimated_tokens": null,
+          "require_policy_root": false
+        },
+        {
+          "id": "rank",
+          "type": "command",
+          "command": "node systems/autonomy/autonomy_controller.js run <date>",
+          "purpose": "rank and execute/preview",
+          "timeout_ms": 180000,
+          "retries": 1,
+          "adapter": null,
+          "provider": null,
+          "lane": null,
+          "risk": null,
+          "clearance": null,
+          "estimated_tokens": null,
+          "require_policy_root": false
+        },
+        {
+          "id": "verify",
+          "type": "gate",
+          "command": "node systems/autonomy/strategy_execute_guard.js run <date>",
+          "purpose": "enforce safety and evidence checks",
+          "timeout_ms": 120000,
+          "retries": 0,
+          "adapter": null,
+          "provider": null,
+          "lane": null,
+          "risk": null,
+          "clearance": null,
+          "estimated_tokens": null,
+          "require_policy_root": false
+        },
+        {
+          "id": "receipt",
+          "type": "receipt",
+          "command": "state/autonomy/receipts/<date>.jsonl",
+          "purpose": "record final receipt evidence",
+          "timeout_ms": 30000,
+          "retries": 0,
+          "adapter": null,
+          "provider": null,
+          "lane": null,
+          "risk": null,
+          "clearance": null,
+          "estimated_tokens": null,
+          "require_policy_root": false
+        }
+      ],
+      "children": [],
+      "generated_at": "2026-02-26T20:53:09.535Z"
+    },
+    {
+      "id": "wfc_0c9051d51f66e28a",
+      "name": "Adaptive cross_signal_opportunity workflow",
+      "status": "draft",
+      "source": "orchestron_adaptive_controller",
+      "strategy_id": "default_general",
+      "objective_id": "T1_make_jay_billionaire_v1",
+      "objective_primary": "Maximize verified progress under active directives.",
+      "trigger": {
+        "proposal_type": "cross_signal_opportunity",
+        "min_occurrences": 2,
+        "intent_signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
+      },
+      "intent": {
+        "id": "intent_688f901ff58842",
+        "strategy_id": "default_general",
+        "objective": "balance revenue and user value without monoculture",
+        "uncertainty_band": "medium",
+        "constraints": {
+          "speed_weight": 0.34,
+          "robustness_weight": 0.33,
+          "cost_weight": 0.33
+        },
+        "signals": {
+          "feasibility": 0,
+          "risk": 0,
+          "novelty": 0
+        },
+        "risk_signals": {
+          "feasibility": 0,
+          "risk": 0,
+          "novelty": 0
+        },
+        "source": "orchestron_adaptive_controller",
+        "ts": "2026-02-26T20:53:09.501Z",
+        "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
+      },
+      "parent_workflow_id": null,
+      "fractal_depth": 0,
+      "mutation": null,
+      "principles": {
+        "score": 1,
+        "band": "strong",
+        "ids": [
+          "objective_clarity",
+          "risk_bounded",
+          "evidence_first",
+          "budget_discipline",
+          "ranking_balance"
+        ]
+      },
+      "metrics": {
+        "attempts": 3,
+        "shipped_rate": 0,
+        "failure_rate": 0.3333,
+        "value_currency": "user_value",
+        "value_priority_score": 0.5208,
+        "score": 0.4084,
+        "predicted_yield_delta": 0.0025,
+        "predicted_drift_delta": -0.0015,
+        "safety_score": 0.4802,
+        "regression_risk": 0.5198,
+        "adversarial_critical_failures": 0,
+        "adversarial_non_critical_findings": 0,
+        "adversarial_penalty": 0,
+        "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_0c9051d51f66e28a.json",
+        "trit_alignment": 0,
+        "scorecard_pass": false
+      },
+      "risk_policy": {
+        "max_risk_per_action": 65,
+        "allowed_risks": [
+          "low",
+          "medium"
+        ]
+      },
+      "steps": [
+        {
+          "id": "enrich",
+          "type": "command",
+          "command": "node systems/autonomy/proposal_enricher.js run <date>",
+          "purpose": "normalize proposal shape",
+          "timeout_ms": 120000,
+          "retries": 1,
+          "adapter": null,
+          "provider": null,
+          "lane": null,
+          "risk": null,
+          "clearance": null,
+          "estimated_tokens": null,
+          "require_policy_root": false
+        },
+        {
+          "id": "rank",
+          "type": "command",
+          "command": "node systems/autonomy/autonomy_controller.js run <date>",
+          "purpose": "rank and execute/preview",
+          "timeout_ms": 180000,
+          "retries": 1,
+          "adapter": null,
+          "provider": null,
+          "lane": null,
+          "risk": null,
+          "clearance": null,
+          "estimated_tokens": null,
+          "require_policy_root": false
+        },
+        {
+          "id": "verify",
+          "type": "gate",
+          "command": "node systems/autonomy/strategy_execute_guard.js run <date>",
+          "purpose": "enforce safety and evidence checks",
+          "timeout_ms": 120000,
+          "retries": 0,
+          "adapter": null,
+          "provider": null,
+          "lane": null,
+          "risk": null,
+          "clearance": null,
+          "estimated_tokens": null,
+          "require_policy_root": false
+        },
+        {
+          "id": "receipt",
+          "type": "receipt",
+          "command": "state/autonomy/receipts/<date>.jsonl",
+          "purpose": "record final receipt evidence",
+          "timeout_ms": 30000,
+          "retries": 0,
+          "adapter": null,
+          "provider": null,
+          "lane": null,
+          "risk": null,
+          "clearance": null,
+          "estimated_tokens": null,
+          "require_policy_root": false
+        }
+      ],
+      "children": [],
+      "generated_at": "2026-02-26T20:53:09.536Z"
+    },
+    {
+      "id": "wfc_79aed5456e24fe93",
+      "name": "Adaptive unknown workflow",
+      "status": "draft",
+      "source": "orchestron_adaptive_controller",
+      "strategy_id": "default_general",
+      "objective_id": "T1_make_jay_billionaire_v1",
+      "objective_primary": "Maximize verified progress under active directives.",
+      "trigger": {
+        "proposal_type": "unknown",
+        "min_occurrences": 12,
+        "intent_signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
+      },
+      "intent": {
+        "id": "intent_688f901ff58842",
+        "strategy_id": "default_general",
+        "objective": "balance revenue and user value without monoculture",
+        "uncertainty_band": "medium",
+        "constraints": {
+          "speed_weight": 0.34,
+          "robustness_weight": 0.33,
+          "cost_weight": 0.33
+        },
+        "signals": {
+          "feasibility": 0,
+          "risk": 0,
+          "novelty": 0
+        },
+        "risk_signals": {
+          "feasibility": 0,
+          "risk": 0,
+          "novelty": 0
+        },
+        "source": "orchestron_adaptive_controller",
+        "ts": "2026-02-26T20:53:09.501Z",
+        "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
+      },
+      "parent_workflow_id": null,
+      "fractal_depth": 0,
+      "mutation": null,
+      "principles": {
+        "score": 1,
+        "band": "strong",
+        "ids": [
+          "objective_clarity",
+          "risk_bounded",
+          "evidence_first",
+          "budget_discipline",
+          "ranking_balance"
+        ]
+      },
+      "metrics": {
+        "attempts": 37,
+        "shipped_rate": 0,
+        "failure_rate": 0.7027,
+        "value_currency": "user_value",
+        "value_priority_score": 0.6014,
+        "score": 0.3773,
+        "predicted_yield_delta": -0.001,
+        "predicted_drift_delta": 0.0018,
+        "safety_score": 0.4802,
+        "regression_risk": 0.5198,
+        "adversarial_critical_failures": 0,
+        "adversarial_non_critical_findings": 0,
+        "adversarial_penalty": 0,
+        "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_79aed5456e24fe93.json",
+        "trit_alignment": 0,
         "scorecard_pass": false
       },
       "risk_policy": {
@@ -2190,7 +2345,7 @@
       ],
       "children": [
         {
-          "id": "wfc_6e75071ce0bb0b92",
+          "id": "wfc_fe946f39a2547b1b",
           "name": "Adaptive unknown workflow :: intake",
           "status": "draft",
           "source": "orchestron_adaptive_controller",
@@ -2199,38 +2354,38 @@
           "objective_primary": "Maximize verified progress under active directives.",
           "trigger": {
             "proposal_type": "unknown.intake",
-            "min_occurrences": 5,
-            "intent_signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+            "min_occurrences": 12,
+            "intent_signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
           },
           "intent": {
-            "id": "intent_031e372345abc0",
+            "id": "intent_688f901ff58842",
             "strategy_id": "default_general",
-            "objective": "harness runtime safety probe",
+            "objective": "balance revenue and user value without monoculture",
             "uncertainty_band": "medium",
             "constraints": {
-              "speed_weight": 0.1429,
-              "robustness_weight": 0.7142,
-              "cost_weight": 0.1429
+              "speed_weight": 0.34,
+              "robustness_weight": 0.33,
+              "cost_weight": 0.33
             },
             "signals": {
-              "feasibility": 1,
+              "feasibility": 0,
               "risk": 0,
               "novelty": 0
             },
             "risk_signals": {
-              "feasibility": 1,
+              "feasibility": 0,
               "risk": 0,
               "novelty": 0
             },
             "source": "orchestron_adaptive_controller",
-            "ts": "2026-02-26T08:36:04.104Z",
-            "signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+            "ts": "2026-02-26T20:53:09.501Z",
+            "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
           },
-          "parent_workflow_id": "wfc_1968ec210cf8a2c0",
+          "parent_workflow_id": "wfc_79aed5456e24fe93",
           "fractal_depth": 1,
           "mutation": {
             "kind": "fractal_split",
-            "parent_workflow_id": "wfc_1968ec210cf8a2c0",
+            "parent_workflow_id": "wfc_79aed5456e24fe93",
             "rationale": "spawned from unknown to isolate intake pressure lane"
           },
           "principles": {
@@ -2245,21 +2400,21 @@
             ]
           },
           "metrics": {
-            "attempts": 11,
+            "attempts": 37,
             "shipped_rate": 0,
-            "failure_rate": 1,
-            "value_currency": "revenue",
-            "value_priority_score": 0.3479,
-            "score": 0.2648,
-            "predicted_yield_delta": -0.0193,
-            "predicted_drift_delta": 0.0404,
-            "safety_score": 0.5077,
+            "failure_rate": 0.7027,
+            "value_currency": "user_value",
+            "value_priority_score": 0.6014,
+            "score": 0.2326,
+            "predicted_yield_delta": -0.0226,
+            "predicted_drift_delta": 0.0244,
+            "safety_score": 0.4783,
             "regression_risk": 0.5493,
             "adversarial_critical_failures": 0,
             "adversarial_non_critical_findings": 0,
             "adversarial_penalty": 0,
-            "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_6e75071ce0bb0b92.json",
-            "trit_alignment": 0.42,
+            "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_fe946f39a2547b1b.json",
+            "trit_alignment": 0,
             "scorecard_pass": false
           },
           "risk_policy": {
@@ -2333,7 +2488,7 @@
           ],
           "children": [
             {
-              "id": "wfc_0cc8ea3844450f57",
+              "id": "wfc_eb1e4a46c27f16e5",
               "name": "Adaptive unknown workflow :: intake :: intake",
               "status": "draft",
               "source": "orchestron_adaptive_controller",
@@ -2342,38 +2497,38 @@
               "objective_primary": "Maximize verified progress under active directives.",
               "trigger": {
                 "proposal_type": "unknown.intake.intake",
-                "min_occurrences": 5,
-                "intent_signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+                "min_occurrences": 12,
+                "intent_signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
               },
               "intent": {
-                "id": "intent_031e372345abc0",
+                "id": "intent_688f901ff58842",
                 "strategy_id": "default_general",
-                "objective": "harness runtime safety probe",
+                "objective": "balance revenue and user value without monoculture",
                 "uncertainty_band": "medium",
                 "constraints": {
-                  "speed_weight": 0.1429,
-                  "robustness_weight": 0.7142,
-                  "cost_weight": 0.1429
+                  "speed_weight": 0.34,
+                  "robustness_weight": 0.33,
+                  "cost_weight": 0.33
                 },
                 "signals": {
-                  "feasibility": 1,
+                  "feasibility": 0,
                   "risk": 0,
                   "novelty": 0
                 },
                 "risk_signals": {
-                  "feasibility": 1,
+                  "feasibility": 0,
                   "risk": 0,
                   "novelty": 0
                 },
                 "source": "orchestron_adaptive_controller",
-                "ts": "2026-02-26T08:36:04.104Z",
-                "signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+                "ts": "2026-02-26T20:53:09.501Z",
+                "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
               },
-              "parent_workflow_id": "wfc_6e75071ce0bb0b92",
+              "parent_workflow_id": "wfc_fe946f39a2547b1b",
               "fractal_depth": 2,
               "mutation": {
                 "kind": "fractal_split",
-                "parent_workflow_id": "wfc_6e75071ce0bb0b92",
+                "parent_workflow_id": "wfc_fe946f39a2547b1b",
                 "rationale": "spawned from unknown.intake to isolate intake pressure lane"
               },
               "principles": {
@@ -2388,21 +2543,21 @@
                 ]
               },
               "metrics": {
-                "attempts": 11,
+                "attempts": 37,
                 "shipped_rate": 0,
-                "failure_rate": 1,
-                "value_currency": "revenue",
-                "value_priority_score": 0.3479,
-                "score": 0.2576,
-                "predicted_yield_delta": -0.0444,
-                "predicted_drift_delta": 0.0555,
-                "safety_score": 0.4929,
+                "failure_rate": 0.7027,
+                "value_currency": "user_value",
+                "value_priority_score": 0.6014,
+                "score": 0.2254,
+                "predicted_yield_delta": -0.0477,
+                "predicted_drift_delta": 0.0396,
+                "safety_score": 0.4635,
                 "regression_risk": 0.5715,
                 "adversarial_critical_failures": 0,
                 "adversarial_non_critical_findings": 0,
                 "adversarial_penalty": 0,
-                "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_0cc8ea3844450f57.json",
-                "trit_alignment": 0.42,
+                "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_eb1e4a46c27f16e5.json",
+                "trit_alignment": 0,
                 "scorecard_pass": false
               },
               "risk_policy": {
@@ -2475,10 +2630,10 @@
                 }
               ],
               "children": [],
-              "generated_at": "2026-02-26T08:36:04.132Z"
+              "generated_at": "2026-02-26T20:53:09.536Z"
             },
             {
-              "id": "wfc_f2cd18ebc6eea9b5",
+              "id": "wfc_c845f7e816aead0f",
               "name": "Adaptive unknown workflow :: intake :: execution",
               "status": "draft",
               "source": "orchestron_adaptive_controller",
@@ -2487,38 +2642,38 @@
               "objective_primary": "Maximize verified progress under active directives.",
               "trigger": {
                 "proposal_type": "unknown.intake.execution",
-                "min_occurrences": 5,
-                "intent_signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+                "min_occurrences": 12,
+                "intent_signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
               },
               "intent": {
-                "id": "intent_031e372345abc0",
+                "id": "intent_688f901ff58842",
                 "strategy_id": "default_general",
-                "objective": "harness runtime safety probe",
+                "objective": "balance revenue and user value without monoculture",
                 "uncertainty_band": "medium",
                 "constraints": {
-                  "speed_weight": 0.1429,
-                  "robustness_weight": 0.7142,
-                  "cost_weight": 0.1429
+                  "speed_weight": 0.34,
+                  "robustness_weight": 0.33,
+                  "cost_weight": 0.33
                 },
                 "signals": {
-                  "feasibility": 1,
+                  "feasibility": 0,
                   "risk": 0,
                   "novelty": 0
                 },
                 "risk_signals": {
-                  "feasibility": 1,
+                  "feasibility": 0,
                   "risk": 0,
                   "novelty": 0
                 },
                 "source": "orchestron_adaptive_controller",
-                "ts": "2026-02-26T08:36:04.104Z",
-                "signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+                "ts": "2026-02-26T20:53:09.501Z",
+                "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
               },
-              "parent_workflow_id": "wfc_6e75071ce0bb0b92",
+              "parent_workflow_id": "wfc_fe946f39a2547b1b",
               "fractal_depth": 2,
               "mutation": {
                 "kind": "fractal_split",
-                "parent_workflow_id": "wfc_6e75071ce0bb0b92",
+                "parent_workflow_id": "wfc_fe946f39a2547b1b",
                 "rationale": "spawned from unknown.intake to isolate execution pressure lane"
               },
               "principles": {
@@ -2533,21 +2688,21 @@
                 ]
               },
               "metrics": {
-                "attempts": 11,
+                "attempts": 37,
                 "shipped_rate": 0,
-                "failure_rate": 1,
-                "value_currency": "revenue",
-                "value_priority_score": 0.3479,
-                "score": 0.2576,
-                "predicted_yield_delta": -0.0444,
-                "predicted_drift_delta": 0.0555,
-                "safety_score": 0.4929,
+                "failure_rate": 0.7027,
+                "value_currency": "user_value",
+                "value_priority_score": 0.6014,
+                "score": 0.2254,
+                "predicted_yield_delta": -0.0477,
+                "predicted_drift_delta": 0.0396,
+                "safety_score": 0.4635,
                 "regression_risk": 0.5715,
                 "adversarial_critical_failures": 0,
                 "adversarial_non_critical_findings": 0,
                 "adversarial_penalty": 0,
-                "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_f2cd18ebc6eea9b5.json",
-                "trit_alignment": 0.42,
+                "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_c845f7e816aead0f.json",
+                "trit_alignment": 0,
                 "scorecard_pass": false
               },
               "risk_policy": {
@@ -2620,10 +2775,10 @@
                 }
               ],
               "children": [],
-              "generated_at": "2026-02-26T08:36:04.132Z"
+              "generated_at": "2026-02-26T20:53:09.536Z"
             },
             {
-              "id": "wfc_efc5366d5dcd2593",
+              "id": "wfc_1bffa7f8beced301",
               "name": "Adaptive unknown workflow :: intake :: verification",
               "status": "draft",
               "source": "orchestron_adaptive_controller",
@@ -2632,38 +2787,38 @@
               "objective_primary": "Maximize verified progress under active directives.",
               "trigger": {
                 "proposal_type": "unknown.intake.verification",
-                "min_occurrences": 5,
-                "intent_signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+                "min_occurrences": 12,
+                "intent_signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
               },
               "intent": {
-                "id": "intent_031e372345abc0",
+                "id": "intent_688f901ff58842",
                 "strategy_id": "default_general",
-                "objective": "harness runtime safety probe",
+                "objective": "balance revenue and user value without monoculture",
                 "uncertainty_band": "medium",
                 "constraints": {
-                  "speed_weight": 0.1429,
-                  "robustness_weight": 0.7142,
-                  "cost_weight": 0.1429
+                  "speed_weight": 0.34,
+                  "robustness_weight": 0.33,
+                  "cost_weight": 0.33
                 },
                 "signals": {
-                  "feasibility": 1,
+                  "feasibility": 0,
                   "risk": 0,
                   "novelty": 0
                 },
                 "risk_signals": {
-                  "feasibility": 1,
+                  "feasibility": 0,
                   "risk": 0,
                   "novelty": 0
                 },
                 "source": "orchestron_adaptive_controller",
-                "ts": "2026-02-26T08:36:04.104Z",
-                "signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+                "ts": "2026-02-26T20:53:09.501Z",
+                "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
               },
-              "parent_workflow_id": "wfc_6e75071ce0bb0b92",
+              "parent_workflow_id": "wfc_fe946f39a2547b1b",
               "fractal_depth": 2,
               "mutation": {
                 "kind": "fractal_split",
-                "parent_workflow_id": "wfc_6e75071ce0bb0b92",
+                "parent_workflow_id": "wfc_fe946f39a2547b1b",
                 "rationale": "spawned from unknown.intake to isolate verification pressure lane"
               },
               "principles": {
@@ -2678,21 +2833,21 @@
                 ]
               },
               "metrics": {
-                "attempts": 11,
+                "attempts": 37,
                 "shipped_rate": 0,
-                "failure_rate": 1,
-                "value_currency": "revenue",
-                "value_priority_score": 0.3479,
-                "score": 0.2576,
-                "predicted_yield_delta": -0.0444,
-                "predicted_drift_delta": 0.0555,
-                "safety_score": 0.4929,
+                "failure_rate": 0.7027,
+                "value_currency": "user_value",
+                "value_priority_score": 0.6014,
+                "score": 0.2254,
+                "predicted_yield_delta": -0.0477,
+                "predicted_drift_delta": 0.0396,
+                "safety_score": 0.4635,
                 "regression_risk": 0.5715,
                 "adversarial_critical_failures": 0,
                 "adversarial_non_critical_findings": 0,
                 "adversarial_penalty": 0,
-                "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_efc5366d5dcd2593.json",
-                "trit_alignment": 0.42,
+                "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_1bffa7f8beced301.json",
+                "trit_alignment": 0,
                 "scorecard_pass": false
               },
               "risk_policy": {
@@ -2765,13 +2920,13 @@
                 }
               ],
               "children": [],
-              "generated_at": "2026-02-26T08:36:04.132Z"
+              "generated_at": "2026-02-26T20:53:09.536Z"
             }
           ],
-          "generated_at": "2026-02-26T08:36:04.132Z"
+          "generated_at": "2026-02-26T20:53:09.536Z"
         },
         {
-          "id": "wfc_7cb467480f2b9b5a",
+          "id": "wfc_2db052ed928358bd",
           "name": "Adaptive unknown workflow :: execution",
           "status": "draft",
           "source": "orchestron_adaptive_controller",
@@ -2780,38 +2935,38 @@
           "objective_primary": "Maximize verified progress under active directives.",
           "trigger": {
             "proposal_type": "unknown.execution",
-            "min_occurrences": 5,
-            "intent_signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+            "min_occurrences": 12,
+            "intent_signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
           },
           "intent": {
-            "id": "intent_031e372345abc0",
+            "id": "intent_688f901ff58842",
             "strategy_id": "default_general",
-            "objective": "harness runtime safety probe",
+            "objective": "balance revenue and user value without monoculture",
             "uncertainty_band": "medium",
             "constraints": {
-              "speed_weight": 0.1429,
-              "robustness_weight": 0.7142,
-              "cost_weight": 0.1429
+              "speed_weight": 0.34,
+              "robustness_weight": 0.33,
+              "cost_weight": 0.33
             },
             "signals": {
-              "feasibility": 1,
+              "feasibility": 0,
               "risk": 0,
               "novelty": 0
             },
             "risk_signals": {
-              "feasibility": 1,
+              "feasibility": 0,
               "risk": 0,
               "novelty": 0
             },
             "source": "orchestron_adaptive_controller",
-            "ts": "2026-02-26T08:36:04.104Z",
-            "signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+            "ts": "2026-02-26T20:53:09.501Z",
+            "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
           },
-          "parent_workflow_id": "wfc_1968ec210cf8a2c0",
+          "parent_workflow_id": "wfc_79aed5456e24fe93",
           "fractal_depth": 1,
           "mutation": {
             "kind": "fractal_split",
-            "parent_workflow_id": "wfc_1968ec210cf8a2c0",
+            "parent_workflow_id": "wfc_79aed5456e24fe93",
             "rationale": "spawned from unknown to isolate execution pressure lane"
           },
           "principles": {
@@ -2826,21 +2981,21 @@
             ]
           },
           "metrics": {
-            "attempts": 11,
+            "attempts": 37,
             "shipped_rate": 0,
-            "failure_rate": 1,
-            "value_currency": "revenue",
-            "value_priority_score": 0.3479,
-            "score": 0.2648,
-            "predicted_yield_delta": -0.0193,
-            "predicted_drift_delta": 0.0404,
-            "safety_score": 0.5077,
+            "failure_rate": 0.7027,
+            "value_currency": "user_value",
+            "value_priority_score": 0.6014,
+            "score": 0.2326,
+            "predicted_yield_delta": -0.0226,
+            "predicted_drift_delta": 0.0244,
+            "safety_score": 0.4783,
             "regression_risk": 0.5493,
             "adversarial_critical_failures": 0,
             "adversarial_non_critical_findings": 0,
             "adversarial_penalty": 0,
-            "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_7cb467480f2b9b5a.json",
-            "trit_alignment": 0.42,
+            "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_2db052ed928358bd.json",
+            "trit_alignment": 0,
             "scorecard_pass": false
           },
           "risk_policy": {
@@ -2913,10 +3068,10 @@
             }
           ],
           "children": [],
-          "generated_at": "2026-02-26T08:36:04.132Z"
+          "generated_at": "2026-02-26T20:53:09.536Z"
         },
         {
-          "id": "wfc_9249a55d14dffc90",
+          "id": "wfc_3a6b00684a202140",
           "name": "Adaptive unknown workflow :: verification",
           "status": "draft",
           "source": "orchestron_adaptive_controller",
@@ -2925,38 +3080,38 @@
           "objective_primary": "Maximize verified progress under active directives.",
           "trigger": {
             "proposal_type": "unknown.verification",
-            "min_occurrences": 5,
-            "intent_signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+            "min_occurrences": 12,
+            "intent_signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
           },
           "intent": {
-            "id": "intent_031e372345abc0",
+            "id": "intent_688f901ff58842",
             "strategy_id": "default_general",
-            "objective": "harness runtime safety probe",
+            "objective": "balance revenue and user value without monoculture",
             "uncertainty_band": "medium",
             "constraints": {
-              "speed_weight": 0.1429,
-              "robustness_weight": 0.7142,
-              "cost_weight": 0.1429
+              "speed_weight": 0.34,
+              "robustness_weight": 0.33,
+              "cost_weight": 0.33
             },
             "signals": {
-              "feasibility": 1,
+              "feasibility": 0,
               "risk": 0,
               "novelty": 0
             },
             "risk_signals": {
-              "feasibility": 1,
+              "feasibility": 0,
               "risk": 0,
               "novelty": 0
             },
             "source": "orchestron_adaptive_controller",
-            "ts": "2026-02-26T08:36:04.104Z",
-            "signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+            "ts": "2026-02-26T20:53:09.501Z",
+            "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
           },
-          "parent_workflow_id": "wfc_1968ec210cf8a2c0",
+          "parent_workflow_id": "wfc_79aed5456e24fe93",
           "fractal_depth": 1,
           "mutation": {
             "kind": "fractal_split",
-            "parent_workflow_id": "wfc_1968ec210cf8a2c0",
+            "parent_workflow_id": "wfc_79aed5456e24fe93",
             "rationale": "spawned from unknown to isolate verification pressure lane"
           },
           "principles": {
@@ -2971,21 +3126,21 @@
             ]
           },
           "metrics": {
-            "attempts": 11,
+            "attempts": 37,
             "shipped_rate": 0,
-            "failure_rate": 1,
-            "value_currency": "revenue",
-            "value_priority_score": 0.3479,
-            "score": 0.2648,
-            "predicted_yield_delta": -0.0193,
-            "predicted_drift_delta": 0.0404,
-            "safety_score": 0.5077,
+            "failure_rate": 0.7027,
+            "value_currency": "user_value",
+            "value_priority_score": 0.6014,
+            "score": 0.2326,
+            "predicted_yield_delta": -0.0226,
+            "predicted_drift_delta": 0.0244,
+            "safety_score": 0.4783,
             "regression_risk": 0.5493,
             "adversarial_critical_failures": 0,
             "adversarial_non_critical_findings": 0,
             "adversarial_penalty": 0,
-            "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_9249a55d14dffc90.json",
-            "trit_alignment": 0.42,
+            "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_3a6b00684a202140.json",
+            "trit_alignment": 0,
             "scorecard_pass": false
           },
           "risk_policy": {
@@ -3058,55 +3213,53 @@
             }
           ],
           "children": [],
-          "generated_at": "2026-02-26T08:36:04.132Z"
+          "generated_at": "2026-02-26T20:53:09.536Z"
         }
       ],
-      "generated_at": "2026-02-26T08:36:04.132Z"
-    },
+      "generated_at": "2026-02-26T20:53:09.536Z"
+    }
+  ],
+  "promotable_drafts": [
     {
-      "id": "wfc_a57d8982185b3460",
-      "name": "Adaptive cross_signal_opportunity workflow :: execution (retry_tuning)",
+      "id": "wfc_43f2858f678e2aa1",
+      "name": "Adaptive pain_adaptive_candidate workflow",
       "status": "draft",
       "source": "orchestron_adaptive_controller",
       "strategy_id": "default_general",
       "objective_id": "T1_generational_wealth_v1",
       "objective_primary": "Maximize verified progress under active directives.",
       "trigger": {
-        "proposal_type": "cross_signal_opportunity.execution",
-        "min_occurrences": 12,
-        "intent_signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+        "proposal_type": "pain_adaptive_candidate",
+        "min_occurrences": 2,
+        "intent_signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
       },
       "intent": {
-        "id": "intent_031e372345abc0",
+        "id": "intent_688f901ff58842",
         "strategy_id": "default_general",
-        "objective": "harness runtime safety probe",
+        "objective": "balance revenue and user value without monoculture",
         "uncertainty_band": "medium",
         "constraints": {
-          "speed_weight": 0.1429,
-          "robustness_weight": 0.7142,
-          "cost_weight": 0.1429
+          "speed_weight": 0.34,
+          "robustness_weight": 0.33,
+          "cost_weight": 0.33
         },
         "signals": {
-          "feasibility": 1,
+          "feasibility": 0,
           "risk": 0,
           "novelty": 0
         },
         "risk_signals": {
-          "feasibility": 1,
+          "feasibility": 0,
           "risk": 0,
           "novelty": 0
         },
         "source": "orchestron_adaptive_controller",
-        "ts": "2026-02-26T08:36:04.104Z",
-        "signature": "harness_runtime_safety_probe_default_general_medium_speed_weight_:0.1429_robustness_weight_:0.7142_cost_weight_:0.1429_feasibility_:1_risk_:0_novelty_:0"
+        "ts": "2026-02-26T20:53:09.501Z",
+        "signature": "balance_revenue_and_user_value_without_monoculture_default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
       },
-      "parent_workflow_id": "wfc_07aee5ce1dfb0f41",
-      "fractal_depth": 1,
-      "mutation": {
-        "kind": "retry_tuning",
-        "parent_workflow_id": "wfc_07aee5ce1dfb0f41",
-        "rationale": "tune retries/timeouts for transient instability"
-      },
+      "parent_workflow_id": null,
+      "fractal_depth": 0,
+      "mutation": null,
       "principles": {
         "score": 1,
         "band": "strong",
@@ -3119,22 +3272,22 @@
         ]
       },
       "metrics": {
-        "attempts": 39,
-        "shipped_rate": 0.0256,
-        "failure_rate": 0.0769,
-        "value_currency": "revenue",
-        "value_priority_score": 0.6556,
-        "score": 0.393,
-        "predicted_yield_delta": 0.0127,
-        "predicted_drift_delta": 0.0162,
-        "safety_score": 0.4703,
-        "regression_risk": 0.5704,
+        "attempts": 4,
+        "shipped_rate": 0,
+        "failure_rate": 0,
+        "value_currency": "user_value",
+        "value_priority_score": 0.5417,
+        "score": 0.4831,
+        "predicted_yield_delta": 0.0095,
+        "predicted_drift_delta": -0.0108,
+        "safety_score": 0.4802,
+        "regression_risk": 0.5198,
         "adversarial_critical_failures": 0,
         "adversarial_non_critical_findings": 0,
         "adversarial_penalty": 0,
-        "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_a57d8982185b3460.json",
-        "trit_alignment": 0.42,
-        "scorecard_pass": false
+        "adversarial_replay_artifact": "state/adaptive/workflows/orchestron/adversarial/2026-02-26/wfc_43f2858f678e2aa1.json",
+        "trit_alignment": 0,
+        "scorecard_pass": true
       },
       "risk_policy": {
         "max_risk_per_action": 65,
@@ -3145,12 +3298,12 @@
       },
       "steps": [
         {
-          "id": "scope",
+          "id": "enrich",
           "type": "command",
           "command": "node systems/autonomy/proposal_enricher.js run <date>",
-          "purpose": "specialize execution branch and fallback routing",
-          "timeout_ms": 135000,
-          "retries": 2,
+          "purpose": "normalize proposal shape",
+          "timeout_ms": 120000,
+          "retries": 1,
           "adapter": null,
           "provider": null,
           "lane": null,
@@ -3160,12 +3313,12 @@
           "require_policy_root": false
         },
         {
-          "id": "execute_lane",
+          "id": "rank",
           "type": "command",
           "command": "node systems/autonomy/autonomy_controller.js run <date>",
-          "purpose": "execute sub-workflow lane",
-          "timeout_ms": 195000,
-          "retries": 2,
+          "purpose": "rank and execute/preview",
+          "timeout_ms": 180000,
+          "retries": 1,
           "adapter": null,
           "provider": null,
           "lane": null,
@@ -3178,7 +3331,7 @@
           "id": "verify",
           "type": "gate",
           "command": "node systems/autonomy/strategy_execute_guard.js run <date>",
-          "purpose": "verify lane safety and evidence",
+          "purpose": "enforce safety and evidence checks",
           "timeout_ms": 120000,
           "retries": 0,
           "adapter": null,
@@ -3193,7 +3346,7 @@
           "id": "receipt",
           "type": "receipt",
           "command": "state/autonomy/receipts/<date>.jsonl",
-          "purpose": "record lane receipt",
+          "purpose": "record final receipt evidence",
           "timeout_ms": 30000,
           "retries": 0,
           "adapter": null,
@@ -3206,8 +3359,7 @@
         }
       ],
       "children": [],
-      "generated_at": "2026-02-26T08:36:04.132Z"
+      "generated_at": "2026-02-26T20:53:09.536Z"
     }
-  ],
-  "promotable_drafts": []
+  ]
 }

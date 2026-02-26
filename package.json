@@ -91,6 +91,8 @@
     "workflow:execute": "node systems/workflow/workflow_executor.js run",
     "orchestron:run": "node systems/workflow/orchestron_controller.js run --apply=1",
     "workflow:orchestron": "node systems/workflow/orchestron/adaptive_controller.js run",
+    "weaver:run": "node systems/weaver/weaver_core.js run",
+    "weaver:status": "node systems/weaver/weaver_core.js status latest",
     "claws:status": "node systems/actuation/claw_registry.js status",
     "install:personal": "node systems/ops/personal_protheus_installer.js install",
     "benchmark:public": "node systems/ops/public_benchmark_pack.js run",

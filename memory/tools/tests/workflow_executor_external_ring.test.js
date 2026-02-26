@@ -78,6 +78,9 @@ function run() {
   const stepReceiptsDir = path.join(tmp, 'state', 'adaptive', 'workflows', 'executor', 'step_receipts');
   const mutationReceiptsDir = path.join(tmp, 'state', 'adaptive', 'workflows', 'executor', 'mutations');
   const expectedActuationReceiptPath = path.join(actuationReceiptsDir, `${dateStr}.jsonl`);
+  const budgetStateDir = path.join(tmp, 'state', 'autonomy', 'daily_budget');
+  const budgetEventsPath = path.join(tmp, 'state', 'autonomy', 'budget_events.jsonl');
+  const budgetAutopausePath = path.join(tmp, 'state', 'autonomy', 'budget_autopause.json');
 
   fs.mkdirSync(path.dirname(adapterModulePath), { recursive: true });
   fs.writeFileSync(
@@ -191,6 +194,17 @@ function run() {
       }
     }
   });
+  writeJson(budgetAutopausePath, {
+    schema_id: 'system_budget_autopause',
+    schema_version: '1.0.0',
+    active: false,
+    source: 'test',
+    reason: null,
+    pressure: null,
+    until_ms: 0,
+    until: null,
+    updated_at: new Date().toISOString()
+  });
 
   const workflowBase = {
     id: 'wf_external_ring',
@@ -263,7 +277,11 @@ function run() {
     POLICY_ROOT_AUDIT_PATH: policyRootAuditPath,
     CAPABILITY_LEASE_KEY: 'wf_external_ring_test_secret',
     CAPABILITY_LEASE_STATE_PATH: capabilityLeaseStatePath,
-    CAPABILITY_LEASE_AUDIT_PATH: capabilityLeaseAuditPath
+    CAPABILITY_LEASE_AUDIT_PATH: capabilityLeaseAuditPath,
+    SYSTEM_BUDGET_STATE_DIR: budgetStateDir,
+    SYSTEM_BUDGET_EVENTS_PATH: budgetEventsPath,
+    SYSTEM_BUDGET_AUTOPAUSE_PATH: budgetAutopausePath,
+    SYSTEM_BUDGET_DEFAULT_DAILY_TOKEN_CAP: '6000'
   };
 
   const runExecutor = (extraArgs = [], env = baseEnv) => spawnSync(process.execPath, [

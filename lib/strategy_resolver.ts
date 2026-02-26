@@ -9,6 +9,7 @@ type AnyObj = Record<string, any>;
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const DEFAULT_STRATEGY_DIR = path.join(REPO_ROOT, 'config', 'strategies');
+const DEFAULT_WEAVER_OVERLAY_PATH = path.join(REPO_ROOT, 'state', 'autonomy', 'weaver', 'strategy_overlay.json');
 const THRESHOLD_KEYS = new Set([
   'min_signal_quality',
   'min_sensory_signal_score',
@@ -328,6 +329,82 @@ function applyOutcomeFitnessOverlay(strategy) {
   return next;
 }
 
+function loadWeaverOverlay(rootDir = REPO_ROOT) {
+  const envPath = asString(process.env.WEAVER_ACTIVE_OVERLAY_PATH);
+  const filePath = envPath
+    ? path.resolve(envPath)
+    : (
+      path.resolve(String(rootDir || REPO_ROOT)) === REPO_ROOT
+        ? DEFAULT_WEAVER_OVERLAY_PATH
+        : path.join(path.resolve(String(rootDir || REPO_ROOT)), 'state', 'autonomy', 'weaver', 'strategy_overlay.json')
+    );
+  const raw = readJsonSafe(filePath, null);
+  if (!raw || typeof raw !== 'object') {
+    return {
+      found: false,
+      path: filePath,
+      ts: null,
+      enabled: false,
+      strategy_id: null,
+      objective_id: null,
+      primary_metric_id: null,
+      reason_codes: [],
+      value_currency_policy_overrides: null
+    };
+  }
+  const strategyPolicy = raw.strategy_policy && typeof raw.strategy_policy === 'object'
+    ? raw.strategy_policy
+    : {};
+  const overrides = strategyPolicy.value_currency_policy_overrides && typeof strategyPolicy.value_currency_policy_overrides === 'object'
+    ? strategyPolicy.value_currency_policy_overrides
+    : null;
+  return {
+    found: true,
+    path: filePath,
+    ts: asString(raw.ts) || null,
+    enabled: raw.enabled === true,
+    strategy_id: asString(raw.strategy_id) || null,
+    objective_id: asString(raw.objective_id) || null,
+    primary_metric_id: asString(raw.primary_metric_id || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9_.:-]+/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 80) || null,
+    reason_codes: Array.isArray(raw.reason_codes)
+      ? raw.reason_codes.map((row) => asString(row)).filter(Boolean).slice(0, 12)
+      : [],
+    value_currency_policy_overrides: overrides
+  };
+}
+
+function applyWeaverOverlay(strategy) {
+  if (!strategy || typeof strategy !== 'object') return strategy;
+  const overlay = loadWeaverOverlay(REPO_ROOT);
+  if (!overlay || overlay.found !== true || overlay.enabled !== true) return strategy;
+  const strategyId = asString(strategy.id);
+  if (overlay.strategy_id && overlay.strategy_id !== '*' && overlay.strategy_id !== strategyId) {
+    return strategy;
+  }
+  const overlayPolicy = overlay.value_currency_policy_overrides && typeof overlay.value_currency_policy_overrides === 'object'
+    ? overlay.value_currency_policy_overrides
+    : null;
+  if (!overlayPolicy) return strategy;
+
+  const next = {
+    ...strategy,
+    value_currency_policy: mergeValueCurrencyPolicy(strategy.value_currency_policy, overlayPolicy),
+    weaver_overlay: {
+      ts: overlay.ts,
+      source: path.relative(REPO_ROOT, overlay.path).replace(/\\/g, '/'),
+      objective_id: overlay.objective_id,
+      primary_metric_id: overlay.primary_metric_id,
+      reason_codes: overlay.reason_codes
+    }
+  };
+  return next;
+}
+
 function normalizeBudgetPolicy(raw) {
   const src = raw && typeof raw === 'object' ? raw : {};
   const caps = src.per_capability_caps && typeof src.per_capability_caps === 'object'
@@ -591,7 +668,7 @@ function loadActiveStrategy(options: AnyObj = {}): AnyObj | null {
     if (strict && hit.validation && hit.validation.strict_ok === false) {
       throw new Error(`strategy_invalid:${requestedId}:${(hit.validation.errors || []).join(',')}`);
     }
-    return applyOutcomeFitnessOverlay(hit);
+    return applyWeaverOverlay(applyOutcomeFitnessOverlay(hit));
   }
 
   const active = strategies.filter(s => s.status === 'active');
@@ -600,7 +677,7 @@ function loadActiveStrategy(options: AnyObj = {}): AnyObj | null {
     if (strict && pick.validation && pick.validation.strict_ok === false) {
       throw new Error(`strategy_invalid:${pick.id}:${(pick.validation.errors || []).join(',')}`);
     }
-    return applyOutcomeFitnessOverlay(pick);
+    return applyWeaverOverlay(applyOutcomeFitnessOverlay(pick));
   }
   if (allowMissing) return null;
   throw new Error('no active strategy profile');
