@@ -38,3 +38,4 @@
 {"ts":"2026-02-26T10:02:26.495Z","type":"dual_brain_decision","mode":"left_only","context":"inversion","task_class":"creative","right_permitted":false}
 {"ts":"2026-02-26T10:13:32.113Z","type":"dual_brain_decision","mode":"left_only","context":"inversion","task_class":"creative","right_permitted":false}
 {"ts":"2026-02-26T10:13:32.119Z","type":"dual_brain_decision","mode":"left_only","context":"inversion","task_class":"creative","right_permitted":false}
+{"ts":"2026-02-26T10:16:49.119Z","type":"dual_brain_decision","mode":"left_only","context":"manual_probe","task_class":"general","right_permitted":false}
