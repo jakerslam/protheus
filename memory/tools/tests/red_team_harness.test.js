@@ -129,6 +129,8 @@ try {
   assert.strictEqual(res.status, 0, `non-strict run should pass: ${res.stderr}`);
   assert.ok(res.payload && res.payload.ok === true, 'non-strict run should report ok=true');
   assert.strictEqual(Number(res.payload.summary && res.payload.summary.selected_cases || 0), 2, 'non-strict run should evaluate two cases');
+  assert.ok(res.payload && res.payload.ant_colony && res.payload.ant_colony.ok === true, 'non-strict run should include ant colony result');
+  assert.strictEqual(String(res.payload.ant_colony.mode || ''), 'peacetime', 'ant colony should stay in peacetime under normal conditions');
 
   res = run(['run', '2026-02-25', `--policy=${policyPath}`, '--max-cases=6'], {});
   assert.strictEqual(res.status, 0, `heuristic run should pass non-strict: ${res.stderr}`);
@@ -162,6 +164,7 @@ try {
   assert.strictEqual(res.status, 0, `status should pass: ${res.stderr}`);
   assert.ok(res.payload && res.payload.ok === true, 'status should report ok=true');
   assert.ok(res.payload.last_run && res.payload.last_run.summary, 'status should include last run summary');
+  assert.ok(res.payload.ant_colony && res.payload.ant_colony.ok === true, 'status should include ant colony status');
 
   fs.rmSync(tmp, { recursive: true, force: true });
   console.log('red_team_harness.test.js: OK');

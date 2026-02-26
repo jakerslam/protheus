@@ -195,6 +195,7 @@ All items below are treated as required for governed inversion safety (not optio
 | 18 | `V3-009` | todo | Resonance field actuation gates | Bounded actuation of harmony signals after other control layers settle |
 | 19 | `V3-010` | todo | Global molt cycle | Periodic compaction after system topology stabilizes |
 | 20 | `V3-012` | todo | Product positioning/architecture narrative pack | Packaging/documentation after technical sequencing is locked |
+| 21 | `V3-030` | todo | Tool assimilation pipeline (usage-triggered) | Internalize frequently used external capabilities only after Research/Forge and safety gates are available |
 
 | ID | Status | Upgrade | Why | Exit Criteria |
 |---|---|---|---|---|
@@ -224,6 +225,7 @@ All items below are treated as required for governed inversion safety (not optio
 | V3-019 | todo | Forge Organ (rapid temporary capability assembly) | Allow fast capability growth by composing proven primitives while keeping permanence gated | `systems/forge/forge_organ.ts` assembles temporary vassal organs from archetypes/micro-LLM/skill bridges, enforces TTL + containment, maps capability packs to available hardware classes, and only grafts permanent capability after nursery evidence thresholds are met. Spec reference: `tmp/grok_fractal_organs_2026-02-25.md` |
 | V3-020 | todo | Protheus Prime seed profile + bounded-core manifest | Create a minimal reproducible seed that can bootstrap quickly and scale safely as hardware increases | Publish deterministic `protheus-prime` profile manifest with mandatory core organs (constitution/identity, Eye control stub, continuum, workflow, nursery/red-team), single-command bootstrap, and baseline drift/yield/safety/integrity receipts on constrained hardware |
 | V3-021 | todo | Attested hardware assimilation plane (node join + lease scheduler) | Convert additional hardware into immediate safe throughput without split-brain or trust drift | Nodes join only via signed attestation + constitution hash match + capability envelope negotiation; Eye assigns leased work with TTL/work-steal, idle nodes auto-dormant, and join/eject/scheduler actions are fully audited |
+| V3-030 | todo | Tool assimilation pipeline (Research -> Forge -> Nursery -> Doctor graft) | Reduce external dependency drag by internalizing frequently used capabilities from both local skills and external adapters under strict governance | Assimilation candidacy ledger tracks per-capability usage count, recency, workflow spread, failure/pain/cost signals, and legal/license posture; assimilation only triggers after policy thresholds and stability window are met. Research Organ performs clean-room capability study (API/behavior/auth/rate-limit/legal surface), Weaver performs metric-agnostic value/risk scoring, Forge builds a sandbox replica, Nursery + adversarial lane validate, and Doctor executes reversible graft (TTL default, permanent only after sustained receipts). High-risk classes require explicit human approval; all stages emit audit receipts; unused assimilated organs atrophy to dormant endpoints |
 
 ## Fractal Organ Rollout (Staged)
 
@@ -392,6 +394,20 @@ Objective: harden anti-cloning, runtime trust, and compromise-response posture w
 | SEC-M04 | V2 | todo | Add operator ToS/EULA + first-run acknowledgment path | Clarify usage limits, liability boundaries, and operator responsibilities | ToS/EULA artifact exists, first-run acknowledgment is enforced/logged, and update versioning is documented |
 | SEC-M05 | V3 | todo | Complete IP posture review (trade secrets/provisional patents) | Protect novel mechanisms and reduce strategic imitation risk | Counsel-reviewed IP strategy exists with filing decisions and evidence-retention plan for inventions/trade-secret controls |
 | SEC-M06 | V2 | todo | Provision secure external heartbeat endpoint | Required external control-plane for remote halt/rogue detection flows | Hardened endpoint (authn/authz, rate limits, audit logs, key rotation) is live and connected to security alerting runbook |
+
+## Helix Codex Track (Immortal Helix + Sentinel Protocol)
+
+Objective: deliver a cryptographically chained runtime DNA layer with tiered defense, keeping default behavior fail-secure and recoverable while preserving a permanent quarantine path for confirmed malicious copies.
+
+| ID | Version | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|---|
+| V2-HLX-001 | V2 | doing | Shadow-mode Helix manifest + signed root codex | Establish immutable digital DNA baseline before enforcement | `codex.helix` can be generated and verified; protected files compile into deterministic strand manifest with codex-root anchor and merkle summary; receipts written under `state/helix/` |
+| V2-HLX-002 | V2 | doing | Runtime strand verifier + tamper receipts | Detect unauthorized mutation in real time without blocking live operations yet | Helix attestation emits mismatch taxonomy, codex/signature verification results, and append-only event receipts; no false-positive on unchanged runs |
+| V2-HLX-003 | V2 | doing | Fail-secure quarantine + Doctor atomic reweave plan | Default response must be recoverable (stasis/quarantine/reweave), not destructive | Mismatch triggers protective stasis tier, quarantines affected strands, and produces one-command reweave plan with rollback semantics (shadow/apply modes policy-gated) |
+| V3-031 | V3 | todo | Critical-path Eye enforcement for helix attestation | Prevent high-risk execution when attestation trust is broken | Eye kernel enforces helix decision on route path (`deny`/`escalate` by policy), supports advisory/enforced modes, and records explainable reason codes |
+| V3-032 | V3 | todo | Helix admission checks for Assimilation/Forge/Doctor grafts | Ensure all new organs are born helix-compliant instead of patched later | Assimilation and Forge outputs include strand candidates, Doctor graft refuses non-compliant strands, and successful grafts atomically update helix manifest |
+| V3-033 | V3 | todo | Sentinel protocol + confirmed-malice permanent quarantine lane | Differentiate recoverable drift from confirmed hostile copies and contain theft/rogue branches | Tiered sentinel consensus classifies clear/stasis/confirmed-malice, hunter actions isolate affected runtime, and confirmed malicious copies transition to permanent quarantine with forensic receipts |
+| V3-034 | V3 | todo | Soldier Ant Red Team Evolution | Convert red-team into adaptive immune swarm: friendly probing by default, hard containment only on high-confidence breach consensus | Ant colony controller runs continuously in shadow-safe mode, triple-consensus gates (`helix tamper + sentinel agreement + confidence`) control war-mode morphing, new assimilation grafts receive 72h priority stress probes, and after-action wisdom nodes/receipts are emitted for holo + Obsidian projections |
 
 ## Governance + Intelligence Gap Intake (Grok, 2026-02-26)
 
