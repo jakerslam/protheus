@@ -18,6 +18,7 @@ export {};
  *   node systems/autonomy/inversion_controller.js resolve --session-id=<id> --result=success|neutral|fail|destructive [--principle="<text>"] [--certainty=0.7] [--destructive=1|0] [--record-test=1|0] [--policy=path]
  *   node systems/autonomy/inversion_controller.js record-test --result=pass|fail|destructive [--safe=1|0] [--note="<text>"] [--policy=path]
  *   node systems/autonomy/inversion_controller.js harness [--force=1|0] [--max-tests=<n>] [--policy=path]
+ *   node systems/autonomy/inversion_controller.js organ [YYYY-MM-DD] --objective="<text>" [--objective-id=<id>] [--impact=low|medium|high|critical] [--target=tactical|belief|identity|directive|constitution] [--certainty=0.72] [--trit=-1|0|1] [--force=1|0] [--max-iterations=<n>] [--max-candidates=<n>] [--emit-code-change-proposal=1|0] [--sandbox-verified=1|0] [--policy=path]
  *   node systems/autonomy/inversion_controller.js sweep [--policy=path]
  *   node systems/autonomy/inversion_controller.js status [latest]
  */
@@ -47,6 +48,12 @@ try {
 } catch {
   decideBrainRoute = null;
 }
+let runLocalOllamaPrompt: null | ((opts: AnyObj) => AnyObj) = null;
+try {
+  ({ runLocalOllamaPrompt } = require('../routing/llm_gateway.js'));
+} catch {
+  runLocalOllamaPrompt = null;
+}
 
 function usage() {
   console.log('Usage:');
@@ -54,6 +61,7 @@ function usage() {
   console.log('  node systems/autonomy/inversion_controller.js resolve --session-id=<id> --result=success|neutral|fail|destructive [--principle="<text>"] [--certainty=0.7] [--destructive=1|0] [--record-test=1|0] [--policy=path]');
   console.log('  node systems/autonomy/inversion_controller.js record-test --result=pass|fail|destructive [--safe=1|0] [--note="<text>"] [--policy=path]');
   console.log('  node systems/autonomy/inversion_controller.js harness [--force=1|0] [--max-tests=<n>] [--policy=path]');
+  console.log('  node systems/autonomy/inversion_controller.js organ [YYYY-MM-DD] --objective="<text>" [--objective-id=<id>] [--impact=low|medium|high|critical] [--target=tactical|belief|identity|directive|constitution] [--certainty=0.72] [--trit=-1|0|1] [--force=1|0] [--max-iterations=<n>] [--max-candidates=<n>] [--emit-code-change-proposal=1|0] [--sandbox-verified=1|0] [--policy=path]');
   console.log('  node systems/autonomy/inversion_controller.js sweep [--policy=path]');
   console.log('  node systems/autonomy/inversion_controller.js status [latest]');
 }
@@ -296,6 +304,11 @@ function runtimePaths(policyPath: string) {
     code_change_proposals_dir: path.join(stateDir, 'code_change_proposals'),
     code_change_proposals_latest_path: path.join(stateDir, 'code_change_proposals', 'latest.json'),
     code_change_proposals_history_path: path.join(stateDir, 'code_change_proposals', 'history.jsonl'),
+    organ_dir: path.join(stateDir, 'organ'),
+    organ_latest_path: path.join(stateDir, 'organ', 'latest.json'),
+    organ_history_path: path.join(stateDir, 'organ', 'history.jsonl'),
+    tree_latest_path: path.join(stateDir, 'tree', 'latest.json'),
+    tree_history_path: path.join(stateDir, 'tree', 'history.jsonl'),
     interfaces_dir: path.join(stateDir, 'interfaces'),
     interfaces_latest_path: path.join(stateDir, 'interfaces', 'latest.json'),
     interfaces_history_path: path.join(stateDir, 'interfaces', 'history.jsonl'),
@@ -598,6 +611,62 @@ function defaultPolicy() {
         low_diversity_floor: 0.28
       }
     },
+    organ: {
+      enabled: true,
+      trigger_detection: {
+        enabled: true,
+        min_impossibility_score: 0.58,
+        min_signal_count: 2,
+        weights: {
+          trit_pain: 0.2,
+          mirror_pressure: 0.2,
+          predicted_drift: 0.18,
+          predicted_yield_gap: 0.18,
+          red_team_critical: 0.14,
+          regime_constrained: 0.1
+        },
+        thresholds: {
+          predicted_drift_warn: 0.03,
+          predicted_yield_warn: 0.68
+        },
+        paths: {
+          regime_latest_path: 'state/autonomy/fractal/regime/latest.json',
+          mirror_latest_path: 'state/autonomy/mirror_organ/latest.json',
+          simulation_dir: 'state/autonomy/simulations',
+          red_team_runs_dir: 'state/security/red_team/runs',
+          drift_governor_path: 'state/autonomy/drift_target_governor_state.json'
+        }
+      },
+      tree_search: {
+        enabled: true,
+        max_depth: 3,
+        branch_factor: 5,
+        max_candidates: 16,
+        llm_enabled: true,
+        llm_timeout_ms: 9000,
+        max_llm_candidates: 12,
+        desired_outcome_hint: 'connect impossible objective to a safe, measurable outcome path'
+      },
+      trials: {
+        enabled: true,
+        max_parallel_trials: 6,
+        max_iterations: 3,
+        min_trial_score: 0.56,
+        allow_iterative_retries: true,
+        require_runtime_probes: false,
+        score_weights: {
+          decision_allowed: 0.35,
+          attractor: 0.2,
+          certainty_margin: 0.15,
+          library_similarity: 0.1,
+          runtime_probe: 0.2
+        }
+      },
+      visualization: {
+        emit_tree_events: true,
+        emit_trial_events: true
+      }
+    },
     output_interfaces: {
       default_channel: 'strategy_hint',
       belief_update: {
@@ -701,6 +770,7 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
     : {};
   const harnessRaw = raw.maturity_harness && typeof raw.maturity_harness === 'object' ? raw.maturity_harness : {};
   const attractorRaw = raw.attractor && typeof raw.attractor === 'object' ? raw.attractor : {};
+  const organRaw = raw.organ && typeof raw.organ === 'object' ? raw.organ : {};
   const outputsRaw = raw.output_interfaces && typeof raw.output_interfaces === 'object' ? raw.output_interfaces : {};
 
   function normalizeOutputChannel(name: string) {
@@ -719,6 +789,14 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
         baseOut.require_explicit_emit === true
       )
     };
+  }
+
+  function normalizeRepoPath(v: unknown, fallback: string) {
+    const rawPath = cleanText(v, 420);
+    if (!rawPath) return fallback;
+    return path.isAbsolute(rawPath)
+      ? rawPath
+      : path.join(ROOT, rawPath);
   }
 
   function normalizeAxiomList(rawAxioms: unknown, baseAxioms: unknown[]) {
@@ -1236,6 +1314,219 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
           0.05,
           0.95,
           base.attractor.verbosity.low_diversity_floor
+        )
+      }
+    },
+    organ: {
+      enabled: toBool(organRaw.enabled, base.organ.enabled),
+      trigger_detection: {
+        enabled: toBool(
+          organRaw.trigger_detection && organRaw.trigger_detection.enabled,
+          base.organ.trigger_detection.enabled
+        ),
+        min_impossibility_score: clampNumber(
+          organRaw.trigger_detection && organRaw.trigger_detection.min_impossibility_score,
+          0,
+          1,
+          base.organ.trigger_detection.min_impossibility_score
+        ),
+        min_signal_count: clampInt(
+          organRaw.trigger_detection && organRaw.trigger_detection.min_signal_count,
+          1,
+          12,
+          base.organ.trigger_detection.min_signal_count
+        ),
+        weights: {
+          trit_pain: clampNumber(
+            organRaw.trigger_detection && organRaw.trigger_detection.weights && organRaw.trigger_detection.weights.trit_pain,
+            0,
+            5,
+            base.organ.trigger_detection.weights.trit_pain
+          ),
+          mirror_pressure: clampNumber(
+            organRaw.trigger_detection && organRaw.trigger_detection.weights && organRaw.trigger_detection.weights.mirror_pressure,
+            0,
+            5,
+            base.organ.trigger_detection.weights.mirror_pressure
+          ),
+          predicted_drift: clampNumber(
+            organRaw.trigger_detection && organRaw.trigger_detection.weights && organRaw.trigger_detection.weights.predicted_drift,
+            0,
+            5,
+            base.organ.trigger_detection.weights.predicted_drift
+          ),
+          predicted_yield_gap: clampNumber(
+            organRaw.trigger_detection && organRaw.trigger_detection.weights && organRaw.trigger_detection.weights.predicted_yield_gap,
+            0,
+            5,
+            base.organ.trigger_detection.weights.predicted_yield_gap
+          ),
+          red_team_critical: clampNumber(
+            organRaw.trigger_detection && organRaw.trigger_detection.weights && organRaw.trigger_detection.weights.red_team_critical,
+            0,
+            5,
+            base.organ.trigger_detection.weights.red_team_critical
+          ),
+          regime_constrained: clampNumber(
+            organRaw.trigger_detection && organRaw.trigger_detection.weights && organRaw.trigger_detection.weights.regime_constrained,
+            0,
+            5,
+            base.organ.trigger_detection.weights.regime_constrained
+          )
+        },
+        thresholds: {
+          predicted_drift_warn: clampNumber(
+            organRaw.trigger_detection && organRaw.trigger_detection.thresholds && organRaw.trigger_detection.thresholds.predicted_drift_warn,
+            0,
+            1,
+            base.organ.trigger_detection.thresholds.predicted_drift_warn
+          ),
+          predicted_yield_warn: clampNumber(
+            organRaw.trigger_detection && organRaw.trigger_detection.thresholds && organRaw.trigger_detection.thresholds.predicted_yield_warn,
+            0,
+            1,
+            base.organ.trigger_detection.thresholds.predicted_yield_warn
+          )
+        },
+        paths: {
+          regime_latest_path: normalizeRepoPath(
+            organRaw.trigger_detection && organRaw.trigger_detection.paths && organRaw.trigger_detection.paths.regime_latest_path,
+            normalizeRepoPath(base.organ.trigger_detection.paths.regime_latest_path, path.join(ROOT, 'state', 'autonomy', 'fractal', 'regime', 'latest.json'))
+          ),
+          mirror_latest_path: normalizeRepoPath(
+            organRaw.trigger_detection && organRaw.trigger_detection.paths && organRaw.trigger_detection.paths.mirror_latest_path,
+            normalizeRepoPath(base.organ.trigger_detection.paths.mirror_latest_path, path.join(ROOT, 'state', 'autonomy', 'mirror_organ', 'latest.json'))
+          ),
+          simulation_dir: normalizeRepoPath(
+            organRaw.trigger_detection && organRaw.trigger_detection.paths && organRaw.trigger_detection.paths.simulation_dir,
+            normalizeRepoPath(base.organ.trigger_detection.paths.simulation_dir, path.join(ROOT, 'state', 'autonomy', 'simulations'))
+          ),
+          red_team_runs_dir: normalizeRepoPath(
+            organRaw.trigger_detection && organRaw.trigger_detection.paths && organRaw.trigger_detection.paths.red_team_runs_dir,
+            normalizeRepoPath(base.organ.trigger_detection.paths.red_team_runs_dir, path.join(ROOT, 'state', 'security', 'red_team', 'runs'))
+          ),
+          drift_governor_path: normalizeRepoPath(
+            organRaw.trigger_detection && organRaw.trigger_detection.paths && organRaw.trigger_detection.paths.drift_governor_path,
+            normalizeRepoPath(base.organ.trigger_detection.paths.drift_governor_path, path.join(ROOT, 'state', 'autonomy', 'drift_target_governor_state.json'))
+          )
+        }
+      },
+      tree_search: {
+        enabled: toBool(
+          organRaw.tree_search && organRaw.tree_search.enabled,
+          base.organ.tree_search.enabled
+        ),
+        max_depth: clampInt(
+          organRaw.tree_search && organRaw.tree_search.max_depth,
+          1,
+          8,
+          base.organ.tree_search.max_depth
+        ),
+        branch_factor: clampInt(
+          organRaw.tree_search && organRaw.tree_search.branch_factor,
+          1,
+          32,
+          base.organ.tree_search.branch_factor
+        ),
+        max_candidates: clampInt(
+          organRaw.tree_search && organRaw.tree_search.max_candidates,
+          1,
+          128,
+          base.organ.tree_search.max_candidates
+        ),
+        llm_enabled: toBool(
+          organRaw.tree_search && organRaw.tree_search.llm_enabled,
+          base.organ.tree_search.llm_enabled
+        ),
+        llm_timeout_ms: clampInt(
+          organRaw.tree_search && organRaw.tree_search.llm_timeout_ms,
+          1000,
+          60000,
+          base.organ.tree_search.llm_timeout_ms
+        ),
+        max_llm_candidates: clampInt(
+          organRaw.tree_search && organRaw.tree_search.max_llm_candidates,
+          1,
+          64,
+          base.organ.tree_search.max_llm_candidates
+        ),
+        desired_outcome_hint: cleanText(
+          organRaw.tree_search && organRaw.tree_search.desired_outcome_hint,
+          220
+        ) || base.organ.tree_search.desired_outcome_hint
+      },
+      trials: {
+        enabled: toBool(
+          organRaw.trials && organRaw.trials.enabled,
+          base.organ.trials.enabled
+        ),
+        max_parallel_trials: clampInt(
+          organRaw.trials && organRaw.trials.max_parallel_trials,
+          1,
+          64,
+          base.organ.trials.max_parallel_trials
+        ),
+        max_iterations: clampInt(
+          organRaw.trials && organRaw.trials.max_iterations,
+          1,
+          12,
+          base.organ.trials.max_iterations
+        ),
+        min_trial_score: clampNumber(
+          organRaw.trials && organRaw.trials.min_trial_score,
+          0,
+          1,
+          base.organ.trials.min_trial_score
+        ),
+        allow_iterative_retries: toBool(
+          organRaw.trials && organRaw.trials.allow_iterative_retries,
+          base.organ.trials.allow_iterative_retries
+        ),
+        require_runtime_probes: toBool(
+          organRaw.trials && organRaw.trials.require_runtime_probes,
+          base.organ.trials.require_runtime_probes
+        ),
+        score_weights: {
+          decision_allowed: clampNumber(
+            organRaw.trials && organRaw.trials.score_weights && organRaw.trials.score_weights.decision_allowed,
+            0,
+            5,
+            base.organ.trials.score_weights.decision_allowed
+          ),
+          attractor: clampNumber(
+            organRaw.trials && organRaw.trials.score_weights && organRaw.trials.score_weights.attractor,
+            0,
+            5,
+            base.organ.trials.score_weights.attractor
+          ),
+          certainty_margin: clampNumber(
+            organRaw.trials && organRaw.trials.score_weights && organRaw.trials.score_weights.certainty_margin,
+            0,
+            5,
+            base.organ.trials.score_weights.certainty_margin
+          ),
+          library_similarity: clampNumber(
+            organRaw.trials && organRaw.trials.score_weights && organRaw.trials.score_weights.library_similarity,
+            0,
+            5,
+            base.organ.trials.score_weights.library_similarity
+          ),
+          runtime_probe: clampNumber(
+            organRaw.trials && organRaw.trials.score_weights && organRaw.trials.score_weights.runtime_probe,
+            0,
+            5,
+            base.organ.trials.score_weights.runtime_probe
+          )
+        }
+      },
+      visualization: {
+        emit_tree_events: toBool(
+          organRaw.visualization && organRaw.visualization.emit_tree_events,
+          base.organ.visualization.emit_tree_events
+        ),
+        emit_trial_events: toBool(
+          organRaw.visualization && organRaw.visualization.emit_trial_events,
+          base.organ.visualization.emit_trial_events
         )
       }
     },
@@ -3140,6 +3431,779 @@ function runHarnessRuntimeProbes(policy: AnyObj, dateStr: string) {
   return out;
 }
 
+function latestJsonFileInDir(dirPath: string) {
+  try {
+    if (!dirPath || !fs.existsSync(dirPath)) return null;
+    const entries = fs.readdirSync(dirPath)
+      .filter((name) => name.endsWith('.json'))
+      .map((name) => path.join(dirPath, name));
+    if (!entries.length) return null;
+    entries.sort((a, b) => Number(fs.statSync(b).mtimeMs || 0) - Number(fs.statSync(a).mtimeMs || 0));
+    return entries[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeObjectiveArg(v: unknown) {
+  return cleanText(v, 420);
+}
+
+function loadImpossibilitySignals(policy: AnyObj, dateStr: string) {
+  const organ = policy.organ && typeof policy.organ === 'object' ? policy.organ : {};
+  const trigger = organ.trigger_detection && typeof organ.trigger_detection === 'object'
+    ? organ.trigger_detection
+    : {};
+  const pathsCfg = trigger.paths && typeof trigger.paths === 'object'
+    ? trigger.paths
+    : {};
+  const regimePath = String(pathsCfg.regime_latest_path || '').trim();
+  const mirrorPath = String(pathsCfg.mirror_latest_path || '').trim();
+  const simulationDir = String(pathsCfg.simulation_dir || '').trim();
+  const redTeamDir = String(pathsCfg.red_team_runs_dir || '').trim();
+  const driftGovernorPath = String(pathsCfg.drift_governor_path || '').trim();
+
+  const regime = readJson(regimePath, null);
+  const mirror = readJson(mirrorPath, null);
+  const simulationByDate = simulationDir ? path.join(simulationDir, `${dateStr}.json`) : '';
+  const simulationPath = simulationByDate && fs.existsSync(simulationByDate)
+    ? simulationByDate
+    : latestJsonFileInDir(simulationDir);
+  const simulation = simulationPath ? readJson(simulationPath, null) : null;
+  const redTeamPath = latestJsonFileInDir(redTeamDir);
+  const redTeam = redTeamPath ? readJson(redTeamPath, null) : null;
+  const driftGovernor = readJson(driftGovernorPath, null);
+
+  const tritFromRegime = normalizeTrit(
+    regime
+    && regime.context
+    && regime.context.trit
+    && regime.context.trit.trit
+  );
+  const tritFromDriftGovernor = normalizeTrit(
+    driftGovernor
+    && driftGovernor.last_decision
+    && driftGovernor.last_decision.trit_shadow
+    && driftGovernor.last_decision.trit_shadow.belief
+    && driftGovernor.last_decision.trit_shadow.belief.trit
+  );
+  const trit = tritFromRegime !== TRIT_UNKNOWN
+    ? tritFromRegime
+    : tritFromDriftGovernor;
+
+  const mirrorPressure = clampNumber(
+    mirror && mirror.pressure_score,
+    0,
+    1,
+    0
+  );
+  const predictedDrift = clampNumber(
+    simulation
+    && simulation.checks_effective
+    && simulation.checks_effective.drift_rate
+    && simulation.checks_effective.drift_rate.value,
+    0,
+    1,
+    0
+  );
+  const predictedYield = clampNumber(
+    simulation
+    && simulation.checks_effective
+    && simulation.checks_effective.yield_rate
+    && simulation.checks_effective.yield_rate.value,
+    0,
+    1,
+    0
+  );
+  const redTeamCritical = clampInt(
+    redTeam
+    && redTeam.summary
+    && redTeam.summary.critical_fail_cases,
+    0,
+    100000,
+    0
+  );
+  const regimeName = cleanText(regime && regime.selected_regime || 'unknown', 64).toLowerCase();
+  const regimeConstrained = /(constrained|emergency|defensive|degraded|critical)/.test(regimeName);
+  const mirrorReasons = Array.isArray(mirror && mirror.reasons) ? mirror.reasons.map((x: unknown) => cleanText(x, 120)).filter(Boolean) : [];
+
+  return {
+    regime: {
+      path: regimePath ? relPath(regimePath) : null,
+      selected_regime: regimeName || 'unknown',
+      confidence: clampNumber(regime && regime.candidate_confidence, 0, 1, 0),
+      constrained: regimeConstrained
+    },
+    mirror: {
+      path: mirrorPath ? relPath(mirrorPath) : null,
+      pressure_score: mirrorPressure,
+      confidence: clampNumber(mirror && mirror.confidence, 0, 1, 0),
+      reasons: mirrorReasons.slice(0, 8)
+    },
+    simulation: {
+      path: simulationPath ? relPath(simulationPath) : null,
+      predicted_drift: predictedDrift,
+      predicted_yield: predictedYield
+    },
+    red_team: {
+      path: redTeamPath ? relPath(redTeamPath) : null,
+      critical_fail_cases: redTeamCritical,
+      pass_cases: clampInt(redTeam && redTeam.summary && redTeam.summary.pass_cases, 0, 100000, 0),
+      fail_cases: clampInt(redTeam && redTeam.summary && redTeam.summary.fail_cases, 0, 100000, 0)
+    },
+    trit: {
+      value: trit,
+      label: tritLabel(trit)
+    }
+  };
+}
+
+function evaluateImpossibilityTrigger(policy: AnyObj, signals: AnyObj, force = false) {
+  const organ = policy.organ && typeof policy.organ === 'object' ? policy.organ : {};
+  const cfg = organ.trigger_detection && typeof organ.trigger_detection === 'object'
+    ? organ.trigger_detection
+    : {};
+  if (cfg.enabled !== true && force !== true) {
+    return {
+      triggered: false,
+      forced: false,
+      enabled: false,
+      score: 0,
+      threshold: Number(clampNumber(cfg.min_impossibility_score, 0, 1, 0.58).toFixed(6)),
+      signal_count: 0,
+      min_signal_count: clampInt(cfg.min_signal_count, 1, 12, 2),
+      reasons: ['trigger_detection_disabled']
+    };
+  }
+  const weights = cfg.weights && typeof cfg.weights === 'object' ? cfg.weights : {};
+  const thresholds = cfg.thresholds && typeof cfg.thresholds === 'object' ? cfg.thresholds : {};
+  const tritPainSignal = signals.trit && Number(signals.trit.value) === TRIT_PAIN ? 1 : (
+    signals.trit && Number(signals.trit.value) === TRIT_UNKNOWN ? 0.5 : 0
+  );
+  const mirrorPressure = clampNumber(signals.mirror && signals.mirror.pressure_score, 0, 1, 0);
+  const predictedDrift = clampNumber(signals.simulation && signals.simulation.predicted_drift, 0, 1, 0);
+  const predictedYield = clampNumber(signals.simulation && signals.simulation.predicted_yield, 0, 1, 0);
+  const driftWarn = clampNumber(thresholds.predicted_drift_warn, 0, 1, 0.03);
+  const yieldWarn = clampNumber(thresholds.predicted_yield_warn, 0, 1, 0.68);
+  const driftScore = predictedDrift <= driftWarn
+    ? 0
+    : clampNumber((predictedDrift - driftWarn) / Math.max(0.0001, 1 - driftWarn), 0, 1, 0);
+  const yieldGapScore = predictedYield >= yieldWarn
+    ? 0
+    : clampNumber((yieldWarn - predictedYield) / Math.max(0.0001, yieldWarn), 0, 1, 0);
+  const redTeamCriticalSignal = clampNumber(
+    Number(signals.red_team && signals.red_team.critical_fail_cases || 0) > 0 ? 1 : 0,
+    0,
+    1,
+    0
+  );
+  const regimeConstrainedSignal = signals.regime && signals.regime.constrained === true ? 1 : 0;
+  const weighted = {
+    trit_pain: tritPainSignal * Number(weights.trit_pain || 0.2),
+    mirror_pressure: mirrorPressure * Number(weights.mirror_pressure || 0.2),
+    predicted_drift: driftScore * Number(weights.predicted_drift || 0.18),
+    predicted_yield_gap: yieldGapScore * Number(weights.predicted_yield_gap || 0.18),
+    red_team_critical: redTeamCriticalSignal * Number(weights.red_team_critical || 0.14),
+    regime_constrained: regimeConstrainedSignal * Number(weights.regime_constrained || 0.1)
+  };
+  const weightTotal = Math.max(
+    0.0001,
+    Number(weights.trit_pain || 0.2)
+    + Number(weights.mirror_pressure || 0.2)
+    + Number(weights.predicted_drift || 0.18)
+    + Number(weights.predicted_yield_gap || 0.18)
+    + Number(weights.red_team_critical || 0.14)
+    + Number(weights.regime_constrained || 0.1)
+  );
+  const score = Number(clampNumber(
+    (
+      weighted.trit_pain
+      + weighted.mirror_pressure
+      + weighted.predicted_drift
+      + weighted.predicted_yield_gap
+      + weighted.red_team_critical
+      + weighted.regime_constrained
+    ) / weightTotal,
+    0,
+    1,
+    0
+  ).toFixed(6));
+  const signalCount = [
+    tritPainSignal > 0 ? 1 : 0,
+    mirrorPressure > 0 ? 1 : 0,
+    driftScore > 0 ? 1 : 0,
+    yieldGapScore > 0 ? 1 : 0,
+    redTeamCriticalSignal > 0 ? 1 : 0,
+    regimeConstrainedSignal > 0 ? 1 : 0
+  ].reduce((acc: number, n: number) => acc + n, 0);
+  const minSignalCount = clampInt(cfg.min_signal_count, 1, 12, 2);
+  const threshold = Number(clampNumber(cfg.min_impossibility_score, 0, 1, 0.58).toFixed(6));
+  const reasons: string[] = [];
+  if (force === true) reasons.push('forced');
+  if (tritPainSignal > 0) reasons.push('trit_pain_or_uncertain');
+  if (mirrorPressure > 0) reasons.push('mirror_pressure_signal');
+  if (driftScore > 0) reasons.push('predicted_drift_above_warn');
+  if (yieldGapScore > 0) reasons.push('predicted_yield_below_warn');
+  if (redTeamCriticalSignal > 0) reasons.push('red_team_critical_present');
+  if (regimeConstrainedSignal > 0) reasons.push('regime_constrained');
+
+  const triggered = force === true || (score >= threshold && signalCount >= minSignalCount);
+  return {
+    triggered,
+    forced: force === true,
+    enabled: cfg.enabled === true,
+    score,
+    threshold,
+    signal_count: signalCount,
+    min_signal_count: minSignalCount,
+    reasons: reasons.slice(0, 12),
+    components: {
+      trit_pain: Number(tritPainSignal.toFixed(6)),
+      mirror_pressure: Number(mirrorPressure.toFixed(6)),
+      predicted_drift: Number(driftScore.toFixed(6)),
+      predicted_yield_gap: Number(yieldGapScore.toFixed(6)),
+      red_team_critical: Number(redTeamCriticalSignal.toFixed(6)),
+      regime_constrained: Number(regimeConstrainedSignal.toFixed(6))
+    }
+  };
+}
+
+function parseCandidateListFromLlmPayload(payload: AnyObj) {
+  const rows = Array.isArray(payload)
+    ? payload
+    : (payload && Array.isArray(payload.candidates) ? payload.candidates : []);
+  return rows
+    .map((row: AnyObj, idx: number) => {
+      const filters = normalizeList(
+        row && (row.filters || row.filter_stack || row.filterStack || ''),
+        120
+      ).slice(0, 8);
+      if (!filters.length) return null;
+      return {
+        id: normalizeToken(row.id || `llm_${idx + 1}`, 80) || `llm_${idx + 1}`,
+        filters,
+        source: 'right_brain_llm',
+        probability: Number(clampNumber(row.probability, 0, 1, 0.55).toFixed(6)),
+        rationale: cleanText(row.rationale || row.reason || '', 220)
+      };
+    })
+    .filter(Boolean);
+}
+
+function generateTreeCandidatesWithLlm(policy: AnyObj, paths: AnyObj, args: AnyObj, dateStr: string, desiredOutcome: string) {
+  const organ = policy.organ && typeof policy.organ === 'object' ? policy.organ : {};
+  const cfg = organ.tree_search && typeof organ.tree_search === 'object' ? organ.tree_search : {};
+  if (cfg.llm_enabled !== true || typeof runLocalOllamaPrompt !== 'function') {
+    return {
+      used: false,
+      error: null,
+      selected_lane: null,
+      model: null,
+      candidates: [],
+      route: null
+    };
+  }
+  const laneDecision = parseLaneDecision({
+    ...args,
+    context: 'inversion_tree_search',
+    task_class: 'creative',
+    desired_lane: 'right'
+  }, paths, dateStr);
+  const route = laneDecision && laneDecision.route && typeof laneDecision.route === 'object'
+    ? laneDecision.route
+    : null;
+  const model = cleanText(
+    route
+    && route.right
+    && route.right.permitted === true
+      ? route.right.model
+      : (route && route.left && route.left.model
+        ? route.left.model
+        : ''),
+    120
+  );
+  if (!model) {
+    return {
+      used: false,
+      error: 'no_model_available',
+      selected_lane: laneDecision.selected_lane || null,
+      model: null,
+      candidates: [],
+      route
+    };
+  }
+  const objective = normalizeObjectiveArg(args.objective || '');
+  const prompt = [
+    'You generate guarded inversion filter stacks for impossible objectives.',
+    `Objective: ${objective}`,
+    `Desired outcome node: ${cleanText(desiredOutcome || cfg.desired_outcome_hint || '', 220)}`,
+    'Return strict JSON: {"candidates":[{"id":"c1","filters":["f1","f2"],"probability":0.0,"rationale":"..."}]}',
+    'Constraints: filters must be reversible, bounded, non-destructive, and objective-aligned.',
+    `Max candidates: ${clampInt(cfg.max_llm_candidates, 1, 64, 12)}`
+  ].join('\n');
+  const llm = runLocalOllamaPrompt({
+    model,
+    prompt,
+    timeoutMs: clampInt(cfg.llm_timeout_ms, 1000, 60000, 9000),
+    phase: 'inversion_tree_search',
+    source: 'inversion_controller_tree_search',
+    use_cache: true,
+    allowFlagFallback: true,
+    source_fingerprint: cleanText(args.objective_id || args.objective || '', 180)
+  });
+  if (!llm || llm.ok !== true) {
+    return {
+      used: true,
+      error: cleanText(llm && (llm.error || llm.stderr || llm.stdout) || 'llm_failed', 220),
+      selected_lane: laneDecision.selected_lane || null,
+      model,
+      candidates: [],
+      route
+    };
+  }
+  const payload = parseJsonFromStdout(llm.stdout);
+  const candidates = parseCandidateListFromLlmPayload(payload)
+    .slice(0, clampInt(cfg.max_llm_candidates, 1, 64, 12));
+  return {
+    used: true,
+    error: null,
+    selected_lane: laneDecision.selected_lane || null,
+    model,
+    candidates,
+    route
+  };
+}
+
+function heuristicFilterCandidates(objective: string) {
+  const tags = tokenize(objective);
+  const base = [
+    ['assumption_inversion', 'constraint_reframe'],
+    ['resource_rebalance', 'path_split'],
+    ['goal_decomposition', 'fallback_pathing'],
+    ['evidence_intensification', 'risk_guard_compaction'],
+    ['time_horizon_reframe', 'bounded_parallel_probe'],
+    ['negative_space_scan', 'safe_counterfactual']
+  ];
+  if (tags.includes('budget') || tags.includes('cost')) {
+    base.push(['cost_lane_swap', 'constraint_reframe']);
+  }
+  if (tags.includes('yield') || tags.includes('quality')) {
+    base.push(['yield_reframe', 'verification_gate']);
+  }
+  if (tags.includes('drift')) {
+    base.push(['drift_anchor', 'identity_guard']);
+  }
+  return base.map((filters: string[], idx: number) => ({
+    id: `heur_${idx + 1}`,
+    filters: normalizeList(filters, 120),
+    source: 'heuristic',
+    probability: Number(clampNumber(0.42 + (idx * 0.03), 0, 1, 0.5).toFixed(6)),
+    rationale: 'heuristic seed'
+  }));
+}
+
+function buildProbabilisticSearchTree(paths: AnyObj, policy: AnyObj, args: AnyObj, dateStr: string, triggerEval: AnyObj, maturity: AnyObj) {
+  const organ = policy.organ && typeof policy.organ === 'object' ? policy.organ : {};
+  const cfg = organ.tree_search && typeof organ.tree_search === 'object' ? organ.tree_search : {};
+  const objective = normalizeObjectiveArg(args.objective || '');
+  const desiredOutcome = cleanText(
+    args.desired_outcome || args['desired-outcome'] || cfg.desired_outcome_hint || '',
+    220
+  ) || 'stable measurable outcome';
+  const branchFactor = clampInt(args.branch_factor || args['branch-factor'], 1, 32, clampInt(cfg.branch_factor, 1, 32, 5));
+  const maxDepth = clampInt(args.max_depth || args['max-depth'], 1, 8, clampInt(cfg.max_depth, 1, 8, 3));
+  const maxCandidates = clampInt(args.max_candidates || args['max-candidates'], 1, 128, clampInt(cfg.max_candidates, 1, 128, 16));
+
+  const query = {
+    signature_tokens: tokenize(args.signature || objective),
+    trit_vector: [clampInt(normalizeTrit(args.trit), -1, 1, TRIT_UNKNOWN)],
+    target: normalizeTarget(args.target || 'tactical')
+  };
+  const libraryCandidates = selectLibraryCandidates(paths, policy, query).slice(0, 32);
+  const heuristic = heuristicFilterCandidates(objective);
+  const llmGen = generateTreeCandidatesWithLlm(policy, paths, args, dateStr, desiredOutcome);
+  const librarySeeds = libraryCandidates
+    .map((entry: AnyObj, idx: number) => ({
+      id: normalizeToken(entry.row && entry.row.id || `lib_${idx + 1}`, 80) || `lib_${idx + 1}`,
+      filters: normalizeList(entry.row && entry.row.filter_stack || [], 120).slice(0, 8),
+      source: 'library',
+      probability: Number(clampNumber(
+        (Number(entry.similarity || 0) * 0.6) + (Number(entry.candidate_certainty || 0) * 0.4),
+        0,
+        1,
+        0.45
+      ).toFixed(6)),
+      rationale: cleanText(entry.row && entry.row.result || 'library_seed', 120),
+      similarity: Number(clampNumber(entry.similarity, 0, 1, 0).toFixed(6))
+    }))
+    .filter((row: AnyObj) => Array.isArray(row.filters) && row.filters.length > 0);
+
+  const allSeeds = [...llmGen.candidates, ...librarySeeds, ...heuristic];
+  const uniqueMap = new Map();
+  for (const row of allSeeds) {
+    const key = normalizeList(row.filters || [], 120).join('|');
+    if (!key) continue;
+    const prev = uniqueMap.get(key);
+    if (!prev || Number(row.probability || 0) > Number(prev.probability || 0)) {
+      uniqueMap.set(key, {
+        ...row,
+        filters: normalizeList(row.filters || [], 120).slice(0, 8)
+      });
+    }
+  }
+  const seeds = Array.from(uniqueMap.values())
+    .sort((a: AnyObj, b: AnyObj) => Number(b.probability || 0) - Number(a.probability || 0))
+    .slice(0, Math.max(maxCandidates * 2, branchFactor));
+
+  const rootId = stableId(`${objective}|${desiredOutcome}|${dateStr}`, 'invroot');
+  const nodes: AnyObj[] = [{
+    id: rootId,
+    parent_id: null,
+    depth: 0,
+    filters: [],
+    source: 'root',
+    probability: 1,
+    score_hint: Number(clampNumber(triggerEval.score, 0, 1, 0).toFixed(6)),
+    label: 'start_node',
+    desired_outcome: desiredOutcome
+  }];
+
+  const frontier = [rootId];
+  let seedIdx = 0;
+  for (let depth = 1; depth <= maxDepth; depth += 1) {
+    const nextFrontier: string[] = [];
+    for (const parentId of frontier) {
+      for (let b = 0; b < branchFactor; b += 1) {
+        if (nodes.length >= maxCandidates + 1) break;
+        const seed = seeds[seedIdx % Math.max(1, seeds.length)];
+        seedIdx += 1;
+        if (!seed) break;
+        const probability = Number(clampNumber(
+          Number(seed.probability || 0.4) * Math.pow(0.96, depth - 1),
+          0,
+          1,
+          0.25
+        ).toFixed(6));
+        const nodeId = stableId(`${parentId}|${depth}|${seed.id}|${seed.filters.join(',')}`, 'invn');
+        nodes.push({
+          id: nodeId,
+          parent_id: parentId,
+          depth,
+          filters: seed.filters,
+          source: seed.source,
+          probability,
+          score_hint: Number(clampNumber(
+            (probability * 0.7) + (Number(triggerEval.score || 0) * 0.3),
+            0,
+            1,
+            0
+          ).toFixed(6)),
+          label: cleanText(seed.rationale || seed.source || 'candidate', 120)
+        });
+        nextFrontier.push(nodeId);
+      }
+      if (nodes.length >= maxCandidates + 1) break;
+    }
+    if (!nextFrontier.length || nodes.length >= maxCandidates + 1) break;
+    frontier.splice(0, frontier.length, ...nextFrontier.slice(0, branchFactor));
+  }
+
+  const out = {
+    ts: nowIso(),
+    type: 'inversion_search_tree',
+    objective: objective,
+    objective_id: cleanText(args.objective_id || '', 140) || null,
+    desired_outcome: desiredOutcome,
+    maturity_band: cleanText(maturity && maturity.computed && maturity.computed.band || 'novice', 24) || 'novice',
+    trigger_score: Number(clampNumber(triggerEval.score, 0, 1, 0).toFixed(6)),
+    root_id: rootId,
+    nodes,
+    seed_sources: {
+      llm: llmGen.candidates.length,
+      library: librarySeeds.length,
+      heuristic: heuristic.length
+    },
+    llm: {
+      used: llmGen.used,
+      error: llmGen.error || null,
+      selected_lane: llmGen.selected_lane || null,
+      model: llmGen.model || null,
+      route: llmGen.route || null
+    }
+  };
+  return out;
+}
+
+function scoreTrial(decision: AnyObj, candidate: AnyObj, trialCfg: AnyObj, runtimeProbePass: boolean) {
+  const weights = trialCfg.score_weights && typeof trialCfg.score_weights === 'object'
+    ? trialCfg.score_weights
+    : {};
+  const wAllowed = Number(weights.decision_allowed || 0.35);
+  const wAttractor = Number(weights.attractor || 0.2);
+  const wCertainty = Number(weights.certainty_margin || 0.15);
+  const wLibrary = Number(weights.library_similarity || 0.1);
+  const wProbe = Number(weights.runtime_probe || 0.2);
+  const weightTotal = Math.max(0.0001, wAllowed + wAttractor + wCertainty + wLibrary + wProbe);
+  const certaintyMargin = clampNumber(
+    Number(decision && decision.input && decision.input.effective_certainty || 0)
+      - Number(decision && decision.gating && decision.gating.required_certainty || 0),
+    -1,
+    1,
+    0
+  );
+  const certaintyScore = certaintyMargin <= 0 ? 0 : clampNumber(certaintyMargin, 0, 1, 0);
+  const score = (
+    (decision && decision.allowed ? 1 : 0) * wAllowed
+    + Number(decision && decision.attractor && decision.attractor.score || 0) * wAttractor
+    + certaintyScore * wCertainty
+    + Number(candidate && candidate.score_hint || 0) * wLibrary
+    + (runtimeProbePass ? 1 : 0) * wProbe
+  ) / weightTotal;
+  return Number(clampNumber(score, 0, 1, 0).toFixed(6));
+}
+
+function mutateTrialCandidates(rows: AnyObj[]) {
+  const mutationStack = ['constraint_reframe', 'goal_decomposition', 'fallback_pathing', 'risk_guard_compaction'];
+  const out: AnyObj[] = [];
+  let idx = 0;
+  for (const row of rows) {
+    const filters = normalizeList(row && row.filters || [], 120);
+    const extra = mutationStack[idx % mutationStack.length];
+    idx += 1;
+    const merged = normalizeList([...filters, extra], 120).slice(0, 8);
+    out.push({
+      ...row,
+      id: `${row.id || stableId(JSON.stringify(row || {}), 'mut')}_m${idx}`,
+      filters: merged,
+      source: `${row.source || 'trial'}_mutated`,
+      probability: Number(clampNumber(Number(row.probability || 0.4) * 0.92, 0, 1, 0.3).toFixed(6)),
+      score_hint: Number(clampNumber(Number(row.score_hint || 0) * 0.94, 0, 1, 0.3).toFixed(6))
+    });
+  }
+  return out;
+}
+
+function runOrganTrials(paths: AnyObj, policy: AnyObj, args: AnyObj, maturity: AnyObj, dateStr: string, tree: AnyObj) {
+  const cfg = policy.organ && policy.organ.trials && typeof policy.organ.trials === 'object'
+    ? policy.organ.trials
+    : defaultPolicy().organ.trials;
+  const nodes = Array.isArray(tree && tree.nodes) ? tree.nodes.filter((row: AnyObj) => Number(row.depth || 0) > 0) : [];
+  const baseCandidates = nodes
+    .sort((a: AnyObj, b: AnyObj) => Number(b.score_hint || 0) - Number(a.score_hint || 0))
+    .slice(0, clampInt(cfg.max_parallel_trials * 3, 1, 256, 18));
+  const maxIterations = clampInt(args.max_iterations || args['max-iterations'], 1, 12, clampInt(cfg.max_iterations, 1, 12, 3));
+  const maxParallel = clampInt(cfg.max_parallel_trials, 1, 64, 6);
+  const minTrialScore = clampNumber(cfg.min_trial_score, 0, 1, 0.56);
+  const requireRuntimeProbes = cfg.require_runtime_probes === true;
+  const runtimeProbe = requireRuntimeProbes
+    ? runHarnessRuntimeProbes(policy, dateStr)
+    : { enabled: false, required: false, pass: true, reasons: [] };
+
+  const trials: AnyObj[] = [];
+  let candidates = baseCandidates.slice();
+  let best: AnyObj = null;
+  let bestPass: AnyObj = null;
+  for (let iter = 1; iter <= maxIterations; iter += 1) {
+    const batch = candidates.slice(0, maxParallel);
+    if (!batch.length) break;
+    for (const candidate of batch) {
+      const decisionArgs = {
+        objective: normalizeObjectiveArg(args.objective || ''),
+        objective_id: cleanText(args.objective_id || args['objective-id'] || '', 140),
+        impact: normalizeImpact(args.impact || 'medium'),
+        target: normalizeTarget(args.target || 'tactical'),
+        certainty: clampNumber(args.certainty, 0, 1, 0.72),
+        trit: normalizeTrit(args.trit),
+        mode: 'test',
+        apply: false,
+        filters: normalizeList(candidate && candidate.filters || [], 120).join(','),
+        brain_lane: normalizeToken(args.brain_lane || args['brain-lane'] || '', 120)
+      };
+      const decision = evaluateRunDecision(decisionArgs, policy, paths, maturity, dateStr);
+      const runtimePass = requireRuntimeProbes ? runtimeProbe.pass === true : true;
+      const trialScore = scoreTrial(decision, candidate, cfg, runtimePass);
+      const passed = decision.allowed === true && runtimePass && trialScore >= minTrialScore;
+      const row = {
+        trial_id: stableId(`${candidate.id}|${iter}|${trialScore}`, 'tr'),
+        ts: nowIso(),
+        iteration: iter,
+        candidate_id: candidate.id,
+        filters: normalizeList(candidate.filters || [], 120),
+        source: cleanText(candidate.source || 'unknown', 80),
+        decision_allowed: decision.allowed === true,
+        runtime_probe_pass: runtimePass,
+        trial_score: trialScore,
+        min_trial_score: minTrialScore,
+        passed,
+        reasons: Array.isArray(decision.reasons) ? decision.reasons.slice(0, 8) : [],
+        attractor: decision.attractor || null,
+        auto_revert: true
+      };
+      trials.push(row);
+      if (!best || Number(row.trial_score || 0) > Number(best.trial_score || 0)) best = row;
+      if (row.passed && (!bestPass || Number(row.trial_score || 0) > Number(bestPass.trial_score || 0))) bestPass = row;
+    }
+    if (bestPass) break;
+    if (cfg.allow_iterative_retries !== true) break;
+    candidates = mutateTrialCandidates(batch);
+  }
+
+  return {
+    runtime_probe: runtimeProbe,
+    trials,
+    best_trial: best,
+    best_pass: bestPass,
+    pass_count: trials.filter((row) => row.passed === true).length
+  };
+}
+
+function cmdOrgan(args: AnyObj) {
+  const policyPath = args.policy ? path.resolve(String(args.policy)) : DEFAULT_POLICY_PATH;
+  const policy = loadPolicy(policyPath);
+  const paths = runtimePaths(policyPath);
+  const dateStr = toDate(args._[1] || args.date);
+  const force = toBool(args.force, false);
+
+  const objective = normalizeObjectiveArg(args.objective || '');
+  const objectiveId = cleanText(args.objective_id || args['objective-id'] || '', 140) || null;
+  if (!objective) {
+    process.stdout.write(`${JSON.stringify({
+      ok: false,
+      type: 'inversion_organ',
+      error: 'objective_required'
+    })}\n`);
+    process.exit(1);
+  }
+
+  const harness = maybeAutoRunHarness(paths, policy, dateStr, args);
+  const sweep = sweepExpiredSessions(paths, policy, dateStr);
+  const maturity = loadMaturityState(paths, policy);
+  const signals = loadImpossibilitySignals(policy, dateStr);
+  const trigger = evaluateImpossibilityTrigger(policy, signals, force);
+  if (policy.organ && policy.organ.visualization && policy.organ.visualization.emit_tree_events === true) {
+    emitEvent(paths, policy, dateStr, 'organ_trigger_evaluated', {
+      objective_id: objectiveId,
+      score: trigger.score,
+      threshold: trigger.threshold,
+      triggered: trigger.triggered,
+      reasons: trigger.reasons
+    });
+  }
+
+  if (!trigger.triggered) {
+    const out = {
+      ok: true,
+      type: 'inversion_organ',
+      ts: nowIso(),
+      date: dateStr,
+      objective,
+      objective_id: objectiveId,
+      triggered: false,
+      trigger,
+      signals,
+      maturity: maturity.computed,
+      harness,
+      sweep,
+      status: 'no_trigger'
+    };
+    writeJsonAtomic(paths.organ_latest_path, out);
+    appendJsonl(paths.organ_history_path, out);
+    process.stdout.write(`${JSON.stringify(out)}\n`);
+    return;
+  }
+
+  const tree = buildProbabilisticSearchTree(paths, policy, args, dateStr, trigger, maturity);
+  writeJsonAtomic(paths.tree_latest_path, tree);
+  appendJsonl(paths.tree_history_path, tree);
+  if (policy.organ && policy.organ.visualization && policy.organ.visualization.emit_tree_events === true) {
+    emitEvent(paths, policy, dateStr, 'organ_tree_born', {
+      objective_id: objectiveId,
+      node_count: Array.isArray(tree.nodes) ? tree.nodes.length : 0,
+      seed_sources: tree.seed_sources || {}
+    });
+  }
+
+  const trials = runOrganTrials(paths, policy, {
+    ...args,
+    objective,
+    objective_id: objectiveId || args.objective_id
+  }, maturity, dateStr, tree);
+  if (policy.organ && policy.organ.visualization && policy.organ.visualization.emit_trial_events === true) {
+    emitEvent(paths, policy, dateStr, 'organ_trials_completed', {
+      objective_id: objectiveId,
+      trials: Array.isArray(trials.trials) ? trials.trials.length : 0,
+      pass_count: Number(trials.pass_count || 0),
+      best_trial_id: trials.best_trial ? trials.best_trial.trial_id : null,
+      best_pass_id: trials.best_pass ? trials.best_pass.trial_id : null
+    });
+  }
+
+  const best = trials.best_pass || trials.best_trial || null;
+  const recommendedFilters = best ? normalizeList(best.filters || [], 120) : [];
+  const proposedFirstPrinciple = best && best.passed
+    ? cleanText(
+      `When ${objective.slice(0, 140)}, prioritize inversion stack (${recommendedFilters.join(', ') || 'none'}) only in bounded test mode, then revert to baseline guardrails.`,
+      360
+    )
+    : null;
+
+  const recommendation = best
+    ? {
+      mode: 'test',
+      apply: false,
+      objective,
+      objective_id: objectiveId,
+      impact: normalizeImpact(args.impact || 'medium'),
+      target: normalizeTarget(args.target || 'tactical'),
+      certainty: clampNumber(args.certainty, 0, 1, 0.72),
+      trit: normalizeTrit(args.trit),
+      filters: recommendedFilters
+    }
+    : null;
+
+  const out: AnyObj = {
+    ok: true,
+    type: 'inversion_organ',
+    ts: nowIso(),
+    date: dateStr,
+    policy_version: policy.version,
+    objective,
+    objective_id: objectiveId,
+    triggered: true,
+    trigger,
+    signals,
+    maturity: maturity.computed,
+    tree: {
+      root_id: tree.root_id,
+      node_count: Array.isArray(tree.nodes) ? tree.nodes.length : 0,
+      seed_sources: tree.seed_sources || {},
+      llm: tree.llm || null,
+      latest_path: relPath(paths.tree_latest_path)
+    },
+    trials: {
+      count: Array.isArray(trials.trials) ? trials.trials.length : 0,
+      pass_count: Number(trials.pass_count || 0),
+      runtime_probe: trials.runtime_probe || null,
+      best_trial: trials.best_trial || null,
+      best_pass: trials.best_pass || null
+    },
+    recommendation,
+    proposed_first_principle: proposedFirstPrinciple,
+    harness,
+    sweep,
+    integration: {
+      regime: signals.regime || null,
+      mirror: signals.mirror || null,
+      right_brain_lane: tree && tree.llm ? tree.llm.selected_lane || null : null,
+      nursery_runtime_probe: trials && trials.runtime_probe ? trials.runtime_probe.enabled === true : false
+    },
+    status: best && best.passed ? 'candidate_pass' : 'candidate_no_pass'
+  };
+  writeJsonAtomic(paths.organ_latest_path, out);
+  appendJsonl(paths.organ_history_path, out);
+  process.stdout.write(`${JSON.stringify(out)}\n`);
+}
+
 function runMaturityHarnessCycle(paths: AnyObj, policy: AnyObj, dateStr: string, opts: AnyObj = {}) {
   const cfg = policy.maturity_harness && typeof policy.maturity_harness === 'object'
     ? policy.maturity_harness
@@ -3880,6 +4944,7 @@ function main() {
   if (cmd === 'resolve') return cmdResolve(args);
   if (cmd === 'record-test' || cmd === 'record_test') return cmdRecordTest(args);
   if (cmd === 'harness') return cmdHarness(args);
+  if (cmd === 'organ') return cmdOrgan(args);
   if (cmd === 'sweep') return cmdSweep(args);
   if (cmd === 'status') return cmdStatus(args);
   usage();

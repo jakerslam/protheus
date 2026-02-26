@@ -443,6 +443,62 @@
       "low_diversity_floor": 0.28
     }
   },
+  "organ": {
+    "enabled": true,
+    "trigger_detection": {
+      "enabled": true,
+      "min_impossibility_score": 0.58,
+      "min_signal_count": 2,
+      "weights": {
+        "trit_pain": 0.2,
+        "mirror_pressure": 0.2,
+        "predicted_drift": 0.18,
+        "predicted_yield_gap": 0.18,
+        "red_team_critical": 0.14,
+        "regime_constrained": 0.1
+      },
+      "thresholds": {
+        "predicted_drift_warn": 0.03,
+        "predicted_yield_warn": 0.68
+      },
+      "paths": {
+        "regime_latest_path": "state/autonomy/fractal/regime/latest.json",
+        "mirror_latest_path": "state/autonomy/mirror_organ/latest.json",
+        "simulation_dir": "state/autonomy/simulations",
+        "red_team_runs_dir": "state/security/red_team/runs",
+        "drift_governor_path": "state/autonomy/drift_target_governor_state.json"
+      }
+    },
+    "tree_search": {
+      "enabled": true,
+      "max_depth": 3,
+      "branch_factor": 5,
+      "max_candidates": 16,
+      "llm_enabled": true,
+      "llm_timeout_ms": 9000,
+      "max_llm_candidates": 12,
+      "desired_outcome_hint": "connect impossible objective to a safe, measurable outcome path"
+    },
+    "trials": {
+      "enabled": true,
+      "max_parallel_trials": 6,
+      "max_iterations": 3,
+      "min_trial_score": 0.56,
+      "allow_iterative_retries": true,
+      "require_runtime_probes": false,
+      "score_weights": {
+        "decision_allowed": 0.35,
+        "attractor": 0.2,
+        "certainty_margin": 0.15,
+        "library_similarity": 0.1,
+        "runtime_probe": 0.2
+      }
+    },
+    "visualization": {
+      "emit_tree_events": true,
+      "emit_trial_events": true
+    }
+  },
   "output_interfaces": {
     "default_channel": "strategy_hint",
     "belief_update": {
