@@ -1,16 +1,16 @@
 {
   "ok": true,
   "type": "fractal_morph_plan",
-  "ts": "2026-02-26T04:32:43.738Z",
+  "ts": "2026-02-26T08:36:33.956Z",
   "date": "2026-02-26",
-  "plan_id": "morph_129e64f8a0be20b1",
-  "objective_id": null,
+  "plan_id": "morph_40a065024cdcea98",
+  "objective_id": "T1_make_jay_billionaire_v1",
   "max_actions": 6,
   "governance_required": true,
   "execution_mode": "proposal_only",
   "actions": [
     {
-      "id": "mpa_fe15b18939e80060",
+      "id": "mpa_7fa60d6c7578fdea",
       "kind": "spawn",
       "target": "module:objective_binding_assistant",
       "reason": "effective yield 0.0000 indicates directive fit pressure",
@@ -21,16 +21,16 @@
   "identity": {
     "checked": 1,
     "blocked": 0,
-    "identity_drift_score": 0.12,
+    "identity_drift_score": 0,
     "max_identity_drift_score": 0.58,
     "blocking_code_counts": {},
     "blocked_action_ids": [],
     "receipt_path": "state/autonomy/identity_anchor/2026-02-26.jsonl"
   },
   "context": {
-    "ts": "2026-02-26T04:32:43.705Z",
+    "ts": "2026-02-26T08:36:33.948Z",
     "date": "2026-02-26",
-    "objective_id": null,
+    "objective_id": "T1_make_jay_billionaire_v1",
     "sim": {
       "drift": null,
       "yieldRate": null

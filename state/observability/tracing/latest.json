@@ -1,14 +1,14 @@
 {
-  "ts": "2026-02-26T04:32:52.799Z",
+  "ts": "2026-02-26T08:36:37.964Z",
   "type": "trace_span",
-  "trace_id": "fc37bd57678e7ea00b0b121be46a1be8",
-  "span_id": "d476a173d9f046e2",
+  "trace_id": "2a195479cc997819ac2a52b5e1604f4e",
+  "span_id": "f0122699b39f1327",
   "parent_span_id": null,
   "name": "spine.run.completed",
   "service": "protheus",
   "component": "spine",
   "status": "ok",
-  "duration_ms": 154801,
+  "duration_ms": 139539,
   "attributes": {
     "mode": "daily",
     "date": "2026-02-26",

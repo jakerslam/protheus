@@ -1,7 +1,7 @@
 {
   "ok": true,
   "type": "autonomy_self_documentation_closeout",
-  "ts": "2026-02-26T04:32:50.407Z",
+  "ts": "2026-02-26T08:36:36.218Z",
   "date": "2026-02-26",
   "applied": true,
   "requires_review": false,
@@ -13,24 +13,24 @@
   "significance_reasons": [
     "yield_low"
   ],
-  "summary_line": "- 2026-02-26: drift 0.00%, yield 0.00%, executed 0, holds 0, audits 0, suggestions 1, integrity 0, artifacts 7. flags=yield_low",
+  "summary_line": "- 2026-02-26: drift 0.00%, yield 0.00%, executed 0, holds 0, audits 5, suggestions 1, integrity 0, artifacts 4. flags=yield_low",
   "memory_path": "MEMORY.md",
   "output_path": "state/autonomy/self_documentation/2026-02-26.json",
   "snapshot": {
-    "ts": "2026-02-26T04:32:50.398Z",
+    "ts": "2026-02-26T08:36:36.213Z",
     "date": "2026-02-26",
     "daily": {
       "file_present": true,
       "entries_count": 0,
-      "artifact_count": 7,
+      "artifact_count": 4,
       "artifact_entry_count": 0,
       "verified_revenue_count": 0,
       "minutes_total": 0
     },
     "autonomy": {
       "file_present": true,
-      "run_count": 2,
-      "audit_count": 0,
+      "run_count": 13,
+      "audit_count": 5,
       "executed_count": 0,
       "shipped_count": 0,
       "no_change_count": 0,

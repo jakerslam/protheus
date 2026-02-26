@@ -1,8 +1,8 @@
 {
   "ok": true,
   "type": "continuum_pulse",
-  "ts": "2026-02-26T04:32:49.767Z",
-  "run_id": "cont_mm2ywcba_kkpesg",
+  "ts": "2026-02-26T08:36:36.020Z",
+  "run_id": "cont_mm37lu0f_z4dbo4",
   "date": "2026-02-26",
   "profile": "spine",
   "reason": "spine_daily",
@@ -24,25 +24,25 @@
   },
   "resource": {
     "cpu_count": 8,
-    "load_1m": 13.2671,
-    "load_per_cpu": 1.6584,
-    "rss_mb": 109.63,
-    "heap_used_mb": 35.2,
+    "load_1m": 6.7412,
+    "load_per_cpu": 0.8427,
+    "rss_mb": 136.27,
+    "heap_used_mb": 32.97,
     "within_limits": false
   },
   "spine_hot": {
     "hot": true,
-    "latest_ts": "2026-02-26T04:32:47.140Z",
-    "age_sec": 2.61
+    "latest_ts": "2026-02-26T08:36:35.739Z",
+    "age_sec": 0.28
   },
   "autonomy": {
-    "runs": 29,
+    "runs": 40,
     "executed": 0,
     "shipped": 0,
     "no_change": 0,
     "reverted": 0,
-    "policy_holds": 1,
-    "hold_rate": 0.034483,
+    "policy_holds": 9,
+    "hold_rate": 0.225,
     "yield_rate": 0,
     "drift_proxy": 0
   },
@@ -73,7 +73,7 @@
         "name": "policy_hold_rate",
         "trit": 1,
         "label": "ok",
-        "value": 0.034483,
+        "value": 0.225,
         "weight": 1
       },
       {
@@ -81,9 +81,9 @@
         "trit": -1,
         "label": "pain",
         "value": {
-          "load_per_cpu": 1.6584,
-          "rss_mb": 109.63,
-          "heap_used_mb": 35.2
+          "load_per_cpu": 0.8427,
+          "rss_mb": 136.27,
+          "heap_used_mb": 32.97
         },
         "weight": 1.2
       },
@@ -91,7 +91,7 @@
         "name": "spine_activity",
         "trit": -1,
         "label": "pain",
-        "value": 2.61,
+        "value": 0.28,
         "weight": 1.4
       }
     ]
@@ -107,10 +107,12 @@
     "atrophy": 0
   },
   "actions": [],
-  "duration_ms": 17,
+  "duration_ms": 5,
   "training_queue": {
     "enabled": true,
     "appended": 5,
-    "path": "state/nursery/training/continuum_queue.jsonl"
+    "path": "state/nursery/training/continuum_queue.jsonl",
+    "metadata_rejected": 0,
+    "trainability_rejected": 0
   }
 }

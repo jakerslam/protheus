@@ -1,18 +1,18 @@
 {
   "schema_id": "spine_ternary_belief_snapshot",
   "schema_version": "1.0.0",
-  "ts": "2026-02-26T04:32:52.606Z",
+  "ts": "2026-02-26T08:36:37.798Z",
   "date": "2026-02-26",
   "mode": "daily",
-  "run_row_count": 69,
-  "signal_count": 71,
+  "run_row_count": 71,
+  "signal_count": 73,
   "belief": {
     "schema_id": "ternary_belief_serialized",
     "schema_version": "1.0.0",
     "trit": 1,
     "trit_label": "ok",
-    "score": 0.8832,
-    "confidence": 0.9228,
+    "score": 0.8871,
+    "confidence": 0.9254,
     "vector": {
       "schema_id": "balanced_trit_vector",
       "schema_version": "1.0.0",
@@ -37,12 +37,12 @@
   "summary": {
     "trit": 1,
     "label": "ok",
-    "score": 0.8832,
-    "confidence": 0.9228,
-    "evidence_count": 71,
+    "score": 0.8871,
+    "confidence": 0.9254,
+    "evidence_count": 73,
     "pain_signals": 2,
     "unknown_signals": 10,
-    "ok_signals": 59,
+    "ok_signals": 61,
     "top_pain_sources": [
       {
         "source": "spine_offsite_backup_sync",
@@ -210,6 +210,20 @@
       "meta": {}
     },
     {
+      "source": "spine_startup_attestation_issue",
+      "trit": 1,
+      "label": "ok",
+      "weight": 2,
+      "confidence": 1,
+      "source_trust": 1,
+      "freshness": 1,
+      "weighted": 2,
+      "tags": [
+        "ok_flag"
+      ],
+      "meta": {}
+    },
+    {
       "source": "spine_startup_attestation",
       "trit": 1,
       "label": "ok",
@@ -330,6 +344,20 @@
       "source_trust": 1,
       "freshness": 1,
       "weighted": 2,
+      "tags": [
+        "ok_flag"
+      ],
+      "meta": {}
+    },
+    {
+      "source": "spine_inversion_controller",
+      "trit": 1,
+      "label": "ok",
+      "weight": 1,
+      "confidence": 1,
+      "source_trust": 1,
+      "freshness": 1,
+      "weighted": 1,
       "tags": [
         "ok_flag"
       ],

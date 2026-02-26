@@ -1,7 +1,7 @@
 {
   "ok": true,
   "type": "mirror_organ",
-  "ts": "2026-02-26T04:32:46.194Z",
+  "ts": "2026-02-26T08:36:35.554Z",
   "date": "2026-02-26",
   "policy_path": "config/mirror_organ_policy.json",
   "policy_version": "1.0",
@@ -14,7 +14,7 @@
   "proposal_only": true,
   "execution_mode": "proposal_only",
   "pressure_score": 0.024,
-  "confidence": 0.925,
+  "confidence": 0.96875,
   "components": {
     "drift": 0,
     "yield": 0.1,
@@ -23,10 +23,10 @@
     "queue": 0
   },
   "summary": {
-    "runs": 29,
+    "runs": 40,
     "executed": 0,
     "ship_rate": 0,
-    "hold_rate": 0.034483,
+    "hold_rate": 0.225,
     "no_change_rate": 0,
     "drift_rate": 0.029,
     "yield_rate": 0.667,
@@ -51,7 +51,7 @@
     {
       "type": "autonomy_runs",
       "path": "state/autonomy/runs/2026-02-26.jsonl",
-      "note": "autonomy_run rows=2"
+      "note": "autonomy_run rows=13"
     },
     {
       "type": "introspection",
@@ -71,7 +71,7 @@
     {
       "type": "regime",
       "path": "state/autonomy/fractal/regime/latest.json",
-      "note": "selected=constrained_budget confidence=0.790"
+      "note": "selected=constrained_budget confidence=0.736"
     },
     {
       "type": "organism_cycle",

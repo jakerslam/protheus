@@ -1,7 +1,7 @@
 {
   "ok": true,
   "type": "observability_metrics_exporter",
-  "ts": "2026-02-26T04:32:39.106Z",
+  "ts": "2026-02-26T08:36:30.983Z",
   "date": "2026-02-26",
   "window": "daily",
   "policy_path": "/Users/jay/.openclaw/workspace/config/observability_policy.json",
@@ -27,7 +27,7 @@
     },
     {
       "name": "protheus_health_slo_warn_count",
-      "value": 1,
+      "value": 2,
       "labels": {
         "window": "daily"
       }
@@ -41,14 +41,14 @@
     },
     {
       "name": "protheus_health_slo_failed_checks_total",
-      "value": 1,
+      "value": 2,
       "labels": {
         "window": "daily"
       }
     },
     {
       "name": "protheus_health_verification_pass_rate",
-      "value": 1,
+      "value": 0.75,
       "labels": {
         "window": "daily"
       }
@@ -62,14 +62,14 @@
     },
     {
       "name": "protheus_branch_policy_holds_count",
-      "value": 0,
+      "value": 8,
       "labels": {
         "window": "daily"
       }
     },
     {
       "name": "protheus_observed_autonomy_runs",
-      "value": 2,
+      "value": 13,
       "labels": {
         "window": "daily"
       }
@@ -90,7 +90,7 @@
       "name": "protheus_health_slo_warn_count",
       "help": "Count of SLO checks at warn level.",
       "type": "gauge",
-      "value": 1,
+      "value": 2,
       "labels": {
         "window": "daily"
       }
@@ -108,7 +108,7 @@
       "name": "protheus_health_slo_failed_checks_total",
       "help": "Count of failed SLO checks in selected window.",
       "type": "gauge",
-      "value": 1,
+      "value": 2,
       "labels": {
         "window": "daily"
       }
@@ -117,7 +117,7 @@
       "name": "protheus_health_verification_pass_rate",
       "help": "Receipt verification pass rate from autonomy health checks.",
       "type": "gauge",
-      "value": 1,
+      "value": 0.75,
       "labels": {
         "window": "daily"
       }
@@ -135,7 +135,7 @@
       "name": "protheus_branch_policy_holds_count",
       "help": "Current policy hold count from branch health snapshot.",
       "type": "gauge",
-      "value": 0,
+      "value": 8,
       "labels": {
         "window": "daily"
       }
@@ -144,7 +144,7 @@
       "name": "protheus_observed_autonomy_runs",
       "help": "Observed autonomy runs in selected health window.",
       "type": "gauge",
-      "value": 2,
+      "value": 13,
       "labels": {
         "window": "daily"
       }
@@ -189,7 +189,7 @@
       "name": "protheus_observability_snapshot_timestamp_seconds",
       "help": "Unix timestamp of observability metrics snapshot.",
       "type": "gauge",
-      "value": 1772080359,
+      "value": 1772094990,
       "labels": {
         "date": "2026-02-26",
         "window": "daily"

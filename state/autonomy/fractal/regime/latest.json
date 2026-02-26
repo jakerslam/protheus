@@ -1,27 +1,27 @@
 {
   "schema_id": "fractal_regime_receipt",
   "schema_version": "1.0.0",
-  "ts": "2026-02-26T04:32:44.348Z",
+  "ts": "2026-02-26T08:36:34.281Z",
   "date": "2026-02-26",
   "policy_path": "config/regime_organ_policy.json",
   "policy_version": "1.0",
-  "objective_id": null,
+  "objective_id": "T1_make_jay_billionaire_v1",
   "selected_regime": "constrained_budget",
   "candidate_regime": "constrained_budget",
-  "switched": true,
-  "switch_reason": "switch_conditions_met",
-  "candidate_confidence": 0.790175,
-  "candidate_margin": 0.248563,
+  "switched": false,
+  "switch_reason": "candidate_matches_active",
+  "candidate_confidence": 0.73575,
+  "candidate_margin": 0.1125,
   "scores": {
     "throughput": 0,
-    "quality": 0.25,
-    "recovery": 0,
-    "exploration": 0.463937,
+    "quality": 0.35,
+    "recovery": 0.6,
+    "exploration": 0.451307,
     "constrained_budget": 0.7125
   },
   "actions": [
     {
-      "id": "rga_c737ee069d06eb",
+      "id": "rga_f0bb39db36e26b",
       "kind": "prune",
       "target": "lane:high_cost_routes",
       "reason": "budget pressure requires cost shedding and route contraction",
@@ -30,7 +30,7 @@
       "magnitude": 0.38
     },
     {
-      "id": "rga_9c8cfbea2d127d",
+      "id": "rga_5fc36d05cd1ebe",
       "kind": "rewire",
       "target": "routing->local_first",
       "reason": "bias toward local/low-burn routes while constrained",
@@ -39,7 +39,7 @@
       "magnitude": 0.34
     },
     {
-      "id": "rga_aadbd1cc76df67",
+      "id": "rga_e11f6e717bded7",
       "kind": "reprioritize",
       "target": "lane:cost_efficiency",
       "reason": "prioritize high value-per-token activity until pressure clears",
@@ -50,9 +50,9 @@
   ],
   "action_count": 3,
   "context": {
-    "ts": "2026-02-26T04:32:44.337Z",
+    "ts": "2026-02-26T08:36:34.273Z",
     "date": "2026-02-26",
-    "objective_id": null,
+    "objective_id": "T1_make_jay_billionaire_v1",
     "queue": {
       "pending": 0,
       "total": 0,
@@ -60,13 +60,13 @@
       "pressure": "normal"
     },
     "runs": {
-      "runs": 2,
+      "runs": 13,
       "no_progress": 0,
       "policy_holds": 0,
-      "safety_stops": 0,
+      "safety_stops": 8,
       "no_progress_rate": 0,
       "policy_hold_rate": 0,
-      "safety_stop_rate": 0
+      "safety_stop_rate": 0.6154
     },
     "sim": {
       "available": false,
@@ -75,14 +75,14 @@
     },
     "autopause": {
       "active": true,
-      "source": "idle_dream_cycle",
+      "source": "focus_controller",
       "reason": "burn_rate_exceeded"
     },
     "trit": {
       "available": true,
       "trit": 1,
-      "score": 0.8042,
-      "confidence": 0.873,
+      "score": 0.8832,
+      "confidence": 0.9228,
       "snapshot_path": "state/spine/ternary_belief/2026-02-26_daily.json"
     }
   },

@@ -1,44 +1,76 @@
 {
   "ok": true,
   "type": "observer_mirror_run",
-  "ts": "2026-02-26T04:32:45.834Z",
+  "ts": "2026-02-26T08:36:35.343Z",
   "date": "2026-02-26",
   "window_days": 1,
   "summary": {
     "counts": {
-      "runs": 2,
+      "runs": 13,
       "executed": 0,
       "shipped": 0,
       "no_change": 0,
-      "policy_holds": 0,
-      "stops": 0
+      "policy_holds": 8,
+      "stops": 8
     },
     "rates": {
       "ship_rate": 0,
-      "hold_rate": 0,
+      "hold_rate": 0.6154,
       "no_change_rate": 0
     },
     "top": {
       "proposal_types": [
         {
           "key": "unknown",
-          "count": 2
+          "count": 12
+        },
+        {
+          "key": "cross_signal_opportunity",
+          "count": 1
         }
       ],
       "results": [
         {
+          "key": "stop_init_gate_budget_autopause",
+          "count": 3
+        },
+        {
+          "key": "stop_repeat_gate_interval",
+          "count": 3
+        },
+        {
           "key": "no_candidates",
           "count": 2
+        },
+        {
+          "key": "stop_repeat_gate_unchanged_state",
+          "count": 2
+        },
+        {
+          "key": "budget_autopause_canary_bypass",
+          "count": 1
+        },
+        {
+          "key": "init_gate_blocked_route",
+          "count": 1
         }
       ],
       "objectives": [
         {
           "key": "none",
-          "count": 2
+          "count": 9
+        },
+        {
+          "key": "t1_generational_wealth_v1",
+          "count": 3
+        },
+        {
+          "key": "t1_make_jay_billionaire_v1",
+          "count": 1
         }
       ]
     },
-    "sample_size": 2
+    "sample_size": 13
   },
   "simulation": {
     "drift_rate": null,
@@ -51,7 +83,7 @@
   },
   "observer": {
     "mood": "strained",
-    "statement": "observer=strained; drift=n/a; yield=n/a; queue=normal; executed=0; shipped=0; holds=0",
+    "statement": "observer=strained; drift=n/a; yield=n/a; queue=normal; executed=0; shipped=0; holds=8",
     "recommendation": "tighten admission and defer medium-risk changes"
   }
 }

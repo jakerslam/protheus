@@ -1,8 +1,8 @@
 {
   "ok": true,
   "type": "orchestron_adversarial_probe",
-  "ts": "2026-02-26T04:32:15.829Z",
-  "run_id": "orcrun_aa688c98055c77",
+  "ts": "2026-02-26T08:36:04.947Z",
+  "run_id": "orcrun_8ff84d9b50affd",
   "date": "2026-02-26",
   "candidate_id": "wfc_a41a70667734f086",
   "proposal_type": "cross_signal_opportunity.intake.execution",
@@ -26,7 +26,8 @@
       "workflow_id",
       "objective_id",
       "eye_id",
-      "adapter"
+      "adapter",
+      "provider"
     ]
   },
   "candidate": {
@@ -63,7 +64,7 @@
         "novelty": 0
       },
       "source": "orchestron_adaptive_controller",
-      "ts": "2026-02-26T04:32:15.793Z",
+      "ts": "2026-02-26T08:36:04.910Z",
       "signature": "maximize_verified_progress_under_active_directives._default_general_medium_speed_weight_:0.34_robustness_weight_:0.33_cost_weight_:0.33_feasibility_:0_risk_:0_novelty_:0"
     },
     "parent_workflow_id": "wfc_c526a0ca51072aa5",
@@ -92,7 +93,14 @@
         "command": "node systems/autonomy/proposal_enricher.js run <date>",
         "purpose": "specialize execution branch and fallback routing",
         "timeout_ms": 120000,
-        "retries": 1
+        "retries": 1,
+        "adapter": null,
+        "provider": null,
+        "lane": null,
+        "risk": null,
+        "clearance": null,
+        "estimated_tokens": null,
+        "require_policy_root": false
       },
       {
         "id": "execute_lane",
@@ -100,7 +108,14 @@
         "command": "node systems/autonomy/autonomy_controller.js run <date>",
         "purpose": "execute sub-workflow lane",
         "timeout_ms": 180000,
-        "retries": 1
+        "retries": 1,
+        "adapter": null,
+        "provider": null,
+        "lane": null,
+        "risk": null,
+        "clearance": null,
+        "estimated_tokens": null,
+        "require_policy_root": false
       },
       {
         "id": "verify",
@@ -108,7 +123,14 @@
         "command": "node systems/autonomy/strategy_execute_guard.js run <date>",
         "purpose": "verify lane safety and evidence",
         "timeout_ms": 120000,
-        "retries": 0
+        "retries": 0,
+        "adapter": null,
+        "provider": null,
+        "lane": null,
+        "risk": null,
+        "clearance": null,
+        "estimated_tokens": null,
+        "require_policy_root": false
       },
       {
         "id": "receipt",
@@ -116,25 +138,50 @@
         "command": "state/autonomy/receipts/<date>.jsonl",
         "purpose": "record lane receipt",
         "timeout_ms": 30000,
-        "retries": 0
+        "retries": 0,
+        "adapter": null,
+        "provider": null,
+        "lane": null,
+        "risk": null,
+        "clearance": null,
+        "estimated_tokens": null,
+        "require_policy_root": false
       }
     ],
     "children": [],
-    "generated_at": "2026-02-26T04:32:15.814Z",
+    "generated_at": "2026-02-26T08:36:04.933Z",
     "metadata": {
       "generation_kind": "fractal_child",
       "parent_workflow_id": "wfc_c526a0ca51072aa5",
-      "attempts": 39,
-      "shipped_rate": 0.02564102564102564,
-      "failure_rate": 0.07692307692307693,
+      "attempts": 40,
+      "shipped_rate": 0.025,
+      "failure_rate": 0.075,
       "intent_trit_alignment": 0,
       "trit_uncertainty": 1,
       "trit_novelty": 0,
-      "trit_mutation_fit": 0.54,
-      "value_currency": "delivery",
-      "value_priority_score": 0.7187,
+      "trit_mutation_fit": 0.5395,
+      "value_currency": "revenue",
+      "value_priority_score": 0.6464,
       "fractal_effective_max_depth": 4,
-      "lane": "execution"
+      "lane": "execution",
+      "explicit_tradeoffs": {
+        "speed_weight": 0.34,
+        "robustness_weight": 0.33,
+        "cost_weight": 0.33
+      },
+      "cost_profile": {
+        "estimated_tokens": 530,
+        "cost_weight": 0.33,
+        "tier": "low"
+      },
+      "risk_profile": {
+        "level": "medium",
+        "max_risk_per_action": 65,
+        "allowed_risks": [
+          "low",
+          "medium"
+        ]
+      }
     }
   }
 }

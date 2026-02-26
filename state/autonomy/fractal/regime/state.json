@@ -5,8 +5,8 @@
   "cooldown_until": "2026-02-26T06:32:44.341Z",
   "last_candidate_regime": "constrained_budget",
   "last_candidate_score": 0.7125,
-  "last_candidate_confidence": 0.790175,
+  "last_candidate_confidence": 0.73575,
   "last_selected_score": 0.7125,
-  "last_reason": "switch_conditions_met",
-  "last_updated": "2026-02-26T04:32:44.348Z"
+  "last_reason": "candidate_matches_active",
+  "last_updated": "2026-02-26T08:36:34.281Z"
 }

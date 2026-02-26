@@ -1,7 +1,7 @@
 {
   "ok": true,
   "type": "trit_shadow_report",
-  "ts": "2026-02-26T04:32:40.149Z",
+  "ts": "2026-02-26T08:36:32.378Z",
   "date": "2026-02-26",
   "days": 14,
   "window": {
@@ -16,10 +16,10 @@
   },
   "summary": {
     "status": "warn",
-    "total_decisions": 127,
-    "divergence_count": 39,
-    "divergence_rate": 0.3071,
-    "confidence_avg": 0.746,
+    "total_decisions": 163,
+    "divergence_count": 51,
+    "divergence_rate": 0.3129,
+    "confidence_avg": 0.7468,
     "gate": {
       "enabled": false,
       "pass": true,
@@ -32,10 +32,10 @@
     "checks": {
       "divergence_rate": {
         "pass": false,
-        "value": 0.3071,
+        "value": 0.3129,
         "target": "<=0.05",
         "min_decisions": 30,
-        "decisions": 127
+        "decisions": 163
       },
       "safety_regressions": {
         "pass": false,
@@ -49,7 +49,7 @@
       },
       "yield_lift": {
         "pass": true,
-        "value": 0.1068,
+        "value": 0.0652,
         "target": ">=0.03"
       }
     },
@@ -59,10 +59,10 @@
     ],
     "pass": false,
     "observed": {
-      "avg_yield_rate": 0.8208,
+      "avg_yield_rate": 0.7792,
       "avg_drift_rate": 0,
       "safety_regressions": 1,
-      "yield_lift": 0.1068,
+      "yield_lift": 0.0652,
       "drift_delta": -0.03
     },
     "baseline": {
@@ -73,30 +73,30 @@
   "sources": {
     "strategy_mode": {
       "source": "strategy_mode_governor",
-      "total_decisions": 125,
-      "divergence_count": 39,
-      "divergence_rate": 0.312,
-      "confidence_avg": 0.7848,
+      "total_decisions": 161,
+      "divergence_count": 51,
+      "divergence_rate": 0.3168,
+      "confidence_avg": 0.7864,
       "belief_trits": {
         "pain": 0,
         "neutral": 0,
-        "ok": 125
+        "ok": 161
       },
       "top_reasons": [
         {
           "reason": "shadow_promote_execute",
-          "count": 52
+          "count": 68
         },
         {
           "reason": "shadow_promote_canary",
-          "count": 47
+          "count": 59
         },
         {
           "reason": "hold",
-          "count": 26
+          "count": 34
         }
       ],
-      "last_ts": "2026-02-26T04:32:13.938Z"
+      "last_ts": "2026-02-26T07:41:41.062Z"
     },
     "drift_target": {
       "source": "drift_target_governor",
