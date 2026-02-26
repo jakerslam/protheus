@@ -77,7 +77,8 @@
     "deploy:package:status": "node systems/ops/deployment_packaging.js status latest",
     "compliance:posture": "node systems/ops/compliance_posture.js run --profile=prod --strict=0",
     "compliance:posture:strict": "node systems/ops/compliance_posture.js run --profile=prod --strict=1",
-    "compliance:posture:status": "node systems/ops/compliance_posture.js status latest"
+    "compliance:posture:status": "node systems/ops/compliance_posture.js status latest",
+    "ops:roi50": "node systems/ops/top50_roi_sweep.js --commit-each=1 --continue-on-fail=1 --push-end=1 --max=50"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
