@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "type": "autotest_sync",
+  "ts": "2026-02-26T10:15:45.275Z",
+  "changed_modules": 200,
+  "new_modules": 200,
+  "untested_modules": 45,
+  "emitted_alerts": 45,
+  "registry_path": "state/ops/autotest/registry.json",
+  "status_path": "state/ops/autotest/status.json"
+}
