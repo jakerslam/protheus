@@ -1,9 +1,9 @@
 {
   "ok": true,
   "type": "deployment_packaging",
-  "ts": "2026-02-26T10:16:51.241Z",
+  "ts": "2026-02-26T10:17:47.622Z",
   "date": "2026-02-26",
-  "strict": false,
+  "strict": true,
   "policy_version": "1.0",
   "policy_path": "config/deployment_packaging_policy.json",
   "profile": "prod",
