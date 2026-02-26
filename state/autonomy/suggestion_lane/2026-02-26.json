@@ -1,0 +1,42 @@
+{
+  "ok": true,
+  "type": "autonomy_suggestion_lane",
+  "ts": "2026-02-26T00:06:34.483Z",
+  "date": "2026-02-26",
+  "cap": 24,
+  "total_candidates": 1,
+  "merged_count": 1,
+  "capped": false,
+  "sources": {
+    "budget_guard": 0,
+    "adaptive_memory": 1,
+    "trit_shadow_adaptation": 0,
+    "mirror_organ": 0
+  },
+  "lane": [
+    {
+      "id": "ADPs22i56wagccj1sfirzt4",
+      "source": "adaptive_memory",
+      "source_ref": "ADPs22i56wagccj1sfirzt4",
+      "kind": "adaptive_memory_candidate",
+      "status": "proposed",
+      "date": "2026-02-26",
+      "priority": 0.84,
+      "title": "Consider adaptive memory for theme: cross_signal_engine",
+      "summary": "Evaluate whether a new adaptive eye or adaptive strategy artifact is warranted for theme 'cross_signal_engine'.",
+      "theme_tag": "cross_signal_engine",
+      "relation_count": 91,
+      "evidence_uids": [
+        "d4ab9be19410ba4cd4c67cdc",
+        "d87b1649818286452f0811ab",
+        "9ae03b00872cdb9fe6b4b764",
+        "b4568a0a3d9d6ec5e72f1590",
+        "6649dc675763c09291fd8fc5",
+        "5b68718d1f4c88498dfdd2d8",
+        "0d7af868c3fe40cdef4f2d83",
+        "92f4477f1ee28f7ee21b69ce"
+      ],
+      "lane_rank": 1
+    }
+  ]
+}

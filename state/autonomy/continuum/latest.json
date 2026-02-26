@@ -1,0 +1,116 @@
+{
+  "ok": true,
+  "type": "continuum_pulse",
+  "ts": "2026-02-26T00:06:34.790Z",
+  "run_id": "cont_mm2pdxy5_jroegz",
+  "date": "2026-02-26",
+  "profile": "spine",
+  "reason": "spine_daily",
+  "dry_run": false,
+  "force": false,
+  "skipped": true,
+  "skip_reasons": [
+    "resource_guard",
+    "spine_hot"
+  ],
+  "policy": {
+    "version": "1.0",
+    "path": "config/continuum_policy.json"
+  },
+  "priority": {
+    "ok": true,
+    "nice": 10,
+    "reason": null
+  },
+  "resource": {
+    "cpu_count": 8,
+    "load_1m": 5.772,
+    "load_per_cpu": 0.7215,
+    "rss_mb": 133.73,
+    "heap_used_mb": 32.02,
+    "within_limits": false
+  },
+  "spine_hot": {
+    "hot": true,
+    "latest_ts": "2026-02-26T00:06:34.489Z",
+    "age_sec": 0.29
+  },
+  "autonomy": {
+    "runs": 11,
+    "executed": 0,
+    "shipped": 0,
+    "no_change": 0,
+    "reverted": 0,
+    "policy_holds": 1,
+    "hold_rate": 0.090909,
+    "yield_rate": 0,
+    "drift_proxy": 0
+  },
+  "simulation": {
+    "drift_rate": null,
+    "yield_rate": null
+  },
+  "queue_pressure": "normal",
+  "trit": {
+    "value": 1,
+    "label": "ok",
+    "signals": [
+      {
+        "name": "drift",
+        "trit": 1,
+        "label": "ok",
+        "value": 0,
+        "weight": 1.4
+      },
+      {
+        "name": "queue_pressure",
+        "trit": 1,
+        "label": "ok",
+        "value": "normal",
+        "weight": 1.1
+      },
+      {
+        "name": "policy_hold_rate",
+        "trit": 1,
+        "label": "ok",
+        "value": 0.090909,
+        "weight": 1
+      },
+      {
+        "name": "resource_load",
+        "trit": -1,
+        "label": "pain",
+        "value": {
+          "load_per_cpu": 0.7215,
+          "rss_mb": 133.73,
+          "heap_used_mb": 32.02
+        },
+        "weight": 1.2
+      },
+      {
+        "name": "spine_activity",
+        "trit": -1,
+        "label": "pain",
+        "value": 0.29,
+        "weight": 1.4
+      }
+    ]
+  },
+  "tasks_executed": 0,
+  "task_events": {
+    "dream": 0,
+    "anticipation": 0,
+    "self_improvement": 0,
+    "creative": 0,
+    "security": 0,
+    "autotest": 0,
+    "atrophy": 0
+  },
+  "actions": [],
+  "duration_ms": 9,
+  "training_queue": {
+    "enabled": true,
+    "appended": 5,
+    "path": "state/nursery/training/continuum_queue.jsonl"
+  }
+}

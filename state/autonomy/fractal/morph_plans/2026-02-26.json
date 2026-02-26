@@ -1,0 +1,51 @@
+{
+  "ok": true,
+  "type": "fractal_morph_plan",
+  "ts": "2026-02-26T00:06:32.511Z",
+  "date": "2026-02-26",
+  "plan_id": "morph_129e64f8a0be20b1",
+  "objective_id": null,
+  "max_actions": 6,
+  "governance_required": true,
+  "execution_mode": "proposal_only",
+  "actions": [
+    {
+      "id": "mpa_fe15b18939e80060",
+      "kind": "spawn",
+      "target": "module:objective_binding_assistant",
+      "reason": "effective yield 0.0000 indicates directive fit pressure",
+      "risk": "medium",
+      "ttl_hours": 48
+    }
+  ],
+  "identity": {
+    "checked": 1,
+    "blocked": 0,
+    "identity_drift_score": 0.12,
+    "max_identity_drift_score": 0.58,
+    "blocking_code_counts": {},
+    "blocked_action_ids": [],
+    "receipt_path": "state/autonomy/identity_anchor/2026-02-26.jsonl"
+  },
+  "context": {
+    "ts": "2026-02-26T00:06:32.443Z",
+    "date": "2026-02-26",
+    "objective_id": null,
+    "sim": {
+      "drift": null,
+      "yieldRate": null
+    },
+    "queue": {
+      "pending": 0,
+      "total": 0,
+      "ratio": 0,
+      "pressure": "normal"
+    },
+    "lane": {
+      "merged": 1,
+      "candidates": 1,
+      "capped": false
+    }
+  },
+  "summary": "1 bounded morph action(s); governance-required, no direct self-mutation."
+}

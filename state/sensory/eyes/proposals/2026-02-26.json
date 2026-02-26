@@ -1,0 +1,48 @@
+[
+  {
+    "id": "proto_f77f4766df89d469",
+    "type": "eye_sprout",
+    "name": "Watch ai.gopubby.com",
+    "proposed_domains": [
+      "ai.gopubby.com"
+    ],
+    "proposed_parser_type": "medium_rss",
+    "directive_ref": "T1_generational_wealth_v1",
+    "proposed_strategy_id": "default_general",
+    "proposed_campaign_ids": [
+      "objective_flow"
+    ],
+    "proposed_topics": [
+      "t1_generational_wealth_v1",
+      "ai",
+      "startups",
+      "revenue",
+      "saas"
+    ],
+    "notes": "Auto-sprout candidate: domain seen 4 times across 2 eyes",
+    "auto_candidate_kind": "linkage_gap",
+    "source_stats": {
+      "hits": 4,
+      "support_eyes": [
+        "reddit_ai_agents",
+        "proto_36c7ba62382ba23c"
+      ],
+      "sample_title": "Why the Entropy Engine Works"
+    },
+    "proposed_status": "probation",
+    "proposed_cadence_hours": 12,
+    "proposed_budgets": {
+      "max_items": 10,
+      "max_seconds": 20,
+      "max_bytes": 524288,
+      "max_requests": 2
+    },
+    "proposed_date": "2026-02-26",
+    "proposed_by": "external_eyes.auto_sprout",
+    "auto_candidate": true,
+    "status": "sprouted",
+    "sprouted_eye_id": "proto_f77f4766df89d469",
+    "sprouted_ts": "2026-02-26T00:03:27.218Z",
+    "last_result": "created"
+  }
+]

@@ -1,0 +1,69 @@
+{
+  "schema_id": "autonomy_genome_topology",
+  "schema_version": "1.0.0",
+  "ts": "2026-02-26T00:06:33.362Z",
+  "date": "2026-02-26",
+  "modules_total": 22,
+  "modules": [
+    "actuation",
+    "adaptive",
+    "autonomy",
+    "budget",
+    "continuity",
+    "continuum",
+    "dual_brain",
+    "fractal",
+    "habits",
+    "identity",
+    "memory",
+    "nursery",
+    "ops",
+    "polyglot",
+    "reflex",
+    "routing",
+    "security",
+    "sensory",
+    "spawn",
+    "spine",
+    "strategy",
+    "workflow"
+  ],
+  "module_weights": {
+    "actuation": 1,
+    "adaptive": 1,
+    "autonomy": 1,
+    "budget": 1,
+    "continuity": 1,
+    "continuum": 1,
+    "dual_brain": 1,
+    "fractal": 1,
+    "habits": 1,
+    "identity": 1,
+    "memory": 1,
+    "nursery": 1,
+    "ops": 1,
+    "polyglot": 1,
+    "reflex": 1,
+    "routing": 1,
+    "security": 1,
+    "sensory": 1,
+    "spawn": 1,
+    "spine": 1,
+    "strategy": 1,
+    "workflow": 1,
+    "objective_binding_assistant": 1.1
+  },
+  "morph_plan": {
+    "plan_id": "morph_129e64f8a0be20b1",
+    "objective_id": null,
+    "actions": [
+      {
+        "id": "mpa_fe15b18939e80060",
+        "kind": "spawn",
+        "target": "module:objective_binding_assistant",
+        "risk": "medium"
+      }
+    ],
+    "action_count": 1
+  }
+}
