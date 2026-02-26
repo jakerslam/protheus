@@ -15,6 +15,11 @@
 
 const fs = require('fs');
 const path = require('path');
+const {
+  loadTrainingConduitPolicy,
+  buildTrainingConduitMetadata,
+  validateTrainingConduitMetadata
+} = require('../../lib/training_conduit_schema');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const POLICY_PATH = process.env.NURSERY_TRAINING_POLICY_PATH
@@ -209,6 +214,17 @@ function defaultPolicy() {
       max_regression_rate: 1,
       cooldown_hours: 12,
       require_checkpoint_parent: true
+    },
+    training_conduit: {
+      metadata_strict: true,
+      owner_id: '',
+      owner_type: 'human_operator',
+      license_id: '',
+      consent_status: 'granted',
+      consent_mode: 'operator_policy',
+      consent_evidence_ref: 'config/training_conduit_policy.json',
+      retention_days: 365,
+      delete_scope: 'nursery_specialist_training'
     }
   };
 }
@@ -270,6 +286,46 @@ function loadPolicy(policyPath = POLICY_PATH) {
         src.promotion_controls && src.promotion_controls.require_checkpoint_parent,
         base.promotion_controls.require_checkpoint_parent
       )
+    },
+    training_conduit: {
+      metadata_strict: toBool(
+        src.training_conduit && src.training_conduit.metadata_strict,
+        base.training_conduit.metadata_strict
+      ),
+      owner_id: normalizeToken(
+        src.training_conduit && src.training_conduit.owner_id,
+        120
+      ),
+      owner_type: normalizeToken(
+        src.training_conduit && src.training_conduit.owner_type,
+        80
+      ) || base.training_conduit.owner_type,
+      license_id: normalizeToken(
+        src.training_conduit && src.training_conduit.license_id,
+        160
+      ),
+      consent_status: normalizeToken(
+        src.training_conduit && src.training_conduit.consent_status,
+        40
+      ) || base.training_conduit.consent_status,
+      consent_mode: normalizeToken(
+        src.training_conduit && src.training_conduit.consent_mode,
+        80
+      ) || base.training_conduit.consent_mode,
+      consent_evidence_ref: normalizeText(
+        src.training_conduit && src.training_conduit.consent_evidence_ref,
+        260
+      ) || base.training_conduit.consent_evidence_ref,
+      retention_days: clampInt(
+        src.training_conduit && src.training_conduit.retention_days,
+        1,
+        3650,
+        base.training_conduit.retention_days
+      ),
+      delete_scope: normalizeToken(
+        src.training_conduit && src.training_conduit.delete_scope,
+        120
+      ) || base.training_conduit.delete_scope
     }
   };
 }
@@ -277,6 +333,10 @@ function loadPolicy(policyPath = POLICY_PATH) {
 function listTrainingRows(dateStr, days, policy) {
   const dates = windowDates(dateStr, days);
   const includeOutcomes = new Set(policy.curation.include_outcomes || []);
+  const conduitPolicy = loadTrainingConduitPolicy();
+  const conduitCfg = policy.training_conduit && typeof policy.training_conduit === 'object'
+    ? policy.training_conduit
+    : defaultPolicy().training_conduit;
   const rows = [];
   for (const day of dates) {
     const fp = path.join(RUNS_DIR, `${day}.jsonl`);
@@ -291,14 +351,43 @@ function listTrainingRows(dateStr, days, policy) {
         || '',
         64
       ) || 'none';
+      const objectiveId = normalizeText(row.objective_id || '', 160) || null;
+      const proposalType = normalizeToken(row.proposal_type || 'unknown', 80) || 'unknown';
+      const rowTs = normalizeText(row.ts || '', 64) || null;
+      const datumId = normalizeToken(`${day}:${objectiveId || 'none'}:${proposalType}:${rows.length + 1}`, 180)
+        || normalizeToken(`${day}:${rows.length + 1}`, 180);
+      const conduit = buildTrainingConduitMetadata({
+        ts: rowTs || nowIso(),
+        source_system: 'specialist_training_curate',
+        source_channel: 'autonomy_run',
+        source_path: relPath(fp),
+        datum_id: datumId,
+        provider: 'internal',
+        owner_id: conduitCfg.owner_id,
+        owner_type: conduitCfg.owner_type,
+        license_id: conduitCfg.license_id,
+        consent_status: conduitCfg.consent_status,
+        consent_mode: conduitCfg.consent_mode,
+        consent_evidence_ref: conduitCfg.consent_evidence_ref,
+        retention_days: conduitCfg.retention_days,
+        delete_scope: conduitCfg.delete_scope,
+        delete_key: `autonomy_run:${datumId}`,
+        classification: 'training_dataset'
+      }, conduitPolicy);
+      const conduitValidation = validateTrainingConduitMetadata(conduit, conduitPolicy);
+      conduit.validation = conduitValidation;
+      if (conduitCfg.metadata_strict === true && conduitValidation.ok !== true) {
+        continue;
+      }
       rows.push({
         ts: normalizeText(row.ts || '', 64) || null,
-        objective_id: normalizeText(row.objective_id || '', 160) || null,
-        proposal_type: normalizeToken(row.proposal_type || 'unknown', 80) || 'unknown',
+        objective_id: objectiveId,
+        proposal_type: proposalType,
         outcome,
         risk: normalizeToken(row.risk || 'low', 24) || 'low',
         value_currency: valueCurrency,
-        label: outcome === 'shipped' ? 1 : (outcome === 'reverted' ? -1 : 0)
+        label: outcome === 'shipped' ? 1 : (outcome === 'reverted' ? -1 : 0),
+        training_conduit: conduit
       });
     }
   }

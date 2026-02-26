@@ -143,6 +143,19 @@ function runTest() {
     assert.strictEqual(r.status, 0, `curate should pass: ${r.stderr}`);
     assert.ok(r.payload && r.payload.ok === true, 'curate should pass min rows');
     assert.ok(r.payload.dataset_path, 'curate should write dataset path');
+    const datasetPath = path.join(ROOT, r.payload.dataset_path);
+    const datasetRows = String(fs.readFileSync(datasetPath, 'utf8'))
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
+    assert.ok(datasetRows.length >= 1, 'curated dataset should contain rows');
+    const firstDatasetRow = datasetRows[0];
+    assert.ok(firstDatasetRow.training_conduit, 'dataset rows should include training conduit metadata');
+    assert.strictEqual(
+      firstDatasetRow.training_conduit && firstDatasetRow.training_conduit.validation && firstDatasetRow.training_conduit.validation.ok,
+      true,
+      'training conduit metadata should validate'
+    );
 
     r = run(['plan', '--profile=small', '--seed=tinyllama_seed'], env);
     assert.strictEqual(r.status, 0, `plan should pass: ${r.stderr}`);

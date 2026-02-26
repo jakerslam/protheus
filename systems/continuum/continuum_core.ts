@@ -26,6 +26,11 @@ const {
   tritLabel,
   majorityTrit
 } = require('../../lib/trit');
+const {
+  loadTrainingConduitPolicy,
+  buildTrainingConduitMetadata,
+  validateTrainingConduitMetadata
+} = require('../../lib/training_conduit_schema');
 let decideBrainRoute = null;
 try {
   ({ decideBrainRoute } = require('../dual_brain/coordinator.js'));
@@ -332,7 +337,16 @@ function defaultPolicy() {
     training_queue: {
       enabled: true,
       path: relPath(DEFAULT_TRAINING_QUEUE_PATH),
-      max_rows_per_pulse: 6
+      max_rows_per_pulse: 6,
+      metadata_strict: true,
+      owner_id: '',
+      owner_type: 'human_operator',
+      license_id: '',
+      consent_status: 'granted',
+      consent_mode: 'operator_policy',
+      consent_evidence_ref: 'config/training_conduit_policy.json',
+      retention_days: 365,
+      delete_scope: 'continuum_training_queue'
     },
     telemetry: {
       emit_events: true,
@@ -432,7 +446,25 @@ function loadPolicy(policyPath: string) {
     training_queue: {
       enabled: toBool(trainingQueue.enabled, base.training_queue.enabled),
       path: cleanText(trainingQueue.path || base.training_queue.path, 260) || relPath(DEFAULT_TRAINING_QUEUE_PATH),
-      max_rows_per_pulse: clampInt(trainingQueue.max_rows_per_pulse, 1, 128, base.training_queue.max_rows_per_pulse)
+      max_rows_per_pulse: clampInt(trainingQueue.max_rows_per_pulse, 1, 128, base.training_queue.max_rows_per_pulse),
+      metadata_strict: toBool(trainingQueue.metadata_strict, base.training_queue.metadata_strict),
+      owner_id: normalizeToken(trainingQueue.owner_id || base.training_queue.owner_id, 120),
+      owner_type: normalizeToken(trainingQueue.owner_type || base.training_queue.owner_type, 80) || base.training_queue.owner_type,
+      license_id: normalizeToken(trainingQueue.license_id || base.training_queue.license_id, 160),
+      consent_status: normalizeToken(trainingQueue.consent_status || base.training_queue.consent_status, 40) || base.training_queue.consent_status,
+      consent_mode: normalizeToken(trainingQueue.consent_mode || base.training_queue.consent_mode, 80) || base.training_queue.consent_mode,
+      consent_evidence_ref: cleanText(
+        trainingQueue.consent_evidence_ref || base.training_queue.consent_evidence_ref,
+        260
+      ) || base.training_queue.consent_evidence_ref,
+      retention_days: clampInt(
+        trainingQueue.retention_days,
+        1,
+        3650,
+        base.training_queue.retention_days
+      ),
+      delete_scope: normalizeToken(trainingQueue.delete_scope || base.training_queue.delete_scope, 120)
+        || base.training_queue.delete_scope
     },
     telemetry: {
       emit_events: toBool(telemetry.emit_events, base.telemetry.emit_events),
@@ -1052,12 +1084,47 @@ function resolveTrainingQueuePath(paths: AnyObj, policy: AnyObj) {
   return path.resolve(ROOT, configured);
 }
 
+function buildConduitForTrainingRow(policy: AnyObj, row: AnyObj, opts: AnyObj = {}) {
+  const queueCfg = policy && policy.training_queue && typeof policy.training_queue === 'object'
+    ? policy.training_queue
+    : {};
+  const conduitPolicy = loadTrainingConduitPolicy();
+  const input = {
+    ts: cleanText(row && row.ts || nowIso(), 64) || nowIso(),
+    source_system: cleanText(opts.source_system || 'continuum_core', 120) || 'continuum_core',
+    source_channel: cleanText(row && row.lane || opts.source_channel || 'unknown', 80) || 'unknown',
+    source_path: cleanText(opts.source_path || '', 260) || null,
+    datum_id: cleanText(opts.datum_id || '', 180) || null,
+    provider: cleanText(opts.provider || 'internal', 120) || 'internal',
+    owner_id: cleanText(queueCfg.owner_id || '', 120) || null,
+    owner_type: cleanText(queueCfg.owner_type || '', 80) || null,
+    license_id: cleanText(queueCfg.license_id || '', 160) || null,
+    consent_status: cleanText(queueCfg.consent_status || '', 40) || null,
+    consent_mode: cleanText(queueCfg.consent_mode || '', 80) || null,
+    consent_evidence_ref: cleanText(queueCfg.consent_evidence_ref || '', 260) || null,
+    retention_days: Number(queueCfg.retention_days || 365),
+    delete_scope: cleanText(queueCfg.delete_scope || '', 120) || null,
+    delete_key: cleanText(opts.delete_key || '', 220) || null,
+    classification: 'internal_runtime'
+  };
+  const metadata = buildTrainingConduitMetadata(input, conduitPolicy);
+  const validation = validateTrainingConduitMetadata(metadata, conduitPolicy);
+  metadata.validation = validation;
+  return metadata;
+}
+
 function appendTrainingQueue(paths: AnyObj, policy: AnyObj, pulse: AnyObj, maxRows: number) {
   if (!(policy && policy.training_queue && policy.training_queue.enabled === true)) {
     return { enabled: false, appended: 0, path: null };
   }
   const queuePath = resolveTrainingQueuePath(paths, policy);
+  const queueCfg = policy && policy.training_queue && typeof policy.training_queue === 'object'
+    ? policy.training_queue
+    : {};
+  const strict = queueCfg.metadata_strict === true;
+  const sourcePath = relPath(queuePath);
   const rows = [];
+  let metadataRejected = 0;
   const base = {
     ts: nowIso(),
     type: 'continuum_training_signal',
@@ -1069,17 +1136,30 @@ function appendTrainingQueue(paths: AnyObj, policy: AnyObj, pulse: AnyObj, maxRo
   };
   const signals = Array.isArray(pulse.trit && pulse.trit.signals) ? pulse.trit.signals : [];
   for (const signal of signals) {
-    rows.push({
+    const row = {
       ...base,
       lane: 'signal',
       signal: cleanText(signal && signal.name || 'unknown', 60),
       value: signal && Object.prototype.hasOwnProperty.call(signal, 'value') ? signal.value : null,
       signal_trit: Number(signal && signal.trit || 0),
       signal_label: cleanText(signal && signal.label || 'unknown', 24)
+    };
+    const conduit = buildConduitForTrainingRow(policy, row, {
+      source_path: sourcePath,
+      datum_id: `${pulse.run_id}:signal:${normalizeToken(row.signal || 'unknown', 80) || 'unknown'}`,
+      delete_key: `${pulse.run_id}:signal:${normalizeToken(row.signal || 'unknown', 80) || 'unknown'}`
+    });
+    if (strict && !(conduit && conduit.validation && conduit.validation.ok === true)) {
+      metadataRejected += 1;
+      continue;
+    }
+    rows.push({
+      ...row,
+      training_conduit: conduit
     });
   }
   for (const action of Array.isArray(pulse.actions) ? pulse.actions : []) {
-    rows.push({
+    const row = {
       ...base,
       lane: 'action',
       action: cleanText(action && action.id || 'unknown', 80),
@@ -1089,6 +1169,20 @@ function appendTrainingQueue(paths: AnyObj, policy: AnyObj, pulse: AnyObj, maxRo
       metrics: action && action.metrics && typeof action.metrics === 'object'
         ? action.metrics
         : {}
+    };
+    const actionId = normalizeToken(row.action || 'unknown', 80) || 'unknown';
+    const conduit = buildConduitForTrainingRow(policy, row, {
+      source_path: sourcePath,
+      datum_id: `${pulse.run_id}:action:${actionId}`,
+      delete_key: `${pulse.run_id}:action:${actionId}`
+    });
+    if (strict && !(conduit && conduit.validation && conduit.validation.ok === true)) {
+      metadataRejected += 1;
+      continue;
+    }
+    rows.push({
+      ...row,
+      training_conduit: conduit
     });
   }
   const capped = rows.slice(0, Math.max(1, Math.min(256, maxRows)));
@@ -1096,7 +1190,8 @@ function appendTrainingQueue(paths: AnyObj, policy: AnyObj, pulse: AnyObj, maxRo
   return {
     enabled: true,
     appended: capped.length,
-    path: relPath(queuePath)
+    path: relPath(queuePath),
+    metadata_rejected: metadataRejected
   };
 }
 

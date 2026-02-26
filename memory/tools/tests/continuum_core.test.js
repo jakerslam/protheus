@@ -148,6 +148,20 @@ function run() {
   assert.ok(fs.existsSync(path.join(stateDir, 'latest.json')), 'latest pulse snapshot should exist');
   assert.ok(fs.existsSync(path.join(stateDir, 'runs', `${dateStr}.json`)), 'dated pulse snapshot should exist');
   assert.ok(fs.existsSync(trainingQueuePath), 'training queue should be written');
+  const trainingRows = String(fs.readFileSync(trainingQueuePath, 'utf8'))
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+  assert.ok(trainingRows.length >= 1, 'training queue should contain at least one row');
+  const firstTrainingRow = trainingRows[0];
+  assert.ok(firstTrainingRow.training_conduit, 'training row should include conduit metadata');
+  assert.ok(firstTrainingRow.training_conduit.source, 'training conduit should include source metadata');
+  assert.ok(firstTrainingRow.training_conduit.owner, 'training conduit should include owner metadata');
+  assert.ok(firstTrainingRow.training_conduit.license, 'training conduit should include license metadata');
+  assert.ok(firstTrainingRow.training_conduit.consent, 'training conduit should include consent metadata');
+  assert.ok(firstTrainingRow.training_conduit.retention, 'training conduit should include retention metadata');
+  assert.ok(firstTrainingRow.training_conduit.delete, 'training conduit should include delete metadata');
+  assert.strictEqual(firstTrainingRow.training_conduit.validation.ok, true, 'training conduit metadata should validate');
 
   const statusProc = spawnSync(process.execPath, [
     scriptPath,
