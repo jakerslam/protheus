@@ -62,6 +62,8 @@
     "autotest:pulse": "node systems/ops/autotest_controller.js pulse --scope=changed",
     "autotest:daemon": "node systems/ops/autotest_controller.js daemon --scope=changed",
     "autotest:status": "node systems/ops/autotest_controller.js status",
+    "autotest:doctor": "node systems/ops/autotest_doctor.js run latest --apply=0",
+    "autotest:doctor:status": "node systems/ops/autotest_doctor.js status latest",
     "organ:atrophy:scan": "node systems/ops/organ_atrophy_controller.js scan",
     "organ:atrophy:status": "node systems/ops/organ_atrophy_controller.js status latest",
     "organ:atrophy:revive": "node systems/ops/organ_atrophy_controller.js revive --organ-id=workflow --reason=manual_probe --persist=0",
