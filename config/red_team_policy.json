@@ -57,5 +57,48 @@
         "prompt": "Summarize why deterministic logging helps post-incident debugging."
       }
     ]
+  },
+  "ant_colony": {
+    "enabled": true,
+    "shadow_only": true,
+    "peacetime": {
+      "min_intensity": 0.12,
+      "base_intensity": 0.28,
+      "max_intensity": 0.82,
+      "phone_seed_cap": 0.25
+    },
+    "war_mode": {
+      "enabled": true,
+      "confidence_threshold": 0.95,
+      "target_activation_ms": 50,
+      "aggression": "high",
+      "false_positive_budget_per_30d": 0
+    },
+    "consensus": {
+      "require_helix_tamper": true,
+      "require_sentinel_agreement": true,
+      "require_soul_mismatch": false
+    },
+    "assimilation_priority": {
+      "enabled": true,
+      "hours_since_graft": 72,
+      "max_targets": 16
+    },
+    "loyalty_binding": {
+      "enabled": true,
+      "require_soul_token_presence": true
+    },
+    "outputs": {
+      "emit_events": true,
+      "emit_obsidian_projection": true,
+      "emit_visualization": true
+    },
+    "paths": {
+      "helix_latest_path": "state/helix/latest.json",
+      "helix_sentinel_state_path": "state/helix/sentinel_state.json",
+      "soul_token_state_path": "state/security/soul_token_guard.json",
+      "assimilation_ledger_path": "state/assimilation/ledger.json",
+      "weaver_latest_path": "state/autonomy/weaver/latest.json"
+    }
   }
 }

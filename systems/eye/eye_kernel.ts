@@ -65,6 +65,14 @@ function cleanText(v: unknown, maxLen = 200) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, maxLen);
 }
 
+function normalizeToken(v: unknown, maxLen = 120) {
+  return cleanText(v, maxLen)
+    .toLowerCase()
+    .replace(/[^a-z0-9_.:/-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
 function toList(v: unknown) {
   return Array.isArray(v)
     ? v.map((row) => String(row == null ? '' : row).trim().toLowerCase()).filter(Boolean)
@@ -131,6 +139,12 @@ function defaultPolicy() {
         actions: ['execute'],
         targets: ['web', 'browser', 'payment', 'email']
       }
+    },
+    helix_attestation: {
+      enabled: false,
+      mode: 'shadow_advisory',
+      latest_path: 'state/helix/latest.json',
+      max_staleness_sec: 600
     }
   };
 }
@@ -145,6 +159,9 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
     ...Object.keys(base.lanes || {}),
     ...Object.keys(raw.lanes && typeof raw.lanes === 'object' ? raw.lanes : {})
   ]));
+  const helix = raw.helix_attestation && typeof raw.helix_attestation === 'object'
+    ? raw.helix_attestation
+    : {};
   const lanes: AnyObj = {};
   for (const name of laneNames) {
     const baseLane = base.lanes && base.lanes[name] ? base.lanes[name] : {};
@@ -175,7 +192,80 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
         base.budgets.global_daily_tokens
       )
     },
-    lanes
+    lanes,
+    helix_attestation: {
+      enabled: helix.enabled === true,
+      mode: normalizeToken(helix.mode || base.helix_attestation.mode, 40) || base.helix_attestation.mode,
+      latest_path: cleanText(helix.latest_path || base.helix_attestation.latest_path, 260)
+        || base.helix_attestation.latest_path,
+      max_staleness_sec: clampInt(
+        helix.max_staleness_sec,
+        1,
+        24 * 60 * 60,
+        base.helix_attestation.max_staleness_sec
+      )
+    }
+  };
+}
+
+function evaluateHelixGate(policy: AnyObj) {
+  const cfg = policy && policy.helix_attestation && typeof policy.helix_attestation === 'object'
+    ? policy.helix_attestation
+    : {};
+  const enabled = cfg.enabled === true;
+  const mode = String(cfg.mode || 'shadow_advisory').trim().toLowerCase();
+  if (!enabled) {
+    return {
+      enabled: false,
+      mode,
+      enforced_block: false,
+      decision: 'allow',
+      reason_codes: []
+    };
+  }
+  const latestPathRaw = cleanText(cfg.latest_path || 'state/helix/latest.json', 260) || 'state/helix/latest.json';
+  const latestPath = path.isAbsolute(latestPathRaw)
+    ? latestPathRaw
+    : path.join(REPO_ROOT, latestPathRaw);
+  const maxStalenessSec = clampInt(cfg.max_staleness_sec, 1, 24 * 60 * 60, 600);
+  const snapshot = readJson(latestPath, null);
+  if (!snapshot || typeof snapshot !== 'object') {
+    const deny = mode === 'enforced';
+    return {
+      enabled: true,
+      mode,
+      enforced_block: deny,
+      decision: deny ? 'deny' : 'allow',
+      reason_codes: [deny ? 'helix_snapshot_missing_enforced' : 'helix_snapshot_missing_advisory'],
+      latest_path: latestPath
+    };
+  }
+  const tsMs = Date.parse(String(snapshot.ts || snapshot.updated_at || ''));
+  const stale = Number.isFinite(tsMs)
+    ? ((Date.now() - Number(tsMs)) / 1000) > maxStalenessSec
+    : true;
+  const tier = String(
+    (snapshot.sentinel && snapshot.sentinel.tier)
+    || snapshot.tier
+    || 'unknown'
+  ).trim().toLowerCase();
+  const attestationDecision = String(snapshot.attestation_decision || 'unknown').trim().toLowerCase();
+  const reasons: string[] = [];
+  if (stale) reasons.push('helix_attestation_stale');
+  if (tier && tier !== 'clear') reasons.push(`helix_tier_${tier}`);
+  if (attestationDecision && attestationDecision !== 'allow') reasons.push(`helix_decision_${attestationDecision}`);
+  const critical = reasons.length > 0;
+  const deny = critical && mode === 'enforced';
+  return {
+    enabled: true,
+    mode,
+    enforced_block: deny,
+    decision: deny ? 'deny' : 'allow',
+    reason_codes: reasons,
+    latest_path: latestPath,
+    tier,
+    attestation_decision: attestationDecision,
+    stale
   };
 }
 
@@ -330,6 +420,7 @@ function cmdRoute(args: AnyObj) {
   const apply = boolFlag(args.apply, true);
   const policy = loadPolicy(policyPath);
   const state = loadState(statePath, policy);
+  const helixGate = evaluateHelixGate(policy);
   const request = {
     lane: args.lane || 'organ',
     target: args.target || '',
@@ -338,11 +429,21 @@ function cmdRoute(args: AnyObj) {
     clearance: args.clearance || 'L0',
     estimated_tokens: args['estimated-tokens'] || args.estimated_tokens || 0
   };
+  if (helixGate.enforced_block === true) {
+    request.risk = 'critical';
+  }
   const evaluated = evaluateRoute(request, policy, state, {
     apply,
     date: args.date
   });
-  const decision = evaluated.decision;
+  let decision = evaluated.decision;
+  if (helixGate.enforced_block === true) {
+    decision = 'deny';
+  }
+  const combinedReasons = Array.from(new Set([
+    ...(Array.isArray(evaluated.reasons) ? evaluated.reasons : []),
+    ...(Array.isArray(helixGate.reason_codes) ? helixGate.reason_codes : [])
+  ]));
   const requestId = cleanText(args['request-id'] || args.request_id, 64)
     || `eye_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
   const row = {
@@ -356,11 +457,12 @@ function cmdRoute(args: AnyObj) {
     clearance: evaluated.clearance,
     estimated_tokens: evaluated.estimated_tokens,
     decision,
-    reasons: evaluated.reasons,
+    reasons: combinedReasons,
     policy_version: policy.version,
     apply,
     reason_note: cleanText(args.reason || '', 220) || null,
-    day: evaluated.day
+    day: evaluated.day,
+    helix_gate: helixGate
   };
   if (apply) writeJsonAtomic(statePath, state);
   appendJsonl(auditPath, row);
@@ -371,7 +473,7 @@ function cmdRoute(args: AnyObj) {
     type: 'eye_kernel_route',
     request_id: requestId,
     decision,
-    reasons: evaluated.reasons,
+    reasons: combinedReasons,
     lane: evaluated.lane,
     target: evaluated.target,
     action: evaluated.action,
@@ -383,7 +485,8 @@ function cmdRoute(args: AnyObj) {
     state_path: statePath,
     audit_path: auditPath,
     latest_path: latestPath,
-    day: evaluated.day
+    day: evaluated.day,
+    helix_gate: helixGate
   };
   process.stdout.write(`${JSON.stringify(out)}\n`);
   process.exit(decision === 'deny' ? 1 : 0);
@@ -394,6 +497,7 @@ function cmdStatus(args: AnyObj) {
   const statePath = path.resolve(String(args.state || DEFAULT_STATE_PATH));
   const policy = loadPolicy(policyPath);
   const state = loadState(statePath, policy);
+  const helixGate = evaluateHelixGate(policy);
   const day = dateStr(args.date || nowIso());
   const dayState = ensureDayState(state, policy, day);
   process.stdout.write(`${JSON.stringify({
@@ -403,7 +507,8 @@ function cmdStatus(args: AnyObj) {
     state_path: statePath,
     policy_version: policy.version,
     day,
-    day_state: dayState
+    day_state: dayState,
+    helix_gate: helixGate
   })}\n`);
 }
 
@@ -439,4 +544,3 @@ module.exports = {
   evaluateRoute,
   main
 };
-
