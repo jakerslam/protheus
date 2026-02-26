@@ -1,9 +1,9 @@
 {
   "ok": true,
   "type": "autonomy_simulation_harness",
-  "ts": "2026-02-26T10:16:45.115Z",
+  "ts": "2026-02-26T10:19:50.805Z",
   "end_date": "2026-02-26",
-  "days": 180,
+  "days": 30,
   "verdict": "warn",
   "verdict_raw": "warn",
   "verdict_effective": "warn",
@@ -27,19 +27,19 @@
       "status": "pass"
     },
     "attempt_volume": {
-      "value": 236,
+      "value": 237,
       "min": 5,
       "status": "pass"
     },
     "policy_hold_rate": {
-      "value": 0.301,
+      "value": 0.304,
       "warn": 0.2,
       "fail": 0.35,
       "enforce_fail": false,
       "status": "warn"
     },
     "budget_hold_rate": {
-      "value": 0.047,
+      "value": 0.051,
       "warn": 0.12,
       "fail": 0.25,
       "enforce_fail": false,
@@ -76,14 +76,14 @@
       "status": "pass"
     },
     "policy_hold_rate": {
-      "value": 0.427,
+      "value": 0.437,
       "warn": 0.2,
       "fail": 0.35,
       "enforce_fail": false,
       "status": "warn"
     },
     "budget_hold_rate": {
-      "value": 0.107,
+      "value": 0.117,
       "warn": 0.12,
       "fail": 0.25,
       "enforce_fail": false,
@@ -100,28 +100,28 @@
     "baseline_preserved": true,
     "effective_projection_present": true,
     "denominator_reduction_only": true,
-    "denominator_delta": 133,
+    "denominator_delta": 134,
     "identity_projection_enabled": false,
     "identity_projection_blocked_attempts": 0
   },
   "counters": {
-    "run_rows": 255,
-    "attempts": 236,
+    "run_rows": 256,
+    "attempts": 237,
     "executed": 8,
     "shipped": 5,
     "no_progress": 39,
     "safety_stops": 4,
-    "policy_holds": 71,
-    "budget_holds": 11
+    "policy_holds": 72,
+    "budget_holds": 12
   },
   "baseline_counters": {
-    "attempts": 236,
+    "attempts": 237,
     "executed": 8,
     "shipped": 5,
     "no_progress": 39,
     "safety_stops": 4,
-    "policy_holds": 71,
-    "budget_holds": 11
+    "policy_holds": 72,
+    "budget_holds": 12
   },
   "effective_counters": {
     "attempts": 103,
@@ -129,8 +129,8 @@
     "shipped": 5,
     "no_progress": 3,
     "safety_stops": 0,
-    "policy_holds": 44,
-    "budget_holds": 11
+    "policy_holds": 45,
+    "budget_holds": 12
   },
   "budget_autopause": {
     "path": "/Users/jay/.openclaw/workspace/state/autonomy/budget_autopause.json",
@@ -141,12 +141,12 @@
     "reason": "burn_rate_exceeded",
     "pressure": "hard",
     "until": "2026-02-26T11:03:29.370Z",
-    "updated_at": "2026-02-26T10:16:33.905Z",
+    "updated_at": "2026-02-26T10:19:49.522Z",
     "observed_in_window": true,
     "active_at_window_end": false,
     "signal_source": "route_summary.autopause",
     "explicit_last_ts": "2026-02-26T08:31:07.842Z",
-    "implicit_last_ts": "2026-02-26T08:31:17.015Z",
+    "implicit_last_ts": "2026-02-26T10:19:49.522Z",
     "source_mode": "live_state_plus_runs",
     "snapshot_fallback_used": false
   },
@@ -158,7 +158,7 @@
     "rolling_context_enabled": false,
     "compiler_hash": "40cc5cf18353cd99",
     "compiler_active_count": 3,
-    "accepted_attempts": 147,
+    "accepted_attempts": 148,
     "rejected_attempts": 0,
     "skipped_attempts": 89,
     "rejected_by_reason": {},
