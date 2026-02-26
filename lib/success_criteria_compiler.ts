@@ -18,6 +18,7 @@ type ProposalCompilerOptions = {
   include_verify?: boolean;
   include_validation?: boolean;
   allow_fallback?: boolean;
+  capability_key?: string;
 };
 
 type ProposalInput = {
@@ -37,12 +38,36 @@ type CompiledSuccessCriteria = {
   measurable: boolean;
 };
 
+const OUTREACH_CAPABILITY_HINT_RE = /\b(opportunity|outreach|lead|sales|bizdev|revenue|freelance|contract|gig|external_intel|client|prospect)\b/;
+
 function normalizeText(v: unknown): string {
   return String(v == null ? '' : v).trim();
 }
 
 function normalizeSpaces(v: unknown): string {
   return normalizeText(v).replace(/\s+/g, ' ');
+}
+
+function normalizeCapabilityKey(v: unknown): string {
+  return normalizeSpaces(v).toLowerCase();
+}
+
+function capabilityAllowsOutreach(capabilityKey: string): boolean {
+  if (!capabilityKey) return true;
+  if (capabilityKey.startsWith('proposal:')) {
+    return OUTREACH_CAPABILITY_HINT_RE.test(capabilityKey);
+  }
+  return true;
+}
+
+function remapMetricForCapability(metric: string, capabilityKey: string): string {
+  const normMetric = normalizeSpaces(metric).toLowerCase();
+  if (!capabilityAllowsOutreach(capabilityKey)) {
+    if (normMetric === 'reply_or_interview_count' || normMetric === 'outreach_artifact') {
+      return 'artifact_count';
+    }
+  }
+  return normMetric || 'execution_success';
 }
 
 function parseFirstInt(text: unknown, fallback: number): number {
@@ -220,6 +245,7 @@ function compileProposalSuccessCriteria(proposal: ProposalInput, opts: ProposalC
   const actionSpec = p.action_spec && typeof p.action_spec === 'object' ? p.action_spec : {};
   const includeVerify = opts.include_verify !== false;
   const includeValidation = opts.include_validation !== false;
+  const capabilityKey = normalizeCapabilityKey(opts.capability_key);
 
   const compiled: CompiledSuccessCriteria[] = [];
   compiled.push(...compileSuccessCriteriaRows(p.success_criteria, { source: 'success_criteria' }));
@@ -228,15 +254,33 @@ function compileProposalSuccessCriteria(proposal: ProposalInput, opts: ProposalC
   if (includeValidation) compiled.push(...compileSuccessCriteriaRows(p.validation, { source: 'validation' }));
 
   if (!compiled.length && opts.allow_fallback !== false) {
-    return [{
+    compiled.push({
       source: 'compiler_fallback',
       metric: 'execution_success',
       target: 'execution success',
       horizon: '',
       measurable: true
-    }];
+    });
   }
-  return compiled;
+  const out: CompiledSuccessCriteria[] = [];
+  const seen = new Set<string>();
+  for (const row of compiled) {
+    const metric = remapMetricForCapability(String(row && row.metric || ''), capabilityKey);
+    const horizon = normalizeSpaces(row && row.horizon || '');
+    const target = normalizeTarget(metric, row && row.target || '', horizon);
+    const source = normalizeSpaces(row && row.source || '') || 'success_criteria';
+    const key = `${source}|${metric}|${target}|${horizon}`.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      source,
+      metric,
+      target,
+      horizon,
+      measurable: true
+    });
+  }
+  return out;
 }
 
 function toActionSpecRows(compiledRows: CompiledSuccessCriteria[]): Array<{ metric: string; target: string; horizon: string }> {

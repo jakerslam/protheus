@@ -47,6 +47,8 @@ const MIN_OCCURRENCES = clampInt(process.env.CREATIVE_LINKS_MIN_OCCURRENCES || 2
 const MIN_AVG_SCORE = clampNumber(process.env.CREATIVE_LINKS_MIN_AVG_SCORE || 12, 1, 100);
 const MIN_OLDER_REFS = clampInt(process.env.CREATIVE_LINKS_MIN_OLDER_REFS || 1, 0, 10);
 const MIN_ROW_REFS = clampInt(process.env.CREATIVE_LINKS_MIN_ROW_REFS || 2, 0, 20);
+const CROSS_DOMAIN_MAPPER_ENABLED = String(process.env.CREATIVE_LINKS_CROSS_DOMAIN_ENABLED || '1').trim() !== '0';
+const CROSS_DOMAIN_MIN_BRIDGE_REFS = clampInt(process.env.CREATIVE_LINKS_CROSS_DOMAIN_MIN_BRIDGE_REFS || 1, 1, 16);
 const HYPER_TOKEN_WORDS = clampInt(process.env.CREATIVE_LINKS_HYPER_TOKEN_WORDS || 4, 2, 8);
 const HYPER_MAX_ROWS = clampInt(process.env.CREATIVE_LINKS_HYPER_MAX_ROWS || 4000, 50, 50000);
 const HYPER_STOPWORDS = new Set([
@@ -251,6 +253,20 @@ function collectDreamThemes(dateStr, days, top) {
     const avgScore = scores.reduce((s, x) => s + x, 0) / scores.length;
     const maxScore = Math.max(...scores);
     const observedDates = Array.from(ent.observed_dates).sort();
+    const crossDomainEvidence = CROSS_DOMAIN_MAPPER_ENABLED
+      && (
+        Number(ent.older_refs || 0) >= CROSS_DOMAIN_MIN_BRIDGE_REFS
+        || (Number(ent.older_refs || 0) > 0 && Number(ent.row_refs || 0) > 0)
+      );
+    const sourceTypes = crossDomainEvidence
+      ? ['cross_domain_mapper', 'memory_dream']
+      : ['memory_dream'];
+    const sourceCounts = {
+      memory_dream: scores.length
+    } as Record<string, number>;
+    if (crossDomainEvidence) {
+      sourceCounts.cross_domain_mapper = Math.max(1, Number(ent.older_refs || 0));
+    }
     return {
       token: ent.token,
       occurrences_window: observedDates.length,
@@ -263,8 +279,8 @@ function collectDreamThemes(dateStr, days, top) {
       latest_score: ent.latest_score,
       latest_date: ent.latest_date,
       refs: ent.refs.slice(0, 16),
-      source_types: ['memory_dream'],
-      source_counts: { memory_dream: scores.length }
+      source_types: sourceTypes,
+      source_counts: sourceCounts
     };
   });
 }
@@ -457,6 +473,26 @@ function collectThemes(dateStr, days, top) {
   return mergeEvidenceRows([...dreamThemes, ...hyperThemes]);
 }
 
+function summarizeCrossDomainMapper(evidenceRows) {
+  const rows = Array.isArray(evidenceRows) ? evidenceRows : [];
+  const contributed = rows
+    .filter((row) => Array.isArray(row && row.source_types) && row.source_types.includes('cross_domain_mapper'));
+  const sourceRows = contributed.reduce((sum, row) => {
+    const counts = row && row.source_counts && typeof row.source_counts === 'object' ? row.source_counts : {};
+    return sum + Number(counts.cross_domain_mapper || 0);
+  }, 0);
+  return {
+    enabled: CROSS_DOMAIN_MAPPER_ENABLED,
+    tokens_contributed: contributed.length,
+    source_rows: sourceRows,
+    top_tokens: contributed
+      .sort((a, b) => Number(b.avg_score_window || 0) - Number(a.avg_score_window || 0))
+      .slice(0, 8)
+      .map((row) => String(row && row.token || ''))
+      .filter(Boolean)
+  };
+}
+
 function passGate(e) {
   const gateOccurrences = Number(e.occurrences_window || 0) >= MIN_OCCURRENCES;
   const gateSignal = Number(e.avg_score_window || 0) >= MIN_AVG_SCORE;
@@ -611,6 +647,7 @@ function runCmd(dateStr, days, top, maxPromotions) {
   });
   const registry = loadRegistry();
   const evidence = collectThemes(dateStr, days, top);
+  const crossDomainMapper = summarizeCrossDomainMapper(evidence);
   const candidates = upsertCandidates(registry, evidence);
 
   const promotable = candidates
@@ -652,7 +689,8 @@ function runCmd(dateStr, days, top, maxPromotions) {
     candidates_total: Object.keys(registry.candidates || {}).length,
     promotable_count: promotable.length,
     promoted_count: promotions.length,
-    promotions
+    promotions,
+    cross_domain_mapper: crossDomainMapper
   };
   appendJsonl(LEDGER_PATH, {
     ts: nowIso(),

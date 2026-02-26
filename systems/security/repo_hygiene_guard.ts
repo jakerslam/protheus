@@ -135,8 +135,23 @@ function changedFileRows(args) {
     if (rows.length) return rows;
   }
 
-  const recent = parseNameStatusLines(runGit(['diff', '--name-status', 'HEAD~1..HEAD']));
-  if (recent.length) return recent;
+  const unstaged = parseNameStatusLines(runGit(['diff', '--name-status']));
+  const staged = parseNameStatusLines(runGit(['diff', '--name-status', '--cached']));
+  if (unstaged.length || staged.length) {
+    const merged = new Map();
+    for (const row of [...unstaged, ...staged]) {
+      const file = normalizePath(row && row.file);
+      if (!file) continue;
+      merged.set(file, { file, status: normalizeStatus(row && row.status) });
+    }
+    return Array.from(merged.values());
+  }
+
+  const fallbackToLastCommit = String(process.env.REPO_HYGIENE_FALLBACK_HEAD_DIFF || '').trim() === '1';
+  if (fallbackToLastCommit) {
+    const recent = parseNameStatusLines(runGit(['diff', '--name-status', 'HEAD~1..HEAD']));
+    if (recent.length) return recent;
+  }
 
   return parseNameStatusLines(runGit(['diff', '--name-status', '--cached']));
 }
@@ -184,6 +199,19 @@ function tsPairPath(file) {
   return null;
 }
 
+function isTsBootstrapWrapper(file) {
+  const rel = normalizePath(file);
+  if (!rel || !rel.endsWith('.js')) return false;
+  try {
+    const abs = path.join(ROOT, rel);
+    if (!fs.existsSync(abs)) return false;
+    const text = fs.readFileSync(abs, 'utf8');
+    return /ts_bootstrap/.test(text) && /\.bootstrap\(__filename,\s*module\)/.test(text);
+  } catch {
+    return false;
+  }
+}
+
 function evaluateTsPairDrift(files, args) {
   if (args['allow-ts-pair-drift'] === true || String(args.allow_ts_pair_drift || '').trim() === '1') return [];
   const changed = new Set(files.map(normalizePath).filter(Boolean));
@@ -196,6 +224,7 @@ function evaluateTsPairDrift(files, args) {
     if (!pair) continue;
     const pairAbs = path.join(ROOT, pair);
     if (!fs.existsSync(pairAbs)) continue;
+    if (file.endsWith('.ts') && pair.endsWith('.js') && isTsBootstrapWrapper(pair)) continue;
     if (changed.has(pair)) continue;
     out.push(`${file}::missing_pair_change:${pair}`);
   }

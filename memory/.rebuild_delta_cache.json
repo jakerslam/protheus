@@ -2264,7 +2264,171 @@
         ],
         "format_violations": []
       }
+    },
+    "2026-02-24.md": {
+      "sha1": "586d299943aab441ba66bc58e8ce701b10498065",
+      "parsed": {
+        "records": [
+          {
+            "node_id": "failure-t2-9b327733",
+            "uid": "0ae56e856721aefce4544721",
+            "tags": [
+              "failure",
+              "failure-tier-2",
+              "external_eyes",
+              "unknown"
+            ],
+            "file": "2026-02-24.md",
+            "date": "2026-02-24",
+            "token_estimate": 131,
+            "summary": "Tier: 2"
+          },
+          {
+            "node_id": "failure-t2-d54c1e1a",
+            "uid": "54c02c2df82137717c254afb",
+            "tags": [
+              "failure",
+              "failure-tier-2",
+              "external_eyes",
+              "sensory"
+            ],
+            "file": "2026-02-24.md",
+            "date": "2026-02-24",
+            "token_estimate": 139,
+            "summary": "Tier: 2"
+          }
+        ],
+        "format_violations": []
+      }
+    },
+    "2026-02-25.md": {
+      "sha1": "c660a4d8ff02f98ae409b31256201fa512f2538e",
+      "parsed": {
+        "records": [
+          {
+            "node_id": "creative-link-market-l5j834",
+            "uid": "clmqn21lszojz3klsjgyh16g",
+            "tags": [
+              "creative-link",
+              "dream",
+              "memory",
+              "market"
+            ],
+            "file": "2026-02-25.md",
+            "date": "2026-02-25",
+            "token_estimate": 95,
+            "summary": "Theme token: market"
+          },
+          {
+            "node_id": "creative-link-eyes-r1p1k1",
+            "uid": "clm2xqhuzqswecnej7v7w1vo",
+            "tags": [
+              "creative-link",
+              "dream",
+              "memory",
+              "eyes"
+            ],
+            "file": "2026-02-25.md",
+            "date": "2026-02-25",
+            "token_estimate": 97,
+            "summary": "Theme token: eyes"
+          },
+          {
+            "node_id": "creative-link-probation-f3x2vh",
+            "uid": "clm3ziiafw2ny2w545pqjifi",
+            "tags": [
+              "creative-link",
+              "dream",
+              "memory",
+              "probation"
+            ],
+            "file": "2026-02-25.md",
+            "date": "2026-02-25",
+            "token_estimate": 92,
+            "summary": "Theme token: probation"
+          },
+          {
+            "node_id": "eye-cross_signal_engine-113ce28e",
+            "uid": "5b87b96dfce63955c7b7931f",
+            "tags": [
+              "eyes",
+              "sensory",
+              "cross_signal_engine",
+              "memory-bridge"
+            ],
+            "file": "2026-02-25.md",
+            "date": "2026-02-25",
+            "token_estimate": 163,
+            "summary": "Source eye: cross_signal_engine"
+          },
+          {
+            "node_id": "eye-cross_signal_engine-f78e18a4",
+            "uid": "1ecc60d9714276879502f2d5",
+            "tags": [
+              "eyes",
+              "sensory",
+              "cross_signal_engine",
+              "memory-bridge"
+            ],
+            "file": "2026-02-25.md",
+            "date": "2026-02-25",
+            "token_estimate": 184,
+            "summary": "Source eye: cross_signal_engine"
+          }
+        ],
+        "format_violations": []
+      }
+    },
+    "2026-02-26.md": {
+      "sha1": "540e6fa2de9581bb8b29478961e53e12c0039606",
+      "parsed": {
+        "records": [
+          {
+            "node_id": "eye-cross_signal_engine-845e5c2c",
+            "uid": "d87b1649818286452f0811ab",
+            "tags": [
+              "eyes",
+              "sensory",
+              "cross_signal_engine",
+              "memory-bridge"
+            ],
+            "file": "2026-02-26.md",
+            "date": "2026-02-26",
+            "token_estimate": 163,
+            "summary": "Source eye: cross_signal_engine"
+          },
+          {
+            "node_id": "eye-cross_signal_engine-364f6066",
+            "uid": "9ae03b00872cdb9fe6b4b764",
+            "tags": [
+              "eyes",
+              "sensory",
+              "cross_signal_engine",
+              "memory-bridge"
+            ],
+            "file": "2026-02-26.md",
+            "date": "2026-02-26",
+            "token_estimate": 163,
+            "summary": "Source eye: cross_signal_engine"
+          },
+          {
+            "node_id": "creative-link-signal-94xu8w",
+            "uid": "clm3hgmpvm13ki8dnzxucjgt",
+            "tags": [
+              "creative-link",
+              "dream",
+              "memory",
+              "signal"
+            ],
+            "file": "2026-02-26.md",
+            "date": "2026-02-26",
+            "token_estimate": 97,
+            "summary": "Theme token: signal"
+          }
+        ],
+        "format_violations": []
+      }
     }
   },
-  "updated_at": "2026-02-23T22:57:23.795Z"
+  "updated_at": "2026-02-26T00:45:37.320Z"
 }

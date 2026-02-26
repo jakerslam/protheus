@@ -61,7 +61,7 @@ function runGuard(opts = {}) {
   checks.push(runCmd('adaptive_layer_guard_strict', 'node', ['systems/sensory/adaptive_layer_guard.js', 'run', '--strict']));
   checks.push(runCmd('memory_layer_guard_strict', 'node', ['systems/memory/memory_layer_guard.js', 'run', '--strict']));
   checks.push(runCmd('workspace_dump_guard_strict', 'node', ['systems/security/workspace_dump_guard.js', 'run', '--strict']));
-  checks.push(runCmd('repo_hygiene_guard_strict', 'node', ['systems/security/repo_hygiene_guard.js', 'run', '--strict']));
+  checks.push(runCmd('repo_hygiene_guard_strict', 'node', ['systems/security/repo_hygiene_guard.js', 'run', '--strict', '--staged']));
   checks.push(runCmd('docs_coverage_gate', 'node', ['systems/ops/docs_coverage_gate.js', 'run', '--strict=1']));
   checks.push(runCmd('dr_gameday_gate', 'node', ['systems/ops/dr_gameday_gate.js', 'run', '--strict=1']));
   if (!options.skipTests) {

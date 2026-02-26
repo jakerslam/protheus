@@ -85,10 +85,10 @@
       "status": "active",
       "weight": 49,
       "cooldown_minutes": 90,
-      "hit_count": 2,
-      "last_hit_ts": "2026-02-22T10:07:53.888Z",
+      "hit_count": 7,
+      "last_hit_ts": "2026-02-26T00:56:07.063Z",
       "created_ts": "2026-02-21T06:43:30.470Z",
-      "updated_ts": "2026-02-26T00:02:18.712Z"
+      "updated_ts": "2026-02-26T00:56:07.063Z"
     },
     {
       "uid": "ft7ds2pfg6xpj8145626z2k6",
@@ -102,10 +102,10 @@
       "status": "active",
       "weight": 49,
       "cooldown_minutes": 90,
-      "hit_count": 44,
-      "last_hit_ts": "2026-02-23T17:21:32.821Z",
+      "hit_count": 50,
+      "last_hit_ts": "2026-02-26T00:30:19.591Z",
       "created_ts": "2026-02-21T06:43:30.470Z",
-      "updated_ts": "2026-02-26T00:02:18.712Z"
+      "updated_ts": "2026-02-26T00:30:19.591Z"
     },
     {
       "uid": "ft61c7fe7o96h2gyomc1z3wv",
@@ -442,10 +442,10 @@
       "status": "active",
       "weight": 22,
       "cooldown_minutes": 90,
-      "hit_count": 187,
-      "last_hit_ts": "2026-02-26T00:03:26.296Z",
+      "hit_count": 221,
+      "last_hit_ts": "2026-02-26T00:56:07.063Z",
       "created_ts": "2026-02-23T15:20:59.511Z",
-      "updated_ts": "2026-02-26T00:03:26.296Z"
+      "updated_ts": "2026-02-26T00:56:07.063Z"
     },
     {
       "uid": "ft4dbd6htnekju3dc23t3ino",
@@ -801,10 +801,10 @@
       "status": "active",
       "weight": 13,
       "cooldown_minutes": 90,
-      "hit_count": 8,
-      "last_hit_ts": "2026-02-26T00:03:26.296Z",
+      "hit_count": 44,
+      "last_hit_ts": "2026-02-26T00:56:07.063Z",
       "created_ts": "2026-02-26T00:02:18.712Z",
-      "updated_ts": "2026-02-26T00:03:26.296Z"
+      "updated_ts": "2026-02-26T00:56:07.063Z"
     },
     {
       "uid": "ft2xxsez33hb04dnwc1wmcis",
@@ -1663,7 +1663,7 @@
         "memory": 20,
         "human": 20,
         "founder": 19,
-        "why": 19,
+        "why": 20,
         "building": 17
       },
       "baseline_topics": [
@@ -1673,10 +1673,10 @@
         "revenue",
         "saas"
       ],
-      "focus_hits_total": 20,
-      "update_count": 18,
+      "focus_hits_total": 56,
+      "update_count": 36,
       "created_ts": "2026-02-23T15:20:59.539Z",
-      "updated_ts": "2026-02-26T00:03:26.296Z"
+      "updated_ts": "2026-02-26T00:56:07.063Z"
     },
     "proto_affc19cbf503b0d7": {
       "eye_id": "proto_affc19cbf503b0d7",
@@ -2029,7 +2029,24 @@
     "id:7993ec2c8fa258c3": "2026-02-26T00:02:25.406Z",
     "id:8b4b3f1d44d49705": "2026-02-26T00:02:25.406Z",
     "id:d7d65394e472b320": "2026-02-26T00:03:26.296Z",
-    "id:f9f57d999f61cb0a": "2026-02-26T00:03:26.296Z"
+    "id:f9f57d999f61cb0a": "2026-02-26T00:03:26.296Z",
+    "id:665aefcea62045a0": "2026-02-26T00:30:19.591Z",
+    "id:99371cdf453ebb14": "2026-02-26T00:30:19.591Z",
+    "id:c3f805feec868b75": "2026-02-26T00:24:28.212Z",
+    "id:c61ac2b6c5131421": "2026-02-26T00:24:30.506Z",
+    "id:47ad0ead55b241b0": "2026-02-26T00:26:40.820Z",
+    "id:669ba839a247510d": "2026-02-26T00:26:40.820Z",
+    "id:55766f0c477690ca": "2026-02-26T00:45:33.711Z",
+    "id:b8bbd3e2f931bf68": "2026-02-26T00:39:37.575Z",
+    "id:918e9d1d538c4b4b": "2026-02-26T00:39:40.225Z",
+    "id:d4dafeb97813ddc5": "2026-02-26T00:39:40.225Z",
+    "id:ec65eb0e6bfc18ae": "2026-02-26T00:45:33.711Z",
+    "id:33ab3ea2e0880531": "2026-02-26T00:43:20.358Z",
+    "id:117128aec22933d0": "2026-02-26T00:56:07.063Z",
+    "id:7892818045c18a2f": "2026-02-26T00:49:08.925Z",
+    "id:b7eb264853506619": "2026-02-26T00:56:07.063Z",
+    "id:703e544dc37b88e6": "2026-02-26T00:52:23.812Z",
+    "id:a1276ab38bb76c7f": "2026-02-26T00:52:26.981Z"
   },
   "last_refresh_ts": "2026-02-26T00:02:18.712Z",
   "last_refresh_sources": {
@@ -2050,7 +2067,7 @@
   "stats": {
     "refresh_count": 21,
     "lens_refresh_count": 15,
-    "focused_items_total": 418,
-    "last_focus_ts": "2026-02-26T00:03:26.296Z"
+    "focused_items_total": 454,
+    "last_focus_ts": "2026-02-26T00:56:07.063Z"
   }
 }

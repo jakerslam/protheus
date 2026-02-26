@@ -203,6 +203,17 @@ function nowIso() {
   return new Date(nowMs()).toISOString();
 }
 
+function resolveAutonomyEnabled(autonomyResult) {
+  const payload = autonomyResult && autonomyResult.payload && typeof autonomyResult.payload === 'object'
+    ? autonomyResult.payload
+    : {};
+  if (typeof payload.autonomy_enabled === 'boolean') return payload.autonomy_enabled === true;
+  const env = String(process.env.AUTONOMY_ENABLED || '').trim().toLowerCase();
+  if (env === '1' || env === 'true' || env === 'yes' || env === 'on') return true;
+  if (env === '0' || env === 'false' || env === 'no' || env === 'off') return false;
+  return true;
+}
+
 function todayStr() {
   return nowIso().slice(0, 10);
 }
@@ -2364,7 +2375,7 @@ function main() {
   const proposalRows = readProposalRows(dates);
   const queueEvents = readQueueEvents(dates);
   const runEvents = readAutonomyRunEvents(dates);
-  const autonomyEnabled = !!(autonomy.payload && autonomy.payload.autonomy_enabled === true);
+  const autonomyEnabled = resolveAutonomyEnabled(autonomy);
 
   const routing = {
     spine_local_down_consecutive: Number(spineHealth.consecutive_full_local_down || 0),

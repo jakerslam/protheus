@@ -1,5 +1,5 @@
 # MEMORY_INDEX.md
-# Last regenerated: 2026-02-23
+# Last regenerated: 2026-02-26
 # Whitelist: YYYY-MM-DD.md top-level; parsed by "<!-- NODE -->" separators
 
 ## Projects
@@ -180,3 +180,13 @@
 | eye-producthunt_launches-ff0c3b4c | 7da0e75fe2966fde96668ef8 | #eyes #sensory #producthunt_launches #memory-bridge #revenue #affiliate | 2026-02-23.md | Source eye: producthunt_launches |
 | failure-t2-e28ba856 | f8dc2be09c35fbe605de1068 | #failure #failure-tier-2 #external_eyes #sensory | 2026-02-23.md | Tier: 2 |
 | failure-t1-b08c5c38 | 96b8f7d2ec70db30fac98035 | #failure #failure-tier-1 #idle_dream_cycle #memory | 2026-02-23.md | Tier: 1 |
+| failure-t2-9b327733 | 0ae56e856721aefce4544721 | #failure #failure-tier-2 #external_eyes #unknown | 2026-02-24.md | Tier: 2 |
+| failure-t2-d54c1e1a | 54c02c2df82137717c254afb | #failure #failure-tier-2 #external_eyes #sensory | 2026-02-24.md | Tier: 2 |
+| creative-link-market-l5j834 | clmqn21lszojz3klsjgyh16g | #creative-link #dream #memory #market | 2026-02-25.md | Theme token: market |
+| creative-link-eyes-r1p1k1 | clm2xqhuzqswecnej7v7w1vo | #creative-link #dream #memory #eyes | 2026-02-25.md | Theme token: eyes |
+| creative-link-probation-f3x2vh | clm3ziiafw2ny2w545pqjifi | #creative-link #dream #memory #probation | 2026-02-25.md | Theme token: probation |
+| eye-cross_signal_engine-113ce28e | 5b87b96dfce63955c7b7931f | #eyes #sensory #cross_signal_engine #memory-bridge | 2026-02-25.md | Source eye: cross_signal_engine |
+| eye-cross_signal_engine-f78e18a4 | 1ecc60d9714276879502f2d5 | #eyes #sensory #cross_signal_engine #memory-bridge | 2026-02-25.md | Source eye: cross_signal_engine |
+| eye-cross_signal_engine-845e5c2c | d87b1649818286452f0811ab | #eyes #sensory #cross_signal_engine #memory-bridge | 2026-02-26.md | Source eye: cross_signal_engine |
+| eye-cross_signal_engine-364f6066 | 9ae03b00872cdb9fe6b4b764 | #eyes #sensory #cross_signal_engine #memory-bridge | 2026-02-26.md | Source eye: cross_signal_engine |
+| creative-link-signal-94xu8w | clm3hgmpvm13ki8dnzxucjgt | #creative-link #dream #memory #signal | 2026-02-26.md | Theme token: signal |
