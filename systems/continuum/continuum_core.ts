@@ -54,6 +54,7 @@ const SCRIPT_IDLE_DREAM = 'systems/memory/idle_dream_cycle.js';
 const SCRIPT_CREATIVE_LINKS = 'systems/memory/creative_links.js';
 const SCRIPT_WORKFLOW_CONTROLLER = 'systems/workflow/workflow_controller.js';
 const SCRIPT_OBSERVER_MIRROR = 'systems/autonomy/observer_mirror.js';
+const SCRIPT_MIRROR_ORGAN = 'systems/autonomy/mirror_organ.js';
 const SCRIPT_FRACTAL_INTROSPECTION = 'systems/fractal/introspection_map.js';
 const SCRIPT_RED_TEAM = 'systems/autonomy/red_team_harness.js';
 const SCRIPT_AUTOTEST = 'systems/ops/autotest_controller.js';
@@ -65,6 +66,7 @@ const ALLOWED_SCRIPTS = new Set([
   SCRIPT_CREATIVE_LINKS,
   SCRIPT_WORKFLOW_CONTROLLER,
   SCRIPT_OBSERVER_MIRROR,
+  SCRIPT_MIRROR_ORGAN,
   SCRIPT_FRACTAL_INTROSPECTION,
   SCRIPT_RED_TEAM,
   SCRIPT_AUTOTEST,
@@ -285,6 +287,7 @@ function defaultPolicy() {
         enabled: true,
         timeout_ms: 15000,
         mirror_days: 1,
+        mirror_max_proposals: 4,
         include_fractal_introspection: true,
         min_trit: 0,
         max_trit: 1
@@ -352,6 +355,7 @@ function normalizeTaskGate(src: AnyObj, fallback: AnyObj) {
     top: clampInt(task.top, 1, 64, Number(fallback.top || 8)),
     max: clampInt(task.max, 1, 64, Number(fallback.max || 6)),
     mirror_days: clampInt(task.mirror_days, 1, 30, Number(fallback.mirror_days || 1)),
+    mirror_max_proposals: clampInt(task.mirror_max_proposals, 1, 32, Number(fallback.mirror_max_proposals || 4)),
     max_promotions: clampInt(task.max_promotions, 1, 20, Number(fallback.max_promotions || 1)),
     max_cases: clampInt(task.max_cases, 1, 64, Number(fallback.max_cases || 1)),
     max_tests: clampInt(task.max_tests, 1, 256, Number(fallback.max_tests || 12)),
@@ -882,10 +886,19 @@ function runAnticipation(dateStr: string, taskCfg: AnyObj, dryRun: boolean) {
 }
 
 function runSelfImprovement(dateStr: string, taskCfg: AnyObj, dryRun: boolean) {
-  const mirrorRun = runNodeJson(SCRIPT_OBSERVER_MIRROR, [
+  const observerMirrorRun = runNodeJson(SCRIPT_OBSERVER_MIRROR, [
     'run',
     dateStr,
     `--days=${clampInt(taskCfg.mirror_days, 1, 14, 1)}`
+  ], {
+    timeout_ms: taskCfg.timeout_ms,
+    dry_run: dryRun
+  });
+  const mirrorOrganRun = runNodeJson(SCRIPT_MIRROR_ORGAN, [
+    'run',
+    dateStr,
+    `--days=${clampInt(taskCfg.mirror_days, 1, 14, 1)}`,
+    `--max-proposals=${clampInt(taskCfg.mirror_max_proposals, 1, 32, 4)}`
   ], {
     timeout_ms: taskCfg.timeout_ms,
     dry_run: dryRun
@@ -900,13 +913,18 @@ function runSelfImprovement(dateStr: string, taskCfg: AnyObj, dryRun: boolean) {
       dry_run: dryRun
     });
   }
-  const mirrorSummary = summarizeRun('observer_mirror', mirrorRun);
+  const mirrorSummary = summarizeRun('observer_mirror', observerMirrorRun);
+  const mirrorOrganSummary = summarizeRun('mirror_organ', mirrorOrganRun);
   const introspectionSummary = introspectionRun ? summarizeRun('fractal_introspection', introspectionRun) : null;
   return {
-    ok: mirrorSummary.ok && (!introspectionSummary || introspectionSummary.ok),
+    ok: mirrorSummary.ok && mirrorOrganSummary.ok && (!introspectionSummary || introspectionSummary.ok),
     mood: cleanText(mirrorSummary.payload && mirrorSummary.payload.mood || '', 32),
+    mirror_pressure_score: Number(mirrorOrganSummary.payload && mirrorOrganSummary.payload.pressure_score || 0),
+    mirror_confidence: Number(mirrorOrganSummary.payload && mirrorOrganSummary.payload.confidence || 0),
+    mirror_proposals: Number(mirrorOrganSummary.payload && mirrorOrganSummary.payload.proposal_count || 0),
     restructure_candidates: Number(introspectionSummary && introspectionSummary.payload && introspectionSummary.payload.restructure_candidates || 0),
     observer_mirror: mirrorSummary,
+    mirror_organ: mirrorOrganSummary,
     fractal_introspection: introspectionSummary
   };
 }
@@ -1204,6 +1222,7 @@ function pulse(dateStr: string, opts: AnyObj = {}) {
       delete metrics.idle_dream_cycle;
       delete metrics.workflow_controller;
       delete metrics.observer_mirror;
+      delete metrics.mirror_organ;
       delete metrics.fractal_introspection;
       delete metrics.creative_links;
       delete metrics.red_team_harness;

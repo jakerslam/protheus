@@ -59,6 +59,7 @@
       "enabled": true,
       "timeout_ms": 15000,
       "mirror_days": 1,
+      "mirror_max_proposals": 4,
       "include_fractal_introspection": true,
       "min_trit": 0,
       "max_trit": 1
