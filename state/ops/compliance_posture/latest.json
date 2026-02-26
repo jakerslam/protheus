@@ -1,7 +1,7 @@
 {
   "ok": true,
   "type": "compliance_posture",
-  "ts": "2026-02-26T10:17:46.302Z",
+  "ts": "2026-02-26T10:41:43.168Z",
   "date": "2026-02-26",
   "days": 30,
   "profile": "prod",
@@ -31,7 +31,7 @@
       "detail": {
         "ok": true,
         "type": "soc2_readiness",
-        "ts": "2026-02-26T10:16:50.645Z",
+        "ts": "2026-02-26T10:40:46.971Z",
         "policy_version": "1.1",
         "controls_total": 7,
         "controls_passed": 7,
@@ -107,7 +107,7 @@
       "status": 0,
       "detail": {
         "ok": true,
-        "ts": "2026-02-26T10:16:50.852Z",
+        "ts": "2026-02-26T10:40:47.176Z",
         "policy_path": "/Users/jay/.openclaw/workspace/config/security_integrity_policy.json",
         "policy_version": "1.0",
         "checked_present_files": 39,

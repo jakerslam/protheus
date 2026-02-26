@@ -1,7 +1,7 @@
 {
   "ok": true,
   "type": "framework_readiness",
-  "ts": "2026-02-26T10:16:50.645Z",
+  "ts": "2026-02-26T10:40:46.971Z",
   "requested_framework": "soc2",
   "policy_version": "1.1",
   "frameworks": [

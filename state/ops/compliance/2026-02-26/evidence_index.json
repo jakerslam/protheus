@@ -1,6 +1,6 @@
 {
   "type": "compliance_evidence_index",
-  "ts": "2026-02-26T10:16:50.645Z",
+  "ts": "2026-02-26T10:40:46.970Z",
   "window_days": 30,
   "policy_version": "1.1",
   "total_rules": 30,
@@ -61,10 +61,10 @@
           "ok": true,
           "type": "jsonl_min_rows",
           "path": "state/ops/compliance/history.jsonl",
-          "observed": 8,
+          "observed": 9,
           "min_rows": 0,
-          "rows": 8,
-          "latest_ts": "2026-02-26T04:18:19.558Z"
+          "rows": 9,
+          "latest_ts": "2026-02-26T10:16:50.648Z"
         },
         {
           "ok": true,
@@ -313,10 +313,10 @@
           "ok": true,
           "type": "jsonl_min_rows",
           "path": "state/ops/compliance_posture/history.jsonl",
-          "observed": 5,
+          "observed": 6,
           "min_rows": 0,
-          "rows": 5,
-          "latest_ts": "2026-02-26T00:33:10.411Z"
+          "rows": 6,
+          "latest_ts": "2026-02-26T10:17:46.302Z"
         }
       ]
     },
@@ -352,10 +352,10 @@
           "ok": true,
           "type": "jsonl_min_rows",
           "path": "state/ops/compliance/history.jsonl",
-          "observed": 8,
+          "observed": 9,
           "min_rows": 0,
-          "rows": 8,
-          "latest_ts": "2026-02-26T04:18:19.558Z"
+          "rows": 9,
+          "latest_ts": "2026-02-26T10:16:50.648Z"
         }
       ]
     },
