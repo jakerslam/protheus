@@ -32,3 +32,7 @@
 {"ts":"2026-02-26T09:30:42.906Z","type":"dual_brain_event","stage":"inversion","mode":"left_only","right_requested":true,"right_permitted":false,"reasons":["hardware_gate","budget_autopause_active"]}
 {"ts":"2026-02-26T09:42:38.009Z","type":"dual_brain_event","stage":"inversion","mode":"left_only","right_requested":true,"right_permitted":false,"reasons":["hardware_gate","budget_autopause_active"]}
 {"ts":"2026-02-26T09:42:38.015Z","type":"dual_brain_event","stage":"inversion","mode":"left_only","right_requested":true,"right_permitted":false,"reasons":["hardware_gate","budget_autopause_active"]}
+{"ts":"2026-02-26T09:52:30.499Z","type":"dual_brain_event","stage":"inversion","mode":"left_only","right_requested":true,"right_permitted":false,"reasons":["hardware_gate","budget_autopause_active"]}
+{"ts":"2026-02-26T09:52:30.505Z","type":"dual_brain_event","stage":"inversion","mode":"left_only","right_requested":true,"right_permitted":false,"reasons":["hardware_gate","budget_autopause_active"]}
+{"ts":"2026-02-26T10:02:26.489Z","type":"dual_brain_event","stage":"inversion","mode":"left_only","right_requested":true,"right_permitted":false,"reasons":["hardware_gate","budget_autopause_active"]}
+{"ts":"2026-02-26T10:02:26.495Z","type":"dual_brain_event","stage":"inversion","mode":"left_only","right_requested":true,"right_permitted":false,"reasons":["hardware_gate","budget_autopause_active"]}

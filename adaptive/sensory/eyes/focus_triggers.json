@@ -377,10 +377,10 @@
       "status": "active",
       "weight": 37,
       "cooldown_minutes": 90,
-      "hit_count": 31,
-      "last_hit_ts": "2026-02-26T09:43:45.443Z",
+      "hit_count": 47,
+      "last_hit_ts": "2026-02-26T10:03:31.466Z",
       "created_ts": "2026-02-26T04:30:31.189Z",
-      "updated_ts": "2026-02-26T09:43:45.443Z"
+      "updated_ts": "2026-02-26T10:03:31.466Z"
     },
     {
       "uid": "ft4f8jeoqyesg2u0r8bg2tum",
@@ -396,10 +396,10 @@
       "status": "active",
       "weight": 33,
       "cooldown_minutes": 90,
-      "hit_count": 141,
-      "last_hit_ts": "2026-02-26T09:43:45.443Z",
+      "hit_count": 157,
+      "last_hit_ts": "2026-02-26T10:03:31.466Z",
       "created_ts": "2026-02-26T00:02:18.712Z",
-      "updated_ts": "2026-02-26T09:43:45.443Z"
+      "updated_ts": "2026-02-26T10:03:31.466Z"
     },
     {
       "uid": "ftxuncz0jz4j3dv9m1gk1x8s",
@@ -567,10 +567,10 @@
       "status": "active",
       "weight": 21,
       "cooldown_minutes": 90,
-      "hit_count": 47,
-      "last_hit_ts": "2026-02-26T09:43:45.443Z",
+      "hit_count": 63,
+      "last_hit_ts": "2026-02-26T10:03:31.466Z",
       "created_ts": "2026-02-26T04:30:31.189Z",
-      "updated_ts": "2026-02-26T09:43:45.443Z"
+      "updated_ts": "2026-02-26T10:03:31.466Z"
     },
     {
       "uid": "ft2peuozh4bp4cqa7jz8z82g",
@@ -585,10 +585,10 @@
       "status": "active",
       "weight": 21,
       "cooldown_minutes": 90,
-      "hit_count": 43,
-      "last_hit_ts": "2026-02-26T09:43:45.443Z",
+      "hit_count": 59,
+      "last_hit_ts": "2026-02-26T10:03:31.466Z",
       "created_ts": "2026-02-26T04:30:31.189Z",
-      "updated_ts": "2026-02-26T09:43:45.443Z"
+      "updated_ts": "2026-02-26T10:03:31.466Z"
     },
     {
       "uid": "ft1fz2j83196slr4cvu2d7bw",
@@ -670,10 +670,10 @@
       "status": "active",
       "weight": 16,
       "cooldown_minutes": 90,
-      "hit_count": 318,
-      "last_hit_ts": "2026-02-26T09:43:45.443Z",
+      "hit_count": 334,
+      "last_hit_ts": "2026-02-26T10:03:31.466Z",
       "created_ts": "2026-02-23T15:20:59.511Z",
-      "updated_ts": "2026-02-26T09:43:45.443Z"
+      "updated_ts": "2026-02-26T10:03:31.466Z"
     },
     {
       "uid": "ft44ejy16rfcgu7wmcd4evoz",
@@ -1680,10 +1680,10 @@
         "revenue",
         "saas"
       ],
-      "focus_hits_total": 209,
-      "update_count": 72,
+      "focus_hits_total": 225,
+      "update_count": 80,
       "created_ts": "2026-02-23T15:20:59.539Z",
-      "updated_ts": "2026-02-26T09:43:45.443Z"
+      "updated_ts": "2026-02-26T10:03:31.466Z"
     },
     "proto_affc19cbf503b0d7": {
       "eye_id": "proto_affc19cbf503b0d7",
@@ -2206,7 +2206,10 @@
     "id:23f2d27aaf6b8966": "2026-02-26T09:31:54.926Z",
     "id:45922c74a7bfea89": "2026-02-26T09:43:45.443Z",
     "id:67423ee364f78244": "2026-02-26T09:39:24.331Z",
-    "id:32da3e599132737a": "2026-02-26T09:43:45.443Z"
+    "id:32da3e599132737a": "2026-02-26T09:53:32.596Z",
+    "id:4d2823a56f64b2bc": "2026-02-26T09:53:32.596Z",
+    "id:401f875758a4b293": "2026-02-26T10:03:31.466Z",
+    "id:4f67f008edd361fc": "2026-02-26T10:03:31.466Z"
   },
   "last_refresh_ts": "2026-02-26T08:34:20.984Z",
   "last_refresh_sources": {
@@ -2227,7 +2230,7 @@
   "stats": {
     "refresh_count": 23,
     "lens_refresh_count": 16,
-    "focused_items_total": 551,
-    "last_focus_ts": "2026-02-26T09:43:45.443Z"
+    "focused_items_total": 567,
+    "last_focus_ts": "2026-02-26T10:03:31.466Z"
   }
 }
