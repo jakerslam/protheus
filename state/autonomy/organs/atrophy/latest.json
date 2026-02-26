@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "type": "organ_atrophy_scan",
+  "ts": "2026-02-26T10:16:38.280Z",
+  "date": "2026-02-26",
+  "scan_id": "atrophy_a88f30c4071e41",
+  "policy": {
+    "path": "config/organ_atrophy_policy.json",
+    "version": "1.0"
+  },
+  "shadow_mode": true,
+  "window_days": 30,
+  "total_organs": 24,
+  "scanned_organs": 21,
+  "excluded_organs": 3,
+  "excluded_list": [
+    "identity",
+    "security",
+    "spine"
+  ],
+  "touched_files_total": 91,
+  "candidates_count": 0,
+  "max_candidates": 8,
+  "endpoints_written": 0,
+  "endpoint_paths": [],
+  "candidates": []
+}
