@@ -33,6 +33,8 @@
     "ops:execution-reliability:status": "node systems/ops/execution_reliability_slo.js status",
     "ops:ci-baseline:guard": "node systems/ops/ci_baseline_guard.js run",
     "ops:ci-baseline:status": "node systems/ops/ci_baseline_guard.js status",
+    "ops:rm-progress:dashboard": "node systems/ops/rm_progress_dashboard.js run",
+    "ops:rm-progress:status": "node systems/ops/rm_progress_dashboard.js status",
     "autophagy:baseline:capture": "node systems/autonomy/autophagy_baseline_guard.js capture",
     "autophagy:baseline:check": "node systems/autonomy/autophagy_baseline_guard.js check --strict",
     "autophagy:harvest": "node systems/autonomy/non_yield_harvest.js run",

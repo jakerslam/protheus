@@ -169,6 +169,7 @@ function defaultPolicy() {
       workflow_executor_zero_selection_warn_streak: 2,
       execution_reliability_slo_path: 'state/ops/execution_reliability_slo.json',
       ci_baseline_guard_path: 'state/ops/ci_baseline_guard.json',
+      rm_progress_dashboard_path: 'state/ops/rm_progress_dashboard.json',
       ci_baseline_streak_path: 'state/ops/ci_baseline_streak.json',
       output_prometheus_path: 'state/observability/prometheus/current.prom',
       output_snapshot_path: 'state/observability/metrics/latest.json',
@@ -210,6 +211,10 @@ function loadPolicy(policyPathRaw: unknown) {
       ci_baseline_guard_path: resolvePath(
         src.ci_baseline_guard_path,
         base.metrics.ci_baseline_guard_path
+      ),
+      rm_progress_dashboard_path: resolvePath(
+        src.rm_progress_dashboard_path,
+        base.metrics.rm_progress_dashboard_path
       ),
       ci_baseline_streak_path: resolvePath(src.ci_baseline_streak_path, base.metrics.ci_baseline_streak_path),
       output_prometheus_path: resolvePath(src.output_prometheus_path, base.metrics.output_prometheus_path),
@@ -296,6 +301,7 @@ function buildMetrics(
   ciStreak: AnyObj,
   executionReliability: AnyObj,
   ciBaselineGuard: AnyObj,
+  rmProgressDashboard: AnyObj,
   liveZeroSelectionStreak: number,
   liveZeroSelectionWarnStreak: number
 ) {
@@ -320,6 +326,9 @@ function buildMetrics(
     : {};
   const ciGuardChecks = ciBaselineGuard && ciBaselineGuard.checks && typeof ciBaselineGuard.checks === 'object'
     ? ciBaselineGuard.checks
+    : {};
+  const rmStatus = rmProgressDashboard && rmProgressDashboard.status && typeof rmProgressDashboard.status === 'object'
+    ? rmProgressDashboard.status
     : {};
 
   const labels = { window };
@@ -454,6 +463,26 @@ function buildMetrics(
       value: ciGuardChecks.streak_target_met === true ? 1 : 0
     },
     {
+      name: 'protheus_rm_progress_dashboard_all_pass',
+      help: 'RM progress dashboard all-pass flag (1=pass,0=not_pass).',
+      type: 'gauge',
+      value: rmStatus.all_pass === true ? 1 : 0
+    },
+    {
+      name: 'protheus_rm_progress_dashboard_pass_ratio',
+      help: 'RM progress dashboard pass ratio across closure/reliability/ci guards.',
+      type: 'gauge',
+      value: asRatio(rmStatus.pass_ratio)
+    },
+    {
+      name: 'protheus_rm_progress_dashboard_blocked_count',
+      help: 'RM progress dashboard blocked check count.',
+      type: 'gauge',
+      value: asNumber(Array.isArray(rmProgressDashboard && rmProgressDashboard.blocked_by)
+        ? rmProgressDashboard.blocked_by.length
+        : 0, 0)
+    },
+    {
       name: 'protheus_ci_baseline_streak_days',
       help: 'Current consecutive daily green CI streak.',
       type: 'gauge',
@@ -500,6 +529,7 @@ function runSnapshot(policy: AnyObj, dateStr: string, window: string, writeEnabl
   );
   const executionReliability = readJson(policy.metrics.execution_reliability_slo_path, {});
   const ciBaselineGuard = readJson(policy.metrics.ci_baseline_guard_path, {});
+  const rmProgressDashboard = readJson(policy.metrics.rm_progress_dashboard_path, {});
   const ciStreak = readJson(policy.metrics.ci_baseline_streak_path, {});
   const metrics = buildMetrics(
     dateStr,
@@ -509,6 +539,7 @@ function runSnapshot(policy: AnyObj, dateStr: string, window: string, writeEnabl
     ciStreak,
     executionReliability,
     ciBaselineGuard,
+    rmProgressDashboard,
     liveZeroSelectionStreak,
     liveZeroSelectionWarnStreak
   );
@@ -534,6 +565,8 @@ function runSnapshot(policy: AnyObj, dateStr: string, window: string, writeEnabl
     execution_reliability_slo_pass: executionReliability && executionReliability.pass === true,
     ci_baseline_guard_path: relPath(policy.metrics.ci_baseline_guard_path),
     ci_baseline_guard_pass: ciBaselineGuard && ciBaselineGuard.pass === true,
+    rm_progress_dashboard_path: relPath(policy.metrics.rm_progress_dashboard_path),
+    rm_progress_dashboard_all_pass: rmProgressDashboard && rmProgressDashboard.status && rmProgressDashboard.status.all_pass === true,
     metrics_count: metrics.length,
     output: {
       prometheus_path: relPath(policy.metrics.output_prometheus_path),
@@ -553,6 +586,7 @@ function runSnapshot(policy: AnyObj, dateStr: string, window: string, writeEnabl
   if (!fs.existsSync(policy.metrics.workflow_executor_history_path)) out.warnings.push('workflow_executor_history_missing');
   if (!fs.existsSync(policy.metrics.execution_reliability_slo_path)) out.warnings.push('execution_reliability_slo_missing');
   if (!fs.existsSync(policy.metrics.ci_baseline_guard_path)) out.warnings.push('ci_baseline_guard_missing');
+  if (!fs.existsSync(policy.metrics.rm_progress_dashboard_path)) out.warnings.push('rm_progress_dashboard_missing');
   if (!fs.existsSync(policy.metrics.ci_baseline_streak_path)) out.warnings.push('ci_baseline_streak_missing');
   if (liveZeroSelectionStreak >= liveZeroSelectionWarnStreak) {
     out.warnings.push(`workflow_executor_live_zero_selection_streak:${liveZeroSelectionStreak}`);
@@ -562,6 +596,9 @@ function runSnapshot(policy: AnyObj, dateStr: string, window: string, writeEnabl
   }
   if (ciBaselineGuard && ciBaselineGuard.pass === false) {
     out.warnings.push(`ci_baseline_guard_fail:${String(ciBaselineGuard.result || 'pending')}`);
+  }
+  if (rmProgressDashboard && rmProgressDashboard.status && rmProgressDashboard.status.all_pass === false) {
+    out.warnings.push(`rm_progress_dashboard_blocked:${String(rmProgressDashboard.status.result || 'partial')}`);
   }
 
   if (writeEnabled) {

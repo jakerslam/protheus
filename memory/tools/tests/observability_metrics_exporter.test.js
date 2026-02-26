@@ -90,6 +90,13 @@ try {
       streak_target_met: false
     }
   });
+  writeJson(path.join(state, 'ops', 'rm_progress_dashboard.json'), {
+    status: {
+      all_pass: false,
+      pass_ratio: 0.667
+    },
+    blocked_by: ['rm001_ci_baseline_guard']
+  });
 
   writeJson(policyPath, {
     version: '1.0-test',
@@ -101,6 +108,7 @@ try {
       workflow_executor_latest_path: path.join(state, 'adaptive', 'workflows', 'executor', 'latest.json'),
       execution_reliability_slo_path: path.join(state, 'ops', 'execution_reliability_slo.json'),
       ci_baseline_guard_path: path.join(state, 'ops', 'ci_baseline_guard.json'),
+      rm_progress_dashboard_path: path.join(state, 'ops', 'rm_progress_dashboard.json'),
       ci_baseline_streak_path: path.join(state, 'ops', 'ci_baseline_streak.json'),
       output_prometheus_path: path.join(state, 'observability', 'prometheus', 'current.prom'),
       output_snapshot_path: path.join(state, 'observability', 'metrics', 'latest.json'),
@@ -119,6 +127,7 @@ try {
   const promText = fs.readFileSync(promPath, 'utf8');
   assert.ok(promText.includes('protheus_health_slo_level'), 'prometheus should include health metric');
   assert.ok(promText.includes('protheus_ci_baseline_streak_days'), 'prometheus should include ci streak metric');
+  assert.ok(promText.includes('protheus_rm_progress_dashboard_all_pass'), 'prometheus should include rm dashboard metric');
 
   const promRes = run(['prom', dateStr, '--window=daily', `--policy=${policyPath}`, '--write=0']);
   assert.strictEqual(promRes.status, 0, `prom should pass: ${promRes.stderr}`);
