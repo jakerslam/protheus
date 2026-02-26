@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated_at": "2026-02-26T10:40:00.835Z",
+  "updated_at": "2026-02-26T10:40:31.342Z",
   "modules": {
     "systems/actuation/actuation_executor.ts": {
       "id": "mod_0eff96d59cce2c",
@@ -36,7 +36,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -118,7 +118,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -160,7 +160,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -242,7 +242,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -345,7 +345,7 @@
       "mapped_test_count": 22,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -388,7 +388,7 @@
       "mapped_test_count": 22,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -431,7 +431,7 @@
       "mapped_test_count": 22,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -454,7 +454,7 @@
       "mapped_test_count": 2,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -499,7 +499,7 @@
       "mapped_test_count": 4,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -542,7 +542,7 @@
       "mapped_test_count": 2,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -564,7 +564,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -586,7 +586,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -608,7 +608,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -632,7 +632,7 @@
       "mapped_test_count": 3,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -675,7 +675,7 @@
       "mapped_test_count": 2,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -697,7 +697,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -719,7 +719,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -741,7 +741,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -764,7 +764,7 @@
       "mapped_test_count": 2,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -787,7 +787,7 @@
       "mapped_test_count": 2,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -909,7 +909,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -931,7 +931,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -953,7 +953,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -975,7 +975,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -998,7 +998,7 @@
       "mapped_test_count": 2,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -1020,7 +1020,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -1082,7 +1082,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.834Z",
+      "last_pass_ts": "2026-02-26T10:40:31.341Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -1105,7 +1105,7 @@
       "mapped_test_count": 2,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.835Z",
+      "last_pass_ts": "2026-02-26T10:40:31.342Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -1127,7 +1127,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.835Z",
+      "last_pass_ts": "2026-02-26T10:40:31.342Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -1149,7 +1149,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": "2026-02-26T10:40:00.835Z",
+      "last_pass_ts": "2026-02-26T10:40:31.342Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -1161,7 +1161,7 @@
       "id": "mod_d07d59a7995ca5",
       "path": "systems/autonomy/receipt_summary.ts",
       "fingerprint": "19382e7673431cc7a1ac8b307ef3f507566bab99629b59eb351de5a3b1195509",
-      "checked": false,
+      "checked": true,
       "changed": false,
       "is_new": false,
       "untested": false,
@@ -1172,7 +1172,7 @@
       "mapped_test_count": 2,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": null,
+      "last_pass_ts": "2026-02-26T10:40:31.342Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -1184,7 +1184,7 @@
       "id": "mod_90295de1c7ce7a",
       "path": "systems/autonomy/red_team_harness.ts",
       "fingerprint": "dcefa0c82cea500f7568a6de3ca155b9e7fd50ba63533c331d1d4c0c77d4cca5",
-      "checked": false,
+      "checked": true,
       "changed": false,
       "is_new": false,
       "untested": false,
@@ -1196,7 +1196,7 @@
       "mapped_test_count": 3,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": null,
+      "last_pass_ts": "2026-02-26T10:40:31.342Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -1228,7 +1228,7 @@
       "id": "mod_df0eac0bb0204c",
       "path": "systems/autonomy/self_documentation_closeout.ts",
       "fingerprint": "067a06db36eb4473983ff450f83587d2001074536c3ddd85707ee6e81a70fa36",
-      "checked": false,
+      "checked": true,
       "changed": false,
       "is_new": false,
       "untested": false,
@@ -1238,7 +1238,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": null,
+      "last_pass_ts": "2026-02-26T10:40:31.342Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -1250,7 +1250,7 @@
       "id": "mod_10330d4338d545",
       "path": "systems/autonomy/skill_generation_pipeline.ts",
       "fingerprint": "a898b6447cc22f507959f39bcb9ca3d28856dc37c57fcf288e915df161bfb810",
-      "checked": false,
+      "checked": true,
       "changed": false,
       "is_new": false,
       "untested": false,
@@ -1261,7 +1261,7 @@
       "mapped_test_count": 2,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": null,
+      "last_pass_ts": "2026-02-26T10:40:31.342Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -1273,7 +1273,7 @@
       "id": "mod_8242e48ac357af",
       "path": "systems/autonomy/slo_runbook_check.ts",
       "fingerprint": "34aad48365142fc4fabe99542d5c192f5a66adc15da2321dbbbeff367026e720",
-      "checked": false,
+      "checked": true,
       "changed": false,
       "is_new": false,
       "untested": false,
@@ -1283,7 +1283,7 @@
       "mapped_test_count": 1,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": null,
+      "last_pass_ts": "2026-02-26T10:40:31.342Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -1295,7 +1295,7 @@
       "id": "mod_5a91b1ea56d9fe",
       "path": "systems/autonomy/strategy_doctor.ts",
       "fingerprint": "ab95e8298172e4e0a0f688c60105d225f8dd0d49426d63e211ecf73a725df3df",
-      "checked": false,
+      "checked": true,
       "changed": false,
       "is_new": false,
       "untested": false,
@@ -1306,7 +1306,7 @@
       "mapped_test_count": 2,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": null,
+      "last_pass_ts": "2026-02-26T10:40:31.342Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -1318,7 +1318,7 @@
       "id": "mod_6bd0e50b27b775",
       "path": "systems/autonomy/strategy_execute_guard.ts",
       "fingerprint": "94efd31a44e09c6656d3881c32f379459f27831940774c310edd06e92a719fe6",
-      "checked": false,
+      "checked": true,
       "changed": false,
       "is_new": false,
       "untested": false,
@@ -1333,7 +1333,7 @@
       "mapped_test_count": 6,
       "last_change_ts": "2026-02-26T10:15:45.275Z",
       "last_test_ts": null,
-      "last_pass_ts": null,
+      "last_pass_ts": "2026-02-26T10:40:31.342Z",
       "last_fail_ts": null,
       "seed_fields": {
         "owner": null,
@@ -4843,8 +4843,8 @@
       "critical": false,
       "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": "2026-02-26T10:39:49.849Z",
-      "last_duration_ms": 763,
+      "last_run_ts": "2026-02-26T10:40:18.256Z",
+      "last_duration_ms": 929,
       "last_stdout_excerpt": "autonomy_actionability_rollback_guard.test.js: OK",
       "last_stderr_excerpt": "",
       "last_guard": {
@@ -4861,7 +4861,7 @@
           "systems/security/guard.ts"
         ]
       },
-      "last_pass_ts": "2026-02-26T10:39:49.849Z"
+      "last_pass_ts": "2026-02-26T10:40:18.256Z"
     },
     "tst_6e303915d4e7be": {
       "id": "tst_6e303915d4e7be",
@@ -4923,8 +4923,8 @@
       "critical": false,
       "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": "2026-02-26T10:39:59.162Z",
-      "last_duration_ms": 2112,
+      "last_run_ts": "2026-02-26T10:40:10.758Z",
+      "last_duration_ms": 2066,
       "last_stdout_excerpt": "═══════════════════════════════════════════════════════════ AUTONOMY EVIDENCE PIPELINE INTEGRATION TEST ═══════════════════════════════════════════════════════════ Ingested 1 proposals for 2099-12-31 (0 duplicates skipped) ✅ eyes -> queue -> enrich -> evidence pipeline is healthy",
       "last_stderr_excerpt": "",
       "last_guard": {
@@ -4939,7 +4939,7 @@
           "systems/autonomy/skill_generation_pipeline.ts"
         ]
       },
-      "last_pass_ts": "2026-02-26T10:39:59.162Z"
+      "last_pass_ts": "2026-02-26T10:40:10.758Z"
     },
     "tst_2d2034df3ebeb7": {
       "id": "tst_2d2034df3ebeb7",
@@ -4949,10 +4949,22 @@
       "critical": false,
       "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": "2026-02-26T10:16:13.148Z",
-      "last_duration_ms": 746,
+      "last_run_ts": "2026-02-26T10:40:14.271Z",
+      "last_duration_ms": 798,
       "last_stdout_excerpt": "autonomy_execute_confidence_cooldown_key.test.js: OK",
-      "last_stderr_excerpt": null
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/autonomy_execute_confidence_cooldown_key.test.js",
+          "systems/autonomy/autonomy_controller.ts",
+          "systems/autonomy/autonomy_rollout_controller.ts",
+          "systems/autonomy/autonomy_simulation_harness.ts",
+          "systems/autonomy/strategy_execute_guard.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:14.271Z"
     },
     "tst_405dfbaeffd2e1": {
       "id": "tst_405dfbaeffd2e1",
@@ -4962,8 +4974,8 @@
       "critical": false,
       "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": "2026-02-26T10:39:50.856Z",
-      "last_duration_ms": 758,
+      "last_run_ts": "2026-02-26T10:40:15.286Z",
+      "last_duration_ms": 759,
       "last_stdout_excerpt": "autonomy_mutation_execution_guard.test.js: OK",
       "last_stderr_excerpt": "",
       "last_guard": {
@@ -4980,7 +4992,7 @@
           "systems/security/guard.ts"
         ]
       },
-      "last_pass_ts": "2026-02-26T10:39:50.856Z"
+      "last_pass_ts": "2026-02-26T10:40:15.286Z"
     },
     "tst_92dab8ace7f60f": {
       "id": "tst_92dab8ace7f60f",
@@ -5071,21 +5083,7 @@
       "last_run_ts": "2026-02-26T10:39:25.575Z",
       "last_duration_ms": 210,
       "last_stdout_excerpt": "autonomy_rollout_controller.test.js: OK",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/autonomy_rollout_controller.test.js",
-          "systems/autonomy/autonomy_controller.ts",
-          "systems/autonomy/autonomy_rollout_controller.ts",
-          "systems/autonomy/autonomy_simulation_harness.ts",
-          "systems/autonomy/improvement_controller.ts",
-          "systems/autonomy/inversion_controller.ts",
-          "systems/autonomy/optimization_aperture_controller.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:39:25.575Z"
+      "last_stderr_excerpt": null
     },
     "tst_b343fbf4b3b3c5": {
       "id": "tst_b343fbf4b3b3c5",
@@ -5121,10 +5119,22 @@
       "critical": false,
       "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": "2026-02-26T10:16:26.657Z",
-      "last_duration_ms": 390,
+      "last_run_ts": "2026-02-26T10:40:05.157Z",
+      "last_duration_ms": 392,
       "last_stdout_excerpt": "autonomy_simulation_harness_autopause_window.test.js: OK",
-      "last_stderr_excerpt": null
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/autonomy_simulation_harness_autopause_window.test.js",
+          "systems/autonomy/autonomy_controller.ts",
+          "systems/autonomy/autonomy_rollout_controller.ts",
+          "systems/autonomy/autonomy_simulation_harness.ts",
+          "systems/autonomy/red_team_harness.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:05.157Z"
     },
     "tst_8387f9beea340f": {
       "id": "tst_8387f9beea340f",
@@ -5134,10 +5144,23 @@
       "critical": false,
       "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": "2026-02-26T10:16:20.823Z",
-      "last_duration_ms": 745,
+      "last_run_ts": "2026-02-26T10:40:04.515Z",
+      "last_duration_ms": 755,
       "last_stdout_excerpt": "autonomy_simulation_harness_identity_projection.test.js: OK",
-      "last_stderr_excerpt": null
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/autonomy_simulation_harness_identity_projection.test.js",
+          "systems/autonomy/autonomy_controller.ts",
+          "systems/autonomy/autonomy_rollout_controller.ts",
+          "systems/autonomy/autonomy_simulation_harness.ts",
+          "systems/autonomy/red_team_harness.ts",
+          "systems/identity/identity_anchor.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:04.515Z"
     },
     "tst_42d21fbc81e7a5": {
       "id": "tst_42d21fbc81e7a5",
@@ -5147,10 +5170,30 @@
       "critical": false,
       "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": "2026-02-26T10:16:15.344Z",
-      "last_duration_ms": 953,
+      "last_run_ts": "2026-02-26T10:40:12.687Z",
+      "last_duration_ms": 966,
       "last_stdout_excerpt": "autonomy_strategy_layer_upgrades.test.js: OK",
-      "last_stderr_excerpt": null
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/autonomy_strategy_layer_upgrades.test.js",
+          "systems/autonomy/autonomy_controller.ts",
+          "systems/autonomy/autonomy_rollout_controller.ts",
+          "systems/autonomy/autonomy_simulation_harness.ts",
+          "systems/autonomy/strategy_doctor.ts",
+          "systems/autonomy/strategy_execute_guard.ts",
+          "systems/autonomy/strategy_mode_governor.ts",
+          "systems/autonomy/strategy_mode.ts",
+          "systems/autonomy/strategy_readiness.ts",
+          "systems/strategy/strategy_controller.ts",
+          "systems/strategy/strategy_learner.ts",
+          "systems/strategy/strategy_principles.ts",
+          "systems/strategy/weekly_strategy_synthesis.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:12.687Z"
     },
     "tst_4a58056b35f167": {
       "id": "tst_4a58056b35f167",
@@ -5605,16 +5648,7 @@
       "last_run_ts": "2026-02-26T10:39:20.572Z",
       "last_duration_ms": 303,
       "last_stdout_excerpt": "drift_target_governor.test.js: OK",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/drift_target_governor.test.js",
-          "systems/autonomy/drift_target_governor.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:39:20.572Z"
+      "last_stderr_excerpt": null
     },
     "tst_43b6a4fe8fefce": {
       "id": "tst_43b6a4fe8fefce",
@@ -5718,16 +5752,7 @@
       "last_run_ts": "2026-02-26T10:39:21.019Z",
       "last_duration_ms": 197,
       "last_stdout_excerpt": "escalation_resolver.test.js: OK",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/escalation_resolver.test.js",
-          "systems/autonomy/escalation_resolver.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:39:21.019Z"
+      "last_stderr_excerpt": null
     },
     "tst_f3bda6455dfdba": {
       "id": "tst_f3bda6455dfdba",
@@ -6052,16 +6077,7 @@
       "last_run_ts": "2026-02-26T10:39:25.109Z",
       "last_duration_ms": 3840,
       "last_stdout_excerpt": "health_status.test.js: OK",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/health_status.test.js",
-          "systems/autonomy/health_status.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:39:25.109Z"
+      "last_stderr_excerpt": null
     },
     "tst_e4d0b4dab321de": {
       "id": "tst_e4d0b4dab321de",
@@ -6100,16 +6116,7 @@
       "last_run_ts": "2026-02-26T10:39:26.079Z",
       "last_duration_ms": 251,
       "last_stdout_excerpt": "improvement_controller_policy_root.test.js: OK",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/improvement_controller_policy_root.test.js",
-          "systems/autonomy/improvement_controller.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:39:26.079Z"
+      "last_stderr_excerpt": null
     },
     "tst_dd2bcdf14ca8b6": {
       "id": "tst_dd2bcdf14ca8b6",
@@ -6122,16 +6129,7 @@
       "last_run_ts": "2026-02-26T10:39:26.570Z",
       "last_duration_ms": 243,
       "last_stdout_excerpt": "improvement_controller_two_phase.test.js: OK",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/improvement_controller_two_phase.test.js",
-          "systems/autonomy/improvement_controller.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:39:26.570Z"
+      "last_stderr_excerpt": null
     },
     "tst_b1e1fa3ecc5fbe": {
       "id": "tst_b1e1fa3ecc5fbe",
@@ -6157,16 +6155,7 @@
       "last_run_ts": "2026-02-26T10:39:46.183Z",
       "last_duration_ms": 19363,
       "last_stdout_excerpt": "inversion_controller.test.js: OK",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/inversion_controller.test.js",
-          "systems/autonomy/inversion_controller.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:39:46.183Z"
+      "last_stderr_excerpt": null
     },
     "tst_28f116e09c765e": {
       "id": "tst_28f116e09c765e",
@@ -6179,16 +6168,7 @@
       "last_run_ts": "2026-02-26T10:39:46.632Z",
       "last_duration_ms": 201,
       "last_stdout_excerpt": "lever_experiment_gate.test.js: OK",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/lever_experiment_gate.test.js",
-          "systems/autonomy/lever_experiment_gate.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:39:46.632Z"
+      "last_stderr_excerpt": null
     },
     "tst_c2a883deacb63a": {
       "id": "tst_c2a883deacb63a",
@@ -6266,16 +6246,7 @@
       "last_run_ts": "2026-02-26T10:39:47.601Z",
       "last_duration_ms": 720,
       "last_stdout_excerpt": "mirror_organ.test.js: OK",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/mirror_organ.test.js",
-          "systems/autonomy/mirror_organ.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:39:47.601Z"
+      "last_stderr_excerpt": null
     },
     "tst_878d96035d4a1d": {
       "id": "tst_878d96035d4a1d",
@@ -6288,17 +6259,7 @@
       "last_run_ts": "2026-02-26T10:39:48.837Z",
       "last_duration_ms": 989,
       "last_stdout_excerpt": "═══════════════════════════════════════════════════════════ MODEL CATALOG CANARY INTEGRATION TESTS ═══════════════════════════════════════════════════════════ ✅ canary passes after enough healthy samples ✅ canary triggers rollback when failure rate exceeds threshold ✅ ALL MODEL CATALOG CANARY INTEGRATION TESTS PASS",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/model_catalog_canary.integration.test.js",
-          "systems/autonomy/model_catalog_loop.ts",
-          "systems/autonomy/model_catalog_rollback.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:39:48.837Z"
+      "last_stderr_excerpt": null
     },
     "tst_bad63d3c8968a7": {
       "id": "tst_bad63d3c8968a7",
@@ -6389,16 +6350,7 @@
       "last_run_ts": "2026-02-26T10:39:51.306Z",
       "last_duration_ms": 200,
       "last_stdout_excerpt": "mutation_safety_kernel.test.js: OK",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/mutation_safety_kernel.test.js",
-          "systems/autonomy/mutation_safety_kernel.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:39:51.306Z"
+      "last_stderr_excerpt": null
     },
     "tst_35ac52289fc045": {
       "id": "tst_35ac52289fc045",
@@ -6424,16 +6376,7 @@
       "last_run_ts": "2026-02-26T10:39:52.679Z",
       "last_duration_ms": 271,
       "last_stdout_excerpt": "objective_runtime_governor.test.js: OK",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/objective_runtime_governor.test.js",
-          "systems/autonomy/objective_runtime_governor.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:39:52.679Z"
+      "last_stderr_excerpt": null
     },
     "tst_52ffa0669be2dc": {
       "id": "tst_52ffa0669be2dc",
@@ -6485,16 +6428,7 @@
       "last_run_ts": "2026-02-26T10:39:53.473Z",
       "last_duration_ms": 545,
       "last_stdout_excerpt": "observer_mirror.test.js: OK",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/observer_mirror.test.js",
-          "systems/autonomy/observer_mirror.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:39:53.473Z"
+      "last_stderr_excerpt": null
     },
     "tst_60bdaea6406e54": {
       "id": "tst_60bdaea6406e54",
@@ -6533,16 +6467,7 @@
       "last_run_ts": "2026-02-26T10:39:53.969Z",
       "last_duration_ms": 243,
       "last_stdout_excerpt": "ops_dashboard.test.js: OK",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/ops_dashboard.test.js",
-          "systems/autonomy/ops_dashboard.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:39:53.969Z"
+      "last_stderr_excerpt": null
     },
     "tst_cc0845c15b889c": {
       "id": "tst_cc0845c15b889c",
@@ -6555,17 +6480,7 @@
       "last_run_ts": "2026-02-26T10:39:52.157Z",
       "last_duration_ms": 599,
       "last_stdout_excerpt": "optimization_aperture_and_floor.test.js: OK",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/optimization_aperture_and_floor.test.js",
-          "systems/autonomy/objective_optimization_floor.ts",
-          "systems/autonomy/optimization_aperture_controller.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:39:52.157Z"
+      "last_stderr_excerpt": null
     },
     "tst_e8a87995aaf058": {
       "id": "tst_e8a87995aaf058",
@@ -6695,16 +6610,7 @@
       "last_run_ts": "2026-02-26T10:39:55.238Z",
       "last_duration_ms": 1022,
       "last_stdout_excerpt": "outcome_fitness_loop.test.js: OK",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/outcome_fitness_loop.test.js",
-          "systems/autonomy/outcome_fitness_loop.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:39:55.238Z"
+      "last_stderr_excerpt": null
     },
     "tst_f554bc2b45a464": {
       "id": "tst_f554bc2b45a464",
@@ -6717,16 +6623,7 @@
       "last_run_ts": "2026-02-26T10:39:55.682Z",
       "last_duration_ms": 194,
       "last_stdout_excerpt": "physiology_opportunity_map.test.js: OK",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/physiology_opportunity_map.test.js",
-          "systems/autonomy/physiology_opportunity_map.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:39:55.682Z"
+      "last_stderr_excerpt": null
     },
     "tst_df6092b09280cc": {
       "id": "tst_df6092b09280cc",
@@ -6752,16 +6649,7 @@
       "last_run_ts": "2026-02-26T10:39:56.797Z",
       "last_duration_ms": 868,
       "last_stdout_excerpt": "pipeline_spc_gate.test.js: OK",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/pipeline_spc_gate.test.js",
-          "systems/autonomy/pipeline_spc_gate.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:39:56.797Z"
+      "last_stderr_excerpt": null
     },
     "tst_ac185633676399": {
       "id": "tst_ac185633676399",
@@ -6813,16 +6701,7 @@
       "last_run_ts": "2026-02-26T10:39:59.876Z",
       "last_duration_ms": 463,
       "last_stdout_excerpt": "═══════════════════════════════════════════════════════════ PROPOSAL ENRICHER TESTS ═══════════════════════════════════════════════════════════ ═══════════════════════════════════════════════════════════ ✅ PROPOSAL ENRICHER TESTS PASS ═══════════════════════════════════════════════════════════",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/proposal_enricher.test.js",
-          "systems/autonomy/proposal_enricher.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:39:59.876Z"
+      "last_stderr_excerpt": null
     },
     "tst_02beb5a4084e31": {
       "id": "tst_02beb5a4084e31",
@@ -6861,16 +6740,7 @@
       "last_run_ts": "2026-02-26T10:40:00.336Z",
       "last_duration_ms": 207,
       "last_stdout_excerpt": "quorum_validator.test.js: OK",
-      "last_stderr_excerpt": "",
-      "last_guard": {
-        "ok": true,
-        "reason": null,
-        "files": [
-          "memory/tools/tests/quorum_validator.test.js",
-          "systems/autonomy/quorum_validator.ts"
-        ]
-      },
-      "last_pass_ts": "2026-02-26T10:40:00.336Z"
+      "last_stderr_excerpt": null
     },
     "tst_8d4bec679402a3": {
       "id": "tst_8d4bec679402a3",
@@ -6878,12 +6748,21 @@
       "path": "memory/tools/tests/receipt_summary_success_criteria_fallback.test.js",
       "command": "node memory/tools/tests/receipt_summary_success_criteria_fallback.test.js",
       "critical": false,
-      "last_status": "untested",
+      "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": null,
-      "last_duration_ms": 0,
-      "last_stdout_excerpt": null,
-      "last_stderr_excerpt": null
+      "last_run_ts": "2026-02-26T10:40:03.510Z",
+      "last_duration_ms": 245,
+      "last_stdout_excerpt": "receipt_summary_success_criteria_fallback.test.js: OK",
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/receipt_summary_success_criteria_fallback.test.js",
+          "systems/autonomy/receipt_summary.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:03.510Z"
     },
     "tst_85f92a213d2907": {
       "id": "tst_85f92a213d2907",
@@ -6893,8 +6772,8 @@
       "critical": false,
       "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": "2026-02-26T10:40:00.834Z",
-      "last_duration_ms": 245,
+      "last_run_ts": "2026-02-26T10:40:03.017Z",
+      "last_duration_ms": 249,
       "last_stdout_excerpt": "receipt_summary.test.js: OK",
       "last_stderr_excerpt": "",
       "last_guard": {
@@ -6905,7 +6784,7 @@
           "systems/autonomy/receipt_summary.ts"
         ]
       },
-      "last_pass_ts": "2026-02-26T10:40:00.834Z"
+      "last_pass_ts": "2026-02-26T10:40:03.017Z"
     },
     "tst_ddbcfef7997282": {
       "id": "tst_ddbcfef7997282",
@@ -6913,12 +6792,21 @@
       "path": "memory/tools/tests/red_team_harness.test.js",
       "command": "node memory/tools/tests/red_team_harness.test.js",
       "critical": false,
-      "last_status": "untested",
+      "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": null,
-      "last_duration_ms": 0,
-      "last_stdout_excerpt": null,
-      "last_stderr_excerpt": null
+      "last_run_ts": "2026-02-26T10:40:06.643Z",
+      "last_duration_ms": 1231,
+      "last_stdout_excerpt": "red_team_harness.test.js: OK",
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/red_team_harness.test.js",
+          "systems/autonomy/red_team_harness.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:06.643Z"
     },
     "tst_dd73f0c2538655": {
       "id": "tst_dd73f0c2538655",
@@ -6978,12 +6866,24 @@
       "path": "memory/tools/tests/route_execute_budget_guard.test.js",
       "command": "node memory/tools/tests/route_execute_budget_guard.test.js",
       "critical": false,
-      "last_status": "untested",
+      "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": null,
-      "last_duration_ms": 0,
-      "last_stdout_excerpt": null,
-      "last_stderr_excerpt": null
+      "last_run_ts": "2026-02-26T10:40:19.100Z",
+      "last_duration_ms": 600,
+      "last_stdout_excerpt": "route_execute_budget_guard.test.js: OK",
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/route_execute_budget_guard.test.js",
+          "systems/autonomy/strategy_execute_guard.ts",
+          "systems/budget/system_budget.ts",
+          "systems/routing/route_execute.ts",
+          "systems/security/guard.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:19.100Z"
     },
     "tst_f89b08acd2b2ff": {
       "id": "tst_f89b08acd2b2ff",
@@ -7160,12 +7060,21 @@
       "path": "memory/tools/tests/self_documentation_closeout.test.js",
       "command": "node memory/tools/tests/self_documentation_closeout.test.js",
       "critical": false,
-      "last_status": "untested",
+      "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": null,
-      "last_duration_ms": 0,
-      "last_stdout_excerpt": null,
-      "last_stderr_excerpt": null
+      "last_run_ts": "2026-02-26T10:40:07.760Z",
+      "last_duration_ms": 868,
+      "last_stdout_excerpt": "self_documentation_closeout.test.js: OK",
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/self_documentation_closeout.test.js",
+          "systems/autonomy/self_documentation_closeout.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:07.760Z"
     },
     "tst_014d7c14d3e8e0": {
       "id": "tst_014d7c14d3e8e0",
@@ -7264,12 +7173,21 @@
       "path": "memory/tools/tests/skill_generation_pipeline.test.js",
       "command": "node memory/tools/tests/skill_generation_pipeline.test.js",
       "critical": false,
-      "last_status": "untested",
+      "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": null,
-      "last_duration_ms": 0,
-      "last_stdout_excerpt": null,
-      "last_stderr_excerpt": null
+      "last_run_ts": "2026-02-26T10:40:08.441Z",
+      "last_duration_ms": 429,
+      "last_stdout_excerpt": "skill_generation_pipeline.test.js: OK",
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/skill_generation_pipeline.test.js",
+          "systems/autonomy/skill_generation_pipeline.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:08.441Z"
     },
     "tst_12b7c26ca2feb5": {
       "id": "tst_12b7c26ca2feb5",
@@ -7290,12 +7208,21 @@
       "path": "memory/tools/tests/slo_runbook_check.test.js",
       "command": "node memory/tools/tests/slo_runbook_check.test.js",
       "critical": false,
-      "last_status": "untested",
+      "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": null,
-      "last_duration_ms": 0,
-      "last_stdout_excerpt": null,
-      "last_stderr_excerpt": null
+      "last_run_ts": "2026-02-26T10:40:11.472Z",
+      "last_duration_ms": 464,
+      "last_stdout_excerpt": "slo_runbook_check.test.js: OK",
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/slo_runbook_check.test.js",
+          "systems/autonomy/slo_runbook_check.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:11.472Z"
     },
     "tst_57086933e16de7": {
       "id": "tst_57086933e16de7",
@@ -7420,12 +7347,25 @@
       "path": "memory/tools/tests/strategy_doctor.test.js",
       "command": "node memory/tools/tests/strategy_doctor.test.js",
       "critical": false,
-      "last_status": "untested",
+      "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": null,
-      "last_duration_ms": 0,
-      "last_stdout_excerpt": null,
-      "last_stderr_excerpt": null
+      "last_run_ts": "2026-02-26T10:40:13.219Z",
+      "last_duration_ms": 283,
+      "last_stdout_excerpt": "strategy_doctor.test.js: OK",
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/strategy_doctor.test.js",
+          "systems/autonomy/strategy_doctor.ts",
+          "systems/strategy/strategy_controller.ts",
+          "systems/strategy/strategy_learner.ts",
+          "systems/strategy/strategy_principles.ts",
+          "systems/strategy/weekly_strategy_synthesis.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:13.219Z"
     },
     "tst_ac6a6b50987c97": {
       "id": "tst_ac6a6b50987c97",
@@ -7433,12 +7373,26 @@
       "path": "memory/tools/tests/strategy_execute_guard.test.js",
       "command": "node memory/tools/tests/strategy_execute_guard.test.js",
       "critical": false,
-      "last_status": "untested",
+      "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": null,
-      "last_duration_ms": 0,
-      "last_stdout_excerpt": null,
-      "last_stderr_excerpt": null
+      "last_run_ts": "2026-02-26T10:40:17.080Z",
+      "last_duration_ms": 1548,
+      "last_stdout_excerpt": "strategy_execute_guard.test.js: OK",
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/strategy_execute_guard.test.js",
+          "systems/autonomy/strategy_execute_guard.ts",
+          "systems/security/guard.ts",
+          "systems/strategy/strategy_controller.ts",
+          "systems/strategy/strategy_learner.ts",
+          "systems/strategy/strategy_principles.ts",
+          "systems/strategy/weekly_strategy_synthesis.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:17.080Z"
     },
     "tst_1d2a13ca26be21": {
       "id": "tst_1d2a13ca26be21",
@@ -7459,12 +7413,26 @@
       "path": "memory/tools/tests/strategy_mode_cooldown.test.js",
       "command": "node memory/tools/tests/strategy_mode_cooldown.test.js",
       "critical": false,
-      "last_status": "untested",
+      "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": null,
-      "last_duration_ms": 0,
-      "last_stdout_excerpt": null,
-      "last_stderr_excerpt": null
+      "last_run_ts": "2026-02-26T10:40:31.341Z",
+      "last_duration_ms": 984,
+      "last_stdout_excerpt": "strategy_mode_cooldown.test.js: OK",
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/strategy_mode_cooldown.test.js",
+          "systems/autonomy/strategy_mode_governor.ts",
+          "systems/autonomy/strategy_mode.ts",
+          "systems/strategy/strategy_controller.ts",
+          "systems/strategy/strategy_learner.ts",
+          "systems/strategy/strategy_principles.ts",
+          "systems/strategy/weekly_strategy_synthesis.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:31.341Z"
     },
     "tst_dbd08853934f0a": {
       "id": "tst_dbd08853934f0a",
@@ -7485,12 +7453,26 @@
       "path": "memory/tools/tests/strategy_mode_governor_policy_root.test.js",
       "command": "node memory/tools/tests/strategy_mode_governor_policy_root.test.js",
       "critical": false,
-      "last_status": "untested",
+      "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": null,
-      "last_duration_ms": 0,
-      "last_stdout_excerpt": null,
-      "last_stderr_excerpt": null
+      "last_run_ts": "2026-02-26T10:40:29.370Z",
+      "last_duration_ms": 1498,
+      "last_stdout_excerpt": "strategy_mode_governor_policy_root.test.js: OK",
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/strategy_mode_governor_policy_root.test.js",
+          "systems/autonomy/strategy_mode_governor.ts",
+          "systems/autonomy/strategy_mode.ts",
+          "systems/strategy/strategy_controller.ts",
+          "systems/strategy/strategy_learner.ts",
+          "systems/strategy/strategy_principles.ts",
+          "systems/strategy/weekly_strategy_synthesis.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:29.370Z"
     },
     "tst_a98f0d4281ac4b": {
       "id": "tst_a98f0d4281ac4b",
@@ -7498,12 +7480,26 @@
       "path": "memory/tools/tests/strategy_mode_governor_preview_gate.test.js",
       "command": "node memory/tools/tests/strategy_mode_governor_preview_gate.test.js",
       "critical": false,
-      "last_status": "untested",
+      "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": null,
-      "last_duration_ms": 0,
-      "last_stdout_excerpt": null,
-      "last_stderr_excerpt": null
+      "last_run_ts": "2026-02-26T10:40:30.108Z",
+      "last_duration_ms": 488,
+      "last_stdout_excerpt": "strategy_mode_governor_preview_gate.test.js: OK",
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/strategy_mode_governor_preview_gate.test.js",
+          "systems/autonomy/strategy_mode_governor.ts",
+          "systems/autonomy/strategy_mode.ts",
+          "systems/strategy/strategy_controller.ts",
+          "systems/strategy/strategy_learner.ts",
+          "systems/strategy/strategy_principles.ts",
+          "systems/strategy/weekly_strategy_synthesis.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:30.108Z"
     },
     "tst_0dfc809f09c5ea": {
       "id": "tst_0dfc809f09c5ea",
@@ -7511,12 +7507,26 @@
       "path": "memory/tools/tests/strategy_mode_governor_quality_lock_gate.test.js",
       "command": "node memory/tools/tests/strategy_mode_governor_quality_lock_gate.test.js",
       "critical": false,
-      "last_status": "untested",
+      "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": null,
-      "last_duration_ms": 0,
-      "last_stdout_excerpt": null,
-      "last_stderr_excerpt": null
+      "last_run_ts": "2026-02-26T10:40:23.370Z",
+      "last_duration_ms": 3107,
+      "last_stdout_excerpt": "strategy_mode_governor_quality_lock_gate.test.js: OK",
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/strategy_mode_governor_quality_lock_gate.test.js",
+          "systems/autonomy/strategy_mode_governor.ts",
+          "systems/autonomy/strategy_mode.ts",
+          "systems/strategy/strategy_controller.ts",
+          "systems/strategy/strategy_learner.ts",
+          "systems/strategy/strategy_principles.ts",
+          "systems/strategy/weekly_strategy_synthesis.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:23.370Z"
     },
     "tst_4af7a2bdc2c925": {
       "id": "tst_4af7a2bdc2c925",
@@ -7524,12 +7534,26 @@
       "path": "memory/tools/tests/strategy_mode_governor_spc_gate.test.js",
       "command": "node memory/tools/tests/strategy_mode_governor_spc_gate.test.js",
       "critical": false,
-      "last_status": "untested",
+      "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": null,
-      "last_duration_ms": 0,
-      "last_stdout_excerpt": null,
-      "last_stderr_excerpt": null
+      "last_run_ts": "2026-02-26T10:40:24.105Z",
+      "last_duration_ms": 487,
+      "last_stdout_excerpt": "strategy_mode_governor_spc_gate.test.js: OK",
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/strategy_mode_governor_spc_gate.test.js",
+          "systems/autonomy/strategy_mode_governor.ts",
+          "systems/autonomy/strategy_mode.ts",
+          "systems/strategy/strategy_controller.ts",
+          "systems/strategy/strategy_learner.ts",
+          "systems/strategy/strategy_principles.ts",
+          "systems/strategy/weekly_strategy_synthesis.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:24.105Z"
     },
     "tst_9124071cf69a6b": {
       "id": "tst_9124071cf69a6b",
@@ -7537,12 +7561,26 @@
       "path": "memory/tools/tests/strategy_mode_governor.test.js",
       "command": "node memory/tools/tests/strategy_mode_governor.test.js",
       "critical": false,
-      "last_status": "untested",
+      "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": null,
-      "last_duration_ms": 0,
-      "last_stdout_excerpt": null,
-      "last_stderr_excerpt": null
+      "last_run_ts": "2026-02-26T10:40:27.622Z",
+      "last_duration_ms": 1777,
+      "last_stdout_excerpt": "strategy_mode_governor.test.js: OK",
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/strategy_mode_governor.test.js",
+          "systems/autonomy/strategy_mode_governor.ts",
+          "systems/autonomy/strategy_mode.ts",
+          "systems/strategy/strategy_controller.ts",
+          "systems/strategy/strategy_learner.ts",
+          "systems/strategy/strategy_principles.ts",
+          "systems/strategy/weekly_strategy_synthesis.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:27.622Z"
     },
     "tst_7231681bd8cd89": {
       "id": "tst_7231681bd8cd89",
@@ -7550,12 +7588,26 @@
       "path": "memory/tools/tests/strategy_mode_policy_root.test.js",
       "command": "node memory/tools/tests/strategy_mode_policy_root.test.js",
       "critical": false,
-      "last_status": "untested",
+      "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": null,
-      "last_duration_ms": 0,
-      "last_stdout_excerpt": null,
-      "last_stderr_excerpt": null
+      "last_run_ts": "2026-02-26T10:40:25.597Z",
+      "last_duration_ms": 1245,
+      "last_stdout_excerpt": "strategy_mode_policy_root.test.js: OK",
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/strategy_mode_policy_root.test.js",
+          "systems/autonomy/strategy_mode_governor.ts",
+          "systems/autonomy/strategy_mode.ts",
+          "systems/strategy/strategy_controller.ts",
+          "systems/strategy/strategy_learner.ts",
+          "systems/strategy/strategy_principles.ts",
+          "systems/strategy/weekly_strategy_synthesis.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:25.597Z"
     },
     "tst_0d6c534f778207": {
       "id": "tst_0d6c534f778207",
@@ -7563,12 +7615,26 @@
       "path": "memory/tools/tests/strategy_mode_spc_gate.test.js",
       "command": "node memory/tools/tests/strategy_mode_spc_gate.test.js",
       "critical": false,
-      "last_status": "untested",
+      "last_status": "pass",
       "last_exit_code": 0,
-      "last_run_ts": null,
-      "last_duration_ms": 0,
-      "last_stdout_excerpt": null,
-      "last_stderr_excerpt": null
+      "last_run_ts": "2026-02-26T10:40:20.017Z",
+      "last_duration_ms": 671,
+      "last_stdout_excerpt": "strategy_mode_spc_gate.test.js: OK",
+      "last_stderr_excerpt": "",
+      "last_guard": {
+        "ok": true,
+        "reason": null,
+        "files": [
+          "memory/tools/tests/strategy_mode_spc_gate.test.js",
+          "systems/autonomy/strategy_mode_governor.ts",
+          "systems/autonomy/strategy_mode.ts",
+          "systems/strategy/strategy_controller.ts",
+          "systems/strategy/strategy_learner.ts",
+          "systems/strategy/strategy_principles.ts",
+          "systems/strategy/weekly_strategy_synthesis.ts"
+        ]
+      },
+      "last_pass_ts": "2026-02-26T10:40:20.017Z"
     },
     "tst_cb0df5ac8e9db3": {
       "id": "tst_cb0df5ac8e9db3",
@@ -8103,7 +8169,7 @@
     },
     "latest": []
   },
-  "last_sync": "2026-02-26T10:39:20.005Z",
-  "last_run": "2026-02-26T10:40:00.835Z",
-  "last_report": "2026-02-26T10:40:01.685Z"
+  "last_sync": "2026-02-26T10:40:02.471Z",
+  "last_run": "2026-02-26T10:40:31.342Z",
+  "last_report": "2026-02-26T10:40:31.345Z"
 }
