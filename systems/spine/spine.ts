@@ -3315,6 +3315,57 @@ function main() {
       console.log(" ci_baseline_guard skipped reason=feature_flag_disabled flag=SPINE_CI_BASELINE_GUARD_ENABLED");
     }
 
+    if (String(process.env.SPINE_RM_PROGRESS_DASHBOARD_ENABLED || "1") !== "0") {
+      const dashboard = runJson("node", [
+        "systems/ops/rm_progress_dashboard.js",
+        "run",
+        dateStr
+      ]);
+      const payload = dashboard.payload && typeof dashboard.payload === "object"
+        ? dashboard.payload
+        : null;
+      appendLedger(dateStr, {
+        ts: nowIso(),
+        type: "spine_rm_progress_dashboard",
+        mode,
+        date: dateStr,
+        ok: dashboard.ok && !!payload && payload.ok === true,
+        all_pass: payload && payload.status ? payload.status.all_pass === true : null,
+        pass_ratio: payload && payload.status
+          ? Number(payload.status.pass_ratio || 0)
+          : null,
+        blocked_count: payload && Array.isArray(payload.blocked_by)
+          ? payload.blocked_by.length
+          : null,
+        blocked_by: payload && Array.isArray(payload.blocked_by)
+          ? payload.blocked_by.slice(0, 12)
+          : [],
+        reason: (!dashboard.ok || !payload || payload.ok !== true)
+          ? String(dashboard.stderr || dashboard.stdout || `rm_progress_dashboard_exit_${dashboard.code}`).slice(0, 180)
+          : null
+      });
+      if (dashboard.ok && payload && payload.ok === true) {
+        console.log(
+          ` rm_progress_dashboard pass=${payload.status && payload.status.all_pass === true ? "yes" : "no"}` +
+          ` ratio=${Number(payload.status && payload.status.pass_ratio || 0).toFixed(3)}` +
+          ` blocked=${Array.isArray(payload.blocked_by) ? payload.blocked_by.length : 0}`
+        );
+      } else {
+        console.log(` rm_progress_dashboard WARN reason=${String(dashboard.stderr || dashboard.stdout || "unknown").slice(0, 120)}`);
+      }
+    } else {
+      appendLedger(dateStr, {
+        ts: nowIso(),
+        type: "spine_rm_progress_dashboard_skipped",
+        mode,
+        date: dateStr,
+        reason: "feature_flag_disabled",
+        flag: "SPINE_RM_PROGRESS_DASHBOARD_ENABLED",
+        flag_value: String(process.env.SPINE_RM_PROGRESS_DASHBOARD_ENABLED || "")
+      });
+      console.log(" rm_progress_dashboard skipped reason=feature_flag_disabled flag=SPINE_RM_PROGRESS_DASHBOARD_ENABLED");
+    }
+
     // 0e) claw registry status snapshot (actuation lane readiness visibility).
     if (String(process.env.SPINE_CLAW_REGISTRY_STATUS_ENABLED || "1") !== "0") {
       const claws = runJson("node", [
