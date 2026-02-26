@@ -1,0 +1,73 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "shadow_mode": true,
+  "sleep_window_local": {
+    "enabled": true,
+    "start_hour": 0,
+    "end_hour": 7
+  },
+  "gating": {
+    "min_consecutive_failures": 2,
+    "max_actions_per_run": 2,
+    "cooldown_sec_per_signature": 1800,
+    "max_repairs_per_signature_per_day": 3
+  },
+  "kill_switch": {
+    "enabled": true,
+    "window_hours": 24,
+    "max_unknown_signatures_per_window": 4,
+    "max_suspicious_signatures_per_window": 2,
+    "max_repairs_per_window": 12,
+    "max_rollbacks_per_window": 3,
+    "max_same_signature_repairs_per_window": 4,
+    "auto_reset_hours": 12
+  },
+  "execution": {
+    "step_timeout_ms": 120000,
+    "autotest_max_tests": 6
+  },
+  "recipes": [
+    {
+      "id": "retest_then_pulse",
+      "enabled": true,
+      "applies_to": [
+        "assertion_failed",
+        "timeout",
+        "exit_nonzero",
+        "flaky"
+      ],
+      "steps": [
+        "retest_failed_test",
+        "autotest_run_changed"
+      ]
+    },
+    {
+      "id": "guard_recover",
+      "enabled": true,
+      "applies_to": [
+        "guard_blocked"
+      ],
+      "steps": [
+        "autotest_sync",
+        "autotest_run_changed"
+      ]
+    }
+  ],
+  "rollback": {
+    "enabled": true,
+    "mode": "autotest_sync",
+    "snapshot_files": [
+      "state/ops/autotest/latest.json",
+      "state/ops/autotest/status.json",
+      "state/ops/autotest/registry.json"
+    ],
+    "store_broken_pieces": true,
+    "max_excerpt_files": 10,
+    "max_excerpt_chars": 3000
+  },
+  "telemetry": {
+    "emit_system_health": true,
+    "max_history_events": 5000
+  }
+}

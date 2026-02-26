@@ -32,6 +32,7 @@
     "creative_incubation": 3600,
     "security_vigilance": 2100,
     "autotest_validation": 5400,
+    "autotest_doctor": 5400,
     "organ_atrophy_shadow": 21600
   },
   "tasks": {
@@ -88,6 +89,15 @@
       "max_tests": 12,
       "sleep_only": true,
       "strict": false,
+      "min_trit": -1,
+      "max_trit": 1
+    },
+    "autotest_doctor": {
+      "enabled": true,
+      "timeout_ms": 180000,
+      "max_actions": 2,
+      "sleep_only": true,
+      "apply": false,
       "min_trit": -1,
       "max_trit": 1
     },
