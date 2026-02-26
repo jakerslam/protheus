@@ -875,6 +875,12 @@ function main() {
     ["eye_kernel.js", "route", "status", "--lane", "--target", "--action", "--risk", "--clearance", "--estimated-tokens", "--apply"]
   );
 
+  // subsumption_registry.js manages provider/vassal contracts with trust/budget/disable gates.
+  checkScript(
+    "systems/eye/subsumption_registry.js",
+    ["subsumption_registry.js", "register", "evaluate", "disable", "enable", "status", "--provider", "--trust", "--daily-tokens", "--estimated-tokens", "--approval-note", "--apply"]
+  );
+
   // claw_registry.js governs high-power actuation lanes (browser/computer/payment).
   checkScript(
     "systems/actuation/claw_registry.js",
