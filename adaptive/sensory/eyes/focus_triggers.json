@@ -394,10 +394,10 @@
       "status": "active",
       "weight": 47,
       "cooldown_minutes": 90,
-      "hit_count": 81,
-      "last_hit_ts": "2026-02-26T17:42:55.700Z",
+      "hit_count": 89,
+      "last_hit_ts": "2026-02-26T18:19:16.751Z",
       "created_ts": "2026-02-26T04:30:31.189Z",
-      "updated_ts": "2026-02-26T17:42:55.700Z"
+      "updated_ts": "2026-02-26T18:19:16.751Z"
     },
     {
       "uid": "ft4f8jeoqyesg2u0r8bg2tum",
@@ -413,10 +413,10 @@
       "status": "active",
       "weight": 41,
       "cooldown_minutes": 90,
-      "hit_count": 191,
-      "last_hit_ts": "2026-02-26T17:42:55.700Z",
+      "hit_count": 199,
+      "last_hit_ts": "2026-02-26T18:19:16.751Z",
       "created_ts": "2026-02-26T00:02:18.712Z",
-      "updated_ts": "2026-02-26T17:42:55.700Z"
+      "updated_ts": "2026-02-26T18:19:16.751Z"
     },
     {
       "uid": "ft5nf566cuocdehzvfy7hvrn",
@@ -533,10 +533,10 @@
       "status": "active",
       "weight": 29,
       "cooldown_minutes": 90,
-      "hit_count": 97,
-      "last_hit_ts": "2026-02-26T17:42:55.700Z",
+      "hit_count": 105,
+      "last_hit_ts": "2026-02-26T18:19:16.751Z",
       "created_ts": "2026-02-26T04:30:31.189Z",
-      "updated_ts": "2026-02-26T17:42:55.700Z"
+      "updated_ts": "2026-02-26T18:19:16.751Z"
     },
     {
       "uid": "ft2peuozh4bp4cqa7jz8z82g",
@@ -551,10 +551,10 @@
       "status": "active",
       "weight": 29,
       "cooldown_minutes": 90,
-      "hit_count": 93,
-      "last_hit_ts": "2026-02-26T17:42:55.700Z",
+      "hit_count": 101,
+      "last_hit_ts": "2026-02-26T18:19:16.751Z",
       "created_ts": "2026-02-26T04:30:31.189Z",
-      "updated_ts": "2026-02-26T17:42:55.700Z"
+      "updated_ts": "2026-02-26T18:19:16.751Z"
     },
     {
       "uid": "ft1foyqfjjf31nfske233owr",
@@ -2134,10 +2134,10 @@
         "revenue",
         "saas"
       ],
-      "focus_hits_total": 50,
-      "update_count": 11,
+      "focus_hits_total": 58,
+      "update_count": 15,
       "created_ts": "2026-02-26T06:59:59.175Z",
-      "updated_ts": "2026-02-26T17:42:55.700Z"
+      "updated_ts": "2026-02-26T18:19:16.751Z"
     },
     "proto_1ee751437a437aef": {
       "eye_id": "proto_1ee751437a437aef",
@@ -2317,7 +2317,9 @@
     "id:18ea7814e82b5761": "2026-02-26T12:38:22.194Z",
     "id:05b03278772af774": "2026-02-26T17:38:30.927Z",
     "id:38178de8cbed273f": "2026-02-26T17:42:55.700Z",
-    "id:38b96ef5165b11da": "2026-02-26T17:42:55.700Z"
+    "id:38b96ef5165b11da": "2026-02-26T17:42:55.700Z",
+    "id:62848af798b44612": "2026-02-26T18:19:16.751Z",
+    "id:72c904013f3a961e": "2026-02-26T18:19:16.751Z"
   },
   "last_refresh_ts": "2026-02-26T17:38:27.466Z",
   "last_refresh_sources": {
@@ -2338,7 +2340,7 @@
   "stats": {
     "refresh_count": 25,
     "lens_refresh_count": 17,
-    "focused_items_total": 601,
-    "last_focus_ts": "2026-02-26T17:42:55.700Z"
+    "focused_items_total": 609,
+    "last_focus_ts": "2026-02-26T18:19:16.751Z"
   }
 }

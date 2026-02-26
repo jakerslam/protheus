@@ -75,6 +75,21 @@ try {
     target_days: 7,
     consecutive_daily_green_runs: 3
   });
+  writeJson(path.join(state, 'ops', 'execution_reliability_slo.json'), {
+    pass: true,
+    measured: {
+      execution_success_rate: 0.98,
+      queue_drain_rate: 0.91,
+      time_to_first_execution_p95_ms: 85000,
+      zero_shipped_streak_days: 1
+    }
+  });
+  writeJson(path.join(state, 'ops', 'ci_baseline_guard.json'), {
+    pass: false,
+    checks: {
+      streak_target_met: false
+    }
+  });
 
   writeJson(policyPath, {
     version: '1.0-test',
@@ -84,6 +99,8 @@ try {
       write_snapshot: true,
       health_reports_dir: path.join(state, 'autonomy', 'health_reports'),
       workflow_executor_latest_path: path.join(state, 'adaptive', 'workflows', 'executor', 'latest.json'),
+      execution_reliability_slo_path: path.join(state, 'ops', 'execution_reliability_slo.json'),
+      ci_baseline_guard_path: path.join(state, 'ops', 'ci_baseline_guard.json'),
       ci_baseline_streak_path: path.join(state, 'ops', 'ci_baseline_streak.json'),
       output_prometheus_path: path.join(state, 'observability', 'prometheus', 'current.prom'),
       output_snapshot_path: path.join(state, 'observability', 'metrics', 'latest.json'),

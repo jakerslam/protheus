@@ -3102,6 +3102,17 @@ function main() {
         0,
         Number(process.env.SPINE_WORKFLOW_EXECUTION_CLOSURE_MIN_EXECUTED || 1) || 1
       );
+      const closureMinSucceeded = Math.max(
+        0,
+        Number(process.env.SPINE_WORKFLOW_EXECUTION_CLOSURE_MIN_SUCCEEDED || 1) || 1
+      );
+      const closureMinSuccessRatio = Math.max(
+        0,
+        Math.min(
+          1,
+          Number(process.env.SPINE_WORKFLOW_EXECUTION_CLOSURE_MIN_SUCCESS_RATIO || 0.5) || 0.5
+        )
+      );
       const closure = runJson("node", [
         "systems/ops/workflow_execution_closure.js",
         "run",
@@ -3109,7 +3120,9 @@ function main() {
         `--days=${closureLookbackDays}`,
         `--target-days=${closureTargetDays}`,
         `--min-accepted=${closureMinAccepted}`,
-        `--min-workflows=${closureMinExecuted}`
+        `--min-workflows=${closureMinExecuted}`,
+        `--min-succeeded=${closureMinSucceeded}`,
+        `--min-success-ratio=${closureMinSuccessRatio}`
       ]);
       const payload = closure.payload && typeof closure.payload === "object"
         ? closure.payload
@@ -3128,6 +3141,8 @@ function main() {
         latest_day_pass: payload && payload.latest_day ? payload.latest_day.pass === true : null,
         latest_day_accepted_items: payload && payload.latest_day ? Number(payload.latest_day.accepted_items || 0) : null,
         latest_day_workflows_executed: payload && payload.latest_day ? Number(payload.latest_day.workflows_executed || 0) : null,
+        min_workflows_succeeded: payload ? Number(payload.min_workflows_succeeded || 0) : null,
+        min_success_ratio: payload ? Number(payload.min_success_ratio || 0) : null,
         reason: (!closure.ok || !payload || payload.ok !== true)
           ? String(closure.stderr || closure.stdout || `workflow_execution_closure_exit_${closure.code}`).slice(0, 180)
           : null
@@ -3152,6 +3167,152 @@ function main() {
         flag_value: String(process.env.SPINE_WORKFLOW_EXECUTION_CLOSURE_ENABLED || "")
       });
       console.log(" workflow_execution_closure skipped reason=feature_flag_disabled flag=SPINE_WORKFLOW_EXECUTION_CLOSURE_ENABLED");
+    }
+
+    if (String(process.env.SPINE_EXECUTION_RELIABILITY_SLO_ENABLED || "1") !== "0") {
+      const reliabilityWindowDays = Math.max(
+        7,
+        Number(process.env.SPINE_EXECUTION_RELIABILITY_WINDOW_DAYS || 30) || 30
+      );
+      const reliability = runJson("node", [
+        "systems/ops/execution_reliability_slo.js",
+        "run",
+        dateStr,
+        `--window-days=${reliabilityWindowDays}`
+      ]);
+      const payload = reliability.payload && typeof reliability.payload === "object"
+        ? reliability.payload
+        : null;
+      appendLedger(dateStr, {
+        ts: nowIso(),
+        type: "spine_execution_reliability_slo",
+        mode,
+        date: dateStr,
+        ok: reliability.ok && !!payload && payload.ok === true,
+        pass: payload ? payload.pass === true : null,
+        result: payload ? payload.result || null : null,
+        window_days: payload ? Number(payload.window_days || 0) : null,
+        live_runs: payload ? Number(payload.live_runs || 0) : null,
+        execution_success_rate: payload && payload.measured
+          ? Number(payload.measured.execution_success_rate || 0)
+          : null,
+        queue_drain_rate: payload && payload.measured
+          ? Number(payload.measured.queue_drain_rate || 0)
+          : null,
+        time_to_first_execution_p95_ms: payload && payload.measured
+          ? payload.measured.time_to_first_execution_p95_ms
+          : null,
+        zero_shipped_streak_days: payload && payload.measured
+          ? Number(payload.measured.zero_shipped_streak_days || 0)
+          : null,
+        reason: (!reliability.ok || !payload || payload.ok !== true)
+          ? String(reliability.stderr || reliability.stdout || `execution_reliability_slo_exit_${reliability.code}`).slice(0, 180)
+          : null
+      });
+      if (reliability.ok && payload && payload.ok === true) {
+        console.log(
+          ` execution_reliability pass=${payload.pass === true ? "yes" : "no"}` +
+          ` success=${Number(payload.measured && payload.measured.execution_success_rate || 0).toFixed(3)}` +
+          ` drain=${Number(payload.measured && payload.measured.queue_drain_rate || 0).toFixed(3)}` +
+          ` ttf_p95=${Number(payload.measured && payload.measured.time_to_first_execution_p95_ms || 0)}` +
+          ` zero_ship=${Number(payload.measured && payload.measured.zero_shipped_streak_days || 0)}`
+        );
+        if (payload.pass !== true) {
+          appendSystemHealthEvent({
+            severity: "high",
+            risk: "high",
+            code: "execution_reliability_slo_fail",
+            summary: `execution reliability slo fail (${String(payload.result || "fail")})`,
+            date: dateStr,
+            mode,
+            window_days: Number(payload.window_days || 0),
+            live_runs: Number(payload.live_runs || 0),
+            measured: payload.measured || {},
+            checks: payload.checks || {}
+          });
+        }
+      } else {
+        console.log(` execution_reliability WARN reason=${String(reliability.stderr || reliability.stdout || "unknown").slice(0, 120)}`);
+      }
+    } else {
+      appendLedger(dateStr, {
+        ts: nowIso(),
+        type: "spine_execution_reliability_slo_skipped",
+        mode,
+        date: dateStr,
+        reason: "feature_flag_disabled",
+        flag: "SPINE_EXECUTION_RELIABILITY_SLO_ENABLED",
+        flag_value: String(process.env.SPINE_EXECUTION_RELIABILITY_SLO_ENABLED || "")
+      });
+      console.log(" execution_reliability skipped reason=feature_flag_disabled flag=SPINE_EXECUTION_RELIABILITY_SLO_ENABLED");
+    }
+
+    if (String(process.env.SPINE_CI_BASELINE_GUARD_ENABLED || "1") !== "0") {
+      const ciTargetDays = Math.max(1, Number(process.env.SPINE_CI_BASELINE_TARGET_DAYS || 7) || 7);
+      const ciGuard = runJson("node", [
+        "systems/ops/ci_baseline_guard.js",
+        "run",
+        dateStr,
+        `--target-days=${ciTargetDays}`
+      ]);
+      const payload = ciGuard.payload && typeof ciGuard.payload === "object"
+        ? ciGuard.payload
+        : null;
+      appendLedger(dateStr, {
+        ts: nowIso(),
+        type: "spine_ci_baseline_guard",
+        mode,
+        date: dateStr,
+        ok: ciGuard.ok && !!payload && payload.ok === true,
+        pass: payload ? payload.pass === true : null,
+        result: payload ? payload.result || null : null,
+        streak: payload ? Number(payload.streak || 0) : null,
+        target_days: payload ? Number(payload.target_days || 0) : null,
+        latest_run_date: payload ? payload.latest_run_date || null : null,
+        latest_run_ok: payload ? payload.latest_run_ok === true : null,
+        latest_run_lag_days: payload ? payload.latest_run_lag_days : null,
+        reason: (!ciGuard.ok || !payload || payload.ok !== true)
+          ? String(ciGuard.stderr || ciGuard.stdout || `ci_baseline_guard_exit_${ciGuard.code}`).slice(0, 180)
+          : null
+      });
+      if (ciGuard.ok && payload && payload.ok === true) {
+        console.log(
+          ` ci_baseline_guard pass=${payload.pass === true ? "yes" : "no"}` +
+          ` streak=${Number(payload.streak || 0)}/${Number(payload.target_days || 0)}` +
+          ` latest_ok=${payload.latest_run_ok === true ? "yes" : "no"}`
+        );
+        const stale = !!(payload.checks && payload.checks.latest_run_fresh === false);
+        const latestRunFailed = !!(payload.checks && payload.checks.latest_run_green === false);
+        if (stale || latestRunFailed) {
+          appendSystemHealthEvent({
+            severity: stale ? "high" : "medium",
+            risk: stale ? "high" : "medium",
+            code: stale ? "ci_baseline_stale" : "ci_baseline_latest_run_fail",
+            summary: stale
+              ? "ci baseline streak is stale"
+              : "ci baseline latest run is not green",
+            date: dateStr,
+            mode,
+            streak: Number(payload.streak || 0),
+            target_days: Number(payload.target_days || 0),
+            latest_run_date: payload.latest_run_date || null,
+            latest_run_lag_days: payload.latest_run_lag_days
+          });
+        }
+      } else {
+        console.log(` ci_baseline_guard WARN reason=${String(ciGuard.stderr || ciGuard.stdout || "unknown").slice(0, 120)}`);
+      }
+    } else {
+      appendLedger(dateStr, {
+        ts: nowIso(),
+        type: "spine_ci_baseline_guard_skipped",
+        mode,
+        date: dateStr,
+        reason: "feature_flag_disabled",
+        flag: "SPINE_CI_BASELINE_GUARD_ENABLED",
+        flag_value: String(process.env.SPINE_CI_BASELINE_GUARD_ENABLED || "")
+      });
+      console.log(" ci_baseline_guard skipped reason=feature_flag_disabled flag=SPINE_CI_BASELINE_GUARD_ENABLED");
     }
 
     // 0e) claw registry status snapshot (actuation lane readiness visibility).

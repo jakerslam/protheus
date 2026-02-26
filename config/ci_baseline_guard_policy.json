@@ -1,0 +1,7 @@
+{
+  "version": "1.0",
+  "target_days": 7,
+  "stale_after_days": 1,
+  "max_history_rows": 240
+}
+
