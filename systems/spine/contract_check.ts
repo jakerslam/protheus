@@ -784,6 +784,14 @@ function main() {
     "systems/ops/js_holdout_audit.js",
     ["js_holdout_audit.js", "run", "status", "--registry", "--strict"]
   );
+  checkScript(
+    "systems/ops/continuous_chaos_resilience.js",
+    ["continuous_chaos_resilience.js", "tick", "gate", "status", "--apply", "--strict", "--max-scenarios"]
+  );
+  checkSourceContains(
+    "systems/ops/continuous_chaos_resilience.js",
+    ["promotion_blocked", "scenario_cadence_minutes", "runbook_action"]
+  );
 
   // offdevice_memory_replication.js performs proof-verified off-device memory replication drills.
   checkScript(
