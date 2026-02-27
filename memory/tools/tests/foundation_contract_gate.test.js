@@ -38,7 +38,8 @@ function main() {
     'distill_or_atrophy:active_debt_cap',
     'distill_or_atrophy:total_candidate_cap',
     'scheduler_modes:contains_dream_inversion',
-    'profile_compatibility:n_minus_2_minimum'
+    'profile_compatibility:n_minus_2_minimum',
+    'formal_invariant_engine:merge_guard_hook'
   ]) {
     assert.ok(byId.has(id), `missing check: ${id}`);
     assert.strictEqual(byId.get(id).ok, true, `check should pass: ${id}`);
