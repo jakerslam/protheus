@@ -973,6 +973,14 @@ function main() {
     "systems/ops/predictive_capacity_forecast.js",
     ["forecast_horizons_days", "recommendation", "forecast_errors"]
   );
+  checkScript(
+    "systems/symbiosis/neural_dormant_seed.js",
+    ["neural_dormant_seed.js", "status", "check", "request-sim", "request-live", "--profile", "--strict", "--purpose", "--approval-note"]
+  );
+  checkSourceContains(
+    "systems/symbiosis/neural_dormant_seed.js",
+    ["allow_non_simulated_prototypes", "blocked_runtime_profiles", "no_runtime_activation_path"]
+  );
 
   // environment_promotion_gate.js enforces promotion sequencing and approvals across env tiers.
   checkScript(
