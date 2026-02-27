@@ -100,6 +100,7 @@ function runGate() {
     'config/formal_invariants.json',
     'config/phone_seed_profile_policy.json',
     'config/predictive_capacity_forecast_policy.json',
+    'config/neural_dormant_seed_policy.json',
     'config/crypto_agility_contract.json',
     'config/key_lifecycle_policy.json',
     'config/delegated_authority_policy.json',
@@ -149,6 +150,9 @@ function runGate() {
     'systems/ops/soc2_type2_track.ts',
     'systems/ops/phone_seed_profile.ts',
     'systems/ops/predictive_capacity_forecast.ts',
+    'systems/symbiosis/neural_dormant_seed.ts',
+    'research/neural_dormant_seed/README.md',
+    'research/neural_dormant_seed/governance_checklist.md',
     'systems/ops/self_hosted_bootstrap_compiler.ts',
     'systems/primitives/primitive_runtime.ts',
     'systems/primitives/policy_vm.ts',
@@ -617,6 +621,33 @@ function runGate() {
     `history=${capacityPolicy.paths && cleanText(capacityPolicy.paths.history || '', 120) || 'missing'} errors=${capacityPolicy.paths && cleanText(capacityPolicy.paths.errors || '', 120) || 'missing'} latest=${capacityPolicy.paths && cleanText(capacityPolicy.paths.latest || '', 120) || 'missing'}`
   );
   addCheck(
+    'neural_dormant_seed:merge_guard_hook',
+    mergeGuardSrc.includes('neural_dormant_seed.js')
+      && mergeGuardSrc.includes('check')
+      && mergeGuardSrc.includes('--profile=prod'),
+    'merge_guard should enforce neural dormant seed lock check'
+  );
+  const neuralPolicy = readJsonSafe(path.join(ROOT, 'config', 'neural_dormant_seed_policy.json'), {});
+  const blockedProfiles = Array.isArray(neuralPolicy.blocked_runtime_profiles)
+    ? neuralPolicy.blocked_runtime_profiles.map((v: unknown) => normalizeLowerToken(v, 60)).filter(Boolean)
+    : [];
+  const governanceChecks = Array.isArray(neuralPolicy.required_governance_checks)
+    ? neuralPolicy.required_governance_checks
+    : [];
+  addCheck(
+    'neural_dormant_seed:locked_and_blocked',
+    neuralPolicy.locked === true
+      && blockedProfiles.includes('prod')
+      && blockedProfiles.includes('phone_seed')
+      && neuralPolicy.allow_non_simulated_prototypes !== true,
+    `locked=${neuralPolicy.locked === true ? '1' : '0'} blocked_profiles=${blockedProfiles.join(',')} allow_non_simulated_prototypes=${neuralPolicy.allow_non_simulated_prototypes === true ? '1' : '0'}`
+  );
+  addCheck(
+    'neural_dormant_seed:governance_checklist_depth',
+    governanceChecks.length >= 3,
+    `required_governance_checks=${governanceChecks.length}`
+  );
+  addCheck(
     'phone_seed_profile:merge_guard_hook',
     mergeGuardSrc.includes('phone_seed_profile.js')
       && mergeGuardSrc.includes('status'),
@@ -845,6 +876,7 @@ function runGate() {
       && contractCheckSrc.includes('siem_bridge.js')
       && contractCheckSrc.includes('soc2_type2_track.js')
       && contractCheckSrc.includes('predictive_capacity_forecast.js')
+      && contractCheckSrc.includes('neural_dormant_seed.js')
       && contractCheckSrc.includes('client_relationship_manager.js')
       && contractCheckSrc.includes('capital_allocation_organ.js')
       && contractCheckSrc.includes('drift_aware_revenue_optimizer.js'),
