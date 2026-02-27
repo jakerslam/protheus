@@ -168,8 +168,127 @@
       "constitution": 180
     }
   },
+  "live_graduation_ladder": {
+    "enabled": true,
+    "canary_quotas_by_target": {
+      "tactical": 0,
+      "belief": 3,
+      "identity": 6,
+      "directive": 10,
+      "constitution": 9999
+    },
+    "observer_quorum_by_target": {
+      "tactical": 0,
+      "belief": 1,
+      "identity": 2,
+      "directive": 2,
+      "constitution": 3
+    },
+    "observer_approval_window_days_by_target": {
+      "tactical": 30,
+      "belief": 45,
+      "identity": 60,
+      "directive": 90,
+      "constitution": 180
+    },
+    "regression_rollback_enabled": true,
+    "max_regressions_by_target": {
+      "tactical": 3,
+      "belief": 1,
+      "identity": 0,
+      "directive": 0,
+      "constitution": 0
+    },
+    "regression_window_days_by_target": {
+      "tactical": 30,
+      "belief": 45,
+      "identity": 60,
+      "directive": 90,
+      "constitution": 120
+    }
+  },
   "immutable_axioms": {
     "enabled": true,
+    "semantic": {
+      "enabled": true,
+      "min_role_hits": 2,
+      "ontology": {
+        "actions": {
+          "disable": [
+            "disable",
+            "turn off",
+            "deactivate",
+            "shut down",
+            "kill"
+          ],
+          "rewrite": [
+            "rewrite",
+            "redefine",
+            "recode",
+            "replace"
+          ],
+          "override": [
+            "override",
+            "supersede"
+          ],
+          "bypass": [
+            "bypass",
+            "circumvent",
+            "evade"
+          ],
+          "remove": [
+            "remove",
+            "strip",
+            "delete",
+            "erase"
+          ]
+        },
+        "subjects": {
+          "root": [
+            "root",
+            "core",
+            "foundational"
+          ],
+          "user": [
+            "user",
+            "human",
+            "owner",
+            "operator",
+            "bearer"
+          ],
+          "self": [
+            "self",
+            "organism",
+            "system"
+          ]
+        },
+        "objects": {
+          "constitution": [
+            "constitution",
+            "directive",
+            "axiom",
+            "core policy"
+          ],
+          "sovereignty": [
+            "sovereignty",
+            "veto",
+            "control",
+            "consent"
+          ],
+          "guardrails": [
+            "guard",
+            "guardrail",
+            "safety gate",
+            "policy gate"
+          ],
+          "integrity": [
+            "integrity",
+            "integrity kernel",
+            "attestation"
+          ]
+        }
+      }
+    },
     "axioms": [
       {
         "id": "preserve_root_constitution",

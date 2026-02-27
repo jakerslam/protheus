@@ -13,6 +13,7 @@ export {};
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const DEFAULT_POLICY_PATH = process.env.RM_PROGRESS_DASHBOARD_POLICY_PATH
@@ -117,10 +118,17 @@ function defaultPolicy() {
   return {
     version: '1.0',
     max_history_rows: 400,
+    auto_refresh_sources: false,
+    refresh_timeout_ms: 30000,
     sources: {
       rm113_closure_path: 'state/ops/workflow_execution_closure.json',
       rm119_reliability_path: 'state/ops/execution_reliability_slo.json',
       rm001_ci_guard_path: 'state/ops/ci_baseline_guard.json'
+    },
+    refresh_scripts: {
+      rm113: 'systems/ops/workflow_execution_closure.js',
+      rm119: 'systems/ops/execution_reliability_slo.js',
+      rm001: 'systems/ops/ci_baseline_guard.js'
     }
   };
 }
@@ -137,14 +145,58 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   const sources = raw && raw.sources && typeof raw.sources === 'object'
     ? raw.sources
     : {};
+  const refreshScripts = raw && raw.refresh_scripts && typeof raw.refresh_scripts === 'object'
+    ? raw.refresh_scripts
+    : {};
   return {
     version: String(raw && raw.version || base.version),
     max_history_rows: clampInt(raw && raw.max_history_rows, 20, 5000, base.max_history_rows),
+    auto_refresh_sources: toBool(raw && raw.auto_refresh_sources, base.auto_refresh_sources),
+    refresh_timeout_ms: clampInt(raw && raw.refresh_timeout_ms, 1000, 120000, base.refresh_timeout_ms),
     sources: {
       rm113_closure_path: resolvePath(sources.rm113_closure_path, base.sources.rm113_closure_path),
       rm119_reliability_path: resolvePath(sources.rm119_reliability_path, base.sources.rm119_reliability_path),
       rm001_ci_guard_path: resolvePath(sources.rm001_ci_guard_path, base.sources.rm001_ci_guard_path)
+    },
+    refresh_scripts: {
+      rm113: resolvePath(refreshScripts.rm113, base.refresh_scripts.rm113),
+      rm119: resolvePath(refreshScripts.rm119, base.refresh_scripts.rm119),
+      rm001: resolvePath(refreshScripts.rm001, base.refresh_scripts.rm001)
     }
+  };
+}
+
+function runRefreshScript(scriptPath: string, date: string, timeoutMs: number, disabled = false) {
+  if (disabled) {
+    return {
+      ok: true,
+      skipped: true,
+      reason: 'disabled'
+    };
+  }
+  if (!fs.existsSync(scriptPath)) {
+    return {
+      ok: false,
+      skipped: false,
+      reason: 'script_missing',
+      script_path: relPath(scriptPath)
+    };
+  }
+  const proc = spawnSync(process.execPath, [scriptPath, 'run', date], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout: timeoutMs
+  });
+  const code = proc.status == null ? 1 : proc.status;
+  const ok = code === 0;
+  return {
+    ok,
+    skipped: false,
+    code,
+    signal: proc.signal ? String(proc.signal) : '',
+    script_path: relPath(scriptPath),
+    stdout_tail: String(proc.stdout || '').slice(-240),
+    stderr_tail: String(proc.stderr || '').slice(-240)
   };
 }
 
@@ -169,8 +221,16 @@ function runDashboard(args: AnyObj) {
   const policy = loadPolicy(policyPath);
   const date = toDate(args._[1] || args.date);
   const strict = toBool(args.strict, false);
+  const skipRefresh = toBool(args['skip-refresh'] ?? args.skip_refresh, false);
   const statePath = args['state-path'] ? path.resolve(String(args['state-path'])) : DEFAULT_STATE_PATH;
   const historyPath = args['history-path'] ? path.resolve(String(args['history-path'])) : DEFAULT_HISTORY_PATH;
+
+  const refreshResults = {
+    enabled: policy.auto_refresh_sources === true && !skipRefresh,
+    rm113: runRefreshScript(policy.refresh_scripts.rm113, date, policy.refresh_timeout_ms, !(policy.auto_refresh_sources === true && !skipRefresh)),
+    rm119: runRefreshScript(policy.refresh_scripts.rm119, date, policy.refresh_timeout_ms, !(policy.auto_refresh_sources === true && !skipRefresh)),
+    rm001: runRefreshScript(policy.refresh_scripts.rm001, date, policy.refresh_timeout_ms, !(policy.auto_refresh_sources === true && !skipRefresh))
+  };
 
   const rm113 = readJson(policy.sources.rm113_closure_path, null);
   const rm119 = readJson(policy.sources.rm119_reliability_path, null);
@@ -228,6 +288,7 @@ function runDashboard(args: AnyObj) {
     status,
     blocked_by: blockedBy,
     summary,
+    refresh: refreshResults,
     source_paths: {
       rm113_closure_path: relPath(policy.sources.rm113_closure_path),
       rm119_reliability_path: relPath(policy.sources.rm119_reliability_path),
@@ -246,7 +307,8 @@ function runDashboard(args: AnyObj) {
     checks: payload.checks,
     status: payload.status,
     blocked_by: payload.blocked_by,
-    summary: payload.summary
+    summary: payload.summary,
+    refresh: payload.refresh
   });
   appendJsonl(historyPath, {
     ts: payload.ts,

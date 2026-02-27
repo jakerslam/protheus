@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "constitution_path": "AGENT-CONSTITUTION.md",
+  "state_path": "state/hardware/assimilation_plane/state.json",
+  "audit_path": "state/hardware/assimilation_plane/audit.jsonl",
+  "required_attestation_secret_env": "HARDWARE_ASSIMILATION_SECRET",
+  "idle_dormant_sec": 300,
+  "max_nodes": 256,
+  "scheduler": {
+    "default_lease_sec": 120,
+    "max_lease_sec": 1800,
+    "max_leases_per_node": 8,
+    "work_steal_enabled": true
+  }
+}

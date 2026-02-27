@@ -1,0 +1,24 @@
+{
+  "version": "1.0",
+  "strict_mode": true,
+  "lane_envelopes": {
+    "organ": {
+      "max_estimated_tokens": 12000,
+      "max_daily_actions": 400,
+      "blocked_risks": [],
+      "blocked_actions": []
+    },
+    "vassal": {
+      "max_estimated_tokens": 8000,
+      "max_daily_actions": 250,
+      "blocked_risks": ["critical"],
+      "blocked_actions": []
+    },
+    "external": {
+      "max_estimated_tokens": 5000,
+      "max_daily_actions": 120,
+      "blocked_risks": ["critical"],
+      "blocked_actions": ["filesystem_write_raw", "shell_execute_unbounded"]
+    }
+  }
+}
