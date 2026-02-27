@@ -107,6 +107,13 @@ function run() {
   assert.strictEqual(Number(out.consecutive_days_passed || 0), 0);
   assert.strictEqual(String(out.result || ''), 'pending');
   assert.ok(out.latest_day && out.latest_day.pass === false, 'latest day should fail after accepted-items drop');
+  assert.ok(Array.isArray(out.latest_day && out.latest_day.blockers), 'latest day should expose blocker list');
+  assert.ok(
+    out.latest_day.blockers.includes('accepted_items_below_min'),
+    'accepted_items_below_min blocker should be emitted'
+  );
+  assert.ok(Array.isArray(out.top_blockers), 'payload should expose top_blockers');
+  assert.strictEqual(out.estimated_closure_date, null, 'estimated closure date should be null when latest day fails');
 
   // strict=1 should fail process if closure target is not met.
   proc = runNode(
