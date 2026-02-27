@@ -104,6 +104,9 @@ function run() {
   const scriptPath = path.join(repoRoot, 'systems', 'assimilation', 'assimilation_controller.js');
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'assimilation-controller-'));
   const policyPath = path.join(tmpRoot, 'config', 'assimilation_policy.json');
+  const capabilityProfilePolicyPath = path.join(tmpRoot, 'config', 'capability_profile_policy.json');
+  const capabilityProfileSchemaPath = path.join(tmpRoot, 'config', 'capability_profile_schema.json');
+  const capabilityProfileStateRoot = path.join(tmpRoot, 'state', 'assimilation', 'capability_profiles');
   const stateDir = path.join(tmpRoot, 'state', 'assimilation');
   const weaverLatestPath = path.join(tmpRoot, 'state', 'autonomy', 'weaver', 'latest.json');
 
@@ -118,13 +121,43 @@ function run() {
       value_currency: 'adaptive_value'
     }
   });
+  writeJson(capabilityProfileSchemaPath, {
+    schema_id: 'capability_profile',
+    schema_version: '1.0',
+    required_top_level: ['profile_id', 'schema_version', 'generated_at', 'source', 'surface', 'provenance'],
+    required_source_fields: ['capability_id', 'source_type'],
+    surface_contract: {
+      required_sections: ['api', 'auth', 'rate_limit', 'error'],
+      at_least_one_activity_field: ['api.endpoints', 'ui.flows']
+    },
+    provenance_required_fields: ['origin', 'legal', 'confidence'],
+    allowed_source_types: ['local_skill', 'external_adapter', 'external_tool']
+  });
+  writeJson(capabilityProfilePolicyPath, {
+    version: '1.0-test',
+    enabled: true,
+    strict_validation: true,
+    schema_path: capabilityProfileSchemaPath,
+    state: {
+      root: capabilityProfileStateRoot,
+      profiles_dir: path.join(capabilityProfileStateRoot, 'profiles'),
+      receipts_path: path.join(capabilityProfileStateRoot, 'receipts.jsonl'),
+      latest_path: path.join(capabilityProfileStateRoot, 'latest.json')
+    },
+    onboarding: {
+      profile_only_path_enabled: true,
+      require_provenance: true,
+      max_profile_aliases: 64
+    }
+  });
   writeJson(policyPath, basePolicy());
 
   const env = {
     ...process.env,
     ASSIMILATION_POLICY_PATH: policyPath,
     ASSIMILATION_STATE_DIR: stateDir,
-    ASSIMILATION_WEAVER_LATEST_PATH: weaverLatestPath
+    ASSIMILATION_WEAVER_LATEST_PATH: weaverLatestPath,
+    CAPABILITY_PROFILE_POLICY_PATH: capabilityProfilePolicyPath
   };
 
   // Unified candidacy ledger must accept both local skills and external adapters.
@@ -192,6 +225,10 @@ function run() {
   for (const row of runShadow.candidates || []) {
     assert.strictEqual(row.outcome, 'shadow_only', 'shadow mode should not execute live graft');
     assert.strictEqual(row.graft.apply_executed, false, 'shadow mode should keep apply_executed=false');
+    assert.ok(
+      row.capability_profile && row.capability_profile.ok === true,
+      'capability profile should compile for ready candidates'
+    );
   }
 
   const ledgerPath = path.join(stateDir, 'ledger.json');
