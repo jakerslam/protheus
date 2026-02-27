@@ -250,6 +250,40 @@ function computeStreak(rows: AnyObj[]) {
   return streak;
 }
 
+function evaluateDayBlockers(
+  acceptedItems: number,
+  workflowsExecuted: number,
+  workflowsSucceeded: number,
+  successRatio: number,
+  minAcceptedItems: number,
+  minWorkflowsExecuted: number,
+  minWorkflowsSucceeded: number,
+  minSuccessRatio: number
+) {
+  const blockers: string[] = [];
+  if (acceptedItems < minAcceptedItems) blockers.push('accepted_items_below_min');
+  if (workflowsExecuted < minWorkflowsExecuted) blockers.push('workflows_executed_below_min');
+  if (workflowsSucceeded < minWorkflowsSucceeded) blockers.push('workflows_succeeded_below_min');
+  if (successRatio < minSuccessRatio) blockers.push('workflow_success_ratio_below_min');
+  return blockers;
+}
+
+function topBlockers(rows: AnyObj[], maxKeys = 6) {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    if (!row || row.pass === true) continue;
+    for (const blocker of (Array.isArray(row.blockers) ? row.blockers : [])) {
+      const k = normalizeToken(blocker, 80);
+      if (!k) continue;
+      counts.set(k, Number(counts.get(k) || 0) + 1);
+    }
+  }
+  return Array.from(counts.entries())
+    .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))
+    .slice(0, Math.max(1, Number(maxKeys || 6)))
+    .map(([code, count]) => ({ code, count: Number(count || 0) }));
+}
+
 function runClosure(args: AnyObj) {
   const policyPath = args.policy ? path.resolve(String(args.policy)) : DEFAULT_POLICY_PATH;
   const policy = loadPolicy(policyPath);
@@ -282,6 +316,16 @@ function runClosure(args: AnyObj) {
     const workflowsExecuted = Number(workflow.workflows_executed || 0);
     const workflowsSucceeded = Number(workflow.workflows_succeeded || 0);
     const successRatio = workflowsExecuted > 0 ? (workflowsSucceeded / workflowsExecuted) : 0;
+    const blockers = evaluateDayBlockers(
+      acceptedItems,
+      workflowsExecuted,
+      workflowsSucceeded,
+      successRatio,
+      minAcceptedItems,
+      minWorkflowsExecuted,
+      minWorkflowsSucceeded,
+      minSuccessRatio
+    );
     const pass = acceptedItems >= minAcceptedItems
       && workflowsExecuted >= minWorkflowsExecuted
       && workflowsSucceeded >= minWorkflowsSucceeded
@@ -297,13 +341,19 @@ function runClosure(args: AnyObj) {
       workflows_failed: Number(workflow.workflows_failed || 0),
       proposal_total: Number(proposals.total || 0),
       proposal_path: proposals.path,
-      workflow_run_path: workflow.path
+      workflow_run_path: workflow.path,
+      blockers
     };
   });
 
   const streak = computeStreak(rows);
   const closurePass = streak >= targetStreakDays;
   const latest = rows.length ? rows[0] : null;
+  const remainingDays = Math.max(0, targetStreakDays - streak);
+  const estimatedClosureDate = latest && latest.pass === true
+    ? addUtcDays(date, remainingDays)
+    : null;
+  const blockerCounts = topBlockers(rows, 8);
   const payload = {
     ok: true,
     type: 'workflow_execution_closure',
@@ -318,14 +368,17 @@ function runClosure(args: AnyObj) {
     min_success_ratio: Number(minSuccessRatio.toFixed(4)),
     lookback_days: lookbackDays,
     consecutive_days_passed: streak,
-    remaining_days: Math.max(0, targetStreakDays - streak),
+    remaining_days: remainingDays,
+    estimated_closure_date: estimatedClosureDate,
     closure_pass: closurePass,
     result: closurePass ? 'pass' : 'pending',
+    top_blockers: blockerCounts,
     latest_day: latest ? {
       date: latest.date,
       pass: latest.pass === true,
       accepted_items: Number(latest.accepted_items || 0),
-      workflows_executed: Number(latest.workflows_executed || 0)
+      workflows_executed: Number(latest.workflows_executed || 0),
+      blockers: Array.isArray(latest.blockers) ? latest.blockers.slice(0, 8) : []
     } : null,
     evidence: {
       proposals_dir: relPath(proposalsDir),
@@ -348,8 +401,10 @@ function runClosure(args: AnyObj) {
     lookback_days: payload.lookback_days,
     consecutive_days_passed: payload.consecutive_days_passed,
     remaining_days: payload.remaining_days,
+    estimated_closure_date: payload.estimated_closure_date,
     closure_pass: payload.closure_pass,
     result: payload.result,
+    top_blockers: payload.top_blockers,
     latest_day: payload.latest_day,
     evidence: payload.evidence
   });
@@ -360,7 +415,10 @@ function runClosure(args: AnyObj) {
     min_accepted_items: payload.min_accepted_items,
     min_workflows_executed: payload.min_workflows_executed,
     consecutive_days_passed: payload.consecutive_days_passed,
+    remaining_days: payload.remaining_days,
+    estimated_closure_date: payload.estimated_closure_date,
     closure_pass: payload.closure_pass,
+    top_blockers: payload.top_blockers,
     latest_day: payload.latest_day
   });
   trimHistory(historyPath, policy.max_history_rows);
