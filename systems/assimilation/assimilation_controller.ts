@@ -25,6 +25,7 @@ const {
 } = require('./candidacy_ledger');
 const { evaluateLegalGate } = require('./legal_gate');
 const { runResearchProbe } = require('./research_probe');
+const { compileProfileFromResearch } = require('./capability_profile_compiler');
 const { buildForgeReplica } = require('./forge_replica');
 const { evaluateGraftDecision } = require('./graft_manager');
 
@@ -748,6 +749,21 @@ function commandRun(args: AnyObj) {
       risk_class: record.risk_class || 'general',
       metadata: record.metadata || {}
     }, policy);
+    const profileCompile = compileProfileFromResearch({
+      capability_id: capabilityId,
+      source_type: record.source_type,
+      research,
+      origin: 'assimilation_controller',
+      source_receipt_id: runId,
+      high_risk_classes: record.risk_class ? [record.risk_class] : [],
+      requires_human_approval: (
+        Array.isArray(policy && policy.risk_classes && policy.risk_classes.high_risk)
+        && policy.risk_classes.high_risk.includes(String(record.risk_class || ''))
+      )
+    }, {
+      strict: true,
+      generated_by: 'assimilation_controller'
+    });
     const forge = buildForgeReplica({
       capability_id: capabilityId,
       source_type: record.source_type,
@@ -757,12 +773,18 @@ function commandRun(args: AnyObj) {
     }, policy);
     const hiddenEval = buildHiddenEvalSuite(runId, capabilityId, policy);
 
-    const nurseryPassed = legalGate.allowed === true && research.fit === 'sufficient';
+    const profileGatePassed = profileCompile && profileCompile.ok === true;
+    const nurseryPassed = legalGate.allowed === true
+      && research.fit === 'sufficient'
+      && profileGatePassed === true;
     const adversarialPassed = nurseryPassed === true;
     const nursery = {
       mode: policy.integration && policy.integration.nursery_shadow_only !== false ? 'shadow' : 'active',
       passed: nurseryPassed,
-      reason_codes: nurseryPassed ? ['nursery_shadow_pass'] : ['nursery_shadow_fail']
+      reason_codes: nurseryPassed
+        ? ['nursery_shadow_pass']
+        : ['nursery_shadow_fail']
+            .concat(profileGatePassed ? [] : ['capability_profile_validation_fail'])
     };
     const adversarial = {
       mode: policy.integration && policy.integration.adversarial_shadow_only !== false ? 'shadow' : 'active',
@@ -789,6 +811,9 @@ function commandRun(args: AnyObj) {
       .concat(Array.isArray(legalGate.reason_codes) ? legalGate.reason_codes : [])
       .concat(Array.isArray(weaverGate.reason_codes) ? weaverGate.reason_codes : [])
       .concat(Array.isArray(research.reason_codes) ? research.reason_codes : [])
+      .concat(Array.isArray(profileCompile && profileCompile.validation && profileCompile.validation.failures)
+        ? profileCompile.validation.failures.map((f: string) => `profile:${f}`)
+        : [])
       .concat(Array.isArray(nursery.reason_codes) ? nursery.reason_codes : [])
       .concat(Array.isArray(adversarial.reason_codes) ? adversarial.reason_codes : [])
       .concat(Array.isArray(graft.reason_codes) ? graft.reason_codes : []);
@@ -817,6 +842,14 @@ function commandRun(args: AnyObj) {
       legal_gate: legalGate,
       weaver_gate: weaverGate,
       research_probe: research,
+      capability_profile: {
+        ok: profileCompile && profileCompile.ok === true,
+        strict: profileCompile && profileCompile.strict === true,
+        profile_id: profileCompile && profileCompile.profile_id || null,
+        profile_hash: profileCompile && profileCompile.profile_hash || null,
+        profile_path: profileCompile && profileCompile.profile_path || null,
+        validation: profileCompile && profileCompile.validation || null
+      },
       forge_replica: forge,
       hidden_eval_suite: hiddenEval,
       nursery,
