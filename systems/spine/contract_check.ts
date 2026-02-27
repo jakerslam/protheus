@@ -728,6 +728,10 @@ function main() {
     "systems/continuity/session_continuity_vault.js",
     ["session_continuity_vault.js", "archive", "restore", "verify", "status", "--writer", "--checkpoint", "--vault-id", "--dry-run"]
   );
+  checkScript(
+    "systems/continuity/resurrection_protocol.js",
+    ["resurrection_protocol.js", "bundle", "verify", "restore", "status", "--bundle-id", "--attestation-token", "--target-host", "--shards", "--apply"]
+  );
 
   // agent_passport.js provides cryptographic action passport chain + export for audit.
   checkScript(

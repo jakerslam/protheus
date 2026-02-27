@@ -61,6 +61,9 @@ function main() {
     'hardware_embodiment:merge_guard_hook',
     'hardware_embodiment:required_contract_fields',
     'hardware_embodiment:profile_count_floor',
+    'resurrection_protocol:merge_guard_hook',
+    'resurrection_protocol:key_env_present',
+    'resurrection_protocol:multi_shard_floor',
     'workflow:effect_type_gate_hook',
     'helix:safety_resilience_hook'
   ]) {
