@@ -1,6 +1,8 @@
 {
   "version": "1.0",
   "strict_default": false,
+  "target_hold_days": 7,
+  "enforce_hold_streak_strict": false,
   "cold_start_probe": {
     "command": [
       "node",

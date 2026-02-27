@@ -46,6 +46,8 @@ try {
   writeJson(policyPath, {
     version: '1.0-test',
     strict_default: true,
+    target_hold_days: 3,
+    enforce_hold_streak_strict: false,
     cold_start_probe: {
       command: [process.execPath, '-e', 'process.stdout.write("ok\\n")'],
       samples: 3,
@@ -77,6 +79,9 @@ try {
   assert.ok(payload.metrics.cold_start_p95_ms > 0, 'cold start metric missing');
   assert.ok(payload.metrics.idle_rss_p95_mb > 0, 'idle rss metric missing');
   assert.ok(payload.metrics.install_artifact_total_mb >= 0, 'artifact metric missing');
+  assert.strictEqual(Number(payload.target_hold_days || 0), 3, 'target hold days should be reported');
+  assert.ok(Number(payload.hold_streak_days || 0) >= 1, 'hold streak should include current pass day');
+  assert.strictEqual(payload.hold_ready, false, 'single run should not satisfy hold readiness target');
   assert.ok(fs.existsSync(statePath), 'state path should exist');
   assert.ok(fs.existsSync(historyPath), 'history path should exist');
 

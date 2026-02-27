@@ -85,6 +85,26 @@ function readJson(filePath: string, fallback: any) {
   }
 }
 
+function readJsonl(filePath: string) {
+  try {
+    if (!fs.existsSync(filePath)) return [];
+    return String(fs.readFileSync(filePath, 'utf8') || '')
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => {
+        try {
+          const row = JSON.parse(line);
+          return row && typeof row === 'object' ? row : null;
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean) as AnyObj[];
+  } catch {
+    return [];
+  }
+}
+
 function ensureDir(dirPath: string) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
@@ -105,6 +125,35 @@ function relPath(filePath: string) {
   return path.relative(ROOT, filePath).replace(/\\/g, '/');
 }
 
+function toDate(raw: unknown) {
+  const text = clean(raw, 32);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  return nowIso().slice(0, 10);
+}
+
+function addUtcDays(dateStr: string, deltaDays: number) {
+  const ts = Date.parse(`${String(dateStr)}T00:00:00.000Z`);
+  if (!Number.isFinite(ts)) return toDate(null);
+  return new Date(ts + (deltaDays * 24 * 60 * 60 * 1000)).toISOString().slice(0, 10);
+}
+
+function computeHoldStreakDays(historyRows: AnyObj[], today: string) {
+  const latestByDate = new Map<string, AnyObj>();
+  for (const row of historyRows || []) {
+    if (!row || typeof row !== 'object') continue;
+    const d = toDate(row.date || row.ts);
+    latestByDate.set(d, row);
+  }
+  let streak = 0;
+  for (let i = 0; i < 365; i += 1) {
+    const d = addUtcDays(today, -i);
+    const row = latestByDate.get(d);
+    if (!row || row.pass !== true) break;
+    streak += 1;
+  }
+  return streak;
+}
+
 function percentile(values: number[], q: number) {
   if (!Array.isArray(values) || values.length === 0) return null;
   const arr = values.slice().sort((a, b) => a - b);
@@ -123,6 +172,8 @@ function defaultPolicy() {
   return {
     version: '1.0',
     strict_default: false,
+    target_hold_days: 7,
+    enforce_hold_streak_strict: false,
     cold_start_probe: {
       command: ['node', 'systems/workflow/workflow_controller.js', 'status'],
       samples: 5,
@@ -160,6 +211,8 @@ function loadPolicy(policyPath = POLICY_PATH) {
   return {
     version: clean(raw.version || base.version, 32) || '1.0',
     strict_default: raw.strict_default !== false,
+    target_hold_days: clampInt(raw.target_hold_days, 1, 365, base.target_hold_days),
+    enforce_hold_streak_strict: toBool(raw.enforce_hold_streak_strict, base.enforce_hold_streak_strict),
     cold_start_probe: {
       command: normalizeCmd(coldRaw.command, base.cold_start_probe.command),
       samples: clampInt(coldRaw.samples, 1, 30, base.cold_start_probe.samples),
@@ -474,6 +527,23 @@ function runCommand(args: AnyObj) {
   ].sort((a, b) => Number(b.gap || 0) - Number(a.gap || 0));
   const pass = checks.cold_start && checks.idle_rss && checks.install_artifact;
   const result = pass ? 'pass' : 'warn';
+  const date = nowIso().slice(0, 10);
+  const historyRows = readJsonl(policy.history_path);
+  const candidateHistory = historyRows.concat([{
+    ts: nowIso(),
+    date,
+    pass
+  }]);
+  const holdStreakDays = computeHoldStreakDays(candidateHistory, date);
+  const holdRemainingDays = Math.max(0, Number(policy.target_hold_days || 7) - holdStreakDays);
+  const holdReady = holdStreakDays >= Number(policy.target_hold_days || 7);
+  const holdProjectedReadyDate = holdReady ? date : addUtcDays(date, holdRemainingDays);
+  if (policy.enforce_hold_streak_strict === true && holdReady !== true) {
+    checks.target_hold_streak = false;
+    blockingChecks.push('target_hold_streak');
+  } else {
+    checks.target_hold_streak = holdReady;
+  }
 
   const payload = {
     schema_id: 'runtime_efficiency_floor',
@@ -485,6 +555,11 @@ function runCommand(args: AnyObj) {
     blocking_checks: blockingChecks,
     threshold_gaps: thresholdGaps,
     optimization_order: optimizationOrder,
+    target_hold_days: Number(policy.target_hold_days || 7),
+    hold_streak_days: holdStreakDays,
+    hold_remaining_days: holdRemainingDays,
+    hold_ready: holdReady,
+    hold_projected_ready_date: holdProjectedReadyDate,
     pass,
     result,
     hardware: detectHardwareClass(),
@@ -521,6 +596,11 @@ function runCommand(args: AnyObj) {
     blocking_checks: payload.blocking_checks,
     threshold_gaps: payload.threshold_gaps,
     optimization_order: payload.optimization_order,
+    target_hold_days: payload.target_hold_days,
+    hold_streak_days: payload.hold_streak_days,
+    hold_remaining_days: payload.hold_remaining_days,
+    hold_ready: payload.hold_ready,
+    hold_projected_ready_date: payload.hold_projected_ready_date,
     hardware: payload.hardware,
     metrics: payload.metrics,
     policy_path: relPath(policyPath),
