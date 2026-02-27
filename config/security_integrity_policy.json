@@ -49,17 +49,19 @@
     "systems/security/log_redaction_guard.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/merge_guard.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/policy_rootd.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
+    "systems/security/remote_emergency_halt.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/repo_hygiene_guard.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/request_ingress.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/schema_contract_check.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/secret_broker.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/skill_install_enforcer.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/skill_quarantine.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
+    "systems/security/soul_token_guard.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/startup_attestation.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/workspace_dump_guard.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/sensory/adaptive_layer_guard.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2"
   },
-  "sealed_at": "2026-02-26T09:01:09.860Z",
+  "sealed_at": "2026-02-27T01:19:11.323Z",
   "sealed_by": "jay",
-  "last_approval_note": "seal RM115 security redaction guard"
+  "last_approval_note": "seal remote halt + soul token guard"
 }
