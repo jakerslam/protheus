@@ -17,6 +17,21 @@ function cleanText(v: unknown, maxLen = 240) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, maxLen);
 }
 
+function normalizeToken(v: unknown, maxLen = 120) {
+  return cleanText(v, maxLen)
+    .replace(/[^a-zA-Z0-9_.:/-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function normalizeLowerToken(v: unknown, maxLen = 120) {
+  return normalizeToken(v, maxLen).toLowerCase();
+}
+
+function normalizeUpperToken(v: unknown, maxLen = 120) {
+  return normalizeToken(v, maxLen).toUpperCase();
+}
+
 function parseArgs(argv: string[]) {
   const out: AnyObj = { _: [] };
   for (const tok of argv) {
@@ -71,6 +86,7 @@ function runGate() {
 
   const requiredFiles = [
     'config/primitive_catalog.json',
+    'config/primitive_migration_contract.json',
     'config/primitive_policy_vm.json',
     'config/scale_envelope_policy.json',
     'systems/primitives/primitive_runtime.ts',
@@ -96,6 +112,75 @@ function runGate() {
     'catalog:adapter_effect_map',
     adapterEffectCount >= 3,
     `adapter_effect_map=${adapterEffectCount}`
+  );
+  const commandRulesRaw = Array.isArray(catalog.command_rules) ? catalog.command_rules : [];
+  const adapterOpcodeMap = catalog.adapter_opcode_map && typeof catalog.adapter_opcode_map === 'object'
+    ? catalog.adapter_opcode_map
+    : {};
+  const adapterEffectMap = catalog.adapter_effect_map && typeof catalog.adapter_effect_map === 'object'
+    ? catalog.adapter_effect_map
+    : {};
+  const opcodeSet = new Set<string>();
+  const defaultOpcode = normalizeUpperToken(catalog.default_command_opcode || 'SHELL_EXECUTE', 80) || 'SHELL_EXECUTE';
+  opcodeSet.add(defaultOpcode);
+  opcodeSet.add('RECEIPT_VERIFY');
+  opcodeSet.add('FLOW_GATE');
+  opcodeSet.add('ACTUATION_ADAPTER');
+  for (const row of commandRulesRaw) {
+    const opcode = normalizeUpperToken(row && row.opcode ? row.opcode : '', 80);
+    if (opcode) opcodeSet.add(opcode);
+  }
+  for (const v of Object.values(adapterOpcodeMap)) {
+    const opcode = normalizeUpperToken(v, 80);
+    if (opcode) opcodeSet.add(opcode);
+  }
+  const opcodeCount = opcodeSet.size;
+  const opcodeCap = Math.max(1, Number(catalog.primitive_count_cap || catalog.opcode_cap || 24) || 24);
+  addCheck(
+    'catalog:opcode_cap',
+    opcodeCount <= opcodeCap,
+    `opcodes=${opcodeCount} cap=${opcodeCap}`
+  );
+
+  const adaptersCfg = readJsonSafe(path.join(ROOT, 'config', 'actuation_adapters.json'), {});
+  const adaptersMap = adaptersCfg && adaptersCfg.adapters && typeof adaptersCfg.adapters === 'object'
+    ? adaptersCfg.adapters
+    : {};
+  const adapterIds = Object.keys(adaptersMap).map((id) => normalizeLowerToken(id, 80)).filter(Boolean);
+  const missingOpcodeMappings = adapterIds.filter((id) => !normalizeUpperToken(adapterOpcodeMap[id], 80));
+  const missingEffectMappings = adapterIds.filter((id) => !normalizeLowerToken(adapterEffectMap[id], 80));
+  addCheck(
+    'catalog:adapter_opcode_coverage',
+    missingOpcodeMappings.length === 0,
+    missingOpcodeMappings.length === 0 ? `covered=${adapterIds.length}` : `missing=${missingOpcodeMappings.join(',')}`
+  );
+  addCheck(
+    'catalog:adapter_effect_coverage',
+    missingEffectMappings.length === 0,
+    missingEffectMappings.length === 0 ? `covered=${adapterIds.length}` : `missing=${missingEffectMappings.join(',')}`
+  );
+
+  const migration = readJsonSafe(path.join(ROOT, 'config', 'primitive_migration_contract.json'), {});
+  const migrationVersion = cleanText(migration.schema_version || '', 40);
+  const migrationGrammarVersion = cleanText(migration.grammar_version || '', 40);
+  addCheck(
+    'catalog:migration_contract_version',
+    !!migrationVersion && !!migrationGrammarVersion,
+    `schema_version=${migrationVersion || 'missing'} grammar_version=${migrationGrammarVersion || 'missing'}`
+  );
+  const activeOpcodesRaw = Array.isArray(migration.active_opcodes)
+    ? migration.active_opcodes
+    : Array.isArray(migration.opcodes) ? migration.opcodes : [];
+  const activeOpcodeSet = new Set(
+    activeOpcodesRaw
+      .map((row: unknown) => normalizeUpperToken(row, 80))
+      .filter(Boolean)
+  );
+  const unmappedOpcodes = Array.from(opcodeSet).filter((op) => !activeOpcodeSet.has(op));
+  addCheck(
+    'catalog:migration_contract_coverage',
+    unmappedOpcodes.length === 0,
+    unmappedOpcodes.length === 0 ? `covered=${opcodeSet.size}` : `missing=${unmappedOpcodes.join(',')}`
   );
 
   const workflowSrc = readFileSafe(path.join(ROOT, 'systems', 'workflow', 'workflow_executor.ts'));

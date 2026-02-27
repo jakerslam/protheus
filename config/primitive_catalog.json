@@ -1,6 +1,7 @@
 {
   "schema_id": "primitive_catalog",
   "schema_version": "1.0",
+  "primitive_count_cap": 24,
   "default_command_opcode": "SHELL_EXECUTE",
   "default_command_effect": "compute",
   "command_rules": [
@@ -61,10 +62,16 @@
     "shell_task": "SHELL_EXECUTE",
     "http_request": "NETWORK_REQUEST",
     "browser_task": "BROWSER_TASK",
+    "slack_message": "COMMS_MESSAGE",
+    "discord_message": "COMMS_MESSAGE",
+    "email_message": "COMMS_MESSAGE",
+    "upwork_message": "COMMS_MESSAGE",
     "calendar_event": "CALENDAR_MUTATE",
+    "git_task": "FILESYSTEM_MUTATE",
     "crm_record": "CRM_MUTATE",
     "helpdesk_ticket": "HELPDESK_MUTATE",
-    "eyes_create": "EYE_MUTATE"
+    "eyes_create": "EYE_MUTATE",
+    "moltbook_publish": "COMMS_MESSAGE"
   },
   "adapter_effect_map": {
     "payment_task": "money",
