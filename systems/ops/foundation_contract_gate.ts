@@ -86,6 +86,7 @@ function runGate() {
 
   const requiredFiles = [
     'config/abstraction_debt_baseline.json',
+    'config/formal_invariants.json',
     'config/profile_compatibility_policy.json',
     'config/primitive_catalog.json',
     'config/primitive_migration_contract.json',
@@ -94,6 +95,7 @@ function runGate() {
     'config/scale_envelope_policy.json',
     'systems/ops/profile_compatibility_gate.ts',
     'systems/primitives/runtime_scheduler.ts',
+    'systems/security/formal_invariant_engine.ts',
     'systems/primitives/primitive_runtime.ts',
     'systems/primitives/policy_vm.ts',
     'systems/primitives/replay_verify.ts'
@@ -234,6 +236,12 @@ function runGate() {
     'profile_compatibility:n_minus_2_minimum',
     maxMinorBehind >= 2,
     `max_minor_behind=${maxMinorBehind}`
+  );
+  const mergeGuardSrc = readFileSafe(path.join(ROOT, 'systems', 'security', 'merge_guard.ts'));
+  addCheck(
+    'formal_invariant_engine:merge_guard_hook',
+    mergeGuardSrc.includes('formal_invariant_engine.js') && mergeGuardSrc.includes('--strict=1'),
+    'merge_guard should enforce formal invariant engine'
   );
 
   const workflowSrc = readFileSafe(path.join(ROOT, 'systems', 'workflow', 'workflow_executor.ts'));

@@ -87,6 +87,8 @@
     "guard:merge:fast": "node systems/security/merge_guard.js run --skip-tests",
     "integrity:check": "node systems/security/integrity_reseal.js check",
     "integrity:reseal": "node systems/security/integrity_reseal.js apply",
+    "formal:invariants:run": "node systems/security/formal_invariant_engine.js run --strict=1",
+    "formal:invariants:status": "node systems/security/formal_invariant_engine.js status",
     "passport:issue": "node systems/security/agent_passport.js issue",
     "passport:verify": "node systems/security/agent_passport.js verify --strict=1",
     "passport:export": "node systems/security/agent_passport.js export-pdf",
