@@ -43,8 +43,10 @@ function main() {
     'distributed_control_plane:trust_domain_required',
     'effect_type:policy_enforced',
     'effect_type:forbidden_transition_rules',
+    'schema_evolution:n_minus_two_floor',
     'formal_invariant_engine:merge_guard_hook',
     'supply_chain_trust_plane:merge_guard_hook',
+    'schema_evolution:merge_guard_hook',
     'workflow:effect_type_gate_hook'
   ]) {
     assert.ok(byId.has(id), `missing check: ${id}`);
