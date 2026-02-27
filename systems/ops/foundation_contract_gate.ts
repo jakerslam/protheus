@@ -95,7 +95,9 @@ function runGate() {
     'config/primitive_policy_vm.json',
     'config/runtime_scheduler_policy.json',
     'config/scale_envelope_policy.json',
+    'config/schema_evolution_policy.json',
     'systems/ops/profile_compatibility_gate.ts',
+    'systems/ops/schema_evolution_contract.ts',
     'systems/distributed/deterministic_control_plane.ts',
     'systems/primitives/effect_type_system.ts',
     'systems/primitives/runtime_scheduler.ts',
@@ -269,6 +271,13 @@ function runGate() {
     effectTransitions >= 1,
     `forbidden_transitions=${effectTransitions}`
   );
+  const schemaEvolutionPolicy = readJsonSafe(path.join(ROOT, 'config', 'schema_evolution_policy.json'), {});
+  const schemaEvolutionNMinus = Math.max(0, Number(schemaEvolutionPolicy.default_n_minus_minor || 0) || 0);
+  addCheck(
+    'schema_evolution:n_minus_two_floor',
+    schemaEvolutionNMinus >= 2,
+    `default_n_minus_minor=${schemaEvolutionNMinus}`
+  );
   const mergeGuardSrc = readFileSafe(path.join(ROOT, 'systems', 'security', 'merge_guard.ts'));
   addCheck(
     'formal_invariant_engine:merge_guard_hook',
@@ -281,6 +290,13 @@ function runGate() {
       && mergeGuardSrc.includes('--verify-only=1')
       && mergeGuardSrc.includes('--strict=1'),
     'merge_guard should enforce supply-chain trust verification'
+  );
+  addCheck(
+    'schema_evolution:merge_guard_hook',
+    mergeGuardSrc.includes('schema_evolution_contract.js')
+      && mergeGuardSrc.includes('--strict=1')
+      && mergeGuardSrc.includes('--apply=0'),
+    'merge_guard should enforce schema evolution verification'
   );
 
   const workflowSrc = readFileSafe(path.join(ROOT, 'systems', 'workflow', 'workflow_executor.ts'));
