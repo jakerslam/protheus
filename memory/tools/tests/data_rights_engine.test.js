@@ -42,6 +42,9 @@ function run() {
   const pendingQueue = path.join(tmp, 'state', 'nursery', 'training', 'workflow_learning_queue.jsonl');
   const canaryQueue = path.join(tmp, 'state', 'nursery', 'training', 'workflow_learning_canary.jsonl');
   const masterQueue = path.join(tmp, 'state', 'nursery', 'training', 'continuum_queue.jsonl');
+  const datasetsDir = path.join(tmp, 'state', 'nursery', 'training', 'datasets');
+  const datasetPath = path.join(datasetsDir, '2026-02-26.jsonl');
+  const quarantineStatePath = path.join(tmp, 'state', 'nursery', 'training', 'quarantine_state.json');
 
   writeJson(policyPath, {
     version: '1.0-test',
@@ -58,6 +61,8 @@ function run() {
       master_queue: masterQueue
     },
     checkpoints_index_path: path.join(tmp, 'state', 'nursery', 'training', 'checkpoints', 'index.json'),
+    datasets_dir_path: datasetsDir,
+    quarantine_state_path: quarantineStatePath,
     defaults: {
       owner_id: 'unit_owner',
       classification: 'internal'
@@ -90,6 +95,35 @@ function run() {
       training_conduit: { delete: { key: 'delete_key_gamma' } }
     }
   ]);
+  writeJsonl(datasetPath, [
+    {
+      row_id: 'd1',
+      training_conduit: { delete: { key: 'delete_key_alpha' } },
+      payload: 'sensitive alpha row'
+    },
+    {
+      row_id: 'd2',
+      training_conduit: { delete: { key: 'delete_key_other' } },
+      payload: 'non target row'
+    }
+  ]);
+  writeJson(quarantineStatePath, {
+    schema_id: 'training_quarantine_state',
+    schema_version: '1.0',
+    updated_at: new Date().toISOString(),
+    checkpoints: {
+      p1: {
+        checkpoint_id: 'ckpt_p1',
+        entry_id: 'p1',
+        status: 'promoted'
+      },
+      p2: {
+        checkpoint_id: 'ckpt_p2',
+        entry_id: 'p2',
+        status: 'canary_running'
+      }
+    }
+  });
 
   const env = {
     ...process.env,
@@ -146,6 +180,8 @@ function run() {
   assert.strictEqual(processApplyOut.processed_count, 1);
   assert.strictEqual(processApplyOut.processed[0].status, 'processed');
   assert.ok(Number(processApplyOut.processed[0].affected_rows || 0) >= 3);
+  assert.ok(Number(processApplyOut.processed[0].dataset_rows_removed || 0) >= 1);
+  assert.ok(Number(processApplyOut.processed[0].checkpoints_marked_unlearned || 0) >= 1);
 
   const pendingRows = String(fs.readFileSync(pendingQueue, 'utf8') || '')
     .split('\n')
@@ -156,6 +192,23 @@ function run() {
     pendingRows[0].training_conduit.delete.key,
     'delete_key_beta',
     'only non-target delete key should remain'
+  );
+  const datasetRows = String(fs.readFileSync(datasetPath, 'utf8') || '')
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+  assert.strictEqual(datasetRows.length, 1, 'dataset should retain only non-target rows');
+  assert.strictEqual(datasetRows[0].training_conduit.delete.key, 'delete_key_other');
+  const quarantineState = JSON.parse(fs.readFileSync(quarantineStatePath, 'utf8'));
+  assert.strictEqual(
+    quarantineState.checkpoints.p1.status,
+    'unlearned',
+    'matching checkpoint should be marked unlearned'
+  );
+  assert.strictEqual(
+    quarantineState.checkpoints.p2.status,
+    'canary_running',
+    'non-matching checkpoint should remain unchanged'
   );
 
   const rightsEvents = String(fs.readFileSync(path.join(stateDir, 'rights_events.jsonl'), 'utf8') || '')

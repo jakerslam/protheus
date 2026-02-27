@@ -13,6 +13,8 @@
     "master_queue": "state/nursery/training/continuum_queue.jsonl"
   },
   "checkpoints_index_path": "state/nursery/training/checkpoints/index.json",
+  "datasets_dir_path": "state/nursery/training/datasets",
+  "quarantine_state_path": "state/nursery/training/quarantine_state.json",
   "defaults": {
     "owner_id": "local_operator",
     "classification": "internal"
