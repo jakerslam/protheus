@@ -69,6 +69,11 @@ try {
   const payload = parseJson(runResult.stdout);
   assert.strictEqual(payload.ok, true, 'run payload should be ok');
   assert.strictEqual(payload.pass, true, 'run should pass policy checks');
+  assert.ok(Array.isArray(payload.blocking_checks), 'blocking_checks should be present');
+  assert.strictEqual(payload.blocking_checks.length, 0, 'passing run should have no blockers');
+  assert.ok(payload.threshold_gaps && typeof payload.threshold_gaps === 'object', 'threshold gap payload missing');
+  assert.ok(Array.isArray(payload.optimization_order), 'optimization_order should be present');
+  assert.ok(payload.hardware && typeof payload.hardware.class_id === 'string', 'hardware classification missing');
   assert.ok(payload.metrics.cold_start_p95_ms > 0, 'cold start metric missing');
   assert.ok(payload.metrics.idle_rss_p95_mb > 0, 'idle rss metric missing');
   assert.ok(payload.metrics.install_artifact_total_mb >= 0, 'artifact metric missing');

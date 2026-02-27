@@ -19,6 +19,7 @@ export {};
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const os = require('os');
 
 type AnyObj = Record<string, any>;
 
@@ -431,6 +432,19 @@ function runInstallArtifactProbe(policy: AnyObj) {
   };
 }
 
+function detectHardwareClass() {
+  const cpus = Array.isArray(os.cpus()) ? os.cpus().length : 1;
+  const totalMemMb = Number(((Number(os.totalmem() || 0)) / 1024 / 1024).toFixed(0));
+  const cls = cpus >= 8 && totalMemMb >= 16384
+    ? 'desktop_high'
+    : (cpus >= 4 && totalMemMb >= 8192 ? 'desktop_mid' : 'desktop_low');
+  return {
+    class_id: cls,
+    cpu_cores: cpus,
+    total_mem_mb: totalMemMb
+  };
+}
+
 function runCommand(args: AnyObj) {
   const policyPath = args.policy ? path.resolve(String(args.policy)) : POLICY_PATH;
   const policy = loadPolicy(policyPath);
@@ -445,6 +459,19 @@ function runCommand(args: AnyObj) {
     idle_rss: idleRss.pass === true,
     install_artifact: installArtifact.pass === true
   };
+  const blockingChecks = Object.entries(checks)
+    .filter(([, ok]) => ok !== true)
+    .map(([key]) => key);
+  const thresholdGaps = {
+    cold_start_ms_over: Number(Math.max(0, Number(coldStart.p95_ms || 0) - Number(coldStart.threshold_ms || 0)).toFixed(3)),
+    idle_rss_mb_over: Number(Math.max(0, Number(idleRss.p95_mb || 0) - Number(idleRss.threshold_mb || 0)).toFixed(3)),
+    install_artifact_mb_over: Number(Math.max(0, Number(installArtifact.total_mb || 0) - Number(installArtifact.threshold_mb || 0)).toFixed(3))
+  };
+  const optimizationOrder = [
+    { lane: 'cold_start', gap: thresholdGaps.cold_start_ms_over, unit: 'ms' },
+    { lane: 'idle_rss', gap: thresholdGaps.idle_rss_mb_over, unit: 'mb' },
+    { lane: 'install_artifact', gap: thresholdGaps.install_artifact_mb_over, unit: 'mb' }
+  ].sort((a, b) => Number(b.gap || 0) - Number(a.gap || 0));
   const pass = checks.cold_start && checks.idle_rss && checks.install_artifact;
   const result = pass ? 'pass' : 'warn';
 
@@ -455,8 +482,12 @@ function runCommand(args: AnyObj) {
     policy_version: policy.version,
     strict,
     checks,
+    blocking_checks: blockingChecks,
+    threshold_gaps: thresholdGaps,
+    optimization_order: optimizationOrder,
     pass,
     result,
+    hardware: detectHardwareClass(),
     metrics: {
       cold_start_p95_ms: coldStart.p95_ms,
       cold_start_threshold_ms: coldStart.threshold_ms,
@@ -487,6 +518,10 @@ function runCommand(args: AnyObj) {
     pass: payload.pass,
     result: payload.result,
     checks: payload.checks,
+    blocking_checks: payload.blocking_checks,
+    threshold_gaps: payload.threshold_gaps,
+    optimization_order: payload.optimization_order,
+    hardware: payload.hardware,
     metrics: payload.metrics,
     policy_path: relPath(policyPath),
     state_path: relPath(policy.state_path),
