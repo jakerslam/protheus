@@ -53,6 +53,11 @@ function run() {
       'systems/security/guard.ts',
       'systems/ops/seed_boot_probe.ts'
     ],
+    mandatory_governance_paths: [
+      'systems/eye/eye_kernel.ts',
+      'systems/security/guard.ts'
+    ],
+    provision_on_bootstrap: true,
     probes: {
       seed_boot_probe: true,
       startup_attestation_verify: false
@@ -68,12 +73,52 @@ function run() {
   const historyPath = path.join(tmp, 'history.jsonl');
   const bootstrap = runNode(repoRoot, [scriptPath, 'bootstrap', `--profile=${profilePath}`], {
     PROTHEUS_PRIME_RECEIPT_PATH: receiptPath,
-    PROTHEUS_PRIME_RECEIPT_HISTORY: historyPath
+    PROTHEUS_PRIME_RECEIPT_HISTORY: historyPath,
+    PROTHEUS_PRIME_PROVISION_DIR: path.join(tmp, 'provisioned')
   });
   assert.strictEqual(bootstrap.status, 0, bootstrap.stderr || 'bootstrap should pass with test profile');
   const bootstrapPayload = parseJson(bootstrap.stdout);
   assert.strictEqual(bootstrapPayload.ok, true, `bootstrap expected ok=true, got: ${JSON.stringify(bootstrapPayload)}`);
+  assert.ok(bootstrapPayload.provision && bootstrapPayload.provision.ok === true, 'bootstrap should provision minimal core');
+  assert.ok(Number(bootstrapPayload.provision.file_count || 0) >= 1, 'provisioned file count should be positive');
   assert.ok(fs.existsSync(receiptPath), 'bootstrap receipt should be written');
+
+  const packageDir = path.join(tmp, 'packages');
+  const packageRun = runNode(repoRoot, [scriptPath, 'package', `--profile=${profilePath}`, '--strict=1', `--out-dir=${packageDir}`]);
+  assert.strictEqual(packageRun.status, 0, packageRun.stderr || 'package should pass when bootstrap conformance is green');
+  const packagePayload = parseJson(packageRun.stdout);
+  assert.strictEqual(packagePayload.ok, true, 'package payload should be ok');
+  assert.ok(fs.existsSync(path.join(packageDir, 'latest.json')), 'latest package pointer should be written');
+
+  const brokenProfilePath = path.join(tmp, 'protheus_prime_profile_broken.json');
+  writeJson(brokenProfilePath, {
+    profile_id: 'protheus-prime-test-broken',
+    version: '1.0',
+    mandatory_paths: [
+      'systems/eye/eye_kernel.ts'
+    ],
+    mandatory_governance_paths: [
+      'systems/eye/eye_kernel.ts',
+      'systems/security/DOES_NOT_EXIST.ts'
+    ],
+    probes: {
+      seed_boot_probe: false,
+      startup_attestation_verify: false
+    }
+  });
+  const brokenBootstrap = runNode(repoRoot, [scriptPath, 'bootstrap', `--profile=${brokenProfilePath}`], {
+    PROTHEUS_PRIME_RECEIPT_PATH: path.join(tmp, 'broken_receipt.json'),
+    PROTHEUS_PRIME_RECEIPT_HISTORY: path.join(tmp, 'broken_history.jsonl')
+  });
+  assert.notStrictEqual(brokenBootstrap.status, 0, 'bootstrap should fail closed on missing governance paths');
+  const brokenPayload = parseJson(brokenBootstrap.stdout);
+  assert.ok(
+    Array.isArray(brokenPayload && brokenPayload.missing_governance_paths)
+      && brokenPayload.missing_governance_paths.length >= 1,
+    'missing governance paths should be reported'
+  );
+  const brokenPackage = runNode(repoRoot, [scriptPath, 'package', `--profile=${brokenProfilePath}`, '--strict=1', `--out-dir=${path.join(tmp, 'broken_packages')}`]);
+  assert.notStrictEqual(brokenPackage.status, 0, 'strict package should fail closed when conformance fails');
 
   console.log('protheus_prime_seed.test.js: OK');
 }
