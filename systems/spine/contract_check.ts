@@ -957,6 +957,14 @@ function main() {
     "systems/ops/compliance_reports.js",
     ["compliance_reports.js", "evidence-index", "control-inventory", "framework-readiness", "soc2-readiness", "status", "--days", "--strict", "--framework"]
   );
+  checkScript(
+    "systems/ops/soc2_type2_track.js",
+    ["soc2_type2_track.js", "run", "exception-open", "exception-close", "bundle", "status", "--days", "--id", "--control", "--reason", "--resolution", "--window-id", "--strict"]
+  );
+  checkSourceContains(
+    "systems/ops/soc2_type2_track.js",
+    ["minimum_window_days", "max_open_exception_days", "soc2_type2_attestation_bundle"]
+  );
 
   // environment_promotion_gate.js enforces promotion sequencing and approvals across env tiers.
   checkScript(

@@ -116,6 +116,7 @@ function runGate() {
     'config/simplicity_budget_policy.json',
     'config/schema_evolution_policy.json',
     'config/siem_bridge_policy.json',
+    'config/soc2_type2_policy.json',
     'config/surface_budget_controller_policy.json',
     'config/value_anchor_renewal_policy.json',
     'config/world_model_freshness_policy.json',
@@ -144,6 +145,7 @@ function runGate() {
     'systems/assimilation/world_model_freshness.ts',
     'systems/observability/siem_bridge.ts',
     'systems/ops/continuous_chaos_resilience.ts',
+    'systems/ops/soc2_type2_track.ts',
     'systems/ops/phone_seed_profile.ts',
     'systems/ops/self_hosted_bootstrap_compiler.ts',
     'systems/primitives/primitive_runtime.ts',
@@ -572,6 +574,25 @@ function runGate() {
     `latest_export_path=${cleanText(siemPolicy.latest_export_path || '', 120) || 'missing'} latest_correlation_path=${cleanText(siemPolicy.latest_correlation_path || '', 120) || 'missing'} alert_roundtrip_path=${cleanText(siemPolicy.alert_roundtrip_path || '', 120) || 'missing'}`
   );
   addCheck(
+    'soc2_type2_track:merge_guard_hook',
+    mergeGuardSrc.includes('soc2_type2_track.js')
+      && mergeGuardSrc.includes('status'),
+    'merge_guard should enforce SOC2 Type II track status check'
+  );
+  const soc2Type2Policy = readJsonSafe(path.join(ROOT, 'config', 'soc2_type2_policy.json'), {});
+  addCheck(
+    'soc2_type2_track:minimum_window_floor',
+    Number(soc2Type2Policy.minimum_window_days || 0) >= 90,
+    `minimum_window_days=${Number(soc2Type2Policy.minimum_window_days || 0)}`
+  );
+  addCheck(
+    'soc2_type2_track:exception_and_bundle_paths_present',
+    !!cleanText(soc2Type2Policy.exceptions_path || '', 200)
+      && !!cleanText(soc2Type2Policy.bundle_dir || '', 200)
+      && !!cleanText(soc2Type2Policy.window_history_path || '', 200),
+    `exceptions_path=${cleanText(soc2Type2Policy.exceptions_path || '', 120) || 'missing'} bundle_dir=${cleanText(soc2Type2Policy.bundle_dir || '', 120) || 'missing'} window_history_path=${cleanText(soc2Type2Policy.window_history_path || '', 120) || 'missing'}`
+  );
+  addCheck(
     'phone_seed_profile:merge_guard_hook',
     mergeGuardSrc.includes('phone_seed_profile.js')
       && mergeGuardSrc.includes('status'),
@@ -798,6 +819,7 @@ function runGate() {
       && contractCheckSrc.includes('compression_transfer_plane.js')
       && contractCheckSrc.includes('opportunistic_offload_plane.js')
       && contractCheckSrc.includes('siem_bridge.js')
+      && contractCheckSrc.includes('soc2_type2_track.js')
       && contractCheckSrc.includes('client_relationship_manager.js')
       && contractCheckSrc.includes('capital_allocation_organ.js')
       && contractCheckSrc.includes('drift_aware_revenue_optimizer.js'),
