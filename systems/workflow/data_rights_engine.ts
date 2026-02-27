@@ -167,7 +167,7 @@ function runtimePaths(policyPath: string, policy: AnyObj) {
   const queuePaths = policy && policy.queue_paths && typeof policy.queue_paths === 'object'
     ? policy.queue_paths
     : {};
-  const resolveQueue = (raw: unknown, fallback: string) => {
+  const resolvePath = (raw: unknown, fallback: string) => {
     const txt = cleanText(raw || fallback, 280);
     if (path.isAbsolute(txt)) return txt;
     return path.join(ROOT, txt);
@@ -181,9 +181,21 @@ function runtimePaths(policyPath: string, policy: AnyObj) {
     latest_path: path.join(stateDir, 'latest.json'),
     queue_state_path: path.join(stateDir, 'revocation_queue.json'),
     unlearning_queue_path: path.join(stateDir, 'unlearning_queue.jsonl'),
-    pending_queue_path: resolveQueue(queuePaths.pending_queue, 'state/nursery/training/workflow_learning_queue.jsonl'),
-    canary_queue_path: resolveQueue(queuePaths.canary_queue, 'state/nursery/training/workflow_learning_canary.jsonl'),
-    master_queue_path: resolveQueue(queuePaths.master_queue, 'state/nursery/training/continuum_queue.jsonl')
+    pending_queue_path: resolvePath(queuePaths.pending_queue, 'state/nursery/training/workflow_learning_queue.jsonl'),
+    canary_queue_path: resolvePath(queuePaths.canary_queue, 'state/nursery/training/workflow_learning_canary.jsonl'),
+    master_queue_path: resolvePath(queuePaths.master_queue, 'state/nursery/training/continuum_queue.jsonl'),
+    checkpoints_index_path: resolvePath(
+      policy && policy.checkpoints_index_path,
+      'state/nursery/training/checkpoints/index.json'
+    ),
+    datasets_dir_path: resolvePath(
+      policy && policy.datasets_dir_path,
+      'state/nursery/training/datasets'
+    ),
+    quarantine_state_path: resolvePath(
+      policy && policy.quarantine_state_path,
+      'state/nursery/training/quarantine_state.json'
+    )
   };
 }
 
@@ -203,6 +215,8 @@ function defaultPolicy() {
       master_queue: 'state/nursery/training/continuum_queue.jsonl'
     },
     checkpoints_index_path: 'state/nursery/training/checkpoints/index.json',
+    datasets_dir_path: 'state/nursery/training/datasets',
+    quarantine_state_path: 'state/nursery/training/quarantine_state.json',
     defaults: {
       owner_id: 'local_operator',
       classification: 'internal'
@@ -232,6 +246,8 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
       master_queue: cleanText(queuePaths.master_queue || base.queue_paths.master_queue, 280)
     },
     checkpoints_index_path: cleanText(raw.checkpoints_index_path || base.checkpoints_index_path, 280),
+    datasets_dir_path: cleanText(raw.datasets_dir_path || base.datasets_dir_path, 280),
+    quarantine_state_path: cleanText(raw.quarantine_state_path || base.quarantine_state_path, 280),
     defaults: {
       owner_id: normalizeToken(defaults.owner_id || base.defaults.owner_id, 120) || base.defaults.owner_id,
       classification: normalizeToken(defaults.classification || base.defaults.classification, 80)
@@ -478,6 +494,79 @@ function filterQueueRowsByDeleteKey(filePath: string, deleteKey: string) {
   };
 }
 
+function listJsonlFiles(dirPath: string) {
+  if (!dirPath || !fs.existsSync(dirPath)) return [];
+  const out: string[] = [];
+  const stack = [dirPath];
+  while (stack.length > 0) {
+    const cur = stack.pop();
+    if (!cur || !fs.existsSync(cur)) continue;
+    for (const ent of fs.readdirSync(cur, { withFileTypes: true })) {
+      const full = path.join(cur, ent.name);
+      if (ent.isDirectory()) stack.push(full);
+      else if (ent.isFile() && full.toLowerCase().endsWith('.jsonl')) out.push(full);
+    }
+  }
+  return out;
+}
+
+function collectEntryIds(rows: AnyObj[]) {
+  const out = new Set<string>();
+  for (const row of rows || []) {
+    const entryId = normalizeToken(
+      row && (row.entry_id || row.entryId || row.workflow_id || row.workflowId) || '',
+      140
+    );
+    if (entryId) out.add(entryId);
+  }
+  return out;
+}
+
+function scrubCheckpointStateByEntryIds(filePath: string, entryIds: Set<string>, requestId: string, apply: boolean) {
+  if (!filePath || !fs.existsSync(filePath)) {
+    return {
+      file_path: filePath,
+      before: 0,
+      marked_unlearned: 0,
+      touched_entry_ids: []
+    };
+  }
+  const src = readJson(filePath, {});
+  const checkpoints = src && src.checkpoints && typeof src.checkpoints === 'object'
+    ? src.checkpoints
+    : {};
+  const out = { ...src, checkpoints: { ...checkpoints } };
+  const touched: string[] = [];
+  let changed = 0;
+
+  for (const [entryIdRaw, rowRaw] of Object.entries(checkpoints)) {
+    const entryId = normalizeToken(entryIdRaw || '', 140);
+    if (!entryId || !entryIds.has(entryId)) continue;
+    const row = rowRaw && typeof rowRaw === 'object' ? rowRaw as AnyObj : {};
+    if (String(row.status || '') === 'unlearned') continue;
+    const next = {
+      ...row,
+      status: 'unlearned',
+      unlearned_at: nowIso(),
+      unlearn_request_id: requestId,
+      previous_status: cleanText(row.status || 'unknown', 80) || 'unknown'
+    };
+    out.checkpoints[entryIdRaw] = next;
+    touched.push(entryId);
+    changed += 1;
+  }
+
+  if (apply && changed > 0) {
+    writeJsonAtomic(filePath, out);
+  }
+  return {
+    file_path: filePath,
+    before: Object.keys(checkpoints).length,
+    marked_unlearned: changed,
+    touched_entry_ids: touched
+  };
+}
+
 function cmdProcess(args: AnyObj) {
   const policyPath = path.resolve(String(args.policy || process.env.DATA_RIGHTS_POLICY_PATH || DEFAULT_POLICY_PATH));
   const policy = loadPolicy(policyPath);
@@ -491,44 +580,80 @@ function cmdProcess(args: AnyObj) {
   for (const request of pending) {
     const deleteKey = normalizeToken(request.delete_key || '', 220);
     if (!deleteKey) continue;
-    const scans = [
+    const queueScans = [
       filterQueueRowsByDeleteKey(paths.pending_queue_path, deleteKey),
       filterQueueRowsByDeleteKey(paths.canary_queue_path, deleteKey),
       filterQueueRowsByDeleteKey(paths.master_queue_path, deleteKey)
     ];
-    if (apply) {
-      for (const scan of scans) writeJsonlAtomic(scan.file_path, scan.kept);
+    const datasetScans = listJsonlFiles(paths.datasets_dir_path)
+      .map((filePath) => filterQueueRowsByDeleteKey(filePath, deleteKey));
+    const affectedEntryIds = new Set<string>();
+    for (const scan of [...queueScans, ...datasetScans]) {
+      const ids = collectEntryIds(scan.removed || []);
+      for (const id of ids) affectedEntryIds.add(id);
     }
-    const affectedRows = scans.reduce((acc, scan) => acc + scan.removed.length, 0);
+    const checkpointDelta = scrubCheckpointStateByEntryIds(
+      paths.quarantine_state_path,
+      affectedEntryIds,
+      cleanText(request.request_id || '', 120) || null,
+      apply
+    );
+    if (apply) {
+      for (const scan of [...queueScans, ...datasetScans]) writeJsonlAtomic(scan.file_path, scan.kept);
+    }
+    const queueRowsRemoved = queueScans.reduce((acc, scan) => acc + scan.removed.length, 0);
+    const datasetRowsRemoved = datasetScans.reduce((acc, scan) => acc + scan.removed.length, 0);
+    const affectedRows = queueRowsRemoved + datasetRowsRemoved + Number(checkpointDelta.marked_unlearned || 0);
     const unlearningRow = {
       ts: nowIso(),
       request_id: request.request_id,
       delete_key: deleteKey,
       status: apply ? 'queued' : 'simulated',
       affected_rows: affectedRows,
-      queue_deltas: scans.map((scan) => ({
+      queue_deltas: queueScans.map((scan) => ({
         path: relPath(scan.file_path),
         before: scan.before,
         removed: scan.removed.length,
         after: scan.kept.length
       })),
-      checkpoints_index_path: cleanText(policy.checkpoints_index_path || '', 280) || null
+      dataset_deltas: datasetScans.map((scan) => ({
+        path: relPath(scan.file_path),
+        before: scan.before,
+        removed: scan.removed.length,
+        after: scan.kept.length
+      })),
+      checkpoint_delta: {
+        path: relPath(checkpointDelta.file_path || paths.quarantine_state_path),
+        before: Number(checkpointDelta.before || 0),
+        marked_unlearned: Number(checkpointDelta.marked_unlearned || 0),
+        touched_entry_ids: checkpointDelta.touched_entry_ids || []
+      },
+      checkpoints_index_path: relPath(paths.checkpoints_index_path)
     };
     appendJsonl(paths.unlearning_queue_path, unlearningRow);
     request.status = apply ? 'processed' : 'simulated';
     request.processed_at = nowIso();
     request.affected_rows = affectedRows;
+    request.queue_rows_removed = queueRowsRemoved;
+    request.dataset_rows_removed = datasetRowsRemoved;
+    request.checkpoints_marked_unlearned = Number(checkpointDelta.marked_unlearned || 0);
     processed.push({
       request_id: request.request_id,
       delete_key: deleteKey,
       affected_rows: affectedRows,
+      queue_rows_removed: queueRowsRemoved,
+      dataset_rows_removed: datasetRowsRemoved,
+      checkpoints_marked_unlearned: Number(checkpointDelta.marked_unlearned || 0),
       status: request.status
     });
     recordSignedEvent(paths, policy, 'data_rights_unlearning_propagated', {
       request_id: request.request_id,
       delete_key: deleteKey,
       apply,
-      affected_rows: affectedRows
+      affected_rows: affectedRows,
+      queue_rows_removed: queueRowsRemoved,
+      dataset_rows_removed: datasetRowsRemoved,
+      checkpoints_marked_unlearned: Number(checkpointDelta.marked_unlearned || 0)
     });
   }
 
@@ -568,7 +693,9 @@ function cmdStatus(args: AnyObj) {
       rights_events_path: relPath(paths.rights_events_path),
       receipts_path: relPath(paths.receipts_path),
       queue_state_path: relPath(paths.queue_state_path),
-      unlearning_queue_path: relPath(paths.unlearning_queue_path)
+      unlearning_queue_path: relPath(paths.unlearning_queue_path),
+      datasets_dir_path: relPath(paths.datasets_dir_path),
+      quarantine_state_path: relPath(paths.quarantine_state_path)
     }
   };
 }
@@ -615,4 +742,3 @@ module.exports = {
   cmdProcess,
   cmdStatus
 };
-
