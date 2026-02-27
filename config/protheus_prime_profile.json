@@ -1,0 +1,18 @@
+{
+  "profile_id": "protheus-prime",
+  "version": "1.0",
+  "mandatory_paths": [
+    "AGENT-CONSTITUTION.md",
+    "systems/eye/eye_kernel.ts",
+    "systems/security/guard.ts",
+    "systems/security/startup_attestation.ts",
+    "systems/workflow/workflow_executor.ts",
+    "systems/nursery/specialist_training.ts",
+    "systems/security/red_team_harness.ts",
+    "systems/ops/seed_boot_probe.ts"
+  ],
+  "probes": {
+    "seed_boot_probe": true,
+    "startup_attestation_verify": true
+  }
+}

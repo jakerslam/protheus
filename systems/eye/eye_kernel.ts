@@ -12,6 +12,12 @@ const DEFAULT_POLICY_PATH = path.join(REPO_ROOT, 'config', 'eye_kernel_policy.js
 const DEFAULT_STATE_PATH = path.join(REPO_ROOT, 'state', 'eye', 'control_plane_state.json');
 const DEFAULT_AUDIT_PATH = path.join(REPO_ROOT, 'state', 'eye', 'audit', 'command_bus.jsonl');
 const DEFAULT_LATEST_PATH = path.join(REPO_ROOT, 'state', 'eye', 'latest.json');
+let capabilityEnvelopeMod: AnyObj = null;
+try {
+  capabilityEnvelopeMod = require('../security/capability_envelope_guard.js');
+} catch {
+  capabilityEnvelopeMod = null;
+}
 
 function usage() {
   console.log('Usage:');
@@ -376,6 +382,15 @@ function evaluateRoute(request: AnyObj, policy: AnyObj, state: AnyObj, opts: Any
       reasons.push('global_daily_budget_exceeded');
     }
   }
+  const envelopeDecision = opts && opts.envelope_decision && typeof opts.envelope_decision === 'object'
+    ? opts.envelope_decision
+    : null;
+  if (envelopeDecision && envelopeDecision.allowed !== true) {
+    const envelopeReasons = Array.isArray(envelopeDecision.reasons)
+      ? envelopeDecision.reasons.map((row: unknown) => `capability_envelope_${String(row || '').toLowerCase()}`)
+      : ['capability_envelope_blocked'];
+    reasons.push(...envelopeReasons);
+  }
 
   let decision = 'allow';
   if (reasons.length) decision = 'deny';
@@ -408,7 +423,8 @@ function evaluateRoute(request: AnyObj, policy: AnyObj, state: AnyObj, opts: Any
     clearance,
     estimated_tokens: estimatedTokens,
     day,
-    day_state: dayState
+    day_state: dayState,
+    capability_envelope: envelopeDecision
   };
 }
 
@@ -421,6 +437,31 @@ function cmdRoute(args: AnyObj) {
   const policy = loadPolicy(policyPath);
   const state = loadState(statePath, policy);
   const helixGate = evaluateHelixGate(policy);
+  let envelopeDecision: AnyObj = null;
+  let envelopeState: AnyObj = null;
+  if (capabilityEnvelopeMod && typeof capabilityEnvelopeMod.loadPolicy === 'function' && typeof capabilityEnvelopeMod.evaluateEnvelope === 'function') {
+    try {
+      const envelopePolicy = capabilityEnvelopeMod.loadPolicy();
+      envelopeState = typeof capabilityEnvelopeMod.loadState === 'function'
+        ? capabilityEnvelopeMod.loadState()
+        : { by_day: {} };
+      envelopeDecision = capabilityEnvelopeMod.evaluateEnvelope(envelopePolicy, envelopeState, {
+        lane: args.lane || 'organ',
+        action: args.action || '',
+        risk: args.risk || 'low',
+        estimated_tokens: args['estimated-tokens'] || args.estimated_tokens || 0,
+        apply
+      });
+      if (apply && envelopeDecision && envelopeDecision.allowed === true && typeof capabilityEnvelopeMod.saveState === 'function') {
+        capabilityEnvelopeMod.saveState(envelopeState);
+      }
+    } catch {
+      envelopeDecision = {
+        allowed: false,
+        reasons: ['capability_envelope_runtime_error']
+      };
+    }
+  }
   const request = {
     lane: args.lane || 'organ',
     target: args.target || '',
@@ -434,7 +475,8 @@ function cmdRoute(args: AnyObj) {
   }
   const evaluated = evaluateRoute(request, policy, state, {
     apply,
-    date: args.date
+    date: args.date,
+    envelope_decision: envelopeDecision
   });
   let decision = evaluated.decision;
   if (helixGate.enforced_block === true) {
@@ -462,7 +504,8 @@ function cmdRoute(args: AnyObj) {
     apply,
     reason_note: cleanText(args.reason || '', 220) || null,
     day: evaluated.day,
-    helix_gate: helixGate
+    helix_gate: helixGate,
+    capability_envelope: envelopeDecision
   };
   if (apply) writeJsonAtomic(statePath, state);
   appendJsonl(auditPath, row);
@@ -486,7 +529,8 @@ function cmdRoute(args: AnyObj) {
     audit_path: auditPath,
     latest_path: latestPath,
     day: evaluated.day,
-    helix_gate: helixGate
+    helix_gate: helixGate,
+    capability_envelope: envelopeDecision
   };
   process.stdout.write(`${JSON.stringify(out)}\n`);
   process.exit(decision === 'deny' ? 1 : 0);

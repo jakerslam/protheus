@@ -93,7 +93,8 @@ function loadPolicy() {
       { prefix: "state/", min_clearance: 1, label: "state_data" }
     ],
     protected_files: [
-      // e.g., "config/secrets.json", "config/root_keys.pem"
+      "AGENT-CONSTITUTION.md",
+      "config/constitution_guardian_policy.json"
     ],
     remote_request_gate: {
       remote_sources: ["slack", "discord", "webhook", "email", "api", "remote", "moltbook"],

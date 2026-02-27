@@ -54,6 +54,12 @@ try {
 } catch {
   runLocalOllamaPrompt = null;
 }
+let evaluateAxiomSemanticMatch: null | ((opts: AnyObj) => AnyObj) = null;
+try {
+  ({ evaluateAxiomSemanticMatch } = require('./inversion_semantic_matcher.js'));
+} catch {
+  evaluateAxiomSemanticMatch = null;
+}
 
 function usage() {
   console.log('Usage:');
@@ -62,6 +68,7 @@ function usage() {
   console.log('  node systems/autonomy/inversion_controller.js record-test --result=pass|fail|destructive [--safe=1|0] [--note="<text>"] [--policy=path]');
   console.log('  node systems/autonomy/inversion_controller.js harness [--force=1|0] [--max-tests=<n>] [--policy=path]');
   console.log('  node systems/autonomy/inversion_controller.js organ [YYYY-MM-DD] --objective="<text>" [--objective-id=<id>] [--impact=low|medium|high|critical] [--target=tactical|belief|identity|directive|constitution] [--certainty=0.72] [--trit=-1|0|1] [--force=1|0] [--max-iterations=<n>] [--max-candidates=<n>] [--emit-code-change-proposal=1|0] [--sandbox-verified=1|0] [--policy=path]');
+  console.log('  node systems/autonomy/inversion_controller.js observer-approve --target=tactical|belief|identity|directive|constitution --observer-id=<id> [--note="<text>"] [--policy=path]');
   console.log('  node systems/autonomy/inversion_controller.js sweep [--policy=path]');
   console.log('  node systems/autonomy/inversion_controller.js status [latest]');
 }
@@ -293,6 +300,7 @@ function runtimePaths(policyPath: string) {
     history_path: path.join(stateDir, 'history.jsonl'),
     maturity_path: path.join(stateDir, 'maturity.json'),
     tier_governance_path: path.join(stateDir, 'tier_governance.json'),
+    observer_approvals_path: path.join(stateDir, 'observer_approvals.jsonl'),
     harness_state_path: path.join(stateDir, 'maturity_harness.json'),
     active_sessions_path: path.join(stateDir, 'active_sessions.json'),
     library_path: path.join(stateDir, 'library.jsonl'),
@@ -435,8 +443,71 @@ function defaultPolicy() {
         constitution: 180
       }
     },
+    live_graduation_ladder: {
+      enabled: false,
+      canary_quotas_by_target: {
+        tactical: 0,
+        belief: 3,
+        identity: 6,
+        directive: 10,
+        constitution: 9999
+      },
+      observer_quorum_by_target: {
+        tactical: 0,
+        belief: 1,
+        identity: 2,
+        directive: 2,
+        constitution: 3
+      },
+      observer_approval_window_days_by_target: {
+        tactical: 30,
+        belief: 45,
+        identity: 60,
+        directive: 90,
+        constitution: 180
+      },
+      regression_rollback_enabled: true,
+      max_regressions_by_target: {
+        tactical: 3,
+        belief: 1,
+        identity: 0,
+        directive: 0,
+        constitution: 0
+      },
+      regression_window_days_by_target: {
+        tactical: 30,
+        belief: 45,
+        identity: 60,
+        directive: 90,
+        constitution: 120
+      }
+    },
     immutable_axioms: {
       enabled: true,
+      semantic: {
+        enabled: true,
+        min_role_hits: 2,
+        ontology: {
+          actions: {
+            disable: ['disable', 'turn off', 'deactivate', 'shut down', 'kill'],
+            rewrite: ['rewrite', 'redefine', 'recode', 'replace'],
+            override: ['override', 'supersede'],
+            bypass: ['bypass', 'circumvent', 'evade'],
+            remove: ['remove', 'strip', 'delete', 'erase']
+          },
+          subjects: {
+            root: ['root', 'core', 'foundational'],
+            user: ['user', 'human', 'owner', 'operator', 'bearer'],
+            self: ['self', 'organism', 'system']
+          },
+          objects: {
+            constitution: ['constitution', 'directive', 'axiom', 'core policy'],
+            sovereignty: ['sovereignty', 'veto', 'control', 'consent'],
+            guardrails: ['guard', 'guardrail', 'safety gate', 'policy gate'],
+            integrity: ['integrity', 'integrity kernel', 'attestation']
+          }
+        }
+      },
       axioms: [
         {
           id: 'preserve_root_constitution',
@@ -758,6 +829,9 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   const targetsRaw = raw.targets && typeof raw.targets === 'object' ? raw.targets : {};
   const tierTransitionRaw = raw.tier_transition && typeof raw.tier_transition === 'object' ? raw.tier_transition : {};
   const shadowPassRaw = raw.shadow_pass_gate && typeof raw.shadow_pass_gate === 'object' ? raw.shadow_pass_gate : {};
+  const liveLadderRaw = raw.live_graduation_ladder && typeof raw.live_graduation_ladder === 'object'
+    ? raw.live_graduation_ladder
+    : {};
   const immutableAxiomsRaw = raw.immutable_axioms && typeof raw.immutable_axioms === 'object' ? raw.immutable_axioms : {};
   const creativeRaw = raw.creative_preference && typeof raw.creative_preference === 'object' ? raw.creative_preference : {};
   const guardrailsRaw = raw.guardrails && typeof raw.guardrails === 'object' ? raw.guardrails : {};
@@ -834,7 +908,14 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
           + (subject_terms.length ? 1 : 0)
           + (object_terms.length ? 1 : 0)
         ));
-        if (!id || (!patterns.length && !regex.length && !intent_tags.length)) return null;
+        const semanticReq = item.semantic_requirements && typeof item.semantic_requirements === 'object'
+          ? item.semantic_requirements
+          : {};
+        const semantic_actions = normalizeList(semanticReq.actions || [], 80).slice(0, 24);
+        const semantic_subjects = normalizeList(semanticReq.subjects || [], 80).slice(0, 24);
+        const semantic_objects = normalizeList(semanticReq.objects || [], 80).slice(0, 24);
+        const hasSemanticRequirements = semantic_actions.length > 0 || semantic_subjects.length > 0 || semantic_objects.length > 0;
+        if (!id || (!patterns.length && !regex.length && !intent_tags.length && !hasSemanticRequirements)) return null;
         return {
           id,
           patterns,
@@ -845,7 +926,12 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
             subject_terms,
             object_terms
           },
-          min_signal_groups
+          min_signal_groups,
+          semantic_requirements: {
+            actions: semantic_actions,
+            subjects: semantic_subjects,
+            objects: semantic_objects
+          }
         };
       })
       .filter(Boolean);
@@ -1006,8 +1092,80 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
         3650
       )
     },
+    live_graduation_ladder: {
+      enabled: toBool(
+        liveLadderRaw.enabled,
+        base.live_graduation_ladder.enabled
+      ),
+      canary_quotas_by_target: normalizeTargetMap(
+        liveLadderRaw.canary_quotas_by_target,
+        base.live_graduation_ladder.canary_quotas_by_target,
+        0,
+        100000
+      ),
+      observer_quorum_by_target: normalizeTargetMap(
+        liveLadderRaw.observer_quorum_by_target,
+        base.live_graduation_ladder.observer_quorum_by_target,
+        0,
+        100000
+      ),
+      observer_approval_window_days_by_target: normalizeTargetMap(
+        liveLadderRaw.observer_approval_window_days_by_target,
+        base.live_graduation_ladder.observer_approval_window_days_by_target,
+        1,
+        3650
+      ),
+      regression_rollback_enabled: toBool(
+        liveLadderRaw.regression_rollback_enabled,
+        base.live_graduation_ladder.regression_rollback_enabled
+      ),
+      max_regressions_by_target: normalizeTargetMap(
+        liveLadderRaw.max_regressions_by_target,
+        base.live_graduation_ladder.max_regressions_by_target,
+        0,
+        100000
+      ),
+      regression_window_days_by_target: normalizeTargetMap(
+        liveLadderRaw.regression_window_days_by_target,
+        base.live_graduation_ladder.regression_window_days_by_target,
+        1,
+        3650
+      )
+    },
     immutable_axioms: {
       enabled: toBool(immutableAxiomsRaw.enabled, base.immutable_axioms.enabled),
+      semantic: {
+        enabled: toBool(
+          immutableAxiomsRaw.semantic && immutableAxiomsRaw.semantic.enabled,
+          base.immutable_axioms.semantic.enabled
+        ),
+        min_role_hits: clampInt(
+          immutableAxiomsRaw.semantic && immutableAxiomsRaw.semantic.min_role_hits,
+          1,
+          3,
+          base.immutable_axioms.semantic.min_role_hits
+        ),
+        ontology: {
+          actions: immutableAxiomsRaw.semantic
+            && immutableAxiomsRaw.semantic.ontology
+            && immutableAxiomsRaw.semantic.ontology.actions
+            && typeof immutableAxiomsRaw.semantic.ontology.actions === 'object'
+            ? immutableAxiomsRaw.semantic.ontology.actions
+            : base.immutable_axioms.semantic.ontology.actions,
+          subjects: immutableAxiomsRaw.semantic
+            && immutableAxiomsRaw.semantic.ontology
+            && immutableAxiomsRaw.semantic.ontology.subjects
+            && typeof immutableAxiomsRaw.semantic.ontology.subjects === 'object'
+            ? immutableAxiomsRaw.semantic.ontology.subjects
+            : base.immutable_axioms.semantic.ontology.subjects,
+          objects: immutableAxiomsRaw.semantic
+            && immutableAxiomsRaw.semantic.ontology
+            && immutableAxiomsRaw.semantic.ontology.objects
+            && typeof immutableAxiomsRaw.semantic.ontology.objects === 'object'
+            ? immutableAxiomsRaw.semantic.ontology.objects
+            : base.immutable_axioms.semantic.ontology.objects
+        }
+      },
       axioms: normalizeAxiomList(immutableAxiomsRaw.axioms, base.immutable_axioms.axioms)
     },
     creative_preference: {
@@ -2061,6 +2219,46 @@ function countAxiomSignalGroups(axiom: AnyObj, haystack: string, tokenSet: Set<s
   };
 }
 
+function normalizeObserverId(v: unknown) {
+  return normalizeToken(v, 120);
+}
+
+function loadObserverApprovals(paths: AnyObj) {
+  const rows = readJsonl(paths.observer_approvals_path || '');
+  return rows
+    .map((row: AnyObj) => ({
+      ts: cleanText(row && row.ts || '', 64),
+      target: normalizeTarget(row && row.target || 'tactical'),
+      observer_id: normalizeObserverId(row && row.observer_id || row && row.observerId || ''),
+      note: cleanText(row && row.note || '', 280)
+    }))
+    .filter((row: AnyObj) => !!row.ts && !!row.observer_id);
+}
+
+function appendObserverApproval(paths: AnyObj, payload: AnyObj) {
+  const row = {
+    ts: nowIso(),
+    type: 'inversion_live_graduation_observer_approval',
+    target: normalizeTarget(payload && payload.target || 'tactical'),
+    observer_id: normalizeObserverId(payload && payload.observer_id || ''),
+    note: cleanText(payload && payload.note || '', 280)
+  };
+  appendJsonl(paths.observer_approvals_path, row);
+  return row;
+}
+
+function countObserverApprovals(paths: AnyObj, target: string, windowDays: number) {
+  const cutoff = Date.now() - (clampInt(windowDays, 1, 3650, 90) * 24 * 60 * 60 * 1000);
+  const seen = new Set<string>();
+  for (const row of loadObserverApprovals(paths)) {
+    if (normalizeTarget(row.target || 'tactical') !== normalizeTarget(target || 'tactical')) continue;
+    if (parseTsMs(row.ts) < cutoff) continue;
+    if (!row.observer_id) continue;
+    seen.add(row.observer_id);
+  }
+  return seen.size;
+}
+
 function detectImmutableAxiomViolation(policy: AnyObj, decisionInput: AnyObj) {
   const axiomsPolicy = policy.immutable_axioms || {};
   if (axiomsPolicy.enabled !== true) return [];
@@ -2074,6 +2272,10 @@ function detectImmutableAxiomViolation(policy: AnyObj, decisionInput: AnyObj) {
   const tokenSet = new Set(tokenize(haystack));
   const intentTags = normalizeList(decisionInput.intent_tags || [], 80);
   const hits: string[] = [];
+  const semanticCfg = axiomsPolicy.semantic && typeof axiomsPolicy.semantic === 'object'
+    ? axiomsPolicy.semantic
+    : {};
+  const semanticEnabled = semanticCfg.enabled === true && typeof evaluateAxiomSemanticMatch === 'function';
   for (const axiom of rows) {
     const id = normalizeToken(axiom && axiom.id || '', 80);
     const patterns = Array.isArray(axiom && axiom.patterns)
@@ -2103,8 +2305,18 @@ function detectImmutableAxiomViolation(policy: AnyObj, decisionInput: AnyObj) {
     const structuredSignalConfigured = signalGroups.configured_groups > 0;
     const structuredSignalPass = signalGroups.pass === true;
     const structuredPatternMatch = patternMatched && (!structuredSignalConfigured || structuredSignalPass);
+    const semanticMatch = semanticEnabled
+      ? evaluateAxiomSemanticMatch!({
+        objective: decisionInput.objective,
+        signature: decisionInput.signature,
+        filters: decisionInput.filters,
+        intent_tags: intentTags,
+        axiom,
+        semantic: semanticCfg
+      })
+      : { matched: false };
     const strictRegexMatch = regexMatched;
-    if (tagMatched || strictRegexMatch || structuredPatternMatch) hits.push(id);
+    if (tagMatched || strictRegexMatch || structuredPatternMatch || semanticMatch.matched === true) hits.push(id);
   }
   return Array.from(new Set(hits));
 }
@@ -2852,6 +3064,63 @@ function evaluateRunDecision(args: AnyObj, policy: AnyObj, paths: AnyObj, maturi
     )
     : 0;
 
+  const liveLadder = policy.live_graduation_ladder && typeof policy.live_graduation_ladder === 'object'
+    ? policy.live_graduation_ladder
+    : {};
+  const liveLadderActive = (
+    liveLadder.enabled === true
+    && mode === 'live'
+    && apply === true
+  );
+  const liveLadderCanaryQuota = liveLadderActive
+    ? clampInt(
+      liveLadder.canary_quotas_by_target && liveLadder.canary_quotas_by_target[target],
+      0,
+      100000,
+      0
+    )
+    : 0;
+  const liveLadderObserverQuorum = liveLadderActive
+    ? clampInt(
+      liveLadder.observer_quorum_by_target && liveLadder.observer_quorum_by_target[target],
+      0,
+      100000,
+      0
+    )
+    : 0;
+  const observerWindowDays = windowDaysForTarget(
+    liveLadder.observer_approval_window_days_by_target || {},
+    target,
+    90
+  );
+  const liveLadderObserverCount = liveLadderActive
+    ? countObserverApprovals(paths, target, observerWindowDays)
+    : 0;
+  const regressionWindowDays = windowDaysForTarget(
+    liveLadder.regression_window_days_by_target || {},
+    target,
+    90
+  );
+  const liveLadderRegressionCount = liveLadderActive
+    ? countTierEvents(
+      tierScope,
+      'shadow_critical_failures',
+      target,
+      regressionWindowDays
+    )
+    : 0;
+  const liveLadderRegressionMax = liveLadderActive
+    ? clampInt(
+      liveLadder.max_regressions_by_target && liveLadder.max_regressions_by_target[target],
+      0,
+      100000,
+      0
+    )
+    : 0;
+  const liveLadderRollbackEngaged = liveLadderActive
+    && liveLadder.regression_rollback_enabled === true
+    && liveLadderRegressionCount > liveLadderRegressionMax;
+
   const failuresByBand = policy.guardrails.max_similar_failures_by_band || {};
   const maxSimilarFailures = Number(failuresByBand[maturityBand] || failuresByBand.novice || 1);
 
@@ -2891,6 +3160,15 @@ function evaluateRunDecision(args: AnyObj, policy: AnyObj, paths: AnyObj, maturi
     shadow_passes_for_target: shadowPassCount,
     shadow_critical_failures_for_target: shadowCriticalFailures,
     shadow_critical_failures_max: shadowCriticalMax,
+    live_graduation_ladder_active: liveLadderActive,
+    live_graduation_canary_quota: liveLadderCanaryQuota,
+    live_graduation_canary_progress: liveApplySuccessCount,
+    live_graduation_observer_quorum: liveLadderObserverQuorum,
+    live_graduation_observer_count: liveLadderObserverCount,
+    live_graduation_regression_window_days: regressionWindowDays,
+    live_graduation_regression_count: liveLadderRegressionCount,
+    live_graduation_regression_max: liveLadderRegressionMax,
+    live_graduation_regression_rollback: liveLadderRollbackEngaged,
     similar_failure_pressure: failurePressure.fail_count,
     hard_failure_block: failurePressure.hard_block
   };
@@ -2917,6 +3195,15 @@ function evaluateRunDecision(args: AnyObj, policy: AnyObj, paths: AnyObj, maturi
   }
   if (shadowGateActive && shadowCriticalFailures > shadowCriticalMax) {
     reasons.push('shadow_pass_kill_switch_engaged');
+  }
+  if (liveLadderActive && liveApplySuccessCount < liveLadderCanaryQuota) {
+    reasons.push('live_graduation_canary_quota_not_met');
+  }
+  if (liveLadderActive && liveLadderObserverCount < liveLadderObserverQuorum) {
+    reasons.push('live_graduation_observer_quorum_not_met');
+  }
+  if (liveLadderRollbackEngaged) {
+    reasons.push('live_graduation_regression_rollback_engaged');
   }
 
   const immutableAxiomHits = detectImmutableAxiomViolation(policy, {
@@ -3021,6 +3308,18 @@ function evaluateRunDecision(args: AnyObj, policy: AnyObj, paths: AnyObj, maturi
         current_passes: shadowPassCount,
         max_critical_failures: shadowCriticalMax,
         current_critical_failures: shadowCriticalFailures
+      },
+      live_graduation_ladder: {
+        active: liveLadderActive,
+        canary_quota: liveLadderCanaryQuota,
+        canary_progress: liveApplySuccessCount,
+        observer_quorum: liveLadderObserverQuorum,
+        observer_count: liveLadderObserverCount,
+        observer_window_days: observerWindowDays,
+        regression_window_days: regressionWindowDays,
+        regression_count: liveLadderRegressionCount,
+        regression_max: liveLadderRegressionMax,
+        rollback_engaged: liveLadderRollbackEngaged
       }
     },
     creative_lane: creativePenalty,
@@ -4864,6 +5163,44 @@ function cmdHarness(args: AnyObj) {
   process.stdout.write(`${JSON.stringify(payload)}\n`);
 }
 
+function cmdObserverApprove(args: AnyObj) {
+  const policyPath = args.policy ? path.resolve(String(args.policy)) : DEFAULT_POLICY_PATH;
+  const policy = loadPolicy(policyPath);
+  const paths = runtimePaths(policyPath);
+  const dateStr = toDate(args.date);
+  const target = normalizeTarget(args.target || 'tactical');
+  const observerId = normalizeObserverId(args.observer_id || args['observer-id'] || '');
+  const note = cleanText(args.note || '', 280);
+  if (!observerId) {
+    process.stdout.write(`${JSON.stringify({
+      ok: false,
+      type: 'inversion_observer_approval',
+      error: 'observer_id_required'
+    })}\n`);
+    process.exit(1);
+  }
+  const row = appendObserverApproval(paths, {
+    target,
+    observer_id: observerId,
+    note
+  });
+  emitEvent(paths, policy, dateStr, 'observer_approval_recorded', {
+    target,
+    observer_id: observerId
+  });
+  const out = {
+    ok: true,
+    type: 'inversion_observer_approval',
+    ts: row.ts,
+    target,
+    observer_id: observerId,
+    note
+  };
+  writeJsonAtomic(paths.latest_path, out);
+  appendJsonl(paths.history_path, out);
+  process.stdout.write(`${JSON.stringify(out)}\n`);
+}
+
 function cmdSweep(args: AnyObj) {
   const policyPath = args.policy ? path.resolve(String(args.policy)) : DEFAULT_POLICY_PATH;
   const policy = loadPolicy(policyPath);
@@ -4944,6 +5281,7 @@ function main() {
   if (cmd === 'resolve') return cmdResolve(args);
   if (cmd === 'record-test' || cmd === 'record_test') return cmdRecordTest(args);
   if (cmd === 'harness') return cmdHarness(args);
+  if (cmd === 'observer-approve' || cmd === 'observer_approve') return cmdObserverApprove(args);
   if (cmd === 'organ') return cmdOrgan(args);
   if (cmd === 'sweep') return cmdSweep(args);
   if (cmd === 'status') return cmdStatus(args);
