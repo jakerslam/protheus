@@ -736,6 +736,14 @@ function main() {
     "systems/echo/value_anchor_renewal.js",
     ["value_anchor_renewal.js", "run", "status", "--apply", "--approved-by", "--approval-note"]
   );
+  checkScript(
+    "systems/primitives/explanation_primitive.js",
+    ["explanation_primitive.js", "explain", "verify", "status", "--event-id", "--category", "--summary", "--narrative", "--decision", "--objective-id", "--proof-link", "--explanation-id"]
+  );
+  checkSourceContains(
+    "systems/primitives/explanation_primitive.js",
+    ["proof_links", "verifyCanonicalEvents", "appendAction"]
+  );
 
   // agent_passport.js provides cryptographic action passport chain + export for audit.
   checkScript(
