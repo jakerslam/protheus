@@ -41,6 +41,7 @@ function run() {
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'workflow-exec-closure-'));
   const proposalsDir = path.join(tmpRoot, 'state', 'sensory', 'eyes', 'proposals');
   const workflowRunsDir = path.join(tmpRoot, 'state', 'adaptive', 'workflows', 'executor', 'runs');
+  const strategyPath = path.join(tmpRoot, 'config', 'strategies', 'default.json');
   const statePath = path.join(tmpRoot, 'state', 'ops', 'workflow_execution_closure.json');
   const historyPath = path.join(tmpRoot, 'state', 'ops', 'workflow_execution_closure_history.jsonl');
   const policyPath = path.join(tmpRoot, 'config', 'workflow_execution_closure_policy.json');
@@ -53,12 +54,20 @@ function run() {
     lookback_days: 7,
     max_history_rows: 40
   });
+  writeJson(strategyPath, {
+    version: '1.0-test',
+    id: 'default_general',
+    execution_policy: {
+      mode: 'canary_execute'
+    }
+  });
 
   const env = {
     ...process.env,
     WORKFLOW_EXECUTION_CLOSURE_POLICY_PATH: policyPath,
     WORKFLOW_EXECUTION_CLOSURE_PROPOSALS_DIR: proposalsDir,
     WORKFLOW_EXECUTION_CLOSURE_RUNS_DIR: workflowRunsDir,
+    WORKFLOW_EXECUTION_CLOSURE_STRATEGY_PATH: strategyPath,
     WORKFLOW_EXECUTION_CLOSURE_STATE_PATH: statePath,
     WORKFLOW_EXECUTION_CLOSURE_HISTORY_PATH: historyPath
   };
@@ -87,6 +96,16 @@ function run() {
   assert.strictEqual(out.ok, true);
   assert.strictEqual(out.closure_pass, true);
   assert.strictEqual(Number(out.consecutive_days_passed || 0), 3);
+  assert.strictEqual(
+    out.execution_gates && out.execution_gates.canary_mode_active,
+    true,
+    'canary mode should be detected as active'
+  );
+  assert.strictEqual(
+    out.execution_gates && out.execution_gates.mutation_guard_scope_ok,
+    true,
+    'mutation guard scope should pass in clean dataset'
+  );
   assert.ok(fs.existsSync(statePath), 'state payload should be written');
   assert.ok(fs.existsSync(historyPath), 'history payload should be written');
 
@@ -113,6 +132,7 @@ function run() {
     'accepted_items_below_min blocker should be emitted'
   );
   assert.ok(Array.isArray(out.top_blockers), 'payload should expose top_blockers');
+  assert.ok(out.execution_gates && typeof out.execution_gates === 'object', 'execution gates should be emitted');
   assert.strictEqual(out.estimated_closure_date, null, 'estimated closure date should be null when latest day fails');
 
   // strict=1 should fail process if closure target is not met.
