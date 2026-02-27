@@ -1,0 +1,24 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "shadow_only": true,
+  "require_approval_note_for_live": true,
+  "max_single_payout_usd": 2500,
+  "providers": {
+    "stripe": {
+      "enabled": true
+    },
+    "paypal": {
+      "enabled": true
+    },
+    "mercury": {
+      "enabled": true
+    }
+  },
+  "paths": {
+    "state": "state/workflow/payment_bridge/latest.json",
+    "history": "state/workflow/payment_bridge/history.jsonl",
+    "holds": "state/workflow/payment_bridge/holds.json"
+  }
+}
+
