@@ -76,6 +76,9 @@ function main() {
     'world_model_freshness:merge_guard_hook',
     'world_model_freshness:stale_warning_order',
     'world_model_freshness:profile_roots_present',
+    'continuous_chaos_resilience:merge_guard_hook',
+    'continuous_chaos_resilience:gate_thresholds_valid',
+    'continuous_chaos_resilience:cadence_declared',
     'workflow:effect_type_gate_hook',
     'helix:safety_resilience_hook'
   ]) {

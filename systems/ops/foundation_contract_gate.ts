@@ -96,6 +96,7 @@ function runGate() {
     'config/crypto_agility_contract.json',
     'config/key_lifecycle_policy.json',
     'config/delegated_authority_policy.json',
+    'config/continuous_chaos_resilience_policy.json',
     'config/profile_compatibility_policy.json',
     'config/primitive_catalog.json',
     'config/primitive_migration_contract.json',
@@ -126,6 +127,7 @@ function runGate() {
     'systems/security/delegated_authority_branching.ts',
     'systems/security/safety_resilience_guard.ts',
     'systems/assimilation/world_model_freshness.ts',
+    'systems/ops/continuous_chaos_resilience.ts',
     'systems/primitives/primitive_runtime.ts',
     'systems/primitives/policy_vm.ts',
     'systems/primitives/replay_verify.ts'
@@ -503,6 +505,31 @@ function runGate() {
     'world_model_freshness:profile_roots_present',
     profileRootsCount >= 1,
     `profile_roots=${profileRootsCount}`
+  );
+  addCheck(
+    'continuous_chaos_resilience:merge_guard_hook',
+    mergeGuardSrc.includes('continuous_chaos_resilience.js')
+      && mergeGuardSrc.includes('status'),
+    'merge_guard should enforce continuous chaos resilience status check'
+  );
+  const continuousChaosPolicy = readJsonSafe(path.join(ROOT, 'config', 'continuous_chaos_resilience_policy.json'), {});
+  const gateCfg = continuousChaosPolicy.gate && typeof continuousChaosPolicy.gate === 'object'
+    ? continuousChaosPolicy.gate
+    : {};
+  addCheck(
+    'continuous_chaos_resilience:gate_thresholds_valid',
+    Number(gateCfg.required_pass_rate || 0) >= 0
+      && Number(gateCfg.required_pass_rate || 0) <= 1
+      && Number(gateCfg.min_samples || 0) >= 1,
+    `required_pass_rate=${Number(gateCfg.required_pass_rate || 0)} min_samples=${Number(gateCfg.min_samples || 0)}`
+  );
+  const cadenceCfg = continuousChaosPolicy.scenario_cadence_minutes && typeof continuousChaosPolicy.scenario_cadence_minutes === 'object'
+    ? continuousChaosPolicy.scenario_cadence_minutes
+    : {};
+  addCheck(
+    'continuous_chaos_resilience:cadence_declared',
+    Object.keys(cadenceCfg).length >= 1,
+    `scenario_cadence_entries=${Object.keys(cadenceCfg).length}`
   );
   const simplicityPolicy = readJsonSafe(path.join(ROOT, 'config', 'simplicity_budget_policy.json'), {});
   addCheck(
