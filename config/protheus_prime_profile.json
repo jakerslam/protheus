@@ -11,6 +11,14 @@
     "systems/security/red_team_harness.ts",
     "systems/ops/seed_boot_probe.ts"
   ],
+  "mandatory_governance_paths": [
+    "AGENT-CONSTITUTION.md",
+    "systems/eye/eye_kernel.ts",
+    "systems/security/guard.ts",
+    "systems/security/startup_attestation.ts",
+    "systems/workflow/workflow_executor.ts"
+  ],
+  "provision_on_bootstrap": true,
   "probes": {
     "seed_boot_probe": true,
     "startup_attestation_verify": true
