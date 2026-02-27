@@ -98,6 +98,7 @@ async function run() {
     assert.strictEqual(refreshed.ok, true, 'refresh should be ok');
     assert.strictEqual(refreshed.refreshed, true, 'refresh should run in force mode');
     assert.ok(Number(refreshed.trigger_count || 0) >= 1, 'should have trigger rows');
+    assert.ok(refreshed.cadence_tuning && typeof refreshed.cadence_tuning === 'object', 'refresh should include cadence tuning payload');
 
     const evalRes = await focus.evaluateFocusForEye({
       eye: { id: 'test_eye', parser_type: 'hn_rss' },
@@ -147,6 +148,77 @@ async function run() {
     const status = focus.focusStatus();
     assert.strictEqual(status.ok, true, 'status should be ok');
     assert.ok(Number(status.lens_count || 0) >= 1, 'status should report lenses');
+    assert.ok(status.cadence_tuning && typeof status.cadence_tuning === 'object', 'status should expose cadence tuning');
+
+    const nowMs = Date.now();
+    const recentHigh = {};
+    for (let i = 0; i < 16; i++) recentHigh[`fp_${i}`] = new Date(nowMs - (i * 5 * 60 * 1000)).toISOString();
+    const cadenceTight = focus.resolveFocusCadence({
+      refresh_hours: 4,
+      lens_refresh_hours: 6,
+      adaptive_cadence_enabled: true,
+      adaptive_cadence_focus_window_hours: 12,
+      adaptive_cadence_focus_low_water: 2,
+      adaptive_cadence_focus_high_water: 8,
+      adaptive_cadence_min_interval_minutes: 30
+    }, recentHigh, { realized_outcome_score: 35 }, nowMs);
+    assert.strictEqual(cadenceTight.pressure_band, 'high', 'high pressure should be detected');
+    assert.strictEqual(cadenceTight.outcome_band, 'low', 'low realized score should tighten cadence');
+    assert.ok(
+      Number(cadenceTight.effective_refresh_hours) < Number(cadenceTight.base_refresh_hours),
+      'tight profile should reduce trigger refresh hours'
+    );
+    assert.ok(
+      Number(cadenceTight.effective_lens_refresh_hours) < Number(cadenceTight.base_lens_refresh_hours),
+      'tight profile should reduce lens refresh hours'
+    );
+
+    const cadenceRelaxed = focus.resolveFocusCadence({
+      refresh_hours: 4,
+      lens_refresh_hours: 6,
+      adaptive_cadence_enabled: true,
+      adaptive_cadence_focus_window_hours: 12,
+      adaptive_cadence_focus_low_water: 2,
+      adaptive_cadence_focus_high_water: 8,
+      adaptive_cadence_min_interval_minutes: 30
+    }, {}, { realized_outcome_score: 85 }, nowMs);
+    assert.strictEqual(cadenceRelaxed.pressure_band, 'low', 'low pressure should be detected');
+    assert.strictEqual(cadenceRelaxed.outcome_band, 'high', 'high realized score should relax cadence');
+    assert.ok(
+      Number(cadenceRelaxed.effective_refresh_hours) > Number(cadenceRelaxed.base_refresh_hours),
+      'relaxed profile should increase trigger refresh hours'
+    );
+    assert.ok(
+      Number(cadenceRelaxed.effective_lens_refresh_hours) > Number(cadenceRelaxed.base_lens_refresh_hours),
+      'relaxed profile should increase lens refresh hours'
+    );
+
+    store.mutateFocusState(null, (state) => {
+      const next = { ...state };
+      next.policy = {
+        ...(next.policy || {}),
+        refresh_hours: 1,
+        lens_refresh_hours: 1,
+        adaptive_cadence_enabled: true,
+        adaptive_cadence_min_interval_minutes: 240
+      };
+      next.last_refresh_ts = new Date(Date.now() - (10 * 60 * 1000)).toISOString();
+      next.last_lens_refresh_ts = new Date(Date.now() - (10 * 60 * 1000)).toISOString();
+      return next;
+    }, { reason: 'focus_controller_cadence_min_interval_seed' });
+
+    const skipped = focus.maybeRefreshFocusTriggers({
+      dateStr: '2026-02-21',
+      force: false,
+      reason: 'focus_controller_cadence_min_interval_check'
+    });
+    assert.strictEqual(skipped.refreshed, false, 'cadence min-interval should skip refresh');
+    assert.strictEqual(skipped.due_reason, 'cadence_min_interval', 'skip reason should reflect cadence min interval');
+    assert.strictEqual(
+      skipped.lens_refresh && skipped.lens_refresh.due_reason,
+      'cadence_min_interval',
+      'lens refresh should also respect cadence min interval'
+    );
 
     console.log('focus_controller.test.js: OK');
   } finally {

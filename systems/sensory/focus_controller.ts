@@ -114,6 +114,12 @@ function clamp(n, lo, hi, fallback) {
   return x;
 }
 
+function round1(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return 0;
+  return Math.round(x * 10) / 10;
+}
+
 function normalizeText(v) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
 }
@@ -516,7 +522,7 @@ function collectCrossSignalEyeSignals(dateStr, windowDays, boost) {
   return { byEye, hypothesis_count: hypothesisCount, window_days: windowDays };
 }
 
-function maybeRefreshEyeLenses(dateStr, force = false) {
+function maybeRefreshEyeLenses(dateStr, force = false, cadence = null) {
   const state = ensureFocusState(null, {
     source: 'systems/sensory/focus_controller.js',
     reason: 'ensure_lens_state'
@@ -526,16 +532,34 @@ function maybeRefreshEyeLenses(dateStr, force = false) {
     return { ok: true, refreshed: false, enabled: false, reason: 'lens_disabled', lens_count: Object.keys(state.eye_lenses || {}).length };
   }
 
-  const refreshHours = clamp(policy.lens_refresh_hours, 1, 72, 6);
+  const baseRefreshHours = clamp(policy.lens_refresh_hours, 1, 72, 6);
+  const refreshHours = clamp(
+    cadence && cadence.effective_lens_refresh_hours,
+    1,
+    168,
+    baseRefreshHours
+  );
+  const minIntervalMinutes = clamp(
+    cadence && cadence.min_interval_minutes,
+    0,
+    24 * 60,
+    0
+  );
   const lastMs = Date.parse(String(state.last_lens_refresh_ts || ''));
-  const due = !Number.isFinite(lastMs) || ((Date.now() - lastMs) >= (refreshHours * 60 * 60 * 1000));
+  const ageMs = Number.isFinite(lastMs) ? (Date.now() - lastMs) : Infinity;
+  const dueByWindow = !Number.isFinite(lastMs) || (ageMs >= (refreshHours * 60 * 60 * 1000));
+  const blockedByMinInterval = Number.isFinite(lastMs) && minIntervalMinutes > 0 && ageMs < (minIntervalMinutes * 60 * 1000);
+  const due = dueByWindow && !blockedByMinInterval;
   if (!force && !due) {
     return {
       ok: true,
       refreshed: false,
       enabled: true,
+      due_reason: blockedByMinInterval ? 'cadence_min_interval' : 'refresh_window_not_elapsed',
       due: false,
       refresh_hours: refreshHours,
+      refresh_hours_base: baseRefreshHours,
+      cadence_tuning: cadence || null,
       last_lens_refresh_ts: state.last_lens_refresh_ts || null,
       lens_count: Object.keys(state.eye_lenses || {}).length
     };
@@ -655,6 +679,8 @@ function maybeRefreshEyeLenses(dateStr, force = false) {
     refreshed: true,
     enabled: true,
     refresh_hours: refreshHours,
+    refresh_hours_base: baseRefreshHours,
+    cadence_tuning: cadence || null,
     lens_count: Object.keys(nextState.eye_lenses || {}).length,
     last_lens_refresh_ts: nextState.last_lens_refresh_ts || null,
     source_summary: nextState.last_lens_refresh_sources || {}
@@ -667,20 +693,34 @@ function maybeRefreshFocusTriggers(opts: AnyObj = {}) {
     : todayStr();
   const nowTs = nowIso();
   const force = opts.force === true;
-  const lensRefresh = maybeRefreshEyeLenses(dateStr, force);
   const focusState = ensureFocusState(null, {
     source: 'systems/sensory/focus_controller.js',
     reason: 'ensure_focus_state'
   });
-  const refreshHours = Number(focusState.policy && focusState.policy.refresh_hours || 4);
+  const outcomePolicy = loadOutcomeFitnessPolicy(REPO_ROOT);
+  const cadence = resolveFocusCadence(
+    focusState.policy || {},
+    focusState.recent_focus_items || {},
+    outcomePolicy,
+    Date.now()
+  );
+  const lensRefresh = maybeRefreshEyeLenses(dateStr, force, cadence);
+  const refreshHours = Number(cadence.effective_refresh_hours || focusState.policy && focusState.policy.refresh_hours || 4);
+  const minIntervalMinutes = Number(cadence.min_interval_minutes || 0);
   const lastMs = Date.parse(String(focusState.last_refresh_ts || ''));
-  const due = !Number.isFinite(lastMs) || ((Date.now() - lastMs) >= (refreshHours * 60 * 60 * 1000));
+  const ageMs = Number.isFinite(lastMs) ? (Date.now() - lastMs) : Infinity;
+  const dueByWindow = !Number.isFinite(lastMs) || (ageMs >= (refreshHours * 60 * 60 * 1000));
+  const blockedByMinInterval = Number.isFinite(lastMs) && minIntervalMinutes > 0 && ageMs < (minIntervalMinutes * 60 * 1000);
+  const due = dueByWindow && !blockedByMinInterval;
   if (!force && !due) {
     return {
       ok: true,
       refreshed: false,
       due: false,
+      due_reason: blockedByMinInterval ? 'cadence_min_interval' : 'refresh_window_not_elapsed',
       refresh_hours: refreshHours,
+      refresh_hours_base: Number(cadence.base_refresh_hours || refreshHours),
+      cadence_tuning: cadence,
       last_refresh_ts: focusState.last_refresh_ts || null,
       trigger_count: Array.isArray(focusState.triggers) ? focusState.triggers.length : 0,
       lens_refresh: lensRefresh
@@ -732,6 +772,8 @@ function maybeRefreshFocusTriggers(opts: AnyObj = {}) {
     trigger_count: Array.isArray(nextState.triggers) ? nextState.triggers.length : 0,
     source_summary: sourceSummary,
     refresh_hours: refreshHours,
+    refresh_hours_base: Number(cadence.base_refresh_hours || refreshHours),
+    cadence_tuning: cadence,
     last_refresh_ts: nextState.last_refresh_ts,
     lens_refresh: lensRefresh
   };
@@ -930,6 +972,81 @@ function resolveOutcomeTuning(outcomePolicy) {
     lens_step_down_delta: 0,
     prune_budget_multiplier: 1,
     prune_stale_scale: 1
+  };
+}
+
+function resolveFocusCadence(policy, recentMap, outcomePolicy = null, nowMs = Date.now()) {
+  const pol = policy && typeof policy === 'object' ? policy : {};
+  const baseRefresh = clamp(pol.refresh_hours, 1, 72, 4);
+  const baseLensRefresh = clamp(pol.lens_refresh_hours, 1, 72, 6);
+  const minRefresh = clamp(pol.refresh_hours_min, 1, 24, 1);
+  const maxRefresh = clamp(pol.refresh_hours_max, 1, 72, 12);
+  const minLensRefresh = clamp(pol.lens_refresh_hours_min, 1, 72, 2);
+  const maxLensRefresh = clamp(pol.lens_refresh_hours_max, 1, 168, 24);
+  const enabled = pol.adaptive_cadence_enabled === false ? false : true;
+  const minIntervalMinutes = clamp(pol.adaptive_cadence_min_interval_minutes, 0, 24 * 60, 30);
+  const focusWindowHours = clamp(pol.adaptive_cadence_focus_window_hours, 1, 24 * 7, 12);
+  const lowWater = clamp(pol.adaptive_cadence_focus_low_water, 0, 500, 3);
+  const highWater = Math.max(lowWater + 1, clamp(pol.adaptive_cadence_focus_high_water, 1, 1000, 12));
+  const lowPressureMultiplier = clamp(pol.adaptive_cadence_low_pressure_multiplier, 1, 3, 1.35);
+  const highPressureMultiplier = clamp(pol.adaptive_cadence_high_pressure_multiplier, 0.4, 1, 0.7);
+  const lowOutcomeMultiplier = clamp(pol.adaptive_cadence_outcome_low_multiplier, 0.5, 1, 0.85);
+  const highOutcomeMultiplier = clamp(pol.adaptive_cadence_outcome_high_multiplier, 1, 2, 1.15);
+  const recentFocusCount = countRecentFocusInWindow(recentMap, focusWindowHours, nowMs);
+  const realizedScore = clamp(
+    outcomePolicy && outcomePolicy.realized_outcome_score,
+    0,
+    100,
+    50
+  );
+  let pressureBand = 'balanced';
+  let pressureMultiplier = 1;
+  if (recentFocusCount >= highWater) {
+    pressureBand = 'high';
+    pressureMultiplier = highPressureMultiplier;
+  } else if (recentFocusCount <= lowWater) {
+    pressureBand = 'low';
+    pressureMultiplier = lowPressureMultiplier;
+  }
+  let outcomeBand = 'neutral';
+  let outcomeMultiplier = 1;
+  if (realizedScore < 45) {
+    outcomeBand = 'low';
+    outcomeMultiplier = lowOutcomeMultiplier;
+  } else if (realizedScore > 70) {
+    outcomeBand = 'high';
+    outcomeMultiplier = highOutcomeMultiplier;
+  }
+  const multiplier = enabled
+    ? clamp(pressureMultiplier * outcomeMultiplier, 0.4, 2.5, 1)
+    : 1;
+  const effectiveRefresh = enabled
+    ? clamp(round1(baseRefresh * multiplier), minRefresh, Math.max(minRefresh, maxRefresh), baseRefresh)
+    : baseRefresh;
+  const effectiveLensRefresh = enabled
+    ? clamp(round1(baseLensRefresh * multiplier), minLensRefresh, Math.max(minLensRefresh, maxLensRefresh), baseLensRefresh)
+    : baseLensRefresh;
+  return {
+    enabled,
+    min_interval_minutes: minIntervalMinutes,
+    base_refresh_hours: baseRefresh,
+    base_lens_refresh_hours: baseLensRefresh,
+    effective_refresh_hours: effectiveRefresh,
+    effective_lens_refresh_hours: effectiveLensRefresh,
+    min_refresh_hours: minRefresh,
+    max_refresh_hours: maxRefresh,
+    min_lens_refresh_hours: minLensRefresh,
+    max_lens_refresh_hours: maxLensRefresh,
+    recent_focus_count: recentFocusCount,
+    focus_window_hours: focusWindowHours,
+    low_water: lowWater,
+    high_water: highWater,
+    pressure_band: pressureBand,
+    pressure_multiplier: pressureMultiplier,
+    realized_score: realizedScore,
+    outcome_band: outcomeBand,
+    outcome_multiplier: outcomeMultiplier,
+    multiplier
   };
 }
 
@@ -1581,6 +1698,7 @@ function focusStatus() {
   });
   const outcomePolicy = loadOutcomeFitnessPolicy(REPO_ROOT);
   const gate = resolveMinFocusScore(state.policy || {}, state.recent_focus_items || {}, Date.now(), outcomePolicy);
+  const cadence = resolveFocusCadence(state.policy || {}, state.recent_focus_items || {}, outcomePolicy, Date.now());
   const triggerRows = Array.isArray(state.triggers) ? state.triggers : [];
   const lensRows: AnyObj[] = state.eye_lenses && typeof state.eye_lenses === 'object'
     ? Object.values(state.eye_lenses as AnyObj)
@@ -1590,6 +1708,7 @@ function focusStatus() {
     ts: nowIso(),
     policy: state.policy || {},
     dynamic_focus_gate: gate,
+    cadence_tuning: cadence,
     outcome_tuning: resolveOutcomeTuning(outcomePolicy),
     last_refresh_ts: state.last_refresh_ts || null,
     trigger_count: triggerRows.length,
@@ -1653,7 +1772,8 @@ function main() {
 module.exports = {
   maybeRefreshFocusTriggers,
   evaluateFocusForEye,
-  focusStatus
+  focusStatus,
+  resolveFocusCadence
 };
 
 if (require.main === module) {

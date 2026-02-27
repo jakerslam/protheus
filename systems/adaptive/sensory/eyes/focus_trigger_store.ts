@@ -54,6 +54,8 @@ function defaultFocusState() {
     version: '1.0',
     policy: {
       refresh_hours: 4,
+      refresh_hours_min: 1,
+      refresh_hours_max: 12,
       max_triggers: 48,
       min_focus_score: 58,
       dynamic_focus_gate_enabled: true,
@@ -64,6 +66,8 @@ function defaultFocusState() {
       dynamic_focus_response: 14,
       lens_enabled: true,
       lens_refresh_hours: 6,
+      lens_refresh_hours_min: 2,
+      lens_refresh_hours_max: 24,
       lens_window_hours: 48,
       lens_max_terms: 16,
       lens_min_weight: 2,
@@ -84,6 +88,15 @@ function defaultFocusState() {
       llm_backstop_enabled: false,
       llm_uncertain_min_score: 48,
       llm_uncertain_max_score: 57,
+      adaptive_cadence_enabled: true,
+      adaptive_cadence_min_interval_minutes: 30,
+      adaptive_cadence_focus_window_hours: 12,
+      adaptive_cadence_focus_low_water: 3,
+      adaptive_cadence_focus_high_water: 12,
+      adaptive_cadence_low_pressure_multiplier: 1.35,
+      adaptive_cadence_high_pressure_multiplier: 0.7,
+      adaptive_cadence_outcome_low_multiplier: 0.85,
+      adaptive_cadence_outcome_high_multiplier: 1.15,
       trigger_prune_enabled: true,
       trigger_prune_stale_hours: 72,
       trigger_prune_min_hit_count: 1,
@@ -151,6 +164,8 @@ function normalizePolicy(raw) {
   const defaults = defaultFocusState().policy;
   return {
     refresh_hours: clampNumber(src.refresh_hours, 1, 24, defaults.refresh_hours),
+    refresh_hours_min: clampNumber(src.refresh_hours_min, 1, 24, defaults.refresh_hours_min),
+    refresh_hours_max: clampNumber(src.refresh_hours_max, 1, 72, defaults.refresh_hours_max),
     max_triggers: clampNumber(src.max_triggers, 8, 200, defaults.max_triggers),
     min_focus_score: clampNumber(src.min_focus_score, 1, 100, defaults.min_focus_score),
     dynamic_focus_gate_enabled: src.dynamic_focus_gate_enabled === false ? false : defaults.dynamic_focus_gate_enabled,
@@ -186,6 +201,8 @@ function normalizePolicy(raw) {
     ),
     lens_enabled: src.lens_enabled === false ? false : defaults.lens_enabled,
     lens_refresh_hours: clampNumber(src.lens_refresh_hours, 1, 72, defaults.lens_refresh_hours),
+    lens_refresh_hours_min: clampNumber(src.lens_refresh_hours_min, 1, 72, defaults.lens_refresh_hours_min),
+    lens_refresh_hours_max: clampNumber(src.lens_refresh_hours_max, 1, 168, defaults.lens_refresh_hours_max),
     lens_window_hours: clampNumber(src.lens_window_hours, 6, 24 * 14, defaults.lens_window_hours),
     lens_max_terms: clampNumber(src.lens_max_terms, 4, 64, defaults.lens_max_terms),
     lens_min_weight: clampNumber(src.lens_min_weight, 1, 40, defaults.lens_min_weight),
@@ -206,6 +223,55 @@ function normalizePolicy(raw) {
     llm_backstop_enabled: src.llm_backstop_enabled === true,
     llm_uncertain_min_score: clampNumber(src.llm_uncertain_min_score, 1, 99, defaults.llm_uncertain_min_score),
     llm_uncertain_max_score: clampNumber(src.llm_uncertain_max_score, 1, 100, defaults.llm_uncertain_max_score),
+    adaptive_cadence_enabled: src.adaptive_cadence_enabled === false ? false : defaults.adaptive_cadence_enabled,
+    adaptive_cadence_min_interval_minutes: clampNumber(
+      src.adaptive_cadence_min_interval_minutes,
+      0,
+      24 * 60,
+      defaults.adaptive_cadence_min_interval_minutes
+    ),
+    adaptive_cadence_focus_window_hours: clampNumber(
+      src.adaptive_cadence_focus_window_hours,
+      1,
+      24 * 7,
+      defaults.adaptive_cadence_focus_window_hours
+    ),
+    adaptive_cadence_focus_low_water: clampNumber(
+      src.adaptive_cadence_focus_low_water,
+      0,
+      500,
+      defaults.adaptive_cadence_focus_low_water
+    ),
+    adaptive_cadence_focus_high_water: clampNumber(
+      src.adaptive_cadence_focus_high_water,
+      1,
+      1000,
+      defaults.adaptive_cadence_focus_high_water
+    ),
+    adaptive_cadence_low_pressure_multiplier: clampNumber(
+      src.adaptive_cadence_low_pressure_multiplier,
+      1,
+      3,
+      defaults.adaptive_cadence_low_pressure_multiplier
+    ),
+    adaptive_cadence_high_pressure_multiplier: clampNumber(
+      src.adaptive_cadence_high_pressure_multiplier,
+      0.4,
+      1,
+      defaults.adaptive_cadence_high_pressure_multiplier
+    ),
+    adaptive_cadence_outcome_low_multiplier: clampNumber(
+      src.adaptive_cadence_outcome_low_multiplier,
+      0.5,
+      1,
+      defaults.adaptive_cadence_outcome_low_multiplier
+    ),
+    adaptive_cadence_outcome_high_multiplier: clampNumber(
+      src.adaptive_cadence_outcome_high_multiplier,
+      1,
+      2,
+      defaults.adaptive_cadence_outcome_high_multiplier
+    ),
     trigger_prune_enabled: src.trigger_prune_enabled === false ? false : defaults.trigger_prune_enabled,
     trigger_prune_stale_hours: clampNumber(src.trigger_prune_stale_hours, 6, 24 * 30, defaults.trigger_prune_stale_hours),
     trigger_prune_min_hit_count: clampNumber(src.trigger_prune_min_hit_count, 0, 1000, defaults.trigger_prune_min_hit_count),
