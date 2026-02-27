@@ -32,6 +32,9 @@ const DEFAULT_PROPOSALS_DIR = process.env.WORKFLOW_EXECUTION_CLOSURE_PROPOSALS_D
 const DEFAULT_WORKFLOW_RUNS_DIR = process.env.WORKFLOW_EXECUTION_CLOSURE_RUNS_DIR
   ? path.resolve(process.env.WORKFLOW_EXECUTION_CLOSURE_RUNS_DIR)
   : path.join(ROOT, 'state', 'adaptive', 'workflows', 'executor', 'runs');
+const DEFAULT_STRATEGY_PATH = process.env.WORKFLOW_EXECUTION_CLOSURE_STRATEGY_PATH
+  ? path.resolve(process.env.WORKFLOW_EXECUTION_CLOSURE_STRATEGY_PATH)
+  : path.join(ROOT, 'config', 'strategies', 'default.json');
 
 type AnyObj = Record<string, any>;
 
@@ -268,6 +271,62 @@ function evaluateDayBlockers(
   return blockers;
 }
 
+function normalizeExecutionMode(raw: unknown) {
+  return normalizeToken(raw, 64);
+}
+
+function isMutationType(typeRaw: unknown) {
+  const token = normalizeToken(typeRaw, 120);
+  if (!token) return false;
+  return token.includes('mutation')
+    || token.includes('adaptive_mutation')
+    || token.includes('self_edit')
+    || token.includes('self_change');
+}
+
+function extractProposalReasonTokens(row: AnyObj) {
+  const out: string[] = [];
+  const direct = [
+    row && row.blocked_reason,
+    row && row.reason,
+    row && row.queue_reason,
+    row && row.reject_reason
+  ];
+  for (const raw of direct) {
+    const token = normalizeToken(raw, 120);
+    if (token) out.push(token);
+  }
+  const arrays = [
+    row && row.blocked_reasons,
+    row && row.reasons,
+    row && row.queue_reasons
+  ];
+  for (const arr of arrays) {
+    if (!Array.isArray(arr)) continue;
+    for (const raw of arr) {
+      const token = normalizeToken(raw, 120);
+      if (token) out.push(token);
+    }
+  }
+  const meta = row && row.meta && typeof row.meta === 'object' ? row.meta : {};
+  const metaReason = normalizeToken(meta.blocked_reason || meta.reason, 120);
+  if (metaReason) out.push(metaReason);
+  return Array.from(new Set(out));
+}
+
+function countNonMutationAttestationBlocks(rows: AnyObj[]) {
+  let count = 0;
+  for (const row of rows || []) {
+    if (!row || typeof row !== 'object') continue;
+    if (isMutationType(row.type)) continue;
+    const reasons = extractProposalReasonTokens(row);
+    if (reasons.some((reason) => reason.includes('adaptive_mutation_missing_safety_attestation'))) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
 function topBlockers(rows: AnyObj[], maxKeys = 6) {
   const counts = new Map<string, number>();
   for (const row of rows) {
@@ -307,6 +366,14 @@ function runClosure(args: AnyObj) {
   const historyPath = args['history-path'] ? path.resolve(String(args['history-path'])) : DEFAULT_HISTORY_PATH;
   const proposalsDir = args['proposals-dir'] ? path.resolve(String(args['proposals-dir'])) : DEFAULT_PROPOSALS_DIR;
   const workflowRunsDir = args['workflow-runs-dir'] ? path.resolve(String(args['workflow-runs-dir'])) : DEFAULT_WORKFLOW_RUNS_DIR;
+  const strategyPath = args['strategy-path'] ? path.resolve(String(args['strategy-path'])) : DEFAULT_STRATEGY_PATH;
+  const strategyPayload = readJson(strategyPath, {});
+  const executionMode = normalizeExecutionMode(
+    strategyPayload
+      && strategyPayload.execution_policy
+      && strategyPayload.execution_policy.mode
+  );
+  const canaryModeActive = executionMode === 'canary_execute' || executionMode === 'execute';
 
   const dates = dateWindow(date, lookbackDays);
   const rows = dates.map((d) => {
@@ -330,6 +397,7 @@ function runClosure(args: AnyObj) {
       && workflowsExecuted >= minWorkflowsExecuted
       && workflowsSucceeded >= minWorkflowsSucceeded
       && successRatio >= minSuccessRatio;
+    const nonMutationAttestationBlocks = countNonMutationAttestationBlocks(proposals.rows);
     return {
       date: d,
       pass,
@@ -342,6 +410,7 @@ function runClosure(args: AnyObj) {
       proposal_total: Number(proposals.total || 0),
       proposal_path: proposals.path,
       workflow_run_path: workflow.path,
+      non_mutation_attestation_blocks: nonMutationAttestationBlocks,
       blockers
     };
   });
@@ -354,6 +423,13 @@ function runClosure(args: AnyObj) {
     ? addUtcDays(date, remainingDays)
     : null;
   const blockerCounts = topBlockers(rows, 8);
+  const nonMutationAttestationBlocks = rows.reduce((acc, row) => (
+    acc + Math.max(0, Number(row && row.non_mutation_attestation_blocks || 0))
+  ), 0);
+  const mutationGuardScopeOk = nonMutationAttestationBlocks === 0;
+  const executionGateBlockers: string[] = [];
+  if (!canaryModeActive) executionGateBlockers.push('execution_mode_not_canary_execute');
+  if (!mutationGuardScopeOk) executionGateBlockers.push('mutation_guard_scope_regression');
   const payload = {
     ok: true,
     type: 'workflow_execution_closure',
@@ -373,11 +449,20 @@ function runClosure(args: AnyObj) {
     closure_pass: closurePass,
     result: closurePass ? 'pass' : 'pending',
     top_blockers: blockerCounts,
+    execution_gates: {
+      strategy_path: relPath(strategyPath),
+      strategy_execution_mode: executionMode || null,
+      canary_mode_active: canaryModeActive,
+      mutation_guard_scope_ok: mutationGuardScopeOk,
+      non_mutation_attestation_blocks: nonMutationAttestationBlocks,
+      blockers: executionGateBlockers
+    },
     latest_day: latest ? {
       date: latest.date,
       pass: latest.pass === true,
       accepted_items: Number(latest.accepted_items || 0),
       workflows_executed: Number(latest.workflows_executed || 0),
+      non_mutation_attestation_blocks: Number(latest.non_mutation_attestation_blocks || 0),
       blockers: Array.isArray(latest.blockers) ? latest.blockers.slice(0, 8) : []
     } : null,
     evidence: {
@@ -405,6 +490,7 @@ function runClosure(args: AnyObj) {
     closure_pass: payload.closure_pass,
     result: payload.result,
     top_blockers: payload.top_blockers,
+    execution_gates: payload.execution_gates,
     latest_day: payload.latest_day,
     evidence: payload.evidence
   });
@@ -419,6 +505,7 @@ function runClosure(args: AnyObj) {
     estimated_closure_date: payload.estimated_closure_date,
     closure_pass: payload.closure_pass,
     top_blockers: payload.top_blockers,
+    execution_gates: payload.execution_gates,
     latest_day: payload.latest_day
   });
   trimHistory(historyPath, policy.max_history_rows);
