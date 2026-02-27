@@ -1,0 +1,30 @@
+{
+  "schema_id": "primitive_migration_contract",
+  "schema_version": "1.0",
+  "grammar_id": "universal_action_grammar",
+  "grammar_version": "1.0",
+  "active_opcodes": [
+    "ACTUATION_ADAPTER",
+    "BROWSER_TASK",
+    "CALENDAR_MUTATE",
+    "COMMS_MESSAGE",
+    "CRM_MUTATE",
+    "EYE_MUTATE",
+    "FILESYSTEM_MUTATE",
+    "FLOW_GATE",
+    "HELPDESK_MUTATE",
+    "NETWORK_REQUEST",
+    "PAYMENT_EXECUTE",
+    "RECEIPT_VERIFY",
+    "SHELL_EXECUTE"
+  ],
+  "migration_tracks": [
+    {
+      "track_id": "baseline_v1",
+      "from_grammar_version": "1.0",
+      "to_grammar_version": "1.0",
+      "status": "stable",
+      "notes": "Current baseline primitive grammar contract."
+    }
+  ]
+}

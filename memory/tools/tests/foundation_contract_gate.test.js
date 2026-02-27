@@ -28,6 +28,17 @@ function main() {
   const payload = parseJson(run.stdout);
   assert.ok(payload && payload.ok === true, 'gate payload should be ok');
   assert.ok(Array.isArray(payload.checks) && payload.checks.length > 0, 'checks missing');
+  const byId = new Map(payload.checks.map((row) => [row.id, row]));
+  for (const id of [
+    'catalog:opcode_cap',
+    'catalog:adapter_opcode_coverage',
+    'catalog:adapter_effect_coverage',
+    'catalog:migration_contract_version',
+    'catalog:migration_contract_coverage'
+  ]) {
+    assert.ok(byId.has(id), `missing check: ${id}`);
+    assert.strictEqual(byId.get(id).ok, true, `check should pass: ${id}`);
+  }
   console.log('foundation_contract_gate.test.js: OK');
 }
 
