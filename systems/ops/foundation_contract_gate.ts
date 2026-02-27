@@ -91,6 +91,7 @@ function runGate() {
     'config/emergent_primitive_synthesis_policy.json',
     'config/effect_type_policy.json',
     'config/embodiment_layer_policy.json',
+    'config/explanation_primitive_policy.json',
     'config/formal_invariants.json',
     'config/crypto_agility_contract.json',
     'config/key_lifecycle_policy.json',
@@ -116,6 +117,7 @@ function runGate() {
     'systems/hardware/embodiment_layer.ts',
     'systems/primitives/effect_type_system.ts',
     'systems/primitives/emergent_primitive_synthesis.ts',
+    'systems/primitives/explanation_primitive.ts',
     'systems/primitives/runtime_scheduler.ts',
     'systems/security/formal_invariant_engine.ts',
     'systems/security/key_lifecycle_governor.ts',
@@ -433,6 +435,29 @@ function runGate() {
     'value_anchor_renewal:review_gate_enabled',
     valueAnchorPolicy.require_user_review_above_shift !== false,
     `require_user_review_above_shift=${valueAnchorPolicy.require_user_review_above_shift !== false ? '1' : '0'}`
+  );
+  addCheck(
+    'explanation_primitive:merge_guard_hook',
+    mergeGuardSrc.includes('explanation_primitive.js')
+      && mergeGuardSrc.includes('status'),
+    'merge_guard should enforce explanation primitive status check'
+  );
+  const explanationPolicy = readJsonSafe(path.join(ROOT, 'config', 'explanation_primitive_policy.json'), {});
+  addCheck(
+    'explanation_primitive:policy_enabled',
+    explanationPolicy.enabled !== false,
+    `enabled=${explanationPolicy.enabled !== false ? '1' : '0'}`
+  );
+  addCheck(
+    'explanation_primitive:proof_and_passport_gates',
+    explanationPolicy.require_proof_links !== false
+      && explanationPolicy.require_event_replayable !== false
+      && !!(
+        explanationPolicy.passport_export
+        && typeof explanationPolicy.passport_export === 'object'
+        && explanationPolicy.passport_export.enabled !== false
+      ),
+    `proof_links=${explanationPolicy.require_proof_links !== false ? '1' : '0'} replayable=${explanationPolicy.require_event_replayable !== false ? '1' : '0'} passport_export=${explanationPolicy.passport_export && explanationPolicy.passport_export.enabled !== false ? '1' : '0'}`
   );
   const simplicityPolicy = readJsonSafe(path.join(ROOT, 'config', 'simplicity_budget_policy.json'), {});
   addCheck(

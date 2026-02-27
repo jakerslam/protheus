@@ -67,6 +67,9 @@ function main() {
     'value_anchor_renewal:merge_guard_hook',
     'value_anchor_renewal:shift_threshold_order',
     'value_anchor_renewal:review_gate_enabled',
+    'explanation_primitive:merge_guard_hook',
+    'explanation_primitive:policy_enabled',
+    'explanation_primitive:proof_and_passport_gates',
     'workflow:effect_type_gate_hook',
     'helix:safety_resilience_hook'
   ]) {
