@@ -93,6 +93,8 @@ try {
   assert.ok(Array.isArray(passPayload.blocking_checks), 'blocking_checks should be present');
   assert.strictEqual(passPayload.blocking_checks.length, 0, 'pass should have no blocking checks');
   assert.strictEqual(Number(passPayload.remaining_recovery_days || 0), 0, 'pass should have zero recovery days');
+  assert.strictEqual(passPayload.recovery_eta_confidence, 'high', 'pass state should report high eta confidence');
+  assert.ok(passPayload.trend && typeof passPayload.trend === 'object', 'trend payload should be present');
   assert.ok(passPayload.measured.execution_success_rate >= 0.97, 'success rate should meet threshold');
   assert.ok(passPayload.measured.queue_drain_rate >= 0.9, 'queue drain should meet threshold');
 
@@ -130,6 +132,11 @@ try {
   assert.ok(
     Array.isArray(failPayload.blocking_checks) && failPayload.blocking_checks.includes('zero_shipped_streak_days'),
     'failing payload should include zero_shipped_streak_days blocker'
+  );
+  assert.ok(Array.isArray(failPayload.recovery_priorities), 'fail payload should include recovery priorities');
+  assert.ok(
+    ['low', 'medium', 'high'].includes(String(failPayload.recovery_eta_confidence || '')),
+    'recovery eta confidence should be set'
   );
   assert.ok(Number(failPayload.remaining_recovery_days || 0) >= 1, 'failing payload should estimate recovery days');
 

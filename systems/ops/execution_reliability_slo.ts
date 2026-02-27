@@ -165,6 +165,25 @@ function quantile(values: number[], q: number) {
   return arr[idx];
 }
 
+function linearSlope(values: number[]) {
+  const rows = Array.isArray(values)
+    ? values.filter((n) => Number.isFinite(n)).map((n) => Number(n))
+    : [];
+  if (rows.length < 2) return 0;
+  const n = rows.length;
+  const meanX = (n - 1) / 2;
+  const meanY = rows.reduce((acc, v) => acc + v, 0) / n;
+  let num = 0;
+  let den = 0;
+  for (let i = 0; i < n; i += 1) {
+    const dx = i - meanX;
+    num += dx * (rows[i] - meanY);
+    den += dx * dx;
+  }
+  if (!Number.isFinite(num) || !Number.isFinite(den) || den <= 0) return 0;
+  return num / den;
+}
+
 function defaultPolicy() {
   return {
     version: '1.0',
@@ -314,12 +333,14 @@ function runSlo(args: AnyObj) {
       runs: 0,
       workflows_selected: 0,
       workflows_executed: 0,
-      workflows_succeeded: 0
+      workflows_succeeded: 0,
+      time_to_first_execution_ms_values: []
     };
     prev.runs += 1;
     prev.workflows_selected += selected;
     prev.workflows_executed += executed;
     prev.workflows_succeeded += succeeded;
+    if (Number.isFinite(ttf) && ttf >= 0) prev.time_to_first_execution_ms_values.push(ttf);
     dayAgg.set(d, prev);
   }
 
@@ -348,6 +369,47 @@ function runSlo(args: AnyObj) {
     ),
     zero_shipped_streak_days: Number(Math.max(0, zeroShippedStreakDays - maxZeroShippedStreakDays))
   };
+  const sampleDays = Array.from(dayAgg.values())
+    .map((row) => {
+      const selected = Math.max(0, Number(row && row.workflows_selected || 0));
+      const executed = Math.max(0, Number(row && row.workflows_executed || 0));
+      const succeeded = Math.max(0, Number(row && row.workflows_succeeded || 0));
+      const ttfDayValues = Array.isArray(row && row.time_to_first_execution_ms_values)
+        ? row.time_to_first_execution_ms_values
+        : [];
+      return {
+        date: toDate(row && row.date),
+        runs: Math.max(0, Number(row && row.runs || 0)),
+        workflows_selected: selected,
+        workflows_executed: executed,
+        workflows_succeeded: succeeded,
+        execution_success_rate: Number(safeRate(succeeded, executed, 0).toFixed(6)),
+        queue_drain_rate: Number(safeRate(executed, selected, 0).toFixed(6)),
+        time_to_first_execution_p95_ms: quantile(ttfDayValues, 0.95)
+      };
+    })
+    .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+  const trendWindow = sampleDays.slice(Math.max(0, sampleDays.length - 7));
+  const successSlope = linearSlope(trendWindow.map((row) => Number(row.execution_success_rate || 0)));
+  const drainSlope = linearSlope(trendWindow.map((row) => Number(row.queue_drain_rate || 0)));
+  const ttfSlope = linearSlope(
+    trendWindow.map((row) => Number(row.time_to_first_execution_p95_ms || 0))
+      .filter((v) => Number.isFinite(v) && v > 0)
+  );
+  const trend = {
+    window_days: Math.max(1, trendWindow.length),
+    execution_success_rate_per_day: Number(successSlope.toFixed(6)),
+    queue_drain_rate_per_day: Number(drainSlope.toFixed(6)),
+    time_to_first_execution_p95_ms_per_day: Number(ttfSlope.toFixed(3))
+  };
+  const recoveryPriorities = [
+    { check: 'execution_success_rate', gap: Number(recoveryGaps.execution_success_rate || 0), unit: 'ratio' },
+    { check: 'queue_drain_rate', gap: Number(recoveryGaps.queue_drain_rate || 0), unit: 'ratio' },
+    { check: 'time_to_first_execution_p95_ms', gap: Number(recoveryGaps.time_to_first_execution_p95_ms || 0), unit: 'ms' },
+    { check: 'zero_shipped_streak_days', gap: Number(recoveryGaps.zero_shipped_streak_days || 0), unit: 'days' }
+  ]
+    .filter((row) => row.gap > 0)
+    .sort((a, b) => Number(b.gap || 0) - Number(a.gap || 0));
   const remainingRecoveryDays = Number(recoveryGaps.zero_shipped_streak_days || 0);
   const projectedRecoveryDate = remainingRecoveryDays > 0
     ? addUtcDays(date, remainingRecoveryDays)
@@ -357,6 +419,13 @@ function runSlo(args: AnyObj) {
     && checks.queue_drain_rate
     && checks.time_to_first_execution_p95_ms
     && checks.zero_shipped_streak_days;
+  const etaConfidence = pass
+    ? 'high'
+    : (
+      successSlope >= 0 && drainSlope >= 0 && ttfSlope <= 0
+        ? 'medium'
+        : 'low'
+    );
 
   const payload = {
     ok: true,
@@ -383,15 +452,16 @@ function runSlo(args: AnyObj) {
     },
     blocking_checks: blockingChecks,
     recovery_gaps: recoveryGaps,
+    recovery_priorities: recoveryPriorities,
+    recovery_eta_confidence: etaConfidence,
     remaining_recovery_days: remainingRecoveryDays,
     projected_recovery_date: projectedRecoveryDate,
+    trend,
     totals,
     checks,
     pass,
     result: pass ? 'pass' : (sufficientData ? 'fail' : 'insufficient_data'),
-    sample_days: Array.from(dayAgg.values())
-      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
-      .slice(0, 10),
+    sample_days: sampleDays.slice(-10).reverse(),
     executor_history_path: relPath(executorHistoryPath),
     state_path: relPath(statePath),
     history_path: relPath(historyPath)
@@ -410,8 +480,11 @@ function runSlo(args: AnyObj) {
     measured: payload.measured,
     blocking_checks: payload.blocking_checks,
     recovery_gaps: payload.recovery_gaps,
+    recovery_priorities: payload.recovery_priorities,
+    recovery_eta_confidence: payload.recovery_eta_confidence,
     remaining_recovery_days: payload.remaining_recovery_days,
     projected_recovery_date: payload.projected_recovery_date,
+    trend: payload.trend,
     checks: payload.checks,
     pass: payload.pass === true,
     result: payload.result
@@ -425,6 +498,8 @@ function runSlo(args: AnyObj) {
     blocking_checks: payload.blocking_checks,
     remaining_recovery_days: payload.remaining_recovery_days,
     projected_recovery_date: payload.projected_recovery_date,
+    recovery_eta_confidence: payload.recovery_eta_confidence,
+    trend: payload.trend,
     checks: payload.checks,
     pass: payload.pass === true,
     result: payload.result
