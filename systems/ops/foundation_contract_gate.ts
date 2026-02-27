@@ -99,6 +99,7 @@ function runGate() {
     'config/primitive_migration_contract.json',
     'config/primitive_policy_vm.json',
     'config/runtime_scheduler_policy.json',
+    'config/resurrection_protocol_policy.json',
     'config/safety_resilience_policy.json',
     'config/scale_envelope_policy.json',
     'config/simplicity_baseline.json',
@@ -107,6 +108,7 @@ function runGate() {
     'systems/ops/profile_compatibility_gate.ts',
     'systems/ops/simplicity_budget_gate.ts',
     'systems/ops/schema_evolution_contract.ts',
+    'systems/continuity/resurrection_protocol.ts',
     'systems/memory/causal_temporal_graph.ts',
     'systems/distributed/deterministic_control_plane.ts',
     'systems/hardware/embodiment_layer.ts',
@@ -392,6 +394,24 @@ function runGate() {
     'hardware_embodiment:profile_count_floor',
     profileCount >= 3,
     `profiles=${profileCount}`
+  );
+  addCheck(
+    'resurrection_protocol:merge_guard_hook',
+    mergeGuardSrc.includes('resurrection_protocol.js')
+      && mergeGuardSrc.includes('status'),
+    'merge_guard should enforce resurrection protocol status check'
+  );
+  const resurrectionPolicy = readJsonSafe(path.join(ROOT, 'config', 'resurrection_protocol_policy.json'), {});
+  addCheck(
+    'resurrection_protocol:key_env_present',
+    !!cleanText(resurrectionPolicy.key_env || '', 80),
+    `key_env=${cleanText(resurrectionPolicy.key_env || '', 80) || 'missing'}`
+  );
+  const shardFloor = Math.max(0, Number(resurrectionPolicy.default_shards || 0) || 0);
+  addCheck(
+    'resurrection_protocol:multi_shard_floor',
+    shardFloor >= 2,
+    `default_shards=${shardFloor}`
   );
   const simplicityPolicy = readJsonSafe(path.join(ROOT, 'config', 'simplicity_budget_policy.json'), {});
   addCheck(
