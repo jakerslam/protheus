@@ -374,7 +374,10 @@
     "ops:deny-telemetry:status": "node systems/ops/deny_telemetry_normalizer.js status",
     "ops:offsite:diagnose": "node systems/ops/offsite_backup.js diagnose",
     "ops:health-audit:run": "node systems/ops/system_health_audit_runner.js run",
-    "ops:health-audit:status": "node systems/ops/system_health_audit_runner.js status"
+    "ops:health-audit:status": "node systems/ops/system_health_audit_runner.js status",
+    "explain:decision": "node systems/ops/explain_decision.js run",
+    "explain:decision:status": "node systems/ops/explain_decision.js status",
+    "test:ops:explain:decision": "node memory/tools/tests/explain_decision.test.js"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

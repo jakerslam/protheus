@@ -155,9 +155,23 @@ function buildClusters(rows: AnyObj[]) {
     });
 }
 
-function exportProposals(clusters: AnyObj[], proposalsDir: string) {
+function proposalDateFromRows(rows: AnyObj[]) {
+  let best = '';
+  for (const row of rows) {
+    const ts = clean(row && row.ts || '', 64);
+    if (!ts) continue;
+    const day = ts.slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+    if (!best || day > best) best = day;
+  }
+  return best || nowIso().slice(0, 10);
+}
+
+function exportProposals(clusters: AnyObj[], proposalsDir: string, proposalDate: string) {
   ensureDir(proposalsDir);
-  const dateStr = nowIso().slice(0, 10);
+  const dateStr = /^\d{4}-\d{2}-\d{2}$/.test(String(proposalDate || ''))
+    ? String(proposalDate)
+    : nowIso().slice(0, 10);
   const jsonPath = path.join(proposalsDir, `${dateStr}.json`);
   const mdPath = path.join(proposalsDir, `${dateStr}.md`);
   const proposals = clusters.map((row, idx) => {
@@ -215,6 +229,7 @@ function runLab(args: AnyObj) {
   const paths = defaultPaths(args);
   const rows = readJsonl(paths.queue);
   const clusters = buildClusters(rows);
+  const proposalDate = proposalDateFromRows(rows);
   const clusterPayload = {
     ts: nowIso(),
     type: 'broken_piece_lab_clusters',
@@ -224,7 +239,7 @@ function runLab(args: AnyObj) {
     clusters
   };
   writeJsonAtomic(paths.clusters, clusterPayload);
-  const proposals = exportProposals(clusters, paths.proposalsDir);
+  const proposals = exportProposals(clusters, paths.proposalsDir, proposalDate);
   return {
     ok: true,
     type: 'broken_piece_lab_run',
@@ -297,4 +312,3 @@ if (require.main === module) {
     process.exit(1);
   }
 }
-

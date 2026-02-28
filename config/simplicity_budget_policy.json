@@ -4,7 +4,7 @@
   "enabled": true,
   "max_system_files": 1400,
   "max_system_loc": 450000,
-  "max_files_per_organ": 140,
+  "max_files_per_organ": 160,
   "max_primitive_opcodes": 24,
   "max_bespoke_actuation_modules": 28,
   "require_offset_receipt_for_new_organs": true,

@@ -97,7 +97,7 @@
     "systems/redteam/swarm_tactics.ts": "f23e2829bc2c201331d0adfdb307144611c336236a8daa975496d94b320bc00e",
     "systems/redteam/wisdom_distiller.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/redteam/wisdom_distiller.ts": "b317283f1160a79306536e92e9d5a6485a45b12be10e3ba4a8e08fa6bc630c26",
-    "systems/security/agent_passport.js": "1740d34e290d599c52ceb6ae8c631564dfaf9db148e45b7edd040cb200571657",
+    "systems/security/agent_passport.js": "d289872fa9fa3bf06a3324338a13ba1453b1a5e0e887654727bdeedc7bb5e903",
     "systems/security/alias_verification_vault.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/anti_sabotage_shield.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/architecture_guard.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
@@ -122,7 +122,7 @@
     "systems/security/guard.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/habit_hygiene_guard.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/integrity_kernel.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
-    "systems/security/integrity_reseal_assistant.js": "0341ea803f4c7d7f08685c645867580cfdf6fe657301fa53804a515acc1d2c3b",
+    "systems/security/integrity_reseal_assistant.js": "d289872fa9fa3bf06a3324338a13ba1453b1a5e0e887654727bdeedc7bb5e903",
     "systems/security/integrity_reseal.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/key_lifecycle_governor.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/llm_gateway_guard.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
@@ -158,7 +158,7 @@
     "systems/weaver/weaver_core.js": "4957d6177400020074450e9a32a81652e33d950d2a1323d33402448bca2e1d43",
     "systems/weaver/weaver_core.ts": "03de43b3a639c1f6d98b1ef72a7e5a6bb330e75befad09599485b918e673543e"
   },
-  "sealed_at": "2026-02-28T01:32:53.459Z",
+  "sealed_at": "2026-02-28T02:21:57.871Z",
   "sealed_by": "jay",
-  "last_approval_note": "Automated integrity reseal assistant run (files=systems/security/agent_passport.js,systems/security/integrity_reseal_assistant.js) at 2026-02-28T01:32:50.537Z"
+  "last_approval_note": "codex ci reseal after wrapper cutover"
 }
