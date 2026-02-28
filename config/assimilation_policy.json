@@ -72,7 +72,17 @@
     "research_organ_enabled": true,
     "nursery_shadow_only": true,
     "adversarial_shadow_only": true,
-    "doctor_required": true
+    "doctor_required": true,
+    "memory_evolution_enabled": true,
+    "context_navigation_enabled": true,
+    "generative_simulation_enabled": true,
+    "collective_reasoning_enabled": true,
+    "environment_evolution_enabled": true,
+    "memory_evolution_policy_path": "config/memory_evolution_primitive_policy.json",
+    "context_navigation_policy_path": "config/context_navigation_primitive_policy.json",
+    "generative_simulation_policy_path": "config/generative_simulation_mode_policy.json",
+    "collective_reasoning_policy_path": "config/collective_reasoning_primitive_policy.json",
+    "environment_evolution_policy_path": "config/environment_evolution_layer_policy.json"
   },
   "outputs": {
     "emit_events": true,

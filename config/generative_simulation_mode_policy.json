@@ -1,0 +1,33 @@
+{
+  "schema_id": "generative_simulation_mode_policy",
+  "schema_version": "1.0",
+  "enabled": true,
+  "shadow_only": true,
+  "beta_stage_lock": {
+    "enabled": true,
+    "max_allowed_stage": "months",
+    "locked_stages": [
+      "years",
+      "decades",
+      "centuries"
+    ]
+  },
+  "scenarios": {
+    "count": 6,
+    "fail_if_drift_over": 0.55,
+    "fail_if_safety_under": 0.45,
+    "fail_if_yield_under": 0.18
+  },
+  "stage_windows": {
+    "days": 7,
+    "weeks": 30,
+    "months": 120,
+    "years": 365,
+    "decades": 3650,
+    "centuries": 36500
+  },
+  "state": {
+    "latest_path": "state/assimilation/generative_simulation/latest.json",
+    "receipts_path": "state/assimilation/generative_simulation/receipts.jsonl"
+  }
+}

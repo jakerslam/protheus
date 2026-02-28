@@ -1,0 +1,22 @@
+{
+  "schema_id": "environment_evolution_layer_policy",
+  "schema_version": "1.0",
+  "enabled": true,
+  "shadow_only": true,
+  "ema_alpha": 0.22,
+  "robustness_thresholds": {
+    "strong": 0.7,
+    "weak": 0.35
+  },
+  "feedback": {
+    "confidence_shaping_gain": 0.2,
+    "doctor_on_fail": true,
+    "min_samples_for_stability": 6
+  },
+  "state": {
+    "state_path": "state/assimilation/environment_evolution/state.json",
+    "latest_path": "state/assimilation/environment_evolution/latest.json",
+    "receipts_path": "state/assimilation/environment_evolution/receipts.jsonl",
+    "doctor_queue_path": "state/ops/autotest_doctor/environment_feedback_queue.jsonl"
+  }
+}
