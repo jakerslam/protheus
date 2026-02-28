@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "default_hours": 24,
+  "max_emits_default": 6,
+  "include_event_types": [
+    "primitive_execution",
+    "route_execute",
+    "workflow_execution",
+    "policy_decision"
+  ],
+  "only_failures": true,
+  "canonical_events_dir": "state/runtime/canonical_events",
+  "explanation_index_path": "state/primitives/explanation_primitive/index.json",
+  "latest_path": "state/primitives/explanation_auto_emit/latest.json",
+  "receipts_path": "state/primitives/explanation_auto_emit/receipts.jsonl"
+}

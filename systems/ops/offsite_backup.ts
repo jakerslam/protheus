@@ -10,6 +10,7 @@
  *   node systems/ops/offsite_backup.js sync [--profile=<id>] [--snapshot=<id>] [--source-dest=<abs_path>] [--offsite-dest=<abs_path>] [--strict=1|0] [--policy=<abs_path>]
  *   node systems/ops/offsite_backup.js restore-drill [--profile=<id>] [--snapshot=<id>] [--dest=<abs_path>] [--strict=1|0] [--policy=<abs_path>]
  *   node systems/ops/offsite_backup.js status [--profile=<id>] [--policy=<abs_path>]
+ *   node systems/ops/offsite_backup.js diagnose [--profile=<id>] [--limit=N] [--policy=<abs_path>]
  *   node systems/ops/offsite_backup.js list [--profile=<id>] [--limit=N] [--policy=<abs_path>]
  */
 
@@ -36,6 +37,7 @@ function usage() {
   console.log('  node systems/ops/offsite_backup.js sync [--profile=<id>] [--snapshot=<id>] [--source-dest=<abs_path>] [--offsite-dest=<abs_path>] [--strict=1|0] [--policy=<abs_path>]');
   console.log('  node systems/ops/offsite_backup.js restore-drill [--profile=<id>] [--snapshot=<id>] [--dest=<abs_path>] [--strict=1|0] [--policy=<abs_path>]');
   console.log('  node systems/ops/offsite_backup.js status [--profile=<id>] [--policy=<abs_path>]');
+  console.log('  node systems/ops/offsite_backup.js diagnose [--profile=<id>] [--limit=N] [--policy=<abs_path>]');
   console.log('  node systems/ops/offsite_backup.js list [--profile=<id>] [--limit=N] [--policy=<abs_path>]');
 }
 
@@ -698,10 +700,17 @@ function cmdStatus(args: AnyObj): AnyObj {
   const drillRows = readJsonl(DRILL_RECEIPTS_PATH).filter((row) => String(row && row.profile || '') === profile);
   const lastSync = syncRows.length ? syncRows[syncRows.length - 1] : null;
   const lastDrill = drillRows.length ? drillRows[drillRows.length - 1] : null;
+  const keyState = loadEncryptionKey(policy);
   const lastDrillMs = parseDateMs(lastDrill && lastDrill.ts);
   const cadenceMs = Number(policy.restore_drill.cadence_days || 30) * 86400000;
   const nowMs = Date.now();
   const nextDueMs = lastDrillMs == null ? nowMs : (lastDrillMs + cadenceMs);
+  const lastSyncOk = lastSync && typeof lastSync.ok === 'boolean' ? lastSync.ok : null;
+  const lastDrillOk = lastDrill && typeof lastDrill.ok === 'boolean' ? lastDrill.ok : null;
+  const lastSyncReason = normalizeText(lastSync && (lastSync.reason || (Array.isArray(lastSync.reasons) ? lastSync.reasons[0] : '')), 180) || null;
+  const lastDrillReasons = Array.isArray(lastDrill && lastDrill.reasons)
+    ? (lastDrill.reasons as unknown[]).map((row) => normalizeText(row, 120)).filter(Boolean).slice(0, 8)
+    : [];
   return {
     ok: true,
     type: 'offsite_backup_status',
@@ -710,10 +719,60 @@ function cmdStatus(args: AnyObj): AnyObj {
     offsite_destination: offsiteDest,
     snapshots: snapshotCount,
     last_sync_ts: lastSync && lastSync.ts ? String(lastSync.ts) : null,
+    last_sync_ok: lastSyncOk,
+    last_sync_reason: lastSyncReason,
     last_drill_ts: lastDrill && lastDrill.ts ? String(lastDrill.ts) : null,
+    last_drill_ok: lastDrillOk,
+    last_drill_reasons: lastDrillReasons,
     restore_drill_due: nowMs >= nextDueMs,
     restore_drill_next_due_ts: new Date(nextDueMs).toISOString(),
-    restore_drill_cadence_days: Number(policy.restore_drill.cadence_days || 30)
+    restore_drill_cadence_days: Number(policy.restore_drill.cadence_days || 30),
+    encryption_key_ready: keyState.ok === true,
+    encryption_key_env: keyState.key_env || null,
+    encryption_key_reason: keyState.ok === true ? null : (keyState.reason || 'offsite_encryption_key_missing_or_invalid'),
+    ready_for_sync: keyState.ok === true,
+    ready_for_restore_drill: keyState.ok === true && snapshotCount > 0,
+    remediation_hint: keyState.ok === true
+      ? null
+      : `Set ${String(keyState.key_env || policy.encryption.key_env || 'STATE_BACKUP_OFFSITE_KEY')} and rerun`
+  };
+}
+
+function cmdDiagnose(args: AnyObj): AnyObj {
+  const policy = loadPolicy(args.policy);
+  const profile = normalizeText(args.profile || policy.default_profile, 120) || 'runtime_state';
+  const limit = clampInt(args.limit, 1, 200, 20);
+  const syncRows = readJsonl(SYNC_RECEIPTS_PATH).filter((row) => String(row && row.profile || '') === profile);
+  const drillRows = readJsonl(DRILL_RECEIPTS_PATH).filter((row) => String(row && row.profile || '') === profile);
+  const syncFail = syncRows.filter((row) => row && row.ok === false).slice(-limit);
+  const drillFail = drillRows.filter((row) => row && row.ok === false).slice(-limit);
+  const keyState = loadEncryptionKey(policy);
+  return {
+    ok: true,
+    type: 'offsite_backup_diagnose',
+    ts: nowIso(),
+    profile,
+    key_state: {
+      ok: keyState.ok === true,
+      env: keyState.key_env || null,
+      reason: keyState.ok === true ? null : (keyState.reason || 'offsite_encryption_key_missing_or_invalid')
+    },
+    failures: {
+      sync: syncFail.map((row) => ({
+        ts: row.ts || null,
+        reason: row.reason || null,
+        strict: row.strict === true
+      })),
+      restore_drill: drillFail.map((row) => ({
+        ts: row.ts || null,
+        reasons: Array.isArray(row.reasons) ? row.reasons.slice(0, 8) : (row.reason ? [row.reason] : []),
+        strict: row.strict === true
+      }))
+    },
+    receipt_paths: {
+      sync: path.relative(ROOT, SYNC_RECEIPTS_PATH).replace(/\\/g, '/'),
+      restore_drill: path.relative(ROOT, DRILL_RECEIPTS_PATH).replace(/\\/g, '/')
+    }
   };
 }
 
@@ -729,6 +788,7 @@ function main(): void {
   if (cmd === 'sync') out = cmdSync(args);
   else if (cmd === 'restore-drill') out = cmdRestoreDrill(args);
   else if (cmd === 'status') out = cmdStatus(args);
+  else if (cmd === 'diagnose') out = cmdDiagnose(args);
   else if (cmd === 'list') out = cmdList(args);
   else {
     usage();
@@ -736,7 +796,7 @@ function main(): void {
     return;
   }
 
-  if (cmd === 'status' || cmd === 'list') {
+  if (cmd === 'status' || cmd === 'list' || cmd === 'diagnose') {
     process.stdout.write(JSON.stringify(out) + '\n');
   }
 }
@@ -757,4 +817,3 @@ module.exports = {
   loadPolicy,
   parseArgs
 };
-
