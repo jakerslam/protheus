@@ -144,6 +144,10 @@ function runGate() {
     'config/surface_budget_controller_policy.json',
     'config/value_anchor_renewal_policy.json',
     'config/world_model_freshness_policy.json',
+    'config/error_budget_release_gate_policy.json',
+    'config/critical_path_policy_coverage_policy.json',
+    'config/composite_disaster_gameday_policy.json',
+    'config/backlog_intake_quality_policy.json',
     'systems/ops/profile_compatibility_gate.ts',
     'systems/ops/simplicity_budget_gate.ts',
     'systems/ops/schema_evolution_contract.ts',
@@ -188,6 +192,10 @@ function runGate() {
     'systems/assimilation/world_model_freshness.ts',
     'systems/observability/siem_bridge.ts',
     'systems/ops/continuous_chaos_resilience.ts',
+    'systems/ops/error_budget_release_gate.ts',
+    'systems/ops/critical_path_policy_coverage.ts',
+    'systems/ops/composite_disaster_gameday.ts',
+    'systems/ops/backlog_intake_quality_gate.ts',
     'systems/ops/soc2_type2_track.ts',
     'systems/ops/phone_seed_profile.ts',
     'systems/ops/predictive_capacity_forecast.ts',
@@ -803,6 +811,101 @@ function runGate() {
     'continuous_chaos_resilience:cadence_declared',
     Object.keys(cadenceCfg).length >= 1,
     `scenario_cadence_entries=${Object.keys(cadenceCfg).length}`
+  );
+  addCheck(
+    'error_budget_release_gate:merge_guard_hook',
+    mergeGuardSrc.includes('error_budget_release_gate.js')
+      && mergeGuardSrc.includes('gate')
+      && mergeGuardSrc.includes('--strict=1'),
+    'merge_guard should enforce strict error-budget release gate'
+  );
+  const errorBudgetPolicy = readJsonSafe(path.join(ROOT, 'config', 'error_budget_release_gate_policy.json'), {});
+  const errorBudgetCfg = errorBudgetPolicy.budget && typeof errorBudgetPolicy.budget === 'object'
+    ? errorBudgetPolicy.budget
+    : {};
+  addCheck(
+    'error_budget_release_gate:policy_thresholds',
+    Number(errorBudgetCfg.max_burn_ratio || 0) >= 0
+      && Number(errorBudgetCfg.max_burn_ratio || 0) <= 1
+      && Number(errorBudgetCfg.warn_burn_ratio || 0) >= 0
+      && Number(errorBudgetCfg.warn_burn_ratio || 0) <= Number(errorBudgetCfg.max_burn_ratio || 0),
+    `warn=${Number(errorBudgetCfg.warn_burn_ratio || 0)} max=${Number(errorBudgetCfg.max_burn_ratio || 0)}`
+  );
+  addCheck(
+    'critical_path_policy_coverage:merge_guard_hook',
+    mergeGuardSrc.includes('critical_path_policy_coverage.js')
+      && mergeGuardSrc.includes('run')
+      && mergeGuardSrc.includes('--strict=1'),
+    'merge_guard should enforce strict critical path policy coverage attestation'
+  );
+  const criticalCoveragePolicy = readJsonSafe(path.join(ROOT, 'config', 'critical_path_policy_coverage_policy.json'), {});
+  const criticalCoverageRows = Array.isArray(criticalCoveragePolicy.critical_paths)
+    ? criticalCoveragePolicy.critical_paths
+    : [];
+  const criticalCoverageValid = criticalCoverageRows.length >= 3
+    && criticalCoverageRows.every((row: AnyObj) => (
+      !!cleanText(row && row.id || '', 80)
+      && !!cleanText(row && row.command_path || '', 240)
+      && Array.isArray(row && row.policy_paths)
+      && Array.isArray(row && row.test_paths)
+      && row.policy_paths.length >= 1
+      && row.test_paths.length >= 1
+    ));
+  addCheck(
+    'critical_path_policy_coverage:policy_paths_declared',
+    criticalCoverageValid,
+    `critical_paths=${criticalCoverageRows.length}`
+  );
+  addCheck(
+    'composite_disaster_gameday:merge_guard_hook',
+    mergeGuardSrc.includes('composite_disaster_gameday.js')
+      && mergeGuardSrc.includes('status'),
+    'merge_guard should enforce composite disaster gameday status visibility'
+  );
+  const compositePolicy = readJsonSafe(path.join(ROOT, 'config', 'composite_disaster_gameday_policy.json'), {});
+  const compositeScenarios = Array.isArray(compositePolicy.scenarios) ? compositePolicy.scenarios : [];
+  const compositeStages = new Set(
+    compositeScenarios.map((row: AnyObj) => normalizeLowerToken(row && row.stage || '', 60)).filter(Boolean)
+  );
+  addCheck(
+    'composite_disaster_gameday:policy_sequence',
+    compositeScenarios.length >= 3
+      && compositeStages.has('restore')
+      && compositeStages.has('tamper')
+      && compositeStages.has('rollback'),
+    `scenarios=${compositeScenarios.length} stages=${Array.from(compositeStages).join(',')}`
+  );
+  addCheck(
+    'composite_disaster_gameday:postmortem_path_present',
+    !!(
+      compositePolicy.outputs
+      && typeof compositePolicy.outputs === 'object'
+      && cleanText(compositePolicy.outputs.postmortem_dir || '', 200)
+    ),
+    `postmortem_dir=${compositePolicy.outputs && cleanText(compositePolicy.outputs.postmortem_dir || '', 120) || 'missing'}`
+  );
+  addCheck(
+    'backlog_intake_quality:merge_guard_hook',
+    mergeGuardSrc.includes('backlog_intake_quality_gate.js')
+      && mergeGuardSrc.includes('run')
+      && mergeGuardSrc.includes('--strict=1'),
+    'merge_guard should enforce strict backlog intake quality gate'
+  );
+  const intakePolicy = readJsonSafe(path.join(ROOT, 'config', 'backlog_intake_quality_policy.json'), {});
+  const intakeSections = Array.isArray(intakePolicy.target_sections)
+    ? intakePolicy.target_sections.length
+    : 0;
+  const intakeClassVals = Array.isArray(intakePolicy.required_class_values)
+    ? intakePolicy.required_class_values.map((v: unknown) => normalizeLowerToken(v, 60))
+    : [];
+  addCheck(
+    'backlog_intake_quality:policy_requirements',
+    intakeSections >= 3
+      && intakeClassVals.includes('primitive')
+      && intakeClassVals.includes('primitive-upgrade')
+      && intakeClassVals.includes('extension')
+      && intakeClassVals.includes('hardening'),
+    `target_sections=${intakeSections} class_values=${intakeClassVals.join(',')}`
   );
   addCheck(
     'siem_bridge:merge_guard_hook',

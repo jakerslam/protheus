@@ -571,6 +571,143 @@ Dependency notes:
 - `V3-ASSIM-014`..`V3-ASSIM-017` extend the same foundation (`V3-DUAL-001`, `V3-TASK-001`, `V3-ATTR-001`) and reuse existing primitive lanes instead of introducing bespoke tool organs.
 - Recommended implementation order: `V3-ASSIM-004` -> `V3-ASSIM-005` -> `V3-ASSIM-006` -> `V3-ASSIM-007` -> `V3-ASSIM-008`.
 
+## Devin Comparative Intake (Normalized to Primitive-First)
+
+Objective: absorb the highest-leverage Devin-style behaviors (tight autonomous debug loop + full computer use) without adding bespoke platform logic or bypassing governance.
+
+| ID | Version | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|---|
+| V3-PRIM-DBG-001 | V3 | todo | Iterative Repair Primitive (`reproduce -> test -> critique -> patch -> verify`) | Turns self-debugging into a reusable primitive for code/workflow repair instead of one-off doctor scripts | Primitive contract exists with bounded iterations/timeouts, deterministic rollback points, per-step receipts, and support for both code targets and generated workflow artifacts |
+| V3-PRIM-UI-001 | V3 | todo | Interactive Desktop Session Primitive | Provides a universal UI-actuation substrate for web + desktop tasks without tool-specific branching | Session lifecycle + typed action opcodes (`open`, `click`, `type`, `wait`, `assert`, `capture`) are available with deterministic replay IDs, artifact capture, and policy-gated risk classes |
+| V3-ADD-UEP-DBG-001 | V3 | todo | Universal Executor `code_repair` profile pack | Reuses the universal execution primitive for tight autonomous repair loops | `code_repair` profile supports sandboxed test/critique/patch/verify cycles with confidence/risk scoring, stop conditions, and integration into existing execution policies |
+| V3-ADD-UEP-UI-001 | V3 | todo | Universal Executor `desktop_ui` profile pack | Extends existing computer-use lanes into full virtual desktop execution without creating bespoke organs | `desktop_ui` profile supports virtual session orchestration, UI assertions, screen recording/screenshot evidence, and high-risk action gating with human-veto windows |
+| V3-ADD-PASSPORT-001 | V3 | todo | Passport Iteration Chain for Repair/UI Loops | High-frequency autonomous loops need full chain-of-custody, not only terminal receipts | Every iteration step is actor/model/tool-bound, hash-chained, signed/attested through passport lanes, and exportable from canonical JSON without provenance gaps |
+| V2-DEVIN-001 | V2 | todo | Doctor/Forge Micro-Debug Lane (Profile-Driven) | Delivers practical Devin-style closed-loop self-fixing while preserving constitutional controls | Doctor/Forge invoke repair primitive in `shadow -> canary -> live` ladder with Heroic Echo + constitution checks, rollback on regression, and zero direct apply outside governed lanes |
+| V2-DEVIN-002 | V2 | todo | Full Virtual Desktop Claw Lane | Enables UI-heavy real-world execution (including account flows) through generalized primitives | Real-world claws run end-to-end virtual desktop tasks under sandbox/policy controls with deterministic receipts, escalation gates, and recovery playbooks |
+| V2-DEVIN-003 | V2 | todo | Account Creation as Profile Extension (No Bespoke Organ Branching) | Prevents account automation from becoming hardcoded platform logic | Account creation compiles into reusable `desktop_ui`/executor profiles + adapter metadata, with alias/verification vault integration and zero platform-specific kernel branches |
+
+Dependency notes:
+- `V3-ADD-UEP-DBG-001` depends on `V3-PRIM-DBG-001` and existing `V3-007`, `V3-038`.
+- `V3-ADD-UEP-UI-001` depends on `V3-PRIM-UI-001` and extends existing `V3-ASSIM-016` (no duplicate organ lane).
+- `V3-ADD-PASSPORT-001` depends on `V2-063` passport chain and `V3-SK-004` proposal/approval event normalization.
+- `V2-DEVIN-001` depends on `V3-ADD-UEP-DBG-001`; `V2-DEVIN-002` depends on `V3-ADD-UEP-UI-001`; `V2-DEVIN-003` depends on `V2-066`, `V2-067`, and `V2-DEVIN-002`.
+
+## X AI Feature Abstraction Intake (Normalized, 2026-02-27)
+
+Objective: absorb high-signal ecosystem patterns as primitive-first capabilities while preventing duplicate tracking against existing Devin/ASSIM/Passport tracks.
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|---|---|
+| V3-XAI-001 | primitive | V3 | todo | Cognitive Control Primitive (`prethink -> retrieve -> write`) | Adds explicit sufficiency-control before decomposition/execution so reasoning does not over-fetch or under-ground | Primitive lane performs sufficiency check, targeted retrieval, and integrate/compress output with deterministic receipts and replayable decision context |
+| V3-XAI-002 | primitive-upgrade | V3 | todo | Dynamic Memory Embedding Adapter (session-bounded) | Introduces task-specific short-horizon adaptation without unsafe permanent weight drift | Session-scoped embedding/adapter updates are provenance-tagged, bounded by policy, merge back only through governed review, and support immediate rollback |
+| V3-XAI-003 | primitive-upgrade | V3 | todo | Trajectory-to-Skill Distillation Upgrade | Converts long noisy execution traces into reusable compact skill profiles | Distillation pass extracts success/failure lessons from trajectories, emits compact reusable profiles, and indexes outputs through capability/profile compiler lanes |
+| V3-XAI-004 | extension | V3 | todo | Motivational State Vector Extension (advisory-only) | Improves prioritization/routing by injecting bounded internal drive signals without coercive behavior | Advisory drive vector (`competence`, `caution`, `exploration`) influences retrieval/planning weights, remains constitution/echo subordinate, and is auditable in receipts |
+| V3-XAI-005 | extension | V3 | todo | Agent-to-Agent Secure Settlement Extension | Extends payment rails for governed autonomous inter-agent value transfer | Escrow/fee/reputation settlement states are policy-gated, passport-chained, reversible/hold-safe, and integrated with Storm value distribution lanes |
+| V3-XAI-006 | hardening | V3 | todo | Source Attestation Hardening Extension | Improves trust at data-ingestion edge by attaching verifiable upstream provenance signals | Ingestion supports attestation metadata/proofs, trust scoring impacts routing confidence, and missing/invalid attestations trigger degraded-confidence policies |
+
+Duplicate/hardening mapping (do not re-add as new epics):
+- Tight self-debug/self-fix loop -> covered by `V3-PRIM-DBG-001`, `V3-ADD-UEP-DBG-001`, `V2-DEVIN-001` (focus on hardening).
+- Full virtual desktop/computer use -> covered by `V3-PRIM-UI-001`, `V3-ADD-UEP-UI-001`, `V2-DEVIN-002`, `V3-ASSIM-016` (focus on hardening).
+- Test-time memory evolution -> covered by `V3-ASSIM-009` and `V3-ASSIM-004`.
+- Generic provenance chain asks -> covered by `V2-060`, `V2-063`, `V3-ATTR-001`, `V3-048`; only source-attestation edge hardening tracked via `V3-XAI-006`.
+
+Dependency notes:
+- `V3-XAI-001` depends on `V3-TASK-001` and `V3-ASSIM-005`.
+- `V3-XAI-002` depends on `V3-ASSIM-004`, `V2-060`, and `V3-ATTR-001`.
+- `V3-XAI-003` depends on `V3-ASSIM-012` and `V2-067`.
+- `V3-XAI-004` depends on `V2-WVR-003` and Heroic Echo lanes (`V3-057` guard compatibility).
+- `V3-XAI-005` depends on `V2-BRG-002`, `V3-ATTR-002`, and `V2-063`.
+- `V3-XAI-006` depends on `V2-060`, `V2-063`, and `V3-048`.
+
+## Controlled Self-Improvement Intake (Normalized, 2026-02-27)
+
+Objective: formalize recurring self-improvement operations around the existing two-gate model without introducing unsafe raw self-modification paths.
+
+Primitives:
+- No net-new primitive required (existing gated-loop primitive coverage is sufficient).
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|---|---|
+| V3-LOOP-001 | extension | V3 | todo | Self-Improvement Cadence Orchestrator | Existing self-improvement loop is implemented but still mostly operator-triggered/ad-hoc; add deterministic cadence and budgets for repeatability | Scheduled cycle runner executes `observe -> propose -> simulate -> gate -> apply -> distill` in shadow mode first, with configurable cadence, proposal/apply caps, quiet-hours support, and global budget guard integration |
+| V3-LOOP-002 | primitive-upgrade | V3 | todo | Two-Gate Evidence Pack Standard | Two-gate safety exists, but evidence quality/shape should be standardized to improve comparability and operator review speed | Every candidate emits canonical simulation evidence pack (`risk`, `drift`, `yield`, `counterfactual`, `rollback_plan`, `confidence`) consumed by mirror/human gate tools and linked into passport/explanation artifacts |
+| V3-LOOP-003 | hardening | V3 | todo | Human Oversight SLA + Reversion Drill for Self-Mod Lanes | Long-run safety depends on tested intervention speed and repeatable rollback drills, not just static controls | Monthly drill proves operator can halt + rollback latest self-mod lane within SLA, captures drill receipts, and blocks promotion when drill freshness exceeds policy threshold |
+
+Duplicate/hardening mapping (do not re-add as net-new epics):
+- Controlled self-improvement loop core is already delivered by `V3-038` (two-gate ladder + rollback).
+- Simulation gate and adversarial validation are already covered by `V3-038`, `V3-006`, and nursery/red-team lanes.
+- Human second-approval semantics are already covered by constitution/soul-token and approval gates (`V3-001`, `V2-HLX-003`, `V2-063` receipts).
+
+Dependency notes:
+- `V3-LOOP-001` depends on `V3-038`, `V2-BRG-001`, and `V2-057`.
+- `V3-LOOP-002` depends on `V3-038`, `V3-058`, and `V2-063`.
+- `V3-LOOP-003` depends on `V3-LOOP-001`, `V2-HLX-003`, and `V2-059`.
+
+## Binary Runtime Hardening Intake (Normalized, 2026-02-27)
+
+Objective: add reverse-engineering resistance + efficiency for distributed instances while keeping the master instance fully debuggable and source-first.
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|---|---|
+| V3-BIN-001 | extension | V3 | todo | Master-vs-Child Instance Binary Bootstrap Policy | Preserve fast developer iteration on master while hardening spawned/distributed instances | Bootstrap policy deterministically distinguishes `master` vs `child/distributed` instance roles; master remains source mode, child instances boot via binary mode defaults with auditable role receipts |
+| V3-BIN-002 | extension | V3 | todo | Binary Compilation + Obfuscation Build Lane | Improve cold-start/runtime efficiency and raise reverse-engineering cost on distributed copies | Core runtime supports signed binary artifacts from governed build lane (AOT/package), obfuscation profile tiering, and measurable runtime benchmarks across target hardware classes |
+| V3-BIN-003 | hardening | V3 | todo | Soul-Token Gated Attested Debug Mode (Binary Instances) | Enables full visibility for rightful operator without shipping universal debug secrets | Binary instances expose debug/introspection only after soul-token attestation; ephemeral source-map/log deobfuscation artifacts are encrypted, time-scoped, and never bundled in release artifacts |
+| V3-BIN-004 | hardening | V3 | todo | Binary Anti-Debug + Tamper Defense Hooks | Detect forced-debug and binary tamper attempts before compromise spreads | Anti-debug/tamper hooks emit deterministic attestation failures, trigger sentinel/redteam containment policy paths, and produce forensic receipts with false-positive budgets under policy |
+| V3-BIN-005 | primitive-upgrade | V3 | todo | Dynamic Binary Recompile/Reweave Upgrade | Keeps binary-mode instances updatable under the same governed self-improvement model | Doctor/self-hosted compiler can recompile and stage binary updates with `shadow -> canary -> apply` controls, atomic rollback to prior binary, and helix-compatible reweave receipts |
+
+Duplicate/hardening mapping (do not re-add as net-new epics):
+- Soldier Ant offensive mode is already covered by `V3-034`; binary track should only integrate with existing activation/containment hooks.
+- Helix quarantine/reweave controls already exist (`V2-HLX-003`, `V3-033`); binary track extends artifact/runtime surface only.
+- Supply-chain/provenance controls are already covered by `V3-048`; binary artifacts must plug into existing attest/sign lanes, not create parallel trust systems.
+
+Dependency notes:
+- `V3-BIN-001` depends on `V3-055` and `V3-059`.
+- `V3-BIN-002` depends on `V3-062` and `V3-048`.
+- `V3-BIN-003` depends on `V2-058` and `V3-BIN-001`.
+- `V3-BIN-004` depends on `V3-033`, `V3-034`, and `V3-BIN-002`.
+- `V3-BIN-005` depends on `V3-062`, `V2-HLX-003`, and `V3-BIN-002`.
+
+## State Kernel Hardening Track (SQLite State Plane)
+
+Objective: migrate mutable runtime control state from ad-hoc files to a governed embedded state plane while preserving append-only canonical receipts/events and rollback-safe cutover.
+
+| ID | Version | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|---|
+| V3-SK-001 | V3 | todo | Hybrid state architecture (SQLite mutable state + JSONL immutable events) | Keeps deterministic audit/event history while eliminating mutable file-race and partial-write risk | Mutable lanes (`queues`, `proposals`, `organ runtime state`, `checkpoints`) persist via SQLite-backed kernel; immutable receipts/events remain append-only JSONL with parity checks proving no event loss |
+| V3-SK-002 | V3 | todo | State schema migration ledger (`schema_migrations`) | Prevents unversioned schema drift and unsafe startup upgrades | `schema_migrations` table exists; startup fails closed on unknown/partial migration state; every migration is idempotent, checksummed, and emits apply/rollback receipts |
+| V3-SK-003 | V3 | todo | Queue leasing + reclaim semantics | Removes duplicate processing and dead-worker stalls in autonomous loops | Queue table supports lease owner/expiry/attempt counters; workers claim atomically, heartbeats renew leases, expired leases are reclaimed deterministically, and duplicate execution rate remains under policy threshold |
+| V3-SK-004 | V3 | todo | Proposal/approval event normalization | Improves auditability and queryability versus opaque JSON blobs | Proposal decisions, approvals, vetoes, and lifecycle transitions are stored in normalized relational tables with actor/time binding; passport chain links every transition; canonical JSON export remains reproducible |
+| V3-SK-005 | V3 | todo | SQLite runtime hardening profile (WAL + safety PRAGMAs) | Embedded state reliability depends on deterministic durability and contention behavior | Kernel enforces startup PRAGMAs (`journal_mode=WAL`, `synchronous=NORMAL|FULL`, `foreign_keys=ON`, `busy_timeout` configured) and emits effective-profile receipts + drift alerts on deviation |
+| V3-SK-006 | V3 | todo | Integrity hash utility decoupling for state kernel | Avoids coupling state runtime to full integrity-kernel side effects and boot-order fragility | Shared hash/attestation utility module used by both state kernel and integrity kernel; no circular imports; deterministic hash fixtures prove parity with current integrity checks |
+| V3-SK-007 | V3 | todo | Phased state cutover (dual-write -> read cutover -> fallback retirement) | Reduces migration risk while preserving fast rollback during production transition | Phase 1 dual-write with reconciliation reports; Phase 2 read-from-SQLite with explicit fallback; Phase 3 fallback removed only after shadow SLO window passes and restore drills succeed |
+
+Dependency notes:
+- `V3-SK-003`, `V3-SK-004`, and `V3-SK-005` depend on `V3-SK-001`.
+- `V3-SK-006` depends on `V3-SK-001` and must land before `V3-SK-007` cutover.
+- `V3-SK-007` depends on `V3-SK-001`..`V3-SK-006` and `V2-063` (passport chain continuity).
+
+## Foundation Closure Hardening Intake (Normalized, 2026-02-28)
+
+Objective: close remaining operational blind spots before broader autonomy expansion by enforcing release discipline, policy-path assurance, disaster drills, and intake hygiene.
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|---|---|
+| V3-FCH-001 | hardening | V3 | done | Error-Budget Release Freeze Gate | Prevent unsafe promotions when reliability budget is exhausted | Release gate computes rolling error budget from reliability SLOs and auto-freezes canary/live promotions when burn exceeds threshold; freeze/unfreeze actions are receipted and operator-visible |
+| V3-FCH-002 | hardening | V3 | done | Critical Path Policy-Coverage Attestation | Ensure every high-risk execution path is actually policy-enforced and test-covered | Automated attestation report maps critical paths to policy checks + test IDs; build fails if uncovered path count > 0; report artifacts are versioned and linked in foundation gate receipts |
+| V3-FCH-003 | extension | V3 | done | Composite Disaster Gameday Orchestrator | Single-point drills miss cross-failure interactions (restore + tamper + rollback) | Scheduled composite drill executes backup restore + tamper detection + rollback recovery sequence with timing/SLA receipts and mandatory postmortem artifacts |
+| V3-FCH-004 | hardening | V3 | done | Backlog Intake Quality Gate | Prevent backlog bloat and duplicate/incoherent work streams from rapid ideation intake | New intake entries require duplicate mapping, dependency declaration, class tag (`primitive`, `primitive-upgrade`, `extension`, `hardening`), and priority assignment; missing fields fail intake validation |
+
+Duplicate/hardening mapping:
+- Reliability/ops baseline exists (`V2-054`, `V2-057`, `V3-061`) but does not enforce explicit release-freeze on error-budget burn (`V3-FCH-001`).
+- Foundation/contract gates exist, but path-to-policy-to-test completeness attestation is not explicit (`V3-FCH-002`).
+- DR/backup work exists, but composite cross-failure gameday is not yet unified (`V3-FCH-003`).
+- Multiple intake sections exist, but there is no formal quality gate for new intake rows (`V3-FCH-004`).
+
+Dependency notes:
+- `V3-FCH-001` depends on `V2-054`, `V2-057`, and `V3-061`.
+- `V3-FCH-002` depends on `V2-FND-004`, `V3-048`, and `V3-062`.
+- `V3-FCH-003` depends on `V3-056`, `V2-HLX-003`, and `V2-059`.
+- `V3-FCH-004` depends on `V3-FCH-002` (shared path inventory artifacts) and `V2-FND-004`.
+
 ## Backlog Policy
 
 - Lower-impact items (<9% estimated gain) are intentionally parked below to protect V1 focus.

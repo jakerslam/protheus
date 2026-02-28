@@ -79,6 +79,10 @@ function runGuard(opts = {}) {
   checks.push(runCmd('delegated_authority_status', 'node', ['systems/security/delegated_authority_branching.js', 'status']));
   checks.push(runCmd('world_model_freshness_status', 'node', ['systems/assimilation/world_model_freshness.js', 'status']));
   checks.push(runCmd('continuous_chaos_resilience_status', 'node', ['systems/ops/continuous_chaos_resilience.js', 'status']));
+  checks.push(runCmd('error_budget_release_gate', 'node', ['systems/ops/error_budget_release_gate.js', 'gate', '--strict=1']));
+  checks.push(runCmd('critical_path_policy_coverage', 'node', ['systems/ops/critical_path_policy_coverage.js', 'run', '--strict=1']));
+  checks.push(runCmd('backlog_intake_quality_gate', 'node', ['systems/ops/backlog_intake_quality_gate.js', 'run', '--strict=1']));
+  checks.push(runCmd('composite_disaster_gameday_status', 'node', ['systems/ops/composite_disaster_gameday.js', 'status']));
   checks.push(runCmd('self_hosted_bootstrap_status', 'node', ['systems/ops/self_hosted_bootstrap_compiler.js', 'status']));
   checks.push(runCmd('surface_budget_controller_status', 'node', ['systems/hardware/surface_budget_controller.js', 'status']));
   checks.push(runCmd('compression_transfer_plane_status', 'node', ['systems/hardware/compression_transfer_plane.js', 'status']));

@@ -1,0 +1,25 @@
+{
+  "schema_id": "backlog_intake_quality_policy",
+  "schema_version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "backlog_path": "UPGRADE_BACKLOG.md",
+  "target_sections": [
+    "X AI Feature Abstraction Intake",
+    "Controlled Self-Improvement Intake",
+    "Binary Runtime Hardening Intake",
+    "Foundation Closure Hardening Intake"
+  ],
+  "required_class_values": [
+    "primitive",
+    "primitive-upgrade",
+    "extension",
+    "hardening"
+  ],
+  "require_dependency_notes": true,
+  "require_duplicate_mapping": true,
+  "outputs": {
+    "latest_path": "state/ops/backlog_intake_quality/latest.json",
+    "history_path": "state/ops/backlog_intake_quality/history.jsonl"
+  }
+}
