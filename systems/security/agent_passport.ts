@@ -11,6 +11,7 @@ export {};
  * - Deterministic PDF export generated from canonical JSON source-of-truth.
  *
  * Usage:
+ *   node systems/security/agent_passport.js bootstrap [--write-key=1|0] [--key-file=<abs|rel>] [--force=1]
  *   node systems/security/agent_passport.js issue --actor=<id> [--role=<role>] [--tenant=<tenant>] [--model=<model>] [--framework=<fw>] [--org=<org>] [--ttl-hours=<n>]
  *   node systems/security/agent_passport.js append --action-json='{"action_type":"x"}'
  *   node systems/security/agent_passport.js verify [--strict=1]
@@ -90,6 +91,14 @@ function clampInt(v: unknown, lo: number, hi: number, fallback: number) {
 
 function ensureDir(dirPath: string) {
   fs.mkdirSync(dirPath, { recursive: true });
+}
+
+function ensureFileModeOwnerReadWrite(filePath: string) {
+  try {
+    fs.chmodSync(filePath, 0o600);
+  } catch {
+    // best effort only
+  }
 }
 
 function readJson(filePath: string, fallback: any) {
@@ -175,6 +184,7 @@ function defaultPolicy() {
     require_active_passport: false,
     passport_ttl_hours: 24 * 7,
     key_env: 'AGENT_PASSPORT_SIGNING_KEY',
+    key_file_path: 'state/security/agent_passport/signing_key',
     actor_defaults: {
       actor_id: 'local_operator',
       role: 'system',
@@ -219,6 +229,7 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
     require_active_passport: toBool(src.require_active_passport, base.require_active_passport),
     passport_ttl_hours: clampInt(src.passport_ttl_hours, 1, 24 * 3650, base.passport_ttl_hours),
     key_env: cleanText(src.key_env || base.key_env, 80) || base.key_env,
+    key_file_path: resolvePath(src.key_file_path || base.key_file_path, base.key_file_path),
     actor_defaults: {
       actor_id: normalizeToken(actor.actor_id || base.actor_defaults.actor_id, 120) || base.actor_defaults.actor_id,
       role: normalizeToken(actor.role || base.actor_defaults.role, 80) || base.actor_defaults.role,
@@ -244,8 +255,23 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
 
 function resolveSigningKey(policy: AnyObj) {
   const envName = cleanText(policy && policy.key_env || '', 80) || 'AGENT_PASSPORT_SIGNING_KEY';
-  const key = cleanText(process.env[envName] || '', 4096);
-  return { env_name: envName, key };
+  const envKey = cleanText(process.env[envName] || '', 4096);
+  if (envKey) {
+    return { env_name: envName, key: envKey, source: 'env' };
+  }
+  const keyFileRaw = cleanText(policy && policy.key_file_path || '', 600);
+  const keyFilePath = keyFileRaw
+    ? (path.isAbsolute(keyFileRaw) ? keyFileRaw : path.join(ROOT, keyFileRaw))
+    : null;
+  if (keyFilePath && fs.existsSync(keyFilePath)) {
+    try {
+      const fileKey = cleanText(fs.readFileSync(keyFilePath, 'utf8') || '', 4096);
+      if (fileKey) return { env_name: envName, key: fileKey, source: 'file', key_file_path: keyFilePath };
+    } catch {
+      // fall through
+    }
+  }
+  return { env_name: envName, key: '', source: 'missing', key_file_path: keyFilePath };
 }
 
 function readIdentityDigest() {
@@ -305,8 +331,73 @@ function signPayload(payload: AnyObj, policy: AnyObj) {
   return {
     ok: true,
     key_env: keyInfo.env_name,
+    key_source: keyInfo.source || 'env',
     signature: hmacHex(payload, keyInfo.key)
   };
+}
+
+function bootstrapSigningKey(args: AnyObj = {}) {
+  const policyPath = resolvePath(args.policy || DEFAULT_POLICY_PATH, 'config/agent_passport_policy.json');
+  const policy = loadPolicy(policyPath);
+  const writeKey = toBool(args['write-key'] || args.write_key, true);
+  const force = toBool(args.force, false);
+  const keyInfo = resolveSigningKey(policy);
+  const keyFileRaw = cleanText(args['key-file'] || args.key_file || policy.key_file_path || '', 600);
+  const keyFilePath = keyFileRaw
+    ? (path.isAbsolute(keyFileRaw) ? keyFileRaw : path.join(ROOT, keyFileRaw))
+    : path.join(ROOT, 'state/security/agent_passport/signing_key');
+
+  if (keyInfo.key && !force) {
+    return {
+      ok: true,
+      type: 'agent_passport_bootstrap',
+      ts: nowIso(),
+      key_ready: true,
+      source: keyInfo.source || 'env',
+      key_env: keyInfo.env_name,
+      key_file_path: keyInfo.key_file_path ? relPath(keyInfo.key_file_path) : relPath(keyFilePath),
+      generated: false
+    };
+  }
+
+  if (!writeKey) {
+    return {
+      ok: false,
+      type: 'agent_passport_bootstrap',
+      ts: nowIso(),
+      error: 'signing_key_missing',
+      key_env: keyInfo.env_name,
+      key_file_path: relPath(keyFilePath),
+      generated: false
+    };
+  }
+
+  const generatedKey = `base64:${crypto.randomBytes(48).toString('base64')}`;
+  ensureDir(path.dirname(keyFilePath));
+  fs.writeFileSync(keyFilePath, `${generatedKey}\n`, 'utf8');
+  ensureFileModeOwnerReadWrite(keyFilePath);
+
+  const out = {
+    ok: true,
+    type: 'agent_passport_bootstrap',
+    ts: nowIso(),
+    key_ready: true,
+    source: 'file',
+    key_env: keyInfo.env_name,
+    key_file_path: relPath(keyFilePath),
+    generated: true
+  };
+  appendJsonl(policy.state.receipts_path, {
+    ts: out.ts,
+    type: out.type,
+    ok: true,
+    generated: true,
+    key_env: out.key_env,
+    key_file_path: out.key_file_path,
+    policy_path: relPath(policyPath)
+  });
+  writeJsonAtomic(policy.state.latest_path, out);
+  return out;
 }
 
 function issuePassport(args: AnyObj = {}, opts: AnyObj = {}) {
@@ -810,6 +901,7 @@ function status(args: AnyObj = {}) {
 
 function usage() {
   console.log('Usage:');
+  console.log('  node systems/security/agent_passport.js bootstrap [--write-key=1|0] [--key-file=<path>] [--force=1]');
   console.log('  node systems/security/agent_passport.js issue --actor=<id> [--role=<role>] [--tenant=<tenant>] [--model=<model>] [--framework=<fw>] [--org=<org>] [--ttl-hours=<n>]');
   console.log('  node systems/security/agent_passport.js append --action-json=\'{"action_type":"x"}\'');
   console.log('  node systems/security/agent_passport.js verify [--strict=1]');
@@ -825,7 +917,8 @@ function main() {
     usage();
     process.exit(0);
   }
-  if (cmd === 'issue') out = issuePassport(args, { apply: true });
+  if (cmd === 'bootstrap') out = bootstrapSigningKey(args);
+  else if (cmd === 'issue') out = issuePassport(args, { apply: true });
   else if (cmd === 'append') out = appendAction(args);
   else if (cmd === 'verify') out = verifyActionChain(args);
   else if (cmd === 'export-pdf') out = exportPassportPdf(args);
@@ -846,6 +939,7 @@ if (require.main === module) {
 module.exports = {
   DEFAULT_POLICY_PATH,
   loadPolicy,
+  bootstrapSigningKey,
   issuePassport,
   appendAction,
   appendActionFromReceipt,
@@ -853,4 +947,3 @@ module.exports = {
   exportPassportPdf,
   status
 };
-

@@ -1,0 +1,10 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "default_hours": 24,
+  "include_ok_default": false,
+  "gateway_log_path": "state/routing/llm_gateway_calls.jsonl",
+  "canonical_events_dir": "state/runtime/canonical_events",
+  "latest_path": "state/routing/llm_gateway_failure_classifier/latest.json",
+  "receipts_path": "state/routing/llm_gateway_failure_classifier/receipts.jsonl"
+}

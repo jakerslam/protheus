@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "default_hours": 24,
+  "sources": {
+    "llm_gateway": "state/routing/llm_gateway_calls.jsonl",
+    "budget_events": "state/autonomy/budget_events.jsonl",
+    "command_bus": "state/eye/audit/command_bus.jsonl",
+    "canonical_events": "state/runtime/canonical_events"
+  },
+  "normalized_events_path": "state/ops/deny_telemetry/normalized_events.jsonl",
+  "latest_path": "state/ops/deny_telemetry/latest.json",
+  "receipts_path": "state/ops/deny_telemetry/receipts.jsonl"
+}

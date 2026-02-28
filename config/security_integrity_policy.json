@@ -72,7 +72,7 @@
     "systems/adaptive/core/layer_store.js": "5eba699acf3b07abc44442c27d5dc2cc96bdf3f06b5cbdf6a8979eed4384b3e7",
     "systems/adaptive/sensory/eyes/catalog_store.js": "15782561fb6bf63001fc75cd57f089c5737036729e9efbf44a796e8c3baa3ad9",
     "systems/echo/heroic_echo_controller.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
-    "systems/echo/heroic_echo_controller.ts": "f8bb26048fc93e3c871b2ce467d8421c5b19c6e84056d66adb1e35fd2c248a43",
+    "systems/echo/heroic_echo_controller.ts": "4a264d7fa3d7402f965facd0c06fee253b7aaefd47aeb9636f473100ba31f4e3",
     "systems/echo/input_purification_gate.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/echo/input_purification_gate.ts": "2b4a2d158132383d671f941d83b464a2721f1c478b8456841423696a8158b1d6",
     "systems/helix/codex_root.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
@@ -97,7 +97,7 @@
     "systems/redteam/swarm_tactics.ts": "f23e2829bc2c201331d0adfdb307144611c336236a8daa975496d94b320bc00e",
     "systems/redteam/wisdom_distiller.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/redteam/wisdom_distiller.ts": "b317283f1160a79306536e92e9d5a6485a45b12be10e3ba4a8e08fa6bc630c26",
-    "systems/security/agent_passport.js": "4957d6177400020074450e9a32a81652e33d950d2a1323d33402448bca2e1d43",
+    "systems/security/agent_passport.js": "1740d34e290d599c52ceb6ae8c631564dfaf9db148e45b7edd040cb200571657",
     "systems/security/alias_verification_vault.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/anti_sabotage_shield.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/architecture_guard.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
@@ -122,6 +122,7 @@
     "systems/security/guard.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/habit_hygiene_guard.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/integrity_kernel.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
+    "systems/security/integrity_reseal_assistant.js": "0341ea803f4c7d7f08685c645867580cfdf6fe657301fa53804a515acc1d2c3b",
     "systems/security/integrity_reseal.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/key_lifecycle_governor.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/security/llm_gateway_guard.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
@@ -155,9 +156,9 @@
     "systems/weaver/monoculture_guard.js": "4957d6177400020074450e9a32a81652e33d950d2a1323d33402448bca2e1d43",
     "systems/weaver/monoculture_guard.ts": "5549cb6b21dbfa618604b9d5bef972745988a190e2252a7fb54062fff45ce5ab",
     "systems/weaver/weaver_core.js": "4957d6177400020074450e9a32a81652e33d950d2a1323d33402448bca2e1d43",
-    "systems/weaver/weaver_core.ts": "52a6b4ff2e16147e12ab702d255e7f37564526ee60a017a983385916e5afcf15"
+    "systems/weaver/weaver_core.ts": "03de43b3a639c1f6d98b1ef72a7e5a6bb330e75befad09599485b918e673543e"
   },
-  "sealed_at": "2026-02-27T21:23:48.729Z",
+  "sealed_at": "2026-02-28T01:32:53.459Z",
   "sealed_by": "jay",
-  "last_approval_note": "SEC-M03 secret rotation migration auditor and runbook"
+  "last_approval_note": "Automated integrity reseal assistant run (files=systems/security/agent_passport.js,systems/security/integrity_reseal_assistant.js) at 2026-02-28T01:32:50.537Z"
 }

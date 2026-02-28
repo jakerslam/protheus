@@ -13,6 +13,9 @@ const ROOT = path.resolve(__dirname, '..', '..', '..');
 const TEST_DIR = path.join(ROOT, 'memory', 'tools', 'tests');
 const INCLUDE_STATEFUL = process.argv.includes('--include-stateful');
 const CI_STREAK_STATE_PATH = path.join(ROOT, 'state', 'ops', 'ci_baseline_streak.json');
+const DEFAULT_STEP_TIMEOUT_MS = Math.max(30_000, Number(process.env.CI_STEP_TIMEOUT_MS || (12 * 60 * 1000)));
+const DEFAULT_TEST_TIMEOUT_MS = Math.max(15_000, Number(process.env.CI_TEST_TIMEOUT_MS || (5 * 60 * 1000)));
+const DEFAULT_TOTAL_TIMEOUT_MS = Math.max(DEFAULT_STEP_TIMEOUT_MS, Number(process.env.CI_TOTAL_TIMEOUT_MS || (45 * 60 * 1000)));
 
 const DEFAULT_EXCLUDES = new Set([
   'enforcement.smoke.test.js',
@@ -27,21 +30,27 @@ function listTests() {
   return files.filter((f) => !DEFAULT_EXCLUDES.has(f));
 }
 
-function runNode(args) {
+function runNode(args, opts = {}) {
   const env = { ...process.env };
   if (!env.OUTCOME_FITNESS_POLICY_PATH) {
     env.OUTCOME_FITNESS_POLICY_PATH = path.join(TEST_DIR, '__no_outcome_policy__.json');
   }
+  const timeoutMs = Math.max(1000, Number(opts.timeoutMs || DEFAULT_STEP_TIMEOUT_MS));
   const r = spawnSync(process.execPath, args, {
     cwd: ROOT,
     encoding: 'utf8',
-    env
+    env,
+    timeout: timeoutMs
   });
+  const timedOut = !!(r.error && String(r.error.code || '').toUpperCase() === 'ETIMEDOUT');
   return {
-    ok: r.status === 0,
+    ok: r.status === 0 && !timedOut,
     status: r.status,
     stdout: r.stdout || '',
-    stderr: r.stderr || ''
+    stderr: r.stderr || '',
+    timed_out: timedOut,
+    timeout_ms: timeoutMs,
+    error_code: r.error ? String(r.error.code || '') : null
   };
 }
 
@@ -51,6 +60,36 @@ function printOutput(prefix, text) {
   const lines = trimmed.split('\n').slice(0, 120);
   for (const line of lines) {
     console.log(`${prefix}${line}`);
+  }
+}
+
+function elapsedMs(startMs) {
+  return Date.now() - Number(startMs || Date.now());
+}
+
+function ensureTotalBudget(startMs, phase) {
+  const used = elapsedMs(startMs);
+  if (used <= DEFAULT_TOTAL_TIMEOUT_MS) return;
+  console.error(`CI total timeout exceeded during ${phase}: used=${used}ms cap=${DEFAULT_TOTAL_TIMEOUT_MS}ms`);
+  process.exit(124);
+}
+
+function runCiStep(stepName, args, timeoutMs, startedAtMs) {
+  ensureTotalBudget(startedAtMs, stepName);
+  console.log(`=== CI SUITE: ${stepName} ===`);
+  const started = Date.now();
+  const out = runNode(args, { timeoutMs });
+  printOutput('  ', out.stdout);
+  printOutput('  ', out.stderr);
+  const tookMs = Date.now() - started;
+  console.log(`  duration_ms=${tookMs}`);
+  if (!out.ok) {
+    if (out.timed_out) {
+      console.error(`${stepName} timed out after ${out.timeout_ms}ms`);
+    } else {
+      console.error(`${stepName} failed (exit ${out.status})`);
+    }
+    process.exit(out.status || (out.timed_out ? 124 : 1));
   }
 }
 
@@ -145,77 +184,15 @@ function recordCiRun(outcome) {
 }
 
 function main() {
-  console.log('=== CI SUITE: typecheck_systems ===');
-  const typecheck = runNode(['systems/ops/typecheck_systems.js']);
-  printOutput('  ', typecheck.stdout);
-  printOutput('  ', typecheck.stderr);
-  if (!typecheck.ok) {
-    console.error(`typecheck_systems failed (exit ${typecheck.status})`);
-    process.exit(typecheck.status || 1);
-  }
-
-  console.log('=== CI SUITE: ts_clone_drift_guard ===');
-  const tsCloneGuard = runNode(['systems/ops/ts_clone_drift_guard.js', '--baseline=config/ts_clone_drift_baseline.json']);
-  printOutput('  ', tsCloneGuard.stdout);
-  printOutput('  ', tsCloneGuard.stderr);
-  if (!tsCloneGuard.ok) {
-    console.error(`ts_clone_drift_guard failed (exit ${tsCloneGuard.status})`);
-    process.exit(tsCloneGuard.status || 1);
-  }
-
-  console.log('=== CI SUITE: js_holdout_audit ===');
-  const jsHoldout = runNode(['systems/ops/js_holdout_audit.js', 'run', '--strict=1']);
-  printOutput('  ', jsHoldout.stdout);
-  printOutput('  ', jsHoldout.stderr);
-  if (!jsHoldout.ok) {
-    console.error(`js_holdout_audit failed (exit ${jsHoldout.status})`);
-    process.exit(jsHoldout.status || 1);
-  }
-
-  console.log('=== CI SUITE: contract_check ===');
-  const contract = runNode(['systems/spine/contract_check.js']);
-  printOutput('  ', contract.stdout);
-  printOutput('  ', contract.stderr);
-  if (!contract.ok) {
-    console.error(`contract_check failed (exit ${contract.status})`);
-    process.exit(contract.status || 1);
-  }
-
-  console.log('=== CI SUITE: integrity_kernel ===');
-  const integrity = runNode(['systems/security/integrity_kernel.js', 'run']);
-  printOutput('  ', integrity.stdout);
-  printOutput('  ', integrity.stderr);
-  if (!integrity.ok) {
-    console.error(`integrity_kernel failed (exit ${integrity.status})`);
-    process.exit(integrity.status || 1);
-  }
-
-  console.log('=== CI SUITE: adaptive_layer_guard (strict) ===');
-  const adaptiveGuard = runNode(['systems/sensory/adaptive_layer_guard.js', 'run', '--strict']);
-  printOutput('  ', adaptiveGuard.stdout);
-  printOutput('  ', adaptiveGuard.stderr);
-  if (!adaptiveGuard.ok) {
-    console.error(`adaptive_layer_guard failed (exit ${adaptiveGuard.status})`);
-    process.exit(adaptiveGuard.status || 1);
-  }
-
-  console.log('=== CI SUITE: adaptive_layer_boundary ===');
-  const adaptiveBoundary = runNode(['memory/tools/tests/adaptive_layer_boundary_guards.test.js']);
-  printOutput('  ', adaptiveBoundary.stdout);
-  printOutput('  ', adaptiveBoundary.stderr);
-  if (!adaptiveBoundary.ok) {
-    console.error(`adaptive_layer_boundary_guards failed (exit ${adaptiveBoundary.status})`);
-    process.exit(adaptiveBoundary.status || 1);
-  }
-
-  console.log('=== CI SUITE: schema_contract_check ===');
-  const schemaContract = runNode(['systems/security/schema_contract_check.js', 'run']);
-  printOutput('  ', schemaContract.stdout);
-  printOutput('  ', schemaContract.stderr);
-  if (!schemaContract.ok) {
-    console.error(`schema_contract_check failed (exit ${schemaContract.status})`);
-    process.exit(schemaContract.status || 1);
-  }
+  const ciStartedAtMs = Date.now();
+  runCiStep('typecheck_systems', ['systems/ops/typecheck_systems.js'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
+  runCiStep('ts_clone_drift_guard', ['systems/ops/ts_clone_drift_guard.js', '--baseline=config/ts_clone_drift_baseline.json'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
+  runCiStep('js_holdout_audit', ['systems/ops/js_holdout_audit.js', 'run', '--strict=1'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
+  runCiStep('contract_check', ['systems/spine/contract_check.js'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
+  runCiStep('integrity_kernel', ['systems/security/integrity_kernel.js', 'run'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
+  runCiStep('adaptive_layer_guard_strict', ['systems/sensory/adaptive_layer_guard.js', 'run', '--strict'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
+  runCiStep('adaptive_layer_boundary', ['memory/tools/tests/adaptive_layer_boundary_guards.test.js'], DEFAULT_TEST_TIMEOUT_MS, ciStartedAtMs);
+  runCiStep('schema_contract_check', ['systems/security/schema_contract_check.js', 'run'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
 
   const tests = listTests();
   let failed = 0;
@@ -223,15 +200,20 @@ function main() {
 
   console.log(`=== CI SUITE: tests (${tests.length}) ===`);
   for (const file of tests) {
+    ensureTotalBudget(ciStartedAtMs, `tests:${file}`);
     const rel = path.join('memory', 'tools', 'tests', file);
     console.log(`-> ${rel}`);
-    const res = runNode([rel]);
+    const res = runNode([rel], { timeoutMs: DEFAULT_TEST_TIMEOUT_MS });
     if (res.ok) {
       passed += 1;
       continue;
     }
     failed += 1;
-    console.error(`FAIL: ${rel} (exit ${res.status})`);
+    if (res.timed_out) {
+      console.error(`FAIL: ${rel} (timeout ${res.timeout_ms}ms)`);
+    } else {
+      console.error(`FAIL: ${rel} (exit ${res.status})`);
+    }
     printOutput('  ', res.stdout);
     printOutput('  ', res.stderr);
   }

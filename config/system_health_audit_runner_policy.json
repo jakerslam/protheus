@@ -1,0 +1,8 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "report_dir": "research/system_health_audits",
+  "latest_path": "state/ops/system_health_audit/latest.json",
+  "receipts_path": "state/ops/system_health_audit/receipts.jsonl",
+  "full_mode_runs_test_ci": false
+}
