@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "max_reason_count": 4,
+  "paths": {
+    "latest_path": "state/ops/explain_decision/latest.json",
+    "receipts_path": "state/ops/explain_decision/receipts.jsonl"
+  },
+  "sources": {
+    "task_decomposition": "state/execution/task_decomposition_primitive/latest.json",
+    "explanation": "state/primitives/explanation_primitive/latest.json",
+    "passport": "state/security/agent_passport/latest.json",
+    "duality": "state/autonomy/duality/latest.json",
+    "self_improvement": "state/autonomy/gated_self_improvement/latest.json"
+  }
+}
+

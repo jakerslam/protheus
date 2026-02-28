@@ -100,9 +100,12 @@ function resolvePath(raw: unknown, fallbackRel: string) {
   return path.isAbsolute(txt) ? txt : path.join(ROOT, txt);
 }
 function rel(absPath: string) { return path.relative(ROOT, absPath).replace(/\\/g, '/'); }
-function runJsonCommand(command: string[]) {
+function runJsonCommand(command: string[], timeoutMsOverride?: number) {
   const [bin, ...args] = command;
-  const timeoutMs = Math.max(5000, Number(process.env.SYSTEM_HEALTH_AUDIT_CHECK_TIMEOUT_MS || 90_000));
+  const timeoutMs = Math.max(
+    5000,
+    Number(timeoutMsOverride || process.env.SYSTEM_HEALTH_AUDIT_CHECK_TIMEOUT_MS || 90_000)
+  );
   const r = spawnSync(bin, args, { cwd: ROOT, encoding: 'utf8', timeout: timeoutMs });
   const stdout = String(r.stdout || '').trim();
   let parsed = null;
@@ -123,6 +126,7 @@ function defaultPolicy() {
   return {
     version: '1.0',
     enabled: true,
+    check_timeout_ms: 300000,
     report_dir: 'research/system_health_audits',
     latest_path: 'state/ops/system_health_audit/latest.json',
     receipts_path: 'state/ops/system_health_audit/receipts.jsonl',
@@ -135,6 +139,7 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   return {
     version: cleanText(raw.version || base.version, 24) || base.version,
     enabled: raw.enabled !== false,
+    check_timeout_ms: clampInt(raw.check_timeout_ms, 5000, 3600_000, base.check_timeout_ms),
     report_dir: resolvePath(raw.report_dir || base.report_dir, base.report_dir),
     latest_path: resolvePath(raw.latest_path || base.latest_path, base.latest_path),
     receipts_path: resolvePath(raw.receipts_path || base.receipts_path, base.receipts_path),
@@ -297,7 +302,7 @@ function runAudit(args: AnyObj) {
   for (const section of sectionsDef) {
     const checks = [] as AnyObj[];
     for (const check of section.checks) {
-      const result = runJsonCommand(check.command);
+      const result = runJsonCommand(check.command, policy.check_timeout_ms);
       const ok = result.ok === true;
       const reason = ok
         ? null

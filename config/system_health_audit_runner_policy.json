@@ -1,6 +1,7 @@
 {
   "version": "1.0",
   "enabled": true,
+  "check_timeout_ms": 300000,
   "report_dir": "research/system_health_audits",
   "latest_path": "state/ops/system_health_audit/latest.json",
   "receipts_path": "state/ops/system_health_audit/receipts.jsonl",
