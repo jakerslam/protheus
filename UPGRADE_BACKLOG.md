@@ -995,6 +995,34 @@ Dependency notes:
 - `V3-ENT-006` depends on `V3-BUD-001`, `V3-ATTR-001`, `V3-ATTR-002`, and `RM-134`.
 - This intake is queued for execution after the active soak + gated-cycle validation completes.
 
+## #1 Readiness Bridge Intake (Normalized, Queued, 2026-02-28)
+
+Objective: close remaining proof gaps between strong architecture and globally top-tier operational credibility.
+
+| Proposed Capability | Disposition | Canonical Backlog Coverage | Action |
+|---|---|---|---|
+| 90-day reliability certification evidence | net-new | `V3-REL-001` (below) | Add rolling reliability certification gate with hard SLO/incident thresholds tied to release promotion. |
+| End-to-end traceability contract (OTel + correlation IDs) | net-new | `V3-OBS-002` (below) | Add mandatory trace/span/request/run identity propagation across all control paths. |
+| Independent benchmark reproducibility pack | net-new | `V3-BENCH-002` (below) | Add external replay/verification bundle to prove published benchmark claims. |
+| Real-world outcome KPI gate | net-new | `V3-VAL-001` (below) | Add release gate based on observed value outcomes (success/time/cost/override/recovery). |
+| Continuous external security assurance cadence | net-new | `V3-SEC-004` (below) | Extend one-off external assessment into recurring cadence with disclosure and remediation SLAs. |
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|---|---|
+| V3-REL-001 | hardening | V3 | todo | 90-Day Reliability Certification Gate | Top-tier systems require sustained runtime evidence, not point-in-time green checks | Maintain rolling 90-day certification with policy thresholds (`uptime >=99.95%`, `MTTR <15m`, `zero critical data-loss/security incidents`), auto-fail release promotion when certification drops out-of-compliance, and emit signed reliability certification receipts |
+| V3-OBS-002 | primitive-upgrade | V3 | todo | End-to-End OTel + Correlation-ID Contract | Incident diagnosis and accountability degrade without deterministic trace continuity across organs | Enforce OpenTelemetry traces + metrics + structured logs across spine/weaver/execution/receipt paths with mandatory `trace_id/request_id/run_id/job_id` propagation, contract tests for missing propagation, and dashboard/runbook links for every critical lane |
+| V3-BENCH-002 | hardening | V3 | todo | Independent Benchmark Verification Pack | Public benchmark trust requires external reproducibility beyond internal harness claims | Publish signed verification bundle (profiles, seeds, model/budget pins, replay scripts, expected metrics bands), support clean-room external reruns, and emit verification receipts proving third-party reproduction parity within policy tolerance |
+| V3-VAL-001 | hardening | V3 | todo | Real-World Outcome Scorecard Gate | Sophistication must map to measurable user/business outcomes, not only architecture quality | Add release gate on rolling KPI scorecard (`task_success_rate`, `time_saved`, `cost_per_outcome`, `human_override_rate`, `failure_recovery_latency`) with objective-class baselines, regression alerting, and deterministic promotion block on critical KPI drift |
+| V3-SEC-004 | hardening | V3 | todo | Continuous External Security Program | One-time external tests are insufficient for evolving autonomous systems | Establish recurring independent security cadence (pentest/red-team/appsec review), coordinated disclosure workflow, remediation SLA clocks, and release blocking when critical/high findings remain unresolved past policy windows |
+
+Dependency notes:
+- `V3-REL-001` depends on `V3-OPS-001`, `V3-ENT-004`, `V2-019`, and `V3-USE-002`.
+- `V3-OBS-002` depends on `BL-026`, `V3-OPS-005`, `V3-DOC-003`, and `V3-SK-004`.
+- `V3-BENCH-002` depends on `V3-BENCH-001`, `V3-OF-010`, and `RM-122`.
+- `V3-VAL-001` depends on `V3-ENT-006`, `V3-ACT-001`, `V3-ACT-002`, and `V3-AEX-002`.
+- `V3-SEC-004` depends on `V2-012`, `V3-ENT-003`, `V3-OPS-008`, and `V3-DOC-006`.
+- This intake is queued for execution after the active soak + gated-cycle validation completes.
+
 ## Benchmark-Gated Auto-Execution Intake (Normalized, Queued, 2026-02-28)
 
 Objective: allow autonomous execution of backlog items only when benchmark evidence is stable, anti-gamed, and risk-tier compliant.
