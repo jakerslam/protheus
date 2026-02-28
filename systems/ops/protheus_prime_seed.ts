@@ -6,6 +6,12 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
+let sovereignBlockchainBridge: AnyObj = null;
+try {
+  sovereignBlockchainBridge = require('../blockchain/sovereign_blockchain_bridge.js');
+} catch {
+  sovereignBlockchainBridge = null;
+}
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const PROFILE_PATH = process.env.PROTHEUS_PRIME_PROFILE_PATH
@@ -106,6 +112,14 @@ function cleanText(v: unknown, maxLen = 320) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, maxLen);
 }
 
+function normalizeToken(v: unknown, maxLen = 160) {
+  return cleanText(v, maxLen)
+    .toLowerCase()
+    .replace(/[^a-z0-9_.:/-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
 function normalizeProfile(raw: AnyObj) {
   const src = raw && typeof raw === 'object' ? raw : {};
   const mandatoryPaths = Array.isArray(src.mandatory_paths)
@@ -131,6 +145,58 @@ function normalizeProfile(raw: AnyObj) {
 
 function loadProfile(profilePath = PROFILE_PATH) {
   return normalizeProfile(readJson(profilePath, {}));
+}
+
+function enqueueWalletBootstrapProposal(instanceIdRaw: unknown, birthContextRaw: unknown, approvalNoteRaw: unknown) {
+  const instanceId = normalizeToken(instanceIdRaw, 160);
+  if (!instanceId) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: 'wallet_bootstrap_instance_id_missing'
+    };
+  }
+  if (!sovereignBlockchainBridge
+    || typeof sovereignBlockchainBridge.loadPolicy !== 'function'
+    || typeof sovereignBlockchainBridge.cmdBootstrapProposal !== 'function') {
+    return {
+      ok: false,
+      skipped: true,
+      reason: 'wallet_bootstrap_bridge_unavailable'
+    };
+  }
+  try {
+    const policyPath = process.env.SOVEREIGN_BLOCKCHAIN_BRIDGE_POLICY_PATH
+      ? path.resolve(String(process.env.SOVEREIGN_BLOCKCHAIN_BRIDGE_POLICY_PATH))
+      : path.join(ROOT, 'config', 'sovereign_blockchain_bridge_policy.json');
+    const policy = sovereignBlockchainBridge.loadPolicy(policyPath);
+    if (!policy || policy.enabled !== true) {
+      return {
+        ok: false,
+        skipped: true,
+        reason: 'wallet_bootstrap_policy_disabled'
+      };
+    }
+    const result = sovereignBlockchainBridge.cmdBootstrapProposal(policy, {
+      'instance-id': instanceId,
+      'birth-context': normalizeToken(birthContextRaw, 120) || 'bootstrap',
+      'approval-note': cleanText(approvalNoteRaw || 'auto_birth_bootstrap', 320) || 'auto_birth_bootstrap',
+      apply: false
+    });
+    return {
+      ok: result && result.ok === true,
+      skipped: false,
+      proposal_id: result && result.proposal_id ? String(result.proposal_id) : null,
+      stage: result && result.stage ? String(result.stage) : null,
+      reason_codes: Array.isArray(result && result.reason_codes) ? result.reason_codes.slice(0, 10) : []
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: `wallet_bootstrap_enqueue_failed:${cleanText(err && (err as Error).message || err || 'error', 160)}`
+    };
+  }
 }
 
 function runNode(args: string[]) {
@@ -318,6 +384,13 @@ function cmdBootstrap(args: AnyObj) {
   const provision = evalOut.ok && provisionEnabled
     ? provisionMinimalCore(profile, provisionDir)
     : { ok: false, skipped: true, reason: evalOut.ok ? 'provision_disabled' : 'bootstrap_not_ok' };
+  const walletBootstrapBridge = evalOut.ok
+    ? enqueueWalletBootstrapProposal(
+      profile.profile_id || 'protheus-prime',
+      'bootstrap',
+      `auto_birth_bootstrap:${profile.profile_id || 'protheus-prime'}`
+    )
+    : { ok: false, skipped: true, reason: 'bootstrap_not_ok' };
   const payload = {
     ok: evalOut.ok,
     type: 'protheus_prime_bootstrap',
@@ -330,7 +403,8 @@ function cmdBootstrap(args: AnyObj) {
     present_paths: evalOut.present,
     probes: evalOut.probes,
     baseline: evalOut.baseline,
-    provision
+    provision,
+    wallet_bootstrap_bridge: walletBootstrapBridge
   };
   persistReceipt(payload);
   process.stdout.write(`${JSON.stringify(payload)}\n`);

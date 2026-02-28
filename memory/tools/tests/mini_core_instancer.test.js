@@ -33,6 +33,15 @@ function run() {
   const policyPath = path.join(tmp, 'config', 'mini_core_instancer_policy.json');
   const statePath = path.join(tmp, 'state', 'fractal', 'mini_core_instancer', 'state.json');
   const receiptsPath = path.join(tmp, 'state', 'fractal', 'mini_core_instancer', 'receipts.jsonl');
+  const bridgePolicyPath = path.join(tmp, 'config', 'sovereign_blockchain_bridge_policy.json');
+  const bridgePrimePath = path.join(tmp, 'config', 'bridge_prime_profile.json');
+  const bridgeTemplatePath = path.join(tmp, 'config', 'bridge_bootstrap_template.json');
+  const bridgeProposalsPath = path.join(tmp, 'state', 'bridge', 'proposals.jsonl');
+  const bridgeBindingsPath = path.join(tmp, 'state', 'bridge', 'bindings.jsonl');
+  const bridgeLatestPath = path.join(tmp, 'state', 'bridge', 'latest.json');
+  const bridgeStatePath = path.join(tmp, 'state', 'bridge', 'state.json');
+  const bridgeReceiptsPath = path.join(tmp, 'state', 'bridge', 'receipts.jsonl');
+  const bridgeGenomePath = path.join(tmp, 'state', 'bridge', 'genome_ledger.jsonl');
 
   writeJson(policyPath, {
     version: '1.0-test',
@@ -51,12 +60,40 @@ function run() {
       require_parent_contract: true
     }
   });
+  writeJson(bridgePrimePath, {
+    profile_id: 'bridge-prime-test',
+    version: '1.0'
+  });
+  writeJson(bridgeTemplatePath, {
+    template_id: 'wallet_birth_bootstrap_v1',
+    version: '1.0'
+  });
+  writeJson(bridgePolicyPath, {
+    version: '1.0-test',
+    enabled: true,
+    shadow_only: true,
+    dna: {
+      prime_profile_path: bridgePrimePath,
+      bootstrap_template_path: bridgeTemplatePath,
+      genome_ledger_path: bridgeGenomePath,
+      secret_template_id: 'wallet_dna_root_v1',
+      kernel_live_key_forbidden: true
+    },
+    state: {
+      state_path: bridgeStatePath,
+      latest_path: bridgeLatestPath,
+      proposals_path: bridgeProposalsPath,
+      bindings_path: bridgeBindingsPath,
+      receipts_path: bridgeReceiptsPath
+    }
+  });
 
   const env = {
     ...process.env,
     MINI_CORE_POLICY_PATH: policyPath,
     MINI_CORE_STATE_PATH: statePath,
-    MINI_CORE_RECEIPTS_PATH: receiptsPath
+    MINI_CORE_RECEIPTS_PATH: receiptsPath,
+    SOVEREIGN_BLOCKCHAIN_BRIDGE_POLICY_PATH: bridgePolicyPath
   };
 
   const rootInst = runNode(scriptPath, [
@@ -67,6 +104,8 @@ function run() {
   const rootOut = parseJson(rootInst, 'instantiate_root');
   assert.strictEqual(rootOut.ok, true);
   assert.strictEqual(rootOut.record.depth, 1);
+  assert.ok(rootOut.wallet_bootstrap_bridge && rootOut.wallet_bootstrap_bridge.ok === true, 'instantiate root should enqueue wallet bridge proposal');
+  assert.strictEqual(String(rootOut.wallet_bootstrap_bridge.stage || ''), 'shadow_proposed', 'wallet bridge should remain shadow');
 
   const childInst = runNode(scriptPath, [
     'instantiate',
@@ -79,6 +118,7 @@ function run() {
   assert.strictEqual(childOut.ok, true);
   assert.strictEqual(childOut.record.depth, 2);
   assert.strictEqual(childOut.record.contracts.parent_contract_id, 'contract_a');
+  assert.ok(childOut.wallet_bootstrap_bridge && childOut.wallet_bootstrap_bridge.ok === true, 'instantiate child should enqueue wallet bridge proposal');
 
   const tick = runNode(scriptPath, ['tick', '--instance-id=core_child'], env, root);
   assert.strictEqual(tick.status, 0, tick.stderr || tick.stdout);
@@ -110,6 +150,10 @@ function run() {
     ? fs.readFileSync(receiptsPath, 'utf8').split('\n').filter(Boolean)
     : [];
   assert.ok(receipts.length >= 4, 'expected instantiate/tick/rollback receipts');
+  assert.ok(fs.existsSync(bridgeProposalsPath), 'bridge proposals should be written');
+  const bridgeRows = fs.readFileSync(bridgeProposalsPath, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  assert.ok(bridgeRows.some((row) => String(row.birth_context || '') === 'mini_core_instantiate' && String(row.instance_id || '') === 'core_root'), 'root instance should emit bridge proposal');
+  assert.ok(bridgeRows.some((row) => String(row.birth_context || '') === 'mini_core_instantiate' && String(row.instance_id || '') === 'core_child'), 'child instance should emit bridge proposal');
 }
 
 run();
