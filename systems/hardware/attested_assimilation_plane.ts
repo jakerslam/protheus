@@ -5,6 +5,12 @@ export {};
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+let sovereignBlockchainBridge: AnyObj = null;
+try {
+  sovereignBlockchainBridge = require('../blockchain/sovereign_blockchain_bridge.js');
+} catch {
+  sovereignBlockchainBridge = null;
+}
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const POLICY_PATH = process.env.HARDWARE_ASSIMILATION_POLICY_PATH
@@ -236,6 +242,46 @@ function expectedAttestation(secret: string, nodeId: string, constitutionSha: st
   return crypto.createHmac('sha256', secret).update(`${nodeId}|${constitutionSha}`, 'utf8').digest('hex');
 }
 
+function enqueueWalletBootstrapProposal(nodeIdRaw: unknown, birthContextRaw: unknown, approvalNoteRaw: unknown) {
+  const instanceId = normalizeToken(nodeIdRaw, 160);
+  if (!instanceId) {
+    return { ok: false, skipped: true, reason: 'wallet_bootstrap_instance_id_missing' };
+  }
+  if (!sovereignBlockchainBridge
+    || typeof sovereignBlockchainBridge.loadPolicy !== 'function'
+    || typeof sovereignBlockchainBridge.cmdBootstrapProposal !== 'function') {
+    return { ok: false, skipped: true, reason: 'wallet_bootstrap_bridge_unavailable' };
+  }
+  try {
+    const policyPath = process.env.SOVEREIGN_BLOCKCHAIN_BRIDGE_POLICY_PATH
+      ? path.resolve(String(process.env.SOVEREIGN_BLOCKCHAIN_BRIDGE_POLICY_PATH))
+      : path.join(ROOT, 'config', 'sovereign_blockchain_bridge_policy.json');
+    const policy = sovereignBlockchainBridge.loadPolicy(policyPath);
+    if (!policy || policy.enabled !== true) {
+      return { ok: false, skipped: true, reason: 'wallet_bootstrap_policy_disabled' };
+    }
+    const out = sovereignBlockchainBridge.cmdBootstrapProposal(policy, {
+      'instance-id': instanceId,
+      'birth-context': normalizeToken(birthContextRaw, 120) || 'attested_join',
+      'approval-note': cleanText(approvalNoteRaw || 'auto_birth_attested_join', 320) || 'auto_birth_attested_join',
+      apply: false
+    });
+    return {
+      ok: out && out.ok === true,
+      skipped: false,
+      proposal_id: out && out.proposal_id ? String(out.proposal_id) : null,
+      stage: out && out.stage ? String(out.stage) : null,
+      reason_codes: Array.isArray(out && out.reason_codes) ? out.reason_codes.slice(0, 10) : []
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: `wallet_bootstrap_enqueue_failed:${cleanText(err && (err as Error).message || err || 'error', 160)}`
+    };
+  }
+}
+
 function dormantSweep(policy: AnyObj, state: AnyObj) {
   const nowMs = Date.now();
   const cutoff = nowMs - (policy.idle_dormant_sec * 1000);
@@ -414,11 +460,17 @@ function cmdJoin(args: AnyObj) {
     updated_at: nowIso()
   };
   saveState(policy, state);
+  const walletBootstrapBridge = enqueueWalletBootstrapProposal(
+    nodeId,
+    'attested_join',
+    `auto_birth_attested_join:${nodeId}`
+  );
   const out = {
     ok: true,
     type: 'hardware_join',
     ts: nowIso(),
-    node: state.nodes[nodeId]
+    node: state.nodes[nodeId],
+    wallet_bootstrap_bridge: walletBootstrapBridge
   };
   audit(policy, out);
   process.stdout.write(`${JSON.stringify(out)}\n`);

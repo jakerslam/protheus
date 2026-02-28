@@ -5,6 +5,12 @@ export {};
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+let sovereignBlockchainBridge: AnyObj = null;
+try {
+  sovereignBlockchainBridge = require('../blockchain/sovereign_blockchain_bridge.js');
+} catch {
+  sovereignBlockchainBridge = null;
+}
 
 type AnyObj = Record<string, any>;
 
@@ -301,6 +307,42 @@ function computeRestoreToken(secret: string, bundleId: string, payloadHash: stri
   return crypto.createHmac('sha256', secret).update(`${bundleId}|${payloadHash}|${targetHost}`, 'utf8').digest('hex');
 }
 
+function enqueueWalletBootstrapProposal(instanceIdRaw: unknown, birthContextRaw: unknown, approvalNoteRaw: unknown) {
+  const instanceId = normalizeToken(instanceIdRaw, 160);
+  if (!instanceId) return { ok: false, skipped: true, reason: 'wallet_bootstrap_instance_id_missing' };
+  if (!sovereignBlockchainBridge
+    || typeof sovereignBlockchainBridge.loadPolicy !== 'function'
+    || typeof sovereignBlockchainBridge.cmdBootstrapProposal !== 'function') {
+    return { ok: false, skipped: true, reason: 'wallet_bootstrap_bridge_unavailable' };
+  }
+  try {
+    const policyPath = process.env.SOVEREIGN_BLOCKCHAIN_BRIDGE_POLICY_PATH
+      ? path.resolve(String(process.env.SOVEREIGN_BLOCKCHAIN_BRIDGE_POLICY_PATH))
+      : path.join(ROOT, 'config', 'sovereign_blockchain_bridge_policy.json');
+    const policy = sovereignBlockchainBridge.loadPolicy(policyPath);
+    if (!policy || policy.enabled !== true) return { ok: false, skipped: true, reason: 'wallet_bootstrap_policy_disabled' };
+    const out = sovereignBlockchainBridge.cmdBootstrapProposal(policy, {
+      'instance-id': instanceId,
+      'birth-context': normalizeToken(birthContextRaw, 120) || 'resurrection_restore',
+      'approval-note': cleanText(approvalNoteRaw || 'auto_birth_resurrection_restore', 320) || 'auto_birth_resurrection_restore',
+      apply: false
+    });
+    return {
+      ok: out && out.ok === true,
+      skipped: false,
+      proposal_id: out && out.proposal_id ? String(out.proposal_id) : null,
+      stage: out && out.stage ? String(out.stage) : null,
+      reason_codes: Array.isArray(out && out.reason_codes) ? out.reason_codes.slice(0, 10) : []
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: `wallet_bootstrap_enqueue_failed:${cleanText(err && (err as Error).message || err || 'error', 160)}`
+    };
+  }
+}
+
 function cmdBundle(args: AnyObj) {
   const policy = loadPolicy(args.policy ? path.resolve(String(args.policy)) : DEFAULT_POLICY_PATH);
   if (policy.enabled !== true) {
@@ -510,6 +552,13 @@ function cmdRestore(args: AnyObj) {
       restored.push(rel(target));
     }
   }
+  const walletBootstrapBridge = apply
+    ? enqueueWalletBootstrapProposal(
+      targetHost,
+      'resurrection_restore',
+      `auto_birth_resurrection_restore:${targetHost}`
+    )
+    : { ok: false, skipped: true, reason: 'restore_apply_disabled' };
 
   const out = {
     ok: true,
@@ -520,7 +569,8 @@ function cmdRestore(args: AnyObj) {
     file_count: files.length,
     restored,
     backups,
-    recovery_root: apply ? rel(recoveryRoot) : null
+    recovery_root: apply ? rel(recoveryRoot) : null,
+    wallet_bootstrap_bridge: walletBootstrapBridge
   };
   writeReceipt(policy, out);
   process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);

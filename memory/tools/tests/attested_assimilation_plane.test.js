@@ -56,6 +56,15 @@ function run() {
 
   const constitutionPath = path.join(tmp, 'AGENT-CONSTITUTION.md');
   fs.writeFileSync(constitutionPath, '# Constitution\nRoot\n', 'utf8');
+  const bridgePolicyPath = path.join(tmp, 'sovereign_blockchain_bridge_policy.json');
+  const bridgePrimePath = path.join(tmp, 'bridge_prime_profile.json');
+  const bridgeTemplatePath = path.join(tmp, 'bridge_bootstrap_template.json');
+  const bridgeProposalsPath = path.join(tmp, 'bridge', 'proposals.jsonl');
+  const bridgeBindingsPath = path.join(tmp, 'bridge', 'bindings.jsonl');
+  const bridgeLatestPath = path.join(tmp, 'bridge', 'latest.json');
+  const bridgeStatePath = path.join(tmp, 'bridge', 'state.json');
+  const bridgeReceiptsPath = path.join(tmp, 'bridge', 'receipts.jsonl');
+  const bridgeGenomePath = path.join(tmp, 'bridge', 'genome_ledger.jsonl');
 
   const policyPath = path.join(tmp, 'hardware_policy.json');
   writeJson(policyPath, {
@@ -83,6 +92,33 @@ function run() {
       work_steal_enabled: true
     }
   });
+  writeJson(bridgePrimePath, {
+    profile_id: 'bridge-prime-test',
+    version: '1.0'
+  });
+  writeJson(bridgeTemplatePath, {
+    template_id: 'wallet_birth_bootstrap_v1',
+    version: '1.0'
+  });
+  writeJson(bridgePolicyPath, {
+    version: '1.0-test',
+    enabled: true,
+    shadow_only: true,
+    dna: {
+      prime_profile_path: bridgePrimePath,
+      bootstrap_template_path: bridgeTemplatePath,
+      genome_ledger_path: bridgeGenomePath,
+      secret_template_id: 'wallet_dna_root_v1',
+      kernel_live_key_forbidden: true
+    },
+    state: {
+      state_path: bridgeStatePath,
+      latest_path: bridgeLatestPath,
+      proposals_path: bridgeProposalsPath,
+      bindings_path: bridgeBindingsPath,
+      receipts_path: bridgeReceiptsPath
+    }
+  });
 
   const constitutionHash = sha256File(constitutionPath);
   const secret = 'test-secret';
@@ -97,7 +133,8 @@ function run() {
     '--capabilities-json={"ram_gb":16,"cpu_threads":8}',
     `--policy=${policyPath}`
   ], {
-    HARDWARE_ASSIMILATION_SECRET: secret
+    HARDWARE_ASSIMILATION_SECRET: secret,
+    SOVEREIGN_BLOCKCHAIN_BRIDGE_POLICY_PATH: bridgePolicyPath
   });
   assert.strictEqual(badJoin.status, 1, 'bad attestation should fail join');
 
@@ -110,9 +147,13 @@ function run() {
     '--capabilities-json={"ram_gb":16,"cpu_threads":8,"arch":"x86_64"}',
     `--policy=${policyPath}`
   ], {
-    HARDWARE_ASSIMILATION_SECRET: secret
+    HARDWARE_ASSIMILATION_SECRET: secret,
+    SOVEREIGN_BLOCKCHAIN_BRIDGE_POLICY_PATH: bridgePolicyPath
   });
   assert.strictEqual(goodJoin.status, 0, goodJoin.stderr || 'good attestation should join');
+  const goodJoinPayload = parseJson(goodJoin.stdout);
+  assert.ok(goodJoinPayload.wallet_bootstrap_bridge && goodJoinPayload.wallet_bootstrap_bridge.ok === true, 'good join should enqueue wallet bridge proposal');
+  assert.strictEqual(String(goodJoinPayload.wallet_bootstrap_bridge.stage || ''), 'shadow_proposed', 'wallet bridge should remain shadow proposal');
 
   const incompatibleJoin = runNode(repoRoot, [
     scriptPath,
@@ -123,7 +164,8 @@ function run() {
     '--capabilities-json={"ram_gb":8,"cpu_threads":4,"arch":"arm64"}',
     `--policy=${policyPath}`
   ], {
-    HARDWARE_ASSIMILATION_SECRET: secret
+    HARDWARE_ASSIMILATION_SECRET: secret,
+    SOVEREIGN_BLOCKCHAIN_BRIDGE_POLICY_PATH: bridgePolicyPath
   });
   assert.strictEqual(incompatibleJoin.status, 1, 'incompatible arch should fail join');
   const incompatiblePayload = parseJson(incompatibleJoin.stdout);
@@ -139,7 +181,8 @@ function run() {
     '--capabilities-json={"ram_gb":4,"cpu_threads":2,"arch":"x86_64"}',
     `--policy=${policyPath}`
   ], {
-    HARDWARE_ASSIMILATION_SECRET: secret
+    HARDWARE_ASSIMILATION_SECRET: secret,
+    SOVEREIGN_BLOCKCHAIN_BRIDGE_POLICY_PATH: bridgePolicyPath
   });
   assert.strictEqual(joinB.status, 0, joinB.stderr || 'second node join should pass');
 
@@ -238,6 +281,12 @@ function run() {
   assert.strictEqual(status.status, 0, status.stderr || 'status should pass');
   const statusPayload = parseJson(status.stdout);
   assert.ok(statusPayload.nodes[nodeId], 'status should include joined node');
+  assert.ok(fs.existsSync(bridgeProposalsPath), 'bridge proposals should be written');
+  const bridgeRows = fs.readFileSync(bridgeProposalsPath, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  assert.ok(bridgeRows.length >= 2, 'expected bridge proposal rows for joined nodes');
+  const attestedRows = bridgeRows.filter((row) => String(row.birth_context || '') === 'attested_join');
+  assert.ok(attestedRows.length >= 2, 'expected attested_join bridge rows');
+  assert.ok(attestedRows.some((row) => String(row.instance_id || '') === nodeId), 'bridge rows should include primary node id');
 
   console.log('attested_assimilation_plane.test.js: OK');
 }

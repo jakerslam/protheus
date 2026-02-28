@@ -6,6 +6,12 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
+let sovereignBlockchainBridge: AnyObj = null;
+try {
+  sovereignBlockchainBridge = require('../blockchain/sovereign_blockchain_bridge.js');
+} catch {
+  sovereignBlockchainBridge = null;
+}
 
 type AnyObj = Record<string, any>;
 
@@ -232,6 +238,42 @@ function parseContracts(raw: unknown) {
   }
 }
 
+function enqueueWalletBootstrapProposal(instanceIdRaw: unknown, birthContextRaw: unknown, approvalNoteRaw: unknown) {
+  const instanceId = normalizeToken(instanceIdRaw, 160);
+  if (!instanceId) return { ok: false, skipped: true, reason: 'wallet_bootstrap_instance_id_missing' };
+  if (!sovereignBlockchainBridge
+    || typeof sovereignBlockchainBridge.loadPolicy !== 'function'
+    || typeof sovereignBlockchainBridge.cmdBootstrapProposal !== 'function') {
+    return { ok: false, skipped: true, reason: 'wallet_bootstrap_bridge_unavailable' };
+  }
+  try {
+    const policyPath = process.env.SOVEREIGN_BLOCKCHAIN_BRIDGE_POLICY_PATH
+      ? path.resolve(String(process.env.SOVEREIGN_BLOCKCHAIN_BRIDGE_POLICY_PATH))
+      : path.join(ROOT, 'config', 'sovereign_blockchain_bridge_policy.json');
+    const policy = sovereignBlockchainBridge.loadPolicy(policyPath);
+    if (!policy || policy.enabled !== true) return { ok: false, skipped: true, reason: 'wallet_bootstrap_policy_disabled' };
+    const out = sovereignBlockchainBridge.cmdBootstrapProposal(policy, {
+      'instance-id': instanceId,
+      'birth-context': normalizeToken(birthContextRaw, 120) || 'fractal_child',
+      'approval-note': cleanText(approvalNoteRaw || 'auto_birth_fractal_child', 320) || 'auto_birth_fractal_child',
+      apply: false
+    });
+    return {
+      ok: out && out.ok === true,
+      skipped: false,
+      proposal_id: out && out.proposal_id ? String(out.proposal_id) : null,
+      stage: out && out.stage ? String(out.stage) : null,
+      reason_codes: Array.isArray(out && out.reason_codes) ? out.reason_codes.slice(0, 10) : []
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: `wallet_bootstrap_enqueue_failed:${cleanText(err && (err as Error).message || err || 'error', 160)}`
+    };
+  }
+}
+
 function laneCall(laneName: string, laneCfg: AnyObj, child: AnyObj) {
   const scriptPath = path.resolve(ROOT, cleanText(laneCfg.script || '', 300));
   const args = Array.isArray(laneCfg.args) ? laneCfg.args.map((v: unknown) => cleanText(v, 160)).filter(Boolean) : [];
@@ -309,8 +351,18 @@ function cmdSpawn(args: AnyObj) {
 
   state.children[childId] = childRecord;
   saveState(state);
+  const walletBootstrapBridge = enqueueWalletBootstrapProposal(
+    childId,
+    'fractal_child',
+    `auto_birth_fractal_child:${childId}`
+  );
   appendJsonl(RECEIPTS_PATH, { ts: nowIso(), type: 'child_organ_spawn', ok: true, child_id: childId, parent_id: parentId, envelope, ttl_hours: ttlHours });
-  process.stdout.write(`${JSON.stringify({ ok: true, type: 'child_organ_spawn', child: childRecord })}\n`);
+  process.stdout.write(`${JSON.stringify({
+    ok: true,
+    type: 'child_organ_spawn',
+    child: childRecord,
+    wallet_bootstrap_bridge: walletBootstrapBridge
+  })}\n`);
 }
 
 function cmdRun(args: AnyObj) {

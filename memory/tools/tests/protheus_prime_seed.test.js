@@ -45,6 +45,16 @@ function run() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'protheus-prime-seed-'));
 
   const profilePath = path.join(tmp, 'protheus_prime_profile.json');
+  const bridgePolicyPath = path.join(tmp, 'sovereign_blockchain_bridge_policy.json');
+  const bridgePrimePath = path.join(tmp, 'bridge_prime_profile.json');
+  const bridgeTemplatePath = path.join(tmp, 'bridge_bootstrap_template.json');
+  const bridgeProposalsPath = path.join(tmp, 'bridge', 'proposals.jsonl');
+  const bridgeBindingsPath = path.join(tmp, 'bridge', 'bindings.jsonl');
+  const bridgeLatestPath = path.join(tmp, 'bridge', 'latest.json');
+  const bridgeStatePath = path.join(tmp, 'bridge', 'state.json');
+  const bridgeReceiptsPath = path.join(tmp, 'bridge', 'receipts.jsonl');
+  const bridgeGenomePath = path.join(tmp, 'bridge', 'genome_ledger.jsonl');
+
   writeJson(profilePath, {
     profile_id: 'protheus-prime-test',
     version: '1.0',
@@ -63,6 +73,33 @@ function run() {
       startup_attestation_verify: false
     }
   });
+  writeJson(bridgePrimePath, {
+    profile_id: 'bridge-prime-test',
+    version: '1.0'
+  });
+  writeJson(bridgeTemplatePath, {
+    template_id: 'wallet_birth_bootstrap_v1',
+    version: '1.0'
+  });
+  writeJson(bridgePolicyPath, {
+    version: '1.0-test',
+    enabled: true,
+    shadow_only: true,
+    dna: {
+      prime_profile_path: bridgePrimePath,
+      bootstrap_template_path: bridgeTemplatePath,
+      genome_ledger_path: bridgeGenomePath,
+      secret_template_id: 'wallet_dna_root_v1',
+      kernel_live_key_forbidden: true
+    },
+    state: {
+      state_path: bridgeStatePath,
+      latest_path: bridgeLatestPath,
+      proposals_path: bridgeProposalsPath,
+      bindings_path: bridgeBindingsPath,
+      receipts_path: bridgeReceiptsPath
+    }
+  });
 
   const manifest = runNode(repoRoot, [scriptPath, 'manifest', `--profile=${profilePath}`]);
   assert.strictEqual(manifest.status, 0, manifest.stderr || 'manifest should pass');
@@ -74,14 +111,23 @@ function run() {
   const bootstrap = runNode(repoRoot, [scriptPath, 'bootstrap', `--profile=${profilePath}`], {
     PROTHEUS_PRIME_RECEIPT_PATH: receiptPath,
     PROTHEUS_PRIME_RECEIPT_HISTORY: historyPath,
-    PROTHEUS_PRIME_PROVISION_DIR: path.join(tmp, 'provisioned')
+    PROTHEUS_PRIME_PROVISION_DIR: path.join(tmp, 'provisioned'),
+    SOVEREIGN_BLOCKCHAIN_BRIDGE_POLICY_PATH: bridgePolicyPath
   });
   assert.strictEqual(bootstrap.status, 0, bootstrap.stderr || 'bootstrap should pass with test profile');
   const bootstrapPayload = parseJson(bootstrap.stdout);
   assert.strictEqual(bootstrapPayload.ok, true, `bootstrap expected ok=true, got: ${JSON.stringify(bootstrapPayload)}`);
   assert.ok(bootstrapPayload.provision && bootstrapPayload.provision.ok === true, 'bootstrap should provision minimal core');
   assert.ok(Number(bootstrapPayload.provision.file_count || 0) >= 1, 'provisioned file count should be positive');
+  assert.ok(bootstrapPayload.wallet_bootstrap_bridge && bootstrapPayload.wallet_bootstrap_bridge.ok === true, 'bootstrap should enqueue wallet bridge proposal');
+  assert.strictEqual(String(bootstrapPayload.wallet_bootstrap_bridge.stage || ''), 'shadow_proposed', 'wallet bridge should remain shadow proposal');
   assert.ok(fs.existsSync(receiptPath), 'bootstrap receipt should be written');
+  assert.ok(fs.existsSync(bridgeProposalsPath), 'bridge proposals should be written');
+  const bridgeRows = fs.readFileSync(bridgeProposalsPath, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  assert.ok(bridgeRows.length >= 1, 'expected at least one bridge proposal row');
+  const latestBridge = bridgeRows[bridgeRows.length - 1];
+  assert.strictEqual(String(latestBridge.birth_context || ''), 'bootstrap', 'bridge row should use bootstrap context');
+  assert.strictEqual(String(latestBridge.instance_id || ''), 'protheus-prime-test', 'bridge row should bind to profile id');
 
   const packageDir = path.join(tmp, 'packages');
   const packageRun = runNode(repoRoot, [scriptPath, 'package', `--profile=${profilePath}`, '--strict=1', `--out-dir=${packageDir}`]);

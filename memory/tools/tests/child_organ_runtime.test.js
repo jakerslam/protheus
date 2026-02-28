@@ -46,6 +46,15 @@ function run() {
   const policyPath = path.join(tmpRoot, 'config', 'child_organ_runtime_policy.json');
   const statePath = path.join(tmpRoot, 'state', 'child_organ_runtime_state.json');
   const receiptsPath = path.join(tmpRoot, 'state', 'child_organ_runtime_receipts.jsonl');
+  const bridgePolicyPath = path.join(tmpRoot, 'config', 'sovereign_blockchain_bridge_policy.json');
+  const bridgePrimePath = path.join(tmpRoot, 'config', 'bridge_prime_profile.json');
+  const bridgeTemplatePath = path.join(tmpRoot, 'config', 'bridge_bootstrap_template.json');
+  const bridgeProposalsPath = path.join(tmpRoot, 'state', 'bridge', 'proposals.jsonl');
+  const bridgeBindingsPath = path.join(tmpRoot, 'state', 'bridge', 'bindings.jsonl');
+  const bridgeLatestPath = path.join(tmpRoot, 'state', 'bridge', 'latest.json');
+  const bridgeStatePath = path.join(tmpRoot, 'state', 'bridge', 'state.json');
+  const bridgeReceiptsPath = path.join(tmpRoot, 'state', 'bridge', 'receipts.jsonl');
+  const bridgeGenomePath = path.join(tmpRoot, 'state', 'bridge', 'genome_ledger.jsonl');
   const laneOk = path.join(tmpRoot, 'lane_ok.js');
   const laneFail = path.join(tmpRoot, 'lane_fail.js');
   makeLaneScript(laneOk, true);
@@ -76,12 +85,40 @@ function run() {
       rollback_reason_default: 'child_lane_failure'
     }
   });
+  writeJson(bridgePrimePath, {
+    profile_id: 'bridge-prime-test',
+    version: '1.0'
+  });
+  writeJson(bridgeTemplatePath, {
+    template_id: 'wallet_birth_bootstrap_v1',
+    version: '1.0'
+  });
+  writeJson(bridgePolicyPath, {
+    version: '1.0-test',
+    enabled: true,
+    shadow_only: true,
+    dna: {
+      prime_profile_path: bridgePrimePath,
+      bootstrap_template_path: bridgeTemplatePath,
+      genome_ledger_path: bridgeGenomePath,
+      secret_template_id: 'wallet_dna_root_v1',
+      kernel_live_key_forbidden: true
+    },
+    state: {
+      state_path: bridgeStatePath,
+      latest_path: bridgeLatestPath,
+      proposals_path: bridgeProposalsPath,
+      bindings_path: bridgeBindingsPath,
+      receipts_path: bridgeReceiptsPath
+    }
+  });
 
   const env = {
     ...process.env,
     CHILD_ORGAN_RUNTIME_POLICY_PATH: policyPath,
     CHILD_ORGAN_RUNTIME_STATE_PATH: statePath,
-    CHILD_ORGAN_RUNTIME_RECEIPTS_PATH: receiptsPath
+    CHILD_ORGAN_RUNTIME_RECEIPTS_PATH: receiptsPath,
+    SOVEREIGN_BLOCKCHAIN_BRIDGE_POLICY_PATH: bridgePolicyPath
   };
 
   const spawned = runNode(scriptPath, [
@@ -100,6 +137,8 @@ function run() {
   assert.strictEqual(spawnedOut.ok, true);
   assert.strictEqual(spawnedOut.child.envelope.token_cap, 450);
   assert.strictEqual(spawnedOut.child.contracts.clearance_limit, 'l2');
+  assert.ok(spawnedOut.wallet_bootstrap_bridge && spawnedOut.wallet_bootstrap_bridge.ok === true, 'spawn should enqueue wallet bridge proposal');
+  assert.strictEqual(String(spawnedOut.wallet_bootstrap_bridge.stage || ''), 'shadow_proposed', 'wallet bridge should stay in shadow');
 
   const blockedShadow = runNode(scriptPath, [
     'run',
@@ -179,6 +218,9 @@ function run() {
     ? fs.readFileSync(receiptsPath, 'utf8').split('\n').filter(Boolean)
     : [];
   assert.ok(receipts.length >= 4, 'expected receipts for spawn/run/rollback actions');
+  assert.ok(fs.existsSync(bridgeProposalsPath), 'bridge proposals should be written');
+  const bridgeRows = fs.readFileSync(bridgeProposalsPath, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  assert.ok(bridgeRows.some((row) => String(row.birth_context || '') === 'fractal_child' && String(row.instance_id || '') === 'child_a'), 'fractal child spawn should emit bridge proposal');
 }
 
 run();

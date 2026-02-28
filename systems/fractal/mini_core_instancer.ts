@@ -5,6 +5,12 @@ export {};
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+let sovereignBlockchainBridge: AnyObj = null;
+try {
+  sovereignBlockchainBridge = require('../blockchain/sovereign_blockchain_bridge.js');
+} catch {
+  sovereignBlockchainBridge = null;
+}
 
 type AnyObj = Record<string, any>;
 
@@ -182,6 +188,42 @@ function parseContracts(raw: unknown, fallbackClearance: string) {
   }
 }
 
+function enqueueWalletBootstrapProposal(instanceIdRaw: unknown, birthContextRaw: unknown, approvalNoteRaw: unknown) {
+  const instanceId = normalizeToken(instanceIdRaw, 160);
+  if (!instanceId) return { ok: false, skipped: true, reason: 'wallet_bootstrap_instance_id_missing' };
+  if (!sovereignBlockchainBridge
+    || typeof sovereignBlockchainBridge.loadPolicy !== 'function'
+    || typeof sovereignBlockchainBridge.cmdBootstrapProposal !== 'function') {
+    return { ok: false, skipped: true, reason: 'wallet_bootstrap_bridge_unavailable' };
+  }
+  try {
+    const policyPath = process.env.SOVEREIGN_BLOCKCHAIN_BRIDGE_POLICY_PATH
+      ? path.resolve(String(process.env.SOVEREIGN_BLOCKCHAIN_BRIDGE_POLICY_PATH))
+      : path.join(ROOT, 'config', 'sovereign_blockchain_bridge_policy.json');
+    const policy = sovereignBlockchainBridge.loadPolicy(policyPath);
+    if (!policy || policy.enabled !== true) return { ok: false, skipped: true, reason: 'wallet_bootstrap_policy_disabled' };
+    const out = sovereignBlockchainBridge.cmdBootstrapProposal(policy, {
+      'instance-id': instanceId,
+      'birth-context': normalizeToken(birthContextRaw, 120) || 'mini_core_instantiate',
+      'approval-note': cleanText(approvalNoteRaw || 'auto_birth_mini_core_instantiate', 320) || 'auto_birth_mini_core_instantiate',
+      apply: false
+    });
+    return {
+      ok: out && out.ok === true,
+      skipped: false,
+      proposal_id: out && out.proposal_id ? String(out.proposal_id) : null,
+      stage: out && out.stage ? String(out.stage) : null,
+      reason_codes: Array.isArray(out && out.reason_codes) ? out.reason_codes.slice(0, 10) : []
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: `wallet_bootstrap_enqueue_failed:${cleanText(err && (err as Error).message || err || 'error', 160)}`
+    };
+  }
+}
+
 function usage() {
   console.log('Usage:');
   console.log('  node systems/fractal/mini_core_instancer.js instantiate --instance-id=<id> [--parent-instance-id=<id>] [--contracts-json={...}]');
@@ -245,8 +287,18 @@ function cmdInstantiate(args: AnyObj) {
   };
   state.instances[instanceId] = record;
   saveState(state);
+  const walletBootstrapBridge = enqueueWalletBootstrapProposal(
+    instanceId,
+    'mini_core_instantiate',
+    `auto_birth_mini_core_instantiate:${instanceId}`
+  );
   appendJsonl(RECEIPTS_PATH, { ts, type: 'mini_core_instantiate', ok: true, instance_id: instanceId, parent_instance_id: parentId, depth, lineage_hash: record.lineage_hash });
-  process.stdout.write(`${JSON.stringify({ ok: true, type: 'mini_core_instantiate', record })}\n`);
+  process.stdout.write(`${JSON.stringify({
+    ok: true,
+    type: 'mini_core_instantiate',
+    record,
+    wallet_bootstrap_bridge: walletBootstrapBridge
+  })}\n`);
 }
 
 function cmdTick(args: AnyObj) {
@@ -327,4 +379,3 @@ function main() {
 if (require.main === module) {
   main();
 }
-
