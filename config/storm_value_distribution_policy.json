@@ -21,6 +21,15 @@
       "hybrid"
     ]
   },
+  "sovereign_root_tithe": {
+    "enabled": true,
+    "tithe_bps": 1000,
+    "root_creator_id": "jay_sovereign_root",
+    "root_wallet_alias": "jay_root_wallet",
+    "root_payout_mode": "royalty",
+    "enforce_from_attribution": true,
+    "fail_closed_on_mismatch": true
+  },
   "state": {
     "root": "state/storm/value_distribution",
     "plans_dir": "state/storm/value_distribution/plans",

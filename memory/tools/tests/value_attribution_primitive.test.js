@@ -57,6 +57,13 @@ function run() {
       default_confidence: 0.8,
       default_impact: 0.7
     },
+    sovereign_root_tithe: {
+      enabled: true,
+      tithe_bps: 1000,
+      beneficiary_creator_id: 'jay_sovereign_root',
+      beneficiary_wallet_alias: 'jay_root_wallet',
+      enforce_root_first: true
+    },
     passport: {
       enabled: true,
       source: 'value_attribution_primitive'
@@ -122,7 +129,8 @@ function run() {
     lane: 'assimilation',
     weight: 1.5,
     confidence: 0.8,
-    impact_score: 0.7
+    impact_score: 0.7,
+    value_event_usd: 250
   };
 
   const record = parseOut(runNode(scriptPath, [
@@ -134,6 +142,8 @@ function run() {
   assert.ok(record.attribution_id, 'record should return attribution_id');
   assert.strictEqual(record.shadow_only, true, 'record should respect shadow mode');
   assert.ok(record.passport_link && record.passport_link.action_id, 'record should link to agent passport');
+  assert.strictEqual(Number(record.root_tithe_bps || 0), 1000, 'record should report tithe bps');
+  assert.strictEqual(Number(record.root_tithe_value_usd || 0), 25, 'record should report tithe amount');
 
   const query = parseOut(runNode(scriptPath, [
     'query',
@@ -143,6 +153,16 @@ function run() {
   assert.strictEqual(query.ok, true);
   assert.strictEqual(query.count, 1, 'query should return stored row');
   assert.strictEqual(query.records[0].attribution_id, record.attribution_id);
+  assert.strictEqual(
+    Number(query.records[0].provenance.economic.sovereign_root_tithe.tithe_bps || 0),
+    1000,
+    'query should include tithe metadata'
+  );
+  assert.strictEqual(
+    Number(query.records[0].provenance.economic.sovereign_root_tithe.tithe_value_usd || 0),
+    25,
+    'query should include tithe value'
+  );
 
   const status = parseOut(runNode(scriptPath, ['status', `--policy=${policyPath}`], env, repoRoot), 'status');
   assert.strictEqual(status.ok, true);

@@ -98,6 +98,13 @@ function clampInt(v: unknown, lo: number, hi: number, fallback: number) {
   return i;
 }
 
+function roundTo(n: unknown, digits = 6) {
+  const value = Number(n);
+  if (!Number.isFinite(value)) return 0;
+  const factor = 10 ** Math.max(0, Math.min(8, digits));
+  return Math.round(value * factor) / factor;
+}
+
 function ensureDir(dirPath: string) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
@@ -177,6 +184,13 @@ function defaultPolicy() {
       min_influence_score: 0,
       max_influence_score: 1
     },
+    sovereign_root_tithe: {
+      enabled: true,
+      tithe_bps: 1000,
+      beneficiary_creator_id: 'jay_sovereign_root',
+      beneficiary_wallet_alias: 'jay_root_wallet',
+      enforce_root_first: true
+    },
     passport: {
       enabled: true,
       source: 'value_attribution_primitive'
@@ -209,6 +223,9 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   const raw = readJson(policyPath, {});
   const base = defaultPolicy();
   const scoring = raw.scoring && typeof raw.scoring === 'object' ? raw.scoring : {};
+  const sovereignRootTithe = raw.sovereign_root_tithe && typeof raw.sovereign_root_tithe === 'object'
+    ? raw.sovereign_root_tithe
+    : {};
   const passport = raw.passport && typeof raw.passport === 'object' ? raw.passport : {};
   const helix = raw.helix && typeof raw.helix === 'object' ? raw.helix : {};
   const state = raw.state && typeof raw.state === 'object' ? raw.state : {};
@@ -224,6 +241,19 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
       default_impact: clampNumber(scoring.default_impact, 0, 1, base.scoring.default_impact),
       min_influence_score: clampNumber(scoring.min_influence_score, 0, 1, base.scoring.min_influence_score),
       max_influence_score: clampNumber(scoring.max_influence_score, 0, 1, base.scoring.max_influence_score)
+    },
+    sovereign_root_tithe: {
+      enabled: toBool(sovereignRootTithe.enabled, base.sovereign_root_tithe.enabled),
+      tithe_bps: clampInt(sovereignRootTithe.tithe_bps, 0, 10000, base.sovereign_root_tithe.tithe_bps),
+      beneficiary_creator_id: normalizeToken(
+        sovereignRootTithe.beneficiary_creator_id || base.sovereign_root_tithe.beneficiary_creator_id,
+        180
+      ) || base.sovereign_root_tithe.beneficiary_creator_id,
+      beneficiary_wallet_alias: cleanText(
+        sovereignRootTithe.beneficiary_wallet_alias || base.sovereign_root_tithe.beneficiary_wallet_alias,
+        160
+      ) || base.sovereign_root_tithe.beneficiary_wallet_alias,
+      enforce_root_first: toBool(sovereignRootTithe.enforce_root_first, base.sovereign_root_tithe.enforce_root_first)
     },
     passport: {
       enabled: toBool(passport.enabled, base.passport.enabled),
@@ -277,6 +307,35 @@ function normalizeRecordInput(inputRaw: AnyObj = {}, policy: AnyObj) {
   const runId = normalizeToken(inputRaw.run_id || '', 160) || null;
   const lane = normalizeToken(inputRaw.lane || '', 80) || null;
 
+  const valueEventUsd = clampNumber(
+    inputRaw.value_event_usd != null
+      ? inputRaw.value_event_usd
+      : (inputRaw.amount_usd != null ? inputRaw.amount_usd : inputRaw.value_usd),
+    0,
+    1_000_000_000_000,
+    0
+  );
+  const titheOverride = inputRaw.sovereign_root_tithe && typeof inputRaw.sovereign_root_tithe === 'object'
+    ? inputRaw.sovereign_root_tithe
+    : {};
+  const titheEnabled = toBool(titheOverride.enabled, policy.sovereign_root_tithe.enabled);
+  const titheBps = clampInt(
+    titheOverride.tithe_bps,
+    0,
+    10000,
+    policy.sovereign_root_tithe.tithe_bps
+  );
+  const beneficiaryCreatorId = normalizeToken(
+    titheOverride.beneficiary_creator_id || policy.sovereign_root_tithe.beneficiary_creator_id,
+    180
+  ) || policy.sovereign_root_tithe.beneficiary_creator_id;
+  const beneficiaryWalletAlias = cleanText(
+    titheOverride.beneficiary_wallet_alias || policy.sovereign_root_tithe.beneficiary_wallet_alias,
+    160
+  ) || policy.sovereign_root_tithe.beneficiary_wallet_alias;
+  const titheValueUsd = titheEnabled ? roundTo((valueEventUsd * titheBps) / 10000, 6) : 0;
+  const creatorResidualUsd = roundTo(Math.max(0, valueEventUsd - titheValueUsd), 6);
+
   const provenance = {
     source: {
       source_type: sourceType,
@@ -303,6 +362,19 @@ function normalizeRecordInput(inputRaw: AnyObj = {}, policy: AnyObj) {
       task_id: taskId,
       run_id: runId,
       lane
+    },
+    economic: {
+      value_event_usd: valueEventUsd,
+      currency: 'USD',
+      sovereign_root_tithe: {
+        enabled: titheEnabled,
+        enforce_root_first: policy.sovereign_root_tithe.enforce_root_first === true,
+        tithe_bps: titheBps,
+        beneficiary_creator_id: beneficiaryCreatorId,
+        beneficiary_wallet_alias: beneficiaryWalletAlias,
+        tithe_value_usd: titheValueUsd,
+        creator_residual_usd: creatorResidualUsd
+      }
     }
   };
 
@@ -314,7 +386,8 @@ function normalizeRecordInput(inputRaw: AnyObj = {}, policy: AnyObj) {
     schema_version: '1.0',
     ts: nowIso(),
     attribution_id: attributionId,
-    provenance
+    provenance,
+    sovereign_root_tithe: provenance.economic.sovereign_root_tithe
   };
 }
 
@@ -354,7 +427,9 @@ function recordAttribution(inputRaw: AnyObj = {}, opts: AnyObj = {}) {
     creator_id: payload.provenance.creator.creator_id,
     source_type: payload.provenance.source.source_type,
     source_id: payload.provenance.source.source_id,
-    lane: payload.provenance.context.lane || 'unknown'
+    lane: payload.provenance.context.lane || 'unknown',
+    root_tithe_bps: Number(payload.sovereign_root_tithe && payload.sovereign_root_tithe.tithe_bps || 0),
+    root_tithe_value_usd: Number(payload.sovereign_root_tithe && payload.sovereign_root_tithe.tithe_value_usd || 0)
   }, {
     attempted: true,
     verified: shadowOnly !== true
@@ -375,7 +450,9 @@ function recordAttribution(inputRaw: AnyObj = {}, opts: AnyObj = {}) {
           creator_id: payload.provenance.creator.creator_id,
           source_type: payload.provenance.source.source_type,
           source_id: payload.provenance.source.source_id,
-          influence_score: payload.provenance.valuation.influence_score
+          influence_score: payload.provenance.valuation.influence_score,
+          root_tithe_bps: Number(payload.sovereign_root_tithe && payload.sovereign_root_tithe.tithe_bps || 0),
+          root_tithe_value_usd: Number(payload.sovereign_root_tithe && payload.sovereign_root_tithe.tithe_value_usd || 0)
         }
       }
     });
@@ -398,6 +475,7 @@ function recordAttribution(inputRaw: AnyObj = {}, opts: AnyObj = {}) {
       creator_id: payload.provenance.creator.creator_id,
       source: payload.provenance.source,
       valuation: payload.provenance.valuation,
+      economic: payload.provenance.economic,
       objective_id: payload.provenance.context.objective_id,
       run_id: payload.provenance.context.run_id,
       shadow_only: shadowOnly
@@ -413,6 +491,8 @@ function recordAttribution(inputRaw: AnyObj = {}, opts: AnyObj = {}) {
     source_id: payload.provenance.source.source_id,
     source_type: payload.provenance.source.source_type,
     influence_score: payload.provenance.valuation.influence_score,
+    root_tithe_bps: Number(payload.sovereign_root_tithe && payload.sovereign_root_tithe.tithe_bps || 0),
+    root_tithe_value_usd: Number(payload.sovereign_root_tithe && payload.sovereign_root_tithe.tithe_value_usd || 0),
     shadow_only: shadowOnly,
     apply_executed: applyExecuted,
     paths: {

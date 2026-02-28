@@ -195,6 +195,14 @@ function defaultPolicy() {
       storm_lane: 'storm_value_distribution',
       burn_oracle_source: 'state/ops/dynamic_burn_budget_oracle/latest.json'
     },
+    sovereign_root_tithe: {
+      enabled: true,
+      tithe_bps: 1000,
+      root_creator_id: 'jay_sovereign_root',
+      root_wallet_alias: 'jay_root_wallet',
+      inherit_on_birth: true,
+      enforce_splitter: true
+    },
     state: {
       state_path: 'state/blockchain/sovereign_bridge/state.json',
       latest_path: 'state/blockchain/sovereign_bridge/latest.json',
@@ -213,6 +221,9 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   const chains = raw.chains && typeof raw.chains === 'object' ? raw.chains : {};
   const identity = raw.identity_binding && typeof raw.identity_binding === 'object' ? raw.identity_binding : {};
   const payments = raw.payments && typeof raw.payments === 'object' ? raw.payments : {};
+  const sovereignRootTithe = raw.sovereign_root_tithe && typeof raw.sovereign_root_tithe === 'object'
+    ? raw.sovereign_root_tithe
+    : {};
   const state = raw.state && typeof raw.state === 'object' ? raw.state : {};
   return {
     version: cleanText(raw.version || base.version, 24) || base.version,
@@ -268,6 +279,20 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
       x402_enabled: payments.x402_enabled !== false,
       storm_lane: normalizeToken(payments.storm_lane || base.payments.storm_lane, 120) || base.payments.storm_lane,
       burn_oracle_source: resolvePath(payments.burn_oracle_source, base.payments.burn_oracle_source)
+    },
+    sovereign_root_tithe: {
+      enabled: toBool(sovereignRootTithe.enabled, base.sovereign_root_tithe.enabled),
+      tithe_bps: clampInt(sovereignRootTithe.tithe_bps, 0, 10000, base.sovereign_root_tithe.tithe_bps),
+      root_creator_id: normalizeToken(
+        sovereignRootTithe.root_creator_id || base.sovereign_root_tithe.root_creator_id,
+        180
+      ) || base.sovereign_root_tithe.root_creator_id,
+      root_wallet_alias: cleanText(
+        sovereignRootTithe.root_wallet_alias || base.sovereign_root_tithe.root_wallet_alias,
+        160
+      ) || base.sovereign_root_tithe.root_wallet_alias,
+      inherit_on_birth: toBool(sovereignRootTithe.inherit_on_birth, base.sovereign_root_tithe.inherit_on_birth),
+      enforce_splitter: toBool(sovereignRootTithe.enforce_splitter, base.sovereign_root_tithe.enforce_splitter)
     },
     state: {
       state_path: resolvePath(state.state_path, base.state.state_path),
@@ -411,6 +436,14 @@ function deterministicWalletPlan(policy: AnyObj, instanceId: string, birthContex
       x402_enabled: policy.payments.x402_enabled === true,
       storm_lane: policy.payments.storm_lane,
       burn_oracle_source: relPath(policy.payments.burn_oracle_source)
+    },
+    sovereign_root_tithe: {
+      enabled: policy.sovereign_root_tithe.enabled === true,
+      tithe_bps: Number(policy.sovereign_root_tithe.tithe_bps || 0),
+      root_creator_id: policy.sovereign_root_tithe.root_creator_id,
+      root_wallet_alias: policy.sovereign_root_tithe.root_wallet_alias,
+      inherit_on_birth: policy.sovereign_root_tithe.inherit_on_birth === true,
+      enforce_splitter: policy.sovereign_root_tithe.enforce_splitter === true
     }
   };
 }
@@ -506,7 +539,8 @@ function cmdBootstrapProposal(policy: AnyObj, args: AnyObj) {
     event: 'wallet_bootstrap_proposed',
     proposal_id: proposalId,
     instance_id: instanceId,
-    stage
+    stage,
+    sovereign_root_tithe: plan.sovereign_root_tithe || null
   });
   try {
     recordIterationStep({
@@ -597,8 +631,24 @@ function cmdBindIdentity(policy: AnyObj, args: AnyObj) {
     instance_id: proposal.instance_id || null,
     wallet_plan_id: proposal.wallet_plan && proposal.wallet_plan.plan_id || null,
     sbt_token_id: sbtTokenId,
-    erc8004_agent_id: erc8004AgentId
+    erc8004_agent_id: erc8004AgentId,
+    sovereign_root_tithe: {
+      enabled: proposal.wallet_plan && proposal.wallet_plan.sovereign_root_tithe
+        ? proposal.wallet_plan.sovereign_root_tithe.enabled === true
+        : policy.sovereign_root_tithe.enabled === true,
+      tithe_bps: proposal.wallet_plan && proposal.wallet_plan.sovereign_root_tithe
+        ? Number(proposal.wallet_plan.sovereign_root_tithe.tithe_bps || 0)
+        : Number(policy.sovereign_root_tithe.tithe_bps || 0),
+      root_creator_id: proposal.wallet_plan && proposal.wallet_plan.sovereign_root_tithe
+        ? cleanText(proposal.wallet_plan.sovereign_root_tithe.root_creator_id || '', 180)
+        : policy.sovereign_root_tithe.root_creator_id
+    }
   }));
+  const rootTitheCommitment = sha256Hex(stableStringify(
+    proposal.wallet_plan && proposal.wallet_plan.sovereign_root_tithe
+      ? proposal.wallet_plan.sovereign_root_tithe
+      : policy.sovereign_root_tithe
+  ));
 
   const row = {
     ts: nowIso(),
@@ -612,7 +662,8 @@ function cmdBindIdentity(policy: AnyObj, args: AnyObj) {
     binding: {
       sbt_token_id: sbtTokenId,
       erc8004_agent_id: erc8004AgentId,
-      helix_binding_hash: helixBindingHash
+      helix_binding_hash: helixBindingHash,
+      sovereign_root_tithe_commitment: rootTitheCommitment
     },
     reason_codes: reasons
   };
@@ -621,7 +672,8 @@ function cmdBindIdentity(policy: AnyObj, args: AnyObj) {
     event: 'wallet_identity_binding',
     binding_id: bindingId,
     proposal_id: proposalId,
-    stage
+    stage,
+    sovereign_root_tithe_commitment: rootTitheCommitment
   });
   try {
     recordIterationStep({
@@ -678,6 +730,14 @@ function cmdStatus(policy: AnyObj) {
       genome_ledger_path: relPath(policy.dna.genome_ledger_path),
       secret_template_id: policy.dna.secret_template_id,
       kernel_live_key_forbidden: policy.dna.kernel_live_key_forbidden === true
+    },
+    sovereign_root_tithe: {
+      enabled: policy.sovereign_root_tithe.enabled === true,
+      tithe_bps: Number(policy.sovereign_root_tithe.tithe_bps || 0),
+      root_creator_id: policy.sovereign_root_tithe.root_creator_id,
+      root_wallet_alias: policy.sovereign_root_tithe.root_wallet_alias,
+      inherit_on_birth: policy.sovereign_root_tithe.inherit_on_birth === true,
+      enforce_splitter: policy.sovereign_root_tithe.enforce_splitter === true
     },
     kernel_wallet_material_guard: kernelGuard,
     counts: {

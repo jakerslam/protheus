@@ -99,6 +99,13 @@ function clampNumber(v: unknown, lo: number, hi: number, fallback: number) {
   return n;
 }
 
+function roundTo(n: unknown, digits = 6) {
+  const value = Number(n);
+  if (!Number.isFinite(value)) return 0;
+  const factor = 10 ** Math.max(0, Math.min(8, digits));
+  return Math.round(value * factor) / factor;
+}
+
 function ensureDir(dirPath: string) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
@@ -178,6 +185,15 @@ function defaultPolicy() {
       max_creators_per_plan: 1000,
       allowed_modes: ['royalty', 'donation', 'hybrid']
     },
+    sovereign_root_tithe: {
+      enabled: true,
+      tithe_bps: 1000,
+      root_creator_id: 'jay_sovereign_root',
+      root_wallet_alias: 'jay_root_wallet',
+      root_payout_mode: 'royalty',
+      enforce_from_attribution: true,
+      fail_closed_on_mismatch: true
+    },
     state: {
       root: 'state/storm/value_distribution',
       plans_dir: 'state/storm/value_distribution/plans',
@@ -199,6 +215,9 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   const governance = raw.governance && typeof raw.governance === 'object' ? raw.governance : {};
   const inputs = raw.inputs && typeof raw.inputs === 'object' ? raw.inputs : {};
   const distribution = raw.distribution && typeof raw.distribution === 'object' ? raw.distribution : {};
+  const sovereignRootTithe = raw.sovereign_root_tithe && typeof raw.sovereign_root_tithe === 'object'
+    ? raw.sovereign_root_tithe
+    : {};
   const state = raw.state && typeof raw.state === 'object' ? raw.state : {};
   const passport = raw.passport && typeof raw.passport === 'object' ? raw.passport : {};
   return {
@@ -221,6 +240,30 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
       allowed_modes: Array.isArray(distribution.allowed_modes)
         ? distribution.allowed_modes.map((row: unknown) => normalizeToken(row, 40)).filter(Boolean)
         : base.distribution.allowed_modes
+    },
+    sovereign_root_tithe: {
+      enabled: toBool(sovereignRootTithe.enabled, base.sovereign_root_tithe.enabled),
+      tithe_bps: clampInt(sovereignRootTithe.tithe_bps, 0, 10000, base.sovereign_root_tithe.tithe_bps),
+      root_creator_id: normalizeToken(
+        sovereignRootTithe.root_creator_id || base.sovereign_root_tithe.root_creator_id,
+        180
+      ) || base.sovereign_root_tithe.root_creator_id,
+      root_wallet_alias: cleanText(
+        sovereignRootTithe.root_wallet_alias || base.sovereign_root_tithe.root_wallet_alias,
+        160
+      ) || base.sovereign_root_tithe.root_wallet_alias,
+      root_payout_mode: normalizeToken(
+        sovereignRootTithe.root_payout_mode || base.sovereign_root_tithe.root_payout_mode,
+        40
+      ) || base.sovereign_root_tithe.root_payout_mode,
+      enforce_from_attribution: toBool(
+        sovereignRootTithe.enforce_from_attribution,
+        base.sovereign_root_tithe.enforce_from_attribution
+      ),
+      fail_closed_on_mismatch: toBool(
+        sovereignRootTithe.fail_closed_on_mismatch,
+        base.sovereign_root_tithe.fail_closed_on_mismatch
+      )
     },
     state: {
       root: resolvePath(state.root || base.state.root, base.state.root),
@@ -298,11 +341,58 @@ function buildPlan(args: AnyObj = {}, opts: AnyObj = {}) {
       return true;
     });
 
+  const rootConfig = policy.sovereign_root_tithe || {};
+  const rootCreatorId = normalizeToken(rootConfig.root_creator_id || 'jay_sovereign_root', 180) || 'jay_sovereign_root';
+  const rootWalletAlias = cleanText(rootConfig.root_wallet_alias || 'jay_root_wallet', 160) || 'jay_root_wallet';
+  const rootMode = policy.distribution.allowed_modes.includes(String(rootConfig.root_payout_mode || 'royalty'))
+    ? String(rootConfig.root_payout_mode)
+    : 'royalty';
+  const rootTitheViolations: string[] = [];
+  const observedTitheBpsSet = new Set<number>();
+  for (const row of attributionRows) {
+    const rowTithe = row && row.provenance && row.provenance.economic && row.provenance.economic.sovereign_root_tithe
+      ? row.provenance.economic.sovereign_root_tithe
+      : (row && row.sovereign_root_tithe ? row.sovereign_root_tithe : null);
+    if (!rowTithe || typeof rowTithe !== 'object') continue;
+    if (toBool(rowTithe.enabled, false) !== true) continue;
+    const rowBps = clampInt(rowTithe.tithe_bps, 0, 10000, -1);
+    if (rowBps >= 0) observedTitheBpsSet.add(rowBps);
+  }
+
+  const observedTitheBps = observedTitheBpsSet.size === 1 ? Array.from(observedTitheBpsSet)[0] : null;
+  if (rootConfig.enforce_from_attribution === true && observedTitheBpsSet.size > 1) {
+    rootTitheViolations.push('root_tithe_bps_mismatch_across_attribution_records');
+  }
+  if (rootConfig.enabled !== true && observedTitheBpsSet.size > 0) {
+    rootTitheViolations.push('root_tithe_disabled_but_required_by_attribution');
+  }
+
+  const effectiveTitheBps = rootConfig.enabled === true
+    ? (observedTitheBps != null && rootConfig.enforce_from_attribution === true
+      ? observedTitheBps
+      : clampInt(rootConfig.tithe_bps, 0, 10000, 1000))
+    : 0;
+  if (rootConfig.enabled === true && observedTitheBps != null && observedTitheBps !== effectiveTitheBps) {
+    rootTitheViolations.push('root_tithe_bps_policy_mismatch');
+  }
+
+  const rootTitheUsd = rootConfig.enabled === true
+    ? roundTo((poolUsd * effectiveTitheBps) / 10000, 6)
+    : 0;
+  const creatorPoolUsd = roundTo(Math.max(0, poolUsd - rootTitheUsd), 6);
+  if (rootConfig.enabled === true && rootTitheUsd <= 0 && poolUsd > 0) {
+    rootTitheViolations.push('root_tithe_zero_for_positive_pool');
+  }
+  if (creatorPoolUsd < 0 || rootTitheUsd > poolUsd) {
+    rootTitheViolations.push('root_tithe_exceeds_pool');
+  }
+
   const creators = loadCreatorMap(policy);
   const aggregate: Record<string, AnyObj> = {};
   for (const row of attributionRows) {
     const creatorId = normalizeToken(row && row.provenance && row.provenance.creator && row.provenance.creator.creator_id || '', 180) || null;
     if (!creatorId) continue;
+    if (creatorId === rootCreatorId) continue; // Root tithe is enforced separately; do not double-count.
     const creator = creators[creatorId] || null;
     if (!creator || creator.opted_in !== true) continue;
 
@@ -338,7 +428,7 @@ function buildPlan(args: AnyObj = {}, opts: AnyObj = {}) {
   const payouts: AnyObj[] = [];
   for (const row of creatorRows) {
     const share = totalScore > 0 ? Number(row.score || 0) / totalScore : 0;
-    const amount = Number((poolUsd * share).toFixed(6));
+    const amount = roundTo(creatorPoolUsd * share, 6);
     if (amount < Number(policy.distribution.min_payout_usd || 0)) continue;
     const mode = policy.distribution.allowed_modes.includes(String(row.payout_mode || ''))
       ? String(row.payout_mode)
@@ -356,6 +446,35 @@ function buildPlan(args: AnyObj = {}, opts: AnyObj = {}) {
     });
   }
 
+  if (rootConfig.enabled === true) {
+    payouts.unshift({
+      creator_id: rootCreatorId,
+      mode: rootMode,
+      donation_target: null,
+      amount_usd: rootTitheUsd,
+      share: poolUsd > 0 ? roundTo(rootTitheUsd / poolUsd, 6) : 0,
+      score: null,
+      attribution_ids: [],
+      objective_ids: objectiveFilter ? [objectiveFilter] : [],
+      run_ids: runFilter ? [runFilter] : [],
+      is_sovereign_root_tithe: true,
+      wallet_alias: rootWalletAlias,
+      effective_tithe_bps: effectiveTitheBps
+    });
+  }
+
+  const payoutTotalUsd = roundTo(
+    payouts.reduce((sum: number, row: AnyObj) => sum + Number(row && row.amount_usd || 0), 0),
+    6
+  );
+  const payoutDeltaUsd = roundTo(poolUsd - payoutTotalUsd, 6);
+  if (Math.abs(payoutDeltaUsd) > 0.01) {
+    rootTitheViolations.push('payout_sum_mismatch');
+  }
+
+  const rootTitheBlocked = rootConfig.fail_closed_on_mismatch === true && rootTitheViolations.length > 0;
+  const planBlocked = constitutionBlocked || rootTitheBlocked;
+
   const distributionId = normalizeToken(args.distribution_id || '', 180)
     || `svd_${sha16(`${nowIso()}|${runFilter || 'all'}|${objectiveFilter || 'all'}|${poolUsd}`)}`;
   const plan = {
@@ -370,16 +489,30 @@ function buildPlan(args: AnyObj = {}, opts: AnyObj = {}) {
     apply_executed: applyExecuted,
     constitution,
     constitution_blocked: constitutionBlocked,
+    root_tithe: {
+      enabled: rootConfig.enabled === true,
+      blocked: rootTitheBlocked,
+      reason_codes: rootTitheViolations,
+      root_creator_id: rootCreatorId,
+      root_wallet_alias: rootWalletAlias,
+      effective_tithe_bps: effectiveTitheBps,
+      root_tithe_usd: rootTitheUsd,
+      creator_pool_usd: creatorPoolUsd,
+      observed_tithe_bps: observedTitheBps,
+      observed_tithe_bps_count: observedTitheBpsSet.size
+    },
     scope: {
       days,
       run_id: runFilter,
       objective_id: objectiveFilter
     },
     pool_usd: poolUsd,
+    payout_total_usd: payoutTotalUsd,
+    payout_delta_usd: payoutDeltaUsd,
     attribution_records_considered: attributionRows.length,
     creators_considered: creatorRows.length,
     payouts,
-    status: constitutionBlocked ? 'blocked' : (shadowOnly ? 'shadow_only' : 'applied')
+    status: planBlocked ? 'blocked' : (shadowOnly ? 'shadow_only' : 'applied')
   };
 
   const planPath = path.join(policy.state.plans_dir, `${distributionId}.json`);
@@ -396,10 +529,13 @@ function buildPlan(args: AnyObj = {}, opts: AnyObj = {}) {
     distribution_id: distributionId,
     creator_count: payouts.length,
     pool_usd: poolUsd,
-    constitution_decision: constitution.decision
+    constitution_decision: constitution.decision,
+    root_tithe_bps: effectiveTitheBps,
+    root_tithe_usd: rootTitheUsd,
+    root_tithe_blocked: rootTitheBlocked
   }, {
     attempted: true,
-    verified: shadowOnly !== true && constitutionBlocked !== true
+    verified: shadowOnly !== true && planBlocked !== true
   });
 
   let passportLink = null;
@@ -412,11 +548,14 @@ function buildPlan(args: AnyObj = {}, opts: AnyObj = {}) {
         target: distributionId,
         status: plan.status,
         attempted: true,
-        verified: shadowOnly !== true && constitutionBlocked !== true,
+        verified: shadowOnly !== true && planBlocked !== true,
         metadata: {
           payout_count: payouts.length,
           pool_usd: poolUsd,
-          constitution_decision: constitution.decision
+          constitution_decision: constitution.decision,
+          root_tithe_bps: effectiveTitheBps,
+          root_tithe_usd: rootTitheUsd,
+          root_tithe_blocked: rootTitheBlocked
         }
       }
     });
@@ -432,6 +571,7 @@ function buildPlan(args: AnyObj = {}, opts: AnyObj = {}) {
 
   // Feed contribution maturity back into creator ledger.
   for (const payout of payouts) {
+    if (payout && payout.is_sovereign_root_tithe === true) continue;
     recordContribution({
       creator_id: payout.creator_id,
       influence: clampNumber(payout.share, 0, 1, 0),

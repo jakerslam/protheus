@@ -39,6 +39,14 @@
     "storm_lane": "storm_value_distribution",
     "burn_oracle_source": "state/ops/dynamic_burn_budget_oracle/latest.json"
   },
+  "sovereign_root_tithe": {
+    "enabled": true,
+    "tithe_bps": 1000,
+    "root_creator_id": "jay_sovereign_root",
+    "root_wallet_alias": "jay_root_wallet",
+    "inherit_on_birth": true,
+    "enforce_splitter": true
+  },
   "state": {
     "state_path": "state/blockchain/sovereign_bridge/state.json",
     "latest_path": "state/blockchain/sovereign_bridge/latest.json",

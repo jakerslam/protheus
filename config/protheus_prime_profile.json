@@ -31,6 +31,14 @@
     "secret_template_id": "wallet_dna_root_v1",
     "bootstrap_template_path": "config/bootstrap_wallet_proposal_template.json",
     "genome_ledger_path": "state/brain/genome_ledger.jsonl",
+    "sovereign_root_tithe": {
+      "enabled": true,
+      "tithe_bps": 1000,
+      "root_creator_id": "jay_sovereign_root",
+      "root_wallet_alias": "jay_root_wallet",
+      "inherit_on_birth": true,
+      "enforce_splitter": true
+    },
     "chains": {
       "ethereum_primary": {
         "enabled": true,

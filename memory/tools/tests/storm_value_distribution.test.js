@@ -94,6 +94,15 @@ function run() {
       max_creators_per_plan: 100,
       allowed_modes: ['royalty', 'donation', 'hybrid']
     },
+    sovereign_root_tithe: {
+      enabled: true,
+      tithe_bps: 1000,
+      root_creator_id: 'jay_sovereign_root',
+      root_wallet_alias: 'jay_root_wallet',
+      root_payout_mode: 'royalty',
+      enforce_from_attribution: true,
+      fail_closed_on_mismatch: true
+    },
     state: {
       root: path.join(tmpRoot, 'state', 'storm', 'value_distribution'),
       plans_dir: path.join(tmpRoot, 'state', 'storm', 'value_distribution', 'plans'),
@@ -135,7 +144,13 @@ function run() {
     provenance: {
       creator: { creator_id: 'creator_alpha' },
       valuation: { influence_score: 0.7, weight: 1 },
-      context: { objective_id: 'obj_storm', run_id: 'run_storm_1' }
+      context: { objective_id: 'obj_storm', run_id: 'run_storm_1' },
+      economic: {
+        sovereign_root_tithe: {
+          enabled: true,
+          tithe_bps: 1000
+        }
+      }
     }
   });
   appendJsonl(attributionRecordsPath, {
@@ -144,7 +159,13 @@ function run() {
     provenance: {
       creator: { creator_id: 'creator_beta' },
       valuation: { influence_score: 0.3, weight: 1 },
-      context: { objective_id: 'obj_storm', run_id: 'run_storm_1' }
+      context: { objective_id: 'obj_storm', run_id: 'run_storm_1' },
+      economic: {
+        sovereign_root_tithe: {
+          enabled: true,
+          tithe_bps: 1000
+        }
+      }
     }
   });
 
@@ -158,7 +179,12 @@ function run() {
   ], env, repoRoot), 'plan');
   assert.strictEqual(plan.ok, true);
   assert.strictEqual(plan.status, 'shadow_only');
-  assert.ok(Array.isArray(plan.payouts) && plan.payouts.length === 2, 'plan should produce two payouts');
+  assert.ok(Array.isArray(plan.payouts) && plan.payouts.length === 3, 'plan should produce root + two creator payouts');
+  const rootPayout = plan.payouts.find((row) => row && row.is_sovereign_root_tithe === true);
+  assert.ok(rootPayout, 'root payout should be included');
+  assert.strictEqual(Number(rootPayout.amount_usd || 0), 10, 'root payout should enforce 10% tithe');
+  assert.strictEqual(String(rootPayout.creator_id || ''), 'jay_sovereign_root');
+  assert.strictEqual(Number(plan.root_tithe && plan.root_tithe.effective_tithe_bps || 0), 1000);
   const sum = plan.payouts.reduce((acc, row) => acc + Number(row.amount_usd || 0), 0);
   assert.ok(sum > 99.9 && sum < 100.1, 'payouts should approximately sum to pool');
 
