@@ -18,7 +18,8 @@
     "solana_descriptor_optional",
     "sbt_binding_intent",
     "erc8004_registration_intent",
-    "helix_binding_hash"
+    "helix_binding_hash",
+    "sovereign_root_tithe_binding"
   ],
   "forbidden_outputs": [
     "raw_private_key",

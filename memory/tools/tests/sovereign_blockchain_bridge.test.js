@@ -96,6 +96,14 @@ function main() {
       storm_lane: 'storm_value_distribution',
       burn_oracle_source: path.join(tmp, 'burn_oracle_latest.json')
     },
+    sovereign_root_tithe: {
+      enabled: true,
+      tithe_bps: 1000,
+      root_creator_id: 'jay_sovereign_root',
+      root_wallet_alias: 'jay_root_wallet',
+      inherit_on_birth: true,
+      enforce_splitter: true
+    },
     state: {
       state_path: statePath,
       latest_path: latestPath,
@@ -114,6 +122,7 @@ function main() {
   let out = parseJson(proc.stdout);
   assert.ok(out && out.ok === true, 'status payload should be ok');
   assert.ok(out.kernel_wallet_material_guard && out.kernel_wallet_material_guard.ok === true, 'kernel wallet material guard should pass');
+  assert.strictEqual(Boolean(out.sovereign_root_tithe && out.sovereign_root_tithe.enabled), true, 'status should expose root tithe policy');
 
   proc = run(['bootstrap-proposal'], env);
   assert.strictEqual(proc.status, 1, 'missing instance id should fail');
@@ -136,6 +145,8 @@ function main() {
   assert.strictEqual(Boolean(out.wallet_plan && out.wallet_plan.key_material_in_kernel), false, 'wallet plan must never expose key material in kernel');
   assert.ok(out.wallet_plan && out.wallet_plan.ethereum_primary, 'ethereum descriptor should be present');
   assert.ok(out.wallet_plan && out.wallet_plan.solana_secondary, 'solana descriptor should be present');
+  assert.strictEqual(Boolean(out.wallet_plan && out.wallet_plan.sovereign_root_tithe && out.wallet_plan.sovereign_root_tithe.enabled), true, 'wallet plan should inherit root tithe');
+  assert.strictEqual(Number(out.wallet_plan && out.wallet_plan.sovereign_root_tithe && out.wallet_plan.sovereign_root_tithe.tithe_bps || 0), 1000, 'wallet plan should carry tithe bps');
   const proposalId = String(out.proposal_id || '');
   assert.ok(proposalId, 'proposal id missing');
 
@@ -154,6 +165,7 @@ function main() {
   assert.ok(out && out.ok === true, 'bind output should be ok');
   assert.strictEqual(String(out.stage || ''), 'shadow_binding_intent', 'shadow bind should stay intent-only');
   assert.ok(out.binding && String(out.binding.helix_binding_hash || '').length === 64, 'helix binding hash should be emitted');
+  assert.ok(out.binding && String(out.binding.sovereign_root_tithe_commitment || '').length === 64, 'root tithe commitment should be emitted');
 
   assert.ok(fs.existsSync(statePath), 'state file missing');
   assert.ok(fs.existsSync(latestPath), 'latest file missing');

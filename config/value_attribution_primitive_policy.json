@@ -10,6 +10,13 @@
     "min_influence_score": 0,
     "max_influence_score": 1
   },
+  "sovereign_root_tithe": {
+    "enabled": true,
+    "tithe_bps": 1000,
+    "beneficiary_creator_id": "jay_sovereign_root",
+    "beneficiary_wallet_alias": "jay_root_wallet",
+    "enforce_root_first": true
+  },
   "passport": {
     "enabled": true,
     "source": "value_attribution_primitive"
