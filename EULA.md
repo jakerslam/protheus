@@ -15,11 +15,19 @@ Subject to compliance with this agreement and project policies, a limited, revoc
 - No reverse engineering or bypass of security/governance controls.
 - No use that violates applicable law, data rights, or contractual obligations.
 
-## 3. Ownership
+## 3. Defensive Protection Notice
+
+Protheus is protected intellectual property. Unauthorized copying, reverse-engineering, or interfacing outside of a valid soul-token-bound instance is prohibited.
+
+Unauthorized activity may trigger internal defensive controls, including access denial, capability restriction, rate limiting, quarantine, and forensic logging/watermarking.
+
+These controls are bounded, auditable, and contained to the unauthorized instance. They are intended for legal self-protection and incident response.
+
+## 4. Ownership
 
 All software, documentation, and associated intellectual property remain the property of the rights holder(s) as defined by repository legal files.
 
-## 4. Compliance
+## 5. Compliance
 
 Operator must comply with:
 
@@ -28,14 +36,14 @@ Operator must comply with:
 - `TERMS_OF_SERVICE.md`
 - Applicable security and governance policies in `config/`
 
-## 5. Termination
+## 6. Termination
 
 License terminates automatically for breach. On termination, operator must stop use and remove unauthorized copies.
 
-## 6. Warranty and Liability
+## 7. Warranty and Liability
 
 Software is provided “as is,” with no warranty of any kind. Liability is limited to the maximum extent permitted by law.
 
-## 7. Versioning
+## 8. Versioning
 
 Agreement version changes may require fresh acknowledgment before continued operation.

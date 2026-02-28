@@ -21,18 +21,26 @@ By running install/bootstrap workflows for this system, the operator accepts the
 - Operators must maintain incident response readiness and follow the runbook during incidents.
 - Compromise indicators must be treated as security incidents and triaged immediately.
 
-## 4. Data and Audit
+## 4. Defensive Protection Notice
+
+Protheus is protected intellectual property. Unauthorized copying, reverse-engineering, or interfacing outside of a valid soul-token-bound instance is prohibited.
+
+Unauthorized activity may trigger internal defensive controls, including access denial, capability restriction, rate limiting, quarantine, and forensic logging/watermarking.
+
+These controls are bounded, auditable, and contained to the unauthorized instance. They are intended for legal self-protection and incident response.
+
+## 5. Data and Audit
 
 - The system may emit audit artifacts and governance receipts needed for traceability.
 - Operators are responsible for lawful handling, retention, and deletion obligations in their jurisdiction.
 
-## 5. Disclaimer and Limitation
+## 6. Disclaimer and Limitation
 
 - Software is provided “as is” without warranty.
 - Operator remains responsible for operational decisions and consequences.
 - In no event are project authors liable for indirect, incidental, special, or consequential damages arising from use.
 
-## 6. Updates
+## 7. Updates
 
 - Terms version may be updated.
 - Install/bootstrap flows may require re-acknowledgment when terms version changes.
