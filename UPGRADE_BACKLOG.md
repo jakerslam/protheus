@@ -1054,6 +1054,179 @@ Dependency notes:
 - Test wiring requirement for all slices: add/maintain parity + regression suites under `memory/tools/tests/*rust_memory*` and benchmark evidence artifacts in `state/ops/public_benchmark_pack/` before any rust-live promotion.
 - This intake is queued for execution after the active soak + gated-cycle validation completes.
 
+## Enterprise Documentation Structure Intake (Deduplicated, 2026-02-28)
+
+Objective: add Fortune-100-grade documentation structure and governance packaging without duplicating existing architecture/compliance controls.
+
+| Gap | Disposition | Canonical Coverage | Action |
+|---|---|---|---|
+| Single docs entrypoint + taxonomy | net-new | `V2-022` (done, coverage gate only) | Add canonical docs hub, taxonomy, and ownership map in `docs/` (`V3-DOC-001`). |
+| ADR system with lifecycle (`proposed/accepted/superseded`) | net-new | partial design docs in `docs/*.md` | Add ADR registry/process and CI linkage (`V3-DOC-002`). |
+| Service catalog + dependency map (owner/SLO/criticality/deps) | net-new | `docs/ARCHITECTURE_OWNERSHIP.md` (partial narrative) | Add machine-readable service catalog and generated dependency views (`V3-DOC-003`). |
+| Interface/schema registry and change policy | covered + strengthened | `BL-024` (done), `V3-ARC-004` (todo) | Add contract registry docs and release/change linkage (`V3-DOC-004`). |
+| Control-to-evidence matrix publication | covered + strengthened | `RM-008` (done) | Add publishable control/evidence matrix export + drift gate (`V3-DOC-005`). |
+| Release/change documentation pack | covered + strengthened | `V2-014` (done), `BL-034` (done), `V3-ARC-005` (todo) | Add standardized release artifacts/templates and policy references (`V3-DOC-006`). |
+| Data governance matrix (classification/retention/access/deletion) | covered + strengthened | `RM-104` (done), `RM-131` (done), `V3-ENT-002` (todo) | Add consolidated data governance matrices and accountability mapping (`V3-DOC-007`). |
+| Environment model matrix (`dev/stage/prod`) with promotion rules | covered + strengthened | `V2-014` (done) | Add explicit environment matrix docs and drift check linkage (`V3-DOC-008`). |
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|---|---|
+| V3-DOC-001 | hardening | V3 | todo | Canonical Docs Hub + Taxonomy (`docs/README.md`) | Rich docs exist but discoverability/entrypoint is fragmented for external teams | Add `docs/README.md` with authoritative IA (architecture, runtime, governance, ops, security, compliance, runbooks), owner per section, and freshness/status markers; docs coverage gate fails when required sections are missing or orphaned |
+| V3-DOC-002 | hardening | V3 | todo | ADR Registry + Decision Lifecycle | Architecture choices need auditable rationale and supersession trail | Add `docs/adr/` with template + numbering + status lifecycle (`proposed/accepted/superseded/rejected`), link ADRs from affected docs/code paths, and enforce ADR-reference checks for high-impact architecture changes |
+| V3-DOC-003 | primitive-upgrade | V3 | todo | Service Catalog + Dependency Graph Contracts | Platform operations require explicit service inventory with ownership and dependency truth | Add machine-readable catalog (`config/service_catalog.json`) containing owner, SLO class, criticality tier, runtime dependencies, and escalation path; generate docs view and CI drift check against runtime import/dependency graph |
+| V3-DOC-004 | extension | V3 | todo | Interface Contract Registry + Schema Governance Pack | Contract/schemas exist but need a unified registry for operator and release workflows | Add central contract registry (`config/interface_contract_registry.json`) linking each API/CLI/event/state schema to version policy, migration owner, and compatibility window; wire release checks to block unregistered or unsupported schema/interface changes |
+| V3-DOC-005 | hardening | V3 | todo | Control-to-Evidence Matrix Export + Drift Gate | Compliance controls are stronger when evidence is easy to audit and guaranteed fresh | Publish deterministic `controls -> checks -> evidence paths -> owner -> cadence` matrix artifact from existing controls, add freshness/drift gate, and include export profile for audit review packets |
+| V3-DOC-006 | hardening | V3 | todo | Release/Change Documentation Pack (Templates + Checklists) | Multi-operator release quality depends on standardized change artifacts beyond ad-hoc runbook use | Add standard templates/checklists for release plan, rollback plan, risk assessment, post-release verification, deprecation notice, and postmortem handoff; require linkage from promotion gate receipts to artifact IDs |
+| V3-DOC-007 | hardening | V3 | todo | Data Governance Matrix Pack | Enterprise operations need a single source for data classification, access rights, retention, legal hold, and deletion SLA | Generate consolidated matrix documenting data classes, retention tiers, access scopes, legal-hold behavior, DSAR/export path, purge proofs, and owners; link matrix rows to policy files and enforcement checks |
+| V3-DOC-008 | extension | V3 | todo | Environment Matrix + Promotion Contracts Documentation | Environment boundaries and promotion controls should be explicit, reviewable, and machine-checkable | Add `dev/stage/prod` matrix with owners, allowed mutation classes, approval requirements, and deploy gates; tie matrix to environment promotion gate outputs and fail checks when policy/docs drift |
+
+Dependency notes:
+- `V3-DOC-001` depends on `V2-022` and `V3-ARC-005`.
+- `V3-DOC-002` depends on `V3-ARC-001`, `V3-ARC-005`, and `V2-063`.
+- `V3-DOC-003` depends on `V3-ARC-003`, `V3-OPS-010`, and `RM-118`.
+- `V3-DOC-004` depends on `BL-024`, `V3-ARC-004`, and `RR-003`.
+- `V3-DOC-005` depends on `RM-008`, `V2-057`, and `V3-ENT-003`.
+- `V3-DOC-006` depends on `V2-014`, `BL-034`, and `V3-FCH-002`.
+- `V3-DOC-007` depends on `RM-104`, `RM-131`, and `V3-ENT-002`.
+- `V3-DOC-008` depends on `V2-014`, `V3-ARC-005`, and `V3-OPS-004`.
+
+## OpenFang Capability Intake (Normalized, 2026-02-28)
+
+Objective: absorb high-value patterns from OpenFang without duplicating already-completed Protheus capabilities; keep primitive-first contracts and add extensions/profile packs on top.
+
+| Candidate Capability | Disposition | Canonical Coverage | Action |
+|---|---|---|---|
+| Provider library + auto purchase of LLM credits | duplicate (already delivered) | `V3-ECO-001` (done), `V3-BUD-001` (done), `V3-BLK-001` (doing) | Keep existing economy + burn-oracle + blockchain lane; no new epic. |
+| Multi-agent debate and structured planning | duplicate (already delivered) | `V3-MAC-001` (done), `V3-LHP-001` (done) | Keep as existing primitives; tune via policy/profiles only. |
+| Production computer-use reliability | duplicate (already delivered) | `V3-CU-001` (done), `V3-ACT-002` (done) | Keep under universal execution primitive; add only profile packs. |
+| Unified CLI/operator surface | covered | `V3-OPS-004` (todo), `V3-OPS-015` (todo) | No new epic; continue command-surface migration lane. |
+| Fuel-metered WASM execution lane | net-new | `V3-OF-001` (below) | Add optional WASM runtime lane under existing universal execution primitive. |
+| End-to-end taint tracking | net-new | `V3-OF-002` (below) | Add data taint propagation + sink enforcement receipts. |
+| SSRF/DNS-rebinding defensive bundle | net-new | `V3-OF-003` (below) | Strengthen egress gateway checks and deny-lists with deterministic receipts. |
+| Tool-loop circuit breaker + session repair | net-new | `V3-OF-004` (below) | Add bounded runaway prevention and auto-repair lane for tool paths. |
+| "Hands"-style capability packs | net-new | `V3-OF-005` + `V3-OF-006` (below) | Implement as generic capability-pack manifests + signed supply-chain path (not bespoke organs). |
+| OpenAI-compatible API facade | net-new | `V3-OF-007` (below) | Add compatibility facade over existing Eye/Weaver execution lanes. |
+| Migration bridge from external frameworks | net-new | `V3-OF-008` (below) | Add governed importers into canonical Protheus pack/workflow schemas. |
+| Channel adapter breadth contractization | net-new | `V3-OF-009` (below) | Expand adapter matrix through subsumption registry + channel policy contracts. |
+| Public apples-to-apples benchmark parity harness | net-new | `V3-OF-010` (below) | Add deterministic cross-system benchmark harness with fixed budgets/tasks. |
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|---|---|
+| V3-OF-001 | primitive-upgrade | V3 | todo | Fuel-Metered Tool Runtime Lane (WASM Optional Path) | Lightweight metered execution improves containment and runtime efficiency on hot/unsafe tool paths | Add optional WASM execution backend under universal execution primitive with fuel budgets, epoch interruption, deterministic timeout/termination receipts, and policy-gated fallback to existing runtime lane |
+| V3-OF-002 | hardening | V3 | todo | End-to-End Execution Taint Tracking | Secret/PII safety requires tracking data sensitivity across multi-step tool chains | Tag ingress payloads by sensitivity/provenance class, propagate taint labels across execution steps, block unsafe sinks by policy, and emit taint decision receipts with reason codes |
+| V3-OF-003 | hardening | V3 | todo | SSRF + DNS-Rebinding Egress Defense Pack | External actuation/tool calls need stronger outbound request controls against internal network abuse patterns | Enforce protocol/domain allowlists, local/private IP deny, metadata endpoint deny, DNS rebinding checks, and deterministic allow/deny receipts in egress gateway path |
+| V3-OF-004 | primitive-upgrade | V3 | todo | Tool-Loop Circuit Breaker + Session Repair Primitive | Repetitive or runaway tool loops can silently burn budget and stall execution completion | Detect repetitive call patterns by signature/time/budget windows, trigger bounded circuit-break state, run deterministic session-repair flow, and require cool-off evidence before re-entry |
+| V3-OF-005 | primitive | V3 | todo | Capability Pack Manifest Primitive ("Hands"-Style, Generic) | Packaged autonomous capabilities improve operator usability without bespoke app logic in core runtime | Define canonical capability-pack manifest contract (`objective`, `permissions`, `risk`, `budget`, `schedule`, `adapters`, `rollback`), execute via existing workflow/actuation primitives, and require passport/receipt linkage per pack run |
+| V3-OF-006 | hardening | V3 | todo | Signed Capability Pack Supply Chain | Autonomous pack distribution needs tamper-evident trust and revocation control | Require signed manifests + provenance attestations before activation, support quarantine/revocation lanes, and bind active pack hash/version into passport/ledger receipts |
+| V3-OF-007 | extension | V3 | todo | OpenAI-Compatible Control Plane Facade | Compatibility surface improves ecosystem interoperability and reduces integration friction | Expose OpenAI-compatible chat/tool-call facade mapped to Eye/Weaver/universal execution with full policy/risk gating, schema tests, and deterministic compatibility receipts |
+| V3-OF-008 | extension | V3 | todo | Framework Migration Bridge (Governed Importers) | Migration tooling accelerates onboarding of external workflows without manual rewrites | Add importers for common external framework artifacts into canonical pack/workflow schema, produce dry-run diffs + provenance tags, and block import apply when policy contract checks fail |
+| V3-OF-009 | extension | V3 | todo | Channel Adapter Contract Expansion Pack | Broader channel reach should remain primitive-driven and policy-governed | Add channel capability matrix with per-channel rate-limit/format/risk contracts via subsumption adapter registry, including parity tests and fallback behavior receipts |
+| V3-OF-010 | hardening | V3 | todo | Cross-System Benchmark Parity Harness | Honest positioning requires deterministic apples-to-apples metrics under fixed budgets/tasks | Add benchmark suite reporting cold start, idle memory, p95 latency, completion/quality deltas under fixed model/budget/task profiles; publish artifacts in `state/ops/public_benchmark_pack/` |
+
+Dependency notes:
+- `V3-OF-001` depends on `V3-039`, `V3-CU-001`, `V3-SK-001`, and `V3-OPS-004`.
+- `V3-OF-002` depends on `RM-104`, `V3-ENT-002`, and `V2-063`.
+- `V3-OF-003` depends on egress gateway contracts, `V3-OPS-014`, and `V2-063`.
+- `V3-OF-004` depends on `BL-023`, `V3-OPS-001`, and `V3-OPS-003`.
+- `V3-OF-005` depends on `RM-102`, `V3-ACT-002`, `V3-OPS-004`, and `V2-063`.
+- `V3-OF-006` depends on `V2-049`, `V3-048`, `V2-063`, and `V3-OF-005`.
+- `V3-OF-007` depends on `RM-102`, `V3-OPS-004`, and `BL-024`.
+- `V3-OF-008` depends on `V3-OF-005`, `V2-063`, and `V3-TASK-001`.
+- `V3-OF-009` depends on `RM-102`, `V3-ACT-001`, and `V3-OF-003`.
+- `V3-OF-010` depends on `RM-122`, `V3-AEX-003`, and `V3-OPS-004`.
+
+## OpenFang Parity+ Deployment/Usability/Runtime Pack (Queued, 2026-02-28)
+
+Objective: close remaining practical gaps in install experience, daily operator ergonomics, and runtime efficiency so Protheus beats lightweight agent kernels on real-world usability without sacrificing sovereign governance.
+
+| Concern | Disposition | Canonical Backlog Coverage | Action |
+|---|---|---|---|
+| Single command operator surface | covered | `V3-OPS-004`, `V3-OPS-015` | Keep canonical `protheus` surface and deprecate raw script entrypoints. |
+| Daemonized control-plane lifecycle | covered + strengthened | `V3-OPS-005` | Add local RPC/runtime prewarm details via `V3-RTE-002` (below). |
+| Cross-system benchmark comparability | covered + strengthened | `V3-OF-010` | Add internal stable benchmark profile contract in `V3-BENCH-001` (below). |
+| Build trust/provenance for release artifacts | covered + strengthened | `V3-048` | Add installer + build matrix requirements tied to provenance verification. |
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|---|---|
+| V3-DEP-001 | hardening | V3 | todo | Deterministic One-Line Installer + Signed Release Channel | Install friction remains too high compared to single-binary agent kernels | Ship deterministic installer flow (`curl|sh` + offline script variant) that verifies signed artifact + checksum/SBOM provenance before install, supports explicit version pinning, and fails closed on verification mismatch |
+| V3-DEP-002 | hardening | V3 | todo | Delta Auto-Update + Atomic Rollback Lane | Users should get seamless upgrades without risky partial updates | Add update channel with delta/full modes, pre-apply compatibility checks, post-update health verification, and automatic rollback to last-known-good binary/config state with deterministic receipts |
+| V3-DEP-003 | extension | V3 | todo | Air-Gapped/Offline Install Bundle | Enterprise and restricted environments require no-network installation path | Produce signed offline bundle containing binary, policies, migration scripts, and verification tool; install and verify entirely offline with replayable attestation receipts |
+| V3-RTE-001 | primitive-upgrade | V3 | todo | Warm-Start Snapshot Restore for Sub-Second Boot | Cold-start time remains a visible competitive metric for daily usability | Add policy-bound warm-start snapshot/restore path that restores safe runtime caches/state checkpoints at startup; benchmark proves cold-start improvement without replay or integrity regressions |
+| V3-RTE-002 | extension | V3 | todo | Persistent Daemon RPC Control Socket + Prewarm | Repeated CLI startup cost can dominate operator interactions | Extend daemon/client split with local RPC control socket, process prewarm, command multiplexing, and deterministic request/response receipts; operator commands avoid full runtime re-bootstrap |
+| V3-RTE-003 | hardening | V3 | todo | Runtime Performance Budget Gate (CI + Release) | Performance regressions should be blocked automatically, not discovered post-release | Add policy thresholds for cold start, idle RSS, and p95 command/task latency; CI/release gates fail on regression beyond budget with trend artifacts and exception approval path |
+| V3-RTE-004 | extension | V3 | todo | Adaptive Idle Governor | Long-running instances should reduce idle burn without reducing correctness | Add idle-mode downshift for probes/workers/caches by policy, demand-triggered rapid wake, and correctness parity checks proving no capability loss under idle throttling |
+| V3-USE-001 | extension | V3 | todo | First-Run Onboarding Doctor (`protheus init`) | Initial setup complexity still requires too much manual context | Add guided first-run doctor that validates identity, terms ack, secret/provider readiness, policy prerequisites, and returns deterministic ready/not-ready status with remediation steps |
+| V3-USE-002 | hardening | V3 | todo | Redacted Diagnostics Bundle (`protheus doctor --bundle`) | Fast support/debugging needs one deterministic artifact instead of ad-hoc log gathering | Generate one redacted diagnostics bundle with health snapshots, gate results, runtime profiles, policy versions, and failure traces; include deterministic redaction attestations and bundle hash receipts |
+| V3-USE-003 | hardening | V3 | todo | CLI UX Contract (Stable Flags + Completions + JSON Parity) | Operator trust drops when command semantics drift between versions | Define and enforce stable CLI grammar/flag contract, shell completions, and required `--json` parity across operator commands; schema-check all CLI outputs in contract tests |
+| V3-BENCH-001 | hardening | V3 | todo | Public Benchmark Profile Registry + Replay Harness | Fair comparison requires reproducible task/model/budget profiles across releases and competitors | Add versioned benchmark profile registry and replay harness producing deterministic metrics/artifacts; support local and CI runs with fixed seeds/budgets and publishable report bundles |
+| V3-BLD-001 | primitive-upgrade | V3 | todo | Release Build Matrix Optimizer (LTO/PGO/musl/strip per target) | Runtime efficiency depends on disciplined target-specific build optimization | Add platform-specific optimized build matrix with repeatable profiles (e.g., LTO/PGO/strip/static variants), produce size/startup/memory comparison artifacts per release, and gate promotion on policy targets |
+
+Dependency notes:
+- `V3-DEP-001` depends on `V3-048`, `V3-OPS-004`, and `SEC-M04`.
+- `V3-DEP-002` depends on `V3-DEP-001`, `V3-SK-001`, and `V3-OPS-005`.
+- `V3-DEP-003` depends on `V3-DEP-001`, `RM-007`, and `V2-063`.
+- `V3-RTE-001` depends on `V3-SK-001`, `V3-RMEM-001`, and `V3-OPS-005`.
+- `V3-RTE-002` depends on `V3-OPS-005`, `V3-SK-001`, and `V3-OPS-004`.
+- `V3-RTE-003` depends on `RM-122`, `V3-AEX-003`, and `V3-OF-010`.
+- `V3-RTE-004` depends on `BL-023`, `V3-BUD-001`, and `V3-OPS-003`.
+- `V3-USE-001` depends on `V3-OPS-004`, `SEC-M04`, and secrets/provider readiness lanes.
+- `V3-USE-002` depends on `RM-005`, `V3-SK-001`, and `V3-ENT-003`.
+- `V3-USE-003` depends on `V3-OPS-004`, `V3-OPS-015`, and `V3-DOC-001`.
+- `V3-BENCH-001` depends on `V3-OF-010`, `RM-122`, and `V3-AEX-003`.
+- `V3-BLD-001` depends on `V3-048`, `V3-DEP-001`, and `V3-BENCH-001`.
+
+## Anti-Copy / Reverse-Engineering Hardening Intake (Normalized, 2026-02-28)
+
+Objective: raise reverse-engineering and clone-operability cost by combining cryptographic binding, runtime attestation, diversified artifacts, and deceptive detection surfaces while preserving deterministic governance.
+
+| Candidate Control | Disposition | Canonical Coverage | Action |
+|---|---|---|---|
+| Soul-token anti-clone + watermark baseline | covered (already delivered) | `V2-058` (done), `V3-026` (done) | Keep as base identity authority; extend depth via forensic and lease layers below. |
+| Binary anti-debug/tamper hook lane | covered + strengthened | `V3-BIN-004` (todo) | Add instrumentation-response lifecycle + forensic evidence contracts in `V3-CPY-006`. |
+| Attested debug mode for rightful operator | covered | `V3-BIN-003` (todo) | Keep gated debug channel; pair with encrypted module delivery in `V3-CPY-005`. |
+| Attested capability lease service | net-new | `V3-CPY-001` (below) | Add cryptographic runtime lease gate for premium capabilities. |
+| Per-instance polymorphic build diversification | net-new | `V3-CPY-002` (below) | Make one crack non-portable across fleet instances/releases. |
+| Forensic watermark propagation beyond build artifacts | net-new | `V3-CPY-003` (below) | Add traceability across binary/runtime/receipt surfaces. |
+| Graceful degraded mode on trust drift | net-new | `V3-CPY-004` (below) | Drop capability safely instead of all-or-nothing fail behavior. |
+| Runtime encrypted module delivery/unseal | net-new | `V3-CPY-005` (below) | Avoid shipping plaintext high-value capability modules at rest. |
+| Honey capabilities / canary API traps | net-new | `V3-CPY-007` (below) | Detect stolen builds and unauthorized usage early. |
+| Clone-risk behavioral engine (license/usage drift) | net-new | `V3-CPY-008` (below) | Detect suspicious clone-like usage patterns and throttle/revoke. |
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|---|---|
+| V3-CPY-001 | hardening | V3 | todo | Attested Capability Lease Server | Static binaries alone are copyable; capability access should require short-lived cryptographic authorization | Introduce lease issuer with soul-token + hardware/identity attestation binding, short TTL scoped leases per capability class, deterministic revocation path, and fail-closed runtime checks with attested lease receipts |
+| V3-CPY-002 | primitive-upgrade | V3 | todo | Per-Instance Polymorphic Build Diversification | Uniform binaries let a single reverse-engineering effort scale to all copies | Build pipeline emits per-instance diversified binary variants (layout/constant/packaging polymorphism) while preserving functional parity and signed provenance receipts; crack on one artifact does not transfer trivially to others |
+| V3-CPY-003 | hardening | V3 | todo | Forensic Watermark Mesh (Artifact + Runtime + Receipt) | Leak attribution should survive repackaging/log stripping attempts | Embed verifiable watermark markers across build artifact metadata, runtime handshake payloads, and passport/black-box receipts; provide deterministic extraction tool and chain-of-custody report for leak forensics |
+| V3-CPY-004 | hardening | V3 | todo | Trust-Drift Graceful Degrade Mode | Hard stop-only responses can increase operational brittleness and hide attribution signal | When attestation/symbiosis trust drops below policy, runtime auto-downgrades to bounded low-capability profile (`read_only/sandbox_only/no_external_spend`) with explicit reason receipts and restoration ceremony requirements |
+| V3-CPY-005 | hardening | V3 | todo | Encrypted Module Delivery + Runtime Unseal | Shipping plaintext high-value modules simplifies static extraction and repackaging | High-value capability packs/modules are stored encrypted at rest, unsealed in-memory only after attested boot + lease verification, never persisted plaintext post-load, and re-sealed on shutdown/rotation with auditable key lifecycle receipts |
+| V3-CPY-006 | hardening | V3 | todo | Instrumentation/Hooking Detection + Response Lifecycle | Runtime hooks (ptrace/frida/preload) are common reverse-engineering vectors against protected binaries | Add runtime detector set for debugger/instrumentation/hook signatures, policy-bounded response actions (alert -> degrade -> quarantine), false-positive budget controls, and deterministic forensic capture receipts |
+| V3-CPY-007 | extension | V3 | todo | Honey Capability + Canary API Trap Plane | Stolen or emulated instances are easier to detect with non-production decoy surfaces | Provision decoy capabilities/endpoints/secrets with zero production utility, monitor touches as high-confidence abuse indicators, and auto-link detections into sentinel/quarantine evidence pipelines |
+| V3-CPY-008 | hardening | V3 | todo | Clone-Risk Behavioral Engine (Usage/License Drift) | Clones often reveal themselves through behavior drift even when binaries are modified | Score usage anomalies (device/geo/concurrency/lease-pattern drift), map scores to throttle/restrict/revoke actions, require appeal/recovery workflows, and emit explainable risk receipts with bias/false-positive monitoring |
+
+Dependency notes:
+- `V3-CPY-001` depends on `V2-058`, `V2-063`, `V3-031`, and `V3-BLK-001`.
+- `V3-CPY-002` depends on `V3-BIN-002`, `V3-BLD-001`, and `V3-048`.
+- `V3-CPY-003` depends on `V2-058`, `V2-031`, `V2-063`, and `V3-048`.
+- `V3-CPY-004` depends on `V3-031`, `V3-033`, `V3-GOV-001`, and `V3-BUD-001`.
+- `V3-CPY-005` depends on `V3-OF-006`, `V3-BIN-003`, `V3-SK-001`, and key lifecycle lanes.
+- `V3-CPY-006` depends on `V3-BIN-004`, `V3-033`, and `V3-034`.
+- `V3-CPY-007` depends on `V3-OF-005`, `V3-OF-009`, and `V3-ENT-003`.
+- `V3-CPY-008` depends on `V3-ENT-001`, `V3-CPY-001`, `V3-BLK-001`, and `V3-MLC-002`.
+
+## Poison Dart Frog Defensive Layer (Active Internal Containment, Defensive-Only)
+
+Objective: Make Protheus highly attractive and fully functional for legitimate soul-bound users, while ensuring any unauthorized copy or interface attempt activates internal containment mechanisms that render the stolen instance progressively low-value and ultimately unusable.
+
+| ID | Status | Upgrade | Why (Poison Dart Frog) | Exit Criteria | Depends On |
+|----|--------|---------|------------------------|---------------|------------|
+| V3-VENOM-000 | todo | No Offensive Behavior Invariant | All mechanisms must remain strictly defensive, legal, bounded, auditable, and reversible | No malware, no external attacks, no unbounded compute traps, no destructive payloads; all controls bounded, auditable, reversible | All V3-VENOM items |
+| V3-VENOM-001 | todo | Attractive Full-Capability Facade + Triggered Containment Escalation | The stolen copy appears completely normal and powerful at first, encouraging deeper engagement before containment activates | On first attestation/soul-token failure or unauthorized interface, high-value lanes immediately enter containment escalation; legitimate instances never see it | V3-CPY-001, V3-033, V2-058, V3-BLK-001 |
+| V3-VENOM-002 | todo | Defensive Decoy Response Layer (Non-Destructive) | Unauthorized sessions receive specially crafted low-value outputs designed to provide no useful IP or training value | Unauthorized sessions receive policy-approved decoy/low-fidelity outputs with watermark lineage; explicitly non-destructive and must not include model-poisoning or harmful payload behavior | V3-CPY-003, V3-CPY-007, V2-063 |
+| V3-VENOM-003 | todo | Bounded Verification Friction Escalation | Unauthorized copies encounter escalating but bounded verification challenges that increase operational cost | Unauthorized instances enter progressively stricter challenge-response and rate-limit paths that scale with their activity; bounded by policy limits before capability denial | V3-CPY-001, V3-OPS-014, V3-BUD-001 |
+| V3-VENOM-004 | todo | Timed Lease Decay + Deterministic Lockout | Stolen copies function normally for a policy-defined period, then gradually lose capabilities in a predictable way | Policy-defined lease expiry window leading to deterministic lockout + explicit recovery ceremony | V3-CPY-001, V3-CPY-004, V3-ENT-001 |
+| V3-VENOM-005 | todo | Self-Reporting Forensic Beacon System | Every unauthorized attempt automatically generates and returns detailed forensic evidence to the root | Activation securely uploads interaction logs, watermarks, and attribution data to master conduit; generates ready-to-use legal evidence package | V3-CPY-003, V3-USE-002, V2-031 |
+| V3-VENOM-006 | todo | Adaptive Defense Evolution Engine | The protective mechanisms improve over time based on observed attack patterns | Soldier Ant analyzes containment events and generates stronger friction and decoy patterns; new defenses auto-deploy to legitimate instances within 24 h | V3-034, V3-RED-001, V3-CPY-008 |
+
 ## Backlog Policy
 
 - Lower-impact items (<9% estimated gain) are intentionally parked below to protect V1 focus.
