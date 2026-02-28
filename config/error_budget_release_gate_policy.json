@@ -1,0 +1,29 @@
+{
+  "schema_id": "error_budget_release_gate_policy",
+  "schema_version": "1.0",
+  "enabled": true,
+  "shadow_only": false,
+  "strict_default": true,
+  "budget": {
+    "max_burn_ratio": 0.45,
+    "warn_burn_ratio": 0.25,
+    "missing_signal_penalty": false
+  },
+  "sources": {
+    "execution_reliability_path": "state/ops/execution_reliability_slo.json",
+    "continuous_chaos_latest_path": "state/ops/continuous_chaos_resilience/latest.json",
+    "execution_doctor_latest_path": "state/ops/execution_doctor_ga/latest.json",
+    "operational_maturity_latest_path": "state/ops/operational_maturity_closure/latest.json"
+  },
+  "weights": {
+    "execution_reliability": 0.4,
+    "chaos_resilience": 0.3,
+    "execution_doctor_ga": 0.15,
+    "operational_maturity": 0.15
+  },
+  "outputs": {
+    "latest_path": "state/ops/error_budget_release_gate/latest.json",
+    "history_path": "state/ops/error_budget_release_gate/history.jsonl",
+    "freeze_state_path": "state/ops/error_budget_release_gate/freeze_state.json"
+  }
+}
