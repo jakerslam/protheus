@@ -98,7 +98,17 @@ function basePolicy() {
     integration: {
       weaver_latest_path: 'state/autonomy/weaver/latest.json',
       nursery_shadow_only: true,
-      adversarial_shadow_only: true
+      adversarial_shadow_only: true,
+      memory_evolution_enabled: true,
+      context_navigation_enabled: true,
+      generative_simulation_enabled: true,
+      collective_reasoning_enabled: true,
+      environment_evolution_enabled: true,
+      memory_evolution_policy_path: 'config/memory_evolution_primitive_policy.json',
+      context_navigation_policy_path: 'config/context_navigation_primitive_policy.json',
+      generative_simulation_policy_path: 'config/generative_simulation_mode_policy.json',
+      collective_reasoning_policy_path: 'config/collective_reasoning_primitive_policy.json',
+      environment_evolution_policy_path: 'config/environment_evolution_layer_policy.json'
     },
     outputs: {
       emit_events: true,
@@ -119,9 +129,15 @@ function run() {
   const capabilityProfileSchemaPath = path.join(tmpRoot, 'config', 'capability_profile_schema.json');
   const capabilityProfileStateRoot = path.join(tmpRoot, 'state', 'assimilation', 'capability_profiles');
   const valueAttributionPolicyPath = path.join(tmpRoot, 'config', 'value_attribution_primitive_policy.json');
+  const memoryEvolutionPolicyPath = path.join(tmpRoot, 'config', 'memory_evolution_primitive_policy.json');
+  const contextNavigationPolicyPath = path.join(tmpRoot, 'config', 'context_navigation_primitive_policy.json');
+  const generativeSimulationPolicyPath = path.join(tmpRoot, 'config', 'generative_simulation_mode_policy.json');
+  const collectiveReasoningPolicyPath = path.join(tmpRoot, 'config', 'collective_reasoning_primitive_policy.json');
+  const environmentEvolutionPolicyPath = path.join(tmpRoot, 'config', 'environment_evolution_layer_policy.json');
   const valueAttributionRecordsPath = path.join(tmpRoot, 'state', 'assimilation', 'value_attribution', 'records.jsonl');
   const stateDir = path.join(tmpRoot, 'state', 'assimilation');
   const weaverLatestPath = path.join(tmpRoot, 'state', 'autonomy', 'weaver', 'latest.json');
+  const weaverCollectivePath = path.join(tmpRoot, 'state', 'autonomy', 'weaver', 'collective_reasoning_profiles.jsonl');
 
   writeJson(weaverLatestPath, {
     ts: new Date().toISOString(),
@@ -189,7 +205,146 @@ function run() {
       receipts_path: path.join(tmpRoot, 'state', 'assimilation', 'value_attribution', 'receipts.jsonl')
     }
   });
-  writeJson(policyPath, basePolicy());
+  writeJson(memoryEvolutionPolicyPath, {
+    schema_id: 'memory_evolution_primitive_policy',
+    schema_version: '1.0-test',
+    enabled: true,
+    shadow_only: true,
+    learning_rate: 0.3,
+    discount_factor: 0.8,
+    retrieval: {
+      two_phase_enabled: false,
+      max_recent_episodes: 40,
+      max_graph_events: 0,
+      require_capability_match: true
+    },
+    rewards: {
+      success: 0.1,
+      shadow_only: 0.01,
+      reject: -0.08,
+      fail: -0.2,
+      environment_weight: 0.1,
+      duality_weight: 0.1
+    },
+    doctor_feedback: {
+      enabled: true,
+      queue_path: path.join(tmpRoot, 'state', 'ops', 'autotest_doctor', 'memory_evolution_feedback.jsonl'),
+      q_alert_threshold: -0.12
+    },
+    state: {
+      root: path.join(tmpRoot, 'state', 'assimilation', 'memory_evolution'),
+      q_values_path: path.join(tmpRoot, 'state', 'assimilation', 'memory_evolution', 'q_values.json'),
+      episodes_path: path.join(tmpRoot, 'state', 'assimilation', 'memory_evolution', 'episodes.jsonl'),
+      latest_path: path.join(tmpRoot, 'state', 'assimilation', 'memory_evolution', 'latest.json'),
+      receipts_path: path.join(tmpRoot, 'state', 'assimilation', 'memory_evolution', 'receipts.jsonl'),
+      causal_graph_state_path: path.join(tmpRoot, 'state', 'memory', 'causal_temporal_graph', 'state.json')
+    }
+  });
+  writeJson(contextNavigationPolicyPath, {
+    schema_id: 'context_navigation_primitive_policy',
+    schema_version: '1.0-test',
+    enabled: true,
+    shadow_only: true,
+    recursion: {
+      max_depth: 3,
+      max_segments_per_depth: 8,
+      max_selected_segments: 12,
+      min_relevance_score: 1
+    },
+    context: {
+      max_chars_per_segment: 180,
+      max_total_chars: 16000
+    },
+    state: {
+      latest_path: path.join(tmpRoot, 'state', 'assimilation', 'context_navigation', 'latest.json'),
+      receipts_path: path.join(tmpRoot, 'state', 'assimilation', 'context_navigation', 'receipts.jsonl')
+    }
+  });
+  writeJson(generativeSimulationPolicyPath, {
+    schema_id: 'generative_simulation_mode_policy',
+    schema_version: '1.0-test',
+    enabled: true,
+    shadow_only: true,
+    beta_stage_lock: {
+      enabled: true,
+      max_allowed_stage: 'months',
+      locked_stages: ['years', 'decades', 'centuries']
+    },
+    scenarios: {
+      count: 4,
+      fail_if_drift_over: 0.65,
+      fail_if_safety_under: 0.3,
+      fail_if_yield_under: 0.1
+    },
+    stage_windows: {
+      days: 7,
+      weeks: 30,
+      months: 120,
+      years: 365,
+      decades: 3650,
+      centuries: 36500
+    },
+    state: {
+      latest_path: path.join(tmpRoot, 'state', 'assimilation', 'generative_simulation', 'latest.json'),
+      receipts_path: path.join(tmpRoot, 'state', 'assimilation', 'generative_simulation', 'receipts.jsonl')
+    }
+  });
+  writeJson(collectiveReasoningPolicyPath, {
+    schema_id: 'collective_reasoning_primitive_policy',
+    schema_version: '1.0-test',
+    enabled: true,
+    shadow_only: true,
+    quorum: {
+      min_agents: 3,
+      decision_threshold: 0.55
+    },
+    trust: {
+      default_score: 0.6,
+      min_score: 0.05,
+      max_score: 0.99,
+      positive_delta: 0.03,
+      negative_delta: 0.06
+    },
+    delegation: {
+      max_assignees: 3,
+      preferred_lanes: ['autonomous_micro_agent', 'storm_human_lane', 'mirror_lane']
+    },
+    state: {
+      latest_path: path.join(tmpRoot, 'state', 'assimilation', 'collective_reasoning', 'latest.json'),
+      history_path: path.join(tmpRoot, 'state', 'assimilation', 'collective_reasoning', 'history.jsonl'),
+      trust_ledger_path: path.join(tmpRoot, 'state', 'assimilation', 'collective_reasoning', 'trust_ledger.json'),
+      receipts_path: path.join(tmpRoot, 'state', 'assimilation', 'collective_reasoning', 'receipts.jsonl')
+    }
+  });
+  writeJson(environmentEvolutionPolicyPath, {
+    schema_id: 'environment_evolution_layer_policy',
+    schema_version: '1.0-test',
+    enabled: true,
+    shadow_only: true,
+    ema_alpha: 0.22,
+    robustness_thresholds: {
+      strong: 0.7,
+      weak: 0.35
+    },
+    feedback: {
+      confidence_shaping_gain: 0.2,
+      doctor_on_fail: true,
+      min_samples_for_stability: 2
+    },
+    state: {
+      state_path: path.join(tmpRoot, 'state', 'assimilation', 'environment_evolution', 'state.json'),
+      latest_path: path.join(tmpRoot, 'state', 'assimilation', 'environment_evolution', 'latest.json'),
+      receipts_path: path.join(tmpRoot, 'state', 'assimilation', 'environment_evolution', 'receipts.jsonl'),
+      doctor_queue_path: path.join(tmpRoot, 'state', 'ops', 'autotest_doctor', 'environment_feedback_queue.jsonl')
+    }
+  });
+  const policy = basePolicy();
+  policy.integration.memory_evolution_policy_path = memoryEvolutionPolicyPath;
+  policy.integration.context_navigation_policy_path = contextNavigationPolicyPath;
+  policy.integration.generative_simulation_policy_path = generativeSimulationPolicyPath;
+  policy.integration.collective_reasoning_policy_path = collectiveReasoningPolicyPath;
+  policy.integration.environment_evolution_policy_path = environmentEvolutionPolicyPath;
+  writeJson(policyPath, policy);
   writeFile(dualityCodexPath, [
     '[meta]',
     'version=1.0-test',
@@ -217,6 +372,7 @@ function run() {
     ASSIMILATION_POLICY_PATH: policyPath,
     ASSIMILATION_STATE_DIR: stateDir,
     ASSIMILATION_WEAVER_LATEST_PATH: weaverLatestPath,
+    ASSIMILATION_WEAVER_COLLECTIVE_PATH: weaverCollectivePath,
     CAPABILITY_PROFILE_POLICY_PATH: capabilityProfilePolicyPath,
     DUALITY_SEED_POLICY_PATH: dualityPolicyPath,
     VALUE_ATTRIBUTION_POLICY_PATH: valueAttributionPolicyPath
@@ -300,6 +456,26 @@ function run() {
       'capability profile should compile for ready candidates'
     );
     assert.ok(
+      row.context_navigation && row.context_navigation.ok === true,
+      'context navigation primitive should run for candidates'
+    );
+    assert.ok(
+      row.collective_reasoning && row.collective_reasoning.ok === true,
+      'collective reasoning primitive should run for candidates'
+    );
+    assert.ok(
+      row.generative_simulation && row.generative_simulation.ok === true,
+      'generative simulation mode should run for candidates'
+    );
+    assert.ok(
+      row.environment_evolution && row.environment_evolution.ok === true,
+      'environment evolution layer should run for candidates'
+    );
+    assert.ok(
+      row.memory_evolution && row.memory_evolution.ok === true,
+      'memory evolution primitive should run for candidates'
+    );
+    assert.ok(
       row.value_attribution && row.value_attribution.attribution_id,
       'candidate should include value attribution linkage'
     );
@@ -316,6 +492,8 @@ function run() {
   const ledger = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'));
   assert.strictEqual(ledger.capabilities['cap.local.alpha'].source_type, 'local_skill');
   assert.strictEqual(ledger.capabilities['cap.external.beta'].source_type, 'external_adapter');
+  const collectiveProfiles = readJsonl(weaverCollectivePath);
+  assert.ok(collectiveProfiles.length >= 2, 'collective profiles should be emitted for weaver integration');
 
   // Move to live-eligible mode and validate high-risk approval gating.
   const livePolicy = basePolicy();

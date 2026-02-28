@@ -1,0 +1,20 @@
+{
+  "schema_id": "context_navigation_primitive_policy",
+  "schema_version": "1.0",
+  "enabled": true,
+  "shadow_only": true,
+  "recursion": {
+    "max_depth": 4,
+    "max_segments_per_depth": 10,
+    "max_selected_segments": 24,
+    "min_relevance_score": 1
+  },
+  "context": {
+    "max_chars_per_segment": 360,
+    "max_total_chars": 64000
+  },
+  "state": {
+    "latest_path": "state/assimilation/context_navigation/latest.json",
+    "receipts_path": "state/assimilation/context_navigation/receipts.jsonl"
+  }
+}

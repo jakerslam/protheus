@@ -1,0 +1,31 @@
+{
+  "schema_id": "collective_reasoning_primitive_policy",
+  "schema_version": "1.0",
+  "enabled": true,
+  "shadow_only": true,
+  "quorum": {
+    "min_agents": 3,
+    "decision_threshold": 0.58
+  },
+  "trust": {
+    "default_score": 0.6,
+    "min_score": 0.05,
+    "max_score": 0.99,
+    "positive_delta": 0.03,
+    "negative_delta": 0.06
+  },
+  "delegation": {
+    "max_assignees": 4,
+    "preferred_lanes": [
+      "autonomous_micro_agent",
+      "storm_human_lane",
+      "mirror_lane"
+    ]
+  },
+  "state": {
+    "latest_path": "state/assimilation/collective_reasoning/latest.json",
+    "history_path": "state/assimilation/collective_reasoning/history.jsonl",
+    "trust_ledger_path": "state/assimilation/collective_reasoning/trust_ledger.json",
+    "receipts_path": "state/assimilation/collective_reasoning/receipts.jsonl"
+  }
+}

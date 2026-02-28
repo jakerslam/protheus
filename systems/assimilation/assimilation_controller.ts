@@ -28,6 +28,36 @@ const { runResearchProbe } = require('./research_probe');
 const { compileProfileFromResearch } = require('./capability_profile_compiler');
 const { buildForgeReplica } = require('./forge_replica');
 const { evaluateGraftDecision } = require('./graft_manager');
+let runMemoryEvolution = null;
+try {
+  ({ runMemoryEvolution } = require('./memory_evolution_primitive'));
+} catch {
+  runMemoryEvolution = null;
+}
+let runContextNavigation = null;
+try {
+  ({ runContextNavigation } = require('./context_navigation_primitive'));
+} catch {
+  runContextNavigation = null;
+}
+let runGenerativeSimulation = null;
+try {
+  ({ runGenerativeSimulation } = require('./generative_simulation_mode'));
+} catch {
+  runGenerativeSimulation = null;
+}
+let evaluateCollectiveReasoning = null;
+try {
+  ({ evaluateCollectiveReasoning } = require('./collective_reasoning_primitive'));
+} catch {
+  evaluateCollectiveReasoning = null;
+}
+let evaluateEnvironmentEvolution = null;
+try {
+  ({ evaluateEnvironmentEvolution } = require('./environment_evolution_layer'));
+} catch {
+  evaluateEnvironmentEvolution = null;
+}
 let recordAttribution = null;
 try {
   ({ recordAttribution } = require('../attribution/value_attribution_primitive.js'));
@@ -57,6 +87,13 @@ const DEFAULT_EVENTS_PATH = path.join(DEFAULT_STATE_DIR, 'events.jsonl');
 const DEFAULT_OBSIDIAN_PATH = path.join(DEFAULT_STATE_DIR, 'obsidian_projection.jsonl');
 const DEFAULT_ROLLBACKS_PATH = path.join(DEFAULT_STATE_DIR, 'rollbacks.jsonl');
 const DEFAULT_WEAVER_LATEST_PATH = path.join(ROOT, 'state', 'autonomy', 'weaver', 'latest.json');
+const DEFAULT_WEAVER_COLLECTIVE_PATH = path.join(
+  ROOT,
+  'state',
+  'autonomy',
+  'weaver',
+  'collective_reasoning_profiles.jsonl'
+);
 
 function usage() {
   console.log('Usage:');
@@ -244,7 +281,17 @@ function defaultPolicy() {
       research_organ_enabled: true,
       nursery_shadow_only: true,
       adversarial_shadow_only: true,
-      doctor_required: true
+      doctor_required: true,
+      memory_evolution_enabled: true,
+      context_navigation_enabled: true,
+      generative_simulation_enabled: true,
+      collective_reasoning_enabled: true,
+      environment_evolution_enabled: true,
+      memory_evolution_policy_path: 'config/memory_evolution_primitive_policy.json',
+      context_navigation_policy_path: 'config/context_navigation_primitive_policy.json',
+      generative_simulation_policy_path: 'config/generative_simulation_mode_policy.json',
+      collective_reasoning_policy_path: 'config/collective_reasoning_primitive_policy.json',
+      environment_evolution_policy_path: 'config/environment_evolution_layer_policy.json'
     },
     outputs: {
       emit_events: true,
@@ -439,7 +486,32 @@ function loadPolicy(policyPath: string) {
       research_organ_enabled: integration.research_organ_enabled !== false,
       nursery_shadow_only: integration.nursery_shadow_only !== false,
       adversarial_shadow_only: integration.adversarial_shadow_only !== false,
-      doctor_required: integration.doctor_required !== false
+      doctor_required: integration.doctor_required !== false,
+      memory_evolution_enabled: integration.memory_evolution_enabled !== false,
+      context_navigation_enabled: integration.context_navigation_enabled !== false,
+      generative_simulation_enabled: integration.generative_simulation_enabled !== false,
+      collective_reasoning_enabled: integration.collective_reasoning_enabled !== false,
+      environment_evolution_enabled: integration.environment_evolution_enabled !== false,
+      memory_evolution_policy_path: cleanText(
+        integration.memory_evolution_policy_path || base.integration.memory_evolution_policy_path,
+        300
+      ) || base.integration.memory_evolution_policy_path,
+      context_navigation_policy_path: cleanText(
+        integration.context_navigation_policy_path || base.integration.context_navigation_policy_path,
+        300
+      ) || base.integration.context_navigation_policy_path,
+      generative_simulation_policy_path: cleanText(
+        integration.generative_simulation_policy_path || base.integration.generative_simulation_policy_path,
+        300
+      ) || base.integration.generative_simulation_policy_path,
+      collective_reasoning_policy_path: cleanText(
+        integration.collective_reasoning_policy_path || base.integration.collective_reasoning_policy_path,
+        300
+      ) || base.integration.collective_reasoning_policy_path,
+      environment_evolution_policy_path: cleanText(
+        integration.environment_evolution_policy_path || base.integration.environment_evolution_policy_path,
+        300
+      ) || base.integration.environment_evolution_policy_path
     },
     outputs: {
       emit_events: outputs.emit_events !== false,
@@ -517,6 +589,14 @@ function runtimePaths(policyPath: string, policy: AnyObj) {
   const weaverLatestPath = path.isAbsolute(weaverLatestRaw)
     ? weaverLatestRaw
     : path.join(ROOT, weaverLatestRaw);
+  const weaverCollectiveRaw = cleanText(
+    process.env.ASSIMILATION_WEAVER_COLLECTIVE_PATH
+    || relPath(DEFAULT_WEAVER_COLLECTIVE_PATH),
+    400
+  );
+  const weaverCollectivePath = path.isAbsolute(weaverCollectiveRaw)
+    ? weaverCollectiveRaw
+    : path.join(ROOT, weaverCollectiveRaw);
   return {
     policy_path: policyPath,
     state_dir: stateDir,
@@ -526,7 +606,8 @@ function runtimePaths(policyPath: string, policy: AnyObj) {
     events_path: path.join(stateDir, 'events.jsonl'),
     obsidian_path: path.join(stateDir, 'obsidian_projection.jsonl'),
     rollbacks_path: path.join(stateDir, 'rollbacks.jsonl'),
-    weaver_latest_path: weaverLatestPath
+    weaver_latest_path: weaverLatestPath,
+    weaver_collective_profiles_path: weaverCollectivePath
   };
 }
 
@@ -833,12 +914,113 @@ function commandRun(args: AnyObj) {
       now_ts: nowTs
     }, policy);
     const hiddenEval = buildHiddenEvalSuite(runId, capabilityId, policy);
+    const contextNavigation = (
+      policy.integration
+      && policy.integration.context_navigation_enabled === true
+      && typeof runContextNavigation === 'function'
+    )
+      ? runContextNavigation({
+        objective: `Assimilate capability ${capabilityId} safely under governance constraints.`,
+        context_rows: [
+          `capability_id=${capabilityId}`,
+          `source_type=${record.source_type || 'unknown'}`,
+          `risk_class=${record.risk_class || 'general'}`,
+          `legal_gate_allowed=${legalGate.allowed === true ? '1' : '0'}`,
+          `research_fit=${cleanText(research && research.fit || 'unknown', 40)}`,
+          `research_confidence=${Number(research && research.confidence || 0).toFixed(4)}`
+        ]
+      }, {
+        apply: false,
+        policyPath: policy.integration.context_navigation_policy_path
+      })
+      : {
+        ok: false,
+        type: 'context_navigation_primitive',
+        error: 'context_navigation_disabled'
+      };
+
+    const collectiveReasoning = (
+      policy.integration
+      && policy.integration.collective_reasoning_enabled === true
+      && typeof evaluateCollectiveReasoning === 'function'
+    )
+      ? evaluateCollectiveReasoning({
+        capability_id: capabilityId,
+        lanes: [
+          {
+            agent_id: 'legal_gate',
+            lane: 'security_lane',
+            recommendation: legalGate.allowed === true ? 'assimilate_shadow' : 'defer',
+            confidence: legalGate.allowed === true ? 0.7 : 0.95,
+            evidence_strength: 0.85
+          },
+          {
+            agent_id: 'research_probe',
+            lane: 'research_lane',
+            recommendation: research && research.fit === 'sufficient' ? 'assimilate_shadow' : 'defer',
+            confidence: clampNumber(research && research.confidence, 0, 1, 0.5),
+            evidence_strength: 0.8
+          },
+          {
+            agent_id: 'profile_compiler',
+            lane: 'autonomous_micro_agent',
+            recommendation: profileCompile && profileCompile.ok === true ? 'assimilate_shadow' : 'improve_existing',
+            confidence: profileCompile && profileCompile.ok === true ? 0.75 : 0.55,
+            evidence_strength: profileCompile && profileCompile.validation && profileCompile.validation.ok === true ? 0.9 : 0.45
+          },
+          {
+            agent_id: 'weaver_gate',
+            lane: 'mirror_lane',
+            recommendation: weaverGate.decision === 'deny' ? 'defer' : 'assimilate_shadow',
+            confidence: weaverGate.decision === 'deny' ? 0.9 : 0.65,
+            evidence_strength: 0.7
+          }
+        ]
+      }, {
+        apply: false,
+        policyPath: policy.integration.collective_reasoning_policy_path
+      })
+      : {
+        ok: false,
+        type: 'collective_reasoning_primitive',
+        error: 'collective_reasoning_disabled'
+      };
+
+    const generativeSimulation = (
+      policy.integration
+      && policy.integration.generative_simulation_enabled === true
+      && typeof runGenerativeSimulation === 'function'
+    )
+      ? runGenerativeSimulation({
+        capability_id: capabilityId,
+        objective_id: `assimilation_${runId}`,
+        risk_class: record.risk_class || 'general',
+        impact_score: Number(candidate && candidate.thresholds && candidate.thresholds.metrics && candidate.thresholds.metrics.pain_cost_score || 0.5),
+        base_drift: legalGate.allowed === true ? 0.2 : 0.35,
+        base_safety: legalGate.allowed === true ? 0.82 : 0.55,
+        base_yield: research && research.fit === 'sufficient' ? 0.5 : 0.25,
+        heroic_echo_blocked: false,
+        constitution_blocked: weaverGate.decision === 'deny'
+      }, {
+        apply: false,
+        policyPath: policy.integration.generative_simulation_policy_path
+      })
+      : {
+        ok: false,
+        type: 'generative_simulation_mode',
+        error: 'generative_simulation_disabled'
+      };
 
     const profileGatePassed = profileCompile && profileCompile.ok === true;
+    const simulationPassed = !!(
+      generativeSimulation
+      && generativeSimulation.ok === true
+      && String(generativeSimulation.verdict || '').toLowerCase() !== 'fail'
+    );
     const nurseryPassed = legalGate.allowed === true
       && research.fit === 'sufficient'
       && profileGatePassed === true;
-    const adversarialPassed = nurseryPassed === true;
+    const adversarialPassed = nurseryPassed === true && simulationPassed === true;
     const nursery = {
       mode: policy.integration && policy.integration.nursery_shadow_only !== false ? 'shadow' : 'active',
       passed: nurseryPassed,
@@ -850,7 +1032,10 @@ function commandRun(args: AnyObj) {
     const adversarial = {
       mode: policy.integration && policy.integration.adversarial_shadow_only !== false ? 'shadow' : 'active',
       passed: adversarialPassed,
-      reason_codes: adversarialPassed ? ['adversarial_shadow_pass'] : ['adversarial_shadow_fail']
+      reason_codes: adversarialPassed
+        ? ['adversarial_shadow_pass']
+        : ['adversarial_shadow_fail']
+            .concat(simulationPassed ? [] : ['generative_simulation_fail'])
     };
     const constitutionalVeto = {
       blocked: weaverGate.decision === 'deny',
@@ -876,6 +1061,16 @@ function commandRun(args: AnyObj) {
       .concat(Array.isArray(profileCompile && profileCompile.validation && profileCompile.validation.failures)
         ? profileCompile.validation.failures.map((f: string) => `profile:${f}`)
         : [])
+      .concat(
+        collectiveReasoning && collectiveReasoning.ok === true
+          ? [`collective:${cleanText(collectiveReasoning.final_recommendation || 'unknown', 80)}`]
+          : []
+      )
+      .concat(
+        generativeSimulation && generativeSimulation.ok === true && Array.isArray(generativeSimulation.reason_codes)
+          ? generativeSimulation.reason_codes.map((r: string) => `simulation:${cleanText(r, 80)}`)
+          : []
+      )
       .concat(Array.isArray(nursery.reason_codes) ? nursery.reason_codes : [])
       .concat(Array.isArray(adversarial.reason_codes) ? adversarial.reason_codes : [])
       .concat(Array.isArray(graft.reason_codes) ? graft.reason_codes : []);
@@ -893,6 +1088,48 @@ function commandRun(args: AnyObj) {
     } else {
       record.status = 'candidate';
     }
+
+    const environmentEvolution = (
+      policy.integration
+      && policy.integration.environment_evolution_enabled === true
+      && typeof evaluateEnvironmentEvolution === 'function'
+    )
+      ? evaluateEnvironmentEvolution({
+        capability_id: capabilityId,
+        source_type: record.source_type,
+        risk_class: record.risk_class || 'general',
+        outcome,
+        simulation_verdict: generativeSimulation && generativeSimulation.verdict || null
+      }, {
+        apply: false,
+        policyPath: policy.integration.environment_evolution_policy_path
+      })
+      : {
+        ok: false,
+        type: 'environment_evolution_layer',
+        error: 'environment_evolution_disabled'
+      };
+
+    const memoryEvolution = (
+      policy.integration
+      && policy.integration.memory_evolution_enabled === true
+      && typeof runMemoryEvolution === 'function'
+    )
+      ? runMemoryEvolution({
+        capability_id: capabilityId,
+        source_type: record.source_type,
+        outcome,
+        environment_score: Number(environmentEvolution && environmentEvolution.robustness_score || 0),
+        duality_score: Number(dualitySignal && dualitySignal.score_trit || 0)
+      }, {
+        apply: false,
+        policyPath: policy.integration.memory_evolution_policy_path
+      })
+      : {
+        ok: false,
+        type: 'memory_evolution_primitive',
+        error: 'memory_evolution_disabled'
+      };
 
     let valueAttribution = null;
     if (typeof recordAttribution === 'function') {
@@ -968,14 +1205,36 @@ function commandRun(args: AnyObj) {
         validation: profileCompile && profileCompile.validation || null
       },
       forge_replica: forge,
+      context_navigation: contextNavigation,
+      collective_reasoning: collectiveReasoning,
+      generative_simulation: generativeSimulation,
       hidden_eval_suite: hiddenEval,
       nursery,
       adversarial,
       graft,
+      environment_evolution: environmentEvolution,
+      memory_evolution: memoryEvolution,
       value_attribution: valueAttribution,
       outcome
     };
     results.push(row);
+    if (collectiveReasoning && collectiveReasoning.ok === true) {
+      appendJsonl(paths.weaver_collective_profiles_path, {
+        ts: nowTs,
+        type: 'collective_reasoning_profile',
+        run_id: runId,
+        date,
+        capability_id: capabilityId,
+        source_type: record.source_type || 'unknown',
+        risk_class: record.risk_class || 'general',
+        final_recommendation: collectiveReasoning.final_recommendation || 'defer',
+        consensus: collectiveReasoning.consensus === true,
+        consensus_share: Number(collectiveReasoning.consensus_share || 0),
+        delegation_profile: Array.isArray(collectiveReasoning.delegation_profile)
+          ? collectiveReasoning.delegation_profile.slice(0, 8)
+          : []
+      });
+    }
     if (dualitySignal && dualitySignal.enabled === true && typeof registerDualityObservation === 'function') {
       try {
         registerDualityObservation({
@@ -1025,6 +1284,7 @@ function commandRun(args: AnyObj) {
     candidates_processed: results.length,
     candidates: results,
     ledger_path: relPath(paths.ledger_path),
+    weaver_collective_profiles_path: relPath(paths.weaver_collective_profiles_path),
     ledger_updated_at: outLedger.updated_at
   };
   const runPath = path.join(paths.runs_dir, `${date}.json`);
