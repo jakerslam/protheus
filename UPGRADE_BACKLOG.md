@@ -660,6 +660,19 @@ Dependency notes:
 - `V3-BUD-001` depends on `V2-BRG-001`, `V3-SK-001`, and `V2-063`.
 - `V3-BLK-001` depends on `V2-058`, `V2-063`, `V2-031`, `V3-ATTR-002`, `V3-033`, and `V3-059`.
 
+## Actuation Gap Closure Intake (Normalized, 2026-02-28)
+
+Objective: close the "brain vs hands" execution gap with primitive-first, profile-driven outreach actuation while preserving sovereignty, compliance, and rollback safety.
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|---|---|
+| V3-ACT-001 | extension | V3 | done | Disposable Infrastructure Organ (safe, auditable) | Allow outreach/account execution through isolated disposable lanes instead of personal high-risk accounts, reducing platform lock risk and preserving operator identity safety | Implemented `systems/actuation/disposable_infrastructure_organ.ts` + policy `config/disposable_infrastructure_organ_policy.json` with shadow-first account/proxy/session pooling, compliance/risk thresholds, rotation recommendations, deterministic receipts/state paths, and regression coverage in `memory/tools/tests/disposable_infrastructure_organ.test.js`. |
+| V3-ACT-002 | primitive-upgrade | V3 | done | Universal Outreach Primitive (profile-driven cold outreach + deployment) | Convert lead-gen/outreach workflows into reusable primitive execution profiles so campaigns run with minimal bespoke logic | Implemented `systems/workflow/universal_outreach_primitive.ts` + policy `config/universal_outreach_primitive_policy.json` with burn-oracle-aware batch sizing, disposable session brokering, standardized micro-task profile packs for Weaver/Storm routing, shadow-first campaign plan/run lanes, deterministic receipts/hints, and regression coverage in `memory/tools/tests/universal_outreach_primitive.test.js`. |
+
+Dependency notes:
+- `V3-ACT-001` depends on `V2-063`, `V2-066`, `V3-BUD-001`, and `V3-BLK-001` (optional on-chain add-on only).
+- `V3-ACT-002` depends on `V3-ACT-001`, `V3-039` (universal execution primitive), `V2-067`, and `V3-BUD-001`.
+
 ## Binary Runtime Hardening Intake (Normalized, 2026-02-27)
 
 Objective: add reverse-engineering resistance + efficiency for distributed instances while keeping the master instance fully debuggable and source-first.

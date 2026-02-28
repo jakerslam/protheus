@@ -1,0 +1,43 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "shadow_only": true,
+  "compliance": {
+    "enforce_can_spam": true,
+    "enforce_opt_out_footer": true,
+    "enforce_identity_disclosure": true,
+    "default_jurisdiction": "us",
+    "do_not_contact_path": "state/compliance/do_not_contact.json"
+  },
+  "risk": {
+    "max_daily_sends_per_account": 40,
+    "rotate_on_bounce_rate": 0.08,
+    "rotate_on_block_score": 0.7,
+    "min_reputation_for_send": 0.45
+  },
+  "pools": {
+    "accounts": {
+      "max_active": 48,
+      "providers_allowed": [
+        "gmail",
+        "outlook",
+        "fastmail",
+        "proton"
+      ],
+      "warmup_days_min": 7
+    },
+    "proxies": {
+      "max_active": 128,
+      "providers_allowed": [
+        "residential_pool",
+        "mobile_pool"
+      ]
+    }
+  },
+  "state": {
+    "state_path": "state/actuation/disposable_infrastructure_organ/state.json",
+    "latest_path": "state/actuation/disposable_infrastructure_organ/latest.json",
+    "receipts_path": "state/actuation/disposable_infrastructure_organ/receipts.jsonl",
+    "sessions_path": "state/actuation/disposable_infrastructure_organ/sessions.jsonl"
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "shadow_only": true,
+  "max_leads_per_batch": 25,
+  "min_personalization_score": 0.55,
+  "high_burn_batch_cap": 5,
+  "critical_burn_batch_cap": 2,
+  "default_channel": "email",
+  "default_region": "us",
+  "dependencies": {
+    "burn_oracle_latest_path": "state/ops/dynamic_burn_budget_oracle/latest.json",
+    "disposable_infra_policy_path": "config/disposable_infrastructure_organ_policy.json",
+    "weaver_latest_path": "state/autonomy/weaver/latest.json"
+  },
+  "profile_pack": {
+    "actions": [
+      {
+        "id": "site_build",
+        "profile_id": "marketing_site_generator_v1",
+        "lane": "build",
+        "required": true
+      },
+      {
+        "id": "site_deploy",
+        "profile_id": "static_site_deploy_v1",
+        "lane": "deploy",
+        "required": true
+      },
+      {
+        "id": "email_draft",
+        "profile_id": "cold_email_personalize_v1",
+        "lane": "draft",
+        "required": true
+      },
+      {
+        "id": "email_send",
+        "profile_id": "cold_email_send_v1",
+        "lane": "send",
+        "required": true
+      },
+      {
+        "id": "followup_schedule",
+        "profile_id": "followup_schedule_v1",
+        "lane": "followup",
+        "required": false
+      }
+    ],
+    "storm_human_lane": {
+      "enabled": true,
+      "queue_name": "storm_human_outreach_review"
+    }
+  },
+  "state": {
+    "state_path": "state/workflow/universal_outreach_primitive/state.json",
+    "campaigns_dir": "state/workflow/universal_outreach_primitive/campaigns",
+    "latest_path": "state/workflow/universal_outreach_primitive/latest.json",
+    "receipts_path": "state/workflow/universal_outreach_primitive/receipts.jsonl",
+    "weaver_hints_path": "state/autonomy/weaver/outreach_hints.jsonl"
+  }
+}
