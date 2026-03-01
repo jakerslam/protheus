@@ -1,0 +1,26 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "shadow_only": true,
+  "mode_defaults": {
+    "master": "source",
+    "child": "binary",
+    "distributed": "binary"
+  },
+  "allowed_obfuscation_tiers": ["none", "light", "medium", "hard"],
+  "max_debug_ttl_sec": 3600,
+  "anti_debug_signals": [
+    "NODE_OPTIONS",
+    "LD_PRELOAD",
+    "DYLD_INSERT_LIBRARIES",
+    "VSCODE_INSPECTOR_OPTIONS"
+  ],
+  "paths": {
+    "state_path": "state/ops/binary_runtime_hardening/state.json",
+    "latest_path": "state/ops/binary_runtime_hardening/latest.json",
+    "receipts_path": "state/ops/binary_runtime_hardening/receipts.jsonl",
+    "artifacts_path": "state/ops/binary_runtime_hardening/artifacts.json",
+    "debug_sessions_path": "state/ops/binary_runtime_hardening/debug_sessions.json",
+    "soul_guard_path": "state/security/soul_token_guard.json"
+  }
+}

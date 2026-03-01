@@ -1,0 +1,42 @@
+{
+  "schema_id": "service_catalog",
+  "schema_version": "1.0",
+  "updated_at": "2026-03-01T03:27:30.124Z",
+  "services": [
+    {
+      "id": "spine",
+      "owner": "platform",
+      "slo_class": "critical",
+      "criticality_tier": 1,
+      "dependencies": [
+        "state_kernel",
+        "policy_vm",
+        "workflow_executor"
+      ],
+      "escalation": "ops-primary"
+    },
+    {
+      "id": "state_kernel",
+      "owner": "platform",
+      "slo_class": "critical",
+      "criticality_tier": 1,
+      "dependencies": [
+        "sqlite",
+        "receipt_ledger"
+      ],
+      "escalation": "platform-primary"
+    },
+    {
+      "id": "weaver",
+      "owner": "autonomy",
+      "slo_class": "high",
+      "criticality_tier": 2,
+      "dependencies": [
+        "duality_seed",
+        "model_router",
+        "value_attribution"
+      ],
+      "escalation": "autonomy-primary"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "shadow_only": true,
+  "trust_degrade_bands": {
+    "full": 0.9,
+    "reduced": 0.7,
+    "read_only": 0.5,
+    "sandbox_only": 0.25
+  },
+  "module_crypto": {
+    "algorithm": "aes-256-gcm",
+    "key_seed": "copy_hardening_seed_change_me"
+  },
+  "instrumentation_markers": [
+    "--inspect",
+    "--inspect-brk",
+    "frida",
+    "ptrace",
+    "gdb",
+    "lldb",
+    "LD_PRELOAD"
+  ],
+  "paths": {
+    "latest_path": "state/security/copy_hardening_pack/latest.json",
+    "receipts_path": "state/security/copy_hardening_pack/receipts.jsonl",
+    "state_path": "state/security/copy_hardening_pack/state.json",
+    "variants_path": "state/security/copy_hardening_pack/variants.json",
+    "watermarks_path": "state/security/copy_hardening_pack/watermarks.jsonl",
+    "modules_path": "state/security/copy_hardening_pack/modules.json",
+    "honey_events_path": "state/security/copy_hardening_pack/honey_events.jsonl",
+    "forensic_path": "state/security/copy_hardening_pack/forensics.jsonl"
+  }
+}

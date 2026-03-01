@@ -1503,6 +1503,36 @@ function main() {
     ["dist_runtime_cutover.js", "status", "set-mode", "verify", "--mode", "--build", "--strict"]
   );
 
+  // binary_runtime_hardening.js governs master/child binary role bootstrap, debug attestation, and tamper/reweave lifecycle.
+  checkScript(
+    "systems/ops/binary_runtime_hardening.js",
+    ["binary_runtime_hardening.js", "role-bootstrap", "build-obfuscation", "debug-attest", "tamper-check", "reweave-stage", "status"]
+  );
+
+  // openfang_capability_pack.js provides OF parity primitives (fuel, taint, ssrf, circuit breaker, manifests, facade, migration, benchmark).
+  checkScript(
+    "systems/ops/openfang_capability_pack.js",
+    ["openfang_capability_pack.js", "fuel-runtime", "taint-evaluate", "ssrf-guard", "circuit-breaker", "pack-manifest", "pack-signature", "openai-facade", "framework-import", "channel-contracts", "benchmark-pack", "status"]
+  );
+
+  // copy_hardening_pack.js manages polymorphic variants, watermark mesh, trust degrade, encrypted modules, and clone-risk scoring.
+  checkScript(
+    "systems/security/copy_hardening_pack.js",
+    ["copy_hardening_pack.js", "diversify-build", "watermark-mesh", "trust-degrade", "module-seal", "module-unseal", "instrumentation-scan", "honey-trap", "clone-risk-score", "status"]
+  );
+
+  // obsidian_phase_pack.js extends obsidian with wisdom projection, intent compiler, canvas intelligence, and plugin/mobile lanes.
+  checkScript(
+    "systems/obsidian/obsidian_phase_pack.js",
+    ["obsidian_phase_pack.js", "wisdom-project", "ops-card", "intent-compile", "canvas-map", "identity-sync", "plugin-control", "phone-mode", "resilience-check", "status"]
+  );
+
+  // docs_structure_pack.js generates and validates canonical docs/ADR/catalog/matrix artifacts.
+  checkScript(
+    "systems/ops/docs_structure_pack.js",
+    ["docs_structure_pack.js", "run-all", "validate", "status"]
+  );
+
   // external_security_cycle.js ingests third-party findings and tracks closure evidence.
   checkScript(
     "systems/security/external_security_cycle.js",
