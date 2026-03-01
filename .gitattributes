@@ -1,6 +1,13 @@
 # Linguist normalization for repository language stats.
 # Goal: reflect maintained runtime source, not churn/state/test artifacts.
 
+# Strict repo-wide language signal: prefer TS, hide JS migration/runtime shims.
+*.js linguist-generated=true
+*.cjs linguist-generated=true
+*.mjs linguist-generated=true
+*.ts linguist-generated=false linguist-language=TypeScript
+*.tsx linguist-generated=false linguist-language=TypeScript
+
 # Runtime/state and research artifacts are not source-of-truth code.
 memory/** linguist-generated=true
 state/** linguist-generated=true
