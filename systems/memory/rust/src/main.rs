@@ -1,3 +1,6 @@
+mod db;
+
+use db::{DbIndexEntry, MemoryDb};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -6,6 +9,7 @@ use std::env;
 use std::fs;
 use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::{Instant, UNIX_EPOCH};
 
 #[derive(Clone, Debug, Default)]
@@ -81,6 +85,10 @@ struct BuildIndexResult {
     tags_index_path: String,
     memory_index_sha256: String,
     tags_index_sha256: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sqlite_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sqlite_rows_written: Option<usize>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -559,6 +567,231 @@ fn sha256_hex(text: &str) -> String {
     hex::encode(hasher.finalize())
 }
 
+#[derive(Default)]
+struct RuntimeIndexBundle {
+    index_sources: Vec<String>,
+    tag_sources: Vec<String>,
+    entries: Vec<IndexEntry>,
+    tag_map: HashMap<String, HashSet<String>>,
+    sqlite_path: Option<String>,
+    sqlite_sync_rows: usize,
+    sqlite_sync_applied: bool,
+}
+
+fn dedupe_tags(tags: &[String]) -> Vec<String> {
+    let mut out = tags
+        .iter()
+        .map(|tag| normalize_tag(tag))
+        .filter(|tag| !tag.is_empty())
+        .collect::<Vec<String>>();
+    out.sort();
+    out.dedup();
+    out
+}
+
+fn to_db_index_entry(entry: &IndexEntry) -> DbIndexEntry {
+    DbIndexEntry {
+        node_id: entry.node_id.clone(),
+        uid: entry.uid.clone(),
+        file_rel: entry.file_rel.clone(),
+        summary: entry.summary.clone(),
+        tags: dedupe_tags(&entry.tags),
+    }
+}
+
+fn from_db_index_entry(entry: &DbIndexEntry) -> IndexEntry {
+    IndexEntry {
+        node_id: entry.node_id.clone(),
+        uid: entry.uid.clone(),
+        file_rel: entry.file_rel.clone(),
+        summary: entry.summary.clone(),
+        tags: dedupe_tags(&entry.tags),
+    }
+}
+
+fn build_tag_map_from_entries(entries: &[IndexEntry]) -> HashMap<String, HashSet<String>> {
+    let mut out: HashMap<String, HashSet<String>> = HashMap::new();
+    for entry in entries {
+        for raw_tag in &entry.tags {
+            let tag = normalize_tag(raw_tag);
+            if tag.is_empty() {
+                continue;
+            }
+            out.entry(tag)
+                .or_default()
+                .insert(entry.node_id.clone());
+        }
+    }
+    out
+}
+
+fn merge_tag_map_into_entries(
+    entries: &mut [IndexEntry],
+    tag_map: &HashMap<String, HashSet<String>>,
+) {
+    if tag_map.is_empty() {
+        return;
+    }
+    for entry in entries {
+        let mut merged = entry.tags.clone();
+        for (tag, node_ids) in tag_map {
+            if node_ids.contains(&entry.node_id) {
+                merged.push(tag.clone());
+            }
+        }
+        entry.tags = dedupe_tags(&merged);
+    }
+}
+
+fn index_source_signature(root: &Path, index_sources: &[String], tag_sources: &[String]) -> String {
+    let mut lines: Vec<String> = vec![];
+    for source in index_sources.iter().chain(tag_sources.iter()) {
+        let p = root.join(source);
+        if let Ok(meta) = fs::metadata(&p) {
+            let modified = meta
+                .modified()
+                .ok()
+                .and_then(|v| v.duration_since(UNIX_EPOCH).ok())
+                .map(|dur| dur.as_millis())
+                .unwrap_or(0);
+            lines.push(format!(
+                "{}:{}:{}",
+                source,
+                meta.len(),
+                modified
+            ));
+        } else {
+            lines.push(format!("{source}:missing"));
+        }
+    }
+    if lines.is_empty() {
+        return String::new();
+    }
+    lines.sort();
+    sha256_hex(&lines.join("|"))
+}
+
+fn sanitize_event_token(raw: &str) -> String {
+    let mut out = raw
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' || ch == '.' {
+                ch
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>();
+    while out.contains("__") {
+        out = out.replace("__", "_");
+    }
+    out.trim_matches('_').to_string()
+}
+
+fn publish_memory_event(root: &Path, event: &str, payload: serde_json::Value) {
+    let event_id = sanitize_event_token(event);
+    if event_id.is_empty() {
+        return;
+    }
+    let script = root.join("systems").join("ops").join("event_sourced_control_plane.js");
+    if !script.exists() {
+        return;
+    }
+    let payload_arg = format!("--payload_json={}", payload.to_string());
+    let _ = Command::new("node")
+        .arg(script)
+        .arg("append")
+        .arg("--stream=memory")
+        .arg(format!("--event={event_id}"))
+        .arg(payload_arg)
+        .current_dir(root)
+        .output();
+}
+
+fn sync_sqlite_runtime_index(
+    root: &Path,
+    db: &mut MemoryDb,
+) -> Result<(Vec<String>, Vec<String>, usize, bool, String), String> {
+    let (index_sources, mut entries) = load_memory_index(root);
+    let (tag_sources, tag_map) = load_tags_index(root);
+    merge_tag_map_into_entries(&mut entries, &tag_map);
+    let signature = index_source_signature(root, &index_sources, &tag_sources);
+    let previous = db
+        .get_hot_state_json("index_source_signature")?
+        .and_then(|value| value.as_str().map(|v| v.to_string()))
+        .unwrap_or_default();
+    let existing_rows = db.count_index_rows()?;
+    if existing_rows > 0 && !signature.is_empty() && signature == previous {
+        return Ok((index_sources, tag_sources, existing_rows, false, signature));
+    }
+
+    let db_entries = entries
+        .iter()
+        .map(to_db_index_entry)
+        .collect::<Vec<DbIndexEntry>>();
+    let inserted = db.replace_index_entries(&db_entries, "markdown_index")?;
+    let _ = db.set_hot_state_json("index_source_signature", &json!(signature));
+    let _ = db.set_hot_state_json("index_row_count", &json!(inserted));
+    let _ = db.set_hot_state_json("index_sync_source", &json!("markdown_index"));
+    Ok((index_sources, tag_sources, inserted, true, signature))
+}
+
+fn load_runtime_index(root: &Path, args: &HashMap<String, String>) -> RuntimeIndexBundle {
+    let mut out = RuntimeIndexBundle::default();
+    let db_path = arg_any(args, &["db-path", "db_path"]);
+    if let Ok(mut db) = MemoryDb::open(root, &db_path) {
+        out.sqlite_path = Some(db.rel_db_path(root));
+        match sync_sqlite_runtime_index(root, &mut db) {
+            Ok((idx_sources, tag_sources, row_count, wrote, signature)) => {
+                out.sqlite_sync_rows = row_count;
+                out.sqlite_sync_applied = wrote;
+                if wrote {
+                    publish_memory_event(
+                        root,
+                        "rust_memory_index_sync",
+                        json!({
+                            "ok": true,
+                            "row_count": row_count,
+                            "signature": signature,
+                            "sqlite_path": out.sqlite_path.clone().unwrap_or_default(),
+                            "index_sources": idx_sources,
+                            "tag_sources": tag_sources
+                        }),
+                    );
+                }
+            }
+            Err(sync_error) => {
+                publish_memory_event(
+                    root,
+                    "rust_memory_index_sync_error",
+                    json!({
+                        "ok": false,
+                        "error": sync_error
+                    }),
+                );
+            }
+        }
+        if let Ok(db_rows) = db.load_index_entries() {
+            if !db_rows.is_empty() {
+                out.entries = db_rows.iter().map(from_db_index_entry).collect::<Vec<IndexEntry>>();
+                let sqlite_path = out.sqlite_path.clone().unwrap_or_else(|| "sqlite".to_string());
+                out.index_sources = vec![format!("sqlite:{sqlite_path}")];
+                out.tag_map = build_tag_map_from_entries(&out.entries);
+                out.tag_sources = vec![format!("sqlite:{sqlite_path}")];
+                return out;
+            }
+        }
+    }
+
+    let (index_sources, entries) = load_memory_index(root);
+    let (tag_sources, tag_map) = load_tags_index(root);
+    out.index_sources = index_sources;
+    out.tag_sources = tag_sources;
+    out.entries = entries;
+    out.tag_map = tag_map;
+    out
+}
+
 fn file_mtime_ms(file_path: &Path) -> Option<u64> {
     let metadata = fs::metadata(file_path).ok()?;
     let modified = metadata.modified().ok()?;
@@ -891,7 +1124,7 @@ fn scan_daily_entries(root: &Path) -> (Vec<IndexEntry>, usize) {
 fn build_memory_index_doc(entries: &[IndexEntry]) -> String {
     let mut lines: Vec<String> = vec![
         "# MEMORY_INDEX.md".to_string(),
-        "# Generated by rust_memory_box build-index".to_string(),
+        "# Generated by protheus-memory-core build-index".to_string(),
         "".to_string(),
         "| node_id | uid | tags | file | summary |".to_string(),
         "|---|---|---|---|---|".to_string(),
@@ -936,7 +1169,7 @@ fn build_tags_index_doc(entries: &[IndexEntry]) -> (String, usize) {
 
     let mut lines: Vec<String> = vec![
         "# TAGS_INDEX.md".to_string(),
-        "# Generated by rust_memory_box build-index".to_string(),
+        "# Generated by protheus-memory-core build-index".to_string(),
         "".to_string(),
     ];
     for (tag, node_ids) in &tags {
@@ -1015,8 +1248,11 @@ fn run_query_index(args: &HashMap<String, String>) {
     );
     let max_files = parse_clamped_usize(&arg_any(args, &["max-files", "max_files"]), 1, 20, 1);
 
-    let (index_sources, entries) = load_memory_index(&root);
-    let (tag_sources, tag_map) = load_tags_index(&root);
+    let runtime_index = load_runtime_index(&root, args);
+    let index_sources = runtime_index.index_sources;
+    let tag_sources = runtime_index.tag_sources;
+    let entries = runtime_index.entries;
+    let tag_map = runtime_index.tag_map;
 
     let mut tag_node_ids: HashSet<String> = HashSet::new();
     for tag in &tag_filters {
@@ -1139,7 +1375,7 @@ fn run_query_index(args: &HashMap<String, String>) {
 
     let out = QueryResult {
         ok: true,
-        backend: "rust_memory_box".to_string(),
+        backend: "protheus_memory_core".to_string(),
         entries_total: entries.len(),
         candidates_total: candidates.len(),
         index_sources,
@@ -1174,8 +1410,9 @@ fn run_get_node(args: &HashMap<String, String>) {
         std::process::exit(2);
     }
 
-    let (_index_sources, entries) = load_memory_index(&root);
-    let mut matches = entries
+    let runtime_index = load_runtime_index(&root, args);
+    let mut matches = runtime_index
+        .entries
         .into_iter()
         .filter(|entry| {
             if !uid.is_empty() && entry.uid != uid {
@@ -1258,7 +1495,7 @@ fn run_get_node(args: &HashMap<String, String>) {
 
     let out = GetNodeResult {
         ok: true,
-        backend: "rust_memory_box".to_string(),
+        backend: "protheus_memory_core".to_string(),
         node_id: entry.node_id.clone(),
         uid: entry.uid.clone(),
         file: entry.file_rel.clone(),
@@ -1300,6 +1537,49 @@ fn run_build_index(args: &HashMap<String, String>) {
     let (entries, files_scanned) = scan_daily_entries(&root);
     let memory_index_md = build_memory_index_doc(&entries);
     let (tags_index_md, tag_count) = build_tags_index_doc(&entries);
+    let mut sqlite_rows_written: Option<usize> = None;
+    let mut sqlite_path: Option<String> = None;
+
+    let db_path = arg_any(args, &["db-path", "db_path"]);
+    if let Ok(mut db) = MemoryDb::open(&root, &db_path) {
+        let rel_path = db.rel_db_path(&root);
+        let db_entries = entries
+            .iter()
+            .map(to_db_index_entry)
+            .collect::<Vec<DbIndexEntry>>();
+        match db.replace_index_entries(&db_entries, "daily_scan_build_index") {
+            Ok(rows) => {
+                sqlite_rows_written = Some(rows);
+                sqlite_path = Some(rel_path.clone());
+                let _ = db.set_hot_state_json("build_index_memory_sha256", &json!(sha256_hex(&memory_index_md)));
+                let _ = db.set_hot_state_json("build_index_tags_sha256", &json!(sha256_hex(&tags_index_md)));
+                let _ = db.set_hot_state_json("build_index_node_count", &json!(entries.len()));
+                let _ = db.set_hot_state_json("build_index_tag_count", &json!(tag_count));
+                publish_memory_event(
+                    &root,
+                    "rust_memory_build_index",
+                    json!({
+                        "ok": true,
+                        "node_count": entries.len(),
+                        "tag_count": tag_count,
+                        "files_scanned": files_scanned,
+                        "sqlite_rows_written": rows,
+                        "sqlite_path": rel_path
+                    }),
+                );
+            }
+            Err(err) => {
+                publish_memory_event(
+                    &root,
+                    "rust_memory_build_index_error",
+                    json!({
+                        "ok": false,
+                        "error": err
+                    }),
+                );
+            }
+        }
+    }
 
     if write {
         if let Some(parent) = memory_index_abs.parent() {
@@ -1314,7 +1594,7 @@ fn run_build_index(args: &HashMap<String, String>) {
 
     let out = BuildIndexResult {
         ok: true,
-        backend: "rust_memory_box".to_string(),
+        backend: "protheus_memory_core".to_string(),
         node_count: entries.len(),
         tag_count,
         files_scanned,
@@ -1323,6 +1603,8 @@ fn run_build_index(args: &HashMap<String, String>) {
         tags_index_path: rel_path(&root, &tags_index_abs),
         memory_index_sha256: sha256_hex(&memory_index_md),
         tags_index_sha256: sha256_hex(&tags_index_md),
+        sqlite_path,
+        sqlite_rows_written,
     };
     println!(
         "{}",

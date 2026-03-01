@@ -20,13 +20,13 @@ const DEFAULT_MAX_FILES = clampInt(process.env.MEMORY_RECALL_MAX_FILES || 1, 1, 
 const DEFAULT_CONFIDENCE = clampNumber(process.env.MEMORY_RECALL_CONFIDENCE || 0.58, 0.05, 1);
 const DEFAULT_CACHE_MAX_BYTES = clampInt(process.env.MEMORY_RECALL_CACHE_MAX_BYTES || (1024 * 1024), 65536, 8 * 1024 * 1024);
 const DEFAULT_EXCERPT_LINES = clampInt(process.env.MEMORY_RECALL_EXCERPT_LINES || 14, 4, 100);
-const DEFAULT_BACKEND = String(process.env.MEMORY_RECALL_BACKEND || 'auto').trim().toLowerCase();
+const DEFAULT_BACKEND = String(process.env.MEMORY_RECALL_BACKEND || 'rust').trim().toLowerCase();
 const DEFAULT_RUST_SELECTOR_PATH = process.env.MEMORY_RECALL_RUST_SELECTOR_PATH
   ? path.resolve(String(process.env.MEMORY_RECALL_RUST_SELECTOR_PATH))
   : path.join(REPO_ROOT, 'state', 'memory', 'rust_transition', 'backend_selector.json');
 const DEFAULT_RUST_CRATE_PATH = process.env.MEMORY_RECALL_RUST_CRATE_PATH
   ? path.resolve(String(process.env.MEMORY_RECALL_RUST_CRATE_PATH))
-  : path.join(WORKSPACE_ROOT, 'systems', 'rust', 'memory_box');
+  : path.join(WORKSPACE_ROOT, 'systems', 'memory', 'rust');
 const DEFAULT_RUST_BIN = String(process.env.MEMORY_RECALL_RUST_BIN || 'cargo').trim() || 'cargo';
 const DEFAULT_RUST_TIMEOUT_MS = clampInt(process.env.MEMORY_RECALL_RUST_TIMEOUT_MS || 25000, 1000, 120000);
 const DEFAULT_RUST_COOLDOWN_MS = clampInt(process.env.MEMORY_RECALL_RUST_COOLDOWN_MS || (5 * 60 * 1000), 1000, 24 * 60 * 60 * 1000);

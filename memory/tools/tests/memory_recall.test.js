@@ -177,7 +177,7 @@ runTest('query returns ranked hits with tag filtering and no expansion', () => {
 
 runTest('query requested rust backend falls back to js when crate is missing', () => {
   const root = makeWorkspace();
-  const missingCrate = path.join(root, 'systems', 'rust', 'memory_box_missing');
+  const missingCrate = path.join(root, 'systems', 'memory', 'rust_missing');
   const r = runRecall(
     root,
     ['query', '--q=routing', '--expand=none', '--session=rustfallback'],
@@ -198,7 +198,7 @@ runTest('query requested rust backend falls back to js when crate is missing', (
 runTest('query requested rust backend uses rust payload when rust bin succeeds', () => {
   const root = makeWorkspace();
   const fakeBin = makeFakeRustBin(root);
-  const cratePath = path.join(root, 'systems', 'rust', 'memory_box_present');
+  const cratePath = path.join(root, 'systems', 'memory', 'rust_present');
   mkDir(cratePath);
   const r = runRecall(
     root,
@@ -219,7 +219,7 @@ runTest('query requested rust backend uses rust payload when rust bin succeeds',
 
 runTest('query rust backend enters cooldown after first rust failure', () => {
   const root = makeWorkspace();
-  const missingCrate = path.join(root, 'systems', 'rust', 'memory_box_missing');
+  const missingCrate = path.join(root, 'systems', 'memory', 'rust_missing');
   const env = {
     MEMORY_RECALL_BACKEND: 'rust',
     MEMORY_RECALL_RUST_CRATE_PATH: missingCrate,
@@ -244,7 +244,7 @@ runTest('query auto backend uses selector rust then falls back to js when crate 
     backend: 'rust',
     fallback_backend: 'js'
   });
-  const missingCrate = path.join(root, 'systems', 'rust', 'memory_box_missing');
+  const missingCrate = path.join(root, 'systems', 'memory', 'rust_missing');
   const r = runRecall(
     root,
     ['query', '--q=autonomy', '--expand=none', '--session=autosel'],
@@ -268,7 +268,7 @@ runTest('query auto backend honors selector active_engine=rust', () => {
     active_engine: 'rust',
     fallback_backend: 'js'
   });
-  const missingCrate = path.join(root, 'systems', 'rust', 'memory_box_missing');
+  const missingCrate = path.join(root, 'systems', 'memory', 'rust_missing');
   const r = runRecall(
     root,
     ['query', '--q=routing', '--expand=none', '--session=autoactiveengine'],
@@ -305,7 +305,7 @@ runTest('query auto backend falls back to benchmark gate when selector is absent
       benchmark_path: 'state/memory/rust_transition/benchmark_history.json'
     }
   });
-  const missingCrate = path.join(root, 'systems', 'rust', 'memory_box_missing');
+  const missingCrate = path.join(root, 'systems', 'memory', 'rust_missing');
   const r = runRecall(
     root,
     ['query', '--q=routing', '--expand=none', '--session=autobenchmark'],
@@ -343,7 +343,7 @@ runTest('query auto backend stays js when benchmark gate does not pass', () => {
       benchmark_path: 'state/memory/rust_transition/benchmark_history.json'
     }
   });
-  const missingCrate = path.join(root, 'systems', 'rust', 'memory_box_missing');
+  const missingCrate = path.join(root, 'systems', 'memory', 'rust_missing');
   const r = runRecall(
     root,
     ['query', '--q=routing', '--expand=none', '--session=autobenchmarkjs'],
@@ -364,13 +364,14 @@ runTest('query auto backend stays js when benchmark gate does not pass', () => {
 runTest('expanded query reuses working-set cache on second run', () => {
   const root = makeWorkspace();
   const args = ['query', '--q=cache fallback behavior', '--expand=always', '--session=cachetest', '--max-files=1'];
-  const r1 = runRecall(root, args);
+  const env = { MEMORY_RECALL_BACKEND: 'js' };
+  const r1 = runRecall(root, args, env);
   assert.strictEqual(r1.status, 0, `first query failed: ${r1.stderr}`);
   const out1 = parseJson(r1.stdout);
   assert.ok(out1 && out1.ok === true, 'first output should be ok');
   assert.ok(Number(out1.metrics.file_reads || 0) >= 1, 'first run should read file');
 
-  const r2 = runRecall(root, args);
+  const r2 = runRecall(root, args, env);
   assert.strictEqual(r2.status, 0, `second query failed: ${r2.stderr}`);
   const out2 = parseJson(r2.stdout);
   assert.ok(out2 && out2.ok === true, 'second output should be ok');
@@ -404,7 +405,7 @@ runTest('get can resolve node by uid', () => {
 
 runTest('get requested rust backend falls back to js when crate is missing', () => {
   const root = makeWorkspace();
-  const missingCrate = path.join(root, 'systems', 'rust', 'memory_box_missing');
+  const missingCrate = path.join(root, 'systems', 'memory', 'rust_missing');
   const r = runRecall(
     root,
     ['get', '--node-id=routing-cache-design', '--session=getrustfallback'],
@@ -425,7 +426,7 @@ runTest('get requested rust backend falls back to js when crate is missing', () 
 runTest('get requested rust backend uses rust payload when rust bin succeeds', () => {
   const root = makeWorkspace();
   const fakeBin = makeFakeRustBin(root);
-  const cratePath = path.join(root, 'systems', 'rust', 'memory_box_present');
+  const cratePath = path.join(root, 'systems', 'memory', 'rust_present');
   mkDir(cratePath);
   const r = runRecall(
     root,
@@ -447,7 +448,7 @@ runTest('get requested rust backend uses rust payload when rust bin succeeds', (
 
 runTest('get rust backend enters cooldown after first rust failure', () => {
   const root = makeWorkspace();
-  const missingCrate = path.join(root, 'systems', 'rust', 'memory_box_missing');
+  const missingCrate = path.join(root, 'systems', 'memory', 'rust_missing');
   const env = {
     MEMORY_RECALL_BACKEND: 'rust',
     MEMORY_RECALL_RUST_CRATE_PATH: missingCrate,
@@ -472,7 +473,7 @@ runTest('get auto backend uses selector rust then falls back to js when crate is
     backend: 'rust',
     fallback_backend: 'js'
   });
-  const missingCrate = path.join(root, 'systems', 'rust', 'memory_box_missing');
+  const missingCrate = path.join(root, 'systems', 'memory', 'rust_missing');
   const r = runRecall(
     root,
     ['get', '--uid=memabc123autonomy2', '--session=getautosel'],

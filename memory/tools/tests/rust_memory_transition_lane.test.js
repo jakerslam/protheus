@@ -81,7 +81,7 @@ process.stdout.write(JSON.stringify({ ok: true, backend_used: engine, parity_err
       selector_path: path.join(stateRoot, 'selector.json'),
       benchmark_path: path.join(stateRoot, 'bench.json'),
       memory_index_path: indexPath,
-      rust_crate_path: path.join(ROOT, 'systems', 'rust', 'memory_box')
+      rust_crate_path: path.join(ROOT, 'systems', 'memory', 'rust')
     },
     benchmark: {
       mode: 'probe_commands',

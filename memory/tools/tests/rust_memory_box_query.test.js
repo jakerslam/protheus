@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-const CRATE = path.join(ROOT, 'systems', 'rust', 'memory_box');
+const CRATE = path.join(ROOT, 'systems', 'memory', 'rust');
 
 function writeFile(filePath, text) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
