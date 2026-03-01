@@ -438,15 +438,31 @@ function main() {
   );
   checkScript(
     "systems/ops/protheus_control_plane.js",
-    ["protheus_control_plane.js", "start", "status", "job-submit", "incident", "release-promote", "doctor-bundle"]
+    ["protheus", "start", "status", "job-submit", "incident", "release-promote", "doctor-bundle"]
   );
   checkScript(
     "systems/ops/protheusd.js",
-    ["protheusd.js", "start", "status", "tick"]
+    ["protheusd", "start", "status", "tick"]
   );
   checkScript(
     "systems/ops/protheusctl.js",
-    ["protheusctl.js", "status", "health", "job-submit"]
+    ["protheusctl", "status", "health", "job-submit"]
+  );
+  checkScript(
+    "bin/protheus",
+    ["protheusctl", "status", "job-submit"]
+  );
+  checkScript(
+    "bin/protheusctl",
+    ["protheusctl", "status", "job-submit"]
+  );
+  checkScript(
+    "bin/protheusd",
+    ["protheusd", "start", "status", "tick"]
+  );
+  checkScript(
+    "bin/protheus-top",
+    ["protheus_top", "queue_depth"]
   );
   checkScript(
     "systems/memory/memory_efficiency_plane.js",

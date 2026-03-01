@@ -11,6 +11,15 @@ drafts/** linguist-generated=true
 systems/**/*.js linguist-generated=true
 lib/**/*.js linguist-generated=true
 
+# Legacy operational JS lanes are migration shims/scripts, not core language signal.
+habits/scripts/**/*.js linguist-generated=true
+habits/routines/**/*.js linguist-generated=true
+adaptive/sensory/eyes/collectors/**/*.js linguist-generated=true
+skills/moltbook/*.js linguist-generated=true
+skills/**/scripts/**/*.js linguist-generated=true
+patches/**/*.js linguist-generated=true
+tests/**/*.js linguist-generated=true
+
 # Force TS source roots to remain linguist-detectable.
 systems/**/*.ts linguist-generated=false
 lib/**/*.ts linguist-generated=false

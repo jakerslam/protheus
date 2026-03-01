@@ -1346,6 +1346,34 @@ Objective: close the remaining race-fitness gap by upgrading runtime substrate, 
 | Multi-agent debate/coordination | `V3-MAC-001`, `BL-011` | Keep canonical and extend to runtime-level swarm orchestration via `V3-RACE-006`. |
 | Distributed runtime + leader election | `RM-202` (V4) | Keep strategic dependency; begin V3-compatible preparatory slice through `V3-RACE-006`. |
 
+## Grok Frontier Gaps Intake (2026-02-28)
+
+Objective: capture the latest ruthless-gap directive without duplicating already delivered V3 race-fitness work, while adding only net-new deltas that are still missing.
+
+### Coverage Mapping (Do Not Duplicate)
+
+| External Directive | Canonical Coverage | Status | Action |
+|---|---|---|---|
+| Rust/WASM microkernel control-plane shift | `V3-RACE-001`, `V3-RACE-002` | partially covered (done) | Add full control-plane extraction/cutover lane (`V3-RACE-021`). |
+| Hybrid memory + active retrieval + consolidation/forgetting | `V3-RACE-009`, `V3-RACE-010` | covered (done) | Extend by tuning policies, not new primitive IDs. |
+| Event sourcing + CQRS for replay/time travel | `V3-RACE-003`, `V3-RACE-015` | partially covered (done) | Add authoritative stream cutover lane (`V3-RACE-017`) for full source-of-truth promotion. |
+| Swarm-native orchestration/debate/election/federation | `V3-RACE-006`, `V3-RACE-007`, `V3-MAC-001`, `BL-011` | covered (done) | Keep existing runtime orchestration lanes canonical. |
+| Sovereign personality continuity substrate | `V3-RACE-008` | partially covered (done) | Add LoRA-backed continuity adapter extension (`V3-RACE-020`). |
+| Full OTel thought->action + automatic postmortem->habit generation | `V3-OBS-002`, `V3-RACE-005`, `V2-020` | partially covered (done) | Add trace-to-habit autogenesis lane (`V3-RACE-018`). |
+| Loop-5 persistent fractal self-evolution engine | `V3-LOOP-004` | partially covered (done) | Add persistent meta-organ lane (`V3-RACE-019`). |
+| Open platform layer (announce + Apache 2.0 non-crown-jewel release) | `V3-RACE-013` | partially covered (done) | Add explicit platform opening/release lane (`V3-RACE-016`). |
+
+### Net-New Additions from This Intake
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-016 | extension | V3 | done | Open Platform Layer Release Pack (Apache 2.0 non-crown-jewel + Compatibility Launch) | Ecosystem leverage and external velocity need an explicit open-layer release policy and announcement execution, not only internal compatibility artifacts. | Added `systems/ops/open_platform_release_pack.ts` + `config/open_platform_release_pack_policy.json` to emit Apache-2.0 allowlist manifests, signed compatibility badge bundles, benchmark/drift/receipt launch artifacts, and reproducible checklist evidence (`memory/tools/tests/open_platform_release_pack.test.js`). | V3-RACE-013, V3-DOC-006, V3-BENCH-001, V3-OF-008 |
+| V3-RACE-017 | primitive-upgrade | V3 | done | Authoritative Event-Stream Cutover (JetStream-First CQRS Authority) | Mirror-mode transport still leaves local append log as authority; swarm-scale deterministic replay improves when stream authority is explicit with bounded fallback. | Extended `systems/ops/event_sourced_control_plane.ts` + policy with authority selection (`local_authority`/`stream_authority`), deterministic rebuild/materialized views, and reconcile+partition rollback receipts (`memory/tools/tests/event_sourced_control_plane_authority.test.js`). | V3-RACE-003, V3-RACE-015, RM-202, V3-SK-007 |
+| V3-RACE-018 | extension | V3 | done | Trace-to-Habit Autogenesis Loop | Postmortems and traces are strong, but failures still require manual synthesis into new habit candidates. | Added `systems/ops/trace_habit_autogenesis.ts` + policy to derive candidates from failed traces/postmortems, enforce propose->trial->report->promote gating, and require measurable failure-class regression reduction before promotion (`memory/tools/tests/trace_habit_autogenesis.test.js`). | V3-RACE-005, V2-020, V3-038, V3-ACT-001 |
+| V3-RACE-019 | primitive | V3 | done | Persistent Fractal Engine Meta-Organ (Loop-5 Autopilot) | Trigger bridge exists, but a persistent self-evolution organ that continuously mutates habits/memory/routing under strict gates is still missing as a first-class runtime primitive. | Added `systems/autonomy/persistent_fractal_meta_organ.ts` + policy for nightly/high-success trigger gating, bounded domain mutations, isolated shadow trials, governed live promotion hooks, and deterministic rollback commands (`memory/tools/tests/persistent_fractal_meta_organ.test.js`). Also added TypeScript-first fractal engine substrate under `systems/fractal/` (`engine.ts`, `telemetry_aggregator.ts`, `critic.ts`, `mutator.ts`, `shadow_trial_runner.ts`, `two_gate_applier.ts`, `reversion_drill.ts`, `constitution_hooks.ts`, `fractal_state.json`, `README.md`) with hard invariants for tier gating, event-sourced mutation records, soul-anchor refresh, and tier3+ human second-gate enforcement. | V3-LOOP-004, V3-038, V3-RACE-004, V3-RACE-010 |
+| V3-RACE-020 | extension | V3 | done | LoRA-Backed Soul Continuity Adapter | Personality substrate continuity exists, but explicit adapter-backed persistence across model swaps needs concrete contract coverage. | Added `systems/soul/soul_continuity_adapter.ts` + policy for export/import/versioned adapter bundles bound to soul-vector + identity attestation hashes, migration continuity scoring, and promotion blocking on regression (`memory/tools/tests/soul_continuity_adapter.test.js`). | V3-RACE-008, V3-ASSIM-012, V2-058, V3-BLK-001 |
+| V3-RACE-021 | primitive-upgrade | V3 | done | Rust Microkernel Full Control-Plane Extraction + Default Cutover | Rust kernel slices exist, but the default runtime still retains mixed control-plane execution paths that limit race-scale throughput/safety guarantees. | Added `systems/ops/rust_control_plane_cutover.ts` + `systems/rust/control_plane_component_shim.ts` + policy for parity harnessing, benchmark/SLO-gated default activation, emergency-only JS fallback routing, and staged JS hot-path deprecation receipts (`memory/tools/tests/rust_control_plane_cutover.test.js`). | V3-RACE-001, V3-RACE-002, V3-RMEM-006, RM-122, V3-OPS-015 |
+
 ## Backlog Policy
 
 - Lower-impact items (<9% estimated gain) are intentionally parked below to protect V1 focus.

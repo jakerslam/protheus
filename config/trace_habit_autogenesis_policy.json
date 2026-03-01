@@ -1,0 +1,22 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "shadow_only": true,
+  "min_failure_events_per_class": 3,
+  "min_window_events": 4,
+  "min_regression_reduction": 0.2,
+  "failure_outcomes": [
+    "error",
+    "fail",
+    "timeout",
+    "blocked"
+  ],
+  "paths": {
+    "trace_path": "state/observability/thought_action_trace.jsonl",
+    "postmortem_dir": "state/ops/postmortems",
+    "queue_path": "state/ops/trace_habit_autogenesis/queue.json",
+    "latest_path": "state/ops/trace_habit_autogenesis/latest.json",
+    "receipts_path": "state/ops/trace_habit_autogenesis/receipts.jsonl",
+    "reports_dir": "state/ops/trace_habit_autogenesis/reports"
+  }
+}

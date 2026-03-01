@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+'use strict';
+
+const path = require('path');
+const { spawnSync } = require('child_process');
+
+const script = path.resolve(__dirname, '..', 'systems', 'ops', 'protheusd.js');
+const run = spawnSync(process.execPath, [script, ...process.argv.slice(2)], {
+  stdio: 'inherit'
+});
+process.exit(Number.isFinite(run.status) ? run.status : 1);

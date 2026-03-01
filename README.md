@@ -37,6 +37,25 @@ This repository is an agent-operations workspace: orchestration, governed habits
 - `docs/` and `patches/`  
   Design notes and implementation patches.
 
+## Operator CLI
+
+The canonical operator interface is extensionless:
+
+```bash
+protheus status
+protheus health
+protheusd start
+protheusd stop
+protheusctl job-submit --kind=reconcile
+protheus-top
+```
+
+Install local command shims into your user PATH once:
+
+```bash
+npm link
+```
+
 ## Core Commands
 
 ```bash

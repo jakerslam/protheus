@@ -447,9 +447,10 @@
     "test:ops:explain:decision": "node memory/tools/tests/explain_decision.test.js",
     "ops:governance:run": "node systems/security/governance_hardening_lane.js evaluate --actor=seed --evasion=0 --chains=0 --anomaly=0 --apply=0",
     "ops:governance:status": "node systems/security/governance_hardening_lane.js status",
-    "protheus": "node systems/ops/protheusctl.js",
-    "protheusd": "node systems/ops/protheusd.js",
-    "protheus:top": "node systems/ops/protheus_top.js",
+    "protheus": "./bin/protheus",
+    "protheusctl": "./bin/protheusctl",
+    "protheusd": "./bin/protheusd",
+    "protheus:top": "./bin/protheus-top",
     "ops:control-plane:status": "node systems/ops/protheus_control_plane.js status",
     "ops:control-plane:health": "node systems/ops/protheus_control_plane.js health",
     "ops:control-plane:audit": "node systems/ops/protheus_control_plane.js backlog-validate --strict=1",
@@ -530,6 +531,12 @@
     "test:visualizer:holo-overlays": "node memory/tools/tests/holo_overlay_compiler.test.js",
     "test:memory:rust-transition": "node memory/tools/tests/rust_memory_transition_lane.test.js",
     "test:race:uplift-pack": "node memory/tools/tests/race_uplift_pack.test.js"
+  },
+  "bin": {
+    "protheus": "./bin/protheus",
+    "protheusctl": "./bin/protheusctl",
+    "protheusd": "./bin/protheusd",
+    "protheus-top": "./bin/protheus-top"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

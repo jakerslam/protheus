@@ -38,30 +38,30 @@ const DEFAULT_POLICY_PATH = process.env.PROTHEUS_CONTROL_PLANE_POLICY_PATH
 
 function usage() {
   console.log('Usage:');
-  console.log('  node systems/ops/protheus_control_plane.js start|stop|restart|status|health|top [--policy=<path>]');
-  console.log('  node systems/ops/protheus_control_plane.js job-submit --kind=<kind> [--payload-json={}] [--priority=50]');
-  console.log('  node systems/ops/protheus_control_plane.js job-runner [--max=5]');
-  console.log('  node systems/ops/protheus_control_plane.js job-cancel --job-id=<id>');
-  console.log('  node systems/ops/protheus_control_plane.js incident --action=drain|freeze|quarantine|break_glass [--reason=text]');
-  console.log('  node systems/ops/protheus_control_plane.js release-promote --to=dev|canary|stable [--artifact=<path>]');
-  console.log('  node systems/ops/protheus_control_plane.js release-rollback');
-  console.log('  node systems/ops/protheus_control_plane.js registry-install --id=<id> --version=<v> [--signature=<sig>]');
-  console.log('  node systems/ops/protheus_control_plane.js registry-uninstall --id=<id>');
-  console.log('  node systems/ops/protheus_control_plane.js registry-enable --id=<id>');
-  console.log('  node systems/ops/protheus_control_plane.js registry-disable --id=<id>');
-  console.log('  node systems/ops/protheus_control_plane.js registry-list');
-  console.log('  node systems/ops/protheus_control_plane.js auth-guard');
-  console.log('  node systems/ops/protheus_control_plane.js reseal-auto [--apply=0|1]');
-  console.log('  node systems/ops/protheus_control_plane.js event-guard [--strict=1]');
-  console.log('  node systems/ops/protheus_control_plane.js routing-reconcile [--strict=1]');
-  console.log('  node systems/ops/protheus_control_plane.js deprecations-check [--strict=1]');
-  console.log('  node systems/ops/protheus_control_plane.js backlog-validate [--strict=1]');
-  console.log('  node systems/ops/protheus_control_plane.js backlog-allocate --prefix=V3-OPS');
-  console.log('  node systems/ops/protheus_control_plane.js doctor-init [--profile=default]');
-  console.log('  node systems/ops/protheus_control_plane.js doctor-bundle [--include-logs=1]');
-  console.log('  node systems/ops/protheus_control_plane.js cli-contract');
-  console.log('  node systems/ops/protheus_control_plane.js warm-snapshot [--apply=0|1]');
-  console.log('  node systems/ops/protheus_control_plane.js idle-governor [--apply=0|1]');
+  console.log('  protheus start|stop|restart|status|health|top [--policy=<path>]');
+  console.log('  protheusctl job-submit --kind=<kind> [--payload-json={}] [--priority=50]');
+  console.log('  protheusctl job-runner [--max=5]');
+  console.log('  protheusctl job-cancel --job-id=<id>');
+  console.log('  protheusctl incident --action=drain|freeze|quarantine|break_glass [--reason=text]');
+  console.log('  protheusctl release-promote --to=dev|canary|stable [--artifact=<path>]');
+  console.log('  protheusctl release-rollback');
+  console.log('  protheusctl registry-install --id=<id> --version=<v> [--signature=<sig>]');
+  console.log('  protheusctl registry-uninstall --id=<id>');
+  console.log('  protheusctl registry-enable --id=<id>');
+  console.log('  protheusctl registry-disable --id=<id>');
+  console.log('  protheusctl registry-list');
+  console.log('  protheusctl auth-guard');
+  console.log('  protheusctl reseal-auto [--apply=0|1]');
+  console.log('  protheusctl event-guard [--strict=1]');
+  console.log('  protheusctl routing-reconcile [--strict=1]');
+  console.log('  protheusctl deprecations-check [--strict=1]');
+  console.log('  protheusctl backlog-validate [--strict=1]');
+  console.log('  protheusctl backlog-allocate --prefix=V3-OPS');
+  console.log('  protheusctl doctor-init [--profile=default]');
+  console.log('  protheusctl doctor-bundle [--include-logs=1]');
+  console.log('  protheusctl cli-contract');
+  console.log('  protheusctl warm-snapshot [--apply=0|1]');
+  console.log('  protheusctl idle-governor [--apply=0|1]');
 }
 
 function defaultPolicy() {

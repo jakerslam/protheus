@@ -3,7 +3,7 @@
 export {};
 
 /**
- * protheusd.js
+ * protheusd
  * Daemon façade over protheus_control_plane to provide split daemon/client UX.
  */
 
@@ -11,7 +11,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 function usage() {
-  console.log('Usage: node systems/ops/protheusd.js start|stop|restart|status|tick [--policy=<path>]');
+  console.log('Usage: protheusd start|stop|restart|status|tick [--policy=<path>]');
 }
 
 function run(command, extraArgs) {

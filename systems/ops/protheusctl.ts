@@ -3,7 +3,7 @@
 export {};
 
 /**
- * protheusctl.js
+ * protheusctl
  * Typed control client façade over protheus_control_plane.
  */
 
@@ -11,11 +11,11 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 function usage() {
-  console.log('Usage: node systems/ops/protheusctl.js <command> [flags]');
+  console.log('Usage: protheusctl <command> [flags]');
   console.log('Examples:');
-  console.log('  node systems/ops/protheusctl.js status');
-  console.log('  node systems/ops/protheusctl.js health');
-  console.log('  node systems/ops/protheusctl.js job-submit --kind=reconcile');
+  console.log('  protheus status');
+  console.log('  protheus health');
+  console.log('  protheusctl job-submit --kind=reconcile');
 }
 
 function main() {
