@@ -1301,6 +1301,22 @@ function main() {
     "systems/redteam/adaptive_defense_expansion.js",
     ["defensive_only", "runtime_fingerprint_classes", "non_exemptible", "nasty_profiles", "cost_profiles"]
   );
+  checkScript(
+    "systems/security/post_quantum_migration_lane.js",
+    ["post_quantum_migration_lane.js", "run", "verify", "status", "--apply", "--strict", "--policy"]
+  );
+  checkSourceContains(
+    "systems/security/post_quantum_migration_lane.js",
+    ["minimum_coverage_ratio", "soakPlan", "updateCryptoAgilityContract", "post_quantum_migration_verify"]
+  );
+  checkScript(
+    "systems/redteam/quantum_security_primitive_synthesis.js",
+    ["quantum_security_primitive_synthesis.js", "run", "verify", "status", "--apply", "--strict", "--policy"]
+  );
+  checkSourceContains(
+    "systems/redteam/quantum_security_primitive_synthesis.js",
+    ["min_containment_uplift_per_cycle", "loadRecentIntel", "evaluateProposals", "quantum_security_primitive_synthesis_verify"]
+  );
   checkUsage(
     "systems/autonomy/gated_self_improvement_loop.js",
     ["--help"],

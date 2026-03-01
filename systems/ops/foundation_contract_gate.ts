@@ -138,6 +138,8 @@ function runGate() {
     'config/secure_heartbeat_endpoint_policy.json',
     'config/crypto_agility_contract.json',
     'config/key_lifecycle_policy.json',
+    'config/post_quantum_migration_policy.json',
+    'config/quantum_security_primitive_synthesis_policy.json',
     'config/long_horizon_planning_policy.json',
     'config/delegated_authority_policy.json',
     'config/governance_hardening_policy.json',
@@ -211,6 +213,7 @@ function runGate() {
     'systems/helix/helix_admission_gate.ts',
     'systems/helix/reweave_doctor.ts',
     'systems/redteam/adaptive_defense_expansion.ts',
+    'systems/redteam/quantum_security_primitive_synthesis.ts',
     'systems/security/venom_containment_layer.ts',
     'systems/memory/causal_temporal_graph.ts',
     'systems/memory/dynamic_memory_embedding_adapter.ts',
@@ -249,6 +252,7 @@ function runGate() {
     'systems/security/secure_heartbeat_endpoint.ts',
     'systems/security/ip_posture_review.ts',
     'systems/security/key_lifecycle_governor.ts',
+    'systems/security/post_quantum_migration_lane.ts',
     'systems/security/delegated_authority_branching.ts',
     'systems/security/governance_hardening_lane.ts',
     'systems/security/dream_warden_guard.ts',
@@ -575,6 +579,40 @@ function runGate() {
     keyAllowedAlgorithms.includes('pq-dilithium3'),
     `allowed_algorithms=${keyAllowedAlgorithms.join(',')}`
   );
+  const postQuantumMigrationPolicy = readJsonSafe(path.join(ROOT, 'config', 'post_quantum_migration_policy.json'), {});
+  const postQuantumSigningTargets = Array.isArray(postQuantumMigrationPolicy.algorithms && postQuantumMigrationPolicy.algorithms.signing_targets)
+    ? postQuantumMigrationPolicy.algorithms.signing_targets.map((row: unknown) => normalizeLowerToken(row, 120)).filter(Boolean)
+    : [];
+  const postQuantumHashTargets = Array.isArray(postQuantumMigrationPolicy.algorithms && postQuantumMigrationPolicy.algorithms.hashing_targets)
+    ? postQuantumMigrationPolicy.algorithms.hashing_targets.map((row: unknown) => normalizeLowerToken(row, 120)).filter(Boolean)
+    : [];
+  addCheck(
+    'post_quantum_migration:policy_targets_present',
+    postQuantumMigrationPolicy.enabled !== false
+      && postQuantumMigrationPolicy.shadow_only !== false
+      && Number(postQuantumMigrationPolicy.soak_hours || 0) >= 72
+      && postQuantumSigningTargets.includes('pq-dilithium3')
+      && postQuantumHashTargets.includes('blake3')
+      && postQuantumHashTargets.includes('kangarootwelve'),
+    `enabled=${postQuantumMigrationPolicy.enabled !== false ? '1' : '0'} shadow_only=${postQuantumMigrationPolicy.shadow_only !== false ? '1' : '0'} soak_hours=${Number(postQuantumMigrationPolicy.soak_hours || 0)} signing_targets=${postQuantumSigningTargets.join(',') || 'none'} hashing_targets=${postQuantumHashTargets.join(',') || 'none'}`
+  );
+  const quantumSynthesisPolicy = readJsonSafe(path.join(ROOT, 'config', 'quantum_security_primitive_synthesis_policy.json'), {});
+  const quantumSynthesisCategories = Array.isArray(quantumSynthesisPolicy.categories)
+    ? quantumSynthesisPolicy.categories.map((row: unknown) => normalizeLowerToken(row, 80)).filter(Boolean)
+    : [];
+  addCheck(
+    'quantum_security_synthesis:policy_guardrails_present',
+    quantumSynthesisPolicy.enabled !== false
+      && quantumSynthesisPolicy.shadow_only !== false
+      && quantumSynthesisPolicy.defensive_only !== false
+      && quantumSynthesisPolicy.bounded_only !== false
+      && quantumSynthesisPolicy.auditable_only !== false
+      && Number(quantumSynthesisPolicy.min_containment_uplift_per_cycle || 0) >= 0.2
+      && quantumSynthesisCategories.includes('hashing')
+      && quantumSynthesisCategories.includes('signing')
+      && quantumSynthesisCategories.includes('kem'),
+    `enabled=${quantumSynthesisPolicy.enabled !== false ? '1' : '0'} shadow_only=${quantumSynthesisPolicy.shadow_only !== false ? '1' : '0'} defensive_only=${quantumSynthesisPolicy.defensive_only !== false ? '1' : '0'} bounded_only=${quantumSynthesisPolicy.bounded_only !== false ? '1' : '0'} auditable_only=${quantumSynthesisPolicy.auditable_only !== false ? '1' : '0'} min_uplift=${Number(quantumSynthesisPolicy.min_containment_uplift_per_cycle || 0)} categories=${quantumSynthesisCategories.join(',') || 'none'}`
+  );
   const licenseSrc = readFileSafe(path.join(ROOT, 'LICENSE'));
   const contributionTermsSrc = readFileSafe(path.join(ROOT, 'CONTRIBUTING_TERMS.md'));
   const quickstartSrc = readFileSafe(path.join(ROOT, 'docs', 'PERSONAL_PROTHEUS_QUICKSTART.md'));
@@ -807,6 +845,18 @@ function runGate() {
       && mergeGuardSrc.includes('verify')
       && mergeGuardSrc.includes('--strict=1'),
     'merge_guard should enforce key lifecycle verification'
+  );
+  addCheck(
+    'post_quantum_migration:merge_guard_hook',
+    mergeGuardSrc.includes('post_quantum_migration_lane.js')
+      && mergeGuardSrc.includes('post_quantum_migration_status'),
+    'merge_guard should enforce post-quantum migration lane status checks'
+  );
+  addCheck(
+    'quantum_security_synthesis:merge_guard_hook',
+    mergeGuardSrc.includes('quantum_security_primitive_synthesis.js')
+      && mergeGuardSrc.includes('quantum_security_synthesis_status'),
+    'merge_guard should enforce quantum security primitive synthesis status checks'
   );
   addCheck(
     'simplicity_budget:merge_guard_hook',

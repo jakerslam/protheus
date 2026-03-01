@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "shadow_only": true,
+  "defensive_only": true,
+  "bounded_only": true,
+  "auditable_only": true,
+  "min_containment_uplift_per_cycle": 0.2,
+  "max_proposals_per_cycle": 6,
+  "threat_window_days": 14,
+  "categories": [
+    "hashing",
+    "signing",
+    "kem",
+    "attestation",
+    "watermark"
+  ],
+  "paths": {
+    "venom_history_path": "state/security/venom_containment/history.jsonl",
+    "redteam_history_path": "state/security/red_team/adaptive_defense/history.jsonl",
+    "state_path": "state/security/red_team/quantum_security_synthesis/state.json",
+    "latest_path": "state/security/red_team/quantum_security_synthesis/latest.json",
+    "receipts_path": "state/security/red_team/quantum_security_synthesis/receipts.jsonl",
+    "proposal_queue_path": "state/security/red_team/quantum_security_synthesis/proposal_queue.json",
+    "catalog_path": "state/security/red_team/quantum_security_synthesis/catalog.json"
+  }
+}

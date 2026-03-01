@@ -66,6 +66,8 @@ function runGuard(opts = {}) {
   checks.push(runCmd('critical_path_formal_verifier', 'node', ['systems/security/critical_path_formal_verifier.js', 'run', '--strict=1']));
   checks.push(runCmd('supply_chain_trust_plane', 'node', ['systems/security/supply_chain_trust_plane.js', 'run', '--strict=1', '--verify-only=1']));
   checks.push(runCmd('key_lifecycle_verify', 'node', ['systems/security/key_lifecycle_governor.js', 'verify', '--strict=1']));
+  checks.push(runCmd('post_quantum_migration_status', 'node', ['systems/security/post_quantum_migration_lane.js', 'status']));
+  checks.push(runCmd('quantum_security_synthesis_status', 'node', ['systems/redteam/quantum_security_primitive_synthesis.js', 'status']));
   checks.push(runCmd('docs_coverage_gate', 'node', ['systems/ops/docs_coverage_gate.js', 'run', '--strict=1']));
   checks.push(runCmd('dr_gameday_gate', 'node', ['systems/ops/dr_gameday_gate.js', 'run', '--strict=1']));
   checks.push(runCmd('simplicity_budget_gate', 'node', ['systems/ops/simplicity_budget_gate.js', 'run', '--strict=1']));
