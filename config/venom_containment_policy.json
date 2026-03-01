@@ -31,6 +31,11 @@
     "gpu_heavy",
     "containerized"
   ],
+  "timed_lease": {
+    "stealth_window_enabled": true,
+    "stealth_window_hours": 48,
+    "high_value_bypass": false
+  },
   "staged_ramp": {
     "tease_actions": 2,
     "challenge_actions": 4,
@@ -77,6 +82,12 @@
       "prefix": "[contained-high]",
       "quality_factor": 0.12,
       "watermark_tag": "decoy_high"
+    },
+    "distillation_guard": {
+      "enabled": true,
+      "noise_token_count": 4,
+      "contradiction_markers": true,
+      "max_extra_chars": 180
     }
   }
 }

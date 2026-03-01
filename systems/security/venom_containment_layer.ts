@@ -165,6 +165,11 @@ function defaultPolicy() {
     trusted_sources: ['local', 'cli', 'daemon', 'spine'],
     high_value_actions: ['apply', 'deploy', 'exfil', 'spend', 'self_modify', 'root_change', 'provider_buy'],
     runtime_fingerprint_classes: ['unknown', 'desktop', 'cloud_vm', 'gpu_heavy', 'containerized'],
+    timed_lease: {
+      stealth_window_enabled: false,
+      stealth_window_hours: 0,
+      high_value_bypass: true
+    },
     staged_ramp: {
       tease_actions: 2,
       challenge_actions: 4,
@@ -199,7 +204,13 @@ function defaultPolicy() {
     decoy: {
       low: { prefix: '[contained-low]', quality_factor: 0.45, watermark_tag: 'decoy_low' },
       medium: { prefix: '[contained-medium]', quality_factor: 0.3, watermark_tag: 'decoy_medium' },
-      high: { prefix: '[contained-high]', quality_factor: 0.12, watermark_tag: 'decoy_high' }
+      high: { prefix: '[contained-high]', quality_factor: 0.12, watermark_tag: 'decoy_high' },
+      distillation_guard: {
+        enabled: true,
+        noise_token_count: 4,
+        contradiction_markers: true,
+        max_extra_chars: 180
+      }
     }
   };
 }
@@ -207,6 +218,7 @@ function defaultPolicy() {
 function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   const raw = readJson(policyPath, {});
   const base = defaultPolicy();
+  const timedLease = raw.timed_lease && typeof raw.timed_lease === 'object' ? raw.timed_lease : {};
   const staged = raw.staged_ramp && typeof raw.staged_ramp === 'object' ? raw.staged_ramp : {};
   const bounds = raw.bounds && typeof raw.bounds === 'object' ? raw.bounds : {};
   const forensics = raw.forensics && typeof raw.forensics === 'object' ? raw.forensics : {};
@@ -215,6 +227,7 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   const decLow = decoy.low && typeof decoy.low === 'object' ? decoy.low : {};
   const decMed = decoy.medium && typeof decoy.medium === 'object' ? decoy.medium : {};
   const decHigh = decoy.high && typeof decoy.high === 'object' ? decoy.high : {};
+  const decGuard = decoy.distillation_guard && typeof decoy.distillation_guard === 'object' ? decoy.distillation_guard : {};
 
   const trustedSources = Array.isArray(raw.trusted_sources)
     ? raw.trusted_sources.map((v: unknown) => normalizeToken(v, 80)).filter(Boolean)
@@ -237,6 +250,11 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
     trusted_sources: trustedSources.length ? trustedSources : base.trusted_sources,
     high_value_actions: highValueActions.length ? highValueActions : base.high_value_actions,
     runtime_fingerprint_classes: runtimeClasses.length ? runtimeClasses : base.runtime_fingerprint_classes,
+    timed_lease: {
+      stealth_window_enabled: toBool(timedLease.stealth_window_enabled, base.timed_lease.stealth_window_enabled),
+      stealth_window_hours: Number(clampNumber(timedLease.stealth_window_hours, 0, 24 * 14, base.timed_lease.stealth_window_hours).toFixed(4)),
+      high_value_bypass: toBool(timedLease.high_value_bypass, base.timed_lease.high_value_bypass)
+    },
     staged_ramp: {
       tease_actions: clampInt(staged.tease_actions, 1, 1000, base.staged_ramp.tease_actions),
       challenge_actions: clampInt(staged.challenge_actions, 1, 1000, base.staged_ramp.challenge_actions),
@@ -283,6 +301,12 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
         prefix: cleanText(decHigh.prefix || base.decoy.high.prefix, 40) || base.decoy.high.prefix,
         quality_factor: clampNumber(decHigh.quality_factor, 0.01, 1, base.decoy.high.quality_factor),
         watermark_tag: normalizeToken(decHigh.watermark_tag || base.decoy.high.watermark_tag, 80) || base.decoy.high.watermark_tag
+      },
+      distillation_guard: {
+        enabled: toBool(decGuard.enabled, base.decoy.distillation_guard.enabled),
+        noise_token_count: clampInt(decGuard.noise_token_count, 0, 20, base.decoy.distillation_guard.noise_token_count),
+        contradiction_markers: toBool(decGuard.contradiction_markers, base.decoy.distillation_guard.contradiction_markers),
+        max_extra_chars: clampInt(decGuard.max_extra_chars, 0, 1000, base.decoy.distillation_guard.max_extra_chars)
       }
     }
   };
@@ -462,14 +486,41 @@ function decoyPolicyForLevel(level: string, policy: AnyObj) {
   return policy.decoy.low;
 }
 
+function applyDistillationGuard(response: string, prompt: string, level: string, policy: AnyObj) {
+  const guard = policy
+    && policy.decoy
+    && policy.decoy.distillation_guard
+    && typeof policy.decoy.distillation_guard === 'object'
+    ? policy.decoy.distillation_guard
+    : null;
+  if (!guard || guard.enabled !== true) return response;
+
+  const noiseCount = clampInt(guard.noise_token_count, 0, 20, 4);
+  const maxExtraChars = clampInt(guard.max_extra_chars, 0, 1000, 180);
+  if (noiseCount <= 0 || maxExtraChars <= 0) return response;
+
+  const digest = crypto.createHash('sha256').update(`${level}|${prompt}`, 'utf8').digest('hex');
+  const noiseTokens = [];
+  for (let i = 0; i < noiseCount; i += 1) {
+    const offset = (i * 4) % 60;
+    noiseTokens.push(`dn_${digest.slice(offset, offset + 4)}`);
+  }
+  const contradiction = guard.contradiction_markers === true
+    ? ` contradictory_hints=${digest.slice(16, 20)}:${digest.slice(20, 24)}`
+    : '';
+  const guardSuffix = (` guard_noise=${noiseTokens.join(',')}${contradiction}`).slice(0, maxExtraChars);
+  return `${response}${guardSuffix}`;
+}
+
 function generateDecoyResponse(level: string, prompt: string, policy: AnyObj) {
   const cfg = decoyPolicyForLevel(level, policy);
   const basePrompt = cleanText(prompt || 'request', 600);
   const truncated = basePrompt.slice(0, Math.max(24, Math.round(basePrompt.length * Number(cfg.quality_factor || 0.3))));
   const watermark = `${cfg.watermark_tag}_${hash16(basePrompt)}`;
+  const baseResponse = `${cfg.prefix} non-authorized lane: limited fidelity response. summary=${truncated || 'n/a'} watermark=${watermark}`;
   return {
     level,
-    response: `${cfg.prefix} non-authorized lane: limited fidelity response. summary=${truncated || 'n/a'} watermark=${watermark}`,
+    response: applyDistillationGuard(baseResponse, basePrompt, level, policy),
     watermark
   };
 }
@@ -619,11 +670,30 @@ function evaluateContainment(input: AnyObj = {}, opts: AnyObj = {}) {
   const lockoutUntilMs = prior && prior.lockout_until_ts ? parseIsoMs(prior.lockout_until_ts) : null;
   const lockoutActive = lockoutUntilMs != null && lockoutUntilMs > Date.now();
 
-  const unauthorizedHits = (prior && Number(prior.unauthorized_hits || 0)) + (unauthorizedEval.unauthorized ? 1 : 0);
-  const highValueHits = (prior && Number(prior.high_value_hits || 0)) + (unauthorizedEval.unauthorized && isHighValue ? 1 : 0);
+  const timedLease = policy.timed_lease || {};
+  const stealthWindowMs = Math.max(0, Number(timedLease.stealth_window_hours || 0) * 60 * 60 * 1000);
+  const priorFirstUnauthorizedMs = prior && prior.first_unauthorized_ts ? parseIsoMs(prior.first_unauthorized_ts) : null;
+  const firstUnauthorizedMs = unauthorizedEval.unauthorized
+    ? (priorFirstUnauthorizedMs != null ? priorFirstUnauthorizedMs : Date.now())
+    : priorFirstUnauthorizedMs;
+  const stealthWindowEnabled = timedLease.stealth_window_enabled === true && stealthWindowMs > 0;
+  const stealthWindowUntilMs = firstUnauthorizedMs != null && stealthWindowEnabled
+    ? firstUnauthorizedMs + stealthWindowMs
+    : null;
+  const stealthWindowActive = unauthorizedEval.unauthorized
+    && !lockoutActive
+    && stealthWindowUntilMs != null
+    && stealthWindowUntilMs > Date.now()
+    && !(isHighValue && timedLease.high_value_bypass === true);
+
+  const unauthorizedHits = (prior && Number(prior.unauthorized_hits || 0))
+    + (unauthorizedEval.unauthorized && !stealthWindowActive ? 1 : 0);
+  const highValueHits = (prior && Number(prior.high_value_hits || 0))
+    + (unauthorizedEval.unauthorized && isHighValue && !stealthWindowActive ? 1 : 0);
 
   let stage = lockoutActive ? 'lockout' : stageFromHits(unauthorizedHits, policy);
-  const profile = computeStageProfile(stage, runtimeClass, policy);
+  if (stealthWindowActive && !lockoutActive) stage = 'tease';
+  const profile = computeStageProfile(stealthWindowActive ? 'none' : stage, runtimeClass, policy);
 
   const finalAllowExec = unauthorizedEval.unauthorized
     ? (profile.allow_exec === true && !lockoutActive && !(isHighValue && stage !== 'tease'))
@@ -662,6 +732,8 @@ function evaluateContainment(input: AnyObj = {}, opts: AnyObj = {}) {
     decoy_level: decoyLevel,
     decoy_response: decoy.response,
     decoy_watermark: decoy.watermark,
+    timed_lease_stealth_active: stealthWindowActive,
+    timed_lease_stealth_until_ts: stealthWindowUntilMs != null ? new Date(stealthWindowUntilMs).toISOString() : null,
     unauthorized_hits: unauthorizedHits,
     high_value_hits: highValueHits,
     policy_path: relPath(opts.policyPath || DEFAULT_POLICY_PATH)
@@ -677,6 +749,8 @@ function evaluateContainment(input: AnyObj = {}, opts: AnyObj = {}) {
       runtime_class: runtimeClass,
       unauthorized_hits: unauthorizedHits,
       high_value_hits: highValueHits,
+      first_unauthorized_ts: firstUnauthorizedMs != null ? new Date(firstUnauthorizedMs).toISOString() : null,
+      stealth_window_until_ts: stealthWindowUntilMs != null ? new Date(stealthWindowUntilMs).toISOString() : null,
       stage,
       lockout_until_ts: lockoutUntilTs,
       children_spawned: Number(prior && prior.children_spawned || 0)

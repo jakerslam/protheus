@@ -57,12 +57,25 @@ try {
     enabled: true,
     shadow_only: true,
     defensive_only_invariant: true,
+    timed_lease: {
+      stealth_window_enabled: false,
+      stealth_window_hours: 0,
+      high_value_bypass: true
+    },
     staged_ramp: {
       tease_actions: 2,
       challenge_actions: 3,
       degrade_actions: 5,
       lockout_actions: 7,
       lockout_cooldown_minutes: 10
+    },
+    decoy: {
+      distillation_guard: {
+        enabled: true,
+        noise_token_count: 4,
+        contradiction_markers: true,
+        max_extra_chars: 180
+      }
     },
     paths: {
       state_root: stateRoot,
@@ -105,6 +118,12 @@ try {
     assert.strictEqual(res.status, 0, `unauthorized evaluate run ${i} should pass: ${res.stderr}`);
     assert.ok(res.payload && res.payload.ok === true, 'unauthorized payload should be ok');
     stages.push(String(res.payload.stage || ''));
+    if (i === 0) {
+      assert.ok(
+        String(res.payload.decoy_response || '').includes('guard_noise='),
+        'decoy response should include bounded distillation guard noise markers'
+      );
+    }
   }
 
   assert.ok(stages.includes('tease'), 'stages should include tease');
@@ -120,6 +139,61 @@ try {
   assert.ok(fs.existsSync(masterQueue), 'master queue mirror should exist');
   const mqRows = String(fs.readFileSync(masterQueue, 'utf8') || '').split('\n').filter(Boolean);
   assert.ok(mqRows.length >= 1, 'master queue should receive mirrored events');
+
+  const stealthPolicyPath = path.join(tmp, 'config', 'venom_containment_policy_stealth.json');
+  writeJson(stealthPolicyPath, {
+    version: '1.0',
+    enabled: true,
+    shadow_only: true,
+    defensive_only_invariant: true,
+    timed_lease: {
+      stealth_window_enabled: true,
+      stealth_window_hours: 48,
+      high_value_bypass: false
+    },
+    staged_ramp: {
+      tease_actions: 2,
+      challenge_actions: 3,
+      degrade_actions: 5,
+      lockout_actions: 7,
+      lockout_cooldown_minutes: 10
+    },
+    paths: {
+      state_root: stateRoot,
+      sessions_path: path.join(stateRoot, 'sessions.json'),
+      latest_path: path.join(stateRoot, 'latest.json'),
+      history_path: path.join(stateRoot, 'history.jsonl'),
+      profiles_path: path.join(stateRoot, 'profiles.json'),
+      startup_attestation_path: startupAttPath,
+      soul_token_guard_path: soulPath,
+      lease_state_path: leasePath,
+      master_queue_path: masterQueue
+    },
+    forensics: {
+      enabled: true,
+      include_watermark: true,
+      master_conduit_mirror: true,
+      evidence_dir: path.join(stateRoot, 'evidence'),
+      events_path: path.join(stateRoot, 'forensic_events.jsonl')
+    }
+  });
+
+  res = run([
+    'evaluate',
+    `--policy=${stealthPolicyPath}`,
+    '--session-id=stealth_copy_1',
+    '--source=webhook',
+    '--action=run',
+    '--risk=low',
+    '--runtime-class=desktop',
+    '--unauthorized=1'
+  ]);
+  assert.strictEqual(res.status, 0, `stealth-window evaluate should pass: ${res.stderr}`);
+  assert.ok(res.payload && res.payload.ok === true, 'stealth-window payload should be ok');
+  assert.strictEqual(res.payload.unauthorized, true, 'stealth-window run should be unauthorized');
+  assert.strictEqual(res.payload.timed_lease_stealth_active, true, 'stealth window should be active');
+  assert.ok(res.payload.timed_lease_stealth_until_ts, 'stealth window should expose expiry timestamp');
+  assert.strictEqual(Number(res.payload.unauthorized_hits || 0), 0, 'stealth window should defer staged hit escalation');
 
   res = run(['evolve', `--policy=${policyPath}`]);
   assert.strictEqual(res.status, 0, `evolve should pass: ${res.stderr}`);

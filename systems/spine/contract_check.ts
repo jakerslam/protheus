@@ -767,6 +767,10 @@ function main() {
     "systems/security/integrity_kernel.js",
     ["integrity_kernel.js", "run", "seal", "--approval-note"]
   );
+  checkScript(
+    "systems/security/skin_protection_layer.js",
+    ["skin_protection_layer.js", "verify", "enforce", "status", "clear-stasis", "--lane", "--context-json", "--strict", "--reason"]
+  );
 
   // architecture_guard.js audits specialization leakage in systems layer.
   checkScript(
@@ -1246,6 +1250,10 @@ function main() {
   checkSourceContains(
     "systems/security/remote_tamper_heartbeat.js",
     ["constitution_hash", "integrity_ok", "trusted_watermark_mismatch", "quarantine_activated"]
+  );
+  checkSourceContains(
+    "systems/security/skin_protection_layer.js",
+    ["contract_mesh", "runtime_attestation", "binary_hardening", "stasis_state_path", "skin_protection_verify"]
   );
   checkScript(
     "systems/security/critical_path_formal_verifier.js",

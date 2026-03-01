@@ -18,10 +18,16 @@ const { isEmergencyStopEngaged } = require('../../lib/emergency_stop');
 const { evaluateClawDecision } = require('./claw_registry');
 const { executeActuationPrimitiveAsync } = require('../primitives/primitive_runtime.js');
 let evaluateActuationSandbox = null;
+let verifySkinProtection = null;
 try {
   ({ evaluateActuationSandbox } = require('../security/execution_sandbox_envelope.js'));
 } catch {
   evaluateActuationSandbox = null;
+}
+try {
+  ({ verifySkinProtection } = require('../security/skin_protection_layer.js'));
+} catch {
+  verifySkinProtection = null;
 }
 
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -280,6 +286,59 @@ async function cmdRun(args) {
     writeContractReceipt(receiptPath(), record, { attempted: false, verified: false });
     process.stdout.write(JSON.stringify({ ok: false, error: record.error, summary, code: 4 }) + '\n');
     process.exit(4);
+  }
+  const skinDecision = typeof verifySkinProtection === 'function'
+    ? verifySkinProtection({
+        lane: 'execution_primitive',
+        source: 'actuation_executor',
+        context: {
+          safety_attestation: String(
+            context.safety_attestation_id
+            || context.safety_attestation
+            || ''
+          ).trim(),
+          rollback_receipt: String(
+            context.rollback_receipt_id
+            || context.rollback_receipt
+            || ''
+          ).trim(),
+          guard_receipt_id: String(
+            context.adaptive_mutation_guard_receipt_id
+            || context.mutation_guard_receipt_id
+            || ''
+          ).trim()
+        }
+      }, {
+        persist: true,
+        applyContainment: false,
+        allowAutoContainment: true
+      })
+    : { ok: true, blocked: false, reason: 'skin_protection_layer_unavailable' };
+  if (skinDecision && skinDecision.blocked === true) {
+    const summary = {
+      decision: 'ACTUATE',
+      gate_decision: 'DENY',
+      executable: false,
+      adapter: kind,
+      verified: false,
+      reason: 'skin_protection_gate_blocked',
+      skin_protection: skinDecision
+    };
+    const record = {
+      ts: nowIso(),
+      type: 'actuation_execution',
+      adapter: kind,
+      dry_run: dryRun,
+      params_hash: require('crypto').createHash('sha256').update(JSON.stringify(params || {})).digest('hex').slice(0, 16),
+      ok: false,
+      code: 6,
+      duration_ms: 0,
+      summary,
+      error: 'skin_protection_gate_blocked'
+    };
+    writeContractReceipt(receiptPath(), record, { attempted: false, verified: false });
+    process.stdout.write(JSON.stringify({ ok: false, error: record.error, summary, code: 6 }) + '\n');
+    process.exit(6);
   }
   let sandboxDecision = null;
   if (typeof evaluateActuationSandbox === 'function') {
