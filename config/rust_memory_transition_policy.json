@@ -1,5 +1,28 @@
 {
   "version": "1.0",
   "enabled": true,
-  "shadow_only": true
+  "shadow_only": true,
+  "benchmark": {
+    "mode": "probe_commands",
+    "timeout_ms": 30000,
+    "require_rust_backend_used": true,
+    "js_probe_command": [
+      "node",
+      "systems/memory/memory_recall.js",
+      "query",
+      "--q=rust_transition_benchmark",
+      "--expand=none",
+      "--top=1",
+      "--backend=js"
+    ],
+    "rust_probe_command": [
+      "node",
+      "systems/memory/memory_recall.js",
+      "query",
+      "--q=rust_transition_benchmark",
+      "--expand=none",
+      "--top=1",
+      "--backend=rust"
+    ]
+  }
 }

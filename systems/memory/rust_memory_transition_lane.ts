@@ -60,8 +60,37 @@ function defaultPolicy() {
       min_speedup_for_cutover: 1.2,
       max_parity_error_count: 0,
       min_stable_runs_for_retirement: 10
+    },
+    benchmark: {
+      mode: 'probe_commands',
+      timeout_ms: 30000,
+      require_rust_backend_used: true,
+      js_probe_command: [
+        'node',
+        'systems/memory/memory_recall.js',
+        'query',
+        '--q=rust_transition_benchmark',
+        '--expand=none',
+        '--top=1',
+        '--backend=js'
+      ],
+      rust_probe_command: [
+        'node',
+        'systems/memory/memory_recall.js',
+        'query',
+        '--q=rust_transition_benchmark',
+        '--expand=none',
+        '--top=1',
+        '--backend=rust'
+      ]
     }
   };
+}
+
+function normalizeCommand(input, fallback) {
+  if (!Array.isArray(input)) return Array.isArray(fallback) ? fallback.slice(0) : [];
+  const out = input.map((token) => cleanText(token, 200)).filter(Boolean);
+  return out.length > 0 ? out : (Array.isArray(fallback) ? fallback.slice(0) : []);
 }
 
 function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
@@ -69,6 +98,8 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   const base = defaultPolicy();
   const paths = raw.paths && typeof raw.paths === 'object' ? raw.paths : {};
   const th = raw.thresholds && typeof raw.thresholds === 'object' ? raw.thresholds : {};
+  const benchmark = raw.benchmark && typeof raw.benchmark === 'object' ? raw.benchmark : {};
+  const benchmarkMode = normalizeToken(benchmark.mode || base.benchmark.mode, 40) || base.benchmark.mode;
   return {
     version: cleanText(raw.version || base.version, 32),
     enabled: toBool(raw.enabled, true),
@@ -86,6 +117,13 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
       min_speedup_for_cutover: Number(th.min_speedup_for_cutover || base.thresholds.min_speedup_for_cutover),
       max_parity_error_count: clampInt(th.max_parity_error_count, 0, 100000, base.thresholds.max_parity_error_count),
       min_stable_runs_for_retirement: clampInt(th.min_stable_runs_for_retirement, 1, 100000, base.thresholds.min_stable_runs_for_retirement)
+    },
+    benchmark: {
+      mode: ['probe_commands', 'synthetic'].includes(benchmarkMode) ? benchmarkMode : base.benchmark.mode,
+      timeout_ms: clampInt(benchmark.timeout_ms, 1000, 180000, base.benchmark.timeout_ms),
+      require_rust_backend_used: toBool(benchmark.require_rust_backend_used, base.benchmark.require_rust_backend_used),
+      js_probe_command: normalizeCommand(benchmark.js_probe_command, base.benchmark.js_probe_command),
+      rust_probe_command: normalizeCommand(benchmark.rust_probe_command, base.benchmark.rust_probe_command)
     }
   };
 }
@@ -119,6 +157,39 @@ function runRustProbe(policy) {
     status: Number.isFinite(run.status) ? run.status : 1,
     parsed,
     stderr: cleanText(run.stderr || '', 400)
+  };
+}
+
+function runTimedProbeCommand(command, timeoutMs) {
+  const cmd = Array.isArray(command) ? command.slice(0).map((token) => cleanText(token, 300)).filter(Boolean) : [];
+  if (cmd.length === 0) {
+    return {
+      ok: false,
+      status: 1,
+      duration_ms: 1,
+      payload: null,
+      stderr: 'probe_command_missing',
+      stdout: ''
+    };
+  }
+  const started = Date.now();
+  const run = spawnSync(cmd[0], cmd.slice(1), {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout: timeoutMs
+  });
+  const elapsed = Math.max(1, Date.now() - started);
+  const stdout = String(run.stdout || '').trim();
+  const stderr = String(run.stderr || '').trim();
+  let payload = null;
+  try { payload = stdout ? JSON.parse(stdout) : null; } catch {}
+  return {
+    ok: Number.isFinite(run.status) ? run.status === 0 : false,
+    status: Number.isFinite(run.status) ? run.status : 1,
+    duration_ms: elapsed,
+    payload,
+    stderr: cleanText(stderr || (run.error ? String(run.error.message || run.error.code || 'probe_spawn_error') : ''), 400),
+    stdout: cleanText(stdout, 400)
   };
 }
 
@@ -157,16 +228,56 @@ function runBenchmark(args, policy) {
   });
   history.rows = Array.isArray(history.rows) ? history.rows : [];
 
-  const rust = runRustProbe(policy);
-  const rustMs = rust.ok && rust.parsed && Number.isFinite(rust.parsed.estimated_ms)
-    ? Number(rust.parsed.estimated_ms)
-    : 90;
-  const jsMs = Math.max(1, Number(rustMs) * 1.35);
-
-  const speedup = Number((jsMs / Math.max(1, rustMs)).toFixed(6));
   for (let i = 0; i < runs; i += 1) {
+    if (policy.benchmark.mode === 'probe_commands') {
+      const jsProbe = runTimedProbeCommand(policy.benchmark.js_probe_command, policy.benchmark.timeout_ms);
+      const rustProbe = runTimedProbeCommand(policy.benchmark.rust_probe_command, policy.benchmark.timeout_ms);
+      const jsMs = Math.max(1, Number(jsProbe.duration_ms || 1));
+      const rustMs = Math.max(1, Number(rustProbe.duration_ms || 1));
+      const rustBackendUsed = normalizeToken(
+        rustProbe.payload && (rustProbe.payload.backend_used || rustProbe.payload.backend || ''),
+        20
+      ) || '';
+      const rustBackendMismatch = policy.benchmark.require_rust_backend_used === true
+        && rustBackendUsed
+        && rustBackendUsed !== 'rust';
+      const parityErrorCount = rustProbe.ok
+        ? (
+          rustProbe.payload && Number.isFinite(rustProbe.payload.parity_error_count)
+            ? clampInt(rustProbe.payload.parity_error_count, 0, 100000, rustBackendMismatch ? 1 : 0)
+            : (rustBackendMismatch ? 1 : 0)
+        )
+        : 1;
+      const speedup = Number((jsMs / Math.max(1, rustMs)).toFixed(6));
+      history.rows.push({
+        ts: nowIso(),
+        mode: 'probe_commands',
+        js_ms: jsMs,
+        rust_ms: rustMs,
+        speedup,
+        parity_error_count: parityErrorCount,
+        js_probe_ok: jsProbe.ok,
+        rust_probe_ok: rustProbe.ok,
+        js_probe_status: jsProbe.status,
+        rust_probe_status: rustProbe.status,
+        rust_backend_used: rustBackendUsed || null,
+        rust_backend_mismatch: rustBackendMismatch,
+        js_probe_error: jsProbe.ok ? null : jsProbe.stderr || 'probe_failed',
+        rust_probe_error: rustProbe.ok ? null : rustProbe.stderr || 'probe_failed',
+        signature: stableHash(`${jsMs}|${rustMs}|${speedup}|${parityErrorCount}|${i}|${Date.now()}`, 24)
+      });
+      continue;
+    }
+
+    const rust = runRustProbe(policy);
+    const rustMs = rust.ok && rust.parsed && Number.isFinite(rust.parsed.estimated_ms)
+      ? Number(rust.parsed.estimated_ms)
+      : 90;
+    const jsMs = Math.max(1, Number(rustMs) * 1.35);
+    const speedup = Number((jsMs / Math.max(1, rustMs)).toFixed(6));
     history.rows.push({
       ts: nowIso(),
+      mode: 'synthetic',
       js_ms: jsMs,
       rust_ms: rustMs,
       speedup,
@@ -187,6 +298,7 @@ function runBenchmark(args, policy) {
     type: 'rust_memory_transition_benchmark',
     ok: true,
     shadow_only: policy.shadow_only,
+    mode: policy.benchmark.mode,
     runs_added: runs,
     avg_speedup: avgSpeedup,
     target_speedup: policy.thresholds.min_speedup_for_cutover,

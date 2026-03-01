@@ -27,8 +27,21 @@ try {
   const policyPath = path.join(tmp, 'policy.json');
   const stateRoot = path.join(tmp, 'state');
   const indexPath = path.join(tmp, 'MEMORY_INDEX.md');
+  const probeScript = path.join(tmp, 'probe.js');
 
   fs.writeFileSync(indexPath, '| node_id | title | file |\n|---|---|---|\n| `n1` | n1 | `memory/2026-02-28.md` |\n');
+  fs.writeFileSync(probeScript, `
+const engineArg = process.argv.find((arg) => String(arg).startsWith('--engine=')) || '--engine=js';
+const engine = String(engineArg.split('=')[1] || 'js');
+const waitMs = engine === 'js' ? 24 : 8;
+const start = Date.now();
+while (Date.now() - start < waitMs) {}
+if (process.env.FAIL_PROBE_ENGINE && process.env.FAIL_PROBE_ENGINE === engine) {
+  console.error('forced probe failure');
+  process.exit(1);
+}
+process.stdout.write(JSON.stringify({ ok: true, backend_used: engine, parity_error_count: 0 }) + '\\n');
+`);
 
   writeJson(policyPath, {
     enabled: true,
@@ -41,6 +54,13 @@ try {
       benchmark_path: path.join(stateRoot, 'bench.json'),
       memory_index_path: indexPath,
       rust_crate_path: path.join(ROOT, 'systems', 'rust', 'memory_box')
+    },
+    benchmark: {
+      mode: 'probe_commands',
+      timeout_ms: 8000,
+      require_rust_backend_used: true,
+      js_probe_command: [process.execPath, probeScript, '--engine=js'],
+      rust_probe_command: [process.execPath, probeScript, '--engine=rust']
     }
   });
 
@@ -50,6 +70,14 @@ try {
 
   res = run(['benchmark', `--policy=${policyPath}`, '--runs=3']);
   assert.strictEqual(res.status, 0, res.stderr);
+  assert.ok(res.payload && res.payload.mode === 'probe_commands', 'benchmark should report probe_commands mode');
+  assert.ok(Number(res.payload.avg_speedup || 0) > 1, 'probe benchmark should show rust faster than js');
+  const bench = JSON.parse(fs.readFileSync(path.join(stateRoot, 'bench.json'), 'utf8'));
+  assert.ok(Array.isArray(bench.rows) && bench.rows.length >= 3, 'benchmark rows should be recorded');
+  assert.strictEqual(bench.rows[0].mode, 'probe_commands');
+  assert.strictEqual(bench.rows[0].js_probe_ok, true);
+  assert.strictEqual(bench.rows[0].rust_probe_ok, true);
+  assert.strictEqual(bench.rows[0].parity_error_count, 0);
 
   res = run(['selector', `--policy=${policyPath}`, '--backend=rust']);
   assert.strictEqual(res.status, 0, res.stderr);
