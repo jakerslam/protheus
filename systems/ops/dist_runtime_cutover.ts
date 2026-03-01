@@ -14,12 +14,16 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MODE_STATE_PATH = process.env.PROTHEUS_RUNTIME_MODE_STATE_PATH
   ? path.resolve(process.env.PROTHEUS_RUNTIME_MODE_STATE_PATH)
   : path.join(ROOT, 'state', 'ops', 'runtime_mode.json');
+const LEGACY_RECONCILIATION_POLICY_PATH = process.env.DIST_RUNTIME_RECONCILIATION_POLICY_PATH
+  ? path.resolve(process.env.DIST_RUNTIME_RECONCILIATION_POLICY_PATH)
+  : path.join(ROOT, 'config', 'dist_runtime_reconciliation_policy.json');
 
 function nowIso() {
   return new Date().toISOString();
@@ -71,6 +75,168 @@ function writeJsonAtomic(filePath, payload) {
   const tmp = `${filePath}.tmp-${Date.now()}`;
   fs.writeFileSync(tmp, JSON.stringify(payload, null, 2) + '\n', 'utf8');
   fs.renameSync(tmp, filePath);
+}
+
+function appendJsonl(filePath, row) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.appendFileSync(filePath, `${JSON.stringify(row)}\n`, 'utf8');
+}
+
+function stableHash(input) {
+  return crypto.createHash('sha256').update(String(input == null ? '' : input), 'utf8').digest('hex');
+}
+
+function defaultReconciliationPolicy() {
+  return {
+    schema_id: 'dist_runtime_reconciliation_policy',
+    schema_version: '1.0',
+    enabled: true,
+    backlog_path: 'UPGRADE_BACKLOG.md',
+    backlog_done_status: ['done'],
+    backlog_reopen_target_ids: ['V2-001', 'V2-003', 'BL-014'],
+    incident: {
+      enabled: true,
+      severity: 'high',
+      state_path: 'state/ops/dist_runtime_cutover/legacy_pairs_state.json',
+      incidents_path: 'state/ops/dist_runtime_cutover/legacy_pair_incidents.jsonl'
+    }
+  };
+}
+
+function resolvePath(raw, fallbackRel) {
+  const txt = String(raw == null ? '' : raw).trim();
+  if (!txt) return path.join(ROOT, fallbackRel);
+  return path.isAbsolute(txt) ? txt : path.join(ROOT, txt);
+}
+
+function readReconciliationPolicy() {
+  const base = defaultReconciliationPolicy();
+  const raw = readJson(LEGACY_RECONCILIATION_POLICY_PATH, {});
+  const incidentRaw = raw && typeof raw.incident === 'object' ? raw.incident : {};
+  return {
+    enabled: raw.enabled !== false,
+    policy_path: LEGACY_RECONCILIATION_POLICY_PATH,
+    backlog_path: process.env.DIST_RUNTIME_BACKLOG_PATH
+      ? resolvePath(process.env.DIST_RUNTIME_BACKLOG_PATH, base.backlog_path)
+      : resolvePath(raw.backlog_path, base.backlog_path),
+    backlog_done_status: Array.isArray(raw.backlog_done_status)
+      ? raw.backlog_done_status.map((v) => normalizeToken(v, 32)).filter(Boolean)
+      : base.backlog_done_status,
+    backlog_reopen_target_ids: Array.isArray(raw.backlog_reopen_target_ids)
+      ? raw.backlog_reopen_target_ids.map((v) => String(v || '').trim().toUpperCase()).filter(Boolean)
+      : base.backlog_reopen_target_ids,
+    incident: {
+      enabled: incidentRaw.enabled !== false,
+      severity: normalizeToken(incidentRaw.severity || base.incident.severity, 32) || 'high',
+      state_path: process.env.DIST_RUNTIME_LEGACY_STATE_PATH
+        ? resolvePath(process.env.DIST_RUNTIME_LEGACY_STATE_PATH, base.incident.state_path)
+        : resolvePath(incidentRaw.state_path, base.incident.state_path),
+      incidents_path: process.env.DIST_RUNTIME_LEGACY_INCIDENTS_PATH
+        ? resolvePath(process.env.DIST_RUNTIME_LEGACY_INCIDENTS_PATH, base.incident.incidents_path)
+        : resolvePath(incidentRaw.incidents_path, base.incident.incidents_path)
+    }
+  };
+}
+
+function extractRowStatuses(line) {
+  const cols = String(line || '')
+    .split('|')
+    .map((c) => String(c || '').trim())
+    .filter(Boolean);
+  if (cols.length < 2) return null;
+  const id = String(cols[0] || '').trim().toUpperCase();
+  const allowed = new Set(['queued', 'doing', 'done', 'blocked', 'todo', 'deferred', 'cancelled', 'in_progress', 'in-progress']);
+  const statuses = [];
+  for (let i = 1; i < Math.min(cols.length, 6); i += 1) {
+    const token = normalizeToken(cols[i], 32);
+    if (allowed.has(token)) statuses.push(token);
+  }
+  if (!id || statuses.length === 0) return null;
+  return { id, statuses };
+}
+
+function readBacklogStatusMap(backlogPath, targetIds) {
+  const wanted = new Set((targetIds || []).map((id) => String(id || '').trim().toUpperCase()).filter(Boolean));
+  const out = {};
+  for (const id of wanted) out[id] = [];
+  if (!fs.existsSync(backlogPath)) {
+    return { ok: false, reason: 'backlog_missing', statuses: out };
+  }
+  const lines = String(fs.readFileSync(backlogPath, 'utf8') || '').split('\n');
+  for (const line of lines) {
+    if (!String(line || '').startsWith('|')) continue;
+    const row = extractRowStatuses(line);
+    if (!row || !wanted.has(row.id)) continue;
+    const prev = Array.isArray(out[row.id]) ? out[row.id] : [];
+    out[row.id] = Array.from(new Set([...prev, ...row.statuses]));
+  }
+  return { ok: true, reason: 'ok', statuses: out };
+}
+
+function evaluateBacklogStatusGuard(policy, legacyPairs) {
+  const statusesPayload = readBacklogStatusMap(policy.backlog_path, policy.backlog_reopen_target_ids);
+  const doneSet = new Set((policy.backlog_done_status || []).map((v) => normalizeToken(v, 32)).filter(Boolean));
+  const violations = [];
+  if (legacyPairs.length > 0 && statusesPayload.ok) {
+    for (const id of policy.backlog_reopen_target_ids) {
+      const statuses = Array.isArray(statusesPayload.statuses[id]) ? statusesPayload.statuses[id] : [];
+      if (statuses.some((s) => doneSet.has(normalizeToken(s, 32)))) violations.push(id);
+    }
+  }
+  return {
+    ok: statusesPayload.ok && violations.length === 0,
+    backlog_exists: statusesPayload.ok,
+    backlog_path: path.relative(ROOT, policy.backlog_path).replace(/\\/g, '/'),
+    done_status_tokens: Array.from(doneSet),
+    target_ids: policy.backlog_reopen_target_ids,
+    target_statuses: statusesPayload.statuses,
+    reopen_required_ids: violations,
+    reason: statusesPayload.ok ? 'ok' : statusesPayload.reason
+  };
+}
+
+function reconcileLegacyPairIncident(policy, legacyPairs, backlogGuard) {
+  const incidentCfg = policy.incident || {};
+  const state = readJson(incidentCfg.state_path, {}) || {};
+  const prevCount = Number(state.last_pair_count || 0) || 0;
+  const currentCount = legacyPairs.length;
+  const signature = stableHash(legacyPairs.join('\n'));
+  const prevSignature = String(state.last_signature || '');
+  const pairDelta = currentCount - prevCount;
+  const shouldOpenIncident = incidentCfg.enabled === true
+    && currentCount > 0
+    && (pairDelta !== 0 || signature !== prevSignature || (backlogGuard.reopen_required_ids || []).length > 0);
+  let incidentId = null;
+  if (shouldOpenIncident) {
+    incidentId = `inc_runtime_legacy_pairs_${Date.now()}`;
+    appendJsonl(incidentCfg.incidents_path, {
+      schema_id: 'dist_runtime_legacy_pair_incident',
+      schema_version: '1.0',
+      ts: nowIso(),
+      incident_id: incidentId,
+      severity: incidentCfg.severity || 'high',
+      pair_count: currentCount,
+      pair_delta: pairDelta,
+      legacy_pairs: legacyPairs.slice(0, 200),
+      backlog_reopen_required_ids: backlogGuard.reopen_required_ids || [],
+      reason: 'legacy_runtime_js_pairs_detected'
+    });
+  }
+  writeJsonAtomic(incidentCfg.state_path, {
+    schema_id: 'dist_runtime_legacy_pairs_state',
+    schema_version: '1.0',
+    ts: nowIso(),
+    last_pair_count: currentCount,
+    last_signature: signature,
+    last_incident_id: incidentId || state.last_incident_id || null
+  });
+  return {
+    pair_delta: pairDelta,
+    incident_opened: shouldOpenIncident,
+    incident_id: incidentId,
+    incident_path: path.relative(ROOT, incidentCfg.incidents_path).replace(/\\/g, '/'),
+    state_path: path.relative(ROOT, incidentCfg.state_path).replace(/\\/g, '/')
+  };
 }
 
 function modeFromState() {
@@ -151,12 +317,22 @@ function legacyRuntimeJsPairs() {
 function cmdLegacyPairs(args) {
   const strict = toBool(args.strict, false);
   const pairs = legacyRuntimeJsPairs();
+  const policy = readReconciliationPolicy();
+  const backlogGuard = evaluateBacklogStatusGuard(policy, pairs);
+  const reconciliation = reconcileLegacyPairIncident(policy, pairs, backlogGuard);
   const out = {
-    ok: pairs.length === 0,
+    ok: policy.enabled !== false && pairs.length === 0 && backlogGuard.ok === true,
     type: 'dist_runtime_legacy_pairs',
     ts: nowIso(),
+    policy_path: path.relative(ROOT, policy.policy_path).replace(/\\/g, '/'),
     legacy_pair_count: pairs.length,
-    legacy_pairs: pairs
+    legacy_pairs: pairs,
+    pair_delta: reconciliation.pair_delta,
+    incident_opened: reconciliation.incident_opened,
+    incident_id: reconciliation.incident_id,
+    incident_path: reconciliation.incident_path,
+    reconcile_state_path: reconciliation.state_path,
+    backlog_status_guard: backlogGuard
   };
   process.stdout.write(JSON.stringify(out, null, 2) + '\n');
   if (strict && !out.ok) process.exit(1);

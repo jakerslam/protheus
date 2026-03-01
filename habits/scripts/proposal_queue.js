@@ -33,6 +33,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 const {
   compileDirectiveLineage,
   evaluateDirectiveLineageCandidate,
@@ -48,6 +49,16 @@ const QUEUE_DIR = path.join(REPO_ROOT, 'state', 'queue');
 const DECISIONS_DIR = path.join(QUEUE_DIR, 'decisions');
 const METRICS_DIR = path.join(QUEUE_DIR, 'metrics');
 const SLO_REPORTS_DIR = path.join(QUEUE_DIR, 'slo');
+const OUTCOME_ARTIFACT_BRIDGE_ENABLED = String(process.env.PROPOSAL_QUEUE_OUTCOME_ARTIFACT_BRIDGE_ENABLED || '1') !== '0';
+const OUTCOME_ARTIFACT_LEDGER_PATH = process.env.PROPOSAL_QUEUE_OUTCOME_ARTIFACT_LEDGER_PATH
+  ? path.resolve(process.env.PROPOSAL_QUEUE_OUTCOME_ARTIFACT_LEDGER_PATH)
+  : path.join(QUEUE_DIR, 'outcome_artifact_bridge.jsonl');
+const DOPAMINE_ENGINE_PATH = process.env.PROPOSAL_QUEUE_DOPAMINE_ENGINE_PATH
+  ? path.resolve(process.env.PROPOSAL_QUEUE_DOPAMINE_ENGINE_PATH)
+  : path.join(REPO_ROOT, 'habits', 'scripts', 'dopamine_engine.js');
+const OUTCOME_ARTIFACT_DIRECTIVE = String(process.env.PROPOSAL_QUEUE_OUTCOME_ARTIFACT_DIRECTIVE || 'queue_outcome_shipped_v1')
+  .trim()
+  .slice(0, 120) || 'queue_outcome_shipped_v1';
 const DIRECTIVE_COMPILER_CACHE_TTL_MS = Math.max(
   1000,
   Number(process.env.QUEUE_DIRECTIVE_COMPILER_CACHE_TTL_MS || 30000)
@@ -112,6 +123,51 @@ function appendJsonl(p, obj) {
 
 function writeJsonPretty(p, value) {
   fs.writeFileSync(p, JSON.stringify(value, null, 2) + '\n');
+}
+
+function bridgeOutcomeToArtifact(proposalId, outcome, evidenceRef) {
+  const out = {
+    ts: new Date().toISOString(),
+    type: 'proposal_queue_outcome_artifact_bridge',
+    proposal_id: String(proposalId || '').trim(),
+    outcome: String(outcome || '').trim(),
+    evidence_ref: String(evidenceRef || '').trim() || null,
+    ok: false,
+    reason: 'bridge_not_attempted'
+  };
+  if (!OUTCOME_ARTIFACT_BRIDGE_ENABLED) {
+    out.reason = 'bridge_disabled';
+    appendJsonl(OUTCOME_ARTIFACT_LEDGER_PATH, out);
+    return out;
+  }
+  if (String(outcome || '').trim().toLowerCase() !== 'shipped') {
+    out.reason = 'outcome_not_shipped';
+    appendJsonl(OUTCOME_ARTIFACT_LEDGER_PATH, out);
+    return out;
+  }
+  if (!fs.existsSync(DOPAMINE_ENGINE_PATH)) {
+    out.reason = 'dopamine_engine_missing';
+    appendJsonl(OUTCOME_ARTIFACT_LEDGER_PATH, out);
+    return out;
+  }
+
+  const safeRef = String(evidenceRef || 'queue_outcome').replace(/[^a-zA-Z0-9_.:/-]+/g, '_').slice(0, 80) || 'queue_outcome';
+  const ref = `proposal_outcome:${String(proposalId || '').slice(0, 80)}:${safeRef}`;
+  const proc = spawnSync(process.execPath, [
+    DOPAMINE_ENGINE_PATH,
+    'log_artifact',
+    'note',
+    ref,
+    OUTCOME_ARTIFACT_DIRECTIVE
+  ], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8'
+  });
+  out.ok = Number(proc.status || 0) === 0;
+  out.reason = out.ok ? 'dopamine_log_artifact_ok' : 'dopamine_log_artifact_failed';
+  out.status = Number(proc.status || 0);
+  appendJsonl(OUTCOME_ARTIFACT_LEDGER_PATH, out);
+  return out;
 }
 
 // CLI arg parsing: --key=value
@@ -762,7 +818,13 @@ function recordOutcome(proposalId, outcome, evidenceRef) {
     directive_compiler: compilerMeta
   };
   appendJsonl(decisionsPathFor(dateStr), evt);
+  const bridge = bridgeOutcomeToArtifact(proposalId, outcome, evidenceRef);
   console.log(`Recorded ${outcome} for ${proposalId}: ${evidenceRef}`);
+  if (bridge.ok) {
+    console.log(`Artifact bridge: ok (${bridge.reason})`);
+  } else {
+    console.log(`Artifact bridge: ${bridge.reason}`);
+  }
 }
 
 function metricsCmd(opts) {

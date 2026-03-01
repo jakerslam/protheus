@@ -76,6 +76,8 @@
     "ops:model-health:recover": "node systems/ops/model_health_auto_recovery.js run",
     "ops:config-registry": "node systems/ops/config_registry.js run --apply-aliases=1",
     "ops:workflow-closure": "node systems/ops/workflow_execution_closure.js run",
+    "ops:yield-recovery:run": "node systems/ops/execution_yield_recovery.js run --apply=1",
+    "ops:yield-recovery:status": "node systems/ops/execution_yield_recovery.js status",
     "ops:token-economics": "node systems/ops/token_economics_engine.js run",
     "ops:token-economics:status": "node systems/ops/token_economics_engine.js status",
     "ops:execution-reliability": "node systems/ops/execution_reliability_slo.js run",

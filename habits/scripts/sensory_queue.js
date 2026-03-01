@@ -52,6 +52,10 @@ const EXECUTION_COMMAND_RE = /^(node|npm|npx|pnpm|yarn|python|python3|bash|sh|cu
 const EXECUTION_COMMAND_PLACEHOLDER_RE = /(\.\.\.|<[^>]+>|\bTODO\b|\bTBD\b)/i;
 const ROLLBACK_VERB_RE = /\b(revert|rollback|restore|undo|remove|reset|disable)\b/i;
 const ROLLBACK_SCOPE_RE = /\b(file|config|state|policy|baseline|commit|snapshot|registry|queue|route|collector)\b/i;
+const SENSORY_QUEUE_THROTTLE_BYPASS = String(process.env.SENSORY_QUEUE_THROTTLE_BYPASS || '0') === '1';
+const SENSORY_QUEUE_INTAKE_THROTTLE_PATH = process.env.SENSORY_QUEUE_INTAKE_THROTTLE_PATH
+  ? path.resolve(process.env.SENSORY_QUEUE_INTAKE_THROTTLE_PATH)
+  : path.join(__dirname, '..', '..', 'state', 'ops', 'execution_yield_recovery', 'intake_throttle.json');
 
 // Paths - can be overridden for testing
 let SENSORY_DIR = path.join(__dirname, '..', '..', 'state', 'sensory');
@@ -800,6 +804,94 @@ function ageHoursFromTs(tsRaw) {
   return Number((deltaMs / (1000 * 60 * 60)).toFixed(3));
 }
 
+function loadIntakeThrottleState() {
+  if (SENSORY_QUEUE_THROTTLE_BYPASS) {
+    return { enabled: false, reason: 'throttle_bypass' };
+  }
+  if (!fs.existsSync(SENSORY_QUEUE_INTAKE_THROTTLE_PATH)) {
+    return { enabled: false, reason: 'throttle_state_missing' };
+  }
+  try {
+    const parsed = JSON.parse(fs.readFileSync(SENSORY_QUEUE_INTAKE_THROTTLE_PATH, 'utf8'));
+    const enabled = !!(parsed && typeof parsed === 'object' && parsed.enabled === true);
+    if (!enabled) return { enabled: false, reason: 'throttle_state_disabled' };
+    const thresholds = parsed && parsed.thresholds && typeof parsed.thresholds === 'object'
+      ? parsed.thresholds
+      : {};
+    const scoreRaw = Number(
+      thresholds.low_priority_score_threshold != null
+        ? thresholds.low_priority_score_threshold
+        : parsed.low_priority_score_threshold
+    );
+    const minScore = Number.isFinite(scoreRaw) ? Math.max(0, Math.min(100, scoreRaw)) : 74;
+    return {
+      enabled: true,
+      min_score: minScore,
+      ts: String(parsed.ts || '').trim() || null,
+      reason_codes: Array.isArray(parsed.reason_codes) ? parsed.reason_codes.slice(0, 8) : []
+    };
+  } catch {
+    return { enabled: false, reason: 'throttle_state_parse_failed' };
+  }
+}
+
+function proposalPriorityScore(proposal, gate) {
+  if (gate && gate.execution_worthiness && gate.execution_worthiness.applies) {
+    const n = Number(gate.execution_worthiness.total);
+    if (Number.isFinite(n)) return Math.max(0, Math.min(100, n));
+  }
+  const meta = proposal && proposal.meta && typeof proposal.meta === 'object' ? proposal.meta : {};
+  const candidates = [
+    proposal && proposal.execution_worthiness_score,
+    meta.execution_worthiness_score,
+    meta.actionability_score,
+    meta.composite_eligibility_score,
+    meta.signal_quality_score
+  ];
+  for (const raw of candidates) {
+    const n = Number(raw);
+    if (Number.isFinite(n)) return Math.max(0, Math.min(100, n));
+  }
+  const rough = computeExecutionWorthiness(proposal);
+  if (rough && rough.applies) {
+    const n = Number(rough.total || 0);
+    if (Number.isFinite(n)) return Math.max(0, Math.min(100, n));
+  }
+  return 50;
+}
+
+function evaluateIntakeThrottleGate(proposal, gate, throttleState) {
+  if (!(throttleState && throttleState.enabled)) {
+    return { allow: true, reason: null, gated: false };
+  }
+  const score = proposalPriorityScore(proposal, gate);
+  const threshold = Number(throttleState.min_score || 74);
+  if (score >= threshold) {
+    return { allow: true, reason: null, gated: true };
+  }
+  return {
+    allow: false,
+    reason: 'intake_throttle_low_priority',
+    gated: true,
+    details: [
+      `score=${Number(score.toFixed(2))}`,
+      `threshold=${Number(threshold.toFixed(2))}`
+    ],
+    execution_worthiness: gate && gate.execution_worthiness && gate.execution_worthiness.applies
+      ? gate.execution_worthiness
+      : {
+        applies: true,
+        threshold,
+        total: Number(score.toFixed(2)),
+        components: null
+      },
+    throttle: {
+      min_score: threshold,
+      reason_codes: Array.isArray(throttleState.reason_codes) ? throttleState.reason_codes.slice(0, 8) : []
+    }
+  };
+}
+
 // Get current status of a proposal by hash or id
 function getProposalStatus(proposalHash, proposalId) {
   const events = loadEvents();
@@ -904,6 +996,7 @@ function ingest(dateStr) {
     return { ok: true, ingested: 0, skipped: 0 };
   }
   const directiveCompiler = loadDirectiveCompilerCached();
+  const throttleState = loadIntakeThrottleState();
   let proposalsMutated = false;
   
   const existingGeneratedHashes = getLoggedHashesByType(['proposal_generated']);
@@ -930,8 +1023,10 @@ function ingest(dateStr) {
     const proposalId = normalizeProposalId(proposal) || 'UNKNOWN';
     const hash = computeProposalHash(proposal);
     const gate = evaluateQueueQualityGate(proposal, directiveCompiler);
+    const throttleGate = evaluateIntakeThrottleGate(proposal, gate, throttleState);
+    const finalGate = throttleGate.allow ? gate : throttleGate;
 
-    if (!gate.allow) {
+    if (!finalGate.allow) {
       const current = getProposalStatus(hash, proposalId);
       const currentStatus = String(current && current.status || 'open').toLowerCase();
       if (currentStatus === 'filtered' || currentStatus === 'rejected' || currentStatus === 'done') {
@@ -949,7 +1044,7 @@ function ingest(dateStr) {
         filteredDuplicates++;
         continue;
       }
-      const reason = String(gate.reason || 'filtered');
+      const reason = String(finalGate.reason || 'filtered');
       const filterEvent = {
         ts: new Date().toISOString(),
         type: 'proposal_filtered',
@@ -962,13 +1057,13 @@ function ingest(dateStr) {
         quality_gate: 'ingest_v1',
         source: 'sensory_queue'
       };
-      if (gate.execution_worthiness && gate.execution_worthiness.applies) {
-        filterEvent.execution_worthiness_score = gate.execution_worthiness.total;
-        filterEvent.execution_worthiness_threshold = gate.execution_worthiness.threshold;
-        filterEvent.execution_worthiness_components = gate.execution_worthiness.components;
+      if (finalGate.execution_worthiness && finalGate.execution_worthiness.applies) {
+        filterEvent.execution_worthiness_score = finalGate.execution_worthiness.total;
+        filterEvent.execution_worthiness_threshold = finalGate.execution_worthiness.threshold;
+        filterEvent.execution_worthiness_components = finalGate.execution_worthiness.components;
       }
-      if (gate.directive_compiler && typeof gate.directive_compiler === 'object') {
-        filterEvent.directive_compiler = gate.directive_compiler;
+      if (finalGate.directive_compiler && typeof finalGate.directive_compiler === 'object') {
+        filterEvent.directive_compiler = finalGate.directive_compiler;
       }
       if (autofill && autofill.changed) {
         filterEvent.objective_autofill = {
@@ -976,8 +1071,11 @@ function ingest(dateStr) {
           source: normalizeText(autofill.source) || 'autofill'
         };
       }
-      if (Array.isArray(gate.details) && gate.details.length > 0) {
-        filterEvent.filter_details = gate.details.slice(0, 6);
+      if (Array.isArray(finalGate.details) && finalGate.details.length > 0) {
+        filterEvent.filter_details = finalGate.details.slice(0, 6);
+      }
+      if (finalGate.throttle && typeof finalGate.throttle === 'object') {
+        filterEvent.intake_throttle = finalGate.throttle;
       }
       appendEvent(filterEvent);
       existingFilteredHashes.add(hash);

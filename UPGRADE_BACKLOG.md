@@ -1111,6 +1111,25 @@ Dependency notes:
 | V3-RACE-023 | Stage 3 | done | Long-lived Rust daemon transport for memory runtime | Added Rust `daemon` mode for persistent memory RPC, switched `memory_recall` to daemon-first Rust transport with autostart (`state/memory/rust_transition/memory_daemon.pid` + log), exposed `rust_transport` receipts, and preserved deterministic CLI/JS fallback to prevent runtime regressions. |
 | V3-RACE-023 | Stage 4 | done | JSONL audit mirror-only lane | Added append-only memory recall audit mirror (`state/memory/runtime_audit/memory_recall_audit.jsonl`) with payload-hash receipts for query/get/cache operations; runtime remains SQLite/daemon authoritative and never reads JSONL for hot-path decisions. |
 
+### Rust Memory Kernel Post-Stage Queue (Queued, 2026-03-01)
+
+Objective: close transition risk after `V3-RACE-023` by hardening daemon operations, narrowing fallback scope, and finishing high-impact runtime/perf integrations.
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-024 | hardening | V3 | queued | Daemon Soak Promotion Gate + Receipts (24-48h) | Stage 3 daemon path is live, but fallback retirement should be evidence-gated by sustained stability under real load. | Publish 24-48h soak artifacts (p95/p99 latency, error rate, restart count, fallback-trigger count), enforce fail-closed promotion thresholds, and persist signed promotion decision receipts. | V3-RACE-023, RM-122 |
+| V3-RACE-025 | hardening | V3 | queued | Daemon Supervision + Stale PID/Socket Reaper | Long-lived daemon operation can degrade after crashes/reboots if stale pid/socket state is not cleaned deterministically. | Add supervisor lifecycle contract (start/stop/restart/backoff), stale pid/socket cleanup before boot, healthcheck receipts, and regression tests for crash-recovery behavior. | V3-RACE-023, V3-OPS-005 |
+| V3-RACE-026 | hardening | V3 | queued | Fallback Retirement Gate (JS Emergency-Only) | Broad JS fallback keeps complexity and latency overhead high and can hide memory-kernel regressions. | Policy gate narrows JS fallback to explicit emergency lanes only, defaults runtime to daemon+SQLite, opens incident receipts on fallback activation, and preserves one-click rollback toggle. | V3-RACE-024, V3-RMEM-006 |
+| V3-RACE-027 | primitive-upgrade | V3 | queued | Direct Memory Encryption Plane Integration (Replace DB Shim) | Memory-at-rest encryption should use the canonical envelope lane for consistent key-rotation/audit behavior across organs. | Replace DB cipher shim with `organ_state_encryption_plane` envelope calls, migrate existing records without loss, and emit key-rotation + migration verification receipts. | V3-RACE-023, V3-ENT-002 |
+| V3-RACE-028 | primitive-upgrade | V3 | queued | In-Process Rust Memory Binding Lane (`napi-rs`) | Daemon/CLI transport is robust but still adds avoidable overhead on hottest memory call sites. | Ship in-process N-API bindings for query/get/store/index paths, prove parity against daemon path, and publish benchmark receipts showing lower latency while retaining daemon fallback for incompatible runtimes. | V3-RACE-024, V3-RACE-025 |
+
+Dependency notes:
+- `V3-RACE-024` should run before fallback tightening so promotion evidence is available.
+- `V3-RACE-025` provides reliability preconditions for both `V3-RACE-026` and `V3-RACE-028`.
+- `V3-RACE-026` is a policy cutover and must remain reversible via explicit emergency toggle.
+- `V3-RACE-027` should land before wide rollout of in-process bindings to avoid dual encryption behaviors.
+- `V3-RACE-028` is optional-by-policy for runtimes that cannot load native bindings; daemon fallback remains canonical in that case.
+
 ## Enterprise Documentation Structure Intake (Deduplicated, 2026-02-28)
 Implementation (2026-03-01): Delivered `systems/ops/docs_structure_pack.ts` (+ wrapper/policy/test) and generated canonical docs artifacts (`docs/README.md`, `docs/adr/*`, `config/service_catalog.json`, `config/interface_contract_registry.json`, release templates, governance matrices) with strict validation.
 
@@ -1407,6 +1426,640 @@ Objective: capture the latest ruthless-gap directive without duplicating already
 | V3-RACE-019 | primitive | V3 | done | Persistent Fractal Engine Meta-Organ (Loop-5 Autopilot) | Trigger bridge exists, but a persistent self-evolution organ that continuously mutates habits/memory/routing under strict gates is still missing as a first-class runtime primitive. | Added `systems/autonomy/persistent_fractal_meta_organ.ts` + policy for nightly/high-success trigger gating, bounded domain mutations, isolated shadow trials, governed live promotion hooks, and deterministic rollback commands (`memory/tools/tests/persistent_fractal_meta_organ.test.js`). Also added TypeScript-first fractal engine substrate under `systems/fractal/` (`engine.ts`, `telemetry_aggregator.ts`, `critic.ts`, `mutator.ts`, `shadow_trial_runner.ts`, `two_gate_applier.ts`, `reversion_drill.ts`, `constitution_hooks.ts`, `fractal_state.json`, `README.md`) with hard invariants for tier gating, event-sourced mutation records, soul-anchor refresh, and tier3+ human second-gate enforcement. | V3-LOOP-004, V3-038, V3-RACE-004, V3-RACE-010 |
 | V3-RACE-020 | extension | V3 | done | LoRA-Backed Soul Continuity Adapter | Personality substrate continuity exists, but explicit adapter-backed persistence across model swaps needs concrete contract coverage. | Added `systems/soul/soul_continuity_adapter.ts` + policy for export/import/versioned adapter bundles bound to soul-vector + identity attestation hashes, migration continuity scoring, and promotion blocking on regression (`memory/tools/tests/soul_continuity_adapter.test.js`). | V3-RACE-008, V3-ASSIM-012, V2-058, V3-BLK-001 |
 | V3-RACE-021 | primitive-upgrade | V3 | done | Rust Microkernel Full Control-Plane Extraction + Default Cutover | Rust kernel slices exist, but the default runtime still retains mixed control-plane execution paths that limit race-scale throughput/safety guarantees. | Added `systems/ops/rust_control_plane_cutover.ts` + `systems/rust/control_plane_component_shim.ts` + policy for parity harnessing, benchmark/SLO-gated default activation, emergency-only JS fallback routing, and staged JS hot-path deprecation receipts (`memory/tools/tests/rust_control_plane_cutover.test.js`). | V3-RACE-001, V3-RACE-002, V3-RMEM-006, RM-122, V3-OPS-015 |
+| V3-RACE-022 | extension | V3 | queued | Compute-Tithe Flywheel (Tithe-as-Leverage GPU Donation System) | Add a governed economic engine where verified donated compute reduces effective tithe while feeding high-value runtime capacity for fractal/autonomy workloads. | Deliver `systems/economy/` lane (`tithe_engine`, `gpu_contribution_tracker`, `tithe_ledger`, `contribution_oracle`, `discount_policy`, blockchain bridge hook, public donation API) with JetStream-evented tithe accounting, donor-discount enforcement, soul continuity tagging, guarded integrations (`guard`, fractal queue priority, model/risk routing), and acceptance harness proving end-to-end simulated donation -> validated contribution -> discount apply -> receipt publish -> next-actuation effective tithe reduction. | V3-RACE-016, V3-RACE-017, V3-RACE-019, V3-BLK-001, V3-BUD-001 |
+
+## External Requirements Intake (Google Doc `1kB5xBJGVm8isdFTsDh_6mivXNpCtRcUrUgALxCQa1Kc`, 2026-03-01)
+
+Objective: capture explicit implementation requirements from the external directive as canonical backlog requirements, while avoiding duplicate lanes where functional coverage already exists.
+
+| Requirement (from intake) | Canonical Coverage | Status | Requirement Action |
+|---|---|---|---|
+| Implement `V3-RACE-016` Open Platform Layer Release Pack | `V3-RACE-016` | covered (done) | Preserve canonical `systems/ops/open_platform_release_pack.ts` lane; add only compatibility deltas if external consumers require specific file paths/artifacts. |
+| Implement `V3-RACE-017` Authoritative Event-Stream Cutover | `V3-RACE-017` | covered (done) | Keep `systems/ops/event_sourced_control_plane.ts` as authority lane; add optional compatibility adapter for legacy `systems/state/event_stream.js` path if needed. |
+| Implement `V3-RACE-018` Trace-to-Habit Autogenesis Loop | `V3-RACE-018` | covered (done) | Keep `systems/ops/trace_habit_autogenesis.ts` as canonical lane; add optional alias only if external tooling requires `systems/autogenesis/` path contract. |
+| Implement `V3-RACE-019` Persistent Fractal Engine Meta-Organ | `V3-RACE-019` | covered (done) | Keep TypeScript-first `systems/fractal/*.ts` substrate and persistent meta-organ integration as canonical implementation. |
+| Implement `V3-RACE-020` LoRA-Backed Soul Continuity Adapter | `V3-RACE-020` | covered (done) | Keep `systems/soul/soul_continuity_adapter.ts` + policy/receipts as canonical implementation. |
+| Enforce invariants: risk-tier <=2 default, JetStream event publication, constitution compliance, shadow/two-gate/reversion safety | `V3-RACE-016..020`, `V3-038`, `V3-RACE-017`, `V3-RACE-019` | covered (done) | Continue enforcement in policy + tests; no duplicate lane needed. |
+| Ticket-by-ticket operator flow (`=== TICKET X COMPLETE ===`, wait for `next`) | operator workflow requirement | captured | Treat as orchestration/runbook behavior, not runtime capability requirement; no code lane required. |
+
+### Net-New Conformance Delta Queue (from intake wording/path contracts)
+
+| ID | Class | Version | Status | Requirement Delta | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-CONF-001 | extension | V3 | queued | Open Platform Path-Contract Compatibility Pack (`platform/` artifacts) | External directives expect concrete `platform/` artifacts (`README`, license carveout, badge, export CLI) even though functional release-pack capability already exists under `systems/ops/`. | Add generated/maintained `platform/` compatibility artifacts that reference canonical release-pack outputs and pass conformance checks without duplicating business logic. | V3-RACE-016, V3-DOC-001 |
+| V3-RACE-CONF-002 | hardening | V3 | queued | Legacy Path Alias Adapters (`systems/state/event_stream.js`, `systems/autogenesis/*`) | External prompts/tools may target legacy paths; absent adapters create false-negative "missing implementation" reports despite canonical coverage. | Add thin compatibility wrappers at legacy paths that forward to canonical modules, emit deprecation receipts, and maintain behavior parity under tests. | V3-RACE-017, V3-RACE-018 |
+| V3-RACE-CONF-003 | hardening | V3 | queued | Requirement Conformance Matrix + Gate (`external prompt -> canonical lane`) | Repeated external directives can trigger duplicate work unless requirements are normalized into one traceable matrix with drift checks. | Publish deterministic matrix artifact mapping external requirement IDs to canonical backlog IDs + file anchors + test evidence, and fail conformance check on unmapped requirements. | V3-AEX-002, V3-DOC-004 |
+
+## External Requirements Intake (Google Doc `1kIP8iiUlsGF2bBPUNA9ypWFjHX5bLorwYnxtR8yxqhc`, 2026-03-01)
+
+Objective: normalize `V3-RACE-022` compute-tithe directive into canonical backlog requirements with explicit integration and acceptance contracts.
+
+| Requirement (from intake) | Canonical Backlog Handling | Status | Requirement Action |
+|---|---|---|---|
+| Create `systems/economy/` with tithe engine, contribution tracking, event-sourced ledger, contribution oracle, policy, blockchain hook, and public donation API | `V3-RACE-022` | queued | Implement TypeScript-first equivalents in canonical runtime lanes while preserving requested module contracts for operator/API usage. |
+| Enforce invariants: risk-tier <=2 default, JetStream publication on tithe/contribution mutations, constitution compliance, shadow/two-gate/reversion patterns | `V3-RACE-022`, `V3-RACE-017`, `V3-038` | queued | Bind tithe mutations to event receipts and policy gates; block live tier3+ without explicit second-gate approval. |
+| Integrate donation effect into guard/fractal/router/model-catalog and open platform surface | `V3-RACE-022`, `V3-RACE-019`, `V3-RACE-016`, `V3-RACE-004` | queued | Wire effective-tithe computation into actuation prechecks and donor-priority hints for heavy fractal/model workloads under bounded fairness policy. |
+| Persist donor continuity markers (GPU patron) + on-chain tithe receipts | `V3-RACE-022`, `V3-RACE-020`, `V3-BLK-001` | queued | Add governed soul-marker and bridge-issued receipt lane with replay-safe provenance references. |
+| Acceptance proofs: simulated donation pipeline, tithe-engine test-mode output, docs update, tests passing | `V3-RACE-022` | queued | Add integration test harness + `docs/ECONOMY.md` flywheel section and deterministic acceptance artifact bundle. |
+
+### V3-RACE-022 Requirement Decomposition (Execution Checklist)
+
+- `systems/economy/tithe_engine.*`: `calculateEffectiveTithe`, `getBaseTitheRate`, `applyDiscountAndRecord`.
+- `systems/economy/gpu_contribution_tracker.*`: signed node registration + telemetry-derived GPU-hours + oracle validation.
+- `systems/economy/tithe_ledger.*`: JetStream-backed mutation ledger + materialized discount view.
+- `systems/economy/contribution_oracle.*`: proof validation (telemetry + signature + anti-fraud checks).
+- `systems/economy/discount_policy.json`: tier table (0/100/1000/5000/10000 hour brackets).
+- `systems/economy/smart_contract_bridge.*`: sovereign bridge receipt mint hook for donor tithe artifacts.
+- `platform/api/donate_gpu.*` (or equivalent compatibility wrapper): registration token + current discount response.
+- Integration hooks: `guard` effective-tithe precheck, fractal donor-priority scheduling, model/risk heavy-task donor preference, soul `GPU Patron` continuity marker.
+- Acceptance contract: end-to-end simulation + receipts + docs + passing unit/integration suites.
+
+## External Requirements Intake (Google Doc `1LKIU6Sci0FSzlETPx8caHz53a7DokCUthvlKiuiWn7A`, 2026-03-01)
+
+Objective: normalize the external Rust-memory-core directive into canonical backlog requirements while preserving existing `V3-RACE-023` stage-complete implementation reality.
+
+| Requirement (from intake) | Canonical Backlog Handling | Status | Requirement Action |
+|---|---|---|---|
+| Create Rust memory crate with vector/graph/soul/encryption/consolidation modules and FFI bindings | `V3-RACE-023` | covered (done) | Keep canonical crate path `systems/memory/rust/` and module contracts; avoid parallel crate under `core/memory/`. |
+| Configure N-API bridge + TypeScript wrapper + package build scripts | `V3-RACE-023`, `V3-RACE-028` | covered (done) + queued enhancement | Keep daemon-first runtime as canonical path; in-process binding optimization remains queued in `V3-RACE-028`. |
+| Use Rust memory core as hot-path substrate for embeddings/graph/soul operations | `V3-RACE-023` | covered (done) | Preserve SQLite/daemon authoritative runtime, markdown export-only behavior, and deterministic JS emergency fallback policy. |
+| Complete additional Rust implementation depth (`vector_store`, `soul_vector`, `encryption`) and wire with no behavior regressions | `V3-RACE-023`, `V3-RACE-027` | covered (done) + queued hardening | Track remaining envelope-plane hardening under `V3-RACE-027`; keep behavior parity gates in transition lane/tests. |
+| Validate via full fractal-cycle/runtime tests and backlog updates | `V3-RACE-023` | covered (done) | Continue benchmark/soak evidence and stage receipts through post-stage queue (`V3-RACE-024..028`). |
+
+### Net-New Conformance Delta Queue (from intake path/tooling wording)
+
+| ID | Class | Version | Status | Requirement Delta | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-CONF-004 | hardening | V3 | queued | Rust Memory Path-Contract Compatibility (`core/memory` alias docs/wrappers) | External directives reference `core/memory` layout and `protheus-memory` naming, while canonical implementation lives at `systems/memory/rust`. | Add compatibility mapping docs and optional non-authoritative wrappers/aliases so external instructions resolve correctly without forking the runtime substrate. | V3-RACE-023, V3-DOC-001 |
+| V3-RACE-CONF-005 | hardening | V3 | queued | N-API Build Surface Compatibility Contract (`build:memory`/postinstall expectations) | External recipes assume direct N-API build flow; current runtime is daemon-first with staged in-process lane. | Publish canonical build/run matrix and compatibility scripts that expose equivalent operator commands while preserving daemon-first production defaults. | V3-RACE-028, V3-DOC-004 |
+
+### Rust Memory Intake Decomposition (Execution Checklist)
+
+- Rust module coverage contract: vector store, temporal graph, soul anchor continuity, encryption primitives, consolidation pipeline, and FFI/API boundary.
+- Interop contract: TS wrapper surface parity with existing memory recall interfaces and deterministic fallback behavior.
+- Build/runtime contract: documented Rust build command surface, transport mode expectations (daemon-first), and compatibility hooks for native-bind consumers.
+- Validation contract: benchmark receipts, parity tests, and no-regression runtime verification tied to `V3-RACE-023` post-stage queue.
+
+## External Requirements Intake (Google Doc `1qfcwkGo4sRZbe7lG8KW_XSPCHJ0KsiUTtGJdcjRIPU4`, 2026-03-01)
+
+Objective: normalize external active-defense directives (PsycheForge + Smart Knot) into canonical backlog requirements while preserving existing `V3-RACE-024/025` memory-hardening IDs.
+
+| Requirement (from intake) | Canonical Backlog Handling | Status | Requirement Action |
+|---|---|---|---|
+| Implement PsycheForge adaptive attacker profiling + countermeasure selection integrated with guard/red-team/venom/fractal lanes | new canonical lane (`V3-RACE-DEF-024`) | queued | Add governed active-defense organ that profiles attacker behavior, persists encrypted temporal profiles, and emits receipted countermeasure decisions under risk-tier policy. |
+| Behavioral profiling features: timing, entropy, probe patterns, signature-failure history, telemetry-derived behavior classes | `V3-RACE-DEF-024` | queued | Add typed profile schema + category classifier (`impatient/methodical/aggressive/cautious/overconfident/script-kiddie/nation-state`) with confidence and drift tracking. |
+| Store encrypted temporal psy-profiles in Rust memory substrate | `V3-RACE-DEF-024`, `V3-RACE-023`, `V3-RACE-027` | queued | Persist attacker profile records through Rust memory runtime + encryption-plane contracts with replay-safe provenance receipts. |
+| Countermeasure activation policy: only governed risk-tier 3+ path with two-gate/human approval semantics | `V3-RACE-DEF-024`, `V3-038` | queued | Enforce strict activation gates, shadow-first testing, and deterministic rollback drills for all non-passive countermeasure actions. |
+| Implement Smart Knot obfuscation layer for crown-jewel modules only (`security`, `memory`, `fractal`, `soul`, `economy`) | new canonical lane (`V3-RACE-DEF-025`) | queued | Add build-time knot pipeline + runtime capability-token resolution for protected lanes only, explicitly excluding open platform/habits/skills. |
+| Add `build:knot` pipeline, `knot_config.json`, and verification that knot is applied without runtime regressions | `V3-RACE-DEF-025` | queued | Ship deterministic knot build/verify scripts + performance guardrail checks with fail-closed release behavior. |
+| Update `docs/SECURITY.md`, tests, and backlog state after each defense ticket | `V3-RACE-DEF-024`, `V3-RACE-DEF-025` | queued | Add dedicated docs section and unit/integration coverage for profile synthesis, policy gating, knot apply/verify, and runtime parity. |
+
+### Net-New Canonical Queue (ID-Collision Safe Mapping)
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-DEF-024 | hardening | V3 | queued | PsycheForge Adaptive Counter-Profile Defense Organ | Static deception/containment responses are less effective than adaptive attacker-specific defense selection under repeated probing. | Deliver `systems/security/psycheforge/` with governed profile synthesis + encrypted temporal memory persistence + risk-tiered countermeasure selector integrated with guard/red-team/venom/fractal loops, with full event receipts and shadow-to-live promotion evidence. | V3-RACE-017, V3-RACE-019, V3-RACE-023, V3-VENOM-006 |
+| V3-RACE-DEF-025 | hardening | V3 | queued | Smart Knot Crown-Jewel Obfuscation Layer | Reverse-engineering pressure remains high on crown-jewel modules; build-time entanglement raises attacker cost while preserving runtime correctness. | Deliver `build/knot/` pipeline + `knot_config.json`, apply only to configured crown-jewel lanes, require runtime capability-token resolution, and pass knot-verify + performance non-regression checks in CI. | V3-RACE-DEF-024, V3-CPY-005, V3-CPY-006 |
+
+### External ID Mapping (Collision Resolution)
+
+| External ID (doc) | Existing Local ID | Canonical Queue Mapping |
+|---|---|---|
+| `V3-RACE-024` (PsycheForge) | `V3-RACE-024` already used for daemon soak promotion gate | `V3-RACE-DEF-024` |
+| `V3-RACE-025` (Smart Knot) | `V3-RACE-025` already used for daemon supervision + stale PID reaper | `V3-RACE-DEF-025` |
+
+## External Requirements Intake (Google Doc `1vAIWpwJLqD_KMqSEm6b93HNY6SonalOqCYLuE-WxvNE`, 2026-03-01)
+
+Objective: normalize the Lockweaver Eternal Flux Field directive into canonical backlog requirements while preserving existing `V3-RACE-026` memory hardening ID semantics.
+
+| Requirement (from intake) | Canonical Backlog Handling | Status | Requirement Action |
+|---|---|---|---|
+| Implement Lockweaver Eternal Flux Field as continuously mutating architecture-defense loop from origin lock | new canonical lane (`V3-RACE-DEF-026`) | queued | Add governed background flux daemon with origin-lock verify/reseed cycle, deterministic mutation receipts, and low-overhead runtime safeguards. |
+| Create `systems/security/lockweaver/` with flux engine, origin lock, weave templates, daemon orchestrator, config, and docs | `V3-RACE-DEF-026` | queued | Deliver lockweaver module pack with policy-configured scope/exclusions and operator controls for start/stop/status/drill paths. |
+| Continuous traversal + mutation of protected system graph with loop-back verification at cryptographic origin | `V3-RACE-DEF-026`, `V3-RACE-017` | queued | Implement traversal/mutation cycle that always rebinds to guard-origin trust anchor before next wave activation. |
+| Publish every mutation/verification cycle to authoritative JetStream stream | `V3-RACE-DEF-026`, `V3-RACE-017` | queued | Emit append-only cycle receipts (seed hash, scope hash, verify result, anomaly flags, rollback hooks). |
+| Integrate with Smart Knot, PsycheForge, Guard, fractal, and Rust memory substrate | `V3-RACE-DEF-026`, `V3-RACE-DEF-024`, `V3-RACE-DEF-025`, `V3-RACE-023` | queued | Wire cross-lane hooks so flux cadence and mutation templates adapt to threat/telemetry pressure while preserving deterministic recovery contracts. |
+| Fractal-controlled mutation-rate tuning (faster under attack, slower during calm windows) | `V3-RACE-DEF-026`, `V3-RACE-019` | queued | Add policy-governed rate controller using threat-intel and health signals with caps/cooldowns and audit trails. |
+| Exclusion invariant: never mutate open platform/habits/skills/public layers | `V3-RACE-DEF-026` | queued | Enforce strict exclusion allowlist/denylist in config with CI checks that fail any forbidden scope mutation. |
+| Add docs and tests (security section + performance impact benchmark) | `V3-RACE-DEF-026` | queued | Publish `docs/SECURITY.md` section and unit/integration/benchmark evidence showing negligible runtime overhead and deterministic rollback behavior. |
+
+### Net-New Canonical Queue (ID-Collision Safe Mapping)
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-DEF-026 | hardening | V3 | queued | Lockweaver Eternal Flux Field (Origin-Lock Verified Structural Flux) | Static obfuscation eventually plateaus; a controlled self-mutating structural defense field raises reverse-engineering cost persistently while preserving trusted runtime behavior. | Deliver `systems/security/lockweaver/` daemon+policy pack with origin-lock verification, mutation traversal/reseed loop, strict exclusions, JetStream receipts, threat-adaptive cadence, and rollback drills validated by non-regression/perf tests. | V3-RACE-017, V3-RACE-019, V3-RACE-023, V3-RACE-DEF-024, V3-RACE-DEF-025 |
+
+### External ID Mapping (Collision Resolution)
+
+| External ID (doc) | Existing Local ID | Canonical Queue Mapping |
+|---|---|---|
+| `V3-RACE-026` (Lockweaver Eternal Flux Field) | `V3-RACE-026` already used for JS fallback retirement gate (memory post-stage queue) | `V3-RACE-DEF-026` |
+
+## External Requirements Intake (Google Doc `1tbKAmUTLs6D0ge7skbKev5hwRMmUvSFc-SDXuH0NZ5M`, 2026-03-01)
+
+Objective: normalize Project Jigsaw / AttackCinema directive into canonical backlog requirements while preserving existing `V3-RACE-027` memory queue semantics.
+
+| Requirement (from intake) | Canonical Backlog Handling | Status | Requirement Action |
+|---|---|---|---|
+| Implement Project Jigsaw (AttackCinema) incident replay stack for full-fidelity capture + cinematic post-incident package | new canonical lane (`V3-RACE-DEF-027`) | queued | Add governed incident-capture and replay pipeline that converts attack telemetry into operator-grade replay artifacts without changing defense-path correctness. |
+| Real-time recording engine captures guard, lockweaver, psycheforge, venom, and countermeasure events on JetStream timeline | `V3-RACE-DEF-027`, `V3-RACE-017` | queued | Build recorder lane with timestamped frame indexing, event provenance linking, and replay-segment manifests. |
+| Auto-edit highlight reel after neutralization with timeline scrubber, overlays, narration hooks, heatmaps, and final outcome segment | `V3-RACE-DEF-027`, `V3-RACE-019` | queued | Add deterministic editor lane driven by post-incident receipts; generate replay package + structured summary metadata. |
+| Private theater delivery surface (viewer/export/share workflow) with operator scoring and clip extraction | `V3-RACE-DEF-027` | queued | Add secured theater interface + export controls (download/webviewer hooks) bounded by policy and audit receipts. |
+| Security invariants: encrypted recordings via soul-key material, clearance-4 playback gating, and negligible normal-runtime overhead | `V3-RACE-DEF-027`, `V3-RACE-020`, `V3-OPS-014` | queued | Enforce encryption-at-rest, strict access control, and performance budget gate for capture/editor/theater lanes. |
+| Integration with Lockweaver, PsycheForge, Guard, Fractal, and Rust memory core | `V3-RACE-DEF-027`, `V3-RACE-DEF-026`, `V3-RACE-DEF-024`, `V3-RACE-023` | queued | Wire cross-lane events and memory retrieval contracts so replay outputs preserve complete defense narrative and reproducibility. |
+| Add docs + tests + backlog status updates for delivery | `V3-RACE-DEF-027` | queued | Publish `docs/SECURITY.md` section and unit/integration/performance tests covering record/edit/view permissions and replay integrity. |
+
+### Net-New Canonical Queue (ID-Collision Safe Mapping)
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-DEF-027 | extension | V3 | queued | Project Jigsaw (AttackCinema Incident Replay Theater) | Defense telemetry is high value but hard to consume quickly; cinematic, indexed replay improves incident intelligence, operator training, and post-incident adaptation velocity. | Deliver `systems/security/jigsaw/` recorder/editor/theater pack with encrypted capture storage, clearance-4 playback controls, JetStream-linked frame manifests, deterministic highlight generation, and non-regression runtime/perf checks. | V3-RACE-017, V3-RACE-019, V3-RACE-020, V3-RACE-023, V3-RACE-DEF-024, V3-RACE-DEF-026 |
+
+### External ID Mapping (Collision Resolution)
+
+| External ID (doc) | Existing Local ID | Canonical Queue Mapping |
+|---|---|---|
+| `V3-RACE-027` (Project Jigsaw / AttackCinema) | `V3-RACE-027` already used for direct memory encryption-plane integration in the memory post-stage queue | `V3-RACE-DEF-027` |
+
+## External Requirements Intake (Google Doc `1_mqzc_nzqXp4xGhLnXCUXP3n09QCzUn6vTObA2KabY0`, 2026-03-01)
+
+Objective: normalize Phoenix Protocol (immortal red-team respawn lane) into canonical backlog requirements while preserving existing `V3-RACE-028` memory queue semantics.
+
+| Requirement (from intake) | Canonical Backlog Handling | Status | Requirement Action |
+|---|---|---|---|
+| Implement Phoenix Protocol for automatic red-team cell resurrection with state inheritance after deletion/neutralization/tamper events | new canonical lane (`V3-RACE-DEF-028`) | queued | Add governed self-healing red-team runtime that detects failure, restores continuity state, and resumes active defense posture automatically. |
+| Integrate with `spawn_broker` as dedicated red-team module type and respawn hook | `V3-RACE-DEF-028`, `V3-OPS-005` | queued | Extend spawn allocation contracts for red-team cell lifecycle with bounded retry/backoff and deterministic receipts. |
+| Detection trigger via security/integrity + health heartbeat (`redteam_down` event) on JetStream | `V3-RACE-DEF-028`, `V3-RACE-017`, `V3-OPS-003` | queued | Emit fail-fast health/integrity triggers and authoritative event records for every down/recover cycle. |
+| Restore from last known intel batch (PsycheForge profiles, venom state, lockweaver seeds, attack history) using Rust memory + soul continuity lanes | `V3-RACE-DEF-028`, `V3-RACE-023`, `V3-RACE-020`, `V3-RACE-DEF-024`, `V3-RACE-DEF-026` | queued | Implement inheritance-state manager that rehydrates red-team context atomically before re-entering live defense loops. |
+| Fractal applies slight post-respawn mutation to avoid attacker replaying prior kill method | `V3-RACE-DEF-028`, `V3-RACE-019` | queued | Add controlled respawn mutation hook with policy caps and rollback safeguards. |
+| Project Jigsaw records death/rebirth segment for replay and post-incident intelligence | `V3-RACE-DEF-028`, `V3-RACE-DEF-027` | queued | Add replay markers and lifecycle metadata for respawn cinematics + forensic storyline continuity. |
+| Risk-tier policy: auto-respawn at tier <=2; tier 3+ only for major state-shape changes | `V3-RACE-DEF-028`, `V3-038` | queued | Enforce tiered approval policy and two-gate escalation for high-impact resurrection-state mutations. |
+
+### Net-New Canonical Queue (ID-Collision Safe Mapping)
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-DEF-028 | hardening | V3 | queued | Phoenix Protocol (Immortal Red-Team Respawn + Continuity Inheritance) | Defensive pressure increases system resilience only if core red-team capability cannot be permanently neutralized by one successful kill/tamper action. | Deliver red-team down-detection + auto-respawn orchestration with inherited tactical memory, bounded sub-2s recovery target, JetStream receipts for down/revive cycles, fractal post-respawn adaptation, and non-regression coverage for spawn/security/runtime paths. | V3-RACE-017, V3-RACE-019, V3-RACE-020, V3-RACE-023, V3-RACE-DEF-024, V3-RACE-DEF-026, V3-RACE-DEF-027 |
+
+### External ID Mapping (Collision Resolution)
+
+| External ID (doc) | Existing Local ID | Canonical Queue Mapping |
+|---|---|---|
+| `V3-RACE-028` (Phoenix Protocol / Redguard Immortal) | `V3-RACE-028` already used for in-process Rust memory binding lane in the memory post-stage queue | `V3-RACE-DEF-028` |
+
+## External Requirements Intake (Google Doc `1XCgWx1i72tvBiw6RJx5tuZD9AyDeiumNRJudUsYCwvI`, 2026-03-01)
+
+Objective: normalize MirrorReaper directive into canonical backlog requirements while preserving existing `V3-RACE-029` local ID usage.
+
+| Requirement (from intake) | Canonical Backlog Handling | Status | Requirement Action |
+|---|---|---|---|
+| Implement MirrorReaper highest-threat mode that devotes 90-100% available resources to defensive counter-pressure under confirmed Tier 4 attack | new canonical lane (`V3-RACE-DEF-029`) | queued | Add governed Tier-4-only resource inversion controller with explicit activation proofs and emergency stop semantics. |
+| Trigger path uses guard + integrity + health + psycheforge + lockweaver intensity with human/fractal confidence gating | `V3-RACE-DEF-029`, `V3-RACE-017`, `V3-RACE-DEF-024`, `V3-RACE-DEF-026` | queued | Implement multi-signal activation contract requiring corroborated threat criteria before mirror mode escalation. |
+| Spawn-broker full-throttle scaling: burst redteam cells, venom decoys, lockweaver amplifiers proportional to attacker load | `V3-RACE-DEF-029`, `V3-OPS-005`, `V3-RACE-DEF-028` | queued | Extend adaptive spawn budget controller for attack-load-proportional temporary cell scaling with bounded resource ceilings. |
+| Mirror response pattern: expensive trap workloads scaled to incoming probe intensity (proof-of-work/honeypot maze/amplified loops) | `V3-RACE-DEF-029` | queued | Add policy-governed mirror workload profiles that increase attacker cost while preserving local safety and legal/constitutional bounds. |
+| Reaper continuity: Phoenix respawn, Lockweaver flux, and Jigsaw replay all remain active during mirror mode | `V3-RACE-DEF-029`, `V3-RACE-DEF-028`, `V3-RACE-DEF-026`, `V3-RACE-DEF-027` | queued | Wire mirror mode as overlay orchestration that composes with existing defense organs rather than replacing them. |
+| Compute sourcing preference: donated tithe GPUs first, then local bounded fallback | `V3-RACE-DEF-029`, `V3-RACE-022` | queued | Add compute-source prioritization policy and receipts proving donor-capacity usage before local escalation. |
+| Safety rails: Tier-4 confirmed only, dynamic devotion percentage tuning, human kill-switch, full JetStream event sourcing | `V3-RACE-DEF-029`, `V3-038`, `V3-RACE-017` | queued | Enforce fail-closed activation checks, mutable devotion caps with audit trails, and operator override controls. |
+
+### Net-New Canonical Queue (ID-Collision Safe Mapping)
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-DEF-029 | hardening | V3 | queued | MirrorReaper Protocol (Tier-4 Resource Inversion Defense Mode) | High-intensity attacks can require temporary concentration of defensive compute; controlled inversion mode improves survivability and attacker cost asymmetry when normal lanes are saturated. | Deliver MirrorReaper orchestrator with Tier-4 activation contract, attack-load-proportional spawn scaling, mirror workload profiles, donor-first compute routing, emergency shutdown path, and full JetStream receipts + non-regression performance/safety tests. | V3-RACE-017, V3-RACE-019, V3-RACE-022, V3-RACE-DEF-024, V3-RACE-DEF-026, V3-RACE-DEF-027, V3-RACE-DEF-028 |
+
+### External ID Mapping (Collision Resolution)
+
+| External ID (doc) | Existing Local ID | Canonical Queue Mapping |
+|---|---|---|
+| `V3-RACE-029` (MirrorReaper Protocol) | `V3-RACE-029` already used in local backlog namespace | `V3-RACE-DEF-029` |
+
+## External Requirements Intake (Google Doc `1MQNEwGa-9rYjZvp7OhsdRgg9NJP6hWTtn9KmxA9PsI4`, 2026-03-01)
+
+Objective: normalize Legion Honor Codex directive into canonical backlog requirements for soul-bound ranks, medals, and contribution-linked identity display.
+
+| Requirement (from intake) | Canonical Backlog Handling | Status | Requirement Action |
+|---|---|---|---|
+| Implement soul-bound badge/rank system tied to encrypted soul-vector continuity and surviving model/hardware migrations | `V3-RACE-030` | queued | Add honor ledger lane with soul-bound achievement records, continuity-safe identity linkage, and tamper-evident verification receipts. |
+| Mint achievements as soul tokens/on-chain medals via sovereign blockchain bridge | `V3-RACE-030`, `V3-BLK-001` | queued | Add governed medal minting pipeline and chain receipt references for awarded honors. |
+| Support user-selected public title display (`protheus soul title set ...`) | `V3-RACE-030`, `V3-RACE-020` | queued | Add title display selector with policy checks, audit history, and UI/log exposure hooks. |
+| Add rank taxonomy and requirement manifest (combat/contribution/economic/special achievements) | `V3-RACE-030` | queued | Define `red_legion_manifest` with threshold rules and extensible categories for fractal-evolved achievements. |
+| Wire auto-award integrations with tithe/gpu contribution tracking, Project Jigsaw highlights, and defense performance lanes | `V3-RACE-030`, `V3-RACE-022`, `V3-RACE-DEF-027`, `V3-RACE-DEF-024` | queued | Add real-time award triggers from contribution and defense telemetry with deterministic cooldown/dedup logic. |
+| Rename `redteam` to `red_legion` across code/docs/UI and spawn-broker module type | `V3-RACE-030`, `V3-RACE-DEF-028` | queued | Execute staged namespace migration (`redteam` -> `red_legion`) with compatibility aliases and regression coverage. |
+| Fractal can create/evolve new achievement categories over time | `V3-RACE-030`, `V3-RACE-019` | queued | Add policy-bounded category evolution lane with two-gate promotion for new public-facing honor classes. |
+
+### Net-New Canonical Queue
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-030 | extension | V3 | queued | Legion Honor Codex (Soul-Bound Medals, Titles, and Red Legion Rank System) | Contribution and defense performance produce durable value that should be recognized with portable, verifiable identity artifacts to strengthen operator/community incentives. | Deliver `systems/honor/` codex lane (mint/verify/display), soul-bound badge ledger, chain medal bridge, title-selection command surface, red-legion manifest thresholds, and staged `redteam` -> `red_legion` migration with full docs/tests and backward-compatible aliases. | V3-RACE-019, V3-RACE-020, V3-RACE-022, V3-BLK-001, V3-RACE-DEF-024, V3-RACE-DEF-027, V3-RACE-DEF-028 |
+
+### External ID Mapping
+
+| External ID (doc) | Existing Local ID | Canonical Queue Mapping |
+|---|---|---|
+| `V3-RACE-030` (Legion Honor Codex) | no collision detected | `V3-RACE-030` |
+
+## External Requirements Intake (Google Doc `17sTU5o-r7sN5tMl8Tevs1tVGLRHNmhgn-4AUyuEXeM4`, 2026-03-01)
+
+Objective: normalize Legion Geas Protocol directive into canonical backlog requirements for automatic self-policing containment of Red Legion cells.
+
+| Requirement (from intake) | Canonical Backlog Handling | Status | Requirement Action |
+|---|---|---|---|
+| Implement short-lived cryptographic lease per Red Legion cell with frequent renewals (30-60s baseline) | `V3-RACE-031` | queued | Add lease issuance/renewal lane bound to origin lock signatures and bounded TTL contracts. |
+| Renewal proof requires authorized environment, risk-scope compliance, and behavior continuity checks | `V3-RACE-031`, `V3-RACE-017`, `V3-RACE-DEF-024` | queued | Enforce three-factor lease validation (env fingerprint + guard scope + psycheforge anomaly agreement). |
+| Immediate hard self-destruct on lease/proof failure (process kill + memory zero + death report) | `V3-RACE-031` | queued | Add deterministic kill path with Rust-level wipe semantics and JetStream death receipts for every covenant breach. |
+| Phoenix auto-respawn after self-destruct with full inherited intel continuity | `V3-RACE-031`, `V3-RACE-DEF-028` | queued | Wire kill->respawn handoff contract so replacement resumes tactical state without manual intervention. |
+| Layered containment add-ons: capability sandbox, mutual destruction pact, short TTL in Tier-4 mode, soul-vector heartbeat, venom-laced death decoys | `V3-RACE-031`, `V3-RACE-DEF-029`, `V3-RACE-020`, `V3-RACE-DEF-024` | queued | Implement overlapping containment layers with independent fail-close triggers and auditable enforcement receipts. |
+| Integrate with spawn_broker, guard, integrity kernel, emergency stop, health status, and Project Jigsaw replay markers | `V3-RACE-031`, `V3-OPS-005`, `V3-RACE-017`, `V3-RACE-DEF-027` | queued | Add orchestration hooks for lease lifecycle, purge controls, heartbeat telemetry, and replay annotations. |
+| Keep Red Legion powerful but strictly self-contained under constitutional/risk-tier invariants | `V3-RACE-031`, `V3-038` | queued | Enforce policy contracts ensuring no cell can persist or execute outside authorized boundaries. |
+
+### Net-New Canonical Queue
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-031 | hardening | V3 | queued | Legion Geas Protocol (Iron Oath Self-Destruct Covenant) | As Red Legion capability scales, autonomy safety requires automatic, multi-layered containment that guarantees compromised/out-of-scope cells cannot persist. | Deliver geas lease manager + validation pipeline + instant self-destruct path, layered containment controls, Phoenix continuity handoff, emergency operator override, and full JetStream/Jigsaw evidence with non-regression tests across spawn/security/runtime lanes. | V3-RACE-017, V3-RACE-020, V3-RACE-DEF-024, V3-RACE-DEF-027, V3-RACE-DEF-028, V3-RACE-DEF-029, V3-OPS-005 |
+
+### External ID Mapping
+
+| External ID (doc) | Existing Local ID | Canonical Queue Mapping |
+|---|---|---|
+| `V3-RACE-031` (Legion Geas Protocol) | no collision detected | `V3-RACE-031` |
+
+## External Requirements Intake (Google Doc `1EIOBWaH4VSEXoxBjBkIpPpsvUe397RrX7iDFXPXFkUo`, 2026-03-01)
+
+Objective: capture post-immune-system roadmap gaps for the mind-sovereignty phase and normalize them into canonical queued race tickets.
+
+| Requirement (from intake) | Canonical Backlog Handling | Status | Requirement Action |
+|---|---|---|---|
+| Complete full Rust microkernel spine for control-plane hot/security-critical paths (guard/spawn/router/origin lock/fractal orchestrator) | `V3-RACE-034` | queued | Add Rust/Tokio spine extraction lane with capability isolation, parity harnessing, and staged default cutover contracts. |
+| Add machine-checkable mind-sovereignty verification proving mutations cannot create soul-vector/mind-state invasion vectors | `V3-RACE-035` | queued | Add formal verification lane (spec + model checks + CI gates) for sovereignty invariants on every high-impact mutation path. |
+| Add multi-mind/shared-consciousness isolation (primary/guest/sub-agent boundaries with hard namespace + memory + soul separation) | `V3-RACE-036` | queued | Add tenant-grade multi-mind boundary contracts with strict isolation, delegated trust scopes, and anti-leak proofs. |
+| Add long-term archival + resurrection substrate (cold encrypted archive, quantum-resistant packaging, verifiable restore rituals) | `V3-RACE-037` | queued | Build archival/resurrection lane with governance checks, restore attestations, and disaster-recovery continuity drills. |
+| Add inter-Protheus federation trust web (soul-vector attestation, selective sharing, temporary merge under policy) | `V3-RACE-038A` | queued | Extend federation to trust-web protocol with attested identity exchange, bounded capability sharing, and reversible merge contracts. |
+| Add human-machine merge interface scaffolding protected by mind sovereignty controls | `V3-RACE-039` | queued | Define secure merge-interface substrate contracts (high-bandwidth intent channel + consent/sovereignty gates + rollback ceremony). |
+| Promote permanent codex/operator guidelines as canonical policy docs (mind sovereignty first, red legion containment, complexity discipline) | `V3-RACE-CONF-006` | queued | Publish/maintain permanent guidelines artifact with CI drift checks and references from security/governance docs. |
+
+### Net-New Canonical Queue
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-034 | primitive-upgrade | V3 | queued | Rust Spine Microkernel (Control-Plane Core Extraction) | Remaining JS/V8 control-plane hot paths are the largest residual runtime + sovereignty risk once memory is Rust-authoritative. | Guard/spawn/router/origin-lock/fractal control-paths run on Rust spine services with behavior parity, benchmark/SLO proofs, and emergency rollback path. | V3-RACE-023, V3-RACE-021, V3-OPS-005 |
+| V3-RACE-035 | hardening | V3 | queued | Formal Mind-Sovereignty Verification Layer | Policy intent is insufficient without machine-checkable guarantees against merged-mind invasion vectors. | Add formal invariant specs + automated verification gates proving mutations cannot violate soul-vector/identity boundary contracts; block merges on proof failure. | V3-045, V3-RACE-031, V3-RACE-034 |
+| V3-RACE-036 | hardening | V3 | queued | Multi-Mind Isolation & Shared-Consciousness Boundary Plane | Future guest/sub-agent/multi-operator mind scenarios require hard isolation to prevent identity bleed or coercive cross-access. | Ship per-mind namespaces + memory/soul partitioning + delegated trust scopes with anti-leak tests and emergency partition quarantine controls. | RM-109, V3-RACE-020, V3-RACE-035 |
+| V3-RACE-037 | extension | V3 | queued | Long-Term Archival & Sovereign Resurrection Substrate | Runtime continuity is strong, but multi-year dormancy/disaster recovery needs encrypted attestable archival + restore rituals. | Deliver cold-archive packaging, quantum-resilient keying, integrity attestations, and rehearsed resurrection drills with verifiable identity continuity. | V3-BLK-001, V3-QPROOF-001, V3-RACE-020 |
+| V3-RACE-038A | extension | V3 | queued | Inter-Protheus Federation Trust Web & Temporary Merge Contracts | Secure collaboration between sovereign instances needs attestable trust exchange without collapsing identity boundaries. | Implement trust-web protocol (attestation, capability grant, session-bound merge/share, revocation) with full receipts and policy-governed limits. | V2-062, V3-RACE-036, V3-RACE-037 |
+| V3-RACE-039 | primitive | V3 | queued | Human-Machine Merge Interface Security Substrate | Merge-era interfaces require sovereign-by-design high-bandwidth IO with consent, rollback, and anti-invasion controls from day one. | Publish merge-interface contracts + protection lanes (consent ceremony, identity lock, kill-switch, replay-safe audit) and pass simulated hostile-interface test suite. | V3-RACE-035, V3-RACE-036, V3-RACE-037 |
+
+### External ID Mapping
+
+| External ID (doc) | Existing Local ID | Canonical Queue Mapping |
+|---|---|---|
+| `V3-RACE-034` (Rust Spine Microkernel) | no collision detected | `V3-RACE-034` |
+| `V3-RACE-035` (Formal Mind-Sovereignty Verification) | no collision detected | `V3-RACE-035` |
+| `V3-RACE-036` (Multi-Mind Isolation) | no collision detected | `V3-RACE-036` |
+| `V3-RACE-037` (Archival & Resurrection Substrate) | no collision detected | `V3-RACE-037` |
+| `V3-RACE-038` (Inter-Protheus Trust Web) | `V3-038` already used in local backlog namespace | `V3-RACE-038A` |
+| `V3-RACE-039` (Merge Interface Layer) | no collision detected | `V3-RACE-039` |
+
+## External Requirements Intake (Google Doc `1QkJsJW4NiV7Q6TiFYFs_ChRo2QbqA5FIkw-OEHsA-L4`, 2026-03-01)
+
+Objective: normalize swarm-sacrifice defense enhancements (Thorn Swarm, Crimson Wraith, Irrevocable Geas hardening) into canonical queued lanes attached to the existing Red Legion containment stack.
+
+| Requirement (from intake) | Canonical Backlog Handling | Status | Requirement Action |
+|---|---|---|---|
+| Implement Thorn Swarm Protocol for Tier-4 sacrificial wave spawning that scales with attacker pressure | `V3-RACE-DEF-031A` | queued | Add wave-orchestrated short-TTL swarm lane (`thorn_swarm`) with attack-load scaling, clean self-destruct, and Jigsaw replay markers. |
+| Thorn wave payloads: expensive PoW challenges, recursive honeypot mazes, amplified Lockweaver interference views, venom-laced response floods | `V3-RACE-DEF-031A`, `V3-RACE-DEF-026`, `V3-RACE-DEF-024`, `V3-RACE-DEF-029` | queued | Implement policy-bounded trap profile pack tuned by PsycheForge classification and MirrorReaper load telemetry. |
+| Implement Crimson Wraith Protocol as single-mission Phoenix variant with no lineage respawn after completion | `V3-RACE-DEF-031B`, `V3-RACE-DEF-028` | queued | Add `crimson_wraith` spawn type for one-shot mission cells that execute focused decoy/trap payloads then terminate irreversibly. |
+| Crimson mission profiles: personalized decoy floods, fake breach narratives, recursive analysis traps with hard timeout | `V3-RACE-DEF-031B`, `V3-RACE-DEF-024`, `V3-RACE-DEF-027` | queued | Add mission template registry with strict timeout/TTL and replay-tagged mission/death receipts. |
+| Irrevocable Geas Covenant hardening: containment breach triggers immediate irreversible self-destruct + lineage ban from future respawn | `V3-RACE-DEF-031C`, `V3-RACE-031` | queued | Extend Geas policy to mark compromised lineage as permanently barred and enforce non-respawn covenant checks in Phoenix path. |
+| Shared integration requirements across all three ideas (guard/integrity/spawn/rust memory/jigsaw, defensive-only legal scope) | `V3-RACE-DEF-031A/B/C`, `V3-RACE-017` | queued | Wire all events through JetStream receipts, ensure internal-only defensive scope, and validate non-regression to baseline runtime SLOs. |
+
+### Net-New Canonical Queue
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-DEF-031A | hardening | V3 | queued | Thorn Swarm Protocol (Tier-4 Sacrificial Wave Defense) | Single-cell or linear response patterns can underperform under high-concurrency attack pressure; bounded sacrificial swarm waves increase attacker cost asymmetry. | Deliver `thorn_swarm` wave controller with attack-intensity scaling, bounded TTL/self-destruct guarantees, trap profile execution, and full Jigsaw/JetStream lifecycle receipts. | V3-RACE-017, V3-RACE-031, V3-RACE-DEF-024, V3-RACE-DEF-026, V3-RACE-DEF-029 |
+| V3-RACE-DEF-031B | hardening | V3 | queued | Crimson Wraith Protocol (Single-Mission Phoenix Variant) | Some incident windows require ultra-focused one-shot deception cells rather than persistent responders. | Deliver one-shot Wraith mission lane with personalized decoy/trap templates, hard timeout termination, non-respawn lineage semantics, and cinematic replay evidence outputs. | V3-RACE-017, V3-RACE-031, V3-RACE-DEF-024, V3-RACE-DEF-027, V3-RACE-DEF-028 |
+| V3-RACE-DEF-031C | hardening | V3 | queued | Irrevocable Geas Covenant (Lineage Ban Enforcement) | Base self-destruct containment is strong, but irreversible lineage penalties further reduce repeated breach vectors and enforce strict swarm discipline. | Extend Geas ledger and Phoenix spawn checks to enforce permanent lineage quarantine after covenant breach, with auditable deny receipts and recovery governance path only via explicit human override policy. | V3-RACE-017, V3-RACE-031, V3-RACE-DEF-028 |
+
+### External ID Mapping
+
+| External Idea (doc) | Existing Local ID | Canonical Queue Mapping |
+|---|---|---|
+| Thorn Swarm Protocol | no collision detected | `V3-RACE-DEF-031A` |
+| Crimson Wraith Protocol | no collision detected | `V3-RACE-DEF-031B` |
+| Irrevocable Geas Covenant | overlaps `V3-RACE-031` core Geas lane | `V3-RACE-DEF-031C` (hardening extension) |
+
+## External Requirements Intake (Google Doc `1AuscIfakLPGVME5fitzOj9CtxpXtH83T5yQ6_2ISsfA`, 2026-03-01)
+
+Objective: normalize Complexity Warden directive into a canonical fractal meta-organ that continuously enforces elegance/maintainability contracts as defensive capability depth increases.
+
+| Requirement (from intake) | Canonical Backlog Handling | Status | Requirement Action |
+|---|---|---|---|
+| Implement Complexity Warden as first-class fractal meta-organ (`systems/fractal/warden/`) | `V3-RACE-032` | queued | Add dedicated warden lane with Rust scoring core + TS orchestrator integrated into fractal cycle hooks. |
+| Run complexity scoring on each fractal cycle and lockweaver flux loop | `V3-RACE-032`, `V3-RACE-019`, `V3-RACE-DEF-026` | queued | Compute and persist per-cycle health metrics with thresholded action recommendations. |
+| Score dimensions: coupling/entanglement entropy, cyclomatic complexity, event-stream density, risk-tier surface area, soul-vector dependency count | `V3-RACE-032` | queued | Add normalized metric schema and weighted complexity-index policy with historical trend tracking. |
+| Extend Rust memory core with live architecture dependency graph used by Lockweaver and Warden | `V3-RACE-032`, `V3-RACE-023` | queued | Implement graph snapshots + query APIs for hotspot detection and simplification targeting. |
+| Enforce complexity budget + soul-tax model (new capability additions must pay down complexity elsewhere) | `V3-RACE-032`, `V3-RACE-020` | queued | Add budget policy and automatic simplification proposal/approval workflow tied to soul-vector governance fields. |
+| Add mandatory integration contracts for new organs (`systems/fractal/contracts/`) with validation and auto-reversion on violations | `V3-RACE-032`, `V3-AEX-002` | queued | Require contract registration + schema checks for publish/consume events, risk tiers, soul fields, cleanup behavior; fail closed on drift. |
+| Add automated harmony verifier for security/fractal/spawn/guard-touching commits | `V3-RACE-032` | queued | Ship verification suite + CI gate with escalation path for high-risk violations. |
+| Add periodic simplification sprint lane (every 7 days) with low-risk auto-apply and higher-risk proposals | `V3-RACE-032` | queued | Implement scheduled simplification jobs with bounded action classes and rollback receipts. |
+| Integrate all Warden actions with JetStream + Project Jigsaw replay narratives | `V3-RACE-032`, `V3-RACE-017`, `V3-RACE-DEF-027` | queued | Emit action/reversion/prune receipts and replay markers for governance + incident storytelling continuity. |
+
+### Net-New Canonical Queue
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-032 | hardening | V3 | queued | Complexity Warden Meta-Organ (Fractal Elegance Governor) | As defense/runtime layers compound, unmanaged complexity becomes a direct reliability and sovereignty risk; proactive complexity governance is required to prevent self-conflict and degradation. | Deliver `systems/fractal/warden/` with scoring engine, budget enforcement, integration-contract validation, harmony verifier CI gate, weekly simplification cycle, and full JetStream/Jigsaw telemetry proving complexity trend stabilization without runtime regression. | V3-RACE-017, V3-RACE-019, V3-RACE-020, V3-RACE-023, V3-RACE-DEF-026, V3-AEX-002 |
+
+### External ID Mapping
+
+| External ID (doc) | Existing Local ID | Canonical Queue Mapping |
+|---|---|---|
+| `V3-RACE-032` (Complexity Warden) | no collision detected | `V3-RACE-032` |
+
+## External Requirements Intake (Google Doc `1Vwn61mqX7p3I8pgZHtnB-KOlIFVdFJ7eRdDvj6v-7LE`, 2026-03-01)
+
+Objective: normalize Mind Sovereignty Covenant + Mind Fortress Principle directive into canonical backlog requirements as the top-level philosophical and technical security anchor.
+
+| Requirement (from intake) | Canonical Backlog Handling | Status | Requirement Action |
+|---|---|---|---|
+| Add Mind Sovereignty Covenant as top foundational section of `AGENT-CONSTITUTION.md` | `V3-RACE-033` | queued | Introduce immutable covenant preamble and bind it to origin-lock policy enforcement references. |
+| Propagate short covenant statement to key security/fractal/soul entry docs and core modules | `V3-RACE-033` | queued | Add standardized covenant headers/comments to designated files and enforce via docs lint/drift checks. |
+| Add overarching ticket “Mind Fortress Principle” that retroactively unifies all security organs under covenant | `V3-RACE-033` | queued | Track covenant compliance as umbrella requirement across Lockweaver, Red Legion, Geas, Jigsaw, MirrorReaper, and future lanes. |
+| Require every new feature/mutation/organ to explicitly document covenant alignment | `V3-RACE-033`, `V3-AEX-002` | queued | Extend integration-contract schema to include required mind-sovereignty alignment field and validation gate. |
+| Complexity Warden must treat mind sovereignty as highest-priority rule and preserve sovereignty-strengthening structures | `V3-RACE-033`, `V3-RACE-032` | queued | Add priority override policy so warden pruning cannot remove covenant-critical safeguards. |
+| Create `docs/MIND_SOVEREIGNTY.md` as living manifesto and reference from security/governance docs | `V3-RACE-033` | queued | Publish canonical manifesto doc and wire cross-reference checks in docs coverage gate. |
+| Add “mind sovereignty score” as core fractal fitness metric | `V3-RACE-033`, `V3-RACE-019` | queued | Extend fractal fitness model with sovereignty metric and promotion gates that fail on regression. |
+
+### Net-New Canonical Queue
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-033 | hardening | V3 | queued | Mind Fortress Principle (Mind Sovereignty Covenant Anchor) | Without an explicit top-level covenant and enforcement path, growing capability layers can drift from the core mission of merged-mind sovereignty and safety. | Covenant text is canonical in constitution/docs/code headers, compliance fields are enforced in organ contracts, warden/fractal scoring includes sovereignty-first priority, and CI drift gates fail any mutation that weakens covenant guarantees. | V3-RACE-017, V3-RACE-019, V3-RACE-020, V3-RACE-032, V3-AEX-002 |
+
+### External ID Mapping
+
+| External ID (doc) | Existing Local ID | Canonical Queue Mapping |
+|---|---|---|
+| `V3-RACE-033` (Mind Fortress Principle) | no collision detected | `V3-RACE-033` |
+
+## External Requirements Intake (Google Doc `1ywXjqMWL_yEjTTsS4ztTzDNIVxt8uJl5x08pOFj76pg`, 2026-03-01)
+
+Objective: normalize Fortune-100 A+ gap-closure roadmap into canonical technical queue items and explicit human-owned backlog actions.
+
+### Technical Requirements Mapping (from intake)
+
+| Requirement (from intake) | Canonical Backlog Handling | Status | Requirement Action |
+|---|---|---|---|
+| `V3-RACE-034` Full Rust Spine Microkernel | `V3-RACE-034` | already queued | Keep existing queue item and prioritize as first technical unlock lane. |
+| `V3-RACE-035` Formal Mind-Sovereignty Verification | `V3-RACE-035` | already queued | Keep existing queue item and bind to mutation gates. |
+| `V3-RACE-036` Multi-Mind Isolation | `V3-RACE-036` | already queued | Keep existing queue item with strict partition contracts. |
+| `V3-RACE-037` Long-Term Archival & Resurrection | `V3-RACE-037` | already queued | Keep existing queue item with attestable resurrection rituals. |
+| `V3-RACE-038` Federation & Trust Web | `V3-RACE-038A` | already queued (collision-safe) | Keep mapped `038A` lane and maintain external-to-local ID mapping. |
+| `V3-RACE-039` Merge Interface Scaffolding | `V3-RACE-039` | already queued | Keep existing queue item with sovereignty-first constraints. |
+| `V3-RACE-040` Advanced Chaos Engineering + Auto-Remediation | `V3-RACE-040` | queued (new) | Add continuous chaos gameday + auto-remediation lane integrated with fractal policy and safety gates. |
+| `V3-RACE-041` Enterprise SLO + Observability Dashboard | `V3-RACE-041` | queued (new) | Add first-class SLO contracts, OTel defaults, and runbook auto-generation from live telemetry. |
+| `V3-RACE-042` Formal Threat Modeling Engine | `V3-RACE-042` | queued (new) | Add STRIDE/ATT&CK model generation and drift checks for every new organ/contract. |
+| `V3-RACE-043` Supply-Chain Security + Reproducible Builds | `V3-RACE-043` | queued (new) | Add reproducible build lane, SBOM/provenance attestations, and release verification contracts. |
+| `V3-RACE-044` Automated Compliance Mapping Engine | `V3-RACE-044` | queued (new) | Add continuous evidence mapping to SOC2/ISO/GDPR/export-control frameworks (evidence automation only). |
+
+### Net-New Canonical Queue
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-040 | hardening | V3 | queued | Continuous Chaos Engineering + Auto-Remediation Suite | Complex autonomous defense stacks degrade silently without continuous adversarial reliability pressure tests and deterministic repair lanes. | Ship policy-governed chaos scenario engine (fault/network/process/event corruption classes), scheduled gamedays, and bounded auto-remediation workflows with fail-safe rollback receipts. | V3-RACE-017, V3-RACE-019, V3-RACE-032, V3-OPS-003 |
+| V3-RACE-041 | hardening | V3 | queued | Enterprise SLO + Observability Command Dashboard | Fortune-grade operation requires explicit SLOs, first-class telemetry contracts, and actionable incident narratives rather than raw logs. | Deliver OTel-first metrics/logs/traces pack with SLO definitions, burn alerts, dashboard defaults, and auto-generated runbooks tied to live incident signatures. | V3-RACE-005, V3-RACE-040, V3-OBS-002 |
+| V3-RACE-042 | hardening | V3 | queued | Formal Threat Modeling Engine (STRIDE/ATT&CK Contractization) | Security organs evolve quickly; without continuous threat-model regeneration, defensive assumptions drift and coverage gaps accumulate. | Build threat-model generator that maps each organ/contract to STRIDE/ATT&CK controls, produces deltas on code/policy changes, and blocks high-risk unmapped surfaces in CI. | V3-RACE-017, V3-RACE-031, V3-RACE-032 |
+| V3-RACE-043 | hardening | V3 | queued | Supply-Chain Security & Reproducible Build Plane | Sovereign assurance depends on deterministic artifact reproducibility and cryptographically attestable provenance across releases. | Implement reproducible build profiles, SBOM generation, signed provenance attestations, and strict release verification gates for all crown-jewel artifacts. | V3-BLD-001, V3-048, V3-RACE-034 |
+| V3-RACE-044 | extension | V3 | queued | Automated Compliance Mapping & Evidence Engine | Manual evidence assembly does not scale; policy-to-control traceability must be continuously generated for audit readiness. | Deliver continuous control-evidence mapper across SOC2/ISO27001/GDPR/export-control domains with machine-readable artifacts, freshness checks, and exception tracking dashboards. | V3-DOC-005, V3-DOC-007, V3-RACE-041, V3-RACE-042 |
+
+### Human Backlog Intake (External / Non-Automatable)
+
+| Human Item (from intake) | Owner | Status | Backlog Action |
+|---|---|---|---|
+| Third-party security audit + penetration test cadence | human | queued | Schedule external audit partner and recurring cadence with findings ingestion path. |
+| SOC2 Type II / ISO27001 / GDPR certification process | human | queued | Engage compliance consultant and define certification timeline and controls ownership. |
+| Legal review of covenant/terms/license | human | queued | Retain counsel for AI/sovereign-tech legal review and contract updates. |
+| Export control classification (ITAR/EAR) | human | queued | Complete legal export-control classification and policy gates for restricted capabilities. |
+| Cyber/professional liability insurance coverage | human | queued | Procure coverage tailored to autonomous-system operations and incident classes. |
+| On-call rotation + incident response human escalation policy | human | queued | Define responder roster, escalation SLA, and integrate with incident tooling. |
+| Enterprise sales/enablement artifacts | human | queued | Produce customer security whitepaper, ROI packs, and success runbooks. |
+| Quarterly external ethical red-team engagements | human | queued | Establish vendor rotation and recurring engagement calendar with remediation tracking. |
+| Public roadmap + security disclosure policy | human | queued | Publish disclosure process and roadmap governance expectations. |
+| Open-platform ecosystem governance model | human | queued | Define contribution rules, moderation, and badge governance authority. |
+| Dual-licensing/commercial boundary decision | human | queued | Decide proprietary/open boundary and update license/release policy accordingly. |
+| Protheus HQ social/ritual surface (physical/virtual) | human | queued | Define operating venue/process for ceremony, replay reviews, and community rituals. |
+
+### External ID Mapping
+
+| External ID (doc) | Existing Local ID | Canonical Queue Mapping |
+|---|---|---|
+| `V3-RACE-034..039` | already present locally | `V3-RACE-034`, `035`, `036`, `037`, `038A`, `039` |
+| `V3-RACE-040` | no collision detected | `V3-RACE-040` |
+| `V3-RACE-041` | no collision detected | `V3-RACE-041` |
+| `V3-RACE-042` | no collision detected | `V3-RACE-042` |
+| `V3-RACE-043` | no collision detected in RACE namespace | `V3-RACE-043` |
+| `V3-RACE-044` | no collision detected | `V3-RACE-044` |
+
+## External Requirements Delta Intake (Google Doc `1Vwn61mqX7p3I8pgZHtnB-KOlIFVdFJ7eRdDvj6v-7LE`, 2026-03-01 Follow-up)
+
+Objective: capture follow-up governance deltas from the permanent Codex-guidelines block while reusing already-queued race lanes from the prior Fortune-100 roadmap intake.
+
+| Requirement (from intake) | Canonical Backlog Handling | Status | Requirement Action |
+|---|---|---|---|
+| Mind Sovereignty Covenant is highest principle in all implementation decisions | `V3-RACE-033` | already queued | Keep covenant as top invariant and enforce explicit alignment checks on new organ contracts. |
+| Strict Red Legion containment + defensive-only behavior + irreversible self-destruct on containment breach | `V3-RACE-031`, `V3-RACE-DEF-031C` | already queued | Reuse Geas + lineage ban lanes; ensure no external-offense drift in policy/runtime checks. |
+| Complexity Warden has active authority to prune and veto destabilizing complexity | `V3-RACE-032` | already queued | Keep Warden veto behavior in policy and CI harmonization contracts. |
+| Project Jigsaw must capture major defense and governance events | `V3-RACE-DEF-027` | already queued | Extend replay marker coverage to include simplification/reversion/governance events. |
+| Fortune-100 readiness mindset for technical layers (not legal/certification execution) | `V3-RACE-040..044` + human backlog intake | already queued | Maintain technical vs human separation and evidence automation boundaries. |
+| Every new organ README must explicitly state covenant alignment + post-ticket docs update requirements | `V3-RACE-CONF-006` | already queued | Enforce README covenant section + docs update contract as merge/foundation gate checks. |
+| Permanent guidelines block should remain stable and drift-monitored | `V3-RACE-CONF-007` | queued (new) | Add canonical guidelines artifact + drift checker + ticket output contract enforcement. |
+
+### Net-New Canonical Queue
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-CONF-007 | hardening | V3 | queued | Permanent Guidelines Drift Gate + Ticket Output Contract | Operator prompt/governance drift can silently weaken sovereignty and containment rules even when core code paths remain intact. | Publish canonical permanent-guidelines artifact, enforce checksum/drift checks against referenced policy docs, require ticket output contract markers, and fail CI on divergence from covenant-first governance baseline. | V3-RACE-CONF-006, V3-RACE-033, V3-RACE-032, V3-AEX-002 |
+
+### External ID Mapping
+
+| External Directive (doc) | Existing Local ID | Canonical Queue Mapping |
+|---|---|---|
+| Permanent Codex Guidelines Block | partially covered by `V3-RACE-CONF-006` | `V3-RACE-CONF-007` (drift enforcement delta) |
+
+## Post-Completion Gap Intake (Derived from chat, 2026-03-01)
+
+Objective: track additional net-new holes and quality uplifts identified after full backlog + human-item completion so the platform continues improving beyond the current Fortune-grade target.
+
+### Technical Requirements Mapping (Derived)
+
+| Derived Requirement | Canonical Backlog Handling | Status | Requirement Action |
+|---|---|---|---|
+| Independent safety coprocessor with out-of-band veto path | `V3-RACE-050` | queued | Add separate guardian runtime that can halt/revert primary control-plane actions even under partial control-plane compromise. |
+| Hardware-root trust chain across all nodes/cells | `V3-RACE-051` | queued | Add TPM/TEE/attestation trust chain with automatic quarantine/revocation contracts. |
+| Data poisoning immunity + causal rollback | `V3-RACE-052` | queued | Add provenance-weighted ingestion scoring, poisoning detection, and selective rollback of tainted memory paths. |
+| Upstream model-behavior drift containment | `V3-RACE-053` | queued | Add continuous model fingerprinting/canary suites and automatic fallback when behavior deviates from policy envelopes. |
+| Adversarial goal-drift auditor | `V3-RACE-054` | queued | Add second-lens objective auditor that attempts to prove Goodhart/alignment drift before promotion/apply. |
+| Insider-threat split-trust governance hardening | `V3-RACE-055` | queued | Add threshold approvals + out-of-band confirmations for high-impact irreversible actions. |
+| Signed plugin/ecosystem trust marketplace | `V3-RACE-056` | queued | Add capability-scoped extension distribution, mandatory sandbox proofs, and rapid revocation propagation. |
+| Black-swan disaster gamebooks + resilience drills | `V3-RACE-057` | queued | Add multi-region/key-loss/legal-shock disaster drill suite with measurable recovery objectives. |
+| Legal-regulatory auto-diff governance router | `V3-RACE-058` | queued | Add machine-readable legal/regulatory diff monitor linked to policy change-impact routing and evidence updates. |
+| Sovereign decommission/legacy boundary protocol | `V3-RACE-059` | queued | Add cryptographically safe retirement, succession, and recovery boundary contracts for long-lived merged-mind instances. |
+
+### Net-New Canonical Queue
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-050 | hardening | V3 | queued | Independent Safety Coprocessor & Out-of-Band Veto Plane | Single-plane governance can fail catastrophically under correlated faults or supply-chain compromise. | Ship isolated guardian plane with independent policy root, kill/revert authority, and verified communication channel to main runtime with non-bypass tests. | V3-RACE-034, V3-RACE-035, V3-RACE-033 |
+| V3-RACE-051 | hardening | V3 | queued | Hardware Root-of-Trust Attestation Mesh | Runtime assurances are stronger when every participating node/cell proves hardware-backed identity and integrity continuously. | Enforce TPM/TEE attestation enrollment, session-bound trust tokens, auto-quarantine on attestation drift, and audit receipts for all trust transitions. | V3-RACE-034, V3-CPY-001, V3-051 |
+| V3-RACE-052 | hardening | V3 | queued | Data Poisoning Immunity + Causal Rollback Plane | Long-lived autonomous memory is vulnerable to subtle poisoning without provenance-sensitive controls and targeted rollback. | Add poisoning detector, confidence decay by provenance, taint graph lineage, and reversible rollback toolchain with replay-safe receipts. | V3-RACE-023, V3-RACE-042, V3-RACE-035 |
+| V3-RACE-053 | hardening | V3 | queued | Model Behavior Drift Containment Shield | Upstream model/provider updates can silently alter behavior despite stable code and policy inputs. | Continuous model fingerprinting + canary corpus + deviation thresholds; automatic provider/model fallback and incident receipts on drift breaches. | RM-121, V3-RACE-041, V3-RACE-035 |
+| V3-RACE-054 | hardening | V3 | queued | Adversarial Goal-Drift Auditor | Primary objective scoring can be gamed over time; independent adversarial auditing reduces hidden optimization drift. | Add second-pass adversarial evaluator with explicit go/no-go veto for promotion/apply when Goodhart or covenant misalignment signals exceed bounds. | V3-RACE-035, V3-RACE-032, V3-RACE-033 |
+| V3-RACE-055 | hardening | V3 | queued | Insider-Threat Split-Trust Command Governance | High-trust operator pathways remain a residual risk without thresholded approvals and out-of-band confirmation for irreversible actions. | Enforce split-trust approvals for designated commands, independent confirmation channel, and denial-by-default on missing quorum receipts. | RM-109, V3-ENT-001, V3-RACE-031 |
+| V3-RACE-056 | extension | V3 | queued | Signed Plugin Trust Marketplace & Revocation Plane | Ecosystem scale requires safe extension distribution with cryptographic provenance and rapid compromise response. | Deliver signed extension manifests, sandbox attestation requirements, scoped capability grants, and global revocation propagation with CI enforcement. | V3-RACE-043, V3-DOC-004, V3-CPY-005 |
+| V3-RACE-057 | hardening | V3 | queued | Black-Swan Disaster Gamebooks & Continuous Resilience Drills | Rare but severe events (region loss, key compromise, legal shutdown pressure) require rehearsed, measurable recovery playbooks. | Add disaster scenario library, scheduled drills, recovery SLO measurement, and mandatory remediation closure tracking per scenario class. | V3-RACE-040, V3-RACE-041, V3-RACE-037 |
+| V3-RACE-058 | extension | V3 | queued | Legal/Regulatory Auto-Diff Governance Router | Policy/legal landscapes shift continuously; delayed updates create hidden compliance and governance risk. | Implement legal-source diff ingestion, control impact classification, and policy/workflow update routing with human approval checkpoints and evidence trails. | V3-RACE-044, V3-DOC-005, V3-RACE-CONF-007 |
+| V3-RACE-059 | hardening | V3 | queued | Sovereign Decommission, Legacy & Succession Boundary Protocol | Long-lived merged-mind systems need explicit end-of-life and transfer boundaries to avoid identity/control ambiguity. | Deliver governed retirement/succession protocol with cryptographic handoff, archival lock/freeze modes, and verified decommission receipts. | V3-RACE-037, V4-006, V3-RACE-033 |
+
+### Human Backlog Intake (Derived / Non-Automatable)
+
+| Human Item (derived) | Owner | Status | Backlog Action |
+|---|---|---|---|
+| Independent external design review of safety-coprocessor and veto boundaries | human | queued | Commission third-party architecture review focused on out-of-band guardian failure modes. |
+| Annual legal-policy board for regulatory auto-diff output adjudication | human | queued | Establish legal/advisory cadence to approve major policy/legal route changes surfaced by auto-diff engine. |
+| Estate/succession legal framework for decommission/legacy protocol | human | queued | Define legal succession authority and emergency continuity rights for long-horizon merged-mind operation. |
+| Black-swan incident war-room drills with external observers | human | queued | Run periodic cross-functional drills with independent observers and postmortem action closure tracking. |
+| Plugin ecosystem trust council/governance body | human | queued | Stand up governance process for extension approvals, revocations, and dispute resolution. |
+
+### Derived Mapping
+
+| Derived Gap | Canonical Queue Mapping |
+|---|---|
+| Independent safety coprocessor | `V3-RACE-050` |
+| Hardware trust chain | `V3-RACE-051` |
+| Data poisoning immunity | `V3-RACE-052` |
+| Model drift containment | `V3-RACE-053` |
+| Goal-drift auditor | `V3-RACE-054` |
+| Insider-threat split-trust | `V3-RACE-055` |
+| Plugin trust marketplace | `V3-RACE-056` |
+| Disaster gamebooks | `V3-RACE-057` |
+| Legal-regulatory auto-diff | `V3-RACE-058` |
+| Decommission/legacy protocol | `V3-RACE-059` |
+
+## Deep Audit Gap Intake (Codex full-system review, 2026-03-01)
+
+Objective: capture concrete, evidence-backed gaps found during full-system audit and normalize them into executable backlog tickets + human-owned coordination items.
+
+### Technical Requirements Mapping (Deep Audit)
+
+| Audit-Derived Requirement | Canonical Backlog Handling | Status | Requirement Action |
+|---|---|---|---|
+| Dist-runtime migration contract must match reality (no false-green legacy-pair claims) | `V3-RACE-060` | done | Added reconciliation policy + incident emission + backlog done-status guard in `dist_runtime_cutover legacy-pairs`, wired into merge/foundation gates. |
+| Time-sensitive tests must be deterministic and date-agnostic | `V3-RACE-061` | queued | Inject controllable clock hooks for manifest age/TTL checks so CI is stable across calendar time. |
+| Benchmark artifacts must be internally consistent and policy-scoped | `V3-RACE-062` | queued | Prevent report/receipt divergence and reject stale or cross-policy benchmark artifact contamination. |
+| Rust index benchmarking should measure runtime behavior, not `cargo run` startup tax | `V3-RACE-063` | queued | Use daemon/prebuilt binary warm-path probes for benchmark gating and keep cold-build timing separate. |
+| High sync-process spawn count must be reduced in hot lanes | `V3-RACE-064` | queued | Replace `spawnSync`/`execSync` hotspots with long-lived workers/daemon calls where ROI is highest. |
+| Rust memory runtime needs active vector-similarity retrieval, not schema-only embedding storage | `V3-RACE-065` | queued | Integrate vector search into query path and prove uplift vs lexical-only baseline with receipts. |
+| Memory DB encryption must be canonical AEAD/envelope, not ad-hoc cipher shim | `V3-RACE-066` | queued | Replace custom stream cipher path with authenticated encryption using canonical key lifecycle contracts. |
+| Memory indices must satisfy freshness schedule automatically | `V3-RACE-067` | queued | Add freshness checks + scheduled rebuild receipts to enforce weekly/thresholded regeneration contract. |
+| Advisory JS holdouts should be migrated/retired under an explicit wave plan | `V3-RACE-068` | queued | Establish wave-based TS migration for `habits/scripts` + `memory/tools` with measurable burn-down gates. |
+| Repo docs/config must reject unresolved merge-conflict markers | `V3-RACE-CONF-008` | done | Implemented `systems/security/conflict_marker_guard` + merge/foundation hooks with strict CI failure and remediation receipts. |
+
+### Net-New Canonical Queue
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-060 | hardening | V3 | done | Dist Runtime Contract Reconciliation Gate (Legacy-Pair Truth Source) | Runtime migration confidence is degraded when backlog/test/contracts claim zero legacy pairs while live checks report active pairs. | `runtime:dist:legacy --strict=1` is green, failing pair deltas auto-open incidents, and backlog status cannot remain `done` when contract checks fail. | V2-003, BL-014, V3-AEX-002 |
+| V3-RACE-061 | hardening | V3 | queued | Deterministic Time Harness for Release/TTL Gates | Calendar-dependent tests create false regressions and hide real failures. | All TTL/age tests use injected clock (`NOW` override/fake timer), flaky date-bound fixtures are removed, and CI passes independent of wall-clock date. | V2-049, V2-050, V3-RACE-060 |
+| V3-RACE-062 | hardening | V3 | queued | Benchmark Artifact Consistency Gate (Report vs History vs Latest) | Conflicting benchmark artifacts undermine migration-go/no-go decisions. | Transition lane emits policy-scoped benchmark reports, consistency checker validates `latest`/history/report coherence, and gate fails on mismatched aggregates. | V3-RACE-024, V3-RACE-026 |
+| V3-RACE-063 | primitive-upgrade | V3 | queued | Warm-Path Rust Benchmark Lane (Daemon/Binary, No Cargo-Compile Tax) | Using `cargo run` in benchmark loops overweights compile/startup time and skews runtime performance decisions. | Bench harness measures daemon/prebuilt runtime paths, separates cold-build metrics, and retirement decisions consume warm-path SLO evidence only. | V3-RACE-024, V3-RACE-025, V3-RACE-062 |
+| V3-RACE-064 | primitive-upgrade | V3 | queued | Sync-Spawn Hotspot Reduction Wave (Worker/Daemon Shift) | High `spawnSync`/`execSync` usage raises latency, jitter, and throughput ceilings. | Top hotspot lanes are migrated to long-lived worker/daemon calls with benchmark receipts proving lower p95/p99 latency and no behavior regressions. | V3-OPS-005, V3-RACE-034, V3-RACE-063 |
+| V3-RACE-065 | primitive-upgrade | V3 | queued | Rust Memory Vector Retrieval Activation (Hot-Path Similarity Search) | Embedding tables without active vector retrieval leave hybrid-memory gains partially unrealized. | Query runtime supports vector similarity + lexical fusion, eval corpus shows measurable retrieval improvement, and parity/fallback contracts remain intact. | V3-RACE-023, V3-RACE-028, V3-RACE-052 |
+| V3-RACE-066 | hardening | V3 | queued | Memory DB AEAD/Envelope Encryption Cutover | Custom cipher shims lack authenticated encryption guarantees and standard key-lifecycle controls. | Rust memory DB uses canonical authenticated envelope/key-rotation path, migration is lossless, tamper tests fail-closed, and old cipher path is retired. | V3-RACE-027, V3-ENT-002, V3-RACE-023 |
+| V3-RACE-067 | hardening | V3 | queued | Memory Index Freshness Enforcement Gate | Stale indices drift from node reality and can degrade retrieval/navigation reliability. | Weekly/threshold-based index regeneration is automated with freshness receipts; CI fails when index age exceeds policy bounds. | V3-RACE-023, V3-RACE-062, V3-RACE-CONF-007 |
+| V3-RACE-068 | extension | V3 | queued | Advisory JS Purge Wave (`habits/scripts`, `memory/tools`) | Large JS advisory surface keeps language mix and maintenance overhead JS-heavy despite TS core migration. | Migration waves retire high-churn JS files first, update wrappers/contracts, and publish progress dashboard + exception registry diffs each wave. | V2-001, V2-003, BL-014, RM-002 |
+| V3-RACE-CONF-008 | hardening | V3 | done | Merge-Conflict Marker CI Guard (`<<<<<<<`, `=======`, `>>>>>>>`) | Unresolved conflict markers in governance/runtime files can silently corrupt policy/behavior expectations. | Foundation/merge checks fail on conflict markers in tracked code/docs/config scopes, with remediation receipts and zero false negatives in test fixtures. | V3-RACE-CONF-007, V3-AEX-002 |
+
+### Human Backlog Intake (Deep Audit / Non-Automatable)
+
+| Human Item (derived) | Owner | Status | Backlog Action |
+|---|---|---|---|
+| Approve backlog-status correction when done/failed states diverge (`V2-003` drift reconciliation) | human | queued | Confirm policy that status must auto-downgrade from `done` when contract gate fails and approve reopened execution lane. |
+| Prioritize advisory JS purge wave scope vs product delivery tradeoff | human | queued | Set wave priorities (which scripts first) and acceptable temporary exception budget per sprint. |
+| Commission cryptography review for memory DB AEAD cutover design | human | queued | Obtain external/internal crypto review sign-off before retiring legacy cipher path. |
+| Decide operational ownership for weekly memory-index freshness SLO | human | queued | Assign owner/team for freshness incident response and remediation cadence governance. |
+
+### Deep Audit Mapping
+
+| Audit Gap | Canonical Queue Mapping |
+|---|---|
+| Dist-runtime claim drift | `V3-RACE-060` |
+| Time-brittle test failures | `V3-RACE-061` |
+| Benchmark evidence mismatch | `V3-RACE-062` |
+| Cargo-startup-skewed index benchmarking | `V3-RACE-063` |
+| Sync spawn hotspot concentration | `V3-RACE-064` |
+| Vector retrieval not active in hot path | `V3-RACE-065` |
+| Non-canonical memory DB crypto | `V3-RACE-066` |
+| Memory index freshness drift | `V3-RACE-067` |
+| Advisory JS holdout tail | `V3-RACE-068` |
+| Conflict markers in tracked files | `V3-RACE-CONF-008` |
+
+## Execution Yield Recovery Intake (State Snapshot Derived, 2026-03-01)
+
+Objective: close the live detect -> propose -> ship conversion gap (high signal throughput, low shipped execution) without weakening safety/governance controls.
+
+### Technical Requirements Mapping (Yield Recovery)
+
+| Derived Requirement | Canonical Backlog Handling | Status | Requirement Action |
+|---|---|---|---|
+| Track and enforce proposal-funnel health (`detected -> accepted -> executed -> shipped`) | `V3-RACE-069` | done | Implemented in `systems/ops/execution_yield_recovery.ts` with persisted funnel metrics + dead-window alerts (`state/ops/execution_yield_recovery/*`). |
+| Ensure high-worth proposals are executed before queue churn/starvation | `V3-RACE-070` | done | Added top-K reservation lane in `execution_yield_recovery` (queue `proposal_accepted` + decision `accept` receipts under apply mode). |
+| Rebalance aggressive filters that suppress actionable high-score work | `V3-RACE-071` | done | Added filter-pressure recovery for high-score filtered rows (`rewrite/defer/escalate` lanes with receipts in queue + decision streams). |
+| Auto-enrich missing `action_spec` proposals into executable plans | `V3-RACE-072` | done | Added deterministic action-spec synthesis for `action_spec_missing` proposals and requeue path with proposal-file mutation receipts. |
+| Prevent open-queue debt accumulation by throttling intake when backlog pressure is high | `V3-RACE-073` | done | Added throttle-state publisher in `execution_yield_recovery` + ingest guard in `habits/scripts/sensory_queue.js` (`intake_throttle_low_priority`). |
+| Restore degraded collectors/eyes faster when preflight failures persist | `V3-RACE-074` | done | Added eye-health SLO classifier with bounded auto-heal/escalation action receipts (`state/ops/execution_yield_recovery/eye_actions.jsonl`). |
+| Make observation-only days explicit exception mode, not default drift | `V3-RACE-075` | done | Added execution-floor policy (`min_shipped_per_day`) with miss-floor detection and deterministic catch-up reservation actions. |
+| Tie executed proposals to proven-work artifacts automatically | `V3-RACE-076` | done | Added shipped-outcome artifact bridge in `habits/scripts/proposal_queue.js` and lane-level bridge state in `execution_yield_recovery`. |
+| Replace fixed escalation TTL rejects with adaptive TTL + salvage path | `V3-RACE-077` | done | Added adaptive escalation TTL + salvage queue behavior in `habits/scripts/queue_gc.js` and lane-level escalation salvage receipts. |
+
+### Net-New Canonical Queue
+
+| ID | Class | Version | Status | Upgrade | Why | Exit Criteria | Depends On |
+|---|---|---|---|---|---|---|---|
+| V3-RACE-069 | hardening | V3 | done | Proposal Funnel SLO + Conversion Guard | Strong observation with weak execution can hide long zero-ship dead zones and stall objective progress. | Implemented in `systems/ops/execution_yield_recovery.ts` with persisted funnel metrics + dead-window alert detection and latest/history receipts. | RM-113, RM-114, BL-027 |
+| V3-RACE-070 | primitive-upgrade | V3 | done | Top-K Execution Reservation Lane | High-worth proposals can starve while queue churn/aging consumes execution bandwidth. | Implemented top-K reservation under apply mode (`proposal_accepted` + queue decision accept events) from highest-worth open proposals. | BL-027, BL-018, V3-AEX-001 |
+| V3-RACE-071 | hardening | V3 | done | Filter Pressure Rebalancer (High-Score Exemption Contracts) | Hard filters (`action_spec_missing`, `stale_open_age_sweep`, `composite_low`) can over-suppress actionable work. | High-score filtered proposals are routed to `rewrite/defer/escalate` lanes with deterministic queue/decision receipts. | BL-018, BL-027, RM-118 |
+| V3-RACE-072 | extension | V3 | done | Action-Spec Auto-Enrichment Lane | Many proposals fail because intent is present but executable structure is incomplete. | Missing-`action_spec` proposals are auto-enriched with synthesized command/verify/rollback structure and re-queued for execution. | BL-018, V3-017, V3-AEX-002 |
+| V3-RACE-073 | hardening | V3 | done | Queue Debt Backpressure + Intake Throttle Mode | Open proposal debt accumulates when intake outpaces execution and causes quality decay/aging. | Backpressure throttle state is published and enforced at ingest (`intake_throttle_low_priority`) when open-count/age pressure breaches policy. | RM-114, BL-018, V3-RACE-069 |
+| V3-RACE-074 | hardening | V3 | done | Eye Health SLO + Auto-Heal Escalation Lane | Persistent preflight failures in collectors reduce signal quality and skew planning confidence. | Eye health classifier emits bounded auto-heal/escalation action receipts for degraded eyes based on failure streak/quarantine/error-rate policy. | BL-026, V3-OPS-003, RM-118 |
+| V3-RACE-075 | hardening | V3 | done | Execution Floor Contract (Sunday Included, Explicit Observation Override) | Defaulting to observation-only days can normalize non-execution drift during critical objective windows. | Execution-floor contract enforces min shipped/day and schedules catch-up reservation receipts when floor is missed without override. | RM-113, V3-RACE-069, V3-AEX-001 |
+| V3-RACE-076 | extension | V3 | done | Execution-to-Artifact Auto-Capture Bridge | Successful execution without artifact capture underreports value and weakens reinforcement loops. | Shipped outcomes now trigger artifact bridge capture (`proposal_queue` bridge + yield recovery state) with deterministic bridge receipts. | BL-030, RM-113, V3-RACE-069 |
+| V3-RACE-077 | hardening | V3 | done | Adaptive Escalation TTL + Salvage Queue | Fixed escalation TTL can drop still-valuable escalations and reduce recovery effectiveness. | Escalation TTL now adapts by score; expired high-score escalations are salvaged (snooze/park + salvage ledger) while low-score rows are rejected. | BL-018, RM-114, V3-RACE-073 |
+
+### Human Backlog Intake (Yield Recovery / Non-Automatable)
+
+| Human Item (derived) | Owner | Status | Backlog Action |
+|---|---|---|---|
+| Approve minimum execution-floor policy (including Sunday expectations) | human | queued | Set per-day shipped targets and explicit criteria for enabling observation-only override mode. |
+| Set acceptable filter false-drop budget and override escalation thresholds | human | queued | Define max acceptable hard-drop rate for high-score proposals and escalation fallback behavior. |
+| Run weekly execution triage on top-K open proposals | human | queued | Review/greenlight highest-worth queued work to keep conversion momentum and avoid aging-out loss. |
+| Prioritize collector reliability repairs by business impact | human | queued | Decide repair order and urgency for degraded eyes (e.g., reddit_ai_agents, ollama_search). |
+| Confirm evidence policy for “shipped” definition (what counts as shipped) | human | queued | Finalize shipped criteria contract so SLOs/alerts reflect real operational value, not noisy proxies. |
+
+### Yield Recovery Mapping
+
+| Derived Gap | Canonical Queue Mapping |
+|---|---|
+| Proposal-to-shipped conversion dead zone | `V3-RACE-069` |
+| High-score proposal starvation | `V3-RACE-070` |
+| Over-aggressive filter suppression | `V3-RACE-071` |
+| Missing action-spec executability | `V3-RACE-072` |
+| Queue debt/open-age accumulation | `V3-RACE-073` |
+| Collector preflight health degradation | `V3-RACE-074` |
+| Observation-only drift (Sunday included) | `V3-RACE-075` |
+| No artifact/proven-work linkage on execution | `V3-RACE-076` |
+| Fixed escalation TTL drop loss | `V3-RACE-077` |
 
 ## Backlog Policy
 

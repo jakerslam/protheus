@@ -62,7 +62,9 @@ function runGuard(opts = {}) {
   checks.push(runCmd('adaptive_layer_guard_strict', 'node', ['systems/sensory/adaptive_layer_guard.js', 'run', '--strict']));
   checks.push(runCmd('memory_layer_guard_strict', 'node', ['systems/memory/memory_layer_guard.js', 'run', '--strict']));
   checks.push(runCmd('workspace_dump_guard_strict', 'node', ['systems/security/workspace_dump_guard.js', 'run', '--strict']));
+  checks.push(runCmd('conflict_marker_guard', 'node', ['systems/security/conflict_marker_guard.js', 'run', '--strict=1']));
   checks.push(runCmd('repo_hygiene_guard_strict', 'node', ['systems/security/repo_hygiene_guard.js', 'run', '--strict', '--staged']));
+  checks.push(runCmd('dist_runtime_legacy_pairs', 'node', ['systems/ops/dist_runtime_cutover.js', 'legacy-pairs', '--strict=1']));
   checks.push(runCmd('formal_invariant_engine', 'node', ['systems/security/formal_invariant_engine.js', 'run', '--strict=1']));
   checks.push(runCmd('critical_path_formal_verifier', 'node', ['systems/security/critical_path_formal_verifier.js', 'run', '--strict=1']));
   checks.push(runCmd('supply_chain_trust_plane', 'node', ['systems/security/supply_chain_trust_plane.js', 'run', '--strict=1', '--verify-only=1']));

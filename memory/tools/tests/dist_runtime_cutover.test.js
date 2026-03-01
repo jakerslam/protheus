@@ -28,8 +28,12 @@ function parseJson(stdout) {
 function run() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dist-runtime-cutover-test-'));
   const statePath = path.join(tmp, 'runtime_mode.json');
+  const legacyStatePath = path.join(tmp, 'legacy_pairs_state.json');
+  const legacyIncidentsPath = path.join(tmp, 'legacy_pair_incidents.jsonl');
   const baseEnv = {
-    PROTHEUS_RUNTIME_MODE_STATE_PATH: statePath
+    PROTHEUS_RUNTIME_MODE_STATE_PATH: statePath,
+    DIST_RUNTIME_LEGACY_STATE_PATH: legacyStatePath,
+    DIST_RUNTIME_LEGACY_INCIDENTS_PATH: legacyIncidentsPath
   };
 
   let r = runCmd(['status'], baseEnv);
@@ -65,6 +69,51 @@ function run() {
   out = parseJson(r.stdout);
   assert.strictEqual(out.ok, true, 'legacy runtime JS pairs should be retired');
   assert.strictEqual(Number(out.legacy_pair_count || 0), 0, 'no legacy runtime JS pairs expected');
+  assert.ok(out.backlog_status_guard && out.backlog_status_guard.ok === true, 'backlog status guard should pass when no legacy pairs exist');
+
+  const fixtureTs = path.join(ROOT, 'systems', 'ops', '__legacy_runtime_pair_fixture__.ts');
+  const fixtureJs = path.join(ROOT, 'systems', 'ops', '__legacy_runtime_pair_fixture__.js');
+  try {
+    fs.writeFileSync(fixtureTs, "export const legacyRuntimePairFixture = true;\n", 'utf8');
+    fs.writeFileSync(
+      fixtureJs,
+      [
+        '#!/usr/bin/env node',
+        "'use strict';",
+        'module.exports = { legacyRuntimePairFixture: true };',
+        ''
+      ].join('\n'),
+      'utf8'
+    );
+
+    r = runCmd(['legacy-pairs', '--strict=1'], baseEnv);
+    assert.strictEqual(r.status, 1, 'legacy-pairs strict should fail when a non-wrapper JS/TS pair exists');
+    out = parseJson(r.stdout);
+    assert.strictEqual(out.ok, false, 'legacy-pairs output should fail');
+    assert.ok(Number(out.legacy_pair_count || 0) >= 1, 'legacy pair count should be positive');
+    assert.ok(
+      Array.isArray(out.legacy_pairs) && out.legacy_pairs.includes('systems/ops/__legacy_runtime_pair_fixture__.js'),
+      'fixture legacy pair should be detected'
+    );
+    assert.strictEqual(out.incident_opened, true, 'pair delta failure should auto-open an incident');
+    assert.ok(
+      out.backlog_status_guard
+        && Array.isArray(out.backlog_status_guard.reopen_required_ids)
+        && out.backlog_status_guard.reopen_required_ids.includes('V2-003'),
+      'done backlog runtime ticket should require reopen on legacy pair failure'
+    );
+    assert.ok(fs.existsSync(legacyIncidentsPath), 'incident log should be created');
+    const incidentLines = String(fs.readFileSync(legacyIncidentsPath, 'utf8') || '').trim().split('\n').filter(Boolean);
+    assert.ok(incidentLines.length >= 1, 'incident log should include at least one entry');
+  } finally {
+    try { if (fs.existsSync(fixtureJs)) fs.unlinkSync(fixtureJs); } catch {}
+    try { if (fs.existsSync(fixtureTs)) fs.unlinkSync(fixtureTs); } catch {}
+  }
+
+  r = runCmd(['legacy-pairs', '--strict=1'], baseEnv);
+  assert.strictEqual(r.status, 0, 'legacy-pairs should recover after fixture cleanup');
+  out = parseJson(r.stdout);
+  assert.strictEqual(Number(out.legacy_pair_count || 0), 0, 'legacy pair count should return to zero after cleanup');
 
   fs.rmSync(tmp, { recursive: true, force: true });
   console.log('dist_runtime_cutover.test.js: OK');

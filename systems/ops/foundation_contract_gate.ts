@@ -4,6 +4,7 @@ export {};
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 type AnyObj = Record<string, any>;
 
@@ -78,6 +79,21 @@ function readJsonSafe(absPath: string, fallback: AnyObj = {}) {
   }
 }
 
+function parseJsonLoose(raw: unknown) {
+  const text = String(raw == null ? '' : raw).trim();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {}
+  const lines = text.split('\n');
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    try {
+      return JSON.parse(lines[i]);
+    } catch {}
+  }
+  return null;
+}
+
 function runGate() {
   const checks: AnyObj[] = [];
   const addCheck = (id: string, ok: boolean, detail: string) => {
@@ -150,6 +166,7 @@ function runGate() {
     'config/readiness_bridge_pack_policy.json',
     'config/benchmark_autonomy_gate_policy.json',
     'config/rust_memory_transition_policy.json',
+    'config/dist_runtime_reconciliation_policy.json',
     'config/openfang_parity_runtime_policy.json',
     'config/openfang_capability_pack_policy.json',
     'config/binary_runtime_hardening_policy.json',
@@ -200,6 +217,7 @@ function runGate() {
     'config/composite_disaster_gameday_policy.json',
     'config/multi_agent_debate_policy.json',
     'config/backlog_intake_quality_policy.json',
+    'config/conflict_marker_guard_policy.json',
     'systems/ops/profile_compatibility_gate.ts',
     'systems/ops/simplicity_budget_gate.ts',
     'systems/ops/schema_evolution_contract.ts',
@@ -258,6 +276,7 @@ function runGate() {
     'systems/security/dream_warden_guard.ts',
     'systems/security/copy_hardening_pack.ts',
     'systems/security/safety_resilience_guard.ts',
+    'systems/security/conflict_marker_guard.ts',
     'systems/security/wasm_capability_microkernel.ts',
     'systems/assimilation/world_model_freshness.ts',
     'systems/assimilation/trajectory_skill_distiller.ts',
@@ -733,6 +752,27 @@ function runGate() {
       && mergeGuardSrc.includes('--strict=1'),
     'merge_guard should enforce secret rotation migration auditor status check'
   );
+  addCheck(
+    'merge_conflict_marker:merge_guard_hook',
+    mergeGuardSrc.includes('conflict_marker_guard.js')
+      && mergeGuardSrc.includes('conflict_marker_guard')
+      && mergeGuardSrc.includes('--strict=1'),
+    'merge_guard should enforce conflict marker guard with strict mode'
+  );
+  const conflictMarkerRun = spawnSync('node', ['systems/security/conflict_marker_guard.js', 'run', '--strict=0'], {
+    cwd: ROOT,
+    encoding: 'utf8'
+  });
+  const conflictMarkerPayload = parseJsonLoose(conflictMarkerRun.stdout);
+  const conflictMarkerOk = !!(conflictMarkerPayload && conflictMarkerPayload.ok === true);
+  const conflictMarkerDetail = conflictMarkerPayload
+    ? `scoped_files=${Number(conflictMarkerPayload.scoped_files || 0)} violations=${Number(conflictMarkerPayload.violations_count || 0)}`
+    : `status=${Number(conflictMarkerRun.status || 0)} parse_error=1`;
+  addCheck(
+    'merge_conflict_marker:scope_clean',
+    conflictMarkerOk,
+    conflictMarkerDetail
+  );
   const repositoryAccessDocSrc = readFileSafe(path.join(ROOT, 'docs', 'REPOSITORY_ACCESS_CONTROL.md'));
   addCheck(
     'repo_access:runbook_present',
@@ -815,6 +855,26 @@ function runGate() {
     mergeGuardSrc.includes('dynamic_burn_budget_oracle.js')
       && mergeGuardSrc.includes('dynamic_burn_budget_oracle_status'),
     'merge_guard should enforce dynamic burn budget oracle status check'
+  );
+  addCheck(
+    'dist_runtime_cutover:merge_guard_legacy_pairs_hook',
+    mergeGuardSrc.includes('dist_runtime_cutover.js')
+      && mergeGuardSrc.includes('legacy-pairs')
+      && mergeGuardSrc.includes('dist_runtime_legacy_pairs')
+      && mergeGuardSrc.includes('--strict=1'),
+    'merge_guard should enforce dist runtime legacy-pairs reconciliation gate'
+  );
+  const distRuntimePolicy = readJsonSafe(path.join(ROOT, 'config', 'dist_runtime_reconciliation_policy.json'), {});
+  const distRuntimeBacklogTargets = Array.isArray(distRuntimePolicy.backlog_reopen_target_ids)
+    ? distRuntimePolicy.backlog_reopen_target_ids.map((row: unknown) => normalizeUpperToken(row, 80)).filter(Boolean)
+    : [];
+  addCheck(
+    'dist_runtime_cutover:policy_backlog_targets',
+    distRuntimePolicy.enabled !== false
+      && distRuntimeBacklogTargets.includes('V2-001')
+      && distRuntimeBacklogTargets.includes('V2-003')
+      && distRuntimeBacklogTargets.includes('BL-014'),
+    `enabled=${distRuntimePolicy.enabled !== false ? '1' : '0'} backlog_targets=${distRuntimeBacklogTargets.join(',') || 'none'}`
   );
   const burnOraclePolicy = readJsonSafe(path.join(ROOT, 'config', 'dynamic_burn_budget_oracle_policy.json'), {});
   const burnProviders = burnOraclePolicy.providers && typeof burnOraclePolicy.providers === 'object'

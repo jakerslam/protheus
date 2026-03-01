@@ -187,10 +187,127 @@ function testBudgetAwareHardPressureTuning() {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
 
+function testAdaptiveEscalationSalvagePath() {
+  const repoRoot = path.join(__dirname, '..', '..', '..');
+  const dateStr = '2026-02-22';
+  const tmp = fs.mkdtempSync(path.join(__dirname, 'temp_queue_gc_salvage_'));
+  const sensoryRoot = tmp;
+  const queueRoot = path.join(tmp, 'state', 'queue');
+  const sensoryProposals = path.join(sensoryRoot, 'state', 'sensory', 'proposals', `${dateStr}.json`);
+  const queueProposals = path.join(queueRoot, 'proposals.jsonl');
+  const queueLog = path.join(sensoryRoot, 'state', 'sensory', 'queue_log.jsonl');
+  const salvagePath = path.join(tmp, 'state', 'queue', 'salvage', `${dateStr}.jsonl`);
+
+  const proposals = [
+    {
+      id: 'ESC-HIGH-01',
+      type: 'pain_escalation',
+      title: 'Escalation high score salvage',
+      expected_impact: 'high',
+      status: 'open',
+      ts: '2026-02-20T00:00:00.000Z',
+      execution_worthiness_score: 92,
+      action_spec: {
+        version: 1,
+        objective: 'Salvage high-score escalation',
+        target: 'queue_gc:esc-high',
+        next_command: `node habits/scripts/queue_gc.js run ${dateStr}`,
+        verify: ['proposal parked'],
+        rollback: 'unsnooze escalation proposal'
+      },
+      meta: {
+        source_eye: 'eye_escalation',
+        signal_quality_score: 90,
+        relevance_score: 89,
+        actionability_score: 92,
+        composite_eligibility_score: 90
+      },
+      evidence: [{ source: 'test', path: `state/sensory/eyes/raw/${dateStr}.jsonl`, evidence_ref: 'eye:eye_escalation' }]
+    },
+    {
+      id: 'ESC-LOW-01',
+      type: 'pain_escalation',
+      title: 'Escalation low score reject',
+      expected_impact: 'high',
+      status: 'open',
+      ts: '2026-02-20T00:10:00.000Z',
+      execution_worthiness_score: 35,
+      action_spec: {
+        version: 1,
+        objective: 'Reject low-score escalation',
+        target: 'queue_gc:esc-low',
+        next_command: `node habits/scripts/queue_gc.js run ${dateStr}`,
+        verify: ['proposal rejected'],
+        rollback: 'restore proposal status open'
+      },
+      meta: {
+        source_eye: 'eye_escalation',
+        signal_quality_score: 35,
+        relevance_score: 34,
+        actionability_score: 32,
+        composite_eligibility_score: 33
+      },
+      evidence: [{ source: 'test', path: `state/sensory/eyes/raw/${dateStr}.jsonl`, evidence_ref: 'eye:eye_escalation' }]
+    }
+  ];
+  writeJson(sensoryProposals, proposals);
+  writeJsonl(queueProposals, proposals);
+  writeJsonl(queueLog, proposals.map((p, idx) => ({
+    ts: `${dateStr}T01:${String(idx).padStart(2, '0')}:00.000Z`,
+    type: 'proposal_generated',
+    date: dateStr,
+    proposal_id: p.id,
+    proposal_hash: `hash_${p.id}`,
+    title: p.title,
+    status_after: 'open',
+    source: 'sensory_queue'
+  })));
+
+  const env = {
+    SENSORY_QUEUE_TEST_DIR: sensoryRoot,
+    QUEUE_DIR: path.relative(repoRoot, queueRoot),
+    QUEUE_GC_BUDGET_TUNING_ENABLED: '0',
+    QUEUE_GC_ESCALATION_SALVAGE_PATH: salvagePath
+  };
+
+  const run = runNode(
+    [
+      'habits/scripts/queue_gc.js',
+      'run',
+      dateStr,
+      '--cap-per-eye=10',
+      '--cap-per-type=10',
+      '--ttl-hours=999',
+      '--escalation-ttl-hours=16',
+      '--cross-signal-ttl-hours=999'
+    ],
+    env
+  );
+  assert.strictEqual(run.status, 0, `queue_gc adaptive escalation run failed: ${String(run.stderr || run.stdout)}`);
+
+  const queueRows = readJsonl(queueLog);
+  assert.ok(
+    queueRows.some((e) => e && e.type === 'proposal_snoozed' && e.proposal_id === 'ESC-HIGH-01'),
+    'high-score escalation should be salvaged via snooze'
+  );
+  assert.ok(
+    queueRows.some((e) => e && e.type === 'proposal_rejected' && e.proposal_id === 'ESC-LOW-01'),
+    'low-score escalation should be rejected after adaptive ttl'
+  );
+  const salvageRows = readJsonl(salvagePath);
+  assert.ok(
+    salvageRows.some((row) => row && row.type === 'queue_gc_escalation_salvage' && row.proposal_id === 'ESC-HIGH-01'),
+    'salvage ledger should record high-score escalation'
+  );
+
+  fs.rmSync(tmp, { recursive: true, force: true });
+}
+
 function main() {
   banner('QUEUE_GC TESTS defaults + idempotence');
   testDefaultParsingAndIdempotence();
   testBudgetAwareHardPressureTuning();
+  testAdaptiveEscalationSalvagePath();
   banner('✅ QUEUE_GC TESTS PASS');
 }
 

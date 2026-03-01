@@ -288,6 +288,17 @@ function main() {
     ['"ok":']
   );
 
+  // conflict_marker_guard.js blocks unresolved merge markers in tracked code/docs/config scopes.
+  checkScript(
+    "systems/security/conflict_marker_guard.js",
+    ["conflict_marker_guard.js", "run", "status"]
+  );
+  checkUsageTextOnly(
+    "systems/security/conflict_marker_guard.js",
+    ["run", "--strict=0"],
+    ['"ok":', '"violations_count":']
+  );
+
   // eyes_insight.js should advertise run + date usage
   checkScript(
     "habits/scripts/eyes_insight.js",
@@ -1556,7 +1567,7 @@ function main() {
   // dist_runtime_cutover.js controls source/dist runtime mode and verification checks.
   checkScript(
     "systems/ops/dist_runtime_cutover.js",
-    ["dist_runtime_cutover.js", "status", "set-mode", "verify", "--mode", "--build", "--strict"]
+    ["dist_runtime_cutover.js", "status", "set-mode", "verify", "legacy-pairs", "--mode", "--build", "--strict"]
   );
 
   // binary_runtime_hardening.js governs master/child binary role bootstrap, debug attestation, and tamper/reweave lifecycle.

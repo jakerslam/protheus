@@ -67,6 +67,11 @@ function readJsonSafe(filePath, fallback) {
   }
 }
 
+function appendJsonl(filePath, row) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.appendFileSync(filePath, JSON.stringify(row) + "\n", "utf8");
+}
+
 function resolveSensoryQueueLogPath(repo) {
   const testDir = String(process.env.SENSORY_QUEUE_TEST_DIR || "").trim();
   if (testDir) {
@@ -233,6 +238,47 @@ function parseTs(p) {
   return null;
 }
 
+function addUtcDays(dateStr, deltaDays) {
+  const ms = Date.parse(`${String(dateStr || "").trim()}T00:00:00.000Z`);
+  if (!Number.isFinite(ms)) return new Date(Date.now() + (deltaDays * 24 * 60 * 60 * 1000)).toISOString().slice(0, 10);
+  return new Date(ms + (deltaDays * 24 * 60 * 60 * 1000)).toISOString().slice(0, 10);
+}
+
+function extractExecutionWorthinessScore(p) {
+  const proposal = p && typeof p === "object" ? p : {};
+  const meta = proposal.meta && typeof proposal.meta === "object" ? proposal.meta : {};
+  const candidates = [
+    proposal.execution_worthiness_score,
+    proposal.execution_score,
+    meta.execution_worthiness_score,
+    meta.actionability_score,
+    meta.composite_eligibility_score,
+    meta.signal_quality_score
+  ];
+  for (const raw of candidates) {
+    const n = Number(raw);
+    if (Number.isFinite(n)) return Math.max(0, Math.min(100, n));
+  }
+  return 50;
+}
+
+function adaptiveEscalationTtlHours(baseTtlHours, score, cfg) {
+  const base = Number(baseTtlHours || 16);
+  const highScore = Number(cfg && cfg.highScoreThreshold || 85);
+  const lowScore = Number(cfg && cfg.lowScoreThreshold || 60);
+  const highFactor = Number(cfg && cfg.highFactor || 2);
+  const lowFactor = Number(cfg && cfg.lowFactor || 0.75);
+  const minHours = Number(cfg && cfg.minHours || 6);
+  const maxHours = Number(cfg && cfg.maxHours || 72);
+  let ttl = base;
+  if (Number(score) >= highScore) ttl = base * highFactor;
+  else if (Number(score) <= lowScore) ttl = base * lowFactor;
+  if (!Number.isFinite(ttl)) ttl = base;
+  ttl = Math.max(minHours, ttl);
+  ttl = Math.min(maxHours, ttl);
+  return ttl;
+}
+
 function isLowImpact(p) {
   const v = (p.expected_impact || "").toString().trim().toLowerCase();
   return v === "low" || v === "";
@@ -302,6 +348,35 @@ function rejectProposal(repo, proposalId, reason) {
   }
 }
 
+function salvageProposal(repo, proposalId, reason, dateStr, details, salvagePath) {
+  const sensoryScript = path.join(repo, "habits", "scripts", "sensory_queue.js");
+  const proposalScript = path.join(repo, "habits", "scripts", "proposal_queue.js");
+  const until = addUtcDays(dateStr, 1);
+  const snooze = spawnSync(
+    "node",
+    [sensoryScript, "snooze", proposalId, `--until=${until}`, `--note=${reason}`],
+    { cwd: repo, encoding: "utf8" }
+  );
+  if (snooze.status !== 0) {
+    console.warn(`queue_gc: sensory_queue snooze failed for ${proposalId} (continuing)`);
+  }
+  const park = spawnSync("node", [proposalScript, "park", proposalId, reason], {
+    cwd: repo,
+    encoding: "utf8"
+  });
+  if (park.status !== 0) {
+    console.warn(`queue_gc: proposal_queue park failed for ${proposalId} (continuing)`);
+  }
+  appendJsonl(salvagePath, {
+    ts: new Date().toISOString(),
+    type: "queue_gc_escalation_salvage",
+    proposal_id: proposalId,
+    reason,
+    snooze_until: until,
+    details: details || null
+  });
+}
+
 function reconcileProposalStatuses(repo, dateStr) {
   const proposalScript = path.join(repo, "habits", "scripts", "proposal_queue.js");
   const r = spawnSync("node", [proposalScript, "reconcile", `--date=${dateStr}`], { cwd: repo, encoding: "utf8" });
@@ -330,10 +405,39 @@ function main() {
     1,
     asInt(arg("escalation-ttl-hours"), Number(process.env.QUEUE_GC_ESCALATION_TTL_HOURS || 16))
   );
+  const escalationHighScoreThreshold = Math.max(
+    0,
+    Number(arg("escalation-high-score-threshold") || process.env.QUEUE_GC_ESCALATION_HIGH_SCORE_THRESHOLD || 85)
+  );
+  const escalationLowScoreThreshold = Math.max(
+    0,
+    Number(arg("escalation-low-score-threshold") || process.env.QUEUE_GC_ESCALATION_LOW_SCORE_THRESHOLD || 60)
+  );
+  const escalationHighFactor = Math.max(
+    0.1,
+    Number(arg("escalation-high-factor") || process.env.QUEUE_GC_ESCALATION_HIGH_FACTOR || 2)
+  );
+  const escalationLowFactor = Math.max(
+    0.1,
+    Number(arg("escalation-low-factor") || process.env.QUEUE_GC_ESCALATION_LOW_FACTOR || 0.75)
+  );
+  const escalationTtlMinHours = Math.max(
+    1,
+    Number(arg("escalation-ttl-min-hours") || process.env.QUEUE_GC_ESCALATION_TTL_MIN_HOURS || 6)
+  );
+  const escalationTtlMaxHours = Math.max(
+    escalationTtlMinHours,
+    Number(arg("escalation-ttl-max-hours") || process.env.QUEUE_GC_ESCALATION_TTL_MAX_HOURS || 72)
+  );
+  const escalationSalvageScoreThreshold = Math.max(
+    0,
+    Number(arg("escalation-salvage-score-threshold") || process.env.QUEUE_GC_ESCALATION_SALVAGE_SCORE_THRESHOLD || 85)
+  );
   const crossSignalTtlHours = Math.max(
     1,
     asInt(arg("cross-signal-ttl-hours"), Number(process.env.QUEUE_GC_CROSS_SIGNAL_TTL_HOURS || 24))
   );
+  const escalationSalvagePathRaw = String(arg("escalation-salvage-path") || process.env.QUEUE_GC_ESCALATION_SALVAGE_PATH || "").trim();
 
   if (!mode || mode === "--help" || mode === "-h") {
     console.log("Usage:");
@@ -348,6 +452,9 @@ function main() {
   }
 
   const repo = repoRoot();
+  const escalationSalvagePath = escalationSalvagePathRaw
+    ? (path.isAbsolute(escalationSalvagePathRaw) ? escalationSalvagePathRaw : path.join(repo, escalationSalvagePathRaw))
+    : path.join(repo, "state", "queue", "salvage", `${dateStr}.jsonl`);
   const budgetPressure = loadBudgetPressure(repo, dateStr);
   const tuned = tuneGcByBudget(
     { capPerEye: baseCapPerEye, capPerType: baseCapPerType, ttlHours: baseTtlHours },
@@ -394,6 +501,7 @@ function main() {
       type: extractProposalType(p),
       ts: parseTs(p),
       lowImpact: isLowImpact(p),
+      executionScore: extractExecutionWorthinessScore(p),
       raw: p
     });
   }
@@ -438,16 +546,40 @@ function main() {
   const dedupRejectIds = new Set(dedupReject.map((x) => x.id));
   const remainingAfterDedup = remaining.filter((x) => !dedupRejectIds.has(x.id));
 
-  // 3) Escalation TTL reject (prevents stale pain/escalation churn)
+  // 3) Escalation TTL handling (adaptive reject + salvage path)
   const escalationReject = [];
+  const escalationSalvage = [];
   for (const it of remainingAfterDedup) {
     if (!isEscalationType(it.type)) continue;
     if (!it.ts) continue;
     const ageHours = (now.getTime() - it.ts.getTime()) / (1000 * 60 * 60);
-    if (ageHours > escalationTtlHours) escalationReject.push(it);
+    const adaptiveTtl = adaptiveEscalationTtlHours(
+      escalationTtlHours,
+      it.executionScore,
+      {
+        highScoreThreshold: escalationHighScoreThreshold,
+        lowScoreThreshold: escalationLowScoreThreshold,
+        highFactor: escalationHighFactor,
+        lowFactor: escalationLowFactor,
+        minHours: escalationTtlMinHours,
+        maxHours: escalationTtlMaxHours
+      }
+    );
+    if (ageHours <= adaptiveTtl) continue;
+    const enhanced = {
+      ...it,
+      ageHours,
+      adaptiveTtlHours: adaptiveTtl
+    };
+    if (Number(it.executionScore || 0) >= escalationSalvageScoreThreshold) {
+      escalationSalvage.push(enhanced);
+    } else {
+      escalationReject.push(enhanced);
+    }
   }
   const escalationRejectIds = new Set(escalationReject.map((x) => x.id));
-  const remainingForCaps = remainingAfterDedup.filter((x) => !escalationRejectIds.has(x.id));
+  const escalationSalvageIds = new Set(escalationSalvage.map((x) => x.id));
+  const remainingForCaps = remainingAfterDedup.filter((x) => !escalationRejectIds.has(x.id) && !escalationSalvageIds.has(x.id));
 
   // 4) Cross-signal TTL reject (these opportunities decay quickly)
   const crossSignalReject = [];
@@ -482,7 +614,7 @@ function main() {
   }
 
   // 6) Per-type cap reject (oldest first), after TTL + dedup + escalation + cross-signal + per-eye rejections are selected
-  const preSelectedIds = new Set([...ttlReject, ...dedupReject, ...escalationReject, ...crossSignalReject, ...capReject].map((it) => it.id));
+  const preSelectedIds = new Set([...ttlReject, ...dedupReject, ...escalationReject, ...escalationSalvage, ...crossSignalReject, ...capReject].map((it) => it.id));
   const remainingForType = open.filter((it) => !preSelectedIds.has(it.id));
   const byType = new Map();
   for (const it of remainingForType) {
@@ -503,7 +635,7 @@ function main() {
   }
 
   const toReject = [...ttlReject, ...dedupReject, ...escalationReject, ...crossSignalReject, ...capReject, ...typeCapReject];
-  if (!toReject.length) {
+  if (!toReject.length && !escalationSalvage.length) {
     console.log(
       `queue_gc: no actions (OPEN=${open.length}, cap_per_eye=${capPerEye}, cap_per_type=${capPerType}, ttl_hours=${ttlHours}, escalation_ttl_hours=${escalationTtlHours}, cross_signal_ttl_hours=${crossSignalTtlHours}, budget_pressure=${budgetPressure.pressure}, pressure_source=${budgetPressure.source})`
     );
@@ -511,7 +643,7 @@ function main() {
   }
 
   console.log(
-    `queue_gc: rejecting ${toReject.length} proposals (OPEN=${open.length}, dedup=${dedupReject.length}, escalation_ttl=${escalationReject.length}, cross_signal_ttl=${crossSignalReject.length}, type_cap=${typeCapReject.length}, budget_pressure=${budgetPressure.pressure}, pressure_source=${budgetPressure.source})`
+    `queue_gc: actions reject=${toReject.length} salvage=${escalationSalvage.length} (OPEN=${open.length}, dedup=${dedupReject.length}, escalation_reject=${escalationReject.length}, escalation_salvage=${escalationSalvage.length}, cross_signal_ttl=${crossSignalReject.length}, type_cap=${typeCapReject.length}, budget_pressure=${budgetPressure.pressure}, pressure_source=${budgetPressure.source})`
   );
 
   // Deterministic order: TTL rejects first (oldest first), then cap rejects (oldest first)
@@ -523,6 +655,7 @@ function main() {
   ttlReject.sort(oldestFirst);
   dedupReject.sort(oldestFirst);
   escalationReject.sort(oldestFirst);
+  escalationSalvage.sort(oldestFirst);
   crossSignalReject.sort(oldestFirst);
   capReject.sort(oldestFirst);
   typeCapReject.sort(oldestFirst);
@@ -537,8 +670,24 @@ function main() {
     rejectProposal(repo, it.id, reason);
   }
   for (const it of escalationReject) {
-    const reason = `auto:queue_gc escalation_ttl>${escalationTtlHours}h type:${it.type}`;
+    const reason = `auto:queue_gc escalation_ttl>${Number((it.adaptiveTtlHours || escalationTtlHours).toFixed(1))}h type:${it.type}`;
     rejectProposal(repo, it.id, reason);
+  }
+  for (const it of escalationSalvage) {
+    const reason = `auto:queue_gc escalation_salvage ttl>${Number((it.adaptiveTtlHours || escalationTtlHours).toFixed(1))}h score:${Number((it.executionScore || 0).toFixed(1))}`;
+    salvageProposal(
+      repo,
+      it.id,
+      reason,
+      dateStr,
+      {
+        age_hours: Number((it.ageHours || 0).toFixed(3)),
+        adaptive_ttl_hours: Number((it.adaptiveTtlHours || escalationTtlHours).toFixed(3)),
+        execution_score: Number((it.executionScore || 0).toFixed(3)),
+        type: it.type || null
+      },
+      escalationSalvagePath
+    );
   }
   for (const it of crossSignalReject) {
     const reason = `auto:queue_gc cross_signal_ttl>${crossSignalTtlHours}h type:${it.type}`;
