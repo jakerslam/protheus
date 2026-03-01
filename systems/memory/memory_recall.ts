@@ -409,6 +409,45 @@ function runRustQueryIndex(query, tagFilters, top) {
   };
 }
 
+function runRustGetNode(nodeId, uid, fileFilter) {
+  const cratePath = DEFAULT_RUST_CRATE_PATH;
+  if (!fs.existsSync(cratePath)) {
+    return { ok: false, error: 'rust_crate_missing', crate_path: cratePath };
+  }
+  const args = [
+    'run',
+    '--quiet',
+    '--',
+    'get-node',
+    `--root=${REPO_ROOT}`
+  ];
+  if (nodeId) args.push(`--node-id=${String(nodeId)}`);
+  if (uid) args.push(`--uid=${String(uid)}`);
+  if (fileFilter) args.push(`--file=${String(fileFilter)}`);
+  const run = spawnSync('cargo', args, {
+    cwd: cratePath,
+    encoding: 'utf8',
+    timeout: DEFAULT_RUST_TIMEOUT_MS
+  });
+  const stdout = String(run.stdout || '').trim();
+  const stderr = String(run.stderr || '').trim();
+  let payload = null;
+  try { payload = stdout ? JSON.parse(stdout) : null; } catch {}
+  if (Number.isFinite(run.status) && run.status === 0 && payload && payload.ok === true && typeof payload.section === 'string') {
+    return { ok: true, payload };
+  }
+  const err = run.error
+    ? `spawn_error_${String(run.error.code || run.error.message || 'unknown')}`
+    : (payload && payload.error ? String(payload.error) : `cargo_status_${Number.isFinite(run.status) ? run.status : 1}`);
+  return {
+    ok: false,
+    error: err,
+    status: Number.isFinite(run.status) ? run.status : 1,
+    stderr: stderr.slice(0, 300),
+    stdout: stdout.slice(0, 300)
+  };
+}
+
 function safeSessionName(v) {
   const s = String(v || 'default').trim();
   if (!s) return 'default';
@@ -753,6 +792,7 @@ function getCmd(args) {
   const fileFilter = normalizeFileRef(args.file || '');
   const session = safeSessionName(args.session || process.env.MEMORY_RECALL_SESSION || 'default');
   const cacheMaxBytes = clampInt(args['cache-max-bytes'] == null ? DEFAULT_CACHE_MAX_BYTES : args['cache-max-bytes'], 65536, 8 * 1024 * 1024);
+  const backendRequested = resolveBackendChoice(args.backend == null ? DEFAULT_BACKEND : args.backend);
 
   if (!nodeId && !uid) {
     process.stdout.write(JSON.stringify({
@@ -760,6 +800,37 @@ function getCmd(args) {
       error: 'missing --node-id=<id> or --uid=<alnum_uid>'
     }) + '\n');
     process.exit(2);
+  }
+
+  const metrics = { cache_hits: 0, cache_misses: 0, file_reads: 0 };
+  let backendUsed = 'js';
+  let backendFallbackReason = null;
+
+  if (backendRequested === 'rust') {
+    const rust = runRustGetNode(nodeId, uid, fileFilter);
+    if (rust.ok) {
+      const payload = rust.payload || {};
+      const section = typeof payload.section === 'string' ? payload.section : '';
+      process.stdout.write(JSON.stringify({
+        ok: true,
+        type: 'memory_recall_get',
+        session,
+        backend_requested: backendRequested,
+        backend_used: 'rust',
+        backend_fallback_reason: null,
+        node_id: normalizeNodeId(payload.node_id || nodeId),
+        uid: normalizeUid(payload.uid || uid),
+        file: normalizeFileRef(payload.file || fileFilter),
+        summary: cleanCell(payload.summary || ''),
+        tags: Array.isArray(payload.tags) ? uniqueSorted(payload.tags.map(normalizeTag).filter(Boolean)) : [],
+        section_source: 'rust',
+        section_hash: sha256(section),
+        metrics,
+        section
+      }, null, 2) + '\n');
+      return;
+    }
+    backendFallbackReason = rust.error || 'rust_get_failed';
   }
 
   const index = loadMemoryIndex();
@@ -780,7 +851,6 @@ function getCmd(args) {
     process.exit(1);
   }
 
-  const metrics = { cache_hits: 0, cache_misses: 0, file_reads: 0 };
   const cacheObj = loadCache(session);
   const fileContents = new Map();
   const sec = loadSection(entry, cacheObj, metrics, fileContents, cacheMaxBytes);
@@ -799,6 +869,9 @@ function getCmd(args) {
     ok: true,
     type: 'memory_recall_get',
     session,
+    backend_requested: backendRequested,
+    backend_used: backendUsed,
+    backend_fallback_reason: backendFallbackReason,
     node_id: entry.node_id,
     uid: entry.uid || '',
     file: entry.file_rel,

@@ -185,5 +185,25 @@ runTest('get can resolve node by uid', () => {
   assert.ok(String(out.section || '').includes('# autonomy-loop-gate'), 'section should include uid-matched node');
 });
 
+runTest('get requested rust backend falls back to js when crate is missing', () => {
+  const root = makeWorkspace();
+  const missingCrate = path.join(root, 'systems', 'rust', 'memory_box_missing');
+  const r = runRecall(
+    root,
+    ['get', '--node-id=routing-cache-design', '--session=getrustfallback'],
+    {
+      MEMORY_RECALL_BACKEND: 'rust',
+      MEMORY_RECALL_RUST_CRATE_PATH: missingCrate
+    }
+  );
+  assert.strictEqual(r.status, 0, `get failed: ${r.stderr}`);
+  const out = parseJson(r.stdout);
+  assert.ok(out && out.ok === true, 'expected ok=true');
+  assert.strictEqual(out.backend_requested, 'rust');
+  assert.strictEqual(out.backend_used, 'js');
+  assert.strictEqual(out.backend_fallback_reason, 'rust_crate_missing');
+  assert.ok(String(out.section || '').includes('# routing-cache-design'), 'fallback should still return section');
+});
+
 if (failed) process.exit(1);
 console.log('   ✅ ALL MEMORY RECALL TESTS PASS');

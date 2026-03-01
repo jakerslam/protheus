@@ -53,6 +53,29 @@ try {
     '#memory -> routing-cache-design, autonomy-loop-gate',
     ''
   ].join('\n'));
+  writeFile(path.join(tmp, 'memory', '2026-01-01.md'), [
+    '---',
+    'date: 2026-01-01',
+    'node_id: routing-cache-design',
+    'uid: memabc123routing01',
+    'tags: [routing, memory]',
+    'edges_to: []',
+    '---',
+    '# routing-cache-design',
+    '- Use cache-first retrieval and fallback logic.',
+    '',
+    '<!-- NODE -->',
+    '---',
+    'date: 2026-01-01',
+    'node_id: autonomy-loop-gate',
+    'uid: memabc123autonomy2',
+    'tags: [autonomy, memory]',
+    'edges_to: []',
+    '---',
+    '# autonomy-loop-gate',
+    '- Stop on repeated no-progress streak.',
+    ''
+  ].join('\n'));
 
   let out = run(['query-index', `--root=${tmp}`, '--q=routing fallback', '--tags=routing', '--top=2'], CRATE);
   assert.strictEqual(out.status, 0, out.stderr);
@@ -65,6 +88,12 @@ try {
   assert.strictEqual(out.status, 0, out.stderr);
   assert.ok(out.payload && out.payload.ok === true, 'probe should return ok=true');
   assert.ok(Number(out.payload.estimated_ms || 0) >= 1, 'probe should report elapsed ms');
+
+  out = run(['get-node', `--root=${tmp}`, '--uid=memabc123autonomy2'], CRATE);
+  assert.strictEqual(out.status, 0, out.stderr);
+  assert.ok(out.payload && out.payload.ok === true, 'get-node should return ok=true');
+  assert.strictEqual(out.payload.node_id, 'autonomy-loop-gate', 'uid lookup should return correct node');
+  assert.ok(String(out.payload.section || '').includes('# autonomy-loop-gate'), 'section should include node content');
 
   fs.rmSync(tmp, { recursive: true, force: true });
   console.log('rust_memory_box_query.test.js: OK');

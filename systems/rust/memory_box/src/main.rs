@@ -1,7 +1,9 @@
 use serde::Serialize;
+use serde_json::json;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::env;
 use std::fs;
+use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -41,6 +43,18 @@ struct QueryResult {
     index_sources: Vec<String>,
     tag_sources: Vec<String>,
     hits: Vec<QueryHit>,
+}
+
+#[derive(Serialize)]
+struct GetNodeResult {
+    ok: bool,
+    backend: String,
+    node_id: String,
+    uid: String,
+    file: String,
+    summary: String,
+    tags: Vec<String>,
+    section: String,
 }
 
 fn strip_ticks(s: &str) -> String {
@@ -521,6 +535,85 @@ fn arg_or_default(args: &HashMap<String, String>, key: &str, fallback: &str) -> 
     args.get(key).cloned().unwrap_or_else(|| fallback.to_string())
 }
 
+fn arg_any<'a>(args: &'a HashMap<String, String>, keys: &[&str]) -> String {
+    for key in keys {
+        if let Some(v) = args.get(*key) {
+            return v.clone();
+        }
+    }
+    String::new()
+}
+
+fn extract_date_from_path(path_value: &str) -> String {
+    let chars = path_value.chars().collect::<Vec<char>>();
+    if chars.len() < 10 {
+        return String::new();
+    }
+    for idx in 0..=(chars.len() - 10) {
+        let mut ok = true;
+        for off in 0..10 {
+            let ch = chars[idx + off];
+            let expected_dash = off == 4 || off == 7;
+            if expected_dash {
+                if ch != '-' {
+                    ok = false;
+                    break;
+                }
+            } else if !ch.is_ascii_digit() {
+                ok = false;
+                break;
+            }
+        }
+        if ok {
+            return chars[idx..idx + 10].iter().collect::<String>();
+        }
+    }
+    String::new()
+}
+
+fn node_id_from_chunk(chunk: &str) -> String {
+    for line in chunk.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("node_id:") {
+            let normalized = normalize_node_id(rest);
+            if !normalized.is_empty() {
+                return normalized;
+            }
+        }
+    }
+    String::new()
+}
+
+fn extract_node_section(file_content: &str, node_id: &str) -> String {
+    for chunk in file_content.split("<!-- NODE -->") {
+        let detected = node_id_from_chunk(chunk);
+        if !detected.is_empty() && detected == node_id {
+            return chunk.trim().to_string();
+        }
+    }
+    String::new()
+}
+
+fn sort_entries_for_get(entries: &mut [IndexEntry]) {
+    entries.sort_by(|a, b| {
+        let da = extract_date_from_path(&a.file_rel);
+        let db = extract_date_from_path(&b.file_rel);
+        if db != da {
+            return db.cmp(&da);
+        }
+        let aa = if a.file_rel.contains("/_archive/") { 1 } else { 0 };
+        let bb = if b.file_rel.contains("/_archive/") { 1 } else { 0 };
+        if aa != bb {
+            return aa.cmp(&bb);
+        }
+        let node_cmp = a.node_id.cmp(&b.node_id);
+        if node_cmp != Ordering::Equal {
+            return node_cmp;
+        }
+        a.file_rel.cmp(&b.file_rel)
+    });
+}
+
 fn detect_default_root() -> PathBuf {
     let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     cwd.join("../../..")
@@ -618,6 +711,102 @@ fn run_query_index(args: &HashMap<String, String>) {
     println!("{}", serde_json::to_string(&out).expect("serialize query result"));
 }
 
+fn run_get_node(args: &HashMap<String, String>) {
+    let root = PathBuf::from(arg_or_default(args, "root", "."));
+    let node_id = normalize_node_id(&arg_any(args, &["node-id", "node_id"]));
+    let uid = normalize_uid(&arg_or_default(args, "uid", ""));
+    let file_filter = normalize_file_ref(&arg_or_default(args, "file", ""));
+
+    if node_id.is_empty() && uid.is_empty() {
+        println!(
+            "{}",
+            serde_json::to_string(&json!({
+                "ok": false,
+                "error": "missing --node-id=<id> or --uid=<alnum_uid>"
+            }))
+            .expect("serialize missing-id error")
+        );
+        std::process::exit(2);
+    }
+
+    let (_index_sources, entries) = load_memory_index(&root);
+    let mut matches = entries
+        .into_iter()
+        .filter(|entry| {
+            if !uid.is_empty() && entry.uid != uid {
+                return false;
+            }
+            if !node_id.is_empty() && entry.node_id != node_id {
+                return false;
+            }
+            if !file_filter.is_empty() && entry.file_rel != file_filter {
+                return false;
+            }
+            true
+        })
+        .collect::<Vec<IndexEntry>>();
+
+    sort_entries_for_get(&mut matches);
+    let Some(entry) = matches.first() else {
+        println!(
+            "{}",
+            serde_json::to_string(&json!({
+                "ok": false,
+                "error": "node_not_found",
+                "node_id": if node_id.is_empty() { serde_json::Value::Null } else { json!(node_id) },
+                "uid": if uid.is_empty() { serde_json::Value::Null } else { json!(uid) },
+                "file": if file_filter.is_empty() { serde_json::Value::Null } else { json!(file_filter) }
+            }))
+            .expect("serialize node-not-found error")
+        );
+        std::process::exit(1);
+    };
+
+    let file_abs = root.join(&entry.file_rel);
+    let file_content = match fs::read_to_string(&file_abs) {
+        Ok(content) => content,
+        Err(_) => {
+            println!(
+                "{}",
+                serde_json::to_string(&json!({
+                    "ok": false,
+                    "error": "file_read_failed",
+                    "file": entry.file_rel
+                }))
+                .expect("serialize file-read error")
+            );
+            std::process::exit(1);
+        }
+    };
+
+    let section = extract_node_section(&file_content, &entry.node_id);
+    if section.is_empty() {
+        println!(
+            "{}",
+            serde_json::to_string(&json!({
+                "ok": false,
+                "error": "node_not_found",
+                "node_id": entry.node_id,
+                "file": entry.file_rel
+            }))
+            .expect("serialize node-not-found-in-file error")
+        );
+        std::process::exit(1);
+    }
+
+    let out = GetNodeResult {
+        ok: true,
+        backend: "rust_memory_box".to_string(),
+        node_id: entry.node_id.clone(),
+        uid: entry.uid.clone(),
+        file: entry.file_rel.clone(),
+        summary: entry.summary.clone(),
+        tags: dedupe_sorted(entry.tags.clone()),
+        section,
+    };
+    println!("{}", serde_json::to_string(&out).expect("serialize get-node result"));
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     let cmd = args.get(1).map(|s| s.as_str()).unwrap_or("probe");
@@ -626,6 +815,7 @@ fn main() {
     match cmd {
         "probe" => run_probe(&kv),
         "query-index" => run_query_index(&kv),
+        "get-node" => run_get_node(&kv),
         _ => {
             eprintln!("unsupported command: {}", cmd);
             std::process::exit(1);
