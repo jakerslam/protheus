@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -6,7 +6,7 @@ use std::env;
 use std::fs;
 use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
-use std::time::Instant;
+use std::time::{Instant, UNIX_EPOCH};
 
 #[derive(Clone, Debug, Default)]
 struct IndexEntry {
@@ -67,6 +67,19 @@ struct GetNodeResult {
     tags: Vec<String>,
     section_hash: String,
     section: String,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+struct CacheNode {
+    mtime_ms: u64,
+    section_hash: String,
+    section_text: String,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+struct WorkingSetCache {
+    schema_version: String,
+    nodes: HashMap<String, CacheNode>,
 }
 
 fn strip_ticks(s: &str) -> String {
@@ -532,6 +545,117 @@ fn sha256_hex(text: &str) -> String {
     hex::encode(hasher.finalize())
 }
 
+fn file_mtime_ms(file_path: &Path) -> Option<u64> {
+    let metadata = fs::metadata(file_path).ok()?;
+    let modified = metadata.modified().ok()?;
+    let dur = modified.duration_since(UNIX_EPOCH).ok()?;
+    Some(dur.as_millis() as u64)
+}
+
+fn parse_cache_max_bytes(raw: &str) -> usize {
+    parse_clamped_usize(raw, 65536, 16 * 1024 * 1024, 1024 * 1024)
+}
+
+fn load_working_set_cache(cache_path: &str) -> WorkingSetCache {
+    if cache_path.is_empty() {
+        return WorkingSetCache {
+            schema_version: "1.0".to_string(),
+            nodes: HashMap::new(),
+        };
+    }
+    let p = PathBuf::from(cache_path);
+    let Ok(text) = fs::read_to_string(&p) else {
+        return WorkingSetCache {
+            schema_version: "1.0".to_string(),
+            nodes: HashMap::new(),
+        };
+    };
+    let parsed = serde_json::from_str::<WorkingSetCache>(&text).ok();
+    let mut out = parsed.unwrap_or(WorkingSetCache {
+        schema_version: "1.0".to_string(),
+        nodes: HashMap::new(),
+    });
+    if out.schema_version.is_empty() {
+        out.schema_version = "1.0".to_string();
+    }
+    out
+}
+
+fn cache_size_bytes(cache: &WorkingSetCache) -> usize {
+    serde_json::to_vec(cache).map(|bytes| bytes.len()).unwrap_or(0)
+}
+
+fn prune_working_set_cache(cache: &mut WorkingSetCache, max_bytes: usize) {
+    if cache_size_bytes(cache) <= max_bytes {
+        return;
+    }
+    let mut keys = cache.nodes.keys().cloned().collect::<Vec<String>>();
+    keys.sort();
+    for key in keys {
+        if cache_size_bytes(cache) <= max_bytes {
+            break;
+        }
+        cache.nodes.remove(&key);
+    }
+}
+
+fn save_working_set_cache(cache_path: &str, cache: &mut WorkingSetCache, max_bytes: usize) {
+    if cache_path.is_empty() {
+        return;
+    }
+    prune_working_set_cache(cache, max_bytes);
+    let p = PathBuf::from(cache_path);
+    if let Some(parent) = p.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    if let Ok(body) = serde_json::to_string_pretty(cache) {
+        let _ = fs::write(p, format!("{body}\n"));
+    }
+}
+
+fn cache_key(node_id: &str, file_rel: &str) -> String {
+    format!("{node_id}@{file_rel}")
+}
+
+fn load_section_cached(
+    root: &Path,
+    file_rel: &str,
+    node_id: &str,
+    mut cache: Option<&mut WorkingSetCache>,
+) -> Result<(String, String), String> {
+    let file_abs = root.join(file_rel);
+    let mtime = file_mtime_ms(&file_abs).ok_or_else(|| "file_read_failed".to_string())?;
+    let key = cache_key(node_id, file_rel);
+
+    if let Some(cache_ref) = cache.as_deref_mut() {
+        if let Some(entry) = cache_ref.nodes.get(&key) {
+            if entry.mtime_ms == mtime && !entry.section_text.is_empty() {
+                return Ok((entry.section_text.clone(), entry.section_hash.clone()));
+            }
+        }
+    }
+
+    let content = fs::read_to_string(&file_abs).map_err(|_| "file_read_failed".to_string())?;
+    let section = extract_node_section(&content, node_id);
+    if section.is_empty() {
+        return Err("node_not_found".to_string());
+    }
+    let section_hash = sha256_hex(&section);
+
+    if let Some(cache_ref) = cache.as_deref_mut() {
+        cache_ref.nodes.insert(
+            key,
+            CacheNode {
+                mtime_ms: mtime,
+                section_hash: section_hash.clone(),
+                section_text: section.clone(),
+            },
+        );
+    }
+
+    Ok((section, section_hash))
+}
+
 fn parse_kv_args(args: &[String]) -> HashMap<String, String> {
     let mut out: HashMap<String, String> = HashMap::new();
     let mut idx = 0usize;
@@ -675,6 +799,13 @@ fn run_query_index(args: &HashMap<String, String>) {
     let q = arg_or_default(args, "q", "");
     let top = parse_top(arg_or_default(args, "top", "5").as_str());
     let tag_filters = parse_tag_filters(&arg_or_default(args, "tags", ""));
+    let cache_path = arg_or_default(args, "cache-path", "");
+    let cache_max_bytes = parse_cache_max_bytes(&arg_or_default(args, "cache-max-bytes", ""));
+    let mut cache = if cache_path.is_empty() {
+        None
+    } else {
+        Some(load_working_set_cache(&cache_path))
+    };
     let expand_lines = parse_clamped_usize(
         &arg_any(args, &["expand-lines", "excerpt-lines"]),
         0,
@@ -758,30 +889,51 @@ fn run_query_index(args: &HashMap<String, String>) {
                 hit.expand_blocked = Some("file_budget".to_string());
                 continue;
             }
-            let content = if let Some(cached) = file_cache.get(&hit.file) {
-                cached.clone()
+            let section_pair = if cache.is_some() {
+                load_section_cached(
+                    &root,
+                    &hit.file,
+                    &hit.node_id,
+                    cache.as_mut(),
+                )
             } else {
-                let file_abs = root.join(&hit.file);
-                match fs::read_to_string(&file_abs) {
-                    Ok(text) => {
-                        file_cache.insert(hit.file.clone(), text.clone());
-                        text
+                let content = if let Some(cached) = file_cache.get(&hit.file) {
+                    cached.clone()
+                } else {
+                    let file_abs = root.join(&hit.file);
+                    match fs::read_to_string(&file_abs) {
+                        Ok(text) => {
+                            file_cache.insert(hit.file.clone(), text.clone());
+                            text
+                        }
+                        Err(_) => {
+                            hit.expand_error = Some("file_read_failed".to_string());
+                            continue;
+                        }
                     }
-                    Err(_) => {
-                        hit.expand_error = Some("file_read_failed".to_string());
-                        continue;
-                    }
+                };
+                let section = extract_node_section(&content, &hit.node_id);
+                if section.is_empty() {
+                    Err("node_not_found".to_string())
+                } else {
+                    Ok((section.clone(), sha256_hex(&section)))
                 }
             };
-            let section = extract_node_section(&content, &hit.node_id);
-            if section.is_empty() {
-                hit.expand_error = Some("node_not_found".to_string());
-                continue;
+            match section_pair {
+                Ok((section, section_hash)) => {
+                    hit.section_source = Some("rust".to_string());
+                    hit.section_hash = Some(section_hash);
+                    hit.section_excerpt = Some(excerpt_lines(&section, expand_lines));
+                }
+                Err(reason) => {
+                    hit.expand_error = Some(reason);
+                }
             }
-            hit.section_source = Some("rust".to_string());
-            hit.section_hash = Some(sha256_hex(&section));
-            hit.section_excerpt = Some(excerpt_lines(&section, expand_lines));
         }
+    }
+
+    if let Some(ref mut cache_ref) = cache {
+        save_working_set_cache(&cache_path, cache_ref, cache_max_bytes);
     }
 
     let out = QueryResult {
@@ -801,6 +953,13 @@ fn run_get_node(args: &HashMap<String, String>) {
     let node_id = normalize_node_id(&arg_any(args, &["node-id", "node_id"]));
     let uid = normalize_uid(&arg_or_default(args, "uid", ""));
     let file_filter = normalize_file_ref(&arg_or_default(args, "file", ""));
+    let cache_path = arg_or_default(args, "cache-path", "");
+    let cache_max_bytes = parse_cache_max_bytes(&arg_or_default(args, "cache-max-bytes", ""));
+    let mut cache = if cache_path.is_empty() {
+        None
+    } else {
+        Some(load_working_set_cache(&cache_path))
+    };
 
     if node_id.is_empty() && uid.is_empty() {
         println!(
@@ -847,24 +1006,41 @@ fn run_get_node(args: &HashMap<String, String>) {
         std::process::exit(1);
     };
 
-    let file_abs = root.join(&entry.file_rel);
-    let file_content = match fs::read_to_string(&file_abs) {
-        Ok(content) => content,
-        Err(_) => {
-            println!(
-                "{}",
-                serde_json::to_string(&json!({
+    let section_pair = load_section_cached(
+        &root,
+        &entry.file_rel,
+        &entry.node_id,
+        cache.as_mut(),
+    );
+    let (section, section_hash) = match section_pair {
+        Ok(pair) => pair,
+        Err(reason) => {
+            let mapped = if reason == "file_read_failed" {
+                json!({
                     "ok": false,
                     "error": "file_read_failed",
                     "file": entry.file_rel
-                }))
-                .expect("serialize file-read error")
+                })
+            } else {
+                json!({
+                    "ok": false,
+                    "error": "node_not_found",
+                    "node_id": entry.node_id,
+                    "file": entry.file_rel
+                })
+            };
+            println!(
+                "{}",
+                serde_json::to_string(&mapped).expect("serialize get-node error")
             );
             std::process::exit(1);
         }
     };
 
-    let section = extract_node_section(&file_content, &entry.node_id);
+    if let Some(ref mut cache_ref) = cache {
+        save_working_set_cache(&cache_path, cache_ref, cache_max_bytes);
+    }
+
     if section.is_empty() {
         println!(
             "{}",
@@ -887,7 +1063,7 @@ fn run_get_node(args: &HashMap<String, String>) {
         file: entry.file_rel.clone(),
         summary: entry.summary.clone(),
         tags: dedupe_sorted(entry.tags.clone()),
-        section_hash: sha256_hex(&section),
+        section_hash,
         section,
     };
     println!("{}", serde_json::to_string(&out).expect("serialize get-node result"));

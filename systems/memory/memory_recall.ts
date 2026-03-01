@@ -431,6 +431,8 @@ function runRustQueryIndex(query, tagFilters, top, options: any = {}) {
   }
   const expandLines = clampInt(options && options.expandLines != null ? options.expandLines : 0, 0, 300);
   const maxFiles = clampInt(options && options.maxFiles != null ? options.maxFiles : 1, 1, 20);
+  const cachePath = options && typeof options.cachePath === 'string' ? options.cachePath : '';
+  const cacheMaxBytes = clampInt(options && options.cacheMaxBytes != null ? options.cacheMaxBytes : DEFAULT_CACHE_MAX_BYTES, 65536, 16 * 1024 * 1024);
   const args = [
     'run',
     '--quiet',
@@ -443,6 +445,8 @@ function runRustQueryIndex(query, tagFilters, top, options: any = {}) {
   ];
   if (expandLines > 0) args.push(`--expand-lines=${expandLines}`);
   if (expandLines > 0) args.push(`--max-files=${maxFiles}`);
+  if (cachePath) args.push(`--cache-path=${cachePath}`);
+  if (cachePath) args.push(`--cache-max-bytes=${cacheMaxBytes}`);
   const run = spawnSync('cargo', args, {
     cwd: cratePath,
     encoding: 'utf8',
@@ -467,7 +471,7 @@ function runRustQueryIndex(query, tagFilters, top, options: any = {}) {
   };
 }
 
-function runRustGetNode(nodeId, uid, fileFilter) {
+function runRustGetNode(nodeId, uid, fileFilter, options: any = {}) {
   const cratePath = DEFAULT_RUST_CRATE_PATH;
   if (!fs.existsSync(cratePath)) {
     return { ok: false, error: 'rust_crate_missing', crate_path: cratePath };
@@ -479,9 +483,13 @@ function runRustGetNode(nodeId, uid, fileFilter) {
     'get-node',
     `--root=${REPO_ROOT}`
   ];
+  const cachePath = options && typeof options.cachePath === 'string' ? options.cachePath : '';
+  const cacheMaxBytes = clampInt(options && options.cacheMaxBytes != null ? options.cacheMaxBytes : DEFAULT_CACHE_MAX_BYTES, 65536, 16 * 1024 * 1024);
   if (nodeId) args.push(`--node-id=${String(nodeId)}`);
   if (uid) args.push(`--uid=${String(uid)}`);
   if (fileFilter) args.push(`--file=${String(fileFilter)}`);
+  if (cachePath) args.push(`--cache-path=${cachePath}`);
+  if (cachePath) args.push(`--cache-max-bytes=${cacheMaxBytes}`);
   const run = spawnSync('cargo', args, {
     cwd: cratePath,
     encoding: 'utf8',
@@ -514,6 +522,10 @@ function safeSessionName(v) {
 
 function cachePathForSession(session) {
   return path.join(CACHE_DIR, `${safeSessionName(session)}.json`);
+}
+
+function rustCachePathForSession(session) {
+  return path.join(CACHE_DIR, `${safeSessionName(session)}.rust.json`);
 }
 
 function baseCache(session) {
@@ -749,7 +761,9 @@ function queryCmd(args) {
       const rustExpandLinesInitial = expandMode === 'always' ? excerptLines : 0;
       const rust = runRustQueryIndex(query, tagFilters, top, {
         expandLines: rustExpandLinesInitial,
-        maxFiles
+        maxFiles,
+        cachePath: rustCachePathForSession(session),
+        cacheMaxBytes
       });
       if (rust.ok) {
         clearRustFailure();
@@ -812,7 +826,9 @@ function queryCmd(args) {
     if (!hasRustExpansion) {
       const rustExpanded = runRustQueryIndex(query, tagFilters, top, {
         expandLines: excerptLines,
-        maxFiles
+        maxFiles,
+        cachePath: rustCachePathForSession(session),
+        cacheMaxBytes
       });
       if (rustExpanded.ok) {
         clearRustFailure();
@@ -937,7 +953,10 @@ function getCmd(args) {
     if (rustCooldownActive()) {
       backendFallbackReason = 'rust_cooldown_active';
     } else {
-      const rust = runRustGetNode(nodeId, uid, fileFilter);
+      const rust = runRustGetNode(nodeId, uid, fileFilter, {
+        cachePath: rustCachePathForSession(session),
+        cacheMaxBytes
+      });
       if (rust.ok) {
         clearRustFailure();
         const payload = rust.payload || {};
