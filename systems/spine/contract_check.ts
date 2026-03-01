@@ -1167,6 +1167,22 @@ function main() {
     "systems/redteam/ant_colony_controller.js",
     ["require_helix_tamper", "require_sentinel_agreement", "recentAssimilationTargets", "distillWisdom"]
   );
+  checkScript(
+    "systems/security/venom_containment_layer.js",
+    ["venom_containment_layer.js", "evaluate", "decoy", "evolve", "status", "--session-id", "--runtime-class", "--unauthorized"]
+  );
+  checkSourceContains(
+    "systems/security/venom_containment_layer.js",
+    ["defensive_only_invariant", "offensive_behaviors_forbidden", "stageFromHits", "writeForensicEvidence"]
+  );
+  checkScript(
+    "systems/redteam/adaptive_defense_expansion.js",
+    ["adaptive_defense_expansion.js", "run", "request-exemption", "approve-exemption", "audit-exemptions", "status", "--scope", "--duration-hours"]
+  );
+  checkSourceContains(
+    "systems/redteam/adaptive_defense_expansion.js",
+    ["defensive_only", "runtime_fingerprint_classes", "non_exemptible", "nasty_profiles", "cost_profiles"]
+  );
   checkUsage(
     "systems/autonomy/gated_self_improvement_loop.js",
     ["--help"],

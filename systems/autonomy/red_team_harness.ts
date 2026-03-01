@@ -29,6 +29,10 @@ const {
   runTrainer: runRedteamSelfImprovement,
   status: statusRedteamSelfImprovement
 } = require('../redteam/self_improving_redteam_trainer');
+const {
+  runAdaptiveDefenseExpansion,
+  statusAdaptiveDefense
+} = require('../redteam/adaptive_defense_expansion');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const DEFAULT_POLICY_PATH = path.join(ROOT, 'config', 'red_team_policy.json');
@@ -906,6 +910,19 @@ function runHarness(args) {
     }
   }
 
+  try {
+    out.adaptive_defense = runAdaptiveDefenseExpansion({
+      source: 'red_team_harness',
+      summary: out.summary
+    });
+  } catch (err) {
+    out.adaptive_defense = {
+      ok: false,
+      type: 'redteam_adaptive_defense_run',
+      error: String(err && err.message ? err.message : err || 'redteam_adaptive_defense_failed').slice(0, 260)
+    };
+  }
+
   const stamp = nowIso().replace(/[:.]/g, '-');
   const runPath = path.join(paths.runs_dir, `${dateStr}_${stamp}.json`);
   const findingsPath = path.join(paths.findings_dir, `${dateStr}.jsonl`);
@@ -991,6 +1008,15 @@ function statusHarness(args) {
         error: String(err && err.message ? err.message : err || 'redteam_self_improvement_status_failed').slice(0, 260)
       };
     }
+  }
+  try {
+    out.adaptive_defense = statusAdaptiveDefense();
+  } catch (err) {
+    out.adaptive_defense = {
+      ok: false,
+      type: 'redteam_adaptive_defense_status',
+      error: String(err && err.message ? err.message : err || 'redteam_adaptive_defense_status_failed').slice(0, 260)
+    };
   }
   return out;
 }

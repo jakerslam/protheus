@@ -1,0 +1,82 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "shadow_only": true,
+  "defensive_only_invariant": true,
+  "offensive_behaviors_forbidden": [
+    "external_attack",
+    "malware_payload",
+    "unbounded_compute",
+    "destructive_payload"
+  ],
+  "trusted_sources": [
+    "local",
+    "cli",
+    "daemon",
+    "spine"
+  ],
+  "high_value_actions": [
+    "apply",
+    "deploy",
+    "exfil",
+    "spend",
+    "self_modify",
+    "root_change",
+    "provider_buy"
+  ],
+  "runtime_fingerprint_classes": [
+    "unknown",
+    "desktop",
+    "cloud_vm",
+    "gpu_heavy",
+    "containerized"
+  ],
+  "staged_ramp": {
+    "tease_actions": 2,
+    "challenge_actions": 4,
+    "degrade_actions": 6,
+    "lockout_actions": 8,
+    "lockout_cooldown_minutes": 720
+  },
+  "bounds": {
+    "max_friction_delay_ms": 1800,
+    "max_challenge_score": 0.95,
+    "max_lease_decay_rate": 0.8,
+    "max_containment_children": 4
+  },
+  "forensics": {
+    "enabled": true,
+    "include_watermark": true,
+    "master_conduit_mirror": true,
+    "evidence_dir": "state/security/venom_containment/evidence",
+    "events_path": "state/security/venom_containment/forensic_events.jsonl"
+  },
+  "paths": {
+    "state_root": "state/security/venom_containment",
+    "sessions_path": "state/security/venom_containment/sessions.json",
+    "latest_path": "state/security/venom_containment/latest.json",
+    "history_path": "state/security/venom_containment/history.jsonl",
+    "profiles_path": "state/security/venom_containment/profiles.json",
+    "startup_attestation_path": "state/security/startup_attestation.json",
+    "soul_token_guard_path": "state/security/soul_token_guard.json",
+    "lease_state_path": "state/security/capability_leases.json",
+    "master_queue_path": "state/workflow/learning_conduit/master_training_queue.jsonl"
+  },
+  "decoy": {
+    "low": {
+      "prefix": "[contained-low]",
+      "quality_factor": 0.45,
+      "watermark_tag": "decoy_low"
+    },
+    "medium": {
+      "prefix": "[contained-medium]",
+      "quality_factor": 0.3,
+      "watermark_tag": "decoy_medium"
+    },
+    "high": {
+      "prefix": "[contained-high]",
+      "quality_factor": 0.12,
+      "watermark_tag": "decoy_high"
+    }
+  }
+}

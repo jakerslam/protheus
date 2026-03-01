@@ -20,6 +20,7 @@ const {
   normalizeKeyId,
   secretKeyEnvVarName
 } = require('../../lib/request_envelope');
+const { evaluateContainment } = require('./venom_containment_layer');
 
 function usage() {
   console.log('Usage:');
@@ -124,7 +125,32 @@ function cmdRun(args) {
     }
   }
 
+  const containment = evaluateContainment({
+    session_id: process.env.REQUEST_NONCE || `${Date.now()}_${Math.random()}`,
+    source,
+    action,
+    risk: action === 'apply' ? 'high' : (action === 'propose' ? 'medium' : 'low'),
+    runtime_class: process.env.REQUEST_RUNTIME_CLASS || 'unknown',
+    unauthorized: false,
+    prompt: cmd.join(' ')
+  }, {
+    persist: true
+  });
+
+  if (containment && containment.ok === true && containment.contained === true) {
+    if (containment.shadow_only !== true && containment.allow_exec !== true) {
+      console.error(`request_ingress: execution blocked by containment stage=${containment.stage || 'unknown'} reason=${containment.unauthorized_reason || 'unauthorized'}`);
+      process.exit(3);
+    }
+  }
+
   const env = buildStampedEnv(process.env, source, action, guardFiles, keyId);
+  if (containment && containment.ok === true) {
+    env.REQUEST_CONTAINMENT_STAGE = String(containment.stage || 'none');
+    env.REQUEST_CONTAINMENT_ACTIVE = containment.contained === true ? '1' : '0';
+    env.REQUEST_CONTAINMENT_DECOY_LEVEL = String(containment.decoy_level || 'low');
+    env.REQUEST_CONTAINMENT_WATERMARK = String(containment.decoy_watermark || '');
+  }
   const r = spawnSync(cmd[0], cmd.slice(1), {
     stdio: 'inherit',
     env

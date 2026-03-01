@@ -1,0 +1,60 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "shadow_only": true,
+  "defensive_only": true,
+  "runtime_fingerprint_classes": [
+    "unknown",
+    "desktop",
+    "cloud_vm",
+    "gpu_heavy",
+    "containerized"
+  ],
+  "categories": [
+    "detection",
+    "friction",
+    "decoy",
+    "verification",
+    "containment",
+    "temporal_deception",
+    "adaptive_honeypot",
+    "stack_pressure"
+  ],
+  "limits": {
+    "max_tool_proposals_per_run": 24,
+    "max_category_proposals_per_run": 4,
+    "max_friction_delay_ms": 2200,
+    "max_rate_limit_per_minute": 40,
+    "max_resource_sink_factor": 3.5,
+    "max_children_per_incident": 4,
+    "minimum_uplift_target": 0.2
+  },
+  "hall_pass": {
+    "enabled": true,
+    "default_duration_hours": 24,
+    "max_duration_hours": 168,
+    "non_exemptible": [
+      "defensive_only_invariant",
+      "constitution_root",
+      "soul_token_binding",
+      "attestation_binding",
+      "legal_bounds"
+    ]
+  },
+  "nasty_profiles": {
+    "tease_trap_enabled": true,
+    "stack_resource_bias_enabled": true,
+    "psychological_decay_enabled": true,
+    "containment_children_enabled": true
+  },
+  "paths": {
+    "state_root": "state/security/red_team/adaptive_defense",
+    "latest_path": "state/security/red_team/adaptive_defense/latest.json",
+    "history_path": "state/security/red_team/adaptive_defense/history.jsonl",
+    "tool_catalog_path": "state/security/red_team/adaptive_defense/tool_catalog.json",
+    "cost_profiles_path": "state/security/red_team/adaptive_defense/cost_profiles.json",
+    "exemptions_path": "state/security/red_team/adaptive_defense/exemptions.json",
+    "registry_audit_path": "state/security/red_team/adaptive_defense/exemption_audit.jsonl",
+    "venom_history_path": "state/security/venom_containment/history.jsonl"
+  }
+}

@@ -159,6 +159,8 @@ function runGate() {
     'config/siem_bridge_policy.json',
     'config/soc2_type2_policy.json',
     'config/red_team_policy.json',
+    'config/redteam_adaptive_defense_policy.json',
+    'config/venom_containment_policy.json',
     'config/surface_budget_controller_policy.json',
     'config/value_anchor_renewal_policy.json',
     'config/world_model_freshness_policy.json',
@@ -179,6 +181,8 @@ function runGate() {
     'systems/helix/helix_controller.ts',
     'systems/helix/helix_admission_gate.ts',
     'systems/helix/reweave_doctor.ts',
+    'systems/redteam/adaptive_defense_expansion.ts',
+    'systems/security/venom_containment_layer.ts',
     'systems/memory/causal_temporal_graph.ts',
     'systems/memory/dynamic_memory_embedding_adapter.ts',
     'systems/distributed/deterministic_control_plane.ts',
@@ -1924,6 +1928,47 @@ function runGate() {
       && antSrc.includes('recentAssimilationTargets('),
     'ant_colony_controller should keep morph/tactics/wisdom/priority probe hooks'
   );
+  const venomPolicy = readJsonSafe(path.join(ROOT, 'config', 'venom_containment_policy.json'), {});
+  addCheck(
+    'venom_containment:defensive_only_policy',
+    venomPolicy.enabled !== false
+      && venomPolicy.shadow_only !== false
+      && venomPolicy.defensive_only_invariant !== false
+      && Array.isArray(venomPolicy.offensive_behaviors_forbidden)
+      && venomPolicy.offensive_behaviors_forbidden.includes('external_attack')
+      && venomPolicy.offensive_behaviors_forbidden.includes('malware_payload'),
+    `enabled=${venomPolicy.enabled !== false ? '1' : '0'} shadow_only=${venomPolicy.shadow_only !== false ? '1' : '0'} defensive_only=${venomPolicy.defensive_only_invariant !== false ? '1' : '0'}`
+  );
+  const venomSrc = readFileSafe(path.join(ROOT, 'systems', 'security', 'venom_containment_layer.ts'));
+  addCheck(
+    'venom_containment:controller_hooks',
+    venomSrc.includes('defensiveInvariantStatus(')
+      && venomSrc.includes('stageFromHits(')
+      && venomSrc.includes('writeForensicEvidence(')
+      && venomSrc.includes('generateDecoyResponse('),
+    'venom_containment_layer should enforce defensive-only stage/forensic/decoy hooks'
+  );
+  const adaptivePolicy = readJsonSafe(path.join(ROOT, 'config', 'redteam_adaptive_defense_policy.json'), {});
+  const hallPass = adaptivePolicy.hall_pass && typeof adaptivePolicy.hall_pass === 'object' ? adaptivePolicy.hall_pass : {};
+  addCheck(
+    'redteam_adaptive_defense:hall_pass_policy',
+    adaptivePolicy.enabled !== false
+      && adaptivePolicy.shadow_only !== false
+      && adaptivePolicy.defensive_only !== false
+      && hallPass.enabled !== false
+      && Array.isArray(hallPass.non_exemptible)
+      && hallPass.non_exemptible.includes('defensive_only_invariant'),
+    `enabled=${adaptivePolicy.enabled !== false ? '1' : '0'} shadow_only=${adaptivePolicy.shadow_only !== false ? '1' : '0'} defensive_only=${adaptivePolicy.defensive_only !== false ? '1' : '0'} hall_pass=${hallPass.enabled !== false ? '1' : '0'}`
+  );
+  const adaptiveSrc = readFileSafe(path.join(ROOT, 'systems', 'redteam', 'adaptive_defense_expansion.ts'));
+  addCheck(
+    'redteam_adaptive_defense:registry_and_audit_hooks',
+    adaptiveSrc.includes('requestExemption(')
+      && adaptiveSrc.includes('approveExemption(')
+      && adaptiveSrc.includes('auditExemptions(')
+      && adaptiveSrc.includes('runAdaptiveDefenseExpansion('),
+    'adaptive_defense_expansion should expose exemption + audit + run hooks'
+  );
 
   const actuationSrc = readFileSafe(path.join(ROOT, 'systems', 'actuation', 'actuation_executor.ts'));
   addCheck(
@@ -1963,6 +2008,8 @@ function runGate() {
       && contractCheckSrc.includes('secure_heartbeat_endpoint.js')
       && contractCheckSrc.includes('gated_self_improvement_loop.js')
       && contractCheckSrc.includes('helix_admission_gate.js')
+      && contractCheckSrc.includes('venom_containment_layer.js')
+      && contractCheckSrc.includes('adaptive_defense_expansion.js')
       && contractCheckSrc.includes('confirmed_malice_quarantine.js')
       && contractCheckSrc.includes('helix_controller.js')
       && contractCheckSrc.includes('ant_colony_controller.js')
