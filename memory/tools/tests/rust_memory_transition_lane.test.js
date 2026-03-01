@@ -60,7 +60,9 @@ process.stdout.write(JSON.stringify({ ok: true, backend_used: engine, parity_err
       timeout_ms: 8000,
       require_rust_backend_used: true,
       js_probe_command: [process.execPath, probeScript, '--engine=js'],
-      rust_probe_command: [process.execPath, probeScript, '--engine=rust']
+      js_get_probe_command: [process.execPath, probeScript, '--engine=js'],
+      rust_probe_command: [process.execPath, probeScript, '--engine=rust'],
+      rust_get_probe_command: [process.execPath, probeScript, '--engine=rust']
     }
   });
 
@@ -77,6 +79,8 @@ process.stdout.write(JSON.stringify({ ok: true, backend_used: engine, parity_err
   assert.strictEqual(bench.rows[0].mode, 'probe_commands');
   assert.strictEqual(bench.rows[0].js_probe_ok, true);
   assert.strictEqual(bench.rows[0].rust_probe_ok, true);
+  assert.strictEqual(bench.rows[0].js_get_probe_ok, true);
+  assert.strictEqual(bench.rows[0].rust_get_probe_ok, true);
   assert.strictEqual(bench.rows[0].parity_error_count, 0);
 
   res = run(['selector', `--policy=${policyPath}`, '--backend=rust']);

@@ -74,11 +74,29 @@ function defaultPolicy() {
         '--top=1',
         '--backend=js'
       ],
+      js_get_probe_command: [
+        'node',
+        'systems/memory/memory_recall.js',
+        'query',
+        '--q=rust_transition_get_probe',
+        '--expand=none',
+        '--top=1',
+        '--backend=js'
+      ],
       rust_probe_command: [
         'node',
         'systems/memory/memory_recall.js',
         'query',
         '--q=rust_transition_benchmark',
+        '--expand=none',
+        '--top=1',
+        '--backend=rust'
+      ],
+      rust_get_probe_command: [
+        'node',
+        'systems/memory/memory_recall.js',
+        'query',
+        '--q=rust_transition_get_probe',
         '--expand=none',
         '--top=1',
         '--backend=rust'
@@ -123,7 +141,10 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
       timeout_ms: clampInt(benchmark.timeout_ms, 1000, 180000, base.benchmark.timeout_ms),
       require_rust_backend_used: toBool(benchmark.require_rust_backend_used, base.benchmark.require_rust_backend_used),
       js_probe_command: normalizeCommand(benchmark.js_probe_command, base.benchmark.js_probe_command),
+      js_get_probe_command: normalizeCommand(benchmark.js_get_probe_command, base.benchmark.js_get_probe_command),
       rust_probe_command: normalizeCommand(benchmark.rust_probe_command, base.benchmark.rust_probe_command)
+      ,
+      rust_get_probe_command: normalizeCommand(benchmark.rust_get_probe_command, base.benchmark.rust_get_probe_command)
     }
   };
 }
@@ -230,25 +251,58 @@ function runBenchmark(args, policy) {
 
   for (let i = 0; i < runs; i += 1) {
     if (policy.benchmark.mode === 'probe_commands') {
-      const jsProbe = runTimedProbeCommand(policy.benchmark.js_probe_command, policy.benchmark.timeout_ms);
-      const rustProbe = runTimedProbeCommand(policy.benchmark.rust_probe_command, policy.benchmark.timeout_ms);
-      const jsMs = Math.max(1, Number(jsProbe.duration_ms || 1));
-      const rustMs = Math.max(1, Number(rustProbe.duration_ms || 1));
-      const rustBackendUsed = normalizeToken(
-        rustProbe.payload && (rustProbe.payload.backend_used || rustProbe.payload.backend || ''),
+      const jsQueryProbe = runTimedProbeCommand(policy.benchmark.js_probe_command, policy.benchmark.timeout_ms);
+      const rustQueryProbe = runTimedProbeCommand(policy.benchmark.rust_probe_command, policy.benchmark.timeout_ms);
+      const jsGetProbe = runTimedProbeCommand(
+        policy.benchmark.js_get_probe_command || policy.benchmark.js_probe_command,
+        policy.benchmark.timeout_ms
+      );
+      const rustGetProbe = runTimedProbeCommand(
+        policy.benchmark.rust_get_probe_command || policy.benchmark.rust_probe_command,
+        policy.benchmark.timeout_ms
+      );
+
+      const jsMs = Math.max(1, Number(jsQueryProbe.duration_ms || 1) + Number(jsGetProbe.duration_ms || 1));
+      const rustMs = Math.max(1, Number(rustQueryProbe.duration_ms || 1) + Number(rustGetProbe.duration_ms || 1));
+
+      const rustBackendUsedQuery = normalizeToken(
+        rustQueryProbe.payload && (rustQueryProbe.payload.backend_used || rustQueryProbe.payload.backend || ''),
         20
       ) || '';
-      const rustBackendMismatch = policy.benchmark.require_rust_backend_used === true
-        && rustBackendUsed
-        && rustBackendUsed !== 'rust';
-      const parityErrorCount = rustProbe.ok
-        ? (
-          rustProbe.payload && Number.isFinite(rustProbe.payload.parity_error_count)
-            ? clampInt(rustProbe.payload.parity_error_count, 0, 100000, rustBackendMismatch ? 1 : 0)
-            : (rustBackendMismatch ? 1 : 0)
+      const rustBackendUsedGet = normalizeToken(
+        rustGetProbe.payload && (rustGetProbe.payload.backend_used || rustGetProbe.payload.backend || ''),
+        20
+      ) || '';
+      const rustBackendMismatchQuery = policy.benchmark.require_rust_backend_used === true
+        && rustBackendUsedQuery
+        && rustBackendUsedQuery !== 'rust';
+      const rustBackendMismatchGet = policy.benchmark.require_rust_backend_used === true
+        && rustBackendUsedGet
+        && rustBackendUsedGet !== 'rust';
+
+      const queryParity = rustQueryProbe.ok
+        ? clampInt(
+          rustQueryProbe.payload && Number.isFinite(rustQueryProbe.payload.parity_error_count)
+            ? rustQueryProbe.payload.parity_error_count
+            : (rustBackendMismatchQuery ? 1 : 0),
+          0,
+          100000,
+          rustBackendMismatchQuery ? 1 : 0
         )
         : 1;
+      const getParity = rustGetProbe.ok
+        ? clampInt(
+          rustGetProbe.payload && Number.isFinite(rustGetProbe.payload.parity_error_count)
+            ? rustGetProbe.payload.parity_error_count
+            : (rustBackendMismatchGet ? 1 : 0),
+          0,
+          100000,
+          rustBackendMismatchGet ? 1 : 0
+        )
+        : 1;
+      const parityErrorCount = Math.max(queryParity, getParity);
       const speedup = Number((jsMs / Math.max(1, rustMs)).toFixed(6));
+
       history.rows.push({
         ts: nowIso(),
         mode: 'probe_commands',
@@ -256,14 +310,22 @@ function runBenchmark(args, policy) {
         rust_ms: rustMs,
         speedup,
         parity_error_count: parityErrorCount,
-        js_probe_ok: jsProbe.ok,
-        rust_probe_ok: rustProbe.ok,
-        js_probe_status: jsProbe.status,
-        rust_probe_status: rustProbe.status,
-        rust_backend_used: rustBackendUsed || null,
-        rust_backend_mismatch: rustBackendMismatch,
-        js_probe_error: jsProbe.ok ? null : jsProbe.stderr || 'probe_failed',
-        rust_probe_error: rustProbe.ok ? null : rustProbe.stderr || 'probe_failed',
+        js_probe_ok: jsQueryProbe.ok,
+        rust_probe_ok: rustQueryProbe.ok,
+        js_probe_status: jsQueryProbe.status,
+        rust_probe_status: rustQueryProbe.status,
+        rust_backend_used: rustBackendUsedQuery || null,
+        rust_backend_mismatch: rustBackendMismatchQuery,
+        js_probe_error: jsQueryProbe.ok ? null : jsQueryProbe.stderr || 'probe_failed',
+        rust_probe_error: rustQueryProbe.ok ? null : rustQueryProbe.stderr || 'probe_failed',
+        js_get_probe_ok: jsGetProbe.ok,
+        rust_get_probe_ok: rustGetProbe.ok,
+        js_get_probe_status: jsGetProbe.status,
+        rust_get_probe_status: rustGetProbe.status,
+        rust_get_backend_used: rustBackendUsedGet || null,
+        rust_get_backend_mismatch: rustBackendMismatchGet,
+        js_get_probe_error: jsGetProbe.ok ? null : jsGetProbe.stderr || 'probe_failed',
+        rust_get_probe_error: rustGetProbe.ok ? null : rustGetProbe.stderr || 'probe_failed',
         signature: stableHash(`${jsMs}|${rustMs}|${speedup}|${parityErrorCount}|${i}|${Date.now()}`, 24)
       });
       continue;

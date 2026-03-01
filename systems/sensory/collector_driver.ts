@@ -45,7 +45,7 @@ function listCollectors() {
     if (!name.endsWith('.ts') && !name.endsWith('.js')) continue;
     out.add(name.replace(/\.(ts|js)$/i, ''));
   }
-  return Array.from(out).sort((a, b) => a.localeCompare(b));
+  return Array.from(out).sort((a, b) => String(a).localeCompare(String(b)));
 }
 
 function loadCollectorModule(parserType) {

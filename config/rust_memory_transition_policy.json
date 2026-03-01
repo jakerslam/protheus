@@ -15,11 +15,29 @@
       "--top=1",
       "--backend=js"
     ],
+    "js_get_probe_command": [
+      "node",
+      "systems/memory/memory_recall.js",
+      "query",
+      "--q=rust_transition_get_probe",
+      "--expand=none",
+      "--top=1",
+      "--backend=js"
+    ],
     "rust_probe_command": [
       "node",
       "systems/memory/memory_recall.js",
       "query",
       "--q=rust_transition_benchmark",
+      "--expand=none",
+      "--top=1",
+      "--backend=rust"
+    ],
+    "rust_get_probe_command": [
+      "node",
+      "systems/memory/memory_recall.js",
+      "query",
+      "--q=rust_transition_get_probe",
       "--expand=none",
       "--top=1",
       "--backend=rust"
