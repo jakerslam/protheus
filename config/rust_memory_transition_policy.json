@@ -22,6 +22,12 @@
       "--node-id=$NODE_ID",
       "--backend=js"
     ],
+    "js_index_probe_command": [
+      "node",
+      "systems/memory/rust_memory_transition_lane.js",
+      "index-probe",
+      "--backend=js"
+    ],
     "rust_probe_command": [
       "node",
       "systems/memory/memory_recall.js",
@@ -36,6 +42,12 @@
       "systems/memory/memory_recall.js",
       "get",
       "--node-id=$NODE_ID",
+      "--backend=rust"
+    ],
+    "rust_index_probe_command": [
+      "node",
+      "systems/memory/rust_memory_transition_lane.js",
+      "index-probe",
       "--backend=rust"
     ]
   }

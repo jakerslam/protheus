@@ -37,6 +37,7 @@ function usage() {
   console.log('Usage:');
   console.log('  node systems/memory/rust_memory_transition_lane.js pilot [--policy=<path>]');
   console.log('  node systems/memory/rust_memory_transition_lane.js benchmark [--runs=5] [--auto-select=0|1] [--policy=<path>]');
+  console.log('  node systems/memory/rust_memory_transition_lane.js index-probe --backend=js|rust [--policy=<path>]');
   console.log('  node systems/memory/rust_memory_transition_lane.js selector --backend=js|rust|rust_shadow|rust_live [--policy=<path>]');
   console.log('  node systems/memory/rust_memory_transition_lane.js auto-selector [--policy=<path>]');
   console.log('  node systems/memory/rust_memory_transition_lane.js retire-check [--policy=<path>]');
@@ -82,7 +83,12 @@ function defaultPolicy() {
         '--node-id=$NODE_ID',
         '--backend=js'
       ],
-      js_index_probe_command: [],
+      js_index_probe_command: [
+        'node',
+        'systems/memory/rust_memory_transition_lane.js',
+        'index-probe',
+        '--backend=js'
+      ],
       rust_probe_command: [
         'node',
         'systems/memory/memory_recall.js',
@@ -99,7 +105,12 @@ function defaultPolicy() {
         '--node-id=$NODE_ID',
         '--backend=rust'
       ],
-      rust_index_probe_command: []
+      rust_index_probe_command: [
+        'node',
+        'systems/memory/rust_memory_transition_lane.js',
+        'index-probe',
+        '--backend=rust'
+      ]
     }
   };
 }
@@ -188,12 +199,7 @@ function runRustProbe(policy) {
   if (!fs.existsSync(cratePath)) {
     return { ok: false, error: 'rust_crate_missing' };
   }
-  const probeRoot = fs.existsSync(policy.paths.memory_index_path)
-    ? (() => {
-      const indexDir = path.dirname(policy.paths.memory_index_path);
-      return path.basename(indexDir) === 'memory' ? path.dirname(indexDir) : indexDir;
-    })()
-    : ROOT;
+  const probeRoot = resolveProbeRoot(policy);
   const run = spawnSync('cargo', ['run', '--quiet', '--', 'probe', `--root=${probeRoot}`], {
     cwd: cratePath,
     encoding: 'utf8'
@@ -206,6 +212,138 @@ function runRustProbe(policy) {
     status: Number.isFinite(run.status) ? run.status : 1,
     parsed,
     stderr: cleanText(run.stderr || '', 400)
+  };
+}
+
+function resolveProbeRoot(policy) {
+  return fs.existsSync(policy.paths.memory_index_path)
+    ? (() => {
+      const indexDir = path.dirname(policy.paths.memory_index_path);
+      return path.basename(indexDir) === 'memory' ? path.dirname(indexDir) : indexDir;
+    })()
+    : ROOT;
+}
+
+function parseTagsInline(raw) {
+  return String(raw || '')
+    .replace(/[\\[\\]"']/g, ' ')
+    .split(/[,\s]+/)
+    .map((tok) => cleanText(tok, 80).replace(/^#+/, '').toLowerCase())
+    .filter((tok) => /^[a-z0-9_-]+$/.test(tok));
+}
+
+function scanDailyNodeStats(rootPath) {
+  const memoryDir = path.join(rootPath, 'memory');
+  if (!fs.existsSync(memoryDir)) return { node_count: 0, tag_count: 0, files_scanned: 0 };
+  const files = fs.readdirSync(memoryDir)
+    .filter((name) => /^\d{4}-\d{2}-\d{2}\.md$/.test(String(name || '')))
+    .sort();
+  const seen = new Set();
+  const tags = new Set();
+  let filesScanned = 0;
+  for (const name of files) {
+    const filePath = path.join(memoryDir, name);
+    let text = '';
+    try {
+      text = String(fs.readFileSync(filePath, 'utf8') || '');
+    } catch {
+      continue;
+    }
+    filesScanned += 1;
+    const chunks = text.split('<!-- NODE -->');
+    for (const chunk of chunks) {
+      const nodeMatch = String(chunk || '').match(/^\s*node_id:\s*([A-Za-z0-9._-]+)/m);
+      if (!nodeMatch || !nodeMatch[1]) continue;
+      const nodeId = normalizeToken(nodeMatch[1], 120);
+      if (!nodeId) continue;
+      const key = `${nodeId}@memory/${name}`;
+      if (!seen.has(key)) seen.add(key);
+      const tagMatch = String(chunk || '').match(/^\s*tags:\s*(.+)$/m);
+      if (!tagMatch || !tagMatch[1]) continue;
+      for (const tag of parseTagsInline(tagMatch[1])) {
+        tags.add(tag);
+      }
+    }
+  }
+  return {
+    node_count: seen.size,
+    tag_count: tags.size,
+    files_scanned: filesScanned
+  };
+}
+
+function runRustBuildIndexProbe(policy) {
+  const cratePath = policy.paths.rust_crate_path;
+  if (!fs.existsSync(cratePath)) {
+    return { ok: false, error: 'rust_crate_missing', status: 1 };
+  }
+  const probeRoot = resolveProbeRoot(policy);
+  const started = Date.now();
+  const run = spawnSync('cargo', ['run', '--quiet', '--', 'build-index', `--root=${probeRoot}`], {
+    cwd: cratePath,
+    encoding: 'utf8',
+    timeout: policy.benchmark.timeout_ms
+  });
+  const elapsed = Math.max(1, Date.now() - started);
+  let payload = null;
+  try { payload = JSON.parse(String(run.stdout || '').trim()); } catch {}
+  if (Number.isFinite(run.status) && run.status === 0 && payload && payload.ok === true) {
+    return {
+      ok: true,
+      backend_used: 'rust',
+      estimated_ms: elapsed,
+      parity_error_count: 0,
+      node_count: clampInt(payload.node_count, 0, 1000000, 0),
+      tag_count: clampInt(payload.tag_count, 0, 1000000, 0),
+      files_scanned: clampInt(payload.files_scanned, 0, 1000000, 0)
+    };
+  }
+  return {
+    ok: false,
+    error: payload && payload.error ? cleanText(payload.error, 180) : `rust_index_probe_status_${Number.isFinite(run.status) ? run.status : 1}`,
+    status: Number.isFinite(run.status) ? run.status : 1,
+    stderr: cleanText(run.stderr || '', 300)
+  };
+}
+
+function indexProbe(args, policy) {
+  const backend = normalizeToken(args.backend || '', 20) || 'js';
+  if (!['js', 'rust'].includes(backend)) {
+    return { ok: false, error: 'invalid_backend', backend };
+  }
+  if (backend === 'js') {
+    const rootPath = resolveProbeRoot(policy);
+    const started = Date.now();
+    const stats = scanDailyNodeStats(rootPath);
+    const elapsed = Math.max(1, Date.now() - started);
+    return {
+      ok: true,
+      type: 'rust_memory_index_probe',
+      backend_used: 'js',
+      estimated_ms: elapsed,
+      parity_error_count: 0,
+      node_count: stats.node_count,
+      tag_count: stats.tag_count,
+      files_scanned: stats.files_scanned
+    };
+  }
+  const rust = runRustBuildIndexProbe(policy);
+  if (!rust.ok) return {
+    ok: false,
+    type: 'rust_memory_index_probe',
+    backend_used: 'rust',
+    error: rust.error || 'rust_index_probe_failed',
+    status: rust.status || 1
+  };
+  return {
+    ok: true,
+    type: 'rust_memory_index_probe',
+    backend_used: 'rust',
+    estimated_ms: rust.estimated_ms,
+    parity_error_count: 0,
+    node_count: rust.node_count,
+    tag_count: rust.tag_count,
+    files_scanned: rust.files_scanned
   };
 }
 
@@ -645,6 +783,7 @@ function main() {
 
   if (cmd === 'pilot') emit(runPilot(policy));
   if (cmd === 'benchmark') emit(runBenchmark(args, policy));
+  if (cmd === 'index-probe') emit(indexProbe(args, policy));
   if (cmd === 'selector') emit(setSelector(args, policy));
   if (cmd === 'auto-selector') emit(autoSelector(policy));
   if (cmd === 'retire-check') emit(retireCheck(policy));

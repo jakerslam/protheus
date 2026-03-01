@@ -486,7 +486,7 @@ function main() {
   );
   checkScript(
     "systems/memory/rust_memory_transition_lane.js",
-    ["rust_memory_transition_lane.js", "pilot", "benchmark", "selector", "retire-check", "status"]
+    ["rust_memory_transition_lane.js", "pilot", "benchmark", "index-probe", "selector", "auto-selector", "retire-check", "status"]
   );
   checkScript(
     "systems/ops/openfang_parity_runtime.js",

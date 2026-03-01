@@ -28,8 +28,27 @@ try {
   const stateRoot = path.join(tmp, 'state');
   const indexPath = path.join(tmp, 'MEMORY_INDEX.md');
   const probeScript = path.join(tmp, 'probe.js');
+  const dailyPath = path.join(tmp, 'memory', '2026-02-28.md');
 
   fs.writeFileSync(indexPath, '| node_id | title | file |\n|---|---|---|\n| `n1` | n1 | `memory/2026-02-28.md` |\n');
+  fs.mkdirSync(path.dirname(dailyPath), { recursive: true });
+  fs.writeFileSync(dailyPath, [
+    '---',
+    'date: 2026-02-28',
+    'node_id: n1',
+    'tags: [memory, rust]',
+    '---',
+    '# n1',
+    '',
+    '<!-- NODE -->',
+    '---',
+    'date: 2026-02-28',
+    'node_id: n2',
+    'tags: [memory]',
+    '---',
+    '# n2',
+    ''
+  ].join('\n'));
   fs.writeFileSync(probeScript, `
 const engineArg = process.argv.find((arg) => String(arg).startsWith('--engine=')) || '--engine=js';
 const engine = String(engineArg.split('=')[1] || 'js');
@@ -80,6 +99,11 @@ process.stdout.write(JSON.stringify({ ok: true, backend_used: engine, parity_err
   let res = run(['pilot', `--policy=${policyPath}`]);
   assert.strictEqual(res.status, 0, res.stderr);
   assert.ok(res.payload && res.payload.ok === true, 'pilot should pass with crate');
+
+  res = run(['index-probe', `--policy=${policyPath}`, '--backend=js']);
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.ok(res.payload && res.payload.backend_used === 'js', 'index-probe should run with js backend');
+  assert.ok(Number(res.payload.node_count || 0) >= 2, 'index-probe should count daily nodes');
 
   res = run(['benchmark', `--policy=${policyPath}`, '--runs=3', '--auto-select=1']);
   assert.strictEqual(res.status, 0, res.stderr);
