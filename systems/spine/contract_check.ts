@@ -1372,6 +1372,10 @@ function main() {
       "--apply"
     ]
   );
+  checkScript(
+    "systems/autonomy/inversion_readiness_cert.js",
+    ["inversion_readiness_cert.js", "run", "status", "approve-activation", "--approved-by", "--approval-note", "--policy"]
+  );
 
   // workflow_generator.js emits proposal-only adaptive workflow drafts.
   checkScript(
@@ -1531,6 +1535,14 @@ function main() {
   checkScript(
     "systems/ops/docs_structure_pack.js",
     ["docs_structure_pack.js", "run-all", "validate", "status"]
+  );
+  checkScript(
+    "systems/ops/post_launch_migration_readiness.js",
+    ["post_launch_migration_readiness.js", "run", "final-review", "status", "--strict", "--decision", "--signed-by", "--approval-note"]
+  );
+  checkScript(
+    "systems/security/ip_posture_review.js",
+    ["ip_posture_review.js", "draft", "evidence-pack", "record-counsel", "status", "--counsel", "--decision", "--approval-note", "--firm", "--strict"]
   );
 
   // external_security_cycle.js ingests third-party findings and tracks closure evidence.

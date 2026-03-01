@@ -90,10 +90,24 @@ function run() {
   assert.strictEqual(out.ready, false, 'without activation receipt, readiness should be false');
   assert.ok(Array.isArray(out.blockers) && out.blockers.includes('live_activation_receipt_missing'));
 
-  writeJson(activationPath, {
-    ts: '2026-02-27T03:00:00.000Z',
-    approved: true
-  });
+  r = runCli(
+    scriptPath,
+    [
+      'approve-activation',
+      `--policy=${policyPath}`,
+      '--approved-by=jay',
+      '--approval-note=manual_go_live_authorization'
+    ],
+    root
+  );
+  assert.strictEqual(r.status, 0, `approve-activation should succeed: ${r.stderr}`);
+  out = parsePayload(r.stdout);
+  assert.strictEqual(out.ok, true, 'approve-activation should emit ok');
+
+  const activationReceipt = JSON.parse(fs.readFileSync(activationPath, 'utf8'));
+  assert.strictEqual(activationReceipt.approved, true, 'activation receipt should be approved');
+  assert.strictEqual(activationReceipt.approved_by, 'jay', 'activation receipt should capture approver');
+
   r = runCli(scriptPath, ['run', `--policy=${policyPath}`], root);
   assert.strictEqual(r.status, 0, `readiness run with activation receipt should pass: ${r.stderr}`);
   out = parsePayload(r.stdout);
@@ -109,4 +123,3 @@ try {
   console.error(`inversion_readiness_cert.test.js: FAIL: ${err.message}`);
   process.exit(1);
 }
-

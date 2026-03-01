@@ -10,6 +10,7 @@ export {};
  * Usage:
  *   node systems/autonomy/inversion_readiness_cert.js run [--policy=path]
  *   node systems/autonomy/inversion_readiness_cert.js status
+ *   node systems/autonomy/inversion_readiness_cert.js approve-activation --approved-by=<id> --approval-note="<text>" [--policy=path]
  */
 
 const fs = require('fs');
@@ -267,6 +268,35 @@ function runCert(args: AnyObj) {
   return payload;
 }
 
+function approveActivation(args: AnyObj) {
+  const policyPath = path.resolve(String(args.policy || DEFAULT_POLICY_PATH));
+  const policy = loadPolicy(policyPath);
+  const approvedBy = clean(args['approved-by'] || args.approved_by || '', 120);
+  const approvalNote = clean(args['approval-note'] || args.approval_note || '', 400);
+  if (!approvedBy || !approvalNote) {
+    return {
+      ok: false,
+      type: 'inversion_readiness_activation_receipt',
+      error: 'approved_by_and_approval_note_required',
+      activation_receipt_path: relPath(policy.paths.activation_receipt)
+    };
+  }
+  const payload = {
+    ts: nowIso(),
+    approved: true,
+    approved_by: approvedBy,
+    approval_note: approvalNote,
+    policy_path: relPath(policyPath)
+  };
+  writeJsonAtomic(policy.paths.activation_receipt, payload);
+  return {
+    ok: true,
+    type: 'inversion_readiness_activation_receipt',
+    activation_receipt_path: relPath(policy.paths.activation_receipt),
+    receipt: payload
+  };
+}
+
 function status(args: AnyObj) {
   const policyPath = path.resolve(String(args.policy || DEFAULT_POLICY_PATH));
   const policy = loadPolicy(policyPath);
@@ -294,6 +324,7 @@ function usage() {
   console.log('Usage:');
   console.log('  node systems/autonomy/inversion_readiness_cert.js run [--policy=path]');
   console.log('  node systems/autonomy/inversion_readiness_cert.js status [--policy=path]');
+  console.log('  node systems/autonomy/inversion_readiness_cert.js approve-activation --approved-by=<id> --approval-note=\"<text>\" [--policy=path]');
 }
 
 function main() {
@@ -309,6 +340,12 @@ function main() {
   }
   if (cmd === 'status') {
     const payload = status(args);
+    process.stdout.write(`${JSON.stringify(payload)}\n`);
+    if (payload.ok !== true) process.exitCode = 1;
+    return;
+  }
+  if (cmd === 'approve-activation') {
+    const payload = approveActivation(args);
     process.stdout.write(`${JSON.stringify(payload)}\n`);
     if (payload.ok !== true) process.exitCode = 1;
     return;
@@ -329,4 +366,3 @@ if (require.main === module) {
     process.exit(1);
   }
 }
-
