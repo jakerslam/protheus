@@ -77,10 +77,8 @@ function defaultPolicy() {
       js_get_probe_command: [
         'node',
         'systems/memory/memory_recall.js',
-        'query',
-        '--q=rust_transition_get_probe',
-        '--expand=none',
-        '--top=1',
+        'get',
+        '--node-id=$NODE_ID',
         '--backend=js'
       ],
       rust_probe_command: [
@@ -95,10 +93,8 @@ function defaultPolicy() {
       rust_get_probe_command: [
         'node',
         'systems/memory/memory_recall.js',
-        'query',
-        '--q=rust_transition_get_probe',
-        '--expand=none',
-        '--top=1',
+        'get',
+        '--node-id=$NODE_ID',
         '--backend=rust'
       ]
     }
@@ -153,6 +149,33 @@ function parseIndexCount(indexPath) {
   if (!fs.existsSync(indexPath)) return 0;
   const rows = String(fs.readFileSync(indexPath, 'utf8') || '').split(/\r?\n/);
   return rows.filter((line) => line.startsWith('| `')).length;
+}
+
+function parseProbeNodeId(indexPath) {
+  if (!fs.existsSync(indexPath)) return '';
+  const lines = String(fs.readFileSync(indexPath, 'utf8') || '').split(/\r?\n/);
+  for (const lineRaw of lines) {
+    const line = String(lineRaw || '').trim();
+    if (!line.startsWith('|')) continue;
+    const m = line.match(/^\|\s*`?([A-Za-z0-9._-]+)`?\s*\|/);
+    if (!m || !m[1]) continue;
+    const candidate = normalizeToken(m[1], 120);
+    if (/^-+$/.test(candidate)) continue;
+    if (!candidate || candidate === 'node_id') continue;
+    return candidate;
+  }
+  return '';
+}
+
+function resolveProbeCommand(command, fallbackCommand, context = {}) {
+  const base = Array.isArray(command) ? command.slice(0) : [];
+  if (!base.length) return Array.isArray(fallbackCommand) ? fallbackCommand.slice(0) : [];
+  const nodeId = cleanText(context.node_id || '', 120);
+  const needsNode = base.some((token) => String(token || '').includes('$NODE_ID'));
+  if (needsNode && !nodeId) {
+    return Array.isArray(fallbackCommand) ? fallbackCommand.slice(0) : [];
+  }
+  return base.map((token) => String(token || '').replace(/\$NODE_ID/g, nodeId));
 }
 
 function runRustProbe(policy) {
@@ -243,6 +266,7 @@ function runPilot(policy) {
 
 function runBenchmark(args, policy) {
   const runs = clampInt(args.runs, 1, 100, 5);
+  const probeNodeId = parseProbeNodeId(policy.paths.memory_index_path);
   const history = readJson(policy.paths.benchmark_path, {
     schema_version: '1.0',
     rows: []
@@ -253,12 +277,22 @@ function runBenchmark(args, policy) {
     if (policy.benchmark.mode === 'probe_commands') {
       const jsQueryProbe = runTimedProbeCommand(policy.benchmark.js_probe_command, policy.benchmark.timeout_ms);
       const rustQueryProbe = runTimedProbeCommand(policy.benchmark.rust_probe_command, policy.benchmark.timeout_ms);
+      const jsGetCommand = resolveProbeCommand(
+        policy.benchmark.js_get_probe_command,
+        policy.benchmark.js_probe_command,
+        { node_id: probeNodeId }
+      );
+      const rustGetCommand = resolveProbeCommand(
+        policy.benchmark.rust_get_probe_command,
+        policy.benchmark.rust_probe_command,
+        { node_id: probeNodeId }
+      );
       const jsGetProbe = runTimedProbeCommand(
-        policy.benchmark.js_get_probe_command || policy.benchmark.js_probe_command,
+        jsGetCommand,
         policy.benchmark.timeout_ms
       );
       const rustGetProbe = runTimedProbeCommand(
-        policy.benchmark.rust_get_probe_command || policy.benchmark.rust_probe_command,
+        rustGetCommand,
         policy.benchmark.timeout_ms
       );
 
@@ -338,6 +372,7 @@ function runBenchmark(args, policy) {
         rust_get_backend_mismatch: rustBackendMismatchGet,
         js_get_probe_error: jsGetProbe.ok ? null : jsGetProbe.stderr || 'probe_failed',
         rust_get_probe_error: rustGetProbe.ok ? null : rustGetProbe.stderr || 'probe_failed',
+        probe_node_id: probeNodeId || null,
         signature: stableHash(`${jsMs}|${rustMs}|${speedup}|${parityErrorCount}|${i}|${Date.now()}`, 24)
       });
       continue;

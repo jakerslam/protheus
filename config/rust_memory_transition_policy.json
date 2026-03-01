@@ -18,10 +18,8 @@
     "js_get_probe_command": [
       "node",
       "systems/memory/memory_recall.js",
-      "query",
-      "--q=rust_transition_get_probe",
-      "--expand=none",
-      "--top=1",
+      "get",
+      "--node-id=$NODE_ID",
       "--backend=js"
     ],
     "rust_probe_command": [
@@ -36,10 +34,8 @@
     "rust_get_probe_command": [
       "node",
       "systems/memory/memory_recall.js",
-      "query",
-      "--q=rust_transition_get_probe",
-      "--expand=none",
-      "--top=1",
+      "get",
+      "--node-id=$NODE_ID",
       "--backend=rust"
     ]
   }

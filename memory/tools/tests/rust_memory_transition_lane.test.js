@@ -83,6 +83,7 @@ process.stdout.write(JSON.stringify({ ok: true, backend_used: engine, parity_err
   assert.strictEqual(bench.rows[0].rust_probe_ok, true);
   assert.strictEqual(bench.rows[0].js_get_probe_ok, true);
   assert.strictEqual(bench.rows[0].rust_get_probe_ok, true);
+  assert.strictEqual(bench.rows[0].probe_node_id, 'n1');
   assert.strictEqual(bench.rows[0].parity_error_count, 0);
 
   res = run(['selector', `--policy=${policyPath}`, '--backend=rust_shadow']);
