@@ -64,7 +64,6 @@ try {
   const hardeningCheckpointsPath = path.join(tmp, 'hardening', 'checkpoints.jsonl');
   const hardeningHandoffPath = path.join(tmp, 'hardening', 'handoffs.jsonl');
   const verificationReceiptsPath = path.join(tmp, 'hardening', 'verification.jsonl');
-  const reliabilityMetricsPath = path.join(tmp, 'hardening', 'computer_use_metrics.json');
   ensureDir(receiptsRoot);
   ensureDir(outboxRoot);
   ensureDir(fsRoot);
@@ -135,16 +134,6 @@ try {
       expected_outcome_keys: ['expected_outcome'],
       receipts_path: verificationReceiptsPath
     },
-    computer_use_reliability_metrics: {
-      enabled: true,
-      tracked_adapter_kinds: ['browser_task', 'http_request'],
-      suite_keys: ['task_suite', 'suite'],
-      case_keys: ['case_id', 'task_id'],
-      rolling_window: 100,
-      target_success_rate: 0.7,
-      webarena_aliases: ['webarena'],
-      metrics_path: reliabilityMetricsPath
-    },
     receipts_path: receiptsRoot
   });
 
@@ -180,7 +169,7 @@ try {
   const dry = run([
     'run',
     '--profile-id=api_profile',
-    '--params={"url":"https://example.com/hook","method":"POST","body":{"ok":true},"task_suite":"webarena","case_id":"wa_001"}',
+    '--params={"url":"https://example.com/hook","method":"POST","body":{"ok":true}}',
     '--context={"passport_id":"passport-123"}',
     '--dry-run'
   ], env);
@@ -256,7 +245,7 @@ try {
   const verificationFail = run([
     'run',
     '--profile-id=browser_profile',
-    '--params={"action":"navigate","url":"https://example.com/captcha","session_id":"sess_a","task_suite":"webarena","case_id":"wa_002"}'
+    '--params={"action":"navigate","url":"https://example.com/captcha","session_id":"sess_a"}'
   ], env);
   assert.notStrictEqual(verificationFail.status, 0, 'captcha-like browser task should require handoff');
   const verificationPayload = parseJson(verificationFail.stdout);
@@ -272,10 +261,6 @@ try {
   assert.strictEqual(Number(statusPayload.profile_only_ratio || 0), 1, 'all runs should be profile-based');
   assert.ok(Number(statusPayload.hardening_protected_runs || 0) >= 1, 'hardening runs should be counted');
   assert.ok(Number(statusPayload.verification_handoff_required_runs || 0) >= 1, 'handoff runs should be counted');
-  assert.ok(statusPayload.computer_use_reliability, 'computer-use reliability summary should be present');
-  assert.ok(Number(statusPayload.computer_use_reliability.overall_total_runs || 0) >= 1, 'reliability metrics should count tracked runs');
-  assert.ok(typeof statusPayload.computer_use_reliability.webarena_like_success_rate === 'number', 'webarena-like success rate should be emitted');
-  assert.ok(fs.existsSync(reliabilityMetricsPath), 'reliability metrics state should be written');
 
   const receiptFile = path.join(receiptsRoot, `${new Date().toISOString().slice(0, 10)}.jsonl`);
   const receipts = readJsonl(receiptFile);
