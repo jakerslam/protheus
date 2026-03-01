@@ -987,7 +987,7 @@ Objective: capture enterprise-grade operational controls that are still missing 
 | Enterprise Control | Disposition | Canonical Backlog Coverage | Action |
 |---|---|---|---|
 | Supply-chain provenance (SBOM + attestations + reproducible builds) | covered | `V3-048` (done), `V3-062` (done) | No new epic; keep enforcing through merge/foundation gates. |
-| Tenant/isolation contract for future multi-operator expansion | covered | `RM-109` (done), `V2-014` (done), `V4-001` (todo) | No new epic; maintain boundary tests and federation trust-domain checks. |
+| Tenant/isolation contract for future multi-operator expansion | covered | `RM-109` (done), `V2-014` (done), `V4-001` (done) | No new epic; maintain boundary tests and federation trust-domain checks. |
 | Disaster-recovery evidence with RTO/RPO drills | covered | `V2-019` (done), `PLM-007` (done) | No new epic; continue scheduled drills and go/no-go evidence. |
 | Privileged access governance with JIT elevation/session controls | net-new | `V3-ENT-001` (below) | Add JIT/time-boxed elevation workflows, reason codes, and privileged session attestations. |
 | Data lifecycle governance (legal hold/DSAR-ready export/purge attestations) | net-new | `V3-ENT-002` (below) | Extend existing data-rights/retention lanes with legal-hold + subject-access + purge proof rails. |
