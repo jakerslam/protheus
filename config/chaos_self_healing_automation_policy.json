@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "shadow_only": true,
+  "cadence_hours": 24,
+  "max_fault_injections_per_run": 3,
+  "strict_fail_on_unhealed_critical": true,
+  "paths": {
+    "latest_path": "state/ops/chaos_self_healing_automation/latest.json",
+    "receipts_path": "state/ops/chaos_self_healing_automation/receipts.jsonl",
+    "schedule_path": "state/ops/chaos_self_healing_automation/schedule.json",
+    "postmortem_path": "state/ops/postmortem_loop/latest.json",
+    "doctor_path": "state/ops/execution_doctor_ga/latest.json",
+    "chaos_path": "state/ops/continuous_chaos_resilience/latest.json"
+  }
+}
