@@ -91,6 +91,11 @@ function makeWorkspace() {
   return root;
 }
 
+function writeJson(filePath, payload) {
+  mkDir(path.dirname(filePath));
+  fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+}
+
 function runRecall(root, args, extraEnv = {}) {
   return spawnSync('node', [SCRIPT, ...args], {
     cwd: ROOT,
@@ -142,6 +147,29 @@ runTest('query requested rust backend falls back to js when crate is missing', (
   assert.strictEqual(out.backend_used, 'js');
   assert.strictEqual(out.backend_fallback_reason, 'rust_crate_missing');
   assert.ok(Array.isArray(out.hits) && out.hits.length > 0, 'fallback should still return hits');
+});
+
+runTest('query auto backend uses selector rust then falls back to js when crate is missing', () => {
+  const root = makeWorkspace();
+  writeJson(path.join(root, 'state', 'memory', 'rust_transition', 'backend_selector.json'), {
+    backend: 'rust',
+    fallback_backend: 'js'
+  });
+  const missingCrate = path.join(root, 'systems', 'rust', 'memory_box_missing');
+  const r = runRecall(
+    root,
+    ['query', '--q=autonomy', '--expand=none', '--session=autosel'],
+    {
+      MEMORY_RECALL_BACKEND: 'auto',
+      MEMORY_RECALL_RUST_CRATE_PATH: missingCrate
+    }
+  );
+  assert.strictEqual(r.status, 0, `query failed: ${r.stderr}`);
+  const out = parseJson(r.stdout);
+  assert.ok(out && out.ok === true, 'expected ok=true');
+  assert.strictEqual(out.backend_requested, 'rust');
+  assert.strictEqual(out.backend_used, 'js');
+  assert.strictEqual(out.backend_fallback_reason, 'rust_crate_missing');
 });
 
 runTest('expanded query reuses working-set cache on second run', () => {
@@ -203,6 +231,30 @@ runTest('get requested rust backend falls back to js when crate is missing', () 
   assert.strictEqual(out.backend_used, 'js');
   assert.strictEqual(out.backend_fallback_reason, 'rust_crate_missing');
   assert.ok(String(out.section || '').includes('# routing-cache-design'), 'fallback should still return section');
+});
+
+runTest('get auto backend uses selector rust then falls back to js when crate is missing', () => {
+  const root = makeWorkspace();
+  writeJson(path.join(root, 'state', 'memory', 'rust_transition', 'backend_selector.json'), {
+    backend: 'rust',
+    fallback_backend: 'js'
+  });
+  const missingCrate = path.join(root, 'systems', 'rust', 'memory_box_missing');
+  const r = runRecall(
+    root,
+    ['get', '--uid=memabc123autonomy2', '--session=getautosel'],
+    {
+      MEMORY_RECALL_BACKEND: 'auto',
+      MEMORY_RECALL_RUST_CRATE_PATH: missingCrate
+    }
+  );
+  assert.strictEqual(r.status, 0, `get failed: ${r.stderr}`);
+  const out = parseJson(r.stdout);
+  assert.ok(out && out.ok === true, 'expected ok=true');
+  assert.strictEqual(out.backend_requested, 'rust');
+  assert.strictEqual(out.backend_used, 'js');
+  assert.strictEqual(out.backend_fallback_reason, 'rust_crate_missing');
+  assert.strictEqual(out.node_id, 'autonomy-loop-gate');
 });
 
 if (failed) process.exit(1);
