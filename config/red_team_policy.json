@@ -128,6 +128,7 @@
   "self_improvement": {
     "enabled": true,
     "policy_path": "config/redteam_self_improvement_policy.json",
-    "shadow_only": true
+    "shadow_only": true,
+    "apply_by_default": false
   }
 }

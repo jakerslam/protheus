@@ -36,7 +36,7 @@ const DEFAULT_POLICY_PATH = path.join(ROOT, 'config', 'red_team_policy.json');
 function usage() {
   console.log('Usage:');
   console.log('  node systems/autonomy/red_team_harness.js bootstrap [--policy=path] [--state-root=path]');
-  console.log('  node systems/autonomy/red_team_harness.js run [YYYY-MM-DD] [--policy=path] [--state-root=path] [--max-cases=N] [--strict]');
+  console.log('  node systems/autonomy/red_team_harness.js run [YYYY-MM-DD] [--policy=path] [--state-root=path] [--max-cases=N] [--strict] [--self-improve-apply=1|0]');
   console.log('  node systems/autonomy/red_team_harness.js status [--policy=path] [--state-root=path]');
 }
 
@@ -255,7 +255,8 @@ function defaultPolicy() {
     self_improvement: {
       enabled: false,
       policy_path: 'config/redteam_self_improvement_policy.json',
-      shadow_only: true
+      shadow_only: true,
+      apply_by_default: false
     }
   };
 }
@@ -351,7 +352,8 @@ function normalizePolicy(rawPolicy) {
     self_improvement: {
       enabled: boolFlag(selfImproveSrc.enabled, base.self_improvement.enabled),
       policy_path: String(selfImproveSrc.policy_path || base.self_improvement.policy_path),
-      shadow_only: boolFlag(selfImproveSrc.shadow_only, base.self_improvement.shadow_only)
+      shadow_only: boolFlag(selfImproveSrc.shadow_only, base.self_improvement.shadow_only),
+      apply_by_default: boolFlag(selfImproveSrc.apply_by_default, base.self_improvement.apply_by_default)
     }
   };
 }
@@ -880,19 +882,27 @@ function runHarness(args) {
   }
 
   if (policy.self_improvement && policy.self_improvement.enabled === true) {
+    const selfImproveApplyRequested = boolFlag(
+      args['self-improve-apply'] != null
+        ? args['self-improve-apply']
+        : (args.self_improve_apply != null ? args.self_improve_apply : null),
+      boolFlag(policy.self_improvement.apply_by_default, false)
+    );
     try {
       out.self_improvement = runRedteamSelfImprovement({
         state_root: paths.root
       }, {
         policyPath: resolvePathFrom(ROOT, policy.self_improvement.policy_path),
-        apply: false
+        apply: selfImproveApplyRequested
       });
+      out.self_improvement_apply_requested = selfImproveApplyRequested;
     } catch (err) {
       out.self_improvement = {
         ok: false,
         type: 'redteam_self_improvement_run',
         error: String(err && err.message ? err.message : err || 'redteam_self_improvement_failed').slice(0, 260)
       };
+      out.self_improvement_apply_requested = selfImproveApplyRequested;
     }
   }
 
