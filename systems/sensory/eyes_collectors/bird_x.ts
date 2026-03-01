@@ -1,12 +1,20 @@
 'use strict';
 
 const path = require('path');
+const fs = require('fs');
 
-const ADAPTIVE_PATH = path.join(__dirname, '..', '..', '..', 'adaptive', 'sensory', 'eyes', 'collectors', 'bird_x.js');
+const ADAPTIVE_DIR = path.join(__dirname, '..', '..', '..', 'adaptive', 'sensory', 'eyes', 'collectors');
+
+function resolveAdaptivePath() {
+  const tsPath = path.join(ADAPTIVE_DIR, 'bird_x.ts');
+  if (fs.existsSync(tsPath)) return tsPath;
+  return path.join(ADAPTIVE_DIR, 'bird_x.js');
+}
 
 function loadAdaptiveFresh() {
-  delete require.cache[require.resolve(ADAPTIVE_PATH)];
-  return require(ADAPTIVE_PATH);
+  const adaptivePath = resolveAdaptivePath();
+  delete require.cache[require.resolve(adaptivePath)];
+  return require(adaptivePath);
 }
 
 async function collectBirdX(options = {}) {

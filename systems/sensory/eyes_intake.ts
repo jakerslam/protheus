@@ -65,6 +65,8 @@ function usage() {
 function adaptiveCollectorPath(parserType) {
   const key = String(parserType || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
   if (!key) return '';
+  const tsPath = path.join(ADAPTIVE_COLLECTOR_DIR, `${key}.ts`);
+  if (fs.existsSync(tsPath)) return tsPath;
   return path.join(ADAPTIVE_COLLECTOR_DIR, `${key}.js`);
 }
 
@@ -73,8 +75,9 @@ function supportedParserTypes() {
   try {
     if (fs.existsSync(ADAPTIVE_COLLECTOR_DIR)) {
       for (const f of fs.readdirSync(ADAPTIVE_COLLECTOR_DIR)) {
-        if (!String(f).endsWith('.js')) continue;
-        out.add(String(f).replace(/\.js$/i, '').trim().toLowerCase());
+        const name = String(f || '').trim();
+        if (!name.endsWith('.ts') && !name.endsWith('.js')) continue;
+        out.add(name.replace(/\.(ts|js)$/i, '').trim().toLowerCase());
       }
     }
   } catch {

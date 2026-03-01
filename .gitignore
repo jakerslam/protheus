@@ -19,6 +19,10 @@ secrets/*
 logs/tool_raw/
 tmp/
 dist/
+memory/**
+!memory/README.md
+!memory/tools/
+!memory/tools/**
 memory/_snapshots/
 memory/*.backup.*
 memory/tools/tests/temp_*/
@@ -26,14 +30,8 @@ habits/scripts/*.bak.*
 
 # Generated state streams/snapshots
 #
-# Canonical rule: runtime state is ignored by default to prevent tree churn.
-# Keep only explicit governance allowlist tracked.
+# Canonical rule: runtime state is local only; do not track per-instance state.
 state/**
-!state/long_term.md
-!state/session_summary.md
-!state/approvals_queue.yaml
-!state/security/
-!state/security/break_glass.jsonl
 
 # Adaptive sensory runtime catalogs (high-churn generated stores)
 adaptive/sensory/eyes/catalog.json
@@ -132,20 +130,9 @@ state/assimilation/**
 state/helix/**
 state/eye/**
 
-# Local skill imports/experiments (keep canonical workspace skills tracked)
-skills/*
-!skills/bird/
-!skills/bird/**
-!skills/gmail/
-!skills/gmail/**
-!skills/gog/
-!skills/gog/**
-!skills/moltbook/
-!skills/moltbook/**
-!skills/moltstack/
-!skills/moltstack/**
-!skills/openclaw-token-optimizer/
-!skills/openclaw-token-optimizer/**
+# Local skill installs/experiments are instance-specific.
+skills/**
+!skills/README.md
 
 # Additional runtime churn (adaptive + memory + ops)
 .clawhub/lock.json

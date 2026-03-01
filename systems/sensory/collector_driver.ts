@@ -16,23 +16,36 @@ function normalizeKey(v) {
   return String(v || '').trim().toLowerCase();
 }
 
-function collectorModulePath(parserType) {
+function collectorModuleCandidates(parserType) {
   const key = normalizeKey(parserType).replace(/[^a-z0-9_\-]/g, '_');
-  if (!key) return null;
-  return path.join(ADAPTIVE_COLLECTOR_DIR, `${key}.js`);
+  if (!key) return [];
+  return [
+    path.join(ADAPTIVE_COLLECTOR_DIR, `${key}.ts`),
+    path.join(ADAPTIVE_COLLECTOR_DIR, `${key}.js`)
+  ];
+}
+
+function collectorModulePath(parserType) {
+  const candidates = collectorModuleCandidates(parserType);
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return candidates.length ? candidates[0] : null;
 }
 
 function hasCollector(parserType) {
-  const modulePath = collectorModulePath(parserType);
-  return !!(modulePath && fs.existsSync(modulePath));
+  return !!collectorModulePath(parserType);
 }
 
 function listCollectors() {
   if (!fs.existsSync(ADAPTIVE_COLLECTOR_DIR)) return [];
-  return fs.readdirSync(ADAPTIVE_COLLECTOR_DIR)
-    .filter((f) => f.endsWith('.js'))
-    .map((f) => f.replace(/\.js$/i, ''))
-    .sort((a, b) => a.localeCompare(b));
+  const out = new Set();
+  for (const f of fs.readdirSync(ADAPTIVE_COLLECTOR_DIR)) {
+    const name = String(f || '').trim();
+    if (!name.endsWith('.ts') && !name.endsWith('.js')) continue;
+    out.add(name.replace(/\.(ts|js)$/i, ''));
+  }
+  return Array.from(out).sort((a, b) => a.localeCompare(b));
 }
 
 function loadCollectorModule(parserType) {

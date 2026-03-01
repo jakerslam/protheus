@@ -597,8 +597,10 @@ function parserTypeSupportedInAdaptive(parserType) {
   const key = String(parserType || '').trim().toLowerCase();
   if (!key || key === 'stub') return false;
   try {
-    const filePath = path.join(ADAPTIVE_COLLECTOR_DIR, `${key}.js`);
-    return fs.existsSync(filePath);
+    const tsPath = path.join(ADAPTIVE_COLLECTOR_DIR, `${key}.ts`);
+    if (fs.existsSync(tsPath)) return true;
+    const jsPath = path.join(ADAPTIVE_COLLECTOR_DIR, `${key}.js`);
+    return fs.existsSync(jsPath);
   } catch {
     return false;
   }
