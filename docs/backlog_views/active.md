@@ -1,6 +1,6 @@
 # Backlog Active View
 
-Generated: 2026-03-02T18:06:21.390Z
+Generated: 2026-03-02T18:08:06.810Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -136,4 +136,18 @@ Generated: 2026-03-02T18:06:21.390Z
 | V3-RACE-328 | hardening | V3 | queued | Tesla OTA Fleet Deployment Lane (Signed/Staged/Rollback-Guaranteed) | V3-RACE-273, V3-RACE-315, V3-RACE-244 |
 | V3-RACE-329 | extension | V3 | queued | Tesla Energy Grid-Aware Scheduling Adapter | V3-RACE-322, V3-RACE-226, V3-RACE-125 |
 | V3-RACE-330 | hardening | V3 | queued | Tesla Promotion Hardening Gate (Physical Grounding + Safety Review + Fleet Chaos Evidence) | V3-RACE-324, V3-RACE-327, V3-RACE-328, V3-RACE-214 |
+| V3-RACE-331 | extension | V3 | queued | Helix Immutable Linux Parity Pack (rpm-ostree Base Profile) | V3-RACE-209, V3-RACE-212, V3-RACE-332 |
+| V3-RACE-332 | hardening | V3 | queued | OSTree/rpm-ostree Signed Image + Atomic Rollback Lane | V3-RACE-331, V3-RACE-228, V3-RACE-120 |
+| V3-RACE-333 | hardening | V3 | queued | SELinux Enforcing-By-Default Policy Pack (Per-Lane Least Privilege) | V3-RACE-214, V3-RACE-017, V3-RACE-334 |
+| V3-RACE-334 | primitive-upgrade | V3 | queued | Linux Kernel Acceleration/Sandbox Primitive Lane (eBPF/io_uring/cgroupv2/Landlock) | V3-RACE-220, V3-RACE-333, V3-RACE-174 |
+| V3-RACE-335 | hardening | V3 | queued | Live-Patch + High-Availability Update Lane (Zero-Downtime Contracts) | V3-RACE-315, V3-RACE-304, V3-RACE-332 |
+| V3-RACE-336 | hardening | V3 | queued | Air-Gapped/Offline Deployment Bundle Lane (Cryptographic Verification) | V3-RACE-212, V3-RACE-228, V3-RACE-332 |
+| V3-RACE-337 | extension | V3 | queued | Enterprise Config-Management Adapter Pack (Ansible/Salt/Puppet Bolt) | V3-RACE-304, V3-RACE-203, V3-RACE-116 |
+| V3-RACE-338 | hardening | V3 | queued | Certified Enterprise Hardware Compatibility + Tuning Matrix Lane | V3-RACE-174, V3-RACE-303, V3-RACE-331 |
+| V3-RACE-339 | hardening | V3 | queued | 15-Year LTS Maintenance Alignment Lane (Helix Lifecycle Contract) | V3-RACE-341, V3-RACE-315, V3-RACE-120 |
+| V3-RACE-340 | hardening | V3 | queued | Compliance Hardening Pack (FIPS 140-3 + CC EAL4+ + DISA STIG Automation) | V3-RACE-311, V3-RACE-245, V3-RACE-307 |
+| V3-RACE-341 | hardening | V3 | queued | Helix Enterprise Support/Commercial Readiness Lane (24x7 SLA + Indemnification) | V3-RACE-314, V3-RACE-340, V3-RACE-279 |
+| V3-RACE-342 | extension | V3 | queued | Secure RPM Repository + Delta Update Channel Lane | V3-RACE-332, V3-RACE-228, V3-RACE-175 |
+| V3-RACE-343 | hardening | V3 | queued | Helix Promotion Hardening Gate (Immutability + SELinux/eBPF + Certified HW + Air-Gap Evidence) | V3-RACE-333, V3-RACE-334, V3-RACE-336, V3-RACE-338, V3-RACE-214 |
+| V3-RACE-344 | hardening | V3 | queued | Neutral-Core Enterprise Hardening Backport Pack (Helix-Derived Controls) | V3-RACE-212, V3-RACE-343, V3-RACE-120 |
 

@@ -1,10 +1,10 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T18:06:21.390Z",
-  "source_hash": "9ac6fcf0e85b75f0dfbcc615",
-  "row_count": 529,
-  "active_count": 132,
+  "generated_at": "2026-03-02T18:08:06.810Z",
+  "source_hash": "5924cbdf3de35bdcd0165e19",
+  "row_count": 543,
+  "active_count": 146,
   "archive_count": 397,
   "rows": [
     {
@@ -6622,6 +6622,204 @@
         "V3-RACE-327",
         "V3-RACE-328",
         "V3-RACE-214"
+      ]
+    },
+    {
+      "id": "V3-RACE-331",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Helix Immutable Linux Parity Pack (rpm-ostree Base Profile)",
+      "problem": "Helix stewardship requires first-class immutable distro behavior and lifecycle semantics beyond generic Linux support.",
+      "acceptance": "Add Helix distro profile adapters with immutable base/image-layer contracts, require verification receipts for install/run/update parity, and include rollback-safe fallback to baseline Linux profiles on compatibility regressions.",
+      "dependencies": [
+        "V3-RACE-209",
+        "V3-RACE-212",
+        "V3-RACE-332"
+      ]
+    },
+    {
+      "id": "V3-RACE-332",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "OSTree/rpm-ostree Signed Image + Atomic Rollback Lane",
+      "problem": "Enterprise immutable operations require deterministic signed image delivery and auto-rollback guarantees at the system layer.",
+      "acceptance": "Add OSTree/rpm-ostree distribution lane with signed reproducible images and atomic rollback policy hooks, require verification receipts for signature/rollback correctness, and include rollback-safe channel freeze on integrity drift.",
+      "dependencies": [
+        "V3-RACE-331",
+        "V3-RACE-228",
+        "V3-RACE-120"
+      ]
+    },
+    {
+      "id": "V3-RACE-333",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "SELinux Enforcing-By-Default Policy Pack (Per-Lane Least Privilege)",
+      "problem": "Helix profile mandates strict MAC enforcement and lane-level confinement to reduce privileged-path exposure.",
+      "acceptance": "Add SELinux policy pack with default enforcing mode and per-lane confinement contracts, require verification receipts for policy enforcement and denied-bypass tests, and include rollback-safe policy fallback profile for emergency recovery.",
+      "dependencies": [
+        "V3-RACE-214",
+        "V3-RACE-017",
+        "V3-RACE-334"
+      ]
+    },
+    {
+      "id": "V3-RACE-334",
+      "class": "primitive-upgrade",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Linux Kernel Acceleration/Sandbox Primitive Lane (eBPF/io_uring/cgroupv2/Landlock)",
+      "problem": "Helix enterprise performance/security goals require modern kernel primitives integrated into runtime contracts.",
+      "acceptance": "Add eBPF/io_uring/cgroupv2/Landlock adapters for targeted lanes, require verification receipts for performance and sandbox policy parity, and include rollback-safe disable/fallback switches per primitive when regressions appear.",
+      "dependencies": [
+        "V3-RACE-220",
+        "V3-RACE-333",
+        "V3-RACE-174"
+      ]
+    },
+    {
+      "id": "V3-RACE-335",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Live-Patch + High-Availability Update Lane (Zero-Downtime Contracts)",
+      "problem": "Enterprise operations require zero-downtime maintenance behavior with verifiable patch safety gates.",
+      "acceptance": "Add live-patching/HA update lane with maintenance orchestration contracts, require verification receipts proving no-downtime and safety criteria, and include rollback-safe patch reversion and traffic-drain fallback paths.",
+      "dependencies": [
+        "V3-RACE-315",
+        "V3-RACE-304",
+        "V3-RACE-332"
+      ]
+    },
+    {
+      "id": "V3-RACE-336",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Air-Gapped/Offline Deployment Bundle Lane (Cryptographic Verification)",
+      "problem": "Regulated and disconnected environments require fully bundled installs with integrity proofs and no live dependency fetch.",
+      "acceptance": "Add offline bundle pipeline with cryptographic manifest verification and dependency closure checks, require verification receipts for air-gapped install parity, and include rollback-safe bundle quarantine on verification failures.",
+      "dependencies": [
+        "V3-RACE-212",
+        "V3-RACE-228",
+        "V3-RACE-332"
+      ]
+    },
+    {
+      "id": "V3-RACE-337",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Enterprise Config-Management Adapter Pack (Ansible/Salt/Puppet Bolt)",
+      "problem": "Fleet-scale policy enforcement in Helix environments depends on native config-management integration paths.",
+      "acceptance": "Add config-management adapters for supported orchestrators with typed policy application contracts, require verification receipts for orchestration parity/idempotence, and include rollback-safe adapter disable path on drift or execution regressions.",
+      "dependencies": [
+        "V3-RACE-304",
+        "V3-RACE-203",
+        "V3-RACE-116"
+      ]
+    },
+    {
+      "id": "V3-RACE-338",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Certified Enterprise Hardware Compatibility + Tuning Matrix Lane",
+      "problem": "Mission-critical enterprise rollout requires certified hardware support and deterministic performance/safety tuning profiles.",
+      "acceptance": "Add vendor-certified compatibility matrix and tuning contracts for target server classes, require verification receipts for certification/tuning outcomes, and include rollback-safe profile fallback to generic hardware settings on mismatch.",
+      "dependencies": [
+        "V3-RACE-174",
+        "V3-RACE-303",
+        "V3-RACE-331"
+      ]
+    },
+    {
+      "id": "V3-RACE-339",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "15-Year LTS Maintenance Alignment Lane (Helix Lifecycle Contract)",
+      "problem": "Long-horizon enterprise commitments need explicit maintenance cadence, compatibility windows, and support guarantees encoded in policy.",
+      "acceptance": "Add lifecycle policy lane encoding 15-year maintenance windows and compatibility guarantees, require verification receipts for lifecycle policy compliance checks, and include rollback-safe policy downgrade path when unsupported combinations are detected.",
+      "dependencies": [
+        "V3-RACE-341",
+        "V3-RACE-315",
+        "V3-RACE-120"
+      ]
+    },
+    {
+      "id": "V3-RACE-340",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Compliance Hardening Pack (FIPS 140-3 + CC EAL4+ + DISA STIG Automation)",
+      "problem": "Helix enterprise adoption requires formalized compliance hardening tooling beyond baseline control evidence outputs.",
+      "acceptance": "Add automated hardening/profile generation for FIPS/CC/STIG targets with policy-bound applicability checks, require verification receipts for profile completeness and enforcement, and include rollback-safe hardening profile disable/revert controls.",
+      "dependencies": [
+        "V3-RACE-311",
+        "V3-RACE-245",
+        "V3-RACE-307"
+      ]
+    },
+    {
+      "id": "V3-RACE-341",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Helix Enterprise Support/Commercial Readiness Lane (24x7 SLA + Indemnification)",
+      "problem": "Commercial enterprise commitments require auditable support readiness and indemnification policy evidence before external claims.",
+      "acceptance": "Add support/commercial readiness lane producing SLA/indemnification evidence artifacts, require verification receipts for policy and support-matrix completeness, and include rollback-safe publication hold when readiness checks fail.",
+      "dependencies": [
+        "V3-RACE-314",
+        "V3-RACE-340",
+        "V3-RACE-279"
+      ]
+    },
+    {
+      "id": "V3-RACE-342",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Secure RPM Repository + Delta Update Channel Lane",
+      "problem": "Bandwidth-efficient enterprise rollout requires signed RPM distribution with deterministic delta update and rollback semantics.",
+      "acceptance": "Add secure RPM repository/update lane with signed metadata and delta transport contracts, require verification receipts for update integrity and delta correctness, and include rollback-safe channel freeze/revert behavior on update validation failures.",
+      "dependencies": [
+        "V3-RACE-332",
+        "V3-RACE-228",
+        "V3-RACE-175"
+      ]
+    },
+    {
+      "id": "V3-RACE-343",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Helix Promotion Hardening Gate (Immutability + SELinux/eBPF + Certified HW + Air-Gap Evidence)",
+      "problem": "Helix-targeted promotions require explicit immutable/security/hardware/offline evidence gates beyond baseline promotion checks.",
+      "acceptance": "Add Helix promotion gate enforcing immutable update semantics, SELinux/eBPF policy evidence, certified hardware validation, and air-gapped install receipts where applicable, require verification receipts per promotion, and include rollback-safe promotion hold/fallback on gate instability.",
+      "dependencies": [
+        "V3-RACE-333",
+        "V3-RACE-334",
+        "V3-RACE-336",
+        "V3-RACE-338",
+        "V3-RACE-214"
+      ]
+    },
+    {
+      "id": "V3-RACE-344",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Neutral-Core Enterprise Hardening Backport Pack (Helix-Derived Controls)",
+      "problem": "High-value Helix controls should uplift the neutral platform so future stewards inherit enterprise-grade defaults automatically.",
+      "acceptance": "Promote selected Helix-derived controls (immutability contracts, SELinux-first policy patterns, air-gapped verification, long-LTS lifecycle policy primitives) into neutral core profiles with policy toggles, require verification receipts for non-regression across non-Helix profiles, and include rollback-safe opt-out path for incompatible environments.",
+      "dependencies": [
+        "V3-RACE-212",
+        "V3-RACE-343",
+        "V3-RACE-120"
       ]
     },
     {
