@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T09:21:21.703Z
+Generated: 2026-03-02T09:21:23.912Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -339,6 +339,7 @@ Generated: 2026-03-02T09:21:21.703Z
 | V3-RACE-155 | primitive-upgrade | V3 | done | Fractal Curriculum + Evaluation Oversight for Collective Training | V3-RACE-019, V3-RACE-153, RM-104 |
 | V3-RACE-156 | hardening | V3 | done | Sovereign Model Rollout Ladder (Tier-3 Governed + Fallback/Rollback) | V3-RACE-155, V3-RACE-038, V2-069 |
 | V3-RACE-157 | extension | V3 | done | Encrypted Model Artifact Archive (Content-Addressed Weights) | V3-RACE-141, V3-RACE-156, V3-RACE-037 |
+| V3-RACE-158 | extension | V3 | done | Contributor Incentive Engine (Badges, Rewards, Recognition) | V3-RACE-154, V3-RACE-030, V3-RACE-130 |
 | OPT-001 | backlog | OPT | done | Eyes signal weighting retune in router ranking |  |
 | OPT-002 | backlog | OPT | done | Prompt cache policy split by lane (reflex/autonomy/dream) |  |
 | OPT-003 | backlog | OPT | done | Dream fallback quality scoring before proposal injection |  |

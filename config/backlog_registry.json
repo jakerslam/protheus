@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:21:21.703Z",
-  "source_hash": "6ad4c842f221e2f084056f8c",
+  "generated_at": "2026-03-02T09:21:23.912Z",
+  "source_hash": "734b662e3c912070430d629e",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 341,
+  "archive_count": 342,
   "rows": [
     {
       "id": "BL-001",
@@ -4191,7 +4191,7 @@
       "id": "V3-RACE-158",
       "class": "extension",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "Contributor Incentive Engine (Badges, Rewards, Recognition)",
       "problem": "Sustainable collective training requires deterministic contributor recognition and reward contracts linked to real compute impact.",
       "acceptance": "Implement `systems/economy/training_contributor_incentive_engine.{ts,js}` + policy `config/training_contributor_incentive_policy.json`; user-specific badge history and reward preferences remain in `memory/economy/training_rewards/` with adaptive contribution quality scoring in `adaptive/economy/training_rewards/`; permanent reward formulas/issuance logic remain in `systems/economy/` + `config/`; awards integrate with honor codex and emit auditable receipts.",
