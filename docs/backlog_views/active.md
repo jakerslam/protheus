@@ -1,6 +1,6 @@
 # Backlog Active View
 
-Generated: 2026-03-02T02:23:50.096Z
+Generated: 2026-03-02T02:26:15.786Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -14,7 +14,6 @@ Generated: 2026-03-02T02:23:50.096Z
 | V3-RACE-031 | hardening | V3 | queued | Legion Geas Protocol (Iron Oath Self-Destruct Covenant) | V3-RACE-017, V3-RACE-020, V3-RACE-DEF-024, V3-RACE-DEF-027, V3-RACE-DEF-028, V3-RACE-DEF-029, V3-OPS-005 |
 | V3-RACE-035 | hardening | V3 | queued | Formal Mind-Sovereignty Verification Layer | V3-045, V3-RACE-031, V3-RACE-034 |
 | V3-RACE-036 | hardening | V3 | queued | Multi-Mind Isolation & Shared-Consciousness Boundary Plane | RM-109, V3-RACE-020, V3-RACE-035 |
-| V3-RACE-037 | extension | V3 | queued | Long-Term Archival & Sovereign Resurrection Substrate | V3-BLK-001, V3-QPROOF-001, V3-RACE-020 |
 | V3-RACE-038A | extension | V3 | queued | Inter-Protheus Federation Trust Web & Temporary Merge Contracts | V2-062, V3-RACE-036, V3-RACE-037 |
 | V3-RACE-039 | primitive | V3 | queued | Human-Machine Merge Interface Security Substrate | V3-RACE-035, V3-RACE-036, V3-RACE-037 |
 | V3-RACE-DEF-031A | hardening | V3 | queued | Thorn Swarm Protocol (Tier-4 Sacrificial Wave Defense) | V3-RACE-017, V3-RACE-031, V3-RACE-DEF-024, V3-RACE-DEF-026, V3-RACE-DEF-029 |

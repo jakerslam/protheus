@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T02:23:50.096Z
+Generated: 2026-03-02T02:26:15.786Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -41,6 +41,7 @@ Generated: 2026-03-02T02:23:50.096Z
 | V3-RACE-CONF-004 | hardening | V3 | done | Rust Memory Path-Contract Compatibility (`core/memory` alias docs/wrappers) | V3-RACE-023, V3-DOC-001 |
 | V3-RACE-DEF-024 | hardening | V3 | done | PsycheForge Adaptive Counter-Profile Defense Organ | V3-RACE-017, V3-RACE-019, V3-RACE-023, V3-VENOM-006 |
 | V3-RACE-034 | primitive-upgrade | V3 | done | Rust Spine Microkernel (Control-Plane Core Extraction) | V3-RACE-023, V3-RACE-021, V3-OPS-005 |
+| V3-RACE-037 | extension | V3 | done | Long-Term Archival & Sovereign Resurrection Substrate | V3-BLK-001, V3-QPROOF-001, V3-RACE-020 |
 | V3-RACE-060 | hardening | V3 | done | Dist Runtime Contract Reconciliation Gate (Legacy-Pair Truth Source) | V2-003, BL-014, V3-AEX-002 |
 | V3-RACE-061 | hardening | V3 | done | Deterministic Time Harness for Release/TTL Gates | V2-049, V2-050, V3-RACE-060 |
 | V3-RACE-062 | hardening | V3 | done | Benchmark Artifact Consistency Gate (Report vs History vs Latest) | V3-RACE-024, V3-RACE-026 |

@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T02:23:50.096Z",
-  "source_hash": "2b3df9620d7ffe535a2dd699",
+  "generated_at": "2026-03-02T02:26:15.786Z",
+  "source_hash": "df163e5898993bb73c291c31",
   "row_count": 127,
-  "active_count": 61,
-  "archive_count": 66,
+  "active_count": 60,
+  "archive_count": 67,
   "rows": [
     {
       "id": "V3-OPS-004",
@@ -684,10 +684,10 @@
       "id": "V3-RACE-037",
       "class": "extension",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Long-Term Archival & Sovereign Resurrection Substrate",
       "problem": "Runtime continuity is strong, but multi-year dormancy/disaster recovery needs encrypted attestable archival + restore rituals.",
-      "acceptance": "Deliver cold-archive packaging, quantum-resilient keying, integrity attestations, and rehearsed resurrection drills with verifiable identity continuity.",
+      "acceptance": "Added `systems/continuity/sovereign_resurrection_substrate.{ts,js}` + `config/sovereign_resurrection_substrate_policy.json` to orchestrate cold archival, quantum-attestation checks, resurrection bundle/verify/restore-preview drills, and continuity-hash identity attestations with receipted state tracking; validation landed in `memory/tools/tests/sovereign_resurrection_substrate.test.js` and operator docs in `docs/SOVEREIGN_RESURRECTION_SUBSTRATE.md`.",
       "dependencies": [
         "V3-BLK-001",
         "V3-QPROOF-001",
