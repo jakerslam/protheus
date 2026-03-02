@@ -17,3 +17,9 @@ Generated: 2026-03-01T03:27:30.118Z
 - Ops: SLOs, incident playbooks, release evidence
 - Governance: constitution, policy contracts, approvals
 
+## Program Artifacts
+- [Onboarding Playbook](ONBOARDING_PLAYBOOK.md)
+- [UI Surface Maturity Matrix](UI_SURFACE_MATURITY_MATRIX.md)
+- [History Cleanliness Program](HISTORY_CLEANLINESS.md)
+- [Claim-Evidence Policy](CLAIM_EVIDENCE_POLICY.md)
+- [Public Collaboration Triage Contract](PUBLIC_COLLABORATION_TRIAGE.md)

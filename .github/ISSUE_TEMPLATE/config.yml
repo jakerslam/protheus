@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Private security disclosure
+    url: https://github.com/jakerslam/protheus/security/policy
+    about: Report vulnerabilities privately per SECURITY.md guidance.
+  - name: Documentation hub
+    url: https://github.com/jakerslam/protheus/blob/main/docs/README.md
+    about: Start here for architecture, runbooks, governance, and policies.
