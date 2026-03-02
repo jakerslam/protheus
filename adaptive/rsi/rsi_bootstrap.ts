@@ -70,7 +70,9 @@ const HABIT_LIFECYCLE_SCRIPT = path.join(ROOT, 'habits', 'scripts', 'reflex_habi
 const NURSERY_SCRIPT = path.join(ROOT, 'systems', 'nursery', 'nursery_bootstrap.js');
 const LINEAGE_SCRIPT = path.join(ROOT, 'systems', 'spawn', 'seed_spawn_lineage.js');
 const SPAWN_BROKER_SCRIPT = path.join(ROOT, 'systems', 'spawn', 'spawn_broker.js');
+const SUPPLY_CHAIN_GATE_SCRIPT = path.join(ROOT, 'systems', 'security', 'supply_chain_provenance_gate.js');
 const CONTINUITY_RESURRECTION_SCRIPT = path.join(ROOT, 'systems', 'continuity', 'resurrection_protocol.js');
+const SELF_MOD_PATCH_GATE_SCRIPT = path.join(ROOT, 'systems', 'security', 'rsi_git_patch_self_mod_gate.js');
 
 function usage() {
   console.log('Usage:');
@@ -268,7 +270,9 @@ function defaultPolicy() {
       nursery: rel(NURSERY_SCRIPT),
       seed_lineage: rel(LINEAGE_SCRIPT),
       spawn_broker: rel(SPAWN_BROKER_SCRIPT),
-      continuity_resurrection: rel(CONTINUITY_RESURRECTION_SCRIPT)
+      supply_chain_gate: rel(SUPPLY_CHAIN_GATE_SCRIPT),
+      continuity_resurrection: rel(CONTINUITY_RESURRECTION_SCRIPT),
+      self_mod_patch_gate: rel(SELF_MOD_PATCH_GATE_SCRIPT)
     },
     contract_lanes: defaultContractLanes()
   };
@@ -361,7 +365,9 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
       nursery: resolveScript(scripts.nursery, NURSERY_SCRIPT),
       seed_lineage: resolveScript(scripts.seed_lineage, LINEAGE_SCRIPT),
       spawn_broker: resolveScript(scripts.spawn_broker, SPAWN_BROKER_SCRIPT),
-      continuity_resurrection: resolveScript(scripts.continuity_resurrection, CONTINUITY_RESURRECTION_SCRIPT)
+      supply_chain_gate: resolveScript(scripts.supply_chain_gate, SUPPLY_CHAIN_GATE_SCRIPT),
+      continuity_resurrection: resolveScript(scripts.continuity_resurrection, CONTINUITY_RESURRECTION_SCRIPT),
+      self_mod_patch_gate: resolveScript(scripts.self_mod_patch_gate, SELF_MOD_PATCH_GATE_SCRIPT)
     },
     contract_lanes: normalizeContractLanes(raw.contract_lanes, base.contract_lanes),
     policy_path: path.resolve(policyPath)
@@ -668,6 +674,13 @@ function runSwarmBootstrap(policy: AnyObj, args: AnyObj, mock: boolean) {
   if (!parentId || !childId) return null;
 
   const ownerId = normalizeToken(args.owner || args.owner_id || policy.owner_default, 120) || policy.owner_default;
+  const provenanceRun = runMaybeMock(
+    policy.scripts.supply_chain_gate,
+    ['check', `--owner=${ownerId}`, '--mode=strict'],
+    mock,
+    'supply_chain_provenance_check',
+    { timeout_ms: policy.timeouts_ms.lane }
+  );
   const lineageRun = runMaybeMock(
     policy.scripts.seed_lineage,
     [
@@ -709,6 +722,7 @@ function runSwarmBootstrap(policy: AnyObj, args: AnyObj, mock: boolean) {
     requested: true,
     parent_id: parentId,
     child_id: childId,
+    provenance: provenanceRun,
     lineage: lineageRun,
     nursery: nurseryRun,
     spawn_broker: spawnRun
@@ -1047,30 +1061,34 @@ function cmdStep(args: AnyObj, opts: AnyObj = {}) {
         patch_file: rel(patchFileAbs)
       };
     } else {
-      const checkRun = runGit(['apply', '--check', patchFileAbs], policy.timeouts_ms.lane);
-      const canApplyPatch = applyAllowed && gatedRun && gatedRun.ok === true;
-      const applyRun = canApplyPatch && toBool(args['apply-patch'] != null ? args['apply-patch'] : true, true)
-        ? runGit(['apply', patchFileAbs], policy.timeouts_ms.lane)
-        : null;
+      const gatePolicyPath = path.join(ROOT, 'config', 'rsi_git_patch_self_mod_gate_policy.json');
+      const gateArgs = [
+        'evaluate',
+        `--owner=${ownerId}`,
+        `--proposal-id=${proposalId || 'latest'}`,
+        `--patch-file=${patchFileAbs}`,
+        `--approved=${approval.approved ? '1' : '0'}`,
+        `--apply=${applyAllowed && toBool(args['apply-patch'] != null ? args['apply-patch'] : true, true) ? '1' : '0'}`,
+        '--strict=1',
+        `--policy=${gatePolicyPath}`
+      ];
+      const gateRun = runMaybeMock(
+        policy.scripts.self_mod_patch_gate,
+        gateArgs,
+        mock,
+        'self_mod_patch_gate_evaluate',
+        { timeout_ms: policy.timeouts_ms.heavy }
+      );
       patchApply = {
-        ok: checkRun.ok && (!canApplyPatch || (applyRun && applyRun.ok)),
+        ok: gateRun.ok === true
+          && (!gateRun.payload || gateRun.payload.self_mod_gate_ok !== false)
+          && (!gateRun.payload || gateRun.payload.ok !== false),
         patch_file: rel(patchFileAbs),
-        check: {
-          ok: checkRun.ok,
-          status: checkRun.status,
-          stderr: cleanText(checkRun.stderr || '', 600)
-        },
-        apply: applyRun
-          ? {
-            attempted: true,
-            ok: applyRun.ok,
-            status: applyRun.status,
-            stderr: cleanText(applyRun.stderr || '', 600)
-          }
-          : {
-            attempted: false,
-            reason: canApplyPatch ? 'apply_patch_disabled' : 'apply_not_allowed'
-          }
+        gate: {
+          ok: gateRun.ok,
+          status: gateRun.status,
+          payload: gateRun.payload
+        }
       };
       if (!patchApply.ok && applyGateReasons.indexOf('patch_apply_failed') === -1) {
         applyGateReasons.push('patch_apply_failed');

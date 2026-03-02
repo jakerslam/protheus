@@ -55,7 +55,9 @@
     "nursery": "systems/nursery/nursery_bootstrap.js",
     "seed_lineage": "systems/spawn/seed_spawn_lineage.js",
     "spawn_broker": "systems/spawn/spawn_broker.js",
-    "continuity_resurrection": "systems/continuity/resurrection_protocol.js"
+    "supply_chain_gate": "systems/security/supply_chain_provenance_gate.js",
+    "continuity_resurrection": "systems/continuity/resurrection_protocol.js",
+    "self_mod_patch_gate": "systems/security/rsi_git_patch_self_mod_gate.js"
   },
   "contract_lanes": [
     {
@@ -158,4 +160,3 @@
     }
   ]
 }
-
