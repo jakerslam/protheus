@@ -1,10 +1,10 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T18:08:06.810Z",
-  "source_hash": "5924cbdf3de35bdcd0165e19",
-  "row_count": 543,
-  "active_count": 146,
+  "generated_at": "2026-03-02T18:10:23.346Z",
+  "source_hash": "6ca75322b4b67eb0cff3cbc0",
+  "row_count": 554,
+  "active_count": 157,
   "archive_count": 397,
   "rows": [
     {
@@ -6820,6 +6820,165 @@
         "V3-RACE-212",
         "V3-RACE-343",
         "V3-RACE-120"
+      ]
+    },
+    {
+      "id": "V3-RACE-345",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Ubuntu Enterprise Adaptation Pack (Snap/Core + Landscape/Juju + Pro/Livepatch + MAAS/MicroK8s)",
+      "problem": "Ubuntu remains a dominant enterprise Linux surface and needs first-class contracts beyond generic host adaptation.",
+      "acceptance": "Add Ubuntu-specific channel adapters for Snap/Core packaging, Landscape/Juju orchestration, AppArmor/seccomp policy packs, Pro/Livepatch lifecycle hooks, MAAS/cloud-init bootstrap, MicroK8s integration, and migration tooling; require verification receipts for each capability path and include rollback-safe fallback to generic channel on feature mismatch.",
+      "dependencies": [
+        "V3-RACE-211",
+        "V3-RACE-212",
+        "V3-RACE-213"
+      ]
+    },
+    {
+      "id": "V3-RACE-346",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "FreeBSD Hardened Adaptation Pack (Ports/ZFS/Capsicum/Jails/PF/geli)",
+      "problem": "FreeBSD-specific primitives require explicit integration to preserve security and operational correctness under host adaptation.",
+      "acceptance": "Add FreeBSD adapters for Ports/Poudriere publishing, ZFS boot environments, Capsicum/Jail confinement, PF/ipfw policy integration, GEOM/geli encryption hooks, and hardened kernel toggles; require verification receipts for each subsystem and include rollback-safe fallback to generic channel when parity tests fail.",
+      "dependencies": [
+        "V3-RACE-211",
+        "V3-RACE-214",
+        "V3-RACE-343"
+      ]
+    },
+    {
+      "id": "V3-RACE-347",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "NixOS Declarative Adaptation Pack (Modules/Flakes/Impermanence/Hydra/Cachix)",
+      "problem": "Declarative Nix workflows demand dedicated integration so reproducibility guarantees remain end-to-end.",
+      "acceptance": "Add NixOS adapters for module/flake-native config, impermanence/tmpfs patterns, Home Manager/Nix Darwin compatibility bridges, Cachix distribution, container specialisations, and Hydra release hooks; require verification receipts for reproducibility and include rollback-safe channel fallback on evaluation/regression failures.",
+      "dependencies": [
+        "V3-RACE-211",
+        "V3-RACE-228",
+        "V3-RACE-120"
+      ]
+    },
+    {
+      "id": "V3-RACE-348",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Raspberry Pi OS Edge Hardware Adaptation Pack (GPIO/Boot/Firmware/Provisioning/OTA)",
+      "problem": "Raspberry Pi ecosystems need explicit low-power hardware and provisioning contracts for reliable edge deployment behavior.",
+      "acceptance": "Add Pi adapters for boot config/firmware control, GPIO/I2C/SPI/camera/HAT interfaces, thermal/battery-aware scheduling profiles, headless/desktop footprint variants, Pi Imager provisioning, and repository/OTA channels; require verification receipts for hardware-interface correctness and include rollback-safe fallback for unsupported firmware/hardware revisions.",
+      "dependencies": [
+        "V3-RACE-211",
+        "V3-RACE-189",
+        "V3-RACE-190"
+      ]
+    },
+    {
+      "id": "V3-RACE-349",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Alpine Minimal-Hardening Adaptation Pack (musl/apk/rootless scratch/read-only overlay)",
+      "problem": "Alpine minimal/edge deployments require dedicated contracts to preserve security and footprint targets without runtime drift.",
+      "acceptance": "Add Alpine adapters for musl/apk packaging, rootless scratch container optimization, read-only overlay deployment profiles, static/busybox compatibility, and secure mirror update channels; require verification receipts for footprint/security parity and include rollback-safe fallback to generic profile when constraints are unmet.",
+      "dependencies": [
+        "V3-RACE-211",
+        "V3-RACE-175",
+        "V3-RACE-220"
+      ]
+    },
+    {
+      "id": "V3-RACE-350",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Multi-Distro Artifact Publishing Plane (Snap/Ports/Cachix/Pi/apk)",
+      "problem": "Cross-ecosystem support needs one governed publishing fabric instead of ad-hoc per-distro artifact lanes.",
+      "acceptance": "Implement unified signed artifact publishing adapters per distro channel with provenance and policy checks, require verification receipts for distribution integrity and channel parity, and include rollback-safe channel freeze/revert contracts for compromised or invalid artifacts.",
+      "dependencies": [
+        "V3-RACE-345",
+        "V3-RACE-346",
+        "V3-RACE-347",
+        "V3-RACE-348",
+        "V3-RACE-349"
+      ]
+    },
+    {
+      "id": "V3-RACE-351",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Zero-Touch Provisioning Matrix (MAAS/cloud-init/Pi Imager + Enterprise Bootstrap Contracts)",
+      "problem": "Fleet-scale adoption requires deterministic provisioning flows across server and edge hardware classes.",
+      "acceptance": "Add provisioning matrix adapters for zero-touch bootstrap workflows across supported ecosystems, require verification receipts for bootstrap parity/idempotence, and include rollback-safe provisioning halt/recovery controls on failed bootstrap validations.",
+      "dependencies": [
+        "V3-RACE-213",
+        "V3-RACE-337",
+        "V3-RACE-345",
+        "V3-RACE-348"
+      ]
+    },
+    {
+      "id": "V3-RACE-352",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Cross-Ecosystem Certified Hardware & Tuning Matrix Lane",
+      "problem": "Production reliability depends on validated hardware classes with deterministic tuning and support envelopes.",
+      "acceptance": "Add certified hardware matrix and tuning profile contracts across target vendor classes and Pi tiers, require verification receipts for compatibility and tuning non-regression, and include rollback-safe fallback to generic hardware profiles on certification drift.",
+      "dependencies": [
+        "V3-RACE-338",
+        "V3-RACE-174",
+        "V3-RACE-345",
+        "V3-RACE-348"
+      ]
+    },
+    {
+      "id": "V3-RACE-353",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Long-LTS Migration & Support Continuity Lane (Ubuntu/Enterprise Linux Focus)",
+      "problem": "Long-window enterprise operations need explicit migration continuity and support lifecycle controls to avoid version-support dead ends.",
+      "acceptance": "Add migration/support continuity lane covering LTS upgrade tooling and support-window policy checks, require verification receipts for migration safety and support compatibility, and include rollback-safe migration abort/revert controls on failed preflight or post-upgrade validation.",
+      "dependencies": [
+        "V3-RACE-339",
+        "V3-RACE-341",
+        "V3-RACE-345"
+      ]
+    },
+    {
+      "id": "V3-RACE-354",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Multi-Platform Linux/Unix Conformance Promotion Gate",
+      "problem": "Expanding distro coverage increases drift risk unless one consolidated conformance gate enforces adaptation/security/reliability invariants.",
+      "acceptance": "Add conformance gate enforcing host-profile match, immutable/atomic/rollback behavior, security policy checks (SELinux/eBPF/AppArmor/Capsicum where relevant), certified-hardware and air-gapped validation requirements, require verification receipts per promotion, and include rollback-safe promotion hold/fallback on gate instability.",
+      "dependencies": [
+        "V3-RACE-214",
+        "V3-RACE-343",
+        "V3-RACE-350",
+        "V3-RACE-352"
+      ]
+    },
+    {
+      "id": "V3-RACE-355",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Neutral-Core Cross-Ecosystem Hardening Uplift (Post-Intake Consolidation)",
+      "problem": "Valuable patterns from ecosystem-specific lanes should become neutral defaults so future steward variants start from a stronger base.",
+      "acceptance": "Extend neutral-core backport pipeline to ingest approved cross-ecosystem controls (immutability patterns, declarative config contracts, minimal-footprint lanes, capability security defaults, hardware-certification checks, long-LTS lifecycle controls), require verification receipts for non-regression across existing steward profiles, and include rollback-safe opt-out toggles for incompatible environments.",
+      "dependencies": [
+        "V3-RACE-344",
+        "V3-RACE-354",
+        "V3-RACE-212"
       ]
     },
     {

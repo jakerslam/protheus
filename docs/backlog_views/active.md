@@ -1,6 +1,6 @@
 # Backlog Active View
 
-Generated: 2026-03-02T18:08:06.810Z
+Generated: 2026-03-02T18:10:23.346Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -150,4 +150,15 @@ Generated: 2026-03-02T18:08:06.810Z
 | V3-RACE-342 | extension | V3 | queued | Secure RPM Repository + Delta Update Channel Lane | V3-RACE-332, V3-RACE-228, V3-RACE-175 |
 | V3-RACE-343 | hardening | V3 | queued | Helix Promotion Hardening Gate (Immutability + SELinux/eBPF + Certified HW + Air-Gap Evidence) | V3-RACE-333, V3-RACE-334, V3-RACE-336, V3-RACE-338, V3-RACE-214 |
 | V3-RACE-344 | hardening | V3 | queued | Neutral-Core Enterprise Hardening Backport Pack (Helix-Derived Controls) | V3-RACE-212, V3-RACE-343, V3-RACE-120 |
+| V3-RACE-345 | extension | V3 | queued | Ubuntu Enterprise Adaptation Pack (Snap/Core + Landscape/Juju + Pro/Livepatch + MAAS/MicroK8s) | V3-RACE-211, V3-RACE-212, V3-RACE-213 |
+| V3-RACE-346 | extension | V3 | queued | FreeBSD Hardened Adaptation Pack (Ports/ZFS/Capsicum/Jails/PF/geli) | V3-RACE-211, V3-RACE-214, V3-RACE-343 |
+| V3-RACE-347 | extension | V3 | queued | NixOS Declarative Adaptation Pack (Modules/Flakes/Impermanence/Hydra/Cachix) | V3-RACE-211, V3-RACE-228, V3-RACE-120 |
+| V3-RACE-348 | extension | V3 | queued | Raspberry Pi OS Edge Hardware Adaptation Pack (GPIO/Boot/Firmware/Provisioning/OTA) | V3-RACE-211, V3-RACE-189, V3-RACE-190 |
+| V3-RACE-349 | extension | V3 | queued | Alpine Minimal-Hardening Adaptation Pack (musl/apk/rootless scratch/read-only overlay) | V3-RACE-211, V3-RACE-175, V3-RACE-220 |
+| V3-RACE-350 | hardening | V3 | queued | Multi-Distro Artifact Publishing Plane (Snap/Ports/Cachix/Pi/apk) | V3-RACE-345, V3-RACE-346, V3-RACE-347, V3-RACE-348, V3-RACE-349 |
+| V3-RACE-351 | extension | V3 | queued | Zero-Touch Provisioning Matrix (MAAS/cloud-init/Pi Imager + Enterprise Bootstrap Contracts) | V3-RACE-213, V3-RACE-337, V3-RACE-345, V3-RACE-348 |
+| V3-RACE-352 | hardening | V3 | queued | Cross-Ecosystem Certified Hardware & Tuning Matrix Lane | V3-RACE-338, V3-RACE-174, V3-RACE-345, V3-RACE-348 |
+| V3-RACE-353 | hardening | V3 | queued | Long-LTS Migration & Support Continuity Lane (Ubuntu/Enterprise Linux Focus) | V3-RACE-339, V3-RACE-341, V3-RACE-345 |
+| V3-RACE-354 | hardening | V3 | queued | Multi-Platform Linux/Unix Conformance Promotion Gate | V3-RACE-214, V3-RACE-343, V3-RACE-350, V3-RACE-352 |
+| V3-RACE-355 | hardening | V3 | queued | Neutral-Core Cross-Ecosystem Hardening Uplift (Post-Intake Consolidation) | V3-RACE-344, V3-RACE-354, V3-RACE-212 |
 
