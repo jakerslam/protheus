@@ -1773,7 +1773,13 @@ function subDirectiveV2Signals(proposal) {
 function isOptimizationIntentProposal(proposal) {
   const p = proposal || {};
   const type = normalizeText(p.type).toLowerCase();
+  const meta = p.meta && typeof p.meta === 'object' ? p.meta : {};
+  const actuationMeta = meta.actuation && typeof meta.actuation === 'object' ? meta.actuation : null;
   const blob = proposalTextBlob(p);
+  const canaryActuation =
+    (type.startsWith('actuation_') || type === 'actuation' || !!actuationMeta)
+    && /\bcanary\b|\bsmoke\s*test\b/i.test(blob);
+  if (canaryActuation) return false;
   const hasIntent = OPTIMIZATION_INTENT_RE.test(type) || OPTIMIZATION_INTENT_RE.test(blob);
   if (!hasIntent) return false;
   const hasExemptSignals = OPTIMIZATION_EXEMPT_RE.test(type) || OPTIMIZATION_EXEMPT_RE.test(blob);

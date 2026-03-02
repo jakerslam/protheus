@@ -13,6 +13,7 @@ export {};
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 const {
   ROOT,
   nowIso,
@@ -62,6 +63,7 @@ function usage() {
   console.log('  protheusctl cli-contract');
   console.log('  protheusctl warm-snapshot [--apply=0|1]');
   console.log('  protheusctl idle-governor [--apply=0|1]');
+  console.log('  protheusctl audit illusion [--strict=1|0] [--apply=0|1] [--approval-note="..."] [--consent-token=...]');
 }
 
 function defaultPolicy() {
@@ -116,7 +118,7 @@ function defaultPolicy() {
       'node_modules/'
     ],
     cli_contract: {
-      required_commands: ['start', 'stop', 'status', 'health', 'job-submit', 'job-runner', 'incident', 'release-promote', 'doctor-init', 'doctor-bundle']
+      required_commands: ['start', 'stop', 'status', 'health', 'job-submit', 'job-runner', 'incident', 'release-promote', 'doctor-init', 'doctor-bundle', 'audit']
     },
     paths: {
       state_root: 'state/ops/protheus_control_plane',
@@ -262,6 +264,94 @@ function writeReceipt(policy, row) {
   writeJsonAtomic(policy.paths.latest_path, payload);
   appendJsonl(policy.paths.receipts_path, payload);
   return payload;
+}
+
+function runIllusionAuditLane(args, policy, trigger = 'manual') {
+  const trig = normalizeToken(trigger || 'manual', 20) || 'manual';
+  const onStartEnabled = String(process.env.PROTHEUS_ILLUSION_AUDIT_ON_START_ENABLED || '1') !== '0';
+  const onPromotionEnabled = String(process.env.PROTHEUS_ILLUSION_AUDIT_ON_PROMOTION_ENABLED || '1') !== '0';
+  if ((trig === 'startup' && !onStartEnabled) || (trig === 'promotion' && !onPromotionEnabled)) {
+    return {
+      ok: true,
+      skipped: true,
+      trigger: trig,
+      reason: 'feature_flag_disabled'
+    };
+  }
+  const script = path.join(ROOT, 'systems', 'self_audit', 'illusion_integrity_lane.js');
+  if (!fs.existsSync(script)) {
+    return {
+      ok: false,
+      trigger: trig,
+      reason: 'illusion_audit_script_missing',
+      script: path.relative(ROOT, script).replace(/\\/g, '/')
+    };
+  }
+  const strictDefault = trig === 'startup'
+    ? String(process.env.PROTHEUS_ILLUSION_AUDIT_START_STRICT || '0') === '1'
+    : trig === 'promotion'
+      ? String(process.env.PROTHEUS_ILLUSION_AUDIT_PROMOTION_STRICT || '0') === '1'
+      : false;
+  const strict = toBool(args.strict, strictDefault);
+  const apply = toBool(args.apply, false);
+  const timeoutMs = Math.max(
+    5000,
+    Math.min(10 * 60 * 1000, Number(process.env.PROTHEUS_ILLUSION_AUDIT_TIMEOUT_MS || 120000) || 120000)
+  );
+  const policyPath = cleanText(
+    args['audit-policy']
+      || args.audit_policy
+      || process.env.PROTHEUS_ILLUSION_AUDIT_POLICY_PATH
+      || 'config/illusion_integrity_auditor_policy.json',
+    320
+  );
+  const laneArgs = [
+    script,
+    'run',
+    `--trigger=${trig}`,
+    `--strict=${strict ? '1' : '0'}`,
+    `--apply=${apply ? '1' : '0'}`
+  ];
+  if (policyPath) laneArgs.push(`--policy=${policyPath}`);
+  const approvalNote = cleanText(args['approval-note'] || args.approval_note || '', 400);
+  const consentToken = cleanText(args['consent-token'] || args.consent_token || '', 200);
+  if (approvalNote) laneArgs.push(`--approval-note=${approvalNote}`);
+  if (consentToken) laneArgs.push(`--consent-token=${consentToken}`);
+  const run = spawnSync('node', laneArgs, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout: timeoutMs
+  });
+  const stdout = String(run.stdout || '').trim();
+  let payload = null;
+  try { payload = stdout ? JSON.parse(stdout) : null; } catch {}
+  const ok = Number(run.status || 0) === 0 && !!payload && payload.ok === true;
+  const summary = payload && payload.summary && typeof payload.summary === 'object' ? payload.summary : null;
+  const payloadReason = payload && (payload.reason || payload.error)
+    ? String(payload.reason || payload.error)
+    : payload && payload.ok === false && summary
+      ? `audit_failed:max_score_${Number(summary.max_score || 0)}`
+      : null;
+  return {
+    ok,
+    trigger: trig,
+    strict,
+    apply,
+    status: Number.isFinite(run.status) ? run.status : 1,
+    reason: ok
+      ? null
+      : String(
+          payloadReason
+          || String(run.stderr || '').trim()
+          || String(run.stdout || '').trim()
+          || `illusion_audit_exit_${Number.isFinite(run.status) ? run.status : 1}`
+        ).slice(0, 200),
+    report_path: payload ? payload.report_path || null : null,
+    patch_path: payload ? payload.patch_path || null : null,
+    finding_count: summary ? Number(summary.finding_count || 0) : null,
+    high_count: summary ? Number(summary.high_count || 0) : null,
+    max_score: summary ? Number(summary.max_score || 0) : null
+  };
 }
 
 function enqueueCommand(policy, daemon, command, args) {
@@ -431,12 +521,18 @@ function setRuntimeState(cmd, args, policy) {
   }
   saveDaemon(policy, daemon);
   const queued = enqueueCommand(policy, daemon, cmd, args);
+  const startupAudit = (cmd === 'start' || cmd === 'restart')
+    ? runIllusionAuditLane(args, policy, 'startup')
+    : null;
+  const strictBlocked = !!(startupAudit && startupAudit.strict && startupAudit.ok !== true);
   return writeReceipt(policy, {
+    ok: !strictBlocked,
     type: 'protheus_daemon_control',
     command: cmd,
     request_id: queued.request_id,
     running: daemon.running,
-    mode: daemon.mode
+    mode: daemon.mode,
+    startup_illusion_audit: startupAudit
   });
 }
 
@@ -502,6 +598,21 @@ function promoteRelease(args, policy) {
 
   const artifact = cleanText(args.artifact || '', 240) || null;
   const prev = release.current_channel;
+  const promotionAudit = runIllusionAuditLane(args, policy, 'promotion');
+  const strictBlocked = !!(promotionAudit && promotionAudit.strict && promotionAudit.ok !== true);
+  if (strictBlocked) {
+    return writeReceipt(policy, {
+      ok: false,
+      type: 'protheus_release_promote',
+      from: prev,
+      to,
+      artifact,
+      atomic: false,
+      promotion_blocked: true,
+      block_reason: 'illusion_audit_strict_block',
+      promotion_illusion_audit: promotionAudit
+    });
+  }
   release.previous_channel = prev;
   release.current_channel = to;
   release.latest_artifact = artifact;
@@ -514,7 +625,8 @@ function promoteRelease(args, policy) {
     from: prev,
     to,
     artifact,
-    atomic: true
+    atomic: true,
+    promotion_illusion_audit: promotionAudit
   });
 }
 
@@ -878,7 +990,7 @@ function cliContract(policy) {
     'incident', 'release-promote', 'release-rollback', 'registry-install', 'registry-uninstall',
     'registry-enable', 'registry-disable', 'registry-list', 'auth-guard', 'reseal-auto', 'event-guard',
     'routing-reconcile', 'deprecations-check', 'backlog-validate', 'backlog-allocate',
-    'doctor-init', 'doctor-bundle', 'cli-contract', 'warm-snapshot', 'idle-governor'
+    'doctor-init', 'doctor-bundle', 'cli-contract', 'warm-snapshot', 'idle-governor', 'audit'
   ]);
 
   const missing = Array.from(required).filter((id) => !implemented.has(id));
@@ -983,6 +1095,26 @@ function top(policy) {
   };
 }
 
+function auditCommand(args, policy) {
+  const sub = normalizeToken(args._[1] || '', 80);
+  if (sub !== 'illusion') {
+    return {
+      ok: false,
+      error: 'unsupported_audit_subcommand',
+      subcommand: sub || null
+    };
+  }
+  const audit = runIllusionAuditLane(args, policy, 'manual');
+  const strictBlocked = !!(audit && audit.strict && audit.ok !== true);
+  return writeReceipt(policy, {
+    ok: !strictBlocked,
+    type: 'protheus_audit_illusion',
+    audit,
+    audit_passed: audit.ok === true,
+    strict_blocked: strictBlocked
+  });
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const cmd = normalizeToken(args._[0] || 'status', 80) || 'status';
@@ -995,7 +1127,10 @@ function main() {
   const policy = loadPolicy(policyPath);
   if (!policy.enabled) emit({ ok: false, error: 'protheus_control_plane_disabled' }, 1);
 
-  if (['start', 'stop', 'restart'].includes(cmd)) emit(setRuntimeState(cmd, args, policy));
+  if (['start', 'stop', 'restart'].includes(cmd)) {
+    const out = setRuntimeState(cmd, args, policy);
+    emit(out, out && out.ok === false ? 2 : 0);
+  }
   if (cmd === 'status') emit(status(policy));
   if (cmd === 'health') emit(health(policy));
   if (cmd === 'top') emit(top(policy));
@@ -1025,6 +1160,10 @@ function main() {
   if (cmd === 'cli-contract') emit(cliContract(policy));
   if (cmd === 'warm-snapshot') emit(warmSnapshot(args, policy));
   if (cmd === 'idle-governor') emit(idleGovernor(args, policy));
+  if (cmd === 'audit') {
+    const out = auditCommand(args, policy);
+    emit(out, out && out.ok === false ? 2 : 0);
+  }
 
   usage();
   process.exit(1);

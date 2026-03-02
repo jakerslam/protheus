@@ -13,6 +13,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const POLICY_PATH = process.env.ENV_PROMOTION_POLICY_PATH
@@ -283,15 +284,90 @@ function promotionDecision(args, policy) {
   return out;
 }
 
+function runIllusionAuditForPromotion(decision) {
+  const enabled = String(process.env.ENV_PROMOTION_ILLUSION_AUDIT_ENABLED || '1') !== '0';
+  if (!enabled) {
+    return {
+      ok: true,
+      skipped: true,
+      reason: 'feature_flag_disabled'
+    };
+  }
+  const script = path.join(ROOT, 'systems', 'self_audit', 'illusion_integrity_lane.js');
+  if (!fs.existsSync(script)) {
+    return {
+      ok: false,
+      skipped: false,
+      reason: 'illusion_audit_script_missing',
+      script: relPath(script)
+    };
+  }
+  const strict = String(process.env.ENV_PROMOTION_ILLUSION_AUDIT_STRICT || '0') === '1';
+  const policyPath = normalizeText(
+    process.env.ENV_PROMOTION_ILLUSION_AUDIT_POLICY_PATH || 'config/illusion_integrity_auditor_policy.json',
+    320
+  );
+  const timeoutMs = Math.max(
+    5000,
+    Math.min(10 * 60 * 1000, Number(process.env.ENV_PROMOTION_ILLUSION_AUDIT_TIMEOUT_MS || 120000) || 120000)
+  );
+  const args = [
+    script,
+    'run',
+    '--trigger=promotion',
+    `--strict=${strict ? '1' : '0'}`,
+    '--apply=0',
+    `--policy=${policyPath}`
+  ];
+  if (decision && decision.artifact) args.push(`--promotion-artifact=${normalizeText(decision.artifact, 200)}`);
+  const run = spawnSync('node', args, { cwd: ROOT, encoding: 'utf8', timeout: timeoutMs });
+  let payload = null;
+  try { payload = JSON.parse(String(run.stdout || '').trim()); } catch {}
+  const ok = Number(run.status || 0) === 0 && !!payload && payload.ok === true;
+  const payloadSummary = payload && payload.summary && typeof payload.summary === 'object' ? payload.summary : null;
+  const payloadReason = payload && (payload.reason || payload.error)
+    ? String(payload.reason || payload.error)
+    : payload && payload.ok === false && payloadSummary
+      ? `audit_failed:max_score_${Number(payloadSummary.max_score || 0)}`
+      : null;
+  return {
+    ok,
+    strict,
+    skipped: false,
+    status: Number.isFinite(run.status) ? run.status : 1,
+    reason: ok
+      ? null
+      : normalizeText(
+          payloadReason
+          || String(run.stderr || '').trim()
+          || String(run.stdout || '').trim()
+          || `illusion_audit_exit_${Number.isFinite(run.status) ? run.status : 1}`,
+          220
+        ),
+    finding_count: payload && payload.summary ? Number(payload.summary.finding_count || 0) : null,
+    high_count: payload && payload.summary ? Number(payload.summary.high_count || 0) : null,
+    max_score: payload && payload.summary ? Number(payload.summary.max_score || 0) : null,
+    report_path: payload ? payload.report_path || null : null
+  };
+}
+
 function cmdPromote(args) {
   const policy = loadPolicy();
   const strict = toBool(args.strict, policy.strict_default);
   const decision = promotionDecision(args, policy);
+  const promotionAudit = decision.ok ? runIllusionAuditForPromotion(decision) : null;
+  if (decision.ok && promotionAudit && promotionAudit.strict && promotionAudit.ok !== true) {
+    decision.ok = false;
+    decision.decision = 'DENY';
+    decision.reasons = Array.isArray(decision.reasons) ? decision.reasons : [];
+    decision.reasons.push('illusion_audit_strict_block');
+  }
 
   appendJsonl(LOG_PATH, {
     type: 'environment_promotion_decision',
     policy_version: policy.version,
     strict,
+    promotion_illusion_audit: promotionAudit,
     ...decision
   });
 
@@ -309,6 +385,7 @@ function cmdPromote(args) {
 
   process.stdout.write(JSON.stringify({
     ...decision,
+    promotion_illusion_audit: promotionAudit,
     policy_version: policy.version,
     log_path: relPath(LOG_PATH),
     state_path: relPath(STATE_PATH)

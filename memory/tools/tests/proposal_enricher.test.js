@@ -381,6 +381,61 @@ function run() {
       !((measurableRes.proposal.meta.admission_preview || {}).blocked_by || []).includes('success_criteria_missing'),
       'measurable structured criteria should not trigger success_criteria_missing blocker'
     );
+    const canaryActuationRes = script.enrichOne({
+      id: 'PCANARY_ACT',
+      type: 'actuation_moltbook_publish',
+      title: '[Canary] Low-risk actuation smoke test (git status)',
+      summary: 'Low-risk canary actuation to validate execute lane with deterministic receipts.',
+      risk: 'low',
+      evidence: [{ evidence_ref: 'eye:local_state_fallback', match: 'execute lane smoke test' }],
+      action_spec: {
+        version: 1,
+        objective_id: 'T1_ALPHA_OBJECTIVE',
+        target: 'canary:git_status_smoke',
+        verify: ['Actuation executor returns allow and executable=true'],
+        success_criteria: [{ metric: 'execution_success', target: 'execution success', horizon: 'next run' }],
+        rollback: 'No-op rollback'
+      },
+      meta: {
+        objective_id: 'T1_ALPHA_OBJECTIVE',
+        directive_objective_id: 'T1_ALPHA_OBJECTIVE',
+        actuation: {
+          kind: 'git_task',
+          params: { action: 'status' }
+        }
+      },
+      validation: ['Actuation preflight is executable'],
+      suggested_next_command: 'node systems/actuation/actuation_executor.js run --kind=git_task --params=\"{\\\"action\\\":\\\"status\\\"}\"'
+    }, {
+      eyes: new Map(),
+      directiveProfile: { available: false, active_directive_ids: [] },
+      directiveObjectiveIds: ['T1_ALPHA_OBJECTIVE', 'T2_BETA_OBJECTIVE'],
+      strategy: null,
+      thresholds: {
+        min_signal_quality: 35,
+        min_sensory_signal_score: 35,
+        min_sensory_relevance_score: 35,
+        min_directive_fit: 20,
+        min_actionability_score: 35,
+        min_composite_eligibility: 45,
+        min_eye_score_ema: 35
+      },
+      outcomePolicy: {}
+    });
+    assert.strictEqual(
+      canaryActuationRes.proposal.meta.optimization_intent,
+      false,
+      'canary actuation smoke tests should not be classified as optimization intent'
+    );
+    assert.strictEqual(
+      canaryActuationRes.proposal.meta.optimization_gate_pass,
+      true,
+      'canary actuation smoke tests should pass optimization gate without explicit delta'
+    );
+    assert.ok(
+      !((canaryActuationRes.proposal.meta.admission_preview || {}).blocked_by || []).includes('optimization_delta_missing'),
+      'canary actuation smoke tests should not be blocked by optimization_delta_missing'
+    );
     const metaNoopRes = script.enrichOne({
       id: 'PMETA_NOOP',
       type: 'collector_remediation',

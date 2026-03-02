@@ -1,10 +1,10 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T20:24:55.206Z",
-  "source_hash": "19705702f198e46ab515b9ed",
-  "row_count": 607,
-  "active_count": 450,
+  "generated_at": "2026-03-02T20:51:50.405Z",
+  "source_hash": "7698c9ff88d46ced5aa47e2f",
+  "row_count": 619,
+  "active_count": 462,
   "archive_count": 157,
   "rows": [
     {
@@ -1555,6 +1555,168 @@
         "V4-FORT-004",
         "V4-FORT-005",
         "V4-FORT-006"
+      ]
+    },
+    {
+      "id": "V4-SELF-001",
+      "class": "hardening",
+      "wave": "V4",
+      "status": "queued",
+      "title": "Internal Illusion & Integrity Auditor",
+      "problem": "Manual founder-led perception scans do not scale and leave recurring professional-surface leaks unclosed between release waves.",
+      "acceptance": "Ship `systems/self_audit/illusion_integrity_auditor.rs` + `systems/self_audit/illusion_integrity_lane.ts` with startup/promotion/manual triggers, backlog drift + UI/scientific completeness checks, signed receipts, suggested fix patches, and strict human-consent gate before any autofix apply.",
+      "dependencies": [
+        "V4-FORT-006",
+        "V4-FORT-007"
+      ]
+    },
+    {
+      "id": "V4-ILLUSION-001",
+      "class": "launch-polish",
+      "wave": "V4",
+      "status": "queued",
+      "title": "Optional Subtle Reinforcement Layer (`--illusion-mode`)",
+      "problem": "Presentation polish can still feel \"small-team obvious\" without quiet, cohesive operator-facing cues that communicate technical maturity under real feature flags.",
+      "acceptance": "Add an optional gated layer behind `--illusion-mode` / `PROTHEUS_ILLUSION=1` implementing: (1) Reasoning Mirror subtle footer showing factual settled-core state + live binary size when available, (2) CLI reinforcement epilogue for `protheusctl status` and `protheusctl settle` using calm clinical wording that never overclaims in non-settled mode, (3) post-reveal-only narrative easter-egg text path for \"The Fort Was Empty\" blog surface, and (4) one-flag enable/disable with zero performance impact and no code changes required outside flag plumbing. Enforce professional tone constraints (no meme/boast voice), and verify with snapshot/UX tests plus feature-flag contract tests in both settled and non-settled states.",
+      "dependencies": [
+        "V4-FORT-006",
+        "V4-FORT-007",
+        "V4-SETTLE-005"
+      ]
+    },
+    {
+      "id": "V4-MIGR-001",
+      "class": "migration",
+      "wave": "V4",
+      "status": "queued",
+      "title": "Core Migration Bridge + Workspace Port Command",
+      "problem": "Repo/org migration without first-class tooling risks user friction, state loss, and trust erosion.",
+      "acceptance": "Implement `systems/migration/bridge.rs` plus `protheusctl migrate --to <org/repo> [--workspace=<name>]` to move remotes, backup state, transfer config/habits/vault/memory/scientific receipts, and emit signed migration receipts with rollback-safe checkpoints.",
+      "dependencies": [
+        "V4-FORT-006",
+        "V4-SELF-001"
+      ]
+    },
+    {
+      "id": "V4-MIGR-002",
+      "class": "migration",
+      "wave": "V4",
+      "status": "queued",
+      "title": "Community Repo Graduation Pack (Banner + Redirect + Pinned Issue)",
+      "problem": "Users on the legacy/community repo need a clear upgrade path to the official home without ambiguity.",
+      "acceptance": "Ship automation/docs for README migration banner, pinned issue text, and repo-description redirect artifacts; verify old→new path is one-click discoverable and references evidence-backed migration guidance.",
+      "dependencies": [
+        "V4-MIGR-001",
+        "V4-FORT-005",
+        "V4-FORT-006"
+      ]
+    },
+    {
+      "id": "V4-MIGR-003",
+      "class": "interoperability",
+      "wave": "V4",
+      "status": "queued",
+      "title": "Universal Importers (OpenFang/CrewAI/AutoGen/LangGraph/Common Dumps)",
+      "problem": "Users coming from other agent stacks face high switching cost without structured import tooling.",
+      "acceptance": "Add `systems/migration/importers/` pluggable import surface with first-class OpenFang importer plus generic JSON/YAML/workflow graph adapters, CLI `protheusctl import --from=<engine> --path=<source>`, mapped-state summary reports, and contract tests for no-loss transforms.",
+      "dependencies": [
+        "V4-MIGR-001",
+        "V3-RACE-127"
+      ]
+    },
+    {
+      "id": "V4-MIGR-004",
+      "class": "migration",
+      "wave": "V4",
+      "status": "queued",
+      "title": "Self-Healing Migration Daemon",
+      "problem": "Installations still pointing to legacy remotes/workspaces will drift unless migration is auto-detected and prompted.",
+      "acceptance": "Add startup migration detector/daemon that identifies legacy remotes, offers one-click guided upgrade, records consent + signed receipts, and integrates with `V4-SELF-001` findings for migration suggestions without forced mutation.",
+      "dependencies": [
+        "V4-MIGR-001",
+        "V4-SELF-001"
+      ]
+    },
+    {
+      "id": "V4-MIGR-005",
+      "class": "launch-polish",
+      "wave": "V4",
+      "status": "queued",
+      "title": "Post-Migration Verification + Premium Completion Report",
+      "problem": "Migration completion needs hard integrity proof and user-visible confidence artifacts, not just command success.",
+      "acceptance": "Run post-migration validation for vault, habits, memory, scientific lanes, and routing; emit migration-complete report with transferred assets/perf deltas, consent-gated telemetry, and deterministic pass/fail receipts before marking migration finalized.",
+      "dependencies": [
+        "V4-MIGR-001",
+        "V4-MIGR-003",
+        "V4-MIGR-004"
+      ]
+    },
+    {
+      "id": "V4-SETTLE-001",
+      "class": "primitive-upgrade",
+      "wave": "V4",
+      "status": "queued",
+      "title": "Core Settling Engine (Compile + Memory-Map + Re-exec)",
+      "problem": "Runtime hot paths still carry avoidable overhead from mixed execution layers and process indirection after initialization.",
+      "acceptance": "Implement `systems/settle/settler.rs` and `protheusctl settle` to compile active-core artifacts into a sealed native runtime image, memory-map the image, and re-exec into settled mode with deterministic health checks; verify parity/performance receipts and explicit rollback by reverting to pre-settle runtime profile.",
+      "dependencies": [
+        "V4-RUST-001",
+        "V4-SCI-004",
+        "V3-RACE-044"
+      ]
+    },
+    {
+      "id": "V4-SETTLE-002",
+      "class": "hardening",
+      "wave": "V4",
+      "status": "queued",
+      "title": "Signed Snapshot Vault + Revert/Edit-Core Round Trip",
+      "problem": "Settling cannot be safely adopted without a deterministic source snapshot and reversible edit workflow under cryptographic custody.",
+      "acceptance": "Store signed/encrypted source snapshot in vault on first settle, add `protheusctl settle --revert` and `protheusctl edit-core` flow to restore/edit/re-settle with full delta receipts, and verify complete round-trip reversibility with rollback-safe checkpoints.",
+      "dependencies": [
+        "V4-SETTLE-001",
+        "V3-RACE-163",
+        "V4-FORT-006"
+      ]
+    },
+    {
+      "id": "V4-SETTLE-003",
+      "class": "extension",
+      "wave": "V4",
+      "status": "queued",
+      "title": "Target Abstraction for Binary + Ternary/Exotic Compile Flags",
+      "problem": "Settling architecture should not hard-code today's target assumptions if future hardware/runtime targets are introduced.",
+      "acceptance": "Add compile-target abstraction and feature flags for binary-first settlement plus optional ternary/exotic target simulation adapters, verify target-selection contracts and compatibility receipts, and provide rollback to default binary target on failed target validation.",
+      "dependencies": [
+        "V4-SETTLE-001",
+        "V4-RUST-003"
+      ]
+    },
+    {
+      "id": "V4-SETTLE-004",
+      "class": "hardening",
+      "wave": "V4",
+      "status": "queued",
+      "title": "Promotion-Coupled Re-Settlement Policy",
+      "problem": "Lane promotions currently do not automatically refresh settled artifacts, allowing optimization drift from promoted runtime state.",
+      "acceptance": "Integrate settlement trigger into promotion/autogenesis pipeline with consent-gated policy, bounded cooldowns, and signed receipts per promotion cycle; verify promotion stability/non-regression and rollback by disabling auto-settle coupling via policy.",
+      "dependencies": [
+        "V4-SETTLE-001",
+        "V3-007",
+        "V4-SELF-001"
+      ]
+    },
+    {
+      "id": "V4-SETTLE-005",
+      "class": "launch-polish",
+      "wave": "V4",
+      "status": "queued",
+      "title": "Settled-State Operator Surface in `protheus-top`",
+      "problem": "Operators lack a first-class view of settled runtime identity, efficiency gains, and edit/revert readiness state.",
+      "acceptance": "Add `protheus-top` settled-state panel exposing runtime hash, snapshot lineage, memory/latency deltas, and consent-gated edit-core action status; verify UI/receipt linkage and rollback by feature-gating panel without affecting settle runtime.",
+      "dependencies": [
+        "V4-SETTLE-001",
+        "V4-OBS-011"
       ]
     },
     {

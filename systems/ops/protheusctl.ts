@@ -28,6 +28,7 @@ function usage() {
   console.log('  protheusctl host adapt --dry-run=1');
   console.log('  protheusctl socket list');
   console.log('  protheusctl socket admission');
+  console.log('  protheusctl audit illusion --strict=1');
   console.log('  protheusctl approve --rsi --owner=jay --approver=<you>');
 }
 

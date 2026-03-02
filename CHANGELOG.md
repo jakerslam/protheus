@@ -9,6 +9,18 @@ This project follows a strict evidence-backed changelog model:
 
 ## [Unreleased]
 
+### Added
+- `V4-SELF-001` self-audit lane baseline:
+  - Rust scanner core: `systems/self_audit/illusion_integrity_auditor.rs`
+  - Lane orchestrator: `systems/self_audit/illusion_integrity_lane.ts`
+  - Policy and docs surface:
+    - `config/illusion_integrity_auditor_policy.json`
+    - `docs/ILLUSION_INTEGRITY_AUDITOR.md`
+  - Control-plane trigger integration (`startup`, `promotion`, `protheusctl audit illusion`)
+
+### Changed
+- Replaced root `README.md` with an evidence-first control-plane overview aligned to the Empty Fort artifact standard (operator onboarding, governance surfaces, and quality/security gates mapped to real scripts/docs).
+
 ## [2026-03-02]
 
 ### Added

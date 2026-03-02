@@ -1,6 +1,16 @@
-# OpenClaw
+# Protheus
 
-OpenClaw is a personal automation and orchestration toolkit for macOS/Linux workflows, with a typed control plane, policy-guarded runtime modules, and reproducible state/receipt contracts for reliable local operations.
+Protheus is an evidence-first local control plane for autonomous operations, workflow execution, and policy-governed system evolution.
+
+This repository is organized to run like an internal platform team: typed runtime lanes, deterministic receipts, strict governance surfaces, and operational guardrails that are reviewable in-source.
+
+## What This Repo Includes
+
+- Control plane CLI surface (`protheus`, `protheusd`, `protheusctl`, `protheus-top`)
+- Policy-backed runtime lanes across `systems/` (ops, security, memory, routing, workflow, observability, and more)
+- Deterministic state and receipt contracts for auditable execution
+- Backlog governance pipeline with generated active/archive/reviewed views
+- Docs and runbooks that map directly to executable scripts and checks
 
 ## Quick Start
 
@@ -10,56 +20,80 @@ npm run build
 npm run start
 ```
 
-## Features
+Then verify the runtime surface:
 
-- Extensionless CLI entrypoints (`protheus`, `protheusd`, `protheusctl`, `protheus-top`)
-- TypeScript-first systems with generated JS wrappers for runtime compatibility
-- Policy-driven control plane with explicit state receipts and audit artifacts
-- Modular lanes across ops, security, memory, routing, and observability
-- CI gates for typechecks, contract validation, and deterministic test suites
+```bash
+protheus status
+protheus-top
+```
 
-## Architecture Overview
-
-The repository is organized into runtime lanes and shared primitives. `systems/` holds executable modules grouped by domain (ops, security, memory, routing, sensory, etc.). `lib/` contains shared runtime helpers used by lane implementations. `config/` defines policy surfaces and lane behavior settings. `state/` is the runtime artifact area (ignored from git by default), while `memory/tools/tests/` provides deterministic test coverage for each lane contract.
-
-The control plane is operated through CLI commands that map to lane actions (`run`, `status`, `verify`, etc.) and produce structured artifacts (`latest`, `receipts`, `history`). This keeps day-to-day operations scriptable while preserving replayable evidence for changes.
-
-## Commands
+## Operator Commands
 
 | Command | Purpose |
 |---|---|
-| `npm run dev` | Start the local daemon control surface |
-| `npm run start` | Start the daemon control surface |
-| `npm run build` | Build TypeScript outputs and run build smoke checks |
-| `npm run test` | Run the stable CI test suite |
-| `npm run lint` | Run TypeScript/system lint gate (`typecheck:systems`) |
-| `npm run security:audit` | Run npm dependency audit |
-| `protheus status` | Show control-plane status |
-| `protheusd start` | Start daemon facade |
-| `protheusd stop` | Stop daemon facade |
-| `protheusctl job-submit --kind=reconcile` | Submit a control-plane job |
+| `npm run dev` | Start local daemon control surface (dev profile) |
+| `npm run start` | Start daemon control surface |
+| `npm run build` | Build systems + smoke verification |
+| `npm run test` | Stable test suite |
+| `npm run test:ci` | Deterministic CI-oriented test suite |
+| `npm run lint` | Type/system lint gate |
+| `npm run typecheck:systems` | Typecheck `systems/` lanes |
+| `npm run guard:merge` | Merge guard for core quality/security gates |
+| `npm run ops:backlog:registry:sync` | Regenerate backlog registry/views from source backlog |
+| `npm run ops:backlog:registry:check` | Validate generated backlog artifacts are in sync |
 
-## Documentation
+## Control Surface CLI
 
-- [Public Operator Profile](docs/PUBLIC_OPERATOR_PROFILE.md)
-- [Documentation Hub](docs/README.md)
-- [Operator Runbook](docs/OPERATOR_RUNBOOK.md)
+| CLI | Purpose |
+|---|---|
+| `protheus` | Primary control-plane interface |
+| `protheusd` | Daemon lifecycle wrapper |
+| `protheusctl` | Job and control-plane operations |
+| `protheus-top` | Live operator observability surface |
+
+## Architecture Map
+
+| Path | Responsibility |
+|---|---|
+| `systems/` | Executable runtime lanes and control-plane modules |
+| `lib/` | Shared runtime helpers used by lanes |
+| `config/` | Policy, registries, and lane configuration |
+| `docs/` | Architecture, governance, runbooks, and contracts |
+| `memory/tools/tests/` | Deterministic tests and regression harnesses |
+| `state/` | Runtime artifacts and receipts (operational output) |
+
+## Quality And Governance Baseline
+
+The project is operated with explicit documentation and governance contracts:
+
 - [Onboarding Playbook](docs/ONBOARDING_PLAYBOOK.md)
 - [UI Surface Maturity Matrix](docs/UI_SURFACE_MATURITY_MATRIX.md)
 - [History Cleanliness Program](docs/HISTORY_CLEANLINESS.md)
 - [Claim-Evidence Policy](docs/CLAIM_EVIDENCE_POLICY.md)
 - [Public Collaboration Triage Contract](docs/PUBLIC_COLLABORATION_TRIAGE.md)
-- [Changelog](CHANGELOG.md)
+- [Illusion Integrity Auditor](docs/ILLUSION_INTEGRITY_AUDITOR.md)
+- [Backlog Governance](docs/BACKLOG_GOVERNANCE.md)
 - [Branch Protection Policy](docs/BRANCH_PROTECTION_POLICY.md)
-- [Security Lanes](docs/SECURITY.md)
-- [Compliance Posture](docs/COMPLIANCE_POSTURE.md)
+- [Operator Runbook](docs/OPERATOR_RUNBOOK.md)
+- [Documentation Hub](docs/README.md)
+- [Changelog](CHANGELOG.md)
 
-<details>
-<summary>Legal</summary>
+## Contribution Workflow
+
+1. Read [CONTRIBUTING.md](CONTRIBUTING.md).
+2. Keep changes scoped and test-backed.
+3. Run quality gates before PR.
+4. Link measurable claims to evidence per [Claim-Evidence Policy](docs/CLAIM_EVIDENCE_POLICY.md).
+5. Update [CHANGELOG.md](CHANGELOG.md) for user-visible behavior/docs changes.
+
+## Security
+
+- Security policy and disclosure path: [SECURITY.md](SECURITY.md)
+- Runtime security lane overview: [docs/SECURITY.md](docs/SECURITY.md)
+
+## Legal
 
 - License: [LICENSE](LICENSE)
 - Contribution terms: [CONTRIBUTING_TERMS.md](CONTRIBUTING_TERMS.md)
 - Terms of service: [TERMS_OF_SERVICE.md](TERMS_OF_SERVICE.md)
 - End-user license: [EULA.md](EULA.md)
-
-</details>

@@ -23,3 +23,4 @@ Generated: 2026-03-01T03:27:30.118Z
 - [History Cleanliness Program](HISTORY_CLEANLINESS.md)
 - [Claim-Evidence Policy](CLAIM_EVIDENCE_POLICY.md)
 - [Public Collaboration Triage Contract](PUBLIC_COLLABORATION_TRIAGE.md)
+- [Illusion Integrity Auditor](ILLUSION_INTEGRITY_AUDITOR.md)

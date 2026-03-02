@@ -31,6 +31,7 @@
     "handoff:simulate": "node systems/ops/handoff_pack.js simulate --strict=1",
     "postmortem": "node systems/ops/postmortem_loop.js",
     "docs:coverage": "node systems/ops/docs_coverage_gate.js run --strict=1",
+    "self-audit:illusion": "node systems/self_audit/illusion_integrity_lane.js run --trigger=manual",
     "polyglot:status": "node systems/polyglot/polyglot_service_adapter.js status",
     "polyglot:benchmark": "node systems/polyglot/polyglot_service_adapter.js benchmark",
     "security:critical-path:run": "node systems/security/critical_path_formal_verifier.js run --strict=1",
