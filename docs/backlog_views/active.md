@@ -1,6 +1,6 @@
 # Backlog Active View
 
-Generated: 2026-03-02T04:15:36.204Z
+Generated: 2026-03-02T04:16:54.457Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -36,7 +36,6 @@ Generated: 2026-03-02T04:15:36.204Z
 | V3-RACE-057 | hardening | V3 | queued | Black-Swan Disaster Gamebooks & Continuous Resilience Drills | V3-RACE-040, V3-RACE-041, V3-RACE-037 |
 | V3-RACE-058 | extension | V3 | queued | Legal/Regulatory Auto-Diff Governance Router | V3-RACE-044, V3-DOC-005, V3-RACE-CONF-007 |
 | V3-RACE-059 | hardening | V3 | queued | Sovereign Decommission, Legacy & Succession Boundary Protocol | V3-RACE-037, V4-006, V3-RACE-033 |
-| V3-RACE-101 | extension | V3 | queued | Active-Learning Uncertainty Queue | V3-RACE-088, V3-RACE-094, V3-RACE-097 |
 | V3-RACE-102 | extension | V3 | queued | Offline Statistical Lab Artifact Bridge (R/Python Optional) | V3-RACE-086, V3-RACE-096, V3-RACE-098 |
 | V3-RACE-103 | hardening | V3 | queued | Sensitivity/Privacy-Aware Signal Scoring Contract | V3-RACE-033, V3-RACE-044, V3-RACE-096 |
 | V3-RACE-104 | hardening | V3 | queued | Detector Rollback & Migration Safety Contract | V3-RACE-087, V3-RACE-098 |

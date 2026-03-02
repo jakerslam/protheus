@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T04:15:36.204Z",
-  "source_hash": "c568d6f93ae56d381691c15f",
+  "generated_at": "2026-03-02T04:16:54.457Z",
+  "source_hash": "be5fcb8c0b3ed6749e830228",
   "row_count": 127,
-  "active_count": 39,
-  "archive_count": 88,
+  "active_count": 38,
+  "archive_count": 89,
   "rows": [
     {
       "id": "V3-OPS-004",
@@ -1604,10 +1604,10 @@
       "id": "V3-RACE-101",
       "class": "extension",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Active-Learning Uncertainty Queue",
       "problem": "Ambiguous/high-disagreement cases are the highest-leverage training signal and should be prioritized.",
-      "acceptance": "High-uncertainty/disagreement cases are auto-queued for review/labeling, and accepted labels measurably improve challenger/eval performance.",
+      "acceptance": "Added `systems/sensory/active_learning_uncertainty_queue.{ts,js}` + `config/active_learning_uncertainty_queue_policy.json` to auto-queue abstain/disagreement cases into prioritized review lanes and track accepted-label feedback intake with receipted outputs under `state/sensory/analysis/active_learning/`; regression coverage in `memory/tools/tests/active_learning_uncertainty_queue.test.js`.",
       "dependencies": [
         "V3-RACE-088",
         "V3-RACE-094",
