@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:22:14.810Z",
-  "source_hash": "f96fe8b484228e3da1260dbb",
+  "generated_at": "2026-03-02T09:22:16.806Z",
+  "source_hash": "6c963c73013961536b40e1a8",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 351,
+  "archive_count": 352,
   "rows": [
     {
       "id": "BL-001",
@@ -4405,7 +4405,7 @@
       "id": "V3-RACE-173",
       "class": "extension",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "Role-Based Crew Spawn Orchestrator (Shared Namespace Governance)",
       "problem": "Multi-agent role execution is higher leverage when template-driven and governed by explicit shared-state/clearance boundaries.",
       "acceptance": "Implement `systems/spawn/role_based_crew_orchestrator.{ts,js}` + policy `config/role_based_crew_policy.json`; user-specific crew templates and collaboration preferences remain under `memory/crews/` with adaptive role-performance scoring in `adaptive/crews/`; permanent role orchestration, shared-namespace contracts, and clearance gates stay in `systems/spawn/` + `config/` with per-role audit receipts.",

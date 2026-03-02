@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T09:22:14.810Z
+Generated: 2026-03-02T09:22:16.806Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -349,6 +349,7 @@ Generated: 2026-03-02T09:22:14.810Z
 | V3-RACE-167 | primitive-upgrade | V3 | done | System-3 Executive Layer (Growth Journal + Intrinsic Goal Loop) | V3-RACE-129, V3-PRO-001, V3-LOOP-001 |
 | V3-RACE-171 | primitive-upgrade | V3 | done | Cyclic Strategy Graph Runner (Governed State-Graph Execution) | V2-009, V3-RACE-165, V3-RACE-167 |
 | V3-RACE-172 | extension | V3 | done | Hierarchical Memory View Plane (Core/Edit/Summary + Swap-Safe Summarization) | V3-RACE-161, V3-RACE-164, V3-RACE-020 |
+| V3-RACE-173 | extension | V3 | done | Role-Based Crew Spawn Orchestrator (Shared Namespace Governance) | V3-RACE-145, V3-RACE-166, V3-RACE-171 |
 | OPT-001 | backlog | OPT | done | Eyes signal weighting retune in router ranking |  |
 | OPT-002 | backlog | OPT | done | Prompt cache policy split by lane (reflex/autonomy/dream) |  |
 | OPT-003 | backlog | OPT | done | Dream fallback quality scoring before proposal injection |  |
