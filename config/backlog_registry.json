@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:22:12.954Z",
-  "source_hash": "8a23d7cdd0b2aa0d60710310",
+  "generated_at": "2026-03-02T09:22:14.810Z",
+  "source_hash": "f96fe8b484228e3da1260dbb",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 350,
+  "archive_count": 351,
   "rows": [
     {
       "id": "BL-001",
@@ -4391,7 +4391,7 @@
       "id": "V3-RACE-172",
       "class": "extension",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "Hierarchical Memory View Plane (Core/Edit/Summary + Swap-Safe Summarization)",
       "problem": "Long-term coherence across model/provider swaps needs deterministic derived memory views, not only raw node stores.",
       "acceptance": "Implement `systems/memory/hierarchical_memory_view_plane.{ts,js}` + policy `config/hierarchical_memory_view_policy.json`; user-specific view artifacts remain in `memory/views/` with adaptive view-selection heuristics in `adaptive/memory/views/`; permanent derivation/summarization contracts remain in `systems/memory/` + `config/`; model-swap path emits before/after parity receipts and bounded summary drift checks.",
