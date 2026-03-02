@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T04:11:36.581Z",
-  "source_hash": "5a13c5a572bda5aff5c628a3",
+  "generated_at": "2026-03-02T04:12:59.117Z",
+  "source_hash": "e5f20bf3406168869fd9e6a3",
   "row_count": 127,
-  "active_count": 42,
-  "archive_count": 85,
+  "active_count": 41,
+  "archive_count": 86,
   "rows": [
     {
       "id": "V3-OPS-004",
@@ -1564,10 +1564,10 @@
       "id": "V3-RACE-098",
       "class": "primitive-upgrade",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Feature/Data Versioning Reproducibility Contract",
       "problem": "Detector decisions must be exactly replayable to support safe evolution and audits.",
-      "acceptance": "Feature snapshots, schema hashes, and detector versions are pinned per run; replay reproduces equivalent scoring decisions with deterministic receipts.",
+      "acceptance": "Added `systems/sensory/feature_data_reproducibility_contract.{ts,js}` + `config/feature_data_reproducibility_contract_policy.json` to pin feature schema/data hashes, detector version, and decision hashes per snapshot and verify replay equivalence with deterministic receipts under `state/sensory/analysis/reproducibility/`; regression coverage in `memory/tools/tests/feature_data_reproducibility_contract.test.js`.",
       "dependencies": [
         "V3-RACE-003",
         "V3-RACE-086",

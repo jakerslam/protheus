@@ -1,0 +1,12 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "decision_threshold": 0.5,
+  "detector_version_default": "detector_v1",
+  "paths": {
+    "features_dir": "state/sensory/features",
+    "output_dir": "state/sensory/analysis/reproducibility",
+    "latest_path": "state/sensory/analysis/reproducibility/latest.json",
+    "receipts_path": "state/sensory/analysis/reproducibility/receipts.jsonl"
+  }
+}
