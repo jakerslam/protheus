@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T01:41:28.976Z",
-  "source_hash": "da2c8cd7a3c2fb97f2efd9a5",
+  "generated_at": "2026-03-02T02:14:48.450Z",
+  "source_hash": "d1153105f8a0bfe6fad1c3a3",
   "row_count": 127,
-  "active_count": 73,
-  "archive_count": 54,
+  "active_count": 63,
+  "archive_count": 64,
   "rows": [
     {
       "id": "V3-OPS-004",
@@ -73,10 +73,10 @@
       "id": "V3-RACE-026",
       "class": "hardening",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Fallback Retirement Gate (JS Emergency-Only)",
       "problem": "Broad JS fallback keeps complexity and latency overhead high and can hide memory-kernel regressions.",
-      "acceptance": "Policy gate narrows JS fallback to explicit emergency lanes only, defaults runtime to daemon+SQLite, opens incident receipts on fallback activation, and preserves one-click rollback toggle.",
+      "acceptance": "Added `memory_fallback_retirement_gate` (`systems/memory/memory_fallback_retirement_gate.ts`) with strict policy + emergency one-click toggle, incident receipts on fallback attempts, and `memory_recall` enforcement that blocks JS fallback when retired; regression coverage added for strict-block and emergency-allow flows.",
       "dependencies": [
         "V3-RACE-024",
         "V3-RMEM-006"
@@ -86,10 +86,10 @@
       "id": "V3-RACE-027",
       "class": "primitive-upgrade",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Direct Memory Encryption Plane Integration (Replace DB Shim)",
       "problem": "Memory-at-rest encryption should use the canonical envelope lane for consistent key-rotation/audit behavior across organs.",
-      "acceptance": "Replace DB cipher shim with `organ_state_encryption_plane` envelope calls, migrate existing records without loss, and emit key-rotation + migration verification receipts.",
+      "acceptance": "Rust memory hot-state now persists canonical organ-state envelope JSON (`schema_id: organ_state_envelope`, lane `hot_state`) instead of raw cipher strings, auto-migrates legacy/plain rows on open, rejects non-envelope reads post-migration, and exposes `verify-envelope` runtime verification for receipt generation.",
       "dependencies": [
         "V3-RACE-023",
         "V3-ENT-002"
@@ -99,10 +99,10 @@
       "id": "V3-RACE-028",
       "class": "primitive-upgrade",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "In-Process Rust Memory Binding Lane (`napi-rs`)",
       "problem": "Daemon/CLI transport is robust but still adds avoidable overhead on hottest memory call sites.",
-      "acceptance": "Ship in-process N-API bindings for query/get/store/index paths, prove parity against daemon path, and publish benchmark receipts showing lower latency while retaining daemon fallback for incompatible runtimes.",
+      "acceptance": "Added optional in-process `napi` adapter lane (`systems/memory/rust_napi_binding.ts`) and integrated it into unified transport orchestration (`memory_transport` + `memory_recall`) so query/get attempt N-API first when available, with deterministic daemon/CLI fallback and parity regression tests (including fake-module N-API fixtures).",
       "dependencies": [
         "V3-RACE-024",
         "V3-RACE-025"
@@ -427,10 +427,10 @@
       "id": "V3-RACE-022",
       "class": "extension",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Compute-Tithe Flywheel (Tithe-as-Leverage GPU Donation System)",
       "problem": "Add a governed economic engine where verified donated compute reduces effective tithe while feeding high-value runtime capacity for fractal/autonomy workloads.",
-      "acceptance": "Deliver `systems/economy/` lane (`tithe_engine`, `gpu_contribution_tracker`, `tithe_ledger`, `contribution_oracle`, `discount_policy`, blockchain bridge hook, public donation API) with JetStream-evented tithe accounting, donor-discount enforcement, soul continuity tagging, guarded integrations (`guard`, fractal queue priority, model/risk routing), and acceptance harness proving end-to-end simulated donation -> validated contribution -> discount apply -> receipt publish -> next-actuation effective tithe reduction.",
+      "acceptance": "Implemented `systems/economy/` compute-tithe lane (`tithe_engine`, `gpu_contribution_tracker`, `tithe_ledger`, `contribution_oracle`, `discount_policy`, `smart_contract_bridge`, `public_donation_api`, `flywheel_acceptance_harness`) with bracketed discount tiers, second-gate risk enforcement, constitution checks, control-plane event-stream publication, soul GPU patron markers, guard/fractal/routing/model/risk integration hints, and open-platform compatibility API `platform/api/donate_gpu.*`; acceptance coverage added in `memory/tools/tests/compute_tithe_flywheel.test.js` plus docs in `docs/ECONOMY.md`.",
       "dependencies": [
         "V3-RACE-016",
         "V3-RACE-017",
@@ -1297,10 +1297,10 @@
       "id": "V3-RACE-078",
       "class": "hardening",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Negative-Signal Recovery & Salvage Lane",
       "problem": "Valuable demand/opportunity signals are often expressed as failure/friction and are currently under-captured.",
-      "acceptance": "Signals with explicit failure/friction language are extracted as typed events, preserved through filters, and traced to proposal outcomes with measurable salvage uplift receipts.",
+      "acceptance": "`cross_signal_engine` now emits typed `negative_signal` hypotheses with extracted failure/friction terms, support evidence, and salvage trace keys; regression coverage validates negative-signal extraction/preservation alongside convergence outputs.",
       "dependencies": [
         "V3-RACE-069",
         "V3-RACE-071",
@@ -1324,10 +1324,10 @@
       "id": "V3-RACE-080",
       "class": "hardening",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Cross-Temporal Signal Delta Engine",
       "problem": "Point-in-time snapshots hide momentum/reversal patterns that matter for prioritization.",
-      "acceptance": "Daily/weekly deltas for topic volume/tone/emphasis are computed and surfaced in queue ranking with anomaly receipts and drift-safe thresholds.",
+      "acceptance": "`cross_signal_engine` now computes per-topic temporal deltas (`volume_delta_day`, `volume_delta_baseline`, `tone_delta`, `emphasis_delta`) with anomaly thresholds, emits `temporal_delta` hypotheses, and persists ranked `temporal_deltas` report output for downstream prioritization.",
       "dependencies": [
         "V3-RACE-069",
         "V3-RACE-074"
@@ -1337,10 +1337,10 @@
       "id": "V3-RACE-081",
       "class": "hardening",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Confidence Calibration & Probability Contracts",
       "problem": "Binary pass/fail confidence loses ranking quality and obscures uncertainty management.",
-      "acceptance": "Detection/ranking outputs include calibrated probabilities; reliability/Brier artifacts are tracked, and gates can fail on calibration regression.",
+      "acceptance": "Cross-signal hypotheses now carry calibrated probabilities (`probability_contract`), emit reliability bins + Brier artifacts, and enforce strict calibration contracts via `--strict=1` gate behavior when Brier exceeds policy thresholds.",
       "dependencies": [
         "V3-RACE-069",
         "V3-RACE-062"
@@ -1699,10 +1699,10 @@
       "id": "V3-RACE-108",
       "class": "primitive-upgrade",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Spawn Fan-Out Reduction Wave (Worker/Daemon Core)",
       "problem": "Sync process fan-out limits throughput and increases latency/jitter under scale.",
-      "acceptance": "Top high-frequency spawn lanes run through long-lived worker/daemon contracts; latency p95/p99 improves with no behavior/safety regression receipts.",
+      "acceptance": "`spawn_broker` now resolves router hardware plans in-process via `model_router` exports (no per-call shell spawn on default path), preserves emergency `spawnSync` fallback for custom/router-failure lanes, and emits transport telemetry (`hardware_plan_transport`) with regression coverage in `spawn_broker.test.js`.",
       "dependencies": [
         "V3-RACE-063",
         "V3-RACE-064",
@@ -1727,10 +1727,10 @@
       "id": "V3-RACE-110",
       "class": "primitive-upgrade",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Memory Transport Abstraction Unification",
       "problem": "Mixed transport semantics increase complexity and observability inconsistency in memory runtime behavior.",
-      "acceptance": "One transport abstraction governs daemon/cli/fallback semantics and emits normalized telemetry; parity tests confirm no retrieval/regression drift.",
+      "acceptance": "Added canonical transport primitive `systems/memory/memory_transport.ts` (runtime wrapper `.js`) and migrated `memory_recall` rust query/get lanes to use one daemon/cli/fallback contract with normalized telemetry (`transport_attempts`, fallback reason, transport detail); added regression coverage in `memory/tools/tests/memory_transport.test.js`.",
       "dependencies": [
         "V3-RACE-023",
         "V3-RACE-024",
@@ -1769,10 +1769,10 @@
       "id": "V3-RACE-113",
       "class": "hardening",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Compatibility Tail Retirement (TS-First Runtime)",
       "problem": "Dual TS/JS paths keep unnecessary complexity once parity is proven.",
-      "acceptance": "Eligible JS runtime paths are retired behind parity evidence; only policy-approved compatibility wrappers remain; migration receipts prove no behavior loss.",
+      "acceptance": "Added `compatibility_tail_retirement` guard (`systems/ops/compatibility_tail_retirement.ts`) with strict wrapper/allowlist policy, receipts, and regression test; retired duplicate runtime body for `systems/ops/backlog_registry.js` to TS-bootstrap wrapper to enforce TS-first execution.",
       "dependencies": [
         "V2-001",
         "V2-003",

@@ -1,13 +1,9 @@
 # Backlog Active View
 
-Generated: 2026-03-02T01:41:28.976Z
+Generated: 2026-03-02T02:14:48.450Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
-| V3-RACE-026 | hardening | V3 | queued | Fallback Retirement Gate (JS Emergency-Only) | V3-RACE-024, V3-RMEM-006 |
-| V3-RACE-027 | primitive-upgrade | V3 | queued | Direct Memory Encryption Plane Integration (Replace DB Shim) | V3-RACE-023, V3-ENT-002 |
-| V3-RACE-028 | primitive-upgrade | V3 | queued | In-Process Rust Memory Binding Lane (`napi-rs`) | V3-RACE-024, V3-RACE-025 |
-| V3-RACE-022 | extension | V3 | queued | Compute-Tithe Flywheel (Tithe-as-Leverage GPU Donation System) | V3-RACE-016, V3-RACE-017, V3-RACE-019, V3-BLK-001, V3-BUD-001 |
 | V3-RACE-CONF-005 | hardening | V3 | queued | N-API Build Surface Compatibility Contract (`build:memory`/postinstall expectations) | V3-RACE-028, V3-DOC-004 |
 | V3-RACE-DEF-024 | hardening | V3 | queued | PsycheForge Adaptive Counter-Profile Defense Organ | V3-RACE-017, V3-RACE-019, V3-RACE-023, V3-VENOM-006 |
 | V3-RACE-DEF-025 | hardening | V3 | queued | Smart Knot Crown-Jewel Obfuscation Layer | V3-RACE-DEF-024, V3-CPY-005, V3-CPY-006 |
@@ -44,10 +40,7 @@ Generated: 2026-03-02T01:41:28.976Z
 | V3-RACE-057 | hardening | V3 | queued | Black-Swan Disaster Gamebooks & Continuous Resilience Drills | V3-RACE-040, V3-RACE-041, V3-RACE-037 |
 | V3-RACE-058 | extension | V3 | queued | Legal/Regulatory Auto-Diff Governance Router | V3-RACE-044, V3-DOC-005, V3-RACE-CONF-007 |
 | V3-RACE-059 | hardening | V3 | queued | Sovereign Decommission, Legacy & Succession Boundary Protocol | V3-RACE-037, V4-006, V3-RACE-033 |
-| V3-RACE-078 | hardening | V3 | queued | Negative-Signal Recovery & Salvage Lane | V3-RACE-069, V3-RACE-071, V3-RACE-072 |
 | V3-RACE-079 | primitive-upgrade | V3 | queued | Latent Intent Inference Graph | V3-RACE-078, V3-RACE-009 |
-| V3-RACE-080 | hardening | V3 | queued | Cross-Temporal Signal Delta Engine | V3-RACE-069, V3-RACE-074 |
-| V3-RACE-081 | hardening | V3 | queued | Confidence Calibration & Probability Contracts | V3-RACE-069, V3-RACE-062 |
 | V3-RACE-082 | extension | V3 | queued | Counterfactual Signal Replay Harness | V3-RACE-003, V3-RACE-017, V3-RACE-081 |
 | V3-RACE-083 | hardening | V3 | queued | Adversarial Hypothesis Challenger Lane | V3-RACE-081, V3-RACE-042 |
 | V3-RACE-084 | primitive-upgrade | V3 | queued | Multi-Hop Objective Chain Mapper | V3-RACE-078, V3-RACE-079, V3-RACE-080, V3-RACE-081 |
@@ -72,9 +65,6 @@ Generated: 2026-03-02T01:41:28.976Z
 | V3-RACE-103 | hardening | V3 | queued | Sensitivity/Privacy-Aware Signal Scoring Contract | V3-RACE-033, V3-RACE-044, V3-RACE-096 |
 | V3-RACE-104 | hardening | V3 | queued | Detector Rollback & Migration Safety Contract | V3-RACE-087, V3-RACE-098 |
 | V3-RACE-105 | hardening | V3 | queued | Cross-Objective Interference Guard for Analysis Changes | V3-RACE-084, V3-RACE-096, V3-RACE-104 |
-| V3-RACE-108 | primitive-upgrade | V3 | queued | Spawn Fan-Out Reduction Wave (Worker/Daemon Core) | V3-RACE-063, V3-RACE-064, V3-OPS-005 |
-| V3-RACE-110 | primitive-upgrade | V3 | queued | Memory Transport Abstraction Unification | V3-RACE-023, V3-RACE-024, V3-RACE-025 |
 | V3-RACE-112 | primitive-upgrade | V3 | queued | Analysis Kernel Stage Interface & Plugin Contracts | V3-RACE-078, V3-RACE-081, V3-RACE-083, V3-RACE-084 |
-| V3-RACE-113 | hardening | V3 | queued | Compatibility Tail Retirement (TS-First Runtime) | V2-001, V2-003, BL-014, V3-RACE-068 |
 | V3-RACE-114 | hardening | V3 | queued | Control-Plane Live Activation & Shadow Exit Gate | V3-RACE-017, V3-RACE-021, V3-RACE-034, V3-RACE-041 |
 

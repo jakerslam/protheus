@@ -1,0 +1,33 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "base_tithe_rate": 0.1,
+  "min_tithe_rate": 0.01,
+  "max_discount_rate": 0.85,
+  "discount_per_gpu_hour": 0.0025,
+  "risk_tier_default": 2,
+  "enforce_second_gate_tier3_plus": true,
+  "require_constitution_pass": true,
+  "discount_tiers": [
+    { "min_gpu_hours": 0, "discount_rate": 0.0 },
+    { "min_gpu_hours": 100, "discount_rate": 0.05 },
+    { "min_gpu_hours": 1000, "discount_rate": 0.2 },
+    { "min_gpu_hours": 5000, "discount_rate": 0.45 },
+    { "min_gpu_hours": 10000, "discount_rate": 0.7 }
+  ],
+  "paths": {
+    "contributions_path": "state/economy/contributions.json",
+    "donor_state_path": "state/economy/donor_state.json",
+    "latest_path": "state/economy/latest.json",
+    "receipts_path": "state/economy/receipts.jsonl",
+    "ledger_path": "state/economy/tithe_ledger.jsonl",
+    "event_stream_path": "state/ops/event_sourced_control_plane/events.jsonl",
+    "soul_marker_path": "state/soul/gpu_patrons.json",
+    "guard_hint_path": "state/security/guard/effective_tithe.json",
+    "fractal_hint_path": "state/fractal/donor_priority_hints.json",
+    "routing_hint_path": "state/routing/donor_priority_hints.json",
+    "model_hint_path": "state/routing/model_donor_priority_hints.json",
+    "risk_hint_path": "state/routing/risk_donor_priority_hints.json",
+    "chain_receipts_path": "state/blockchain/tithe_bridge_receipts.jsonl"
+  }
+}

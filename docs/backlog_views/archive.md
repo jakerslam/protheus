@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T01:41:28.976Z
+Generated: 2026-03-02T02:14:48.450Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -9,6 +9,9 @@ Generated: 2026-03-02T01:41:28.976Z
 | V3-RMEM-005 | hardening | V3 | done | Memory Backend Selector + Fallback Guard (`js | Cross-language migration needs deterministic fail-safe behavior to avoid runtime instability |
 | V3-RACE-024 | hardening | V3 | done | Daemon Soak Promotion Gate + Receipts (24-48h) | V3-RACE-023, RM-122 |
 | V3-RACE-025 | hardening | V3 | done | Daemon Supervision + Stale PID/Socket Reaper | V3-RACE-023, V3-OPS-005 |
+| V3-RACE-026 | hardening | V3 | done | Fallback Retirement Gate (JS Emergency-Only) | V3-RACE-024, V3-RMEM-006 |
+| V3-RACE-027 | primitive-upgrade | V3 | done | Direct Memory Encryption Plane Integration (Replace DB Shim) | V3-RACE-023, V3-ENT-002 |
+| V3-RACE-028 | primitive-upgrade | V3 | done | In-Process Rust Memory Binding Lane (`napi-rs`) | V3-RACE-024, V3-RACE-025 |
 | V3-DEP-001 | hardening | V3 | done | Deterministic One-Line Installer + Signed Release Channel | sh + offline script variant) that verifies signed artifact + checksum/SBOM provenance before install, supports explicit version pinning, and fails closed on verification mismatch |
 | V3-RACE-001 | primitive-upgrade | V3 | done | Rust Core Runtime Kernel Slice | V3-RMEM-001, V3-OPS-005, V3-OPS-006 |
 | V3-RACE-002 | hardening | V3 | done | Wasmtime Capability Microkernel Lane | V3-OF-001, V3-CPY-006, V3-VENOM-000 |
@@ -31,6 +34,7 @@ Generated: 2026-03-02T01:41:28.976Z
 | V3-RACE-019 | primitive | V3 | done | Persistent Fractal Engine Meta-Organ (Loop-5 Autopilot) | V3-LOOP-004, V3-038, V3-RACE-004, V3-RACE-010 |
 | V3-RACE-020 | extension | V3 | done | LoRA-Backed Soul Continuity Adapter | V3-RACE-008, V3-ASSIM-012, V2-058, V3-BLK-001 |
 | V3-RACE-021 | primitive-upgrade | V3 | done | Rust Microkernel Full Control-Plane Extraction + Default Cutover | V3-RACE-001, V3-RACE-002, V3-RMEM-006, RM-122, V3-OPS-015 |
+| V3-RACE-022 | extension | V3 | done | Compute-Tithe Flywheel (Tithe-as-Leverage GPU Donation System) | V3-RACE-016, V3-RACE-017, V3-RACE-019, V3-BLK-001, V3-BUD-001 |
 | V3-RACE-CONF-001 | extension | V3 | done | Open Platform Path-Contract Compatibility Pack (`platform/` artifacts) | V3-RACE-016, V3-DOC-001 |
 | V3-RACE-CONF-002 | hardening | V3 | done | Legacy Path Alias Adapters (`systems/state/event_stream.js`, `systems/autogenesis/*`) | V3-RACE-017, V3-RACE-018 |
 | V3-RACE-CONF-003 | hardening | V3 | done | Requirement Conformance Matrix + Gate (`external prompt -> canonical lane`) | V3-AEX-002, V3-DOC-004 |
@@ -54,8 +58,14 @@ Generated: 2026-03-02T01:41:28.976Z
 | V3-RACE-075 | hardening | V3 | done | Execution Floor Contract (Sunday Included, Explicit Observation Override) | RM-113, V3-RACE-069, V3-AEX-001 |
 | V3-RACE-076 | extension | V3 | done | Execution-to-Artifact Auto-Capture Bridge | BL-030, RM-113, V3-RACE-069 |
 | V3-RACE-077 | hardening | V3 | done | Adaptive Escalation TTL + Salvage Queue | BL-018, RM-114, V3-RACE-073 |
+| V3-RACE-078 | hardening | V3 | done | Negative-Signal Recovery & Salvage Lane | V3-RACE-069, V3-RACE-071, V3-RACE-072 |
+| V3-RACE-080 | hardening | V3 | done | Cross-Temporal Signal Delta Engine | V3-RACE-069, V3-RACE-074 |
+| V3-RACE-081 | hardening | V3 | done | Confidence Calibration & Probability Contracts | V3-RACE-069, V3-RACE-062 |
 | V3-RACE-106 | hardening | V3 | done | Unified Guard Check Registry (Manifest-Driven Gates) | V3-AEX-002, V3-RACE-CONF-008 |
 | V3-RACE-107 | hardening | V3 | done | Shared Policy Runtime Primitive | BL-024, V3-RACE-CONF-007 |
+| V3-RACE-108 | primitive-upgrade | V3 | done | Spawn Fan-Out Reduction Wave (Worker/Daemon Core) | V3-RACE-063, V3-RACE-064, V3-OPS-005 |
 | V3-RACE-109 | hardening | V3 | done | State Artifact Contract Normalization | BL-024, V3-RACE-062, V3-RACE-CONF-007 |
+| V3-RACE-110 | primitive-upgrade | V3 | done | Memory Transport Abstraction Unification | V3-RACE-023, V3-RACE-024, V3-RACE-025 |
 | V3-RACE-111 | extension | V3 | done | Canonical Backlog Registry + Generated Views | V3-RACE-CONF-003, V3-RACE-107 |
+| V3-RACE-113 | hardening | V3 | done | Compatibility Tail Retirement (TS-First Runtime) | V2-001, V2-003, BL-014, V3-RACE-068 |
 
