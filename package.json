@@ -621,7 +621,10 @@
     "test:sensory:error-autotune": "node memory/tools/tests/detector_error_taxonomy_autotune.test.js",
     "sensory:ensemble-disagreement:run": "node systems/sensory/ensemble_disagreement_escalation_lane.js run",
     "sensory:ensemble-disagreement:status": "node systems/sensory/ensemble_disagreement_escalation_lane.js status",
-    "test:sensory:ensemble-disagreement": "node memory/tools/tests/ensemble_disagreement_escalation_lane.test.js"
+    "test:sensory:ensemble-disagreement": "node memory/tools/tests/ensemble_disagreement_escalation_lane.test.js",
+    "sensory:novelty-saturation:run": "node systems/sensory/novelty_saturation_prioritization_engine.js run",
+    "sensory:novelty-saturation:status": "node systems/sensory/novelty_saturation_prioritization_engine.js status",
+    "test:sensory:novelty-saturation": "node memory/tools/tests/novelty_saturation_prioritization_engine.test.js"
   },
   "bin": {
     "protheus": "./bin/protheus",
