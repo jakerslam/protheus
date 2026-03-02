@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:34:06.122Z",
-  "source_hash": "9efdb75cb667300db7077eb4",
+  "generated_at": "2026-03-02T09:35:55.072Z",
+  "source_hash": "b898ae68af362a9cd4b4282f",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 357,
+  "archive_count": 358,
   "rows": [
     {
       "id": "BL-001",
@@ -4419,7 +4419,7 @@
       "id": "V3-RACE-174",
       "class": "hardening",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "Competitive Observability + Benchmark Pack (Trace/Evals + Framework Parity)",
       "problem": "Operational confidence and market credibility require explicit trace/eval UX and repeatable benchmark parity artifacts against common alternatives.",
       "acceptance": "Implement `systems/ops/competitive_observability_benchmark_pack.{ts,js}` + policy `config/competitive_observability_benchmark_policy.json`; user-specific benchmark preferences remain in `memory/ops/benchmarks/` with adaptive scenario weighting in `adaptive/ops/benchmarks/`; permanent benchmark scenarios, trace/eval collectors, and parity report generators remain in `systems/ops/` + `config/`; outputs deterministic parity scorecards for Letta/Mastra/LangGraph/OpenFang lanes without storing user-private contents in benchmark fixtures.",
