@@ -1,10 +1,10 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T17:57:00.442Z",
-  "source_hash": "dcdf2919a11cf651fd92edc6",
-  "row_count": 446,
-  "active_count": 49,
+  "generated_at": "2026-03-02T17:58:45.282Z",
+  "source_hash": "c456f40cf5b472e31f02a07b",
+  "row_count": 460,
+  "active_count": 63,
   "archive_count": 397,
   "rows": [
     {
@@ -5456,6 +5456,202 @@
         "V3-RACE-232",
         "V3-RACE-239",
         "V3-RACE-243",
+        "V3-RACE-214"
+      ]
+    },
+    {
+      "id": "V3-RACE-248",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Apple Silicon Performance Profile (Unified Memory + Power-Aware Runtime)",
+      "problem": "Apple stewardship requires first-class optimization for unified-memory Apple Silicon to meet latency/battery constraints without policy drift.",
+      "acceptance": "Add Apple Silicon profile with unified-memory-aware scheduling and power envelopes, require verification receipts on performance/thermal/battery targets, and include rollback-safe fallback to generic hardware profile on regression.",
+      "dependencies": [
+        "V3-RACE-218",
+        "V3-RACE-125",
+        "V3-RACE-174"
+      ]
+    },
+    {
+      "id": "V3-RACE-249",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "visionOS Spatial Runtime + Vision Framework Adapter",
+      "problem": "Spatial computing surfaces need dedicated runtime contracts that preserve safety/sovereignty while enabling immersive interfaces.",
+      "acceptance": "Deliver visionOS app/runtime adapter with 3D/multi-modal primitives, require verification receipts for interface safety/perf parity, and include rollback-safe fallback to non-spatial UI surfaces on instability.",
+      "dependencies": [
+        "V3-RACE-193",
+        "V3-RACE-189",
+        "V3-RACE-248"
+      ]
+    },
+    {
+      "id": "V3-RACE-250",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "iOS/iPadOS Ecosystem Bridge (Continuity/Handoff/Universal Control/Private Relay)",
+      "problem": "Apple ecosystem collaboration requires explicit system integration contracts beyond baseline mobile wrapper support.",
+      "acceptance": "Add iOS/iPadOS integration adapters for continuity/handoff/control/private-relay-aware networking, require verification receipts for security/UX parity, and include rollback-safe disable path to baseline mobile runtime when integration checks fail.",
+      "dependencies": [
+        "V3-RACE-191",
+        "V3-RACE-193",
+        "V3-RACE-249"
+      ]
+    },
+    {
+      "id": "V3-RACE-251",
+      "class": "primitive-upgrade",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Apple ANE/CoreML/MLX Accelerator Adapter",
+      "problem": "Apple hardware acceleration requires a typed placement adapter to keep inference routing predictable and auditable.",
+      "acceptance": "Add ANE/CoreML/MLX adapter under HAL contracts, require verification receipts for placement correctness and throughput/efficiency gains, and include rollback-safe fallback to non-ANE lanes on adapter mismatch.",
+      "dependencies": [
+        "V3-RACE-218",
+        "V3-RACE-248",
+        "V3-RACE-209"
+      ]
+    },
+    {
+      "id": "V3-RACE-252",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Secure Enclave / Secure Element Sovereignty Key Guard",
+      "problem": "Hardware-rooted key protection is required for high-assurance Apple deployments handling soul contracts and sensitive cryptographic material.",
+      "acceptance": "Implement Secure Enclave/Element key-scope adapters for soul/contract signing paths, require verification receipts for key-isolation and access-policy enforcement, and include rollback-safe fallback to existing key lanes when hardware attestation fails.",
+      "dependencies": [
+        "V3-RACE-017",
+        "V3-RACE-214",
+        "V3-RACE-251"
+      ]
+    },
+    {
+      "id": "V3-RACE-253",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Swift/SwiftUI Co-Runtime Layer (Rust Interop Contracts)",
+      "problem": "Native Apple UX/performance requirements call for a governed Swift layer while keeping Rust core control-plane authority intact.",
+      "acceptance": "Add Swift/SwiftUI co-runtime interfaces with explicit Rust interop contracts, require verification receipts for parity and boundary safety, and include rollback-safe reversion to existing UI/runtime surfaces on incompatibility.",
+      "dependencies": [
+        "V3-RACE-220",
+        "V3-RACE-249",
+        "V3-RACE-250"
+      ]
+    },
+    {
+      "id": "V3-RACE-254",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Apple Foundation Models Adapter (On-Device LLM Path)",
+      "problem": "Foundation Models integration should be adapterized to avoid platform lock-in while enabling native on-device capabilities.",
+      "acceptance": "Implement adapter mapping Foundation Models APIs to typed lane contracts, require verification receipts for policy/quality parity, and include rollback-safe adapter quarantine path when contract or safety checks fail.",
+      "dependencies": [
+        "V3-RACE-251",
+        "V3-RACE-223",
+        "V3-RACE-210"
+      ]
+    },
+    {
+      "id": "V3-RACE-255",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Private Cloud Compute Sovereign Bridge (Opt-In Only)",
+      "problem": "Apple cloud reasoning must remain strictly optional and privacy-preserving under explicit sovereign routing constraints.",
+      "acceptance": "Add PCC adapter as opt-in cloud lane with explicit routing policy enforcing PCC-only cloud exception, require verification receipts for privacy boundary guarantees, and include rollback-safe return-to-on-device-only mode on any policy mismatch.",
+      "dependencies": [
+        "V3-RACE-254",
+        "V3-RACE-260",
+        "V3-RACE-116"
+      ]
+    },
+    {
+      "id": "V3-RACE-256",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "App Intents / SiriKit / Shortcuts Integration Lane",
+      "problem": "System-level collaboration flows need typed intent bridges that preserve operator governance and security invariants.",
+      "acceptance": "Implement App Intents/SiriKit/Shortcuts adapters with contract-lane gating, require verification receipts for intent permission boundaries and execution correctness, and include rollback-safe disable controls for any failing integration path.",
+      "dependencies": [
+        "V3-RACE-250",
+        "V3-RACE-254",
+        "V3-RACE-184"
+      ]
+    },
+    {
+      "id": "V3-RACE-257",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Apple UX Quality Gate (HIG + Platform Consistency + Battery Impact Review)",
+      "problem": "Apple-native surfaces require explicit quality and battery governance before promotion to avoid degraded user trust and platform rejection risk.",
+      "acceptance": "Add HIG/platform-consistency/battery review gate with measurable criteria and verification receipts per release candidate, and include rollback-safe release hold/fallback policy when quality thresholds are missed.",
+      "dependencies": [
+        "V3-RACE-249",
+        "V3-RACE-250",
+        "V3-RACE-253"
+      ]
+    },
+    {
+      "id": "V3-RACE-258",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "App Store Privacy & Submission Compliance Lane",
+      "problem": "App Store distribution requires privacy/reporting/compliance artifacts that must be generated and validated deterministically.",
+      "acceptance": "Build submission-readiness lane covering privacy labels, privacy reports, differential-privacy/compliance checks, require verification receipts for each required artifact, and include rollback-safe submission block when compliance signals regress.",
+      "dependencies": [
+        "V3-RACE-257",
+        "V3-RACE-229",
+        "V3-RACE-261"
+      ]
+    },
+    {
+      "id": "V3-RACE-259",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "TestFlight + Apple Business Manager/MDM Distribution Adapter",
+      "problem": "Apple beta and enterprise deployment channels need dedicated automation lanes with auditable rollout controls.",
+      "acceptance": "Add TestFlight + ABM/MDM deployment adapters with staged release controls, require verification receipts for deployment integrity and policy conformance, and include rollback-safe channel freeze/revert commands.",
+      "dependencies": [
+        "V3-RACE-250",
+        "V3-RACE-258",
+        "V3-RACE-231"
+      ]
+    },
+    {
+      "id": "V3-RACE-260",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Apple On-Device-First Sovereignty Gate (PCC-Only Cloud Exception)",
+      "problem": "Apple stewardship requires strict routing guarantees that keep on-device execution primary and cloud use constrained to approved privacy-preserving paths.",
+      "acceptance": "Enforce routing gate that defaults to on-device execution and only allows cloud reasoning through approved PCC profiles when explicitly enabled, require verification receipts for policy enforcement, and include rollback-safe reversion to strict local-only mode.",
+      "dependencies": [
+        "V3-RACE-255",
+        "V3-RACE-214",
+        "V3-RACE-017"
+      ]
+    },
+    {
+      "id": "V3-RACE-261",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Apple Release Security Gate (App Sandbox/TCC + Notarization/Gatekeeper + Privacy Manifest)",
+      "problem": "Apple deployments require security/privacy platform validations beyond generic release checks to prevent unsafe or non-compliant promotions.",
+      "acceptance": "Add release gate enforcing App Sandbox/TCC validation, notarization/Gatekeeper checks, and privacy manifest completeness, require verification receipts for each control, and include rollback-safe release-block behavior when any control fails.",
+      "dependencies": [
+        "V3-RACE-258",
+        "V3-RACE-257",
         "V3-RACE-214"
       ]
     },

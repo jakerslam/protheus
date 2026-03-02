@@ -1,6 +1,6 @@
 # Backlog Active View
 
-Generated: 2026-03-02T17:57:00.442Z
+Generated: 2026-03-02T17:58:45.282Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -53,4 +53,18 @@ Generated: 2026-03-02T17:57:00.442Z
 | V3-RACE-245 | hardening | V3 | queued | AWS Compliance Evidence Bridge (Audit Manager/Artifact/Well-Architected/Access Analyzer) | V3-RACE-229, V3-RACE-044, V3-RACE-058 |
 | V3-RACE-246 | hardening | V3 | queued | AWS Enterprise Identity Binding Adapter (IRSA + AWS SSO + KMS) | V3-RACE-239, V3-RACE-245, V3-RACE-017 |
 | V3-RACE-247 | hardening | V3 | queued | AWS Frugality + Well-Architected Review Gate (Graviton/Spot Preference, No-Egress Defaults) | V3-RACE-232, V3-RACE-239, V3-RACE-243, V3-RACE-214 |
+| V3-RACE-248 | extension | V3 | queued | Apple Silicon Performance Profile (Unified Memory + Power-Aware Runtime) | V3-RACE-218, V3-RACE-125, V3-RACE-174 |
+| V3-RACE-249 | extension | V3 | queued | visionOS Spatial Runtime + Vision Framework Adapter | V3-RACE-193, V3-RACE-189, V3-RACE-248 |
+| V3-RACE-250 | extension | V3 | queued | iOS/iPadOS Ecosystem Bridge (Continuity/Handoff/Universal Control/Private Relay) | V3-RACE-191, V3-RACE-193, V3-RACE-249 |
+| V3-RACE-251 | primitive-upgrade | V3 | queued | Apple ANE/CoreML/MLX Accelerator Adapter | V3-RACE-218, V3-RACE-248, V3-RACE-209 |
+| V3-RACE-252 | hardening | V3 | queued | Secure Enclave / Secure Element Sovereignty Key Guard | V3-RACE-017, V3-RACE-214, V3-RACE-251 |
+| V3-RACE-253 | extension | V3 | queued | Swift/SwiftUI Co-Runtime Layer (Rust Interop Contracts) | V3-RACE-220, V3-RACE-249, V3-RACE-250 |
+| V3-RACE-254 | extension | V3 | queued | Apple Foundation Models Adapter (On-Device LLM Path) | V3-RACE-251, V3-RACE-223, V3-RACE-210 |
+| V3-RACE-255 | extension | V3 | queued | Private Cloud Compute Sovereign Bridge (Opt-In Only) | V3-RACE-254, V3-RACE-260, V3-RACE-116 |
+| V3-RACE-256 | extension | V3 | queued | App Intents / SiriKit / Shortcuts Integration Lane | V3-RACE-250, V3-RACE-254, V3-RACE-184 |
+| V3-RACE-257 | hardening | V3 | queued | Apple UX Quality Gate (HIG + Platform Consistency + Battery Impact Review) | V3-RACE-249, V3-RACE-250, V3-RACE-253 |
+| V3-RACE-258 | hardening | V3 | queued | App Store Privacy & Submission Compliance Lane | V3-RACE-257, V3-RACE-229, V3-RACE-261 |
+| V3-RACE-259 | extension | V3 | queued | TestFlight + Apple Business Manager/MDM Distribution Adapter | V3-RACE-250, V3-RACE-258, V3-RACE-231 |
+| V3-RACE-260 | hardening | V3 | queued | Apple On-Device-First Sovereignty Gate (PCC-Only Cloud Exception) | V3-RACE-255, V3-RACE-214, V3-RACE-017 |
+| V3-RACE-261 | hardening | V3 | queued | Apple Release Security Gate (App Sandbox/TCC + Notarization/Gatekeeper + Privacy Manifest) | V3-RACE-258, V3-RACE-257, V3-RACE-214 |
 
