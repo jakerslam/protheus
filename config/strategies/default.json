@@ -166,7 +166,7 @@
     "min_shipped": 1
   },
   "execution_policy": {
-    "mode": "canary_execute",
+    "mode": "score_only",
     "canary_daily_exec_limit": 2
   },
   "threshold_overrides": {}

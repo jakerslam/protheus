@@ -1,10 +1,10 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T06:45:47.996Z",
-  "source_hash": "82527bd567543c455686268a",
-  "row_count": 324,
-  "active_count": 1,
+  "generated_at": "2026-03-02T06:58:37.451Z",
+  "source_hash": "0fcba9d7dbd7b9022fb22761",
+  "row_count": 327,
+  "active_count": 4,
   "archive_count": 309,
   "rows": [
     {
@@ -3729,6 +3729,46 @@
       "dependencies": [
         "V3-DEP-001",
         "V3-DOC-008"
+      ]
+    },
+    {
+      "id": "V3-RACE-126",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Integrity Seal Closure & Baseline Reseal",
+      "problem": "Reliability claims are weakened while default CI fails on integrity sealing drift.",
+      "acceptance": "`integrity_kernel` baseline is reconciled/resealed, strict integrity lane passes in CI, and `npm test` returns green with no manual exceptions.",
+      "dependencies": [
+        "V3-RACE-106",
+        "V3-RACE-123"
+      ]
+    },
+    {
+      "id": "V3-RACE-127",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "External Surface Tightening (Public Operator Profile)",
+      "problem": "Public first impression still includes internal-heavy artifacts that distract from operator value.",
+      "acceptance": "Define public/operator surface contract, move/alias remaining internal artifacts out of public-first paths, and ship concise external docs/readme profile with regression lint checks.",
+      "dependencies": [
+        "V3-RACE-122",
+        "V3-RACE-124",
+        "V3-RACE-125"
+      ]
+    },
+    {
+      "id": "V3-RACE-128",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Script Surface Reduction Wave II",
+      "problem": "Even with registry governance, oversized script catalogs reduce discoverability and operational efficiency.",
+      "acceptance": "Reduce total script count via deprecation/alias retirement plan, keep compatibility shims for critical paths, and publish migration receipts + command-map diff.",
+      "dependencies": [
+        "V3-RACE-115",
+        "V3-RACE-123"
       ]
     },
     {

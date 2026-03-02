@@ -101,6 +101,16 @@ function runGit(args) {
   return (r.stdout || "").trim();
 }
 
+function gitCommitExists(sha) {
+  const commit = String(sha || "").trim();
+  if (!commit) return false;
+  const r = spawnSync("git", ["cat-file", "-e", `${commit}^{commit}`], {
+    cwd: repoRoot(),
+    encoding: "utf8"
+  });
+  return r.status === 0;
+}
+
 function runNode(args) {
   const r = spawnSync("node", args, { cwd: repoRoot(), encoding: "utf8" });
   return {
@@ -162,9 +172,20 @@ function main() {
   //   - If we have a cursor sha: scan cursor..HEAD (excluding cursor)
   //   - Else: scan last 200 commits (reverse order for determinism)
   let shas = [];
+  let effectiveLastSha = lastSha;
+  if (effectiveLastSha && !gitCommitExists(effectiveLastSha)) {
+    appendJsonl(logPath, {
+      ts: nowIso(),
+      type: "git_outcomes_cursor_reset",
+      date: dateStr,
+      prior_cursor_sha: effectiveLastSha,
+      reason: "cursor_commit_missing"
+    });
+    effectiveLastSha = null;
+  }
   try {
-    if (lastSha) {
-      const out = runGit(["rev-list", "--reverse", `${lastSha}..HEAD`]);
+    if (effectiveLastSha) {
+      const out = runGit(["rev-list", "--reverse", `${effectiveLastSha}..HEAD`]);
       shas = out ? out.split("\n").filter(Boolean) : [];
     } else {
       const out = runGit(["rev-list", "--reverse", "--max-count=200", "HEAD"]);
@@ -185,7 +206,7 @@ function main() {
     ts: nowIso(),
     type: "git_outcomes_started",
     date: dateStr,
-    cursor_last_sha: lastSha,
+    cursor_last_sha: effectiveLastSha,
     commits_scanned: shas.length
   });
 
@@ -274,7 +295,7 @@ function main() {
   }
 
   // Advance cursor to the latest scanned commit (even if no proposal tags)
-  const newCursorSha = shas.length ? shas[shas.length - 1] : lastSha;
+  const newCursorSha = shas.length ? shas[shas.length - 1] : effectiveLastSha;
   writeJson(cursorPath, { last_sha: newCursorSha, updated_at: nowIso() });
 
   appendJsonl(logPath, {
