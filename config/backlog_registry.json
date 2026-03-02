@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:21:59.743Z",
-  "source_hash": "2793ee53e963765e65f28cc4",
+  "generated_at": "2026-03-02T09:22:02.018Z",
+  "source_hash": "4efb07133b5bb60f904dc48c",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 344,
+  "archive_count": 345,
   "rows": [
     {
       "id": "BL-001",
@@ -4251,7 +4251,7 @@
       "id": "V3-RACE-162",
       "class": "extension",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "Sleep Reflection Compute Scheduler (Idle Consolidation Loop)",
       "problem": "Memory and strategy quality compounds faster with bounded asynchronous reflection during idle windows.",
       "acceptance": "Implement `systems/memory/sleep_reflection_scheduler.{ts,js}` + policy `config/sleep_reflection_scheduler_policy.json`; user-specific reflection outputs stay in `memory/reflections/` and adaptive scheduling heuristics in `adaptive/reflections/`; permanent scheduler/executor logic stays in `systems/memory/` + `systems/autonomy/` + `config/`; runs honor budget/quiet-hour/risk-tier gates and emit receipts.",
