@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T02:43:45.718Z",
-  "source_hash": "d664523ac43550d08cb50324",
+  "generated_at": "2026-03-02T02:47:04.008Z",
+  "source_hash": "78420206889b65b83948b331",
   "row_count": 127,
-  "active_count": 57,
-  "archive_count": 70,
+  "active_count": 56,
+  "archive_count": 71,
   "rows": [
     {
       "id": "V3-OPS-004",
@@ -1364,10 +1364,10 @@
       "id": "V3-RACE-083",
       "class": "hardening",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Adversarial Hypothesis Challenger Lane",
       "problem": "Unchallenged high-confidence signals can be wrong and produce confident misallocation.",
-      "acceptance": "High-priority signals receive generated disconfirmation hypotheses with verification outcomes; unresolved challenger wins block promotion/apply.",
+      "acceptance": "Added `systems/sensory/adversarial_hypothesis_challenger.{ts,js}` + `config/adversarial_hypothesis_challenger_policy.json` to generate disconfirmation claims for high-priority hypotheses, verify challenger outcomes (`win`/`unresolved`/`loss`), and block promotion when unresolved or winning challengers remain; receipted outputs persist under `state/sensory/analysis/adversarial_challenger/` with regression coverage in `memory/tools/tests/adversarial_hypothesis_challenger.test.js`.",
       "dependencies": [
         "V3-RACE-081",
         "V3-RACE-042"

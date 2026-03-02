@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T02:43:45.718Z
+Generated: 2026-03-02T02:47:04.008Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -67,6 +67,7 @@ Generated: 2026-03-02T02:43:45.718Z
 | V3-RACE-080 | hardening | V3 | done | Cross-Temporal Signal Delta Engine | V3-RACE-069, V3-RACE-074 |
 | V3-RACE-081 | hardening | V3 | done | Confidence Calibration & Probability Contracts | V3-RACE-069, V3-RACE-062 |
 | V3-RACE-082 | extension | V3 | done | Counterfactual Signal Replay Harness | V3-RACE-003, V3-RACE-017, V3-RACE-081 |
+| V3-RACE-083 | hardening | V3 | done | Adversarial Hypothesis Challenger Lane | V3-RACE-081, V3-RACE-042 |
 | V3-RACE-106 | hardening | V3 | done | Unified Guard Check Registry (Manifest-Driven Gates) | V3-AEX-002, V3-RACE-CONF-008 |
 | V3-RACE-107 | hardening | V3 | done | Shared Policy Runtime Primitive | BL-024, V3-RACE-CONF-007 |
 | V3-RACE-108 | primitive-upgrade | V3 | done | Spawn Fan-Out Reduction Wave (Worker/Daemon Core) | V3-RACE-063, V3-RACE-064, V3-OPS-005 |
