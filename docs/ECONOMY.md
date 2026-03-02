@@ -19,6 +19,21 @@
 - `systems/economy/public_donation_api.ts`
 - `systems/economy/flywheel_acceptance_harness.ts`
 - `platform/api/donate_gpu.ts` (open-platform compatibility API surface)
+- `systems/economy/protheus_token_engine.ts` (`V3-RACE-130`)
+- `systems/economy/global_directive_fund.ts` (`V3-RACE-130`)
+- `systems/economy/peer_lending_market.ts` (`V3-RACE-133`)
+
+## Data Scope Boundaries
+
+- User-specific economy preferences/agreements:
+  - `memory/economy/**`
+  - `adaptive/economy/**`
+- Permanent economy runtime/policy:
+  - `systems/economy/**`
+  - `config/*economy*` and related policy contracts
+- Boundary enforcement:
+  - `systems/ops/data_scope_boundary_check.ts`
+  - `docs/DATA_SCOPE_BOUNDARIES.md`
 
 ## Quick Commands
 

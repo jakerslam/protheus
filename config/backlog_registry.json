@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:07:09.949Z",
-  "source_hash": "358e2e2570d98a5f3c5ce628",
+  "generated_at": "2026-03-02T09:09:48.483Z",
+  "source_hash": "069928dd240a044d11feb564",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 319,
+  "archive_count": 320,
   "rows": [
     {
       "id": "BL-001",
@@ -3874,7 +3874,7 @@
       "id": "V3-RACE-136",
       "class": "hardening",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "Sovereign Economy/Identity Integration Contract + Data-Scope Guard",
       "problem": "New economy/identity lanes must integrate without collapsing user-data vs permanent-runtime boundaries.",
       "acceptance": "Add integration harness + docs (`docs/ECONOMY.md`, `docs/IDENTITY.md`, `docs/DATA_SCOPE_BOUNDARIES.md`) plus contract check `systems/ops/data_scope_boundary_check.{ts,js}` to enforce: user-specific contracts/preferences/signature state only in `memory/` + `adaptive/`, permanent policy/runtime code only in `systems/` + `config/`; integrate lanes with soul vector, tithe engine, spawn broker, guard, fractal, complexity warden, and jigsaw receipts without boundary violations.",
