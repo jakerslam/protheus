@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:38:00.187Z",
-  "source_hash": "e85e80503e03319f9db5e35d",
+  "generated_at": "2026-03-02T09:38:02.180Z",
+  "source_hash": "5584c890e112b680a097d670",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 368,
+  "archive_count": 369,
   "rows": [
     {
       "id": "BL-001",
@@ -1321,7 +1321,7 @@
       "id": "RR-011",
       "class": "backlog",
       "wave": "RR",
-      "status": "open",
+      "status": "done",
       "title": "Catastrophic recovery gap",
       "problem": "Total-loss scenarios can break continuity despite local self-healing",
       "acceptance": "Implement deterministic resurrection protocol with tested recovery ceremonies; linked: `V3-056`",
