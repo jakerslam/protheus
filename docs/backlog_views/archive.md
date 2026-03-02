@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T04:21:53.760Z
+Generated: 2026-03-02T04:37:39.300Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -41,8 +41,40 @@ Generated: 2026-03-02T04:21:53.760Z
 | V3-RACE-CONF-004 | hardening | V3 | done | Rust Memory Path-Contract Compatibility (`core/memory` alias docs/wrappers) | V3-RACE-023, V3-DOC-001 |
 | V3-RACE-CONF-005 | hardening | V3 | done | N-API Build Surface Compatibility Contract (`build:memory`/postinstall expectations) | V3-RACE-028, V3-DOC-004 |
 | V3-RACE-DEF-024 | hardening | V3 | done | PsycheForge Adaptive Counter-Profile Defense Organ | V3-RACE-017, V3-RACE-019, V3-RACE-023, V3-VENOM-006 |
+| V3-RACE-DEF-025 | hardening | V3 | done | Smart Knot Crown-Jewel Obfuscation Layer | V3-RACE-DEF-024, V3-CPY-005, V3-CPY-006 |
+| V3-RACE-DEF-026 | hardening | V3 | done | Lockweaver Eternal Flux Field (Origin-Lock Verified Structural Flux) | V3-RACE-017, V3-RACE-019, V3-RACE-023, V3-RACE-DEF-024, V3-RACE-DEF-025 |
+| V3-RACE-DEF-027 | extension | V3 | done | Project Jigsaw (AttackCinema Incident Replay Theater) | V3-RACE-017, V3-RACE-019, V3-RACE-020, V3-RACE-023, V3-RACE-DEF-024, V3-RACE-DEF-026 |
+| V3-RACE-DEF-028 | hardening | V3 | done | Phoenix Protocol (Immortal Red-Team Respawn + Continuity Inheritance) | V3-RACE-017, V3-RACE-019, V3-RACE-020, V3-RACE-023, V3-RACE-DEF-024, V3-RACE-DEF-026, V3-RACE-DEF-027 |
+| V3-RACE-DEF-029 | hardening | V3 | done | MirrorReaper Protocol (Tier-4 Resource Inversion Defense Mode) | V3-RACE-017, V3-RACE-019, V3-RACE-022, V3-RACE-DEF-024, V3-RACE-DEF-026, V3-RACE-DEF-027, V3-RACE-DEF-028 |
+| V3-RACE-030 | extension | V3 | done | Legion Honor Codex (Soul-Bound Medals, Titles, and Red Legion Rank System) | V3-RACE-019, V3-RACE-020, V3-RACE-022, V3-BLK-001, V3-RACE-DEF-024, V3-RACE-DEF-027, V3-RACE-DEF-028 |
+| V3-RACE-031 | hardening | V3 | done | Legion Geas Protocol (Iron Oath Self-Destruct Covenant) | V3-RACE-017, V3-RACE-020, V3-RACE-DEF-024, V3-RACE-DEF-027, V3-RACE-DEF-028, V3-RACE-DEF-029, V3-OPS-005 |
 | V3-RACE-034 | primitive-upgrade | V3 | done | Rust Spine Microkernel (Control-Plane Core Extraction) | V3-RACE-023, V3-RACE-021, V3-OPS-005 |
+| V3-RACE-035 | hardening | V3 | done | Formal Mind-Sovereignty Verification Layer | V3-045, V3-RACE-031, V3-RACE-034 |
+| V3-RACE-036 | hardening | V3 | done | Multi-Mind Isolation & Shared-Consciousness Boundary Plane | RM-109, V3-RACE-020, V3-RACE-035 |
 | V3-RACE-037 | extension | V3 | done | Long-Term Archival & Sovereign Resurrection Substrate | V3-BLK-001, V3-QPROOF-001, V3-RACE-020 |
+| V3-RACE-038A | extension | V3 | done | Inter-Protheus Federation Trust Web & Temporary Merge Contracts | V2-062, V3-RACE-036, V3-RACE-037 |
+| V3-RACE-039 | primitive | V3 | done | Human-Machine Merge Interface Security Substrate | V3-RACE-035, V3-RACE-036, V3-RACE-037 |
+| V3-RACE-DEF-031A | hardening | V3 | done | Thorn Swarm Protocol (Tier-4 Sacrificial Wave Defense) | V3-RACE-017, V3-RACE-031, V3-RACE-DEF-024, V3-RACE-DEF-026, V3-RACE-DEF-029 |
+| V3-RACE-DEF-031B | hardening | V3 | done | Crimson Wraith Protocol (Single-Mission Phoenix Variant) | V3-RACE-017, V3-RACE-031, V3-RACE-DEF-024, V3-RACE-DEF-027, V3-RACE-DEF-028 |
+| V3-RACE-DEF-031C | hardening | V3 | done | Irrevocable Geas Covenant (Lineage Ban Enforcement) | V3-RACE-017, V3-RACE-031, V3-RACE-DEF-028 |
+| V3-RACE-032 | hardening | V3 | done | Complexity Warden Meta-Organ (Fractal Elegance Governor) | V3-RACE-017, V3-RACE-019, V3-RACE-020, V3-RACE-023, V3-RACE-DEF-026, V3-AEX-002 |
+| V3-RACE-033 | hardening | V3 | done | Mind Fortress Principle (Mind Sovereignty Covenant Anchor) | V3-RACE-017, V3-RACE-019, V3-RACE-020, V3-RACE-032, V3-AEX-002 |
+| V3-RACE-040 | hardening | V3 | done | Continuous Chaos Engineering + Auto-Remediation Suite | V3-RACE-017, V3-RACE-019, V3-RACE-032, V3-OPS-003 |
+| V3-RACE-041 | hardening | V3 | done | Enterprise SLO + Observability Command Dashboard | V3-RACE-005, V3-RACE-040, V3-OBS-002 |
+| V3-RACE-042 | hardening | V3 | done | Formal Threat Modeling Engine (STRIDE/ATT&CK Contractization) | V3-RACE-017, V3-RACE-031, V3-RACE-032 |
+| V3-RACE-043 | hardening | V3 | done | Supply-Chain Security & Reproducible Build Plane | V3-BLD-001, V3-048, V3-RACE-034 |
+| V3-RACE-044 | extension | V3 | done | Automated Compliance Mapping & Evidence Engine | V3-DOC-005, V3-DOC-007, V3-RACE-041, V3-RACE-042 |
+| V3-RACE-CONF-007 | hardening | V3 | done | Permanent Guidelines Drift Gate + Ticket Output Contract | V3-RACE-CONF-006, V3-RACE-033, V3-RACE-032, V3-AEX-002 |
+| V3-RACE-050 | hardening | V3 | done | Independent Safety Coprocessor & Out-of-Band Veto Plane | V3-RACE-034, V3-RACE-035, V3-RACE-033 |
+| V3-RACE-051 | hardening | V3 | done | Hardware Root-of-Trust Attestation Mesh | V3-RACE-034, V3-CPY-001, V3-051 |
+| V3-RACE-052 | hardening | V3 | done | Data Poisoning Immunity + Causal Rollback Plane | V3-RACE-023, V3-RACE-042, V3-RACE-035 |
+| V3-RACE-053 | hardening | V3 | done | Model Behavior Drift Containment Shield | RM-121, V3-RACE-041, V3-RACE-035 |
+| V3-RACE-054 | hardening | V3 | done | Adversarial Goal-Drift Auditor | V3-RACE-035, V3-RACE-032, V3-RACE-033 |
+| V3-RACE-055 | hardening | V3 | done | Insider-Threat Split-Trust Command Governance | RM-109, V3-ENT-001, V3-RACE-031 |
+| V3-RACE-056 | extension | V3 | done | Signed Plugin Trust Marketplace & Revocation Plane | V3-RACE-043, V3-DOC-004, V3-CPY-005 |
+| V3-RACE-057 | hardening | V3 | done | Black-Swan Disaster Gamebooks & Continuous Resilience Drills | V3-RACE-040, V3-RACE-041, V3-RACE-037 |
+| V3-RACE-058 | extension | V3 | done | Legal/Regulatory Auto-Diff Governance Router | V3-RACE-044, V3-DOC-005, V3-RACE-CONF-007 |
+| V3-RACE-059 | hardening | V3 | done | Sovereign Decommission, Legacy & Succession Boundary Protocol | V3-RACE-037, V4-006, V3-RACE-033 |
 | V3-RACE-060 | hardening | V3 | done | Dist Runtime Contract Reconciliation Gate (Legacy-Pair Truth Source) | V2-003, BL-014, V3-AEX-002 |
 | V3-RACE-061 | hardening | V3 | done | Deterministic Time Harness for Release/TTL Gates | V2-049, V2-050, V3-RACE-060 |
 | V3-RACE-062 | hardening | V3 | done | Benchmark Artifact Consistency Gate (Report vs History vs Latest) | V3-RACE-024, V3-RACE-026 |
@@ -96,5 +128,7 @@ Generated: 2026-03-02T04:21:53.760Z
 | V3-RACE-109 | hardening | V3 | done | State Artifact Contract Normalization | BL-024, V3-RACE-062, V3-RACE-CONF-007 |
 | V3-RACE-110 | primitive-upgrade | V3 | done | Memory Transport Abstraction Unification | V3-RACE-023, V3-RACE-024, V3-RACE-025 |
 | V3-RACE-111 | extension | V3 | done | Canonical Backlog Registry + Generated Views | V3-RACE-CONF-003, V3-RACE-107 |
+| V3-RACE-112 | primitive-upgrade | V3 | done | Analysis Kernel Stage Interface & Plugin Contracts | V3-RACE-078, V3-RACE-081, V3-RACE-083, V3-RACE-084 |
 | V3-RACE-113 | hardening | V3 | done | Compatibility Tail Retirement (TS-First Runtime) | V2-001, V2-003, BL-014, V3-RACE-068 |
+| V3-RACE-114 | hardening | V3 | done | Control-Plane Live Activation & Shadow Exit Gate | V3-RACE-017, V3-RACE-021, V3-RACE-034, V3-RACE-041 |
 

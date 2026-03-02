@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "threshold_quorum_requirements",
+      "description": "Threshold quorum required for irreversible actions"
+    },
+    {
+      "id": "out_of_band_confirmation",
+      "description": "Independent confirmation channel enforced"
+    },
+    {
+      "id": "irreversible_action_guard",
+      "description": "High-impact command guard active"
+    },
+    {
+      "id": "deny_without_quorum",
+      "description": "Denial-by-default when quorum missing"
+    }
+  ],
+  "paths": {
+    "state_path": "state/security/insider_threat_split_trust_command_governance/state.json",
+    "latest_path": "state/security/insider_threat_split_trust_command_governance/latest.json",
+    "receipts_path": "state/security/insider_threat_split_trust_command_governance/receipts.jsonl",
+    "history_path": "state/security/insider_threat_split_trust_command_governance/history.jsonl"
+  }
+}

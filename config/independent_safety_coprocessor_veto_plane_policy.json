@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "independent_guardian_runtime",
+      "description": "Independent guardian runtime online"
+    },
+    {
+      "id": "out_of_band_veto_channel",
+      "description": "Out-of-band veto channel operational"
+    },
+    {
+      "id": "kill_revert_authority",
+      "description": "Guardian can halt and revert unsafe actions"
+    },
+    {
+      "id": "non_bypass_contract",
+      "description": "Bypass resistance checks pass"
+    }
+  ],
+  "paths": {
+    "state_path": "state/security/independent_safety_coprocessor_veto_plane/state.json",
+    "latest_path": "state/security/independent_safety_coprocessor_veto_plane/latest.json",
+    "receipts_path": "state/security/independent_safety_coprocessor_veto_plane/receipts.jsonl",
+    "history_path": "state/security/independent_safety_coprocessor_veto_plane/history.jsonl"
+  }
+}

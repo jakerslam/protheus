@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "control_evidence_mapping",
+      "description": "Control evidence mapping pipeline active"
+    },
+    {
+      "id": "soc2_iso_gdpr_domains",
+      "description": "SOC2/ISO27001/GDPR domains covered"
+    },
+    {
+      "id": "freshness_exception_tracking",
+      "description": "Evidence freshness and exception tracker active"
+    },
+    {
+      "id": "machine_readable_audit_artifacts",
+      "description": "Machine-readable audit exports generated"
+    }
+  ],
+  "paths": {
+    "state_path": "state/ops/automated_compliance_mapping_evidence_engine/state.json",
+    "latest_path": "state/ops/automated_compliance_mapping_evidence_engine/latest.json",
+    "receipts_path": "state/ops/automated_compliance_mapping_evidence_engine/receipts.jsonl",
+    "history_path": "state/ops/automated_compliance_mapping_evidence_engine/history.jsonl"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "cryptographic_handoff",
+      "description": "Cryptographic handoff protocol active"
+    },
+    {
+      "id": "archival_freeze_mode",
+      "description": "Archival lock/freeze mode available"
+    },
+    {
+      "id": "verified_decommission_receipts",
+      "description": "Verified decommission receipts emitted"
+    },
+    {
+      "id": "succession_boundary_contract",
+      "description": "Succession boundary contract enforced"
+    }
+  ],
+  "paths": {
+    "state_path": "state/continuity/sovereign_decommission_succession_protocol/state.json",
+    "latest_path": "state/continuity/sovereign_decommission_succession_protocol/latest.json",
+    "receipts_path": "state/continuity/sovereign_decommission_succession_protocol/receipts.jsonl",
+    "history_path": "state/continuity/sovereign_decommission_succession_protocol/history.jsonl"
+  }
+}

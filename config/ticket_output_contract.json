@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "required_fields": [
+    "id",
+    "status",
+    "acceptance",
+    "notes",
+    "receipts"
+  ],
+  "covenant_alignment_field": "mind_sovereignty_alignment"
+}

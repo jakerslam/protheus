@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "lane": "V3-RACE-DEF-025",
+  "crown_jewel_modules": [
+    "security",
+    "memory",
+    "fractal",
+    "soul",
+    "economy"
+  ],
+  "exclusions": [
+    "platform",
+    "habits",
+    "skills",
+    "public"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "reproducible_build_profile",
+      "description": "Reproducible build profile for crown-jewel artifacts exists"
+    },
+    {
+      "id": "sbom_generation",
+      "description": "SBOM generation and retention policy enabled"
+    },
+    {
+      "id": "signed_provenance_attestation",
+      "description": "Signed provenance attestations required"
+    },
+    {
+      "id": "release_verification_gate",
+      "description": "Strict release verification gate enabled"
+    }
+  ],
+  "paths": {
+    "state_path": "state/security/supply_chain_reproducible_build_plane/state.json",
+    "latest_path": "state/security/supply_chain_reproducible_build_plane/latest.json",
+    "receipts_path": "state/security/supply_chain_reproducible_build_plane/receipts.jsonl",
+    "history_path": "state/security/supply_chain_reproducible_build_plane/history.jsonl"
+  }
+}

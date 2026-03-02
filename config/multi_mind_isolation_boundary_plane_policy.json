@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "per_mind_namespaces",
+      "description": "Per-mind namespace partitioning enabled"
+    },
+    {
+      "id": "memory_soul_partitioning",
+      "description": "Memory and soul partitions isolated"
+    },
+    {
+      "id": "delegated_trust_scopes",
+      "description": "Delegated trust scopes bounded by policy"
+    },
+    {
+      "id": "emergency_partition_quarantine",
+      "description": "Emergency partition quarantine controls active"
+    }
+  ],
+  "paths": {
+    "state_path": "state/security/multi_mind_isolation_boundary_plane/state.json",
+    "latest_path": "state/security/multi_mind_isolation_boundary_plane/latest.json",
+    "receipts_path": "state/security/multi_mind_isolation_boundary_plane/receipts.jsonl",
+    "history_path": "state/security/multi_mind_isolation_boundary_plane/history.jsonl"
+  }
+}

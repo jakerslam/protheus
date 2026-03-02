@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "chaos_scenario_library",
+      "description": "Chaos scenario library covers fault/network/process/event classes"
+    },
+    {
+      "id": "scheduled_gamedays",
+      "description": "Scheduled gameday cadence configured"
+    },
+    {
+      "id": "auto_remediation_workflows",
+      "description": "Bounded auto-remediation workflows available"
+    },
+    {
+      "id": "rollback_safety_receipts",
+      "description": "Fail-safe rollback receipts emitted for remediation"
+    }
+  ],
+  "paths": {
+    "state_path": "state/ops/continuous_chaos_auto_remediation_suite/state.json",
+    "latest_path": "state/ops/continuous_chaos_auto_remediation_suite/latest.json",
+    "receipts_path": "state/ops/continuous_chaos_auto_remediation_suite/receipts.jsonl",
+    "history_path": "state/ops/continuous_chaos_auto_remediation_suite/history.jsonl"
+  }
+}

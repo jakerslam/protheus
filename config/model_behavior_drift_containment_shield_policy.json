@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "model_fingerprint_canary",
+      "description": "Continuous model fingerprint canary enabled"
+    },
+    {
+      "id": "deviation_threshold_contract",
+      "description": "Deviation thresholds enforce behavior envelope"
+    },
+    {
+      "id": "automatic_model_fallback",
+      "description": "Automatic fallback on drift breach configured"
+    },
+    {
+      "id": "drift_incident_receipts",
+      "description": "Drift incident receipts persisted"
+    }
+  ],
+  "paths": {
+    "state_path": "state/routing/model_behavior_drift_containment_shield/state.json",
+    "latest_path": "state/routing/model_behavior_drift_containment_shield/latest.json",
+    "receipts_path": "state/routing/model_behavior_drift_containment_shield/receipts.jsonl",
+    "history_path": "state/routing/model_behavior_drift_containment_shield/history.jsonl"
+  }
+}

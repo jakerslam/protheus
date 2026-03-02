@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "lineage_ban_registry",
+      "description": "Compromised lineages recorded in irreversible ban registry"
+    },
+    {
+      "id": "non_respawn_enforcement",
+      "description": "Phoenix checks lineage bans before respawn"
+    },
+    {
+      "id": "irreversible_self_destruct",
+      "description": "Containment breach triggers irreversible self-destruct"
+    },
+    {
+      "id": "override_recovery_policy",
+      "description": "Recovery path requires explicit human override"
+    }
+  ],
+  "paths": {
+    "state_path": "state/security/irrevocable_geas_covenant/state.json",
+    "latest_path": "state/security/irrevocable_geas_covenant/latest.json",
+    "receipts_path": "state/security/irrevocable_geas_covenant/receipts.jsonl",
+    "history_path": "state/security/irrevocable_geas_covenant/history.jsonl"
+  }
+}

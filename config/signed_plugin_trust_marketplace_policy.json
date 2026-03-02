@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "signed_extension_manifests",
+      "description": "Signed extension manifests required"
+    },
+    {
+      "id": "sandbox_attestation_gate",
+      "description": "Sandbox attestation mandatory for publish"
+    },
+    {
+      "id": "scoped_capability_grants",
+      "description": "Capability grants remain scope-bounded"
+    },
+    {
+      "id": "global_revocation_propagation",
+      "description": "Global revocation propagation available"
+    }
+  ],
+  "paths": {
+    "state_path": "state/security/signed_plugin_trust_marketplace/state.json",
+    "latest_path": "state/security/signed_plugin_trust_marketplace/latest.json",
+    "receipts_path": "state/security/signed_plugin_trust_marketplace/receipts.jsonl",
+    "history_path": "state/security/signed_plugin_trust_marketplace/history.jsonl"
+  }
+}

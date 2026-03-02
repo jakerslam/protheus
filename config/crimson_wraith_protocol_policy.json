@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "one_shot_spawn_type",
+      "description": "Single-mission crimson_wraith spawn type available"
+    },
+    {
+      "id": "hard_timeout_enforced",
+      "description": "Mission timeout and TTL contracts enforced"
+    },
+    {
+      "id": "decoy_trap_templates",
+      "description": "Decoy and trap mission templates available"
+    },
+    {
+      "id": "irreversible_termination",
+      "description": "No-lineage respawn behavior enforced"
+    }
+  ],
+  "paths": {
+    "state_path": "state/security/crimson_wraith_protocol/state.json",
+    "latest_path": "state/security/crimson_wraith_protocol/latest.json",
+    "receipts_path": "state/security/crimson_wraith_protocol/receipts.jsonl",
+    "history_path": "state/security/crimson_wraith_protocol/history.jsonl"
+  }
+}

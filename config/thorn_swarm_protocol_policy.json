@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "tier4_swarm_scaling",
+      "description": "Swarm wave scaling tracks attack intensity"
+    },
+    {
+      "id": "short_ttl_self_destruct",
+      "description": "Sacrificial cells enforce short TTL self-destruct"
+    },
+    {
+      "id": "trap_profile_execution",
+      "description": "Trap profile pack executes within policy bounds"
+    },
+    {
+      "id": "jigsaw_replay_markers",
+      "description": "Jigsaw replay markers emitted for swarm waves"
+    }
+  ],
+  "paths": {
+    "state_path": "state/security/thorn_swarm_protocol/state.json",
+    "latest_path": "state/security/thorn_swarm_protocol/latest.json",
+    "receipts_path": "state/security/thorn_swarm_protocol/receipts.jsonl",
+    "history_path": "state/security/thorn_swarm_protocol/history.jsonl"
+  }
+}

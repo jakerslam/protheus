@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "consent_ceremony_gate",
+      "description": "Consent ceremony required for merge channel"
+    },
+    {
+      "id": "identity_lock_channel",
+      "description": "Identity lock keeps merge channel sovereign"
+    },
+    {
+      "id": "rollback_killswitch",
+      "description": "Rollback and kill-switch path available"
+    },
+    {
+      "id": "hostile_interface_tests",
+      "description": "Hostile interface simulation suite passes"
+    }
+  ],
+  "paths": {
+    "state_path": "state/continuity/human_machine_merge_interface_security_substrate/state.json",
+    "latest_path": "state/continuity/human_machine_merge_interface_security_substrate/latest.json",
+    "receipts_path": "state/continuity/human_machine_merge_interface_security_substrate/receipts.jsonl",
+    "history_path": "state/continuity/human_machine_merge_interface_security_substrate/history.jsonl"
+  }
+}

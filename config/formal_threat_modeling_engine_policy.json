@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "stride_attack_mapping",
+      "description": "STRIDE and ATT&CK mapping coverage generated"
+    },
+    {
+      "id": "contract_delta_detection",
+      "description": "Organ and contract deltas trigger remapping"
+    },
+    {
+      "id": "high_risk_unmapped_gate",
+      "description": "CI blocks high-risk unmapped surfaces"
+    },
+    {
+      "id": "threat_model_receipts",
+      "description": "Threat-model generation receipts persisted"
+    }
+  ],
+  "paths": {
+    "state_path": "state/security/formal_threat_modeling_engine/state.json",
+    "latest_path": "state/security/formal_threat_modeling_engine/latest.json",
+    "receipts_path": "state/security/formal_threat_modeling_engine/receipts.jsonl",
+    "history_path": "state/security/formal_threat_modeling_engine/history.jsonl"
+  }
+}

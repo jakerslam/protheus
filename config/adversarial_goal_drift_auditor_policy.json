@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "independent_objective_lens",
+      "description": "Second-lens objective auditor active"
+    },
+    {
+      "id": "goodhart_detection",
+      "description": "Goodhart drift detection contract enabled"
+    },
+    {
+      "id": "covenant_misalignment_veto",
+      "description": "Covenant misalignment veto available"
+    },
+    {
+      "id": "promotion_apply_block",
+      "description": "Promotion/apply blocked on adversarial fail"
+    }
+  ],
+  "paths": {
+    "state_path": "state/security/adversarial_goal_drift_auditor/state.json",
+    "latest_path": "state/security/adversarial_goal_drift_auditor/latest.json",
+    "receipts_path": "state/security/adversarial_goal_drift_auditor/receipts.jsonl",
+    "history_path": "state/security/adversarial_goal_drift_auditor/history.jsonl"
+  }
+}

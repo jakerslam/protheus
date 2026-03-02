@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "legal_source_diff_ingestion",
+      "description": "Legal source diff ingestion active"
+    },
+    {
+      "id": "impact_classification_router",
+      "description": "Control impact classification available"
+    },
+    {
+      "id": "human_approval_checkpoints",
+      "description": "Human approval checkpoints enforced"
+    },
+    {
+      "id": "evidence_update_trails",
+      "description": "Evidence update trails emitted"
+    }
+  ],
+  "paths": {
+    "state_path": "state/ops/legal_regulatory_autodiff_governance_router/state.json",
+    "latest_path": "state/ops/legal_regulatory_autodiff_governance_router/latest.json",
+    "receipts_path": "state/ops/legal_regulatory_autodiff_governance_router/receipts.jsonl",
+    "history_path": "state/ops/legal_regulatory_autodiff_governance_router/history.jsonl"
+  }
+}

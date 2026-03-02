@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "tpm_tee_enrollment",
+      "description": "TPM/TEE enrollment contract enabled"
+    },
+    {
+      "id": "session_bound_trust_tokens",
+      "description": "Session-bound trust token issuance active"
+    },
+    {
+      "id": "drift_auto_quarantine",
+      "description": "Attestation drift triggers automatic quarantine"
+    },
+    {
+      "id": "trust_transition_receipts",
+      "description": "Trust transition receipts emitted"
+    }
+  ],
+  "paths": {
+    "state_path": "state/security/hardware_root_of_trust_attestation_mesh/state.json",
+    "latest_path": "state/security/hardware_root_of_trust_attestation_mesh/latest.json",
+    "receipts_path": "state/security/hardware_root_of_trust_attestation_mesh/receipts.jsonl",
+    "history_path": "state/security/hardware_root_of_trust_attestation_mesh/history.jsonl"
+  }
+}

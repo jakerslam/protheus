@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "stage_contract_interface",
+      "description": "Detect->infer->calibrate->challenge->score->emit contract active"
+    },
+    {
+      "id": "plugin_adapter_registry",
+      "description": "Plugin adapter registry is live"
+    },
+    {
+      "id": "baseline_detector_parity",
+      "description": "Baseline detector outputs parity harness passes"
+    },
+    {
+      "id": "kernel_regression_harness",
+      "description": "Regression harness emits deterministic receipts"
+    }
+  ],
+  "paths": {
+    "state_path": "state/sensory/analysis_kernel_stage_interface/state.json",
+    "latest_path": "state/sensory/analysis_kernel_stage_interface/latest.json",
+    "receipts_path": "state/sensory/analysis_kernel_stage_interface/receipts.jsonl",
+    "history_path": "state/sensory/analysis_kernel_stage_interface/history.jsonl"
+  }
+}

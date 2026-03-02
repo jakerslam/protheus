@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "scenario_library",
+      "description": "Black-swan scenario library defined"
+    },
+    {
+      "id": "scheduled_resilience_drills",
+      "description": "Scheduled drill cadence in policy"
+    },
+    {
+      "id": "recovery_slo_measurement",
+      "description": "Recovery SLO measurement enabled"
+    },
+    {
+      "id": "remediation_closure_tracking",
+      "description": "Remediation closure tracker active"
+    }
+  ],
+  "paths": {
+    "state_path": "state/ops/black_swan_disaster_gamebooks/state.json",
+    "latest_path": "state/ops/black_swan_disaster_gamebooks/latest.json",
+    "receipts_path": "state/ops/black_swan_disaster_gamebooks/receipts.jsonl",
+    "history_path": "state/ops/black_swan_disaster_gamebooks/history.jsonl"
+  }
+}

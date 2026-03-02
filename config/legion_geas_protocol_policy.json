@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "checks": [
+    {
+      "id": "cryptographic_lease_manager",
+      "description": "Short-lived cryptographic lease manager active"
+    },
+    {
+      "id": "behavior_continuity_validation",
+      "description": "Three-factor validation enforced"
+    },
+    {
+      "id": "self_destruct_on_violation",
+      "description": "Hard self-destruct on lease breach wired"
+    },
+    {
+      "id": "phoenix_handoff_contract",
+      "description": "Phoenix handoff resumes inherited tactical state"
+    }
+  ],
+  "paths": {
+    "state_path": "state/security/legion_geas_protocol/state.json",
+    "latest_path": "state/security/legion_geas_protocol/latest.json",
+    "receipts_path": "state/security/legion_geas_protocol/receipts.jsonl",
+    "history_path": "state/security/legion_geas_protocol/history.jsonl"
+  }
+}
