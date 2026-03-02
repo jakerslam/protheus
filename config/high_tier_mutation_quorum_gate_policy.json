@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "high_tiers": [
+    "belief",
+    "identity",
+    "directive",
+    "constitution"
+  ],
+  "require_explanation_on_disagreement": true,
+  "outputs": {
+    "latest_path": "state/autonomy/high_tier_mutation_quorum_gate/latest.json",
+    "history_path": "state/autonomy/high_tier_mutation_quorum_gate/history.jsonl"
+  }
+}

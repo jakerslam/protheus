@@ -361,3 +361,29 @@ Verification:
 1. `verify --strict=1` passes.
 2. deny-rate in audit stream drops to baseline.
 3. latest heartbeat advances with accepted signed payloads.
+
+## BL-034 Incident Contract
+
+This section is the enforced contract for incident + rollback drill coverage.
+
+Required incident classes and deterministic first actions:
+
+1. `routing_degraded`
+   - Run: `node systems/routing/model_router.js doctor --risk=low --complexity=low --intent=ops_triage --task="routing incident diagnosis"`
+2. `schema_drift`
+   - Run: `node systems/security/schema_contract_check.js run --strict=1`
+3. `sensory_starvation`
+   - Run: `node habits/scripts/external_eyes.js preflight --strict=0`
+4. `autonomy_stall`
+   - Run: `node systems/autonomy/ops_dashboard.js status`
+
+Rollback drill contract (weekly):
+
+1. Engage containment:
+   - `node systems/security/emergency_stop.js engage --scope=autonomy --approval-note="rollback drill"`
+2. Execute rollback target check:
+   - `node systems/autonomy/improvement_controller.js evaluate --force=1 --auto-revert=1`
+3. Release containment:
+   - `node systems/security/emergency_stop.js release --approval-note="rollback drill complete"`
+4. Record verification artifact:
+   - Write receipt under `state/ops/evidence/rollback_drill_<YYYY-MM-DD>.md`

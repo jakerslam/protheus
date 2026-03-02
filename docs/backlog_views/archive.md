@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T22:34:44.678Z
+Generated: 2026-03-02T22:48:06.961Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -30,8 +30,18 @@ Generated: 2026-03-02T22:34:44.678Z
 | BL-021 | backlog | BL | done | End-to-end pipeline integration tests (`eyes -> insight -> queue -> execute -> receipt -> score`) |  |
 | BL-022 | backlog | BL | done | Two-phase autonomous change execution with automatic rollback |  |
 | BL-023 | backlog | BL | done | Unified global budget governor across reflex/autonomy/focus/dream/spawn |  |
+| BL-024 | backlog | BL | done | Event/state schema versioning + validators + migrations |  |
+| BL-025 | backlog | BL | done | Outcome-linked routing learning by task type |  |
+| BL-026 | backlog | BL | done | Ops visibility dashboard + SLO alerts for autonomy health |  |
+| BL-027 | backlog | BL | done | Execution-worthiness scoring at queue admission |  |
+| BL-028 | backlog | BL | done | Outcome calibration by proposal type (post BL-027 companion) |  |
+| BL-029 | backlog | BL | done | Weekly strategy synthesis from executed outcomes |  |
 | BL-030 | backlog | BL | done | Secret broker isolation + scoped credential handles |  |
 | BL-031 | backlog | BL | done | Network egress choke point for autonomous actions |  |
+| BL-032 | backlog | BL | done | Signed startup attestation + integrity check at run boot |  |
+| BL-033 | backlog | BL | done | Quorum validator for high-tier self-modification proposals |  |
+| BL-034 | backlog | BL | done | Operator runbook for incidents + rollback drills |  |
+| BL-035 | backlog | BL | done | Required-Checks branch protection policy |  |
 | BL-042 | backlog | BL | done | Prompt/result cache with TTL + invalidation policy |  |
 | BL-007 | backlog | BL | done | Backup integrity checks |  |
 | BL-008 | backlog | BL | done | Repo hygiene CI check for generated artifacts |  |

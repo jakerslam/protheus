@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "smoothing": {
+    "beta_prior_success": 1,
+    "beta_prior_failure": 1,
+    "min_samples_for_strong_bias": 5
+  },
+  "outputs": {
+    "matrix_path": "state/routing/task_type_outcome_learning/matrix.json",
+    "latest_path": "state/routing/task_type_outcome_learning/latest.json",
+    "history_path": "state/routing/task_type_outcome_learning/history.jsonl"
+  }
+}

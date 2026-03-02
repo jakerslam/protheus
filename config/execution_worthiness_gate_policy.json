@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "threshold": 0.62,
+  "weights": {
+    "objective_clarity": 0.25,
+    "command_concreteness": 0.30,
+    "verification_strength": 0.25,
+    "rollback_quality": 0.20
+  },
+  "outputs": {
+    "latest_path": "state/autonomy/execution_worthiness_gate/latest.json",
+    "history_path": "state/autonomy/execution_worthiness_gate/history.jsonl"
+  }
+}

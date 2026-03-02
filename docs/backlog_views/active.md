@@ -1,19 +1,9 @@
 # Backlog Active View
 
-Generated: 2026-03-02T22:34:44.678Z
+Generated: 2026-03-02T22:48:06.961Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
-| BL-024 | backlog | BL | queued | Event/state schema versioning + validators + migrations |  |
-| BL-025 | backlog | BL | queued | Outcome-linked routing learning by task type |  |
-| BL-026 | backlog | BL | queued | Ops visibility dashboard + SLO alerts for autonomy health |  |
-| BL-027 | backlog | BL | queued | Execution-worthiness scoring at queue admission |  |
-| BL-028 | backlog | BL | queued | Outcome calibration by proposal type (post BL-027 companion) |  |
-| BL-029 | backlog | BL | queued | Weekly strategy synthesis from executed outcomes |  |
-| BL-032 | backlog | BL | queued | Signed startup attestation + integrity check at run boot |  |
-| BL-033 | backlog | BL | queued | Quorum validator for high-tier self-modification proposals |  |
-| BL-034 | backlog | BL | queued | Operator runbook for incidents + rollback drills |  |
-| BL-035 | backlog | BL | queued | Required-Checks branch protection policy |  |
 | BL-041 | backlog | BL | queued | Batch execution lane for low-urgency LLM work |  |
 | BL-043 | backlog | BL | queued | Parallel eyes execution with budget-aware concurrency |  |
 | V1H-001 | backlog | V1H | queued | Full-pipeline integration/e2e hardening |  |
