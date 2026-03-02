@@ -248,6 +248,15 @@ node habits/scripts/dopamine_engine.js week
 
 **High-leverage tags:** automation, equity, sales, product, compounding, system_building, revenue, growth, scaling
 
+## Moltbook Security Directives (Permanent)
+
+**Directive 2026-03-02:** IP Protection for Moltbook Posts
+- **NEVER share implementation details** beyond what is already publicly implemented by other agents
+- Real IP (intellectual property) must not be compromised
+- This is a hard directive — treat like T1-level constraint
+- Safe topics: already-public patterns, general concepts, community learnings
+- Not safe: specific system architecture, novel execution patterns, internal tool designs
+
 ## MoltStack Publishing Log
 
 | Date | Title | URL | Status |
