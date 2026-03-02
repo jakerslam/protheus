@@ -154,6 +154,44 @@ process.exit(1);
   return bin;
 }
 
+function makeFakeNapiModule(root) {
+  const modPath = path.join(root, 'fake_memory_napi.js');
+  writeFile(modPath, `module.exports = {
+  queryIndex(payload) {
+    return {
+      ok: true,
+      backend: 'rust_memory_box',
+      index_sources: ['memory/MEMORY_INDEX.md'],
+      tag_sources: ['memory/TAGS_INDEX.md'],
+      candidates_total: 1,
+      hits: [{
+        node_id: 'routing-cache-design',
+        uid: 'memabc123routing01',
+        file: 'memory/2026-01-01.md',
+        summary: 'Routing cache and fallback behavior',
+        tags: ['routing', 'memory'],
+        score: 19,
+        reasons: ['napi_match']
+      }]
+    };
+  },
+  getNode(payload) {
+    return {
+      ok: true,
+      backend: 'rust_memory_box',
+      node_id: payload && payload.node_id ? String(payload.node_id) : 'autonomy-loop-gate',
+      uid: 'memabc123autonomy2',
+      file: 'memory/2026-01-01.md',
+      summary: 'Repeat-gate policy and stop conditions',
+      tags: ['autonomy', 'memory'],
+      section_hash: '2222222222222222222222222222222222222222222222222222222222222222',
+      section: '# autonomy-loop-gate\\n- Stop on repeated no-progress streak.'
+    };
+  }
+};\n`);
+  return modPath;
+}
+
 function parseJson(stdout) {
   try { return JSON.parse(String(stdout || '').trim()); } catch { return null; }
 }
@@ -245,6 +283,29 @@ runTest('query requested rust backend uses rust payload when rust bin succeeds',
   assert.strictEqual(out.backend_used, 'rust');
   assert.strictEqual(out.backend_fallback_reason, null);
   assert.strictEqual(out.rust_transport, 'cli');
+  assert.strictEqual(out.hits[0].node_id, 'routing-cache-design');
+});
+
+runTest('query requested rust backend uses in-process napi binding when available', () => {
+  const root = makeWorkspace();
+  const fakeNapi = makeFakeNapiModule(root);
+  const missingCrate = path.join(root, 'systems', 'memory', 'rust_missing');
+  const r = runRecall(
+    root,
+    ['query', '--q=routing', '--expand=none', '--session=napiquery'],
+    {
+      MEMORY_RECALL_BACKEND: 'rust',
+      MEMORY_RECALL_RUST_NAPI_ENABLED: '1',
+      MEMORY_RECALL_RUST_NAPI_MODULE_PATH: fakeNapi,
+      MEMORY_RECALL_RUST_DAEMON_ENABLED: '0',
+      MEMORY_RECALL_RUST_CRATE_PATH: missingCrate
+    }
+  );
+  assert.strictEqual(r.status, 0, `query failed: ${r.stderr}`);
+  const out = parseJson(r.stdout);
+  assert.ok(out && out.ok === true, 'expected ok=true');
+  assert.strictEqual(out.backend_used, 'rust');
+  assert.strictEqual(out.rust_transport, 'napi');
   assert.strictEqual(out.hits[0].node_id, 'routing-cache-design');
 });
 
@@ -476,6 +537,30 @@ runTest('get requested rust backend uses rust payload when rust bin succeeds', (
   assert.strictEqual(out.rust_transport, 'cli');
   assert.strictEqual(out.node_id, 'autonomy-loop-gate');
   assert.strictEqual(out.section_hash, '1111111111111111111111111111111111111111111111111111111111111111');
+});
+
+runTest('get requested rust backend uses in-process napi binding when available', () => {
+  const root = makeWorkspace();
+  const fakeNapi = makeFakeNapiModule(root);
+  const missingCrate = path.join(root, 'systems', 'memory', 'rust_missing');
+  const r = runRecall(
+    root,
+    ['get', '--node-id=autonomy-loop-gate', '--session=napiget'],
+    {
+      MEMORY_RECALL_BACKEND: 'rust',
+      MEMORY_RECALL_RUST_NAPI_ENABLED: '1',
+      MEMORY_RECALL_RUST_NAPI_MODULE_PATH: fakeNapi,
+      MEMORY_RECALL_RUST_DAEMON_ENABLED: '0',
+      MEMORY_RECALL_RUST_CRATE_PATH: missingCrate
+    }
+  );
+  assert.strictEqual(r.status, 0, `get failed: ${r.stderr}`);
+  const out = parseJson(r.stdout);
+  assert.ok(out && out.ok === true, 'expected ok=true');
+  assert.strictEqual(out.backend_used, 'rust');
+  assert.strictEqual(out.rust_transport, 'napi');
+  assert.strictEqual(out.node_id, 'autonomy-loop-gate');
+  assert.strictEqual(out.section_hash, '2222222222222222222222222222222222222222222222222222222222222222');
 });
 
 runTest('get rust backend enters cooldown after first rust failure', () => {

@@ -31,7 +31,40 @@ function summarizeAttempts(rows: AnyObj[]) {
 async function runUnifiedMemoryTransport(opts: AnyObj) {
   const attempts: AnyObj[] = [];
   const allowCliFallback = opts.allow_cli_fallback !== false;
+  const inProcessEnabled = opts.in_process_enabled === true && typeof opts.invoke_in_process === 'function';
+  const inProcessMode = cleanText(opts.in_process_mode || 'napi', 40) || 'napi';
   const daemonEnabled = opts.daemon_enabled !== false && typeof opts.invoke_daemon === 'function';
+
+  let inProcessError = null;
+  if (inProcessEnabled) {
+    let inProcessResult: AnyObj = {};
+    try {
+      inProcessResult = await opts.invoke_in_process();
+    } catch (err) {
+      inProcessResult = {
+        ok: false,
+        error: `in_process_throw_${cleanText(err && (err.code || err.message) ? (err.code || err.message) : 'unknown', 80)}`
+      };
+    }
+    attempts.push({
+      mode: inProcessMode,
+      ok: inProcessResult && inProcessResult.ok === true,
+      error: inProcessResult && inProcessResult.ok !== true ? inProcessResult.error || 'in_process_failed' : null
+    });
+    if (inProcessResult && inProcessResult.ok === true && inProcessResult.payload && inProcessResult.payload.ok === true) {
+      return {
+        ok: true,
+        payload: inProcessResult.payload,
+        transport: inProcessMode,
+        transport_detail: cleanText(inProcessResult.transport_detail || inProcessResult.module_path || 'in_process', 140),
+        fallback_reason: null,
+        attempts: summarizeAttempts(attempts)
+      };
+    }
+    inProcessError = inProcessResult && inProcessResult.error
+      ? toErrorCode(inProcessResult.error, 'in_process_failed')
+      : 'in_process_failed';
+  }
 
   let daemonError = null;
   if (daemonEnabled) {
@@ -55,7 +88,7 @@ async function runUnifiedMemoryTransport(opts: AnyObj) {
         payload: daemonResult.payload,
         transport: 'daemon',
         transport_detail: cleanText(opts.daemon_detail || 'tcp', 80) || 'tcp',
-        fallback_reason: null,
+        fallback_reason: inProcessError,
         attempts: summarizeAttempts(attempts)
       };
     }
@@ -65,10 +98,10 @@ async function runUnifiedMemoryTransport(opts: AnyObj) {
   if (!allowCliFallback) {
     return {
       ok: false,
-      error: daemonError || 'cli_fallback_disabled',
+      error: daemonError || inProcessError || 'cli_fallback_disabled',
       transport: 'none',
       transport_detail: null,
-      fallback_reason: daemonError || null,
+      fallback_reason: daemonError || inProcessError || null,
       attempts: summarizeAttempts(attempts)
     };
   }
@@ -76,10 +109,10 @@ async function runUnifiedMemoryTransport(opts: AnyObj) {
   if (typeof opts.invoke_cli !== 'function') {
     return {
       ok: false,
-      error: daemonError || 'cli_unavailable',
+      error: daemonError || inProcessError || 'cli_unavailable',
       transport: 'none',
       transport_detail: null,
-      fallback_reason: daemonError || null,
+      fallback_reason: daemonError || inProcessError || null,
       attempts: summarizeAttempts(attempts)
     };
   }
@@ -105,7 +138,7 @@ async function runUnifiedMemoryTransport(opts: AnyObj) {
       payload: cliResult.payload,
       transport: cleanText(cliResult.transport || 'cli', 40) || 'cli',
       transport_detail: cleanText(cliResult.transport_detail || '', 80) || null,
-      fallback_reason: daemonError || null,
+      fallback_reason: daemonError || inProcessError || null,
       attempts: summarizeAttempts(attempts)
     };
   }
@@ -115,7 +148,7 @@ async function runUnifiedMemoryTransport(opts: AnyObj) {
     error: toErrorCode(
       cliResult && cliResult.error
         ? cliResult.error
-        : (daemonError || 'transport_failed'),
+        : (daemonError || inProcessError || 'transport_failed'),
       'transport_failed'
     ),
     status: Number.isFinite(Number(cliResult && cliResult.status))
@@ -125,7 +158,7 @@ async function runUnifiedMemoryTransport(opts: AnyObj) {
     stdout: cleanText(cliResult && cliResult.stdout ? cliResult.stdout : '', 320),
     transport: cleanText(cliResult && cliResult.transport ? cliResult.transport : 'cli', 40) || 'cli',
     transport_detail: cleanText(cliResult && cliResult.transport_detail ? cliResult.transport_detail : '', 80) || null,
-    fallback_reason: daemonError || null,
+    fallback_reason: daemonError || inProcessError || null,
     attempts: summarizeAttempts(attempts)
   };
 }

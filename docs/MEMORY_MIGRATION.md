@@ -65,3 +65,4 @@ This document tracks the staged Rust memory migration for `V3-RACE-023`.
 - `V3-RACE-027`: Rust `hot_state` now stores canonical organ-state envelope JSON (`schema_id: organ_state_envelope`) and auto-migrates legacy/plain rows on open.
 - `V3-RACE-027`: Added runtime verification command `verify-envelope` (`cargo run --manifest-path systems/memory/rust/Cargo.toml -- verify-envelope --root=.`) to confirm full envelope coverage.
 - `V3-RACE-110`: Rust daemon/CLI/fallback behavior is unified behind `systems/memory/memory_transport.ts` with normalized `transport_attempts` telemetry.
+- `V3-RACE-028`: Added optional in-process N-API lane (`systems/memory/rust_napi_binding.ts`) so memory recall can use `rust_transport=napi` when a native module is present, with deterministic fallback to daemon/CLI.

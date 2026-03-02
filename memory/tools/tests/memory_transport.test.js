@@ -47,6 +47,20 @@ async function main() {
     assert.strictEqual(out.fallback_reason, null);
   });
 
+  await runAsyncTest('in-process path wins when napi lane succeeds', async () => {
+    const out = await transport.runUnifiedMemoryTransport({
+      in_process_enabled: true,
+      in_process_mode: 'napi',
+      invoke_in_process: async () => ({ ok: true, payload: { ok: true, hits: [] }, module_path: '/tmp/fake.node' }),
+      daemon_enabled: true,
+      invoke_daemon: async () => ({ ok: false, error: 'should_not_run' })
+    });
+    assert.strictEqual(out.ok, true);
+    assert.strictEqual(out.transport, 'napi');
+    assert.strictEqual(out.attempts.length, 1);
+    assert.strictEqual(out.fallback_reason, null);
+  });
+
   await runAsyncTest('daemon failure falls back to cli with fallback reason', async () => {
     const out = await transport.runUnifiedMemoryTransport({
       daemon_enabled: true,

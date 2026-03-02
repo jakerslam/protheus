@@ -11,6 +11,7 @@ const {
   normalizeTransportTelemetry
 } = require('./memory_transport');
 const { evaluateJsFallbackGate } = require('./memory_fallback_retirement_gate');
+const { invokeRustNapi } = require('./rust_napi_binding');
 
 const WORKSPACE_ROOT = path.resolve(__dirname, '..', '..');
 const REPO_ROOT = process.env.MEMORY_RECALL_ROOT
@@ -35,6 +36,10 @@ const DEFAULT_RUST_CRATE_PATH = process.env.MEMORY_RECALL_RUST_CRATE_PATH
   : path.join(WORKSPACE_ROOT, 'systems', 'memory', 'rust');
 const DEFAULT_RUST_BIN = String(process.env.MEMORY_RECALL_RUST_BIN || 'cargo').trim() || 'cargo';
 const DEFAULT_RUST_TIMEOUT_MS = clampInt(process.env.MEMORY_RECALL_RUST_TIMEOUT_MS || 25000, 1000, 120000);
+const DEFAULT_RUST_NAPI_ENABLED = parseBoolFlag(process.env.MEMORY_RECALL_RUST_NAPI_ENABLED, true);
+const DEFAULT_RUST_NAPI_MODULE_PATH = process.env.MEMORY_RECALL_RUST_NAPI_MODULE_PATH
+  ? path.resolve(String(process.env.MEMORY_RECALL_RUST_NAPI_MODULE_PATH))
+  : '';
 const DEFAULT_RUST_COOLDOWN_MS = clampInt(process.env.MEMORY_RECALL_RUST_COOLDOWN_MS || (5 * 60 * 1000), 1000, 24 * 60 * 60 * 1000);
 const DEFAULT_RUST_DAEMON_ENABLED = parseBoolFlag(process.env.MEMORY_RECALL_RUST_DAEMON_ENABLED, true);
 const DEFAULT_RUST_DAEMON_AUTOSTART = parseBoolFlag(process.env.MEMORY_RECALL_RUST_DAEMON_AUTOSTART, true);
@@ -772,7 +777,8 @@ async function runRustQueryIndex(query, tagFilters, top, options: any = {}) {
   const cratePath = DEFAULT_RUST_CRATE_PATH;
   const crateExists = fs.existsSync(cratePath);
   const daemonEnabled = rustDaemonSupported() === true;
-  if (!crateExists && !daemonEnabled) {
+  const napiEnabled = DEFAULT_RUST_NAPI_ENABLED === true;
+  if (!crateExists && !daemonEnabled && !napiEnabled) {
     return { ok: false, error: 'rust_crate_missing', crate_path: cratePath };
   }
   const expandLines = clampInt(options && options.expandLines != null ? options.expandLines : 0, 0, 300);
@@ -807,6 +813,37 @@ async function runRustQueryIndex(query, tagFilters, top, options: any = {}) {
   if (normalizedScoreMode) subcommandArgs.push(`--score-mode=${normalizedScoreMode}`);
 
   const unified = await runUnifiedMemoryTransport({
+    in_process_enabled: napiEnabled,
+    in_process_mode: 'napi',
+    invoke_in_process: async () => {
+      const napi = await invokeRustNapi(
+        'queryIndex',
+        {
+          root: REPO_ROOT,
+          q: String(query || ''),
+          top: Number(clampInt(top, 1, 20)),
+          tags: (Array.isArray(tagFilters) ? tagFilters : []).join(','),
+          expand_lines: expandLines,
+          max_files: maxFiles,
+          cache_path: cachePath || null,
+          cache_max_bytes: cacheMaxBytes,
+          score_mode: normalizedScoreMode || null
+        },
+        {
+          enabled: napiEnabled,
+          module_path: DEFAULT_RUST_NAPI_MODULE_PATH,
+          crate_path: cratePath
+        }
+      );
+      if (napi.ok && napi.payload && napi.payload.ok === true && Array.isArray(napi.payload.hits)) {
+        return {
+          ok: true,
+          payload: napi.payload,
+          module_path: napi.module_path || null
+        };
+      }
+      return { ok: false, error: napi.error || 'napi_query_failed' };
+    },
     daemon_enabled: daemonEnabled,
     daemon_detail: 'tcp',
     allow_cli_fallback: crateExists,
@@ -859,7 +896,8 @@ async function runRustQueryIndex(query, tagFilters, top, options: any = {}) {
   if (!crateExists) {
     return {
       ok: false,
-      error: unified.error || 'rust_crate_missing',
+      error: 'rust_crate_missing',
+      transport_error: unified.error || null,
       crate_path: cratePath,
       transport_attempts: Array.isArray(unified.attempts) ? unified.attempts : []
     };
@@ -878,7 +916,8 @@ async function runRustGetNode(nodeId, uid, fileFilter, options: any = {}) {
   const cratePath = DEFAULT_RUST_CRATE_PATH;
   const crateExists = fs.existsSync(cratePath);
   const daemonEnabled = rustDaemonSupported() === true;
-  if (!crateExists && !daemonEnabled) {
+  const napiEnabled = DEFAULT_RUST_NAPI_ENABLED === true;
+  if (!crateExists && !daemonEnabled && !napiEnabled) {
     return { ok: false, error: 'rust_crate_missing', crate_path: cratePath };
   }
   const cachePath = options && typeof options.cachePath === 'string' ? options.cachePath : '';
@@ -903,6 +942,34 @@ async function runRustGetNode(nodeId, uid, fileFilter, options: any = {}) {
   if (cachePath) subcommandArgs.push(`--cache-max-bytes=${cacheMaxBytes}`);
 
   const unified = await runUnifiedMemoryTransport({
+    in_process_enabled: napiEnabled,
+    in_process_mode: 'napi',
+    invoke_in_process: async () => {
+      const napi = await invokeRustNapi(
+        'getNode',
+        {
+          root: REPO_ROOT,
+          node_id: nodeId || null,
+          uid: uid || null,
+          file: fileFilter || null,
+          cache_path: cachePath || null,
+          cache_max_bytes: cacheMaxBytes
+        },
+        {
+          enabled: napiEnabled,
+          module_path: DEFAULT_RUST_NAPI_MODULE_PATH,
+          crate_path: cratePath
+        }
+      );
+      if (napi.ok && napi.payload && napi.payload.ok === true && typeof napi.payload.section === 'string') {
+        return {
+          ok: true,
+          payload: napi.payload,
+          module_path: napi.module_path || null
+        };
+      }
+      return { ok: false, error: napi.error || 'napi_get_failed' };
+    },
     daemon_enabled: daemonEnabled,
     daemon_detail: 'tcp',
     allow_cli_fallback: crateExists,
@@ -955,7 +1022,8 @@ async function runRustGetNode(nodeId, uid, fileFilter, options: any = {}) {
   if (!crateExists) {
     return {
       ok: false,
-      error: unified.error || 'rust_crate_missing',
+      error: 'rust_crate_missing',
+      transport_error: unified.error || null,
       crate_path: cratePath,
       transport_attempts: Array.isArray(unified.attempts) ? unified.attempts : []
     };
