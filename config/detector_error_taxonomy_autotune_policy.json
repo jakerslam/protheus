@@ -1,0 +1,18 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "probability_key": "challenger_probability",
+  "decision_threshold_default": 0.5,
+  "fp_target_rate": 0.12,
+  "fn_target_rate": 0.12,
+  "max_threshold_step": 0.04,
+  "regression_f1_tolerance": 0.005,
+  "rollback_on_regression": true,
+  "paths": {
+    "eval_pack_dir": "state/sensory/eval/champion_challenger",
+    "state_path": "state/sensory/analysis/detector_autotune/state.json",
+    "output_dir": "state/sensory/analysis/detector_autotune",
+    "latest_path": "state/sensory/analysis/detector_autotune/latest.json",
+    "receipts_path": "state/sensory/analysis/detector_autotune/receipts.jsonl"
+  }
+}

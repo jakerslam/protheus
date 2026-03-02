@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T04:04:41.686Z",
-  "source_hash": "91d07a2c0590790ebc7b159b",
+  "generated_at": "2026-03-02T04:06:13.601Z",
+  "source_hash": "fa997ee97bed39c0821bfafb",
   "row_count": 127,
-  "active_count": 47,
-  "archive_count": 80,
+  "active_count": 46,
+  "archive_count": 81,
   "rows": [
     {
       "id": "V3-OPS-004",
@@ -1499,10 +1499,10 @@
       "id": "V3-RACE-093",
       "class": "hardening",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Detector Error Taxonomy + Guarded Auto-Retuning",
       "problem": "Manual threshold tuning does not scale with detector complexity and drift.",
-      "acceptance": "FP/FN taxonomy pipeline and bounded auto-retuning loop are live with rollback-on-regression and non-bypass receipts.",
+      "acceptance": "Added `systems/sensory/detector_error_taxonomy_autotune.{ts,js}` + `config/detector_error_taxonomy_autotune_policy.json` to classify FP/FN error buckets, propose bounded threshold retunes, and enforce rollback-on-regression safeguards with receipts under `state/sensory/analysis/detector_autotune/`; regression coverage in `memory/tools/tests/detector_error_taxonomy_autotune.test.js`.",
       "dependencies": [
         "V3-RACE-086",
         "V3-RACE-087",
