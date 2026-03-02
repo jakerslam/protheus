@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:11:56.831Z",
-  "source_hash": "50ba8a18794d2fbd116f289e",
+  "generated_at": "2026-03-02T09:12:53.287Z",
+  "source_hash": "9ecde41217a3f6ff00917f25",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 322,
+  "archive_count": 323,
   "rows": [
     {
       "id": "BL-001",
@@ -3920,7 +3920,7 @@
       "id": "V3-RACE-139",
       "class": "extension",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "Intent Declaration + Translation Plane",
       "problem": "Intent exists implicitly in objectives/contracts but lacks a first-class machine-readable declaration-to-execution contract with auditable translation evidence.",
       "acceptance": "Implement `systems/intent/intent_translation_plane.{ts,js}` + policy `config/intent_translation_policy.json`; user intents/preferences persist under `memory/intent/` and adaptive ranking/disambiguation state under `adaptive/intent/`; permanent parsers, planning rules, and safety translators remain in `systems/intent/` + `config/`; every translation emits explainable intent->plan receipts and risk-tier gates.",
