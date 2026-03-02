@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:38:02.180Z",
-  "source_hash": "5584c890e112b680a097d670",
+  "generated_at": "2026-03-02T09:38:04.180Z",
+  "source_hash": "8c83db4dcf346a634396e0ca",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 369,
+  "archive_count": 370,
   "rows": [
     {
       "id": "BL-001",
@@ -1331,7 +1331,7 @@
       "id": "RR-012",
       "class": "backlog",
       "wave": "RR",
-      "status": "open",
+      "status": "done",
       "title": "Long-horizon value drift in Heroic Echo",
       "problem": "Alignment can narrow subtly over years without explicit renewal and review",
       "acceptance": "Add periodic value-anchor renewal with reversible updates and user review gates; linked: `V3-057`",

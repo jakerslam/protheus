@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T09:38:02.180Z
+Generated: 2026-03-02T09:38:04.180Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -135,6 +135,7 @@ Generated: 2026-03-02T09:38:02.180Z
 | RR-009 | backlog | RR | done | Data retention/churn bloat |  |
 | RR-010 | backlog | RR | done | Human override ergonomics under incident stress |  |
 | RR-011 | backlog | RR | done | Catastrophic recovery gap |  |
+| RR-012 | backlog | RR | done | Long-horizon value drift in Heroic Echo |  |
 | V3-DUAL-001 | backlog | V3 | done | Duality Belief Engine Seed |  |
 | V3-ATTR-001 | backlog | V3 | done | Lightweight Value Attribution Primitive |  |
 | V3-ATTR-002 | backlog | V3 | done | Storm Value Distribution Layer |  |
