@@ -1,0 +1,23 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "components": [
+    "source",
+    "topic",
+    "style",
+    "population"
+  ],
+  "component_thresholds": {
+    "source": 0.2,
+    "topic": 0.25,
+    "style": 0.2,
+    "population": 0.2
+  },
+  "paths": {
+    "baseline_path": "state/sensory/features/baseline.json",
+    "current_dir": "state/sensory/features/current",
+    "output_dir": "state/sensory/analysis/distribution_shift",
+    "latest_path": "state/sensory/analysis/distribution_shift/latest.json",
+    "receipts_path": "state/sensory/analysis/distribution_shift/receipts.jsonl"
+  }
+}

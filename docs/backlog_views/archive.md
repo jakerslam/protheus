@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T04:12:59.117Z
+Generated: 2026-03-02T04:14:18.441Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -83,6 +83,7 @@ Generated: 2026-03-02T04:12:59.117Z
 | V3-RACE-096 | hardening | V3 | done | Analysis Quality SLO Contract | V3-RACE-086, V3-RACE-081 |
 | V3-RACE-097 | hardening | V3 | done | Ground-Truth Governance & Label Adjudication Lane | V3-RACE-086 |
 | V3-RACE-098 | primitive-upgrade | V3 | done | Feature/Data Versioning Reproducibility Contract | V3-RACE-003, V3-RACE-086, BL-024 |
+| V3-RACE-099 | hardening | V3 | done | Distribution-Shift Decomposition Engine | V3-RACE-080, V3-RACE-089 |
 | V3-RACE-106 | hardening | V3 | done | Unified Guard Check Registry (Manifest-Driven Gates) | V3-AEX-002, V3-RACE-CONF-008 |
 | V3-RACE-107 | hardening | V3 | done | Shared Policy Runtime Primitive | BL-024, V3-RACE-CONF-007 |
 | V3-RACE-108 | primitive-upgrade | V3 | done | Spawn Fan-Out Reduction Wave (Worker/Daemon Core) | V3-RACE-063, V3-RACE-064, V3-OPS-005 |

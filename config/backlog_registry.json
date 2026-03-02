@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T04:12:59.117Z",
-  "source_hash": "e5f20bf3406168869fd9e6a3",
+  "generated_at": "2026-03-02T04:14:18.441Z",
+  "source_hash": "e79e1749ec587207bd986ab4",
   "row_count": 127,
-  "active_count": 41,
-  "archive_count": 86,
+  "active_count": 40,
+  "archive_count": 87,
   "rows": [
     {
       "id": "V3-OPS-004",
@@ -1578,10 +1578,10 @@
       "id": "V3-RACE-099",
       "class": "hardening",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Distribution-Shift Decomposition Engine",
       "problem": "Aggregate drift scores hide root causes and slow effective remediation.",
-      "acceptance": "Drift pipeline attributes shift by source/topic/style/population components, and remediation policies trigger by component-level thresholds.",
+      "acceptance": "Added `systems/sensory/distribution_shift_decomposition_engine.{ts,js}` + `config/distribution_shift_decomposition_policy.json` to compute per-component distribution shift scores (source/topic/style/population), trigger threshold-based remediation actions, and emit receipted decomposition artifacts under `state/sensory/analysis/distribution_shift/`; regression coverage in `memory/tools/tests/distribution_shift_decomposition_engine.test.js`.",
       "dependencies": [
         "V3-RACE-080",
         "V3-RACE-089"
