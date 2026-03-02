@@ -1,6 +1,6 @@
 # Backlog Active View
 
-Generated: 2026-03-02T17:50:09.161Z
+Generated: 2026-03-02T17:54:31.128Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -20,4 +20,21 @@ Generated: 2026-03-02T17:50:09.161Z
 | V3-RACE-212 | extension | V3 | queued | Universal Platform Abstraction Matrix (18 GENERAL Requirements) | V3-RACE-209, V3-RACE-210, V3-RACE-211, V3-RACE-120 |
 | V3-RACE-213 | extension | V3 | queued | Host Adaptation Operator Surface (`protheusctl host adapt`) + Auto-Activation | V3-RACE-209, V3-RACE-210, V3-RACE-184 |
 | V3-RACE-214 | hardening | V3 | queued | HostProfile Conformance Formal Gate (Lane-Activation Proof Contract) | V3-RACE-209, V3-RACE-210, V3-RACE-211, V3-RACE-187, V3-RACE-017 |
+| V3-RACE-215 | hardening | V3 | queued | Architecture + Formal Spec Publication Kernel | V3-RACE-187, V3-RACE-214 |
+| V3-RACE-216 | hardening | V3 | queued | Monorepo Build-Graph Modernization (Turborepo + Nx Lane Contracts) | V3-RACE-115, V3-RACE-117, V3-RACE-123 |
+| V3-RACE-217 | extension | V3 | queued | Windows Native Runtime Parity (Tauri 2 + DirectML/ONNX Local Inference) | V3-RACE-189, V3-RACE-193, V3-RACE-175 |
+| V3-RACE-218 | primitive-upgrade | V3 | queued | Cross-Platform Accelerator HAL (CPU/GPU/NPU Offload Contract) | V3-RACE-209, V3-RACE-210, V3-RACE-174 |
+| V3-RACE-219 | extension | V3 | queued | Enterprise SCM/CD Mirror Plane (Azure DevOps <-> GitHub) | V3-RACE-017, V3-RACE-123, V3-RACE-126 |
+| V3-RACE-220 | primitive-upgrade | V3 | queued | WASI2 Execution Completeness Gate (TS Lane -> WASM Runtime) | V3-RACE-021, V3-RACE-138, V3-RACE-185 |
+| V3-RACE-221 | hardening | V3 | queued | Hot-Path Performance Multiplier Program (5-20x Guarded Targets) | V3-RACE-174, V3-RACE-186, V3-RACE-220 |
+| V3-RACE-222 | extension | V3 | queued | Memory Fusion + On-Device Continual Learning Loop | V3-RACE-137, V3-RACE-172, V3-RACE-164 |
+| V3-RACE-223 | extension | V3 | queued | Microsoft Agent Interop Adapter (Typed Tool Surface + Reasoning Topologies) | V3-RACE-177, V3-RACE-184, V3-RACE-210 |
+| V3-RACE-224 | extension | V3 | queued | Sovereign Microsoft Model Routing Profile (Phi-4 Local Default + Private Azure Fallback + Entra Binding) | V3-RACE-116, V3-RACE-209, V3-RACE-218 |
+| V3-RACE-225 | extension | V3 | queued | AKS Federation Adapter for Lane Mesh Orchestration | V3-RACE-200, V3-RACE-201, V3-RACE-203 |
+| V3-RACE-226 | extension | V3 | queued | Forecast-to-Autoscale Actuation Plane (NPU/GPU/TPU) | V3-RACE-125, V3-RACE-134, V3-RACE-225 |
+| V3-RACE-227 | extension | V3 | queued | Enterprise Observability Surface (Azure Monitor + Desktop `protheus-top`) | V3-RACE-191, V3-RACE-194, V3-RACE-174 |
+| V3-RACE-228 | hardening | V3 | queued | Reproducible Distribution Artifact Pack (Nix Flakes + Docker/VM/Azure Marketplace) | V3-RACE-120, V3-RACE-121, V3-RACE-175 |
+| V3-RACE-229 | hardening | V3 | queued | Enterprise Identity/Compliance Bridge (SOC2 Type II + Defender + Entra Sovereignty) | V3-RACE-044, V3-RACE-058, V3-RACE-224 |
+| V3-RACE-230 | extension | V3 | queued | Type-Derived Lane Docs Autogeneration (`typedoc` + `cargo-doc`) | V3-RACE-115, V3-RACE-121, V3-RACE-215 |
+| V3-RACE-231 | extension | V3 | queued | Public Roadmap Publication Contract (Backlog-Synchronized) | V3-RACE-127, V3-RACE-230, V3-RACE-CONF-003 |
 
