@@ -35,6 +35,16 @@
   - `systems/ops/data_scope_boundary_check.ts`
   - `docs/DATA_SCOPE_BOUNDARIES.md`
 
+## Collective Intelligence Economy Contract (`V3-RACE-160`)
+
+- Incentive and access-tier runtime lanes:
+  - `systems/economy/training_contributor_incentive_engine.ts`
+  - `systems/economy/model_access_tier_governance.ts`
+- Cross-lane integrity and scope check:
+  - `systems/ops/collective_intelligence_contract_check.ts`
+- Companion docs:
+  - `docs/INTELLIGENCE.md`
+
 ## Quick Commands
 
 ```bash

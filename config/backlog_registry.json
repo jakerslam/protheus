@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:22:16.806Z",
-  "source_hash": "6c963c73013961536b40e1a8",
+  "generated_at": "2026-03-02T09:24:00.491Z",
+  "source_hash": "c812ee403407287b29fa4702",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 352,
+  "archive_count": 353,
   "rows": [
     {
       "id": "BL-001",
@@ -4219,7 +4219,7 @@
       "id": "V3-RACE-160",
       "class": "hardening",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "Collective Intelligence Integration Contract + Data-Scope Guard",
       "problem": "Training, economy, identity, and archival lanes can drift without integrated contract checks and explicit storage-boundary enforcement.",
       "acceptance": "Implement integrated checks/docs via `systems/ops/collective_intelligence_contract_check.{ts,js}`, update `docs/ECONOMY.md` and new `docs/INTELLIGENCE.md`; enforce data boundaries (`memory/adaptive` user-only, `systems/config/docs` permanent-only) and cross-lane invariants across orchestrator, contracts, fractal oversight, rollout, archival, incentives, and access tiers with deterministic regression receipts.",
