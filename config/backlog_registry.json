@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:21:09.886Z",
-  "source_hash": "d3a7f01a03dd7cff24295b22",
+  "generated_at": "2026-03-02T09:21:11.986Z",
+  "source_hash": "c9f5979a4d7a3a55623892c8",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 335,
+  "archive_count": 336,
   "rows": [
     {
       "id": "BL-001",
@@ -4106,7 +4106,7 @@
       "id": "V3-RACE-152",
       "class": "extension",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "WebGPU + Rust Client Compute Plane",
       "problem": "High-cost local visual/fractal workloads benefit from GPU acceleration and client-side Rust compute while preserving sovereign local execution guarantees.",
       "acceptance": "Implement `systems/client/webgpu_rust_compute_plane.{ts,js}` + policy `config/webgpu_rust_compute_policy.json`; user-specific client compute profiles/preferences persist under `memory/client_compute/` with adaptive performance heuristics under `adaptive/client_compute/`; permanent compute kernels/runtime bindings remain in `systems/client/` + `config/`, with deterministic fallback to CPU paths and receipted performance deltas.",
