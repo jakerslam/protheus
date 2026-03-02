@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:12:53.287Z",
-  "source_hash": "9ecde41217a3f6ff00917f25",
+  "generated_at": "2026-03-02T09:13:48.868Z",
+  "source_hash": "5ed1ee1e5689eedcbe1502c9",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 323,
+  "archive_count": 324,
   "rows": [
     {
       "id": "BL-001",
@@ -3934,7 +3934,7 @@
       "id": "V3-RACE-140",
       "class": "extension",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "DID + Verifiable Credential Soul Binding Layer",
       "problem": "Soul authority exists, but standards-aligned DID/VC issuance and verification are needed for interoperable sovereign identity proofs.",
       "acceptance": "Implement `systems/identity/did_vc_binding.{ts,js}` + policy `config/did_vc_binding_policy.json`; user DID docs/credentials are stored in `memory/identity/did/` and adaptive trust/routing preferences in `adaptive/identity/did/`; permanent issuance/verification schemas and revocation logic stay in `systems/identity/` + `config/`; credentials for badges/contracts/lineage are verifiable and auditable without exposing non-required private fields.",
