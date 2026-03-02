@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:21:05.983Z",
-  "source_hash": "bde0244793a6650e9933a727",
+  "generated_at": "2026-03-02T09:21:07.947Z",
+  "source_hash": "5d97dbfe8447651aba947909",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 333,
+  "archive_count": 334,
   "rows": [
     {
       "id": "BL-001",
@@ -4079,7 +4079,7 @@
       "id": "V3-RACE-150",
       "class": "extension",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "Spatial Computing Abstraction Layer",
       "problem": "Future-facing interfaces need a standard spatial primitive layer before concrete AR/VR client implementations can be safely composed.",
       "acceptance": "Implement `systems/spatial/spatial_abstraction_layer.{ts,js}` + policy `config/spatial_abstraction_policy.json`; user-specific spatial preferences/profiles stay in `memory/spatial/` with adaptive layout/interaction tuning under `adaptive/spatial/`; permanent spatial scene/action contracts remain in `systems/spatial/` + `config/`, integrated with visual signature lanes.",
