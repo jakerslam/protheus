@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "max_actions": 12,
+  "min_expected_information_gain": 0.08,
+  "objective_weights": {
+    "T1_make_jay_billionaire_v1": 1,
+    "T1_generational_wealth_v1": 0.9
+  },
+  "uncertainty_weights": {
+    "abstain_count": 0.6,
+    "unresolved_abstain_rate": 0.4
+  },
+  "paths": {
+    "abstain_dir": "state/sensory/analysis/abstain_uncertainty",
+    "chain_mapper_dir": "state/sensory/analysis/objective_chain_mapper",
+    "output_dir": "state/sensory/analysis/value_information_planner",
+    "latest_path": "state/sensory/analysis/value_information_planner/latest.json",
+    "receipts_path": "state/sensory/analysis/value_information_planner/receipts.jsonl"
+  }
+}

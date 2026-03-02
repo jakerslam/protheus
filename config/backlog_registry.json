@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T04:01:49.621Z",
-  "source_hash": "43983154c7c846e66139719c",
+  "generated_at": "2026-03-02T04:03:14.945Z",
+  "source_hash": "c9ea698bac125f0a1025b80c",
   "row_count": 127,
-  "active_count": 49,
-  "archive_count": 78,
+  "active_count": 48,
+  "archive_count": 79,
   "rows": [
     {
       "id": "V3-OPS-004",
@@ -1472,10 +1472,10 @@
       "id": "V3-RACE-091",
       "class": "extension",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Value-of-Information Collection Planner",
       "problem": "Detection budget should prioritize uncertainty reduction, not raw volume.",
-      "acceptance": "Planner computes expected information gain by topic/objective and drives sensing priorities with measurable uncertainty-reduction uplift.",
+      "acceptance": "Added `systems/sensory/value_of_information_collection_planner.{ts,js}` + `config/value_of_information_collection_planner_policy.json` to rank collection actions by expected information gain from uncertainty and objective-impact signals, including predicted uncertainty-reduction receipts under `state/sensory/analysis/value_information_planner/`; regression coverage in `memory/tools/tests/value_of_information_collection_planner.test.js`.",
       "dependencies": [
         "V3-RACE-080",
         "V3-RACE-081",

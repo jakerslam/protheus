@@ -609,7 +609,10 @@
     "test:sensory:source-reliability": "node memory/tools/tests/dynamic_source_reliability_graph.test.js",
     "sensory:causal-scorer:run": "node systems/sensory/causal_vs_correlation_signal_scorer.js run",
     "sensory:causal-scorer:status": "node systems/sensory/causal_vs_correlation_signal_scorer.js status",
-    "test:sensory:causal-scorer": "node memory/tools/tests/causal_vs_correlation_signal_scorer.test.js"
+    "test:sensory:causal-scorer": "node memory/tools/tests/causal_vs_correlation_signal_scorer.test.js",
+    "sensory:voi-planner:run": "node systems/sensory/value_of_information_collection_planner.js run",
+    "sensory:voi-planner:status": "node systems/sensory/value_of_information_collection_planner.js status",
+    "test:sensory:voi-planner": "node memory/tools/tests/value_of_information_collection_planner.test.js"
   },
   "bin": {
     "protheus": "./bin/protheus",
