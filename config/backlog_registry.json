@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:22:06.828Z",
-  "source_hash": "6fb5ae09c7768c4d0898fb20",
+  "generated_at": "2026-03-02T09:22:08.876Z",
+  "source_hash": "2ee0f2819504a06de4b38470",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 347,
+  "archive_count": 348,
   "rows": [
     {
       "id": "BL-001",
@@ -4307,7 +4307,7 @@
       "id": "V3-RACE-166",
       "class": "extension",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "A2A Delegation Plane (Agent-to-Agent Protocol Contracts)",
       "problem": "Cross-agent collaboration/delegation requires explicit contractized handoff semantics to avoid ad hoc bridge drift.",
       "acceptance": "Implement `systems/a2a/a2a_delegation_plane.{ts,js}` + policy `config/a2a_delegation_policy.json`; user-specific trusted-peer preferences remain in `memory/federation/a2a/` with adaptive peer reliability scoring in `adaptive/federation/a2a/`; permanent delegation cards/handoff/auth contracts remain in `systems/a2a/` + `config/` with signed handoff receipts.",
