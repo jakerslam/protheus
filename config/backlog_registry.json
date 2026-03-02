@@ -1,10 +1,10 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T20:51:50.405Z",
-  "source_hash": "7698c9ff88d46ced5aa47e2f",
-  "row_count": 619,
-  "active_count": 462,
+  "generated_at": "2026-03-02T21:06:08.713Z",
+  "source_hash": "a02d712bdb181eacd7cd8fdd",
+  "row_count": 626,
+  "active_count": 469,
   "archive_count": 157,
   "rows": [
     {
@@ -1585,6 +1585,21 @@
       ]
     },
     {
+      "id": "V4-AESTHETIC-001",
+      "class": "launch-polish",
+      "wave": "V4",
+      "status": "queued",
+      "title": "Alien Technology Aesthetic Layer (`alien_aesthetic=1`)",
+      "problem": "Cross-surface tone and wording are still inconsistent, reducing the intended high-discipline system feel across CLI/UI/receipts.",
+      "acceptance": "Add a feature-flagged aesthetic/tone pack (`alien_aesthetic=1`) covering CLI (`protheusctl status/settle/audit/migrate`), Reasoning Mirror, `protheus-top`, settle logs, receipts, self-audit reports, and onboarding completion text with calm clinical language and no gimmick style. Reuse `V4-SETTLE-011` substrate fallback behavior and exact line contract, enforce professional-tone guardrails (no hype/humor/exclamation), and verify with snapshot/tone-contract tests plus zero measurable performance regression.",
+      "dependencies": [
+        "V4-ILLUSION-001",
+        "V4-SETTLE-011",
+        "V4-UX-002",
+        "V4-FORT-006"
+      ]
+    },
+    {
       "id": "V4-MIGR-001",
       "class": "migration",
       "wave": "V4",
@@ -1717,6 +1732,91 @@
       "dependencies": [
         "V4-SETTLE-001",
         "V4-OBS-011"
+      ]
+    },
+    {
+      "id": "V4-SETTLE-006",
+      "class": "primitive-upgrade",
+      "wave": "V4",
+      "status": "queued",
+      "title": "Modular System-Wide Settling + Rust BlobLoader",
+      "problem": "Core-only settling leaves major lanes/organs on mixed runtime paths and misses module-level optimization and isolation benefits.",
+      "acceptance": "Extend settling to module granularity across major organs/lanes with independent settled artifacts and a Rust `BlobLoader` that discovers, memory-maps, and wires module blobs at runtime; require per-module parity/perf receipts and rollback-safe fallback to source/runtime profile when module settle fails.",
+      "dependencies": [
+        "V4-SETTLE-001",
+        "V4-RUST-001",
+        "V3-RACE-044"
+      ]
+    },
+    {
+      "id": "V4-SETTLE-007",
+      "class": "hardening",
+      "wave": "V4",
+      "status": "queued",
+      "title": "Per-Module Edit + Re-Settle Workflow (`protheusctl edit <module>`)",
+      "problem": "Settled modules require a deterministic, auditable edit path to avoid high-risk full-system rebuilds for localized changes.",
+      "acceptance": "Add module edit/re-settle workflow (`protheusctl edit <module>`) that restores signed module snapshot, opens editable workspace, recompiles only target module, and re-settles with full signed delta receipts and reversible checkpoints.",
+      "dependencies": [
+        "V4-SETTLE-002",
+        "V4-SETTLE-006",
+        "V3-RACE-163"
+      ]
+    },
+    {
+      "id": "V4-SETTLE-008",
+      "class": "launch-polish",
+      "wave": "V4",
+      "status": "queued",
+      "title": "Multi-Module Settle Status Dashboard (`protheus-top`)",
+      "problem": "Operators cannot currently inspect per-module settled health, mapping status, or targeted re-settle readiness from one surface.",
+      "acceptance": "Enhance `protheus-top` with module-level settled inventory (size, map status, last settle, substrate, health), plus consent-gated actions for `re-settle all` and module-targeted edit/re-settle; verify UI-to-receipt traceability and rollback by feature-gating dashboard layer only.",
+      "dependencies": [
+        "V4-SETTLE-005",
+        "V4-SETTLE-006",
+        "V4-SETTLE-007"
+      ]
+    },
+    {
+      "id": "V4-SETTLE-009",
+      "class": "extension",
+      "wave": "V4",
+      "status": "queued",
+      "title": "Pluggable Ternary + Future Architecture Module Settle Support",
+      "problem": "Modular settling needs a uniform target abstraction so upcoming non-binary targets can be adopted without rewriting module orchestration.",
+      "acceptance": "Extend module settle pipeline with compile-time/runtime target plugins (binary default, ternary simulation, exotic target stubs), per-module target selection policy, and compatibility receipts; ensure fallback to binary target on failed target checks with no data loss.",
+      "dependencies": [
+        "V4-SETTLE-003",
+        "V4-SETTLE-006",
+        "V4-SETTLE-011"
+      ]
+    },
+    {
+      "id": "V4-SETTLE-010",
+      "class": "hardening",
+      "wave": "V4",
+      "status": "queued",
+      "title": "Autogenesis/Promotion-Coupled Differential Module Re-Settlement",
+      "problem": "System evolution events can drift settled artifacts unless changed modules are automatically re-settled under policy controls.",
+      "acceptance": "Integrate autogenesis/promotion hooks that compute affected module set and trigger differential module re-settle with cooldown + consent policy, signed receipts, and non-regression gates; fallback by disabling auto-trigger while preserving manual settle controls.",
+      "dependencies": [
+        "V4-SETTLE-004",
+        "V4-SETTLE-006",
+        "V4-SETTLE-007",
+        "V4-SELF-001"
+      ]
+    },
+    {
+      "id": "V4-SETTLE-011",
+      "class": "extension",
+      "wave": "V4",
+      "status": "queued",
+      "title": "Preferred Advanced Substrate Detection + Graceful Binary Fallback",
+      "problem": "Settling currently lacks a deterministic substrate preference chain and auditable fallback behavior for emerging compute targets.",
+      "acceptance": "During settle, probe in priority order: balanced ternary substrate (hardware/emulator) then qubit access providers (stub/mock-capable). If neither is available, emit exactly once per settle (unless explicit verbose mode) the line: \"No ternary substrate or qubit access detected. Reverting to binary mode.\" Record probe attempts, selected substrate, and fallback reason as signed receipts, keep probes pluggable/future-proof, and verify zero measurable performance regression on standard binary path.",
+      "dependencies": [
+        "V4-SETTLE-001",
+        "V4-SETTLE-003",
+        "V4-SETTLE-005"
       ]
     },
     {

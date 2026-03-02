@@ -1,6 +1,6 @@
 # Backlog Active View
 
-Generated: 2026-03-02T20:51:50.405Z
+Generated: 2026-03-02T21:06:08.713Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -97,6 +97,7 @@ Generated: 2026-03-02T20:51:50.405Z
 | V4-FORT-007 | launch-polish | V4 | queued | Polish/Perception Program (Org Code Format + Repo Professionalism Standard) | V4-FORT-001, V4-FORT-003, V4-FORT-004, V4-FORT-005, V4-FORT-006 |
 | V4-SELF-001 | hardening | V4 | queued | Internal Illusion & Integrity Auditor | V4-FORT-006, V4-FORT-007 |
 | V4-ILLUSION-001 | launch-polish | V4 | queued | Optional Subtle Reinforcement Layer (`--illusion-mode`) | V4-FORT-006, V4-FORT-007, V4-SETTLE-005 |
+| V4-AESTHETIC-001 | launch-polish | V4 | queued | Alien Technology Aesthetic Layer (`alien_aesthetic=1`) | V4-ILLUSION-001, V4-SETTLE-011, V4-UX-002, V4-FORT-006 |
 | V4-MIGR-001 | migration | V4 | queued | Core Migration Bridge + Workspace Port Command | V4-FORT-006, V4-SELF-001 |
 | V4-MIGR-002 | migration | V4 | queued | Community Repo Graduation Pack (Banner + Redirect + Pinned Issue) | V4-MIGR-001, V4-FORT-005, V4-FORT-006 |
 | V4-MIGR-003 | interoperability | V4 | queued | Universal Importers (OpenFang/CrewAI/AutoGen/LangGraph/Common Dumps) | V4-MIGR-001, V3-RACE-127 |
@@ -107,6 +108,12 @@ Generated: 2026-03-02T20:51:50.405Z
 | V4-SETTLE-003 | extension | V4 | queued | Target Abstraction for Binary + Ternary/Exotic Compile Flags | V4-SETTLE-001, V4-RUST-003 |
 | V4-SETTLE-004 | hardening | V4 | queued | Promotion-Coupled Re-Settlement Policy | V4-SETTLE-001, V3-007, V4-SELF-001 |
 | V4-SETTLE-005 | launch-polish | V4 | queued | Settled-State Operator Surface in `protheus-top` | V4-SETTLE-001, V4-OBS-011 |
+| V4-SETTLE-006 | primitive-upgrade | V4 | queued | Modular System-Wide Settling + Rust BlobLoader | V4-SETTLE-001, V4-RUST-001, V3-RACE-044 |
+| V4-SETTLE-007 | hardening | V4 | queued | Per-Module Edit + Re-Settle Workflow (`protheusctl edit <module>`) | V4-SETTLE-002, V4-SETTLE-006, V3-RACE-163 |
+| V4-SETTLE-008 | launch-polish | V4 | queued | Multi-Module Settle Status Dashboard (`protheus-top`) | V4-SETTLE-005, V4-SETTLE-006, V4-SETTLE-007 |
+| V4-SETTLE-009 | extension | V4 | queued | Pluggable Ternary + Future Architecture Module Settle Support | V4-SETTLE-003, V4-SETTLE-006, V4-SETTLE-011 |
+| V4-SETTLE-010 | hardening | V4 | queued | Autogenesis/Promotion-Coupled Differential Module Re-Settlement | V4-SETTLE-004, V4-SETTLE-006, V4-SETTLE-007, V4-SELF-001 |
+| V4-SETTLE-011 | extension | V4 | queued | Preferred Advanced Substrate Detection + Graceful Binary Fallback | V4-SETTLE-001, V4-SETTLE-003, V4-SETTLE-005 |
 | V4-RUST-001 | primitive-upgrade | V4 | queued | Authoritative Rust Microkernel Cutover Acceleration | V3-RACE-021, V3-RACE-034, V3-RACE-220, V3-RACE-185, V3-RACE-186 |
 | V4-RUST-002 | scientific | V4 | queued | Scientific Stack Rust Orchestration + R Bridge Hardening | V4-SCI-001, V4-SCI-002, V4-SCI-004, V3-RACE-361, V4-RUST-001 |
 | V4-RUST-003 | hardening | V4 | queued | Cargo Workspace Professionalization + Rust CI Quality Signal | V4-RUST-001, V3-RACE-230, V3-RACE-043 |
