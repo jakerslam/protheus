@@ -1,10 +1,10 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T18:04:49.888Z",
-  "source_hash": "391241721f33f62d2439e73a",
-  "row_count": 515,
-  "active_count": 118,
+  "generated_at": "2026-03-02T18:06:21.390Z",
+  "source_hash": "9ac6fcf0e85b75f0dfbcc615",
+  "row_count": 529,
+  "active_count": 132,
   "archive_count": 397,
   "rows": [
     {
@@ -6425,6 +6425,203 @@
         "V3-RACE-309",
         "V3-RACE-310",
         "V3-RACE-315"
+      ]
+    },
+    {
+      "id": "V3-RACE-317",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Tesla Dojo/D1 Compute-Fabric Parity Lane",
+      "problem": "Tesla stewardship requires first-class support for Dojo compute topology and scheduling semantics beyond generic accelerator adapters.",
+      "acceptance": "Add Dojo/D1 profile adapters with interconnect-aware scheduling contracts, require verification receipts for capability/performance parity, and include rollback-safe fallback to baseline accelerator profiles on topology mismatch.",
+      "dependencies": [
+        "V3-RACE-218",
+        "V3-RACE-277",
+        "V3-RACE-174"
+      ]
+    },
+    {
+      "id": "V3-RACE-318",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Optimus + HW4/AI4 Embodied Hardware Integration Lane",
+      "problem": "Embodied Tesla deployments need explicit hardware integration contracts for robotics and vehicle inference modules.",
+      "acceptance": "Add Optimus/HW4 integration adapters with sensor/actuator/proprioception and vehicle inference bindings, require verification receipts for hardware safety/parity, and include rollback-safe hardware-profile disable path on integration failure.",
+      "dependencies": [
+        "V3-RACE-284",
+        "V3-RACE-297",
+        "V3-RACE-191"
+      ]
+    },
+    {
+      "id": "V3-RACE-319",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Fleet Telemetry Ingestion Plane (Video/CAN/IMU + Sovereign Edge Buffering)",
+      "problem": "Fleet-scale intelligence loops require deterministic high-volume telemetry ingestion with strict boundary controls.",
+      "acceptance": "Add telemetry ingestion lane with edge buffering and policy-bound stream normalization, require verification receipts for ingestion integrity/privacy boundaries, and include rollback-safe ingress throttling/quarantine path on anomaly detection.",
+      "dependencies": [
+        "V3-RACE-287",
+        "V3-RACE-222",
+        "V3-RACE-275"
+      ]
+    },
+    {
+      "id": "V3-RACE-320",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Hard Real-Time Scheduler Hardening Lane (Sub-ms Control Loops)",
+      "problem": "Safety-critical embodied lanes require deterministic timing guarantees stronger than general-purpose scheduling paths.",
+      "acceptance": "Add hard real-time scheduler profile for control-critical lanes with jitter budgets and deterministic loop guarantees, require verification receipts for timing compliance, and include rollback-safe fallback to baseline scheduler when real-time checks regress.",
+      "dependencies": [
+        "V3-RACE-309",
+        "V3-RACE-220",
+        "V3-RACE-125"
+      ]
+    },
+    {
+      "id": "V3-RACE-321",
+      "class": "primitive-upgrade",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Video-First Memory World-Model Extension (Zero-Copy GPU/NPU Replay)",
+      "problem": "Tesla-style world-model workflows require memory primitives optimized for high-rate video streams and replay fidelity.",
+      "acceptance": "Add video-first memory extension with compression/replay and zero-copy transfer contracts, require verification receipts for replay fidelity/performance/privacy constraints, and include rollback-safe fallback to baseline memory pipeline on degradation.",
+      "dependencies": [
+        "V3-RACE-222",
+        "V3-RACE-172",
+        "V3-RACE-280"
+      ]
+    },
+    {
+      "id": "V3-RACE-322",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Energy-Aware Runtime & Grid Coupling Lane (Vehicle/Robot + Powerwall/Megapack)",
+      "problem": "Physical deployments need runtime behavior tightly coupled to battery/thermal/grid constraints to remain safe and economically viable.",
+      "acceptance": "Add energy-aware runtime planner with battery/thermal envelopes and grid-awareness hooks, require verification receipts for energy/safety policy adherence, and include rollback-safe return to baseline runtime budgets when integration checks fail.",
+      "dependencies": [
+        "V3-RACE-125",
+        "V3-RACE-190",
+        "V3-RACE-226"
+      ]
+    },
+    {
+      "id": "V3-RACE-323",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "FSD Primitive Adapter Lane (Vision/Occupancy/Planning/Control Tools)",
+      "problem": "Tesla-specific embodied reasoning needs typed access to FSD-like primitives without bypassing governance contracts.",
+      "acceptance": "Add FSD primitive adapters exposed as typed tools under control-plane policies, require verification receipts for tool correctness/safety gating, and include rollback-safe adapter disable path on policy or performance regressions.",
+      "dependencies": [
+        "V3-RACE-223",
+        "V3-RACE-210",
+        "V3-RACE-320"
+      ]
+    },
+    {
+      "id": "V3-RACE-324",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Tesla Sim2Real Promotion Gate (Mandatory Pre-Promotion Validation)",
+      "problem": "Embodied safety requires proven transfer from simulator to real hardware before lane promotion.",
+      "acceptance": "Add mandatory Tesla-style Sim2Real gate before autogenesis/promotion, require verification receipts linking simulation/HIL outcomes to decisions, and include rollback-safe promotion hold when transfer confidence thresholds are not met.",
+      "dependencies": [
+        "V3-RACE-270",
+        "V3-RACE-283",
+        "V3-RACE-302"
+      ]
+    },
+    {
+      "id": "V3-RACE-325",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Planetary Fleet Learning Loop Lane (Differential Privacy + Sovereign Ownership)",
+      "problem": "Fleet-scale learning requires strict privacy, ownership, and governance contracts to avoid unsafe data handling at scale.",
+      "acceptance": "Add fleet-learning lane with differential-privacy controls and ownership-bound learning contracts, require verification receipts for privacy/ownership compliance and model-improvement quality, and include rollback-safe learning pause/revert controls on policy breach.",
+      "dependencies": [
+        "V3-RACE-267",
+        "V3-RACE-319",
+        "V3-RACE-296"
+      ]
+    },
+    {
+      "id": "V3-RACE-326",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Optimus Embodied Symbiosis Primitive Pack (Dexterity Memory + Multi-Robot Coordination)",
+      "problem": "Persistent embodied collaboration needs dedicated memory/coordination primitives for dexterity and multi-robot workflows.",
+      "acceptance": "Add embodied symbiosis primitives for dexterous memory and multi-robot coordination, require verification receipts for coordination safety/performance, and include rollback-safe disable path for unstable embodied lanes.",
+      "dependencies": [
+        "V3-RACE-318",
+        "V3-RACE-284",
+        "V3-RACE-297"
+      ]
+    },
+    {
+      "id": "V3-RACE-327",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Automotive Safety Certification Primitive Pack (ISO 26262/FMEDA/SOTIF)",
+      "problem": "Automotive-grade deployments require explicit certification evidence contracts tied to runtime and release decisions.",
+      "acceptance": "Add automotive safety-certification lane with hazard analysis/fault-injection evidence generation, require verification receipts for certification control coverage, and include rollback-safe release hold when certification evidence is incomplete or stale.",
+      "dependencies": [
+        "V3-RACE-311",
+        "V3-RACE-309",
+        "V3-RACE-316"
+      ]
+    },
+    {
+      "id": "V3-RACE-328",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Tesla OTA Fleet Deployment Lane (Signed/Staged/Rollback-Guaranteed)",
+      "problem": "Fleet-scale update safety depends on deterministic staged rollout and guaranteed rollback contracts.",
+      "acceptance": "Add OTA fleet deployment lane with signed staged release policies and rollback guarantees, require verification receipts for rollout safety/integrity, and include rollback-safe automatic halt/revert behavior on failed canary or safety signals.",
+      "dependencies": [
+        "V3-RACE-273",
+        "V3-RACE-315",
+        "V3-RACE-244"
+      ]
+    },
+    {
+      "id": "V3-RACE-329",
+      "class": "extension",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Tesla Energy Grid-Aware Scheduling Adapter",
+      "problem": "Compute scheduling coupled to distributed energy systems can improve safety, uptime, and cost under Tesla energy deployments.",
+      "acceptance": "Add Powerwall/Megapack-aware scheduling adapter tied to runtime energy policies, require verification receipts for grid-aware scheduling decisions and safety envelopes, and include rollback-safe fallback to non-grid-aware scheduling when integration signals degrade.",
+      "dependencies": [
+        "V3-RACE-322",
+        "V3-RACE-226",
+        "V3-RACE-125"
+      ]
+    },
+    {
+      "id": "V3-RACE-330",
+      "class": "hardening",
+      "wave": "V3",
+      "status": "queued",
+      "title": "Tesla Promotion Hardening Gate (Physical Grounding + Safety Review + Fleet Chaos Evidence)",
+      "problem": "Tesla-targeted promotions require physical grounding and fleet safety evidence beyond baseline software-centric promotion gates.",
+      "acceptance": "Add promotion gate enforcing real-hardware grounding evidence, Tesla safety/reliability review outcomes, and fleet-scale chaos validation receipts where applicable, require verification receipts per promotion, and include rollback-safe promotion hold/fallback to baseline policy on gate instability.",
+      "dependencies": [
+        "V3-RACE-324",
+        "V3-RACE-327",
+        "V3-RACE-328",
+        "V3-RACE-214"
       ]
     },
     {

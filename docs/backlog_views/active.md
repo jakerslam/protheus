@@ -1,6 +1,6 @@
 # Backlog Active View
 
-Generated: 2026-03-02T18:04:49.888Z
+Generated: 2026-03-02T18:06:21.390Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -122,4 +122,18 @@ Generated: 2026-03-02T18:04:49.888Z
 | V3-RACE-314 | hardening | V3 | queued | IBM Enterprise Support/Indemnification Readiness Lane | V3-RACE-311, V3-RACE-313, V3-RACE-279 |
 | V3-RACE-315 | hardening | V3 | queued | IBM Zero-Downtime Maintenance Deployment Lane (LinuxONE/Cloud Pak) | V3-RACE-303, V3-RACE-304, V3-RACE-313 |
 | V3-RACE-316 | hardening | V3 | queued | IBM Promotion Hardening Gate (RAS + PQC + Governance/Formal + HIL Evidence) | V3-RACE-307, V3-RACE-308, V3-RACE-309, V3-RACE-310, V3-RACE-315 |
+| V3-RACE-317 | extension | V3 | queued | Tesla Dojo/D1 Compute-Fabric Parity Lane | V3-RACE-218, V3-RACE-277, V3-RACE-174 |
+| V3-RACE-318 | extension | V3 | queued | Optimus + HW4/AI4 Embodied Hardware Integration Lane | V3-RACE-284, V3-RACE-297, V3-RACE-191 |
+| V3-RACE-319 | extension | V3 | queued | Fleet Telemetry Ingestion Plane (Video/CAN/IMU + Sovereign Edge Buffering) | V3-RACE-287, V3-RACE-222, V3-RACE-275 |
+| V3-RACE-320 | hardening | V3 | queued | Hard Real-Time Scheduler Hardening Lane (Sub-ms Control Loops) | V3-RACE-309, V3-RACE-220, V3-RACE-125 |
+| V3-RACE-321 | primitive-upgrade | V3 | queued | Video-First Memory World-Model Extension (Zero-Copy GPU/NPU Replay) | V3-RACE-222, V3-RACE-172, V3-RACE-280 |
+| V3-RACE-322 | extension | V3 | queued | Energy-Aware Runtime & Grid Coupling Lane (Vehicle/Robot + Powerwall/Megapack) | V3-RACE-125, V3-RACE-190, V3-RACE-226 |
+| V3-RACE-323 | extension | V3 | queued | FSD Primitive Adapter Lane (Vision/Occupancy/Planning/Control Tools) | V3-RACE-223, V3-RACE-210, V3-RACE-320 |
+| V3-RACE-324 | hardening | V3 | queued | Tesla Sim2Real Promotion Gate (Mandatory Pre-Promotion Validation) | V3-RACE-270, V3-RACE-283, V3-RACE-302 |
+| V3-RACE-325 | hardening | V3 | queued | Planetary Fleet Learning Loop Lane (Differential Privacy + Sovereign Ownership) | V3-RACE-267, V3-RACE-319, V3-RACE-296 |
+| V3-RACE-326 | extension | V3 | queued | Optimus Embodied Symbiosis Primitive Pack (Dexterity Memory + Multi-Robot Coordination) | V3-RACE-318, V3-RACE-284, V3-RACE-297 |
+| V3-RACE-327 | hardening | V3 | queued | Automotive Safety Certification Primitive Pack (ISO 26262/FMEDA/SOTIF) | V3-RACE-311, V3-RACE-309, V3-RACE-316 |
+| V3-RACE-328 | hardening | V3 | queued | Tesla OTA Fleet Deployment Lane (Signed/Staged/Rollback-Guaranteed) | V3-RACE-273, V3-RACE-315, V3-RACE-244 |
+| V3-RACE-329 | extension | V3 | queued | Tesla Energy Grid-Aware Scheduling Adapter | V3-RACE-322, V3-RACE-226, V3-RACE-125 |
+| V3-RACE-330 | hardening | V3 | queued | Tesla Promotion Hardening Gate (Physical Grounding + Safety Review + Fleet Chaos Evidence) | V3-RACE-324, V3-RACE-327, V3-RACE-328, V3-RACE-214 |
 
