@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:21:13.963Z",
-  "source_hash": "ab8c5483fd4ea11dfaaee8ff",
+  "generated_at": "2026-03-02T09:21:15.798Z",
+  "source_hash": "c5fe4593ee170829910f2128",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 337,
+  "archive_count": 338,
   "rows": [
     {
       "id": "BL-001",
@@ -4135,7 +4135,7 @@
       "id": "V3-RACE-154",
       "class": "extension",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "Soul-Contract Training Contribution & Settlement Layer",
       "problem": "Compute contributors need explicit governed agreements/reward settlement to keep incentives aligned and auditable at scale.",
       "acceptance": "Implement `systems/training/training_contribution_contracts.{ts,js}` + policy `config/training_contribution_contract_policy.json`; user agreements/signatures/terms remain in `memory/training/contracts/` with adaptive contributor-scoring under `adaptive/training/contracts/`; permanent settlement/reward logic remains in `systems/training/` + `systems/economy/` + `config/`; all settlements publish event-stream receipts and are verifiable against contribution telemetry.",
