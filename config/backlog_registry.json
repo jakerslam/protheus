@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:10:55.576Z",
-  "source_hash": "1f14395c192a836d46101652",
+  "generated_at": "2026-03-02T09:11:56.831Z",
+  "source_hash": "50ba8a18794d2fbd116f289e",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 321,
+  "archive_count": 322,
   "rows": [
     {
       "id": "BL-001",
@@ -3906,7 +3906,7 @@
       "id": "V3-RACE-138",
       "class": "primitive-upgrade",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "WASM Component Runtime for Skills/Habits",
       "problem": "Language-agnostic secure module execution requires capability-scoped sandboxing and signed components, not only script-level contracts.",
       "acceptance": "Implement `systems/wasm/component_runtime.{ts,js}` + policy `config/wasm_component_runtime_policy.json` with signature verification, capability manifests, and deny-by-default host bindings; user-specific module preferences/overrides live in `memory/wasm/` and adaptive module ranking/cooldowns in `adaptive/wasm/`; permanent runtime/verification logic remains in `systems/wasm/` + `config/`.",
