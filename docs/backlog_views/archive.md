@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T04:10:16.091Z
+Generated: 2026-03-02T04:11:36.581Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -81,6 +81,7 @@ Generated: 2026-03-02T04:10:16.091Z
 | V3-RACE-094 | hardening | V3 | done | Ensemble Disagreement Escalation Lane | V3-RACE-083, V3-RACE-087 |
 | V3-RACE-095 | extension | V3 | done | Novelty/Saturation Prioritization Engine | V3-RACE-080, V3-RACE-091 |
 | V3-RACE-096 | hardening | V3 | done | Analysis Quality SLO Contract | V3-RACE-086, V3-RACE-081 |
+| V3-RACE-097 | hardening | V3 | done | Ground-Truth Governance & Label Adjudication Lane | V3-RACE-086 |
 | V3-RACE-106 | hardening | V3 | done | Unified Guard Check Registry (Manifest-Driven Gates) | V3-AEX-002, V3-RACE-CONF-008 |
 | V3-RACE-107 | hardening | V3 | done | Shared Policy Runtime Primitive | BL-024, V3-RACE-CONF-007 |
 | V3-RACE-108 | primitive-upgrade | V3 | done | Spawn Fan-Out Reduction Wave (Worker/Daemon Core) | V3-RACE-063, V3-RACE-064, V3-OPS-005 |

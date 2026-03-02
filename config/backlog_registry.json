@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T04:10:16.091Z",
-  "source_hash": "5ca57f1461493c648bd4a7dd",
+  "generated_at": "2026-03-02T04:11:36.581Z",
+  "source_hash": "5a13c5a572bda5aff5c628a3",
   "row_count": 127,
-  "active_count": 43,
-  "archive_count": 84,
+  "active_count": 42,
+  "archive_count": 85,
   "rows": [
     {
       "id": "V3-OPS-004",
@@ -1552,10 +1552,10 @@
       "id": "V3-RACE-097",
       "class": "hardening",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Ground-Truth Governance & Label Adjudication Lane",
       "problem": "Label noise and weak adjudication can silently cap detector quality and destabilize promotion decisions.",
-      "acceptance": "Label workflow includes reviewer agreement metrics, confidence metadata, adjudication receipts, and quarantine of low-agreement labels from promotion corpora.",
+      "acceptance": "Added `systems/sensory/ground_truth_label_adjudication_lane.{ts,js}` + `config/ground_truth_label_adjudication_policy.json` to compute reviewer agreement/confidence, adjudicate labels into accepted vs quarantined sets, and emit governance receipts while writing promotion/quarantine corpora under `state/sensory/labels/`; regression coverage in `memory/tools/tests/ground_truth_label_adjudication_lane.test.js`.",
       "dependencies": [
         "V3-RACE-086"
       ]
