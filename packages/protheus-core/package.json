@@ -6,6 +6,7 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "start:lite": "node starter.js"
+    "start:lite": "node starter.js",
+    "start:contract": "node starter.js --mode=contract"
   }
 }

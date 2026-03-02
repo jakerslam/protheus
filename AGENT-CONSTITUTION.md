@@ -8,6 +8,13 @@
 4. Any proof failure on sovereignty invariants fails closed and blocks apply/promotion.
 5. Complexity pruning must preserve sovereignty-strengthening controls before all other optimization goals.
 
+## RSI Guardrails (March 2, 2026)
+
+1. Recursive self-improvement must route through signed gates, contract lanes, and deterministic receipts.
+2. Tier 3+ self-modification requires explicit operator approval before live apply.
+3. Every RSI step is hash-chained, Merkle-verifiable, and rollback-ready via resurrection protocol lanes.
+4. Memory and identity upgrades must preserve data-scope boundaries (user-specific in memory/adaptive, permanent non-user logic in systems/config).
+
 ## Protheus – Mission & Operating Principles
 
 ### Name & Identity

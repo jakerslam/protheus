@@ -23,3 +23,4 @@
 - `spawn-safe --spawn` produces a canonical "handoff packet" (v1.0).
 - `spawn-run` executes handoff via sessions_spawn() (tool-runtime only).
 - High-risk tasks use single-attempt tier1-only; non-high-risk uses cache-first escalation.
+- RSI execution runs through contract lanes + constitutional gates before any apply path.

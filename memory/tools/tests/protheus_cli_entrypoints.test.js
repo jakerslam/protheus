@@ -32,7 +32,11 @@ function parseJson(stdout) {
 function runBin(binPath, args) {
   const run = spawnSync(binPath, args, {
     cwd: ROOT,
-    encoding: 'utf8'
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      PROTHEUS_RUNTIME_MODE: 'source'
+    }
   });
   return {
     status: Number.isFinite(run.status) ? run.status : 1,
@@ -46,6 +50,7 @@ try {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'protheus-cli-entrypoints-'));
   const stateRoot = path.join(tmp, 'state');
   const policyPath = path.join(tmp, 'protheus_control_plane_policy.json');
+  const rsiPolicyPath = path.join(tmp, 'rsi_bootstrap_policy.json');
 
   writeJson(policyPath, {
     enabled: true,
@@ -68,6 +73,21 @@ try {
       routing_health_path: path.join(stateRoot, 'health.json'),
       warm_snapshot_path: path.join(stateRoot, 'warm_snapshot.json'),
       benchmark_state_path: path.join(stateRoot, 'benchmark.json')
+    }
+  });
+
+  writeJson(rsiPolicyPath, {
+    enabled: true,
+    shadow_only: true,
+    owner_default: 'test_owner',
+    paths: {
+      state_path: path.join(stateRoot, 'rsi', 'state.json'),
+      latest_path: path.join(stateRoot, 'rsi', 'latest.json'),
+      receipts_path: path.join(stateRoot, 'rsi', 'receipts.jsonl'),
+      chain_path: path.join(stateRoot, 'rsi', 'chain.jsonl'),
+      merkle_path: path.join(stateRoot, 'rsi', 'merkle.json'),
+      approvals_path: path.join(stateRoot, 'rsi', 'approvals.json'),
+      step_artifacts_dir: path.join(stateRoot, 'rsi', 'steps')
     }
   });
 
@@ -95,6 +115,37 @@ try {
   out = runBin(BIN_PROTHEUSD, ['stop', `--policy=${policyPath}`]);
   assert.strictEqual(out.status, 0, out.stderr || out.stdout);
   assert.ok(out.payload && out.payload.type === 'protheus_daemon_control', 'stop should return daemon control receipt');
+
+  out = runBin(BIN_PROTHEUSCTL, ['rsi', 'bootstrap', '--owner=test_owner', `--policy=${rsiPolicyPath}`, '--mock=1']);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  assert.ok(out.payload && out.payload.type === 'rsi_bootstrap', 'rsi bootstrap should return receipt');
+
+  out = runBin(BIN_PROTHEUSCTL, ['contract-lane', 'status', '--owner=test_owner', `--policy=${rsiPolicyPath}`, '--mock=1']);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  assert.ok(out.payload && out.payload.type === 'rsi_contract_lane_status', 'contract-lane status should return receipt');
+
+  out = runBin(BIN_PROTHEUSCTL, ['approve', '--rsi', '--owner=test_owner', '--approver=test_reviewer', '--reason=test_approval', `--policy=${rsiPolicyPath}`]);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  assert.ok(out.payload && out.payload.type === 'rsi_approve', 'rsi approve should return receipt');
+
+  out = runBin(BIN_PROTHEUSCTL, [
+    'rsi',
+    'step',
+    '--owner=test_owner',
+    '--objective-id=test_rsi',
+    '--target-path=systems/ops/protheusctl.ts',
+    '--apply=1',
+    '--approval-a=test_a',
+    '--approval-b=test_b',
+    `--policy=${rsiPolicyPath}`,
+    '--mock=1'
+  ]);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  assert.ok(out.payload && out.payload.type === 'rsi_step', 'rsi step should return receipt');
+
+  out = runBin(BIN_PROTHEUSCTL, ['rsi', 'status', '--owner=test_owner', `--policy=${rsiPolicyPath}`]);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  assert.ok(out.payload && out.payload.type === 'rsi_status', 'rsi status should return receipt');
 
   fs.rmSync(tmp, { recursive: true, force: true });
   console.log('protheus_cli_entrypoints.test.js: OK');
