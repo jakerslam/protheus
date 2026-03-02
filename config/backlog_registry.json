@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:21:23.912Z",
-  "source_hash": "734b662e3c912070430d629e",
+  "generated_at": "2026-03-02T09:21:25.775Z",
+  "source_hash": "06858f3a2ee6f9cb736e1f52",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 342,
+  "archive_count": 343,
   "rows": [
     {
       "id": "BL-001",
@@ -4205,7 +4205,7 @@
       "id": "V3-RACE-159",
       "class": "hardening",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "Access-Tier Governance for Sovereign Model (Free Base + Priority Tiers)",
       "problem": "Universal base access improves adoption, but governance needs an explicit tiering contract to preserve contributor incentives and operational sustainability.",
       "acceptance": "Implement `systems/economy/model_access_tier_governance.{ts,js}` + policy `config/model_access_tier_policy.json`; user-specific tier preferences/eligibility state remain under `memory/economy/model_access/` with adaptive queue/QoS tuning in `adaptive/economy/model_access/`; permanent access policy, fairness rules, and budget controls remain in `systems/economy/` + `config/`; base-free and priority-tier semantics are enforced with receipts and fail-safe fallback to base access.",
