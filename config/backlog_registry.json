@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:20:59.137Z",
-  "source_hash": "c64a0092d16ea8d88294d666",
+  "generated_at": "2026-03-02T09:21:01.330Z",
+  "source_hash": "092fa9d09e63490871f6ac67",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 330,
+  "archive_count": 331,
   "rows": [
     {
       "id": "BL-001",
@@ -4037,7 +4037,7 @@
       "id": "V3-RACE-147",
       "class": "extension",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "ActivityPub + Matrix Federation Gateway",
       "problem": "Decentralized inter-instance communication requires canonical protocol gateways with bounded trust and policy-aware routing.",
       "acceptance": "Implement `systems/federation/activitypub_matrix_gateway.{ts,js}` + policy `config/activitypub_matrix_gateway_policy.json`; user-specific federation peers/allowlists/preferences remain under `memory/federation/channels/` and adaptive reliability/rate heuristics under `adaptive/federation/channels/`; permanent federation transport/bridge logic remains in `systems/federation/` + `config/` with egress/audit receipts.",

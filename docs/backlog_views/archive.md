@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T09:20:59.137Z
+Generated: 2026-03-02T09:21:01.330Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -328,6 +328,7 @@ Generated: 2026-03-02T09:20:59.137Z
 | V3-RACE-144 | hardening | V3 | done | Pinnacle Integration Contract + Data-Scope Guard | V3-RACE-137, V3-RACE-138, V3-RACE-139, V3-RACE-140, V3-RACE-141, V3-RACE-142, V3-RACE-143, V3-RACE-136 |
 | V3-RACE-145 | primitive-upgrade | V3 | done | Actor Runtime Substrate (Isolated Swarm Message-Passing) | V3-RACE-021, V3-RACE-108, V3-RACE-064 |
 | V3-RACE-146 | extension | V3 | done | Solid Pod Interop Bridge (User-Owned Data Pods) | V3-RACE-129, V3-RACE-140, V3-RACE-120 |
+| V3-RACE-147 | extension | V3 | done | ActivityPub + Matrix Federation Gateway | V3-RACE-016, V3-RACE-031, V3-RACE-146 |
 | OPT-001 | backlog | OPT | done | Eyes signal weighting retune in router ranking |  |
 | OPT-002 | backlog | OPT | done | Prompt cache policy split by lane (reflex/autonomy/dream) |  |
 | OPT-003 | backlog | OPT | done | Dream fallback quality scoring before proposal injection |  |
