@@ -45,3 +45,11 @@ node systems/security/psycheforge/psycheforge_organ.js status
 - Adversarial goal-drift auditor lane (`systems/security/adversarial_goal_drift_auditor.ts`).
 - Insider split-trust governance lane (`systems/security/insider_threat_split_trust_command_governance.ts`).
 - Signed plugin trust marketplace lane (`systems/security/signed_plugin_trust_marketplace.ts`).
+
+## Pinnacle Integration Security Contract (`V3-RACE-144`)
+
+- Contract check: `systems/ops/pinnacle_integration_contract_check.ts`
+- Scope boundaries are enforced jointly with:
+  - `docs/PINNACLE_TECH.md`
+  - `docs/DATA_SCOPE_BOUNDARIES.md`
+- Integration lanes (`V3-RACE-137`..`143`) must keep user data in `memory/` + `adaptive/` and permanent runtime logic in `systems/` + `config/`.

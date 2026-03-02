@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T09:16:58.862Z
+Generated: 2026-03-02T09:18:31.293Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -325,6 +325,7 @@ Generated: 2026-03-02T09:16:58.862Z
 | V3-RACE-141 | extension | V3 | done | Content-Addressed Archival Plane (IPFS-Compatible) | V3-RACE-037, V3-BLK-001, V3-RACE-109 |
 | V3-RACE-142 | hardening | V3 | done | Zero-Knowledge Compliance Proof Layer | V3-RACE-129, V3-RACE-130, V3-RACE-137 |
 | V3-RACE-143 | extension | V3 | done | FHE Encrypted Compute Pilot Lane | V3-RACE-023, V3-RACE-142, V3-BUD-001 |
+| V3-RACE-144 | hardening | V3 | done | Pinnacle Integration Contract + Data-Scope Guard | V3-RACE-137, V3-RACE-138, V3-RACE-139, V3-RACE-140, V3-RACE-141, V3-RACE-142, V3-RACE-143, V3-RACE-136 |
 | OPT-001 | backlog | OPT | done | Eyes signal weighting retune in router ranking |  |
 | OPT-002 | backlog | OPT | done | Prompt cache policy split by lane (reflex/autonomy/dream) |  |
 | OPT-003 | backlog | OPT | done | Dream fallback quality scoring before proposal injection |  |

@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:16:58.862Z",
-  "source_hash": "ee47b459aefbad4240b2956b",
+  "generated_at": "2026-03-02T09:18:31.293Z",
+  "source_hash": "fab9f0ec4e1dcdaa634e104f",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 327,
+  "archive_count": 328,
   "rows": [
     {
       "id": "BL-001",
@@ -3990,7 +3990,7 @@
       "id": "V3-RACE-144",
       "class": "hardening",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "Pinnacle Integration Contract + Data-Scope Guard",
       "problem": "Independent pinnacle lanes can create boundary drift unless cross-organ contracts and storage-scope invariants are continuously enforced.",
       "acceptance": "Implement integrated harness/docs (`docs/PINNACLE_TECH.md`, updates to `docs/SECURITY.md` and `docs/MIND_SOVEREIGNTY.md`) and `systems/ops/pinnacle_integration_contract_check.{ts,js}` to enforce cross-lane compatibility, risk-tier gating, JetStream publication, and data-scope boundaries (`memory/adaptive` user-only, `systems/config/docs` permanent-only) across CRDT/WASM/Intent/DID/archival/ZK/FHE lanes.",

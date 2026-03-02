@@ -22,3 +22,12 @@ Mind sovereignty is the non-negotiable top rule for Protheus.
 
 - Any governance drift that weakens these guarantees is a release-blocking defect.
 - CI and backlog contract gates must fail on covenant divergence.
+
+## Pinnacle Compatibility Clause (`V3-RACE-144`)
+
+- Pinnacle integration lanes (`V3-RACE-137`..`143`) are compatible only when:
+  - event publication + receipts remain mandatory,
+  - risk-tier governance remains non-bypass,
+  - user-private data boundaries remain intact (`memory/` + `adaptive/` only).
+- Enforcement is machine-checked via:
+  - `systems/ops/pinnacle_integration_contract_check.ts`
