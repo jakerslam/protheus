@@ -1,0 +1,20 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "min_causal_score": 0.58,
+  "max_correlation_penalty": 0.22,
+  "weights": {
+    "chain_confidence": 0.42,
+    "counterfactual_uplift": 0.28,
+    "source_reliability": 0.2,
+    "structure_bonus": 0.1
+  },
+  "paths": {
+    "chain_mapper_dir": "state/sensory/analysis/objective_chain_mapper",
+    "counterfactual_dir": "state/sensory/analysis/counterfactual_replay",
+    "source_reliability_latest": "state/sensory/analysis/source_reliability/latest.json",
+    "output_dir": "state/sensory/analysis/causal_signal_scorer",
+    "latest_path": "state/sensory/analysis/causal_signal_scorer/latest.json",
+    "receipts_path": "state/sensory/analysis/causal_signal_scorer/receipts.jsonl"
+  }
+}

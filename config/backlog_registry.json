@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T04:00:09.656Z",
-  "source_hash": "3df4c156e3ac841956a2b9cc",
+  "generated_at": "2026-03-02T04:01:49.621Z",
+  "source_hash": "43983154c7c846e66139719c",
   "row_count": 127,
-  "active_count": 50,
-  "archive_count": 77,
+  "active_count": 49,
+  "archive_count": 78,
   "rows": [
     {
       "id": "V3-OPS-004",
@@ -1458,10 +1458,10 @@
       "id": "V3-RACE-090",
       "class": "hardening",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Causal-vs-Correlational Signal Scorer",
       "problem": "Correlation-heavy ranking overstates weak hypotheses and misallocates execution bandwidth.",
-      "acceptance": "Ranking lane includes causal evidence weighting, correlation-only penalties, and replay-backed validation receipts for promotions.",
+      "acceptance": "Added `systems/sensory/causal_vs_correlation_signal_scorer.{ts,js}` + `config/causal_vs_correlation_signal_scorer_policy.json` to combine chain confidence, replay uplift, and source reliability into causal scores, apply bounded penalties to correlation-only paths, and emit ranked receipts under `state/sensory/analysis/causal_signal_scorer/`; regression coverage in `memory/tools/tests/causal_vs_correlation_signal_scorer.test.js`.",
       "dependencies": [
         "V3-RACE-082",
         "V3-RACE-084",
