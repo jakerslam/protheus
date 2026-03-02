@@ -131,6 +131,7 @@ function run() {
   assert.strictEqual(out.ok, true);
   assert.strictEqual(out.limits.module_current_cells, 2, 'reflex current allocation should persist');
   assert.strictEqual(out.limits.global_max_cells, 4, 'hardware-class cap should be applied');
+  assert.strictEqual(String(out.hardware_plan_transport || ''), 'spawn_sync', 'custom router script should use spawn_sync transport');
   assert.strictEqual(Boolean(out.budget_autopause && out.budget_autopause.active), false, 'autopause should be inactive');
 
   writeJson(autopausePath, {

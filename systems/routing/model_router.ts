@@ -4300,6 +4300,8 @@ module.exports = {
   inferTier,
   modelOutcomeStats,
   cacheSummaryReport,
+  readConfig,
+  modelsFromAllowlist,
   resolveHardwarePlan,
   runPeriodicLocalWarmup
 };

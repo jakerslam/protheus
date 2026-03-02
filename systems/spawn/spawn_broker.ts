@@ -56,9 +56,11 @@ const TOKEN_BUDGET_EVENTS_PATH = process.env.SPAWN_TOKEN_BUDGET_EVENTS_PATH
 const TOKEN_BUDGET_AUTOPAUSE_PATH = process.env.SPAWN_TOKEN_BUDGET_AUTOPAUSE_PATH
   ? path.resolve(process.env.SPAWN_TOKEN_BUDGET_AUTOPAUSE_PATH)
   : GLOBAL_BUDGET_AUTOPAUSE_PATH;
+const DEFAULT_ROUTER_SCRIPT = path.join(REPO_ROOT, 'systems', 'routing', 'model_router.js');
 const ROUTER_SCRIPT = process.env.SPAWN_ROUTER_SCRIPT
   ? path.resolve(process.env.SPAWN_ROUTER_SCRIPT)
-  : path.join(REPO_ROOT, 'systems', 'routing', 'model_router.js');
+  : DEFAULT_ROUTER_SCRIPT;
+const ROUTER_IN_PROCESS_ENABLED = toBool(process.env.SPAWN_ROUTER_IN_PROCESS, true);
 
 function nowIso() {
   return new Date().toISOString();
@@ -433,6 +435,44 @@ function pruneExpired(state: AnyObj): AnyObj {
 }
 
 function routerHardwarePlan() {
+  if (ROUTER_IN_PROCESS_ENABLED && ROUTER_SCRIPT === DEFAULT_ROUTER_SCRIPT) {
+    try {
+      const router = require('../routing/model_router.js');
+      if (
+        router &&
+        typeof router.readConfig === 'function' &&
+        typeof router.modelsFromAllowlist === 'function' &&
+        typeof router.resolveHardwarePlan === 'function'
+      ) {
+        const cfg = router.readConfig();
+        const allowlist = router.modelsFromAllowlist(cfg);
+        const payload = router.resolveHardwarePlan(cfg, allowlist);
+        if (payload && typeof payload === 'object') {
+          return {
+            ok: true,
+            payload,
+            error: '',
+            transport: 'in_process'
+          };
+        }
+      }
+    } catch (err) {
+      const msg = String(err && (err.code || err.message) ? (err.code || err.message) : 'in_process_failed').slice(0, 160);
+      // Fall back to emergency spawn path below.
+      const r = spawnSync('node', [ROUTER_SCRIPT, 'hardware-plan'], {
+        cwd: REPO_ROOT,
+        encoding: 'utf8'
+      });
+      const payload = safeJson(r.stdout);
+      return {
+        ok: r.status === 0 && !!payload,
+        payload,
+        error: (String(r.stderr || '').trim().slice(0, 240) || msg),
+        transport: 'spawn_sync_fallback'
+      };
+    }
+  }
+
   const r = spawnSync('node', [ROUTER_SCRIPT, 'hardware-plan'], {
     cwd: REPO_ROOT,
     encoding: 'utf8'
@@ -441,7 +481,8 @@ function routerHardwarePlan() {
   return {
     ok: r.status === 0 && !!payload,
     payload,
-    error: String(r.stderr || '').trim().slice(0, 240)
+    error: String(r.stderr || '').trim().slice(0, 240),
+    transport: 'spawn_sync'
   };
 }
 
@@ -606,6 +647,7 @@ function cmdStatus(args) {
     budget_guard: budgetGuard,
     hardware_plan_ok: hw.ok,
     hardware_plan_error: hw.ok ? null : hw.error,
+    hardware_plan_transport: hw.transport || null,
     hardware_bounds: bounds
   }, null, 2) + '\n');
 }
@@ -716,6 +758,7 @@ function cmdRequest(args) {
       budget_guard: budgetGuard,
       hardware_plan_ok: hw.ok,
       hardware_plan_error: hw.ok ? null : hw.error,
+      hardware_plan_transport: hw.transport || null,
       hardware_bounds: bounds
     }, null, 2) + '\n');
     return;
@@ -812,6 +855,7 @@ function cmdRequest(args) {
     token_budget: tokenBudget,
     hardware_plan_ok: hw.ok,
     hardware_plan_error: hw.ok ? null : hw.error,
+    hardware_plan_transport: hw.transport || null,
     hardware_bounds: bounds
   }, null, 2) + '\n');
 }
