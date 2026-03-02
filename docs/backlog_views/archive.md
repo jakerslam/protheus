@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T09:37:58.278Z
+Generated: 2026-03-02T09:38:00.187Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -133,6 +133,7 @@ Generated: 2026-03-02T09:37:58.278Z
 | RR-007 | backlog | RR | done | Supply-chain trust gap |  |
 | RR-008 | backlog | RR | done | Multi-node partition and split-brain semantics |  |
 | RR-009 | backlog | RR | done | Data retention/churn bloat |  |
+| RR-010 | backlog | RR | done | Human override ergonomics under incident stress |  |
 | V3-DUAL-001 | backlog | V3 | done | Duality Belief Engine Seed |  |
 | V3-ATTR-001 | backlog | V3 | done | Lightweight Value Attribution Primitive |  |
 | V3-ATTR-002 | backlog | V3 | done | Storm Value Distribution Layer |  |

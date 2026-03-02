@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:37:58.278Z",
-  "source_hash": "db18e281a0240ed1d8651c7d",
+  "generated_at": "2026-03-02T09:38:00.187Z",
+  "source_hash": "e85e80503e03319f9db5e35d",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 367,
+  "archive_count": 368,
   "rows": [
     {
       "id": "BL-001",
@@ -1311,7 +1311,7 @@
       "id": "RR-010",
       "class": "backlog",
       "wave": "RR",
-      "status": "open",
+      "status": "done",
       "title": "Human override ergonomics under incident stress",
       "problem": "Safety controls fail in practice if operators cannot act quickly",
       "acceptance": "Timed operator drills with runbook SLA gates and usability fixes; linked: `V2-057`, `V2-FND-005`",
