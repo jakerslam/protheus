@@ -1,0 +1,18 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "offset_days": 180,
+  "thresholds": {
+    "min_confidence": 60,
+    "min_probability": 0.6,
+    "min_support_events": 3,
+    "min_precision_uplift": 0.0,
+    "min_recall_uplift": 0.0
+  },
+  "paths": {
+    "hypotheses_dir": "state/sensory/cross_signal/hypotheses",
+    "output_dir": "state/sensory/analysis/counterfactual_replay",
+    "latest_path": "state/sensory/analysis/counterfactual_replay/latest.json",
+    "receipts_path": "state/sensory/analysis/counterfactual_replay/receipts.jsonl"
+  }
+}

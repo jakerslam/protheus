@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T02:41:49.905Z",
-  "source_hash": "4cc0a656272405991b13eeb5",
+  "generated_at": "2026-03-02T02:43:45.718Z",
+  "source_hash": "d664523ac43550d08cb50324",
   "row_count": 127,
-  "active_count": 58,
-  "archive_count": 69,
+  "active_count": 57,
+  "archive_count": 70,
   "rows": [
     {
       "id": "V3-OPS-004",
@@ -1350,10 +1350,10 @@
       "id": "V3-RACE-082",
       "class": "extension",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Counterfactual Signal Replay Harness",
       "problem": "Detector changes need historical context to avoid overfitting current traffic conditions.",
-      "acceptance": "Replay runner can score historical windows with current detector stack, report counterfactual precision/recall deltas, and block promotions on negative uplift.",
+      "acceptance": "Added `systems/sensory/counterfactual_signal_replay.{ts,js}` + `config/counterfactual_signal_replay_policy.json` to replay historical windows (default 180-day offset), compute precision/recall uplift deltas, and emit promotion-block signals on negative uplift; receipted outputs persist under `state/sensory/analysis/counterfactual_replay/` with regression coverage in `memory/tools/tests/counterfactual_signal_replay.test.js`.",
       "dependencies": [
         "V3-RACE-003",
         "V3-RACE-017",
