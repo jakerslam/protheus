@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:21:25.775Z",
-  "source_hash": "06858f3a2ee6f9cb736e1f52",
+  "generated_at": "2026-03-02T09:21:59.743Z",
+  "source_hash": "2793ee53e963765e65f28cc4",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 343,
+  "archive_count": 344,
   "rows": [
     {
       "id": "BL-001",
@@ -4237,7 +4237,7 @@
       "id": "V3-RACE-161",
       "class": "primitive-upgrade",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "Git-Backed Memory Filesystem (MemFS Contract)",
       "problem": "Memory provenance and branchable replay need first-class versioned filesystem semantics beyond current artifact snapshots.",
       "acceptance": "Implement `systems/memory/memfs_layer.{ts,js}` + policy `config/memfs_layer_policy.json`; user-specific memory documents/history remain under `memory/fs/` and adaptive retrieval ranking/merge hints under `adaptive/memory/fs/`; permanent memfs orchestration/git-worktree contracts remain in `systems/memory/` + `config/`; commits are policy-annotated and replay-verifiable.",
