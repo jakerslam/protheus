@@ -1,1 +1,3 @@
-# Lockweaver\n\nOrigin-lock verified structural flux runtime for protected modules.\n
+# Lockweaver
+
+Origin-lock verified structural flux runtime for protected modules.

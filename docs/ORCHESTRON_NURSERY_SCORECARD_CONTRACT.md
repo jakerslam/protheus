@@ -3,7 +3,7 @@
 Status: active (`RM-012`)
 
 Source implementation:
-- `/Users/jay/.openclaw/workspace/systems/workflow/orchestron/nursery_tester.ts`
+- `systems/workflow/orchestron/nursery_tester.ts`
 
 ## Deterministic Scorecard Fields
 

@@ -28,13 +28,13 @@ High-churn generated runtime streams are ignored:
 - AIE event logs
 - emergency stop runtime state and integrity violation runtime logs
 
-Authoritative patterns live in `/Users/jay/.openclaw/workspace/.gitignore`.
+Authoritative patterns live in `.gitignore`.
 
 ## Change Control Rules
 
 When adding a new `state/*` stream:
 
 1. Classify it as `tracked` or `ignored` in this policy.
-2. Update `/Users/jay/.openclaw/workspace/.gitignore` in the same change if `ignored`.
+2. Update `.gitignore` in the same change if `ignored`.
 3. Do not ignore source code, config, or governance docs to reduce noise.
 4. If an ignored runtime stream is needed for incident review, snapshot it deliberately in a tracked artifact (handoff/report), not by permanently tracking all runtime churn.

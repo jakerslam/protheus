@@ -3,7 +3,7 @@
 Status: active (`RM-011`)
 
 Source implementation:
-- `/Users/jay/.openclaw/workspace/systems/workflow/orchestron/candidate_generator.ts`
+- `systems/workflow/orchestron/candidate_generator.ts`
 
 ## Bounded Candidate Count
 

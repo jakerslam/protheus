@@ -1,1 +1,3 @@
-# Red Legion Compatibility\n\nCompatibility namespace for redteam -> red_legion staged migration.\n
+# Red Legion Compatibility
+
+Compatibility namespace for redteam -> red_legion staged migration.

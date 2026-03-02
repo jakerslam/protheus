@@ -758,7 +758,13 @@
     "test:lane:v3-race-112": "node memory/tools/tests/analysis_kernel_stage_interface.test.js",
     "lane:v3-race-114:run": "node systems/ops/control_plane_live_activation_shadow_exit_gate.js activate",
     "lane:v3-race-114:status": "node systems/ops/control_plane_live_activation_shadow_exit_gate.js status",
-    "test:lane:v3-race-114": "node memory/tools/tests/control_plane_live_activation_shadow_exit_gate.test.js"
+    "test:lane:v3-race-114": "node memory/tools/tests/control_plane_live_activation_shadow_exit_gate.test.js",
+    "dev": "node systems/ops/protheusd.js start",
+    "start": "node systems/ops/protheusd.js start",
+    "build": "npm run build:systems:verify",
+    "test": "npm run test:ci",
+    "lint": "npm run typecheck:systems",
+    "security:audit": "npm audit --audit-level=moderate"
   },
   "bin": {
     "protheus": "./bin/protheus",

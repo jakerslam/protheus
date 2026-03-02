@@ -1,1 +1,3 @@
-# Legion Honor\n\nSoul-bound honor codex for medals, titles, and rank progression.\n
+# Legion Honor
+
+Soul-bound honor codex for medals, titles, and rank progression.

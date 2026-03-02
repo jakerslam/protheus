@@ -1,1 +1,3 @@
-# Complexity Warden\n\nFractal complexity scoring, budget enforcement, and simplification orchestration lane.\n
+# Complexity Warden
+
+Fractal complexity scoring, budget enforcement, and simplification orchestration lane.

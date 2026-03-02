@@ -3,8 +3,8 @@
 Status: active (`RM-013`)
 
 Source implementation:
-- `/Users/jay/.openclaw/workspace/systems/workflow/workflow_controller.ts` (`promote` command)
-- `/Users/jay/.openclaw/workspace/config/workflow_policy.json` (`promotion_gate`)
+- `systems/workflow/workflow_controller.ts` (`promote` command)
+- `config/workflow_policy.json` (`promotion_gate`)
 
 ## Required Promotion Gates
 

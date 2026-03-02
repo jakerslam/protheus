@@ -1,1 +1,3 @@
-# Project Jigsaw\n\nAttackCinema capture, highlight editing, and secure replay delivery surface.\n
+# Project Jigsaw
+
+AttackCinema capture, highlight editing, and secure replay delivery surface.

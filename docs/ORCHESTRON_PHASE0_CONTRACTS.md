@@ -6,7 +6,7 @@ Phase-0 goal is to generate and score adaptive workflows without autonomous prom
 
 ## Policy Invariants
 
-Source: `/Users/jay/.openclaw/workspace/config/orchestron_policy.json`
+Source: `config/orchestron_policy.json`
 
 - `enabled: true`
 - `shadow_only: true`
@@ -17,7 +17,7 @@ These defaults guarantee no autonomous apply path is active in baseline operatio
 
 ## Typed Contract Artifacts
 
-Canonical normalizers live in `/Users/jay/.openclaw/workspace/systems/workflow/orchestron/contracts.ts`.
+Canonical normalizers live in `systems/workflow/orchestron/contracts.ts`.
 
 The controller emits the following typed payload families:
 
@@ -83,11 +83,11 @@ Gates that can block autonomous promotion/apply:
 ## Runtime Receipts and Paths
 
 - Latest Orchestron run snapshot:
-  `/Users/jay/.openclaw/workspace/state/adaptive/workflows/orchestron/latest.json`
+  `state/adaptive/workflows/orchestron/latest.json`
 - Per-run payload:
-  `/Users/jay/.openclaw/workspace/state/adaptive/workflows/orchestron/<date>.json`
+  `state/adaptive/workflows/orchestron/<date>.json`
 - Birth event stream:
-  `/Users/jay/.openclaw/workspace/state/adaptive/workflows/orchestron/birth_events.jsonl`
+  `state/adaptive/workflows/orchestron/birth_events.jsonl`
 
 ## Validation Commands
 

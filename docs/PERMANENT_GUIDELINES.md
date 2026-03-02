@@ -1,1 +1,3 @@
-# Permanent Guidelines\n\nCanonical covenant-first governance guidelines for Protheus operations.\n
+# Permanent Guidelines
+
+Canonical covenant-first governance guidelines for Protheus operations.

@@ -3,8 +3,8 @@
 Status: active (`RM-010`)
 
 Source implementation:
-- `/Users/jay/.openclaw/workspace/systems/workflow/orchestron/intent_analyzer.ts`
-- `/Users/jay/.openclaw/workspace/systems/workflow/orchestron/contracts.ts`
+- `systems/workflow/orchestron/intent_analyzer.ts`
+- `systems/workflow/orchestron/contracts.ts`
 
 ## Required Output Fields
 
