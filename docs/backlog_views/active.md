@@ -1,19 +1,9 @@
 # Backlog Active View
 
-Generated: 2026-03-02T22:17:47.305Z
+Generated: 2026-03-02T22:34:44.678Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
-| BL-011 | backlog | BL | queued | Swarm verification mode for deep-thinker |  |
-| BL-012 | backlog | BL | queued | Strategy profile layer + architecture genericity guard |  |
-| BL-015 | backlog | BL | queued | Optional reflex sub-layer under habits (fast micro-routines) |  |
-| BL-016 | backlog | BL | queued | Cross-device active-state continuity layer |  |
-| BL-018 | backlog | BL | queued | Proposal admission + queue hygiene hardening |  |
-| BL-019 | backlog | BL | queued | Optional habit cell-pool executor (parallelized by demand + hardware caps) |  |
-| BL-020 | backlog | BL | queued | Ignore memory snapshots after backup channels are verified |  |
-| BL-021 | backlog | BL | queued | End-to-end pipeline integration tests (`eyes -> insight -> queue -> execute -> receipt -> score`) |  |
-| BL-022 | backlog | BL | queued | Two-phase autonomous change execution with automatic rollback |  |
-| BL-023 | backlog | BL | queued | Unified global budget governor across reflex/autonomy/focus/dream/spawn |  |
 | BL-024 | backlog | BL | queued | Event/state schema versioning + validators + migrations |  |
 | BL-025 | backlog | BL | queued | Outcome-linked routing learning by task type |  |
 | BL-026 | backlog | BL | queued | Ops visibility dashboard + SLO alerts for autonomy health |  |

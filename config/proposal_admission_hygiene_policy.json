@@ -1,0 +1,25 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "inputs": {
+    "proposals_path": "state/autonomy/proposal_admission_hygiene/proposals.jsonl"
+  },
+  "static_gate": {
+    "unknown_eye_blocklist": [
+      "unknown",
+      "stub",
+      "unmapped"
+    ],
+    "title_stub_tokens": [
+      "stub",
+      "placeholder",
+      "tbd"
+    ]
+  },
+  "outputs": {
+    "latest_path": "state/autonomy/proposal_admission_hygiene/latest.json",
+    "history_path": "state/autonomy/proposal_admission_hygiene/history.jsonl",
+    "accepted_path": "state/autonomy/proposal_admission_hygiene/accepted.json",
+    "filtered_path": "state/autonomy/proposal_admission_hygiene/filtered.json"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "auto_rollback_default": true,
+  "verify_required_steps": [
+    "tests",
+    "contracts"
+  ],
+  "outputs": {
+    "latest_path": "state/autonomy/two_phase_change_execution/latest.json",
+    "history_path": "state/autonomy/two_phase_change_execution/history.jsonl",
+    "phase_receipts_path": "state/autonomy/improvements/phase_receipts"
+  }
+}

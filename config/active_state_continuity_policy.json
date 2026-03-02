@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "lease_ttl_sec": 300,
+  "redact_keys": [
+    "token",
+    "secret",
+    "api_key",
+    "password",
+    "credential"
+  ],
+  "outputs": {
+    "state_path": "state/continuity/active_state_continuity/state.json",
+    "latest_path": "state/continuity/active_state_continuity/latest.json",
+    "history_path": "state/continuity/active_state_continuity/history.jsonl"
+  }
+}

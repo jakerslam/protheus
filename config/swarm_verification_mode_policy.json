@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "quorum": {
+    "min_votes": 3,
+    "min_agreement_ratio": 0.67,
+    "min_avg_confidence": 0.6
+  },
+  "budget": {
+    "max_tokens_per_verification": 12000
+  },
+  "outputs": {
+    "latest_path": "state/autonomy/swarm_verification_mode/latest.json",
+    "history_path": "state/autonomy/swarm_verification_mode/history.jsonl"
+  }
+}

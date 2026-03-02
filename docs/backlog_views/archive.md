@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T22:17:47.305Z
+Generated: 2026-03-02T22:34:44.678Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -19,7 +19,17 @@ Generated: 2026-03-02T22:17:47.305Z
 | BL-006 | backlog | BL | done | Automated stale-state cleanup helper |  |
 | BL-009 | backlog | BL | done | Hardware-aware local model planner |  |
 | BL-010 | backlog | BL | done | Model variant profiles (`:thinking` and base) |  |
+| BL-011 | backlog | BL | done | Swarm verification mode for deep-thinker |  |
+| BL-012 | backlog | BL | done | Strategy profile layer + architecture genericity guard |  |
 | BL-014 | backlog | BL | done | Phased TypeScript migration for `systems/` + `lib/` |  |
+| BL-015 | backlog | BL | done | Optional reflex sub-layer under habits (fast micro-routines) |  |
+| BL-016 | backlog | BL | done | Cross-device active-state continuity layer |  |
+| BL-018 | backlog | BL | done | Proposal admission + queue hygiene hardening |  |
+| BL-019 | backlog | BL | done | Optional habit cell-pool executor (parallelized by demand + hardware caps) |  |
+| BL-020 | backlog | BL | done | Ignore memory snapshots after backup channels are verified |  |
+| BL-021 | backlog | BL | done | End-to-end pipeline integration tests (`eyes -> insight -> queue -> execute -> receipt -> score`) |  |
+| BL-022 | backlog | BL | done | Two-phase autonomous change execution with automatic rollback |  |
+| BL-023 | backlog | BL | done | Unified global budget governor across reflex/autonomy/focus/dream/spawn |  |
 | BL-030 | backlog | BL | done | Secret broker isolation + scoped credential handles |  |
 | BL-031 | backlog | BL | done | Network egress choke point for autonomous actions |  |
 | BL-042 | backlog | BL | done | Prompt/result cache with TTL + invalidation policy |  |

@@ -1,0 +1,30 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "modules": [
+    "reflex",
+    "autonomy",
+    "focus",
+    "dream",
+    "spawn"
+  ],
+  "module_daily_caps": {
+    "reflex": 1200,
+    "autonomy": 4500,
+    "focus": 1200,
+    "dream": 1500,
+    "spawn": 1500
+  },
+  "daily_token_cap_total": 9000,
+  "contention": {
+    "degrade_at_ratio": 0.85,
+    "deny_at_ratio": 1.0
+  },
+  "outputs": {
+    "state_path": "state/budget/unified_global_budget_governor/state.json",
+    "decisions_path": "state/budget/unified_global_budget_governor/decisions.jsonl",
+    "latest_path": "state/budget/unified_global_budget_governor/latest.json",
+    "history_path": "state/budget/unified_global_budget_governor/history.jsonl",
+    "autopause_path": "state/autonomy/budget_autopause.json"
+  }
+}

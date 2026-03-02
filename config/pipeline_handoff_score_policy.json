@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "thresholds": {
+    "min_score": 0.6
+  },
+  "weights": {
+    "generation": 0.2,
+    "queue_quality": 0.2,
+    "execution": 0.3,
+    "verification": 0.3
+  },
+  "outputs": {
+    "latest_path": "state/ops/pipeline_handoff_score/latest.json",
+    "history_path": "state/ops/pipeline_handoff_score/history.jsonl"
+  }
+}

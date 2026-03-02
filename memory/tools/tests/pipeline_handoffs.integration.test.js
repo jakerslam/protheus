@@ -13,6 +13,7 @@ const PROPOSAL_ENRICHER_PATH = path.join(ROOT, 'systems', 'autonomy', 'proposal_
 const BRIDGE_SCRIPT_PATH = path.join(ROOT, 'systems', 'actuation', 'bridge_from_proposals.js');
 const ACTUATION_EXECUTOR_PATH = path.join(ROOT, 'systems', 'actuation', 'actuation_executor.js');
 const RECEIPT_SUMMARY_PATH = path.join(ROOT, 'systems', 'autonomy', 'receipt_summary.js');
+const PIPELINE_SCORE_PATH = path.join(ROOT, 'systems', 'ops', 'pipeline_handoff_score.js');
 
 function writeJson(filePath, obj) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -320,6 +321,29 @@ async function main() {
   assert.ok(Number(failureReasons.simulated_timeout || 0) >= 1, 'summary should include timeout failure reason');
   assert.ok(Number(failureReasons.simulated_rate_limited || 0) >= 1, 'summary should include rate-limit failure reason');
   assert.ok(Number(failureReasons.simulated_rollback_triggered || 0) >= 1, 'summary should include rollback failure reason');
+
+  const scoreRun = runNode([
+    PIPELINE_SCORE_PATH,
+    'score',
+    `--queue-log=${queueLogPath}`,
+    `--receipt-log=${receiptFile}`,
+    '--strict=0'
+  ], {
+    ...env,
+    PIPELINE_HANDOFF_SCORE_ROOT: tmpRoot,
+    PIPELINE_HANDOFF_SCORE_POLICY_PATH: path.join(tmpRoot, 'config', 'pipeline_handoff_score_policy.json')
+  });
+  assert.strictEqual(scoreRun.status, 0, `pipeline score failed: ${scoreRun.stderr || scoreRun.stdout}`);
+  let scoreOut = null;
+  try {
+    scoreOut = JSON.parse(String(scoreRun.stdout || '{}'));
+  } catch {
+    scoreOut = parseLastJsonLine(scoreRun.stdout);
+  }
+  assert.ok(scoreOut, 'pipeline score payload should parse');
+  assert.ok(Number(scoreOut.metrics && scoreOut.metrics.generated || 0) >= 1, 'pipeline score should see generated proposals');
+  assert.ok(Number(scoreOut.metrics && scoreOut.metrics.executed || 0) >= 1, 'pipeline score should see executed proposals');
+  assert.ok(Number(scoreOut.score || 0) >= 0, 'pipeline score should be numeric');
 
   fs.rmSync(adapterSandboxDir, { recursive: true, force: true });
   fs.rmSync(tmpRoot, { recursive: true, force: true });

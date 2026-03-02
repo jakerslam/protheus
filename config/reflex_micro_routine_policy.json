@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "route": {
+    "min_confidence_for_reflex": 0.78,
+    "max_latency_ms_for_reflex": 900,
+    "reflex_allowed_task_tokens": [
+      "triage",
+      "lint",
+      "status",
+      "summary",
+      "check"
+    ]
+  },
+  "outputs": {
+    "latest_path": "state/reflex/micro_routine_layer/latest.json",
+    "history_path": "state/reflex/micro_routine_layer/history.jsonl"
+  }
+}
