@@ -1,18 +1,183 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T05:06:56.721Z
+Generated: 2026-03-02T06:28:22.265Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
-| V3-OPS-004 | extension | V3 | done | Unified Protheus Control Plane CLI (`protheus`) | stop |
-| V3-RMEM-002 | primitive-upgrade | V3 | done | Rust Index Builder Slice (Benchmark-Gated) | rust for default benchmark policy wiring. |
-| V3-RMEM-005 | hardening | V3 | done | Memory Backend Selector + Fallback Guard (`js | Cross-language migration needs deterministic fail-safe behavior to avoid runtime instability |
+| BL-001 | backlog | BL | done | External temp-data backup pipeline (outside git) |  |
+| BL-002 | backlog | BL | done | Skill quarantine enforcement in all install paths |  |
+| BL-003 | backlog | BL | done | Autonomy receipt dashboard/summary |  |
+| BL-013 | backlog | BL | done | AGI security/governance hardening pack |  |
+| BL-017 | backlog | BL | done | Autonomous skill-add with necessity justification gate |  |
+| BL-036 | backlog | BL | done | Strategic alignment oracle (weekly) |  |
+| BL-037 | backlog | BL | done | Exception novelty classifier + recovery policy |  |
+| BL-038 | backlog | BL | done | Global cost governor + autopause guardrails |  |
+| BL-039 | backlog | BL | done | Dream-to-upstream signal bridge |  |
+| BL-040 | backlog | BL | done | Adaptive dream-model failover + cooldown memory |  |
+| BL-004 | backlog | BL | done | Policy for tracked vs ignored state streams |  |
+| BL-005 | backlog | BL | done | Habit promotion quality hardening |  |
+| BL-006 | backlog | BL | done | Automated stale-state cleanup helper |  |
+| BL-009 | backlog | BL | done | Hardware-aware local model planner |  |
+| BL-010 | backlog | BL | done | Model variant profiles (`:thinking` and base) |  |
+| BL-011 | backlog | BL | done | Swarm verification mode for deep-thinker |  |
+| BL-012 | backlog | BL | done | Strategy profile layer + architecture genericity guard |  |
+| BL-014 | backlog | BL | done | Phased TypeScript migration for `systems/` + `lib/` |  |
+| BL-015 | backlog | BL | done | Optional reflex sub-layer under habits (fast micro-routines) |  |
+| BL-016 | backlog | BL | done | Cross-device active-state continuity layer |  |
+| BL-018 | backlog | BL | done | Proposal admission + queue hygiene hardening |  |
+| BL-019 | backlog | BL | done | Optional habit cell-pool executor (parallelized by demand + hardware caps) |  |
+| BL-020 | backlog | BL | done | Ignore memory snapshots after backup channels are verified |  |
+| BL-021 | backlog | BL | done | End-to-end pipeline integration tests (`eyes -> insight -> queue -> execute -> receipt -> score`) |  |
+| BL-022 | backlog | BL | done | Two-phase autonomous change execution with automatic rollback |  |
+| BL-023 | backlog | BL | done | Unified global budget governor across reflex/autonomy/focus/dream/spawn |  |
+| BL-024 | backlog | BL | done | Event/state schema versioning + validators + migrations |  |
+| BL-025 | backlog | BL | done | Outcome-linked routing learning by task type |  |
+| BL-026 | backlog | BL | done | Ops visibility dashboard + SLO alerts for autonomy health |  |
+| BL-027 | backlog | BL | done | Execution-worthiness scoring at queue admission |  |
+| BL-028 | backlog | BL | done | Outcome calibration by proposal type (post BL-027 companion) |  |
+| BL-029 | backlog | BL | done | Weekly strategy synthesis from executed outcomes |  |
+| BL-030 | backlog | BL | done | Secret broker isolation + scoped credential handles |  |
+| BL-031 | backlog | BL | done | Network egress choke point for autonomous actions |  |
+| BL-032 | backlog | BL | done | Signed startup attestation + integrity check at run boot |  |
+| BL-033 | backlog | BL | done | Quorum validator for high-tier self-modification proposals |  |
+| BL-034 | backlog | BL | done | Operator runbook for incidents + rollback drills |  |
+| BL-035 | backlog | BL | done | Required-Checks branch protection policy |  |
+| BL-041 | backlog | BL | done | Batch execution lane for low-urgency LLM work |  |
+| BL-042 | backlog | BL | done | Prompt/result cache with TTL + invalidation policy |  |
+| BL-043 | backlog | BL | done | Parallel eyes execution with budget-aware concurrency |  |
+| BL-007 | backlog | BL | done | Backup integrity checks |  |
+| BL-008 | backlog | BL | done | Repo hygiene CI check for generated artifacts |  |
+| V1H-001 | backlog | V1H | done | Full-pipeline integration/e2e hardening |  |
+| V1H-002 | backlog | V1H | done | Release-gate + canary/rollback enforcement expansion |  |
+| V1H-003 | backlog | V1H | done | Observability + SLO + runbook completion pass |  |
+| V1H-004 | backlog | V1H | done | Threat-model-driven security test pack |  |
+| V1H-005 | backlog | V1H | done | Contract/version governance closure across adaptive boundaries |  |
+| V1H-006 | backlog | V1H | done | Baseline adaptive-mutation safety kernel |  |
+| V1H-007 | backlog | V1H | done | Baseline objective value-currency propagation |  |
+| V1H-008 | backlog | V1H | done | Read-only recursive introspection baseline |  |
+| V2-001 | backlog | V2 | done | Full repo TypeScript conversion (`.js` -> `.ts`) |  |
+| V2-002 | backlog | V2 | done | Explore polyglot service modules behind strict contracts |  |
+| V2-003 | backlog | V2 | done | Dist runtime cutover + legacy paired JS retirement |  |
+| V2-006 | backlog | V2 | done | Task-type outcome learning upgrade |  |
+| V2-007 | backlog | V2 | done | Self-experimentation framework with promotion gates |  |
+| V2-008 | backlog | V2 | done | Global capability switchboard (security-locked) |  |
+| V2-009 | backlog | V2 | done | Exterior anti-sabotage shield + instant auto-reset |  |
+| V2-010 | backlog | V2 | done | Chaos testing program (adaptive + orchestration lanes) |  |
+| V2-011 | backlog | V2 | done | Scale/performance benchmarking harness |  |
+| V2-013 | backlog | V2 | done | Compliance/reporting automation (optional enterprise track) |  |
+| V2-014 | backlog | V2 | done | Multi-team/multi-environment release governance |  |
+| V2-015 | backlog | V2 | done | Adaptive LLM seed -> specialist training (hardware-aware) |  |
+| V2-016 | backlog | V2 | done | Dynamic optimization floor by objective criticality |  |
+| V2-017 | backlog | V2 | done | Optimization aperture sensing controller (risk-adaptive) |  |
+| V2-018 | backlog | V2 | done | Ternary belief reasoning engine for spine state modeling |  |
+| V2-018B | backlog | V2 | done | SOC2 Type I readiness pack (control mapping + evidence index) |  |
+| V2-019 | backlog | V2 | done | Disaster recovery game-days + RTO/RPO validation |  |
+| V2-020 | backlog | V2 | done | Incident postmortem learning loop (blameless + enforceable actions) |  |
+| V2-021 | backlog | V2 | done | Maintainer handoff pack + bus-factor guardrails |  |
+| V2-022 | backlog | V2 | done | Comprehensive documentation system (docs-as-code + coverage gates) |  |
+| V2-023 | backlog | V2 | done | Autonomous skill generation pipeline (guarded) |  |
+| V2-025 | backlog | V2 | done | Fractal morph planner (directive-conditioned topology) |  |
+| V2-026 | backlog | V2 | done | Genome topology ledger + mutation journal |  |
+| V2-027 | backlog | V2 | done | Evolution arena (spawn-broker A/B variant trials) |  |
+| V2-028 | backlog | V2 | done | Full adaptive mutation safety kernel expansion |  |
+| V2-029 | backlog | V2 | done | Full directive-to-system value currency propagation |  |
+| V2-030 | backlog | V2 | done | Full recursive organism introspection map |  |
+| V2-031 | backlog | V2 | done | System black-box hash ledger (EU compliance fallback) |  |
+| V2-032 | backlog | V2 | done | Dream consolidation gate (bounded sleep cycle) |  |
+| V2-033 | backlog | V2 | done | Epigenetic regulation tags |  |
+| V2-034 | backlog | V2 | done | Signed pheromone signaling lane |  |
+| V2-035 | backlog | V2 | done | Resonance/harmony score controller |  |
+| V2-036 | backlog | V2 | done | Collective archetype pool |  |
+| V2-037 | backlog | V2 | done | Observer/Mirror read-only narration layer |  |
+| V2-038 | backlog | V2 | done | Collective Shadow ranking lane |  |
+| V2-039 | backlog | V2 | done | Nursery promotion hardening (lineage + cooldown + evidence floor) |  |
+| V2-040 | backlog | V2 | done | Orchestron emergence hardening pass (candidate risk + trit gates + lineage metadata + richer birth telemetry) |  |
+| V2-041 | backlog | V2 | done | Per-candidate adversarial simulation lane (sandboxed micro red-team) |  |
+| V2-043 | backlog | V2 | done | Orchestron creative-primary + trit-depth recursion pass |  |
+| V2-044 | backlog | V2 | done | In-run workflow evolution lane (step-boundary mutation apply) |  |
+| V2-045 | backlog | V2 | done | Identity Organ (alignment anchor over fractal branches) |  |
+| V2-046 | backlog | V2 | done | Regime Organ (task/environment regime sensing + morph trigger) |  |
+| V2-047 | backlog | V2 | done | Mirror Organ (active self-observation and self-critique) |  |
+| V2-048 | backlog | V2 | done | Deterministic autotest doctor v0 (separate repair plane + auto kill-switch) |  |
+| V2-049 | backlog | V2 | done | Signed recipe pack + immutable recipe release channel for autotest doctor |  |
+| V2-050 | backlog | V2 | done | Per-recipe sandbox verification and canary promotion for doctor actions |  |
+| V2-051 | backlog | V2 | done | Broken-piece lab pipeline (rollback bundles -> dormant study queue -> safe reimplementation proposals) |  |
+| V2-052 | backlog | V2 | done | Independent repair-plane watchdog (out-of-band verifier) |  |
+| V3-001 | backlog | V3 | done | Recursive goal-preservation kernel |  |
+| V3-002 | backlog | V3 | done | Capability ceiling + containment envelopes |  |
+| V3-003 | backlog | V3 | done | New-model vaccine sandbox (containment pen-test lane) |  |
+| V3-004 | backlog | V3 | done | Constitution Protection Layer (epic tracker) |  |
+| V3-005 | backlog | V3 | done | External anti-sabotage provenance net |  |
+| V3-006 | backlog | V3 | done | Recursive mini-core instancing (nested Protheus branches) |  |
+| V3-007 | backlog | V3 | done | Self-code evolution sandbox + guarded merge |  |
+| V3-008 | backlog | V3 | done | Runtime symbiotic fusion execution chamber |  |
+| V3-009 | backlog | V3 | done | Resonance field actuation gates |  |
+| V3-010 | backlog | V3 | done | Global molt cycle (scheduled compaction/pruning) |  |
+| V3-012 | backlog | V3 | done | Product positioning/architecture narrative pack |  |
+| V3-013 | backlog | V3 | done | Independent child-organ runtime stack for recursive workflows |  |
+| V3-014 | backlog | V3 | done | In-flight workflow mutation engine (runtime step-level adaptation) |  |
+| V3-015 | backlog | V3 | done | Consent-gated cross-workflow learning conduit to master model queue |  |
+| V3-016 | backlog | V3 | done | Central Eye kernel (`systems/eye`) with governed subsumption adapters |  |
+| V3-017 | backlog | V3 | done | Full real-world claws actuation bundle |  |
+| V3-018 | backlog | V3 | done | Research Organ (long-horizon closed-loop research sub-organ) |  |
+| V3-019 | backlog | V3 | done | Forge Organ (rapid temporary capability assembly) |  |
+| V3-020 | backlog | V3 | done | Protheus Prime seed profile + bounded-core manifest |  |
+| V3-021 | backlog | V3 | done | Attested hardware assimilation plane (node join + lease scheduler) |  |
+| V3-030 | backlog | V3 | done | Tool assimilation pipeline (Research -> Forge -> Nursery -> Doctor graft) |  |
+| V3-DUAL-001 | backlog | V3 | done | Duality Belief Engine Seed |  |
+| V3-ATTR-001 | backlog | V3 | done | Lightweight Value Attribution Primitive |  |
+| V3-ATTR-002 | backlog | V3 | done | Storm Value Distribution Layer |  |
+| V3-ATTR-003 | backlog | V3 | done | Creator Opt-In & Public Assimilation Ledger |  |
+| V3-TASK-001 | backlog | V3 | done | Task Decomposition Primitive + Parallel Micro-Task Execution |  |
+| V3-ASSIM-004 | backlog | V3 | done | Memory Evolution Primitive (MemRL-inspired) |  |
+| V3-ASSIM-005 | backlog | V3 | done | Context Navigation Primitive (RLM-inspired) |  |
+| V3-ASSIM-006 | backlog | V3 | done | Generative Simulation Mode |  |
+| V3-ASSIM-007 | backlog | V3 | done | Collective Reasoning Primitive |  |
+| V3-ASSIM-008 | backlog | V3 | done | Environment-Centric Evolution Layer |  |
+| V3-ASSIM-009 | backlog | V3 | done | Test-Time Memory Evolution Primitive |  |
+| V3-ASSIM-010 | backlog | V3 | done | Group-Evolving Agents Primitive |  |
+| V3-ASSIM-011 | backlog | V3 | done | Generative Meta-Model Primitive |  |
+| V3-ASSIM-012 | backlog | V3 | done | Self-Teacher Distillation Primitive |  |
+| V3-ASSIM-013 | backlog | V3 | done | Adaptive Ensemble Routing Primitive |  |
+| V3-ASSIM-014 | backlog | V3 | done | Background Persistent Agent Runtime |  |
+| V3-ASSIM-015 | backlog | V3 | done | Federated Group-Evolution Archive Bridge |  |
+| V3-ASSIM-016 | backlog | V3 | done | Computer-Use Hardening Profiles |  |
+| V3-ASSIM-017 | backlog | V3 | done | Agentic Transaction Negotiation Profiles |  |
+| V3-ASSIM-018 | backlog | V3 | done | Axolotl Seed-Training Bridge + Native Distillation |  |
+| V3-ASSIM-019 | backlog | V3 | done | Nursery Real Trainer Backend Wiring (Non-Scaffold) |  |
+| V3-RED-003 | backlog | V3 | done | Harness Apply Path for Self-Improving Red-Team |  |
+| V3-TASK-002 | backlog | V3 | done | Task Decomposition Live Execution Handoff |  |
+| V3-ATTR-004 | backlog | V3 | done | Storm Distribution Settlement Executor Lane |  |
 | V3-RACE-024 | hardening | V3 | done | Daemon Soak Promotion Gate + Receipts (24-48h) | V3-RACE-023, RM-122 |
 | V3-RACE-025 | hardening | V3 | done | Daemon Supervision + Stale PID/Socket Reaper | V3-RACE-023, V3-OPS-005 |
 | V3-RACE-026 | hardening | V3 | done | Fallback Retirement Gate (JS Emergency-Only) | V3-RACE-024, V3-RMEM-006 |
 | V3-RACE-027 | primitive-upgrade | V3 | done | Direct Memory Encryption Plane Integration (Replace DB Shim) | V3-RACE-023, V3-ENT-002 |
 | V3-RACE-028 | primitive-upgrade | V3 | done | In-Process Rust Memory Binding Lane (`napi-rs`) | V3-RACE-024, V3-RACE-025 |
-| V3-DEP-001 | hardening | V3 | done | Deterministic One-Line Installer + Signed Release Channel | sh + offline script variant) that verifies signed artifact + checksum/SBOM provenance before install, supports explicit version pinning, and fails closed on verification mismatch |
+| V3-SKIN-001 | backlog | V3 | done | Contract-Coupled Defense Dependency Mesh |  |
+| V3-SKIN-002 | backlog | V3 | done | Runtime Tamper Attestation + Self-Containment |  |
+| V3-SKIN-003 | backlog | V3 | done | Binary Hardening Profile + Anti-RE Telemetry |  |
+| V3-VENOM-000 | backlog | V3 | done | No Offensive Behavior Invariant |  |
+| V3-VENOM-001 | backlog | V3 | done | Attractive Full-Capability Facade + Triggered Containment Escalation |  |
+| V3-VENOM-002 | backlog | V3 | done | Defensive Decoy Response Layer (Non-Destructive) |  |
+| V3-VENOM-003 | backlog | V3 | done | Bounded Verification Friction Escalation |  |
+| V3-VENOM-004 | backlog | V3 | done | Timed Lease Decay + Deterministic Lockout |  |
+| V3-VENOM-005 | backlog | V3 | done | Self-Reporting Forensic Beacon System |  |
+| V3-VENOM-006 | backlog | V3 | done | Adaptive Defense Evolution Engine |  |
+| V3-VENOM-007 | backlog | V3 | done | Staged Containment Ramp |  |
+| V3-RED-002 | backlog | V3 | done | Open-Ended Defensive Tool Discovery + Evolution Lane |  |
+| V3-RED-ESC-001 | backlog | V3 | done | Adaptive Cost-Escalation Profiles + Runtime Fingerprint Classes |  |
+| V3-RED-ESC-002 | backlog | V3 | done | Dynamic Friction Scaling Controller |  |
+| V3-RED-ESC-003 | backlog | V3 | done | Bounded Resource-Sink Decoy Paths |  |
+| V3-RED-ESC-004 | backlog | V3 | done | Evolutionary Cost Model Trainer (Stack-Adaptive + Category Expansion) |  |
+| V3-RED-HALL-001 | backlog | V3 | done | Governed Defensive Exemption Primitive |  |
+| V3-RED-HALL-002 | backlog | V3 | done | Exemption Registry + Expiry/Audit Enforcement |  |
+| V3-RED-HALL-003 | backlog | V3 | done | Adaptive Exemption Calibration Loop |  |
+| V3-RED-NASTY-001 | backlog | V3 | done | Adaptive "Tease & Trap" Deception |  |
+| V3-RED-NASTY-002 | backlog | V3 | done | Stack-Specific Resource Poisoning |  |
+| V3-RED-NASTY-003 | backlog | V3 | done | Psychological Decay Tease |  |
+| V3-RED-NASTY-004 | backlog | V3 | done | Self-Replicating Containment Children |  |
+| V3-QPROOF-001 | backlog | V3 | done | Post-Quantum Hash + Signing Migration Lane |  |
+| V3-QPROOF-002 | backlog | V3 | done | Self-Learning Quantum Security Primitive Synthesis |  |
 | V3-RACE-001 | primitive-upgrade | V3 | done | Rust Core Runtime Kernel Slice | V3-RMEM-001, V3-OPS-005, V3-OPS-006 |
 | V3-RACE-002 | hardening | V3 | done | Wasmtime Capability Microkernel Lane | V3-OF-001, V3-CPY-006, V3-VENOM-000 |
 | V3-RACE-003 | primitive-upgrade | V3 | done | Event-Sourced Control Plane + CQRS Materialized Views | V3-SK-001, V3-SK-002, V3-SK-007 |
@@ -131,4 +296,10 @@ Generated: 2026-03-02T05:06:56.721Z
 | V3-RACE-112 | primitive-upgrade | V3 | done | Analysis Kernel Stage Interface & Plugin Contracts | V3-RACE-078, V3-RACE-081, V3-RACE-083, V3-RACE-084 |
 | V3-RACE-113 | hardening | V3 | done | Compatibility Tail Retirement (TS-First Runtime) | V2-001, V2-003, BL-014, V3-RACE-068 |
 | V3-RACE-114 | hardening | V3 | done | Control-Plane Live Activation & Shadow Exit Gate | V3-RACE-017, V3-RACE-021, V3-RACE-034, V3-RACE-041 |
+| OPT-001 | backlog | OPT | done | Eyes signal weighting retune in router ranking |  |
+| OPT-002 | backlog | OPT | done | Prompt cache policy split by lane (reflex/autonomy/dream) |  |
+| OPT-003 | backlog | OPT | done | Dream fallback quality scoring before proposal injection |  |
+| OPT-004 | backlog | OPT | done | Proposal semantic dedupe (near-duplicate clustering) |  |
+| OPT-005 | backlog | OPT | done | Outcome correlation expansion (task-type x eye-source x model) |  |
+| OPT-006 | backlog | OPT | done | Focus-controller trigger adaptation cadence tuning |  |
 

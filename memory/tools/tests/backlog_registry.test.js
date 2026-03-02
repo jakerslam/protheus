@@ -37,9 +37,10 @@ function writeBacklog(root) {
     '',
     '| ID | Class | Wave | Status | Title | Problem | Acceptance | Dependencies |',
     '|---|---|---|---|---|---|---|---|',
-    '| V3-RACE-111 | extension | V3 | queued | Canonical Backlog Registry + Generated Views | Manual edits drift. | Canonical source + generated views. | V3-RACE-CONF-003 |',
+    '| V3-RACE-111 | extension | V3 | queued | Canonical Backlog Registry + Generated Views | Manual edits drift. | Canonical source + generated views with verify receipts and rollback path. | V3-RACE-CONF-003 |',
+    '| V3-RACE-112 | hardening | V3 | queued | CLI surface (`protheus start | stop`) | Multi-entrypoint drift. | Verify one command contract and rollback if regressions appear. | V3-RACE-111 |',
     '| V3-RACE-110 | primitive-upgrade | V3 | done | Memory Transport Abstraction Unification | Mixed transport semantics. | One transport abstraction and parity tests. | V3-RACE-023 |',
-    '| V3-RACE-113 | hardening | V3 | blocked | Compatibility Tail Retirement | Dual TS/JS paths. | Retire compatibility tail after parity proof. | V2-001 |',
+    '| V3-RACE-113 | hardening | V3 | blocked | Compatibility Tail Retirement | Dual TS/JS paths. | Retire compatibility tail after verify proof and rollback guard. | V2-001 |',
     ''
   ].join('\n');
   fs.writeFileSync(path.join(root, 'UPGRADE_BACKLOG.md'), backlog, 'utf8');
@@ -62,6 +63,7 @@ function makeWorkspace() {
       registry_path: path.join(root, 'config', 'backlog_registry.json'),
       active_view_path: path.join(root, 'docs', 'backlog_views', 'active.md'),
       archive_view_path: path.join(root, 'docs', 'backlog_views', 'archive.md'),
+      state_path: path.join(root, 'state', 'ops', 'backlog_registry', 'state.json'),
       latest_path: path.join(root, 'state', 'ops', 'backlog_registry', 'latest.json'),
       receipts_path: path.join(root, 'state', 'ops', 'backlog_registry', 'receipts.jsonl')
     }
@@ -97,13 +99,18 @@ runTest('sync writes canonical registry + active/archive views', () => {
   const registryPath = path.join(root, 'config', 'backlog_registry.json');
   const activePath = path.join(root, 'docs', 'backlog_views', 'active.md');
   const archivePath = path.join(root, 'docs', 'backlog_views', 'archive.md');
+  const statePath = path.join(root, 'state', 'ops', 'backlog_registry', 'state.json');
   assert.ok(fs.existsSync(registryPath), 'registry missing');
   assert.ok(fs.existsSync(activePath), 'active view missing');
   assert.ok(fs.existsSync(archivePath), 'archive view missing');
+  assert.ok(fs.existsSync(statePath), 'state missing');
   const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
-  assert.strictEqual(registry.row_count, 3);
+  assert.strictEqual(registry.row_count, 4);
   assert.ok(fs.readFileSync(activePath, 'utf8').includes('V3-RACE-111'), 'active view missing queued row');
   assert.ok(fs.readFileSync(archivePath, 'utf8').includes('V3-RACE-110'), 'archive view missing done row');
+  const row112 = registry.rows.find((row) => row.id === 'V3-RACE-112');
+  assert.ok(row112, 'expected V3-RACE-112 row');
+  assert.ok(String(row112.title || '').includes('start | stop'), 'parser should preserve pipe in code span');
 });
 
 runTest('check strict fails when views drift', () => {
@@ -136,6 +143,24 @@ runTest('check non-strict reports drift but exits zero', () => {
   const out = parseJson(check.stdout);
   assert.ok(out && out.ok === false, 'expected drift report');
   assert.ok(Number(out.drift_count || 0) > 0, 'expected positive drift count');
+});
+
+runTest('metrics and triage commands emit expected governance views', () => {
+  const root = makeWorkspace();
+  const sync = runCmd(root, ['sync']);
+  assert.strictEqual(sync.status, 0, `sync failed: ${sync.stderr}`);
+
+  const metrics = runCmd(root, ['metrics']);
+  assert.strictEqual(metrics.status, 0, `metrics failed: ${metrics.stderr}`);
+  const metricsOut = parseJson(metrics.stdout);
+  assert.ok(metricsOut && metricsOut.ok === true, 'metrics should succeed');
+  assert.ok(Number(metricsOut.row_count || 0) >= 4, 'metrics row_count mismatch');
+
+  const triage = runCmd(root, ['triage', '--limit=5']);
+  assert.strictEqual(triage.status, 0, `triage failed: ${triage.stderr}`);
+  const triageOut = parseJson(triage.stdout);
+  assert.ok(triageOut && triageOut.ok === true, 'triage should succeed');
+  assert.ok(Array.isArray(triageOut.ready_queue), 'triage ready_queue missing');
 });
 
 if (failed) {

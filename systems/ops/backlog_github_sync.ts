@@ -72,6 +72,13 @@ function defaultPolicy() {
       close_on_archive: false,
       project_sync: false,
       project_v2_id: ''
+    },
+    workflow: {
+      close_on_done: true,
+      done_statuses: ['done', 'dropped', 'archived', 'obsolete'],
+      require_pr_link_for_statuses: ['in_progress'],
+      require_pr_link_strict: true,
+      pr_link_markers: ['/pull/', 'github.com/']
     }
   };
 }
@@ -81,6 +88,17 @@ function normalizeList(raw: unknown, fallback: string[] = []) {
   const out: string[] = [];
   for (const entry of raw) {
     const tok = normalizeToken(entry, 120);
+    if (!tok) continue;
+    if (!out.includes(tok)) out.push(tok);
+  }
+  return out.length ? out : fallback.slice();
+}
+
+function normalizeMarkers(raw: unknown, fallback: string[] = []) {
+  if (!Array.isArray(raw)) return fallback.slice();
+  const out: string[] = [];
+  for (const entry of raw) {
+    const tok = String(cleanText(entry, 120) || '').trim().toLowerCase();
     if (!tok) continue;
     if (!out.includes(tok)) out.push(tok);
   }
@@ -100,6 +118,7 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   const raw = loaded.raw || {};
   const p = raw.paths && typeof raw.paths === 'object' ? raw.paths : {};
   const gh = raw.github && typeof raw.github === 'object' ? raw.github : {};
+  const wf = raw.workflow && typeof raw.workflow === 'object' ? raw.workflow : {};
 
   return {
     version: cleanText(raw.version || base.version, 40) || base.version,
@@ -128,6 +147,13 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
       close_on_archive: toBool(gh.close_on_archive, base.github.close_on_archive),
       project_sync: toBool(gh.project_sync, base.github.project_sync),
       project_v2_id: cleanText(gh.project_v2_id || base.github.project_v2_id, 240) || ''
+    },
+    workflow: {
+      close_on_done: toBool(wf.close_on_done, base.workflow.close_on_done),
+      done_statuses: normalizeList(wf.done_statuses, base.workflow.done_statuses),
+      require_pr_link_for_statuses: normalizeList(wf.require_pr_link_for_statuses, base.workflow.require_pr_link_for_statuses),
+      require_pr_link_strict: toBool(wf.require_pr_link_strict, base.workflow.require_pr_link_strict),
+      pr_link_markers: normalizeMarkers(wf.pr_link_markers, base.workflow.pr_link_markers)
     },
     policy_path: path.resolve(policyPath)
   };
@@ -179,7 +205,9 @@ function loadState(policy: AnyObj) {
       last_row_hash: cleanText(item.last_row_hash || '', 120) || null,
       last_row_status: normalizeToken(item.last_row_status || '', 80) || null,
       project_v2_item_id: cleanText(item.project_v2_item_id || '', 240) || null,
-      last_synced_at: cleanText(item.last_synced_at || '', 64) || null
+      last_synced_at: cleanText(item.last_synced_at || '', 64) || null,
+      last_status_change_at: cleanText(item.last_status_change_at || '', 64) || null,
+      last_content_change_at: cleanText(item.last_content_change_at || '', 64) || null
     };
   }
   return {
@@ -366,10 +394,22 @@ function parseIssue(payload: AnyObj) {
     title: cleanText(payload.title || '', 240),
     body: String(payload.body || ''),
     state: normalizeToken(payload.state || 'open', 24) || 'open',
+    updated_at: cleanText(payload.updated_at || '', 64) || null,
     labels: Array.isArray(payload.labels)
       ? payload.labels.map((row: AnyObj) => cleanText(row && row.name || '', 50)).filter(Boolean)
       : []
   };
+}
+
+function hasPrLink(body: string, markers: string[]) {
+  const blob = String(body || '').toLowerCase();
+  if (!blob) return false;
+  for (const marker of markers || []) {
+    const tok = String(marker || '').trim().toLowerCase();
+    if (!tok) continue;
+    if (blob.includes(tok)) return true;
+  }
+  return false;
 }
 
 function issueByNumber(policy: AnyObj, issueNumber: number) {
@@ -550,6 +590,11 @@ function syncCmd(args: AnyObj, policy: AnyObj) {
       dependencies: Array.isArray(row.dependencies) ? row.dependencies.map((d: unknown) => cleanText(d, 120)).filter(Boolean) : []
     }))
     .filter((row: AnyObj) => !!row.id);
+  const statusById = new Map<string, string>(
+    (reg.rows || [])
+      .map((row: AnyObj) => [cleanText(row && row.id || '', 120).replace(/`/g, ''), normalizeToken(row && row.status || '', 80)])
+      .filter((pair: any[]) => !!pair[0] && !!pair[1])
+  );
 
   const state = loadState(policy);
   const nextState: AnyObj = {
@@ -561,6 +606,7 @@ function syncCmd(args: AnyObj, policy: AnyObj) {
   let updated = 0;
   let unchanged = 0;
   let skipped = 0;
+  let closed_done = 0;
   const errors: AnyObj[] = [];
   const warnings: AnyObj[] = [];
   const actions: AnyObj[] = [];
@@ -583,6 +629,17 @@ function syncCmd(args: AnyObj, policy: AnyObj) {
     const body = formatIssueBody(row, rowHash, policy);
 
     const stateRow = nextState.issues_by_id[row.id] || {};
+    const nowTs = nowIso();
+    const prevStatus = normalizeToken(stateRow.last_row_status || '', 80) || null;
+    const prevHash = cleanText(stateRow.last_row_hash || '', 80) || null;
+    const statusChanged = !prevStatus || prevStatus !== row.status;
+    const contentChanged = !prevHash || prevHash !== rowHash;
+    const lastStatusChangeAt = statusChanged
+      ? nowTs
+      : (cleanText(stateRow.last_status_change_at || '', 64) || nowTs);
+    const lastContentChangeAt = contentChanged
+      ? nowTs
+      : (cleanText(stateRow.last_content_change_at || '', 64) || nowTs);
 
     let issue: AnyObj | null = null;
     if (authOk) {
@@ -616,7 +673,9 @@ function syncCmd(args: AnyObj, policy: AnyObj) {
           issue_state: issue.state,
           last_row_hash: rowHash,
           last_row_status: row.status,
-          last_synced_at: nowIso(),
+          last_synced_at: nowTs,
+          last_status_change_at: lastStatusChangeAt,
+          last_content_change_at: lastContentChangeAt,
           project_v2_item_id: stateRow.project_v2_item_id || null
         };
       }
@@ -665,7 +724,9 @@ function syncCmd(args: AnyObj, policy: AnyObj) {
       last_row_hash: rowHash,
       last_row_status: row.status,
       project_v2_item_id: projectItemId,
-      last_synced_at: nowIso()
+      last_synced_at: nowTs,
+      last_status_change_at: lastStatusChangeAt,
+      last_content_change_at: lastContentChangeAt
     };
 
     actions.push({
@@ -705,6 +766,39 @@ function syncCmd(args: AnyObj, policy: AnyObj) {
     }
   }
 
+  if (apply && policy.workflow && policy.workflow.close_on_done === true) {
+    const doneStatuses = new Set(policy.workflow.done_statuses || []);
+    for (const [id, item] of Object.entries(nextState.issues_by_id || {})) {
+      const issueNum = Number(item && item.issue_number || 0);
+      if (!issueNum) continue;
+      const backlogStatus = normalizeToken(statusById.get(id) || '', 80);
+      if (!backlogStatus || !doneStatuses.has(backlogStatus)) continue;
+      if (!authOk) {
+        warnings.push({ id, warning: 'close_on_done_skipped_auth_missing' });
+        continue;
+      }
+      const owner = encodeURIComponent(policy.github.owner);
+      const repo = encodeURIComponent(policy.github.repo);
+      const closeRes = ghApi(policy, 'PATCH', `repos/${owner}/${repo}/issues/${issueNum}`, { state: 'closed' });
+      if (!closeRes.ok) {
+        warnings.push({ id, warning: `done_close_failed:${parseErrorText(closeRes)}` });
+        continue;
+      }
+      const parsed = parseIssue(closeRes.json);
+      closed_done += 1;
+      actions.push({ id, action: 'closed_done', issue_number: issueNum });
+      if (parsed) {
+        nextState.issues_by_id[id] = {
+          ...item,
+          issue_state: parsed.state,
+          issue_url: parsed.url || item.issue_url || null,
+          issue_node_id: parsed.node_id || item.issue_node_id || null,
+          last_synced_at: nowIso()
+        };
+      }
+    }
+  }
+
   if (apply) saveState(policy, nextState);
 
   const hardFailure = errors.length > 0;
@@ -724,6 +818,7 @@ function syncCmd(args: AnyObj, policy: AnyObj) {
       updated,
       unchanged,
       skipped,
+      closed_done,
       errors,
       warnings,
       actions: actions.slice(0, 80),
@@ -750,6 +845,11 @@ function checkCmd(args: AnyObj, policy: AnyObj) {
   const reg = loadRegistry(policy);
   const state = loadState(policy);
   const authOk = ghAuthOk(policy);
+  const statusById = new Map<string, string>(
+    (reg.ok ? reg.rows : [])
+      .map((row: AnyObj) => [cleanText(row && row.id || '', 120).replace(/`/g, ''), normalizeToken(row && row.status || '', 80)])
+      .filter((pair: any[]) => !!pair[0] && !!pair[1])
+  );
 
   const stateRows = state && state.issues_by_id && typeof state.issues_by_id === 'object'
     ? state.issues_by_id
@@ -769,9 +869,44 @@ function checkCmd(args: AnyObj, policy: AnyObj) {
 
   const registryIds = new Set<string>((reg.ok ? reg.rows : []).map((row: AnyObj) => cleanText(row.id || '', 120)).filter(Boolean));
   const staleMappings = Object.keys(stateRows).filter((id) => !registryIds.has(id));
+  const missingPrLinks: AnyObj[] = [];
+  const prLinkStatuses = new Set<string>(
+    Array.isArray(policy.workflow && policy.workflow.require_pr_link_for_statuses)
+      ? policy.workflow.require_pr_link_for_statuses
+      : []
+  );
+  const prLinkMarkers = Array.isArray(policy.workflow && policy.workflow.pr_link_markers)
+    ? policy.workflow.pr_link_markers
+    : [];
+  if (prLinkStatuses.size > 0) {
+    for (const [id, status] of statusById.entries()) {
+      if (!prLinkStatuses.has(status)) continue;
+      const mapped = stateRows[id] && typeof stateRows[id] === 'object' ? stateRows[id] : null;
+      if (!mapped || Number(mapped.issue_number || 0) <= 0) {
+        missingPrLinks.push({ id, status, reason: 'issue_mapping_missing' });
+        continue;
+      }
+      if (!authOk) {
+        missingPrLinks.push({ id, status, issue_number: Number(mapped.issue_number || 0), reason: 'auth_missing' });
+        continue;
+      }
+      const issue = issueByNumber(policy, Number(mapped.issue_number || 0));
+      if (!issue) {
+        missingPrLinks.push({ id, status, issue_number: Number(mapped.issue_number || 0), reason: 'issue_not_found' });
+        continue;
+      }
+      if (!hasPrLink(String(issue.body || ''), prLinkMarkers)) {
+        missingPrLinks.push({ id, status, issue_number: issue.number, reason: 'pr_link_missing' });
+      }
+    }
+  }
 
   const authFailure = policy.github.auth_required && !authOk;
-  const ok = !!reg.ok && !authFailure && duplicateIssueNumbers.length === 0;
+  const prLinkStrict = policy.workflow && policy.workflow.require_pr_link_strict === true;
+  const ok = !!reg.ok
+    && !authFailure
+    && duplicateIssueNumbers.length === 0
+    && (!prLinkStrict || missingPrLinks.length === 0);
 
   const out = writeArtifactSet(
     { latestPath: policy.paths.latest_path, receiptsPath: policy.paths.receipts_path },
@@ -789,6 +924,9 @@ function checkCmd(args: AnyObj, policy: AnyObj) {
       stale_mappings: staleMappings.slice(0, 50),
       duplicate_issue_numbers: duplicateIssueNumbers,
       duplicate_issue_number_count: duplicateIssueNumbers.length,
+      pr_link_strict: prLinkStrict,
+      pr_link_missing_count: missingPrLinks.length,
+      pr_link_missing: missingPrLinks.slice(0, 50),
       state_path: rel(policy.paths.state_path),
       registry_path: rel(policy.paths.registry_path),
       github: {

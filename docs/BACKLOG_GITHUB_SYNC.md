@@ -39,12 +39,19 @@ Key controls:
 - `github.update_labels`
 - `github.create_missing_labels`
 - `github.project_sync` + `github.project_v2_id` (optional)
+- `workflow.close_on_done` + `workflow.done_statuses`
+- `workflow.require_pr_link_for_statuses` + `workflow.require_pr_link_strict`
 
 ## Artifacts
 
 - Latest receipt: `state/ops/backlog_github_sync/latest.json`
 - Receipt history: `state/ops/backlog_github_sync/receipts.jsonl`
 - Mapping state: `state/ops/backlog_github_sync/state.json`
+
+## Workflow Hygiene
+
+- Issues mapped to backlog rows that move to `done/dropped/archived/obsolete` can be auto-closed on sync (`workflow.close_on_done`).
+- `check` validates PR-link presence in issue bodies for selected statuses (default: `in_progress`) using marker matching (`/pull/`).
 
 ## Spine Automation
 

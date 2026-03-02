@@ -348,6 +348,49 @@ runTest('check strict fails when auth is required but unavailable', () => {
   assert.strictEqual(out.auth_ok, false, 'auth_ok should be false');
 });
 
+runTest('sync closes mapped issue when backlog row transitions to done', () => {
+  const ctx = makeWorkspace();
+  let r = runCmd(ctx, ['sync', '--apply=1', '--strict=1']);
+  assert.strictEqual(r.status, 0, `first sync failed: ${r.stderr}`);
+
+  const registry = JSON.parse(fs.readFileSync(ctx.registryPath, 'utf8'));
+  registry.rows = registry.rows.map((row) => row.id === 'V3-RACE-115' ? { ...row, status: 'done' } : row);
+  fs.writeFileSync(ctx.registryPath, `${JSON.stringify(registry, null, 2)}\n`, 'utf8');
+
+  r = runCmd(ctx, ['sync', '--apply=1', '--strict=1']);
+  assert.strictEqual(r.status, 0, `done sync failed: ${r.stderr}`);
+  const out = parseJson(r.stdout);
+  assert.ok(out && Number(out.closed_done || 0) >= 1, 'expected done issue closure');
+
+  const db = JSON.parse(fs.readFileSync(ctx.dbPath, 'utf8'));
+  assert.strictEqual(String(db.issues[0].state || ''), 'closed', 'issue should be closed');
+});
+
+runTest('check strict fails when in_progress issue lacks PR link marker', () => {
+  const ctx = makeWorkspace();
+  const registry = JSON.parse(fs.readFileSync(ctx.registryPath, 'utf8'));
+  registry.rows = registry.rows.map((row) => row.id === 'V3-RACE-115' ? { ...row, status: 'in_progress' } : row);
+  fs.writeFileSync(ctx.registryPath, `${JSON.stringify(registry, null, 2)}\n`, 'utf8');
+
+  let r = runCmd(ctx, ['sync', '--apply=1', '--strict=1']);
+  assert.strictEqual(r.status, 0, `sync failed: ${r.stderr}`);
+
+  r = runCmd(ctx, ['check', '--strict=1'], true);
+  assert.strictEqual(r.status, 2, 'check should fail without PR link');
+  let out = parseJson(r.stdout);
+  assert.ok(out && out.ok === false, 'expected check failure');
+  assert.ok(Number(out.pr_link_missing_count || 0) >= 1, 'missing PR link should be reported');
+
+  const db = JSON.parse(fs.readFileSync(ctx.dbPath, 'utf8'));
+  db.issues[0].body = `${String(db.issues[0].body || '')}\n\nLinked PR: https://github.com/jakerslam/protheus/pull/123\n`;
+  fs.writeFileSync(ctx.dbPath, `${JSON.stringify(db, null, 2)}\n`, 'utf8');
+
+  r = runCmd(ctx, ['check', '--strict=1'], true);
+  assert.strictEqual(r.status, 0, 'check should pass once PR link marker is present');
+  out = parseJson(r.stdout);
+  assert.ok(out && out.ok === true, 'expected check pass');
+});
+
 if (failed) process.exit(1);
 
 console.log('✅ backlog_github_sync tests passed');

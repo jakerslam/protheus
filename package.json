@@ -469,6 +469,8 @@
     "ops:control-plane:audit": "node systems/ops/protheus_control_plane.js backlog-validate --strict=1",
     "ops:backlog:registry:sync": "node systems/ops/backlog_registry.js sync",
     "ops:backlog:registry:check": "node systems/ops/backlog_registry.js check --strict=1",
+    "ops:backlog:registry:metrics": "node systems/ops/backlog_registry.js metrics",
+    "ops:backlog:registry:triage": "node systems/ops/backlog_registry.js triage --limit=25",
     "ops:backlog:registry:status": "node systems/ops/backlog_registry.js status",
     "ops:backlog:github:sync": "node systems/ops/backlog_github_sync.js sync",
     "ops:backlog:github:apply": "node systems/ops/backlog_github_sync.js sync --apply=1 --strict=1",

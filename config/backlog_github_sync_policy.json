@@ -32,5 +32,22 @@
     "close_on_archive": false,
     "project_sync": false,
     "project_v2_id": ""
+  },
+  "workflow": {
+    "close_on_done": true,
+    "done_statuses": [
+      "done",
+      "dropped",
+      "archived",
+      "obsolete"
+    ],
+    "require_pr_link_for_statuses": [
+      "in_progress"
+    ],
+    "require_pr_link_strict": true,
+    "pr_link_markers": [
+      "/pull/",
+      "github.com/"
+    ]
   }
 }
