@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T09:14:56.228Z
+Generated: 2026-03-02T09:16:01.613Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -323,6 +323,7 @@ Generated: 2026-03-02T09:14:56.228Z
 | V3-RACE-139 | extension | V3 | done | Intent Declaration + Translation Plane | V3-RACE-129, V3-ACT-002, V3-RACE-135 |
 | V3-RACE-140 | extension | V3 | done | DID + Verifiable Credential Soul Binding Layer | V2-058, V3-BLK-001, V3-RACE-129 |
 | V3-RACE-141 | extension | V3 | done | Content-Addressed Archival Plane (IPFS-Compatible) | V3-RACE-037, V3-BLK-001, V3-RACE-109 |
+| V3-RACE-142 | hardening | V3 | done | Zero-Knowledge Compliance Proof Layer | V3-RACE-129, V3-RACE-130, V3-RACE-137 |
 | OPT-001 | backlog | OPT | done | Eyes signal weighting retune in router ranking |  |
 | OPT-002 | backlog | OPT | done | Prompt cache policy split by lane (reflex/autonomy/dream) |  |
 | OPT-003 | backlog | OPT | done | Dream fallback quality scoring before proposal injection |  |

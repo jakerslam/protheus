@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:14:56.228Z",
-  "source_hash": "fa91bd239192b581413a053e",
+  "generated_at": "2026-03-02T09:16:01.613Z",
+  "source_hash": "09ed240889d8c566a4babea8",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 325,
+  "archive_count": 326,
   "rows": [
     {
       "id": "BL-001",
@@ -3962,7 +3962,7 @@
       "id": "V3-RACE-142",
       "class": "hardening",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "Zero-Knowledge Compliance Proof Layer",
       "problem": "Compliance proofs currently rely on direct evidence disclosure, which increases privacy exposure for high-sensitivity economic/contract lanes.",
       "acceptance": "Implement `systems/crypto/zk_compliance_proofs.{ts,js}` (Rust-backed where practical) + policy `config/zk_compliance_policy.json`; user-specific witness material and proof requests persist under `memory/crypto/zk/` and adaptive proof-selection heuristics under `adaptive/crypto/zk/`; permanent circuits, verifiers, and policy checks stay in `systems/crypto/` + `config/`; proofs verify contract-compliance claims with bounded disclosure and deterministic verification receipts.",
