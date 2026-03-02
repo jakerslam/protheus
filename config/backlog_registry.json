@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:19:56.601Z",
-  "source_hash": "4b103279c4a4b770cddd7d1b",
+  "generated_at": "2026-03-02T09:20:59.137Z",
+  "source_hash": "c64a0092d16ea8d88294d666",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 329,
+  "archive_count": 330,
   "rows": [
     {
       "id": "BL-001",
@@ -4023,7 +4023,7 @@
       "id": "V3-RACE-146",
       "class": "extension",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "Solid Pod Interop Bridge (User-Owned Data Pods)",
       "problem": "Sovereign local storage exists, but standards-based pod interoperability is needed for portable user-controlled data exchange across ecosystems.",
       "acceptance": "Implement `systems/federation/solid_pod_bridge.{ts,js}` + policy `config/solid_pod_bridge_policy.json`; user-specific pod endpoints/tokens/mappings stay under `memory/federation/solid/` and adaptive sync-health heuristics under `adaptive/federation/solid/`; permanent protocol adapters, schema mappers, and trust policy remain in `systems/federation/` + `config/`.",
