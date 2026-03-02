@@ -60,7 +60,23 @@ function run() {
     appendJsonl(path.join(rawDir, '2026-02-21.jsonl'), [
       ...eventsFor('2026-02-21', 'eye_a', 'automation', 4),
       ...eventsFor('2026-02-21', 'eye_b', 'automation', 3),
-      ...eventsFor('2026-02-21', 'eye_c', 'automation', 2)
+      ...eventsFor('2026-02-21', 'eye_c', 'automation', 2),
+      {
+        ts: '2026-02-21T10:10:00.000Z',
+        type: 'external_item',
+        eye_id: 'eye_b',
+        title: 'automation rollout failed due outage',
+        url: 'https://example.com/eye_b/negative/1',
+        topics: ['automation']
+      },
+      {
+        ts: '2026-02-21T11:10:00.000Z',
+        type: 'external_item',
+        eye_id: 'eye_c',
+        title: 'automation blocked by deployment error',
+        url: 'https://example.com/eye_c/negative/1',
+        topics: ['automation']
+      }
     ]);
 
     const { analyze } = require('../../../systems/sensory/cross_signal_engine.js');
@@ -73,6 +89,10 @@ function run() {
     assert.ok(convergence, 'expected automation convergence hypothesis');
     assert.ok(Number(convergence.support_eyes || 0) >= 2, 'convergence should include multiple eyes');
     assert.ok(Number(convergence.confidence || 0) >= 1, 'convergence should have confidence');
+
+    const negativeSignal = rep.hypotheses.find((h) => h && h.type === 'negative_signal' && h.topic === 'automation');
+    assert.ok(negativeSignal, 'expected automation negative-signal hypothesis');
+    assert.ok(Array.isArray(negativeSignal.negative_terms) && negativeSignal.negative_terms.length >= 1, 'negative-signal should include extracted terms');
 
     console.log('cross_signal_engine.test.js: OK');
   } finally {
@@ -88,4 +108,3 @@ try {
   console.error(`cross_signal_engine.test.js: FAIL: ${err.message}`);
   process.exit(1);
 }
-

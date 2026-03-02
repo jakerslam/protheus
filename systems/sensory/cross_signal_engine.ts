@@ -37,6 +37,21 @@ const STOPWORDS = new Set([
   'an', 'a', 'by', 'new', 'latest', 'today', 'week', 'month'
 ]);
 
+const NEGATIVE_SIGNAL_TERMS = [
+  'failed',
+  'failure',
+  'blocked',
+  'rejected',
+  'friction',
+  'pain',
+  'stuck',
+  'bug',
+  'error',
+  'outage',
+  'didn_t_work',
+  'did_not_work'
+];
+
 function usage() {
   console.log('Usage:');
   console.log('  node systems/sensory/cross_signal_engine.js run [YYYY-MM-DD] [--lookback=7]');
@@ -112,6 +127,18 @@ function tokenizeTitle(title) {
     .slice(0, 8)
     .map(normalizeTopic)
     .filter(Boolean);
+}
+
+function extractNegativeTerms(title) {
+  const normalized = normalizeTopic(String(title || '')).replace(/_/g, ' ');
+  const terms = [];
+  for (const rawTerm of NEGATIVE_SIGNAL_TERMS) {
+    const needle = rawTerm.replace(/_/g, ' ');
+    if (!needle) continue;
+    if (!normalized.includes(needle)) continue;
+    terms.push(rawTerm);
+  }
+  return sortUnique(terms);
 }
 
 function readJsonlSafe(filePath) {
@@ -296,6 +323,7 @@ function analyze(opts = {}) {
   const minLeadLagHours = clamp(process.env.CROSS_SIGNAL_MIN_LEAD_LAG_HOURS, 1, 72, 1);
   const maxLeadLagHours = clamp(process.env.CROSS_SIGNAL_MAX_LEAD_LAG_HOURS, 1, 168, 48);
   const minDivergenceToday = clamp(process.env.CROSS_SIGNAL_MIN_DIVERGENCE_TODAY, 2, 100, 2);
+  const minNegativeEvents = clamp(process.env.CROSS_SIGNAL_MIN_NEGATIVE_EVENTS, 1, 20, 2);
   const maxHypotheses = clamp(process.env.CROSS_SIGNAL_MAX_HYPOTHESES, 10, 500, 120);
   const minConfidence = clamp(process.env.CROSS_SIGNAL_MIN_CONFIDENCE, 1, 100, 48);
   const maxPerTopic = clamp(process.env.CROSS_SIGNAL_MAX_PER_TOPIC, 1, 20, 3);
@@ -424,6 +452,53 @@ function analyze(opts = {}) {
         window: { lookback_days: lookbackDays }
       });
     }
+
+    const negativeObs = obs
+      .map((row) => ({
+        ...row,
+        negative_terms: extractNegativeTerms(row.title || '')
+      }))
+      .filter((row) => Array.isArray(row.negative_terms) && row.negative_terms.length > 0);
+    if (negativeObs.length >= minNegativeEvents) {
+      const negativeEyes = sortUnique(negativeObs.map((row) => row.eye_id).filter(Boolean));
+      const termCounts = new Map();
+      for (const row of negativeObs) {
+        for (const term of row.negative_terms || []) {
+          termCounts.set(term, Number(termCounts.get(term) || 0) + 1);
+        }
+      }
+      const topTerms = Array.from(termCounts.entries())
+        .sort((a, b) => {
+          if (b[1] !== a[1]) return b[1] - a[1];
+          return String(a[0]).localeCompare(String(b[0]));
+        })
+        .slice(0, 6)
+        .map(([term, count]) => ({ term, count }));
+      const salvageConfidence = clamp(
+        Math.round(40 + (negativeObs.length * 7) + (negativeEyes.length * 8) + Math.min(10, topTerms.length * 2)),
+        1,
+        100,
+        52
+      );
+      hypotheses.push({
+        id: buildHypothesisId('HYP', ['negative_signal', topic, String(negativeObs.length), dateStr]),
+        type: 'negative_signal',
+        topic,
+        summary: `Topic "${topic}" has salvageable negative-signal demand (${negativeObs.length} friction events)`,
+        confidence: salvageConfidence,
+        support_eyes: negativeEyes.length,
+        support_events: negativeObs.length,
+        negative_terms: topTerms,
+        salvage_trace_key: `salvage:${topic}:${dateStr}`,
+        evidence: negativeObs.slice(0, 8).map((row) => ({
+          eye_id: row.eye_id,
+          ts: row.ts_ms ? new Date(row.ts_ms).toISOString() : null,
+          title: row.title,
+          terms: row.negative_terms
+        })),
+        window: { lookback_days: lookbackDays }
+      });
+    }
   }
 
   hypotheses.sort((a, b) => {
@@ -452,6 +527,8 @@ function analyze(opts = {}) {
       max_topics_per_item: maxTopicsPerItem,
       max_obs_per_eye_topic_day: maxObsPerEyeTopicPerDay,
       min_topic_length: minTopicLength
+      ,
+      min_negative_events: minNegativeEvents
     },
     total_detected: totalDetected,
     compacted_count: compacted.hypotheses.length,
