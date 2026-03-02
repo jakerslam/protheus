@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:21:19.699Z",
-  "source_hash": "b4d569c73d1b06965ac427ce",
+  "generated_at": "2026-03-02T09:21:21.703Z",
+  "source_hash": "6ad4c842f221e2f084056f8c",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 340,
+  "archive_count": 341,
   "rows": [
     {
       "id": "BL-001",
@@ -4177,7 +4177,7 @@
       "id": "V3-RACE-157",
       "class": "extension",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "Encrypted Model Artifact Archive (Content-Addressed Weights)",
       "problem": "Model lineage and recovery need encrypted content-addressed artifact contracts beyond generic archival lanes.",
       "acceptance": "Extend archival contracts via `systems/training/model_artifact_archive.{ts,js}` + policy `config/model_artifact_archive_policy.json`; user-specific access permissions/entitlements remain under `memory/training/artifact_access/` with adaptive retrieval/caching hints in `adaptive/training/artifacts/`; permanent artifact packaging/encryption/addressing logic stays in `systems/training/` + `systems/archival/` + `config/`; every promoted model has verifiable encrypted archival receipts.",
