@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:37:42.198Z",
-  "source_hash": "a79a79c0e39bf1f75a68c0d4",
+  "generated_at": "2026-03-02T09:37:44.464Z",
+  "source_hash": "e73b549112a27cdb06a78fa7",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 359,
+  "archive_count": 360,
   "rows": [
     {
       "id": "BL-001",
@@ -1231,7 +1231,7 @@
       "id": "RR-002",
       "class": "backlog",
       "wave": "RR",
-      "status": "open",
+      "status": "done",
       "title": "Duplicate execution pathways",
       "problem": "Parallel lanes drift and produce inconsistent behavior under load",
       "acceptance": "Define one canonical execution path per capability and deprecate alternates with expiry receipts; linked: `V3-039`, `V3-040`",
