@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:16:01.613Z",
-  "source_hash": "09ed240889d8c566a4babea8",
+  "generated_at": "2026-03-02T09:16:58.862Z",
+  "source_hash": "ee47b459aefbad4240b2956b",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 326,
+  "archive_count": 327,
   "rows": [
     {
       "id": "BL-001",
@@ -3976,7 +3976,7 @@
       "id": "V3-RACE-143",
       "class": "extension",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "FHE Encrypted Compute Pilot Lane",
       "problem": "Encrypted-state compute is a strategic sovereignty advantage but requires bounded rollout due to performance and operational complexity constraints.",
       "acceptance": "Implement `systems/crypto/fhe_encrypted_compute_pilot.{ts,js}` + policy `config/fhe_encrypted_compute_policy.json` with allowlisted operations, latency/cost budget gates, fallback contracts, and deterministic failure handling; user-specific encrypted operation payloads remain under `memory/crypto/fhe/` and adaptive operator selection under `adaptive/crypto/fhe/`; permanent evaluators/keys-policy/runtime code remain in `systems/crypto/` + `config/`.",
