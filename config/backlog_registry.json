@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T08:47:59.661Z",
-  "source_hash": "d7dd1353b8603b4f2c4057c2",
+  "generated_at": "2026-03-02T08:51:44.265Z",
+  "source_hash": "7536901aaf9d5b38c1fcd110",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 312,
+  "archive_count": 313,
   "rows": [
     {
       "id": "BL-001",
@@ -3775,7 +3775,7 @@
       "id": "V3-RACE-129",
       "class": "primitive-upgrade",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "Soul Contracts Primitive (Immutable User Directive Ledger)",
       "problem": "User-level binding contracts are currently implied by identity/governance lanes but not modeled as first-class enforceable contract objects.",
       "acceptance": "Added `systems/contracts/soul_contracts.{ts,js}` + policy `config/soul_contracts_policy.json`; user-specific contracts are encrypted and stored only under `memory/contracts/`, adaptive matching/index state under `adaptive/contracts/`, while contract schemas/enforcement logic remain in `systems/` + `config/`; guard integration enforces contract checks on governed actions and amendment path requires dual-signature + tier-3 approval receipts.",

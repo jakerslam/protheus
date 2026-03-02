@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T08:47:59.661Z
+Generated: 2026-03-02T08:51:44.265Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -310,6 +310,7 @@ Generated: 2026-03-02T08:47:59.661Z
 | V3-RACE-126 | hardening | V3 | done | Integrity Seal Closure & Baseline Reseal | V3-RACE-106, V3-RACE-123 |
 | V3-RACE-127 | hardening | V3 | done | External Surface Tightening (Public Operator Profile) | V3-RACE-122, V3-RACE-124, V3-RACE-125 |
 | V3-RACE-128 | hardening | V3 | done | Script Surface Reduction Wave II | V3-RACE-115, V3-RACE-123 |
+| V3-RACE-129 | primitive-upgrade | V3 | done | Soul Contracts Primitive (Immutable User Directive Ledger) | V3-RACE-008, V2-058, V3-033 |
 | OPT-001 | backlog | OPT | done | Eyes signal weighting retune in router ranking |  |
 | OPT-002 | backlog | OPT | done | Prompt cache policy split by lane (reflex/autonomy/dream) |  |
 | OPT-003 | backlog | OPT | done | Dream fallback quality scoring before proposal injection |  |
