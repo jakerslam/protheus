@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T09:09:48.483Z
+Generated: 2026-03-02T09:10:55.576Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -318,6 +318,7 @@ Generated: 2026-03-02T09:09:48.483Z
 | V3-RACE-134 | extension | V3 | done | Visual Dynamic Signature Engine (Identity Render Contract) | V3-RACE-008, V3-RACE-030, V3-RACE-020 |
 | V3-RACE-135 | extension | V3 | done | Pinnacle Tech Integration Engine (Research + Governed Proposal Lane) | V3-018, V3-RACE-106, V3-RACE-111 |
 | V3-RACE-136 | hardening | V3 | done | Sovereign Economy/Identity Integration Contract + Data-Scope Guard | V3-RACE-129, V3-RACE-130, V3-RACE-131, V3-RACE-132, V3-RACE-133, V3-RACE-134, V3-RACE-135 |
+| V3-RACE-137 | primitive-upgrade | V3 | done | CRDT Local-First State Plane (Soul/Memory/Contract Domains) | V3-RACE-023, V3-RACE-129, BL-024 |
 | OPT-001 | backlog | OPT | done | Eyes signal weighting retune in router ranking |  |
 | OPT-002 | backlog | OPT | done | Prompt cache policy split by lane (reflex/autonomy/dream) |  |
 | OPT-003 | backlog | OPT | done | Dream fallback quality scoring before proposal injection |  |

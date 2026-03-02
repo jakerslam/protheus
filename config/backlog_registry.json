@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:09:48.483Z",
-  "source_hash": "069928dd240a044d11feb564",
+  "generated_at": "2026-03-02T09:10:55.576Z",
+  "source_hash": "1f14395c192a836d46101652",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 320,
+  "archive_count": 321,
   "rows": [
     {
       "id": "BL-001",
@@ -3892,7 +3892,7 @@
       "id": "V3-RACE-137",
       "class": "primitive-upgrade",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "CRDT Local-First State Plane (Soul/Memory/Contract Domains)",
       "problem": "Current state lanes are resilient but not yet modeled as canonical CRDT local-first domains with deterministic conflict semantics across offline windows.",
       "acceptance": "Implement `systems/pinnacle/crdt_state_plane.{ts,js}` + policy `config/crdt_state_plane_policy.json` with per-domain CRDT schemas and reconciliation rules; user-specific CRDT documents/anchors persist under `memory/crdt/` and adaptive merge heuristics under `adaptive/crdt/`; permanent merge logic/schemas stay in `systems/pinnacle/` + `config/`; sync emits JetStream reconciliation receipts with replay parity checks.",
