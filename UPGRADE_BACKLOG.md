@@ -504,7 +504,7 @@ Objective: track high-impact foundation risks that can silently compound while s
 | RR-011 | done | Catastrophic recovery gap | Total-loss scenarios can break continuity despite local self-healing | Implement deterministic resurrection protocol with tested recovery ceremonies; linked: `V3-056` | Continuity + Security | 2026-04-02 |
 | RR-012 | done | Long-horizon value drift in Heroic Echo | Alignment can narrow subtly over years without explicit renewal and review | Add periodic value-anchor renewal with reversible updates and user review gates; linked: `V3-057` | Ethics/Governance | 2026-04-05 |
 | RR-013 | done | Explainability debt at scale | Future operators/successors may not reconstruct why critical actions occurred | Require canonical explanation artifacts for major decisions and self-modifications; linked: `V3-058`, `V2-063` | Platform/Observability | 2026-04-07 |
-| RR-014 | open | External world-model staleness | Tool/profile drift causes silent execution and compliance regressions | Add scheduled world-model freshness loop with staleness SLO gates; linked: `V3-060`, `V2-067`, `V3-039` | Research + Runtime | 2026-04-10 |
+| RR-014 | done | External world-model staleness | Tool/profile drift causes silent execution and compliance regressions | Add scheduled world-model freshness loop with staleness SLO gates; linked: `V3-060`, `V2-067`, `V3-039` | Research + Runtime | 2026-04-10 |
 
 ## Obsidian Track (Isolated from Core Protheus)
 Implementation (2026-03-01): Delivered `systems/obsidian/obsidian_phase_pack.ts` (+ wrapper/policy/test) covering wisdom projection, ops cards, note-intent compiler, canvas generation, cross-view identity bus sync, plugin control lane, phone-seed bounded bundles, and resilience checks.

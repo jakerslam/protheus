@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T09:38:06.159Z
+Generated: 2026-03-02T09:38:07.980Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -137,6 +137,7 @@ Generated: 2026-03-02T09:38:06.159Z
 | RR-011 | backlog | RR | done | Catastrophic recovery gap |  |
 | RR-012 | backlog | RR | done | Long-horizon value drift in Heroic Echo |  |
 | RR-013 | backlog | RR | done | Explainability debt at scale |  |
+| RR-014 | backlog | RR | done | External world-model staleness |  |
 | V3-DUAL-001 | backlog | V3 | done | Duality Belief Engine Seed |  |
 | V3-ATTR-001 | backlog | V3 | done | Lightweight Value Attribution Primitive |  |
 | V3-ATTR-002 | backlog | V3 | done | Storm Value Distribution Layer |  |

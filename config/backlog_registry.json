@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:38:06.159Z",
-  "source_hash": "41ae805d152248c9dbb10737",
+  "generated_at": "2026-03-02T09:38:07.980Z",
+  "source_hash": "b7d020b3bce4f340173277a5",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 371,
+  "archive_count": 372,
   "rows": [
     {
       "id": "BL-001",
@@ -1351,7 +1351,7 @@
       "id": "RR-014",
       "class": "backlog",
       "wave": "RR",
-      "status": "open",
+      "status": "done",
       "title": "External world-model staleness",
       "problem": "Tool/profile drift causes silent execution and compliance regressions",
       "acceptance": "Add scheduled world-model freshness loop with staleness SLO gates; linked: `V3-060`, `V2-067`, `V3-039`",
