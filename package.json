@@ -646,7 +646,10 @@
     "test:sensory:active-learning": "node memory/tools/tests/active_learning_uncertainty_queue.test.js",
     "sensory:offline-lab-bridge:run": "node systems/sensory/offline_statistical_lab_artifact_bridge.js run",
     "sensory:offline-lab-bridge:status": "node systems/sensory/offline_statistical_lab_artifact_bridge.js status",
-    "test:sensory:offline-lab-bridge": "node memory/tools/tests/offline_statistical_lab_artifact_bridge.test.js"
+    "test:sensory:offline-lab-bridge": "node memory/tools/tests/offline_statistical_lab_artifact_bridge.test.js",
+    "sensory:privacy-scoring:run": "node systems/sensory/sensitivity_privacy_aware_scoring_contract.js run",
+    "sensory:privacy-scoring:status": "node systems/sensory/sensitivity_privacy_aware_scoring_contract.js status",
+    "test:sensory:privacy-scoring": "node memory/tools/tests/sensitivity_privacy_aware_scoring_contract.test.js"
   },
   "bin": {
     "protheus": "./bin/protheus",

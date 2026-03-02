@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "sensitive_classes": [
+    "pii",
+    "health",
+    "financial_secret"
+  ],
+  "restricted_multiplier": 0.4,
+  "mask_fields": [
+    "raw_text",
+    "source_payload"
+  ],
+  "require_explicit_approval": true,
+  "paths": {
+    "input_dir": "state/sensory/analysis/scoring_input",
+    "output_dir": "state/sensory/analysis/privacy_scoring",
+    "latest_path": "state/sensory/analysis/privacy_scoring/latest.json",
+    "receipts_path": "state/sensory/analysis/privacy_scoring/receipts.jsonl"
+  }
+}

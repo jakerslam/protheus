@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T04:18:08.876Z",
-  "source_hash": "bc5c23a01aeb7feab3c3ca02",
+  "generated_at": "2026-03-02T04:19:25.705Z",
+  "source_hash": "dc1657491ad92699aa6b5128",
   "row_count": 127,
-  "active_count": 37,
-  "archive_count": 90,
+  "active_count": 36,
+  "archive_count": 91,
   "rows": [
     {
       "id": "V3-OPS-004",
@@ -1632,10 +1632,10 @@
       "id": "V3-RACE-103",
       "class": "hardening",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Sensitivity/Privacy-Aware Signal Scoring Contract",
       "problem": "Analysis gains must not introduce governance/privacy regressions on sensitive data classes.",
-      "acceptance": "Sensitive classes are policy-tagged, scored under restricted rules, and audited for masking/access/use with fail-closed enforcement receipts.",
+      "acceptance": "Added `systems/sensory/sensitivity_privacy_aware_scoring_contract.{ts,js}` + `config/sensitivity_privacy_scoring_policy.json` to enforce sensitive-class handling contracts (approval-required, score restriction, field masking, fail-closed blocking) with audit receipts under `state/sensory/analysis/privacy_scoring/`; regression coverage in `memory/tools/tests/sensitivity_privacy_aware_scoring_contract.test.js`.",
       "dependencies": [
         "V3-RACE-033",
         "V3-RACE-044",
