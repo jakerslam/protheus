@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:35:55.072Z",
-  "source_hash": "b898ae68af362a9cd4b4282f",
+  "generated_at": "2026-03-02T09:37:42.198Z",
+  "source_hash": "a79a79c0e39bf1f75a68c0d4",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 358,
+  "archive_count": 359,
   "rows": [
     {
       "id": "BL-001",
@@ -1221,7 +1221,7 @@
       "id": "RR-001",
       "class": "backlog",
       "wave": "RR",
-      "status": "open",
+      "status": "done",
       "title": "Config and flag fragmentation",
       "problem": "Contradictory policy/flag states create non-deterministic runtime behavior",
       "acceptance": "Add precedence + conflict lint and block conflicting gate combinations in CI; linked: `V2-FND-004`, `V3-044`",

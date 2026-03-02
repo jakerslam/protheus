@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T09:35:55.072Z
+Generated: 2026-03-02T09:37:42.198Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -124,6 +124,7 @@ Generated: 2026-03-02T09:35:55.072Z
 | V3-020 | backlog | V3 | done | Protheus Prime seed profile + bounded-core manifest |  |
 | V3-021 | backlog | V3 | done | Attested hardware assimilation plane (node join + lease scheduler) |  |
 | V3-030 | backlog | V3 | done | Tool assimilation pipeline (Research -> Forge -> Nursery -> Doctor graft) |  |
+| RR-001 | backlog | RR | done | Config and flag fragmentation |  |
 | V3-DUAL-001 | backlog | V3 | done | Duality Belief Engine Seed |  |
 | V3-ATTR-001 | backlog | V3 | done | Lightweight Value Attribution Primitive |  |
 | V3-ATTR-002 | backlog | V3 | done | Storm Value Distribution Layer |  |
