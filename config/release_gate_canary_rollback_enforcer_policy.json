@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "thresholds": {
+    "canary_pass_rate_min": 0.60
+  },
+  "outputs": {
+    "latest_path": "state/ops/release_gate_canary_rollback_enforcer/latest.json",
+    "history_path": "state/ops/release_gate_canary_rollback_enforcer/history.jsonl"
+  }
+}

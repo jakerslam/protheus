@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "readonly": true,
+  "inputs": [
+    "state/autonomy",
+    "state/sensory",
+    "state/routing"
+  ],
+  "outputs": {
+    "latest_path": "state/autonomy/recursive_introspection_baseline_readonly/latest.json",
+    "history_path": "state/autonomy/recursive_introspection_baseline_readonly/history.jsonl"
+  }
+}

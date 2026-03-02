@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "allowed_risks": [
+    "low",
+    "medium"
+  ],
+  "max_mutations_per_day": 5,
+  "outputs": {
+    "state_path": "state/autonomy/v1h_adaptive_mutation_safety_kernel/state.json",
+    "latest_path": "state/autonomy/v1h_adaptive_mutation_safety_kernel/latest.json",
+    "history_path": "state/autonomy/v1h_adaptive_mutation_safety_kernel/history.jsonl"
+  }
+}

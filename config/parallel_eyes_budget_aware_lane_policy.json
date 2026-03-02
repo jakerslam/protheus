@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "budget": {
+    "daily_cap_tokens": 8000,
+    "degrade_at_ratio": 0.85
+  },
+  "concurrency": {
+    "max_parallel": 6,
+    "min_parallel": 1
+  },
+  "outputs": {
+    "latest_path": "state/sensory/parallel_eyes_budget_aware_lane/latest.json",
+    "history_path": "state/sensory/parallel_eyes_budget_aware_lane/history.jsonl"
+  }
+}

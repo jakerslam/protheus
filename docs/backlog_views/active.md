@@ -1,19 +1,9 @@
 # Backlog Active View
 
-Generated: 2026-03-02T22:48:06.961Z
+Generated: 2026-03-02T22:56:14.547Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
-| BL-041 | backlog | BL | queued | Batch execution lane for low-urgency LLM work |  |
-| BL-043 | backlog | BL | queued | Parallel eyes execution with budget-aware concurrency |  |
-| V1H-001 | backlog | V1H | queued | Full-pipeline integration/e2e hardening |  |
-| V1H-002 | backlog | V1H | queued | Release-gate + canary/rollback enforcement expansion |  |
-| V1H-003 | backlog | V1H | queued | Observability + SLO + runbook completion pass |  |
-| V1H-004 | backlog | V1H | queued | Threat-model-driven security test pack |  |
-| V1H-005 | backlog | V1H | queued | Contract/version governance closure across adaptive boundaries |  |
-| V1H-006 | backlog | V1H | queued | Baseline adaptive-mutation safety kernel |  |
-| V1H-007 | backlog | V1H | queued | Baseline objective value-currency propagation |  |
-| V1H-008 | backlog | V1H | queued | Read-only recursive introspection baseline |  |
 | V2-009 | backlog | V2 | queued | Exterior anti-sabotage shield + instant auto-reset |  |
 | V2-012 | backlog | V2 | blocked | External security assessment and pen-test cycle (canonical blocker) |  |
 | V2-033 | backlog | V2 | queued | Epigenetic regulation tags |  |

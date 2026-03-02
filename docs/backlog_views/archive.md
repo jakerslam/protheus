@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T22:48:06.961Z
+Generated: 2026-03-02T22:56:14.547Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -42,9 +42,19 @@ Generated: 2026-03-02T22:48:06.961Z
 | BL-033 | backlog | BL | done | Quorum validator for high-tier self-modification proposals |  |
 | BL-034 | backlog | BL | done | Operator runbook for incidents + rollback drills |  |
 | BL-035 | backlog | BL | done | Required-Checks branch protection policy |  |
+| BL-041 | backlog | BL | done | Batch execution lane for low-urgency LLM work |  |
 | BL-042 | backlog | BL | done | Prompt/result cache with TTL + invalidation policy |  |
+| BL-043 | backlog | BL | done | Parallel eyes execution with budget-aware concurrency |  |
 | BL-007 | backlog | BL | done | Backup integrity checks |  |
 | BL-008 | backlog | BL | done | Repo hygiene CI check for generated artifacts |  |
+| V1H-001 | backlog | V1H | done | Full-pipeline integration/e2e hardening |  |
+| V1H-002 | backlog | V1H | done | Release-gate + canary/rollback enforcement expansion |  |
+| V1H-003 | backlog | V1H | done | Observability + SLO + runbook completion pass |  |
+| V1H-004 | backlog | V1H | done | Threat-model-driven security test pack |  |
+| V1H-005 | backlog | V1H | done | Contract/version governance closure across adaptive boundaries |  |
+| V1H-006 | backlog | V1H | done | Baseline adaptive-mutation safety kernel |  |
+| V1H-007 | backlog | V1H | done | Baseline objective value-currency propagation |  |
+| V1H-008 | backlog | V1H | done | Read-only recursive introspection baseline |  |
 | V2-001 | backlog | V2 | done | Full repo TypeScript conversion (`.js` -> `.ts`) |  |
 | V2-002 | backlog | V2 | done | Explore polyglot service modules behind strict contracts |  |
 | V2-003 | backlog | V2 | done | Dist runtime cutover + legacy paired JS retirement |  |

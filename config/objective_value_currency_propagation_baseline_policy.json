@@ -1,0 +1,20 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "objective_currency_map": {
+    "T1": {
+      "revenue": 0.6,
+      "reliability": 0.2,
+      "velocity": 0.2
+    },
+    "DEFAULT": {
+      "revenue": 0.4,
+      "reliability": 0.3,
+      "velocity": 0.3
+    }
+  },
+  "outputs": {
+    "latest_path": "state/autonomy/objective_value_currency_propagation_baseline/latest.json",
+    "history_path": "state/autonomy/objective_value_currency_propagation_baseline/history.jsonl"
+  }
+}
