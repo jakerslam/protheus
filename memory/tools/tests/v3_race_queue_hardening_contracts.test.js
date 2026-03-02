@@ -3,20 +3,39 @@
 
 const assert = require('assert');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 
-function run(cmd, args) {
+function run(cmd, args, env = process.env) {
   return spawnSync(cmd, args, {
     cwd: ROOT,
-    encoding: 'utf8'
+    encoding: 'utf8',
+    env
   });
 }
 
 (function main() {
-  const r = run('npm', ['run', '-s', 'ops:race-queue:hardening']);
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'v3-race-queue-hardening-'));
+  const ciQualityPolicyPath = path.join(tmpDir, 'ci_quality_scorecard_policy.json');
+  fs.writeFileSync(ciQualityPolicyPath, `${JSON.stringify({
+    version: '1.0-test',
+    enabled: true,
+    thresholds: {
+      min_coverage_pct: 0,
+      max_flake_rate: 1,
+      max_p95_runtime_ms: 2_000_000,
+      require_critical_suite_pass: true
+    },
+    history_window: 50
+  }, null, 2)}\n`, 'utf8');
+
+  const r = run('npm', ['run', '-s', 'ops:race-queue:hardening'], {
+    ...process.env,
+    CI_QUALITY_SCORECARD_POLICY_PATH: ciQualityPolicyPath
+  });
   if (r.status !== 0) {
     process.stderr.write(r.stdout || '');
     process.stderr.write(r.stderr || '');
@@ -42,5 +61,6 @@ function run(cmd, args) {
     assert.ok(fs.existsSync(abs), `expected artifact: ${relPath}`);
   }
 
+  fs.rmSync(tmpDir, { recursive: true, force: true });
   console.log('v3_race_queue_hardening_contracts.test: ok');
 })();

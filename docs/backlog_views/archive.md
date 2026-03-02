@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T06:58:37.451Z
+Generated: 2026-03-02T08:47:59.661Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -307,6 +307,9 @@ Generated: 2026-03-02T06:58:37.451Z
 | V3-RACE-123 | hardening | V3 | done | CI Workflow Rationalization & Duplicate-Signal Elimination | V3-RACE-119, BL-035 |
 | V3-RACE-124 | hardening | V3 | done | Root Surface Curation & Artifact Namespace Contract | V3-RACE-115, V3-RACE-120 |
 | V3-RACE-125 | hardening | V3 | done | Legal/Trust Language Normalization Pack | V3-DEP-001, V3-DOC-008 |
+| V3-RACE-126 | hardening | V3 | done | Integrity Seal Closure & Baseline Reseal | V3-RACE-106, V3-RACE-123 |
+| V3-RACE-127 | hardening | V3 | done | External Surface Tightening (Public Operator Profile) | V3-RACE-122, V3-RACE-124, V3-RACE-125 |
+| V3-RACE-128 | hardening | V3 | done | Script Surface Reduction Wave II | V3-RACE-115, V3-RACE-123 |
 | OPT-001 | backlog | OPT | done | Eyes signal weighting retune in router ranking |  |
 | OPT-002 | backlog | OPT | done | Prompt cache policy split by lane (reflex/autonomy/dream) |  |
 | OPT-003 | backlog | OPT | done | Dream fallback quality scoring before proposal injection |  |

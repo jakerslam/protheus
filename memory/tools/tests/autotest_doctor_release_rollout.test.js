@@ -56,7 +56,8 @@ function run() {
   const root = path.resolve(__dirname, '..', '..', '..');
   const scriptPath = path.join(root, 'systems', 'ops', 'autotest_doctor.js');
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'autotest-doctor-release-rollout-'));
-  const dateStr = '2026-02-27';
+  const nowTs = new Date().toISOString();
+  const dateStr = nowTs.slice(0, 10);
 
   const stateDir = path.join(tmp, 'state', 'ops', 'autotest_doctor');
   const runsDir = path.join(tmp, 'state', 'ops', 'autotest', 'runs');
@@ -128,10 +129,10 @@ function run() {
 
   writeJson(verifierStatePath, {
     version: '1.0',
-    ts: `${dateStr}T03:00:00.000Z`,
+    ts: nowTs,
     recipes: {
       retest_then_pulse: {
-        verified_at: `${dateStr}T03:00:00.000Z`,
+        verified_at: nowTs,
         ok: true,
         sample_count: 1,
         violations: []
@@ -141,7 +142,7 @@ function run() {
 
   const manifestBase = {
     type: 'autotest_recipe_release_manifest',
-    generated_at: `${dateStr}T03:00:00.000Z`,
+    generated_at: nowTs,
     policy_version: '1.0-test',
     channel: 'stable',
     release_seq: 1,
@@ -156,7 +157,7 @@ function run() {
 
   writeJson(latestPath, {
     ok: true,
-    ts: `${dateStr}T03:00:00.000Z`,
+    ts: nowTs,
     failed_tests: 1,
     modules_red: 1,
     modules_changed: 1
@@ -166,7 +167,7 @@ function run() {
   writeJsonl(path.join(runsDir, `${dateStr}.jsonl`), [
     {
       type: 'autotest_run',
-      ts: `${dateStr}T03:00:00.000Z`,
+      ts: nowTs,
       results: [
         {
           id: 'tst_release_rollout',
@@ -220,4 +221,3 @@ try {
   console.error(`autotest_doctor_release_rollout.test.js: FAIL: ${err.message}`);
   process.exit(1);
 }
-

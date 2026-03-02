@@ -75,12 +75,18 @@ try {
     }
   });
 
-  let out = run(['enforce', '--policy=' + policyPath, '--strict=1', '--apply=1']);
+  const identity = 'test_agent';
+
+  let out = run(['issue', '--policy=' + policyPath, '--strict=1', '--apply=1', '--identity=' + identity]);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  assert.ok(out.payload && out.payload.ok === true, 'issue run should succeed');
+
+  out = run(['enforce', '--policy=' + policyPath, '--strict=1', '--apply=1', '--identity=' + identity]);
   assert.strictEqual(out.status, 0, out.stderr || out.stdout);
   assert.ok(out.payload && out.payload.ok === true, 'lane run should pass baseline checks');
   assert.strictEqual(Number(out.payload.check_count || 0), checks.length, 'all checks should be evaluated');
 
-  out = run(['enforce', '--policy=' + policyPath, '--strict=1', '--apply=1', '--fail-checks=cryptographic_lease_manager']);
+  out = run(['enforce', '--policy=' + policyPath, '--strict=1', '--apply=1', '--identity=' + identity, '--fail-checks=cryptographic_lease_manager']);
   assert.notStrictEqual(out.status, 0, 'strict mode should fail when required check fails');
   assert.ok(out.payload && out.payload.ok === false, 'payload should indicate failed run');
   assert.ok(Array.isArray(out.payload.failed_checks) && out.payload.failed_checks.includes('cryptographic_lease_manager'), 'failed check id should be listed');

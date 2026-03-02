@@ -259,6 +259,7 @@ function cmdTerminate(policy, args) {
 
 function cmdStatus(policy, args) {
   const state = loadState(policy);
+  const latest = readJson(policy.paths.latest_path, null);
   const missionId = cleanText(args['mission-id'] || args.mission_id || '', 120);
   if (missionId) {
     const mission = state.missions[missionId] || null;
@@ -271,6 +272,7 @@ function cmdStatus(policy, args) {
       mission_id: missionId,
       mission,
       mission_status: classifyMissionStatus(mission),
+      latest,
       policy_path: relPath(policy.policy_path)
     }, mission ? 0 : 2);
   }
@@ -285,6 +287,7 @@ function cmdStatus(policy, args) {
     mission_count: Object.keys(state.missions || {}).length,
     active_count: missions.filter((row) => classifyMissionStatus(row) === 'active').length,
     recent_missions: missions,
+    latest,
     state,
     policy_path: relPath(policy.policy_path)
   }, 0);

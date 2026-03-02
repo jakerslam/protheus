@@ -228,13 +228,25 @@ function computeAperture(input, policy) {
   const lane = normalizeToken(input.lane || 'autonomy', 64) || 'autonomy';
   const risk = normalizeToken(input.risk || 'medium', 32) || 'medium';
   const impact = normalizeToken(input.impact || 'medium', 32) || 'medium';
-  const requestedBudgetPressure = normalizeBudgetPressure(input.budget_pressure || input.budgetPressure || '');
+  const requestedBudgetPressure = normalizeBudgetPressure(
+    input.budget_pressure || input['budget-pressure'] || input.budgetPressure || ''
+  );
   const budgetPressure = requestedBudgetPressure
     || (oracle.available === true ? normalizeBudgetPressure(oracle.pressure) : '')
     || 'medium';
-  const safetyCritical = toBool(input.safety_critical, false);
-  const verificationPassRate = clampNumber(input.verification_pass_rate, 0, 1, 0.8);
-  const driftRate = clampNumber(input.drift_rate, 0, 1, policy.target_drift_rate);
+  const safetyCritical = toBool(input.safety_critical == null ? input['safety-critical'] : input.safety_critical, false);
+  const verificationPassRate = clampNumber(
+    input.verification_pass_rate == null ? input['verification-pass-rate'] : input.verification_pass_rate,
+    0,
+    1,
+    0.8
+  );
+  const driftRate = clampNumber(
+    input.drift_rate == null ? input['drift-rate'] : input.drift_rate,
+    0,
+    1,
+    policy.target_drift_rate
+  );
 
   const riskPenalty = pickBandPenalty(policy.penalties.risk, risk, 'medium');
   const impactPenalty = pickBandPenalty(policy.penalties.impact, impact, 'medium');

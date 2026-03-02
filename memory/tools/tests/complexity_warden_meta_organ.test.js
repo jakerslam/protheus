@@ -68,6 +68,16 @@ try {
     enabled: true,
     strict_default: true,
     checks,
+    budget: {
+      max_score: 1,
+      warn_score: 0.99
+    },
+    scoring: {
+      roots: ['systems', 'config', 'lib', 'habits'],
+      max_files_baseline: 20000,
+      max_dirs_baseline: 5000,
+      max_scripts_baseline: 5000
+    },
     paths: {
       state_path: path.join(stateDir, 'state.json'),
       latest_path: path.join(stateDir, 'latest.json'),

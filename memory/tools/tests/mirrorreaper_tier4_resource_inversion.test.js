@@ -75,12 +75,29 @@ try {
     }
   });
 
-  let out = run(['activate', '--policy=' + policyPath, '--strict=1', '--apply=1']);
+  let out = run([
+    'activate',
+    '--policy=' + policyPath,
+    '--strict=1',
+    '--apply=1',
+    '--threat-score=0.95',
+    '--donor-capacity=2',
+    '--local-capacity=1'
+  ]);
   assert.strictEqual(out.status, 0, out.stderr || out.stdout);
   assert.ok(out.payload && out.payload.ok === true, 'lane run should pass baseline checks');
   assert.strictEqual(Number(out.payload.check_count || 0), checks.length, 'all checks should be evaluated');
 
-  out = run(['activate', '--policy=' + policyPath, '--strict=1', '--apply=1', '--fail-checks=tier4_activation_contract']);
+  out = run([
+    'activate',
+    '--policy=' + policyPath,
+    '--strict=1',
+    '--apply=1',
+    '--threat-score=0.95',
+    '--donor-capacity=2',
+    '--local-capacity=1',
+    '--fail-checks=tier4_activation_contract'
+  ]);
   assert.notStrictEqual(out.status, 0, 'strict mode should fail when required check fails');
   assert.ok(out.payload && out.payload.ok === false, 'payload should indicate failed run');
   assert.ok(Array.isArray(out.payload.failed_checks) && out.payload.failed_checks.includes('tier4_activation_contract'), 'failed check id should be listed');

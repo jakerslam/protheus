@@ -316,6 +316,7 @@ function cmdEnforce(policy, args) {
 
 function cmdStatus(policy, args) {
   const state = loadState(policy);
+  const latest = readJson(policy.paths.latest_path, null);
   const identity = cleanText(args.identity || args.agent || '', 120);
   emit({
     ok: true,
@@ -326,6 +327,7 @@ function cmdStatus(policy, args) {
     identity: identity || null,
     lease: identity ? (state.leases[identity] || null) : null,
     lease_count: Object.keys(state.leases).length,
+    latest,
     state,
     policy_path: relPath(policy.policy_path)
   }, 0);

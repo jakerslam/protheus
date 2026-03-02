@@ -41,6 +41,7 @@ The control plane is operated through CLI commands that map to lane actions (`ru
 
 ## Documentation
 
+- [Public Operator Profile](docs/PUBLIC_OPERATOR_PROFILE.md)
 - [Documentation Hub](docs/README.md)
 - [Operator Runbook](docs/OPERATOR_RUNBOOK.md)
 - [Branch Protection Policy](docs/BRANCH_PROTECTION_POLICY.md)
