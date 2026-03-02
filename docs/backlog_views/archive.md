@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T09:22:04.672Z
+Generated: 2026-03-02T09:22:06.828Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -344,6 +344,7 @@ Generated: 2026-03-02T09:22:04.672Z
 | V3-RACE-161 | primitive-upgrade | V3 | done | Git-Backed Memory Filesystem (MemFS Contract) | V3-RACE-023, BL-024, V3-RACE-137 |
 | V3-RACE-162 | extension | V3 | done | Sleep Reflection Compute Scheduler (Idle Consolidation Loop) | V3-RACE-161, V3-LOOP-001, V3-BUD-001 |
 | V3-RACE-163 | primitive-upgrade | V3 | done | Agentic Memory Operation Controller (ADD/UPDATE/DELETE/NOOP) | V3-ASSIM-004, V3-RACE-161, V3-RACE-162 |
+| V3-RACE-164 | hardening | V3 | done | Observational Compression + Progressive Disclosure Retrieval | V3-RACE-161, V3-RACE-163, V3-RACE-065 |
 | OPT-001 | backlog | OPT | done | Eyes signal weighting retune in router ranking |  |
 | OPT-002 | backlog | OPT | done | Prompt cache policy split by lane (reflex/autonomy/dream) |  |
 | OPT-003 | backlog | OPT | done | Dream fallback quality scoring before proposal injection |  |

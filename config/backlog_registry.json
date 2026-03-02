@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:22:04.672Z",
-  "source_hash": "bf7b4f5ba5aed43dcea18538",
+  "generated_at": "2026-03-02T09:22:06.828Z",
+  "source_hash": "6fb5ae09c7768c4d0898fb20",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 346,
+  "archive_count": 347,
   "rows": [
     {
       "id": "BL-001",
@@ -4279,7 +4279,7 @@
       "id": "V3-RACE-164",
       "class": "hardening",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "Observational Compression + Progressive Disclosure Retrieval",
       "problem": "Raw history growth increases token burn and retrieval latency unless observation compaction and staged loading are enforced.",
       "acceptance": "Implement `systems/memory/observational_compression_layer.{ts,js}` + policy `config/observational_compression_policy.json`; user-specific observations/summaries are persisted under `memory/observations/` with adaptive compression thresholds under `adaptive/observations/`; permanent compaction/index/search logic remains in `systems/memory/` + `config/` and enforces metadata-first retrieval before full-node expansion.",
