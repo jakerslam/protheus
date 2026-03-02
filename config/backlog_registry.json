@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T08:51:44.265Z",
-  "source_hash": "7536901aaf9d5b38c1fcd110",
+  "generated_at": "2026-03-02T08:54:36.047Z",
+  "source_hash": "cc52ecc6d8b4f279a5c8f25e",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 313,
+  "archive_count": 314,
   "rows": [
     {
       "id": "BL-001",
@@ -3789,7 +3789,7 @@
       "id": "V3-RACE-130",
       "class": "extension",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "Sovereign Token + Global Directive Fund Layer",
       "problem": "Existing tithe/blockchain lanes lack a unified internal token contract and explicit user-configurable global-fund allocation path.",
       "acceptance": "Added `systems/economy/protheus_token_engine.{ts,js}` + `systems/economy/global_directive_fund.{ts,js}` with policy contracts; user-specific allocation/opt-in preferences persist under `memory/economy/preferences/` and adaptive weighting/index under `adaptive/economy/preferences/`; shared tokenomics, governance rules, and settlement logic remain in `systems/economy/` + `config/`; stablecoin bridge hooks reuse `V3-BLK-001` controls.",
