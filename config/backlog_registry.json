@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:21:07.947Z",
-  "source_hash": "5d97dbfe8447651aba947909",
+  "generated_at": "2026-03-02T09:21:09.886Z",
+  "source_hash": "d3a7f01a03dd7cff24295b22",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 334,
+  "archive_count": 335,
   "rows": [
     {
       "id": "BL-001",
@@ -4092,7 +4092,7 @@
       "id": "V3-RACE-151",
       "class": "primitive-upgrade",
       "wave": "V3",
-      "status": "open",
+      "status": "done",
       "title": "AI-Native Multimodel Data Plane",
       "problem": "Current storage is effective but fragmented; a unified multimodel plane is needed for consistent vector/graph/document/relational semantics under one governed contract.",
       "acceptance": "Implement `systems/data/ai_multimodel_data_plane.{ts,js}` + policy `config/ai_multimodel_data_plane_policy.json`; user-specific query/view preferences persist under `memory/data/preferences/` with adaptive indexing/routing heuristics under `adaptive/data/`; permanent schema/runtime/migration contracts remain in `systems/data/` + `config/`; rollout includes reversible migration + parity receipts against existing memory/runtime lanes.",
