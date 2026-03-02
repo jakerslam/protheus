@@ -1,6 +1,6 @@
 # Backlog Active View
 
-Generated: 2026-03-02T18:03:14.166Z
+Generated: 2026-03-02T18:04:49.888Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -108,4 +108,18 @@ Generated: 2026-03-02T18:03:14.166Z
 | V3-RACE-300 | hardening | V3 | queued | Open-Source Release Automation Lane (Dual-License + SBOM Enforcement) | V3-RACE-016, V3-RACE-228, V3-RACE-245 |
 | V3-RACE-301 | hardening | V3 | queued | Open-Default Governance Gate (Models/Lanes/Components) | V3-RACE-300, V3-RACE-017, V3-RACE-214 |
 | V3-RACE-302 | hardening | V3 | queued | Meta Promotion Hardening Gate (Reality Labs + FAIR Alignment + Quest HIL) | V3-RACE-301, V3-RACE-291, V3-RACE-290 |
+| V3-RACE-303 | extension | V3 | queued | IBM Mainframe Runtime Parity Pack (LinuxONE/IBM Z + RAS Contracts) | V3-RACE-209, V3-RACE-218, V3-RACE-174 |
+| V3-RACE-304 | extension | V3 | queued | OpenShift-First Orchestration Adapter (Rootless Podman + OpenShift AI) | V3-RACE-200, V3-RACE-201, V3-RACE-203 |
+| V3-RACE-305 | extension | V3 | queued | IBM Quantum/Qiskit Runtime Adapter | V3-RACE-220, V3-RACE-269, V3-RACE-214 |
+| V3-RACE-306 | extension | V3 | queued | watsonx Platform Onboarding Adapter (AI/Data/Governance + Private Endpoints) | V3-RACE-223, V3-RACE-229, V3-RACE-304 |
+| V3-RACE-307 | hardening | V3 | queued | Post-Quantum Cryptography Enforcement Lane (Kyber/Dilithium/Falcon) | V3-RACE-017, V3-RACE-214, V3-RACE-187 |
+| V3-RACE-308 | hardening | V3 | queued | IBM Formal Methods Gate Adapter (Z/TLA+/Alloy/CPLEX) | V3-RACE-215, V3-RACE-187, V3-RACE-214 |
+| V3-RACE-309 | hardening | V3 | queued | Deterministic Execution + RAS Telemetry Hardening Lane | V3-RACE-303, V3-RACE-220, V3-RACE-174 |
+| V3-RACE-310 | hardening | V3 | queued | watsonx Governance Authority Adapter (Typed Control-Plane Risk Gate) | V3-RACE-306, V3-RACE-223, V3-RACE-214 |
+| V3-RACE-311 | hardening | V3 | queued | Regulated-Industry Compliance Primitive Pack (FedRAMP/HIPAA/PCI/GDPR/DORA) | V3-RACE-245, V3-RACE-229, V3-RACE-058 |
+| V3-RACE-312 | extension | V3 | queued | Quantum-Hybrid Execution Router (Classical/Quantum Acceleration Gate) | V3-RACE-305, V3-RACE-220, V3-RACE-269 |
+| V3-RACE-313 | extension | V3 | queued | Cloud Pak Integration + Enterprise Ops Bridge (watsonx Observability + ServiceNow/Maximo) | V3-RACE-306, V3-RACE-287, V3-RACE-227 |
+| V3-RACE-314 | hardening | V3 | queued | IBM Enterprise Support/Indemnification Readiness Lane | V3-RACE-311, V3-RACE-313, V3-RACE-279 |
+| V3-RACE-315 | hardening | V3 | queued | IBM Zero-Downtime Maintenance Deployment Lane (LinuxONE/Cloud Pak) | V3-RACE-303, V3-RACE-304, V3-RACE-313 |
+| V3-RACE-316 | hardening | V3 | queued | IBM Promotion Hardening Gate (RAS + PQC + Governance/Formal + HIL Evidence) | V3-RACE-307, V3-RACE-308, V3-RACE-309, V3-RACE-310, V3-RACE-315 |
 
