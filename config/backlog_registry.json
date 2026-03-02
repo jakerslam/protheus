@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T09:37:46.477Z",
-  "source_hash": "eaa14d2a39f0d9a97b71326b",
+  "generated_at": "2026-03-02T09:37:48.570Z",
+  "source_hash": "7c48a5cb853c32c9cdccb007",
   "row_count": 373,
   "active_count": 1,
-  "archive_count": 361,
+  "archive_count": 362,
   "rows": [
     {
       "id": "BL-001",
@@ -1251,7 +1251,7 @@
       "id": "RR-004",
       "class": "backlog",
       "wave": "RR",
-      "status": "open",
+      "status": "done",
       "title": "Determinism gaps in replay",
       "problem": "Debugging and cross-hardware parity become unreliable",
       "acceptance": "Deterministic mode + replay parity as release blocker on core lanes; linked: `V2-FND-002`, `V2-FND-005`, `V3-044`",
