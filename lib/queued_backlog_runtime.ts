@@ -11,6 +11,11 @@ type AnyObj = Record<string, any>;
 const ROOT = path.resolve(__dirname, '..');
 
 function nowIso() {
+  const override = cleanText(process.env.PROTHEUS_NOW_ISO || '', 80);
+  if (override) {
+    const ms = Date.parse(override);
+    if (Number.isFinite(ms)) return new Date(ms).toISOString();
+  }
   return new Date().toISOString();
 }
 

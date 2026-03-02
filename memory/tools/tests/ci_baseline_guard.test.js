@@ -15,10 +15,11 @@ function writeJson(filePath, value) {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
-function run(args) {
+function run(args, env = {}) {
   const res = spawnSync(process.execPath, [SCRIPT, ...args], {
     cwd: ROOT,
-    encoding: 'utf8'
+    encoding: 'utf8',
+    env: { ...process.env, ...env }
   });
   return {
     status: typeof res.status === 'number' ? res.status : 1,
@@ -135,6 +136,19 @@ try {
   assert.strictEqual(stalePayload.pass, false, 'stale run should fail');
   assert.strictEqual(stalePayload.result, 'stale', 'result should be stale');
   assert.strictEqual(stalePayload.checks.latest_run_fresh, false, 'stale freshness check should fail');
+
+  const overrideRun = run([
+    'run',
+    `--policy=${policyPath}`,
+    `--ci-state-path=${ciStatePath}`,
+    `--state-path=${statePath}`,
+    `--history-path=${historyPath}`
+  ], {
+    CI_BASELINE_GUARD_NOW_ISO: '2026-02-26T08:00:00.000Z'
+  });
+  assert.strictEqual(overrideRun.status, 0, `override run failed: ${overrideRun.stderr}`);
+  const overridePayload = parseJson(overrideRun.stdout);
+  assert.strictEqual(String(overridePayload.date || ''), '2026-02-26', 'now override should control default date in guard');
 
   fs.rmSync(tmp, { recursive: true, force: true });
   console.log('ci_baseline_guard.test.js: OK');

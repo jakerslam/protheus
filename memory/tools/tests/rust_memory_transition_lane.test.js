@@ -80,6 +80,8 @@ process.stdout.write(JSON.stringify({ ok: true, backend_used: engine, parity_err
       receipts_path: path.join(stateRoot, 'receipts.jsonl'),
       selector_path: path.join(stateRoot, 'selector.json'),
       benchmark_path: path.join(stateRoot, 'bench.json'),
+      benchmark_latest_path: path.join(stateRoot, 'bench-latest.json'),
+      benchmark_report_path: path.join(stateRoot, 'benchmarks', 'memory-stage1.md'),
       memory_index_path: indexPath,
       rust_crate_path: path.join(ROOT, 'systems', 'memory', 'rust')
     },
@@ -87,12 +89,27 @@ process.stdout.write(JSON.stringify({ ok: true, backend_used: engine, parity_err
       mode: 'probe_commands',
       timeout_ms: 8000,
       require_rust_backend_used: true,
+      require_rust_transport: 'any',
+      enforce_warm_path: false,
+      fail_on_scope_contamination: false,
       js_probe_command: [process.execPath, probeScript, '--engine=js', '--kind=query'],
       js_get_probe_command: [process.execPath, probeScript, '--engine=js', '--kind=get'],
       js_index_probe_command: [process.execPath, probeScript, '--engine=js', '--kind=index'],
       rust_probe_command: [process.execPath, probeScript, '--engine=rust', '--kind=query'],
       rust_get_probe_command: [process.execPath, probeScript, '--engine=rust', '--kind=get'],
       rust_index_probe_command: [process.execPath, probeScript, '--engine=rust', '--kind=index']
+    },
+    soak: {
+      enabled: true,
+      window_hours: 24,
+      max_window_hours: 48,
+      min_rows: 3,
+      min_pass_rate: 0.99,
+      max_fallback_trigger_count: 0,
+      max_restart_count: 2,
+      max_rust_p99_ms: 5000,
+      restart_history_path: path.join(stateRoot, 'daemon_restart_history.jsonl'),
+      promotion_decisions_path: path.join(stateRoot, 'soak_promotion_decisions.jsonl')
     }
   });
 
@@ -125,12 +142,26 @@ process.stdout.write(JSON.stringify({ ok: true, backend_used: engine, parity_err
   assert.strictEqual(bench.rows[0].rust_index_probe_ok, true);
   assert.strictEqual(bench.rows[0].probe_node_id, 'n1');
   assert.strictEqual(bench.rows[0].parity_error_count, 0);
+  assert.ok(String(bench.rows[0].policy_scope || '').length > 0, 'benchmark rows should carry policy scope');
+  const benchLatest = JSON.parse(fs.readFileSync(path.join(stateRoot, 'bench-latest.json'), 'utf8'));
+  assert.strictEqual(benchLatest.type, 'rust_memory_transition_benchmark', 'benchmark latest artifact should be written');
+  assert.ok(String(benchLatest.stage1_report_path || '').includes('benchmarks/memory-stage1.md'), 'benchmark latest should reference scoped report');
   const selectorAfterBenchmark = JSON.parse(fs.readFileSync(path.join(stateRoot, 'selector.json'), 'utf8'));
   assert.strictEqual(selectorAfterBenchmark.backend, 'rust_shadow', 'benchmark auto-select should persist selector');
+
+  res = run(['consistency-check', `--policy=${policyPath}`, '--strict=1']);
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.ok(res.payload && res.payload.ok === true, 'consistency-check should pass');
+  assert.ok(Array.isArray(res.payload.failed_checks) && res.payload.failed_checks.length === 0, 'consistency-check should have no failed checks');
 
   res = run(['auto-selector', `--policy=${policyPath}`]);
   assert.strictEqual(res.status, 0, res.stderr);
   assert.ok(res.payload && res.payload.backend === 'rust_shadow', 'auto-selector should promote rust_shadow when eligible');
+
+  res = run(['soak-gate', `--policy=${policyPath}`, '--strict=1']);
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.ok(res.payload && res.payload.eligible_for_live_promotion === true, 'soak gate should be eligible with healthy benchmark window');
+  assert.strictEqual(Number(res.payload.metrics.rows_in_window || 0) >= 3, true, 'soak gate should include recent rows');
 
   res = run(['selector', `--policy=${policyPath}`, '--backend=rust_shadow']);
   assert.strictEqual(res.status, 0, res.stderr);

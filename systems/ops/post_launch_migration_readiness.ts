@@ -121,10 +121,11 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   };
 }
 
-function dateDiffDays(tsRaw) {
+function dateDiffDays(tsRaw, nowMsRaw = Date.parse(nowIso())) {
   const ts = Date.parse(String(tsRaw || ''));
   if (!Number.isFinite(ts)) return null;
-  return Number(((Date.now() - ts) / (24 * 60 * 60 * 1000)).toFixed(6));
+  const nowMs = Number.isFinite(nowMsRaw) ? nowMsRaw : Date.parse(nowIso());
+  return Number(((nowMs - ts) / (24 * 60 * 60 * 1000)).toFixed(6));
 }
 
 function existsReadable(filePath) {
@@ -136,6 +137,7 @@ function existsReadable(filePath) {
 }
 
 function evaluate(policy) {
+  const nowMs = Date.parse(nowIso());
   const exec = readJson(policy.paths.execution_reliability_path, {});
   const ci = readJson(policy.paths.ci_guard_path, {});
   const closure = readJson(policy.paths.workflow_closure_path, {});
@@ -156,7 +158,7 @@ function evaluate(policy) {
   const ciStreak = clampInt(ci.streak, 0, 3650, 0);
   const jsStrictViolations = Array.isArray(jsHoldout.strict_violations) ? jsHoldout.strict_violations.length : 0;
   const primitiveCoverage = clampNumber(defrag.profile_ratio, 0, 1, 0);
-  const parityAgeDays = dateDiffDays(parity.updated_at || parity.ts);
+  const parityAgeDays = dateDiffDays(parity.updated_at || parity.ts, nowMs);
   const profileCompatFailures = Array.isArray(profileCompat.failures) ? profileCompat.failures.length : 0;
   const packagingPass = String(packaging.verdict || '').toLowerCase() === 'pass' || packaging.ok === true;
   const bootstrapVerified = bootstrap && typeof bootstrap === 'object'

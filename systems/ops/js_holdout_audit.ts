@@ -16,6 +16,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const ROOT = process.env.JS_HOLDOUT_ROOT
   ? path.resolve(process.env.JS_HOLDOUT_ROOT)
@@ -24,6 +25,8 @@ const DEFAULT_REGISTRY_PATH = process.env.JS_EXCEPTION_REGISTRY_PATH
   ? path.resolve(process.env.JS_EXCEPTION_REGISTRY_PATH)
   : path.join(ROOT, 'config', 'js_exception_registry.json');
 const DEFAULT_STATE_PATH = path.join(ROOT, 'state', 'ops', 'js_holdout_audit', 'latest.json');
+const DEFAULT_WAVE_STATE_PATH = path.join(ROOT, 'state', 'ops', 'js_holdout_audit', 'wave_latest.json');
+const DEFAULT_EXCEPTION_SNAPSHOT_PATH = path.join(ROOT, 'state', 'ops', 'js_holdout_audit', 'exception_registry_snapshot.json');
 
 function nowIso() {
   return new Date().toISOString();
@@ -109,6 +112,76 @@ function readRegistry(registryPath) {
     });
   }
   return { strictRoots, advisoryRoots, exceptionMap: map };
+}
+
+function serializeExceptionMap(map) {
+  const out = {};
+  for (const [key, value] of map.entries()) {
+    out[key] = {
+      owner: cleanText(value.owner || 'unknown', 120) || 'unknown',
+      reason: cleanText(value.reason || '', 240) || null,
+      benchmark_evidence: cleanText(value.benchmark_evidence || '', 240) || null,
+      expires_at: cleanText(value.expires_at || '', 80) || null
+    };
+  }
+  return out;
+}
+
+function computeExceptionDiff(previousSnap, currentMap) {
+  const prev = previousSnap && previousSnap.exceptions && typeof previousSnap.exceptions === 'object'
+    ? previousSnap.exceptions
+    : {};
+  const curr = serializeExceptionMap(currentMap);
+  const added = [];
+  const removed = [];
+  const changed = [];
+  for (const key of Object.keys(curr)) {
+    if (!Object.prototype.hasOwnProperty.call(prev, key)) {
+      added.push(key);
+      continue;
+    }
+    if (JSON.stringify(prev[key]) !== JSON.stringify(curr[key])) {
+      changed.push(key);
+    }
+  }
+  for (const key of Object.keys(prev)) {
+    if (!Object.prototype.hasOwnProperty.call(curr, key)) removed.push(key);
+  }
+  added.sort();
+  removed.sort();
+  changed.sort();
+  return {
+    added,
+    removed,
+    changed,
+    added_count: added.length,
+    removed_count: removed.length,
+    changed_count: changed.length
+  };
+}
+
+function clampInt(v, min, max, fallback = min) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(n)));
+}
+
+function gitChurnMap(days) {
+  const windowDays = clampInt(days, 1, 365, 30);
+  const proc = spawnSync(
+    'git',
+    ['-C', ROOT, 'log', `--since=${windowDays}.days`, '--name-only', '--pretty=format:'],
+    { encoding: 'utf8', timeout: 30000 }
+  );
+  if (Number(proc.status || 0) !== 0) return {};
+  const out = {};
+  const lines = String(proc.stdout || '').split('\n').map((line) => line.trim()).filter(Boolean);
+  for (const line of lines) {
+    if (line.startsWith('.')) continue;
+    const relPath = String(line).replace(/\\/g, '/');
+    out[relPath] = Number(out[relPath] || 0) + 1;
+  }
+  return out;
 }
 
 function isExpired(expiresAt) {
@@ -230,6 +303,64 @@ function runAudit(args, mode) {
   if (mode === 'run' && strict && payload.ok !== true) process.exit(1);
 }
 
+function wavePlan(args) {
+  const registryPath = args.registry
+    ? path.resolve(String(args.registry))
+    : DEFAULT_REGISTRY_PATH;
+  const waveSize = clampInt(args['wave-size'] != null ? args['wave-size'] : args.wave_size, 1, 200, 25);
+  const churnDays = clampInt(args['churn-days'] != null ? args['churn-days'] : args.churn_days, 1, 365, 30);
+  const registry = readRegistry(registryPath);
+  const out = audit(registryPath);
+  const churn = gitChurnMap(churnDays);
+  const candidates = out.strict_rows.concat(out.advisory_rows)
+    .filter((row) => row && row.has_ts_peer !== true)
+    .map((row) => {
+      const relPath = cleanText(row.path || '', 300).replace(/^\/+/, '');
+      const churnCount = clampInt(churn[relPath], 0, 100000, 0);
+      const status = String(row.status || '');
+      const priority = status === 'unapproved_unpaired_js'
+        ? 0
+        : (status === 'exception_expired' ? 1 : 2);
+      return {
+        path: relPath,
+        status,
+        churn_count_30d: churnCount,
+        priority,
+        owner: row.exception ? cleanText(row.exception.owner || 'unknown', 120) : null,
+        expires_at: row.exception ? cleanText(row.exception.expires_at || '', 80) || null : null
+      };
+    });
+  candidates.sort((a, b) => {
+    if (a.priority !== b.priority) return a.priority - b.priority;
+    if (b.churn_count_30d !== a.churn_count_30d) return b.churn_count_30d - a.churn_count_30d;
+    return String(a.path || '').localeCompare(String(b.path || ''));
+  });
+
+  const previousSnapshot = readJson(DEFAULT_EXCEPTION_SNAPSHOT_PATH, {});
+  const exceptionDiff = computeExceptionDiff(previousSnapshot, registry.exceptionMap);
+  const payload = {
+    ok: true,
+    type: 'js_holdout_wave_plan',
+    script: 'js_holdout_audit.js',
+    ts: nowIso(),
+    registry_path: rel(registryPath),
+    churn_window_days: churnDays,
+    wave_size: waveSize,
+    strict_total: out.strict_rows.length,
+    advisory_total: out.advisory_rows.length,
+    unpaired_total: candidates.length,
+    wave_candidates: candidates.slice(0, waveSize),
+    exception_registry_diff: exceptionDiff
+  };
+  writeJsonAtomic(DEFAULT_WAVE_STATE_PATH, payload);
+  writeJsonAtomic(DEFAULT_EXCEPTION_SNAPSHOT_PATH, {
+    ts: nowIso(),
+    registry_path: rel(registryPath),
+    exceptions: serializeExceptionMap(registry.exceptionMap)
+  });
+  process.stdout.write(`${JSON.stringify(payload)}\n`);
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const cmdRaw = String(args._[0] || '').trim().toLowerCase();
@@ -240,7 +371,8 @@ function main() {
       script: 'js_holdout_audit.js',
       usage: [
         'js_holdout_audit.js run [--registry=<path>] [--strict=1]',
-        'js_holdout_audit.js status [--registry=<path>]'
+        'js_holdout_audit.js status [--registry=<path>]',
+        'js_holdout_audit.js wave-plan [--registry=<path>] [--wave-size=25] [--churn-days=30]'
       ]
     }) + '\n');
     return;
@@ -248,6 +380,10 @@ function main() {
   const cmd = cmdRaw || 'run';
   if (cmd === 'run' || cmd === 'status') {
     runAudit(args, cmd);
+    return;
+  }
+  if (cmd === 'wave-plan') {
+    wavePlan(args);
     return;
   }
   throw new Error(`unknown_command:${cmd}`);

@@ -68,6 +68,16 @@ function run() {
       && strictPayload.advisory_violations.some((row) => String(row.path || '').endsWith('habits/scripts/probe.js')),
     'advisory violation should include habits/scripts probe.js'
   );
+  const wave1 = runNode(script, ['wave-plan', `--registry=${registryPath}`, '--wave-size=10', '--churn-days=30'], tmp, env);
+  assert.strictEqual(wave1.status, 0, wave1.stderr || wave1.stdout);
+  const wave1Payload = parseJson(wave1);
+  assert.ok(wave1Payload && wave1Payload.type === 'js_holdout_wave_plan', 'wave-plan should emit plan payload');
+  assert.ok(
+    Array.isArray(wave1Payload.wave_candidates)
+      && wave1Payload.wave_candidates.some((row) => String(row.path || '').endsWith('systems/holdout.js')),
+    'wave-plan should include holdout.js as candidate'
+  );
+  assert.ok(wave1Payload.exception_registry_diff && wave1Payload.exception_registry_diff.added_count >= 1, 'first wave-plan should detect added exception snapshot');
 
   // Remove exception to force strict failure.
   writeJson(registryPath, {
@@ -76,6 +86,16 @@ function run() {
     advisory_roots: ['habits/scripts'],
     exceptions: []
   });
+  const wave2 = runNode(script, ['wave-plan', `--registry=${registryPath}`, '--wave-size=10', '--churn-days=30'], tmp, env);
+  assert.strictEqual(wave2.status, 0, wave2.stderr || wave2.stdout);
+  const wave2Payload = parseJson(wave2);
+  assert.ok(wave2Payload && wave2Payload.exception_registry_diff, 'second wave-plan should include exception diff');
+  assert.ok(
+    Array.isArray(wave2Payload.exception_registry_diff.removed)
+      && wave2Payload.exception_registry_diff.removed.includes('systems/holdout.js'),
+    'exception diff should show removed holdout exception'
+  );
+
   const strictFail = runNode(script, ['run', `--registry=${registryPath}`, '--strict=1'], tmp, env);
   assert.strictEqual(strictFail.status, 1, 'strict run should fail when unpaired JS is unapproved');
   const failPayload = parseJson(strictFail);

@@ -5,8 +5,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::hash_map::DefaultHasher;
 use std::env;
 use std::fs;
+use std::hash::{Hash, Hasher};
 use std::cmp::Ordering;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
@@ -55,6 +57,8 @@ struct QueryHit {
 struct QueryResult {
     ok: bool,
     backend: String,
+    score_mode: String,
+    vector_enabled: bool,
     entries_total: usize,
     candidates_total: usize,
     index_sources: Vec<String>,
@@ -491,6 +495,88 @@ fn tokenize(v: &str) -> Vec<String> {
     out
 }
 
+fn normalize_vector(values: &[f32]) -> Vec<f32> {
+    if values.is_empty() {
+        return vec![];
+    }
+    let mut out = values
+        .iter()
+        .map(|value| if value.is_finite() { *value } else { 0.0f32 })
+        .collect::<Vec<f32>>();
+    let norm = out
+        .iter()
+        .fold(0.0f32, |acc, value| acc + (*value * *value))
+        .sqrt();
+    if norm > 0.0 {
+        for value in out.iter_mut() {
+            *value /= norm;
+        }
+    }
+    out
+}
+
+fn hash_token_slot(token: &str, salt: u64, dims: usize) -> usize {
+    let mut hasher = DefaultHasher::new();
+    token.hash(&mut hasher);
+    salt.hash(&mut hasher);
+    (hasher.finish() as usize) % dims.max(1)
+}
+
+fn vectorize_text(text: &str, dims: usize) -> Vec<f32> {
+    if dims == 0 {
+        return vec![];
+    }
+    let mut vec = vec![0.0f32; dims];
+    let tokens = tokenize(text);
+    if tokens.is_empty() {
+        return vec;
+    }
+    for token in tokens {
+        let idx = hash_token_slot(&token, 0, dims);
+        let sign_idx = hash_token_slot(&token, 1, dims);
+        let sign = if sign_idx % 2 == 0 { 1.0f32 } else { -1.0f32 };
+        let weight = 1.0f32 + ((token.len().min(24) as f32) / 24.0f32);
+        vec[idx] += sign * weight;
+    }
+    normalize_vector(&vec)
+}
+
+fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+    if a.is_empty() || b.is_empty() {
+        return 0.0;
+    }
+    let len = a.len().min(b.len());
+    if len == 0 {
+        return 0.0;
+    }
+    let mut dot = 0.0f32;
+    let mut norm_a = 0.0f32;
+    let mut norm_b = 0.0f32;
+    for i in 0..len {
+        dot += a[i] * b[i];
+        norm_a += a[i] * a[i];
+        norm_b += b[i] * b[i];
+    }
+    if norm_a <= 0.0 || norm_b <= 0.0 {
+        return 0.0;
+    }
+    dot / (norm_a.sqrt() * norm_b.sqrt())
+}
+
+fn embedding_text_for_entry(entry: &IndexEntry) -> String {
+    format!(
+        "{} {} {} {}",
+        entry.node_id,
+        entry.uid,
+        entry.summary,
+        entry.tags.join(" ")
+    )
+}
+
+fn build_entry_embedding(entry: &IndexEntry, dims: usize) -> Vec<f32> {
+    vectorize_text(&embedding_text_for_entry(entry), dims)
+}
+
 fn parse_tag_filters(raw: &str) -> Vec<String> {
     let mut out = vec![];
     for token in raw.split(',') {
@@ -582,6 +668,7 @@ struct RuntimeIndexBundle {
     tag_sources: Vec<String>,
     entries: Vec<IndexEntry>,
     tag_map: HashMap<String, HashSet<String>>,
+    embeddings: HashMap<String, Vec<f32>>,
     sqlite_path: Option<String>,
     sqlite_sync_rows: usize,
     sqlite_sync_applied: bool,
@@ -630,6 +717,18 @@ fn build_tag_map_from_entries(entries: &[IndexEntry]) -> HashMap<String, HashSet
                 .or_default()
                 .insert(entry.node_id.clone());
         }
+    }
+    out
+}
+
+fn build_embedding_map_from_entries(entries: &[IndexEntry], dims: usize) -> HashMap<String, Vec<f32>> {
+    let mut out = HashMap::new();
+    for entry in entries {
+        let vector = build_entry_embedding(entry, dims);
+        if vector.is_empty() {
+            continue;
+        }
+        out.insert(entry.node_id.clone(), vector);
     }
     out
 }
@@ -728,8 +827,24 @@ fn sync_sqlite_runtime_index(
         .map(to_db_index_entry)
         .collect::<Vec<DbIndexEntry>>();
     let inserted = db.replace_index_entries(&db_entries, "daily_scan_authority")?;
+    let embedding_rows = entries
+        .iter()
+        .map(|entry| {
+            (
+                entry.node_id.clone(),
+                build_entry_embedding(entry, 64),
+                json!({
+                    "node_id": entry.node_id,
+                    "source": "daily_scan_authority",
+                    "tags": entry.tags
+                }),
+            )
+        })
+        .collect::<Vec<(String, Vec<f32>, serde_json::Value)>>();
+    let embedding_written = db.replace_embeddings(&embedding_rows, "daily_scan_authority")?;
     let _ = db.set_hot_state_json("daily_scan_signature", &json!(signature));
     let _ = db.set_hot_state_json("index_row_count", &json!(inserted));
+    let _ = db.set_hot_state_json("embedding_row_count", &json!(embedding_written));
     let _ = db.set_hot_state_json("index_sync_source", &json!("daily_scan_authority"));
     let _ = db.set_hot_state_json("index_files_scanned", &json!(files_scanned));
     Ok((index_sources, tag_sources, inserted, true, signature))
@@ -777,6 +892,9 @@ fn load_runtime_index(root: &Path, args: &HashMap<String, String>) -> RuntimeInd
                 out.index_sources = vec![format!("sqlite:{sqlite_path}")];
                 out.tag_map = build_tag_map_from_entries(&out.entries);
                 out.tag_sources = vec![format!("sqlite:{sqlite_path}")];
+                out.embeddings = db
+                    .load_embedding_map()
+                    .unwrap_or_else(|_| build_embedding_map_from_entries(&out.entries, 64));
                 return out;
             }
         }
@@ -788,6 +906,7 @@ fn load_runtime_index(root: &Path, args: &HashMap<String, String>) -> RuntimeInd
         out.tag_map = build_tag_map_from_entries(&entries);
         out.tag_sources = vec!["daily_scan_fallback:frontmatter_tags".to_string()];
         out.entries = entries;
+        out.embeddings = build_embedding_map_from_entries(&out.entries, 64);
         return out;
     }
 
@@ -797,6 +916,7 @@ fn load_runtime_index(root: &Path, args: &HashMap<String, String>) -> RuntimeInd
     out.tag_sources = tag_sources;
     out.entries = entries;
     out.tag_map = tag_map;
+    out.embeddings = build_embedding_map_from_entries(&out.entries, 64);
     out
 }
 
@@ -1261,6 +1381,18 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
     let tag_sources = runtime_index.tag_sources;
     let entries = runtime_index.entries;
     let tag_map = runtime_index.tag_map;
+    let embeddings = runtime_index.embeddings;
+    let score_mode_raw = arg_any(args, &["score-mode", "score_mode"]).to_lowercase();
+    let score_mode = score_mode_raw
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric() || *ch == '_' || *ch == '-')
+        .collect::<String>();
+    let vector_enabled = score_mode != "lexical";
+    let query_vector = if vector_enabled {
+        vectorize_text(&format!("{} {}", q, tag_filters.join(" ")), 64)
+    } else {
+        vec![]
+    };
 
     let mut tag_node_ids: HashSet<String> = HashSet::new();
     for tag in &tag_filters {
@@ -1283,8 +1415,30 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
     let mut scored = candidates
         .iter()
         .map(|entry| {
-            let (score, reasons) = score_entry(entry, &query_tokens, &tag_filters, &tag_node_ids);
-            (entry, score, reasons)
+            let (lexical_score, mut reasons) = score_entry(entry, &query_tokens, &tag_filters, &tag_node_ids);
+            let vector_score = if vector_enabled {
+                if let Some(entry_vector) = embeddings.get(&entry.node_id) {
+                    let similarity = cosine_similarity(&query_vector, entry_vector);
+                    if similarity > 0.0 {
+                        if !reasons.iter().any(|reason| reason == "vector_similarity") {
+                            reasons.push("vector_similarity".to_string());
+                        }
+                        (similarity * 1000.0).round() as i64
+                    } else {
+                        0
+                    }
+                } else {
+                    0
+                }
+            } else {
+                0
+            };
+            let fused_score = if vector_enabled {
+                lexical_score.saturating_mul(1000).saturating_add(vector_score)
+            } else {
+                lexical_score
+            };
+            (entry, fused_score, reasons)
         })
         .collect::<Vec<(&IndexEntry, i64, Vec<String>)>>();
 
@@ -1384,6 +1538,8 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
     QueryResult {
         ok: true,
         backend: "protheus_memory_core".to_string(),
+        score_mode: if vector_enabled { "hybrid".to_string() } else { "lexical".to_string() },
+        vector_enabled,
         entries_total: entries.len(),
         candidates_total: candidates.len(),
         index_sources,
@@ -1567,10 +1723,28 @@ fn build_index_payload(args: &HashMap<String, String>) -> BuildIndexResult {
             Ok(rows) => {
                 sqlite_rows_written = Some(rows);
                 sqlite_path = Some(rel_path.clone());
+                let embedding_rows = entries
+                    .iter()
+                    .map(|entry| {
+                        (
+                            entry.node_id.clone(),
+                            build_entry_embedding(entry, 64),
+                            json!({
+                                "node_id": entry.node_id,
+                                "source": "daily_scan_build_index",
+                                "tags": entry.tags
+                            }),
+                        )
+                    })
+                    .collect::<Vec<(String, Vec<f32>, serde_json::Value)>>();
+                let embedding_written = db
+                    .replace_embeddings(&embedding_rows, "daily_scan_build_index")
+                    .unwrap_or(0);
                 let _ = db.set_hot_state_json("build_index_memory_sha256", &json!(sha256_hex(&memory_index_md)));
                 let _ = db.set_hot_state_json("build_index_tags_sha256", &json!(sha256_hex(&tags_index_md)));
                 let _ = db.set_hot_state_json("build_index_node_count", &json!(entries.len()));
                 let _ = db.set_hot_state_json("build_index_tag_count", &json!(tag_count));
+                let _ = db.set_hot_state_json("build_index_embedding_count", &json!(embedding_written));
                 publish_memory_event(
                     &root,
                     "rust_memory_build_index",
@@ -1578,6 +1752,7 @@ fn build_index_payload(args: &HashMap<String, String>) -> BuildIndexResult {
                         "ok": true,
                         "node_count": entries.len(),
                         "tag_count": tag_count,
+                        "embedding_count": embedding_written,
                         "files_scanned": files_scanned,
                         "sqlite_rows_written": rows,
                         "sqlite_path": rel_path

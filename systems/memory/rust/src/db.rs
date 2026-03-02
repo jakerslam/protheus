@@ -1,4 +1,7 @@
+use aes_gcm::aead::{Aead, KeyInit};
+use aes_gcm::{Aes256Gcm, Nonce};
 use rusqlite::{params, Connection, OptionalExtension};
+use rand::RngCore;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::env;
@@ -81,7 +84,7 @@ fn derive_cipher_key(root: &Path) -> [u8; 32] {
     out
 }
 
-fn keystream_block(cipher_key: &[u8; 32], nonce: u64, block_index: u64) -> [u8; 32] {
+fn legacy_keystream_block(cipher_key: &[u8; 32], nonce: u64, block_index: u64) -> [u8; 32] {
     let mut hasher = Sha256::new();
     hasher.update(cipher_key);
     hasher.update(nonce.to_le_bytes());
@@ -92,12 +95,12 @@ fn keystream_block(cipher_key: &[u8; 32], nonce: u64, block_index: u64) -> [u8; 
     out
 }
 
-fn xor_stream(cipher_key: &[u8; 32], nonce: u64, input: &[u8]) -> Vec<u8> {
+fn legacy_xor_stream(cipher_key: &[u8; 32], nonce: u64, input: &[u8]) -> Vec<u8> {
     let mut out = vec![0u8; input.len()];
     let mut offset = 0usize;
     let mut block_index = 0u64;
     while offset < input.len() {
-        let block = keystream_block(cipher_key, nonce, block_index);
+        let block = legacy_keystream_block(cipher_key, nonce, block_index);
         let mut local = 0usize;
         while local < block.len() && (offset + local) < input.len() {
             out[offset + local] = input[offset + local] ^ block[local];
@@ -109,31 +112,63 @@ fn xor_stream(cipher_key: &[u8; 32], nonce: u64, input: &[u8]) -> Vec<u8> {
     out
 }
 
-fn encrypt_value(cipher_key: &[u8; 32], plaintext: &str) -> String {
-    let nonce = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|dur| dur.as_nanos() as u64)
-        .unwrap_or(0)
-        ^ (std::process::id() as u64);
-    let cipher = xor_stream(cipher_key, nonce, plaintext.as_bytes());
-    format!("enc-v1:{nonce:016x}:{}", hex::encode(cipher))
+fn encrypt_value(cipher_key: &[u8; 32], plaintext: &str) -> Result<String, String> {
+    let cipher = Aes256Gcm::new_from_slice(cipher_key)
+        .map_err(|err| format!("aead_init_failed:{err}"))?;
+    let mut nonce_bytes = [0u8; 12];
+    rand::rngs::OsRng.fill_bytes(&mut nonce_bytes);
+    let nonce = Nonce::from_slice(&nonce_bytes);
+    let ciphertext = cipher
+        .encrypt(nonce, plaintext.as_bytes())
+        .map_err(|err| format!("aead_encrypt_failed:{err}"))?;
+    Ok(format!(
+        "aead-v1:{}:{}",
+        hex::encode(nonce_bytes),
+        hex::encode(ciphertext)
+    ))
 }
 
-fn decrypt_value(cipher_key: &[u8; 32], payload: &str) -> String {
+fn decrypt_legacy_value(cipher_key: &[u8; 32], payload: &str) -> Result<String, String> {
     let body = payload.trim();
     if !body.starts_with("enc-v1:") {
-        return body.to_string();
+        return Ok(body.to_string());
     }
     let parts = body.splitn(3, ':').collect::<Vec<&str>>();
     if parts.len() != 3 {
-        return body.to_string();
+        return Err("legacy_cipher_invalid_parts".to_string());
     }
     let nonce = u64::from_str_radix(parts[1], 16).unwrap_or(0);
     let Ok(cipher_bytes) = hex::decode(parts[2]) else {
-        return body.to_string();
+        return Err("legacy_cipher_invalid_hex".to_string());
     };
-    let plain = xor_stream(cipher_key, nonce, &cipher_bytes);
-    String::from_utf8(plain).unwrap_or_else(|_| body.to_string())
+    let plain = legacy_xor_stream(cipher_key, nonce, &cipher_bytes);
+    String::from_utf8(plain).map_err(|_| "legacy_cipher_invalid_utf8".to_string())
+}
+
+fn decrypt_value(cipher_key: &[u8; 32], payload: &str) -> Result<String, String> {
+    let body = payload.trim();
+    if body.starts_with("enc-v1:") {
+        return Err("legacy_cipher_retired".to_string());
+    }
+    if !body.starts_with("aead-v1:") {
+        return Err("legacy_plaintext_retired".to_string());
+    }
+    let parts = body.splitn(3, ':').collect::<Vec<&str>>();
+    if parts.len() != 3 {
+        return Err("aead_invalid_parts".to_string());
+    }
+    let nonce_bytes = hex::decode(parts[1]).map_err(|_| "aead_invalid_nonce_hex".to_string())?;
+    if nonce_bytes.len() != 12 {
+        return Err("aead_invalid_nonce_len".to_string());
+    }
+    let cipher_bytes = hex::decode(parts[2]).map_err(|_| "aead_invalid_cipher_hex".to_string())?;
+    let cipher = Aes256Gcm::new_from_slice(cipher_key)
+        .map_err(|err| format!("aead_init_failed:{err}"))?;
+    let nonce = Nonce::from_slice(&nonce_bytes);
+    let plaintext = cipher
+        .decrypt(nonce, cipher_bytes.as_ref())
+        .map_err(|_| "aead_decrypt_failed".to_string())?;
+    String::from_utf8(plaintext).map_err(|_| "aead_invalid_utf8".to_string())
 }
 
 fn parse_tags_json(raw: &str) -> Vec<String> {
@@ -145,6 +180,36 @@ fn parse_tags_json(raw: &str) -> Vec<String> {
     out.sort();
     out.dedup();
     out
+}
+
+fn normalize_vector(values: &[f32]) -> Vec<f32> {
+    if values.is_empty() {
+        return vec![];
+    }
+    let mut out = values
+        .iter()
+        .map(|value| if value.is_finite() { *value } else { 0.0f32 })
+        .collect::<Vec<f32>>();
+    let norm = out
+        .iter()
+        .fold(0.0f32, |acc, value| acc + (*value * *value))
+        .sqrt();
+    if norm > 0.0 {
+        for value in out.iter_mut() {
+            *value /= norm;
+        }
+    }
+    out
+}
+
+fn encode_vector_blob(values: &[f32]) -> Result<Vec<u8>, String> {
+    let normalized = normalize_vector(values);
+    serde_json::to_vec(&normalized).map_err(|err| format!("db_vector_encode_failed:{err}"))
+}
+
+fn decode_vector_blob(blob: &[u8]) -> Result<Vec<f32>, String> {
+    let parsed = serde_json::from_slice::<Vec<f32>>(blob).map_err(|err| format!("db_vector_decode_failed:{err}"))?;
+    Ok(normalize_vector(&parsed))
 }
 
 impl MemoryDb {
@@ -160,6 +225,7 @@ impl MemoryDb {
             cipher_key: derive_cipher_key(root),
         };
         db.init_schema()?;
+        db.migrate_legacy_hot_state_cipher()?;
         Ok(db)
     }
 
@@ -239,6 +305,49 @@ CREATE INDEX IF NOT EXISTS idx_graph_edges_dst ON temporal_graph_edges(dst_node_
         Ok(())
     }
 
+    fn migrate_legacy_hot_state_cipher(&self) -> Result<usize, String> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT state_key, state_value_json FROM hot_state")
+            .map_err(|err| format!("db_hot_state_scan_prepare_failed:{err}"))?;
+        let mapped = stmt
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .map_err(|err| format!("db_hot_state_scan_failed:{err}"))?;
+        let mut pending: Vec<(String, String)> = vec![];
+        for row in mapped {
+            let (state_key, value_raw) =
+                row.map_err(|err| format!("db_hot_state_scan_row_failed:{err}"))?;
+            let body = value_raw.trim();
+            if body.starts_with("aead-v1:") {
+                continue;
+            }
+            let plaintext = if body.starts_with("enc-v1:") {
+                decrypt_legacy_value(&self.cipher_key, body)
+                    .map_err(|err| format!("db_hot_state_legacy_migrate_decrypt_failed:{err}"))?
+            } else {
+                body.to_string()
+            };
+            let encrypted = encrypt_value(&self.cipher_key, &plaintext)
+                .map_err(|err| format!("db_hot_state_legacy_migrate_encrypt_failed:{err}"))?;
+            pending.push((state_key, encrypted));
+        }
+        if pending.is_empty() {
+            return Ok(0);
+        }
+        let now = now_iso();
+        for (state_key, encrypted) in pending.iter() {
+            self.conn
+            .execute(
+                "UPDATE hot_state SET state_value_json = ?1, updated_ts = ?2 WHERE state_key = ?3",
+                params![encrypted, now, state_key],
+            )
+            .map_err(|err| format!("db_hot_state_migrate_update_failed:{err}"))?;
+        }
+        Ok(pending.len())
+    }
+
     pub fn count_index_rows(&self) -> Result<usize, String> {
         let count = self
             .conn
@@ -313,6 +422,72 @@ CREATE INDEX IF NOT EXISTS idx_graph_edges_dst ON temporal_graph_edges(dst_node_
         Ok(entries.len())
     }
 
+    pub fn replace_embeddings(
+        &mut self,
+        entries: &[(String, Vec<f32>, Value)],
+        source: &str,
+    ) -> Result<usize, String> {
+        let tx = self
+            .conn
+            .transaction()
+            .map_err(|err| format!("db_embedding_tx_start_failed:{err}"))?;
+        tx.execute("DELETE FROM embeddings", [])
+            .map_err(|err| format!("db_embedding_clear_failed:{err}"))?;
+        let now = now_iso();
+        for (node_id, vector, metadata) in entries {
+            let embedding_id = format!("{}::{}", source, node_id);
+            let vector_blob = encode_vector_blob(vector)?;
+            let metadata_json = serde_json::to_string(metadata)
+                .map_err(|err| format!("db_embedding_metadata_encode_failed:{err}"))?;
+            tx.execute(
+                "INSERT INTO embeddings (embedding_id, node_id, vector_blob, metadata_json, created_ts, updated_ts)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![
+                    embedding_id,
+                    node_id,
+                    vector_blob,
+                    metadata_json,
+                    now,
+                    now
+                ],
+            )
+            .map_err(|err| format!("db_embedding_insert_failed:{err}"))?;
+        }
+        tx.commit()
+            .map_err(|err| format!("db_embedding_tx_commit_failed:{err}"))?;
+        Ok(entries.len())
+    }
+
+    pub fn load_embedding_map(&self) -> Result<std::collections::HashMap<String, Vec<f32>>, String> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT node_id, vector_blob
+                 FROM embeddings",
+            )
+            .map_err(|err| format!("db_prepare_embedding_load_failed:{err}"))?;
+        let mapped = stmt
+            .query_map([], |row| {
+                let node_id = row.get::<_, String>(0)?;
+                let blob = row.get::<_, Vec<u8>>(1)?;
+                Ok((node_id, blob))
+            })
+            .map_err(|err| format!("db_query_embedding_failed:{err}"))?;
+        let mut out = std::collections::HashMap::new();
+        for row in mapped {
+            match row {
+                Ok((node_id, blob)) => {
+                    let vector = decode_vector_blob(&blob)?;
+                    if !vector.is_empty() {
+                        out.insert(node_id, vector);
+                    }
+                }
+                Err(err) => return Err(format!("db_embedding_row_decode_failed:{err}")),
+            }
+        }
+        Ok(out)
+    }
+
     pub fn get_hot_state_json(&self, key: &str) -> Result<Option<Value>, String> {
         let raw: Option<String> = self
             .conn
@@ -325,7 +500,8 @@ CREATE INDEX IF NOT EXISTS idx_graph_edges_dst ON temporal_graph_edges(dst_node_
             .map_err(|err| format!("db_hot_state_query_failed:{err}"))?;
         match raw {
             Some(cipher) => {
-                let plain = decrypt_value(&self.cipher_key, &cipher);
+                let plain =
+                    decrypt_value(&self.cipher_key, &cipher).map_err(|err| format!("db_hot_state_decrypt_failed:{err}"))?;
                 let parsed =
                     serde_json::from_str::<Value>(&plain).map_err(|err| format!("db_hot_state_decode_failed:{err}"))?;
                 Ok(Some(parsed))
@@ -336,7 +512,8 @@ CREATE INDEX IF NOT EXISTS idx_graph_edges_dst ON temporal_graph_edges(dst_node_
 
     pub fn set_hot_state_json(&self, key: &str, value: &Value) -> Result<(), String> {
         let encoded = serde_json::to_string(value).map_err(|err| format!("db_hot_state_encode_failed:{err}"))?;
-        let encrypted = encrypt_value(&self.cipher_key, &encoded);
+        let encrypted =
+            encrypt_value(&self.cipher_key, &encoded).map_err(|err| format!("db_hot_state_encrypt_failed:{err}"))?;
         self.conn
             .execute(
                 "INSERT INTO hot_state (state_key, state_value_json, updated_ts)
@@ -348,5 +525,45 @@ CREATE INDEX IF NOT EXISTS idx_graph_edges_dst ON temporal_graph_edges(dst_node_
             )
             .map_err(|err| format!("db_hot_state_upsert_failed:{err}"))?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{decrypt_value, encrypt_value};
+
+    fn test_key() -> [u8; 32] {
+        [7u8; 32]
+    }
+
+    #[test]
+    fn aead_round_trip() {
+        let key = test_key();
+        let payload = r#"{"ok":true,"k":"v"}"#;
+        let encrypted = encrypt_value(&key, payload).expect("encrypt");
+        assert!(encrypted.starts_with("aead-v1:"));
+        let decrypted = decrypt_value(&key, &encrypted).expect("decrypt");
+        assert_eq!(decrypted, payload);
+    }
+
+    #[test]
+    fn aead_tamper_fails_closed() {
+        let key = test_key();
+        let payload = r#"{"ok":true}"#;
+        let encrypted = encrypt_value(&key, payload).expect("encrypt");
+        let mut chars = encrypted.chars().collect::<Vec<char>>();
+        let idx = chars.len().saturating_sub(1);
+        chars[idx] = if chars[idx] == 'a' { 'b' } else { 'a' };
+        let tampered = chars.into_iter().collect::<String>();
+        let decrypted = decrypt_value(&key, &tampered);
+        assert!(decrypted.is_err(), "tampered payload should fail decrypt");
+    }
+
+    #[test]
+    fn legacy_cipher_is_rejected_after_retirement() {
+        let key = test_key();
+        let legacy = "enc-v1:0000000000000001:00";
+        let decrypted = decrypt_value(&key, legacy);
+        assert!(decrypted.is_err(), "legacy payload should be rejected");
     }
 }

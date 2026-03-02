@@ -28,6 +28,11 @@ const DEFAULT_HISTORY_PATH = process.env.CI_BASELINE_GUARD_HISTORY_PATH
 type AnyObj = Record<string, any>;
 
 function nowIso() {
+  const override = String(process.env.CI_BASELINE_GUARD_NOW_ISO || process.env.PROTHEUS_NOW_ISO || '').trim();
+  if (override) {
+    const ms = Date.parse(override);
+    if (Number.isFinite(ms)) return new Date(ms).toISOString();
+  }
   return new Date().toISOString();
 }
 

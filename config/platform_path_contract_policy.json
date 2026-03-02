@@ -1,0 +1,20 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "shadow_only": true,
+  "source": {
+    "release_pack_path": "state/ops/open_platform_release_pack/release_pack.json",
+    "checklist_path": "state/ops/open_platform_release_pack/checklist_evidence.json",
+    "latest_path": "state/ops/open_platform_release_pack/latest.json"
+  },
+  "output": {
+    "readme_path": "platform/README.md",
+    "license_carveout_path": "platform/LICENSE_APACHE_2_0_CARVEOUT.md",
+    "badges_index_path": "platform/compatibility_badges.json",
+    "export_manifest_path": "platform/export_manifest.json",
+    "export_cli_path": "platform/export_cli.js",
+    "latest_path": "state/ops/platform_path_contract_pack/latest.json",
+    "receipts_path": "state/ops/platform_path_contract_pack/receipts.jsonl",
+    "state_path": "state/ops/platform_path_contract_pack/state.json"
+  }
+}

@@ -26,6 +26,15 @@ const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
 
+function nowRef() {
+  const override = String(process.env.QUEUE_GC_NOW_ISO || process.env.PROTHEUS_NOW_ISO || "").trim();
+  if (override) {
+    const ms = Date.parse(override);
+    if (Number.isFinite(ms)) return new Date(ms);
+  }
+  return new Date();
+}
+
 function arg(name) {
   const pref = `--${name}=`;
   const a = process.argv.find(x => x.startsWith(pref));
@@ -34,7 +43,7 @@ function arg(name) {
 
 function todayOr(dateStr) {
   if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-  return new Date().toISOString().slice(0, 10);
+  return nowRef().toISOString().slice(0, 10);
 }
 
 function asInt(x, dflt) {
@@ -125,7 +134,7 @@ function loadBudgetPressure(repo, dateStr) {
   if (autopause && autopause.active === true) {
     const until = String(autopause.until || "").trim();
     const untilMs = Date.parse(until);
-    if (!Number.isFinite(untilMs) || untilMs > Date.now()) {
+    if (!Number.isFinite(untilMs) || untilMs > nowRef().getTime()) {
       return { pressure: "hard", source: "autopause" };
     }
   }
@@ -240,7 +249,7 @@ function parseTs(p) {
 
 function addUtcDays(dateStr, deltaDays) {
   const ms = Date.parse(`${String(dateStr || "").trim()}T00:00:00.000Z`);
-  if (!Number.isFinite(ms)) return new Date(Date.now() + (deltaDays * 24 * 60 * 60 * 1000)).toISOString().slice(0, 10);
+  if (!Number.isFinite(ms)) return new Date(nowRef().getTime() + (deltaDays * 24 * 60 * 60 * 1000)).toISOString().slice(0, 10);
   return new Date(ms + (deltaDays * 24 * 60 * 60 * 1000)).toISOString().slice(0, 10);
 }
 
@@ -368,7 +377,7 @@ function salvageProposal(repo, proposalId, reason, dateStr, details, salvagePath
     console.warn(`queue_gc: proposal_queue park failed for ${proposalId} (continuing)`);
   }
   appendJsonl(salvagePath, {
-    ts: new Date().toISOString(),
+    ts: nowRef().toISOString(),
     type: "queue_gc_escalation_salvage",
     proposal_id: proposalId,
     reason,

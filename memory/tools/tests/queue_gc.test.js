@@ -303,11 +303,54 @@ function testAdaptiveEscalationSalvagePath() {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
 
+function testDeterministicNowOverrideForDefaultDate() {
+  const repoRoot = path.join(__dirname, '..', '..', '..');
+  const overriddenDate = '2024-01-15';
+  const tmp = fs.mkdtempSync(path.join(__dirname, 'temp_queue_gc_now_'));
+  const sensoryRoot = tmp;
+  const queueRoot = path.join(tmp, 'state', 'queue');
+  const sensoryProposals = path.join(sensoryRoot, 'state', 'sensory', 'proposals', `${overriddenDate}.json`);
+  const queueProposals = path.join(queueRoot, 'proposals.jsonl');
+  const queueLog = path.join(sensoryRoot, 'state', 'sensory', 'queue_log.jsonl');
+
+  const proposals = [];
+  for (let i = 1; i <= 11; i += 1) proposals.push(makeProposal(i, overriddenDate));
+  writeJson(sensoryProposals, proposals);
+  writeJsonl(queueProposals, proposals);
+  writeJsonl(queueLog, proposals.map((p, idx) => ({
+    ts: `${overriddenDate}T01:${String(idx).padStart(2, '0')}:00.000Z`,
+    type: 'proposal_generated',
+    date: overriddenDate,
+    proposal_id: p.id,
+    proposal_hash: `hash_${p.id}`,
+    title: p.title,
+    status_after: 'open',
+    source: 'sensory_queue'
+  })));
+
+  const env = {
+    SENSORY_QUEUE_TEST_DIR: sensoryRoot,
+    QUEUE_DIR: path.relative(repoRoot, queueRoot),
+    QUEUE_GC_BUDGET_TUNING_ENABLED: '0',
+    QUEUE_GC_NOW_ISO: `${overriddenDate}T12:00:00.000Z`
+  };
+
+  const run = runNode(['habits/scripts/queue_gc.js', 'run'], env);
+  assert.strictEqual(run.status, 0, `queue_gc now-override run failed: ${String(run.stderr || run.stdout)}`);
+
+  const rejected = readJsonl(queueLog).filter((e) => e && e.type === 'proposal_rejected');
+  assert.strictEqual(rejected.length, 1, 'now override should make no-date run deterministic against overridden date');
+  assert.ok(String(rejected[0].reason || '').includes('auto:queue_gc cap>10'), 'default cap logic should still apply');
+
+  fs.rmSync(tmp, { recursive: true, force: true });
+}
+
 function main() {
   banner('QUEUE_GC TESTS defaults + idempotence');
   testDefaultParsingAndIdempotence();
   testBudgetAwareHardPressureTuning();
   testAdaptiveEscalationSalvagePath();
+  testDeterministicNowOverrideForDefaultDate();
   banner('✅ QUEUE_GC TESTS PASS');
 }
 
