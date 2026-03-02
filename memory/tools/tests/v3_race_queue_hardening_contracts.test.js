@@ -34,6 +34,7 @@ function run(cmd, args, env = process.env) {
 
   const r = run('npm', ['run', '-s', 'ops:race-queue:hardening'], {
     ...process.env,
+    SENSORY_QUEUE_THROTTLE_BYPASS: '1',
     CI_QUALITY_SCORECARD_POLICY_PATH: ciQualityPolicyPath
   });
   if (r.status !== 0) {

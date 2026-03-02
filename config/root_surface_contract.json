@@ -57,6 +57,7 @@
     "memory",
     "node_modules",
     "notes",
+    "packages",
     "patches",
     "platform",
     "projects",

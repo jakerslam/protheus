@@ -39,6 +39,7 @@ function main() {
   const rolloutStatePath = path.join(tmp, 'state', 'adaptive', 'workflows', 'executor', 'rollout_state.json');
   const stepReceiptsDir = path.join(tmp, 'state', 'adaptive', 'workflows', 'executor', 'step_receipts');
   const mutationReceiptsDir = path.join(tmp, 'state', 'adaptive', 'workflows', 'executor', 'mutations');
+  const policyPath = path.join(tmp, 'config', 'workflow_executor_policy.test.json');
 
   const blockedWorkflow = {
     id: 'wf_effect_blocked',
@@ -73,6 +74,36 @@ function main() {
     workflows: [blockedWorkflow]
   });
 
+  // Force deterministic execution so this test validates only the effect gate.
+  writeJson(policyPath, {
+    version: '1.0-test',
+    rollout: {
+      enabled: false,
+      initial_stage: 'live'
+    },
+    token_economics: {
+      enabled: false,
+      use_system_budget: false,
+      defer_queue_enabled: false,
+      defer_on_autopause: false,
+      defer_on_guard_deny: false
+    },
+    runtime_mutation: {
+      enabled: false
+    },
+    fallback_selection: {
+      enabled: false
+    },
+    minimum_selection: {
+      enabled: false
+    },
+    security_gates: {
+      soul_token: {
+        enabled: false
+      }
+    }
+  });
+
   const env = {
     ...process.env,
     WORKFLOW_REGISTRY_PATH: registryPath,
@@ -94,7 +125,8 @@ function main() {
     '--include-draft=0',
     '--enforce-eligibility=0',
     '--dry-run=0',
-    '--receipt-strict=0'
+    '--receipt-strict=0',
+    `--policy=${policyPath}`
   ], {
     cwd: root,
     encoding: 'utf8',

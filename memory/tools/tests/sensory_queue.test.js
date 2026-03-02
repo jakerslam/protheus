@@ -21,6 +21,7 @@ const QUEUE_LOG = path.join(SENSORY_DIR, 'queue_log.jsonl');
 process.env.SENSORY_TEST_DIR = TEST_DIR;
 process.env.SENSORY_QUEUE_REQUIRE_EXPLICIT_OBJECTIVE = '0';
 process.env.SENSORY_QUEUE_LINEAGE_REQUIRED = '0';
+process.env.SENSORY_QUEUE_THROTTLE_BYPASS = '1';
 
 // Module under test (re-exported with test paths)
 const queue = require('../../../habits/scripts/sensory_queue.js');

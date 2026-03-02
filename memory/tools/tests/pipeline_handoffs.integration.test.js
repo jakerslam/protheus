@@ -100,6 +100,7 @@ async function main() {
   const env = {
     SENSORY_TEST_DIR: sensoryDir,
     SENSORY_QUEUE_TEST_DIR: tmpRoot,
+    SENSORY_QUEUE_THROTTLE_BYPASS: '1',
     PROPOSAL_ENRICHER_EYES_REGISTRY: path.join(sensoryDir, 'eyes', 'registry.json'),
     ACTUATION_BRIDGE_PROPOSALS_DIR: proposalsDir,
     ACTUATION_RECEIPTS_DIR: actuationReceiptsDir,

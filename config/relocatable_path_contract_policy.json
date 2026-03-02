@@ -16,6 +16,7 @@
       "config/work_roots.json",
       "config/skill_install_policy.json",
       "config/backlog_registry.json",
+      "config/backlog_review_registry.json",
       "systems/memory/rust/target/"
     ]
   },
