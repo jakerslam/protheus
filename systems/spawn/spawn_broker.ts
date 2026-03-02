@@ -61,6 +61,9 @@ const ROUTER_SCRIPT = process.env.SPAWN_ROUTER_SCRIPT
   ? path.resolve(process.env.SPAWN_ROUTER_SCRIPT)
   : DEFAULT_ROUTER_SCRIPT;
 const ROUTER_IN_PROCESS_ENABLED = toBool(process.env.SPAWN_ROUTER_IN_PROCESS, true);
+const LINEAGE_SCRIPT = process.env.SPAWN_LINEAGE_SCRIPT
+  ? path.resolve(process.env.SPAWN_LINEAGE_SCRIPT)
+  : path.join(REPO_ROOT, 'systems', 'spawn', 'seed_spawn_lineage.js');
 
 function nowIso() {
   return new Date().toISOString();
@@ -124,7 +127,7 @@ function parseArgs(argv: string[]): AnyObj {
 function usage() {
   console.log('Usage:');
   console.log('  node systems/spawn/spawn_broker.js status [--module=reflex]');
-  console.log('  node systems/spawn/spawn_broker.js request --module=name --requested_cells=N [--request_tokens_est=N] [--reason=...] [--apply=1]');
+  console.log('  node systems/spawn/spawn_broker.js request --module=name --requested_cells=N [--profile=seed_spawn] [--owner=<owner>] [--parent=<id>] [--child=<id>] [--request_tokens_est=N] [--reason=...] [--apply=1]');
   console.log('  node systems/spawn/spawn_broker.js release --module=name [--reason=...]');
   console.log('  node systems/spawn/spawn_broker.js --help');
 }
@@ -591,6 +594,64 @@ function summarizeAllocations(state: AnyObj): AnyObj {
   return out;
 }
 
+function resolveSpawnProfile(args: AnyObj) {
+  const profile = String(args.profile || args.spawn_profile || 'standard')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_.:/-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return profile || 'standard';
+}
+
+function buildSeedLineageContract(args: AnyObj, apply: boolean) {
+  const profile = resolveSpawnProfile(args);
+  if (profile !== 'seed_spawn') {
+    return {
+      profile,
+      lineage_contract: null
+    };
+  }
+  const normalizeId = (v: unknown) => String(v || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_.:/-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 120);
+  const owner = normalizeId(args.owner || args.owner_id);
+  const parent = normalizeId(args.parent || args.parent_id);
+  const child = normalizeId(args.child || args.child_id);
+  if (!owner || !parent || !child) {
+    return {
+      profile,
+      lineage_contract: null,
+      lineage_error: 'seed_spawn_requires_owner_parent_child'
+    };
+  }
+  const proc = spawnSync('node', [
+    LINEAGE_SCRIPT,
+    'preview',
+    `--owner=${owner}`,
+    `--parent=${parent}`,
+    `--child=${child}`,
+    '--profile=seed_spawn',
+    `--apply=${apply ? '1' : '0'}`
+  ], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+    timeout: 15000
+  });
+  const payload = safeJson(proc.stdout);
+  return {
+    profile,
+    lineage_contract: payload && payload.lineage_contract ? payload.lineage_contract : null,
+    lineage_preview: payload || null,
+    lineage_status: Number(proc.status || 0),
+    lineage_stderr: String(proc.stderr || '').trim().slice(0, 240) || null
+  };
+}
+
 function resolveLeaseExpires(policy, args) {
   if (policy.leases.enabled !== true) return null;
   const raw = args.lease_sec != null ? args.lease_sec : args.lease;
@@ -603,6 +664,7 @@ function resolveLeaseExpires(policy, args) {
 
 function cmdStatus(args) {
   const moduleName = normalizeModuleName(args.module);
+  const profile = resolveSpawnProfile(args);
   const policy = loadPolicy();
   let state = loadState();
   const pruned = pruneExpired(state);
@@ -630,6 +692,7 @@ function cmdStatus(args) {
     ok: true,
     ts: nowIso(),
     module: moduleName,
+    profile,
     policy,
     state: {
       version: state.version,
@@ -654,11 +717,13 @@ function cmdStatus(args) {
 
 function cmdRequest(args) {
   const moduleName = normalizeModuleName(args.module);
+  const profile = resolveSpawnProfile(args);
   const requestedRaw = args.requested_cells != null ? args.requested_cells : args.requested;
   const requestedCells = Math.max(0, Math.round(Number(requestedRaw || 0)));
   const reason = String(args.reason || '').slice(0, 160);
   const apply = String(args.apply || '1') !== '0';
   const requestedTokens = parseRequestedTokens(args);
+  const lineage = buildSeedLineageContract(args, apply);
 
   const policy = loadPolicy();
   let state = loadState();
@@ -718,9 +783,12 @@ function cmdRequest(args) {
       ts: nowIso(),
       type: 'spawn_request_blocked_budget',
       module: moduleName,
+      profile,
       requested_cells: requestedCells,
       requested_tokens_est: requestedTokens,
       reason,
+      lineage_contract: lineage.lineage_contract || null,
+      lineage_error: lineage.lineage_error || null,
       budget_autopause: {
         active: budgetAutopause.active === true,
         source: budgetAutopause.source || null,
@@ -735,12 +803,15 @@ function cmdRequest(args) {
       ok: true,
       ts: nowIso(),
       module: moduleName,
+      profile,
       apply,
       requested_cells: requestedCells,
       granted_cells: 0,
       requested_tokens_est: requestedTokens,
       reason: reason || null,
       blocked_by_budget: true,
+      lineage_contract: lineage.lineage_contract || null,
+      lineage_error: lineage.lineage_error || null,
       lease_expires_at: null,
       limits,
       token_budget: {
@@ -818,11 +889,14 @@ function cmdRequest(args) {
       ts: nowIso(),
       type: 'spawn_request',
       module: moduleName,
+      profile,
       requested_cells: requestedCells,
       granted_cells: grantedCells,
       requested_tokens_est: requestedTokens,
       reason: reason || null,
       lease_expires_at: leaseExpiresAt,
+      lineage_contract: lineage.lineage_contract || null,
+      lineage_error: lineage.lineage_error || null,
       limits,
       token_budget: tokenBudget,
       hardware_bounds: bounds
@@ -845,11 +919,14 @@ function cmdRequest(args) {
     ok: true,
     ts: nowIso(),
     module: moduleName,
+    profile,
     apply,
     requested_cells: requestedCells,
     granted_cells: grantedCells,
     requested_tokens_est: requestedTokens,
     reason: reason || null,
+    lineage_contract: lineage.lineage_contract || null,
+    lineage_error: lineage.lineage_error || null,
     lease_expires_at: leaseExpiresAt,
     limits,
     token_budget: tokenBudget,
