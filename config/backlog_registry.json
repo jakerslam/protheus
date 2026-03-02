@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T02:14:48.450Z",
-  "source_hash": "d1153105f8a0bfe6fad1c3a3",
+  "generated_at": "2026-03-02T02:20:38.320Z",
+  "source_hash": "5f9ac0d1631b5ea859b68e35",
   "row_count": 127,
-  "active_count": 63,
-  "archive_count": 64,
+  "active_count": 62,
+  "archive_count": 65,
   "rows": [
     {
       "id": "V3-OPS-004",
@@ -508,10 +508,10 @@
       "id": "V3-RACE-DEF-024",
       "class": "hardening",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "PsycheForge Adaptive Counter-Profile Defense Organ",
       "problem": "Static deception/containment responses are less effective than adaptive attacker-specific defense selection under repeated probing.",
-      "acceptance": "Deliver `systems/security/psycheforge/` with governed profile synthesis + encrypted temporal memory persistence + risk-tiered countermeasure selector integrated with guard/red-team/venom/fractal loops, with full event receipts and shadow-to-live promotion evidence.",
+      "acceptance": "Implemented `systems/security/psycheforge/` (`psycheforge_organ`, `profile_synthesizer`, `countermeasure_selector`, `temporal_profile_store`) with typed behavioral classification + drift scoring, encrypted temporal profile storage, Rust hot-state persistence bridge (`set-hot-state`), tier3+ shadow-to-live two-gate promotion semantics, integrated hint outputs for guard/redteam/venom/fractal lanes, and receipted verification in `memory/tools/tests/psycheforge_organ.test.js` plus docs update in `docs/SECURITY.md`.",
       "dependencies": [
         "V3-RACE-017",
         "V3-RACE-019",

@@ -1844,6 +1844,125 @@ fn run_verify_envelope(args: &HashMap<String, String>) {
     );
 }
 
+fn set_hot_state_payload(args: &HashMap<String, String>) -> serde_json::Value {
+    let root = PathBuf::from(arg_or_default(args, "root", "."));
+    let db_path_raw = arg_or_default(args, "db-path", "");
+    let key = arg_or_default(args, "key", "");
+    if key.trim().is_empty() {
+        return json!({
+            "ok": false,
+            "error": "key_required"
+        });
+    }
+    let value_raw = arg_any(args, &["value_json", "value"]);
+    if value_raw.trim().is_empty() {
+        return json!({
+            "ok": false,
+            "error": "value_json_required"
+        });
+    }
+    let value = match serde_json::from_str::<serde_json::Value>(&value_raw) {
+        Ok(v) => v,
+        Err(_) => {
+            return json!({
+                "ok": false,
+                "error": "value_json_invalid"
+            })
+        }
+    };
+    let db = match MemoryDb::open(&root, &db_path_raw) {
+        Ok(v) => v,
+        Err(err) => {
+            return json!({
+                "ok": false,
+                "error": "db_open_failed",
+                "reason": err
+            })
+        }
+    };
+    match db.set_hot_state_json(&key, &value) {
+        Ok(_) => {
+            publish_memory_event(
+                &root,
+                "rust_memory_hot_state_set",
+                json!({
+                    "ok": true,
+                    "key": key
+                }),
+            );
+            json!({
+                "ok": true,
+                "backend": "protheus_memory_core",
+                "key": key,
+                "db_path": db.rel_db_path(&root)
+            })
+        }
+        Err(err) => json!({
+            "ok": false,
+            "error": "db_hot_state_set_failed",
+            "reason": err
+        }),
+    }
+}
+
+fn run_set_hot_state(args: &HashMap<String, String>) {
+    let out = set_hot_state_payload(args);
+    println!(
+        "{}",
+        serde_json::to_string(&out).expect("serialize set-hot-state result")
+    );
+    if out.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) != true {
+        std::process::exit(1);
+    }
+}
+
+fn get_hot_state_payload(args: &HashMap<String, String>) -> serde_json::Value {
+    let root = PathBuf::from(arg_or_default(args, "root", "."));
+    let db_path_raw = arg_or_default(args, "db-path", "");
+    let key = arg_or_default(args, "key", "");
+    if key.trim().is_empty() {
+        return json!({
+            "ok": false,
+            "error": "key_required"
+        });
+    }
+    let db = match MemoryDb::open(&root, &db_path_raw) {
+        Ok(v) => v,
+        Err(err) => {
+            return json!({
+                "ok": false,
+                "error": "db_open_failed",
+                "reason": err
+            })
+        }
+    };
+    match db.get_hot_state_json(&key) {
+        Ok(value) => json!({
+            "ok": true,
+            "backend": "protheus_memory_core",
+            "key": key,
+            "db_path": db.rel_db_path(&root),
+            "value": value
+        }),
+        Err(err) => json!({
+            "ok": false,
+            "error": "db_hot_state_get_failed",
+            "reason": err
+        }),
+    }
+}
+
+fn run_get_hot_state(args: &HashMap<String, String>) {
+    let out = get_hot_state_payload(args);
+    println!(
+        "{}",
+        serde_json::to_string(&out).expect("serialize get-hot-state result")
+    );
+    if out.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) != true {
+        std::process::exit(1);
+    }
+}
+
 fn run_daemon(args: &HashMap<String, String>) {
     let host = arg_or_default(args, "host", "127.0.0.1");
     let port_raw = arg_or_default(args, "port", "34127");
@@ -1927,6 +2046,8 @@ fn run_daemon(args: &HashMap<String, String>) {
                     .unwrap_or_else(|_| json!({"ok": false, "error": "verify_envelope_serialize_failed"})),
                 false,
             ),
+            "set-hot-state" => (set_hot_state_payload(&req_args), false),
+            "get-hot-state" => (get_hot_state_payload(&req_args), false),
             "shutdown" => (
                 json!({
                     "ok": true,
@@ -1965,6 +2086,8 @@ fn main() {
         "get-node" => run_get_node(&kv),
         "build-index" => run_build_index(&kv),
         "verify-envelope" => run_verify_envelope(&kv),
+        "set-hot-state" => run_set_hot_state(&kv),
+        "get-hot-state" => run_get_hot_state(&kv),
         "daemon" => run_daemon(&kv),
         _ => {
             eprintln!("unsupported command: {}", cmd);

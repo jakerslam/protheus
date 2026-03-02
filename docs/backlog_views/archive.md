@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T02:14:48.450Z
+Generated: 2026-03-02T02:20:38.320Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -39,6 +39,7 @@ Generated: 2026-03-02T02:14:48.450Z
 | V3-RACE-CONF-002 | hardening | V3 | done | Legacy Path Alias Adapters (`systems/state/event_stream.js`, `systems/autogenesis/*`) | V3-RACE-017, V3-RACE-018 |
 | V3-RACE-CONF-003 | hardening | V3 | done | Requirement Conformance Matrix + Gate (`external prompt -> canonical lane`) | V3-AEX-002, V3-DOC-004 |
 | V3-RACE-CONF-004 | hardening | V3 | done | Rust Memory Path-Contract Compatibility (`core/memory` alias docs/wrappers) | V3-RACE-023, V3-DOC-001 |
+| V3-RACE-DEF-024 | hardening | V3 | done | PsycheForge Adaptive Counter-Profile Defense Organ | V3-RACE-017, V3-RACE-019, V3-RACE-023, V3-VENOM-006 |
 | V3-RACE-060 | hardening | V3 | done | Dist Runtime Contract Reconciliation Gate (Legacy-Pair Truth Source) | V2-003, BL-014, V3-AEX-002 |
 | V3-RACE-061 | hardening | V3 | done | Deterministic Time Harness for Release/TTL Gates | V2-049, V2-050, V3-RACE-060 |
 | V3-RACE-062 | hardening | V3 | done | Benchmark Artifact Consistency Gate (Report vs History vs Latest) | V3-RACE-024, V3-RACE-026 |
