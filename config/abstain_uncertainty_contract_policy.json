@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "abstain_if_confidence_below": 72,
+  "abstain_if_probability_below": 0.67,
+  "abstain_if_support_events_below": 4,
+  "reason_codes": {
+    "low_confidence": "insufficient_confidence",
+    "low_probability": "insufficient_probability",
+    "low_support": "insufficient_support_events"
+  },
+  "paths": {
+    "hypotheses_dir": "state/sensory/cross_signal/hypotheses",
+    "resolution_dir": "state/sensory/analysis/abstain_resolution",
+    "output_dir": "state/sensory/analysis/abstain_uncertainty",
+    "latest_path": "state/sensory/analysis/abstain_uncertainty/latest.json",
+    "receipts_path": "state/sensory/analysis/abstain_uncertainty/receipts.jsonl"
+  }
+}

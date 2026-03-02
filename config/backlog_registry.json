@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-02T03:57:06.274Z",
-  "source_hash": "77d3cedc80749c7ab09527a4",
+  "generated_at": "2026-03-02T03:58:33.383Z",
+  "source_hash": "86f4f0e18f7efc07e3b32345",
   "row_count": 127,
-  "active_count": 52,
-  "archive_count": 75,
+  "active_count": 51,
+  "archive_count": 76,
   "rows": [
     {
       "id": "V3-OPS-004",
@@ -1432,10 +1432,10 @@
       "id": "V3-RACE-088",
       "class": "hardening",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Abstain/Uncertainty Output Contract",
       "problem": "Forced low-confidence decisions increase false positives and downstream churn.",
-      "acceptance": "Detector output schema supports abstain reason codes, routing honors abstain paths, and abstain-resolution outcomes are tracked.",
+      "acceptance": "Added `systems/sensory/abstain_uncertainty_contract.{ts,js}` + `config/abstain_uncertainty_contract_policy.json` to emit abstain reason codes for weak-evidence hypotheses, route abstained cases to review queue, and track abstain-resolution outcomes in receipted artifacts under `state/sensory/analysis/abstain_uncertainty/`; regression coverage in `memory/tools/tests/abstain_uncertainty_contract.test.js`.",
       "dependencies": [
         "V3-RACE-081",
         "V3-RACE-069"

@@ -600,7 +600,10 @@
     "test:sensory:gold-eval": "node memory/tools/tests/gold_eval_blind_scoring_lane.test.js",
     "sensory:champion-challenger:run": "node systems/sensory/champion_challenger_detector_promotion.js run",
     "sensory:champion-challenger:status": "node systems/sensory/champion_challenger_detector_promotion.js status",
-    "test:sensory:champion-challenger": "node memory/tools/tests/champion_challenger_detector_promotion.test.js"
+    "test:sensory:champion-challenger": "node memory/tools/tests/champion_challenger_detector_promotion.test.js",
+    "sensory:abstain-contract:run": "node systems/sensory/abstain_uncertainty_contract.js run",
+    "sensory:abstain-contract:status": "node systems/sensory/abstain_uncertainty_contract.js status",
+    "test:sensory:abstain-contract": "node memory/tools/tests/abstain_uncertainty_contract.test.js"
   },
   "bin": {
     "protheus": "./bin/protheus",
