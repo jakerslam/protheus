@@ -1,6 +1,6 @@
 use protheus_memory_core_v6::{
     clear_cache, compress_store, crdt_exchange_json, ebbinghaus_curve, get_json, ingest_memory,
-    recall_json, set_hot_state,
+    load_embedded_heartbeat, pack_embedded_heartbeat_assets, recall_json, set_hot_state,
 };
 use serde::Deserialize;
 use serde_json::json;
@@ -341,7 +341,9 @@ fn main() {
                 "get --id=<id>",
                 "clear-cache",
                 "ebbinghaus-score --age-days=<n> [--repetitions=1] [--lambda=0.02]",
-                "crdt-exchange --payload=<json>"
+                "crdt-exchange --payload=<json>",
+                "load-embedded-heartbeat",
+                "pack-heartbeat-blob [--content=<text>]"
               ]
             }));
         }
@@ -513,6 +515,36 @@ fn main() {
                 Err(err) => print_json(json!({
                   "ok": false,
                   "error": err
+                })),
+            }
+        }
+        "load-embedded-heartbeat" => match load_embedded_heartbeat() {
+            Ok(content) => print_json(json!({
+              "ok": true,
+              "embedded_heartbeat": content
+            })),
+            Err(err) => print_json(json!({
+              "ok": false,
+              "error": err.to_string()
+            })),
+        },
+        "pack-heartbeat-blob" => {
+            let content = flags
+                .get("content")
+                .cloned()
+                .unwrap_or_default();
+            match pack_embedded_heartbeat_assets(&content) {
+                Ok(report) => print_json(json!({
+                  "ok": true,
+                  "blob_path": report.blob_path,
+                  "manifest_path": report.manifest_path,
+                  "blob_bytes": report.blob_bytes,
+                  "manifest_bytes": report.manifest_bytes,
+                  "blob_hash": report.blob_hash
+                })),
+                Err(err) => print_json(json!({
+                  "ok": false,
+                  "error": err.to_string()
                 })),
             }
         }
