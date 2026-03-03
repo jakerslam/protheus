@@ -177,6 +177,31 @@ pub struct DispatchSummaryResponse {
     pub summary: Value,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct QueueRowsRequest {
+    #[serde(default)]
+    pub run_id: String,
+    #[serde(default)]
+    pub goal_id: String,
+    #[serde(default)]
+    pub objective_id: Option<String>,
+    #[serde(default)]
+    pub shadow_only: bool,
+    #[serde(default)]
+    pub passport_id: Option<String>,
+    #[serde(default = "default_storm_lane")]
+    pub storm_lane: String,
+    #[serde(default)]
+    pub tasks: Vec<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueueRowsResponse {
+    pub ok: bool,
+    pub weaver: Vec<Value>,
+    pub storm: Vec<Value>,
+}
+
 #[derive(Debug, Clone)]
 struct Segment {
     text: String,
@@ -933,6 +958,103 @@ pub fn summarize_dispatch_json(payload: &str) -> Result<String, String> {
         .map_err(|err| format!("dispatch_summary_payload_serialize_failed:{}", err))
 }
 
+fn duality_indicator_for_task(task: &Value) -> Value {
+    task.get("duality")
+        .and_then(|row| row.get("indicator"))
+        .cloned()
+        .unwrap_or_else(|| json!({ "subtle_hint": "duality_signal_absent" }))
+}
+
+fn attribution_for_task(task: &Value) -> Value {
+    task.get("profile")
+        .and_then(|row| row.get("attribution"))
+        .cloned()
+        .unwrap_or_else(|| json!({}))
+}
+
+pub fn build_queue_rows(req: &QueueRowsRequest) -> (Vec<Value>, Vec<Value>) {
+    let mut weaver: Vec<Value> = Vec::new();
+    let mut storm: Vec<Value> = Vec::new();
+
+    for task in &req.tasks {
+        let route = task.get("route").and_then(|v| v.as_object());
+        let lane = route
+            .and_then(|row| row.get("lane"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown")
+            .to_string();
+        let blocked = route
+            .and_then(|row| row.get("blocked"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        let manual = route
+            .and_then(|row| row.get("requires_manual_review"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        let parallel_group = route
+            .and_then(|row| row.get("parallel_group"))
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+        let parallel_priority = route
+            .and_then(|row| row.get("parallel_priority"))
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
+
+        let weaver_row = json!({
+            "type": "task_micro_route_candidate",
+            "run_id": req.run_id,
+            "goal_id": req.goal_id,
+            "objective_id": req.objective_id,
+            "micro_task_id": task.get("micro_task_id").cloned().unwrap_or(Value::Null),
+            "profile_id": task.get("profile_id").cloned().unwrap_or(Value::Null),
+            "lane": lane,
+            "parallel_group": parallel_group,
+            "parallel_priority": parallel_priority,
+            "blocked": blocked,
+            "requires_manual_review": manual,
+            "shadow_only": req.shadow_only,
+            "passport_id": req.passport_id,
+            "duality_indicator": duality_indicator_for_task(task),
+            "attribution": attribution_for_task(task)
+        });
+        weaver.push(weaver_row);
+
+        if lane == req.storm_lane && !blocked {
+            let storm_row = json!({
+                "type": "storm_micro_task_offer",
+                "run_id": req.run_id,
+                "goal_id": req.goal_id,
+                "objective_id": req.objective_id,
+                "micro_task_id": task.get("micro_task_id").cloned().unwrap_or(Value::Null),
+                "title": task.get("title").cloned().unwrap_or(Value::Null),
+                "task_text": task.get("task_text").cloned().unwrap_or(Value::Null),
+                "estimated_minutes": task.get("estimated_minutes").cloned().unwrap_or(Value::Null),
+                "success_criteria": task.get("success_criteria").cloned().unwrap_or_else(|| json!([])),
+                "profile_id": task.get("profile_id").cloned().unwrap_or(Value::Null),
+                "shadow_only": req.shadow_only,
+                "passport_id": req.passport_id,
+                "duality_indicator": duality_indicator_for_task(task)
+            });
+            storm.push(storm_row);
+        }
+    }
+
+    (weaver, storm)
+}
+
+pub fn queue_rows_json(payload: &str) -> Result<String, String> {
+    let req = serde_json::from_str::<QueueRowsRequest>(payload)
+        .map_err(|err| format!("queue_rows_payload_parse_failed:{}", err))?;
+    let (weaver, storm) = build_queue_rows(&req);
+    let resp = QueueRowsResponse {
+        ok: true,
+        weaver,
+        storm,
+    };
+    serde_json::to_string(&resp)
+        .map_err(|err| format!("queue_rows_payload_serialize_failed:{}", err))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1045,5 +1167,57 @@ mod tests {
         assert_eq!(summary["executed"], 2);
         assert_eq!(summary["failed"], 1);
         assert_eq!(summary["blocked"], 1);
+    }
+
+    #[test]
+    fn build_queue_rows_emits_weaver_and_storm_shapes() {
+        let req = QueueRowsRequest {
+            run_id: "run_a".to_string(),
+            goal_id: "goal_a".to_string(),
+            objective_id: Some("obj_a".to_string()),
+            shadow_only: true,
+            passport_id: Some("passport_a".to_string()),
+            storm_lane: "storm_human_lane".to_string(),
+            tasks: vec![
+                json!({
+                    "micro_task_id": "mt_1",
+                    "profile_id": "p_1",
+                    "title": "Task One",
+                    "task_text": "Do task one",
+                    "estimated_minutes": 2,
+                    "success_criteria": ["A"],
+                    "route": {
+                        "lane": "autonomous_micro_agent",
+                        "parallel_group": 0,
+                        "parallel_priority": 0.5,
+                        "blocked": false,
+                        "requires_manual_review": false
+                    },
+                    "duality": { "indicator": { "subtle_hint": "ok" } },
+                    "profile": { "attribution": { "source_goal_id": "goal_a" } }
+                }),
+                json!({
+                    "micro_task_id": "mt_2",
+                    "profile_id": "p_2",
+                    "title": "Task Two",
+                    "task_text": "Do task two",
+                    "estimated_minutes": 3,
+                    "success_criteria": ["B"],
+                    "route": {
+                        "lane": "storm_human_lane",
+                        "parallel_group": 1,
+                        "parallel_priority": 0.3,
+                        "blocked": false,
+                        "requires_manual_review": true
+                    }
+                })
+            ],
+        };
+        let (weaver, storm) = build_queue_rows(&req);
+        assert_eq!(weaver.len(), 2);
+        assert_eq!(storm.len(), 1);
+        assert_eq!(weaver[0]["type"], "task_micro_route_candidate");
+        assert_eq!(storm[0]["type"], "storm_micro_task_offer");
+        assert_eq!(storm[0]["micro_task_id"], "mt_2");
     }
 }
