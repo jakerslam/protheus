@@ -17,7 +17,8 @@
       "config/skill_install_policy.json",
       "config/backlog_registry.json",
       "config/backlog_review_registry.json",
-      "systems/memory/rust/target/"
+      "crates/memory/target/",
+      "target/release/memory-cli"
     ]
   },
   "paths": {

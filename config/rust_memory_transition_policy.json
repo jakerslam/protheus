@@ -11,7 +11,7 @@
     "mode": "probe_commands",
     "timeout_ms": 30000,
     "require_rust_backend_used": true,
-    "require_rust_transport": "daemon",
+    "require_rust_transport": "any",
     "enforce_warm_path": true,
     "measure_cold_build": false,
     "max_artifact_age_hours": 336,

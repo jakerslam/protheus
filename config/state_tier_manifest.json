@@ -2,7 +2,7 @@
   "version": "1.0",
   "enabled": true,
   "hot_runtime": [
-    { "id": "memory_index", "authority": "systems/memory/rust", "paths": ["systems/memory/rust"], "read_contract": "native_store" },
+    { "id": "memory_index", "authority": "crates/memory", "paths": ["crates/memory"], "read_contract": "native_store" },
     { "id": "state_kernel", "authority": "systems/ops/state_kernel.ts", "paths": ["state/ops/state_kernel"], "read_contract": "typed_store" },
     { "id": "workflow_state", "authority": "systems/workflow/workflow_executor.ts", "paths": ["state/workflow"], "read_contract": "typed_store" }
   ],

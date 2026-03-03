@@ -9,6 +9,7 @@ export {};
 
 const path = require('path');
 const { spawnSync } = require('child_process');
+const fs = require('fs');
 const {
   ROOT,
   nowIso,
@@ -42,6 +43,7 @@ function policy() {
     peer_to_peer_network_effect: false,
     rust_manifest: 'crates/memory/Cargo.toml',
     rust_bin: 'memory-cli',
+    rust_bin_path: 'target/release/memory-cli',
     paths: {
       latest_path: 'state/memory/cross_cell_exchange/latest.json',
       receipts_path: 'state/memory/cross_cell_exchange/receipts.jsonl',
@@ -57,6 +59,7 @@ function policy() {
     peer_to_peer_network_effect: toBool(raw.peer_to_peer_network_effect, base.peer_to_peer_network_effect),
     rust_manifest: resolvePath(raw.rust_manifest || base.rust_manifest, base.rust_manifest),
     rust_bin: cleanText(raw.rust_bin || base.rust_bin, 120) || base.rust_bin,
+    rust_bin_path: resolvePath(raw.rust_bin_path || base.rust_bin_path, base.rust_bin_path),
     paths: {
       latest_path: resolvePath(paths.latest_path, base.paths.latest_path),
       receipts_path: resolvePath(paths.receipts_path, base.paths.receipts_path),
@@ -124,9 +127,23 @@ function parsePayload(args: any, from: string, to: string) {
   };
 }
 
-function runRust(args: string[], timeoutMs = 180000) {
+function runRust(args: string[], p: any, timeoutMs = 180000) {
   const started = Date.now();
-  const command = ['cargo', 'run', '--quiet', '--manifest-path', 'crates/memory/Cargo.toml', '--bin', 'memory-cli', '--', ...args];
+  const possibleBins = [
+    cleanText(process.env.PROTHEUS_MEMORY_CORE_BIN || '', 520),
+    cleanText(process.env.PROTHEUS_MEMORY_RUST_BIN || '', 520),
+    cleanText(p && p.rust_bin_path || '', 520)
+  ].filter(Boolean);
+  let selectedBin = '';
+  for (const bin of possibleBins) {
+    if (fs.existsSync(bin)) {
+      selectedBin = bin;
+      break;
+    }
+  }
+  const command = selectedBin
+    ? [selectedBin, ...args]
+    : ['cargo', 'run', '--quiet', '--manifest-path', 'crates/memory/Cargo.toml', '--bin', 'memory-cli', '--', ...args];
   const out = spawnSync(command[0], command.slice(1), {
     cwd: ROOT,
     encoding: 'utf8',
@@ -138,7 +155,8 @@ function runRust(args: string[], timeoutMs = 180000) {
     status,
     duration_ms: Math.max(0, Date.now() - started),
     payload: parseJson(String(out.stdout || '')),
-    stderr: cleanText(out.stderr || '', 500)
+    stderr: cleanText(out.stderr || '', 500),
+    transport: selectedBin ? 'native_release_bin' : 'cargo_run'
   };
 }
 
@@ -162,7 +180,7 @@ function exchange(args: any, p: any) {
 
   const payloadJson = JSON.stringify(crdtPayload);
   const payloadHash = stableHash(payloadJson, 24);
-  const run = runRust(['crdt-exchange', `--payload=${payloadJson}`]);
+  const run = runRust(['crdt-exchange', `--payload=${payloadJson}`], p);
   const response = run.payload || {};
   const merged = response && typeof response.merged === 'object' ? response.merged : {};
   const mergedHash = stableHash(JSON.stringify(merged), 24);
@@ -192,6 +210,7 @@ function exchange(args: any, p: any) {
     ok: run.ok && response && response.ok === true,
     shadow_only: p.shadow_only,
     backend: 'rust_core_v6',
+    transport: run.transport,
     command_status: run.status,
     duration_ms: run.duration_ms,
     from,

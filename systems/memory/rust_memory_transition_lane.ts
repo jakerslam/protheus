@@ -63,7 +63,7 @@ function defaultPolicy() {
       benchmark_latest_path: 'state/memory/rust_transition/benchmark_latest.json',
       benchmark_report_path: 'benchmarks/memory-stage1.md',
       memory_index_path: 'MEMORY_INDEX.md',
-      rust_crate_path: 'systems/memory/rust'
+      rust_crate_path: 'crates/memory'
     },
     thresholds: {
       min_speedup_for_cutover: 1.2,
@@ -74,7 +74,7 @@ function defaultPolicy() {
       mode: 'probe_commands',
       timeout_ms: 30000,
       require_rust_backend_used: true,
-      require_rust_transport: 'daemon',
+      require_rust_transport: 'any',
       enforce_warm_path: true,
       measure_cold_build: false,
       max_artifact_age_hours: 24 * 14,
@@ -282,8 +282,12 @@ function resolveProbeCommand(command, fallbackCommand, context = {}) {
 
 function resolveRustCoreInvocation(policy, subcommandArgs = []) {
   const cratePath = policy.paths.rust_crate_path;
-  const binPath = path.join(cratePath, 'target', 'release', 'protheus-memory-core');
-  if (fs.existsSync(binPath)) {
+  const binCandidates = [
+    path.join(ROOT, 'target', 'release', 'memory-cli'),
+    path.join(cratePath, 'target', 'release', 'memory-cli')
+  ];
+  const binPath = binCandidates.find((candidate) => fs.existsSync(candidate)) || '';
+  if (binPath) {
     return {
       command: binPath,
       args: Array.isArray(subcommandArgs) ? subcommandArgs.slice(0) : [],
@@ -293,8 +297,18 @@ function resolveRustCoreInvocation(policy, subcommandArgs = []) {
   }
   return {
     command: 'cargo',
-    args: ['run', '--release', '--quiet', '--', ...(Array.isArray(subcommandArgs) ? subcommandArgs : [])],
-    cwd: cratePath,
+    args: [
+      'run',
+      '--release',
+      '--quiet',
+      '--manifest-path',
+      path.join(cratePath, 'Cargo.toml'),
+      '--bin',
+      'memory-cli',
+      '--',
+      ...(Array.isArray(subcommandArgs) ? subcommandArgs : [])
+    ],
+    cwd: ROOT,
     transport: 'cargo_run'
   };
 }

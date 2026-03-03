@@ -73,6 +73,10 @@ pub fn compress_store(aggressive: bool) -> Result<u64, String> {
     sqlite_store::compress(aggressive)
 }
 
+pub fn set_hot_state(key: &str, payload_json: &str) -> Result<(), String> {
+    sqlite_store::set_hot_state(key, payload_json)
+}
+
 pub fn ingest_memory(
     id: &str,
     content: &str,

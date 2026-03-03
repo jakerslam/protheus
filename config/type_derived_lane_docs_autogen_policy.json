@@ -7,7 +7,7 @@
     "lib"
   ],
   "rust_roots": [
-    "systems/memory/rust/src",
+    "crates/memory/src",
     "systems/self_audit/rust/src",
     "systems/migration"
   ],
