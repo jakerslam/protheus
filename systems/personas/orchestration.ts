@@ -14,7 +14,10 @@ const DEFAULT_ORG_DIR = path.join(ROOT, 'personas', 'organization');
 const ORG_DIR = process.env.PROTHEUS_PERSONA_ORG_DIR
   ? path.resolve(process.env.PROTHEUS_PERSONA_ORG_DIR)
   : DEFAULT_ORG_DIR;
-const PERSONAS_DIR = path.join(ROOT, 'personas');
+const DEFAULT_PERSONAS_DIR = path.join(ROOT, 'personas');
+const PERSONAS_DIR = process.env.PROTHEUS_PERSONA_DIR
+  ? path.resolve(process.env.PROTHEUS_PERSONA_DIR)
+  : DEFAULT_PERSONAS_DIR;
 const MEETINGS_DIR = path.join(ORG_DIR, 'meetings');
 const PROJECTS_DIR = path.join(ORG_DIR, 'projects');
 const LOCKS_DIR = path.join(ORG_DIR, '.locks');
@@ -22,6 +25,7 @@ const TELEMETRY_PATH = path.join(ORG_DIR, 'telemetry.jsonl');
 const SHADOW_STATE_PATH = path.join(ORG_DIR, 'shadow_mode_state.json');
 const MEETINGS_LEDGER = path.join(MEETINGS_DIR, 'ledger.jsonl');
 const PROJECTS_LEDGER = path.join(PROJECTS_DIR, 'ledger.jsonl');
+const HARD_RETENTION_TTL_DAYS = 90;
 
 function cleanText(v: unknown, maxLen = 800) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, maxLen);
@@ -144,16 +148,21 @@ function withLock(kind: 'meeting' | 'project', id: string, fn: () => any) {
 
 function usage() {
   console.log('Usage:');
-  console.log('  protheus orchestrate meeting "<topic>" [--approval-note="..."] [--override-reason=...] [--override-actor=...] [--override-expiry=ISO8601]');
-  console.log('  protheus orchestrate project "<name>" "<goal>" [--approval-note="..."] [--override-reason=...] [--override-actor=...] [--override-expiry=ISO8601]');
-  console.log('  protheus orchestrate project --id=<project_id> --transition=<active|blocked|completed|cancelled> [--approval-note="..."] [--override-reason=...] [--override-actor=...] [--override-expiry=ISO8601]');
+  console.log('  protheus orchestrate meeting "<topic>" [--approval-note="..."] [--emotion=on|off] [--override-reason=...] [--override-actor=...] [--override-expiry=ISO8601] [--monarch-token=...]');
+  console.log('  protheus orchestrate project "<name>" "<goal>" [--approval-note="..."] [--emotion=on|off] [--override-reason=...] [--override-actor=...] [--override-expiry=ISO8601] [--monarch-token=...]');
+  console.log('  protheus orchestrate project --id=<project_id> --transition=<active|blocked|completed|cancelled|paused_on_breaker|reviewed|resumed|rolled_back> [--approval-note="..."] [--drift-rate=0.0] [--override-reason=...] [--override-actor=...] [--override-expiry=ISO8601] [--monarch-token=...]');
   console.log('  protheus orchestrate status');
+  console.log('  protheus orchestrate telemetry [--window=20]');
+  console.log('  protheus orchestrate audit "<artifact_id>"');
+  console.log('  protheus orchestrate prune [--ttl-days=90]');
 }
 
 function schemaPaths() {
   return {
     arbitrationRules: path.join(ORG_DIR, 'arbitration_rules.schema.json'),
     routingRules: path.join(ORG_DIR, 'routing_rules.schema.json'),
+    breakerPolicy: path.join(ORG_DIR, 'breaker_policy.schema.json'),
+    soulTokenPolicy: path.join(ORG_DIR, 'soul_token_policy.schema.json'),
     meetingArtifact: path.join(ORG_DIR, 'meeting_artifact.schema.json'),
     projectArtifact: path.join(ORG_DIR, 'project_artifact.schema.json')
   };
@@ -164,6 +173,8 @@ function policyPaths() {
     arbitrationRules: path.join(ORG_DIR, 'arbitration_rules.json'),
     routingRules: path.join(ORG_DIR, 'routing_rules.json'),
     riskPolicy: path.join(ORG_DIR, 'risk_policy.json'),
+    breakerPolicy: path.join(ORG_DIR, 'breaker_policy.json'),
+    soulTokenPolicy: path.join(ORG_DIR, 'soul_token_policy.json'),
     telemetryPolicy: path.join(ORG_DIR, 'telemetry_policy.json'),
     retentionPolicy: path.join(ORG_DIR, 'retention_policy.json')
   };
@@ -236,6 +247,8 @@ function validatePoliciesAndSchemas() {
     schemas = {
       arbitrationRules: readJson(sPaths.arbitrationRules),
       routingRules: readJson(sPaths.routingRules),
+      breakerPolicy: readJson(sPaths.breakerPolicy),
+      soulTokenPolicy: readJson(sPaths.soulTokenPolicy),
       meetingArtifact: readJson(sPaths.meetingArtifact),
       projectArtifact: readJson(sPaths.projectArtifact)
     };
@@ -250,6 +263,8 @@ function validatePoliciesAndSchemas() {
       arbitrationRules: readJson(pPaths.arbitrationRules),
       routingRules: readJson(pPaths.routingRules),
       riskPolicy: readJson(pPaths.riskPolicy),
+      breakerPolicy: readJson(pPaths.breakerPolicy),
+      soulTokenPolicy: readJson(pPaths.soulTokenPolicy),
       telemetryPolicy: readJson(pPaths.telemetryPolicy),
       retentionPolicy: readJson(pPaths.retentionPolicy)
     };
@@ -262,7 +277,9 @@ function validatePoliciesAndSchemas() {
 
   const policyValidations = [
     ['arbitration_rules.json', policies.arbitrationRules, schemas.arbitrationRules],
-    ['routing_rules.json', policies.routingRules, schemas.routingRules]
+    ['routing_rules.json', policies.routingRules, schemas.routingRules],
+    ['breaker_policy.json', policies.breakerPolicy, schemas.breakerPolicy],
+    ['soul_token_policy.json', policies.soulTokenPolicy, schemas.soulTokenPolicy]
   ] as Array<[string, any, any]>;
   for (const [name, payload, schema] of policyValidations) {
     const errs = validateAgainstSchema(payload, schema);
@@ -307,6 +324,37 @@ function validatePoliciesAndSchemas() {
     }
   }
 
+  const breakerPolicy = policies.breakerPolicy && typeof policies.breakerPolicy === 'object'
+    ? policies.breakerPolicy
+    : null;
+  if (!breakerPolicy) {
+    failures.push('breaker_policy_invalid:not_an_object');
+  } else {
+    const thresholds = breakerPolicy.thresholds && typeof breakerPolicy.thresholds === 'object'
+      ? breakerPolicy.thresholds
+      : null;
+    if (!thresholds) {
+      failures.push('breaker_policy_invalid:thresholds_missing');
+    } else {
+      const requiredThresholds = [
+        'intent_drift_max',
+        'budget_overrun_max',
+        'runtime_overrun_max',
+        'escalation_rate_max'
+      ];
+      for (const key of requiredThresholds) {
+        const value = Number((thresholds as Record<string, unknown>)[key]);
+        if (!Number.isFinite(value) || value < 0) {
+          failures.push(`breaker_policy_invalid:${key}`);
+        }
+      }
+      const sovereigntyViolation = cleanText((thresholds as Record<string, unknown>).sovereignty_violation, 120).toLowerCase();
+      if (sovereigntyViolation !== 'fail_closed') {
+        failures.push('breaker_policy_invalid:sovereignty_violation_must_fail_closed');
+      }
+    }
+  }
+
   const telemetryPolicy = policies.telemetryPolicy && typeof policies.telemetryPolicy === 'object'
     ? policies.telemetryPolicy
     : null;
@@ -319,7 +367,17 @@ function validatePoliciesAndSchemas() {
     if (!formulas) {
       failures.push('telemetry_policy_invalid:formulas_missing');
     } else {
-      for (const key of ['latency_ms', 'disagreement_rate', 'arbitration_overrides', 'adoption_rate', 'post_outcome_success']) {
+      for (const key of [
+        'latency_ms',
+        'disagreement_rate',
+        'arbitration_overrides',
+        'adoption_rate',
+        'post_outcome_success',
+        'breaker_trip_rate',
+        'mttr_ms',
+        'auto_rollback_rate',
+        'escalation_burst_count'
+      ]) {
         if (!cleanText((formulas as Record<string, unknown>)[key], 300)) {
           failures.push(`telemetry_policy_invalid:formula_missing_${key}`);
         }
@@ -347,6 +405,30 @@ function validatePoliciesAndSchemas() {
     }
   }
 
+  const soulTokenPolicy = policies.soulTokenPolicy && typeof policies.soulTokenPolicy === 'object'
+    ? policies.soulTokenPolicy
+    : null;
+  if (!soulTokenPolicy) {
+    failures.push('soul_token_policy_invalid:not_an_object');
+  } else {
+    const highRisk = soulTokenPolicy.high_risk && typeof soulTokenPolicy.high_risk === 'object'
+      ? soulTokenPolicy.high_risk
+      : null;
+    const overrides = soulTokenPolicy.overrides && typeof soulTokenPolicy.overrides === 'object'
+      ? soulTokenPolicy.overrides
+      : null;
+    if (!highRisk) {
+      failures.push('soul_token_policy_invalid:high_risk_missing');
+    } else if (!cleanText(highRisk.actor || '', 120)) {
+      failures.push('soul_token_policy_invalid:high_risk_actor');
+    }
+    if (!overrides) {
+      failures.push('soul_token_policy_invalid:overrides_missing');
+    } else if (!cleanText(overrides.actor || '', 120)) {
+      failures.push('soul_token_policy_invalid:overrides_actor');
+    }
+  }
+
   return {
     ok: failures.length === 0,
     failures,
@@ -362,6 +444,26 @@ function allPersonaIds() {
     .map((entry: any) => String(entry.name || ''))
     .filter((name: string) => fs.existsSync(path.join(PERSONAS_DIR, name, 'profile.md')))
     .sort();
+}
+
+function policyPersonaIds(routingRules: any) {
+  const ids = new Set<string>();
+  const add = (value: unknown) => {
+    const token = normalizeToken(value, 80);
+    if (token) ids.add(token);
+  };
+  const core = Array.isArray(routingRules && routingRules.core_personas)
+    ? routingRules.core_personas
+    : [];
+  for (const item of core) add(item);
+  const routes = Array.isArray(routingRules && routingRules.topic_routes)
+    ? routingRules.topic_routes
+    : [];
+  for (const route of routes) {
+    const specs = Array.isArray(route && route.specialists) ? route.specialists : [];
+    for (const item of specs) add(item);
+  }
+  return Array.from(ids).sort();
 }
 
 function detectDomain(topic: string, routingRules: any) {
@@ -383,7 +485,8 @@ function detectDomain(topic: string, routingRules: any) {
 }
 
 function selectAttendees(topic: string, routingRules: any, riskPolicy: any) {
-  const personas = allPersonaIds();
+  const localPersonas = allPersonaIds();
+  const personas = localPersonas.length ? localPersonas : policyPersonaIds(routingRules);
   const personaSet = new Set(personas);
   const core = Array.isArray(routingRules.core_personas)
     ? routingRules.core_personas.map((v: unknown) => normalizeToken(v, 80)).filter((v: string) => personaSet.has(v))
@@ -535,13 +638,13 @@ function summarizeTone(emotionLens: string) {
   return lines.length ? lines[0] : 'neutral-operational';
 }
 
-function buildPersonaResponses(topic: string, participants: string[]) {
+function buildPersonaResponses(topic: string, participants: string[], includeEmotion: boolean) {
   return participants.map((personaId) => {
     const signals = loadPersonaSignals(personaId);
     return {
       persona_id: personaId,
       recommendation: recommendationForPersona(personaId, topic),
-      tone_context: summarizeTone(signals.emotionLens),
+      tone_context: includeEmotion ? summarizeTone(signals.emotionLens) : 'neutral-operational',
       // Emotion is explicitly context-only; not used in arbitration logic.
       decision_basis: [
         cleanText(signals.decisionLens.split('\n')[0] || 'decision_lens'),
@@ -634,7 +737,256 @@ function parseFormulaPolicy(telemetryPolicy: any) {
     disagreement_rate: cleanText(formulas.disagreement_rate || 'disagreement_rate = (unique_positions-1)/max(1,participants-1)', 220),
     arbitration_overrides: cleanText(formulas.arbitration_overrides || 'arbitration_overrides = overrides_count/max(1,meetings)', 220),
     adoption_rate: cleanText(formulas.adoption_rate || 'adoption_rate = adopted_decisions/max(1,total_decisions)', 220),
-    post_outcome_success: cleanText(formulas.post_outcome_success || 'post_outcome_success = successful_outcomes/max(1,tracked_outcomes)', 220)
+    post_outcome_success: cleanText(formulas.post_outcome_success || 'post_outcome_success = successful_outcomes/max(1,tracked_outcomes)', 220),
+    breaker_trip_rate: cleanText(formulas.breaker_trip_rate || 'breaker_trip_rate = breaker_trips/max(1,orchestration_events)', 220),
+    mttr_ms: cleanText(formulas.mttr_ms || 'mttr_ms = sum(recovery_time_ms)/max(1,breaker_trips)', 220),
+    auto_rollback_rate: cleanText(formulas.auto_rollback_rate || 'auto_rollback_rate = auto_rollbacks/max(1,breaker_trips)', 220),
+    escalation_burst_count: cleanText(formulas.escalation_burst_count || 'escalation_burst_count = escalations_in_window', 220)
+  };
+}
+
+function parseSoulTokenId(filePath: string) {
+  if (!fs.existsSync(filePath)) return '';
+  const body = String(fs.readFileSync(filePath, 'utf8') || '').replace(/\*\*/g, '');
+  const match = body.match(/token[\s_]*id\s*:\s*([A-Za-z0-9._:-]+)/i);
+  return cleanText(match ? match[1] : '', 160);
+}
+
+function boolFlag(value: unknown, fallback = false) {
+  if (value == null || value === '') return fallback;
+  const raw = cleanText(value, 20).toLowerCase();
+  if (!raw) return fallback;
+  if (['1', 'true', 'on', 'yes'].includes(raw)) return true;
+  if (['0', 'false', 'off', 'no'].includes(raw)) return false;
+  return fallback;
+}
+
+function emotionEnabled(args: Record<string, any>) {
+  return boolFlag(args.emotion, false);
+}
+
+function driftRateFromArgs(args: Record<string, any>) {
+  if (args['drift-rate'] == null && args.drift_rate == null) return NaN;
+  const parsed = Number(args['drift-rate'] != null ? args['drift-rate'] : args.drift_rate);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+function loadSoulTokenPolicy(policies: any) {
+  return policies && policies.soulTokenPolicy && typeof policies.soulTokenPolicy === 'object'
+    ? policies.soulTokenPolicy
+    : {};
+}
+
+function soulTokenRule(
+  soulTokenPolicy: any,
+  section: 'high_risk' | 'overrides',
+  fallbackActor = 'jay_haslam'
+) {
+  const scoped = soulTokenPolicy && soulTokenPolicy[section] && typeof soulTokenPolicy[section] === 'object'
+    ? soulTokenPolicy[section]
+    : {};
+  const actor = normalizeToken(scoped.actor || fallbackActor, 80) || fallbackActor;
+  const tokenPathRaw = cleanText(scoped.token_path || path.join(PERSONAS_DIR, actor, 'soul_token.md'), 500);
+  const tokenPath = path.isAbsolute(tokenPathRaw) ? tokenPathRaw : path.join(ROOT, tokenPathRaw);
+  const expectedToken = parseSoulTokenId(tokenPath);
+  return {
+    required: boolFlag(scoped.required, false),
+    actor,
+    expected_token: expectedToken
+  };
+}
+
+function enforceSoulToken(
+  args: Record<string, any>,
+  soulTokenPolicy: any,
+  reason: string,
+  section: 'high_risk' | 'overrides'
+) {
+  const rule = soulTokenRule(soulTokenPolicy, section);
+  if (!rule.required) return { verified: false, required: false, actor: rule.actor };
+  const provided = cleanText(args['monarch-token'] || args.monarch_token || '', 200);
+  if (!provided) {
+    throw new Error(`monarch_token_required:${reason}`);
+  }
+  if (!rule.expected_token || provided !== rule.expected_token) {
+    throw new Error(`monarch_token_invalid:${reason}`);
+  }
+  return { verified: true, required: true, actor: rule.actor };
+}
+
+function buildEmotionEnrichment(responses: any[], enabled: boolean) {
+  if (!enabled) return [];
+  return responses
+    .map((row: any) => `${cleanText(row.persona_id, 80)}: ${cleanText(row.tone_context || 'neutral-operational', 200)}`)
+    .filter(Boolean);
+}
+
+function resolveBreakerThresholds(breakerPolicy: any, args: Record<string, any>) {
+  const thresholds = breakerPolicy && breakerPolicy.thresholds && typeof breakerPolicy.thresholds === 'object'
+    ? breakerPolicy.thresholds
+    : {};
+  const base = {
+    intent_drift_max: Number.isFinite(Number(thresholds.intent_drift_max)) ? Number(thresholds.intent_drift_max) : 0.55,
+    budget_overrun_max: Number.isFinite(Number(thresholds.budget_overrun_max)) ? Number(thresholds.budget_overrun_max) : 0.0,
+    runtime_overrun_max: Number.isFinite(Number(thresholds.runtime_overrun_max)) ? Number(thresholds.runtime_overrun_max) : 0.0,
+    escalation_rate_max: Number.isFinite(Number(thresholds.escalation_rate_max)) ? Number(thresholds.escalation_rate_max) : 0.5,
+    sovereignty_violation: cleanText(thresholds.sovereignty_violation || 'fail_closed', 80).toLowerCase()
+  };
+
+  const overrideCfg = breakerPolicy && breakerPolicy.monarch_override && typeof breakerPolicy.monarch_override === 'object'
+    ? breakerPolicy.monarch_override
+    : {};
+  const enabled = overrideCfg.enabled === true;
+  if (!enabled) return { ...base, override_active: false };
+
+  const actorExpected = normalizeToken(overrideCfg.actor || 'jay_haslam', 80) || 'jay_haslam';
+  const actorProvided = normalizeToken(args['override-actor'] || '', 80);
+  const tokenPath = cleanText(overrideCfg.token_path || path.join(PERSONAS_DIR, actorExpected, 'soul_token.md'), 400);
+  const expectedToken = parseSoulTokenId(path.isAbsolute(tokenPath) ? tokenPath : path.join(ROOT, tokenPath));
+  const providedToken = cleanText(args['monarch-token'] || args.monarch_token || '', 180);
+  const allowWithoutToken = overrideCfg.allow_without_token === true;
+
+  const tokenOk = allowWithoutToken || (!!expectedToken && providedToken === expectedToken);
+  if (actorProvided !== actorExpected || !tokenOk) {
+    return { ...base, override_active: false };
+  }
+
+  const driftMultiplier = Number.isFinite(Number(overrideCfg.drift_multiplier))
+    ? Math.max(1, Number(overrideCfg.drift_multiplier))
+    : 1.3;
+  const budgetMultiplier = Number.isFinite(Number(overrideCfg.budget_multiplier))
+    ? Math.max(1, Number(overrideCfg.budget_multiplier))
+    : 1.2;
+  const runtimeMultiplier = Number.isFinite(Number(overrideCfg.runtime_multiplier))
+    ? Math.max(1, Number(overrideCfg.runtime_multiplier))
+    : 1.2;
+  const escalationMultiplier = Number.isFinite(Number(overrideCfg.escalation_multiplier))
+    ? Math.max(1, Number(overrideCfg.escalation_multiplier))
+    : 1.2;
+
+  return {
+    ...base,
+    intent_drift_max: Number((base.intent_drift_max * driftMultiplier).toFixed(4)),
+    budget_overrun_max: Number((base.budget_overrun_max * budgetMultiplier).toFixed(4)),
+    runtime_overrun_max: Number((base.runtime_overrun_max * runtimeMultiplier).toFixed(4)),
+    escalation_rate_max: Number((base.escalation_rate_max * escalationMultiplier).toFixed(4)),
+    override_active: true,
+    override_actor: actorExpected
+  };
+}
+
+function recentTelemetry(kind: 'meeting' | 'project', windowSize = 20) {
+  const rows = readJsonl(TELEMETRY_PATH)
+    .filter((row: any) => row && row.kind === kind);
+  return rows.slice(-Math.max(1, windowSize));
+}
+
+function computeEscalationRate(kind: 'meeting' | 'project', windowSize = 20) {
+  const rows = recentTelemetry(kind, windowSize);
+  if (!rows.length) {
+    return { rate: 0, burst_count: 0, count: 0 };
+  }
+  let escalations = 0;
+  let burst = 0;
+  let streak = 0;
+  for (const row of rows) {
+    const signal = Number(row.escalation_signal || 0) > 0 ? 1 : 0;
+    if (signal) {
+      escalations += 1;
+      streak += 1;
+      if (streak >= 2) burst += 1;
+    } else {
+      streak = 0;
+    }
+  }
+  return {
+    rate: Number((escalations / rows.length).toFixed(4)),
+    burst_count: burst,
+    count: rows.length
+  };
+}
+
+function breakerRecoveryAction(riskTier: string, reasonCode: string, breakerPolicy: any) {
+  const recovery = breakerPolicy && breakerPolicy.recovery && typeof breakerPolicy.recovery === 'object'
+    ? breakerPolicy.recovery
+    : {};
+  if (reasonCode === 'sovereignty_violation') {
+    return cleanText(recovery.sovereignty || 'fail_closed', 80) || 'fail_closed';
+  }
+  if (riskTier === 'low') {
+    return cleanText(recovery.low || 'auto_rollback', 80) || 'auto_rollback';
+  }
+  if (riskTier === 'medium') {
+    return cleanText(recovery.medium || 'pause_and_escalate', 80) || 'pause_and_escalate';
+  }
+  return cleanText(recovery.high || 'pause_and_escalate', 80) || 'pause_and_escalate';
+}
+
+function evaluateBreaker(kind: 'meeting' | 'project', context: any, breakerPolicy: any, args: Record<string, any>) {
+  const thresholds = resolveBreakerThresholds(breakerPolicy, args);
+  const reasons: string[] = [];
+  const forced = normalizeToken(args['force-breaker'] || process.env.PROTHEUS_ORCH_FORCE_BREAKER || '', 80);
+  if (forced === 'sovereignty') {
+    reasons.push('sovereignty_violation');
+  }
+  if (forced === 'drift') {
+    reasons.push('intent_drift');
+  }
+
+  const drift = Number(context.disagreement_rate || 0);
+  if (drift > thresholds.intent_drift_max) {
+    reasons.push('intent_drift');
+  }
+
+  const tokenBudget = Number(context.max_tokens_estimate || 0) || 1;
+  const runtimeBudget = Number(context.max_runtime_ms || 0) || 1;
+  const budgetOverrun = Math.max(0, Number(context.estimated_tokens || 0) / tokenBudget - 1);
+  const runtimeOverrun = Math.max(0, Number(context.estimated_runtime_ms || 0) / runtimeBudget - 1);
+  if (budgetOverrun > thresholds.budget_overrun_max) {
+    reasons.push('budget_overrun');
+  }
+  if (runtimeOverrun > thresholds.runtime_overrun_max) {
+    reasons.push('runtime_overrun');
+  }
+
+  const escalation = computeEscalationRate(kind, 20);
+  if (escalation.rate > thresholds.escalation_rate_max) {
+    reasons.push('escalation_rate');
+  }
+
+  const uniqueReasons = Array.from(new Set(reasons));
+  if (!uniqueReasons.length) {
+    return {
+      tripped: false,
+      reason_code: '',
+      reason: '',
+      recovery_action: '',
+      metrics: {
+        intent_drift: drift,
+        budget_overrun: Number(budgetOverrun.toFixed(4)),
+        runtime_overrun: Number(runtimeOverrun.toFixed(4)),
+        escalation_rate: escalation.rate,
+        escalation_burst_count: escalation.burst_count
+      },
+      thresholds
+    };
+  }
+
+  const reasonCode = uniqueReasons[0];
+  const recoveryAction = breakerRecoveryAction(String(context.risk_tier || 'low'), reasonCode, breakerPolicy);
+  return {
+    tripped: true,
+    reason_code: reasonCode,
+    reason: uniqueReasons.join(','),
+    recovery_action: recoveryAction,
+    metrics: {
+      intent_drift: drift,
+      budget_overrun: Number(budgetOverrun.toFixed(4)),
+      runtime_overrun: Number(runtimeOverrun.toFixed(4)),
+      escalation_rate: escalation.rate,
+      escalation_burst_count: escalation.burst_count
+    },
+    thresholds
   };
 }
 
@@ -642,7 +994,7 @@ function evaluateShadowMode(kind: 'meeting' | 'project', policyValidationFailure
   const state = readShadowState();
   const lane = state[kind] && typeof state[kind] === 'object'
     ? state[kind]
-    : { shadow_active: true, policy_validation_failures: 0, cycles: 0 };
+    : { shadow_active: true, policy_validation_failures: 0, cycles: 0, confidence_decay_cycles: 0 };
   const settings = riskPolicy && riskPolicy.shadow_mode && typeof riskPolicy.shadow_mode === 'object'
     ? riskPolicy.shadow_mode
     : {};
@@ -659,6 +1011,9 @@ function evaluateShadowMode(kind: 'meeting' | 'project', policyValidationFailure
   const overridesAvg = telemetry.length
     ? telemetry.reduce((acc: number, row: any) => acc + Number(row.arbitration_overrides || 0), 0) / telemetry.length
     : 1;
+  const breakerTripAvg = telemetry.length
+    ? telemetry.reduce((acc: number, row: any) => acc + Number(row.breaker_trip || 0), 0) / telemetry.length
+    : 1;
 
   lane.policy_validation_failures = Number(lane.policy_validation_failures || 0) + Number(policyValidationFailures || 0);
   lane.cycles = Number(lane.cycles || 0) + 1;
@@ -669,16 +1024,32 @@ function evaluateShadowMode(kind: 'meeting' | 'project', policyValidationFailure
   const overridesLimit = Number.isFinite(Number(metricsExit.arbitration_overrides_lte))
     ? Number(metricsExit.arbitration_overrides_lte)
     : 0.2;
+  const breakerTripLimit = Number.isFinite(Number(metricsExit.breaker_trip_rate_lte))
+    ? Number(metricsExit.breaker_trip_rate_lte)
+    : 0.15;
   const policyRequired = Number.isFinite(Number(metricsExit.policy_validation_failures_eq))
     ? Number(metricsExit.policy_validation_failures_eq)
+    : 0;
+  const decayCycles = Number.isFinite(Number(metricsExit.confidence_decay_cycles))
+    ? Math.max(1, Number(metricsExit.confidence_decay_cycles))
+    : 2;
+
+  const degraded = disagreementAvg > disagreementLimit
+    || overridesAvg > overridesLimit
+    || breakerTripAvg > breakerTripLimit
+    || Number(lane.policy_validation_failures || 0) !== policyRequired;
+  lane.confidence_decay_cycles = degraded
+    ? Number(lane.confidence_decay_cycles || 0) + 1
     : 0;
 
   const exitQualified = telemetry.length >= minSamples
     && disagreementAvg <= disagreementLimit
     && overridesAvg <= overridesLimit
+    && breakerTripAvg <= breakerTripLimit
     && Number(lane.policy_validation_failures || 0) === policyRequired;
 
-  lane.shadow_active = !exitQualified;
+  const forcedShadow = Number(lane.confidence_decay_cycles || 0) >= decayCycles;
+  lane.shadow_active = forcedShadow ? true : !exitQualified;
   state[kind] = lane;
   writeShadowState(state);
 
@@ -687,7 +1058,10 @@ function evaluateShadowMode(kind: 'meeting' | 'project', policyValidationFailure
     samples: telemetry.length,
     disagreement_rate_avg: Number(disagreementAvg.toFixed(4)),
     arbitration_overrides_avg: Number(overridesAvg.toFixed(4)),
+    breaker_trip_rate_avg: Number(breakerTripAvg.toFixed(4)),
     policy_validation_failures: Number(lane.policy_validation_failures || 0),
+    confidence_decay_cycles: Number(lane.confidence_decay_cycles || 0),
+    forced_shadow: forcedShadow,
     exit_qualified: exitQualified
   };
 }
@@ -727,6 +1101,12 @@ function writeTelemetry(kind: 'meeting' | 'project', row: any, telemetryPolicy: 
     arbitration_overrides: Number(row.arbitration_overrides || 0),
     adoption_rate: Number(row.adoption_rate || 0),
     post_outcome_success: Number(row.post_outcome_success || 0),
+    breaker_trip: Number(row.breaker_trip || 0),
+    breaker_trip_rate: Number(row.breaker_trip_rate || 0),
+    mttr_ms: Number(row.mttr_ms || 0),
+    auto_rollback_rate: Number(row.auto_rollback_rate || 0),
+    escalation_burst_count: Number(row.escalation_burst_count || 0),
+    escalation_signal: Number(row.escalation_signal || 0),
     formulas
   };
   appendJsonlHashChained(TELEMETRY_PATH, payload);
@@ -738,6 +1118,254 @@ function ensureOrgFolders() {
   ensureDir(MEETINGS_DIR);
   ensureDir(PROJECTS_DIR);
   ensureDir(LOCKS_DIR);
+}
+
+function avg(rows: any[], key: string) {
+  if (!rows.length) return 0;
+  const total = rows.reduce((acc: number, row: any) => acc + Number(row && row[key] || 0), 0);
+  return Number((total / rows.length).toFixed(4));
+}
+
+function renderTelemetryMarkdown(windowSize: number) {
+  const rows = readJsonl(TELEMETRY_PATH).slice(-Math.max(1, windowSize));
+  const byKind = {
+    meeting: rows.filter((row: any) => row && row.kind === 'meeting'),
+    project: rows.filter((row: any) => row && row.kind === 'project')
+  };
+  const lines = [
+    '# Orchestration Telemetry',
+    '',
+    `Window: last ${Math.max(1, windowSize)} rows`,
+    '',
+    '| kind | count | latency_ms(avg) | disagreement(avg) | breaker_trip_rate(avg) | mttr_ms(avg) | auto_rollback_rate(avg) | escalation_burst_count(avg) |',
+    '|---|---:|---:|---:|---:|---:|---:|---:|'
+  ];
+  for (const kind of ['meeting', 'project']) {
+    const rowsForKind = (byKind as Record<string, any[]>)[kind];
+    lines.push(`| ${kind} | ${rowsForKind.length} | ${avg(rowsForKind, 'latency_ms')} | ${avg(rowsForKind, 'disagreement_rate')} | ${avg(rowsForKind, 'breaker_trip_rate')} | ${avg(rowsForKind, 'mttr_ms')} | ${avg(rowsForKind, 'auto_rollback_rate')} | ${avg(rowsForKind, 'escalation_burst_count')} |`);
+  }
+  return lines.join('\n');
+}
+
+function telemetry(windowSize: number) {
+  ensureOrgFolders();
+  const rows = readJsonl(TELEMETRY_PATH).slice(-Math.max(1, windowSize));
+  return {
+    ok: true,
+    window: Math.max(1, windowSize),
+    rows,
+    markdown: renderTelemetryMarkdown(windowSize)
+  };
+}
+
+function effectiveRetentionDays(retentionPolicy: any, requestedTtlDays: unknown) {
+  const policyDays = Number.isFinite(Number(retentionPolicy && retentionPolicy.ttl_days))
+    ? Math.max(1, Math.floor(Number(retentionPolicy.ttl_days)))
+    : HARD_RETENTION_TTL_DAYS;
+  const requestDays = Number.isFinite(Number(requestedTtlDays))
+    ? Math.max(1, Math.floor(Number(requestedTtlDays)))
+    : policyDays;
+  return Math.min(HARD_RETENTION_TTL_DAYS, requestDays, policyDays);
+}
+
+function rowTimestampMs(row: any) {
+  const ts = cleanText((row && (row.timestamp || row.ts)) || '', 120);
+  const parsed = Date.parse(ts);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+function chainRows(rows: any[]) {
+  const out: any[] = [];
+  let prevHash = '';
+  for (const raw of rows) {
+    const row = raw && typeof raw === 'object' ? { ...raw } : {};
+    delete (row as any).hash;
+    delete (row as any).prev_hash;
+    const base = {
+      ...row,
+      prev_hash: prevHash || null
+    };
+    const hash = sha256Hex(stableStringify(base));
+    const chained = { ...base, hash };
+    out.push(chained);
+    prevHash = hash;
+  }
+  return out;
+}
+
+function rewriteJsonl(filePath: string, rows: any[]) {
+  const body = rows.map((row) => JSON.stringify(row)).join('\n');
+  fs.writeFileSync(filePath, body ? `${body}\n` : '', 'utf8');
+}
+
+function pruneFileWithTtl(filePath: string, cutoffMs: number) {
+  const rows = readJsonl(filePath);
+  const keptRaw = rows.filter((row: any) => {
+    const tsMs = rowTimestampMs(row);
+    if (!Number.isFinite(tsMs)) return true;
+    return tsMs >= cutoffMs;
+  });
+  const kept = chainRows(keptRaw);
+  rewriteJsonl(filePath, kept);
+  return {
+    total: rows.length,
+    kept: kept.length,
+    pruned: Math.max(0, rows.length - kept.length)
+  };
+}
+
+function verifyHashChain(rows: any[]) {
+  const issues: string[] = [];
+  let prevHash: string | null = null;
+  for (let i = 0; i < rows.length; i += 1) {
+    const row = rows[i] || {};
+    const actualPrev = row.prev_hash == null ? null : cleanText(row.prev_hash, 200);
+    const expectedPrev = prevHash;
+    if (actualPrev !== expectedPrev) {
+      issues.push(`prev_hash_mismatch:index=${i}`);
+    }
+    const rowCopy = { ...row };
+    delete (rowCopy as any).hash;
+    const expectedHash = sha256Hex(stableStringify(rowCopy));
+    const actualHash = cleanText(row.hash || '', 200);
+    if (!actualHash || actualHash !== expectedHash) {
+      issues.push(`hash_mismatch:index=${i}`);
+    }
+    prevHash = actualHash || null;
+  }
+  return {
+    ok: issues.length === 0,
+    issues
+  };
+}
+
+function policyChecksForArtifactRows(rows: any[], policies: any) {
+  const issues: string[] = [];
+  const riskPolicy = policies && policies.riskPolicy && typeof policies.riskPolicy === 'object'
+    ? policies.riskPolicy
+    : {};
+  const soulTokenPolicy = loadSoulTokenPolicy(policies);
+  const approvalRequired = Array.isArray(riskPolicy.approval_required_tiers)
+    ? riskPolicy.approval_required_tiers.map((v: unknown) => normalizeToken(v, 40))
+    : ['medium', 'high'];
+  const overrideRule = soulTokenRule(soulTokenPolicy, 'overrides');
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') continue;
+    const type = normalizeToken(row.type || '', 80);
+    if (type !== 'meeting_result' && type !== 'project_state') continue;
+    const tier = normalizeToken(row.risk_tier || '', 40);
+    const approvalNote = cleanText(row.approval_note || '', 240);
+    const overrideReason = cleanText(row.override_reason || '', 240);
+    const overrideActor = normalizeToken(row.override_actor || '', 80);
+    if (approvalRequired.includes(tier) && !approvalNote && !overrideReason) {
+      issues.push(`approval_missing:${type}:${cleanText(row.meeting_id || row.project_id || '', 120)}`);
+    }
+    if (overrideReason && overrideRule.required && overrideActor !== overrideRule.actor) {
+      issues.push(`override_actor_mismatch:${type}:${cleanText(row.meeting_id || row.project_id || '', 120)}`);
+    }
+    if (Object.prototype.hasOwnProperty.call(row, 'emotion_enrichment') && !Array.isArray(row.emotion_enrichment)) {
+      issues.push(`emotion_enrichment_invalid:${type}`);
+    }
+  }
+  return {
+    ok: issues.length === 0,
+    issues
+  };
+}
+
+function pruneArtifacts(args: Record<string, any>) {
+  ensureOrgFolders();
+  const validation = validatePoliciesAndSchemas();
+  if (!validation.ok) {
+    throw new Error(`policy_validation_failed:${validation.failures.join(',')}`);
+  }
+  const retentionPolicy = (validation as any).policies.retentionPolicy;
+  const ttlDays = effectiveRetentionDays(retentionPolicy, args['ttl-days'] || args.ttl_days);
+  const cutoffMs = Date.now() - ttlDays * 24 * 60 * 60 * 1000;
+  const meetings = pruneFileWithTtl(MEETINGS_LEDGER, cutoffMs);
+  const projects = pruneFileWithTtl(PROJECTS_LEDGER, cutoffMs);
+  const telemetry = pruneFileWithTtl(TELEMETRY_PATH, cutoffMs);
+  return {
+    ok: true,
+    ttl_days: ttlDays,
+    hard_ttl_days: HARD_RETENTION_TTL_DAYS,
+    cutoff_iso: new Date(cutoffMs).toISOString(),
+    files: {
+      meetings,
+      projects,
+      telemetry
+    }
+  };
+}
+
+function auditArtifact(artifactId: string) {
+  ensureOrgFolders();
+  const validation = validatePoliciesAndSchemas();
+  if (!validation.ok) {
+    throw new Error(`policy_validation_failed:${validation.failures.join(',')}`);
+  }
+  const { policies, schemas } = validation as any;
+  const meetings = readJsonl(MEETINGS_LEDGER);
+  const projects = readJsonl(PROJECTS_LEDGER);
+  const id = cleanText(artifactId, 160);
+
+  const meetingRows = meetings.filter((row: any) => row && (row.meeting_id === id || row.hash === id));
+  const projectRows = projects.filter((row: any) => row && (row.project_id === id || row.hash === id));
+  let scope: 'meetings' | 'projects' = 'meetings';
+  let scopeRows = meetingRows;
+  let ledgerRows = meetings;
+
+  if (!meetingRows.length && projectRows.length) {
+    scope = 'projects';
+    scopeRows = projectRows;
+    ledgerRows = projects;
+  } else if (meetingRows.length && projectRows.length) {
+    throw new Error(`audit_ambiguous_artifact_id:${id}`);
+  } else if (!meetingRows.length && !projectRows.length) {
+    throw new Error(`artifact_not_found:${id}`);
+  }
+
+  // If called by row hash, expand to all rows in the same artifact group.
+  const groupId = cleanText(
+    scopeRows[0] && (scope === 'meetings' ? scopeRows[0].meeting_id : scopeRows[0].project_id) || '',
+    160
+  );
+  if (groupId) {
+    scopeRows = ledgerRows.filter((row: any) =>
+      row && (scope === 'meetings' ? row.meeting_id === groupId : row.project_id === groupId)
+    );
+  }
+
+  const hashChain = verifyHashChain(ledgerRows);
+  const schemaIssues: string[] = [];
+  for (const row of scopeRows) {
+    const type = normalizeToken(row && row.type || '', 80);
+    if (type === 'meeting_result') {
+      const errs = validateAgainstSchema(row, schemas.meetingArtifact);
+      for (const err of errs) schemaIssues.push(`meeting_schema:${err}`);
+    } else if (type === 'project_state') {
+      const errs = validateAgainstSchema(row, schemas.projectArtifact);
+      for (const err of errs) schemaIssues.push(`project_schema:${err}`);
+    }
+  }
+  const policyCheck = policyChecksForArtifactRows(scopeRows, policies);
+  return {
+    ok: hashChain.ok && schemaIssues.length === 0 && policyCheck.ok,
+    artifact_id: id,
+    scope,
+    group_id: groupId || id,
+    checks: {
+      hash_chain_ok: hashChain.ok,
+      schema_ok: schemaIssues.length === 0,
+      policy_ok: policyCheck.ok
+    },
+    findings: {
+      hash_chain: hashChain.issues,
+      schema: schemaIssues,
+      policy: policyCheck.issues
+    },
+    rows_checked: scopeRows.length
+  };
 }
 
 function meetingId(topic: string, participants: string[]) {
@@ -756,7 +1384,10 @@ function runMeeting(topic: string, args: Record<string, any>) {
   const routingRules = policies.routingRules;
   const arbitrationRules = policies.arbitrationRules;
   const riskPolicy = policies.riskPolicy;
+  const breakerPolicy = policies.breakerPolicy;
+  const soulTokenPolicy = loadSoulTokenPolicy(policies);
   const telemetryPolicy = policies.telemetryPolicy;
+  const includeEmotion = emotionEnabled(args);
 
   const selection = applyBudgetControls(topic, selectAttendees(topic, routingRules, riskPolicy), riskPolicy);
   if (!selection.selected.length) {
@@ -789,6 +1420,12 @@ function runMeeting(topic: string, args: Record<string, any>) {
   if (approvalRequiredTiers.includes(riskTier) && !approvalNote && !overrideReason) {
     throw new Error(`approval_required_for_risk_tier:${riskTier}`);
   }
+  if (riskTier === 'high') {
+    enforceSoulToken(args, soulTokenPolicy, 'high_risk_meeting', 'high_risk');
+  }
+  if (overrideReason) {
+    enforceSoulToken(args, soulTokenPolicy, 'override_meeting', 'overrides');
+  }
 
   return withLock('meeting', id, () => {
     const sec = enforceSecurityGate('orchestrate_meeting', riskTier, sha256Hex(topic));
@@ -814,7 +1451,8 @@ function runMeeting(topic: string, args: Record<string, any>) {
       engine_version: 'persona_orchestration_v1'
     });
 
-    const responses = buildPersonaResponses(topic, selection.selected);
+    const responses = buildPersonaResponses(topic, selection.selected, includeEmotion);
+    const emotionEnrichment = buildEmotionEnrichment(responses, includeEmotion);
     const disagreement = disagreementRate(responses);
     const winner = pickWinnerPersona(selection.domain, selection.selected, arbitrationRules);
     const winnerResponse = responses.find((row) => row.persona_id === winner) || responses[0];
@@ -836,8 +1474,95 @@ function runMeeting(topic: string, args: Record<string, any>) {
       engine_version: 'persona_orchestration_v1'
     });
 
-    const confidence = Number(Math.max(0.2, 1 - disagreement * 0.6).toFixed(4));
     const endMs = Date.now();
+    const escalationSignal = riskTier === 'high' || riskTier === 'medium' ? 1 : 0;
+    const breaker = evaluateBreaker('meeting', {
+      disagreement_rate: disagreement,
+      estimated_tokens: selection.estimated_tokens,
+      max_tokens_estimate: selection.max_tokens_estimate,
+      estimated_runtime_ms: selection.estimated_runtime_ms,
+      max_runtime_ms: selection.max_runtime_ms,
+      risk_tier: riskTier
+    }, breakerPolicy, args);
+
+    if (breaker.tripped) {
+      const breakerReceipt = appendJsonlHashChained(MEETINGS_LEDGER, {
+        type: 'breaker_trip_receipt',
+        meeting_id: id,
+        reason_code: breaker.reason_code,
+        reason: breaker.reason,
+        recovery_action: breaker.recovery_action,
+        metrics: breaker.metrics,
+        thresholds: breaker.thresholds,
+        timestamp: new Date().toISOString(),
+        engine_version: 'persona_orchestration_v1'
+      });
+      writeTelemetry('meeting', {
+        latency_ms: Math.max(0, endMs - startMs),
+        disagreement_rate: disagreement,
+        arbitration_overrides: overrideReason ? 1 : 0,
+        adoption_rate: 0,
+        post_outcome_success: 0,
+        breaker_trip: 1,
+        breaker_trip_rate: 1,
+        mttr_ms: 0,
+        auto_rollback_rate: breaker.recovery_action === 'auto_rollback' ? 1 : 0,
+        escalation_burst_count: Number(breaker.metrics && breaker.metrics.escalation_burst_count || 0),
+        escalation_signal: escalationSignal
+      }, telemetryPolicy);
+
+      if (breaker.recovery_action === 'auto_rollback') {
+        const rolledBack = appendJsonlHashChained(MEETINGS_LEDGER, {
+          type: 'meeting_result',
+          meeting_id: id,
+          topic,
+          domain: selection.domain,
+          participants: selection.selected,
+          decision: '',
+          winning_persona: winner,
+          rejected_options: rejected,
+          rule_applied: cleanText(`domain:${selection.domain}|winner:${winner}`, 200),
+          confidence: 0,
+          fail_closed_reason: `breaker_auto_rollback:${breaker.reason}`,
+          risk_tier: riskTier,
+          approval_note: approvalNote || '',
+          override_reason: overrideReason || '',
+          override_actor: overrideActor || '',
+          override_expiry: overrideExpiry || '',
+          estimated_tokens: selection.estimated_tokens,
+          estimated_runtime_ms: selection.estimated_runtime_ms,
+          max_tokens_estimate: selection.max_tokens_estimate,
+          max_runtime_ms: selection.max_runtime_ms,
+          shadow_mode_active: true,
+          selection_receipt_hash: cleanText(selectionReceipt.hash || '', 90),
+          arbitration_receipt_hash: cleanText(arbitrationReceipt.hash || '', 90),
+          policy_version: cleanText(`${routingRules.version || '1.0'}|${arbitrationRules.version || '1.0'}`, 120),
+          persona_snapshot_hash: sha256Hex(stableStringify(responses)).slice(0, 16),
+          selection_seed: selection.selection_seed,
+          timestamp: new Date().toISOString(),
+          engine_version: 'persona_orchestration_v1',
+          latency_ms: Math.max(0, endMs - startMs),
+          disagreement_rate: disagreement,
+          arbitration_overrides: overrideReason ? 1 : 0,
+          adoption_rate: 0,
+          post_outcome_success: 0,
+          gate_engine: sec.gate_engine,
+          breaker_receipt_hash: cleanText(breakerReceipt.hash || '', 90),
+          emotion_enrichment: emotionEnrichment
+        });
+        return {
+          ok: false,
+          idempotent: false,
+          breaker_tripped: true,
+          artifact: rolledBack,
+          markdown_summary: renderMeetingMarkdown(rolledBack)
+        };
+      }
+
+      throw new Error(`breaker_trip_escalated:${breaker.reason}`);
+    }
+
+    const confidence = Number(Math.max(0.2, 1 - disagreement * 0.6).toFixed(4));
     const shadow = evaluateShadowMode('meeting', 0, riskPolicy);
 
     const artifactBase = {
@@ -874,7 +1599,14 @@ function runMeeting(topic: string, args: Record<string, any>) {
       arbitration_overrides: overrideReason ? 1 : 0,
       adoption_rate: shadow.shadow_active ? 0 : 1,
       post_outcome_success: 0,
-      gate_engine: sec.gate_engine
+      gate_engine: sec.gate_engine,
+      breaker_trip: 0,
+      breaker_trip_rate: 0,
+      mttr_ms: 0,
+      auto_rollback_rate: 0,
+      escalation_burst_count: Number(breaker.metrics && breaker.metrics.escalation_burst_count || 0),
+      escalation_signal: escalationSignal,
+      emotion_enrichment: emotionEnrichment
     };
     const schemaErrors = validateAgainstSchema(artifactBase, schemas.meetingArtifact);
     if (schemaErrors.length) {
@@ -894,8 +1626,12 @@ function runMeeting(topic: string, args: Record<string, any>) {
 
 const PROJECT_TRANSITIONS: Record<string, string[]> = {
   proposed: ['active', 'cancelled'],
-  active: ['blocked', 'completed', 'cancelled'],
+  active: ['blocked', 'completed', 'cancelled', 'paused_on_breaker'],
   blocked: ['active', 'cancelled'],
+  paused_on_breaker: ['reviewed', 'cancelled', 'rolled_back'],
+  reviewed: ['resumed', 'rolled_back', 'cancelled'],
+  resumed: ['blocked', 'completed', 'cancelled', 'paused_on_breaker'],
+  rolled_back: ['cancelled', 'active'],
   completed: [],
   cancelled: []
 };
@@ -920,8 +1656,11 @@ function runProject(name: string, goal: string, args: Record<string, any>) {
   const routingRules = policies.routingRules;
   const arbitrationRules = policies.arbitrationRules;
   const riskPolicy = policies.riskPolicy;
+  const breakerPolicy = policies.breakerPolicy;
+  const soulTokenPolicy = loadSoulTokenPolicy(policies);
   const telemetryPolicy = policies.telemetryPolicy;
   const rawId = cleanText(args.id || '', 120);
+  const includeEmotion = emotionEnabled(args);
 
   const transition = normalizeToken(args.transition || '', 40);
   const isTransition = !!rawId && !!transition;
@@ -945,7 +1684,85 @@ function runProject(name: string, goal: string, args: Record<string, any>) {
     if (approvalRequiredTiers.includes(riskTier) && !approvalNote && !overrideReason) {
       throw new Error(`approval_required_for_risk_tier:${riskTier}`);
     }
+    if (riskTier === 'high') {
+      enforceSoulToken(args, soulTokenPolicy, 'high_risk_project_transition', 'high_risk');
+    }
+    if (overrideReason) {
+      enforceSoulToken(args, soulTokenPolicy, 'override_project_transition', 'overrides');
+    }
     const sec = enforceSecurityGate('orchestrate_project_transition', riskTier, sha256Hex(`${rawId}|${transition}`));
+    const previousTimestamps = current.status_timestamps && typeof current.status_timestamps === 'object'
+      ? { ...current.status_timestamps }
+      : {};
+    const nextTimestamps = {
+      ...previousTimestamps,
+      [transition]: new Date().toISOString()
+    };
+    const pausedAt = cleanText(nextTimestamps.paused_on_breaker || '', 80);
+    const mttrMs = pausedAt && (transition === 'reviewed' || transition === 'resumed' || transition === 'rolled_back')
+      ? Math.max(0, Date.now() - Date.parse(pausedAt))
+      : 0;
+    const driftRate = driftRateFromArgs(args);
+    const needsDriftGate = transition === 'resumed' || transition === 'rolled_back';
+    if (needsDriftGate && !Number.isFinite(driftRate)) {
+      throw new Error(`drift_rate_required_for_transition:${transition}`);
+    }
+    if (needsDriftGate && Number(driftRate) > 0.02) {
+      const nowIso = new Date().toISOString();
+      const escalatedReview = appendJsonlHashChained(PROJECTS_LEDGER, {
+        type: 'project_state',
+        project_id: rawId,
+        project_name: cleanText(current.project_name || name, 200),
+        goal: cleanText(current.goal || goal, 800),
+        previous_status: from,
+        status: 'reviewed',
+        transition: `${from}->reviewed:auto_escalated_drift`,
+        approval_note: approvalNote || '',
+        override_reason: overrideReason || '',
+        override_actor: overrideActor || '',
+        override_expiry: overrideExpiry || '',
+        drift_rate: Number(Number(driftRate).toFixed(4)),
+        core5_review_required: true,
+        fail_closed_reason: `drift_rate_exceeded:${Number(Number(driftRate).toFixed(4))}`,
+        status_timestamps: {
+          ...nextTimestamps,
+          reviewed: nowIso
+        },
+        timestamp: nowIso,
+        engine_version: 'persona_orchestration_v1',
+        gate_engine: sec.gate_engine
+      });
+      writeTelemetry('project', {
+        latency_ms: 0,
+        disagreement_rate: Number(Number(driftRate).toFixed(4)),
+        arbitration_overrides: overrideReason ? 1 : 0,
+        adoption_rate: 0,
+        post_outcome_success: 0,
+        breaker_trip: 1,
+        breaker_trip_rate: 1,
+        mttr_ms: mttrMs,
+        auto_rollback_rate: transition === 'rolled_back' ? 1 : 0,
+        escalation_burst_count: 1,
+        escalation_signal: 1
+      }, telemetryPolicy);
+      return {
+        ok: false,
+        drift_escalated: true,
+        artifact: escalatedReview
+      };
+    }
+    const transitionEmotion = includeEmotion
+      ? buildEmotionEnrichment(
+        buildPersonaResponses(
+          `${cleanText(current.project_name || name, 120)} ${cleanText(current.goal || goal, 220)} ${transition}`,
+          [cleanText(current.owner || '', 80), ...(Array.isArray(current.escalation_chain) ? current.escalation_chain : [])]
+            .map((v: unknown) => normalizeToken(v, 80))
+            .filter(Boolean),
+          true
+        ),
+        true
+      )
+      : [];
     const stateRow = {
       type: 'project_state',
       project_id: rawId,
@@ -958,6 +1775,9 @@ function runProject(name: string, goal: string, args: Record<string, any>) {
       override_reason: overrideReason || '',
       override_actor: overrideActor || '',
       override_expiry: overrideExpiry || '',
+      drift_rate: Number.isFinite(driftRate) ? Number(Number(driftRate).toFixed(4)) : null,
+      status_timestamps: nextTimestamps,
+      emotion_enrichment: transitionEmotion,
       timestamp: new Date().toISOString(),
       engine_version: 'persona_orchestration_v1',
       gate_engine: sec.gate_engine
@@ -972,7 +1792,13 @@ function runProject(name: string, goal: string, args: Record<string, any>) {
       disagreement_rate: 0,
       arbitration_overrides: overrideReason ? 1 : 0,
       adoption_rate: transition === 'completed' ? 1 : 0,
-      post_outcome_success: transition === 'completed' ? 1 : 0
+      post_outcome_success: transition === 'completed' ? 1 : 0,
+      breaker_trip: transition === 'paused_on_breaker' ? 1 : 0,
+      breaker_trip_rate: transition === 'paused_on_breaker' ? 1 : 0,
+      mttr_ms: mttrMs,
+      auto_rollback_rate: transition === 'rolled_back' ? 1 : 0,
+      escalation_burst_count: 0,
+      escalation_signal: riskTier === 'high' || riskTier === 'medium' ? 1 : 0
     }, telemetryPolicy);
     return { ok: true, artifact };
   }
@@ -993,6 +1819,12 @@ function runProject(name: string, goal: string, args: Record<string, any>) {
     : ['medium', 'high'];
   if (approvalRequiredTiers.includes(riskTier) && !approvalNote && !overrideReason) {
     throw new Error(`approval_required_for_risk_tier:${riskTier}`);
+  }
+  if (riskTier === 'high') {
+    enforceSoulToken(args, soulTokenPolicy, 'high_risk_project', 'high_risk');
+  }
+  if (overrideReason) {
+    enforceSoulToken(args, soulTokenPolicy, 'override_project', 'overrides');
   }
 
   return withLock('project', id, () => {
@@ -1023,6 +1855,8 @@ function runProject(name: string, goal: string, args: Record<string, any>) {
     });
 
     const winner = pickWinnerPersona(selection.domain, selection.selected, arbitrationRules);
+    const responses = buildPersonaResponses(`${name} ${goal}`, selection.selected, includeEmotion);
+    const emotionEnrichment = buildEmotionEnrichment(responses, includeEmotion);
     const arbitrationReceipt = appendJsonlHashChained(PROJECTS_LEDGER, {
       type: 'arbitration_receipt',
       project_id: id,
@@ -1032,6 +1866,80 @@ function runProject(name: string, goal: string, args: Record<string, any>) {
       timestamp: new Date().toISOString(),
       engine_version: 'persona_orchestration_v1'
     });
+
+    const escalationSignal = riskTier === 'high' || riskTier === 'medium' ? 1 : 0;
+    const breaker = evaluateBreaker('project', {
+      disagreement_rate: 0,
+      estimated_tokens: selection.estimated_tokens,
+      max_tokens_estimate: selection.max_tokens_estimate,
+      estimated_runtime_ms: selection.estimated_runtime_ms,
+      max_runtime_ms: selection.max_runtime_ms,
+      risk_tier: riskTier
+    }, breakerPolicy, args);
+
+    if (breaker.tripped) {
+      const breakerReceipt = appendJsonlHashChained(PROJECTS_LEDGER, {
+        type: 'breaker_trip_receipt',
+        project_id: id,
+        reason_code: breaker.reason_code,
+        reason: breaker.reason,
+        recovery_action: breaker.recovery_action,
+        metrics: breaker.metrics,
+        thresholds: breaker.thresholds,
+        timestamp: new Date().toISOString(),
+        engine_version: 'persona_orchestration_v1'
+      });
+      const fallbackStatus = breaker.recovery_action === 'auto_rollback' ? 'rolled_back' : 'paused_on_breaker';
+      const breakerState = appendJsonlHashChained(PROJECTS_LEDGER, {
+        type: 'project_state',
+        project_id: id,
+        project_name: cleanText(name, 200),
+        goal: cleanText(goal, 800),
+        status: fallbackStatus,
+        previous_status: 'proposed',
+        transition: `proposed->${fallbackStatus}`,
+        owner,
+        escalation_chain: escalation,
+        risk_tier: riskTier,
+        approval_note: approvalNote || '',
+        override_reason: overrideReason || '',
+        override_actor: overrideActor || '',
+        override_expiry: overrideExpiry || '',
+        emotion_enrichment: emotionEnrichment,
+        status_timestamps: {
+          proposed: new Date().toISOString(),
+          [fallbackStatus]: new Date().toISOString()
+        },
+        estimated_tokens: selection.estimated_tokens,
+        estimated_runtime_ms: selection.estimated_runtime_ms,
+        max_tokens_estimate: selection.max_tokens_estimate,
+        max_runtime_ms: selection.max_runtime_ms,
+        shadow_mode_active: true,
+        selection_receipt_hash: cleanText(selectionReceipt.hash || '', 90),
+        arbitration_receipt_hash: cleanText(arbitrationReceipt.hash || '', 90),
+        breaker_receipt_hash: cleanText(breakerReceipt.hash || '', 90),
+        timestamp: new Date().toISOString(),
+        engine_version: 'persona_orchestration_v1',
+        gate_engine: sec.gate_engine
+      });
+      writeTelemetry('project', {
+        latency_ms: 0,
+        disagreement_rate: 0,
+        arbitration_overrides: overrideReason ? 1 : 0,
+        adoption_rate: 0,
+        post_outcome_success: 0,
+        breaker_trip: 1,
+        breaker_trip_rate: 1,
+        mttr_ms: 0,
+        auto_rollback_rate: breaker.recovery_action === 'auto_rollback' ? 1 : 0,
+        escalation_burst_count: Number(breaker.metrics && breaker.metrics.escalation_burst_count || 0),
+        escalation_signal: escalationSignal
+      }, telemetryPolicy);
+      if (breaker.recovery_action === 'auto_rollback') {
+        return { ok: false, idempotent: false, breaker_tripped: true, artifact: breakerState };
+      }
+      throw new Error(`breaker_trip_escalated:${breaker.reason}`);
+    }
 
     const shadow = evaluateShadowMode('project', 0, riskPolicy);
     const stateRow = {
@@ -1049,6 +1957,7 @@ function runProject(name: string, goal: string, args: Record<string, any>) {
       override_reason: overrideReason || '',
       override_actor: overrideActor || '',
       override_expiry: overrideExpiry || '',
+      emotion_enrichment: emotionEnrichment,
       estimated_tokens: selection.estimated_tokens,
       estimated_runtime_ms: selection.estimated_runtime_ms,
       max_tokens_estimate: selection.max_tokens_estimate,
@@ -1058,6 +1967,9 @@ function runProject(name: string, goal: string, args: Record<string, any>) {
       arbitration_receipt_hash: cleanText(arbitrationReceipt.hash || '', 90),
       timestamp: new Date().toISOString(),
       engine_version: 'persona_orchestration_v1',
+      status_timestamps: {
+        proposed: new Date().toISOString()
+      },
       gate_engine: sec.gate_engine
     };
     const schemaErrors = validateAgainstSchema(stateRow, schemas.projectArtifact);
@@ -1070,7 +1982,13 @@ function runProject(name: string, goal: string, args: Record<string, any>) {
       disagreement_rate: 0,
       arbitration_overrides: overrideReason ? 1 : 0,
       adoption_rate: 0,
-      post_outcome_success: 0
+      post_outcome_success: 0,
+      breaker_trip: 0,
+      breaker_trip_rate: 0,
+      mttr_ms: 0,
+      auto_rollback_rate: 0,
+      escalation_burst_count: Number(breaker.metrics && breaker.metrics.escalation_burst_count || 0),
+      escalation_signal: escalationSignal
     }, telemetryPolicy);
     return { ok: true, idempotent: false, artifact };
   });
@@ -1083,6 +2001,7 @@ function status() {
   const projects = readJsonl(PROJECTS_LEDGER);
   const telemetry = readJsonl(TELEMETRY_PATH);
   const retention = readJsonOptional(path.join(ORG_DIR, 'retention_policy.json'), {});
+  const breaker = readJsonOptional(path.join(ORG_DIR, 'breaker_policy.json'), {});
   return {
     ok: validation.ok,
     policy_validation_failures: validation.ok ? [] : validation.failures,
@@ -1091,7 +2010,12 @@ function status() {
       projects: projects.length,
       telemetry: telemetry.length
     },
-    retention_policy: retention
+    retention_policy: retention,
+    hard_retention_ttl_days: HARD_RETENTION_TTL_DAYS,
+    breaker_policy: {
+      enabled: breaker && breaker.enabled === true,
+      thresholds: breaker && breaker.thresholds ? breaker.thresholds : {}
+    }
   };
 }
 
@@ -1107,12 +2031,33 @@ function main() {
       process.stdout.write(`${JSON.stringify(status(), null, 2)}\n`);
       process.exit(0);
     }
+    if (cmd === 'telemetry') {
+      const windowSize = Number.isFinite(Number(args.window))
+        ? Math.max(1, Number(args.window))
+        : 20;
+      process.stdout.write(`${JSON.stringify(telemetry(windowSize), null, 2)}\n`);
+      process.exit(0);
+    }
     if (cmd === 'meeting') {
       const topic = cleanText(args._.slice(1).join(' ') || args.topic || '', 1000);
       if (!topic) {
         throw new Error('meeting_topic_required');
       }
       const result = runMeeting(topic, args);
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      process.exit(0);
+    }
+    if (cmd === 'audit') {
+      const artifactId = cleanText(args._.slice(1).join(' ') || args.id || '', 200);
+      if (!artifactId) {
+        throw new Error('audit_artifact_id_required');
+      }
+      const result = auditArtifact(artifactId);
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      process.exit(0);
+    }
+    if (cmd === 'prune') {
+      const result = pruneArtifacts(args);
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       process.exit(0);
     }
@@ -1149,5 +2094,8 @@ module.exports = {
   validatePoliciesAndSchemas,
   runMeeting,
   runProject,
-  status
+  auditArtifact,
+  pruneArtifacts,
+  status,
+  telemetry
 };

@@ -35,6 +35,7 @@
     "override_reason": { "type": "string" },
     "override_actor": { "type": "string" },
     "override_expiry": { "type": "string" },
+    "emotion_enrichment": { "type": "array", "items": { "type": "string" } },
     "estimated_tokens": { "type": "integer" },
     "estimated_runtime_ms": { "type": "integer" },
     "max_tokens_estimate": { "type": "integer" },
@@ -51,6 +52,13 @@
     "disagreement_rate": { "type": "number" },
     "arbitration_overrides": { "type": "integer" },
     "adoption_rate": { "type": "number" },
-    "post_outcome_success": { "type": "number" }
+    "post_outcome_success": { "type": "number" },
+    "breaker_trip": { "type": "integer" },
+    "breaker_trip_rate": { "type": "number" },
+    "mttr_ms": { "type": "integer" },
+    "auto_rollback_rate": { "type": "number" },
+    "escalation_burst_count": { "type": "integer" },
+    "escalation_signal": { "type": "integer" },
+    "breaker_receipt_hash": { "type": "string" }
   }
 }

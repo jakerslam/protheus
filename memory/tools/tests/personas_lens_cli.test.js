@@ -131,10 +131,24 @@ try {
   );
   assert.strictEqual(out.status, 0, out.stderr || out.stdout);
   assert.ok(out.stdout.includes('"type": "persona_feed_append"'), 'feed command should return append payload');
+  assert.ok(out.stdout.includes('"system_passed_record"'), 'feed command should append system_passed payload when eligible');
   const feedBody = fs.readFileSync(path.join(feedRoot, 'personas', 'vikram_menon', 'feed.md'), 'utf8');
   assert.ok(feedBody.includes('Cross-signal detected elevated security drift risk.'), 'feed should append snippet');
+  assert.ok(feedBody.includes('## System Passed'), 'feed should include system passed section');
+  assert.ok(feedBody.includes('"hash"'), 'feed should include hash-verified system payload record');
   const feedMemory = fs.readFileSync(path.join(feedRoot, 'personas', 'vikram_menon', 'memory.md'), 'utf8');
   assert.ok(feedMemory.includes('title: feed update'), 'feed append should write memory node');
+
+  out = run(
+    ['lens', 'vikram_menon', '--include-feed=1', 'Should we prioritize memory or security first?'],
+    { OPENCLAW_WORKSPACE: feedRoot }
+  );
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  assert.ok(out.stdout.includes('**System Passed Feed:** `on`'), 'include-feed should be reflected in markdown');
+  assert.ok(out.stdout.includes('System-passed context:'), 'include-feed should inject system-passed outcome context');
+
+  const telemetryBody = fs.readFileSync(path.join(feedRoot, 'personas', 'organization', 'telemetry.jsonl'), 'utf8');
+  assert.ok(telemetryBody.includes('"metric":"passed_data_utility_rate"'), 'include-feed lens run should emit passed_data_utility_rate telemetry');
 
   out = run(
     ['persona', 'feed', 'vikram_menon', 'Operator direct persona feed through protheusctl persona route.', '--source=operator', '--tags=ops'],

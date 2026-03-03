@@ -45,11 +45,14 @@ function usage() {
   console.log('  protheusctl perception list|run|run-all|status');
   console.log('  protheusctl fluxlattice list|run|run-all|status');
   console.log('  protheusctl lensmap init|template add|simplify|polish|import|sync|expose|status');
-  console.log('  protheus lens <persona> [decision|strategic|full] [--gap=<seconds>] [--active=1] [--emotion=on|off] [--values=on|off] [--intercept="<override>"] "<query>"');
+  console.log('  protheus lens <persona> [decision|strategic|full] [--gap=<seconds>] [--active=1] [--emotion=on|off] [--values=on|off] [--include-feed=1] [--intercept="<override>"] "<query>"');
   console.log('  protheus orchestrate status');
-  console.log('  protheus orchestrate meeting "<topic>" [--approval-note="..."] [--override-reason=...] [--override-actor=...] [--override-expiry=ISO8601]');
-  console.log('  protheus orchestrate project "<name>" "<goal>" [--approval-note="..."] [--override-reason=...] [--override-actor=...] [--override-expiry=ISO8601]');
-  console.log('  protheus orchestrate project --id=<project_id> --transition=<active|blocked|completed|cancelled> [--approval-note="..."] [--override-reason=...] [--override-actor=...] [--override-expiry=ISO8601]');
+  console.log('  protheus orchestrate telemetry [--window=20]');
+  console.log('  protheus orchestrate meeting "<topic>" [--approval-note="..."] [--emotion=on|off] [--override-reason=...] [--override-actor=...] [--override-expiry=ISO8601] [--monarch-token=...]');
+  console.log('  protheus orchestrate project "<name>" "<goal>" [--approval-note="..."] [--emotion=on|off] [--override-reason=...] [--override-actor=...] [--override-expiry=ISO8601] [--monarch-token=...]');
+  console.log('  protheus orchestrate project --id=<project_id> --transition=<active|blocked|completed|cancelled|paused_on_breaker|reviewed|resumed|rolled_back> [--approval-note="..."] [--drift-rate=0.0] [--override-reason=...] [--override-actor=...] [--override-expiry=ISO8601] [--monarch-token=...]');
+  console.log('  protheus orchestrate audit "<artifact_id>"');
+  console.log('  protheus orchestrate prune [--ttl-days=90]');
   console.log('  protheus lens update-stream <persona> [--dry-run=1]');
   console.log('  protheus lens checkin [--persona=jay_haslam] [--heartbeat=HEARTBEAT.md] [--emotion=on|off] [--dry-run=1]');
   console.log('  protheus lens feed <persona> "<snippet>" [--source=master_llm] [--tags=tag1,tag2] [--dry-run=1]');
