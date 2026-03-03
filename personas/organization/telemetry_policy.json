@@ -5,10 +5,14 @@
     "disagreement_rate": "disagreement_rate = (unique_positions - 1) / max(1, participants - 1)",
     "arbitration_overrides": "arbitration_overrides = overrides_count / max(1, orchestration_events)",
     "adoption_rate": "adoption_rate = adopted_decisions / max(1, total_decisions)",
-    "post_outcome_success": "post_outcome_success = successful_outcomes / max(1, tracked_outcomes)"
+    "post_outcome_success": "post_outcome_success = successful_outcomes / max(1, tracked_outcomes)",
+    "breaker_trip_rate": "breaker_trip_rate = breaker_trips / max(1, orchestration_events)",
+    "mttr_ms": "mttr_ms = sum(recovery_time_ms) / max(1, breaker_trips)",
+    "auto_rollback_rate": "auto_rollback_rate = auto_rollbacks / max(1, breaker_trips)",
+    "escalation_burst_count": "escalation_burst_count = escalations_in_window",
+    "passed_data_utility_rate": "passed_data_utility_rate = verified_system_passed_signals_used / max(1, reasoning_signals)"
   },
   "denominator_guards": {
     "minimum_denominator": 1
   }
 }
-

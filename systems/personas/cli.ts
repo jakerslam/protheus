@@ -11,6 +11,8 @@ const ROOT = process.env.OPENCLAW_WORKSPACE
   ? path.resolve(process.env.OPENCLAW_WORKSPACE)
   : path.resolve(__dirname, '..', '..');
 const PERSONAS_DIR = path.join(ROOT, 'personas');
+const PERSONA_ORG_DIR = path.join(PERSONAS_DIR, 'organization');
+const PERSONA_TELEMETRY_PATH = path.join(PERSONA_ORG_DIR, 'telemetry.jsonl');
 let runLocalOllamaPrompt: null | ((opts: Record<string, unknown>) => Record<string, unknown>) = null;
 try {
   ({ runLocalOllamaPrompt } = require('../routing/llm_gateway.js'));
@@ -41,7 +43,7 @@ function usage() {
   console.log('Usage:');
   console.log('  protheus lens <persona> "<query>"');
   console.log('  protheus lens <persona> <decision|strategic|full> "<query>"');
-  console.log('  protheus lens <persona> [decision|strategic|full] --gap=<seconds> [--active=1] [--emotion=on|off] [--values=on|off] [--intercept="<override>"] "<query>"');
+  console.log('  protheus lens <persona> [decision|strategic|full] --gap=<seconds> [--active=1] [--emotion=on|off] [--values=on|off] [--include-feed=1] [--intercept="<override>"] "<query>"');
   console.log('  protheus lens update-stream <persona> [--dry-run=1]');
   console.log('  protheus lens checkin [--persona=jay_haslam] [--heartbeat=HEARTBEAT.md] [--emotion=on|off] [--dry-run=1]');
   console.log('  protheus lens feed <persona> "<snippet>" [--source=master_llm] [--tags=tag1,tag2] [--dry-run=1]');
@@ -53,7 +55,7 @@ function usage() {
   console.log('  protheus lens vikram "Should we prioritize memory or security first?"');
   console.log('  protheus lens vikram strategic "How does this sprint support the singularity seed?"');
   console.log('  protheus lens jay_haslam "How can we reduce drift in the loops?"');
-  console.log('  protheus lens vikram --gap=10 --active=1 --emotion=off --values=on --intercept="Prioritize memory first, with security gate pre-dispatch." "Prioritize memory or security?"');
+  console.log('  protheus lens vikram --gap=10 --active=1 --emotion=off --values=on --include-feed=1 --intercept="Prioritize memory first, with security gate pre-dispatch." "Prioritize memory or security?"');
   console.log('  protheus lens update-stream vikram_menon');
   console.log('  protheus lens checkin --persona=jay_haslam --heartbeat=HEARTBEAT.md');
   console.log('  protheus lens feed vikram_menon "Cross-signal indicates rising security drift risk." --source=master_llm --tags=drift,security');
@@ -401,7 +403,8 @@ type SoulTokenPolicy = {
   owner: string,
   integrityMode: 'advisory' | 'enforce',
   bundleHash: string,
-  usageRules: string[]
+  usageRules: string[],
+  dataPassRules: string[]
 };
 
 type PersonaLlmConfig = {
@@ -424,7 +427,8 @@ type DataPermissionRow = {
   source: string,
   enabled: boolean,
   scope: string,
-  notes: string
+  notes: string,
+  sources: string[]
 };
 
 function extractMdField(markdown: string, label: string): string {
@@ -468,12 +472,16 @@ function parseSoulTokenPolicy(markdown: string): SoulTokenPolicy {
   const usageRules = extractListItems(String(markdown || '').split('## Usage Rules')[1] || '', 20)
     .map((v) => normalizeToken(v, 80))
     .filter(Boolean);
+  const dataPassRules = extractListItems(String(markdown || '').split('## Data Pass Rules')[1] || '', 20)
+    .map((v) => normalizeToken(v, 80))
+    .filter(Boolean);
   return {
     tokenId,
     owner,
     integrityMode,
     bundleHash,
-    usageRules
+    usageRules,
+    dataPassRules
   };
 }
 
@@ -588,12 +596,28 @@ function parseDataPermissions(markdown: string): DataPermissionRow[] {
   for (const line of String(markdown || '').split('\n')) {
     const trimmed = String(line || '').trim();
     const m = trimmed.match(/^-\s*([a-zA-Z0-9_.-]+)\s*:\s*enabled=(true|false)\s+scope=([a-zA-Z0-9_.#-]+)(?:\s+notes=(.+))?$/);
-    if (!m) continue;
+    if (m) {
+      rows.push({
+        source: normalizeToken(m[1], 80),
+        enabled: String(m[2]).toLowerCase() === 'true',
+        scope: cleanText(m[3], 120),
+        notes: cleanText(m[4] || '', 200),
+        sources: []
+      });
+      continue;
+    }
+    const obj = trimmed.match(/^-\s*([a-zA-Z0-9_.-]+)\s*:\s*\{\s*enabled:\s*(true|false)\s*,\s*sources:\s*\[([^\]]*)\]\s*\}\s*$/i);
+    if (!obj) continue;
+    const sources = String(obj[3] || '')
+      .split(',')
+      .map((part) => normalizeToken(part, 40))
+      .filter(Boolean);
     rows.push({
-      source: normalizeToken(m[1], 80),
-      enabled: String(m[2]).toLowerCase() === 'true',
-      scope: cleanText(m[3], 120),
-      notes: cleanText(m[4] || '', 200)
+      source: normalizeToken(obj[1], 80),
+      enabled: String(obj[2]).toLowerCase() === 'true',
+      scope: 'internal_system',
+      notes: 'structured_permission',
+      sources
     });
   }
   return rows;
@@ -604,6 +628,164 @@ function permissionEnabled(rows: DataPermissionRow[], source: string, fallback =
   const hit = rows.find((row) => row.source === token);
   if (!hit) return fallback;
   return hit.enabled === true;
+}
+
+function permissionSources(rows: DataPermissionRow[], source: string): string[] {
+  const token = normalizeToken(source, 80);
+  const hit = rows.find((row) => row.source === token);
+  if (!hit || !Array.isArray(hit.sources)) return [];
+  return hit.sources.slice(0, 8);
+}
+
+function systemPassedPayloadHash(source: string, tags: string[], snippet: string) {
+  return crypto
+    .createHash('sha256')
+    .update(`v1|${normalizeToken(source, 80)}|${(Array.isArray(tags) ? tags : []).join(',')}|${cleanText(snippet, 2000)}`, 'utf8')
+    .digest('hex');
+}
+
+function parseSystemPassedSignals(feedMd: string, maxItems = 3) {
+  const section = String(feedMd || '').split('## System Passed')[1] || '';
+  const lines = section
+    .split('\n')
+    .map((line) => cleanText(line, 4000))
+    .filter((line) => line.startsWith('- ['));
+  const parsed = lines.map((line) => {
+    const match = line.match(/^- \[([^\]]+)\]\s+(\{.+\})$/);
+    if (!match) {
+      return {
+        ok: false,
+        reason: 'line_parse_failed',
+        line
+      };
+    }
+    try {
+      const payload = JSON.parse(match[2]);
+      const source = normalizeToken(payload && payload.source || 'unknown', 80);
+      const tags = Array.isArray(payload && payload.tags)
+        ? payload.tags.map((v: unknown) => normalizeToken(v, 30)).filter(Boolean)
+        : [];
+      const snippet = cleanText(payload && payload.payload || '', 2000);
+      const hash = cleanText(payload && payload.hash || '', 120);
+      const expected = systemPassedPayloadHash(source, tags, snippet);
+      return {
+        ok: hash === expected && !!snippet,
+        ts: cleanText(match[1], 80),
+        source,
+        tags,
+        payload: snippet,
+        hash,
+        expected_hash: expected
+      };
+    } catch {
+      return {
+        ok: false,
+        reason: 'json_parse_failed',
+        line
+      };
+    }
+  });
+  const recent = parsed.slice(-Math.max(1, maxItems));
+  return {
+    total: parsed.length,
+    verified: recent.filter((entry: any) => entry.ok).length,
+    invalid: recent.filter((entry: any) => !entry.ok).length,
+    signals: recent
+      .filter((entry: any) => entry.ok)
+      .map((entry: any) => `SystemPassed: source=${entry.source} tags=[${entry.tags.join(',')}] ${cleanText(entry.payload, 220)}`)
+  };
+}
+
+function ensureSystemPassedSection(feedPlain: string) {
+  const body = String(feedPlain || '').replace(/\s+$/, '');
+  if (body.includes('\n## System Passed')) return body;
+  return [
+    body,
+    '',
+    '## System Passed',
+    '',
+    'Hash-verified system-internal payloads. Entries are appended as JSON records with deterministic payload hashes.',
+    ''
+  ].join('\n');
+}
+
+function appendFeedEntryToEntries(feedPlain: string, line: string) {
+  const body = String(feedPlain || '').replace(/\s+$/, '');
+  const marker = '\n## System Passed';
+  const idx = body.indexOf(marker);
+  if (idx < 0) {
+    return `${body}\n${line}\n`;
+  }
+  const before = body.slice(0, idx).replace(/\s+$/, '');
+  const after = body.slice(idx).replace(/^\s*/, '\n');
+  return `${before}\n${line}${after}\n`;
+}
+
+function appendSystemPassedRecord(feedPlain: string, entry: Record<string, unknown>) {
+  const body = ensureSystemPassedSection(feedPlain);
+  const line = `- [${cleanText(entry.ts || nowIso(), 80)}] ${JSON.stringify(entry)}`;
+  return `${body}\n${line}\n`;
+}
+
+function evaluateSystemPassedAccess(ctx: PersonaContext, includeFeed: boolean) {
+  if (!includeFeed) {
+    return {
+      ok: true,
+      include: false,
+      reason: 'include_feed_disabled',
+      signals: [] as string[],
+      verified: 0,
+      invalid: 0,
+      total: 0
+    };
+  }
+  const permissions = parseDataPermissions(ctx.dataPermissionsMd);
+  if (!permissionEnabled(permissions, 'system_internal', false)) {
+    return {
+      ok: false,
+      include: false,
+      reason: 'data_permission_blocked:system_internal',
+      signals: [] as string[],
+      verified: 0,
+      invalid: 0,
+      total: 0
+    };
+  }
+  const tokenPolicy = parseSoulTokenPolicy(ctx.soulTokenMd);
+  const rules = new Set((tokenPolicy.dataPassRules || []).map((v) => normalizeToken(v, 80)));
+  if (!rules.has('allow-system-internal-passed-data')) {
+    return {
+      ok: false,
+      include: false,
+      reason: 'soul_token_policy_blocked:system_pass_not_allowed',
+      signals: [] as string[],
+      verified: 0,
+      invalid: 0,
+      total: 0
+    };
+  }
+  const parsed = parseSystemPassedSignals(ctx.feedMd, 3);
+  if (rules.has('deny-unverified-system-payloads') && parsed.invalid > 0) {
+    return {
+      ok: false,
+      include: false,
+      reason: 'soul_token_policy_blocked:unverified_system_payload_detected',
+      signals: [] as string[],
+      verified: parsed.verified,
+      invalid: parsed.invalid,
+      total: parsed.total
+    };
+  }
+  const include = rules.has('require-hash-verification') ? parsed.verified > 0 : parsed.total > 0;
+  return {
+    ok: true,
+    include,
+    reason: include ? 'system_passed_data_included' : 'no_verified_system_passed_data',
+    signals: parsed.signals,
+    verified: parsed.verified,
+    invalid: parsed.invalid,
+    total: parsed.total
+  };
 }
 
 function shouldTriggerLlmBuild(cfg: PersonaLlmConfig) {
@@ -744,6 +926,17 @@ function readPlainPersonaFile(absPath: string, cfg: PersonaSecurityConfig) {
 function writePersonaFile(absPath: string, plainBody: string, cfg: PersonaSecurityConfig) {
   const rendered = encodeProtectedContent(String(plainBody || ''), cfg);
   fs.writeFileSync(absPath, `${rendered.replace(/\s+$/, '')}\n`, 'utf8');
+}
+
+function appendPersonaTelemetry(row: Record<string, unknown>) {
+  fs.mkdirSync(PERSONA_ORG_DIR, { recursive: true });
+  const payload = {
+    ts: nowIso(),
+    kind: 'persona_lens',
+    ...row
+  };
+  fs.appendFileSync(PERSONA_TELEMETRY_PATH, `${JSON.stringify(payload)}\n`, 'utf8');
+  return payload;
 }
 
 function appendPersonaNodeMemory(ctx: PersonaContext, title: string, body: string, tags: string[]) {
@@ -910,6 +1103,9 @@ function appendPersonaFeed(
     .map((tag) => normalizeToken(tag, 30))
     .filter(Boolean)))
     .slice(0, 8);
+  const internalSources = permissionSources(permissions, 'system_internal');
+  const systemInternalAllowed = permissionEnabled(permissions, 'system_internal', false);
+  const systemInternalMatch = source.startsWith('master') || source.startsWith('system') || source === 'operator' || source === 'loop' || source === 'analytics';
   const cleanSnippet = cleanText(snippet, 2000);
   if (!cleanSnippet) {
     return {
@@ -932,8 +1128,29 @@ function appendPersonaFeed(
   }
   const securityCfg = personaSecurityForWrite(ctx);
   const feedAbs = path.join(ROOT, ctx.feedPath);
+  const tokenPolicy = parseSoulTokenPolicy(ctx.soulTokenMd);
+  const tokenRules = new Set((tokenPolicy.dataPassRules || []).map((v) => normalizeToken(v, 80)));
+  const canAppendSystemPassed = systemInternalAllowed
+    && systemInternalMatch
+    && tokenRules.has('allow-system-internal-passed-data')
+    && (internalSources.length === 0 || internalSources.some((v) => ['memory', 'loops', 'analytics'].includes(v)));
   const feedBase = readPlainPersonaFile(feedAbs, securityCfg).replace(/\s+$/, '');
-  writePersonaFile(feedAbs, `${feedBase}\n${line}`, securityCfg);
+  let nextFeed = appendFeedEntryToEntries(feedBase, line).replace(/\s+$/, '');
+  let systemPassedRecord: Record<string, unknown> | null = null;
+  if (canAppendSystemPassed) {
+    const ts = nowIso();
+    const hash = systemPassedPayloadHash(source, tags, cleanSnippet);
+    systemPassedRecord = {
+      schema: 'v1',
+      source,
+      tags,
+      payload: cleanSnippet,
+      hash,
+      ts
+    };
+    nextFeed = appendSystemPassedRecord(nextFeed, systemPassedRecord);
+  }
+  writePersonaFile(feedAbs, nextFeed, securityCfg);
   const memoryNode = appendPersonaNodeMemory(
     ctx,
     'feed update',
@@ -953,6 +1170,7 @@ function appendPersonaFeed(
     source,
     tags,
     updated_feed: refreshed.feedPath,
+    system_passed_record: systemPassedRecord,
     memory_node: memoryNode,
     llm_train_plan: llmPlan,
     updated_soul_token: refreshed.soulTokenPath,
@@ -1339,7 +1557,8 @@ function buildResponseDetails(
   emotionLensMd = '',
   valuesLensMd = '',
   feedMd = '',
-  memoryMd = ''
+  memoryMd = '',
+  includeSystemPassedFeed = false
 ) {
   const decisionFilters = extractListItems(decisionLensMd, 4);
   const strategicFilters = extractListItems(strategicLensMd, 4);
@@ -1351,10 +1570,17 @@ function buildResponseDetails(
   const profileHighlights = extractListItems(profileMd, 3);
   const emotionSignals = extractListItems(emotionLensMd, 2);
   const feedSignals = extractRecentFeedSignals(feedMd, 3);
+  const systemPassed = includeSystemPassedFeed
+    ? parseSystemPassedSignals(feedMd, 3)
+    : { total: 0, verified: 0, invalid: 0, signals: [] as string[] };
   const memorySignals = extractMemoryRecallSignals(memoryMd, query, 3);
   const modeText = lensMode === 'full' ? 'decision + strategic' : lensMode;
   const promptTemplate = `As ${personaName}, using your profile, ${modeText} lens, and past correspondence, respond to: ${query}`;
-  const recommendation = recommendFromQuery(personaName, query);
+  let recommendation = recommendFromQuery(personaName, query);
+  if (includeSystemPassedFeed && systemPassed.signals.length) {
+    const firstSignal = cleanText(systemPassed.signals[0].replace(/^SystemPassed:\s*/, ''), 180);
+    recommendation = `${recommendation} System-passed context: ${firstSignal}.`;
+  }
   const lensReasoning = lensMode === 'strategic'
     ? strategicFilters.map((v) => `Strategic filter: ${v}`)
     : lensMode === 'full'
@@ -1373,6 +1599,7 @@ function buildResponseDetails(
     ...valuesFilters.map((v) => `Values filter: ${v}`),
     ...valuesAnchors.map((v) => `Values anchor: ${v}`),
     ...feedSignals,
+    ...systemPassed.signals,
     ...memorySignals,
     ...nonNegotiables.map((v) => `Constraint: ${v}`),
     ...correspondenceHighlights.map((v) => `Prior correspondence: ${v}`),
@@ -1381,7 +1608,8 @@ function buildResponseDetails(
   return {
     promptTemplate,
     recommendation,
-    reasoning
+    reasoning,
+    systemPassed
   };
 }
 
@@ -1395,6 +1623,7 @@ function renderMarkdownResponse(
   interceptReceiptPath = '',
   emotionEnabled = true,
   valuesEnabled = true,
+  includeFeed = false,
   llmMeta: { enabled: boolean, used: boolean, reason: string, model: string } | null = null
 ): string {
   const {
@@ -1412,7 +1641,8 @@ function renderMarkdownResponse(
     emotionLensMd,
     valuesEnabled ? ctx.valuesLensMd : '',
     ctx.feedMd,
-    ctx.memoryMd
+    ctx.memoryMd,
+    includeFeed
   );
   const resolvedRecommendation = cleanText(overridePosition, 1600) || recommendation;
 
@@ -1423,6 +1653,7 @@ function renderMarkdownResponse(
   lines.push(`**Lens Mode:** \`${lensMode}\``);
   lines.push(`**Emotion Lens:** \`${emotionEnabled ? 'on' : 'off'}\``);
   lines.push(`**Values Lens:** \`${valuesEnabled ? 'on' : 'off'}\``);
+  lines.push(`**System Passed Feed:** \`${includeFeed ? 'on' : 'off'}\``);
   if (llmMeta) {
     lines.push(`**Persona LLM:** \`${llmMeta.enabled ? (llmMeta.used ? 'on-active' : 'on-fallback') : 'off'}\``);
     lines.push(`**Persona LLM Model:** \`${cleanText(llmMeta.model || 'n/a', 120)}\``);
@@ -1490,7 +1721,8 @@ function renderMarkdownSection(
   query: string,
   lensMode: LensMode,
   emotionEnabled = true,
-  valuesEnabled = true
+  valuesEnabled = true,
+  includeFeed = false
 ): string {
   const emotionMd = emotionEnabled ? ctx.emotionLensMd : '';
   const {
@@ -1508,7 +1740,8 @@ function renderMarkdownSection(
     emotionMd,
     valuesEnabled ? ctx.valuesLensMd : '',
     ctx.feedMd,
-    ctx.memoryMd
+    ctx.memoryMd,
+    includeFeed
   );
 
   const lines: string[] = [];
@@ -1560,7 +1793,8 @@ function renderAllMarkdown(
   lensMode: LensMode,
   controls: LensControls | null = null,
   emotionEnabled = true,
-  valuesEnabled = true
+  valuesEnabled = true,
+  includeFeed = false
 ): string {
   const lines: string[] = [];
   lines.push('# Lens Response: All Personas');
@@ -1574,9 +1808,10 @@ function renderAllMarkdown(
   lines.push(`**Query:** ${query}`);
   lines.push(`**Emotion Lens:** \`${emotionEnabled ? 'on' : 'off'}\``);
   lines.push(`**Values Lens:** \`${valuesEnabled ? 'on' : 'off'}\``);
+  lines.push(`**System Passed Feed:** \`${includeFeed ? 'on' : 'off'}\``);
   lines.push('');
   for (const ctx of contexts) {
-    lines.push(renderMarkdownSection(ctx, query, lensMode, emotionEnabled, valuesEnabled));
+    lines.push(renderMarkdownSection(ctx, query, lensMode, emotionEnabled, valuesEnabled, includeFeed));
   }
   return lines.join('\n');
 }
@@ -1603,6 +1838,7 @@ async function main() {
 
   const emotionEnabled = parseEmotionEnabled(args.emotion, true);
   const valuesEnabled = parseEmotionEnabled(args.values, true);
+  const includeFeedFlag = toBool(args['include-feed'] ?? args.include_feed, false);
   const personaArg = cleanText(args.persona || args._[0] || '', 120);
   const isUpdateStream = normalizeToken(args._[0] || '', 40) === 'update_stream' || normalizeToken(args._[0] || '', 40) === 'update-stream';
   const isCheckin = normalizeToken(args._[0] || '', 40) === 'checkin';
@@ -1653,7 +1889,8 @@ async function main() {
         emotionEnabled ? ctx.emotionLensMd : '',
         valuesEnabled ? ctx.valuesLensMd : '',
         ctx.feedMd,
-        ctx.memoryMd
+        ctx.memoryMd,
+        false
       );
       const dryRun = toBool(args['dry-run'], false);
       const payload: any = {
@@ -1743,6 +1980,18 @@ async function main() {
     }
     try {
       const contexts = personaIds.map((personaId) => loadPersonaContext(personaId));
+      let verifiedTotal = 0;
+      let invalidTotal = 0;
+      for (const ctx of contexts) {
+        const feedAccess = evaluateSystemPassedAccess(ctx, includeFeedFlag);
+        if (!feedAccess.ok) {
+          process.stderr.write(`${feedAccess.reason}\n`);
+          process.stderr.write(`persona:${ctx.personaId}\n`);
+          process.exit(1);
+        }
+        verifiedTotal += Number(feedAccess.verified || 0);
+        invalidTotal += Number(feedAccess.invalid || 0);
+      }
       for (const ctx of contexts) {
         const gate = evaluateSoulTokenAccess(ctx, queryArg);
         if (!gate.ok) {
@@ -1764,13 +2013,26 @@ async function main() {
         emotionEnabled ? probe.emotionLensMd : '',
         valuesEnabled ? probe.valuesLensMd : '',
         probe.feedMd,
-        probe.memoryMd
+        probe.memoryMd,
+        includeFeedFlag
       );
         const preview = renderStreamPreview('All Personas', queryArg, details.reasoning, controls);
         process.stdout.write(`${preview}\n\n`);
         sleepMs(controls.gapSeconds * 1000);
       }
-      const markdown = renderAllMarkdown(queryArg, contexts, lensMode, controls, emotionEnabled, valuesEnabled);
+      const markdown = renderAllMarkdown(queryArg, contexts, lensMode, controls, emotionEnabled, valuesEnabled, includeFeedFlag);
+      const utilityRate = includeFeedFlag
+        ? Number((verifiedTotal / Math.max(1, contexts.length * 3)).toFixed(4))
+        : 0;
+      appendPersonaTelemetry({
+        metric: 'passed_data_utility_rate',
+        persona_id: 'all',
+        include_feed: includeFeedFlag,
+        passed_entries_verified: verifiedTotal,
+        passed_entries_invalid: invalidTotal,
+        passed_data_utility_rate: utilityRate,
+        query_hash: crypto.createHash('sha256').update(queryArg, 'utf8').digest('hex').slice(0, 16)
+      });
       process.stdout.write(`${markdown}\n`);
       process.exit(0);
     } catch (err: any) {
@@ -1798,6 +2060,13 @@ async function main() {
       process.stderr.write(`persona:${ctx.personaId}\n`);
       process.exit(1);
     }
+    const feedAccess = evaluateSystemPassedAccess(ctx, includeFeedFlag);
+    if (!feedAccess.ok) {
+      process.stderr.write(`${feedAccess.reason}\n`);
+      process.stderr.write(`persona:${ctx.personaId}\n`);
+      process.exit(1);
+    }
+    const includeFeedActive = includeFeedFlag && feedAccess.include;
 
     const details = buildResponseDetails(
       ctx.personaName,
@@ -1810,7 +2079,8 @@ async function main() {
       emotionEnabled ? ctx.emotionLensMd : '',
       valuesEnabled ? ctx.valuesLensMd : '',
       ctx.feedMd,
-      ctx.memoryMd
+      ctx.memoryMd,
+      includeFeedActive
     );
     const llmResult = resolvePersonaLlmRecommendation(
       ctx,
@@ -1853,8 +2123,22 @@ async function main() {
       interceptLogPath,
       emotionEnabled,
       valuesEnabled,
+      includeFeedActive,
       llmResult
     );
+    const utilityRate = includeFeedActive
+      ? Number((Number(details.systemPassed && details.systemPassed.verified || 0) / Math.max(1, details.reasoning.length)).toFixed(4))
+      : 0;
+    appendPersonaTelemetry({
+      metric: 'passed_data_utility_rate',
+      persona_id: ctx.personaId,
+      include_feed: includeFeedActive,
+      passed_entries_verified: Number(details.systemPassed && details.systemPassed.verified || 0),
+      passed_entries_invalid: Number(details.systemPassed && details.systemPassed.invalid || 0),
+      passed_data_utility_rate: utilityRate,
+      recommendation_impacted: includeFeedActive && String(details.recommendation || '').includes('System-passed context:') ? 1 : 0,
+      query_hash: crypto.createHash('sha256').update(queryArg, 'utf8').digest('hex').slice(0, 16)
+    });
     process.stdout.write(`${markdown}\n`);
     process.exit(0);
   } catch (err: any) {

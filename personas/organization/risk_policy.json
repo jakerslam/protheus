@@ -30,9 +30,10 @@
     "metrics_exit": {
       "disagreement_rate_lte": 0.35,
       "arbitration_overrides_lte": 0.2,
+      "breaker_trip_rate_lte": 0.15,
       "policy_validation_failures_eq": 0,
-      "min_samples": 3
+      "min_samples": 3,
+      "confidence_decay_cycles": 2
     }
   }
 }
-

@@ -51,10 +51,14 @@ function copyOrg() {
     'arbitration_rules.json',
     'routing_rules.json',
     'risk_policy.json',
+    'breaker_policy.json',
+    'soul_token_policy.json',
     'telemetry_policy.json',
     'retention_policy.json',
     'arbitration_rules.schema.json',
     'routing_rules.schema.json',
+    'breaker_policy.schema.json',
+    'soul_token_policy.schema.json',
     'meeting_artifact.schema.json',
     'project_artifact.schema.json'
   ];
@@ -62,6 +66,20 @@ function copyOrg() {
     fs.copyFileSync(path.join(SOURCE_ORG, fileName), path.join(org, fileName));
   }
   return org;
+}
+
+function mkPersonasDir() {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'persona-orch-personas-'));
+  const personas = ['jay_haslam', 'vikram_menon', 'priya_venkatesh', 'rohan_kapoor', 'li_wei', 'aarav_singh'];
+  for (const id of personas) {
+    const dir = path.join(tmp, id);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'profile.md'), `# ${id}\n`, 'utf8');
+    if (id === 'jay_haslam') {
+      fs.writeFileSync(path.join(dir, 'soul_token.md'), 'token_id: soul:jay_haslam:v1\n', 'utf8');
+    }
+  }
+  return tmp;
 }
 
 function readJsonl(filePath) {
@@ -75,19 +93,28 @@ function readJsonl(filePath) {
 
 try {
   const orgDir = copyOrg();
-  const env = { PROTHEUS_PERSONA_ORG_DIR: orgDir };
+  const personasDir = mkPersonasDir();
+  const env = { PROTHEUS_PERSONA_ORG_DIR: orgDir, PROTHEUS_PERSONA_DIR: personasDir };
 
   let out = run(['orchestrate', 'status'], env);
   assert.strictEqual(out.status, 0, out.stderr || out.stdout);
   let payload = parseJson(out.stdout);
   assert.ok(payload && payload.ok === true, 'status should pass policy validation');
 
-  out = run(['orchestrate', 'meeting', 'Prioritize security migration sequencing', '--approval-note=operator-reviewed'], env);
+  out = run([
+    'orchestrate',
+    'meeting',
+    'Prioritize security migration sequencing',
+    '--approval-note=operator-reviewed',
+    '--monarch-token=soul:jay_haslam:v1',
+    '--emotion=on'
+  ], env);
   assert.strictEqual(out.status, 0, out.stderr || out.stdout);
   payload = parseJson(out.stdout);
   assert.ok(payload && payload.ok === true, 'meeting should succeed');
   assert.ok(payload.artifact && payload.artifact.type === 'meeting_result', 'meeting should emit meeting_result artifact');
   assert.strictEqual(typeof payload.artifact.shadow_mode_active, 'boolean', 'meeting artifact should include shadow mode status');
+  assert.ok(Array.isArray(payload.artifact.emotion_enrichment), 'meeting should include optional emotion enrichment');
   assert.ok(String(payload.markdown_summary || '').includes('# Orchestration Meeting:'), 'meeting should emit markdown summary');
 
   const meetingLedger = readJsonl(path.join(orgDir, 'meetings', 'ledger.jsonl'));
@@ -97,7 +124,15 @@ try {
   assert.ok(meetingLedger.some((row) => row.type === 'meeting_result'), 'meeting ledger should include meeting_result');
   assert.ok(meetingLedger.every((row) => typeof row.hash === 'string' && row.hash.length > 10), 'every row should be hash-chained');
 
-  out = run(['orchestrate', 'project', 'foundation_lock', 'Finish memory and security parity', '--approval-note=operator-reviewed'], env);
+  out = run([
+    'orchestrate',
+    'project',
+    'foundation_lock',
+    'Finish memory and security parity',
+    '--approval-note=operator-reviewed',
+    '--monarch-token=soul:jay_haslam:v1',
+    '--emotion=on'
+  ], env);
   assert.strictEqual(out.status, 0, out.stderr || out.stdout);
   payload = parseJson(out.stdout);
   assert.ok(payload && payload.ok === true, 'project create should succeed');
@@ -107,7 +142,14 @@ try {
   const projectId = String(payload.artifact.project_id || '');
   assert.ok(projectId.startsWith('prj_'), 'project should emit deterministic project id');
 
-  out = run(['orchestrate', 'project', `--id=${projectId}`, '--transition=active', '--approval-note=operator-reviewed'], env);
+  out = run([
+    'orchestrate',
+    'project',
+    `--id=${projectId}`,
+    '--transition=active',
+    '--approval-note=operator-reviewed',
+    '--monarch-token=soul:jay_haslam:v1'
+  ], env);
   assert.strictEqual(out.status, 0, out.stderr || out.stdout);
   payload = parseJson(out.stdout);
   assert.ok(payload && payload.ok === true, 'project transition should succeed');
@@ -119,12 +161,89 @@ try {
   assert.ok(projectLedger.some((row) => row.type === 'project_state' && row.status === 'active'), 'project ledger should include active state');
   assert.ok(projectLedger.every((row) => typeof row.hash === 'string' && row.hash.length > 10), 'project rows should be hash-chained');
 
+  out = run([
+    'orchestrate',
+    'project',
+    `--id=${projectId}`,
+    '--transition=paused_on_breaker',
+    '--approval-note=operator-reviewed',
+    '--monarch-token=soul:jay_haslam:v1'
+  ], env);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  payload = parseJson(out.stdout);
+  assert.ok(payload && payload.ok === true, 'project transition to paused_on_breaker should succeed');
+
+  out = run([
+    'orchestrate',
+    'project',
+    `--id=${projectId}`,
+    '--transition=reviewed',
+    '--approval-note=operator-reviewed',
+    '--monarch-token=soul:jay_haslam:v1'
+  ], env);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  payload = parseJson(out.stdout);
+  assert.ok(payload && payload.ok === true, 'project transition to reviewed should succeed');
+
+  out = run([
+    'orchestrate',
+    'project',
+    `--id=${projectId}`,
+    '--transition=resumed',
+    '--drift-rate=0.05',
+    '--approval-note=operator-reviewed',
+    '--monarch-token=soul:jay_haslam:v1'
+  ], env);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  payload = parseJson(out.stdout);
+  assert.ok(payload && payload.ok === false && payload.drift_escalated === true, 'resume with drift >2% should auto-escalate to review');
+
   out = run(['orchestrate', 'meeting', 'Security policy migration validation'], env);
   assert.notStrictEqual(out.status, 0, 'high-risk meeting without approval should fail');
   assert.ok(out.stderr.includes('approval_required_for_risk_tier'), 'failure path should enforce risk approval gate');
 
+  out = run(['orchestrate', 'meeting', 'Routine orchestration health ping', '--force-breaker=drift'], env);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  payload = parseJson(out.stdout);
+  assert.ok(payload && payload.breaker_tripped === true, 'low-risk breaker should return breaker_tripped payload');
+  assert.ok(payload.artifact && String(payload.artifact.fail_closed_reason || '').includes('breaker_auto_rollback'), 'low-risk breaker should auto-rollback');
+
+  out = run([
+    'orchestrate',
+    'meeting',
+    'Security hardening readiness',
+    '--approval-note=operator-reviewed',
+    '--force-breaker=drift',
+    '--monarch-token=soul:jay_haslam:v1'
+  ], env);
+  assert.notStrictEqual(out.status, 0, 'high-risk breaker should escalate and fail command');
+  assert.ok(out.stderr.includes('breaker_trip_escalated'), 'high-risk breaker should escalate to review');
+
+  out = run(['orchestrate', 'telemetry', '--window=10'], env);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  payload = parseJson(out.stdout);
+  assert.ok(payload && payload.ok === true, 'telemetry command should succeed');
+  assert.ok(String(payload.markdown || '').includes('| kind | count |'), 'telemetry command should emit markdown table');
+
   const telemetry = readJsonl(path.join(orgDir, 'telemetry.jsonl'));
   assert.ok(telemetry.length >= 2, 'telemetry rows should be written for meeting + project commands');
+
+  out = run(['orchestrate', 'audit', projectId], env);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  payload = parseJson(out.stdout);
+  assert.ok(payload && payload.ok === true, 'audit command should pass for valid artifact group');
+  assert.ok(payload.checks && payload.checks.hash_chain_ok === true, 'audit should verify hash chain');
+
+  fs.appendFileSync(path.join(orgDir, 'telemetry.jsonl'), `${JSON.stringify({
+    ts: '2020-01-01T00:00:00.000Z',
+    kind: 'meeting',
+    latency_ms: 1
+  })}\n`, 'utf8');
+  out = run(['orchestrate', 'prune', '--ttl-days=90'], env);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  payload = parseJson(out.stdout);
+  assert.ok(payload && payload.ok === true, 'prune command should succeed');
+  assert.ok(payload.files && payload.files.telemetry && payload.files.telemetry.pruned >= 1, 'prune should remove expired telemetry rows');
 
   console.log('personas_orchestration_cli.test.js: OK');
 } catch (err) {

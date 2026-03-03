@@ -25,6 +25,10 @@
     "override_reason": { "type": "string" },
     "override_actor": { "type": "string" },
     "override_expiry": { "type": "string" },
+    "drift_rate": { "type": "number" },
+    "core5_review_required": { "type": "boolean" },
+    "fail_closed_reason": { "type": "string" },
+    "emotion_enrichment": { "type": "array", "items": { "type": "string" } },
     "estimated_tokens": { "type": "integer" },
     "estimated_runtime_ms": { "type": "integer" },
     "max_tokens_estimate": { "type": "integer" },
@@ -32,6 +36,8 @@
     "shadow_mode_active": { "type": "boolean" },
     "selection_receipt_hash": { "type": "string" },
     "arbitration_receipt_hash": { "type": "string" },
+    "breaker_receipt_hash": { "type": "string" },
+    "status_timestamps": { "type": "object" },
     "timestamp": { "type": "string" },
     "engine_version": { "type": "string" }
   }
