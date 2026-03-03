@@ -52,7 +52,7 @@ function defaultPolicy() {
     },
     defaults: {
       legacy_repo_url: 'https://github.com/openclaw/openclaw',
-      target_repo_url: 'https://github.com/protheus-labs/protheus',
+      target_repo_url: 'https://github.com/protheuslabs/protheus',
       migration_guide_url: 'docs/CORE_MIGRATION_BRIDGE.md'
     },
     files: {

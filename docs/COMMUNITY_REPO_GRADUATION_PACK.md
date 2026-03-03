@@ -15,12 +15,12 @@
 # Generate + verify only
 node systems/migration/community_repo_graduation_pack.js run \
   --legacy-repo=https://github.com/openclaw/openclaw \
-  --target-repo=https://github.com/protheus-labs/protheus
+  --target-repo=https://github.com/protheuslabs/protheus
 
 # Apply artifacts and update README banner
 node systems/migration/community_repo_graduation_pack.js run \
   --legacy-repo=https://github.com/openclaw/openclaw \
-  --target-repo=https://github.com/protheus-labs/protheus \
+  --target-repo=https://github.com/protheuslabs/protheus \
   --apply=1 --strict=1
 ```
 
