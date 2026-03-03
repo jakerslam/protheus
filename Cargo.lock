@@ -508,6 +508,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "protheus-singularity-seed-core-v1"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "bincode",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "snap",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "protheus-vault-core-v1"
 version = "0.1.0"
 dependencies = [
