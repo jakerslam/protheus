@@ -499,6 +499,62 @@ function runRustDispatchSummary(rows: AnyObj[], enabled: boolean) {
   return runDispatchSummaryViaCargo(payloadText);
 }
 
+function runQueueRowsViaRustBinary(payloadText: string) {
+  const payloadB64 = Buffer.from(String(payloadText || ''), 'utf8').toString('base64');
+  for (const candidate of executionBinaryCandidates()) {
+    try {
+      if (!fs.existsSync(candidate)) continue;
+      const out = spawnSync(candidate, ['queue-rows', `--payload-base64=${payloadB64}`], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        maxBuffer: 10 * 1024 * 1024
+      });
+      const payload = parseJsonPayload(out.stdout);
+      if (Number(out.status) === 0 && payload && typeof payload === 'object') {
+        return { ok: true, engine: 'rust_bin', binary_path: candidate, payload };
+      }
+    } catch {
+      // try next candidate
+    }
+  }
+  return { ok: false, error: 'rust_binary_unavailable' };
+}
+
+function runQueueRowsViaCargo(payloadText: string) {
+  const payloadB64 = Buffer.from(String(payloadText || ''), 'utf8').toString('base64');
+  const args = [
+    'run',
+    '--quiet',
+    '--manifest-path',
+    EXECUTION_MANIFEST,
+    '--bin',
+    'execution_core',
+    '--',
+    'queue-rows',
+    `--payload-base64=${payloadB64}`
+  ];
+  const out = spawnSync('cargo', args, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    maxBuffer: 10 * 1024 * 1024
+  });
+  const payload = parseJsonPayload(out.stdout);
+  if (Number(out.status) === 0 && payload && typeof payload === 'object') {
+    return { ok: true, engine: 'rust_cargo', payload };
+  }
+  return {
+    ok: false,
+    error: `cargo_queue_rows_failed:${cleanText(out.stderr || out.stdout || '', 220)}`
+  };
+}
+
+function runRustQueueRows(payload: AnyObj) {
+  const payloadText = JSON.stringify(payload || {});
+  const bin = runQueueRowsViaRustBinary(payloadText);
+  if (bin.ok) return bin;
+  return runQueueRowsViaCargo(payloadText);
+}
+
 function defaultPolicy() {
   return {
     version: '1.0',
@@ -1118,6 +1174,40 @@ function emitObsidian(policy: AnyObj, row: AnyObj) {
 }
 
 function emitQueues(policy: AnyObj, payload: AnyObj) {
+  const rustRows = runRustQueueRows({
+    run_id: payload.run_id,
+    goal_id: payload.goal && payload.goal.goal_id ? payload.goal.goal_id : null,
+    objective_id: payload.goal && payload.goal.objective_id ? payload.goal.objective_id : null,
+    shadow_only: payload.shadow_only === true,
+    passport_id: payload.passport_id || null,
+    storm_lane: policy.parallel && policy.parallel.storm_lane ? policy.parallel.storm_lane : 'storm_human_lane',
+    tasks: Array.isArray(payload.micro_tasks) ? payload.micro_tasks : []
+  });
+  if (rustRows && rustRows.ok === true && rustRows.payload && rustRows.payload.ok === true) {
+    const queuedWeaver: AnyObj[] = [];
+    const queuedStorm: AnyObj[] = [];
+    for (const row of Array.isArray(rustRows.payload.weaver) ? rustRows.payload.weaver : []) {
+      const outRow = {
+        ts: nowIso(),
+        ...row
+      };
+      appendJsonl(policy.state.weaver_queue_path, outRow);
+      queuedWeaver.push(outRow);
+    }
+    for (const row of Array.isArray(rustRows.payload.storm) ? rustRows.payload.storm : []) {
+      const outRow = {
+        ts: nowIso(),
+        ...row
+      };
+      appendJsonl(policy.state.storm_queue_path, outRow);
+      queuedStorm.push(outRow);
+    }
+    return {
+      weaver: queuedWeaver,
+      storm: queuedStorm
+    };
+  }
+
   const queuedWeaver: AnyObj[] = [];
   const queuedStorm: AnyObj[] = [];
   for (const task of payload.micro_tasks) {

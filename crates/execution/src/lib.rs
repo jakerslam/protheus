@@ -28,9 +28,10 @@ pub use autoscale::{
 pub use decompose::{
     compose_micro_tasks, compose_micro_tasks_json, BaseTask, Capability, ComposePolicy,
     ComposeRequest, ComposeResponse, DecomposePolicy, DecomposeRequest, DecomposeResponse,
-    DispatchSummaryRequest, DispatchSummaryResponse, TaskSummaryRequest, TaskSummaryResponse,
-    decompose_goal, decompose_goal_json, summarize_dispatch, summarize_dispatch_json,
-    summarize_tasks, summarize_tasks_json,
+    DispatchSummaryRequest, DispatchSummaryResponse, QueueRowsRequest, QueueRowsResponse,
+    TaskSummaryRequest, TaskSummaryResponse, build_queue_rows, decompose_goal, decompose_goal_json,
+    queue_rows_json, summarize_dispatch, summarize_dispatch_json, summarize_tasks,
+    summarize_tasks_json,
 };
 pub use sprint_contract::run_sprint_contract_json;
 
