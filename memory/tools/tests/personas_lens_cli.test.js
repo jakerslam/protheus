@@ -101,6 +101,18 @@ try {
   assert.ok(out.stdout.includes('## Surprise Check'), 'multi-persona run should include surprise check section');
   assert.ok(out.stdout.includes('Recall signals:'), 'multi-persona run should include memory/feed recall context');
 
+  out = run([
+    'arbitrate',
+    '--between=vikram,priya',
+    '--issue=sample vs full audit for migration evidence',
+    '--schema=json'
+  ]);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  const arbitrationPayload = JSON.parse(out.stdout);
+  assert.strictEqual(arbitrationPayload.type, 'persona_arbitration', 'arbitrate command should emit persona_arbitration payload');
+  assert.ok(arbitrationPayload.winner, 'arbitrate command should resolve a deterministic winner');
+  assert.ok(Array.isArray(arbitrationPayload.persona_positions), 'arbitrate command should include persona positions');
+
   out = run(['lens', 'trigger', 'pre-sprint', 'Foundation Lock sprint planning review']);
   assert.strictEqual(out.status, 0, out.stderr || out.stdout);
   assert.ok(out.stdout.includes('# Trigger: pre-sprint'), 'pre-sprint trigger should render trigger heading');
@@ -187,11 +199,37 @@ try {
   assert.ok(telemetryBody.includes('"metric":"passed_data_utility_rate"'), 'include-feed lens run should emit passed_data_utility_rate telemetry');
 
   out = run(
+    ['lens', 'vikram_menon', '--schema=json', '--surprise=on', '--surprise-seed=test-seed-001', 'Should we prioritize memory or security first?'],
+    { OPENCLAW_WORKSPACE: feedRoot }
+  );
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  const structured = JSON.parse(out.stdout);
+  assert.strictEqual(structured.schema, 'persona_lens_v1', 'schema=json should emit structured persona payload');
+  assert.strictEqual(typeof structured.recommendation, 'string', 'structured payload should include recommendation');
+  assert.strictEqual(typeof structured.confidence, 'number', 'structured payload should include confidence');
+  assert.ok(Array.isArray(structured.blockers), 'structured payload should include blockers array');
+  assert.ok(Array.isArray(structured.recent_correspondence), 'structured payload should include recent correspondence entries');
+  assert.ok(structured.surprise && typeof structured.surprise.roll === 'number', 'structured payload should include surprise metadata');
+
+  out = run(
     ['persona', 'feed', 'vikram_menon', 'Operator direct persona feed through protheusctl persona route.', '--source=operator', '--tags=ops'],
     { OPENCLAW_WORKSPACE: feedRoot }
   );
   assert.strictEqual(out.status, 0, out.stderr || out.stdout);
   assert.ok(out.stdout.includes('"type": "persona_feed_append"'), 'protheusctl persona route should support feed append');
+
+  out = run(
+    ['lens', 'feedback', '--surprising=1', '--changed-decision=1', '--useful=vikram_menon', '--note=helped catch parity risk before merge'],
+    { OPENCLAW_WORKSPACE: feedRoot }
+  );
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  assert.ok(out.stdout.includes('"type": "persona_feedback_recorded"'), 'feedback command should append feedback row');
+
+  out = run(['lens', 'feedback-summary', '--window=20', '--json=1'], { OPENCLAW_WORKSPACE: feedRoot });
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  const feedbackSummary = JSON.parse(out.stdout);
+  assert.strictEqual(feedbackSummary.type, 'persona_feedback_summary', 'feedback summary should return summary payload');
+  assert.ok(feedbackSummary.total >= 1, 'feedback summary should include at least one row');
 
   out = run(['lens', 'vikram_menon', '--gap=4', 'Prioritize memory or security first?'], null, 'a\n');
   assert.strictEqual(out.status, 0, out.stderr || out.stdout);

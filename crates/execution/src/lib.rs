@@ -1,4 +1,5 @@
 mod blob;
+mod decompose;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -10,6 +11,10 @@ use wasm_bindgen::prelude::*;
 pub use blob::{
     decode_manifest, fold_blob, load_embedded_execution_profile, unfold_blob, BlobError,
     ExecutionRuntimeProfile, EXECUTION_PROFILE_BLOB_ID,
+};
+pub use decompose::{
+    decompose_goal, decompose_goal_json, BaseTask, Capability, DecomposePolicy, DecomposeRequest,
+    DecomposeResponse,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

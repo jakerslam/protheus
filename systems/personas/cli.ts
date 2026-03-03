@@ -13,8 +13,10 @@ const ROOT = process.env.OPENCLAW_WORKSPACE
 const PERSONAS_DIR = path.join(ROOT, 'personas');
 const PERSONA_ORG_DIR = path.join(PERSONAS_DIR, 'organization');
 const PERSONA_TELEMETRY_PATH = path.join(PERSONA_ORG_DIR, 'telemetry.jsonl');
+const PERSONA_FEEDBACK_PATH = path.join(PERSONA_ORG_DIR, 'feedback.jsonl');
 const PERSONA_TRIGGERS_PATH = path.join(PERSONA_ORG_DIR, 'triggers.md');
 const PERSONA_ARBITRATION_RULES_PATH = path.join(PERSONA_ORG_DIR, 'arbitration_rules.json');
+const PERSONA_STANCE_CACHE_PATH = path.join(PERSONA_ORG_DIR, 'stance_cache.json');
 let runLocalOllamaPrompt: null | ((opts: Record<string, unknown>) => Record<string, unknown>) = null;
 try {
   ({ runLocalOllamaPrompt } = require('../routing/llm_gateway.js'));
@@ -28,6 +30,7 @@ type ParsedArgs = {
 };
 
 type LensMode = 'decision' | 'strategic' | 'full';
+type OutputSchema = 'markdown' | 'json';
 type AlignmentMode = 'yellow_auto' | 'green_active';
 type LensControls = {
   gapSeconds: number,
@@ -45,13 +48,16 @@ function usage() {
   console.log('Usage:');
   console.log('  protheus lens <persona> "<query>"');
   console.log('  protheus lens <persona1> <persona2> [personaN...] "<query>" [--expected="<text>"]');
+  console.log('  protheus lens arbitrate --between=persona1,persona2 [--between=personaN...] --issue="<query>"');
   console.log('  protheus lens <persona> <decision|strategic|full> "<query>"');
-  console.log('  protheus lens <persona> [decision|strategic|full] --gap=<seconds> [--active=1] [--emotion=on|off] [--values=on|off] [--include-feed=1] [--intercept="<override>"] "<query>"');
+  console.log('  protheus lens <persona> [decision|strategic|full] --gap=<seconds> [--active=1] [--emotion=on|off] [--values=on|off] [--include-feed=1] [--surprise=on|off] [--schema=markdown|json] [--intercept="<override>"] "<query>"');
   console.log('  protheus lens trigger <pre-sprint|drift-alert|weekly-checkin> ["<query>"] [--persona=<id>] [--heartbeat=HEARTBEAT.md] [--dry-run=1]');
   console.log('  protheus lens dashboard [--window=<n>] [--json=1]');
   console.log('  protheus lens update-stream <persona> [--dry-run=1]');
   console.log('  protheus lens checkin [--persona=jay_haslam] [--heartbeat=HEARTBEAT.md] [--emotion=on|off] [--dry-run=1]');
   console.log('  protheus lens feed <persona> "<snippet>" [--source=master_llm] [--tags=tag1,tag2] [--dry-run=1]');
+  console.log('  protheus lens feedback --surprising=0|1 --changed-decision=0|1 --useful=<persona> [--session-id=<id>] [--note="<text>"]');
+  console.log('  protheus lens feedback-summary [--window=<n>] [--json=1]');
   console.log('  protheus lens all "<query>"');
   console.log('  protheus lens --persona=<persona> --lens=<decision|strategic|full> --query="<query>"');
   console.log('  protheus lens --list');
@@ -59,14 +65,16 @@ function usage() {
   console.log('Examples:');
   console.log('  protheus lens vikram "Should we prioritize memory or security first?"');
   console.log('  protheus lens vikram rohan "Prioritize memory or security first?" --expected="Prioritize memory core determinism first."');
+  console.log('  protheus lens arbitrate --between=vikram,priya --issue="sample vs full audit"');
   console.log('  protheus lens vikram strategic "How does this sprint support the singularity seed?"');
   console.log('  protheus lens jay_haslam "How can we reduce drift in the loops?"');
   console.log('  protheus lens trigger pre-sprint "Foundation Lock sprint planning review"');
   console.log('  protheus lens dashboard --window=20');
-  console.log('  protheus lens vikram --gap=10 --active=1 --emotion=off --values=on --include-feed=1 --intercept="Prioritize memory first, with security gate pre-dispatch." "Prioritize memory or security?"');
+  console.log('  protheus lens vikram --gap=10 --active=1 --emotion=off --values=on --include-feed=1 --surprise=on --schema=json --intercept="Prioritize memory first, with security gate pre-dispatch." "Prioritize memory or security?"');
   console.log('  protheus lens update-stream vikram_menon');
   console.log('  protheus lens checkin --persona=jay_haslam --heartbeat=HEARTBEAT.md');
   console.log('  protheus lens feed vikram_menon "Cross-signal indicates rising security drift risk." --source=master_llm --tags=drift,security');
+  console.log('  protheus lens feedback --surprising=1 --changed-decision=1 --useful=vikram_menon --note="Caught fail-closed gap before merge."');
   console.log('  protheus lens all "Should we prioritize memory or security first?"');
   console.log('  protheus lens --persona=vikram_menon --lens=decision --query="What is the rollback path?"');
   console.log('');
@@ -134,6 +142,14 @@ function parseEmotionEnabled(v: unknown, fallback = true) {
   if (!raw) return fallback;
   if (['on', 'true', '1', 'yes'].includes(raw)) return true;
   if (['off', 'false', '0', 'no'].includes(raw)) return false;
+  return fallback;
+}
+
+function parseOutputSchema(v: unknown, fallback: OutputSchema = 'markdown'): OutputSchema {
+  const raw = cleanText(v, 30).toLowerCase();
+  if (!raw) return fallback;
+  if (raw === 'json') return 'json';
+  if (raw === 'markdown' || raw === 'md') return 'markdown';
   return fallback;
 }
 
@@ -339,6 +355,19 @@ type ArbitrationRules = {
   conflicting_rules_fail_closed: boolean
 };
 
+type StanceCacheRule = {
+  id: string,
+  match_all: string[],
+  personas: Record<string, string>,
+  default_recommendation: string,
+  escalate_to: string
+};
+
+type StanceCache = {
+  version: string,
+  rules: StanceCacheRule[]
+};
+
 function loadPersonaContext(personaId: string): PersonaContext {
   const personaDir = path.join(PERSONAS_DIR, personaId);
   const profileMd = readFileRequired(path.join(personaDir, 'profile.md'));
@@ -464,6 +493,89 @@ function loadArbitrationRules(): ArbitrationRules {
   } catch {
     return fallback;
   }
+}
+
+function defaultStanceCache(): StanceCache {
+  return {
+    version: '1.0.0',
+    rules: [
+      {
+        id: 'rust_migration_parity',
+        match_all: ['rust', 'migrat'],
+        personas: {
+          vikram_menon: 'Run behavior-preserving migration in thin slices with strict parity checks before any cutover.',
+          priya_venkatesh: 'Measure drift and parity before each migration slice; block promotion when evidence is missing.',
+          rohan_kapoor: 'Stage migration in rollout-safe waves with rollback checkpoints and parity receipts per wave.'
+        },
+        default_recommendation: 'Use parity-verified, behavior-preserving migration slices with deterministic rollback paths.',
+        escalate_to: 'vikram_menon'
+      },
+      {
+        id: 'external_api_integration',
+        match_all: ['external', 'api'],
+        personas: {
+          rohan_kapoor: 'Add rollback path, timeout budgets, and staged rollout controls before enabling external API integrations.',
+          aarav_singh: 'Require fail-closed security checks and contract validation before any external API dispatch.'
+        },
+        default_recommendation: 'External API integrations require rollback-safe rollout and fail-closed security gating before activation.',
+        escalate_to: 'rohan_kapoor'
+      },
+      {
+        id: 'memory_vs_security_priority',
+        match_all: ['memory', 'security', 'first'],
+        personas: {
+          vikram_menon: 'Prioritize memory core determinism first, but keep security enforcement in pre-dispatch path from day one.',
+          aarav_singh: 'Prioritize security invariants first: enforce fail-closed checks globally, then continue memory migration behind audited gates.',
+          priya_venkatesh: 'Do not hard-order memory vs security until parity and drift evidence is current; run a measurement checkpoint before sequencing.'
+        },
+        default_recommendation: 'Sequence memory and security with parity proof and fail-closed gating active from the first migration slice.',
+        escalate_to: 'vikram_menon'
+      }
+    ]
+  };
+}
+
+function loadStanceCache(): StanceCache {
+  const fallback = defaultStanceCache();
+  try {
+    if (!fs.existsSync(PERSONA_STANCE_CACHE_PATH)) return fallback;
+    const payload = JSON.parse(String(fs.readFileSync(PERSONA_STANCE_CACHE_PATH, 'utf8') || '{}'));
+    const rulesRaw = Array.isArray(payload && payload.rules) ? payload.rules : [];
+    const rules: StanceCacheRule[] = [];
+    for (const row of rulesRaw) {
+      const id = normalizeToken(row && row.id || 'rule', 80) || `rule_${rules.length + 1}`;
+      const matchAll = Array.isArray(row && row.match_all)
+        ? row.match_all.map((v: unknown) => cleanText(v, 60).toLowerCase()).filter(Boolean)
+        : [];
+      const personas: Record<string, string> = {};
+      const personaRows = row && typeof row.personas === 'object' ? row.personas : {};
+      for (const [personaKey, recommendation] of Object.entries(personaRows || {})) {
+        const key = normalizeToken(personaKey, 120);
+        const value = cleanText(recommendation, 1200);
+        if (!key || !value) continue;
+        personas[key] = value;
+      }
+      rules.push({
+        id,
+        match_all: matchAll,
+        personas,
+        default_recommendation: cleanText(row && row.default_recommendation || '', 1200),
+        escalate_to: normalizeToken(row && row.escalate_to || '', 120) || 'vikram_menon'
+      });
+    }
+    return {
+      version: cleanText(payload && payload.version || fallback.version, 30) || fallback.version,
+      rules: rules.length ? rules : fallback.rules
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function stanceMatch(query: string, rule: StanceCacheRule) {
+  const lower = String(query || '').toLowerCase();
+  if (!Array.isArray(rule.match_all) || !rule.match_all.length) return false;
+  return rule.match_all.every((token) => lower.includes(String(token || '').toLowerCase()));
 }
 
 function inferArbitrationDomain(query: string): string {
@@ -1115,6 +1227,46 @@ function summarizeCorrespondenceEvents(markdown: string, maxRows = 3) {
   return out.slice(-Math.max(1, maxRows));
 }
 
+type CorrespondenceEntry = {
+  date: string,
+  topic: string,
+  body: string
+};
+
+function parseCorrespondenceEntries(markdown: string, maxRows = 5): CorrespondenceEntry[] {
+  const lines = String(markdown || '').split('\n');
+  const entries: CorrespondenceEntry[] = [];
+  let current: CorrespondenceEntry | null = null;
+  const flush = () => {
+    if (!current) return;
+    current.body = cleanText(current.body || '', 1500);
+    entries.push(current);
+    current = null;
+  };
+  for (const line of lines) {
+    const trimmed = String(line || '').trim();
+    const m = trimmed.match(/^##\s+(\d{4}-\d{2}-\d{2})\s+-\s+Re:\s+(.+)$/i);
+    if (m) {
+      flush();
+      current = {
+        date: cleanText(m[1], 20),
+        topic: cleanText(m[2], 120),
+        body: ''
+      };
+      continue;
+    }
+    if (current) {
+      if (trimmed.startsWith('## ')) {
+        flush();
+        continue;
+      }
+      current.body = `${current.body}\n${trimmed}`.trim();
+    }
+  }
+  flush();
+  return entries.slice(-Math.max(1, maxRows));
+}
+
 function buildPersonaDashboard(window = 20) {
   const rows = readJsonlTail(PERSONA_TELEMETRY_PATH, window);
   const metricCounts: Record<string, number> = {};
@@ -1239,6 +1391,7 @@ function runPersonaCheckin(
     throw new Error(String(gate.reason || 'soul_token_policy_blocked'));
   }
   const details = buildResponseDetails(
+    ctx.personaId,
     ctx.personaName,
     query,
     ctx.profileMd,
@@ -1816,10 +1969,21 @@ function extractListItems(markdown: string, maxItems = 4): string[] {
   return out;
 }
 
-function recommendFromQuery(personaName: string, query: string): string {
+function recommendFromQuery(personaRef: string, query: string): string {
+  const stanceCache = loadStanceCache();
+  const personaToken = normalizeToken(personaRef, 120);
+  for (const rule of stanceCache.rules || []) {
+    if (!stanceMatch(query, rule)) continue;
+    if (rule.personas && rule.personas[personaToken]) {
+      return cleanText(rule.personas[personaToken], 1200);
+    }
+    if (rule.default_recommendation) {
+      return cleanText(rule.default_recommendation, 1200);
+    }
+  }
   const lower = String(query || '').toLowerCase();
   if (lower.includes('memory') && lower.includes('security') && (lower.includes('first') || lower.includes('priorit'))) {
-    const persona = normalizeToken(personaName, 80);
+    const persona = normalizeToken(personaRef, 80);
     if (persona.includes('rohan')) {
       return 'Prioritize security gate readiness first at rollout boundaries, then sequence memory migration in constrained, parity-verified slices.';
     }
@@ -1837,7 +2001,7 @@ function recommendFromQuery(personaName: string, query: string): string {
   if (lower.includes('rollback') || lower.includes('revert')) {
     return 'Define rollback invariants before implementation and prove rollback with an explicit test path.';
   }
-  return `Use ${personaName}'s lens to execute the smallest reversible change that strengthens determinism, security posture, and test evidence.`;
+  return `Use ${personaRef}'s lens to execute the smallest reversible change that strengthens determinism, security posture, and test evidence.`;
 }
 
 function resolvePersonaLlmRecommendation(
@@ -1899,6 +2063,7 @@ function resolvePersonaLlmRecommendation(
 }
 
 function buildResponseDetails(
+  personaId: string,
   personaName: string,
   query: string,
   profileMd: string,
@@ -1910,8 +2075,11 @@ function buildResponseDetails(
   valuesLensMd = '',
   feedMd = '',
   memoryMd = '',
-  includeSystemPassedFeed = false
+  includeSystemPassedFeed = false,
+  surpriseEnabled = false,
+  surpriseSeed = ''
 ) {
+  const personaRef = cleanText(personaId || personaName, 120) || personaName;
   const decisionFilters = extractListItems(decisionLensMd, 4);
   const strategicFilters = extractListItems(strategicLensMd, 4);
   const valuesFilters = extractListItems(valuesLensMd, 4);
@@ -1919,6 +2087,11 @@ function buildResponseDetails(
   const strategicAnchors = extractListItems(strategicLensMd.split('## Strategic Anchors')[1] || '', 3);
   const valuesAnchors = extractListItems(valuesLensMd.split('## Values Anchors')[1] || '', 3);
   const correspondenceHighlights = extractListItems(correspondenceMd, 3);
+  const recentCorrespondence = parseCorrespondenceEntries(correspondenceMd, 5);
+  const correspondenceContinuity = recentCorrespondence.map((entry) => {
+    const bodySnippet = cleanText(entry.body, 180);
+    return `Correspondence ${entry.date} (${entry.topic}): ${bodySnippet || 'no body recorded'}`;
+  });
   const profileHighlights = extractListItems(profileMd, 3);
   const emotionSignals = extractListItems(emotionLensMd, 2);
   const feedSignals = extractRecentFeedSignals(feedMd, 3);
@@ -1927,8 +2100,12 @@ function buildResponseDetails(
     : { total: 0, verified: 0, invalid: 0, signals: [] as string[] };
   const memorySignals = extractMemoryRecallSignals(memoryMd, query, 3);
   const modeText = lensMode === 'full' ? 'decision + strategic' : lensMode;
-  const promptTemplate = `As ${personaName}, using your profile, ${modeText} lens, and past correspondence, respond to: ${query}`;
-  let recommendation = recommendFromQuery(personaName, query);
+  const promptTemplate = [
+    `As ${personaName}, using your profile, ${modeText} lens, and past correspondence, respond to: ${query}`,
+    `Recent correspondence continuity (last ${correspondenceContinuity.length || 0}):`,
+    ...(correspondenceContinuity.length ? correspondenceContinuity : ['No recent correspondence entries found.'])
+  ].join(' ');
+  let recommendation = recommendFromQuery(personaRef, query);
   if (includeSystemPassedFeed && systemPassed.signals.length) {
     const firstSignal = cleanText(systemPassed.signals[0].replace(/^SystemPassed:\s*/, ''), 180);
     recommendation = `${recommendation} System-passed context: ${firstSignal}.`;
@@ -1953,15 +2130,47 @@ function buildResponseDetails(
     ...feedSignals,
     ...systemPassed.signals,
     ...memorySignals,
+    ...correspondenceContinuity.map((v) => `Continuity recall: ${v}`),
     ...nonNegotiables.map((v) => `Constraint: ${v}`),
     ...correspondenceHighlights.map((v) => `Prior correspondence: ${v}`),
     ...profileHighlights.map((v) => `Profile context: ${v}`)
   ].slice(0, 10);
+  let surpriseApplied = false;
+  let surpriseMode = 'none';
+  let surpriseRoll = 1;
+  if (surpriseEnabled) {
+    const rollHex = crypto
+      .createHash('sha256')
+      .update(`${personaRef}|${query}|${surpriseSeed || new Date().toISOString().slice(0, 10)}`, 'utf8')
+      .digest('hex')
+      .slice(0, 8);
+    const rollNum = parseInt(rollHex, 16) / 0xffffffff;
+    surpriseRoll = Number(rollNum.toFixed(4));
+    if (rollNum < 0.2) {
+      surpriseApplied = true;
+      const bucket = parseInt(rollHex.slice(-1), 16) % 3;
+      if (bucket === 0) {
+        surpriseMode = 'question_back';
+        recommendation = `${recommendation} Before finalizing, what hard proof guarantees this remains behavior-preserving under the next parity run?`;
+      } else if (bucket === 1 && correspondenceContinuity.length) {
+        surpriseMode = 'pattern_recall';
+        recommendation = `${recommendation} Pattern reminder: ${cleanText(correspondenceContinuity[0], 200)}.`;
+      } else {
+        surpriseMode = 'context_request';
+        recommendation = `${recommendation} I need one additional context point: what is the rollback trigger threshold for this change?`;
+      }
+      reasoning.unshift(`Surprise injection (${surpriseMode}, roll=${surpriseRoll.toFixed(4)}): anti-puppet deviation applied.`);
+    }
+  }
   return {
     promptTemplate,
     recommendation,
     reasoning,
-    systemPassed
+    systemPassed,
+    recentCorrespondence,
+    surpriseApplied,
+    surpriseMode,
+    surpriseRoll
   };
 }
 
@@ -1976,13 +2185,19 @@ function renderMarkdownResponse(
   emotionEnabled = true,
   valuesEnabled = true,
   includeFeed = false,
-  llmMeta: { enabled: boolean, used: boolean, reason: string, model: string } | null = null
+  llmMeta: { enabled: boolean, used: boolean, reason: string, model: string } | null = null,
+  surpriseEnabled = false,
+  surpriseSeed = ''
 ): string {
   const {
     promptTemplate,
     recommendation,
-    reasoning
+    reasoning,
+    surpriseApplied,
+    surpriseMode,
+    surpriseRoll
   } = buildResponseDetails(
+    ctx.personaId,
     ctx.personaName,
     query,
     ctx.profileMd,
@@ -1994,7 +2209,9 @@ function renderMarkdownResponse(
     valuesEnabled ? ctx.valuesLensMd : '',
     ctx.feedMd,
     ctx.memoryMd,
-    includeFeed
+    includeFeed,
+    surpriseEnabled,
+    surpriseSeed
   );
   const resolvedRecommendation = cleanText(overridePosition, 1600) || recommendation;
 
@@ -2006,6 +2223,10 @@ function renderMarkdownResponse(
   lines.push(`**Emotion Lens:** \`${emotionEnabled ? 'on' : 'off'}\``);
   lines.push(`**Values Lens:** \`${valuesEnabled ? 'on' : 'off'}\``);
   lines.push(`**System Passed Feed:** \`${includeFeed ? 'on' : 'off'}\``);
+  lines.push(`**Surprise Mode:** \`${surpriseEnabled ? 'on' : 'off'}\``);
+  if (surpriseEnabled) {
+    lines.push(`**Surprise Applied:** \`${surpriseApplied ? 'yes' : 'no'}\` (mode \`${cleanText(surpriseMode || 'none', 80)}\`, roll \`${Number(surpriseRoll || 0).toFixed(4)}\`)`);
+  }
   if (llmMeta) {
     lines.push(`**Persona LLM:** \`${llmMeta.enabled ? (llmMeta.used ? 'on-active' : 'on-fallback') : 'off'}\``);
     lines.push(`**Persona LLM Model:** \`${cleanText(llmMeta.model || 'n/a', 120)}\``);
@@ -2074,14 +2295,20 @@ function renderMarkdownSection(
   lensMode: LensMode,
   emotionEnabled = true,
   valuesEnabled = true,
-  includeFeed = false
+  includeFeed = false,
+  surpriseEnabled = false,
+  surpriseSeed = ''
 ): string {
   const emotionMd = emotionEnabled ? ctx.emotionLensMd : '';
   const {
     promptTemplate,
     recommendation,
-    reasoning
+    reasoning,
+    surpriseApplied,
+    surpriseMode,
+    surpriseRoll
   } = buildResponseDetails(
+    ctx.personaId,
     ctx.personaName,
     query,
     ctx.profileMd,
@@ -2093,13 +2320,18 @@ function renderMarkdownSection(
     valuesEnabled ? ctx.valuesLensMd : '',
     ctx.feedMd,
     ctx.memoryMd,
-    includeFeed
+    includeFeed,
+    surpriseEnabled,
+    surpriseSeed
   );
 
   const lines: string[] = [];
   lines.push(`## ${ctx.personaName} (\`${ctx.personaId}\`)`);
   lines.push('');
   lines.push(`**Lens Mode:** \`${lensMode}\``);
+  if (surpriseEnabled) {
+    lines.push(`**Surprise Applied:** \`${surpriseApplied ? 'yes' : 'no'}\` (mode \`${cleanText(surpriseMode || 'none', 80)}\`, roll \`${Number(surpriseRoll || 0).toFixed(4)}\`)`);
+  }
   lines.push('');
   lines.push(`> ${promptTemplate}`);
   lines.push('');
@@ -2146,7 +2378,9 @@ function renderAllMarkdown(
   controls: LensControls | null = null,
   emotionEnabled = true,
   valuesEnabled = true,
-  includeFeed = false
+  includeFeed = false,
+  surpriseEnabled = false,
+  surpriseSeed = ''
 ): string {
   const lines: string[] = [];
   lines.push('# Lens Response: All Personas');
@@ -2161,9 +2395,10 @@ function renderAllMarkdown(
   lines.push(`**Emotion Lens:** \`${emotionEnabled ? 'on' : 'off'}\``);
   lines.push(`**Values Lens:** \`${valuesEnabled ? 'on' : 'off'}\``);
   lines.push(`**System Passed Feed:** \`${includeFeed ? 'on' : 'off'}\``);
+  lines.push(`**Surprise Mode:** \`${surpriseEnabled ? 'on' : 'off'}\``);
   lines.push('');
   for (const ctx of contexts) {
-    lines.push(renderMarkdownSection(ctx, query, lensMode, emotionEnabled, valuesEnabled, includeFeed));
+    lines.push(renderMarkdownSection(ctx, query, lensMode, emotionEnabled, valuesEnabled, includeFeed, surpriseEnabled, surpriseSeed));
   }
   return lines.join('\n');
 }
@@ -2186,12 +2421,15 @@ function renderMultiPersonaMarkdown(
   emotionEnabled: boolean,
   valuesEnabled: boolean,
   includeFeed: boolean,
-  expected: string
+  expected: string,
+  surpriseEnabled = false,
+  surpriseSeed = ''
 ) {
   const rules = loadArbitrationRules();
   const domain = inferArbitrationDomain(query);
   const details = contexts.map((ctx) => {
     const info = buildResponseDetails(
+      ctx.personaId,
       ctx.personaName,
       query,
       ctx.profileMd,
@@ -2203,14 +2441,21 @@ function renderMultiPersonaMarkdown(
       valuesEnabled ? ctx.valuesLensMd : '',
       ctx.feedMd,
       ctx.memoryMd,
-      includeFeed
+      includeFeed,
+      surpriseEnabled,
+      surpriseSeed
     );
     return {
       persona_id: ctx.personaId,
       persona_name: ctx.personaName,
       recommendation: info.recommendation,
       reasoning: info.reasoning,
-      recall: recallSignals(info.reasoning)
+      recall: recallSignals(info.reasoning),
+      surprise: {
+        applied: Boolean(info.surpriseApplied),
+        mode: cleanText(info.surpriseMode || 'none', 60),
+        roll: Number((info.surpriseRoll || 0).toFixed(4))
+      }
     };
   });
 
@@ -2287,12 +2532,152 @@ function renderMultiPersonaMarkdown(
 
   return {
     markdown: lines.join('\n'),
+    domain,
+    details,
     disagreement,
     maxDivergence,
     arbitration,
     winner: winner ? winner.persona_id : null,
+    finalPosition: winner ? winner.recommendation : '',
     surpriseScore,
     surprising
+  };
+}
+
+function deriveBlockers(reasoning: string[]): string[] {
+  const out = new Set<string>();
+  for (const row of Array.isArray(reasoning) ? reasoning : []) {
+    const text = cleanText(row, 220);
+    const lower = text.toLowerCase();
+    if (!text) continue;
+    if (lower.includes('constraint:')) out.add(text.replace(/^constraint:\s*/i, '').trim());
+    if (lower.includes('fail-closed') || lower.includes('fail closed')) out.add('Fail-closed gate verification required');
+    if (lower.includes('drift')) out.add('Drift threshold verification required');
+    if (lower.includes('rollback')) out.add('Rollback path and proof required');
+    if (lower.includes('parity')) out.add('Parity evidence required');
+  }
+  return Array.from(out).slice(0, 5);
+}
+
+function estimateTimeEstimate(query: string, blockers: string[]): string {
+  const lower = String(query || '').toLowerCase();
+  if (blockers.length >= 3) return '90-120 min';
+  if (lower.includes('migration') || lower.includes('rollout') || lower.includes('security')) return '45-90 min';
+  if (lower.includes('check') || lower.includes('audit') || lower.includes('verify')) return '20-45 min';
+  return '30-60 min';
+}
+
+function deriveEscalateTo(query: string, fallbackPersonaId: string): string {
+  const rules = loadArbitrationRules();
+  const domain = inferArbitrationDomain(query);
+  return normalizeToken(rules.domain_winners && rules.domain_winners[domain] || fallbackPersonaId || '', 120) || 'vikram_menon';
+}
+
+function structuredConfidence(reasoning: string[], blockers: string[]): number {
+  const base = 0.55 + Math.min(0.35, (Array.isArray(reasoning) ? reasoning.length : 0) * 0.04);
+  const penalty = Math.min(0.25, blockers.length * 0.05);
+  return Number(Math.max(0.1, Math.min(0.99, base - penalty)).toFixed(3));
+}
+
+function buildStructuredPersonaOutput(opts: {
+  personaId: string,
+  recommendation: string,
+  reasoning: string[],
+  query: string,
+  lensMode: LensMode,
+  surprise: { enabled: boolean, applied: boolean, mode: string, roll: number },
+  systemPassed: { total: number, verified: number, invalid: number }
+}) {
+  const blockers = deriveBlockers(opts.reasoning);
+  return {
+    schema: 'persona_lens_v1',
+    persona_id: opts.personaId,
+    lens_mode: opts.lensMode,
+    recommendation: cleanText(opts.recommendation, 1600),
+    confidence: structuredConfidence(opts.reasoning, blockers),
+    time_estimate: estimateTimeEstimate(opts.query, blockers),
+    blockers,
+    escalate_to: deriveEscalateTo(opts.query, opts.personaId),
+    reasoning: (Array.isArray(opts.reasoning) ? opts.reasoning : []).slice(0, 10),
+    surprise: {
+      enabled: opts.surprise.enabled,
+      applied: opts.surprise.applied,
+      mode: opts.surprise.mode,
+      roll: Number((opts.surprise.roll || 0).toFixed(4))
+    },
+    system_passed: {
+      total: Number(opts.systemPassed && opts.systemPassed.total || 0),
+      verified: Number(opts.systemPassed && opts.systemPassed.verified || 0),
+      invalid: Number(opts.systemPassed && opts.systemPassed.invalid || 0)
+    }
+  };
+}
+
+function appendPersonaFeedback(entry: {
+  session_id: string,
+  surprising: boolean,
+  changed_decision: boolean,
+  useful_persona: string,
+  note: string
+}) {
+  fs.mkdirSync(PERSONA_ORG_DIR, { recursive: true });
+  const row = {
+    ts: nowIso(),
+    type: 'persona_meta_feedback',
+    session_id: cleanText(entry.session_id, 120),
+    surprising: entry.surprising ? 1 : 0,
+    changed_decision: entry.changed_decision ? 1 : 0,
+    useful_persona: normalizeToken(entry.useful_persona, 120),
+    note: cleanText(entry.note, 600)
+  };
+  fs.appendFileSync(PERSONA_FEEDBACK_PATH, `${JSON.stringify(row)}\n`, 'utf8');
+  appendPersonaTelemetry({
+    metric: 'persona_meta_feedback',
+    persona_id: row.useful_persona || 'unknown',
+    surprising: row.surprising,
+    changed_decision: row.changed_decision
+  });
+  return row;
+}
+
+function summarizePersonaFeedback(window = 100) {
+  const rows = readJsonlTail(PERSONA_FEEDBACK_PATH, Math.max(1, Math.min(1000, window)));
+  const total = rows.length;
+  const surprising = rows.filter((row: any) => Number(row && row.surprising || 0) === 1).length;
+  const changedDecision = rows.filter((row: any) => Number(row && row.changed_decision || 0) === 1).length;
+  const usefulCounts: Record<string, number> = {};
+  for (const row of rows as Array<Record<string, unknown>>) {
+    const id = normalizeToken(row.useful_persona || 'unknown', 120) || 'unknown';
+    usefulCounts[id] = (usefulCounts[id] || 0) + 1;
+  }
+  const usefulTop = Object.entries(usefulCounts)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 10);
+  const payload = {
+    ok: true,
+    type: 'persona_feedback_summary',
+    window: Math.max(1, Math.min(1000, Math.floor(window) || 100)),
+    total,
+    surprising_rate: total ? Number((surprising / total).toFixed(4)) : 0,
+    changed_decision_rate: total ? Number((changedDecision / total).toFixed(4)) : 0,
+    useful_personas: usefulTop.map(([persona, count]) => ({ persona, count }))
+  };
+  const markdown = [
+    '# Persona Feedback Summary',
+    '',
+    `- Window: ${payload.window}`,
+    `- Total feedback rows: ${payload.total}`,
+    `- Surprising rate: ${(payload.surprising_rate * 100).toFixed(1)}%`,
+    `- Changed-decision rate: ${(payload.changed_decision_rate * 100).toFixed(1)}%`,
+    '',
+    '## Most Useful Personas',
+    ...(payload.useful_personas.length
+      ? payload.useful_personas.map((row) => `- ${row.persona}: ${row.count}`)
+      : ['- no feedback rows yet'])
+  ].join('\n');
+  return {
+    ...payload,
+    markdown
   };
 }
 
@@ -2319,12 +2704,19 @@ async function main() {
   const emotionEnabled = parseEmotionEnabled(args.emotion, true);
   const valuesEnabled = parseEmotionEnabled(args.values, true);
   const includeFeedFlag = toBool(args['include-feed'] ?? args.include_feed, false);
+  const surpriseEnabled = parseEmotionEnabled(args.surprise, false);
+  const surpriseSeed = cleanText(args['surprise-seed'] ?? args.surprise_seed, 120);
+  const outputSchema = parseOutputSchema(args.schema ?? args.output, 'markdown');
   const personaArg = cleanText(args.persona || args._[0] || '', 120);
   const isUpdateStream = normalizeToken(args._[0] || '', 40) === 'update_stream' || normalizeToken(args._[0] || '', 40) === 'update-stream';
   const isTrigger = normalizeToken(args._[0] || '', 40) === 'trigger';
   const isDashboard = normalizeToken(args._[0] || '', 40) === 'dashboard';
   const isCheckin = normalizeToken(args._[0] || '', 40) === 'checkin';
   const isFeed = normalizeToken(args._[0] || '', 40) === 'feed';
+  const isArbitrate = normalizeToken(args._[0] || '', 40) === 'arbitrate';
+  const isFeedback = normalizeToken(args._[0] || '', 40) === 'feedback';
+  const isFeedbackSummary = normalizeToken(args._[0] || '', 40) === 'feedback_summary'
+    || normalizeToken(args._[0] || '', 40) === 'feedback-summary';
   const updatePersonaRaw = cleanText(args.persona || args._[1] || '', 120);
   if (isUpdateStream) {
     const updatePersonaId = resolvePersonaId(updatePersonaRaw);
@@ -2439,7 +2831,7 @@ async function main() {
             ? `- Skipped personas: ${skipped.map((row) => `${row.persona_id}(${row.reason})`).join(', ')}`
             : '- Skipped personas: none',
           '',
-          renderAllMarkdown(query, fallbackContexts, 'decision', null, emotionEnabled, valuesEnabled, includeFeedForRun)
+          renderAllMarkdown(query, fallbackContexts, 'decision', null, emotionEnabled, valuesEnabled, includeFeedForRun, surpriseEnabled, surpriseSeed)
         ].join('\n');
         appendPersonaTelemetry({
           kind: 'persona_trigger',
@@ -2479,6 +2871,7 @@ async function main() {
           process.exit(1);
         }
         const details = buildResponseDetails(
+          ctx.personaId,
           ctx.personaName,
           query,
           ctx.profileMd,
@@ -2509,7 +2902,9 @@ async function main() {
             emotionEnabled,
             valuesEnabled,
             true,
-            null
+            null,
+            surpriseEnabled,
+            surpriseSeed
           )
         ].join('\n');
         appendPersonaTelemetry({
@@ -2584,6 +2979,143 @@ async function main() {
     process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
     process.exit(0);
   }
+  if (isFeedback) {
+    const usefulRaw = cleanText(args.useful || args.persona || args['useful-persona'] || '', 120);
+    const usefulPersona = resolvePersonaId(usefulRaw);
+    if (!usefulPersona) {
+      process.stderr.write(`unknown_persona:${usefulRaw}\n`);
+      process.exit(1);
+    }
+    const row = appendPersonaFeedback({
+      session_id: cleanText(args['session-id'] || args.session_id || `session_${Date.now()}`, 120),
+      surprising: toBool(args.surprising, false),
+      changed_decision: toBool(args['changed-decision'] ?? args.changed_decision, false),
+      useful_persona: usefulPersona,
+      note: cleanText(args.note || args._.slice(1).join(' '), 600)
+    });
+    process.stdout.write(`${JSON.stringify({
+      ok: true,
+      type: 'persona_feedback_recorded',
+      feedback_path: path.relative(ROOT, PERSONA_FEEDBACK_PATH).replace(/\\/g, '/'),
+      row
+    }, null, 2)}\n`);
+    process.exit(0);
+  }
+  if (isFeedbackSummary) {
+    const window = clampInt(args.window ?? args.n ?? 100, 1, 1000, 100);
+    const payload = summarizePersonaFeedback(window);
+    if (toBool(args.json, false) || outputSchema === 'json') {
+      process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+    } else {
+      process.stdout.write(`${payload.markdown}\n`);
+    }
+    process.exit(0);
+  }
+  if (isArbitrate) {
+    const betweenRaw = cleanText(args.between || args.personas || args.participants || args._[1] || '', 1200);
+    const betweenTokens = Array.from(new Set(
+      String(betweenRaw || '')
+        .split(',')
+        .map((token) => cleanText(token, 120))
+        .filter(Boolean)
+    ));
+    const personaIds = betweenTokens
+      .map((token) => resolvePersonaId(token))
+      .filter((id: string | null): id is string => Boolean(id));
+    if (personaIds.length < 2) {
+      process.stderr.write('arbitrate_requires_at_least_two_personas\n');
+      process.exit(1);
+    }
+    const issue = cleanText(
+      args.issue
+      || args.query
+      || args.q
+      || args._.slice(2).join(' '),
+      2000
+    );
+    if (!issue) {
+      process.stderr.write('arbitrate_issue_required\n');
+      process.exit(1);
+    }
+    const lensMode = normalizeLensMode(args.lens || args.mode || 'decision');
+    const expected = cleanText(args.expected || '', 1200);
+    try {
+      const contexts = personaIds.map((id) => loadPersonaContext(id));
+      for (const ctx of contexts) {
+        const gate = evaluateSoulTokenAccess(ctx, issue);
+        if (!gate.ok) {
+          process.stderr.write(`${gate.reason}\n`);
+          process.stderr.write(`persona:${ctx.personaId}\n`);
+          process.exit(1);
+        }
+      }
+      const rendered = renderMultiPersonaMarkdown(
+        issue,
+        contexts,
+        lensMode,
+        emotionEnabled,
+        valuesEnabled,
+        includeFeedFlag,
+        expected,
+        surpriseEnabled,
+        surpriseSeed
+      );
+      appendPersonaTelemetry({
+        metric: 'persona_arbitration_resolution',
+        persona_id: personaIds.join(','),
+        issue_hash: crypto.createHash('sha256').update(issue, 'utf8').digest('hex').slice(0, 16),
+        arbitration_winner: rendered.winner || 'none',
+        arbitration_rule: cleanText(rendered.arbitration.rule || 'unknown', 120),
+        disagreement: rendered.disagreement ? 1 : 0,
+        max_divergence: Number(rendered.maxDivergence.toFixed(4)),
+        surprising: rendered.surprising ? 1 : 0
+      });
+      const suggestedResolution = rendered.winner
+        ? cleanText(rendered.finalPosition || '', 1600)
+        : 'blocked: no deterministic arbitration winner';
+      const report = {
+        ok: Boolean(rendered.winner),
+        type: 'persona_arbitration',
+        issue,
+        participants: personaIds,
+        domain: rendered.domain,
+        disagreement: rendered.disagreement,
+        max_divergence: Number(rendered.maxDivergence.toFixed(4)),
+        arbitration: rendered.arbitration,
+        winner: rendered.winner,
+        suggested_resolution: suggestedResolution,
+        persona_positions: (rendered.details || []).map((row: any) => ({
+          persona_id: row.persona_id,
+          recommendation: cleanText(row.recommendation, 1400),
+          recall: Array.isArray(row.recall) ? row.recall.slice(0, 3) : []
+        }))
+      };
+      if (toBool(args.json, false) || outputSchema === 'json') {
+        process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+      } else {
+        const lines = [
+          `Consulting personas: ${personaIds.join(', ')}`,
+          `Consulting arbitration priority stack from ${path.relative(ROOT, PERSONA_ARBITRATION_RULES_PATH).replace(/\\/g, '/')}`,
+          rendered.winner
+            ? `${rendered.winner} wins (${rendered.arbitration.rule})`
+            : `No winner (${rendered.arbitration.rule})`,
+          `Suggested resolution: ${suggestedResolution}`,
+          '',
+          rendered.markdown
+        ];
+        process.stdout.write(`${lines.join('\n')}\n`);
+      }
+      if (!rendered.winner && loadArbitrationRules().conflicting_rules_fail_closed) {
+        process.stderr.write('persona_arbitration_fail_closed\n');
+        process.exit(1);
+      }
+      process.exit(0);
+    } catch (err: any) {
+      const msg = cleanText(err && err.message || 'persona_arbitration_failed', 260);
+      process.stderr.write(`${msg}\n`);
+      process.exit(1);
+    }
+  }
 
   if (!args.persona) {
     const tokens = Array.isArray(args._) ? args._.map((row) => cleanText(row, 120)).filter(Boolean) : [];
@@ -2650,7 +3182,9 @@ async function main() {
           emotionEnabled,
           valuesEnabled,
           includeSystemPassed,
-          expected
+          expected,
+          surpriseEnabled,
+          surpriseSeed
         );
         const prelude: string[] = [];
         if (includeFailures.length) {
@@ -2670,7 +3204,46 @@ async function main() {
           include_feed: includeSystemPassed ? 1 : 0,
           query_hash: crypto.createHash('sha256').update(queryArg, 'utf8').digest('hex').slice(0, 16)
         });
-        process.stdout.write(`${markdown}\n`);
+        if (outputSchema === 'json' || toBool(args.json, false)) {
+          const payload = {
+            ok: Boolean(rendered.winner),
+            schema: 'persona_multi_lens_v1',
+            query: queryArg,
+            lens_mode: multiLensMode,
+            participants: multiPersonaIds,
+            disagreement: rendered.disagreement,
+            max_divergence: Number(rendered.maxDivergence.toFixed(4)),
+            domain: rendered.domain,
+            arbitration: rendered.arbitration,
+            winner: rendered.winner,
+            suggested_resolution: cleanText(rendered.finalPosition || '', 1600),
+            surprise: {
+              score: Number(rendered.surpriseScore.toFixed(4)),
+              surprising: rendered.surprising
+            },
+            persona_outputs: (rendered.details || []).map((row: any) => buildStructuredPersonaOutput({
+              personaId: cleanText(row.persona_id || 'unknown', 120),
+              recommendation: cleanText(row.recommendation || '', 1600),
+              reasoning: Array.isArray(row.reasoning) ? row.reasoning : [],
+              query: queryArg,
+              lensMode: multiLensMode,
+              surprise: {
+                enabled: surpriseEnabled,
+                applied: Boolean(row && row.surprise && row.surprise.applied),
+                mode: cleanText(row && row.surprise && row.surprise.mode || 'none', 80),
+                roll: Number(row && row.surprise && row.surprise.roll || 0)
+              },
+              systemPassed: {
+                total: includeSystemPassed ? 1 : 0,
+                verified: includeSystemPassed ? 1 : 0,
+                invalid: 0
+              }
+            }))
+          };
+          process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+        } else {
+          process.stdout.write(`${markdown}\n`);
+        }
         if (!rendered.winner && loadArbitrationRules().conflicting_rules_fail_closed) {
           process.stderr.write('multi_persona_arbitration_fail_closed\n');
           process.exit(1);
@@ -2734,6 +3307,7 @@ async function main() {
       if (controls.gapSeconds > 0) {
         const probe = contexts[0];
         const details = buildResponseDetails(
+          probe.personaId,
           probe.personaName,
           queryArg,
           probe.profileMd,
@@ -2742,16 +3316,18 @@ async function main() {
           probe.strategicLensMd,
           lensMode,
         emotionEnabled ? probe.emotionLensMd : '',
-        valuesEnabled ? probe.valuesLensMd : '',
-        probe.feedMd,
-        probe.memoryMd,
-        includeFeedFlag
-      );
+          valuesEnabled ? probe.valuesLensMd : '',
+          probe.feedMd,
+          probe.memoryMd,
+          includeFeedFlag,
+          surpriseEnabled,
+          surpriseSeed
+        );
         const preview = renderStreamPreview('All Personas', queryArg, details.reasoning, controls);
         process.stdout.write(`${preview}\n\n`);
         sleepMs(controls.gapSeconds * 1000);
       }
-      const markdown = renderAllMarkdown(queryArg, contexts, lensMode, controls, emotionEnabled, valuesEnabled, includeFeedFlag);
+      const markdown = renderAllMarkdown(queryArg, contexts, lensMode, controls, emotionEnabled, valuesEnabled, includeFeedFlag, surpriseEnabled, surpriseSeed);
       const utilityRate = includeFeedFlag
         ? Number((verifiedTotal / Math.max(1, contexts.length * 3)).toFixed(4))
         : 0;
@@ -2764,7 +3340,52 @@ async function main() {
         passed_data_utility_rate: utilityRate,
         query_hash: crypto.createHash('sha256').update(queryArg, 'utf8').digest('hex').slice(0, 16)
       });
-      process.stdout.write(`${markdown}\n`);
+      if (outputSchema === 'json' || toBool(args.json, false)) {
+        const personaOutputs = contexts.map((ctx) => {
+          const info = buildResponseDetails(
+            ctx.personaId,
+            ctx.personaName,
+            queryArg,
+            ctx.profileMd,
+            ctx.correspondenceMd,
+            ctx.decisionLensMd,
+            ctx.strategicLensMd,
+            lensMode,
+            emotionEnabled ? ctx.emotionLensMd : '',
+            valuesEnabled ? ctx.valuesLensMd : '',
+            ctx.feedMd,
+            ctx.memoryMd,
+            includeFeedFlag,
+            surpriseEnabled,
+            surpriseSeed
+          );
+          return buildStructuredPersonaOutput({
+            personaId: ctx.personaId,
+            recommendation: info.recommendation,
+            reasoning: info.reasoning,
+            query: queryArg,
+            lensMode,
+            surprise: {
+              enabled: surpriseEnabled,
+              applied: Boolean(info.surpriseApplied),
+              mode: cleanText(info.surpriseMode || 'none', 80),
+              roll: Number(info.surpriseRoll || 0)
+            },
+            systemPassed: info.systemPassed
+          });
+        });
+        process.stdout.write(`${JSON.stringify({
+          ok: true,
+          schema: 'persona_lens_all_v1',
+          query: queryArg,
+          lens_mode: lensMode,
+          include_feed: includeFeedFlag,
+          surprise_mode: surpriseEnabled ? 'on' : 'off',
+          persona_outputs: personaOutputs
+        }, null, 2)}\n`);
+      } else {
+        process.stdout.write(`${markdown}\n`);
+      }
       process.exit(0);
     } catch (err: any) {
       const msg = cleanText(err && err.message || 'persona_lens_all_failed', 260);
@@ -2800,6 +3421,7 @@ async function main() {
     const includeFeedActive = includeFeedFlag && feedAccess.include;
 
     const details = buildResponseDetails(
+      ctx.personaId,
       ctx.personaName,
       queryArg,
       ctx.profileMd,
@@ -2811,7 +3433,9 @@ async function main() {
       valuesEnabled ? ctx.valuesLensMd : '',
       ctx.feedMd,
       ctx.memoryMd,
-      includeFeedActive
+      includeFeedActive,
+      surpriseEnabled,
+      surpriseSeed
     );
     const llmResult = resolvePersonaLlmRecommendation(
       ctx,
@@ -2855,7 +3479,9 @@ async function main() {
       emotionEnabled,
       valuesEnabled,
       includeFeedActive,
-      llmResult
+      llmResult,
+      surpriseEnabled,
+      surpriseSeed
     );
     const utilityRate = includeFeedActive
       ? Number((Number(details.systemPassed && details.systemPassed.verified || 0) / Math.max(1, details.reasoning.length)).toFixed(4))
@@ -2870,7 +3496,45 @@ async function main() {
       recommendation_impacted: includeFeedActive && String(details.recommendation || '').includes('System-passed context:') ? 1 : 0,
       query_hash: crypto.createHash('sha256').update(queryArg, 'utf8').digest('hex').slice(0, 16)
     });
-    process.stdout.write(`${markdown}\n`);
+    if (outputSchema === 'json' || toBool(args.json, false)) {
+      const structured = buildStructuredPersonaOutput({
+        personaId: ctx.personaId,
+        recommendation: cleanText(gapResult.finalOverride, 1600) || cleanText(details.recommendation, 1600),
+        reasoning: details.reasoning,
+        query: queryArg,
+        lensMode,
+        surprise: {
+          enabled: surpriseEnabled,
+          applied: Boolean(details.surpriseApplied),
+          mode: cleanText(details.surpriseMode || 'none', 80),
+          roll: Number(details.surpriseRoll || 0)
+        },
+        systemPassed: details.systemPassed
+      });
+      process.stdout.write(`${JSON.stringify({
+        ok: true,
+        ...structured,
+        prompt_template: details.promptTemplate,
+        recent_correspondence: (details.recentCorrespondence || []).map((row: any) => ({
+          date: cleanText(row && row.date || '', 20),
+          topic: cleanText(row && row.topic || '', 120),
+          body: cleanText(row && row.body || '', 240)
+        })),
+        llm: {
+          enabled: Boolean(llmResult && llmResult.enabled),
+          used: Boolean(llmResult && llmResult.used),
+          reason: cleanText(llmResult && llmResult.reason || 'none', 160),
+          model: cleanText(llmResult && llmResult.model || 'n/a', 120)
+        },
+        intercept: {
+          applied: Boolean(gapResult.intercepted),
+          approved_early: Boolean(gapResult.approvedEarly),
+          log_path: interceptLogPath || null
+        }
+      }, null, 2)}\n`);
+    } else {
+      process.stdout.write(`${markdown}\n`);
+    }
     process.exit(0);
   } catch (err: any) {
     const msg = cleanText(err && err.message || 'persona_lens_failed', 260);
