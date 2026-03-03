@@ -555,6 +555,62 @@ function runRustQueueRows(payload: AnyObj) {
   return runQueueRowsViaCargo(payloadText);
 }
 
+function runDispatchRowsViaRustBinary(payloadText: string) {
+  const payloadB64 = Buffer.from(String(payloadText || ''), 'utf8').toString('base64');
+  for (const candidate of executionBinaryCandidates()) {
+    try {
+      if (!fs.existsSync(candidate)) continue;
+      const out = spawnSync(candidate, ['dispatch-rows', `--payload-base64=${payloadB64}`], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        maxBuffer: 10 * 1024 * 1024
+      });
+      const payload = parseJsonPayload(out.stdout);
+      if (Number(out.status) === 0 && payload && typeof payload === 'object') {
+        return { ok: true, engine: 'rust_bin', binary_path: candidate, payload };
+      }
+    } catch {
+      // try next candidate
+    }
+  }
+  return { ok: false, error: 'rust_binary_unavailable' };
+}
+
+function runDispatchRowsViaCargo(payloadText: string) {
+  const payloadB64 = Buffer.from(String(payloadText || ''), 'utf8').toString('base64');
+  const args = [
+    'run',
+    '--quiet',
+    '--manifest-path',
+    EXECUTION_MANIFEST,
+    '--bin',
+    'execution_core',
+    '--',
+    'dispatch-rows',
+    `--payload-base64=${payloadB64}`
+  ];
+  const out = spawnSync('cargo', args, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    maxBuffer: 10 * 1024 * 1024
+  });
+  const payload = parseJsonPayload(out.stdout);
+  if (Number(out.status) === 0 && payload && typeof payload === 'object') {
+    return { ok: true, engine: 'rust_cargo', payload };
+  }
+  return {
+    ok: false,
+    error: `cargo_dispatch_rows_failed:${cleanText(out.stderr || out.stdout || '', 220)}`
+  };
+}
+
+function runRustDispatchRows(payload: AnyObj) {
+  const payloadText = JSON.stringify(payload || {});
+  const bin = runDispatchRowsViaRustBinary(payloadText);
+  if (bin.ok) return bin;
+  return runDispatchRowsViaCargo(payloadText);
+}
+
 function defaultPolicy() {
   return {
     version: '1.0',
@@ -1330,31 +1386,74 @@ function dispatchMicroTaskExecutions(policy: AnyObj, payload: AnyObj) {
     };
   }
 
-  const rows: AnyObj[] = [];
-  for (const task of Array.isArray(payload.micro_tasks) ? payload.micro_tasks : []) {
-    const blocked = task && task.governance && task.governance.blocked === true;
-    const lane = normalizeToken(task && task.route && task.route.lane || 'unknown', 80) || 'unknown';
-    const executor = lane === policy.parallel.storm_lane
-      ? handoffPolicy.storm_executor
-      : handoffPolicy.autonomous_executor;
-    const row: AnyObj = {
-      ts: nowIso(),
-      type: 'task_micro_execution_dispatch',
-      run_id: payload.run_id,
-      goal_id: payload.goal && payload.goal.goal_id ? payload.goal.goal_id : null,
-      objective_id: payload.goal && payload.goal.objective_id ? payload.goal.objective_id : null,
-      micro_task_id: task.micro_task_id,
-      profile_id: task.profile_id,
-      lane,
-      executor,
-      blocked,
-      shadow_only: payload.shadow_only === true,
-      apply_executed: payload.apply_executed === true,
-      status: blocked ? 'blocked' : 'queued',
-      passport_id: payload.passport_id || null
-    };
+  const taskList = Array.isArray(payload.micro_tasks) ? payload.micro_tasks : [];
+  const rustRows = runRustDispatchRows({
+    run_id: payload.run_id,
+    goal_id: payload.goal && payload.goal.goal_id ? payload.goal.goal_id : null,
+    objective_id: payload.goal && payload.goal.objective_id ? payload.goal.objective_id : null,
+    shadow_only: payload.shadow_only === true,
+    apply_executed: payload.apply_executed === true,
+    passport_id: payload.passport_id || null,
+    storm_lane: policy.parallel && policy.parallel.storm_lane ? policy.parallel.storm_lane : 'storm_human_lane',
+    autonomous_executor: handoffPolicy.autonomous_executor,
+    storm_executor: handoffPolicy.storm_executor,
+    tasks: taskList
+  });
 
-    if (!blocked && executor === 'universal_execution_primitive' && handoffPolicy.execute_immediately === true) {
+  const rows: AnyObj[] = [];
+  if (rustRows && rustRows.ok === true && rustRows.payload && rustRows.payload.ok === true) {
+    for (const row of Array.isArray(rustRows.payload.rows) ? rustRows.payload.rows : []) {
+      rows.push({
+        ts: nowIso(),
+        ...row
+      });
+    }
+  } else {
+    for (const task of taskList) {
+      const blocked = task && task.governance && task.governance.blocked === true;
+      const lane = normalizeToken(task && task.route && task.route.lane || 'unknown', 80) || 'unknown';
+      const executor = lane === policy.parallel.storm_lane
+        ? handoffPolicy.storm_executor
+        : handoffPolicy.autonomous_executor;
+      rows.push({
+        ts: nowIso(),
+        type: 'task_micro_execution_dispatch',
+        run_id: payload.run_id,
+        goal_id: payload.goal && payload.goal.goal_id ? payload.goal.goal_id : null,
+        objective_id: payload.goal && payload.goal.objective_id ? payload.goal.objective_id : null,
+        micro_task_id: task.micro_task_id,
+        profile_id: task.profile_id,
+        lane,
+        executor,
+        blocked,
+        shadow_only: payload.shadow_only === true,
+        apply_executed: payload.apply_executed === true,
+        status: blocked ? 'blocked' : 'queued',
+        passport_id: payload.passport_id || null
+      });
+    }
+  }
+
+  const taskById = new Map<string, AnyObj>();
+  for (const task of taskList) {
+    const id = cleanText(task && task.micro_task_id, 120);
+    if (id) taskById.set(id, task);
+  }
+
+  for (let i = 0; i < rows.length; i += 1) {
+    const row = rows[i];
+    row.lane = normalizeToken(row && row.lane || 'unknown', 80) || 'unknown';
+    row.executor = normalizeToken(row && row.executor || '', 80)
+      || (row.lane === normalizeToken(policy.parallel && policy.parallel.storm_lane || 'storm_human_lane', 80)
+        ? normalizeToken(handoffPolicy.storm_executor, 80)
+        : normalizeToken(handoffPolicy.autonomous_executor, 80))
+      || 'universal_execution_primitive';
+    row.blocked = row && row.blocked === true;
+    row.status = row.blocked ? 'blocked' : (cleanText(row.status || 'queued', 40) || 'queued');
+
+    const microTaskId = cleanText(row && row.micro_task_id, 120);
+    const task = (microTaskId && taskById.get(microTaskId)) || taskList[i] || null;
+    if (row.blocked !== true && row.executor === 'universal_execution_primitive' && handoffPolicy.execute_immediately === true && task) {
       const context = {
         objective_id: payload.goal && payload.goal.objective_id ? payload.goal.objective_id : null,
         run_id: payload.run_id,
@@ -1384,7 +1483,6 @@ function dispatchMicroTaskExecutions(policy: AnyObj, payload: AnyObj) {
 
     appendJsonl(handoffPolicy.dispatch_queue_path, row);
     appendJsonl(handoffPolicy.execution_log_path, row);
-    rows.push(row);
   }
 
   const rustSummary = runRustDispatchSummary(rows, true);

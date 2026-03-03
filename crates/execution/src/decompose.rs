@@ -202,6 +202,36 @@ pub struct QueueRowsResponse {
     pub storm: Vec<Value>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct DispatchRowsRequest {
+    #[serde(default)]
+    pub run_id: String,
+    #[serde(default)]
+    pub goal_id: String,
+    #[serde(default)]
+    pub objective_id: Option<String>,
+    #[serde(default)]
+    pub shadow_only: bool,
+    #[serde(default)]
+    pub apply_executed: bool,
+    #[serde(default)]
+    pub passport_id: Option<String>,
+    #[serde(default = "default_storm_lane")]
+    pub storm_lane: String,
+    #[serde(default = "default_autonomous_executor")]
+    pub autonomous_executor: String,
+    #[serde(default = "default_storm_executor")]
+    pub storm_executor: String,
+    #[serde(default)]
+    pub tasks: Vec<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DispatchRowsResponse {
+    pub ok: bool,
+    pub rows: Vec<Value>,
+}
+
 #[derive(Debug, Clone)]
 struct Segment {
     text: String,
@@ -231,6 +261,12 @@ fn default_lane() -> String {
     "autonomous_micro_agent".to_string()
 }
 fn default_storm_lane() -> String {
+    "storm_human_lane".to_string()
+}
+fn default_autonomous_executor() -> String {
+    "universal_execution_primitive".to_string()
+}
+fn default_storm_executor() -> String {
     "storm_human_lane".to_string()
 }
 fn default_min_storm_share() -> f64 {
@@ -1055,6 +1091,91 @@ pub fn queue_rows_json(payload: &str) -> Result<String, String> {
         .map_err(|err| format!("queue_rows_payload_serialize_failed:{}", err))
 }
 
+pub fn build_dispatch_rows(req: &DispatchRowsRequest) -> Vec<Value> {
+    let storm_lane = {
+        let lane = normalize_token(req.storm_lane.as_str(), 80);
+        if lane.is_empty() {
+            default_storm_lane()
+        } else {
+            lane
+        }
+    };
+    let autonomous_executor = {
+        let executor = normalize_token(req.autonomous_executor.as_str(), 80);
+        if executor.is_empty() {
+            default_autonomous_executor()
+        } else {
+            executor
+        }
+    };
+    let storm_executor = {
+        let executor = normalize_token(req.storm_executor.as_str(), 80);
+        if executor.is_empty() {
+            default_storm_executor()
+        } else {
+            executor
+        }
+    };
+
+    req.tasks
+        .iter()
+        .map(|task| {
+            let route = task.get("route").and_then(|v| v.as_object());
+            let governance = task.get("governance").and_then(|v| v.as_object());
+            let lane = {
+                let normalized = normalize_token(
+                    route
+                        .and_then(|row| row.get("lane"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown"),
+                    80,
+                );
+                if normalized.is_empty() {
+                    "unknown".to_string()
+                } else {
+                    normalized
+                }
+            };
+            let blocked = governance
+                .and_then(|row| row.get("blocked"))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let executor = if lane == storm_lane {
+                storm_executor.clone()
+            } else {
+                autonomous_executor.clone()
+            };
+
+            json!({
+                "type": "task_micro_execution_dispatch",
+                "run_id": req.run_id,
+                "goal_id": req.goal_id,
+                "objective_id": req.objective_id,
+                "micro_task_id": task.get("micro_task_id").cloned().unwrap_or(Value::Null),
+                "profile_id": task.get("profile_id").cloned().unwrap_or(Value::Null),
+                "lane": lane,
+                "executor": executor,
+                "blocked": blocked,
+                "shadow_only": req.shadow_only,
+                "apply_executed": req.apply_executed,
+                "status": if blocked { "blocked" } else { "queued" },
+                "passport_id": req.passport_id
+            })
+        })
+        .collect()
+}
+
+pub fn dispatch_rows_json(payload: &str) -> Result<String, String> {
+    let req = serde_json::from_str::<DispatchRowsRequest>(payload)
+        .map_err(|err| format!("dispatch_rows_payload_parse_failed:{}", err))?;
+    let resp = DispatchRowsResponse {
+        ok: true,
+        rows: build_dispatch_rows(&req),
+    };
+    serde_json::to_string(&resp)
+        .map_err(|err| format!("dispatch_rows_payload_serialize_failed:{}", err))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1219,5 +1340,40 @@ mod tests {
         assert_eq!(weaver[0]["type"], "task_micro_route_candidate");
         assert_eq!(storm[0]["type"], "storm_micro_task_offer");
         assert_eq!(storm[0]["micro_task_id"], "mt_2");
+    }
+
+    #[test]
+    fn build_dispatch_rows_emits_executor_and_status() {
+        let req = DispatchRowsRequest {
+            run_id: "run_dispatch".to_string(),
+            goal_id: "goal_dispatch".to_string(),
+            objective_id: Some("obj_dispatch".to_string()),
+            shadow_only: false,
+            apply_executed: true,
+            passport_id: Some("passport_dispatch".to_string()),
+            storm_lane: "storm_human_lane".to_string(),
+            autonomous_executor: "universal_execution_primitive".to_string(),
+            storm_executor: "storm_human_lane".to_string(),
+            tasks: vec![
+                json!({
+                    "micro_task_id": "mt_a",
+                    "profile_id": "p_a",
+                    "route": { "lane": "autonomous_micro_agent" },
+                    "governance": { "blocked": false }
+                }),
+                json!({
+                    "micro_task_id": "mt_b",
+                    "profile_id": "p_b",
+                    "route": { "lane": "storm_human_lane" },
+                    "governance": { "blocked": true }
+                })
+            ],
+        };
+        let rows = build_dispatch_rows(&req);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0]["executor"], "universal_execution_primitive");
+        assert_eq!(rows[0]["status"], "queued");
+        assert_eq!(rows[1]["executor"], "storm_human_lane");
+        assert_eq!(rows[1]["status"], "blocked");
     }
 }

@@ -2,7 +2,7 @@ use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use execution_core::{
     compose_micro_tasks_json, decompose_goal_json, run_autoscale_json, run_sprint_contract_json, run_workflow,
-    queue_rows_json, run_workflow_json, summarize_dispatch_json, summarize_tasks_json,
+    dispatch_rows_json, queue_rows_json, run_workflow_json, summarize_dispatch_json, summarize_tasks_json,
 };
 use std::env;
 use std::fs;
@@ -27,6 +27,9 @@ fn usage() {
     eprintln!("  execution_core queue-rows --payload=<json_payload>");
     eprintln!("  execution_core queue-rows --payload-base64=<base64_json_payload>");
     eprintln!("  execution_core queue-rows --payload-file=<path>");
+    eprintln!("  execution_core dispatch-rows --payload=<json_payload>");
+    eprintln!("  execution_core dispatch-rows --payload-base64=<base64_json_payload>");
+    eprintln!("  execution_core dispatch-rows --payload-file=<path>");
     eprintln!("  execution_core sprint-contract --payload=<json_payload>");
     eprintln!("  execution_core sprint-contract --payload-base64=<base64_json_payload>");
     eprintln!("  execution_core sprint-contract --payload-file=<path>");
@@ -162,6 +165,21 @@ fn main() {
         },
         "queue-rows" => match load_payload(&args[1..]) {
             Ok(payload) => match queue_rows_json(&payload) {
+                Ok(out) => println!("{}", out),
+                Err(err) => {
+                    let payload = serde_json::json!({ "ok": false, "error": err });
+                    eprintln!("{}", payload);
+                    std::process::exit(1);
+                }
+            },
+            Err(err) => {
+                let payload = serde_json::json!({ "ok": false, "error": err });
+                eprintln!("{}", payload);
+                std::process::exit(1);
+            }
+        },
+        "dispatch-rows" => match load_payload(&args[1..]) {
+            Ok(payload) => match dispatch_rows_json(&payload) {
                 Ok(out) => println!("{}", out),
                 Err(err) => {
                     let payload = serde_json::json!({ "ok": false, "error": err });
