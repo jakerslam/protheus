@@ -439,6 +439,66 @@ function runRustTaskSummary(tasks: AnyObj[], shadowOnly: boolean, applyExecuted:
   return runTaskSummaryViaCargo(payloadText);
 }
 
+function runDispatchSummaryViaRustBinary(payloadText: string) {
+  const payloadB64 = Buffer.from(String(payloadText || ''), 'utf8').toString('base64');
+  for (const candidate of executionBinaryCandidates()) {
+    try {
+      if (!fs.existsSync(candidate)) continue;
+      const out = spawnSync(candidate, ['dispatch-summary', `--payload-base64=${payloadB64}`], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        maxBuffer: 10 * 1024 * 1024
+      });
+      const payload = parseJsonPayload(out.stdout);
+      if (Number(out.status) === 0 && payload && typeof payload === 'object') {
+        return { ok: true, engine: 'rust_bin', binary_path: candidate, payload };
+      }
+    } catch {
+      // try next candidate
+    }
+  }
+  return { ok: false, error: 'rust_binary_unavailable' };
+}
+
+function runDispatchSummaryViaCargo(payloadText: string) {
+  const payloadB64 = Buffer.from(String(payloadText || ''), 'utf8').toString('base64');
+  const args = [
+    'run',
+    '--quiet',
+    '--manifest-path',
+    EXECUTION_MANIFEST,
+    '--bin',
+    'execution_core',
+    '--',
+    'dispatch-summary',
+    `--payload-base64=${payloadB64}`
+  ];
+  const out = spawnSync('cargo', args, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    maxBuffer: 10 * 1024 * 1024
+  });
+  const payload = parseJsonPayload(out.stdout);
+  if (Number(out.status) === 0 && payload && typeof payload === 'object') {
+    return { ok: true, engine: 'rust_cargo', payload };
+  }
+  return {
+    ok: false,
+    error: `cargo_dispatch_summary_failed:${cleanText(out.stderr || out.stdout || '', 220)}`
+  };
+}
+
+function runRustDispatchSummary(rows: AnyObj[], enabled: boolean) {
+  const payload = {
+    rows: Array.isArray(rows) ? rows : [],
+    enabled: Boolean(enabled)
+  };
+  const payloadText = JSON.stringify(payload);
+  const bin = runDispatchSummaryViaRustBinary(payloadText);
+  if (bin.ok) return bin;
+  return runDispatchSummaryViaCargo(payloadText);
+}
+
 function defaultPolicy() {
   return {
     version: '1.0',
@@ -1140,6 +1200,13 @@ function dispatchMicroTaskExecutions(policy: AnyObj, payload: AnyObj) {
     ? policy.execution_handoff
     : defaultPolicy().execution_handoff;
   if (handoffPolicy.enabled !== true) {
+    const rustSummary = runRustDispatchSummary([], false);
+    if (rustSummary && rustSummary.ok === true && rustSummary.payload && rustSummary.payload.ok === true) {
+      return {
+        dispatched: [],
+        summary: rustSummary.payload.summary
+      };
+    }
     return {
       dispatched: [],
       summary: {
@@ -1153,6 +1220,13 @@ function dispatchMicroTaskExecutions(policy: AnyObj, payload: AnyObj) {
     };
   }
   if (payload.shadow_only === true || payload.apply_executed !== true) {
+    const rustSummary = runRustDispatchSummary([], true);
+    if (rustSummary && rustSummary.ok === true && rustSummary.payload && rustSummary.payload.ok === true) {
+      return {
+        dispatched: [],
+        summary: rustSummary.payload.summary
+      };
+    }
     return {
       dispatched: [],
       summary: {
@@ -1221,6 +1295,14 @@ function dispatchMicroTaskExecutions(policy: AnyObj, payload: AnyObj) {
     appendJsonl(handoffPolicy.dispatch_queue_path, row);
     appendJsonl(handoffPolicy.execution_log_path, row);
     rows.push(row);
+  }
+
+  const rustSummary = runRustDispatchSummary(rows, true);
+  if (rustSummary && rustSummary.ok === true && rustSummary.payload && rustSummary.payload.ok === true) {
+    return {
+      dispatched: rows,
+      summary: rustSummary.payload.summary
+    };
   }
 
   return {

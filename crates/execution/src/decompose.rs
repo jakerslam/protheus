@@ -163,6 +163,20 @@ pub struct TaskSummaryResponse {
     pub summary: Value,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct DispatchSummaryRequest {
+    #[serde(default)]
+    pub rows: Vec<Value>,
+    #[serde(default)]
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DispatchSummaryResponse {
+    pub ok: bool,
+    pub summary: Value,
+}
+
 #[derive(Debug, Clone)]
 struct Segment {
     text: String,
@@ -878,6 +892,47 @@ pub fn summarize_tasks_json(payload: &str) -> Result<String, String> {
     serde_json::to_string(&resp).map_err(|err| format!("task_summary_payload_serialize_failed:{}", err))
 }
 
+pub fn summarize_dispatch(rows: &[Value], enabled: bool) -> Value {
+    let mut queued = 0u64;
+    let mut executed = 0u64;
+    let mut failed = 0u64;
+    let mut blocked = 0u64;
+
+    for row in rows {
+        let status = row
+            .get("status")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
+        match status {
+            "queued" => queued += 1,
+            "executed" => executed += 1,
+            "failed" => failed += 1,
+            "blocked" => blocked += 1,
+            _ => {}
+        }
+    }
+
+    json!({
+        "enabled": enabled,
+        "total": rows.len(),
+        "queued": queued,
+        "executed": executed,
+        "failed": failed,
+        "blocked": blocked
+    })
+}
+
+pub fn summarize_dispatch_json(payload: &str) -> Result<String, String> {
+    let req = serde_json::from_str::<DispatchSummaryRequest>(payload)
+        .map_err(|err| format!("dispatch_summary_payload_parse_failed:{}", err))?;
+    let resp = DispatchSummaryResponse {
+        ok: true,
+        summary: summarize_dispatch(&req.rows, req.enabled),
+    };
+    serde_json::to_string(&resp)
+        .map_err(|err| format!("dispatch_summary_payload_serialize_failed:{}", err))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -972,5 +1027,23 @@ mod tests {
         assert_eq!(summary["storm_lane"], 2);
         assert_eq!(summary["shadow_only"], true);
         assert_eq!(summary["apply_executed"], false);
+    }
+
+    #[test]
+    fn summarize_dispatch_reports_status_counts() {
+        let rows = vec![
+            json!({ "status": "queued" }),
+            json!({ "status": "executed" }),
+            json!({ "status": "blocked" }),
+            json!({ "status": "failed" }),
+            json!({ "status": "executed" }),
+        ];
+        let summary = summarize_dispatch(&rows, true);
+        assert_eq!(summary["enabled"], true);
+        assert_eq!(summary["total"], 5);
+        assert_eq!(summary["queued"], 1);
+        assert_eq!(summary["executed"], 2);
+        assert_eq!(summary["failed"], 1);
+        assert_eq!(summary["blocked"], 1);
     }
 }
