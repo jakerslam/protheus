@@ -62,6 +62,7 @@ try {
     rules: {
       no_trailing_whitespace: true,
       eof_newline: true,
+      no_crlf: true,
       no_tabs_for: ['.ts']
     },
     paths: {
@@ -79,6 +80,15 @@ try {
   assert.notStrictEqual(out.status, 0, 'dirty file should fail strict mode');
   assert.strictEqual(out.payload.ok, false, 'dirty file should fail');
   assert.ok(out.payload.findings_count >= 1, 'findings should be reported');
+
+  writeText(path.join(tmp, 'systems', 'demo.ts'), 'const a = 1;\r\nconst b = 2;\r\n');
+  out = run(['check', '--strict=1', `--policy=${policyPath}`], { OPENCLAW_WORKSPACE: tmp });
+  assert.notStrictEqual(out.status, 0, 'CRLF file should fail strict mode');
+  assert.strictEqual(out.payload.ok, false, 'CRLF file should fail');
+  assert.ok(
+    Array.isArray(out.payload.findings) && out.payload.findings.some((row) => row && row.rule === 'no_crlf_line_endings'),
+    'CRLF rule finding should be reported'
+  );
 
   fs.rmSync(tmp, { recursive: true, force: true });
   console.log('org_code_format_guard.test.js: OK');

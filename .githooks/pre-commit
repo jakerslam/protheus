@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-npm run ops:format:check
+npm run ops:format:check:staged
 npm run lint

@@ -35,6 +35,7 @@
   "rules": {
     "no_trailing_whitespace": true,
     "eof_newline": true,
+    "no_crlf": true,
     "no_tabs_for": [
       ".ts",
       ".js",
