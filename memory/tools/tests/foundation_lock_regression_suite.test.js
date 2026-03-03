@@ -32,6 +32,10 @@ const checks = [
     cmd: [process.execPath, ['memory/tools/tests/execution_security_gate_integration.test.js']]
   },
   {
+    name: 'memory_security_gate_integration.test.js',
+    cmd: [process.execPath, ['memory/tools/tests/memory_security_gate_integration.test.js']]
+  },
+  {
     name: 'workflow_executor_step_security_gate.test.js',
     cmd: [process.execPath, ['memory/tools/tests/workflow_executor_step_security_gate.test.js']]
   }
