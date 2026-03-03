@@ -4,6 +4,8 @@ mod decompose;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
+use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -277,7 +279,7 @@ pub fn run_workflow(yaml: &str) -> ExecutionReceipt {
     }
 }
 
-pub fn run_workflow_json(yaml: &str) -> String {
+fn run_workflow_json_internal(yaml: &str) -> String {
     serde_json::to_string(&run_workflow(yaml)).unwrap_or_else(|err| {
         format!(
             "{{\"workflow_id\":\"invalid_workflow\",\"status\":\"failed\",\"deterministic\":true,\"replayable\":false,\"processed_steps\":0,\"pause_reason\":\"json_serialize_failed:{}\",\"event_digest\":\"\",\"events\":[],\"state\":{{\"cursor\":0,\"paused\":false,\"completed\":false,\"last_step_id\":null,\"processed_step_ids\":[],\"processed_events\":0,\"digest\":\"\"}},\"metadata\":{{}},\"warnings\":[\"json_serialize_failed\"]}}",
@@ -286,9 +288,39 @@ pub fn run_workflow_json(yaml: &str) -> String {
     })
 }
 
+pub fn run_workflow_json(yaml: &str) -> String {
+    run_workflow_json_internal(yaml)
+}
+
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn run_workflow_wasm(yaml: &str) -> String {
-    run_workflow_json(yaml)
+    run_workflow_json_internal(yaml)
+}
+
+#[no_mangle]
+pub extern "C" fn run_workflow_ffi(yaml_ptr: *const c_char) -> *mut c_char {
+    let payload = if yaml_ptr.is_null() {
+        run_workflow_json_internal("workflow_id: [invalid")
+    } else {
+        let yaml_text = unsafe { CStr::from_ptr(yaml_ptr) }.to_str().unwrap_or("{}");
+        run_workflow_json_internal(yaml_text)
+    };
+    match CString::new(payload) {
+        Ok(v) => v.into_raw(),
+        Err(_) => CString::new(
+            "{\"workflow_id\":\"invalid_workflow\",\"status\":\"failed\",\"deterministic\":true,\"replayable\":false,\"processed_steps\":0,\"pause_reason\":\"ffi_payload_contains_nul\",\"event_digest\":\"\",\"events\":[],\"state\":{\"cursor\":0,\"paused\":false,\"completed\":false,\"last_step_id\":null,\"processed_step_ids\":[],\"processed_events\":0,\"digest\":\"\"},\"metadata\":{},\"warnings\":[\"ffi_payload_contains_nul\"]}"
+        ).map(|v| v.into_raw()).unwrap_or(std::ptr::null_mut()),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn execution_core_string_free(ptr: *mut c_char) {
+    if ptr.is_null() {
+        return;
+    }
+    unsafe {
+        let _ = CString::from_raw(ptr);
+    }
 }
 
 #[cfg(test)]
@@ -355,5 +387,27 @@ mod tests {
         let receipt = run_workflow("workflow_id: [invalid");
         assert_eq!(receipt.status, "failed");
         assert_eq!(receipt.workflow_id, "invalid_workflow");
+    }
+
+    #[test]
+    fn ffi_roundtrip_returns_json_receipt() {
+        let yaml = CString::new(sample_yaml()).unwrap();
+        let out_ptr = run_workflow_ffi(yaml.as_ptr());
+        assert!(!out_ptr.is_null());
+        let text = unsafe { CStr::from_ptr(out_ptr) }.to_str().unwrap().to_string();
+        execution_core_string_free(out_ptr);
+        let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(parsed["status"], "completed");
+        assert_eq!(parsed["workflow_id"], "phase2_parity_demo");
+    }
+
+    #[test]
+    fn ffi_null_pointer_returns_failed_payload() {
+        let out_ptr = run_workflow_ffi(std::ptr::null());
+        assert!(!out_ptr.is_null());
+        let text = unsafe { CStr::from_ptr(out_ptr) }.to_str().unwrap().to_string();
+        execution_core_string_free(out_ptr);
+        let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(parsed["status"], "failed");
     }
 }
