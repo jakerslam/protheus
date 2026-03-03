@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-03T03:18:56.472Z",
-  "source_hash": "e12040a247f24e0af0595117",
-  "row_count": 744,
-  "active_count": 0,
-  "archive_count": 744,
+  "generated_at": "2026-03-03T04:28:16.226Z",
+  "source_hash": "a00fec513def5e0f14d78a76",
+  "row_count": 761,
+  "active_count": 7,
+  "archive_count": 754,
   "rows": [
     {
       "id": "BL-001",
@@ -9336,6 +9336,256 @@
         "V4-BRAND-001",
         "V4-FORT-007",
         "V4-SUITE-012"
+      ]
+    },
+    {
+      "id": "V5-RUST-HYB-001",
+      "class": "scale-readiness",
+      "wave": "V5",
+      "status": "done",
+      "title": "15-25% Rust Share Control Plan",
+      "problem": "Rust migration direction needs an explicit bounded target to maximize performance/safety gains without over-rotating into full rewrite risk and delivery slowdown.",
+      "acceptance": "Define and lock a hybrid target plan (`15-25%` repository Rust share) with lane-level scope boundaries, excluded TS-first surfaces, and stage gates tied to runtime impact metrics. Verify via language-share baseline report + signed migration ADR receipts; rollback by restoring prior migration governance profile.",
+      "dependencies": [
+        "V5-RUST-PROD-001",
+        "V5-RUST-PROD-011"
+      ]
+    },
+    {
+      "id": "V5-RUST-HYB-002",
+      "class": "primitive-upgrade",
+      "wave": "V5",
+      "status": "done",
+      "title": "Memory Lane Rust Completion (Scheduler + Compression + SQLite Hot Paths)",
+      "problem": "Memory/scheduling/compression loops remain split across language boundaries and leave performance/safety gains partially realized.",
+      "acceptance": "Complete Rust implementation for memory scheduler/compression/SQLite hot paths while preserving TS orchestration wrappers and compatibility contracts. Verify via parity + latency/memory benchmark receipts and crash-free soak results; rollback by feature-flagging Rust memory path off and restoring previous adapter mode.",
+      "dependencies": [
+        "V5-RUST-HYB-001",
+        "V5-RUST-PROD-004",
+        "V5-RUST-PROD-006"
+      ]
+    },
+    {
+      "id": "V5-RUST-HYB-003",
+      "class": "primitive-upgrade",
+      "wave": "V5",
+      "status": "done",
+      "title": "Execution Runtime Rust Cutover (Deterministic Receipts + Replay Core)",
+      "problem": "Deterministic execution/replay core still carries avoidable runtime overhead and correctness risk under heavy concurrency.",
+      "acceptance": "Move execution/replay hot paths into Rust with strict receipt determinism and replay parity guarantees while retaining existing CLI/operator surfaces. Verify via replay parity suites + p95/p99 throughput receipts; rollback by routing execution to prior TS runtime path.",
+      "dependencies": [
+        "V5-RUST-HYB-001",
+        "V5-RUST-PROD-003",
+        "V5-RUST-PROD-008"
+      ]
+    },
+    {
+      "id": "V5-RUST-HYB-004",
+      "class": "hardening",
+      "wave": "V5",
+      "status": "done",
+      "title": "Security + Vault Rust Core Hardening",
+      "problem": "Security/vault paths require maximum memory-safety and deterministic failure semantics to preserve fail-closed sovereignty guarantees.",
+      "acceptance": "Migrate security/vault crypto-critical hot paths to Rust (key operations, rotation checks, audit proof emitters) with strict fail-closed behavior and policy continuity. Verify via security regression pack + tamper simulation receipts; rollback by disabling Rust security lane and restoring previous hardened path.",
+      "dependencies": [
+        "V5-RUST-HYB-001",
+        "V5-RUST-PROD-010",
+        "V4-SUITE-004"
+      ]
+    },
+    {
+      "id": "V5-RUST-HYB-005",
+      "class": "extension",
+      "wave": "V5",
+      "status": "done",
+      "title": "Pinnacle CRDT Rust Merge Engine",
+      "problem": "High-frequency CRDT merge logic remains vulnerable to avoidable GC/latency overhead in conflict-heavy sync scenarios.",
+      "acceptance": "Implement Pinnacle CRDT merge/conflict-resolution core in Rust with deterministic state convergence and TS wrapper compatibility. Verify via CRDT convergence replay tests + sync latency receipts; rollback by falling back to previous CRDT merge adapter.",
+      "dependencies": [
+        "V5-RUST-HYB-001",
+        "V5-RUST-PROD-004",
+        "V4-SUITE-011"
+      ]
+    },
+    {
+      "id": "V5-RUST-HYB-006",
+      "class": "hardening",
+      "wave": "V5",
+      "status": "done",
+      "title": "Econ + Crypto Rust Safety Core",
+      "problem": "Money-adjacent accounting and crypto arithmetic require stronger overflow/memory safety and deterministic correctness under stress.",
+      "acceptance": "Migrate economics/crypto compute hot paths (scoring, balance transforms, integrity checks) to Rust with audited numeric safety constraints and schema stability. Verify via econ simulation + integrity check receipts; rollback by switching econ/crypto evaluation to prior validated path.",
+      "dependencies": [
+        "V5-RUST-HYB-001",
+        "V5-RUST-PROD-006",
+        "V4-SUITE-009"
+      ]
+    },
+    {
+      "id": "V5-RUST-HYB-007",
+      "class": "extension",
+      "wave": "V5",
+      "status": "done",
+      "title": "Red Legion Chaos Engine Rust Acceleration",
+      "problem": "Continuous red-team and drift workloads consume disproportionate CPU and can throttle adversarial test cadence.",
+      "acceptance": "Port Red Legion chaos/drift hot loops to Rust for lower-overhead simulation throughput while preserving mission controls and covenant gates. Verify via chaos throughput benchmarks + mission safety receipts; rollback by reverting Red Legion execution to existing engine profile.",
+      "dependencies": [
+        "V5-RUST-HYB-001",
+        "V5-RUST-PROD-003",
+        "V4-SUITE-006"
+      ]
+    },
+    {
+      "id": "V5-RUST-HYB-008",
+      "class": "extension",
+      "wave": "V5",
+      "status": "done",
+      "title": "Observability Telemetry Rust Emitter Core",
+      "problem": "Telemetry hot paths still pay unnecessary overhead and can reduce monitoring fidelity at higher event volume.",
+      "acceptance": "Move telemetry emit/aggregation hot paths to Rust with field/schema parity guarantees and compatibility with existing telemetry/export CLI workflows. Verify via telemetry parity tests + overhead reduction receipts; rollback by restoring prior telemetry emitter path.",
+      "dependencies": [
+        "V5-RUST-HYB-001",
+        "V5-RUST-PROD-009",
+        "V4-SUITE-003"
+      ]
+    },
+    {
+      "id": "V5-RUST-HYB-009",
+      "class": "extension",
+      "wave": "V5",
+      "status": "done",
+      "title": "WASM Adapter Rust Bridge Expansion",
+      "problem": "Cross-platform adapter surfaces need a native Rust/WASM bridge plan to avoid duplicated logic across runtime environments.",
+      "acceptance": "Implement Rust-first WASM bridge for shared adapter logic, preserving TS integration contracts and deterministic fallback behavior on unsupported targets. Verify via WASM parity tests + cross-platform adapter receipts; rollback by disabling WASM bridge and reverting to baseline adapter flow.",
+      "dependencies": [
+        "V5-RUST-HYB-001",
+        "V5-RUST-PROD-002",
+        "V5-RUST-PROD-011"
+      ]
+    },
+    {
+      "id": "V5-RUST-HYB-010",
+      "class": "scale-readiness",
+      "wave": "V5",
+      "status": "done",
+      "title": "Hybrid Envelope Validation + Guardrail Gate",
+      "problem": "Individual lane migrations need a single guardrail proving the hybrid model preserves velocity, reliability, and clear TS/Rust boundaries.",
+      "acceptance": "Validate the full hybrid envelope (Rust share within 15-25%, TS wrapper integrity, canary safety, delivery velocity non-regression) and publish enforceable guardrails for future migrations. Verify via language-share/e2e/velocity receipts and governance gate checks; rollback by freezing additional Rust cutovers and reverting to previous migration policy baseline.",
+      "dependencies": [
+        "V5-RUST-HYB-002",
+        "V5-RUST-HYB-003",
+        "V5-RUST-HYB-004",
+        "V5-RUST-HYB-005",
+        "V5-RUST-HYB-006",
+        "V5-RUST-HYB-007",
+        "V5-RUST-HYB-008",
+        "V5-RUST-HYB-009",
+        "V5-RUST-PROD-012"
+      ]
+    },
+    {
+      "id": "V6-RUST50-001",
+      "class": "primitive-upgrade",
+      "wave": "V6",
+      "status": "queued",
+      "title": "Memory 100 Percent Rust Core + WASM Mobile Bindings",
+      "problem": "Memory logic remains split across TS and Rust, limiting deterministic performance, battery control, and share growth toward 50 percent Rust by critical module weight.",
+      "acceptance": "Migrate memory core hot paths to Rust crate-first architecture with wasm32/iOS/Android targets, preserve thin TS wrapper only, and enforce call-level sovereignty + signed receipts. Verify via device-profile benchmark receipts (`recall <3ms`, memory call p95 `<5ms`, battery impact `<0.8%/24h`) and rollback by feature-flagging Rust memory lane to prior adapter profile.",
+      "dependencies": [
+        "V5-RUST-HYB-002",
+        "V5-RUST-PROD-004",
+        "V5-RUST-PROD-006"
+      ]
+    },
+    {
+      "id": "V6-RUST50-002",
+      "class": "primitive-upgrade",
+      "wave": "V6",
+      "status": "queued",
+      "title": "Execution Deterministic Runtime Rust Cutover + Replay Proofs",
+      "problem": "Execution state machine and replay paths still rely on mixed-language orchestration that can introduce drift and overhead under high cadence workloads.",
+      "acceptance": "Complete Rust execution runtime + deterministic replay receipt proofs with WASM verification and mobile-safe bindings, retaining TS CLI parse layer only. Verify via 1000-run drift tests + replay parity receipts (`step p95 <5ms`, battery impact `<1.2%/24h`) and rollback by switching runtime selector to prior execution engine.",
+      "dependencies": [
+        "V5-RUST-HYB-003",
+        "V5-RUST-PROD-003",
+        "V5-RUST-PROD-008"
+      ]
+    },
+    {
+      "id": "V6-RUST50-003",
+      "class": "primitive-upgrade",
+      "wave": "V6",
+      "status": "queued",
+      "title": "Pinnacle CRDT Rust Engine Phone-First",
+      "problem": "Offline merge/conflict resolution remains partially non-Rust, limiting deterministic convergence guarantees on multi-device background sync.",
+      "acceptance": "Move Pinnacle CRDT merge engine fully to Rust with WASM/Tauri mobile background sync hooks and per-merge sovereignty checks. Verify via convergence replay suite + suspend/resume sync receipts (`merge <2ms`, idle battery `<0.5%/24h`) and rollback by reverting to previous merge adapter lane.",
+      "dependencies": [
+        "V5-RUST-HYB-005",
+        "V5-RUST-PROD-004",
+        "V5-RUST-PROD-009"
+      ]
+    },
+    {
+      "id": "V6-RUST50-004",
+      "class": "hardening",
+      "wave": "V6",
+      "status": "queued",
+      "title": "Vault and Security Shared Rust Core (ZK/FHE Envelope)",
+      "problem": "Security/vault primitives are not yet fully consolidated under one Rust-first cryptographic runtime with immutable fail-closed behavior.",
+      "acceptance": "Consolidate vault/security compute primitives into shared Rust core with enforced fail-closed covenant behavior and mobile-safe performance constraints. Verify via tamper simulation + crypto policy conformance receipts (`seal <4ms`, background heap growth `0`) and rollback by restoring prior hardened security profiles under emergency policy gate.",
+      "dependencies": [
+        "V5-RUST-HYB-004",
+        "V5-RUST-PROD-010",
+        "V4-SUITE-004"
+      ]
+    },
+    {
+      "id": "V6-RUST50-005",
+      "class": "extension",
+      "wave": "V6",
+      "status": "queued",
+      "title": "Red Legion Chaos + Observability Rust Merge Core",
+      "problem": "Chaos and observability hot loops remain fragmented, limiting throughput and increasing runtime overhead on always-on phone and edge deployments.",
+      "acceptance": "Deliver Rust-first chaos + telemetry core with signed proof artifacts, sovereignty scoring, and low-overhead trace emit path for Tauri/mobile bindings. Verify via chaos throughput + telemetry overhead receipts (`telemetry overhead <1ms`, chaos battery `<3%/24h`) and rollback by toggling back to previous chaos/observability adapters.",
+      "dependencies": [
+        "V5-RUST-HYB-007",
+        "V5-RUST-HYB-008",
+        "V5-RUST-PROD-009"
+      ]
+    },
+    {
+      "id": "V6-RUST50-006",
+      "class": "extension",
+      "wave": "V6",
+      "status": "queued",
+      "title": "Mobile Adapter Layer (WASM + Tauri iOS/Android Background Service)",
+      "problem": "Phone 24x7 objective lacks one production adapter layer exposing all Rust crates through deterministic background-safe APIs and build surfaces.",
+      "acceptance": "Build Rust mobile adapter layer with one-command WASM/Tauri build, background service integration (iOS/Android), and unified `protheus-mobile` binary interface for crate surfaces. Verify via mobile build matrix + background service receipts with total background battery `<5%/24h`; rollback by disabling mobile adapter lane and reverting to existing device bridges.",
+      "dependencies": [
+        "V5-RUST-HYB-009",
+        "V6-RUST50-001",
+        "V6-RUST50-002",
+        "V6-RUST50-003",
+        "V6-RUST50-004",
+        "V6-RUST50-005"
+      ]
+    },
+    {
+      "id": "V6-RUST50-007",
+      "class": "scale-readiness",
+      "wave": "V6",
+      "status": "queued",
+      "title": "50 Percent Rust Critical-Weight Enforcement Gate",
+      "problem": "Prior Rust plans target 15-25 percent; no hard governance gate currently enforces progression to 50 percent by critical module weight with anti-fake completion evidence.",
+      "acceptance": "Add enforced migration gate requiring: critical module-weight share `>=50%` Rust, per-lane committed code diff evidence, test/CI receipts, phone battery receipt bundle, and explicit `PAUSED` state when constraints cannot be met. Verify through governance audit receipts and automated anti-fake completion checks; rollback by downgrading enforcement to advisory mode with expiry and remediation plan.",
+      "dependencies": [
+        "V6-RUST50-001",
+        "V6-RUST50-002",
+        "V6-RUST50-003",
+        "V6-RUST50-004",
+        "V6-RUST50-005",
+        "V6-RUST50-006",
+        "V5-RUST-PROD-012"
       ]
     }
   ]

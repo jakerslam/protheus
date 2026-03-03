@@ -1,8 +1,10 @@
 [workspace]
 resolver = "2"
 members = [
+  "crates/fluxlattice",
   "systems/memory/rust",
-  "systems/self_audit/rust"
+  "systems/self_audit/rust",
+  "systems/hybrid/rust"
 ]
 
 [workspace.package]

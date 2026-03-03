@@ -1,0 +1,38 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "items": [
+    { "id": "V4-SETTLE-001", "title": "Core Settling Engine (Compile + Memory-Map + Re-exec)" },
+    { "id": "V4-SETTLE-002", "title": "Signed Snapshot Vault + Revert/Edit-Core Round Trip" },
+    { "id": "V4-SETTLE-003", "title": "Target Abstraction for Binary + Ternary/Exotic Compile Flags" },
+    { "id": "V4-SETTLE-004", "title": "Promotion-Coupled Re-Settlement Policy" },
+    { "id": "V4-SETTLE-005", "title": "Settled-State Operator Surface in protheus-top" },
+    { "id": "V4-SETTLE-006", "title": "Modular System-Wide Settling + Rust BlobLoader" },
+    { "id": "V4-SETTLE-007", "title": "Per-Module Edit + Re-Settle Workflow" },
+    { "id": "V4-SETTLE-008", "title": "Multi-Module Settle Status Dashboard" },
+    { "id": "V4-SETTLE-009", "title": "Pluggable Ternary + Future Architecture Module Settle Support" },
+    { "id": "V4-SETTLE-010", "title": "Autogenesis/Promotion-Coupled Differential Module Re-Settlement" },
+    { "id": "V4-SETTLE-011", "title": "Preferred Advanced Substrate Detection + Graceful Binary Fallback" }
+  ],
+  "modules": ["autonomy", "memory", "security", "observability", "routing"],
+  "targets": {
+    "default": "binary",
+    "supported": ["binary", "ternary-sim", "qubit-stub"],
+    "module_plugins": ["binary", "ternary-sim", "qubit-stub", "exotic-stub"]
+  },
+  "settle": {
+    "promotion_cooldown_minutes": 45,
+    "differential_rehydrate_limit": 8
+  },
+  "paths": {
+    "state_path": "state/ops/settlement_program/state.json",
+    "latest_path": "state/ops/settlement_program/latest.json",
+    "receipts_path": "state/ops/settlement_program/receipts.jsonl",
+    "history_path": "state/ops/settlement_program/history.jsonl",
+    "image_dir": "state/ops/settlement_program/images",
+    "module_dir": "state/ops/settlement_program/modules",
+    "vault_dir": "state/ops/settlement_program/vault",
+    "top_panel_path": "state/ops/protheus_top/settled_panel.json"
+  }
+}

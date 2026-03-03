@@ -1476,6 +1476,66 @@
       "verify_signals_required": true,
       "rollback_signals_required": true,
       "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V5-RUST-HYB-001": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "targeted_hybrid_rust_migration_doc_intake_2026_03_03"
+    },
+    "V5-RUST-HYB-002": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "targeted_hybrid_rust_migration_doc_intake_2026_03_03"
+    },
+    "V5-RUST-HYB-003": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "targeted_hybrid_rust_migration_doc_intake_2026_03_03"
+    },
+    "V5-RUST-HYB-004": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "targeted_hybrid_rust_migration_doc_intake_2026_03_03"
+    },
+    "V5-RUST-HYB-005": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "targeted_hybrid_rust_migration_doc_intake_2026_03_03"
+    },
+    "V5-RUST-HYB-006": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "targeted_hybrid_rust_migration_doc_intake_2026_03_03"
+    },
+    "V5-RUST-HYB-007": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "targeted_hybrid_rust_migration_doc_intake_2026_03_03"
+    },
+    "V5-RUST-HYB-008": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "targeted_hybrid_rust_migration_doc_intake_2026_03_03"
+    },
+    "V5-RUST-HYB-009": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "targeted_hybrid_rust_migration_doc_intake_2026_03_03"
+    },
+    "V5-RUST-HYB-010": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "targeted_hybrid_rust_migration_doc_intake_2026_03_03"
     }
   },
   "outputs": {

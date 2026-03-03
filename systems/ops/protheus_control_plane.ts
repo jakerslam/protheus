@@ -14,6 +14,7 @@ export {};
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const perceptionLayer = require('./perception_layer.js');
 const {
   ROOT,
   nowIso,
@@ -1150,6 +1151,14 @@ function top(policy) {
   const daemon = loadDaemon(policy);
   const jobs = loadJobs(policy);
   const rows = Object.values(jobs.jobs || {}).slice(0, 20);
+  const settledPanelPath = path.join(ROOT, 'state', 'ops', 'protheus_top', 'settled_panel.json');
+  const observabilityPanelPath = path.join(ROOT, 'state', 'ops', 'protheus_top', 'observability_panel.json');
+  const securityPanelPath = path.join(ROOT, 'state', 'ops', 'protheus_top', 'security_panel.json');
+  const settledPanel = readJson(settledPanelPath, null);
+  const observabilityPanel = readJson(observabilityPanelPath, null);
+  const securityPanel = readJson(securityPanelPath, null);
+  const perceptionFlags = perceptionLayer.loadPerceptionFlags();
+  const reasoningMirrorFooter = perceptionLayer.buildReasoningMirrorFooter(perceptionFlags, settledPanel);
   return {
     ok: true,
     type: 'protheus_top',
@@ -1161,7 +1170,11 @@ function top(policy) {
       quarantine: !!daemon.quarantine
     },
     queue_depth: Array.isArray(jobs.queue) ? jobs.queue.length : 0,
-    jobs: rows
+    jobs: rows,
+    settled_panel: settledPanel,
+    observability_panel: observabilityPanel,
+    security_panel: securityPanel,
+    reasoning_mirror_footer: reasoningMirrorFooter
   };
 }
 

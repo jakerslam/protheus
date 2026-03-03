@@ -1,0 +1,17 @@
+{
+  "schema_id": "stateless_autoscaling_contract",
+  "schema_version": "1.0",
+  "stateless_worker_required": true,
+  "metrics": [
+    "cpu_pct",
+    "memory_pct",
+    "queue_depth",
+    "latency_ms"
+  ],
+  "safeguards": {
+    "min_replicas": 2,
+    "max_replicas": 200,
+    "scale_up_cooldown_s": 20,
+    "scale_down_cooldown_s": 60
+  }
+}

@@ -145,6 +145,68 @@ function extractAcceptancePaths(text: string) {
   return out;
 }
 
+function acceptanceRefExists(ref: string) {
+  const raw = cleanText(ref || '', 520).replace(/[),.;:]+$/g, '');
+  if (!raw) return { exists: false, resolved: null };
+
+  const candidates = new Set<string>();
+  candidates.add(raw);
+
+  const bracePairs = [
+    ['{ts,js}', ['ts', 'js']],
+    ['{js,ts}', ['js', 'ts']],
+    ['{md,json}', ['md', 'json']],
+    ['{json,md}', ['json', 'md']]
+  ];
+  for (const [token, exts] of bracePairs) {
+    if (raw.includes(token)) {
+      for (const ext of exts as string[]) {
+        candidates.add(raw.replace(token, ext));
+      }
+    }
+  }
+
+  if (raw.endsWith('.*')) {
+    const stem = raw.slice(0, -2);
+    for (const ext of ['ts', 'js', 'json', 'md', 'rs']) {
+      candidates.add(`${stem}.${ext}`);
+    }
+  }
+
+  const absRaw = path.isAbsolute(raw) ? raw : path.join(ROOT, raw);
+  const hasExplicitExt = !!path.extname(raw);
+  if (!hasExplicitExt && !raw.endsWith('/')) {
+    for (const ext of ['.ts', '.js', '.json', '.md', '.rs']) {
+      candidates.add(`${raw}${ext}`);
+    }
+  }
+
+  for (const candidate of candidates) {
+    const abs = path.isAbsolute(candidate) ? candidate : path.join(ROOT, candidate);
+    if (fs.existsSync(abs)) return { exists: true, resolved: rel(abs) };
+  }
+
+  // Simple wildcard support, e.g. docs/proofs/platform/socket_*.md
+  if (raw.includes('*')) {
+    const absPattern = absRaw;
+    const dir = path.dirname(absPattern);
+    const base = path.basename(raw);
+    let entries: string[] = [];
+    try { entries = fs.readdirSync(dir); } catch { entries = []; }
+    if (entries.length) {
+      const escaped = base.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+      const re = new RegExp(`^${escaped}$`);
+      const match = entries.find((entry) => re.test(entry));
+      if (match) {
+        const found = path.join(dir, match);
+        return { exists: true, resolved: rel(found) };
+      }
+    }
+  }
+
+  return { exists: false, resolved: null };
+}
+
 function listSearchFiles(policy: any) {
   const roots = (policy.search && Array.isArray(policy.search.roots) ? policy.search.roots : [])
     .map((row: string) => cleanText(row, 260))
@@ -321,8 +383,8 @@ function reviewRow(row: any, idEvidenceByRow: any, policy: any, doneSet: Set<str
   const existingRefs: string[] = [];
   const missingRefs: string[] = [];
   for (const ref of refs) {
-    const abs = path.isAbsolute(ref) ? ref : path.join(ROOT, ref);
-    if (fs.existsSync(abs)) existingRefs.push(rel(abs));
+    const resolved = acceptanceRefExists(ref);
+    if (resolved.exists && resolved.resolved) existingRefs.push(resolved.resolved);
     else missingRefs.push(cleanText(ref, 260));
   }
 

@@ -1,0 +1,22 @@
+{
+  "schema_id": "selective_ethereal_language_policy",
+  "schema_version": "1.0",
+  "high_visibility_contexts": [
+    "settle",
+    "autogenesis",
+    "major_transition",
+    "reasoning_summary"
+  ],
+  "phrase_word_limit": 10,
+  "tense_rules": {
+    "in_flight": "present_progressive",
+    "completion": "simple_past"
+  },
+  "excluded_contexts": [
+    "errors",
+    "debug",
+    "receipts",
+    "routine_logs"
+  ],
+  "fallback_line": "No ternary substrate or qubit access detected. Reverting to binary mode."
+}

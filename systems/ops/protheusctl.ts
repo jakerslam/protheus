@@ -9,6 +9,7 @@ export {};
 
 const path = require('path');
 const { spawnSync } = require('child_process');
+const perceptionLayer = require('./perception_layer.js');
 
 function usage() {
   console.log('Usage: protheusctl <command> [flags]');
@@ -33,6 +34,14 @@ function usage() {
   console.log('  protheusctl import --from=<engine> --path=<source> [--apply=1]');
   console.log('  protheusctl wasi2 run|status');
   console.log('  protheusctl rust run|report|status');
+  console.log('  protheusctl rust-hybrid list|run|run-all|status');
+  console.log('  protheusctl settle [--revert=1]|list|run|run-all|status|edit-core|edit-module');
+  console.log('  protheusctl scale list|run|run-all|status');
+  console.log('  protheusctl perception list|run|run-all|status');
+  console.log('  protheusctl fluxlattice list|run|run-all|status');
+  console.log('  protheusctl lensmap init|template add|simplify|polish|import|sync|expose|status');
+  console.log('  protheusctl hold admit|rehydrate|simulate|status');
+  console.log('  protheusctl suite list|run|run-all|status');
   console.log('  protheusctl audit illusion --strict=1');
   console.log('  protheusctl approve --rsi --owner=jay --approver=<you>');
 }
@@ -63,6 +72,15 @@ function runScriptCapture(script: string, args: string[] = []) {
     stderr: String(r.stderr || ''),
     payload: parseJson(String(r.stdout || ''))
   };
+}
+
+function printWithEpilogue(result: any, epilogue: string | null) {
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
+  if (epilogue) {
+    process.stdout.write(`${epilogue}\n`);
+  }
+  process.exit(result.status);
 }
 
 function hasHumanFlag(args: string[]) {
@@ -143,6 +161,16 @@ function main() {
   const rest = argv.slice(1);
   if (cmd === 'help' || cmd === '--help' || cmd === '-h') {
     usage();
+    return;
+  }
+
+  if (cmd === 'status') {
+    const script = path.join(__dirname, 'protheus_control_plane.js');
+    const result = runScriptCapture(script, ['status', ...rest]);
+    const flags = perceptionLayer.loadPerceptionFlags();
+    const settledPanel = perceptionLayer.loadSettledPanel();
+    const epilogue = perceptionLayer.buildStatusEpilogue(flags, settledPanel);
+    printWithEpilogue(result, epilogue);
     return;
   }
 
@@ -233,6 +261,94 @@ function main() {
     return;
   }
 
+  if (cmd === 'settle') {
+    const settleScript = path.join(__dirname, 'settlement_program.js');
+    let sub = String(rest[0] || '').trim().toLowerCase();
+    const hasRevertFlag = rest.includes('--revert') || rest.includes('--revert=1') || rest.includes('--mode=revert');
+    if (hasRevertFlag) sub = 'revert';
+    const supported = new Set(['list', 'run', 'run-all', 'status', 'settle', 'revert', 'edit-core', 'edit-module', 'edit']);
+    const scriptArgs = (!sub || sub.startsWith('--') || !supported.has(sub))
+      ? ['settle', ...rest]
+      : [sub, ...rest.slice(1)];
+    const result = runScriptCapture(settleScript, scriptArgs);
+    const flags = perceptionLayer.loadPerceptionFlags();
+    const settledPanel = perceptionLayer.loadSettledPanel();
+    const epilogue = perceptionLayer.buildStatusEpilogue(flags, settledPanel);
+    printWithEpilogue(result, epilogue);
+    return;
+  }
+
+  if (cmd === 'edit-core') {
+    const settleScript = path.join(__dirname, 'settlement_program.js');
+    const result = runScriptCapture(settleScript, ['edit-core', ...rest]);
+    const flags = perceptionLayer.loadPerceptionFlags();
+    const settledPanel = perceptionLayer.loadSettledPanel();
+    const epilogue = perceptionLayer.buildStatusEpilogue(flags, settledPanel);
+    printWithEpilogue(result, epilogue);
+    return;
+  }
+
+  if (cmd === 'edit') {
+    const settleScript = path.join(__dirname, 'settlement_program.js');
+    const args = rest.length ? ['edit-module', ...rest] : ['edit-module'];
+    const result = runScriptCapture(settleScript, args);
+    const flags = perceptionLayer.loadPerceptionFlags();
+    const settledPanel = perceptionLayer.loadSettledPanel();
+    const epilogue = perceptionLayer.buildStatusEpilogue(flags, settledPanel);
+    printWithEpilogue(result, epilogue);
+    return;
+  }
+
+  if (cmd === 'scale') {
+    const scaleScript = path.join(__dirname, 'scale_readiness_program.js');
+    const sub = String(rest[0] || 'status').trim().toLowerCase() || 'status';
+    if (sub === 'list' || sub === 'run' || sub === 'run-all' || sub === 'status') {
+      runScript(scaleScript, [sub, ...rest.slice(1)]);
+      return;
+    }
+    runScript(scaleScript, ['status', ...rest]);
+    return;
+  }
+
+  if (cmd === 'perception') {
+    const perceptionScript = path.join(__dirname, 'perception_polish_program.js');
+    const sub = String(rest[0] || 'status').trim().toLowerCase() || 'status';
+    if (sub === 'list' || sub === 'run' || sub === 'run-all' || sub === 'status') {
+      runScript(perceptionScript, [sub, ...rest.slice(1)]);
+      return;
+    }
+    runScript(perceptionScript, ['status', ...rest]);
+    return;
+  }
+
+  if (cmd === 'fluxlattice') {
+    const fluxScript = path.join(__dirname, 'fluxlattice_program.js');
+    const sub = String(rest[0] || 'status').trim().toLowerCase() || 'status';
+    if (sub === 'list' || sub === 'run' || sub === 'run-all' || sub === 'status') {
+      runScript(fluxScript, [sub, ...rest.slice(1)]);
+      return;
+    }
+    runScript(fluxScript, ['status', ...rest]);
+    return;
+  }
+
+  if (cmd === 'lensmap') {
+    const lensScript = path.join(__dirname, '..', '..', 'packages', 'lensmap', 'lensmap_cli.js');
+    runScript(lensScript, rest);
+    return;
+  }
+
+  if (cmd === 'hold') {
+    const holdScript = path.join(__dirname, '..', 'autonomy', 'hold_remediation_engine.js');
+    const sub = String(rest[0] || 'status').trim().toLowerCase() || 'status';
+    if (sub === 'admit' || sub === 'rehydrate' || sub === 'simulate' || sub === 'status') {
+      runScript(holdScript, [sub, ...rest.slice(1)]);
+      return;
+    }
+    runScript(holdScript, ['status', ...rest]);
+    return;
+  }
+
   if (cmd === 'rust') {
     const rustScript = path.join(__dirname, 'rust_authoritative_microkernel_acceleration.js');
     const sub = String(rest[0] || 'status').trim().toLowerCase() || 'status';
@@ -241,6 +357,28 @@ function main() {
       return;
     }
     runScript(rustScript, ['status', ...rest]);
+    return;
+  }
+
+  if (cmd === 'rust-hybrid') {
+    const hybridScript = path.join(__dirname, 'rust_hybrid_migration_program.js');
+    const sub = String(rest[0] || 'status').trim().toLowerCase() || 'status';
+    if (sub === 'list' || sub === 'run' || sub === 'run-all' || sub === 'status') {
+      runScript(hybridScript, [sub, ...rest.slice(1)]);
+      return;
+    }
+    runScript(hybridScript, ['status', ...rest]);
+    return;
+  }
+
+  if (cmd === 'suite') {
+    const suiteScript = path.join(__dirname, 'productized_suite_program.js');
+    const sub = String(rest[0] || 'status').trim().toLowerCase() || 'status';
+    if (sub === 'list' || sub === 'run' || sub === 'run-all' || sub === 'status') {
+      runScript(suiteScript, [sub, ...rest.slice(1)]);
+      return;
+    }
+    runScript(suiteScript, ['status', ...rest]);
     return;
   }
 
