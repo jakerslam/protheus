@@ -6,6 +6,7 @@ members = [
   "crates/fluxlattice",
   "crates/memory",
   "crates/observability",
+  "crates/singularity_seed",
   "crates/vault",
   "systems/memory/rust",
   "systems/self_audit/rust",

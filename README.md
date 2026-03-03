@@ -2,6 +2,7 @@
 
 Protheus is an evidence-first local control plane for autonomous operations, workflow execution, and policy-governed system evolution.
 This repository is maintained under the Protheus Labs operating model.
+Protheus is the open substrate for crowdsourcing the singularity — run your own self-improving loop today.
 
 This repository is organized to run like an internal platform team: typed runtime lanes, deterministic receipts, strict governance surfaces, and operational guardrails that are reviewable in-source.
 
