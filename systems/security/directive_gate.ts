@@ -186,7 +186,7 @@ function evaluateTaskFallback(task) {
 }
 
 function evaluateTask(task) {
-  const mode = String(process.env.DIRECTIVE_GATE_RUST_MODE || 'fallback').trim().toLowerCase();
+  const mode = String(process.env.DIRECTIVE_GATE_RUST_MODE || 'prefer').trim().toLowerCase();
   if (mode === 'prefer') {
     const rustOut = runDirectiveGateViaRust(task);
     if (rustOut) return rustOut;
