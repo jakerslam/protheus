@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "provenance_secret": "reproducible_distribution_secret",
+  "required_build_system": "nix_flake",
+  "required_targets": [
+    "container",
+    "vm",
+    "marketplace"
+  ],
+  "paths": {
+    "manifest_path": "state/ops/reproducible_distribution_artifact_pack/manifest.json",
+    "channel_state_path": "state/ops/reproducible_distribution_artifact_pack/channel_state.json",
+    "latest_path": "state/ops/reproducible_distribution_artifact_pack/latest.json",
+    "history_path": "state/ops/reproducible_distribution_artifact_pack/history.jsonl"
+  }
+}

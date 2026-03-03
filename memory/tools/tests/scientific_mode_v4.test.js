@@ -99,6 +99,7 @@ function main() {
   assert.ok(payload && payload.ok === true, 'integrated payload should be ok');
   assert.strictEqual(payload.result, 'integrated_scientific_flow_executed', 'integrated mode should execute');
   assert.ok(payload.loop && payload.forge && payload.mirror, 'integrated artifacts missing');
+  assert.ok(payload.enhanced_mirror && payload.enhanced_mirror.ok === true, 'enhanced mirror artifact missing');
 
   out = run(['status'], env);
   assert.strictEqual(out.status, 0, out.stderr || 'status should pass');

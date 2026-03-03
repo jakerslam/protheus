@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": false,
+  "signing": {
+    "key_env": "PROTHEUS_MIGRATION_SIGNING_KEY",
+    "default_key": "migration_dev_key",
+    "algorithm": "sha256"
+  },
+  "engine_aliases": {
+    "openfang": "openfang",
+    "crewai": "generic_json",
+    "autogen": "generic_json",
+    "langgraph": "workflow_graph",
+    "workflow_graph": "workflow_graph",
+    "json": "generic_json",
+    "yaml": "generic_yaml",
+    "yml": "generic_yaml",
+    "generic": "generic_json",
+    "common_dump": "generic_json"
+  },
+  "paths": {
+    "latest_path": "state/migration/importers/latest.json",
+    "receipts_path": "state/migration/importers/receipts.jsonl",
+    "reports_root": "state/migration/importers/reports",
+    "mapped_root": "state/migration/importers/mapped"
+  }
+}

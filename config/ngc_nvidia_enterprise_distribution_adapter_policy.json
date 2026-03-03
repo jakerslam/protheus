@@ -1,0 +1,20 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "provenance_secret": "ngc_nvidia_distribution_secret",
+  "required_targets": [
+    "seed_image",
+    "lane_container"
+  ],
+  "required_registry_prefix": "nvcr.io",
+  "required_profiles": [
+    "production-certified",
+    "support-lts"
+  ],
+  "paths": {
+    "manifest_path": "state/ops/ngc_nvidia_enterprise_distribution_adapter/manifest.json",
+    "channel_state_path": "state/ops/ngc_nvidia_enterprise_distribution_adapter/channel_state.json",
+    "latest_path": "state/ops/ngc_nvidia_enterprise_distribution_adapter/latest.json",
+    "history_path": "state/ops/ngc_nvidia_enterprise_distribution_adapter/history.jsonl"
+  }
+}

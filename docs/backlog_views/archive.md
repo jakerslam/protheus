@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-02T23:25:03.061Z
+Generated: 2026-03-03T00:50:14.693Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -125,11 +125,35 @@ Generated: 2026-03-02T23:25:03.061Z
 | V3-021 | backlog | V3 | done | Attested hardware assimilation plane (node join + lease scheduler) |  |
 | V3-030 | backlog | V3 | done | Tool assimilation pipeline (Research -> Forge -> Nursery -> Doctor graft) |  |
 | V4-CLEAN-001 | hygiene | V4 | done | Habits path migration prep (abstraction + compatibility) |  |
+| V4-CLEAN-002 | hygiene | V4 | done | Helix codex surface hardening without runtime break | V4-CLEAN-001 |
+| V4-CLEAN-003 | security | V4 | done | Secret broker backend uplift (keychain/age additive) | V4-CLEAN-001 |
+| V4-CLEAN-004 | hygiene | V4 | done | Root scaffolding rationalization with contract-first moves | V4-CLEAN-001, V4-CLEAN-003 |
+| V4-CLEAN-005 | governance | V4 | done | Public repo presentation pass (non-destructive) | V4-CLEAN-002, V4-CLEAN-004 |
 | V4-SCI-001 | scientific | V4 | done | Scientific method core primitive |  |
 | V4-SCI-002 | scientific | V4 | done | HypothesisForge background trend + hypothesis engine | V4-SCI-001, V3-RACE-080, V3-RACE-083 |
 | V4-SCI-003 | scientific | V4 | done | Reasoning mirror lane for Phase-1 UI | V4-SCI-001 |
 | V4-SCI-004 | scientific | V4 | done | Scientific mode integration + launch-safe feature flag | V4-SCI-001, V4-SCI-002, V4-SCI-003, V3-018, V3-019 |
 | V4-SCI-005 | scientific | V4 | done | Autonomous long-horizon experiment scheduler | V4-SCI-002, V4-SCI-004 |
+| V4-SCI-006 | scientific | V4 | done | Meta-science + active learning loop | V4-SCI-001, V4-SCI-002, V4-SCI-005 |
+| V4-SCI-007 | scientific | V4 | done | Advanced statistical extensions for scientific engine | V4-SCI-001, V4-SCI-004, V3-RACE-361 |
+| V4-SCI-008 | scientific | V4 | done | Enhanced reasoning mirror for Phase-1 UI | V4-SCI-003, V4-SCI-005, V4-SCI-006, V4-SCI-007 |
+| V4-UX-001 | launch-polish | V4 | done | World-class first-run onboarding wizard | V4-SCI-004 |
+| V4-UX-002 | launch-polish | V4 | done | Phase-1 traditional UI polish + consistency pass | V4-UX-001 |
+| V4-UX-003 | launch-polish | V4 | done | Public docs + developer experience overhaul | V4-UX-001, V3-RACE-127 |
+| V4-ERR-012 | launch-polish | V4 | done | World-class error handling + guided recovery UX | V4-UX-002, V4-UX-003 |
+| V4-FORT-001 | launch-polish | V4 | done | UI Surface Maturity Pack (Design System + View Contracts) | V4-UX-002 |
+| V4-FORT-002 | launch-polish | V4 | done | Enterprise Onboarding Pack (Operator/Engineer/Contributor Paths) | V4-UX-001, V4-UX-003 |
+| V4-FORT-003 | governance | V4 | done | Documentation Program Hardening (Ownership + Cadence + Decision Trails) | V3-RACE-127, V4-UX-003 |
+| V4-FORT-004 | governance | V4 | done | History Cleanliness Program (Changelog + Release Discipline + Commit Hygiene) | V4-UX-003, V1H-002 |
+| V4-FORT-005 | launch-polish | V4 | done | Public Collaboration Surface Pack (Issue/PR Templates + Triage Contracts) | V4-UX-003, V4-FORT-002 |
+| V4-FORT-006 | hardening | V4 | done | Empty Fort Integrity Guard (No Fabricated Claims) | V4-FORT-003, V4-FORT-004, V4-FORT-005 |
+| V4-FORT-007 | launch-polish | V4 | done | Polish/Perception Program (Org Code Format + Repo Professionalism Standard) | V4-FORT-001, V4-FORT-003, V4-FORT-004, V4-FORT-005, V4-FORT-006 |
+| V4-SELF-001 | hardening | V4 | done | Internal Illusion & Integrity Auditor | V4-FORT-006, V4-FORT-007 |
+| V4-MIGR-001 | migration | V4 | done | Core Migration Bridge + Workspace Port Command | V4-FORT-006, V4-SELF-001 |
+| V4-MIGR-002 | migration | V4 | done | Community Repo Graduation Pack (Banner + Redirect + Pinned Issue) | V4-MIGR-001, V4-FORT-005, V4-FORT-006 |
+| V4-MIGR-003 | interoperability | V4 | done | Universal Importers (OpenFang/CrewAI/AutoGen/LangGraph/Common Dumps) | V4-MIGR-001, V3-RACE-127 |
+| V4-MIGR-004 | migration | V4 | done | Self-Healing Migration Daemon | V4-MIGR-001, V4-SELF-001 |
+| V4-MIGR-005 | launch-polish | V4 | done | Post-Migration Verification + Premium Completion Report | V4-MIGR-001, V4-MIGR-003, V4-MIGR-004 |
 | RR-001 | backlog | RR | done | Config and flag fragmentation |  |
 | RR-002 | backlog | RR | done | Duplicate execution pathways |  |
 | RR-003 | backlog | RR | done | Schema drift without migration discipline |  |
@@ -164,6 +188,14 @@ Generated: 2026-03-02T23:25:03.061Z
 | V3-ASSIM-016 | backlog | V3 | done | Computer-Use Hardening Profiles |  |
 | V3-ASSIM-017 | backlog | V3 | done | Agentic Transaction Negotiation Profiles |  |
 | V3-ASSIM-018 | backlog | V3 | done | Axolotl Seed-Training Bridge + Native Distillation |  |
+| V3-ASSIM-019 | backlog | V3 | done | Nursery Real Trainer Backend Wiring (Non-Scaffold) |  |
+| V3-ASSIM-020 | backlog | V3 | done | Assimilation Intake Metadata Enrichment Bridge |  |
+| V3-ASSIM-021 | backlog | V3 | done | Candidacy Threshold Calibration for Low-Spread High-Volume Lanes |  |
+| V3-ASSIM-022 | backlog | V3 | done | Candidate Ranking Metric Contract Fix (`pain_cost_score`) |  |
+| V3-ASSIM-023 | backlog | V3 | done | Per-Run Assimilation Snapshot Retention (No Same-Day Overwrite) |  |
+| V3-ASSIM-024 | backlog | V3 | done | Hidden Evaluation Execution Lane + Outcome Wiring |  |
+| V3-ASSIM-025 | backlog | V3 | done | Assimilation Policy Enforcement Closure (Wire or Retire Dead Knobs) |  |
+| V3-ASSIM-026 | backlog | V3 | done | Weaver Gate Strict Mode (Missing Snapshot Fail-Closed by Risk) |  |
 | V3-RED-003 | backlog | V3 | done | Harness Apply Path for Self-Improving Red-Team |  |
 | V3-TASK-002 | backlog | V3 | done | Task Decomposition Live Execution Handoff |  |
 | V3-ATTR-004 | backlog | V3 | done | Storm Distribution Settlement Executor Lane |  |
@@ -171,9 +203,28 @@ Generated: 2026-03-02T23:25:03.061Z
 | V3-RACE-026 | hardening | V3 | done | Fallback Retirement Gate (JS Emergency-Only) | V3-RACE-024, V3-RMEM-006 |
 | V3-RACE-028 | primitive-upgrade | V3 | done | In-Process Rust Memory Binding Lane (`napi-rs`) | V3-RACE-024, V3-RACE-025 |
 | V3-SKIN-001 | backlog | V3 | done | Contract-Coupled Defense Dependency Mesh |  |
+| V3-SKIN-002 | backlog | V3 | done | Runtime Tamper Attestation + Self-Containment |  |
+| V3-SKIN-003 | backlog | V3 | done | Binary Hardening Profile + Anti-RE Telemetry |  |
 | V3-VENOM-000 | backlog | V3 | done | No Offensive Behavior Invariant |  |
 | V3-VENOM-001 | backlog | V3 | done | Attractive Full-Capability Facade + Triggered Containment Escalation |  |
+| V3-VENOM-002 | backlog | V3 | done | Defensive Decoy Response Layer (Non-Destructive) |  |
+| V3-VENOM-003 | backlog | V3 | done | Bounded Verification Friction Escalation |  |
+| V3-VENOM-004 | backlog | V3 | done | Timed Lease Decay + Deterministic Lockout |  |
+| V3-VENOM-005 | backlog | V3 | done | Self-Reporting Forensic Beacon System |  |
+| V3-VENOM-006 | backlog | V3 | done | Adaptive Defense Evolution Engine |  |
+| V3-VENOM-007 | backlog | V3 | done | Staged Containment Ramp |  |
 | V3-RED-002 | backlog | V3 | done | Open-Ended Defensive Tool Discovery + Evolution Lane |  |
+| V3-RED-ESC-001 | backlog | V3 | done | Adaptive Cost-Escalation Profiles + Runtime Fingerprint Classes |  |
+| V3-RED-ESC-002 | backlog | V3 | done | Dynamic Friction Scaling Controller |  |
+| V3-RED-ESC-003 | backlog | V3 | done | Bounded Resource-Sink Decoy Paths |  |
+| V3-RED-ESC-004 | backlog | V3 | done | Evolutionary Cost Model Trainer (Stack-Adaptive + Category Expansion) |  |
+| V3-RED-HALL-001 | backlog | V3 | done | Governed Defensive Exemption Primitive |  |
+| V3-RED-HALL-002 | backlog | V3 | done | Exemption Registry + Expiry/Audit Enforcement |  |
+| V3-RED-HALL-003 | backlog | V3 | done | Adaptive Exemption Calibration Loop |  |
+| V3-RED-NASTY-001 | backlog | V3 | done | Adaptive "Tease & Trap" Deception |  |
+| V3-RED-NASTY-002 | backlog | V3 | done | Stack-Specific Resource Poisoning |  |
+| V3-RED-NASTY-003 | backlog | V3 | done | Psychological Decay Tease |  |
+| V3-RED-NASTY-004 | backlog | V3 | done | Self-Replicating Containment Children |  |
 | V3-QPROOF-001 | backlog | V3 | done | Post-Quantum Hash + Signing Migration Lane |  |
 | V3-QPROOF-002 | backlog | V3 | done | Self-Learning Quantum Security Primitive Synthesis |  |
 | V3-RACE-002 | hardening | V3 | done | Wasmtime Capability Microkernel Lane | V3-OF-001, V3-CPY-006, V3-VENOM-000 |
@@ -184,6 +235,7 @@ Generated: 2026-03-02T23:25:03.061Z
 | V3-RACE-018 | extension | V3 | done | Trace-to-Habit Autogenesis Loop | V3-RACE-005, V2-020, V3-038, V3-ACT-001 |
 | V3-RACE-020 | extension | V3 | done | LoRA-Backed Soul Continuity Adapter | V3-RACE-008, V3-ASSIM-012, V2-058, V3-BLK-001 |
 | V3-RACE-021 | primitive-upgrade | V3 | done | Rust Microkernel Full Control-Plane Extraction + Default Cutover | V3-RACE-001, V3-RACE-002, V3-RMEM-006, RM-122, V3-OPS-015 |
+| V3-RACE-CONF-002 | hardening | V3 | done | Legacy Path Alias Adapters (`systems/state/event_stream.js`, `systems/autogenesis/*`) | V3-RACE-017, V3-RACE-018 |
 | V3-RACE-DEF-024 | hardening | V3 | done | PsycheForge Adaptive Counter-Profile Defense Organ | V3-RACE-017, V3-RACE-019, V3-RACE-023, V3-VENOM-006 |
 | V3-RACE-DEF-026 | hardening | V3 | done | Lockweaver Eternal Flux Field (Origin-Lock Verified Structural Flux) | V3-RACE-017, V3-RACE-019, V3-RACE-023, V3-RACE-DEF-024, V3-RACE-DEF-025 |
 | V3-RACE-DEF-028 | hardening | V3 | done | Phoenix Protocol (Immortal Red-Team Respawn + Continuity Inheritance) | V3-RACE-017, V3-RACE-019, V3-RACE-020, V3-RACE-023, V3-RACE-DEF-024, V3-RACE-DEF-026, V3-RACE-DEF-027 |
@@ -198,12 +250,14 @@ Generated: 2026-03-02T23:25:03.061Z
 | V3-RACE-033 | hardening | V3 | done | Mind Fortress Principle (Mind Sovereignty Covenant Anchor) | V3-RACE-017, V3-RACE-019, V3-RACE-020, V3-RACE-032, V3-AEX-002 |
 | V3-RACE-042 | hardening | V3 | done | Formal Threat Modeling Engine (STRIDE/ATT&CK Contractization) | V3-RACE-017, V3-RACE-031, V3-RACE-032 |
 | V3-RACE-050 | hardening | V3 | done | Independent Safety Coprocessor & Out-of-Band Veto Plane | V3-RACE-034, V3-RACE-035, V3-RACE-033 |
+| V3-RACE-054 | hardening | V3 | done | Adversarial Goal-Drift Auditor | V3-RACE-035, V3-RACE-032, V3-RACE-033 |
 | V3-RACE-056 | extension | V3 | done | Signed Plugin Trust Marketplace & Revocation Plane | V3-RACE-043, V3-DOC-004, V3-CPY-005 |
 | V3-RACE-062 | hardening | V3 | done | Benchmark Artifact Consistency Gate (Report vs History vs Latest) | V3-RACE-024, V3-RACE-026 |
 | V3-RACE-066 | hardening | V3 | done | Memory DB AEAD/Envelope Encryption Cutover | V3-RACE-027, V3-ENT-002, V3-RACE-023 |
 | V3-RACE-067 | hardening | V3 | done | Memory Index Freshness Enforcement Gate | V3-RACE-023, V3-RACE-062, V3-RACE-CONF-007 |
 | V3-RACE-069 | hardening | V3 | done | Proposal Funnel SLO + Conversion Guard | RM-113, RM-114, BL-027 |
 | V3-RACE-079 | primitive-upgrade | V3 | done | Latent Intent Inference Graph | V3-RACE-078, V3-RACE-009 |
+| V3-RACE-081 | hardening | V3 | done | Confidence Calibration & Probability Contracts | V3-RACE-069, V3-RACE-062 |
 | V3-RACE-082 | extension | V3 | done | Counterfactual Signal Replay Harness | V3-RACE-003, V3-RACE-017, V3-RACE-081 |
 | V3-RACE-083 | hardening | V3 | done | Adversarial Hypothesis Challenger Lane | V3-RACE-081, V3-RACE-042 |
 | V3-RACE-084 | primitive-upgrade | V3 | done | Multi-Hop Objective Chain Mapper | V3-RACE-078, V3-RACE-079, V3-RACE-080, V3-RACE-081 |
@@ -223,6 +277,11 @@ Generated: 2026-03-02T23:25:03.061Z
 | V3-RACE-098 | primitive-upgrade | V3 | done | Feature/Data Versioning Reproducibility Contract | V3-RACE-003, V3-RACE-086, BL-024 |
 | V3-RACE-099 | hardening | V3 | done | Distribution-Shift Decomposition Engine | V3-RACE-080, V3-RACE-089 |
 | V3-RACE-100 | hardening | V3 | done | Causal Validation Gate for High-Impact Analysis Claims | V3-RACE-082, V3-RACE-090 |
+| V3-RACE-101 | extension | V3 | done | Active-Learning Uncertainty Queue | V3-RACE-088, V3-RACE-094, V3-RACE-097 |
+| V3-RACE-102 | extension | V3 | done | Offline Statistical Lab Artifact Bridge (R/Python Optional) | V3-RACE-086, V3-RACE-096, V3-RACE-098 |
+| V3-RACE-361 | extension | V3 | done | Offline R Analytics Runner + Research Organ Best-Fit Integration | V3-RACE-102, V3-RACE-096, V3-RACE-098 |
+| V3-RACE-104 | hardening | V3 | done | Detector Rollback & Migration Safety Contract | V3-RACE-087, V3-RACE-098 |
+| V3-RACE-105 | hardening | V3 | done | Cross-Objective Interference Guard for Analysis Changes | V3-RACE-084, V3-RACE-096, V3-RACE-104 |
 | V3-RACE-106 | hardening | V3 | done | Unified Guard Check Registry (Manifest-Driven Gates) | V3-AEX-002, V3-RACE-CONF-008 |
 | V3-RACE-107 | hardening | V3 | done | Shared Policy Runtime Primitive | BL-024, V3-RACE-CONF-007 |
 | V3-RACE-108 | primitive-upgrade | V3 | done | Spawn Fan-Out Reduction Wave (Worker/Daemon Core) | V3-RACE-063, V3-RACE-064, V3-OPS-005 |
@@ -245,6 +304,7 @@ Generated: 2026-03-02T23:25:03.061Z
 | V3-RACE-126 | hardening | V3 | done | Integrity Seal Closure & Baseline Reseal | V3-RACE-106, V3-RACE-123 |
 | V3-RACE-127 | hardening | V3 | done | External Surface Tightening (Public Operator Profile) | V3-RACE-122, V3-RACE-124, V3-RACE-125 |
 | V3-RACE-128 | hardening | V3 | done | Script Surface Reduction Wave II | V3-RACE-115, V3-RACE-123 |
+| V3-RACE-135 | extension | V3 | done | Pinnacle Tech Integration Engine (Research + Governed Proposal Lane) | V3-018, V3-RACE-106, V3-RACE-111 |
 | V3-RACE-169 | primitive-upgrade | V3 | done | `protheus-core` Modular Extraction (Kernel Package Contract) | V3-RACE-116, V3-RACE-124, BL-014 |
 | V3-RACE-170 | hardening | V3 | done | Spine Kernel Budget Gate (<600 LOC Orchestration-Only Contract) | V3-RACE-169, V3-RACE-117, V3-RACE-123 |
 | V3-RACE-175 | hardening | V3 | done | `protheus-core` Runtime Envelope Tightening (`<5MB`, `<200ms`, Optional-Flag Matrix) | V3-RACE-169, V3-RACE-174 |
@@ -257,13 +317,24 @@ Generated: 2026-03-02T23:25:03.061Z
 | V3-RACE-188 | hardening | V3 | done | Hybrid Interface Stability Contract (Rust Core, TS Orchestration, Zero-Break Cutover) | V3-RACE-116, V3-RACE-185, V3-RACE-175 |
 | V3-RACE-189 | extension | V3 | done | `protheus-edge` Lightweight Runtime Package (Reflex + MemFS Cache + Remote Spine Sync) | V3-RACE-161, V3-RACE-172, V3-RACE-176, V3-RACE-148 |
 | V3-RACE-190 | hardening | V3 | done | Mobile Lifecycle Resilience & Power Envelope Contract (Doze/Kill Recovery) | V3-RACE-148, V3-RACE-183, V3-RACE-168 |
+| V3-RACE-191 | hardening | V3 | done | Mobile Operator CLI Surface (`protheusctl edge *`, `protheus-top --mobile`) | V3-RACE-116, V3-RACE-189, V3-RACE-184 |
 | V3-RACE-193 | extension | V3 | done | Mobile Wrapper & Runtime Distribution Pack (Android/Termux + iOS/Tauri) | V3-RACE-120, V3-RACE-189, V3-RACE-175 |
 | V3-RACE-194 | hardening | V3 | done | Mobile Competitive Benchmark & CI Matrix (Battery/Thermal/72h Autonomy) | V3-RACE-174, V3-RACE-190, V3-RACE-193 |
 | V3-RACE-195 | hardening | V3 | done | Red-Team Discovery Propagation Fabric (Quorum-Signed Global Update Broadcast) | V3-RACE-017, V3-RACE-019, V3-QPROOF-002, V3-RACE-180 |
 | V3-RACE-197 | extension | V3 | done | V3-MINE Donor Reward Ledger + Mining-Share Issuance | V3-RACE-022, V3-RACE-130, V3-RACE-136 |
 | V3-RACE-198 | hardening | V3 | done | V3-MINE Settlement & Attribution Bridge (Auto-Payout Safety Contract) | V3-RACE-197, V3-RACE-130, V3-RACE-136 |
+| V3-RACE-199 | extension | V3 | done | Donor Mining Dashboard + CLI (`protheusctl mine dashboard`) | V3-RACE-197, V3-RACE-198, V3-RACE-191 |
 | V3-RACE-202 | extension | V3 | done | Mobile Mesh Participation Scheduler (Charging/Thermal/Battery Policy Lane) | V3-RACE-190, V3-RACE-193, V3-RACE-200 |
 | V3-RACE-216 | hardening | V3 | done | Monorepo Build-Graph Modernization (Turborepo + Nx Lane Contracts) | V3-RACE-115, V3-RACE-117, V3-RACE-123 |
+| V3-RACE-217 | extension | V3 | done | Windows Native Runtime Parity (Tauri 2 + DirectML/ONNX Local Inference) | V3-RACE-189, V3-RACE-193, V3-RACE-175 |
+| V3-RACE-219 | extension | V3 | done | Enterprise SCM/CD Mirror Plane (Azure DevOps <-> GitHub) | V3-RACE-017, V3-RACE-123, V3-RACE-126 |
+| V3-RACE-228 | hardening | V3 | done | Reproducible Distribution Artifact Pack (Nix Flakes + Docker/VM/Azure Marketplace) | V3-RACE-120, V3-RACE-121, V3-RACE-175 |
+| V3-RACE-232 | extension | V3 | done | AWS Linux/ARM Runtime Parity Pack (AL2023 + Graviton4 + Bottlerocket) | V3-RACE-217, V3-RACE-189, V3-RACE-193 |
+| V3-RACE-234 | extension | V3 | done | AWS CI/CD Mirror Plane (CodePipeline/Build/Deploy + FIS Gate Parity) | V3-RACE-219, V3-RACE-126, V3-RACE-017 |
+| V3-RACE-244 | hardening | V3 | done | AWS Reproducible Artifact Profile (AMI/ECR/Serverless via Nix + Image Builder) | V3-RACE-228, V3-RACE-232, V3-RACE-120 |
+| V3-RACE-262 | extension | V3 | done | Google Ecosystem Runtime Parity Pack (Android/ChromeOS/Fuchsia Surface Matrix) | V3-RACE-189, V3-RACE-191, V3-RACE-193 |
+| V3-RACE-273 | extension | V3 | done | ChromeOS/Fuchsia Distribution & OTA Adapter | V3-RACE-262, V3-RACE-228, V3-RACE-244 |
+| V3-RACE-278 | hardening | V3 | done | NGC + NVIDIA AI Enterprise Image/Container Distribution Adapter | V3-RACE-244, V3-RACE-228, V3-RACE-120 |
 | V3-RACE-359 | extension | V3 | done | Socket Lifecycle Operator Surface (`protheusctl socket *` + API) | V3-RACE-356, V3-RACE-357, V3-RACE-213 |
 | OPT-001 | backlog | OPT | done | Eyes signal weighting retune in router ranking |  |
 | OPT-002 | backlog | OPT | done | Prompt cache policy split by lane (reflex/autonomy/dream) |  |

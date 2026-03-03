@@ -14,10 +14,24 @@ Thanks for contributing.
 ## Required Reading
 
 - [Onboarding Playbook](docs/ONBOARDING_PLAYBOOK.md)
+- [Enterprise Onboarding Pack](docs/ENTERPRISE_ONBOARDING_PACK.md)
+- [Developer Lane Quickstart](docs/DEVELOPER_LANE_QUICKSTART.md)
 - [History Cleanliness Program](docs/HISTORY_CLEANLINESS.md)
+- [Release Discipline Policy](docs/RELEASE_DISCIPLINE_POLICY.md)
+- [Documentation Program Governance](docs/DOCUMENTATION_PROGRAM_GOVERNANCE.md)
 - [Claim-Evidence Policy](docs/CLAIM_EVIDENCE_POLICY.md)
+- [Empty Fort Integrity Checklist](docs/EMPTY_FORT_INTEGRITY_CHECKLIST.md)
+- [Org Code Format Standard](docs/ORG_CODE_FORMAT_STANDARD.md)
+- [Perception Audit Program](docs/PERCEPTION_AUDIT_PROGRAM.md)
 - [Public Collaboration Triage Contract](docs/PUBLIC_COLLABORATION_TRIAGE.md)
+- [Public Collaboration Surface](docs/PUBLIC_COLLABORATION_SURFACE.md)
 - [Changelog](CHANGELOG.md)
+
+## Public Collaboration Entry Points
+
+- [Bug Report Template](.github/ISSUE_TEMPLATE/bug_report.md)
+- [Feature Request Template](.github/ISSUE_TEMPLATE/feature_request.md)
+- [Security Report Template](.github/ISSUE_TEMPLATE/security_report.md)
 
 ## Commit Style
 

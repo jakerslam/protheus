@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_contracts": false,
+  "quality_thresholds": {
+    "min_calibration_score": 0.65,
+    "max_bias_risk": 0.35,
+    "min_method_effectiveness": 0.55
+  },
+  "active_learning": {
+    "enabled": true,
+    "top_k_requests": 3,
+    "min_uncertainty": 0.55,
+    "min_impact": 0.25
+  },
+  "primitive_proposals": {
+    "enabled": true,
+    "max_candidates": 3
+  },
+  "paths": {
+    "active_learning_queue_path": "state/sensory/analysis/active_learning/queue.jsonl",
+    "scientific_mode_latest_path": "state/science/scientific_mode_v4/latest.json",
+    "latest_path": "state/science/meta_science/latest.json",
+    "history_path": "state/science/meta_science/history.jsonl",
+    "requests_path": "state/science/meta_science/active_learning_requests.json",
+    "proposals_path": "state/science/meta_science/primitive_candidates.json"
+  }
+}

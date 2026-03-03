@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "min_sample_size": 90,
+  "min_accuracy_score": 0.55,
+  "max_uncertainty_width": 0.4,
+  "causal_models": ["did", "synthetic_control", "bayesian_structural_ts"],
+  "uncertainty_confidence_levels": [0.8, 0.9, 0.95],
+  "ensemble_methods": ["bayesian_model_average", "stacked_regression"],
+  "fallback_engine": "ts_stat_extensions",
+  "allow_external_python": false,
+  "allow_external_rust": false,
+  "paths": {
+    "latest_path": "state/science/advanced_statistical_extensions/latest.json",
+    "history_path": "state/science/advanced_statistical_extensions/history.jsonl"
+  }
+}
