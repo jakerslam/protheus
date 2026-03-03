@@ -53,6 +53,12 @@ function usage() {
   console.log('  protheus orchestrate project --id=<project_id> --transition=<active|blocked|completed|cancelled|paused_on_breaker|reviewed|resumed|rolled_back> [--approval-note="..."] [--drift-rate=0.0] [--override-reason=...] [--override-actor=...] [--override-expiry=ISO8601] [--monarch-token=...]');
   console.log('  protheus orchestrate audit "<artifact_id>"');
   console.log('  protheus orchestrate prune [--ttl-days=90]');
+  console.log('  protheus toolkit list');
+  console.log('  protheus toolkit personas [<persona args...>]');
+  console.log('  protheus toolkit dictionary [list|term "<name>"]');
+  console.log('  protheus toolkit orchestration [<orchestrate args...>]');
+  console.log('  protheus toolkit blob-morphing [status|verify]');
+  console.log('  protheus toolkit comment-mapper --persona=<id> --query="<text>" [--gap=<seconds>] [--active=1] [--intercept="<override>"]');
   console.log('  protheus lens update-stream <persona> [--dry-run=1]');
   console.log('  protheus lens checkin [--persona=jay_haslam] [--heartbeat=HEARTBEAT.md] [--emotion=on|off] [--dry-run=1]');
   console.log('  protheus lens feed <persona> "<snippet>" [--source=master_llm] [--tags=tag1,tag2] [--dry-run=1]');
@@ -502,6 +508,13 @@ function main() {
     const personaScript = path.join(__dirname, '..', 'personas', 'cli.js');
     const routed = rest.length ? rest : ['--help'];
     runScript(personaScript, routed, { forwardStdin: true });
+    return;
+  }
+
+  if (cmd === 'toolkit') {
+    const toolkitScript = path.join(__dirname, 'cognitive_toolkit_cli.js');
+    const routed = rest.length ? rest : ['list'];
+    runScript(toolkitScript, routed, { forwardStdin: true });
     return;
   }
 

@@ -69,6 +69,19 @@ protheus-top
 - `protheus orchestrate project "<name>" "<goal>" [--approval-note="..."]` opens a project state machine lane (`proposed -> active/blocked/paused_on_breaker/reviewed/resumed/rolled_back/completed/cancelled`).
 - `protheus orchestrate project --id=<project_id> --transition=<state> [--approval-note="..."]` advances project state with receipts.
 
+### Cognitive Toolkit Suite
+
+Introducing the Cognitive Toolkit Suite: internal operators tooling for red-teaming and alignment workflows.
+
+- `protheus toolkit list` shows suite tools and routes.
+- `protheus toolkit personas ...` routes to persona lens operations.
+- `protheus toolkit dictionary [list|term "<name>"]` reads novel concept definitions.
+- `protheus toolkit orchestration ...` routes to deterministic meeting/project operations.
+- `protheus toolkit blob-morphing [status|verify]` validates blob assets used by fold/unfold paths.
+- `protheus toolkit comment-mapper --persona=<id> --query="<text>" [--gap=<seconds>] [--active=1] [--intercept="<override>"]` runs stream-of-thought mapping with optional intercept controls.
+
+See [Cognitive Toolkit Suite](docs/cognitive_toolkit.md) and `examples/*-demo/` for runnable examples.
+
 ## Architecture Map
 
 | Path | Responsibility |
