@@ -1242,6 +1242,240 @@
       "verify_signals_required": false,
       "rollback_signals_required": false,
       "notes": "full_remaining_backlog_completion_wave"
+    },
+    "V5-HOLD-001": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V5-HOLD-002": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V5-HOLD-003": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V5-HOLD-004": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V5-HOLD-005": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-ETH-001": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-ETH-002": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-ETH-003": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-ETH-004": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-ETH-005": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-SEC-014": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-SEC-015": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-SEC-016": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-PKG-001": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-PKG-002": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-PKG-003": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-LENS-006": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-PKG-004": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-PKG-005": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-PKG-006": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-PKG-007": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-SUITE-001": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-SUITE-002": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-SUITE-003": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-SUITE-004": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-SUITE-005": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-SUITE-006": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-SUITE-007": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-SUITE-008": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-SUITE-009": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-SUITE-010": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-SUITE-011": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-SUITE-012": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-BRAND-001": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-BRAND-002": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-TRUST-001": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-REL-001": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-ROLL-001": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
+    },
+    "V4-DOC-ORG-001": {
+      "require_dependency_closed": true,
+      "verify_signals_required": true,
+      "rollback_signals_required": true,
+      "notes": "queued_backlog_completion_wave_2026_03_03"
     }
   },
   "outputs": {
