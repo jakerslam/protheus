@@ -1615,11 +1615,12 @@ function adaptiveExecutionCaps(input: AnyObj = {}) {
     );
     if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
       const payload = rust.payload.payload;
+      const inputCandidateCap = payload.inputCandidateCap != null
+        ? payload.inputCandidateCap
+        : (payload.input_candidate_cap_alias != null ? payload.input_candidate_cap_alias : null);
       return {
         ...payload,
-        inputCandidateCap: payload.inputCandidateCap != null
-          ? payload.inputCandidateCap
-          : payload.input_candidate_cap_alias
+        inputCandidateCap
       };
     }
   }
