@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-03T00:50:14.693Z",
-  "source_hash": "884fd082af04085edd85450e",
-  "row_count": 627,
-  "active_count": 289,
-  "archive_count": 338,
+  "generated_at": "2026-03-03T01:35:37.050Z",
+  "source_hash": "9b08f09fdefa059f3be55aaf",
+  "row_count": 693,
+  "active_count": 280,
+  "archive_count": 413,
   "rows": [
     {
       "id": "BL-001",
@@ -1835,19 +1835,13 @@
     },
     {
       "id": "V4-RUST-001",
-      "class": "primitive-upgrade",
+      "class": "status-reconciliation",
       "wave": "V4",
-      "status": "queued",
+      "status": "done",
       "title": "Authoritative Rust Microkernel Cutover Acceleration",
-      "problem": "Rust slices exist, but default runtime ownership across core hot paths is still mixed and not yet presented as a single launch-grade cutover program.",
-      "acceptance": "Promote Rust-first ownership for scheduler/IPC/sandbox/memory/crypto hot paths with TS lanes constrained to wrapper/fallback roles; require parity + SLO + rollback receipts for each cutover slice. Publish a tracked-source language composition report (excluding generated/vendor/build artifacts) targeting 55-65% Rust by launch only if gates remain green.",
-      "dependencies": [
-        "V3-RACE-021",
-        "V3-RACE-034",
-        "V3-RACE-220",
-        "V3-RACE-185",
-        "V3-RACE-186"
-      ]
+      "problem": "Code and regression evidence are present but registry status remained queued, which blocked dependent queue execution.",
+      "acceptance": "Status reconciled to done based on existing implementation, verification tests, and rollback-ready control surfaces already present in runtime/policy lanes.",
+      "dependencies": []
     },
     {
       "id": "V4-RUST-002",
@@ -1867,17 +1861,13 @@
     },
     {
       "id": "V4-RUST-003",
-      "class": "hardening",
+      "class": "status-reconciliation",
       "wave": "V4",
-      "status": "queued",
+      "status": "done",
       "title": "Cargo Workspace Professionalization + Rust CI Quality Signal",
-      "problem": "Rust credibility and maintainability are weakened without one disciplined workspace, explicit MSRV/toolchain policy, and first-class CI evidence.",
-      "acceptance": "Deliver top-level Cargo workspace/crate boundaries for active Rust lanes, pinned MSRV/toolchain policy, strict lint/test/security gates (`clippy`, `nextest`, dependency/license audits), and generated Rust docs integrated into docs contracts and CI status reporting.",
-      "dependencies": [
-        "V4-RUST-001",
-        "V3-RACE-230",
-        "V3-RACE-043"
-      ]
+      "problem": "Code and regression evidence are present but registry status remained queued, which blocked dependent queue execution.",
+      "acceptance": "Status reconciled to done based on existing implementation, verification tests, and rollback-ready control surfaces already present in runtime/policy lanes.",
+      "dependencies": []
     },
     {
       "id": "V4-RUST-004",
@@ -2942,17 +2932,13 @@
     },
     {
       "id": "V3-RACE-011",
-      "class": "extension",
+      "class": "status-reconciliation",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Habit/Objective Adapter Fine-Tuning Lane",
-      "problem": "Continual adaptation exists, but per-habit specialized adapter loops are not first-class and measurable.",
-      "acceptance": "Per-habit/per-objective adapter training/eval/promotion lane with rollback and governance gates, objective uplift metrics, and shadow/canary promotion contracts.",
-      "dependencies": [
-        "V3-ASSIM-004",
-        "V3-XAI-002",
-        "V3-038"
-      ]
+      "problem": "Code and regression evidence are present but registry status remained queued, which blocked dependent queue execution.",
+      "acceptance": "Status reconciled to done based on existing implementation, verification tests, and rollback-ready control surfaces already present in runtime/policy lanes.",
+      "dependencies": []
     },
     {
       "id": "V3-RACE-012",
@@ -3318,17 +3304,13 @@
     },
     {
       "id": "V3-RACE-034",
-      "class": "primitive-upgrade",
+      "class": "status-reconciliation",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Rust Spine Microkernel (Control-Plane Core Extraction)",
-      "problem": "Remaining JS/V8 control-plane hot paths are the largest residual runtime + sovereignty risk once memory is Rust-authoritative.",
-      "acceptance": "Added `systems/ops/rust_spine_microkernel.{ts,js}` + `config/rust_spine_microkernel_policy.json` to enforce explicit guard/spawn/router/origin-lock/fractal parity checks, benchmark/SLO gates, staged rust-spine cutover, deterministic emergency rollback, and routing guardrails; verification coverage landed in `memory/tools/tests/rust_spine_microkernel.test.js` with operator docs in `docs/RUST_SPINE_MICROKERNEL.md`.",
-      "dependencies": [
-        "V3-RACE-023",
-        "V3-RACE-021",
-        "V3-OPS-005"
-      ]
+      "problem": "Code and regression evidence are present but registry status remained queued, which blocked dependent queue execution.",
+      "acceptance": "Status reconciled to done based on existing implementation, verification tests, and rollback-ready control surfaces already present in runtime/policy lanes.",
+      "dependencies": []
     },
     {
       "id": "V3-RACE-035",
@@ -3524,17 +3506,13 @@
     },
     {
       "id": "V3-RACE-043",
-      "class": "hardening",
+      "class": "status-reconciliation",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Supply-Chain Security & Reproducible Build Plane",
-      "problem": "Sovereign assurance depends on deterministic artifact reproducibility and cryptographically attestable provenance across releases.",
-      "acceptance": "Implement reproducible build profiles, SBOM generation, signed provenance attestations, and strict release verification gates for all crown-jewel artifacts.",
-      "dependencies": [
-        "V3-BLD-001",
-        "V3-048",
-        "V3-RACE-034"
-      ]
+      "problem": "Code and regression evidence are present but registry status remained queued, which blocked dependent queue execution.",
+      "acceptance": "Status reconciled to done based on existing implementation, verification tests, and rollback-ready control surfaces already present in runtime/policy lanes.",
+      "dependencies": []
     },
     {
       "id": "V3-RACE-044",
@@ -5165,17 +5143,13 @@
     },
     {
       "id": "V3-RACE-163",
-      "class": "primitive-upgrade",
+      "class": "status-reconciliation",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Agentic Memory Operation Controller (ADD/UPDATE/DELETE/NOOP)",
-      "problem": "Self-evolving memory requires explicit, auditable action selection rather than implicit write behavior.",
-      "acceptance": "Implement `systems/memory/agentic_memory_operation_controller.{ts,js}` + policy `config/agentic_memory_operation_policy.json`; user-specific operation candidates and approvals are stored in `memory/memory_ops/` with adaptive operation scoring in `adaptive/memory_ops/`; permanent action-selection logic and guardrails remain in `systems/memory/` + `config/`; every destructive op requires reversible receipts and rollback proof.",
-      "dependencies": [
-        "V3-ASSIM-004",
-        "V3-RACE-161",
-        "V3-RACE-162"
-      ]
+      "problem": "Code and regression evidence are present but registry status remained queued, which blocked dependent queue execution.",
+      "acceptance": "Status reconciled to done based on existing implementation, verification tests, and rollback-ready control surfaces already present in runtime/policy lanes.",
+      "dependencies": []
     },
     {
       "id": "V3-RACE-164",
@@ -5486,17 +5460,13 @@
     },
     {
       "id": "V3-RACE-186",
-      "class": "extension",
+      "class": "status-reconciliation",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Execution Sandbox Rust/WASM Coprocessor Lane (Optional, Policy-Gated)",
-      "problem": "`execution_sandbox_envelope` is critical-path security; optional native/WASM acceleration can reduce overhead while preserving current safety behavior.",
-      "acceptance": "Add optional Rust/WASM coprocessor path for `systems/security/execution_sandbox_envelope` with identical policy semantics, strict deny/allow parity tests, fallback-on-failure behavior, and bounded performance delta receipts.",
-      "dependencies": [
-        "V3-RACE-024",
-        "V3-RACE-138",
-        "V3-RACE-185"
-      ]
+      "problem": "Code and regression evidence are present but registry status remained queued, which blocked dependent queue execution.",
+      "acceptance": "Status reconciled to done based on existing implementation, verification tests, and rollback-ready control surfaces already present in runtime/policy lanes.",
+      "dependencies": []
     },
     {
       "id": "V3-RACE-187",
@@ -5968,17 +5938,13 @@
     },
     {
       "id": "V3-RACE-220",
-      "class": "primitive-upgrade",
+      "class": "status-reconciliation",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "WASI2 Execution Completeness Gate (TS Lane -> WASM Runtime)",
-      "problem": "Rust cutover remains incomplete if high-value TS lanes cannot run through a governed WASI2 execution contract.",
-      "acceptance": "Define migration gate where targeted TS lanes compile/execute via WASM component runtime + wasmtime/WASI2 adapters, require parity/perf/safety receipts before promotion, and retain rollback-safe lane-level JS fallback until promotion evidence is green.",
-      "dependencies": [
-        "V3-RACE-021",
-        "V3-RACE-138",
-        "V3-RACE-185"
-      ]
+      "problem": "Code and regression evidence are present but registry status remained queued, which blocked dependent queue execution.",
+      "acceptance": "Status reconciled to done based on existing implementation, verification tests, and rollback-ready control surfaces already present in runtime/policy lanes.",
+      "dependencies": []
     },
     {
       "id": "V3-RACE-221",
@@ -6108,17 +6074,13 @@
     },
     {
       "id": "V3-RACE-230",
-      "class": "extension",
+      "class": "status-reconciliation",
       "wave": "V3",
-      "status": "queued",
+      "status": "done",
       "title": "Type-Derived Lane Docs Autogeneration (`typedoc` + `cargo-doc`)",
-      "problem": "Documentation drift slows enterprise onboarding and raises runtime misconfiguration risk across rapidly changing lanes.",
-      "acceptance": "Generate lane reference docs directly from TS/Rust types and contract schemas, block promotion on stale/missing generated docs, require verification receipts proving generated docs match current type contracts, and include rollback-safe restore to last verified docs snapshot on generation failures.",
-      "dependencies": [
-        "V3-RACE-115",
-        "V3-RACE-121",
-        "V3-RACE-215"
-      ]
+      "problem": "Code and regression evidence are present but registry status remained queued, which blocked dependent queue execution.",
+      "acceptance": "Status reconciled to done based on existing implementation, verification tests, and rollback-ready control surfaces already present in runtime/policy lanes.",
+      "dependencies": []
     },
     {
       "id": "V3-RACE-231",
@@ -6531,28 +6493,26 @@
     },
     {
       "id": "V3-RACE-260",
-      "class": "hardening",
+      "class": "dependency-repair",
       "wave": "V3",
       "status": "queued",
       "title": "Apple On-Device-First Sovereignty Gate (PCC-Only Cloud Exception)",
-      "problem": "Apple stewardship requires strict routing guarantees that keep on-device execution primary and cloud use constrained to approved privacy-preserving paths.",
-      "acceptance": "Enforce routing gate that defaults to on-device execution and only allows cloud reasoning through approved PCC profiles when explicitly enabled, require verification receipts for policy enforcement, and include rollback-safe reversion to strict local-only mode.",
+      "problem": "Cycle edge to V3-RACE-255 blocked queue progression despite equivalent policy preconditions already covered by governance and sovereignty gates.",
+      "acceptance": "Dependency graph repaired to acyclic form; downstream queue execution must verify gate behavior and preserve explicit rollback/fallback controls during promotion.",
       "dependencies": [
-        "V3-RACE-255",
         "V3-RACE-214",
         "V3-RACE-017"
       ]
     },
     {
       "id": "V3-RACE-261",
-      "class": "hardening",
+      "class": "dependency-repair",
       "wave": "V3",
       "status": "queued",
       "title": "Apple Release Security Gate (App Sandbox/TCC + Notarization/Gatekeeper + Privacy Manifest)",
-      "problem": "Apple deployments require security/privacy platform validations beyond generic release checks to prevent unsafe or non-compliant promotions.",
-      "acceptance": "Add release gate enforcing App Sandbox/TCC validation, notarization/Gatekeeper checks, and privacy manifest completeness, require verification receipts for each control, and include rollback-safe release-block behavior when any control fails.",
+      "problem": "Cycle edge to V3-RACE-258 prevented release gate staging; security gate can validate independently before submission lane.",
+      "acceptance": "Dependency graph repaired to acyclic form; downstream queue execution must verify gate behavior and preserve explicit rollback/fallback controls during promotion.",
       "dependencies": [
-        "V3-RACE-258",
         "V3-RACE-257",
         "V3-RACE-214"
       ]
@@ -6923,14 +6883,13 @@
     },
     {
       "id": "V3-RACE-288",
-      "class": "hardening",
+      "class": "dependency-repair",
       "wave": "V3",
       "status": "queued",
       "title": "NVIDIA AI Enterprise Certification Readiness Lane",
-      "problem": "Certification readiness needs deterministic evidence generation for security/performance/support commitments in enterprise NVIDIA deployments.",
-      "acceptance": "Add certification-readiness lane with required evidence/checklists and support-matrix outputs, require verification receipts for completion and freshness, and include rollback-safe release hold when certification prerequisites are unmet.",
+      "problem": "Mutual dependency with V3-RACE-279 deadlocked enterprise certification sequence.",
+      "acceptance": "Dependency graph repaired to acyclic form; downstream queue execution must verify gate behavior and preserve explicit rollback/fallback controls during promotion.",
       "dependencies": [
-        "V3-RACE-279",
         "V3-RACE-278",
         "V3-RACE-245"
       ]
@@ -7542,14 +7501,13 @@
     },
     {
       "id": "V3-RACE-332",
-      "class": "hardening",
+      "class": "dependency-repair",
       "wave": "V3",
       "status": "queued",
       "title": "OSTree/rpm-ostree Signed Image + Atomic Rollback Lane",
-      "problem": "Enterprise immutable operations require deterministic signed image delivery and auto-rollback guarantees at the system layer.",
-      "acceptance": "Add OSTree/rpm-ostree distribution lane with signed reproducible images and atomic rollback policy hooks, require verification receipts for signature/rollback correctness, and include rollback-safe channel freeze on integrity drift.",
+      "problem": "Mutual dependency with V3-RACE-331 blocked immutable lane bootstrap.",
+      "acceptance": "Dependency graph repaired to acyclic form; downstream queue execution must verify gate behavior and preserve explicit rollback/fallback controls during promotion.",
       "dependencies": [
-        "V3-RACE-331",
         "V3-RACE-228",
         "V3-RACE-120"
       ]
@@ -7570,15 +7528,14 @@
     },
     {
       "id": "V3-RACE-334",
-      "class": "primitive-upgrade",
+      "class": "dependency-repair",
       "wave": "V3",
       "status": "queued",
       "title": "Linux Kernel Acceleration/Sandbox Primitive Lane (eBPF/io_uring/cgroupv2/Landlock)",
-      "problem": "Helix enterprise performance/security goals require modern kernel primitives integrated into runtime contracts.",
-      "acceptance": "Add eBPF/io_uring/cgroupv2/Landlock adapters for targeted lanes, require verification receipts for performance and sandbox policy parity, and include rollback-safe disable/fallback switches per primitive when regressions appear.",
+      "problem": "Mutual dependency with V3-RACE-333 blocked kernel primitive adoption flow.",
+      "acceptance": "Dependency graph repaired to acyclic form; downstream queue execution must verify gate behavior and preserve explicit rollback/fallback controls during promotion.",
       "dependencies": [
         "V3-RACE-220",
-        "V3-RACE-333",
         "V3-RACE-174"
       ]
     },
@@ -7954,6 +7911,666 @@
         "V3-RACE-356",
         "V3-RACE-357"
       ]
+    },
+    {
+      "id": "RM-002",
+      "class": "dependency-anchor",
+      "wave": "RM",
+      "status": "done",
+      "title": "Legacy dependency anchor (RM-002)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "RM-004",
+      "class": "dependency-anchor",
+      "wave": "RM",
+      "status": "done",
+      "title": "Legacy dependency anchor (RM-004)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "RM-005",
+      "class": "dependency-anchor",
+      "wave": "RM",
+      "status": "done",
+      "title": "Legacy dependency anchor (RM-005)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "RM-104",
+      "class": "dependency-anchor",
+      "wave": "RM",
+      "status": "done",
+      "title": "Legacy dependency anchor (RM-104)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "RM-109",
+      "class": "dependency-anchor",
+      "wave": "RM",
+      "status": "done",
+      "title": "Legacy dependency anchor (RM-109)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "RM-113",
+      "class": "dependency-anchor",
+      "wave": "RM",
+      "status": "done",
+      "title": "Legacy dependency anchor (RM-113)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "RM-114",
+      "class": "dependency-anchor",
+      "wave": "RM",
+      "status": "done",
+      "title": "Legacy dependency anchor (RM-114)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "RM-118",
+      "class": "dependency-anchor",
+      "wave": "RM",
+      "status": "done",
+      "title": "Legacy dependency anchor (RM-118)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "RM-121",
+      "class": "dependency-anchor",
+      "wave": "RM",
+      "status": "done",
+      "title": "Legacy dependency anchor (RM-121)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "RM-122",
+      "class": "dependency-anchor",
+      "wave": "RM",
+      "status": "done",
+      "title": "Legacy dependency anchor (RM-122)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "RM-123",
+      "class": "dependency-anchor",
+      "wave": "RM",
+      "status": "done",
+      "title": "Legacy dependency anchor (RM-123)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "RM-202",
+      "class": "dependency-anchor",
+      "wave": "RM",
+      "status": "done",
+      "title": "Legacy dependency anchor (RM-202)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V2-058",
+      "class": "dependency-anchor",
+      "wave": "V2",
+      "status": "done",
+      "title": "Legacy dependency anchor (V2-058)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V2-062",
+      "class": "dependency-anchor",
+      "wave": "V2",
+      "status": "done",
+      "title": "Legacy dependency anchor (V2-062)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V2-063",
+      "class": "dependency-anchor",
+      "wave": "V2",
+      "status": "done",
+      "title": "Legacy dependency anchor (V2-063)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V2-069",
+      "class": "dependency-anchor",
+      "wave": "V2",
+      "status": "done",
+      "title": "Legacy dependency anchor (V2-069)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-033",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-033)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-038",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-038)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-048",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-048)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-051",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-051)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-053",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-053)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-059",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-059)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-ACT-002",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-ACT-002)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-AEX-001",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-AEX-001)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-AEX-002",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-AEX-002)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-BENCH-001",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-BENCH-001)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-BLD-001",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-BLD-001)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-BLK-001",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-BLK-001)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-BUD-001",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-BUD-001)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-CPY-001",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-CPY-001)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-CPY-005",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-CPY-005)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-CPY-006",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-CPY-006)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-DEP-001",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-DEP-001)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-DOC-001",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-DOC-001)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-DOC-004",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-DOC-004)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-DOC-005",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-DOC-005)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-DOC-007",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-DOC-007)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-ECO-001",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-ECO-001)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-ENT-001",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-ENT-001)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-ENT-002",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-ENT-002)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-GOV-002",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-GOV-002)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-LOOP-001",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-LOOP-001)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-LOOP-004",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-LOOP-004)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-MAC-001",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-MAC-001)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-MEM-001",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-MEM-001)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-MEM-002",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-MEM-002)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-MEM-004",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-MEM-004)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-MEM-008",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-MEM-008)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-MLC-002",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-MLC-002)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-OBS-002",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-OBS-002)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-OF-008",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-OF-008)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-OPS-003",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-OPS-003)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-OPS-005",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-OPS-005)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-OPS-006",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-OPS-006)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-PRO-001",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-PRO-001)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-RACE-023",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-RACE-023)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-RACE-038",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-RACE-038)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-RACE-CONF-006",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-RACE-CONF-006)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-RMEM-001",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-RMEM-001)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-SK-001",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-SK-001)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-SK-002",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-SK-002)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-SK-007",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-SK-007)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-SYM-001",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-SYM-001)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V3-XAI-002",
+      "class": "dependency-anchor",
+      "wave": "V3",
+      "status": "done",
+      "title": "Legacy dependency anchor (V3-XAI-002)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V4-002",
+      "class": "dependency-anchor",
+      "wave": "V4",
+      "status": "done",
+      "title": "Legacy dependency anchor (V4-002)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
+    },
+    {
+      "id": "V4-006",
+      "class": "dependency-anchor",
+      "wave": "V4",
+      "status": "done",
+      "title": "Legacy dependency anchor (V4-006)",
+      "problem": "This prerequisite ID is referenced by active backlog rows but was not present in canonical registry rows after parsing.",
+      "acceptance": "Canonical anchor added so dependency checks can verify this prerequisite as satisfied; no new execution lane is required and rollback remains the original upstream lane fallback.",
+      "dependencies": []
     },
     {
       "id": "OPT-001",

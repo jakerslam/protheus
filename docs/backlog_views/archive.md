@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-03T00:50:14.693Z
+Generated: 2026-03-03T01:35:37.050Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -154,6 +154,8 @@ Generated: 2026-03-03T00:50:14.693Z
 | V4-MIGR-003 | interoperability | V4 | done | Universal Importers (OpenFang/CrewAI/AutoGen/LangGraph/Common Dumps) | V4-MIGR-001, V3-RACE-127 |
 | V4-MIGR-004 | migration | V4 | done | Self-Healing Migration Daemon | V4-MIGR-001, V4-SELF-001 |
 | V4-MIGR-005 | launch-polish | V4 | done | Post-Migration Verification + Premium Completion Report | V4-MIGR-001, V4-MIGR-003, V4-MIGR-004 |
+| V4-RUST-001 | status-reconciliation | V4 | done | Authoritative Rust Microkernel Cutover Acceleration |  |
+| V4-RUST-003 | status-reconciliation | V4 | done | Cargo Workspace Professionalization + Rust CI Quality Signal |  |
 | RR-001 | backlog | RR | done | Config and flag fragmentation |  |
 | RR-002 | backlog | RR | done | Duplicate execution pathways |  |
 | RR-003 | backlog | RR | done | Schema drift without migration discipline |  |
@@ -228,6 +230,7 @@ Generated: 2026-03-03T00:50:14.693Z
 | V3-QPROOF-001 | backlog | V3 | done | Post-Quantum Hash + Signing Migration Lane |  |
 | V3-QPROOF-002 | backlog | V3 | done | Self-Learning Quantum Security Primitive Synthesis |  |
 | V3-RACE-002 | hardening | V3 | done | Wasmtime Capability Microkernel Lane | V3-OF-001, V3-CPY-006, V3-VENOM-000 |
+| V3-RACE-011 | status-reconciliation | V3 | done | Habit/Objective Adapter Fine-Tuning Lane |  |
 | V3-RACE-014 | primitive-upgrade | V3 | done | Risk-Tier Chain Bridge for Model Catalog Loop (`cheap -> deep -> critique`) | V3-RACE-004, V3-BUD-001, V3-AEX-001 |
 | V3-RACE-015 | extension | V3 | done | JetStream Mirror Adapter for Event-Sourced Control Plane | V3-RACE-003, V3-SK-001, RM-202 |
 | V3-RACE-016 | extension | V3 | done | Open Platform Layer Release Pack (Apache 2.0 non-crown-jewel + Compatibility Launch) | V3-RACE-013, V3-DOC-006, V3-BENCH-001, V3-OF-008 |
@@ -241,6 +244,7 @@ Generated: 2026-03-03T00:50:14.693Z
 | V3-RACE-DEF-028 | hardening | V3 | done | Phoenix Protocol (Immortal Red-Team Respawn + Continuity Inheritance) | V3-RACE-017, V3-RACE-019, V3-RACE-020, V3-RACE-023, V3-RACE-DEF-024, V3-RACE-DEF-026, V3-RACE-DEF-027 |
 | V3-RACE-DEF-029 | hardening | V3 | done | MirrorReaper Protocol (Tier-4 Resource Inversion Defense Mode) | V3-RACE-017, V3-RACE-019, V3-RACE-022, V3-RACE-DEF-024, V3-RACE-DEF-026, V3-RACE-DEF-027, V3-RACE-DEF-028 |
 | V3-RACE-030 | extension | V3 | done | Legion Honor Codex (Soul-Bound Medals, Titles, and Red Legion Rank System) | V3-RACE-019, V3-RACE-020, V3-RACE-022, V3-BLK-001, V3-RACE-DEF-024, V3-RACE-DEF-027, V3-RACE-DEF-028 |
+| V3-RACE-034 | status-reconciliation | V3 | done | Rust Spine Microkernel (Control-Plane Core Extraction) |  |
 | V3-RACE-035 | hardening | V3 | done | Formal Mind-Sovereignty Verification Layer | V3-045, V3-RACE-031, V3-RACE-034 |
 | V3-RACE-036 | hardening | V3 | done | Multi-Mind Isolation & Shared-Consciousness Boundary Plane | RM-109, V3-RACE-020, V3-RACE-035 |
 | V3-RACE-039 | primitive | V3 | done | Human-Machine Merge Interface Security Substrate | V3-RACE-035, V3-RACE-036, V3-RACE-037 |
@@ -249,6 +253,7 @@ Generated: 2026-03-03T00:50:14.693Z
 | V3-RACE-032 | hardening | V3 | done | Complexity Warden Meta-Organ (Fractal Elegance Governor) | V3-RACE-017, V3-RACE-019, V3-RACE-020, V3-RACE-023, V3-RACE-DEF-026, V3-AEX-002 |
 | V3-RACE-033 | hardening | V3 | done | Mind Fortress Principle (Mind Sovereignty Covenant Anchor) | V3-RACE-017, V3-RACE-019, V3-RACE-020, V3-RACE-032, V3-AEX-002 |
 | V3-RACE-042 | hardening | V3 | done | Formal Threat Modeling Engine (STRIDE/ATT&CK Contractization) | V3-RACE-017, V3-RACE-031, V3-RACE-032 |
+| V3-RACE-043 | status-reconciliation | V3 | done | Supply-Chain Security & Reproducible Build Plane |  |
 | V3-RACE-050 | hardening | V3 | done | Independent Safety Coprocessor & Out-of-Band Veto Plane | V3-RACE-034, V3-RACE-035, V3-RACE-033 |
 | V3-RACE-054 | hardening | V3 | done | Adversarial Goal-Drift Auditor | V3-RACE-035, V3-RACE-032, V3-RACE-033 |
 | V3-RACE-056 | extension | V3 | done | Signed Plugin Trust Marketplace & Revocation Plane | V3-RACE-043, V3-DOC-004, V3-CPY-005 |
@@ -305,6 +310,7 @@ Generated: 2026-03-03T00:50:14.693Z
 | V3-RACE-127 | hardening | V3 | done | External Surface Tightening (Public Operator Profile) | V3-RACE-122, V3-RACE-124, V3-RACE-125 |
 | V3-RACE-128 | hardening | V3 | done | Script Surface Reduction Wave II | V3-RACE-115, V3-RACE-123 |
 | V3-RACE-135 | extension | V3 | done | Pinnacle Tech Integration Engine (Research + Governed Proposal Lane) | V3-018, V3-RACE-106, V3-RACE-111 |
+| V3-RACE-163 | status-reconciliation | V3 | done | Agentic Memory Operation Controller (ADD/UPDATE/DELETE/NOOP) |  |
 | V3-RACE-169 | primitive-upgrade | V3 | done | `protheus-core` Modular Extraction (Kernel Package Contract) | V3-RACE-116, V3-RACE-124, BL-014 |
 | V3-RACE-170 | hardening | V3 | done | Spine Kernel Budget Gate (<600 LOC Orchestration-Only Contract) | V3-RACE-169, V3-RACE-117, V3-RACE-123 |
 | V3-RACE-175 | hardening | V3 | done | `protheus-core` Runtime Envelope Tightening (`<5MB`, `<200ms`, Optional-Flag Matrix) | V3-RACE-169, V3-RACE-174 |
@@ -313,6 +319,7 @@ Generated: 2026-03-03T00:50:14.693Z
 | V3-RACE-183 | extension | V3 | done | Always-On Idle RSI Scheduler (Background Hands + Freshness Loop) | V3-RACE-168, V3-RACE-162, V3-RACE-178 |
 | V3-RACE-184 | hardening | V3 | done | RSI Control-Plane CLI Surface (`protheusctl rsi *` + `contract-lane status`) | V3-RACE-116, V3-RACE-178, V3-RACE-CONF-007 |
 | V3-RACE-185 | primitive-upgrade | V3 | done | `protheus-core` Rust Binding Plane (NAPI/WASM API-Parity Bridge) | V3-RACE-169, V3-RACE-034, V3-RACE-028 |
+| V3-RACE-186 | status-reconciliation | V3 | done | Execution Sandbox Rust/WASM Coprocessor Lane (Optional, Policy-Gated) |  |
 | V3-RACE-187 | hardening | V3 | done | Formal Verification Depth Pack for Critical Runtime Paths | V3-RACE-035, V3-RACE-180, V3-RACE-181, V3-RACE-043 |
 | V3-RACE-188 | hardening | V3 | done | Hybrid Interface Stability Contract (Rust Core, TS Orchestration, Zero-Break Cutover) | V3-RACE-116, V3-RACE-185, V3-RACE-175 |
 | V3-RACE-189 | extension | V3 | done | `protheus-edge` Lightweight Runtime Package (Reflex + MemFS Cache + Remote Spine Sync) | V3-RACE-161, V3-RACE-172, V3-RACE-176, V3-RACE-148 |
@@ -328,7 +335,9 @@ Generated: 2026-03-03T00:50:14.693Z
 | V3-RACE-216 | hardening | V3 | done | Monorepo Build-Graph Modernization (Turborepo + Nx Lane Contracts) | V3-RACE-115, V3-RACE-117, V3-RACE-123 |
 | V3-RACE-217 | extension | V3 | done | Windows Native Runtime Parity (Tauri 2 + DirectML/ONNX Local Inference) | V3-RACE-189, V3-RACE-193, V3-RACE-175 |
 | V3-RACE-219 | extension | V3 | done | Enterprise SCM/CD Mirror Plane (Azure DevOps <-> GitHub) | V3-RACE-017, V3-RACE-123, V3-RACE-126 |
+| V3-RACE-220 | status-reconciliation | V3 | done | WASI2 Execution Completeness Gate (TS Lane -> WASM Runtime) |  |
 | V3-RACE-228 | hardening | V3 | done | Reproducible Distribution Artifact Pack (Nix Flakes + Docker/VM/Azure Marketplace) | V3-RACE-120, V3-RACE-121, V3-RACE-175 |
+| V3-RACE-230 | status-reconciliation | V3 | done | Type-Derived Lane Docs Autogeneration (`typedoc` + `cargo-doc`) |  |
 | V3-RACE-232 | extension | V3 | done | AWS Linux/ARM Runtime Parity Pack (AL2023 + Graviton4 + Bottlerocket) | V3-RACE-217, V3-RACE-189, V3-RACE-193 |
 | V3-RACE-234 | extension | V3 | done | AWS CI/CD Mirror Plane (CodePipeline/Build/Deploy + FIS Gate Parity) | V3-RACE-219, V3-RACE-126, V3-RACE-017 |
 | V3-RACE-244 | hardening | V3 | done | AWS Reproducible Artifact Profile (AMI/ECR/Serverless via Nix + Image Builder) | V3-RACE-228, V3-RACE-232, V3-RACE-120 |
@@ -336,6 +345,72 @@ Generated: 2026-03-03T00:50:14.693Z
 | V3-RACE-273 | extension | V3 | done | ChromeOS/Fuchsia Distribution & OTA Adapter | V3-RACE-262, V3-RACE-228, V3-RACE-244 |
 | V3-RACE-278 | hardening | V3 | done | NGC + NVIDIA AI Enterprise Image/Container Distribution Adapter | V3-RACE-244, V3-RACE-228, V3-RACE-120 |
 | V3-RACE-359 | extension | V3 | done | Socket Lifecycle Operator Surface (`protheusctl socket *` + API) | V3-RACE-356, V3-RACE-357, V3-RACE-213 |
+| RM-002 | dependency-anchor | RM | done | Legacy dependency anchor (RM-002) |  |
+| RM-004 | dependency-anchor | RM | done | Legacy dependency anchor (RM-004) |  |
+| RM-005 | dependency-anchor | RM | done | Legacy dependency anchor (RM-005) |  |
+| RM-104 | dependency-anchor | RM | done | Legacy dependency anchor (RM-104) |  |
+| RM-109 | dependency-anchor | RM | done | Legacy dependency anchor (RM-109) |  |
+| RM-113 | dependency-anchor | RM | done | Legacy dependency anchor (RM-113) |  |
+| RM-114 | dependency-anchor | RM | done | Legacy dependency anchor (RM-114) |  |
+| RM-118 | dependency-anchor | RM | done | Legacy dependency anchor (RM-118) |  |
+| RM-121 | dependency-anchor | RM | done | Legacy dependency anchor (RM-121) |  |
+| RM-122 | dependency-anchor | RM | done | Legacy dependency anchor (RM-122) |  |
+| RM-123 | dependency-anchor | RM | done | Legacy dependency anchor (RM-123) |  |
+| RM-202 | dependency-anchor | RM | done | Legacy dependency anchor (RM-202) |  |
+| V2-058 | dependency-anchor | V2 | done | Legacy dependency anchor (V2-058) |  |
+| V2-062 | dependency-anchor | V2 | done | Legacy dependency anchor (V2-062) |  |
+| V2-063 | dependency-anchor | V2 | done | Legacy dependency anchor (V2-063) |  |
+| V2-069 | dependency-anchor | V2 | done | Legacy dependency anchor (V2-069) |  |
+| V3-033 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-033) |  |
+| V3-038 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-038) |  |
+| V3-048 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-048) |  |
+| V3-051 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-051) |  |
+| V3-053 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-053) |  |
+| V3-059 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-059) |  |
+| V3-ACT-002 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-ACT-002) |  |
+| V3-AEX-001 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-AEX-001) |  |
+| V3-AEX-002 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-AEX-002) |  |
+| V3-BENCH-001 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-BENCH-001) |  |
+| V3-BLD-001 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-BLD-001) |  |
+| V3-BLK-001 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-BLK-001) |  |
+| V3-BUD-001 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-BUD-001) |  |
+| V3-CPY-001 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-CPY-001) |  |
+| V3-CPY-005 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-CPY-005) |  |
+| V3-CPY-006 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-CPY-006) |  |
+| V3-DEP-001 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-DEP-001) |  |
+| V3-DOC-001 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-DOC-001) |  |
+| V3-DOC-004 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-DOC-004) |  |
+| V3-DOC-005 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-DOC-005) |  |
+| V3-DOC-007 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-DOC-007) |  |
+| V3-ECO-001 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-ECO-001) |  |
+| V3-ENT-001 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-ENT-001) |  |
+| V3-ENT-002 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-ENT-002) |  |
+| V3-GOV-002 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-GOV-002) |  |
+| V3-LOOP-001 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-LOOP-001) |  |
+| V3-LOOP-004 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-LOOP-004) |  |
+| V3-MAC-001 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-MAC-001) |  |
+| V3-MEM-001 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-MEM-001) |  |
+| V3-MEM-002 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-MEM-002) |  |
+| V3-MEM-004 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-MEM-004) |  |
+| V3-MEM-008 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-MEM-008) |  |
+| V3-MLC-002 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-MLC-002) |  |
+| V3-OBS-002 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-OBS-002) |  |
+| V3-OF-008 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-OF-008) |  |
+| V3-OPS-003 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-OPS-003) |  |
+| V3-OPS-005 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-OPS-005) |  |
+| V3-OPS-006 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-OPS-006) |  |
+| V3-PRO-001 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-PRO-001) |  |
+| V3-RACE-023 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-RACE-023) |  |
+| V3-RACE-038 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-RACE-038) |  |
+| V3-RACE-CONF-006 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-RACE-CONF-006) |  |
+| V3-RMEM-001 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-RMEM-001) |  |
+| V3-SK-001 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-SK-001) |  |
+| V3-SK-002 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-SK-002) |  |
+| V3-SK-007 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-SK-007) |  |
+| V3-SYM-001 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-SYM-001) |  |
+| V3-XAI-002 | dependency-anchor | V3 | done | Legacy dependency anchor (V3-XAI-002) |  |
+| V4-002 | dependency-anchor | V4 | done | Legacy dependency anchor (V4-002) |  |
+| V4-006 | dependency-anchor | V4 | done | Legacy dependency anchor (V4-006) |  |
 | OPT-001 | backlog | OPT | done | Eyes signal weighting retune in router ranking |  |
 | OPT-002 | backlog | OPT | done | Prompt cache policy split by lane (reflex/autonomy/dream) |  |
 | OPT-003 | backlog | OPT | done | Dream fallback quality scoring before proposal injection |  |

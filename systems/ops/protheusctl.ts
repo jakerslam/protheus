@@ -31,6 +31,8 @@ function usage() {
   console.log('  protheusctl mine dashboard --human=1');
   console.log('  protheusctl migrate --to=<org/repo|url> [--workspace=<path>] [--apply=1]');
   console.log('  protheusctl import --from=<engine> --path=<source> [--apply=1]');
+  console.log('  protheusctl wasi2 run|status');
+  console.log('  protheusctl rust run|report|status');
   console.log('  protheusctl audit illusion --strict=1');
   console.log('  protheusctl approve --rsi --owner=jay --approver=<you>');
 }
@@ -217,6 +219,28 @@ function main() {
       return;
     }
     runScript(importerScript, [sub, ...rest.slice(1)]);
+    return;
+  }
+
+  if (cmd === 'wasi2') {
+    const wasi2Script = path.join(__dirname, 'wasi2_execution_completeness_gate.js');
+    const sub = String(rest[0] || 'status').trim().toLowerCase() || 'status';
+    if (sub === 'run') {
+      runScript(wasi2Script, ['run', ...rest.slice(1)]);
+      return;
+    }
+    runScript(wasi2Script, ['status', ...rest.slice(1)]);
+    return;
+  }
+
+  if (cmd === 'rust') {
+    const rustScript = path.join(__dirname, 'rust_authoritative_microkernel_acceleration.js');
+    const sub = String(rest[0] || 'status').trim().toLowerCase() || 'status';
+    if (sub === 'run' || sub === 'report' || sub === 'status') {
+      runScript(rustScript, [sub, ...rest.slice(1)]);
+      return;
+    }
+    runScript(rustScript, ['status', ...rest]);
     return;
   }
 

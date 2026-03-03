@@ -1,6 +1,6 @@
 # Command Registry
 
-Generated: 2026-03-02T21:24:04.719Z
+Generated: 2026-03-03T01:41:45.799Z
 
 ## Curated Operator Surface
 - `dev`
@@ -248,6 +248,8 @@ Generated: 2026-03-02T21:24:04.719Z
 | `ops:backlog:github:check` | ops | operations | 2 | registry.groups |
 | `ops:backlog:github:status` | ops | operations | 2 | registry.groups |
 | `ops:backlog:github:sync` | ops | operations | 2 | registry.groups |
+| `ops:backlog:pathfinder:run` | ops | operations | 2 | registry.groups |
+| `ops:backlog:pathfinder:status` | ops | operations | 2 | registry.groups |
 | `ops:backlog:registry:check` | ops | operations | 2 | registry.groups |
 | `ops:backlog:registry:metrics` | ops | operations | 2 | registry.groups |
 | `ops:backlog:registry:sync` | ops | operations | 2 | registry.groups |
@@ -278,10 +280,18 @@ Generated: 2026-03-02T21:24:04.719Z
 | `ops:execution-reliability` | ops | operations | 2 | registry.groups |
 | `ops:execution-reliability:status` | ops | operations | 2 | registry.groups |
 | `ops:formal-suite:run` | ops | operations | 2 | registry.groups |
+| `ops:format:check` | ops | operations | 2 | registry.groups |
 | `ops:governance:run` | ops | operations | 2 | registry.groups |
 | `ops:health-audit:run` | ops | operations | 2 | registry.groups |
 | `ops:holo-overlays:compile` | ops | operations | 2 | registry.groups |
 | `ops:legal-language:check` | ops | operations | 2 | registry.groups |
+| `ops:migration:bridge` | ops | operations | 2 | registry.groups |
+| `ops:migration:bridge:apply` | ops | operations | 2 | registry.groups |
+| `ops:migration:bridge:status` | ops | operations | 2 | registry.groups |
+| `ops:migration:daemon:scan` | ops | operations | 2 | registry.groups |
+| `ops:migration:graduation` | ops | operations | 2 | registry.groups |
+| `ops:migration:import` | ops | operations | 2 | registry.groups |
+| `ops:migration:verify` | ops | operations | 2 | registry.groups |
 | `ops:model-health:recover` | ops | operations | 2 | registry.groups |
 | `ops:narrow-agent-parity` | ops | operations | 2 | registry.groups |
 | `ops:observability-defaults:generate` | ops | operations | 2 | registry.groups |
@@ -292,6 +302,8 @@ Generated: 2026-03-02T21:24:04.719Z
 | `ops:package-manifest:check` | ops | operations | 2 | registry.groups |
 | `ops:parity-maintainer:run` | ops | operations | 2 | registry.groups |
 | `ops:path-contract:check` | ops | operations | 2 | registry.groups |
+| `ops:perception:audit` | ops | operations | 2 | registry.groups |
+| `ops:perception:verify` | ops | operations | 2 | registry.groups |
 | `ops:phone-seed-profile` | ops | operations | 2 | registry.groups |
 | `ops:plm:final-review` | ops | operations | 2 | registry.groups |
 | `ops:plm:run` | ops | operations | 2 | registry.groups |
@@ -305,11 +317,16 @@ Generated: 2026-03-02T21:24:04.719Z
 | `ops:root-surface:check` | ops | operations | 2 | registry.groups |
 | `ops:runtime-efficiency` | ops | operations | 2 | registry.groups |
 | `ops:runtime-efficiency:status` | ops | operations | 2 | registry.groups |
+| `ops:rust-accel:report` | ops | operations | 2 | registry.groups |
+| `ops:rust-accel:run` | ops | operations | 2 | registry.groups |
+| `ops:rust-accel:status` | ops | operations | 2 | registry.groups |
 | `ops:rust-spine:benchmark` | ops | operations | 2 | registry.groups |
 | `ops:rust-spine:cutover` | ops | operations | 2 | registry.groups |
 | `ops:rust-spine:parity` | ops | operations | 2 | registry.groups |
 | `ops:rust-spine:rollback` | ops | operations | 2 | registry.groups |
 | `ops:rust-spine:route` | ops | operations | 2 | registry.groups |
+| `ops:rust-workspace-quality:run` | ops | operations | 2 | registry.groups |
+| `ops:rust-workspace-quality:status` | ops | operations | 2 | registry.groups |
 | `ops:script-surface:wave2:apply` | ops | operations | 2 | registry.groups |
 | `ops:script-surface:wave2:plan` | ops | operations | 2 | registry.groups |
 | `ops:seed-boot-probe` | ops | operations | 2 | registry.groups |
@@ -325,6 +342,10 @@ Generated: 2026-03-02T21:24:04.719Z
 | `ops:token-economics:status` | ops | operations | 2 | registry.groups |
 | `ops:trace-contract:append` | ops | operations | 2 | registry.groups |
 | `ops:trace-contract:verify` | ops | operations | 2 | registry.groups |
+| `ops:type-docs:generate` | ops | operations | 2 | registry.groups |
+| `ops:type-docs:verify` | ops | operations | 2 | registry.groups |
+| `ops:wasi2:gate` | ops | operations | 2 | registry.groups |
+| `ops:wasi2:status` | ops | operations | 2 | registry.groups |
 | `ops:workflow-closure` | ops | operations | 2 | registry.groups |
 | `ops:yield-recovery:run` | ops | operations | 2 | registry.groups |
 | `orchestron:run` | platform | general | 2 | policy.default_metadata |
@@ -402,27 +423,6 @@ Generated: 2026-03-02T21:24:04.719Z
 | `security:repo-access:review-plan` | security | security | 3 | registry.groups |
 | `security:repo-access:status` | security | security | 3 | registry.groups |
 | `security:sandbox:evaluate-actuation` | security | security | 3 | registry.groups |
-| `security:sandbox:evaluate-workflow` | security | security | 3 | registry.groups |
-| `security:sandbox:status` | security | security | 3 | registry.groups |
-| `security:secret-rotation:attest` | security | security | 3 | registry.groups |
-| `security:secret-rotation:scan` | security | security | 3 | registry.groups |
-| `security:skin:enforce` | security | security | 3 | registry.groups |
-| `security:skin:verify` | security | security | 3 | registry.groups |
-| `security:terms:accept` | security | security | 3 | registry.groups |
-| `security:terms:check` | security | security | 3 | registry.groups |
-| `security:venom:evaluate` | security | security | 3 | registry.groups |
-| `security:venom:evolve` | security | security | 3 | registry.groups |
-| `security:wasm-microkernel:run` | security | security | 3 | registry.groups |
-| `self-audit:illusion` | platform | general | 2 | policy.default_metadata |
-| `selfhost:compile` | platform | general | 2 | policy.default_metadata |
-| `selfhost:promote` | platform | general | 2 | policy.default_metadata |
-| `selfhost:rollback` | platform | general | 2 | policy.default_metadata |
-| `selfhost:verify` | platform | general | 2 | policy.default_metadata |
-| `selfimprove:propose` | platform | general | 2 | policy.default_metadata |
-| `selfimprove:rollback` | platform | general | 2 | policy.default_metadata |
-| `selfimprove:run` | platform | general | 2 | policy.default_metadata |
-| `selfimprove:trigger` | platform | general | 2 | policy.default_metadata |
-| `sensory:abstain-contract:run` | sensory | analysis | 2 | policy.groups |
 
-Total commands: 586
+Total commands: 619
 Missing metadata: 0

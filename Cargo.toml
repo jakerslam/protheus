@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = [
+  "systems/memory/rust",
+  "systems/self_audit/rust"
+]
+
+[workspace.package]
+edition = "2021"
+license = "SEE LICENSE IN LICENSE"
+
+[workspace.metadata.protheus]
+msrv = "1.84.0"
+owner = "runtime-foundation"
