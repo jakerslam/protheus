@@ -185,6 +185,30 @@ pub struct CriteriaGateOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PolicyHoldInput {
+    pub target: String,
+    pub gate_decision: String,
+    pub route_decision: String,
+    pub needs_manual_review: bool,
+    pub executable: bool,
+    #[serde(default)]
+    pub budget_reason: String,
+    #[serde(default)]
+    pub route_reason: String,
+    pub budget_blocked_flag: bool,
+    pub budget_global_blocked: bool,
+    pub budget_enforcement_blocked: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PolicyHoldOutput {
+    pub hold: bool,
+    pub hold_scope: Option<String>,
+    pub hold_reason: Option<String>,
+    pub route_block_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AutoscaleRequest {
     pub mode: String,
     #[serde(default)]
@@ -199,6 +223,8 @@ pub struct AutoscaleRequest {
     pub normalize_queue_input: Option<NormalizeQueueInput>,
     #[serde(default)]
     pub criteria_gate_input: Option<CriteriaGateInput>,
+    #[serde(default)]
+    pub policy_hold_input: Option<PolicyHoldInput>,
 }
 
 fn clamp_ratio(v: f64) -> f64 {
@@ -653,6 +679,70 @@ pub fn compute_criteria_gate(input: &CriteriaGateInput) -> CriteriaGateOutput {
     }
 }
 
+fn normalize_spaces(s: &str) -> String {
+    s.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+pub fn compute_policy_hold(input: &PolicyHoldInput) -> PolicyHoldOutput {
+    let target = input.target.trim().to_ascii_lowercase();
+    if target != "route" {
+        return PolicyHoldOutput {
+            hold: false,
+            hold_scope: None,
+            hold_reason: None,
+            route_block_reason: None,
+        };
+    }
+
+    let budget_reason = normalize_spaces(&input.budget_reason);
+    let route_reason = normalize_spaces(&input.route_reason);
+    let budget_signal_text =
+        normalize_spaces(&format!("{budget_reason} {route_reason}")).to_ascii_lowercase();
+    let budget_blocked_by_reason = budget_signal_text.contains("burn_rate_exceeded")
+        || budget_signal_text.contains("budget_autopause")
+        || budget_signal_text.contains("budget guard blocked")
+        || budget_signal_text.contains("budget_deferred")
+        || budget_signal_text.contains("budget_blocked");
+    let budget_blocked = input.budget_blocked_flag
+        || input.budget_global_blocked
+        || input.budget_enforcement_blocked
+        || budget_blocked_by_reason;
+
+    if budget_blocked {
+        let reason = if budget_reason.trim().is_empty() {
+            "budget_guard_blocked".to_string()
+        } else {
+            budget_reason
+        };
+        return PolicyHoldOutput {
+            hold: true,
+            hold_scope: Some("budget".to_string()),
+            hold_reason: Some(reason.clone()),
+            route_block_reason: Some(reason),
+        };
+    }
+
+    let gate_decision = input.gate_decision.trim().to_ascii_uppercase();
+    let route_decision = input.route_decision.trim().to_ascii_uppercase();
+    let manual_blocked =
+        gate_decision == "MANUAL" || route_decision == "MANUAL" || input.needs_manual_review;
+    if manual_blocked && !input.executable {
+        return PolicyHoldOutput {
+            hold: true,
+            hold_scope: Some("proposal".to_string()),
+            hold_reason: Some("gate_manual".to_string()),
+            route_block_reason: Some("gate_manual".to_string()),
+        };
+    }
+
+    PolicyHoldOutput {
+        hold: false,
+        hold_scope: None,
+        hold_reason: None,
+        route_block_reason: None,
+    }
+}
+
 pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     let request: AutoscaleRequest =
         serde_json::from_str(payload_json).map_err(|e| format!("autoscale_request_parse_failed:{e}"))?;
@@ -728,6 +818,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_criteria_gate_encode_failed:{e}"));
+    }
+    if mode == "policy_hold" {
+        let input = request
+            .policy_hold_input
+            .ok_or_else(|| "autoscale_missing_policy_hold_input".to_string())?;
+        let out = compute_policy_hold(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "policy_hold",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_policy_hold_encode_failed:{e}"));
     }
     Err(format!("autoscale_mode_unsupported:{mode}"))
 }
@@ -929,5 +1031,42 @@ mod tests {
         });
         assert!(out.pass);
         assert!(out.reasons.is_empty());
+    }
+
+    #[test]
+    fn policy_hold_blocks_budget_pressure() {
+        let out = compute_policy_hold(&PolicyHoldInput {
+            target: "route".to_string(),
+            gate_decision: "ALLOW".to_string(),
+            route_decision: "ALLOW".to_string(),
+            needs_manual_review: false,
+            executable: true,
+            budget_reason: "budget guard blocked".to_string(),
+            route_reason: "".to_string(),
+            budget_blocked_flag: false,
+            budget_global_blocked: false,
+            budget_enforcement_blocked: false,
+        });
+        assert!(out.hold);
+        assert_eq!(out.hold_scope, Some("budget".to_string()));
+    }
+
+    #[test]
+    fn policy_hold_blocks_manual_non_executable_routes() {
+        let out = compute_policy_hold(&PolicyHoldInput {
+            target: "route".to_string(),
+            gate_decision: "MANUAL".to_string(),
+            route_decision: "ALLOW".to_string(),
+            needs_manual_review: false,
+            executable: false,
+            budget_reason: "".to_string(),
+            route_reason: "".to_string(),
+            budget_blocked_flag: false,
+            budget_global_blocked: false,
+            budget_enforcement_blocked: false,
+        });
+        assert!(out.hold);
+        assert_eq!(out.hold_scope, Some("proposal".to_string()));
+        assert_eq!(out.hold_reason, Some("gate_manual".to_string()));
     }
 }

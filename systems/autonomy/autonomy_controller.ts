@@ -8550,15 +8550,41 @@ function routeExecutionPolicyHold(summary, executionTarget) {
       || s.route_reason
       || ''
   );
+  const budgetBlockedFlag = truthyFlag(s.budget_blocked);
+  const budgetGlobalBlocked = truthyFlag(s.budget_global_guard && s.budget_global_guard.blocked);
+  const budgetEnforcementBlocked = truthyFlag(s.budget_enforcement && s.budget_enforcement.blocked);
+
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'policy_hold',
+      {
+        target,
+        gate_decision: gateDecision,
+        route_decision: routeDecision,
+        needs_manual_review: needsManualReview === true,
+        executable: executable === true,
+        budget_reason: budgetReason,
+        route_reason: routeReason,
+        budget_blocked_flag: budgetBlockedFlag,
+        budget_global_blocked: budgetGlobalBlocked,
+        budget_enforcement_blocked: budgetEnforcementBlocked
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
+  }
+
   const budgetSignalText = normalizeSpaces([budgetReason, routeReason].filter(Boolean).join(' ')).toLowerCase();
   const budgetBlockedByReason = budgetSignalText.includes('burn_rate_exceeded')
     || budgetSignalText.includes('budget_autopause')
     || budgetSignalText.includes('budget guard blocked')
     || budgetSignalText.includes('budget_deferred')
     || budgetSignalText.includes('budget_blocked');
-  const budgetBlocked = truthyFlag(s.budget_blocked)
-    || truthyFlag(s.budget_global_guard && s.budget_global_guard.blocked)
-    || truthyFlag(s.budget_enforcement && s.budget_enforcement.blocked)
+  const budgetBlocked = budgetBlockedFlag
+    || budgetGlobalBlocked
+    || budgetEnforcementBlocked
     || budgetBlockedByReason;
   if (budgetBlocked) {
     const reason = budgetReason || 'budget_guard_blocked';
@@ -15825,6 +15851,7 @@ module.exports = {
   runPostconditions,
   computeExecutionTokenUsage,
   preExecCriteriaGateDecision,
+  routeExecutionPolicyHold,
   proposalSemanticFingerprint,
   semanticTokenSimilarity,
   semanticNearDuplicateMatch
