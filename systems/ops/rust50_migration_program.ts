@@ -125,9 +125,14 @@ function defaultPolicy() {
     },
     required_refs_by_lane: {
       'V6-RUST50-001': [
-        'systems/hybrid/rust/src/memory_hotpath.rs',
-        'systems/memory/rust/src/main.rs',
-        'systems/memory/rust_memory_transition_lane.ts'
+        'crates/memory/Cargo.toml',
+        'crates/memory/src/lib.rs',
+        'crates/memory/src/main.rs',
+        'crates/memory/src/sqlite_store.rs',
+        'systems/memory/memory_recall.ts',
+        'systems/memory/hybrid_memory_engine.ts',
+        'systems/memory/cross_cell_exchange_plane.ts',
+        'systems/memory/observational_compression_layer.ts'
       ],
       'V6-RUST50-002': [
         'systems/hybrid/rust/src/execution_replay.rs',
@@ -164,7 +169,7 @@ function defaultPolicy() {
         {
           id: 'memory',
           weight: 22,
-          paths: ['systems/memory', 'systems/hybrid/rust/src/memory_hotpath.rs']
+          paths: ['crates/memory']
         },
         {
           id: 'execution',
@@ -420,13 +425,87 @@ function numOrNaN(v: unknown) {
 
 function lane001(ctx: LaneCtx) {
   const rustRun = runRustCommand(['memory-hotpath']);
-  const wasmRun = runRustCommand(['wasm-bridge']);
   const report = rustRun.payload || {};
   const bench = report.benchmarks || {};
+  const wasmBuild = runCommand([
+    'cargo',
+    'build',
+    '--manifest-path',
+    'crates/memory/Cargo.toml',
+    '--target',
+    'wasm32-unknown-unknown',
+    '--release'
+  ], 900000);
+  const ingestSmoke = runCommand([
+    'cargo',
+    'run',
+    '--quiet',
+    '--manifest-path',
+    'crates/memory/Cargo.toml',
+    '--bin',
+    'memory-cli',
+    '--',
+    'ingest',
+    '--id=memory://v6-rust50-001-smoke',
+    '--content=Rust memory core smoke record',
+    '--tags=rust50,memory',
+    '--repetitions=2',
+    '--lambda=0.02'
+  ], 300000);
+  const recallSmoke = runCommand([
+    'cargo',
+    'run',
+    '--quiet',
+    '--manifest-path',
+    'crates/memory/Cargo.toml',
+    '--bin',
+    'memory-cli',
+    '--',
+    'recall',
+    '--query=Rust memory core smoke record',
+    '--limit=3'
+  ], 300000);
+  const compressSmoke = runCommand([
+    'cargo',
+    'run',
+    '--quiet',
+    '--manifest-path',
+    'crates/memory/Cargo.toml',
+    '--bin',
+    'memory-cli',
+    '--',
+    'compress',
+    '--aggressive=0'
+  ], 300000);
+
+  const libPath = path.join(ROOT, 'crates/memory/src/lib.rs');
+  const cargoTomlPath = path.join(ROOT, 'crates/memory/Cargo.toml');
+  const cargoCfgPath = path.join(ROOT, 'crates/memory/.cargo/config.toml');
+  const libSource = fs.existsSync(libPath) ? fs.readFileSync(libPath, 'utf8') : '';
+  const cargoToml = fs.existsSync(cargoTomlPath) ? fs.readFileSync(cargoTomlPath, 'utf8') : '';
+  const cargoCfg = fs.existsSync(cargoCfgPath) ? fs.readFileSync(cargoCfgPath, 'utf8') : '';
+  const ffiRecallSigPresent = libSource.includes('pub extern "C" fn recall(query: *const c_char, limit: u32) -> *mut c_char');
+  const ffiCompressSigPresent = libSource.includes('pub extern "C" fn compress(aggressive: bool) -> u64');
+  const mobileTargetsDeclared = [
+    'aarch64-apple-ios',
+    'x86_64-apple-ios',
+    'aarch64-linux-android',
+    'x86_64-linux-android'
+  ].every((target) => cargoToml.includes(target) || cargoCfg.includes(target));
+
+  const ingestPayload = ingestSmoke.payload || {};
+  const recallPayload = recallSmoke.payload || {};
+  const compressPayload = compressSmoke.payload || {};
   const refs = requiredRefsReport(ctx.policy, ctx.id);
   const checks = {
     rust_command_ok: rustRun.ok,
-    wasm_bridge_ok: wasmRun.ok && wasmRun.payload && wasmRun.payload.manifest_valid === true,
+    wasm_build_ok: wasmBuild.ok,
+    ffi_recall_signature_present: ffiRecallSigPresent,
+    ffi_compress_signature_present: ffiCompressSigPresent,
+    mobile_targets_declared: mobileTargetsDeclared,
+    ingest_smoke_ok: ingestSmoke.ok && ingestPayload && ingestPayload.ok === true,
+    recall_smoke_ok: recallSmoke.ok && recallPayload && recallPayload.ok === true,
+    compress_smoke_ok: compressSmoke.ok && compressPayload && compressPayload.ok === true,
     recall_ms_p95: numOrNaN(bench.recall_ms_p95) <= Number(ctx.policy.targets.recall_ms_max),
     memory_call_ms_p95: numOrNaN(bench.memory_call_ms_p95) <= Number(ctx.policy.targets.memory_call_ms_p95_max),
     battery_pct_24h: numOrNaN(bench.battery_impact_pct_24h) <= Number(ctx.policy.targets.memory_battery_pct_24h_max),
@@ -436,7 +515,37 @@ function lane001(ctx: LaneCtx) {
   const artifactPath = path.join(ctx.artifactDir, 'v6_rust50_001_memory_core.json');
   writeArtifact(artifactPath, {
     rust_report: rustRun.payload || null,
-    wasm_report: wasmRun.payload || null,
+    wasm_build: {
+      ok: wasmBuild.ok,
+      status: wasmBuild.status,
+      duration_ms: wasmBuild.duration_ms,
+      stderr: wasmBuild.stderr
+    },
+    ffi: {
+      recall_signature_present: ffiRecallSigPresent,
+      compress_signature_present: ffiCompressSigPresent
+    },
+    mobile_targets_declared: mobileTargetsDeclared,
+    smoke: {
+      ingest: {
+        ok: ingestSmoke.ok,
+        status: ingestSmoke.status,
+        duration_ms: ingestSmoke.duration_ms,
+        payload: ingestPayload
+      },
+      recall: {
+        ok: recallSmoke.ok,
+        status: recallSmoke.status,
+        duration_ms: recallSmoke.duration_ms,
+        payload: recallPayload
+      },
+      compress: {
+        ok: compressSmoke.ok,
+        status: compressSmoke.status,
+        duration_ms: compressSmoke.duration_ms,
+        payload: compressPayload
+      }
+    },
     refs
   }, ctx.apply);
   return {
@@ -446,7 +555,9 @@ function lane001(ctx: LaneCtx) {
     summary: {
       recall_ms_p95: bench.recall_ms_p95,
       memory_call_ms_p95: bench.memory_call_ms_p95,
-      battery_impact_pct_24h: bench.battery_impact_pct_24h
+      battery_impact_pct_24h: bench.battery_impact_pct_24h,
+      wasm_build_duration_ms: wasmBuild.duration_ms,
+      recall_hit_count: Number(recallPayload.hit_count || 0)
     },
     artifacts: {
       report_path: rel(artifactPath)

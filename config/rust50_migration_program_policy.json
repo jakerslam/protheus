@@ -22,9 +22,14 @@
   },
   "required_refs_by_lane": {
     "V6-RUST50-001": [
-      "systems/hybrid/rust/src/memory_hotpath.rs",
-      "systems/memory/rust/src/main.rs",
-      "systems/memory/rust_memory_transition_lane.ts"
+      "crates/memory/Cargo.toml",
+      "crates/memory/src/lib.rs",
+      "crates/memory/src/main.rs",
+      "crates/memory/src/sqlite_store.rs",
+      "systems/memory/memory_recall.ts",
+      "systems/memory/hybrid_memory_engine.ts",
+      "systems/memory/cross_cell_exchange_plane.ts",
+      "systems/memory/observational_compression_layer.ts"
     ],
     "V6-RUST50-002": [
       "systems/hybrid/rust/src/execution_replay.rs",
@@ -69,8 +74,7 @@
         "id": "memory",
         "weight": 22,
         "paths": [
-          "systems/memory",
-          "systems/hybrid/rust/src/memory_hotpath.rs"
+          "crates/memory"
         ]
       },
       {
