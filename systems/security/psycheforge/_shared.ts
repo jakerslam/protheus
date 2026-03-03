@@ -180,7 +180,9 @@ function defaultPolicy() {
         'run',
         '--quiet',
         '--manifest-path',
-        'systems/memory/rust/Cargo.toml',
+        'crates/memory/Cargo.toml',
+        '--bin',
+        'memory-cli',
         '--'
       ],
       root: '.',

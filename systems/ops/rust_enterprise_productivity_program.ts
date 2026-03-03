@@ -279,7 +279,7 @@ function lane002(ctx: LaneCtx) {
     boundaries: [
       {
         id: 'memory_retrieval_napi',
-        rust_surface: 'systems/memory/rust',
+        rust_surface: 'crates/memory',
         ts_surface: 'systems/memory/rust_napi_binding.ts',
         fallback: 'js_memory_backend'
       },
@@ -372,8 +372,8 @@ function lane003(ctx: LaneCtx) {
 
 function lane004(ctx: LaneCtx) {
   const rustMemoryRoots = [
-    'systems/memory/rust/src/db.rs',
-    'systems/memory/rust/src/main.rs'
+    'crates/memory/src/sqlite_store.rs',
+    'crates/memory/src/main.rs'
   ].map((p) => path.join(ROOT, p));
   const present = rustMemoryRoots.filter((p) => fs.existsSync(p));
   const contract = {

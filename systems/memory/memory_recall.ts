@@ -39,6 +39,7 @@ function policy() {
     enabled: true,
     rust_manifest: 'crates/memory/Cargo.toml',
     rust_bin: 'memory-cli',
+    rust_bin_path: 'target/release/memory-cli',
     paths: {
       latest_path: 'state/memory/runtime_audit/memory_recall_latest.json',
       receipts_path: 'state/memory/runtime_audit/memory_recall_receipts.jsonl'
@@ -50,6 +51,7 @@ function policy() {
     enabled: raw.enabled !== false,
     rust_manifest: resolvePath(raw.rust_manifest || base.rust_manifest, base.rust_manifest),
     rust_bin: cleanText(raw.rust_bin || base.rust_bin, 120) || base.rust_bin,
+    rust_bin_path: resolvePath(raw.rust_bin_path || base.rust_bin_path, base.rust_bin_path),
     paths: {
       latest_path: resolvePath(paths.latest_path, base.paths.latest_path),
       receipts_path: resolvePath(paths.receipts_path, base.paths.receipts_path)
@@ -68,19 +70,23 @@ function parseJson(text: string) {
   return null;
 }
 
-function runRust(args: string[], timeoutMs = 180000) {
+function runRust(args: string[], p: any, timeoutMs = 180000) {
   const started = Date.now();
-  const cmd = [
-    'cargo',
-    'run',
-    '--quiet',
-    '--manifest-path',
-    'crates/memory/Cargo.toml',
-    '--bin',
-    'memory-cli',
-    '--',
-    ...args
-  ];
+  const preferredBin = cleanText(process.env.PROTHEUS_MEMORY_CORE_BIN || p.rust_bin_path || '', 520);
+  const hasPreferredBin = !!(preferredBin && require('fs').existsSync(preferredBin));
+  const cmd = hasPreferredBin
+    ? [preferredBin, ...args]
+    : [
+      'cargo',
+      'run',
+      '--quiet',
+      '--manifest-path',
+      'crates/memory/Cargo.toml',
+      '--bin',
+      'memory-cli',
+      '--',
+      ...args
+    ];
   const out = spawnSync(cmd[0], cmd.slice(1), {
     cwd: ROOT,
     encoding: 'utf8',
@@ -93,7 +99,8 @@ function runRust(args: string[], timeoutMs = 180000) {
     duration_ms: Math.max(0, Date.now() - started),
     stderr: cleanText(out.stderr || '', 500),
     payload: parseJson(String(out.stdout || '')),
-    command: cmd
+    command: cmd,
+    transport: hasPreferredBin ? 'native_release_bin' : 'cargo_run'
   };
 }
 
@@ -105,13 +112,14 @@ function writeReceipt(p: any, receipt: any) {
 function cmdQuery(args: any, p: any) {
   const q = cleanText(args.q || args.query || '', 400);
   const top = Number.isFinite(Number(args.top)) ? Math.max(1, Number(args.top)) : 5;
-  const run = runRust([`recall`, `--query=${q}`, `--limit=${top}`]);
+  const run = runRust([`recall`, `--query=${q}`, `--limit=${top}`], p);
   const payload = run.payload || {};
   const receipt = {
     ts: nowIso(),
     type: 'memory_recall_query',
     ok: run.ok && payload && payload.ok === true,
     backend: 'rust_core_v6',
+    transport: run.transport,
     command_status: run.status,
     duration_ms: run.duration_ms,
     query: q,
@@ -126,13 +134,14 @@ function cmdQuery(args: any, p: any) {
 
 function cmdGet(args: any, p: any) {
   const id = cleanText(args.id || args['node-id'] || args.uid || '', 200);
-  const run = runRust([`get`, `--id=${id}`]);
+  const run = runRust([`get`, `--id=${id}`], p);
   const payload = run.payload || {};
   const receipt = {
     ts: nowIso(),
     type: 'memory_recall_get',
     ok: run.ok && payload && payload.ok === true,
     backend: 'rust_core_v6',
+    transport: run.transport,
     command_status: run.status,
     duration_ms: run.duration_ms,
     id,
@@ -144,13 +153,14 @@ function cmdGet(args: any, p: any) {
 }
 
 function cmdClearCache(p: any) {
-  const run = runRust(['clear-cache']);
+  const run = runRust(['clear-cache'], p);
   const payload = run.payload || {};
   const receipt = {
     ts: nowIso(),
     type: 'memory_recall_clear_cache',
     ok: run.ok && payload && payload.ok === true,
     backend: 'rust_core_v6',
+    transport: run.transport,
     command_status: run.status,
     duration_ms: run.duration_ms,
     cleared: Number(payload.cleared || 0),

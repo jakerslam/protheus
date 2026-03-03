@@ -9,6 +9,7 @@ export {};
 
 const path = require('path');
 const { spawnSync } = require('child_process');
+const fs = require('fs');
 const {
   ROOT,
   nowIso,
@@ -45,6 +46,7 @@ function policy() {
     },
     rust_manifest: 'crates/memory/Cargo.toml',
     rust_bin: 'memory-cli',
+    rust_bin_path: 'target/release/memory-cli',
     paths: {
       memory_dir: 'memory/observations',
       adaptive_index_path: 'adaptive/observations/index.json',
@@ -70,6 +72,7 @@ function policy() {
     },
     rust_manifest: resolvePath(raw.rust_manifest || base.rust_manifest, base.rust_manifest),
     rust_bin: cleanText(raw.rust_bin || base.rust_bin, 120) || base.rust_bin,
+    rust_bin_path: resolvePath(raw.rust_bin_path || base.rust_bin_path, base.rust_bin_path),
     paths: {
       memory_dir: resolvePath(paths.memory_dir, base.paths.memory_dir),
       adaptive_index_path: resolvePath(paths.adaptive_index_path, base.paths.adaptive_index_path),
@@ -91,9 +94,23 @@ function parseJson(rawText: string) {
   return null;
 }
 
-function runRust(args: string[], timeoutMs = 180000) {
+function runRust(args: string[], p: any, timeoutMs = 180000) {
   const started = Date.now();
-  const command = ['cargo', 'run', '--quiet', '--manifest-path', 'crates/memory/Cargo.toml', '--bin', 'memory-cli', '--', ...args];
+  const possibleBins = [
+    cleanText(process.env.PROTHEUS_MEMORY_CORE_BIN || '', 520),
+    cleanText(process.env.PROTHEUS_MEMORY_RUST_BIN || '', 520),
+    cleanText(p && p.rust_bin_path || '', 520)
+  ].filter(Boolean);
+  let selectedBin = '';
+  for (const bin of possibleBins) {
+    if (fs.existsSync(bin)) {
+      selectedBin = bin;
+      break;
+    }
+  }
+  const command = selectedBin
+    ? [selectedBin, ...args]
+    : ['cargo', 'run', '--quiet', '--manifest-path', 'crates/memory/Cargo.toml', '--bin', 'memory-cli', '--', ...args];
   const out = spawnSync(command[0], command.slice(1), {
     cwd: ROOT,
     encoding: 'utf8',
@@ -105,7 +122,8 @@ function runRust(args: string[], timeoutMs = 180000) {
     status,
     duration_ms: Math.max(0, Date.now() - started),
     payload: parseJson(String(out.stdout || '')),
-    stderr: cleanText(out.stderr || '', 500)
+    stderr: cleanText(out.stderr || '', 500),
+    transport: selectedBin ? 'native_release_bin' : 'cargo_run'
   };
 }
 
@@ -162,7 +180,7 @@ function execute(args: any, p: any) {
   const aggressive = riskTier >= p.risk.require_explicit_approval_tier
     || task.includes('aggressive')
     || normalizeToken(args.aggressive || '0', 8) === '1';
-  const run = runRust(['compress', `--aggressive=${aggressive ? '1' : '0'}`]);
+  const run = runRust(['compress', `--aggressive=${aggressive ? '1' : '0'}`], p);
   const payload = run.payload || {};
   const receipt = {
     ts: nowIso(),
@@ -173,6 +191,7 @@ function execute(args: any, p: any) {
     risk_tier: riskTier,
     aggressive,
     backend: 'rust_core_v6',
+    transport: run.transport,
     command_status: run.status,
     duration_ms: run.duration_ms,
     compacted_rows: Number(payload.compacted_rows || 0),

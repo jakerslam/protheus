@@ -48,7 +48,7 @@ function defaultPolicy() {
     enabled: true,
     strict_default: true,
     ts_roots: ['systems', 'lib'],
-    rust_roots: ['systems/memory/rust/src', 'systems/self_audit/rust/src', 'systems/migration'],
+    rust_roots: ['crates/memory/src', 'systems/self_audit/rust/src', 'systems/migration'],
     docs: {
       ts_reference_path: 'docs/generated/TS_LANE_TYPE_REFERENCE.md',
       rust_reference_path: 'docs/generated/RUST_LANE_TYPE_REFERENCE.md'

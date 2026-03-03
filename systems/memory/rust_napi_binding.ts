@@ -36,9 +36,12 @@ function candidatePaths(explicitPath: string, cratePath: string) {
     out.push(path.join(cratePath, 'index.js'));
     out.push(path.join(cratePath, 'target', 'release', 'index.node'));
     out.push(path.join(cratePath, 'target', 'release', 'protheus_memory_core.node'));
+    out.push(path.join(cratePath, 'target', 'release', 'protheus_memory_core_v6.node'));
   }
   out.push('@protheus/memory-core');
   out.push('protheus-memory-core');
+  out.push('@protheus/memory-core-v6');
+  out.push('protheus-memory-core-v6');
   return Array.from(new Set(out));
 }
 

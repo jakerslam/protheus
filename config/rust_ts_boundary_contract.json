@@ -9,7 +9,7 @@
   "boundaries": [
     {
       "id": "memory_retrieval_napi",
-      "rust_surface": "systems/memory/rust",
+      "rust_surface": "crates/memory",
       "ts_surface": "systems/memory/rust_napi_binding.ts",
       "fallback": "js_memory_backend"
     },

@@ -8,6 +8,7 @@ export {};
  */
 
 const { spawnSync } = require('child_process');
+const fs = require('fs');
 const {
   ROOT,
   nowIso,
@@ -38,6 +39,7 @@ function policy() {
   const base = {
     enabled: true,
     forgetting_curve_lambda: 0.02,
+    rust_bin_path: 'target/release/memory-cli',
     paths: {
       latest_path: 'state/memory/hybrid_engine/latest.json',
       receipts_path: 'state/memory/hybrid_engine/receipts.jsonl'
@@ -48,6 +50,7 @@ function policy() {
   return {
     enabled: raw.enabled !== false,
     forgetting_curve_lambda: clampNumber(raw.forgetting_curve_lambda, 0.0001, 1, base.forgetting_curve_lambda),
+    rust_bin_path: resolvePath(raw.rust_bin_path || base.rust_bin_path, base.rust_bin_path),
     paths: {
       latest_path: resolvePath(paths.latest_path, base.paths.latest_path),
       receipts_path: resolvePath(paths.receipts_path, base.paths.receipts_path)
@@ -66,9 +69,13 @@ function parseJson(rawText: string) {
   return null;
 }
 
-function runRust(args: string[]) {
+function runRust(args: string[], p: any) {
   const started = Date.now();
-  const command = ['cargo', 'run', '--quiet', '--manifest-path', 'crates/memory/Cargo.toml', '--bin', 'memory-cli', '--', ...args];
+  const preferredBin = cleanText(process.env.PROTHEUS_MEMORY_CORE_BIN || p.rust_bin_path || '', 520);
+  const hasPreferredBin = !!(preferredBin && fs.existsSync(preferredBin));
+  const command = hasPreferredBin
+    ? [preferredBin, ...args]
+    : ['cargo', 'run', '--quiet', '--manifest-path', 'crates/memory/Cargo.toml', '--bin', 'memory-cli', '--', ...args];
   const out = spawnSync(command[0], command.slice(1), {
     cwd: ROOT,
     encoding: 'utf8',
@@ -80,7 +87,8 @@ function runRust(args: string[]) {
     status,
     duration_ms: Math.max(0, Date.now() - started),
     payload: parseJson(String(out.stdout || '')),
-    stderr: cleanText(out.stderr || '', 500)
+    stderr: cleanText(out.stderr || '', 500),
+    transport: hasPreferredBin ? 'native_release_bin' : 'cargo_run'
   };
 }
 
@@ -101,13 +109,14 @@ function ingest(args: any, p: any) {
     `--tags=${tags}`,
     `--repetitions=${repetitions}`,
     `--lambda=${p.forgetting_curve_lambda}`
-  ]);
+  ], p);
   const payload = run.payload || {};
   const receipt = {
     ts: nowIso(),
     type: 'hybrid_memory_ingest',
     ok: run.ok && payload && payload.ok === true,
     backend: 'rust_core_v6',
+    transport: run.transport,
     objective,
     command_status: run.status,
     duration_ms: run.duration_ms,
@@ -120,13 +129,14 @@ function ingest(args: any, p: any) {
 
 function consolidate(args: any, p: any) {
   const aggressive = normalizeToken(args.aggressive || '0', 8) === '1';
-  const run = runRust(['compress', `--aggressive=${aggressive ? '1' : '0'}`]);
+  const run = runRust(['compress', `--aggressive=${aggressive ? '1' : '0'}`], p);
   const payload = run.payload || {};
   const receipt = {
     ts: nowIso(),
     type: 'hybrid_memory_consolidate',
     ok: run.ok && payload && payload.ok === true,
     backend: 'rust_core_v6',
+    transport: run.transport,
     aggressive,
     command_status: run.status,
     duration_ms: run.duration_ms,

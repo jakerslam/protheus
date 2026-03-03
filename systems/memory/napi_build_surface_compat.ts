@@ -59,8 +59,8 @@ function defaultPolicy() {
     default_runtime_transport: 'daemon_first',
     strict_build_requires_cargo: false,
     commands: {
-      rust_build: ['cargo', 'build', '--manifest-path', 'systems/memory/rust/Cargo.toml', '--release'],
-      rust_probe: ['cargo', 'run', '--quiet', '--manifest-path', 'systems/memory/rust/Cargo.toml', '--', 'probe', '--root=.']
+      rust_build: ['cargo', 'build', '--manifest-path', 'crates/memory/Cargo.toml', '--release'],
+      rust_probe: ['cargo', 'run', '--quiet', '--manifest-path', 'crates/memory/Cargo.toml', '--bin', 'memory-cli', '--', 'probe', '--root=.']
     },
     matrix: {
       profiles: [
@@ -80,7 +80,7 @@ function defaultPolicy() {
           id: 'cli_compat',
           role: 'legacy_compat',
           description: 'Direct Rust CLI path for compatibility and diagnostics.',
-          run_command: 'cargo run --manifest-path systems/memory/rust/Cargo.toml -- query-index --q probe --root=.'
+          run_command: 'cargo run --manifest-path crates/memory/Cargo.toml --bin memory-cli -- query-index --q probe --root=.'
         }
       ]
     },

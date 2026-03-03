@@ -377,7 +377,7 @@
     "memory:rust-transition:benchmark": "node systems/memory/rust_memory_transition_lane.js benchmark --runs=5",
     "build:memory": "node systems/memory/napi_build_surface_compat.js build --apply=1",
     "postinstall:memory": "node systems/memory/napi_build_surface_compat.js postinstall --apply=1",
-    "memory:rust:verify-envelope": "cargo run --quiet --manifest-path systems/memory/rust/Cargo.toml -- verify-envelope --root=.",
+    "memory:rust:verify-envelope": "cargo run --quiet --manifest-path crates/memory/Cargo.toml --bin memory-cli -- verify-envelope",
     "memory:fallback-gate:enable-emergency": "node systems/memory/memory_fallback_retirement_gate.js enable-emergency --reason=\"manual_emergency\"",
     "memory:fallback-gate:disable-emergency": "node systems/memory/memory_fallback_retirement_gate.js disable-emergency",
     "economy:donate": "node systems/economy/public_donation_api.js donate --donor_id=${DONOR_ID:-manual_donor} --gpu_hours=${GPU_HOURS:-120} --proof_ref=${PROOF_REF:-manual_proof}",

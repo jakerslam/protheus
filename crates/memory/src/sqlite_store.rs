@@ -172,6 +172,24 @@ mod native {
         Ok(n as u64)
     }
 
+    pub fn set_hot_state(key: &str, payload_json: &str) -> Result<(), String> {
+        let db_path = default_db_path();
+        let conn = open(&db_path)?;
+        ensure_schema(&conn)?;
+        conn.execute(
+            r#"
+            INSERT INTO memory_cache (key, payload, updated_at)
+            VALUES (?1, ?2, ?3)
+            ON CONFLICT(key) DO UPDATE SET
+              payload=excluded.payload,
+              updated_at=excluded.updated_at
+            "#,
+            params![key, payload_json, now_ts()],
+        )
+        .map_err(|e| format!("sqlite_hot_state_upsert_failed:{e}"))?;
+        Ok(())
+    }
+
     pub fn compress_store(aggressive: bool) -> Result<u64, String> {
         let db_path = default_db_path();
         let conn = open(&db_path)?;
@@ -264,6 +282,10 @@ mod native {
         Ok(0)
     }
 
+    pub fn set_hot_state(_key: &str, _payload_json: &str) -> Result<(), String> {
+        Ok(())
+    }
+
     pub fn compress_store(_aggressive: bool) -> Result<u64, String> {
         Ok(0)
     }
@@ -313,4 +335,8 @@ pub fn clear_cache() -> Result<u64, String> {
 
 pub fn compress(aggressive: bool) -> Result<u64, String> {
     native::compress_store(aggressive)
+}
+
+pub fn set_hot_state(key: &str, payload_json: &str) -> Result<(), String> {
+    native::set_hot_state(key, payload_json)
 }
