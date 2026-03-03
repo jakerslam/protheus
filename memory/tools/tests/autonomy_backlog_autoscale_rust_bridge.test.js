@@ -151,6 +151,28 @@ function main() {
   assert.strictEqual(criteriaGate.pass, false);
   assert.ok(Array.isArray(criteriaGate.reasons) && criteriaGate.reasons.includes('criteria_contract_violation'));
 
+  const policyHold = getPayload(
+    runBacklogAutoscalePrimitive(
+      'policy_hold',
+      {
+        target: 'route',
+        gate_decision: 'ALLOW',
+        route_decision: 'ALLOW',
+        needs_manual_review: false,
+        executable: true,
+        budget_reason: 'budget guard blocked',
+        route_reason: '',
+        budget_blocked_flag: false,
+        budget_global_blocked: false,
+        budget_enforcement_blocked: false
+      },
+      { allow_cli_fallback: true }
+    ),
+    'policy_hold'
+  );
+  assert.strictEqual(policyHold.hold, true);
+  assert.strictEqual(policyHold.hold_scope, 'budget');
+
   console.log('autonomy_backlog_autoscale_rust_bridge.test.js: OK');
 }
 
