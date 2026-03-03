@@ -1215,7 +1215,19 @@
     "ops:fluxlattice:run-all": "node systems/ops/fluxlattice_program.js run-all --apply=1 --strict=1",
     "ops:fluxlattice:status": "node systems/ops/fluxlattice_program.js status",
     "test:ops:fluxlattice-program": "node memory/tools/tests/fluxlattice_program.test.js",
-    "test:ops:v3-race-wiring": "node memory/tools/tests/v3_race_wiring_contract.test.js"
+    "test:ops:v3-race-wiring": "node memory/tools/tests/v3_race_wiring_contract.test.js",
+    "ops:rust50:list": "node systems/ops/rust50_migration_program.js list",
+    "ops:rust50:run-all": "node systems/ops/rust50_migration_program.js run-all --apply=1 --strict=0",
+    "ops:rust50:status": "node systems/ops/rust50_migration_program.js status",
+    "ops:rust50:gate": "node systems/ops/rust50_migration_program.js run --id=V6-RUST50-007 --apply=1 --strict=1",
+    "lane:v6-rust50-001:run": "node systems/ops/rust50_migration_program.js run --id=V6-RUST50-001 --apply=1 --strict=1",
+    "lane:v6-rust50-002:run": "node systems/ops/rust50_migration_program.js run --id=V6-RUST50-002 --apply=1 --strict=1",
+    "lane:v6-rust50-003:run": "node systems/ops/rust50_migration_program.js run --id=V6-RUST50-003 --apply=1 --strict=1",
+    "lane:v6-rust50-004:run": "node systems/ops/rust50_migration_program.js run --id=V6-RUST50-004 --apply=1 --strict=1",
+    "lane:v6-rust50-005:run": "node systems/ops/rust50_migration_program.js run --id=V6-RUST50-005 --apply=1 --strict=1",
+    "lane:v6-rust50-006:run": "node systems/ops/rust50_migration_program.js run --id=V6-RUST50-006 --apply=1 --strict=0",
+    "lane:v6-rust50-007:run": "node systems/ops/rust50_migration_program.js run --id=V6-RUST50-007 --apply=1 --strict=1",
+    "test:ops:rust50-migration": "node memory/tools/tests/rust50_migration_program.test.js"
   },
   "bin": {
     "protheus": "./bin/protheus",

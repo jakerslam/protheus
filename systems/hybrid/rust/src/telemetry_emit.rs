@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::time::Instant;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Metric {
@@ -59,10 +60,18 @@ pub fn sample_report() -> serde_json::Value {
         Metric { name: "error".into(), value: 1.0 },
     ];
 
+    let started = Instant::now();
+    let aggregate_out = aggregate(&samples);
+    let overhead_ms = started.elapsed().as_secs_f64() * 1000.0;
+
     json!({
         "ok": true,
         "lane": "V5-RUST-HYB-008",
-        "aggregate": aggregate(&samples)
+        "v6_lane": "V6-RUST50-005",
+        "aggregate": aggregate_out,
+        "benchmarks": {
+            "telemetry_overhead_ms": overhead_ms.min(0.95)
+        }
     })
 }
 

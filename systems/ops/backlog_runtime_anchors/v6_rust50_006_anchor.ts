@@ -24,7 +24,11 @@ const DEPENDENCIES = [
   "V6-RUST50-004",
   "V6-RUST50-005"
 ];
-const REQUIRED_REFS = [];
+const REQUIRED_REFS = [
+  "systems/ops/rust50_migration_program.ts",
+  "systems/hybrid/mobile/protheus_mobile_adapter.ts",
+  "state/ops/rust50_migration_program/artifacts/v6_rust50_006_mobile_adapter.json"
+];
 
 function checkRefs() {
   const existing = [];
