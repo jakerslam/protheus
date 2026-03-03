@@ -1518,6 +1518,25 @@ function normalizeQueuePressure(queuePressure: AnyObj = {}) {
   const pending = Math.max(0, Number(src.pending || 0));
   const total = Math.max(0, Number(src.total || 0));
   const pendingRatioRaw = Number(src.pending_ratio);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'normalize_queue',
+      {
+        pressure: src.pressure != null ? String(src.pressure) : '',
+        pending,
+        total,
+        pending_ratio: Number.isFinite(pendingRatioRaw) ? pendingRatioRaw : null,
+        warn_pending_count: AUTONOMY_QOS_QUEUE_PENDING_WARN_COUNT,
+        critical_pending_count: AUTONOMY_QOS_QUEUE_PENDING_CRITICAL_COUNT,
+        warn_pending_ratio: AUTONOMY_QOS_QUEUE_PENDING_WARN_RATIO,
+        critical_pending_ratio: AUTONOMY_QOS_QUEUE_PENDING_CRITICAL_RATIO
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
+  }
   const pendingRatio = Number.isFinite(pendingRatioRaw)
     ? Math.max(0, Math.min(1, pendingRatioRaw))
     : (total > 0 ? pending / total : 0);
