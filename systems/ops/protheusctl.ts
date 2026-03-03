@@ -48,6 +48,8 @@ function usage() {
   console.log('  protheus lens <persona> [decision|strategic|full] [--gap=<seconds>] [--active=1] [--emotion=on|off] [--intercept="<override>"] "<query>"');
   console.log('  protheus lens update-stream <persona> [--dry-run=1]');
   console.log('  protheus lens checkin [--persona=jay_haslam] [--heartbeat=HEARTBEAT.md] [--emotion=on|off] [--dry-run=1]');
+  console.log('  protheusctl spine status [--mode=daily|eyes] [--date=YYYY-MM-DD]');
+  console.log('  protheusctl spine run [daily|eyes] [YYYY-MM-DD] [--max-eyes=N] [--apply-reseal=1]');
   console.log('  protheusctl hold admit|rehydrate|simulate|status');
   console.log('  protheusctl suite list|run|run-all|status');
   console.log('  protheusctl audit illusion --strict=1');
@@ -477,6 +479,13 @@ function main() {
   if (cmd === 'lens') {
     const personaScript = path.join(__dirname, '..', 'personas', 'cli.js');
     runScript(personaScript, rest, { forwardStdin: true });
+    return;
+  }
+
+  if (cmd === 'spine') {
+    const spineScript = path.join(__dirname, '..', 'spine', 'spine_safe_launcher.js');
+    const spineArgs = rest.length ? rest : ['status'];
+    runScript(spineScript, spineArgs);
     return;
   }
 

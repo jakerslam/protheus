@@ -73,8 +73,17 @@ type HeartbeatRunSpineOpts = {
 };
 
 function runSpine(mode, dateStr, maxEyes, opts: HeartbeatRunSpineOpts = {}) {
-  const args = [path.join('systems', 'spine', 'spine.js'), mode, dateStr];
+  const args = [path.join('systems', 'spine', 'spine_safe_launcher.js'), 'run', mode, dateStr];
   if (maxEyes != null && maxEyes !== '') args.push(`--max-eyes=${maxEyes}`);
+  const envForFlags = opts.env && typeof opts.env === 'object'
+    ? { ...process.env, ...opts.env }
+    : process.env;
+  if (String(envForFlags.SPINE_HEARTBEAT_APPLY_RESEAL || '').trim() === '1') {
+    args.push('--apply-reseal=1');
+  }
+  if (String(envForFlags.SPINE_HEARTBEAT_ALLOW_RISKY_ENV || '').trim() === '1') {
+    args.push('--allow-risky-env=1');
+  }
   const runEnv = opts.env && typeof opts.env === 'object'
     ? { ...process.env, ...opts.env }
     : process.env;
