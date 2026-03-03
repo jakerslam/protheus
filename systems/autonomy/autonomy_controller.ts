@@ -1729,11 +1729,24 @@ function computeBacklogAutoscalePlan(input: AnyObj = {}) {
     );
     if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
       const raw = rust.payload.payload;
+      const warningPressure = raw.warningPressure != null ? !!raw.warningPressure : !!raw.warning_pressure;
+      const highPressure = raw.highPressure != null ? !!raw.highPressure : !!raw.high_pressure;
+      const pressureActive = raw.pressureActive != null ? !!raw.pressureActive : !!raw.pressure_active;
       return {
-        ...raw,
-        warningPressure: raw.warningPressure != null ? !!raw.warningPressure : !!raw.warning_pressure,
-        highPressure: raw.highPressure != null ? !!raw.highPressure : !!raw.high_pressure,
-        pressureActive: raw.pressureActive != null ? !!raw.pressureActive : !!raw.pressure_active
+        action: String(raw.action || 'hold'),
+        reason: String(raw.reason || 'hold'),
+        pressure: String(raw.pressure || 'normal'),
+        pending: Number(raw.pending || 0),
+        pending_ratio: Number(raw.pending_ratio || 0),
+        current_cells: Math.max(0, Math.floor(Number(raw.current_cells || 0))),
+        target_cells: Math.max(0, Math.floor(Number(raw.target_cells != null ? raw.target_cells : raw.current_cells || 0))),
+        warningPressure,
+        highPressure,
+        pressureActive,
+        cooldown_active: raw.cooldown_active === true,
+        idle_release_ready: raw.idle_release_ready === true,
+        budget_blocked: raw.budget_blocked === true,
+        trit_shadow_blocked: raw.trit_shadow_blocked === true
       };
     }
   }
