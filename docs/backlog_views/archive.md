@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-03T03:18:56.472Z
+Generated: 2026-03-03T04:28:16.226Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -748,4 +748,14 @@ Generated: 2026-03-03T03:18:56.472Z
 | V4-REL-001 | extension | V4 | done | Release Provenance Pipeline (Signed Tags + Changelog Evidence) | V4-TRUST-001, V4-PKG-002, V4-OBS-011 |
 | V4-ROLL-001 | scale-readiness | V4 | done | First-Wave Tool Rollout Sequencer (`graph/mem/telemetry/vault`) | V4-SUITE-001, V4-SUITE-002, V4-SUITE-003, V4-SUITE-004, V4-SUITE-012 |
 | V4-DOC-ORG-001 | launch-polish | V4 | done | Org-Level README + Onboarding Narrative Refresh | V4-BRAND-001, V4-FORT-007, V4-SUITE-012 |
+| V5-RUST-HYB-001 | scale-readiness | V5 | done | 15-25% Rust Share Control Plan | V5-RUST-PROD-001, V5-RUST-PROD-011 |
+| V5-RUST-HYB-002 | primitive-upgrade | V5 | done | Memory Lane Rust Completion (Scheduler + Compression + SQLite Hot Paths) | V5-RUST-HYB-001, V5-RUST-PROD-004, V5-RUST-PROD-006 |
+| V5-RUST-HYB-003 | primitive-upgrade | V5 | done | Execution Runtime Rust Cutover (Deterministic Receipts + Replay Core) | V5-RUST-HYB-001, V5-RUST-PROD-003, V5-RUST-PROD-008 |
+| V5-RUST-HYB-004 | hardening | V5 | done | Security + Vault Rust Core Hardening | V5-RUST-HYB-001, V5-RUST-PROD-010, V4-SUITE-004 |
+| V5-RUST-HYB-005 | extension | V5 | done | Pinnacle CRDT Rust Merge Engine | V5-RUST-HYB-001, V5-RUST-PROD-004, V4-SUITE-011 |
+| V5-RUST-HYB-006 | hardening | V5 | done | Econ + Crypto Rust Safety Core | V5-RUST-HYB-001, V5-RUST-PROD-006, V4-SUITE-009 |
+| V5-RUST-HYB-007 | extension | V5 | done | Red Legion Chaos Engine Rust Acceleration | V5-RUST-HYB-001, V5-RUST-PROD-003, V4-SUITE-006 |
+| V5-RUST-HYB-008 | extension | V5 | done | Observability Telemetry Rust Emitter Core | V5-RUST-HYB-001, V5-RUST-PROD-009, V4-SUITE-003 |
+| V5-RUST-HYB-009 | extension | V5 | done | WASM Adapter Rust Bridge Expansion | V5-RUST-HYB-001, V5-RUST-PROD-002, V5-RUST-PROD-011 |
+| V5-RUST-HYB-010 | scale-readiness | V5 | done | Hybrid Envelope Validation + Guardrail Gate | V5-RUST-HYB-002, V5-RUST-HYB-003, V5-RUST-HYB-004, V5-RUST-HYB-005, V5-RUST-HYB-006, V5-RUST-HYB-007, V5-RUST-HYB-008, V5-RUST-HYB-009, V5-RUST-PROD-012 |
 

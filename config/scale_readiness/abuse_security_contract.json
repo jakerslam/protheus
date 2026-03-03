@@ -1,0 +1,14 @@
+{
+  "schema_id": "abuse_security_scale_contract",
+  "schema_version": "1.0",
+  "rate_limits": {
+    "anonymous_rps": 20,
+    "authenticated_rps": 120
+  },
+  "tenant_isolation": "strict_namespace_and_budget_boundaries",
+  "auth_hardening": {
+    "session_rotation_minutes": 30,
+    "fail_closed": true
+  },
+  "adversarial_tests_required": true
+}

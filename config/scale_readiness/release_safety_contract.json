@@ -1,0 +1,17 @@
+{
+  "schema_id": "release_safety_scale_contract",
+  "schema_version": "1.0",
+  "canary": {
+    "ramps": [
+      1,
+      5,
+      15,
+      35,
+      100
+    ],
+    "rollback_threshold_error_rate": 0.02
+  },
+  "feature_flags_required": true,
+  "schema_compatibility_required": true,
+  "kill_switch_required": true
+}

@@ -1,0 +1,15 @@
+{
+  "schema_id": "sre_observability_maturity_contract",
+  "schema_version": "1.0",
+  "telemetry": {
+    "metrics": true,
+    "traces": true,
+    "logs": true
+  },
+  "paging": {
+    "p1_minutes": 10,
+    "p2_minutes": 30
+  },
+  "runbook_drill_sla_days": 30,
+  "game_day_quarterly": true
+}

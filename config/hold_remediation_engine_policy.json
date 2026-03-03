@@ -1,0 +1,42 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "gates": {
+    "unchanged_state": {
+      "enabled": true,
+      "freshness_hours": 24,
+      "semantic_fields": ["title", "kind", "payload", "route"]
+    },
+    "confidence": {
+      "enabled": true,
+      "low_threshold": 0.58,
+      "canary_min": 0.58,
+      "canary_max": 0.72
+    },
+    "cap_scheduler": {
+      "enabled": true,
+      "daily_attempt_cap": 6,
+      "rehydrate_batch": 3,
+      "parked_queue_slo_hours": 24
+    },
+    "routeability": {
+      "enabled": true,
+      "non_exec_kinds": ["manual_only", "human_review"],
+      "manual_route_values": ["gate_manual", "manual", "human"]
+    },
+    "budget": {
+      "enabled": true,
+      "burst_window_minutes": 60,
+      "max_tokens_in_window": 12000,
+      "proactive_deferral_band": 0.9,
+      "autopause_ratio": 1.5
+    }
+  },
+  "paths": {
+    "state_path": "state/autonomy/hold_remediation_engine/state.json",
+    "latest_path": "state/autonomy/hold_remediation_engine/latest.json",
+    "receipts_path": "state/autonomy/hold_remediation_engine/receipts.jsonl",
+    "history_path": "state/autonomy/hold_remediation_engine/history.jsonl"
+  }
+}

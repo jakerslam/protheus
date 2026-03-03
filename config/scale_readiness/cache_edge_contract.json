@@ -1,0 +1,17 @@
+{
+  "schema_id": "cache_edge_delivery_contract",
+  "schema_version": "1.0",
+  "layers": [
+    "edge_cdn",
+    "service_cache",
+    "hot_key_guard"
+  ],
+  "invalidation": {
+    "mode": "versioned_tag_and_ttl",
+    "max_stale_seconds": 30
+  },
+  "cache_slo": {
+    "hit_rate_target": 0.85,
+    "freshness_target": 0.99
+  }
+}

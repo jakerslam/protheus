@@ -1,0 +1,12 @@
+{
+  "schema_id": "multi_region_resilience_contract",
+  "schema_version": "1.0",
+  "mode": "active_standby",
+  "rto_minutes": 15,
+  "rpo_minutes": 5,
+  "drills": {
+    "failover_monthly": true,
+    "failback_monthly": true,
+    "backup_restore_weekly": true
+  }
+}

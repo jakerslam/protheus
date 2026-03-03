@@ -1,0 +1,9 @@
+{
+  "type": "service",
+  "template": true,
+  "fields": [
+    "title",
+    "owner",
+    "scope"
+  ]
+}

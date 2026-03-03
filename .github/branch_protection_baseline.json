@@ -1,0 +1,10 @@
+{
+  "schema_id": "git_provenance_integrity_guardrail",
+  "schema_version": "1.0",
+  "generated_at": "2026-03-03T03:50:02.987Z",
+  "branch": "main",
+  "allow_force_push": false,
+  "require_signed_commits": true,
+  "require_linear_history": true,
+  "require_status_checks": true
+}

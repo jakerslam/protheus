@@ -1,0 +1,15 @@
+{
+  "schema_id": "lens_mode_policy",
+  "schema_version": "1.0",
+  "default_mode": "hidden",
+  "modes": [
+    "hidden",
+    "minimal",
+    "full"
+  ],
+  "private_store": ".private-lenses/",
+  "commands": [
+    "expose",
+    "sync"
+  ]
+}
