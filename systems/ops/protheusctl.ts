@@ -46,6 +46,8 @@ function usage() {
   console.log('  protheusctl fluxlattice list|run|run-all|status');
   console.log('  protheusctl lensmap init|template add|simplify|polish|import|sync|expose|status');
   console.log('  protheus lens <persona> [decision|strategic|full] [--gap=<seconds>] [--active=1] [--emotion=on|off] [--values=on|off] [--include-feed=1] [--intercept="<override>"] "<query>"');
+  console.log('  protheus lens trigger <pre-sprint|drift-alert|weekly-checkin> ["<query>"] [--persona=<id>] [--heartbeat=HEARTBEAT.md] [--dry-run=1]');
+  console.log('  protheus lens dashboard [--window=<n>] [--json=1]');
   console.log('  protheus orchestrate status');
   console.log('  protheus orchestrate telemetry [--window=20]');
   console.log('  protheus orchestrate meeting "<topic>" [--approval-note="..."] [--emotion=on|off] [--override-reason=...] [--override-actor=...] [--override-expiry=ISO8601] [--monarch-token=...]');

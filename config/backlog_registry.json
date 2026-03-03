@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-03T08:35:46.807Z",
-  "source_hash": "e3e0ed5e3a234a7f12637dee",
-  "row_count": 765,
-  "active_count": 4,
-  "archive_count": 761,
+  "generated_at": "2026-03-03T19:24:03.304Z",
+  "source_hash": "7c905fd1aa5a361a20106013",
+  "row_count": 781,
+  "active_count": 16,
+  "archive_count": 765,
   "rows": [
     {
       "id": "BL-001",
@@ -9647,6 +9647,210 @@
         "V6-RUST50-004",
         "V6-RUST50-005",
         "V5-RUST-HYB-009"
+      ]
+    },
+    {
+      "id": "V6-F100-001",
+      "class": "hardening",
+      "wave": "V6",
+      "status": "queued",
+      "title": "Reliability Certification Program (SLO/Error-Budget Gate)",
+      "problem": "Reliability evidence is distributed across lanes and not promoted as one enforceable release contract.",
+      "acceptance": "Define tiered SLO catalog and error-budget policy for critical services/CLI paths; add release gate that blocks promotion when burn-rate exceeds policy; emit monthly reliability scorecard receipts (`uptime`, `p95/p99`, `incident_rate`, `change_fail_rate`) with drill evidence and rollback drill receipts.",
+      "dependencies": []
+    },
+    {
+      "id": "V6-F100-002",
+      "class": "governance",
+      "wave": "V6",
+      "status": "queued",
+      "title": "SDLC Change-Control Plane (RFC/ADR/Risk Class)",
+      "problem": "High-risk changes still rely on mixed conventions rather than one deterministic approval and traceability flow.",
+      "acceptance": "Enforce change classes (`standard/major/high-risk`) with required RFC/ADR linkage, approver rules, rollback owner, and merge-gate checks; reject high-risk merges without linked approval receipts and rollback plan artifact; prove rollback execution in release drills.",
+      "dependencies": [
+        "V6-F100-001"
+      ]
+    },
+    {
+      "id": "V6-F100-003",
+      "class": "hardening",
+      "wave": "V6",
+      "status": "queued",
+      "title": "Secure Supply-Chain Provenance v2 (SBOM + Signed Artifacts)",
+      "problem": "Dependency and artifact trust posture exists but is not yet one end-to-end provenance contract visible at release time.",
+      "acceptance": "Generate SBOM per release artifact, sign build outputs, verify signatures before deploy, and enforce dependency-vulnerability SLA gates; publish provenance bundle for every tagged release with rollback-to-last-known-good artifact policy and receipts.",
+      "dependencies": [
+        "V6-F100-002"
+      ]
+    },
+    {
+      "id": "V6-F100-004",
+      "class": "governance",
+      "wave": "V6",
+      "status": "queued",
+      "title": "Compliance Evidence Automation (SOC2/ISO Audit Bundle)",
+      "problem": "Compliance controls are present in parts but audit evidence packaging is not yet deterministic and repeatable for external review.",
+      "acceptance": "Build control-evidence collector that maps controls to artifacts/receipts automatically, generates quarterly audit bundle export, enforces evidence freshness windows, and fails compliance check when controls lack current evidence; include control-failure rollback playbooks in bundle output.",
+      "dependencies": [
+        "V6-F100-002",
+        "V6-F100-003"
+      ]
+    },
+    {
+      "id": "V6-F100-005",
+      "class": "scale-readiness",
+      "wave": "V6",
+      "status": "queued",
+      "title": "1M-User Performance Certification Harness",
+      "problem": "Scale-readiness lanes exist, but no single certification harness proves sustained 1M-user target behavior with promotion gates.",
+      "acceptance": "Add repeatable large-scale load harness with traffic profiles, p95/p99 latency budgets by operation class, saturation thresholds, and cost-per-request metrics; promotion blocked unless certification receipts pass for current release candidate; enforce rollback to prior release profile on failed certification.",
+      "dependencies": [
+        "V6-F100-001",
+        "V6-F100-003"
+      ]
+    },
+    {
+      "id": "V6-F100-006",
+      "class": "hardening",
+      "wave": "V6",
+      "status": "queued",
+      "title": "Multi-Tenant Isolation + Data Governance Contract",
+      "problem": "Tenant-boundary and data-governance assurances are not yet unified into one fail-closed certification path.",
+      "acceptance": "Add tenant-isolation invariants, data-classification enforcement, delete/export contract tests, and cross-tenant access adversarial suite; fail closed with human alert on isolation violations and documented rollback path to safe isolation baseline.",
+      "dependencies": [
+        "V6-F100-003",
+        "V6-F100-005"
+      ]
+    },
+    {
+      "id": "V6-F100-007",
+      "class": "hardening",
+      "wave": "V6",
+      "status": "queued",
+      "title": "API/CLI Contract Lifecycle (Versioning + Deprecation)",
+      "problem": "Public/internal interfaces evolve quickly without a single contract lifecycle policy that guarantees backward compatibility windows.",
+      "acceptance": "Implement semantic versioning policy for API/CLI contracts, required deprecation windows, compatibility regression tests for prior minor versions, and changelog gate enforcing migration notes for breaking changes; include rollback compatibility profile for last stable contract set.",
+      "dependencies": [
+        "V6-F100-002"
+      ]
+    },
+    {
+      "id": "V6-F100-008",
+      "class": "governance",
+      "wave": "V6",
+      "status": "queued",
+      "title": "On-Call + Incident Command Maturity Pack",
+      "problem": "Incident handling exists but lacks one codified IC model with measurable response-performance gates.",
+      "acceptance": "Define incident severity matrix, rotation/ownership map, paging policy, MTTA/MTTR SLOs, and mandatory postmortem template with tracked corrective actions; run monthly game-day, publish receipts, and verify rollback drills for top-severity failure classes.",
+      "dependencies": [
+        "V6-F100-001",
+        "V6-F100-002"
+      ]
+    },
+    {
+      "id": "V6-F100-009",
+      "class": "launch-polish",
+      "wave": "V6",
+      "status": "queued",
+      "title": "Golden-Path Onboarding + Developer Portal",
+      "problem": "Onboarding quality is improving but still spread across files, reducing first-week productivity and enterprise onboarding confidence.",
+      "acceptance": "Ship one-command bootstrap + role-based onboarding tracks (`operator`, `backend`, `infra`, `security`) with task checklists and success telemetry; target `new contributor to first verified change <= 30 minutes` in test environment and include rollback guidance for failed setup paths.",
+      "dependencies": [
+        "V6-F100-001"
+      ]
+    },
+    {
+      "id": "V6-F100-010",
+      "class": "launch-polish",
+      "wave": "V6",
+      "status": "queued",
+      "title": "Enterprise Architecture Narrative + Evidence Pack",
+      "problem": "Architecture credibility is high internally but lacks one tightly curated external-facing evidence-backed packet for enterprise evaluators.",
+      "acceptance": "Produce architecture narrative pack with component boundaries, scaling model, failure domains, security model, and benchmark claims each linked to reproducible artifacts/receipts; include anti-overclaim guard in docs CI and explicit rollback narratives for major runtime transitions.",
+      "dependencies": [
+        "V6-F100-009"
+      ]
+    },
+    {
+      "id": "V6-F100-011",
+      "class": "launch-polish",
+      "wave": "V6",
+      "status": "queued",
+      "title": "Operator Surface Consistency Program (UX/Tone/State Model)",
+      "problem": "UX and operator surfaces are strong but not yet governed by one consistent state/tone/interaction contract across all commands/panels.",
+      "acceptance": "Define and enforce surface consistency contract (command shape, status vocabulary, tone profile, state labels, error taxonomy) with snapshot tests across `protheus`, `protheusctl`, `protheus-top`, and reasoning surfaces; require rollback-safe compatibility snapshots for each surface update wave.",
+      "dependencies": [
+        "V6-F100-009",
+        "V6-F100-010"
+      ]
+    },
+    {
+      "id": "V6-F100-012",
+      "class": "governance",
+      "wave": "V6",
+      "status": "queued",
+      "title": "Executive Engineering Readiness Scorecard (Path to 90)",
+      "problem": "Progress toward Fortune-100 software readiness is currently qualitative and not tracked against one explicit score model.",
+      "acceptance": "Implement monthly weighted scorecard for `sophistication` and `appearance`, map each score component to measurable signals/receipts, require trend-up review in monthly operating cadence until both scores sustain `>=90` for two consecutive cycles, and include rollback trigger policy when either score drops below gate after promotion.",
+      "dependencies": [
+        "V6-F100-001",
+        "V6-F100-002",
+        "V6-F100-004",
+        "V6-F100-005",
+        "V6-F100-009",
+        "V6-F100-010",
+        "V6-F100-011"
+      ]
+    },
+    {
+      "id": "V6-PERS-SEAM-001",
+      "class": "extension",
+      "wave": "V6",
+      "status": "done",
+      "title": "Workflow Trigger Commands + Persona Dashboard",
+      "problem": "Persona consults required manual command memory, which reduced day-to-day adoption and made state visibility fragmented.",
+      "acceptance": "Added `protheus lens trigger <pre-sprint|drift-alert|weekly-checkin>` and `protheus lens dashboard [--window=<n>]` in `systems/personas/cli.ts` with trigger telemetry (`metric=trigger_activation`) and markdown dashboard summaries tied to `personas/organization/triggers.md`. Verified by `node memory/tools/tests/personas_lens_cli.test.js` (trigger + dashboard assertions). Rollback by removing trigger/dashboard branches and trigger telemetry rows.",
+      "dependencies": [
+        "V3-RACE-197",
+        "V4-OPS-014"
+      ]
+    },
+    {
+      "id": "V6-PERS-SEAM-002",
+      "class": "hardening",
+      "wave": "V6",
+      "status": "done",
+      "title": "Pre-Commit Persona Safety Lens Gate",
+      "problem": "Commits could bypass fast local risk screening for security/sovereignty regressions before CI, increasing review load and rollback churn.",
+      "acceptance": "Added deterministic pre-commit gate `systems/personas/pre_commit_lens_gate.ts` (wrapper: `.js`) and wired `.githooks/pre-commit` to run it after staged format/lint. Gate writes receipts under `state/personas/pre_commit_lens_gate/` and fail-closes on high-risk staged diff patterns unless explicitly overridden. Verified by `node memory/tools/tests/pre_commit_lens_gate.test.js`. Rollback by removing hook invocation and script lane.",
+      "dependencies": [
+        "V3-FCH-002",
+        "V3-RACE-060"
+      ]
+    },
+    {
+      "id": "V6-PERS-SEAM-003",
+      "class": "extension",
+      "wave": "V6",
+      "status": "done",
+      "title": "Inversion Persona Feed Auto-Push (Policy-Gated)",
+      "problem": "Inversion loop insights were not automatically enriching persona feeds, leaving persona context stale between manual feed updates.",
+      "acceptance": "Added optional policy-gated feed push path in `systems/autonomy/inversion_controller.ts` (`persona_lens_gate.feed_push`) that writes hash-verified `## System Passed` entries to persona feeds and emits feed-push receipts. Default remains off in `config/inversion_policy.json` for behavior-preserving rollout. Verified by `node memory/tools/tests/inversion_persona_lens_gate.test.js` with temp persona feed root + receipts checks. Rollback by setting `persona_lens_gate.feed_push.enabled=false` (default) or removing feed-push hook path.",
+      "dependencies": [
+        "V4-SELF-001",
+        "V6-PERS-SEAM-001"
+      ]
+    },
+    {
+      "id": "V6-PERS-SEAM-004",
+      "class": "launch-polish",
+      "wave": "V6",
+      "status": "done",
+      "title": "Trigger Playbook + Operator Docs Wiring",
+      "problem": "Trigger workflows lacked a canonical documented source, reducing repeatability and operator onboarding clarity.",
+      "acceptance": "Added `personas/organization/triggers.md` and linked trigger/dashboard operations in `personas/README.md` plus CLI usage surfaces (`systems/ops/protheusctl.ts`, `systems/personas/cli.ts`). Verified through `personas_lens_cli` command-path tests and help-surface coverage in existing CLI suite. Rollback by removing docs references and restoring previous CLI usage text.",
+      "dependencies": [
+        "V6-PERS-SEAM-001"
       ]
     }
   ]

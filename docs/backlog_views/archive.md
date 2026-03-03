@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-03T08:35:46.807Z
+Generated: 2026-03-03T19:24:03.304Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -765,4 +765,8 @@ Generated: 2026-03-03T08:35:46.807Z
 | V6-RUST50-005 | extension | V6 | done | Red Legion Chaos + Observability Rust Merge Core | V5-RUST-HYB-007, V5-RUST-HYB-008, V5-RUST-PROD-009 |
 | V6-RUST50-006 | extension | V6 | done | Mobile Adapter Layer (WASM + Tauri iOS/Android Background Service) | V5-RUST-HYB-009, V6-RUST50-001, V6-RUST50-002, V6-RUST50-003, V6-RUST50-004, V6-RUST50-005 |
 | V6-RUST50-007 | scale-readiness | V6 | done | 50 Percent Rust Critical-Weight Enforcement Gate | V6-RUST50-001, V6-RUST50-002, V6-RUST50-003, V6-RUST50-004, V6-RUST50-005, V6-RUST50-006, V5-RUST-PROD-012 |
+| V6-PERS-SEAM-001 | extension | V6 | done | Workflow Trigger Commands + Persona Dashboard | V3-RACE-197, V4-OPS-014 |
+| V6-PERS-SEAM-002 | hardening | V6 | done | Pre-Commit Persona Safety Lens Gate | V3-FCH-002, V3-RACE-060 |
+| V6-PERS-SEAM-003 | extension | V6 | done | Inversion Persona Feed Auto-Push (Policy-Gated) | V4-SELF-001, V6-PERS-SEAM-001 |
+| V6-PERS-SEAM-004 | launch-polish | V6 | done | Trigger Playbook + Operator Docs Wiring | V6-PERS-SEAM-001 |
 
