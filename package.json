@@ -391,7 +391,7 @@
     "ops:migration:bridge": "node systems/migration/core_migration_bridge.js run --to=${TO:-acme/protheus-core} --workspace=${WORKSPACE:-../protheus-core}",
     "ops:migration:bridge:apply": "node systems/migration/core_migration_bridge.js run --to=${TO:-acme/protheus-core} --workspace=${WORKSPACE:-../protheus-core} --apply=1",
     "ops:migration:bridge:status": "node systems/migration/core_migration_bridge.js status",
-    "ops:migration:graduation": "node systems/migration/community_repo_graduation_pack.js run --legacy-repo=${LEGACY_REPO:-https://github.com/openclaw/openclaw} --target-repo=${TARGET_REPO:-https://github.com/protheus-labs/protheus}",
+    "ops:migration:graduation": "node systems/migration/community_repo_graduation_pack.js run --legacy-repo=${LEGACY_REPO:-https://github.com/openclaw/openclaw} --target-repo=${TARGET_REPO:-https://github.com/protheuslabs/protheus}",
     "ops:migration:import": "node systems/migration/universal_importers.js run --from=${FROM:-openfang} --path=${SOURCE_PATH:-./import.json}",
     "ops:migration:daemon:scan": "node systems/migration/self_healing_migration_daemon.js scan",
     "ops:migration:verify": "node systems/migration/post_migration_verification_report.js run",
@@ -623,7 +623,7 @@
   "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jakerslam/protheus.git"
+    "url": "git+https://github.com/protheuslabs/protheus.git"
   },
   "engines": {
     "node": ">=22.0.0"

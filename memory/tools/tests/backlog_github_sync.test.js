@@ -142,7 +142,7 @@ if (endpointPath === repoPrefix + '/issues' && method === 'POST') {
   const issue = {
     number: num,
     node_id: 'I_' + String(num),
-    html_url: 'https://github.com/jakerslam/protheus/issues/' + String(num),
+    html_url: 'https://github.com/protheuslabs/protheus/issues/' + String(num),
     title: String(payload && payload.title || ''),
     body: String(payload && payload.body || ''),
     state: 'open',
@@ -382,7 +382,7 @@ runTest('check strict fails when in_progress issue lacks PR link marker', () => 
   assert.ok(Number(out.pr_link_missing_count || 0) >= 1, 'missing PR link should be reported');
 
   const db = JSON.parse(fs.readFileSync(ctx.dbPath, 'utf8'));
-  db.issues[0].body = `${String(db.issues[0].body || '')}\n\nLinked PR: https://github.com/jakerslam/protheus/pull/123\n`;
+  db.issues[0].body = `${String(db.issues[0].body || '')}\n\nLinked PR: https://github.com/protheuslabs/protheus/pull/123\n`;
   fs.writeFileSync(ctx.dbPath, `${JSON.stringify(db, null, 2)}\n`, 'utf8');
 
   r = runCmd(ctx, ['check', '--strict=1'], true);
