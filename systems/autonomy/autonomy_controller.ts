@@ -8371,10 +8371,41 @@ function computeExecutionTokenUsage(summary, executionMetrics, routeTokensEst, f
     ?? numberOrNull(fallbackEstTokens)
     ?? 0;
 
+  const rawMetricsUsage = executionMetrics && executionMetrics.token_usage && typeof executionMetrics.token_usage === 'object'
+    ? executionMetrics.token_usage
+    : null;
+
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'token_usage',
+      {
+        selected_model_tokens_est: numberOrNull(cost.selected_model_tokens_est),
+        route_budget_request_tokens_est: numberOrNull(routeBudget.request_tokens_est),
+        route_tokens_est: numberOrNull(routeTokensEst),
+        fallback_est_tokens: numberOrNull(fallbackEstTokens),
+        metrics_prompt_tokens: rawMetricsUsage
+          ? numberOrNull(rawMetricsUsage.prompt_tokens != null ? rawMetricsUsage.prompt_tokens : rawMetricsUsage.input_tokens)
+          : null,
+        metrics_input_tokens: rawMetricsUsage ? numberOrNull(rawMetricsUsage.input_tokens) : null,
+        metrics_completion_tokens: rawMetricsUsage
+          ? numberOrNull(rawMetricsUsage.completion_tokens != null ? rawMetricsUsage.completion_tokens : rawMetricsUsage.output_tokens)
+          : null,
+        metrics_output_tokens: rawMetricsUsage ? numberOrNull(rawMetricsUsage.output_tokens) : null,
+        metrics_total_tokens: rawMetricsUsage
+          ? numberOrNull(rawMetricsUsage.total_tokens != null ? rawMetricsUsage.total_tokens : rawMetricsUsage.tokens_used)
+          : null,
+        metrics_tokens_used: rawMetricsUsage ? numberOrNull(rawMetricsUsage.tokens_used) : null,
+        metrics_source: rawMetricsUsage && rawMetricsUsage.source != null ? String(rawMetricsUsage.source) : 'route_execute_metrics'
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
+  }
+
   const metricsUsage = normalizeTokenUsageShape(
-    executionMetrics && executionMetrics.token_usage && typeof executionMetrics.token_usage === 'object'
-      ? executionMetrics.token_usage
-      : null,
+    rawMetricsUsage,
     'route_execute_metrics'
   );
 
@@ -15738,6 +15769,7 @@ module.exports = {
   evaluateModelCatalogCanary,
   readModelCatalogCanary,
   runPostconditions,
+  computeExecutionTokenUsage,
   proposalSemanticFingerprint,
   semanticTokenSimilarity,
   semanticNearDuplicateMatch

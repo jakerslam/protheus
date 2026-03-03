@@ -68,6 +68,49 @@ function main() {
   assert.strictEqual(Number(batch.max), 1);
   assert.strictEqual(batch.reason, 'budget_blocked');
 
+  const dynamicInput = {
+    enabled: true,
+    base_daily_cap: 6,
+    base_canary_cap: 2,
+    candidate_pool_size: 30,
+    queue_pressure: 'warning',
+    policy_hold_level: 'normal',
+    policy_hold_applicable: false,
+    spawn_boost_enabled: false,
+    spawn_boost_active: false,
+    shipped_today: 0,
+    no_progress_streak: 0,
+    gate_exhaustion_streak: 0,
+    warn_factor: 0.75,
+    critical_factor: 0.5,
+    min_input_pool: 8
+  };
+  const dynamic = getPayload(runBacklogAutoscalePrimitive('dynamic_caps', dynamicInput, { allow_cli_fallback: true }), 'dynamic_caps');
+  assert.strictEqual(dynamic.low_yield, true);
+  assert.ok(Number(dynamic.daily_runs_cap) < 6);
+  assert.ok(Number(dynamic.input_candidates_cap) >= 8);
+
+  const tokenUsage = getPayload(
+    runBacklogAutoscalePrimitive(
+      'token_usage',
+      {
+        selected_model_tokens_est: 180,
+        route_budget_request_tokens_est: 140,
+        route_tokens_est: 120,
+        fallback_est_tokens: 100,
+        metrics_prompt_tokens: 24,
+        metrics_completion_tokens: 16,
+        metrics_source: 'route_execute_metrics'
+      },
+      { allow_cli_fallback: true }
+    ),
+    'token_usage'
+  );
+  assert.strictEqual(tokenUsage.available, true);
+  assert.strictEqual(Number(tokenUsage.actual_total_tokens), 40);
+  assert.strictEqual(Number(tokenUsage.effective_tokens), 40);
+  assert.strictEqual(String(tokenUsage.source), 'route_execute_metrics');
+
   console.log('autonomy_backlog_autoscale_rust_bridge.test.js: OK');
 }
 

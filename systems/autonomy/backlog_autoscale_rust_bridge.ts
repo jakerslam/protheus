@@ -89,9 +89,16 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
   const normalizedMode = cleanText(mode || '', 80).toLowerCase();
   if (!normalizedMode) return { ok: false, error: 'autoscale_mode_missing' };
 
-  const request = normalizedMode === 'plan'
-    ? { mode: normalizedMode, plan_input: data && typeof data === 'object' ? data : {} }
-    : { mode: normalizedMode, batch_input: data && typeof data === 'object' ? data : {} };
+  const fieldByMode: AnyObj = {
+    plan: 'plan_input',
+    batch_max: 'batch_input',
+    dynamic_caps: 'dynamic_caps_input',
+    token_usage: 'token_usage_input'
+  };
+  const field = fieldByMode[normalizedMode];
+  if (!field) return { ok: false, error: `autoscale_mode_unsupported:${normalizedMode}` };
+  const request: AnyObj = { mode: normalizedMode };
+  request[field] = data && typeof data === 'object' ? data : {};
   const payloadBase64 = Buffer.from(JSON.stringify(request), 'utf8').toString('base64');
 
   const bin = runViaRustBinary(payloadBase64);

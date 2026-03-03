@@ -97,6 +97,43 @@ pub struct DynamicCapsOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TokenUsageInput {
+    #[serde(default)]
+    pub selected_model_tokens_est: Option<f64>,
+    #[serde(default)]
+    pub route_budget_request_tokens_est: Option<f64>,
+    #[serde(default)]
+    pub route_tokens_est: Option<f64>,
+    #[serde(default)]
+    pub fallback_est_tokens: Option<f64>,
+    #[serde(default)]
+    pub metrics_prompt_tokens: Option<f64>,
+    #[serde(default)]
+    pub metrics_input_tokens: Option<f64>,
+    #[serde(default)]
+    pub metrics_completion_tokens: Option<f64>,
+    #[serde(default)]
+    pub metrics_output_tokens: Option<f64>,
+    #[serde(default)]
+    pub metrics_total_tokens: Option<f64>,
+    #[serde(default)]
+    pub metrics_tokens_used: Option<f64>,
+    #[serde(default)]
+    pub metrics_source: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TokenUsageOutput {
+    pub available: bool,
+    pub source: String,
+    pub actual_prompt_tokens: Option<f64>,
+    pub actual_completion_tokens: Option<f64>,
+    pub actual_total_tokens: Option<f64>,
+    pub estimated_tokens: f64,
+    pub effective_tokens: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AutoscaleRequest {
     pub mode: String,
     #[serde(default)]
@@ -105,6 +142,8 @@ pub struct AutoscaleRequest {
     pub batch_input: Option<BatchMaxInput>,
     #[serde(default)]
     pub dynamic_caps_input: Option<DynamicCapsInput>,
+    #[serde(default)]
+    pub token_usage_input: Option<TokenUsageInput>,
 }
 
 fn clamp_ratio(v: f64) -> f64 {
@@ -423,6 +462,64 @@ pub fn compute_dynamic_caps(input: &DynamicCapsInput) -> DynamicCapsOutput {
     out
 }
 
+fn non_negative_number(v: Option<f64>) -> Option<f64> {
+    let n = v?;
+    if n.is_finite() && n >= 0.0 {
+        Some(n)
+    } else {
+        None
+    }
+}
+
+pub fn compute_token_usage(input: &TokenUsageInput) -> TokenUsageOutput {
+    let est_selected = non_negative_number(input.selected_model_tokens_est)
+        .or_else(|| non_negative_number(input.route_budget_request_tokens_est))
+        .or_else(|| non_negative_number(input.route_tokens_est))
+        .or_else(|| non_negative_number(input.fallback_est_tokens))
+        .unwrap_or(0.0);
+
+    let prompt = non_negative_number(input.metrics_prompt_tokens)
+        .or_else(|| non_negative_number(input.metrics_input_tokens));
+    let completion = non_negative_number(input.metrics_completion_tokens)
+        .or_else(|| non_negative_number(input.metrics_output_tokens));
+    let total_direct = non_negative_number(input.metrics_total_tokens)
+        .or_else(|| non_negative_number(input.metrics_tokens_used));
+
+    let actual_total = if let Some(total) = total_direct {
+        Some(total)
+    } else if prompt.is_some() || completion.is_some() {
+        Some(prompt.unwrap_or(0.0) + completion.unwrap_or(0.0))
+    } else {
+        None
+    };
+
+    let effective_tokens = actual_total.unwrap_or(est_selected);
+    let source = if actual_total.is_some() {
+        let raw = input
+            .metrics_source
+            .clone()
+            .unwrap_or_else(|| "route_execute_metrics".to_string());
+        let normalized = raw.trim();
+        if normalized.is_empty() {
+            "route_execute_metrics".to_string()
+        } else {
+            normalized.to_string()
+        }
+    } else {
+        "estimated_fallback".to_string()
+    };
+
+    TokenUsageOutput {
+        available: actual_total.is_some(),
+        source,
+        actual_prompt_tokens: prompt,
+        actual_completion_tokens: completion,
+        actual_total_tokens: actual_total,
+        estimated_tokens: est_selected,
+        effective_tokens,
+    }
+}
+
 pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     let request: AutoscaleRequest =
         serde_json::from_str(payload_json).map_err(|e| format!("autoscale_request_parse_failed:{e}"))?;
@@ -462,6 +559,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_dynamic_caps_encode_failed:{e}"));
+    }
+    if mode == "token_usage" {
+        let input = request
+            .token_usage_input
+            .ok_or_else(|| "autoscale_missing_token_usage_input".to_string())?;
+        let out = compute_token_usage(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "token_usage",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_token_usage_encode_failed:{e}"));
     }
     Err(format!("autoscale_mode_unsupported:{mode}"))
 }
@@ -552,5 +661,47 @@ mod tests {
             .reasons
             .iter()
             .any(|r| r == "downshift_queue_backlog_warning"));
+    }
+
+    #[test]
+    fn token_usage_prefers_actual_metrics() {
+        let out = compute_token_usage(&TokenUsageInput {
+            selected_model_tokens_est: Some(180.0),
+            route_budget_request_tokens_est: None,
+            route_tokens_est: Some(90.0),
+            fallback_est_tokens: Some(60.0),
+            metrics_prompt_tokens: Some(25.0),
+            metrics_input_tokens: None,
+            metrics_completion_tokens: Some(15.0),
+            metrics_output_tokens: None,
+            metrics_total_tokens: None,
+            metrics_tokens_used: None,
+            metrics_source: Some("route_execute_metrics".to_string()),
+        });
+        assert!(out.available);
+        assert_eq!(out.actual_total_tokens, Some(40.0));
+        assert_eq!(out.effective_tokens, 40.0);
+        assert_eq!(out.source, "route_execute_metrics");
+    }
+
+    #[test]
+    fn token_usage_falls_back_to_estimate() {
+        let out = compute_token_usage(&TokenUsageInput {
+            selected_model_tokens_est: Some(220.0),
+            route_budget_request_tokens_est: Some(210.0),
+            route_tokens_est: Some(200.0),
+            fallback_est_tokens: Some(180.0),
+            metrics_prompt_tokens: None,
+            metrics_input_tokens: None,
+            metrics_completion_tokens: None,
+            metrics_output_tokens: None,
+            metrics_total_tokens: None,
+            metrics_tokens_used: None,
+            metrics_source: None,
+        });
+        assert!(!out.available);
+        assert_eq!(out.actual_total_tokens, None);
+        assert_eq!(out.effective_tokens, 220.0);
+        assert_eq!(out.source, "estimated_fallback");
     }
 }
