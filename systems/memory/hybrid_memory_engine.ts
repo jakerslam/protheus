@@ -2,87 +2,139 @@
 'use strict';
 export {};
 
-/** V3-RACE-009/010 */
-const path = require('path');
+/**
+ * V6 hybrid memory engine adapter.
+ * Ebbinghaus and ingestion logic are authoritative in crates/memory.
+ */
+
+const { spawnSync } = require('child_process');
 const {
-  ROOT, nowIso, parseArgs, normalizeToken, toBool,
-  clampNumber, readJson, writeJsonAtomic, appendJsonl, resolvePath, emit
+  ROOT,
+  nowIso,
+  parseArgs,
+  normalizeToken,
+  cleanText,
+  clampNumber,
+  readJson,
+  writeJsonAtomic,
+  appendJsonl,
+  resolvePath,
+  emit
 } = require('../../lib/queued_backlog_runtime');
 
+const path = require('path');
 const POLICY_PATH = process.env.HYBRID_MEMORY_ENGINE_POLICY_PATH
   ? path.resolve(process.env.HYBRID_MEMORY_ENGINE_POLICY_PATH)
   : path.join(ROOT, 'config', 'hybrid_memory_engine_policy.json');
 
 function usage() {
   console.log('Usage:');
-  console.log('  node systems/memory/hybrid_memory_engine.js ingest --objective=<id> --content=<text>');
-  console.log('  node systems/memory/hybrid_memory_engine.js consolidate');
+  console.log('  node systems/memory/hybrid_memory_engine.js ingest --objective=<id> --content=<text> [--tags=a,b]');
+  console.log('  node systems/memory/hybrid_memory_engine.js consolidate [--aggressive=0|1]');
   console.log('  node systems/memory/hybrid_memory_engine.js status');
 }
 
 function policy() {
   const base = {
     enabled: true,
-    shadow_only: true,
     forgetting_curve_lambda: 0.02,
     paths: {
       latest_path: 'state/memory/hybrid_engine/latest.json',
-      receipts_path: 'state/memory/hybrid_engine/receipts.jsonl',
-      store_path: 'state/memory/hybrid_engine/store.json'
+      receipts_path: 'state/memory/hybrid_engine/receipts.jsonl'
     }
   };
   const raw = readJson(POLICY_PATH, {});
   const paths = raw.paths && typeof raw.paths === 'object' ? raw.paths : {};
   return {
-    enabled: toBool(raw.enabled, base.enabled),
-    shadow_only: toBool(raw.shadow_only, base.shadow_only),
+    enabled: raw.enabled !== false,
     forgetting_curve_lambda: clampNumber(raw.forgetting_curve_lambda, 0.0001, 1, base.forgetting_curve_lambda),
     paths: {
       latest_path: resolvePath(paths.latest_path, base.paths.latest_path),
-      receipts_path: resolvePath(paths.receipts_path, base.paths.receipts_path),
-      store_path: resolvePath(paths.store_path, base.paths.store_path)
+      receipts_path: resolvePath(paths.receipts_path, base.paths.receipts_path)
     }
   };
 }
 
-function ingest(args: any, p: any) {
-  const objective = normalizeToken(args.objective || 'global', 80) || 'global';
-  const content = String(args.content || '');
-  const store = readJson(p.paths.store_path, { schema_version: '1.0', rows: [] });
-  store.rows = Array.isArray(store.rows) ? store.rows : [];
-  const row = {
-    ts: nowIso(),
-    objective,
-    vector: [content.length % 97, content.length % 41, content.length % 19],
-    graph_edges: [],
-    temporal_rank: Date.now()
-  };
-  store.rows.push(row);
-  writeJsonAtomic(p.paths.store_path, store);
-  const out = { ts: nowIso(), type: 'hybrid_memory_ingest', ok: true, shadow_only: p.shadow_only, objective, rows: store.rows.length };
-  writeJsonAtomic(p.paths.latest_path, out);
-  appendJsonl(p.paths.receipts_path, out);
-  return out;
+function parseJson(rawText: string) {
+  const raw = String(rawText || '').trim();
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch {}
+  const lines = raw.split('\n').map((line) => line.trim()).filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    try { return JSON.parse(lines[i]); } catch {}
+  }
+  return null;
 }
 
-function consolidate(p: any) {
-  const store = readJson(p.paths.store_path, { rows: [] });
-  const rows = Array.isArray(store.rows) ? store.rows : [];
-  const now = Date.now();
-  const kept = rows.filter((row: any) => {
-    const ts = Date.parse(String(row.ts || ''));
-    if (!Number.isFinite(ts)) return true;
-    const ageDays = (now - ts) / (24 * 60 * 60 * 1000);
-    const score = Math.exp(-p.forgetting_curve_lambda * ageDays);
-    return score >= 0.12;
+function runRust(args: string[]) {
+  const started = Date.now();
+  const command = ['cargo', 'run', '--quiet', '--manifest-path', 'crates/memory/Cargo.toml', '--bin', 'memory-cli', '--', ...args];
+  const out = spawnSync(command[0], command.slice(1), {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout: 180000
   });
-  store.rows = kept;
-  store.updated_at = nowIso();
-  writeJsonAtomic(p.paths.store_path, store);
-  const out = { ts: nowIso(), type: 'hybrid_memory_consolidate', ok: true, shadow_only: p.shadow_only, kept: kept.length };
-  writeJsonAtomic(p.paths.latest_path, out);
-  appendJsonl(p.paths.receipts_path, out);
-  return out;
+  const status = Number.isFinite(Number(out.status)) ? Number(out.status) : 1;
+  return {
+    ok: status === 0,
+    status,
+    duration_ms: Math.max(0, Date.now() - started),
+    payload: parseJson(String(out.stdout || '')),
+    stderr: cleanText(out.stderr || '', 500)
+  };
+}
+
+function writeReceipt(p: any, receipt: any) {
+  writeJsonAtomic(p.paths.latest_path, receipt);
+  appendJsonl(p.paths.receipts_path, receipt);
+}
+
+function ingest(args: any, p: any) {
+  const objective = normalizeToken(args.objective || 'global', 80) || 'global';
+  const content = cleanText(args.content || '', 2000);
+  const tags = cleanText(args.tags || objective, 400);
+  const repetitions = Number.isFinite(Number(args.repetitions)) ? Math.max(1, Number(args.repetitions)) : 1;
+  const run = runRust([
+    'ingest',
+    `--id=memory://${objective}-${Date.now()}`,
+    `--content=${content}`,
+    `--tags=${tags}`,
+    `--repetitions=${repetitions}`,
+    `--lambda=${p.forgetting_curve_lambda}`
+  ]);
+  const payload = run.payload || {};
+  const receipt = {
+    ts: nowIso(),
+    type: 'hybrid_memory_ingest',
+    ok: run.ok && payload && payload.ok === true,
+    backend: 'rust_core_v6',
+    objective,
+    command_status: run.status,
+    duration_ms: run.duration_ms,
+    row: payload.row || null,
+    error: payload.error || (run.ok ? null : (run.stderr || 'rust_command_failed'))
+  };
+  writeReceipt(p, receipt);
+  return receipt;
+}
+
+function consolidate(args: any, p: any) {
+  const aggressive = normalizeToken(args.aggressive || '0', 8) === '1';
+  const run = runRust(['compress', `--aggressive=${aggressive ? '1' : '0'}`]);
+  const payload = run.payload || {};
+  const receipt = {
+    ts: nowIso(),
+    type: 'hybrid_memory_consolidate',
+    ok: run.ok && payload && payload.ok === true,
+    backend: 'rust_core_v6',
+    aggressive,
+    command_status: run.status,
+    duration_ms: run.duration_ms,
+    compacted_rows: Number(payload.compacted_rows || 0),
+    error: payload.error || (run.ok ? null : (run.stderr || 'rust_command_failed'))
+  };
+  writeReceipt(p, receipt);
+  return receipt;
 }
 
 function main() {
@@ -90,13 +142,13 @@ function main() {
   const cmd = normalizeToken(args._[0] || 'status', 80) || 'status';
   if (cmd === '--help' || cmd === 'help' || cmd === '-h') {
     usage();
-    return;
+    process.exit(0);
   }
   const p = policy();
   if (!p.enabled) emit({ ok: false, error: 'hybrid_memory_engine_disabled' }, 1);
-  if (cmd === 'ingest') emit(ingest(args, p));
-  if (cmd === 'consolidate') emit(consolidate(p));
-  if (cmd === 'status') emit({ ok: true, type: 'hybrid_memory_engine_status', latest: readJson(p.paths.latest_path, {}) });
+  if (cmd === 'ingest') emit(ingest(args, p), 0);
+  if (cmd === 'consolidate') emit(consolidate(args, p), 0);
+  if (cmd === 'status') emit({ ok: true, type: 'hybrid_memory_engine_status', latest: readJson(p.paths.latest_path, null) }, 0);
   emit({ ok: false, error: 'unsupported_command', cmd }, 1);
 }
 

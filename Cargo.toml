@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
   "crates/fluxlattice",
+  "crates/memory",
   "systems/memory/rust",
   "systems/self_audit/rust",
   "systems/hybrid/rust"
