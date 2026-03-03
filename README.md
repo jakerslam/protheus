@@ -53,6 +53,11 @@ protheus-top
 | `protheusctl` | Job and control-plane operations |
 | `protheus-top` | Live operator observability surface |
 
+### Persona Lens Command
+
+- `protheus lens <persona> "<query>"` loads `personas/<persona>/{profile.md,correspondence.md,lens.md}` and returns a Markdown response using that persona lens.
+- Example: `protheus lens vikram "Should we prioritize memory or security first?"`
+
 ## Architecture Map
 
 | Path | Responsibility |

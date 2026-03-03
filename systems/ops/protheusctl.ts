@@ -40,6 +40,7 @@ function usage() {
   console.log('  protheusctl perception list|run|run-all|status');
   console.log('  protheusctl fluxlattice list|run|run-all|status');
   console.log('  protheusctl lensmap init|template add|simplify|polish|import|sync|expose|status');
+  console.log('  protheus lens <persona> "<query>"');
   console.log('  protheusctl hold admit|rehydrate|simulate|status');
   console.log('  protheusctl suite list|run|run-all|status');
   console.log('  protheusctl audit illusion --strict=1');
@@ -335,6 +336,12 @@ function main() {
   if (cmd === 'lensmap') {
     const lensScript = path.join(__dirname, '..', '..', 'packages', 'lensmap', 'lensmap_cli.js');
     runScript(lensScript, rest);
+    return;
+  }
+
+  if (cmd === 'lens') {
+    const personaScript = path.join(__dirname, '..', 'personas', 'cli.js');
+    runScript(personaScript, rest);
     return;
   }
 
