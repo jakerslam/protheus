@@ -28,6 +28,9 @@ function usage() {
   console.log('  protheusctl host adapt --dry-run=1');
   console.log('  protheusctl socket list');
   console.log('  protheusctl socket admission');
+  console.log('  protheusctl mine dashboard --human=1');
+  console.log('  protheusctl migrate --to=<org/repo|url> [--workspace=<path>] [--apply=1]');
+  console.log('  protheusctl import --from=<engine> --path=<source> [--apply=1]');
   console.log('  protheusctl audit illusion --strict=1');
   console.log('  protheusctl approve --rsi --owner=jay --approver=<you>');
 }
@@ -175,6 +178,45 @@ function main() {
       return;
     }
     runScript(socketScript, ['status', ...rest]);
+    return;
+  }
+
+  if (cmd === 'mine') {
+    const mineScript = path.join(__dirname, '..', 'economy', 'donor_mining_dashboard.js');
+    const sub = String(rest[0] || 'dashboard').trim().toLowerCase() || 'dashboard';
+    runScript(mineScript, [sub, ...rest.slice(1)]);
+    return;
+  }
+
+  if (cmd === 'migrate') {
+    const migrationScript = path.join(__dirname, '..', 'migration', 'core_migration_bridge.js');
+    const sub = String(rest[0] || '').trim().toLowerCase();
+    const supported = new Set(['run', 'status', 'rollback', 'help', '--help', '-h']);
+    if (!sub || sub.startsWith('--') || !supported.has(sub)) {
+      runScript(migrationScript, ['run', ...rest]);
+      return;
+    }
+    if (sub === 'help' || sub === '--help' || sub === '-h') {
+      runScript(migrationScript, ['help']);
+      return;
+    }
+    runScript(migrationScript, [sub, ...rest.slice(1)]);
+    return;
+  }
+
+  if (cmd === 'import') {
+    const importerScript = path.join(__dirname, '..', 'migration', 'universal_importers.js');
+    const sub = String(rest[0] || '').trim().toLowerCase();
+    const supported = new Set(['run', 'status', 'help', '--help', '-h']);
+    if (!sub || sub.startsWith('--') || !supported.has(sub)) {
+      runScript(importerScript, ['run', ...rest]);
+      return;
+    }
+    if (sub === 'help' || sub === '--help' || sub === '-h') {
+      runScript(importerScript, ['help']);
+      return;
+    }
+    runScript(importerScript, [sub, ...rest.slice(1)]);
     return;
   }
 

@@ -1,0 +1,18 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "provenance_secret": "aws_repro_artifact_secret",
+  "required_targets": ["ami", "ecr", "serverless"],
+  "required_build_tracks": {
+    "ami": "nix+image_builder",
+    "ecr": "nix",
+    "serverless": "nix"
+  },
+  "require_bottlerocket_profile": true,
+  "paths": {
+    "manifest_path": "state/ops/aws_reproducible_artifact_profile/manifest.json",
+    "channel_state_path": "state/ops/aws_reproducible_artifact_profile/channel_state.json",
+    "latest_path": "state/ops/aws_reproducible_artifact_profile/latest.json",
+    "history_path": "state/ops/aws_reproducible_artifact_profile/history.jsonl"
+  }
+}

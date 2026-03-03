@@ -9,12 +9,15 @@ This repository enforces a strict scope split:
   - `systems/` for runtime logic.
   - `config/` for policy contracts.
   - `docs/` for operator contracts and runbooks.
+- Internal-only local scaffolding:
+  - `.internal/` for non-runtime private working material that must not ship.
 
 ## Hard Rules
 
 1. `memory/` and `adaptive/` must not contain executable `.ts` or `.js` runtime modules.
 2. Canonical implementation files must live under `systems/` (with config in `config/`).
-3. New feature lanes must declare:
+3. `.internal/` content is never a source-of-truth runtime path and should remain local-only.
+4. New feature lanes must declare:
    - user paths (`memory/`, `adaptive/`)
    - permanent runtime paths (`systems/`, `config/`)
    - check coverage in `systems/ops/data_scope_boundary_check.ts`

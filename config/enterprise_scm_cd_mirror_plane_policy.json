@@ -1,0 +1,23 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "auto_disable_on_divergence": true,
+  "required_branches": [
+    "main"
+  ],
+  "required_gates": [
+    "build",
+    "test",
+    "formal",
+    "chaos"
+  ],
+  "sources": {
+    "github_state_path": "state/ops/scm_mirror/github_latest.json",
+    "azure_state_path": "state/ops/scm_mirror/azure_latest.json"
+  },
+  "paths": {
+    "state_path": "state/ops/enterprise_scm_cd_mirror_plane/state.json",
+    "latest_path": "state/ops/enterprise_scm_cd_mirror_plane/latest.json",
+    "history_path": "state/ops/enterprise_scm_cd_mirror_plane/history.jsonl"
+  }
+}

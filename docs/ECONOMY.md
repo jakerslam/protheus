@@ -51,6 +51,8 @@
 node systems/economy/public_donation_api.js register --donor_id=alice
 node systems/economy/public_donation_api.js donate --donor_id=alice --gpu_hours=24 --proof_ref=tx_1
 node systems/economy/public_donation_api.js status --donor_id=alice
+node systems/economy/donor_mining_dashboard.js dashboard
+protheusctl mine dashboard --human=1
 node systems/economy/flywheel_acceptance_harness.js --donor_id=sim --gpu_hours=240
 node platform/api/donate_gpu.js donate --donor_id=alice --gpu_hours=24 --proof_ref=tx_2
 ```

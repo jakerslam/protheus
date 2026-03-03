@@ -7,6 +7,7 @@
     ".env.example",
     ".gitattributes",
     ".gitignore",
+    "ARCHITECTURE.md",
     "AGENT-CONSTITUTION.md",
     "AGENTS.md",
     "CHANGELOG.md",
@@ -39,8 +40,10 @@
     "tsconfig.systems.json"
   ],
   "allowed_root_dirs": [
+    ".internal",
     ".clawhub",
     ".github",
+    ".githooks",
     "adaptive",
     "agent-holo-viz",
     "benchmarks",

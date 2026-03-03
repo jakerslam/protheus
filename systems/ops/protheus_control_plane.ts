@@ -354,6 +354,72 @@ function runIllusionAuditLane(args, policy, trigger = 'manual') {
   };
 }
 
+function runMigrationDaemon(args, trigger = 'startup') {
+  const trig = normalizeToken(trigger || 'startup', 20) || 'startup';
+  const onStartEnabled = String(process.env.PROTHEUS_MIGRATION_DAEMON_ON_START_ENABLED || '1') !== '0';
+  if (trig === 'startup' && !onStartEnabled) {
+    return {
+      ok: true,
+      skipped: true,
+      trigger: trig,
+      reason: 'feature_flag_disabled'
+    };
+  }
+
+  const script = path.join(ROOT, 'systems', 'migration', 'self_healing_migration_daemon.js');
+  if (!fs.existsSync(script)) {
+    return {
+      ok: false,
+      trigger: trig,
+      reason: 'migration_daemon_script_missing',
+      script: path.relative(ROOT, script).replace(/\\/g, '/')
+    };
+  }
+
+  const timeoutMs = Math.max(
+    5000,
+    Math.min(10 * 60 * 1000, Number(process.env.PROTHEUS_MIGRATION_DAEMON_TIMEOUT_MS || 60000) || 60000)
+  );
+  const workspace = cleanText(args.workspace || ROOT, 360) || ROOT;
+  const policyPath = cleanText(
+    args['migration-daemon-policy']
+      || args.migration_daemon_policy
+      || process.env.PROTHEUS_MIGRATION_DAEMON_POLICY_PATH
+      || 'config/self_healing_migration_daemon_policy.json',
+    320
+  );
+  const laneArgs = [
+    script,
+    'scan',
+    `--workspace=${workspace}`,
+    '--strict=0',
+    '--apply=0'
+  ];
+  if (policyPath) laneArgs.push(`--policy=${policyPath}`);
+  const run = spawnSync('node', laneArgs, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout: timeoutMs
+  });
+  const stdout = String(run.stdout || '').trim();
+  let payload = null;
+  try { payload = stdout ? JSON.parse(stdout) : null; } catch {}
+
+  return {
+    ok: Number(run.status || 0) === 0 && !!payload && payload.ok === true,
+    trigger: trig,
+    status: Number.isFinite(run.status) ? Number(run.status) : 1,
+    reason: payload && (payload.error || payload.reason)
+      ? String(payload.error || payload.reason).slice(0, 200)
+      : Number(run.status || 0) === 0
+        ? null
+        : String(run.stderr || run.stdout || 'migration_daemon_failed').trim().slice(0, 200),
+    needs_migration: payload ? payload.needs_migration === true : null,
+    detector_id: payload ? payload.detector_id || null : null,
+    suggestion_reason: payload && payload.suggestion ? payload.suggestion.reason || null : null
+  };
+}
+
 function enqueueCommand(policy, daemon, command, args) {
   daemon.request_seq = clampInt(Number(daemon.request_seq || 0) + 1, 0, 10 ** 9, 1);
   const requestId = `req_${String(daemon.request_seq).padStart(6, '0')}`;
@@ -524,6 +590,9 @@ function setRuntimeState(cmd, args, policy) {
   const startupAudit = (cmd === 'start' || cmd === 'restart')
     ? runIllusionAuditLane(args, policy, 'startup')
     : null;
+  const startupMigrationDaemon = (cmd === 'start' || cmd === 'restart')
+    ? runMigrationDaemon(args, 'startup')
+    : null;
   const strictBlocked = !!(startupAudit && startupAudit.strict && startupAudit.ok !== true);
   return writeReceipt(policy, {
     ok: !strictBlocked,
@@ -532,7 +601,8 @@ function setRuntimeState(cmd, args, policy) {
     request_id: queued.request_id,
     running: daemon.running,
     mode: daemon.mode,
-    startup_illusion_audit: startupAudit
+    startup_illusion_audit: startupAudit,
+    startup_migration_daemon: startupMigrationDaemon
   });
 }
 

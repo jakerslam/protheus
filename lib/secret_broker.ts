@@ -336,6 +336,47 @@ function normalizeProvider(raw: AnyObj, policy: AnyObj): AnyObj {
       env: raw.env && typeof raw.env === 'object' ? raw.env : {}
     };
   }
+  if (type === 'keychain') {
+    const command = Array.isArray(raw.command)
+      ? raw.command.map((x: unknown) => String(x || '')).filter((x: string) => x.trim())
+      : normalizeText(raw.command || '', 2000);
+    return {
+      type: 'keychain',
+      enabled: raw.enabled === true,
+      service: normalizeText(raw.service, 160),
+      account: normalizeText(raw.account, 160),
+      command,
+      parse_json: raw.parse_json === true,
+      value_path: normalizeText(raw.value_path || 'value', 120) || 'value',
+      rotated_at_path: normalizeText(raw.rotated_at_path || 'rotated_at', 120) || 'rotated_at',
+      rotated_at_env: normalizeText(raw.rotated_at_env, 100),
+      timeout_ms: clampInt(raw.timeout_ms, 500, 60000, clampInt(policy.command_backend.timeout_ms, 500, 60000, 5000)),
+      env: raw.env && typeof raw.env === 'object' ? raw.env : {}
+    };
+  }
+  if (type === 'age_file') {
+    const paths = Array.isArray(raw.paths)
+      ? raw.paths.map((p: unknown) => String(p || '').trim()).filter(Boolean)
+      : (normalizeText(raw.path || '', 400) ? [normalizeText(raw.path || '', 400)] : []);
+    const identityPaths = Array.isArray(raw.identity_paths)
+      ? raw.identity_paths.map((p: unknown) => String(p || '').trim()).filter(Boolean)
+      : (normalizeText(raw.identity_path || '', 400) ? [normalizeText(raw.identity_path || '', 400)] : []);
+    const decryptCommand = Array.isArray(raw.decrypt_command)
+      ? raw.decrypt_command.map((x: unknown) => String(x || '')).filter((x: string) => x.trim())
+      : normalizeText(raw.decrypt_command || '', 2000);
+    return {
+      type: 'age_file',
+      enabled: raw.enabled === true,
+      paths,
+      identity_paths: identityPaths,
+      decrypt_command: decryptCommand,
+      parse_json: raw.parse_json !== false,
+      value_path: normalizeText(raw.value_path || 'value', 120) || 'value',
+      rotated_at_path: normalizeText(raw.rotated_at_path || 'rotated_at', 120) || 'rotated_at',
+      timeout_ms: clampInt(raw.timeout_ms, 500, 60000, clampInt(policy.command_backend.timeout_ms, 500, 60000, 5000)),
+      env: raw.env && typeof raw.env === 'object' ? raw.env : {}
+    };
+  }
   return {};
 }
 
@@ -552,6 +593,133 @@ function runProviderCommand(secretId: string, provider: AnyObj): AnyObj {
   };
 }
 
+function runProviderKeychain(secretId: string, provider: AnyObj): AnyObj {
+  const service = normalizeText(provider.service, 160);
+  const account = normalizeText(provider.account, 160);
+  const rotatedAtEnv = normalizeText(provider.rotated_at_env, 100);
+  const commandOverride = provider.command;
+
+  const toCommandResult = (result: AnyObj, providerRef: string): AnyObj => {
+    if (!result || result.ok !== true) return result;
+    const rotatedAt = rotatedAtEnv ? normalizeText(process.env[rotatedAtEnv], 120) : '';
+    return {
+      ...result,
+      provider_type: 'keychain',
+      provider_ref: providerRef || result.provider_ref || null,
+      rotated_at: rotatedAt || result.rotated_at || null,
+      external: true
+    };
+  };
+
+  if (Array.isArray(commandOverride) || normalizeText(commandOverride, 2000)) {
+    const out = runProviderCommand(secretId, {
+      type: 'command',
+      command: commandOverride,
+      parse_json: provider.parse_json === true,
+      value_path: provider.value_path || 'value',
+      rotated_at_path: provider.rotated_at_path || 'rotated_at',
+      timeout_ms: provider.timeout_ms,
+      env: provider.env && typeof provider.env === 'object' ? provider.env : {}
+    });
+    return toCommandResult(out, service && account ? `${service}:${account}` : 'keychain_command');
+  }
+
+  if (!service || !account) return { ok: false, reason: 'keychain_service_or_account_missing' };
+
+  let command: string[] = [];
+  if (process.platform === 'darwin') {
+    command = ['security', 'find-generic-password', '-s', service, '-a', account, '-w'];
+  } else if (process.platform === 'linux') {
+    command = ['secret-tool', 'lookup', 'service', service, 'account', account];
+  } else if (process.platform === 'win32') {
+    return { ok: false, reason: 'keychain_provider_requires_command_override_on_windows' };
+  } else {
+    return { ok: false, reason: 'keychain_provider_platform_unsupported' };
+  }
+
+  const out = runProviderCommand(secretId, {
+    type: 'command',
+    command,
+    parse_json: false,
+    timeout_ms: provider.timeout_ms,
+    env: provider.env && typeof provider.env === 'object' ? provider.env : {}
+  });
+  return toCommandResult(out, `${service}:${account}`);
+}
+
+function runProviderAgeFile(secretId: string, provider: AnyObj): AnyObj {
+  const rawPaths = Array.isArray(provider.paths) ? provider.paths : [];
+  if (!rawPaths.length) return { ok: false, reason: 'age_file_paths_missing' };
+  const identityPaths = Array.isArray(provider.identity_paths)
+    ? provider.identity_paths.map((raw: unknown) => resolveTemplate(raw, secretId))
+    : [];
+  const existingIdentity = identityPaths.find((candidate: string) => candidate && fs.existsSync(candidate)) || '';
+  const decryptCommand = provider.decrypt_command;
+
+  for (const rawPath of rawPaths) {
+    const secretFilePath = resolveTemplate(rawPath, secretId);
+    if (!secretFilePath || !fs.existsSync(secretFilePath)) continue;
+
+    let commandProvider: AnyObj = null;
+    if (Array.isArray(decryptCommand) && decryptCommand.length) {
+      commandProvider = {
+        type: 'command',
+        command: decryptCommand,
+        parse_json: provider.parse_json !== false,
+        value_path: provider.value_path || 'value',
+        rotated_at_path: provider.rotated_at_path || 'rotated_at',
+        timeout_ms: provider.timeout_ms,
+        env: {
+          ...(provider.env && typeof provider.env === 'object' ? provider.env : {}),
+          SECRET_FILE_PATH: secretFilePath,
+          AGE_FILE_PATH: secretFilePath,
+          AGE_IDENTITY_PATH: existingIdentity || ''
+        }
+      };
+    } else if (normalizeText(decryptCommand, 2000)) {
+      commandProvider = {
+        type: 'command',
+        command: String(decryptCommand),
+        parse_json: provider.parse_json !== false,
+        value_path: provider.value_path || 'value',
+        rotated_at_path: provider.rotated_at_path || 'rotated_at',
+        timeout_ms: provider.timeout_ms,
+        env: {
+          ...(provider.env && typeof provider.env === 'object' ? provider.env : {}),
+          SECRET_FILE_PATH: secretFilePath,
+          AGE_FILE_PATH: secretFilePath,
+          AGE_IDENTITY_PATH: existingIdentity || ''
+        }
+      };
+    } else {
+      const ageArgs = ['--decrypt'];
+      if (existingIdentity) ageArgs.push('-i', existingIdentity);
+      ageArgs.push(secretFilePath);
+      commandProvider = {
+        type: 'command',
+        command: ['age', ...ageArgs],
+        parse_json: provider.parse_json !== false,
+        value_path: provider.value_path || 'value',
+        rotated_at_path: provider.rotated_at_path || 'rotated_at',
+        timeout_ms: provider.timeout_ms,
+        env: provider.env && typeof provider.env === 'object' ? provider.env : {}
+      };
+    }
+
+    const out = runProviderCommand(secretId, commandProvider);
+    if (out && out.ok === true) {
+      return {
+        ...out,
+        provider_type: 'age_file',
+        provider_ref: secretFilePath,
+        external: false
+      };
+    }
+  }
+
+  return { ok: false, reason: 'age_file_value_missing' };
+}
+
 function evaluateRotation(secretId: string, rotationCfg: AnyObj, rotatedAtRaw: unknown, now: number): AnyObj {
   const warnAfterDays = clampNumber(rotationCfg.warn_after_days, 1, 3650, 45);
   const maxAfterDays = clampNumber(rotationCfg.max_after_days, warnAfterDays, 3650, 90);
@@ -608,6 +776,8 @@ function loadSecretById(secretId: unknown, opts: AnyObj = {}): Record<string, an
     if (provider.type === 'env') result = runProviderEnv(key, provider);
     else if (provider.type === 'json_file') result = runProviderJsonFile(key, provider);
     else if (provider.type === 'command') result = runProviderCommand(key, provider);
+    else if (provider.type === 'keychain') result = runProviderKeychain(key, provider);
+    else if (provider.type === 'age_file') result = runProviderAgeFile(key, provider);
     else result = { ok: false, reason: 'provider_type_unsupported', provider_type: provider.type };
 
     if (result.ok) {

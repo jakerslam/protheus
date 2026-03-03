@@ -20,9 +20,9 @@ What happened instead?
 
 ## Reproduction Steps
 
-1. 
-2. 
-3. 
+1.
+2.
+3.
 
 ## Environment
 
@@ -41,4 +41,3 @@ What happened instead?
 - Severity:
 - User-facing impact:
 - Workaround (if any):
-
