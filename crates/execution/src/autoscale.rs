@@ -134,6 +134,30 @@ pub struct TokenUsageOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizeQueueInput {
+    #[serde(default)]
+    pub pressure: Option<String>,
+    #[serde(default)]
+    pub pending: Option<f64>,
+    #[serde(default)]
+    pub total: Option<f64>,
+    #[serde(default)]
+    pub pending_ratio: Option<f64>,
+    pub warn_pending_count: f64,
+    pub critical_pending_count: f64,
+    pub warn_pending_ratio: f64,
+    pub critical_pending_ratio: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizeQueueOutput {
+    pub pressure: String,
+    pub pending: f64,
+    pub total: f64,
+    pub pending_ratio: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AutoscaleRequest {
     pub mode: String,
     #[serde(default)]
@@ -144,6 +168,8 @@ pub struct AutoscaleRequest {
     pub dynamic_caps_input: Option<DynamicCapsInput>,
     #[serde(default)]
     pub token_usage_input: Option<TokenUsageInput>,
+    #[serde(default)]
+    pub normalize_queue_input: Option<NormalizeQueueInput>,
 }
 
 fn clamp_ratio(v: f64) -> f64 {
@@ -520,6 +546,50 @@ pub fn compute_token_usage(input: &TokenUsageInput) -> TokenUsageOutput {
     }
 }
 
+fn round6(v: f64) -> f64 {
+    (v * 1_000_000.0).round() / 1_000_000.0
+}
+
+pub fn compute_normalize_queue(input: &NormalizeQueueInput) -> NormalizeQueueOutput {
+    let pending = input.pending.unwrap_or(0.0).max(0.0);
+    let total = input.total.unwrap_or(0.0).max(0.0);
+    let pending_ratio = non_negative_number(input.pending_ratio)
+        .map(clamp_ratio)
+        .unwrap_or_else(|| {
+            if total > 0.0 {
+                clamp_ratio(pending / total)
+            } else {
+                0.0
+            }
+        });
+
+    let mut pressure = input
+        .pressure
+        .clone()
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+    if pressure != "critical" && pressure != "warning" && pressure != "normal" {
+        pressure = "normal".to_string();
+        if pending >= input.critical_pending_count
+            || pending_ratio >= input.critical_pending_ratio
+        {
+            pressure = "critical".to_string();
+        } else if pending >= input.warn_pending_count
+            || pending_ratio >= input.warn_pending_ratio
+        {
+            pressure = "warning".to_string();
+        }
+    }
+
+    NormalizeQueueOutput {
+        pressure,
+        pending,
+        total,
+        pending_ratio: round6(pending_ratio),
+    }
+}
+
 pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     let request: AutoscaleRequest =
         serde_json::from_str(payload_json).map_err(|e| format!("autoscale_request_parse_failed:{e}"))?;
@@ -571,6 +641,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_token_usage_encode_failed:{e}"));
+    }
+    if mode == "normalize_queue" {
+        let input = request
+            .normalize_queue_input
+            .ok_or_else(|| "autoscale_missing_normalize_queue_input".to_string())?;
+        let out = compute_normalize_queue(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "normalize_queue",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_normalize_queue_encode_failed:{e}"));
     }
     Err(format!("autoscale_mode_unsupported:{mode}"))
 }
@@ -703,5 +785,39 @@ mod tests {
         assert_eq!(out.actual_total_tokens, None);
         assert_eq!(out.effective_tokens, 220.0);
         assert_eq!(out.source, "estimated_fallback");
+    }
+
+    #[test]
+    fn normalize_queue_classifies_by_thresholds() {
+        let out = compute_normalize_queue(&NormalizeQueueInput {
+            pressure: Some("".to_string()),
+            pending: Some(46.0),
+            total: Some(120.0),
+            pending_ratio: None,
+            warn_pending_count: 45.0,
+            critical_pending_count: 80.0,
+            warn_pending_ratio: 0.30,
+            critical_pending_ratio: 0.45,
+        });
+        assert_eq!(out.pressure, "warning");
+        assert_eq!(out.pending, 46.0);
+        assert_eq!(out.total, 120.0);
+        assert!(out.pending_ratio > 0.38 && out.pending_ratio < 0.39);
+    }
+
+    #[test]
+    fn normalize_queue_respects_explicit_pressure() {
+        let out = compute_normalize_queue(&NormalizeQueueInput {
+            pressure: Some("critical".to_string()),
+            pending: Some(1.0),
+            total: Some(100.0),
+            pending_ratio: Some(0.01),
+            warn_pending_count: 45.0,
+            critical_pending_count: 80.0,
+            warn_pending_ratio: 0.30,
+            critical_pending_ratio: 0.45,
+        });
+        assert_eq!(out.pressure, "critical");
+        assert_eq!(out.pending_ratio, 0.01);
     }
 }

@@ -111,6 +111,28 @@ function main() {
   assert.strictEqual(Number(tokenUsage.effective_tokens), 40);
   assert.strictEqual(String(tokenUsage.source), 'route_execute_metrics');
 
+  const normalizedQueue = getPayload(
+    runBacklogAutoscalePrimitive(
+      'normalize_queue',
+      {
+        pressure: '',
+        pending: 90,
+        total: 120,
+        pending_ratio: null,
+        warn_pending_count: 45,
+        critical_pending_count: 80,
+        warn_pending_ratio: 0.3,
+        critical_pending_ratio: 0.45
+      },
+      { allow_cli_fallback: true }
+    ),
+    'normalize_queue'
+  );
+  assert.strictEqual(normalizedQueue.pressure, 'critical');
+  assert.strictEqual(Number(normalizedQueue.pending), 90);
+  assert.strictEqual(Number(normalizedQueue.total), 120);
+  assert.ok(Number(normalizedQueue.pending_ratio) >= 0.7);
+
   console.log('autonomy_backlog_autoscale_rust_bridge.test.js: OK');
 }
 
