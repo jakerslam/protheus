@@ -84,6 +84,7 @@ const {
   startPainFocusSession,
   stopPainFocusSession
 } = require('./pain_signal');
+const { runBacklogAutoscalePrimitive } = require('./backlog_autoscale_rust_bridge.js');
 
 type AnyObj = Record<string, any>;
 
@@ -425,6 +426,7 @@ const AUTONOMY_BACKLOG_AUTOSCALE_REQUEST_TOKENS_PER_CELL = Math.max(
 );
 const AUTONOMY_BACKLOG_AUTOSCALE_BATCH_ON_RUN = String(process.env.AUTONOMY_BACKLOG_AUTOSCALE_BATCH_ON_RUN || '1') !== '0';
 const AUTONOMY_BACKLOG_AUTOSCALE_BATCH_MAX = Math.max(1, Number(process.env.AUTONOMY_BACKLOG_AUTOSCALE_BATCH_MAX || 4));
+const AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED = String(process.env.AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED || '1') !== '0';
 const AUTONOMY_CANARY_REQUIRE_EXECUTABLE = String(process.env.AUTONOMY_CANARY_REQUIRE_EXECUTABLE || '1') !== '0';
 const AUTONOMY_CANARY_BLOCK_GENERIC_ROUTE_TASK = String(process.env.AUTONOMY_CANARY_BLOCK_GENERIC_ROUTE_TASK || '1') !== '0';
 const AUTONOMY_MEDIUM_RISK_MIN_COMPOSITE_ELIGIBILITY = Number(process.env.AUTONOMY_MEDIUM_RISK_MIN_COMPOSITE_ELIGIBILITY || 70);
@@ -1655,6 +1657,34 @@ function computeBacklogAutoscalePlan(input: AnyObj = {}) {
     && Number.isFinite(Number(lastHighPressureMinutesAgo))
     && Number(lastHighPressureMinutesAgo) >= idleReleaseMinutes;
 
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'plan',
+      {
+        queue_pressure: queuePressure,
+        min_cells: minCells,
+        max_cells: maxCells,
+        current_cells: currentCells,
+        run_interval_minutes: runIntervalMinutes,
+        idle_release_minutes: idleReleaseMinutes,
+        autopause_active: autopauseActive,
+        last_run_minutes_ago: Number.isFinite(Number(lastRunMinutesAgo)) ? Number(lastRunMinutesAgo) : null,
+        last_high_pressure_minutes_ago: Number.isFinite(Number(lastHighPressureMinutesAgo)) ? Number(lastHighPressureMinutesAgo) : null,
+        trit_shadow_blocked: tritBlocked
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const raw = rust.payload.payload;
+      return {
+        ...raw,
+        warningPressure: raw.warningPressure != null ? !!raw.warningPressure : !!raw.warning_pressure,
+        highPressure: raw.highPressure != null ? !!raw.highPressure : !!raw.high_pressure,
+        pressureActive: raw.pressureActive != null ? !!raw.pressureActive : !!raw.pressure_active
+      };
+    }
+  }
+
   if (tritBlocked) {
     return {
       action: 'hold',
@@ -1929,6 +1959,26 @@ function computeBacklogBatchMax(input: AnyObj = {}) {
   const pressure = String(plan.pressure || 'normal').toLowerCase();
   const budgetBlocked = plan.budget_blocked === true;
   const tritBlocked = plan.trit_shadow_blocked === true;
+
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'batch_max',
+      {
+        enabled,
+        max_batch: maxBatch,
+        daily_remaining: dailyRemaining,
+        pressure,
+        current_cells: currentCells,
+        budget_blocked: budgetBlocked,
+        trit_shadow_blocked: tritBlocked
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
+  }
+
   if (!enabled) {
     return { max: 1, reason: 'disabled', pressure, current_cells: currentCells, budget_blocked: budgetBlocked, trit_shadow_blocked: tritBlocked };
   }

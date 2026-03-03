@@ -1,4 +1,5 @@
 mod blob;
+mod autoscale;
 mod decompose;
 mod sprint_contract;
 
@@ -15,6 +16,7 @@ pub use blob::{
     decode_manifest, fold_blob, load_embedded_execution_profile, unfold_blob, BlobError,
     ExecutionRuntimeProfile, EXECUTION_PROFILE_BLOB_ID,
 };
+pub use autoscale::{compute_batch_max, compute_plan, run_autoscale_json, BatchMaxInput, BatchMaxOutput, PlanInput, PlanOutput, QueuePressure};
 pub use decompose::{
     decompose_goal, decompose_goal_json, BaseTask, Capability, DecomposePolicy, DecomposeRequest,
     DecomposeResponse,
