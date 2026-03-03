@@ -30,6 +30,7 @@ try {
   assert.strictEqual(out.status, 0, out.stderr || out.stdout);
   assert.ok(out.stdout.includes('# Lens Response: Vikram Menon'), 'should render markdown title');
   assert.ok(out.stdout.includes('**Alignment Indicator:** [Yellow] auto'), 'default mode should show yellow auto indicator');
+  assert.ok(out.stdout.includes('**Persona LLM:** `off`'), 'persona LLM should default to off');
   assert.ok(out.stdout.includes('personas/vikram_menon/decision_lens.md'), 'should include decision lens context file');
   assert.ok(out.stdout.includes('personas/vikram_menon/data_streams.md'), 'should include data stream context file');
   assert.ok(out.stdout.includes('personas/vikram_menon/soul_token.md'), 'should include soul token context file');
@@ -58,6 +59,12 @@ try {
   assert.ok(out.stdout.includes('**Emotion Lens:** `off`'), 'emotion flag should disable emotion lens');
   assert.ok(!out.stdout.includes('Emotion signal:'), 'emotion-off run should not include emotion signals');
   assert.ok(!out.stdout.includes('personas/li_wei/emotion_lens.md'), 'emotion-off run should hide emotion lens context file');
+
+  out = run(['lens', 'li_wei', '--values=off', 'How can we make the personas durable?']);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  assert.ok(out.stdout.includes('**Values Lens:** `off`'), 'values flag should disable values lens');
+  assert.ok(!out.stdout.includes('Values filter:'), 'values-off run should suppress values filter reasoning');
+  assert.ok(!out.stdout.includes('personas/li_wei/values_philosophy_lens.md'), 'values-off run should hide values lens context file');
 
   out = run(['lens', 'aarav_singh', 'How should we harden security gates?']);
   assert.strictEqual(out.status, 0, out.stderr || out.stdout);
@@ -112,6 +119,29 @@ try {
   const checkinCorrespondence = fs.readFileSync(path.join(checkinRoot, 'personas', 'jay_haslam', 'correspondence.md'), 'utf8');
   assert.ok(checkinCorrespondence.includes('Re: daily checkin'), 'checkin should append daily checkin entry');
   assert.ok(checkinCorrespondence.includes('Heartbeat snapshot:'), 'checkin should persist heartbeat snapshot');
+  const checkinMemory = fs.readFileSync(path.join(checkinRoot, 'personas', 'jay_haslam', 'memory.md'), 'utf8');
+  assert.ok(checkinMemory.includes('title: daily checkin'), 'checkin should append persona memory node');
+
+  const feedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'protheus-lens-feed-'));
+  fs.mkdirSync(path.join(feedRoot, 'personas'), { recursive: true });
+  fs.cpSync(path.join(ROOT, 'personas', 'vikram_menon'), path.join(feedRoot, 'personas', 'vikram_menon'), { recursive: true });
+  out = run(
+    ['lens', 'feed', 'vikram_menon', 'Cross-signal detected elevated security drift risk.', '--source=master_llm', '--tags=drift,security'],
+    { OPENCLAW_WORKSPACE: feedRoot }
+  );
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  assert.ok(out.stdout.includes('"type": "persona_feed_append"'), 'feed command should return append payload');
+  const feedBody = fs.readFileSync(path.join(feedRoot, 'personas', 'vikram_menon', 'feed.md'), 'utf8');
+  assert.ok(feedBody.includes('Cross-signal detected elevated security drift risk.'), 'feed should append snippet');
+  const feedMemory = fs.readFileSync(path.join(feedRoot, 'personas', 'vikram_menon', 'memory.md'), 'utf8');
+  assert.ok(feedMemory.includes('title: feed update'), 'feed append should write memory node');
+
+  out = run(
+    ['persona', 'feed', 'vikram_menon', 'Operator direct persona feed through protheusctl persona route.', '--source=operator', '--tags=ops'],
+    { OPENCLAW_WORKSPACE: feedRoot }
+  );
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  assert.ok(out.stdout.includes('"type": "persona_feed_append"'), 'protheusctl persona route should support feed append');
 
   out = run(['lens', 'vikram_menon', '--gap=4', 'Prioritize memory or security first?'], null, 'a\n');
   assert.strictEqual(out.status, 0, out.stderr || out.stdout);
