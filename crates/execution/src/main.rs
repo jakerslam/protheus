@@ -1,6 +1,6 @@
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
-use execution_core::{run_workflow, run_workflow_json};
+use execution_core::{decompose_goal_json, run_workflow, run_workflow_json};
 use std::env;
 use std::fs;
 
@@ -9,6 +9,9 @@ fn usage() {
     eprintln!("  execution_core run --yaml=<payload>");
     eprintln!("  execution_core run --yaml-base64=<base64_payload>");
     eprintln!("  execution_core run --yaml-file=<path>");
+    eprintln!("  execution_core decompose --payload=<json_payload>");
+    eprintln!("  execution_core decompose --payload-base64=<base64_json_payload>");
+    eprintln!("  execution_core decompose --payload-file=<path>");
     eprintln!("  execution_core demo");
 }
 
@@ -42,6 +45,25 @@ fn load_yaml(args: &[String]) -> Result<String, String> {
     Err("missing_yaml_payload".to_string())
 }
 
+fn load_payload(args: &[String]) -> Result<String, String> {
+    if let Some(v) = parse_arg(args, "--payload") {
+        return Ok(v);
+    }
+    if let Some(v) = parse_arg(args, "--payload-base64") {
+        let bytes = BASE64_STANDARD
+            .decode(v.as_bytes())
+            .map_err(|err| format!("base64_decode_failed:{}", err))?;
+        let text = String::from_utf8(bytes).map_err(|err| format!("utf8_decode_failed:{}", err))?;
+        return Ok(text);
+    }
+    if let Some(v) = parse_arg(args, "--payload-file") {
+        let content = fs::read_to_string(v.as_str())
+            .map_err(|err| format!("payload_file_read_failed:{}", err))?;
+        return Ok(content);
+    }
+    Err("missing_json_payload".to_string())
+}
+
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
     let command = args.first().map(String::as_str).unwrap_or("demo");
@@ -51,6 +73,21 @@ fn main() {
             Ok(yaml) => {
                 println!("{}", run_workflow_json(&yaml));
             }
+            Err(err) => {
+                let payload = serde_json::json!({ "ok": false, "error": err });
+                eprintln!("{}", payload);
+                std::process::exit(1);
+            }
+        },
+        "decompose" => match load_payload(&args[1..]) {
+            Ok(payload) => match decompose_goal_json(&payload) {
+                Ok(out) => println!("{}", out),
+                Err(err) => {
+                    let payload = serde_json::json!({ "ok": false, "error": err });
+                    eprintln!("{}", payload);
+                    std::process::exit(1);
+                }
+            },
             Err(err) => {
                 let payload = serde_json::json!({ "ok": false, "error": err });
                 eprintln!("{}", payload);

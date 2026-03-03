@@ -57,9 +57,13 @@ protheus-top
 
 - `protheus lens <persona> "<query>"` loads `personas/<persona>/{profile.md,correspondence.md,lens.md}` and returns a Markdown response using that persona lens.
 - Example: `protheus lens vikram "Should we prioritize memory or security first?"`
+- Dedicated arbitration: `protheus arbitrate --between=vikram,priya --issue="sample vs full audit"` resolves disagreements with deterministic arbitration rules.
 - Control mode: `protheus lens <persona> --gap=<seconds> [--active=1] [--intercept="<override>"] "<query>"` for cognizance-gap + intercept simulation (`e`=edit, `a`=approve early during gap).
 - Emotion toggle: `--emotion=on|off` (default `on`).
+- Surprise toggle: `--surprise=on|off` (default `off`) enables deterministic 20% anti-puppet deviation.
+- Structured output: `--schema=json` returns machine-readable recommendations (`recommendation`, `confidence`, `time_estimate`, `blockers`, `escalate_to`, `reasoning`).
 - Daily internal check-in: `protheus lens checkin --persona=jay_haslam --heartbeat=HEARTBEAT.md`.
+- Meta-feedback loop: `protheus lens feedback ...` and `protheus lens feedback-summary` capture utility signals to tune persona weighting over time.
 
 ### Persona Orchestration Command
 

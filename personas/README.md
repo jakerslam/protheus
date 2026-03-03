@@ -22,18 +22,25 @@ This directory stores internal operator lenses used for planning, audits, and de
 - `personas/organization/organization.md` - higher-level organization scope, reporting chain, and escalation model
 - `personas/organization/data_permissions.template.md` - canonical permission template (Core 5 default `system_internal` enabled)
 - `personas/organization/triggers.md` - workflow trigger playbook for automated persona consult points
+- `personas/organization/stance_cache.json` - pre-computed stances for recurring decisions (migration/API/safety defaults)
+- `personas/organization/feedback.jsonl` (runtime) - session meta-feedback loop (`surprising`, `changed_decision`, `useful_persona`)
 
 ## Operating Rules
 
 - Use personas as analysis lenses, not as authority replacement.
 - Use `protheus lens <persona> --lens=decision|strategic|full "<query>"` for targeted mode selection.
 - Use `protheus lens <persona1> <persona2> "<query>" [--expected="<baseline>"]` for deterministic multi-persona conflict + arbitration output.
+- Use `protheus arbitrate --between=vikram,priya --issue="<query>"` for dedicated disagreement resolution output.
 - Use `protheus lens <persona> --gap=<seconds> [--active=1] [--intercept="<override>"] "<query>"` for control-mode simulation (`e`=edit, `a`=approve early during gap).
 - Use `--emotion=on|off` and `--values=on|off` to include or suppress emotion/values signals (defaults `on`).
 - Use `--include-feed=1` to include hash-verified `## System Passed` feed payloads in response reasoning.
+- Use `--surprise=on` to enable a deterministic 20% anti-puppet deviation die for challenge-style responses.
+- Use `--schema=json` to emit structured response payloads for easier aggregation.
 - Use `protheus lens update-stream <persona>` to simulate stream sync and append correspondence updates.
 - Use `protheus lens feed <persona> "<snippet>"` (or `protheus persona feed ...`) to push master-feed insights to a persona.
 - Use `protheus lens checkin --persona=jay_haslam --heartbeat=HEARTBEAT.md` for daily drift/alignment logging.
+- Use `protheus lens feedback --surprising=0|1 --changed-decision=0|1 --useful=<persona>` after sessions to tune persona utility.
+- Use `protheus lens feedback-summary [--window=<n>]` to monitor usefulness and decision-impact rates.
 - Use `protheus lens trigger <pre-sprint|drift-alert|weekly-checkin> ...` to run codified trigger workflows.
 - Use `protheus lens dashboard [--window=<n>]` for recent telemetry + checkin/intercept activity.
 - Record significant decisions in correspondence logs.

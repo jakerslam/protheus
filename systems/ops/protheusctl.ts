@@ -47,6 +47,7 @@ function usage() {
   console.log('  protheusctl lensmap init|template add|simplify|polish|import|sync|expose|status');
   console.log('  protheus lens <persona> [decision|strategic|full] [--gap=<seconds>] [--active=1] [--emotion=on|off] [--values=on|off] [--include-feed=1] [--intercept="<override>"] "<query>"');
   console.log('  protheus lens <persona1> <persona2> [personaN...] "<query>" [--expected="<baseline>"]');
+  console.log('  protheus arbitrate --between=persona1,persona2 --issue="<query>" [--schema=json]');
   console.log('  protheus lens trigger <pre-sprint|drift-alert|weekly-checkin> ["<query>"] [--persona=<id>] [--heartbeat=HEARTBEAT.md] [--dry-run=1]');
   console.log('  protheus lens dashboard [--window=<n>] [--json=1]');
   console.log('  protheus orchestrate status');
@@ -497,6 +498,12 @@ function main() {
   if (cmd === 'lens') {
     const personaScript = path.join(__dirname, '..', 'personas', 'cli.js');
     runScript(personaScript, rest, { forwardStdin: true });
+    return;
+  }
+
+  if (cmd === 'arbitrate') {
+    const personaScript = path.join(__dirname, '..', 'personas', 'cli.js');
+    runScript(personaScript, ['arbitrate', ...rest], { forwardStdin: true });
     return;
   }
 

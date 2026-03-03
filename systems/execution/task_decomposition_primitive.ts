@@ -2,25 +2,10 @@
 'use strict';
 export {};
 
-/**
- * systems/execution/task_decomposition_primitive.js
- *
- * V3-TASK-001: Task Decomposition Primitive ("digestive system")
- * - Decomposes high-level goals into standardized 1-5 minute micro-task profiles.
- * - Emits parallel routing candidates for autonomous micro-agents + Storm human lane.
- * - Applies Heroic Echo purification + constitution gate checks per micro-task.
- * - Links receipts/actions into the agent passport chain.
- * - Emits subtle duality indicators for receipts/IDE projection.
- *
- * Usage:
- *   node systems/execution/task_decomposition_primitive.js run [YYYY-MM-DD] --goal="..." [--objective-id=<id>] [--apply=1|0]
- *   node systems/execution/task_decomposition_primitive.js run [YYYY-MM-DD] --goal-json='{"goal":"..."}' [--apply=1|0]
- *   node systems/execution/task_decomposition_primitive.js status [latest|YYYY-MM-DD]
- */
-
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { spawnSync } = require('child_process');
 const { mergeGatePolicy, purifyInputs } = require('../echo/input_purification_gate.js');
 const { evaluateTask: evaluateDirectiveTask } = require('../security/directive_gate.js');
 const { issuePassport, appendAction } = require('../security/agent_passport.js');
@@ -45,24 +30,20 @@ try {
 
 type AnyObj = Record<string, any>;
 
-type Segment = {
-  text: string;
-  depth: number;
-  parent_id: string | null;
-};
-
 const ROOT = path.resolve(__dirname, '..', '..');
+const EXECUTION_MANIFEST = path.join(ROOT, 'crates', 'execution', 'Cargo.toml');
 const DEFAULT_POLICY_PATH = process.env.TASK_DECOMPOSITION_POLICY_PATH
   ? path.resolve(process.env.TASK_DECOMPOSITION_POLICY_PATH)
   : path.join(ROOT, 'config', 'task_decomposition_primitive_policy.json');
-const DEFAULT_STATE_DIR = path.join(ROOT, 'state', 'execution', 'task_decomposition_primitive');
 
 function usage() {
-  console.log('Usage:');
-  console.log('  node systems/execution/task_decomposition_primitive.js run [YYYY-MM-DD] --goal="..." [--objective-id=<id>] [--goal-id=<id>] [--apply=1|0] [--policy=path]');
-  console.log('  node systems/execution/task_decomposition_primitive.js run [YYYY-MM-DD] --goal-json=\'{"goal":"..."}\' [--apply=1|0] [--policy=path]');
-  console.log('  node systems/execution/task_decomposition_primitive.js run [YYYY-MM-DD] --goal-file=path [--apply=1|0] [--policy=path]');
-  console.log('  node systems/execution/task_decomposition_primitive.js status [latest|YYYY-MM-DD] [--policy=path]');
+  console.log([
+    'Usage:',
+    '  node systems/execution/task_decomposition_primitive.js run [YYYY-MM-DD] --goal="..." [--objective-id=<id>] [--goal-id=<id>] [--apply=1|0] [--policy=path]',
+    '  node systems/execution/task_decomposition_primitive.js run [YYYY-MM-DD] --goal-json=\'{"goal":"..."}\' [--apply=1|0] [--policy=path]',
+    '  node systems/execution/task_decomposition_primitive.js run [YYYY-MM-DD] --goal-file=path [--apply=1|0] [--policy=path]',
+    '  node systems/execution/task_decomposition_primitive.js status [latest|YYYY-MM-DD] [--policy=path]'
+  ].join('\n'));
 }
 
 function parseArgs(argv: string[]) {
@@ -217,6 +198,113 @@ function readGoalFile(filePathRaw: unknown) {
     // fallthrough
   }
   return { goal: text, source: 'goal_file', goal_file_path: relPath(abs) };
+}
+
+function parseJsonPayload(raw: unknown) {
+  const text = String(raw == null ? '' : raw).trim();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {}
+  const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    try {
+      return JSON.parse(lines[i]);
+    } catch {}
+  }
+  return null;
+}
+
+function executionBinaryCandidates() {
+  const explicit = cleanText(process.env.PROTHEUS_EXECUTION_RUST_BIN || '', 500);
+  const out = [
+    explicit,
+    path.join(ROOT, 'target', 'release', 'execution_core'),
+    path.join(ROOT, 'target', 'debug', 'execution_core'),
+    path.join(ROOT, 'crates', 'execution', 'target', 'release', 'execution_core'),
+    path.join(ROOT, 'crates', 'execution', 'target', 'debug', 'execution_core')
+  ].filter(Boolean);
+  return Array.from(new Set(out));
+}
+
+function runTaskDecomposeViaRustBinary(payloadText: string) {
+  const payloadB64 = Buffer.from(String(payloadText || ''), 'utf8').toString('base64');
+  for (const candidate of executionBinaryCandidates()) {
+    try {
+      if (!fs.existsSync(candidate)) continue;
+      const out = spawnSync(candidate, ['decompose', `--payload-base64=${payloadB64}`], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        maxBuffer: 10 * 1024 * 1024
+      });
+      const payload = parseJsonPayload(out.stdout);
+      if (Number(out.status) === 0 && payload && typeof payload === 'object') {
+        return { ok: true, engine: 'rust_bin', binary_path: candidate, payload };
+      }
+    } catch {
+      // try next candidate
+    }
+  }
+  return { ok: false, error: 'rust_binary_unavailable' };
+}
+
+function runTaskDecomposeViaCargo(payloadText: string) {
+  const payloadB64 = Buffer.from(String(payloadText || ''), 'utf8').toString('base64');
+  const args = [
+    'run',
+    '--quiet',
+    '--manifest-path',
+    EXECUTION_MANIFEST,
+    '--bin',
+    'execution_core',
+    '--',
+    'decompose',
+    `--payload-base64=${payloadB64}`
+  ];
+  const out = spawnSync('cargo', args, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    maxBuffer: 10 * 1024 * 1024
+  });
+  const payload = parseJsonPayload(out.stdout);
+  if (Number(out.status) === 0 && payload && typeof payload === 'object') {
+    return { ok: true, engine: 'rust_cargo', payload };
+  }
+  return {
+    ok: false,
+    error: `cargo_decompose_failed:${cleanText(out.stderr || out.stdout || '', 220)}`
+  };
+}
+
+function runRustTaskDecompose(goal: AnyObj, policy: AnyObj, runId: string) {
+  const payload = {
+    run_id: runId,
+    goal_id: goal.goal_id,
+    goal_text: goal.goal_text,
+    objective_id: goal.objective_id || null,
+    creator_id: goal.creator_id || null,
+    policy: {
+      max_depth: Number(policy.decomposition && policy.decomposition.max_depth || 4),
+      max_micro_tasks: Number(policy.decomposition && policy.decomposition.max_micro_tasks || 96),
+      max_words_per_leaf: Number(policy.decomposition && policy.decomposition.max_words_per_leaf || 18),
+      min_minutes: Number(policy.decomposition && policy.decomposition.min_minutes || 1),
+      max_minutes: Number(policy.decomposition && policy.decomposition.max_minutes || 5),
+      max_groups: Number(policy.parallel && policy.parallel.max_groups || 8),
+      default_lane: String(policy.parallel && policy.parallel.default_lane || 'autonomous_micro_agent'),
+      storm_lane: String(policy.parallel && policy.parallel.storm_lane || 'storm_human_lane'),
+      human_lane_keywords: Array.isArray(policy.parallel && policy.parallel.human_lane_keywords)
+        ? policy.parallel.human_lane_keywords
+        : [],
+      autonomous_lane_keywords: Array.isArray(policy.parallel && policy.parallel.autonomous_lane_keywords)
+        ? policy.parallel.autonomous_lane_keywords
+        : [],
+      min_storm_share: Number(policy.parallel && policy.parallel.min_storm_share || 0.15)
+    }
+  };
+  const payloadText = JSON.stringify(payload);
+  const bin = runTaskDecomposeViaRustBinary(payloadText);
+  if (bin.ok) return bin;
+  return runTaskDecomposeViaCargo(payloadText);
 }
 
 function defaultPolicy() {
@@ -407,125 +495,15 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   };
 }
 
-function splitCandidates(text: string) {
-  const punct = text
-    .split(/[\n;]+/)
-    .map((row) => cleanText(row, 800))
-    .filter(Boolean);
-  const rows = punct.length ? punct : [text];
-  const out: string[] = [];
-  const connectors = /\b(?:and then|then|and|after|before|while|plus|also|with)\b/gi;
-  for (const row of rows) {
-    const split = row.split(connectors).map((part) => cleanText(part, 600)).filter(Boolean);
-    if (split.length > 1) out.push(...split);
-    else out.push(row);
-  }
-  return out;
-}
-
-function wordCount(text: string) {
-  return String(text || '').split(/\s+/).filter(Boolean).length;
-}
-
-function recursiveDecompose(text: string, depth: number, policy: AnyObj, parentId: string | null = null): Segment[] {
-  const trimmed = cleanText(text, 1200);
-  if (!trimmed) return [];
-  const maxDepth = Number(policy.decomposition.max_depth || 4);
-  const maxWordsLeaf = Number(policy.decomposition.max_words_per_leaf || 18);
-  const words = wordCount(trimmed);
-  if (depth >= maxDepth || words <= maxWordsLeaf) {
-    return [{ text: trimmed, depth, parent_id: parentId }];
-  }
-  const candidates = splitCandidates(trimmed)
-    .map((row) => cleanText(row, 1000))
-    .filter(Boolean)
-    .filter((row) => row !== trimmed);
-  if (!candidates.length) {
-    return [{ text: trimmed, depth, parent_id: parentId }];
-  }
-  const currentId = `seg_${sha16(`${depth}|${trimmed.slice(0, 120)}`)}`;
-  const out: Segment[] = [];
-  for (const cand of candidates) {
-    const nested = recursiveDecompose(cand, depth + 1, policy, currentId);
-    if (nested.length) out.push(...nested);
-  }
-  if (!out.length) return [{ text: trimmed, depth, parent_id: parentId }];
-  return out;
-}
-
-function dedupeSegments(rows: Segment[], maxItems: number) {
-  const out: Segment[] = [];
-  const seen = new Set<string>();
-  for (const row of rows) {
-    const key = normalizeToken(row.text, 220);
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    out.push(row);
-    if (out.length >= maxItems) break;
-  }
-  return out;
-}
-
-function estimateMinutes(text: string, policy: AnyObj) {
-  const words = wordCount(text);
-  const minM = Number(policy.decomposition.min_minutes || 1);
-  const maxM = Number(policy.decomposition.max_minutes || 5);
-  let minutes = 1;
-  if (words > 8) minutes = 2;
-  if (words > 14) minutes = 3;
-  if (words > 24) minutes = 4;
-  if (words > 34) minutes = 5;
-  return clampInt(minutes, minM, maxM, minM);
-}
-
-function inferCapability(text: string) {
-  const lower = String(text || '').toLowerCase();
-  if (/\b(email|slack|discord|message|notify|outreach)\b/.test(lower)) {
-    return { capability_id: 'comms_message', adapter_kind: 'email_message', source_type: 'comms' };
-  }
-  if (/\b(browser|web|site|ui|form|click|navigate)\b/.test(lower)) {
-    return { capability_id: 'browser_task', adapter_kind: 'browser_task', source_type: 'web_ui' };
-  }
-  if (/\b(api|http|endpoint|request|json|graphql|webhook)\b/.test(lower)) {
-    return { capability_id: 'api_request', adapter_kind: 'http_request', source_type: 'api' };
-  }
-  if (/\b(file|document|write|save|edit|patch|code)\b/.test(lower)) {
-    return { capability_id: 'filesystem_task', adapter_kind: 'filesystem_task', source_type: 'filesystem' };
-  }
-  if (/\b(test|verify|assert|validate|check)\b/.test(lower)) {
-    return { capability_id: 'quality_check', adapter_kind: 'shell_task', source_type: 'analysis' };
-  }
-  if (/\b(research|analyze|summarize|read|investigate)\b/.test(lower)) {
-    return { capability_id: 'analysis_task', adapter_kind: 'shell_task', source_type: 'analysis' };
-  }
-  return { capability_id: 'general_task', adapter_kind: 'shell_task', source_type: 'analysis' };
-}
-
-function titleForTask(text: string) {
-  const words = String(text || '').split(/\s+/).filter(Boolean).slice(0, 9);
-  if (!words.length) return 'Micro Task';
-  const joined = words.join(' ');
-  return joined.charAt(0).toUpperCase() + joined.slice(1);
-}
-
-function successCriteria(text: string) {
-  return [
-    `Execute: ${cleanText(text, 180)}`,
-    'Capture a receipt and link outcome to objective context.'
-  ];
-}
-
-function normalizeTextKeywordRows(rows: string[]) {
-  return rows.map((row) => normalizeToken(row, 80)).filter(Boolean);
-}
-
-function laneForTask(taskText: string, constitution: AnyObj, policy: AnyObj) {
-  const lower = normalizeToken(taskText, 500);
-  const humanHits = normalizeTextKeywordRows(policy.parallel.human_lane_keywords || []).filter((kw) => lower.includes(kw)).length;
-  const autoHits = normalizeTextKeywordRows(policy.parallel.autonomous_lane_keywords || []).filter((kw) => lower.includes(kw)).length;
-  if (constitution && constitution.decision === 'MANUAL') return policy.parallel.storm_lane;
-  if (humanHits > autoHits) return policy.parallel.storm_lane;
-  return policy.parallel.default_lane;
+function normalizeCapability(raw: AnyObj) {
+  const capabilityId = normalizeToken(raw && raw.capability_id || '', 80) || 'general_task';
+  const adapterKind = normalizeToken(raw && raw.adapter_kind || '', 80) || 'shell_task';
+  const sourceType = normalizeToken(raw && raw.source_type || '', 80) || 'analysis';
+  return {
+    capability_id: capabilityId,
+    adapter_kind: adapterKind,
+    source_type: sourceType
+  };
 }
 
 function collectGoalInput(args: AnyObj, dateStr: string) {
@@ -689,22 +667,33 @@ function dualitySignalForTask(goal: AnyObj, task: AnyObj) {
 }
 
 function buildMicroTasks(goal: AnyObj, policy: AnyObj, runId: string) {
-  const rawSegments = recursiveDecompose(goal.goal_text, 0, policy, null);
-  const segments = dedupeSegments(rawSegments, Number(policy.decomposition.max_micro_tasks || 96));
+  const decompose = runRustTaskDecompose(goal, policy, runId);
+  if (!decompose || decompose.ok !== true || !decompose.payload || decompose.payload.ok !== true) {
+    throw new Error(`rust_task_decompose_failed:${cleanText(decompose && decompose.error || 'unknown', 220)}`);
+  }
+
+  const baseTasks = Array.isArray(decompose.payload.tasks) ? decompose.payload.tasks : [];
   const tasks = [];
-  for (let i = 0; i < segments.length; i += 1) {
-    const seg = segments[i];
-    const taskText = cleanText(seg.text, 1000);
+  for (let i = 0; i < baseTasks.length; i += 1) {
+    const base = baseTasks[i] && typeof baseTasks[i] === 'object' ? baseTasks[i] : {};
+    const taskText = cleanText(base.task_text, 1000);
     if (!taskText) continue;
-    const microTaskId = `mt_${sha16(`${runId}|${i}|${taskText}`)}`;
-    const capability = inferCapability(taskText);
+
+    const microTaskId = normalizeToken(base.micro_task_id, 120) || `mt_${sha16(`${runId}|${i}|${taskText}`)}`;
+    const profileId = normalizeToken(base.profile_id, 120) || `task_micro_${sha16(`${goal.goal_id}|${microTaskId}`)}`;
+    const capability = normalizeCapability(base.capability && typeof base.capability === 'object' ? base.capability : {});
     const constitution = evaluateConstitutionGate(taskText, policy);
     const heroic = evaluateHeroicGate(taskText, policy, {
       run_id: runId,
       task_id: microTaskId,
       objective_id: goal.objective_id
     });
-    const lane = laneForTask(taskText, constitution, policy);
+    const suggestedLane = normalizeToken(base.suggested_lane, 80)
+      || normalizeToken(policy.parallel.default_lane, 80)
+      || 'autonomous_micro_agent';
+    const lane = constitution.decision === 'MANUAL'
+      ? policy.parallel.storm_lane
+      : suggestedLane;
     const duality = dualitySignalForTask(goal, {
       micro_task_id: microTaskId,
       task_text: taskText,
@@ -715,20 +704,25 @@ function buildMicroTasks(goal: AnyObj, policy: AnyObj, runId: string) {
     const blocked = heroic.blocked === true || blockedByConstitution;
     const requiresManualReview = constitution.decision === 'MANUAL' || lane === policy.parallel.storm_lane;
 
-    const minutes = estimateMinutes(taskText, policy);
-    const profileId = `task_micro_${sha16(`${goal.goal_id}|${microTaskId}`)}`;
+    const minutes = clampInt(base.estimated_minutes, Number(policy.decomposition.min_minutes || 1), Number(policy.decomposition.max_minutes || 5), 1);
+    const successCriteria = Array.isArray(base.success_criteria) && base.success_criteria.length
+      ? base.success_criteria.map((row: unknown) => cleanText(row, 220)).filter(Boolean)
+      : [
+        `Execute: ${cleanText(taskText, 180)}`,
+        'Capture a receipt and link outcome to objective context.'
+      ];
 
     const microTask = {
       micro_task_id: microTaskId,
       goal_id: goal.goal_id,
       objective_id: goal.objective_id,
-      parent_id: seg.parent_id,
-      depth: seg.depth,
-      index: i,
-      title: titleForTask(taskText),
+      parent_id: base.parent_id ? cleanText(base.parent_id, 120) : null,
+      depth: clampInt(base.depth, 0, 24, 0),
+      index: clampInt(base.index, 0, 100000, i),
+      title: cleanText(base.title || 'Micro Task', 220) || 'Micro Task',
       task_text: taskText,
       estimated_minutes: minutes,
-      success_criteria: successCriteria(taskText),
+      success_criteria: successCriteria,
       required_capability: capability.capability_id,
       profile_id: profileId,
       profile: {
@@ -744,7 +738,7 @@ function buildMicroTasks(goal: AnyObj, policy: AnyObj, runId: string) {
         intent: {
           id: 'micro_task_execute',
           description: taskText,
-          success_criteria: successCriteria(taskText)
+          success_criteria: successCriteria
         },
         execution: {
           adapter_kind: capability.adapter_kind,
@@ -758,7 +752,7 @@ function buildMicroTasks(goal: AnyObj, policy: AnyObj, runId: string) {
         provenance: {
           confidence: blocked ? 0.55 : 0.92,
           evidence: {
-            decomposition_depth: seg.depth,
+            decomposition_depth: clampInt(base.depth, 0, 24, 0),
             heroic_echo_decision: heroic.decision,
             constitution_decision: constitution.decision
           }
@@ -795,8 +789,10 @@ function buildMicroTasks(goal: AnyObj, policy: AnyObj, runId: string) {
       },
       route: {
         lane,
-        parallel_group: i % Math.max(1, Number(policy.parallel.max_groups || 8)),
-        parallel_priority: Number((1 / Math.max(1, minutes)).toFixed(4)),
+        parallel_group: clampInt(base.parallel_group, 0, 4096, i % Math.max(1, Number(policy.parallel.max_groups || 8))),
+        parallel_priority: Number.isFinite(Number(base.parallel_priority))
+          ? Number(Number(base.parallel_priority).toFixed(4))
+          : Number((1 / Math.max(1, minutes)).toFixed(4)),
         blocked,
         requires_manual_review: requiresManualReview
       },
@@ -820,15 +816,14 @@ function buildMicroTasks(goal: AnyObj, policy: AnyObj, runId: string) {
           : { subtle_hint: 'duality_signal_absent' }
       }
     };
-
     tasks.push(microTask);
   }
 
-  // Ensure at least one human-lane candidate for crowd routing when requested by policy.
+  const minStormShare = Number(policy.parallel.min_storm_share || 0);
   const humanShare = tasks.length
     ? tasks.filter((row) => row.route && row.route.lane === policy.parallel.storm_lane).length / tasks.length
     : 0;
-  if (tasks.length > 2 && humanShare < Number(policy.parallel.min_storm_share || 0)) {
+  if (tasks.length > 2 && humanShare < minStormShare) {
     const best = tasks.find((row) => row.governance && row.governance.constitution
       && row.governance.constitution.decision !== 'DENY');
     if (best) {
