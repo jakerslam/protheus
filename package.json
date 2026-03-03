@@ -614,6 +614,7 @@
     "ops:script-surface:wave2:plan": "node systems/ops/script_surface_reduction_wave2.js plan --strict=1",
     "ops:script-surface:wave2:apply": "node systems/ops/script_surface_reduction_wave2.js apply --strict=1",
     "ops:format:check": "node systems/ops/org_code_format_guard.js check --strict=1",
+    "ops:format:check:staged": "node systems/ops/org_code_format_guard.js check-staged --strict=1",
     "ops:perception:audit": "node systems/ops/polish_perception_program.js audit",
     "ops:perception:verify": "node systems/ops/polish_perception_program.js verify --strict=1",
     "ops:backlog:pathfinder:run": "node systems/ops/backlog_execution_pathfinder.js run",

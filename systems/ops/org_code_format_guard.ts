@@ -9,6 +9,7 @@ export {};
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 const {
   ROOT,
   nowIso,
@@ -31,7 +32,8 @@ const DEFAULT_POLICY_PATH = process.env.ORG_CODE_FORMAT_GUARD_POLICY_PATH
 
 function usage() {
   console.log('Usage:');
-  console.log('  node systems/ops/org_code_format_guard.js check [--strict=1|0] [--policy=<path>]');
+  console.log('  node systems/ops/org_code_format_guard.js check [--strict=1|0] [--scope=all|staged] [--policy=<path>]');
+  console.log('  node systems/ops/org_code_format_guard.js check-staged [--strict=1|0] [--policy=<path>]');
   console.log('  node systems/ops/org_code_format_guard.js status [--policy=<path>]');
 }
 
@@ -65,6 +67,7 @@ function defaultPolicy() {
     rules: {
       no_trailing_whitespace: true,
       eof_newline: true,
+      no_crlf: true,
       no_tabs_for: ['.ts', '.js', '.md', '.sh', '.rs']
     },
     paths: {
@@ -95,6 +98,7 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
     rules: {
       no_trailing_whitespace: rules.no_trailing_whitespace !== false,
       eof_newline: rules.eof_newline !== false,
+      no_crlf: rules.no_crlf !== false,
       no_tabs_for: Array.isArray(rules.no_tabs_for) && rules.no_tabs_for.length
         ? rules.no_tabs_for.map((v: unknown) => cleanText(v, 16).toLowerCase()).filter(Boolean)
         : base.rules.no_tabs_for
@@ -157,6 +161,37 @@ function collectFiles(policy: AnyObj) {
   return out;
 }
 
+function collectStagedFiles(policy: AnyObj) {
+  const proc = spawnSync('git', ['-C', ROOT, 'diff', '--cached', '--name-only', '--diff-filter=ACMR'], {
+    encoding: 'utf8'
+  });
+  const status = Number.isFinite(proc.status) ? Number(proc.status) : 1;
+  if (status !== 0) {
+    return {
+      files: [],
+      error: cleanText(proc.stderr || proc.stdout || 'git_diff_cached_failed', 240) || 'git_diff_cached_failed'
+    };
+  }
+  const files: string[] = [];
+  const rows = String(proc.stdout || '')
+    .split('\n')
+    .map((row) => cleanText(row, 400))
+    .filter(Boolean);
+  for (const relPathRaw of rows) {
+    const relPath = String(relPathRaw).replace(/\\/g, '/').replace(/^\.\//, '');
+    if (!relPath || shouldExclude(relPath, policy)) continue;
+    const abs = path.join(ROOT, relPath);
+    if (!fs.existsSync(abs)) continue;
+    const stat = fs.statSync(abs);
+    if (!stat.isFile()) continue;
+    const ext = path.extname(abs).toLowerCase();
+    if (!policy.include_ext.includes(ext)) continue;
+    files.push(abs);
+  }
+  files.sort((a, b) => rel(a).localeCompare(rel(b)));
+  return { files, error: null };
+}
+
 function scanFile(filePath: string, policy: AnyObj, findings: AnyObj[]) {
   if (findings.length >= policy.max_findings) return;
   let text = '';
@@ -168,6 +203,20 @@ function scanFile(filePath: string, policy: AnyObj, findings: AnyObj[]) {
   const ext = path.extname(filePath).toLowerCase();
   const lines = text.split('\n');
   const maxAllowed = policy.max_findings;
+
+  if (policy.rules.no_crlf === true) {
+    lines.forEach((line: string, idx: number) => {
+      if (findings.length >= maxAllowed) return;
+      if (line.includes('\r')) {
+        findings.push({
+          file: rel(filePath),
+          line: idx + 1,
+          rule: 'no_crlf_line_endings',
+          preview: cleanText(line.replace(/\r/g, '\\r'), 180)
+        });
+      }
+    });
+  }
 
   if (policy.rules.no_trailing_whitespace === true) {
     lines.forEach((line: string, idx: number) => {
@@ -207,12 +256,39 @@ function scanFile(filePath: string, policy: AnyObj, findings: AnyObj[]) {
   }
 }
 
-function check(policy: AnyObj) {
+function check(policy: AnyObj, options: AnyObj = {}) {
   if (policy.enabled !== true) {
     return { ok: true, type: 'org_code_format_guard', ts: nowIso(), result: 'disabled_by_policy' };
   }
 
-  const files = collectFiles(policy);
+  const scope = cleanText(options.scope || 'all', 24).toLowerCase() === 'staged' ? 'staged' : 'all';
+  let files: string[] = [];
+  if (scope === 'staged') {
+    const staged = collectStagedFiles(policy);
+    if (staged.error) {
+      return {
+        ok: false,
+        pass: false,
+        type: 'org_code_format_guard',
+        ts: nowIso(),
+        scope,
+        scanned_files: 0,
+        findings_count: 1,
+        findings: [
+          {
+            file: null,
+            line: null,
+            rule: 'staged_scope_unavailable',
+            preview: staged.error
+          }
+        ],
+        verification_receipt_id: `fmt_guard_${stableHash(staged.error, 14)}`
+      };
+    }
+    files = staged.files;
+  } else {
+    files = collectFiles(policy);
+  }
   const findings: AnyObj[] = [];
   for (const filePath of files) {
     scanFile(filePath, policy, findings);
@@ -224,6 +300,7 @@ function check(policy: AnyObj) {
     pass: findings.length === 0,
     type: 'org_code_format_guard',
     ts: nowIso(),
+    scope,
     scanned_files: files.length,
     findings_count: findings.length,
     findings,
@@ -239,12 +316,15 @@ function check(policy: AnyObj) {
 function cmdCheck(args: AnyObj) {
   const policy = loadPolicy(args.policy ? path.resolve(String(args.policy)) : DEFAULT_POLICY_PATH);
   const strict = toBool(args.strict, true);
-  const out = check(policy);
+  const scopeArg = cleanText(args.scope || '', 24).toLowerCase();
+  const scope = scopeArg === 'staged' || toBool(args.staged, false) ? 'staged' : 'all';
+  const out = check(policy, { scope });
   writeJsonAtomic(policy.paths.latest_path, out);
   appendJsonl(policy.paths.history_path, {
     ts: out.ts,
     type: out.type,
     ok: out.ok,
+    scope: out.scope || scope,
     scanned_files: out.scanned_files,
     findings_count: out.findings_count
   });
@@ -269,6 +349,7 @@ function main() {
     usage();
     process.exit(0);
   }
+  if (cmd === 'check-staged') return cmdCheck({ ...args, scope: 'staged' });
   if (cmd === 'check' || cmd === 'run') return cmdCheck(args);
   if (cmd === 'status') return cmdStatus(args);
   usage();
