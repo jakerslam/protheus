@@ -32,8 +32,12 @@
       "systems/memory/observational_compression_layer.ts"
     ],
     "V6-RUST50-002": [
-      "systems/hybrid/rust/src/execution_replay.rs",
-      "systems/workflow/workflow_executor.ts"
+      "crates/execution/Cargo.toml",
+      "crates/execution/src/lib.rs",
+      "crates/execution/src/main.rs",
+      "systems/execution/index.ts",
+      "systems/execution/legacy_runtime.ts",
+      "memory/tools/tests/execution_phase2_rust_parity.test.js"
     ],
     "V6-RUST50-003": [
       "systems/hybrid/rust/src/crdt_merge.rs",
@@ -81,7 +85,9 @@
         "id": "execution",
         "weight": 18,
         "paths": [
-          "systems/workflow",
+          "crates/execution",
+          "systems/execution/index.ts",
+          "systems/execution/index.js",
           "systems/hybrid/rust/src/execution_replay.rs"
         ]
       },

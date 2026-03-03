@@ -1,3 +1,4 @@
+mod blob;
 mod compression;
 mod crdt;
 mod ebbinghaus;
@@ -8,6 +9,10 @@ use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
 pub use crdt::{merge as crdt_merge, CrdtCell, CrdtMap};
+pub use blob::{
+    decode_manifest, encode_manifest, fold_blob, generate_manifest, sha256_hex, unfold_blob,
+    BlobError, BlobManifest, BlobPackReport, HEARTBEAT_BLOB_ID,
+};
 pub use sqlite_store::MemoryRow;
 
 fn c_str_to_string(ptr: *const c_char) -> Result<String, String> {
@@ -89,6 +94,14 @@ pub fn ingest_memory(
 
 pub fn clear_cache() -> Result<u64, String> {
     sqlite_store::clear_cache()
+}
+
+pub fn load_embedded_heartbeat() -> Result<String, BlobError> {
+    blob::load_embedded_heartbeat()
+}
+
+pub fn pack_embedded_heartbeat_assets(sample: &str) -> Result<BlobPackReport, BlobError> {
+    blob::write_embedded_heartbeat_assets(sample)
 }
 
 pub fn ebbinghaus_curve(age_days: f64, repetitions: u32, lambda: f64) -> serde_json::Value {

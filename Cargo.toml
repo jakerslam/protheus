@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
+  "crates/blob_test",
+  "crates/execution",
   "crates/fluxlattice",
   "crates/memory",
   "systems/memory/rust",
