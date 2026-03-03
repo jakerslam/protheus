@@ -1,6 +1,6 @@
 # Backlog Active View
 
-Generated: 2026-03-03T00:50:14.693Z
+Generated: 2026-03-03T01:35:37.050Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -21,9 +21,7 @@ Generated: 2026-03-03T00:50:14.693Z
 | V4-SETTLE-009 | extension | V4 | queued | Pluggable Ternary + Future Architecture Module Settle Support | V4-SETTLE-003, V4-SETTLE-006, V4-SETTLE-011 |
 | V4-SETTLE-010 | hardening | V4 | queued | Autogenesis/Promotion-Coupled Differential Module Re-Settlement | V4-SETTLE-004, V4-SETTLE-006, V4-SETTLE-007, V4-SELF-001 |
 | V4-SETTLE-011 | extension | V4 | queued | Preferred Advanced Substrate Detection + Graceful Binary Fallback | V4-SETTLE-001, V4-SETTLE-003, V4-SETTLE-005 |
-| V4-RUST-001 | primitive-upgrade | V4 | queued | Authoritative Rust Microkernel Cutover Acceleration | V3-RACE-021, V3-RACE-034, V3-RACE-220, V3-RACE-185, V3-RACE-186 |
 | V4-RUST-002 | scientific | V4 | queued | Scientific Stack Rust Orchestration + R Bridge Hardening | V4-SCI-001, V4-SCI-002, V4-SCI-004, V3-RACE-361, V4-RUST-001 |
-| V4-RUST-003 | hardening | V4 | queued | Cargo Workspace Professionalization + Rust CI Quality Signal | V4-RUST-001, V3-RACE-230, V3-RACE-043 |
 | V4-RUST-004 | extension | V4 | queued | Habits/Vault/Adaptive Core Rust Migration Wave (Phased) | V4-RUST-001, V4-RUST-003, V3-RACE-011, V3-RACE-163 |
 | V4-SCALE-001 | scale-readiness | V4 | queued | Load Model + SLO Contract (1k -> 10k -> 100k -> 1M) | V4-RUST-001, V3-RACE-221, V3-RACE-309 |
 | V4-SCALE-002 | scale-readiness | V4 | queued | Stateless App-Tier + Horizontal Autoscaling Contract | V4-SCALE-001, V3-RACE-202, V3-RACE-034 |
@@ -46,7 +44,6 @@ Generated: 2026-03-03T00:50:14.693Z
 | V3-RACE-008 | primitive-upgrade | V3 | queued | Sovereign Personality Substrate ("Soul Vector") | V2-058, V3-SYM-001, V3-BLK-001 |
 | V3-RACE-009 | primitive-upgrade | V3 | queued | Hybrid Memory Engine (Vector + Graph + Temporal) | V3-MEM-001, V3-MEM-002, V3-053 |
 | V3-RACE-010 | extension | V3 | queued | Memory Consolidation + Forgetting Curves | V3-MEM-004, V3-MEM-008, V3-ASSIM-004 |
-| V3-RACE-011 | extension | V3 | queued | Habit/Objective Adapter Fine-Tuning Lane | V3-ASSIM-004, V3-XAI-002, V3-038 |
 | V3-RACE-012 | hardening | V3 | queued | Observability Deployment Defaults (Prometheus/Grafana/Loki/Trace) | RM-005, V3-OBS-002, V3-DEP-001 |
 | V3-RACE-013 | extension | V3 | queued | Compatibility Spec + Conformance Badge Program | V3-DOC-004, V3-BENCH-001, V3-OF-008 |
 | V3-RACE-019 | primitive | V3 | queued | Persistent Fractal Engine Meta-Organ (Loop-5 Autopilot) | V3-LOOP-004, V3-038, V3-RACE-004, V3-RACE-010 |
@@ -58,13 +55,11 @@ Generated: 2026-03-03T00:50:14.693Z
 | V3-RACE-DEF-025 | hardening | V3 | queued | Smart Knot Crown-Jewel Obfuscation Layer | V3-RACE-DEF-024, V3-CPY-005, V3-CPY-006 |
 | V3-RACE-DEF-027 | extension | V3 | queued | Project Jigsaw (AttackCinema Incident Replay Theater) | V3-RACE-017, V3-RACE-019, V3-RACE-020, V3-RACE-023, V3-RACE-DEF-024, V3-RACE-DEF-026 |
 | V3-RACE-031 | hardening | V3 | queued | Legion Geas Protocol (Iron Oath Self-Destruct Covenant) | V3-RACE-017, V3-RACE-020, V3-RACE-DEF-024, V3-RACE-DEF-027, V3-RACE-DEF-028, V3-RACE-DEF-029, V3-OPS-005 |
-| V3-RACE-034 | primitive-upgrade | V3 | queued | Rust Spine Microkernel (Control-Plane Core Extraction) | V3-RACE-023, V3-RACE-021, V3-OPS-005 |
 | V3-RACE-037 | extension | V3 | queued | Long-Term Archival & Sovereign Resurrection Substrate | V3-BLK-001, V3-QPROOF-001, V3-RACE-020 |
 | V3-RACE-038A | extension | V3 | queued | Inter-Protheus Federation Trust Web & Temporary Merge Contracts | V2-062, V3-RACE-036, V3-RACE-037 |
 | V3-RACE-DEF-031B | hardening | V3 | queued | Crimson Wraith Protocol (Single-Mission Phoenix Variant) | V3-RACE-017, V3-RACE-031, V3-RACE-DEF-024, V3-RACE-DEF-027, V3-RACE-DEF-028 |
 | V3-RACE-040 | hardening | V3 | queued | Continuous Chaos Engineering + Auto-Remediation Suite | V3-RACE-017, V3-RACE-019, V3-RACE-032, V3-OPS-003 |
 | V3-RACE-041 | hardening | V3 | queued | Enterprise SLO + Observability Command Dashboard | V3-RACE-005, V3-RACE-040, V3-OBS-002 |
-| V3-RACE-043 | hardening | V3 | queued | Supply-Chain Security & Reproducible Build Plane | V3-BLD-001, V3-048, V3-RACE-034 |
 | V3-RACE-044 | extension | V3 | queued | Automated Compliance Mapping & Evidence Engine | V3-DOC-005, V3-DOC-007, V3-RACE-041, V3-RACE-042 |
 | V3-RACE-CONF-007 | hardening | V3 | queued | Permanent Guidelines Drift Gate + Ticket Output Contract | V3-RACE-CONF-006, V3-RACE-033, V3-RACE-032, V3-AEX-002 |
 | V3-RACE-051 | hardening | V3 | queued | Hardware Root-of-Trust Attestation Mesh | V3-RACE-034, V3-CPY-001, V3-051 |
@@ -126,7 +121,6 @@ Generated: 2026-03-03T00:50:14.693Z
 | V3-RACE-160 | hardening | V3 | queued | Collective Intelligence Integration Contract + Data-Scope Guard | V3-RACE-153, V3-RACE-154, V3-RACE-155, V3-RACE-156, V3-RACE-157, V3-RACE-158, V3-RACE-159 |
 | V3-RACE-161 | primitive-upgrade | V3 | queued | Git-Backed Memory Filesystem (MemFS Contract) | V3-RACE-023, BL-024, V3-RACE-137 |
 | V3-RACE-162 | extension | V3 | queued | Sleep Reflection Compute Scheduler (Idle Consolidation Loop) | V3-RACE-161, V3-LOOP-001, V3-BUD-001 |
-| V3-RACE-163 | primitive-upgrade | V3 | queued | Agentic Memory Operation Controller (ADD/UPDATE/DELETE/NOOP) | V3-ASSIM-004, V3-RACE-161, V3-RACE-162 |
 | V3-RACE-164 | hardening | V3 | queued | Observational Compression + Progressive Disclosure Retrieval | V3-RACE-161, V3-RACE-163, V3-RACE-065 |
 | V3-RACE-165 | extension | V3 | queued | MCP Interoperability + Skill Discovery Gateway | V3-RACE-016, V3-RACE-031, V3-RACE-146 |
 | V3-RACE-166 | extension | V3 | queued | A2A Delegation Plane (Agent-to-Agent Protocol Contracts) | V3-RACE-147, V3-RACE-165, V3-RACE-031 |
@@ -141,7 +135,6 @@ Generated: 2026-03-03T00:50:14.693Z
 | V3-RACE-178 | primitive-upgrade | V3 | queued | RSI Bootstrap Orchestrator Canonicalization (`adaptive/rsi`) | V3-RACE-161, V3-RACE-164, V3-RACE-167, V3-RACE-168 |
 | V3-RACE-179 | extension | V3 | queued | Dual-Agent RSI Spiral (Proposal/Executor Separation) | V3-RACE-177, V3-RACE-178 |
 | V3-RACE-181 | hardening | V3 | queued | RSI Integrity Chain + Merkle Rollback + Resurrection Linkage | V3-RACE-178, V3-RACE-168, V3-RACE-160 |
-| V3-RACE-186 | extension | V3 | queued | Execution Sandbox Rust/WASM Coprocessor Lane (Optional, Policy-Gated) | V3-RACE-024, V3-RACE-138, V3-RACE-185 |
 | V3-RACE-192 | extension | V3 | queued | Mobile Edge-Node Swarm Bridge (Nursery/Spawn Enrollment with Inherited Governance) | V3-RACE-131, V3-RACE-182, V3-RACE-189 |
 | V3-RACE-196 | extension | V3 | queued | Probationary Security Habit Apply + Promotion Loop | V3-RACE-195, V3-RACE-019, V3-RACE-183 |
 | V3-RACE-200 | primitive-upgrade | V3 | queued | Protheus Compute Mesh Broker (Network-Scale Task Sharding Plane) | V3-RACE-006, V3-RACE-019, V3-RACE-192 |
@@ -160,7 +153,6 @@ Generated: 2026-03-03T00:50:14.693Z
 | V3-RACE-214 | hardening | V3 | queued | HostProfile Conformance Formal Gate (Lane-Activation Proof Contract) | V3-RACE-209, V3-RACE-210, V3-RACE-211, V3-RACE-187, V3-RACE-017 |
 | V3-RACE-215 | hardening | V3 | queued | Architecture + Formal Spec Publication Kernel | V3-RACE-187, V3-RACE-214 |
 | V3-RACE-218 | primitive-upgrade | V3 | queued | Cross-Platform Accelerator HAL (CPU/GPU/NPU Offload Contract) | V3-RACE-209, V3-RACE-210, V3-RACE-174 |
-| V3-RACE-220 | primitive-upgrade | V3 | queued | WASI2 Execution Completeness Gate (TS Lane -> WASM Runtime) | V3-RACE-021, V3-RACE-138, V3-RACE-185 |
 | V3-RACE-221 | hardening | V3 | queued | Hot-Path Performance Multiplier Program (5-20x Guarded Targets) | V3-RACE-174, V3-RACE-186, V3-RACE-220 |
 | V3-RACE-222 | extension | V3 | queued | Memory Fusion + On-Device Continual Learning Loop | V3-RACE-137, V3-RACE-172, V3-RACE-164 |
 | V3-RACE-223 | extension | V3 | queued | Microsoft Agent Interop Adapter (Typed Tool Surface + Reasoning Topologies) | V3-RACE-177, V3-RACE-184, V3-RACE-210 |
@@ -169,7 +161,6 @@ Generated: 2026-03-03T00:50:14.693Z
 | V3-RACE-226 | extension | V3 | queued | Forecast-to-Autoscale Actuation Plane (NPU/GPU/TPU) | V3-RACE-125, V3-RACE-134, V3-RACE-225 |
 | V3-RACE-227 | extension | V3 | queued | Enterprise Observability Surface (Azure Monitor + Desktop `protheus-top`) | V3-RACE-191, V3-RACE-194, V3-RACE-174 |
 | V3-RACE-229 | hardening | V3 | queued | Enterprise Identity/Compliance Bridge (SOC2 Type II + Defender + Entra Sovereignty) | V3-RACE-044, V3-RACE-058, V3-RACE-224 |
-| V3-RACE-230 | extension | V3 | queued | Type-Derived Lane Docs Autogeneration (`typedoc` + `cargo-doc`) | V3-RACE-115, V3-RACE-121, V3-RACE-215 |
 | V3-RACE-231 | extension | V3 | queued | Public Roadmap Publication Contract (Backlog-Synchronized) | V3-RACE-127, V3-RACE-230, V3-RACE-CONF-003 |
 | V3-RACE-233 | primitive-upgrade | V3 | queued | AWS Accelerator HAL Adapter (Neuron/Trainium/Inferentia + Nitro Metadata Placement) | V3-RACE-218, V3-RACE-209, V3-RACE-174 |
 | V3-RACE-235 | hardening | V3 | queued | Firecracker + Nitro Enclave Containment Lane for WASM Execution | V3-RACE-220, V3-RACE-186, V3-RACE-017 |
@@ -196,8 +187,8 @@ Generated: 2026-03-03T00:50:14.693Z
 | V3-RACE-257 | hardening | V3 | queued | Apple UX Quality Gate (HIG + Platform Consistency + Battery Impact Review) | V3-RACE-249, V3-RACE-250, V3-RACE-253 |
 | V3-RACE-258 | hardening | V3 | queued | App Store Privacy & Submission Compliance Lane | V3-RACE-257, V3-RACE-229, V3-RACE-261 |
 | V3-RACE-259 | extension | V3 | queued | TestFlight + Apple Business Manager/MDM Distribution Adapter | V3-RACE-250, V3-RACE-258, V3-RACE-231 |
-| V3-RACE-260 | hardening | V3 | queued | Apple On-Device-First Sovereignty Gate (PCC-Only Cloud Exception) | V3-RACE-255, V3-RACE-214, V3-RACE-017 |
-| V3-RACE-261 | hardening | V3 | queued | Apple Release Security Gate (App Sandbox/TCC + Notarization/Gatekeeper + Privacy Manifest) | V3-RACE-258, V3-RACE-257, V3-RACE-214 |
+| V3-RACE-260 | dependency-repair | V3 | queued | Apple On-Device-First Sovereignty Gate (PCC-Only Cloud Exception) | V3-RACE-214, V3-RACE-017 |
+| V3-RACE-261 | dependency-repair | V3 | queued | Apple Release Security Gate (App Sandbox/TCC + Notarization/Gatekeeper + Privacy Manifest) | V3-RACE-257, V3-RACE-214 |
 | V3-RACE-263 | primitive-upgrade | V3 | queued | Google TPU/Tensor Accelerator Adapter (TPU v5p/Trillium/EdgeTPU/Coral + Vertex Path) | V3-RACE-218, V3-RACE-174, V3-RACE-209 |
 | V3-RACE-264 | extension | V3 | queued | GKE Autopilot + Anthos Federation Adapter | V3-RACE-200, V3-RACE-201, V3-RACE-203 |
 | V3-RACE-265 | hardening | V3 | queued | Capability-Handle IPC Hardening Lane (Zircon-Inspired Contract) | V3-RACE-210, V3-RACE-214, V3-RACE-017 |
@@ -221,7 +212,7 @@ Generated: 2026-03-03T00:50:14.693Z
 | V3-RACE-285 | extension | V3 | queued | NVIDIA NIM Deployment + TensorRT/Nemotron Model Routing Profile | V3-RACE-269, V3-RACE-280, V3-RACE-278 |
 | V3-RACE-286 | extension | V3 | queued | Intra-Host Massive Multi-GPU Federation Lane (NVSwitch/NVLink) | V3-RACE-123, V3-RACE-277, V3-RACE-280 |
 | V3-RACE-287 | extension | V3 | queued | NVIDIA Observability Adapter (Nsight + DCGM + NVML + GPU Heatmaps) | V3-RACE-243, V3-RACE-174, V3-RACE-191 |
-| V3-RACE-288 | hardening | V3 | queued | NVIDIA AI Enterprise Certification Readiness Lane | V3-RACE-279, V3-RACE-278, V3-RACE-245 |
+| V3-RACE-288 | dependency-repair | V3 | queued | NVIDIA AI Enterprise Certification Readiness Lane | V3-RACE-278, V3-RACE-245 |
 | V3-RACE-289 | extension | V3 | queued | DGX Cloud + NGC Hybrid Deployment Adapter (Auto-Scaling) | V3-RACE-241, V3-RACE-278, V3-RACE-285 |
 | V3-RACE-290 | hardening | V3 | queued | NVIDIA Accelerator-First Promotion Gate (Omniverse + HIL + DGX Chaos Evidence) | V3-RACE-283, V3-RACE-287, V3-RACE-214 |
 | V3-RACE-291 | extension | V3 | queued | Meta XR Runtime Parity Pack (Quest/Horizon/OpenXR) | V3-RACE-249, V3-RACE-193, V3-RACE-271 |
@@ -265,9 +256,9 @@ Generated: 2026-03-03T00:50:14.693Z
 | V3-RACE-329 | extension | V3 | queued | Tesla Energy Grid-Aware Scheduling Adapter | V3-RACE-322, V3-RACE-226, V3-RACE-125 |
 | V3-RACE-330 | hardening | V3 | queued | Tesla Promotion Hardening Gate (Physical Grounding + Safety Review + Fleet Chaos Evidence) | V3-RACE-324, V3-RACE-327, V3-RACE-328, V3-RACE-214 |
 | V3-RACE-331 | extension | V3 | queued | Helix Immutable Linux Parity Pack (rpm-ostree Base Profile) | V3-RACE-209, V3-RACE-212, V3-RACE-332 |
-| V3-RACE-332 | hardening | V3 | queued | OSTree/rpm-ostree Signed Image + Atomic Rollback Lane | V3-RACE-331, V3-RACE-228, V3-RACE-120 |
+| V3-RACE-332 | dependency-repair | V3 | queued | OSTree/rpm-ostree Signed Image + Atomic Rollback Lane | V3-RACE-228, V3-RACE-120 |
 | V3-RACE-333 | hardening | V3 | queued | SELinux Enforcing-By-Default Policy Pack (Per-Lane Least Privilege) | V3-RACE-214, V3-RACE-017, V3-RACE-334 |
-| V3-RACE-334 | primitive-upgrade | V3 | queued | Linux Kernel Acceleration/Sandbox Primitive Lane (eBPF/io_uring/cgroupv2/Landlock) | V3-RACE-220, V3-RACE-333, V3-RACE-174 |
+| V3-RACE-334 | dependency-repair | V3 | queued | Linux Kernel Acceleration/Sandbox Primitive Lane (eBPF/io_uring/cgroupv2/Landlock) | V3-RACE-220, V3-RACE-174 |
 | V3-RACE-335 | hardening | V3 | queued | Live-Patch + High-Availability Update Lane (Zero-Downtime Contracts) | V3-RACE-315, V3-RACE-304, V3-RACE-332 |
 | V3-RACE-336 | hardening | V3 | queued | Air-Gapped/Offline Deployment Bundle Lane (Cryptographic Verification) | V3-RACE-212, V3-RACE-228, V3-RACE-332 |
 | V3-RACE-337 | extension | V3 | queued | Enterprise Config-Management Adapter Pack (Ansible/Salt/Puppet Bolt) | V3-RACE-304, V3-RACE-203, V3-RACE-116 |

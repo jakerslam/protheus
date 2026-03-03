@@ -1,0 +1,30 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "thresholds": {
+    "min_parity_pass_rate": 1,
+    "max_p95_latency_delta_ms": 750,
+    "min_safety_pass_rate": 1
+  },
+  "contract_fields": [
+    "type",
+    "lane",
+    "contract_version",
+    "health"
+  ],
+  "target_lanes": [
+    "guard",
+    "spawn_broker",
+    "model_router",
+    "origin_lock",
+    "fractal_orchestrator"
+  ],
+  "owner_id": "wasi2_gate",
+  "paths": {
+    "state_path": "state/ops/wasi2_execution_completeness_gate/state.json",
+    "latest_path": "state/ops/wasi2_execution_completeness_gate/latest.json",
+    "receipts_path": "state/ops/wasi2_execution_completeness_gate/receipts.jsonl",
+    "history_path": "state/ops/wasi2_execution_completeness_gate/history.jsonl"
+  }
+}

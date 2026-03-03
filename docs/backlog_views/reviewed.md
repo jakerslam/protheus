@@ -1,8 +1,8 @@
 # Backlog Reviewed View
 
-Generated: 2026-03-03T00:50:24.126Z
+Generated: 2026-03-03T01:23:03.089Z
 
-Summary: reviewed 627/627 | pass 183 | warn 151 | fail 0 | blocked 1
+Summary: reviewed 627/627 | pass 187 | warn 151 | fail 0 | blocked 1
 
 | ID | Status | Review Result | Reviewed | Title |
 |---|---|---|---|---|
@@ -158,10 +158,10 @@ Summary: reviewed 627/627 | pass 183 | warn 151 | fail 0 | blocked 1
 | V4-AESTHETIC-001 | queued | non_archive_status | yes | Alien Technology Aesthetic Layer (`alien_aesthetic=1`) |
 | V4-AESTHETIC-002 | queued | non_archive_status | yes | Selective Ethereal Language Layer |
 | V4-MIGR-001 | done | pass | yes | Core Migration Bridge + Workspace Port Command |
-| V4-MIGR-002 | queued | non_archive_status | yes | Community Repo Graduation Pack (Banner + Redirect + Pinned Issue) |
-| V4-MIGR-003 | queued | non_archive_status | yes | Universal Importers (OpenFang/CrewAI/AutoGen/LangGraph/Common Dumps) |
-| V4-MIGR-004 | queued | non_archive_status | yes | Self-Healing Migration Daemon |
-| V4-MIGR-005 | queued | non_archive_status | yes | Post-Migration Verification + Premium Completion Report |
+| V4-MIGR-002 | done | pass | yes | Community Repo Graduation Pack (Banner + Redirect + Pinned Issue) |
+| V4-MIGR-003 | done | pass | yes | Universal Importers (OpenFang/CrewAI/AutoGen/LangGraph/Common Dumps) |
+| V4-MIGR-004 | done | pass | yes | Self-Healing Migration Daemon |
+| V4-MIGR-005 | done | pass | yes | Post-Migration Verification + Premium Completion Report |
 | V4-SETTLE-001 | queued | non_archive_status | yes | Core Settling Engine (Compile + Memory-Map + Re-exec) |
 | V4-SETTLE-002 | queued | non_archive_status | yes | Signed Snapshot Vault + Revert/Edit-Core Round Trip |
 | V4-SETTLE-003 | queued | non_archive_status | yes | Target Abstraction for Binary + Ternary/Exotic Compile Flags |
