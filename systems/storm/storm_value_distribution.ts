@@ -23,21 +23,6 @@ const { cmdStatus: blockchainBridgeStatus, loadPolicy: loadBlockchainPolicy } = 
 
 type AnyObj = Record<string, any>;
 
-function evaluateDirectiveTaskRustPreferred(taskText: string) {
-  if (typeof evaluateDirectiveTask !== 'function') return null;
-  const priorGateMode = process.env.DIRECTIVE_GATE_RUST_MODE;
-  if (!priorGateMode) process.env.DIRECTIVE_GATE_RUST_MODE = 'prefer';
-  try {
-    return evaluateDirectiveTask(taskText);
-  } finally {
-    if (priorGateMode == null) {
-      delete process.env.DIRECTIVE_GATE_RUST_MODE;
-    } else {
-      process.env.DIRECTIVE_GATE_RUST_MODE = priorGateMode;
-    }
-  }
-}
-
 const ROOT = path.resolve(__dirname, '..', '..');
 const DEFAULT_POLICY_PATH = process.env.STORM_VALUE_DISTRIBUTION_POLICY_PATH
   ? path.resolve(process.env.STORM_VALUE_DISTRIBUTION_POLICY_PATH)
@@ -348,7 +333,7 @@ function evaluateConstitutionGate(policy: AnyObj, details: AnyObj = {}) {
   }
   const task = `storm value distribution for objective ${cleanText(details.objective_id || 'none', 120)} pool ${cleanText(details.pool_usd || '0', 32)}`;
   try {
-    const out = evaluateDirectiveTaskRustPreferred(task);
+    const out = evaluateDirectiveTask(task);
     return out && typeof out === 'object'
       ? out
       : { decision: 'ALLOW', risk: 'low', reasons: ['constitution_gate_unavailable'] };

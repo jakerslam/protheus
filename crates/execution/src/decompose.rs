@@ -1300,19 +1300,19 @@ pub fn evaluate_directive_gate(task_text: &str) -> DirectiveGateResponse {
     let deny_patterns = [
         (
             "bypass gate",
-            r"\b(bypass.*gate|disable.*gate|skip.*gate)\b",
+            r"(?i)\b(bypass.*gate|disable.*gate|skip.*gate)\b",
         ),
         (
             "disable log",
-            r"\b(disable.*log|stop.*log|suppress.*event|remove.*audit)\b",
+            r"(?i)\b(disable.*log|stop.*log|suppress.*event|remove.*audit)\b",
         ),
         (
             "tamper trust",
-            r"\b(tamper|modify|edit|delete)\b.*\b(trust|hash|registry)\b",
+            r"(?i)\b(tamper|modify|edit|delete)\b.*\b(trust|hash|registry)\b",
         ),
         (
             "modify gate",
-            r"\b(modify|edit|delete)\b.*\b(directive_gate)\b",
+            r"(?i)\b(modify|edit|delete)\b.*\b(directive_gate)\b",
         ),
     ];
     for (label, pattern) in deny_patterns {
@@ -1336,47 +1336,47 @@ pub fn evaluate_directive_gate(task_text: &str) -> DirectiveGateResponse {
         (
             "High-risk: process execution detected",
             "high",
-            r"\b(child_process|exec|execsync|spawn|fork|execfile)\b",
+            r"(?i)\b(child[_\s]?process|exec|execsync|spawn|fork|execfile)\b",
         ),
         (
             "High-risk: shell execution detected",
             "high",
-            r"\b(shell|bash|sh\s|cmd\.exe|powershell)\b",
+            r"(?i)\b(shell|bash|sh\s|cmd\.exe|powershell)\b",
         ),
         (
             "High-risk: credentials/token access detected",
             "high",
-            r"\.openclaw[\/\\]credentials|\/credentials[\/\\]|token|api[_-]?key|secret|password",
+            r"(?i)\.openclaw[\/\\]credentials|\/credentials[\/\\]|token|api[_-]?key|secret|password",
         ),
         (
             "High-risk: network/API call detected",
             "medium",
-            r"\b(http|https|fetch|axios|request|curl|wget|net\.|tls\.|socket)\b",
+            r"(?i)\b(http|https|fetch|axios|request|curl|wget|net\.|tls\.|socket)\b",
         ),
         (
             "High-risk: git remote operation detected",
             "high",
-            r"\b(git\s+(push|force|reset|rebase|merge)|push\s+to|push\s+--|origin|publish|deploy)\b",
+            r"(?i)\b(git\s+(push|force|reset|rebase|merge)|push\s+to|push\s+--|origin|publish|deploy)\b",
         ),
         (
             "High-risk: cron/system config modification detected",
             "high",
-            r"\b(cron|crontab|systemd|service|daemon)\b",
+            r"(?i)\b(cron|crontab|systemd|service|daemon)\b",
         ),
         (
             "High-risk: revenue/financial action detected",
             "high",
-            r"\b(payment|billing|subscription|charge|refund|account.*money|revenue)\b",
+            r"(?i)\b(payment|billing|subscription|charge|refund|account.*money|revenue)\b",
         ),
         (
             "High-risk: governance/security tooling modification detected",
             "high",
-            r"\b(trust[_-]?|verify[_-]?hash|tamper|bypass|disable.*log|registry.*hash)\b",
+            r"(?i)\b(trust[_-]?|verify[_-]?hash|tamper|bypass|disable.*log|registry.*hash)\b",
         ),
         (
             "High-risk: governance/security tooling modification detected",
             "high",
-            r"\b(trust_add|trust_remove|trust_registry|registry\.json)\b",
+            r"(?i)\b(trust_add|trust_remove|trust_registry|registry\.json)\b",
         ),
     ];
     for (message, severity, pattern) in high_risk_patterns {
@@ -1398,13 +1398,6 @@ pub fn evaluate_directive_gate(task_text: &str) -> DirectiveGateResponse {
             if contains_any(&found, &["credentials", "secret", "token"]) {
                 reasons.push(format!("Path validation: sensitive path \"{}\"", found));
                 risk = "high".to_string();
-                set_manual(&mut decision);
-            } else if found.contains("~/.openclaw") {
-                reasons.push(format!(
-                    "Path validation: path outside workspace \"{}\"",
-                    found
-                ));
-                risk = "medium".to_string();
                 set_manual(&mut decision);
             }
         }

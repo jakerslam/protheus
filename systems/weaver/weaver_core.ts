@@ -68,21 +68,6 @@ try {
 
 type AnyObj = Record<string, any>;
 
-function evaluateDirectiveTaskRustPreferred(taskText: string) {
-  if (typeof evaluateDirectiveTask !== 'function') return null;
-  const priorGateMode = process.env.DIRECTIVE_GATE_RUST_MODE;
-  if (!priorGateMode) process.env.DIRECTIVE_GATE_RUST_MODE = 'prefer';
-  try {
-    return evaluateDirectiveTask(taskText);
-  } finally {
-    if (priorGateMode == null) {
-      delete process.env.DIRECTIVE_GATE_RUST_MODE;
-    } else {
-      process.env.DIRECTIVE_GATE_RUST_MODE = priorGateMode;
-    }
-  }
-}
-
 const ROOT = path.resolve(__dirname, '..', '..');
 const DEFAULT_POLICY_PATH = path.join(ROOT, 'config', 'weaver_policy.json');
 const DEFAULT_STATE_DIR = path.join(ROOT, 'state', 'autonomy', 'weaver');
@@ -710,7 +695,7 @@ function evaluateConstitutionalVeto(policy: AnyObj, input: AnyObj = {}) {
         `primary_metric ${cleanText(input.primary_metric_id || '', 80)}`,
         `value_currency ${cleanText(input.value_currency || '', 80)}`
       ].join(' ');
-      const evalOut = evaluateDirectiveTaskRustPreferred(taskText);
+      const evalOut = evaluateDirectiveTask(taskText);
       const denySet = new Set(
         (Array.isArray(cfg.deny_on_directive_decision) ? cfg.deny_on_directive_decision : ['deny'])
           .map((v: unknown) => normalizeToken(v, 32))
