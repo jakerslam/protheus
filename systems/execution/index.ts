@@ -11,10 +11,6 @@ const { evaluateSecurityGate } = require('../security/rust_security_gate.js');
 const ROOT = path.resolve(__dirname, '..', '..');
 const EXECUTION_MANIFEST = path.join(ROOT, 'crates', 'execution', 'Cargo.toml');
 
-let cachedWasmBinding: any = null;
-let cachedWasmPath = '';
-let cachedWasmErr = '';
-
 type AnyObj = Record<string, any>;
 
 function cleanText(v: unknown, maxLen = 240) {
@@ -152,50 +148,13 @@ function evaluateExecutionSecurityGate(yaml: string, opts: AnyObj = {}) {
   };
 }
 
-function wasmCandidates() {
-  const explicit = cleanText(process.env.PROTHEUS_EXECUTION_WASM_BINDING_PATH || '', 500);
-  const out = [
-    explicit,
-    path.join(ROOT, 'crates', 'execution', 'pkg', 'execution_core.js'),
-    path.join(ROOT, 'crates', 'execution', 'pkg-node', 'execution_core.js')
-  ].filter(Boolean);
-  return Array.from(new Set(out));
-}
-
 function loadWasmBindgenBridge() {
-  if (cachedWasmBinding) {
-    return { ok: true, binding: cachedWasmBinding, module_path: cachedWasmPath };
-  }
-  if (cachedWasmErr) {
-    return { ok: false, error: cachedWasmErr };
-  }
-
-  const candidates = wasmCandidates();
-  const errs: string[] = [];
-  for (const candidate of candidates) {
-    try {
-      if (!fs.existsSync(candidate)) {
-        errs.push(`missing:${candidate}`);
-        continue;
-      }
-      // eslint-disable-next-line import/no-dynamic-require, global-require
-      const mod = require(candidate);
-      const fn = mod && (mod.run_workflow_wasm || mod.runWorkflowWasm || mod.run_workflow_json || mod.default);
-      if (typeof fn !== 'function') {
-        errs.push(`invalid_exports:${candidate}`);
-        continue;
-      }
-      cachedWasmBinding = fn;
-      cachedWasmPath = candidate;
-      cachedWasmErr = '';
-      return { ok: true, binding: fn, module_path: candidate };
-    } catch (err) {
-      errs.push(`load_failed:${candidate}:${cleanText(err && (err as any).message, 100)}`);
-    }
-  }
-
-  cachedWasmErr = errs.length ? errs[0] : 'wasm_bindgen_bridge_unavailable';
-  return { ok: false, error: cachedWasmErr };
+  // Execution lane now routes through the Rust binary/cargo entrypoint.
+  // Keep a stable API for callers that still probe wasm availability.
+  return {
+    ok: false,
+    error: 'execution_wasm_bridge_disabled_use_rust_bin_or_cargo'
+  };
 }
 
 function binaryCandidates() {
@@ -260,28 +219,9 @@ function runViaCargo(yaml: string) {
 }
 
 function runViaWasm(yaml: string) {
+  void yaml;
   const bridge = loadWasmBindgenBridge();
-  if (!bridge.ok || typeof bridge.binding !== 'function') {
-    return { ok: false, error: bridge.error || 'wasm_bindgen_bridge_unavailable' };
-  }
-  try {
-    const raw = bridge.binding(String(yaml || ''));
-    const payload = parseJsonPayload(raw);
-    if (!payload || typeof payload !== 'object') {
-      return { ok: false, error: 'wasm_bindgen_invalid_payload' };
-    }
-    return {
-      ok: true,
-      engine: 'rust_wasm_bindgen',
-      module_path: bridge.module_path,
-      payload
-    };
-  } catch (err) {
-    return {
-      ok: false,
-      error: `wasm_bindgen_call_failed:${cleanText(err && (err as any).message, 160)}`
-    };
-  }
+  return { ok: false, error: bridge.error || 'wasm_bindgen_bridge_unavailable' };
 }
 
 function runWorkflow(yamlOrSpec: unknown, opts: AnyObj = {}) {
