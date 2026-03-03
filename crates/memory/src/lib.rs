@@ -12,8 +12,10 @@ pub use crdt::{merge as crdt_merge, CrdtCell, CrdtMap};
 pub use blob::{
     decode_manifest, encode_manifest, fold_blob, generate_manifest, sha256_hex, unfold_blob,
     BlobArtifactDigest, BlobError, BlobManifest, BlobPackReport, EmbeddedExecutionReceiptModel,
-    EmbeddedExecutionReplay, EmbeddedExecutionStep, EmbeddedVaultAutoRotatePolicy,
-    EmbeddedVaultPolicy, EmbeddedVaultPolicyRule, EXECUTION_REPLAY_BLOB_ID, HEARTBEAT_BLOB_ID,
+    EmbeddedExecutionReplay, EmbeddedExecutionStep, EmbeddedObservabilityProfile,
+    EmbeddedSovereigntyScorer, EmbeddedTraceStreamPolicy, EmbeddedVaultAutoRotatePolicy,
+    EmbeddedVaultPolicy, EmbeddedVaultPolicyRule, EmbeddedChaosHook,
+    EXECUTION_REPLAY_BLOB_ID, HEARTBEAT_BLOB_ID, OBSERVABILITY_PROFILE_BLOB_ID,
     VAULT_POLICY_BLOB_ID,
 };
 pub use sqlite_store::MemoryRow;
@@ -109,6 +111,10 @@ pub fn load_embedded_execution_replay() -> Result<EmbeddedExecutionReplay, BlobE
 
 pub fn load_embedded_vault_policy() -> Result<EmbeddedVaultPolicy, BlobError> {
     blob::load_embedded_vault_policy()
+}
+
+pub fn load_embedded_observability_profile() -> Result<EmbeddedObservabilityProfile, BlobError> {
+    blob::load_embedded_observability_profile()
 }
 
 pub fn pack_embedded_blob_assets(sample: &str) -> Result<BlobPackReport, BlobError> {

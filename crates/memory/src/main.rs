@@ -1,6 +1,7 @@
 use protheus_memory_core_v6::{
     clear_cache, compress_store, crdt_exchange_json, ebbinghaus_curve, get_json, ingest_memory,
-    load_embedded_execution_replay, load_embedded_heartbeat, load_embedded_vault_policy,
+    load_embedded_execution_replay, load_embedded_heartbeat,
+    load_embedded_observability_profile, load_embedded_vault_policy,
     pack_embedded_blob_assets, recall_json, set_hot_state,
 };
 use serde::Deserialize;
@@ -346,6 +347,7 @@ fn main() {
                 "load-embedded-heartbeat",
                 "load-embedded-execution-replay",
                 "load-embedded-vault-policy",
+                "load-embedded-observability-profile",
                 "pack-memory-blobs [--heartbeat=<text>]",
                 "pack-heartbeat-blob [--content=<text>]"
               ]
@@ -546,6 +548,16 @@ fn main() {
             Ok(vault_policy) => print_json(json!({
               "ok": true,
               "embedded_vault_policy": vault_policy
+            })),
+            Err(err) => print_json(json!({
+              "ok": false,
+              "error": err.to_string()
+            })),
+        },
+        "load-embedded-observability-profile" => match load_embedded_observability_profile() {
+            Ok(observability_profile) => print_json(json!({
+              "ok": true,
+              "embedded_observability_profile": observability_profile
             })),
             Err(err) => print_json(json!({
               "ok": false,

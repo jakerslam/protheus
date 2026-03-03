@@ -659,18 +659,95 @@ function lane004(ctx: LaneCtx) {
 }
 
 function lane005(ctx: LaneCtx) {
-  const chaosRun = runRustCommand(['red-chaos', '--cycles=200000']);
-  const telemetryRun = runRustCommand(['telemetry-emit']);
+  const chaosRequest = {
+    scenario_id: 'lane005_chaos_probe',
+    events: [
+      {
+        trace_id: 'lane005_e1',
+        ts_millis: 1000,
+        source: 'systems/observability',
+        operation: 'trace.capture',
+        severity: 'medium',
+        tags: ['runtime.guardrails', 'chaos.replay'],
+        payload_digest: 'sha256:lane005_e1',
+        signed: true
+      },
+      {
+        trace_id: 'lane005_e2',
+        ts_millis: 1110,
+        source: 'systems/red_legion',
+        operation: 'chaos.replay',
+        severity: 'low',
+        tags: ['lane.integrity', 'sovereignty.index'],
+        payload_digest: 'sha256:lane005_e2',
+        signed: true
+      }
+    ],
+    cycles: 200000,
+    inject_fault_every: 450,
+    enforce_fail_closed: true
+  };
+
+  const telemetryRequest = {
+    scenario_id: 'lane005_telemetry_probe',
+    events: [
+      {
+        trace_id: 'lane005_t1',
+        ts_millis: 1000,
+        source: 'systems/observability',
+        operation: 'trace.capture',
+        severity: 'low',
+        tags: ['runtime.guardrails'],
+        payload_digest: 'sha256:lane005_t1',
+        signed: true
+      }
+    ],
+    cycles: 120000,
+    inject_fault_every: 600,
+    enforce_fail_closed: true
+  };
+
+  const chaosRun = runCommand([
+    'cargo',
+    'run',
+    '--quiet',
+    '--manifest-path',
+    'crates/observability/Cargo.toml',
+    '--bin',
+    'observability_core',
+    '--',
+    'run-chaos',
+    `--request-base64=${Buffer.from(JSON.stringify(chaosRequest), 'utf8').toString('base64')}`
+  ], 240000);
+
+  const telemetryRun = runCommand([
+    'cargo',
+    'run',
+    '--quiet',
+    '--manifest-path',
+    'crates/observability/Cargo.toml',
+    '--bin',
+    'observability_core',
+    '--',
+    'run-chaos',
+    `--request-base64=${Buffer.from(JSON.stringify(telemetryRequest), 'utf8').toString('base64')}`
+  ], 240000);
   const chaos = chaosRun.payload || {};
   const telemetry = telemetryRun.payload || {};
   const chaosBench = chaos.benchmarks || {};
   const teleBench = telemetry.benchmarks || {};
+  const telemetryOverheadMs = Number(
+    teleBench.telemetry_overhead_ms ?? telemetry.telemetry_overhead_ms
+  );
+  const chaosBatteryPct24h = Number(
+    chaosBench.chaos_battery_pct_24h ?? chaos.chaos_battery_pct_24h
+  );
   const refs = requiredRefsReport(ctx.policy, ctx.id);
   const checks = {
     chaos_command_ok: chaosRun.ok,
     telemetry_command_ok: telemetryRun.ok,
-    telemetry_overhead_ms: numOrNaN(teleBench.telemetry_overhead_ms) <= Number(ctx.policy.targets.telemetry_overhead_ms_max),
-    chaos_battery_pct_24h: numOrNaN(chaosBench.chaos_battery_pct_24h) <= Number(ctx.policy.targets.chaos_battery_pct_24h_max),
+    telemetry_overhead_ms: numOrNaN(telemetryOverheadMs) <= Number(ctx.policy.targets.telemetry_overhead_ms_max),
+    chaos_battery_pct_24h: numOrNaN(chaosBatteryPct24h) <= Number(ctx.policy.targets.chaos_battery_pct_24h_max),
     required_refs_ok: refs.ok
   };
   const ok = Object.values(checks).every((v) => v === true);
@@ -681,8 +758,8 @@ function lane005(ctx: LaneCtx) {
     checks,
     refs,
     summary: {
-      telemetry_overhead_ms: teleBench.telemetry_overhead_ms,
-      chaos_battery_pct_24h: chaosBench.chaos_battery_pct_24h
+      telemetry_overhead_ms: telemetryOverheadMs,
+      chaos_battery_pct_24h: chaosBatteryPct24h
     },
     artifacts: {
       report_path: rel(artifactPath)

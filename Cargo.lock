@@ -495,6 +495,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "protheus-observability-core-v1"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "hex",
+ "protheus-memory-core-v6",
+ "serde",
+ "serde_json",
+ "sha2",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "protheus-vault-core-v1"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "hex",
+ "protheus-memory-core-v6",
+ "serde",
+ "serde_json",
+ "sha2",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
