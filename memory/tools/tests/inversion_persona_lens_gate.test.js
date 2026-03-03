@@ -50,6 +50,10 @@ function run() {
   const policyPath = path.join(tmp, 'config', 'inversion_policy.json');
   const parityPath = path.join(tmp, 'state', 'autonomy', 'inversion', 'parity_confidence.json');
   const receiptsPath = path.join(tmp, 'state', 'autonomy', 'inversion', 'lens_gate_receipts.jsonl');
+  const feedPushReceiptsPath = path.join(tmp, 'state', 'autonomy', 'inversion', 'lens_gate_feed_push_receipts.jsonl');
+  const personaRoot = path.join(tmp, 'personas');
+  fs.mkdirSync(personaRoot, { recursive: true });
+  fs.cpSync(path.join(repoRoot, 'personas', 'vikram_menon'), path.join(personaRoot, 'vikram_menon'), { recursive: true });
 
   writeJson(policyPath, {
     version: '1.0-lens-gate-test',
@@ -67,9 +71,18 @@ function run() {
       parity_confidence_min: 0.9,
       drift_threshold: 0.02,
       fail_closed_on_missing: false,
+      feed_push: {
+        enabled: true,
+        min_drift: 0.01,
+        include_shadow_mode: true,
+        source: 'loop.inversion_controller',
+        max_payload_len: 420
+      },
       paths: {
         parity_confidence_path: parityPath,
-        receipts_path: receiptsPath
+        receipts_path: receiptsPath,
+        feed_push_receipts_path: feedPushReceiptsPath,
+        persona_feed_root: personaRoot
       }
     }
   });
@@ -105,11 +118,18 @@ function run() {
   assert.ok(out.persona_lens_gate && out.persona_lens_gate.status === 'blocked', 'lens gate status should be blocked');
   assert.strictEqual(out.persona_lens_gate.effective_mode, 'enforce', 'parity confidence should promote auto mode to enforce');
   assert.strictEqual(out.persona_lens_gate.parity_confident, true, 'parity confidence should be above threshold');
+  assert.ok(out.persona_lens_gate.feed_push && out.persona_lens_gate.feed_push.pushed === true, 'feed push should occur when enabled and drift threshold exceeded');
   assert.ok(fs.existsSync(receiptsPath), 'lens gate receipts should be emitted');
   const receiptLines = fs.readFileSync(receiptsPath, 'utf8').split('\n').filter(Boolean);
   assert.ok(receiptLines.length >= 1, 'expected at least one lens gate receipt');
   const latestReceipt = JSON.parse(receiptLines[receiptLines.length - 1]);
   assert.strictEqual(latestReceipt.fail_closed, true, 'receipt should reflect fail-closed decision');
+  assert.ok(fs.existsSync(feedPushReceiptsPath), 'feed push receipts should be emitted');
+  const feedPushRows = fs.readFileSync(feedPushReceiptsPath, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  assert.ok(feedPushRows.some((row) => row.type === 'persona_lens_feed_push'), 'feed push receipt should include persona_lens_feed_push row');
+  const feedBody = fs.readFileSync(path.join(personaRoot, 'vikram_menon', 'feed.md'), 'utf8');
+  assert.ok(feedBody.includes('## System Passed'), 'feed body should contain system-passed section');
+  assert.ok(feedBody.includes('loop.inversion_controller'), 'feed body should include inversion source marker');
 
   writeJson(parityPath, { confidence: 0.4 });
   proc = runNode(

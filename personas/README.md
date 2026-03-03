@@ -21,6 +21,7 @@ This directory stores internal operator lenses used for planning, audits, and de
 - `personas/<name>/emotion_lens.md` (optional) - emotional response patterns used to enrich lens output
 - `personas/organization/organization.md` - higher-level organization scope, reporting chain, and escalation model
 - `personas/organization/data_permissions.template.md` - canonical permission template (Core 5 default `system_internal` enabled)
+- `personas/organization/triggers.md` - workflow trigger playbook for automated persona consult points
 
 ## Operating Rules
 
@@ -32,6 +33,8 @@ This directory stores internal operator lenses used for planning, audits, and de
 - Use `protheus lens update-stream <persona>` to simulate stream sync and append correspondence updates.
 - Use `protheus lens feed <persona> "<snippet>"` (or `protheus persona feed ...`) to push master-feed insights to a persona.
 - Use `protheus lens checkin --persona=jay_haslam --heartbeat=HEARTBEAT.md` for daily drift/alignment logging.
+- Use `protheus lens trigger <pre-sprint|drift-alert|weekly-checkin> ...` to run codified trigger workflows.
+- Use `protheus lens dashboard [--window=<n>]` for recent telemetry + checkin/intercept activity.
 - Record significant decisions in correspondence logs.
 - Keep language concise, technical, and auditable.
 - Do not put secrets in this directory.

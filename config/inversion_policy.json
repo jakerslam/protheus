@@ -651,9 +651,18 @@
     "parity_confidence_min": 0.9,
     "drift_threshold": 0.02,
     "fail_closed_on_missing": false,
+    "feed_push": {
+      "enabled": false,
+      "min_drift": 0.015,
+      "include_shadow_mode": false,
+      "source": "loop.inversion_controller",
+      "max_payload_len": 480
+    },
     "paths": {
       "parity_confidence_path": "state/autonomy/inversion/parity_confidence.json",
-      "receipts_path": "state/autonomy/inversion/lens_gate_receipts.jsonl"
+      "receipts_path": "state/autonomy/inversion/lens_gate_receipts.jsonl",
+      "feed_push_receipts_path": "state/autonomy/inversion/lens_gate_feed_push_receipts.jsonl",
+      "persona_feed_root": "personas"
     }
   },
   "telemetry": {

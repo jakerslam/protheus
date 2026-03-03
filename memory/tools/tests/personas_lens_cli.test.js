@@ -84,6 +84,21 @@ try {
   assert.ok(out.stdout.includes('## Li Wei (`li_wei`)'), 'all command should include li wei section');
   assert.ok(out.stdout.includes('## Aarav Singh (`aarav_singh`)'), 'all command should include aarav section');
 
+  out = run(['lens', 'trigger', 'pre-sprint', 'Foundation Lock sprint planning review']);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  assert.ok(out.stdout.includes('# Trigger: pre-sprint'), 'pre-sprint trigger should render trigger heading');
+  assert.ok(out.stdout.includes('# Lens Response: All Personas'), 'pre-sprint trigger should run all-persona lens response');
+
+  out = run(['lens', 'trigger', 'drift-alert', 'Drift climbed above threshold in inversion loop.']);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  assert.ok(out.stdout.includes('# Trigger: drift-alert'), 'drift-alert trigger should render trigger heading');
+  assert.ok(out.stdout.includes('# Lens Response: Vikram Menon'), 'drift-alert trigger should consult vikram by default');
+
+  out = run(['lens', 'dashboard', '--window=5']);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  assert.ok(out.stdout.includes('# Personas Dashboard'), 'dashboard command should render markdown heading');
+  assert.ok(out.stdout.includes('Trigger policy doc:'), 'dashboard should include trigger policy reference');
+
   out = run(['lens', 'update-stream', 'vikram_menon', '--dry-run=1']);
   assert.strictEqual(out.status, 0, out.stderr || out.stdout);
   assert.ok(out.stdout.includes('"type": "persona_stream_update"'), 'update-stream should return stream update payload');
@@ -121,6 +136,10 @@ try {
   assert.ok(checkinCorrespondence.includes('Heartbeat snapshot:'), 'checkin should persist heartbeat snapshot');
   const checkinMemory = fs.readFileSync(path.join(checkinRoot, 'personas', 'jay_haslam', 'memory.md'), 'utf8');
   assert.ok(checkinMemory.includes('title: daily checkin'), 'checkin should append persona memory node');
+
+  out = run(['lens', 'trigger', 'weekly-checkin', '--persona=jay_haslam', '--heartbeat=HEARTBEAT.md'], { OPENCLAW_WORKSPACE: checkinRoot });
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  assert.ok(out.stdout.includes('"type": "persona_checkin"'), 'weekly-checkin trigger should return persona_checkin payload');
 
   const feedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'protheus-lens-feed-'));
   fs.mkdirSync(path.join(feedRoot, 'personas'), { recursive: true });

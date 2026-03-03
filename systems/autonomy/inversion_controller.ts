@@ -781,9 +781,18 @@ function defaultPolicy() {
       parity_confidence_min: 0.9,
       drift_threshold: 0.02,
       fail_closed_on_missing: false,
+      feed_push: {
+        enabled: false,
+        min_drift: 0.015,
+        include_shadow_mode: false,
+        source: 'loop.inversion_controller',
+        max_payload_len: 480
+      },
       paths: {
         parity_confidence_path: 'state/autonomy/inversion/parity_confidence.json',
-        receipts_path: 'state/autonomy/inversion/lens_gate_receipts.jsonl'
+        receipts_path: 'state/autonomy/inversion/lens_gate_receipts.jsonl',
+        feed_push_receipts_path: 'state/autonomy/inversion/lens_gate_feed_push_receipts.jsonl',
+        persona_feed_root: 'personas'
       }
     },
     telemetry: {
@@ -1749,6 +1758,32 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
         personaLensRaw.fail_closed_on_missing,
         base.persona_lens_gate.fail_closed_on_missing
       ),
+      feed_push: {
+        enabled: toBool(
+          personaLensRaw.feed_push && personaLensRaw.feed_push.enabled,
+          base.persona_lens_gate.feed_push.enabled
+        ),
+        min_drift: clampNumber(
+          personaLensRaw.feed_push && personaLensRaw.feed_push.min_drift,
+          0,
+          1,
+          base.persona_lens_gate.feed_push.min_drift
+        ),
+        include_shadow_mode: toBool(
+          personaLensRaw.feed_push && personaLensRaw.feed_push.include_shadow_mode,
+          base.persona_lens_gate.feed_push.include_shadow_mode
+        ),
+        source: normalizeToken(
+          personaLensRaw.feed_push && personaLensRaw.feed_push.source,
+          120
+        ) || normalizeToken(base.persona_lens_gate.feed_push.source, 120) || 'loop.inversion_controller',
+        max_payload_len: clampInt(
+          personaLensRaw.feed_push && personaLensRaw.feed_push.max_payload_len,
+          120,
+          2000,
+          base.persona_lens_gate.feed_push.max_payload_len
+        )
+      },
       paths: {
         parity_confidence_path: normalizeRepoPath(
           personaLensRaw.paths && personaLensRaw.paths.parity_confidence_path,
@@ -1763,6 +1798,17 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
             base.persona_lens_gate.paths.receipts_path,
             path.join(ROOT, 'state', 'autonomy', 'inversion', 'lens_gate_receipts.jsonl')
           )
+        ),
+        feed_push_receipts_path: normalizeRepoPath(
+          personaLensRaw.paths && personaLensRaw.paths.feed_push_receipts_path,
+          normalizeRepoPath(
+            base.persona_lens_gate.paths.feed_push_receipts_path,
+            path.join(ROOT, 'state', 'autonomy', 'inversion', 'lens_gate_feed_push_receipts.jsonl')
+          )
+        ),
+        persona_feed_root: normalizeRepoPath(
+          personaLensRaw.paths && personaLensRaw.paths.persona_feed_root,
+          normalizeRepoPath(base.persona_lens_gate.paths.persona_feed_root, path.join(ROOT, 'personas'))
         )
       }
     },
@@ -3005,6 +3051,143 @@ function extractBullets(markdown: string, maxItems = 4) {
   return out;
 }
 
+function extractListItems(markdown: string, maxItems = 8) {
+  const out: string[] = [];
+  const lines = String(markdown || '').split('\n');
+  for (const line of lines) {
+    const m = String(line || '').trim().match(/^[-*]\s+(.+)$/);
+    const item = cleanText(m && m[1] ? m[1] : '', 160);
+    if (!item) continue;
+    out.push(item);
+    if (out.length >= maxItems) break;
+  }
+  return out;
+}
+
+function parseSystemInternalPermission(markdown: string) {
+  for (const line of String(markdown || '').split('\n')) {
+    const trimmed = String(line || '').trim();
+    const m = trimmed.match(/^-+\s*system_internal\s*:\s*\{\s*enabled:\s*(true|false)\s*,\s*sources:\s*\[([^\]]*)\]\s*\}\s*$/i);
+    if (!m) continue;
+    const enabled = String(m[1]).toLowerCase() === 'true';
+    const sources = String(m[2] || '')
+      .split(',')
+      .map((row) => normalizeToken(row, 40))
+      .filter(Boolean);
+    return { enabled, sources };
+  }
+  return { enabled: false, sources: [] as string[] };
+}
+
+function parseSoulTokenDataPassRules(markdown: string) {
+  const section = String(markdown || '').split('## Data Pass Rules')[1] || '';
+  return extractListItems(section, 12).map((row) => normalizeToken(row, 80)).filter(Boolean);
+}
+
+function systemPassedPayloadHash(source: string, tags: string[], payload: string) {
+  return crypto
+    .createHash('sha256')
+    .update(`v1|${normalizeToken(source, 80)}|${(Array.isArray(tags) ? tags : []).join(',')}|${cleanText(payload, 2000)}`, 'utf8')
+    .digest('hex');
+}
+
+function ensureSystemPassedSection(feedText: string) {
+  const body = String(feedText || '').replace(/\s+$/, '');
+  if (body.includes('\n## System Passed')) return body;
+  return [
+    body,
+    '',
+    '## System Passed',
+    '',
+    'Hash-verified system payloads pushed from internal sources (memory, loops, analytics).',
+    'Entries are JSON payload records with deterministic hash verification.',
+    ''
+  ].join('\n');
+}
+
+function appendPersonaLensFeedPush(policy: AnyObj, input: AnyObj) {
+  const cfg = policy.persona_lens_gate && typeof policy.persona_lens_gate === 'object'
+    ? policy.persona_lens_gate
+    : {};
+  const feedPush = cfg.feed_push && typeof cfg.feed_push === 'object' ? cfg.feed_push : {};
+  if (feedPush.enabled !== true) {
+    return { pushed: false, reason: 'feed_push_disabled' };
+  }
+  const driftRate = Number(clampNumber(input.drift_rate, 0, 1, 0));
+  const minDrift = Number(clampNumber(feedPush.min_drift, 0, 1, 0.015));
+  const failClosed = input.fail_closed === true;
+  const effectiveMode = normalizeToken(input.effective_mode || 'shadow', 24) || 'shadow';
+  if (!failClosed && driftRate < minDrift) {
+    return { pushed: false, reason: 'drift_below_feed_push_threshold', drift_rate: driftRate, min_drift: minDrift };
+  }
+  if (effectiveMode === 'shadow' && feedPush.include_shadow_mode !== true && !failClosed) {
+    return { pushed: false, reason: 'shadow_mode_feed_push_disabled' };
+  }
+  const personaId = normalizeToken(input.persona_id || cfg.persona_id || 'vikram_menon', 120) || 'vikram_menon';
+  const personaRoot = cfg.paths && cfg.paths.persona_feed_root
+    ? String(cfg.paths.persona_feed_root)
+    : path.join(ROOT, 'personas');
+  const feedPath = path.join(personaRoot, personaId, 'feed.md');
+  const permissionsPath = path.join(personaRoot, personaId, 'data_permissions.md');
+  const soulTokenPath = path.join(personaRoot, personaId, 'soul_token.md');
+  if (!fs.existsSync(feedPath)) {
+    return { pushed: false, reason: 'persona_feed_missing', feed_path: relPath(feedPath) };
+  }
+  const permission = parseSystemInternalPermission(readText(permissionsPath, ''));
+  if (!permission.enabled || (permission.sources.length && !permission.sources.includes('loops'))) {
+    return { pushed: false, reason: 'system_internal_permission_blocked', permission_sources: permission.sources };
+  }
+  const rules = new Set(parseSoulTokenDataPassRules(readText(soulTokenPath, '')));
+  if (!rules.has('allow-system-internal-passed-data')) {
+    return { pushed: false, reason: 'soul_token_data_pass_blocked' };
+  }
+  const source = normalizeToken(feedPush.source || 'loop.inversion_controller', 120) || 'loop.inversion_controller';
+  const tags = [
+    'loops',
+    'inversion',
+    failClosed ? 'fail_closed' : 'observe',
+    driftRate >= minDrift ? 'drift_alert' : 'drift_normal'
+  ].filter(Boolean);
+  const payloadText = cleanText(
+    `Objective=${cleanText(input.objective || '', 180)}; target=${cleanText(input.target || '', 40)}; impact=${cleanText(input.impact || '', 40)}; drift=${Number(driftRate.toFixed(6))}; status=${cleanText(input.status || '', 32)}; mode=${effectiveMode}`,
+    Number(clampInt(feedPush.max_payload_len, 120, 2000, 480))
+  );
+  const ts = nowIso();
+  const entry = {
+    schema: 'v1',
+    source,
+    tags,
+    payload: payloadText,
+    hash: systemPassedPayloadHash(source, tags, payloadText),
+    ts
+  };
+  const feedBody = ensureSystemPassedSection(readText(feedPath, '').replace(/\s+$/, ''));
+  const line = `- [${ts}] ${JSON.stringify(entry)}`;
+  fs.writeFileSync(feedPath, `${feedBody}\n${line}\n`, 'utf8');
+
+  const receiptsPath = cfg.paths && cfg.paths.feed_push_receipts_path
+    ? String(cfg.paths.feed_push_receipts_path)
+    : path.join(ROOT, 'state', 'autonomy', 'inversion', 'lens_gate_feed_push_receipts.jsonl');
+  const receipt = {
+    ts,
+    type: 'persona_lens_feed_push',
+    persona_id: personaId,
+    feed_path: relPath(feedPath),
+    receipts_path: relPath(receiptsPath),
+    source,
+    tags,
+    drift_rate: Number(driftRate.toFixed(6)),
+    fail_closed: failClosed,
+    effective_mode: effectiveMode,
+    entry_hash: entry.hash
+  };
+  appendJsonl(receiptsPath, receipt);
+  return {
+    pushed: true,
+    ...receipt
+  };
+}
+
 function extractNumeric(v: unknown): number | null {
   const n = Number(v);
   if (!Number.isFinite(n)) return null;
@@ -3143,7 +3326,11 @@ function evaluatePersonaLensGate(args: AnyObj, policy: AnyObj, objective: string
       drift_threshold: 0.02,
       fail_closed: false,
       status: 'disabled',
-      reasons: []
+      reasons: [],
+      feed_push: {
+        pushed: false,
+        reason: 'persona_lens_disabled'
+      }
     };
   }
 
@@ -3187,6 +3374,16 @@ function evaluatePersonaLensGate(args: AnyObj, policy: AnyObj, objective: string
   const status = failClosed
     ? 'blocked'
     : (effectiveMode === 'enforce' ? 'enforced' : 'shadow_observe');
+  const feedPush = appendPersonaLensFeedPush(policy, {
+    persona_id: personaId,
+    objective,
+    target,
+    impact,
+    status,
+    effective_mode: effectiveMode,
+    fail_closed: failClosed,
+    drift_rate: drift.value
+  });
   return {
     enabled: true,
     consulted: true,
@@ -3203,6 +3400,7 @@ function evaluatePersonaLensGate(args: AnyObj, policy: AnyObj, objective: string
     fail_closed: failClosed,
     status,
     reasons,
+    feed_push: feedPush,
     query: {
       objective: cleanText(objective, 260),
       target,
@@ -3237,6 +3435,15 @@ function appendPersonaLensGateReceipt(paths: AnyObj, policy: AnyObj, payload: An
     parity_confidence: Number(payload.parity_confidence || 0),
     parity_confident: payload.parity_confident === true,
     reasons: Array.isArray(payload.reasons) ? payload.reasons.slice(0, 8) : [],
+    feed_push: payload.feed_push && typeof payload.feed_push === 'object'
+      ? {
+          pushed: payload.feed_push.pushed === true,
+          reason: cleanText(payload.feed_push.reason || '', 120) || null,
+          feed_path: cleanText(payload.feed_push.feed_path || '', 220) || null,
+          receipts_path: cleanText(payload.feed_push.receipts_path || '', 220) || null,
+          entry_hash: cleanText(payload.feed_push.entry_hash || '', 120) || null
+        }
+      : null,
     objective: cleanText(decision && decision.input && decision.input.objective || '', 260) || null,
     target: cleanText(decision && decision.input && decision.input.target || '', 40) || null,
     impact: cleanText(decision && decision.input && decision.input.impact || '', 40) || null,

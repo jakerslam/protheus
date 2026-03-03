@@ -13,6 +13,7 @@ const ROOT = process.env.OPENCLAW_WORKSPACE
 const PERSONAS_DIR = path.join(ROOT, 'personas');
 const PERSONA_ORG_DIR = path.join(PERSONAS_DIR, 'organization');
 const PERSONA_TELEMETRY_PATH = path.join(PERSONA_ORG_DIR, 'telemetry.jsonl');
+const PERSONA_TRIGGERS_PATH = path.join(PERSONA_ORG_DIR, 'triggers.md');
 let runLocalOllamaPrompt: null | ((opts: Record<string, unknown>) => Record<string, unknown>) = null;
 try {
   ({ runLocalOllamaPrompt } = require('../routing/llm_gateway.js'));
@@ -44,6 +45,8 @@ function usage() {
   console.log('  protheus lens <persona> "<query>"');
   console.log('  protheus lens <persona> <decision|strategic|full> "<query>"');
   console.log('  protheus lens <persona> [decision|strategic|full] --gap=<seconds> [--active=1] [--emotion=on|off] [--values=on|off] [--include-feed=1] [--intercept="<override>"] "<query>"');
+  console.log('  protheus lens trigger <pre-sprint|drift-alert|weekly-checkin> ["<query>"] [--persona=<id>] [--heartbeat=HEARTBEAT.md] [--dry-run=1]');
+  console.log('  protheus lens dashboard [--window=<n>] [--json=1]');
   console.log('  protheus lens update-stream <persona> [--dry-run=1]');
   console.log('  protheus lens checkin [--persona=jay_haslam] [--heartbeat=HEARTBEAT.md] [--emotion=on|off] [--dry-run=1]');
   console.log('  protheus lens feed <persona> "<snippet>" [--source=master_llm] [--tags=tag1,tag2] [--dry-run=1]');
@@ -55,6 +58,8 @@ function usage() {
   console.log('  protheus lens vikram "Should we prioritize memory or security first?"');
   console.log('  protheus lens vikram strategic "How does this sprint support the singularity seed?"');
   console.log('  protheus lens jay_haslam "How can we reduce drift in the loops?"');
+  console.log('  protheus lens trigger pre-sprint "Foundation Lock sprint planning review"');
+  console.log('  protheus lens dashboard --window=20');
   console.log('  protheus lens vikram --gap=10 --active=1 --emotion=off --values=on --include-feed=1 --intercept="Prioritize memory first, with security gate pre-dispatch." "Prioritize memory or security?"');
   console.log('  protheus lens update-stream vikram_menon');
   console.log('  protheus lens checkin --persona=jay_haslam --heartbeat=HEARTBEAT.md');
@@ -134,6 +139,15 @@ function parseGapSeconds(v: unknown, fallback = 0) {
   const n = Number(v);
   if (!Number.isFinite(n)) return fallback;
   return Math.max(0, Math.min(60, Math.floor(n)));
+}
+
+function clampInt(v: unknown, lo: number, hi: number, fallback: number) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  const i = Math.floor(n);
+  if (i < lo) return lo;
+  if (i > hi) return hi;
+  return i;
 }
 
 function parseTagList(v: unknown): string[] {
@@ -936,6 +950,206 @@ function appendPersonaTelemetry(row: Record<string, unknown>) {
     ...row
   };
   fs.appendFileSync(PERSONA_TELEMETRY_PATH, `${JSON.stringify(payload)}\n`, 'utf8');
+  return payload;
+}
+
+function readJsonlTail(filePath: string, maxRows = 20) {
+  try {
+    if (!fs.existsSync(filePath)) return [];
+    return String(fs.readFileSync(filePath, 'utf8') || '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(-Math.max(1, Math.min(400, Math.floor(maxRows) || 20)))
+      .map((line) => {
+        try {
+          return JSON.parse(line);
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function summarizeCorrespondenceEvents(markdown: string, maxRows = 3) {
+  const out: Array<{ date: string, topic: string }> = [];
+  for (const line of String(markdown || '').split('\n')) {
+    const m = String(line || '').trim().match(/^##\s+(\d{4}-\d{2}-\d{2})\s+-\s+Re:\s+(.+)$/i);
+    if (!m) continue;
+    out.push({
+      date: cleanText(m[1], 20),
+      topic: cleanText(m[2], 120)
+    });
+  }
+  return out.slice(-Math.max(1, maxRows));
+}
+
+function buildPersonaDashboard(window = 20) {
+  const rows = readJsonlTail(PERSONA_TELEMETRY_PATH, window);
+  const metricCounts: Record<string, number> = {};
+  const personaCounts: Record<string, number> = {};
+  for (const row of rows as Array<Record<string, unknown>>) {
+    const metric = normalizeToken(row.metric || row.kind || 'unknown', 80) || 'unknown';
+    metricCounts[metric] = (metricCounts[metric] || 0) + 1;
+    const persona = normalizeToken(row.persona_id || 'unknown', 80) || 'unknown';
+    personaCounts[persona] = (personaCounts[persona] || 0) + 1;
+  }
+  const candidatePersonas = [
+    'jay_haslam',
+    'vikram_menon',
+    'priya_venkatesh',
+    'rohan_kapoor',
+    'li_wei',
+    'aarav_singh'
+  ];
+  const available = new Set(listPersonaIds());
+  const personas = candidatePersonas.filter((id) => available.has(id));
+  const summaries: Array<Record<string, unknown>> = [];
+  for (const personaId of personas) {
+    try {
+      const ctx = loadPersonaContext(personaId);
+      const events = summarizeCorrespondenceEvents(ctx.correspondenceMd, 3);
+      const passed = parseSystemPassedSignals(ctx.feedMd, 3);
+      summaries.push({
+        persona_id: personaId,
+        persona_name: ctx.personaName,
+        latest_events: events,
+        system_passed_verified: passed.verified,
+        system_passed_invalid: passed.invalid,
+        system_passed_total: passed.total
+      });
+    } catch {
+      summaries.push({
+        persona_id: personaId,
+        error: 'persona_context_unavailable'
+      });
+    }
+  }
+  const metricTop = Object.entries(metricCounts)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 8);
+  const personaTop = Object.entries(personaCounts)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 8);
+
+  const markdown: string[] = [];
+  markdown.push('# Personas Dashboard');
+  markdown.push('');
+  markdown.push(`- Window: last ${Math.max(1, Math.min(400, Math.floor(window) || 20))} telemetry events`);
+  markdown.push(`- Trigger policy doc: \`${path.relative(ROOT, PERSONA_TRIGGERS_PATH).replace(/\\/g, '/')}\``);
+  markdown.push('');
+  markdown.push('## Telemetry Top Metrics');
+  if (!metricTop.length) {
+    markdown.push('- No telemetry rows yet.');
+  } else {
+    for (const [metric, count] of metricTop) {
+      markdown.push(`- ${metric}: ${count}`);
+    }
+  }
+  markdown.push('');
+  markdown.push('## Telemetry Top Personas');
+  if (!personaTop.length) {
+    markdown.push('- No persona rows yet.');
+  } else {
+    for (const [persona, count] of personaTop) {
+      markdown.push(`- ${persona}: ${count}`);
+    }
+  }
+  markdown.push('');
+  markdown.push('## Core Persona Activity');
+  if (!summaries.length) {
+    markdown.push('- No core personas available.');
+  } else {
+    for (const row of summaries) {
+      markdown.push(`### ${cleanText(row.persona_name || row.persona_id || 'unknown', 120)} (\`${cleanText(row.persona_id || 'unknown', 120)}\`)`);
+      if (row.error) {
+        markdown.push(`- status: ${cleanText(row.error, 120)}`);
+        markdown.push('');
+        continue;
+      }
+      markdown.push(`- System-passed verified/invalid/total: ${Number(row.system_passed_verified || 0)}/${Number(row.system_passed_invalid || 0)}/${Number(row.system_passed_total || 0)}`);
+      const events = Array.isArray(row.latest_events) ? row.latest_events : [];
+      if (!events.length) {
+        markdown.push('- Latest correspondence: none');
+      } else {
+        for (const event of events) {
+          const ev = event && typeof event === 'object' ? event : {};
+          markdown.push(`- ${cleanText((ev as Record<string, unknown>).date || '', 20)}: ${cleanText((ev as Record<string, unknown>).topic || '', 140)}`);
+        }
+      }
+      markdown.push('');
+    }
+  }
+  return {
+    ok: true,
+    type: 'persona_dashboard',
+    window: Math.max(1, Math.min(400, Math.floor(window) || 20)),
+    telemetry_rows: rows.length,
+    metrics: metricCounts,
+    personas: personaCounts,
+    summaries,
+    markdown: markdown.join('\n')
+  };
+}
+
+function runPersonaCheckin(
+  checkinPersonaId: string,
+  heartbeatInput: unknown,
+  emotionEnabled: boolean,
+  valuesEnabled: boolean,
+  dryRun = false
+) {
+  const ctx = loadPersonaContext(checkinPersonaId);
+  const heartbeatPathAbs = resolveHeartbeatPath(heartbeatInput);
+  const heartbeatSnapshot = readFileOptional(heartbeatPathAbs);
+  const query = buildCheckinQuery(heartbeatSnapshot);
+  const gate = evaluateSoulTokenAccess(ctx, query);
+  if (!gate.ok) {
+    throw new Error(String(gate.reason || 'soul_token_policy_blocked'));
+  }
+  const details = buildResponseDetails(
+    ctx.personaName,
+    query,
+    ctx.profileMd,
+    ctx.correspondenceMd,
+    ctx.decisionLensMd,
+    ctx.strategicLensMd,
+    'decision',
+    emotionEnabled ? ctx.emotionLensMd : '',
+    valuesEnabled ? ctx.valuesLensMd : '',
+    ctx.feedMd,
+    ctx.memoryMd,
+    false
+  );
+  const payload: any = {
+    ok: true,
+    type: 'persona_checkin',
+    persona_id: ctx.personaId,
+    heartbeat_path: path.relative(ROOT, heartbeatPathAbs).replace(/\\/g, '/') || 'HEARTBEAT.md',
+    emotion: emotionEnabled ? 'on' : 'off',
+    dry_run: dryRun,
+    recommendation: details.recommendation,
+    reasoning: details.reasoning.slice(0, 5)
+  };
+  const llmCfg = parsePersonaLlmConfig(ctx.llmConfigMd);
+  payload.llm_train_plan = buildLlmTrainPlan(ctx.personaId, llmCfg);
+  if (!dryRun) {
+    const receipt = appendCheckinToCorrespondence(
+      ctx,
+      heartbeatPathAbs,
+      heartbeatSnapshot,
+      details.recommendation,
+      details.reasoning,
+      emotionEnabled
+    );
+    payload.updated_correspondence = receipt.correspondencePath;
+    payload.updated_soul_token = receipt.soulTokenPath;
+    payload.bundle_hash = receipt.bundleHash;
+    payload.memory_node = receipt.memoryNode;
+  }
   return payload;
 }
 
@@ -1841,6 +2055,8 @@ async function main() {
   const includeFeedFlag = toBool(args['include-feed'] ?? args.include_feed, false);
   const personaArg = cleanText(args.persona || args._[0] || '', 120);
   const isUpdateStream = normalizeToken(args._[0] || '', 40) === 'update_stream' || normalizeToken(args._[0] || '', 40) === 'update-stream';
+  const isTrigger = normalizeToken(args._[0] || '', 40) === 'trigger';
+  const isDashboard = normalizeToken(args._[0] || '', 40) === 'dashboard';
   const isCheckin = normalizeToken(args._[0] || '', 40) === 'checkin';
   const isFeed = normalizeToken(args._[0] || '', 40) === 'feed';
   const updatePersonaRaw = cleanText(args.persona || args._[1] || '', 120);
@@ -1860,6 +2076,198 @@ async function main() {
       process.exit(1);
     }
   }
+  if (isDashboard) {
+    const window = clampInt(args.window ?? args.n ?? 20, 1, 400, 20);
+    const payload = buildPersonaDashboard(window);
+    if (toBool(args.json, false)) {
+      process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+    } else {
+      process.stdout.write(`${payload.markdown}\n`);
+    }
+    process.exit(0);
+  }
+  if (isTrigger) {
+    const triggerName = normalizeToken(args._[1] || args.name || '', 80);
+    if (!triggerName) {
+      process.stderr.write('trigger_name_required\n');
+      process.exit(1);
+    }
+    try {
+      if (triggerName === 'weekly-checkin' || triggerName === 'weekly_checkin') {
+        const personaRaw = cleanText(args.persona || 'jay_haslam', 120);
+        const personaId = resolvePersonaId(personaRaw);
+        if (!personaId) {
+          process.stderr.write(`unknown_persona:${personaRaw}\n`);
+          process.exit(1);
+        }
+        const dryRun = toBool(args['dry-run'], false);
+        const payload = runPersonaCheckin(
+          personaId,
+          args.heartbeat || args['heartbeat-path'] || args.heartbeat_path,
+          emotionEnabled,
+          valuesEnabled,
+          dryRun
+        );
+        appendPersonaTelemetry({
+          kind: 'persona_trigger',
+          trigger: 'weekly_checkin',
+          persona_id: personaId,
+          dry_run: dryRun ? 1 : 0,
+          metric: 'trigger_activation'
+        });
+        process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+        process.exit(0);
+      }
+
+      if (triggerName === 'pre-sprint' || triggerName === 'pre_sprint') {
+        const query = cleanText(
+          args.query || args.q || args._.slice(2).join(' '),
+          2000
+        ) || 'Pre-sprint review: identify drift risks, sequencing blockers, and one non-negotiable safety invariant.';
+        const preferred = [
+          'jay_haslam',
+          'vikram_menon',
+          'priya_venkatesh',
+          'rohan_kapoor',
+          'li_wei',
+          'aarav_singh'
+        ];
+        const available = new Set(listPersonaIds());
+        const personaIds = preferred.filter((id) => available.has(id));
+        if (!personaIds.length) {
+          process.stderr.write('no_personas_available\n');
+          process.exit(1);
+        }
+        const candidateContexts = personaIds.map((personaId) => loadPersonaContext(personaId));
+        const contexts: PersonaContext[] = [];
+        const skipped: Array<{ persona_id: string, reason: string }> = [];
+        for (const ctx of candidateContexts) {
+          const gate = evaluateSoulTokenAccess(ctx, query);
+          if (!gate.ok) {
+            skipped.push({ persona_id: ctx.personaId, reason: cleanText(gate.reason || 'soul_token_blocked', 120) });
+            continue;
+          }
+          const feedAccess = evaluateSystemPassedAccess(ctx, true);
+          if (!feedAccess.ok) {
+            skipped.push({ persona_id: ctx.personaId, reason: cleanText(feedAccess.reason || 'system_pass_blocked', 120) });
+            continue;
+          }
+          contexts.push(ctx);
+        }
+        const fallbackContexts = contexts.length ? contexts : candidateContexts.filter((ctx) => {
+          const gate = evaluateSoulTokenAccess(ctx, query);
+          return gate.ok === true;
+        });
+        if (!fallbackContexts.length) {
+          process.stderr.write('pre_sprint_trigger_no_eligible_personas\n');
+          process.exit(1);
+        }
+        const includeFeedForRun = contexts.length > 0;
+        const markdown = [
+          '# Trigger: pre-sprint',
+          '',
+          `- Source: \`${path.relative(ROOT, PERSONA_TRIGGERS_PATH).replace(/\\/g, '/')}\``,
+          `- Query: ${query}`,
+          `- System Passed Feed: \`${includeFeedForRun ? 'on' : 'off'}\``,
+          skipped.length
+            ? `- Skipped personas: ${skipped.map((row) => `${row.persona_id}(${row.reason})`).join(', ')}`
+            : '- Skipped personas: none',
+          '',
+          renderAllMarkdown(query, fallbackContexts, 'decision', null, emotionEnabled, valuesEnabled, includeFeedForRun)
+        ].join('\n');
+        appendPersonaTelemetry({
+          kind: 'persona_trigger',
+          trigger: 'pre_sprint',
+          persona_id: 'all_core',
+          metric: 'trigger_activation',
+          include_feed: includeFeedForRun ? 1 : 0,
+          skipped_personas: skipped.length,
+          query_hash: crypto.createHash('sha256').update(query, 'utf8').digest('hex').slice(0, 16)
+        });
+        process.stdout.write(`${markdown}\n`);
+        process.exit(0);
+      }
+
+      if (triggerName === 'drift-alert' || triggerName === 'drift_alert') {
+        const rawPersona = cleanText(args.persona || 'vikram_menon', 120);
+        const personaId = resolvePersonaId(rawPersona);
+        if (!personaId) {
+          process.stderr.write(`unknown_persona:${rawPersona}\n`);
+          process.exit(1);
+        }
+        const query = cleanText(
+          args.query || args.q || args._.slice(2).join(' '),
+          2000
+        ) || 'Drift alert review: system drift pressure increased. Recommend bounded, fail-closed next actions.';
+        const ctx = loadPersonaContext(personaId);
+        const gate = evaluateSoulTokenAccess(ctx, query);
+        if (!gate.ok) {
+          process.stderr.write(`${gate.reason}\n`);
+          process.stderr.write(`persona:${ctx.personaId}\n`);
+          process.exit(1);
+        }
+        const feedAccess = evaluateSystemPassedAccess(ctx, true);
+        if (!feedAccess.ok) {
+          process.stderr.write(`${feedAccess.reason}\n`);
+          process.stderr.write(`persona:${ctx.personaId}\n`);
+          process.exit(1);
+        }
+        const details = buildResponseDetails(
+          ctx.personaName,
+          query,
+          ctx.profileMd,
+          ctx.correspondenceMd,
+          ctx.decisionLensMd,
+          ctx.strategicLensMd,
+          'decision',
+          emotionEnabled ? ctx.emotionLensMd : '',
+          valuesEnabled ? ctx.valuesLensMd : '',
+          ctx.feedMd,
+          ctx.memoryMd,
+          true
+        );
+        const markdown = [
+          '# Trigger: drift-alert',
+          '',
+          `- Source: \`${path.relative(ROOT, PERSONA_TRIGGERS_PATH).replace(/\\/g, '/')}\``,
+          `- Persona: \`${ctx.personaId}\``,
+          '',
+          renderMarkdownResponse(
+            ctx,
+            query,
+            'decision',
+            emotionEnabled ? ctx.emotionLensMd : '',
+            null,
+            '',
+            '',
+            emotionEnabled,
+            valuesEnabled,
+            true,
+            null
+          )
+        ].join('\n');
+        appendPersonaTelemetry({
+          kind: 'persona_trigger',
+          trigger: 'drift_alert',
+          persona_id: ctx.personaId,
+          metric: 'trigger_activation',
+          include_feed: 1,
+          passed_entries_verified: Number(details.systemPassed && details.systemPassed.verified || 0),
+          passed_entries_invalid: Number(details.systemPassed && details.systemPassed.invalid || 0),
+          query_hash: crypto.createHash('sha256').update(query, 'utf8').digest('hex').slice(0, 16)
+        });
+        process.stdout.write(`${markdown}\n`);
+        process.exit(0);
+      }
+
+      process.stderr.write(`unknown_trigger:${triggerName}\n`);
+      process.exit(1);
+    } catch (err: any) {
+      const msg = cleanText(err && err.message || 'persona_trigger_failed', 260);
+      process.stderr.write(`${msg}\n`);
+      process.exit(1);
+    }
+  }
   if (isCheckin) {
     const checkinPersonaRaw = cleanText(args.persona || 'jay_haslam', 120);
     const checkinPersonaId = resolvePersonaId(checkinPersonaRaw);
@@ -1868,57 +2276,14 @@ async function main() {
       process.exit(1);
     }
     try {
-      const ctx = loadPersonaContext(checkinPersonaId);
-      const heartbeatPathAbs = resolveHeartbeatPath(args.heartbeat || args['heartbeat-path'] || args.heartbeat_path);
-      const heartbeatSnapshot = readFileOptional(heartbeatPathAbs);
-      const query = buildCheckinQuery(heartbeatSnapshot);
-      const gate = evaluateSoulTokenAccess(ctx, query);
-      if (!gate.ok) {
-        process.stderr.write(`${gate.reason}\n`);
-        process.stderr.write(`persona:${ctx.personaId}\n`);
-        process.exit(1);
-      }
-      const details = buildResponseDetails(
-        ctx.personaName,
-        query,
-        ctx.profileMd,
-        ctx.correspondenceMd,
-        ctx.decisionLensMd,
-        ctx.strategicLensMd,
-        'decision',
-        emotionEnabled ? ctx.emotionLensMd : '',
-        valuesEnabled ? ctx.valuesLensMd : '',
-        ctx.feedMd,
-        ctx.memoryMd,
-        false
-      );
       const dryRun = toBool(args['dry-run'], false);
-      const payload: any = {
-        ok: true,
-        type: 'persona_checkin',
-        persona_id: ctx.personaId,
-        heartbeat_path: path.relative(ROOT, heartbeatPathAbs).replace(/\\/g, '/') || 'HEARTBEAT.md',
-        emotion: emotionEnabled ? 'on' : 'off',
-        dry_run: dryRun,
-        recommendation: details.recommendation,
-        reasoning: details.reasoning.slice(0, 5)
-      };
-      const llmCfg = parsePersonaLlmConfig(ctx.llmConfigMd);
-      payload.llm_train_plan = buildLlmTrainPlan(ctx.personaId, llmCfg);
-      if (!dryRun) {
-        const receipt = appendCheckinToCorrespondence(
-          ctx,
-          heartbeatPathAbs,
-          heartbeatSnapshot,
-          details.recommendation,
-          details.reasoning,
-          emotionEnabled
-        );
-        payload.updated_correspondence = receipt.correspondencePath;
-        payload.updated_soul_token = receipt.soulTokenPath;
-        payload.bundle_hash = receipt.bundleHash;
-        payload.memory_node = receipt.memoryNode;
-      }
+      const payload = runPersonaCheckin(
+        checkinPersonaId,
+        args.heartbeat || args['heartbeat-path'] || args.heartbeat_path,
+        emotionEnabled,
+        valuesEnabled,
+        dryRun
+      );
       process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
       process.exit(0);
     } catch (err: any) {
