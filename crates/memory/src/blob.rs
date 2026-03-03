@@ -7,11 +7,13 @@ use std::fmt::{Display, Formatter};
 pub const HEARTBEAT_BLOB_ID: &str = "heartbeat_sample";
 pub const EXECUTION_REPLAY_BLOB_ID: &str = "execution_replay";
 pub const VAULT_POLICY_BLOB_ID: &str = "vault_policy";
+pub const OBSERVABILITY_PROFILE_BLOB_ID: &str = "observability_profile";
 pub const BLOB_VERSION: u32 = 1;
 
 pub const HEARTBEAT_BLOB: &[u8] = include_bytes!("blobs/heartbeat_sample.blob");
 pub const EXECUTION_REPLAY_BLOB: &[u8] = include_bytes!("blobs/execution_replay.blob");
 pub const VAULT_POLICY_BLOB: &[u8] = include_bytes!("blobs/vault_policy.blob");
+pub const OBSERVABILITY_PROFILE_BLOB: &[u8] = include_bytes!("blobs/observability_profile.blob");
 pub const BLOB_MANIFEST: &[u8] = include_bytes!("blobs/manifest.blob");
 
 const MANIFEST_SIGNING_KEY: &str = "memory-blob-signing-key-v1";
@@ -103,6 +105,44 @@ pub struct EmbeddedVaultPolicy {
     pub attestation_chain: Vec<String>,
     pub auto_rotate: EmbeddedVaultAutoRotatePolicy,
     pub rules: Vec<EmbeddedVaultPolicyRule>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct EmbeddedTraceStreamPolicy {
+    pub trace_window_ms: u32,
+    pub max_events_per_window: u32,
+    pub min_sampling_rate_pct: u8,
+    pub redact_fields: Vec<String>,
+    pub require_signature: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct EmbeddedSovereigntyScorer {
+    pub integrity_weight_pct: u8,
+    pub continuity_weight_pct: u8,
+    pub reliability_weight_pct: u8,
+    pub chaos_penalty_pct: u8,
+    pub fail_closed_threshold_pct: u8,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct EmbeddedChaosHook {
+    pub id: String,
+    pub condition: String,
+    pub action: String,
+    pub severity: String,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct EmbeddedObservabilityProfile {
+    pub profile_id: String,
+    pub version: u32,
+    pub red_legion_trace_channels: Vec<String>,
+    pub allowed_emitters: Vec<String>,
+    pub stream_policy: EmbeddedTraceStreamPolicy,
+    pub sovereignty_scorer: EmbeddedSovereigntyScorer,
+    pub chaos_hooks: Vec<EmbeddedChaosHook>,
 }
 
 #[derive(Debug, Clone)]
@@ -251,6 +291,12 @@ pub fn load_embedded_vault_policy() -> Result<EmbeddedVaultPolicy, BlobError> {
     let manifest = decode_manifest(BLOB_MANIFEST)?;
     let hash = manifest_hash_for(&manifest, VAULT_POLICY_BLOB_ID)?;
     unfold_blob_typed(VAULT_POLICY_BLOB_ID, &hash)
+}
+
+pub fn load_embedded_observability_profile() -> Result<EmbeddedObservabilityProfile, BlobError> {
+    let manifest = decode_manifest(BLOB_MANIFEST)?;
+    let hash = manifest_hash_for(&manifest, OBSERVABILITY_PROFILE_BLOB_ID)?;
+    unfold_blob_typed(OBSERVABILITY_PROFILE_BLOB_ID, &hash)
 }
 
 pub fn unfold_blob(blob_id: &str, expected_hash: &str) -> Result<Vec<u8>, BlobError> {
@@ -444,6 +490,68 @@ pub fn default_vault_policy_sample() -> EmbeddedVaultPolicy {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+pub fn default_observability_profile_sample() -> EmbeddedObservabilityProfile {
+    EmbeddedObservabilityProfile {
+        profile_id: "observability_profile_primary".to_string(),
+        version: 1,
+        red_legion_trace_channels: vec![
+            "runtime.guardrails".to_string(),
+            "lane.integrity".to_string(),
+            "chaos.replay".to_string(),
+            "sovereignty.index".to_string(),
+        ],
+        allowed_emitters: vec![
+            "systems/observability".to_string(),
+            "systems/red_legion".to_string(),
+            "systems/security".to_string(),
+            "crates/observability".to_string(),
+        ],
+        stream_policy: EmbeddedTraceStreamPolicy {
+            trace_window_ms: 1000,
+            max_events_per_window: 1024,
+            min_sampling_rate_pct: 25,
+            redact_fields: vec![
+                "secret".to_string(),
+                "token".to_string(),
+                "private_key".to_string(),
+                "api_key".to_string(),
+            ],
+            require_signature: true,
+        },
+        sovereignty_scorer: EmbeddedSovereigntyScorer {
+            integrity_weight_pct: 45,
+            continuity_weight_pct: 25,
+            reliability_weight_pct: 20,
+            chaos_penalty_pct: 10,
+            fail_closed_threshold_pct: 60,
+        },
+        chaos_hooks: vec![
+            EmbeddedChaosHook {
+                id: "hook.fail_closed.on_tamper".to_string(),
+                condition: "event.severity == critical && event.tag == tamper".to_string(),
+                action: "trip_fail_closed".to_string(),
+                severity: "critical".to_string(),
+                enabled: true,
+            },
+            EmbeddedChaosHook {
+                id: "hook.rate_limit.on_storm".to_string(),
+                condition: "window.events > max_events_per_window".to_string(),
+                action: "drop_low_priority".to_string(),
+                severity: "high".to_string(),
+                enabled: true,
+            },
+            EmbeddedChaosHook {
+                id: "hook.score_penalty.on_drift".to_string(),
+                condition: "replay.drift > 0".to_string(),
+                action: "apply_chaos_penalty".to_string(),
+                severity: "medium".to_string(),
+                enabled: true,
+            },
+        ],
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub fn write_embedded_blob_assets(heartbeat_sample: &str) -> Result<BlobPackReport, BlobError> {
     let heartbeat_payload = if heartbeat_sample.trim().is_empty() {
         default_heartbeat_sample()
@@ -452,16 +560,20 @@ pub fn write_embedded_blob_assets(heartbeat_sample: &str) -> Result<BlobPackRepo
     };
     let execution_payload = default_execution_replay_sample();
     let vault_policy_payload = default_vault_policy_sample();
+    let observability_payload = default_observability_profile_sample();
 
     let (heartbeat_blob, heartbeat_hash) = fold_blob(&heartbeat_payload, HEARTBEAT_BLOB_ID)?;
     let (execution_blob, execution_hash) =
         fold_blob(&execution_payload, EXECUTION_REPLAY_BLOB_ID)?;
     let (vault_policy_blob, vault_policy_hash) =
         fold_blob(&vault_policy_payload, VAULT_POLICY_BLOB_ID)?;
+    let (observability_blob, observability_hash) =
+        fold_blob(&observability_payload, OBSERVABILITY_PROFILE_BLOB_ID)?;
     let manifest = generate_manifest(&[
         (HEARTBEAT_BLOB_ID, heartbeat_blob.as_slice()),
         (EXECUTION_REPLAY_BLOB_ID, execution_blob.as_slice()),
         (VAULT_POLICY_BLOB_ID, vault_policy_blob.as_slice()),
+        (OBSERVABILITY_PROFILE_BLOB_ID, observability_blob.as_slice()),
     ]);
     let manifest_bytes = encode_manifest(&manifest)?;
 
@@ -469,6 +581,7 @@ pub fn write_embedded_blob_assets(heartbeat_sample: &str) -> Result<BlobPackRepo
     let heartbeat_path = root.join("src/blobs/heartbeat_sample.blob");
     let execution_path = root.join("src/blobs/execution_replay.blob");
     let vault_policy_path = root.join("src/blobs/vault_policy.blob");
+    let observability_path = root.join("src/blobs/observability_profile.blob");
     let manifest_path = root.join("src/blobs/manifest.blob");
 
     if let Some(parent) = heartbeat_path.parent() {
@@ -480,6 +593,8 @@ pub fn write_embedded_blob_assets(heartbeat_sample: &str) -> Result<BlobPackRepo
     std::fs::write(&execution_path, &execution_blob)
         .map_err(|e| BlobError::IoFailed(e.to_string()))?;
     std::fs::write(&vault_policy_path, &vault_policy_blob)
+        .map_err(|e| BlobError::IoFailed(e.to_string()))?;
+    std::fs::write(&observability_path, &observability_blob)
         .map_err(|e| BlobError::IoFailed(e.to_string()))?;
     std::fs::write(&manifest_path, &manifest_bytes)
         .map_err(|e| BlobError::IoFailed(e.to_string()))?;
@@ -506,6 +621,12 @@ pub fn write_embedded_blob_assets(heartbeat_sample: &str) -> Result<BlobPackRepo
                 bytes: vault_policy_blob.len(),
                 hash: vault_policy_hash,
             },
+            BlobArtifactDigest {
+                id: OBSERVABILITY_PROFILE_BLOB_ID.to_string(),
+                path: observability_path.display().to_string(),
+                bytes: observability_blob.len(),
+                hash: observability_hash,
+            },
         ],
     })
 }
@@ -522,6 +643,7 @@ fn embedded_blob_by_id(blob_id: &str) -> Option<&'static [u8]> {
         HEARTBEAT_BLOB_ID => Some(HEARTBEAT_BLOB),
         EXECUTION_REPLAY_BLOB_ID => Some(EXECUTION_REPLAY_BLOB),
         VAULT_POLICY_BLOB_ID => Some(VAULT_POLICY_BLOB),
+        OBSERVABILITY_PROFILE_BLOB_ID => Some(OBSERVABILITY_PROFILE_BLOB),
         _ => None,
     }
 }
@@ -597,6 +719,24 @@ mod tests {
     }
 
     #[test]
+    fn fold_embed_unfold_observability_profile_parity() {
+        let input = default_observability_profile_sample();
+        let (blob, hash) =
+            fold_blob(&input, OBSERVABILITY_PROFILE_BLOB_ID).expect("fold should succeed");
+        let manifest = generate_manifest(&[(OBSERVABILITY_PROFILE_BLOB_ID, blob.as_slice())]);
+        let payload = unfold_blob_from_parts(
+            OBSERVABILITY_PROFILE_BLOB_ID,
+            &hash,
+            &blob,
+            &manifest,
+        )
+        .expect("unfold should succeed");
+        let decoded: EmbeddedObservabilityProfile =
+            bincode::deserialize(&payload).expect("decode should succeed");
+        assert_eq!(decoded, input);
+    }
+
+    #[test]
     fn embedded_blobs_load() {
         let heartbeat = load_embedded_heartbeat().expect("embedded heartbeat should load");
         assert!(!heartbeat.trim().is_empty());
@@ -607,5 +747,9 @@ mod tests {
         let vault_policy = load_embedded_vault_policy().expect("embedded vault policy should load");
         assert_eq!(vault_policy.policy_id, "vault_policy_primary");
         assert!(!vault_policy.rules.is_empty());
+        let observability = load_embedded_observability_profile()
+            .expect("embedded observability profile should load");
+        assert_eq!(observability.profile_id, "observability_profile_primary");
+        assert!(!observability.chaos_hooks.is_empty());
     }
 }

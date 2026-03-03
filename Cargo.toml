@@ -5,6 +5,8 @@ members = [
   "crates/execution",
   "crates/fluxlattice",
   "crates/memory",
+  "crates/observability",
+  "crates/vault",
   "systems/memory/rust",
   "systems/self_audit/rust",
   "systems/hybrid/rust"
