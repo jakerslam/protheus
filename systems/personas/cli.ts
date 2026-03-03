@@ -13,18 +13,22 @@ type ParsedArgs = {
   [key: string]: any
 };
 
+type LensMode = 'decision' | 'strategic' | 'full';
+
 function usage() {
   console.log('Usage:');
   console.log('  protheus lens <persona> "<query>"');
+  console.log('  protheus lens <persona> <decision|strategic|full> "<query>"');
   console.log('  protheus lens all "<query>"');
-  console.log('  protheus lens --persona=<persona> --query="<query>"');
+  console.log('  protheus lens --persona=<persona> --lens=<decision|strategic|full> --query="<query>"');
   console.log('  protheus lens --list');
   console.log('');
   console.log('Examples:');
   console.log('  protheus lens vikram "Should we prioritize memory or security first?"');
+  console.log('  protheus lens vikram strategic "How does this sprint support the singularity seed?"');
   console.log('  protheus lens jay_haslam "How can we reduce drift in the loops?"');
   console.log('  protheus lens all "Should we prioritize memory or security first?"');
-  console.log('  protheus lens --persona=vikram_menon --query="What is the rollback path?"');
+  console.log('  protheus lens --persona=vikram_menon --lens=decision --query="What is the rollback path?"');
 }
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -62,6 +66,13 @@ function normalizeToken(v: unknown, maxLen = 120): string {
     .replace(/[^a-z0-9_-]+/g, '_')
     .replace(/_+/g, '_')
     .replace(/^_+|_+$/g, '');
+}
+
+function normalizeLensMode(v: unknown): LensMode {
+  const token = normalizeToken(v, 40);
+  if (token === 'strategic') return 'strategic';
+  if (token === 'full') return 'full';
+  return 'decision';
 }
 
 function listPersonaIds(): string[] {
@@ -139,15 +150,25 @@ type PersonaContext = {
   personaName: string,
   profileMd: string,
   correspondenceMd: string,
-  lensMd: string,
-  emotionLensMd: string
+  decisionLensMd: string,
+  strategicLensMd: string,
+  emotionLensMd: string,
+  decisionLensPath: string,
+  strategicLensPath: string | null
 };
 
 function loadPersonaContext(personaId: string): PersonaContext {
   const personaDir = path.join(PERSONAS_DIR, personaId);
   const profileMd = readFileRequired(path.join(personaDir, 'profile.md'));
   const correspondenceMd = readFileRequired(path.join(personaDir, 'correspondence.md'));
-  const lensMd = readFileRequired(path.join(personaDir, 'lens.md'));
+  const decisionLensPath = fs.existsSync(path.join(personaDir, 'decision_lens.md'))
+    ? path.join(personaDir, 'decision_lens.md')
+    : path.join(personaDir, 'lens.md');
+  const strategicLensPath = fs.existsSync(path.join(personaDir, 'strategic_lens.md'))
+    ? path.join(personaDir, 'strategic_lens.md')
+    : null;
+  const decisionLensMd = readFileRequired(decisionLensPath);
+  const strategicLensMd = strategicLensPath ? readFileOptional(strategicLensPath) : '';
   const emotionLensMd = readFileOptional(path.join(personaDir, 'emotion_lens.md'));
   const personaName = extractTitle(profileMd, personaId);
   return {
@@ -155,8 +176,11 @@ function loadPersonaContext(personaId: string): PersonaContext {
     personaName,
     profileMd,
     correspondenceMd,
-    lensMd,
-    emotionLensMd
+    decisionLensMd,
+    strategicLensMd,
+    emotionLensMd,
+    decisionLensPath: path.relative(ROOT, decisionLensPath).replace(/\\/g, '/'),
+    strategicLensPath: strategicLensPath ? path.relative(ROOT, strategicLensPath).replace(/\\/g, '/') : null
   };
 }
 
@@ -206,23 +230,40 @@ function buildResponseDetails(
   query: string,
   profileMd: string,
   correspondenceMd: string,
-  lensMd: string,
+  decisionLensMd: string,
+  strategicLensMd: string,
+  lensMode: LensMode,
   emotionLensMd = ''
 ) {
-  const decisionFilters = extractListItems(lensMd, 4);
-  const nonNegotiables = extractListItems(lensMd.split('## Non-Negotiables')[1] || '', 4);
+  const decisionFilters = extractListItems(decisionLensMd, 4);
+  const strategicFilters = extractListItems(strategicLensMd, 4);
+  const nonNegotiables = extractListItems(decisionLensMd.split('## Non-Negotiables')[1] || '', 4);
+  const strategicAnchors = extractListItems(strategicLensMd.split('## Strategic Anchors')[1] || '', 3);
   const correspondenceHighlights = extractListItems(correspondenceMd, 3);
   const profileHighlights = extractListItems(profileMd, 3);
   const emotionSignals = extractListItems(emotionLensMd, 2);
-  const promptTemplate = `As ${personaName}, using your profile, lens, and past correspondence, respond to: ${query}`;
+  const modeText = lensMode === 'full' ? 'decision + strategic' : lensMode;
+  const promptTemplate = `As ${personaName}, using your profile, ${modeText} lens, and past correspondence, respond to: ${query}`;
   const recommendation = recommendFromQuery(personaName, query);
+  const lensReasoning = lensMode === 'strategic'
+    ? strategicFilters.map((v) => `Strategic filter: ${v}`)
+    : lensMode === 'full'
+      ? [
+          ...decisionFilters.map((v) => `Decision filter: ${v}`),
+          ...strategicFilters.map((v) => `Strategic filter: ${v}`)
+        ]
+      : decisionFilters.map((v) => `Decision filter: ${v}`);
+  const strategicReasoning = lensMode === 'decision'
+    ? []
+    : strategicAnchors.map((v) => `Strategic anchor: ${v}`);
   const reasoning = [
-    ...decisionFilters.map((v) => `Decision filter: ${v}`),
+    ...lensReasoning,
     ...emotionSignals.map((v) => `Emotion signal: ${v}`),
+    ...strategicReasoning,
     ...nonNegotiables.map((v) => `Constraint: ${v}`),
     ...correspondenceHighlights.map((v) => `Prior correspondence: ${v}`),
     ...profileHighlights.map((v) => `Profile context: ${v}`)
-  ].slice(0, 9);
+  ].slice(0, 10);
   return {
     promptTemplate,
     recommendation,
@@ -236,19 +277,31 @@ function renderMarkdownResponse(
   query: string,
   profileMd: string,
   correspondenceMd: string,
-  lensMd: string,
+  decisionLensMd: string,
+  strategicLensMd: string,
+  lensMode: LensMode,
   emotionLensMd = ''
 ): string {
   const {
     promptTemplate,
     recommendation,
     reasoning
-  } = buildResponseDetails(personaName, query, profileMd, correspondenceMd, lensMd, emotionLensMd);
+  } = buildResponseDetails(
+    personaName,
+    query,
+    profileMd,
+    correspondenceMd,
+    decisionLensMd,
+    strategicLensMd,
+    lensMode,
+    emotionLensMd
+  );
 
   const lines: string[] = [];
   lines.push(`# Lens Response: ${personaName}`);
   lines.push('');
   lines.push(`**Persona ID:** \`${personaId}\``);
+  lines.push(`**Lens Mode:** \`${lensMode}\``);
   lines.push(`**Query:** ${query}`);
   lines.push('');
   lines.push(`> ${promptTemplate}`);
@@ -273,7 +326,10 @@ function renderMarkdownResponse(
   lines.push('## Context Files');
   lines.push(`- \`personas/${personaId}/profile.md\``);
   lines.push(`- \`personas/${personaId}/correspondence.md\``);
-  lines.push(`- \`personas/${personaId}/lens.md\``);
+  lines.push(`- \`personas/${personaId}/decision_lens.md\``);
+  if (lensMode !== 'decision' && cleanText(strategicLensMd, 8)) {
+    lines.push(`- \`personas/${personaId}/strategic_lens.md\``);
+  }
   if (cleanText(emotionLensMd, 8)) {
     lines.push(`- \`personas/${personaId}/emotion_lens.md\``);
   }
@@ -281,7 +337,7 @@ function renderMarkdownResponse(
   return lines.join('\n');
 }
 
-function renderMarkdownSection(ctx: PersonaContext, query: string): string {
+function renderMarkdownSection(ctx: PersonaContext, query: string, lensMode: LensMode): string {
   const {
     promptTemplate,
     recommendation,
@@ -291,12 +347,16 @@ function renderMarkdownSection(ctx: PersonaContext, query: string): string {
     query,
     ctx.profileMd,
     ctx.correspondenceMd,
-    ctx.lensMd,
+    ctx.decisionLensMd,
+    ctx.strategicLensMd,
+    lensMode,
     ctx.emotionLensMd
   );
 
   const lines: string[] = [];
   lines.push(`## ${ctx.personaName} (\`${ctx.personaId}\`)`);
+  lines.push('');
+  lines.push(`**Lens Mode:** \`${lensMode}\``);
   lines.push('');
   lines.push(`> ${promptTemplate}`);
   lines.push('');
@@ -315,7 +375,10 @@ function renderMarkdownSection(ctx: PersonaContext, query: string): string {
   lines.push('### Context Files');
   lines.push(`- \`personas/${ctx.personaId}/profile.md\``);
   lines.push(`- \`personas/${ctx.personaId}/correspondence.md\``);
-  lines.push(`- \`personas/${ctx.personaId}/lens.md\``);
+  lines.push(`- \`personas/${ctx.personaId}/decision_lens.md\``);
+  if (lensMode !== 'decision' && cleanText(ctx.strategicLensMd, 8)) {
+    lines.push(`- \`personas/${ctx.personaId}/strategic_lens.md\``);
+  }
   if (cleanText(ctx.emotionLensMd, 8)) {
     lines.push(`- \`personas/${ctx.personaId}/emotion_lens.md\``);
   }
@@ -323,14 +386,16 @@ function renderMarkdownSection(ctx: PersonaContext, query: string): string {
   return lines.join('\n');
 }
 
-function renderAllMarkdown(query: string, contexts: PersonaContext[]): string {
+function renderAllMarkdown(query: string, contexts: PersonaContext[], lensMode: LensMode): string {
   const lines: string[] = [];
   lines.push('# Lens Response: All Personas');
+  lines.push('');
+  lines.push(`**Lens Mode:** \`${lensMode}\``);
   lines.push('');
   lines.push(`**Query:** ${query}`);
   lines.push('');
   for (const ctx of contexts) {
-    lines.push(renderMarkdownSection(ctx, query));
+    lines.push(renderMarkdownSection(ctx, query, lensMode));
   }
   return lines.join('\n');
 }
@@ -356,10 +421,13 @@ function main() {
   }
 
   const personaArg = cleanText(args.persona || args._[0] || '', 120);
+  const positionalLens = normalizeToken(args._[1] || '', 40);
+  const positionalHasLens = ['decision', 'strategic', 'full'].includes(positionalLens);
+  const lensMode = normalizeLensMode(args.lens || args.mode || (positionalHasLens ? positionalLens : 'decision'));
   const queryArg = cleanText(
     args.query
       || args.q
-      || (args._.length > 1 ? args._.slice(1).join(' ') : ''),
+      || (positionalHasLens ? args._.slice(2).join(' ') : (args._.length > 1 ? args._.slice(1).join(' ') : '')),
     2000
   );
   if (!personaArg || !queryArg) {
@@ -375,7 +443,7 @@ function main() {
     }
     try {
       const contexts = personaIds.map((personaId) => loadPersonaContext(personaId));
-      const markdown = renderAllMarkdown(queryArg, contexts);
+      const markdown = renderAllMarkdown(queryArg, contexts, lensMode);
       process.stdout.write(`${markdown}\n`);
       process.exit(0);
     } catch (err: any) {
@@ -404,7 +472,9 @@ function main() {
       queryArg,
       ctx.profileMd,
       ctx.correspondenceMd,
-      ctx.lensMd,
+      ctx.decisionLensMd,
+      ctx.strategicLensMd,
+      lensMode,
       ctx.emotionLensMd
     );
     process.stdout.write(`${markdown}\n`);

@@ -720,14 +720,18 @@ fn cmd_test_harness(root: &Path, subcmd: &str) -> Value {
     match subcmd {
         "run" => {
             let now_ms = Utc::now().timestamp_millis();
-            let id = format!("memory://harness-{now_ms}");
+            let token = format!("harness_token_{now_ms}");
+            let id = format!("memory://{token}");
             let security_req = json!({
               "operation_id": format!("memory_harness_probe_{now_ms}"),
               "subsystem": "memory",
               "action": "harness",
               "actor": "systems/memory/abstraction/test_harness",
               "risk_class": "high",
-              "tags": ["memory", "test_harness", "foundation_lock"]
+              "tags": ["memory", "test_harness", "foundation_lock"],
+              "audit_receipt_nonce": format!("nonce-{token}"),
+              "zk_proof": format!("zk-{token}"),
+              "ciphertext_digest": format!("sha256:{token}")
             });
             let security_probe = run_security_check(root, &security_req);
 
@@ -736,8 +740,8 @@ fn cmd_test_harness(root: &Path, subcmd: &str) -> Value {
                 &[
                     "ingest".to_string(),
                     format!("--id={id}"),
-                    "--content=foundation lock harness sample memory row".to_string(),
-                    "--tags=foundation_lock,memory_harness".to_string(),
+                    format!("--content=foundation lock harness sample memory row {token}"),
+                    format!("--tags=foundation_lock,memory_harness,{token}"),
                     "--repetitions=2".to_string(),
                     "--lambda=0.02".to_string(),
                 ],
@@ -746,7 +750,7 @@ fn cmd_test_harness(root: &Path, subcmd: &str) -> Value {
                 root,
                 &[
                     "recall".to_string(),
-                    "--query=foundation".to_string(),
+                    format!("--query={token}"),
                     "--limit=5".to_string(),
                 ],
             );
