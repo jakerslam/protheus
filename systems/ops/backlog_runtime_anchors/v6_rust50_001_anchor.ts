@@ -21,7 +21,11 @@ const DEPENDENCIES = [
   "V5-RUST-PROD-004",
   "V5-RUST-PROD-006"
 ];
-const REQUIRED_REFS = [];
+const REQUIRED_REFS = [
+  "systems/ops/rust50_migration_program.ts",
+  "systems/hybrid/rust/src/memory_hotpath.rs",
+  "state/ops/rust50_migration_program/artifacts/v6_rust50_001_memory_core.json"
+];
 
 function checkRefs() {
   const existing = [];

@@ -20,7 +20,14 @@ pub fn sample_report() -> serde_json::Value {
     let manifest = AdapterManifest {
         schema_version: "1.0".into(),
         adapter: "protheus_wasm_bridge".into(),
-        exports: vec!["query".into(), "merge".into(), "emit".into()],
+        exports: vec![
+            "query".into(),
+            "merge".into(),
+            "emit".into(),
+            "memory_hotpath".into(),
+            "execution_replay".into(),
+            "security_vault".into(),
+        ],
         fallback: "ts_adapter_lane".into(),
     };
     let valid = validate_manifest(&manifest);
@@ -28,8 +35,11 @@ pub fn sample_report() -> serde_json::Value {
     json!({
         "ok": true,
         "lane": "V5-RUST-HYB-009",
+        "v6_lane": "V6-RUST50-006",
         "manifest": manifest,
-        "manifest_valid": valid
+        "manifest_valid": valid,
+        "mobile_targets": ["ios", "android", "wasm32-unknown-unknown"],
+        "background_safe": true
     })
 }
 

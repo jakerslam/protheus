@@ -1,0 +1,158 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": false,
+  "docs_required": [
+    "docs/RUST50_MIGRATION_IMPLEMENTATION.md"
+  ],
+  "targets": {
+    "recall_ms_max": 3,
+    "memory_call_ms_p95_max": 5,
+    "memory_battery_pct_24h_max": 0.8,
+    "execution_step_ms_p95_max": 5,
+    "execution_battery_pct_24h_max": 1.2,
+    "crdt_merge_ms_p95_max": 2,
+    "crdt_idle_battery_pct_24h_max": 0.5,
+    "vault_seal_ms_p95_max": 4,
+    "vault_heap_growth_bytes_max": 0,
+    "telemetry_overhead_ms_max": 1,
+    "chaos_battery_pct_24h_max": 3,
+    "mobile_background_battery_pct_24h_max": 5,
+    "critical_weight_rust_min_pct": 50
+  },
+  "required_refs_by_lane": {
+    "V6-RUST50-001": [
+      "systems/hybrid/rust/src/memory_hotpath.rs",
+      "systems/memory/rust/src/main.rs",
+      "systems/memory/rust_memory_transition_lane.ts"
+    ],
+    "V6-RUST50-002": [
+      "systems/hybrid/rust/src/execution_replay.rs",
+      "systems/workflow/workflow_executor.ts"
+    ],
+    "V6-RUST50-003": [
+      "systems/hybrid/rust/src/crdt_merge.rs",
+      "systems/memory/cross_cell_exchange_plane.ts"
+    ],
+    "V6-RUST50-004": [
+      "systems/hybrid/rust/src/security_vault.rs",
+      "systems/hybrid/rust/src/econ_crypto.rs",
+      "systems/security/execution_sandbox_rust_wasm_coprocessor_lane.ts"
+    ],
+    "V6-RUST50-005": [
+      "systems/hybrid/rust/src/red_chaos.rs",
+      "systems/hybrid/rust/src/telemetry_emit.rs",
+      "systems/ops/continuous_chaos_resilience.ts"
+    ],
+    "V6-RUST50-006": [
+      "systems/hybrid/mobile/protheus_mobile_adapter.ts",
+      "systems/hybrid/rust/src/wasm_bridge.rs",
+      "config/protheus_mobile_adapter_policy.json"
+    ],
+    "V6-RUST50-007": [
+      "systems/ops/rust50_migration_program.ts",
+      "config/rust50_migration_program_policy.json",
+      "docs/RUST50_MIGRATION_IMPLEMENTATION.md"
+    ]
+  },
+  "critical_weight_model": {
+    "ignore_dirs": [
+      ".git",
+      "node_modules",
+      "dist",
+      "state",
+      "tmp",
+      "target"
+    ],
+    "modules": [
+      {
+        "id": "memory",
+        "weight": 22,
+        "paths": [
+          "systems/memory",
+          "systems/hybrid/rust/src/memory_hotpath.rs"
+        ]
+      },
+      {
+        "id": "execution",
+        "weight": 18,
+        "paths": [
+          "systems/workflow",
+          "systems/hybrid/rust/src/execution_replay.rs"
+        ]
+      },
+      {
+        "id": "crdt",
+        "weight": 12,
+        "paths": [
+          "systems/memory/cross_cell_exchange_plane.ts",
+          "systems/hybrid/rust/src/crdt_merge.rs"
+        ]
+      },
+      {
+        "id": "security_vault",
+        "weight": 24,
+        "paths": [
+          "systems/security",
+          "systems/hybrid/rust/src/security_vault.rs",
+          "systems/hybrid/rust/src/econ_crypto.rs"
+        ]
+      },
+      {
+        "id": "chaos_observability",
+        "weight": 14,
+        "paths": [
+          "systems/ops/continuous_chaos_resilience.ts",
+          "systems/hybrid/rust/src/red_chaos.rs",
+          "systems/hybrid/rust/src/telemetry_emit.rs"
+        ]
+      },
+      {
+        "id": "mobile_adapter",
+        "weight": 10,
+        "paths": [
+          "systems/hybrid/mobile",
+          "systems/hybrid/rust/src/wasm_bridge.rs"
+        ]
+      }
+    ]
+  },
+  "items": [
+    {
+      "id": "V6-RUST50-001",
+      "title": "Memory 100 Percent Rust Core + WASM Mobile Bindings"
+    },
+    {
+      "id": "V6-RUST50-002",
+      "title": "Execution Deterministic Runtime Rust Cutover + Replay Proofs"
+    },
+    {
+      "id": "V6-RUST50-003",
+      "title": "Pinnacle CRDT Rust Engine Phone-First"
+    },
+    {
+      "id": "V6-RUST50-004",
+      "title": "Vault and Security Shared Rust Core (ZK/FHE Envelope)"
+    },
+    {
+      "id": "V6-RUST50-005",
+      "title": "Red Legion Chaos + Observability Rust Merge Core"
+    },
+    {
+      "id": "V6-RUST50-006",
+      "title": "Mobile Adapter Layer (WASM + Tauri iOS/Android Background Service)"
+    },
+    {
+      "id": "V6-RUST50-007",
+      "title": "50 Percent Rust Critical-Weight Enforcement Gate"
+    }
+  ],
+  "paths": {
+    "latest_path": "state/ops/rust50_migration_program/latest.json",
+    "receipts_path": "state/ops/rust50_migration_program/receipts.jsonl",
+    "history_path": "state/ops/rust50_migration_program/history.jsonl",
+    "state_dir": "state/ops/rust50_migration_program/items",
+    "artifact_dir": "state/ops/rust50_migration_program/artifacts",
+    "gate_state_path": "state/ops/rust50_migration_program/rust50_gate_state.json"
+  }
+}
