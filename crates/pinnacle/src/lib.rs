@@ -5,6 +5,8 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
+use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -214,6 +216,70 @@ pub fn merge_delta_json(left_json: &str, right_json: &str) -> Result<String, Str
     serde_json::to_string(&merged).map_err(|e| format!("merge_encode_failed:{e}"))
 }
 
+#[no_mangle]
+pub extern "C" fn merge_delta_ffi(
+    left_json_ptr: *const c_char,
+    right_json_ptr: *const c_char,
+) -> *mut c_char {
+    let left_json = if left_json_ptr.is_null() {
+        "{}".to_string()
+    } else {
+        unsafe { CStr::from_ptr(left_json_ptr) }
+            .to_str()
+            .unwrap_or("{}")
+            .to_string()
+    };
+    let right_json = if right_json_ptr.is_null() {
+        "{}".to_string()
+    } else {
+        unsafe { CStr::from_ptr(right_json_ptr) }
+            .to_str()
+            .unwrap_or("{}")
+            .to_string()
+    };
+    let payload = match merge_delta_json(&left_json, &right_json) {
+        Ok(v) => v,
+        Err(err) => serde_json::json!({ "ok": false, "error": err }).to_string(),
+    };
+    CString::new(payload)
+        .map(|v| v.into_raw())
+        .unwrap_or(std::ptr::null_mut())
+}
+
+#[no_mangle]
+pub extern "C" fn get_sovereignty_index_ffi(
+    left_json_ptr: *const c_char,
+    right_json_ptr: *const c_char,
+) -> f64 {
+    let left_json = if left_json_ptr.is_null() {
+        "{}".to_string()
+    } else {
+        unsafe { CStr::from_ptr(left_json_ptr) }
+            .to_str()
+            .unwrap_or("{}")
+            .to_string()
+    };
+    let right_json = if right_json_ptr.is_null() {
+        "{}".to_string()
+    } else {
+        unsafe { CStr::from_ptr(right_json_ptr) }
+            .to_str()
+            .unwrap_or("{}")
+            .to_string()
+    };
+    get_sovereignty_index(&left_json, &right_json).unwrap_or(0.0)
+}
+
+#[no_mangle]
+pub extern "C" fn pinnacle_free(ptr: *mut c_char) {
+    if ptr.is_null() {
+        return;
+    }
+    unsafe {
+        let _ = CString::from_raw(ptr);
+    }
+}
+
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn merge_delta_wasm(left_json: &str, right_json: &str) -> String {
     match merge_delta_json(left_json, right_json) {
@@ -288,6 +354,23 @@ mod tests {
         let left = delta("a", "x", 1, 1, true);
         let right = delta("a", "x", 1, 1, true);
         let idx = get_sovereignty_index(&left, &right).expect("index");
+        assert!(idx >= 0.0);
+    }
+
+    #[test]
+    fn ffi_merge_and_free_path() {
+        let left = CString::new(delta("a", "x", 1, 1, true)).unwrap();
+        let right = CString::new(delta("b", "x", 2, 2, true)).unwrap();
+        let out_ptr = merge_delta_ffi(left.as_ptr(), right.as_ptr());
+        assert!(!out_ptr.is_null());
+        let out_text = unsafe { CStr::from_ptr(out_ptr) }
+            .to_str()
+            .unwrap()
+            .to_string();
+        pinnacle_free(out_ptr);
+        let parsed: serde_json::Value = serde_json::from_str(&out_text).unwrap();
+        assert!(parsed.get("merged").is_some());
+        let idx = get_sovereignty_index_ffi(left.as_ptr(), right.as_ptr());
         assert!(idx >= 0.0);
     }
 }
