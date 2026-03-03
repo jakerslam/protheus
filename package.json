@@ -1221,6 +1221,9 @@
     "ops:rust50:run-all": "node systems/ops/rust50_migration_program.js run-all --apply=1 --strict=0",
     "ops:rust50:status": "node systems/ops/rust50_migration_program.js status",
     "ops:rust50:gate": "node systems/ops/rust50_migration_program.js run --id=V6-RUST50-007 --apply=1 --strict=1",
+    "ops:rust50:conf-003:run": "node systems/ops/rust50_sprint1_batch.js run --enforcer-active=1 --preamble-text=\"ENFORCER RULES ACTIVE — READ codex_enforcer.md FIRST.\" --strict=1 --apply=1",
+    "ops:rust50:conf-004:run": "node systems/ops/rust50_sprint1_batch.js run --policy=config/rust50_mega_sprint1_batch_policy.json --enforcer-active=1 --preamble-text=\"ENFORCER RULES ACTIVE — READ codex_enforcer.md FIRST.\" --strict=1 --apply=1",
+    "ops:rust50:conf-004:status": "node systems/ops/rust50_sprint1_batch.js status --policy=config/rust50_mega_sprint1_batch_policy.json",
     "lane:v6-rust50-001:run": "node systems/ops/rust50_migration_program.js run --id=V6-RUST50-001 --apply=1 --strict=1",
     "lane:v6-rust50-002:run": "node systems/ops/rust50_migration_program.js run --id=V6-RUST50-002 --apply=1 --strict=1",
     "lane:v6-rust50-003:run": "node systems/ops/rust50_migration_program.js run --id=V6-RUST50-003 --apply=1 --strict=1",
@@ -1228,6 +1231,8 @@
     "lane:v6-rust50-005:run": "node systems/ops/rust50_migration_program.js run --id=V6-RUST50-005 --apply=1 --strict=1",
     "lane:v6-rust50-006:run": "node systems/ops/rust50_migration_program.js run --id=V6-RUST50-006 --apply=1 --strict=0",
     "lane:v6-rust50-007:run": "node systems/ops/rust50_migration_program.js run --id=V6-RUST50-007 --apply=1 --strict=1",
+    "lane:v6-rust50-conf-003:run": "npm run -s ops:rust50:conf-003:run",
+    "lane:v6-rust50-conf-004:run": "npm run -s ops:rust50:conf-004:run",
     "test:ops:rust50-migration": "node memory/tools/tests/rust50_migration_program.test.js"
   },
   "bin": {

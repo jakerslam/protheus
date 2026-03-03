@@ -5,6 +5,8 @@ use protheus_observability_core_v1::{
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -194,6 +196,35 @@ pub fn run_chaos_game_json(request_json: &str) -> Result<String, String> {
     serde_json::to_string(&receipt).map_err(|e| format!("receipt_encode_failed:{e}"))
 }
 
+#[no_mangle]
+pub extern "C" fn run_chaos_game_ffi(request_json_ptr: *const c_char) -> *mut c_char {
+    let payload = if request_json_ptr.is_null() {
+        serde_json::json!({ "ok": false, "error": "request_parse_failed:null_request" }).to_string()
+    } else {
+        let request_json = unsafe { CStr::from_ptr(request_json_ptr) }
+            .to_str()
+            .unwrap_or("{}")
+            .to_string();
+        match run_chaos_game_json(&request_json) {
+            Ok(v) => v,
+            Err(err) => serde_json::json!({ "ok": false, "error": err }).to_string(),
+        }
+    };
+    CString::new(payload)
+        .map(|v| v.into_raw())
+        .unwrap_or(std::ptr::null_mut())
+}
+
+#[no_mangle]
+pub extern "C" fn red_legion_free(ptr: *mut c_char) {
+    if ptr.is_null() {
+        return;
+    }
+    unsafe {
+        let _ = CString::from_raw(ptr);
+    }
+}
+
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn run_chaos_game_wasm(request_json: &str) -> String {
     match run_chaos_game_json(request_json) {
@@ -232,5 +263,27 @@ mod tests {
         .to_string();
         let result = run_chaos_game_json(&payload).expect("json");
         assert!(result.contains("mission_id"));
+    }
+
+    #[test]
+    fn ffi_roundtrip_works() {
+        let payload = serde_json::json!({
+            "mission_id": "ffi-demo",
+            "cycles": 120000,
+            "inject_fault_every": 800,
+            "enforce_fail_closed": true,
+            "event_seed": 42
+        })
+        .to_string();
+        let req = CString::new(payload).unwrap();
+        let out_ptr = run_chaos_game_ffi(req.as_ptr());
+        assert!(!out_ptr.is_null());
+        let out_text = unsafe { CStr::from_ptr(out_ptr) }
+            .to_str()
+            .unwrap()
+            .to_string();
+        red_legion_free(out_ptr);
+        let parsed: serde_json::Value = serde_json::from_str(&out_text).unwrap();
+        assert_eq!(parsed["mission_id"], "ffi-demo");
     }
 }
