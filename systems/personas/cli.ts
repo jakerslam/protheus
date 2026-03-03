@@ -11,6 +11,12 @@ const ROOT = process.env.OPENCLAW_WORKSPACE
   ? path.resolve(process.env.OPENCLAW_WORKSPACE)
   : path.resolve(__dirname, '..', '..');
 const PERSONAS_DIR = path.join(ROOT, 'personas');
+let runLocalOllamaPrompt: null | ((opts: Record<string, unknown>) => Record<string, unknown>) = null;
+try {
+  ({ runLocalOllamaPrompt } = require('../routing/llm_gateway.js'));
+} catch {
+  runLocalOllamaPrompt = null;
+}
 
 type ParsedArgs = {
   _: string[],
@@ -35,9 +41,10 @@ function usage() {
   console.log('Usage:');
   console.log('  protheus lens <persona> "<query>"');
   console.log('  protheus lens <persona> <decision|strategic|full> "<query>"');
-  console.log('  protheus lens <persona> [decision|strategic|full] --gap=<seconds> [--active=1] [--emotion=on|off] [--intercept="<override>"] "<query>"');
+  console.log('  protheus lens <persona> [decision|strategic|full] --gap=<seconds> [--active=1] [--emotion=on|off] [--values=on|off] [--intercept="<override>"] "<query>"');
   console.log('  protheus lens update-stream <persona> [--dry-run=1]');
   console.log('  protheus lens checkin [--persona=jay_haslam] [--heartbeat=HEARTBEAT.md] [--emotion=on|off] [--dry-run=1]');
+  console.log('  protheus lens feed <persona> "<snippet>" [--source=master_llm] [--tags=tag1,tag2] [--dry-run=1]');
   console.log('  protheus lens all "<query>"');
   console.log('  protheus lens --persona=<persona> --lens=<decision|strategic|full> --query="<query>"');
   console.log('  protheus lens --list');
@@ -46,9 +53,10 @@ function usage() {
   console.log('  protheus lens vikram "Should we prioritize memory or security first?"');
   console.log('  protheus lens vikram strategic "How does this sprint support the singularity seed?"');
   console.log('  protheus lens jay_haslam "How can we reduce drift in the loops?"');
-  console.log('  protheus lens vikram --gap=10 --active=1 --emotion=off --intercept="Prioritize memory first, with security gate pre-dispatch." "Prioritize memory or security?"');
+  console.log('  protheus lens vikram --gap=10 --active=1 --emotion=off --values=on --intercept="Prioritize memory first, with security gate pre-dispatch." "Prioritize memory or security?"');
   console.log('  protheus lens update-stream vikram_menon');
   console.log('  protheus lens checkin --persona=jay_haslam --heartbeat=HEARTBEAT.md');
+  console.log('  protheus lens feed vikram_menon "Cross-signal indicates rising security drift risk." --source=master_llm --tags=drift,security');
   console.log('  protheus lens all "Should we prioritize memory or security first?"');
   console.log('  protheus lens --persona=vikram_menon --lens=decision --query="What is the rollback path?"');
   console.log('');
@@ -124,6 +132,15 @@ function parseGapSeconds(v: unknown, fallback = 0) {
   const n = Number(v);
   if (!Number.isFinite(n)) return fallback;
   return Math.max(0, Math.min(60, Math.floor(n)));
+}
+
+function parseTagList(v: unknown): string[] {
+  return Array.from(new Set(
+    String(v == null ? '' : v)
+      .split(',')
+      .map((part) => normalizeToken(part, 40))
+      .filter(Boolean)
+  ));
 }
 
 function readLensControls(args: ParsedArgs): LensControls {
@@ -280,7 +297,19 @@ type PersonaContext = {
   soulTokenMd: string,
   soulTokenPath: string,
   decisionLensPath: string,
-  strategicLensPath: string | null
+  strategicLensPath: string | null,
+  valuesLensMd: string,
+  valuesLensPath: string | null,
+  llmConfigMd: string,
+  llmConfigPath: string | null,
+  obfuscationEncryptionMd: string,
+  obfuscationEncryptionPath: string | null,
+  dataPermissionsMd: string,
+  dataPermissionsPath: string | null,
+  feedMd: string,
+  feedPath: string | null,
+  memoryMd: string,
+  memoryPath: string | null
 };
 
 function loadPersonaContext(personaId: string): PersonaContext {
@@ -294,29 +323,76 @@ function loadPersonaContext(personaId: string): PersonaContext {
   const strategicLensPath = fs.existsSync(path.join(personaDir, 'strategic_lens.md'))
     ? path.join(personaDir, 'strategic_lens.md')
     : null;
+  const valuesLensPath = fs.existsSync(path.join(personaDir, 'values_philosophy_lens.md'))
+    ? path.join(personaDir, 'values_philosophy_lens.md')
+    : null;
+  const llmConfigPath = fs.existsSync(path.join(personaDir, 'llm_config.md'))
+    ? path.join(personaDir, 'llm_config.md')
+    : null;
+  const obfuscationEncryptionPath = fs.existsSync(path.join(personaDir, 'obfuscation_encryption.md'))
+    ? path.join(personaDir, 'obfuscation_encryption.md')
+    : null;
+  const dataPermissionsPath = fs.existsSync(path.join(personaDir, 'data_permissions.md'))
+    ? path.join(personaDir, 'data_permissions.md')
+    : null;
+  const feedPath = fs.existsSync(path.join(personaDir, 'feed.md'))
+    ? path.join(personaDir, 'feed.md')
+    : null;
+  const memoryPath = fs.existsSync(path.join(personaDir, 'memory.md'))
+    ? path.join(personaDir, 'memory.md')
+    : null;
   const dataStreamsPath = path.join(personaDir, 'data_streams.md');
   const soulTokenPath = path.join(personaDir, 'soul_token.md');
   const decisionLensMd = readFileRequired(decisionLensPath);
   const strategicLensMd = strategicLensPath ? readFileOptional(strategicLensPath) : '';
+  const valuesLensMd = valuesLensPath ? readFileOptional(valuesLensPath) : '';
+  const llmConfigMd = llmConfigPath ? readFileOptional(llmConfigPath) : '';
+  const obfuscationEncryptionMd = obfuscationEncryptionPath ? readFileOptional(obfuscationEncryptionPath) : '';
+  const dataPermissionsMd = dataPermissionsPath ? readFileOptional(dataPermissionsPath) : '';
+  const feedMd = feedPath ? readFileOptional(feedPath) : '';
+  const memoryMd = memoryPath ? readFileOptional(memoryPath) : '';
   const emotionLensMd = readFileOptional(path.join(personaDir, 'emotion_lens.md'));
   const dataStreamsMd = readFileRequired(dataStreamsPath);
   const soulTokenMd = readFileRequired(soulTokenPath);
   const personaName = extractTitle(profileMd, personaId);
+  const securityCfg = parsePersonaSecurityConfig(obfuscationEncryptionMd);
+  const profileResolved = decodeProtectedContent(profileMd, securityCfg);
+  const correspondenceResolved = decodeProtectedContent(correspondenceMd, securityCfg);
+  const decisionResolved = decodeProtectedContent(decisionLensMd, securityCfg);
+  const strategicResolved = decodeProtectedContent(strategicLensMd, securityCfg);
+  const valuesResolved = decodeProtectedContent(valuesLensMd, securityCfg);
+  const emotionResolved = decodeProtectedContent(emotionLensMd, securityCfg);
+  const dataStreamsResolved = decodeProtectedContent(dataStreamsMd, securityCfg);
+  const dataPermissionsResolved = decodeProtectedContent(dataPermissionsMd, securityCfg);
+  const feedResolved = decodeProtectedContent(feedMd, securityCfg);
+  const memoryResolved = decodeProtectedContent(memoryMd, securityCfg);
   return {
     personaId,
     personaName,
-    profileMd,
-    correspondenceMd,
+    profileMd: profileResolved,
+    correspondenceMd: correspondenceResolved,
     correspondencePath: path.relative(ROOT, correspondencePath).replace(/\\/g, '/'),
-    decisionLensMd,
-    strategicLensMd,
-    emotionLensMd,
-    dataStreamsMd,
+    decisionLensMd: decisionResolved,
+    strategicLensMd: strategicResolved,
+    emotionLensMd: emotionResolved,
+    dataStreamsMd: dataStreamsResolved,
     dataStreamsPath: path.relative(ROOT, dataStreamsPath).replace(/\\/g, '/'),
     soulTokenMd,
     soulTokenPath: path.relative(ROOT, soulTokenPath).replace(/\\/g, '/'),
     decisionLensPath: path.relative(ROOT, decisionLensPath).replace(/\\/g, '/'),
-    strategicLensPath: strategicLensPath ? path.relative(ROOT, strategicLensPath).replace(/\\/g, '/') : null
+    strategicLensPath: strategicLensPath ? path.relative(ROOT, strategicLensPath).replace(/\\/g, '/') : null,
+    valuesLensMd: valuesResolved,
+    valuesLensPath: valuesLensPath ? path.relative(ROOT, valuesLensPath).replace(/\\/g, '/') : null,
+    llmConfigMd,
+    llmConfigPath: llmConfigPath ? path.relative(ROOT, llmConfigPath).replace(/\\/g, '/') : null,
+    obfuscationEncryptionMd,
+    obfuscationEncryptionPath: obfuscationEncryptionPath ? path.relative(ROOT, obfuscationEncryptionPath).replace(/\\/g, '/') : null,
+    dataPermissionsMd: dataPermissionsResolved,
+    dataPermissionsPath: dataPermissionsPath ? path.relative(ROOT, dataPermissionsPath).replace(/\\/g, '/') : null,
+    feedMd: feedResolved,
+    feedPath: feedPath ? path.relative(ROOT, feedPath).replace(/\\/g, '/') : null,
+    memoryMd: memoryResolved,
+    memoryPath: memoryPath ? path.relative(ROOT, memoryPath).replace(/\\/g, '/') : null
   };
 }
 
@@ -326,6 +402,29 @@ type SoulTokenPolicy = {
   integrityMode: 'advisory' | 'enforce',
   bundleHash: string,
   usageRules: string[]
+};
+
+type PersonaLlmConfig = {
+  enabled: boolean,
+  model: string,
+  importance: 'critical' | 'high' | 'medium' | 'low',
+  autoBuildOnUpdate: boolean,
+  buildTrigger: 'critical_only' | 'high_and_above' | 'all',
+  temperature: number,
+  maxTokens: number
+};
+
+type PersonaSecurityConfig = {
+  enabled: boolean,
+  mode: 'off' | 'obfuscate' | 'encrypt',
+  keyEnvVar: string
+};
+
+type DataPermissionRow = {
+  source: string,
+  enabled: boolean,
+  scope: string,
+  notes: string
 };
 
 function extractMdField(markdown: string, label: string): string {
@@ -342,8 +441,14 @@ function computePersonaBundleHash(ctx: PersonaContext) {
     ['correspondence.md', ctx.correspondenceMd],
     ['decision_lens.md', ctx.decisionLensMd],
     ['strategic_lens.md', ctx.strategicLensMd],
+    ['values_philosophy_lens.md', ctx.valuesLensMd],
     ['emotion_lens.md', ctx.emotionLensMd],
-    ['data_streams.md', ctx.dataStreamsMd]
+    ['data_streams.md', ctx.dataStreamsMd],
+    ['data_permissions.md', ctx.dataPermissionsMd],
+    ['llm_config.md', ctx.llmConfigMd],
+    ['obfuscation_encryption.md', ctx.obfuscationEncryptionMd],
+    ['feed.md', ctx.feedMd],
+    ['memory.md', ctx.memoryMd]
   ];
   for (const [name, body] of blocks) {
     hasher.update(name, 'utf8');
@@ -369,6 +474,169 @@ function parseSoulTokenPolicy(markdown: string): SoulTokenPolicy {
     integrityMode,
     bundleHash,
     usageRules
+  };
+}
+
+function readMdBool(markdown: string, label: string, fallback = false) {
+  const raw = extractMdField(markdown, label).toLowerCase();
+  if (!raw) return fallback;
+  if (['true', '1', 'yes', 'on'].includes(raw)) return true;
+  if (['false', '0', 'no', 'off'].includes(raw)) return false;
+  return fallback;
+}
+
+function readMdNumber(markdown: string, label: string, fallback: number, min: number, max: number) {
+  const raw = extractMdField(markdown, label);
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+
+function parsePersonaLlmConfig(markdown: string): PersonaLlmConfig {
+  const importanceToken = normalizeToken(extractMdField(markdown, 'Importance'), 40);
+  const triggerToken = normalizeToken(extractMdField(markdown, 'Build Trigger'), 80);
+  const modelRaw = cleanText(extractMdField(markdown, 'Model') || 'ollama/tinyllama:1.1b-chat-v1-q4_K_M', 160);
+  const model = modelRaw.startsWith('ollama/') ? modelRaw : `ollama/${modelRaw}`;
+  return {
+    enabled: readMdBool(markdown, 'Enabled', false),
+    model,
+    importance: (['critical', 'high', 'medium', 'low'].includes(importanceToken) ? importanceToken : 'medium') as PersonaLlmConfig['importance'],
+    autoBuildOnUpdate: readMdBool(markdown, 'Auto Build On Update', false),
+    buildTrigger: (['critical_only', 'high_and_above', 'all'].includes(triggerToken) ? triggerToken : 'high_and_above') as PersonaLlmConfig['buildTrigger'],
+    temperature: readMdNumber(markdown, 'Temperature', 0.2, 0, 1),
+    maxTokens: Math.floor(readMdNumber(markdown, 'Max Tokens', 240, 40, 800))
+  };
+}
+
+function parsePersonaSecurityConfig(markdown: string): PersonaSecurityConfig {
+  const modeToken = normalizeToken(extractMdField(markdown, 'Mode'), 40);
+  const mode = (['off', 'obfuscate', 'encrypt'].includes(modeToken) ? modeToken : 'off') as PersonaSecurityConfig['mode'];
+  return {
+    enabled: readMdBool(markdown, 'Enabled', false),
+    mode,
+    keyEnvVar: cleanText(extractMdField(markdown, 'Key Env Var') || 'PROTHEUS_PERSONA_ENCRYPTION_KEY', 120)
+  };
+}
+
+function derivePersonaCipherKey(secret: string) {
+  return crypto.createHash('sha256').update(String(secret || ''), 'utf8').digest();
+}
+
+function decodeProtectedContent(raw: string, cfg: PersonaSecurityConfig): string {
+  const body = String(raw || '');
+  if (!body) return body;
+  if (body.startsWith('OBF1:')) {
+    try {
+      return Buffer.from(body.slice(5), 'base64').toString('utf8');
+    } catch {
+      return body;
+    }
+  }
+  if (body.startsWith('ENC1:')) {
+    const parts = body.split(':');
+    if (parts.length !== 4) return body;
+    const ivHex = parts[1];
+    const tagHex = parts[2];
+    const dataHex = parts[3];
+    const keyRaw = cleanText(process.env[cfg.keyEnvVar] || '', 500);
+    if (!keyRaw) return body;
+    try {
+      const decipher = crypto.createDecipheriv(
+        'aes-256-gcm',
+        derivePersonaCipherKey(keyRaw),
+        Buffer.from(ivHex, 'hex')
+      );
+      decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+      const plain = Buffer.concat([
+        decipher.update(Buffer.from(dataHex, 'hex')),
+        decipher.final()
+      ]);
+      return plain.toString('utf8');
+    } catch {
+      return body;
+    }
+  }
+  return body;
+}
+
+function encodeProtectedContent(raw: string, cfg: PersonaSecurityConfig): string {
+  const body = String(raw || '');
+  if (!cfg.enabled || cfg.mode === 'off') return body;
+  if (cfg.mode === 'obfuscate') {
+    return `OBF1:${Buffer.from(body, 'utf8').toString('base64')}`;
+  }
+  if (cfg.mode === 'encrypt') {
+    const keyRaw = cleanText(process.env[cfg.keyEnvVar] || '', 500);
+    if (!keyRaw) {
+      throw new Error(`persona_encryption_key_missing:${cfg.keyEnvVar}`);
+    }
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv(
+      'aes-256-gcm',
+      derivePersonaCipherKey(keyRaw),
+      iv
+    );
+    const encrypted = Buffer.concat([cipher.update(body, 'utf8'), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return `ENC1:${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
+  }
+  return body;
+}
+
+function parseDataPermissions(markdown: string): DataPermissionRow[] {
+  const rows: DataPermissionRow[] = [];
+  for (const line of String(markdown || '').split('\n')) {
+    const trimmed = String(line || '').trim();
+    const m = trimmed.match(/^-\s*([a-zA-Z0-9_.-]+)\s*:\s*enabled=(true|false)\s+scope=([a-zA-Z0-9_.#-]+)(?:\s+notes=(.+))?$/);
+    if (!m) continue;
+    rows.push({
+      source: normalizeToken(m[1], 80),
+      enabled: String(m[2]).toLowerCase() === 'true',
+      scope: cleanText(m[3], 120),
+      notes: cleanText(m[4] || '', 200)
+    });
+  }
+  return rows;
+}
+
+function permissionEnabled(rows: DataPermissionRow[], source: string, fallback = false) {
+  const token = normalizeToken(source, 80);
+  const hit = rows.find((row) => row.source === token);
+  if (!hit) return fallback;
+  return hit.enabled === true;
+}
+
+function shouldTriggerLlmBuild(cfg: PersonaLlmConfig) {
+  if (!cfg.enabled || !cfg.autoBuildOnUpdate) return false;
+  if (cfg.buildTrigger === 'all') return true;
+  if (cfg.buildTrigger === 'high_and_above') {
+    return cfg.importance === 'critical' || cfg.importance === 'high';
+  }
+  return cfg.importance === 'critical';
+}
+
+function buildLlmTrainPlan(personaId: string, cfg: PersonaLlmConfig) {
+  const now = nowIso();
+  return {
+    type: 'persona_llm_train_plan',
+    persona_id: personaId,
+    ts: now,
+    enabled: cfg.enabled,
+    auto_build_on_update: cfg.autoBuildOnUpdate,
+    trigger: cfg.buildTrigger,
+    importance: cfg.importance,
+    model: cfg.model,
+    dataset_sources: [
+      `personas/${personaId}/profile.md`,
+      `personas/${personaId}/correspondence.md`,
+      `personas/${personaId}/decision_lens.md`,
+      `personas/${personaId}/strategic_lens.md`,
+      `personas/${personaId}/values_philosophy_lens.md`,
+      `personas/${personaId}/feed.md`,
+      `personas/${personaId}/memory.md`
+    ],
+    status: shouldTriggerLlmBuild(cfg) ? 'queued' : 'inactive',
+    reason: shouldTriggerLlmBuild(cfg) ? 'auto_build_trigger_matched' : 'llm_toggle_or_importance_gate'
   };
 }
 
@@ -463,9 +731,102 @@ function streamSources(dataStreamsMd: string): string[] {
   return ['slack:unconfigured', 'linkedin:unconfigured'];
 }
 
+function personaSecurityForWrite(ctx: PersonaContext) {
+  return parsePersonaSecurityConfig(ctx.obfuscationEncryptionMd);
+}
+
+function readPlainPersonaFile(absPath: string, cfg: PersonaSecurityConfig) {
+  if (!fs.existsSync(absPath)) return '';
+  const raw = String(fs.readFileSync(absPath, 'utf8') || '');
+  return decodeProtectedContent(raw, cfg);
+}
+
+function writePersonaFile(absPath: string, plainBody: string, cfg: PersonaSecurityConfig) {
+  const rendered = encodeProtectedContent(String(plainBody || ''), cfg);
+  fs.writeFileSync(absPath, `${rendered.replace(/\s+$/, '')}\n`, 'utf8');
+}
+
+function appendPersonaNodeMemory(ctx: PersonaContext, title: string, body: string, tags: string[]) {
+  if (!ctx.memoryPath) return null;
+  const cfg = personaSecurityForWrite(ctx);
+  const abs = path.join(ROOT, ctx.memoryPath);
+  const current = readPlainPersonaFile(abs, cfg).replace(/\s+$/, '');
+  const day = new Date().toISOString().slice(0, 10);
+  const nodeId = normalizeToken(`${ctx.personaId}-${title}-${Date.now()}`, 120);
+  const safeTags = Array.from(new Set((Array.isArray(tags) ? tags : [])
+    .map((tag) => normalizeToken(tag, 40))
+    .filter(Boolean)))
+    .slice(0, 8);
+  const node = [
+    '',
+    `### node:${nodeId}`,
+    `- date: ${day}`,
+    `- tags: [${safeTags.join(', ')}]`,
+    `- title: ${cleanText(title, 120)}`,
+    '',
+    cleanText(body, 1800),
+    ''
+  ].join('\n');
+  writePersonaFile(abs, `${current}\n${node}`, cfg);
+  return {
+    memoryPath: ctx.memoryPath,
+    nodeId,
+    tags: safeTags
+  };
+}
+
+function extractRecentFeedSignals(feedMd: string, maxItems = 3): string[] {
+  const lines = String(feedMd || '')
+    .split('\n')
+    .map((line) => cleanText(line, 240))
+    .filter((line) => line.startsWith('- ['))
+    .slice(-Math.max(1, maxItems));
+  return lines.map((line) => line.replace(/^- \[[^\]]+\]\s*/, 'Feed: '));
+}
+
+function extractMemoryRecallSignals(memoryMd: string, query: string, maxItems = 3): string[] {
+  const qTokens = Array.from(new Set(
+    String(query || '')
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .map((token) => token.trim())
+      .filter((token) => token.length >= 4)
+  ));
+  const rows = String(memoryMd || '')
+    .split('\n')
+    .map((row) => cleanText(row, 220))
+    .filter(Boolean);
+  const scored = rows
+    .map((row) => {
+      const lower = row.toLowerCase();
+      const score = qTokens.reduce((acc, token) => acc + (lower.includes(token) ? 1 : 0), 0);
+      return { row, score };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, maxItems)
+    .map((entry) => `Memory recall: ${entry.row}`);
+  return scored;
+}
+
 function updateStreamForPersona(personaId: string, dryRun = false) {
   const ctx = loadPersonaContext(personaId);
-  const sources = streamSources(ctx.dataStreamsMd);
+  const permissions = parseDataPermissions(ctx.dataPermissionsMd);
+  if (!permissionEnabled(permissions, 'feed', true)) {
+    return {
+      ok: false,
+      type: 'persona_stream_update',
+      persona_id: personaId,
+      dry_run: dryRun,
+      reason: 'data_permission_blocked:feed'
+    };
+  }
+  const enabledExternal = permissions
+    .filter((row) => row.enabled === true && row.source !== 'feed')
+    .map((row) => `${row.source}:${row.scope}`);
+  const sources = enabledExternal.length
+    ? enabledExternal
+    : ['feed:internal_master_feed', ...streamSources(ctx.dataStreamsMd)];
   const ts = new Date().toISOString().slice(0, 10);
   const streamReceiptId = normalizeToken(`stream-${personaId}-${Date.now()}`, 80);
   const entry = [
@@ -480,9 +841,18 @@ function updateStreamForPersona(personaId: string, dryRun = false) {
 
   if (!dryRun) {
     const abs = path.join(ROOT, ctx.correspondencePath);
-    const base = String(fs.readFileSync(abs, 'utf8') || '').replace(/\s+$/, '');
-    fs.writeFileSync(abs, `${base}\n${entry}`, 'utf8');
+    const securityCfg = personaSecurityForWrite(ctx);
+    const base = readPlainPersonaFile(abs, securityCfg).replace(/\s+$/, '');
+    writePersonaFile(abs, `${base}\n${entry}`, securityCfg);
+    const memory = appendPersonaNodeMemory(
+      ctx,
+      'stream update',
+      `Stream sync simulated from sources: ${sources.join(', ')}`,
+      ['stream', 'sync', 'feed']
+    );
     const refreshed = loadPersonaContext(personaId);
+    const llmCfg = parsePersonaLlmConfig(refreshed.llmConfigMd);
+    const llmPlan = buildLlmTrainPlan(personaId, llmCfg);
     const newHash = refreshSoulTokenBundleHash(refreshed);
     return {
       ok: true,
@@ -492,7 +862,9 @@ function updateStreamForPersona(personaId: string, dryRun = false) {
       updated_correspondence: refreshed.correspondencePath,
       updated_soul_token: refreshed.soulTokenPath,
       stream_sources: sources,
-      bundle_hash: newHash
+      bundle_hash: newHash,
+      memory_node: memory,
+      llm_train_plan: llmPlan
     };
   }
 
@@ -503,6 +875,88 @@ function updateStreamForPersona(personaId: string, dryRun = false) {
     dry_run: true,
     stream_sources: sources,
     preview_entry: cleanText(entry, 600)
+  };
+}
+
+function appendPersonaFeed(
+  personaId: string,
+  snippet: string,
+  opts: {
+    source?: string,
+    tags?: string[],
+    dryRun?: boolean
+  } = {}
+) {
+  const ctx = loadPersonaContext(personaId);
+  if (!ctx.feedPath) {
+    return {
+      ok: false,
+      type: 'persona_feed_append',
+      persona_id: personaId,
+      reason: 'persona_feed_file_missing'
+    };
+  }
+  const permissions = parseDataPermissions(ctx.dataPermissionsMd);
+  if (!permissionEnabled(permissions, 'feed', true)) {
+    return {
+      ok: false,
+      type: 'persona_feed_append',
+      persona_id: personaId,
+      reason: 'data_permission_blocked:feed'
+    };
+  }
+  const source = normalizeToken(opts.source || 'master_llm', 80) || 'master_llm';
+  const tags = Array.from(new Set((Array.isArray(opts.tags) ? opts.tags : [])
+    .map((tag) => normalizeToken(tag, 30))
+    .filter(Boolean)))
+    .slice(0, 8);
+  const cleanSnippet = cleanText(snippet, 2000);
+  if (!cleanSnippet) {
+    return {
+      ok: false,
+      type: 'persona_feed_append',
+      persona_id: personaId,
+      reason: 'feed_snippet_missing'
+    };
+  }
+  const stamp = nowIso();
+  const line = `- [${stamp}] source=${source} tags=[${tags.join(',')}] ${cleanSnippet}`;
+  if (opts.dryRun) {
+    return {
+      ok: true,
+      type: 'persona_feed_append',
+      persona_id: personaId,
+      dry_run: true,
+      preview_line: line
+    };
+  }
+  const securityCfg = personaSecurityForWrite(ctx);
+  const feedAbs = path.join(ROOT, ctx.feedPath);
+  const feedBase = readPlainPersonaFile(feedAbs, securityCfg).replace(/\s+$/, '');
+  writePersonaFile(feedAbs, `${feedBase}\n${line}`, securityCfg);
+  const memoryNode = appendPersonaNodeMemory(
+    ctx,
+    'feed update',
+    cleanSnippet,
+    ['feed', source, ...tags]
+  );
+
+  const refreshed = loadPersonaContext(personaId);
+  const llmCfg = parsePersonaLlmConfig(refreshed.llmConfigMd);
+  const llmPlan = buildLlmTrainPlan(personaId, llmCfg);
+  const bundleHash = refreshSoulTokenBundleHash(refreshed);
+  return {
+    ok: true,
+    type: 'persona_feed_append',
+    persona_id: personaId,
+    dry_run: false,
+    source,
+    tags,
+    updated_feed: refreshed.feedPath,
+    memory_node: memoryNode,
+    llm_train_plan: llmPlan,
+    updated_soul_token: refreshed.soulTokenPath,
+    bundle_hash: bundleHash
   };
 }
 
@@ -688,16 +1142,24 @@ function appendInterceptionToCorrespondence(
     ''
   ].join('\n');
 
+  const securityCfg = personaSecurityForWrite(ctx);
   const correspondenceAbs = path.join(ROOT, ctx.correspondencePath);
-  const base = String(fs.readFileSync(correspondenceAbs, 'utf8') || '').replace(/\s+$/, '');
-  fs.writeFileSync(correspondenceAbs, `${base}\n${entry}`, 'utf8');
+  const base = readPlainPersonaFile(correspondenceAbs, securityCfg).replace(/\s+$/, '');
+  writePersonaFile(correspondenceAbs, `${base}\n${entry}`, securityCfg);
+  const memoryNode = appendPersonaNodeMemory(
+    ctx,
+    'intercept override',
+    `Query: ${cleanText(query, 320)} | Override: ${cleanText(overrideText, 500)}`,
+    ['intercept', 'alignment', 'override']
+  );
 
   const refreshed = loadPersonaContext(ctx.personaId);
   const newHash = refreshSoulTokenBundleHash(refreshed);
   return {
     correspondencePath: refreshed.correspondencePath,
     soulTokenPath: refreshed.soulTokenPath,
-    bundleHash: newHash
+    bundleHash: newHash,
+    memoryNode
   };
 }
 
@@ -745,9 +1207,16 @@ function appendCheckinToCorrespondence(
     ''
   ].join('\n');
 
+  const securityCfg = personaSecurityForWrite(ctx);
   const correspondenceAbs = path.join(ROOT, ctx.correspondencePath);
-  const base = String(fs.readFileSync(correspondenceAbs, 'utf8') || '').replace(/\s+$/, '');
-  fs.writeFileSync(correspondenceAbs, `${base}\n${entry}`, 'utf8');
+  const base = readPlainPersonaFile(correspondenceAbs, securityCfg).replace(/\s+$/, '');
+  writePersonaFile(correspondenceAbs, `${base}\n${entry}`, securityCfg);
+  const memoryNode = appendPersonaNodeMemory(
+    ctx,
+    'daily checkin',
+    `Heartbeat: ${cleanText(heartbeatSnapshot, 360)} | Assessment: ${cleanText(recommendation, 360)}`,
+    ['checkin', 'drift', 'alignment']
+  );
 
   const refreshed = loadPersonaContext(ctx.personaId);
   const newHash = refreshSoulTokenBundleHash(refreshed);
@@ -755,7 +1224,8 @@ function appendCheckinToCorrespondence(
     correspondencePath: refreshed.correspondencePath,
     soulTokenPath: refreshed.soulTokenPath,
     bundleHash: newHash,
-    heartbeatPath: relHeartbeat || 'HEARTBEAT.md'
+    heartbeatPath: relHeartbeat || 'HEARTBEAT.md',
+    memoryNode
   };
 }
 
@@ -800,6 +1270,64 @@ function recommendFromQuery(personaName: string, query: string): string {
   return `Use ${personaName}'s lens to execute the smallest reversible change that strengthens determinism, security posture, and test evidence.`;
 }
 
+function resolvePersonaLlmRecommendation(
+  ctx: PersonaContext,
+  query: string,
+  promptTemplate: string,
+  fallbackRecommendation: string
+) {
+  const cfg = parsePersonaLlmConfig(ctx.llmConfigMd);
+  if (!cfg.enabled) {
+    return {
+      enabled: false,
+      used: false,
+      reason: 'persona_llm_disabled',
+      model: cfg.model,
+      recommendation: fallbackRecommendation
+    };
+  }
+  if (typeof runLocalOllamaPrompt !== 'function') {
+    return {
+      enabled: true,
+      used: false,
+      reason: 'llm_gateway_unavailable',
+      model: cfg.model,
+      recommendation: fallbackRecommendation
+    };
+  }
+  const modelName = cfg.model.startsWith('ollama/') ? cfg.model : `ollama/${cfg.model}`;
+  const prompt = [
+    `Persona: ${ctx.personaName} (${ctx.personaId})`,
+    `Instruction: Provide one concise position (max 2 sentences) grounded in persona profile, decision lens, strategic lens, values lens, and recent feed/memory signals.`,
+    `Prompt template: ${promptTemplate}`,
+    `Query: ${query}`
+  ].join('\n');
+  const result = runLocalOllamaPrompt({
+    model: modelName,
+    prompt,
+    temperature: cfg.temperature,
+    timeout_ms: 10000
+  }) || {};
+  const ok = result.ok === true;
+  const output = cleanText(result.output || result.stdout || '', cfg.maxTokens * 4);
+  if (!ok || !output) {
+    return {
+      enabled: true,
+      used: false,
+      reason: cleanText(result.error || result.stderr || 'persona_llm_failed', 160),
+      model: modelName,
+      recommendation: fallbackRecommendation
+    };
+  }
+  return {
+    enabled: true,
+    used: true,
+    reason: 'persona_llm_applied',
+    model: modelName,
+    recommendation: cleanText(output, cfg.maxTokens * 4)
+  };
+}
+
 function buildResponseDetails(
   personaName: string,
   query: string,
@@ -808,15 +1336,22 @@ function buildResponseDetails(
   decisionLensMd: string,
   strategicLensMd: string,
   lensMode: LensMode,
-  emotionLensMd = ''
+  emotionLensMd = '',
+  valuesLensMd = '',
+  feedMd = '',
+  memoryMd = ''
 ) {
   const decisionFilters = extractListItems(decisionLensMd, 4);
   const strategicFilters = extractListItems(strategicLensMd, 4);
+  const valuesFilters = extractListItems(valuesLensMd, 4);
   const nonNegotiables = extractListItems(decisionLensMd.split('## Non-Negotiables')[1] || '', 4);
   const strategicAnchors = extractListItems(strategicLensMd.split('## Strategic Anchors')[1] || '', 3);
+  const valuesAnchors = extractListItems(valuesLensMd.split('## Values Anchors')[1] || '', 3);
   const correspondenceHighlights = extractListItems(correspondenceMd, 3);
   const profileHighlights = extractListItems(profileMd, 3);
   const emotionSignals = extractListItems(emotionLensMd, 2);
+  const feedSignals = extractRecentFeedSignals(feedMd, 3);
+  const memorySignals = extractMemoryRecallSignals(memoryMd, query, 3);
   const modeText = lensMode === 'full' ? 'decision + strategic' : lensMode;
   const promptTemplate = `As ${personaName}, using your profile, ${modeText} lens, and past correspondence, respond to: ${query}`;
   const recommendation = recommendFromQuery(personaName, query);
@@ -835,6 +1370,10 @@ function buildResponseDetails(
     ...lensReasoning,
     ...emotionSignals.map((v) => `Emotion signal: ${v}`),
     ...strategicReasoning,
+    ...valuesFilters.map((v) => `Values filter: ${v}`),
+    ...valuesAnchors.map((v) => `Values anchor: ${v}`),
+    ...feedSignals,
+    ...memorySignals,
     ...nonNegotiables.map((v) => `Constraint: ${v}`),
     ...correspondenceHighlights.map((v) => `Prior correspondence: ${v}`),
     ...profileHighlights.map((v) => `Profile context: ${v}`)
@@ -847,42 +1386,48 @@ function buildResponseDetails(
 }
 
 function renderMarkdownResponse(
-  personaId: string,
-  personaName: string,
+  ctx: PersonaContext,
   query: string,
-  profileMd: string,
-  correspondenceMd: string,
-  decisionLensMd: string,
-  strategicLensMd: string,
   lensMode: LensMode,
   emotionLensMd = '',
   controls: LensControls | null = null,
   overridePosition = '',
   interceptReceiptPath = '',
-  emotionEnabled = true
+  emotionEnabled = true,
+  valuesEnabled = true,
+  llmMeta: { enabled: boolean, used: boolean, reason: string, model: string } | null = null
 ): string {
   const {
     promptTemplate,
     recommendation,
     reasoning
   } = buildResponseDetails(
-    personaName,
+    ctx.personaName,
     query,
-    profileMd,
-    correspondenceMd,
-    decisionLensMd,
-    strategicLensMd,
+    ctx.profileMd,
+    ctx.correspondenceMd,
+    ctx.decisionLensMd,
+    ctx.strategicLensMd,
     lensMode,
-    emotionLensMd
+    emotionLensMd,
+    valuesEnabled ? ctx.valuesLensMd : '',
+    ctx.feedMd,
+    ctx.memoryMd
   );
   const resolvedRecommendation = cleanText(overridePosition, 1600) || recommendation;
 
   const lines: string[] = [];
-  lines.push(`# Lens Response: ${personaName}`);
+  lines.push(`# Lens Response: ${ctx.personaName}`);
   lines.push('');
-  lines.push(`**Persona ID:** \`${personaId}\``);
+  lines.push(`**Persona ID:** \`${ctx.personaId}\``);
   lines.push(`**Lens Mode:** \`${lensMode}\``);
   lines.push(`**Emotion Lens:** \`${emotionEnabled ? 'on' : 'off'}\``);
+  lines.push(`**Values Lens:** \`${valuesEnabled ? 'on' : 'off'}\``);
+  if (llmMeta) {
+    lines.push(`**Persona LLM:** \`${llmMeta.enabled ? (llmMeta.used ? 'on-active' : 'on-fallback') : 'off'}\``);
+    lines.push(`**Persona LLM Model:** \`${cleanText(llmMeta.model || 'n/a', 120)}\``);
+    lines.push(`**Persona LLM Reason:** \`${cleanText(llmMeta.reason || 'n/a', 120)}\``);
+  }
   if (controls) {
     lines.push(`**Alignment Indicator:** ${alignmentBadge(controls.alignmentMode)}`);
     lines.push(`**Cognizance-Gap:** \`${controls.gapSeconds}s\``);
@@ -917,22 +1462,36 @@ function renderMarkdownResponse(
   lines.push('3. Run one regression test and one sovereignty/security check before merge.');
   lines.push('');
   lines.push('## Context Files');
-  lines.push(`- \`personas/${personaId}/profile.md\``);
-  lines.push(`- \`personas/${personaId}/correspondence.md\``);
-  lines.push(`- \`personas/${personaId}/decision_lens.md\``);
-  if (lensMode !== 'decision' && cleanText(strategicLensMd, 8)) {
-    lines.push(`- \`personas/${personaId}/strategic_lens.md\``);
+  lines.push(`- \`personas/${ctx.personaId}/profile.md\``);
+  lines.push(`- \`personas/${ctx.personaId}/correspondence.md\``);
+  lines.push(`- \`personas/${ctx.personaId}/decision_lens.md\``);
+  if (lensMode !== 'decision' && cleanText(ctx.strategicLensMd, 8)) {
+    lines.push(`- \`personas/${ctx.personaId}/strategic_lens.md\``);
+  }
+  if (valuesEnabled && cleanText(ctx.valuesLensMd, 8)) {
+    lines.push(`- \`personas/${ctx.personaId}/values_philosophy_lens.md\``);
   }
   if (cleanText(emotionLensMd, 8)) {
-    lines.push(`- \`personas/${personaId}/emotion_lens.md\``);
+    lines.push(`- \`personas/${ctx.personaId}/emotion_lens.md\``);
   }
-  lines.push(`- \`personas/${personaId}/data_streams.md\``);
-  lines.push(`- \`personas/${personaId}/soul_token.md\``);
+  lines.push(`- \`personas/${ctx.personaId}/data_streams.md\``);
+  lines.push(`- \`personas/${ctx.personaId}/data_permissions.md\``);
+  lines.push(`- \`personas/${ctx.personaId}/feed.md\``);
+  lines.push(`- \`personas/${ctx.personaId}/memory.md\``);
+  lines.push(`- \`personas/${ctx.personaId}/llm_config.md\``);
+  lines.push(`- \`personas/${ctx.personaId}/obfuscation_encryption.md\``);
+  lines.push(`- \`personas/${ctx.personaId}/soul_token.md\``);
   lines.push('');
   return lines.join('\n');
 }
 
-function renderMarkdownSection(ctx: PersonaContext, query: string, lensMode: LensMode, emotionEnabled = true): string {
+function renderMarkdownSection(
+  ctx: PersonaContext,
+  query: string,
+  lensMode: LensMode,
+  emotionEnabled = true,
+  valuesEnabled = true
+): string {
   const emotionMd = emotionEnabled ? ctx.emotionLensMd : '';
   const {
     promptTemplate,
@@ -946,7 +1505,10 @@ function renderMarkdownSection(ctx: PersonaContext, query: string, lensMode: Len
     ctx.decisionLensMd,
     ctx.strategicLensMd,
     lensMode,
-    emotionMd
+    emotionMd,
+    valuesEnabled ? ctx.valuesLensMd : '',
+    ctx.feedMd,
+    ctx.memoryMd
   );
 
   const lines: string[] = [];
@@ -975,10 +1537,18 @@ function renderMarkdownSection(ctx: PersonaContext, query: string, lensMode: Len
   if (lensMode !== 'decision' && cleanText(ctx.strategicLensMd, 8)) {
     lines.push(`- \`personas/${ctx.personaId}/strategic_lens.md\``);
   }
+  if (valuesEnabled && cleanText(ctx.valuesLensMd, 8)) {
+    lines.push(`- \`personas/${ctx.personaId}/values_philosophy_lens.md\``);
+  }
   if (emotionEnabled && cleanText(ctx.emotionLensMd, 8)) {
     lines.push(`- \`personas/${ctx.personaId}/emotion_lens.md\``);
   }
   lines.push(`- \`personas/${ctx.personaId}/data_streams.md\``);
+  lines.push(`- \`personas/${ctx.personaId}/data_permissions.md\``);
+  lines.push(`- \`personas/${ctx.personaId}/feed.md\``);
+  lines.push(`- \`personas/${ctx.personaId}/memory.md\``);
+  lines.push(`- \`personas/${ctx.personaId}/llm_config.md\``);
+  lines.push(`- \`personas/${ctx.personaId}/obfuscation_encryption.md\``);
   lines.push(`- \`personas/${ctx.personaId}/soul_token.md\``);
   lines.push('');
   return lines.join('\n');
@@ -989,7 +1559,8 @@ function renderAllMarkdown(
   contexts: PersonaContext[],
   lensMode: LensMode,
   controls: LensControls | null = null,
-  emotionEnabled = true
+  emotionEnabled = true,
+  valuesEnabled = true
 ): string {
   const lines: string[] = [];
   lines.push('# Lens Response: All Personas');
@@ -1002,9 +1573,10 @@ function renderAllMarkdown(
   lines.push('');
   lines.push(`**Query:** ${query}`);
   lines.push(`**Emotion Lens:** \`${emotionEnabled ? 'on' : 'off'}\``);
+  lines.push(`**Values Lens:** \`${valuesEnabled ? 'on' : 'off'}\``);
   lines.push('');
   for (const ctx of contexts) {
-    lines.push(renderMarkdownSection(ctx, query, lensMode, emotionEnabled));
+    lines.push(renderMarkdownSection(ctx, query, lensMode, emotionEnabled, valuesEnabled));
   }
   return lines.join('\n');
 }
@@ -1030,9 +1602,11 @@ async function main() {
   }
 
   const emotionEnabled = parseEmotionEnabled(args.emotion, true);
+  const valuesEnabled = parseEmotionEnabled(args.values, true);
   const personaArg = cleanText(args.persona || args._[0] || '', 120);
   const isUpdateStream = normalizeToken(args._[0] || '', 40) === 'update_stream' || normalizeToken(args._[0] || '', 40) === 'update-stream';
   const isCheckin = normalizeToken(args._[0] || '', 40) === 'checkin';
+  const isFeed = normalizeToken(args._[0] || '', 40) === 'feed';
   const updatePersonaRaw = cleanText(args.persona || args._[1] || '', 120);
   if (isUpdateStream) {
     const updatePersonaId = resolvePersonaId(updatePersonaRaw);
@@ -1076,7 +1650,10 @@ async function main() {
         ctx.decisionLensMd,
         ctx.strategicLensMd,
         'decision',
-        emotionEnabled ? ctx.emotionLensMd : ''
+        emotionEnabled ? ctx.emotionLensMd : '',
+        valuesEnabled ? ctx.valuesLensMd : '',
+        ctx.feedMd,
+        ctx.memoryMd
       );
       const dryRun = toBool(args['dry-run'], false);
       const payload: any = {
@@ -1089,6 +1666,8 @@ async function main() {
         recommendation: details.recommendation,
         reasoning: details.reasoning.slice(0, 5)
       };
+      const llmCfg = parsePersonaLlmConfig(ctx.llmConfigMd);
+      payload.llm_train_plan = buildLlmTrainPlan(ctx.personaId, llmCfg);
       if (!dryRun) {
         const receipt = appendCheckinToCorrespondence(
           ctx,
@@ -1101,6 +1680,7 @@ async function main() {
         payload.updated_correspondence = receipt.correspondencePath;
         payload.updated_soul_token = receipt.soulTokenPath;
         payload.bundle_hash = receipt.bundleHash;
+        payload.memory_node = receipt.memoryNode;
       }
       process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
       process.exit(0);
@@ -1109,6 +1689,32 @@ async function main() {
       process.stderr.write(`${msg}\n`);
       process.exit(1);
     }
+  }
+  if (isFeed) {
+    const feedPersonaRaw = cleanText(args.persona || args._[1] || '', 120);
+    const feedPersonaId = resolvePersonaId(feedPersonaRaw);
+    const feedSnippet = cleanText(
+      args.snippet
+      || args.message
+      || args._.slice(2).join(' ')
+      || '',
+      2000
+    );
+    if (!feedPersonaId) {
+      process.stderr.write(`unknown_persona:${feedPersonaRaw}\n`);
+      process.exit(1);
+    }
+    const payload = appendPersonaFeed(feedPersonaId, feedSnippet, {
+      source: cleanText(args.source || args.from || 'master_llm', 80),
+      tags: parseTagList(args.tags || ''),
+      dryRun: toBool(args['dry-run'], false)
+    });
+    if (payload.ok !== true) {
+      process.stderr.write(`${payload.reason || 'persona_feed_append_failed'}\n`);
+      process.exit(1);
+    }
+    process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+    process.exit(0);
   }
   const positionalLens = normalizeToken(args._[1] || '', 40);
   const positionalHasLens = ['decision', 'strategic', 'full'].includes(positionalLens);
@@ -1155,13 +1761,16 @@ async function main() {
           probe.decisionLensMd,
           probe.strategicLensMd,
           lensMode,
-          emotionEnabled ? probe.emotionLensMd : ''
-        );
+        emotionEnabled ? probe.emotionLensMd : '',
+        valuesEnabled ? probe.valuesLensMd : '',
+        probe.feedMd,
+        probe.memoryMd
+      );
         const preview = renderStreamPreview('All Personas', queryArg, details.reasoning, controls);
         process.stdout.write(`${preview}\n\n`);
         sleepMs(controls.gapSeconds * 1000);
       }
-      const markdown = renderAllMarkdown(queryArg, contexts, lensMode, controls, emotionEnabled);
+      const markdown = renderAllMarkdown(queryArg, contexts, lensMode, controls, emotionEnabled, valuesEnabled);
       process.stdout.write(`${markdown}\n`);
       process.exit(0);
     } catch (err: any) {
@@ -1198,8 +1807,20 @@ async function main() {
       ctx.decisionLensMd,
       ctx.strategicLensMd,
       lensMode,
-      emotionEnabled ? ctx.emotionLensMd : ''
+      emotionEnabled ? ctx.emotionLensMd : '',
+      valuesEnabled ? ctx.valuesLensMd : '',
+      ctx.feedMd,
+      ctx.memoryMd
     );
+    const llmResult = resolvePersonaLlmRecommendation(
+      ctx,
+      queryArg,
+      details.promptTemplate,
+      details.recommendation
+    );
+    if (llmResult.recommendation) {
+      details.recommendation = llmResult.recommendation;
+    }
 
     const gapResult = await runCognizanceGap(
       ctx.personaName,
@@ -1223,19 +1844,16 @@ async function main() {
     }
 
     const markdown = renderMarkdownResponse(
-      ctx.personaId,
-      ctx.personaName,
+      ctx,
       queryArg,
-      ctx.profileMd,
-      ctx.correspondenceMd,
-      ctx.decisionLensMd,
-      ctx.strategicLensMd,
       lensMode,
       emotionEnabled ? ctx.emotionLensMd : '',
       renderControls,
       gapResult.finalOverride,
       interceptLogPath,
-      emotionEnabled
+      emotionEnabled,
+      valuesEnabled,
+      llmResult
     );
     process.stdout.write(`${markdown}\n`);
     process.exit(0);

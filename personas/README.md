@@ -11,16 +11,24 @@ This directory stores internal operator lenses used for planning, audits, and de
 - `personas/<name>/lens.md` - legacy compatibility shim (mirrors decision lens)
 - `personas/<name>/correspondence.md` - timestamped notes and decision history
 - `personas/<name>/data_streams.md` - consent-bound Slack/LinkedIn stream configuration template
+- `personas/<name>/data_permissions.md` - explicit source permissions (feed/slack/linkedin), all external sources off by default
+- `personas/<name>/feed.md` - internal feed log from master orchestration to keep personas dynamic offline
+- `personas/<name>/memory.md` - simplified node/tag memory used for persona recall
+- `personas/<name>/values_philosophy_lens.md` - philosophy/values filters layered on top of decision/strategic lenses
+- `personas/<name>/llm_config.md` - local persona LLM toggle/config (off by default, importance-gated build trigger)
+- `personas/<name>/obfuscation_encryption.md` - persona data protection mode (off/obfuscate/encrypt; default off)
 - `personas/<name>/soul_token.md` - owner-bound token metadata, usage rules, and bundle hash
 - `personas/<name>/emotion_lens.md` (optional) - emotional response patterns used to enrich lens output
+- `personas/organization/organization.md` - higher-level organization scope, reporting chain, and escalation model
 
 ## Operating Rules
 
 - Use personas as analysis lenses, not as authority replacement.
 - Use `protheus lens <persona> --lens=decision|strategic|full "<query>"` for targeted mode selection.
 - Use `protheus lens <persona> --gap=<seconds> [--active=1] [--intercept="<override>"] "<query>"` for control-mode simulation (`e`=edit, `a`=approve early during gap).
-- Use `--emotion=on|off` to include or suppress emotion lens signals (default `on`).
+- Use `--emotion=on|off` and `--values=on|off` to include or suppress emotion/values signals (defaults `on`).
 - Use `protheus lens update-stream <persona>` to simulate stream sync and append correspondence updates.
+- Use `protheus lens feed <persona> "<snippet>"` (or `protheus persona feed ...`) to push master-feed insights to a persona.
 - Use `protheus lens checkin --persona=jay_haslam --heartbeat=HEARTBEAT.md` for daily drift/alignment logging.
 - Record significant decisions in correspondence logs.
 - Keep language concise, technical, and auditable.
@@ -37,14 +45,16 @@ This directory stores internal operator lenses used for planning, audits, and de
   - Compare hard constraints across personas before implementation.
 - Suppress emotional cues for strict technical review:
   - Run `protheus lens <persona> --emotion=off "<query>"`.
+- Suppress philosophy/value framing when you need purely tactical output:
+  - Run `protheus lens <persona> --values=off "<query>"`.
 - Use intercept controls when stakes are high:
   - Run with `--gap`, then `e` to override or `a` to approve early.
+- Keep persona memory fresh without external integrations:
+  - Push internal insights via `protheus lens feed <persona> "<snippet>" --tags=...`.
+  - Use `protheus lens checkin` to append tagged memory nodes automatically.
 
 ## Current Personas
 
-- `aarav_singh`
-- `jay_haslam`
-- `li_wei`
-- `priya_venkatesh`
-- `rohan_kapoor`
-- `vikram_menon`
+- Persona roster is intentionally broad and evolves over time.
+- Run `protheus lens --list` to get the canonical current set from disk.
+- Core governance personas remain: `jay_haslam`, `vikram_menon`, `priya_venkatesh`, `rohan_kapoor`, `li_wei`, `aarav_singh`.
