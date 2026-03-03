@@ -177,6 +177,17 @@ sleep
 state/autonomy/*.lock
 state/sensory/*.backup.*.jsonl
 
+# Persona private data (keep orchestration assets, ignore personal persona profiles/memory/logs)
+personas/*/
+!personas/organization/
+!personas/organization/**
+!personas/controls/
+!personas/controls/**
+!personas/README.md
+!personas/arbitration.md
+!personas/pre-sprint.md
+!personas/trigger_prompt.md
+
 # Churn normalization (runtime-generated, high-frequency outputs)
 state/adaptive/workflows/client_communication/*.json
 state/adaptive/workflows/client_communication/*.jsonl
