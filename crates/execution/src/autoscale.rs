@@ -3347,6 +3347,20 @@ pub struct SelectedModelFromRunEventOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ReadFirstNumericMetricInput {
+    #[serde(default)]
+    pub sources: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub path_exprs: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ReadFirstNumericMetricOutput {
+    #[serde(default)]
+    pub value: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ParseDirectiveFileArgInput {
     #[serde(default)]
     pub command: Option<String>,
@@ -4560,6 +4574,8 @@ pub struct AutoscaleRequest {
     pub normalize_model_ids_input: Option<NormalizeModelIdsInput>,
     #[serde(default)]
     pub selected_model_from_run_event_input: Option<SelectedModelFromRunEventInput>,
+    #[serde(default)]
+    pub read_first_numeric_metric_input: Option<ReadFirstNumericMetricInput>,
     #[serde(default)]
     pub parse_directive_file_arg_input: Option<ParseDirectiveFileArgInput>,
     #[serde(default)]
@@ -10559,6 +10575,41 @@ pub fn compute_selected_model_from_run_event(
     SelectedModelFromRunEventOutput { model: None }
 }
 
+pub fn compute_read_first_numeric_metric(
+    input: &ReadFirstNumericMetricInput,
+) -> ReadFirstNumericMetricOutput {
+    let to_non_negative = |value: Option<&serde_json::Value>| -> Option<f64> {
+        let number = match value {
+            None | Some(serde_json::Value::Null) => Some(0.0),
+            Some(serde_json::Value::Number(n)) => n.as_f64(),
+            Some(serde_json::Value::Bool(v)) => Some(if *v { 1.0 } else { 0.0 }),
+            Some(serde_json::Value::String(s)) => {
+                let trimmed = s.trim();
+                if trimmed.is_empty() {
+                    Some(0.0)
+                } else {
+                    trimmed.parse::<f64>().ok()
+                }
+            }
+            _ => None,
+        };
+        number.filter(|v| v.is_finite() && *v >= 0.0)
+    };
+    for expr in input.path_exprs.iter() {
+        for src in input.sources.iter() {
+            let read = compute_read_path_value(&ReadPathValueInput {
+                obj: Some(src.clone()),
+                path_expr: Some(expr.clone()),
+            });
+            let n = to_non_negative(read.value.as_ref());
+            if n.is_some() {
+                return ReadFirstNumericMetricOutput { value: n };
+            }
+        }
+    }
+    ReadFirstNumericMetricOutput { value: None }
+}
+
 pub fn compute_parse_directive_file_arg(input: &ParseDirectiveFileArgInput) -> ParseDirectiveFileArgOutput {
     let text = input.command.as_deref().unwrap_or("").trim();
     if text.is_empty() {
@@ -14590,6 +14641,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_selected_model_from_run_event_encode_failed:{e}"));
+    }
+    if mode == "read_first_numeric_metric" {
+        let input = request
+            .read_first_numeric_metric_input
+            .ok_or_else(|| "autoscale_missing_read_first_numeric_metric_input".to_string())?;
+        let out = compute_read_first_numeric_metric(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "read_first_numeric_metric",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_read_first_numeric_metric_encode_failed:{e}"));
     }
     if mode == "parse_directive_file_arg" {
         let input = request

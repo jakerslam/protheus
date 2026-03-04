@@ -13098,6 +13098,19 @@ function readPathValue(obj, pathExpr) {
 }
 
 function readFirstNumericMetric(sources, pathExprs) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'read_first_numeric_metric',
+      {
+        sources: Array.isArray(sources) ? sources.filter((row) => row && typeof row === 'object') : [],
+        path_exprs: Array.isArray(pathExprs) ? pathExprs.map((x) => String(x || '')) : []
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.value == null ? null : Number(rust.payload.payload.value);
+    }
+  }
   const rows = Array.isArray(pathExprs) ? pathExprs : [];
   for (const expr of rows) {
     for (const src of sources) {
@@ -21442,6 +21455,7 @@ module.exports = {
   parseFirstJsonLine,
   parseJsonObjectsFromText,
   readPathValue,
+  readFirstNumericMetric,
   numberOrNull,
   truthyFlag,
   falseyFlag,
