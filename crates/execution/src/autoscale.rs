@@ -2681,6 +2681,51 @@ pub struct TopBiasesSummaryOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CriteriaPatternPenaltyPatternInput {
+    pub key: String,
+    #[serde(default)]
+    pub failures: f64,
+    #[serde(default)]
+    pub passes: f64,
+    #[serde(default)]
+    pub last_failure_ts: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CriteriaPatternPenaltyInput {
+    #[serde(default)]
+    pub keys: Vec<String>,
+    #[serde(default)]
+    pub patterns: Vec<CriteriaPatternPenaltyPatternInput>,
+    #[serde(default)]
+    pub fail_threshold: f64,
+    #[serde(default)]
+    pub penalty_per_hit: f64,
+    #[serde(default)]
+    pub max_penalty: f64,
+    #[serde(default)]
+    pub window_days: f64,
+    #[serde(default)]
+    pub now_ms: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CriteriaPatternPenaltyHitOutput {
+    pub key: String,
+    pub failures: f64,
+    pub passes: f64,
+    pub effective_failures: f64,
+    pub penalty: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CriteriaPatternPenaltyOutput {
+    pub penalty: f64,
+    pub hit_patterns: Vec<CriteriaPatternPenaltyHitOutput>,
+    pub threshold: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -3861,6 +3906,8 @@ pub struct AutoscaleRequest {
     pub execute_confidence_cooldown_active_input: Option<ExecuteConfidenceCooldownActiveInput>,
     #[serde(default)]
     pub top_biases_summary_input: Option<TopBiasesSummaryInput>,
+    #[serde(default)]
+    pub criteria_pattern_penalty_input: Option<CriteriaPatternPenaltyInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -8523,6 +8570,70 @@ pub fn compute_top_biases_summary(input: &TopBiasesSummaryInput) -> TopBiasesSum
     TopBiasesSummaryOutput { rows }
 }
 
+pub fn compute_criteria_pattern_penalty(input: &CriteriaPatternPenaltyInput) -> CriteriaPatternPenaltyOutput {
+    if input.keys.is_empty() {
+        return CriteriaPatternPenaltyOutput {
+            penalty: 0.0,
+            hit_patterns: Vec::new(),
+            threshold: input.fail_threshold,
+        };
+    }
+    let mut pattern_map = std::collections::BTreeMap::<String, &CriteriaPatternPenaltyPatternInput>::new();
+    for row in &input.patterns {
+        let key = row.key.trim().to_string();
+        if key.is_empty() {
+            continue;
+        }
+        pattern_map.insert(key, row);
+    }
+    let window_ms = input.window_days.max(0.0) * 24.0 * 3600.0 * 1000.0;
+    let now_ms = if input.now_ms.is_finite() {
+        input.now_ms
+    } else {
+        0.0
+    };
+    let mut penalty = 0.0_f64;
+    let mut hits = Vec::<CriteriaPatternPenaltyHitOutput>::new();
+    for key in &input.keys {
+        let k = key.trim().to_string();
+        if k.is_empty() {
+            continue;
+        }
+        let Some(row) = pattern_map.get(&k) else {
+            continue;
+        };
+        if let Some(ts) = &row.last_failure_ts {
+            if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(ts.trim()) {
+                let fail_ms = dt.with_timezone(&Utc).timestamp_millis() as f64;
+                if window_ms > 0.0 && (now_ms - fail_ms) > window_ms {
+                    continue;
+                }
+            }
+        }
+        let failures = row.failures.max(0.0);
+        let passes = row.passes.max(0.0);
+        let effective_failures = (failures - (passes * 0.5).floor()).max(0.0);
+        if effective_failures < input.fail_threshold {
+            continue;
+        }
+        let over = effective_failures - input.fail_threshold + 1.0;
+        let row_penalty = over * input.penalty_per_hit;
+        penalty += row_penalty;
+        hits.push(CriteriaPatternPenaltyHitOutput {
+            key: k,
+            failures,
+            passes,
+            effective_failures,
+            penalty: row_penalty,
+        });
+    }
+    CriteriaPatternPenaltyOutput {
+        penalty: penalty.round().clamp(0.0, input.max_penalty.max(0.0)),
+        hit_patterns: hits.into_iter().take(4).collect(),
+        threshold: input.fail_threshold,
+    }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -12206,6 +12317,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_top_biases_summary_encode_failed:{e}"));
+    }
+    if mode == "criteria_pattern_penalty" {
+        let input = request
+            .criteria_pattern_penalty_input
+            .ok_or_else(|| "autoscale_missing_criteria_pattern_penalty_input".to_string())?;
+        let out = compute_criteria_pattern_penalty(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "criteria_pattern_penalty",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_criteria_pattern_penalty_encode_failed:{e}"));
     }
     if mode == "is_directive_clarification_proposal" {
         let input = request
@@ -17696,6 +17819,48 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale top_biases_summary");
         assert!(out.contains("\"mode\":\"top_biases_summary\""));
+    }
+
+    #[test]
+    fn criteria_pattern_penalty_accumulates_hits() {
+        let out = compute_criteria_pattern_penalty(&CriteriaPatternPenaltyInput {
+            keys: vec!["cap|metric".to_string()],
+            patterns: vec![CriteriaPatternPenaltyPatternInput {
+                key: "cap|metric".to_string(),
+                failures: 4.0,
+                passes: 0.0,
+                last_failure_ts: Some("2026-03-04T00:00:00.000Z".to_string()),
+            }],
+            fail_threshold: 2.0,
+            penalty_per_hit: 3.0,
+            max_penalty: 20.0,
+            window_days: 365.0,
+            now_ms: chrono::DateTime::parse_from_rfc3339("2026-03-04T06:00:00.000Z")
+                .unwrap()
+                .with_timezone(&Utc)
+                .timestamp_millis() as f64,
+        });
+        assert_eq!(out.penalty, 9.0);
+        assert_eq!(out.hit_patterns.len(), 1);
+    }
+
+    #[test]
+    fn autoscale_json_criteria_pattern_penalty_path_works() {
+        let payload = serde_json::json!({
+            "mode": "criteria_pattern_penalty",
+            "criteria_pattern_penalty_input": {
+                "keys": ["cap|metric"],
+                "patterns": [{"key":"cap|metric","failures":4,"passes":1,"last_failure_ts":"2026-03-04T00:00:00.000Z"}],
+                "fail_threshold": 2,
+                "penalty_per_hit": 3,
+                "max_penalty": 20,
+                "window_days": 365,
+                "now_ms": 1772600000000.0
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale criteria_pattern_penalty");
+        assert!(out.contains("\"mode\":\"criteria_pattern_penalty\""));
     }
 
     #[test]
