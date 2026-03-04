@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-03T19:31:48.591Z
+Generated: 2026-03-04T07:52:42.255Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -45,8 +45,103 @@ Generated: 2026-03-03T19:31:48.591Z
 | BL-041 | backlog | BL | done | Batch execution lane for low-urgency LLM work |  |
 | BL-042 | backlog | BL | done | Prompt/result cache with TTL + invalidation policy |  |
 | BL-043 | backlog | BL | done | Parallel eyes execution with budget-aware concurrency |  |
+| BL-044 | backlog | BL | done | Persona continuity + arbitration + structured outputs hardening |  |
+| BL-045 | backlog | BL | done | Rust execution autoscale/token-usage/queue-normalization/criteria-gate/policy-hold/receipt-verdict primitive migration |  |
+| BL-046 | backlog | BL | done | Queue persistence migration (JSONL -> SQLite WAL concurrency) |  |
+| BL-047 | backlog | BL | done | Rust migration hotspot profiling + preflight security audit gate |  |
+| BL-048 | backlog | BL | done | Shadow deployment infrastructure hardening (feature flags + kill switch + resource isolation) |  |
+| BL-049 | backlog | BL | done | Red-team harness expansion (sandbox + property-based probes + replay logger) |  |
+| BL-050 | backlog | BL | done | Queue SQLite migration rollout/spec runbook |  |
+| BL-051 | backlog | BL | done | Execution legacy runtime authority cutover (TS -> Rust wrapper) |  |
+| BL-052 | backlog | BL | done | Task decomposition profile composition moved into Rust execution crate |  |
 | BL-007 | backlog | BL | done | Backup integrity checks |  |
 | BL-008 | backlog | BL | done | Repo hygiene CI check for generated artifacts |  |
+| BL-053 | backlog | BL | done | Vault wrapper collapse to security-core authority |  |
+| BL-054 | backlog | BL | done | Observability wrapper collapse to Rust-core authority |  |
+| BL-055 | backlog | BL | done | Vault legacy policy engine collapse to Rust-core compatibility wrapper |  |
+| BL-056 | backlog | BL | done | Observability legacy engine collapse to Rust-core compatibility wrapper |  |
+| BL-057 | backlog | BL | done | Task decomposition summary/queue/dispatch shaping migrated to Rust execution core |  |
+| BL-058 | backlog | BL | done | Directive gate runtime collapse to compact Rust-ready wrapper |  |
+| BL-059 | backlog | BL | done | Route-task live gate path switched to Rust-first directive evaluation |  |
+| BL-060 | backlog | BL | done | Weaver/Storm directive checks switched to Rust-preferred mode |  |
+| BL-061 | backlog | BL | done | Route-task deterministic primitive shaping migrated into Rust execution core |  |
+| BL-062 | backlog | BL | done | Route-task habit selection (exact/token match) migrated into Rust execution core |  |
+| BL-063 | backlog | BL | done | Route-task reflex routine selection migrated into Rust execution core |  |
+| BL-064 | backlog | BL | done | Route-task complexity classification migrated into Rust execution core |  |
+| BL-065 | backlog | BL | done | Task decomposition queue/dispatch summary fallback removal (Rust fail-closed enforcement) |  |
+| BL-066 | backlog | BL | done | Route-task Rust authority hardening (fail-closed on Rust route primitive/match/reflex/complexity outages) |  |
+| BL-067 | backlog | BL | done | Route-task aggregate Rust evaluation command integration (`route-evaluate`) |  |
+| BL-068 | backlog | BL | done | Route-task action policy migration into Rust core (`route-decision`) |  |
+| BL-069 | backlog | BL | done | Route-task legacy TS route fallback removal (post Rust cutover) |  |
+| BL-070 | backlog | BL | done | Route-task habit readiness migration into Rust core (`route-habit-readiness`) |  |
+| BL-071 | backlog | BL | done | Task decomposition constitution/heroic gate fallback removal (Rust fail-closed authority) |  |
+| BL-072 | backlog | BL | done | Personas bootstrap vs dynamic memory split + token budget guard |  |
+| BL-073 | backlog | BL | done | Optional first-run CLI setup wizard |  |
+| BL-074 | backlog | BL | done | Pro-grade CLI ergonomics pack (global flags, demo/examples, version/update, completion depth, verb aliases) |  |
+| BL-075 | backlog | BL | done | Internal operator command pack (`status`, `debug`, `shadow`) |  |
+| BL-076 | backlog | BL | done | Rust dual-logic growth guard |  |
+| BL-077 | backlog | BL | done | Rust hotspot inventory + milestone calculator |  |
+| BL-078 | backlog | BL | done | Autonomy policy-hold pressure snapshot Rust migration (`autonomy_controller` hotpath) |  |
+| BL-079 | backlog | BL | done | npm distribution wrapper for `npm install -g protheus` |  |
+| BL-080 | backlog | BL | done | Autonomy policy-hold repeat-pattern Rust migration (`objectivePolicyHoldPattern`) |  |
+| BL-081 | backlog | BL | done | Autonomy policy-hold cooldown Rust migration (`policyHoldCooldownMinutesForResult`) |  |
+| BL-082 | backlog | BL | done | Route execution policy-hold decision primitive Rust migration (`routeExecutionPolicyHold`) |  |
+| BL-083 | backlog | BL | done | Autonomy latest policy-hold run selector Rust migration (`latestPolicyHoldRunEvent`) |  |
+| BL-084 | backlog | BL | done | Autonomy policy-hold result classifier Rust migration (`isPolicyHoldResult`) |  |
+| BL-085 | backlog | BL | done | Autonomy no-progress run classifier Rust migration (`isNoProgressRun`) |  |
+| BL-086 | backlog | BL | done | Autonomy attempt-run classifier Rust migration (`isAttemptRunEvent`) |  |
+| BL-087 | backlog | BL | done | Autonomy safety-stop run classifier Rust migration (`isSafetyStopRunEvent`) |  |
+| BL-088 | backlog | BL | done | Autonomy non-yield category classifier Rust migration (`classifyNonYieldCategory`) |  |
+| BL-089 | backlog | BL | done | Autonomy non-yield reason resolver Rust migration (`nonYieldReasonFromRun`) |  |
+| BL-090 | backlog | BL | done | Autonomy run-event proposal type resolver Rust migration (`runEventProposalType`) |  |
+| BL-091 | backlog | BL | done | Autonomy run-event objective resolver Rust migration (`runEventObjectiveId`) |  |
+| BL-092 | backlog | BL | done | Autonomy run-event proposal resolver Rust migration (`runEventProposalId`) |  |
+| BL-093 | backlog | BL | done | Autonomy capacity-counted attempt classifier Rust migration (`isCapacityCountedAttemptEvent`) |  |
+| BL-094 | backlog | BL | done | Autonomy repeat-gate anchor builder Rust migration (`deriveRepeatGateAnchor`) |  |
+| BL-095 | backlog | BL | done | Autonomy score-only result classifier Rust migration (`isScoreOnlyResult`) |  |
+| BL-096 | backlog | BL | done | Autonomy score-only failure-like classifier Rust migration (`isScoreOnlyFailureLikeEvent`) |  |
+| BL-097 | backlog | BL | done | Autonomy gate-exhausted attempt classifier Rust migration (`isGateExhaustedAttempt`) |  |
+| BL-098 | backlog | BL | done | Autonomy consecutive gate-exhausted streak counter Rust migration (`consecutiveGateExhaustedAttempts`) |  |
+| BL-099 | backlog | BL | done | Autonomy policy-hold run-event classifier Rust migration (`isPolicyHoldRunEvent`) |  |
+| BL-100 | backlog | BL | done | Autonomy runs-since-reset slicer Rust migration (`runsSinceReset`) |  |
+| BL-101 | backlog | BL | done | Autonomy attempt-event slicer Rust migration (`attemptEvents`) |  |
+| BL-102 | backlog | BL | done | Autonomy capacity-counted attempt slicer Rust migration (`capacityCountedAttemptEvents`) |  |
+| BL-103 | backlog | BL | done | Autonomy consecutive no-progress streak counter Rust migration (`consecutiveNoProgressRuns`) |  |
+| BL-104 | backlog | BL | done | Autonomy shipped-run counter Rust migration (`shippedCount`) |  |
+| BL-105 | backlog | BL | done | Autonomy executed-run risk counter Rust migration (`executedCountByRisk`) |  |
+| BL-106 | backlog | BL | done | Autonomy run-result tally Rust migration (`tallyByResult`) |  |
+| BL-107 | backlog | BL | done | Autonomy QoS lane usage counter Rust migration (`qosLaneUsageFromRuns`) |  |
+| BL-108 | backlog | BL | done | Autonomy eye-outcome window counter Rust migration (`countEyeOutcomesInWindow`) |  |
+| BL-109 | backlog | BL | done | Autonomy eye-outcome trailing-hours counter Rust migration (`countEyeOutcomesInLastHours`) |  |
+| BL-110 | backlog | BL | done | Autonomy sorted-counts primitive Rust migration (`sortedCounts`) |  |
+| BL-111 | backlog | BL | done | Autonomy proposal-status normalizer Rust migration (`normalizeStoredProposalStatus`) |  |
+| BL-112 | backlog | BL | done | Autonomy queue-pressure proposal-status resolver Rust migration (`proposalStatusForQueuePressure`) |  |
+| BL-113 | backlog | BL | done | Autonomy overlay-status classifier Rust migration (`proposalStatus`) |  |
+| BL-114 | backlog | BL | done | Autonomy timestamp-age helper Rust migration (`minutesSinceTs`) |  |
+| BL-115 | backlog | BL | done | Autonomy date-window generator Rust migration (`dateWindow`) |  |
+| BL-116 | backlog | BL | done | Autonomy timestamp-in-window checker Rust migration (`inWindow`) |  |
+| BL-117 | backlog | BL | done | Autonomy next-UTC-day anchor helper Rust migration (`startOfNextUtcDay`) |  |
+| BL-118 | backlog | BL | done | Autonomy future-iso anchor helper Rust migration (`isoAfterMinutes`) |  |
+| BL-119 | backlog | BL | done | Autonomy execute-confidence history matcher Rust migration (`executeConfidenceHistoryMatch`) |  |
+| BL-120 | backlog | BL | done | Autonomy QoS lane-weight resolver Rust migration (`qosLaneWeights`) |  |
+| BL-121 | backlog | BL | done | Autonomy proposal-outcome normalizer Rust migration (`proposalOutcomeStatus`) |  |
+| BL-122 | backlog | BL | done | Autonomy queue-underflow backfill gate Rust migration (`canQueueUnderflowBackfill`) |  |
+| BL-123 | backlog | BL | done | Autonomy proposal risk-score primitive Rust migration (`proposalRiskScore`) |  |
+| BL-124 | backlog | BL | done | Autonomy composite eligibility scorer Rust migration (`compositeEligibilityScore`) |  |
+| BL-125 | backlog | BL | done | Autonomy time-to-value scorer Rust migration (`timeToValueScore`) |  |
+| BL-126 | backlog | BL | done | Autonomy value-density scorer Rust migration (`valueDensityScore`) |  |
+| BL-127 | backlog | BL | done | Autonomy execution reserve snapshot Rust migration (`executionReserveSnapshot`) |  |
+| BL-128 | backlog | BL | done | Autonomy QoS lane share-cap checker Rust migration (`qosLaneShareCapExceeded`) |  |
+| BL-129 | backlog | BL | done | Autonomy QoS lane routing primitive Rust migration (`qosLaneFromCandidate`) |  |
+| BL-130 | backlog | BL | done | Autonomy candidate token estimator Rust migration (`estimateTokensForCandidate`) |  |
+| BL-131 | backlog | BL | done | Autonomy proposal ranking formula Rust migration (`proposalScore`) |  |
+| BL-132 | backlog | BL | done | Child lane: Autonomy impact-weight mapper Rust migration (`impactWeight`) |  |
+| BL-133 | backlog | BL | done | Child lane: Autonomy risk-penalty mapper Rust migration (`riskPenalty`) |  |
+| BL-134 | backlog | BL | done | Child lane: Autonomy token estimate baseline Rust migration (`estimateTokens`) |  |
+| BL-135 | backlog | BL | done | Child lane: Autonomy remediation-depth mapper Rust migration (`proposalRemediationDepth`) |  |
+| BL-136 | backlog | BL | done | Child lane: Autonomy proposal dedupe-key builder Rust migration (`proposalDedupKey`) |  |
+| BL-137 | backlog | BL | done | Child lane: Autonomy strategy-rank score arithmetic Rust migration (`strategyRankForCandidate`) |  |
+| BL-138 | backlog | BL | done | Child lane: Autonomy value-signal score arithmetic Rust migration (`assessValueSignal`) |  |
 | V1H-001 | backlog | V1H | done | Full-pipeline integration/e2e hardening |  |
 | V1H-002 | backlog | V1H | done | Release-gate + canary/rollback enforcement expansion |  |
 | V1H-003 | backlog | V1H | done | Observability + SLO + runbook completion pass |  |
@@ -765,6 +860,9 @@ Generated: 2026-03-03T19:31:48.591Z
 | V6-RUST50-005 | extension | V6 | done | Red Legion Chaos + Observability Rust Merge Core | V5-RUST-HYB-007, V5-RUST-HYB-008, V5-RUST-PROD-009 |
 | V6-RUST50-006 | extension | V6 | done | Mobile Adapter Layer (WASM + Tauri iOS/Android Background Service) | V5-RUST-HYB-009, V6-RUST50-001, V6-RUST50-002, V6-RUST50-003, V6-RUST50-004, V6-RUST50-005 |
 | V6-RUST50-007 | scale-readiness | V6 | done | 50 Percent Rust Critical-Weight Enforcement Gate | V6-RUST50-001, V6-RUST50-002, V6-RUST50-003, V6-RUST50-004, V6-RUST50-005, V6-RUST50-006, V5-RUST-PROD-012 |
+| V6-RUST50-CONF-001 | primitive-upgrade | V6 | done | Execution Crate Public-Language-Bar Rust Cutover (No Weighted Tricks) | V6-RUST50-002, V6-RUST50-007 |
+| V6-RUST50-CONF-002 | hardening | V6 | done | Sprint-Mode Enforcer + Batch Audit Contract | V6-RUST50-CONF-001, V6-RUST50-007 |
+| V6-RUST50-CONF-003 | primitive-upgrade | V6 | done | Sprint 1 Visible Rust Migration Batch (Execution/Pinnacle/Vault/Red Legion) | V6-RUST50-CONF-002, V6-RUST50-CONF-001, V6-RUST50-003, V6-RUST50-004, V6-RUST50-005, V6-RUST50-007 |
 | V6-PERS-SEAM-001 | extension | V6 | done | Workflow Trigger Commands + Persona Dashboard | V3-RACE-197, V4-OPS-014 |
 | V6-PERS-SEAM-002 | hardening | V6 | done | Pre-Commit Persona Safety Lens Gate | V3-FCH-002, V3-RACE-060 |
 | V6-PERS-SEAM-003 | extension | V6 | done | Inversion Persona Feed Auto-Push (Policy-Gated) | V4-SELF-001, V6-PERS-SEAM-001 |
