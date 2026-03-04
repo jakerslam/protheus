@@ -2819,6 +2819,8 @@ const SHADOW_SCOPE_MATCHES_CACHE = new Map();
 const SHADOW_SCOPE_MATCHES_CACHE_MAX = 2048;
 const COLLECTIVE_SHADOW_AGGREGATE_CACHE = new Map();
 const COLLECTIVE_SHADOW_AGGREGATE_CACHE_MAX = 1024;
+const EXPECTED_VALUE_SIGNAL_CACHE = new Map();
+const EXPECTED_VALUE_SIGNAL_CACHE_MAX = 1024;
 const VALUE_SIGNAL_SCORE_CACHE = new Map();
 const VALUE_SIGNAL_SCORE_CACHE_MAX = 1024;
 const COMPOSITE_ELIGIBILITY_SCORE_CACHE = new Map();
@@ -8188,6 +8190,7 @@ function expectedValueSignalForProposal(p) {
   const meta = p && p.meta && typeof p.meta === 'object' ? p.meta : {};
   const direct = Number(meta.expected_value_score);
   const usd = Number(meta.expected_value_usd);
+  const impactWeightScore = Number(impactWeight(p) || 0);
   const oraclePriorityRaw = Number(meta.value_oracle_priority_score);
   const oraclePriority = Number.isFinite(oraclePriorityRaw)
     ? clampNumber(Math.round(oraclePriorityRaw), 0, 100)
@@ -8202,8 +8205,82 @@ function expectedValueSignalForProposal(p) {
     : 1;
   const oracleApplies = meta.value_oracle_applies === true || matchedCurrencies.length > 0 || activeCurrencies.length > 0;
   const oraclePass = meta.value_oracle_pass !== false;
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const key = JSON.stringify({
+      direct: Number.isFinite(direct) ? direct : null,
+      usd: Number.isFinite(usd) ? usd : null,
+      oracle_priority: oraclePriority,
+      impact_weight: impactWeightScore,
+      selected_currency: selectedCurrency,
+      currency_multiplier: currencyMultiplier,
+      matched_first_sentence_selected: !!(selectedCurrency && matchedFirstSentenceCurrencies.includes(selectedCurrency)),
+      currency_ranking_enabled: AUTONOMY_VALUE_CURRENCY_RANKING_ENABLED,
+      oracle_applies: oracleApplies,
+      oracle_pass: oraclePass,
+      rank_blend: AUTONOMY_VALUE_CURRENCY_RANK_BLEND,
+      bonus_cap: AUTONOMY_VALUE_CURRENCY_RANK_BONUS_CAP,
+      matched: matchedCurrencies,
+      active: activeCurrencies,
+      matched_first_sentence: matchedFirstSentenceCurrencies
+    });
+    if (EXPECTED_VALUE_SIGNAL_CACHE.has(key)) {
+      return EXPECTED_VALUE_SIGNAL_CACHE.get(key);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'expected_value_signal',
+      {
+        explicit_score: Number.isFinite(direct) ? direct : null,
+        expected_value_usd: Number.isFinite(usd) ? usd : null,
+        oracle_priority_score: oraclePriority,
+        impact_weight: impactWeightScore,
+        selected_currency: selectedCurrency,
+        currency_multiplier: currencyMultiplier,
+        matched_first_sentence_contains_selected: !!(selectedCurrency && matchedFirstSentenceCurrencies.includes(selectedCurrency)),
+        currency_ranking_enabled: AUTONOMY_VALUE_CURRENCY_RANKING_ENABLED,
+        oracle_applies: oracleApplies,
+        oracle_pass: oraclePass,
+        rank_blend: AUTONOMY_VALUE_CURRENCY_RANK_BLEND,
+        bonus_cap: AUTONOMY_VALUE_CURRENCY_RANK_BONUS_CAP
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      const rawPriority = payload.value_oracle_priority;
+      const rawCurrencyAdjusted = payload.currency_adjusted_score;
+      const out = {
+        score: clampNumber(Math.round(Number(payload.score || 0)), 0, 100),
+        base_score: clampNumber(Math.round(Number(payload.base_score || 0)), 0, 100),
+        source: String(payload.source || 'impact_weight_fallback'),
+        value_oracle_priority: rawPriority == null
+          ? null
+          : Number.isFinite(Number(rawPriority))
+            ? clampNumber(Math.round(Number(rawPriority)), 0, 100)
+            : null,
+        currency: selectedCurrency,
+        currency_multiplier: Number(Number(currencyMultiplier || 1).toFixed(3)),
+        currency_adjusted_score: rawCurrencyAdjusted == null
+          ? null
+          : Number.isFinite(Number(rawCurrencyAdjusted))
+            ? clampNumber(Math.round(Number(rawCurrencyAdjusted)), 0, 100)
+            : null,
+        currency_delta: Number(Number(payload.currency_delta || 0).toFixed(3)),
+        oracle_applies: payload.oracle_applies === true,
+        oracle_pass: payload.oracle_pass !== false,
+        matched_currencies: matchedCurrencies.slice(0, 6),
+        active_currencies: activeCurrencies.slice(0, 6),
+        matched_first_sentence_currencies: matchedFirstSentenceCurrencies.slice(0, 6)
+      };
+      if (EXPECTED_VALUE_SIGNAL_CACHE.size >= EXPECTED_VALUE_SIGNAL_CACHE_MAX) {
+        const oldest = EXPECTED_VALUE_SIGNAL_CACHE.keys().next();
+        if (!oldest.done) EXPECTED_VALUE_SIGNAL_CACHE.delete(oldest.value);
+      }
+      EXPECTED_VALUE_SIGNAL_CACHE.set(key, out);
+      return out;
+    }
+  }
 
-  let baseScore = impactWeight(p) * 20;
+  let baseScore = impactWeightScore * 20;
   let source = 'impact_weight_fallback';
   if (Number.isFinite(direct)) {
     baseScore = clampNumber(Math.round(direct), 0, 100);
