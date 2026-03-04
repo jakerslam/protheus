@@ -5284,6 +5284,61 @@ pub struct SignalQualityAssessmentOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ActionabilityAssessmentInput {
+    pub min_actionability: f64,
+    #[serde(default)]
+    pub risk: Option<String>,
+    #[serde(default)]
+    pub impact: Option<String>,
+    pub validation_count: f64,
+    pub specific_validation_count: f64,
+    pub has_next_cmd: bool,
+    pub generic_route_task: bool,
+    pub next_cmd_has_dry_run: bool,
+    pub looks_like_discovery_cmd: bool,
+    pub has_action_verb: bool,
+    pub has_opportunity: bool,
+    pub has_concrete_target: bool,
+    pub is_meta_coordination: bool,
+    pub is_explainer: bool,
+    pub mentions_proposal: bool,
+    #[serde(default)]
+    pub relevance_score: Option<f64>,
+    #[serde(default)]
+    pub directive_fit_score: Option<f64>,
+    pub criteria_requirement_applied: bool,
+    pub criteria_exempt_type: bool,
+    pub criteria_min_count: f64,
+    pub measurable_criteria_count: f64,
+    pub criteria_total_count: f64,
+    pub criteria_pattern_penalty: f64,
+    #[serde(default)]
+    pub criteria_pattern_hits: Option<serde_json::Value>,
+    pub is_executable_proposal: bool,
+    pub has_rollback_signal: bool,
+    pub subdirective_required: bool,
+    pub subdirective_has_concrete_target: bool,
+    pub subdirective_has_expected_delta: bool,
+    pub subdirective_has_verification_step: bool,
+    pub subdirective_target_count: f64,
+    pub subdirective_verify_count: f64,
+    pub subdirective_success_criteria_count: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ActionabilityAssessmentOutput {
+    pub pass: bool,
+    pub score: f64,
+    #[serde(default)]
+    pub reasons: Vec<String>,
+    pub executable: bool,
+    pub rollback_signal: bool,
+    pub generic_next_command_template: bool,
+    pub subdirective_v2: serde_json::Value,
+    pub success_criteria: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AutoscaleRequest {
     pub mode: String,
     #[serde(default)]
@@ -5810,6 +5865,8 @@ pub struct AutoscaleRequest {
     pub directive_fit_assessment_input: Option<DirectiveFitAssessmentInput>,
     #[serde(default)]
     pub signal_quality_assessment_input: Option<SignalQualityAssessmentInput>,
+    #[serde(default)]
+    pub actionability_assessment_input: Option<ActionabilityAssessmentInput>,
 }
 
 fn clamp_ratio(v: f64) -> f64 {
@@ -16128,6 +16185,199 @@ pub fn compute_signal_quality_assessment(
     }
 }
 
+pub fn compute_actionability_assessment(
+    input: &ActionabilityAssessmentInput,
+) -> ActionabilityAssessmentOutput {
+    let risk = input
+        .risk
+        .as_ref()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    let impact = input
+        .impact
+        .as_ref()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+
+    let mut reasons = Vec::<String>::new();
+    let mut score = 0.0;
+    let mut hard_block = false;
+
+    if impact == "high" {
+        score += 24.0;
+    } else if impact == "medium" {
+        score += 16.0;
+    } else {
+        score += 8.0;
+    }
+
+    if input.specific_validation_count >= 3.0 {
+        score += 18.0;
+    } else if input.specific_validation_count >= 2.0 {
+        score += 12.0;
+    } else if input.specific_validation_count >= 1.0 {
+        score += 6.0;
+    } else if input.validation_count > 0.0 {
+        reasons.push("generic_validation_template".to_string());
+    } else {
+        reasons.push("missing_validation_plan".to_string());
+    }
+
+    if input.has_next_cmd {
+        if input.generic_route_task {
+            score += 4.0;
+            reasons.push("generic_next_command_template".to_string());
+        } else {
+            score += 8.0;
+            if !input.next_cmd_has_dry_run {
+                score += 4.0;
+            } else {
+                score += 2.0;
+            }
+        }
+    } else {
+        reasons.push("missing_next_command".to_string());
+    }
+
+    if input.looks_like_discovery_cmd {
+        score -= 18.0;
+        reasons.push("discovery_only_command".to_string());
+    }
+
+    if input.has_action_verb {
+        score += 12.0;
+    } else {
+        reasons.push("no_action_verb".to_string());
+    }
+
+    if input.has_opportunity {
+        score += 10.0;
+    }
+
+    if let Some(relevance) = input.relevance_score {
+        if relevance.is_finite() {
+            score += (relevance - 45.0) * 0.3;
+        }
+    }
+    if let Some(fit_score) = input.directive_fit_score {
+        if fit_score.is_finite() {
+            score += (fit_score - 35.0) * 0.25;
+        }
+    }
+
+    if input.criteria_requirement_applied {
+        if input.measurable_criteria_count >= input.criteria_min_count {
+            score += (8.0 + (input.measurable_criteria_count * 2.0)).min(14.0);
+        } else {
+            score -= 22.0;
+            reasons.push("success_criteria_missing".to_string());
+            hard_block = true;
+        }
+    } else if input.measurable_criteria_count > 0.0 {
+        score += (input.measurable_criteria_count * 2.0).min(8.0);
+    }
+
+    if !input.has_action_verb && !input.has_opportunity && !input.has_concrete_target {
+        score -= 20.0;
+        reasons.push("missing_concrete_target".to_string());
+    }
+    if input.is_meta_coordination && !input.has_concrete_target {
+        score -= 26.0;
+        reasons.push("meta_coordination_without_concrete_target".to_string());
+    }
+    if input.mentions_proposal && !input.has_concrete_target && !input.has_opportunity {
+        score -= 12.0;
+        reasons.push("proposal_recursion_without_target".to_string());
+    }
+    if input.is_explainer && !input.has_action_verb && !input.has_opportunity {
+        score -= 12.0;
+        reasons.push("explainer_without_execution_path".to_string());
+    }
+    if input.generic_route_task
+        && input.specific_validation_count <= 0.0
+        && !input.has_opportunity
+        && !input.has_concrete_target
+    {
+        score -= 18.0;
+        reasons.push("boilerplate_execution_path".to_string());
+    }
+
+    if input.looks_like_discovery_cmd && impact == "low" && !input.has_action_verb {
+        hard_block = true;
+        reasons.push("non_actionable_discovery_item".to_string());
+    }
+    if input.is_meta_coordination
+        && !input.has_concrete_target
+        && impact == "low"
+        && !input.has_opportunity
+    {
+        hard_block = true;
+        reasons.push("non_actionable_meta_item".to_string());
+    }
+
+    if input.criteria_pattern_penalty > 0.0 {
+        score -= input.criteria_pattern_penalty;
+        reasons.push("criteria_pattern_penalty".to_string());
+    }
+
+    if risk == "medium" && input.is_executable_proposal && !input.has_rollback_signal {
+        score -= 28.0;
+        reasons.push("medium_risk_missing_rollback_path".to_string());
+        hard_block = true;
+    }
+
+    if input.subdirective_required {
+        if !input.subdirective_has_concrete_target {
+            score -= 18.0;
+            reasons.push("subdirective_v2_missing_target".to_string());
+            hard_block = true;
+        }
+        if !input.subdirective_has_expected_delta {
+            score -= 20.0;
+            reasons.push("subdirective_v2_missing_expected_delta".to_string());
+            hard_block = true;
+        }
+        if !input.subdirective_has_verification_step {
+            score -= 20.0;
+            reasons.push("subdirective_v2_missing_verification_step".to_string());
+            hard_block = true;
+        }
+    }
+
+    let final_score = score.round().clamp(0.0, 100.0);
+    let pass = !hard_block && final_score >= input.min_actionability;
+    if !pass && final_score < input.min_actionability {
+        reasons.push("below_min_actionability".to_string());
+    }
+
+    ActionabilityAssessmentOutput {
+        pass,
+        score: final_score,
+        reasons,
+        executable: input.is_executable_proposal,
+        rollback_signal: input.has_rollback_signal,
+        generic_next_command_template: input.generic_route_task,
+        subdirective_v2: serde_json::json!({
+            "required": input.subdirective_required,
+            "has_concrete_target": input.subdirective_has_concrete_target,
+            "has_expected_delta": input.subdirective_has_expected_delta,
+            "has_verification_step": input.subdirective_has_verification_step,
+            "target_count": input.subdirective_target_count,
+            "verify_count": input.subdirective_verify_count,
+            "success_criteria_count": input.subdirective_success_criteria_count
+        }),
+        success_criteria: serde_json::json!({
+            "required": input.criteria_requirement_applied,
+            "exempt_type": input.criteria_exempt_type,
+            "min_count": input.criteria_min_count,
+            "measurable_count": input.measurable_criteria_count,
+            "total_count": input.criteria_total_count,
+            "pattern_penalty": input.criteria_pattern_penalty,
+            "pattern_hits": input.criteria_pattern_hits.clone().unwrap_or_else(|| serde_json::json!([]))
+        }),
+    }
+}
+
 pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     let request: AutoscaleRequest = serde_json::from_str(payload_json)
         .map_err(|e| format!("autoscale_request_parse_failed:{e}"))?;
@@ -19077,6 +19327,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_signal_quality_assessment_encode_failed:{e}"));
+    }
+    if mode == "actionability_assessment" {
+        let input = request
+            .actionability_assessment_input
+            .ok_or_else(|| "autoscale_missing_actionability_assessment_input".to_string())?;
+        let out = compute_actionability_assessment(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "actionability_assessment",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_actionability_assessment_encode_failed:{e}"));
     }
     if mode == "no_progress_result" {
         let input = request
@@ -22941,6 +23203,92 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale signal_quality_assessment");
         assert!(out.contains("\"mode\":\"signal_quality_assessment\""));
+    }
+
+    #[test]
+    fn actionability_assessment_scores_actionable_candidate() {
+        let out = compute_actionability_assessment(&ActionabilityAssessmentInput {
+            min_actionability: 45.0,
+            risk: Some("low".to_string()),
+            impact: Some("high".to_string()),
+            validation_count: 2.0,
+            specific_validation_count: 2.0,
+            has_next_cmd: true,
+            generic_route_task: false,
+            next_cmd_has_dry_run: false,
+            looks_like_discovery_cmd: false,
+            has_action_verb: true,
+            has_opportunity: true,
+            has_concrete_target: true,
+            is_meta_coordination: false,
+            is_explainer: false,
+            mentions_proposal: false,
+            relevance_score: Some(70.0),
+            directive_fit_score: Some(72.0),
+            criteria_requirement_applied: true,
+            criteria_exempt_type: false,
+            criteria_min_count: 1.0,
+            measurable_criteria_count: 2.0,
+            criteria_total_count: 2.0,
+            criteria_pattern_penalty: 0.0,
+            criteria_pattern_hits: Some(serde_json::json!([])),
+            is_executable_proposal: true,
+            has_rollback_signal: true,
+            subdirective_required: false,
+            subdirective_has_concrete_target: true,
+            subdirective_has_expected_delta: true,
+            subdirective_has_verification_step: true,
+            subdirective_target_count: 1.0,
+            subdirective_verify_count: 1.0,
+            subdirective_success_criteria_count: 2.0,
+        });
+        assert!(out.pass);
+        assert!(out.score >= 45.0);
+    }
+
+    #[test]
+    fn autoscale_json_actionability_assessment_path_works() {
+        let payload = serde_json::json!({
+            "mode": "actionability_assessment",
+            "actionability_assessment_input": {
+                "min_actionability": 45,
+                "risk": "low",
+                "impact": "high",
+                "validation_count": 2,
+                "specific_validation_count": 2,
+                "has_next_cmd": true,
+                "generic_route_task": false,
+                "next_cmd_has_dry_run": false,
+                "looks_like_discovery_cmd": false,
+                "has_action_verb": true,
+                "has_opportunity": true,
+                "has_concrete_target": true,
+                "is_meta_coordination": false,
+                "is_explainer": false,
+                "mentions_proposal": false,
+                "relevance_score": 70,
+                "directive_fit_score": 72,
+                "criteria_requirement_applied": true,
+                "criteria_exempt_type": false,
+                "criteria_min_count": 1,
+                "measurable_criteria_count": 2,
+                "criteria_total_count": 2,
+                "criteria_pattern_penalty": 0,
+                "criteria_pattern_hits": [],
+                "is_executable_proposal": true,
+                "has_rollback_signal": true,
+                "subdirective_required": false,
+                "subdirective_has_concrete_target": true,
+                "subdirective_has_expected_delta": true,
+                "subdirective_has_verification_step": true,
+                "subdirective_target_count": 1,
+                "subdirective_verify_count": 1,
+                "subdirective_success_criteria_count": 2
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale actionability_assessment");
+        assert!(out.contains("\"mode\":\"actionability_assessment\""));
     }
 
     #[test]
