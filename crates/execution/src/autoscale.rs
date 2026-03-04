@@ -1369,6 +1369,17 @@ pub struct SourceEyeRefOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizedRiskInput {
+    #[serde(default)]
+    pub risk: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizedRiskOutput {
+    pub risk: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecutionReserveSnapshotInput {
     pub cap: f64,
     pub used: f64,
@@ -2125,6 +2136,8 @@ pub struct AutoscaleRequest {
     pub optimization_min_delta_percent_input: Option<OptimizationMinDeltaPercentInput>,
     #[serde(default)]
     pub source_eye_ref_input: Option<SourceEyeRefInput>,
+    #[serde(default)]
+    pub normalized_risk_input: Option<NormalizedRiskInput>,
     #[serde(default)]
     pub execution_reserve_snapshot_input: Option<ExecutionReserveSnapshotInput>,
     #[serde(default)]
@@ -4631,6 +4644,21 @@ pub fn compute_source_eye_ref(input: &SourceEyeRefInput) -> SourceEyeRefOutput {
     }
 }
 
+pub fn compute_normalized_risk(input: &NormalizedRiskInput) -> NormalizedRiskOutput {
+    let risk = input
+        .risk
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    let normalized = if risk == "high" || risk == "medium" || risk == "low" {
+        risk
+    } else {
+        "low".to_string()
+    };
+    NormalizedRiskOutput { risk: normalized }
+}
+
 pub fn compute_execution_reserve_snapshot(
     input: &ExecutionReserveSnapshotInput,
 ) -> ExecutionReserveSnapshotOutput {
@@ -7007,6 +7035,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_source_eye_ref_encode_failed:{e}"));
+    }
+    if mode == "normalized_risk" {
+        let input = request
+            .normalized_risk_input
+            .ok_or_else(|| "autoscale_missing_normalized_risk_input".to_string())?;
+        let out = compute_normalized_risk(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "normalized_risk",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_normalized_risk_encode_failed:{e}"));
     }
     if mode == "execution_reserve_snapshot" {
         let input = request
@@ -10030,6 +10070,33 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale source_eye_ref");
         assert!(out.contains("\"mode\":\"source_eye_ref\""));
         assert!(out.contains("\"eye_ref\":\"eye:market\""));
+    }
+
+    #[test]
+    fn normalized_risk_only_allows_expected_levels() {
+        let high = compute_normalized_risk(&NormalizedRiskInput {
+            risk: Some("HIGH".to_string()),
+        });
+        assert_eq!(high.risk, "high");
+
+        let fallback = compute_normalized_risk(&NormalizedRiskInput {
+            risk: Some("critical".to_string()),
+        });
+        assert_eq!(fallback.risk, "low");
+    }
+
+    #[test]
+    fn autoscale_json_normalized_risk_path_works() {
+        let payload = serde_json::json!({
+            "mode": "normalized_risk",
+            "normalized_risk_input": {
+                "risk": "medium"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale normalized_risk");
+        assert!(out.contains("\"mode\":\"normalized_risk\""));
+        assert!(out.contains("\"risk\":\"medium\""));
     }
 
     #[test]
