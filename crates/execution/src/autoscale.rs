@@ -690,6 +690,19 @@ pub struct EstimateTokensOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalRemediationDepthInput {
+    #[serde(default)]
+    pub remediation_depth: Option<f64>,
+    #[serde(default)]
+    pub trigger: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalRemediationDepthOutput {
+    pub depth: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CompositeEligibilityScoreInput {
     pub quality_score: f64,
     pub directive_fit_score: f64,
@@ -1363,6 +1376,8 @@ pub struct AutoscaleRequest {
     pub risk_penalty_input: Option<RiskPenaltyInput>,
     #[serde(default)]
     pub estimate_tokens_input: Option<EstimateTokensInput>,
+    #[serde(default)]
+    pub proposal_remediation_depth_input: Option<ProposalRemediationDepthInput>,
     #[serde(default)]
     pub composite_eligibility_score_input: Option<CompositeEligibilityScoreInput>,
     #[serde(default)]
@@ -2573,6 +2588,30 @@ pub fn compute_estimate_tokens(input: &EstimateTokensInput) -> EstimateTokensOut
         300
     };
     EstimateTokensOutput { est_tokens }
+}
+
+pub fn compute_proposal_remediation_depth(
+    input: &ProposalRemediationDepthInput,
+) -> ProposalRemediationDepthOutput {
+    if let Some(raw) = input.remediation_depth {
+        if raw.is_finite() && raw >= 0.0 {
+            return ProposalRemediationDepthOutput {
+                depth: raw.round().clamp(0.0, u32::MAX as f64) as u32,
+            };
+        }
+    }
+    let trigger = input
+        .trigger
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    let depth = if trigger == "consecutive_failures" || trigger == "multi_eye_transport_failure" {
+        1
+    } else {
+        0
+    };
+    ProposalRemediationDepthOutput { depth }
 }
 
 pub fn compute_composite_eligibility_score(
@@ -4492,6 +4531,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_estimate_tokens_encode_failed:{e}"));
     }
+    if mode == "proposal_remediation_depth" {
+        let input = request.proposal_remediation_depth_input.ok_or_else(|| {
+            "autoscale_missing_proposal_remediation_depth_input".to_string()
+        })?;
+        let out = compute_proposal_remediation_depth(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "proposal_remediation_depth",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_proposal_remediation_depth_encode_failed:{e}"));
+    }
     if mode == "composite_eligibility_score" {
         let input = request
             .composite_eligibility_score_input
@@ -6161,6 +6212,42 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale estimate_tokens");
         assert!(out.contains("\"mode\":\"estimate_tokens\""));
+    }
+
+    #[test]
+    fn proposal_remediation_depth_prefers_explicit_then_trigger() {
+        let explicit = compute_proposal_remediation_depth(&ProposalRemediationDepthInput {
+            remediation_depth: Some(2.4),
+            trigger: Some("consecutive_failures".to_string()),
+        });
+        assert_eq!(explicit.depth, 2);
+
+        let trigger = compute_proposal_remediation_depth(&ProposalRemediationDepthInput {
+            remediation_depth: None,
+            trigger: Some("multi_eye_transport_failure".to_string()),
+        });
+        assert_eq!(trigger.depth, 1);
+
+        let none = compute_proposal_remediation_depth(&ProposalRemediationDepthInput {
+            remediation_depth: None,
+            trigger: Some("".to_string()),
+        });
+        assert_eq!(none.depth, 0);
+    }
+
+    #[test]
+    fn autoscale_json_proposal_remediation_depth_path_works() {
+        let payload = serde_json::json!({
+            "mode": "proposal_remediation_depth",
+            "proposal_remediation_depth_input": {
+                "remediation_depth": null,
+                "trigger": "consecutive_failures"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale proposal_remediation_depth");
+        assert!(out.contains("\"mode\":\"proposal_remediation_depth\""));
+        assert!(out.contains("\"depth\":1"));
     }
 
     #[test]

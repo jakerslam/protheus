@@ -2789,6 +2789,8 @@ const RISK_PENALTY_CACHE = new Map();
 const RISK_PENALTY_CACHE_MAX = 512;
 const ESTIMATE_TOKENS_CACHE = new Map();
 const ESTIMATE_TOKENS_CACHE_MAX = 512;
+const PROPOSAL_REMEDIATION_DEPTH_CACHE = new Map();
+const PROPOSAL_REMEDIATION_DEPTH_CACHE_MAX = 512;
 const COMPOSITE_ELIGIBILITY_SCORE_CACHE = new Map();
 const COMPOSITE_ELIGIBILITY_SCORE_CACHE_MAX = 1024;
 const TIME_TO_VALUE_SCORE_CACHE = new Map();
@@ -7472,8 +7474,31 @@ function proposalScore(p, overlayEnt, dateStr) {
 function proposalRemediationDepth(p) {
   const meta = p && p.meta && typeof p.meta === 'object' ? p.meta : {};
   const raw = Number(meta.remediation_depth);
-  if (Number.isFinite(raw) && raw >= 0) return Math.round(raw);
   const trigger = String(meta.trigger || '').toLowerCase();
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const key = `${Number.isFinite(raw) ? raw : 'nan'}\u0000${trigger}`;
+    if (PROPOSAL_REMEDIATION_DEPTH_CACHE.has(key)) {
+      return PROPOSAL_REMEDIATION_DEPTH_CACHE.get(key);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'proposal_remediation_depth',
+      {
+        remediation_depth: Number.isFinite(raw) ? raw : null,
+        trigger
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const val = Number(rust.payload.payload.depth || 0);
+      if (PROPOSAL_REMEDIATION_DEPTH_CACHE.size >= PROPOSAL_REMEDIATION_DEPTH_CACHE_MAX) {
+        const oldest = PROPOSAL_REMEDIATION_DEPTH_CACHE.keys().next();
+        if (!oldest.done) PROPOSAL_REMEDIATION_DEPTH_CACHE.delete(oldest.value);
+      }
+      PROPOSAL_REMEDIATION_DEPTH_CACHE.set(key, val);
+      return val;
+    }
+  }
+  if (Number.isFinite(raw) && raw >= 0) return Math.round(raw);
   if (trigger === 'consecutive_failures' || trigger === 'multi_eye_transport_failure') return 1;
   return 0;
 }
@@ -17671,6 +17696,7 @@ module.exports = {
   impactWeight,
   riskPenalty,
   estimateTokens,
+  proposalRemediationDepth,
   estimateTokensForCandidate,
   candidatePool,
   evaluateDoD,
