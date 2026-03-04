@@ -1139,6 +1139,42 @@ pub struct DirectiveTierCoverageBonusOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DirectiveTierReservationNeedInput {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub available: bool,
+    #[serde(default)]
+    pub attempts_today: f64,
+    #[serde(default)]
+    pub tier1_attempts: f64,
+    #[serde(default)]
+    pub tier2_attempts: f64,
+    #[serde(default)]
+    pub tier1_min_share: f64,
+    #[serde(default)]
+    pub tier2_min_share: f64,
+    #[serde(default)]
+    pub candidate_tiers: Vec<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DirectiveTierReservationNeedOutput {
+    pub reserve: bool,
+    #[serde(default)]
+    pub tier: Option<u32>,
+    #[serde(default)]
+    pub min_share: Option<f64>,
+    pub attempts_today: f64,
+    #[serde(default)]
+    pub current_tier_attempts: Option<f64>,
+    #[serde(default)]
+    pub required_after_next: Option<f64>,
+    #[serde(default)]
+    pub candidate_count: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecutionReserveSnapshotInput {
     pub cap: f64,
     pub used: f64,
@@ -1867,6 +1903,8 @@ pub struct AutoscaleRequest {
     pub directive_tier_min_share_input: Option<DirectiveTierMinShareInput>,
     #[serde(default)]
     pub directive_tier_coverage_bonus_input: Option<DirectiveTierCoverageBonusInput>,
+    #[serde(default)]
+    pub directive_tier_reservation_need_input: Option<DirectiveTierReservationNeedInput>,
     #[serde(default)]
     pub execution_reserve_snapshot_input: Option<ExecutionReserveSnapshotInput>,
     #[serde(default)]
@@ -3986,6 +4024,90 @@ pub fn compute_directive_tier_coverage_bonus(
     let deficit = (expected - current_for_tier).max(0.0);
     let bonus = (deficit * 6.0).min(18.0);
     DirectiveTierCoverageBonusOutput { bonus }
+}
+
+pub fn compute_directive_tier_reservation_need(
+    input: &DirectiveTierReservationNeedInput,
+) -> DirectiveTierReservationNeedOutput {
+    let attempts_today = if input.attempts_today.is_finite() {
+        input.attempts_today.max(0.0)
+    } else {
+        0.0
+    };
+    if !input.enabled || !input.available {
+        return DirectiveTierReservationNeedOutput {
+            reserve: false,
+            tier: None,
+            min_share: None,
+            attempts_today,
+            current_tier_attempts: None,
+            required_after_next: None,
+            candidate_count: None,
+        };
+    }
+
+    let clamp_ratio = |value: f64| -> f64 {
+        if !value.is_finite() {
+            0.0
+        } else {
+            value.clamp(0.0, 1.0)
+        }
+    };
+    let normalize_tier = |raw: f64, fallback: f64| -> f64 {
+        let source = if raw.is_finite() { raw } else { fallback };
+        source.round().max(1.0)
+    };
+    let candidate_tiers = input
+        .candidate_tiers
+        .iter()
+        .map(|raw| normalize_tier(*raw, 99.0))
+        .collect::<Vec<_>>();
+    for tier in [1.0_f64, 2.0_f64] {
+        let min_share = if tier <= 1.0 {
+            clamp_ratio(input.tier1_min_share)
+        } else {
+            clamp_ratio(input.tier2_min_share)
+        };
+        if min_share <= 0.0 {
+            continue;
+        }
+        let current = if tier <= 1.0 {
+            input.tier1_attempts
+        } else {
+            input.tier2_attempts
+        };
+        let current = if current.is_finite() {
+            current.max(0.0)
+        } else {
+            0.0
+        };
+        let required_after_next = ((attempts_today + 1.0) * min_share).ceil();
+        if current >= required_after_next {
+            continue;
+        }
+        let candidate_count = candidate_tiers
+            .iter()
+            .filter(|value| (**value - tier).abs() < 0.000001)
+            .count() as u32;
+        return DirectiveTierReservationNeedOutput {
+            reserve: true,
+            tier: Some(tier as u32),
+            min_share: Some(min_share),
+            attempts_today,
+            current_tier_attempts: Some(current),
+            required_after_next: Some(required_after_next),
+            candidate_count: Some(candidate_count),
+        };
+    }
+    DirectiveTierReservationNeedOutput {
+        reserve: false,
+        tier: None,
+        min_share: None,
+        attempts_today,
+        current_tier_attempts: None,
+        required_after_next: None,
+        candidate_count: None,
+    }
 }
 
 pub fn compute_execution_reserve_snapshot(
@@ -6196,6 +6318,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_directive_tier_coverage_bonus_encode_failed:{e}"));
+    }
+    if mode == "directive_tier_reservation_need" {
+        let input = request
+            .directive_tier_reservation_need_input
+            .ok_or_else(|| "autoscale_missing_directive_tier_reservation_need_input".to_string())?;
+        let out = compute_directive_tier_reservation_need(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "directive_tier_reservation_need",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_directive_tier_reservation_need_encode_failed:{e}"));
     }
     if mode == "execution_reserve_snapshot" {
         let input = request
@@ -8769,6 +8903,46 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale directive_tier_coverage_bonus");
         assert!(out.contains("\"mode\":\"directive_tier_coverage_bonus\""));
         assert!(out.contains("\"bonus\":12.0"));
+    }
+
+    #[test]
+    fn directive_tier_reservation_need_reports_undercoverage() {
+        let out = compute_directive_tier_reservation_need(&DirectiveTierReservationNeedInput {
+            enabled: true,
+            available: true,
+            attempts_today: 10.0,
+            tier1_attempts: 2.0,
+            tier2_attempts: 3.0,
+            tier1_min_share: 0.35,
+            tier2_min_share: 0.2,
+            candidate_tiers: vec![1.0, 1.0, 2.0, 3.0],
+        });
+        assert!(out.reserve);
+        assert_eq!(out.tier, Some(1));
+        assert_eq!(out.required_after_next, Some(4.0));
+        assert_eq!(out.candidate_count, Some(2));
+    }
+
+    #[test]
+    fn autoscale_json_directive_tier_reservation_need_path_works() {
+        let payload = serde_json::json!({
+            "mode": "directive_tier_reservation_need",
+            "directive_tier_reservation_need_input": {
+                "enabled": true,
+                "available": true,
+                "attempts_today": 8,
+                "tier1_attempts": 4,
+                "tier2_attempts": 0,
+                "tier1_min_share": 0.35,
+                "tier2_min_share": 0.2,
+                "candidate_tiers": [2, 2, 3]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale directive_tier_reservation_need");
+        assert!(out.contains("\"mode\":\"directive_tier_reservation_need\""));
+        assert!(out.contains("\"tier\":2"));
+        assert!(out.contains("\"reserve\":true"));
     }
 
     #[test]
