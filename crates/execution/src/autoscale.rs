@@ -825,6 +825,38 @@ pub struct StrategyRankScoreOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExpectedValueSignalInput {
+    #[serde(default)]
+    pub explicit_score: Option<f64>,
+    #[serde(default)]
+    pub expected_value_usd: Option<f64>,
+    #[serde(default)]
+    pub oracle_priority_score: Option<f64>,
+    pub impact_weight: f64,
+    #[serde(default)]
+    pub selected_currency: Option<String>,
+    pub currency_multiplier: f64,
+    pub matched_first_sentence_contains_selected: bool,
+    pub currency_ranking_enabled: bool,
+    pub oracle_applies: bool,
+    pub oracle_pass: bool,
+    pub rank_blend: f64,
+    pub bonus_cap: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExpectedValueSignalOutput {
+    pub score: f64,
+    pub base_score: f64,
+    pub source: String,
+    pub value_oracle_priority: Option<f64>,
+    pub currency_adjusted_score: Option<f64>,
+    pub currency_delta: f64,
+    pub oracle_applies: bool,
+    pub oracle_pass: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ValueSignalScoreInput {
     pub expected_value: f64,
     pub time_to_value: f64,
@@ -1723,6 +1755,8 @@ pub struct AutoscaleRequest {
     pub shadow_scope_matches_input: Option<ShadowScopeMatchesInput>,
     #[serde(default)]
     pub collective_shadow_aggregate_input: Option<CollectiveShadowAggregateInput>,
+    #[serde(default)]
+    pub expected_value_signal_input: Option<ExpectedValueSignalInput>,
     #[serde(default)]
     pub value_signal_score_input: Option<ValueSignalScoreInput>,
     #[serde(default)]
@@ -3519,6 +3553,129 @@ pub fn compute_collective_shadow_aggregate(
         confidence_avg,
         penalty_raw: to_fixed3(penalty_raw),
         bonus_raw: to_fixed3(bonus_raw),
+    }
+}
+
+pub fn compute_expected_value_signal(
+    input: &ExpectedValueSignalInput,
+) -> ExpectedValueSignalOutput {
+    let clamp_score = |value: f64| -> f64 {
+        if !value.is_finite() {
+            0.0
+        } else if value <= 0.0 {
+            0.0
+        } else if value >= 100.0 {
+            100.0
+        } else {
+            value
+        }
+    };
+    let round_score = |value: f64| -> f64 { clamp_score(value.round()) };
+    let to_fixed3 = |value: f64| -> f64 {
+        format!("{value:.3}").parse::<f64>().unwrap_or(value)
+    };
+    let selected_currency = input.selected_currency.as_deref().unwrap_or("").trim();
+    let oracle_priority = input
+        .oracle_priority_score
+        .filter(|value| value.is_finite())
+        .map(round_score);
+
+    let (base_score, source) = if let Some(explicit) = input.explicit_score {
+        if explicit.is_finite() {
+            (round_score(explicit), "expected_value_score".to_string())
+        } else if let Some(usd) = input.expected_value_usd {
+            if usd.is_finite() && usd > 0.0 {
+                (
+                    round_score((usd.max(1.0).log10()) * 30.0),
+                    "expected_value_usd".to_string(),
+                )
+            } else if let Some(priority) = oracle_priority {
+                (priority, "value_oracle_priority_score".to_string())
+            } else {
+                (
+                    round_score(clamp_score(input.impact_weight) * 20.0),
+                    "impact_weight_fallback".to_string(),
+                )
+            }
+        } else if let Some(priority) = oracle_priority {
+            (priority, "value_oracle_priority_score".to_string())
+        } else {
+            (
+                round_score(clamp_score(input.impact_weight) * 20.0),
+                "impact_weight_fallback".to_string(),
+            )
+        }
+    } else if let Some(usd) = input.expected_value_usd {
+        if usd.is_finite() && usd > 0.0 {
+            (
+                round_score((usd.max(1.0).log10()) * 30.0),
+                "expected_value_usd".to_string(),
+            )
+        } else if let Some(priority) = oracle_priority {
+            (priority, "value_oracle_priority_score".to_string())
+        } else {
+            (
+                round_score(clamp_score(input.impact_weight) * 20.0),
+                "impact_weight_fallback".to_string(),
+            )
+        }
+    } else if let Some(priority) = oracle_priority {
+        (priority, "value_oracle_priority_score".to_string())
+    } else {
+        (
+            round_score(clamp_score(input.impact_weight) * 20.0),
+            "impact_weight_fallback".to_string(),
+        )
+    };
+
+    let currency_adjusted_score = oracle_priority.map(|priority| {
+        round_score(priority * if input.currency_multiplier.is_finite() {
+            input.currency_multiplier.max(0.0)
+        } else {
+            1.0
+        })
+    });
+    let apply_currency_rank = input.currency_ranking_enabled
+        && input.oracle_applies
+        && input.oracle_pass
+        && currency_adjusted_score.is_some();
+    let first_sentence_bonus = if apply_currency_rank
+        && !selected_currency.is_empty()
+        && input.matched_first_sentence_contains_selected
+    {
+        2.0
+    } else {
+        0.0
+    };
+
+    let delta = if apply_currency_rank {
+        let adjusted = currency_adjusted_score.unwrap_or(0.0);
+        let blend = if input.rank_blend.is_finite() {
+            input.rank_blend.clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        let blended = (base_score * (1.0 - blend)) + (adjusted * blend) + first_sentence_bonus;
+        let cap = if input.bonus_cap.is_finite() {
+            input.bonus_cap.max(0.0)
+        } else {
+            0.0
+        };
+        (blended - base_score).clamp(-cap, cap)
+    } else {
+        0.0
+    };
+    let score = round_score(base_score + delta);
+
+    ExpectedValueSignalOutput {
+        score,
+        base_score,
+        source,
+        value_oracle_priority: oracle_priority,
+        currency_adjusted_score,
+        currency_delta: to_fixed3(delta),
+        oracle_applies: input.oracle_applies,
+        oracle_pass: input.oracle_pass,
     }
 }
 
@@ -5628,6 +5785,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_collective_shadow_aggregate_encode_failed:{e}"));
+    }
+    if mode == "expected_value_signal" {
+        let input = request
+            .expected_value_signal_input
+            .ok_or_else(|| "autoscale_missing_expected_value_signal_input".to_string())?;
+        let out = compute_expected_value_signal(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "expected_value_signal",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_expected_value_signal_encode_failed:{e}"));
     }
     if mode == "value_signal_score" {
         let input = request
@@ -7951,6 +8120,55 @@ mod tests {
         assert!(out.contains("\"mode\":\"collective_shadow_aggregate\""));
         assert!(out.contains("\"penalty_raw\":8.0"));
         assert!(out.contains("\"bonus_raw\":3.0"));
+    }
+
+    #[test]
+    fn expected_value_signal_applies_currency_rank_blending() {
+        let out = compute_expected_value_signal(&ExpectedValueSignalInput {
+            explicit_score: None,
+            expected_value_usd: None,
+            oracle_priority_score: Some(80.0),
+            impact_weight: 2.0,
+            selected_currency: Some("revenue".to_string()),
+            currency_multiplier: 1.25,
+            matched_first_sentence_contains_selected: true,
+            currency_ranking_enabled: true,
+            oracle_applies: true,
+            oracle_pass: true,
+            rank_blend: 0.35,
+            bonus_cap: 12.0,
+        });
+        assert_eq!(out.source, "value_oracle_priority_score");
+        assert_eq!(out.base_score, 80.0);
+        assert_eq!(out.currency_adjusted_score, Some(100.0));
+        assert_eq!(out.score, 89.0);
+        assert_eq!(out.currency_delta, 9.0);
+    }
+
+    #[test]
+    fn autoscale_json_expected_value_signal_path_works() {
+        let payload = serde_json::json!({
+            "mode": "expected_value_signal",
+            "expected_value_signal_input": {
+                "explicit_score": 42,
+                "expected_value_usd": null,
+                "oracle_priority_score": null,
+                "impact_weight": 2.0,
+                "selected_currency": "revenue",
+                "currency_multiplier": 1.25,
+                "matched_first_sentence_contains_selected": false,
+                "currency_ranking_enabled": true,
+                "oracle_applies": true,
+                "oracle_pass": true,
+                "rank_blend": 0.35,
+                "bonus_cap": 12
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale expected_value_signal");
+        assert!(out.contains("\"mode\":\"expected_value_signal\""));
+        assert!(out.contains("\"source\":\"expected_value_score\""));
+        assert!(out.contains("\"score\":42.0"));
     }
 
     #[test]
