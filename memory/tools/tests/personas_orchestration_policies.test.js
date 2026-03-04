@@ -36,6 +36,7 @@ function mkOrgDir() {
     'routing_rules.json',
     'risk_policy.json',
     'breaker_policy.json',
+    'shadow_deployment_policy.json',
     'soul_token_policy.json',
     'telemetry_policy.json',
     'retention_policy.json',
@@ -91,6 +92,12 @@ try {
   out = run(['meeting', 'General orchestration health check'], { PROTHEUS_PERSONA_ORG_DIR: org, PROTHEUS_PERSONA_DIR: personasDir });
   assert.notStrictEqual(out.status, 0, 'missing breaker policy should fail closed');
   assert.ok(out.stderr.includes('policy_validation_failed'), 'missing breaker policy should surface validation failure');
+
+  org = mkOrgDir();
+  fs.unlinkSync(path.join(org, 'shadow_deployment_policy.json'));
+  out = run(['meeting', 'General orchestration health check'], { PROTHEUS_PERSONA_ORG_DIR: org, PROTHEUS_PERSONA_DIR: personasDir });
+  assert.notStrictEqual(out.status, 0, 'missing shadow deployment policy should fail closed');
+  assert.ok(out.stderr.includes('policy_validation_failed'), 'missing shadow deployment policy should surface validation failure');
 
   org = mkOrgDir();
   fs.unlinkSync(path.join(org, 'soul_token_policy.json'));
