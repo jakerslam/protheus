@@ -898,6 +898,29 @@ pub struct StrategyTritShadowRankingSummaryOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ShadowScopeMatchesInput {
+    #[serde(default)]
+    pub scope_type: Option<String>,
+    #[serde(default)]
+    pub scope_value: Option<String>,
+    #[serde(default)]
+    pub risk_levels: Vec<String>,
+    #[serde(default)]
+    pub risk: Option<String>,
+    #[serde(default)]
+    pub proposal_type: Option<String>,
+    #[serde(default)]
+    pub capability_key: Option<String>,
+    #[serde(default)]
+    pub objective_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ShadowScopeMatchesOutput {
+    pub matched: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CompositeEligibilityScoreInput {
     pub quality_score: f64,
     pub directive_fit_score: f64,
@@ -1591,6 +1614,8 @@ pub struct AutoscaleRequest {
     pub collective_shadow_adjustments_input: Option<CollectiveShadowAdjustmentsInput>,
     #[serde(default)]
     pub strategy_trit_shadow_ranking_summary_input: Option<StrategyTritShadowRankingSummaryInput>,
+    #[serde(default)]
+    pub shadow_scope_matches_input: Option<ShadowScopeMatchesInput>,
     #[serde(default)]
     pub value_signal_score_input: Option<ValueSignalScoreInput>,
     #[serde(default)]
@@ -3087,6 +3112,66 @@ pub fn compute_strategy_trit_shadow_ranking_summary(
         },
         top,
     }
+}
+
+pub fn compute_shadow_scope_matches(input: &ShadowScopeMatchesInput) -> ShadowScopeMatchesOutput {
+    let scope_type = input
+        .scope_type
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    let scope_value = input
+        .scope_value
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    let risk_levels = input
+        .risk_levels
+        .iter()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .filter(|v| !v.is_empty())
+        .collect::<Vec<_>>();
+    let risk = input
+        .risk
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    let proposal_type = input
+        .proposal_type
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    let capability_key = input
+        .capability_key
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    let objective_id = input
+        .objective_id
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+
+    let matched = match scope_type.as_str() {
+        "proposal_type" => !scope_value.is_empty() && !proposal_type.is_empty() && scope_value == proposal_type,
+        "capability_key" => !scope_value.is_empty() && !capability_key.is_empty() && scope_value == capability_key,
+        "objective_id" => !scope_value.is_empty() && !objective_id.is_empty() && scope_value == objective_id,
+        "global" => {
+            if risk_levels.is_empty() {
+                true
+            } else {
+                !risk.is_empty() && risk_levels.iter().any(|v| v == &risk)
+            }
+        }
+        _ => false,
+    };
+    ShadowScopeMatchesOutput { matched }
 }
 
 pub fn compute_value_signal_score(input: &ValueSignalScoreInput) -> ValueSignalScoreOutput {
@@ -5135,6 +5220,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_strategy_trit_shadow_ranking_summary_encode_failed:{e}"));
+    }
+    if mode == "shadow_scope_matches" {
+        let input = request
+            .shadow_scope_matches_input
+            .ok_or_else(|| "autoscale_missing_shadow_scope_matches_input".to_string())?;
+        let out = compute_shadow_scope_matches(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "shadow_scope_matches",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_shadow_scope_matches_encode_failed:{e}"));
     }
     if mode == "value_signal_score" {
         let input = request
@@ -7204,6 +7301,51 @@ mod tests {
             run_autoscale_json(&payload).expect("autoscale strategy_trit_shadow_ranking_summary");
         assert!(out.contains("\"mode\":\"strategy_trit_shadow_ranking_summary\""));
         assert!(out.contains("\"trit_top_proposal_id\":\"b\""));
+    }
+
+    #[test]
+    fn shadow_scope_matches_evaluates_scope_types() {
+        let proposal_scope = compute_shadow_scope_matches(&ShadowScopeMatchesInput {
+            scope_type: Some("proposal_type".to_string()),
+            scope_value: Some("ops_remediation".to_string()),
+            risk_levels: vec![],
+            risk: Some("low".to_string()),
+            proposal_type: Some("ops_remediation".to_string()),
+            capability_key: Some("system_exec".to_string()),
+            objective_id: Some("obj-1".to_string()),
+        });
+        assert!(proposal_scope.matched);
+
+        let global_scope = compute_shadow_scope_matches(&ShadowScopeMatchesInput {
+            scope_type: Some("global".to_string()),
+            scope_value: None,
+            risk_levels: vec!["high".to_string()],
+            risk: Some("low".to_string()),
+            proposal_type: None,
+            capability_key: None,
+            objective_id: None,
+        });
+        assert!(!global_scope.matched);
+    }
+
+    #[test]
+    fn autoscale_json_shadow_scope_matches_path_works() {
+        let payload = serde_json::json!({
+            "mode": "shadow_scope_matches",
+            "shadow_scope_matches_input": {
+                "scope_type": "capability_key",
+                "scope_value": "system_exec",
+                "risk_levels": [],
+                "risk": "medium",
+                "proposal_type": "ops_remediation",
+                "capability_key": "system_exec",
+                "objective_id": "obj-1"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale shadow_scope_matches");
+        assert!(out.contains("\"mode\":\"shadow_scope_matches\""));
+        assert!(out.contains("\"matched\":true"));
     }
 
     #[test]
