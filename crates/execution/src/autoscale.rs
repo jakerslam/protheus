@@ -1223,6 +1223,17 @@ pub struct DirectiveTokenHitsOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ToStemInput {
+    #[serde(default)]
+    pub token: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ToStemOutput {
+    pub stem: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecutionReserveSnapshotInput {
     pub cap: f64,
     pub used: f64,
@@ -1959,6 +1970,8 @@ pub struct AutoscaleRequest {
     pub pulse_objective_cooldown_active_input: Option<PulseObjectiveCooldownActiveInput>,
     #[serde(default)]
     pub directive_token_hits_input: Option<DirectiveTokenHitsInput>,
+    #[serde(default)]
+    pub to_stem_input: Option<ToStemInput>,
     #[serde(default)]
     pub execution_reserve_snapshot_input: Option<ExecutionReserveSnapshotInput>,
     #[serde(default)]
@@ -4252,6 +4265,20 @@ pub fn compute_directive_token_hits(input: &DirectiveTokenHitsInput) -> Directiv
     DirectiveTokenHitsOutput { hits }
 }
 
+pub fn compute_to_stem(input: &ToStemInput) -> ToStemOutput {
+    let token = input
+        .token
+        .as_ref()
+        .map(|token| token.trim().to_string())
+        .unwrap_or_default();
+    let stem = if token.len() <= 5 {
+        token
+    } else {
+        token[..5].to_string()
+    };
+    ToStemOutput { stem }
+}
+
 pub fn compute_execution_reserve_snapshot(
     input: &ExecutionReserveSnapshotInput,
 ) -> ExecutionReserveSnapshotOutput {
@@ -6508,6 +6535,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_directive_token_hits_encode_failed:{e}"));
+    }
+    if mode == "to_stem" {
+        let input = request
+            .to_stem_input
+            .ok_or_else(|| "autoscale_missing_to_stem_input".to_string())?;
+        let out = compute_to_stem(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "to_stem",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_to_stem_encode_failed:{e}"));
     }
     if mode == "execution_reserve_snapshot" {
         let input = request
@@ -9231,6 +9270,33 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale directive_token_hits");
         assert!(out.contains("\"mode\":\"directive_token_hits\""));
         assert!(out.contains("\"hits\":[\"memory\",\"memorize\"]"));
+    }
+
+    #[test]
+    fn to_stem_matches_ts_semantics() {
+        let short = compute_to_stem(&ToStemInput {
+            token: Some("abc".to_string()),
+        });
+        assert_eq!(short.stem, "abc");
+
+        let long = compute_to_stem(&ToStemInput {
+            token: Some("memory".to_string()),
+        });
+        assert_eq!(long.stem, "memor");
+    }
+
+    #[test]
+    fn autoscale_json_to_stem_path_works() {
+        let payload = serde_json::json!({
+            "mode": "to_stem",
+            "to_stem_input": {
+                "token": "security"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale to_stem");
+        assert!(out.contains("\"mode\":\"to_stem\""));
+        assert!(out.contains("\"stem\":\"secur\""));
     }
 
     #[test]

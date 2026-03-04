@@ -2829,6 +2829,8 @@ const TIME_TO_VALUE_SCORE_CACHE = new Map();
 const TIME_TO_VALUE_SCORE_CACHE_MAX = 1024;
 const VALUE_DENSITY_SCORE_CACHE = new Map();
 const VALUE_DENSITY_SCORE_CACHE_MAX = 1024;
+const TO_STEM_CACHE = new Map();
+const TO_STEM_CACHE_MAX = 4096;
 const NORMALIZE_DIRECTIVE_TIER_CACHE = new Map();
 const NORMALIZE_DIRECTIVE_TIER_CACHE_MAX = 512;
 const DIRECTIVE_TIER_WEIGHT_CACHE = new Map();
@@ -5347,6 +5349,23 @@ function tokenizeDirectiveText(s) {
 
 function toStem(token) {
   const t = String(token || '').trim();
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    if (TO_STEM_CACHE.has(t)) return TO_STEM_CACHE.get(t);
+    const rust = runBacklogAutoscalePrimitive(
+      'to_stem',
+      { token: t || null },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const stem = String(rust.payload.payload.stem || '');
+      if (TO_STEM_CACHE.size >= TO_STEM_CACHE_MAX) {
+        const oldest = TO_STEM_CACHE.keys().next();
+        if (!oldest.done) TO_STEM_CACHE.delete(oldest.value);
+      }
+      TO_STEM_CACHE.set(t, stem);
+      return stem;
+    }
+  }
   if (t.length <= 5) return t;
   return t.slice(0, 5);
 }
@@ -18746,6 +18765,7 @@ module.exports = {
   capabilityCap,
   assessActionability,
   assessValueSignal,
+  toStem,
   directiveTokenHits,
   expectedValueScore,
   timeToValueScore,
