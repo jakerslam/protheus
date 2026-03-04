@@ -586,6 +586,21 @@ pub struct ExecuteConfidenceHistoryMatchOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExecuteConfidenceCooldownKeyInput {
+    #[serde(default)]
+    pub capability_key: Option<String>,
+    #[serde(default)]
+    pub objective_id: Option<String>,
+    #[serde(default)]
+    pub proposal_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExecuteConfidenceCooldownKeyOutput {
+    pub cooldown_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct QosLaneWeightsInput {
     #[serde(default)]
     pub pressure: Option<String>,
@@ -2071,6 +2086,8 @@ pub struct AutoscaleRequest {
     #[serde(default)]
     pub execute_confidence_history_match_input: Option<ExecuteConfidenceHistoryMatchInput>,
     #[serde(default)]
+    pub execute_confidence_cooldown_key_input: Option<ExecuteConfidenceCooldownKeyInput>,
+    #[serde(default)]
     pub qos_lane_weights_input: Option<QosLaneWeightsInput>,
     #[serde(default)]
     pub proposal_outcome_status_input: Option<ProposalOutcomeStatusInput>,
@@ -2684,6 +2701,38 @@ fn sanitize_directive_objective_id(raw: &str) -> String {
         return String::new();
     }
     value.to_string()
+}
+
+fn sanitize_directive_objective_id_single_digit(raw: &str) -> String {
+    let value = raw.trim();
+    let bytes = value.as_bytes();
+    if bytes.len() < 4 {
+        return String::new();
+    }
+    if bytes[0] != b'T' || !bytes[1].is_ascii_digit() || bytes[2] != b'_' {
+        return String::new();
+    }
+    if !bytes[3..]
+        .iter()
+        .all(|b| b.is_ascii_alphanumeric() || *b == b'_')
+    {
+        return String::new();
+    }
+    value.to_string()
+}
+
+fn sanitize_cooldown_fragment(raw: &str) -> String {
+    normalize_spaces(raw)
+        .to_ascii_lowercase()
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == ':' || ch == '_' || ch == '-' {
+                ch
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>()
 }
 
 pub fn compute_policy_hold(input: &PolicyHoldInput) -> PolicyHoldOutput {
@@ -5087,6 +5136,39 @@ pub fn compute_execute_confidence_history_match(
     ExecuteConfidenceHistoryMatchOutput { matched: false }
 }
 
+pub fn compute_execute_confidence_cooldown_key(
+    input: &ExecuteConfidenceCooldownKeyInput,
+) -> ExecuteConfidenceCooldownKeyOutput {
+    let objective =
+        sanitize_directive_objective_id_single_digit(input.objective_id.as_deref().unwrap_or(""));
+    if !objective.is_empty() {
+        let token = sanitize_cooldown_fragment(&objective);
+        if !token.is_empty() {
+            return ExecuteConfidenceCooldownKeyOutput {
+                cooldown_key: format!("exec_confidence:objective:{token}"),
+            };
+        }
+    }
+
+    let capability = sanitize_cooldown_fragment(input.capability_key.as_deref().unwrap_or(""));
+    if !capability.is_empty() {
+        return ExecuteConfidenceCooldownKeyOutput {
+            cooldown_key: format!("exec_confidence:capability:{capability}"),
+        };
+    }
+
+    let proposal_type = sanitize_cooldown_fragment(input.proposal_type.as_deref().unwrap_or(""));
+    if !proposal_type.is_empty() {
+        return ExecuteConfidenceCooldownKeyOutput {
+            cooldown_key: format!("exec_confidence:type:{proposal_type}"),
+        };
+    }
+
+    ExecuteConfidenceCooldownKeyOutput {
+        cooldown_key: String::new(),
+    }
+}
+
 pub fn compute_qos_lane_weights(input: &QosLaneWeightsInput) -> QosLaneWeightsOutput {
     let pressure = input
         .pressure
@@ -7261,6 +7343,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_execute_confidence_history_match_encode_failed:{e}"));
+    }
+    if mode == "execute_confidence_cooldown_key" {
+        let input = request
+            .execute_confidence_cooldown_key_input
+            .ok_or_else(|| "autoscale_missing_execute_confidence_cooldown_key_input".to_string())?;
+        let out = compute_execute_confidence_cooldown_key(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "execute_confidence_cooldown_key",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_execute_confidence_cooldown_key_encode_failed:{e}"));
     }
     if mode == "no_progress_result" {
         let input = request
@@ -10590,6 +10684,46 @@ mod tests {
         let out =
             run_autoscale_json(&payload).expect("autoscale execute_confidence_history_match");
         assert!(out.contains("\"mode\":\"execute_confidence_history_match\""));
+    }
+
+    #[test]
+    fn execute_confidence_cooldown_key_prefers_objective_then_capability_then_type() {
+        let objective = compute_execute_confidence_cooldown_key(&ExecuteConfidenceCooldownKeyInput {
+            capability_key: Some("system_exec".to_string()),
+            objective_id: Some("T1_Objective".to_string()),
+            proposal_type: Some("ops_remediation".to_string()),
+        });
+        assert_eq!(objective.cooldown_key, "exec_confidence:objective:t1_objective");
+
+        let capability = compute_execute_confidence_cooldown_key(&ExecuteConfidenceCooldownKeyInput {
+            capability_key: Some("System Exec".to_string()),
+            objective_id: Some("T12_Objective".to_string()),
+            proposal_type: Some("ops_remediation".to_string()),
+        });
+        assert_eq!(capability.cooldown_key, "exec_confidence:capability:system_exec");
+
+        let by_type = compute_execute_confidence_cooldown_key(&ExecuteConfidenceCooldownKeyInput {
+            capability_key: Some(String::new()),
+            objective_id: Some(String::new()),
+            proposal_type: Some("Directive Decomposition".to_string()),
+        });
+        assert_eq!(by_type.cooldown_key, "exec_confidence:type:directive_decomposition");
+    }
+
+    #[test]
+    fn autoscale_json_execute_confidence_cooldown_key_path_works() {
+        let payload = serde_json::json!({
+            "mode": "execute_confidence_cooldown_key",
+            "execute_confidence_cooldown_key_input": {
+                "capability_key": "System Exec",
+                "objective_id": "T2_objective",
+                "proposal_type": "ops_remediation"
+            }
+        })
+        .to_string();
+        let out =
+            run_autoscale_json(&payload).expect("autoscale execute_confidence_cooldown_key");
+        assert!(out.contains("\"mode\":\"execute_confidence_cooldown_key\""));
     }
 
     #[test]

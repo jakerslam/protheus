@@ -3632,6 +3632,21 @@ function capabilityCooldownActive(capabilityKey) {
 }
 
 function executeConfidenceCooldownKey(capabilityKey, objectiveId, proposalType) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'execute_confidence_cooldown_key',
+      {
+        capability_key: String(capabilityKey || ''),
+        objective_id: String(objectiveId || ''),
+        proposal_type: String(proposalType || '')
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return String(rust.payload.payload.cooldown_key || '');
+    }
+  }
+
   const objective = sanitizeDirectiveObjectiveId(objectiveId || '');
   if (objective) {
     return `exec_confidence:objective:${String(objective).toLowerCase().replace(/[^a-z0-9:_-]/g, '_')}`;

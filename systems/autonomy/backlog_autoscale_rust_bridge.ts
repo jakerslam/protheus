@@ -132,6 +132,7 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
     start_of_next_utc_day: 'start_of_next_utc_day_input',
     iso_after_minutes: 'iso_after_minutes_input',
     execute_confidence_history_match: 'execute_confidence_history_match_input',
+    execute_confidence_cooldown_key: 'execute_confidence_cooldown_key_input',
     qos_lane_weights: 'qos_lane_weights_input',
     proposal_outcome_status: 'proposal_outcome_status_input',
     queue_underflow_backfill: 'queue_underflow_backfill_input',
