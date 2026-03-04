@@ -826,6 +826,24 @@ pub struct StrategyTritShadowAdjustedOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NonYieldPenaltyScoreInput {
+    pub policy_hold_rate: f64,
+    pub no_progress_rate: f64,
+    pub stop_rate: f64,
+    pub shipped_rate: f64,
+    pub policy_hold_weight: f64,
+    pub no_progress_weight: f64,
+    pub stop_weight: f64,
+    pub shipped_relief_weight: f64,
+    pub max_penalty: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NonYieldPenaltyScoreOutput {
+    pub penalty: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CompositeEligibilityScoreInput {
     pub quality_score: f64,
     pub directive_fit_score: f64,
@@ -1513,6 +1531,8 @@ pub struct AutoscaleRequest {
     pub strategy_circuit_cooldown_input: Option<StrategyCircuitCooldownInput>,
     #[serde(default)]
     pub strategy_trit_shadow_adjusted_input: Option<StrategyTritShadowAdjustedInput>,
+    #[serde(default)]
+    pub non_yield_penalty_score_input: Option<NonYieldPenaltyScoreInput>,
     #[serde(default)]
     pub value_signal_score_input: Option<ValueSignalScoreInput>,
     #[serde(default)]
@@ -2916,6 +2936,22 @@ pub fn compute_strategy_trit_shadow_adjusted(
     StrategyTritShadowAdjustedOutput {
         adjusted_score,
         bonus_applied,
+    }
+}
+
+pub fn compute_non_yield_penalty_score(
+    input: &NonYieldPenaltyScoreInput,
+) -> NonYieldPenaltyScoreOutput {
+    let to_fixed3 = |value: f64| -> f64 {
+        format!("{value:.3}").parse::<f64>().unwrap_or(value)
+    };
+    let raw = (input.policy_hold_rate * input.policy_hold_weight)
+        + (input.no_progress_rate * input.no_progress_weight)
+        + (input.stop_rate * input.stop_weight)
+        - (input.shipped_rate * input.shipped_relief_weight);
+    let penalty = raw.clamp(0.0, input.max_penalty.max(0.0));
+    NonYieldPenaltyScoreOutput {
+        penalty: to_fixed3(penalty),
     }
 }
 
@@ -4930,6 +4966,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_strategy_trit_shadow_adjusted_encode_failed:{e}"));
     }
+    if mode == "non_yield_penalty_score" {
+        let input = request
+            .non_yield_penalty_score_input
+            .ok_or_else(|| "autoscale_missing_non_yield_penalty_score_input".to_string())?;
+        let out = compute_non_yield_penalty_score(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "non_yield_penalty_score",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_non_yield_penalty_score_encode_failed:{e}"));
+    }
     if mode == "value_signal_score" {
         let input = request
             .value_signal_score_input
@@ -6859,6 +6907,44 @@ mod tests {
         assert!(out.contains("\"mode\":\"strategy_trit_shadow_adjusted\""));
         assert!(out.contains("\"bonus_applied\":4.938"));
         assert!(out.contains("\"adjusted_score\":73.688"));
+    }
+
+    #[test]
+    fn non_yield_penalty_score_applies_weighted_formula_and_clamp() {
+        let out = compute_non_yield_penalty_score(&NonYieldPenaltyScoreInput {
+            policy_hold_rate: 0.25,
+            no_progress_rate: 0.5,
+            stop_rate: 0.125,
+            shipped_rate: 0.2,
+            policy_hold_weight: 8.0,
+            no_progress_weight: 6.0,
+            stop_weight: 4.0,
+            shipped_relief_weight: 3.0,
+            max_penalty: 12.0,
+        });
+        assert!((out.penalty - 4.9).abs() < 0.000001);
+    }
+
+    #[test]
+    fn autoscale_json_non_yield_penalty_score_path_works() {
+        let payload = serde_json::json!({
+            "mode": "non_yield_penalty_score",
+            "non_yield_penalty_score_input": {
+                "policy_hold_rate": 0.25,
+                "no_progress_rate": 0.5,
+                "stop_rate": 0.125,
+                "shipped_rate": 0.2,
+                "policy_hold_weight": 8,
+                "no_progress_weight": 6,
+                "stop_weight": 4,
+                "shipped_relief_weight": 3,
+                "max_penalty": 12
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale non_yield_penalty_score");
+        assert!(out.contains("\"mode\":\"non_yield_penalty_score\""));
+        assert!(out.contains("\"penalty\":4.9"));
     }
 
     #[test]
