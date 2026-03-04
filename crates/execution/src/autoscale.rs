@@ -2979,6 +2979,17 @@ pub struct RecentDirectivePulseCooldownCountOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalDirectiveTextInput {
+    #[serde(default)]
+    pub proposal: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalDirectiveTextOutput {
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -4175,6 +4186,8 @@ pub struct AutoscaleRequest {
     pub directive_pulse_objectives_profile_input: Option<DirectivePulseObjectivesProfileInput>,
     #[serde(default)]
     pub recent_directive_pulse_cooldown_count_input: Option<RecentDirectivePulseCooldownCountInput>,
+    #[serde(default)]
+    pub proposal_directive_text_input: Option<ProposalDirectiveTextInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -9210,6 +9223,18 @@ fn js_like_string_array(value: Option<&serde_json::Value>) -> Vec<String> {
     }
 }
 
+fn js_array_to_strings(value: Option<&serde_json::Value>) -> Vec<String> {
+    match value {
+        Some(serde_json::Value::Array(rows)) => rows
+            .iter()
+            .map(js_like_string)
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
 fn js_like_number(value: Option<&serde_json::Value>) -> Option<f64> {
     let Some(v) = value else {
         return None;
@@ -9498,6 +9523,69 @@ pub fn compute_recent_directive_pulse_cooldown_count(
     }
 
     RecentDirectivePulseCooldownCountOutput { count }
+}
+
+pub fn compute_proposal_directive_text(input: &ProposalDirectiveTextInput) -> ProposalDirectiveTextOutput {
+    let proposal = input.proposal.as_ref().unwrap_or(&serde_json::Value::Null);
+    let mut parts = Vec::<String>::new();
+    parts.push(js_like_string(json_path(proposal, &["title"]).unwrap_or(&serde_json::Value::Null)));
+    parts.push(js_like_string(json_path(proposal, &["type"]).unwrap_or(&serde_json::Value::Null)));
+    parts.push(js_like_string(json_path(proposal, &["summary"]).unwrap_or(&serde_json::Value::Null)));
+    parts.push(js_like_string(json_path(proposal, &["notes"]).unwrap_or(&serde_json::Value::Null)));
+    parts.push(js_like_string(
+        json_path(proposal, &["expected_impact"]).unwrap_or(&serde_json::Value::Null),
+    ));
+    parts.push(js_like_string(json_path(proposal, &["risk"]).unwrap_or(&serde_json::Value::Null)));
+    parts.push(js_like_string(
+        json_path(proposal, &["meta", "preview"]).unwrap_or(&serde_json::Value::Null),
+    ));
+    parts.push(js_like_string(
+        json_path(proposal, &["meta", "url"]).unwrap_or(&serde_json::Value::Null),
+    ));
+    parts.push(js_like_string(
+        json_path(proposal, &["meta", "normalized_objective"]).unwrap_or(&serde_json::Value::Null),
+    ));
+    parts.push(js_like_string(
+        json_path(proposal, &["meta", "normalized_expected_outcome"])
+            .unwrap_or(&serde_json::Value::Null),
+    ));
+    parts.push(js_like_string(
+        json_path(proposal, &["meta", "normalized_validation_metric"])
+            .unwrap_or(&serde_json::Value::Null),
+    ));
+
+    let hint_tokens = js_array_to_strings(json_path(proposal, &["meta", "normalized_hint_tokens"]));
+    if !hint_tokens.is_empty() {
+        parts.push(hint_tokens.join(" "));
+    }
+    let archetypes = js_array_to_strings(json_path(proposal, &["meta", "normalized_archetypes"]));
+    if !archetypes.is_empty() {
+        parts.push(archetypes.join(" "));
+    }
+    let topics = js_array_to_strings(json_path(proposal, &["meta", "topics"]));
+    if !topics.is_empty() {
+        parts.push(topics.join(" "));
+    }
+    let validation = js_array_to_strings(json_path(proposal, &["validation"]));
+    if !validation.is_empty() {
+        parts.push(validation.join(" "));
+    }
+
+    if let Some(serde_json::Value::Array(rows)) = json_path(proposal, &["evidence"]) {
+        for ev in rows {
+            parts.push(js_like_string(json_path(ev, &["match"]).unwrap_or(&serde_json::Value::Null)));
+            parts.push(js_like_string(
+                json_path(ev, &["evidence_ref"]).unwrap_or(&serde_json::Value::Null),
+            ));
+        }
+    }
+
+    let joined = parts.join(" ");
+    let normalized = compute_normalize_directive_text(&NormalizeDirectiveTextInput {
+        text: Some(joined),
+    })
+    .normalized;
+    ProposalDirectiveTextOutput { text: normalized }
 }
 
 pub fn compute_is_directive_clarification_proposal(
@@ -13267,6 +13355,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_recent_directive_pulse_cooldown_count_encode_failed:{e}"));
+    }
+    if mode == "proposal_directive_text" {
+        let input = request
+            .proposal_directive_text_input
+            .ok_or_else(|| "autoscale_missing_proposal_directive_text_input".to_string())?;
+        let out = compute_proposal_directive_text(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "proposal_directive_text",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_proposal_directive_text_encode_failed:{e}"));
     }
     if mode == "directive_pulse_context" {
         let input = request
@@ -19199,6 +19299,43 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale recent_directive_pulse_cooldown_count");
         assert!(out.contains("\"mode\":\"recent_directive_pulse_cooldown_count\""));
+    }
+
+    #[test]
+    fn proposal_directive_text_matches_expected_normalization() {
+        let out = compute_proposal_directive_text(&ProposalDirectiveTextInput {
+            proposal: Some(serde_json::json!({
+                "title": "Directive fit improve",
+                "type": "directive_clarification",
+                "summary": "Improve objective focus",
+                "meta": {
+                    "normalized_hint_tokens": ["memory", "durability"],
+                    "topics": ["alignment", "metrics"]
+                },
+                "validation": ["one metric"],
+                "evidence": [{"match":"directive", "evidence_ref":"eye:directive/1"}]
+            })),
+        });
+        assert!(out.text.contains("directive"));
+        assert!(out.text.contains("memory"));
+        assert!(out.text.contains("alignment"));
+    }
+
+    #[test]
+    fn autoscale_json_proposal_directive_text_path_works() {
+        let payload = serde_json::json!({
+            "mode": "proposal_directive_text",
+            "proposal_directive_text_input": {
+                "proposal": {
+                    "title": "Directive fit improve",
+                    "type": "directive_clarification",
+                    "summary": "Improve objective focus"
+                }
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale proposal_directive_text");
+        assert!(out.contains("\"mode\":\"proposal_directive_text\""));
     }
 
     #[test]
