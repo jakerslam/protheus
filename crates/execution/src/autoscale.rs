@@ -2856,6 +2856,41 @@ pub struct DirectivePulseContextOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DirectivePulseStatsEventInput {
+    #[serde(default)]
+    pub day: Option<String>,
+    #[serde(default)]
+    pub event_type: Option<String>,
+    #[serde(default)]
+    pub result: Option<String>,
+    #[serde(default)]
+    pub outcome: Option<String>,
+    #[serde(default)]
+    pub objective_id: Option<String>,
+    #[serde(default)]
+    pub tier: Option<f64>,
+    #[serde(default)]
+    pub ts: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DirectivePulseStatsInput {
+    #[serde(default)]
+    pub date_str: Option<String>,
+    #[serde(default)]
+    pub window_days: Option<f64>,
+    #[serde(default)]
+    pub events: Vec<DirectivePulseStatsEventInput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DirectivePulseStatsOutput {
+    pub tier_attempts_today: std::collections::BTreeMap<String, f64>,
+    pub attempts_today: f64,
+    pub objective_stats: Vec<DirectivePulseContextObjectiveStatOutput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -4044,6 +4079,8 @@ pub struct AutoscaleRequest {
     pub effective_allowed_risks_input: Option<EffectiveAllowedRisksInput>,
     #[serde(default)]
     pub directive_pulse_context_input: Option<DirectivePulseContextInput>,
+    #[serde(default)]
+    pub directive_pulse_stats_input: Option<DirectivePulseStatsInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -8909,6 +8946,134 @@ pub fn compute_directive_pulse_context(input: &DirectivePulseContextInput) -> Di
     }
 }
 
+pub fn compute_directive_pulse_stats(input: &DirectivePulseStatsInput) -> DirectivePulseStatsOutput {
+    let date_str = input
+        .date_str
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .unwrap_or_default();
+
+    let mut tier_attempts_today = std::collections::BTreeMap::<String, f64>::new();
+    let mut attempts_today = 0.0_f64;
+    let mut objective_stats_by_id =
+        std::collections::BTreeMap::<String, DirectivePulseContextObjectiveStatOutput>::new();
+
+    for evt in &input.events {
+        let event_type = evt
+            .event_type
+            .as_ref()
+            .map(|v| v.trim().to_string())
+            .unwrap_or_default();
+        let result = evt
+            .result
+            .as_ref()
+            .map(|v| v.trim().to_string())
+            .unwrap_or_default();
+        let outcome = evt
+            .outcome
+            .as_ref()
+            .map(|v| v.trim().to_string())
+            .unwrap_or_default();
+        let day = evt
+            .day
+            .as_ref()
+            .map(|v| v.trim().to_string())
+            .unwrap_or_default();
+        let objective_id = evt
+            .objective_id
+            .as_ref()
+            .map(|v| v.trim().to_string())
+            .unwrap_or_default();
+        let pulse_tier = compute_normalize_directive_tier(&NormalizeDirectiveTierInput {
+            raw_tier: evt.tier,
+            fallback: Some(3.0),
+        })
+        .tier;
+
+        let is_attempt = compute_attempt_run_event(&AttemptRunEventInput {
+            event_type: Some(event_type.clone()),
+            result: Some(result.clone()),
+        })
+        .is_attempt;
+        if !is_attempt {
+            continue;
+        }
+
+        if !date_str.is_empty() && day == date_str {
+            let tier_key = pulse_tier.to_string();
+            let next = tier_attempts_today.get(&tier_key).copied().unwrap_or(0.0) + 1.0;
+            tier_attempts_today.insert(tier_key, next);
+            attempts_today += 1.0;
+        }
+
+        if objective_id.is_empty() {
+            continue;
+        }
+
+        let is_no_progress = compute_no_progress_result(&NoProgressResultInput {
+            event_type: Some(event_type),
+            result: Some(result.clone()),
+            outcome: Some(outcome.clone()),
+        })
+        .is_no_progress;
+
+        let entry = objective_stats_by_id
+            .entry(objective_id.clone())
+            .or_insert_with(|| DirectivePulseContextObjectiveStatOutput {
+                objective_id: objective_id.clone(),
+                tier: pulse_tier,
+                attempts: 0,
+                shipped: 0,
+                no_change: 0,
+                reverted: 0,
+                no_progress_streak: 0,
+                last_attempt_ts: None,
+                last_shipped_ts: None,
+            });
+
+        entry.attempts += 1;
+        entry.tier = pulse_tier;
+        if let Some(ts) = evt
+            .ts
+            .as_ref()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+        {
+            entry.last_attempt_ts = Some(ts.clone());
+        }
+
+        let shipped = result == "executed" && outcome == "shipped";
+        if shipped {
+            entry.shipped += 1;
+            entry.no_progress_streak = 0;
+            if let Some(ts) = evt
+                .ts
+                .as_ref()
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty())
+            {
+                entry.last_shipped_ts = Some(ts);
+            }
+        } else {
+            if result == "executed" && outcome == "no_change" {
+                entry.no_change += 1;
+            }
+            if result == "executed" && outcome == "reverted" {
+                entry.reverted += 1;
+            }
+            if is_no_progress {
+                entry.no_progress_streak += 1;
+            }
+        }
+    }
+
+    DirectivePulseStatsOutput {
+        tier_attempts_today,
+        attempts_today,
+        objective_stats: objective_stats_by_id.into_values().collect(),
+    }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -12628,6 +12793,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_effective_allowed_risks_encode_failed:{e}"));
+    }
+    if mode == "directive_pulse_stats" {
+        let input = request
+            .directive_pulse_stats_input
+            .ok_or_else(|| "autoscale_missing_directive_pulse_stats_input".to_string())?;
+        let out = compute_directive_pulse_stats(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "directive_pulse_stats",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_directive_pulse_stats_encode_failed:{e}"));
     }
     if mode == "directive_pulse_context" {
         let input = request
@@ -18309,6 +18486,80 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale directive_pulse_context");
         assert!(out.contains("\"mode\":\"directive_pulse_context\""));
+    }
+
+    #[test]
+    fn directive_pulse_stats_aggregates_attempts_and_outcomes() {
+        let out = compute_directive_pulse_stats(&DirectivePulseStatsInput {
+            date_str: Some("2026-03-04".to_string()),
+            window_days: Some(14.0),
+            events: vec![
+                DirectivePulseStatsEventInput {
+                    day: Some("2026-03-04".to_string()),
+                    event_type: Some("autonomy_run".to_string()),
+                    result: Some("executed".to_string()),
+                    outcome: Some("shipped".to_string()),
+                    objective_id: Some("obj_a".to_string()),
+                    tier: Some(1.0),
+                    ts: Some("2026-03-04T01:00:00.000Z".to_string()),
+                },
+                DirectivePulseStatsEventInput {
+                    day: Some("2026-03-04".to_string()),
+                    event_type: Some("autonomy_run".to_string()),
+                    result: Some("executed".to_string()),
+                    outcome: Some("no_change".to_string()),
+                    objective_id: Some("obj_a".to_string()),
+                    tier: Some(1.0),
+                    ts: Some("2026-03-04T02:00:00.000Z".to_string()),
+                },
+                DirectivePulseStatsEventInput {
+                    day: Some("2026-03-03".to_string()),
+                    event_type: Some("autonomy_run".to_string()),
+                    result: Some("executed".to_string()),
+                    outcome: Some("reverted".to_string()),
+                    objective_id: Some("obj_b".to_string()),
+                    tier: Some(2.0),
+                    ts: Some("2026-03-03T03:00:00.000Z".to_string()),
+                },
+            ],
+        });
+        assert_eq!(out.attempts_today, 2.0);
+        assert_eq!(out.tier_attempts_today.get("1").copied().unwrap_or(0.0), 2.0);
+        assert_eq!(out.objective_stats.len(), 2);
+        let a = out
+            .objective_stats
+            .iter()
+            .find(|row| row.objective_id == "obj_a")
+            .expect("obj_a");
+        assert_eq!(a.attempts, 2);
+        assert_eq!(a.shipped, 1);
+        assert_eq!(a.no_change, 1);
+        assert_eq!(a.reverted, 0);
+    }
+
+    #[test]
+    fn autoscale_json_directive_pulse_stats_path_works() {
+        let payload = serde_json::json!({
+            "mode": "directive_pulse_stats",
+            "directive_pulse_stats_input": {
+                "date_str": "2026-03-04",
+                "window_days": 14,
+                "events": [
+                    {
+                        "day": "2026-03-04",
+                        "event_type": "autonomy_run",
+                        "result": "executed",
+                        "outcome": "shipped",
+                        "objective_id": "obj_a",
+                        "tier": 1,
+                        "ts": "2026-03-04T01:00:00.000Z"
+                    }
+                ]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale directive_pulse_stats");
+        assert!(out.contains("\"mode\":\"directive_pulse_stats\""));
     }
 
     #[test]
