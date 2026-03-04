@@ -9,6 +9,7 @@ fn usage() {
     println!("Usage:");
     println!("  protheus-ops runtime-efficiency-floor run [--strict=1|0] [--policy=<path>]");
     println!("  protheus-ops runtime-efficiency-floor status [--policy=<path>]");
+    println!("  protheus-ops protheusctl <command> [flags]");
 }
 
 fn print_json(value: &serde_json::Value) {
@@ -28,45 +29,53 @@ fn main() {
     }
 
     let domain = args.first().map(String::as_str).unwrap_or("");
-    if domain != "runtime-efficiency-floor" {
-        print_json(&json!({
-            "ok": false,
-            "error": "unknown_domain",
-            "domain": domain
-        }));
-        std::process::exit(1);
-    }
+    match domain {
+        "runtime-efficiency-floor" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let parsed = parse_args(&rest);
+            let cmd = parsed
+                .positional
+                .first()
+                .map(|v| v.to_ascii_lowercase())
+                .unwrap_or_else(|| "run".to_string());
 
-    let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
-    let parsed = parse_args(&rest);
-    let cmd = parsed
-        .positional
-        .first()
-        .map(|v| v.to_ascii_lowercase())
-        .unwrap_or_else(|| "run".to_string());
-
-    match cmd.as_str() {
-        "run" => match run_runtime_efficiency_floor(&cwd, &parsed) {
-            Ok(out) => {
-                print_json(&out.json);
-                std::process::exit(out.exit_code);
+            match cmd.as_str() {
+                "run" => match run_runtime_efficiency_floor(&cwd, &parsed) {
+                    Ok(out) => {
+                        print_json(&out.json);
+                        std::process::exit(out.exit_code);
+                    }
+                    Err(err) => {
+                        print_json(&json!({
+                            "ok": false,
+                            "type": "runtime_efficiency_floor",
+                            "error": err
+                        }));
+                        std::process::exit(1);
+                    }
+                },
+                "status" => {
+                    let out = status_runtime_efficiency_floor(&cwd, &parsed);
+                    print_json(&out.json);
+                    std::process::exit(out.exit_code);
+                }
+                _ => {
+                    usage();
+                    std::process::exit(1);
+                }
             }
-            Err(err) => {
-                print_json(&json!({
-                    "ok": false,
-                    "type": "runtime_efficiency_floor",
-                    "error": err
-                }));
-                std::process::exit(1);
-            }
-        },
-        "status" => {
-            let out = status_runtime_efficiency_floor(&cwd, &parsed);
-            print_json(&out.json);
-            std::process::exit(out.exit_code);
+        }
+        "protheusctl" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::protheusctl::run(&cwd, &rest);
+            std::process::exit(exit);
         }
         _ => {
-            usage();
+            print_json(&json!({
+                "ok": false,
+                "error": "unknown_domain",
+                "domain": domain
+            }));
             std::process::exit(1);
         }
     }
