@@ -1496,6 +1496,140 @@ pub struct ExtractObjectiveIdTokenOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizeValueCurrencyTokenInput {
+    #[serde(default)]
+    pub value: Option<String>,
+    #[serde(default)]
+    pub allowed_keys: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizeValueCurrencyTokenOutput {
+    pub token: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ListValueCurrenciesInput {
+    #[serde(default)]
+    pub value_list: Vec<String>,
+    #[serde(default)]
+    pub value_csv: Option<String>,
+    #[serde(default)]
+    pub allowed_keys: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ListValueCurrenciesOutput {
+    #[serde(default)]
+    pub currencies: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct InferValueCurrenciesFromDirectiveBitsInput {
+    #[serde(default)]
+    pub bits: Vec<String>,
+    #[serde(default)]
+    pub allowed_keys: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct InferValueCurrenciesFromDirectiveBitsOutput {
+    #[serde(default)]
+    pub currencies: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct HasLinkedObjectiveEntryInput {
+    #[serde(default)]
+    pub objective_id: Option<String>,
+    #[serde(default)]
+    pub directive_objective_id: Option<String>,
+    #[serde(default)]
+    pub directive: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct HasLinkedObjectiveEntryOutput {
+    pub linked: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct VerifiedEntryOutcomeInput {
+    #[serde(default)]
+    pub outcome_verified: bool,
+    #[serde(default)]
+    pub outcome: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct VerifiedEntryOutcomeOutput {
+    pub verified: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct VerifiedRevenueActionInput {
+    #[serde(default)]
+    pub verified: bool,
+    #[serde(default)]
+    pub outcome_verified: bool,
+    #[serde(default)]
+    pub status: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct VerifiedRevenueActionOutput {
+    pub verified: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct MinutesUntilNextUtcDayInput {
+    #[serde(default)]
+    pub now_ms: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct MinutesUntilNextUtcDayOutput {
+    pub minutes: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AgeHoursInput {
+    #[serde(default)]
+    pub date: Option<String>,
+    #[serde(default)]
+    pub now_ms: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AgeHoursOutput {
+    pub age_hours: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UrlDomainInput {
+    #[serde(default)]
+    pub url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UrlDomainOutput {
+    pub domain: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DomainAllowedInput {
+    #[serde(default)]
+    pub domain: Option<String>,
+    #[serde(default)]
+    pub allowlist: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DomainAllowedOutput {
+    pub allowed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecutionReserveSnapshotInput {
     pub cap: f64,
     pub used: f64,
@@ -2428,6 +2562,27 @@ pub struct AutoscaleRequest {
     pub parse_iso_ts_input: Option<ParseIsoTsInput>,
     #[serde(default)]
     pub extract_objective_id_token_input: Option<ExtractObjectiveIdTokenInput>,
+    #[serde(default)]
+    pub normalize_value_currency_token_input: Option<NormalizeValueCurrencyTokenInput>,
+    #[serde(default)]
+    pub list_value_currencies_input: Option<ListValueCurrenciesInput>,
+    #[serde(default)]
+    pub infer_value_currencies_from_directive_bits_input:
+        Option<InferValueCurrenciesFromDirectiveBitsInput>,
+    #[serde(default)]
+    pub has_linked_objective_entry_input: Option<HasLinkedObjectiveEntryInput>,
+    #[serde(default)]
+    pub verified_entry_outcome_input: Option<VerifiedEntryOutcomeInput>,
+    #[serde(default)]
+    pub verified_revenue_action_input: Option<VerifiedRevenueActionInput>,
+    #[serde(default)]
+    pub minutes_until_next_utc_day_input: Option<MinutesUntilNextUtcDayInput>,
+    #[serde(default)]
+    pub age_hours_input: Option<AgeHoursInput>,
+    #[serde(default)]
+    pub url_domain_input: Option<UrlDomainInput>,
+    #[serde(default)]
+    pub domain_allowed_input: Option<DomainAllowedInput>,
     #[serde(default)]
     pub execution_reserve_snapshot_input: Option<ExecutionReserveSnapshotInput>,
     #[serde(default)]
@@ -5140,6 +5295,293 @@ pub fn compute_extract_objective_id_token(
         .and_then(|capture| capture.get(1))
         .map(|match_| match_.as_str().to_string());
     ExtractObjectiveIdTokenOutput { objective_id }
+}
+
+fn normalize_value_currency_token_with_allowed(raw: &str, allowed_keys: &[String]) -> String {
+    let token = raw.trim().to_ascii_lowercase();
+    if token.is_empty() {
+        return String::new();
+    }
+    if allowed_keys.is_empty() {
+        return token;
+    }
+    if allowed_keys
+        .iter()
+        .any(|key| key.trim().eq_ignore_ascii_case(&token))
+    {
+        return token;
+    }
+    String::new()
+}
+
+pub fn compute_normalize_value_currency_token(
+    input: &NormalizeValueCurrencyTokenInput,
+) -> NormalizeValueCurrencyTokenOutput {
+    let token = normalize_value_currency_token_with_allowed(
+        input.value.as_deref().unwrap_or(""),
+        &input.allowed_keys,
+    );
+    NormalizeValueCurrencyTokenOutput { token }
+}
+
+pub fn compute_list_value_currencies(
+    input: &ListValueCurrenciesInput,
+) -> ListValueCurrenciesOutput {
+    let mut rows: Vec<String> = Vec::new();
+    if !input.value_list.is_empty() {
+        rows.extend(input.value_list.iter().map(|v| v.to_string()));
+    } else if let Some(csv) = input.value_csv.as_deref() {
+        rows.extend(
+            csv.split(',')
+                .map(|row| row.trim().to_string())
+                .filter(|row| !row.is_empty()),
+        );
+    }
+    let mut out: Vec<String> = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
+    for row in rows {
+        let token = normalize_value_currency_token_with_allowed(&row, &input.allowed_keys);
+        if token.is_empty() {
+            continue;
+        }
+        if seen.insert(token.clone()) {
+            out.push(token);
+        }
+    }
+    ListValueCurrenciesOutput { currencies: out }
+}
+
+pub fn compute_infer_value_currencies_from_directive_bits(
+    input: &InferValueCurrenciesFromDirectiveBitsInput,
+) -> InferValueCurrenciesFromDirectiveBitsOutput {
+    let blob = normalize_spaces(&input.bits.join(" ")).to_ascii_lowercase();
+    if blob.is_empty() {
+        return InferValueCurrenciesFromDirectiveBitsOutput {
+            currencies: Vec::new(),
+        };
+    }
+
+    let revenue_re =
+        Regex::new(r"\b(revenue|mrr|arr|cash|money|usd|dollar|profit|pricing|invoice|paid|payment|billing|income)\b")
+            .expect("valid revenue regex");
+    let delivery_re =
+        Regex::new(r"\b(deliver|delivery|ship|release|milestone|throughput|lead[\s_-]?time|cycle[\s_-]?time|backlog)\b")
+            .expect("valid delivery regex");
+    let user_re = Regex::new(
+        r"\b(customer|user|adoption|engagement|retention|conversion|satisfaction|onboarding)\b",
+    )
+    .expect("valid user regex");
+    let quality_re =
+        Regex::new(r"\b(quality|reliab|uptime|error|stability|safety|accuracy|resilience|regression)\b")
+            .expect("valid quality regex");
+    let time_re = Regex::new(
+        r"\b(time[\s_-]*to[\s_-]*(?:value|cash|revenue)|hours?\s+saved|latency|faster|payback)\b",
+    )
+    .expect("valid time regex");
+    let learning_re =
+        Regex::new(r"\b(learn|discovery|research|insight|ab[\s_-]?test|hypothesis)\b")
+            .expect("valid learning regex");
+
+    let mut inferred: Vec<String> = Vec::new();
+    if revenue_re.is_match(&blob) {
+        inferred.push("revenue".to_string());
+    }
+    if delivery_re.is_match(&blob) {
+        inferred.push("delivery".to_string());
+    }
+    if user_re.is_match(&blob) {
+        inferred.push("user_value".to_string());
+    }
+    if quality_re.is_match(&blob) {
+        inferred.push("quality".to_string());
+    }
+    if time_re.is_match(&blob) {
+        inferred.push("time_savings".to_string());
+    }
+    if learning_re.is_match(&blob) {
+        inferred.push("learning".to_string());
+    }
+
+    let list_out = compute_list_value_currencies(&ListValueCurrenciesInput {
+        value_list: inferred,
+        value_csv: None,
+        allowed_keys: input.allowed_keys.clone(),
+    });
+    InferValueCurrenciesFromDirectiveBitsOutput {
+        currencies: list_out.currencies,
+    }
+}
+
+pub fn compute_has_linked_objective_entry(
+    input: &HasLinkedObjectiveEntryInput,
+) -> HasLinkedObjectiveEntryOutput {
+    let linked = compute_extract_objective_id_token(&ExtractObjectiveIdTokenInput {
+        value: input.objective_id.clone(),
+    })
+    .objective_id
+    .is_some()
+        || compute_extract_objective_id_token(&ExtractObjectiveIdTokenInput {
+            value: input.directive_objective_id.clone(),
+        })
+        .objective_id
+        .is_some()
+        || compute_extract_objective_id_token(&ExtractObjectiveIdTokenInput {
+            value: input.directive.clone(),
+        })
+        .objective_id
+        .is_some();
+    HasLinkedObjectiveEntryOutput { linked }
+}
+
+pub fn compute_verified_entry_outcome(
+    input: &VerifiedEntryOutcomeInput,
+) -> VerifiedEntryOutcomeOutput {
+    if input.outcome_verified {
+        return VerifiedEntryOutcomeOutput { verified: true };
+    }
+    let outcome = input
+        .outcome
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    let verified = matches!(
+        outcome.as_str(),
+        "verified"
+            | "verified_success"
+            | "verified_pass"
+            | "shipped"
+            | "closed_won"
+            | "won"
+            | "paid"
+            | "revenue_verified"
+            | "pass"
+    );
+    VerifiedEntryOutcomeOutput { verified }
+}
+
+pub fn compute_verified_revenue_action(
+    input: &VerifiedRevenueActionInput,
+) -> VerifiedRevenueActionOutput {
+    if input.verified || input.outcome_verified {
+        return VerifiedRevenueActionOutput { verified: true };
+    }
+    let status = input
+        .status
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    let verified = matches!(
+        status.as_str(),
+        "verified" | "won" | "paid" | "closed_won" | "received"
+    );
+    VerifiedRevenueActionOutput { verified }
+}
+
+pub fn compute_minutes_until_next_utc_day(
+    input: &MinutesUntilNextUtcDayInput,
+) -> MinutesUntilNextUtcDayOutput {
+    let now = input
+        .now_ms
+        .filter(|v| v.is_finite() && *v > 0.0)
+        .unwrap_or_else(|| Utc::now().timestamp_millis() as f64);
+    if !now.is_finite() || now <= 0.0 {
+        return MinutesUntilNextUtcDayOutput { minutes: 0.0 };
+    }
+    let Some(now_dt) = DateTime::<Utc>::from_timestamp_millis(now as i64) else {
+        return MinutesUntilNextUtcDayOutput { minutes: 0.0 };
+    };
+    let next_day = DateTime::<Utc>::from_naive_utc_and_offset(
+        now_dt
+            .date_naive()
+            .and_hms_milli_opt(0, 0, 0, 0)
+            .expect("valid midnight")
+            + Duration::days(1),
+        Utc,
+    );
+    let delta_ms = (next_day.timestamp_millis() - now_dt.timestamp_millis()).max(0) as f64;
+    let minutes = (delta_ms / 60000.0).ceil().max(0.0);
+    MinutesUntilNextUtcDayOutput { minutes }
+}
+
+pub fn compute_age_hours(input: &AgeHoursInput) -> AgeHoursOutput {
+    let date = input.date.as_deref().unwrap_or("").trim();
+    if date.is_empty() {
+        return AgeHoursOutput { age_hours: 0.0 };
+    }
+    let Ok(parsed_date) = NaiveDate::parse_from_str(date, "%Y-%m-%d") else {
+        return AgeHoursOutput { age_hours: 0.0 };
+    };
+    let Some(start_naive) = parsed_date.and_hms_milli_opt(0, 0, 0, 0) else {
+        return AgeHoursOutput { age_hours: 0.0 };
+    };
+    let start = DateTime::<Utc>::from_naive_utc_and_offset(start_naive, Utc);
+    let now_ms = input
+        .now_ms
+        .filter(|v| v.is_finite())
+        .unwrap_or_else(|| Utc::now().timestamp_millis() as f64);
+    let age_hours = ((now_ms - start.timestamp_millis() as f64) / 3_600_000.0).max(0.0);
+    AgeHoursOutput { age_hours }
+}
+
+pub fn compute_url_domain(input: &UrlDomainInput) -> UrlDomainOutput {
+    let raw = input.url.as_deref().unwrap_or("").trim();
+    if raw.is_empty() {
+        return UrlDomainOutput {
+            domain: String::new(),
+        };
+    }
+    let Some((_, rest)) = raw.split_once("://") else {
+        return UrlDomainOutput {
+            domain: String::new(),
+        };
+    };
+    let host_port = rest
+        .split(['/', '?', '#'])
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    if host_port.is_empty() {
+        return UrlDomainOutput {
+            domain: String::new(),
+        };
+    }
+    let without_auth = host_port.rsplit('@').next().unwrap_or("");
+    let host = if without_auth.starts_with('[') {
+        without_auth
+            .split(']')
+            .next()
+            .map(|v| format!("{v}]"))
+            .unwrap_or_else(String::new)
+    } else {
+        without_auth.split(':').next().unwrap_or("").to_string()
+    };
+    UrlDomainOutput { domain: host }
+}
+
+pub fn compute_domain_allowed(input: &DomainAllowedInput) -> DomainAllowedOutput {
+    let domain = input
+        .domain
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    if domain.is_empty() {
+        return DomainAllowedOutput { allowed: false };
+    }
+    if input.allowlist.is_empty() {
+        return DomainAllowedOutput { allowed: true };
+    }
+    let allowed = input.allowlist.iter().any(|raw| {
+        let allowed_domain = raw.trim().to_ascii_lowercase();
+        if allowed_domain.is_empty() {
+            return false;
+        }
+        domain == allowed_domain || domain.ends_with(&format!(".{allowed_domain}"))
+    });
+    DomainAllowedOutput { allowed }
 }
 
 pub fn compute_execution_reserve_snapshot(
@@ -7942,6 +8384,126 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_extract_objective_id_token_encode_failed:{e}"));
+    }
+    if mode == "normalize_value_currency_token" {
+        let input = request
+            .normalize_value_currency_token_input
+            .ok_or_else(|| "autoscale_missing_normalize_value_currency_token_input".to_string())?;
+        let out = compute_normalize_value_currency_token(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "normalize_value_currency_token",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_normalize_value_currency_token_encode_failed:{e}"));
+    }
+    if mode == "list_value_currencies" {
+        let input = request
+            .list_value_currencies_input
+            .ok_or_else(|| "autoscale_missing_list_value_currencies_input".to_string())?;
+        let out = compute_list_value_currencies(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "list_value_currencies",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_list_value_currencies_encode_failed:{e}"));
+    }
+    if mode == "infer_value_currencies_from_directive_bits" {
+        let input = request
+            .infer_value_currencies_from_directive_bits_input
+            .ok_or_else(|| "autoscale_missing_infer_value_currencies_from_directive_bits_input".to_string())?;
+        let out = compute_infer_value_currencies_from_directive_bits(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "infer_value_currencies_from_directive_bits",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_infer_value_currencies_from_directive_bits_encode_failed:{e}"));
+    }
+    if mode == "has_linked_objective_entry" {
+        let input = request
+            .has_linked_objective_entry_input
+            .ok_or_else(|| "autoscale_missing_has_linked_objective_entry_input".to_string())?;
+        let out = compute_has_linked_objective_entry(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "has_linked_objective_entry",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_has_linked_objective_entry_encode_failed:{e}"));
+    }
+    if mode == "verified_entry_outcome" {
+        let input = request
+            .verified_entry_outcome_input
+            .ok_or_else(|| "autoscale_missing_verified_entry_outcome_input".to_string())?;
+        let out = compute_verified_entry_outcome(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "verified_entry_outcome",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_verified_entry_outcome_encode_failed:{e}"));
+    }
+    if mode == "verified_revenue_action" {
+        let input = request
+            .verified_revenue_action_input
+            .ok_or_else(|| "autoscale_missing_verified_revenue_action_input".to_string())?;
+        let out = compute_verified_revenue_action(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "verified_revenue_action",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_verified_revenue_action_encode_failed:{e}"));
+    }
+    if mode == "minutes_until_next_utc_day" {
+        let input = request
+            .minutes_until_next_utc_day_input
+            .ok_or_else(|| "autoscale_missing_minutes_until_next_utc_day_input".to_string())?;
+        let out = compute_minutes_until_next_utc_day(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "minutes_until_next_utc_day",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_minutes_until_next_utc_day_encode_failed:{e}"));
+    }
+    if mode == "age_hours" {
+        let input = request
+            .age_hours_input
+            .ok_or_else(|| "autoscale_missing_age_hours_input".to_string())?;
+        let out = compute_age_hours(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "age_hours",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_age_hours_encode_failed:{e}"));
+    }
+    if mode == "url_domain" {
+        let input = request
+            .url_domain_input
+            .ok_or_else(|| "autoscale_missing_url_domain_input".to_string())?;
+        let out = compute_url_domain(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "url_domain",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_url_domain_encode_failed:{e}"));
+    }
+    if mode == "domain_allowed" {
+        let input = request
+            .domain_allowed_input
+            .ok_or_else(|| "autoscale_missing_domain_allowed_input".to_string())?;
+        let out = compute_domain_allowed(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "domain_allowed",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_domain_allowed_encode_failed:{e}"));
     }
     if mode == "execution_reserve_snapshot" {
         let input = request
