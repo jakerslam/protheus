@@ -8465,6 +8465,46 @@ function assessDirectiveFit(p, directiveProfile, thresholds) {
     ? directiveProfile.strategy_tokens
     : [];
   const strategyHits = directiveTokenHits(tokenSet, stemSet, strategyTokens);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'directive_fit_assessment',
+      {
+        min_directive_fit: minDirectiveFit,
+        profile_available: true,
+        active_directive_ids: Array.isArray(directiveProfile.active_directive_ids)
+          ? directiveProfile.active_directive_ids.map((x) => String(x || ''))
+          : [],
+        positive_phrase_hits: posPhraseHits,
+        positive_token_hits: posTokenHits,
+        strategy_hits: strategyHits,
+        negative_phrase_hits: negPhraseHits,
+        negative_token_hits: negTokenHits,
+        strategy_token_count: strategyTokens.length,
+        impact: p && p.expected_impact != null ? String(p.expected_impact) : null
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      return {
+        pass: payload.pass === true,
+        score: Number(payload.score || 0),
+        profile_available: payload.profile_available !== false,
+        active_directive_ids: Array.isArray(payload.active_directive_ids)
+          ? payload.active_directive_ids.map((x) => String(x || '')).filter(Boolean)
+          : [],
+        matched_positive: Array.isArray(payload.matched_positive)
+          ? payload.matched_positive.map((x) => String(x || '')).filter(Boolean)
+          : [],
+        matched_negative: Array.isArray(payload.matched_negative)
+          ? payload.matched_negative.map((x) => String(x || '')).filter(Boolean)
+          : [],
+        reasons: Array.isArray(payload.reasons)
+          ? payload.reasons.map((x) => String(x || '')).filter(Boolean)
+          : []
+      };
+    }
+  }
 
   let score = 30;
   score += posPhraseHits.length * 18;

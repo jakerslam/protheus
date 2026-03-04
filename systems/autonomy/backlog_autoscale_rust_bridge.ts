@@ -375,6 +375,7 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
     capability_outcome_stats_in_window: 'capability_outcome_stats_in_window_input',
     execute_confidence_history: 'execute_confidence_history_input',
     execute_confidence_policy: 'execute_confidence_policy_input',
+    directive_fit_assessment: 'directive_fit_assessment_input',
     directive_clarification_exec_spec: 'directive_clarification_exec_spec_input',
     directive_decomposition_exec_spec: 'directive_decomposition_exec_spec_input',
     parse_actuation_spec: 'parse_actuation_spec_input',
