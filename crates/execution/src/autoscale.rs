@@ -2138,6 +2138,25 @@ pub struct ReceiptVerdictOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DefaultBacklogAutoscaleStateInput {
+    #[serde(default)]
+    pub module: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DefaultBacklogAutoscaleStateOutput {
+    pub schema_id: String,
+    pub schema_version: String,
+    pub module: String,
+    pub current_cells: i64,
+    pub target_cells: i64,
+    pub last_run_ts: Option<String>,
+    pub last_high_pressure_ts: Option<String>,
+    pub last_action: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AutoscaleRequest {
     pub mode: String,
     #[serde(default)]
@@ -2358,6 +2377,8 @@ pub struct AutoscaleRequest {
     pub policy_hold_cooldown_input: Option<PolicyHoldCooldownInput>,
     #[serde(default)]
     pub receipt_verdict_input: Option<ReceiptVerdictInput>,
+    #[serde(default)]
+    pub default_backlog_autoscale_state_input: Option<DefaultBacklogAutoscaleStateInput>,
 }
 
 fn clamp_ratio(v: f64) -> f64 {
@@ -6565,10 +6586,46 @@ pub fn compute_receipt_verdict(input: &ReceiptVerdictInput) -> ReceiptVerdictOut
     }
 }
 
+pub fn compute_default_backlog_autoscale_state(
+    input: &DefaultBacklogAutoscaleStateInput,
+) -> DefaultBacklogAutoscaleStateOutput {
+    let module = {
+        let normalized = input.module.trim();
+        if normalized.is_empty() {
+            "autonomy_backlog_autoscale".to_string()
+        } else {
+            normalized.to_string()
+        }
+    };
+    DefaultBacklogAutoscaleStateOutput {
+        schema_id: "autonomy_backlog_autoscale".to_string(),
+        schema_version: "1.0.0".to_string(),
+        module,
+        current_cells: 0,
+        target_cells: 0,
+        last_run_ts: None,
+        last_high_pressure_ts: None,
+        last_action: None,
+        updated_at: None,
+    }
+}
+
 pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     let request: AutoscaleRequest = serde_json::from_str(payload_json)
         .map_err(|e| format!("autoscale_request_parse_failed:{e}"))?;
     let mode = request.mode.to_ascii_lowercase();
+    if mode == "default_backlog_autoscale_state" {
+        let input = request
+            .default_backlog_autoscale_state_input
+            .ok_or_else(|| "autoscale_missing_default_backlog_autoscale_state_input".to_string())?;
+        let out = compute_default_backlog_autoscale_state(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "default_backlog_autoscale_state",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_default_backlog_autoscale_state_encode_failed:{e}"));
+    }
     if mode == "plan" {
         let input = request
             .plan_input
@@ -12026,5 +12083,31 @@ mod tests {
             out.primary_failure,
             Some("insufficient_supported_metrics".to_string())
         );
+    }
+
+    #[test]
+    fn default_backlog_autoscale_state_uses_input_module() {
+        let out = compute_default_backlog_autoscale_state(&DefaultBacklogAutoscaleStateInput {
+            module: "autonomy_spawn".to_string(),
+        });
+        assert_eq!(out.schema_id, "autonomy_backlog_autoscale");
+        assert_eq!(out.schema_version, "1.0.0");
+        assert_eq!(out.module, "autonomy_spawn");
+        assert_eq!(out.current_cells, 0);
+        assert_eq!(out.target_cells, 0);
+        assert_eq!(out.last_run_ts, None);
+    }
+
+    #[test]
+    fn autoscale_json_default_backlog_autoscale_state_path_works() {
+        let payload = serde_json::json!({
+            "mode": "default_backlog_autoscale_state",
+            "default_backlog_autoscale_state_input": {
+                "module": "autonomy_backlog_autoscale"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale default_backlog_autoscale_state");
+        assert!(out.contains("\"mode\":\"default_backlog_autoscale_state\""));
     }
 }

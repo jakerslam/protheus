@@ -90,6 +90,7 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
   if (!normalizedMode) return { ok: false, error: 'autoscale_mode_missing' };
 
   const fieldByMode: AnyObj = {
+    default_backlog_autoscale_state: 'default_backlog_autoscale_state_input',
     plan: 'plan_input',
     batch_max: 'batch_input',
     dynamic_caps: 'dynamic_caps_input',
