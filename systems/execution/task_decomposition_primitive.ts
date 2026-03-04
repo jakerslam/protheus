@@ -1325,57 +1325,7 @@ function emitQueues(policy: AnyObj, payload: AnyObj) {
       storm: queuedStorm
     };
   }
-
-  const queuedWeaver: AnyObj[] = [];
-  const queuedStorm: AnyObj[] = [];
-  for (const task of payload.micro_tasks) {
-    const route = task.route || {};
-    const weaverRow = {
-      ts: nowIso(),
-      type: 'task_micro_route_candidate',
-      run_id: payload.run_id,
-      goal_id: payload.goal.goal_id,
-      objective_id: payload.goal.objective_id,
-      micro_task_id: task.micro_task_id,
-      profile_id: task.profile_id,
-      lane: route.lane,
-      parallel_group: route.parallel_group,
-      parallel_priority: route.parallel_priority,
-      blocked: route.blocked === true,
-      requires_manual_review: route.requires_manual_review === true,
-      shadow_only: payload.shadow_only === true,
-      passport_id: payload.passport_id || null,
-      duality_indicator: task.duality && task.duality.indicator ? task.duality.indicator : { subtle_hint: 'duality_signal_absent' },
-      attribution: task.profile && task.profile.attribution ? task.profile.attribution : {}
-    };
-    appendJsonl(policy.state.weaver_queue_path, weaverRow);
-    queuedWeaver.push(weaverRow);
-
-    if (route.lane === policy.parallel.storm_lane && route.blocked !== true) {
-      const stormRow = {
-        ts: nowIso(),
-        type: 'storm_micro_task_offer',
-        run_id: payload.run_id,
-        goal_id: payload.goal.goal_id,
-        objective_id: payload.goal.objective_id,
-        micro_task_id: task.micro_task_id,
-        title: task.title,
-        task_text: task.task_text,
-        estimated_minutes: task.estimated_minutes,
-        success_criteria: task.success_criteria,
-        profile_id: task.profile_id,
-        shadow_only: payload.shadow_only === true,
-        passport_id: payload.passport_id || null,
-        duality_indicator: task.duality && task.duality.indicator ? task.duality.indicator : { subtle_hint: 'duality_signal_absent' }
-      };
-      appendJsonl(policy.state.storm_queue_path, stormRow);
-      queuedStorm.push(stormRow);
-    }
-  }
-  return {
-    weaver: queuedWeaver,
-    storm: queuedStorm
-  };
+  throw new Error(`rust_queue_rows_failed:${cleanText(rustRows && rustRows.error || 'unknown', 220)}`);
 }
 
 function runJsonScript(scriptPath: string, args: string[], timeoutMs = 180000) {
@@ -1471,29 +1421,7 @@ function dispatchMicroTaskExecutions(policy: AnyObj, payload: AnyObj) {
       });
     }
   } else {
-    for (const task of taskList) {
-      const blocked = task && task.governance && task.governance.blocked === true;
-      const lane = normalizeToken(task && task.route && task.route.lane || 'unknown', 80) || 'unknown';
-      const executor = lane === policy.parallel.storm_lane
-        ? handoffPolicy.storm_executor
-        : handoffPolicy.autonomous_executor;
-      rows.push({
-        ts: nowIso(),
-        type: 'task_micro_execution_dispatch',
-        run_id: payload.run_id,
-        goal_id: payload.goal && payload.goal.goal_id ? payload.goal.goal_id : null,
-        objective_id: payload.goal && payload.goal.objective_id ? payload.goal.objective_id : null,
-        micro_task_id: task.micro_task_id,
-        profile_id: task.profile_id,
-        lane,
-        executor,
-        blocked,
-        shadow_only: payload.shadow_only === true,
-        apply_executed: payload.apply_executed === true,
-        status: blocked ? 'blocked' : 'queued',
-        passport_id: payload.passport_id || null
-      });
-    }
+    throw new Error(`rust_dispatch_rows_failed:${cleanText(rustRows && rustRows.error || 'unknown', 220)}`);
   }
 
   const taskById = new Map<string, AnyObj>();
@@ -1554,18 +1482,7 @@ function dispatchMicroTaskExecutions(policy: AnyObj, payload: AnyObj) {
       summary: rustSummary.payload.summary
     };
   }
-
-  return {
-    dispatched: rows,
-    summary: {
-      enabled: true,
-      total: rows.length,
-      queued: rows.filter((row) => row.status === 'queued').length,
-      executed: rows.filter((row) => row.status === 'executed').length,
-      failed: rows.filter((row) => row.status === 'failed').length,
-      blocked: rows.filter((row) => row.status === 'blocked').length
-    }
-  };
+  throw new Error(`rust_dispatch_summary_failed:${cleanText(rustSummary && rustSummary.error || 'unknown', 220)}`);
 }
 
 function summarizeTasks(tasks: AnyObj[], shadowOnly: boolean, applyExecuted: boolean) {
@@ -1576,22 +1493,7 @@ function summarizeTasks(tasks: AnyObj[], shadowOnly: boolean, applyExecuted: boo
       return summary;
     }
   }
-  const byLane: Record<string, number> = {};
-  for (const row of tasks) {
-    const lane = String(row.route && row.route.lane || 'unknown');
-    byLane[lane] = Number(byLane[lane] || 0) + 1;
-  }
-  return {
-    total_micro_tasks: tasks.length,
-    ready: tasks.filter((row) => row.governance && row.governance.blocked !== true).length,
-    blocked: tasks.filter((row) => row.governance && row.governance.blocked === true).length,
-    manual_review: tasks.filter((row) => row.route && row.route.requires_manual_review === true).length,
-    autonomous_lane: tasks.filter((row) => row.route && row.route.lane === 'autonomous_micro_agent').length,
-    storm_lane: tasks.filter((row) => row.route && row.route.lane === 'storm_human_lane').length,
-    lane_breakdown: byLane,
-    shadow_only: shadowOnly,
-    apply_executed: applyExecuted
-  };
+  throw new Error(`rust_task_summary_failed:${cleanText(rustSummary && rustSummary.error || 'unknown', 220)}`);
 }
 
 function cmdRun(args: AnyObj, dateStr: string, policyPath: string) {
