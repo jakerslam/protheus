@@ -356,6 +356,27 @@ pub struct CapacityCountedAttemptIndicesOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ConsecutiveNoProgressEventInput {
+    #[serde(default)]
+    pub event_type: Option<String>,
+    #[serde(default)]
+    pub result: Option<String>,
+    #[serde(default)]
+    pub outcome: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ConsecutiveNoProgressRunsInput {
+    #[serde(default)]
+    pub events: Vec<ConsecutiveNoProgressEventInput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ConsecutiveNoProgressRunsOutput {
+    pub count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct NoProgressResultInput {
     #[serde(default)]
     pub event_type: Option<String>,
@@ -805,6 +826,8 @@ pub struct AutoscaleRequest {
     pub attempt_event_indices_input: Option<AttemptEventIndicesInput>,
     #[serde(default)]
     pub capacity_counted_attempt_indices_input: Option<CapacityCountedAttemptIndicesInput>,
+    #[serde(default)]
+    pub consecutive_no_progress_runs_input: Option<ConsecutiveNoProgressRunsInput>,
     #[serde(default)]
     pub no_progress_result_input: Option<NoProgressResultInput>,
     #[serde(default)]
@@ -1677,6 +1700,47 @@ pub fn compute_capacity_counted_attempt_indices(
         }
     }
     CapacityCountedAttemptIndicesOutput { indices }
+}
+
+pub fn compute_consecutive_no_progress_runs(
+    input: &ConsecutiveNoProgressRunsInput,
+) -> ConsecutiveNoProgressRunsOutput {
+    let mut count: u32 = 0;
+    for evt in input.events.iter().rev() {
+        let event_type = evt
+            .event_type
+            .as_ref()
+            .map(|v| v.trim().to_ascii_lowercase())
+            .unwrap_or_default();
+        if event_type != "autonomy_run" {
+            continue;
+        }
+
+        let result = evt
+            .result
+            .as_ref()
+            .map(|v| v.trim().to_string())
+            .unwrap_or_default();
+        let outcome = evt
+            .outcome
+            .as_ref()
+            .map(|v| v.trim().to_string())
+            .unwrap_or_default();
+        if result == "executed" && outcome == "shipped" {
+            break;
+        }
+        let is_no_progress = compute_no_progress_result(&NoProgressResultInput {
+            event_type: Some("autonomy_run".to_string()),
+            result: Some(result),
+            outcome: Some(outcome),
+        })
+        .is_no_progress;
+        if !is_no_progress {
+            break;
+        }
+        count += 1;
+    }
+    ConsecutiveNoProgressRunsOutput { count }
 }
 
 pub fn compute_no_progress_result(input: &NoProgressResultInput) -> NoProgressResultOutput {
@@ -2731,6 +2795,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_capacity_counted_attempt_indices_encode_failed:{e}"));
     }
+    if mode == "consecutive_no_progress_runs" {
+        let input = request
+            .consecutive_no_progress_runs_input
+            .ok_or_else(|| "autoscale_missing_consecutive_no_progress_runs_input".to_string())?;
+        let out = compute_consecutive_no_progress_runs(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "consecutive_no_progress_runs",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_consecutive_no_progress_runs_encode_failed:{e}"));
+    }
     if mode == "no_progress_result" {
         let input = request
             .no_progress_result_input
@@ -3499,6 +3575,62 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale capacity_counted_attempt_indices");
         assert!(out.contains("\"mode\":\"capacity_counted_attempt_indices\""));
+    }
+
+    #[test]
+    fn consecutive_no_progress_runs_counts_tail_until_break() {
+        let out = compute_consecutive_no_progress_runs(&ConsecutiveNoProgressRunsInput {
+            events: vec![
+                ConsecutiveNoProgressEventInput {
+                    event_type: Some("autonomy_run".to_string()),
+                    result: Some("executed".to_string()),
+                    outcome: Some("no_change".to_string()),
+                },
+                ConsecutiveNoProgressEventInput {
+                    event_type: Some("autonomy_run".to_string()),
+                    result: Some("stop_repeat_gate_no_progress".to_string()),
+                    outcome: None,
+                },
+                ConsecutiveNoProgressEventInput {
+                    event_type: Some("autonomy_run".to_string()),
+                    result: Some("executed".to_string()),
+                    outcome: Some("shipped".to_string()),
+                },
+            ],
+        });
+        assert_eq!(out.count, 0);
+
+        let out2 = compute_consecutive_no_progress_runs(&ConsecutiveNoProgressRunsInput {
+            events: vec![
+                ConsecutiveNoProgressEventInput {
+                    event_type: Some("autonomy_run".to_string()),
+                    result: Some("executed".to_string()),
+                    outcome: Some("reverted".to_string()),
+                },
+                ConsecutiveNoProgressEventInput {
+                    event_type: Some("autonomy_run".to_string()),
+                    result: Some("stop_repeat_gate_no_progress".to_string()),
+                    outcome: None,
+                },
+            ],
+        });
+        assert_eq!(out2.count, 2);
+    }
+
+    #[test]
+    fn autoscale_json_consecutive_no_progress_runs_path_works() {
+        let payload = serde_json::json!({
+            "mode": "consecutive_no_progress_runs",
+            "consecutive_no_progress_runs_input": {
+                "events": [
+                    {"event_type": "autonomy_run", "result": "executed", "outcome": "no_change"},
+                    {"event_type": "autonomy_run", "result": "stop_repeat_gate_no_progress"}
+                ]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale consecutive_no_progress_runs");
+        assert!(out.contains("\"mode\":\"consecutive_no_progress_runs\""));
     }
 
     #[test]
