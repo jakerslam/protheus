@@ -3025,6 +3025,17 @@ pub struct PolicyHoldObjectiveContextOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalSemanticObjectiveIdInput {
+    #[serde(default)]
+    pub proposal: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalSemanticObjectiveIdOutput {
+    pub objective_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -4227,6 +4238,8 @@ pub struct AutoscaleRequest {
     pub objective_ids_from_pulse_context_input: Option<ObjectiveIdsFromPulseContextInput>,
     #[serde(default)]
     pub policy_hold_objective_context_input: Option<PolicyHoldObjectiveContextInput>,
+    #[serde(default)]
+    pub proposal_semantic_objective_id_input: Option<ProposalSemanticObjectiveIdInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -9713,6 +9726,41 @@ pub fn compute_policy_hold_objective_context(
     }
 }
 
+pub fn compute_proposal_semantic_objective_id(
+    input: &ProposalSemanticObjectiveIdInput,
+) -> ProposalSemanticObjectiveIdOutput {
+    let proposal = input.proposal.as_ref().unwrap_or(&serde_json::Value::Null);
+    let candidates = vec![
+        json_path(proposal, &["meta", "objective_id"]).map(js_like_string),
+        json_path(proposal, &["meta", "directive_objective_id"]).map(js_like_string),
+        json_path(proposal, &["meta", "linked_objective_id"]).map(js_like_string),
+        Some(
+            compute_parse_directive_objective_arg(&ParseDirectiveObjectiveArgInput {
+                command: json_path(proposal, &["suggested_next_command"]).map(js_like_string),
+            })
+            .objective_id,
+        ),
+        Some(
+            compute_parse_directive_objective_arg(&ParseDirectiveObjectiveArgInput {
+                command: json_path(proposal, &["suggested_command"]).map(js_like_string),
+            })
+            .objective_id,
+        ),
+    ];
+    for raw in candidates.into_iter().flatten() {
+        let id = compute_sanitize_directive_objective_id(&SanitizeDirectiveObjectiveIdInput {
+            value: Some(raw),
+        })
+        .objective_id;
+        if !id.is_empty() {
+            return ProposalSemanticObjectiveIdOutput { objective_id: id };
+        }
+    }
+    ProposalSemanticObjectiveIdOutput {
+        objective_id: String::new(),
+    }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -13516,6 +13564,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_policy_hold_objective_context_encode_failed:{e}"));
+    }
+    if mode == "proposal_semantic_objective_id" {
+        let input = request
+            .proposal_semantic_objective_id_input
+            .ok_or_else(|| "autoscale_missing_proposal_semantic_objective_id_input".to_string())?;
+        let out = compute_proposal_semantic_objective_id(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "proposal_semantic_objective_id",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_proposal_semantic_objective_id_encode_failed:{e}"));
     }
     if mode == "directive_pulse_context" {
         let input = request
@@ -19555,6 +19615,36 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale policy_hold_objective_context");
         assert!(out.contains("\"mode\":\"policy_hold_objective_context\""));
+    }
+
+    #[test]
+    fn proposal_semantic_objective_id_prefers_meta_then_command() {
+        let out = compute_proposal_semantic_objective_id(&ProposalSemanticObjectiveIdInput {
+            proposal: Some(serde_json::json!({
+                "meta": {
+                    "objective_id": "",
+                    "directive_objective_id": "T1_PRIMARY",
+                    "linked_objective_id": "T2_SECONDARY"
+                },
+                "suggested_next_command": "node x --id=T3_CMD"
+            })),
+        });
+        assert_eq!(out.objective_id, "T1_PRIMARY");
+    }
+
+    #[test]
+    fn autoscale_json_proposal_semantic_objective_id_path_works() {
+        let payload = serde_json::json!({
+            "mode": "proposal_semantic_objective_id",
+            "proposal_semantic_objective_id_input": {
+                "proposal": {
+                    "meta": { "objective_id": "T1_OBJ" }
+                }
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale proposal_semantic_objective_id");
+        assert!(out.contains("\"mode\":\"proposal_semantic_objective_id\""));
     }
 
     #[test]
