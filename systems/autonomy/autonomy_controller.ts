@@ -4849,6 +4849,34 @@ function loadDoDEvidenceSnapshot(dateStr) {
 function diffDoDEvidence(before, after) {
   const b = before || { daily: {}, registry: {}, logs: {} };
   const a = after || { daily: {}, registry: {}, logs: {} };
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'dod_evidence_diff',
+      {
+        before_artifacts: Number((b.daily && b.daily.artifacts) || 0),
+        before_entries: Number((b.daily && b.daily.entries) || 0),
+        before_revenue_actions: Number((b.daily && b.daily.revenue_actions) || 0),
+        before_registry_total: Number((b.registry && b.registry.total) || 0),
+        before_registry_active: Number((b.registry && b.registry.active) || 0),
+        before_registry_candidate: Number((b.registry && b.registry.candidate) || 0),
+        before_habit_runs: Number((b.logs && b.logs.run_len) || 0),
+        before_habit_errors: Number((b.logs && b.logs.error_len) || 0),
+        after_artifacts: Number((a.daily && a.daily.artifacts) || 0),
+        after_entries: Number((a.daily && a.daily.entries) || 0),
+        after_revenue_actions: Number((a.daily && a.daily.revenue_actions) || 0),
+        after_registry_total: Number((a.registry && a.registry.total) || 0),
+        after_registry_active: Number((a.registry && a.registry.active) || 0),
+        after_registry_candidate: Number((a.registry && a.registry.candidate) || 0),
+        after_habit_runs: Number((a.logs && a.logs.run_len) || 0),
+        after_habit_errors: Number((a.logs && a.logs.error_len) || 0)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
+  }
+
   return {
     artifacts_delta: Number((a.daily && a.daily.artifacts) || 0) - Number((b.daily && b.daily.artifacts) || 0),
     entries_delta: Number((a.daily && a.daily.entries) || 0) - Number((b.daily && b.daily.entries) || 0),
