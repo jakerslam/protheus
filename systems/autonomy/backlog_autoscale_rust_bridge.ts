@@ -173,6 +173,7 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
     normalize_directive_text: 'normalize_directive_text_input',
     tokenize_directive_text: 'tokenize_directive_text_input',
     normalize_spaces: 'normalize_spaces_input',
+    parse_lower_list: 'parse_lower_list_input',
     execution_reserve_snapshot: 'execution_reserve_snapshot_input',
     qos_lane_share_cap_exceeded: 'qos_lane_share_cap_exceeded_input',
     qos_lane_from_candidate: 'qos_lane_from_candidate_input',
