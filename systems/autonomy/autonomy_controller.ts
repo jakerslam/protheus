@@ -7016,6 +7016,64 @@ function loadDirectivePulseObjectives() {
 
 function buildDirectivePulseStats(dateStr, windowDays) {
   const days = clampNumber(Number(windowDays || AUTONOMY_DIRECTIVE_PULSE_WINDOW_DAYS), 1, 60);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rustEvents = [];
+    for (const d of dateWindow(dateStr, days)) {
+      const rows = readRuns(d);
+      for (const evt of rows) {
+        if (!evt || typeof evt !== 'object') continue;
+        const pulse = evt.directive_pulse && typeof evt.directive_pulse === 'object'
+          ? evt.directive_pulse
+          : null;
+        rustEvents.push({
+          day: String(d || ''),
+          event_type: String(evt.type || ''),
+          result: String(evt.result || ''),
+          outcome: String(evt.outcome || ''),
+          objective_id: pulse && pulse.objective_id != null ? String(pulse.objective_id) : null,
+          tier: Number.isFinite(Number(pulse && pulse.tier)) ? Number(pulse && pulse.tier) : null,
+          ts: evt.ts ? String(evt.ts) : null
+        });
+      }
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'directive_pulse_stats',
+      {
+        date_str: String(dateStr || ''),
+        window_days: Number(days || AUTONOMY_DIRECTIVE_PULSE_WINDOW_DAYS),
+        events: rustEvents
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      const stats = new Map();
+      const rows = Array.isArray(payload.objective_stats) ? payload.objective_stats : [];
+      for (const rawRow of rows) {
+        const row = rawRow && typeof rawRow === 'object' ? rawRow : {};
+        const objectiveId = String(row.objective_id || '').trim();
+        if (!objectiveId) continue;
+        stats.set(objectiveId, {
+          objective_id: objectiveId,
+          tier: Number(row.tier || 0),
+          attempts: Number(row.attempts || 0),
+          shipped: Number(row.shipped || 0),
+          no_change: Number(row.no_change || 0),
+          reverted: Number(row.reverted || 0),
+          no_progress_streak: Number(row.no_progress_streak || 0),
+          last_attempt_ts: row.last_attempt_ts ? String(row.last_attempt_ts) : null,
+          last_shipped_ts: row.last_shipped_ts ? String(row.last_shipped_ts) : null
+        });
+      }
+      return {
+        stats,
+        tier_attempts_today: payload.tier_attempts_today && typeof payload.tier_attempts_today === 'object'
+          ? payload.tier_attempts_today
+          : {},
+        attempts_today: Number(payload.attempts_today || 0)
+      };
+    }
+  }
   const stats = new Map();
   const tierAttemptsToday = {};
   let attemptsToday = 0;
@@ -20722,6 +20780,7 @@ module.exports = {
   hasStructuralPreviewCriteriaFailure,
   computeCalibrationDeltas,
   compileDirectivePulseObjectives,
+  buildDirectivePulseStats,
   buildDirectivePulseContext,
   pulseObjectiveCooldownActive,
   normalizeDirectiveTier,
