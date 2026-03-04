@@ -566,6 +566,25 @@ pub struct IsoAfterMinutesOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExecuteConfidenceHistoryMatchInput {
+    #[serde(default)]
+    pub event_type: Option<String>,
+    #[serde(default)]
+    pub event_capability_key: Option<String>,
+    #[serde(default)]
+    pub event_proposal_type: Option<String>,
+    #[serde(default)]
+    pub proposal_type: Option<String>,
+    #[serde(default)]
+    pub capability_key: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExecuteConfidenceHistoryMatchOutput {
+    pub matched: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct QosLaneUsageEventInput {
     #[serde(default)]
     pub event_type: Option<String>,
@@ -1121,6 +1140,8 @@ pub struct AutoscaleRequest {
     pub start_of_next_utc_day_input: Option<StartOfNextUtcDayInput>,
     #[serde(default)]
     pub iso_after_minutes_input: Option<IsoAfterMinutesInput>,
+    #[serde(default)]
+    pub execute_confidence_history_match_input: Option<ExecuteConfidenceHistoryMatchInput>,
     #[serde(default)]
     pub no_progress_result_input: Option<NoProgressResultInput>,
     #[serde(default)]
@@ -2369,6 +2390,50 @@ pub fn compute_iso_after_minutes(input: &IsoAfterMinutesInput) -> IsoAfterMinute
     IsoAfterMinutesOutput {
         iso_ts: Some(target.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string()),
     }
+}
+
+pub fn compute_execute_confidence_history_match(
+    input: &ExecuteConfidenceHistoryMatchInput,
+) -> ExecuteConfidenceHistoryMatchOutput {
+    let event_type = input
+        .event_type
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    if event_type != "autonomy_run" {
+        return ExecuteConfidenceHistoryMatchOutput { matched: false };
+    }
+    let capability_key = input
+        .capability_key
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    let event_capability_key = input
+        .event_capability_key
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    if !capability_key.is_empty() && !event_capability_key.is_empty() {
+        return ExecuteConfidenceHistoryMatchOutput {
+            matched: event_capability_key == capability_key,
+        };
+    }
+    let proposal_type = input
+        .proposal_type
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    let event_proposal_type = input
+        .event_proposal_type
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    if !proposal_type.is_empty() && !event_proposal_type.is_empty() {
+        return ExecuteConfidenceHistoryMatchOutput {
+            matched: event_proposal_type == proposal_type,
+        };
+    }
+    ExecuteConfidenceHistoryMatchOutput { matched: false }
 }
 
 pub fn compute_qos_lane_usage(input: &QosLaneUsageInput) -> QosLaneUsageOutput {
@@ -3801,6 +3866,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_iso_after_minutes_encode_failed:{e}"));
     }
+    if mode == "execute_confidence_history_match" {
+        let input = request
+            .execute_confidence_history_match_input
+            .ok_or_else(|| "autoscale_missing_execute_confidence_history_match_input".to_string())?;
+        let out = compute_execute_confidence_history_match(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "execute_confidence_history_match",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_execute_confidence_history_match_encode_failed:{e}"));
+    }
     if mode == "no_progress_result" {
         let input = request
             .no_progress_result_input
@@ -5155,6 +5232,49 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale iso_after_minutes");
         assert!(out.contains("\"mode\":\"iso_after_minutes\""));
+    }
+
+    #[test]
+    fn execute_confidence_history_match_prefers_capability_then_type() {
+        let cap_match = compute_execute_confidence_history_match(
+            &ExecuteConfidenceHistoryMatchInput {
+                event_type: Some("autonomy_run".to_string()),
+                event_capability_key: Some("deploy".to_string()),
+                event_proposal_type: Some("run".to_string()),
+                proposal_type: Some("other".to_string()),
+                capability_key: Some("deploy".to_string()),
+            },
+        );
+        assert!(cap_match.matched);
+
+        let type_match = compute_execute_confidence_history_match(
+            &ExecuteConfidenceHistoryMatchInput {
+                event_type: Some("autonomy_run".to_string()),
+                event_capability_key: Some(String::new()),
+                event_proposal_type: Some("ops".to_string()),
+                proposal_type: Some("ops".to_string()),
+                capability_key: Some(String::new()),
+            },
+        );
+        assert!(type_match.matched);
+    }
+
+    #[test]
+    fn autoscale_json_execute_confidence_history_match_path_works() {
+        let payload = serde_json::json!({
+            "mode": "execute_confidence_history_match",
+            "execute_confidence_history_match_input": {
+                "event_type": "autonomy_run",
+                "event_capability_key": "deploy",
+                "event_proposal_type": "ops",
+                "proposal_type": "ops",
+                "capability_key": "deploy"
+            }
+        })
+        .to_string();
+        let out =
+            run_autoscale_json(&payload).expect("autoscale execute_confidence_history_match");
+        assert!(out.contains("\"mode\":\"execute_confidence_history_match\""));
     }
 
     #[test]
