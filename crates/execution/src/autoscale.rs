@@ -765,6 +765,39 @@ pub struct ProposalDedupKeyOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalSemanticFingerprintInput {
+    #[serde(default)]
+    pub proposal_id: Option<String>,
+    #[serde(default)]
+    pub proposal_type: Option<String>,
+    #[serde(default)]
+    pub source_eye: Option<String>,
+    #[serde(default)]
+    pub objective_id: Option<String>,
+    #[serde(default)]
+    pub text_blob: Option<String>,
+    #[serde(default)]
+    pub stopwords: Vec<String>,
+    #[serde(default)]
+    pub min_tokens: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalSemanticFingerprintOutput {
+    #[serde(default)]
+    pub proposal_id: Option<String>,
+    pub proposal_type: String,
+    #[serde(default)]
+    pub source_eye: Option<String>,
+    #[serde(default)]
+    pub objective_id: Option<String>,
+    #[serde(default)]
+    pub token_stems: Vec<String>,
+    pub token_count: u32,
+    pub eligible: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SemanticTokenSimilarityInput {
     #[serde(default)]
     pub left_tokens: Vec<String>,
@@ -2190,6 +2223,8 @@ pub struct AutoscaleRequest {
     pub proposal_remediation_depth_input: Option<ProposalRemediationDepthInput>,
     #[serde(default)]
     pub proposal_dedup_key_input: Option<ProposalDedupKeyInput>,
+    #[serde(default)]
+    pub proposal_semantic_fingerprint_input: Option<ProposalSemanticFingerprintInput>,
     #[serde(default)]
     pub semantic_token_similarity_input: Option<SemanticTokenSimilarityInput>,
     #[serde(default)]
@@ -3639,6 +3674,64 @@ pub fn compute_proposal_dedup_key(input: &ProposalDedupKeyInput) -> ProposalDedu
         )
     };
     ProposalDedupKeyOutput { dedup_key }
+}
+
+pub fn compute_proposal_semantic_fingerprint(
+    input: &ProposalSemanticFingerprintInput,
+) -> ProposalSemanticFingerprintOutput {
+    let proposal_id_raw = normalize_spaces(input.proposal_id.as_deref().unwrap_or(""));
+    let proposal_id = if proposal_id_raw.is_empty() {
+        None
+    } else {
+        Some(proposal_id_raw)
+    };
+    let proposal_type = normalize_spaces(input.proposal_type.as_deref().unwrap_or(""))
+        .to_ascii_lowercase();
+    let proposal_type = if proposal_type.is_empty() {
+        "unknown".to_string()
+    } else {
+        proposal_type
+    };
+    let source_eye_raw = normalize_spaces(input.source_eye.as_deref().unwrap_or(""))
+        .to_ascii_lowercase();
+    let source_eye = if source_eye_raw.is_empty() {
+        None
+    } else {
+        Some(source_eye_raw)
+    };
+    let objective_id_raw = normalize_spaces(input.objective_id.as_deref().unwrap_or(""));
+    let objective_id = if objective_id_raw.is_empty() {
+        None
+    } else {
+        Some(objective_id_raw)
+    };
+
+    let text_blob = normalize_spaces(input.text_blob.as_deref().unwrap_or(""));
+    let tokenized = compute_tokenize_directive_text(&TokenizeDirectiveTextInput {
+        text: Some(text_blob),
+        stopwords: input.stopwords.clone(),
+    });
+    let mut stems = std::collections::BTreeSet::new();
+    for token in tokenized.tokens {
+        let stem = compute_to_stem(&ToStemInput { token: Some(token) }).stem;
+        if !stem.is_empty() {
+            stems.insert(stem);
+        }
+    }
+    let token_stems: Vec<String> = stems.into_iter().collect();
+    let token_count = token_stems.len() as u32;
+    let min_tokens = input.min_tokens.unwrap_or(4.0).max(0.0);
+    let eligible = (token_count as f64) >= min_tokens;
+
+    ProposalSemanticFingerprintOutput {
+        proposal_id,
+        proposal_type,
+        source_eye,
+        objective_id,
+        token_stems,
+        token_count,
+        eligible,
+    }
 }
 
 pub fn compute_semantic_token_similarity(
@@ -6942,6 +7035,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_proposal_dedup_key_encode_failed:{e}"));
     }
+    if mode == "proposal_semantic_fingerprint" {
+        let input = request
+            .proposal_semantic_fingerprint_input
+            .ok_or_else(|| "autoscale_missing_proposal_semantic_fingerprint_input".to_string())?;
+        let out = compute_proposal_semantic_fingerprint(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "proposal_semantic_fingerprint",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_proposal_semantic_fingerprint_encode_failed:{e}"));
+    }
     if mode == "semantic_token_similarity" {
         let input = request
             .semantic_token_similarity_input
@@ -9284,6 +9389,44 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale proposal_dedup_key");
         assert!(out.contains("\"mode\":\"proposal_dedup_key\""));
         assert!(out.contains("\"dedup_key\":\"ops_remediation|github_release|transport\""));
+    }
+
+    #[test]
+    fn proposal_semantic_fingerprint_builds_unique_sorted_stems() {
+        let out = compute_proposal_semantic_fingerprint(&ProposalSemanticFingerprintInput {
+            proposal_id: Some("p-1".to_string()),
+            proposal_type: Some("ops_remediation".to_string()),
+            source_eye: Some("GitHub_Release".to_string()),
+            objective_id: Some("T1_Objective".to_string()),
+            text_blob: Some("Rust bridge parity tests for transport fixes".to_string()),
+            stopwords: vec!["for".to_string()],
+            min_tokens: Some(3.0),
+        });
+        assert_eq!(out.proposal_id, Some("p-1".to_string()));
+        assert_eq!(out.proposal_type, "ops_remediation".to_string());
+        assert_eq!(out.source_eye, Some("github_release".to_string()));
+        assert_eq!(out.objective_id, Some("T1_Objective".to_string()));
+        assert!(out.token_stems.windows(2).all(|w| w[0] <= w[1]));
+        assert!(out.token_count >= 3);
+        assert!(out.eligible);
+    }
+
+    #[test]
+    fn autoscale_json_proposal_semantic_fingerprint_path_works() {
+        let payload = serde_json::json!({
+            "mode": "proposal_semantic_fingerprint",
+            "proposal_semantic_fingerprint_input": {
+                "proposal_id": "p-1",
+                "proposal_type": "ops_remediation",
+                "source_eye": "github_release",
+                "objective_id": "T1_Objective",
+                "text_blob": "Rust bridge parity tests",
+                "min_tokens": 2
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale proposal_semantic_fingerprint");
+        assert!(out.contains("\"mode\":\"proposal_semantic_fingerprint\""));
     }
 
     #[test]
