@@ -2948,6 +2948,37 @@ pub struct DirectivePulseObjectivesProfileOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RecentDirectivePulseCooldownEventInput {
+    #[serde(default)]
+    pub event_type: Option<String>,
+    #[serde(default)]
+    pub result: Option<String>,
+    #[serde(default)]
+    pub ts: Option<String>,
+    #[serde(default)]
+    pub objective_id: Option<String>,
+    #[serde(default)]
+    pub sample_objective_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RecentDirectivePulseCooldownCountInput {
+    #[serde(default)]
+    pub objective_id: Option<String>,
+    #[serde(default)]
+    pub hours: Option<f64>,
+    #[serde(default)]
+    pub now_ms: Option<f64>,
+    #[serde(default)]
+    pub events: Vec<RecentDirectivePulseCooldownEventInput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RecentDirectivePulseCooldownCountOutput {
+    pub count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -4142,6 +4173,8 @@ pub struct AutoscaleRequest {
     pub compile_directive_pulse_objectives_input: Option<CompileDirectivePulseObjectivesInput>,
     #[serde(default)]
     pub directive_pulse_objectives_profile_input: Option<DirectivePulseObjectivesProfileInput>,
+    #[serde(default)]
+    pub recent_directive_pulse_cooldown_count_input: Option<RecentDirectivePulseCooldownCountInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -9398,6 +9431,75 @@ pub fn compute_directive_pulse_objectives_profile(
     }
 }
 
+pub fn compute_recent_directive_pulse_cooldown_count(
+    input: &RecentDirectivePulseCooldownCountInput,
+) -> RecentDirectivePulseCooldownCountOutput {
+    let objective_id = input
+        .objective_id
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .unwrap_or_default();
+    if objective_id.is_empty() {
+        return RecentDirectivePulseCooldownCountOutput { count: 0 };
+    }
+    let hours = non_negative_number(input.hours).unwrap_or(24.0).max(1.0);
+    let now_ms = non_negative_number(input.now_ms).unwrap_or_else(|| {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|v| v.as_millis() as f64)
+            .unwrap_or(0.0)
+    });
+    let cutoff = now_ms - (hours * 3_600_000.0);
+
+    let mut count = 0_u32;
+    for evt in &input.events {
+        let event_type = evt
+            .event_type
+            .as_ref()
+            .map(|v| v.trim().to_string())
+            .unwrap_or_default();
+        if event_type != "autonomy_run" {
+            continue;
+        }
+        let result = evt
+            .result
+            .as_ref()
+            .map(|v| v.trim().to_string())
+            .unwrap_or_default();
+        if result != "stop_repeat_gate_directive_pulse_cooldown" {
+            continue;
+        }
+        let ts = evt.ts.as_ref().map(|v| v.trim().to_string()).unwrap_or_default();
+        let ts_ms = compute_parse_iso_ts(&ParseIsoTsInput {
+            ts: if ts.is_empty() { None } else { Some(ts) },
+        })
+        .timestamp_ms;
+        let Some(ms) = ts_ms else {
+            continue;
+        };
+        if ms < cutoff {
+            continue;
+        }
+        let event_objective = evt
+            .objective_id
+            .as_ref()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .or_else(|| {
+                evt.sample_objective_id
+                    .as_ref()
+                    .map(|v| v.trim().to_string())
+                    .filter(|v| !v.is_empty())
+            })
+            .unwrap_or_default();
+        if event_objective == objective_id {
+            count += 1;
+        }
+    }
+
+    RecentDirectivePulseCooldownCountOutput { count }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -13153,6 +13255,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_directive_pulse_objectives_profile_encode_failed:{e}"));
+    }
+    if mode == "recent_directive_pulse_cooldown_count" {
+        let input = request
+            .recent_directive_pulse_cooldown_count_input
+            .ok_or_else(|| "autoscale_missing_recent_directive_pulse_cooldown_count_input".to_string())?;
+        let out = compute_recent_directive_pulse_cooldown_count(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "recent_directive_pulse_cooldown_count",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_recent_directive_pulse_cooldown_count_encode_failed:{e}"));
     }
     if mode == "directive_pulse_context" {
         let input = request
@@ -19025,6 +19139,66 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale directive_pulse_objectives_profile");
         assert!(out.contains("\"mode\":\"directive_pulse_objectives_profile\""));
+    }
+
+    #[test]
+    fn recent_directive_pulse_cooldown_count_matches_objective_and_window() {
+        let now_ms = chrono::DateTime::parse_from_rfc3339("2026-03-04T12:00:00.000Z")
+            .unwrap()
+            .with_timezone(&Utc)
+            .timestamp_millis() as f64;
+        let out = compute_recent_directive_pulse_cooldown_count(&RecentDirectivePulseCooldownCountInput {
+            objective_id: Some("OBJ-1".to_string()),
+            hours: Some(24.0),
+            now_ms: Some(now_ms),
+            events: vec![
+                RecentDirectivePulseCooldownEventInput {
+                    event_type: Some("autonomy_run".to_string()),
+                    result: Some("stop_repeat_gate_directive_pulse_cooldown".to_string()),
+                    ts: Some("2026-03-04T10:00:00.000Z".to_string()),
+                    objective_id: Some("OBJ-1".to_string()),
+                    sample_objective_id: None,
+                },
+                RecentDirectivePulseCooldownEventInput {
+                    event_type: Some("autonomy_run".to_string()),
+                    result: Some("stop_repeat_gate_directive_pulse_cooldown".to_string()),
+                    ts: Some("2026-03-03T08:00:00.000Z".to_string()),
+                    objective_id: Some("OBJ-1".to_string()),
+                    sample_objective_id: None,
+                },
+                RecentDirectivePulseCooldownEventInput {
+                    event_type: Some("autonomy_run".to_string()),
+                    result: Some("stop_repeat_gate_directive_pulse_cooldown".to_string()),
+                    ts: Some("2026-03-04T11:00:00.000Z".to_string()),
+                    objective_id: Some("OBJ-2".to_string()),
+                    sample_objective_id: None,
+                },
+            ],
+        });
+        assert_eq!(out.count, 1);
+    }
+
+    #[test]
+    fn autoscale_json_recent_directive_pulse_cooldown_count_path_works() {
+        let payload = serde_json::json!({
+            "mode": "recent_directive_pulse_cooldown_count",
+            "recent_directive_pulse_cooldown_count_input": {
+                "objective_id": "OBJ-1",
+                "hours": 24,
+                "now_ms": 1772625600000.0,
+                "events": [
+                    {
+                        "event_type": "autonomy_run",
+                        "result": "stop_repeat_gate_directive_pulse_cooldown",
+                        "ts": "2026-03-04T10:00:00.000Z",
+                        "objective_id": "OBJ-1"
+                    }
+                ]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale recent_directive_pulse_cooldown_count");
+        assert!(out.contains("\"mode\":\"recent_directive_pulse_cooldown_count\""));
     }
 
     #[test]
