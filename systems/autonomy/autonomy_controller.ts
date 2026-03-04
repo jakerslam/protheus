@@ -2705,6 +2705,8 @@ const RUN_EVENT_PROPOSAL_ID_CACHE = new Map();
 const RUN_EVENT_PROPOSAL_ID_CACHE_MAX = 1024;
 const CAPACITY_COUNTED_ATTEMPT_EVENT_CACHE = new Map();
 const CAPACITY_COUNTED_ATTEMPT_EVENT_CACHE_MAX = 1024;
+const REPEAT_GATE_ANCHOR_CACHE = new Map();
+const REPEAT_GATE_ANCHOR_CACHE_MAX = 1024;
 
 function isPolicyHoldResult(result): boolean {
   const r = String(result || '').trim();
@@ -3444,12 +3446,64 @@ function deriveRepeatGateAnchor(evt) {
   if (!evt || typeof evt !== 'object') return {};
   const proposalId = runEventProposalId(evt);
   const objectiveId = runEventObjectiveId(evt);
-  const out: AnyObj = {};
-  if (proposalId) out.proposal_id = proposalId;
-  if (objectiveId) out.objective_id = objectiveId;
   const binding = evt.objective_binding && typeof evt.objective_binding === 'object'
     ? evt.objective_binding
     : null;
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const key = [
+      proposalId,
+      objectiveId,
+      binding ? '1' : '0',
+      binding && binding.pass !== false ? '1' : '0',
+      binding && binding.required === true ? '1' : '0',
+      String(binding && binding.source || ''),
+      binding && binding.valid !== false ? '1' : '0'
+    ].join('\u0000');
+    if (REPEAT_GATE_ANCHOR_CACHE.has(key)) {
+      const cached = REPEAT_GATE_ANCHOR_CACHE.get(key);
+      return cached && typeof cached === 'object'
+        ? { ...cached }
+        : {};
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'repeat_gate_anchor',
+      {
+        proposal_id: proposalId,
+        objective_id: objectiveId,
+        objective_binding_present: !!binding,
+        objective_binding_pass: binding ? binding.pass !== false : true,
+        objective_binding_required: binding ? binding.required === true : false,
+        objective_binding_source: binding ? String(binding.source || '') : '',
+        objective_binding_valid: binding ? binding.valid !== false : true
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      const outRust: AnyObj = {};
+      if (payload.proposal_id) outRust.proposal_id = String(payload.proposal_id);
+      if (payload.objective_id) outRust.objective_id = String(payload.objective_id);
+      if (payload.objective_binding && typeof payload.objective_binding === 'object') {
+        const b = payload.objective_binding;
+        outRust.objective_binding = {
+          pass: b.pass !== false,
+          required: b.required === true,
+          objective_id: String(b.objective_id || ''),
+          source: String(b.source || 'repeat_gate_anchor'),
+          valid: b.valid !== false
+        };
+      }
+      if (REPEAT_GATE_ANCHOR_CACHE.size >= REPEAT_GATE_ANCHOR_CACHE_MAX) {
+        const oldest = REPEAT_GATE_ANCHOR_CACHE.keys().next();
+        if (!oldest.done) REPEAT_GATE_ANCHOR_CACHE.delete(oldest.value);
+      }
+      REPEAT_GATE_ANCHOR_CACHE.set(key, outRust);
+      return outRust;
+    }
+  }
+  const out: AnyObj = {};
+  if (proposalId) out.proposal_id = proposalId;
+  if (objectiveId) out.objective_id = objectiveId;
   if (binding && objectiveId) {
     out.objective_binding = {
       pass: binding.pass !== false,
@@ -16359,5 +16413,6 @@ module.exports = {
   runEventProposalType,
   runEventObjectiveId,
   runEventProposalId,
-  isCapacityCountedAttemptEvent
+  isCapacityCountedAttemptEvent,
+  deriveRepeatGateAnchor
 };

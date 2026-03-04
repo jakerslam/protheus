@@ -381,6 +381,43 @@ pub struct CapacityCountedAttemptEventOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RepeatGateAnchorInput {
+    #[serde(default)]
+    pub proposal_id: Option<String>,
+    #[serde(default)]
+    pub objective_id: Option<String>,
+    #[serde(default)]
+    pub objective_binding_present: Option<bool>,
+    #[serde(default)]
+    pub objective_binding_pass: Option<bool>,
+    #[serde(default)]
+    pub objective_binding_required: Option<bool>,
+    #[serde(default)]
+    pub objective_binding_source: Option<String>,
+    #[serde(default)]
+    pub objective_binding_valid: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RepeatGateAnchorBindingOutput {
+    pub pass: bool,
+    pub required: bool,
+    pub objective_id: String,
+    pub source: String,
+    pub valid: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RepeatGateAnchorOutput {
+    #[serde(default)]
+    pub proposal_id: Option<String>,
+    #[serde(default)]
+    pub objective_id: Option<String>,
+    #[serde(default)]
+    pub objective_binding: Option<RepeatGateAnchorBindingOutput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RouteExecutionPolicyHoldInput {
     #[serde(default)]
     pub target: Option<String>,
@@ -634,6 +671,8 @@ pub struct AutoscaleRequest {
     pub run_event_proposal_id_input: Option<RunEventProposalIdInput>,
     #[serde(default)]
     pub capacity_counted_attempt_event_input: Option<CapacityCountedAttemptEventInput>,
+    #[serde(default)]
+    pub repeat_gate_anchor_input: Option<RepeatGateAnchorInput>,
     #[serde(default)]
     pub route_execution_policy_hold_input: Option<RouteExecutionPolicyHoldInput>,
     #[serde(default)]
@@ -1653,6 +1692,41 @@ pub fn compute_capacity_counted_attempt_event(
     }
 }
 
+pub fn compute_repeat_gate_anchor(input: &RepeatGateAnchorInput) -> RepeatGateAnchorOutput {
+    let proposal_id = normalize_spaces(input.proposal_id.as_deref().unwrap_or(""));
+    let objective_id = normalize_spaces(input.objective_id.as_deref().unwrap_or(""));
+    let objective_binding = if input.objective_binding_present.unwrap_or(false) && !objective_id.is_empty() {
+        let source_raw = normalize_spaces(input.objective_binding_source.as_deref().unwrap_or(""));
+        Some(RepeatGateAnchorBindingOutput {
+            pass: input.objective_binding_pass.unwrap_or(true),
+            required: input.objective_binding_required.unwrap_or(false),
+            objective_id: objective_id.clone(),
+            source: if source_raw.is_empty() {
+                "repeat_gate_anchor".to_string()
+            } else {
+                source_raw
+            },
+            valid: input.objective_binding_valid.unwrap_or(true),
+        })
+    } else {
+        None
+    };
+
+    RepeatGateAnchorOutput {
+        proposal_id: if proposal_id.is_empty() {
+            None
+        } else {
+            Some(proposal_id)
+        },
+        objective_id: if objective_id.is_empty() {
+            None
+        } else {
+            Some(objective_id)
+        },
+        objective_binding,
+    }
+}
+
 pub fn compute_policy_hold_pressure(input: &PolicyHoldPressureInput) -> PolicyHoldPressureOutput {
     let window_hours = input.window_hours.unwrap_or(24.0).max(1.0);
     let min_samples = input.min_samples.unwrap_or(1.0).max(1.0);
@@ -2291,6 +2365,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_capacity_counted_attempt_event_encode_failed:{e}"));
+    }
+    if mode == "repeat_gate_anchor" {
+        let input = request
+            .repeat_gate_anchor_input
+            .ok_or_else(|| "autoscale_missing_repeat_gate_anchor_input".to_string())?;
+        let out = compute_repeat_gate_anchor(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "repeat_gate_anchor",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_repeat_gate_anchor_encode_failed:{e}"));
     }
     if mode == "route_execution_policy_hold" {
         let input = request
@@ -3006,6 +3092,46 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale capacity_counted_attempt_event");
         assert!(out.contains("\"mode\":\"capacity_counted_attempt_event\""));
+    }
+
+    #[test]
+    fn repeat_gate_anchor_builds_binding_only_with_objective_id() {
+        let out = compute_repeat_gate_anchor(&RepeatGateAnchorInput {
+            proposal_id: Some(" p-001 ".to_string()),
+            objective_id: Some("T1_alpha".to_string()),
+            objective_binding_present: Some(true),
+            objective_binding_pass: Some(false),
+            objective_binding_required: Some(true),
+            objective_binding_source: Some("".to_string()),
+            objective_binding_valid: Some(false),
+        });
+        assert_eq!(out.proposal_id, Some("p-001".to_string()));
+        assert_eq!(out.objective_id, Some("T1_alpha".to_string()));
+        assert!(out.objective_binding.is_some());
+        let binding = out.objective_binding.expect("binding");
+        assert!(!binding.pass);
+        assert!(binding.required);
+        assert_eq!(binding.source, "repeat_gate_anchor".to_string());
+        assert!(!binding.valid);
+    }
+
+    #[test]
+    fn autoscale_json_repeat_gate_anchor_path_works() {
+        let payload = serde_json::json!({
+            "mode": "repeat_gate_anchor",
+            "repeat_gate_anchor_input": {
+                "proposal_id": "p-002",
+                "objective_id": "T1_alpha",
+                "objective_binding_present": true,
+                "objective_binding_pass": true,
+                "objective_binding_required": false,
+                "objective_binding_source": "repeat_gate_anchor",
+                "objective_binding_valid": true
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale repeat_gate_anchor");
+        assert!(out.contains("\"mode\":\"repeat_gate_anchor\""));
     }
 
     #[test]
