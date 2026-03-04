@@ -513,7 +513,17 @@ function runInversionPrimitive(mode: string, data: AnyObj = {}, opts: AnyObj = {
     ,
     build_output_interfaces: 'build_output_interfaces_input',
     build_code_change_proposal_draft: 'build_code_change_proposal_draft_input',
-    normalize_library_row: 'normalize_library_row_input'
+    normalize_library_row: 'normalize_library_row_input',
+    ensure_dir: 'ensure_dir_input',
+    read_json: 'read_json_input',
+    read_jsonl: 'read_jsonl_input',
+    write_json_atomic: 'write_json_atomic_input',
+    append_jsonl: 'append_jsonl_input',
+    read_text: 'read_text_input',
+    latest_json_file_in_dir: 'latest_json_file_in_dir_input',
+    normalize_output_channel: 'normalize_output_channel_input',
+    normalize_repo_path: 'normalize_repo_path_input',
+    runtime_paths: 'runtime_paths_input'
   };
   const field = fieldByMode[normalizedMode];
   if (!field) return { ok: false, error: `inversion_mode_unsupported:${normalizedMode}` };

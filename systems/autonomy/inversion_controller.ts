@@ -506,10 +506,34 @@ function stableId(seed: string, prefix = 'inv') {
 }
 
 function ensureDir(dirPath: string) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'ensure_dir',
+      { dir_path: dirPath == null ? '' : String(dirPath) },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true) return;
+  }
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
 function readJson(filePath: string, fallback: any) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'read_json',
+      {
+        file_path: filePath == null ? '' : String(filePath),
+        fallback
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      if (Object.prototype.hasOwnProperty.call(payload, 'value')) {
+        return payload.value;
+      }
+    }
+  }
   try {
     if (!fs.existsSync(filePath)) return fallback;
     const payload = JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -520,6 +544,19 @@ function readJson(filePath: string, fallback: any) {
 }
 
 function readJsonl(filePath: string) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'read_jsonl',
+      {
+        file_path: filePath == null ? '' : String(filePath)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      return Array.isArray(payload.rows) ? payload.rows.filter((row: unknown) => row && typeof row === 'object') : [];
+    }
+  }
   try {
     if (!fs.existsSync(filePath)) return [];
     return fs.readFileSync(filePath, 'utf8')
@@ -540,6 +577,17 @@ function readJsonl(filePath: string) {
 }
 
 function writeJsonAtomic(filePath: string, value: AnyObj) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'write_json_atomic',
+      {
+        file_path: filePath == null ? '' : String(filePath),
+        value: value && typeof value === 'object' ? value : value
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true) return;
+  }
   ensureDir(path.dirname(filePath));
   const tmpPath = `${filePath}.tmp-${Date.now()}-${process.pid}`;
   fs.writeFileSync(tmpPath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
@@ -547,6 +595,17 @@ function writeJsonAtomic(filePath: string, value: AnyObj) {
 }
 
 function appendJsonl(filePath: string, row: AnyObj) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'append_jsonl',
+      {
+        file_path: filePath == null ? '' : String(filePath),
+        row: row && typeof row === 'object' ? row : row
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true) return;
+  }
   ensureDir(path.dirname(filePath));
   fs.appendFileSync(filePath, `${JSON.stringify(row)}\n`, 'utf8');
 }
@@ -569,6 +628,25 @@ function relPath(filePath: string) {
 }
 
 function runtimePaths(policyPath: string) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'runtime_paths',
+      {
+        policy_path: policyPath == null ? '' : String(policyPath),
+        inversion_state_dir_env: process.env.INVERSION_STATE_DIR || '',
+        dual_brain_policy_path_env: process.env.DUAL_BRAIN_POLICY_PATH || '',
+        default_state_dir: DEFAULT_STATE_DIR,
+        root: ROOT
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      if (payload && typeof payload === 'object') {
+        return payload;
+      }
+    }
+  }
   const stateDir = process.env.INVERSION_STATE_DIR
     ? path.resolve(process.env.INVERSION_STATE_DIR)
     : DEFAULT_STATE_DIR;
@@ -1221,6 +1299,26 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   function normalizeOutputChannel(name: string) {
     const baseOut = base.output_interfaces[name] || {};
     const srcOut = outputsRaw[name] && typeof outputsRaw[name] === 'object' ? outputsRaw[name] : {};
+    if (INVERSION_RUST_ENABLED) {
+      const rust = runInversionPrimitive(
+        'normalize_output_channel',
+        {
+          base_out: baseOut,
+          src_out: srcOut
+        },
+        { allow_cli_fallback: true }
+      );
+      if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+        const payload = rust.payload.payload;
+        return {
+          enabled: payload.enabled === true,
+          live_enabled: payload.live_enabled === true,
+          test_enabled: payload.test_enabled === true,
+          require_sandbox_verification: payload.require_sandbox_verification === true,
+          require_explicit_emit: payload.require_explicit_emit === true
+        };
+      }
+    }
     return {
       enabled: toBool(srcOut.enabled, baseOut.enabled),
       live_enabled: toBool(srcOut.live_enabled, baseOut.live_enabled),
@@ -1237,6 +1335,21 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   }
 
   function normalizeRepoPath(v: unknown, fallback: string) {
+    if (INVERSION_RUST_ENABLED) {
+      const rust = runInversionPrimitive(
+        'normalize_repo_path',
+        {
+          value: v == null ? '' : String(v),
+          fallback: fallback == null ? '' : String(fallback),
+          root: ROOT
+        },
+        { allow_cli_fallback: true }
+      );
+      if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+        const out = cleanText(rust.payload.payload.path || '', 420);
+        if (out) return out;
+      }
+    }
     const rawPath = cleanText(v, 420);
     if (!rawPath) return fallback;
     return path.isAbsolute(rawPath)
@@ -4171,6 +4284,19 @@ function computeKnownFailurePressure(candidates: AnyObj[], policy: AnyObj) {
 }
 
 function readText(filePath: string, fallback = '') {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'read_text',
+      {
+        file_path: filePath == null ? '' : String(filePath),
+        fallback: fallback == null ? '' : String(fallback)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return String(rust.payload.payload.text || '');
+    }
+  }
   try {
     if (!filePath || !fs.existsSync(filePath)) return fallback;
     return String(fs.readFileSync(filePath, 'utf8') || '');
@@ -5950,6 +6076,19 @@ function runHarnessRuntimeProbes(policy: AnyObj, dateStr: string) {
 }
 
 function latestJsonFileInDir(dirPath: string) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'latest_json_file_in_dir',
+      {
+        dir_path: dirPath == null ? '' : String(dirPath)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const out = cleanText(rust.payload.payload.file_path || '', 420);
+      return out || null;
+    }
+  }
   try {
     if (!dirPath || !fs.existsSync(dirPath)) return null;
     const entries = fs.readdirSync(dirPath)
@@ -7744,6 +7883,14 @@ module.exports = {
   resolveLensGateDrift,
   resolveParityConfidence,
   parseArgs,
+  ensureDir,
+  readJson,
+  readJsonl,
+  writeJsonAtomic,
+  appendJsonl,
+  runtimePaths,
+  readText,
+  latestJsonFileInDir,
   parseJsonFromStdout,
   tokenize,
   normalizeList,
