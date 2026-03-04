@@ -2831,6 +2831,8 @@ const VALUE_DENSITY_SCORE_CACHE = new Map();
 const VALUE_DENSITY_SCORE_CACHE_MAX = 1024;
 const EXECUTION_RESERVE_SNAPSHOT_CACHE = new Map();
 const EXECUTION_RESERVE_SNAPSHOT_CACHE_MAX = 512;
+const BUDGET_PACING_GATE_CACHE = new Map();
+const BUDGET_PACING_GATE_CACHE_MAX = 1024;
 const ESTIMATE_TOKENS_FOR_CANDIDATE_CACHE = new Map();
 const ESTIMATE_TOKENS_FOR_CANDIDATE_CACHE_MAX = 1024;
 const MINUTES_SINCE_TS_CACHE = new Map();
@@ -8537,6 +8539,7 @@ function budgetPacingSnapshot(dateStr) {
 function evaluateBudgetPacingGate(cand, valueSignal, risk, snapshot, opts: AnyObj = {}) {
   const estTokens = estimateTokensForCandidate(cand, cand && cand.proposal);
   const valueScore = clampNumber(Number(valueSignal && valueSignal.score || 0), 0, 100);
+  const normalized = normalizedRisk(risk);
   const snap = snapshot && typeof snapshot === 'object'
     ? snapshot
     : { tight: false, autopause_active: false, remaining_ratio: 1, pressure: 'none' };
@@ -8559,9 +8562,66 @@ function evaluateBudgetPacingGate(cand, valueSignal, risk, snapshot, opts: AnyOb
     execution_reserve_min_value_signal: AUTONOMY_BUDGET_EXECUTION_RESERVE_MIN_VALUE_SIGNAL,
     execution_reserve_bypass: false
   };
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const key = [
+      estTokens,
+      valueScore,
+      normalized,
+      snap.tight === true ? 1 : 0,
+      snap.autopause_active === true ? 1 : 0,
+      Number(snap.remaining_ratio || 0),
+      String(snap.pressure || 'none'),
+      executionFloorDeficit ? 1 : 0,
+      AUTONOMY_BUDGET_EXECUTION_RESERVE_ENABLED ? 1 : 0,
+      reserveRemaining,
+      AUTONOMY_BUDGET_EXECUTION_RESERVE_MIN_VALUE_SIGNAL,
+      AUTONOMY_BUDGET_PACING_ENABLED ? 1 : 0,
+      AUTONOMY_BUDGET_PACING_MIN_REMAINING_RATIO,
+      AUTONOMY_BUDGET_PACING_HIGH_TOKEN_THRESHOLD,
+      AUTONOMY_BUDGET_PACING_MIN_VALUE_SIGNAL
+    ].join('\u0000');
+    if (BUDGET_PACING_GATE_CACHE.has(key)) {
+      const cached = BUDGET_PACING_GATE_CACHE.get(key);
+      return Object.assign({}, out, cached);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'budget_pacing_gate',
+      {
+        est_tokens: Number(estTokens || 0),
+        value_signal_score: Number(valueScore || 0),
+        risk: normalized,
+        snapshot_tight: snap.tight === true,
+        snapshot_autopause_active: snap.autopause_active === true,
+        snapshot_remaining_ratio: Number(snap.remaining_ratio || 0),
+        snapshot_pressure: String(snap.pressure || 'none'),
+        execution_floor_deficit: executionFloorDeficit === true,
+        execution_reserve_enabled: AUTONOMY_BUDGET_EXECUTION_RESERVE_ENABLED,
+        execution_reserve_remaining: reserveRemaining,
+        execution_reserve_min_value_signal: Number(AUTONOMY_BUDGET_EXECUTION_RESERVE_MIN_VALUE_SIGNAL || 0),
+        budget_pacing_enabled: AUTONOMY_BUDGET_PACING_ENABLED,
+        min_remaining_ratio: Number(AUTONOMY_BUDGET_PACING_MIN_REMAINING_RATIO || 0),
+        high_token_threshold: Number(AUTONOMY_BUDGET_PACING_HIGH_TOKEN_THRESHOLD || 0),
+        min_value_signal_score: Number(AUTONOMY_BUDGET_PACING_MIN_VALUE_SIGNAL || 0)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      const rustOut = {
+        pass: payload.pass === true,
+        reason: payload.reason ? String(payload.reason) : null,
+        execution_reserve_bypass: payload.execution_reserve_bypass === true
+      };
+      if (BUDGET_PACING_GATE_CACHE.size >= BUDGET_PACING_GATE_CACHE_MAX) {
+        const oldest = BUDGET_PACING_GATE_CACHE.keys().next();
+        if (!oldest.done) BUDGET_PACING_GATE_CACHE.delete(oldest.value);
+      }
+      BUDGET_PACING_GATE_CACHE.set(key, rustOut);
+      return Object.assign({}, out, rustOut);
+    }
+  }
   if (AUTONOMY_BUDGET_PACING_ENABLED !== true) return out;
   if (snap.tight !== true) return out;
-  const normalized = normalizedRisk(risk);
   const highValueEscape = valueScore >= Math.max(AUTONOMY_BUDGET_PACING_MIN_VALUE_SIGNAL + 20, 85);
   if (highValueEscape) return out;
   const reserveBypassAllowed = AUTONOMY_BUDGET_EXECUTION_RESERVE_ENABLED
@@ -18436,6 +18496,7 @@ module.exports = {
   timeToValueScore,
   valueDensityScore,
   executionReserveSnapshot,
+  evaluateBudgetPacingGate,
   expectedValueSignalForProposal,
   strategyRankForCandidate,
   strategyRankAdjustedForCandidate,

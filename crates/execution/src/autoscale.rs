@@ -1104,6 +1104,35 @@ pub struct ExecutionReserveSnapshotOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct BudgetPacingGateInput {
+    pub est_tokens: f64,
+    pub value_signal_score: f64,
+    #[serde(default)]
+    pub risk: Option<String>,
+    pub snapshot_tight: bool,
+    pub snapshot_autopause_active: bool,
+    pub snapshot_remaining_ratio: f64,
+    #[serde(default)]
+    pub snapshot_pressure: Option<String>,
+    pub execution_floor_deficit: bool,
+    pub execution_reserve_enabled: bool,
+    pub execution_reserve_remaining: f64,
+    pub execution_reserve_min_value_signal: f64,
+    pub budget_pacing_enabled: bool,
+    pub min_remaining_ratio: f64,
+    pub high_token_threshold: f64,
+    pub min_value_signal_score: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct BudgetPacingGateOutput {
+    pub pass: bool,
+    #[serde(default)]
+    pub reason: Option<String>,
+    pub execution_reserve_bypass: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct EstimateTokensForCandidateInput {
     pub direct_est_tokens: f64,
     pub route_tokens_est: f64,
@@ -1767,6 +1796,8 @@ pub struct AutoscaleRequest {
     pub value_density_score_input: Option<ValueDensityScoreInput>,
     #[serde(default)]
     pub execution_reserve_snapshot_input: Option<ExecutionReserveSnapshotInput>,
+    #[serde(default)]
+    pub budget_pacing_gate_input: Option<BudgetPacingGateInput>,
     #[serde(default)]
     pub estimate_tokens_for_candidate_input: Option<EstimateTokensForCandidateInput>,
     #[serde(default)]
@@ -3797,6 +3828,82 @@ pub fn compute_execution_reserve_snapshot(
         enabled: input.reserve_enabled,
         reserve_tokens,
         reserve_remaining,
+    }
+}
+
+pub fn compute_budget_pacing_gate(input: &BudgetPacingGateInput) -> BudgetPacingGateOutput {
+    if !input.budget_pacing_enabled {
+        return BudgetPacingGateOutput {
+            pass: true,
+            reason: None,
+            execution_reserve_bypass: false,
+        };
+    }
+    if !input.snapshot_tight {
+        return BudgetPacingGateOutput {
+            pass: true,
+            reason: None,
+            execution_reserve_bypass: false,
+        };
+    }
+    let value_score = if !input.value_signal_score.is_finite() {
+        0.0
+    } else {
+        input.value_signal_score.clamp(0.0, 100.0)
+    };
+    let est_tokens = if !input.est_tokens.is_finite() {
+        0.0
+    } else {
+        input.est_tokens.max(0.0)
+    };
+    let normalized_risk = input.risk.as_deref().unwrap_or("").trim().to_ascii_lowercase();
+    let high_value_escape = value_score >= (input.min_value_signal_score + 20.0).max(85.0);
+    if high_value_escape {
+        return BudgetPacingGateOutput {
+            pass: true,
+            reason: None,
+            execution_reserve_bypass: false,
+        };
+    }
+    let reserve_bypass_allowed = input.execution_reserve_enabled
+        && input.execution_floor_deficit
+        && normalized_risk == "low"
+        && value_score >= input.execution_reserve_min_value_signal
+        && input.execution_reserve_remaining >= est_tokens;
+    if reserve_bypass_allowed {
+        return BudgetPacingGateOutput {
+            pass: true,
+            reason: Some("execution_floor_reserve_bypass".to_string()),
+            execution_reserve_bypass: true,
+        };
+    }
+    if input.snapshot_autopause_active && normalized_risk != "low" {
+        return BudgetPacingGateOutput {
+            pass: false,
+            reason: Some("budget_pacing_autopause_risk_guard".to_string()),
+            execution_reserve_bypass: false,
+        };
+    }
+    if est_tokens >= input.high_token_threshold && value_score < input.min_value_signal_score {
+        return BudgetPacingGateOutput {
+            pass: false,
+            reason: Some("budget_pacing_high_token_low_value".to_string()),
+            execution_reserve_bypass: false,
+        };
+    }
+    if input.snapshot_remaining_ratio <= input.min_remaining_ratio
+        && value_score < input.min_value_signal_score
+    {
+        return BudgetPacingGateOutput {
+            pass: false,
+            reason: Some("budget_pacing_low_remaining_ratio".to_string()),
+            execution_reserve_bypass: false,
+        };
+    }
+    BudgetPacingGateOutput {
+        pass: true,
+        reason: None,
+        execution_reserve_bypass: false,
     }
 }
 
@@ -5857,6 +5964,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_execution_reserve_snapshot_encode_failed:{e}"));
+    }
+    if mode == "budget_pacing_gate" {
+        let input = request
+            .budget_pacing_gate_input
+            .ok_or_else(|| "autoscale_missing_budget_pacing_gate_input".to_string())?;
+        let out = compute_budget_pacing_gate(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "budget_pacing_gate",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_budget_pacing_gate_encode_failed:{e}"));
     }
     if mode == "estimate_tokens_for_candidate" {
         let input = request
@@ -8311,6 +8430,57 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale execution_reserve_snapshot");
         assert!(out.contains("\"mode\":\"execution_reserve_snapshot\""));
+    }
+
+    #[test]
+    fn budget_pacing_gate_blocks_high_token_low_value_when_tight() {
+        let out = compute_budget_pacing_gate(&BudgetPacingGateInput {
+            est_tokens: 1800.0,
+            value_signal_score: 45.0,
+            risk: Some("medium".to_string()),
+            snapshot_tight: true,
+            snapshot_autopause_active: false,
+            snapshot_remaining_ratio: 0.18,
+            snapshot_pressure: Some("hard".to_string()),
+            execution_floor_deficit: false,
+            execution_reserve_enabled: true,
+            execution_reserve_remaining: 200.0,
+            execution_reserve_min_value_signal: 70.0,
+            budget_pacing_enabled: true,
+            min_remaining_ratio: 0.2,
+            high_token_threshold: 1200.0,
+            min_value_signal_score: 60.0,
+        });
+        assert!(!out.pass);
+        assert_eq!(out.reason.as_deref(), Some("budget_pacing_high_token_low_value"));
+    }
+
+    #[test]
+    fn autoscale_json_budget_pacing_gate_path_works() {
+        let payload = serde_json::json!({
+            "mode": "budget_pacing_gate",
+            "budget_pacing_gate_input": {
+                "est_tokens": 300,
+                "value_signal_score": 80,
+                "risk": "low",
+                "snapshot_tight": true,
+                "snapshot_autopause_active": false,
+                "snapshot_remaining_ratio": 0.12,
+                "snapshot_pressure": "warn",
+                "execution_floor_deficit": true,
+                "execution_reserve_enabled": true,
+                "execution_reserve_remaining": 500,
+                "execution_reserve_min_value_signal": 70,
+                "budget_pacing_enabled": true,
+                "min_remaining_ratio": 0.2,
+                "high_token_threshold": 1200,
+                "min_value_signal_score": 60
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale budget_pacing_gate");
+        assert!(out.contains("\"mode\":\"budget_pacing_gate\""));
+        assert!(out.contains("\"pass\":true"));
     }
 
     #[test]
