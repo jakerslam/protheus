@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-03T19:31:48.591Z",
-  "source_hash": "d5dd024eb2a47712d2e2989c",
-  "row_count": 782,
-  "active_count": 16,
-  "archive_count": 766,
+  "generated_at": "2026-03-04T07:52:42.255Z",
+  "source_hash": "0b45bb837f9490d14047fdea",
+  "row_count": 877,
+  "active_count": 13,
+  "archive_count": 864,
   "rows": [
     {
       "id": "BL-001",
@@ -418,6 +418,96 @@
       "dependencies": []
     },
     {
+      "id": "BL-044",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Persona continuity + arbitration + structured outputs hardening",
+      "problem": "Reduce manual synthesis load by making persona memory recall, disagreement resolution, and output aggregation deterministic",
+      "acceptance": "`protheus lens` now injects last-5 correspondence continuity, ships dedicated `protheus arbitrate --between=... --issue=...`, supports structured `--schema=json` outputs, optional anti-puppet `--surprise=on`, stance cache routing (`personas/organization/stance_cache.json`), and session meta-feedback commands (`lens feedback`, `feedback-summary`) with regression + sovereignty checks Evidence: `systems/ops/backlog_runtime_anchors/bl_044_anchor.ts`.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-045",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Rust execution autoscale/token-usage/queue-normalization/criteria-gate/policy-hold/receipt-verdict primitive migration",
+      "problem": "Increase real Rust execution-path coverage while preserving behavior in autonomy runtime",
+      "acceptance": "`crates/execution/src/autoscale.rs` now owns `dynamic_caps`, `token_usage`, `normalize_queue`, `criteria_gate`, `policy_hold`, and `receipt_verdict` primitives; `systems/autonomy/backlog_autoscale_rust_bridge.ts` maps explicit mode payloads (`plan`, `batch_max`, `dynamic_caps`, `token_usage`, `normalize_queue`, `criteria_gate`, `policy_hold`, `receipt_verdict`); `systems/autonomy/autonomy_controller.ts` routes queue-pressure normalization, execution token usage, pre-exec criteria gate checks, route policy-hold decisions, and verify-receipt core verdict through Rust with deterministic TS fallback; regression + sovereignty checks: `memory/tools/tests/autonomy_backlog_autoscale_rust_bridge.test.js`, `memory/tools/tests/autonomy_execution_token_usage_rust_parity.test.js`, `memory/tools/tests/autonomy_criteria_gate_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_rust_parity.test.js`, `memory/tools/tests/autonomy_verify_execution_receipt_rust_parity.test.js`, `memory/tools/tests/execution_security_gate_integration.test.js`.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-046",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Queue persistence migration (JSONL -> SQLite WAL concurrency)",
+      "problem": "JSONL-only queue writes bottleneck multi-shadow execution and prevent safe concurrent writers",
+      "acceptance": "`systems/ops/backlog_queue_executor.ts` now writes queue items/events/receipts into SQLite via `lib/queue_sqlite_runtime.ts` with WAL, idempotent history migration, and optional JSONL mirroring. Regression and concurrency tests pass (`memory/tools/tests/backlog_queue_executor.test.js`, `memory/tools/tests/backlog_queue_executor_sqlite_concurrency.test.js`). Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-047",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Rust migration hotspot profiling + preflight security audit gate",
+      "problem": "Rust migration speed and safety require deterministic hotspot targeting plus fail-closed security gating before lane execution",
+      "acceptance": "`systems/ops/rust50_migration_program.ts` now enforces a rust security preflight gate and emits lane hotspot artifacts before execution. Regression coverage passes in `memory/tools/tests/rust50_migration_program.test.js`. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-048",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Shadow deployment infrastructure hardening (feature flags + kill switch + resource isolation)",
+      "problem": "Shadow orchestration scale-up needs deterministic deployment guards to avoid uncontrolled rollout blast radius",
+      "acceptance": "`personas/organization/shadow_deployment_policy.json` is enforced in `systems/personas/orchestration.ts` for meeting/project runs (feature gates, kill switch, concurrency/token/runtime isolation). Regression and fail-closed tests pass in `memory/tools/tests/personas_orchestration_cli.test.js`. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-049",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Red-team harness expansion (sandbox + property-based probes + replay logger)",
+      "problem": "Sovereignty testing depth requires sandboxed generation, reproducible fuzz cases, and replayable evidence",
+      "acceptance": "`systems/autonomy/red_team_harness.ts` now adds sandbox blocking, deterministic property-generated cases, and replay logging with prompt hashes; policy defaults updated in `config/red_team_policy.json`; regression passes in `memory/tools/tests/red_team_harness.test.js`. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-050",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Queue SQLite migration rollout/spec runbook",
+      "problem": "Concurrent queue cutover needs explicit rollback/playbook evidence for operators before full production lock-in",
+      "acceptance": "`systems/ops/queue_sqlite_migration.md` defines staged cutover, rollback, validation checkpoints, and concurrency/retention notes; linked to BL-046 implementation. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-051",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Execution legacy runtime authority cutover (TS -> Rust wrapper)",
+      "problem": "Duplicate TS execution core logic keeps drift risk high and slows real Rust ownership progress.",
+      "acceptance": "`systems/execution/legacy_runtime.ts` is now a thin compatibility wrapper delegating to Rust `execution_core`; parity test now compares legacy wrapper output against direct Rust binary receipts (`memory/tools/tests/execution_phase2_rust_parity.test.js`). Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-052",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Task decomposition profile composition moved into Rust execution crate",
+      "problem": "`systems/execution/task_decomposition_primitive.ts` still held deterministic micro-task profile shaping that duplicated crate-side logic and slowed Rust authority growth.",
+      "acceptance": "Added `compose_micro_tasks(_json)` in `crates/execution/src/decompose.rs` + `execution_core compose` CLI path; TS decomposition primitive now consumes Rust-composed task drafts and keeps JS-only gates/duality overlays as thin orchestration. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
       "id": "BL-007",
       "class": "backlog",
       "wave": "BL",
@@ -435,6 +525,866 @@
       "title": "Repo hygiene CI check for generated artifacts",
       "problem": "Prevent noisy files slipping into PRs",
       "acceptance": "CI fails if generated paths are staged unexpectedly Evidence: `systems/ops/backlog_runtime_anchors/bl_008_anchor.ts`.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-053",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Vault wrapper collapse to security-core authority",
+      "problem": "`systems/vault/index.ts` carried duplicate runtime-selection complexity despite Rust `security_core` already owning vault policy/load/evaluate/seal/rotate/audit commands.",
+      "acceptance": "Replaced vault wrapper internals with thin `security_core` delegation (`vault-load-policy`, `vault-evaluate`, `seal`, `rotate-all`, `audit`) while preserving compatibility exports and decision normalization. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-054",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Observability wrapper collapse to Rust-core authority",
+      "problem": "`systems/observability/index.ts` still contained extra runtime-selection branches that duplicated crate-level execution ownership and expanded TS surface area.",
+      "acceptance": "Replaced observability wrapper with thin Rust-core delegation (`observability_core load-profile/run-chaos`) while preserving compatibility exports and CLI fallback behavior. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-055",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Vault legacy policy engine collapse to Rust-core compatibility wrapper",
+      "problem": "`systems/vault/legacy_vault.ts` still contained a full TypeScript vault-policy evaluator duplicating logic already owned by Rust `security_core`.",
+      "acceptance": "Replaced legacy TS evaluator with a compatibility wrapper delegating to Rust-backed `systems/vault/index`, preserving exported API shape (`loadLegacyVaultPolicy`, `evaluateVaultPolicyLegacy`, `policyDigest`) and fail-closed fallback semantics. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-056",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Observability legacy engine collapse to Rust-core compatibility wrapper",
+      "problem": "`systems/observability/legacy_observability.ts` still contained a full TypeScript observability scoring engine duplicating logic owned by Rust observability core.",
+      "acceptance": "Replaced legacy TS observability evaluator with a compatibility wrapper delegating to Rust-backed `systems/observability/index`, preserving exported surface (`normalizeProfile`, `evaluateTraceWindow`, `computeSovereigntyIndex`, `runChaosObservabilityLegacy`) and fail-closed fallback semantics. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-057",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Task decomposition summary/queue/dispatch shaping migrated to Rust execution core",
+      "problem": "`systems/execution/task_decomposition_primitive.ts` still computed micro-task summaries, dispatch summaries, queue row shaping, dispatch row planning, governance lane finalization, and constitution/heroic gate evaluation in TypeScript despite Rust execution core ownership of decomposition/compose primitives.",
+      "acceptance": "Added `execution_core task-summary`, `dispatch-summary`, `queue-rows`, `dispatch-rows`, `apply-governance`, `directive-gate`, and `heroic-gate` commands with `summarize_tasks(_json)`, `summarize_dispatch(_json)`, `queue_rows_json`, `dispatch_rows_json`, `apply_governance_json`, `evaluate_directive_gate_json`, and `evaluate_heroic_gate_json` in `crates/execution/src/decompose.rs`; task decomposition lane now delegates summary math, queue/dispatch row planning, heroic+constitution+duality governance finalization, and primary constitution+heroic gate decisions to Rust, while TS keeps fallback adapters only. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-058",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Directive gate runtime collapse to compact Rust-ready wrapper",
+      "problem": "`systems/security/directive_gate.ts` still held a large TypeScript policy evaluator that duplicated Rust `execution_core directive-gate` behavior and inflated TS surface area.",
+      "acceptance": "Replaced directive gate module with compact compatibility wrapper: runtime default is now Rust-preferred (`DIRECTIVE_GATE_RUST_MODE=prefer`), with deterministic JS fallback retained for fail-open binary unavailability and exported API/constants (`evaluateTask`, `logGateDecision`, `HIGH_RISK_PATTERNS`, `DENY_PATTERNS`, allowlist/trust helpers) preserved. Regression coverage passes in `memory/tools/tests/directive_gate.test.js`, plus execution parity/sovereignty suites. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-059",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Route-task live gate path switched to Rust-first directive evaluation",
+      "problem": "`systems/routing/route_task.ts` previously consumed directive decisions through legacy JS-only mode, limiting Rust authority on the live routing choke point.",
+      "acceptance": "`route_task` now relies on global Rust-preferred directive gate mode (no per-call env mutation wrapper), keeping behavior deterministic while routing consults Rust `execution_core directive-gate` by default and falls back to JS when binary is unavailable. Regression + safety coverage passes in `memory/tools/tests/route_task_budget_guard.test.js`, `memory/tools/tests/route_task_emergency_stop.test.js`, `memory/tools/tests/directive_gate.test.js`, and execution sovereignty suites. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-060",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Weaver/Storm directive checks switched to Rust-preferred mode",
+      "problem": "`systems/weaver/weaver_core.ts` and `systems/storm/storm_value_distribution.ts` still called directive gating in JS-only mode for constitutional checks, leaving critical arbitration/distribution paths outside Rust-first evaluation.",
+      "acceptance": "Weaver and storm now call directive gate directly under global Rust-preferred mode (scoped wrapper removed), preserving deterministic fallback semantics while making constitutional checks Rust-authoritative when binary is available. Regression + sovereignty coverage passes in `memory/tools/tests/weaver_core.test.js`, `memory/tools/tests/storm_value_distribution.test.js`, `memory/tools/tests/directive_gate.test.js`, and execution gate suites. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-061",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Route-task deterministic primitive shaping migrated into Rust execution core",
+      "problem": "`systems/routing/route_task.ts` still computed intent normalization, trigger thresholds, predicted habit ids, and routing pre-shape metadata in TypeScript, leaving live route determinism partially outside Rust.",
+      "acceptance": "Added `execution_core route-primitives` (`evaluate_route_primitives_json`) in `crates/execution/src/decompose.rs` to compute intent key/slug, A-B-C trigger thresholds, `which_met`, and predicted habit id; `systems/routing/route_task.ts` now consumes Rust route primitives by default with JS fallback; regression test `memory/tools/tests/route_primitives_rust_parity.test.js` validates behavior. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-062",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Route-task habit selection (exact/token match) migrated into Rust execution core",
+      "problem": "`systems/routing/route_task.ts` still selected matching habit IDs (`pickBestMatch`) in TypeScript, leaving route decision determinism split between TS and Rust.",
+      "acceptance": "Added `execution_core route-match` (`evaluate_route_match_json`) in `crates/execution/src/decompose.rs` with exact/token deterministic matching + skip-habit support; `systems/routing/route_task.ts` now uses Rust-first match resolution (`pickBestMatchRustAware`) with JS fallback; regression test `memory/tools/tests/route_match_rust_parity.test.js` validates exact/token/skip behavior. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-063",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Route-task reflex routine selection migrated into Rust execution core",
+      "problem": "`systems/routing/route_task.ts` still selected reflex routines (enabled-state + direct-id + tag fallback) in TypeScript, leaving low-risk automation routing partially outside Rust determinism.",
+      "acceptance": "Added `execution_core route-reflex-match` (`evaluate_route_reflex_match_json`) in `crates/execution/src/decompose.rs` with deterministic direct-id and tag-based selection; `systems/routing/route_task.ts` now uses Rust-first reflex selection (`pickReflexMatchRustAware`) with JS fallback; regression test `memory/tools/tests/route_reflex_match_rust_parity.test.js` validates direct/tag/none behavior. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-064",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Route-task complexity classification migrated into Rust execution core",
+      "problem": "`systems/routing/route_task.ts` still computed complexity tiers (`low|medium|high`) in TypeScript, leaving route policy pressure heuristics partially outside Rust ownership.",
+      "acceptance": "Added `execution_core route-complexity` (`evaluate_route_complexity_json`) in `crates/execution/src/decompose.rs` with deterministic thresholds and reason codes; `systems/routing/route_task.ts` now uses Rust-first complexity classification (`computeRouteComplexity`) with JS fallback; regression test `memory/tools/tests/route_complexity_rust_parity.test.js` validates high/medium/low decision boundaries. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-065",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Task decomposition queue/dispatch summary fallback removal (Rust fail-closed enforcement)",
+      "problem": "`systems/execution/task_decomposition_primitive.ts` still had large TypeScript fallback shapers for queue rows, dispatch rows, and summary math, preserving duplicated deterministic logic outside Rust when binary calls failed.",
+      "acceptance": "Removed TS fallback shapers in `emitQueues`, `dispatchMicroTaskExecutions`, and `summarizeTasks`; runtime now fails closed if Rust queue/dispatch/summary commands fail, while retaining Rust binary->cargo fallback chain. Regression and sovereignty suites remain green, proving Rust-owned shaping is authoritative on this lane. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-066",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Route-task Rust authority hardening (fail-closed on Rust route primitive/match/reflex/complexity outages)",
+      "problem": "`systems/routing/route_task.ts` still silently fell back to TypeScript matching/classification when Rust outputs were unavailable, leaving duplicated deterministic routing logic active during outages.",
+      "acceptance": "Route-task now treats Rust route primitives, habit matching, reflex matching, and complexity classification as authoritative by default and returns `MANUAL` with explicit `route_error` when Rust outputs are unavailable/invalid; optional TS fallback is explicit via `ROUTE_TASK_TS_FALLBACK=1`. Regression and sovereignty suites stay green. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-067",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Route-task aggregate Rust evaluation command integration (`route-evaluate`)",
+      "problem": "Route-task still orchestrated multiple separate Rust sub-calls (primitives/match/reflex/complexity), leaving aggregation/composition logic in TypeScript and increasing call-surface complexity.",
+      "acceptance": "Added `execution_core route-evaluate` (`evaluate_route_json`) aggregating primitives + habit match + reflex match + complexity in Rust; `systems/routing/route_task.ts` now consumes this aggregate result as the primary routing decision substrate; regression coverage includes `memory/tools/tests/route_evaluate_rust_parity.test.js` and fail-closed outage behavior in `memory/tools/tests/route_task_rust_failclosed.test.js`. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-068",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Route-task action policy migration into Rust core (`route-decision`)",
+      "problem": "`systems/routing/route_task.ts` still held branch-heavy action policy logic (reflex vs active/candidate/manual/autocrystallize), leaving final route decision matrix in TypeScript after Rust evaluation.",
+      "acceptance": "Added `execution_core route-decision` (`evaluate_route_decision_json`) for deterministic route action policy evaluation; `route_task.ts` now consumes Rust decision outputs (with fail-closed `MANUAL` on decision command outage/inconsistency) while retaining JS-only command assembly. Regression coverage includes `memory/tools/tests/route_decision_rust_parity.test.js`, route fail-closed tests, and sovereignty gate suites. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-069",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Route-task legacy TS route fallback removal (post Rust cutover)",
+      "problem": "After `route-evaluate` + `route-decision` cutover, `route_task.ts` still contained large unused TS fallback helpers for primitives/match/reflex/complexity, increasing TS surface area and risking accidental reactivation.",
+      "acceptance": "Removed dead TS fallback helper functions and exported no legacy route-normalization shim; live route behavior remains Rust-authoritative via `route-evaluate` + `route-decision` with fail-closed handling. Regression coverage includes route fail-closed, budget guard, emergency stop, directive gate, and execution sovereignty suites. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-070",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Route-task habit readiness migration into Rust core (`route-habit-readiness`)",
+      "problem": "`route_task.ts` still computed habit readiness details in TypeScript (required inputs parsing, trusted entrypoint check, state normalization), leaving match gating partially outside Rust control.",
+      "acceptance": "Added `execution_core route-habit-readiness` (`evaluate_route_habit_readiness_json`) and wired `route_task.ts` to consume it fail-closed before `route-decision`; regression coverage includes `memory/tools/tests/route_habit_readiness_rust_parity.test.js`, route fail-closed checks, and execution sovereignty suites. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-071",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Task decomposition constitution/heroic gate fallback removal (Rust fail-closed authority)",
+      "problem": "`systems/execution/task_decomposition_primitive.ts` still used local JS fallback evaluations for constitution and heroic gates when Rust gate commands were unavailable, leaving core sovereignty decisions partially outside Rust authority.",
+      "acceptance": "Removed local JS fallback gate evaluation paths; constitution gate now fail-closes to `DENY` and heroic gate fail-closes to blocked when Rust gate outputs are unavailable. Regression + sovereignty suites validate behavior under normal Rust authority and preserve fail-closed posture. Verified in March 2026 migration proof run.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-072",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Personas bootstrap vs dynamic memory split + token budget guard",
+      "problem": "Persona lens invocations could over-inject dynamic memory context, causing token waste/drift and inconsistent runtime cost in single/multi/triggered loop calls.",
+      "acceptance": "`systems/personas/cli.ts` now separates bootstrap context from dynamic memory context, enforces configurable pre-invocation context budget (default `2000`) with trim/reject modes, logs over-budget violations to `personas/organization/telemetry.jsonl` and persona correspondence, and emits structured `context_budget` metadata. Loop hooks now pass explicit budget flags in `systems/autonomy/inversion_controller.ts` and `adaptive/rsi/rsi_bootstrap.ts`. Regression + sovereignty checks: `memory/tools/tests/personas_context_budget_guard.test.js`, `memory/tools/tests/personas_lens_cli.test.js`, `memory/tools/tests/execution_security_gate_integration.test.js`.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-073",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Optional first-run CLI setup wizard",
+      "problem": "New users lacked a short covenant-first setup flow, making first-run discovery rely on manual command memory.",
+      "acceptance": "Added `protheus setup` (`systems/ops/protheus_setup_wizard.ts`) with covenant confirmation, interaction style (proactive/silent), notification preference, and skippable operation (`--skip-setup` / `PROTHEUS_SKIP_SETUP=1`). Dispatcher now auto-offers setup before REPL on first TTY run (`crates/ops/src/protheusctl.rs`). Command index/docs updated and regression coverage added in `memory/tools/tests/protheus_setup_wizard.test.js` plus list/repl guard tests.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-074",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Pro-grade CLI ergonomics pack (global flags, demo/examples, version/update, completion depth, verb aliases)",
+      "problem": "CLI needed Docker/Git-grade discoverability and consistency for onboarding and daily use without adding runtime risk.",
+      "acceptance": "Added dispatcher-level global flags (`--json`, `--quiet`, `--help`, `--version`, `--example`) and update-check hook in `crates/ops/src/protheusctl.rs`; shipped `protheus demo`, `protheus examples`, `protheus version`, `protheus update`, and `protheus diagram` via new ops scripts; added `shadow` orchestration alias; expanded shell completion metadata for commands/subcommands/common flags/persona arguments; updated command catalog + README and added regression coverage (`memory/tools/tests/protheus_version_update_demo.test.js`, completion/list/repl/setup updates).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-075",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Internal operator command pack (`status`, `debug`, `shadow`)",
+      "problem": "Daily operations needed a lightweight health/debug/shadow control surface without hunting through multiple scripts.",
+      "acceptance": "`protheus status` now routes to `systems/ops/protheus_status_dashboard.ts` (Rust %, drift, shadows, heartbeat, control-plane summary); `protheus debug` routes to `systems/ops/protheus_debug_diagnostics.ts` (parity/security diagnostics + log summaries); `protheus shadow` routes to `systems/personas/shadow_cli.ts` (`list`, `arise`, `pause`, `review`, `status`) with telemetry writes and mutating security checks. Catalog/completion/README updated and regression + sovereignty checks pass (`memory/tools/tests/protheus_internal_operator_commands.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-076",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Rust dual-logic growth guard",
+      "problem": "Rust-authoritative lanes can regress if TS fallback branches are silently reintroduced during rapid migration sprints.",
+      "acceptance": "Added policy + runtime guard (`config/rust_dual_logic_guard_policy.json`, `systems/ops/rust_dual_logic_guard.ts`) that scans migrated paths for deny-pattern fallback reintroduction and fails closed in strict mode. Regression + sovereignty checks pass (`memory/tools/tests/rust_dual_logic_guard.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-077",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Rust hotspot inventory + milestone calculator",
+      "problem": "Migration sequencing needs deterministic impact ranking and explicit line-to-target math to avoid low-yield sprint churn.",
+      "acceptance": "Added inventory runtime and policy (`systems/ops/rust_hotpath_inventory.ts`, `config/rust_hotpath_inventory_policy.json`) with artifact outputs (`state/ops/rust_hotpath_inventory/latest.json`, `history.jsonl`) and docs (`docs/RUST50_HOTPATH_INVENTORY.md`). Regression + sovereignty checks pass (`memory/tools/tests/rust_hotpath_inventory.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-078",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy policy-hold pressure snapshot Rust migration (`autonomy_controller` hotpath)",
+      "problem": "`policyHoldPressureSnapshot` in `systems/autonomy/autonomy_controller.ts` remained TypeScript-only and runs on every autonomy cycle, leaving a high-frequency gating primitive outside Rust authority.",
+      "acceptance": "Added `policy_hold_pressure` autoscale mode in `crates/execution/src/autoscale.rs`, wired bridge support in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `policyHoldPressureSnapshot` to Rust-first execution with fail-closed fallback semantics. Regression + parity checks pass (`memory/tools/tests/autonomy_policy_hold_pressure.test.js`, `memory/tools/tests/autonomy_policy_hold_pressure_rust_parity.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-079",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "npm distribution wrapper for `npm install -g protheus`",
+      "problem": "Current root package is private/internal; adoption needs a dedicated npm package that installs a `protheus` CLI with Rust binary provisioning.",
+      "acceptance": "Added publishable `npm/` package with global `protheus` bin entry (`npm/bin/protheus.js`), installer provisioning (`npm/scripts/install.js`: release download + local Cargo build fallback), smoke coverage (`npm/scripts/smoke.js`), package docs (`npm/README.md`), and root README install guidance. Install smoke verified via `cd npm && npm install -g . --prefix ./.global-test` and `./.global-test/bin/protheus --help`.",
+      "dependencies": []
+    },
+    {
+      "id": "BL-080",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy policy-hold repeat-pattern Rust migration (`objectivePolicyHoldPattern`)",
+      "problem": "The policy-hold dampener repeat detector in `autonomy_controller.ts` remained TypeScript-only, keeping repeated-hold cooldown gating outside Rust in a high-frequency decision path.",
+      "acceptance": "Added `policy_hold_pattern` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `objectivePolicyHoldPattern` to Rust-first execution with deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_policy_hold_pattern_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-081",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy policy-hold cooldown Rust migration (`policyHoldCooldownMinutesForResult`)",
+      "problem": "Cooldown escalation logic after hold pressure/pattern detection remained TypeScript-only, leaving final dampener cooldown authority outside Rust in the same autonomy hotpath lane.",
+      "acceptance": "Added `policy_hold_cooldown` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `policyHoldCooldownMinutesForResult` to Rust-first evaluation with deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_policy_hold_cooldown_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_pressure.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-082",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Route execution policy-hold decision primitive Rust migration (`routeExecutionPolicyHold`)",
+      "problem": "`routeExecutionPolicyHold` still depended on a TS-side decision shim for summary-field normalization before bridge evaluation, leaving decision preprocessing partially outside `crates/execution`.",
+      "acceptance": "Added dedicated `route_execution_policy_hold` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode mapping in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `routeExecutionPolicyHold` to call the Rust decision primitive directly from summary fields. Regression + parity checks pass (`memory/tools/tests/autonomy_route_execution_policy_hold_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_rust_parity.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-083",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy latest policy-hold run selector Rust migration (`latestPolicyHoldRunEvent`)",
+      "problem": "The last policy-hold run selector in `autonomy_controller.ts` still scanned run history in TypeScript before cooldown gating, leaving repeat-hold interval decisions partially outside Rust authority.",
+      "acceptance": "Added `policy_hold_latest_event` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `latestPolicyHoldRunEvent` to Rust-first selection with deterministic row-index roundtrip to preserve exact TS event semantics. Regression + parity checks pass (`memory/tools/tests/autonomy_policy_hold_latest_event_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-084",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy policy-hold result classifier Rust migration (`isPolicyHoldResult`)",
+      "problem": "Policy-hold result classification remained TypeScript-only, leaving repeated event-type gating and downstream cooldown/ledger decisions dependent on JS-owned string matching.",
+      "acceptance": "Added `policy_hold_result` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `isPolicyHoldResult` to Rust-first classification with bounded in-memory result caching to preserve low-latency repeated lookups. Regression + parity checks pass (`memory/tools/tests/autonomy_policy_hold_result_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-085",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy no-progress run classifier Rust migration (`isNoProgressRun`)",
+      "problem": "No-progress run classification stayed TypeScript-only, leaving repeated non-yield scoring and telemetry categorization in hot loops dependent on JS string-matching logic.",
+      "acceptance": "Added `no_progress_result` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `isNoProgressRun` to Rust-first classification with bounded cache for repeated `(result,outcome)` lookups. Regression + parity checks pass (`memory/tools/tests/autonomy_no_progress_result_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-086",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy attempt-run classifier Rust migration (`isAttemptRunEvent`)",
+      "problem": "Attempt-run classification remained TypeScript-only, leaving attempt counters and derived run-rate/fitness signals dependent on JS result-code matching in hot autonomy loops.",
+      "acceptance": "Added `attempt_run_event` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `isAttemptRunEvent` to Rust-first classification with bounded result cache. Regression + parity checks pass (`memory/tools/tests/autonomy_attempt_run_event_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-087",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy safety-stop run classifier Rust migration (`isSafetyStopRunEvent`)",
+      "problem": "Safety-stop run classification remained TypeScript-only, leaving non-yield safety categorization and escalation telemetry dependent on JS substring checks.",
+      "acceptance": "Added `safety_stop_run_event` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `isSafetyStopRunEvent` to Rust-first classification with bounded result cache. Regression + parity checks pass (`memory/tools/tests/autonomy_safety_stop_run_event_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-088",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy non-yield category classifier Rust migration (`classifyNonYieldCategory`)",
+      "problem": "Non-yield category routing stayed TypeScript-only, leaving budget-hold/policy-hold/safety-stop/no-progress classification in ledger/telemetry paths dependent on JS branch logic.",
+      "acceptance": "Added `non_yield_category` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `classifyNonYieldCategory` to Rust-first classification with bounded cache preserving exact TS category semantics. Regression + parity checks pass (`memory/tools/tests/autonomy_non_yield_category_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-089",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy non-yield reason resolver Rust migration (`nonYieldReasonFromRun`)",
+      "problem": "Non-yield reason formatting remained TypeScript-only, leaving telemetry reason normalization and fallback composition outside Rust authority in the non-yield ledger path.",
+      "acceptance": "Added `non_yield_reason` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `nonYieldReasonFromRun` to Rust-first resolution with bounded cache preserving exact TS reason semantics. Regression + parity checks pass (`memory/tools/tests/autonomy_non_yield_reason_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-090",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy run-event proposal type resolver Rust migration (`runEventProposalType`)",
+      "problem": "Proposal-type extraction from run events remained TypeScript-only, leaving objective/capability matching in non-yield penalty signals outside Rust authority.",
+      "acceptance": "Added `proposal_type_from_run_event` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `runEventProposalType` to Rust-first resolution with bounded cache preserving exact TS semantics. Regression + parity checks pass (`memory/tools/tests/autonomy_proposal_type_from_run_event_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-091",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy run-event objective resolver Rust migration (`runEventObjectiveId`)",
+      "problem": "Run-event objective extraction remained TypeScript-only, leaving objective-keyed non-yield penalties and cooldown anchoring outside Rust authority.",
+      "acceptance": "Added `run_event_objective_id` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `runEventObjectiveId` to Rust-first resolution with bounded cache preserving JS truthy-priority + objective-id sanitization semantics. Regression + parity checks pass (`memory/tools/tests/autonomy_run_event_objective_id_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-092",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy run-event proposal resolver Rust migration (`runEventProposalId`)",
+      "problem": "Run-event proposal-id extraction remained TypeScript-only, leaving proposal-keyed capacity/counting anchors outside Rust authority in hot autonomy loops.",
+      "acceptance": "Added `run_event_proposal_id` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `runEventProposalId` to Rust-first resolution with bounded cache preserving JS truthy-priority + whitespace normalization semantics. Regression + parity checks pass (`memory/tools/tests/autonomy_run_event_proposal_id_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-093",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy capacity-counted attempt classifier Rust migration (`isCapacityCountedAttemptEvent`)",
+      "problem": "Capacity-counted attempt gating remained TypeScript-only, leaving attempt-cap pacing/classification decisions outside Rust authority on every autonomy cycle.",
+      "acceptance": "Added `capacity_counted_attempt_event` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `isCapacityCountedAttemptEvent` to Rust-first classification with bounded cache while preserving score-only/policy-hold/noise exclusions. Regression + parity checks pass (`memory/tools/tests/autonomy_capacity_counted_attempt_event_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-094",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy repeat-gate anchor builder Rust migration (`deriveRepeatGateAnchor`)",
+      "problem": "Repeat-gate anchor shaping remained TypeScript-only, leaving proposal/objective anchor normalization and binding payload shaping outside Rust authority before cooldown/ledger decisions.",
+      "acceptance": "Added `repeat_gate_anchor` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `deriveRepeatGateAnchor` to Rust-first shaping with bounded cache preserving binding defaults and objective-gated binding behavior. Regression + parity checks pass (`memory/tools/tests/autonomy_repeat_gate_anchor_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-095",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy score-only result classifier Rust migration (`isScoreOnlyResult`)",
+      "problem": "Score-only result classification remained TypeScript-only, leaving repeated score-only gating checks outside Rust authority across preview/repeat logic.",
+      "acceptance": "Added `score_only_result` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `isScoreOnlyResult` to Rust-first classification with bounded cache preserving exact score-only result semantics. Regression + parity checks pass (`memory/tools/tests/autonomy_score_only_result_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-096",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy score-only failure-like classifier Rust migration (`isScoreOnlyFailureLikeEvent`)",
+      "problem": "Score-only failure-like detection remained TypeScript-only, leaving preview-churn structural failure scoring outside Rust authority in repeated proposal churn analysis.",
+      "acceptance": "Added `score_only_failure_like` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `isScoreOnlyFailureLikeEvent` to Rust-first classification with bounded cache preserving structural-cooldown and verification-outcome semantics. Regression + parity checks pass (`memory/tools/tests/autonomy_score_only_failure_like_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-097",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy gate-exhausted attempt classifier Rust migration (`isGateExhaustedAttempt`)",
+      "problem": "Gate-exhausted attempt classification remained TypeScript-only, leaving repeat-gate exhaustion streak logic outside Rust authority in churn/cooldown decisions.",
+      "acceptance": "Added `gate_exhausted_attempt` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `isGateExhaustedAttempt` to Rust-first classification with bounded cache preserving exact result-code semantics. Regression + parity checks pass (`memory/tools/tests/autonomy_gate_exhausted_attempt_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-098",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy consecutive gate-exhausted streak counter Rust migration (`consecutiveGateExhaustedAttempts`)",
+      "problem": "Consecutive gate-exhausted streak counting remained TypeScript-only, leaving repeat-gate churn cooldown streak logic outside Rust authority in run selection paths.",
+      "acceptance": "Added `consecutive_gate_exhausted_attempts` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `consecutiveGateExhaustedAttempts` to Rust-first counting with bounded cache preserving attempt-filter/stop semantics. Regression + parity checks pass (`memory/tools/tests/autonomy_consecutive_gate_exhausted_attempts_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-099",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy policy-hold run-event classifier Rust migration (`isPolicyHoldRunEvent`)",
+      "problem": "Policy-hold run-event classification remained TypeScript-only, leaving event-level hold gating outside Rust authority where cooldown/pressure paths rely on this predicate.",
+      "acceptance": "Added `policy_hold_run_event` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `isPolicyHoldRunEvent` to Rust-first classification with bounded cache preserving `policy_hold || isPolicyHoldResult(result)` semantics. Regression + parity checks pass (`memory/tools/tests/autonomy_policy_hold_run_event_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-100",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy runs-since-reset slicer Rust migration (`runsSinceReset`)",
+      "problem": "Reset-window slicing remained TypeScript-only, leaving reset-anchor derivation outside Rust authority in multiple autonomy run/scorecard paths.",
+      "acceptance": "Added `runs_since_reset_index` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `runsSinceReset` to Rust-first start-index derivation with bounded cache preserving last-reset slice semantics. Regression + parity checks pass (`memory/tools/tests/autonomy_runs_since_reset_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-101",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy attempt-event slicer Rust migration (`attemptEvents`)",
+      "problem": "Attempt-event filtering still looped in TypeScript, leaving batch run-history slicing outside Rust authority and adding repeated JS predicate overhead in hot autonomy paths.",
+      "acceptance": "Added `attempt_event_indices` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `attemptEvents` to Rust-first index slicing with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_attempt_events_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-102",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy capacity-counted attempt slicer Rust migration (`capacityCountedAttemptEvents`)",
+      "problem": "Capacity-counted attempt filtering still looped in TypeScript, keeping run-history slice composition outside Rust and re-evaluating proposal bindings per row in hot paths.",
+      "acceptance": "Added `capacity_counted_attempt_indices` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `capacityCountedAttemptEvents` to Rust-first index slicing with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_capacity_counted_attempt_events_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-103",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy consecutive no-progress streak counter Rust migration (`consecutiveNoProgressRuns`)",
+      "problem": "Consecutive no-progress streak counting remained TypeScript-only, keeping tail-streak stop/break logic outside Rust authority in repeat-gate scoring paths.",
+      "acceptance": "Added `consecutive_no_progress_runs` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `consecutiveNoProgressRuns` to Rust-first counting with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_consecutive_no_progress_runs_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-104",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy shipped-run counter Rust migration (`shippedCount`)",
+      "problem": "Shipped run counting remained TypeScript-only, keeping a frequently reused run-summary primitive outside Rust authority and re-scanning run arrays in JS.",
+      "acceptance": "Added `shipped_count` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `shippedCount` to Rust-first counting with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_shipped_count_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-105",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy executed-run risk counter Rust migration (`executedCountByRisk`)",
+      "problem": "Executed-run risk counting remained TypeScript-only, keeping risk-normalized tally logic outside Rust authority in scoring and lane-budget calculations.",
+      "acceptance": "Added `executed_count_by_risk` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `executedCountByRisk` to Rust-first counting with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_executed_count_by_risk_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-106",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy run-result tally Rust migration (`tallyByResult`)",
+      "problem": "Run result tally aggregation remained TypeScript-only, leaving hot-path result histogram computation outside Rust authority in scorecard/telemetry summaries.",
+      "acceptance": "Added `run_result_tally` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `tallyByResult` to Rust-first aggregation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_run_result_tally_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-107",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy QoS lane usage counter Rust migration (`qosLaneUsageFromRuns`)",
+      "problem": "QoS lane usage aggregation remained TypeScript-only, keeping executed lane allocation metrics outside Rust authority for selection balancing and share caps.",
+      "acceptance": "Added `qos_lane_usage` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `qosLaneUsageFromRuns` to Rust-first aggregation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_qos_lane_usage_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-108",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy eye-outcome window counter Rust migration (`countEyeOutcomesInWindow`)",
+      "problem": "Windowed eye outcome counting remained TypeScript-only, leaving date-window evidence tally logic outside Rust authority in drift/sensory quality gates.",
+      "acceptance": "Added `eye_outcome_count_window` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `countEyeOutcomesInWindow` to Rust-first counting with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_eye_outcome_count_window_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-109",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy eye-outcome trailing-hours counter Rust migration (`countEyeOutcomesInLastHours`)",
+      "problem": "Trailing-hours eye outcome counting remained TypeScript-only, leaving real-time sensory outcome horizon checks outside Rust authority in cadence/collector quality gates.",
+      "acceptance": "Added `eye_outcome_count_last_hours` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `countEyeOutcomesInLastHours` to Rust-first counting with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_eye_outcome_count_last_hours_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-110",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy sorted-counts primitive Rust migration (`sortedCounts`)",
+      "problem": "Result count sorting remained TypeScript-only, leaving deterministic ordering logic outside Rust authority in scorecard, gate breakdown, and telemetry summaries.",
+      "acceptance": "Added `sorted_counts` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `sortedCounts` to Rust-first deterministic ordering with bounded cache + TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_sorted_counts_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-111",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy proposal-status normalizer Rust migration (`normalizeStoredProposalStatus`)",
+      "problem": "Proposal status normalization remained TypeScript-only, leaving proposal-row hydration and queue-pressure explicit status overrides outside Rust authority in a hot ingestion path.",
+      "acceptance": "Added `normalize_proposal_status` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `normalizeStoredProposalStatus` to Rust-first normalization with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_normalize_proposal_status_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-112",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy queue-pressure proposal-status resolver Rust migration (`proposalStatusForQueuePressure`)",
+      "problem": "Queue-pressure status selection still relied on TypeScript overlay/explicit-status branching, leaving a frequently-evaluated queue classification primitive outside Rust authority.",
+      "acceptance": "Added `proposal_status_for_queue_pressure` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `proposalStatusForQueuePressure` to Rust-first resolution with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_proposal_status_for_queue_pressure_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-113",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy overlay-status classifier Rust migration (`proposalStatus`)",
+      "problem": "Base overlay decision -> status mapping remained TypeScript-only, leaving the canonical status classifier outside Rust authority for queueing and candidate selection hot paths.",
+      "acceptance": "Added `proposal_status` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `proposalStatus` to Rust-first classification with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_proposal_status_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-114",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy timestamp-age helper Rust migration (`minutesSinceTs`)",
+      "problem": "Timestamp age calculation remained TypeScript-only, leaving repeated cooldown-age/time-horizon checks outside Rust authority in event analysis and policy-gate paths.",
+      "acceptance": "Added `minutes_since_ts` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `minutesSinceTs` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_minutes_since_ts_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-115",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy date-window generator Rust migration (`dateWindow`)",
+      "problem": "Date-window expansion for rolling history scans remained TypeScript-only, leaving a shared time-window primitive outside Rust authority in analytics/counting paths.",
+      "acceptance": "Added `date_window` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `dateWindow` to Rust-first generation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_date_window_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-116",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy timestamp-in-window checker Rust migration (`inWindow`)",
+      "problem": "Window-bound timestamp checks remained TypeScript-only, leaving repeated evidence-window filtering and historical gating predicates outside Rust authority.",
+      "acceptance": "Added `in_window` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `inWindow` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_in_window_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-117",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy next-UTC-day anchor helper Rust migration (`startOfNextUtcDay`)",
+      "problem": "UTC next-day anchor generation remained TypeScript-only, leaving a recurring cooldown/window anchor primitive outside Rust authority.",
+      "acceptance": "Added `start_of_next_utc_day` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `startOfNextUtcDay` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_start_of_next_utc_day_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-118",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy future-iso anchor helper Rust migration (`isoAfterMinutes`)",
+      "problem": "Future ISO timestamp generation remained TypeScript-only, leaving a shared cooldown/next-check anchor primitive outside Rust authority.",
+      "acceptance": "Added `iso_after_minutes` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `isoAfterMinutes` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_iso_after_minutes_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-119",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy execute-confidence history matcher Rust migration (`executeConfidenceHistoryMatch`)",
+      "problem": "Execute-confidence history matching remained TypeScript-only, leaving capability/type match predicates outside Rust authority in confidence calibration and route fallback analysis.",
+      "acceptance": "Added `execute_confidence_history_match` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `executeConfidenceHistoryMatch` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_execute_confidence_history_match_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-120",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy QoS lane-weight resolver Rust migration (`qosLaneWeights`)",
+      "problem": "QoS lane weight shaping under queue pressure remained TypeScript-only, keeping a central lane-allocation primitive outside Rust authority in selection balancing paths.",
+      "acceptance": "Added `qos_lane_weights` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `qosLaneWeights` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_qos_lane_weights_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-121",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy proposal-outcome normalizer Rust migration (`proposalOutcomeStatus`)",
+      "problem": "Overlay outcome normalization remained TypeScript-only, leaving a reused proposal outcome primitive outside Rust authority in backfill and queue-status paths.",
+      "acceptance": "Added `proposal_outcome_status` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `proposalOutcomeStatus` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_proposal_outcome_status_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-122",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy queue-underflow backfill gate Rust migration (`canQueueUnderflowBackfill`)",
+      "problem": "Queue underflow backfill admission stayed TypeScript-only, leaving a key queue recovery gate outside Rust parity in candidate admission and quarantine decisions.",
+      "acceptance": "Added `queue_underflow_backfill` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `canQueueUnderflowBackfill` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_can_queue_underflow_backfill_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-123",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy proposal risk-score primitive Rust migration (`proposalRiskScore`)",
+      "problem": "Proposal risk scoring remained TypeScript-only, leaving a core prioritization primitive outside Rust parity for candidate selection and queue ranking.",
+      "acceptance": "Added `proposal_risk_score` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `proposalRiskScore` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_proposal_risk_score_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-124",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy composite eligibility scorer Rust migration (`compositeEligibilityScore`)",
+      "problem": "Composite eligibility weighting remained TypeScript-only, leaving a shared admission scoring primitive outside Rust parity in candidate triage paths.",
+      "acceptance": "Added `composite_eligibility_score` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `compositeEligibilityScore` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_composite_eligibility_score_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-125",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy time-to-value scorer Rust migration (`timeToValueScore`)",
+      "problem": "Time-to-value scoring remained TypeScript-only, leaving a shared prioritization primitive outside Rust parity for candidate ranking and value signal composition.",
+      "acceptance": "Added `time_to_value_score` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `timeToValueScore` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_time_to_value_score_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-126",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy value-density scorer Rust migration (`valueDensityScore`)",
+      "problem": "Value-density scoring remained TypeScript-only, leaving token-efficiency prioritization outside Rust parity in candidate scoring and lane selection signals.",
+      "acceptance": "Added `value_density_score` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `valueDensityScore` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_value_density_score_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-127",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy execution reserve snapshot Rust migration (`executionReserveSnapshot`)",
+      "problem": "Execution reserve budgeting snapshot logic remained TypeScript-only, leaving reserve-token gate behavior outside Rust parity in budget pacing and admission decisions.",
+      "acceptance": "Added `execution_reserve_snapshot` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `executionReserveSnapshot` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_execution_reserve_snapshot_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-128",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy QoS lane share-cap checker Rust migration (`qosLaneShareCapExceeded`)",
+      "problem": "QoS lane share-cap enforcement remained TypeScript-only, leaving lane saturation guardrails outside Rust parity in QoS selection control flow.",
+      "acceptance": "Added `qos_lane_share_cap_exceeded` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `qosLaneShareCapExceeded` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_qos_lane_share_cap_exceeded_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-129",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy QoS lane routing primitive Rust migration (`qosLaneFromCandidate`)",
+      "problem": "Candidate-to-lane routing remained TypeScript-only, leaving a high-frequency QoS routing decision outside Rust parity in selection loops.",
+      "acceptance": "Added `qos_lane_from_candidate` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `qosLaneFromCandidate` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_qos_lane_from_candidate_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-130",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy candidate token estimator Rust migration (`estimateTokensForCandidate`)",
+      "problem": "Candidate token estimate selection remained TypeScript-only, leaving per-candidate token budgeting outside Rust parity in scoring and reserve pacing flows.",
+      "acceptance": "Added `estimate_tokens_for_candidate` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `estimateTokensForCandidate` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_estimate_tokens_for_candidate_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-131",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Autonomy proposal ranking formula Rust migration (`proposalScore`)",
+      "problem": "Core proposal ranking formula remained TypeScript-only, leaving a high-frequency scoring primitive outside Rust parity in candidate ordering paths.",
+      "acceptance": "Added `proposal_score` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `proposalScore` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_proposal_score_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-132",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Child lane: Autonomy impact-weight mapper Rust migration (`impactWeight`)",
+      "problem": "`impactWeight` remained TypeScript-only, keeping a frequently reused score component outside Rust parity in candidate ranking paths.",
+      "acceptance": "Added `impact_weight` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `impactWeight` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_impact_weight_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-133",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Child lane: Autonomy risk-penalty mapper Rust migration (`riskPenalty`)",
+      "problem": "`riskPenalty` remained TypeScript-only, keeping a core risk component outside Rust parity in candidate ranking and policy branches.",
+      "acceptance": "Added `risk_penalty` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `riskPenalty` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_risk_penalty_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-134",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Child lane: Autonomy token estimate baseline Rust migration (`estimateTokens`)",
+      "problem": "`estimateTokens` baseline remained TypeScript-only, keeping shared token estimation logic outside Rust parity for candidate budgeting paths.",
+      "acceptance": "Added `estimate_tokens` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `estimateTokens` to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_estimate_tokens_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-135",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Child lane: Autonomy remediation-depth mapper Rust migration (`proposalRemediationDepth`)",
+      "problem": "`proposalRemediationDepth` now routes through Rust autoscale primitive (`proposal_remediation_depth`) with bridge path, TS fallback parity, and lane-scoped parity tests.",
+      "acceptance": "Completed with Rust primitive + bridge + parity test (`autonomy_proposal_remediation_depth_rust_parity.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-136",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Child lane: Autonomy proposal dedupe-key builder Rust migration (`proposalDedupKey`)",
+      "problem": "`proposalDedupKey` now routes through Rust autoscale primitive (`proposal_dedup_key`) with bridge path, TS fallback parity, and lane-scoped parity tests.",
+      "acceptance": "Completed with Rust primitive + bridge + parity test (`autonomy_proposal_dedup_key_rust_parity.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-137",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Child lane: Autonomy strategy-rank score arithmetic Rust migration (`strategyRankForCandidate`)",
+      "problem": "Strategy rank score arithmetic remained TypeScript-only, keeping high-frequency candidate ordering math outside Rust parity in autonomy candidate-pool hotpath.",
+      "acceptance": "Added `strategy_rank_score` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `strategyRankForCandidate` score arithmetic to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_strategy_rank_score_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
+      "dependencies": []
+    },
+    {
+      "id": "BL-138",
+      "class": "backlog",
+      "wave": "BL",
+      "status": "done",
+      "title": "Child lane: Autonomy value-signal score arithmetic Rust migration (`assessValueSignal`)",
+      "problem": "Value-signal score arithmetic remained TypeScript-only, keeping candidate value readiness scoring outside Rust parity in admission and ranking loops.",
+      "acceptance": "Added `value_signal_score` autoscale mode in `crates/execution/src/autoscale.rs`, extended bridge mode routing in `systems/autonomy/backlog_autoscale_rust_bridge.ts`, and switched `assessValueSignal` score arithmetic to Rust-first evaluation with bounded cache + deterministic TS fallback. Regression + parity checks pass (`memory/tools/tests/autonomy_assess_value_signal_rust_parity.test.js`, `memory/tools/tests/autonomy_policy_hold_classification.test.js`, `memory/tools/tests/protheusctl_dispatch_security_gate.test.js`).",
       "dependencies": []
     },
     {
@@ -9592,10 +10542,10 @@
       "id": "V6-RUST50-CONF-001",
       "class": "primitive-upgrade",
       "wave": "V6",
-      "status": "queued",
+      "status": "done",
       "title": "Execution Crate Public-Language-Bar Rust Cutover (No Weighted Tricks)",
       "problem": "Prior execution migration evidence can satisfy weighted governance while still under-delivering public repository language-bar impact and keeping too much logic outside `crates/execution/`.",
-      "acceptance": "Implement real `crates/execution/` crate (`cdylib` + `wasm32-unknown-unknown` target) that owns deterministic workflow runner, receipt generation, and state machine logic; retain only a thin TS wrapper in `systems/execution/index.ts` through stable FFI. Verify with full parity tests, successful `cargo build --target wasm32-unknown-unknown --release`, full git diff evidence, and tracked line-count delta showing Rust increase and TypeScript decrease (`git ls-files | xargs wc -l` baseline vs after). Rollback by feature-flagged runtime selector restoring previous execution lane and preserving replay compatibility receipts. Completion is blocked until explicit human approval after proof bundle review.",
+      "acceptance": "Implement real `crates/execution/` crate (`cdylib` + `wasm32-unknown-unknown` target) that owns deterministic workflow runner, receipt generation, and state machine logic; retain only a thin TS wrapper in `systems/execution/index.ts` through stable FFI. Verify with full parity tests, successful `cargo build --target wasm32-unknown-unknown --release`, full git diff evidence, and tracked line-count delta showing Rust increase and TypeScript decrease (`git ls-files | xargs wc -l` baseline vs after). Rollback by feature-flagged runtime selector restoring previous execution lane and preserving replay compatibility receipts. Completion is blocked until explicit human approval after proof bundle review. Evidence: `systems/ops/rust50_conf001_execution_cutover.ts`, `config/rust50_conf001_execution_cutover_policy.json`, `memory/tools/tests/rust50_conf001_execution_cutover.test.js`, `state/ops/rust50_conf001/latest.json`.",
       "dependencies": [
         "V6-RUST50-002",
         "V6-RUST50-007"
@@ -9605,10 +10555,10 @@
       "id": "V6-RUST50-CONF-002",
       "class": "hardening",
       "wave": "V6",
-      "status": "queued",
+      "status": "done",
       "title": "Sprint-Mode Enforcer + Batch Audit Contract",
       "problem": "Repeated micro-prompt execution increases orchestration drift and weakens enforcement traceability for high-stakes migration sprints.",
-      "acceptance": "Implement sprint-mode contract requiring: enforcer preamble acknowledgment, single-batch ordered execution plan, immutable no-skip/no-premature-done rule, and end-of-sprint audit artifact summarizing completion, blockers, and proof references. Verify via sprint contract receipts and policy-gate tests; rollback by reverting to existing per-item lane execution flow with advisory-only sprint hints.",
+      "acceptance": "Implement sprint-mode contract requiring: enforcer preamble acknowledgment, single-batch ordered execution plan, immutable no-skip/no-premature-done rule, and end-of-sprint audit artifact summarizing completion, blockers, and proof references. Verify via sprint contract receipts and policy-gate tests; rollback by reverting to existing per-item lane execution flow with advisory-only sprint hints. Evidence: `systems/ops/rust50_sprint_contract.ts`, `config/rust50_sprint_contract_policy.json`, `memory/tools/tests/rust50_sprint_contract.test.js`, `state/ops/rust50_sprint_contract/latest.json`.",
       "dependencies": [
         "V6-RUST50-CONF-001",
         "V6-RUST50-007"
@@ -9618,10 +10568,10 @@
       "id": "V6-RUST50-CONF-003",
       "class": "primitive-upgrade",
       "wave": "V6",
-      "status": "queued",
+      "status": "done",
       "title": "Sprint 1 Visible Rust Migration Batch (Execution/Pinnacle/Vault/Red Legion)",
       "problem": "Existing migration evidence can pass internal gates while under-delivering visible public repository Rust share changes and complete crate-first ownership across critical modules.",
-      "acceptance": "Execute Sprint 1 strict sequence across four crate-first migrations (`execution`, `pinnacle`, `vault`, `red_legion`), blob integration in all crates, thin TS wrappers, full parity + WASM + battery receipts, and workspace updates. Completion proof must include full `crates/` + `systems/` diffs, successful WASM builds for each migrated crate, and tracked/public Rust language increase evidence with TS decrease. Commit contract: `feat(rust-migration): Sprint 1 - visible Rust increase + 4 core crates + blob integration`. Completion blocked until explicit human audit approval.",
+      "acceptance": "Execute Sprint 1 strict sequence across four crate-first migrations (`execution`, `pinnacle`, `vault`, `red_legion`), blob integration in all crates, thin TS wrappers, full parity + WASM + battery receipts, and workspace updates. Completion proof must include full `crates/` + `systems/` diffs, successful WASM builds for each migrated crate, and tracked/public Rust language increase evidence with TS decrease. Commit contract: `feat(rust-migration): Sprint 1 - visible Rust increase + 4 core crates + blob integration`. Completion blocked until explicit human audit approval. Evidence: `systems/ops/rust50_sprint1_batch.ts`, `config/rust50_sprint1_batch_policy.json`, `state/ops/rust50_sprint1_batch/latest.json`.",
       "dependencies": [
         "V6-RUST50-CONF-002",
         "V6-RUST50-CONF-001",
@@ -9635,10 +10585,10 @@
       "id": "V6-RUST50-CONF-004",
       "class": "primitive-upgrade",
       "wave": "V6",
-      "status": "queued",
+      "status": "blocked",
       "title": "Mega Sprint 1 Public 50 Percent Rust Migration (8 Crates + Blobized Core Paths)",
       "problem": "Public repository language composition remains overwhelmingly TypeScript, and prior internal/weighted migration signals do not guarantee externally visible Rust ownership at the required threshold.",
-      "acceptance": "Execute all eleven mega-sprint steps in strict sequence: migrate `execution`, `pinnacle`, `vault`, `red_legion`, `observability`, `graph`, `swarm`, and `mobile` to crate-first Rust ownership; integrate blob fold/unfold + manifest in all eight crates; maintain thin backward-compatible TS wrappers; update root Cargo workspace; and complete full parity + WASM + battery proof suite. Completion requires deterministic artifact bundle: git diff summary for `crates/` and `systems/`, successful `wasm32-unknown-unknown --release` builds for each migrated crate, and public GitHub language-bar evidence showing Rust `>=50%` with TypeScript decrease. Completion is hard-blocked pending explicit human approval after audit. Commit contract: `feat(rust-migration): Mega Sprint 1 - visible 50% Rust + 8 core crates + blob integration`.",
+      "acceptance": "Execute all eleven mega-sprint steps in strict sequence: migrate `execution`, `pinnacle`, `vault`, `red_legion`, `observability`, `graph`, `swarm`, and `mobile` to crate-first Rust ownership; integrate blob fold/unfold + manifest in all eight crates; maintain thin backward-compatible TS wrappers; update root Cargo workspace; and complete full parity + WASM + battery proof suite. Completion requires deterministic artifact bundle: git diff summary for `crates/` and `systems/`, successful `wasm32-unknown-unknown --release` builds for each migrated crate, and public GitHub language-bar evidence showing Rust `>=50%` with TypeScript decrease. Completion is hard-blocked pending explicit human approval after audit. Commit contract: `feat(rust-migration): Mega Sprint 1 - visible 50% Rust + 8 core crates + blob integration`. BLOCKED evidence: `state/ops/rust50_mega_sprint1_batch/latest.json` (`rust_share_pct_after=6.253`, `rust_share_min_pct=50`, violation `rust_share_min_ok`).",
       "dependencies": [
         "V6-RUST50-CONF-002",
         "V6-RUST50-CONF-003",
