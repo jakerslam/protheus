@@ -11350,6 +11350,28 @@ function candidateCollectiveShadowSignal(cand) {
 }
 
 function candidateObjectiveId(cand, proposal) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const cRust = cand && typeof cand === 'object' ? cand : {};
+    const pRust = proposal && typeof proposal === 'object' ? proposal : {};
+    const metaRust = pRust && pRust.meta && typeof pRust.meta === 'object' ? pRust.meta : {};
+    const rust = runBacklogAutoscalePrimitive(
+      'objective_id_for_execution',
+      {
+        objective_binding_id: null,
+        directive_pulse_id: cRust && cRust.directive_pulse && cRust.directive_pulse.objective_id == null
+          ? null
+          : String(cRust && cRust.directive_pulse && cRust.directive_pulse.objective_id || ''),
+        directive_action_id: null,
+        meta_objective_id: pRust.objective_id == null ? null : String(pRust.objective_id),
+        meta_directive_objective_id: metaRust.objective_id == null ? null : String(metaRust.objective_id),
+        action_spec_objective_id: metaRust.directive_objective_id == null ? null : String(metaRust.directive_objective_id)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return String(rust.payload.payload.objective_id || '');
+    }
+  }
   const c = cand && typeof cand === 'object' ? cand : {};
   const p = proposal && typeof proposal === 'object' ? proposal : {};
   const meta = p && p.meta && typeof p.meta === 'object' ? p.meta : {};
@@ -21239,6 +21261,7 @@ module.exports = {
   parseDirectiveObjectiveArgFromCommand,
   parseObjectiveIdFromEvidenceRefs,
   parseObjectiveIdFromCommand,
+  candidateObjectiveId,
   objectiveIdForExecution,
   shortText,
   normalizedSignalStatus
