@@ -1906,6 +1906,130 @@ pub struct DeriveEntityBiasOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct BuildOverlayEventInput {
+    #[serde(default)]
+    pub proposal_id: Option<String>,
+    #[serde(default, rename = "type")]
+    pub event_type: Option<String>,
+    #[serde(default)]
+    pub decision: Option<String>,
+    #[serde(default)]
+    pub ts: Option<String>,
+    #[serde(default)]
+    pub reason: Option<String>,
+    #[serde(default)]
+    pub outcome: Option<String>,
+    #[serde(default)]
+    pub evidence_ref: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct BuildOverlayInput {
+    #[serde(default)]
+    pub events: Vec<BuildOverlayEventInput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct BuildOverlayOutcomeCountsOutput {
+    pub shipped: u32,
+    pub reverted: u32,
+    pub no_change: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct BuildOverlayEntryOutput {
+    pub proposal_id: String,
+    #[serde(default)]
+    pub decision: Option<String>,
+    #[serde(default)]
+    pub decision_ts: Option<String>,
+    #[serde(default)]
+    pub decision_reason: Option<String>,
+    #[serde(default)]
+    pub last_outcome: Option<String>,
+    #[serde(default)]
+    pub last_outcome_ts: Option<String>,
+    #[serde(default)]
+    pub last_evidence_ref: Option<String>,
+    pub outcomes: BuildOverlayOutcomeCountsOutput,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct BuildOverlayOutput {
+    #[serde(default)]
+    pub entries: Vec<BuildOverlayEntryOutput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct HasAdaptiveMutationSignalInput {
+    #[serde(default)]
+    pub proposal_type: Option<String>,
+    #[serde(default)]
+    pub adaptive_mutation: bool,
+    #[serde(default)]
+    pub mutation_proposal: bool,
+    #[serde(default)]
+    pub topology_mutation: bool,
+    #[serde(default)]
+    pub self_improvement_change: bool,
+    #[serde(default)]
+    pub signal_blob: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct HasAdaptiveMutationSignalOutput {
+    pub has_signal: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AdaptiveMutationExecutionGuardInput {
+    #[serde(default)]
+    pub guard_required: bool,
+    #[serde(default)]
+    pub applies: bool,
+    #[serde(default)]
+    pub metadata_applies: bool,
+    #[serde(default)]
+    pub guard_pass: bool,
+    #[serde(default)]
+    pub guard_reason: Option<String>,
+    #[serde(default)]
+    pub safety_attestation: Option<String>,
+    #[serde(default)]
+    pub rollback_receipt: Option<String>,
+    #[serde(default)]
+    pub guard_receipt_id: Option<String>,
+    #[serde(default)]
+    pub mutation_kernel_applies: bool,
+    #[serde(default)]
+    pub mutation_kernel_pass: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AdaptiveMutationExecutionGuardControlsOutput {
+    #[serde(default)]
+    pub safety_attestation: Option<String>,
+    #[serde(default)]
+    pub rollback_receipt: Option<String>,
+    #[serde(default)]
+    pub guard_receipt_id: Option<String>,
+    pub mutation_kernel_applies: bool,
+    pub mutation_kernel_pass: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AdaptiveMutationExecutionGuardOutput {
+    pub required: bool,
+    pub applies: bool,
+    pub pass: bool,
+    #[serde(default)]
+    pub reason: Option<String>,
+    #[serde(default)]
+    pub reasons: Vec<String>,
+    pub controls: AdaptiveMutationExecutionGuardControlsOutput,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -3038,6 +3162,12 @@ pub struct AutoscaleRequest {
     pub total_outcomes_input: Option<TotalOutcomesInput>,
     #[serde(default)]
     pub derive_entity_bias_input: Option<DeriveEntityBiasInput>,
+    #[serde(default)]
+    pub build_overlay_input: Option<BuildOverlayInput>,
+    #[serde(default)]
+    pub has_adaptive_mutation_signal_input: Option<HasAdaptiveMutationSignalInput>,
+    #[serde(default)]
+    pub adaptive_mutation_execution_guard_input: Option<AdaptiveMutationExecutionGuardInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -6437,6 +6567,231 @@ pub fn compute_derive_entity_bias(input: &DeriveEntityBiasInput) -> DeriveEntity
     DeriveEntityBiasOutput { bias, total }
 }
 
+pub fn compute_build_overlay(input: &BuildOverlayInput) -> BuildOverlayOutput {
+    let mut order: Vec<String> = Vec::new();
+    let mut map: std::collections::HashMap<String, BuildOverlayEntryOutput> =
+        std::collections::HashMap::new();
+    for event in &input.events {
+        let proposal_id = normalize_spaces(event.proposal_id.as_deref().unwrap_or(""));
+        if proposal_id.is_empty() {
+            continue;
+        }
+        if !map.contains_key(&proposal_id) {
+            order.push(proposal_id.clone());
+            map.insert(
+                proposal_id.clone(),
+                BuildOverlayEntryOutput {
+                    proposal_id: proposal_id.clone(),
+                    decision: None,
+                    decision_ts: None,
+                    decision_reason: None,
+                    last_outcome: None,
+                    last_outcome_ts: None,
+                    last_evidence_ref: None,
+                    outcomes: BuildOverlayOutcomeCountsOutput {
+                        shipped: 0,
+                        reverted: 0,
+                        no_change: 0,
+                    },
+                },
+            );
+        }
+        let Some(cur) = map.get_mut(&proposal_id) else {
+            continue;
+        };
+        let event_type = normalize_spaces(event.event_type.as_deref().unwrap_or(""));
+        let ts = event.ts.as_deref().map(normalize_spaces).unwrap_or_default();
+        if event_type == "decision" {
+            let decision = normalize_spaces(event.decision.as_deref().unwrap_or(""));
+            if !decision.is_empty() {
+                let newer = cur
+                    .decision_ts
+                    .as_deref()
+                    .map(|row| ts.as_str() >= row)
+                    .unwrap_or(true);
+                if newer {
+                    cur.decision = Some(decision);
+                    cur.decision_ts = if ts.is_empty() { None } else { Some(ts.clone()) };
+                    let reason = normalize_spaces(event.reason.as_deref().unwrap_or(""));
+                    cur.decision_reason = if reason.is_empty() { None } else { Some(reason) };
+                }
+            }
+        } else if event_type == "outcome" {
+            let outcome = normalize_spaces(event.outcome.as_deref().unwrap_or(""));
+            if outcome == "shipped" {
+                cur.outcomes.shipped += 1;
+            } else if outcome == "reverted" {
+                cur.outcomes.reverted += 1;
+            } else if outcome == "no_change" {
+                cur.outcomes.no_change += 1;
+            }
+            if !outcome.is_empty() {
+                let newer = cur
+                    .last_outcome_ts
+                    .as_deref()
+                    .map(|row| ts.as_str() >= row)
+                    .unwrap_or(true);
+                if newer {
+                    cur.last_outcome = Some(outcome);
+                    cur.last_outcome_ts = if ts.is_empty() { None } else { Some(ts.clone()) };
+                    let evidence_ref = normalize_spaces(event.evidence_ref.as_deref().unwrap_or(""));
+                    cur.last_evidence_ref = if evidence_ref.is_empty() {
+                        None
+                    } else {
+                        Some(evidence_ref)
+                    };
+                }
+            }
+        }
+    }
+    let entries = order
+        .into_iter()
+        .filter_map(|proposal_id| map.remove(&proposal_id))
+        .collect();
+    BuildOverlayOutput { entries }
+}
+
+pub fn compute_has_adaptive_mutation_signal(
+    input: &HasAdaptiveMutationSignalInput,
+) -> HasAdaptiveMutationSignalOutput {
+    let type_re = Regex::new(
+        r"(?i)\b(adaptive[_-]?mutation|mutation(?:[_-]proposal)?|topology[_-]?mutation|genome[_-]?mutation|self[_-]?(?:mutation|modify)|branch[_-]?(?:rewire|prune))\b",
+    )
+    .expect("valid adaptive mutation type regex");
+    let signal_re = Regex::new(
+        r"(?i)\b(mutation(?:[_-]?(?:guard|policy|kernel|budget|ttl|quarantine|veto|rollback|lineage|attestation))?|topology[_-]?mutation|genome[_-]?mutation|self[_-]?(?:mutation|modify)|branch[_-]?(?:rewire|prune))\b",
+    )
+    .expect("valid adaptive mutation signal regex");
+    let proposal_type = normalize_spaces(input.proposal_type.as_deref().unwrap_or(""));
+    if !proposal_type.is_empty() && type_re.is_match(&proposal_type) {
+        return HasAdaptiveMutationSignalOutput { has_signal: true };
+    }
+    if input.adaptive_mutation
+        || input.mutation_proposal
+        || input.topology_mutation
+        || input.self_improvement_change
+    {
+        return HasAdaptiveMutationSignalOutput { has_signal: true };
+    }
+    let blob = input
+        .signal_blob
+        .as_deref()
+        .map(normalize_spaces)
+        .unwrap_or_default();
+    if blob.is_empty() {
+        return HasAdaptiveMutationSignalOutput { has_signal: false };
+    }
+    HasAdaptiveMutationSignalOutput {
+        has_signal: type_re.is_match(&blob) || signal_re.is_match(&blob),
+    }
+}
+
+pub fn compute_adaptive_mutation_execution_guard(
+    input: &AdaptiveMutationExecutionGuardInput,
+) -> AdaptiveMutationExecutionGuardOutput {
+    if !input.guard_required {
+        return AdaptiveMutationExecutionGuardOutput {
+            required: false,
+            applies: false,
+            pass: true,
+            reason: None,
+            reasons: Vec::new(),
+            controls: AdaptiveMutationExecutionGuardControlsOutput {
+                safety_attestation: None,
+                rollback_receipt: None,
+                guard_receipt_id: None,
+                mutation_kernel_applies: false,
+                mutation_kernel_pass: true,
+            },
+        };
+    }
+    if !input.applies {
+        return AdaptiveMutationExecutionGuardOutput {
+            required: true,
+            applies: false,
+            pass: true,
+            reason: None,
+            reasons: Vec::new(),
+            controls: AdaptiveMutationExecutionGuardControlsOutput {
+                safety_attestation: None,
+                rollback_receipt: None,
+                guard_receipt_id: None,
+                mutation_kernel_applies: false,
+                mutation_kernel_pass: true,
+            },
+        };
+    }
+
+    let safety_attestation = normalize_spaces(input.safety_attestation.as_deref().unwrap_or(""));
+    let rollback_receipt = normalize_spaces(input.rollback_receipt.as_deref().unwrap_or(""));
+    let guard_receipt_id = normalize_spaces(input.guard_receipt_id.as_deref().unwrap_or(""));
+    let mut reasons: Vec<String> = Vec::new();
+    if !input.metadata_applies {
+        reasons.push("adaptive_mutation_guard_metadata_missing".to_string());
+    }
+    if !input.guard_pass {
+        let reason = normalize_spaces(
+            input
+                .guard_reason
+                .as_deref()
+                .unwrap_or("adaptive_mutation_guard_failed"),
+        );
+        reasons.push(if reason.is_empty() {
+            "adaptive_mutation_guard_failed".to_string()
+        } else {
+            reason
+        });
+    }
+    if safety_attestation.is_empty() {
+        reasons.push("adaptive_mutation_missing_safety_attestation".to_string());
+    }
+    if rollback_receipt.is_empty() {
+        reasons.push("adaptive_mutation_missing_rollback_receipt".to_string());
+    }
+    if guard_receipt_id.is_empty() {
+        reasons.push("adaptive_mutation_missing_execution_guard_receipt".to_string());
+    }
+    if input.mutation_kernel_applies && !input.mutation_kernel_pass {
+        reasons.push("adaptive_mutation_kernel_failed".to_string());
+    }
+
+    let mut uniq_reasons: Vec<String> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for reason in reasons {
+        if reason.is_empty() || !seen.insert(reason.clone()) {
+            continue;
+        }
+        uniq_reasons.push(reason);
+    }
+    let reason = uniq_reasons.first().cloned();
+    AdaptiveMutationExecutionGuardOutput {
+        required: true,
+        applies: true,
+        pass: uniq_reasons.is_empty(),
+        reason,
+        reasons: uniq_reasons,
+        controls: AdaptiveMutationExecutionGuardControlsOutput {
+            safety_attestation: if safety_attestation.is_empty() {
+                None
+            } else {
+                Some(safety_attestation)
+            },
+            rollback_receipt: if rollback_receipt.is_empty() {
+                None
+            } else {
+                Some(rollback_receipt)
+            },
+            guard_receipt_id: if guard_receipt_id.is_empty() {
+                None
+            } else {
+                Some(guard_receipt_id)
+            },
+            mutation_kernel_applies: input.mutation_kernel_applies,
+            mutation_kernel_pass: input.mutation_kernel_pass,
+        },
+    }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -9832,6 +10187,42 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_derive_entity_bias_encode_failed:{e}"));
+    }
+    if mode == "build_overlay" {
+        let input = request
+            .build_overlay_input
+            .ok_or_else(|| "autoscale_missing_build_overlay_input".to_string())?;
+        let out = compute_build_overlay(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "build_overlay",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_build_overlay_encode_failed:{e}"));
+    }
+    if mode == "has_adaptive_mutation_signal" {
+        let input = request
+            .has_adaptive_mutation_signal_input
+            .ok_or_else(|| "autoscale_missing_has_adaptive_mutation_signal_input".to_string())?;
+        let out = compute_has_adaptive_mutation_signal(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "has_adaptive_mutation_signal",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_has_adaptive_mutation_signal_encode_failed:{e}"));
+    }
+    if mode == "adaptive_mutation_execution_guard" {
+        let input = request
+            .adaptive_mutation_execution_guard_input
+            .ok_or_else(|| "autoscale_missing_adaptive_mutation_execution_guard_input".to_string())?;
+        let out = compute_adaptive_mutation_execution_guard(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "adaptive_mutation_execution_guard",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_adaptive_mutation_execution_guard_encode_failed:{e}"));
     }
     if mode == "is_directive_clarification_proposal" {
         let input = request
@@ -14444,6 +14835,103 @@ mod tests {
             out.primary_failure,
             Some("insufficient_supported_metrics".to_string())
         );
+    }
+
+    #[test]
+    fn build_overlay_keeps_latest_decision_and_outcome() {
+        let out = compute_build_overlay(&BuildOverlayInput {
+            events: vec![
+                BuildOverlayEventInput {
+                    proposal_id: Some("p-1".to_string()),
+                    event_type: Some("decision".to_string()),
+                    decision: Some("accept".to_string()),
+                    ts: Some("2026-03-04T00:00:00.000Z".to_string()),
+                    reason: Some("first".to_string()),
+                    outcome: None,
+                    evidence_ref: None,
+                },
+                BuildOverlayEventInput {
+                    proposal_id: Some("p-1".to_string()),
+                    event_type: Some("outcome".to_string()),
+                    decision: None,
+                    ts: Some("2026-03-04T00:05:00.000Z".to_string()),
+                    reason: None,
+                    outcome: Some("shipped".to_string()),
+                    evidence_ref: Some("eye:test".to_string()),
+                },
+                BuildOverlayEventInput {
+                    proposal_id: Some("p-1".to_string()),
+                    event_type: Some("decision".to_string()),
+                    decision: Some("reject".to_string()),
+                    ts: Some("2026-03-04T00:10:00.000Z".to_string()),
+                    reason: Some("latest".to_string()),
+                    outcome: None,
+                    evidence_ref: None,
+                },
+            ],
+        });
+        assert_eq!(out.entries.len(), 1);
+        let row = &out.entries[0];
+        assert_eq!(row.proposal_id, "p-1");
+        assert_eq!(row.decision.as_deref(), Some("reject"));
+        assert_eq!(row.decision_reason.as_deref(), Some("latest"));
+        assert_eq!(row.last_outcome.as_deref(), Some("shipped"));
+        assert_eq!(row.outcomes.shipped, 1);
+    }
+
+    #[test]
+    fn has_adaptive_mutation_signal_detects_blob_markers() {
+        let out = compute_has_adaptive_mutation_signal(&HasAdaptiveMutationSignalInput {
+            proposal_type: Some("improvement".to_string()),
+            adaptive_mutation: false,
+            mutation_proposal: false,
+            topology_mutation: false,
+            self_improvement_change: false,
+            signal_blob: Some("run mutation_guard with rollback receipt".to_string()),
+        });
+        assert!(out.has_signal);
+    }
+
+    #[test]
+    fn adaptive_mutation_execution_guard_requires_receipts() {
+        let out = compute_adaptive_mutation_execution_guard(&AdaptiveMutationExecutionGuardInput {
+            guard_required: true,
+            applies: true,
+            metadata_applies: true,
+            guard_pass: true,
+            guard_reason: None,
+            safety_attestation: None,
+            rollback_receipt: None,
+            guard_receipt_id: None,
+            mutation_kernel_applies: false,
+            mutation_kernel_pass: true,
+        });
+        assert!(!out.pass);
+        assert!(out
+            .reasons
+            .contains(&"adaptive_mutation_missing_safety_attestation".to_string()));
+    }
+
+    #[test]
+    fn autoscale_json_adaptive_mutation_guard_path_works() {
+        let payload = serde_json::json!({
+            "mode": "adaptive_mutation_execution_guard",
+            "adaptive_mutation_execution_guard_input": {
+                "guard_required": true,
+                "applies": true,
+                "metadata_applies": false,
+                "guard_pass": false,
+                "guard_reason": "failed",
+                "safety_attestation": "safe-1",
+                "rollback_receipt": "roll-1",
+                "guard_receipt_id": "guard-1",
+                "mutation_kernel_applies": true,
+                "mutation_kernel_pass": false
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale adaptive_mutation_execution_guard");
+        assert!(out.contains("\"mode\":\"adaptive_mutation_execution_guard\""));
     }
 
     #[test]

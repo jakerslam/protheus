@@ -2521,6 +2521,51 @@ function allDecisionEvents() {
 }
 
 function buildOverlay(events) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'build_overlay',
+      {
+        events: (Array.isArray(events) ? events : []).map((evt) => ({
+          proposal_id: evt && evt.proposal_id == null ? null : String(evt && evt.proposal_id || ''),
+          type: evt && evt.type == null ? null : String(evt && evt.type || ''),
+          decision: evt && evt.decision == null ? null : String(evt && evt.decision || ''),
+          ts: evt && evt.ts == null ? null : String(evt && evt.ts || ''),
+          reason: evt && evt.reason == null ? null : String(evt && evt.reason || ''),
+          outcome: evt && evt.outcome == null ? null : String(evt && evt.outcome || ''),
+          evidence_ref: evt && evt.evidence_ref == null ? null : String(evt && evt.evidence_ref || '')
+        }))
+      },
+      { allow_cli_fallback: true }
+    );
+    if (
+      rust
+      && rust.ok === true
+      && rust.payload
+      && rust.payload.ok === true
+      && rust.payload.payload
+      && Array.isArray(rust.payload.payload.entries)
+    ) {
+      const map = new Map();
+      for (const row of rust.payload.payload.entries) {
+        const proposalId = normalizeSpaces(row && row.proposal_id);
+        if (!proposalId) continue;
+        map.set(proposalId, {
+          decision: row && row.decision ? String(row.decision) : null,
+          decision_ts: row && row.decision_ts ? String(row.decision_ts) : null,
+          decision_reason: row && row.decision_reason ? String(row.decision_reason) : null,
+          last_outcome: row && row.last_outcome ? String(row.last_outcome) : null,
+          last_outcome_ts: row && row.last_outcome_ts ? String(row.last_outcome_ts) : null,
+          last_evidence_ref: row && row.last_evidence_ref ? String(row.last_evidence_ref) : null,
+          outcomes: {
+            shipped: Math.max(0, Number(row && row.outcomes && row.outcomes.shipped || 0)),
+            reverted: Math.max(0, Number(row && row.outcomes && row.outcomes.reverted || 0)),
+            no_change: Math.max(0, Number(row && row.outcomes && row.outcomes.no_change || 0))
+          }
+        });
+      }
+      return map;
+    }
+  }
   const map = new Map();
   for (const e of events) {
     if (!e || !e.proposal_id) continue;
@@ -9043,11 +9088,6 @@ function hasAdaptiveMutationSignal(p) {
   const meta = proposal.meta && typeof proposal.meta === 'object' ? proposal.meta : {};
   const actionSpec = proposal.action_spec && typeof proposal.action_spec === 'object' ? proposal.action_spec : {};
   const type = String(proposal.type || '').trim();
-  if (type && ADAPTIVE_MUTATION_TYPE_RE.test(type)) return true;
-  if (meta.adaptive_mutation === true) return true;
-  if (meta.mutation_proposal === true || meta.topology_mutation === true || meta.self_improvement_change === true) {
-    return true;
-  }
   const blob = [
     String(proposal.title || ''),
     String(proposal.summary || ''),
@@ -9067,6 +9107,28 @@ function hasAdaptiveMutationSignal(p) {
     String(meta.genome_action || ''),
     String(meta.self_modify_scope || '')
   ].join(' ');
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'has_adaptive_mutation_signal',
+      {
+        proposal_type: type,
+        adaptive_mutation: meta.adaptive_mutation === true,
+        mutation_proposal: meta.mutation_proposal === true,
+        topology_mutation: meta.topology_mutation === true,
+        self_improvement_change: meta.self_improvement_change === true,
+        signal_blob: blob
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.has_signal === true;
+    }
+  }
+  if (type && ADAPTIVE_MUTATION_TYPE_RE.test(type)) return true;
+  if (meta.adaptive_mutation === true) return true;
+  if (meta.mutation_proposal === true || meta.topology_mutation === true || meta.self_improvement_change === true) {
+    return true;
+  }
   if (!blob) return false;
   return ADAPTIVE_MUTATION_TYPE_RE.test(blob) || ADAPTIVE_MUTATION_SIGNAL_RE.test(blob);
 }
@@ -9078,6 +9140,71 @@ function adaptiveMutationExecutionGuardDecision(p) {
     ? meta.adaptive_mutation_guard_controls
     : {};
   const applies = hasAdaptiveMutationSignal(proposal) || meta.adaptive_mutation_guard_applies === true;
+  const safetyAttestation = String(
+    controls.safety_attestation
+    || meta.safety_attestation_id
+    || meta.safety_attestation
+    || meta.attestation_id
+    || ''
+  ).trim();
+  const rollbackReceipt = String(
+    controls.rollback_receipt
+    || meta.rollback_receipt_id
+    || meta.rollback_receipt
+    || ''
+  ).trim();
+  const guardReceipt = String(
+    controls.guard_receipt_id
+    || meta.adaptive_mutation_guard_receipt_id
+    || meta.mutation_guard_receipt_id
+    || ''
+  ).trim();
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'adaptive_mutation_execution_guard',
+      {
+        guard_required: AUTONOMY_MUTATION_EXECUTION_GUARD_REQUIRED,
+        applies,
+        metadata_applies: meta.adaptive_mutation_guard_applies === true,
+        guard_pass: meta.adaptive_mutation_guard_pass !== false,
+        guard_reason: meta.adaptive_mutation_guard_reason == null
+          ? null
+          : String(meta.adaptive_mutation_guard_reason || ''),
+        safety_attestation: safetyAttestation || null,
+        rollback_receipt: rollbackReceipt || null,
+        guard_receipt_id: guardReceipt || null,
+        mutation_kernel_applies: controls.mutation_kernel_applies === true,
+        mutation_kernel_pass: controls.mutation_kernel_pass !== false
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      const controlsOut = payload.applies === true
+        ? {
+          safety_attestation: payload.controls && payload.controls.safety_attestation
+            ? String(payload.controls.safety_attestation)
+            : null,
+          rollback_receipt: payload.controls && payload.controls.rollback_receipt
+            ? String(payload.controls.rollback_receipt)
+            : null,
+          guard_receipt_id: payload.controls && payload.controls.guard_receipt_id
+            ? String(payload.controls.guard_receipt_id)
+            : null,
+          mutation_kernel_applies: payload.controls && payload.controls.mutation_kernel_applies === true,
+          mutation_kernel_pass: !(payload.controls && payload.controls.mutation_kernel_pass === false)
+        }
+        : {};
+      return {
+        required: payload.required !== false,
+        applies: payload.applies === true,
+        pass: payload.pass !== false,
+        reason: payload.reason ? String(payload.reason) : null,
+        reasons: Array.isArray(payload.reasons) ? payload.reasons.map((row) => String(row || '')).filter(Boolean) : [],
+        controls: controlsOut
+      };
+    }
+  }
   if (!AUTONOMY_MUTATION_EXECUTION_GUARD_REQUIRED) {
     return {
       required: false,
@@ -9104,27 +9231,8 @@ function adaptiveMutationExecutionGuardDecision(p) {
   if (meta.adaptive_mutation_guard_pass === false) {
     reasons.push(String(meta.adaptive_mutation_guard_reason || 'adaptive_mutation_guard_failed').trim() || 'adaptive_mutation_guard_failed');
   }
-  const safetyAttestation = String(
-    controls.safety_attestation
-    || meta.safety_attestation_id
-    || meta.safety_attestation
-    || meta.attestation_id
-    || ''
-  ).trim();
   if (!safetyAttestation) reasons.push('adaptive_mutation_missing_safety_attestation');
-  const rollbackReceipt = String(
-    controls.rollback_receipt
-    || meta.rollback_receipt_id
-    || meta.rollback_receipt
-    || ''
-  ).trim();
   if (!rollbackReceipt) reasons.push('adaptive_mutation_missing_rollback_receipt');
-  const guardReceipt = String(
-    controls.guard_receipt_id
-    || meta.adaptive_mutation_guard_receipt_id
-    || meta.mutation_guard_receipt_id
-    || ''
-  ).trim();
   if (!guardReceipt) reasons.push('adaptive_mutation_missing_execution_guard_receipt');
   if (controls.mutation_kernel_applies === true && controls.mutation_kernel_pass === false) {
     reasons.push('adaptive_mutation_kernel_failed');
