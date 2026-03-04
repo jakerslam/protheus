@@ -220,6 +220,21 @@ pub struct PolicyHoldResultOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PolicyHoldRunEventInput {
+    #[serde(default)]
+    pub event_type: Option<String>,
+    #[serde(default)]
+    pub policy_hold: Option<bool>,
+    #[serde(default)]
+    pub result: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PolicyHoldRunEventOutput {
+    pub is_policy_hold_run_event: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ScoreOnlyResultInput {
     #[serde(default)]
     pub result: Option<String>,
@@ -715,6 +730,8 @@ pub struct AutoscaleRequest {
     pub policy_hold_input: Option<PolicyHoldInput>,
     #[serde(default)]
     pub policy_hold_result_input: Option<PolicyHoldResultInput>,
+    #[serde(default)]
+    pub policy_hold_run_event_input: Option<PolicyHoldRunEventInput>,
     #[serde(default)]
     pub score_only_result_input: Option<ScoreOnlyResultInput>,
     #[serde(default)]
@@ -1371,6 +1388,23 @@ pub fn compute_policy_hold_result(input: &PolicyHoldResultInput) -> PolicyHoldRe
         .unwrap_or_default();
     PolicyHoldResultOutput {
         is_policy_hold: is_policy_hold_result(&result),
+    }
+}
+
+pub fn compute_policy_hold_run_event(input: &PolicyHoldRunEventInput) -> PolicyHoldRunEventOutput {
+    let event_type = input
+        .event_type
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    let result = input
+        .result
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .unwrap_or_default();
+    PolicyHoldRunEventOutput {
+        is_policy_hold_run_event: event_type == "autonomy_run"
+            && (input.policy_hold.unwrap_or(false) || is_policy_hold_result(&result)),
     }
 }
 
@@ -2483,6 +2517,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_policy_hold_result_encode_failed:{e}"));
     }
+    if mode == "policy_hold_run_event" {
+        let input = request
+            .policy_hold_run_event_input
+            .ok_or_else(|| "autoscale_missing_policy_hold_run_event_input".to_string())?;
+        let out = compute_policy_hold_run_event(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "policy_hold_run_event",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_policy_hold_run_event_encode_failed:{e}"));
+    }
     if mode == "score_only_result" {
         let input = request
             .score_only_result_input
@@ -2988,6 +3034,45 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale policy_hold_result");
         assert!(out.contains("\"mode\":\"policy_hold_result\""));
+    }
+
+    #[test]
+    fn policy_hold_run_event_classifies_expected_values() {
+        let explicit = compute_policy_hold_run_event(&PolicyHoldRunEventInput {
+            event_type: Some("autonomy_run".to_string()),
+            policy_hold: Some(true),
+            result: Some("executed".to_string()),
+        });
+        assert!(explicit.is_policy_hold_run_event);
+
+        let by_result = compute_policy_hold_run_event(&PolicyHoldRunEventInput {
+            event_type: Some("autonomy_run".to_string()),
+            policy_hold: Some(false),
+            result: Some("stop_init_gate_readiness".to_string()),
+        });
+        assert!(by_result.is_policy_hold_run_event);
+
+        let non_hold = compute_policy_hold_run_event(&PolicyHoldRunEventInput {
+            event_type: Some("autonomy_run".to_string()),
+            policy_hold: Some(false),
+            result: Some("executed".to_string()),
+        });
+        assert!(!non_hold.is_policy_hold_run_event);
+    }
+
+    #[test]
+    fn autoscale_json_policy_hold_run_event_path_works() {
+        let payload = serde_json::json!({
+            "mode": "policy_hold_run_event",
+            "policy_hold_run_event_input": {
+                "event_type": "autonomy_run",
+                "policy_hold": false,
+                "result": "stop_init_gate_readiness"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale policy_hold_run_event");
+        assert!(out.contains("\"mode\":\"policy_hold_run_event\""));
     }
 
     #[test]

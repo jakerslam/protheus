@@ -2715,6 +2715,8 @@ const GATE_EXHAUSTED_ATTEMPT_CACHE = new Map();
 const GATE_EXHAUSTED_ATTEMPT_CACHE_MAX = 1024;
 const CONSECUTIVE_GATE_EXHAUSTED_ATTEMPTS_CACHE = new Map();
 const CONSECUTIVE_GATE_EXHAUSTED_ATTEMPTS_CACHE_MAX = 512;
+const POLICY_HOLD_RUN_EVENT_CACHE = new Map();
+const POLICY_HOLD_RUN_EVENT_CACHE_MAX = 1024;
 
 function isPolicyHoldResult(result): boolean {
   const r = String(result || '').trim();
@@ -2750,6 +2752,31 @@ function isPolicyHoldResult(result): boolean {
 
 function isPolicyHoldRunEvent(evt): boolean {
   if (!evt || evt.type !== 'autonomy_run') return false;
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const result = String(evt.result || '').trim();
+    const key = `${evt.policy_hold === true ? '1' : '0'}\u0000${result}`;
+    if (POLICY_HOLD_RUN_EVENT_CACHE.has(key)) {
+      return POLICY_HOLD_RUN_EVENT_CACHE.get(key) === true;
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'policy_hold_run_event',
+      {
+        event_type: String(evt.type || ''),
+        policy_hold: evt.policy_hold === true,
+        result
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const val = rust.payload.payload.is_policy_hold_run_event === true;
+      if (POLICY_HOLD_RUN_EVENT_CACHE.size >= POLICY_HOLD_RUN_EVENT_CACHE_MAX) {
+        const oldest = POLICY_HOLD_RUN_EVENT_CACHE.keys().next();
+        if (!oldest.done) POLICY_HOLD_RUN_EVENT_CACHE.delete(oldest.value);
+      }
+      POLICY_HOLD_RUN_EVENT_CACHE.set(key, val);
+      return val;
+    }
+  }
   if (evt.policy_hold === true) return true;
   return isPolicyHoldResult(evt.result);
 }

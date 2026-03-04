@@ -19,6 +19,7 @@ pub use autoscale::{
     compute_gate_exhausted_attempt,
     compute_no_progress_result, compute_non_yield_category, compute_normalize_queue, compute_plan,
     compute_policy_hold, compute_policy_hold_cooldown, compute_policy_hold_latest_event,
+    compute_policy_hold_run_event,
     compute_non_yield_reason, compute_policy_hold_pattern, compute_policy_hold_pressure,
     compute_proposal_type_from_run_event,
     compute_repeat_gate_anchor,
@@ -46,7 +47,8 @@ pub use autoscale::{
     PolicyHoldLatestEventEntryInput, PolicyHoldLatestEventInput, PolicyHoldLatestEventOutput,
     PolicyHoldOutput, PolicyHoldPatternEventInput, PolicyHoldPatternInput,
     PolicyHoldPatternOutput, PolicyHoldPressureEventInput, PolicyHoldPressureInput,
-    PolicyHoldPressureOutput, PolicyHoldResultInput, PolicyHoldResultOutput, QueuePressure,
+    PolicyHoldPressureOutput, PolicyHoldResultInput, PolicyHoldResultOutput,
+    PolicyHoldRunEventInput, PolicyHoldRunEventOutput, QueuePressure,
     ReceiptCheck, ReceiptVerdictInput, ReceiptVerdictOutput, RouteExecutionPolicyHoldInput,
     SafetyStopRunEventInput, SafetyStopRunEventOutput, TokenUsageInput, TokenUsageOutput,
 };
