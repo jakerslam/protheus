@@ -2487,6 +2487,21 @@ pub struct ChooseSelectionModeOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExploreQuotaForDayInput {
+    #[serde(default)]
+    pub daily_runs_cap: Option<f64>,
+    #[serde(default)]
+    pub explore_fraction: Option<f64>,
+    #[serde(default)]
+    pub default_max_runs: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExploreQuotaForDayOutput {
+    pub quota: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -3653,6 +3668,8 @@ pub struct AutoscaleRequest {
     pub proposal_dependency_summary_input: Option<ProposalDependencySummaryInput>,
     #[serde(default)]
     pub choose_selection_mode_input: Option<ChooseSelectionModeInput>,
+    #[serde(default)]
+    pub explore_quota_for_day_input: Option<ExploreQuotaForDayInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -8090,6 +8107,23 @@ pub fn compute_choose_selection_mode(input: &ChooseSelectionModeInput) -> Choose
     }
 }
 
+pub fn compute_explore_quota_for_day(input: &ExploreQuotaForDayInput) -> ExploreQuotaForDayOutput {
+    let max_runs = input
+        .daily_runs_cap
+        .filter(|v| v.is_finite())
+        .unwrap_or(input.default_max_runs);
+    let clamped_max = max_runs.max(1.0);
+    let frac = input
+        .explore_fraction
+        .filter(|v| v.is_finite())
+        .unwrap_or(0.2)
+        .clamp(0.05, 0.8);
+    let quota = (clamped_max * frac).floor().max(1.0);
+    ExploreQuotaForDayOutput {
+        quota: quota as u32,
+    }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -11689,6 +11723,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_choose_selection_mode_encode_failed:{e}"));
+    }
+    if mode == "explore_quota_for_day" {
+        let input = request
+            .explore_quota_for_day_input
+            .ok_or_else(|| "autoscale_missing_explore_quota_for_day_input".to_string())?;
+        let out = compute_explore_quota_for_day(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "explore_quota_for_day",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_explore_quota_for_day_encode_failed:{e}"));
     }
     if mode == "is_directive_clarification_proposal" {
         let input = request
@@ -16930,6 +16976,31 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale choose_selection_mode");
         assert!(out.contains("\"mode\":\"choose_selection_mode\""));
+    }
+
+    #[test]
+    fn explore_quota_for_day_clamps_fraction_and_floor() {
+        let out = compute_explore_quota_for_day(&ExploreQuotaForDayInput {
+            daily_runs_cap: Some(12.0),
+            explore_fraction: Some(0.25),
+            default_max_runs: 8.0,
+        });
+        assert_eq!(out.quota, 3);
+    }
+
+    #[test]
+    fn autoscale_json_explore_quota_for_day_path_works() {
+        let payload = serde_json::json!({
+            "mode": "explore_quota_for_day",
+            "explore_quota_for_day_input": {
+                "daily_runs_cap": 10,
+                "explore_fraction": 0.2,
+                "default_max_runs": 8
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale explore_quota_for_day");
+        assert!(out.contains("\"mode\":\"explore_quota_for_day\""));
     }
 
     #[test]

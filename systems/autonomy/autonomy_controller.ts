@@ -14460,6 +14460,20 @@ function exploreQuotaForDay() {
   const exp = effectiveStrategyExploration();
   const maxRuns = Number.isFinite(Number(caps.daily_runs_cap)) ? Number(caps.daily_runs_cap) : AUTONOMY_MAX_RUNS_PER_DAY;
   const frac = clampNumber(exp.fraction, 0.05, 0.8);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'explore_quota_for_day',
+      {
+        daily_runs_cap: Number(caps.daily_runs_cap),
+        explore_fraction: Number(exp.fraction),
+        default_max_runs: Number(AUTONOMY_MAX_RUNS_PER_DAY)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Math.max(1, Number(rust.payload.payload.quota || 1));
+    }
+  }
   return Math.max(1, Math.floor(Math.max(1, maxRuns) * frac));
 }
 
@@ -20370,6 +20384,7 @@ module.exports = {
   assessUnlinkedOptimizationAdmission,
   assessOptimizationGoodEnough,
   proposalDependencySummary,
+  exploreQuotaForDay,
   chooseSelectionMode,
   sourceEyeRef,
   escapeRegExp,

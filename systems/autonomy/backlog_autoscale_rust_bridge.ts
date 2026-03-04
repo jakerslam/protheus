@@ -286,6 +286,7 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
     optimization_good_enough: 'optimization_good_enough_input',
     proposal_dependency_summary: 'proposal_dependency_summary_input',
     choose_selection_mode: 'choose_selection_mode_input',
+    explore_quota_for_day: 'explore_quota_for_day_input',
     is_directive_clarification_proposal: 'is_directive_clarification_proposal_input',
     is_directive_decomposition_proposal: 'is_directive_decomposition_proposal_input',
     sanitize_directive_objective_id: 'sanitize_directive_objective_id_input',
