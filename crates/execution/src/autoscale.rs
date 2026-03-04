@@ -2592,6 +2592,23 @@ pub struct RouteBlockPrefilterOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RouteExecutionSampleEventInput {
+    #[serde(default)]
+    pub event_type: Option<String>,
+    #[serde(default)]
+    pub result: Option<String>,
+    #[serde(default)]
+    pub execution_target: Option<String>,
+    #[serde(default)]
+    pub route_summary_present: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RouteExecutionSampleEventOutput {
+    pub is_sample_event: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ManualGatePrefilterInput {
     #[serde(default)]
     pub enabled: bool,
@@ -4598,6 +4615,8 @@ pub struct AutoscaleRequest {
     pub medium_risk_gate_decision_input: Option<MediumRiskGateDecisionInput>,
     #[serde(default)]
     pub route_block_prefilter_input: Option<RouteBlockPrefilterInput>,
+    #[serde(default)]
+    pub route_execution_sample_event_input: Option<RouteExecutionSampleEventInput>,
     #[serde(default)]
     pub manual_gate_prefilter_input: Option<ManualGatePrefilterInput>,
     #[serde(default)]
@@ -9246,6 +9265,37 @@ pub fn compute_route_block_prefilter(input: &RouteBlockPrefilterInput) -> RouteB
     }
     out.reason = "pass".to_string();
     out
+}
+
+pub fn compute_route_execution_sample_event(
+    input: &RouteExecutionSampleEventInput,
+) -> RouteExecutionSampleEventOutput {
+    let event_type = input.event_type.as_deref().unwrap_or("");
+    if event_type != "autonomy_run" {
+        return RouteExecutionSampleEventOutput {
+            is_sample_event: false,
+        };
+    }
+    let result = input.result.as_deref().unwrap_or("").trim();
+    if result.is_empty() {
+        return RouteExecutionSampleEventOutput {
+            is_sample_event: false,
+        };
+    }
+    if result == "score_only_fallback_route_block" || result == "init_gate_blocked_route" {
+        return RouteExecutionSampleEventOutput {
+            is_sample_event: true,
+        };
+    }
+    let target = input.execution_target.as_deref().unwrap_or("").trim().to_lowercase();
+    if target == "route" {
+        return RouteExecutionSampleEventOutput {
+            is_sample_event: result == "executed",
+        };
+    }
+    RouteExecutionSampleEventOutput {
+        is_sample_event: result == "executed" && input.route_summary_present,
+    }
 }
 
 pub fn compute_manual_gate_prefilter(input: &ManualGatePrefilterInput) -> ManualGatePrefilterOutput {
@@ -14429,6 +14479,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_route_block_prefilter_encode_failed:{e}"));
+    }
+    if mode == "route_execution_sample_event" {
+        let input = request
+            .route_execution_sample_event_input
+            .ok_or_else(|| "autoscale_missing_route_execution_sample_event_input".to_string())?;
+        let out = compute_route_execution_sample_event(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "route_execution_sample_event",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_route_execution_sample_event_encode_failed:{e}"));
     }
     if mode == "manual_gate_prefilter" {
         let input = request
@@ -20329,6 +20391,50 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale route_block_prefilter");
         assert!(out.contains("\"mode\":\"route_block_prefilter\""));
+    }
+
+    #[test]
+    fn route_execution_sample_event_matches_route_logic() {
+        let blocked = compute_route_execution_sample_event(&RouteExecutionSampleEventInput {
+            event_type: Some("autonomy_run".to_string()),
+            result: Some("score_only_fallback_route_block".to_string()),
+            execution_target: Some("cell".to_string()),
+            route_summary_present: false,
+        });
+        assert!(blocked.is_sample_event);
+
+        let route_exec = compute_route_execution_sample_event(&RouteExecutionSampleEventInput {
+            event_type: Some("autonomy_run".to_string()),
+            result: Some("executed".to_string()),
+            execution_target: Some("route".to_string()),
+            route_summary_present: false,
+        });
+        assert!(route_exec.is_sample_event);
+
+        let non_sample = compute_route_execution_sample_event(&RouteExecutionSampleEventInput {
+            event_type: Some("autonomy_run".to_string()),
+            result: Some("no_change".to_string()),
+            execution_target: Some("route".to_string()),
+            route_summary_present: true,
+        });
+        assert!(!non_sample.is_sample_event);
+    }
+
+    #[test]
+    fn autoscale_json_route_execution_sample_event_path_works() {
+        let payload = serde_json::json!({
+            "mode": "route_execution_sample_event",
+            "route_execution_sample_event_input": {
+                "event_type": "autonomy_run",
+                "result": "executed",
+                "execution_target": "route",
+                "route_summary_present": false
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale route_execution_sample_event");
+        assert!(out.contains("\"mode\":\"route_execution_sample_event\""));
+        assert!(out.contains("\"is_sample_event\":true"));
     }
 
     #[test]

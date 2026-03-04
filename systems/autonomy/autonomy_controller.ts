@@ -9261,6 +9261,21 @@ function computeExecuteConfidencePolicy(dateStr, proposal, capabilityKey, propos
 }
 
 function isRouteExecutionSampleEvent(evt) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'route_execution_sample_event',
+      {
+        event_type: evt && evt.type == null ? null : String(evt && evt.type || ''),
+        result: evt && evt.result == null ? null : String(evt && evt.result || ''),
+        execution_target: evt && evt.execution_target == null ? null : String(evt && evt.execution_target || ''),
+        route_summary_present: !!(evt && evt.route_summary && typeof evt.route_summary === 'object')
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.is_sample_event === true;
+    }
+  }
   if (!evt || evt.type !== 'autonomy_run') return false;
   const result = String(evt.result || '').trim();
   if (!result) return false;
