@@ -320,6 +320,7 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
     number_or_null: 'number_or_null_input',
     choose_evidence_selection_mode: 'choose_evidence_selection_mode_input',
     truthy_flag: 'truthy_flag_input',
+    falsey_flag: 'falsey_flag_input',
     parse_directive_file_arg: 'parse_directive_file_arg_input',
     parse_directive_objective_arg: 'parse_directive_objective_arg_input',
     parse_objective_id_from_evidence_refs: 'parse_objective_id_from_evidence_refs_input',

@@ -13492,6 +13492,16 @@ function truthyFlag(v) {
 }
 
 function falseyFlag(v) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'falsey_flag',
+      { value: v == null ? null : v },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.value === true;
+    }
+  }
   if (v === false) return true;
   if (v === true || v == null) return false;
   const t = String(v).trim().toLowerCase();
@@ -21359,6 +21369,7 @@ module.exports = {
   readPathValue,
   numberOrNull,
   truthyFlag,
+  falseyFlag,
   parseObjectiveIdFromEvidenceRefs,
   parseObjectiveIdFromCommand,
   sanitizedDirectiveIdList,

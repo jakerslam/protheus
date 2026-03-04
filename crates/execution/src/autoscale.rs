@@ -4486,6 +4486,8 @@ pub struct AutoscaleRequest {
     #[serde(default)]
     pub truthy_flag_input: Option<TruthyFlagInput>,
     #[serde(default)]
+    pub falsey_flag_input: Option<TruthyFlagInput>,
+    #[serde(default)]
     pub parse_directive_file_arg_input: Option<ParseDirectiveFileArgInput>,
     #[serde(default)]
     pub parse_directive_objective_arg_input: Option<ParseDirectiveObjectiveArgInput>,
@@ -10364,6 +10366,22 @@ pub fn compute_truthy_flag(input: &TruthyFlagInput) -> TruthyFlagOutput {
     TruthyFlagOutput { value }
 }
 
+pub fn compute_falsey_flag(input: &TruthyFlagInput) -> TruthyFlagOutput {
+    let value = match input.value.as_ref() {
+        Some(serde_json::Value::Bool(v)) => !*v,
+        Some(serde_json::Value::Null) | None => false,
+        Some(other) => {
+            let text = match other {
+                serde_json::Value::String(s) => s.clone(),
+                _ => other.to_string(),
+            };
+            let normalized = text.trim().to_ascii_lowercase();
+            normalized == "false" || normalized == "0" || normalized == "no"
+        }
+    };
+    TruthyFlagOutput { value }
+}
+
 pub fn compute_parse_directive_file_arg(input: &ParseDirectiveFileArgInput) -> ParseDirectiveFileArgOutput {
     let text = input.command.as_deref().unwrap_or("").trim();
     if text.is_empty() {
@@ -14323,6 +14341,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_truthy_flag_encode_failed:{e}"));
+    }
+    if mode == "falsey_flag" {
+        let input = request
+            .falsey_flag_input
+            .ok_or_else(|| "autoscale_missing_falsey_flag_input".to_string())?;
+        let out = compute_falsey_flag(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "falsey_flag",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_falsey_flag_encode_failed:{e}"));
     }
     if mode == "parse_directive_file_arg" {
         let input = request
