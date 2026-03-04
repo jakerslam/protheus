@@ -143,6 +143,7 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
     proposal_remediation_depth: 'proposal_remediation_depth_input',
     proposal_dedup_key: 'proposal_dedup_key_input',
     semantic_token_similarity: 'semantic_token_similarity_input',
+    semantic_context_comparable: 'semantic_context_comparable_input',
     strategy_rank_score: 'strategy_rank_score_input',
     strategy_rank_adjusted: 'strategy_rank_adjusted_input',
     trit_shadow_rank_score: 'trit_shadow_rank_score_input',

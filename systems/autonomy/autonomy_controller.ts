@@ -2795,6 +2795,8 @@ const PROPOSAL_DEDUP_KEY_CACHE = new Map();
 const PROPOSAL_DEDUP_KEY_CACHE_MAX = 1024;
 const SEMANTIC_TOKEN_SIMILARITY_CACHE = new Map();
 const SEMANTIC_TOKEN_SIMILARITY_CACHE_MAX = 2048;
+const SEMANTIC_CONTEXT_COMPARABLE_CACHE = new Map();
+const SEMANTIC_CONTEXT_COMPARABLE_CACHE_MAX = 2048;
 const STRATEGY_RANK_SCORE_CACHE = new Map();
 const STRATEGY_RANK_SCORE_CACHE_MAX = 2048;
 const STRATEGY_RANK_ADJUSTED_CACHE = new Map();
@@ -7678,6 +7680,48 @@ function semanticContextComparable(a, b) {
   const right = b && typeof b === 'object' ? b : {};
   const leftType = String(left.proposal_type || '').trim().toLowerCase();
   const rightType = String(right.proposal_type || '').trim().toLowerCase();
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const leftEye = String(left.source_eye || '').trim().toLowerCase();
+    const rightEye = String(right.source_eye || '').trim().toLowerCase();
+    const leftObjective = String(left.objective_id || '').trim();
+    const rightObjective = String(right.objective_id || '').trim();
+    const key = [
+      leftType,
+      rightType,
+      leftEye,
+      rightEye,
+      leftObjective,
+      rightObjective,
+      AUTONOMY_SEMANTIC_DEDUPE_REQUIRE_SAME_TYPE ? '1' : '0',
+      AUTONOMY_SEMANTIC_DEDUPE_REQUIRE_SHARED_CONTEXT ? '1' : '0'
+    ].join('\u0000');
+    if (SEMANTIC_CONTEXT_COMPARABLE_CACHE.has(key)) {
+      return SEMANTIC_CONTEXT_COMPARABLE_CACHE.get(key) === true;
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'semantic_context_comparable',
+      {
+        left_proposal_type: leftType,
+        right_proposal_type: rightType,
+        left_source_eye: leftEye,
+        right_source_eye: rightEye,
+        left_objective_id: leftObjective,
+        right_objective_id: rightObjective,
+        require_same_type: AUTONOMY_SEMANTIC_DEDUPE_REQUIRE_SAME_TYPE,
+        require_shared_context: AUTONOMY_SEMANTIC_DEDUPE_REQUIRE_SHARED_CONTEXT
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const out = rust.payload.payload.comparable === true;
+      if (SEMANTIC_CONTEXT_COMPARABLE_CACHE.size >= SEMANTIC_CONTEXT_COMPARABLE_CACHE_MAX) {
+        const oldest = SEMANTIC_CONTEXT_COMPARABLE_CACHE.keys().next();
+        if (!oldest.done) SEMANTIC_CONTEXT_COMPARABLE_CACHE.delete(oldest.value);
+      }
+      SEMANTIC_CONTEXT_COMPARABLE_CACHE.set(key, out);
+      return out;
+    }
+  }
   if (AUTONOMY_SEMANTIC_DEDUPE_REQUIRE_SAME_TYPE && leftType && rightType && leftType !== rightType) {
     return false;
   }
@@ -18323,6 +18367,7 @@ module.exports = {
   routeExecutionPolicyHold,
   proposalSemanticFingerprint,
   semanticTokenSimilarity,
+  semanticContextComparable,
   semanticNearDuplicateMatch,
   isNoProgressRun,
   isAttemptRunEvent,
