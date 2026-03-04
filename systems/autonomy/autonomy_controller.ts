@@ -2811,6 +2811,8 @@ const STRATEGY_TRIT_SHADOW_RANKING_SUMMARY_CACHE = new Map();
 const STRATEGY_TRIT_SHADOW_RANKING_SUMMARY_CACHE_MAX = 512;
 const SHADOW_SCOPE_MATCHES_CACHE = new Map();
 const SHADOW_SCOPE_MATCHES_CACHE_MAX = 2048;
+const COLLECTIVE_SHADOW_AGGREGATE_CACHE = new Map();
+const COLLECTIVE_SHADOW_AGGREGATE_CACHE_MAX = 1024;
 const VALUE_SIGNAL_SCORE_CACHE = new Map();
 const VALUE_SIGNAL_SCORE_CACHE_MAX = 1024;
 const COMPOSITE_ELIGIBILITY_SCORE_CACHE = new Map();
@@ -8657,6 +8659,61 @@ function shadowScopeMatchesCandidate(scope, candidateCtx) {
   return false;
 }
 
+function computeCollectiveShadowAggregate(rows) {
+  const entries = Array.isArray(rows) ? rows : [];
+  const normalized = entries.map((row) => ({
+    kind: String(row && row.kind || ''),
+    confidence: clampNumber(Number(row && row.confidence || 0), 0, 1),
+    score_impact: Math.max(0, Number(row && row.score_impact || 0))
+  }));
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const key = normalized
+      .map((row) => `${row.kind}\u0000${row.confidence}\u0000${row.score_impact}`)
+      .join('\u0001');
+    if (COLLECTIVE_SHADOW_AGGREGATE_CACHE.has(key)) {
+      return COLLECTIVE_SHADOW_AGGREGATE_CACHE.get(key);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'collective_shadow_aggregate',
+      { entries: normalized },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      const out = {
+        matches: Number(payload.matches || normalized.length),
+        confidence_avg: Number(Number(payload.confidence_avg || 0).toFixed(4)),
+        penalty_raw: Number(Number(payload.penalty_raw || 0).toFixed(3)),
+        bonus_raw: Number(Number(payload.bonus_raw || 0).toFixed(3))
+      };
+      if (COLLECTIVE_SHADOW_AGGREGATE_CACHE.size >= COLLECTIVE_SHADOW_AGGREGATE_CACHE_MAX) {
+        const oldest = COLLECTIVE_SHADOW_AGGREGATE_CACHE.keys().next();
+        if (!oldest.done) COLLECTIVE_SHADOW_AGGREGATE_CACHE.delete(oldest.value);
+      }
+      COLLECTIVE_SHADOW_AGGREGATE_CACHE.set(key, out);
+      return out;
+    }
+  }
+  if (!normalized.length) {
+    return { matches: 0, confidence_avg: 0, penalty_raw: 0, bonus_raw: 0 };
+  }
+  const confidenceAvg = Number(
+    (normalized.reduce((acc, row) => acc + Number(row.confidence || 0), 0) / normalized.length).toFixed(4)
+  );
+  const penaltyRaw = normalized
+    .filter((row) => row.kind === 'avoid')
+    .reduce((acc, row) => acc + (Number(row.score_impact || 0) * Number(row.confidence || 0)), 0);
+  const bonusRaw = normalized
+    .filter((row) => row.kind === 'reinforce')
+    .reduce((acc, row) => acc + (Number(row.score_impact || 0) * Number(row.confidence || 0)), 0);
+  return {
+    matches: normalized.length,
+    confidence_avg: confidenceAvg,
+    penalty_raw: Number(penaltyRaw.toFixed(3)),
+    bonus_raw: Number(bonusRaw.toFixed(3))
+  };
+}
+
 function computeCollectiveShadowAdjustments(penaltyRaw, bonusRaw) {
   const penalty = Number(penaltyRaw || 0);
   const bonus = Number(bonusRaw || 0);
@@ -8764,18 +8821,12 @@ function candidateCollectiveShadowSignal(cand) {
 
   if (!matched.length) return out;
   out.applied = true;
-  out.matches = matched.length;
+  const aggregate = computeCollectiveShadowAggregate(matched);
+  out.matches = Number(aggregate.matches || matched.length);
   out.matched_ids = matched.map((row) => row.id).filter(Boolean).slice(0, 8);
-  out.confidence_avg = Number(
-    (matched.reduce((acc, row) => acc + Number(row.confidence || 0), 0) / matched.length).toFixed(4)
-  );
-
-  const penaltyRaw = matched
-    .filter((row) => row.kind === 'avoid')
-    .reduce((acc, row) => acc + (Number(row.score_impact || 0) * Number(row.confidence || 0)), 0);
-  const bonusRaw = matched
-    .filter((row) => row.kind === 'reinforce')
-    .reduce((acc, row) => acc + (Number(row.score_impact || 0) * Number(row.confidence || 0)), 0);
+  out.confidence_avg = Number(Number(aggregate.confidence_avg || 0).toFixed(4));
+  const penaltyRaw = Number(aggregate.penalty_raw || 0);
+  const bonusRaw = Number(aggregate.bonus_raw || 0);
   const adjusted = computeCollectiveShadowAdjustments(penaltyRaw, bonusRaw);
   out.penalty = Number(adjusted.penalty || 0);
   out.bonus = Number(adjusted.bonus || 0);
@@ -18189,6 +18240,7 @@ module.exports = {
   candidateNonYieldPenaltySignal,
   computeNonYieldPenaltyScore,
   shadowScopeMatchesCandidate,
+  computeCollectiveShadowAggregate,
   computeCollectiveShadowAdjustments,
   candidateCollectiveShadowSignal,
   selectStrategyForRun,
