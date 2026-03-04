@@ -139,6 +139,47 @@ function runRouteDecisionViaRust(payloadObj) {
   };
 }
 
+function runRouteHabitReadinessViaRust(habit, trusted) {
+  const entryRaw = habit && habit.entrypoint ? String(habit.entrypoint) : '';
+  const payload = JSON.stringify({
+    habit_state: String(
+      (habit && habit.governance && habit.governance.state)
+      || (habit && habit.status)
+      || ''
+    ),
+    entrypoint_resolved: entryRaw ? path.resolve(REPO_ROOT, entryRaw) : '',
+    trusted_entrypoints: trusted && trusted.trusted_files && typeof trusted.trusted_files === 'object'
+      ? Object.keys(trusted.trusted_files)
+      : [],
+    required_inputs: Array.isArray(habit && habit.inputs_schema && habit.inputs_schema.required)
+      ? habit.inputs_schema.required.map((x) => String(x || ''))
+      : []
+  });
+  const payloadB64 = Buffer.from(payload, 'utf8').toString('base64');
+  let sawBinary = false;
+  for (const candidate of executionBinaryCandidates()) {
+    try {
+      if (!fs.existsSync(candidate)) continue;
+      sawBinary = true;
+      const out = spawnSync(candidate, ['route-habit-readiness', `--payload-base64=${payloadB64}`], {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+        maxBuffer: 10 * 1024 * 1024
+      });
+      const parsed = parseJsonPayload(out.stdout);
+      if (Number(out.status) !== 0 || !parsed || typeof parsed !== 'object') continue;
+      return { ok: true, payload: parsed };
+    } catch {
+      // try next candidate
+    }
+  }
+  return {
+    ok: false,
+    error: sawBinary ? 'route_habit_readiness_invalid_output' : 'route_habit_readiness_rust_unavailable',
+    payload: null
+  };
+}
+
 function getArg(name, def = null) {
   const args = process.argv.slice(2);
   const i = args.indexOf(name);
@@ -175,21 +216,6 @@ function loadReflexRoutines() {
   } catch {
     return {};
   }
-}
-
-function requiredInputKeys(habit) {
-  if (!habit || !habit.inputs_schema || !Array.isArray(habit.inputs_schema.required)) return [];
-  return habit.inputs_schema.required
-    .map((x) => String(x || '').trim())
-    .filter(Boolean);
-}
-
-function isTrustedEntrypoint(habit, trusted) {
-  const entry = habit && habit.entrypoint ? String(habit.entrypoint) : '';
-  if (!entry) return false;
-  const resolved = path.resolve(REPO_ROOT, entry);
-  const map = trusted && trusted.trusted_files ? trusted.trusted_files : {};
-  return !!map[resolved];
 }
 
 function makeRunInputs(task, intentKey) {
@@ -457,9 +483,33 @@ function main() {
     process.exit(0);
   }
   
-  const matchState = match && match.governance ? match.governance.state : (match ? match.status : '');
-  const requiredInputs = match ? requiredInputKeys(match) : [];
-  const trustedEntrypoint = match ? isTrustedEntrypoint(match, trusted) : false;
+  const readiness = match ? runRouteHabitReadinessViaRust(match, trusted) : { ok: true, payload: null };
+  if (match && (readiness.ok !== true || !readiness.payload || typeof readiness.payload !== 'object')) {
+    const out = {
+      decision: 'MANUAL',
+      reason: `Rust route habit readiness unavailable: ${String(readiness.error || 'unknown')}`,
+      executor: null,
+      route_error: String(readiness.error || 'route_habit_readiness_rust_unavailable'),
+      gate_decision: gateResult.decision,
+      gate_risk: gateResult.risk,
+      gate_reasons: gateResult.reasons,
+      gate_event: gateEvent,
+      route: {
+        type: 'route_blocked',
+        reason: 'route_habit_readiness_rust_unavailable'
+      }
+    };
+    console.log(JSON.stringify(out, null, 2));
+    process.exit(0);
+  }
+  const readinessPayload = readiness && readiness.payload && typeof readiness.payload === 'object'
+    ? readiness.payload
+    : {};
+  const matchState = String(readinessPayload.state || (match && match.governance && match.governance.state) || (match && match.status) || '');
+  const requiredInputs = Array.isArray(readinessPayload.required_inputs)
+    ? readinessPayload.required_inputs.map((x) => String(x || '').trim()).filter(Boolean)
+    : [];
+  const trustedEntrypoint = readinessPayload.trusted_entrypoint === true;
   const routeDecision = runRouteDecisionViaRust({
     matched_habit_id: match ? String(match.id || '') : '',
     matched_habit_state: String(matchState || ''),

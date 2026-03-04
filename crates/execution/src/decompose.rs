@@ -477,6 +477,28 @@ pub struct RouteDecisionResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RouteHabitReadinessRequest {
+    #[serde(default)]
+    pub habit_state: String,
+    #[serde(default)]
+    pub entrypoint_resolved: String,
+    #[serde(default)]
+    pub trusted_entrypoints: Vec<String>,
+    #[serde(default)]
+    pub required_inputs: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RouteHabitReadinessResponse {
+    pub ok: bool,
+    pub state: String,
+    pub required_inputs: Vec<String>,
+    pub trusted_entrypoint: bool,
+    pub runnable: bool,
+    pub reason_code: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct HeroicGateRequest {
     #[serde(default)]
     pub task_text: String,
@@ -1837,6 +1859,46 @@ pub fn evaluate_route_decision(req: &RouteDecisionRequest) -> RouteDecisionRespo
     }
 }
 
+pub fn evaluate_route_habit_readiness(req: &RouteHabitReadinessRequest) -> RouteHabitReadinessResponse {
+    let state = normalize_route_state(req.habit_state.as_str());
+    let required_inputs = req
+        .required_inputs
+        .iter()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .collect::<Vec<String>>();
+    let entrypoint = req.entrypoint_resolved.trim();
+    let trusted_entrypoint = if entrypoint.is_empty() {
+        false
+    } else {
+        req.trusted_entrypoints
+            .iter()
+            .any(|candidate| candidate.trim() == entrypoint)
+    };
+    let runnable_state = state == "active" || state == "candidate";
+    let runnable = runnable_state && required_inputs.is_empty() && trusted_entrypoint;
+    let reason_code = if !runnable_state {
+        "matched_state_not_runnable"
+    } else if !required_inputs.is_empty() {
+        "required_inputs"
+    } else if !trusted_entrypoint {
+        "untrusted_entrypoint"
+    } else if state == "active" {
+        "runnable_active"
+    } else {
+        "runnable_candidate"
+    };
+
+    RouteHabitReadinessResponse {
+        ok: true,
+        state,
+        required_inputs,
+        trusted_entrypoint,
+        runnable,
+        reason_code: reason_code.to_string(),
+    }
+}
+
 pub fn evaluate_route_primitives_json(payload: &str) -> Result<String, String> {
     let req = serde_json::from_str::<RoutePrimitivesRequest>(payload)
         .map_err(|err| format!("route_primitives_payload_parse_failed:{}", err))?;
@@ -1882,6 +1944,14 @@ pub fn evaluate_route_decision_json(payload: &str) -> Result<String, String> {
     let resp = evaluate_route_decision(&req);
     serde_json::to_string(&resp)
         .map_err(|err| format!("route_decision_payload_serialize_failed:{}", err))
+}
+
+pub fn evaluate_route_habit_readiness_json(payload: &str) -> Result<String, String> {
+    let req = serde_json::from_str::<RouteHabitReadinessRequest>(payload)
+        .map_err(|err| format!("route_habit_readiness_payload_parse_failed:{}", err))?;
+    let resp = evaluate_route_habit_readiness(&req);
+    serde_json::to_string(&resp)
+        .map_err(|err| format!("route_habit_readiness_payload_serialize_failed:{}", err))
 }
 
 fn is_trust_registry_modification(task_lower: &str) -> bool {
@@ -2891,6 +2961,48 @@ mod tests {
         let out = evaluate_route_decision(&RouteDecisionRequest::default());
         assert_eq!(out.decision, "MANUAL");
         assert_eq!(out.reason_code, "no_match_no_trigger");
+    }
+
+    #[test]
+    fn route_habit_readiness_reports_required_inputs() {
+        let out = evaluate_route_habit_readiness(&RouteHabitReadinessRequest {
+            habit_state: "active".to_string(),
+            entrypoint_resolved: "/repo/habits/scripts/run_habit.js".to_string(),
+            trusted_entrypoints: vec!["/repo/habits/scripts/run_habit.js".to_string()],
+            required_inputs: vec!["user_id".to_string(), "scope".to_string()],
+        });
+        assert_eq!(out.state, "active");
+        assert!(!out.runnable);
+        assert_eq!(out.reason_code, "required_inputs");
+        assert_eq!(out.required_inputs.len(), 2);
+    }
+
+    #[test]
+    fn route_habit_readiness_reports_untrusted_entrypoint() {
+        let out = evaluate_route_habit_readiness(&RouteHabitReadinessRequest {
+            habit_state: "candidate".to_string(),
+            entrypoint_resolved: "/repo/habits/scripts/untrusted.js".to_string(),
+            trusted_entrypoints: vec!["/repo/habits/scripts/run_habit.js".to_string()],
+            required_inputs: vec![],
+        });
+        assert_eq!(out.state, "candidate");
+        assert!(!out.trusted_entrypoint);
+        assert!(!out.runnable);
+        assert_eq!(out.reason_code, "untrusted_entrypoint");
+    }
+
+    #[test]
+    fn route_habit_readiness_reports_runnable_active() {
+        let out = evaluate_route_habit_readiness(&RouteHabitReadinessRequest {
+            habit_state: "active".to_string(),
+            entrypoint_resolved: "/repo/habits/scripts/run_habit.js".to_string(),
+            trusted_entrypoints: vec!["/repo/habits/scripts/run_habit.js".to_string()],
+            required_inputs: vec![],
+        });
+        assert_eq!(out.state, "active");
+        assert!(out.trusted_entrypoint);
+        assert!(out.runnable);
+        assert_eq!(out.reason_code, "runnable_active");
     }
 
     #[test]
