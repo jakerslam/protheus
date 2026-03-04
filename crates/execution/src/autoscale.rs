@@ -558,6 +558,21 @@ pub struct InWindowOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExecWindowMatchInput {
+    #[serde(default)]
+    pub ts_ms: Option<f64>,
+    #[serde(default)]
+    pub start_ms: Option<f64>,
+    #[serde(default)]
+    pub end_ms: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExecWindowMatchOutput {
+    pub in_window: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StartOfNextUtcDayInput {
     #[serde(default)]
     pub date_str: Option<String>,
@@ -2193,6 +2208,8 @@ pub struct AutoscaleRequest {
     pub date_window_input: Option<DateWindowInput>,
     #[serde(default)]
     pub in_window_input: Option<InWindowInput>,
+    #[serde(default)]
+    pub exec_window_match_input: Option<ExecWindowMatchInput>,
     #[serde(default)]
     pub start_of_next_utc_day_input: Option<StartOfNextUtcDayInput>,
     #[serde(default)]
@@ -5287,6 +5304,21 @@ pub fn compute_in_window(input: &InWindowInput) -> InWindowOutput {
     }
 }
 
+pub fn compute_exec_window_match(input: &ExecWindowMatchInput) -> ExecWindowMatchOutput {
+    let ts_ms = input.ts_ms.unwrap_or(f64::NAN);
+    let start_ms = input.start_ms.unwrap_or(f64::NAN);
+    let end_ms = input.end_ms.unwrap_or(f64::NAN);
+    if !ts_ms.is_finite() || !start_ms.is_finite() || !end_ms.is_finite() {
+        return ExecWindowMatchOutput { in_window: false };
+    }
+    if start_ms == 0.0 || end_ms == 0.0 {
+        return ExecWindowMatchOutput { in_window: false };
+    }
+    ExecWindowMatchOutput {
+        in_window: ts_ms >= start_ms && ts_ms <= end_ms,
+    }
+}
+
 pub fn compute_start_of_next_utc_day(
     input: &StartOfNextUtcDayInput,
 ) -> StartOfNextUtcDayOutput {
@@ -7598,6 +7630,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_in_window_encode_failed:{e}"));
+    }
+    if mode == "exec_window_match" {
+        let input = request
+            .exec_window_match_input
+            .ok_or_else(|| "autoscale_missing_exec_window_match_input".to_string())?;
+        let out = compute_exec_window_match(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "exec_window_match",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_exec_window_match_encode_failed:{e}"));
     }
     if mode == "start_of_next_utc_day" {
         let input = request
@@ -11062,6 +11106,38 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale in_window");
         assert!(out.contains("\"mode\":\"in_window\""));
+    }
+
+    #[test]
+    fn exec_window_match_checks_numeric_boundaries() {
+        let inside = compute_exec_window_match(&ExecWindowMatchInput {
+            ts_ms: Some(1_772_581_500_000.0),
+            start_ms: Some(1_772_581_200_000.0),
+            end_ms: Some(1_772_582_200_000.0),
+        });
+        assert!(inside.in_window);
+
+        let outside = compute_exec_window_match(&ExecWindowMatchInput {
+            ts_ms: Some(1_772_580_000_000.0),
+            start_ms: Some(1_772_581_200_000.0),
+            end_ms: Some(1_772_582_200_000.0),
+        });
+        assert!(!outside.in_window);
+    }
+
+    #[test]
+    fn autoscale_json_exec_window_match_path_works() {
+        let payload = serde_json::json!({
+            "mode": "exec_window_match",
+            "exec_window_match_input": {
+                "ts_ms": 1772581500000.0,
+                "start_ms": 1772581200000.0,
+                "end_ms": 1772582200000.0
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale exec_window_match");
+        assert!(out.contains("\"mode\":\"exec_window_match\""));
     }
 
     #[test]

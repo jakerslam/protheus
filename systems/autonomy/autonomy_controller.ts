@@ -4890,6 +4890,26 @@ function diffDoDEvidence(before, after) {
 }
 
 function inExecWindow(ts, window) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const d = parseIsoTs(ts);
+    if (!d || !window) return false;
+    const s = Number(window.start_ms || 0) - AUTONOMY_DOD_EXEC_WINDOW_SLOP_MS;
+    const e = Number(window.end_ms || 0) + AUTONOMY_DOD_EXEC_WINDOW_SLOP_MS;
+    if (!s || !e) return false;
+    const rust = runBacklogAutoscalePrimitive(
+      'exec_window_match',
+      {
+        ts_ms: d.getTime(),
+        start_ms: s,
+        end_ms: e
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.in_window === true;
+    }
+  }
+
   const d = parseIsoTs(ts);
   if (!d || !window) return false;
   const s = Number(window.start_ms || 0) - AUTONOMY_DOD_EXEC_WINDOW_SLOP_MS;
@@ -19258,6 +19278,7 @@ module.exports = {
   candidatePool,
   evaluateDoD,
   diffDoDEvidence,
+  inExecWindow,
   hasStructuralPreviewCriteriaFailure,
   computeCalibrationDeltas,
   compileDirectivePulseObjectives,
