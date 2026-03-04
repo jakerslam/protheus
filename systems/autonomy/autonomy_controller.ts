@@ -7674,8 +7674,40 @@ function recentDirectivePulseCooldownCount(dateStr, objectiveId, hours) {
   const objId = String(objectiveId || '').trim();
   if (!objId) return 0;
   const h = Math.max(1, Number(hours || AUTONOMY_DIRECTIVE_PULSE_ESCALATE_WINDOW_HOURS));
-  const cutoff = Date.now() - (h * 60 * 60 * 1000);
   const days = Math.max(1, Math.ceil(h / 24) + 1);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const nowMs = Date.now();
+    const rustEvents = [];
+    for (const d of dateWindow(dateStr, days)) {
+      for (const evt of readRuns(d)) {
+        if (!evt || typeof evt !== 'object') continue;
+        const sample = evt.sample_directive_pulse_cooldown && typeof evt.sample_directive_pulse_cooldown === 'object'
+          ? evt.sample_directive_pulse_cooldown
+          : null;
+        rustEvents.push({
+          event_type: String(evt.type || ''),
+          result: String(evt.result || ''),
+          ts: evt.ts ? String(evt.ts) : null,
+          objective_id: evt.objective_id ? String(evt.objective_id) : null,
+          sample_objective_id: sample && sample.objective_id ? String(sample.objective_id) : null
+        });
+      }
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'recent_directive_pulse_cooldown_count',
+      {
+        objective_id: objId,
+        hours: h,
+        now_ms: nowMs,
+        events: rustEvents
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Math.max(0, Number(rust.payload.payload.count || 0));
+    }
+  }
+  const cutoff = Date.now() - (h * 60 * 60 * 1000);
   let count = 0;
   for (const d of dateWindow(dateStr, days)) {
     for (const evt of readRuns(d)) {
@@ -20877,6 +20909,7 @@ module.exports = {
   normalizeDirectiveTier,
   pulseTierCoverageBonus,
   directiveTierReservationNeed,
+  recentDirectivePulseCooldownCount,
   assessDirectivePulse,
   qosLaneFromCandidate,
   chooseQosLaneSelection,
