@@ -2717,6 +2717,8 @@ const CONSECUTIVE_GATE_EXHAUSTED_ATTEMPTS_CACHE = new Map();
 const CONSECUTIVE_GATE_EXHAUSTED_ATTEMPTS_CACHE_MAX = 512;
 const POLICY_HOLD_RUN_EVENT_CACHE = new Map();
 const POLICY_HOLD_RUN_EVENT_CACHE_MAX = 1024;
+const RUNS_SINCE_RESET_INDEX_CACHE = new Map();
+const RUNS_SINCE_RESET_INDEX_CACHE_MAX = 256;
 
 function isPolicyHoldResult(result): boolean {
   const r = String(result || '').trim();
@@ -3254,6 +3256,33 @@ function isNoProgressRun(evt) {
 }
 
 function runsSinceReset(events) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rows = Array.isArray(events) ? events : [];
+    const rustEvents = [];
+    for (const evt of rows) {
+      if (!evt || typeof evt !== 'object') continue;
+      rustEvents.push({ event_type: String(evt.type || '') });
+    }
+    const key = rustEvents.map((row) => row.event_type).join('\u0001');
+    if (RUNS_SINCE_RESET_INDEX_CACHE.has(key)) {
+      const cached = Number(RUNS_SINCE_RESET_INDEX_CACHE.get(key) || 0);
+      return rows.slice(Math.max(0, cached));
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'runs_since_reset_index',
+      { events: rustEvents },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const start = Math.max(0, Number(rust.payload.payload.start_index || 0));
+      if (RUNS_SINCE_RESET_INDEX_CACHE.size >= RUNS_SINCE_RESET_INDEX_CACHE_MAX) {
+        const oldest = RUNS_SINCE_RESET_INDEX_CACHE.keys().next();
+        if (!oldest.done) RUNS_SINCE_RESET_INDEX_CACHE.delete(oldest.value);
+      }
+      RUNS_SINCE_RESET_INDEX_CACHE.set(key, start);
+      return rows.slice(start);
+    }
+  }
   let idx = -1;
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i];
@@ -16549,6 +16578,7 @@ module.exports = {
   semanticNearDuplicateMatch,
   isNoProgressRun,
   isAttemptRunEvent,
+  runsSinceReset,
   isSafetyStopRunEvent,
   classifyNonYieldCategory,
   nonYieldReasonFromRun,
