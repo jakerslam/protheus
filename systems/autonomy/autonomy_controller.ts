@@ -12694,6 +12694,17 @@ function runNodeScript(relPath, args = []) {
 }
 
 function parseFirstJsonLine(text) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'parse_first_json_line',
+      { text: text == null ? null : String(text) },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const value = rust.payload.payload.value;
+      return value == null ? null : value;
+    }
+  }
   const raw = String(text || '').trim();
   if (!raw) return null;
   try {
@@ -21274,6 +21285,7 @@ module.exports = {
   sanitizeDirectiveObjectiveId,
   parseDirectiveFileArgFromCommand,
   parseDirectiveObjectiveArgFromCommand,
+  parseFirstJsonLine,
   parseObjectiveIdFromEvidenceRefs,
   parseObjectiveIdFromCommand,
   sanitizedDirectiveIdList,
