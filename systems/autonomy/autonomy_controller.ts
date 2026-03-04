@@ -9823,7 +9823,20 @@ function expectedValueSignalForProposal(p) {
 }
 
 function expectedValueScore(p) {
-  return expectedValueSignalForProposal(p).score;
+  const signal = expectedValueSignalForProposal(p);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'expected_value_score',
+      {
+        score: Number(signal && signal.score || 0)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Number(rust.payload.payload.score || 0);
+    }
+  }
+  return signal.score;
 }
 
 function timeToValueScore(p) {

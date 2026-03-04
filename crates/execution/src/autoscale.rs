@@ -2206,6 +2206,17 @@ pub struct StrategyAdmissionDecisionOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExpectedValueScoreInput {
+    #[serde(default)]
+    pub score: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExpectedValueScoreOutput {
+    pub score: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -3350,6 +3361,8 @@ pub struct AutoscaleRequest {
     pub calibration_deltas_input: Option<CalibrationDeltasInput>,
     #[serde(default)]
     pub strategy_admission_decision_input: Option<StrategyAdmissionDecisionInput>,
+    #[serde(default)]
+    pub expected_value_score_input: Option<ExpectedValueScoreInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -7315,6 +7328,11 @@ pub fn compute_strategy_admission_decision(
     }
 }
 
+pub fn compute_expected_value_score(input: &ExpectedValueScoreInput) -> ExpectedValueScoreOutput {
+    let score = if input.score.is_finite() { input.score } else { 0.0 };
+    ExpectedValueScoreOutput { score }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -10782,6 +10800,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_strategy_admission_decision_encode_failed:{e}"));
+    }
+    if mode == "expected_value_score" {
+        let input = request
+            .expected_value_score_input
+            .ok_or_else(|| "autoscale_missing_expected_value_score_input".to_string())?;
+        let out = compute_expected_value_score(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "expected_value_score",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_expected_value_score_encode_failed:{e}"));
     }
     if mode == "is_directive_clarification_proposal" {
         let input = request
@@ -15650,6 +15680,25 @@ mod tests {
         let out =
             run_autoscale_json(&payload).expect("autoscale strategy_admission_decision");
         assert!(out.contains("\"mode\":\"strategy_admission_decision\""));
+    }
+
+    #[test]
+    fn expected_value_score_returns_input_score() {
+        let out = compute_expected_value_score(&ExpectedValueScoreInput { score: 42.5 });
+        assert_eq!(out.score, 42.5);
+    }
+
+    #[test]
+    fn autoscale_json_expected_value_score_path_works() {
+        let payload = serde_json::json!({
+            "mode": "expected_value_score",
+            "expected_value_score_input": {
+                "score": 77.0
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale expected_value_score");
+        assert!(out.contains("\"mode\":\"expected_value_score\""));
     }
 
     #[test]
