@@ -5903,6 +5903,25 @@ function mediumRiskThresholds(baseThresholdsObj) {
   const base = baseThresholdsObj && typeof baseThresholdsObj === 'object'
     ? baseThresholdsObj
     : baseThresholds();
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'medium_risk_thresholds',
+      {
+        base_min_directive_fit: Number(base.min_directive_fit),
+        base_min_actionability_score: Number(base.min_actionability_score),
+        medium_risk_min_composite_eligibility: Number(AUTONOMY_MEDIUM_RISK_MIN_COMPOSITE_ELIGIBILITY || 0),
+        min_composite_eligibility: Number(AUTONOMY_MIN_COMPOSITE_ELIGIBILITY || 0),
+        medium_risk_min_directive_fit: Number(AUTONOMY_MEDIUM_RISK_MIN_DIRECTIVE_FIT || 0),
+        default_min_directive_fit: Number(AUTONOMY_MIN_DIRECTIVE_FIT || 0),
+        medium_risk_min_actionability: Number(AUTONOMY_MEDIUM_RISK_MIN_ACTIONABILITY || 0),
+        default_min_actionability: Number(AUTONOMY_MIN_ACTIONABILITY_SCORE || 0)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
+  }
   return {
     composite_min: Math.max(
       AUTONOMY_MEDIUM_RISK_MIN_COMPOSITE_ELIGIBILITY,
@@ -20453,6 +20472,7 @@ module.exports = {
   qosLaneFromCandidate,
   chooseQosLaneSelection,
   compositeEligibilityMin,
+  mediumRiskThresholds,
   qosLaneWeights,
   qosLaneShareCapExceeded,
   normalizeQueuePressure,
