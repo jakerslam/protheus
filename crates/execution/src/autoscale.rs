@@ -5203,6 +5203,87 @@ pub struct DirectiveFitAssessmentOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SignalQualityAssessmentInput {
+    pub min_signal_quality: f64,
+    pub min_sensory_signal: f64,
+    pub min_sensory_relevance: f64,
+    pub min_eye_score_ema: f64,
+    #[serde(default)]
+    pub eye_id: Option<String>,
+    #[serde(default)]
+    pub score_source: Option<String>,
+    #[serde(default)]
+    pub impact: Option<String>,
+    #[serde(default)]
+    pub risk: Option<String>,
+    #[serde(default)]
+    pub domain: Option<String>,
+    #[serde(default)]
+    pub url_scheme: Option<String>,
+    #[serde(default)]
+    pub title_has_stub: bool,
+    #[serde(default)]
+    pub combined_item_score: Option<f64>,
+    #[serde(default)]
+    pub sensory_relevance_score: Option<f64>,
+    #[serde(default)]
+    pub sensory_relevance_tier: Option<String>,
+    #[serde(default)]
+    pub sensory_quality_score: Option<f64>,
+    #[serde(default)]
+    pub sensory_quality_tier: Option<String>,
+    #[serde(default)]
+    pub eye_known: bool,
+    #[serde(default)]
+    pub eye_status: Option<String>,
+    #[serde(default)]
+    pub eye_score_ema: Option<f64>,
+    #[serde(default)]
+    pub parser_type: Option<String>,
+    #[serde(default)]
+    pub parser_disallowed: bool,
+    #[serde(default)]
+    pub domain_allowlist_enforced: bool,
+    #[serde(default)]
+    pub domain_allowed: bool,
+    #[serde(default)]
+    pub eye_proposed_total: Option<f64>,
+    #[serde(default)]
+    pub eye_yield_rate: Option<f64>,
+    pub calibration_eye_bias: f64,
+    pub calibration_topic_bias: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SignalQualityAssessmentOutput {
+    pub pass: bool,
+    pub score: f64,
+    pub score_source: String,
+    pub eye_id: String,
+    #[serde(default)]
+    pub sensory_relevance_score: Option<f64>,
+    #[serde(default)]
+    pub sensory_relevance_tier: Option<String>,
+    #[serde(default)]
+    pub sensory_quality_score: Option<f64>,
+    #[serde(default)]
+    pub sensory_quality_tier: Option<String>,
+    #[serde(default)]
+    pub eye_status: Option<String>,
+    #[serde(default)]
+    pub eye_score_ema: Option<f64>,
+    #[serde(default)]
+    pub parser_type: Option<String>,
+    #[serde(default)]
+    pub domain: Option<String>,
+    pub calibration_eye_bias: f64,
+    pub calibration_topic_bias: f64,
+    pub calibration_total_bias: f64,
+    #[serde(default)]
+    pub reasons: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AutoscaleRequest {
     pub mode: String,
     #[serde(default)]
@@ -5727,6 +5808,8 @@ pub struct AutoscaleRequest {
     pub execute_confidence_policy_input: Option<ExecuteConfidencePolicyInput>,
     #[serde(default)]
     pub directive_fit_assessment_input: Option<DirectiveFitAssessmentInput>,
+    #[serde(default)]
+    pub signal_quality_assessment_input: Option<SignalQualityAssessmentInput>,
 }
 
 fn clamp_ratio(v: f64) -> f64 {
@@ -15842,6 +15925,209 @@ pub fn compute_directive_fit_assessment(
     }
 }
 
+pub fn compute_signal_quality_assessment(
+    input: &SignalQualityAssessmentInput,
+) -> SignalQualityAssessmentOutput {
+    let eye_id = input
+        .eye_id
+        .as_ref()
+        .map(|value| normalize_spaces(value))
+        .unwrap_or_default();
+    let score_source = input
+        .score_source
+        .as_ref()
+        .map(|value| normalize_spaces(value))
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "fallback_default".to_string());
+    let impact = input
+        .impact
+        .as_ref()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    let risk = input
+        .risk
+        .as_ref()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    let domain = input
+        .domain
+        .as_ref()
+        .map(|value| normalize_spaces(value).to_ascii_lowercase())
+        .filter(|value| !value.is_empty());
+    let url_scheme = input
+        .url_scheme
+        .as_ref()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    let sensory_relevance_tier = input
+        .sensory_relevance_tier
+        .as_ref()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| !value.is_empty());
+    let sensory_quality_tier = input
+        .sensory_quality_tier
+        .as_ref()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| !value.is_empty());
+    let eye_status = input
+        .eye_status
+        .as_ref()
+        .map(|value| normalize_spaces(value).to_ascii_lowercase())
+        .filter(|value| !value.is_empty());
+    let parser_type = input
+        .parser_type
+        .as_ref()
+        .map(|value| normalize_spaces(value).to_ascii_lowercase())
+        .filter(|value| !value.is_empty());
+
+    let mut reasons = Vec::<String>::new();
+    let mut hard_block = false;
+    let mut score = 0.0;
+
+    if let Some(raw) = input.combined_item_score {
+        if raw.is_finite() {
+            score += raw.clamp(0.0, 100.0);
+        } else {
+            score += 18.0;
+            reasons.push("missing_meta_score".to_string());
+        }
+    } else {
+        score += 18.0;
+        reasons.push("missing_meta_score".to_string());
+    }
+
+    if let Some(raw) = input.sensory_relevance_score {
+        if raw.is_finite() && raw < input.min_sensory_relevance {
+            hard_block = true;
+            reasons.push("sensory_relevance_low".to_string());
+        }
+    }
+    if let Some(raw) = input.sensory_quality_score {
+        if raw.is_finite() && raw < input.min_sensory_signal {
+            hard_block = true;
+            reasons.push("sensory_quality_low".to_string());
+        }
+    }
+
+    if sensory_relevance_tier.as_deref() == Some("low") {
+        score -= 8.0;
+    }
+    if sensory_quality_tier.as_deref() == Some("low") {
+        score -= 8.0;
+    }
+
+    if impact == "high" {
+        score += 12.0;
+    } else if impact == "medium" {
+        score += 6.0;
+    }
+
+    if risk == "high" {
+        score -= 12.0;
+    } else if risk == "medium" {
+        score -= 6.0;
+    }
+
+    if url_scheme == "https" {
+        score += 6.0;
+    } else if url_scheme == "http" {
+        score += 2.0;
+    } else {
+        score -= 8.0;
+    }
+
+    if input.title_has_stub {
+        score -= 40.0;
+        hard_block = true;
+        reasons.push("stub_title".to_string());
+    }
+
+    if input.eye_known {
+        if let Some(eye_score_ema) = input.eye_score_ema {
+            if eye_score_ema.is_finite() {
+                score += (eye_score_ema - 50.0) * 0.35;
+                if eye_score_ema < input.min_eye_score_ema {
+                    hard_block = true;
+                    reasons.push("eye_score_ema_low".to_string());
+                }
+            }
+        }
+
+        if let Some(status) = eye_status.as_deref() {
+            if status == "active" {
+                score += 4.0;
+            } else if status == "probation" {
+                score -= 6.0;
+            } else if status == "dormant" {
+                score -= 18.0;
+                hard_block = true;
+                reasons.push("eye_dormant".to_string());
+            }
+        }
+
+        if input.parser_disallowed {
+            score -= 30.0;
+            hard_block = true;
+            let parser_label = parser_type.as_deref().unwrap_or("unknown");
+            reasons.push(format!("parser_disallowed:{parser_label}"));
+        }
+
+        if domain.is_some() && input.domain_allowlist_enforced && !input.domain_allowed {
+            score -= 3.0;
+            reasons.push("domain_outside_allowlist".to_string());
+        }
+
+        let proposed_total = input.eye_proposed_total.unwrap_or(0.0);
+        if proposed_total >= 3.0 {
+            if let Some(yield_rate) = input.eye_yield_rate {
+                if yield_rate.is_finite() {
+                    score += (yield_rate * 15.0) - 5.0;
+                    if yield_rate < 0.1 {
+                        reasons.push("eye_yield_low".to_string());
+                    }
+                }
+            }
+        }
+    } else {
+        reasons.push("eye_unknown".to_string());
+    }
+
+    let total_bias = input.calibration_eye_bias + input.calibration_topic_bias;
+    if total_bias.is_finite() && total_bias != 0.0 {
+        score -= total_bias;
+        reasons.push(if total_bias > 0.0 {
+            "calibration_penalty".to_string()
+        } else {
+            "calibration_bonus".to_string()
+        });
+    }
+
+    let final_score = score.round().clamp(0.0, 100.0);
+    let pass = !hard_block && final_score >= input.min_signal_quality;
+    if !pass && final_score < input.min_signal_quality {
+        reasons.push("below_min_signal_quality".to_string());
+    }
+
+    SignalQualityAssessmentOutput {
+        pass,
+        score: final_score,
+        score_source,
+        eye_id,
+        sensory_relevance_score: input.sensory_relevance_score,
+        sensory_relevance_tier,
+        sensory_quality_score: input.sensory_quality_score,
+        sensory_quality_tier,
+        eye_status,
+        eye_score_ema: input.eye_score_ema,
+        parser_type,
+        domain,
+        calibration_eye_bias: input.calibration_eye_bias,
+        calibration_topic_bias: ((input.calibration_topic_bias * 1000.0).round()) / 1000.0,
+        calibration_total_bias: ((total_bias * 1000.0).round()) / 1000.0,
+        reasons,
+    }
+}
+
 pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     let request: AutoscaleRequest = serde_json::from_str(payload_json)
         .map_err(|e| format!("autoscale_request_parse_failed:{e}"))?;
@@ -18779,6 +19065,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_directive_fit_assessment_encode_failed:{e}"));
+    }
+    if mode == "signal_quality_assessment" {
+        let input = request
+            .signal_quality_assessment_input
+            .ok_or_else(|| "autoscale_missing_signal_quality_assessment_input".to_string())?;
+        let out = compute_signal_quality_assessment(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "signal_quality_assessment",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_signal_quality_assessment_encode_failed:{e}"));
     }
     if mode == "no_progress_result" {
         let input = request
@@ -22567,6 +22865,82 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale directive_fit_assessment");
         assert!(out.contains("\"mode\":\"directive_fit_assessment\""));
+    }
+
+    #[test]
+    fn signal_quality_assessment_scores_expected_fields() {
+        let out = compute_signal_quality_assessment(&SignalQualityAssessmentInput {
+            min_signal_quality: 45.0,
+            min_sensory_signal: 40.0,
+            min_sensory_relevance: 42.0,
+            min_eye_score_ema: 45.0,
+            eye_id: Some("eye_revenue".to_string()),
+            score_source: Some("sensory_relevance_score".to_string()),
+            impact: Some("high".to_string()),
+            risk: Some("low".to_string()),
+            domain: Some("example.com".to_string()),
+            url_scheme: Some("https".to_string()),
+            title_has_stub: false,
+            combined_item_score: Some(70.0),
+            sensory_relevance_score: Some(72.0),
+            sensory_relevance_tier: Some("high".to_string()),
+            sensory_quality_score: Some(68.0),
+            sensory_quality_tier: Some("high".to_string()),
+            eye_known: true,
+            eye_status: Some("active".to_string()),
+            eye_score_ema: Some(64.0),
+            parser_type: Some("rss".to_string()),
+            parser_disallowed: false,
+            domain_allowlist_enforced: true,
+            domain_allowed: true,
+            eye_proposed_total: Some(8.0),
+            eye_yield_rate: Some(0.35),
+            calibration_eye_bias: 1.5,
+            calibration_topic_bias: 0.5,
+        });
+        assert!(out.pass);
+        assert!(out.score >= 45.0);
+        assert_eq!(out.eye_id, "eye_revenue");
+        assert_eq!(out.score_source, "sensory_relevance_score");
+    }
+
+    #[test]
+    fn autoscale_json_signal_quality_assessment_path_works() {
+        let payload = serde_json::json!({
+            "mode": "signal_quality_assessment",
+            "signal_quality_assessment_input": {
+                "min_signal_quality": 45,
+                "min_sensory_signal": 40,
+                "min_sensory_relevance": 42,
+                "min_eye_score_ema": 45,
+                "eye_id": "eye_revenue",
+                "score_source": "sensory_relevance_score",
+                "impact": "high",
+                "risk": "low",
+                "domain": "example.com",
+                "url_scheme": "https",
+                "title_has_stub": false,
+                "combined_item_score": 70,
+                "sensory_relevance_score": 72,
+                "sensory_relevance_tier": "high",
+                "sensory_quality_score": 68,
+                "sensory_quality_tier": "high",
+                "eye_known": true,
+                "eye_status": "active",
+                "eye_score_ema": 64,
+                "parser_type": "rss",
+                "parser_disallowed": false,
+                "domain_allowlist_enforced": true,
+                "domain_allowed": true,
+                "eye_proposed_total": 8,
+                "eye_yield_rate": 0.35,
+                "calibration_eye_bias": 1.5,
+                "calibration_topic_bias": 0.5
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale signal_quality_assessment");
+        assert!(out.contains("\"mode\":\"signal_quality_assessment\""));
     }
 
     #[test]
