@@ -2994,6 +2994,40 @@ function percentMentionsFromText(text) {
 function inferOptimizationDeltaForProposal(p) {
   const proposal = p || {};
   const meta = proposal && proposal.meta && typeof proposal.meta === 'object' ? proposal.meta : {};
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const bits = [
+      proposal.title,
+      proposal.summary,
+      proposal.notes,
+      proposal.suggested_next_command,
+      proposal.suggested_command,
+      proposal && proposal.action_spec && typeof proposal.action_spec === 'object'
+        ? JSON.stringify(proposal.action_spec)
+        : '',
+      meta.normalized_expected_outcome,
+      meta.normalized_validation_metric
+    ];
+    if (Array.isArray(proposal.validation)) bits.push(proposal.validation.join(' '));
+    if (Array.isArray(proposal.success_criteria)) bits.push(JSON.stringify(proposal.success_criteria));
+    if (Array.isArray(meta.success_criteria)) bits.push(JSON.stringify(meta.success_criteria));
+    if (Array.isArray(meta.success_criteria_rows)) bits.push(JSON.stringify(meta.success_criteria_rows));
+    const rust = runBacklogAutoscalePrimitive(
+      'infer_optimization_delta',
+      {
+        optimization_delta_percent: Number(meta.optimization_delta_percent),
+        expected_optimization_percent: Number(meta.expected_optimization_percent),
+        expected_delta_percent: Number(meta.expected_delta_percent),
+        estimated_improvement_percent: Number(meta.estimated_improvement_percent),
+        target_improvement_percent: Number(meta.target_improvement_percent),
+        performance_gain_percent: Number(meta.performance_gain_percent),
+        text_blob: bits.filter(Boolean).join(' ')
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
+  }
   const directKeys = [
     'optimization_delta_percent',
     'expected_optimization_percent',
@@ -20234,6 +20268,7 @@ module.exports = {
   proposalTextBlob,
   percentMentionsFromText,
   optimizationMinDeltaPercent,
+  inferOptimizationDeltaForProposal,
   sourceEyeRef,
   escapeRegExp,
   toolTokenMentioned,
