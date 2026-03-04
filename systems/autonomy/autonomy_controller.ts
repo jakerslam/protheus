@@ -8583,6 +8583,106 @@ function assessSignalQuality(p, eyesMap, thresholds, calibrationProfile) {
     : Number.isFinite(legacyScoreRaw)
       ? 'legacy_meta_score'
       : 'fallback_default';
+  const titleHasStub = /\[stub\]/i.test(title);
+  const urlScheme = url.startsWith('https://')
+    ? 'https'
+    : url.startsWith('http://')
+      ? 'http'
+      : '';
+  const eyeKnown = !!eye;
+  const eyeStatus = eye ? String(eye.status || '').toLowerCase() : '';
+  const parserType = eye ? String(eye.parser_type || '').toLowerCase() : '';
+  const eyeScoreEma = eye && Number.isFinite(Number(eye.score_ema)) ? Number(eye.score_ema) : null;
+  const eyeProposedTotal = eye ? Number(eye.proposed_total || 0) : null;
+  const eyeYieldRate = eye ? Number(eye.yield_rate) : null;
+  const allowlist = Array.isArray(eye && eye.allowed_domains) ? eye.allowed_domains : [];
+  const domainAllowlistEnforced = !!(domain && allowlist.length > 0);
+  const domainAllowedByAllowlist = domainAllowlistEnforced
+    ? domainAllowed(domain, allowlist)
+    : true;
+  const parserDisallowed = !!(parserType && AUTONOMY_DISALLOWED_PARSER_TYPES.has(parserType));
+  const eyeBias = Number(
+    calibrationProfile
+      && calibrationProfile.eye_biases
+      && calibrationProfile.eye_biases[eyeId]
+      && calibrationProfile.eye_biases[eyeId].bias
+  ) || 0;
+  const topicBiases = [];
+  const topics = Array.isArray(p && p.meta && p.meta.topics) ? p.meta.topics : [];
+  for (const t of topics) {
+    const key = String(t || '').toLowerCase();
+    const b = Number(
+      calibrationProfile
+        && calibrationProfile.topic_biases
+        && calibrationProfile.topic_biases[key]
+        && calibrationProfile.topic_biases[key].bias
+    );
+    if (Number.isFinite(b)) topicBiases.push(b);
+  }
+  const topicBias = topicBiases.length ? (topicBiases.reduce((a, b) => a + b, 0) / topicBiases.length) : 0;
+  const totalBias = eyeBias + topicBias;
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'signal_quality_assessment',
+      {
+        min_signal_quality: minSignalQuality,
+        min_sensory_signal: minSensorySignal,
+        min_sensory_relevance: minSensoryRelevance,
+        min_eye_score_ema: minEyeScoreEma,
+        eye_id: eyeId || null,
+        score_source: scoreSource,
+        impact,
+        risk,
+        domain: domain || null,
+        url_scheme: urlScheme || null,
+        title_has_stub: titleHasStub === true,
+        combined_item_score: Number.isFinite(combinedItemScoreRaw) ? combinedItemScoreRaw : null,
+        sensory_relevance_score: Number.isFinite(sensoryRelevanceRaw) ? sensoryRelevanceRaw : null,
+        sensory_relevance_tier: sensoryRelevanceTier || null,
+        sensory_quality_score: Number.isFinite(sensoryScoreRaw) ? sensoryScoreRaw : null,
+        sensory_quality_tier: sensoryTier || null,
+        eye_known: eyeKnown === true,
+        eye_status: eyeStatus || null,
+        eye_score_ema: Number.isFinite(eyeScoreEma) ? eyeScoreEma : null,
+        parser_type: parserType || null,
+        parser_disallowed: parserDisallowed === true,
+        domain_allowlist_enforced: domainAllowlistEnforced === true,
+        domain_allowed: domainAllowedByAllowlist === true,
+        eye_proposed_total: Number.isFinite(eyeProposedTotal) ? eyeProposedTotal : null,
+        eye_yield_rate: Number.isFinite(eyeYieldRate) ? eyeYieldRate : null,
+        calibration_eye_bias: eyeBias,
+        calibration_topic_bias: topicBias
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      return {
+        pass: payload.pass === true,
+        score: Number(payload.score || 0),
+        score_source: String(payload.score_source || scoreSource),
+        eye_id: String(payload.eye_id || eyeId || ''),
+        sensory_relevance_score: Number.isFinite(Number(payload.sensory_relevance_score))
+          ? Number(payload.sensory_relevance_score)
+          : null,
+        sensory_relevance_tier: payload.sensory_relevance_tier ? String(payload.sensory_relevance_tier) : null,
+        sensory_quality_score: Number.isFinite(Number(payload.sensory_quality_score))
+          ? Number(payload.sensory_quality_score)
+          : null,
+        sensory_quality_tier: payload.sensory_quality_tier ? String(payload.sensory_quality_tier) : null,
+        eye_status: payload.eye_status ? String(payload.eye_status) : null,
+        eye_score_ema: Number.isFinite(Number(payload.eye_score_ema)) ? Number(payload.eye_score_ema) : null,
+        parser_type: payload.parser_type ? String(payload.parser_type) : null,
+        domain: payload.domain ? String(payload.domain) : null,
+        calibration_eye_bias: Number(payload.calibration_eye_bias || 0),
+        calibration_topic_bias: Number(payload.calibration_topic_bias || 0),
+        calibration_total_bias: Number(payload.calibration_total_bias || 0),
+        reasons: Array.isArray(payload.reasons)
+          ? payload.reasons.map((x) => String(x || '')).filter(Boolean)
+          : []
+      };
+    }
+  }
 
   const reasons = [];
   let hardBlock = false;
@@ -8618,16 +8718,13 @@ function assessSignalQuality(p, eyesMap, thresholds, calibrationProfile) {
   else if (url.startsWith('http://')) score += 2;
   else score -= 8;
 
-  if (/\[stub\]/i.test(title)) {
+  if (titleHasStub) {
     score -= 40;
     hardBlock = true;
     reasons.push('stub_title');
   }
 
-  if (eye) {
-    const eyeStatus = String(eye.status || '').toLowerCase();
-    const parserType = String(eye.parser_type || '').toLowerCase();
-    const eyeScoreEma = Number(eye.score_ema);
+  if (eyeKnown) {
 
     if (Number.isFinite(eyeScoreEma)) {
       score += (eyeScoreEma - 50) * 0.35;
@@ -8645,50 +8742,27 @@ function assessSignalQuality(p, eyesMap, thresholds, calibrationProfile) {
       reasons.push('eye_dormant');
     }
 
-    if (parserType && AUTONOMY_DISALLOWED_PARSER_TYPES.has(parserType)) {
+    if (parserDisallowed) {
       score -= 30;
       hardBlock = true;
       reasons.push(`parser_disallowed:${parserType}`);
     }
 
-    const allowlist = Array.isArray(eye.allowed_domains) ? eye.allowed_domains : [];
-    if (domain && allowlist.length > 0 && !domainAllowed(domain, allowlist)) {
+    if (domainAllowlistEnforced && !domainAllowedByAllowlist) {
       // Eyes often collect from feed domains but point to third-party article domains.
       // Treat this as a weak signal, not a hard block.
       score -= 3;
       reasons.push('domain_outside_allowlist');
     }
 
-    const proposedTotal = Number(eye.proposed_total || 0);
-    const yieldRate = Number(eye.yield_rate);
-    if (proposedTotal >= 3 && Number.isFinite(yieldRate)) {
-      score += (yieldRate * 15) - 5;
-      if (yieldRate < 0.1) reasons.push('eye_yield_low');
+    if (eyeProposedTotal >= 3 && Number.isFinite(eyeYieldRate)) {
+      score += (eyeYieldRate * 15) - 5;
+      if (eyeYieldRate < 0.1) reasons.push('eye_yield_low');
     }
   } else {
     reasons.push('eye_unknown');
   }
 
-  const eyeBias = Number(
-    calibrationProfile
-      && calibrationProfile.eye_biases
-      && calibrationProfile.eye_biases[eyeId]
-      && calibrationProfile.eye_biases[eyeId].bias
-  ) || 0;
-  const topicBiases = [];
-  const topics = Array.isArray(p && p.meta && p.meta.topics) ? p.meta.topics : [];
-  for (const t of topics) {
-    const key = String(t || '').toLowerCase();
-    const b = Number(
-      calibrationProfile
-        && calibrationProfile.topic_biases
-        && calibrationProfile.topic_biases[key]
-        && calibrationProfile.topic_biases[key].bias
-    );
-    if (Number.isFinite(b)) topicBiases.push(b);
-  }
-  const topicBias = topicBiases.length ? (topicBiases.reduce((a, b) => a + b, 0) / topicBiases.length) : 0;
-  const totalBias = eyeBias + topicBias;
   if (Number.isFinite(totalBias) && totalBias !== 0) {
     score -= totalBias;
     reasons.push(totalBias > 0 ? 'calibration_penalty' : 'calibration_bonus');
@@ -22322,6 +22396,7 @@ module.exports = {
   strategyAdmissionDecision,
   capabilityCap,
   assessActionability,
+  assessSignalQuality,
   assessValueSignal,
   normalizeDirectiveText,
   tokenizeDirectiveText,
