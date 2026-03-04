@@ -2809,6 +2809,8 @@ const COLLECTIVE_SHADOW_ADJUSTMENTS_CACHE = new Map();
 const COLLECTIVE_SHADOW_ADJUSTMENTS_CACHE_MAX = 1024;
 const STRATEGY_TRIT_SHADOW_RANKING_SUMMARY_CACHE = new Map();
 const STRATEGY_TRIT_SHADOW_RANKING_SUMMARY_CACHE_MAX = 512;
+const SHADOW_SCOPE_MATCHES_CACHE = new Map();
+const SHADOW_SCOPE_MATCHES_CACHE_MAX = 2048;
 const VALUE_SIGNAL_SCORE_CACHE = new Map();
 const VALUE_SIGNAL_SCORE_CACHE_MAX = 1024;
 const COMPOSITE_ELIGIBILITY_SCORE_CACHE = new Map();
@@ -8599,6 +8601,42 @@ function shadowScopeMatchesCandidate(scope, candidateCtx) {
   const proposalType = String(candidateCtx.proposal_type || '').trim().toLowerCase();
   const capabilityKey = String(candidateCtx.capability_key || '').trim().toLowerCase();
   const objectiveId = String(candidateCtx.objective_id || '').trim().toLowerCase();
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const key = [
+      scopeType,
+      scopeValue,
+      riskLevels.join('\u0004'),
+      risk,
+      proposalType,
+      capabilityKey,
+      objectiveId
+    ].join('\u0003');
+    if (SHADOW_SCOPE_MATCHES_CACHE.has(key)) {
+      return SHADOW_SCOPE_MATCHES_CACHE.get(key) === true;
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'shadow_scope_matches',
+      {
+        scope_type: scopeType,
+        scope_value: scopeValue,
+        risk_levels: riskLevels,
+        risk,
+        proposal_type: proposalType,
+        capability_key: capabilityKey,
+        objective_id: objectiveId
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const out = rust.payload.payload.matched === true;
+      if (SHADOW_SCOPE_MATCHES_CACHE.size >= SHADOW_SCOPE_MATCHES_CACHE_MAX) {
+        const oldest = SHADOW_SCOPE_MATCHES_CACHE.keys().next();
+        if (!oldest.done) SHADOW_SCOPE_MATCHES_CACHE.delete(oldest.value);
+      }
+      SHADOW_SCOPE_MATCHES_CACHE.set(key, out);
+      return out;
+    }
+  }
 
   if (scopeType === 'proposal_type') {
     if (!scopeValue || !proposalType) return false;
@@ -18150,6 +18188,7 @@ module.exports = {
   strategyTritShadowRankingSummary,
   candidateNonYieldPenaltySignal,
   computeNonYieldPenaltyScore,
+  shadowScopeMatchesCandidate,
   computeCollectiveShadowAdjustments,
   candidateCollectiveShadowSignal,
   selectStrategyForRun,
