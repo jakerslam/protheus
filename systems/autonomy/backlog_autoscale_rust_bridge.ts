@@ -271,7 +271,10 @@ function runInversionPrimitive(mode: string, data: AnyObj = {}, opts: AnyObj = {
     normalize_impact: 'normalize_impact_input',
     normalize_mode: 'normalize_mode_input',
     normalize_target: 'normalize_target_input',
-    normalize_result: 'normalize_result_input'
+    normalize_result: 'normalize_result_input',
+    objective_id_valid: 'objective_id_valid_input',
+    trit_vector_from_input: 'trit_vector_from_input_input',
+    jaccard_similarity: 'jaccard_similarity_input'
   };
   const field = fieldByMode[normalizedMode];
   if (!field) return { ok: false, error: `inversion_mode_unsupported:${normalizedMode}` };

@@ -55,6 +55,48 @@ function run() {
     );
   }
 
+  const objectiveInputs = [
+    'T1_objective-alpha',
+    'T2.growth:lane',
+    'invalid',
+    '',
+    null
+  ];
+  for (const input of objectiveInputs) {
+    assert.strictEqual(
+      rust.isValidObjectiveId(input),
+      ts.isValidObjectiveId(input),
+      `isValidObjectiveId mismatch for ${String(input)}`
+    );
+  }
+
+  const vectorArgs = [
+    { trit_vector: [-1, 0, 1] },
+    { trit_vector: ['-2', '0', '3'] },
+    { trit_vector: '-1, 2, 0, -4' },
+    {}
+  ];
+  for (const input of vectorArgs) {
+    assert.deepStrictEqual(
+      rust.tritVectorFromInput(input),
+      ts.tritVectorFromInput(input),
+      `tritVectorFromInput mismatch for ${JSON.stringify(input)}`
+    );
+  }
+
+  const tokenPairs = [
+    { left: ['alpha', 'beta'], right: ['beta', 'gamma'] },
+    { left: [], right: [] },
+    { left: ['one'], right: [] }
+  ];
+  for (const sample of tokenPairs) {
+    assert.strictEqual(
+      rust.jaccardSimilarity(sample.left, sample.right),
+      ts.jaccardSimilarity(sample.left, sample.right),
+      `jaccardSimilarity mismatch for ${JSON.stringify(sample)}`
+    );
+  }
+
   console.log('inversion_norm_primitives_rust_parity.test.js: OK');
 }
 

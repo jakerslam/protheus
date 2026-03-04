@@ -2805,6 +2805,16 @@ function normalizeResult(v: unknown) {
 }
 
 function isValidObjectiveId(v: unknown) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'objective_id_valid',
+      { value: v == null ? '' : String(v) },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.valid === true;
+    }
+  }
   const raw = cleanText(v || '', 140);
   if (!raw) return false;
   if (raw.length < 6 || raw.length > 140) return false;
@@ -2812,6 +2822,24 @@ function isValidObjectiveId(v: unknown) {
 }
 
 function tritVectorFromInput(args: AnyObj) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'trit_vector_from_input',
+      {
+        trit_vector: Array.isArray(args && args.trit_vector) ? args.trit_vector : null,
+        trit_vector_csv: Array.isArray(args && args.trit_vector)
+          ? ''
+          : String((args && args.trit_vector) || '').trim()
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const vector = Array.isArray(rust.payload.payload.vector)
+        ? rust.payload.payload.vector.map((x: unknown) => normalizeTrit(x))
+        : [];
+      return vector;
+    }
+  }
   if (Array.isArray(args.trit_vector)) return args.trit_vector.map((x) => normalizeTrit(x));
   const raw = String(args.trit_vector || '').trim();
   if (!raw) return [];
@@ -2856,6 +2884,19 @@ function trimLibrary(paths: AnyObj, policy: AnyObj) {
 }
 
 function jaccardSimilarity(aTokens: string[], bTokens: string[]) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'jaccard_similarity',
+      {
+        left_tokens: Array.isArray(aTokens) ? aTokens : [],
+        right_tokens: Array.isArray(bTokens) ? bTokens : []
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return clampNumber(Number(rust.payload.payload.similarity || 0), 0, 1, 0);
+    }
+  }
   const a = new Set(aTokens || []);
   const b = new Set(bTokens || []);
   if (a.size === 0 && b.size === 0) return 1;
@@ -6299,5 +6340,8 @@ module.exports = {
   normalizeImpact,
   normalizeMode,
   normalizeTarget,
-  normalizeResult
+  normalizeResult,
+  isValidObjectiveId,
+  tritVectorFromInput,
+  jaccardSimilarity
 };
