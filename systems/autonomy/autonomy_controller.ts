@@ -2728,6 +2728,8 @@ const START_OF_NEXT_UTC_DAY_CACHE = new Map();
 const START_OF_NEXT_UTC_DAY_CACHE_MAX = 512;
 const ISO_AFTER_MINUTES_CACHE = new Map();
 const ISO_AFTER_MINUTES_CACHE_MAX = 1024;
+const EXECUTE_CONFIDENCE_HISTORY_MATCH_CACHE = new Map();
+const EXECUTE_CONFIDENCE_HISTORY_MATCH_CACHE_MAX = 1024;
 const POLICY_HOLD_RESULT_CACHE = new Map();
 const POLICY_HOLD_RESULT_CACHE_MAX = 256;
 const NO_PROGRESS_RESULT_CACHE = new Map();
@@ -6848,6 +6850,43 @@ function countEyeOutcomesInLastHours(events, eyeRef, outcome, hours) {
 }
 
 function executeConfidenceHistoryMatch(evt, proposalType, capabilityKey) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const eventType = String(evt && evt.type || '');
+    const eventCapabilityKey = String(evt && evt.capability_key || '');
+    const eventProposalType = String(evt && evt.proposal_type || '');
+    const safeProposalType = String(proposalType || '');
+    const safeCapabilityKey = String(capabilityKey || '');
+    const key = [
+      eventType,
+      eventCapabilityKey,
+      eventProposalType,
+      safeProposalType,
+      safeCapabilityKey
+    ].join('\u0000');
+    if (EXECUTE_CONFIDENCE_HISTORY_MATCH_CACHE.has(key)) {
+      return EXECUTE_CONFIDENCE_HISTORY_MATCH_CACHE.get(key) === true;
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'execute_confidence_history_match',
+      {
+        event_type: eventType,
+        event_capability_key: eventCapabilityKey,
+        event_proposal_type: eventProposalType,
+        proposal_type: safeProposalType,
+        capability_key: safeCapabilityKey
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const val = rust.payload.payload.matched === true;
+      if (EXECUTE_CONFIDENCE_HISTORY_MATCH_CACHE.size >= EXECUTE_CONFIDENCE_HISTORY_MATCH_CACHE_MAX) {
+        const oldest = EXECUTE_CONFIDENCE_HISTORY_MATCH_CACHE.keys().next();
+        if (!oldest.done) EXECUTE_CONFIDENCE_HISTORY_MATCH_CACHE.delete(oldest.value);
+      }
+      EXECUTE_CONFIDENCE_HISTORY_MATCH_CACHE.set(key, val);
+      return val;
+    }
+  }
   if (!evt || evt.type !== 'autonomy_run') return false;
   const capKey = String(capabilityKey || '').trim().toLowerCase();
   const evtCap = String(evt.capability_key || '').trim().toLowerCase();
@@ -17227,6 +17266,7 @@ module.exports = {
   inWindow,
   startOfNextUtcDay,
   isoAfterMinutes,
+  executeConfidenceHistoryMatch,
   runEventProposalType,
   runEventObjectiveId,
   runEventProposalId,
