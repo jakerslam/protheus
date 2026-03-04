@@ -733,6 +733,31 @@ pub struct SemanticTokenSimilarityOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SemanticContextComparableInput {
+    #[serde(default)]
+    pub left_proposal_type: Option<String>,
+    #[serde(default)]
+    pub right_proposal_type: Option<String>,
+    #[serde(default)]
+    pub left_source_eye: Option<String>,
+    #[serde(default)]
+    pub right_source_eye: Option<String>,
+    #[serde(default)]
+    pub left_objective_id: Option<String>,
+    #[serde(default)]
+    pub right_objective_id: Option<String>,
+    #[serde(default)]
+    pub require_same_type: bool,
+    #[serde(default)]
+    pub require_shared_context: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SemanticContextComparableOutput {
+    pub comparable: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StrategyRankScoreInput {
     pub composite_weight: f64,
     pub actionability_weight: f64,
@@ -1635,6 +1660,8 @@ pub struct AutoscaleRequest {
     pub proposal_dedup_key_input: Option<ProposalDedupKeyInput>,
     #[serde(default)]
     pub semantic_token_similarity_input: Option<SemanticTokenSimilarityInput>,
+    #[serde(default)]
+    pub semantic_context_comparable_input: Option<SemanticContextComparableInput>,
     #[serde(default)]
     pub strategy_rank_score_input: Option<StrategyRankScoreInput>,
     #[serde(default)]
@@ -2965,6 +2992,50 @@ pub fn compute_semantic_token_similarity(
     SemanticTokenSimilarityOutput {
         similarity: similarity.clamp(0.0, 1.0),
     }
+}
+
+pub fn compute_semantic_context_comparable(
+    input: &SemanticContextComparableInput,
+) -> SemanticContextComparableOutput {
+    let left_type = input
+        .left_proposal_type
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    let right_type = input
+        .right_proposal_type
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    if input.require_same_type && !left_type.is_empty() && !right_type.is_empty() && left_type != right_type {
+        return SemanticContextComparableOutput { comparable: false };
+    }
+    if !input.require_shared_context {
+        return SemanticContextComparableOutput { comparable: true };
+    }
+    let left_eye = input
+        .left_source_eye
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    let right_eye = input
+        .right_source_eye
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    if !left_eye.is_empty() && !right_eye.is_empty() && left_eye == right_eye {
+        return SemanticContextComparableOutput { comparable: true };
+    }
+    let left_objective = input.left_objective_id.as_deref().unwrap_or("").trim();
+    let right_objective = input.right_objective_id.as_deref().unwrap_or("").trim();
+    if !left_objective.is_empty() && !right_objective.is_empty() && left_objective == right_objective {
+        return SemanticContextComparableOutput { comparable: true };
+    }
+    SemanticContextComparableOutput { comparable: false }
 }
 
 pub fn compute_strategy_rank_score(input: &StrategyRankScoreInput) -> StrategyRankScoreOutput {
@@ -5263,6 +5334,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_semantic_token_similarity_encode_failed:{e}"));
     }
+    if mode == "semantic_context_comparable" {
+        let input = request
+            .semantic_context_comparable_input
+            .ok_or_else(|| "autoscale_missing_semantic_context_comparable_input".to_string())?;
+        let out = compute_semantic_context_comparable(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "semantic_context_comparable",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_semantic_context_comparable_encode_failed:{e}"));
+    }
     if mode == "strategy_rank_score" {
         let input = request
             .strategy_rank_score_input
@@ -7178,6 +7261,54 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale semantic_token_similarity");
         assert!(out.contains("\"mode\":\"semantic_token_similarity\""));
         assert!(out.contains("\"similarity\":0.25"));
+    }
+
+    #[test]
+    fn semantic_context_comparable_requires_type_and_shared_context() {
+        let pass = compute_semantic_context_comparable(&SemanticContextComparableInput {
+            left_proposal_type: Some("ops_remediation".to_string()),
+            right_proposal_type: Some("ops_remediation".to_string()),
+            left_source_eye: Some("github_release".to_string()),
+            right_source_eye: Some("github_release".to_string()),
+            left_objective_id: None,
+            right_objective_id: None,
+            require_same_type: true,
+            require_shared_context: true,
+        });
+        assert!(pass.comparable);
+
+        let blocked = compute_semantic_context_comparable(&SemanticContextComparableInput {
+            left_proposal_type: Some("ops_remediation".to_string()),
+            right_proposal_type: Some("feature".to_string()),
+            left_source_eye: Some("github_release".to_string()),
+            right_source_eye: Some("github_release".to_string()),
+            left_objective_id: None,
+            right_objective_id: None,
+            require_same_type: true,
+            require_shared_context: true,
+        });
+        assert!(!blocked.comparable);
+    }
+
+    #[test]
+    fn autoscale_json_semantic_context_comparable_path_works() {
+        let payload = serde_json::json!({
+            "mode": "semantic_context_comparable",
+            "semantic_context_comparable_input": {
+                "left_proposal_type": "ops_remediation",
+                "right_proposal_type": "ops_remediation",
+                "left_source_eye": "github_release",
+                "right_source_eye": "github_release",
+                "left_objective_id": "",
+                "right_objective_id": "",
+                "require_same_type": true,
+                "require_shared_context": true
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale semantic_context_comparable");
+        assert!(out.contains("\"mode\":\"semantic_context_comparable\""));
+        assert!(out.contains("\"comparable\":true"));
     }
 
     #[test]
