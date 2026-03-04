@@ -2551,7 +2551,25 @@ const TS_CLONE_DYNAMIC_IO_PARITY = [
 
 function listProposalFiles() {
   if (!fs.existsSync(PROPOSALS_DIR)) return [];
-  return fs.readdirSync(PROPOSALS_DIR)
+  const entries = fs.readdirSync(PROPOSALS_DIR);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'list_proposal_files',
+      { entries },
+      { allow_cli_fallback: true }
+    );
+    if (
+      rust
+      && rust.ok === true
+      && rust.payload
+      && rust.payload.ok === true
+      && rust.payload.payload
+      && Array.isArray(rust.payload.payload.files)
+    ) {
+      return rust.payload.payload.files.map((v) => String(v || ''));
+    }
+  }
+  return entries
     .filter(f => /^\d{4}-\d{2}-\d{2}\.json$/.test(f))
     .sort();
 }

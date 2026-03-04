@@ -3431,6 +3431,18 @@ pub struct ClampNumberOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ListProposalFilesInput {
+    #[serde(default)]
+    pub entries: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ListProposalFilesOutput {
+    #[serde(default)]
+    pub files: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LatestProposalDateInput {
     #[serde(default)]
     pub files: Vec<String>,
@@ -4670,6 +4682,8 @@ pub struct AutoscaleRequest {
     pub coalesce_numeric_input: Option<CoalesceNumericInput>,
     #[serde(default)]
     pub clamp_number_input: Option<ClampNumberInput>,
+    #[serde(default)]
+    pub list_proposal_files_input: Option<ListProposalFilesInput>,
     #[serde(default)]
     pub latest_proposal_date_input: Option<LatestProposalDateInput>,
     #[serde(default)]
@@ -10783,6 +10797,21 @@ pub fn compute_clamp_number(input: &ClampNumberInput) -> ClampNumberOutput {
     }
 }
 
+pub fn compute_list_proposal_files(input: &ListProposalFilesInput) -> ListProposalFilesOutput {
+    let mut files = input
+        .entries
+        .iter()
+        .map(|v| v.trim().to_string())
+        .filter(|v| {
+            Regex::new(r"^\d{4}-\d{2}-\d{2}\.json$")
+                .expect("valid proposal filename regex")
+                .is_match(v)
+        })
+        .collect::<Vec<String>>();
+    files.sort();
+    ListProposalFilesOutput { files }
+}
+
 pub fn compute_latest_proposal_date(input: &LatestProposalDateInput) -> LatestProposalDateOutput {
     let max_date = input.max_date.as_deref().unwrap_or("").trim();
     let mut dates = input
@@ -14905,6 +14934,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_clamp_number_encode_failed:{e}"));
     }
+    if mode == "list_proposal_files" {
+        let input = request
+            .list_proposal_files_input
+            .ok_or_else(|| "autoscale_missing_list_proposal_files_input".to_string())?;
+        let out = compute_list_proposal_files(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "list_proposal_files",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_list_proposal_files_encode_failed:{e}"));
+    }
     if mode == "latest_proposal_date" {
         let input = request
             .latest_proposal_date_input
@@ -16774,6 +16815,36 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale impact_weight");
         assert!(out.contains("\"mode\":\"impact_weight\""));
+    }
+
+    #[test]
+    fn list_proposal_files_filters_and_sorts() {
+        let out = compute_list_proposal_files(&ListProposalFilesInput {
+            entries: vec![
+                "README.md".to_string(),
+                "2026-03-02.json".to_string(),
+                "2026-03-01.json".to_string(),
+                "2026-03-01.jsonl".to_string(),
+            ],
+        });
+        assert_eq!(
+            out.files,
+            vec!["2026-03-01.json".to_string(), "2026-03-02.json".to_string()]
+        );
+    }
+
+    #[test]
+    fn autoscale_json_list_proposal_files_path_works() {
+        let payload = serde_json::json!({
+            "mode": "list_proposal_files",
+            "list_proposal_files_input": {
+                "entries": ["2026-03-02.json", "bad.txt", "2026-03-01.json"]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale list_proposal_files");
+        assert!(out.contains("\"mode\":\"list_proposal_files\""));
+        assert!(out.contains("\"files\":[\"2026-03-01.json\",\"2026-03-02.json\"]"));
     }
 
     #[test]
