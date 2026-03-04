@@ -921,6 +921,28 @@ pub struct ShadowScopeMatchesOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CollectiveShadowAggregateEntryInput {
+    #[serde(default)]
+    pub kind: Option<String>,
+    pub confidence: f64,
+    pub score_impact: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CollectiveShadowAggregateInput {
+    #[serde(default)]
+    pub entries: Vec<CollectiveShadowAggregateEntryInput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CollectiveShadowAggregateOutput {
+    pub matches: u32,
+    pub confidence_avg: f64,
+    pub penalty_raw: f64,
+    pub bonus_raw: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CompositeEligibilityScoreInput {
     pub quality_score: f64,
     pub directive_fit_score: f64,
@@ -1616,6 +1638,8 @@ pub struct AutoscaleRequest {
     pub strategy_trit_shadow_ranking_summary_input: Option<StrategyTritShadowRankingSummaryInput>,
     #[serde(default)]
     pub shadow_scope_matches_input: Option<ShadowScopeMatchesInput>,
+    #[serde(default)]
+    pub collective_shadow_aggregate_input: Option<CollectiveShadowAggregateInput>,
     #[serde(default)]
     pub value_signal_score_input: Option<ValueSignalScoreInput>,
     #[serde(default)]
@@ -3172,6 +3196,65 @@ pub fn compute_shadow_scope_matches(input: &ShadowScopeMatchesInput) -> ShadowSc
         _ => false,
     };
     ShadowScopeMatchesOutput { matched }
+}
+
+pub fn compute_collective_shadow_aggregate(
+    input: &CollectiveShadowAggregateInput,
+) -> CollectiveShadowAggregateOutput {
+    let to_fixed4 = |value: f64| -> f64 {
+        format!("{value:.4}").parse::<f64>().unwrap_or(value)
+    };
+    let to_fixed3 = |value: f64| -> f64 {
+        format!("{value:.3}").parse::<f64>().unwrap_or(value)
+    };
+    let matches = input.entries.len() as u32;
+    if matches == 0 {
+        return CollectiveShadowAggregateOutput {
+            matches: 0,
+            confidence_avg: 0.0,
+            penalty_raw: 0.0,
+            bonus_raw: 0.0,
+        };
+    }
+
+    let confidence_sum = input
+        .entries
+        .iter()
+        .map(|row| row.confidence.max(0.0).min(1.0))
+        .sum::<f64>();
+    let confidence_avg = to_fixed4(confidence_sum / (matches as f64));
+
+    let penalty_raw = input
+        .entries
+        .iter()
+        .filter(|row| {
+            row.kind
+                .as_deref()
+                .unwrap_or("")
+                .trim()
+                .eq_ignore_ascii_case("avoid")
+        })
+        .map(|row| row.score_impact.max(0.0) * row.confidence.max(0.0).min(1.0))
+        .sum::<f64>();
+    let bonus_raw = input
+        .entries
+        .iter()
+        .filter(|row| {
+            row.kind
+                .as_deref()
+                .unwrap_or("")
+                .trim()
+                .eq_ignore_ascii_case("reinforce")
+        })
+        .map(|row| row.score_impact.max(0.0) * row.confidence.max(0.0).min(1.0))
+        .sum::<f64>();
+
+    CollectiveShadowAggregateOutput {
+        matches,
+        confidence_avg,
+        penalty_raw: to_fixed3(penalty_raw),
+        bonus_raw: to_fixed3(bonus_raw),
+    }
 }
 
 pub fn compute_value_signal_score(input: &ValueSignalScoreInput) -> ValueSignalScoreOutput {
@@ -5232,6 +5315,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_shadow_scope_matches_encode_failed:{e}"));
+    }
+    if mode == "collective_shadow_aggregate" {
+        let input = request
+            .collective_shadow_aggregate_input
+            .ok_or_else(|| "autoscale_missing_collective_shadow_aggregate_input".to_string())?;
+        let out = compute_collective_shadow_aggregate(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "collective_shadow_aggregate",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_collective_shadow_aggregate_encode_failed:{e}"));
     }
     if mode == "value_signal_score" {
         let input = request
@@ -7346,6 +7441,46 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale shadow_scope_matches");
         assert!(out.contains("\"mode\":\"shadow_scope_matches\""));
         assert!(out.contains("\"matched\":true"));
+    }
+
+    #[test]
+    fn collective_shadow_aggregate_computes_confidence_and_weighted_totals() {
+        let out = compute_collective_shadow_aggregate(&CollectiveShadowAggregateInput {
+            entries: vec![
+                CollectiveShadowAggregateEntryInput {
+                    kind: Some("avoid".to_string()),
+                    confidence: 0.8,
+                    score_impact: 10.0,
+                },
+                CollectiveShadowAggregateEntryInput {
+                    kind: Some("reinforce".to_string()),
+                    confidence: 0.5,
+                    score_impact: 6.0,
+                },
+            ],
+        });
+        assert_eq!(out.matches, 2);
+        assert!((out.confidence_avg - 0.65).abs() < 0.000001);
+        assert!((out.penalty_raw - 8.0).abs() < 0.000001);
+        assert!((out.bonus_raw - 3.0).abs() < 0.000001);
+    }
+
+    #[test]
+    fn autoscale_json_collective_shadow_aggregate_path_works() {
+        let payload = serde_json::json!({
+            "mode": "collective_shadow_aggregate",
+            "collective_shadow_aggregate_input": {
+                "entries": [
+                    { "kind": "avoid", "confidence": 0.8, "score_impact": 10 },
+                    { "kind": "reinforce", "confidence": 0.5, "score_impact": 6 }
+                ]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale collective_shadow_aggregate");
+        assert!(out.contains("\"mode\":\"collective_shadow_aggregate\""));
+        assert!(out.contains("\"penalty_raw\":8.0"));
+        assert!(out.contains("\"bonus_raw\":3.0"));
     }
 
     #[test]
