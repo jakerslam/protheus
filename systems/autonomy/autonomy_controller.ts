@@ -8249,13 +8249,49 @@ function proposalSemanticFingerprint(p) {
   const type = String(proposal.type || '').trim().toLowerCase() || 'unknown';
   const sourceEye = String(sourceEyeId(proposal) || '').trim().toLowerCase();
   const objectiveId = proposalSemanticObjectiveId(proposal);
+  const proposalId = normalizeSpaces(proposal.id) || null;
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'proposal_semantic_fingerprint',
+      {
+        proposal_id: proposalId,
+        proposal_type: type,
+        source_eye: sourceEye || null,
+        objective_id: objectiveId || null,
+        text_blob: proposalTextBlob(proposal),
+        stopwords: Array.from(DIRECTIVE_FIT_STOPWORDS),
+        min_tokens: AUTONOMY_SEMANTIC_DEDUPE_MIN_TOKENS
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      const tokenStems = Array.isArray(payload.token_stems)
+        ? payload.token_stems.map((tok) => String(tok || '').trim()).filter(Boolean)
+        : [];
+      const tokenCountRaw = Number(payload.token_count);
+      const tokenCount = Number.isFinite(tokenCountRaw)
+        ? Math.max(0, Math.round(tokenCountRaw))
+        : tokenStems.length;
+      return {
+        proposal_id: payload.proposal_id || proposalId,
+        proposal_type: String(payload.proposal_type || type || 'unknown').trim().toLowerCase() || 'unknown',
+        source_eye: payload.source_eye ? String(payload.source_eye).trim().toLowerCase() : (sourceEye || null),
+        objective_id: payload.objective_id ? String(payload.objective_id).trim() : (objectiveId || null),
+        token_stems: tokenStems,
+        token_count: tokenCount,
+        eligible: payload.eligible === true
+      };
+    }
+  }
+
   const tokenStems = uniqSorted(
     tokenizeDirectiveText(proposalTextBlob(proposal))
       .map((tok) => toStem(tok))
       .filter(Boolean)
   );
   return {
-    proposal_id: normalizeSpaces(proposal.id) || null,
+    proposal_id: proposalId,
     proposal_type: type,
     source_eye: sourceEye || null,
     objective_id: objectiveId || null,
