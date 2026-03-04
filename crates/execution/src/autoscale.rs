@@ -282,6 +282,27 @@ pub struct NonYieldCategoryOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NonYieldReasonInput {
+    #[serde(default)]
+    pub category: Option<String>,
+    #[serde(default)]
+    pub hold_reason: Option<String>,
+    #[serde(default)]
+    pub route_block_reason: Option<String>,
+    #[serde(default)]
+    pub reason: Option<String>,
+    #[serde(default)]
+    pub result: Option<String>,
+    #[serde(default)]
+    pub outcome: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NonYieldReasonOutput {
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RouteExecutionPolicyHoldInput {
     #[serde(default)]
     pub target: Option<String>,
@@ -525,6 +546,8 @@ pub struct AutoscaleRequest {
     pub safety_stop_run_event_input: Option<SafetyStopRunEventInput>,
     #[serde(default)]
     pub non_yield_category_input: Option<NonYieldCategoryInput>,
+    #[serde(default)]
+    pub non_yield_reason_input: Option<NonYieldReasonInput>,
     #[serde(default)]
     pub route_execution_policy_hold_input: Option<RouteExecutionPolicyHoldInput>,
     #[serde(default)]
@@ -1312,6 +1335,52 @@ pub fn compute_non_yield_category(input: &NonYieldCategoryInput) -> NonYieldCate
     NonYieldCategoryOutput { category: None }
 }
 
+pub fn compute_non_yield_reason(input: &NonYieldReasonInput) -> NonYieldReasonOutput {
+    let explicit_raw = input
+        .hold_reason
+        .as_ref()
+        .or(input.route_block_reason.as_ref())
+        .or(input.reason.as_ref())
+        .map(|v| v.as_str())
+        .unwrap_or("");
+    let explicit = normalize_spaces(explicit_raw).to_ascii_lowercase();
+    if !explicit.is_empty() {
+        return NonYieldReasonOutput { reason: explicit };
+    }
+
+    let result = normalize_spaces(input.result.as_ref().map(|v| v.as_str()).unwrap_or(""))
+        .to_ascii_lowercase();
+    let outcome = normalize_spaces(input.outcome.as_ref().map(|v| v.as_str()).unwrap_or(""))
+        .to_ascii_lowercase();
+    let category = normalize_spaces(input.category.as_ref().map(|v| v.as_str()).unwrap_or(""))
+        .to_ascii_lowercase();
+
+    if category == "no_progress" && result == "executed" {
+        return NonYieldReasonOutput {
+            reason: if outcome.is_empty() {
+                "executed_no_progress".to_string()
+            } else {
+                format!("executed_{outcome}")
+            },
+        };
+    }
+
+    if !result.is_empty() {
+        return NonYieldReasonOutput { reason: result };
+    }
+
+    NonYieldReasonOutput {
+        reason: format!(
+            "{}_unknown",
+            if category.is_empty() {
+                "non_yield".to_string()
+            } else {
+                category
+            }
+        ),
+    }
+}
+
 pub fn compute_policy_hold_pressure(input: &PolicyHoldPressureInput) -> PolicyHoldPressureOutput {
     let window_hours = input.window_hours.unwrap_or(24.0).max(1.0);
     let min_samples = input.min_samples.unwrap_or(1.0).max(1.0);
@@ -1891,6 +1960,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_non_yield_category_encode_failed:{e}"));
     }
+    if mode == "non_yield_reason" {
+        let input = request
+            .non_yield_reason_input
+            .ok_or_else(|| "autoscale_missing_non_yield_reason_input".to_string())?;
+        let out = compute_non_yield_reason(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "non_yield_reason",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_non_yield_reason_encode_failed:{e}"));
+    }
     if mode == "route_execution_policy_hold" {
         let input = request
             .route_execution_policy_hold_input
@@ -2386,6 +2467,54 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale non_yield_category");
         assert!(out.contains("\"mode\":\"non_yield_category\""));
+    }
+
+    #[test]
+    fn non_yield_reason_prefers_explicit_then_falls_back() {
+        let explicit = compute_non_yield_reason(&NonYieldReasonInput {
+            category: Some("policy_hold".to_string()),
+            hold_reason: Some("Gate Manual".to_string()),
+            route_block_reason: None,
+            reason: None,
+            result: Some("stop_init_gate_readiness".to_string()),
+            outcome: None,
+        });
+        assert_eq!(explicit.reason, "gate manual");
+
+        let no_progress_executed = compute_non_yield_reason(&NonYieldReasonInput {
+            category: Some("no_progress".to_string()),
+            hold_reason: None,
+            route_block_reason: None,
+            reason: None,
+            result: Some("executed".to_string()),
+            outcome: Some("no_change".to_string()),
+        });
+        assert_eq!(no_progress_executed.reason, "executed_no_change");
+
+        let fallback = compute_non_yield_reason(&NonYieldReasonInput {
+            category: Some("safety_stop".to_string()),
+            hold_reason: None,
+            route_block_reason: None,
+            reason: None,
+            result: None,
+            outcome: None,
+        });
+        assert_eq!(fallback.reason, "safety_stop_unknown");
+    }
+
+    #[test]
+    fn autoscale_json_non_yield_reason_path_works() {
+        let payload = serde_json::json!({
+            "mode": "non_yield_reason",
+            "non_yield_reason_input": {
+                "category": "no_progress",
+                "result": "executed",
+                "outcome": "no_change"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale non_yield_reason");
+        assert!(out.contains("\"mode\":\"non_yield_reason\""));
     }
 
     #[test]
