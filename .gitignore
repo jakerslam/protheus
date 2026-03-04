@@ -246,3 +246,8 @@ state/ops/public_benchmarks/history.jsonl
 state/ops/parity_scorecards/*.json
 state/security/black_box_ledger/attestations/*.jsonl
 #
+
+# Local personal project mirrors / creds (instance-specific)
+config/rohan_github_credentials.md
+rohan-kapoor-projects/
+rohankapoor-projects/
