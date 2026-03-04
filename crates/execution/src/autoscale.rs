@@ -2356,6 +2356,33 @@ pub struct OptimizationIntentProposalOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UnlinkedOptimizationAdmissionInput {
+    #[serde(default)]
+    pub optimization_intent: bool,
+    #[serde(default)]
+    pub proposal_type: Option<String>,
+    #[serde(default)]
+    pub exempt_types: Vec<String>,
+    #[serde(default)]
+    pub linked: bool,
+    #[serde(default)]
+    pub normalized_risk: Option<String>,
+    #[serde(default)]
+    pub hard_block_high_risk: bool,
+    #[serde(default)]
+    pub penalty: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UnlinkedOptimizationAdmissionOutput {
+    pub applies: bool,
+    pub linked: bool,
+    pub penalty: f64,
+    pub block: bool,
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -3514,6 +3541,8 @@ pub struct AutoscaleRequest {
     pub infer_optimization_delta_input: Option<InferOptimizationDeltaInput>,
     #[serde(default)]
     pub optimization_intent_proposal_input: Option<OptimizationIntentProposalInput>,
+    #[serde(default)]
+    pub unlinked_optimization_admission_input: Option<UnlinkedOptimizationAdmissionInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -7699,6 +7728,66 @@ pub fn compute_optimization_intent_proposal(
     OptimizationIntentProposalOutput { intent: true }
 }
 
+pub fn compute_unlinked_optimization_admission(
+    input: &UnlinkedOptimizationAdmissionInput,
+) -> UnlinkedOptimizationAdmissionOutput {
+    if !input.optimization_intent {
+        return UnlinkedOptimizationAdmissionOutput {
+            applies: false,
+            linked: true,
+            penalty: 0.0,
+            block: false,
+            reason: None,
+        };
+    }
+    let proposal_type = input
+        .proposal_type
+        .as_ref()
+        .map(|v| v.trim().to_lowercase())
+        .unwrap_or_default();
+    let exempt: std::collections::BTreeSet<String> = input
+        .exempt_types
+        .iter()
+        .map(|v| v.trim().to_lowercase())
+        .filter(|v| !v.is_empty())
+        .collect();
+    if !proposal_type.is_empty() && exempt.contains(&proposal_type) {
+        return UnlinkedOptimizationAdmissionOutput {
+            applies: true,
+            linked: true,
+            penalty: 0.0,
+            block: false,
+            reason: Some("optimization_exempt_type".to_string()),
+        };
+    }
+    if input.linked {
+        return UnlinkedOptimizationAdmissionOutput {
+            applies: true,
+            linked: true,
+            penalty: 0.0,
+            block: false,
+            reason: None,
+        };
+    }
+    let normalized_risk = input
+        .normalized_risk
+        .as_ref()
+        .map(|v| v.trim().to_lowercase())
+        .unwrap_or_else(|| "low".to_string());
+    let high_risk_block = input.hard_block_high_risk && normalized_risk == "high";
+    UnlinkedOptimizationAdmissionOutput {
+        applies: true,
+        linked: false,
+        penalty: if input.penalty.is_finite() { input.penalty } else { 0.0 },
+        block: high_risk_block,
+        reason: Some(if high_risk_block {
+            "optimization_unlinked_objective_high_risk_block".to_string()
+        } else {
+            "optimization_unlinked_objective_penalty".to_string()
+        }),
+    }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -11250,6 +11339,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_optimization_intent_proposal_encode_failed:{e}"));
+    }
+    if mode == "unlinked_optimization_admission" {
+        let input = request
+            .unlinked_optimization_admission_input
+            .ok_or_else(|| "autoscale_missing_unlinked_optimization_admission_input".to_string())?;
+        let out = compute_unlinked_optimization_admission(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "unlinked_optimization_admission",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_unlinked_optimization_admission_encode_failed:{e}"));
     }
     if mode == "is_directive_clarification_proposal" {
         let input = request
@@ -16345,6 +16446,43 @@ mod tests {
         let out =
             run_autoscale_json(&payload).expect("autoscale optimization_intent_proposal");
         assert!(out.contains("\"mode\":\"optimization_intent_proposal\""));
+    }
+
+    #[test]
+    fn unlinked_optimization_admission_blocks_high_risk_when_unlinked() {
+        let out = compute_unlinked_optimization_admission(&UnlinkedOptimizationAdmissionInput {
+            optimization_intent: true,
+            proposal_type: Some("optimization".to_string()),
+            exempt_types: vec!["directive_clarification".to_string()],
+            linked: false,
+            normalized_risk: Some("high".to_string()),
+            hard_block_high_risk: true,
+            penalty: 8.0,
+        });
+        assert!(out.applies);
+        assert!(!out.linked);
+        assert!(out.block);
+        assert_eq!(out.reason.as_deref(), Some("optimization_unlinked_objective_high_risk_block"));
+    }
+
+    #[test]
+    fn autoscale_json_unlinked_optimization_admission_path_works() {
+        let payload = serde_json::json!({
+            "mode": "unlinked_optimization_admission",
+            "unlinked_optimization_admission_input": {
+                "optimization_intent": true,
+                "proposal_type": "optimization",
+                "exempt_types": ["directive_clarification"],
+                "linked": false,
+                "normalized_risk": "low",
+                "hard_block_high_risk": true,
+                "penalty": 12
+            }
+        })
+        .to_string();
+        let out =
+            run_autoscale_json(&payload).expect("autoscale unlinked_optimization_admission");
+        assert!(out.contains("\"mode\":\"unlinked_optimization_admission\""));
     }
 
     #[test]
