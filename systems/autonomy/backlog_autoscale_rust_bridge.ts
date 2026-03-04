@@ -293,6 +293,7 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
     manual_gate_prefilter: 'manual_gate_prefilter_input',
     execute_confidence_cooldown_active: 'execute_confidence_cooldown_active_input',
     top_biases_summary: 'top_biases_summary_input',
+    criteria_pattern_penalty: 'criteria_pattern_penalty_input',
     is_directive_clarification_proposal: 'is_directive_clarification_proposal_input',
     is_directive_decomposition_proposal: 'is_directive_decomposition_proposal_input',
     sanitize_directive_objective_id: 'sanitize_directive_objective_id_input',

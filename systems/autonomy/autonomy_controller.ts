@@ -7891,6 +7891,33 @@ function criteriaPatternPenaltyForProposal(p, capabilityKeyHint = '') {
   }
   const memory = loadCriteriaPatternMemory();
   const patterns = memory.patterns && typeof memory.patterns === 'object' ? memory.patterns : {};
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rustRows = keys.map((key) => {
+      const row = patterns[key] && typeof patterns[key] === 'object' ? patterns[key] : {};
+      return {
+        key,
+        failures: Number(row.failures || 0),
+        passes: Number(row.passes || 0),
+        last_failure_ts: row.last_failure_ts ? String(row.last_failure_ts) : null
+      };
+    });
+    const rust = runBacklogAutoscalePrimitive(
+      'criteria_pattern_penalty',
+      {
+        keys,
+        patterns: rustRows,
+        fail_threshold: Number(AUTONOMY_CRITERIA_PATTERN_FAIL_THRESHOLD || 0),
+        penalty_per_hit: Number(AUTONOMY_CRITERIA_PATTERN_PENALTY_PER_HIT || 0),
+        max_penalty: Number(AUTONOMY_CRITERIA_PATTERN_MAX_PENALTY || 0),
+        window_days: Number(AUTONOMY_CRITERIA_PATTERN_WINDOW_DAYS || 0),
+        now_ms: Date.now()
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
+  }
   let penalty = 0;
   const hits = [];
   const windowMs = AUTONOMY_CRITERIA_PATTERN_WINDOW_DAYS * 24 * 3600 * 1000;
@@ -20512,6 +20539,7 @@ module.exports = {
   evaluateRouteBlockPrefilter,
   evaluateManualGatePrefilter,
   summarizeTopBiases,
+  criteriaPatternPenaltyForProposal,
   sourceEyeRef,
   escapeRegExp,
   toolTokenMentioned,
