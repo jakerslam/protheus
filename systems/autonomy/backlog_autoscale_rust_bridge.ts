@@ -302,6 +302,7 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
     recent_directive_pulse_cooldown_count: 'recent_directive_pulse_cooldown_count_input',
     proposal_directive_text: 'proposal_directive_text_input',
     objective_ids_from_pulse_context: 'objective_ids_from_pulse_context_input',
+    policy_hold_objective_context: 'policy_hold_objective_context_input',
     directive_pulse_context: 'directive_pulse_context_input',
     is_directive_clarification_proposal: 'is_directive_clarification_proposal_input',
     is_directive_decomposition_proposal: 'is_directive_decomposition_proposal_input',

@@ -3005,6 +3005,26 @@ pub struct ObjectiveIdsFromPulseContextOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PolicyHoldObjectiveContextInput {
+    #[serde(default)]
+    pub candidate_objective_ids: Vec<String>,
+    #[serde(default)]
+    pub pool_objective_ids: Vec<String>,
+    #[serde(default)]
+    pub dominant_objective_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PolicyHoldObjectiveContextOutput {
+    #[serde(default)]
+    pub objective_id: Option<String>,
+    #[serde(default)]
+    pub objective_source: Option<String>,
+    #[serde(default)]
+    pub objective_ids: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -4205,6 +4225,8 @@ pub struct AutoscaleRequest {
     pub proposal_directive_text_input: Option<ProposalDirectiveTextInput>,
     #[serde(default)]
     pub objective_ids_from_pulse_context_input: Option<ObjectiveIdsFromPulseContextInput>,
+    #[serde(default)]
+    pub policy_hold_objective_context_input: Option<PolicyHoldObjectiveContextInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -9634,6 +9656,63 @@ pub fn compute_objective_ids_from_pulse_context(
     ObjectiveIdsFromPulseContextOutput { ids }
 }
 
+pub fn compute_policy_hold_objective_context(
+    input: &PolicyHoldObjectiveContextInput,
+) -> PolicyHoldObjectiveContextOutput {
+    let mut ids = Vec::<String>::new();
+    let mut seen = std::collections::BTreeSet::<String>::new();
+    for raw in &input.candidate_objective_ids {
+        let id = compute_sanitize_directive_objective_id(&SanitizeDirectiveObjectiveIdInput {
+            value: Some(raw.clone()),
+        })
+        .objective_id;
+        if id.is_empty() || !seen.insert(id.clone()) {
+            continue;
+        }
+        ids.push(id);
+    }
+    if ids.is_empty() {
+        for raw in &input.pool_objective_ids {
+            let id = compute_sanitize_directive_objective_id(&SanitizeDirectiveObjectiveIdInput {
+                value: Some(raw.clone()),
+            })
+            .objective_id;
+            if id.is_empty() || !seen.insert(id.clone()) {
+                continue;
+            }
+            ids.push(id);
+        }
+    }
+    let dominant = compute_sanitize_directive_objective_id(&SanitizeDirectiveObjectiveIdInput {
+        value: input.dominant_objective_id.clone(),
+    })
+    .objective_id;
+    let objective_id = if !dominant.is_empty() {
+        Some(dominant.clone())
+    } else {
+        ids.first().cloned()
+    };
+    let objective_source = if objective_id.is_some() {
+        if !dominant.is_empty() {
+            Some("directive_pulse_dominant".to_string())
+        } else {
+            Some("directive_pulse_pool".to_string())
+        }
+    } else {
+        None
+    };
+    let objective_ids = if ids.len() > 1 {
+        Some(ids.into_iter().take(8).collect())
+    } else {
+        None
+    };
+    PolicyHoldObjectiveContextOutput {
+        objective_id,
+        objective_source,
+        objective_ids,
+    }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -13425,6 +13504,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_objective_ids_from_pulse_context_encode_failed:{e}"));
+    }
+    if mode == "policy_hold_objective_context" {
+        let input = request
+            .policy_hold_objective_context_input
+            .ok_or_else(|| "autoscale_missing_policy_hold_objective_context_input".to_string())?;
+        let out = compute_policy_hold_objective_context(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "policy_hold_objective_context",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_policy_hold_objective_context_encode_failed:{e}"));
     }
     if mode == "directive_pulse_context" {
         let input = request
@@ -19430,6 +19521,40 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale objective_ids_from_pulse_context");
         assert!(out.contains("\"mode\":\"objective_ids_from_pulse_context\""));
+    }
+
+    #[test]
+    fn policy_hold_objective_context_prefers_candidate_then_dominant() {
+        let out = compute_policy_hold_objective_context(&PolicyHoldObjectiveContextInput {
+            candidate_objective_ids: vec![
+                "T1_OBJ_A".to_string(),
+                " T1_OBJ_A ".to_string(),
+                "T2_OBJ_B".to_string(),
+            ],
+            pool_objective_ids: vec!["T3_OBJ_C".to_string()],
+            dominant_objective_id: Some("T4_OBJ_Z".to_string()),
+        });
+        assert_eq!(out.objective_id.as_deref(), Some("T4_OBJ_Z"));
+        assert_eq!(out.objective_source.as_deref(), Some("directive_pulse_dominant"));
+        assert_eq!(
+            out.objective_ids.unwrap_or_default(),
+            vec!["T1_OBJ_A".to_string(), "T2_OBJ_B".to_string()]
+        );
+    }
+
+    #[test]
+    fn autoscale_json_policy_hold_objective_context_path_works() {
+        let payload = serde_json::json!({
+            "mode": "policy_hold_objective_context",
+            "policy_hold_objective_context_input": {
+                "candidate_objective_ids": ["OBJ_A"],
+                "pool_objective_ids": ["OBJ_B"],
+                "dominant_objective_id": "OBJ_A"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale policy_hold_objective_context");
+        assert!(out.contains("\"mode\":\"policy_hold_objective_context\""));
     }
 
     #[test]
