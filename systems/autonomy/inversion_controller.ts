@@ -112,6 +112,18 @@ function usage() {
 }
 
 function parseArgs(argv: string[]) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'parse_args',
+      { argv: Array.isArray(argv) ? argv.map((row) => String(row || '')) : [] },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      const args = payload.args && typeof payload.args === 'object' ? payload.args : null;
+      if (args) return args;
+    }
+  }
   const out: AnyObj = { _: [] };
   for (let i = 0; i < argv.length; i += 1) {
     const tok = String(argv[i] || '');
@@ -204,6 +216,21 @@ function normalizeWordToken(v: unknown, maxLen = 80) {
 }
 
 function tokenize(v: unknown) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'tokenize_text',
+      {
+        value: v == null ? '' : String(v),
+        max_tokens: 64
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Array.isArray(rust.payload.payload.tokens)
+        ? rust.payload.payload.tokens.map((row: unknown) => normalizeWordToken(row, 80)).filter((row: string) => row.length >= 3).slice(0, 64)
+        : [];
+    }
+  }
   return Array.from(
     new Set(
       cleanText(v, 1200)
@@ -229,6 +256,19 @@ function patternToWordRegex(pattern: unknown) {
 }
 
 function parseJsonFromStdout(raw: unknown) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'parse_json_from_stdout',
+      { raw: raw == null ? '' : String(raw) },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      if (Object.prototype.hasOwnProperty.call(payload || {}, 'parsed')) {
+        return payload.parsed == null ? null : payload.parsed;
+      }
+    }
+  }
   const text = String(raw || '').trim();
   if (!text) return null;
   try {
@@ -247,6 +287,21 @@ function parseJsonFromStdout(raw: unknown) {
 }
 
 function normalizeList(v: unknown, maxLen = 80) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'normalize_list',
+      {
+        value: v,
+        max_len: Number(maxLen)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Array.isArray(rust.payload.payload.items)
+        ? rust.payload.payload.items.map((row: unknown) => normalizeToken(row, maxLen)).filter(Boolean).slice(0, 64)
+        : [];
+    }
+  }
   if (Array.isArray(v)) {
     return Array.from(new Set(v.map((row) => normalizeToken(row, maxLen)).filter(Boolean))).slice(0, 64);
   }
@@ -256,6 +311,22 @@ function normalizeList(v: unknown, maxLen = 80) {
 }
 
 function normalizeTextList(v: unknown, maxLen = 180, maxItems = 64) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'normalize_text_list',
+      {
+        value: v,
+        max_len: Number(maxLen),
+        max_items: Number(maxItems)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Array.isArray(rust.payload.payload.items)
+        ? rust.payload.payload.items.map((row: unknown) => cleanText(row, maxLen)).filter(Boolean).slice(0, maxItems)
+        : [];
+    }
+  }
   const rows = Array.isArray(v)
     ? v
     : String(v || '').split(',');
@@ -2133,6 +2204,24 @@ function effectiveWindowDaysForTarget(windowMap: AnyObj, minimumWindowMap: AnyOb
 }
 
 function effectiveFirstNHumanVetoUses(tierTransition: AnyObj, target: string) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'effective_first_n_human_veto_uses',
+      {
+        first_live_uses_require_human_veto: tierTransition && tierTransition.first_live_uses_require_human_veto
+          ? tierTransition.first_live_uses_require_human_veto
+          : {},
+        minimum_first_live_uses_require_human_veto: tierTransition && tierTransition.minimum_first_live_uses_require_human_veto
+          ? tierTransition.minimum_first_live_uses_require_human_veto
+          : {},
+        target: target == null ? 'tactical' : String(target)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return clampInt(rust.payload.payload.uses, 0, 100000, 0);
+    }
+  }
   const key = normalizeTarget(target || 'tactical');
   const configured = clampInt(
     tierTransition.first_live_uses_require_human_veto && tierTransition.first_live_uses_require_human_veto[key],
@@ -2334,6 +2423,20 @@ function normalizeAxiomSignalTerms(v: unknown) {
 }
 
 function hasSignalTermMatch(haystack: string, tokenSet: Set<string>, term: string) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'has_signal_term_match',
+      {
+        haystack: haystack == null ? '' : String(haystack),
+        token_set: Array.from(tokenSet || []),
+        term: term == null ? '' : String(term)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.matched === true;
+    }
+  }
   const phraseRe = patternToWordRegex(term);
   if (phraseRe && phraseRe.test(haystack)) return true;
   const parts = normalizeAxiomPattern(term).split(/\s+/).filter(Boolean);
@@ -2343,6 +2446,30 @@ function hasSignalTermMatch(haystack: string, tokenSet: Set<string>, term: strin
 }
 
 function countAxiomSignalGroups(axiom: AnyObj, haystack: string, tokenSet: Set<string>) {
+  if (INVERSION_RUST_ENABLED) {
+    const signalsRust = axiom && typeof axiom.signals === 'object' ? axiom.signals : {};
+    const rust = runInversionPrimitive(
+      'count_axiom_signal_groups',
+      {
+        action_terms: Array.isArray(signalsRust.action_terms) ? signalsRust.action_terms : [],
+        subject_terms: Array.isArray(signalsRust.subject_terms) ? signalsRust.subject_terms : [],
+        object_terms: Array.isArray(signalsRust.object_terms) ? signalsRust.object_terms : [],
+        min_signal_groups: clampInt(axiom && axiom.min_signal_groups, 0, 3, 0),
+        haystack: haystack == null ? '' : String(haystack),
+        token_set: Array.from(tokenSet || [])
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      return {
+        configured_groups: clampInt(payload.configured_groups, 0, 3, 0),
+        matched_groups: clampInt(payload.matched_groups, 0, 3, 0),
+        required_groups: clampInt(payload.required_groups, 0, 3, 0),
+        pass: payload.pass === true
+      };
+    }
+  }
   const signals = axiom && typeof axiom.signals === 'object' ? axiom.signals : {};
   const groups = [
     normalizeAxiomSignalTerms(signals.action_terms),
@@ -2930,6 +3057,27 @@ function tritSimilarity(queryVector: number[], entryTrit: number) {
 }
 
 function computeLibraryMatchScore(query: AnyObj, row: AnyObj, policy: AnyObj) {
+  if (INVERSION_RUST_ENABLED) {
+    const wRust = policy && policy.library && typeof policy.library === 'object' ? policy.library : {};
+    const rust = runInversionPrimitive(
+      'library_match_score',
+      {
+        query_signature_tokens: Array.isArray(query && query.signature_tokens) ? query.signature_tokens : [],
+        query_trit_vector: Array.isArray(query && query.trit_vector) ? query.trit_vector : [],
+        query_target: query && query.target != null ? String(query.target) : '',
+        row_signature_tokens: Array.isArray(row && row.signature_tokens) ? row.signature_tokens : [],
+        row_outcome_trit: clampInt(row && row.outcome_trit, -1, 1, 0),
+        row_target: row && row.target != null ? String(row.target) : '',
+        token_weight: Number(wRust.token_weight || 0),
+        trit_weight: Number(wRust.trit_weight || 0),
+        target_weight: Number(wRust.target_weight || 0)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Number(clampNumber(rust.payload.payload.score, 0, 1, 0).toFixed(6));
+    }
+  }
   const tokenScore = jaccardSimilarity(query.signature_tokens, row.signature_tokens);
   const tritScore = tritSimilarity(query.trit_vector, row.outcome_trit);
   const targetScore = query.target === row.target ? 1 : 0;
@@ -3232,6 +3380,24 @@ function sweepExpiredSessions(paths: AnyObj, policy: AnyObj, dateStr: string) {
 }
 
 function computeKnownFailurePressure(candidates: AnyObj[], policy: AnyObj) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'known_failure_pressure',
+      {
+        candidates: Array.isArray(candidates) ? candidates : [],
+        failed_repetition_similarity_block: Number(policy && policy.library && policy.library.failed_repetition_similarity_block || 0.72)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      return {
+        fail_count: clampInt(payload.fail_count, 0, 1000000, 0),
+        hard_block: payload.hard_block === true,
+        max_similarity: Number(clampNumber(payload.max_similarity, 0, 1, 0).toFixed(6))
+      };
+    }
+  }
   const blockSimilarity = Number(policy.library.failed_repetition_similarity_block || 0.72);
   const failRows = candidates.filter((c: AnyObj) => c.row && c.row.outcome_trit === TRIT_PAIN);
   const hardBlock = failRows.some((row: AnyObj) => Number(row.similarity || 0) >= blockSimilarity);
@@ -6576,5 +6742,15 @@ module.exports = {
   systemPassedPayloadHash,
   buildLensPosition,
   buildConclaveProposalSummary,
-  conclaveHighRiskFlags
+  conclaveHighRiskFlags,
+  parseArgs,
+  parseJsonFromStdout,
+  tokenize,
+  normalizeList,
+  normalizeTextList,
+  computeLibraryMatchScore,
+  computeKnownFailurePressure,
+  hasSignalTermMatch,
+  countAxiomSignalGroups,
+  effectiveFirstNHumanVetoUses
 };
