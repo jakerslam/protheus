@@ -745,10 +745,13 @@ dependencies = [
 name = "protheus-ops-core"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "chrono",
+ "hex",
  "num_cpus",
  "serde",
  "serde_json",
+ "sha2",
  "sysinfo",
  "tempfile",
  "walkdir",

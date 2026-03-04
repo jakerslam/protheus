@@ -11,6 +11,8 @@ use std::time::Instant;
 use sysinfo::System;
 use walkdir::WalkDir;
 
+pub mod protheusctl;
+
 #[derive(Debug, Clone)]
 pub struct ParsedArgs {
     pub positional: Vec<String>,
