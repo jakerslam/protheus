@@ -297,6 +297,23 @@ pub struct ConsecutiveGateExhaustedAttemptsOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RunsSinceResetEventInput {
+    #[serde(default)]
+    pub event_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RunsSinceResetIndexInput {
+    #[serde(default)]
+    pub events: Vec<RunsSinceResetEventInput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RunsSinceResetIndexOutput {
+    pub start_index: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct NoProgressResultInput {
     #[serde(default)]
     pub event_type: Option<String>,
@@ -740,6 +757,8 @@ pub struct AutoscaleRequest {
     pub gate_exhausted_attempt_input: Option<GateExhaustedAttemptInput>,
     #[serde(default)]
     pub consecutive_gate_exhausted_attempts_input: Option<ConsecutiveGateExhaustedAttemptsInput>,
+    #[serde(default)]
+    pub runs_since_reset_index_input: Option<RunsSinceResetIndexInput>,
     #[serde(default)]
     pub no_progress_result_input: Option<NoProgressResultInput>,
     #[serde(default)]
@@ -1561,6 +1580,23 @@ pub fn compute_consecutive_gate_exhausted_attempts(
         count += 1;
     }
     ConsecutiveGateExhaustedAttemptsOutput { count }
+}
+
+pub fn compute_runs_since_reset_index(input: &RunsSinceResetIndexInput) -> RunsSinceResetIndexOutput {
+    let mut start_index: usize = 0;
+    for (idx, evt) in input.events.iter().enumerate() {
+        let event_type = evt
+            .event_type
+            .as_ref()
+            .map(|v| v.trim().to_ascii_lowercase())
+            .unwrap_or_default();
+        if event_type == "autonomy_reset" {
+            start_index = idx + 1;
+        }
+    }
+    RunsSinceResetIndexOutput {
+        start_index: start_index as u32,
+    }
 }
 
 pub fn compute_no_progress_result(input: &NoProgressResultInput) -> NoProgressResultOutput {
@@ -2579,6 +2615,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_consecutive_gate_exhausted_attempts_encode_failed:{e}"));
     }
+    if mode == "runs_since_reset_index" {
+        let input = request
+            .runs_since_reset_index_input
+            .ok_or_else(|| "autoscale_missing_runs_since_reset_index_input".to_string())?;
+        let out = compute_runs_since_reset_index(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "runs_since_reset_index",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_runs_since_reset_index_encode_failed:{e}"));
+    }
     if mode == "no_progress_result" {
         let input = request
             .no_progress_result_input
@@ -3216,6 +3264,47 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale consecutive_gate_exhausted_attempts");
         assert!(out.contains("\"mode\":\"consecutive_gate_exhausted_attempts\""));
+    }
+
+    #[test]
+    fn runs_since_reset_index_prefers_last_reset_marker() {
+        let out = compute_runs_since_reset_index(&RunsSinceResetIndexInput {
+            events: vec![
+                RunsSinceResetEventInput {
+                    event_type: Some("autonomy_run".to_string()),
+                },
+                RunsSinceResetEventInput {
+                    event_type: Some("autonomy_reset".to_string()),
+                },
+                RunsSinceResetEventInput {
+                    event_type: Some("autonomy_run".to_string()),
+                },
+                RunsSinceResetEventInput {
+                    event_type: Some("autonomy_reset".to_string()),
+                },
+                RunsSinceResetEventInput {
+                    event_type: Some("autonomy_run".to_string()),
+                },
+            ],
+        });
+        assert_eq!(out.start_index, 4);
+    }
+
+    #[test]
+    fn autoscale_json_runs_since_reset_index_path_works() {
+        let payload = serde_json::json!({
+            "mode": "runs_since_reset_index",
+            "runs_since_reset_index_input": {
+                "events": [
+                    {"event_type": "autonomy_run"},
+                    {"event_type": "autonomy_reset"},
+                    {"event_type": "autonomy_run"}
+                ]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale runs_since_reset_index");
+        assert!(out.contains("\"mode\":\"runs_since_reset_index\""));
     }
 
     #[test]
