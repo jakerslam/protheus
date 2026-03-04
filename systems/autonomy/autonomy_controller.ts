@@ -2833,6 +2833,8 @@ const DIRECTIVE_TIER_WEIGHT_CACHE = new Map();
 const DIRECTIVE_TIER_WEIGHT_CACHE_MAX = 256;
 const DIRECTIVE_TIER_MIN_SHARE_CACHE = new Map();
 const DIRECTIVE_TIER_MIN_SHARE_CACHE_MAX = 256;
+const DIRECTIVE_TIER_COVERAGE_BONUS_CACHE = new Map();
+const DIRECTIVE_TIER_COVERAGE_BONUS_CACHE_MAX = 512;
 const EXECUTION_RESERVE_SNAPSHOT_CACHE = new Map();
 const EXECUTION_RESERVE_SNAPSHOT_CACHE_MAX = 512;
 const BUDGET_PACING_GATE_CACHE = new Map();
@@ -5736,15 +5738,52 @@ function pulseObjectiveCooldownActive(stat, pulseCtx) {
 }
 
 function pulseTierCoverageBonus(tier, pulseCtx) {
-  const minShare = directiveTierMinShare(tier);
+  const tierRaw = Number(tier);
   const attemptsToday = Number(pulseCtx && pulseCtx.attempts_today || 0);
   const byTier = pulseCtx && pulseCtx.tier_attempts_today && typeof pulseCtx.tier_attempts_today === 'object'
     ? pulseCtx.tier_attempts_today
     : {};
-  const current = Number(byTier[normalizeDirectiveTier(tier, 3)] || 0);
+  const normalizedTier = normalizeDirectiveTier(tierRaw, 3);
+  const current = Number(byTier[normalizedTier] || 0);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const t1 = Number(AUTONOMY_DIRECTIVE_PULSE_T1_MIN_SHARE || 0);
+    const t2 = Number(AUTONOMY_DIRECTIVE_PULSE_T2_MIN_SHARE || 0);
+    const cacheKey = [
+      Number.isFinite(tierRaw) ? String(tierRaw) : 'NaN',
+      String(attemptsToday),
+      String(current),
+      String(t1),
+      String(t2)
+    ].join('\u0000');
+    if (DIRECTIVE_TIER_COVERAGE_BONUS_CACHE.has(cacheKey)) {
+      return DIRECTIVE_TIER_COVERAGE_BONUS_CACHE.get(cacheKey);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'directive_tier_coverage_bonus',
+      {
+        tier: Number.isFinite(tierRaw) ? tierRaw : null,
+        fallback: 3,
+        attempts_today: Number.isFinite(attemptsToday) ? attemptsToday : 0,
+        current_for_tier: Number.isFinite(current) ? current : 0,
+        t1_min_share: t1,
+        t2_min_share: t2
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const bonus = clampNumber(Number(rust.payload.payload.bonus || 0), 0, 18);
+      if (DIRECTIVE_TIER_COVERAGE_BONUS_CACHE.size >= DIRECTIVE_TIER_COVERAGE_BONUS_CACHE_MAX) {
+        const oldest = DIRECTIVE_TIER_COVERAGE_BONUS_CACHE.keys().next();
+        if (!oldest.done) DIRECTIVE_TIER_COVERAGE_BONUS_CACHE.delete(oldest.value);
+      }
+      DIRECTIVE_TIER_COVERAGE_BONUS_CACHE.set(cacheKey, bonus);
+      return bonus;
+    }
+  }
+  const minShare = directiveTierMinShare(tierRaw);
   if (attemptsToday <= 0) {
-    if (normalizeDirectiveTier(tier, 3) <= 1) return 8;
-    if (normalizeDirectiveTier(tier, 3) === 2) return 4;
+    if (normalizedTier <= 1) return 8;
+    if (normalizedTier === 2) return 4;
     return 0;
   }
   if (minShare <= 0) return 0;
@@ -18626,6 +18665,7 @@ module.exports = {
   computeCalibrationDeltas,
   compileDirectivePulseObjectives,
   buildDirectivePulseContext,
+  pulseTierCoverageBonus,
   assessDirectivePulse,
   qosLaneFromCandidate,
   chooseQosLaneSelection,

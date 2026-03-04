@@ -1118,6 +1118,27 @@ pub struct DirectiveTierMinShareOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DirectiveTierCoverageBonusInput {
+    #[serde(default)]
+    pub tier: Option<f64>,
+    #[serde(default)]
+    pub fallback: Option<f64>,
+    #[serde(default)]
+    pub attempts_today: f64,
+    #[serde(default)]
+    pub current_for_tier: f64,
+    #[serde(default)]
+    pub t1_min_share: f64,
+    #[serde(default)]
+    pub t2_min_share: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DirectiveTierCoverageBonusOutput {
+    pub bonus: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecutionReserveSnapshotInput {
     pub cap: f64,
     pub used: f64,
@@ -1844,6 +1865,8 @@ pub struct AutoscaleRequest {
     pub directive_tier_weight_input: Option<DirectiveTierWeightInput>,
     #[serde(default)]
     pub directive_tier_min_share_input: Option<DirectiveTierMinShareInput>,
+    #[serde(default)]
+    pub directive_tier_coverage_bonus_input: Option<DirectiveTierCoverageBonusInput>,
     #[serde(default)]
     pub execution_reserve_snapshot_input: Option<ExecutionReserveSnapshotInput>,
     #[serde(default)]
@@ -3912,6 +3935,57 @@ pub fn compute_directive_tier_min_share(
         0.0
     };
     DirectiveTierMinShareOutput { min_share }
+}
+
+pub fn compute_directive_tier_coverage_bonus(
+    input: &DirectiveTierCoverageBonusInput,
+) -> DirectiveTierCoverageBonusOutput {
+    let fallback = input
+        .fallback
+        .filter(|v| v.is_finite())
+        .unwrap_or(3.0);
+    let raw = input
+        .tier
+        .filter(|v| v.is_finite())
+        .unwrap_or(fallback);
+    let normalized_tier = raw.round().max(1.0);
+    let attempts_today = if input.attempts_today.is_finite() {
+        input.attempts_today.max(0.0)
+    } else {
+        0.0
+    };
+    let current_for_tier = if input.current_for_tier.is_finite() {
+        input.current_for_tier.max(0.0)
+    } else {
+        0.0
+    };
+
+    if attempts_today <= 0.0 {
+        let bonus = if normalized_tier <= 1.0 {
+            8.0
+        } else if normalized_tier <= 2.0 {
+            4.0
+        } else {
+            0.0
+        };
+        return DirectiveTierCoverageBonusOutput { bonus };
+    }
+
+    let min_share = compute_directive_tier_min_share(&DirectiveTierMinShareInput {
+        tier: Some(normalized_tier),
+        fallback: Some(3.0),
+        t1_min_share: input.t1_min_share,
+        t2_min_share: input.t2_min_share,
+    })
+    .min_share;
+    if min_share <= 0.0 {
+        return DirectiveTierCoverageBonusOutput { bonus: 0.0 };
+    }
+
+    let expected = (attempts_today * min_share).ceil();
+    let deficit = (expected - current_for_tier).max(0.0);
+    let bonus = (deficit * 6.0).min(18.0);
+    DirectiveTierCoverageBonusOutput { bonus }
 }
 
 pub fn compute_execution_reserve_snapshot(
@@ -6110,6 +6184,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_directive_tier_min_share_encode_failed:{e}"));
+    }
+    if mode == "directive_tier_coverage_bonus" {
+        let input = request
+            .directive_tier_coverage_bonus_input
+            .ok_or_else(|| "autoscale_missing_directive_tier_coverage_bonus_input".to_string())?;
+        let out = compute_directive_tier_coverage_bonus(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "directive_tier_coverage_bonus",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_directive_tier_coverage_bonus_encode_failed:{e}"));
     }
     if mode == "execution_reserve_snapshot" {
         let input = request
@@ -8641,6 +8727,48 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale directive_tier_min_share");
         assert!(out.contains("\"mode\":\"directive_tier_min_share\""));
         assert!(out.contains("\"min_share\":0.2"));
+    }
+
+    #[test]
+    fn directive_tier_coverage_bonus_matches_expected_formula() {
+        let no_attempts = compute_directive_tier_coverage_bonus(&DirectiveTierCoverageBonusInput {
+            tier: Some(1.0),
+            fallback: Some(3.0),
+            attempts_today: 0.0,
+            current_for_tier: 0.0,
+            t1_min_share: 0.35,
+            t2_min_share: 0.2,
+        });
+        assert!((no_attempts.bonus - 8.0).abs() < 0.000001);
+
+        let deficit = compute_directive_tier_coverage_bonus(&DirectiveTierCoverageBonusInput {
+            tier: Some(2.0),
+            fallback: Some(3.0),
+            attempts_today: 10.0,
+            current_for_tier: 0.0,
+            t1_min_share: 0.35,
+            t2_min_share: 0.2,
+        });
+        assert!((deficit.bonus - 12.0).abs() < 0.000001);
+    }
+
+    #[test]
+    fn autoscale_json_directive_tier_coverage_bonus_path_works() {
+        let payload = serde_json::json!({
+            "mode": "directive_tier_coverage_bonus",
+            "directive_tier_coverage_bonus_input": {
+                "tier": 2,
+                "fallback": 3,
+                "attempts_today": 8,
+                "current_for_tier": 0,
+                "t1_min_share": 0.35,
+                "t2_min_share": 0.2
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale directive_tier_coverage_bonus");
+        assert!(out.contains("\"mode\":\"directive_tier_coverage_bonus\""));
+        assert!(out.contains("\"bonus\":12.0"));
     }
 
     #[test]
