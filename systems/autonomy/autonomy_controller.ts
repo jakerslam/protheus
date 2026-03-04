@@ -2795,6 +2795,8 @@ const PROPOSAL_DEDUP_KEY_CACHE = new Map();
 const PROPOSAL_DEDUP_KEY_CACHE_MAX = 1024;
 const STRATEGY_RANK_SCORE_CACHE = new Map();
 const STRATEGY_RANK_SCORE_CACHE_MAX = 2048;
+const STRATEGY_RANK_ADJUSTED_CACHE = new Map();
+const STRATEGY_RANK_ADJUSTED_CACHE_MAX = 2048;
 const VALUE_SIGNAL_SCORE_CACHE = new Map();
 const VALUE_SIGNAL_SCORE_CACHE_MAX = 1024;
 const COMPOSITE_ELIGIBILITY_SCORE_CACHE = new Map();
@@ -8810,9 +8812,59 @@ function strategyRankAdjustedForCandidate(cand, executionMode) {
     100
   );
   const baseObjectiveWeight = clampNumber(Number(AUTONOMY_OBJECTIVE_ALLOCATION_RANK_BONUS || 0), 0, 1);
-  const objectiveWeight = executionMode === 'canary_execute'
-    ? baseObjectiveWeight
-    : Number((baseObjectiveWeight * 0.35).toFixed(3));
+  const canaryMode = executionMode === 'canary_execute';
+  let rustPayload = null;
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const key = [
+      base,
+      pulseScore,
+      pulseWeight,
+      objectiveAllocation,
+      baseObjectiveWeight,
+      canaryMode ? 1 : 0
+    ].join('\u0000');
+    if (STRATEGY_RANK_ADJUSTED_CACHE.has(key)) {
+      rustPayload = STRATEGY_RANK_ADJUSTED_CACHE.get(key);
+    } else {
+      const rust = runBacklogAutoscalePrimitive(
+        'strategy_rank_adjusted',
+        {
+          base,
+          pulse_score: pulseScore,
+          pulse_weight: pulseWeight,
+          objective_allocation_score: objectiveAllocation,
+          base_objective_weight: baseObjectiveWeight,
+          canary_mode: canaryMode
+        },
+        { allow_cli_fallback: true }
+      );
+      if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+        rustPayload = rust.payload.payload;
+        if (STRATEGY_RANK_ADJUSTED_CACHE.size >= STRATEGY_RANK_ADJUSTED_CACHE_MAX) {
+          const oldest = STRATEGY_RANK_ADJUSTED_CACHE.keys().next();
+          if (!oldest.done) STRATEGY_RANK_ADJUSTED_CACHE.delete(oldest.value);
+        }
+        STRATEGY_RANK_ADJUSTED_CACHE.set(key, rustPayload);
+      }
+    }
+  }
+
+  if (rustPayload && typeof rustPayload === 'object') {
+    const adjusted = Number(rustPayload.adjusted || 0);
+    const bonus = rustPayload.bonus && typeof rustPayload.bonus === 'object' ? rustPayload.bonus : {};
+    return {
+      adjusted: Number(adjusted.toFixed(3)),
+      bonus: {
+        pulse_weight: clampNumber(Number(bonus.pulse_weight || pulseWeight), 0, 1),
+        pulse_score: clampNumber(Number(bonus.pulse_score || pulseScore), 0, 100),
+        objective_weight: clampNumber(Number(bonus.objective_weight || 0), 0, 1),
+        objective_allocation_score: clampNumber(Number(bonus.objective_allocation_score || objectiveAllocation), 0, 100),
+        total: Number(Number(bonus.total || 0).toFixed(3))
+      }
+    };
+  }
+
+  const objectiveWeight = canaryMode ? baseObjectiveWeight : Number((baseObjectiveWeight * 0.35).toFixed(3));
   const pulseBonus = pulseWeight * pulseScore;
   const objectiveBonus = objectiveWeight * objectiveAllocation;
   const total = Number((pulseBonus + objectiveBonus).toFixed(3));
@@ -17828,6 +17880,7 @@ module.exports = {
   executionReserveSnapshot,
   expectedValueSignalForProposal,
   strategyRankForCandidate,
+  strategyRankAdjustedForCandidate,
   strategyTritShadowForCandidate,
   strategyTritShadowRankingSummary,
   candidateNonYieldPenaltySignal,
