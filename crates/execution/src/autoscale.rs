@@ -314,6 +314,25 @@ pub struct RunsSinceResetIndexOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AttemptEventIndexEventInput {
+    #[serde(default)]
+    pub event_type: Option<String>,
+    #[serde(default)]
+    pub result: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AttemptEventIndicesInput {
+    #[serde(default)]
+    pub events: Vec<AttemptEventIndexEventInput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AttemptEventIndicesOutput {
+    pub indices: Vec<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct NoProgressResultInput {
     #[serde(default)]
     pub event_type: Option<String>,
@@ -759,6 +778,8 @@ pub struct AutoscaleRequest {
     pub consecutive_gate_exhausted_attempts_input: Option<ConsecutiveGateExhaustedAttemptsInput>,
     #[serde(default)]
     pub runs_since_reset_index_input: Option<RunsSinceResetIndexInput>,
+    #[serde(default)]
+    pub attempt_event_indices_input: Option<AttemptEventIndicesInput>,
     #[serde(default)]
     pub no_progress_result_input: Option<NoProgressResultInput>,
     #[serde(default)]
@@ -1597,6 +1618,21 @@ pub fn compute_runs_since_reset_index(input: &RunsSinceResetIndexInput) -> RunsS
     RunsSinceResetIndexOutput {
         start_index: start_index as u32,
     }
+}
+
+pub fn compute_attempt_event_indices(input: &AttemptEventIndicesInput) -> AttemptEventIndicesOutput {
+    let mut indices: Vec<u32> = Vec::new();
+    for (idx, evt) in input.events.iter().enumerate() {
+        let is_attempt = compute_attempt_run_event(&AttemptRunEventInput {
+            event_type: evt.event_type.clone(),
+            result: evt.result.clone(),
+        })
+        .is_attempt;
+        if is_attempt {
+            indices.push(idx as u32);
+        }
+    }
+    AttemptEventIndicesOutput { indices }
 }
 
 pub fn compute_no_progress_result(input: &NoProgressResultInput) -> NoProgressResultOutput {
@@ -2627,6 +2663,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_runs_since_reset_index_encode_failed:{e}"));
     }
+    if mode == "attempt_event_indices" {
+        let input = request
+            .attempt_event_indices_input
+            .ok_or_else(|| "autoscale_missing_attempt_event_indices_input".to_string())?;
+        let out = compute_attempt_event_indices(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "attempt_event_indices",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_attempt_event_indices_encode_failed:{e}"));
+    }
     if mode == "no_progress_result" {
         let input = request
             .no_progress_result_input
@@ -3305,6 +3353,43 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale runs_since_reset_index");
         assert!(out.contains("\"mode\":\"runs_since_reset_index\""));
+    }
+
+    #[test]
+    fn attempt_event_indices_filters_attempt_rows() {
+        let out = compute_attempt_event_indices(&AttemptEventIndicesInput {
+            events: vec![
+                AttemptEventIndexEventInput {
+                    event_type: Some("autonomy_run".to_string()),
+                    result: Some("executed".to_string()),
+                },
+                AttemptEventIndexEventInput {
+                    event_type: Some("autonomy_run".to_string()),
+                    result: Some("lock_busy".to_string()),
+                },
+                AttemptEventIndexEventInput {
+                    event_type: Some("autonomy_run".to_string()),
+                    result: Some("stop_repeat_gate_candidate_exhausted".to_string()),
+                },
+            ],
+        });
+        assert_eq!(out.indices, vec![0, 2]);
+    }
+
+    #[test]
+    fn autoscale_json_attempt_event_indices_path_works() {
+        let payload = serde_json::json!({
+            "mode": "attempt_event_indices",
+            "attempt_event_indices_input": {
+                "events": [
+                    {"event_type": "autonomy_run", "result": "executed"},
+                    {"event_type": "autonomy_run", "result": "lock_busy"}
+                ]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale attempt_event_indices");
+        assert!(out.contains("\"mode\":\"attempt_event_indices\""));
     }
 
     #[test]
