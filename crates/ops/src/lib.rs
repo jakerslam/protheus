@@ -11,6 +11,7 @@ use std::time::Instant;
 use sysinfo::System;
 use walkdir::WalkDir;
 
+pub mod perception_polish;
 pub mod protheusctl;
 pub mod scale_readiness;
 
