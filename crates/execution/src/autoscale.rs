@@ -1284,6 +1284,19 @@ pub struct ParseLowerListOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CanaryFailedChecksAllowedInput {
+    #[serde(default)]
+    pub failed_checks: Vec<String>,
+    #[serde(default)]
+    pub allowed_checks: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CanaryFailedChecksAllowedOutput {
+    pub allowed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecutionReserveSnapshotInput {
     pub cap: f64,
     pub used: f64,
@@ -2030,6 +2043,8 @@ pub struct AutoscaleRequest {
     pub normalize_spaces_input: Option<NormalizeSpacesInput>,
     #[serde(default)]
     pub parse_lower_list_input: Option<ParseLowerListInput>,
+    #[serde(default)]
+    pub canary_failed_checks_allowed_input: Option<CanaryFailedChecksAllowedInput>,
     #[serde(default)]
     pub execution_reserve_snapshot_input: Option<ExecutionReserveSnapshotInput>,
     #[serde(default)]
@@ -4407,6 +4422,33 @@ pub fn compute_parse_lower_list(input: &ParseLowerListInput) -> ParseLowerListOu
     ParseLowerListOutput { items }
 }
 
+pub fn compute_canary_failed_checks_allowed(
+    input: &CanaryFailedChecksAllowedInput,
+) -> CanaryFailedChecksAllowedOutput {
+    let failed = input
+        .failed_checks
+        .iter()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+    let allowed = input
+        .allowed_checks
+        .iter()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .collect::<std::collections::BTreeSet<_>>();
+
+    if failed.is_empty() || allowed.is_empty() {
+        return CanaryFailedChecksAllowedOutput { allowed: false };
+    }
+    for check in &failed {
+        if !allowed.contains(check) {
+            return CanaryFailedChecksAllowedOutput { allowed: false };
+        }
+    }
+    CanaryFailedChecksAllowedOutput { allowed: true }
+}
+
 pub fn compute_execution_reserve_snapshot(
     input: &ExecutionReserveSnapshotInput,
 ) -> ExecutionReserveSnapshotOutput {
@@ -6723,6 +6765,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_parse_lower_list_encode_failed:{e}"));
+    }
+    if mode == "canary_failed_checks_allowed" {
+        let input = request
+            .canary_failed_checks_allowed_input
+            .ok_or_else(|| "autoscale_missing_canary_failed_checks_allowed_input".to_string())?;
+        let out = compute_canary_failed_checks_allowed(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "canary_failed_checks_allowed",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_canary_failed_checks_allowed_encode_failed:{e}"));
     }
     if mode == "execution_reserve_snapshot" {
         let input = request
@@ -9581,6 +9635,36 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale parse_lower_list");
         assert!(out.contains("\"mode\":\"parse_lower_list\""));
         assert!(out.contains("\"items\":[\"a\",\"b\",\"c\"]"));
+    }
+
+    #[test]
+    fn canary_failed_checks_allowed_matches_subset_rules() {
+        let allowed = compute_canary_failed_checks_allowed(&CanaryFailedChecksAllowedInput {
+            failed_checks: vec!["lint".to_string(), "format".to_string()],
+            allowed_checks: vec!["lint".to_string(), "format".to_string(), "typecheck".to_string()],
+        });
+        assert!(allowed.allowed);
+
+        let blocked = compute_canary_failed_checks_allowed(&CanaryFailedChecksAllowedInput {
+            failed_checks: vec!["lint".to_string(), "security".to_string()],
+            allowed_checks: vec!["lint".to_string(), "format".to_string()],
+        });
+        assert!(!blocked.allowed);
+    }
+
+    #[test]
+    fn autoscale_json_canary_failed_checks_allowed_path_works() {
+        let payload = serde_json::json!({
+            "mode": "canary_failed_checks_allowed",
+            "canary_failed_checks_allowed_input": {
+                "failed_checks": ["lint", "format"],
+                "allowed_checks": ["lint", "format", "typecheck"]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale canary_failed_checks_allowed");
+        assert!(out.contains("\"mode\":\"canary_failed_checks_allowed\""));
+        assert!(out.contains("\"allowed\":true"));
     }
 
     #[test]
