@@ -2127,6 +2127,14 @@ function computeBacklogBatchMax(input: AnyObj = {}) {
     if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
       return rust.payload.payload;
     }
+    return {
+      max: 1,
+      reason: 'rust_batch_max_unavailable',
+      pressure,
+      current_cells: currentCells,
+      budget_blocked: budgetBlocked,
+      trit_shadow_blocked: tritBlocked
+    };
   }
 
   if (!enabled) {
