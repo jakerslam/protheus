@@ -485,7 +485,17 @@ function runInversionPrimitive(mode: string, data: AnyObj = {}, opts: AnyObj = {
     clean_text: 'clean_text_input',
     normalize_token: 'normalize_token_input',
     normalize_word_token: 'normalize_word_token_input',
-    band_to_index: 'band_to_index_input'
+    band_to_index: 'band_to_index_input',
+    escape_regex: 'escape_regex_input',
+    pattern_to_word_regex: 'pattern_to_word_regex_input',
+    stable_id: 'stable_id_input',
+    rel_path: 'rel_path_input',
+    normalize_axiom_pattern: 'normalize_axiom_pattern_input',
+    normalize_axiom_signal_terms: 'normalize_axiom_signal_terms_input',
+    normalize_observer_id: 'normalize_observer_id_input',
+    extract_numeric: 'extract_numeric_input',
+    pick_first_numeric: 'pick_first_numeric_input',
+    safe_rel_path: 'safe_rel_path_input'
   };
   const field = fieldByMode[normalizedMode];
   if (!field) return { ok: false, error: `inversion_mode_unsupported:${normalizedMode}` };

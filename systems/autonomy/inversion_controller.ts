@@ -350,10 +350,36 @@ function tokenize(v: unknown) {
 }
 
 function escapeRegex(v: unknown) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'escape_regex',
+      { value: v == null ? '' : String(v) },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return String(rust.payload.payload.value || '');
+    }
+  }
   return String(v == null ? '' : v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function patternToWordRegex(pattern: unknown) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'pattern_to_word_regex',
+      { pattern: pattern == null ? '' : String(pattern), max_len: 200 },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const source = cleanText(rust.payload.payload.source || '', 400);
+      if (!source) return null;
+      try {
+        return new RegExp(source, 'i');
+      } catch {
+        return null;
+      }
+    }
+  }
   const raw = cleanText(pattern, 200);
   if (!raw) return null;
   const words = raw.split(/\s+/).map((row) => escapeRegex(row)).filter(Boolean);
@@ -450,6 +476,20 @@ function normalizeTextList(v: unknown, maxLen = 180, maxItems = 64) {
 }
 
 function stableId(seed: string, prefix = 'inv') {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'stable_id',
+      {
+        seed: seed == null ? '' : String(seed),
+        prefix: prefix == null ? '' : String(prefix)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const out = cleanText(rust.payload.payload.id || '', 200);
+      if (out) return out;
+    }
+  }
   const digest = crypto.createHash('sha256').update(String(seed || ''), 'utf8').digest('hex').slice(0, 16);
   return `${prefix}_${digest}`;
 }
@@ -501,6 +541,19 @@ function appendJsonl(filePath: string, row: AnyObj) {
 }
 
 function relPath(filePath: string) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'rel_path',
+      {
+        root: ROOT,
+        file_path: filePath == null ? '' : String(filePath)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return String(rust.payload.payload.value || '');
+    }
+  }
   return path.relative(ROOT, filePath).replace(/\\/g, '/');
 }
 
@@ -2840,10 +2893,32 @@ function upsertFirstPrincipleLock(paths: AnyObj, session: AnyObj, principle: Any
 }
 
 function normalizeAxiomPattern(v: unknown) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'normalize_axiom_pattern',
+      { value: v == null ? '' : String(v) },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return cleanText(rust.payload.payload.value || '', 200).toLowerCase();
+    }
+  }
   return cleanText(v, 200).toLowerCase();
 }
 
 function normalizeAxiomSignalTerms(v: unknown) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'normalize_axiom_signal_terms',
+      { terms: Array.isArray(v) ? v : [] },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Array.isArray(rust.payload.payload.terms)
+        ? rust.payload.payload.terms.map((row: unknown) => normalizeAxiomPattern(row)).filter(Boolean).slice(0, 32)
+        : [];
+    }
+  }
   if (!Array.isArray(v)) return [];
   return v.map((row) => normalizeAxiomPattern(row)).filter(Boolean).slice(0, 32);
 }
@@ -2918,6 +2993,16 @@ function countAxiomSignalGroups(axiom: AnyObj, haystack: string, tokenSet: Set<s
 }
 
 function normalizeObserverId(v: unknown) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'normalize_observer_id',
+      { value: v == null ? '' : String(v) },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return normalizeToken(rust.payload.payload.value || '', 120);
+    }
+  }
   return normalizeToken(v, 120);
 }
 
@@ -4086,12 +4171,34 @@ function appendPersonaLensFeedPush(policy: AnyObj, input: AnyObj) {
 }
 
 function extractNumeric(v: unknown): number | null {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'extract_numeric',
+      { value: v },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const out = rust.payload.payload.value;
+      return typeof out === 'number' && Number.isFinite(out) ? out : null;
+    }
+  }
   const n = Number(v);
   if (!Number.isFinite(n)) return null;
   return n;
 }
 
 function pickFirstNumeric(candidates: unknown[]) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'pick_first_numeric',
+      { candidates: Array.isArray(candidates) ? candidates : [] },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const out = rust.payload.payload.value;
+      return typeof out === 'number' && Number.isFinite(out) ? out : null;
+    }
+  }
   for (const item of candidates) {
     const n = extractNumeric(item);
     if (n != null) return n;
@@ -4372,6 +4479,19 @@ function ensureCorrespondenceFile(filePath: string) {
 }
 
 function safeRelPath(filePath: string) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'safe_rel_path',
+      {
+        root: ROOT,
+        file_path: filePath == null ? '' : String(filePath)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return String(rust.payload.payload.value || '');
+    }
+  }
   const rel = relPath(filePath);
   return rel && !String(rel).startsWith('..') ? rel : String(filePath || '');
 }
@@ -7263,7 +7383,17 @@ module.exports = {
   cleanText,
   normalizeToken,
   normalizeWordToken,
+  escapeRegex,
+  patternToWordRegex,
+  stableId,
+  relPath,
+  safeRelPath,
   bandToIndex,
+  normalizeAxiomPattern,
+  normalizeAxiomSignalTerms,
+  normalizeObserverId,
+  extractNumeric,
+  pickFirstNumeric,
   parseArgs,
   parseJsonFromStdout,
   tokenize,
