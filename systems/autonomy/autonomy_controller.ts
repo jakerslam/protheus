@@ -803,6 +803,19 @@ function strategyScorecardSummaries() {
 }
 
 function stableSelectionIndex(seed, size) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'stable_selection_index',
+      {
+        seed: seed == null ? null : String(seed),
+        size: Number(size)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Number(rust.payload.payload.index || 0);
+    }
+  }
   const n = Math.max(0, Math.floor(Number(size || 0)));
   if (n <= 0) return 0;
   const hex = crypto.createHash('sha256').update(String(seed || '')).digest('hex').slice(0, 12);
@@ -21280,6 +21293,7 @@ module.exports = {
   saveBacklogAutoscaleState,
   spawnAllocatedCells,
   runSpawnBroker,
+  stableSelectionIndex,
   computeBacklogAutoscalePlan,
   runBacklogAutoscaler,
   backlogAutoscaleSnapshot,
