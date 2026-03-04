@@ -498,6 +498,25 @@ pub struct EyeOutcomeWindowCountOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EyeOutcomeLastHoursCountInput {
+    #[serde(default)]
+    pub events: Vec<EyeOutcomeEventInput>,
+    #[serde(default)]
+    pub eye_ref: Option<String>,
+    #[serde(default)]
+    pub outcome: Option<String>,
+    #[serde(default)]
+    pub hours: Option<f64>,
+    #[serde(default)]
+    pub now_ms: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EyeOutcomeLastHoursCountOutput {
+    pub count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct NoProgressResultInput {
     #[serde(default)]
     pub event_type: Option<String>,
@@ -959,6 +978,8 @@ pub struct AutoscaleRequest {
     pub qos_lane_usage_input: Option<QosLaneUsageInput>,
     #[serde(default)]
     pub eye_outcome_count_window_input: Option<EyeOutcomeWindowCountInput>,
+    #[serde(default)]
+    pub eye_outcome_count_last_hours_input: Option<EyeOutcomeLastHoursCountInput>,
     #[serde(default)]
     pub no_progress_result_input: Option<NoProgressResultInput>,
     #[serde(default)]
@@ -2082,6 +2103,71 @@ pub fn compute_eye_outcome_count_window(
         count += 1;
     }
     EyeOutcomeWindowCountOutput { count }
+}
+
+pub fn compute_eye_outcome_count_last_hours(
+    input: &EyeOutcomeLastHoursCountInput,
+) -> EyeOutcomeLastHoursCountOutput {
+    let eye_ref = input
+        .eye_ref
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .unwrap_or_default();
+    let hours = input.hours.unwrap_or(0.0);
+    if eye_ref.is_empty() || !hours.is_finite() || hours <= 0.0 {
+        return EyeOutcomeLastHoursCountOutput { count: 0 };
+    }
+    let outcome = input
+        .outcome
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .unwrap_or_default();
+    let now_ms = if let Some(v) = input.now_ms {
+        if v.is_finite() { v } else { 0.0 }
+    } else {
+        Utc::now().timestamp_millis() as f64
+    };
+    let cutoff = now_ms - (hours * 3_600_000.0);
+
+    let mut count: u32 = 0;
+    for evt in &input.events {
+        let event_type = evt
+            .event_type
+            .as_ref()
+            .map(|v| v.trim().to_ascii_lowercase())
+            .unwrap_or_default();
+        if event_type != "outcome" {
+            continue;
+        }
+        let event_outcome = evt
+            .outcome
+            .as_ref()
+            .map(|v| v.trim().to_string())
+            .unwrap_or_default();
+        if event_outcome != outcome {
+            continue;
+        }
+        let evidence_ref = evt
+            .evidence_ref
+            .as_ref()
+            .map(|v| v.to_string())
+            .unwrap_or_default();
+        if !evidence_ref.contains(&eye_ref) {
+            continue;
+        }
+        let ts_ms = evt
+            .ts
+            .as_ref()
+            .and_then(|v| parse_rfc3339_ts_ms(v.trim()));
+        let Some(ts_ms) = ts_ms else {
+            continue;
+        };
+        if (ts_ms as f64) < cutoff {
+            continue;
+        }
+        count += 1;
+    }
+    EyeOutcomeLastHoursCountOutput { count }
 }
 
 pub fn compute_no_progress_result(input: &NoProgressResultInput) -> NoProgressResultOutput {
@@ -3208,6 +3294,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_eye_outcome_count_window_encode_failed:{e}"));
     }
+    if mode == "eye_outcome_count_last_hours" {
+        let input = request
+            .eye_outcome_count_last_hours_input
+            .ok_or_else(|| "autoscale_missing_eye_outcome_count_last_hours_input".to_string())?;
+        let out = compute_eye_outcome_count_last_hours(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "eye_outcome_count_last_hours",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_eye_outcome_count_last_hours_encode_failed:{e}"));
+    }
     if mode == "no_progress_result" {
         let input = request
             .no_progress_result_input
@@ -4261,6 +4359,55 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale eye_outcome_count_window");
         assert!(out.contains("\"mode\":\"eye_outcome_count_window\""));
+    }
+
+    #[test]
+    fn eye_outcome_count_last_hours_counts_matching_rows() {
+        let out = compute_eye_outcome_count_last_hours(&EyeOutcomeLastHoursCountInput {
+            events: vec![
+                EyeOutcomeEventInput {
+                    event_type: Some("outcome".to_string()),
+                    outcome: Some("success".to_string()),
+                    evidence_ref: Some("eye:foo".to_string()),
+                    ts: Some("2026-03-03T11:00:00.000Z".to_string()),
+                },
+                EyeOutcomeEventInput {
+                    event_type: Some("outcome".to_string()),
+                    outcome: Some("success".to_string()),
+                    evidence_ref: Some("eye:foo".to_string()),
+                    ts: Some("2026-03-02T10:00:00.000Z".to_string()),
+                },
+            ],
+            eye_ref: Some("eye:foo".to_string()),
+            outcome: Some("success".to_string()),
+            hours: Some(3.0),
+            now_ms: Some(1_772_503_200_000.0),
+        });
+        assert_eq!(out.count, 1);
+    }
+
+    #[test]
+    fn autoscale_json_eye_outcome_count_last_hours_path_works() {
+        let payload = serde_json::json!({
+            "mode": "eye_outcome_count_last_hours",
+            "eye_outcome_count_last_hours_input": {
+                "eye_ref": "eye:foo",
+                "outcome": "success",
+                "hours": 6,
+                "now_ms": 1772503200000.0,
+                "events": [
+                    {
+                        "event_type": "outcome",
+                        "outcome": "success",
+                        "evidence_ref": "eye:foo",
+                        "ts": "2026-03-03T11:00:00.000Z"
+                    }
+                ]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale eye_outcome_count_last_hours");
+        assert!(out.contains("\"mode\":\"eye_outcome_count_last_hours\""));
     }
 
     #[test]
