@@ -2726,6 +2726,8 @@ const PROPOSAL_RISK_SCORE_CACHE = new Map();
 const PROPOSAL_RISK_SCORE_CACHE_MAX = 1024;
 const COMPOSITE_ELIGIBILITY_SCORE_CACHE = new Map();
 const COMPOSITE_ELIGIBILITY_SCORE_CACHE_MAX = 1024;
+const TIME_TO_VALUE_SCORE_CACHE = new Map();
+const TIME_TO_VALUE_SCORE_CACHE_MAX = 1024;
 const MINUTES_SINCE_TS_CACHE = new Map();
 const MINUTES_SINCE_TS_CACHE_MAX = 512;
 const DATE_WINDOW_CACHE = new Map();
@@ -7918,6 +7920,31 @@ function expectedValueScore(p) {
 function timeToValueScore(p) {
   const meta = p && p.meta && typeof p.meta === 'object' ? p.meta : {};
   const hours = Number(meta.time_to_cash_hours);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const impactRaw = String(p && p.expected_impact || '');
+    const hoursKey = Number.isFinite(hours) ? String(hours) : 'NaN';
+    const cacheKey = `${hoursKey}\u0000${impactRaw}`;
+    if (TIME_TO_VALUE_SCORE_CACHE.has(cacheKey)) {
+      return TIME_TO_VALUE_SCORE_CACHE.get(cacheKey);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'time_to_value_score',
+      {
+        time_to_cash_hours: Number.isFinite(hours) ? hours : null,
+        expected_impact: impactRaw
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const val = clampNumber(Math.round(Number(rust.payload.payload.score || 0)), 0, 100);
+      if (TIME_TO_VALUE_SCORE_CACHE.size >= TIME_TO_VALUE_SCORE_CACHE_MAX) {
+        const oldest = TIME_TO_VALUE_SCORE_CACHE.keys().next();
+        if (!oldest.done) TIME_TO_VALUE_SCORE_CACHE.delete(oldest.value);
+      }
+      TIME_TO_VALUE_SCORE_CACHE.set(cacheKey, val);
+      return val;
+    }
+  }
   if (Number.isFinite(hours) && hours >= 0) {
     const score = 100 - (Math.min(168, hours) / 168) * 100;
     return clampNumber(Math.round(score), 0, 100);
@@ -17361,6 +17388,7 @@ module.exports = {
   strategyAdmissionDecision,
   assessActionability,
   expectedValueScore,
+  timeToValueScore,
   expectedValueSignalForProposal,
   strategyRankForCandidate,
   strategyTritShadowForCandidate,

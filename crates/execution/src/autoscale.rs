@@ -654,6 +654,19 @@ pub struct CompositeEligibilityScoreOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TimeToValueScoreInput {
+    #[serde(default)]
+    pub time_to_cash_hours: Option<f64>,
+    #[serde(default)]
+    pub expected_impact: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TimeToValueScoreOutput {
+    pub score: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct QosLaneUsageEventInput {
     #[serde(default)]
     pub event_type: Option<String>,
@@ -1221,6 +1234,8 @@ pub struct AutoscaleRequest {
     pub proposal_risk_score_input: Option<ProposalRiskScoreInput>,
     #[serde(default)]
     pub composite_eligibility_score_input: Option<CompositeEligibilityScoreInput>,
+    #[serde(default)]
+    pub time_to_value_score_input: Option<TimeToValueScoreInput>,
     #[serde(default)]
     pub no_progress_result_input: Option<NoProgressResultInput>,
     #[serde(default)]
@@ -2385,6 +2400,36 @@ pub fn compute_composite_eligibility_score(
         rounded as u32
     };
     CompositeEligibilityScoreOutput { score }
+}
+
+pub fn compute_time_to_value_score(input: &TimeToValueScoreInput) -> TimeToValueScoreOutput {
+    if let Some(hours) = input.time_to_cash_hours {
+        if hours.is_finite() && hours >= 0.0 {
+            let score = 100.0 - (hours.min(168.0) / 168.0) * 100.0;
+            let rounded = score.round();
+            let clamped = if rounded <= 0.0 {
+                0
+            } else if rounded >= 100.0 {
+                100
+            } else {
+                rounded as u32
+            };
+            return TimeToValueScoreOutput { score: clamped };
+        }
+    }
+    let impact = input
+        .expected_impact
+        .as_ref()
+        .map(|v| v.to_ascii_lowercase())
+        .unwrap_or_default();
+    let score = if impact == "high" {
+        40
+    } else if impact == "medium" {
+        55
+    } else {
+        70
+    };
+    TimeToValueScoreOutput { score }
 }
 
 pub fn compute_proposal_status_for_queue_pressure(
@@ -4045,6 +4090,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_composite_eligibility_score_encode_failed:{e}"));
     }
+    if mode == "time_to_value_score" {
+        let input = request
+            .time_to_value_score_input
+            .ok_or_else(|| "autoscale_missing_time_to_value_score_input".to_string())?;
+        let out = compute_time_to_value_score(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "time_to_value_score",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_time_to_value_score_encode_failed:{e}"));
+    }
     if mode == "proposal_status_for_queue_pressure" {
         let input = request.proposal_status_for_queue_pressure_input.ok_or_else(|| {
             "autoscale_missing_proposal_status_for_queue_pressure_input".to_string()
@@ -5494,6 +5551,35 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale composite_eligibility_score");
         assert!(out.contains("\"mode\":\"composite_eligibility_score\""));
+    }
+
+    #[test]
+    fn time_to_value_score_prefers_hours_then_impact() {
+        let with_hours = compute_time_to_value_score(&TimeToValueScoreInput {
+            time_to_cash_hours: Some(84.0),
+            expected_impact: Some("low".to_string()),
+        });
+        assert_eq!(with_hours.score, 50);
+
+        let from_impact = compute_time_to_value_score(&TimeToValueScoreInput {
+            time_to_cash_hours: None,
+            expected_impact: Some("medium".to_string()),
+        });
+        assert_eq!(from_impact.score, 55);
+    }
+
+    #[test]
+    fn autoscale_json_time_to_value_score_path_works() {
+        let payload = serde_json::json!({
+            "mode": "time_to_value_score",
+            "time_to_value_score_input": {
+                "time_to_cash_hours": 24,
+                "expected_impact": "high"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale time_to_value_score");
+        assert!(out.contains("\"mode\":\"time_to_value_score\""));
     }
 
     #[test]
