@@ -667,6 +667,17 @@ pub struct TimeToValueScoreOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ValueDensityScoreInput {
+    pub expected_value: f64,
+    pub est_tokens: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ValueDensityScoreOutput {
+    pub score: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct QosLaneUsageEventInput {
     #[serde(default)]
     pub event_type: Option<String>,
@@ -1236,6 +1247,8 @@ pub struct AutoscaleRequest {
     pub composite_eligibility_score_input: Option<CompositeEligibilityScoreInput>,
     #[serde(default)]
     pub time_to_value_score_input: Option<TimeToValueScoreInput>,
+    #[serde(default)]
+    pub value_density_score_input: Option<ValueDensityScoreInput>,
     #[serde(default)]
     pub no_progress_result_input: Option<NoProgressResultInput>,
     #[serde(default)]
@@ -2430,6 +2443,38 @@ pub fn compute_time_to_value_score(input: &TimeToValueScoreInput) -> TimeToValue
         70
     };
     TimeToValueScoreOutput { score }
+}
+
+pub fn compute_value_density_score(input: &ValueDensityScoreInput) -> ValueDensityScoreOutput {
+    let value = if !input.expected_value.is_finite() || input.expected_value < 0.0 {
+        0.0
+    } else if input.expected_value > 100.0 {
+        100.0
+    } else {
+        input.expected_value
+    };
+    let tokens = if !input.est_tokens.is_finite() {
+        80.0
+    } else if input.est_tokens < 80.0 {
+        80.0
+    } else if input.est_tokens > 12000.0 {
+        12000.0
+    } else {
+        input.est_tokens
+    };
+    if value <= 0.0 {
+        return ValueDensityScoreOutput { score: 0 };
+    }
+    let score = (value * 1000.0) / tokens.max(80.0);
+    let rounded = score.round();
+    let clamped = if rounded <= 0.0 {
+        0
+    } else if rounded >= 100.0 {
+        100
+    } else {
+        rounded as u32
+    };
+    ValueDensityScoreOutput { score: clamped }
 }
 
 pub fn compute_proposal_status_for_queue_pressure(
@@ -4102,6 +4147,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_time_to_value_score_encode_failed:{e}"));
     }
+    if mode == "value_density_score" {
+        let input = request
+            .value_density_score_input
+            .ok_or_else(|| "autoscale_missing_value_density_score_input".to_string())?;
+        let out = compute_value_density_score(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "value_density_score",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_value_density_score_encode_failed:{e}"));
+    }
     if mode == "proposal_status_for_queue_pressure" {
         let input = request.proposal_status_for_queue_pressure_input.ok_or_else(|| {
             "autoscale_missing_proposal_status_for_queue_pressure_input".to_string()
@@ -5580,6 +5637,35 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale time_to_value_score");
         assert!(out.contains("\"mode\":\"time_to_value_score\""));
+    }
+
+    #[test]
+    fn value_density_score_scales_value_by_token_cost() {
+        let out = compute_value_density_score(&ValueDensityScoreInput {
+            expected_value: 60.0,
+            est_tokens: 500.0,
+        });
+        assert_eq!(out.score, 100);
+
+        let zero = compute_value_density_score(&ValueDensityScoreInput {
+            expected_value: 0.0,
+            est_tokens: 500.0,
+        });
+        assert_eq!(zero.score, 0);
+    }
+
+    #[test]
+    fn autoscale_json_value_density_score_path_works() {
+        let payload = serde_json::json!({
+            "mode": "value_density_score",
+            "value_density_score_input": {
+                "expected_value": 40,
+                "est_tokens": 1000
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale value_density_score");
+        assert!(out.contains("\"mode\":\"value_density_score\""));
     }
 
     #[test]
