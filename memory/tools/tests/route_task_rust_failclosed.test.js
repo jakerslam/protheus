@@ -32,8 +32,8 @@ function run() {
   assert.strictEqual(r.status, 0, `route_task should fail-closed to MANUAL: ${r.stderr}`);
   const out = parseJson(r.stdout);
   assert.strictEqual(out.decision, 'MANUAL');
-  assert.strictEqual(out.route_error, 'route_primitives_rust_unavailable');
-  assert.ok(String(out.reason || '').includes('Rust route primitives unavailable'));
+  assert.strictEqual(out.route_error, 'route_evaluate_rust_unavailable');
+  assert.ok(String(out.reason || '').includes('Rust route evaluate unavailable'));
   console.log('route_task_rust_failclosed.test.js: OK');
 }
 

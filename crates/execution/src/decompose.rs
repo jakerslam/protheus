@@ -408,6 +408,44 @@ pub struct RouteComplexityResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RouteEvaluateRequest {
+    #[serde(default)]
+    pub task_text: String,
+    #[serde(default)]
+    pub tokens_est: i64,
+    #[serde(default)]
+    pub repeats_14d: i64,
+    #[serde(default)]
+    pub errors_30d: i64,
+    #[serde(default)]
+    pub skip_habit_id: String,
+    #[serde(default)]
+    pub habits: Vec<RouteMatchHabit>,
+    #[serde(default)]
+    pub reflex_routines: Vec<RouteReflexRoutine>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RouteEvaluateResponse {
+    pub ok: bool,
+    pub intent_key: String,
+    pub intent: String,
+    pub predicted_habit_id: String,
+    pub trigger_a: bool,
+    pub trigger_b: bool,
+    pub trigger_c: bool,
+    pub any_trigger: bool,
+    pub which_met: Vec<String>,
+    pub thresholds: RouteThresholds,
+    pub matched_habit_id: Option<String>,
+    pub matched_habit_strategy: String,
+    pub matched_reflex_id: Option<String>,
+    pub matched_reflex_strategy: String,
+    pub complexity: String,
+    pub complexity_reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct HeroicGateRequest {
     #[serde(default)]
     pub task_text: String,
@@ -1633,6 +1671,50 @@ pub fn evaluate_route_complexity(req: &RouteComplexityRequest) -> RouteComplexit
     }
 }
 
+pub fn evaluate_route(req: &RouteEvaluateRequest) -> RouteEvaluateResponse {
+    let primitives = evaluate_route_primitives(&RoutePrimitivesRequest {
+        task_text: req.task_text.clone(),
+        tokens_est: req.tokens_est,
+        repeats_14d: req.repeats_14d,
+        errors_30d: req.errors_30d,
+    });
+    let habit_match = evaluate_route_match(&RouteMatchRequest {
+        intent_key: primitives.intent_key.clone(),
+        skip_habit_id: req.skip_habit_id.clone(),
+        habits: req.habits.clone(),
+    });
+    let reflex_match = evaluate_route_reflex_match(&RouteReflexMatchRequest {
+        intent_key: primitives.intent_key.clone(),
+        task_text: req.task_text.clone(),
+        routines: req.reflex_routines.clone(),
+    });
+    let complexity = evaluate_route_complexity(&RouteComplexityRequest {
+        task_text: req.task_text.clone(),
+        tokens_est: req.tokens_est,
+        has_match: habit_match.matched_habit_id.is_some(),
+        any_trigger: primitives.any_trigger,
+    });
+
+    RouteEvaluateResponse {
+        ok: true,
+        intent_key: primitives.intent_key,
+        intent: primitives.intent,
+        predicted_habit_id: primitives.predicted_habit_id,
+        trigger_a: primitives.trigger_a,
+        trigger_b: primitives.trigger_b,
+        trigger_c: primitives.trigger_c,
+        any_trigger: primitives.any_trigger,
+        which_met: primitives.which_met,
+        thresholds: primitives.thresholds,
+        matched_habit_id: habit_match.matched_habit_id,
+        matched_habit_strategy: habit_match.match_strategy,
+        matched_reflex_id: reflex_match.matched_reflex_id,
+        matched_reflex_strategy: reflex_match.match_strategy,
+        complexity: complexity.complexity,
+        complexity_reason: complexity.reason,
+    }
+}
+
 pub fn evaluate_route_primitives_json(payload: &str) -> Result<String, String> {
     let req = serde_json::from_str::<RoutePrimitivesRequest>(payload)
         .map_err(|err| format!("route_primitives_payload_parse_failed:{}", err))?;
@@ -1662,6 +1744,14 @@ pub fn evaluate_route_complexity_json(payload: &str) -> Result<String, String> {
     let resp = evaluate_route_complexity(&req);
     serde_json::to_string(&resp)
         .map_err(|err| format!("route_complexity_payload_serialize_failed:{}", err))
+}
+
+pub fn evaluate_route_json(payload: &str) -> Result<String, String> {
+    let req = serde_json::from_str::<RouteEvaluateRequest>(payload)
+        .map_err(|err| format!("route_evaluate_payload_parse_failed:{}", err))?;
+    let resp = evaluate_route(&req);
+    serde_json::to_string(&resp)
+        .map_err(|err| format!("route_evaluate_payload_serialize_failed:{}", err))
 }
 
 fn is_trust_registry_modification(task_lower: &str) -> bool {
@@ -2572,6 +2662,39 @@ mod tests {
         });
         assert_eq!(low.complexity, "low");
         assert_eq!(low.reason, "default_low");
+    }
+
+    #[test]
+    fn route_evaluate_combines_primitives_match_reflex_and_complexity() {
+        let req = RouteEvaluateRequest {
+            task_text: "run nightly backup and drift remediation".to_string(),
+            tokens_est: 900,
+            repeats_14d: 3,
+            errors_30d: 0,
+            skip_habit_id: String::new(),
+            habits: vec![
+                RouteMatchHabit {
+                    id: "nightly_backup".to_string(),
+                },
+                RouteMatchHabit {
+                    id: "daily_ops".to_string(),
+                },
+            ],
+            reflex_routines: vec![RouteReflexRoutine {
+                id: "drift_guard".to_string(),
+                status: "enabled".to_string(),
+                tags: vec!["drift".to_string(), "remediation".to_string()],
+            }],
+        };
+        let out = evaluate_route(&req);
+        assert!(out.ok);
+        assert_eq!(out.intent_key, "run_nightly_backup_and_drift_remediation");
+        assert_eq!(out.matched_habit_id, Some("nightly_backup".to_string()));
+        assert_eq!(out.matched_reflex_id, Some("drift_guard".to_string()));
+        assert_eq!(out.complexity, "medium");
+        assert_eq!(out.complexity_reason, "tokens_est_medium");
+        assert!(out.trigger_a);
+        assert!(!out.trigger_c);
     }
 
     #[test]
