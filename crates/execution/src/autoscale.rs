@@ -2317,6 +2317,30 @@ pub struct UnknownTypeQuarantineDecisionOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct InferOptimizationDeltaInput {
+    #[serde(default)]
+    pub optimization_delta_percent: Option<f64>,
+    #[serde(default)]
+    pub expected_optimization_percent: Option<f64>,
+    #[serde(default)]
+    pub expected_delta_percent: Option<f64>,
+    #[serde(default)]
+    pub estimated_improvement_percent: Option<f64>,
+    #[serde(default)]
+    pub target_improvement_percent: Option<f64>,
+    #[serde(default)]
+    pub performance_gain_percent: Option<f64>,
+    #[serde(default)]
+    pub text_blob: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct InferOptimizationDeltaOutput {
+    pub delta_percent: Option<f64>,
+    pub delta_source: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -3471,6 +3495,8 @@ pub struct AutoscaleRequest {
     pub admission_summary_input: Option<AdmissionSummaryInput>,
     #[serde(default)]
     pub unknown_type_quarantine_decision_input: Option<UnknownTypeQuarantineDecisionInput>,
+    #[serde(default)]
+    pub infer_optimization_delta_input: Option<InferOptimizationDeltaInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -7563,6 +7589,59 @@ pub fn compute_unknown_type_quarantine_decision(
     }
 }
 
+pub fn compute_infer_optimization_delta(
+    input: &InferOptimizationDeltaInput,
+) -> InferOptimizationDeltaOutput {
+    let direct_keys = [
+        (
+            input.optimization_delta_percent,
+            "meta:optimization_delta_percent",
+        ),
+        (
+            input.expected_optimization_percent,
+            "meta:expected_optimization_percent",
+        ),
+        (input.expected_delta_percent, "meta:expected_delta_percent"),
+        (
+            input.estimated_improvement_percent,
+            "meta:estimated_improvement_percent",
+        ),
+        (
+            input.target_improvement_percent,
+            "meta:target_improvement_percent",
+        ),
+        (input.performance_gain_percent, "meta:performance_gain_percent"),
+    ];
+    for (value, source) in direct_keys {
+        let Some(raw) = value else {
+            continue;
+        };
+        if raw.is_finite() && raw > 0.0 {
+            return InferOptimizationDeltaOutput {
+                delta_percent: Some(round3(raw.clamp(0.0, 100.0))),
+                delta_source: Some(source.to_string()),
+            };
+        }
+    }
+    let values = compute_percent_mentions_from_text(&PercentMentionsFromTextInput {
+        text: input.text_blob.clone(),
+    })
+    .values;
+    if values.is_empty() {
+        return InferOptimizationDeltaOutput {
+            delta_percent: None,
+            delta_source: None,
+        };
+    }
+    let max_val = values
+        .into_iter()
+        .fold(0.0_f64, |acc, v| if v > acc { v } else { acc });
+    InferOptimizationDeltaOutput {
+        delta_percent: Some(round3(max_val)),
+        delta_source: Some("text:%".to_string()),
+    }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -11090,6 +11169,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_unknown_type_quarantine_decision_encode_failed:{e}"));
+    }
+    if mode == "infer_optimization_delta" {
+        let input = request
+            .infer_optimization_delta_input
+            .ok_or_else(|| "autoscale_missing_infer_optimization_delta_input".to_string())?;
+        let out = compute_infer_optimization_delta(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "infer_optimization_delta",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_infer_optimization_delta_encode_failed:{e}"));
     }
     if mode == "is_directive_clarification_proposal" {
         let input = request
@@ -16122,6 +16213,43 @@ mod tests {
         let out =
             run_autoscale_json(&payload).expect("autoscale unknown_type_quarantine_decision");
         assert!(out.contains("\"mode\":\"unknown_type_quarantine_decision\""));
+    }
+
+    #[test]
+    fn infer_optimization_delta_prefers_direct_meta_field() {
+        let out = compute_infer_optimization_delta(&InferOptimizationDeltaInput {
+            optimization_delta_percent: None,
+            expected_optimization_percent: Some(12.75),
+            expected_delta_percent: Some(9.0),
+            estimated_improvement_percent: None,
+            target_improvement_percent: None,
+            performance_gain_percent: None,
+            text_blob: Some("fallback 30%".to_string()),
+        });
+        assert_eq!(out.delta_percent, Some(12.75));
+        assert_eq!(
+            out.delta_source.as_deref(),
+            Some("meta:expected_optimization_percent")
+        );
+    }
+
+    #[test]
+    fn autoscale_json_infer_optimization_delta_path_works() {
+        let payload = serde_json::json!({
+            "mode": "infer_optimization_delta",
+            "infer_optimization_delta_input": {
+                "optimization_delta_percent": null,
+                "expected_optimization_percent": null,
+                "expected_delta_percent": null,
+                "estimated_improvement_percent": null,
+                "target_improvement_percent": null,
+                "performance_gain_percent": null,
+                "text_blob": "target +18% reduction"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale infer_optimization_delta");
+        assert!(out.contains("\"mode\":\"infer_optimization_delta\""));
     }
 
     #[test]
