@@ -2148,8 +2148,29 @@ pub struct DefaultBacklogAutoscaleStateOutput {
     pub schema_id: String,
     pub schema_version: String,
     pub module: String,
-    pub current_cells: i64,
-    pub target_cells: i64,
+    pub current_cells: f64,
+    pub target_cells: f64,
+    pub last_run_ts: Option<String>,
+    pub last_high_pressure_ts: Option<String>,
+    pub last_action: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizeBacklogAutoscaleStateInput {
+    #[serde(default)]
+    pub module: String,
+    #[serde(default)]
+    pub src: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizeBacklogAutoscaleStateOutput {
+    pub schema_id: String,
+    pub schema_version: String,
+    pub module: String,
+    pub current_cells: f64,
+    pub target_cells: f64,
     pub last_run_ts: Option<String>,
     pub last_high_pressure_ts: Option<String>,
     pub last_action: Option<String>,
@@ -2379,6 +2400,8 @@ pub struct AutoscaleRequest {
     pub receipt_verdict_input: Option<ReceiptVerdictInput>,
     #[serde(default)]
     pub default_backlog_autoscale_state_input: Option<DefaultBacklogAutoscaleStateInput>,
+    #[serde(default)]
+    pub normalize_backlog_autoscale_state_input: Option<NormalizeBacklogAutoscaleStateInput>,
 }
 
 fn clamp_ratio(v: f64) -> f64 {
@@ -6601,12 +6624,85 @@ pub fn compute_default_backlog_autoscale_state(
         schema_id: "autonomy_backlog_autoscale".to_string(),
         schema_version: "1.0.0".to_string(),
         module,
-        current_cells: 0,
-        target_cells: 0,
+        current_cells: 0.0,
+        target_cells: 0.0,
         last_run_ts: None,
         last_high_pressure_ts: None,
         last_action: None,
         updated_at: None,
+    }
+}
+
+fn parse_non_negative_number(value: Option<&serde_json::Value>) -> Option<f64> {
+    let parsed = match value {
+        Some(v) => {
+            if let Some(n) = v.as_f64() {
+                Some(n)
+            } else if let Some(s) = v.as_str() {
+                s.trim().parse::<f64>().ok()
+            } else {
+                None
+            }
+        }
+        None => None,
+    }?;
+    if !parsed.is_finite() {
+        return None;
+    }
+    Some(parsed.max(0.0))
+}
+
+fn parse_clean_optional_string(value: Option<&serde_json::Value>) -> Option<String> {
+    let Some(raw) = value.and_then(|v| v.as_str()) else {
+        return None;
+    };
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+pub fn compute_normalize_backlog_autoscale_state(
+    input: &NormalizeBacklogAutoscaleStateInput,
+) -> NormalizeBacklogAutoscaleStateOutput {
+    let module_fallback = {
+        let normalized = input.module.trim();
+        if normalized.is_empty() {
+            "autonomy_backlog_autoscale".to_string()
+        } else {
+            normalized.to_string()
+        }
+    };
+    let src_obj = input.src.as_ref().and_then(|value| value.as_object());
+    let module = src_obj
+        .and_then(|obj| obj.get("module"))
+        .and_then(|value| value.as_str())
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| module_fallback.clone());
+    let current_cells = parse_non_negative_number(src_obj.and_then(|obj| obj.get("current_cells")))
+        .unwrap_or(0.0);
+    let target_cells = parse_non_negative_number(src_obj.and_then(|obj| obj.get("target_cells")))
+        .unwrap_or(0.0);
+    let last_run_ts =
+        parse_clean_optional_string(src_obj.and_then(|obj| obj.get("last_run_ts")));
+    let last_high_pressure_ts = parse_clean_optional_string(
+        src_obj.and_then(|obj| obj.get("last_high_pressure_ts")),
+    );
+    let last_action = parse_clean_optional_string(src_obj.and_then(|obj| obj.get("last_action")));
+    let updated_at = parse_clean_optional_string(src_obj.and_then(|obj| obj.get("updated_at")));
+    NormalizeBacklogAutoscaleStateOutput {
+        schema_id: "autonomy_backlog_autoscale".to_string(),
+        schema_version: "1.0.0".to_string(),
+        module,
+        current_cells,
+        target_cells,
+        last_run_ts,
+        last_high_pressure_ts,
+        last_action,
+        updated_at,
     }
 }
 
@@ -6625,6 +6721,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_default_backlog_autoscale_state_encode_failed:{e}"));
+    }
+    if mode == "normalize_backlog_autoscale_state" {
+        let input = request
+            .normalize_backlog_autoscale_state_input
+            .ok_or_else(|| "autoscale_missing_normalize_backlog_autoscale_state_input".to_string())?;
+        let out = compute_normalize_backlog_autoscale_state(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "normalize_backlog_autoscale_state",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_normalize_backlog_autoscale_state_encode_failed:{e}"));
     }
     if mode == "plan" {
         let input = request
@@ -12093,8 +12201,8 @@ mod tests {
         assert_eq!(out.schema_id, "autonomy_backlog_autoscale");
         assert_eq!(out.schema_version, "1.0.0");
         assert_eq!(out.module, "autonomy_spawn");
-        assert_eq!(out.current_cells, 0);
-        assert_eq!(out.target_cells, 0);
+        assert_eq!(out.current_cells, 0.0);
+        assert_eq!(out.target_cells, 0.0);
         assert_eq!(out.last_run_ts, None);
     }
 
@@ -12109,5 +12217,47 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale default_backlog_autoscale_state");
         assert!(out.contains("\"mode\":\"default_backlog_autoscale_state\""));
+    }
+
+    #[test]
+    fn normalize_backlog_autoscale_state_normalizes_cells_and_strings() {
+        let out =
+            compute_normalize_backlog_autoscale_state(&NormalizeBacklogAutoscaleStateInput {
+                module: "autonomy_backlog_autoscale".to_string(),
+                src: Some(serde_json::json!({
+                    "module": " autonomy_backlog_autoscale ",
+                    "current_cells": 2.8,
+                    "target_cells": "5",
+                    "last_run_ts": " 2026-03-04T00:00:00.000Z ",
+                    "last_high_pressure_ts": "",
+                    "last_action": " scale_up ",
+                    "updated_at": null
+                })),
+            });
+        assert_eq!(out.module, "autonomy_backlog_autoscale");
+        assert_eq!(out.current_cells, 2.8);
+        assert_eq!(out.target_cells, 5.0);
+        assert_eq!(out.last_run_ts, Some("2026-03-04T00:00:00.000Z".to_string()));
+        assert_eq!(out.last_high_pressure_ts, None);
+        assert_eq!(out.last_action, Some("scale_up".to_string()));
+        assert_eq!(out.updated_at, None);
+    }
+
+    #[test]
+    fn autoscale_json_normalize_backlog_autoscale_state_path_works() {
+        let payload = serde_json::json!({
+            "mode": "normalize_backlog_autoscale_state",
+            "normalize_backlog_autoscale_state_input": {
+                "module": "autonomy_backlog_autoscale",
+                "src": {
+                    "current_cells": 1,
+                    "target_cells": 3
+                }
+            }
+        })
+        .to_string();
+        let out =
+            run_autoscale_json(&payload).expect("autoscale normalize_backlog_autoscale_state");
+        assert!(out.contains("\"mode\":\"normalize_backlog_autoscale_state\""));
     }
 }
