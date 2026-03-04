@@ -324,6 +324,41 @@ pub struct PolicyHoldPatternOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PolicyHoldLatestEventEntryInput {
+    #[serde(default)]
+    pub event_type: Option<String>,
+    #[serde(default)]
+    pub result: Option<String>,
+    #[serde(default)]
+    pub policy_hold: Option<bool>,
+    #[serde(default)]
+    pub ts_ms: Option<f64>,
+    #[serde(default)]
+    pub ts: Option<String>,
+    #[serde(default)]
+    pub hold_reason: Option<String>,
+    #[serde(default)]
+    pub route_block_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PolicyHoldLatestEventInput {
+    #[serde(default)]
+    pub events: Vec<PolicyHoldLatestEventEntryInput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PolicyHoldLatestEventOutput {
+    pub found: bool,
+    pub event_index: Option<u32>,
+    pub result: Option<String>,
+    pub ts: Option<String>,
+    pub ts_ms: Option<f64>,
+    pub hold_reason: Option<String>,
+    pub route_block_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PolicyHoldCooldownInput {
     #[serde(default)]
     pub base_minutes: Option<f64>,
@@ -413,6 +448,8 @@ pub struct AutoscaleRequest {
     pub policy_hold_pressure_input: Option<PolicyHoldPressureInput>,
     #[serde(default)]
     pub policy_hold_pattern_input: Option<PolicyHoldPatternInput>,
+    #[serde(default)]
+    pub policy_hold_latest_event_input: Option<PolicyHoldLatestEventInput>,
     #[serde(default)]
     pub policy_hold_cooldown_input: Option<PolicyHoldCooldownInput>,
     #[serde(default)]
@@ -1158,6 +1195,67 @@ pub fn compute_policy_hold_pattern(input: &PolicyHoldPatternInput) -> PolicyHold
     }
 }
 
+fn policy_hold_reason_from_latest_entry(evt: &PolicyHoldLatestEventEntryInput) -> Option<String> {
+    let hold_reason = evt
+        .hold_reason
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
+    if hold_reason.is_some() {
+        return hold_reason;
+    }
+    evt.route_block_reason
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+}
+
+pub fn compute_policy_hold_latest_event(input: &PolicyHoldLatestEventInput) -> PolicyHoldLatestEventOutput {
+    for (idx, evt) in input.events.iter().enumerate().rev() {
+        let event_type = evt
+            .event_type
+            .as_ref()
+            .map(|v| v.trim().to_ascii_lowercase())
+            .unwrap_or_default();
+        if event_type != "autonomy_run" {
+            continue;
+        }
+
+        let result = evt
+            .result
+            .as_ref()
+            .map(|v| v.trim().to_string())
+            .unwrap_or_default();
+        if !evt.policy_hold.unwrap_or(false) && !is_policy_hold_result(&result) {
+            continue;
+        }
+
+        return PolicyHoldLatestEventOutput {
+            found: true,
+            event_index: Some(idx as u32),
+            result: evt.result.as_ref().map(|v| v.to_string()),
+            ts: evt.ts.as_ref().map(|v| v.to_string()).filter(|v| !v.trim().is_empty()),
+            ts_ms: non_negative_number(evt.ts_ms),
+            hold_reason: policy_hold_reason_from_latest_entry(evt),
+            route_block_reason: evt
+                .route_block_reason
+                .as_ref()
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty()),
+        };
+    }
+
+    PolicyHoldLatestEventOutput {
+        found: false,
+        event_index: None,
+        result: None,
+        ts: None,
+        ts_ms: None,
+        hold_reason: None,
+        route_block_reason: None,
+    }
+}
+
 fn minutes_until_next_utc_day(now_ms: f64) -> u32 {
     let now = if now_ms.is_finite() && now_ms > 0.0 {
         now_ms as i64
@@ -1489,6 +1587,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_policy_hold_pattern_encode_failed:{e}"));
+    }
+    if mode == "policy_hold_latest_event" {
+        let input = request
+            .policy_hold_latest_event_input
+            .ok_or_else(|| "autoscale_missing_policy_hold_latest_event_input".to_string())?;
+        let out = compute_policy_hold_latest_event(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "policy_hold_latest_event",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_policy_hold_latest_event_encode_failed:{e}"));
     }
     if mode == "policy_hold_cooldown" {
         let input = request
@@ -1921,6 +2031,52 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale policy_hold_pattern");
         assert!(out.contains("\"mode\":\"policy_hold_pattern\""));
+    }
+
+    #[test]
+    fn policy_hold_latest_event_prefers_last_policy_hold_run() {
+        let out = compute_policy_hold_latest_event(&PolicyHoldLatestEventInput {
+            events: vec![
+                PolicyHoldLatestEventEntryInput {
+                    event_type: Some("autonomy_run".to_string()),
+                    result: Some("executed".to_string()),
+                    policy_hold: Some(false),
+                    ts_ms: Some(1_000_000.0),
+                    ts: Some("2026-03-01T00:00:00.000Z".to_string()),
+                    hold_reason: None,
+                    route_block_reason: None,
+                },
+                PolicyHoldLatestEventEntryInput {
+                    event_type: Some("autonomy_run".to_string()),
+                    result: Some("stop_init_gate_readiness".to_string()),
+                    policy_hold: Some(false),
+                    ts_ms: Some(1_100_000.0),
+                    ts: Some("2026-03-01T00:01:00.000Z".to_string()),
+                    hold_reason: Some("gate_manual".to_string()),
+                    route_block_reason: None,
+                },
+            ],
+        });
+        assert!(out.found);
+        assert_eq!(out.result, Some("stop_init_gate_readiness".to_string()));
+        assert_eq!(out.ts, Some("2026-03-01T00:01:00.000Z".to_string()));
+        assert_eq!(out.hold_reason, Some("gate_manual".to_string()));
+    }
+
+    #[test]
+    fn autoscale_json_policy_hold_latest_event_path_works() {
+        let payload = serde_json::json!({
+            "mode": "policy_hold_latest_event",
+            "policy_hold_latest_event_input": {
+                "events": [
+                    { "event_type": "autonomy_run", "result": "executed", "policy_hold": false, "ts_ms": 1000000.0, "ts": "2026-03-01T00:00:00.000Z" },
+                    { "event_type": "autonomy_run", "result": "stop_init_gate_budget_autopause", "policy_hold": false, "ts_ms": 1100000.0, "ts": "2026-03-01T00:01:00.000Z" }
+                ]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale policy_hold_latest_event");
+        assert!(out.contains("\"mode\":\"policy_hold_latest_event\""));
     }
 
     #[test]
