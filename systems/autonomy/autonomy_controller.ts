@@ -9553,10 +9553,12 @@ function executeConfidenceHistoryMatch(evt, proposalType, capabilityKey) {
 
 function collectExecuteConfidenceHistory(dateStr, proposalType, capabilityKey, days = 7) {
   const windowDays = clampNumber(Number(days || 7), 1, 30);
+  const normalizedProposalType = String(proposalType || '').trim().toLowerCase() || null;
+  const normalizedCapabilityKey = String(capabilityKey || '').trim().toLowerCase() || null;
   const out = {
     window_days: windowDays,
-    proposal_type: String(proposalType || '').trim().toLowerCase() || null,
-    capability_key: String(capabilityKey || '').trim().toLowerCase() || null,
+    proposal_type: normalizedProposalType,
+    capability_key: normalizedCapabilityKey,
     matched_events: 0,
     confidence_fallback: 0,
     route_blocked: 0,
@@ -9567,9 +9569,34 @@ function collectExecuteConfidenceHistory(dateStr, proposalType, capabilityKey, d
     no_change_rate: 0,
     reverted_rate: 0
   };
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rustEvents = [];
+    for (const d of dateWindow(dateStr, windowDays)) {
+      for (const evt of readRuns(d)) {
+        rustEvents.push({
+          matched: executeConfidenceHistoryMatch(evt, normalizedProposalType, normalizedCapabilityKey),
+          result: evt && evt.result != null ? String(evt.result) : null,
+          outcome: evt && evt.outcome != null ? String(evt.outcome) : null
+        });
+      }
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'execute_confidence_history',
+      {
+        window_days: windowDays,
+        proposal_type: normalizedProposalType,
+        capability_key: normalizedCapabilityKey,
+        events: rustEvents
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
+  }
   for (const d of dateWindow(dateStr, windowDays)) {
     for (const evt of readRuns(d)) {
-      if (!executeConfidenceHistoryMatch(evt, proposalType, capabilityKey)) continue;
+      if (!executeConfidenceHistoryMatch(evt, normalizedProposalType, normalizedCapabilityKey)) continue;
       out.matched_events += 1;
       const result = String(evt.result || '').trim();
       if (result === 'score_only_fallback_low_execution_confidence') {
@@ -9609,6 +9636,36 @@ function computeExecuteConfidencePolicy(dateStr, proposal, capabilityKey, propos
     capabilityKey,
     AUTONOMY_EXECUTE_CONFIDENCE_HISTORY_DAYS
   );
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'execute_confidence_policy',
+      {
+        proposal_type: type || null,
+        capability_key: String(capabilityKey || '').trim().toLowerCase() || null,
+        risk,
+        execution_mode: String(executionMode || ''),
+        adaptive_enabled: AUTONOMY_EXECUTE_CONFIDENCE_ADAPTIVE_ENABLED,
+        base_composite_margin: baseCompositeMargin,
+        base_value_margin: baseValueMargin,
+        low_risk_relax_composite: AUTONOMY_EXECUTE_CONFIDENCE_LOW_RISK_RELAX_COMPOSITE,
+        low_risk_relax_value: AUTONOMY_EXECUTE_CONFIDENCE_LOW_RISK_RELAX_VALUE,
+        fallback_relax_every: AUTONOMY_EXECUTE_CONFIDENCE_FALLBACK_RELAX_EVERY,
+        fallback_relax_step: AUTONOMY_EXECUTE_CONFIDENCE_FALLBACK_RELAX_STEP,
+        fallback_relax_max: AUTONOMY_EXECUTE_CONFIDENCE_FALLBACK_RELAX_MAX,
+        fallback_relax_min_executed: AUTONOMY_EXECUTE_CONFIDENCE_FALLBACK_RELAX_MIN_EXECUTED,
+        fallback_relax_min_shipped: AUTONOMY_EXECUTE_CONFIDENCE_FALLBACK_RELAX_MIN_SHIPPED,
+        fallback_relax_min_ship_rate: AUTONOMY_EXECUTE_CONFIDENCE_FALLBACK_RELAX_MIN_SHIP_RATE,
+        no_change_tighten_min_executed: AUTONOMY_EXECUTE_CONFIDENCE_NO_CHANGE_TIGHTEN_MIN_EXECUTED,
+        no_change_tighten_threshold: AUTONOMY_EXECUTE_CONFIDENCE_NO_CHANGE_TIGHTEN_THRESHOLD,
+        no_change_tighten_step: AUTONOMY_EXECUTE_CONFIDENCE_NO_CHANGE_TIGHTEN_STEP,
+        history
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.policy || {};
+    }
+  }
   if (
     AUTONOMY_EXECUTE_CONFIDENCE_ADAPTIVE_ENABLED
     && String(executionMode || '') === 'canary_execute'
@@ -10690,6 +10747,37 @@ function recentProposalKeyCounts(dateStr, hours) {
   if (!Number.isFinite(h) || h <= 0) return out;
   const cutoffMs = Date.now() - (h * 60 * 60 * 1000);
   const days = Math.max(1, Math.ceil(h / 24) + 1);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rustEvents = [];
+    for (const d of dateWindow(dateStr, days)) {
+      const rows = readRuns(d);
+      for (const evt of rows) {
+        if (!evt || evt.type !== 'autonomy_run') continue;
+        rustEvents.push({
+          proposal_key: evt.proposal_key == null ? null : String(evt.proposal_key),
+          ts_ms: parseIsoTs(evt.ts)?.getTime() || null,
+          result: evt.result == null ? null : String(evt.result),
+          is_attempt: isAttemptRunEvent(evt)
+        });
+      }
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'recent_proposal_key_counts',
+      {
+        events: rustEvents,
+        cutoff_ms: cutoffMs
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const counts = rust.payload.payload.counts && typeof rust.payload.payload.counts === 'object'
+        ? rust.payload.payload.counts
+        : {};
+      return new Map(
+        Object.entries(counts).map(([key, count]) => [String(key), Number(count || 0)])
+      );
+    }
+  }
   for (const d of dateWindow(dateStr, days)) {
     const rows = readRuns(d);
     for (const evt of rows) {
@@ -10917,6 +11005,23 @@ function capabilityAttemptCountForDate(dateStr, descriptor) {
   );
   if (!keys.size) return 0;
   const events = readRuns(dateStr);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'capability_attempt_count_for_date',
+      {
+        events: events.map((evt) => ({
+          event_type: evt && evt.type != null ? String(evt.type) : null,
+          capability_key: evt && evt.capability_key != null ? String(evt.capability_key) : null,
+          is_attempt: isAttemptRunEvent(evt)
+        })),
+        keys: Array.from(keys)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Number(rust.payload.payload.count || 0);
+    }
+  }
   let count = 0;
   for (const evt of events) {
     if (!evt || evt.type !== 'autonomy_run') continue;
@@ -10938,6 +11043,35 @@ function capabilityOutcomeStatsInWindow(dateStr, descriptor, days) {
   );
   const out = { executed: 0, shipped: 0, no_change: 0, reverted: 0 };
   if (!keys.size) return out;
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rustEvents = [];
+    for (const d of dateWindow(dateStr, windowDays)) {
+      for (const evt of readRuns(d)) {
+        rustEvents.push({
+          event_type: evt && evt.type != null ? String(evt.type) : null,
+          result: evt && evt.result != null ? String(evt.result) : null,
+          capability_key: evt && evt.capability_key != null ? String(evt.capability_key) : null,
+          outcome: evt && evt.outcome != null ? String(evt.outcome) : null
+        });
+      }
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'capability_outcome_stats_in_window',
+      {
+        events: rustEvents,
+        keys: Array.from(keys)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return {
+        executed: Number(rust.payload.payload.executed || 0),
+        shipped: Number(rust.payload.payload.shipped || 0),
+        no_change: Number(rust.payload.payload.no_change || 0),
+        reverted: Number(rust.payload.payload.reverted || 0)
+      };
+    }
+  }
   for (const d of dateWindow(dateStr, windowDays)) {
     for (const evt of readRuns(d)) {
       if (!evt || evt.type !== 'autonomy_run' || evt.result !== 'executed') continue;
@@ -22329,6 +22463,11 @@ module.exports = {
   startOfNextUtcDay,
   isoAfterMinutes,
   executeConfidenceHistoryMatch,
+  collectExecuteConfidenceHistory,
+  computeExecuteConfidencePolicy,
+  recentProposalKeyCounts,
+  capabilityAttemptCountForDate,
+  capabilityOutcomeStatsInWindow,
   runEventProposalType,
   runEventObjectiveId,
   runEventProposalId,
