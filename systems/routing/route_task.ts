@@ -207,6 +207,51 @@ function runRouteComplexityViaRust(task, tokensEst, hasMatch, anyTrigger) {
   };
 }
 
+function runRouteEvaluateViaRust(task, tokensEst, repeats14d, errors30d, skipHabitId, habits, reflexRoutines) {
+  const routines = Array.isArray(Object.values(reflexRoutines || {}))
+    ? Object.values(reflexRoutines || {})
+    : [];
+  const payload = JSON.stringify({
+    task_text: String(task || ''),
+    tokens_est: Number(tokensEst || 0),
+    repeats_14d: Number(repeats14d || 0),
+    errors_30d: Number(errors30d || 0),
+    skip_habit_id: String(skipHabitId || ''),
+    habits: Array.isArray(habits)
+      ? habits.map((h) => ({ id: String(h && h.id || '') }))
+      : [],
+    reflex_routines: routines.map((r) => ({
+      id: String(r && r.id || ''),
+      status: String(r && r.status || ''),
+      tags: Array.isArray(r && r.tags) ? r.tags.map((t) => String(t || '')) : []
+    }))
+  });
+  const payloadB64 = Buffer.from(payload, 'utf8').toString('base64');
+  let sawBinary = false;
+  for (const candidate of executionBinaryCandidates()) {
+    try {
+      if (!fs.existsSync(candidate)) continue;
+      sawBinary = true;
+      const out = spawnSync(candidate, ['route-evaluate', `--payload-base64=${payloadB64}`], {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+        maxBuffer: 10 * 1024 * 1024
+      });
+      const parsed = parseJsonPayload(out.stdout);
+      if (Number(out.status) !== 0 || !parsed || typeof parsed !== 'object') continue;
+      return { ok: true, payload: parsed, routines };
+    } catch {
+      // try next candidate
+    }
+  }
+  return {
+    ok: false,
+    error: sawBinary ? 'route_evaluate_invalid_output' : 'route_evaluate_rust_unavailable',
+    payload: null,
+    routines
+  };
+}
+
 function normalizeIntent(text) {
   if (!text) return '';
   return text
@@ -558,76 +603,53 @@ function main() {
   // v1.1: MANUAL forces manual routing even if habit matched
   const gateOverridesToManual = gateResult.decision === 'MANUAL';
   
-  const routePrimitives = computeRoutePrimitives(task, tokensEst, repeats14d, errors30d);
-  if (routePrimitives.ok !== true) {
-    const out = {
-      decision: 'MANUAL',
-      reason: `Rust route primitives unavailable: ${String(routePrimitives.error || 'unknown')}`,
-      executor: null,
-      route_error: String(routePrimitives.error || 'route_primitives_rust_unavailable'),
-      gate_decision: gateResult.decision,
-      gate_risk: gateResult.risk,
-      gate_reasons: gateResult.reasons,
-      gate_event: gateEvent,
-      route: {
-        type: 'route_blocked',
-        reason: 'route_primitives_rust_unavailable'
-      }
-    };
-    console.log(JSON.stringify(out, null, 2));
-    process.exit(0);
-  }
-  const intentKey = routePrimitives.intent_key;
   const registry = loadRegistry();
   const habits = registry.habits || [];
   const trusted = loadTrustedHabits();
-  const matchResolution = resolveHabitMatch(habits, intentKey, skipHabitId);
-  if (matchResolution.ok !== true) {
+  const reflexRoutines = loadReflexRoutines();
+  const routeEval = runRouteEvaluateViaRust(
+    task,
+    tokensEst,
+    repeats14d,
+    errors30d,
+    skipHabitId,
+    habits,
+    reflexRoutines
+  );
+  if (routeEval.ok !== true || !routeEval.payload || typeof routeEval.payload !== 'object') {
     const out = {
       decision: 'MANUAL',
-      reason: `Rust route match unavailable: ${String(matchResolution.error || 'unknown')}`,
+      reason: `Rust route evaluate unavailable: ${String(routeEval.error || 'unknown')}`,
       executor: null,
-      route_error: String(matchResolution.error || 'route_match_rust_unavailable'),
+      route_error: String(routeEval.error || 'route_evaluate_rust_unavailable'),
       gate_decision: gateResult.decision,
       gate_risk: gateResult.risk,
       gate_reasons: gateResult.reasons,
       gate_event: gateEvent,
       route: {
         type: 'route_blocked',
-        reason: 'route_match_rust_unavailable'
+        reason: 'route_evaluate_rust_unavailable'
       }
     };
     console.log(JSON.stringify(out, null, 2));
     process.exit(0);
   }
-  const match = matchResolution.match;
+  const routePrimitives = routeEval.payload;
+  const intentKey = String(routePrimitives.intent_key || '');
+  const matchedHabitId = String(routePrimitives.matched_habit_id || '');
+  const match = matchedHabitId
+    ? (habits.find((h) => String(h && h.id || '') === matchedHabitId) || null)
+    : null;
   
   // A/B/C triggers per Governance v1.0
-  const triggerA = routePrimitives.trigger_a;
-  const triggerB = routePrimitives.trigger_b;
-  const triggerC = routePrimitives.trigger_c;
-  const anyTrigger = routePrimitives.any_trigger;
-  const intent = routePrimitives.intent;
-  const complexityOut = computeRouteComplexity(task, tokensEst, match, anyTrigger);
-  if (complexityOut.ok !== true) {
-    const out = {
-      decision: 'MANUAL',
-      reason: `Rust route complexity unavailable: ${String(complexityOut.error || 'unknown')}`,
-      executor: null,
-      route_error: String(complexityOut.error || 'route_complexity_rust_unavailable'),
-      gate_decision: gateResult.decision,
-      gate_risk: gateResult.risk,
-      gate_reasons: gateResult.reasons,
-      gate_event: gateEvent,
-      route: {
-        type: 'route_blocked',
-        reason: 'route_complexity_rust_unavailable'
-      }
-    };
-    console.log(JSON.stringify(out, null, 2));
-    process.exit(0);
-  }
-  const complexity = complexityOut.complexity;
+  const triggerA = routePrimitives.trigger_a === true;
+  const triggerB = routePrimitives.trigger_b === true;
+  const triggerC = routePrimitives.trigger_c === true;
+  const anyTrigger = routePrimitives.any_trigger === true;
+  const intent = String(routePrimitives.intent || 'task');
+  const complexity = ['low', 'medium', 'high'].includes(String(routePrimitives.complexity || '').toLowerCase())
+    ? String(routePrimitives.complexity).toLowerCase()
+    : 'medium';
 
   // Optional router annotation (feature-flagged). Does not alter decision logic.
   const routeMeta = shouldUseRouter()
@@ -656,29 +678,10 @@ function main() {
   );
   const reflexPreferred = String(process.env.ROUTE_TASK_REFLEX_PREFERRED || '1') !== '0';
   const reflexMaxTokens = Number(process.env.ROUTE_TASK_REFLEX_MAX_TOKENS || 420);
-  const reflexRoutines = loadReflexRoutines();
-  const reflexResolution = reflexPreferred && gateResult.risk === 'low' && tokensEst <= reflexMaxTokens
-    ? resolveReflexMatch(reflexRoutines, intentKey, task)
-    : { ok: true, match: null };
-  if (reflexResolution.ok !== true) {
-    const out = {
-      decision: 'MANUAL',
-      reason: `Rust reflex match unavailable: ${String(reflexResolution.error || 'unknown')}`,
-      executor: null,
-      route_error: String(reflexResolution.error || 'route_reflex_match_rust_unavailable'),
-      gate_decision: gateResult.decision,
-      gate_risk: gateResult.risk,
-      gate_reasons: gateResult.reasons,
-      gate_event: gateEvent,
-      route: {
-        type: 'route_blocked',
-        reason: 'route_reflex_match_rust_unavailable'
-      }
-    };
-    console.log(JSON.stringify(out, null, 2));
-    process.exit(0);
-  }
-  const reflexMatch = reflexResolution.match;
+  const matchedReflexId = String(routePrimitives.matched_reflex_id || '');
+  const reflexMatch = reflexPreferred && gateResult.risk === 'low' && tokensEst <= reflexMaxTokens && matchedReflexId
+    ? (routeEval.routines.find((r) => String(r && r.id || '') === matchedReflexId) || null)
+    : null;
   
   // Build triggers_met array
   const whichMet = routePrimitives.which_met;

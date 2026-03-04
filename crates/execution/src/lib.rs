@@ -30,7 +30,8 @@ pub use decompose::{
     dispatch_rows_json, evaluate_directive_gate, evaluate_directive_gate_json,
     evaluate_route_complexity, evaluate_route_complexity_json, evaluate_route_match,
     evaluate_route_match_json, evaluate_route_primitives, evaluate_route_primitives_json, evaluate_route_reflex_match,
-    evaluate_route_reflex_match_json, evaluate_heroic_gate, evaluate_heroic_gate_json,
+    evaluate_route_reflex_match_json, evaluate_route, evaluate_route_json,
+    evaluate_heroic_gate, evaluate_heroic_gate_json,
     queue_rows_json, summarize_dispatch,
     summarize_dispatch_json, summarize_tasks, summarize_tasks_json, BaseTask, Capability,
     ComposePolicy, ComposeRequest, ComposeResponse, DecomposePolicy, DecomposeRequest,
@@ -38,9 +39,9 @@ pub use decompose::{
     DispatchRowsResponse, DispatchSummaryRequest, DispatchSummaryResponse, GovernanceApplyPolicy,
     GovernanceApplyRequest, GovernanceApplyResponse, HeroicGateRequest, HeroicGateResponse,
     QueueRowsRequest, QueueRowsResponse, RouteComplexityRequest, RouteComplexityResponse,
-    RouteMatchRequest, RouteMatchResponse, RoutePrimitivesRequest, RoutePrimitivesResponse,
-    RouteReflexMatchRequest, RouteReflexMatchResponse, RouteReflexRoutine, TaskSummaryRequest,
-    TaskSummaryResponse,
+    RouteEvaluateRequest, RouteEvaluateResponse, RouteMatchRequest, RouteMatchResponse,
+    RoutePrimitivesRequest, RoutePrimitivesResponse, RouteReflexMatchRequest,
+    RouteReflexMatchResponse, RouteReflexRoutine, TaskSummaryRequest, TaskSummaryResponse,
 };
 pub use sprint_contract::run_sprint_contract_json;
 
