@@ -2951,6 +2951,27 @@ function sourceEyeRef(p) {
 }
 
 function normalizedRisk(v) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const raw = String(v || '');
+    const cache = globalThis.__PROTHEUS_NORMALIZED_RISK_CACHE instanceof Map
+      ? globalThis.__PROTHEUS_NORMALIZED_RISK_CACHE
+      : (globalThis.__PROTHEUS_NORMALIZED_RISK_CACHE = new Map());
+    if (cache.has(raw)) return cache.get(raw);
+    const rust = runBacklogAutoscalePrimitive(
+      'normalized_risk',
+      { risk: raw || null },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const risk = String(rust.payload.payload.risk || 'low');
+      if (cache.size >= 1024) {
+        const oldest = cache.keys().next();
+        if (!oldest.done) cache.delete(oldest.value);
+      }
+      cache.set(raw, risk);
+      return risk;
+    }
+  }
   const r = String(v || '').trim().toLowerCase();
   if (r === 'high' || r === 'medium' || r === 'low') return r;
   return 'low';
@@ -19020,6 +19041,7 @@ module.exports = {
   percentMentionsFromText,
   optimizationMinDeltaPercent,
   sourceEyeRef,
+  normalizedRisk,
   toStem,
   directiveTokenHits,
   expectedValueScore,
