@@ -2796,6 +2796,18 @@ pub struct LockAgeMinutesOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct HashObjInput {
+    #[serde(default)]
+    pub json: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct HashObjOutput {
+    #[serde(default)]
+    pub hash: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ManualGatePrefilterInput {
     #[serde(default)]
     pub enabled: bool,
@@ -4826,6 +4838,8 @@ pub struct AutoscaleRequest {
     pub bump_count_input: Option<BumpCountInput>,
     #[serde(default)]
     pub lock_age_minutes_input: Option<LockAgeMinutesInput>,
+    #[serde(default)]
+    pub hash_obj_input: Option<HashObjInput>,
     #[serde(default)]
     pub manual_gate_prefilter_input: Option<ManualGatePrefilterInput>,
     #[serde(default)]
@@ -9744,6 +9758,19 @@ pub fn compute_lock_age_minutes(input: &LockAgeMinutesInput) -> LockAgeMinutesOu
     let diff_ms = (now_ms - parsed.timestamp_millis() as f64).max(0.0);
     LockAgeMinutesOutput {
         age_minutes: Some(diff_ms / 60_000.0),
+    }
+}
+
+pub fn compute_hash_obj(input: &HashObjInput) -> HashObjOutput {
+    let json = input.json.as_deref().unwrap_or("");
+    if json.is_empty() {
+        return HashObjOutput { hash: None };
+    }
+    let mut hasher = Sha256::new();
+    hasher.update(json.as_bytes());
+    let digest = hasher.finalize();
+    HashObjOutput {
+        hash: Some(format!("{:x}", digest)),
     }
 }
 
@@ -15072,6 +15099,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_lock_age_minutes_encode_failed:{e}"));
+    }
+    if mode == "hash_obj" {
+        let input = request
+            .hash_obj_input
+            .ok_or_else(|| "autoscale_missing_hash_obj_input".to_string())?;
+        let out = compute_hash_obj(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "hash_obj",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_hash_obj_encode_failed:{e}"));
     }
     if mode == "manual_gate_prefilter" {
         let input = request
@@ -21426,6 +21465,35 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale lock_age_minutes");
         assert!(out.contains("\"mode\":\"lock_age_minutes\""));
         assert!(out.contains("\"age_minutes\":30.0"));
+    }
+
+    #[test]
+    fn hash_obj_hashes_json_payload_and_returns_none_when_missing() {
+        let missing = compute_hash_obj(&HashObjInput { json: None });
+        assert!(missing.hash.is_none());
+
+        let out = compute_hash_obj(&HashObjInput {
+            json: Some("{\"a\":1}".to_string()),
+        });
+        assert!(out.hash.is_some());
+        assert_eq!(
+            out.hash.unwrap_or_default(),
+            "015abd7f5cc57a2dd94b7590f04ad8084273905ee33ec5cebeae62276a97f862"
+        );
+    }
+
+    #[test]
+    fn autoscale_json_hash_obj_path_works() {
+        let payload = serde_json::json!({
+            "mode": "hash_obj",
+            "hash_obj_input": {
+                "json": "{\"x\":2}"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale hash_obj");
+        assert!(out.contains("\"mode\":\"hash_obj\""));
+        assert!(out.contains("\"hash\":\""));
     }
 
     #[test]

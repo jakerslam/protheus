@@ -13808,6 +13808,20 @@ function computeExecutionTokenUsage(summary, executionMetrics, routeTokensEst, f
 }
 
 function hashObj(v) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    try {
+      const json = JSON.stringify(v);
+      const rust = runBacklogAutoscalePrimitive(
+        'hash_obj',
+        { json: json == null ? null : String(json) },
+        { allow_cli_fallback: true }
+      );
+      if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+        const hash = rust.payload.payload.hash;
+        return hash == null ? null : String(hash);
+      }
+    } catch {}
+  }
   try {
     return crypto.createHash('sha256').update(JSON.stringify(v)).digest('hex');
   } catch {
