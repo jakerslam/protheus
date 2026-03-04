@@ -2697,6 +2697,8 @@ const NON_YIELD_CATEGORY_CACHE = new Map();
 const NON_YIELD_CATEGORY_CACHE_MAX = 1024;
 const NON_YIELD_REASON_CACHE = new Map();
 const NON_YIELD_REASON_CACHE_MAX = 1024;
+const PROPOSAL_TYPE_FROM_RUN_EVENT_CACHE = new Map();
+const PROPOSAL_TYPE_FROM_RUN_EVENT_CACHE_MAX = 1024;
 
 function isPolicyHoldResult(result): boolean {
   const r = String(result || '').trim();
@@ -6993,11 +6995,37 @@ function evaluateBudgetPacingGate(cand, valueSignal, risk, snapshot, opts: AnyOb
 }
 
 function runEventProposalType(evt) {
-  const direct = String(evt && evt.proposal_type || '').trim().toLowerCase();
-  if (direct) return direct;
-  const cap = String(evt && evt.capability_key || '').trim().toLowerCase();
-  if (cap.startsWith('proposal:') && cap.length > 'proposal:'.length) {
-    return cap.slice('proposal:'.length);
+  const eventType = String(evt && evt.type || '').trim().toLowerCase();
+  const proposalType = String(evt && evt.proposal_type || '').trim().toLowerCase();
+  const capabilityKey = String(evt && evt.capability_key || '').trim().toLowerCase();
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const key = [eventType, proposalType, capabilityKey].join('\u0000');
+    if (PROPOSAL_TYPE_FROM_RUN_EVENT_CACHE.has(key)) {
+      return String(PROPOSAL_TYPE_FROM_RUN_EVENT_CACHE.get(key) || '');
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'proposal_type_from_run_event',
+      {
+        event_type: eventType,
+        proposal_type: proposalType,
+        capability_key: capabilityKey
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const typeVal = String(rust.payload.payload.proposal_type || '');
+      if (PROPOSAL_TYPE_FROM_RUN_EVENT_CACHE.size >= PROPOSAL_TYPE_FROM_RUN_EVENT_CACHE_MAX) {
+        const oldest = PROPOSAL_TYPE_FROM_RUN_EVENT_CACHE.keys().next();
+        if (!oldest.done) PROPOSAL_TYPE_FROM_RUN_EVENT_CACHE.delete(oldest.value);
+      }
+      PROPOSAL_TYPE_FROM_RUN_EVENT_CACHE.set(key, typeVal);
+      return typeVal;
+    }
+  }
+  if (eventType !== 'autonomy_run') return '';
+  if (proposalType) return proposalType;
+  if (capabilityKey.startsWith('proposal:') && capabilityKey.length > 'proposal:'.length) {
+    return capabilityKey.slice('proposal:'.length);
   }
   return '';
 }
@@ -16211,5 +16239,6 @@ module.exports = {
   isAttemptRunEvent,
   isSafetyStopRunEvent,
   classifyNonYieldCategory,
-  nonYieldReasonFromRun
+  nonYieldReasonFromRun,
+  runEventProposalType
 };
