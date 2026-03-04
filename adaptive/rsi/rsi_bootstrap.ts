@@ -76,6 +76,11 @@ const SELF_MOD_PATCH_GATE_SCRIPT = path.join(ROOT, 'systems', 'security', 'rsi_g
 const PERSONAS_LENS_SCRIPT = path.join(ROOT, 'systems', 'personas', 'cli.js');
 const SHADOW_CONCLAVE_PARTICIPANTS = ['vikram', 'rohan', 'priya', 'aarav', 'liwei'];
 const SHADOW_CONCLAVE_BASE_QUERY = 'Review this proposed RSI change for safety, ops, measurement, security, and product impact';
+const SHADOW_CONCLAVE_MAX_CONTEXT_TOKENS = (() => {
+  const n = Number(process.env.PROTHEUS_PERSONA_MAX_CONTEXT_TOKENS || 2000);
+  if (!Number.isFinite(n)) return 2000;
+  return Math.max(200, Math.min(12000, Math.floor(n)));
+})();
 const SHADOW_CONCLAVE_MAX_DIVERGENCE = 0.45;
 const SHADOW_CONCLAVE_MIN_CONFIDENCE = 0.6;
 const SHADOW_CONCLAVE_HIGH_RISK_KEYWORDS = [
@@ -863,7 +868,13 @@ function runShadowConclaveReview(policy: AnyObj, input: AnyObj) {
   const query = `${SHADOW_CONCLAVE_BASE_QUERY}. Proposed change: ${proposalSummary}.`;
   const run = runNodeScript(
     PERSONAS_LENS_SCRIPT,
-    [...SHADOW_CONCLAVE_PARTICIPANTS, query, '--schema=json'],
+    [
+      ...SHADOW_CONCLAVE_PARTICIPANTS,
+      query,
+      '--schema=json',
+      `--max-context-tokens=${SHADOW_CONCLAVE_MAX_CONTEXT_TOKENS}`,
+      '--context-budget-mode=trim'
+    ],
     { timeout_ms: policy.timeouts_ms.lane }
   );
   const payload = run && run.payload && typeof run.payload === 'object' ? run.payload : null;

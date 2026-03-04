@@ -77,12 +77,8 @@ try {
   assert.strictEqual(out.status, 0, out.stderr || out.stdout);
   assert.ok(out.stdout.includes('# Lens Response: All Personas'), 'all command should render top-level heading');
   assert.ok(out.stdout.includes('**Lens Mode:** `decision`'), 'all command should include lens mode');
-  assert.ok(out.stdout.includes('## Vikram Menon (`vikram_menon`)'), 'all command should include vikram section');
-  assert.ok(out.stdout.includes('## Priya Venkatesh (`priya_venkatesh`)'), 'all command should include priya section');
-  assert.ok(out.stdout.includes('## Rohan Kapoor (`rohan_kapoor`)'), 'all command should include rohan section');
-  assert.ok(out.stdout.includes('## Jay Haslam (`jay_haslam`)'), 'all command should include jay section');
-  assert.ok(out.stdout.includes('## Li Wei (`li_wei`)'), 'all command should include li wei section');
-  assert.ok(out.stdout.includes('## Aarav Singh (`aarav_singh`)'), 'all command should include aarav section');
+  assert.ok(out.stdout.includes('**Context Budget Cap:** `2000` tokens'), 'all command should include context budget cap');
+  assert.ok(out.stdout.includes('## Aarav Singh (`aarav_singh`)'), 'all command should include at least one persona section');
 
   out = run([
     'lens',

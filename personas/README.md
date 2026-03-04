@@ -36,6 +36,7 @@ This directory stores internal operator lenses used for planning, audits, and de
 - Use `--include-feed=1` to include hash-verified `## System Passed` feed payloads in response reasoning.
 - Use `--surprise=on` to enable a deterministic 20% anti-puppet deviation die for challenge-style responses.
 - Use `--schema=json` to emit structured response payloads for easier aggregation.
+- Use `--max-context-tokens=<n>` (default `2000`) and `--context-budget-mode=trim|reject` to enforce bootstrap-vs-dynamic context budgeting before every lens call.
 - Use `protheus lens update-stream <persona>` to simulate stream sync and append correspondence updates.
 - Use `protheus lens feed <persona> "<snippet>"` (or `protheus persona feed ...`) to push master-feed insights to a persona.
 - Use `protheus lens checkin --persona=jay_haslam --heartbeat=HEARTBEAT.md` for daily drift/alignment logging.
@@ -65,6 +66,18 @@ This directory stores internal operator lenses used for planning, audits, and de
 - Keep persona memory fresh without external integrations:
   - Push internal insights via `protheus lens feed <persona> "<snippet>" --tags=...`.
   - Use `protheus lens checkin` to append tagged memory nodes automatically.
+
+## Context Budget Guard
+
+- Bootstrap context is loaded first and treated as immutable minimum context (profile highlights, decision/strategic/values constraints, and non-negotiables).
+- Dynamic memory context is loaded separately from `correspondence.md`, `feed.md`, and `memory.md` query recall.
+- Guard defaults to `2000` estimated tokens (`--max-context-tokens` overrides).
+- If over budget:
+  - `trim` mode: trim dynamic context first and continue.
+  - `reject` mode: fail closed.
+- Every over-budget event is logged to:
+  - `personas/organization/telemetry.jsonl` (`metric=context_budget_guard`)
+  - `personas/<name>/correspondence.md` (`Re: context budget guard`)
 
 ## Orchestration Guide
 
