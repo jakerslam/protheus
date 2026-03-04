@@ -1489,6 +1489,19 @@ function defaultBacklogAutoscaleState() {
 function loadBacklogAutoscaleState(filePath = BACKLOG_AUTOSCALE_STATE_PATH) {
   const raw = loadJson(filePath, null);
   const base = defaultBacklogAutoscaleState();
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'normalize_backlog_autoscale_state',
+      {
+        module: AUTONOMY_BACKLOG_AUTOSCALE_MODULE,
+        src: raw && typeof raw === 'object' ? raw : {}
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
+  }
   const src = raw && typeof raw === 'object' ? raw : {};
   return {
     ...base,
