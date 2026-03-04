@@ -18,6 +18,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 // v1.1: Import directive gate for T0/T1 enforcement
 const { evaluateTask, logGateDecision } = require('../security/directive_gate');
@@ -29,6 +30,59 @@ const TRUSTED_HABITS_PATH = path.join(REPO_ROOT, 'config', 'trusted_habits.json'
 const REFLEX_ROUTINES_PATH = process.env.REFLEX_ROUTINES_PATH
   ? path.resolve(process.env.REFLEX_ROUTINES_PATH)
   : path.join(REPO_ROOT, 'state', 'adaptive', 'reflex', 'routines.json');
+
+function parseJsonPayload(raw) {
+  const text = String(raw == null ? '' : raw).trim();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {}
+  const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    try {
+      return JSON.parse(lines[i]);
+    } catch {}
+  }
+  return null;
+}
+
+function executionBinaryCandidates() {
+  const explicit = String(process.env.PROTHEUS_EXECUTION_RUST_BIN || '').trim();
+  return Array.from(new Set([
+    explicit,
+    path.join(REPO_ROOT, 'target', 'release', 'execution_core'),
+    path.join(REPO_ROOT, 'target', 'debug', 'execution_core'),
+    path.join(REPO_ROOT, 'crates', 'execution', 'target', 'release', 'execution_core'),
+    path.join(REPO_ROOT, 'crates', 'execution', 'target', 'debug', 'execution_core')
+  ].filter(Boolean)));
+}
+
+function runRoutePrimitivesViaRust(task, tokensEst, repeats14d, errors30d) {
+  const payload = JSON.stringify({
+    task_text: String(task || ''),
+    tokens_est: Number(tokensEst || 0),
+    repeats_14d: Number(repeats14d || 0),
+    errors_30d: Number(errors30d || 0)
+  });
+  const payloadB64 = Buffer.from(payload, 'utf8').toString('base64');
+  for (const candidate of executionBinaryCandidates()) {
+    try {
+      if (!fs.existsSync(candidate)) continue;
+      const out = spawnSync(candidate, ['route-primitives', `--payload-base64=${payloadB64}`], {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+        maxBuffer: 10 * 1024 * 1024
+      });
+      const parsed = parseJsonPayload(out.stdout);
+      if (Number(out.status) === 0 && parsed && typeof parsed === 'object') {
+        return parsed;
+      }
+    } catch {
+      // try next candidate
+    }
+  }
+  return null;
+}
 
 function normalizeIntent(text) {
   if (!text) return '';
@@ -153,6 +207,56 @@ function estimateComplexity(tokensEst, task, match, anyTrigger) {
   if ((task || '').length >= 240) return 'medium';
   if (match || anyTrigger) return 'medium';
   return 'low';
+}
+
+function computeRoutePrimitivesFallback(task, tokensEst, repeats14d, errors30d) {
+  const intentKey = normalizeIntent(task);
+  const triggerA = repeats14d >= 3 && tokensEst >= 500;
+  const triggerB = tokensEst >= 2000;
+  const triggerC = errors30d >= 2;
+  const whichMet = [
+    triggerA ? 'A' : null,
+    triggerB ? 'B' : null,
+    triggerC ? 'C' : null
+  ].filter(Boolean);
+  return {
+    intent_key: intentKey,
+    intent: task ? task.split(/\s+/).slice(0, 6).join('_').toLowerCase() : 'task',
+    predicted_habit_id: predictHabitId(intentKey, task),
+    trigger_a: triggerA,
+    trigger_b: triggerB,
+    trigger_c: triggerC,
+    any_trigger: triggerA || triggerB || triggerC,
+    which_met: whichMet,
+    thresholds: {
+      A: { repeats_14d_min: 3, tokens_min: 500, met: triggerA },
+      B: { tokens_min: 2000, met: triggerB },
+      C: { errors_30d_min: 2, met: triggerC }
+    }
+  };
+}
+
+function computeRoutePrimitives(task, tokensEst, repeats14d, errors30d) {
+  const fallback = computeRoutePrimitivesFallback(task, tokensEst, repeats14d, errors30d);
+  const rustOut = runRoutePrimitivesViaRust(task, tokensEst, repeats14d, errors30d);
+  if (!rustOut || typeof rustOut !== 'object') return fallback;
+  const thresholds = rustOut.thresholds && typeof rustOut.thresholds === 'object'
+    ? rustOut.thresholds
+    : fallback.thresholds;
+  const whichMet = Array.isArray(rustOut.which_met)
+    ? rustOut.which_met.map((x) => String(x || '')).filter(Boolean)
+    : fallback.which_met;
+  return {
+    intent_key: String(rustOut.intent_key || fallback.intent_key),
+    intent: String(rustOut.intent || fallback.intent),
+    predicted_habit_id: String(rustOut.predicted_habit_id || fallback.predicted_habit_id),
+    trigger_a: typeof rustOut.trigger_a === 'boolean' ? rustOut.trigger_a : fallback.trigger_a,
+    trigger_b: typeof rustOut.trigger_b === 'boolean' ? rustOut.trigger_b : fallback.trigger_b,
+    trigger_c: typeof rustOut.trigger_c === 'boolean' ? rustOut.trigger_c : fallback.trigger_c,
+    any_trigger: typeof rustOut.any_trigger === 'boolean' ? rustOut.any_trigger : fallback.any_trigger,
+    which_met: whichMet,
+    thresholds
+  };
 }
 
 function shouldUseRouter() {
@@ -280,18 +384,19 @@ function main() {
   // v1.1: MANUAL forces manual routing even if habit matched
   const gateOverridesToManual = gateResult.decision === 'MANUAL';
   
-  const intentKey = normalizeIntent(task);
+  const routePrimitives = computeRoutePrimitives(task, tokensEst, repeats14d, errors30d);
+  const intentKey = routePrimitives.intent_key;
   const registry = loadRegistry();
   const habits = registry.habits || [];
   const trusted = loadTrustedHabits();
   const match = pickBestMatch(habits, intentKey, skipHabitId);
   
   // A/B/C triggers per Governance v1.0
-  const triggerA = repeats14d >= 3 && tokensEst >= 500;
-  const triggerB = tokensEst >= 2000;
-  const triggerC = errors30d >= 2;
-  const anyTrigger = triggerA || triggerB || triggerC;
-  const intent = task ? task.split(/\s+/).slice(0, 6).join('_').toLowerCase() : 'task';
+  const triggerA = routePrimitives.trigger_a;
+  const triggerB = routePrimitives.trigger_b;
+  const triggerC = routePrimitives.trigger_c;
+  const anyTrigger = routePrimitives.any_trigger;
+  const intent = routePrimitives.intent;
   const complexity = estimateComplexity(tokensEst, task, match, anyTrigger);
 
   // Optional router annotation (feature-flagged). Does not alter decision logic.
@@ -327,18 +432,10 @@ function main() {
     : null;
   
   // Build triggers_met array
-  const whichMet = [
-    triggerA ? 'A' : null,
-    triggerB ? 'B' : null,
-    triggerC ? 'C' : null
-  ].filter(Boolean);
+  const whichMet = routePrimitives.which_met;
   
   // Thresholds object for transparency
-  const thresholds = {
-    A: { repeats_14d_min: 3, tokens_min: 500, met: triggerA },
-    B: { tokens_min: 2000, met: triggerB },
-    C: { errors_30d_min: 2, met: triggerC }
-  };
+  const thresholds = routePrimitives.thresholds;
   if (routeBudgetBlocked || routeGlobalBudgetBlocked) {
     const blockReason = String(
       routeMeta && routeMeta.budget_enforcement && routeMeta.budget_enforcement.reason
@@ -525,7 +622,7 @@ function main() {
       ? 'habits/scripts/habit_crystallizer.js'
       : 'habits/scripts/propose_habit.js';
     const autoTrust = String(process.env.ROUTE_TASK_AUTO_TRUST_CANDIDATE || '1') !== '0';
-    const predictedHabitId = predictHabitId(intentKey, task);
+    const predictedHabitId = routePrimitives.predicted_habit_id;
     const proposeArgs = [
       proposeScript,
       '--from', task,

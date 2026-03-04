@@ -284,6 +284,61 @@ pub struct DirectiveGateResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RoutePrimitivesRequest {
+    #[serde(default)]
+    pub task_text: String,
+    #[serde(default)]
+    pub tokens_est: i64,
+    #[serde(default)]
+    pub repeats_14d: i64,
+    #[serde(default)]
+    pub errors_30d: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RouteThresholdA {
+    pub repeats_14d_min: i64,
+    pub tokens_min: i64,
+    pub met: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RouteThresholdB {
+    pub tokens_min: i64,
+    pub met: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RouteThresholdC {
+    pub errors_30d_min: i64,
+    pub met: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RouteThresholds {
+    #[serde(rename = "A")]
+    pub a: RouteThresholdA,
+    #[serde(rename = "B")]
+    pub b: RouteThresholdB,
+    #[serde(rename = "C")]
+    pub c: RouteThresholdC,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RoutePrimitivesResponse {
+    pub ok: bool,
+    pub intent_key: String,
+    pub intent: String,
+    pub predicted_habit_id: String,
+    pub trigger_a: bool,
+    pub trigger_b: bool,
+    pub trigger_c: bool,
+    pub any_trigger: bool,
+    pub which_met: Vec<String>,
+    pub thresholds: RouteThresholds,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct HeroicGateRequest {
     #[serde(default)]
     pub task_text: String,
@@ -1257,6 +1312,125 @@ fn contains_any(source: &str, needles: &[&str]) -> bool {
     needles.iter().any(|needle| source.contains(needle))
 }
 
+fn normalize_route_intent(task_text: &str) -> String {
+    if task_text.trim().is_empty() {
+        return String::new();
+    }
+
+    let mut out = task_text.to_ascii_lowercase();
+    let strip_patterns = [
+        r"\b\d{4}-\d{2}-\d{2}\b",
+        r"\b[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\b",
+        r"\d{4}-\d{2}-\d{2}t\d{2}:\d{2}:\d{2}(.\d+)?(z|[+-]\d{2}:\d{2})?",
+        r#"["'][^"']*["']"#,
+    ];
+    for pattern in strip_patterns {
+        if let Ok(re) = Regex::new(pattern) {
+            out = re.replace_all(&out, "").to_string();
+        }
+    }
+    if let Ok(re) = Regex::new(r"\s+") {
+        out = re.replace_all(&out, " ").trim().to_string();
+    } else {
+        out = out.split_whitespace().collect::<Vec<_>>().join(" ");
+    }
+    if out.is_empty() {
+        return String::new();
+    }
+    out.split_whitespace()
+        .take(12)
+        .collect::<Vec<_>>()
+        .join("_")
+}
+
+fn predict_route_habit_id(intent_key: &str, task_text: &str) -> String {
+    let fallback_intent = normalize_route_intent(task_text);
+    let candidate = if intent_key.trim().is_empty() {
+        fallback_intent
+    } else {
+        intent_key.to_ascii_lowercase()
+    };
+    let mut base = if let Ok(re) = Regex::new(r"[^a-z0-9_]+") {
+        re.replace_all(&candidate, "_").to_string()
+    } else {
+        candidate
+    };
+    base = base.trim_matches('_').to_string();
+    if base.len() > 48 {
+        base.truncate(48);
+    }
+    if base.is_empty() {
+        "habit".to_string()
+    } else {
+        base
+    }
+}
+
+fn summarize_route_intent(task_text: &str) -> String {
+    let parts = task_text
+        .split_whitespace()
+        .take(6)
+        .map(|row| row.to_ascii_lowercase())
+        .collect::<Vec<String>>();
+    if parts.is_empty() {
+        "task".to_string()
+    } else {
+        parts.join("_")
+    }
+}
+
+pub fn evaluate_route_primitives(req: &RoutePrimitivesRequest) -> RoutePrimitivesResponse {
+    let intent_key = normalize_route_intent(req.task_text.as_str());
+    let trigger_a = req.repeats_14d >= 3 && req.tokens_est >= 500;
+    let trigger_b = req.tokens_est >= 2000;
+    let trigger_c = req.errors_30d >= 2;
+    let mut which_met: Vec<String> = Vec::new();
+    if trigger_a {
+        which_met.push("A".to_string());
+    }
+    if trigger_b {
+        which_met.push("B".to_string());
+    }
+    if trigger_c {
+        which_met.push("C".to_string());
+    }
+
+    RoutePrimitivesResponse {
+        ok: true,
+        intent_key: intent_key.clone(),
+        intent: summarize_route_intent(req.task_text.as_str()),
+        predicted_habit_id: predict_route_habit_id(intent_key.as_str(), req.task_text.as_str()),
+        trigger_a,
+        trigger_b,
+        trigger_c,
+        any_trigger: trigger_a || trigger_b || trigger_c,
+        which_met,
+        thresholds: RouteThresholds {
+            a: RouteThresholdA {
+                repeats_14d_min: 3,
+                tokens_min: 500,
+                met: trigger_a,
+            },
+            b: RouteThresholdB {
+                tokens_min: 2000,
+                met: trigger_b,
+            },
+            c: RouteThresholdC {
+                errors_30d_min: 2,
+                met: trigger_c,
+            },
+        },
+    }
+}
+
+pub fn evaluate_route_primitives_json(payload: &str) -> Result<String, String> {
+    let req = serde_json::from_str::<RoutePrimitivesRequest>(payload)
+        .map_err(|err| format!("route_primitives_payload_parse_failed:{}", err))?;
+    let resp = evaluate_route_primitives(&req);
+    serde_json::to_string(&resp)
+        .map_err(|err| format!("route_primitives_payload_serialize_failed:{}", err))
+}
+
 fn is_trust_registry_modification(task_lower: &str) -> bool {
     let trust_targets = [
         "trust_registry",
@@ -1999,6 +2173,49 @@ mod tests {
             .reasons
             .iter()
             .any(|reason| reason.contains("network/API")));
+    }
+
+    #[test]
+    fn route_primitives_compute_thresholds_and_prediction() {
+        let req = RoutePrimitivesRequest {
+            task_text: "Spawn a child process to run shell commands".to_string(),
+            tokens_est: 2200,
+            repeats_14d: 3,
+            errors_30d: 0,
+        };
+        let out = evaluate_route_primitives(&req);
+        assert_eq!(out.intent_key, "spawn_a_child_process_to_run_shell_commands");
+        assert_eq!(out.intent, "spawn_a_child_process_to_run");
+        assert_eq!(
+            out.predicted_habit_id,
+            "spawn_a_child_process_to_run_shell_commands"
+        );
+        assert!(out.trigger_a);
+        assert!(out.trigger_b);
+        assert!(!out.trigger_c);
+        assert!(out.any_trigger);
+        assert_eq!(out.which_met, vec!["A".to_string(), "B".to_string()]);
+        assert!(out.thresholds.a.met);
+        assert!(out.thresholds.b.met);
+        assert!(!out.thresholds.c.met);
+    }
+
+    #[test]
+    fn route_primitives_empty_task_falls_back_to_habit() {
+        let req = RoutePrimitivesRequest {
+            task_text: "   ".to_string(),
+            tokens_est: 0,
+            repeats_14d: 0,
+            errors_30d: 3,
+        };
+        let out = evaluate_route_primitives(&req);
+        assert_eq!(out.intent_key, "");
+        assert_eq!(out.intent, "task");
+        assert_eq!(out.predicted_habit_id, "habit");
+        assert!(!out.trigger_a);
+        assert!(!out.trigger_b);
+        assert!(out.trigger_c);
+        assert_eq!(out.which_met, vec!["C".to_string()]);
     }
 
     #[test]
