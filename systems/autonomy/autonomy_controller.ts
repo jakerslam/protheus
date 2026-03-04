@@ -12151,6 +12151,32 @@ function objectiveIdsFromPulseContext(pulseCtx) {
 }
 
 function policyHoldObjectiveContext(pulseCtx, candidateObjectiveIds = []) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const poolObjectiveIds = Array.from(objectiveIdsFromPulseContext(pulseCtx));
+    const rust = runBacklogAutoscalePrimitive(
+      'policy_hold_objective_context',
+      {
+        candidate_objective_ids: Array.isArray(candidateObjectiveIds) ? candidateObjectiveIds : [],
+        pool_objective_ids: poolObjectiveIds,
+        dominant_objective_id: pulseCtx && pulseCtx.dominant_objective_id != null
+          ? String(pulseCtx.dominant_objective_id)
+          : null
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      const objectiveId = payload.objective_id ? String(payload.objective_id) : '';
+      const out: AnyObj = {
+        objective_id: objectiveId || null,
+        objective_source: payload.objective_source ? String(payload.objective_source) : null
+      };
+      if (Array.isArray(payload.objective_ids) && payload.objective_ids.length > 0) {
+        out.objective_ids = payload.objective_ids.map((x) => String(x || ''));
+      }
+      return out;
+    }
+  }
   const set = new Set();
   for (const raw of Array.isArray(candidateObjectiveIds) ? candidateObjectiveIds : []) {
     const id = sanitizeDirectiveObjectiveId(raw);
