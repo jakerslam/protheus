@@ -2723,6 +2723,8 @@ const ATTEMPT_EVENT_INDICES_CACHE = new Map();
 const ATTEMPT_EVENT_INDICES_CACHE_MAX = 256;
 const CAPACITY_COUNTED_ATTEMPT_INDICES_CACHE = new Map();
 const CAPACITY_COUNTED_ATTEMPT_INDICES_CACHE_MAX = 256;
+const CONSECUTIVE_NO_PROGRESS_RUNS_CACHE = new Map();
+const CONSECUTIVE_NO_PROGRESS_RUNS_CACHE_MAX = 256;
 
 function isPolicyHoldResult(result): boolean {
   const r = String(result || '').trim();
@@ -3880,9 +3882,41 @@ function minutesSinceTs(ts) {
 }
 
 function consecutiveNoProgressRuns(events) {
+  const rows = Array.isArray(events) ? events : [];
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rustEvents = [];
+    for (const evt of rows) {
+      if (!evt || typeof evt !== 'object') continue;
+      rustEvents.push({
+        event_type: String(evt.type || ''),
+        result: String(evt.result || ''),
+        outcome: String(evt.outcome || '')
+      });
+    }
+    const key = rustEvents
+      .map((row) => `${row.event_type}\u0000${row.result}\u0000${row.outcome}`)
+      .join('\u0001');
+    if (CONSECUTIVE_NO_PROGRESS_RUNS_CACHE.has(key)) {
+      return Number(CONSECUTIVE_NO_PROGRESS_RUNS_CACHE.get(key) || 0);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'consecutive_no_progress_runs',
+      { events: rustEvents },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const val = Math.max(0, Number(rust.payload.payload.count || 0));
+      if (CONSECUTIVE_NO_PROGRESS_RUNS_CACHE.size >= CONSECUTIVE_NO_PROGRESS_RUNS_CACHE_MAX) {
+        const oldest = CONSECUTIVE_NO_PROGRESS_RUNS_CACHE.keys().next();
+        if (!oldest.done) CONSECUTIVE_NO_PROGRESS_RUNS_CACHE.delete(oldest.value);
+      }
+      CONSECUTIVE_NO_PROGRESS_RUNS_CACHE.set(key, val);
+      return val;
+    }
+  }
   let count = 0;
-  for (let i = events.length - 1; i >= 0; i--) {
-    const e = events[i];
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const e = rows[i];
     if (!e || e.type !== 'autonomy_run') continue;
     if (e.result === 'executed' && e.outcome === 'shipped') break;
     if (!isNoProgressRun(e)) break;
@@ -16683,5 +16717,6 @@ module.exports = {
   isScoreOnlyResult,
   isScoreOnlyFailureLikeEvent,
   isGateExhaustedAttempt,
-  consecutiveGateExhaustedAttempts
+  consecutiveGateExhaustedAttempts,
+  consecutiveNoProgressRuns
 };
