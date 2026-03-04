@@ -3388,6 +3388,18 @@ pub struct DateArgOrTodayOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct HasEnvNumericOverrideInput {
+    pub present: bool,
+    #[serde(default)]
+    pub raw_value: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct HasEnvNumericOverrideOutput {
+    pub has_override: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ParseDirectiveFileArgInput {
     #[serde(default)]
     pub command: Option<String>,
@@ -4607,6 +4619,8 @@ pub struct AutoscaleRequest {
     pub parse_arg_input: Option<ParseArgInput>,
     #[serde(default)]
     pub date_arg_or_today_input: Option<DateArgOrTodayInput>,
+    #[serde(default)]
+    pub has_env_numeric_override_input: Option<HasEnvNumericOverrideInput>,
     #[serde(default)]
     pub parse_directive_file_arg_input: Option<ParseDirectiveFileArgInput>,
     #[serde(default)]
@@ -10676,6 +10690,19 @@ pub fn compute_date_arg_or_today(input: &DateArgOrTodayInput) -> DateArgOrTodayO
     }
 }
 
+pub fn compute_has_env_numeric_override(
+    input: &HasEnvNumericOverrideInput,
+) -> HasEnvNumericOverrideOutput {
+    let non_empty = input
+        .raw_value
+        .as_deref()
+        .map(|v| !v.trim().is_empty())
+        .unwrap_or(false);
+    HasEnvNumericOverrideOutput {
+        has_override: input.present && non_empty,
+    }
+}
+
 pub fn compute_parse_directive_file_arg(input: &ParseDirectiveFileArgInput) -> ParseDirectiveFileArgOutput {
     let text = input.command.as_deref().unwrap_or("").trim();
     if text.is_empty() {
@@ -14743,6 +14770,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_date_arg_or_today_encode_failed:{e}"));
+    }
+    if mode == "has_env_numeric_override" {
+        let input = request
+            .has_env_numeric_override_input
+            .ok_or_else(|| "autoscale_missing_has_env_numeric_override_input".to_string())?;
+        let out = compute_has_env_numeric_override(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "has_env_numeric_override",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_has_env_numeric_override_encode_failed:{e}"));
     }
     if mode == "parse_directive_file_arg" {
         let input = request

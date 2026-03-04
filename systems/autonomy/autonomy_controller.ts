@@ -13986,6 +13986,21 @@ function effectiveTier1Policy(executionMode) {
 }
 
 function hasEnvNumericOverride(name) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const key = String(name || '');
+    const present = Object.prototype.hasOwnProperty.call(process.env, key);
+    const rust = runBacklogAutoscalePrimitive(
+      'has_env_numeric_override',
+      {
+        present,
+        raw_value: present ? String(process.env[key] == null ? '' : process.env[key]) : null
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.has_override === true;
+    }
+  }
   return Object.prototype.hasOwnProperty.call(process.env, name)
     && String(process.env[name] == null ? '' : process.env[name]).trim() !== '';
 }
@@ -21417,6 +21432,7 @@ module.exports = {
   selectedModelFromRunEvent,
   parseArg,
   dateArgOrToday,
+  hasEnvNumericOverride,
   startModelCatalogCanary,
   evaluateModelCatalogCanary,
   readModelCatalogCanary,
