@@ -292,6 +292,39 @@ pub struct PolicyHoldPatternOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PolicyHoldCooldownInput {
+    #[serde(default)]
+    pub base_minutes: Option<f64>,
+    #[serde(default)]
+    pub pressure_level: Option<String>,
+    #[serde(default)]
+    pub pressure_applicable: Option<bool>,
+    #[serde(default)]
+    pub last_result: Option<String>,
+    #[serde(default)]
+    pub now_ms: Option<f64>,
+    #[serde(default)]
+    pub cooldown_warn_minutes: Option<f64>,
+    #[serde(default)]
+    pub cooldown_hard_minutes: Option<f64>,
+    #[serde(default)]
+    pub cooldown_cap_minutes: Option<f64>,
+    #[serde(default)]
+    pub cooldown_manual_review_minutes: Option<f64>,
+    #[serde(default)]
+    pub cooldown_unchanged_state_minutes: Option<f64>,
+    #[serde(default)]
+    pub readiness_retry_minutes: Option<f64>,
+    #[serde(default)]
+    pub until_next_day_caps: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PolicyHoldCooldownOutput {
+    pub cooldown_minutes: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ReceiptVerdictInput {
     pub decision: String,
     pub exec_ok: bool,
@@ -346,6 +379,8 @@ pub struct AutoscaleRequest {
     pub policy_hold_pressure_input: Option<PolicyHoldPressureInput>,
     #[serde(default)]
     pub policy_hold_pattern_input: Option<PolicyHoldPatternInput>,
+    #[serde(default)]
+    pub policy_hold_cooldown_input: Option<PolicyHoldCooldownInput>,
     #[serde(default)]
     pub receipt_verdict_input: Option<ReceiptVerdictInput>,
 }
@@ -1037,6 +1072,94 @@ pub fn compute_policy_hold_pattern(input: &PolicyHoldPatternInput) -> PolicyHold
     }
 }
 
+fn minutes_until_next_utc_day(now_ms: f64) -> u32 {
+    let now = if now_ms.is_finite() && now_ms > 0.0 {
+        now_ms as i64
+    } else {
+        0
+    };
+    if now <= 0 {
+        return 0;
+    }
+    let secs = now / 1000;
+    let rem_ms = (now % 1000) as u32;
+    let Some(dt) = chrono::DateTime::<chrono::Utc>::from_timestamp(secs, rem_ms * 1_000_000) else {
+        return 0;
+    };
+    let date = dt.date_naive();
+    let Some(next_day) = date.succ_opt() else {
+        return 0;
+    };
+    let Some(next_midnight) = next_day.and_hms_opt(0, 0, 0) else {
+        return 0;
+    };
+    let delta_ms = (next_midnight - dt.naive_utc()).num_milliseconds().max(0);
+    ((delta_ms + 59_999) / 60_000) as u32
+}
+
+pub fn compute_policy_hold_cooldown(input: &PolicyHoldCooldownInput) -> PolicyHoldCooldownOutput {
+    let mut cooldown = non_negative_number(input.base_minutes).unwrap_or(0.0);
+    let pressure_applicable = input.pressure_applicable.unwrap_or(false);
+    let pressure_level = input
+        .pressure_level
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    let cooldown_warn = non_negative_number(input.cooldown_warn_minutes).unwrap_or(30.0);
+    let cooldown_hard = non_negative_number(input.cooldown_hard_minutes).unwrap_or(60.0);
+
+    if pressure_applicable && pressure_level == "hard" {
+        cooldown = cooldown.max(cooldown_hard);
+    } else if pressure_applicable && pressure_level == "warn" {
+        cooldown = cooldown.max(cooldown_warn);
+    }
+
+    let result = input
+        .last_result
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    if !result.is_empty() {
+        let until_next_day_caps = input.until_next_day_caps.unwrap_or(true);
+        let now_ms = non_negative_number(input.now_ms).unwrap_or_else(|| {
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|v| v.as_millis() as f64)
+                .unwrap_or(0.0)
+        });
+        let cap_minutes = non_negative_number(input.cooldown_cap_minutes).unwrap_or(180.0);
+        let manual_review_minutes =
+            non_negative_number(input.cooldown_manual_review_minutes).unwrap_or(90.0);
+        let unchanged_state_minutes =
+            non_negative_number(input.cooldown_unchanged_state_minutes).unwrap_or(90.0);
+        let readiness_retry_minutes = non_negative_number(input.readiness_retry_minutes).unwrap_or(120.0);
+
+        if result == "no_candidates_policy_daily_cap" || result == "no_candidates_policy_canary_cap" {
+            let cap_cooldown = if until_next_day_caps {
+                minutes_until_next_utc_day(now_ms) as f64
+            } else {
+                cap_minutes
+            };
+            cooldown = cooldown.max(cap_cooldown);
+        } else if result == "no_candidates_policy_manual_review_pending"
+            || result == "stop_repeat_gate_human_escalation_pending"
+        {
+            cooldown = cooldown.max(manual_review_minutes);
+        } else if result == "no_candidates_policy_unchanged_state" {
+            cooldown = cooldown.max(unchanged_state_minutes);
+        } else if result == "stop_init_gate_readiness"
+            || result == "stop_init_gate_readiness_blocked"
+            || result == "stop_init_gate_criteria_quality_insufficient"
+        {
+            cooldown = cooldown.max(readiness_retry_minutes);
+        }
+    }
+
+    PolicyHoldCooldownOutput {
+        cooldown_minutes: cooldown.round().max(0.0) as u32,
+    }
+}
+
 pub fn compute_receipt_verdict(input: &ReceiptVerdictInput) -> ReceiptVerdictOutput {
     let decision = input.decision.trim().to_ascii_uppercase();
     let exec_check_name = if decision == "ACTUATE" {
@@ -1268,6 +1391,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_policy_hold_pattern_encode_failed:{e}"));
+    }
+    if mode == "policy_hold_cooldown" {
+        let input = request
+            .policy_hold_cooldown_input
+            .ok_or_else(|| "autoscale_missing_policy_hold_cooldown_input".to_string())?;
+        let out = compute_policy_hold_cooldown(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "policy_hold_cooldown",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_policy_hold_cooldown_encode_failed:{e}"));
     }
     if mode == "receipt_verdict" {
         let input = request
@@ -1644,6 +1779,49 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale policy_hold_pattern");
         assert!(out.contains("\"mode\":\"policy_hold_pattern\""));
+    }
+
+    #[test]
+    fn policy_hold_cooldown_escalates_for_cap_until_next_day() {
+        let out = compute_policy_hold_cooldown(&PolicyHoldCooldownInput {
+            base_minutes: Some(15.0),
+            pressure_level: Some("warn".to_string()),
+            pressure_applicable: Some(true),
+            last_result: Some("no_candidates_policy_daily_cap".to_string()),
+            now_ms: Some(1_700_000_000_000.0),
+            cooldown_warn_minutes: Some(30.0),
+            cooldown_hard_minutes: Some(60.0),
+            cooldown_cap_minutes: Some(180.0),
+            cooldown_manual_review_minutes: Some(90.0),
+            cooldown_unchanged_state_minutes: Some(90.0),
+            readiness_retry_minutes: Some(120.0),
+            until_next_day_caps: Some(true),
+        });
+        assert!(out.cooldown_minutes >= 30);
+    }
+
+    #[test]
+    fn autoscale_json_policy_hold_cooldown_path_works() {
+        let payload = serde_json::json!({
+            "mode": "policy_hold_cooldown",
+            "policy_hold_cooldown_input": {
+                "base_minutes": 15,
+                "pressure_level": "hard",
+                "pressure_applicable": true,
+                "last_result": "stop_init_gate_readiness",
+                "now_ms": 1700000000000i64,
+                "cooldown_warn_minutes": 30,
+                "cooldown_hard_minutes": 60,
+                "cooldown_cap_minutes": 180,
+                "cooldown_manual_review_minutes": 90,
+                "cooldown_unchanged_state_minutes": 90,
+                "readiness_retry_minutes": 120,
+                "until_next_day_caps": true
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale policy_hold_cooldown");
+        assert!(out.contains("\"mode\":\"policy_hold_cooldown\""));
     }
 
     #[test]
