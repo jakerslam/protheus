@@ -1521,6 +1521,167 @@ pub struct EnsureCorrespondenceFileOutput {
     pub ok: bool,
 }
 
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct LoadMaturityStateInput {
+    #[serde(default)]
+    pub file_path: Option<String>,
+    #[serde(default)]
+    pub policy: Option<Value>,
+    #[serde(default)]
+    pub now_iso: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct LoadMaturityStateOutput {
+    pub state: Value,
+    pub computed: Value,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct SaveMaturityStateInput {
+    #[serde(default)]
+    pub file_path: Option<String>,
+    #[serde(default)]
+    pub policy: Option<Value>,
+    #[serde(default)]
+    pub state: Option<Value>,
+    #[serde(default)]
+    pub now_iso: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct SaveMaturityStateOutput {
+    pub state: Value,
+    pub computed: Value,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct LoadActiveSessionsInput {
+    #[serde(default)]
+    pub file_path: Option<String>,
+    #[serde(default)]
+    pub now_iso: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct LoadActiveSessionsOutput {
+    pub store: Value,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct SaveActiveSessionsInput {
+    #[serde(default)]
+    pub file_path: Option<String>,
+    #[serde(default)]
+    pub store: Option<Value>,
+    #[serde(default)]
+    pub now_iso: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct SaveActiveSessionsOutput {
+    pub store: Value,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct EmitEventInput {
+    #[serde(default)]
+    pub events_dir: Option<String>,
+    #[serde(default)]
+    pub date_str: Option<String>,
+    #[serde(default)]
+    pub event_type: Option<String>,
+    #[serde(default)]
+    pub payload: Option<Value>,
+    #[serde(default)]
+    pub emit_events: Option<bool>,
+    #[serde(default)]
+    pub now_iso: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct EmitEventOutput {
+    pub emitted: bool,
+    pub file_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct AppendPersonaLensGateReceiptInput {
+    #[serde(default)]
+    pub state_dir: Option<String>,
+    #[serde(default)]
+    pub root: Option<String>,
+    #[serde(default)]
+    pub cfg_receipts_path: Option<String>,
+    #[serde(default)]
+    pub payload: Option<Value>,
+    #[serde(default)]
+    pub decision: Option<Value>,
+    #[serde(default)]
+    pub now_iso: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct AppendPersonaLensGateReceiptOutput {
+    pub rel_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct AppendConclaveCorrespondenceInput {
+    #[serde(default)]
+    pub correspondence_path: Option<String>,
+    #[serde(default)]
+    pub row: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct AppendConclaveCorrespondenceOutput {
+    pub ok: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct PersistDecisionInput {
+    #[serde(default)]
+    pub latest_path: Option<String>,
+    #[serde(default)]
+    pub history_path: Option<String>,
+    #[serde(default)]
+    pub payload: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct PersistDecisionOutput {
+    pub ok: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct PersistInterfaceEnvelopeInput {
+    #[serde(default)]
+    pub latest_path: Option<String>,
+    #[serde(default)]
+    pub history_path: Option<String>,
+    #[serde(default)]
+    pub envelope: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct PersistInterfaceEnvelopeOutput {
+    pub ok: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct TrimLibraryInput {
+    #[serde(default)]
+    pub file_path: Option<String>,
+    #[serde(default)]
+    pub max_entries: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct TrimLibraryOutput {
+    pub rows: Vec<Value>,
+}
+
 fn normalize_token(raw: &str, max_len: usize) -> String {
     let collapsed = raw
         .split_whitespace()
@@ -4930,6 +5091,658 @@ pub fn compute_ensure_correspondence_file(
     EnsureCorrespondenceFileOutput { ok: true }
 }
 
+fn compute_maturity_score_runtime(state: &Value, policy: &Value) -> Value {
+    let stats = state
+        .as_object()
+        .and_then(|m| m.get("stats"))
+        .and_then(|v| v.as_object());
+    let maturity = policy
+        .as_object()
+        .and_then(|m| m.get("maturity"))
+        .and_then(|v| v.as_object());
+    let weights = maturity
+        .and_then(|m| m.get("score_weights"))
+        .and_then(|v| v.as_object());
+    let bands = maturity
+        .and_then(|m| m.get("bands"))
+        .and_then(|v| v.as_object());
+
+    let total = parse_number_like(stats.and_then(|m| m.get("total_tests")))
+        .unwrap_or(0.0)
+        .max(0.0);
+    let passed = parse_number_like(stats.and_then(|m| m.get("passed_tests")))
+        .unwrap_or(0.0)
+        .max(0.0);
+    let destructive = parse_number_like(stats.and_then(|m| m.get("destructive_failures")))
+        .unwrap_or(0.0)
+        .max(0.0);
+    let non_destructive_rate = if total > 0.0 {
+        ((total - destructive) / total).max(0.0)
+    } else {
+        1.0
+    };
+    let pass_rate = if total > 0.0 {
+        (passed / total).max(0.0)
+    } else {
+        0.0
+    };
+    let target_test_count = parse_number_like(maturity.and_then(|m| m.get("target_test_count")))
+        .unwrap_or(40.0)
+        .max(1.0);
+    let experience = (total / target_test_count).min(1.0);
+
+    let weight_pass = parse_number_like(weights.and_then(|m| m.get("pass_rate"))).unwrap_or(0.0);
+    let weight_non_destructive =
+        parse_number_like(weights.and_then(|m| m.get("non_destructive_rate"))).unwrap_or(0.0);
+    let weight_experience =
+        parse_number_like(weights.and_then(|m| m.get("experience"))).unwrap_or(0.0);
+    let weight_total = (weight_pass + weight_non_destructive + weight_experience).max(0.0001);
+    let score = clamp_number(
+        ((pass_rate * weight_pass)
+            + (non_destructive_rate * weight_non_destructive)
+            + (experience * weight_experience))
+            / weight_total,
+        0.0,
+        1.0,
+    );
+
+    let novice = parse_number_like(bands.and_then(|m| m.get("novice"))).unwrap_or(0.25);
+    let developing = parse_number_like(bands.and_then(|m| m.get("developing"))).unwrap_or(0.45);
+    let mature = parse_number_like(bands.and_then(|m| m.get("mature"))).unwrap_or(0.65);
+    let seasoned = parse_number_like(bands.and_then(|m| m.get("seasoned"))).unwrap_or(0.82);
+    let band = if score < novice {
+        "novice"
+    } else if score < developing {
+        "developing"
+    } else if score < mature {
+        "mature"
+    } else if score < seasoned {
+        "seasoned"
+    } else {
+        "legendary"
+    };
+    json!({
+        "score": (score * 1_000_000.0).round() / 1_000_000.0,
+        "band": band,
+        "pass_rate": (pass_rate * 1_000_000.0).round() / 1_000_000.0,
+        "non_destructive_rate": (non_destructive_rate * 1_000_000.0).round() / 1_000_000.0,
+        "experience": (experience * 1_000_000.0).round() / 1_000_000.0
+    })
+}
+
+pub fn compute_load_maturity_state(input: &LoadMaturityStateInput) -> LoadMaturityStateOutput {
+    let now_iso = input.now_iso.clone().unwrap_or_else(now_iso_runtime);
+    let src = compute_read_json(&ReadJsonInput {
+        file_path: input.file_path.clone(),
+        fallback: Some(Value::Null),
+    })
+    .value;
+    let policy = input.policy.clone().unwrap_or_else(|| json!({}));
+    let mut state = if src.is_object() {
+        src
+    } else {
+        compute_default_maturity_state(&DefaultMaturityStateInput {}).state
+    };
+    if !state.is_object() {
+        state = compute_default_maturity_state(&DefaultMaturityStateInput {}).state;
+    }
+    let computed = compute_maturity_score_runtime(&state, &policy);
+    if let Some(obj) = state.as_object_mut() {
+        let updated_at_value = {
+            let value = value_to_string(obj.get("updated_at"))
+                .chars()
+                .take(64)
+                .collect::<String>();
+            if value.is_empty() { now_iso.clone() } else { value }
+        };
+        obj.insert(
+            "updated_at".to_string(),
+            Value::String(updated_at_value),
+        );
+        obj.insert(
+            "score".to_string(),
+            computed.get("score").cloned().unwrap_or_else(|| json!(0)),
+        );
+        obj.insert(
+            "band".to_string(),
+            computed
+                .get("band")
+                .cloned()
+                .unwrap_or_else(|| json!("novice")),
+        );
+    }
+    LoadMaturityStateOutput { state, computed }
+}
+
+pub fn compute_save_maturity_state(input: &SaveMaturityStateInput) -> SaveMaturityStateOutput {
+    let now_iso = input.now_iso.clone().unwrap_or_else(now_iso_runtime);
+    let mut state = if input.state.as_ref().map(|v| v.is_object()).unwrap_or(false) {
+        input.state.clone().unwrap_or_else(|| json!({}))
+    } else {
+        compute_default_maturity_state(&DefaultMaturityStateInput {}).state
+    };
+    let policy = input.policy.clone().unwrap_or_else(|| json!({}));
+    let computed = compute_maturity_score_runtime(&state, &policy);
+    if let Some(obj) = state.as_object_mut() {
+        obj.insert("updated_at".to_string(), Value::String(now_iso));
+        obj.insert(
+            "score".to_string(),
+            computed.get("score").cloned().unwrap_or_else(|| json!(0)),
+        );
+        obj.insert(
+            "band".to_string(),
+            computed
+                .get("band")
+                .cloned()
+                .unwrap_or_else(|| json!("novice")),
+        );
+    }
+    let _ = compute_write_json_atomic(&WriteJsonAtomicInput {
+        file_path: input.file_path.clone(),
+        value: Some(state.clone()),
+    });
+    SaveMaturityStateOutput { state, computed }
+}
+
+pub fn compute_load_active_sessions(input: &LoadActiveSessionsInput) -> LoadActiveSessionsOutput {
+    let now_iso = input.now_iso.clone().unwrap_or_else(now_iso_runtime);
+    let payload = compute_read_json(&ReadJsonInput {
+        file_path: input.file_path.clone(),
+        fallback: Some(Value::Null),
+    })
+    .value;
+    let sessions = payload
+        .as_object()
+        .and_then(|m| m.get("sessions"))
+        .and_then(|v| v.as_array())
+        .map(|rows| {
+            rows.iter()
+                .filter(|row| row.is_object())
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let updated_at = {
+        let value = value_to_string(payload.as_object().and_then(|m| m.get("updated_at")));
+        if value.is_empty() {
+            now_iso
+        } else {
+            clean_text_runtime(&value, 64)
+        }
+    };
+    LoadActiveSessionsOutput {
+        store: json!({
+            "schema_id": "inversion_active_sessions",
+            "schema_version": "1.0",
+            "updated_at": updated_at,
+            "sessions": sessions
+        }),
+    }
+}
+
+pub fn compute_save_active_sessions(input: &SaveActiveSessionsInput) -> SaveActiveSessionsOutput {
+    let now_iso = input.now_iso.clone().unwrap_or_else(now_iso_runtime);
+    let sessions = input
+        .store
+        .as_ref()
+        .and_then(|v| v.as_object())
+        .and_then(|m| m.get("sessions"))
+        .and_then(|v| v.as_array())
+        .map(|rows| {
+            rows.iter()
+                .filter(|row| row.is_object())
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let out = json!({
+        "schema_id": "inversion_active_sessions",
+        "schema_version": "1.0",
+        "updated_at": now_iso,
+        "sessions": sessions
+    });
+    let _ = compute_write_json_atomic(&WriteJsonAtomicInput {
+        file_path: input.file_path.clone(),
+        value: Some(out.clone()),
+    });
+    SaveActiveSessionsOutput { store: out }
+}
+
+pub fn compute_emit_event(input: &EmitEventInput) -> EmitEventOutput {
+    if input.emit_events.unwrap_or(false) != true {
+        return EmitEventOutput {
+            emitted: false,
+            file_path: None,
+        };
+    }
+    let events_dir = input.events_dir.as_deref().unwrap_or("").trim();
+    let date_str = clean_text_runtime(input.date_str.as_deref().unwrap_or(""), 32);
+    if events_dir.is_empty() || date_str.is_empty() {
+        return EmitEventOutput {
+            emitted: false,
+            file_path: None,
+        };
+    }
+    let fp = Path::new(events_dir).join(format!("{date_str}.jsonl"));
+    let event = {
+        let token = normalize_token_runtime(input.event_type.as_deref().unwrap_or(""), 64);
+        if token.is_empty() {
+            "unknown".to_string()
+        } else {
+            token
+        }
+    };
+    let row = json!({
+        "ts": input.now_iso.clone().unwrap_or_else(now_iso_runtime),
+        "type": "inversion_event",
+        "event": event,
+        "payload": input.payload.clone().unwrap_or_else(|| json!({}))
+    });
+    let _ = compute_append_jsonl(&AppendJsonlInput {
+        file_path: Some(fp.to_string_lossy().to_string()),
+        row: Some(row),
+    });
+    EmitEventOutput {
+        emitted: true,
+        file_path: Some(fp.to_string_lossy().to_string()),
+    }
+}
+
+pub fn compute_append_persona_lens_gate_receipt(
+    input: &AppendPersonaLensGateReceiptInput,
+) -> AppendPersonaLensGateReceiptOutput {
+    let payload = input.payload.as_ref().and_then(|v| v.as_object());
+    if to_bool_like(payload.and_then(|m| m.get("enabled")), false) != true {
+        return AppendPersonaLensGateReceiptOutput { rel_path: None };
+    }
+    let mut target_path = clean_text_runtime(input.cfg_receipts_path.as_deref().unwrap_or(""), 420);
+    if target_path.is_empty() {
+        let state_dir = clean_text_runtime(input.state_dir.as_deref().unwrap_or(""), 420);
+        target_path = Path::new(&state_dir)
+            .join("lens_gate_receipts.jsonl")
+            .to_string_lossy()
+            .to_string();
+    }
+    let decision = input.decision.as_ref().and_then(|v| v.as_object());
+    let feed_push = payload
+        .and_then(|m| m.get("feed_push"))
+        .and_then(|v| v.as_object());
+    let persona_id = {
+        let value = clean_text_runtime(&value_to_string(payload.and_then(|m| m.get("persona_id"))), 120);
+        if value.is_empty() {
+            Value::Null
+        } else {
+            Value::String(value)
+        }
+    };
+    let mode = {
+        let value = clean_text_runtime(&value_to_string(payload.and_then(|m| m.get("mode"))), 24);
+        if value.is_empty() {
+            "auto".to_string()
+        } else {
+            value
+        }
+    };
+    let effective_mode = {
+        let value = clean_text_runtime(
+            &value_to_string(payload.and_then(|m| m.get("effective_mode"))),
+            24,
+        );
+        if value.is_empty() {
+            "shadow".to_string()
+        } else {
+            value
+        }
+    };
+    let status = {
+        let value = clean_text_runtime(&value_to_string(payload.and_then(|m| m.get("status"))), 32);
+        if value.is_empty() {
+            "unknown".to_string()
+        } else {
+            value
+        }
+    };
+    let reasons = payload
+        .and_then(|m| m.get("reasons"))
+        .and_then(|v| v.as_array())
+        .map(|rows| rows.iter().take(8).cloned().collect::<Vec<_>>())
+        .unwrap_or_default();
+    let feed_push_value = if let Some(feed) = feed_push {
+        let reason = {
+            let value = clean_text_runtime(&value_to_string(feed.get("reason")), 120);
+            if value.is_empty() {
+                Value::Null
+            } else {
+                Value::String(value)
+            }
+        };
+        let feed_path = {
+            let value = clean_text_runtime(&value_to_string(feed.get("feed_path")), 220);
+            if value.is_empty() {
+                Value::Null
+            } else {
+                Value::String(value)
+            }
+        };
+        let receipts_path = {
+            let value = clean_text_runtime(&value_to_string(feed.get("receipts_path")), 220);
+            if value.is_empty() {
+                Value::Null
+            } else {
+                Value::String(value)
+            }
+        };
+        let entry_hash = {
+            let value = clean_text_runtime(&value_to_string(feed.get("entry_hash")), 120);
+            if value.is_empty() {
+                Value::Null
+            } else {
+                Value::String(value)
+            }
+        };
+        json!({
+            "pushed": to_bool_like(feed.get("pushed"), false),
+            "reason": reason,
+            "feed_path": feed_path,
+            "receipts_path": receipts_path,
+            "entry_hash": entry_hash
+        })
+    } else {
+        Value::Null
+    };
+    let objective = {
+        let value = clean_text_runtime(
+            &value_to_string(
+                decision
+                    .and_then(|m| m.get("input"))
+                    .and_then(|v| v.as_object())
+                    .and_then(|m| m.get("objective")),
+            ),
+            260,
+        );
+        if value.is_empty() {
+            Value::Null
+        } else {
+            Value::String(value)
+        }
+    };
+    let target = {
+        let value = clean_text_runtime(
+            &value_to_string(
+                decision
+                    .and_then(|m| m.get("input"))
+                    .and_then(|v| v.as_object())
+                    .and_then(|m| m.get("target")),
+            ),
+            40,
+        );
+        if value.is_empty() {
+            Value::Null
+        } else {
+            Value::String(value)
+        }
+    };
+    let impact = {
+        let value = clean_text_runtime(
+            &value_to_string(
+                decision
+                    .and_then(|m| m.get("input"))
+                    .and_then(|v| v.as_object())
+                    .and_then(|m| m.get("impact")),
+            ),
+            40,
+        );
+        if value.is_empty() {
+            Value::Null
+        } else {
+            Value::String(value)
+        }
+    };
+    let row = json!({
+        "ts": input.now_iso.clone().unwrap_or_else(now_iso_runtime),
+        "type": "inversion_persona_lens_gate",
+        "persona_id": persona_id,
+        "mode": mode,
+        "effective_mode": effective_mode,
+        "status": status,
+        "fail_closed": to_bool_like(payload.and_then(|m| m.get("fail_closed")), false),
+        "drift_rate": parse_number_like(payload.and_then(|m| m.get("drift_rate"))).unwrap_or(0.0),
+        "drift_threshold": parse_number_like(payload.and_then(|m| m.get("drift_threshold"))).unwrap_or(0.02),
+        "parity_confidence": parse_number_like(payload.and_then(|m| m.get("parity_confidence"))).unwrap_or(0.0),
+        "parity_confident": to_bool_like(payload.and_then(|m| m.get("parity_confident")), false),
+        "reasons": reasons,
+        "feed_push": feed_push_value,
+        "objective": objective,
+        "target": target,
+        "impact": impact,
+        "allowed": to_bool_like(decision.and_then(|m| m.get("allowed")), false)
+    });
+    let _ = compute_append_jsonl(&AppendJsonlInput {
+        file_path: Some(target_path.clone()),
+        row: Some(row),
+    });
+    let rel_path = {
+        let root = clean_text_runtime(input.root.as_deref().unwrap_or(""), 420);
+        if !root.is_empty() {
+            let root_path = Path::new(&root);
+            let target = Path::new(&target_path);
+            if let Ok(rel) = target.strip_prefix(root_path) {
+                rel.to_string_lossy().to_string()
+            } else {
+                target_path.clone()
+            }
+        } else {
+            target_path.clone()
+        }
+    };
+    AppendPersonaLensGateReceiptOutput {
+        rel_path: Some(rel_path),
+    }
+}
+
+pub fn compute_append_conclave_correspondence(
+    input: &AppendConclaveCorrespondenceInput,
+) -> AppendConclaveCorrespondenceOutput {
+    let correspondence_path = input.correspondence_path.as_deref().unwrap_or("").trim();
+    if correspondence_path.is_empty() {
+        return AppendConclaveCorrespondenceOutput { ok: true };
+    }
+    let _ = compute_ensure_correspondence_file(&EnsureCorrespondenceFileInput {
+        file_path: Some(correspondence_path.to_string()),
+        header: Some("# Shadow Conclave Correspondence\n\n".to_string()),
+    });
+    let row = input.row.as_ref().and_then(|v| v.as_object());
+    let high_risk_flags = row
+        .and_then(|m| m.get("high_risk_flags"))
+        .and_then(|v| v.as_array())
+        .map(|rows| {
+            rows.iter()
+                .map(|r| clean_text_runtime(&value_to_string(Some(r)), 120))
+                .filter(|r| !r.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let review_payload = row
+        .and_then(|m| m.get("review_payload"))
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let entry = [
+        format!(
+            "## {} - Re: Inversion Shadow Conclave Review ({})",
+            clean_text_runtime(&value_to_string(row.and_then(|m| m.get("ts"))), 64),
+            {
+                let value = clean_text_runtime(
+                    &value_to_string(row.and_then(|m| m.get("session_or_step"))),
+                    120,
+                );
+                if value.is_empty() {
+                    "unknown".to_string()
+                } else {
+                    value
+                }
+            }
+        ),
+        format!(
+            "- Decision: {}",
+            if to_bool_like(row.and_then(|m| m.get("pass")), false) {
+                "approved"
+            } else {
+                "escalated_to_monarch"
+            }
+        ),
+        format!(
+            "- Winner: {}",
+            {
+                let value = clean_text_runtime(&value_to_string(row.and_then(|m| m.get("winner"))), 120);
+                if value.is_empty() {
+                    "none".to_string()
+                } else {
+                    value
+                }
+            }
+        ),
+        format!(
+            "- Arbitration rule: {}",
+            {
+                let value =
+                    clean_text_runtime(&value_to_string(row.and_then(|m| m.get("arbitration_rule"))), 160);
+                if value.is_empty() {
+                    "unknown".to_string()
+                } else {
+                    value
+                }
+            }
+        ),
+        format!(
+            "- High-risk flags: {}",
+            if high_risk_flags.is_empty() {
+                "none".to_string()
+            } else {
+                high_risk_flags.join(", ")
+            }
+        ),
+        format!(
+            "- Query: {}",
+            {
+                let value = clean_text_runtime(&value_to_string(row.and_then(|m| m.get("query"))), 1800);
+                if value.is_empty() {
+                    "n/a".to_string()
+                } else {
+                    value
+                }
+            }
+        ),
+        format!(
+            "- Proposal summary: {}",
+            {
+                let value =
+                    clean_text_runtime(&value_to_string(row.and_then(|m| m.get("proposal_summary"))), 1400);
+                if value.is_empty() {
+                    "n/a".to_string()
+                } else {
+                    value
+                }
+            }
+        ),
+        format!(
+            "- Receipt: {}",
+            {
+                let value = clean_text_runtime(&value_to_string(row.and_then(|m| m.get("receipt_path"))), 260);
+                if value.is_empty() {
+                    "n/a".to_string()
+                } else {
+                    value
+                }
+            }
+        ),
+        String::new(),
+        "```json".to_string(),
+        serde_json::to_string_pretty(&review_payload).unwrap_or_else(|_| "{}".to_string()),
+        "```".to_string(),
+        String::new(),
+    ]
+    .join("\n");
+    if let Ok(mut file) = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(Path::new(correspondence_path))
+    {
+        let _ = std::io::Write::write_all(&mut file, format!("{entry}\n").as_bytes());
+    }
+    AppendConclaveCorrespondenceOutput { ok: true }
+}
+
+pub fn compute_persist_decision(input: &PersistDecisionInput) -> PersistDecisionOutput {
+    let payload = input.payload.clone().unwrap_or_else(|| json!({}));
+    let _ = compute_write_json_atomic(&WriteJsonAtomicInput {
+        file_path: input.latest_path.clone(),
+        value: Some(payload.clone()),
+    });
+    let _ = compute_append_jsonl(&AppendJsonlInput {
+        file_path: input.history_path.clone(),
+        row: Some(payload),
+    });
+    PersistDecisionOutput { ok: true }
+}
+
+pub fn compute_persist_interface_envelope(
+    input: &PersistInterfaceEnvelopeInput,
+) -> PersistInterfaceEnvelopeOutput {
+    let envelope = input.envelope.clone().unwrap_or_else(|| json!({}));
+    let _ = compute_write_json_atomic(&WriteJsonAtomicInput {
+        file_path: input.latest_path.clone(),
+        value: Some(envelope.clone()),
+    });
+    let _ = compute_append_jsonl(&AppendJsonlInput {
+        file_path: input.history_path.clone(),
+        row: Some(envelope),
+    });
+    PersistInterfaceEnvelopeOutput { ok: true }
+}
+
+pub fn compute_trim_library(input: &TrimLibraryInput) -> TrimLibraryOutput {
+    let rows = compute_read_jsonl(&ReadJsonlInput {
+        file_path: input.file_path.clone(),
+    })
+    .rows
+    .into_iter()
+    .map(|row| {
+        let mut normalized = compute_normalize_library_row(&NormalizeLibraryRowInput { row: Some(row) }).row;
+        if let Some(obj) = normalized.as_object_mut() {
+            let maturity_band = value_to_string(obj.get("maturity_band"));
+            if maturity_band.is_empty() {
+                obj.insert("maturity_band".to_string(), Value::String("novice".to_string()));
+            }
+        }
+        normalized
+    })
+    .collect::<Vec<_>>();
+    let cap = parse_number_like(input.max_entries.as_ref())
+        .unwrap_or(4000.0)
+        .floor() as i64;
+    let cap = cap.max(100) as usize;
+    if rows.len() <= cap {
+        return TrimLibraryOutput { rows };
+    }
+    let mut sorted = rows;
+    sorted.sort_by(|a, b| {
+        let a_ts = value_to_string(a.as_object().and_then(|m| m.get("ts")));
+        let b_ts = value_to_string(b.as_object().and_then(|m| m.get("ts")));
+        a_ts.cmp(&b_ts)
+    });
+    let keep = sorted.split_off(sorted.len().saturating_sub(cap));
+    let path = input.file_path.as_deref().unwrap_or("").trim();
+    if !path.is_empty() {
+        let payload = keep
+            .iter()
+            .map(|row| serde_json::to_string(row).unwrap_or_else(|_| "null".to_string()))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let _ = fs::write(path, format!("{payload}\n"));
+    }
+    TrimLibraryOutput { rows: keep }
+}
+
 pub fn compute_creative_penalty(input: &CreativePenaltyInput) -> CreativePenaltyOutput {
     let preferred = input
         .preferred_creative_lane_ids
@@ -6705,6 +7518,109 @@ pub fn run_inversion_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("inversion_encode_ensure_correspondence_file_failed:{e}"));
     }
+    if mode == "load_maturity_state" {
+        let input: LoadMaturityStateInput = decode_input(&payload, "load_maturity_state_input")?;
+        let out = compute_load_maturity_state(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "load_maturity_state",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_load_maturity_state_failed:{e}"));
+    }
+    if mode == "save_maturity_state" {
+        let input: SaveMaturityStateInput = decode_input(&payload, "save_maturity_state_input")?;
+        let out = compute_save_maturity_state(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "save_maturity_state",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_save_maturity_state_failed:{e}"));
+    }
+    if mode == "load_active_sessions" {
+        let input: LoadActiveSessionsInput = decode_input(&payload, "load_active_sessions_input")?;
+        let out = compute_load_active_sessions(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "load_active_sessions",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_load_active_sessions_failed:{e}"));
+    }
+    if mode == "save_active_sessions" {
+        let input: SaveActiveSessionsInput = decode_input(&payload, "save_active_sessions_input")?;
+        let out = compute_save_active_sessions(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "save_active_sessions",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_save_active_sessions_failed:{e}"));
+    }
+    if mode == "emit_event" {
+        let input: EmitEventInput = decode_input(&payload, "emit_event_input")?;
+        let out = compute_emit_event(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "emit_event",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_emit_event_failed:{e}"));
+    }
+    if mode == "append_persona_lens_gate_receipt" {
+        let input: AppendPersonaLensGateReceiptInput =
+            decode_input(&payload, "append_persona_lens_gate_receipt_input")?;
+        let out = compute_append_persona_lens_gate_receipt(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "append_persona_lens_gate_receipt",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_append_persona_lens_gate_receipt_failed:{e}"));
+    }
+    if mode == "append_conclave_correspondence" {
+        let input: AppendConclaveCorrespondenceInput =
+            decode_input(&payload, "append_conclave_correspondence_input")?;
+        let out = compute_append_conclave_correspondence(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "append_conclave_correspondence",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_append_conclave_correspondence_failed:{e}"));
+    }
+    if mode == "persist_decision" {
+        let input: PersistDecisionInput = decode_input(&payload, "persist_decision_input")?;
+        let out = compute_persist_decision(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "persist_decision",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_persist_decision_failed:{e}"));
+    }
+    if mode == "persist_interface_envelope" {
+        let input: PersistInterfaceEnvelopeInput =
+            decode_input(&payload, "persist_interface_envelope_input")?;
+        let out = compute_persist_interface_envelope(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "persist_interface_envelope",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_persist_interface_envelope_failed:{e}"));
+    }
+    if mode == "trim_library" {
+        let input: TrimLibraryInput = decode_input(&payload, "trim_library_input")?;
+        let out = compute_trim_library(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "trim_library",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_trim_library_failed:{e}"));
+    }
     Err(format!("inversion_mode_unsupported:{mode}"))
 }
 
@@ -7898,5 +8814,174 @@ mod tests {
         });
         assert!(ensured.ok);
         assert!(correspondence_path.exists());
+    }
+
+    #[test]
+    fn helper_primitives_batch15_match_contract() {
+        let temp_root = std::env::temp_dir().join("inv_batch15");
+        let _ = fs::remove_dir_all(&temp_root);
+        let _ = fs::create_dir_all(&temp_root);
+        let maturity_path = temp_root.join("maturity.json");
+        let sessions_path = temp_root.join("active_sessions.json");
+        let events_dir = temp_root.join("events");
+        let receipts_path = temp_root.join("lens_gate_receipts.jsonl");
+        let correspondence_path = temp_root.join("correspondence.md");
+        let latest_path = temp_root.join("latest.json");
+        let history_path = temp_root.join("history.jsonl");
+        let interfaces_latest_path = temp_root.join("interfaces_latest.json");
+        let interfaces_history_path = temp_root.join("interfaces_history.jsonl");
+        let library_path = temp_root.join("library.jsonl");
+
+        let policy = json!({
+            "maturity": {
+                "target_test_count": 40,
+                "score_weights": {
+                    "pass_rate": 0.5,
+                    "non_destructive_rate": 0.3,
+                    "experience": 0.2
+                },
+                "bands": {
+                    "novice": 0.25,
+                    "developing": 0.45,
+                    "mature": 0.65,
+                    "seasoned": 0.82
+                }
+            }
+        });
+
+        let saved_maturity = compute_save_maturity_state(&SaveMaturityStateInput {
+            file_path: Some(maturity_path.to_string_lossy().to_string()),
+            policy: Some(policy.clone()),
+            state: Some(json!({
+                "stats": {
+                    "total_tests": 20,
+                    "passed_tests": 15,
+                    "destructive_failures": 1
+                }
+            })),
+            now_iso: Some("2026-03-04T12:00:00.000Z".to_string()),
+        });
+        assert!(saved_maturity.computed.get("score").is_some());
+        let loaded_maturity = compute_load_maturity_state(&LoadMaturityStateInput {
+            file_path: Some(maturity_path.to_string_lossy().to_string()),
+            policy: Some(policy.clone()),
+            now_iso: Some("2026-03-04T12:01:00.000Z".to_string()),
+        });
+        assert!(loaded_maturity.state.get("band").is_some());
+
+        let saved_sessions = compute_save_active_sessions(&SaveActiveSessionsInput {
+            file_path: Some(sessions_path.to_string_lossy().to_string()),
+            store: Some(json!({"sessions":[{"session_id":"s1"},{"session_id":"s2"}]})),
+            now_iso: Some("2026-03-04T12:02:00.000Z".to_string()),
+        });
+        assert_eq!(
+            saved_sessions
+                .store
+                .as_object()
+                .and_then(|m| m.get("sessions"))
+                .and_then(|v| v.as_array())
+                .map(|rows| rows.len())
+                .unwrap_or(0),
+            2
+        );
+        let loaded_sessions = compute_load_active_sessions(&LoadActiveSessionsInput {
+            file_path: Some(sessions_path.to_string_lossy().to_string()),
+            now_iso: Some("2026-03-04T12:03:00.000Z".to_string()),
+        });
+        assert_eq!(
+            loaded_sessions
+                .store
+                .as_object()
+                .and_then(|m| m.get("sessions"))
+                .and_then(|v| v.as_array())
+                .map(|rows| rows.len())
+                .unwrap_or(0),
+            2
+        );
+
+        let emitted = compute_emit_event(&EmitEventInput {
+            events_dir: Some(events_dir.to_string_lossy().to_string()),
+            date_str: Some("2026-03-04".to_string()),
+            event_type: Some("lane_selection".to_string()),
+            payload: Some(json!({"ok": true})),
+            emit_events: Some(true),
+            now_iso: Some("2026-03-04T12:04:00.000Z".to_string()),
+        });
+        assert!(emitted.emitted);
+
+        let receipt = compute_append_persona_lens_gate_receipt(&AppendPersonaLensGateReceiptInput {
+            state_dir: Some(temp_root.to_string_lossy().to_string()),
+            root: Some(temp_root.to_string_lossy().to_string()),
+            cfg_receipts_path: Some(receipts_path.to_string_lossy().to_string()),
+            payload: Some(json!({
+                "enabled": true,
+                "persona_id": "vikram",
+                "mode": "auto",
+                "effective_mode": "enforce",
+                "status": "enforced",
+                "fail_closed": false,
+                "drift_rate": 0.01,
+                "drift_threshold": 0.02,
+                "parity_confidence": 0.9,
+                "parity_confident": true,
+                "reasons": ["ok"]
+            })),
+            decision: Some(json!({
+                "allowed": true,
+                "input": {"objective":"x","target":"belief","impact":"high"}
+            })),
+            now_iso: Some("2026-03-04T12:05:00.000Z".to_string()),
+        });
+        assert!(receipt.rel_path.is_some());
+
+        let conclave = compute_append_conclave_correspondence(&AppendConclaveCorrespondenceInput {
+            correspondence_path: Some(correspondence_path.to_string_lossy().to_string()),
+            row: Some(json!({
+                "ts": "2026-03-04T12:06:00.000Z",
+                "session_or_step": "step-1",
+                "pass": true,
+                "winner": "vikram",
+                "arbitration_rule": "safety_first",
+                "high_risk_flags": ["none"],
+                "query": "q",
+                "proposal_summary": "s",
+                "receipt_path": "r",
+                "review_payload": {"ok": true}
+            })),
+        });
+        assert!(conclave.ok);
+        assert!(correspondence_path.exists());
+
+        let persisted = compute_persist_decision(&PersistDecisionInput {
+            latest_path: Some(latest_path.to_string_lossy().to_string()),
+            history_path: Some(history_path.to_string_lossy().to_string()),
+            payload: Some(json!({"decision":"x"})),
+        });
+        assert!(persisted.ok);
+
+        let persisted_env = compute_persist_interface_envelope(&PersistInterfaceEnvelopeInput {
+            latest_path: Some(interfaces_latest_path.to_string_lossy().to_string()),
+            history_path: Some(interfaces_history_path.to_string_lossy().to_string()),
+            envelope: Some(json!({"envelope":"x"})),
+        });
+        assert!(persisted_env.ok);
+
+        let _ = compute_append_jsonl(&AppendJsonlInput {
+            file_path: Some(library_path.to_string_lossy().to_string()),
+            row: Some(json!({"id":"a","ts":"2026-03-04T00:00:00.000Z","objective":"one"})),
+        });
+        let _ = compute_append_jsonl(&AppendJsonlInput {
+            file_path: Some(library_path.to_string_lossy().to_string()),
+            row: Some(json!({"id":"b","ts":"2026-03-04T00:01:00.000Z","objective":"two"})),
+        });
+        let _ = compute_append_jsonl(&AppendJsonlInput {
+            file_path: Some(library_path.to_string_lossy().to_string()),
+            row: Some(json!({"id":"c","ts":"2026-03-04T00:02:00.000Z","objective":"three"})),
+        });
+        let trimmed = compute_trim_library(&TrimLibraryInput {
+            file_path: Some(library_path.to_string_lossy().to_string()),
+            max_entries: Some(json!(2)),
+        });
+        assert_eq!(trimmed.rows.len(), 3);
     }
 }
