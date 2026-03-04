@@ -1461,6 +1461,18 @@ function spawnCapacityBoostSnapshot(nowMs = Date.now()) {
 }
 
 function defaultBacklogAutoscaleState() {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'default_backlog_autoscale_state',
+      {
+        module: AUTONOMY_BACKLOG_AUTOSCALE_MODULE
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
+  }
   return {
     schema_id: 'autonomy_backlog_autoscale',
     schema_version: '1.0.0',
