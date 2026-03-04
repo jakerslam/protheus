@@ -5963,6 +5963,25 @@ function compositeEligibilityMin(risk, executionMode) {
 
 function mediumRiskGateDecision(proposal, directiveFitScore, actionabilityScore, compositeScore, baseThresholdsObj) {
   const risk = normalizedRisk(proposal && proposal.risk);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const required = mediumRiskThresholds(baseThresholdsObj);
+    const rust = runBacklogAutoscalePrimitive(
+      'medium_risk_gate_decision',
+      {
+        risk,
+        composite_score: Number(compositeScore || 0),
+        directive_fit_score: Number(directiveFitScore || 0),
+        actionability_score: Number(actionabilityScore || 0),
+        composite_min: Number(required.composite_min || 0),
+        directive_fit_min: Number(required.directive_fit_min || 0),
+        actionability_min: Number(required.actionability_min || 0)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
+  }
   if (risk !== 'medium') {
     return {
       pass: true,
@@ -20473,6 +20492,7 @@ module.exports = {
   chooseQosLaneSelection,
   compositeEligibilityMin,
   mediumRiskThresholds,
+  mediumRiskGateDecision,
   qosLaneWeights,
   qosLaneShareCapExceeded,
   normalizeQueuePressure,

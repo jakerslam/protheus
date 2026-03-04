@@ -2529,6 +2529,32 @@ pub struct MediumRiskThresholdsOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct MediumRiskGateDecisionInput {
+    #[serde(default)]
+    pub risk: Option<String>,
+    #[serde(default)]
+    pub composite_score: f64,
+    #[serde(default)]
+    pub directive_fit_score: f64,
+    #[serde(default)]
+    pub actionability_score: f64,
+    #[serde(default)]
+    pub composite_min: f64,
+    #[serde(default)]
+    pub directive_fit_min: f64,
+    #[serde(default)]
+    pub actionability_min: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct MediumRiskGateDecisionOutput {
+    pub pass: bool,
+    pub risk: String,
+    pub reasons: Vec<String>,
+    pub required: Option<MediumRiskThresholdsOutput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -3699,6 +3725,8 @@ pub struct AutoscaleRequest {
     pub explore_quota_for_day_input: Option<ExploreQuotaForDayInput>,
     #[serde(default)]
     pub medium_risk_thresholds_input: Option<MediumRiskThresholdsInput>,
+    #[serde(default)]
+    pub medium_risk_gate_decision_input: Option<MediumRiskGateDecisionInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -8180,6 +8208,46 @@ pub fn compute_medium_risk_thresholds(input: &MediumRiskThresholdsInput) -> Medi
     }
 }
 
+pub fn compute_medium_risk_gate_decision(
+    input: &MediumRiskGateDecisionInput,
+) -> MediumRiskGateDecisionOutput {
+    let risk = input
+        .risk
+        .as_ref()
+        .map(|v| v.trim().to_lowercase())
+        .filter(|v| v == "low" || v == "medium" || v == "high")
+        .unwrap_or_else(|| "low".to_string());
+    if risk != "medium" {
+        return MediumRiskGateDecisionOutput {
+            pass: true,
+            risk,
+            reasons: Vec::new(),
+            required: None,
+        };
+    }
+    let required = MediumRiskThresholdsOutput {
+        composite_min: input.composite_min,
+        directive_fit_min: input.directive_fit_min,
+        actionability_min: input.actionability_min,
+    };
+    let mut reasons = Vec::<String>::new();
+    if input.composite_score < required.composite_min {
+        reasons.push("medium_composite_low".to_string());
+    }
+    if input.directive_fit_score < required.directive_fit_min {
+        reasons.push("medium_directive_fit_low".to_string());
+    }
+    if input.actionability_score < required.actionability_min {
+        reasons.push("medium_actionability_low".to_string());
+    }
+    MediumRiskGateDecisionOutput {
+        pass: reasons.is_empty(),
+        risk,
+        reasons,
+        required: Some(required),
+    }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -11803,6 +11871,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_medium_risk_thresholds_encode_failed:{e}"));
+    }
+    if mode == "medium_risk_gate_decision" {
+        let input = request
+            .medium_risk_gate_decision_input
+            .ok_or_else(|| "autoscale_missing_medium_risk_gate_decision_input".to_string())?;
+        let out = compute_medium_risk_gate_decision(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "medium_risk_gate_decision",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_medium_risk_gate_decision_encode_failed:{e}"));
     }
     if mode == "is_directive_clarification_proposal" {
         let input = request
@@ -17106,6 +17186,42 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale medium_risk_thresholds");
         assert!(out.contains("\"mode\":\"medium_risk_thresholds\""));
+    }
+
+    #[test]
+    fn medium_risk_gate_decision_flags_low_scores() {
+        let out = compute_medium_risk_gate_decision(&MediumRiskGateDecisionInput {
+            risk: Some("medium".to_string()),
+            composite_score: 60.0,
+            directive_fit_score: 55.0,
+            actionability_score: 54.0,
+            composite_min: 70.0,
+            directive_fit_min: 60.0,
+            actionability_min: 62.0,
+        });
+        assert!(!out.pass);
+        assert_eq!(out.risk, "medium");
+        assert!(out.reasons.contains(&"medium_composite_low".to_string()));
+        assert!(out.required.is_some());
+    }
+
+    #[test]
+    fn autoscale_json_medium_risk_gate_decision_path_works() {
+        let payload = serde_json::json!({
+            "mode": "medium_risk_gate_decision",
+            "medium_risk_gate_decision_input": {
+                "risk": "medium",
+                "composite_score": 72,
+                "directive_fit_score": 68,
+                "actionability_score": 66,
+                "composite_min": 70,
+                "directive_fit_min": 60,
+                "actionability_min": 62
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale medium_risk_gate_decision");
+        assert!(out.contains("\"mode\":\"medium_risk_gate_decision\""));
     }
 
     #[test]
