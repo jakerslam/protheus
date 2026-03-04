@@ -2502,6 +2502,33 @@ pub struct ExploreQuotaForDayOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct MediumRiskThresholdsInput {
+    #[serde(default)]
+    pub base_min_directive_fit: f64,
+    #[serde(default)]
+    pub base_min_actionability_score: f64,
+    #[serde(default)]
+    pub medium_risk_min_composite_eligibility: f64,
+    #[serde(default)]
+    pub min_composite_eligibility: f64,
+    #[serde(default)]
+    pub medium_risk_min_directive_fit: f64,
+    #[serde(default)]
+    pub default_min_directive_fit: f64,
+    #[serde(default)]
+    pub medium_risk_min_actionability: f64,
+    #[serde(default)]
+    pub default_min_actionability: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct MediumRiskThresholdsOutput {
+    pub composite_min: f64,
+    pub directive_fit_min: f64,
+    pub actionability_min: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -3670,6 +3697,8 @@ pub struct AutoscaleRequest {
     pub choose_selection_mode_input: Option<ChooseSelectionModeInput>,
     #[serde(default)]
     pub explore_quota_for_day_input: Option<ExploreQuotaForDayInput>,
+    #[serde(default)]
+    pub medium_risk_thresholds_input: Option<MediumRiskThresholdsInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -8124,6 +8153,33 @@ pub fn compute_explore_quota_for_day(input: &ExploreQuotaForDayInput) -> Explore
     }
 }
 
+pub fn compute_medium_risk_thresholds(input: &MediumRiskThresholdsInput) -> MediumRiskThresholdsOutput {
+    let composite_min = input
+        .medium_risk_min_composite_eligibility
+        .max(input.min_composite_eligibility + 6.0);
+    let directive_base = if input.base_min_directive_fit.is_finite() {
+        input.base_min_directive_fit
+    } else {
+        input.default_min_directive_fit
+    };
+    let actionability_base = if input.base_min_actionability_score.is_finite() {
+        input.base_min_actionability_score
+    } else {
+        input.default_min_actionability
+    };
+    let directive_fit_min = input
+        .medium_risk_min_directive_fit
+        .max(directive_base + 5.0);
+    let actionability_min = input
+        .medium_risk_min_actionability
+        .max(actionability_base + 6.0);
+    MediumRiskThresholdsOutput {
+        composite_min,
+        directive_fit_min,
+        actionability_min,
+    }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -11735,6 +11791,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_explore_quota_for_day_encode_failed:{e}"));
+    }
+    if mode == "medium_risk_thresholds" {
+        let input = request
+            .medium_risk_thresholds_input
+            .ok_or_else(|| "autoscale_missing_medium_risk_thresholds_input".to_string())?;
+        let out = compute_medium_risk_thresholds(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "medium_risk_thresholds",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_medium_risk_thresholds_encode_failed:{e}"));
     }
     if mode == "is_directive_clarification_proposal" {
         let input = request
@@ -17001,6 +17069,43 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale explore_quota_for_day");
         assert!(out.contains("\"mode\":\"explore_quota_for_day\""));
+    }
+
+    #[test]
+    fn medium_risk_thresholds_derives_bounds() {
+        let out = compute_medium_risk_thresholds(&MediumRiskThresholdsInput {
+            base_min_directive_fit: 40.0,
+            base_min_actionability_score: 45.0,
+            medium_risk_min_composite_eligibility: 70.0,
+            min_composite_eligibility: 68.0,
+            medium_risk_min_directive_fit: 50.0,
+            default_min_directive_fit: 45.0,
+            medium_risk_min_actionability: 52.0,
+            default_min_actionability: 46.0,
+        });
+        assert_eq!(out.composite_min, 74.0);
+        assert_eq!(out.directive_fit_min, 50.0);
+        assert_eq!(out.actionability_min, 52.0);
+    }
+
+    #[test]
+    fn autoscale_json_medium_risk_thresholds_path_works() {
+        let payload = serde_json::json!({
+            "mode": "medium_risk_thresholds",
+            "medium_risk_thresholds_input": {
+                "base_min_directive_fit": 40,
+                "base_min_actionability_score": 45,
+                "medium_risk_min_composite_eligibility": 70,
+                "min_composite_eligibility": 68,
+                "medium_risk_min_directive_fit": 50,
+                "default_min_directive_fit": 45,
+                "medium_risk_min_actionability": 52,
+                "default_min_actionability": 46
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale medium_risk_thresholds");
+        assert!(out.contains("\"mode\":\"medium_risk_thresholds\""));
     }
 
     #[test]
