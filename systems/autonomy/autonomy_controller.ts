@@ -2793,6 +2793,8 @@ const PROPOSAL_REMEDIATION_DEPTH_CACHE = new Map();
 const PROPOSAL_REMEDIATION_DEPTH_CACHE_MAX = 512;
 const PROPOSAL_DEDUP_KEY_CACHE = new Map();
 const PROPOSAL_DEDUP_KEY_CACHE_MAX = 1024;
+const SEMANTIC_TOKEN_SIMILARITY_CACHE = new Map();
+const SEMANTIC_TOKEN_SIMILARITY_CACHE_MAX = 2048;
 const STRATEGY_RANK_SCORE_CACHE = new Map();
 const STRATEGY_RANK_SCORE_CACHE_MAX = 2048;
 const STRATEGY_RANK_ADJUSTED_CACHE = new Map();
@@ -7634,8 +7636,33 @@ function proposalSemanticFingerprint(p) {
 }
 
 function semanticTokenSimilarity(aTokens, bTokens) {
-  const aSet = new Set(Array.isArray(aTokens) ? aTokens.map((v) => String(v || '').trim()).filter(Boolean) : []);
-  const bSet = new Set(Array.isArray(bTokens) ? bTokens.map((v) => String(v || '').trim()).filter(Boolean) : []);
+  const aList = Array.isArray(aTokens) ? aTokens.map((v) => String(v || '').trim()).filter(Boolean) : [];
+  const bList = Array.isArray(bTokens) ? bTokens.map((v) => String(v || '').trim()).filter(Boolean) : [];
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const key = `${aList.join('\u0001')}\u0000${bList.join('\u0001')}`;
+    if (SEMANTIC_TOKEN_SIMILARITY_CACHE.has(key)) {
+      return Number(SEMANTIC_TOKEN_SIMILARITY_CACHE.get(key) || 0);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'semantic_token_similarity',
+      {
+        left_tokens: aList,
+        right_tokens: bList
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const val = Number(Number(rust.payload.payload.similarity || 0).toFixed(6));
+      if (SEMANTIC_TOKEN_SIMILARITY_CACHE.size >= SEMANTIC_TOKEN_SIMILARITY_CACHE_MAX) {
+        const oldest = SEMANTIC_TOKEN_SIMILARITY_CACHE.keys().next();
+        if (!oldest.done) SEMANTIC_TOKEN_SIMILARITY_CACHE.delete(oldest.value);
+      }
+      SEMANTIC_TOKEN_SIMILARITY_CACHE.set(key, val);
+      return val;
+    }
+  }
+  const aSet = new Set(aList);
+  const bSet = new Set(bList);
   if (!aSet.size || !bSet.size) return 0;
   let intersection = 0;
   for (const token of aSet) {

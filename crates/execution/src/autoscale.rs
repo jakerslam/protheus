@@ -720,6 +720,19 @@ pub struct ProposalDedupKeyOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SemanticTokenSimilarityInput {
+    #[serde(default)]
+    pub left_tokens: Vec<String>,
+    #[serde(default)]
+    pub right_tokens: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SemanticTokenSimilarityOutput {
+    pub similarity: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StrategyRankScoreInput {
     pub composite_weight: f64,
     pub actionability_weight: f64,
@@ -1620,6 +1633,8 @@ pub struct AutoscaleRequest {
     pub proposal_remediation_depth_input: Option<ProposalRemediationDepthInput>,
     #[serde(default)]
     pub proposal_dedup_key_input: Option<ProposalDedupKeyInput>,
+    #[serde(default)]
+    pub semantic_token_similarity_input: Option<SemanticTokenSimilarityInput>,
     #[serde(default)]
     pub strategy_rank_score_input: Option<StrategyRankScoreInput>,
     #[serde(default)]
@@ -2922,6 +2937,34 @@ pub fn compute_proposal_dedup_key(input: &ProposalDedupKeyInput) -> ProposalDedu
         )
     };
     ProposalDedupKeyOutput { dedup_key }
+}
+
+pub fn compute_semantic_token_similarity(
+    input: &SemanticTokenSimilarityInput,
+) -> SemanticTokenSimilarityOutput {
+    let norm = |row: &String| -> Option<String> {
+        let token = row.trim();
+        if token.is_empty() {
+            return None;
+        }
+        Some(token.to_string())
+    };
+    let left: std::collections::HashSet<String> =
+        input.left_tokens.iter().filter_map(norm).collect();
+    let right: std::collections::HashSet<String> =
+        input.right_tokens.iter().filter_map(norm).collect();
+    if left.is_empty() || right.is_empty() {
+        return SemanticTokenSimilarityOutput { similarity: 0.0 };
+    }
+    let intersection = left.iter().filter(|token| right.contains(*token)).count() as f64;
+    let union = (left.len() + right.len()) as f64 - intersection;
+    if union <= 0.0 {
+        return SemanticTokenSimilarityOutput { similarity: 0.0 };
+    }
+    let similarity = ((intersection / union) * 1_000_000.0).round() / 1_000_000.0;
+    SemanticTokenSimilarityOutput {
+        similarity: similarity.clamp(0.0, 1.0),
+    }
 }
 
 pub fn compute_strategy_rank_score(input: &StrategyRankScoreInput) -> StrategyRankScoreOutput {
@@ -5208,6 +5251,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_proposal_dedup_key_encode_failed:{e}"));
     }
+    if mode == "semantic_token_similarity" {
+        let input = request
+            .semantic_token_similarity_input
+            .ok_or_else(|| "autoscale_missing_semantic_token_similarity_input".to_string())?;
+        let out = compute_semantic_token_similarity(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "semantic_token_similarity",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_semantic_token_similarity_encode_failed:{e}"));
+    }
     if mode == "strategy_rank_score" {
         let input = request
             .strategy_rank_score_input
@@ -7084,6 +7139,45 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale proposal_dedup_key");
         assert!(out.contains("\"mode\":\"proposal_dedup_key\""));
         assert!(out.contains("\"dedup_key\":\"ops_remediation|github_release|transport\""));
+    }
+
+    #[test]
+    fn semantic_token_similarity_uses_jaccard_overlap() {
+        let out = compute_semantic_token_similarity(&SemanticTokenSimilarityInput {
+            left_tokens: vec![
+                "bridge".to_string(),
+                "rust".to_string(),
+                "parity".to_string(),
+                "rust".to_string(),
+            ],
+            right_tokens: vec![
+                "rust".to_string(),
+                "parity".to_string(),
+                "tests".to_string(),
+            ],
+        });
+        assert!((out.similarity - 0.5).abs() < 1e-6, "similarity={}", out.similarity);
+
+        let empty = compute_semantic_token_similarity(&SemanticTokenSimilarityInput {
+            left_tokens: vec![],
+            right_tokens: vec!["anything".to_string()],
+        });
+        assert_eq!(empty.similarity, 0.0);
+    }
+
+    #[test]
+    fn autoscale_json_semantic_token_similarity_path_works() {
+        let payload = serde_json::json!({
+            "mode": "semantic_token_similarity",
+            "semantic_token_similarity_input": {
+                "left_tokens": ["rust", "bridge", "parity"],
+                "right_tokens": ["parity", "tests"]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale semantic_token_similarity");
+        assert!(out.contains("\"mode\":\"semantic_token_similarity\""));
+        assert!(out.contains("\"similarity\":0.25"));
     }
 
     #[test]
