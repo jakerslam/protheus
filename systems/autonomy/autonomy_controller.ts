@@ -13204,6 +13204,33 @@ function withSuccessCriteriaQualityAudit(verification) {
 }
 
 function normalizeTokenUsageShape(raw, source = 'unknown') {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const src = raw && typeof raw === 'object' ? raw : null;
+    const rust = runBacklogAutoscalePrimitive(
+      'normalize_token_usage_shape',
+      {
+        prompt_tokens: src ? numberOrNull(src.prompt_tokens) : null,
+        input_tokens: src ? numberOrNull(src.input_tokens) : null,
+        completion_tokens: src ? numberOrNull(src.completion_tokens) : null,
+        output_tokens: src ? numberOrNull(src.output_tokens) : null,
+        total_tokens: src ? numberOrNull(src.total_tokens) : null,
+        tokens_used: src ? numberOrNull(src.tokens_used) : null,
+        source: source == null ? 'unknown' : String(source)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      if (payload.has_value !== true || !payload.usage || typeof payload.usage !== 'object') return null;
+      const usage = payload.usage;
+      return {
+        prompt_tokens: numberOrNull(usage.prompt_tokens),
+        completion_tokens: numberOrNull(usage.completion_tokens),
+        total_tokens: numberOrNull(usage.total_tokens),
+        source: String(usage.source || 'unknown')
+      };
+    }
+  }
   if (!raw || typeof raw !== 'object') return null;
   const prompt = numberOrNull(raw.prompt_tokens != null ? raw.prompt_tokens : raw.input_tokens);
   const completion = numberOrNull(raw.completion_tokens != null ? raw.completion_tokens : raw.output_tokens);
@@ -21112,6 +21139,7 @@ module.exports = {
   runPostconditions,
   verifyExecutionReceipt,
   capabilityDescriptor,
+  normalizeTokenUsageShape,
   computeExecutionTokenUsage,
   preExecCriteriaGateDecision,
   routeExecutionPolicyHold,

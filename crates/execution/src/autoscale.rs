@@ -3109,6 +3109,42 @@ pub struct CapabilityDescriptorOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizeTokenUsageShapeInput {
+    #[serde(default)]
+    pub prompt_tokens: Option<f64>,
+    #[serde(default)]
+    pub input_tokens: Option<f64>,
+    #[serde(default)]
+    pub completion_tokens: Option<f64>,
+    #[serde(default)]
+    pub output_tokens: Option<f64>,
+    #[serde(default)]
+    pub total_tokens: Option<f64>,
+    #[serde(default)]
+    pub tokens_used: Option<f64>,
+    #[serde(default)]
+    pub source: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizeTokenUsageShapeValueOutput {
+    #[serde(default)]
+    pub prompt_tokens: Option<f64>,
+    #[serde(default)]
+    pub completion_tokens: Option<f64>,
+    #[serde(default)]
+    pub total_tokens: Option<f64>,
+    pub source: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizeTokenUsageShapeOutput {
+    pub has_value: bool,
+    #[serde(default)]
+    pub usage: Option<NormalizeTokenUsageShapeValueOutput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -4321,6 +4357,8 @@ pub struct AutoscaleRequest {
     pub success_criteria_policy_for_proposal_input: Option<SuccessCriteriaPolicyForProposalInput>,
     #[serde(default)]
     pub capability_descriptor_input: Option<CapabilityDescriptorInput>,
+    #[serde(default)]
+    pub normalize_token_usage_shape_input: Option<NormalizeTokenUsageShapeInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -9939,6 +9977,37 @@ pub fn compute_capability_descriptor(input: &CapabilityDescriptorInput) -> Capab
     }
 }
 
+pub fn compute_normalize_token_usage_shape(
+    input: &NormalizeTokenUsageShapeInput,
+) -> NormalizeTokenUsageShapeOutput {
+    let prompt = non_negative_number(input.prompt_tokens).or(non_negative_number(input.input_tokens));
+    let completion =
+        non_negative_number(input.completion_tokens).or(non_negative_number(input.output_tokens));
+    let total_direct = non_negative_number(input.total_tokens).or(non_negative_number(input.tokens_used));
+    let total = if let Some(v) = total_direct {
+        Some(v)
+    } else if prompt.is_some() || completion.is_some() {
+        Some(prompt.unwrap_or(0.0) + completion.unwrap_or(0.0))
+    } else {
+        None
+    };
+    if total.is_none() && prompt.is_none() && completion.is_none() {
+        return NormalizeTokenUsageShapeOutput {
+            has_value: false,
+            usage: None,
+        };
+    }
+    NormalizeTokenUsageShapeOutput {
+        has_value: true,
+        usage: Some(NormalizeTokenUsageShapeValueOutput {
+            prompt_tokens: prompt,
+            completion_tokens: completion,
+            total_tokens: total,
+            source: normalize_spaces(input.source.as_deref().unwrap_or("unknown")),
+        }),
+    }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -13802,6 +13871,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_capability_descriptor_encode_failed:{e}"));
+    }
+    if mode == "normalize_token_usage_shape" {
+        let input = request
+            .normalize_token_usage_shape_input
+            .ok_or_else(|| "autoscale_missing_normalize_token_usage_shape_input".to_string())?;
+        let out = compute_normalize_token_usage_shape(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "normalize_token_usage_shape",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_normalize_token_usage_shape_encode_failed:{e}"));
     }
     if mode == "directive_pulse_context" {
         let input = request
@@ -19988,6 +20069,39 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale capability_descriptor");
         assert!(out.contains("\"mode\":\"capability_descriptor\""));
+    }
+
+    #[test]
+    fn normalize_token_usage_shape_uses_fallback_fields() {
+        let out = compute_normalize_token_usage_shape(&NormalizeTokenUsageShapeInput {
+            prompt_tokens: None,
+            input_tokens: Some(11.0),
+            completion_tokens: None,
+            output_tokens: Some(5.0),
+            total_tokens: None,
+            tokens_used: None,
+            source: Some("route_execute_metrics".to_string()),
+        });
+        assert_eq!(out.has_value, true);
+        let usage = out.usage.expect("usage");
+        assert_eq!(usage.prompt_tokens, Some(11.0));
+        assert_eq!(usage.completion_tokens, Some(5.0));
+        assert_eq!(usage.total_tokens, Some(16.0));
+    }
+
+    #[test]
+    fn autoscale_json_normalize_token_usage_shape_path_works() {
+        let payload = serde_json::json!({
+            "mode": "normalize_token_usage_shape",
+            "normalize_token_usage_shape_input": {
+                "prompt_tokens": 10,
+                "completion_tokens": 4,
+                "source": "route_execute_metrics"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale normalize_token_usage_shape");
+        assert!(out.contains("\"mode\":\"normalize_token_usage_shape\""));
     }
 
     #[test]
