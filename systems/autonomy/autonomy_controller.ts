@@ -2624,6 +2624,21 @@ function proposalTextBlob(p) {
 }
 
 function optimizationMinDeltaPercent() {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'optimization_min_delta_percent',
+      {
+        high_accuracy_mode: AUTONOMY_OPTIMIZATION_HIGH_ACCURACY_MODE,
+        high_accuracy_value: AUTONOMY_OPTIMIZATION_MIN_DELTA_PERCENT_HIGH_ACCURACY,
+        base_value: AUTONOMY_OPTIMIZATION_MIN_DELTA_PERCENT
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const minDelta = Number(rust.payload.payload.min_delta_percent);
+      if (Number.isFinite(minDelta)) return minDelta;
+    }
+  }
   if (AUTONOMY_OPTIMIZATION_HIGH_ACCURACY_MODE) return AUTONOMY_OPTIMIZATION_MIN_DELTA_PERCENT_HIGH_ACCURACY;
   return AUTONOMY_OPTIMIZATION_MIN_DELTA_PERCENT;
 }
@@ -18972,6 +18987,7 @@ module.exports = {
   canaryFailedChecksAllowed,
   proposalTextBlob,
   percentMentionsFromText,
+  optimizationMinDeltaPercent,
   toStem,
   directiveTokenHits,
   expectedValueScore,

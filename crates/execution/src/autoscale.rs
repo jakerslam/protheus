@@ -1341,6 +1341,21 @@ pub struct PercentMentionsFromTextOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct OptimizationMinDeltaPercentInput {
+    #[serde(default)]
+    pub high_accuracy_mode: bool,
+    #[serde(default)]
+    pub high_accuracy_value: f64,
+    #[serde(default)]
+    pub base_value: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct OptimizationMinDeltaPercentOutput {
+    pub min_delta_percent: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecutionReserveSnapshotInput {
     pub cap: f64,
     pub used: f64,
@@ -2093,6 +2108,8 @@ pub struct AutoscaleRequest {
     pub proposal_text_blob_input: Option<ProposalTextBlobInput>,
     #[serde(default)]
     pub percent_mentions_from_text_input: Option<PercentMentionsFromTextInput>,
+    #[serde(default)]
+    pub optimization_min_delta_percent_input: Option<OptimizationMinDeltaPercentInput>,
     #[serde(default)]
     pub execution_reserve_snapshot_input: Option<ExecutionReserveSnapshotInput>,
     #[serde(default)]
@@ -4560,6 +4577,17 @@ pub fn compute_percent_mentions_from_text(
     PercentMentionsFromTextOutput { values }
 }
 
+pub fn compute_optimization_min_delta_percent(
+    input: &OptimizationMinDeltaPercentInput,
+) -> OptimizationMinDeltaPercentOutput {
+    let min_delta_percent = if input.high_accuracy_mode {
+        input.high_accuracy_value
+    } else {
+        input.base_value
+    };
+    OptimizationMinDeltaPercentOutput { min_delta_percent }
+}
+
 pub fn compute_execution_reserve_snapshot(
     input: &ExecutionReserveSnapshotInput,
 ) -> ExecutionReserveSnapshotOutput {
@@ -6912,6 +6940,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_percent_mentions_from_text_encode_failed:{e}"));
+    }
+    if mode == "optimization_min_delta_percent" {
+        let input = request
+            .optimization_min_delta_percent_input
+            .ok_or_else(|| "autoscale_missing_optimization_min_delta_percent_input".to_string())?;
+        let out = compute_optimization_min_delta_percent(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "optimization_min_delta_percent",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_optimization_min_delta_percent_encode_failed:{e}"));
     }
     if mode == "execution_reserve_snapshot" {
         let input = request
@@ -9866,6 +9906,39 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale percent_mentions_from_text");
         assert!(out.contains("\"mode\":\"percent_mentions_from_text\""));
         assert!(out.contains("\"values\":[10.0,25.0]"));
+    }
+
+    #[test]
+    fn optimization_min_delta_percent_respects_mode() {
+        let high = compute_optimization_min_delta_percent(&OptimizationMinDeltaPercentInput {
+            high_accuracy_mode: true,
+            high_accuracy_value: 3.5,
+            base_value: 8.0,
+        });
+        assert!((high.min_delta_percent - 3.5).abs() < 0.000001);
+
+        let normal = compute_optimization_min_delta_percent(&OptimizationMinDeltaPercentInput {
+            high_accuracy_mode: false,
+            high_accuracy_value: 3.5,
+            base_value: 8.0,
+        });
+        assert!((normal.min_delta_percent - 8.0).abs() < 0.000001);
+    }
+
+    #[test]
+    fn autoscale_json_optimization_min_delta_percent_path_works() {
+        let payload = serde_json::json!({
+            "mode": "optimization_min_delta_percent",
+            "optimization_min_delta_percent_input": {
+                "high_accuracy_mode": true,
+                "high_accuracy_value": 3.5,
+                "base_value": 8.0
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale optimization_min_delta_percent");
+        assert!(out.contains("\"mode\":\"optimization_min_delta_percent\""));
+        assert!(out.contains("\"min_delta_percent\":3.5"));
     }
 
     #[test]

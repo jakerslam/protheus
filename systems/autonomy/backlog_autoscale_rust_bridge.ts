@@ -177,6 +177,7 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
     canary_failed_checks_allowed: 'canary_failed_checks_allowed_input',
     proposal_text_blob: 'proposal_text_blob_input',
     percent_mentions_from_text: 'percent_mentions_from_text_input',
+    optimization_min_delta_percent: 'optimization_min_delta_percent_input',
     execution_reserve_snapshot: 'execution_reserve_snapshot_input',
     qos_lane_share_cap_exceeded: 'qos_lane_share_cap_exceeded_input',
     qos_lane_from_candidate: 'qos_lane_from_candidate_input',
