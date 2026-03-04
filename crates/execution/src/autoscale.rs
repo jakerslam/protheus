@@ -261,6 +261,27 @@ pub struct SafetyStopRunEventOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NonYieldCategoryInput {
+    #[serde(default)]
+    pub event_type: Option<String>,
+    #[serde(default)]
+    pub result: Option<String>,
+    #[serde(default)]
+    pub outcome: Option<String>,
+    #[serde(default)]
+    pub policy_hold: Option<bool>,
+    #[serde(default)]
+    pub hold_reason: Option<String>,
+    #[serde(default)]
+    pub route_block_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NonYieldCategoryOutput {
+    pub category: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RouteExecutionPolicyHoldInput {
     #[serde(default)]
     pub target: Option<String>,
@@ -502,6 +523,8 @@ pub struct AutoscaleRequest {
     pub attempt_run_event_input: Option<AttemptRunEventInput>,
     #[serde(default)]
     pub safety_stop_run_event_input: Option<SafetyStopRunEventInput>,
+    #[serde(default)]
+    pub non_yield_category_input: Option<NonYieldCategoryInput>,
     #[serde(default)]
     pub route_execution_policy_hold_input: Option<RouteExecutionPolicyHoldInput>,
     #[serde(default)]
@@ -1224,6 +1247,71 @@ pub fn compute_safety_stop_run_event(input: &SafetyStopRunEventInput) -> SafetyS
     SafetyStopRunEventOutput { is_safety_stop }
 }
 
+pub fn compute_non_yield_category(input: &NonYieldCategoryInput) -> NonYieldCategoryOutput {
+    let event_type = input
+        .event_type
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    if event_type != "autonomy_run" {
+        return NonYieldCategoryOutput { category: None };
+    }
+
+    let result = input
+        .result
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .unwrap_or_default();
+    if result.is_empty() || result == "lock_busy" || result == "stop_repeat_gate_interval" {
+        return NonYieldCategoryOutput { category: None };
+    }
+
+    if input.policy_hold.unwrap_or(false) || is_policy_hold_result(&result) {
+        let reason_raw = input
+            .hold_reason
+            .as_ref()
+            .or(input.route_block_reason.as_ref())
+            .map(|v| v.as_str())
+            .unwrap_or(result.as_str());
+        let reason = normalize_spaces(reason_raw).to_ascii_lowercase();
+        let result_lc = result.to_ascii_lowercase();
+        if result_lc.contains("budget")
+            || reason.contains("budget")
+            || reason.contains("autopause")
+        {
+            return NonYieldCategoryOutput {
+                category: Some("budget_hold".to_string()),
+            };
+        }
+        return NonYieldCategoryOutput {
+            category: Some("policy_hold".to_string()),
+        };
+    }
+
+    let safety = compute_safety_stop_run_event(&SafetyStopRunEventInput {
+        event_type: input.event_type.clone(),
+        result: input.result.clone(),
+    });
+    if safety.is_safety_stop {
+        return NonYieldCategoryOutput {
+            category: Some("safety_stop".to_string()),
+        };
+    }
+
+    let no_progress = compute_no_progress_result(&NoProgressResultInput {
+        event_type: input.event_type.clone(),
+        result: input.result.clone(),
+        outcome: input.outcome.clone(),
+    });
+    if no_progress.is_no_progress {
+        return NonYieldCategoryOutput {
+            category: Some("no_progress".to_string()),
+        };
+    }
+
+    NonYieldCategoryOutput { category: None }
+}
+
 pub fn compute_policy_hold_pressure(input: &PolicyHoldPressureInput) -> PolicyHoldPressureOutput {
     let window_hours = input.window_hours.unwrap_or(24.0).max(1.0);
     let min_samples = input.min_samples.unwrap_or(1.0).max(1.0);
@@ -1791,6 +1879,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_safety_stop_run_event_encode_failed:{e}"));
     }
+    if mode == "non_yield_category" {
+        let input = request
+            .non_yield_category_input
+            .ok_or_else(|| "autoscale_missing_non_yield_category_input".to_string())?;
+        let out = compute_non_yield_category(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "non_yield_category",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_non_yield_category_encode_failed:{e}"));
+    }
     if mode == "route_execution_policy_hold" {
         let input = request
             .route_execution_policy_hold_input
@@ -2235,6 +2335,57 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale safety_stop_run_event");
         assert!(out.contains("\"mode\":\"safety_stop_run_event\""));
+    }
+
+    #[test]
+    fn non_yield_category_classifies_policy_and_safety_and_progress() {
+        let budget_hold = compute_non_yield_category(&NonYieldCategoryInput {
+            event_type: Some("autonomy_run".to_string()),
+            result: Some("no_candidates_policy_daily_cap".to_string()),
+            outcome: None,
+            policy_hold: Some(true),
+            hold_reason: Some("budget guard blocked".to_string()),
+            route_block_reason: None,
+        });
+        assert_eq!(budget_hold.category, Some("budget_hold".to_string()));
+
+        let safety = compute_non_yield_category(&NonYieldCategoryInput {
+            event_type: Some("autonomy_run".to_string()),
+            result: Some("stop_repeat_gate_human_escalation_pending".to_string()),
+            outcome: None,
+            policy_hold: Some(false),
+            hold_reason: None,
+            route_block_reason: None,
+        });
+        assert_eq!(safety.category, Some("safety_stop".to_string()));
+
+        let no_progress = compute_non_yield_category(&NonYieldCategoryInput {
+            event_type: Some("autonomy_run".to_string()),
+            result: Some("executed".to_string()),
+            outcome: Some("no_change".to_string()),
+            policy_hold: Some(false),
+            hold_reason: None,
+            route_block_reason: None,
+        });
+        assert_eq!(no_progress.category, Some("no_progress".to_string()));
+    }
+
+    #[test]
+    fn autoscale_json_non_yield_category_path_works() {
+        let payload = serde_json::json!({
+            "mode": "non_yield_category",
+            "non_yield_category_input": {
+                "event_type": "autonomy_run",
+                "result": "executed",
+                "outcome": "no_change",
+                "policy_hold": false,
+                "hold_reason": "",
+                "route_block_reason": ""
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale non_yield_category");
+        assert!(out.contains("\"mode\":\"non_yield_category\""));
     }
 
     #[test]
