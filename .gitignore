@@ -5,6 +5,7 @@ node_modules/
 .env
 .env.local
 config/moltbook/credentials.json
+config/credentials.json
 # Local strategy profiles are instance-specific (keep docs scaffold only)
 config/strategies/*
 !config/strategies/README.md
@@ -172,8 +173,21 @@ state/ops/cleanup/*.jsonl
 # Local sibling/sidecar repos (kept separate from workspace repo)
 agent-holo-viz/
 projects/
+pqts/
 !personas/organization/projects/
 !personas/organization/projects/**
+
+# Instance-specific sensory collectors (local only)
+adaptive/sensory/eyes/collectors/abstractapi_enrich.js
+adaptive/sensory/eyes/collectors/coingecko_global.js
+adaptive/sensory/eyes/collectors/finnhub_market.js
+adaptive/sensory/eyes/collectors/github_pulse.js
+adaptive/sensory/eyes/collectors/iex_fundamentals.js
+adaptive/sensory/eyes/collectors/ipstack_geo.js
+adaptive/sensory/eyes/collectors/marketstack_quote.js
+adaptive/sensory/eyes/collectors/sentiment_proxy.js
+adaptive/sensory/eyes/collectors/spine_healthcheck.js
+adaptive/sensory/eyes/collectors/virustotal_threat.js
 
 # Local transient runtime artifacts (non-canonical)
 sleep
