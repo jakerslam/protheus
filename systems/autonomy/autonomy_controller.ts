@@ -2458,7 +2458,25 @@ function estimateTokens(p) {
 }
 
 function normalizeSpaces(s) {
-  return String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
+  const raw = String(s == null ? '' : s);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    if (NORMALIZE_SPACES_CACHE.has(raw)) return NORMALIZE_SPACES_CACHE.get(raw);
+    const rust = runBacklogAutoscalePrimitive(
+      'normalize_spaces',
+      { text: raw || null },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const normalized = String(rust.payload.payload.normalized || '');
+      if (NORMALIZE_SPACES_CACHE.size >= NORMALIZE_SPACES_CACHE_MAX) {
+        const oldest = NORMALIZE_SPACES_CACHE.keys().next();
+        if (!oldest.done) NORMALIZE_SPACES_CACHE.delete(oldest.value);
+      }
+      NORMALIZE_SPACES_CACHE.set(raw, normalized);
+      return normalized;
+    }
+  }
+  return raw.replace(/\s+/g, ' ').trim();
 }
 
 function parseLowerList(value) {
@@ -2835,6 +2853,8 @@ const NORMALIZE_DIRECTIVE_TEXT_CACHE = new Map();
 const NORMALIZE_DIRECTIVE_TEXT_CACHE_MAX = 4096;
 const TOKENIZE_DIRECTIVE_TEXT_CACHE = new Map();
 const TOKENIZE_DIRECTIVE_TEXT_CACHE_MAX = 4096;
+const NORMALIZE_SPACES_CACHE = new Map();
+const NORMALIZE_SPACES_CACHE_MAX = 2048;
 const NORMALIZE_DIRECTIVE_TIER_CACHE = new Map();
 const NORMALIZE_DIRECTIVE_TIER_CACHE_MAX = 512;
 const DIRECTIVE_TIER_WEIGHT_CACHE = new Map();
@@ -18815,6 +18835,7 @@ module.exports = {
   assessValueSignal,
   normalizeDirectiveText,
   tokenizeDirectiveText,
+  normalizeSpaces,
   toStem,
   directiveTokenHits,
   expectedValueScore,
