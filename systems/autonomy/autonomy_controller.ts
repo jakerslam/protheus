@@ -2797,6 +2797,8 @@ const SEMANTIC_TOKEN_SIMILARITY_CACHE = new Map();
 const SEMANTIC_TOKEN_SIMILARITY_CACHE_MAX = 2048;
 const SEMANTIC_CONTEXT_COMPARABLE_CACHE = new Map();
 const SEMANTIC_CONTEXT_COMPARABLE_CACHE_MAX = 2048;
+const SEMANTIC_NEAR_DUPLICATE_MATCH_CACHE = new Map();
+const SEMANTIC_NEAR_DUPLICATE_MATCH_CACHE_MAX = 1024;
 const STRATEGY_RANK_SCORE_CACHE = new Map();
 const STRATEGY_RANK_SCORE_CACHE_MAX = 2048;
 const STRATEGY_RANK_ADJUSTED_CACHE = new Map();
@@ -7739,6 +7741,63 @@ function semanticNearDuplicateMatch(fingerprint, seenFingerprints, minSimilarity
   const fp = fingerprint && typeof fingerprint === 'object' ? fingerprint : null;
   if (!fp || fp.eligible !== true) return null;
   const seen = Array.isArray(seenFingerprints) ? seenFingerprints : [];
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const normalizeFingerprint = (row) => ({
+      proposal_id: normalizeSpaces(row && row.proposal_id) || null,
+      proposal_type: normalizeSpaces(row && row.proposal_type || '').toLowerCase() || null,
+      source_eye: normalizeSpaces(row && row.source_eye || '').toLowerCase() || null,
+      objective_id: normalizeSpaces(row && row.objective_id) || null,
+      token_stems: Array.isArray(row && row.token_stems)
+        ? row.token_stems.map((tok) => String(tok || '').trim()).filter(Boolean)
+        : [],
+      eligible: row && row.eligible === true
+    });
+    const minSimilarityRaw = Number(minSimilarity || AUTONOMY_SEMANTIC_DEDUPE_THRESHOLD);
+    const minSimilarityNorm = Number.isFinite(minSimilarityRaw)
+      ? minSimilarityRaw
+      : Number(AUTONOMY_SEMANTIC_DEDUPE_THRESHOLD || 0);
+    const normalizedFp = normalizeFingerprint(fp);
+    const normalizedSeen = seen.map((row) => normalizeFingerprint(row));
+    const key = JSON.stringify({
+      fp: normalizedFp,
+      seen: normalizedSeen,
+      min_similarity: minSimilarityNorm,
+      require_same_type: AUTONOMY_SEMANTIC_DEDUPE_REQUIRE_SAME_TYPE,
+      require_shared_context: AUTONOMY_SEMANTIC_DEDUPE_REQUIRE_SHARED_CONTEXT
+    });
+    if (SEMANTIC_NEAR_DUPLICATE_MATCH_CACHE.has(key)) {
+      return SEMANTIC_NEAR_DUPLICATE_MATCH_CACHE.get(key);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'semantic_near_duplicate_match',
+      {
+        fingerprint: normalizedFp,
+        seen_fingerprints: normalizedSeen,
+        min_similarity: minSimilarityNorm,
+        require_same_type: AUTONOMY_SEMANTIC_DEDUPE_REQUIRE_SAME_TYPE,
+        require_shared_context: AUTONOMY_SEMANTIC_DEDUPE_REQUIRE_SHARED_CONTEXT
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      const out = payload.matched === true
+        ? {
+          similarity: Number(Number(payload.similarity || 0).toFixed(6)),
+          proposal_id: payload.proposal_id || null,
+          proposal_type: payload.proposal_type || null,
+          source_eye: payload.source_eye || null,
+          objective_id: payload.objective_id || null
+        }
+        : null;
+      if (SEMANTIC_NEAR_DUPLICATE_MATCH_CACHE.size >= SEMANTIC_NEAR_DUPLICATE_MATCH_CACHE_MAX) {
+        const oldest = SEMANTIC_NEAR_DUPLICATE_MATCH_CACHE.keys().next();
+        if (!oldest.done) SEMANTIC_NEAR_DUPLICATE_MATCH_CACHE.delete(oldest.value);
+      }
+      SEMANTIC_NEAR_DUPLICATE_MATCH_CACHE.set(key, out);
+      return out;
+    }
+  }
   let best = null;
   for (const candidate of seen) {
     if (!candidate || candidate.eligible !== true) continue;

@@ -758,6 +758,45 @@ pub struct SemanticContextComparableOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SemanticNearDuplicateFingerprintInput {
+    #[serde(default)]
+    pub proposal_id: Option<String>,
+    #[serde(default)]
+    pub proposal_type: Option<String>,
+    #[serde(default)]
+    pub source_eye: Option<String>,
+    #[serde(default)]
+    pub objective_id: Option<String>,
+    #[serde(default)]
+    pub token_stems: Vec<String>,
+    #[serde(default)]
+    pub eligible: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SemanticNearDuplicateMatchInput {
+    pub fingerprint: SemanticNearDuplicateFingerprintInput,
+    #[serde(default)]
+    pub seen_fingerprints: Vec<SemanticNearDuplicateFingerprintInput>,
+    #[serde(default)]
+    pub min_similarity: f64,
+    #[serde(default)]
+    pub require_same_type: bool,
+    #[serde(default)]
+    pub require_shared_context: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SemanticNearDuplicateMatchOutput {
+    pub matched: bool,
+    pub similarity: f64,
+    pub proposal_id: Option<String>,
+    pub proposal_type: Option<String>,
+    pub source_eye: Option<String>,
+    pub objective_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StrategyRankScoreInput {
     pub composite_weight: f64,
     pub actionability_weight: f64,
@@ -1662,6 +1701,8 @@ pub struct AutoscaleRequest {
     pub semantic_token_similarity_input: Option<SemanticTokenSimilarityInput>,
     #[serde(default)]
     pub semantic_context_comparable_input: Option<SemanticContextComparableInput>,
+    #[serde(default)]
+    pub semantic_near_duplicate_match_input: Option<SemanticNearDuplicateMatchInput>,
     #[serde(default)]
     pub strategy_rank_score_input: Option<StrategyRankScoreInput>,
     #[serde(default)]
@@ -3036,6 +3077,116 @@ pub fn compute_semantic_context_comparable(
         return SemanticContextComparableOutput { comparable: true };
     }
     SemanticContextComparableOutput { comparable: false }
+}
+
+fn semantic_token_set(tokens: &[String]) -> std::collections::HashSet<String> {
+    tokens
+        .iter()
+        .map(|token| token.trim())
+        .filter(|token| !token.is_empty())
+        .map(|token| token.to_string())
+        .collect()
+}
+
+fn semantic_jaccard_similarity(
+    left_tokens: &[String],
+    right_tokens: &[String],
+) -> SemanticTokenSimilarityOutput {
+    let left = semantic_token_set(left_tokens);
+    let right = semantic_token_set(right_tokens);
+    if left.is_empty() || right.is_empty() {
+        return SemanticTokenSimilarityOutput { similarity: 0.0 };
+    }
+    let intersection = left.iter().filter(|token| right.contains(*token)).count() as f64;
+    let union = (left.len() + right.len()) as f64 - intersection;
+    if union <= 0.0 {
+        return SemanticTokenSimilarityOutput { similarity: 0.0 };
+    }
+    let similarity = ((intersection / union) * 1_000_000.0).round() / 1_000_000.0;
+    SemanticTokenSimilarityOutput {
+        similarity: similarity.clamp(0.0, 1.0),
+    }
+}
+
+fn semantic_context_comparable_for_fingerprints(
+    left: &SemanticNearDuplicateFingerprintInput,
+    right: &SemanticNearDuplicateFingerprintInput,
+    require_same_type: bool,
+    require_shared_context: bool,
+) -> bool {
+    let input = SemanticContextComparableInput {
+        left_proposal_type: left.proposal_type.clone(),
+        right_proposal_type: right.proposal_type.clone(),
+        left_source_eye: left.source_eye.clone(),
+        right_source_eye: right.source_eye.clone(),
+        left_objective_id: left.objective_id.clone(),
+        right_objective_id: right.objective_id.clone(),
+        require_same_type,
+        require_shared_context,
+    };
+    compute_semantic_context_comparable(&input).comparable
+}
+
+pub fn compute_semantic_near_duplicate_match(
+    input: &SemanticNearDuplicateMatchInput,
+) -> SemanticNearDuplicateMatchOutput {
+    let min_similarity = if input.min_similarity.is_finite() {
+        input.min_similarity
+    } else {
+        0.0
+    };
+    if !input.fingerprint.eligible {
+        return SemanticNearDuplicateMatchOutput {
+            matched: false,
+            similarity: 0.0,
+            proposal_id: None,
+            proposal_type: None,
+            source_eye: None,
+            objective_id: None,
+        };
+    }
+    let mut best: Option<SemanticNearDuplicateMatchOutput> = None;
+    for candidate in &input.seen_fingerprints {
+        if !candidate.eligible {
+            continue;
+        }
+        if !semantic_context_comparable_for_fingerprints(
+            &input.fingerprint,
+            candidate,
+            input.require_same_type,
+            input.require_shared_context,
+        ) {
+            continue;
+        }
+        let similarity =
+            semantic_jaccard_similarity(&input.fingerprint.token_stems, &candidate.token_stems)
+                .similarity;
+        if similarity < min_similarity {
+            continue;
+        }
+        match &best {
+            Some(existing) if similarity <= existing.similarity => {}
+            _ => {
+                best = Some(SemanticNearDuplicateMatchOutput {
+                    matched: true,
+                    similarity,
+                    proposal_id: candidate.proposal_id.clone(),
+                    proposal_type: candidate.proposal_type.clone(),
+                    source_eye: candidate.source_eye.clone(),
+                    objective_id: candidate.objective_id.clone(),
+                });
+            }
+        }
+    }
+
+    best.unwrap_or(SemanticNearDuplicateMatchOutput {
+        matched: false,
+        similarity: 0.0,
+        proposal_id: None,
+        proposal_type: None,
+        source_eye: None,
+        objective_id: None,
+    })
 }
 
 pub fn compute_strategy_rank_score(input: &StrategyRankScoreInput) -> StrategyRankScoreOutput {
@@ -5346,6 +5497,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_semantic_context_comparable_encode_failed:{e}"));
     }
+    if mode == "semantic_near_duplicate_match" {
+        let input = request
+            .semantic_near_duplicate_match_input
+            .ok_or_else(|| "autoscale_missing_semantic_near_duplicate_match_input".to_string())?;
+        let out = compute_semantic_near_duplicate_match(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "semantic_near_duplicate_match",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_semantic_near_duplicate_match_encode_failed:{e}"));
+    }
     if mode == "strategy_rank_score" {
         let input = request
             .strategy_rank_score_input
@@ -7309,6 +7472,88 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale semantic_context_comparable");
         assert!(out.contains("\"mode\":\"semantic_context_comparable\""));
         assert!(out.contains("\"comparable\":true"));
+    }
+
+    #[test]
+    fn semantic_near_duplicate_match_selects_best_eligible_candidate() {
+        let out = compute_semantic_near_duplicate_match(&SemanticNearDuplicateMatchInput {
+            fingerprint: SemanticNearDuplicateFingerprintInput {
+                proposal_id: Some("new-1".to_string()),
+                proposal_type: Some("ops_remediation".to_string()),
+                source_eye: Some("github_release".to_string()),
+                objective_id: Some("obj-a".to_string()),
+                token_stems: vec![
+                    "rust".to_string(),
+                    "bridge".to_string(),
+                    "parity".to_string(),
+                ],
+                eligible: true,
+            },
+            seen_fingerprints: vec![
+                SemanticNearDuplicateFingerprintInput {
+                    proposal_id: Some("old-1".to_string()),
+                    proposal_type: Some("ops_remediation".to_string()),
+                    source_eye: Some("github_release".to_string()),
+                    objective_id: Some("obj-a".to_string()),
+                    token_stems: vec![
+                        "rust".to_string(),
+                        "bridge".to_string(),
+                        "tests".to_string(),
+                    ],
+                    eligible: true,
+                },
+                SemanticNearDuplicateFingerprintInput {
+                    proposal_id: Some("old-2".to_string()),
+                    proposal_type: Some("ops_remediation".to_string()),
+                    source_eye: Some("github_release".to_string()),
+                    objective_id: Some("obj-a".to_string()),
+                    token_stems: vec![
+                        "rust".to_string(),
+                        "bridge".to_string(),
+                        "parity".to_string(),
+                    ],
+                    eligible: true,
+                },
+            ],
+            min_similarity: 0.5,
+            require_same_type: true,
+            require_shared_context: true,
+        });
+        assert!(out.matched);
+        assert_eq!(out.proposal_id.as_deref(), Some("old-2"));
+        assert!((out.similarity - 1.0).abs() < 1e-6, "similarity={}", out.similarity);
+    }
+
+    #[test]
+    fn autoscale_json_semantic_near_duplicate_match_path_works() {
+        let payload = serde_json::json!({
+            "mode": "semantic_near_duplicate_match",
+            "semantic_near_duplicate_match_input": {
+                "fingerprint": {
+                    "proposal_id": "new-1",
+                    "proposal_type": "ops_remediation",
+                    "source_eye": "github_release",
+                    "objective_id": "obj-a",
+                    "token_stems": ["rust", "bridge", "parity"],
+                    "eligible": true
+                },
+                "seen_fingerprints": [{
+                    "proposal_id": "old-1",
+                    "proposal_type": "ops_remediation",
+                    "source_eye": "github_release",
+                    "objective_id": "obj-a",
+                    "token_stems": ["rust", "bridge", "tests"],
+                    "eligible": true
+                }],
+                "min_similarity": 0.4,
+                "require_same_type": true,
+                "require_shared_context": true
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale semantic_near_duplicate_match");
+        assert!(out.contains("\"mode\":\"semantic_near_duplicate_match\""));
+        assert!(out.contains("\"matched\":true"));
     }
 
     #[test]
