@@ -303,6 +303,21 @@ pub struct NonYieldReasonOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalTypeFromRunEventInput {
+    #[serde(default)]
+    pub event_type: Option<String>,
+    #[serde(default)]
+    pub proposal_type: Option<String>,
+    #[serde(default)]
+    pub capability_key: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalTypeFromRunEventOutput {
+    pub proposal_type: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RouteExecutionPolicyHoldInput {
     #[serde(default)]
     pub target: Option<String>,
@@ -548,6 +563,8 @@ pub struct AutoscaleRequest {
     pub non_yield_category_input: Option<NonYieldCategoryInput>,
     #[serde(default)]
     pub non_yield_reason_input: Option<NonYieldReasonInput>,
+    #[serde(default)]
+    pub proposal_type_from_run_event_input: Option<ProposalTypeFromRunEventInput>,
     #[serde(default)]
     pub route_execution_policy_hold_input: Option<RouteExecutionPolicyHoldInput>,
     #[serde(default)]
@@ -1381,6 +1398,47 @@ pub fn compute_non_yield_reason(input: &NonYieldReasonInput) -> NonYieldReasonOu
     }
 }
 
+pub fn compute_proposal_type_from_run_event(
+    input: &ProposalTypeFromRunEventInput,
+) -> ProposalTypeFromRunEventOutput {
+    let event_type = input
+        .event_type
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    if event_type != "autonomy_run" {
+        return ProposalTypeFromRunEventOutput {
+            proposal_type: String::new(),
+        };
+    }
+
+    let direct = input
+        .proposal_type
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    if !direct.is_empty() {
+        return ProposalTypeFromRunEventOutput {
+            proposal_type: direct,
+        };
+    }
+
+    let capability = input
+        .capability_key
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    if capability.starts_with("proposal:") && capability.len() > "proposal:".len() {
+        return ProposalTypeFromRunEventOutput {
+            proposal_type: capability["proposal:".len()..].to_string(),
+        };
+    }
+
+    ProposalTypeFromRunEventOutput {
+        proposal_type: String::new(),
+    }
+}
+
 pub fn compute_policy_hold_pressure(input: &PolicyHoldPressureInput) -> PolicyHoldPressureOutput {
     let window_hours = input.window_hours.unwrap_or(24.0).max(1.0);
     let min_samples = input.min_samples.unwrap_or(1.0).max(1.0);
@@ -1972,6 +2030,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_non_yield_reason_encode_failed:{e}"));
     }
+    if mode == "proposal_type_from_run_event" {
+        let input = request
+            .proposal_type_from_run_event_input
+            .ok_or_else(|| "autoscale_missing_proposal_type_from_run_event_input".to_string())?;
+        let out = compute_proposal_type_from_run_event(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "proposal_type_from_run_event",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_proposal_type_from_run_event_encode_failed:{e}"));
+    }
     if mode == "route_execution_policy_hold" {
         let input = request
             .route_execution_policy_hold_input
@@ -2515,6 +2585,38 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale non_yield_reason");
         assert!(out.contains("\"mode\":\"non_yield_reason\""));
+    }
+
+    #[test]
+    fn proposal_type_from_run_event_prefers_direct_then_capability_key() {
+        let direct = compute_proposal_type_from_run_event(&ProposalTypeFromRunEventInput {
+            event_type: Some("autonomy_run".to_string()),
+            proposal_type: Some("Unknown".to_string()),
+            capability_key: Some("proposal:directive".to_string()),
+        });
+        assert_eq!(direct.proposal_type, "unknown".to_string());
+
+        let derived = compute_proposal_type_from_run_event(&ProposalTypeFromRunEventInput {
+            event_type: Some("autonomy_run".to_string()),
+            proposal_type: Some(String::new()),
+            capability_key: Some("proposal:directive".to_string()),
+        });
+        assert_eq!(derived.proposal_type, "directive".to_string());
+    }
+
+    #[test]
+    fn autoscale_json_proposal_type_from_run_event_path_works() {
+        let payload = serde_json::json!({
+            "mode": "proposal_type_from_run_event",
+            "proposal_type_from_run_event_input": {
+                "event_type": "autonomy_run",
+                "proposal_type": "",
+                "capability_key": "proposal:unknown"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale proposal_type_from_run_event");
+        assert!(out.contains("\"mode\":\"proposal_type_from_run_event\""));
     }
 
     #[test]
