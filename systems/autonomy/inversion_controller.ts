@@ -3851,6 +3851,23 @@ function computeMaturityScore(state: AnyObj, policy: AnyObj) {
 }
 
 function loadMaturityState(paths: AnyObj, policy: AnyObj) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'load_maturity_state',
+      {
+        file_path: paths && paths.maturity_path ? String(paths.maturity_path) : '',
+        policy: policy && typeof policy === 'object' ? policy : {},
+        now_iso: nowIso()
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      if (payload.state && typeof payload.state === 'object' && payload.computed && typeof payload.computed === 'object') {
+        return { state: payload.state, computed: payload.computed };
+      }
+    }
+  }
   const src = readJson(paths.maturity_path, null);
   const state = src && typeof src === 'object' ? src : defaultMaturityState();
   const calc = computeMaturityScore(state, policy);
@@ -3863,6 +3880,24 @@ function loadMaturityState(paths: AnyObj, policy: AnyObj) {
 }
 
 function saveMaturityState(paths: AnyObj, policy: AnyObj, state: AnyObj) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'save_maturity_state',
+      {
+        file_path: paths && paths.maturity_path ? String(paths.maturity_path) : '',
+        policy: policy && typeof policy === 'object' ? policy : {},
+        state: state && typeof state === 'object' ? state : {},
+        now_iso: nowIso()
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      if (payload.state && typeof payload.state === 'object' && payload.computed && typeof payload.computed === 'object') {
+        return { state: payload.state, computed: payload.computed };
+      }
+    }
+  }
   const next = state && typeof state === 'object' ? state : defaultMaturityState();
   const calc = computeMaturityScore(next, policy);
   next.score = calc.score;
@@ -4022,6 +4057,27 @@ function normalizeLibraryRow(row: AnyObj) {
 }
 
 function trimLibrary(paths: AnyObj, policy: AnyObj) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'trim_library',
+      {
+        file_path: paths && paths.library_path ? String(paths.library_path) : '',
+        max_entries: Number(policy && policy.library && policy.library.max_entries || 4000)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Array.isArray(rust.payload.payload.rows)
+        ? rust.payload.payload.rows.map((row: AnyObj) => {
+          const src = row && typeof row === 'object' ? row : {};
+          return normalizeLibraryRow({
+            ...src,
+            maturity_band: cleanText(src.maturity_band || 'novice', 24) || 'novice'
+          });
+        })
+        : [];
+    }
+  }
   const rows = readJsonl(paths.library_path).map(normalizeLibraryRow);
   const cap = Math.max(100, Number(policy.library.max_entries || 4000));
   if (rows.length <= cap) return rows;
@@ -4342,6 +4398,27 @@ function evaluateCreativePenalty(policy: AnyObj, selectedLane: string) {
 }
 
 function loadActiveSessions(paths: AnyObj) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'load_active_sessions',
+      {
+        file_path: paths && paths.active_sessions_path ? String(paths.active_sessions_path) : '',
+        now_iso: nowIso()
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const row = rust.payload.payload.store && typeof rust.payload.payload.store === 'object'
+        ? rust.payload.payload.store
+        : {};
+      return {
+        schema_id: 'inversion_active_sessions',
+        schema_version: '1.0',
+        updated_at: String(row.updated_at || nowIso()),
+        sessions: Array.isArray(row.sessions) ? row.sessions.filter((x: unknown) => x && typeof x === 'object') : []
+      };
+    }
+  }
   const payload = readJson(paths.active_sessions_path, null);
   if (!payload || typeof payload !== 'object') {
     return {
@@ -4361,6 +4438,28 @@ function loadActiveSessions(paths: AnyObj) {
 }
 
 function saveActiveSessions(paths: AnyObj, store: AnyObj) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'save_active_sessions',
+      {
+        file_path: paths && paths.active_sessions_path ? String(paths.active_sessions_path) : '',
+        store: store && typeof store === 'object' ? store : {},
+        now_iso: nowIso()
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const row = rust.payload.payload.store && typeof rust.payload.payload.store === 'object'
+        ? rust.payload.payload.store
+        : {};
+      return {
+        schema_id: 'inversion_active_sessions',
+        schema_version: '1.0',
+        updated_at: String(row.updated_at || nowIso()),
+        sessions: Array.isArray(row.sessions) ? row.sessions : []
+      };
+    }
+  }
   const out = {
     schema_id: 'inversion_active_sessions',
     schema_version: '1.0',
@@ -4372,6 +4471,21 @@ function saveActiveSessions(paths: AnyObj, store: AnyObj) {
 }
 
 function emitEvent(paths: AnyObj, policy: AnyObj, dateStr: string, eventType: string, payload: AnyObj) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'emit_event',
+      {
+        events_dir: paths && paths.events_dir ? String(paths.events_dir) : '',
+        date_str: dateStr == null ? '' : String(dateStr),
+        event_type: eventType == null ? '' : String(eventType),
+        payload: payload && typeof payload === 'object' ? payload : {},
+        emit_events: policy && policy.telemetry && policy.telemetry.emit_events === true,
+        now_iso: nowIso()
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) return;
+  }
   if (policy.telemetry && policy.telemetry.emit_events !== true) return;
   const fp = path.join(paths.events_dir, `${dateStr}.jsonl`);
   appendJsonl(fp, {
@@ -5047,6 +5161,27 @@ function evaluatePersonaLensGate(args: AnyObj, policy: AnyObj, objective: string
 }
 
 function appendPersonaLensGateReceipt(paths: AnyObj, policy: AnyObj, payload: AnyObj, decision: AnyObj) {
+  if (INVERSION_RUST_ENABLED) {
+    const cfgRust = policy && policy.persona_lens_gate && typeof policy.persona_lens_gate === 'object'
+      ? policy.persona_lens_gate
+      : {};
+    const rust = runInversionPrimitive(
+      'append_persona_lens_gate_receipt',
+      {
+        state_dir: paths && paths.state_dir ? String(paths.state_dir) : '',
+        root: ROOT,
+        cfg_receipts_path: cfgRust.paths && cfgRust.paths.receipts_path ? String(cfgRust.paths.receipts_path) : '',
+        payload: payload && typeof payload === 'object' ? payload : {},
+        decision: decision && typeof decision === 'object' ? decision : {},
+        now_iso: nowIso()
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const rel = cleanText(rust.payload.payload.rel_path || '', 420);
+      if (rel) return rel;
+    }
+  }
   if (!payload || payload.enabled !== true) return null;
   const cfg = policy.persona_lens_gate && typeof policy.persona_lens_gate === 'object'
     ? policy.persona_lens_gate
@@ -5200,6 +5335,17 @@ function conclaveHighRiskFlags(payload: AnyObj, query: string, summary: string) 
 }
 
 function appendConclaveCorrespondence(correspondencePath: string, row: AnyObj) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'append_conclave_correspondence',
+      {
+        correspondence_path: correspondencePath == null ? '' : String(correspondencePath),
+        row: row && typeof row === 'object' ? row : {}
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) return;
+  }
   ensureCorrespondenceFile(correspondencePath);
   const entry = [
     `## ${row.ts} - Re: Inversion Shadow Conclave Review (${cleanText(row.session_or_step || 'unknown', 120)})`,
@@ -5871,11 +6017,35 @@ function evaluateRunDecision(args: AnyObj, policy: AnyObj, paths: AnyObj, maturi
 }
 
 function persistDecision(paths: AnyObj, payload: AnyObj) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'persist_decision',
+      {
+        latest_path: paths && paths.latest_path ? String(paths.latest_path) : '',
+        history_path: paths && paths.history_path ? String(paths.history_path) : '',
+        payload: payload && typeof payload === 'object' ? payload : {}
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) return;
+  }
   writeJsonAtomic(paths.latest_path, payload);
   appendJsonl(paths.history_path, payload);
 }
 
 function persistInterfaceEnvelope(paths: AnyObj, envelope: AnyObj) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'persist_interface_envelope',
+      {
+        latest_path: paths && paths.interfaces_latest_path ? String(paths.interfaces_latest_path) : '',
+        history_path: paths && paths.interfaces_history_path ? String(paths.interfaces_history_path) : '',
+        envelope: envelope && typeof envelope === 'object' ? envelope : {}
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) return;
+  }
   writeJsonAtomic(paths.interfaces_latest_path, envelope);
   appendJsonl(paths.interfaces_history_path, envelope);
 }
@@ -8071,12 +8241,22 @@ module.exports = {
   normalizeObserverId,
   loadHarnessState,
   saveHarnessState,
+  loadMaturityState,
+  saveMaturityState,
   loadFirstPrincipleLockState,
   saveFirstPrincipleLockState,
   loadObserverApprovals,
   appendObserverApproval,
   countObserverApprovals,
   ensureCorrespondenceFile,
+  loadActiveSessions,
+  saveActiveSessions,
+  emitEvent,
+  appendPersonaLensGateReceipt,
+  appendConclaveCorrespondence,
+  persistDecision,
+  persistInterfaceEnvelope,
+  trimLibrary,
   extractNumeric,
   pickFirstNumeric,
   readDriftFromStateFile,
