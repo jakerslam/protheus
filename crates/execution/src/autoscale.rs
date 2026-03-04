@@ -1133,6 +1133,22 @@ pub struct BudgetPacingGateOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CapabilityCapInput {
+    #[serde(default)]
+    pub caps: std::collections::BTreeMap<String, f64>,
+    #[serde(default)]
+    pub primary_key: Option<String>,
+    #[serde(default)]
+    pub aliases: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CapabilityCapOutput {
+    #[serde(default)]
+    pub cap: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct EstimateTokensForCandidateInput {
     pub direct_est_tokens: f64,
     pub route_tokens_est: f64,
@@ -1798,6 +1814,8 @@ pub struct AutoscaleRequest {
     pub execution_reserve_snapshot_input: Option<ExecutionReserveSnapshotInput>,
     #[serde(default)]
     pub budget_pacing_gate_input: Option<BudgetPacingGateInput>,
+    #[serde(default)]
+    pub capability_cap_input: Option<CapabilityCapInput>,
     #[serde(default)]
     pub estimate_tokens_for_candidate_input: Option<EstimateTokensForCandidateInput>,
     #[serde(default)]
@@ -3907,6 +3925,35 @@ pub fn compute_budget_pacing_gate(input: &BudgetPacingGateInput) -> BudgetPacing
     }
 }
 
+pub fn compute_capability_cap(input: &CapabilityCapInput) -> CapabilityCapOutput {
+    let mut keys: Vec<String> = Vec::new();
+    if let Some(primary) = input.primary_key.as_deref() {
+        let key = primary.trim();
+        if !key.is_empty() {
+            keys.push(key.to_string());
+        }
+    }
+    for alias in &input.aliases {
+        let key = alias.trim();
+        if key.is_empty() {
+            continue;
+        }
+        if !keys.iter().any(|existing| existing == key) {
+            keys.push(key.to_string());
+        }
+    }
+    for key in keys {
+        if let Some(raw) = input.caps.get(&key) {
+            if raw.is_finite() && *raw >= 0.0 {
+                return CapabilityCapOutput {
+                    cap: Some(raw.round().clamp(0.0, u32::MAX as f64) as u32),
+                };
+            }
+        }
+    }
+    CapabilityCapOutput { cap: None }
+}
+
 pub fn compute_estimate_tokens_for_candidate(
     input: &EstimateTokensForCandidateInput,
 ) -> EstimateTokensForCandidateOutput {
@@ -5976,6 +6023,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_budget_pacing_gate_encode_failed:{e}"));
+    }
+    if mode == "capability_cap" {
+        let input = request
+            .capability_cap_input
+            .ok_or_else(|| "autoscale_missing_capability_cap_input".to_string())?;
+        let out = compute_capability_cap(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "capability_cap",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_capability_cap_encode_failed:{e}"));
     }
     if mode == "estimate_tokens_for_candidate" {
         let input = request
@@ -8481,6 +8540,44 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale budget_pacing_gate");
         assert!(out.contains("\"mode\":\"budget_pacing_gate\""));
         assert!(out.contains("\"pass\":true"));
+    }
+
+    #[test]
+    fn capability_cap_prefers_primary_then_aliases() {
+        let out = compute_capability_cap(&CapabilityCapInput {
+            caps: std::collections::BTreeMap::from([
+                ("proposal:ops_remediation".to_string(), 4.2),
+                ("proposal:feature".to_string(), 2.0),
+            ]),
+            primary_key: Some("proposal:ops_remediation".to_string()),
+            aliases: vec!["proposal:feature".to_string()],
+        });
+        assert_eq!(out.cap, Some(4));
+
+        let alias = compute_capability_cap(&CapabilityCapInput {
+            caps: std::collections::BTreeMap::from([("alias:key".to_string(), 3.0)]),
+            primary_key: Some("missing:key".to_string()),
+            aliases: vec!["alias:key".to_string()],
+        });
+        assert_eq!(alias.cap, Some(3));
+    }
+
+    #[test]
+    fn autoscale_json_capability_cap_path_works() {
+        let payload = serde_json::json!({
+            "mode": "capability_cap",
+            "capability_cap_input": {
+                "caps": {
+                    "proposal:ops_remediation": 5
+                },
+                "primary_key": "proposal:ops_remediation",
+                "aliases": ["proposal:feature"]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale capability_cap");
+        assert!(out.contains("\"mode\":\"capability_cap\""));
+        assert!(out.contains("\"cap\":5"));
     }
 
     #[test]
