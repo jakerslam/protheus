@@ -2722,6 +2722,8 @@ const MINUTES_SINCE_TS_CACHE = new Map();
 const MINUTES_SINCE_TS_CACHE_MAX = 512;
 const DATE_WINDOW_CACHE = new Map();
 const DATE_WINDOW_CACHE_MAX = 256;
+const IN_WINDOW_CACHE = new Map();
+const IN_WINDOW_CACHE_MAX = 1024;
 const POLICY_HOLD_RESULT_CACHE = new Map();
 const POLICY_HOLD_RESULT_CACHE_MAX = 256;
 const NO_PROGRESS_RESULT_CACHE = new Map();
@@ -6633,6 +6635,33 @@ function countEyeProposalsInWindow(eyeId, endDateStr, days) {
 }
 
 function inWindow(ts, endDateStr, days) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const safeTs = String(ts || '');
+    const safeEndDateStr = String(endDateStr || '').trim();
+    const safeDays = Number(days);
+    const key = `${safeTs}\u0000${safeEndDateStr}\u0000${safeDays}`;
+    if (IN_WINDOW_CACHE.has(key)) {
+      return IN_WINDOW_CACHE.get(key) === true;
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'in_window',
+      {
+        ts: safeTs,
+        end_date_str: safeEndDateStr,
+        days: safeDays
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const val = rust.payload.payload.in_window === true;
+      if (IN_WINDOW_CACHE.size >= IN_WINDOW_CACHE_MAX) {
+        const oldest = IN_WINDOW_CACHE.keys().next();
+        if (!oldest.done) IN_WINDOW_CACHE.delete(oldest.value);
+      }
+      IN_WINDOW_CACHE.set(key, val);
+      return val;
+    }
+  }
   const t = parseIsoTs(ts);
   if (!t) return false;
   const end = new Date(`${endDateStr}T23:59:59.999Z`);
@@ -17142,6 +17171,7 @@ module.exports = {
   nonYieldReasonFromRun,
   minutesSinceTs,
   dateWindow,
+  inWindow,
   runEventProposalType,
   runEventObjectiveId,
   runEventProposalId,

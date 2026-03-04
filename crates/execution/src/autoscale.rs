@@ -525,6 +525,21 @@ pub struct DateWindowOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct InWindowInput {
+    #[serde(default)]
+    pub ts: Option<String>,
+    #[serde(default)]
+    pub end_date_str: Option<String>,
+    #[serde(default)]
+    pub days: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct InWindowOutput {
+    pub in_window: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct QosLaneUsageEventInput {
     #[serde(default)]
     pub event_type: Option<String>,
@@ -1074,6 +1089,8 @@ pub struct AutoscaleRequest {
     pub minutes_since_ts_input: Option<MinutesSinceTsInput>,
     #[serde(default)]
     pub date_window_input: Option<DateWindowInput>,
+    #[serde(default)]
+    pub in_window_input: Option<InWindowInput>,
     #[serde(default)]
     pub no_progress_result_input: Option<NoProgressResultInput>,
     #[serde(default)]
@@ -2239,6 +2256,45 @@ pub fn compute_date_window(input: &DateWindowInput) -> DateWindowOutput {
         i += 1.0;
     }
     DateWindowOutput { dates }
+}
+
+pub fn compute_in_window(input: &InWindowInput) -> InWindowOutput {
+    let ts = input
+        .ts
+        .as_ref()
+        .map(|v| v.trim())
+        .filter(|v| !v.is_empty())
+        .and_then(|v| DateTime::parse_from_rfc3339(v).ok())
+        .map(|dt| dt.with_timezone(&Utc));
+    let Some(ts) = ts else {
+        return InWindowOutput { in_window: false };
+    };
+    let end_date = input
+        .end_date_str
+        .as_ref()
+        .map(|v| v.trim())
+        .filter(|v| !v.is_empty())
+        .and_then(|v| NaiveDate::parse_from_str(v, "%Y-%m-%d").ok());
+    let Some(end_date) = end_date else {
+        return InWindowOutput { in_window: false };
+    };
+    let end_naive = end_date
+        .and_hms_milli_opt(23, 59, 59, 999)
+        .unwrap_or_else(|| end_date.and_hms_opt(23, 59, 59).expect("valid hms"));
+    let end = DateTime::<Utc>::from_naive_utc_and_offset(end_naive, Utc);
+    let days = input.days.filter(|v| v.is_finite()).unwrap_or(0.0);
+    if days <= 0.0 {
+        return InWindowOutput { in_window: false };
+    }
+    let start_offset_days = (days - 1.0).floor() as i64;
+    let start_date = end_date - Duration::days(start_offset_days);
+    let start_naive = start_date
+        .and_hms_milli_opt(0, 0, 0, 0)
+        .unwrap_or_else(|| start_date.and_hms_opt(0, 0, 0).expect("valid hms"));
+    let start = DateTime::<Utc>::from_naive_utc_and_offset(start_naive, Utc);
+    InWindowOutput {
+        in_window: ts >= start && ts <= end,
+    }
 }
 
 pub fn compute_qos_lane_usage(input: &QosLaneUsageInput) -> QosLaneUsageOutput {
@@ -3635,6 +3691,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_date_window_encode_failed:{e}"));
     }
+    if mode == "in_window" {
+        let input = request
+            .in_window_input
+            .ok_or_else(|| "autoscale_missing_in_window_input".to_string())?;
+        let out = compute_in_window(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "in_window",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_in_window_encode_failed:{e}"));
+    }
     if mode == "no_progress_result" {
         let input = request
             .no_progress_result_input
@@ -4907,6 +4975,38 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale date_window");
         assert!(out.contains("\"mode\":\"date_window\""));
+    }
+
+    #[test]
+    fn in_window_checks_bounds_against_end_date() {
+        let inside = compute_in_window(&InWindowInput {
+            ts: Some("2026-03-03T12:00:00.000Z".to_string()),
+            end_date_str: Some("2026-03-03".to_string()),
+            days: Some(1.0),
+        });
+        assert!(inside.in_window);
+
+        let outside = compute_in_window(&InWindowInput {
+            ts: Some("2026-03-02T23:59:59.000Z".to_string()),
+            end_date_str: Some("2026-03-03".to_string()),
+            days: Some(1.0),
+        });
+        assert!(!outside.in_window);
+    }
+
+    #[test]
+    fn autoscale_json_in_window_path_works() {
+        let payload = serde_json::json!({
+            "mode": "in_window",
+            "in_window_input": {
+                "ts": "2026-03-03T12:00:00.000Z",
+                "end_date_str": "2026-03-03",
+                "days": 2
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale in_window");
+        assert!(out.contains("\"mode\":\"in_window\""));
     }
 
     #[test]
