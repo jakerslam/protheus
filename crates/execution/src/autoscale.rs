@@ -1630,6 +1630,145 @@ pub struct DomainAllowedOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IsExecuteModeInput {
+    #[serde(default)]
+    pub execution_mode: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IsExecuteModeOutput {
+    pub execute_mode: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExecutionAllowedByFeatureFlagInput {
+    #[serde(default)]
+    pub execution_mode: Option<String>,
+    #[serde(default)]
+    pub shadow_only: bool,
+    #[serde(default)]
+    pub autonomy_enabled: bool,
+    #[serde(default)]
+    pub canary_allow_with_flag_off: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExecutionAllowedByFeatureFlagOutput {
+    pub allowed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IsTier1ObjectiveIdInput {
+    #[serde(default)]
+    pub objective_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IsTier1ObjectiveIdOutput {
+    pub tier1: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IsTier1CandidateObjectiveInput {
+    #[serde(default)]
+    pub objective_binding_objective_id: Option<String>,
+    #[serde(default)]
+    pub directive_pulse_tier: Option<f64>,
+    #[serde(default)]
+    pub directive_pulse_objective_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IsTier1CandidateObjectiveOutput {
+    pub tier1: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NeedsExecutionQuotaInput {
+    #[serde(default)]
+    pub execution_mode: Option<String>,
+    #[serde(default)]
+    pub shadow_only: bool,
+    #[serde(default)]
+    pub executed_today: f64,
+    #[serde(default)]
+    pub min_daily_executions: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NeedsExecutionQuotaOutput {
+    pub required: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizeCriteriaMetricInput {
+    #[serde(default)]
+    pub value: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizeCriteriaMetricOutput {
+    pub metric: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EscapeRegExpInput {
+    #[serde(default)]
+    pub value: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EscapeRegExpOutput {
+    pub escaped: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ToolTokenMentionedInput {
+    #[serde(default)]
+    pub blob: Option<String>,
+    #[serde(default)]
+    pub token: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ToolTokenMentionedOutput {
+    pub mentioned: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PolicyHoldReasonFromEventInput {
+    #[serde(default)]
+    pub hold_reason: Option<String>,
+    #[serde(default)]
+    pub route_block_reason: Option<String>,
+    #[serde(default)]
+    pub result: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PolicyHoldReasonFromEventOutput {
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyMarkerTokensInput {
+    #[serde(default)]
+    pub objective_primary: Option<String>,
+    #[serde(default)]
+    pub objective_fitness_metric: Option<String>,
+    #[serde(default)]
+    pub objective_secondary: Vec<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyMarkerTokensOutput {
+    #[serde(default)]
+    pub tokens: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecutionReserveSnapshotInput {
     pub cap: f64,
     pub used: f64,
@@ -2583,6 +2722,26 @@ pub struct AutoscaleRequest {
     pub url_domain_input: Option<UrlDomainInput>,
     #[serde(default)]
     pub domain_allowed_input: Option<DomainAllowedInput>,
+    #[serde(default)]
+    pub is_execute_mode_input: Option<IsExecuteModeInput>,
+    #[serde(default)]
+    pub execution_allowed_by_feature_flag_input: Option<ExecutionAllowedByFeatureFlagInput>,
+    #[serde(default)]
+    pub is_tier1_objective_id_input: Option<IsTier1ObjectiveIdInput>,
+    #[serde(default)]
+    pub is_tier1_candidate_objective_input: Option<IsTier1CandidateObjectiveInput>,
+    #[serde(default)]
+    pub needs_execution_quota_input: Option<NeedsExecutionQuotaInput>,
+    #[serde(default)]
+    pub normalize_criteria_metric_input: Option<NormalizeCriteriaMetricInput>,
+    #[serde(default)]
+    pub escape_reg_exp_input: Option<EscapeRegExpInput>,
+    #[serde(default)]
+    pub tool_token_mentioned_input: Option<ToolTokenMentionedInput>,
+    #[serde(default)]
+    pub policy_hold_reason_from_event_input: Option<PolicyHoldReasonFromEventInput>,
+    #[serde(default)]
+    pub strategy_marker_tokens_input: Option<StrategyMarkerTokensInput>,
     #[serde(default)]
     pub execution_reserve_snapshot_input: Option<ExecutionReserveSnapshotInput>,
     #[serde(default)]
@@ -5584,6 +5743,204 @@ pub fn compute_domain_allowed(input: &DomainAllowedInput) -> DomainAllowedOutput
     DomainAllowedOutput { allowed }
 }
 
+pub fn compute_is_execute_mode(input: &IsExecuteModeInput) -> IsExecuteModeOutput {
+    let mode = input.execution_mode.as_deref().unwrap_or("");
+    IsExecuteModeOutput {
+        execute_mode: mode == "execute" || mode == "canary_execute",
+    }
+}
+
+pub fn compute_execution_allowed_by_feature_flag(
+    input: &ExecutionAllowedByFeatureFlagInput,
+) -> ExecutionAllowedByFeatureFlagOutput {
+    if input.shadow_only {
+        return ExecutionAllowedByFeatureFlagOutput { allowed: true };
+    }
+    if input.autonomy_enabled {
+        return ExecutionAllowedByFeatureFlagOutput { allowed: true };
+    }
+    let canary = input.execution_mode.as_deref().unwrap_or("");
+    ExecutionAllowedByFeatureFlagOutput {
+        allowed: input.canary_allow_with_flag_off && canary == "canary_execute",
+    }
+}
+
+pub fn compute_is_tier1_objective_id(input: &IsTier1ObjectiveIdInput) -> IsTier1ObjectiveIdOutput {
+    let id = input.objective_id.as_deref().unwrap_or("").trim();
+    if id.is_empty() {
+        return IsTier1ObjectiveIdOutput { tier1: false };
+    }
+    let re = Regex::new(r"(?i)^T1(?:\b|[_:-])").expect("valid tier1 objective regex");
+    IsTier1ObjectiveIdOutput { tier1: re.is_match(id) }
+}
+
+pub fn compute_is_tier1_candidate_objective(
+    input: &IsTier1CandidateObjectiveInput,
+) -> IsTier1CandidateObjectiveOutput {
+    let pulse_tier = compute_normalize_directive_tier(&NormalizeDirectiveTierInput {
+        raw_tier: input.directive_pulse_tier,
+        fallback: Some(99.0),
+    })
+    .tier;
+    if pulse_tier <= 1 {
+        return IsTier1CandidateObjectiveOutput { tier1: true };
+    }
+    let by_binding = compute_is_tier1_objective_id(&IsTier1ObjectiveIdInput {
+        objective_id: input.objective_binding_objective_id.clone(),
+    })
+    .tier1;
+    if by_binding {
+        return IsTier1CandidateObjectiveOutput { tier1: true };
+    }
+    let by_pulse = compute_is_tier1_objective_id(&IsTier1ObjectiveIdInput {
+        objective_id: input.directive_pulse_objective_id.clone(),
+    })
+    .tier1;
+    IsTier1CandidateObjectiveOutput { tier1: by_pulse }
+}
+
+pub fn compute_needs_execution_quota(input: &NeedsExecutionQuotaInput) -> NeedsExecutionQuotaOutput {
+    if input.shadow_only {
+        return NeedsExecutionQuotaOutput { required: false };
+    }
+    let execute_mode = compute_is_execute_mode(&IsExecuteModeInput {
+        execution_mode: input.execution_mode.clone(),
+    })
+    .execute_mode;
+    if !execute_mode {
+        return NeedsExecutionQuotaOutput { required: false };
+    }
+    if !input.min_daily_executions.is_finite() || input.min_daily_executions <= 0.0 {
+        return NeedsExecutionQuotaOutput { required: false };
+    }
+    NeedsExecutionQuotaOutput {
+        required: input.executed_today < input.min_daily_executions,
+    }
+}
+
+pub fn compute_normalize_criteria_metric(
+    input: &NormalizeCriteriaMetricInput,
+) -> NormalizeCriteriaMetricOutput {
+    let normalized = normalize_spaces(input.value.as_deref().unwrap_or(""));
+    let metric = Regex::new(r"[\s-]+")
+        .expect("valid criteria metric regex")
+        .replace_all(&normalized.to_ascii_lowercase(), "_")
+        .to_string();
+    NormalizeCriteriaMetricOutput { metric }
+}
+
+pub fn compute_escape_reg_exp(input: &EscapeRegExpInput) -> EscapeRegExpOutput {
+    let value = input.value.as_deref().unwrap_or("");
+    let mut escaped = String::with_capacity(value.len());
+    for ch in value.chars() {
+        if matches!(
+            ch,
+            '.'
+                | '*'
+                | '+'
+                | '?'
+                | '^'
+                | '$'
+                | '{'
+                | '}'
+                | '('
+                | ')'
+                | '|'
+                | '['
+                | ']'
+                | '\\'
+        ) {
+            escaped.push('\\');
+        }
+        escaped.push(ch);
+    }
+    EscapeRegExpOutput { escaped }
+}
+
+pub fn compute_tool_token_mentioned(input: &ToolTokenMentionedInput) -> ToolTokenMentionedOutput {
+    let text = input.blob.as_deref().unwrap_or("");
+    let tok = input
+        .token
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    if text.is_empty() || tok.is_empty() {
+        return ToolTokenMentionedOutput { mentioned: false };
+    }
+    let escaped = compute_escape_reg_exp(&EscapeRegExpInput {
+        value: Some(tok.clone()),
+    })
+    .escaped;
+    let exact_re = Regex::new(&format!(r"\b{}\b", escaped)).expect("valid exact tool token regex");
+    if exact_re.is_match(text) {
+        return ToolTokenMentionedOutput { mentioned: true };
+    }
+    if tok == "bird_x" {
+        let bird_re = Regex::new(r"\bbird[\s_-]*x\b").expect("valid bird_x regex");
+        if bird_re.is_match(text) {
+            return ToolTokenMentionedOutput { mentioned: true };
+        }
+    }
+    ToolTokenMentionedOutput { mentioned: false }
+}
+
+pub fn compute_policy_hold_reason_from_event(
+    input: &PolicyHoldReasonFromEventInput,
+) -> PolicyHoldReasonFromEventOutput {
+    let hold_reason = normalize_spaces(input.hold_reason.as_deref().unwrap_or(""));
+    let route_block = normalize_spaces(input.route_block_reason.as_deref().unwrap_or(""));
+    let explicit = if !hold_reason.is_empty() {
+        hold_reason.to_ascii_lowercase()
+    } else {
+        route_block.to_ascii_lowercase()
+    };
+    if !explicit.is_empty() {
+        return PolicyHoldReasonFromEventOutput { reason: explicit };
+    }
+    let result = normalize_spaces(input.result.as_deref().unwrap_or("")).to_ascii_lowercase();
+    if !result.is_empty() {
+        return PolicyHoldReasonFromEventOutput { reason: result };
+    }
+    PolicyHoldReasonFromEventOutput {
+        reason: "policy_hold_unknown".to_string(),
+    }
+}
+
+pub fn compute_strategy_marker_tokens(input: &StrategyMarkerTokensInput) -> StrategyMarkerTokensOutput {
+    let mut token_set = std::collections::BTreeSet::new();
+    let mut text_parts: Vec<String> = Vec::new();
+    if let Some(primary) = input.objective_primary.as_ref() {
+        text_parts.push(primary.clone());
+    }
+    if let Some(metric) = input.objective_fitness_metric.as_ref() {
+        text_parts.push(metric.clone());
+    }
+    text_parts.extend(input.objective_secondary.iter().cloned());
+    text_parts.extend(input.tags.iter().cloned());
+
+    for part in text_parts {
+        let normalized = compute_normalize_directive_text(&NormalizeDirectiveTextInput {
+            text: Some(part),
+        })
+        .normalized;
+        if normalized.is_empty() {
+            continue;
+        }
+        let tokenized = compute_tokenize_directive_text(&TokenizeDirectiveTextInput {
+            text: Some(normalized),
+            stopwords: Vec::new(),
+        })
+        .tokens;
+        for token in tokenized {
+            token_set.insert(token);
+        }
+    }
+    StrategyMarkerTokensOutput {
+        tokens: token_set.into_iter().collect(),
+    }
+}
+
 pub fn compute_execution_reserve_snapshot(
     input: &ExecutionReserveSnapshotInput,
 ) -> ExecutionReserveSnapshotOutput {
@@ -8504,6 +8861,126 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_domain_allowed_encode_failed:{e}"));
+    }
+    if mode == "is_execute_mode" {
+        let input = request
+            .is_execute_mode_input
+            .ok_or_else(|| "autoscale_missing_is_execute_mode_input".to_string())?;
+        let out = compute_is_execute_mode(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "is_execute_mode",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_is_execute_mode_encode_failed:{e}"));
+    }
+    if mode == "execution_allowed_by_feature_flag" {
+        let input = request
+            .execution_allowed_by_feature_flag_input
+            .ok_or_else(|| "autoscale_missing_execution_allowed_by_feature_flag_input".to_string())?;
+        let out = compute_execution_allowed_by_feature_flag(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "execution_allowed_by_feature_flag",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_execution_allowed_by_feature_flag_encode_failed:{e}"));
+    }
+    if mode == "is_tier1_objective_id" {
+        let input = request
+            .is_tier1_objective_id_input
+            .ok_or_else(|| "autoscale_missing_is_tier1_objective_id_input".to_string())?;
+        let out = compute_is_tier1_objective_id(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "is_tier1_objective_id",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_is_tier1_objective_id_encode_failed:{e}"));
+    }
+    if mode == "is_tier1_candidate_objective" {
+        let input = request
+            .is_tier1_candidate_objective_input
+            .ok_or_else(|| "autoscale_missing_is_tier1_candidate_objective_input".to_string())?;
+        let out = compute_is_tier1_candidate_objective(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "is_tier1_candidate_objective",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_is_tier1_candidate_objective_encode_failed:{e}"));
+    }
+    if mode == "needs_execution_quota" {
+        let input = request
+            .needs_execution_quota_input
+            .ok_or_else(|| "autoscale_missing_needs_execution_quota_input".to_string())?;
+        let out = compute_needs_execution_quota(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "needs_execution_quota",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_needs_execution_quota_encode_failed:{e}"));
+    }
+    if mode == "normalize_criteria_metric" {
+        let input = request
+            .normalize_criteria_metric_input
+            .ok_or_else(|| "autoscale_missing_normalize_criteria_metric_input".to_string())?;
+        let out = compute_normalize_criteria_metric(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "normalize_criteria_metric",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_normalize_criteria_metric_encode_failed:{e}"));
+    }
+    if mode == "escape_reg_exp" {
+        let input = request
+            .escape_reg_exp_input
+            .ok_or_else(|| "autoscale_missing_escape_reg_exp_input".to_string())?;
+        let out = compute_escape_reg_exp(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "escape_reg_exp",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_escape_reg_exp_encode_failed:{e}"));
+    }
+    if mode == "tool_token_mentioned" {
+        let input = request
+            .tool_token_mentioned_input
+            .ok_or_else(|| "autoscale_missing_tool_token_mentioned_input".to_string())?;
+        let out = compute_tool_token_mentioned(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "tool_token_mentioned",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_tool_token_mentioned_encode_failed:{e}"));
+    }
+    if mode == "policy_hold_reason_from_event" {
+        let input = request
+            .policy_hold_reason_from_event_input
+            .ok_or_else(|| "autoscale_missing_policy_hold_reason_from_event_input".to_string())?;
+        let out = compute_policy_hold_reason_from_event(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "policy_hold_reason_from_event",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_policy_hold_reason_from_event_encode_failed:{e}"));
+    }
+    if mode == "strategy_marker_tokens" {
+        let input = request
+            .strategy_marker_tokens_input
+            .ok_or_else(|| "autoscale_missing_strategy_marker_tokens_input".to_string())?;
+        let out = compute_strategy_marker_tokens(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "strategy_marker_tokens",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_strategy_marker_tokens_encode_failed:{e}"));
     }
     if mode == "execution_reserve_snapshot" {
         let input = request
