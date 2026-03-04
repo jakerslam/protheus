@@ -2522,6 +2522,34 @@ function parseLowerList(value) {
 }
 
 function canaryFailedChecksAllowed(failedChecks, allowedSet) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const allowed = allowedSet instanceof Set ? allowedSet : new Set();
+    const failed = Array.isArray(failedChecks)
+      ? failedChecks.map((v) => String(v || '').trim()).filter(Boolean)
+      : [];
+    const cache = globalThis.__PROTHEUS_CANARY_FAILED_CHECKS_ALLOWED_CACHE instanceof Map
+      ? globalThis.__PROTHEUS_CANARY_FAILED_CHECKS_ALLOWED_CACHE
+      : (globalThis.__PROTHEUS_CANARY_FAILED_CHECKS_ALLOWED_CACHE = new Map());
+    const cacheKey = `${failed.join('\u0001')}::${Array.from(allowed).join('\u0001')}`;
+    if (cache.has(cacheKey)) return cache.get(cacheKey);
+    const rust = runBacklogAutoscalePrimitive(
+      'canary_failed_checks_allowed',
+      {
+        failed_checks: failed,
+        allowed_checks: Array.from(allowed).map((v) => String(v || '').trim()).filter(Boolean)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const decision = rust.payload.payload.allowed === true;
+      if (cache.size >= 1024) {
+        const oldest = cache.keys().next();
+        if (!oldest.done) cache.delete(oldest.value);
+      }
+      cache.set(cacheKey, decision);
+      return decision;
+    }
+  }
   const allowed = allowedSet instanceof Set ? allowedSet : new Set();
   const failed = Array.isArray(failedChecks)
     ? failedChecks.map((v) => String(v || '').trim()).filter(Boolean)
@@ -2887,6 +2915,8 @@ const NORMALIZE_SPACES_CACHE = new Map();
 const NORMALIZE_SPACES_CACHE_MAX = 2048;
 const PARSE_LOWER_LIST_CACHE = new Map();
 const PARSE_LOWER_LIST_CACHE_MAX = 2048;
+const CANARY_FAILED_CHECKS_ALLOWED_CACHE = new Map();
+const CANARY_FAILED_CHECKS_ALLOWED_CACHE_MAX = 1024;
 const NORMALIZE_DIRECTIVE_TIER_CACHE = new Map();
 const NORMALIZE_DIRECTIVE_TIER_CACHE_MAX = 512;
 const DIRECTIVE_TIER_WEIGHT_CACHE = new Map();
@@ -18869,6 +18899,7 @@ module.exports = {
   tokenizeDirectiveText,
   normalizeSpaces,
   parseLowerList,
+  canaryFailedChecksAllowed,
   toStem,
   directiveTokenHits,
   expectedValueScore,
