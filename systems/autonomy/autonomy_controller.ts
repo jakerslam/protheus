@@ -3267,6 +3267,25 @@ function assessOptimizationGoodEnough(p, risk) {
   const minDelta = optimizationMinDeltaPercent();
   const requireDelta = AUTONOMY_OPTIMIZATION_REQUIRE_DELTA;
   const normalizedRiskVal = normalizedRisk(risk || (p && p.risk));
+  const inferred = inferOptimizationDeltaForProposal(p);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'optimization_good_enough',
+      {
+        applies,
+        min_delta_percent: Number(minDelta || 0),
+        require_delta: requireDelta === true,
+        high_accuracy_mode: AUTONOMY_OPTIMIZATION_HIGH_ACCURACY_MODE === true,
+        normalized_risk: normalizedRiskVal,
+        delta_percent: inferred.delta_percent == null ? null : Number(inferred.delta_percent),
+        delta_source: inferred.delta_source || null
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
+  }
   if (!applies) {
     return {
       applies: false,
@@ -3280,7 +3299,6 @@ function assessOptimizationGoodEnough(p, risk) {
       risk: normalizedRiskVal
     };
   }
-  const inferred = inferOptimizationDeltaForProposal(p);
   if (inferred.delta_percent == null && requireDelta) {
     return {
       applies: true,
@@ -20311,6 +20329,7 @@ module.exports = {
   inferOptimizationDeltaForProposal,
   isOptimizationIntentProposal,
   assessUnlinkedOptimizationAdmission,
+  assessOptimizationGoodEnough,
   sourceEyeRef,
   escapeRegExp,
   toolTokenMentioned,
