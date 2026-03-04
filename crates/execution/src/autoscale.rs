@@ -443,6 +443,23 @@ pub struct RunResultTallyOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SortedCountsInput {
+    #[serde(default)]
+    pub counts: std::collections::BTreeMap<String, f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SortedCountItem {
+    pub result: String,
+    pub count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SortedCountsOutput {
+    pub items: Vec<SortedCountItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct QosLaneUsageEventInput {
     #[serde(default)]
     pub event_type: Option<String>,
@@ -980,6 +997,8 @@ pub struct AutoscaleRequest {
     pub eye_outcome_count_window_input: Option<EyeOutcomeWindowCountInput>,
     #[serde(default)]
     pub eye_outcome_count_last_hours_input: Option<EyeOutcomeLastHoursCountInput>,
+    #[serde(default)]
+    pub sorted_counts_input: Option<SortedCountsInput>,
     #[serde(default)]
     pub no_progress_result_input: Option<NoProgressResultInput>,
     #[serde(default)]
@@ -1982,6 +2001,29 @@ pub fn compute_run_result_tally(input: &RunResultTallyInput) -> RunResultTallyOu
         counts.insert(key, next);
     }
     RunResultTallyOutput { counts }
+}
+
+pub fn compute_sorted_counts(input: &SortedCountsInput) -> SortedCountsOutput {
+    let mut items = input
+        .counts
+        .iter()
+        .map(|(result, count)| SortedCountItem {
+            result: result.to_string(),
+            count: if count.is_finite() && *count > 0.0 {
+                count.round() as u32
+            } else {
+                0
+            },
+        })
+        .collect::<Vec<_>>();
+    items.sort_by(|a, b| {
+        if b.count != a.count {
+            b.count.cmp(&a.count)
+        } else {
+            a.result.cmp(&b.result)
+        }
+    });
+    SortedCountsOutput { items }
 }
 
 pub fn compute_qos_lane_usage(input: &QosLaneUsageInput) -> QosLaneUsageOutput {
@@ -3306,6 +3348,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_eye_outcome_count_last_hours_encode_failed:{e}"));
     }
+    if mode == "sorted_counts" {
+        let input = request
+            .sorted_counts_input
+            .ok_or_else(|| "autoscale_missing_sorted_counts_input".to_string())?;
+        let out = compute_sorted_counts(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "sorted_counts",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_sorted_counts_encode_failed:{e}"));
+    }
     if mode == "no_progress_result" {
         let input = request
             .no_progress_result_input
@@ -4408,6 +4462,50 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale eye_outcome_count_last_hours");
         assert!(out.contains("\"mode\":\"eye_outcome_count_last_hours\""));
+    }
+
+    #[test]
+    fn sorted_counts_orders_by_count_then_result() {
+        let out = compute_sorted_counts(&SortedCountsInput {
+            counts: std::collections::BTreeMap::from([
+                ("b".to_string(), 2.0),
+                ("a".to_string(), 2.0),
+                ("c".to_string(), 1.0),
+            ]),
+        });
+        assert_eq!(
+            out.items,
+            vec![
+                SortedCountItem {
+                    result: "a".to_string(),
+                    count: 2
+                },
+                SortedCountItem {
+                    result: "b".to_string(),
+                    count: 2
+                },
+                SortedCountItem {
+                    result: "c".to_string(),
+                    count: 1
+                }
+            ]
+        );
+    }
+
+    #[test]
+    fn autoscale_json_sorted_counts_path_works() {
+        let payload = serde_json::json!({
+            "mode": "sorted_counts",
+            "sorted_counts_input": {
+                "counts": {
+                    "executed": 2,
+                    "stop_repeat_gate_no_progress": 1
+                }
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale sorted_counts");
+        assert!(out.contains("\"mode\":\"sorted_counts\""));
     }
 
     #[test]

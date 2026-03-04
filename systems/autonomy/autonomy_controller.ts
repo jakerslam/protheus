@@ -2737,6 +2737,8 @@ const EYE_OUTCOME_COUNT_WINDOW_CACHE = new Map();
 const EYE_OUTCOME_COUNT_WINDOW_CACHE_MAX = 256;
 const EYE_OUTCOME_COUNT_LAST_HOURS_CACHE = new Map();
 const EYE_OUTCOME_COUNT_LAST_HOURS_CACHE_MAX = 256;
+const SORTED_COUNTS_CACHE = new Map();
+const SORTED_COUNTS_CACHE_MAX = 256;
 
 function isPolicyHoldResult(result): boolean {
   const r = String(result || '').trim();
@@ -4071,6 +4073,40 @@ function tallyByResult(events) {
 }
 
 function sortedCounts(mapObj) {
+  const src = mapObj && typeof mapObj === 'object' ? mapObj : {};
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const normalized = {};
+    for (const [result, count] of Object.entries(src)) {
+      normalized[String(result)] = Number(count || 0);
+    }
+    const key = Object.keys(normalized)
+      .sort()
+      .map((result) => `${result}\u0000${String(normalized[result])}`)
+      .join('\u0001');
+    if (SORTED_COUNTS_CACHE.has(key)) {
+      const cached = SORTED_COUNTS_CACHE.get(key);
+      return Array.isArray(cached) ? cached.map((row) => ({ ...row })) : [];
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'sorted_counts',
+      { counts: normalized },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const rows = Array.isArray(rust.payload.payload.items)
+        ? rust.payload.payload.items.map((row) => ({
+          result: String(row && row.result || ''),
+          count: Math.max(0, Number(row && row.count || 0))
+        }))
+        : [];
+      if (SORTED_COUNTS_CACHE.size >= SORTED_COUNTS_CACHE_MAX) {
+        const oldest = SORTED_COUNTS_CACHE.keys().next();
+        if (!oldest.done) SORTED_COUNTS_CACHE.delete(oldest.value);
+      }
+      SORTED_COUNTS_CACHE.set(key, rows);
+      return rows;
+    }
+  }
   const items = Object.entries(mapObj || {}).map(([result, count]) => ({ result, count: Number(count || 0) }));
   items.sort((a, b) => {
     if (b.count !== a.count) return b.count - a.count;
@@ -16977,5 +17013,6 @@ module.exports = {
   tallyByResult,
   qosLaneUsageFromRuns,
   countEyeOutcomesInWindow,
-  countEyeOutcomesInLastHours
+  countEyeOutcomesInLastHours,
+  sortedCounts
 };
