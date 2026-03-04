@@ -761,6 +761,31 @@ pub struct ValueSignalScoreOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyRankAdjustedInput {
+    pub base: f64,
+    pub pulse_score: f64,
+    pub pulse_weight: f64,
+    pub objective_allocation_score: f64,
+    pub base_objective_weight: f64,
+    pub canary_mode: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyRankAdjustedBonus {
+    pub pulse_weight: f64,
+    pub pulse_score: f64,
+    pub objective_weight: f64,
+    pub objective_allocation_score: f64,
+    pub total: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyRankAdjustedOutput {
+    pub adjusted: f64,
+    pub bonus: StrategyRankAdjustedBonus,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CompositeEligibilityScoreInput {
     pub quality_score: f64,
     pub directive_fit_score: f64,
@@ -1440,6 +1465,8 @@ pub struct AutoscaleRequest {
     pub proposal_dedup_key_input: Option<ProposalDedupKeyInput>,
     #[serde(default)]
     pub strategy_rank_score_input: Option<StrategyRankScoreInput>,
+    #[serde(default)]
+    pub strategy_rank_adjusted_input: Option<StrategyRankAdjustedInput>,
     #[serde(default)]
     pub value_signal_score_input: Option<ValueSignalScoreInput>,
     #[serde(default)]
@@ -2738,6 +2765,38 @@ pub fn compute_strategy_rank_score(input: &StrategyRankScoreInput) -> StrategyRa
         + input.collective_shadow_bonus;
     StrategyRankScoreOutput {
         score: (raw * 1000.0).round() / 1000.0,
+    }
+}
+
+pub fn compute_strategy_rank_adjusted(
+    input: &StrategyRankAdjustedInput,
+) -> StrategyRankAdjustedOutput {
+    let to_fixed3 = |value: f64| -> f64 {
+        format!("{value:.3}").parse::<f64>().unwrap_or(value)
+    };
+    let pulse_score = input.pulse_score.clamp(0.0, 100.0);
+    let pulse_weight = input.pulse_weight.clamp(0.0, 1.0);
+    let objective_allocation_score = input.objective_allocation_score.clamp(0.0, 100.0);
+    let base_objective_weight = input.base_objective_weight.clamp(0.0, 1.0);
+    let objective_weight = if input.canary_mode {
+        base_objective_weight
+    } else {
+        to_fixed3(base_objective_weight * 0.35)
+    };
+    let pulse_bonus = pulse_weight * pulse_score;
+    let objective_bonus = objective_weight * objective_allocation_score;
+    let total = to_fixed3(pulse_bonus + objective_bonus);
+    let adjusted = to_fixed3(input.base + total);
+
+    StrategyRankAdjustedOutput {
+        adjusted,
+        bonus: StrategyRankAdjustedBonus {
+            pulse_weight,
+            pulse_score,
+            objective_weight,
+            objective_allocation_score,
+            total,
+        },
     }
 }
 
@@ -4704,6 +4763,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_strategy_rank_score_encode_failed:{e}"));
     }
+    if mode == "strategy_rank_adjusted" {
+        let input = request
+            .strategy_rank_adjusted_input
+            .ok_or_else(|| "autoscale_missing_strategy_rank_adjusted_input".to_string())?;
+        let out = compute_strategy_rank_adjusted(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "strategy_rank_adjusted",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_strategy_rank_adjusted_encode_failed:{e}"));
+    }
     if mode == "value_signal_score" {
         let input = request
             .value_signal_score_input
@@ -6518,6 +6589,40 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale strategy_rank_score");
         assert!(out.contains("\"mode\":\"strategy_rank_score\""));
         assert!(out.contains("\"score\":67.45"));
+    }
+
+    #[test]
+    fn strategy_rank_adjusted_matches_pulse_and_objective_bonus_formula() {
+        let out = compute_strategy_rank_adjusted(&StrategyRankAdjustedInput {
+            base: 65.4,
+            pulse_score: 82.0,
+            pulse_weight: 0.25,
+            objective_allocation_score: 70.0,
+            base_objective_weight: 0.3,
+            canary_mode: false,
+        });
+        assert!((out.adjusted - 93.25).abs() < 0.000001);
+        assert!((out.bonus.total - 27.85).abs() < 0.000001);
+        assert!((out.bonus.objective_weight - 0.105).abs() < 0.000001);
+    }
+
+    #[test]
+    fn autoscale_json_strategy_rank_adjusted_path_works() {
+        let payload = serde_json::json!({
+            "mode": "strategy_rank_adjusted",
+            "strategy_rank_adjusted_input": {
+                "base": 65.4,
+                "pulse_score": 82,
+                "pulse_weight": 0.25,
+                "objective_allocation_score": 70,
+                "base_objective_weight": 0.3,
+                "canary_mode": false
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale strategy_rank_adjusted");
+        assert!(out.contains("\"mode\":\"strategy_rank_adjusted\""));
+        assert!(out.contains("\"adjusted\":93.25"));
     }
 
     #[test]
