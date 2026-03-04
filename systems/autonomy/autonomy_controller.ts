@@ -13475,6 +13475,16 @@ function compactCmdResult(res) {
 }
 
 function truthyFlag(v) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'truthy_flag',
+      { value: v == null ? null : v },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.value === true;
+    }
+  }
   if (v === true) return true;
   if (v === false || v == null) return false;
   const t = String(v).trim().toLowerCase();
@@ -21348,6 +21358,7 @@ module.exports = {
   parseJsonObjectsFromText,
   readPathValue,
   numberOrNull,
+  truthyFlag,
   parseObjectiveIdFromEvidenceRefs,
   parseObjectiveIdFromCommand,
   sanitizedDirectiveIdList,
