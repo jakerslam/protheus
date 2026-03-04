@@ -1682,6 +1682,15 @@ function adaptiveExecutionCaps(input: AnyObj = {}) {
         inputCandidateCap
       };
     }
+    return {
+      ...out,
+      daily_runs_cap: 1,
+      input_candidates_cap: AUTONOMY_DYNAMIC_IO_CAP_MIN_INPUT_POOL,
+      inputCandidateCap: AUTONOMY_DYNAMIC_IO_CAP_MIN_INPUT_POOL,
+      low_yield: true,
+      high_yield: false,
+      reasons: ['rust_dynamic_caps_unavailable']
+    };
   }
 
   const markLowYield = (reason: string) => {
