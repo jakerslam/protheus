@@ -97,6 +97,70 @@ function run() {
     );
   }
 
+  const tritSamples = [
+    { query: [1, 1, 0], entry: 1 },
+    { query: [0, 0], entry: -1 },
+    { query: [], entry: 0 },
+    { query: [-1, 1], entry: -1 }
+  ];
+  for (const sample of tritSamples) {
+    assert.strictEqual(
+      rust.tritSimilarity(sample.query, sample.entry),
+      ts.tritSimilarity(sample.query, sample.entry),
+      `tritSimilarity mismatch for ${JSON.stringify(sample)}`
+    );
+  }
+
+  const policy = {
+    certainty_gate: {
+      thresholds: {
+        novice: { low: 0.2, medium: 0.4, high: 0.6, critical: 0.8 },
+        legendary: { low: 0.1, medium: 0.2, high: 0.3, critical: 0.4 }
+      },
+      allow_zero_for_legendary_critical: true
+    },
+    maturity: {
+      max_target_rank_by_band: {
+        novice: 1,
+        mature: 3,
+        legendary: 5
+      }
+    },
+    impact: {
+      max_target_rank: {
+        low: 1,
+        medium: 2,
+        high: 3,
+        critical: 4
+      }
+    }
+  };
+  const thresholdCases = [
+    { band: 'novice', impact: 'medium' },
+    { band: 'legendary', impact: 'critical' },
+    { band: 'mature', impact: 'high' }
+  ];
+  for (const sample of thresholdCases) {
+    assert.strictEqual(
+      rust.certaintyThreshold(policy, sample.band, sample.impact),
+      ts.certaintyThreshold(policy, sample.band, sample.impact),
+      `certaintyThreshold mismatch for ${JSON.stringify(sample)}`
+    );
+  }
+
+  const rankCases = [
+    { band: 'novice', impact: 'low' },
+    { band: 'mature', impact: 'critical' },
+    { band: 'legendary', impact: 'medium' }
+  ];
+  for (const sample of rankCases) {
+    assert.strictEqual(
+      rust.maxTargetRankForDecision(policy, sample.band, sample.impact),
+      ts.maxTargetRankForDecision(policy, sample.band, sample.impact),
+      `maxTargetRankForDecision mismatch for ${JSON.stringify(sample)}`
+    );
+  }
+
   console.log('inversion_norm_primitives_rust_parity.test.js: OK');
 }
 

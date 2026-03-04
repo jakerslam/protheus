@@ -2908,6 +2908,19 @@ function jaccardSimilarity(aTokens: string[], bTokens: string[]) {
 }
 
 function tritSimilarity(queryVector: number[], entryTrit: number) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'trit_similarity',
+      {
+        query_vector: Array.isArray(queryVector) ? queryVector : [],
+        entry_trit: entryTrit
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return clampNumber(Number(rust.payload.payload.similarity || 0), 0, 1, 0);
+    }
+  }
   const trit = clampInt(entryTrit, -1, 1, 0);
   if (!Array.isArray(queryVector) || queryVector.length === 0) return trit === 0 ? 1 : 0.5;
   const majority = clampInt(majorityTrit(queryVector), -1, 1, 0);
@@ -2967,6 +2980,25 @@ function currentRuntimeMode(args: AnyObj, policy: AnyObj) {
 }
 
 function certaintyThreshold(policy: AnyObj, band: string, impact: string) {
+  if (INVERSION_RUST_ENABLED) {
+    const thresholds = policy && policy.certainty_gate && policy.certainty_gate.thresholds
+      ? policy.certainty_gate.thresholds
+      : {};
+    const rust = runInversionPrimitive(
+      'certainty_threshold',
+      {
+        thresholds,
+        band,
+        impact,
+        allow_zero_for_legendary_critical: policy && policy.certainty_gate
+          && policy.certainty_gate.allow_zero_for_legendary_critical === true
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return clampNumber(Number(rust.payload.payload.threshold), 0, 1, 1);
+    }
+  }
   const thresholds = policy.certainty_gate && policy.certainty_gate.thresholds
     ? policy.certainty_gate.thresholds
     : {};
@@ -2985,6 +3017,27 @@ function maturityBandOrder() {
 }
 
 function maxTargetRankForDecision(policy: AnyObj, maturityBand: string, impact: string) {
+  if (INVERSION_RUST_ENABLED) {
+    const maturityMap = policy && policy.maturity && policy.maturity.max_target_rank_by_band
+      ? policy.maturity.max_target_rank_by_band
+      : {};
+    const impactMap = policy && policy.impact && policy.impact.max_target_rank
+      ? policy.impact.max_target_rank
+      : {};
+    const rust = runInversionPrimitive(
+      'max_target_rank',
+      {
+        maturity_max_target_rank_by_band: maturityMap,
+        impact_max_target_rank: impactMap,
+        maturity_band: maturityBand,
+        impact
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Math.max(1, clampInt(Number(rust.payload.payload.rank), 1, 9, 1));
+    }
+  }
   const maturityMap = policy.maturity && policy.maturity.max_target_rank_by_band
     ? policy.maturity.max_target_rank_by_band
     : {};
@@ -6343,5 +6396,8 @@ module.exports = {
   normalizeResult,
   isValidObjectiveId,
   tritVectorFromInput,
-  jaccardSimilarity
+  jaccardSimilarity,
+  tritSimilarity,
+  certaintyThreshold,
+  maxTargetRankForDecision
 };

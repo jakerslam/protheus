@@ -83,6 +83,53 @@ pub struct JaccardSimilarityOutput {
     pub similarity: f64,
 }
 
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct TritSimilarityInput {
+    #[serde(default)]
+    pub query_vector: Vec<Value>,
+    #[serde(default)]
+    pub entry_trit: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct TritSimilarityOutput {
+    pub similarity: f64,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct CertaintyThresholdInput {
+    #[serde(default)]
+    pub thresholds: Option<Value>,
+    #[serde(default)]
+    pub band: Option<String>,
+    #[serde(default)]
+    pub impact: Option<String>,
+    #[serde(default)]
+    pub allow_zero_for_legendary_critical: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct CertaintyThresholdOutput {
+    pub threshold: f64,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct MaxTargetRankInput {
+    #[serde(default)]
+    pub maturity_max_target_rank_by_band: Option<Value>,
+    #[serde(default)]
+    pub impact_max_target_rank: Option<Value>,
+    #[serde(default)]
+    pub maturity_band: Option<String>,
+    #[serde(default)]
+    pub impact: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct MaxTargetRankOutput {
+    pub rank: i64,
+}
+
 fn normalize_token(raw: &str, max_len: usize) -> String {
     let collapsed = raw
         .split_whitespace()
@@ -237,6 +284,100 @@ pub fn compute_jaccard_similarity(input: &JaccardSimilarityInput) -> JaccardSimi
     JaccardSimilarityOutput { similarity }
 }
 
+fn majority_trit(values: &[Value]) -> i32 {
+    if values.is_empty() {
+        return 0;
+    }
+    let mut pain = 0;
+    let mut unknown = 0;
+    let mut ok = 0;
+    for value in values {
+        let trit = normalize_trit_value(value);
+        if trit < 0 {
+            pain += 1;
+        } else if trit > 0 {
+            ok += 1;
+        } else {
+            unknown += 1;
+        }
+    }
+    if pain > ok && pain > unknown {
+        -1
+    } else if ok > pain && ok > unknown {
+        1
+    } else {
+        0
+    }
+}
+
+pub fn compute_trit_similarity(input: &TritSimilarityInput) -> TritSimilarityOutput {
+    let trit = normalize_trit_value(input.entry_trit.as_ref().unwrap_or(&Value::Null));
+    if input.query_vector.is_empty() {
+        return TritSimilarityOutput {
+            similarity: if trit == 0 { 1.0 } else { 0.5 },
+        };
+    }
+    let majority = majority_trit(&input.query_vector);
+    let similarity = if majority == trit {
+        1.0
+    } else if majority == 0 || trit == 0 {
+        0.6
+    } else {
+        0.0
+    };
+    TritSimilarityOutput { similarity }
+}
+
+fn clamp_number(value: f64, lo: f64, hi: f64) -> f64 {
+    value.max(lo).min(hi)
+}
+
+fn read_number_key(value: Option<&Value>, key: &str, fallback: f64) -> f64 {
+    let Some(map) = value.and_then(|v| v.as_object()) else {
+        return fallback;
+    };
+    map.get(key)
+        .and_then(|v| v.as_f64())
+        .map(|n| clamp_number(n, 0.0, 1.0))
+        .unwrap_or(fallback)
+}
+
+pub fn compute_certainty_threshold(input: &CertaintyThresholdInput) -> CertaintyThresholdOutput {
+    let thresholds = input.thresholds.as_ref().and_then(|v| v.as_object());
+    let band = normalize_token(input.band.as_deref().unwrap_or("novice"), 24);
+    let impact = normalize_token(input.impact.as_deref().unwrap_or("medium"), 24);
+    let by_band = thresholds
+        .and_then(|rows| rows.get(&band))
+        .filter(|v| v.is_object())
+        .or_else(|| thresholds.and_then(|rows| rows.get("novice")));
+    let mut threshold = read_number_key(by_band, &impact, 1.0);
+    if input.allow_zero_for_legendary_critical.unwrap_or(false)
+        && band == "legendary"
+        && impact == "critical"
+    {
+        threshold = 0.0;
+    }
+    CertaintyThresholdOutput { threshold }
+}
+
+fn read_rank_key(value: Option<&Value>, key: &str, fallback: i64) -> i64 {
+    let Some(map) = value.and_then(|v| v.as_object()) else {
+        return fallback;
+    };
+    map.get(key)
+        .and_then(|v| v.as_i64().or_else(|| v.as_f64().map(|n| n.round() as i64)))
+        .unwrap_or(fallback)
+}
+
+pub fn compute_max_target_rank(input: &MaxTargetRankInput) -> MaxTargetRankOutput {
+    let band = normalize_token(input.maturity_band.as_deref().unwrap_or("novice"), 24);
+    let impact = normalize_token(input.impact.as_deref().unwrap_or("medium"), 24);
+    let maturity_rank = read_rank_key(input.maturity_max_target_rank_by_band.as_ref(), &band, 1);
+    let impact_rank = read_rank_key(input.impact_max_target_rank.as_ref(), &impact, 1);
+    let rank = maturity_rank.min(impact_rank).max(1);
+    MaxTargetRankOutput { rank }
+}
+
 fn decode_input<T>(payload: &Value, key: &str) -> Result<T, String>
 where
     T: for<'de> Deserialize<'de> + Default,
@@ -328,6 +469,36 @@ pub fn run_inversion_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("inversion_encode_jaccard_similarity_failed:{e}"));
+    }
+    if mode == "trit_similarity" {
+        let input: TritSimilarityInput = decode_input(&payload, "trit_similarity_input")?;
+        let out = compute_trit_similarity(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "trit_similarity",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_trit_similarity_failed:{e}"));
+    }
+    if mode == "certainty_threshold" {
+        let input: CertaintyThresholdInput = decode_input(&payload, "certainty_threshold_input")?;
+        let out = compute_certainty_threshold(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "certainty_threshold",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_certainty_threshold_failed:{e}"));
+    }
+    if mode == "max_target_rank" {
+        let input: MaxTargetRankInput = decode_input(&payload, "max_target_rank_input")?;
+        let out = compute_max_target_rank(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "max_target_rank",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_max_target_rank_failed:{e}"));
     }
     Err(format!("inversion_mode_unsupported:{mode}"))
 }
@@ -455,5 +626,44 @@ mod tests {
             right_tokens: vec!["b".to_string(), "c".to_string()],
         });
         assert!((out.similarity - (1.0 / 3.0)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn trit_similarity_matches_ts_contract() {
+        let equal = compute_trit_similarity(&TritSimilarityInput {
+            query_vector: vec![json!(1), json!(1), json!(0)],
+            entry_trit: Some(json!(1)),
+        });
+        assert!((equal.similarity - 1.0).abs() < 1e-9);
+        let neutral_mix = compute_trit_similarity(&TritSimilarityInput {
+            query_vector: vec![json!(0), json!(0)],
+            entry_trit: Some(json!(1)),
+        });
+        assert!((neutral_mix.similarity - 0.6).abs() < 1e-9);
+    }
+
+    #[test]
+    fn certainty_threshold_reads_band_and_impact() {
+        let out = compute_certainty_threshold(&CertaintyThresholdInput {
+            thresholds: Some(json!({
+                "novice": { "medium": 0.7 },
+                "legendary": { "critical": 0.2 }
+            })),
+            band: Some("legendary".to_string()),
+            impact: Some("critical".to_string()),
+            allow_zero_for_legendary_critical: Some(true),
+        });
+        assert!((out.threshold - 0.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn max_target_rank_respects_minimum_one() {
+        let out = compute_max_target_rank(&MaxTargetRankInput {
+            maturity_max_target_rank_by_band: Some(json!({ "mature": 4 })),
+            impact_max_target_rank: Some(json!({ "high": 2 })),
+            maturity_band: Some("mature".to_string()),
+            impact: Some("high".to_string()),
+        });
+        assert_eq!(out.rank, 2);
     }
 }
