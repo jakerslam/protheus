@@ -1138,6 +1138,19 @@ function dateArgOrToday(v) {
 }
 
 function parseArg(name) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'parse_arg',
+      {
+        args: Array.isArray(process.argv) ? process.argv.map((x) => String(x || '')) : [],
+        name: name == null ? null : String(name)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.value == null ? null : String(rust.payload.payload.value);
+    }
+  }
   const pref = `--${name}=`;
   const a = process.argv.find(x => x.startsWith(pref));
   return a ? a.slice(pref.length) : null;
@@ -21389,6 +21402,7 @@ module.exports = {
   uniqSorted,
   normalizeModelIds,
   selectedModelFromRunEvent,
+  parseArg,
   startModelCatalogCanary,
   evaluateModelCatalogCanary,
   readModelCatalogCanary,

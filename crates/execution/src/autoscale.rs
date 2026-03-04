@@ -3361,6 +3361,20 @@ pub struct ReadFirstNumericMetricOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ParseArgInput {
+    #[serde(default)]
+    pub args: Vec<String>,
+    #[serde(default)]
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ParseArgOutput {
+    #[serde(default)]
+    pub value: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ParseDirectiveFileArgInput {
     #[serde(default)]
     pub command: Option<String>,
@@ -4576,6 +4590,8 @@ pub struct AutoscaleRequest {
     pub selected_model_from_run_event_input: Option<SelectedModelFromRunEventInput>,
     #[serde(default)]
     pub read_first_numeric_metric_input: Option<ReadFirstNumericMetricInput>,
+    #[serde(default)]
+    pub parse_arg_input: Option<ParseArgInput>,
     #[serde(default)]
     pub parse_directive_file_arg_input: Option<ParseDirectiveFileArgInput>,
     #[serde(default)]
@@ -10610,6 +10626,22 @@ pub fn compute_read_first_numeric_metric(
     ReadFirstNumericMetricOutput { value: None }
 }
 
+pub fn compute_parse_arg(input: &ParseArgInput) -> ParseArgOutput {
+    let name = input.name.as_deref().unwrap_or("").trim();
+    if name.is_empty() {
+        return ParseArgOutput { value: None };
+    }
+    let pref = format!("--{}=", name);
+    for arg in input.args.iter() {
+        if arg.starts_with(&pref) {
+            return ParseArgOutput {
+                value: Some(arg[pref.len()..].to_string()),
+            };
+        }
+    }
+    ParseArgOutput { value: None }
+}
+
 pub fn compute_parse_directive_file_arg(input: &ParseDirectiveFileArgInput) -> ParseDirectiveFileArgOutput {
     let text = input.command.as_deref().unwrap_or("").trim();
     if text.is_empty() {
@@ -14653,6 +14685,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_read_first_numeric_metric_encode_failed:{e}"));
+    }
+    if mode == "parse_arg" {
+        let input = request
+            .parse_arg_input
+            .ok_or_else(|| "autoscale_missing_parse_arg_input".to_string())?;
+        let out = compute_parse_arg(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "parse_arg",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_parse_arg_encode_failed:{e}"));
     }
     if mode == "parse_directive_file_arg" {
         let input = request
