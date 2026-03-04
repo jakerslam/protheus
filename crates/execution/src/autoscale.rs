@@ -3431,6 +3431,20 @@ pub struct ClampNumberOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LatestProposalDateInput {
+    #[serde(default)]
+    pub files: Vec<String>,
+    #[serde(default)]
+    pub max_date: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LatestProposalDateOutput {
+    #[serde(default)]
+    pub date: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ParseDirectiveFileArgInput {
     #[serde(default)]
     pub command: Option<String>,
@@ -4656,6 +4670,8 @@ pub struct AutoscaleRequest {
     pub coalesce_numeric_input: Option<CoalesceNumericInput>,
     #[serde(default)]
     pub clamp_number_input: Option<ClampNumberInput>,
+    #[serde(default)]
+    pub latest_proposal_date_input: Option<LatestProposalDateInput>,
     #[serde(default)]
     pub parse_directive_file_arg_input: Option<ParseDirectiveFileArgInput>,
     #[serde(default)]
@@ -10767,6 +10783,24 @@ pub fn compute_clamp_number(input: &ClampNumberInput) -> ClampNumberOutput {
     }
 }
 
+pub fn compute_latest_proposal_date(input: &LatestProposalDateInput) -> LatestProposalDateOutput {
+    let max_date = input.max_date.as_deref().unwrap_or("").trim();
+    let mut dates = input
+        .files
+        .iter()
+        .map(|f| f.trim().trim_end_matches(".json").to_string())
+        .filter(|d| {
+            !d.is_empty()
+                && Regex::new(r"^\d{4}-\d{2}-\d{2}$")
+                    .expect("valid ymd regex")
+                    .is_match(d)
+        })
+        .filter(|d| max_date.is_empty() || d.as_str() <= max_date)
+        .collect::<Vec<String>>();
+    dates.sort();
+    LatestProposalDateOutput { date: dates.pop() }
+}
+
 pub fn compute_parse_directive_file_arg(input: &ParseDirectiveFileArgInput) -> ParseDirectiveFileArgOutput {
     let text = input.command.as_deref().unwrap_or("").trim();
     if text.is_empty() {
@@ -14870,6 +14904,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_clamp_number_encode_failed:{e}"));
+    }
+    if mode == "latest_proposal_date" {
+        let input = request
+            .latest_proposal_date_input
+            .ok_or_else(|| "autoscale_missing_latest_proposal_date_input".to_string())?;
+        let out = compute_latest_proposal_date(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "latest_proposal_date",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_latest_proposal_date_encode_failed:{e}"));
     }
     if mode == "parse_directive_file_arg" {
         let input = request

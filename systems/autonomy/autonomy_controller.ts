@@ -2624,6 +2624,19 @@ function loadProposalsForDate(dateStr) {
 }
 
 function latestProposalDate(maxDate) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'latest_proposal_date',
+      {
+        files: listProposalFiles(),
+        max_date: maxDate == null ? null : String(maxDate)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.date == null ? null : String(rust.payload.payload.date);
+    }
+  }
   const files = listProposalFiles()
     .map(f => f.replace('.json', ''))
     .filter(d => d <= maxDate)
@@ -21459,6 +21472,7 @@ module.exports = {
   hasEnvNumericOverride,
   coalesceNumeric,
   clampNumber,
+  latestProposalDate,
   startModelCatalogCanary,
   evaluateModelCatalogCanary,
   readModelCatalogCanary,
