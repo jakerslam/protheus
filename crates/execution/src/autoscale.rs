@@ -209,6 +209,38 @@ pub struct PolicyHoldOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RouteExecutionPolicyHoldInput {
+    #[serde(default)]
+    pub target: Option<String>,
+    #[serde(default)]
+    pub gate_decision: Option<String>,
+    #[serde(default)]
+    pub route_decision_raw: Option<String>,
+    #[serde(default)]
+    pub decision: Option<String>,
+    #[serde(default)]
+    pub needs_manual_review: Option<bool>,
+    #[serde(default)]
+    pub executable: Option<bool>,
+    #[serde(default)]
+    pub budget_block_reason: Option<String>,
+    #[serde(default)]
+    pub budget_enforcement_reason: Option<String>,
+    #[serde(default)]
+    pub budget_global_reason: Option<String>,
+    #[serde(default)]
+    pub summary_reason: Option<String>,
+    #[serde(default)]
+    pub route_reason: Option<String>,
+    #[serde(default)]
+    pub budget_blocked: Option<bool>,
+    #[serde(default)]
+    pub budget_global_blocked: Option<bool>,
+    #[serde(default)]
+    pub budget_enforcement_blocked: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PolicyHoldPressureEventInput {
     #[serde(default)]
     pub event_type: Option<String>,
@@ -375,6 +407,8 @@ pub struct AutoscaleRequest {
     pub criteria_gate_input: Option<CriteriaGateInput>,
     #[serde(default)]
     pub policy_hold_input: Option<PolicyHoldInput>,
+    #[serde(default)]
+    pub route_execution_policy_hold_input: Option<RouteExecutionPolicyHoldInput>,
     #[serde(default)]
     pub policy_hold_pressure_input: Option<PolicyHoldPressureInput>,
     #[serde(default)]
@@ -894,6 +928,58 @@ pub fn compute_policy_hold(input: &PolicyHoldInput) -> PolicyHoldOutput {
     }
 }
 
+pub fn compute_route_execution_policy_hold(input: &RouteExecutionPolicyHoldInput) -> PolicyHoldOutput {
+    let target = normalize_spaces(input.target.as_deref().unwrap_or("route")).to_ascii_lowercase();
+    let gate_decision = normalize_spaces(input.gate_decision.as_deref().unwrap_or(""));
+    let route_decision = {
+        let raw = normalize_spaces(input.route_decision_raw.as_deref().unwrap_or(""));
+        if !raw.is_empty() {
+            raw
+        } else {
+            normalize_spaces(input.decision.as_deref().unwrap_or(""))
+        }
+    };
+    let needs_manual_review = input.needs_manual_review.unwrap_or(false);
+    let executable = input.executable.unwrap_or(true);
+
+    let budget_reason = {
+        let direct = normalize_spaces(input.budget_block_reason.as_deref().unwrap_or(""));
+        if !direct.is_empty() {
+            direct
+        } else {
+            let enforced = normalize_spaces(input.budget_enforcement_reason.as_deref().unwrap_or(""));
+            if !enforced.is_empty() {
+                enforced
+            } else {
+                normalize_spaces(input.budget_global_reason.as_deref().unwrap_or(""))
+            }
+        }
+    };
+
+    let route_reason = {
+        let summary = normalize_spaces(input.summary_reason.as_deref().unwrap_or(""));
+        if !summary.is_empty() {
+            summary
+        } else {
+            normalize_spaces(input.route_reason.as_deref().unwrap_or(""))
+        }
+    };
+
+    let normalized = PolicyHoldInput {
+        target,
+        gate_decision,
+        route_decision,
+        needs_manual_review,
+        executable,
+        budget_reason,
+        route_reason,
+        budget_blocked_flag: input.budget_blocked.unwrap_or(false),
+        budget_global_blocked: input.budget_global_blocked.unwrap_or(false),
+        budget_enforcement_blocked: input.budget_enforcement_blocked.unwrap_or(false),
+    };
+    compute_policy_hold(&normalized)
+}
+
 fn round3(v: f64) -> f64 {
     (v * 1_000.0).round() / 1_000.0
 }
@@ -1368,6 +1454,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_policy_hold_encode_failed:{e}"));
     }
+    if mode == "route_execution_policy_hold" {
+        let input = request
+            .route_execution_policy_hold_input
+            .ok_or_else(|| "autoscale_missing_route_execution_policy_hold_input".to_string())?;
+        let out = compute_route_execution_policy_hold(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "route_execution_policy_hold",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_route_execution_policy_hold_encode_failed:{e}"));
+    }
     if mode == "policy_hold_pressure" {
         let input = request
             .policy_hold_pressure_input
@@ -1653,6 +1751,50 @@ mod tests {
         assert!(out.hold);
         assert_eq!(out.hold_scope, Some("proposal".to_string()));
         assert_eq!(out.hold_reason, Some("gate_manual".to_string()));
+    }
+
+    #[test]
+    fn route_execution_policy_hold_maps_summary_fields() {
+        let out = compute_route_execution_policy_hold(&RouteExecutionPolicyHoldInput {
+            target: Some("route".to_string()),
+            gate_decision: Some("allow".to_string()),
+            route_decision_raw: None,
+            decision: Some("manual".to_string()),
+            needs_manual_review: Some(false),
+            executable: Some(false),
+            budget_block_reason: None,
+            budget_enforcement_reason: None,
+            budget_global_reason: None,
+            summary_reason: Some("manual route".to_string()),
+            route_reason: None,
+            budget_blocked: Some(false),
+            budget_global_blocked: Some(false),
+            budget_enforcement_blocked: Some(false),
+        });
+        assert!(out.hold);
+        assert_eq!(out.hold_scope, Some("proposal".to_string()));
+        assert_eq!(out.hold_reason, Some("gate_manual".to_string()));
+    }
+
+    #[test]
+    fn autoscale_json_route_execution_policy_hold_path_works() {
+        let payload = serde_json::json!({
+            "mode": "route_execution_policy_hold",
+            "route_execution_policy_hold_input": {
+                "target": "route",
+                "gate_decision": "ALLOW",
+                "decision": "ALLOW",
+                "needs_manual_review": false,
+                "executable": true,
+                "budget_block_reason": "budget guard blocked",
+                "budget_blocked": false,
+                "budget_global_blocked": false,
+                "budget_enforcement_blocked": false
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale route_execution_policy_hold");
+        assert!(out.contains("\"mode\":\"route_execution_policy_hold\""));
     }
 
     #[test]

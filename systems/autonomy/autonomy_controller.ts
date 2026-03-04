@@ -8644,16 +8644,20 @@ function routeExecutionPolicyHold(summary, executionTarget) {
 
   if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
     const rust = runBacklogAutoscalePrimitive(
-      'policy_hold',
+      'route_execution_policy_hold',
       {
-        target,
-        gate_decision: gateDecision,
-        route_decision: routeDecision,
+        target: target || 'route',
+        gate_decision: String(s.gate_decision || ''),
+        route_decision_raw: String(s.route_decision_raw || ''),
+        decision: String(s.decision || ''),
         needs_manual_review: needsManualReview === true,
         executable: executable === true,
-        budget_reason: budgetReason,
-        route_reason: routeReason,
-        budget_blocked_flag: budgetBlockedFlag,
+        budget_block_reason: String(s.budget_block_reason || ''),
+        budget_enforcement_reason: String((s.budget_enforcement && s.budget_enforcement.reason) || ''),
+        budget_global_reason: String((s.budget_global_guard && s.budget_global_guard.reason) || ''),
+        summary_reason: String(s.reason || ''),
+        route_reason: String(s.route_reason || ''),
+        budget_blocked: budgetBlockedFlag,
         budget_global_blocked: budgetGlobalBlocked,
         budget_enforcement_blocked: budgetEnforcementBlocked
       },
