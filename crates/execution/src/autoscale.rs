@@ -585,6 +585,24 @@ pub struct ExecuteConfidenceHistoryMatchOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct QosLaneWeightsInput {
+    #[serde(default)]
+    pub pressure: Option<String>,
+    pub critical_weight: f64,
+    pub standard_weight: f64,
+    pub explore_weight: f64,
+    pub quarantine_weight: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct QosLaneWeightsOutput {
+    pub critical: f64,
+    pub standard: f64,
+    pub explore: f64,
+    pub quarantine: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct QosLaneUsageEventInput {
     #[serde(default)]
     pub event_type: Option<String>,
@@ -1142,6 +1160,8 @@ pub struct AutoscaleRequest {
     pub iso_after_minutes_input: Option<IsoAfterMinutesInput>,
     #[serde(default)]
     pub execute_confidence_history_match_input: Option<ExecuteConfidenceHistoryMatchInput>,
+    #[serde(default)]
+    pub qos_lane_weights_input: Option<QosLaneWeightsInput>,
     #[serde(default)]
     pub no_progress_result_input: Option<NoProgressResultInput>,
     #[serde(default)]
@@ -2436,6 +2456,31 @@ pub fn compute_execute_confidence_history_match(
     ExecuteConfidenceHistoryMatchOutput { matched: false }
 }
 
+pub fn compute_qos_lane_weights(input: &QosLaneWeightsInput) -> QosLaneWeightsOutput {
+    let pressure = input
+        .pressure
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "normal".to_string());
+    let mut out = QosLaneWeightsOutput {
+        critical: input.critical_weight,
+        standard: input.standard_weight,
+        explore: input.explore_weight,
+        quarantine: input.quarantine_weight,
+    };
+    if pressure == "warning" {
+        out.explore = round6(out.explore * 0.75);
+        out.quarantine = round6(out.quarantine * 0.35);
+    } else if pressure == "critical" {
+        out.critical = round6(out.critical * 1.2);
+        out.standard = round6(out.standard * 1.1);
+        out.explore = round6(out.explore * 0.3);
+        out.quarantine = round6(out.quarantine * 0.1);
+    }
+    out
+}
+
 pub fn compute_qos_lane_usage(input: &QosLaneUsageInput) -> QosLaneUsageOutput {
     let mut out = QosLaneUsageOutput {
         critical: 0,
@@ -3722,6 +3767,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_run_result_tally_encode_failed:{e}"));
     }
+    if mode == "qos_lane_weights" {
+        let input = request
+            .qos_lane_weights_input
+            .ok_or_else(|| "autoscale_missing_qos_lane_weights_input".to_string())?;
+        let out = compute_qos_lane_weights(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "qos_lane_weights",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_qos_lane_weights_encode_failed:{e}"));
+    }
     if mode == "qos_lane_usage" {
         let input = request
             .qos_lane_usage_input
@@ -4833,6 +4890,48 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale run_result_tally");
         assert!(out.contains("\"mode\":\"run_result_tally\""));
+    }
+
+    #[test]
+    fn qos_lane_weights_adjust_by_pressure() {
+        let warning = compute_qos_lane_weights(&QosLaneWeightsInput {
+            pressure: Some("warning".to_string()),
+            critical_weight: 1.0,
+            standard_weight: 1.0,
+            explore_weight: 1.0,
+            quarantine_weight: 1.0,
+        });
+        assert!((warning.explore - 0.75).abs() < 0.000001);
+        assert!((warning.quarantine - 0.35).abs() < 0.000001);
+
+        let critical = compute_qos_lane_weights(&QosLaneWeightsInput {
+            pressure: Some("critical".to_string()),
+            critical_weight: 1.0,
+            standard_weight: 1.0,
+            explore_weight: 1.0,
+            quarantine_weight: 1.0,
+        });
+        assert!((critical.critical - 1.2).abs() < 0.000001);
+        assert!((critical.standard - 1.1).abs() < 0.000001);
+        assert!((critical.explore - 0.3).abs() < 0.000001);
+        assert!((critical.quarantine - 0.1).abs() < 0.000001);
+    }
+
+    #[test]
+    fn autoscale_json_qos_lane_weights_path_works() {
+        let payload = serde_json::json!({
+            "mode": "qos_lane_weights",
+            "qos_lane_weights_input": {
+                "pressure": "warning",
+                "critical_weight": 1.0,
+                "standard_weight": 1.0,
+                "explore_weight": 1.0,
+                "quarantine_weight": 1.0
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale qos_lane_weights");
+        assert!(out.contains("\"mode\":\"qos_lane_weights\""));
     }
 
     #[test]

@@ -2778,6 +2778,8 @@ const RUN_RESULT_TALLY_CACHE = new Map();
 const RUN_RESULT_TALLY_CACHE_MAX = 256;
 const QOS_LANE_USAGE_CACHE = new Map();
 const QOS_LANE_USAGE_CACHE_MAX = 256;
+const QOS_LANE_WEIGHTS_CACHE = new Map();
+const QOS_LANE_WEIGHTS_CACHE_MAX = 256;
 const EYE_OUTCOME_COUNT_WINDOW_CACHE = new Map();
 const EYE_OUTCOME_COUNT_WINDOW_CACHE_MAX = 256;
 const EYE_OUTCOME_COUNT_LAST_HOURS_CACHE = new Map();
@@ -11134,6 +11136,52 @@ function qosLaneFromCandidate(cand) {
 }
 
 function qosLaneWeights(queuePressure: AnyObj = {}) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const pressure = String(queuePressure && queuePressure.pressure || 'normal').trim().toLowerCase();
+    const key = [
+      pressure,
+      AUTONOMY_QOS_LANE_WEIGHT_CRITICAL,
+      AUTONOMY_QOS_LANE_WEIGHT_STANDARD,
+      AUTONOMY_QOS_LANE_WEIGHT_EXPLORE,
+      AUTONOMY_QOS_LANE_WEIGHT_QUARANTINE
+    ].join('\u0000');
+    if (QOS_LANE_WEIGHTS_CACHE.has(key)) {
+      const cached = QOS_LANE_WEIGHTS_CACHE.get(key);
+      return cached && typeof cached === 'object'
+        ? { ...cached }
+        : {
+            critical: AUTONOMY_QOS_LANE_WEIGHT_CRITICAL,
+            standard: AUTONOMY_QOS_LANE_WEIGHT_STANDARD,
+            explore: AUTONOMY_QOS_LANE_WEIGHT_EXPLORE,
+            quarantine: AUTONOMY_QOS_LANE_WEIGHT_QUARANTINE
+          };
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'qos_lane_weights',
+      {
+        pressure,
+        critical_weight: AUTONOMY_QOS_LANE_WEIGHT_CRITICAL,
+        standard_weight: AUTONOMY_QOS_LANE_WEIGHT_STANDARD,
+        explore_weight: AUTONOMY_QOS_LANE_WEIGHT_EXPLORE,
+        quarantine_weight: AUTONOMY_QOS_LANE_WEIGHT_QUARANTINE
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const out = {
+        critical: Number(rust.payload.payload.critical || 0),
+        standard: Number(rust.payload.payload.standard || 0),
+        explore: Number(rust.payload.payload.explore || 0),
+        quarantine: Number(rust.payload.payload.quarantine || 0)
+      };
+      if (QOS_LANE_WEIGHTS_CACHE.size >= QOS_LANE_WEIGHTS_CACHE_MAX) {
+        const oldest = QOS_LANE_WEIGHTS_CACHE.keys().next();
+        if (!oldest.done) QOS_LANE_WEIGHTS_CACHE.delete(oldest.value);
+      }
+      QOS_LANE_WEIGHTS_CACHE.set(key, { ...out });
+      return out;
+    }
+  }
   const pressure = String(queuePressure && queuePressure.pressure || 'normal').trim().toLowerCase();
   const weights = {
     critical: AUTONOMY_QOS_LANE_WEIGHT_CRITICAL,
@@ -17219,6 +17267,7 @@ module.exports = {
   assessDirectivePulse,
   qosLaneFromCandidate,
   chooseQosLaneSelection,
+  qosLaneWeights,
   queuePressureSnapshot,
   proposalStatusForQueuePressure,
   spawnCapacityBoostSnapshot,
