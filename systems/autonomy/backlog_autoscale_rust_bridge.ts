@@ -272,6 +272,7 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
     build_overlay: 'build_overlay_input',
     has_adaptive_mutation_signal: 'has_adaptive_mutation_signal_input',
     adaptive_mutation_execution_guard: 'adaptive_mutation_execution_guard_input',
+    strategy_selection: 'strategy_selection_input',
     is_directive_clarification_proposal: 'is_directive_clarification_proposal_input',
     is_directive_decomposition_proposal: 'is_directive_decomposition_proposal_input',
     sanitize_directive_objective_id: 'sanitize_directive_objective_id_input',
