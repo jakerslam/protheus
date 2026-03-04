@@ -278,6 +278,7 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
     expected_value_score: 'expected_value_score_input',
     suggest_run_batch_max: 'suggest_run_batch_max_input',
     backlog_autoscale_snapshot: 'backlog_autoscale_snapshot_input',
+    admission_summary: 'admission_summary_input',
     is_directive_clarification_proposal: 'is_directive_clarification_proposal_input',
     is_directive_decomposition_proposal: 'is_directive_decomposition_proposal_input',
     sanitize_directive_objective_id: 'sanitize_directive_objective_id_input',

@@ -2269,6 +2269,28 @@ pub struct BacklogAutoscaleSnapshotOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AdmissionSummaryProposalInput {
+    #[serde(default)]
+    pub preview_eligible: Option<bool>,
+    #[serde(default)]
+    pub blocked_by: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AdmissionSummaryInput {
+    #[serde(default)]
+    pub proposals: Vec<AdmissionSummaryProposalInput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AdmissionSummaryOutput {
+    pub total: u32,
+    pub eligible: u32,
+    pub blocked: u32,
+    pub blocked_by_reason: std::collections::BTreeMap<String, u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -3419,6 +3441,8 @@ pub struct AutoscaleRequest {
     pub suggest_run_batch_max_input: Option<SuggestRunBatchMaxInput>,
     #[serde(default)]
     pub backlog_autoscale_snapshot_input: Option<BacklogAutoscaleSnapshotInput>,
+    #[serde(default)]
+    pub admission_summary_input: Option<AdmissionSummaryInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -7425,6 +7449,35 @@ pub fn compute_backlog_autoscale_snapshot(
     }
 }
 
+pub fn compute_admission_summary(input: &AdmissionSummaryInput) -> AdmissionSummaryOutput {
+    let mut eligible: u32 = 0;
+    let mut blocked: u32 = 0;
+    let mut blocked_by_reason = std::collections::BTreeMap::<String, u32>::new();
+    for row in &input.proposals {
+        let is_eligible = row.preview_eligible.unwrap_or(true);
+        if is_eligible {
+            eligible = eligible.saturating_add(1);
+            continue;
+        }
+        blocked = blocked.saturating_add(1);
+        if row.blocked_by.is_empty() {
+            *blocked_by_reason.entry("unknown".to_string()).or_insert(0) += 1;
+            continue;
+        }
+        for reason in &row.blocked_by {
+            let key = reason.split_whitespace().collect::<Vec<_>>().join(" ");
+            let normalized = if key.is_empty() { "unknown".to_string() } else { key };
+            *blocked_by_reason.entry(normalized).or_insert(0) += 1;
+        }
+    }
+    AdmissionSummaryOutput {
+        total: input.proposals.len() as u32,
+        eligible,
+        blocked,
+        blocked_by_reason,
+    }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -10928,6 +10981,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_backlog_autoscale_snapshot_encode_failed:{e}"));
+    }
+    if mode == "admission_summary" {
+        let input = request
+            .admission_summary_input
+            .ok_or_else(|| "autoscale_missing_admission_summary_input".to_string())?;
+        let out = compute_admission_summary(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "admission_summary",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_admission_summary_encode_failed:{e}"));
     }
     if mode == "is_directive_clarification_proposal" {
         let input = request
@@ -15882,6 +15947,48 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale backlog_autoscale_snapshot");
         assert!(out.contains("\"mode\":\"backlog_autoscale_snapshot\""));
+    }
+
+    #[test]
+    fn admission_summary_tallies_blocked_reasons() {
+        let out = compute_admission_summary(&AdmissionSummaryInput {
+            proposals: vec![
+                AdmissionSummaryProposalInput {
+                    preview_eligible: Some(true),
+                    blocked_by: vec![],
+                },
+                AdmissionSummaryProposalInput {
+                    preview_eligible: Some(false),
+                    blocked_by: vec!["policy_hold".to_string(), "risk".to_string()],
+                },
+                AdmissionSummaryProposalInput {
+                    preview_eligible: Some(false),
+                    blocked_by: vec![],
+                },
+            ],
+        });
+        assert_eq!(out.total, 3);
+        assert_eq!(out.eligible, 1);
+        assert_eq!(out.blocked, 2);
+        assert_eq!(out.blocked_by_reason.get("policy_hold"), Some(&1));
+        assert_eq!(out.blocked_by_reason.get("risk"), Some(&1));
+        assert_eq!(out.blocked_by_reason.get("unknown"), Some(&1));
+    }
+
+    #[test]
+    fn autoscale_json_admission_summary_path_works() {
+        let payload = serde_json::json!({
+            "mode": "admission_summary",
+            "admission_summary_input": {
+                "proposals": [
+                    {"preview_eligible": true, "blocked_by": []},
+                    {"preview_eligible": false, "blocked_by": ["manual_gate"]}
+                ]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale admission_summary");
+        assert!(out.contains("\"mode\":\"admission_summary\""));
     }
 
     #[test]
