@@ -1769,6 +1769,143 @@ pub struct StrategyMarkerTokensOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CapabilityCooldownKeyInput {
+    #[serde(default)]
+    pub capability_key: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CapabilityCooldownKeyOutput {
+    pub cooldown_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ReadinessRetryCooldownKeyInput {
+    #[serde(default)]
+    pub strategy_id: Option<String>,
+    #[serde(default)]
+    pub execution_mode: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ReadinessRetryCooldownKeyOutput {
+    pub cooldown_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SourceEyeIdInput {
+    #[serde(default)]
+    pub eye_ref: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SourceEyeIdOutput {
+    pub eye_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DeprioritizedSourceProposalInput {
+    #[serde(default)]
+    pub eye_id: Option<String>,
+    #[serde(default)]
+    pub deprioritized_eye_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DeprioritizedSourceProposalOutput {
+    pub deprioritized: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CompositeEligibilityMinInput {
+    #[serde(default)]
+    pub risk: Option<String>,
+    #[serde(default)]
+    pub execution_mode: Option<String>,
+    #[serde(default)]
+    pub base_min: f64,
+    #[serde(default)]
+    pub canary_low_risk_relax: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CompositeEligibilityMinOutput {
+    pub min_score: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ClampThresholdInput {
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub value: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ClampThresholdOutput {
+    pub threshold: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AppliedThresholdsInput {
+    #[serde(default)]
+    pub base: std::collections::BTreeMap<String, f64>,
+    #[serde(default)]
+    pub deltas: std::collections::BTreeMap<String, f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AppliedThresholdsOutput {
+    #[serde(default)]
+    pub thresholds: std::collections::BTreeMap<String, f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExtractEyeFromEvidenceRefInput {
+    #[serde(default)]
+    pub reference: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExtractEyeFromEvidenceRefOutput {
+    #[serde(default)]
+    pub eye_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TotalOutcomesInput {
+    #[serde(default)]
+    pub shipped: f64,
+    #[serde(default)]
+    pub no_change: f64,
+    #[serde(default)]
+    pub reverted: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TotalOutcomesOutput {
+    pub total: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DeriveEntityBiasInput {
+    #[serde(default)]
+    pub shipped: f64,
+    #[serde(default)]
+    pub no_change: f64,
+    #[serde(default)]
+    pub reverted: f64,
+    #[serde(default)]
+    pub min_total: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DeriveEntityBiasOutput {
+    pub bias: f64,
+    pub total: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecutionReserveSnapshotInput {
     pub cap: f64,
     pub used: f64,
@@ -2742,6 +2879,26 @@ pub struct AutoscaleRequest {
     pub policy_hold_reason_from_event_input: Option<PolicyHoldReasonFromEventInput>,
     #[serde(default)]
     pub strategy_marker_tokens_input: Option<StrategyMarkerTokensInput>,
+    #[serde(default)]
+    pub capability_cooldown_key_input: Option<CapabilityCooldownKeyInput>,
+    #[serde(default)]
+    pub readiness_retry_cooldown_key_input: Option<ReadinessRetryCooldownKeyInput>,
+    #[serde(default)]
+    pub source_eye_id_input: Option<SourceEyeIdInput>,
+    #[serde(default)]
+    pub deprioritized_source_proposal_input: Option<DeprioritizedSourceProposalInput>,
+    #[serde(default)]
+    pub composite_eligibility_min_input: Option<CompositeEligibilityMinInput>,
+    #[serde(default)]
+    pub clamp_threshold_input: Option<ClampThresholdInput>,
+    #[serde(default)]
+    pub applied_thresholds_input: Option<AppliedThresholdsInput>,
+    #[serde(default)]
+    pub extract_eye_from_evidence_ref_input: Option<ExtractEyeFromEvidenceRefInput>,
+    #[serde(default)]
+    pub total_outcomes_input: Option<TotalOutcomesInput>,
+    #[serde(default)]
+    pub derive_entity_bias_input: Option<DeriveEntityBiasInput>,
     #[serde(default)]
     pub execution_reserve_snapshot_input: Option<ExecutionReserveSnapshotInput>,
     #[serde(default)]
@@ -5941,6 +6098,186 @@ pub fn compute_strategy_marker_tokens(input: &StrategyMarkerTokensInput) -> Stra
     }
 }
 
+pub fn compute_capability_cooldown_key(input: &CapabilityCooldownKeyInput) -> CapabilityCooldownKeyOutput {
+    let raw = input
+        .capability_key
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    if raw.is_empty() {
+        return CapabilityCooldownKeyOutput {
+            cooldown_key: String::new(),
+        };
+    }
+    let normalized = Regex::new(r"[^a-z0-9:_-]")
+        .expect("valid capability cooldown key regex")
+        .replace_all(&raw, "_")
+        .to_string();
+    CapabilityCooldownKeyOutput {
+        cooldown_key: format!("capability:{normalized}"),
+    }
+}
+
+pub fn compute_readiness_retry_cooldown_key(
+    input: &ReadinessRetryCooldownKeyInput,
+) -> ReadinessRetryCooldownKeyOutput {
+    let sid = normalize_spaces(input.strategy_id.as_deref().unwrap_or(""))
+        .to_ascii_lowercase();
+    let sid = Regex::new(r"[^a-z0-9:_-]")
+        .expect("valid readiness strategy regex")
+        .replace_all(&sid, "_")
+        .to_string();
+    if sid.is_empty() {
+        return ReadinessRetryCooldownKeyOutput {
+            cooldown_key: String::new(),
+        };
+    }
+    let mode = normalize_spaces(input.execution_mode.as_deref().unwrap_or(""))
+        .to_ascii_lowercase();
+    let mode = Regex::new(r"[^a-z0-9:_-]")
+        .expect("valid readiness mode regex")
+        .replace_all(&mode, "_")
+        .to_string();
+    if mode.is_empty() {
+        return ReadinessRetryCooldownKeyOutput {
+            cooldown_key: format!("readiness:strategy:{sid}"),
+        };
+    }
+    ReadinessRetryCooldownKeyOutput {
+        cooldown_key: format!("readiness:strategy:{sid}:mode:{mode}"),
+    }
+}
+
+pub fn compute_source_eye_id(input: &SourceEyeIdInput) -> SourceEyeIdOutput {
+    let eye_ref = input.eye_ref.as_deref().unwrap_or("").trim();
+    let eye_id = eye_ref.strip_prefix("eye:").unwrap_or(eye_ref).to_string();
+    SourceEyeIdOutput { eye_id }
+}
+
+pub fn compute_deprioritized_source_proposal(
+    input: &DeprioritizedSourceProposalInput,
+) -> DeprioritizedSourceProposalOutput {
+    let eye_id = input
+        .eye_id
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    if eye_id.is_empty() {
+        return DeprioritizedSourceProposalOutput {
+            deprioritized: false,
+        };
+    }
+    let deprioritized = input
+        .deprioritized_eye_ids
+        .iter()
+        .any(|row| row.trim().eq_ignore_ascii_case(&eye_id));
+    DeprioritizedSourceProposalOutput { deprioritized }
+}
+
+pub fn compute_composite_eligibility_min(
+    input: &CompositeEligibilityMinInput,
+) -> CompositeEligibilityMinOutput {
+    let normalized = normalize_risk_level(input.risk.as_deref().unwrap_or(""));
+    let base_min = input.base_min;
+    if normalized != "low" || input.execution_mode.as_deref().unwrap_or("") != "canary_execute" {
+        return CompositeEligibilityMinOutput {
+            min_score: base_min,
+        };
+    }
+    let relax = input.canary_low_risk_relax.max(0.0);
+    CompositeEligibilityMinOutput {
+        min_score: (base_min - relax).max(55.0),
+    }
+}
+
+pub fn compute_clamp_threshold(input: &ClampThresholdInput) -> ClampThresholdOutput {
+    let name = input.name.as_deref().unwrap_or("").trim();
+    let (lo, hi) = match name {
+        "min_signal_quality" => (40.0, 90.0),
+        "min_sensory_signal_score" => (35.0, 85.0),
+        "min_sensory_relevance_score" => (35.0, 85.0),
+        "min_directive_fit" => (25.0, 90.0),
+        "min_actionability_score" => (30.0, 90.0),
+        "min_eye_score_ema" => (30.0, 90.0),
+        _ => (0.0, 100.0),
+    };
+    let rounded = if input.value.is_finite() {
+        input.value.round()
+    } else {
+        0.0
+    };
+    let threshold = rounded.max(lo).min(hi);
+    ClampThresholdOutput { threshold }
+}
+
+pub fn compute_applied_thresholds(input: &AppliedThresholdsInput) -> AppliedThresholdsOutput {
+    let mut out = std::collections::BTreeMap::new();
+    for (key, base_val) in input.base.iter() {
+        if !base_val.is_finite() {
+            continue;
+        }
+        let delta = input.deltas.get(key).copied().unwrap_or(0.0);
+        let clamped = compute_clamp_threshold(&ClampThresholdInput {
+            name: Some(key.clone()),
+            value: base_val + delta,
+        })
+        .threshold;
+        out.insert(key.clone(), clamped);
+    }
+    AppliedThresholdsOutput { thresholds: out }
+}
+
+pub fn compute_extract_eye_from_evidence_ref(
+    input: &ExtractEyeFromEvidenceRefInput,
+) -> ExtractEyeFromEvidenceRefOutput {
+    let text = input.reference.as_deref().unwrap_or("");
+    let re = Regex::new(r"\beye:([^\s]+)").expect("valid eye ref regex");
+    let eye_id = re
+        .captures(text)
+        .and_then(|caps| caps.get(1))
+        .map(|m| m.as_str().to_string());
+    ExtractEyeFromEvidenceRefOutput { eye_id }
+}
+
+pub fn compute_total_outcomes(input: &TotalOutcomesInput) -> TotalOutcomesOutput {
+    let total = input.shipped + input.no_change + input.reverted;
+    TotalOutcomesOutput { total }
+}
+
+pub fn compute_derive_entity_bias(input: &DeriveEntityBiasInput) -> DeriveEntityBiasOutput {
+    let total = compute_total_outcomes(&TotalOutcomesInput {
+        shipped: input.shipped,
+        no_change: input.no_change,
+        reverted: input.reverted,
+    })
+    .total;
+    if total < input.min_total {
+        return DeriveEntityBiasOutput { bias: 0.0, total };
+    }
+    let shipped_rate = if total > 0.0 { input.shipped / total } else { 0.0 };
+    let churn_rate = if total > 0.0 {
+        (input.no_change + input.reverted) / total
+    } else {
+        0.0
+    };
+    let bias = if shipped_rate >= 0.6 {
+        -3.0
+    } else if shipped_rate >= 0.45 {
+        -2.0
+    } else if churn_rate >= 0.8 {
+        5.0
+    } else if churn_rate >= 0.65 {
+        3.0
+    } else if churn_rate >= 0.5 {
+        1.0
+    } else {
+        0.0
+    };
+    DeriveEntityBiasOutput { bias, total }
+}
+
 pub fn compute_execution_reserve_snapshot(
     input: &ExecutionReserveSnapshotInput,
 ) -> ExecutionReserveSnapshotOutput {
@@ -8981,6 +9318,126 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_strategy_marker_tokens_encode_failed:{e}"));
+    }
+    if mode == "capability_cooldown_key" {
+        let input = request
+            .capability_cooldown_key_input
+            .ok_or_else(|| "autoscale_missing_capability_cooldown_key_input".to_string())?;
+        let out = compute_capability_cooldown_key(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "capability_cooldown_key",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_capability_cooldown_key_encode_failed:{e}"));
+    }
+    if mode == "readiness_retry_cooldown_key" {
+        let input = request
+            .readiness_retry_cooldown_key_input
+            .ok_or_else(|| "autoscale_missing_readiness_retry_cooldown_key_input".to_string())?;
+        let out = compute_readiness_retry_cooldown_key(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "readiness_retry_cooldown_key",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_readiness_retry_cooldown_key_encode_failed:{e}"));
+    }
+    if mode == "source_eye_id" {
+        let input = request
+            .source_eye_id_input
+            .ok_or_else(|| "autoscale_missing_source_eye_id_input".to_string())?;
+        let out = compute_source_eye_id(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "source_eye_id",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_source_eye_id_encode_failed:{e}"));
+    }
+    if mode == "deprioritized_source_proposal" {
+        let input = request
+            .deprioritized_source_proposal_input
+            .ok_or_else(|| "autoscale_missing_deprioritized_source_proposal_input".to_string())?;
+        let out = compute_deprioritized_source_proposal(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "deprioritized_source_proposal",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_deprioritized_source_proposal_encode_failed:{e}"));
+    }
+    if mode == "composite_eligibility_min" {
+        let input = request
+            .composite_eligibility_min_input
+            .ok_or_else(|| "autoscale_missing_composite_eligibility_min_input".to_string())?;
+        let out = compute_composite_eligibility_min(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "composite_eligibility_min",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_composite_eligibility_min_encode_failed:{e}"));
+    }
+    if mode == "clamp_threshold" {
+        let input = request
+            .clamp_threshold_input
+            .ok_or_else(|| "autoscale_missing_clamp_threshold_input".to_string())?;
+        let out = compute_clamp_threshold(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "clamp_threshold",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_clamp_threshold_encode_failed:{e}"));
+    }
+    if mode == "applied_thresholds" {
+        let input = request
+            .applied_thresholds_input
+            .ok_or_else(|| "autoscale_missing_applied_thresholds_input".to_string())?;
+        let out = compute_applied_thresholds(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "applied_thresholds",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_applied_thresholds_encode_failed:{e}"));
+    }
+    if mode == "extract_eye_from_evidence_ref" {
+        let input = request
+            .extract_eye_from_evidence_ref_input
+            .ok_or_else(|| "autoscale_missing_extract_eye_from_evidence_ref_input".to_string())?;
+        let out = compute_extract_eye_from_evidence_ref(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "extract_eye_from_evidence_ref",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_extract_eye_from_evidence_ref_encode_failed:{e}"));
+    }
+    if mode == "total_outcomes" {
+        let input = request
+            .total_outcomes_input
+            .ok_or_else(|| "autoscale_missing_total_outcomes_input".to_string())?;
+        let out = compute_total_outcomes(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "total_outcomes",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_total_outcomes_encode_failed:{e}"));
+    }
+    if mode == "derive_entity_bias" {
+        let input = request
+            .derive_entity_bias_input
+            .ok_or_else(|| "autoscale_missing_derive_entity_bias_input".to_string())?;
+        let out = compute_derive_entity_bias(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "derive_entity_bias",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_derive_entity_bias_encode_failed:{e}"));
     }
     if mode == "execution_reserve_snapshot" {
         let input = request
