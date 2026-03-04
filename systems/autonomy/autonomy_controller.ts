@@ -9204,6 +9204,85 @@ function assessActionability(p, directiveFit, thresholds) {
   ].join(' ')).toLowerCase();
   const hasRollbackSignal = ROLLBACK_SIGNAL_RE.test(rollbackBlob) || ROLLBACK_SIGNAL_RE.test(concreteBlob);
   const criteriaRequirementApplied = isExecutableProposal && criteriaPolicy.required;
+  const mentionsProposal = /\bproposals?\b/.test(concreteBlob);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'actionability_assessment',
+      {
+        min_actionability: minActionability,
+        risk,
+        impact,
+        validation_count: validation.length,
+        specific_validation_count: specificValidation.length,
+        has_next_cmd: !!nextCmd,
+        generic_route_task: genericRouteTask === true,
+        next_cmd_has_dry_run: nextCmd.includes('--dry-run'),
+        looks_like_discovery_cmd: /^open\s+["'][^"']+["']$/i.test(nextCmd),
+        has_action_verb: hasActionVerb === true,
+        has_opportunity: hasOpportunity === true,
+        has_concrete_target: hasConcreteTarget === true,
+        is_meta_coordination: isMetaCoordination === true,
+        is_explainer: isExplainer === true,
+        mentions_proposal: mentionsProposal === true,
+        relevance_score: Number.isFinite(relevance) ? relevance : null,
+        directive_fit_score: Number.isFinite(fitScore) ? fitScore : null,
+        criteria_requirement_applied: criteriaRequirementApplied === true,
+        criteria_exempt_type: criteriaPolicy.exempt_type === true,
+        criteria_min_count: Number(criteriaPolicy.min_count || 0),
+        measurable_criteria_count: measurableCriteriaCount,
+        criteria_total_count: criteriaRows.length,
+        criteria_pattern_penalty: Number(criteriaPatternPenalty.penalty || 0),
+        criteria_pattern_hits: Array.isArray(criteriaPatternPenalty.hit_patterns)
+          ? criteriaPatternPenalty.hit_patterns
+          : [],
+        is_executable_proposal: isExecutableProposal === true,
+        has_rollback_signal: hasRollbackSignal === true,
+        subdirective_required: subdirectiveV2.required === true,
+        subdirective_has_concrete_target: subdirectiveV2.has_concrete_target === true,
+        subdirective_has_expected_delta: subdirectiveV2.has_expected_delta === true,
+        subdirective_has_verification_step: subdirectiveV2.has_verification_step === true,
+        subdirective_target_count: Number(subdirectiveV2.target_count || 0),
+        subdirective_verify_count: Number(subdirectiveV2.verify_count || 0),
+        subdirective_success_criteria_count: Number(subdirectiveV2.success_criteria_count || 0)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      return {
+        pass: payload.pass === true,
+        score: Number(payload.score || 0),
+        reasons: Array.isArray(payload.reasons)
+          ? payload.reasons.map((x) => String(x || '')).filter(Boolean)
+          : [],
+        executable: payload.executable === true,
+        rollback_signal: payload.rollback_signal === true,
+        generic_next_command_template: payload.generic_next_command_template === true,
+        subdirective_v2: payload.subdirective_v2 && typeof payload.subdirective_v2 === 'object'
+          ? payload.subdirective_v2
+          : {
+              required: subdirectiveV2.required === true,
+              has_concrete_target: subdirectiveV2.has_concrete_target === true,
+              has_expected_delta: subdirectiveV2.has_expected_delta === true,
+              has_verification_step: subdirectiveV2.has_verification_step === true,
+              target_count: Number(subdirectiveV2.target_count || 0),
+              verify_count: Number(subdirectiveV2.verify_count || 0),
+              success_criteria_count: Number(subdirectiveV2.success_criteria_count || 0)
+            },
+        success_criteria: payload.success_criteria && typeof payload.success_criteria === 'object'
+          ? payload.success_criteria
+          : {
+              required: criteriaRequirementApplied,
+              exempt_type: criteriaPolicy.exempt_type === true,
+              min_count: criteriaPolicy.min_count,
+              measurable_count: measurableCriteriaCount,
+              total_count: criteriaRows.length,
+              pattern_penalty: criteriaPatternPenalty.penalty,
+              pattern_hits: criteriaPatternPenalty.hit_patterns
+            }
+      };
+    }
+  }
   const reasons = [];
   let score = 0;
   let hardBlock = false;
@@ -9267,7 +9346,7 @@ function assessActionability(p, directiveFit, thresholds) {
     score -= 26;
     reasons.push('meta_coordination_without_concrete_target');
   }
-  if (/\bproposals?\b/.test(concreteBlob) && !hasConcreteTarget && !hasOpportunity) {
+  if (mentionsProposal && !hasConcreteTarget && !hasOpportunity) {
     score -= 12;
     reasons.push('proposal_recursion_without_target');
   }
