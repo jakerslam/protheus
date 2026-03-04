@@ -5658,6 +5658,21 @@ function mediumRiskThresholds(baseThresholdsObj) {
 }
 
 function compositeEligibilityMin(risk, executionMode) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'composite_eligibility_min',
+      {
+        risk: risk == null ? null : String(risk),
+        execution_mode: executionMode == null ? null : String(executionMode),
+        base_min: Number(AUTONOMY_MIN_COMPOSITE_ELIGIBILITY),
+        canary_low_risk_relax: Number(AUTONOMY_CANARY_LOW_RISK_COMPOSITE_RELAX || 0)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Number(rust.payload.payload.min_score || 0);
+    }
+  }
   const normalized = normalizedRisk(risk);
   const baseMin = AUTONOMY_MIN_COMPOSITE_ELIGIBILITY;
   if (normalized !== 'low' || executionMode !== 'canary_execute') return baseMin;
@@ -5690,6 +5705,19 @@ function mediumRiskGateDecision(proposal, directiveFitScore, actionabilityScore,
 }
 
 function clampThreshold(name, n) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'clamp_threshold',
+      {
+        name: name == null ? null : String(name),
+        value: Number(n)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Number(rust.payload.payload.threshold || 0);
+    }
+  }
   const x = Number(n);
   const ranges = {
     min_signal_quality: [40, 90],
@@ -5704,6 +5732,45 @@ function clampThreshold(name, n) {
 }
 
 function appliedThresholds(base, deltas) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const bObj = base || baseThresholds();
+    const dObj = deltas || {};
+    const rust = runBacklogAutoscalePrimitive(
+      'applied_thresholds',
+      {
+        base: {
+          min_signal_quality: Number(bObj.min_signal_quality || 0),
+          min_sensory_signal_score: Number(bObj.min_sensory_signal_score || 0),
+          min_sensory_relevance_score: Number(bObj.min_sensory_relevance_score || 0),
+          min_directive_fit: Number(bObj.min_directive_fit || 0),
+          min_actionability_score: Number(bObj.min_actionability_score || 0),
+          min_eye_score_ema: Number(bObj.min_eye_score_ema || 0)
+        },
+        deltas: {
+          min_signal_quality: Number(dObj.min_signal_quality || 0),
+          min_sensory_signal_score: Number(dObj.min_sensory_signal_score || 0),
+          min_sensory_relevance_score: Number(dObj.min_sensory_relevance_score || 0),
+          min_directive_fit: Number(dObj.min_directive_fit || 0),
+          min_actionability_score: Number(dObj.min_actionability_score || 0),
+          min_eye_score_ema: Number(dObj.min_eye_score_ema || 0)
+        }
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const t = rust.payload.payload.thresholds && typeof rust.payload.payload.thresholds === 'object'
+        ? rust.payload.payload.thresholds
+        : {};
+      return {
+        min_signal_quality: Number(t.min_signal_quality || 0),
+        min_sensory_signal_score: Number(t.min_sensory_signal_score || 0),
+        min_sensory_relevance_score: Number(t.min_sensory_relevance_score || 0),
+        min_directive_fit: Number(t.min_directive_fit || 0),
+        min_actionability_score: Number(t.min_actionability_score || 0),
+        min_eye_score_ema: Number(t.min_eye_score_ema || 0)
+      };
+    }
+  }
   const b = base || baseThresholds();
   const d = deltas || {};
   return {
@@ -5757,11 +5824,42 @@ function outcomeBuckets() {
 }
 
 function totalOutcomes(b) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const row = b && typeof b === 'object' ? b : {};
+    const rust = runBacklogAutoscalePrimitive(
+      'total_outcomes',
+      {
+        shipped: Number(row.shipped || 0),
+        no_change: Number(row.no_change || 0),
+        reverted: Number(row.reverted || 0)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Number(rust.payload.payload.total || 0);
+    }
+  }
   if (!b) return 0;
   return Number(b.shipped || 0) + Number(b.no_change || 0) + Number(b.reverted || 0);
 }
 
 function deriveEntityBias(buckets, minTotal) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const row = buckets && typeof buckets === 'object' ? buckets : {};
+    const rust = runBacklogAutoscalePrimitive(
+      'derive_entity_bias',
+      {
+        shipped: Number(row.shipped || 0),
+        no_change: Number(row.no_change || 0),
+        reverted: Number(row.reverted || 0),
+        min_total: Number(minTotal || 0)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Number(rust.payload.payload.bias || 0);
+    }
+  }
   const total = totalOutcomes(buckets);
   if (total < minTotal) return 0;
   const shippedRate = Number(buckets.shipped || 0) / total;
@@ -19738,6 +19836,7 @@ module.exports = {
   assessDirectivePulse,
   qosLaneFromCandidate,
   chooseQosLaneSelection,
+  compositeEligibilityMin,
   qosLaneWeights,
   qosLaneShareCapExceeded,
   normalizeQueuePressure,
@@ -19815,5 +19914,9 @@ module.exports = {
   sortedCounts,
   sourceEyeId,
   isDeprioritizedSourceProposal,
-  extractEyeFromEvidenceRef
+  extractEyeFromEvidenceRef,
+  clampThreshold,
+  appliedThresholds,
+  totalOutcomes,
+  deriveEntityBias
 };
