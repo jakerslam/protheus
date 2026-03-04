@@ -2764,6 +2764,19 @@ pub struct StrategyThresholdOverridesOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EffectiveAllowedRisksInput {
+    #[serde(default)]
+    pub default_risks: Vec<String>,
+    #[serde(default)]
+    pub strategy_allowed_risks: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EffectiveAllowedRisksOutput {
+    pub risks: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -3948,6 +3961,8 @@ pub struct AutoscaleRequest {
     pub criteria_pattern_penalty_input: Option<CriteriaPatternPenaltyInput>,
     #[serde(default)]
     pub strategy_threshold_overrides_input: Option<StrategyThresholdOverridesInput>,
+    #[serde(default)]
+    pub effective_allowed_risks_input: Option<EffectiveAllowedRisksInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -8704,6 +8719,30 @@ pub fn compute_strategy_threshold_overrides(
     }
 }
 
+pub fn compute_effective_allowed_risks(input: &EffectiveAllowedRisksInput) -> EffectiveAllowedRisksOutput {
+    let normalize = |rows: &[String]| -> Vec<String> {
+        let mut out = Vec::<String>::new();
+        let mut seen = std::collections::BTreeSet::<String>::new();
+        for row in rows {
+            let v = row.trim().to_lowercase();
+            if v.is_empty() || !seen.insert(v.clone()) {
+                continue;
+            }
+            out.push(v);
+        }
+        out
+    };
+    let defaults = normalize(&input.default_risks);
+    let from_strategy = normalize(&input.strategy_allowed_risks);
+    EffectiveAllowedRisksOutput {
+        risks: if from_strategy.is_empty() {
+            defaults
+        } else {
+            from_strategy
+        },
+    }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -12411,6 +12450,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_strategy_threshold_overrides_encode_failed:{e}"));
+    }
+    if mode == "effective_allowed_risks" {
+        let input = request
+            .effective_allowed_risks_input
+            .ok_or_else(|| "autoscale_missing_effective_allowed_risks_input".to_string())?;
+        let out = compute_effective_allowed_risks(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "effective_allowed_risks",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_effective_allowed_risks_encode_failed:{e}"));
     }
     if mode == "is_directive_clarification_proposal" {
         let input = request
@@ -17983,6 +18034,29 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale strategy_threshold_overrides");
         assert!(out.contains("\"mode\":\"strategy_threshold_overrides\""));
+    }
+
+    #[test]
+    fn effective_allowed_risks_prefers_strategy_list() {
+        let out = compute_effective_allowed_risks(&EffectiveAllowedRisksInput {
+            default_risks: vec!["low".to_string(), "medium".to_string()],
+            strategy_allowed_risks: vec!["high".to_string()],
+        });
+        assert_eq!(out.risks, vec!["high".to_string()]);
+    }
+
+    #[test]
+    fn autoscale_json_effective_allowed_risks_path_works() {
+        let payload = serde_json::json!({
+            "mode": "effective_allowed_risks",
+            "effective_allowed_risks_input": {
+                "default_risks": ["low","medium"],
+                "strategy_allowed_risks": ["high"]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale effective_allowed_risks");
+        assert!(out.contains("\"mode\":\"effective_allowed_risks\""));
     }
 
     #[test]

@@ -5937,7 +5937,30 @@ function baseThresholds(strategyOverride = null) {
 }
 
 function effectiveAllowedRisksSet(strategyOverride = null) {
-  return effectiveAllowedRisks(AUTONOMY_ALLOWED_RISKS, strategyOverride || strategyProfile());
+  const strategy = strategyOverride || strategyProfile();
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const allowed = strategy
+      && strategy.risk_policy
+      && Array.isArray(strategy.risk_policy.allowed_risks)
+        ? strategy.risk_policy.allowed_risks
+        : [];
+    const rust = runBacklogAutoscalePrimitive(
+      'effective_allowed_risks',
+      {
+        default_risks: Array.from(AUTONOMY_ALLOWED_RISKS || []),
+        strategy_allowed_risks: allowed.map((x) => String(x || ''))
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return new Set(
+        Array.isArray(rust.payload.payload.risks)
+          ? rust.payload.payload.risks.map((x) => String(x || '')).filter(Boolean)
+          : []
+      );
+    }
+  }
+  return effectiveAllowedRisks(AUTONOMY_ALLOWED_RISKS, strategy);
 }
 
 function mediumRiskThresholds(baseThresholdsObj) {
@@ -20637,6 +20660,7 @@ module.exports = {
   mediumRiskThresholds,
   mediumRiskGateDecision,
   baseThresholds,
+  effectiveAllowedRisksSet,
   qosLaneWeights,
   qosLaneShareCapExceeded,
   normalizeQueuePressure,
