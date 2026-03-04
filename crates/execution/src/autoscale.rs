@@ -4849,6 +4849,177 @@ pub struct InversionMaturityScoreOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DefaultCriteriaPatternMemoryInput {}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DefaultCriteriaPatternMemoryOutput {
+    pub version: String,
+    pub updated_at: Option<String>,
+    pub patterns: std::collections::BTreeMap<String, serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyExecutionModeEffectiveInput {
+    #[serde(default)]
+    pub strategy_mode: Option<String>,
+    #[serde(default)]
+    pub fallback: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyExecutionModeEffectiveOutput {
+    pub mode: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyCanaryExecLimitEffectiveInput {
+    #[serde(default)]
+    pub strategy_limit: Option<serde_json::Value>,
+    #[serde(default)]
+    pub fallback: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyCanaryExecLimitEffectiveOutput {
+    #[serde(default)]
+    pub limit: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyExplorationEffectiveInput {
+    #[serde(default)]
+    pub strategy_exploration: Option<serde_json::Value>,
+    #[serde(default)]
+    pub default_fraction: Option<f64>,
+    #[serde(default)]
+    pub default_every_n: Option<f64>,
+    #[serde(default)]
+    pub default_min_eligible: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyExplorationEffectiveOutput {
+    pub fraction: f64,
+    pub every_n: f64,
+    pub min_eligible: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyBudgetEffectiveInput {
+    #[serde(default)]
+    pub caps: Option<serde_json::Value>,
+    #[serde(default)]
+    pub hard_runs: Option<f64>,
+    #[serde(default)]
+    pub hard_tokens: Option<f64>,
+    #[serde(default)]
+    pub hard_per_action: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyBudgetEffectiveOutput {
+    pub budget: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PreexecVerdictFromSignalsInput {
+    #[serde(default)]
+    pub blockers: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub signals: Option<serde_json::Value>,
+    #[serde(default)]
+    pub next_runnable_at: Option<String>,
+    #[serde(default)]
+    pub now_iso: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PreexecVerdictFromSignalsOutput {
+    pub verdict: String,
+    pub confidence: f64,
+    pub blocker_count: u32,
+    pub blocker_codes: Vec<String>,
+    pub manual_action_required: bool,
+    #[serde(default)]
+    pub next_runnable_at: Option<String>,
+    pub signals: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ScoreOnlyProposalChurnInput {
+    #[serde(default)]
+    pub prior_runs: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub proposal_id: Option<String>,
+    #[serde(default)]
+    pub window_hours: Option<f64>,
+    #[serde(default)]
+    pub now_ms: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ScoreOnlyProposalChurnOutput {
+    pub count: u32,
+    pub streak: u32,
+    #[serde(default)]
+    pub first_ts: Option<String>,
+    #[serde(default)]
+    pub last_ts: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SuccessCriteriaQualityAuditInput {
+    #[serde(default)]
+    pub verification: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SuccessCriteriaQualityAuditOutput {
+    pub verification: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DetectEyesTerminologyDriftInput {
+    #[serde(default)]
+    pub proposals: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub tool_capability_tokens: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DetectEyesTerminologyDriftWarning {
+    #[serde(default)]
+    pub proposal_id: Option<String>,
+    pub reason: String,
+    pub matched_tools: Vec<String>,
+    pub sample: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DetectEyesTerminologyDriftOutput {
+    pub warnings: Vec<DetectEyesTerminologyDriftWarning>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizeStoredProposalRowInput {
+    #[serde(default)]
+    pub proposal: Option<serde_json::Value>,
+    #[serde(default)]
+    pub fallback: Option<String>,
+    #[serde(default)]
+    pub proposal_type: Option<String>,
+    #[serde(default)]
+    pub proposal_type_source: Option<String>,
+    #[serde(default)]
+    pub proposal_type_inferred: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizeStoredProposalRowOutput {
+    pub proposal: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AutoscaleRequest {
     pub mode: String,
     #[serde(default)]
@@ -5340,6 +5511,27 @@ pub struct AutoscaleRequest {
     pub spawn_capacity_boost_snapshot_input: Option<SpawnCapacityBoostSnapshotInput>,
     #[serde(default)]
     pub inversion_maturity_score_input: Option<InversionMaturityScoreInput>,
+    #[serde(default)]
+    pub default_criteria_pattern_memory_input: Option<DefaultCriteriaPatternMemoryInput>,
+    #[serde(default)]
+    pub strategy_execution_mode_effective_input: Option<StrategyExecutionModeEffectiveInput>,
+    #[serde(default)]
+    pub strategy_canary_exec_limit_effective_input:
+        Option<StrategyCanaryExecLimitEffectiveInput>,
+    #[serde(default)]
+    pub strategy_exploration_effective_input: Option<StrategyExplorationEffectiveInput>,
+    #[serde(default)]
+    pub strategy_budget_effective_input: Option<StrategyBudgetEffectiveInput>,
+    #[serde(default)]
+    pub preexec_verdict_from_signals_input: Option<PreexecVerdictFromSignalsInput>,
+    #[serde(default)]
+    pub score_only_proposal_churn_input: Option<ScoreOnlyProposalChurnInput>,
+    #[serde(default)]
+    pub success_criteria_quality_audit_input: Option<SuccessCriteriaQualityAuditInput>,
+    #[serde(default)]
+    pub detect_eyes_terminology_drift_input: Option<DetectEyesTerminologyDriftInput>,
+    #[serde(default)]
+    pub normalize_stored_proposal_row_input: Option<NormalizeStoredProposalRowInput>,
 }
 
 fn clamp_ratio(v: f64) -> f64 {
@@ -14416,10 +14608,728 @@ pub fn compute_inversion_maturity_score(
     }
 }
 
+pub fn compute_default_criteria_pattern_memory(
+    _input: &DefaultCriteriaPatternMemoryInput,
+) -> DefaultCriteriaPatternMemoryOutput {
+    DefaultCriteriaPatternMemoryOutput {
+        version: "1.0".to_string(),
+        updated_at: None,
+        patterns: std::collections::BTreeMap::new(),
+    }
+}
+
+pub fn compute_strategy_execution_mode_effective(
+    input: &StrategyExecutionModeEffectiveInput,
+) -> StrategyExecutionModeEffectiveOutput {
+    let mode_raw = input
+        .strategy_mode
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    let fallback_raw = input
+        .fallback
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    let fallback_mode = if fallback_raw == "score_only" {
+        "score_only"
+    } else if fallback_raw == "canary_execute" {
+        "canary_execute"
+    } else {
+        "execute"
+    };
+    let mode = if mode_raw == "score_only" {
+        "score_only"
+    } else if mode_raw == "canary_execute" {
+        "canary_execute"
+    } else if mode_raw == "execute" {
+        "execute"
+    } else {
+        fallback_mode
+    };
+    StrategyExecutionModeEffectiveOutput {
+        mode: mode.to_string(),
+    }
+}
+
+pub fn compute_strategy_canary_exec_limit_effective(
+    input: &StrategyCanaryExecLimitEffectiveInput,
+) -> StrategyCanaryExecLimitEffectiveOutput {
+    let from_strategy = js_like_number(input.strategy_limit.as_ref());
+    let from_fallback = input.fallback;
+    let choose = from_strategy.or(from_fallback).and_then(|value| {
+        if !value.is_finite() || value <= 0.0 {
+            None
+        } else {
+            Some(value.round().clamp(1.0, 20.0))
+        }
+    });
+    StrategyCanaryExecLimitEffectiveOutput { limit: choose }
+}
+
+pub fn compute_strategy_exploration_effective(
+    input: &StrategyExplorationEffectiveInput,
+) -> StrategyExplorationEffectiveOutput {
+    let default_fraction = input.default_fraction.unwrap_or(0.25);
+    let default_every_n = input.default_every_n.unwrap_or(3.0);
+    let default_min_eligible = input.default_min_eligible.unwrap_or(3.0);
+    let strategy_obj = input
+        .strategy_exploration
+        .as_ref()
+        .and_then(|value| value.as_object());
+    if strategy_obj.is_none() {
+        return StrategyExplorationEffectiveOutput {
+            fraction: default_fraction,
+            every_n: default_every_n,
+            min_eligible: default_min_eligible,
+        };
+    }
+    let strategy_obj = strategy_obj.expect("checked is_some");
+    StrategyExplorationEffectiveOutput {
+        fraction: js_like_number(strategy_obj.get("fraction")).unwrap_or(default_fraction),
+        every_n: js_like_number(strategy_obj.get("every_n")).unwrap_or(default_every_n),
+        min_eligible: js_like_number(strategy_obj.get("min_eligible"))
+            .unwrap_or(default_min_eligible),
+    }
+}
+
+pub fn compute_strategy_budget_effective(
+    input: &StrategyBudgetEffectiveInput,
+) -> StrategyBudgetEffectiveOutput {
+    let mut budget = input
+        .caps
+        .as_ref()
+        .and_then(|value| value.as_object())
+        .cloned()
+        .unwrap_or_default();
+    let hard_runs = input
+        .hard_runs
+        .filter(|v| v.is_finite() && *v > 0.0);
+    let hard_tokens = input
+        .hard_tokens
+        .filter(|v| v.is_finite() && *v > 0.0);
+    let hard_per_action = input
+        .hard_per_action
+        .filter(|v| v.is_finite() && *v > 0.0);
+
+    if let Some(hard) = hard_runs {
+        if let Some(current) = js_like_number(budget.get("daily_runs_cap")) {
+            budget.insert(
+                "daily_runs_cap".to_string(),
+                serde_json::Value::from(current.min(hard)),
+            );
+        }
+    }
+    if let Some(hard) = hard_tokens {
+        if let Some(current) = js_like_number(budget.get("daily_token_cap")) {
+            budget.insert(
+                "daily_token_cap".to_string(),
+                serde_json::Value::from(current.min(hard)),
+            );
+        }
+    }
+    if let Some(hard) = hard_per_action {
+        if let Some(current) = js_like_number(budget.get("max_tokens_per_action")) {
+            budget.insert(
+                "max_tokens_per_action".to_string(),
+                serde_json::Value::from(current.min(hard)),
+            );
+        }
+    }
+
+    StrategyBudgetEffectiveOutput {
+        budget: serde_json::Value::Object(budget),
+    }
+}
+
+pub fn compute_preexec_verdict_from_signals(
+    input: &PreexecVerdictFromSignalsInput,
+) -> PreexecVerdictFromSignalsOutput {
+    let blocker_rows = input
+        .blockers
+        .iter()
+        .filter(|row| row.is_object())
+        .collect::<Vec<_>>();
+    let blocker_codes = blocker_rows
+        .iter()
+        .filter_map(|row| {
+            row.as_object()
+                .and_then(|obj| obj.get("code"))
+                .map(js_like_string)
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty())
+        })
+        .take(16)
+        .collect::<Vec<_>>();
+    let manual_action_required = blocker_rows.iter().any(|row| {
+        row.as_object()
+            .and_then(|obj| obj.get("retryable"))
+            .map(|value| value != &serde_json::Value::Bool(true))
+            .unwrap_or(true)
+    });
+    let retryable_only = !blocker_rows.is_empty()
+        && blocker_rows.iter().all(|row| {
+            row.as_object()
+                .and_then(|obj| obj.get("retryable"))
+                .map(|value| value == &serde_json::Value::Bool(true))
+                .unwrap_or(false)
+        });
+    let mut verdict = "proceed".to_string();
+    if !blocker_rows.is_empty() {
+        verdict = if manual_action_required {
+            "reject".to_string()
+        } else if retryable_only {
+            "defer".to_string()
+        } else {
+            "reject".to_string()
+        };
+    }
+
+    let signals = input
+        .signals
+        .clone()
+        .filter(|value| value.is_object())
+        .unwrap_or_else(|| serde_json::json!({}));
+    let signal_rows = signals
+        .as_object()
+        .cloned()
+        .unwrap_or_default()
+        .into_values()
+        .collect::<Vec<_>>();
+    let mut fail_count = 0.0;
+    let mut warn_count = 0.0;
+    for row in signal_rows {
+        let status = compute_normalized_signal_status(&NormalizedSignalStatusInput {
+            value: row
+                .as_object()
+                .and_then(|obj| obj.get("status"))
+                .map(js_like_string),
+            fallback: Some("unknown".to_string()),
+        })
+        .status;
+        if status == "fail" {
+            fail_count += 1.0;
+        } else if status == "warn" {
+            warn_count += 1.0;
+        }
+    }
+    let blocker_penalty = if blocker_rows.is_empty() {
+        0.0
+    } else {
+        (blocker_rows.len() as f64 * 0.06).min(0.42)
+    };
+    let mut confidence = 1.0 - (fail_count * 0.22) - (warn_count * 0.08) - blocker_penalty;
+    confidence = confidence.clamp(0.05, 1.0);
+    if verdict == "reject" {
+        confidence = confidence.min(0.49);
+    }
+    if verdict == "defer" {
+        confidence = confidence.min(0.69);
+    }
+    let confidence = ((confidence * 1000.0).round()) / 1000.0;
+    let next_runnable_at = if verdict == "proceed" {
+        Some(
+            compute_now_iso(&NowIsoInput {
+            now_iso: input.now_iso.clone(),
+        })
+            .value,
+        )
+    } else {
+        input
+            .next_runnable_at
+            .as_ref()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+    };
+    PreexecVerdictFromSignalsOutput {
+        verdict,
+        confidence,
+        blocker_count: blocker_rows.len() as u32,
+        blocker_codes,
+        manual_action_required,
+        next_runnable_at,
+        signals,
+    }
+}
+
+pub fn compute_score_only_proposal_churn(
+    input: &ScoreOnlyProposalChurnInput,
+) -> ScoreOnlyProposalChurnOutput {
+    let proposal_id = input
+        .proposal_id
+        .as_ref()
+        .map(|value| value.trim().to_string())
+        .unwrap_or_default();
+    if proposal_id.is_empty() {
+        return ScoreOnlyProposalChurnOutput {
+            count: 0,
+            streak: 0,
+            first_ts: None,
+            last_ts: None,
+        };
+    }
+    let now_ms = input
+        .now_ms
+        .filter(|value| value.is_finite())
+        .unwrap_or_else(|| Utc::now().timestamp_millis() as f64);
+    let window_ms = input
+        .window_hours
+        .filter(|value| value.is_finite())
+        .unwrap_or(1.0)
+        .max(1.0)
+        * 3_600_000.0;
+    let cutoff_ms = now_ms - window_ms;
+
+    let mut matches = Vec::<(i64, serde_json::Value)>::new();
+    for evt in &input.prior_runs {
+        let Some(obj) = evt.as_object() else {
+            continue;
+        };
+        let event_type = obj
+            .get("type")
+            .map(js_like_string)
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        if event_type != "autonomy_run" {
+            continue;
+        }
+        let pid = obj
+            .get("proposal_id")
+            .map(js_like_string)
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        if pid != proposal_id {
+            continue;
+        }
+        let ts_raw = obj
+            .get("ts")
+            .map(js_like_string)
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        if ts_raw.is_empty() {
+            continue;
+        }
+        let parsed = compute_parse_iso_ts(&ParseIsoTsInput {
+            ts: Some(ts_raw.clone()),
+        });
+        let Some(ts_ms) = parsed.timestamp_ms else {
+            continue;
+        };
+        if ts_ms < cutoff_ms {
+            continue;
+        }
+        let failure_like = compute_score_only_failure_like(&ScoreOnlyFailureLikeInput {
+            event_type: Some(event_type),
+            result: Some(obj.get("result").map(js_like_string).unwrap_or_default()),
+            preview_verification_present: Some(obj.get("preview_verification").is_some()),
+            preview_verification_passed: obj
+                .get("preview_verification")
+                .and_then(|row| row.as_object())
+                .and_then(|map| map.get("passed"))
+                .and_then(|value| value.as_bool()),
+            preview_verification_outcome: obj
+                .get("preview_verification")
+                .and_then(|row| row.as_object())
+                .and_then(|map| map.get("outcome"))
+                .map(js_like_string),
+        });
+        if !failure_like.is_failure_like {
+            continue;
+        }
+        matches.push((ts_ms as i64, evt.clone()));
+    }
+    matches.sort_by(|a, b| a.0.cmp(&b.0));
+    let mut streak: u32 = 0;
+    for (_, evt) in matches.iter().rev() {
+        let Some(obj) = evt.as_object() else {
+            break;
+        };
+        let failure_like = compute_score_only_failure_like(&ScoreOnlyFailureLikeInput {
+            event_type: Some(obj.get("type").map(js_like_string).unwrap_or_default()),
+            result: Some(obj.get("result").map(js_like_string).unwrap_or_default()),
+            preview_verification_present: Some(obj.get("preview_verification").is_some()),
+            preview_verification_passed: obj
+                .get("preview_verification")
+                .and_then(|row| row.as_object())
+                .and_then(|map| map.get("passed"))
+                .and_then(|value| value.as_bool()),
+            preview_verification_outcome: obj
+                .get("preview_verification")
+                .and_then(|row| row.as_object())
+                .and_then(|map| map.get("outcome"))
+                .map(js_like_string),
+        });
+        if !failure_like.is_failure_like {
+            break;
+        }
+        streak += 1;
+    }
+    let first_ts = matches
+        .first()
+        .and_then(|(ms, _)| DateTime::<Utc>::from_timestamp_millis(*ms))
+        .map(|dt| dt.to_rfc3339_opts(SecondsFormat::Millis, true));
+    let last_ts = matches
+        .last()
+        .and_then(|(ms, _)| DateTime::<Utc>::from_timestamp_millis(*ms))
+        .map(|dt| dt.to_rfc3339_opts(SecondsFormat::Millis, true));
+    ScoreOnlyProposalChurnOutput {
+        count: matches.len() as u32,
+        streak,
+        first_ts,
+        last_ts,
+    }
+}
+
+pub fn compute_success_criteria_quality_audit(
+    input: &SuccessCriteriaQualityAuditInput,
+) -> SuccessCriteriaQualityAuditOutput {
+    let base = input
+        .verification
+        .clone()
+        .filter(|value| value.is_object())
+        .unwrap_or_else(|| serde_json::json!({}));
+    let Some(base_obj) = base.as_object() else {
+        return SuccessCriteriaQualityAuditOutput { verification: base };
+    };
+    let criteria = base_obj
+        .get("success_criteria")
+        .and_then(|value| value.as_object());
+    if criteria.is_none() {
+        let mut out = base_obj.clone();
+        out.insert("criteria_quality".to_string(), serde_json::Value::Null);
+        out.insert(
+            "criteria_quality_insufficient".to_string(),
+            serde_json::Value::Bool(false),
+        );
+        return SuccessCriteriaQualityAuditOutput {
+            verification: serde_json::Value::Object(out),
+        };
+    }
+    let criteria = criteria.expect("checked is_some");
+    let checks = criteria
+        .get("checks")
+        .and_then(|value| value.as_array())
+        .map(|rows| {
+            rows.iter()
+                .map(|row| {
+                    let obj = row.as_object();
+                    AssessSuccessCriteriaQualityCheckInput {
+                        evaluated: obj
+                            .and_then(|map| map.get("evaluated"))
+                            .and_then(|value| value.as_bool())
+                            .unwrap_or(false),
+                        reason: obj.and_then(|map| {
+                            map.get("reason")
+                                .map(js_like_string)
+                                .map(|value| value.trim().to_string())
+                                .filter(|value| !value.is_empty())
+                        }),
+                    }
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let quality = compute_assess_success_criteria_quality(&AssessSuccessCriteriaQualityInput {
+        checks,
+        total_count: criteria
+            .get("total_count")
+            .and_then(|value| value.as_f64())
+            .unwrap_or(0.0),
+        unknown_count: criteria
+            .get("unknown_count")
+            .and_then(|value| value.as_f64())
+            .unwrap_or(0.0),
+        synthesized: criteria
+            .get("synthesized")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false),
+    });
+    let quality_json = serde_json::to_value(&quality).unwrap_or_else(|_| serde_json::json!({}));
+    let mut out = base_obj.clone();
+    out.insert("criteria_quality".to_string(), quality_json);
+    out.insert(
+        "criteria_quality_insufficient".to_string(),
+        serde_json::Value::Bool(quality.insufficient),
+    );
+    SuccessCriteriaQualityAuditOutput {
+        verification: serde_json::Value::Object(out),
+    }
+}
+
+pub fn compute_detect_eyes_terminology_drift(
+    input: &DetectEyesTerminologyDriftInput,
+) -> DetectEyesTerminologyDriftOutput {
+    let mut warnings = Vec::<DetectEyesTerminologyDriftWarning>::new();
+    let mut seen = std::collections::BTreeSet::<String>::new();
+    for proposal in &input.proposals {
+        let proposal_obj = proposal.as_object();
+        if proposal_obj.is_none() {
+            continue;
+        }
+        let proposal_obj = proposal_obj.expect("checked is_some");
+        let evidence = proposal_obj
+            .get("evidence")
+            .and_then(|value| value.as_array())
+            .map(|rows| {
+                rows.iter()
+                    .filter_map(|row| row.as_object())
+                    .map(|row| ProposalTextBlobEvidenceEntryInput {
+                        evidence_ref: row.get("evidence_ref").map(js_like_string),
+                        path: row.get("path").map(js_like_string),
+                        title: row.get("title").map(js_like_string),
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let blob = compute_proposal_text_blob(&ProposalTextBlobInput {
+            title: proposal_obj.get("title").map(js_like_string),
+            summary: proposal_obj.get("summary").map(js_like_string),
+            suggested_next_command: proposal_obj.get("suggested_next_command").map(js_like_string),
+            suggested_command: proposal_obj.get("suggested_command").map(js_like_string),
+            notes: proposal_obj.get("notes").map(js_like_string),
+            evidence,
+        })
+        .blob;
+        if blob.is_empty() || !Regex::new(r"\beye\b|\beyes\b").expect("valid eye regex").is_match(&blob)
+        {
+            continue;
+        }
+        let mut matched_tools = Vec::<String>::new();
+        for token in &input.tool_capability_tokens {
+            let mentioned = compute_tool_token_mentioned(&ToolTokenMentionedInput {
+                blob: Some(blob.clone()),
+                token: Some(token.clone()),
+            });
+            if mentioned.mentioned {
+                matched_tools.push(token.clone());
+            }
+        }
+        if matched_tools.is_empty() {
+            continue;
+        }
+        let proposal_id = proposal_obj
+            .get("id")
+            .map(js_like_string)
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
+        let dedup_key = format!(
+            "{}:{}",
+            proposal_id.clone().unwrap_or_else(|| "unknown".to_string()),
+            matched_tools.join(",")
+        );
+        if !seen.insert(dedup_key) {
+            continue;
+        }
+        let sample = proposal_obj.get("title").map(js_like_string).unwrap_or_default();
+        let sample = normalize_spaces(&sample);
+        let sample = sample.chars().take(140).collect::<String>();
+        warnings.push(DetectEyesTerminologyDriftWarning {
+            proposal_id,
+            reason: "tools_labeled_as_eyes".to_string(),
+            matched_tools: matched_tools.into_iter().take(5).collect(),
+            sample,
+        });
+        if warnings.len() >= 5 {
+            break;
+        }
+    }
+    DetectEyesTerminologyDriftOutput { warnings }
+}
+
+pub fn compute_normalize_stored_proposal_row(
+    input: &NormalizeStoredProposalRowInput,
+) -> NormalizeStoredProposalRowOutput {
+    let Some(raw) = input.proposal.as_ref() else {
+        return NormalizeStoredProposalRowOutput {
+            proposal: serde_json::Value::Null,
+        };
+    };
+    let Some(raw_obj) = raw.as_object() else {
+        return NormalizeStoredProposalRowOutput {
+            proposal: raw.clone(),
+        };
+    };
+    let mut next = raw_obj.clone();
+    let fallback = input
+        .fallback
+        .as_ref()
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "pending".to_string());
+    let normalized_status = compute_normalize_proposal_status(&NormalizeProposalStatusInput {
+        raw_status: next.get("status").map(js_like_string),
+        fallback: Some(fallback),
+    })
+    .normalized_status;
+    next.insert(
+        "status".to_string(),
+        serde_json::Value::String(normalized_status),
+    );
+    let normalized_type = input
+        .proposal_type
+        .as_ref()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "local_state_fallback".to_string());
+    next.insert(
+        "type".to_string(),
+        serde_json::Value::String(normalized_type.clone()),
+    );
+    let mut meta = next
+        .get("meta")
+        .and_then(|value| value.as_object())
+        .cloned()
+        .unwrap_or_default();
+    meta.insert(
+        "normalized_proposal_type".to_string(),
+        serde_json::Value::String(normalized_type),
+    );
+    meta.insert(
+        "proposal_type_source".to_string(),
+        serde_json::Value::String(
+            input
+                .proposal_type_source
+                .as_ref()
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+        ),
+    );
+    meta.insert(
+        "proposal_type_inferred".to_string(),
+        serde_json::Value::Bool(input.proposal_type_inferred.unwrap_or(false)),
+    );
+    next.insert("meta".to_string(), serde_json::Value::Object(meta));
+    NormalizeStoredProposalRowOutput {
+        proposal: serde_json::Value::Object(next),
+    }
+}
+
 pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     let request: AutoscaleRequest = serde_json::from_str(payload_json)
         .map_err(|e| format!("autoscale_request_parse_failed:{e}"))?;
     let mode = request.mode.to_ascii_lowercase();
+    if mode == "default_criteria_pattern_memory" {
+        let input = request
+            .default_criteria_pattern_memory_input
+            .ok_or_else(|| "autoscale_missing_default_criteria_pattern_memory_input".to_string())?;
+        let out = compute_default_criteria_pattern_memory(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "default_criteria_pattern_memory",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_default_criteria_pattern_memory_encode_failed:{e}"));
+    }
+    if mode == "strategy_execution_mode_effective" {
+        let input = request
+            .strategy_execution_mode_effective_input
+            .ok_or_else(|| "autoscale_missing_strategy_execution_mode_effective_input".to_string())?;
+        let out = compute_strategy_execution_mode_effective(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "strategy_execution_mode_effective",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_strategy_execution_mode_effective_encode_failed:{e}"));
+    }
+    if mode == "strategy_canary_exec_limit_effective" {
+        let input = request
+            .strategy_canary_exec_limit_effective_input
+            .ok_or_else(|| "autoscale_missing_strategy_canary_exec_limit_effective_input".to_string())?;
+        let out = compute_strategy_canary_exec_limit_effective(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "strategy_canary_exec_limit_effective",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_strategy_canary_exec_limit_effective_encode_failed:{e}"));
+    }
+    if mode == "strategy_exploration_effective" {
+        let input = request
+            .strategy_exploration_effective_input
+            .ok_or_else(|| "autoscale_missing_strategy_exploration_effective_input".to_string())?;
+        let out = compute_strategy_exploration_effective(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "strategy_exploration_effective",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_strategy_exploration_effective_encode_failed:{e}"));
+    }
+    if mode == "strategy_budget_effective" {
+        let input = request
+            .strategy_budget_effective_input
+            .ok_or_else(|| "autoscale_missing_strategy_budget_effective_input".to_string())?;
+        let out = compute_strategy_budget_effective(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "strategy_budget_effective",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_strategy_budget_effective_encode_failed:{e}"));
+    }
+    if mode == "preexec_verdict_from_signals" {
+        let input = request
+            .preexec_verdict_from_signals_input
+            .ok_or_else(|| "autoscale_missing_preexec_verdict_from_signals_input".to_string())?;
+        let out = compute_preexec_verdict_from_signals(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "preexec_verdict_from_signals",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_preexec_verdict_from_signals_encode_failed:{e}"));
+    }
+    if mode == "score_only_proposal_churn" {
+        let input = request
+            .score_only_proposal_churn_input
+            .ok_or_else(|| "autoscale_missing_score_only_proposal_churn_input".to_string())?;
+        let out = compute_score_only_proposal_churn(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "score_only_proposal_churn",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_score_only_proposal_churn_encode_failed:{e}"));
+    }
+    if mode == "success_criteria_quality_audit" {
+        let input = request
+            .success_criteria_quality_audit_input
+            .ok_or_else(|| "autoscale_missing_success_criteria_quality_audit_input".to_string())?;
+        let out = compute_success_criteria_quality_audit(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "success_criteria_quality_audit",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_success_criteria_quality_audit_encode_failed:{e}"));
+    }
+    if mode == "detect_eyes_terminology_drift" {
+        let input = request
+            .detect_eyes_terminology_drift_input
+            .ok_or_else(|| "autoscale_missing_detect_eyes_terminology_drift_input".to_string())?;
+        let out = compute_detect_eyes_terminology_drift(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "detect_eyes_terminology_drift",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_detect_eyes_terminology_drift_encode_failed:{e}"));
+    }
+    if mode == "normalize_stored_proposal_row" {
+        let input = request
+            .normalize_stored_proposal_row_input
+            .ok_or_else(|| "autoscale_missing_normalize_stored_proposal_row_input".to_string())?;
+        let out = compute_normalize_stored_proposal_row(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "normalize_stored_proposal_row",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_normalize_stored_proposal_row_encode_failed:{e}"));
+    }
     if mode == "default_backlog_autoscale_state" {
         let input = request
             .default_backlog_autoscale_state_input
