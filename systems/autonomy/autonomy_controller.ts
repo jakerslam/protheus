@@ -6081,6 +6081,36 @@ function computeCalibrationDeltas(input: AnyObj = {}) {
   const exhausted = Number(input.exhausted || 0);
   const deltas = { ...zero };
 
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'calibration_deltas',
+      {
+        executed_count: executedCount,
+        shipped_rate: shippedRate,
+        no_change_rate: noChangeRate,
+        reverted_rate: revertedRate,
+        exhausted,
+        min_executed: Number(AUTONOMY_CALIBRATION_MIN_EXECUTED || 0),
+        tighten_min_executed: Number(AUTONOMY_CALIBRATION_TIGHTEN_MIN_EXECUTED || 0),
+        loosen_low_shipped_rate: Number(AUTONOMY_CALIBRATION_LOOSEN_LOW_SHIPPED_RATE || 0),
+        loosen_exhausted_threshold: Number(AUTONOMY_CALIBRATION_LOOSEN_EXHAUSTED_THRESHOLD || 0),
+        tighten_min_shipped_rate: Number(AUTONOMY_CALIBRATION_TIGHTEN_MIN_SHIPPED_RATE || 0),
+        max_delta: Number(AUTONOMY_CALIBRATION_MAX_DELTA || 0)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return {
+        min_signal_quality: Number(rust.payload.payload.min_signal_quality || 0),
+        min_sensory_signal_score: Number(rust.payload.payload.min_sensory_signal_score || 0),
+        min_sensory_relevance_score: Number(rust.payload.payload.min_sensory_relevance_score || 0),
+        min_directive_fit: Number(rust.payload.payload.min_directive_fit || 0),
+        min_actionability_score: Number(rust.payload.payload.min_actionability_score || 0),
+        min_eye_score_ema: Number(rust.payload.payload.min_eye_score_ema || 0)
+      };
+    }
+  }
+
   const tightenEligible = executedCount >= Math.max(AUTONOMY_CALIBRATION_MIN_EXECUTED, AUTONOMY_CALIBRATION_TIGHTEN_MIN_EXECUTED);
   const loosenEligible = executedCount >= AUTONOMY_CALIBRATION_MIN_EXECUTED;
   const lowShipHighExhaustion = (

@@ -2090,6 +2090,42 @@ pub struct StrategySelectionOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CalibrationDeltasInput {
+    #[serde(default)]
+    pub executed_count: f64,
+    #[serde(default)]
+    pub shipped_rate: f64,
+    #[serde(default)]
+    pub no_change_rate: f64,
+    #[serde(default)]
+    pub reverted_rate: f64,
+    #[serde(default)]
+    pub exhausted: f64,
+    #[serde(default)]
+    pub min_executed: f64,
+    #[serde(default)]
+    pub tighten_min_executed: f64,
+    #[serde(default)]
+    pub loosen_low_shipped_rate: f64,
+    #[serde(default)]
+    pub loosen_exhausted_threshold: f64,
+    #[serde(default)]
+    pub tighten_min_shipped_rate: f64,
+    #[serde(default)]
+    pub max_delta: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CalibrationDeltasOutput {
+    pub min_signal_quality: f64,
+    pub min_sensory_signal_score: f64,
+    pub min_sensory_relevance_score: f64,
+    pub min_directive_fit: f64,
+    pub min_actionability_score: f64,
+    pub min_eye_score_ema: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -3230,6 +3266,8 @@ pub struct AutoscaleRequest {
     pub adaptive_mutation_execution_guard_input: Option<AdaptiveMutationExecutionGuardInput>,
     #[serde(default)]
     pub strategy_selection_input: Option<StrategySelectionInput>,
+    #[serde(default)]
+    pub calibration_deltas_input: Option<CalibrationDeltasInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -6994,6 +7032,68 @@ pub fn compute_strategy_selection(input: &StrategySelectionInput) -> StrategySel
     }
 }
 
+pub fn compute_calibration_deltas(input: &CalibrationDeltasInput) -> CalibrationDeltasOutput {
+    let mut out = CalibrationDeltasOutput {
+        min_signal_quality: 0.0,
+        min_sensory_signal_score: 0.0,
+        min_sensory_relevance_score: 0.0,
+        min_directive_fit: 0.0,
+        min_actionability_score: 0.0,
+        min_eye_score_ema: 0.0,
+    };
+    let executed_count = input.executed_count.max(0.0);
+    let shipped_rate = input.shipped_rate;
+    let no_change_rate = input.no_change_rate;
+    let reverted_rate = input.reverted_rate;
+    let exhausted = input.exhausted.max(0.0);
+    let min_executed = input.min_executed.max(0.0);
+    let tighten_min_executed = input.tighten_min_executed.max(0.0);
+    let loosen_low_shipped_rate = input.loosen_low_shipped_rate;
+    let loosen_exhausted_threshold = input.loosen_exhausted_threshold.max(0.0);
+    let tighten_min_shipped_rate = input.tighten_min_shipped_rate;
+    let max_delta = input.max_delta.max(0.0);
+
+    let tighten_eligible = executed_count >= min_executed.max(tighten_min_executed);
+    let loosen_eligible = executed_count >= min_executed;
+    let low_ship_high_exhaustion = loosen_eligible
+        && shipped_rate < loosen_low_shipped_rate
+        && exhausted >= loosen_exhausted_threshold;
+
+    if low_ship_high_exhaustion {
+        out.min_signal_quality -= 3.0;
+        out.min_directive_fit -= 3.0;
+        out.min_actionability_score -= 2.0;
+        out.min_sensory_relevance_score -= 1.0;
+    } else if tighten_eligible {
+        if no_change_rate >= 0.6 && shipped_rate >= tighten_min_shipped_rate {
+            out.min_signal_quality += 3.0;
+            out.min_directive_fit += 3.0;
+            out.min_actionability_score += 2.0;
+            out.min_sensory_relevance_score += 2.0;
+        }
+        if reverted_rate >= 0.15 {
+            out.min_signal_quality += 2.0;
+            out.min_actionability_score += 2.0;
+        }
+        if shipped_rate >= 0.45 && exhausted >= 2.0 {
+            out.min_signal_quality -= 2.0;
+            out.min_directive_fit -= 2.0;
+            out.min_actionability_score -= 1.0;
+        }
+    } else if exhausted >= 3.0 {
+        out.min_signal_quality -= 1.0;
+        out.min_directive_fit -= 1.0;
+    }
+
+    out.min_signal_quality = out.min_signal_quality.clamp(-max_delta, max_delta);
+    out.min_sensory_signal_score = out.min_sensory_signal_score.clamp(-max_delta, max_delta);
+    out.min_sensory_relevance_score = out.min_sensory_relevance_score.clamp(-max_delta, max_delta);
+    out.min_directive_fit = out.min_directive_fit.clamp(-max_delta, max_delta);
+    out.min_actionability_score = out.min_actionability_score.clamp(-max_delta, max_delta);
+    out.min_eye_score_ema = out.min_eye_score_ema.clamp(-max_delta, max_delta);
+    out
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -10437,6 +10537,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_strategy_selection_encode_failed:{e}"));
+    }
+    if mode == "calibration_deltas" {
+        let input = request
+            .calibration_deltas_input
+            .ok_or_else(|| "autoscale_missing_calibration_deltas_input".to_string())?;
+        let out = compute_calibration_deltas(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "calibration_deltas",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_calibration_deltas_encode_failed:{e}"));
     }
     if mode == "is_directive_clarification_proposal" {
         let input = request
@@ -15213,6 +15325,50 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale strategy_selection");
         assert!(out.contains("\"mode\":\"strategy_selection\""));
+    }
+
+    #[test]
+    fn calibration_deltas_loosen_when_exhausted_and_low_ship_rate() {
+        let out = compute_calibration_deltas(&CalibrationDeltasInput {
+            executed_count: 8.0,
+            shipped_rate: 0.05,
+            no_change_rate: 0.7,
+            reverted_rate: 0.1,
+            exhausted: 4.0,
+            min_executed: 6.0,
+            tighten_min_executed: 10.0,
+            loosen_low_shipped_rate: 0.2,
+            loosen_exhausted_threshold: 3.0,
+            tighten_min_shipped_rate: 0.2,
+            max_delta: 6.0,
+        });
+        assert_eq!(out.min_signal_quality, -3.0);
+        assert_eq!(out.min_directive_fit, -3.0);
+        assert_eq!(out.min_actionability_score, -2.0);
+        assert_eq!(out.min_sensory_relevance_score, -1.0);
+    }
+
+    #[test]
+    fn autoscale_json_calibration_deltas_path_works() {
+        let payload = serde_json::json!({
+            "mode": "calibration_deltas",
+            "calibration_deltas_input": {
+                "executed_count": 12,
+                "shipped_rate": 0.5,
+                "no_change_rate": 0.65,
+                "reverted_rate": 0.2,
+                "exhausted": 3,
+                "min_executed": 6,
+                "tighten_min_executed": 10,
+                "loosen_low_shipped_rate": 0.2,
+                "loosen_exhausted_threshold": 3,
+                "tighten_min_shipped_rate": 0.2,
+                "max_delta": 6
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale calibration_deltas");
+        assert!(out.contains("\"mode\":\"calibration_deltas\""));
     }
 
     #[test]
