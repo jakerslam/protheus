@@ -1188,6 +1188,25 @@ pub struct DirectiveTierReservationNeedOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PulseObjectiveCooldownActiveInput {
+    #[serde(default)]
+    pub no_progress_streak: f64,
+    #[serde(default)]
+    pub no_progress_limit: f64,
+    #[serde(default)]
+    pub last_attempt_ts: Option<String>,
+    #[serde(default)]
+    pub cooldown_hours: f64,
+    #[serde(default)]
+    pub now_ms: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PulseObjectiveCooldownActiveOutput {
+    pub active: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecutionReserveSnapshotInput {
     pub cap: f64,
     pub used: f64,
@@ -1920,6 +1939,8 @@ pub struct AutoscaleRequest {
     pub directive_tier_coverage_bonus_input: Option<DirectiveTierCoverageBonusInput>,
     #[serde(default)]
     pub directive_tier_reservation_need_input: Option<DirectiveTierReservationNeedInput>,
+    #[serde(default)]
+    pub pulse_objective_cooldown_active_input: Option<PulseObjectiveCooldownActiveInput>,
     #[serde(default)]
     pub execution_reserve_snapshot_input: Option<ExecutionReserveSnapshotInput>,
     #[serde(default)]
@@ -4139,6 +4160,42 @@ pub fn compute_directive_tier_reservation_need(
         current_tier_attempts: None,
         required_after_next: None,
         candidate_count: None,
+    }
+}
+
+pub fn compute_pulse_objective_cooldown_active(
+    input: &PulseObjectiveCooldownActiveInput,
+) -> PulseObjectiveCooldownActiveOutput {
+    let streak = input.no_progress_streak;
+    if !streak.is_finite() {
+        return PulseObjectiveCooldownActiveOutput { active: false };
+    }
+    let limit = if input.no_progress_limit.is_finite() {
+        input.no_progress_limit
+    } else {
+        0.0
+    };
+    if streak < limit.max(1.0) {
+        return PulseObjectiveCooldownActiveOutput { active: false };
+    }
+    let Some(last_attempt_ts) = input.last_attempt_ts.as_ref() else {
+        return PulseObjectiveCooldownActiveOutput { active: false };
+    };
+    let Some(last_ms) = parse_rfc3339_ts_ms(last_attempt_ts.trim()) else {
+        return PulseObjectiveCooldownActiveOutput { active: false };
+    };
+    let now_ms = input
+        .now_ms
+        .filter(|v| v.is_finite())
+        .unwrap_or_else(|| Utc::now().timestamp_millis() as f64);
+    let age_hours = (now_ms - (last_ms as f64)) / (1000.0 * 60.0 * 60.0);
+    let cooldown = if input.cooldown_hours.is_finite() {
+        input.cooldown_hours
+    } else {
+        0.0
+    };
+    PulseObjectiveCooldownActiveOutput {
+        active: age_hours < cooldown.max(1.0),
     }
 }
 
@@ -6374,6 +6431,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_directive_tier_reservation_need_encode_failed:{e}"));
+    }
+    if mode == "pulse_objective_cooldown_active" {
+        let input = request
+            .pulse_objective_cooldown_active_input
+            .ok_or_else(|| "autoscale_missing_pulse_objective_cooldown_active_input".to_string())?;
+        let out = compute_pulse_objective_cooldown_active(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "pulse_objective_cooldown_active",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_pulse_objective_cooldown_active_encode_failed:{e}"));
     }
     if mode == "execution_reserve_snapshot" {
         let input = request
@@ -9017,6 +9086,53 @@ mod tests {
         assert!(out.contains("\"mode\":\"directive_tier_reservation_need\""));
         assert!(out.contains("\"tier\":2"));
         assert!(out.contains("\"reserve\":true"));
+    }
+
+    #[test]
+    fn pulse_objective_cooldown_active_matches_threshold_and_age() {
+        let now_ms = 1_700_000_000_000.0;
+        let ts = DateTime::<Utc>::from_timestamp_millis((now_ms as i64) - (2 * 60 * 60 * 1000))
+            .unwrap()
+            .to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+        let active = compute_pulse_objective_cooldown_active(&PulseObjectiveCooldownActiveInput {
+            no_progress_streak: 4.0,
+            no_progress_limit: 3.0,
+            last_attempt_ts: Some(ts),
+            cooldown_hours: 6.0,
+            now_ms: Some(now_ms),
+        });
+        assert!(active.active);
+
+        let inactive = compute_pulse_objective_cooldown_active(&PulseObjectiveCooldownActiveInput {
+            no_progress_streak: 1.0,
+            no_progress_limit: 3.0,
+            last_attempt_ts: Some("2026-03-01T00:00:00.000Z".to_string()),
+            cooldown_hours: 6.0,
+            now_ms: Some(now_ms),
+        });
+        assert!(!inactive.active);
+    }
+
+    #[test]
+    fn autoscale_json_pulse_objective_cooldown_active_path_works() {
+        let now_ms = 1_700_000_000_000.0;
+        let ts = DateTime::<Utc>::from_timestamp_millis((now_ms as i64) - (60 * 60 * 1000))
+            .unwrap()
+            .to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+        let payload = serde_json::json!({
+            "mode": "pulse_objective_cooldown_active",
+            "pulse_objective_cooldown_active_input": {
+                "no_progress_streak": 4,
+                "no_progress_limit": 3,
+                "last_attempt_ts": ts,
+                "cooldown_hours": 6,
+                "now_ms": now_ms
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale pulse_objective_cooldown_active");
+        assert!(out.contains("\"mode\":\"pulse_objective_cooldown_active\""));
+        assert!(out.contains("\"active\":true"));
     }
 
     #[test]

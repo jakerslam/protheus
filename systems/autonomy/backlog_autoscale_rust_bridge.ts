@@ -167,6 +167,7 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
     directive_tier_min_share: 'directive_tier_min_share_input',
     directive_tier_coverage_bonus: 'directive_tier_coverage_bonus_input',
     directive_tier_reservation_need: 'directive_tier_reservation_need_input',
+    pulse_objective_cooldown_active: 'pulse_objective_cooldown_active_input',
     execution_reserve_snapshot: 'execution_reserve_snapshot_input',
     qos_lane_share_cap_exceeded: 'qos_lane_share_cap_exceeded_input',
     qos_lane_from_candidate: 'qos_lane_from_candidate_input',
