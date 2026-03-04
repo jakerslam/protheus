@@ -6717,6 +6717,18 @@ function toStem(token) {
 }
 
 function asStringArray(v) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'as_string_array',
+      { value: v == null ? null : v },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Array.isArray(rust.payload.payload.values)
+        ? rust.payload.payload.values.map((x) => String(x || '')).filter(Boolean)
+        : [];
+    }
+  }
   if (Array.isArray(v)) return v.map(x => String(x || '').trim()).filter(Boolean);
   if (typeof v === 'string' && v.trim()) return [v.trim()];
   return [];
@@ -21315,6 +21327,7 @@ module.exports = {
   ageHours,
   executeConfidenceCooldownKey,
   executeConfidenceCooldownActive,
+  asStringArray,
   startModelCatalogCanary,
   evaluateModelCatalogCanary,
   readModelCatalogCanary,

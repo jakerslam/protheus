@@ -3297,6 +3297,18 @@ pub struct StableSelectionIndexOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AsStringArrayInput {
+    #[serde(default)]
+    pub value: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AsStringArrayOutput {
+    #[serde(default)]
+    pub values: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ParseDirectiveFileArgInput {
     #[serde(default)]
     pub command: Option<String>,
@@ -4502,6 +4514,8 @@ pub struct AutoscaleRequest {
     pub falsey_flag_input: Option<TruthyFlagInput>,
     #[serde(default)]
     pub stable_selection_index_input: Option<StableSelectionIndexInput>,
+    #[serde(default)]
+    pub as_string_array_input: Option<AsStringArrayInput>,
     #[serde(default)]
     pub parse_directive_file_arg_input: Option<ParseDirectiveFileArgInput>,
     #[serde(default)]
@@ -10416,6 +10430,32 @@ pub fn compute_stable_selection_index(input: &StableSelectionIndexInput) -> Stab
     }
 }
 
+pub fn compute_as_string_array(input: &AsStringArrayInput) -> AsStringArrayOutput {
+    let mut out = Vec::<String>::new();
+    match input.value.as_ref() {
+        Some(serde_json::Value::Array(rows)) => {
+            for row in rows {
+                let value = match row {
+                    serde_json::Value::String(s) => s.trim().to_string(),
+                    serde_json::Value::Null => String::new(),
+                    _ => row.to_string().trim().to_string(),
+                };
+                if !value.is_empty() {
+                    out.push(value);
+                }
+            }
+        }
+        Some(serde_json::Value::String(s)) => {
+            let trimmed = s.trim();
+            if !trimmed.is_empty() {
+                out.push(trimmed.to_string());
+            }
+        }
+        _ => {}
+    }
+    AsStringArrayOutput { values: out }
+}
+
 pub fn compute_parse_directive_file_arg(input: &ParseDirectiveFileArgInput) -> ParseDirectiveFileArgOutput {
     let text = input.command.as_deref().unwrap_or("").trim();
     if text.is_empty() {
@@ -14399,6 +14439,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_stable_selection_index_encode_failed:{e}"));
+    }
+    if mode == "as_string_array" {
+        let input = request
+            .as_string_array_input
+            .ok_or_else(|| "autoscale_missing_as_string_array_input".to_string())?;
+        let out = compute_as_string_array(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "as_string_array",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_as_string_array_encode_failed:{e}"));
     }
     if mode == "parse_directive_file_arg" {
         let input = request

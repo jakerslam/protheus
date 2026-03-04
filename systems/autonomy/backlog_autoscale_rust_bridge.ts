@@ -322,6 +322,7 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
     truthy_flag: 'truthy_flag_input',
     falsey_flag: 'falsey_flag_input',
     stable_selection_index: 'stable_selection_index_input',
+    as_string_array: 'as_string_array_input',
     parse_directive_file_arg: 'parse_directive_file_arg_input',
     parse_directive_objective_arg: 'parse_directive_objective_arg_input',
     parse_objective_id_from_evidence_refs: 'parse_objective_id_from_evidence_refs_input',
