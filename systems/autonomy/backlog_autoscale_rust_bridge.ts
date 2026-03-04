@@ -137,6 +137,7 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
     queue_underflow_backfill: 'queue_underflow_backfill_input',
     proposal_risk_score: 'proposal_risk_score_input',
     proposal_score: 'proposal_score_input',
+    impact_weight: 'impact_weight_input',
     composite_eligibility_score: 'composite_eligibility_score_input',
     time_to_value_score: 'time_to_value_score_input',
     value_density_score: 'value_density_score_input',

@@ -2381,6 +2381,25 @@ function isStubProposal(p) {
 
 function impactWeight(p) {
   const impact = String(p && p.expected_impact || '').toLowerCase();
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    if (IMPACT_WEIGHT_CACHE.has(impact)) {
+      return IMPACT_WEIGHT_CACHE.get(impact);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'impact_weight',
+      { expected_impact: impact },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const val = Math.max(1, Math.round(Number(rust.payload.payload.weight || 1)));
+      if (IMPACT_WEIGHT_CACHE.size >= IMPACT_WEIGHT_CACHE_MAX) {
+        const oldest = IMPACT_WEIGHT_CACHE.keys().next();
+        if (!oldest.done) IMPACT_WEIGHT_CACHE.delete(oldest.value);
+      }
+      IMPACT_WEIGHT_CACHE.set(impact, val);
+      return val;
+    }
+  }
   if (impact === 'high') return 3;
   if (impact === 'medium') return 2;
   return 1;
@@ -2726,6 +2745,8 @@ const PROPOSAL_RISK_SCORE_CACHE = new Map();
 const PROPOSAL_RISK_SCORE_CACHE_MAX = 1024;
 const PROPOSAL_SCORE_CACHE = new Map();
 const PROPOSAL_SCORE_CACHE_MAX = 1024;
+const IMPACT_WEIGHT_CACHE = new Map();
+const IMPACT_WEIGHT_CACHE_MAX = 512;
 const COMPOSITE_ELIGIBILITY_SCORE_CACHE = new Map();
 const COMPOSITE_ELIGIBILITY_SCORE_CACHE_MAX = 1024;
 const TIME_TO_VALUE_SCORE_CACHE = new Map();
@@ -17605,6 +17626,7 @@ module.exports = {
   candidateNonYieldPenaltySignal,
   candidateCollectiveShadowSignal,
   selectStrategyForRun,
+  impactWeight,
   estimateTokens,
   estimateTokensForCandidate,
   candidatePool,

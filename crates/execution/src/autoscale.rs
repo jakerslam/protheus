@@ -657,6 +657,17 @@ pub struct ProposalScoreOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ImpactWeightInput {
+    #[serde(default)]
+    pub expected_impact: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ImpactWeightOutput {
+    pub weight: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CompositeEligibilityScoreInput {
     pub quality_score: f64,
     pub directive_fit_score: f64,
@@ -1324,6 +1335,8 @@ pub struct AutoscaleRequest {
     pub proposal_risk_score_input: Option<ProposalRiskScoreInput>,
     #[serde(default)]
     pub proposal_score_input: Option<ProposalScoreInput>,
+    #[serde(default)]
+    pub impact_weight_input: Option<ImpactWeightInput>,
     #[serde(default)]
     pub composite_eligibility_score_input: Option<CompositeEligibilityScoreInput>,
     #[serde(default)]
@@ -2486,6 +2499,22 @@ pub fn compute_proposal_score(input: &ProposalScoreInput) -> ProposalScoreOutput
             - no_change_penalty
             - reverted_penalty,
     }
+}
+
+pub fn compute_impact_weight(input: &ImpactWeightInput) -> ImpactWeightOutput {
+    let impact = input
+        .expected_impact
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    let weight = if impact == "high" {
+        3
+    } else if impact == "medium" {
+        2
+    } else {
+        1
+    };
+    ImpactWeightOutput { weight }
 }
 
 pub fn compute_composite_eligibility_score(
@@ -4369,6 +4398,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_proposal_score_encode_failed:{e}"));
     }
+    if mode == "impact_weight" {
+        let input = request
+            .impact_weight_input
+            .ok_or_else(|| "autoscale_missing_impact_weight_input".to_string())?;
+        let out = compute_impact_weight(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "impact_weight",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_impact_weight_encode_failed:{e}"));
+    }
     if mode == "composite_eligibility_score" {
         let input = request
             .composite_eligibility_score_input
@@ -5963,6 +6004,31 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale proposal_score");
         assert!(out.contains("\"mode\":\"proposal_score\""));
+    }
+
+    #[test]
+    fn impact_weight_maps_expected_impact() {
+        let high = compute_impact_weight(&ImpactWeightInput {
+            expected_impact: Some("high".to_string()),
+        });
+        assert_eq!(high.weight, 3);
+        let low = compute_impact_weight(&ImpactWeightInput {
+            expected_impact: Some("low".to_string()),
+        });
+        assert_eq!(low.weight, 1);
+    }
+
+    #[test]
+    fn autoscale_json_impact_weight_path_works() {
+        let payload = serde_json::json!({
+            "mode": "impact_weight",
+            "impact_weight_input": {
+                "expected_impact": "medium"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale impact_weight");
+        assert!(out.contains("\"mode\":\"impact_weight\""));
     }
 
     #[test]
