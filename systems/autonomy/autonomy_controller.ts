@@ -1595,6 +1595,15 @@ function normalizeQueuePressure(queuePressure: AnyObj = {}) {
     if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
       return rust.payload.payload;
     }
+    const pendingRatio = Number.isFinite(pendingRatioRaw)
+      ? Math.max(0, Math.min(1, pendingRatioRaw))
+      : (total > 0 ? pending / total : 0);
+    return {
+      pressure: 'critical',
+      pending,
+      total,
+      pending_ratio: Number(pendingRatio.toFixed(6))
+    };
   }
   const pendingRatio = Number.isFinite(pendingRatioRaw)
     ? Math.max(0, Math.min(1, pendingRatioRaw))
@@ -19384,6 +19393,7 @@ module.exports = {
   chooseQosLaneSelection,
   qosLaneWeights,
   qosLaneShareCapExceeded,
+  normalizeQueuePressure,
   queuePressureSnapshot,
   proposalStatusForQueuePressure,
   spawnCapacityBoostSnapshot,
