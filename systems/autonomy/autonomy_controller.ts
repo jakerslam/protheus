@@ -750,7 +750,24 @@ let OUTCOME_FITNESS_POLICY_CACHE = undefined;
 
 function strategyProfile() {
   if (STRATEGY_CACHE !== undefined) return STRATEGY_CACHE;
-  STRATEGY_CACHE = loadActiveStrategy({ allowMissing: true });
+  const loaded = loadActiveStrategy({ allowMissing: true });
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'strategy_profile',
+      {
+        strategy: loaded && typeof loaded === 'object' ? loaded : null
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      STRATEGY_CACHE = payload.strategy && typeof payload.strategy === 'object'
+        ? payload.strategy
+        : null;
+      return STRATEGY_CACHE;
+    }
+  }
+  STRATEGY_CACHE = loaded;
   return STRATEGY_CACHE;
 }
 
@@ -761,6 +778,24 @@ function activeStrategyVariants() {
     listed = listStrategies();
   } catch {
     listed = [];
+  }
+  const primary = strategyProfile();
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'active_strategy_variants',
+      {
+        listed: Array.isArray(listed) ? listed : [],
+        primary: primary && typeof primary === 'object' ? primary : null
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      STRATEGY_VARIANTS_CACHE = Array.isArray(payload.variants)
+        ? payload.variants.filter((row) => row && typeof row === 'object')
+        : [];
+      return STRATEGY_VARIANTS_CACHE;
+    }
   }
   const out = [];
   const seen = new Set();
@@ -773,7 +808,6 @@ function activeStrategyVariants() {
     seen.add(id);
     out.push(row);
   }
-  const primary = strategyProfile();
   if (primary && primary.id && !seen.has(String(primary.id))) out.push(primary);
   out.sort((a, b) => String(a && a.id || '').localeCompare(String(b && b.id || '')));
   STRATEGY_VARIANTS_CACHE = out;
@@ -784,6 +818,28 @@ function strategyScorecardSummaries() {
   if (STRATEGY_SCORECARD_CACHE !== undefined) return STRATEGY_SCORECARD_CACHE;
   const payload = loadJson(STRATEGY_SCORECARD_LATEST_PATH, null);
   const summaries = Array.isArray(payload && payload.summaries) ? payload.summaries : [];
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'strategy_scorecard_summaries',
+      {
+        path: STRATEGY_SCORECARD_LATEST_PATH,
+        ts: payload && payload.ts ? String(payload.ts) : null,
+        summaries
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const rustPayload = rust.payload.payload;
+      STRATEGY_SCORECARD_CACHE = {
+        path: rustPayload.path ? String(rustPayload.path) : STRATEGY_SCORECARD_LATEST_PATH,
+        ts: rustPayload.ts ? String(rustPayload.ts) : null,
+        by_id: rustPayload.by_id && typeof rustPayload.by_id === 'object'
+          ? rustPayload.by_id
+          : {}
+      };
+      return STRATEGY_SCORECARD_CACHE;
+    }
+  }
   const byId = {};
   for (const row of summaries) {
     const id = String(row && row.strategy_id || '').trim();
@@ -965,7 +1021,24 @@ function selectStrategyForRun(dateStr, priorRuns = []) {
 
 function outcomeFitnessPolicy() {
   if (OUTCOME_FITNESS_POLICY_CACHE !== undefined) return OUTCOME_FITNESS_POLICY_CACHE;
-  OUTCOME_FITNESS_POLICY_CACHE = loadOutcomeFitnessPolicy(REPO_ROOT);
+  const loaded = loadOutcomeFitnessPolicy(REPO_ROOT);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'outcome_fitness_policy',
+      {
+        policy: loaded && typeof loaded === 'object' ? loaded : null
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      OUTCOME_FITNESS_POLICY_CACHE = payload.policy && typeof payload.policy === 'object'
+        ? payload.policy
+        : {};
+      return OUTCOME_FITNESS_POLICY_CACHE;
+    }
+  }
+  OUTCOME_FITNESS_POLICY_CACHE = loaded;
   return OUTCOME_FITNESS_POLICY_CACHE;
 }
 
@@ -6871,6 +6944,34 @@ function collectOutcomeStats(endDateStr, days) {
     }
   }
 
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'collect_outcome_stats',
+      {
+        by_eye: byEye,
+        by_topic: byTopic,
+        global,
+        eye_min_samples: 3,
+        topic_min_samples: 4
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      return {
+        global: payload.global && typeof payload.global === 'object'
+          ? payload.global
+          : { ...global, total: totalOutcomes(global) },
+        eye_biases: payload.eye_biases && typeof payload.eye_biases === 'object'
+          ? payload.eye_biases
+          : {},
+        topic_biases: payload.topic_biases && typeof payload.topic_biases === 'object'
+          ? payload.topic_biases
+          : {}
+      };
+    }
+  }
+
   const eyeBiases = {};
   const topicBiases = {};
   for (const [eye, bRaw] of Object.entries(byEye as AnyObj)) {
@@ -8543,6 +8644,27 @@ function loadEyesMap() {
   const cfgEyes = Array.isArray(cfg && cfg.eyes) ? cfg.eyes : [];
   const stateEyes = Array.isArray(state && state.eyes) ? state.eyes : [];
 
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'load_eyes_map',
+      {
+        cfg_eyes: cfgEyes,
+        state_eyes: stateEyes
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      const rows = Array.isArray(payload.eyes) ? payload.eyes : [];
+      for (const row of rows) {
+        const id = String(row && row.id || '').trim();
+        if (!id) continue;
+        out.set(id, { ...(row && typeof row === 'object' ? row : {}) });
+      }
+      return out;
+    }
+  }
+
   for (const e of cfgEyes) {
     if (!e || !e.id) continue;
     out.set(String(e.id), { ...e });
@@ -8798,6 +8920,29 @@ function parseSuccessCriteriaRows(p) {
   const actionRows = Array.isArray(actionSpec.success_criteria) ? actionSpec.success_criteria : [];
   const verifyRows = Array.isArray(actionSpec.verify) ? actionSpec.verify : [];
   const validationRows = Array.isArray(proposal.validation) ? proposal.validation : [];
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'parse_success_criteria_rows',
+      {
+        action_rows: actionRows,
+        verify_rows: verifyRows,
+        validation_rows: validationRows
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payloadRows = Array.isArray(rust.payload.payload.rows) ? rust.payload.payload.rows : [];
+      return payloadRows
+        .filter((row) => row && typeof row === 'object')
+        .map((row) => ({
+          source: String(row.source || ''),
+          metric: String(row.metric || ''),
+          target: String(row.target || '').slice(0, 140),
+          measurable: row.measurable === true
+        }))
+        .filter((row) => row.target);
+    }
+  }
   const rows = [];
 
   const hasTimebound = (text) => {
@@ -9147,6 +9292,25 @@ function subDirectiveV2SignalsForProposal(proposal, opts: AnyObj = {}) {
   const verifyRows = Array.isArray(actionSpec.verify) ? actionSpec.verify : [];
   const validationRows = Array.isArray(p.validation) ? p.validation : [];
   const hasVerificationStep = verifyRows.length > 0 || validationRows.length > 0 || successCriteriaRows.length > 0;
+
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'subdirective_v2_signals',
+      {
+        required,
+        has_concrete_target: hasConcreteTarget,
+        has_expected_delta: hasExpectedDelta,
+        has_verification_step: hasVerificationStep,
+        target_count: targetRows.length,
+        verify_count: verifyRows.length,
+        success_criteria_count: successCriteriaRows.length
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
+  }
 
   return {
     required,
@@ -13306,6 +13470,24 @@ function loadFallbackDirectiveObjectiveIds() {
   } catch {
     directives = [];
   }
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'fallback_directive_objective_ids',
+      {
+        directive_ids: Array.isArray(directives)
+          ? directives.map((row) => String(row && row.id || ''))
+          : []
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const ids = Array.isArray(rust.payload.payload.ids)
+        ? rust.payload.payload.ids.map((x) => String(x || '')).filter(Boolean)
+        : [];
+      objectiveBindingFallbackCache = { ids };
+      return ids.slice();
+    }
+  }
   const ids = [];
   const seen = new Set();
   for (const row of directives) {
@@ -16154,6 +16336,7 @@ function proposalStatusForQueuePressure(proposal, overlayEntry) {
 function queuePressureSnapshot(dateStr) {
   const proposals = loadProposalsForDate(dateStr);
   const overlay = buildOverlay(allDecisionEvents());
+  const statuses = [];
   let total = 0;
   let pending = 0;
   let accepted = 0;
@@ -16165,11 +16348,28 @@ function queuePressureSnapshot(dateStr) {
     total += 1;
     const ov = overlay.get(proposal.id) || null;
     const status = proposalStatusForQueuePressure(proposal, ov);
+    statuses.push(status);
     if (status === 'pending') pending += 1;
     else if (status === 'accepted') accepted += 1;
     else if (status === 'closed') closed += 1;
     else if (status === 'rejected') rejected += 1;
     else if (status === 'parked') parked += 1;
+  }
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'queue_pressure_snapshot',
+      {
+        statuses,
+        warn_count: AUTONOMY_QOS_QUEUE_PENDING_WARN_COUNT,
+        critical_count: AUTONOMY_QOS_QUEUE_PENDING_CRITICAL_COUNT,
+        warn_ratio: AUTONOMY_QOS_QUEUE_PENDING_WARN_RATIO,
+        critical_ratio: AUTONOMY_QOS_QUEUE_PENDING_CRITICAL_RATIO
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
   }
   const pendingRatio = total > 0 ? pending / total : 0;
   let pressure = 'normal';
@@ -22539,6 +22739,10 @@ module.exports = {
   tritShadowRankScoreFromBelief,
   strategyTritShadowAdjustedScore,
   strategyCircuitCooldownHours,
+  strategyProfile,
+  activeStrategyVariants,
+  strategyScorecardSummaries,
+  outcomeFitnessPolicy,
   directiveTierWeight,
   directiveTierMinShare,
   strategyTritShadowForCandidate,
@@ -22632,6 +22836,8 @@ module.exports = {
   readModelCatalogCanary,
   runPostconditions,
   verifyExecutionReceipt,
+  loadEyesMap,
+  loadFallbackDirectiveObjectiveIds,
   capabilityDescriptor,
   normalizeTokenUsageShape,
   computeExecutionTokenUsage,
@@ -22698,6 +22904,8 @@ module.exports = {
   sanitizeDirectiveObjectiveId,
   parseDirectiveFileArgFromCommand,
   parseDirectiveObjectiveArgFromCommand,
+  parseSuccessCriteriaRows,
+  collectOutcomeStats,
   parseFirstJsonLine,
   parseJsonObjectsFromText,
   readPathValue,

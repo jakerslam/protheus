@@ -5339,6 +5339,229 @@ pub struct ActionabilityAssessmentOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyProfileInput {
+    #[serde(default)]
+    pub strategy: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyProfileOutput {
+    #[serde(default)]
+    pub strategy: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ActiveStrategyVariantsInput {
+    #[serde(default)]
+    pub listed: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub primary: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ActiveStrategyVariantsOutput {
+    #[serde(default)]
+    pub variants: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyScorecardSummariesInput {
+    #[serde(default)]
+    pub path: Option<String>,
+    #[serde(default)]
+    pub ts: Option<String>,
+    #[serde(default)]
+    pub summaries: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyScorecardSummaryItemOutput {
+    pub score: f64,
+    pub confidence: f64,
+    #[serde(default)]
+    pub stage: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyScorecardSummariesOutput {
+    pub path: String,
+    #[serde(default)]
+    pub ts: Option<String>,
+    #[serde(default)]
+    pub by_id: std::collections::BTreeMap<String, StrategyScorecardSummaryItemOutput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct OutcomeFitnessPolicyInput {
+    #[serde(default)]
+    pub policy: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct OutcomeFitnessPolicyOutput {
+    pub policy: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LoadEyesMapInput {
+    #[serde(default)]
+    pub cfg_eyes: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub state_eyes: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LoadEyesMapOutput {
+    #[serde(default)]
+    pub eyes: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct FallbackDirectiveObjectiveIdsInput {
+    #[serde(default)]
+    pub directive_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct FallbackDirectiveObjectiveIdsOutput {
+    #[serde(default)]
+    pub ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct QueuePressureSnapshotInput {
+    #[serde(default)]
+    pub statuses: Vec<String>,
+    #[serde(default)]
+    pub warn_count: f64,
+    #[serde(default)]
+    pub critical_count: f64,
+    #[serde(default)]
+    pub warn_ratio: f64,
+    #[serde(default)]
+    pub critical_ratio: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct QueuePressureSnapshotOutput {
+    pub total: u32,
+    pub pending: u32,
+    pub accepted: u32,
+    pub closed: u32,
+    pub rejected: u32,
+    pub parked: u32,
+    pub pending_ratio: f64,
+    pub pressure: String,
+    pub warn_ratio: f64,
+    pub critical_ratio: f64,
+    pub warn_count: f64,
+    pub critical_count: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ParseSuccessCriteriaRowsInput {
+    #[serde(default)]
+    pub action_rows: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub verify_rows: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub validation_rows: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ParseSuccessCriteriaRowOutput {
+    pub source: String,
+    pub metric: String,
+    pub target: String,
+    pub measurable: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ParseSuccessCriteriaRowsOutput {
+    #[serde(default)]
+    pub rows: Vec<ParseSuccessCriteriaRowOutput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct CollectOutcomeStatsBucketInput {
+    #[serde(default)]
+    pub shipped: f64,
+    #[serde(default)]
+    pub no_change: f64,
+    #[serde(default)]
+    pub reverted: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CollectOutcomeStatsInput {
+    #[serde(default)]
+    pub by_eye: std::collections::BTreeMap<String, CollectOutcomeStatsBucketInput>,
+    #[serde(default)]
+    pub by_topic: std::collections::BTreeMap<String, CollectOutcomeStatsBucketInput>,
+    #[serde(default)]
+    pub global: CollectOutcomeStatsBucketInput,
+    #[serde(default)]
+    pub eye_min_samples: f64,
+    #[serde(default)]
+    pub topic_min_samples: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CollectOutcomeStatsGlobalOutput {
+    pub shipped: f64,
+    pub no_change: f64,
+    pub reverted: f64,
+    pub total: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CollectOutcomeStatsBiasOutput {
+    pub shipped: f64,
+    pub no_change: f64,
+    pub reverted: f64,
+    pub total: f64,
+    pub bias: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CollectOutcomeStatsOutput {
+    pub global: CollectOutcomeStatsGlobalOutput,
+    #[serde(default)]
+    pub eye_biases: std::collections::BTreeMap<String, CollectOutcomeStatsBiasOutput>,
+    #[serde(default)]
+    pub topic_biases: std::collections::BTreeMap<String, CollectOutcomeStatsBiasOutput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SubdirectiveV2SignalsInput {
+    #[serde(default)]
+    pub required: bool,
+    #[serde(default)]
+    pub has_concrete_target: bool,
+    #[serde(default)]
+    pub has_expected_delta: bool,
+    #[serde(default)]
+    pub has_verification_step: bool,
+    #[serde(default)]
+    pub target_count: f64,
+    #[serde(default)]
+    pub verify_count: f64,
+    #[serde(default)]
+    pub success_criteria_count: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SubdirectiveV2SignalsOutput {
+    pub required: bool,
+    pub has_concrete_target: bool,
+    pub has_expected_delta: bool,
+    pub has_verification_step: bool,
+    pub target_count: f64,
+    pub verify_count: f64,
+    pub success_criteria_count: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AutoscaleRequest {
     pub mode: String,
     #[serde(default)]
@@ -5580,6 +5803,26 @@ pub struct AutoscaleRequest {
     pub total_outcomes_input: Option<TotalOutcomesInput>,
     #[serde(default)]
     pub derive_entity_bias_input: Option<DeriveEntityBiasInput>,
+    #[serde(default)]
+    pub strategy_profile_input: Option<StrategyProfileInput>,
+    #[serde(default)]
+    pub active_strategy_variants_input: Option<ActiveStrategyVariantsInput>,
+    #[serde(default)]
+    pub strategy_scorecard_summaries_input: Option<StrategyScorecardSummariesInput>,
+    #[serde(default)]
+    pub outcome_fitness_policy_input: Option<OutcomeFitnessPolicyInput>,
+    #[serde(default)]
+    pub load_eyes_map_input: Option<LoadEyesMapInput>,
+    #[serde(default)]
+    pub fallback_directive_objective_ids_input: Option<FallbackDirectiveObjectiveIdsInput>,
+    #[serde(default)]
+    pub queue_pressure_snapshot_input: Option<QueuePressureSnapshotInput>,
+    #[serde(default)]
+    pub parse_success_criteria_rows_input: Option<ParseSuccessCriteriaRowsInput>,
+    #[serde(default)]
+    pub collect_outcome_stats_input: Option<CollectOutcomeStatsInput>,
+    #[serde(default)]
+    pub subdirective_v2_signals_input: Option<SubdirectiveV2SignalsInput>,
     #[serde(default)]
     pub build_overlay_input: Option<BuildOverlayInput>,
     #[serde(default)]
@@ -5835,8 +6078,7 @@ pub struct AutoscaleRequest {
     #[serde(default)]
     pub strategy_execution_mode_effective_input: Option<StrategyExecutionModeEffectiveInput>,
     #[serde(default)]
-    pub strategy_canary_exec_limit_effective_input:
-        Option<StrategyCanaryExecLimitEffectiveInput>,
+    pub strategy_canary_exec_limit_effective_input: Option<StrategyCanaryExecLimitEffectiveInput>,
     #[serde(default)]
     pub strategy_exploration_effective_input: Option<StrategyExplorationEffectiveInput>,
     #[serde(default)]
@@ -6391,7 +6633,8 @@ fn sanitize_cooldown_fragment(raw: &str) -> String {
         .to_ascii_lowercase()
         .chars()
         .map(|ch| {
-            if ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == ':' || ch == '_' || ch == '-' {
+            if ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == ':' || ch == '_' || ch == '-'
+            {
                 ch
             } else {
                 '_'
@@ -6460,7 +6703,9 @@ pub fn compute_policy_hold(input: &PolicyHoldInput) -> PolicyHoldOutput {
     }
 }
 
-pub fn compute_route_execution_policy_hold(input: &RouteExecutionPolicyHoldInput) -> PolicyHoldOutput {
+pub fn compute_route_execution_policy_hold(
+    input: &RouteExecutionPolicyHoldInput,
+) -> PolicyHoldOutput {
     let target = normalize_spaces(input.target.as_deref().unwrap_or("route")).to_ascii_lowercase();
     let gate_decision = normalize_spaces(input.gate_decision.as_deref().unwrap_or(""));
     let route_decision = {
@@ -6479,7 +6724,8 @@ pub fn compute_route_execution_policy_hold(input: &RouteExecutionPolicyHoldInput
         if !direct.is_empty() {
             direct
         } else {
-            let enforced = normalize_spaces(input.budget_enforcement_reason.as_deref().unwrap_or(""));
+            let enforced =
+                normalize_spaces(input.budget_enforcement_reason.as_deref().unwrap_or(""));
             if !enforced.is_empty() {
                 enforced
             } else {
@@ -6588,11 +6834,7 @@ pub fn compute_dod_evidence_diff(input: &DodEvidenceDiffInput) -> DodEvidenceDif
 }
 
 pub fn compute_score_only_result(input: &ScoreOnlyResultInput) -> ScoreOnlyResultOutput {
-    let result = input
-        .result
-        .as_ref()
-        .map(|v| v.trim())
-        .unwrap_or_default();
+    let result = input.result.as_ref().map(|v| v.trim()).unwrap_or_default();
     ScoreOnlyResultOutput {
         is_score_only: result == "score_only_preview"
             || result == "score_only_evidence"
@@ -6672,11 +6914,7 @@ pub fn compute_gate_exhausted_attempt(
         };
     }
 
-    let result = input
-        .result
-        .as_ref()
-        .map(|v| v.trim())
-        .unwrap_or_default();
+    let result = input.result.as_ref().map(|v| v.trim()).unwrap_or_default();
     GateExhaustedAttemptOutput {
         is_gate_exhausted: result == "stop_repeat_gate_stale_signal"
             || result == "stop_repeat_gate_capability_cap"
@@ -6742,7 +6980,9 @@ pub fn compute_consecutive_gate_exhausted_attempts(
     ConsecutiveGateExhaustedAttemptsOutput { count }
 }
 
-pub fn compute_runs_since_reset_index(input: &RunsSinceResetIndexInput) -> RunsSinceResetIndexOutput {
+pub fn compute_runs_since_reset_index(
+    input: &RunsSinceResetIndexInput,
+) -> RunsSinceResetIndexOutput {
     let mut start_index: usize = 0;
     for (idx, evt) in input.events.iter().enumerate() {
         let event_type = evt
@@ -6759,7 +6999,9 @@ pub fn compute_runs_since_reset_index(input: &RunsSinceResetIndexInput) -> RunsS
     }
 }
 
-pub fn compute_attempt_event_indices(input: &AttemptEventIndicesInput) -> AttemptEventIndicesOutput {
+pub fn compute_attempt_event_indices(
+    input: &AttemptEventIndicesInput,
+) -> AttemptEventIndicesOutput {
     let mut indices: Vec<u32> = Vec::new();
     for (idx, evt) in input.events.iter().enumerate() {
         let is_attempt = compute_attempt_run_event(&AttemptRunEventInput {
@@ -6868,7 +7110,9 @@ fn normalize_risk_level(raw: &str) -> String {
     }
 }
 
-pub fn compute_executed_count_by_risk(input: &ExecutedCountByRiskInput) -> ExecutedCountByRiskOutput {
+pub fn compute_executed_count_by_risk(
+    input: &ExecutedCountByRiskInput,
+) -> ExecutedCountByRiskOutput {
     let target = normalize_risk_level(input.risk.as_deref().unwrap_or(""));
     let mut count: u32 = 0;
     for evt in &input.events {
@@ -6968,10 +7212,7 @@ pub fn compute_normalize_proposal_status(
         || status == "admitted"
     {
         base
-    } else if status == "closed_won"
-        || status == "won"
-        || status == "paid"
-        || status == "verified"
+    } else if status == "closed_won" || status == "won" || status == "paid" || status == "verified"
     {
         "closed".to_string()
     } else {
@@ -7211,15 +7452,15 @@ pub fn compute_proposal_semantic_fingerprint(
     } else {
         Some(proposal_id_raw)
     };
-    let proposal_type = normalize_spaces(input.proposal_type.as_deref().unwrap_or(""))
-        .to_ascii_lowercase();
+    let proposal_type =
+        normalize_spaces(input.proposal_type.as_deref().unwrap_or("")).to_ascii_lowercase();
     let proposal_type = if proposal_type.is_empty() {
         "unknown".to_string()
     } else {
         proposal_type
     };
-    let source_eye_raw = normalize_spaces(input.source_eye.as_deref().unwrap_or(""))
-        .to_ascii_lowercase();
+    let source_eye_raw =
+        normalize_spaces(input.source_eye.as_deref().unwrap_or("")).to_ascii_lowercase();
     let source_eye = if source_eye_raw.is_empty() {
         None
     } else {
@@ -7303,7 +7544,11 @@ pub fn compute_semantic_context_comparable(
         .unwrap_or("")
         .trim()
         .to_ascii_lowercase();
-    if input.require_same_type && !left_type.is_empty() && !right_type.is_empty() && left_type != right_type {
+    if input.require_same_type
+        && !left_type.is_empty()
+        && !right_type.is_empty()
+        && left_type != right_type
+    {
         return SemanticContextComparableOutput { comparable: false };
     }
     if !input.require_shared_context {
@@ -7326,7 +7571,10 @@ pub fn compute_semantic_context_comparable(
     }
     let left_objective = input.left_objective_id.as_deref().unwrap_or("").trim();
     let right_objective = input.right_objective_id.as_deref().unwrap_or("").trim();
-    if !left_objective.is_empty() && !right_objective.is_empty() && left_objective == right_objective {
+    if !left_objective.is_empty()
+        && !right_objective.is_empty()
+        && left_objective == right_objective
+    {
         return SemanticContextComparableOutput { comparable: true };
     }
     SemanticContextComparableOutput { comparable: false }
@@ -7462,9 +7710,7 @@ pub fn compute_strategy_rank_score(input: &StrategyRankScoreInput) -> StrategyRa
 pub fn compute_strategy_rank_adjusted(
     input: &StrategyRankAdjustedInput,
 ) -> StrategyRankAdjustedOutput {
-    let to_fixed3 = |value: f64| -> f64 {
-        format!("{value:.3}").parse::<f64>().unwrap_or(value)
-    };
+    let to_fixed3 = |value: f64| -> f64 { format!("{value:.3}").parse::<f64>().unwrap_or(value) };
     let pulse_score = input.pulse_score.clamp(0.0, 100.0);
     let pulse_weight = input.pulse_weight.clamp(0.0, 1.0);
     let objective_allocation_score = input.objective_allocation_score.clamp(0.0, 100.0);
@@ -7494,9 +7740,7 @@ pub fn compute_strategy_rank_adjusted(
 pub fn compute_trit_shadow_rank_score(
     input: &TritShadowRankScoreInput,
 ) -> TritShadowRankScoreOutput {
-    let to_fixed3 = |value: f64| -> f64 {
-        format!("{value:.3}").parse::<f64>().unwrap_or(value)
-    };
+    let to_fixed3 = |value: f64| -> f64 { format!("{value:.3}").parse::<f64>().unwrap_or(value) };
     let score = input.score.clamp(-1.0, 1.0);
     let confidence = input.confidence.clamp(0.0, 1.0);
     let normalized = ((score + 1.0) * 50.0) + (confidence * 10.0);
@@ -7524,7 +7768,9 @@ pub fn compute_strategy_circuit_cooldown(
             .to_ascii_lowercase();
     }
     if err.is_empty() {
-        return StrategyCircuitCooldownOutput { cooldown_hours: 0.0 };
+        return StrategyCircuitCooldownOutput {
+            cooldown_hours: 0.0,
+        };
     }
 
     if err.contains("429") || err.contains("rate_limit") {
@@ -7532,10 +7778,9 @@ pub fn compute_strategy_circuit_cooldown(
             cooldown_hours: input.http_429_cooldown_hours,
         };
     }
-    let has_5xx_code = err
-        .as_bytes()
-        .windows(3)
-        .any(|window| window[0] == b'5' && window[1].is_ascii_digit() && window[2].is_ascii_digit());
+    let has_5xx_code = err.as_bytes().windows(3).any(|window| {
+        window[0] == b'5' && window[1].is_ascii_digit() && window[2].is_ascii_digit()
+    });
     if err.contains("5xx") || err.contains("server_error") || has_5xx_code {
         return StrategyCircuitCooldownOutput {
             cooldown_hours: input.http_5xx_cooldown_hours,
@@ -7547,15 +7792,15 @@ pub fn compute_strategy_circuit_cooldown(
         };
     }
 
-    StrategyCircuitCooldownOutput { cooldown_hours: 0.0 }
+    StrategyCircuitCooldownOutput {
+        cooldown_hours: 0.0,
+    }
 }
 
 pub fn compute_strategy_trit_shadow_adjusted(
     input: &StrategyTritShadowAdjustedInput,
 ) -> StrategyTritShadowAdjustedOutput {
-    let to_fixed3 = |value: f64| -> f64 {
-        format!("{value:.3}").parse::<f64>().unwrap_or(value)
-    };
+    let to_fixed3 = |value: f64| -> f64 { format!("{value:.3}").parse::<f64>().unwrap_or(value) };
     let bonus_applied = to_fixed3(input.bonus_raw * input.bonus_blend);
     let adjusted_score = to_fixed3(input.base_score + bonus_applied);
     StrategyTritShadowAdjustedOutput {
@@ -7567,9 +7812,7 @@ pub fn compute_strategy_trit_shadow_adjusted(
 pub fn compute_non_yield_penalty_score(
     input: &NonYieldPenaltyScoreInput,
 ) -> NonYieldPenaltyScoreOutput {
-    let to_fixed3 = |value: f64| -> f64 {
-        format!("{value:.3}").parse::<f64>().unwrap_or(value)
-    };
+    let to_fixed3 = |value: f64| -> f64 { format!("{value:.3}").parse::<f64>().unwrap_or(value) };
     let raw = (input.policy_hold_rate * input.policy_hold_weight)
         + (input.no_progress_rate * input.no_progress_weight)
         + (input.stop_rate * input.stop_weight)
@@ -7583,9 +7826,7 @@ pub fn compute_non_yield_penalty_score(
 pub fn compute_collective_shadow_adjustments(
     input: &CollectiveShadowAdjustmentsInput,
 ) -> CollectiveShadowAdjustmentsOutput {
-    let to_fixed3 = |value: f64| -> f64 {
-        format!("{value:.3}").parse::<f64>().unwrap_or(value)
-    };
+    let to_fixed3 = |value: f64| -> f64 { format!("{value:.3}").parse::<f64>().unwrap_or(value) };
     CollectiveShadowAdjustmentsOutput {
         penalty: to_fixed3(input.penalty_raw.clamp(0.0, input.max_penalty.max(0.0))),
         bonus: to_fixed3(input.bonus_raw.clamp(0.0, input.max_bonus.max(0.0))),
@@ -7701,9 +7942,15 @@ pub fn compute_shadow_scope_matches(input: &ShadowScopeMatchesInput) -> ShadowSc
         .to_ascii_lowercase();
 
     let matched = match scope_type.as_str() {
-        "proposal_type" => !scope_value.is_empty() && !proposal_type.is_empty() && scope_value == proposal_type,
-        "capability_key" => !scope_value.is_empty() && !capability_key.is_empty() && scope_value == capability_key,
-        "objective_id" => !scope_value.is_empty() && !objective_id.is_empty() && scope_value == objective_id,
+        "proposal_type" => {
+            !scope_value.is_empty() && !proposal_type.is_empty() && scope_value == proposal_type
+        }
+        "capability_key" => {
+            !scope_value.is_empty() && !capability_key.is_empty() && scope_value == capability_key
+        }
+        "objective_id" => {
+            !scope_value.is_empty() && !objective_id.is_empty() && scope_value == objective_id
+        }
         "global" => {
             if risk_levels.is_empty() {
                 true
@@ -7719,12 +7966,8 @@ pub fn compute_shadow_scope_matches(input: &ShadowScopeMatchesInput) -> ShadowSc
 pub fn compute_collective_shadow_aggregate(
     input: &CollectiveShadowAggregateInput,
 ) -> CollectiveShadowAggregateOutput {
-    let to_fixed4 = |value: f64| -> f64 {
-        format!("{value:.4}").parse::<f64>().unwrap_or(value)
-    };
-    let to_fixed3 = |value: f64| -> f64 {
-        format!("{value:.3}").parse::<f64>().unwrap_or(value)
-    };
+    let to_fixed4 = |value: f64| -> f64 { format!("{value:.4}").parse::<f64>().unwrap_or(value) };
+    let to_fixed3 = |value: f64| -> f64 { format!("{value:.3}").parse::<f64>().unwrap_or(value) };
     let matches = input.entries.len() as u32;
     if matches == 0 {
         return CollectiveShadowAggregateOutput {
@@ -7790,9 +8033,7 @@ pub fn compute_expected_value_signal(
         }
     };
     let round_score = |value: f64| -> f64 { clamp_score(value.round()) };
-    let to_fixed3 = |value: f64| -> f64 {
-        format!("{value:.3}").parse::<f64>().unwrap_or(value)
-    };
+    let to_fixed3 = |value: f64| -> f64 { format!("{value:.3}").parse::<f64>().unwrap_or(value) };
     let selected_currency = input.selected_currency.as_deref().unwrap_or("").trim();
     let oracle_priority = input
         .oracle_priority_score
@@ -7848,11 +8089,14 @@ pub fn compute_expected_value_signal(
     };
 
     let currency_adjusted_score = oracle_priority.map(|priority| {
-        round_score(priority * if input.currency_multiplier.is_finite() {
-            input.currency_multiplier.max(0.0)
-        } else {
-            1.0
-        })
+        round_score(
+            priority
+                * if input.currency_multiplier.is_finite() {
+                    input.currency_multiplier.max(0.0)
+                } else {
+                    1.0
+                },
+        )
     });
     let apply_currency_rank = input.currency_ranking_enabled
         && input.oracle_applies
@@ -8000,31 +8244,17 @@ pub fn compute_value_density_score(input: &ValueDensityScoreInput) -> ValueDensi
 pub fn compute_normalize_directive_tier(
     input: &NormalizeDirectiveTierInput,
 ) -> NormalizeDirectiveTierOutput {
-    let fallback = input
-        .fallback
-        .filter(|v| v.is_finite())
-        .unwrap_or(3.0);
-    let raw = input
-        .raw_tier
-        .filter(|v| v.is_finite())
-        .unwrap_or(fallback);
+    let fallback = input.fallback.filter(|v| v.is_finite()).unwrap_or(3.0);
+    let raw = input.raw_tier.filter(|v| v.is_finite()).unwrap_or(fallback);
     let tier = raw.round().max(1.0);
-    NormalizeDirectiveTierOutput {
-        tier: tier as u32,
-    }
+    NormalizeDirectiveTierOutput { tier: tier as u32 }
 }
 
 pub fn compute_directive_tier_weight(
     input: &DirectiveTierWeightInput,
 ) -> DirectiveTierWeightOutput {
-    let fallback = input
-        .fallback
-        .filter(|v| v.is_finite())
-        .unwrap_or(3.0);
-    let raw = input
-        .tier
-        .filter(|v| v.is_finite())
-        .unwrap_or(fallback);
+    let fallback = input.fallback.filter(|v| v.is_finite()).unwrap_or(3.0);
+    let raw = input.tier.filter(|v| v.is_finite()).unwrap_or(fallback);
     let normalized_tier = raw.round().max(1.0);
     let weight = if normalized_tier <= 1.0 {
         1.3
@@ -8041,14 +8271,8 @@ pub fn compute_directive_tier_weight(
 pub fn compute_directive_tier_min_share(
     input: &DirectiveTierMinShareInput,
 ) -> DirectiveTierMinShareOutput {
-    let fallback = input
-        .fallback
-        .filter(|v| v.is_finite())
-        .unwrap_or(3.0);
-    let raw = input
-        .tier
-        .filter(|v| v.is_finite())
-        .unwrap_or(fallback);
+    let fallback = input.fallback.filter(|v| v.is_finite()).unwrap_or(3.0);
+    let raw = input.tier.filter(|v| v.is_finite()).unwrap_or(fallback);
     let normalized_tier = raw.round().max(1.0);
     let clamp_ratio = |value: f64| -> f64 {
         if !value.is_finite() {
@@ -8070,14 +8294,8 @@ pub fn compute_directive_tier_min_share(
 pub fn compute_directive_tier_coverage_bonus(
     input: &DirectiveTierCoverageBonusInput,
 ) -> DirectiveTierCoverageBonusOutput {
-    let fallback = input
-        .fallback
-        .filter(|v| v.is_finite())
-        .unwrap_or(3.0);
-    let raw = input
-        .tier
-        .filter(|v| v.is_finite())
-        .unwrap_or(fallback);
+    let fallback = input.fallback.filter(|v| v.is_finite()).unwrap_or(3.0);
+    let raw = input.tier.filter(|v| v.is_finite()).unwrap_or(fallback);
     let normalized_tier = raw.round().max(1.0);
     let attempts_today = if input.attempts_today.is_finite() {
         input.attempts_today.max(0.0)
@@ -8339,7 +8557,8 @@ pub fn compute_normalize_spaces(input: &NormalizeSpacesInput) -> NormalizeSpaces
 
 pub fn compute_parse_lower_list(input: &ParseLowerListInput) -> ParseLowerListOutput {
     let items = if !input.list.is_empty() {
-        input.list
+        input
+            .list
             .iter()
             .map(|value| value.trim().to_ascii_lowercase())
             .filter(|value| !value.is_empty())
@@ -8388,7 +8607,8 @@ pub fn compute_proposal_text_blob(input: &ProposalTextBlobInput) -> ProposalText
     let mut parts = vec![
         input.title.as_deref().unwrap_or("").trim().to_string(),
         input.summary.as_deref().unwrap_or("").trim().to_string(),
-        input.suggested_next_command
+        input
+            .suggested_next_command
             .as_deref()
             .unwrap_or("")
             .trim()
@@ -8605,9 +8825,10 @@ pub fn compute_infer_value_currencies_from_directive_bits(
         r"\b(customer|user|adoption|engagement|retention|conversion|satisfaction|onboarding)\b",
     )
     .expect("valid user regex");
-    let quality_re =
-        Regex::new(r"\b(quality|reliab|uptime|error|stability|safety|accuracy|resilience|regression)\b")
-            .expect("valid quality regex");
+    let quality_re = Regex::new(
+        r"\b(quality|reliab|uptime|error|stability|safety|accuracy|resilience|regression)\b",
+    )
+    .expect("valid quality regex");
     let time_re = Regex::new(
         r"\b(time[\s_-]*to[\s_-]*(?:value|cash|revenue)|hours?\s+saved|latency|faster|payback)\b",
     )
@@ -8846,7 +9067,9 @@ pub fn compute_is_tier1_objective_id(input: &IsTier1ObjectiveIdInput) -> IsTier1
         return IsTier1ObjectiveIdOutput { tier1: false };
     }
     let re = Regex::new(r"(?i)^T1(?:\b|[_:-])").expect("valid tier1 objective regex");
-    IsTier1ObjectiveIdOutput { tier1: re.is_match(id) }
+    IsTier1ObjectiveIdOutput {
+        tier1: re.is_match(id),
+    }
 }
 
 pub fn compute_is_tier1_candidate_objective(
@@ -8874,7 +9097,9 @@ pub fn compute_is_tier1_candidate_objective(
     IsTier1CandidateObjectiveOutput { tier1: by_pulse }
 }
 
-pub fn compute_needs_execution_quota(input: &NeedsExecutionQuotaInput) -> NeedsExecutionQuotaOutput {
+pub fn compute_needs_execution_quota(
+    input: &NeedsExecutionQuotaInput,
+) -> NeedsExecutionQuotaOutput {
     if input.shadow_only {
         return NeedsExecutionQuotaOutput { required: false };
     }
@@ -8910,20 +9135,7 @@ pub fn compute_escape_reg_exp(input: &EscapeRegExpInput) -> EscapeRegExpOutput {
     for ch in value.chars() {
         if matches!(
             ch,
-            '.'
-                | '*'
-                | '+'
-                | '?'
-                | '^'
-                | '$'
-                | '{'
-                | '}'
-                | '('
-                | ')'
-                | '|'
-                | '['
-                | ']'
-                | '\\'
+            '.' | '*' | '+' | '?' | '^' | '$' | '{' | '}' | '(' | ')' | '|' | '[' | ']' | '\\'
         ) {
             escaped.push('\\');
         }
@@ -8982,7 +9194,9 @@ pub fn compute_policy_hold_reason_from_event(
     }
 }
 
-pub fn compute_strategy_marker_tokens(input: &StrategyMarkerTokensInput) -> StrategyMarkerTokensOutput {
+pub fn compute_strategy_marker_tokens(
+    input: &StrategyMarkerTokensInput,
+) -> StrategyMarkerTokensOutput {
     let mut token_set = std::collections::BTreeSet::new();
     let mut text_parts: Vec<String> = Vec::new();
     if let Some(primary) = input.objective_primary.as_ref() {
@@ -8995,10 +9209,9 @@ pub fn compute_strategy_marker_tokens(input: &StrategyMarkerTokensInput) -> Stra
     text_parts.extend(input.tags.iter().cloned());
 
     for part in text_parts {
-        let normalized = compute_normalize_directive_text(&NormalizeDirectiveTextInput {
-            text: Some(part),
-        })
-        .normalized;
+        let normalized =
+            compute_normalize_directive_text(&NormalizeDirectiveTextInput { text: Some(part) })
+                .normalized;
         if normalized.is_empty() {
             continue;
         }
@@ -9016,7 +9229,9 @@ pub fn compute_strategy_marker_tokens(input: &StrategyMarkerTokensInput) -> Stra
     }
 }
 
-pub fn compute_capability_cooldown_key(input: &CapabilityCooldownKeyInput) -> CapabilityCooldownKeyOutput {
+pub fn compute_capability_cooldown_key(
+    input: &CapabilityCooldownKeyInput,
+) -> CapabilityCooldownKeyOutput {
     let raw = input
         .capability_key
         .as_deref()
@@ -9040,8 +9255,7 @@ pub fn compute_capability_cooldown_key(input: &CapabilityCooldownKeyInput) -> Ca
 pub fn compute_readiness_retry_cooldown_key(
     input: &ReadinessRetryCooldownKeyInput,
 ) -> ReadinessRetryCooldownKeyOutput {
-    let sid = normalize_spaces(input.strategy_id.as_deref().unwrap_or(""))
-        .to_ascii_lowercase();
+    let sid = normalize_spaces(input.strategy_id.as_deref().unwrap_or("")).to_ascii_lowercase();
     let sid = Regex::new(r"[^a-z0-9:_-]")
         .expect("valid readiness strategy regex")
         .replace_all(&sid, "_")
@@ -9051,8 +9265,7 @@ pub fn compute_readiness_retry_cooldown_key(
             cooldown_key: String::new(),
         };
     }
-    let mode = normalize_spaces(input.execution_mode.as_deref().unwrap_or(""))
-        .to_ascii_lowercase();
+    let mode = normalize_spaces(input.execution_mode.as_deref().unwrap_or("")).to_ascii_lowercase();
     let mode = Regex::new(r"[^a-z0-9:_-]")
         .expect("valid readiness mode regex")
         .replace_all(&mode, "_")
@@ -9174,7 +9387,11 @@ pub fn compute_derive_entity_bias(input: &DeriveEntityBiasInput) -> DeriveEntity
     if total < input.min_total {
         return DeriveEntityBiasOutput { bias: 0.0, total };
     }
-    let shipped_rate = if total > 0.0 { input.shipped / total } else { 0.0 };
+    let shipped_rate = if total > 0.0 {
+        input.shipped / total
+    } else {
+        0.0
+    };
     let churn_rate = if total > 0.0 {
         (input.no_change + input.reverted) / total
     } else {
@@ -9229,7 +9446,11 @@ pub fn compute_build_overlay(input: &BuildOverlayInput) -> BuildOverlayOutput {
             continue;
         };
         let event_type = normalize_spaces(event.event_type.as_deref().unwrap_or(""));
-        let ts = event.ts.as_deref().map(normalize_spaces).unwrap_or_default();
+        let ts = event
+            .ts
+            .as_deref()
+            .map(normalize_spaces)
+            .unwrap_or_default();
         if event_type == "decision" {
             let decision = normalize_spaces(event.decision.as_deref().unwrap_or(""));
             if !decision.is_empty() {
@@ -9240,9 +9461,17 @@ pub fn compute_build_overlay(input: &BuildOverlayInput) -> BuildOverlayOutput {
                     .unwrap_or(true);
                 if newer {
                     cur.decision = Some(decision);
-                    cur.decision_ts = if ts.is_empty() { None } else { Some(ts.clone()) };
+                    cur.decision_ts = if ts.is_empty() {
+                        None
+                    } else {
+                        Some(ts.clone())
+                    };
                     let reason = normalize_spaces(event.reason.as_deref().unwrap_or(""));
-                    cur.decision_reason = if reason.is_empty() { None } else { Some(reason) };
+                    cur.decision_reason = if reason.is_empty() {
+                        None
+                    } else {
+                        Some(reason)
+                    };
                 }
             }
         } else if event_type == "outcome" {
@@ -9262,8 +9491,13 @@ pub fn compute_build_overlay(input: &BuildOverlayInput) -> BuildOverlayOutput {
                     .unwrap_or(true);
                 if newer {
                     cur.last_outcome = Some(outcome);
-                    cur.last_outcome_ts = if ts.is_empty() { None } else { Some(ts.clone()) };
-                    let evidence_ref = normalize_spaces(event.evidence_ref.as_deref().unwrap_or(""));
+                    cur.last_outcome_ts = if ts.is_empty() {
+                        None
+                    } else {
+                        Some(ts.clone())
+                    };
+                    let evidence_ref =
+                        normalize_spaces(event.evidence_ref.as_deref().unwrap_or(""));
                     cur.last_evidence_ref = if evidence_ref.is_empty() {
                         None
                     } else {
@@ -9443,7 +9677,11 @@ pub fn compute_strategy_selection(input: &StrategySelectionInput) -> StrategySel
         .iter()
         .map(|row| StrategySelectionRankedOutput {
             strategy_id: normalize_spaces(row.strategy_id.as_deref().unwrap_or("")),
-            score: if row.score.is_finite() { row.score } else { 0.0 },
+            score: if row.score.is_finite() {
+                row.score
+            } else {
+                0.0
+            },
             confidence: if row.confidence.is_finite() {
                 row.confidence
             } else {
@@ -9528,7 +9766,10 @@ pub fn compute_strategy_selection(input: &StrategySelectionInput) -> StrategySel
             .map(|every| every > 0 && attempt_index % every == 0)
             .unwrap_or(false);
     let selected_strategy_id = if canary_due {
-        let pool_ids: Vec<String> = canary_pool.iter().map(|row| row.strategy_id.clone()).collect();
+        let pool_ids: Vec<String> = canary_pool
+            .iter()
+            .map(|row| row.strategy_id.clone())
+            .collect();
         let seed = format!(
             "{}|{}|{}",
             normalize_spaces(input.date_str.as_deref().unwrap_or("")),
@@ -9763,7 +10004,11 @@ pub fn compute_strategy_admission_decision(
 }
 
 pub fn compute_expected_value_score(input: &ExpectedValueScoreInput) -> ExpectedValueScoreOutput {
-    let score = if input.score.is_finite() { input.score } else { 0.0 };
+    let score = if input.score.is_finite() {
+        input.score
+    } else {
+        0.0
+    };
     ExpectedValueScoreOutput { score }
 }
 
@@ -9820,7 +10065,11 @@ pub fn compute_admission_summary(input: &AdmissionSummaryInput) -> AdmissionSumm
         }
         for reason in &row.blocked_by {
             let key = reason.split_whitespace().collect::<Vec<_>>().join(" ");
-            let normalized = if key.is_empty() { "unknown".to_string() } else { key };
+            let normalized = if key.is_empty() {
+                "unknown".to_string()
+            } else {
+                key
+            };
             *blocked_by_reason.entry(normalized).or_insert(0) += 1;
         }
     }
@@ -9838,7 +10087,12 @@ pub fn compute_unknown_type_quarantine_decision(
     let proposal_type = input
         .proposal_type
         .as_ref()
-        .map(|v| v.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase())
+        .map(|v| {
+            v.split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+                .to_lowercase()
+        })
         .filter(|v| !v.is_empty());
     if !input.enabled {
         return UnknownTypeQuarantineDecisionOutput {
@@ -9910,7 +10164,10 @@ pub fn compute_infer_optimization_delta(
             input.target_improvement_percent,
             "meta:target_improvement_percent",
         ),
-        (input.performance_gain_percent, "meta:performance_gain_percent"),
+        (
+            input.performance_gain_percent,
+            "meta:performance_gain_percent",
+        ),
     ];
     for (value, source) in direct_keys {
         let Some(raw) = value else {
@@ -9952,8 +10209,9 @@ pub fn compute_optimization_intent_proposal(
         .unwrap_or_default();
     let blob = input.blob.as_deref().unwrap_or("");
     let canary_smoke_re = Regex::new(r"(?i)\bcanary\b|\bsmoke\s*test\b").expect("valid regex");
-    let type_is_actuation =
-        proposal_type.starts_with("actuation_") || proposal_type == "actuation" || input.has_actuation_meta;
+    let type_is_actuation = proposal_type.starts_with("actuation_")
+        || proposal_type == "actuation"
+        || input.has_actuation_meta;
     if type_is_actuation && canary_smoke_re.is_match(blob) {
         return OptimizationIntentProposalOutput { intent: false };
     }
@@ -10032,7 +10290,11 @@ pub fn compute_unlinked_optimization_admission(
     UnlinkedOptimizationAdmissionOutput {
         applies: true,
         linked: false,
-        penalty: if input.penalty.is_finite() { input.penalty } else { 0.0 },
+        penalty: if input.penalty.is_finite() {
+            input.penalty
+        } else {
+            0.0
+        },
         block: high_risk_block,
         reason: Some(if high_risk_block {
             "optimization_unlinked_objective_high_risk_block".to_string()
@@ -10122,7 +10384,12 @@ pub fn compute_proposal_dependency_summary(
     let decision = input
         .decision
         .as_ref()
-        .map(|v| v.split_whitespace().collect::<Vec<_>>().join(" ").to_uppercase())
+        .map(|v| {
+            v.split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+                .to_uppercase()
+        })
         .unwrap_or_default();
     let source = input
         .source
@@ -10210,7 +10477,9 @@ pub fn compute_proposal_dependency_summary(
     }
 }
 
-pub fn compute_choose_selection_mode(input: &ChooseSelectionModeInput) -> ChooseSelectionModeOutput {
+pub fn compute_choose_selection_mode(
+    input: &ChooseSelectionModeInput,
+) -> ChooseSelectionModeOutput {
     let mut mode = "exploit".to_string();
     let mut index: u32 = 0;
     let eligible_len = input.eligible_len;
@@ -10251,7 +10520,9 @@ pub fn compute_explore_quota_for_day(input: &ExploreQuotaForDayInput) -> Explore
     }
 }
 
-pub fn compute_medium_risk_thresholds(input: &MediumRiskThresholdsInput) -> MediumRiskThresholdsOutput {
+pub fn compute_medium_risk_thresholds(
+    input: &MediumRiskThresholdsInput,
+) -> MediumRiskThresholdsOutput {
     let composite_min = input
         .medium_risk_min_composite_eligibility
         .max(input.min_composite_eligibility + 6.0);
@@ -10318,7 +10589,9 @@ pub fn compute_medium_risk_gate_decision(
     }
 }
 
-pub fn compute_route_block_prefilter(input: &RouteBlockPrefilterInput) -> RouteBlockPrefilterOutput {
+pub fn compute_route_block_prefilter(
+    input: &RouteBlockPrefilterInput,
+) -> RouteBlockPrefilterOutput {
     let key = input
         .capability_key
         .as_ref()
@@ -10385,7 +10658,12 @@ pub fn compute_route_execution_sample_event(
             is_sample_event: true,
         };
     }
-    let target = input.execution_target.as_deref().unwrap_or("").trim().to_lowercase();
+    let target = input
+        .execution_target
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_lowercase();
     if target == "route" {
         return RouteExecutionSampleEventOutput {
             is_sample_event: result == "executed",
@@ -10505,12 +10783,7 @@ pub fn compute_proposal_meta_index(input: &ProposalMetaIndexInput) -> ProposalMe
     let mut seen = std::collections::HashSet::<String>::new();
     let mut out = Vec::<ProposalMetaIndexEntryOutput>::new();
     for row in input.entries.iter() {
-        let proposal_id = row
-            .proposal_id
-            .as_deref()
-            .unwrap_or("")
-            .trim()
-            .to_string();
+        let proposal_id = row.proposal_id.as_deref().unwrap_or("").trim().to_string();
         if proposal_id.is_empty() || seen.contains(&proposal_id) {
             continue;
         }
@@ -10588,7 +10861,9 @@ pub fn compute_all_decision_events(input: &AllDecisionEventsInput) -> AllDecisio
     AllDecisionEventsOutput { events }
 }
 
-pub fn compute_cooldown_active_state(input: &CooldownActiveStateInput) -> CooldownActiveStateOutput {
+pub fn compute_cooldown_active_state(
+    input: &CooldownActiveStateInput,
+) -> CooldownActiveStateOutput {
     let now_ms = input.now_ms.unwrap_or(0.0);
     let until_ms = input.until_ms.unwrap_or(f64::NAN);
     if !until_ms.is_finite() || until_ms <= 0.0 || !now_ms.is_finite() {
@@ -10626,7 +10901,9 @@ pub fn compute_lock_age_minutes(input: &LockAgeMinutesInput) -> LockAgeMinutesOu
     let Some(parsed) = parsed else {
         return LockAgeMinutesOutput { age_minutes: None };
     };
-    let now_ms = input.now_ms.unwrap_or_else(|| Utc::now().timestamp_millis() as f64);
+    let now_ms = input
+        .now_ms
+        .unwrap_or_else(|| Utc::now().timestamp_millis() as f64);
     if !now_ms.is_finite() {
         return LockAgeMinutesOutput { age_minutes: None };
     }
@@ -10727,7 +11004,9 @@ pub fn compute_assess_success_criteria_quality(
     }
 }
 
-pub fn compute_manual_gate_prefilter(input: &ManualGatePrefilterInput) -> ManualGatePrefilterOutput {
+pub fn compute_manual_gate_prefilter(
+    input: &ManualGatePrefilterInput,
+) -> ManualGatePrefilterOutput {
     let key = input
         .capability_key
         .as_ref()
@@ -10821,7 +11100,9 @@ pub fn compute_top_biases_summary(input: &TopBiasesSummaryInput) -> TopBiasesSum
     TopBiasesSummaryOutput { rows }
 }
 
-pub fn compute_criteria_pattern_penalty(input: &CriteriaPatternPenaltyInput) -> CriteriaPatternPenaltyOutput {
+pub fn compute_criteria_pattern_penalty(
+    input: &CriteriaPatternPenaltyInput,
+) -> CriteriaPatternPenaltyOutput {
     if input.keys.is_empty() {
         return CriteriaPatternPenaltyOutput {
             penalty: 0.0,
@@ -10829,7 +11110,8 @@ pub fn compute_criteria_pattern_penalty(input: &CriteriaPatternPenaltyInput) -> 
             threshold: input.fail_threshold,
         };
     }
-    let mut pattern_map = std::collections::BTreeMap::<String, &CriteriaPatternPenaltyPatternInput>::new();
+    let mut pattern_map =
+        std::collections::BTreeMap::<String, &CriteriaPatternPenaltyPatternInput>::new();
     for row in &input.patterns {
         let key = row.key.trim().to_string();
         if key.is_empty() {
@@ -10915,7 +11197,9 @@ pub fn compute_strategy_threshold_overrides(
     }
 }
 
-pub fn compute_effective_allowed_risks(input: &EffectiveAllowedRisksInput) -> EffectiveAllowedRisksOutput {
+pub fn compute_effective_allowed_risks(
+    input: &EffectiveAllowedRisksInput,
+) -> EffectiveAllowedRisksOutput {
     let normalize = |rows: &[String]| -> Vec<String> {
         let mut out = Vec::<String>::new();
         let mut seen = std::collections::BTreeSet::<String>::new();
@@ -10939,7 +11223,9 @@ pub fn compute_effective_allowed_risks(input: &EffectiveAllowedRisksInput) -> Ef
     }
 }
 
-pub fn compute_directive_pulse_context(input: &DirectivePulseContextInput) -> DirectivePulseContextOutput {
+pub fn compute_directive_pulse_context(
+    input: &DirectivePulseContextInput,
+) -> DirectivePulseContextOutput {
     let clamp_number = |value: f64, min: f64, max: f64| -> f64 {
         if !value.is_finite() {
             min
@@ -11024,7 +11310,9 @@ pub fn compute_directive_pulse_context(input: &DirectivePulseContextInput) -> Di
     }
 }
 
-pub fn compute_directive_pulse_stats(input: &DirectivePulseStatsInput) -> DirectivePulseStatsOutput {
+pub fn compute_directive_pulse_stats(
+    input: &DirectivePulseStatsInput,
+) -> DirectivePulseStatsOutput {
     let date_str = input
         .date_str
         .as_ref()
@@ -11226,7 +11514,8 @@ pub fn compute_compile_directive_pulse_objectives(
     let mut seen = std::collections::BTreeSet::<String>::new();
 
     for directive in &input.directives {
-        let id_from_metadata = json_path(directive, &["data", "metadata", "id"]).map(js_like_string);
+        let id_from_metadata =
+            json_path(directive, &["data", "metadata", "id"]).map(js_like_string);
         let id_from_root = json_path(directive, &["id"]).map(js_like_string);
         let id = id_from_metadata
             .or(id_from_root)
@@ -11240,8 +11529,9 @@ pub fn compute_compile_directive_pulse_objectives(
             continue;
         }
 
-        let tier_raw = js_like_number(json_path(directive, &["tier"]))
-            .or(js_like_number(json_path(directive, &["data", "metadata", "tier"])));
+        let tier_raw = js_like_number(json_path(directive, &["tier"])).or(js_like_number(
+            json_path(directive, &["data", "metadata", "tier"]),
+        ));
         let tier = compute_normalize_directive_tier(&NormalizeDirectiveTierInput {
             raw_tier: tier_raw,
             fallback: Some(3.0),
@@ -11253,8 +11543,14 @@ pub fn compute_compile_directive_pulse_objectives(
             directive,
             &["data", "metadata", "description"],
         )));
-        phrases_raw.extend(js_like_string_array(json_path(directive, &["data", "intent", "primary"])));
-        phrases_raw.extend(js_like_string_array(json_path(directive, &["data", "scope", "included"])));
+        phrases_raw.extend(js_like_string_array(json_path(
+            directive,
+            &["data", "intent", "primary"],
+        )));
+        phrases_raw.extend(js_like_string_array(json_path(
+            directive,
+            &["data", "scope", "included"],
+        )));
         phrases_raw.extend(js_like_string_array(json_path(
             directive,
             &["data", "success_metrics", "leading"],
@@ -11307,9 +11603,18 @@ pub fn compute_compile_directive_pulse_objectives(
             directive,
             &["data", "metadata", "value_currencies"],
         )));
-        explicit_rows.extend(js_like_string_array(json_path(directive, &["data", "value_currency"])));
-        explicit_rows.extend(js_like_string_array(json_path(directive, &["data", "value_currencies"])));
-        explicit_rows.extend(js_like_string_array(json_path(directive, &["data", "intent", "value_currency"])));
+        explicit_rows.extend(js_like_string_array(json_path(
+            directive,
+            &["data", "value_currency"],
+        )));
+        explicit_rows.extend(js_like_string_array(json_path(
+            directive,
+            &["data", "value_currencies"],
+        )));
+        explicit_rows.extend(js_like_string_array(json_path(
+            directive,
+            &["data", "intent", "value_currency"],
+        )));
         explicit_rows.extend(js_like_string_array(json_path(
             directive,
             &["data", "intent", "value_currencies"],
@@ -11328,12 +11633,13 @@ pub fn compute_compile_directive_pulse_objectives(
         inference_bits.extend(phrases.iter().cloned());
         inference_bits.extend(tokens.iter().cloned());
 
-        let inferred_currencies =
-            compute_infer_value_currencies_from_directive_bits(&InferValueCurrenciesFromDirectiveBitsInput {
+        let inferred_currencies = compute_infer_value_currencies_from_directive_bits(
+            &InferValueCurrenciesFromDirectiveBitsInput {
                 bits: inference_bits,
                 allowed_keys: input.allowed_value_keys.clone(),
-            })
-            .currencies;
+            },
+        )
+        .currencies;
 
         let value_currencies = if explicit_currencies.is_empty() {
             inferred_currencies
@@ -11349,7 +11655,8 @@ pub fn compute_compile_directive_pulse_objectives(
         };
         let primary_currency = value_currencies.first().cloned();
 
-        let title_primary = js_like_string_array(json_path(directive, &["data", "intent", "primary"]));
+        let title_primary =
+            js_like_string_array(json_path(directive, &["data", "intent", "primary"]));
         let title_description =
             js_like_string_array(json_path(directive, &["data", "metadata", "description"]));
         let title = title_primary
@@ -11465,7 +11772,11 @@ pub fn compute_recent_directive_pulse_cooldown_count(
         if result != "stop_repeat_gate_directive_pulse_cooldown" {
             continue;
         }
-        let ts = evt.ts.as_ref().map(|v| v.trim().to_string()).unwrap_or_default();
+        let ts = evt
+            .ts
+            .as_ref()
+            .map(|v| v.trim().to_string())
+            .unwrap_or_default();
         let ts_ms = compute_parse_iso_ts(&ParseIsoTsInput {
             ts: if ts.is_empty() { None } else { Some(ts) },
         })
@@ -11496,17 +11807,29 @@ pub fn compute_recent_directive_pulse_cooldown_count(
     RecentDirectivePulseCooldownCountOutput { count }
 }
 
-pub fn compute_proposal_directive_text(input: &ProposalDirectiveTextInput) -> ProposalDirectiveTextOutput {
+pub fn compute_proposal_directive_text(
+    input: &ProposalDirectiveTextInput,
+) -> ProposalDirectiveTextOutput {
     let proposal = input.proposal.as_ref().unwrap_or(&serde_json::Value::Null);
     let mut parts = Vec::<String>::new();
-    parts.push(js_like_string(json_path(proposal, &["title"]).unwrap_or(&serde_json::Value::Null)));
-    parts.push(js_like_string(json_path(proposal, &["type"]).unwrap_or(&serde_json::Value::Null)));
-    parts.push(js_like_string(json_path(proposal, &["summary"]).unwrap_or(&serde_json::Value::Null)));
-    parts.push(js_like_string(json_path(proposal, &["notes"]).unwrap_or(&serde_json::Value::Null)));
+    parts.push(js_like_string(
+        json_path(proposal, &["title"]).unwrap_or(&serde_json::Value::Null),
+    ));
+    parts.push(js_like_string(
+        json_path(proposal, &["type"]).unwrap_or(&serde_json::Value::Null),
+    ));
+    parts.push(js_like_string(
+        json_path(proposal, &["summary"]).unwrap_or(&serde_json::Value::Null),
+    ));
+    parts.push(js_like_string(
+        json_path(proposal, &["notes"]).unwrap_or(&serde_json::Value::Null),
+    ));
     parts.push(js_like_string(
         json_path(proposal, &["expected_impact"]).unwrap_or(&serde_json::Value::Null),
     ));
-    parts.push(js_like_string(json_path(proposal, &["risk"]).unwrap_or(&serde_json::Value::Null)));
+    parts.push(js_like_string(
+        json_path(proposal, &["risk"]).unwrap_or(&serde_json::Value::Null),
+    ));
     parts.push(js_like_string(
         json_path(proposal, &["meta", "preview"]).unwrap_or(&serde_json::Value::Null),
     ));
@@ -11544,7 +11867,9 @@ pub fn compute_proposal_directive_text(input: &ProposalDirectiveTextInput) -> Pr
 
     if let Some(serde_json::Value::Array(rows)) = json_path(proposal, &["evidence"]) {
         for ev in rows {
-            parts.push(js_like_string(json_path(ev, &["match"]).unwrap_or(&serde_json::Value::Null)));
+            parts.push(js_like_string(
+                json_path(ev, &["match"]).unwrap_or(&serde_json::Value::Null),
+            ));
             parts.push(js_like_string(
                 json_path(ev, &["evidence_ref"]).unwrap_or(&serde_json::Value::Null),
             ));
@@ -11552,10 +11877,9 @@ pub fn compute_proposal_directive_text(input: &ProposalDirectiveTextInput) -> Pr
     }
 
     let joined = parts.join(" ");
-    let normalized = compute_normalize_directive_text(&NormalizeDirectiveTextInput {
-        text: Some(joined),
-    })
-    .normalized;
+    let normalized =
+        compute_normalize_directive_text(&NormalizeDirectiveTextInput { text: Some(joined) })
+            .normalized;
     ProposalDirectiveTextOutput { text: normalized }
 }
 
@@ -11680,8 +12004,11 @@ pub fn compute_proposal_semantic_objective_id(
     }
 }
 
-pub fn compute_criteria_pattern_keys(input: &CriteriaPatternKeysInput) -> CriteriaPatternKeysOutput {
-    let hint = normalize_spaces(input.capability_key_hint.as_deref().unwrap_or("")).to_ascii_lowercase();
+pub fn compute_criteria_pattern_keys(
+    input: &CriteriaPatternKeysInput,
+) -> CriteriaPatternKeysOutput {
+    let hint =
+        normalize_spaces(input.capability_key_hint.as_deref().unwrap_or("")).to_ascii_lowercase();
     let descriptor = normalize_spaces(input.capability_descriptor_key.as_deref().unwrap_or(""))
         .to_ascii_lowercase();
     let cap_key = if !hint.is_empty() {
@@ -11741,7 +12068,8 @@ pub fn compute_success_criteria_requirement(
 pub fn compute_success_criteria_policy_for_proposal(
     input: &SuccessCriteriaPolicyForProposalInput,
 ) -> SuccessCriteriaPolicyForProposalOutput {
-    let proposal_type = normalize_spaces(input.proposal_type.as_deref().unwrap_or("")).to_ascii_lowercase();
+    let proposal_type =
+        normalize_spaces(input.proposal_type.as_deref().unwrap_or("")).to_ascii_lowercase();
     let mut exempt = false;
     for raw in &input.base_exempt_types {
         let value = normalize_spaces(raw).to_ascii_lowercase();
@@ -11757,7 +12085,9 @@ pub fn compute_success_criteria_policy_for_proposal(
     }
 }
 
-pub fn compute_capability_descriptor(input: &CapabilityDescriptorInput) -> CapabilityDescriptorOutput {
+pub fn compute_capability_descriptor(
+    input: &CapabilityDescriptorInput,
+) -> CapabilityDescriptorOutput {
     let kind = normalize_spaces(input.actuation_kind.as_deref().unwrap_or("")).to_ascii_lowercase();
     if !kind.is_empty() {
         return CapabilityDescriptorOutput {
@@ -11765,7 +12095,8 @@ pub fn compute_capability_descriptor(input: &CapabilityDescriptorInput) -> Capab
             aliases: vec!["actuation".to_string()],
         };
     }
-    let proposal_type = normalize_spaces(input.proposal_type.as_deref().unwrap_or("")).to_ascii_lowercase();
+    let proposal_type =
+        normalize_spaces(input.proposal_type.as_deref().unwrap_or("")).to_ascii_lowercase();
     let typ = if proposal_type.is_empty() {
         "unknown".to_string()
     } else {
@@ -11780,10 +12111,12 @@ pub fn compute_capability_descriptor(input: &CapabilityDescriptorInput) -> Capab
 pub fn compute_normalize_token_usage_shape(
     input: &NormalizeTokenUsageShapeInput,
 ) -> NormalizeTokenUsageShapeOutput {
-    let prompt = non_negative_number(input.prompt_tokens).or(non_negative_number(input.input_tokens));
+    let prompt =
+        non_negative_number(input.prompt_tokens).or(non_negative_number(input.input_tokens));
     let completion =
         non_negative_number(input.completion_tokens).or(non_negative_number(input.output_tokens));
-    let total_direct = non_negative_number(input.total_tokens).or(non_negative_number(input.tokens_used));
+    let total_direct =
+        non_negative_number(input.total_tokens).or(non_negative_number(input.tokens_used));
     let total = if let Some(v) = total_direct {
         Some(v)
     } else if prompt.is_some() || completion.is_some() {
@@ -11874,10 +12207,11 @@ pub fn compute_sanitized_directive_id_list(
         if out.len() >= limit {
             break;
         }
-        let sanitized = compute_sanitize_directive_objective_id(&SanitizeDirectiveObjectiveIdInput {
-            value: Some(row.clone()),
-        })
-        .objective_id;
+        let sanitized =
+            compute_sanitize_directive_objective_id(&SanitizeDirectiveObjectiveIdInput {
+                value: Some(row.clone()),
+            })
+            .objective_id;
         if sanitized.is_empty() || !seen.insert(sanitized.clone()) {
             continue;
         }
@@ -11992,7 +12326,10 @@ pub fn compute_choose_evidence_selection_mode(
         .unwrap_or(1.0)
         .max(1.0)
         .floor() as u32;
-    let window = std::cmp::max(1u32, std::cmp::min(eligible_len.max(1u32), sample_window_raw));
+    let window = std::cmp::max(
+        1u32,
+        std::cmp::min(eligible_len.max(1u32), sample_window_raw),
+    );
     let prior_evidence_attempts = input
         .prior_runs
         .iter()
@@ -12060,7 +12397,9 @@ pub fn compute_falsey_flag(input: &TruthyFlagInput) -> TruthyFlagOutput {
     TruthyFlagOutput { value }
 }
 
-pub fn compute_stable_selection_index(input: &StableSelectionIndexInput) -> StableSelectionIndexOutput {
+pub fn compute_stable_selection_index(
+    input: &StableSelectionIndexInput,
+) -> StableSelectionIndexOutput {
     let n = input
         .size
         .filter(|v| v.is_finite())
@@ -12156,9 +12495,7 @@ pub fn compute_selected_model_from_run_event(
             _ => v.to_string().trim().to_string(),
         };
         if !text.is_empty() {
-            return SelectedModelFromRunEventOutput {
-                model: Some(text),
-            };
+            return SelectedModelFromRunEventOutput { model: Some(text) };
         }
     }
     SelectedModelFromRunEventOutput { model: None }
@@ -12309,7 +12646,9 @@ pub fn compute_latest_proposal_date(input: &LatestProposalDateInput) -> LatestPr
     LatestProposalDateOutput { date: dates.pop() }
 }
 
-pub fn compute_parse_directive_file_arg(input: &ParseDirectiveFileArgInput) -> ParseDirectiveFileArgOutput {
+pub fn compute_parse_directive_file_arg(
+    input: &ParseDirectiveFileArgInput,
+) -> ParseDirectiveFileArgOutput {
     let text = input.command.as_deref().unwrap_or("").trim();
     if text.is_empty() {
         return ParseDirectiveFileArgOutput {
@@ -12444,7 +12783,11 @@ pub fn compute_parse_human_canary_override_state(
         Some(serde_json::Value::Number(n)) => n.as_f64().unwrap_or(0.0),
         Some(serde_json::Value::String(s)) => s.trim().parse::<f64>().unwrap_or(0.0),
         Some(serde_json::Value::Bool(v)) => {
-            if *v { 1.0 } else { 0.0 }
+            if *v {
+                1.0
+            } else {
+                0.0
+            }
         }
         _ => 0.0,
     };
@@ -12528,11 +12871,17 @@ pub fn compute_runs_path_for(input: &RunsPathForInput) -> RunsPathForOutput {
     RunsPathForOutput { path }
 }
 
-pub fn compute_effective_tier1_policy(input: &EffectiveTier1PolicyInput) -> EffectiveTier1PolicyOutput {
+pub fn compute_effective_tier1_policy(
+    input: &EffectiveTier1PolicyInput,
+) -> EffectiveTier1PolicyOutput {
     let mode = normalize_spaces(input.execution_mode.as_deref().unwrap_or("")).to_ascii_lowercase();
     let canary_relaxed = mode == "canary_execute";
     EffectiveTier1PolicyOutput {
-        execution_mode: if mode.is_empty() { None } else { Some(mode.clone()) },
+        execution_mode: if mode.is_empty() {
+            None
+        } else {
+            Some(mode.clone())
+        },
         canary_relaxed,
         burn_rate_multiplier: if canary_relaxed {
             input
@@ -12549,7 +12898,9 @@ pub fn compute_effective_tier1_policy(input: &EffectiveTier1PolicyInput) -> Effe
             input.tier1_min_projected_tokens_for_burn_check
         },
         drift_min_samples: if canary_relaxed {
-            input.tier1_drift_min_samples.max(input.tier1_canary_drift_min_samples)
+            input
+                .tier1_drift_min_samples
+                .max(input.tier1_canary_drift_min_samples)
         } else {
             input.tier1_drift_min_samples
         },
@@ -12594,15 +12945,17 @@ pub fn compute_compact_tier1_exception(
             .and_then(|v| v.as_str())
             .map(|v| v.to_string())
     });
-    let recovery_cooldown_hours = recovery.and_then(|r| r.get("cooldown_hours")).and_then(|v| {
-        if let Some(n) = v.as_f64() {
-            Some(n)
-        } else if let Some(s) = v.as_str() {
-            s.trim().parse::<f64>().ok()
-        } else {
-            None
-        }
-    });
+    let recovery_cooldown_hours = recovery
+        .and_then(|r| r.get("cooldown_hours"))
+        .and_then(|v| {
+            if let Some(n) = v.as_f64() {
+                Some(n)
+            } else if let Some(s) = v.as_str() {
+                s.trim().parse::<f64>().ok()
+            } else {
+                None
+            }
+        });
     let recovery_playbook = recovery.and_then(|r| {
         r.get("playbook")
             .and_then(|v| v.as_str())
@@ -12613,8 +12966,9 @@ pub fn compute_compact_tier1_exception(
             .and_then(|v| v.as_str())
             .map(|v| v.to_string())
     });
-    let recovery_should_escalate =
-        recovery.and_then(|r| r.get("should_escalate")).and_then(|v| v.as_bool());
+    let recovery_should_escalate = recovery
+        .and_then(|r| r.get("should_escalate"))
+        .and_then(|v| v.as_bool());
     let value = serde_json::json!({
         "novel": input.novel == Some(true),
         "stage": stage,
@@ -12686,8 +13040,8 @@ pub fn compute_model_catalog_canary_thresholds(
 pub fn compute_directive_clarification_exec_spec(
     input: &DirectiveClarificationExecSpecInput,
 ) -> DirectiveClarificationExecSpecOutput {
-    let proposal_type = normalize_spaces(input.proposal_type.as_deref().unwrap_or(""))
-        .to_ascii_lowercase();
+    let proposal_type =
+        normalize_spaces(input.proposal_type.as_deref().unwrap_or("")).to_ascii_lowercase();
     if proposal_type != "directive_clarification" {
         return DirectiveClarificationExecSpecOutput {
             applicable: false,
@@ -12762,7 +13116,11 @@ pub fn compute_directive_clarification_exec_spec(
         decision: Some("DIRECTIVE_VALIDATE".to_string()),
         objective_id: Some(chosen_objective_id),
         file: Some(rel_file.clone()),
-        source: if source.is_empty() { None } else { Some(source) },
+        source: if source.is_empty() {
+            None
+        } else {
+            Some(source)
+        },
         args: vec!["validate".to_string(), format!("--file={rel_file}")],
     }
 }
@@ -12770,8 +13128,8 @@ pub fn compute_directive_clarification_exec_spec(
 pub fn compute_directive_decomposition_exec_spec(
     input: &DirectiveDecompositionExecSpecInput,
 ) -> DirectiveDecompositionExecSpecOutput {
-    let proposal_type = normalize_spaces(input.proposal_type.as_deref().unwrap_or(""))
-        .to_ascii_lowercase();
+    let proposal_type =
+        normalize_spaces(input.proposal_type.as_deref().unwrap_or("")).to_ascii_lowercase();
     if proposal_type != "directive_decomposition" {
         return DirectiveDecompositionExecSpecOutput {
             applicable: false,
@@ -12819,7 +13177,11 @@ pub fn compute_directive_decomposition_exec_spec(
         reason: None,
         decision: Some("DIRECTIVE_DECOMPOSE".to_string()),
         objective_id: Some(chosen_id.clone()),
-        source: if source.is_empty() { None } else { Some(source) },
+        source: if source.is_empty() {
+            None
+        } else {
+            Some(source)
+        },
         args: vec!["decompose".to_string(), format!("--id={chosen_id}")],
     }
 }
@@ -12852,12 +13214,7 @@ pub fn compute_parse_actuation_spec(input: &ParseActuationSpecInput) -> ParseAct
             context: None,
         };
     }
-    let kind = normalize_spaces(
-        actuation
-            .get("kind")
-            .and_then(|v| v.as_str())
-            .unwrap_or(""),
-    );
+    let kind = normalize_spaces(actuation.get("kind").and_then(|v| v.as_str()).unwrap_or(""));
     if kind.is_empty() {
         return ParseActuationSpecOutput {
             has_spec: false,
@@ -12881,20 +13238,14 @@ pub fn compute_parse_actuation_spec(input: &ParseActuationSpecInput) -> ParseAct
         .filter(|v| v.is_object())
         .cloned()
         .unwrap_or_else(|| serde_json::json!({}));
-    let guard_controls_obj = guard_controls
-        .as_object()
-        .cloned()
-        .unwrap_or_default();
+    let guard_controls_obj = guard_controls.as_object().cloned().unwrap_or_default();
 
-    let proposal_id = normalize_spaces(
-        proposal
-            .get("id")
-            .and_then(|v| v.as_str())
-            .unwrap_or(""),
-    );
+    let proposal_id = normalize_spaces(proposal.get("id").and_then(|v| v.as_str()).unwrap_or(""));
     let mut objective_id = String::new();
     for candidate in [
-        meta.get("objective_id").and_then(|v| v.as_str()).unwrap_or(""),
+        meta.get("objective_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or(""),
         meta.get("directive_objective_id")
             .and_then(|v| v.as_str())
             .unwrap_or(""),
@@ -12976,16 +13327,20 @@ pub fn compute_parse_actuation_spec(input: &ParseActuationSpecInput) -> ParseAct
         .get("adaptive_mutation_guard_pass")
         .and_then(|v| v.as_bool())
         != Some(false);
-    let reason = first_non_empty(vec![
-        meta.get("adaptive_mutation_guard_reason")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string(),
-    ]);
+    let reason = first_non_empty(vec![meta
+        .get("adaptive_mutation_guard_reason")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string()]);
     let reasons = meta
         .get("adaptive_mutation_guard_reasons")
         .and_then(|v| v.as_array())
-        .map(|rows| rows.iter().take(8).cloned().collect::<Vec<serde_json::Value>>())
+        .map(|rows| {
+            rows.iter()
+                .take(8)
+                .cloned()
+                .collect::<Vec<serde_json::Value>>()
+        })
         .unwrap_or_default();
 
     ParseActuationSpecOutput {
@@ -13049,8 +13404,10 @@ pub fn compute_parse_objective_id_from_evidence_refs(
         .collect();
     let pulse_re =
         Regex::new(r"(?i)directive_pulse/([A-Za-z0-9_]+)").expect("valid pulse objective regex");
-    let direct_re = Regex::new(r"(?i)\bdirective:([A-Za-z0-9_]+)").expect("valid direct objective regex");
-    let fallback_re = Regex::new(r"\b(T[0-9]_[A-Za-z0-9_]+)\b").expect("valid fallback objective regex");
+    let direct_re =
+        Regex::new(r"(?i)\bdirective:([A-Za-z0-9_]+)").expect("valid direct objective regex");
+    let fallback_re =
+        Regex::new(r"\b(T[0-9]_[A-Za-z0-9_]+)\b").expect("valid fallback objective regex");
     for row in input.evidence_refs.iter() {
         let reference = normalize_spaces(row);
         if reference.is_empty() {
@@ -13075,9 +13432,10 @@ pub fn compute_parse_objective_id_from_evidence_refs(
                 .or(fallback_match.as_deref())
                 .unwrap_or(""),
         );
-        let sanitized = compute_sanitize_directive_objective_id(&SanitizeDirectiveObjectiveIdInput {
-            value: Some(raw),
-        });
+        let sanitized =
+            compute_sanitize_directive_objective_id(&SanitizeDirectiveObjectiveIdInput {
+                value: Some(raw),
+            });
         if sanitized.objective_id.is_empty() {
             continue;
         }
@@ -13134,9 +13492,10 @@ pub fn compute_objective_id_for_execution(
         input.action_spec_objective_id.as_deref().unwrap_or(""),
     ];
     for candidate in candidates {
-        let sanitized = compute_sanitize_directive_objective_id(&SanitizeDirectiveObjectiveIdInput {
-            value: Some(candidate.to_string()),
-        });
+        let sanitized =
+            compute_sanitize_directive_objective_id(&SanitizeDirectiveObjectiveIdInput {
+                value: Some(candidate.to_string()),
+            });
         if !sanitized.objective_id.is_empty() {
             return ObjectiveIdForExecutionOutput {
                 objective_id: Some(sanitized.objective_id),
@@ -13150,7 +13509,13 @@ pub fn compute_short_text(input: &ShortTextInput) -> ShortTextOutput {
     let text = input.value.as_deref().unwrap_or("").to_string();
     let max = input
         .max_len
-        .and_then(|v| if v.is_finite() && v >= 0.0 { Some(v as usize) } else { None })
+        .and_then(|v| {
+            if v.is_finite() && v >= 0.0 {
+                Some(v as usize)
+            } else {
+                None
+            }
+        })
         .unwrap_or(220usize);
     if text.chars().count() <= max {
         return ShortTextOutput { text };
@@ -13219,7 +13584,12 @@ pub fn compute_budget_pacing_gate(input: &BudgetPacingGateInput) -> BudgetPacing
     } else {
         input.est_tokens.max(0.0)
     };
-    let normalized_risk = input.risk.as_deref().unwrap_or("").trim().to_ascii_lowercase();
+    let normalized_risk = input
+        .risk
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
     let high_value_escape = value_score >= (input.min_value_signal_score + 20.0).max(85.0);
     if high_value_escape {
         return BudgetPacingGateOutput {
@@ -13469,9 +13839,7 @@ pub fn compute_exec_window_match(input: &ExecWindowMatchInput) -> ExecWindowMatc
     }
 }
 
-pub fn compute_start_of_next_utc_day(
-    input: &StartOfNextUtcDayInput,
-) -> StartOfNextUtcDayOutput {
+pub fn compute_start_of_next_utc_day(input: &StartOfNextUtcDayInput) -> StartOfNextUtcDayOutput {
     let date_str = input
         .date_str
         .as_ref()
@@ -13781,10 +14149,7 @@ pub fn compute_eye_outcome_count_window(
         if !evidence_ref.contains(&eye_ref) {
             continue;
         }
-        let ts_ms = evt
-            .ts
-            .as_ref()
-            .and_then(|v| parse_rfc3339_ts_ms(v.trim()));
+        let ts_ms = evt.ts.as_ref().and_then(|v| parse_rfc3339_ts_ms(v.trim()));
         let Some(ts_ms) = ts_ms else {
             continue;
         };
@@ -13814,7 +14179,11 @@ pub fn compute_eye_outcome_count_last_hours(
         .map(|v| v.trim().to_string())
         .unwrap_or_default();
     let now_ms = if let Some(v) = input.now_ms {
-        if v.is_finite() { v } else { 0.0 }
+        if v.is_finite() {
+            v
+        } else {
+            0.0
+        }
     } else {
         Utc::now().timestamp_millis() as f64
     };
@@ -13846,10 +14215,7 @@ pub fn compute_eye_outcome_count_last_hours(
         if !evidence_ref.contains(&eye_ref) {
             continue;
         }
-        let ts_ms = evt
-            .ts
-            .as_ref()
-            .and_then(|v| parse_rfc3339_ts_ms(v.trim()));
+        let ts_ms = evt.ts.as_ref().and_then(|v| parse_rfc3339_ts_ms(v.trim()));
         let Some(ts_ms) = ts_ms else {
             continue;
         };
@@ -14009,9 +14375,7 @@ pub fn compute_non_yield_category(input: &NonYieldCategoryInput) -> NonYieldCate
             .unwrap_or(result.as_str());
         let reason = normalize_spaces(reason_raw).to_ascii_lowercase();
         let result_lc = result.to_ascii_lowercase();
-        if result_lc.contains("budget")
-            || reason.contains("budget")
-            || reason.contains("autopause")
+        if result_lc.contains("budget") || reason.contains("budget") || reason.contains("autopause")
         {
             return NonYieldCategoryOutput {
                 category: Some("budget_hold".to_string()),
@@ -14133,7 +14497,9 @@ pub fn compute_proposal_type_from_run_event(
     }
 }
 
-pub fn compute_run_event_objective_id(input: &RunEventObjectiveIdInput) -> RunEventObjectiveIdOutput {
+pub fn compute_run_event_objective_id(
+    input: &RunEventObjectiveIdInput,
+) -> RunEventObjectiveIdOutput {
     let selected = if input.directive_pulse_present.unwrap_or(false) {
         input
             .directive_pulse_objective_id
@@ -14141,7 +14507,11 @@ pub fn compute_run_event_objective_id(input: &RunEventObjectiveIdInput) -> RunEv
             .map(|v| v.as_str())
             .unwrap_or("")
     } else if input.objective_id_present.unwrap_or(false) {
-        input.objective_id.as_ref().map(|v| v.as_str()).unwrap_or("")
+        input
+            .objective_id
+            .as_ref()
+            .map(|v| v.as_str())
+            .unwrap_or("")
     } else if input.objective_binding_present.unwrap_or(false) {
         input
             .objective_binding_objective_id
@@ -14252,7 +14622,9 @@ pub fn compute_capacity_counted_attempt_event(
 pub fn compute_repeat_gate_anchor(input: &RepeatGateAnchorInput) -> RepeatGateAnchorOutput {
     let proposal_id = normalize_spaces(input.proposal_id.as_deref().unwrap_or(""));
     let objective_id = normalize_spaces(input.objective_id.as_deref().unwrap_or(""));
-    let objective_binding = if input.objective_binding_present.unwrap_or(false) && !objective_id.is_empty() {
+    let objective_binding = if input.objective_binding_present.unwrap_or(false)
+        && !objective_id.is_empty()
+    {
         let source_raw = normalize_spaces(input.objective_binding_source.as_deref().unwrap_or(""));
         Some(RepeatGateAnchorBindingOutput {
             pass: input.objective_binding_pass.unwrap_or(true),
@@ -14370,7 +14742,13 @@ fn policy_hold_reason_from_event_input(evt: &PolicyHoldPatternEventInput) -> Str
 }
 
 pub fn compute_policy_hold_pattern(input: &PolicyHoldPatternInput) -> PolicyHoldPatternOutput {
-    let objective_id = normalize_spaces(input.objective_id.as_ref().map(|v| v.as_str()).unwrap_or(""));
+    let objective_id = normalize_spaces(
+        input
+            .objective_id
+            .as_ref()
+            .map(|v| v.as_str())
+            .unwrap_or(""),
+    );
     let window_hours = input.window_hours.unwrap_or(24.0).max(1.0);
     let repeat_threshold = input.repeat_threshold.unwrap_or(2.0).max(2.0);
     let now_ms = non_negative_number(input.now_ms).unwrap_or_else(|| {
@@ -14397,7 +14775,8 @@ pub fn compute_policy_hold_pattern(input: &PolicyHoldPatternInput) -> PolicyHold
             .as_ref()
             .map(|v| v.trim().to_string())
             .unwrap_or_default();
-        let evt_objective = normalize_spaces(evt.objective_id.as_ref().map(|v| v.as_str()).unwrap_or(""));
+        let evt_objective =
+            normalize_spaces(evt.objective_id.as_ref().map(|v| v.as_str()).unwrap_or(""));
         if objective_id.is_empty() || evt_objective != objective_id {
             continue;
         }
@@ -14461,7 +14840,9 @@ fn policy_hold_reason_from_latest_entry(evt: &PolicyHoldLatestEventEntryInput) -
         .filter(|v| !v.is_empty())
 }
 
-pub fn compute_policy_hold_latest_event(input: &PolicyHoldLatestEventInput) -> PolicyHoldLatestEventOutput {
+pub fn compute_policy_hold_latest_event(
+    input: &PolicyHoldLatestEventInput,
+) -> PolicyHoldLatestEventOutput {
     for (idx, evt) in input.events.iter().enumerate().rev() {
         let event_type = evt
             .event_type
@@ -14485,7 +14866,11 @@ pub fn compute_policy_hold_latest_event(input: &PolicyHoldLatestEventInput) -> P
             found: true,
             event_index: Some(idx as u32),
             result: evt.result.as_ref().map(|v| v.to_string()),
-            ts: evt.ts.as_ref().map(|v| v.to_string()).filter(|v| !v.trim().is_empty()),
+            ts: evt
+                .ts
+                .as_ref()
+                .map(|v| v.to_string())
+                .filter(|v| !v.trim().is_empty()),
             ts_ms: non_negative_number(evt.ts_ms),
             hold_reason: policy_hold_reason_from_latest_entry(evt),
             route_block_reason: evt
@@ -14567,9 +14952,11 @@ pub fn compute_policy_hold_cooldown(input: &PolicyHoldCooldownInput) -> PolicyHo
             non_negative_number(input.cooldown_manual_review_minutes).unwrap_or(90.0);
         let unchanged_state_minutes =
             non_negative_number(input.cooldown_unchanged_state_minutes).unwrap_or(90.0);
-        let readiness_retry_minutes = non_negative_number(input.readiness_retry_minutes).unwrap_or(120.0);
+        let readiness_retry_minutes =
+            non_negative_number(input.readiness_retry_minutes).unwrap_or(120.0);
 
-        if result == "no_candidates_policy_daily_cap" || result == "no_candidates_policy_canary_cap" {
+        if result == "no_candidates_policy_daily_cap" || result == "no_candidates_policy_canary_cap"
+        {
             let cap_cooldown = if until_next_day_caps {
                 minutes_until_next_utc_day(now_ms) as f64
             } else {
@@ -14788,15 +15175,13 @@ pub fn compute_normalize_backlog_autoscale_state(
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| module_fallback.clone());
-    let current_cells = parse_non_negative_number(src_obj.and_then(|obj| obj.get("current_cells")))
-        .unwrap_or(0.0);
-    let target_cells = parse_non_negative_number(src_obj.and_then(|obj| obj.get("target_cells")))
-        .unwrap_or(0.0);
-    let last_run_ts =
-        parse_clean_optional_string(src_obj.and_then(|obj| obj.get("last_run_ts")));
-    let last_high_pressure_ts = parse_clean_optional_string(
-        src_obj.and_then(|obj| obj.get("last_high_pressure_ts")),
-    );
+    let current_cells =
+        parse_non_negative_number(src_obj.and_then(|obj| obj.get("current_cells"))).unwrap_or(0.0);
+    let target_cells =
+        parse_non_negative_number(src_obj.and_then(|obj| obj.get("target_cells"))).unwrap_or(0.0);
+    let last_run_ts = parse_clean_optional_string(src_obj.and_then(|obj| obj.get("last_run_ts")));
+    let last_high_pressure_ts =
+        parse_clean_optional_string(src_obj.and_then(|obj| obj.get("last_high_pressure_ts")));
     let last_action = parse_clean_optional_string(src_obj.and_then(|obj| obj.get("last_action")));
     let updated_at = parse_clean_optional_string(src_obj.and_then(|obj| obj.get("updated_at")));
     NormalizeBacklogAutoscaleStateOutput {
@@ -14812,7 +15197,9 @@ pub fn compute_normalize_backlog_autoscale_state(
     }
 }
 
-pub fn compute_spawn_allocated_cells(input: &SpawnAllocatedCellsInput) -> SpawnAllocatedCellsOutput {
+pub fn compute_spawn_allocated_cells(
+    input: &SpawnAllocatedCellsInput,
+) -> SpawnAllocatedCellsOutput {
     let resolved = input
         .active_cells
         .or(input.current_cells)
@@ -14853,7 +15240,12 @@ pub fn compute_spawn_capacity_boost_snapshot(
     let mut latest_ts: Option<String> = None;
 
     for row in input.rows.iter().rev() {
-        let row_type = row.r#type.as_deref().unwrap_or("").trim().to_ascii_lowercase();
+        let row_type = row
+            .r#type
+            .as_deref()
+            .unwrap_or("")
+            .trim()
+            .to_ascii_lowercase();
         if row_type != "spawn_request" {
             continue;
         }
@@ -15037,15 +15429,9 @@ pub fn compute_strategy_budget_effective(
         .and_then(|value| value.as_object())
         .cloned()
         .unwrap_or_default();
-    let hard_runs = input
-        .hard_runs
-        .filter(|v| v.is_finite() && *v > 0.0);
-    let hard_tokens = input
-        .hard_tokens
-        .filter(|v| v.is_finite() && *v > 0.0);
-    let hard_per_action = input
-        .hard_per_action
-        .filter(|v| v.is_finite() && *v > 0.0);
+    let hard_runs = input.hard_runs.filter(|v| v.is_finite() && *v > 0.0);
+    let hard_tokens = input.hard_tokens.filter(|v| v.is_finite() && *v > 0.0);
+    let hard_per_action = input.hard_per_action.filter(|v| v.is_finite() && *v > 0.0);
 
     if let Some(hard) = hard_runs {
         if let Some(current) = js_like_number(budget.get("daily_runs_cap")) {
@@ -15165,8 +15551,8 @@ pub fn compute_preexec_verdict_from_signals(
     let next_runnable_at = if verdict == "proceed" {
         Some(
             compute_now_iso(&NowIsoInput {
-            now_iso: input.now_iso.clone(),
-        })
+                now_iso: input.now_iso.clone(),
+            })
             .value,
         )
     } else {
@@ -15422,13 +15808,18 @@ pub fn compute_detect_eyes_terminology_drift(
         let blob = compute_proposal_text_blob(&ProposalTextBlobInput {
             title: proposal_obj.get("title").map(js_like_string),
             summary: proposal_obj.get("summary").map(js_like_string),
-            suggested_next_command: proposal_obj.get("suggested_next_command").map(js_like_string),
+            suggested_next_command: proposal_obj
+                .get("suggested_next_command")
+                .map(js_like_string),
             suggested_command: proposal_obj.get("suggested_command").map(js_like_string),
             notes: proposal_obj.get("notes").map(js_like_string),
             evidence,
         })
         .blob;
-        if blob.is_empty() || !Regex::new(r"\beye\b|\beyes\b").expect("valid eye regex").is_match(&blob)
+        if blob.is_empty()
+            || !Regex::new(r"\beye\b|\beyes\b")
+                .expect("valid eye regex")
+                .is_match(&blob)
         {
             continue;
         }
@@ -15458,7 +15849,10 @@ pub fn compute_detect_eyes_terminology_drift(
         if !seen.insert(dedup_key) {
             continue;
         }
-        let sample = proposal_obj.get("title").map(js_like_string).unwrap_or_default();
+        let sample = proposal_obj
+            .get("title")
+            .map(js_like_string)
+            .unwrap_or_default();
         let sample = normalize_spaces(&sample);
         let sample = sample.chars().take(140).collect::<String>();
         warnings.push(DetectEyesTerminologyDriftWarning {
@@ -15806,7 +16200,8 @@ pub fn compute_execute_confidence_policy(
             && history_shipped >= input.fallback_relax_min_shipped
             && ship_rate >= input.fallback_relax_min_ship_rate;
         if relax_eligible {
-            let relax_steps = (history_confidence_fallback / input.fallback_relax_every.max(1.0)).floor();
+            let relax_steps =
+                (history_confidence_fallback / input.fallback_relax_every.max(1.0)).floor();
             let relax_raw = relax_steps * input.fallback_relax_step.max(0.0);
             let relax = relax_raw.clamp(0.0, input.fallback_relax_max.max(0.0));
             if relax > 0.0 {
@@ -15937,7 +16332,8 @@ pub fn compute_directive_fit_assessment(
 
     let final_score = score.round().clamp(0.0, 100.0);
     let mut reasons = Vec::<String>::new();
-    if positive_phrase_hits.is_empty() && positive_token_hits.is_empty() && strategy_hits.is_empty() {
+    if positive_phrase_hits.is_empty() && positive_token_hits.is_empty() && strategy_hits.is_empty()
+    {
         reasons.push("no_directive_alignment".to_string());
     }
     if input.strategy_token_count > 0.0 && strategy_hits.is_empty() {
@@ -15964,7 +16360,10 @@ pub fn compute_directive_fit_assessment(
     let matched_positive = pos_set.into_iter().take(5).collect::<Vec<_>>();
 
     let mut neg_set = std::collections::BTreeSet::<String>::new();
-    for value in negative_phrase_hits.iter().chain(negative_token_hits.iter()) {
+    for value in negative_phrase_hits
+        .iter()
+        .chain(negative_token_hits.iter())
+    {
         if !value.trim().is_empty() {
             neg_set.insert(value.trim().to_string());
         }
@@ -16378,6 +16777,525 @@ pub fn compute_actionability_assessment(
     }
 }
 
+fn autoscale_row_id(value: &serde_json::Value) -> String {
+    value
+        .as_object()
+        .and_then(|obj| obj.get("id"))
+        .map(js_like_string)
+        .map(|v| v.trim().to_string())
+        .unwrap_or_default()
+}
+
+fn autoscale_non_negative(value: f64) -> f64 {
+    if value.is_finite() {
+        value.max(0.0)
+    } else {
+        0.0
+    }
+}
+
+pub fn compute_strategy_profile(input: &StrategyProfileInput) -> StrategyProfileOutput {
+    let strategy = input
+        .strategy
+        .as_ref()
+        .filter(|value| value.is_object())
+        .cloned();
+    StrategyProfileOutput { strategy }
+}
+
+pub fn compute_active_strategy_variants(
+    input: &ActiveStrategyVariantsInput,
+) -> ActiveStrategyVariantsOutput {
+    let mut out: Vec<serde_json::Value> = Vec::new();
+    let mut seen = std::collections::BTreeSet::<String>::new();
+
+    for row in &input.listed {
+        let Some(obj) = row.as_object() else {
+            continue;
+        };
+        let status = obj
+            .get("status")
+            .map(js_like_string)
+            .map(|v| v.trim().to_ascii_lowercase())
+            .unwrap_or_default();
+        if status != "active" {
+            continue;
+        }
+        let strict_not_ok = obj
+            .get("validation")
+            .and_then(|v| v.as_object())
+            .and_then(|v| v.get("strict_ok"))
+            .and_then(|v| v.as_bool())
+            == Some(false);
+        if strict_not_ok {
+            continue;
+        }
+        let id = autoscale_row_id(row);
+        if id.is_empty() || !seen.insert(id) {
+            continue;
+        }
+        out.push(serde_json::Value::Object(obj.clone()));
+    }
+
+    if let Some(primary) = input.primary.as_ref() {
+        let id = autoscale_row_id(primary);
+        if !id.is_empty() && !seen.contains(&id) && primary.is_object() {
+            out.push(primary.clone());
+        }
+    }
+
+    out.sort_by(|a, b| autoscale_row_id(a).cmp(&autoscale_row_id(b)));
+    ActiveStrategyVariantsOutput { variants: out }
+}
+
+pub fn compute_strategy_scorecard_summaries(
+    input: &StrategyScorecardSummariesInput,
+) -> StrategyScorecardSummariesOutput {
+    let mut by_id = std::collections::BTreeMap::<String, StrategyScorecardSummaryItemOutput>::new();
+    for row in &input.summaries {
+        let Some(obj) = row.as_object() else {
+            continue;
+        };
+        let id = obj
+            .get("strategy_id")
+            .map(js_like_string)
+            .map(|v| v.trim().to_string())
+            .unwrap_or_default();
+        if id.is_empty() {
+            continue;
+        }
+        let metrics = obj.get("metrics").and_then(|v| v.as_object());
+        let score = metrics
+            .and_then(|v| v.get("score"))
+            .and_then(|v| js_like_number(Some(v)))
+            .unwrap_or(0.0);
+        let confidence = metrics
+            .and_then(|v| v.get("confidence"))
+            .and_then(|v| js_like_number(Some(v)))
+            .unwrap_or(0.0);
+        let stage = obj
+            .get("stage")
+            .map(js_like_string)
+            .map(|v| v.trim().to_ascii_lowercase())
+            .filter(|v| !v.is_empty());
+        by_id.insert(
+            id,
+            StrategyScorecardSummaryItemOutput {
+                score,
+                confidence,
+                stage,
+            },
+        );
+    }
+
+    StrategyScorecardSummariesOutput {
+        path: input
+            .path
+            .as_ref()
+            .map(|v| v.trim().to_string())
+            .unwrap_or_default(),
+        ts: input
+            .ts
+            .as_ref()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty()),
+        by_id,
+    }
+}
+
+pub fn compute_outcome_fitness_policy(
+    input: &OutcomeFitnessPolicyInput,
+) -> OutcomeFitnessPolicyOutput {
+    let policy = input
+        .policy
+        .as_ref()
+        .filter(|value| value.is_object())
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({}));
+    OutcomeFitnessPolicyOutput { policy }
+}
+
+pub fn compute_load_eyes_map(input: &LoadEyesMapInput) -> LoadEyesMapOutput {
+    let mut rows: Vec<serde_json::Map<String, serde_json::Value>> = Vec::new();
+    let mut idx_by_id = std::collections::HashMap::<String, usize>::new();
+
+    for row in &input.cfg_eyes {
+        let Some(obj) = row.as_object() else {
+            continue;
+        };
+        let id = row
+            .as_object()
+            .and_then(|m| m.get("id"))
+            .map(js_like_string)
+            .map(|v| v.trim().to_string())
+            .unwrap_or_default();
+        if id.is_empty() {
+            continue;
+        }
+        if let Some(index) = idx_by_id.get(&id).copied() {
+            rows[index] = obj.clone();
+        } else {
+            idx_by_id.insert(id, rows.len());
+            rows.push(obj.clone());
+        }
+    }
+
+    for row in &input.state_eyes {
+        let Some(obj) = row.as_object() else {
+            continue;
+        };
+        let id = row
+            .as_object()
+            .and_then(|m| m.get("id"))
+            .map(js_like_string)
+            .map(|v| v.trim().to_string())
+            .unwrap_or_default();
+        if id.is_empty() {
+            continue;
+        }
+        if let Some(index) = idx_by_id.get(&id).copied() {
+            let merged = &mut rows[index];
+            for (key, value) in obj {
+                merged.insert(key.clone(), value.clone());
+            }
+        } else {
+            idx_by_id.insert(id, rows.len());
+            rows.push(obj.clone());
+        }
+    }
+
+    LoadEyesMapOutput {
+        eyes: rows
+            .into_iter()
+            .map(serde_json::Value::Object)
+            .collect::<Vec<_>>(),
+    }
+}
+
+pub fn compute_fallback_directive_objective_ids(
+    input: &FallbackDirectiveObjectiveIdsInput,
+) -> FallbackDirectiveObjectiveIdsOutput {
+    let mut ids = std::collections::BTreeSet::<String>::new();
+    for raw in &input.directive_ids {
+        let id = sanitize_directive_objective_id(raw);
+        if !id.is_empty() {
+            ids.insert(id);
+        }
+    }
+    FallbackDirectiveObjectiveIdsOutput {
+        ids: ids.into_iter().collect(),
+    }
+}
+
+pub fn compute_queue_pressure_snapshot(
+    input: &QueuePressureSnapshotInput,
+) -> QueuePressureSnapshotOutput {
+    let mut total: u32 = 0;
+    let mut pending: u32 = 0;
+    let mut accepted: u32 = 0;
+    let mut closed: u32 = 0;
+    let mut rejected: u32 = 0;
+    let mut parked: u32 = 0;
+
+    for status in &input.statuses {
+        total += 1;
+        let normalized = status.trim().to_ascii_lowercase();
+        if normalized == "pending" {
+            pending += 1;
+        } else if normalized == "accepted" {
+            accepted += 1;
+        } else if normalized == "closed" {
+            closed += 1;
+        } else if normalized == "rejected" {
+            rejected += 1;
+        } else if normalized == "parked" {
+            parked += 1;
+        }
+    }
+
+    let pending_ratio = if total > 0 {
+        round6((pending as f64) / (total as f64))
+    } else {
+        0.0
+    };
+    let warn_ratio = round6(clamp_ratio(input.warn_ratio));
+    let critical_ratio = round6(clamp_ratio(input.critical_ratio));
+    let warn_count = autoscale_non_negative(input.warn_count);
+    let critical_count = autoscale_non_negative(input.critical_count);
+
+    let mut pressure = "normal".to_string();
+    if (pending as f64) >= critical_count || pending_ratio >= critical_ratio {
+        pressure = "critical".to_string();
+    } else if (pending as f64) >= warn_count || pending_ratio >= warn_ratio {
+        pressure = "warning".to_string();
+    }
+
+    QueuePressureSnapshotOutput {
+        total,
+        pending,
+        accepted,
+        closed,
+        rejected,
+        parked,
+        pending_ratio,
+        pressure,
+        warn_ratio,
+        critical_ratio,
+        warn_count,
+        critical_count,
+    }
+}
+
+fn push_parse_success_criteria_text(
+    rows: &mut Vec<ParseSuccessCriteriaRowOutput>,
+    text: &str,
+    source: &str,
+    success_metric_re: &Regex,
+    success_timebound_re: &Regex,
+    success_relaxed_horizon_re: &Regex,
+    success_comparator_re: &Regex,
+) {
+    let clean = normalize_spaces(text);
+    if clean.is_empty() {
+        return;
+    }
+    let has_timebound =
+        success_timebound_re.is_match(&clean) || success_relaxed_horizon_re.is_match(&clean);
+    let metric = success_metric_re
+        .captures(&clean)
+        .and_then(|caps| caps.get(1))
+        .map(|m| m.as_str().to_ascii_lowercase())
+        .unwrap_or_default();
+    let measurable = success_metric_re.is_match(&clean)
+        && (has_timebound
+            || clean.chars().any(|ch| ch.is_ascii_digit())
+            || success_comparator_re.is_match(&clean));
+    rows.push(ParseSuccessCriteriaRowOutput {
+        source: source.to_string(),
+        metric,
+        target: clean.chars().take(140).collect(),
+        measurable,
+    });
+}
+
+pub fn compute_parse_success_criteria_rows(
+    input: &ParseSuccessCriteriaRowsInput,
+) -> ParseSuccessCriteriaRowsOutput {
+    let success_metric_re = Regex::new(
+        r"(?i)\b(metric|kpi|target|rate|count|latency|error|uptime|throughput|conversion|artifact|receipt|coverage|reply|interview|pass|fail|delta|percent|%|run|runs|check|checks|items_collected)\b",
+    )
+    .expect("valid success metric regex");
+    let success_timebound_re = Regex::new(
+        r"(?i)\b(\d+\s*(h|hr|hour|hours|d|day|days|w|week|weeks|min|mins|minute|minutes)|daily|weekly|monthly|quarterly)\b",
+    )
+    .expect("valid success timebound regex");
+    let success_relaxed_horizon_re =
+        Regex::new(r"(?i)\b(next|this)\s+(run|cycle)\b").expect("valid success relaxed regex");
+    let success_comparator_re =
+        Regex::new(r"(?i)\b(>=|<=|>|<|at least|at most|less than|more than|within|under|over)\b")
+            .expect("valid success comparator regex");
+
+    let has_timebound = |text: &str| -> bool {
+        let clean = normalize_spaces(text);
+        if clean.is_empty() {
+            return false;
+        }
+        success_timebound_re.is_match(&clean) || success_relaxed_horizon_re.is_match(&clean)
+    };
+    let structured_measurable = |metric: &str, target: &str, horizon: &str| -> bool {
+        let m = normalize_spaces(metric);
+        let t = normalize_spaces(target);
+        let h = normalize_spaces(horizon);
+        if m.is_empty() || t.is_empty() {
+            return false;
+        }
+        let metric_like = success_metric_re.is_match(&m) || m.contains('_') || m.contains('-');
+        let quantified_target = t.chars().any(|ch| ch.is_ascii_digit())
+            || success_comparator_re.is_match(&t)
+            || success_metric_re.is_match(&t);
+        let timebound = has_timebound(&format!("{h} {t}"));
+        metric_like && (quantified_target || timebound)
+    };
+
+    let mut rows: Vec<ParseSuccessCriteriaRowOutput> = Vec::new();
+
+    for row in &input.action_rows {
+        if let Some(raw) = row.as_str() {
+            push_parse_success_criteria_text(
+                &mut rows,
+                raw,
+                "action_spec.success_criteria",
+                &success_metric_re,
+                &success_timebound_re,
+                &success_relaxed_horizon_re,
+                &success_comparator_re,
+            );
+            continue;
+        }
+        let Some(obj) = row.as_object() else {
+            continue;
+        };
+        let metric_raw = obj
+            .get("metric")
+            .or_else(|| obj.get("name"))
+            .map(js_like_string)
+            .unwrap_or_default();
+        let target_raw = obj
+            .get("target")
+            .or_else(|| obj.get("threshold"))
+            .or_else(|| obj.get("description"))
+            .or_else(|| obj.get("goal"))
+            .map(js_like_string)
+            .unwrap_or_default();
+        let horizon_raw = obj
+            .get("horizon")
+            .or_else(|| obj.get("window"))
+            .or_else(|| obj.get("by"))
+            .map(js_like_string)
+            .unwrap_or_default();
+
+        let metric = normalize_spaces(&metric_raw);
+        let target = normalize_spaces(&target_raw);
+        let horizon = normalize_spaces(&horizon_raw);
+        let merged = normalize_spaces(
+            &[metric.clone(), target.clone(), horizon.clone()]
+                .into_iter()
+                .filter(|v| !v.is_empty())
+                .collect::<Vec<_>>()
+                .join(" | "),
+        );
+        if merged.is_empty() {
+            continue;
+        }
+        rows.push(ParseSuccessCriteriaRowOutput {
+            source: "action_spec.success_criteria".to_string(),
+            metric: metric.to_ascii_lowercase(),
+            target: merged.chars().take(140).collect(),
+            measurable: structured_measurable(&metric, &target, &horizon),
+        });
+    }
+
+    for row in &input.verify_rows {
+        let text = js_like_string(row);
+        push_parse_success_criteria_text(
+            &mut rows,
+            &text,
+            "action_spec.verify",
+            &success_metric_re,
+            &success_timebound_re,
+            &success_relaxed_horizon_re,
+            &success_comparator_re,
+        );
+    }
+    for row in &input.validation_rows {
+        let text = js_like_string(row);
+        push_parse_success_criteria_text(
+            &mut rows,
+            &text,
+            "validation",
+            &success_metric_re,
+            &success_timebound_re,
+            &success_relaxed_horizon_re,
+            &success_comparator_re,
+        );
+    }
+
+    let mut dedupe = std::collections::HashSet::<String>::new();
+    let mut out: Vec<ParseSuccessCriteriaRowOutput> = Vec::new();
+    for row in rows {
+        if row.target.is_empty() {
+            continue;
+        }
+        let key = format!("{}|{}", row.metric, row.target).to_ascii_lowercase();
+        if !dedupe.insert(key) {
+            continue;
+        }
+        out.push(row);
+    }
+
+    ParseSuccessCriteriaRowsOutput { rows: out }
+}
+
+pub fn compute_collect_outcome_stats(
+    input: &CollectOutcomeStatsInput,
+) -> CollectOutcomeStatsOutput {
+    let normalize_bucket = |row: &CollectOutcomeStatsBucketInput| CollectOutcomeStatsBucketInput {
+        shipped: autoscale_non_negative(row.shipped),
+        no_change: autoscale_non_negative(row.no_change),
+        reverted: autoscale_non_negative(row.reverted),
+    };
+    let to_bias_output = |row: &CollectOutcomeStatsBucketInput, min_total: f64| {
+        let normalized = normalize_bucket(row);
+        let derived = compute_derive_entity_bias(&DeriveEntityBiasInput {
+            shipped: normalized.shipped,
+            no_change: normalized.no_change,
+            reverted: normalized.reverted,
+            min_total: autoscale_non_negative(min_total),
+        });
+        (
+            derived.bias,
+            CollectOutcomeStatsBiasOutput {
+                shipped: normalized.shipped,
+                no_change: normalized.no_change,
+                reverted: normalized.reverted,
+                total: derived.total,
+                bias: derived.bias,
+            },
+        )
+    };
+
+    let global_normalized = normalize_bucket(&input.global);
+    let global_total = compute_total_outcomes(&TotalOutcomesInput {
+        shipped: global_normalized.shipped,
+        no_change: global_normalized.no_change,
+        reverted: global_normalized.reverted,
+    })
+    .total;
+    let global = CollectOutcomeStatsGlobalOutput {
+        shipped: global_normalized.shipped,
+        no_change: global_normalized.no_change,
+        reverted: global_normalized.reverted,
+        total: global_total,
+    };
+
+    let mut eye_biases = std::collections::BTreeMap::<String, CollectOutcomeStatsBiasOutput>::new();
+    for (key, row) in &input.by_eye {
+        let (bias, output) = to_bias_output(row, input.eye_min_samples);
+        if bias != 0.0 {
+            eye_biases.insert(key.clone(), output);
+        }
+    }
+
+    let mut topic_biases =
+        std::collections::BTreeMap::<String, CollectOutcomeStatsBiasOutput>::new();
+    for (key, row) in &input.by_topic {
+        let (bias, output) = to_bias_output(row, input.topic_min_samples);
+        if bias != 0.0 {
+            topic_biases.insert(key.clone(), output);
+        }
+    }
+
+    CollectOutcomeStatsOutput {
+        global,
+        eye_biases,
+        topic_biases,
+    }
+}
+
+pub fn compute_subdirective_v2_signals(
+    input: &SubdirectiveV2SignalsInput,
+) -> SubdirectiveV2SignalsOutput {
+    SubdirectiveV2SignalsOutput {
+        required: input.required,
+        has_concrete_target: input.has_concrete_target,
+        has_expected_delta: input.has_expected_delta,
+        has_verification_step: input.has_verification_step,
+        target_count: autoscale_non_negative(input.target_count),
+        verify_count: autoscale_non_negative(input.verify_count),
+        success_criteria_count: autoscale_non_negative(input.success_criteria_count),
+    }
+}
+
 pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     let request: AutoscaleRequest = serde_json::from_str(payload_json)
         .map_err(|e| format!("autoscale_request_parse_failed:{e}"))?;
@@ -16397,7 +17315,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "strategy_execution_mode_effective" {
         let input = request
             .strategy_execution_mode_effective_input
-            .ok_or_else(|| "autoscale_missing_strategy_execution_mode_effective_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_strategy_execution_mode_effective_input".to_string()
+            })?;
         let out = compute_strategy_execution_mode_effective(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -16409,7 +17329,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "strategy_canary_exec_limit_effective" {
         let input = request
             .strategy_canary_exec_limit_effective_input
-            .ok_or_else(|| "autoscale_missing_strategy_canary_exec_limit_effective_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_strategy_canary_exec_limit_effective_input".to_string()
+            })?;
         let out = compute_strategy_canary_exec_limit_effective(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -16517,7 +17439,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "normalize_backlog_autoscale_state" {
         let input = request
             .normalize_backlog_autoscale_state_input
-            .ok_or_else(|| "autoscale_missing_normalize_backlog_autoscale_state_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_normalize_backlog_autoscale_state_input".to_string()
+            })?;
         let out = compute_normalize_backlog_autoscale_state(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -16646,9 +17570,7 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "mode": "structural_preview_criteria_failure",
             "payload": out
         }))
-        .map_err(|e| {
-            format!("autoscale_structural_preview_criteria_failure_encode_failed:{e}")
-        });
+        .map_err(|e| format!("autoscale_structural_preview_criteria_failure_encode_failed:{e}"));
     }
     if mode == "policy_hold" {
         let input = request
@@ -16775,7 +17697,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "capacity_counted_attempt_indices" {
         let input = request
             .capacity_counted_attempt_indices_input
-            .ok_or_else(|| "autoscale_missing_capacity_counted_attempt_indices_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_capacity_counted_attempt_indices_input".to_string()
+            })?;
         let out = compute_capacity_counted_attempt_indices(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -17037,9 +17961,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         .map_err(|e| format!("autoscale_estimate_tokens_encode_failed:{e}"));
     }
     if mode == "proposal_remediation_depth" {
-        let input = request.proposal_remediation_depth_input.ok_or_else(|| {
-            "autoscale_missing_proposal_remediation_depth_input".to_string()
-        })?;
+        let input = request
+            .proposal_remediation_depth_input
+            .ok_or_else(|| "autoscale_missing_proposal_remediation_depth_input".to_string())?;
         let out = compute_proposal_remediation_depth(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -17195,7 +18119,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "strategy_trit_shadow_ranking_summary" {
         let input = request
             .strategy_trit_shadow_ranking_summary_input
-            .ok_or_else(|| "autoscale_missing_strategy_trit_shadow_ranking_summary_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_strategy_trit_shadow_ranking_summary_input".to_string()
+            })?;
         let out = compute_strategy_trit_shadow_ranking_summary(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -17555,14 +18481,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "infer_value_currencies_from_directive_bits" {
         let input = request
             .infer_value_currencies_from_directive_bits_input
-            .ok_or_else(|| "autoscale_missing_infer_value_currencies_from_directive_bits_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_infer_value_currencies_from_directive_bits_input".to_string()
+            })?;
         let out = compute_infer_value_currencies_from_directive_bits(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
             "mode": "infer_value_currencies_from_directive_bits",
             "payload": out
         }))
-        .map_err(|e| format!("autoscale_infer_value_currencies_from_directive_bits_encode_failed:{e}"));
+        .map_err(|e| {
+            format!("autoscale_infer_value_currencies_from_directive_bits_encode_failed:{e}")
+        });
     }
     if mode == "has_linked_objective_entry" {
         let input = request
@@ -17663,7 +18593,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "execution_allowed_by_feature_flag" {
         let input = request
             .execution_allowed_by_feature_flag_input
-            .ok_or_else(|| "autoscale_missing_execution_allowed_by_feature_flag_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_execution_allowed_by_feature_flag_input".to_string()
+            })?;
         let out = compute_execution_allowed_by_feature_flag(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -17888,6 +18820,128 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_derive_entity_bias_encode_failed:{e}"));
     }
+    if mode == "strategy_profile" {
+        let input = request
+            .strategy_profile_input
+            .ok_or_else(|| "autoscale_missing_strategy_profile_input".to_string())?;
+        let out = compute_strategy_profile(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "strategy_profile",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_strategy_profile_encode_failed:{e}"));
+    }
+    if mode == "active_strategy_variants" {
+        let input = request
+            .active_strategy_variants_input
+            .ok_or_else(|| "autoscale_missing_active_strategy_variants_input".to_string())?;
+        let out = compute_active_strategy_variants(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "active_strategy_variants",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_active_strategy_variants_encode_failed:{e}"));
+    }
+    if mode == "strategy_scorecard_summaries" {
+        let input = request
+            .strategy_scorecard_summaries_input
+            .ok_or_else(|| "autoscale_missing_strategy_scorecard_summaries_input".to_string())?;
+        let out = compute_strategy_scorecard_summaries(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "strategy_scorecard_summaries",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_strategy_scorecard_summaries_encode_failed:{e}"));
+    }
+    if mode == "outcome_fitness_policy" {
+        let input = request
+            .outcome_fitness_policy_input
+            .ok_or_else(|| "autoscale_missing_outcome_fitness_policy_input".to_string())?;
+        let out = compute_outcome_fitness_policy(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "outcome_fitness_policy",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_outcome_fitness_policy_encode_failed:{e}"));
+    }
+    if mode == "load_eyes_map" {
+        let input = request
+            .load_eyes_map_input
+            .ok_or_else(|| "autoscale_missing_load_eyes_map_input".to_string())?;
+        let out = compute_load_eyes_map(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "load_eyes_map",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_load_eyes_map_encode_failed:{e}"));
+    }
+    if mode == "fallback_directive_objective_ids" {
+        let input = request
+            .fallback_directive_objective_ids_input
+            .ok_or_else(|| {
+                "autoscale_missing_fallback_directive_objective_ids_input".to_string()
+            })?;
+        let out = compute_fallback_directive_objective_ids(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "fallback_directive_objective_ids",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_fallback_directive_objective_ids_encode_failed:{e}"));
+    }
+    if mode == "queue_pressure_snapshot" {
+        let input = request
+            .queue_pressure_snapshot_input
+            .ok_or_else(|| "autoscale_missing_queue_pressure_snapshot_input".to_string())?;
+        let out = compute_queue_pressure_snapshot(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "queue_pressure_snapshot",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_queue_pressure_snapshot_encode_failed:{e}"));
+    }
+    if mode == "parse_success_criteria_rows" {
+        let input = request
+            .parse_success_criteria_rows_input
+            .ok_or_else(|| "autoscale_missing_parse_success_criteria_rows_input".to_string())?;
+        let out = compute_parse_success_criteria_rows(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "parse_success_criteria_rows",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_parse_success_criteria_rows_encode_failed:{e}"));
+    }
+    if mode == "collect_outcome_stats" {
+        let input = request
+            .collect_outcome_stats_input
+            .ok_or_else(|| "autoscale_missing_collect_outcome_stats_input".to_string())?;
+        let out = compute_collect_outcome_stats(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "collect_outcome_stats",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_collect_outcome_stats_encode_failed:{e}"));
+    }
+    if mode == "subdirective_v2_signals" {
+        let input = request
+            .subdirective_v2_signals_input
+            .ok_or_else(|| "autoscale_missing_subdirective_v2_signals_input".to_string())?;
+        let out = compute_subdirective_v2_signals(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "subdirective_v2_signals",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_subdirective_v2_signals_encode_failed:{e}"));
+    }
     if mode == "build_overlay" {
         let input = request
             .build_overlay_input
@@ -17915,7 +18969,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "adaptive_mutation_execution_guard" {
         let input = request
             .adaptive_mutation_execution_guard_input
-            .ok_or_else(|| "autoscale_missing_adaptive_mutation_execution_guard_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_adaptive_mutation_execution_guard_input".to_string()
+            })?;
         let out = compute_adaptive_mutation_execution_guard(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -18011,7 +19067,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "unknown_type_quarantine_decision" {
         let input = request
             .unknown_type_quarantine_decision_input
-            .ok_or_else(|| "autoscale_missing_unknown_type_quarantine_decision_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_unknown_type_quarantine_decision_input".to_string()
+            })?;
         let out = compute_unknown_type_quarantine_decision(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -18323,7 +19381,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "execute_confidence_cooldown_active" {
         let input = request
             .execute_confidence_cooldown_active_input
-            .ok_or_else(|| "autoscale_missing_execute_confidence_cooldown_active_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_execute_confidence_cooldown_active_input".to_string()
+            })?;
         let out = compute_execute_confidence_cooldown_active(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -18395,7 +19455,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "compile_directive_pulse_objectives" {
         let input = request
             .compile_directive_pulse_objectives_input
-            .ok_or_else(|| "autoscale_missing_compile_directive_pulse_objectives_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_compile_directive_pulse_objectives_input".to_string()
+            })?;
         let out = compute_compile_directive_pulse_objectives(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -18407,7 +19469,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "directive_pulse_objectives_profile" {
         let input = request
             .directive_pulse_objectives_profile_input
-            .ok_or_else(|| "autoscale_missing_directive_pulse_objectives_profile_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_directive_pulse_objectives_profile_input".to_string()
+            })?;
         let out = compute_directive_pulse_objectives_profile(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -18419,7 +19483,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "recent_directive_pulse_cooldown_count" {
         let input = request
             .recent_directive_pulse_cooldown_count_input
-            .ok_or_else(|| "autoscale_missing_recent_directive_pulse_cooldown_count_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_recent_directive_pulse_cooldown_count_input".to_string()
+            })?;
         let out = compute_recent_directive_pulse_cooldown_count(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -18443,7 +19509,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "objective_ids_from_pulse_context" {
         let input = request
             .objective_ids_from_pulse_context_input
-            .ok_or_else(|| "autoscale_missing_objective_ids_from_pulse_context_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_objective_ids_from_pulse_context_input".to_string()
+            })?;
         let out = compute_objective_ids_from_pulse_context(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -18503,7 +19571,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "success_criteria_policy_for_proposal" {
         let input = request
             .success_criteria_policy_for_proposal_input
-            .ok_or_else(|| "autoscale_missing_success_criteria_policy_for_proposal_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_success_criteria_policy_for_proposal_input".to_string()
+            })?;
         let out = compute_success_criteria_policy_for_proposal(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -18551,7 +19621,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "is_directive_clarification_proposal" {
         let input = request
             .is_directive_clarification_proposal_input
-            .ok_or_else(|| "autoscale_missing_is_directive_clarification_proposal_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_is_directive_clarification_proposal_input".to_string()
+            })?;
         let out = compute_is_directive_clarification_proposal(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -18563,7 +19635,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "is_directive_decomposition_proposal" {
         let input = request
             .is_directive_decomposition_proposal_input
-            .ok_or_else(|| "autoscale_missing_is_directive_decomposition_proposal_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_is_directive_decomposition_proposal_input".to_string()
+            })?;
         let out = compute_is_directive_decomposition_proposal(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -18863,7 +19937,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "human_canary_override_approval_phrase" {
         let input = request
             .human_canary_override_approval_phrase_input
-            .ok_or_else(|| "autoscale_missing_human_canary_override_approval_phrase_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_human_canary_override_approval_phrase_input".to_string()
+            })?;
         let out = compute_human_canary_override_approval_phrase(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -18875,7 +19951,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "parse_human_canary_override_state" {
         let input = request
             .parse_human_canary_override_state_input
-            .ok_or_else(|| "autoscale_missing_parse_human_canary_override_state_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_parse_human_canary_override_state_input".to_string()
+            })?;
         let out = compute_parse_human_canary_override_state(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -18983,7 +20061,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "directive_clarification_exec_spec" {
         let input = request
             .directive_clarification_exec_spec_input
-            .ok_or_else(|| "autoscale_missing_directive_clarification_exec_spec_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_directive_clarification_exec_spec_input".to_string()
+            })?;
         let out = compute_directive_clarification_exec_spec(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -18995,7 +20075,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "directive_decomposition_exec_spec" {
         let input = request
             .directive_decomposition_exec_spec_input
-            .ok_or_else(|| "autoscale_missing_directive_decomposition_exec_spec_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_directive_decomposition_exec_spec_input".to_string()
+            })?;
         let out = compute_directive_decomposition_exec_spec(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -19031,7 +20113,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "parse_objective_id_from_evidence_refs" {
         let input = request
             .parse_objective_id_from_evidence_refs_input
-            .ok_or_else(|| "autoscale_missing_parse_objective_id_from_evidence_refs_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_parse_objective_id_from_evidence_refs_input".to_string()
+            })?;
         let out = compute_parse_objective_id_from_evidence_refs(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -19137,9 +20221,11 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         .map_err(|e| format!("autoscale_estimate_tokens_for_candidate_encode_failed:{e}"));
     }
     if mode == "proposal_status_for_queue_pressure" {
-        let input = request.proposal_status_for_queue_pressure_input.ok_or_else(|| {
-            "autoscale_missing_proposal_status_for_queue_pressure_input".to_string()
-        })?;
+        let input = request
+            .proposal_status_for_queue_pressure_input
+            .ok_or_else(|| {
+                "autoscale_missing_proposal_status_for_queue_pressure_input".to_string()
+            })?;
         let out = compute_proposal_status_for_queue_pressure(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -19223,7 +20309,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "execute_confidence_history_match" {
         let input = request
             .execute_confidence_history_match_input
-            .ok_or_else(|| "autoscale_missing_execute_confidence_history_match_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_execute_confidence_history_match_input".to_string()
+            })?;
         let out = compute_execute_confidence_history_match(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -19259,7 +20347,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "capability_attempt_count_for_date" {
         let input = request
             .capability_attempt_count_for_date_input
-            .ok_or_else(|| "autoscale_missing_capability_attempt_count_for_date_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_capability_attempt_count_for_date_input".to_string()
+            })?;
         let out = compute_capability_attempt_count_for_date(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -19271,7 +20361,9 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     if mode == "capability_outcome_stats_in_window" {
         let input = request
             .capability_outcome_stats_in_window_input
-            .ok_or_else(|| "autoscale_missing_capability_outcome_stats_in_window_input".to_string())?;
+            .ok_or_else(|| {
+                "autoscale_missing_capability_outcome_stats_in_window_input".to_string()
+            })?;
         let out = compute_capability_outcome_stats_in_window(&input);
         return serde_json::to_string(&serde_json::json!({
             "ok": true,
@@ -19736,34 +20828,31 @@ mod tests {
 
     #[test]
     fn structural_preview_criteria_failure_detects_blocking_patterns() {
-        let primary = compute_structural_preview_criteria_failure(
-            &StructuralPreviewCriteriaFailureInput {
+        let primary =
+            compute_structural_preview_criteria_failure(&StructuralPreviewCriteriaFailureInput {
                 primary_failure: Some("metric_not_allowed_for_capability".to_string()),
                 contract_not_allowed_count: Some(0.0),
                 unsupported_count: Some(0.0),
                 total_count: Some(0.0),
-            },
-        );
+            });
         assert!(primary.has_failure);
 
-        let unsupported = compute_structural_preview_criteria_failure(
-            &StructuralPreviewCriteriaFailureInput {
+        let unsupported =
+            compute_structural_preview_criteria_failure(&StructuralPreviewCriteriaFailureInput {
                 primary_failure: Some(String::new()),
                 contract_not_allowed_count: Some(0.0),
                 unsupported_count: Some(2.0),
                 total_count: Some(3.0),
-            },
-        );
+            });
         assert!(unsupported.has_failure);
 
-        let pass = compute_structural_preview_criteria_failure(
-            &StructuralPreviewCriteriaFailureInput {
+        let pass =
+            compute_structural_preview_criteria_failure(&StructuralPreviewCriteriaFailureInput {
                 primary_failure: Some(String::new()),
                 contract_not_allowed_count: Some(0.0),
                 unsupported_count: Some(1.0),
                 total_count: Some(4.0),
-            },
-        );
+            });
         assert!(!pass.has_failure);
     }
 
@@ -20048,26 +21137,27 @@ mod tests {
 
     #[test]
     fn consecutive_gate_exhausted_attempts_counts_tail_streak() {
-        let out = compute_consecutive_gate_exhausted_attempts(&ConsecutiveGateExhaustedAttemptsInput {
-            events: vec![
-                ConsecutiveGateExhaustedAttemptEventInput {
-                    event_type: Some("autonomy_run".to_string()),
-                    result: Some("executed".to_string()),
-                },
-                ConsecutiveGateExhaustedAttemptEventInput {
-                    event_type: Some("autonomy_run".to_string()),
-                    result: Some("stop_repeat_gate_stale_signal".to_string()),
-                },
-                ConsecutiveGateExhaustedAttemptEventInput {
-                    event_type: Some("autonomy_run".to_string()),
-                    result: Some("stop_repeat_gate_candidate_exhausted".to_string()),
-                },
-                ConsecutiveGateExhaustedAttemptEventInput {
-                    event_type: Some("autonomy_run".to_string()),
-                    result: Some("lock_busy".to_string()),
-                },
-            ],
-        });
+        let out =
+            compute_consecutive_gate_exhausted_attempts(&ConsecutiveGateExhaustedAttemptsInput {
+                events: vec![
+                    ConsecutiveGateExhaustedAttemptEventInput {
+                        event_type: Some("autonomy_run".to_string()),
+                        result: Some("executed".to_string()),
+                    },
+                    ConsecutiveGateExhaustedAttemptEventInput {
+                        event_type: Some("autonomy_run".to_string()),
+                        result: Some("stop_repeat_gate_stale_signal".to_string()),
+                    },
+                    ConsecutiveGateExhaustedAttemptEventInput {
+                        event_type: Some("autonomy_run".to_string()),
+                        result: Some("stop_repeat_gate_candidate_exhausted".to_string()),
+                    },
+                    ConsecutiveGateExhaustedAttemptEventInput {
+                        event_type: Some("autonomy_run".to_string()),
+                        result: Some("lock_busy".to_string()),
+                    },
+                ],
+            });
         assert_eq!(out.count, 2);
     }
 
@@ -20083,7 +21173,8 @@ mod tests {
             }
         })
         .to_string();
-        let out = run_autoscale_json(&payload).expect("autoscale consecutive_gate_exhausted_attempts");
+        let out =
+            run_autoscale_json(&payload).expect("autoscale consecutive_gate_exhausted_attempts");
         assert!(out.contains("\"mode\":\"consecutive_gate_exhausted_attempts\""));
     }
 
@@ -20383,7 +21474,10 @@ mod tests {
         });
         assert_eq!(out.counts.get("executed").copied().unwrap_or(0), 2);
         assert_eq!(
-            out.counts.get("stop_repeat_gate_no_progress").copied().unwrap_or(0),
+            out.counts
+                .get("stop_repeat_gate_no_progress")
+                .copied()
+                .unwrap_or(0),
             1
         );
     }
@@ -21167,7 +22261,11 @@ mod tests {
                 "tests".to_string(),
             ],
         });
-        assert!((out.similarity - 0.5).abs() < 1e-6, "similarity={}", out.similarity);
+        assert!(
+            (out.similarity - 0.5).abs() < 1e-6,
+            "similarity={}",
+            out.similarity
+        );
 
         let empty = compute_semantic_token_similarity(&SemanticTokenSimilarityInput {
             left_tokens: vec![],
@@ -21286,7 +22384,11 @@ mod tests {
         });
         assert!(out.matched);
         assert_eq!(out.proposal_id.as_deref(), Some("old-2"));
-        assert!((out.similarity - 1.0).abs() < 1e-6, "similarity={}", out.similarity);
+        assert!(
+            (out.similarity - 1.0).abs() < 1e-6,
+            "similarity={}",
+            out.similarity
+        );
     }
 
     #[test]
@@ -21564,36 +22666,40 @@ mod tests {
 
     #[test]
     fn strategy_trit_shadow_ranking_summary_orders_and_flags_divergence() {
-        let out = compute_strategy_trit_shadow_ranking_summary(&StrategyTritShadowRankingSummaryInput {
-            rows: vec![
-                StrategyTritShadowRankRowInput {
-                    index: 0,
-                    proposal_id: "a".to_string(),
-                    legacy_rank: 92.0,
-                    trit_rank: 71.0,
-                    trit_label: "neutral".to_string(),
-                    trit_confidence: 0.4,
-                    trit_top_sources: vec!["x".to_string()],
-                },
-                StrategyTritShadowRankRowInput {
-                    index: 1,
-                    proposal_id: "b".to_string(),
-                    legacy_rank: 80.0,
-                    trit_rank: 95.0,
-                    trit_label: "positive".to_string(),
-                    trit_confidence: 0.8,
-                    trit_top_sources: vec!["y".to_string()],
-                },
-            ],
-            selected_proposal_id: Some("a".to_string()),
-            selection_mode: Some("qos_standard_legacy".to_string()),
-            top_k: 3,
-        });
+        let out =
+            compute_strategy_trit_shadow_ranking_summary(&StrategyTritShadowRankingSummaryInput {
+                rows: vec![
+                    StrategyTritShadowRankRowInput {
+                        index: 0,
+                        proposal_id: "a".to_string(),
+                        legacy_rank: 92.0,
+                        trit_rank: 71.0,
+                        trit_label: "neutral".to_string(),
+                        trit_confidence: 0.4,
+                        trit_top_sources: vec!["x".to_string()],
+                    },
+                    StrategyTritShadowRankRowInput {
+                        index: 1,
+                        proposal_id: "b".to_string(),
+                        legacy_rank: 80.0,
+                        trit_rank: 95.0,
+                        trit_label: "positive".to_string(),
+                        trit_confidence: 0.8,
+                        trit_top_sources: vec!["y".to_string()],
+                    },
+                ],
+                selected_proposal_id: Some("a".to_string()),
+                selection_mode: Some("qos_standard_legacy".to_string()),
+                top_k: 3,
+            });
         assert_eq!(out.legacy_top_proposal_id.as_deref(), Some("a"));
         assert_eq!(out.trit_top_proposal_id.as_deref(), Some("b"));
         assert!(out.diverged_from_legacy_top);
         assert!(out.diverged_from_selected);
-        assert_eq!(out.top.first().map(|row| row.proposal_id.as_str()), Some("b"));
+        assert_eq!(
+            out.top.first().map(|row| row.proposal_id.as_str()),
+            Some("b")
+        );
     }
 
     #[test]
@@ -22077,13 +23183,14 @@ mod tests {
         });
         assert!(active.active);
 
-        let inactive = compute_pulse_objective_cooldown_active(&PulseObjectiveCooldownActiveInput {
-            no_progress_streak: 1.0,
-            no_progress_limit: 3.0,
-            last_attempt_ts: Some("2026-03-01T00:00:00.000Z".to_string()),
-            cooldown_hours: 6.0,
-            now_ms: Some(now_ms),
-        });
+        let inactive =
+            compute_pulse_objective_cooldown_active(&PulseObjectiveCooldownActiveInput {
+                no_progress_streak: 1.0,
+                no_progress_limit: 3.0,
+                last_attempt_ts: Some("2026-03-01T00:00:00.000Z".to_string()),
+                cooldown_hours: 6.0,
+                now_ms: Some(now_ms),
+            });
         assert!(!inactive.active);
     }
 
@@ -22120,10 +23227,7 @@ mod tests {
                 "security".to_string(),
             ],
         });
-        assert_eq!(
-            out.hits,
-            vec!["memory".to_string(), "memorize".to_string()]
-        );
+        assert_eq!(out.hits, vec!["memory".to_string(), "memorize".to_string()]);
     }
 
     #[test]
@@ -22281,7 +23385,11 @@ mod tests {
     fn canary_failed_checks_allowed_matches_subset_rules() {
         let allowed = compute_canary_failed_checks_allowed(&CanaryFailedChecksAllowedInput {
             failed_checks: vec!["lint".to_string(), "format".to_string()],
-            allowed_checks: vec!["lint".to_string(), "format".to_string(), "typecheck".to_string()],
+            allowed_checks: vec![
+                "lint".to_string(),
+                "format".to_string(),
+                "typecheck".to_string(),
+            ],
         });
         assert!(allowed.allowed);
 
@@ -22593,7 +23701,10 @@ mod tests {
             min_value_signal_score: 60.0,
         });
         assert!(!out.pass);
-        assert_eq!(out.reason.as_deref(), Some("budget_pacing_high_token_low_value"));
+        assert_eq!(
+            out.reason.as_deref(),
+            Some("budget_pacing_high_token_low_value")
+        );
     }
 
     #[test]
@@ -22871,26 +23982,24 @@ mod tests {
 
     #[test]
     fn execute_confidence_history_match_prefers_capability_then_type() {
-        let cap_match = compute_execute_confidence_history_match(
-            &ExecuteConfidenceHistoryMatchInput {
+        let cap_match =
+            compute_execute_confidence_history_match(&ExecuteConfidenceHistoryMatchInput {
                 event_type: Some("autonomy_run".to_string()),
                 event_capability_key: Some("deploy".to_string()),
                 event_proposal_type: Some("run".to_string()),
                 proposal_type: Some("other".to_string()),
                 capability_key: Some("deploy".to_string()),
-            },
-        );
+            });
         assert!(cap_match.matched);
 
-        let type_match = compute_execute_confidence_history_match(
-            &ExecuteConfidenceHistoryMatchInput {
+        let type_match =
+            compute_execute_confidence_history_match(&ExecuteConfidenceHistoryMatchInput {
                 event_type: Some("autonomy_run".to_string()),
                 event_capability_key: Some(String::new()),
                 event_proposal_type: Some("ops".to_string()),
                 proposal_type: Some("ops".to_string()),
                 capability_key: Some(String::new()),
-            },
-        );
+            });
         assert!(type_match.matched);
     }
 
@@ -22907,33 +24016,43 @@ mod tests {
             }
         })
         .to_string();
-        let out =
-            run_autoscale_json(&payload).expect("autoscale execute_confidence_history_match");
+        let out = run_autoscale_json(&payload).expect("autoscale execute_confidence_history_match");
         assert!(out.contains("\"mode\":\"execute_confidence_history_match\""));
     }
 
     #[test]
     fn execute_confidence_cooldown_key_prefers_objective_then_capability_then_type() {
-        let objective = compute_execute_confidence_cooldown_key(&ExecuteConfidenceCooldownKeyInput {
-            capability_key: Some("system_exec".to_string()),
-            objective_id: Some("T1_Objective".to_string()),
-            proposal_type: Some("ops_remediation".to_string()),
-        });
-        assert_eq!(objective.cooldown_key, "exec_confidence:objective:t1_objective");
+        let objective =
+            compute_execute_confidence_cooldown_key(&ExecuteConfidenceCooldownKeyInput {
+                capability_key: Some("system_exec".to_string()),
+                objective_id: Some("T1_Objective".to_string()),
+                proposal_type: Some("ops_remediation".to_string()),
+            });
+        assert_eq!(
+            objective.cooldown_key,
+            "exec_confidence:objective:t1_objective"
+        );
 
-        let capability = compute_execute_confidence_cooldown_key(&ExecuteConfidenceCooldownKeyInput {
-            capability_key: Some("System Exec".to_string()),
-            objective_id: Some("T12_Objective".to_string()),
-            proposal_type: Some("ops_remediation".to_string()),
-        });
-        assert_eq!(capability.cooldown_key, "exec_confidence:capability:system_exec");
+        let capability =
+            compute_execute_confidence_cooldown_key(&ExecuteConfidenceCooldownKeyInput {
+                capability_key: Some("System Exec".to_string()),
+                objective_id: Some("T12_Objective".to_string()),
+                proposal_type: Some("ops_remediation".to_string()),
+            });
+        assert_eq!(
+            capability.cooldown_key,
+            "exec_confidence:capability:system_exec"
+        );
 
         let by_type = compute_execute_confidence_cooldown_key(&ExecuteConfidenceCooldownKeyInput {
             capability_key: Some(String::new()),
             objective_id: Some(String::new()),
             proposal_type: Some("Directive Decomposition".to_string()),
         });
-        assert_eq!(by_type.cooldown_key, "exec_confidence:type:directive_decomposition");
+        assert_eq!(
+            by_type.cooldown_key,
+            "exec_confidence:type:directive_decomposition"
+        );
     }
 
     #[test]
@@ -22947,8 +24066,7 @@ mod tests {
             }
         })
         .to_string();
-        let out =
-            run_autoscale_json(&payload).expect("autoscale execute_confidence_cooldown_key");
+        let out = run_autoscale_json(&payload).expect("autoscale execute_confidence_cooldown_key");
         assert!(out.contains("\"mode\":\"execute_confidence_cooldown_key\""));
     }
 
@@ -23293,22 +24411,25 @@ mod tests {
 
     #[test]
     fn proposal_status_for_queue_pressure_prefers_overlay_then_explicit_status() {
-        let out = compute_proposal_status_for_queue_pressure(&ProposalStatusForQueuePressureInput {
-            overlay_decision: Some("accept".to_string()),
-            proposal_status: Some("rejected".to_string()),
-        });
+        let out =
+            compute_proposal_status_for_queue_pressure(&ProposalStatusForQueuePressureInput {
+                overlay_decision: Some("accept".to_string()),
+                proposal_status: Some("rejected".to_string()),
+            });
         assert_eq!(out.status, "accepted");
 
-        let out2 = compute_proposal_status_for_queue_pressure(&ProposalStatusForQueuePressureInput {
-            overlay_decision: None,
-            proposal_status: Some("closed_won".to_string()),
-        });
+        let out2 =
+            compute_proposal_status_for_queue_pressure(&ProposalStatusForQueuePressureInput {
+                overlay_decision: None,
+                proposal_status: Some("closed_won".to_string()),
+            });
         assert_eq!(out2.status, "closed");
 
-        let out3 = compute_proposal_status_for_queue_pressure(&ProposalStatusForQueuePressureInput {
-            overlay_decision: None,
-            proposal_status: Some("pending".to_string()),
-        });
+        let out3 =
+            compute_proposal_status_for_queue_pressure(&ProposalStatusForQueuePressureInput {
+                overlay_decision: None,
+                proposal_status: Some("pending".to_string()),
+            });
         assert_eq!(out3.status, "pending");
     }
 
@@ -23665,28 +24786,31 @@ mod tests {
         });
         assert!(executed.capacity_counted);
 
-        let policy_hold = compute_capacity_counted_attempt_event(&CapacityCountedAttemptEventInput {
-            event_type: Some("autonomy_run".to_string()),
-            result: Some("stop_init_gate_readiness".to_string()),
-            policy_hold: Some(false),
-            proposal_id: Some("p-001".to_string()),
-        });
+        let policy_hold =
+            compute_capacity_counted_attempt_event(&CapacityCountedAttemptEventInput {
+                event_type: Some("autonomy_run".to_string()),
+                result: Some("stop_init_gate_readiness".to_string()),
+                policy_hold: Some(false),
+                proposal_id: Some("p-001".to_string()),
+            });
         assert!(!policy_hold.capacity_counted);
 
-        let attempt_with_proposal = compute_capacity_counted_attempt_event(&CapacityCountedAttemptEventInput {
-            event_type: Some("autonomy_run".to_string()),
-            result: Some("stop_repeat_gate_candidate_exhausted".to_string()),
-            policy_hold: Some(false),
-            proposal_id: Some("p-001".to_string()),
-        });
+        let attempt_with_proposal =
+            compute_capacity_counted_attempt_event(&CapacityCountedAttemptEventInput {
+                event_type: Some("autonomy_run".to_string()),
+                result: Some("stop_repeat_gate_candidate_exhausted".to_string()),
+                policy_hold: Some(false),
+                proposal_id: Some("p-001".to_string()),
+            });
         assert!(attempt_with_proposal.capacity_counted);
 
-        let attempt_without_proposal = compute_capacity_counted_attempt_event(&CapacityCountedAttemptEventInput {
-            event_type: Some("autonomy_run".to_string()),
-            result: Some("stop_repeat_gate_candidate_exhausted".to_string()),
-            policy_hold: Some(false),
-            proposal_id: Some(String::new()),
-        });
+        let attempt_without_proposal =
+            compute_capacity_counted_attempt_event(&CapacityCountedAttemptEventInput {
+                event_type: Some("autonomy_run".to_string()),
+                result: Some("stop_repeat_gate_candidate_exhausted".to_string()),
+                policy_hold: Some(false),
+                proposal_id: Some(String::new()),
+            });
         assert!(!attempt_without_proposal.capacity_counted);
     }
 
@@ -24139,7 +25263,8 @@ mod tests {
             }
         })
         .to_string();
-        let out = run_autoscale_json(&payload).expect("autoscale adaptive_mutation_execution_guard");
+        let out =
+            run_autoscale_json(&payload).expect("autoscale adaptive_mutation_execution_guard");
         assert!(out.contains("\"mode\":\"adaptive_mutation_execution_guard\""));
     }
 
@@ -24297,8 +25422,7 @@ mod tests {
             }
         })
         .to_string();
-        let out =
-            run_autoscale_json(&payload).expect("autoscale strategy_admission_decision");
+        let out = run_autoscale_json(&payload).expect("autoscale strategy_admission_decision");
         assert!(out.contains("\"mode\":\"strategy_admission_decision\""));
     }
 
@@ -24461,8 +25585,7 @@ mod tests {
             }
         })
         .to_string();
-        let out =
-            run_autoscale_json(&payload).expect("autoscale unknown_type_quarantine_decision");
+        let out = run_autoscale_json(&payload).expect("autoscale unknown_type_quarantine_decision");
         assert!(out.contains("\"mode\":\"unknown_type_quarantine_decision\""));
     }
 
@@ -24524,8 +25647,7 @@ mod tests {
             }
         })
         .to_string();
-        let out =
-            run_autoscale_json(&payload).expect("autoscale optimization_intent_proposal");
+        let out = run_autoscale_json(&payload).expect("autoscale optimization_intent_proposal");
         assert!(out.contains("\"mode\":\"optimization_intent_proposal\""));
     }
 
@@ -24543,7 +25665,10 @@ mod tests {
         assert!(out.applies);
         assert!(!out.linked);
         assert!(out.block);
-        assert_eq!(out.reason.as_deref(), Some("optimization_unlinked_objective_high_risk_block"));
+        assert_eq!(
+            out.reason.as_deref(),
+            Some("optimization_unlinked_objective_high_risk_block")
+        );
     }
 
     #[test]
@@ -24561,8 +25686,7 @@ mod tests {
             }
         })
         .to_string();
-        let out =
-            run_autoscale_json(&payload).expect("autoscale unlinked_optimization_admission");
+        let out = run_autoscale_json(&payload).expect("autoscale unlinked_optimization_admission");
         assert!(out.contains("\"mode\":\"unlinked_optimization_admission\""));
     }
 
@@ -24903,8 +26027,7 @@ mod tests {
             }
         })
         .to_string();
-        let out =
-            run_autoscale_json(&payload).expect("autoscale route_block_telemetry_summary");
+        let out = run_autoscale_json(&payload).expect("autoscale route_block_telemetry_summary");
         assert!(out.contains("\"mode\":\"route_block_telemetry_summary\""));
         assert!(out.contains("\"sample_events\":1"));
     }
@@ -25104,11 +26227,17 @@ mod tests {
         });
         assert_eq!(out.events.len(), 3);
         assert_eq!(
-            out.events[0].get("id").and_then(|v| v.as_str()).unwrap_or(""),
+            out.events[0]
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or(""),
             "a"
         );
         assert_eq!(
-            out.events[2].get("id").and_then(|v| v.as_str()).unwrap_or(""),
+            out.events[2]
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or(""),
             "c"
         );
     }
@@ -25245,7 +26374,11 @@ mod tests {
 
         let valid = compute_lock_age_minutes(&LockAgeMinutesInput {
             lock_ts: Some("2026-03-04T00:00:00.000Z".to_string()),
-            now_ms: Some(chrono::DateTime::parse_from_rfc3339("2026-03-04T01:00:00.000Z").unwrap().timestamp_millis() as f64),
+            now_ms: Some(
+                chrono::DateTime::parse_from_rfc3339("2026-03-04T01:00:00.000Z")
+                    .unwrap()
+                    .timestamp_millis() as f64,
+            ),
         });
         assert!(valid.age_minutes.is_some());
         assert!((valid.age_minutes.unwrap_or(0.0) - 60.0).abs() < 1e-6);
@@ -25384,15 +26517,17 @@ mod tests {
 
     #[test]
     fn execute_confidence_cooldown_active_requires_key_and_active_state() {
-        let out = compute_execute_confidence_cooldown_active(&ExecuteConfidenceCooldownActiveInput {
-            cooldown_key: Some("exec:cooldown:key".to_string()),
-            cooldown_active: true,
-        });
+        let out =
+            compute_execute_confidence_cooldown_active(&ExecuteConfidenceCooldownActiveInput {
+                cooldown_key: Some("exec:cooldown:key".to_string()),
+                cooldown_active: true,
+            });
         assert!(out.active);
-        let out = compute_execute_confidence_cooldown_active(&ExecuteConfidenceCooldownActiveInput {
-            cooldown_key: Some("".to_string()),
-            cooldown_active: true,
-        });
+        let out =
+            compute_execute_confidence_cooldown_active(&ExecuteConfidenceCooldownActiveInput {
+                cooldown_key: Some("".to_string()),
+                cooldown_active: true,
+            });
         assert!(!out.active);
     }
 
@@ -25593,12 +26728,21 @@ mod tests {
         assert_eq!(out.no_progress_limit, 1.0);
         assert_eq!(out.cooldown_hours, 168.0);
         assert_eq!(out.attempts_today, 4.0);
-        assert_eq!(out.tier_attempts_today.get("1").copied().unwrap_or(0.0), 2.0);
-        assert_eq!(out.tier_attempts_today.get("2").copied().unwrap_or(0.0), 0.0);
+        assert_eq!(
+            out.tier_attempts_today.get("1").copied().unwrap_or(0.0),
+            2.0
+        );
+        assert_eq!(
+            out.tier_attempts_today.get("2").copied().unwrap_or(0.0),
+            0.0
+        );
         assert!(out.error.is_none());
         assert_eq!(out.objective_stats.len(), 1);
         assert_eq!(out.objective_stats[0].objective_id, "obj_a");
-        assert_eq!(out.objective_stats[0].last_attempt_ts.as_deref(), Some("2026-03-04T00:00:00.000Z"));
+        assert_eq!(
+            out.objective_stats[0].last_attempt_ts.as_deref(),
+            Some("2026-03-04T00:00:00.000Z")
+        );
         assert_eq!(out.objective_stats[0].last_shipped_ts, None);
     }
 
@@ -25670,7 +26814,10 @@ mod tests {
             ],
         });
         assert_eq!(out.attempts_today, 2.0);
-        assert_eq!(out.tier_attempts_today.get("1").copied().unwrap_or(0.0), 2.0);
+        assert_eq!(
+            out.tier_attempts_today.get("1").copied().unwrap_or(0.0),
+            2.0
+        );
         assert_eq!(out.objective_stats.len(), 2);
         let a = out
             .objective_stats
@@ -25710,49 +26857,51 @@ mod tests {
 
     #[test]
     fn compile_directive_pulse_objectives_filters_and_derives_rows() {
-        let out = compute_compile_directive_pulse_objectives(&CompileDirectivePulseObjectivesInput {
-            directives: vec![
-                serde_json::json!({
-                    "id": "T0_FOUNDATION",
-                    "data": {
-                        "metadata": { "id": "T0_FOUNDATION", "description": "ignore me", "tier": 1 }
-                    }
-                }),
-                serde_json::json!({
-                    "id": "T1_MEMORY",
-                    "tier": 1,
-                    "data": {
-                        "metadata": {
-                            "id": "T1_MEMORY",
-                            "description": "Improve memory durability and recall quality",
-                            "value_currency": "quality"
-                        },
-                        "intent": {
-                            "primary": "Improve memory durability",
-                            "value_currency": "time_savings"
-                        },
-                        "scope": {
-                            "included": ["durability guardrails", "recall quality"]
-                        },
-                        "success_metrics": {
-                            "leading": ["reduced regressions"],
-                            "lagging": ["higher recall score"]
+        let out = compute_compile_directive_pulse_objectives(
+            &CompileDirectivePulseObjectivesInput {
+                directives: vec![
+                    serde_json::json!({
+                        "id": "T0_FOUNDATION",
+                        "data": {
+                            "metadata": { "id": "T0_FOUNDATION", "description": "ignore me", "tier": 1 }
                         }
-                    }
-                }),
-            ],
-            stopwords: vec!["the".to_string(), "and".to_string()],
-            allowed_value_keys: vec![
-                "revenue".to_string(),
-                "delivery".to_string(),
-                "user_value".to_string(),
-                "quality".to_string(),
-                "time_savings".to_string(),
-                "learning".to_string(),
-            ],
-            t1_min_share: Some(0.5),
-            t2_min_share: Some(0.25),
-        });
+                    }),
+                    serde_json::json!({
+                        "id": "T1_MEMORY",
+                        "tier": 1,
+                        "data": {
+                            "metadata": {
+                                "id": "T1_MEMORY",
+                                "description": "Improve memory durability and recall quality",
+                                "value_currency": "quality"
+                            },
+                            "intent": {
+                                "primary": "Improve memory durability",
+                                "value_currency": "time_savings"
+                            },
+                            "scope": {
+                                "included": ["durability guardrails", "recall quality"]
+                            },
+                            "success_metrics": {
+                                "leading": ["reduced regressions"],
+                                "lagging": ["higher recall score"]
+                            }
+                        }
+                    }),
+                ],
+                stopwords: vec!["the".to_string(), "and".to_string()],
+                allowed_value_keys: vec![
+                    "revenue".to_string(),
+                    "delivery".to_string(),
+                    "user_value".to_string(),
+                    "quality".to_string(),
+                    "time_savings".to_string(),
+                    "learning".to_string(),
+                ],
+                t1_min_share: Some(0.5),
+                t2_min_share: Some(0.25),
+            },
+        );
         assert_eq!(out.objectives.len(), 1);
         let row = &out.objectives[0];
         assert_eq!(row.id, "T1_MEMORY");
@@ -25784,26 +26933,29 @@ mod tests {
             }
         })
         .to_string();
-        let out = run_autoscale_json(&payload).expect("autoscale compile_directive_pulse_objectives");
+        let out =
+            run_autoscale_json(&payload).expect("autoscale compile_directive_pulse_objectives");
         assert!(out.contains("\"mode\":\"compile_directive_pulse_objectives\""));
     }
 
     #[test]
     fn directive_pulse_objectives_profile_handles_disabled_and_error() {
-        let disabled = compute_directive_pulse_objectives_profile(&DirectivePulseObjectivesProfileInput {
-            enabled: false,
-            load_error: None,
-            objectives: vec![],
-        });
+        let disabled =
+            compute_directive_pulse_objectives_profile(&DirectivePulseObjectivesProfileInput {
+                enabled: false,
+                load_error: None,
+                objectives: vec![],
+            });
         assert_eq!(disabled.enabled, false);
         assert_eq!(disabled.available, false);
         assert_eq!(disabled.error.as_deref(), Some("directive_pulse_disabled"));
 
-        let errored = compute_directive_pulse_objectives_profile(&DirectivePulseObjectivesProfileInput {
-            enabled: true,
-            load_error: Some(" boom ".to_string()),
-            objectives: vec![serde_json::json!({"id":"T1"})],
-        });
+        let errored =
+            compute_directive_pulse_objectives_profile(&DirectivePulseObjectivesProfileInput {
+                enabled: true,
+                load_error: Some(" boom ".to_string()),
+                objectives: vec![serde_json::json!({"id":"T1"})],
+            });
         assert_eq!(errored.enabled, true);
         assert_eq!(errored.available, false);
         assert_eq!(errored.objectives.len(), 0);
@@ -25821,7 +26973,8 @@ mod tests {
             }
         })
         .to_string();
-        let out = run_autoscale_json(&payload).expect("autoscale directive_pulse_objectives_profile");
+        let out =
+            run_autoscale_json(&payload).expect("autoscale directive_pulse_objectives_profile");
         assert!(out.contains("\"mode\":\"directive_pulse_objectives_profile\""));
     }
 
@@ -25831,34 +26984,36 @@ mod tests {
             .unwrap()
             .with_timezone(&Utc)
             .timestamp_millis() as f64;
-        let out = compute_recent_directive_pulse_cooldown_count(&RecentDirectivePulseCooldownCountInput {
-            objective_id: Some("OBJ-1".to_string()),
-            hours: Some(24.0),
-            now_ms: Some(now_ms),
-            events: vec![
-                RecentDirectivePulseCooldownEventInput {
-                    event_type: Some("autonomy_run".to_string()),
-                    result: Some("stop_repeat_gate_directive_pulse_cooldown".to_string()),
-                    ts: Some("2026-03-04T10:00:00.000Z".to_string()),
-                    objective_id: Some("OBJ-1".to_string()),
-                    sample_objective_id: None,
-                },
-                RecentDirectivePulseCooldownEventInput {
-                    event_type: Some("autonomy_run".to_string()),
-                    result: Some("stop_repeat_gate_directive_pulse_cooldown".to_string()),
-                    ts: Some("2026-03-03T08:00:00.000Z".to_string()),
-                    objective_id: Some("OBJ-1".to_string()),
-                    sample_objective_id: None,
-                },
-                RecentDirectivePulseCooldownEventInput {
-                    event_type: Some("autonomy_run".to_string()),
-                    result: Some("stop_repeat_gate_directive_pulse_cooldown".to_string()),
-                    ts: Some("2026-03-04T11:00:00.000Z".to_string()),
-                    objective_id: Some("OBJ-2".to_string()),
-                    sample_objective_id: None,
-                },
-            ],
-        });
+        let out = compute_recent_directive_pulse_cooldown_count(
+            &RecentDirectivePulseCooldownCountInput {
+                objective_id: Some("OBJ-1".to_string()),
+                hours: Some(24.0),
+                now_ms: Some(now_ms),
+                events: vec![
+                    RecentDirectivePulseCooldownEventInput {
+                        event_type: Some("autonomy_run".to_string()),
+                        result: Some("stop_repeat_gate_directive_pulse_cooldown".to_string()),
+                        ts: Some("2026-03-04T10:00:00.000Z".to_string()),
+                        objective_id: Some("OBJ-1".to_string()),
+                        sample_objective_id: None,
+                    },
+                    RecentDirectivePulseCooldownEventInput {
+                        event_type: Some("autonomy_run".to_string()),
+                        result: Some("stop_repeat_gate_directive_pulse_cooldown".to_string()),
+                        ts: Some("2026-03-03T08:00:00.000Z".to_string()),
+                        objective_id: Some("OBJ-1".to_string()),
+                        sample_objective_id: None,
+                    },
+                    RecentDirectivePulseCooldownEventInput {
+                        event_type: Some("autonomy_run".to_string()),
+                        result: Some("stop_repeat_gate_directive_pulse_cooldown".to_string()),
+                        ts: Some("2026-03-04T11:00:00.000Z".to_string()),
+                        objective_id: Some("OBJ-2".to_string()),
+                        sample_objective_id: None,
+                    },
+                ],
+            },
+        );
         assert_eq!(out.count, 1);
     }
 
@@ -25881,7 +27036,8 @@ mod tests {
             }
         })
         .to_string();
-        let out = run_autoscale_json(&payload).expect("autoscale recent_directive_pulse_cooldown_count");
+        let out =
+            run_autoscale_json(&payload).expect("autoscale recent_directive_pulse_cooldown_count");
         assert!(out.contains("\"mode\":\"recent_directive_pulse_cooldown_count\""));
     }
 
@@ -25935,11 +27091,16 @@ mod tests {
         });
         assert_eq!(out.ids, vec!["OBJ-A".to_string(), "OBJ-B".to_string()]);
 
-        let fallback = compute_objective_ids_from_pulse_context(&ObjectiveIdsFromPulseContextInput {
-            objectives: vec![],
-            fallback_enabled: true,
-            fallback_ids: vec!["OBJ-C".to_string(), "OBJ-C".to_string(), "OBJ-D".to_string()],
-        });
+        let fallback =
+            compute_objective_ids_from_pulse_context(&ObjectiveIdsFromPulseContextInput {
+                objectives: vec![],
+                fallback_enabled: true,
+                fallback_ids: vec![
+                    "OBJ-C".to_string(),
+                    "OBJ-C".to_string(),
+                    "OBJ-D".to_string(),
+                ],
+            });
         assert_eq!(fallback.ids, vec!["OBJ-C".to_string(), "OBJ-D".to_string()]);
     }
 
@@ -25970,7 +27131,10 @@ mod tests {
             dominant_objective_id: Some("T4_OBJ_Z".to_string()),
         });
         assert_eq!(out.objective_id.as_deref(), Some("T4_OBJ_Z"));
-        assert_eq!(out.objective_source.as_deref(), Some("directive_pulse_dominant"));
+        assert_eq!(
+            out.objective_source.as_deref(),
+            Some("directive_pulse_dominant")
+        );
         assert_eq!(
             out.objective_ids.unwrap_or_default(),
             vec!["T1_OBJ_A".to_string(), "T2_OBJ_B".to_string()]
@@ -26060,13 +27224,19 @@ mod tests {
             require_success_criteria: Some(true),
             min_success_criteria_count: Some(2.0),
             policy_exempt_types: vec!["directive_clarification".to_string()],
-            env_exempt_types: vec!["directive_clarification".to_string(), "remediation".to_string()],
+            env_exempt_types: vec![
+                "directive_clarification".to_string(),
+                "remediation".to_string(),
+            ],
         });
         assert_eq!(out.required, true);
         assert_eq!(out.min_count, 2.0);
         assert_eq!(
             out.exempt_types,
-            vec!["directive_clarification".to_string(), "remediation".to_string()]
+            vec![
+                "directive_clarification".to_string(),
+                "remediation".to_string()
+            ]
         );
     }
 
@@ -26088,12 +27258,13 @@ mod tests {
 
     #[test]
     fn success_criteria_policy_for_proposal_applies_exemptions() {
-        let out = compute_success_criteria_policy_for_proposal(&SuccessCriteriaPolicyForProposalInput {
-            base_required: true,
-            base_min_count: 1.0,
-            base_exempt_types: vec!["directive_clarification".to_string()],
-            proposal_type: Some("directive_clarification".to_string()),
-        });
+        let out =
+            compute_success_criteria_policy_for_proposal(&SuccessCriteriaPolicyForProposalInput {
+                base_required: true,
+                base_min_count: 1.0,
+                base_exempt_types: vec!["directive_clarification".to_string()],
+                proposal_type: Some("directive_clarification".to_string()),
+            });
         assert_eq!(out.required, false);
         assert_eq!(out.exempt, true);
         assert_eq!(out.min_count, 1.0);
@@ -26111,7 +27282,8 @@ mod tests {
             }
         })
         .to_string();
-        let out = run_autoscale_json(&payload).expect("autoscale success_criteria_policy_for_proposal");
+        let out =
+            run_autoscale_json(&payload).expect("autoscale success_criteria_policy_for_proposal");
         assert!(out.contains("\"mode\":\"success_criteria_policy_for_proposal\""));
     }
 
@@ -26200,23 +27372,25 @@ mod tests {
 
     #[test]
     fn normalize_backlog_autoscale_state_normalizes_cells_and_strings() {
-        let out =
-            compute_normalize_backlog_autoscale_state(&NormalizeBacklogAutoscaleStateInput {
-                module: "autonomy_backlog_autoscale".to_string(),
-                src: Some(serde_json::json!({
-                    "module": " autonomy_backlog_autoscale ",
-                    "current_cells": 2.8,
-                    "target_cells": "5",
-                    "last_run_ts": " 2026-03-04T00:00:00.000Z ",
-                    "last_high_pressure_ts": "",
-                    "last_action": " scale_up ",
-                    "updated_at": null
-                })),
-            });
+        let out = compute_normalize_backlog_autoscale_state(&NormalizeBacklogAutoscaleStateInput {
+            module: "autonomy_backlog_autoscale".to_string(),
+            src: Some(serde_json::json!({
+                "module": " autonomy_backlog_autoscale ",
+                "current_cells": 2.8,
+                "target_cells": "5",
+                "last_run_ts": " 2026-03-04T00:00:00.000Z ",
+                "last_high_pressure_ts": "",
+                "last_action": " scale_up ",
+                "updated_at": null
+            })),
+        });
         assert_eq!(out.module, "autonomy_backlog_autoscale");
         assert_eq!(out.current_cells, 2.8);
         assert_eq!(out.target_cells, 5.0);
-        assert_eq!(out.last_run_ts, Some("2026-03-04T00:00:00.000Z".to_string()));
+        assert_eq!(
+            out.last_run_ts,
+            Some("2026-03-04T00:00:00.000Z".to_string())
+        );
         assert_eq!(out.last_high_pressure_ts, None);
         assert_eq!(out.last_action, Some("scale_up".to_string()));
         assert_eq!(out.updated_at, None);
@@ -26322,8 +27496,7 @@ mod tests {
             }
         })
         .to_string();
-        let out =
-            run_autoscale_json(&payload).expect("autoscale spawn_capacity_boost_snapshot");
+        let out = run_autoscale_json(&payload).expect("autoscale spawn_capacity_boost_snapshot");
         assert!(out.contains("\"mode\":\"spawn_capacity_boost_snapshot\""));
     }
 
