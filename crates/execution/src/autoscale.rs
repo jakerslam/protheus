@@ -3036,6 +3036,27 @@ pub struct ProposalSemanticObjectiveIdOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CriteriaPatternKeysRowInput {
+    #[serde(default)]
+    pub metric: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CriteriaPatternKeysInput {
+    #[serde(default)]
+    pub capability_key_hint: Option<String>,
+    #[serde(default)]
+    pub capability_descriptor_key: Option<String>,
+    #[serde(default)]
+    pub rows: Vec<CriteriaPatternKeysRowInput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CriteriaPatternKeysOutput {
+    pub keys: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -4240,6 +4261,8 @@ pub struct AutoscaleRequest {
     pub policy_hold_objective_context_input: Option<PolicyHoldObjectiveContextInput>,
     #[serde(default)]
     pub proposal_semantic_objective_id_input: Option<ProposalSemanticObjectiveIdInput>,
+    #[serde(default)]
+    pub criteria_pattern_keys_input: Option<CriteriaPatternKeysInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -9761,6 +9784,33 @@ pub fn compute_proposal_semantic_objective_id(
     }
 }
 
+pub fn compute_criteria_pattern_keys(input: &CriteriaPatternKeysInput) -> CriteriaPatternKeysOutput {
+    let hint = normalize_spaces(input.capability_key_hint.as_deref().unwrap_or("")).to_ascii_lowercase();
+    let descriptor = normalize_spaces(input.capability_descriptor_key.as_deref().unwrap_or(""))
+        .to_ascii_lowercase();
+    let cap_key = if !hint.is_empty() {
+        hint
+    } else if !descriptor.is_empty() {
+        descriptor
+    } else {
+        "unknown".to_string()
+    };
+    let mut keys = std::collections::BTreeSet::<String>::new();
+    for row in &input.rows {
+        let metric = compute_normalize_criteria_metric(&NormalizeCriteriaMetricInput {
+            value: row.metric.clone(),
+        })
+        .metric;
+        if metric.is_empty() {
+            continue;
+        }
+        keys.insert(format!("{cap_key}|{metric}"));
+    }
+    CriteriaPatternKeysOutput {
+        keys: keys.into_iter().collect(),
+    }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -13576,6 +13626,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_proposal_semantic_objective_id_encode_failed:{e}"));
+    }
+    if mode == "criteria_pattern_keys" {
+        let input = request
+            .criteria_pattern_keys_input
+            .ok_or_else(|| "autoscale_missing_criteria_pattern_keys_input".to_string())?;
+        let out = compute_criteria_pattern_keys(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "criteria_pattern_keys",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_criteria_pattern_keys_encode_failed:{e}"));
     }
     if mode == "directive_pulse_context" {
         let input = request
@@ -19645,6 +19707,38 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale proposal_semantic_objective_id");
         assert!(out.contains("\"mode\":\"proposal_semantic_objective_id\""));
+    }
+
+    #[test]
+    fn criteria_pattern_keys_normalizes_and_sorts_unique() {
+        let out = compute_criteria_pattern_keys(&CriteriaPatternKeysInput {
+            capability_key_hint: Some("".to_string()),
+            capability_descriptor_key: Some("actuation:run".to_string()),
+            rows: vec![
+                CriteriaPatternKeysRowInput {
+                    metric: Some("latency_ms".to_string()),
+                },
+                CriteriaPatternKeysRowInput {
+                    metric: Some("Latency Ms".to_string()),
+                },
+                CriteriaPatternKeysRowInput { metric: None },
+            ],
+        });
+        assert_eq!(out.keys, vec!["actuation:run|latency_ms".to_string()]);
+    }
+
+    #[test]
+    fn autoscale_json_criteria_pattern_keys_path_works() {
+        let payload = serde_json::json!({
+            "mode": "criteria_pattern_keys",
+            "criteria_pattern_keys_input": {
+                "capability_key_hint": "actuation:run",
+                "rows": [{"metric":"latency_ms"}]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale criteria_pattern_keys");
+        assert!(out.contains("\"mode\":\"criteria_pattern_keys\""));
     }
 
     #[test]

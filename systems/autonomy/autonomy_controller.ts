@@ -8181,10 +8181,26 @@ function parseSuccessCriteriaRows(p) {
 
 function criteriaPatternKeysForProposal(p, capabilityKeyHint = '') {
   const proposal = p && typeof p === 'object' ? p : {};
+  const rows = parseSuccessCriteriaRows(proposal);
   const capKey = normalizeSpaces(capabilityKeyHint).toLowerCase()
     || String((capabilityDescriptor(proposal, parseActuationSpec(proposal)) || {}).key || '').toLowerCase()
     || 'unknown';
-  const rows = parseSuccessCriteriaRows(proposal);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'criteria_pattern_keys',
+      {
+        capability_key_hint: normalizeSpaces(capabilityKeyHint).toLowerCase(),
+        capability_descriptor_key: String((capabilityDescriptor(proposal, parseActuationSpec(proposal)) || {}).key || '').toLowerCase(),
+        rows: rows.map((row) => ({ metric: row && row.metric != null ? String(row.metric) : null }))
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Array.isArray(rust.payload.payload.keys)
+        ? rust.payload.payload.keys.map((x) => String(x || '')).filter(Boolean)
+        : [];
+    }
+  }
   const keys = [];
   for (const row of rows) {
     const metric = normalizeCriteriaMetric(row && row.metric);
@@ -20918,6 +20934,7 @@ module.exports = {
   evaluateRouteBlockPrefilter,
   evaluateManualGatePrefilter,
   summarizeTopBiases,
+  criteriaPatternKeysForProposal,
   criteriaPatternPenaltyForProposal,
   sourceEyeRef,
   escapeRegExp,
