@@ -2693,6 +2693,8 @@ const ATTEMPT_RUN_EVENT_CACHE = new Map();
 const ATTEMPT_RUN_EVENT_CACHE_MAX = 512;
 const SAFETY_STOP_RUN_EVENT_CACHE = new Map();
 const SAFETY_STOP_RUN_EVENT_CACHE_MAX = 512;
+const NON_YIELD_CATEGORY_CACHE = new Map();
+const NON_YIELD_CATEGORY_CACHE_MAX = 1024;
 
 function isPolicyHoldResult(result): boolean {
   const r = String(result || '').trim();
@@ -8969,6 +8971,42 @@ function classifyNonYieldCategory(evt): string | null {
   if (!evt || evt.type !== 'autonomy_run') return null;
   const result = String(evt.result || '');
   if (!result || result === 'lock_busy' || result === 'stop_repeat_gate_interval') return null;
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const key = [
+      String(evt.type || ''),
+      result,
+      String(evt.outcome || ''),
+      evt.policy_hold === true ? '1' : '0',
+      normalizeSpaces(evt.hold_reason || ''),
+      normalizeSpaces(evt.route_block_reason || '')
+    ].join('\u0000');
+    if (NON_YIELD_CATEGORY_CACHE.has(key)) {
+      const cached = NON_YIELD_CATEGORY_CACHE.get(key);
+      return cached == null ? null : String(cached);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'non_yield_category',
+      {
+        event_type: String(evt.type || ''),
+        result,
+        outcome: String(evt.outcome || ''),
+        policy_hold: evt.policy_hold === true,
+        hold_reason: String(evt.hold_reason || ''),
+        route_block_reason: String(evt.route_block_reason || '')
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const categoryRaw = rust.payload.payload.category;
+      const category = categoryRaw == null ? null : String(categoryRaw || '');
+      if (NON_YIELD_CATEGORY_CACHE.size >= NON_YIELD_CATEGORY_CACHE_MAX) {
+        const oldest = NON_YIELD_CATEGORY_CACHE.keys().next();
+        if (!oldest.done) NON_YIELD_CATEGORY_CACHE.delete(oldest.value);
+      }
+      NON_YIELD_CATEGORY_CACHE.set(key, category);
+      return category;
+    }
+  }
   if (isPolicyHoldRunEvent(evt)) {
     const reason = normalizeSpaces(evt.hold_reason || evt.route_block_reason || evt.result).toLowerCase();
     if (result.includes('budget') || reason.includes('budget') || reason.includes('autopause')) return 'budget_hold';
@@ -16135,5 +16173,6 @@ module.exports = {
   semanticNearDuplicateMatch,
   isNoProgressRun,
   isAttemptRunEvent,
-  isSafetyStopRunEvent
+  isSafetyStopRunEvent,
+  classifyNonYieldCategory
 };
