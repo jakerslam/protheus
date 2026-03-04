@@ -2383,6 +2383,37 @@ pub struct UnlinkedOptimizationAdmissionOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct OptimizationGoodEnoughInput {
+    #[serde(default)]
+    pub applies: bool,
+    #[serde(default)]
+    pub min_delta_percent: f64,
+    #[serde(default)]
+    pub require_delta: bool,
+    #[serde(default)]
+    pub high_accuracy_mode: bool,
+    #[serde(default)]
+    pub normalized_risk: Option<String>,
+    #[serde(default)]
+    pub delta_percent: Option<f64>,
+    #[serde(default)]
+    pub delta_source: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct OptimizationGoodEnoughOutput {
+    pub applies: bool,
+    pub pass: bool,
+    pub reason: Option<String>,
+    pub delta_percent: Option<f64>,
+    pub delta_source: Option<String>,
+    pub min_delta_percent: f64,
+    pub require_delta: bool,
+    pub mode: String,
+    pub risk: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -3543,6 +3574,8 @@ pub struct AutoscaleRequest {
     pub optimization_intent_proposal_input: Option<OptimizationIntentProposalInput>,
     #[serde(default)]
     pub unlinked_optimization_admission_input: Option<UnlinkedOptimizationAdmissionInput>,
+    #[serde(default)]
+    pub optimization_good_enough_input: Option<OptimizationGoodEnoughInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -7788,6 +7821,75 @@ pub fn compute_unlinked_optimization_admission(
     }
 }
 
+pub fn compute_optimization_good_enough(
+    input: &OptimizationGoodEnoughInput,
+) -> OptimizationGoodEnoughOutput {
+    let mode = if input.high_accuracy_mode {
+        "high_accuracy".to_string()
+    } else {
+        "default".to_string()
+    };
+    let risk = input
+        .normalized_risk
+        .as_ref()
+        .map(|v| v.trim().to_lowercase())
+        .filter(|v| v == "high" || v == "medium" || v == "low")
+        .unwrap_or_else(|| "low".to_string());
+    if !input.applies {
+        return OptimizationGoodEnoughOutput {
+            applies: false,
+            pass: true,
+            reason: None,
+            delta_percent: None,
+            delta_source: None,
+            min_delta_percent: input.min_delta_percent,
+            require_delta: input.require_delta,
+            mode,
+            risk,
+        };
+    }
+    let delta_percent = input.delta_percent.filter(|v| v.is_finite());
+    if delta_percent.is_none() && input.require_delta {
+        return OptimizationGoodEnoughOutput {
+            applies: true,
+            pass: false,
+            reason: Some("optimization_delta_missing".to_string()),
+            delta_percent: None,
+            delta_source: None,
+            min_delta_percent: input.min_delta_percent,
+            require_delta: true,
+            mode,
+            risk,
+        };
+    }
+    if let Some(delta) = delta_percent {
+        if delta < input.min_delta_percent {
+            return OptimizationGoodEnoughOutput {
+                applies: true,
+                pass: false,
+                reason: Some("optimization_good_enough".to_string()),
+                delta_percent: Some(delta),
+                delta_source: input.delta_source.clone(),
+                min_delta_percent: input.min_delta_percent,
+                require_delta: input.require_delta,
+                mode,
+                risk,
+            };
+        }
+    }
+    OptimizationGoodEnoughOutput {
+        applies: true,
+        pass: true,
+        reason: None,
+        delta_percent,
+        delta_source: input.delta_source.clone(),
+        min_delta_percent: input.min_delta_percent,
+        require_delta: input.require_delta,
+        mode,
+        risk,
+    }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -11351,6 +11453,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_unlinked_optimization_admission_encode_failed:{e}"));
+    }
+    if mode == "optimization_good_enough" {
+        let input = request
+            .optimization_good_enough_input
+            .ok_or_else(|| "autoscale_missing_optimization_good_enough_input".to_string())?;
+        let out = compute_optimization_good_enough(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "optimization_good_enough",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_optimization_good_enough_encode_failed:{e}"));
     }
     if mode == "is_directive_clarification_proposal" {
         let input = request
@@ -16483,6 +16597,41 @@ mod tests {
         let out =
             run_autoscale_json(&payload).expect("autoscale unlinked_optimization_admission");
         assert!(out.contains("\"mode\":\"unlinked_optimization_admission\""));
+    }
+
+    #[test]
+    fn optimization_good_enough_fails_when_delta_below_min() {
+        let out = compute_optimization_good_enough(&OptimizationGoodEnoughInput {
+            applies: true,
+            min_delta_percent: 10.0,
+            require_delta: true,
+            high_accuracy_mode: false,
+            normalized_risk: Some("medium".to_string()),
+            delta_percent: Some(4.0),
+            delta_source: Some("text:%".to_string()),
+        });
+        assert!(out.applies);
+        assert!(!out.pass);
+        assert_eq!(out.reason.as_deref(), Some("optimization_good_enough"));
+    }
+
+    #[test]
+    fn autoscale_json_optimization_good_enough_path_works() {
+        let payload = serde_json::json!({
+            "mode": "optimization_good_enough",
+            "optimization_good_enough_input": {
+                "applies": true,
+                "min_delta_percent": 8,
+                "require_delta": true,
+                "high_accuracy_mode": false,
+                "normalized_risk": "low",
+                "delta_percent": 12,
+                "delta_source": "meta:expected_delta_percent"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale optimization_good_enough");
+        assert!(out.contains("\"mode\":\"optimization_good_enough\""));
     }
 
     #[test]
