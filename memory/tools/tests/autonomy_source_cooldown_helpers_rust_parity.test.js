@@ -76,6 +76,68 @@ function run() {
     );
   }
 
+  const compositeSamples = [
+    ['low', 'canary_execute'],
+    ['low', 'execute'],
+    ['medium', 'canary_execute'],
+    ['high', 'execute']
+  ];
+  for (const sample of compositeSamples) {
+    assert.strictEqual(
+      rust.compositeEligibilityMin(sample[0], sample[1]),
+      ts.compositeEligibilityMin(sample[0], sample[1]),
+      `compositeEligibilityMin mismatch for ${JSON.stringify(sample)}`
+    );
+  }
+
+  const clampSamples = [
+    ['min_signal_quality', 12],
+    ['min_sensory_signal_score', 90],
+    ['min_directive_fit', 20],
+    ['unknown', 140]
+  ];
+  for (const sample of clampSamples) {
+    assert.strictEqual(
+      rust.clampThreshold(sample[0], sample[1]),
+      ts.clampThreshold(sample[0], sample[1]),
+      `clampThreshold mismatch for ${JSON.stringify(sample)}`
+    );
+  }
+
+  const base = {
+    min_signal_quality: 52,
+    min_sensory_signal_score: 50,
+    min_sensory_relevance_score: 49,
+    min_directive_fit: 38,
+    min_actionability_score: 42,
+    min_eye_score_ema: 50
+  };
+  const deltas = {
+    min_signal_quality: 5,
+    min_sensory_signal_score: -3,
+    min_sensory_relevance_score: 2,
+    min_directive_fit: 1,
+    min_actionability_score: 4,
+    min_eye_score_ema: -2
+  };
+  assert.deepStrictEqual(
+    rust.appliedThresholds(base, deltas),
+    ts.appliedThresholds(base, deltas),
+    'appliedThresholds mismatch'
+  );
+
+  const outcomeBuckets = { shipped: 3, no_change: 1, reverted: 1 };
+  assert.strictEqual(
+    rust.totalOutcomes(outcomeBuckets),
+    ts.totalOutcomes(outcomeBuckets),
+    'totalOutcomes mismatch'
+  );
+  assert.strictEqual(
+    rust.deriveEntityBias(outcomeBuckets, 3),
+    ts.deriveEntityBias(outcomeBuckets, 3),
+    'deriveEntityBias mismatch'
+  );
+
   console.log('autonomy_source_cooldown_helpers_rust_parity.test.js: OK');
 }
 
@@ -85,4 +147,3 @@ try {
   console.error(`autonomy_source_cooldown_helpers_rust_parity.test.js: FAIL: ${err.message}`);
   process.exit(1);
 }
-
