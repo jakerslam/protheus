@@ -3197,7 +3197,33 @@ function isVerifiedRevenueAction(action) {
 
 function assessUnlinkedOptimizationAdmission(proposal, objectiveBinding, risk) {
   const type = normalizeSpaces(proposal && proposal.type).toLowerCase();
-  if (!isOptimizationIntentProposal(proposal)) {
+  const optimizationIntent = isOptimizationIntentProposal(proposal);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const linked = !!(
+      objectiveBinding
+      && objectiveBinding.pass === true
+      && objectiveBinding.objective_id
+      && objectiveBinding.valid !== false
+    );
+    const normalizedRiskVal = normalizedRisk(risk || (proposal && proposal.risk));
+    const rust = runBacklogAutoscalePrimitive(
+      'unlinked_optimization_admission',
+      {
+        optimization_intent: optimizationIntent === true,
+        proposal_type: type || null,
+        exempt_types: Array.from(AUTONOMY_UNLINKED_OPTIMIZATION_EXEMPT_TYPES || []),
+        linked,
+        normalized_risk: normalizedRiskVal,
+        hard_block_high_risk: AUTONOMY_UNLINKED_OPTIMIZATION_HARD_BLOCK_HIGH_RISK === true,
+        penalty: Number(AUTONOMY_UNLINKED_OPTIMIZATION_PENALTY || 0)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
+  }
+  if (!optimizationIntent) {
     return {
       applies: false,
       linked: true,
@@ -20284,6 +20310,7 @@ module.exports = {
   optimizationMinDeltaPercent,
   inferOptimizationDeltaForProposal,
   isOptimizationIntentProposal,
+  assessUnlinkedOptimizationAdmission,
   sourceEyeRef,
   escapeRegExp,
   toolTokenMentioned,
