@@ -2754,6 +2754,16 @@ function buildOverlay(events) {
 }
 
 function isStubProposal(p) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'is_stub_proposal',
+      { title: p && p.title == null ? null : String(p && p.title || '') },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.is_stub === true;
+    }
+  }
   const title = String(p && p.title || '');
   return title.toUpperCase().includes('[STUB]');
 }

@@ -292,6 +292,7 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
     route_block_prefilter: 'route_block_prefilter_input',
     route_execution_sample_event: 'route_execution_sample_event_input',
     route_block_telemetry_summary: 'route_block_telemetry_summary_input',
+    is_stub_proposal: 'is_stub_proposal_input',
     manual_gate_prefilter: 'manual_gate_prefilter_input',
     execute_confidence_cooldown_active: 'execute_confidence_cooldown_active_input',
     top_biases_summary: 'top_biases_summary_input',

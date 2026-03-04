@@ -2646,6 +2646,17 @@ pub struct RouteBlockTelemetrySummaryOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IsStubProposalInput {
+    #[serde(default)]
+    pub title: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IsStubProposalOutput {
+    pub is_stub: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ManualGatePrefilterInput {
     #[serde(default)]
     pub enabled: bool,
@@ -4656,6 +4667,8 @@ pub struct AutoscaleRequest {
     pub route_execution_sample_event_input: Option<RouteExecutionSampleEventInput>,
     #[serde(default)]
     pub route_block_telemetry_summary_input: Option<RouteBlockTelemetrySummaryInput>,
+    #[serde(default)]
+    pub is_stub_proposal_input: Option<IsStubProposalInput>,
     #[serde(default)]
     pub manual_gate_prefilter_input: Option<ManualGatePrefilterInput>,
     #[serde(default)]
@@ -9389,6 +9402,13 @@ pub fn compute_route_block_telemetry_summary(
         window_hours: input.window_hours.max(1.0),
         sample_events: input.events.len() as f64,
         by_capability,
+    }
+}
+
+pub fn compute_is_stub_proposal(input: &IsStubProposalInput) -> IsStubProposalOutput {
+    let title = input.title.as_deref().unwrap_or("");
+    IsStubProposalOutput {
+        is_stub: title.to_uppercase().contains("[STUB]"),
     }
 }
 
@@ -14597,6 +14617,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_route_block_telemetry_summary_encode_failed:{e}"));
+    }
+    if mode == "is_stub_proposal" {
+        let input = request
+            .is_stub_proposal_input
+            .ok_or_else(|| "autoscale_missing_is_stub_proposal_input".to_string())?;
+        let out = compute_is_stub_proposal(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "is_stub_proposal",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_is_stub_proposal_encode_failed:{e}"));
     }
     if mode == "manual_gate_prefilter" {
         let input = request
@@ -20594,6 +20626,32 @@ mod tests {
             run_autoscale_json(&payload).expect("autoscale route_block_telemetry_summary");
         assert!(out.contains("\"mode\":\"route_block_telemetry_summary\""));
         assert!(out.contains("\"sample_events\":1"));
+    }
+
+    #[test]
+    fn is_stub_proposal_matches_title_marker() {
+        let yes = compute_is_stub_proposal(&IsStubProposalInput {
+            title: Some("[STUB] backlog".to_string()),
+        });
+        assert!(yes.is_stub);
+        let no = compute_is_stub_proposal(&IsStubProposalInput {
+            title: Some("shippable task".to_string()),
+        });
+        assert!(!no.is_stub);
+    }
+
+    #[test]
+    fn autoscale_json_is_stub_proposal_path_works() {
+        let payload = serde_json::json!({
+            "mode": "is_stub_proposal",
+            "is_stub_proposal_input": {
+                "title": "[STUB] investigate"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale is_stub_proposal");
+        assert!(out.contains("\"mode\":\"is_stub_proposal\""));
+        assert!(out.contains("\"is_stub\":true"));
     }
 
     #[test]
