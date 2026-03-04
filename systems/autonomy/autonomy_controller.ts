@@ -2728,6 +2728,8 @@ const COMPOSITE_ELIGIBILITY_SCORE_CACHE = new Map();
 const COMPOSITE_ELIGIBILITY_SCORE_CACHE_MAX = 1024;
 const TIME_TO_VALUE_SCORE_CACHE = new Map();
 const TIME_TO_VALUE_SCORE_CACHE_MAX = 1024;
+const VALUE_DENSITY_SCORE_CACHE = new Map();
+const VALUE_DENSITY_SCORE_CACHE_MAX = 1024;
 const MINUTES_SINCE_TS_CACHE = new Map();
 const MINUTES_SINCE_TS_CACHE_MAX = 512;
 const DATE_WINDOW_CACHE = new Map();
@@ -7966,6 +7968,31 @@ function estimateTokensForCandidate(cand, proposal) {
 }
 
 function valueDensityScore(expectedValue, estTokens) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const valueRaw = Number(expectedValue || 0);
+    const tokensRaw = Number(estTokens || 0);
+    const cacheKey = `${valueRaw}\u0000${tokensRaw}`;
+    if (VALUE_DENSITY_SCORE_CACHE.has(cacheKey)) {
+      return VALUE_DENSITY_SCORE_CACHE.get(cacheKey);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'value_density_score',
+      {
+        expected_value: valueRaw,
+        est_tokens: tokensRaw
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const val = clampNumber(Math.round(Number(rust.payload.payload.score || 0)), 0, 100);
+      if (VALUE_DENSITY_SCORE_CACHE.size >= VALUE_DENSITY_SCORE_CACHE_MAX) {
+        const oldest = VALUE_DENSITY_SCORE_CACHE.keys().next();
+        if (!oldest.done) VALUE_DENSITY_SCORE_CACHE.delete(oldest.value);
+      }
+      VALUE_DENSITY_SCORE_CACHE.set(cacheKey, val);
+      return val;
+    }
+  }
   const value = clampNumber(Number(expectedValue || 0), 0, 100);
   const tokens = clampNumber(Number(estTokens || 0), 80, 12000);
   if (!Number.isFinite(value) || value <= 0) return 0;
@@ -17389,6 +17416,7 @@ module.exports = {
   assessActionability,
   expectedValueScore,
   timeToValueScore,
+  valueDensityScore,
   expectedValueSignalForProposal,
   strategyRankForCandidate,
   strategyTritShadowForCandidate,
