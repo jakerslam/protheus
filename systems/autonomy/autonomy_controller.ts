@@ -6909,6 +6909,63 @@ function directiveTierMinShare(tier) {
 
 function compileDirectivePulseObjectives(directives) {
   const input = Array.isArray(directives) ? directives : [];
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'compile_directive_pulse_objectives',
+      {
+        directives: input,
+        stopwords: Array.from(DIRECTIVE_FIT_STOPWORDS),
+        allowed_value_keys: Array.from(VALUE_CURRENCY_RANK_KEYS),
+        t1_min_share: Number(AUTONOMY_DIRECTIVE_PULSE_T1_MIN_SHARE || 0),
+        t2_min_share: Number(AUTONOMY_DIRECTIVE_PULSE_T2_MIN_SHARE || 0)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const rows = Array.isArray(rust.payload.payload.objectives) ? rust.payload.payload.objectives : [];
+      const out = [];
+      for (const rawRow of rows) {
+        const row = rawRow && typeof rawRow === 'object' ? rawRow : {};
+        const id = String(row.id || '').trim();
+        if (!id) continue;
+        const tier = normalizeDirectiveTier(Number(row.tier), 3);
+        const phrases = uniqSorted(
+          (Array.isArray(row.phrases) ? row.phrases : [])
+            .map((x) => normalizeDirectiveText(String(x || '')))
+            .filter(Boolean)
+            .filter((x) => x.length >= 6)
+        ).slice(0, 16);
+        const tokens = uniqSorted(
+          (Array.isArray(row.tokens) ? row.tokens : [])
+            .map((x) => String(x || ''))
+            .filter(Boolean)
+        ).slice(0, 64);
+        const valueCurrencies = listValueCurrencies(
+          (Array.isArray(row.value_currencies) ? row.value_currencies : []).map((x) => String(x || ''))
+        );
+        const primaryCurrencyRaw = String(row.primary_currency || '').trim().toLowerCase();
+        const primaryCurrency = primaryCurrencyRaw && valueCurrencies.includes(primaryCurrencyRaw)
+          ? primaryCurrencyRaw
+          : (valueCurrencies[0] || null);
+        out.push({
+          id,
+          tier,
+          title: String(row.title || id),
+          tier_weight: Number.isFinite(Number(row.tier_weight)) ? Number(row.tier_weight) : directiveTierWeight(tier),
+          min_share: clampNumber(Number(row.min_share || 0), 0, 1),
+          phrases,
+          tokens,
+          value_currencies: valueCurrencies,
+          primary_currency: primaryCurrency
+        });
+      }
+      out.sort((a, b) => {
+        if (a.tier !== b.tier) return a.tier - b.tier;
+        return String(a.id).localeCompare(String(b.id));
+      });
+      return out;
+    }
+  }
   const out = [];
   const seen = new Set();
   for (const d of input) {

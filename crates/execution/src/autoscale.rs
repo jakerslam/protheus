@@ -2891,6 +2891,43 @@ pub struct DirectivePulseStatsOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CompileDirectivePulseObjectivesInput {
+    #[serde(default)]
+    pub directives: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub stopwords: Vec<String>,
+    #[serde(default)]
+    pub allowed_value_keys: Vec<String>,
+    #[serde(default)]
+    pub t1_min_share: Option<f64>,
+    #[serde(default)]
+    pub t2_min_share: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CompileDirectivePulseObjectiveOutput {
+    pub id: String,
+    pub tier: u32,
+    pub title: String,
+    pub tier_weight: f64,
+    pub min_share: f64,
+    #[serde(default)]
+    pub phrases: Vec<String>,
+    #[serde(default)]
+    pub tokens: Vec<String>,
+    #[serde(default)]
+    pub value_currencies: Vec<String>,
+    #[serde(default)]
+    pub primary_currency: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CompileDirectivePulseObjectivesOutput {
+    #[serde(default)]
+    pub objectives: Vec<CompileDirectivePulseObjectiveOutput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -4081,6 +4118,8 @@ pub struct AutoscaleRequest {
     pub directive_pulse_context_input: Option<DirectivePulseContextInput>,
     #[serde(default)]
     pub directive_pulse_stats_input: Option<DirectivePulseStatsInput>,
+    #[serde(default)]
+    pub compile_directive_pulse_objectives_input: Option<CompileDirectivePulseObjectivesInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -9074,6 +9113,230 @@ pub fn compute_directive_pulse_stats(input: &DirectivePulseStatsInput) -> Direct
     }
 }
 
+fn json_path<'a>(root: &'a serde_json::Value, path: &[&str]) -> Option<&'a serde_json::Value> {
+    let mut current = root;
+    for key in path {
+        current = current.as_object()?.get(*key)?;
+    }
+    Some(current)
+}
+
+fn js_like_string(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::Null => String::new(),
+        serde_json::Value::Bool(v) => {
+            if *v {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            }
+        }
+        serde_json::Value::Number(v) => v.to_string(),
+        serde_json::Value::String(v) => v.clone(),
+        serde_json::Value::Array(values) => values
+            .iter()
+            .map(js_like_string)
+            .collect::<Vec<_>>()
+            .join(","),
+        serde_json::Value::Object(_) => "[object Object]".to_string(),
+    }
+}
+
+fn js_like_string_array(value: Option<&serde_json::Value>) -> Vec<String> {
+    match value {
+        Some(serde_json::Value::Array(rows)) => rows
+            .iter()
+            .map(js_like_string)
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .collect(),
+        Some(serde_json::Value::String(v)) if !v.trim().is_empty() => vec![v.trim().to_string()],
+        _ => Vec::new(),
+    }
+}
+
+fn js_like_number(value: Option<&serde_json::Value>) -> Option<f64> {
+    let Some(v) = value else {
+        return None;
+    };
+    match v {
+        serde_json::Value::Number(n) => n.as_f64(),
+        serde_json::Value::String(s) => s.trim().parse::<f64>().ok(),
+        serde_json::Value::Bool(b) => Some(if *b { 1.0 } else { 0.0 }),
+        serde_json::Value::Null => None,
+        _ => None,
+    }
+}
+
+pub fn compute_compile_directive_pulse_objectives(
+    input: &CompileDirectivePulseObjectivesInput,
+) -> CompileDirectivePulseObjectivesOutput {
+    let mut out = Vec::<CompileDirectivePulseObjectiveOutput>::new();
+    let mut seen = std::collections::BTreeSet::<String>::new();
+
+    for directive in &input.directives {
+        let id_from_metadata = json_path(directive, &["data", "metadata", "id"]).map(js_like_string);
+        let id_from_root = json_path(directive, &["id"]).map(js_like_string);
+        let id = id_from_metadata
+            .or(id_from_root)
+            .map(|v| v.trim().to_string())
+            .unwrap_or_default();
+        if id.is_empty() || !seen.insert(id.clone()) {
+            continue;
+        }
+        let id_upper = id.to_ascii_uppercase();
+        if id_upper == "T0" || id_upper.starts_with("T0_") || id_upper.starts_with("T0-") {
+            continue;
+        }
+
+        let tier_raw = js_like_number(json_path(directive, &["tier"]))
+            .or(js_like_number(json_path(directive, &["data", "metadata", "tier"])));
+        let tier = compute_normalize_directive_tier(&NormalizeDirectiveTierInput {
+            raw_tier: tier_raw,
+            fallback: Some(3.0),
+        })
+        .tier;
+
+        let mut phrases_raw = Vec::<String>::new();
+        phrases_raw.extend(js_like_string_array(json_path(
+            directive,
+            &["data", "metadata", "description"],
+        )));
+        phrases_raw.extend(js_like_string_array(json_path(directive, &["data", "intent", "primary"])));
+        phrases_raw.extend(js_like_string_array(json_path(directive, &["data", "scope", "included"])));
+        phrases_raw.extend(js_like_string_array(json_path(
+            directive,
+            &["data", "success_metrics", "leading"],
+        )));
+        phrases_raw.extend(js_like_string_array(json_path(
+            directive,
+            &["data", "success_metrics", "lagging"],
+        )));
+
+        let mut phrase_set = std::collections::BTreeSet::<String>::new();
+        for phrase in &phrases_raw {
+            let normalized = compute_normalize_directive_text(&NormalizeDirectiveTextInput {
+                text: Some(phrase.clone()),
+            })
+            .normalized;
+            if !normalized.is_empty() && normalized.len() >= 6 {
+                phrase_set.insert(normalized);
+            }
+        }
+        let mut phrases = phrase_set.into_iter().collect::<Vec<_>>();
+        if phrases.len() > 16 {
+            phrases.truncate(16);
+        }
+
+        let mut token_set = std::collections::BTreeSet::<String>::new();
+        for phrase in &phrases {
+            let tokens = compute_tokenize_directive_text(&TokenizeDirectiveTextInput {
+                text: Some(phrase.clone()),
+                stopwords: input.stopwords.clone(),
+            })
+            .tokens;
+            for token in tokens {
+                let clean = token.trim();
+                if !clean.is_empty() {
+                    token_set.insert(clean.to_string());
+                }
+            }
+        }
+        let mut tokens = token_set.into_iter().collect::<Vec<_>>();
+        if tokens.len() > 64 {
+            tokens.truncate(64);
+        }
+
+        let mut explicit_rows = Vec::<String>::new();
+        explicit_rows.extend(js_like_string_array(json_path(
+            directive,
+            &["data", "metadata", "value_currency"],
+        )));
+        explicit_rows.extend(js_like_string_array(json_path(
+            directive,
+            &["data", "metadata", "value_currencies"],
+        )));
+        explicit_rows.extend(js_like_string_array(json_path(directive, &["data", "value_currency"])));
+        explicit_rows.extend(js_like_string_array(json_path(directive, &["data", "value_currencies"])));
+        explicit_rows.extend(js_like_string_array(json_path(directive, &["data", "intent", "value_currency"])));
+        explicit_rows.extend(js_like_string_array(json_path(
+            directive,
+            &["data", "intent", "value_currencies"],
+        )));
+
+        let explicit_currencies = compute_list_value_currencies(&ListValueCurrenciesInput {
+            value_list: explicit_rows,
+            value_csv: None,
+            allowed_keys: input.allowed_value_keys.clone(),
+        })
+        .currencies;
+
+        let mut inference_bits = Vec::<String>::new();
+        inference_bits.push(id.clone());
+        inference_bits.extend(phrases_raw.iter().cloned());
+        inference_bits.extend(phrases.iter().cloned());
+        inference_bits.extend(tokens.iter().cloned());
+
+        let inferred_currencies =
+            compute_infer_value_currencies_from_directive_bits(&InferValueCurrenciesFromDirectiveBitsInput {
+                bits: inference_bits,
+                allowed_keys: input.allowed_value_keys.clone(),
+            })
+            .currencies;
+
+        let value_currencies = if explicit_currencies.is_empty() {
+            inferred_currencies
+        } else {
+            let mut merged = explicit_currencies;
+            merged.extend(inferred_currencies);
+            compute_list_value_currencies(&ListValueCurrenciesInput {
+                value_list: merged,
+                value_csv: None,
+                allowed_keys: input.allowed_value_keys.clone(),
+            })
+            .currencies
+        };
+        let primary_currency = value_currencies.first().cloned();
+
+        let title_primary = js_like_string_array(json_path(directive, &["data", "intent", "primary"]));
+        let title_description =
+            js_like_string_array(json_path(directive, &["data", "metadata", "description"]));
+        let title = title_primary
+            .first()
+            .cloned()
+            .or_else(|| title_description.first().cloned())
+            .unwrap_or_else(|| id.clone());
+
+        let tier_weight = compute_directive_tier_weight(&DirectiveTierWeightInput {
+            tier: Some(tier as f64),
+            fallback: Some(3.0),
+        })
+        .weight;
+        let min_share = compute_directive_tier_min_share(&DirectiveTierMinShareInput {
+            tier: Some(tier as f64),
+            fallback: Some(3.0),
+            t1_min_share: input.t1_min_share.unwrap_or(0.5),
+            t2_min_share: input.t2_min_share.unwrap_or(0.25),
+        })
+        .min_share;
+
+        out.push(CompileDirectivePulseObjectiveOutput {
+            id,
+            tier,
+            title,
+            tier_weight,
+            min_share,
+            phrases,
+            tokens,
+            value_currencies,
+            primary_currency,
+        });
+    }
+
+    out.sort_by(|a, b| a.tier.cmp(&b.tier).then_with(|| a.id.cmp(&b.id)));
+    CompileDirectivePulseObjectivesOutput { objectives: out }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -12805,6 +13068,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_directive_pulse_stats_encode_failed:{e}"));
+    }
+    if mode == "compile_directive_pulse_objectives" {
+        let input = request
+            .compile_directive_pulse_objectives_input
+            .ok_or_else(|| "autoscale_missing_compile_directive_pulse_objectives_input".to_string())?;
+        let out = compute_compile_directive_pulse_objectives(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "compile_directive_pulse_objectives",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_compile_directive_pulse_objectives_encode_failed:{e}"));
     }
     if mode == "directive_pulse_context" {
         let input = request
@@ -18560,6 +18835,86 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale directive_pulse_stats");
         assert!(out.contains("\"mode\":\"directive_pulse_stats\""));
+    }
+
+    #[test]
+    fn compile_directive_pulse_objectives_filters_and_derives_rows() {
+        let out = compute_compile_directive_pulse_objectives(&CompileDirectivePulseObjectivesInput {
+            directives: vec![
+                serde_json::json!({
+                    "id": "T0_FOUNDATION",
+                    "data": {
+                        "metadata": { "id": "T0_FOUNDATION", "description": "ignore me", "tier": 1 }
+                    }
+                }),
+                serde_json::json!({
+                    "id": "T1_MEMORY",
+                    "tier": 1,
+                    "data": {
+                        "metadata": {
+                            "id": "T1_MEMORY",
+                            "description": "Improve memory durability and recall quality",
+                            "value_currency": "quality"
+                        },
+                        "intent": {
+                            "primary": "Improve memory durability",
+                            "value_currency": "time_savings"
+                        },
+                        "scope": {
+                            "included": ["durability guardrails", "recall quality"]
+                        },
+                        "success_metrics": {
+                            "leading": ["reduced regressions"],
+                            "lagging": ["higher recall score"]
+                        }
+                    }
+                }),
+            ],
+            stopwords: vec!["the".to_string(), "and".to_string()],
+            allowed_value_keys: vec![
+                "revenue".to_string(),
+                "delivery".to_string(),
+                "user_value".to_string(),
+                "quality".to_string(),
+                "time_savings".to_string(),
+                "learning".to_string(),
+            ],
+            t1_min_share: Some(0.5),
+            t2_min_share: Some(0.25),
+        });
+        assert_eq!(out.objectives.len(), 1);
+        let row = &out.objectives[0];
+        assert_eq!(row.id, "T1_MEMORY");
+        assert_eq!(row.tier, 1);
+        assert!(!row.phrases.is_empty());
+        assert!(!row.tokens.is_empty());
+        assert_eq!(row.primary_currency.as_deref(), Some("quality"));
+    }
+
+    #[test]
+    fn autoscale_json_compile_directive_pulse_objectives_path_works() {
+        let payload = serde_json::json!({
+            "mode": "compile_directive_pulse_objectives",
+            "compile_directive_pulse_objectives_input": {
+                "directives": [
+                    {
+                        "id": "T1_MEMORY",
+                        "tier": 1,
+                        "data": {
+                            "metadata": { "id": "T1_MEMORY", "description": "memory durability" },
+                            "intent": { "primary": "Improve memory durability" }
+                        }
+                    }
+                ],
+                "stopwords": ["the", "and"],
+                "allowed_value_keys": ["quality", "time_savings", "learning", "user_value", "delivery", "revenue"],
+                "t1_min_share": 0.5,
+                "t2_min_share": 0.25
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale compile_directive_pulse_objectives");
+        assert!(out.contains("\"mode\":\"compile_directive_pulse_objectives\""));
     }
 
     #[test]
