@@ -3273,6 +3273,17 @@ pub struct ChooseEvidenceSelectionModeOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TruthyFlagInput {
+    #[serde(default)]
+    pub value: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TruthyFlagOutput {
+    pub value: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ParseDirectiveFileArgInput {
     #[serde(default)]
     pub command: Option<String>,
@@ -4472,6 +4483,8 @@ pub struct AutoscaleRequest {
     pub number_or_null_input: Option<NumberOrNullInput>,
     #[serde(default)]
     pub choose_evidence_selection_mode_input: Option<ChooseEvidenceSelectionModeInput>,
+    #[serde(default)]
+    pub truthy_flag_input: Option<TruthyFlagInput>,
     #[serde(default)]
     pub parse_directive_file_arg_input: Option<ParseDirectiveFileArgInput>,
     #[serde(default)]
@@ -10335,6 +10348,22 @@ pub fn compute_choose_evidence_selection_mode(
     }
 }
 
+pub fn compute_truthy_flag(input: &TruthyFlagInput) -> TruthyFlagOutput {
+    let value = match input.value.as_ref() {
+        Some(serde_json::Value::Bool(v)) => *v,
+        Some(serde_json::Value::Null) | None => false,
+        Some(other) => {
+            let text = match other {
+                serde_json::Value::String(s) => s.clone(),
+                _ => other.to_string(),
+            };
+            let normalized = text.trim().to_ascii_lowercase();
+            normalized == "true" || normalized == "1" || normalized == "yes"
+        }
+    };
+    TruthyFlagOutput { value }
+}
+
 pub fn compute_parse_directive_file_arg(input: &ParseDirectiveFileArgInput) -> ParseDirectiveFileArgOutput {
     let text = input.command.as_deref().unwrap_or("").trim();
     if text.is_empty() {
@@ -14282,6 +14311,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_choose_evidence_selection_mode_encode_failed:{e}"));
+    }
+    if mode == "truthy_flag" {
+        let input = request
+            .truthy_flag_input
+            .ok_or_else(|| "autoscale_missing_truthy_flag_input".to_string())?;
+        let out = compute_truthy_flag(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "truthy_flag",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_truthy_flag_encode_failed:{e}"));
     }
     if mode == "parse_directive_file_arg" {
         let input = request
