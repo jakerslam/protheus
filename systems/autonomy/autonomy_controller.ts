@@ -2480,6 +2480,36 @@ function normalizeSpaces(s) {
 }
 
 function parseLowerList(value) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const cache = globalThis.__PROTHEUS_PARSE_LOWER_LIST_CACHE instanceof Map
+      ? globalThis.__PROTHEUS_PARSE_LOWER_LIST_CACHE
+      : (globalThis.__PROTHEUS_PARSE_LOWER_LIST_CACHE = new Map());
+    const cacheKey = Array.isArray(value)
+      ? `arr:${value.map((v) => String(v || '')).join('\u0001')}`
+      : `csv:${String(value || '')}`;
+    if (cache.has(cacheKey)) {
+      return cache.get(cacheKey);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'parse_lower_list',
+      {
+        list: Array.isArray(value) ? value.map((v) => String(v || '')) : [],
+        csv: Array.isArray(value) ? null : String(value || '')
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const items = Array.isArray(rust.payload.payload.items)
+        ? rust.payload.payload.items.map((v) => String(v || '')).filter(Boolean)
+        : [];
+      if (cache.size >= 2048) {
+        const oldest = cache.keys().next();
+        if (!oldest.done) cache.delete(oldest.value);
+      }
+      cache.set(cacheKey, items);
+      return items;
+    }
+  }
   if (Array.isArray(value)) {
     return value
       .map(v => String(v || '').trim().toLowerCase())
@@ -2855,6 +2885,8 @@ const TOKENIZE_DIRECTIVE_TEXT_CACHE = new Map();
 const TOKENIZE_DIRECTIVE_TEXT_CACHE_MAX = 4096;
 const NORMALIZE_SPACES_CACHE = new Map();
 const NORMALIZE_SPACES_CACHE_MAX = 2048;
+const PARSE_LOWER_LIST_CACHE = new Map();
+const PARSE_LOWER_LIST_CACHE_MAX = 2048;
 const NORMALIZE_DIRECTIVE_TIER_CACHE = new Map();
 const NORMALIZE_DIRECTIVE_TIER_CACHE_MAX = 512;
 const DIRECTIVE_TIER_WEIGHT_CACHE = new Map();
@@ -18836,6 +18868,7 @@ module.exports = {
   normalizeDirectiveText,
   tokenizeDirectiveText,
   normalizeSpaces,
+  parseLowerList,
   toStem,
   directiveTokenHits,
   expectedValueScore,

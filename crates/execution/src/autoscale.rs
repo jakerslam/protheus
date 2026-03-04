@@ -1270,6 +1270,20 @@ pub struct NormalizeSpacesOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ParseLowerListInput {
+    #[serde(default)]
+    pub list: Vec<String>,
+    #[serde(default)]
+    pub csv: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ParseLowerListOutput {
+    #[serde(default)]
+    pub items: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecutionReserveSnapshotInput {
     pub cap: f64,
     pub used: f64,
@@ -2014,6 +2028,8 @@ pub struct AutoscaleRequest {
     pub tokenize_directive_text_input: Option<TokenizeDirectiveTextInput>,
     #[serde(default)]
     pub normalize_spaces_input: Option<NormalizeSpacesInput>,
+    #[serde(default)]
+    pub parse_lower_list_input: Option<ParseLowerListInput>,
     #[serde(default)]
     pub execution_reserve_snapshot_input: Option<ExecutionReserveSnapshotInput>,
     #[serde(default)]
@@ -4371,6 +4387,26 @@ pub fn compute_normalize_spaces(input: &NormalizeSpacesInput) -> NormalizeSpaces
     NormalizeSpacesOutput { normalized }
 }
 
+pub fn compute_parse_lower_list(input: &ParseLowerListInput) -> ParseLowerListOutput {
+    let items = if !input.list.is_empty() {
+        input.list
+            .iter()
+            .map(|value| value.trim().to_ascii_lowercase())
+            .filter(|value| !value.is_empty())
+            .collect::<Vec<_>>()
+    } else {
+        input
+            .csv
+            .as_deref()
+            .unwrap_or("")
+            .split(',')
+            .map(|value| value.trim().to_ascii_lowercase())
+            .filter(|value| !value.is_empty())
+            .collect::<Vec<_>>()
+    };
+    ParseLowerListOutput { items }
+}
+
 pub fn compute_execution_reserve_snapshot(
     input: &ExecutionReserveSnapshotInput,
 ) -> ExecutionReserveSnapshotOutput {
@@ -6675,6 +6711,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_normalize_spaces_encode_failed:{e}"));
+    }
+    if mode == "parse_lower_list" {
+        let input = request
+            .parse_lower_list_input
+            .ok_or_else(|| "autoscale_missing_parse_lower_list_input".to_string())?;
+        let out = compute_parse_lower_list(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "parse_lower_list",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_parse_lower_list_encode_failed:{e}"));
     }
     if mode == "execution_reserve_snapshot" {
         let input = request
@@ -9500,6 +9548,39 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale normalize_spaces");
         assert!(out.contains("\"mode\":\"normalize_spaces\""));
         assert!(out.contains("\"normalized\":\"one two three\""));
+    }
+
+    #[test]
+    fn parse_lower_list_matches_ts_semantics() {
+        let from_list = compute_parse_lower_list(&ParseLowerListInput {
+            list: vec![" A ".to_string(), "b".to_string(), "".to_string()],
+            csv: Some("x,y".to_string()),
+        });
+        assert_eq!(from_list.items, vec!["a".to_string(), "b".to_string()]);
+
+        let from_csv = compute_parse_lower_list(&ParseLowerListInput {
+            list: vec![],
+            csv: Some(" A, B ,,C ".to_string()),
+        });
+        assert_eq!(
+            from_csv.items,
+            vec!["a".to_string(), "b".to_string(), "c".to_string()]
+        );
+    }
+
+    #[test]
+    fn autoscale_json_parse_lower_list_path_works() {
+        let payload = serde_json::json!({
+            "mode": "parse_lower_list",
+            "parse_lower_list_input": {
+                "list": [],
+                "csv": "A, B ,, C"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale parse_lower_list");
+        assert!(out.contains("\"mode\":\"parse_lower_list\""));
+        assert!(out.contains("\"items\":[\"a\",\"b\",\"c\"]"));
     }
 
     #[test]
