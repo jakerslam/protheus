@@ -3400,6 +3400,22 @@ pub struct HasEnvNumericOverrideOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CoalesceNumericInput {
+    #[serde(default)]
+    pub primary: Option<f64>,
+    #[serde(default)]
+    pub fallback: Option<f64>,
+    #[serde(default)]
+    pub null_fallback: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CoalesceNumericOutput {
+    #[serde(default)]
+    pub value: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ParseDirectiveFileArgInput {
     #[serde(default)]
     pub command: Option<String>,
@@ -4621,6 +4637,8 @@ pub struct AutoscaleRequest {
     pub date_arg_or_today_input: Option<DateArgOrTodayInput>,
     #[serde(default)]
     pub has_env_numeric_override_input: Option<HasEnvNumericOverrideInput>,
+    #[serde(default)]
+    pub coalesce_numeric_input: Option<CoalesceNumericInput>,
     #[serde(default)]
     pub parse_directive_file_arg_input: Option<ParseDirectiveFileArgInput>,
     #[serde(default)]
@@ -10703,6 +10721,20 @@ pub fn compute_has_env_numeric_override(
     }
 }
 
+pub fn compute_coalesce_numeric(input: &CoalesceNumericInput) -> CoalesceNumericOutput {
+    let primary = input.primary.filter(|v| v.is_finite());
+    if primary.is_some() {
+        return CoalesceNumericOutput { value: primary };
+    }
+    let fallback = input.fallback.filter(|v| v.is_finite());
+    if fallback.is_some() {
+        return CoalesceNumericOutput { value: fallback };
+    }
+    CoalesceNumericOutput {
+        value: input.null_fallback.filter(|v| v.is_finite()),
+    }
+}
+
 pub fn compute_parse_directive_file_arg(input: &ParseDirectiveFileArgInput) -> ParseDirectiveFileArgOutput {
     let text = input.command.as_deref().unwrap_or("").trim();
     if text.is_empty() {
@@ -14782,6 +14814,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_has_env_numeric_override_encode_failed:{e}"));
+    }
+    if mode == "coalesce_numeric" {
+        let input = request
+            .coalesce_numeric_input
+            .ok_or_else(|| "autoscale_missing_coalesce_numeric_input".to_string())?;
+        let out = compute_coalesce_numeric(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "coalesce_numeric",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_coalesce_numeric_encode_failed:{e}"));
     }
     if mode == "parse_directive_file_arg" {
         let input = request

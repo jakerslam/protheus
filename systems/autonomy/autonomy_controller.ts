@@ -14006,6 +14006,20 @@ function hasEnvNumericOverride(name) {
 }
 
 function coalesceNumeric(primary, fallback, nullFallback = null) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'coalesce_numeric',
+      {
+        primary: Number(primary),
+        fallback: Number(fallback),
+        null_fallback: nullFallback == null ? null : Number(nullFallback)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.value == null ? null : Number(rust.payload.payload.value);
+    }
+  }
   const p = Number(primary);
   if (Number.isFinite(p)) return p;
   const f = Number(fallback);
@@ -21433,6 +21447,7 @@ module.exports = {
   parseArg,
   dateArgOrToday,
   hasEnvNumericOverride,
+  coalesceNumeric,
   startModelCatalogCanary,
   evaluateModelCatalogCanary,
   readModelCatalogCanary,
