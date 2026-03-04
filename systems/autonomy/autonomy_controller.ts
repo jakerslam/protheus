@@ -1133,6 +1133,19 @@ function todayStr() {
 }
 
 function dateArgOrToday(v) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'date_arg_or_today',
+      {
+        value: v == null ? null : String(v),
+        today: todayStr()
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return String(rust.payload.payload.date || '');
+    }
+  }
   if (v && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
   return todayStr();
 }
@@ -21403,6 +21416,7 @@ module.exports = {
   normalizeModelIds,
   selectedModelFromRunEvent,
   parseArg,
+  dateArgOrToday,
   startModelCatalogCanary,
   evaluateModelCatalogCanary,
   readModelCatalogCanary,
