@@ -100,6 +100,7 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
     route_execution_policy_hold: 'route_execution_policy_hold_input',
     policy_hold_pressure: 'policy_hold_pressure_input',
     policy_hold_pattern: 'policy_hold_pattern_input',
+    policy_hold_latest_event: 'policy_hold_latest_event_input',
     policy_hold_cooldown: 'policy_hold_cooldown_input',
     receipt_verdict: 'receipt_verdict_input'
   };

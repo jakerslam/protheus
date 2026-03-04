@@ -2706,6 +2706,51 @@ function isPolicyHoldRunEvent(evt): boolean {
 
 function latestPolicyHoldRunEvent(events) {
   const rows = Array.isArray(events) ? events : [];
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rustEvents = [];
+    for (const evt of rows) {
+      if (!evt || typeof evt !== 'object') continue;
+      const parsedTs = parseIsoTs(evt.ts);
+      rustEvents.push({
+        event_type: String(evt.type || ''),
+        result: String(evt.result || ''),
+        policy_hold: evt.policy_hold === true,
+        ts_ms: parsedTs ? parsedTs.getTime() : null,
+        ts: evt.ts != null ? String(evt.ts) : '',
+        hold_reason: evt.hold_reason != null ? String(evt.hold_reason) : '',
+        route_block_reason: evt.route_block_reason != null ? String(evt.route_block_reason) : ''
+      });
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'policy_hold_latest_event',
+      { events: rustEvents },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      if (payload.found === true) {
+        const idx = Number(payload.event_index);
+        if (Number.isFinite(idx) && idx >= 0 && idx < rows.length) {
+          const exact = rows[Math.floor(idx)];
+          if (exact && typeof exact === 'object') return exact;
+        }
+        const tsText = normalizeSpaces(payload.ts || '');
+        let tsValue = tsText || null;
+        if (!tsValue && Number.isFinite(Number(payload.ts_ms))) {
+          tsValue = new Date(Number(payload.ts_ms)).toISOString();
+        }
+        return {
+          type: 'autonomy_run',
+          result: String(payload.result || ''),
+          ts: tsValue,
+          hold_reason: payload.hold_reason != null ? String(payload.hold_reason) : '',
+          route_block_reason: payload.route_block_reason != null ? String(payload.route_block_reason) : '',
+          policy_hold: true
+        };
+      }
+      return null;
+    }
+  }
   for (let i = rows.length - 1; i >= 0; i -= 1) {
     const evt = rows[i];
     if (!evt || evt.type !== 'autonomy_run') continue;
