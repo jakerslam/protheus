@@ -2695,6 +2695,8 @@ const SAFETY_STOP_RUN_EVENT_CACHE = new Map();
 const SAFETY_STOP_RUN_EVENT_CACHE_MAX = 512;
 const NON_YIELD_CATEGORY_CACHE = new Map();
 const NON_YIELD_CATEGORY_CACHE_MAX = 1024;
+const NON_YIELD_REASON_CACHE = new Map();
+const NON_YIELD_REASON_CACHE_MAX = 1024;
 
 function isPolicyHoldResult(result): boolean {
   const r = String(result || '').trim();
@@ -9018,6 +9020,40 @@ function classifyNonYieldCategory(evt): string | null {
 }
 
 function nonYieldReasonFromRun(evt, category): string {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const key = [
+      String(category || ''),
+      normalizeSpaces(evt && evt.hold_reason || ''),
+      normalizeSpaces(evt && evt.route_block_reason || ''),
+      normalizeSpaces(evt && evt.reason || ''),
+      normalizeSpaces(evt && evt.result || ''),
+      normalizeSpaces(evt && evt.outcome || '')
+    ].join('\u0000');
+    if (NON_YIELD_REASON_CACHE.has(key)) {
+      return String(NON_YIELD_REASON_CACHE.get(key) || '');
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'non_yield_reason',
+      {
+        category: String(category || ''),
+        hold_reason: String(evt && evt.hold_reason || ''),
+        route_block_reason: String(evt && evt.route_block_reason || ''),
+        reason: String(evt && evt.reason || ''),
+        result: String(evt && evt.result || ''),
+        outcome: String(evt && evt.outcome || '')
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const reasonVal = String(rust.payload.payload.reason || '');
+      if (NON_YIELD_REASON_CACHE.size >= NON_YIELD_REASON_CACHE_MAX) {
+        const oldest = NON_YIELD_REASON_CACHE.keys().next();
+        if (!oldest.done) NON_YIELD_REASON_CACHE.delete(oldest.value);
+      }
+      NON_YIELD_REASON_CACHE.set(key, reasonVal);
+      return reasonVal;
+    }
+  }
   const explicit = normalizeSpaces(evt && (evt.hold_reason || evt.route_block_reason || evt.reason)).toLowerCase();
   if (explicit) return explicit;
   const result = normalizeSpaces(evt && evt.result).toLowerCase();
@@ -16174,5 +16210,6 @@ module.exports = {
   isNoProgressRun,
   isAttemptRunEvent,
   isSafetyStopRunEvent,
-  classifyNonYieldCategory
+  classifyNonYieldCategory,
+  nonYieldReasonFromRun
 };
