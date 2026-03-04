@@ -2912,6 +2912,37 @@ function detectEyesTerminologyDriftInPool(pool) {
 }
 
 function sourceEyeRef(p) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const proposal = p && typeof p === 'object' ? p : {};
+    const metaSourceEye = proposal && proposal.meta && typeof proposal.meta.source_eye === 'string'
+      ? proposal.meta.source_eye
+      : null;
+    const firstEvidenceRef = proposal && Array.isArray(proposal.evidence) && proposal.evidence.length
+      ? String((proposal.evidence[0] || {}).evidence_ref || '')
+      : null;
+    const cache = globalThis.__PROTHEUS_SOURCE_EYE_REF_CACHE instanceof Map
+      ? globalThis.__PROTHEUS_SOURCE_EYE_REF_CACHE
+      : (globalThis.__PROTHEUS_SOURCE_EYE_REF_CACHE = new Map());
+    const cacheKey = `${String(metaSourceEye || '')}\u0000${String(firstEvidenceRef || '')}`;
+    if (cache.has(cacheKey)) return cache.get(cacheKey);
+    const rust = runBacklogAutoscalePrimitive(
+      'source_eye_ref',
+      {
+        meta_source_eye: metaSourceEye,
+        first_evidence_ref: firstEvidenceRef
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const eyeRef = String(rust.payload.payload.eye_ref || '');
+      if (cache.size >= 1024) {
+        const oldest = cache.keys().next();
+        if (!oldest.done) cache.delete(oldest.value);
+      }
+      cache.set(cacheKey, eyeRef);
+      return eyeRef;
+    }
+  }
   const metaEye = p && p.meta && typeof p.meta.source_eye === 'string' ? p.meta.source_eye.trim() : '';
   if (metaEye) return `eye:${metaEye}`;
   const evRef = p && Array.isArray(p.evidence) && p.evidence.length ? String((p.evidence[0] || {}).evidence_ref || '') : '';
@@ -18988,6 +19019,7 @@ module.exports = {
   proposalTextBlob,
   percentMentionsFromText,
   optimizationMinDeltaPercent,
+  sourceEyeRef,
   toStem,
   directiveTokenHits,
   expectedValueScore,

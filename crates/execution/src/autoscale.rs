@@ -1356,6 +1356,19 @@ pub struct OptimizationMinDeltaPercentOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SourceEyeRefInput {
+    #[serde(default)]
+    pub meta_source_eye: Option<String>,
+    #[serde(default)]
+    pub first_evidence_ref: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SourceEyeRefOutput {
+    pub eye_ref: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecutionReserveSnapshotInput {
     pub cap: f64,
     pub used: f64,
@@ -2110,6 +2123,8 @@ pub struct AutoscaleRequest {
     pub percent_mentions_from_text_input: Option<PercentMentionsFromTextInput>,
     #[serde(default)]
     pub optimization_min_delta_percent_input: Option<OptimizationMinDeltaPercentInput>,
+    #[serde(default)]
+    pub source_eye_ref_input: Option<SourceEyeRefInput>,
     #[serde(default)]
     pub execution_reserve_snapshot_input: Option<ExecutionReserveSnapshotInput>,
     #[serde(default)]
@@ -4588,6 +4603,34 @@ pub fn compute_optimization_min_delta_percent(
     OptimizationMinDeltaPercentOutput { min_delta_percent }
 }
 
+pub fn compute_source_eye_ref(input: &SourceEyeRefInput) -> SourceEyeRefOutput {
+    let meta_eye = input
+        .meta_source_eye
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if !meta_eye.is_empty() {
+        return SourceEyeRefOutput {
+            eye_ref: format!("eye:{meta_eye}"),
+        };
+    }
+    let evidence_ref = input
+        .first_evidence_ref
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if evidence_ref.starts_with("eye:") {
+        return SourceEyeRefOutput {
+            eye_ref: evidence_ref,
+        };
+    }
+    SourceEyeRefOutput {
+        eye_ref: "eye:unknown_eye".to_string(),
+    }
+}
+
 pub fn compute_execution_reserve_snapshot(
     input: &ExecutionReserveSnapshotInput,
 ) -> ExecutionReserveSnapshotOutput {
@@ -6952,6 +6995,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_optimization_min_delta_percent_encode_failed:{e}"));
+    }
+    if mode == "source_eye_ref" {
+        let input = request
+            .source_eye_ref_input
+            .ok_or_else(|| "autoscale_missing_source_eye_ref_input".to_string())?;
+        let out = compute_source_eye_ref(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "source_eye_ref",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_source_eye_ref_encode_failed:{e}"));
     }
     if mode == "execution_reserve_snapshot" {
         let input = request
@@ -9939,6 +9994,42 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale optimization_min_delta_percent");
         assert!(out.contains("\"mode\":\"optimization_min_delta_percent\""));
         assert!(out.contains("\"min_delta_percent\":3.5"));
+    }
+
+    #[test]
+    fn source_eye_ref_prefers_meta_then_evidence_then_unknown() {
+        let meta = compute_source_eye_ref(&SourceEyeRefInput {
+            meta_source_eye: Some("primary".to_string()),
+            first_evidence_ref: Some("eye:secondary".to_string()),
+        });
+        assert_eq!(meta.eye_ref, "eye:primary");
+
+        let evidence = compute_source_eye_ref(&SourceEyeRefInput {
+            meta_source_eye: None,
+            first_evidence_ref: Some("eye:secondary".to_string()),
+        });
+        assert_eq!(evidence.eye_ref, "eye:secondary");
+
+        let unknown = compute_source_eye_ref(&SourceEyeRefInput {
+            meta_source_eye: None,
+            first_evidence_ref: Some("ref://other".to_string()),
+        });
+        assert_eq!(unknown.eye_ref, "eye:unknown_eye");
+    }
+
+    #[test]
+    fn autoscale_json_source_eye_ref_path_works() {
+        let payload = serde_json::json!({
+            "mode": "source_eye_ref",
+            "source_eye_ref_input": {
+                "meta_source_eye": "market",
+                "first_evidence_ref": "eye:other"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale source_eye_ref");
+        assert!(out.contains("\"mode\":\"source_eye_ref\""));
+        assert!(out.contains("\"eye_ref\":\"eye:market\""));
     }
 
     #[test]
