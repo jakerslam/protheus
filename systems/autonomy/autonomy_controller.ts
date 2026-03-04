@@ -11013,14 +11013,44 @@ function runRouteExecute(task, tokensEst, repeats14d = 1, errors30d = 0, dryRun 
 }
 
 function isDirectiveClarificationProposal(p) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'is_directive_clarification_proposal',
+      { proposal_type: p && p.type == null ? null : String(p && p.type || '') },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.is_clarification === true;
+    }
+  }
   return String(p && p.type || '').trim().toLowerCase() === 'directive_clarification';
 }
 
 function isDirectiveDecompositionProposal(p) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'is_directive_decomposition_proposal',
+      { proposal_type: p && p.type == null ? null : String(p && p.type || '') },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.is_decomposition === true;
+    }
+  }
   return String(p && p.type || '').trim().toLowerCase() === 'directive_decomposition';
 }
 
 function sanitizeDirectiveObjectiveId(v) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'sanitize_directive_objective_id',
+      { value: v == null ? null : String(v) },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return String(rust.payload.payload.objective_id || '');
+    }
+  }
   const raw = String(v || '').trim();
   if (!raw) return '';
   if (!/^T[0-9]_[A-Za-z0-9_]+$/.test(raw)) return '';
@@ -11028,6 +11058,16 @@ function sanitizeDirectiveObjectiveId(v) {
 }
 
 function parseDirectiveFileArgFromCommand(cmd) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'parse_directive_file_arg',
+      { command: cmd == null ? null : String(cmd) },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return String(rust.payload.payload.file || '');
+    }
+  }
   const text = String(cmd || '').trim();
   if (!text) return '';
   const m = text.match(/(?:^|\s)--file=(?:"([^"]+)"|'([^']+)'|([^\s]+))/);
@@ -11038,6 +11078,16 @@ function parseDirectiveFileArgFromCommand(cmd) {
 }
 
 function parseDirectiveObjectiveArgFromCommand(cmd) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'parse_directive_objective_arg',
+      { command: cmd == null ? null : String(cmd) },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return String(rust.payload.payload.objective_id || '');
+    }
+  }
   const text = normalizeSpaces(cmd);
   if (!text) return '';
   const m = text.match(/(?:^|\s)--id=(?:"([^"]+)"|'([^']+)'|([^\s]+))/);
@@ -11229,6 +11279,29 @@ function policyHoldObjectiveContext(pulseCtx, candidateObjectiveIds = []) {
 }
 
 function parseObjectiveIdFromEvidenceRefs(proposal, objectiveSet) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const evidence = Array.isArray(proposal && proposal.evidence) ? proposal.evidence : [];
+    const rust = runBacklogAutoscalePrimitive(
+      'parse_objective_id_from_evidence_refs',
+      {
+        evidence_refs: evidence.map((row) => normalizeSpaces(row && row.evidence_ref)),
+        objective_ids: Array.from(objectiveSet || [])
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      const objectiveId = payload.objective_id == null ? '' : String(payload.objective_id || '');
+      if (objectiveId) {
+        return {
+          objective_id: objectiveId,
+          source: String(payload.source || 'evidence_ref'),
+          valid: payload.valid !== false
+        };
+      }
+      return null;
+    }
+  }
   const evidence = Array.isArray(proposal && proposal.evidence) ? proposal.evidence : [];
   for (const row of evidence) {
     const ref = normalizeSpaces(row && row.evidence_ref);
@@ -11250,6 +11323,30 @@ function parseObjectiveIdFromEvidenceRefs(proposal, objectiveSet) {
 }
 
 function parseObjectiveIdFromCommand(proposal, objectiveSet) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'parse_objective_id_from_command',
+      {
+        command: proposal && proposal.suggested_next_command == null
+          ? null
+          : String(proposal && proposal.suggested_next_command || ''),
+        objective_ids: Array.from(objectiveSet || [])
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      const objectiveId = payload.objective_id == null ? '' : String(payload.objective_id || '');
+      if (objectiveId) {
+        return {
+          objective_id: objectiveId,
+          source: String(payload.source || 'suggested_next_command'),
+          valid: payload.valid !== false
+        };
+      }
+      return null;
+    }
+  }
   const cmd = normalizeSpaces(proposal && proposal.suggested_next_command);
   if (!cmd) return null;
   const match = cmd.match(/(?:^|\s)--id=(?:"([^"]+)"|'([^']+)'|([^\s]+))/);
@@ -11330,6 +11427,33 @@ function resolveObjectiveBinding(p, pulseCtx) {
 }
 
 function objectiveIdForExecution(p, directivePulse, directiveAction, objectiveBinding) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const proposal = p && typeof p === 'object' ? p : {};
+    const meta = proposal.meta && typeof proposal.meta === 'object' ? proposal.meta : {};
+    const actionSpec = proposal.action_spec && typeof proposal.action_spec === 'object' ? proposal.action_spec : {};
+    const rust = runBacklogAutoscalePrimitive(
+      'objective_id_for_execution',
+      {
+        objective_binding_id: objectiveBinding && objectiveBinding.objective_id == null
+          ? null
+          : String(objectiveBinding && objectiveBinding.objective_id || ''),
+        directive_pulse_id: directivePulse && directivePulse.objective_id == null
+          ? null
+          : String(directivePulse && directivePulse.objective_id || ''),
+        directive_action_id: directiveAction && directiveAction.objective_id == null
+          ? null
+          : String(directiveAction && directiveAction.objective_id || ''),
+        meta_objective_id: meta.objective_id == null ? null : String(meta.objective_id),
+        meta_directive_objective_id: meta.directive_objective_id == null ? null : String(meta.directive_objective_id),
+        action_spec_objective_id: actionSpec.objective_id == null ? null : String(actionSpec.objective_id)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const objectiveId = rust.payload.payload.objective_id;
+      return objectiveId == null ? null : String(objectiveId || '');
+    }
+  }
   const proposal = p && typeof p === 'object' ? p : {};
   const meta = proposal.meta && typeof proposal.meta === 'object' ? proposal.meta : {};
   const actionSpec = proposal.action_spec && typeof proposal.action_spec === 'object' ? proposal.action_spec : {};
@@ -11591,11 +11715,37 @@ function runPostconditions(actuationSpec, execRes = null) {
 }
 
 function shortText(v, max = 220) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'short_text',
+      {
+        value: v == null ? null : String(v),
+        max_len: Number(max)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return String(rust.payload.payload.text || '');
+    }
+  }
   const s = String(v || '');
   return s.length <= max ? s : `${s.slice(0, max)}...`;
 }
 
 function normalizedSignalStatus(value, fallback = 'unknown') {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'normalized_signal_status',
+      {
+        value: value == null ? null : String(value),
+        fallback: fallback == null ? null : String(fallback)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return String(rust.payload.payload.status || 'unknown');
+    }
+  }
   const raw = normalizeSpaces(value).toLowerCase();
   if (raw === 'pass' || raw === 'warn' || raw === 'fail') return raw;
   return fallback;
@@ -19918,5 +20068,15 @@ module.exports = {
   clampThreshold,
   appliedThresholds,
   totalOutcomes,
-  deriveEntityBias
+  deriveEntityBias,
+  isDirectiveClarificationProposal,
+  isDirectiveDecompositionProposal,
+  sanitizeDirectiveObjectiveId,
+  parseDirectiveFileArgFromCommand,
+  parseDirectiveObjectiveArgFromCommand,
+  parseObjectiveIdFromEvidenceRefs,
+  parseObjectiveIdFromCommand,
+  objectiveIdForExecution,
+  shortText,
+  normalizedSignalStatus
 };
