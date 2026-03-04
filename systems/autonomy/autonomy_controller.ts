@@ -9306,19 +9306,43 @@ function recentAutonomyRunEventsInLastHours(hours, maxEvents = 800) {
     .filter(f => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f))
     .sort()
     .reverse();
-  const out = [];
+  const orderedEvents = [];
   for (const file of files) {
     const rows = readJsonl(path.join(RUNS_DIR, file));
     for (let i = rows.length - 1; i >= 0; i -= 1) {
-      const evt = rows[i];
-      if (!evt || evt.type !== 'autonomy_run') continue;
-      const ts = parseIsoTs(evt.ts);
-      if (!ts) continue;
-      const tsMs = ts.getTime();
-      if (!Number.isFinite(tsMs) || tsMs < cutoffMs) continue;
-      out.push(evt);
-      if (out.length >= cap) return out;
+      orderedEvents.push(rows[i]);
     }
+  }
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'recent_autonomy_run_events',
+      {
+        events: orderedEvents,
+        cutoff_ms: cutoffMs,
+        cap
+      },
+      { allow_cli_fallback: true }
+    );
+    if (
+      rust
+      && rust.ok === true
+      && rust.payload
+      && rust.payload.ok === true
+      && rust.payload.payload
+      && Array.isArray(rust.payload.payload.events)
+    ) {
+      return rust.payload.payload.events;
+    }
+  }
+  const out = [];
+  for (const evt of orderedEvents) {
+    if (!evt || evt.type !== 'autonomy_run') continue;
+    const ts = parseIsoTs(evt.ts);
+    if (!ts) continue;
+    const tsMs = ts.getTime();
+    if (!Number.isFinite(tsMs) || tsMs < cutoffMs) continue;
+    out.push(evt);
+    if (out.length >= cap) return out;
   }
   return out;
 }

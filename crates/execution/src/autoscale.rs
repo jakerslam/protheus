@@ -2657,6 +2657,22 @@ pub struct IsStubProposalOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RecentAutonomyRunEventsInput {
+    #[serde(default)]
+    pub events: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub cutoff_ms: f64,
+    #[serde(default)]
+    pub cap: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RecentAutonomyRunEventsOutput {
+    #[serde(default)]
+    pub events: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ManualGatePrefilterInput {
     #[serde(default)]
     pub enabled: bool,
@@ -4669,6 +4685,8 @@ pub struct AutoscaleRequest {
     pub route_block_telemetry_summary_input: Option<RouteBlockTelemetrySummaryInput>,
     #[serde(default)]
     pub is_stub_proposal_input: Option<IsStubProposalInput>,
+    #[serde(default)]
+    pub recent_autonomy_run_events_input: Option<RecentAutonomyRunEventsInput>,
     #[serde(default)]
     pub manual_gate_prefilter_input: Option<ManualGatePrefilterInput>,
     #[serde(default)]
@@ -9410,6 +9428,49 @@ pub fn compute_is_stub_proposal(input: &IsStubProposalInput) -> IsStubProposalOu
     IsStubProposalOutput {
         is_stub: title.to_uppercase().contains("[STUB]"),
     }
+}
+
+pub fn compute_recent_autonomy_run_events(
+    input: &RecentAutonomyRunEventsInput,
+) -> RecentAutonomyRunEventsOutput {
+    let cutoff_ms = if input.cutoff_ms.is_finite() {
+        input.cutoff_ms
+    } else {
+        0.0
+    };
+    let mut cap = input.cap;
+    if !cap.is_finite() {
+        cap = 800.0;
+    }
+    cap = cap.max(50.0);
+
+    let mut out = Vec::<serde_json::Value>::new();
+    for evt in input.events.iter() {
+        if (out.len() as f64) >= cap {
+            break;
+        }
+        let event_type = evt
+            .get("type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim();
+        if event_type != "autonomy_run" {
+            continue;
+        }
+        let ts_raw = evt.get("ts").and_then(|v| v.as_str()).unwrap_or("").trim();
+        if ts_raw.is_empty() {
+            continue;
+        }
+        let Some(ts_ms) = parse_rfc3339_ts_ms(ts_raw) else {
+            continue;
+        };
+        if (ts_ms as f64) < cutoff_ms {
+            continue;
+        }
+        out.push(evt.clone());
+    }
+
+    RecentAutonomyRunEventsOutput { events: out }
 }
 
 pub fn compute_manual_gate_prefilter(input: &ManualGatePrefilterInput) -> ManualGatePrefilterOutput {
@@ -14629,6 +14690,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_is_stub_proposal_encode_failed:{e}"));
+    }
+    if mode == "recent_autonomy_run_events" {
+        let input = request
+            .recent_autonomy_run_events_input
+            .ok_or_else(|| "autoscale_missing_recent_autonomy_run_events_input".to_string())?;
+        let out = compute_recent_autonomy_run_events(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "recent_autonomy_run_events",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_recent_autonomy_run_events_encode_failed:{e}"));
     }
     if mode == "manual_gate_prefilter" {
         let input = request
@@ -20652,6 +20725,56 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale is_stub_proposal");
         assert!(out.contains("\"mode\":\"is_stub_proposal\""));
         assert!(out.contains("\"is_stub\":true"));
+    }
+
+    #[test]
+    fn recent_autonomy_run_events_filters_by_type_time_and_cap() {
+        let now = Utc::now().timestamp_millis();
+        let recent = chrono::DateTime::from_timestamp_millis(now - 30 * 60 * 1000)
+            .expect("recent dt")
+            .to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+        let old = chrono::DateTime::from_timestamp_millis(now - 5 * 60 * 60 * 1000)
+            .expect("old dt")
+            .to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+        let out = compute_recent_autonomy_run_events(&RecentAutonomyRunEventsInput {
+            events: vec![
+                serde_json::json!({"type":"autonomy_run","ts":recent}),
+                serde_json::json!({"type":"heartbeat","ts":recent}),
+                serde_json::json!({"type":"autonomy_run","ts":old}),
+            ],
+            cutoff_ms: (now - 2 * 60 * 60 * 1000) as f64,
+            cap: 50.0,
+        });
+        assert_eq!(out.events.len(), 1);
+        assert_eq!(
+            out.events[0]
+                .get("type")
+                .and_then(|v| v.as_str())
+                .unwrap_or(""),
+            "autonomy_run"
+        );
+    }
+
+    #[test]
+    fn autoscale_json_recent_autonomy_run_events_path_works() {
+        let now = Utc::now().timestamp_millis();
+        let recent = chrono::DateTime::from_timestamp_millis(now - 30 * 60 * 1000)
+            .expect("recent dt")
+            .to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+        let payload = serde_json::json!({
+            "mode": "recent_autonomy_run_events",
+            "recent_autonomy_run_events_input": {
+                "events": [
+                    {"type":"autonomy_run","ts": recent},
+                    {"type":"heartbeat","ts": recent}
+                ],
+                "cutoff_ms": now - 2 * 60 * 60 * 1000,
+                "cap": 50
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale recent_autonomy_run_events");
+        assert!(out.contains("\"mode\":\"recent_autonomy_run_events\""));
     }
 
     #[test]
