@@ -984,6 +984,24 @@ function effectiveStrategyBudget(strategyOverride = null) {
   const hardPerAction = Number.isFinite(Number(AUTONOMY_HARD_MAX_TOKENS_PER_ACTION)) && Number(AUTONOMY_HARD_MAX_TOKENS_PER_ACTION) > 0
     ? Number(AUTONOMY_HARD_MAX_TOKENS_PER_ACTION)
     : null;
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'strategy_budget_effective',
+      {
+        caps,
+        hard_runs: hardRuns,
+        hard_tokens: hardTokens,
+        hard_per_action: hardPerAction
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const budget = rust.payload.payload.budget && typeof rust.payload.payload.budget === 'object'
+        ? rust.payload.payload.budget
+        : null;
+      if (budget) return budget;
+    }
+  }
   const out = { ...caps };
   if (hardRuns != null && Number.isFinite(Number(out.daily_runs_cap))) {
     out.daily_runs_cap = Math.min(Number(out.daily_runs_cap), hardRuns);
@@ -998,19 +1016,82 @@ function effectiveStrategyBudget(strategyOverride = null) {
 }
 
 function effectiveStrategyExecutionMode(strategyOverride = null) {
-  return strategyExecutionMode(strategyOverride || strategyProfile(), 'execute');
+  const strategy = strategyOverride || strategyProfile();
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'strategy_execution_mode_effective',
+      {
+        strategy_mode: strategy && strategy.execution_policy ? strategy.execution_policy.mode : null,
+        fallback: 'execute'
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const mode = String(rust.payload.payload.mode || '').trim().toLowerCase();
+      if (mode === 'execute' || mode === 'canary_execute' || mode === 'score_only') {
+        return mode;
+      }
+    }
+  }
+  return strategyExecutionMode(strategy, 'execute');
 }
 
 function effectiveStrategyCanaryExecLimit(strategyOverride = null) {
-  return strategyCanaryDailyExecLimit(strategyOverride || strategyProfile(), AUTONOMY_CANARY_DAILY_EXEC_LIMIT);
+  const strategy = strategyOverride || strategyProfile();
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'strategy_canary_exec_limit_effective',
+      {
+        strategy_limit: strategy && strategy.execution_policy
+          ? strategy.execution_policy.canary_daily_exec_limit
+          : null,
+        fallback: AUTONOMY_CANARY_DAILY_EXEC_LIMIT
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const raw = rust.payload.payload.limit;
+      if (raw == null || String(raw).trim() === '') return null;
+      const n = Number(raw);
+      if (Number.isFinite(n) && n > 0) return Math.max(1, Math.min(20, Math.round(n)));
+    }
+  }
+  return strategyCanaryDailyExecLimit(strategy, AUTONOMY_CANARY_DAILY_EXEC_LIMIT);
 }
 
 function effectiveStrategyExploration(strategyOverride = null) {
-  return strategyExplorationPolicy(strategyOverride || strategyProfile(), {
+  const strategy = strategyOverride || strategyProfile();
+  const defaults = {
     fraction: AUTONOMY_EXPLORE_FRACTION,
     every_n: AUTONOMY_EXPLORE_EVERY_N,
     min_eligible: AUTONOMY_EXPLORE_MIN_ELIGIBLE
-  });
+  };
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'strategy_exploration_effective',
+      {
+        strategy_exploration: strategy && strategy.exploration_policy ? strategy.exploration_policy : null,
+        default_fraction: defaults.fraction,
+        default_every_n: defaults.every_n,
+        default_min_eligible: defaults.min_eligible
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      const fraction = Number(payload.fraction);
+      const everyN = Number(payload.every_n);
+      const minEligible = Number(payload.min_eligible);
+      if (Number.isFinite(fraction) && Number.isFinite(everyN) && Number.isFinite(minEligible)) {
+        return {
+          fraction,
+          every_n: everyN,
+          min_eligible: minEligible
+        };
+      }
+    }
+  }
+  return strategyExplorationPolicy(strategy, defaults);
 }
 
 function isExecuteMode(mode) {
@@ -1211,6 +1292,23 @@ function saveJson(filePath, obj) {
 }
 
 function defaultCriteriaPatternMemory() {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'default_criteria_pattern_memory',
+      { },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      if (payload && typeof payload === 'object') {
+        return {
+          version: String(payload.version || '1.0'),
+          updated_at: payload.updated_at ? String(payload.updated_at) : null,
+          patterns: payload.patterns && typeof payload.patterns === 'object' ? payload.patterns : {}
+        };
+      }
+    }
+  }
   return {
     version: '1.0',
     updated_at: null,
@@ -2688,6 +2786,23 @@ function normalizeStoredProposalRow(proposal, fallback = 'pending') {
   const typeDecision = classifyProposalType(next, {
     source_eye: normalizeSpaces(meta.source_eye)
   });
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'normalize_stored_proposal_row',
+      {
+        proposal: next,
+        fallback: String(fallback || 'pending'),
+        proposal_type: String(typeDecision && typeDecision.type || 'local_state_fallback'),
+        proposal_type_source: String(typeDecision && typeDecision.source || ''),
+        proposal_type_inferred: !!(typeDecision && typeDecision.inferred === true)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload.proposal;
+      if (payload && typeof payload === 'object') return payload;
+    }
+  }
   next.type = String(typeDecision && typeDecision.type || 'local_state_fallback').trim().toLowerCase() || 'local_state_fallback';
   next.status = normalizeStoredProposalStatus(next.status, fallback);
   next.meta = {
@@ -3543,6 +3658,34 @@ function toolTokenMentioned(blob, token) {
 }
 
 function detectEyesTerminologyDriftInPool(pool) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const proposals = [];
+    for (const item of (pool || [])) {
+      const p = item && item.proposal;
+      if (p && typeof p === 'object') proposals.push(p);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'detect_eyes_terminology_drift',
+      {
+        proposals,
+        tool_capability_tokens: Array.isArray(TOOL_CAPABILITY_TOKENS)
+          ? TOOL_CAPABILITY_TOKENS.map((x) => String(x || ''))
+          : []
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const warnings = Array.isArray(rust.payload.payload.warnings)
+        ? rust.payload.payload.warnings
+        : [];
+      return warnings.slice(0, 5).map((w) => ({
+        proposal_id: w && w.proposal_id != null ? String(w.proposal_id) : null,
+        reason: String(w && w.reason || 'tools_labeled_as_eyes'),
+        matched_tools: Array.isArray(w && w.matched_tools) ? w.matched_tools.map((x) => String(x || '')).slice(0, 5) : [],
+        sample: normalizeSpaces(String(w && w.sample || '')).slice(0, 140)
+      }));
+    }
+  }
   const warnings = [];
   const seen = new Set();
   for (const item of (pool || [])) {
@@ -5032,6 +5175,27 @@ function isScoreOnlyFailureLikeEvent(evt): boolean {
 
 function scoreOnlyProposalChurn(priorRuns, proposalId, windowHours) {
   const pid = String(proposalId || '').trim();
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'score_only_proposal_churn',
+      {
+        prior_runs: Array.isArray(priorRuns) ? priorRuns : [],
+        proposal_id: pid,
+        window_hours: Number(windowHours || 1),
+        now_ms: Date.now()
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      return {
+        count: Math.max(0, Number(payload.count || 0)),
+        streak: Math.max(0, Number(payload.streak || 0)),
+        first_ts: payload.first_ts ? String(payload.first_ts) : null,
+        last_ts: payload.last_ts ? String(payload.last_ts) : null
+      };
+    }
+  }
   if (!pid) {
     return {
       count: 0,
@@ -13414,6 +13578,30 @@ function normalizedSignalStatus(value, fallback = 'unknown') {
 }
 
 function preexecVerdictFromSignals(blockers, signals, nextRunnableAt) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'preexec_verdict_from_signals',
+      {
+        blockers: Array.isArray(blockers) ? blockers : [],
+        signals: signals && typeof signals === 'object' ? signals : {},
+        next_runnable_at: nextRunnableAt ? String(nextRunnableAt) : null,
+        now_iso: nowIso()
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      return {
+        verdict: String(payload.verdict || 'proceed'),
+        confidence: Number(Number(payload.confidence || 0).toFixed(3)),
+        blocker_count: Math.max(0, Number(payload.blocker_count || 0)),
+        blocker_codes: Array.isArray(payload.blocker_codes) ? payload.blocker_codes.map((x) => String(x || '')).slice(0, 16) : [],
+        manual_action_required: payload.manual_action_required === true,
+        next_runnable_at: payload.next_runnable_at ? String(payload.next_runnable_at) : null,
+        signals: payload.signals && typeof payload.signals === 'object' ? payload.signals : {}
+      };
+    }
+  }
   const blockerRows = Array.isArray(blockers) ? blockers : [];
   const signalMap = signals && typeof signals === 'object' ? signals : {};
   const blockerCodes = blockerRows
@@ -13919,6 +14107,17 @@ function preExecCriteriaGateDecision(criteria, policy) {
 
 function withSuccessCriteriaQualityAudit(verification) {
   const base = verification && typeof verification === 'object' ? verification : {};
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'success_criteria_quality_audit',
+      { verification: base },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload.verification;
+      if (payload && typeof payload === 'object') return payload;
+    }
+  }
   const criteria = base.success_criteria && typeof base.success_criteria === 'object'
     ? base.success_criteria
     : null;
@@ -21954,6 +22153,7 @@ module.exports = {
   tokenizeDirectiveText,
   normalizeSpaces,
   normalizeCriteriaMetric,
+  defaultCriteriaPatternMemory,
   parseLowerList,
   canaryFailedChecksAllowed,
   proposalTextBlob,
@@ -21971,6 +22171,8 @@ module.exports = {
   summarizeTopBiases,
   criteriaPatternKeysForProposal,
   criteriaPatternPenaltyForProposal,
+  normalizeStoredProposalRow,
+  detectEyesTerminologyDriftInPool,
   sourceEyeRef,
   escapeRegExp,
   toolTokenMentioned,
@@ -21997,6 +22199,10 @@ module.exports = {
   normalizeValueCurrencyToken,
   listValueCurrencies,
   inferValueCurrenciesFromDirectiveBits,
+  effectiveStrategyBudget,
+  effectiveStrategyExecutionMode,
+  effectiveStrategyCanaryExecLimit,
+  effectiveStrategyExploration,
   executionReserveSnapshot,
   evaluateBudgetPacingGate,
   expectedValueSignalForProposal,
@@ -22101,6 +22307,8 @@ module.exports = {
   capabilityDescriptor,
   normalizeTokenUsageShape,
   computeExecutionTokenUsage,
+  preexecVerdictFromSignals,
+  withSuccessCriteriaQualityAudit,
   preExecCriteriaGateDecision,
   routeExecutionPolicyHold,
   proposalSemanticObjectiveId,
@@ -22131,6 +22339,7 @@ module.exports = {
   deriveRepeatGateAnchor,
   isScoreOnlyResult,
   isScoreOnlyFailureLikeEvent,
+  scoreOnlyProposalChurn,
   isGateExhaustedAttempt,
   consecutiveGateExhaustedAttempts,
   consecutiveNoProgressRuns,
