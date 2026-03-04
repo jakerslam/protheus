@@ -2407,6 +2407,25 @@ function impactWeight(p) {
 
 function riskPenalty(p) {
   const r = String(p && p.risk || '').toLowerCase();
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    if (RISK_PENALTY_CACHE.has(r)) {
+      return RISK_PENALTY_CACHE.get(r);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'risk_penalty',
+      { risk: r },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const val = Math.max(0, Math.round(Number(rust.payload.payload.penalty || 0)));
+      if (RISK_PENALTY_CACHE.size >= RISK_PENALTY_CACHE_MAX) {
+        const oldest = RISK_PENALTY_CACHE.keys().next();
+        if (!oldest.done) RISK_PENALTY_CACHE.delete(oldest.value);
+      }
+      RISK_PENALTY_CACHE.set(r, val);
+      return val;
+    }
+  }
   if (r === 'high') return 2;
   if (r === 'medium') return 1;
   return 0;
@@ -2747,6 +2766,8 @@ const PROPOSAL_SCORE_CACHE = new Map();
 const PROPOSAL_SCORE_CACHE_MAX = 1024;
 const IMPACT_WEIGHT_CACHE = new Map();
 const IMPACT_WEIGHT_CACHE_MAX = 512;
+const RISK_PENALTY_CACHE = new Map();
+const RISK_PENALTY_CACHE_MAX = 512;
 const COMPOSITE_ELIGIBILITY_SCORE_CACHE = new Map();
 const COMPOSITE_ELIGIBILITY_SCORE_CACHE_MAX = 1024;
 const TIME_TO_VALUE_SCORE_CACHE = new Map();
@@ -17627,6 +17648,7 @@ module.exports = {
   candidateCollectiveShadowSignal,
   selectStrategyForRun,
   impactWeight,
+  riskPenalty,
   estimateTokens,
   estimateTokensForCandidate,
   candidatePool,

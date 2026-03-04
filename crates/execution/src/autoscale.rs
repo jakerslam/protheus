@@ -668,6 +668,17 @@ pub struct ImpactWeightOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RiskPenaltyInput {
+    #[serde(default)]
+    pub risk: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RiskPenaltyOutput {
+    pub penalty: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CompositeEligibilityScoreInput {
     pub quality_score: f64,
     pub directive_fit_score: f64,
@@ -1337,6 +1348,8 @@ pub struct AutoscaleRequest {
     pub proposal_score_input: Option<ProposalScoreInput>,
     #[serde(default)]
     pub impact_weight_input: Option<ImpactWeightInput>,
+    #[serde(default)]
+    pub risk_penalty_input: Option<RiskPenaltyInput>,
     #[serde(default)]
     pub composite_eligibility_score_input: Option<CompositeEligibilityScoreInput>,
     #[serde(default)]
@@ -2515,6 +2528,22 @@ pub fn compute_impact_weight(input: &ImpactWeightInput) -> ImpactWeightOutput {
         1
     };
     ImpactWeightOutput { weight }
+}
+
+pub fn compute_risk_penalty(input: &RiskPenaltyInput) -> RiskPenaltyOutput {
+    let risk = input
+        .risk
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    let penalty = if risk == "high" {
+        2
+    } else if risk == "medium" {
+        1
+    } else {
+        0
+    };
+    RiskPenaltyOutput { penalty }
 }
 
 pub fn compute_composite_eligibility_score(
@@ -4410,6 +4439,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_impact_weight_encode_failed:{e}"));
     }
+    if mode == "risk_penalty" {
+        let input = request
+            .risk_penalty_input
+            .ok_or_else(|| "autoscale_missing_risk_penalty_input".to_string())?;
+        let out = compute_risk_penalty(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "risk_penalty",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_risk_penalty_encode_failed:{e}"));
+    }
     if mode == "composite_eligibility_score" {
         let input = request
             .composite_eligibility_score_input
@@ -6029,6 +6070,31 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale impact_weight");
         assert!(out.contains("\"mode\":\"impact_weight\""));
+    }
+
+    #[test]
+    fn risk_penalty_maps_risk_levels() {
+        let high = compute_risk_penalty(&RiskPenaltyInput {
+            risk: Some("high".to_string()),
+        });
+        assert_eq!(high.penalty, 2);
+        let low = compute_risk_penalty(&RiskPenaltyInput {
+            risk: Some("low".to_string()),
+        });
+        assert_eq!(low.penalty, 0);
+    }
+
+    #[test]
+    fn autoscale_json_risk_penalty_path_works() {
+        let payload = serde_json::json!({
+            "mode": "risk_penalty",
+            "risk_penalty_input": {
+                "risk": "medium"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale risk_penalty");
+        assert!(out.contains("\"mode\":\"risk_penalty\""));
     }
 
     #[test]
