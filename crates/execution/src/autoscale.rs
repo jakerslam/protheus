@@ -3309,6 +3309,18 @@ pub struct AsStringArrayOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UniqSortedInput {
+    #[serde(default)]
+    pub values: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UniqSortedOutput {
+    #[serde(default)]
+    pub values: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ParseDirectiveFileArgInput {
     #[serde(default)]
     pub command: Option<String>,
@@ -4516,6 +4528,8 @@ pub struct AutoscaleRequest {
     pub stable_selection_index_input: Option<StableSelectionIndexInput>,
     #[serde(default)]
     pub as_string_array_input: Option<AsStringArrayInput>,
+    #[serde(default)]
+    pub uniq_sorted_input: Option<UniqSortedInput>,
     #[serde(default)]
     pub parse_directive_file_arg_input: Option<ParseDirectiveFileArgInput>,
     #[serde(default)]
@@ -10456,6 +10470,16 @@ pub fn compute_as_string_array(input: &AsStringArrayInput) -> AsStringArrayOutpu
     AsStringArrayOutput { values: out }
 }
 
+pub fn compute_uniq_sorted(input: &UniqSortedInput) -> UniqSortedOutput {
+    let mut seen = std::collections::BTreeSet::<String>::new();
+    for row in input.values.iter() {
+        seen.insert(row.clone());
+    }
+    UniqSortedOutput {
+        values: seen.into_iter().collect(),
+    }
+}
+
 pub fn compute_parse_directive_file_arg(input: &ParseDirectiveFileArgInput) -> ParseDirectiveFileArgOutput {
     let text = input.command.as_deref().unwrap_or("").trim();
     if text.is_empty() {
@@ -14451,6 +14475,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_as_string_array_encode_failed:{e}"));
+    }
+    if mode == "uniq_sorted" {
+        let input = request
+            .uniq_sorted_input
+            .ok_or_else(|| "autoscale_missing_uniq_sorted_input".to_string())?;
+        let out = compute_uniq_sorted(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "uniq_sorted",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_uniq_sorted_encode_failed:{e}"));
     }
     if mode == "parse_directive_file_arg" {
         let input = request

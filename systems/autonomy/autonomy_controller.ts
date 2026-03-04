@@ -6773,6 +6773,22 @@ function strategyMarkerTokens(strategy) {
 }
 
 function uniqSorted(arr) {
+  if (
+    AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED
+    && Array.isArray(arr)
+    && arr.every((x) => typeof x === 'string')
+  ) {
+    const rust = runBacklogAutoscalePrimitive(
+      'uniq_sorted',
+      { values: arr.slice() },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Array.isArray(rust.payload.payload.values)
+        ? rust.payload.payload.values.map((x) => String(x || ''))
+        : [];
+    }
+  }
   return Array.from(new Set(arr)).sort();
 }
 
@@ -21328,6 +21344,7 @@ module.exports = {
   executeConfidenceCooldownKey,
   executeConfidenceCooldownActive,
   asStringArray,
+  uniqSorted,
   startModelCatalogCanary,
   evaluateModelCatalogCanary,
   readModelCatalogCanary,
