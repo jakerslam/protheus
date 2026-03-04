@@ -209,6 +209,17 @@ pub struct PolicyHoldOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PolicyHoldResultInput {
+    #[serde(default)]
+    pub result: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PolicyHoldResultOutput {
+    pub is_policy_hold: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RouteExecutionPolicyHoldInput {
     #[serde(default)]
     pub target: Option<String>,
@@ -442,6 +453,8 @@ pub struct AutoscaleRequest {
     pub criteria_gate_input: Option<CriteriaGateInput>,
     #[serde(default)]
     pub policy_hold_input: Option<PolicyHoldInput>,
+    #[serde(default)]
+    pub policy_hold_result_input: Option<PolicyHoldResultInput>,
     #[serde(default)]
     pub route_execution_policy_hold_input: Option<RouteExecutionPolicyHoldInput>,
     #[serde(default)]
@@ -1033,6 +1046,17 @@ fn is_policy_hold_result(result: &str) -> bool {
             || result == "score_only_fallback_low_execution_confidence")
 }
 
+pub fn compute_policy_hold_result(input: &PolicyHoldResultInput) -> PolicyHoldResultOutput {
+    let result = input
+        .result
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .unwrap_or_default();
+    PolicyHoldResultOutput {
+        is_policy_hold: is_policy_hold_result(&result),
+    }
+}
+
 pub fn compute_policy_hold_pressure(input: &PolicyHoldPressureInput) -> PolicyHoldPressureOutput {
     let window_hours = input.window_hours.unwrap_or(24.0).max(1.0);
     let min_samples = input.min_samples.unwrap_or(1.0).max(1.0);
@@ -1552,6 +1576,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_policy_hold_encode_failed:{e}"));
     }
+    if mode == "policy_hold_result" {
+        let input = request
+            .policy_hold_result_input
+            .ok_or_else(|| "autoscale_missing_policy_hold_result_input".to_string())?;
+        let out = compute_policy_hold_result(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "policy_hold_result",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_policy_hold_result_encode_failed:{e}"));
+    }
     if mode == "route_execution_policy_hold" {
         let input = request
             .route_execution_policy_hold_input
@@ -1861,6 +1897,32 @@ mod tests {
         assert!(out.hold);
         assert_eq!(out.hold_scope, Some("proposal".to_string()));
         assert_eq!(out.hold_reason, Some("gate_manual".to_string()));
+    }
+
+    #[test]
+    fn policy_hold_result_detects_known_policy_hold_codes() {
+        let out = compute_policy_hold_result(&PolicyHoldResultInput {
+            result: Some("stop_init_gate_readiness".to_string()),
+        });
+        assert!(out.is_policy_hold);
+
+        let non_hold = compute_policy_hold_result(&PolicyHoldResultInput {
+            result: Some("stop_init_gate_quality_exhausted".to_string()),
+        });
+        assert!(!non_hold.is_policy_hold);
+    }
+
+    #[test]
+    fn autoscale_json_policy_hold_result_path_works() {
+        let payload = serde_json::json!({
+            "mode": "policy_hold_result",
+            "policy_hold_result_input": {
+                "result": "no_candidates_policy_daily_cap"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale policy_hold_result");
+        assert!(out.contains("\"mode\":\"policy_hold_result\""));
     }
 
     #[test]

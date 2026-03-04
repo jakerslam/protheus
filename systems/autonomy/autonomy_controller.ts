@@ -2685,9 +2685,31 @@ function parseIsoTs(ts) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+const POLICY_HOLD_RESULT_CACHE = new Map();
+const POLICY_HOLD_RESULT_CACHE_MAX = 256;
+
 function isPolicyHoldResult(result): boolean {
   const r = String(result || '').trim();
   if (!r) return false;
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    if (POLICY_HOLD_RESULT_CACHE.has(r)) {
+      return POLICY_HOLD_RESULT_CACHE.get(r) === true;
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'policy_hold_result',
+      { result: r },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const val = rust.payload.payload.is_policy_hold === true;
+      if (POLICY_HOLD_RESULT_CACHE.size >= POLICY_HOLD_RESULT_CACHE_MAX) {
+        const oldest = POLICY_HOLD_RESULT_CACHE.keys().next();
+        if (!oldest.done) POLICY_HOLD_RESULT_CACHE.delete(oldest.value);
+      }
+      POLICY_HOLD_RESULT_CACHE.set(r, val);
+      return val;
+    }
+  }
   return r.startsWith('no_candidates_policy_')
     || r === 'stop_init_gate_budget_autopause'
     || r === 'stop_init_gate_readiness'
