@@ -3217,6 +3217,55 @@ function detectImmutableAxiomViolation(policy: AnyObj, decisionInput: AnyObj) {
 
 function computeAttractorScore(policy: AnyObj, input: AnyObj) {
   const attractor = policy.attractor || {};
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'compute_attractor_score',
+      {
+        attractor: attractor && typeof attractor === 'object' ? attractor : {},
+        objective: input && input.objective != null ? String(input.objective) : '',
+        signature: input && input.signature != null ? String(input.signature) : '',
+        external_signals_count: input && input.external_signals_count,
+        evidence_count: input && input.evidence_count,
+        effective_certainty: input && input.effective_certainty,
+        trit: input && input.trit,
+        impact: input && input.impact != null ? String(input.impact) : '',
+        target: input && input.target != null ? String(input.target) : ''
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      if (payload.enabled !== true) {
+        return {
+          enabled: false,
+          score: 1,
+          required: 0,
+          pass: true,
+          components: {}
+        };
+      }
+      const components = payload.components && typeof payload.components === 'object' ? payload.components : {};
+      return {
+        enabled: payload.enabled === true,
+        score: Number(clampNumber(payload.score, 0, 1, 0).toFixed(6)),
+        required: Number(clampNumber(payload.required, 0, 1, 0).toFixed(6)),
+        pass: payload.pass === true,
+        components: {
+          objective_specificity: Number(clampNumber(components.objective_specificity, 0, 1, 0).toFixed(6)),
+          evidence_backing: Number(clampNumber(components.evidence_backing, 0, 1, 0).toFixed(6)),
+          constraint_evidence: Number(clampNumber(components.constraint_evidence, 0, 1, 0).toFixed(6)),
+          measurable_outcome: Number(clampNumber(components.measurable_outcome, 0, 1, 0).toFixed(6)),
+          external_grounding: Number(clampNumber(components.external_grounding, 0, 1, 0).toFixed(6)),
+          certainty: Number(clampNumber(components.certainty, 0, 1, 0).toFixed(6)),
+          trit_alignment: Number(clampNumber(components.trit_alignment, 0, 1, 0).toFixed(6)),
+          impact_alignment: Number(clampNumber(components.impact_alignment, 0, 1, 0).toFixed(6)),
+          verbosity_penalty: Number(clampNumber(components.verbosity_penalty, 0, 1, 0).toFixed(6)),
+          lexical_diversity: Number(clampNumber(components.lexical_diversity, 0, 1, 0).toFixed(6)),
+          word_count: clampInt(components.word_count, 0, 4000, 0)
+        }
+      };
+    }
+  }
   if (attractor.enabled !== true) {
     return {
       enabled: false,
@@ -7586,6 +7635,7 @@ if (require.main === module) {
 module.exports = {
   nowIso,
   loadPolicy,
+  computeAttractorScore,
   computeMaturityScore,
   evaluateRunDecision,
   normalizeImpact,
