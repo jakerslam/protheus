@@ -2008,6 +2008,54 @@ pub struct PolicyHoldCooldownOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DodEvidenceDiffInput {
+    #[serde(default)]
+    pub before_artifacts: Option<f64>,
+    #[serde(default)]
+    pub before_entries: Option<f64>,
+    #[serde(default)]
+    pub before_revenue_actions: Option<f64>,
+    #[serde(default)]
+    pub before_registry_total: Option<f64>,
+    #[serde(default)]
+    pub before_registry_active: Option<f64>,
+    #[serde(default)]
+    pub before_registry_candidate: Option<f64>,
+    #[serde(default)]
+    pub before_habit_runs: Option<f64>,
+    #[serde(default)]
+    pub before_habit_errors: Option<f64>,
+    #[serde(default)]
+    pub after_artifacts: Option<f64>,
+    #[serde(default)]
+    pub after_entries: Option<f64>,
+    #[serde(default)]
+    pub after_revenue_actions: Option<f64>,
+    #[serde(default)]
+    pub after_registry_total: Option<f64>,
+    #[serde(default)]
+    pub after_registry_active: Option<f64>,
+    #[serde(default)]
+    pub after_registry_candidate: Option<f64>,
+    #[serde(default)]
+    pub after_habit_runs: Option<f64>,
+    #[serde(default)]
+    pub after_habit_errors: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DodEvidenceDiffOutput {
+    pub artifacts_delta: f64,
+    pub entries_delta: f64,
+    pub revenue_actions_delta: f64,
+    pub registry_total_delta: f64,
+    pub registry_active_delta: f64,
+    pub registry_candidate_delta: f64,
+    pub habit_runs_delta: f64,
+    pub habit_errors_delta: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ReceiptVerdictInput {
     pub decision: String,
     pub exec_ok: bool,
@@ -2064,6 +2112,8 @@ pub struct AutoscaleRequest {
     pub policy_hold_result_input: Option<PolicyHoldResultInput>,
     #[serde(default)]
     pub policy_hold_run_event_input: Option<PolicyHoldRunEventInput>,
+    #[serde(default)]
+    pub dod_evidence_diff_input: Option<DodEvidenceDiffInput>,
     #[serde(default)]
     pub score_only_result_input: Option<ScoreOnlyResultInput>,
     #[serde(default)]
@@ -2942,6 +2992,37 @@ pub fn compute_policy_hold_run_event(input: &PolicyHoldRunEventInput) -> PolicyH
     PolicyHoldRunEventOutput {
         is_policy_hold_run_event: event_type == "autonomy_run"
             && (input.policy_hold.unwrap_or(false) || is_policy_hold_result(&result)),
+    }
+}
+
+pub fn compute_dod_evidence_diff(input: &DodEvidenceDiffInput) -> DodEvidenceDiffOutput {
+    let before_artifacts = input.before_artifacts.unwrap_or(0.0);
+    let before_entries = input.before_entries.unwrap_or(0.0);
+    let before_revenue_actions = input.before_revenue_actions.unwrap_or(0.0);
+    let before_registry_total = input.before_registry_total.unwrap_or(0.0);
+    let before_registry_active = input.before_registry_active.unwrap_or(0.0);
+    let before_registry_candidate = input.before_registry_candidate.unwrap_or(0.0);
+    let before_habit_runs = input.before_habit_runs.unwrap_or(0.0);
+    let before_habit_errors = input.before_habit_errors.unwrap_or(0.0);
+
+    let after_artifacts = input.after_artifacts.unwrap_or(0.0);
+    let after_entries = input.after_entries.unwrap_or(0.0);
+    let after_revenue_actions = input.after_revenue_actions.unwrap_or(0.0);
+    let after_registry_total = input.after_registry_total.unwrap_or(0.0);
+    let after_registry_active = input.after_registry_active.unwrap_or(0.0);
+    let after_registry_candidate = input.after_registry_candidate.unwrap_or(0.0);
+    let after_habit_runs = input.after_habit_runs.unwrap_or(0.0);
+    let after_habit_errors = input.after_habit_errors.unwrap_or(0.0);
+
+    DodEvidenceDiffOutput {
+        artifacts_delta: after_artifacts - before_artifacts,
+        entries_delta: after_entries - before_entries,
+        revenue_actions_delta: after_revenue_actions - before_revenue_actions,
+        registry_total_delta: after_registry_total - before_registry_total,
+        registry_active_delta: after_registry_active - before_registry_active,
+        registry_candidate_delta: after_registry_candidate - before_registry_candidate,
+        habit_runs_delta: after_habit_runs - before_habit_runs,
+        habit_errors_delta: after_habit_errors - before_habit_errors,
     }
 }
 
@@ -6487,6 +6568,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_policy_hold_run_event_encode_failed:{e}"));
     }
+    if mode == "dod_evidence_diff" {
+        let input = request
+            .dod_evidence_diff_input
+            .ok_or_else(|| "autoscale_missing_dod_evidence_diff_input".to_string())?;
+        let out = compute_dod_evidence_diff(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "dod_evidence_diff",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_dod_evidence_diff_encode_failed:{e}"));
+    }
     if mode == "score_only_result" {
         let input = request
             .score_only_result_input
@@ -7993,6 +8086,64 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale policy_hold_run_event");
         assert!(out.contains("\"mode\":\"policy_hold_run_event\""));
+    }
+
+    #[test]
+    fn dod_evidence_diff_computes_expected_deltas() {
+        let out = compute_dod_evidence_diff(&DodEvidenceDiffInput {
+            before_artifacts: Some(4.0),
+            before_entries: Some(10.0),
+            before_revenue_actions: Some(2.0),
+            before_registry_total: Some(8.0),
+            before_registry_active: Some(5.0),
+            before_registry_candidate: Some(3.0),
+            before_habit_runs: Some(12.0),
+            before_habit_errors: Some(1.0),
+            after_artifacts: Some(7.0),
+            after_entries: Some(14.0),
+            after_revenue_actions: Some(2.0),
+            after_registry_total: Some(9.0),
+            after_registry_active: Some(6.0),
+            after_registry_candidate: Some(3.0),
+            after_habit_runs: Some(15.0),
+            after_habit_errors: Some(2.0),
+        });
+        assert_eq!(out.artifacts_delta, 3.0);
+        assert_eq!(out.entries_delta, 4.0);
+        assert_eq!(out.revenue_actions_delta, 0.0);
+        assert_eq!(out.registry_total_delta, 1.0);
+        assert_eq!(out.registry_active_delta, 1.0);
+        assert_eq!(out.registry_candidate_delta, 0.0);
+        assert_eq!(out.habit_runs_delta, 3.0);
+        assert_eq!(out.habit_errors_delta, 1.0);
+    }
+
+    #[test]
+    fn autoscale_json_dod_evidence_diff_path_works() {
+        let payload = serde_json::json!({
+            "mode": "dod_evidence_diff",
+            "dod_evidence_diff_input": {
+                "before_artifacts": 1,
+                "before_entries": 2,
+                "before_revenue_actions": 0,
+                "before_registry_total": 3,
+                "before_registry_active": 2,
+                "before_registry_candidate": 1,
+                "before_habit_runs": 5,
+                "before_habit_errors": 1,
+                "after_artifacts": 3,
+                "after_entries": 3,
+                "after_revenue_actions": 1,
+                "after_registry_total": 4,
+                "after_registry_active": 2,
+                "after_registry_candidate": 2,
+                "after_habit_runs": 9,
+                "after_habit_errors": 2
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale dod_evidence_diff");
+        assert!(out.contains("\"mode\":\"dod_evidence_diff\""));
     }
 
     #[test]
