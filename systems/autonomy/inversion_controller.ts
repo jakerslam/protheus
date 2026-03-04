@@ -3695,6 +3695,18 @@ function tritVectorFromInput(args: AnyObj) {
 }
 
 function normalizeLibraryRow(row: AnyObj) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'normalize_library_row',
+      {
+        row: row && typeof row === 'object' ? row : {}
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
+  }
   const src = row && typeof row === 'object' ? row : {};
   return {
     id: cleanText(src.id || '', 80) || '',
@@ -7683,6 +7695,7 @@ module.exports = {
   normalizeResult,
   isValidObjectiveId,
   tritVectorFromInput,
+  normalizeLibraryRow,
   jaccardSimilarity,
   tritSimilarity,
   certaintyThreshold,

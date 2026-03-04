@@ -512,7 +512,8 @@ function runInversionPrimitive(mode: string, data: AnyObj = {}, opts: AnyObj = {
     compute_attractor_score: 'compute_attractor_score_input'
     ,
     build_output_interfaces: 'build_output_interfaces_input',
-    build_code_change_proposal_draft: 'build_code_change_proposal_draft_input'
+    build_code_change_proposal_draft: 'build_code_change_proposal_draft_input',
+    normalize_library_row: 'normalize_library_row_input'
   };
   const field = fieldByMode[normalizedMode];
   if (!field) return { ok: false, error: `inversion_mode_unsupported:${normalizedMode}` };
