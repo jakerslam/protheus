@@ -2835,6 +2835,8 @@ const DIRECTIVE_TIER_MIN_SHARE_CACHE = new Map();
 const DIRECTIVE_TIER_MIN_SHARE_CACHE_MAX = 256;
 const DIRECTIVE_TIER_COVERAGE_BONUS_CACHE = new Map();
 const DIRECTIVE_TIER_COVERAGE_BONUS_CACHE_MAX = 512;
+const DIRECTIVE_TIER_RESERVATION_NEED_CACHE = new Map();
+const DIRECTIVE_TIER_RESERVATION_NEED_CACHE_MAX = 256;
 const EXECUTION_RESERVE_SNAPSHOT_CACHE = new Map();
 const EXECUTION_RESERVE_SNAPSHOT_CACHE_MAX = 512;
 const BUDGET_PACING_GATE_CACHE = new Map();
@@ -5997,6 +5999,56 @@ function directiveTierReservationNeed(eligible, pulseCtx) {
   const byTier = pulseCtx.tier_attempts_today && typeof pulseCtx.tier_attempts_today === 'object'
     ? pulseCtx.tier_attempts_today
     : {};
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const candidateTiers = candidates.map((c) => normalizeDirectiveTier(c && c.directive_pulse && c.directive_pulse.tier, 99));
+    const t1 = Number(AUTONOMY_DIRECTIVE_PULSE_T1_MIN_SHARE || 0);
+    const t2 = Number(AUTONOMY_DIRECTIVE_PULSE_T2_MIN_SHARE || 0);
+    const cacheKey = [
+      String(attemptsToday),
+      String(Math.max(0, Number(byTier[1] || 0))),
+      String(Math.max(0, Number(byTier[2] || 0))),
+      String(t1),
+      String(t2),
+      candidateTiers.join(',')
+    ].join('\u0000');
+    if (DIRECTIVE_TIER_RESERVATION_NEED_CACHE.has(cacheKey)) {
+      return DIRECTIVE_TIER_RESERVATION_NEED_CACHE.get(cacheKey);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'directive_tier_reservation_need',
+      {
+        enabled: true,
+        available: true,
+        attempts_today: attemptsToday,
+        tier1_attempts: Math.max(0, Number(byTier[1] || 0)),
+        tier2_attempts: Math.max(0, Number(byTier[2] || 0)),
+        tier1_min_share: t1,
+        tier2_min_share: t2,
+        candidate_tiers: candidateTiers
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      const reserve = payload.reserve === true;
+      const reservation = reserve
+        ? {
+          tier: Math.max(1, Math.round(Number(payload.tier || 0))),
+          min_share: Number(Number(payload.min_share || 0).toFixed(3)),
+          attempts_today: attemptsToday,
+          current_tier_attempts: Math.max(0, Number(payload.current_tier_attempts || 0)),
+          required_after_next: Math.max(0, Number(payload.required_after_next || 0)),
+          candidate_count: Math.max(0, Math.round(Number(payload.candidate_count || 0)))
+        }
+        : null;
+      if (DIRECTIVE_TIER_RESERVATION_NEED_CACHE.size >= DIRECTIVE_TIER_RESERVATION_NEED_CACHE_MAX) {
+        const oldest = DIRECTIVE_TIER_RESERVATION_NEED_CACHE.keys().next();
+        if (!oldest.done) DIRECTIVE_TIER_RESERVATION_NEED_CACHE.delete(oldest.value);
+      }
+      DIRECTIVE_TIER_RESERVATION_NEED_CACHE.set(cacheKey, reservation);
+      return reservation;
+    }
+  }
   const tiers = [1, 2];
   for (const tier of tiers) {
     const minShare = directiveTierMinShare(tier);
@@ -18666,6 +18718,7 @@ module.exports = {
   compileDirectivePulseObjectives,
   buildDirectivePulseContext,
   pulseTierCoverageBonus,
+  directiveTierReservationNeed,
   assessDirectivePulse,
   qosLaneFromCandidate,
   chooseQosLaneSelection,
