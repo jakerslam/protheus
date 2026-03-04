@@ -147,6 +147,34 @@ function runRouteReflexMatchViaRust(intentKey, task, routinesMap) {
   return null;
 }
 
+function runRouteComplexityViaRust(task, tokensEst, hasMatch, anyTrigger) {
+  const payload = JSON.stringify({
+    task_text: String(task || ''),
+    tokens_est: Number(tokensEst || 0),
+    has_match: hasMatch === true,
+    any_trigger: anyTrigger === true
+  });
+  const payloadB64 = Buffer.from(payload, 'utf8').toString('base64');
+  for (const candidate of executionBinaryCandidates()) {
+    try {
+      if (!fs.existsSync(candidate)) continue;
+      const out = spawnSync(candidate, ['route-complexity', `--payload-base64=${payloadB64}`], {
+        cwd: REPO_ROOT,
+        encoding: 'utf8',
+        maxBuffer: 10 * 1024 * 1024
+      });
+      const parsed = parseJsonPayload(out.stdout);
+      if (Number(out.status) !== 0 || !parsed || typeof parsed !== 'object') continue;
+      const complexity = String(parsed.complexity || '').trim().toLowerCase();
+      if (!['low', 'medium', 'high'].includes(complexity)) continue;
+      return complexity;
+    } catch {
+      // try next candidate
+    }
+  }
+  return null;
+}
+
 function normalizeIntent(text) {
   if (!text) return '';
   return text
@@ -285,6 +313,12 @@ function estimateComplexity(tokensEst, task, match, anyTrigger) {
   if ((task || '').length >= 240) return 'medium';
   if (match || anyTrigger) return 'medium';
   return 'low';
+}
+
+function computeRouteComplexity(task, tokensEst, match, anyTrigger) {
+  const rustComplexity = runRouteComplexityViaRust(task, tokensEst, Boolean(match), Boolean(anyTrigger));
+  if (rustComplexity) return rustComplexity;
+  return estimateComplexity(tokensEst, task, match, anyTrigger);
 }
 
 function computeRoutePrimitivesFallback(task, tokensEst, repeats14d, errors30d) {
@@ -475,7 +509,7 @@ function main() {
   const triggerC = routePrimitives.trigger_c;
   const anyTrigger = routePrimitives.any_trigger;
   const intent = routePrimitives.intent;
-  const complexity = estimateComplexity(tokensEst, task, match, anyTrigger);
+  const complexity = computeRouteComplexity(task, tokensEst, match, anyTrigger);
 
   // Optional router annotation (feature-flagged). Does not alter decision logic.
   const routeMeta = shouldUseRouter()
