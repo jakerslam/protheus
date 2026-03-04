@@ -1297,6 +1297,37 @@ pub struct CanaryFailedChecksAllowedOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalTextBlobEvidenceEntryInput {
+    #[serde(default)]
+    pub evidence_ref: Option<String>,
+    #[serde(default)]
+    pub path: Option<String>,
+    #[serde(default)]
+    pub title: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalTextBlobInput {
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub summary: Option<String>,
+    #[serde(default)]
+    pub suggested_next_command: Option<String>,
+    #[serde(default)]
+    pub suggested_command: Option<String>,
+    #[serde(default)]
+    pub notes: Option<String>,
+    #[serde(default)]
+    pub evidence: Vec<ProposalTextBlobEvidenceEntryInput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalTextBlobOutput {
+    pub blob: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecutionReserveSnapshotInput {
     pub cap: f64,
     pub used: f64,
@@ -2045,6 +2076,8 @@ pub struct AutoscaleRequest {
     pub parse_lower_list_input: Option<ParseLowerListInput>,
     #[serde(default)]
     pub canary_failed_checks_allowed_input: Option<CanaryFailedChecksAllowedInput>,
+    #[serde(default)]
+    pub proposal_text_blob_input: Option<ProposalTextBlobInput>,
     #[serde(default)]
     pub execution_reserve_snapshot_input: Option<ExecutionReserveSnapshotInput>,
     #[serde(default)]
@@ -4449,6 +4482,45 @@ pub fn compute_canary_failed_checks_allowed(
     CanaryFailedChecksAllowedOutput { allowed: true }
 }
 
+pub fn compute_proposal_text_blob(input: &ProposalTextBlobInput) -> ProposalTextBlobOutput {
+    let mut parts = vec![
+        input.title.as_deref().unwrap_or("").trim().to_string(),
+        input.summary.as_deref().unwrap_or("").trim().to_string(),
+        input.suggested_next_command
+            .as_deref()
+            .unwrap_or("")
+            .trim()
+            .to_string(),
+        input
+            .suggested_command
+            .as_deref()
+            .unwrap_or("")
+            .trim()
+            .to_string(),
+        input.notes.as_deref().unwrap_or("").trim().to_string(),
+    ];
+    for ev in &input.evidence {
+        let evidence_ref = ev.evidence_ref.as_deref().unwrap_or("").trim().to_string();
+        let path = ev.path.as_deref().unwrap_or("").trim().to_string();
+        let title = ev.title.as_deref().unwrap_or("").trim().to_string();
+        if !evidence_ref.is_empty() {
+            parts.push(evidence_ref);
+        }
+        if !path.is_empty() {
+            parts.push(path);
+        }
+        if !title.is_empty() {
+            parts.push(title);
+        }
+    }
+    parts.retain(|value| !value.is_empty());
+    let joined = parts.join(" | ");
+    let normalized = compute_normalize_spaces(&NormalizeSpacesInput { text: Some(joined) })
+        .normalized
+        .to_ascii_lowercase();
+    ProposalTextBlobOutput { blob: normalized }
+}
+
 pub fn compute_execution_reserve_snapshot(
     input: &ExecutionReserveSnapshotInput,
 ) -> ExecutionReserveSnapshotOutput {
@@ -6777,6 +6849,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_canary_failed_checks_allowed_encode_failed:{e}"));
+    }
+    if mode == "proposal_text_blob" {
+        let input = request
+            .proposal_text_blob_input
+            .ok_or_else(|| "autoscale_missing_proposal_text_blob_input".to_string())?;
+        let out = compute_proposal_text_blob(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "proposal_text_blob",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_proposal_text_blob_encode_failed:{e}"));
     }
     if mode == "execution_reserve_snapshot" {
         let input = request
@@ -9665,6 +9749,50 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale canary_failed_checks_allowed");
         assert!(out.contains("\"mode\":\"canary_failed_checks_allowed\""));
         assert!(out.contains("\"allowed\":true"));
+    }
+
+    #[test]
+    fn proposal_text_blob_matches_join_and_normalization() {
+        let out = compute_proposal_text_blob(&ProposalTextBlobInput {
+            title: Some("Fix Drift".to_string()),
+            summary: Some("Improve safety".to_string()),
+            suggested_next_command: Some("run checks".to_string()),
+            suggested_command: None,
+            notes: Some(" urgent ".to_string()),
+            evidence: vec![ProposalTextBlobEvidenceEntryInput {
+                evidence_ref: Some("ref://a".to_string()),
+                path: Some("docs/a.md".to_string()),
+                title: Some("Doc A".to_string()),
+            }],
+        });
+        assert_eq!(
+            out.blob,
+            "fix drift | improve safety | run checks | urgent | ref://a | docs/a.md | doc a"
+        );
+    }
+
+    #[test]
+    fn autoscale_json_proposal_text_blob_path_works() {
+        let payload = serde_json::json!({
+            "mode": "proposal_text_blob",
+            "proposal_text_blob_input": {
+                "title": "Fix Drift",
+                "summary": "Improve safety",
+                "suggested_next_command": "run checks",
+                "notes": "urgent",
+                "evidence": [
+                    {
+                        "evidence_ref": "ref://a",
+                        "path": "docs/a.md",
+                        "title": "Doc A"
+                    }
+                ]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale proposal_text_blob");
+        assert!(out.contains("\"mode\":\"proposal_text_blob\""));
+        assert!(out.contains("\"blob\":\"fix drift | improve safety | run checks | urgent | ref://a | docs/a.md | doc a\""));
     }
 
     #[test]

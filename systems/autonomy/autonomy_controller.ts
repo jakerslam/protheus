@@ -2562,6 +2562,51 @@ function canaryFailedChecksAllowed(failedChecks, allowedSet) {
 }
 
 function proposalTextBlob(p) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const proposal = p && typeof p === 'object' ? p : {};
+    const evidence = Array.isArray(proposal.evidence)
+      ? proposal.evidence
+        .filter((ev) => ev && typeof ev === 'object')
+        .map((ev) => ({
+          evidence_ref: String(ev.evidence_ref || '').trim() || null,
+          path: String(ev.path || '').trim() || null,
+          title: String(ev.title || '').trim() || null
+        }))
+      : [];
+    const cache = globalThis.__PROTHEUS_PROPOSAL_TEXT_BLOB_CACHE instanceof Map
+      ? globalThis.__PROTHEUS_PROPOSAL_TEXT_BLOB_CACHE
+      : (globalThis.__PROTHEUS_PROPOSAL_TEXT_BLOB_CACHE = new Map());
+    const cacheKey = JSON.stringify({
+      title: String(proposal.title || ''),
+      summary: String(proposal.summary || ''),
+      suggested_next_command: String(proposal.suggested_next_command || ''),
+      suggested_command: String(proposal.suggested_command || ''),
+      notes: String(proposal.notes || ''),
+      evidence
+    });
+    if (cache.has(cacheKey)) return cache.get(cacheKey);
+    const rust = runBacklogAutoscalePrimitive(
+      'proposal_text_blob',
+      {
+        title: proposal.title || null,
+        summary: proposal.summary || null,
+        suggested_next_command: proposal.suggested_next_command || null,
+        suggested_command: proposal.suggested_command || null,
+        notes: proposal.notes || null,
+        evidence
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const blob = String(rust.payload.payload.blob || '');
+      if (cache.size >= 2048) {
+        const oldest = cache.keys().next();
+        if (!oldest.done) cache.delete(oldest.value);
+      }
+      cache.set(cacheKey, blob);
+      return blob;
+    }
+  }
   const parts = [
     p && p.title,
     p && p.summary,
@@ -18900,6 +18945,7 @@ module.exports = {
   normalizeSpaces,
   parseLowerList,
   canaryFailedChecksAllowed,
+  proposalTextBlob,
   toStem,
   directiveTokenHits,
   expectedValueScore,
