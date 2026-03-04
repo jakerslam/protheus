@@ -2829,6 +2829,8 @@ const TIME_TO_VALUE_SCORE_CACHE = new Map();
 const TIME_TO_VALUE_SCORE_CACHE_MAX = 1024;
 const VALUE_DENSITY_SCORE_CACHE = new Map();
 const VALUE_DENSITY_SCORE_CACHE_MAX = 1024;
+const DIRECTIVE_TIER_WEIGHT_CACHE = new Map();
+const DIRECTIVE_TIER_WEIGHT_CACHE_MAX = 256;
 const EXECUTION_RESERVE_SNAPSHOT_CACHE = new Map();
 const EXECUTION_RESERVE_SNAPSHOT_CACHE_MAX = 512;
 const BUDGET_PACING_GATE_CACHE = new Map();
@@ -5465,6 +5467,32 @@ function normalizeDirectiveTier(rawTier, fallback = 3) {
 }
 
 function directiveTierWeight(tier) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const tierRaw = Number(tier);
+    const cacheKey = Number.isFinite(tierRaw) ? String(tierRaw) : 'NaN';
+    if (DIRECTIVE_TIER_WEIGHT_CACHE.has(cacheKey)) {
+      return DIRECTIVE_TIER_WEIGHT_CACHE.get(cacheKey);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'directive_tier_weight',
+      {
+        tier: Number.isFinite(tierRaw) ? tierRaw : null,
+        fallback: 3
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const weight = Number(rust.payload.payload.weight);
+      if (Number.isFinite(weight)) {
+        if (DIRECTIVE_TIER_WEIGHT_CACHE.size >= DIRECTIVE_TIER_WEIGHT_CACHE_MAX) {
+          const oldest = DIRECTIVE_TIER_WEIGHT_CACHE.keys().next();
+          if (!oldest.done) DIRECTIVE_TIER_WEIGHT_CACHE.delete(oldest.value);
+        }
+        DIRECTIVE_TIER_WEIGHT_CACHE.set(cacheKey, weight);
+        return weight;
+      }
+    }
+  }
   const t = normalizeDirectiveTier(tier, 3);
   if (t <= 1) return 1.3;
   if (t === 2) return 1.0;
@@ -18540,6 +18568,7 @@ module.exports = {
   tritShadowRankScoreFromBelief,
   strategyTritShadowAdjustedScore,
   strategyCircuitCooldownHours,
+  directiveTierWeight,
   strategyTritShadowForCandidate,
   strategyTritShadowRankingSummary,
   candidateNonYieldPenaltySignal,

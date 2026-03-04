@@ -162,6 +162,7 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
     composite_eligibility_score: 'composite_eligibility_score_input',
     time_to_value_score: 'time_to_value_score_input',
     value_density_score: 'value_density_score_input',
+    directive_tier_weight: 'directive_tier_weight_input',
     execution_reserve_snapshot: 'execution_reserve_snapshot_input',
     qos_lane_share_cap_exceeded: 'qos_lane_share_cap_exceeded_input',
     qos_lane_from_candidate: 'qos_lane_from_candidate_input',
