@@ -8736,6 +8736,30 @@ function summarizeRecentRouteBlockTelemetry(hours, maxEvents = 800) {
 
 function evaluateRouteBlockPrefilter(telemetry, capabilityKey) {
   const key = String(capabilityKey || '').trim().toLowerCase();
+  const rows = telemetry && telemetry.by_capability && typeof telemetry.by_capability === 'object'
+    ? telemetry.by_capability
+    : {};
+  const row = rows[key] && typeof rows[key] === 'object' ? rows[key] : null;
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'route_block_prefilter',
+      {
+        enabled: AUTONOMY_ROUTE_BLOCK_PREFILTER_ENABLED === true,
+        capability_key: key || null,
+        window_hours: Number(AUTONOMY_ROUTE_BLOCK_PREFILTER_WINDOW_HOURS || 0),
+        min_observations: Number(AUTONOMY_ROUTE_BLOCK_PREFILTER_MIN_OBSERVATIONS || 0),
+        max_block_rate: Number(AUTONOMY_ROUTE_BLOCK_PREFILTER_MAX_RATE || 0),
+        row_present: !!row,
+        attempts: Number(row && row.attempts || 0),
+        route_blocked: Number(row && row.route_blocked || 0),
+        route_block_rate: Number(row && row.route_block_rate || 0)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
+  }
   const out = {
     enabled: AUTONOMY_ROUTE_BLOCK_PREFILTER_ENABLED,
     applicable: false,
@@ -8753,10 +8777,6 @@ function evaluateRouteBlockPrefilter(telemetry, capabilityKey) {
   out.reason = 'missing_capability_key';
   if (!key) return out;
   out.applicable = true;
-  const rows = telemetry && telemetry.by_capability && typeof telemetry.by_capability === 'object'
-    ? telemetry.by_capability
-    : {};
-  const row = rows[key] && typeof rows[key] === 'object' ? rows[key] : null;
   out.reason = 'no_recent_route_samples';
   if (!row) return out;
   out.attempts = Math.max(0, Number(row.attempts || 0));
@@ -20424,6 +20444,7 @@ module.exports = {
   proposalDependencySummary,
   exploreQuotaForDay,
   chooseSelectionMode,
+  evaluateRouteBlockPrefilter,
   sourceEyeRef,
   escapeRegExp,
   toolTokenMentioned,
