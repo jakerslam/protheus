@@ -5761,11 +5761,28 @@ function pulseObjectiveCooldownActive(stat, pulseCtx) {
   if (!stat || typeof stat !== 'object') return false;
   const streak = Number(stat.no_progress_streak || 0);
   const limit = Number(pulseCtx && pulseCtx.no_progress_limit || AUTONOMY_DIRECTIVE_PULSE_NO_PROGRESS_LIMIT);
+  const cooldown = Number(pulseCtx && pulseCtx.cooldown_hours || AUTONOMY_DIRECTIVE_PULSE_COOLDOWN_HOURS);
+  const ts = String(stat.last_attempt_ts || '').trim();
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'pulse_objective_cooldown_active',
+      {
+        no_progress_streak: Number.isFinite(streak) ? streak : 0,
+        no_progress_limit: Number.isFinite(limit) ? limit : 0,
+        last_attempt_ts: ts || null,
+        cooldown_hours: Number.isFinite(cooldown) ? cooldown : 0,
+        now_ms: Date.now()
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.active === true;
+    }
+  }
   if (!Number.isFinite(streak) || streak < Math.max(1, limit)) return false;
-  const last = parseIsoTs(stat.last_attempt_ts);
+  const last = parseIsoTs(ts);
   if (!last) return false;
   const ageHours = (Date.now() - last.getTime()) / (1000 * 60 * 60);
-  const cooldown = Number(pulseCtx && pulseCtx.cooldown_hours || AUTONOMY_DIRECTIVE_PULSE_COOLDOWN_HOURS);
   return ageHours < Math.max(1, cooldown);
 }
 
@@ -18747,6 +18764,7 @@ module.exports = {
   computeCalibrationDeltas,
   compileDirectivePulseObjectives,
   buildDirectivePulseContext,
+  pulseObjectiveCooldownActive,
   normalizeDirectiveTier,
   pulseTierCoverageBonus,
   directiveTierReservationNeed,
