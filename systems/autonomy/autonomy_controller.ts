@@ -7800,6 +7800,16 @@ function ensureDirectivePulseEscalationProposal(dateStr, objectiveId, pulseCtx, 
 }
 
 function proposalDirectiveText(p) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'proposal_directive_text',
+      { proposal: p && typeof p === 'object' ? p : {} },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return String(rust.payload.payload.text || '');
+    }
+  }
   const parts = [];
   parts.push(String((p && p.title) || ''));
   parts.push(String((p && p.type) || ''));
@@ -20910,7 +20920,9 @@ module.exports = {
   pulseTierCoverageBonus,
   directiveTierReservationNeed,
   recentDirectivePulseCooldownCount,
+  proposalDirectiveText,
   assessDirectivePulse,
+  assessDirectiveFit,
   qosLaneFromCandidate,
   chooseQosLaneSelection,
   compositeEligibilityMin,
