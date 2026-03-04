@@ -2703,6 +2703,8 @@ const RUN_EVENT_OBJECTIVE_ID_CACHE = new Map();
 const RUN_EVENT_OBJECTIVE_ID_CACHE_MAX = 1024;
 const RUN_EVENT_PROPOSAL_ID_CACHE = new Map();
 const RUN_EVENT_PROPOSAL_ID_CACHE_MAX = 1024;
+const CAPACITY_COUNTED_ATTEMPT_EVENT_CACHE = new Map();
+const CAPACITY_COUNTED_ATTEMPT_EVENT_CACHE_MAX = 1024;
 
 function isPolicyHoldResult(result): boolean {
   const r = String(result || '').trim();
@@ -3393,6 +3395,37 @@ function runEventObjectiveId(evt) {
 function isCapacityCountedAttemptEvent(evt): boolean {
   if (!evt || evt.type !== 'autonomy_run') return false;
   const result = String(evt.result || '');
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const proposalId = runEventProposalId(evt);
+    const key = [
+      String(evt.type || ''),
+      result,
+      evt.policy_hold === true ? '1' : '0',
+      proposalId
+    ].join('\u0000');
+    if (CAPACITY_COUNTED_ATTEMPT_EVENT_CACHE.has(key)) {
+      return CAPACITY_COUNTED_ATTEMPT_EVENT_CACHE.get(key) === true;
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'capacity_counted_attempt_event',
+      {
+        event_type: String(evt.type || ''),
+        result,
+        policy_hold: evt.policy_hold === true,
+        proposal_id: proposalId
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const val = rust.payload.payload.capacity_counted === true;
+      if (CAPACITY_COUNTED_ATTEMPT_EVENT_CACHE.size >= CAPACITY_COUNTED_ATTEMPT_EVENT_CACHE_MAX) {
+        const oldest = CAPACITY_COUNTED_ATTEMPT_EVENT_CACHE.keys().next();
+        if (!oldest.done) CAPACITY_COUNTED_ATTEMPT_EVENT_CACHE.delete(oldest.value);
+      }
+      CAPACITY_COUNTED_ATTEMPT_EVENT_CACHE.set(key, val);
+      return val;
+    }
+  }
   if (!result) return false;
   if (evt.policy_hold === true) return false;
   if (isPolicyHoldRunEvent(evt)) return false;
@@ -16325,5 +16358,6 @@ module.exports = {
   nonYieldReasonFromRun,
   runEventProposalType,
   runEventObjectiveId,
-  runEventProposalId
+  runEventProposalId,
+  isCapacityCountedAttemptEvent
 };

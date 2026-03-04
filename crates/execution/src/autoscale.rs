@@ -364,6 +364,23 @@ pub struct RunEventProposalIdOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CapacityCountedAttemptEventInput {
+    #[serde(default)]
+    pub event_type: Option<String>,
+    #[serde(default)]
+    pub result: Option<String>,
+    #[serde(default)]
+    pub policy_hold: Option<bool>,
+    #[serde(default)]
+    pub proposal_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CapacityCountedAttemptEventOutput {
+    pub capacity_counted: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RouteExecutionPolicyHoldInput {
     #[serde(default)]
     pub target: Option<String>,
@@ -615,6 +632,8 @@ pub struct AutoscaleRequest {
     pub run_event_objective_id_input: Option<RunEventObjectiveIdInput>,
     #[serde(default)]
     pub run_event_proposal_id_input: Option<RunEventProposalIdInput>,
+    #[serde(default)]
+    pub capacity_counted_attempt_event_input: Option<CapacityCountedAttemptEventInput>,
     #[serde(default)]
     pub route_execution_policy_hold_input: Option<RouteExecutionPolicyHoldInput>,
     #[serde(default)]
@@ -1572,6 +1591,68 @@ pub fn compute_run_event_proposal_id(input: &RunEventProposalIdInput) -> RunEven
     }
 }
 
+fn is_score_only_result_for_capacity(result: &str) -> bool {
+    result == "score_only_preview"
+        || result == "score_only_evidence"
+        || result == "stop_repeat_gate_preview_structural_cooldown"
+        || result == "stop_repeat_gate_preview_churn_cooldown"
+}
+
+pub fn compute_capacity_counted_attempt_event(
+    input: &CapacityCountedAttemptEventInput,
+) -> CapacityCountedAttemptEventOutput {
+    let event_type = input
+        .event_type
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    if event_type != "autonomy_run" {
+        return CapacityCountedAttemptEventOutput {
+            capacity_counted: false,
+        };
+    }
+
+    let result = input
+        .result
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .unwrap_or_default();
+    if result.is_empty() {
+        return CapacityCountedAttemptEventOutput {
+            capacity_counted: false,
+        };
+    }
+    if input.policy_hold.unwrap_or(false) {
+        return CapacityCountedAttemptEventOutput {
+            capacity_counted: false,
+        };
+    }
+    if is_policy_hold_result(&result)
+        || result == "lock_busy"
+        || result == "stop_repeat_gate_interval"
+        || is_score_only_result_for_capacity(&result)
+    {
+        return CapacityCountedAttemptEventOutput {
+            capacity_counted: false,
+        };
+    }
+    if result == "executed" {
+        return CapacityCountedAttemptEventOutput {
+            capacity_counted: true,
+        };
+    }
+
+    let is_attempt = compute_attempt_run_event(&AttemptRunEventInput {
+        event_type: Some(event_type),
+        result: Some(result),
+    })
+    .is_attempt;
+    let proposal_id = normalize_spaces(input.proposal_id.as_deref().unwrap_or(""));
+    CapacityCountedAttemptEventOutput {
+        capacity_counted: is_attempt && !proposal_id.is_empty(),
+    }
+}
+
 pub fn compute_policy_hold_pressure(input: &PolicyHoldPressureInput) -> PolicyHoldPressureOutput {
     let window_hours = input.window_hours.unwrap_or(24.0).max(1.0);
     let min_samples = input.min_samples.unwrap_or(1.0).max(1.0);
@@ -2198,6 +2279,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_run_event_proposal_id_encode_failed:{e}"));
+    }
+    if mode == "capacity_counted_attempt_event" {
+        let input = request
+            .capacity_counted_attempt_event_input
+            .ok_or_else(|| "autoscale_missing_capacity_counted_attempt_event_input".to_string())?;
+        let out = compute_capacity_counted_attempt_event(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "capacity_counted_attempt_event",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_capacity_counted_attempt_event_encode_failed:{e}"));
     }
     if mode == "route_execution_policy_hold" {
         let input = request
@@ -2862,6 +2955,57 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale run_event_proposal_id");
         assert!(out.contains("\"mode\":\"run_event_proposal_id\""));
+    }
+
+    #[test]
+    fn capacity_counted_attempt_event_classifies_expected_cases() {
+        let executed = compute_capacity_counted_attempt_event(&CapacityCountedAttemptEventInput {
+            event_type: Some("autonomy_run".to_string()),
+            result: Some("executed".to_string()),
+            policy_hold: Some(false),
+            proposal_id: Some(String::new()),
+        });
+        assert!(executed.capacity_counted);
+
+        let policy_hold = compute_capacity_counted_attempt_event(&CapacityCountedAttemptEventInput {
+            event_type: Some("autonomy_run".to_string()),
+            result: Some("stop_init_gate_readiness".to_string()),
+            policy_hold: Some(false),
+            proposal_id: Some("p-001".to_string()),
+        });
+        assert!(!policy_hold.capacity_counted);
+
+        let attempt_with_proposal = compute_capacity_counted_attempt_event(&CapacityCountedAttemptEventInput {
+            event_type: Some("autonomy_run".to_string()),
+            result: Some("stop_repeat_gate_candidate_exhausted".to_string()),
+            policy_hold: Some(false),
+            proposal_id: Some("p-001".to_string()),
+        });
+        assert!(attempt_with_proposal.capacity_counted);
+
+        let attempt_without_proposal = compute_capacity_counted_attempt_event(&CapacityCountedAttemptEventInput {
+            event_type: Some("autonomy_run".to_string()),
+            result: Some("stop_repeat_gate_candidate_exhausted".to_string()),
+            policy_hold: Some(false),
+            proposal_id: Some(String::new()),
+        });
+        assert!(!attempt_without_proposal.capacity_counted);
+    }
+
+    #[test]
+    fn autoscale_json_capacity_counted_attempt_event_path_works() {
+        let payload = serde_json::json!({
+            "mode": "capacity_counted_attempt_event",
+            "capacity_counted_attempt_event_input": {
+                "event_type": "autonomy_run",
+                "result": "stop_repeat_gate_candidate_exhausted",
+                "policy_hold": false,
+                "proposal_id": "p-001"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale capacity_counted_attempt_event");
+        assert!(out.contains("\"mode\":\"capacity_counted_attempt_event\""));
     }
 
     #[test]
