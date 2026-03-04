@@ -1259,6 +1259,17 @@ pub struct TokenizeDirectiveTextOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizeSpacesInput {
+    #[serde(default)]
+    pub text: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizeSpacesOutput {
+    pub normalized: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecutionReserveSnapshotInput {
     pub cap: f64,
     pub used: f64,
@@ -2001,6 +2012,8 @@ pub struct AutoscaleRequest {
     pub normalize_directive_text_input: Option<NormalizeDirectiveTextInput>,
     #[serde(default)]
     pub tokenize_directive_text_input: Option<TokenizeDirectiveTextInput>,
+    #[serde(default)]
+    pub normalize_spaces_input: Option<NormalizeSpacesInput>,
     #[serde(default)]
     pub execution_reserve_snapshot_input: Option<ExecutionReserveSnapshotInput>,
     #[serde(default)]
@@ -4352,6 +4365,12 @@ pub fn compute_tokenize_directive_text(
     TokenizeDirectiveTextOutput { tokens }
 }
 
+pub fn compute_normalize_spaces(input: &NormalizeSpacesInput) -> NormalizeSpacesOutput {
+    let text = input.text.as_deref().unwrap_or("");
+    let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    NormalizeSpacesOutput { normalized }
+}
+
 pub fn compute_execution_reserve_snapshot(
     input: &ExecutionReserveSnapshotInput,
 ) -> ExecutionReserveSnapshotOutput {
@@ -6644,6 +6663,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_tokenize_directive_text_encode_failed:{e}"));
+    }
+    if mode == "normalize_spaces" {
+        let input = request
+            .normalize_spaces_input
+            .ok_or_else(|| "autoscale_missing_normalize_spaces_input".to_string())?;
+        let out = compute_normalize_spaces(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "normalize_spaces",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_normalize_spaces_encode_failed:{e}"));
     }
     if mode == "execution_reserve_snapshot" {
         let input = request
@@ -9447,6 +9478,28 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale tokenize_directive_text");
         assert!(out.contains("\"mode\":\"tokenize_directive_text\""));
         assert!(out.contains("\"tokens\":[\"memory\",\"avoids\",\"drift\"]"));
+    }
+
+    #[test]
+    fn normalize_spaces_matches_ts_semantics() {
+        let out = compute_normalize_spaces(&NormalizeSpacesInput {
+            text: Some("  one\t two\nthree   ".to_string()),
+        });
+        assert_eq!(out.normalized, "one two three");
+    }
+
+    #[test]
+    fn autoscale_json_normalize_spaces_path_works() {
+        let payload = serde_json::json!({
+            "mode": "normalize_spaces",
+            "normalize_spaces_input": {
+                "text": "  one\t two\nthree   "
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale normalize_spaces");
+        assert!(out.contains("\"mode\":\"normalize_spaces\""));
+        assert!(out.contains("\"normalized\":\"one two three\""));
     }
 
     #[test]
