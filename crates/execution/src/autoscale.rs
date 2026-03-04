@@ -2592,6 +2592,43 @@ pub struct RouteBlockPrefilterOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ManualGatePrefilterInput {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub capability_key: Option<String>,
+    #[serde(default)]
+    pub window_hours: f64,
+    #[serde(default)]
+    pub min_observations: f64,
+    #[serde(default)]
+    pub max_manual_block_rate: f64,
+    #[serde(default)]
+    pub row_present: bool,
+    #[serde(default)]
+    pub attempts: f64,
+    #[serde(default)]
+    pub manual_blocked: f64,
+    #[serde(default)]
+    pub manual_block_rate: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ManualGatePrefilterOutput {
+    pub enabled: bool,
+    pub applicable: bool,
+    pub pass: bool,
+    pub reason: String,
+    pub capability_key: Option<String>,
+    pub window_hours: f64,
+    pub min_observations: f64,
+    pub max_manual_block_rate: f64,
+    pub attempts: f64,
+    pub manual_blocked: f64,
+    pub manual_block_rate: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -3766,6 +3803,8 @@ pub struct AutoscaleRequest {
     pub medium_risk_gate_decision_input: Option<MediumRiskGateDecisionInput>,
     #[serde(default)]
     pub route_block_prefilter_input: Option<RouteBlockPrefilterInput>,
+    #[serde(default)]
+    pub manual_gate_prefilter_input: Option<ManualGatePrefilterInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -8334,6 +8373,53 @@ pub fn compute_route_block_prefilter(input: &RouteBlockPrefilterInput) -> RouteB
     out
 }
 
+pub fn compute_manual_gate_prefilter(input: &ManualGatePrefilterInput) -> ManualGatePrefilterOutput {
+    let key = input
+        .capability_key
+        .as_ref()
+        .map(|v| v.trim().to_lowercase())
+        .filter(|v| !v.is_empty());
+    let mut out = ManualGatePrefilterOutput {
+        enabled: input.enabled,
+        applicable: false,
+        pass: true,
+        reason: "disabled".to_string(),
+        capability_key: key.clone(),
+        window_hours: input.window_hours,
+        min_observations: input.min_observations,
+        max_manual_block_rate: input.max_manual_block_rate,
+        attempts: 0.0,
+        manual_blocked: 0.0,
+        manual_block_rate: 0.0,
+    };
+    if !input.enabled {
+        return out;
+    }
+    out.reason = "missing_capability_key".to_string();
+    if key.is_none() {
+        return out;
+    }
+    out.applicable = true;
+    out.reason = "no_recent_manual_gate_samples".to_string();
+    if !input.row_present {
+        return out;
+    }
+    out.attempts = input.attempts.max(0.0);
+    out.manual_blocked = input.manual_blocked.max(0.0);
+    out.manual_block_rate = input.manual_block_rate.clamp(0.0, 1.0);
+    if out.attempts < input.min_observations {
+        out.reason = "insufficient_observations".to_string();
+        return out;
+    }
+    if out.manual_block_rate >= input.max_manual_block_rate {
+        out.pass = false;
+        out.reason = "manual_gate_rate_exceeded".to_string();
+        return out;
+    }
+    out.reason = "pass".to_string();
+    out
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -11981,6 +12067,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_route_block_prefilter_encode_failed:{e}"));
+    }
+    if mode == "manual_gate_prefilter" {
+        let input = request
+            .manual_gate_prefilter_input
+            .ok_or_else(|| "autoscale_missing_manual_gate_prefilter_input".to_string())?;
+        let out = compute_manual_gate_prefilter(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "manual_gate_prefilter",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_manual_gate_prefilter_encode_failed:{e}"));
     }
     if mode == "is_directive_clarification_proposal" {
         let input = request
@@ -17359,6 +17457,45 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale route_block_prefilter");
         assert!(out.contains("\"mode\":\"route_block_prefilter\""));
+    }
+
+    #[test]
+    fn manual_gate_prefilter_blocks_when_rate_exceeded() {
+        let out = compute_manual_gate_prefilter(&ManualGatePrefilterInput {
+            enabled: true,
+            capability_key: Some("deploy".to_string()),
+            window_hours: 24.0,
+            min_observations: 3.0,
+            max_manual_block_rate: 0.4,
+            row_present: true,
+            attempts: 10.0,
+            manual_blocked: 5.0,
+            manual_block_rate: 0.5,
+        });
+        assert!(out.applicable);
+        assert!(!out.pass);
+        assert_eq!(out.reason, "manual_gate_rate_exceeded");
+    }
+
+    #[test]
+    fn autoscale_json_manual_gate_prefilter_path_works() {
+        let payload = serde_json::json!({
+            "mode": "manual_gate_prefilter",
+            "manual_gate_prefilter_input": {
+                "enabled": true,
+                "capability_key": "deploy",
+                "window_hours": 24,
+                "min_observations": 3,
+                "max_manual_block_rate": 0.4,
+                "row_present": true,
+                "attempts": 4,
+                "manual_blocked": 1,
+                "manual_block_rate": 0.25
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale manual_gate_prefilter");
+        assert!(out.contains("\"mode\":\"manual_gate_prefilter\""));
     }
 
     #[test]
