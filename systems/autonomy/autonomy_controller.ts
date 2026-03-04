@@ -2803,6 +2803,8 @@ const STRATEGY_CIRCUIT_COOLDOWN_CACHE = new Map();
 const STRATEGY_CIRCUIT_COOLDOWN_CACHE_MAX = 512;
 const STRATEGY_TRIT_SHADOW_ADJUSTED_CACHE = new Map();
 const STRATEGY_TRIT_SHADOW_ADJUSTED_CACHE_MAX = 1024;
+const NON_YIELD_PENALTY_SCORE_CACHE = new Map();
+const NON_YIELD_PENALTY_SCORE_CACHE_MAX = 1024;
 const VALUE_SIGNAL_SCORE_CACHE = new Map();
 const VALUE_SIGNAL_SCORE_CACHE_MAX = 1024;
 const COMPOSITE_ELIGIBILITY_SCORE_CACHE = new Map();
@@ -8412,6 +8414,69 @@ function runEventProposalType(evt) {
   return '';
 }
 
+function computeNonYieldPenaltyScore(
+  policyHoldRate,
+  noProgressRate,
+  stopRate,
+  shippedRate
+) {
+  const phRate = Number(policyHoldRate || 0);
+  const npRate = Number(noProgressRate || 0);
+  const stRate = Number(stopRate || 0);
+  const shRate = Number(shippedRate || 0);
+
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const key = [
+      phRate,
+      npRate,
+      stRate,
+      shRate,
+      AUTONOMY_STRATEGY_RANK_NON_YIELD_POLICY_HOLD_WEIGHT,
+      AUTONOMY_STRATEGY_RANK_NON_YIELD_NO_PROGRESS_WEIGHT,
+      AUTONOMY_STRATEGY_RANK_NON_YIELD_STOP_WEIGHT,
+      AUTONOMY_STRATEGY_RANK_NON_YIELD_SHIPPED_RELIEF_WEIGHT,
+      AUTONOMY_STRATEGY_RANK_NON_YIELD_MAX_PENALTY
+    ].join('\u0000');
+    if (NON_YIELD_PENALTY_SCORE_CACHE.has(key)) {
+      return Number(NON_YIELD_PENALTY_SCORE_CACHE.get(key) || 0);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'non_yield_penalty_score',
+      {
+        policy_hold_rate: phRate,
+        no_progress_rate: npRate,
+        stop_rate: stRate,
+        shipped_rate: shRate,
+        policy_hold_weight: Number(AUTONOMY_STRATEGY_RANK_NON_YIELD_POLICY_HOLD_WEIGHT || 0),
+        no_progress_weight: Number(AUTONOMY_STRATEGY_RANK_NON_YIELD_NO_PROGRESS_WEIGHT || 0),
+        stop_weight: Number(AUTONOMY_STRATEGY_RANK_NON_YIELD_STOP_WEIGHT || 0),
+        shipped_relief_weight: Number(AUTONOMY_STRATEGY_RANK_NON_YIELD_SHIPPED_RELIEF_WEIGHT || 0),
+        max_penalty: Number(AUTONOMY_STRATEGY_RANK_NON_YIELD_MAX_PENALTY || 0)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const out = Number(Number(rust.payload.payload.penalty || 0).toFixed(3));
+      if (NON_YIELD_PENALTY_SCORE_CACHE.size >= NON_YIELD_PENALTY_SCORE_CACHE_MAX) {
+        const oldest = NON_YIELD_PENALTY_SCORE_CACHE.keys().next();
+        if (!oldest.done) NON_YIELD_PENALTY_SCORE_CACHE.delete(oldest.value);
+      }
+      NON_YIELD_PENALTY_SCORE_CACHE.set(key, out);
+      return out;
+    }
+  }
+
+  const rawPenalty = (
+    (phRate * AUTONOMY_STRATEGY_RANK_NON_YIELD_POLICY_HOLD_WEIGHT)
+    + (npRate * AUTONOMY_STRATEGY_RANK_NON_YIELD_NO_PROGRESS_WEIGHT)
+    + (stRate * AUTONOMY_STRATEGY_RANK_NON_YIELD_STOP_WEIGHT)
+    - (shRate * AUTONOMY_STRATEGY_RANK_NON_YIELD_SHIPPED_RELIEF_WEIGHT)
+  );
+  return Number(
+    clampNumber(rawPenalty, 0, AUTONOMY_STRATEGY_RANK_NON_YIELD_MAX_PENALTY).toFixed(3)
+  );
+}
+
 function candidateNonYieldPenaltySignal(cand, opts: AnyObj = {}) {
   const out = {
     applied: false,
@@ -8496,15 +8561,11 @@ function candidateNonYieldPenaltySignal(cand, opts: AnyObj = {}) {
   out.no_progress_rate = Number((out.no_progress / out.samples).toFixed(4));
   out.stop_rate = Number((out.stops / out.samples).toFixed(4));
   out.shipped_rate = Number((out.shipped / out.samples).toFixed(4));
-
-  const rawPenalty = (
-    (out.policy_hold_rate * AUTONOMY_STRATEGY_RANK_NON_YIELD_POLICY_HOLD_WEIGHT)
-    + (out.no_progress_rate * AUTONOMY_STRATEGY_RANK_NON_YIELD_NO_PROGRESS_WEIGHT)
-    + (out.stop_rate * AUTONOMY_STRATEGY_RANK_NON_YIELD_STOP_WEIGHT)
-    - (out.shipped_rate * AUTONOMY_STRATEGY_RANK_NON_YIELD_SHIPPED_RELIEF_WEIGHT)
-  );
-  out.penalty = Number(
-    clampNumber(rawPenalty, 0, AUTONOMY_STRATEGY_RANK_NON_YIELD_MAX_PENALTY).toFixed(3)
+  out.penalty = computeNonYieldPenaltyScore(
+    out.policy_hold_rate,
+    out.no_progress_rate,
+    out.stop_rate,
+    out.shipped_rate
   );
   return out;
 }
@@ -17987,6 +18048,7 @@ module.exports = {
   strategyTritShadowForCandidate,
   strategyTritShadowRankingSummary,
   candidateNonYieldPenaltySignal,
+  computeNonYieldPenaltyScore,
   candidateCollectiveShadowSignal,
   selectStrategyForRun,
   impactWeight,
