@@ -1,0 +1,73 @@
+use protheus_ops_core::{
+    parse_args, parse_os_args, run_runtime_efficiency_floor, status_runtime_efficiency_floor,
+};
+use serde_json::json;
+use std::env;
+use std::path::PathBuf;
+
+fn usage() {
+    println!("Usage:");
+    println!("  protheus-ops runtime-efficiency-floor run [--strict=1|0] [--policy=<path>]");
+    println!("  protheus-ops runtime-efficiency-floor status [--policy=<path>]");
+}
+
+fn print_json(value: &serde_json::Value) {
+    println!(
+        "{}",
+        serde_json::to_string_pretty(value)
+            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
+    );
+}
+
+fn main() {
+    let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let args = parse_os_args(env::args_os().skip(1));
+    if args.is_empty() {
+        usage();
+        std::process::exit(1);
+    }
+
+    let domain = args.first().map(String::as_str).unwrap_or("");
+    if domain != "runtime-efficiency-floor" {
+        print_json(&json!({
+            "ok": false,
+            "error": "unknown_domain",
+            "domain": domain
+        }));
+        std::process::exit(1);
+    }
+
+    let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+    let parsed = parse_args(&rest);
+    let cmd = parsed
+        .positional
+        .first()
+        .map(|v| v.to_ascii_lowercase())
+        .unwrap_or_else(|| "run".to_string());
+
+    match cmd.as_str() {
+        "run" => match run_runtime_efficiency_floor(&cwd, &parsed) {
+            Ok(out) => {
+                print_json(&out.json);
+                std::process::exit(out.exit_code);
+            }
+            Err(err) => {
+                print_json(&json!({
+                    "ok": false,
+                    "type": "runtime_efficiency_floor",
+                    "error": err
+                }));
+                std::process::exit(1);
+            }
+        },
+        "status" => {
+            let out = status_runtime_efficiency_floor(&cwd, &parsed);
+            print_json(&out.json);
+            std::process::exit(out.exit_code);
+        }
+        _ => {
+            usage();
+            std::process::exit(1);
+        }
+    }
+}

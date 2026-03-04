@@ -9,6 +9,7 @@ members = [
   "crates/memory_abstraction",
   "crates/mobile",
   "crates/observability",
+  "crates/ops",
   "crates/pinnacle",
   "crates/red_legion",
   "crates/security",
