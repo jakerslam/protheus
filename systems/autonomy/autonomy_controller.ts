@@ -2873,6 +2873,21 @@ function extractObjectiveIdToken(value) {
 }
 
 function hasLinkedObjectiveEntry(entry) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const e = entry && typeof entry === 'object' ? entry : {};
+    const rust = runBacklogAutoscalePrimitive(
+      'has_linked_objective_entry',
+      {
+        objective_id: e.objective_id == null ? null : String(e.objective_id),
+        directive_objective_id: e.directive_objective_id == null ? null : String(e.directive_objective_id),
+        directive: e.directive == null ? null : String(e.directive)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.linked === true;
+    }
+  }
   const e = entry && typeof entry === 'object' ? entry : {};
   return !!(
     extractObjectiveIdToken(e.objective_id)
@@ -2882,6 +2897,20 @@ function hasLinkedObjectiveEntry(entry) {
 }
 
 function isVerifiedEntryOutcome(entry) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const e = entry && typeof entry === 'object' ? entry : {};
+    const rust = runBacklogAutoscalePrimitive(
+      'verified_entry_outcome',
+      {
+        outcome_verified: e.outcome_verified === true,
+        outcome: e.outcome == null ? null : String(e.outcome)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.verified === true;
+    }
+  }
   const e = entry && typeof entry === 'object' ? entry : {};
   if (e.outcome_verified === true) return true;
   const outcome = String(e.outcome || '').trim().toLowerCase();
@@ -2889,6 +2918,21 @@ function isVerifiedEntryOutcome(entry) {
 }
 
 function isVerifiedRevenueAction(action) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const row = action && typeof action === 'object' ? action : {};
+    const rust = runBacklogAutoscalePrimitive(
+      'verified_revenue_action',
+      {
+        verified: row.verified === true,
+        outcome_verified: row.outcome_verified === true,
+        status: row.status == null ? null : String(row.status)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.verified === true;
+    }
+  }
   const row = action && typeof action === 'object' ? action : {};
   if (row.verified === true || row.outcome_verified === true) return true;
   const status = String(row.status || '').trim().toLowerCase();
@@ -3523,6 +3567,16 @@ function policyHoldCooldownMinutesForPressure(baseMinutes, pressure) {
 }
 
 function minutesUntilNextUtcDay(nowMs = Date.now()) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'minutes_until_next_utc_day',
+      { now_ms: Number(nowMs) },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Math.max(0, Math.round(Number(rust.payload.payload.minutes || 0)));
+    }
+  }
   const now = Number(nowMs);
   if (!Number.isFinite(now) || now <= 0) return 0;
   const d = new Date(now);
@@ -3667,6 +3721,19 @@ function objectivePolicyHoldPattern(events, objectiveId, opts: AnyObj = {}) {
 }
 
 function ageHours(dateStr) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'age_hours',
+      {
+        date: dateStr == null ? null : String(dateStr),
+        now_ms: Date.now()
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Number(rust.payload.payload.age_hours || 0);
+    }
+  }
   const start = new Date(`${dateStr}T00:00:00.000Z`);
   return (Date.now() - start.getTime()) / (1000 * 60 * 60);
 }
@@ -5771,6 +5838,16 @@ function clampNumber(n, min, max) {
 }
 
 function urlDomain(url) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'url_domain',
+      { url: url == null ? null : String(url) },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return String(rust.payload.payload.domain || '').toLowerCase();
+    }
+  }
   try {
     const u = new URL(String(url || ''));
     return String(u.hostname || '').toLowerCase();
@@ -5780,6 +5857,19 @@ function urlDomain(url) {
 }
 
 function domainAllowed(domain, allowlist) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'domain_allowed',
+      {
+        domain: domain == null ? null : String(domain),
+        allowlist: Array.isArray(allowlist) ? allowlist : []
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.allowed === true;
+    }
+  }
   if (!domain) return false;
   if (!Array.isArray(allowlist) || allowlist.length === 0) return true;
   const d = String(domain).toLowerCase();
@@ -8977,12 +9067,41 @@ function capabilityOutcomeStatsInWindow(dateStr, descriptor, days) {
 }
 
 function normalizeValueCurrencyToken(value) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'normalize_value_currency_token',
+      {
+        value: value == null ? null : String(value),
+        allowed_keys: Array.from(VALUE_CURRENCY_RANK_KEYS)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return String(rust.payload.payload.token || '');
+    }
+  }
   const token = String(value || '').trim().toLowerCase();
   if (!token || !VALUE_CURRENCY_RANK_KEYS.has(token)) return '';
   return token;
 }
 
 function listValueCurrencies(value) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'list_value_currencies',
+      {
+        value_list: Array.isArray(value) ? value.map((row) => String(row || '')) : [],
+        value_csv: Array.isArray(value) ? null : String(value || ''),
+        allowed_keys: Array.from(VALUE_CURRENCY_RANK_KEYS)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Array.isArray(rust.payload.payload.currencies)
+        ? rust.payload.payload.currencies.map((row: unknown) => String(row || '')).filter(Boolean)
+        : [];
+    }
+  }
   const rows = Array.isArray(value)
     ? value
     : String(value || '')
@@ -9001,6 +9120,21 @@ function listValueCurrencies(value) {
 }
 
 function inferValueCurrenciesFromDirectiveBits(bits) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'infer_value_currencies_from_directive_bits',
+      {
+        bits: Array.isArray(bits) ? bits.map((x) => String(x || '')) : [],
+        allowed_keys: Array.from(VALUE_CURRENCY_RANK_KEYS)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Array.isArray(rust.payload.payload.currencies)
+        ? rust.payload.payload.currencies.map((row: unknown) => String(row || '')).filter(Boolean)
+        : [];
+    }
+  }
   const blob = normalizeSpaces((Array.isArray(bits) ? bits : []).map((x) => String(x || '')).join(' ')).toLowerCase();
   const out = [];
   if (!blob) return out;
@@ -19343,14 +19477,22 @@ module.exports = {
   percentMentionsFromText,
   optimizationMinDeltaPercent,
   sourceEyeRef,
+  urlDomain,
+  domainAllowed,
   normalizedRisk,
   parseIsoTs,
   extractObjectiveIdToken,
+  hasLinkedObjectiveEntry,
+  isVerifiedEntryOutcome,
+  isVerifiedRevenueAction,
   toStem,
   directiveTokenHits,
   expectedValueScore,
   timeToValueScore,
   valueDensityScore,
+  normalizeValueCurrencyToken,
+  listValueCurrencies,
+  inferValueCurrenciesFromDirectiveBits,
   executionReserveSnapshot,
   evaluateBudgetPacingGate,
   expectedValueSignalForProposal,
@@ -19416,6 +19558,8 @@ module.exports = {
   policyHoldPressureSnapshot,
   policyHoldCooldownMinutesForPressure,
   policyHoldCooldownMinutesForResult,
+  minutesUntilNextUtcDay,
+  ageHours,
   executeConfidenceCooldownKey,
   executeConfidenceCooldownActive,
   startModelCatalogCanary,
