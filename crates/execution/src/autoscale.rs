@@ -5167,6 +5167,42 @@ pub struct ExecuteConfidencePolicyOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DirectiveFitAssessmentInput {
+    pub min_directive_fit: f64,
+    pub profile_available: bool,
+    #[serde(default)]
+    pub active_directive_ids: Vec<String>,
+    #[serde(default)]
+    pub positive_phrase_hits: Vec<String>,
+    #[serde(default)]
+    pub positive_token_hits: Vec<String>,
+    #[serde(default)]
+    pub strategy_hits: Vec<String>,
+    #[serde(default)]
+    pub negative_phrase_hits: Vec<String>,
+    #[serde(default)]
+    pub negative_token_hits: Vec<String>,
+    pub strategy_token_count: f64,
+    #[serde(default)]
+    pub impact: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DirectiveFitAssessmentOutput {
+    pub pass: bool,
+    pub score: f64,
+    pub profile_available: bool,
+    #[serde(default)]
+    pub active_directive_ids: Vec<String>,
+    #[serde(default)]
+    pub reasons: Vec<String>,
+    #[serde(default)]
+    pub matched_positive: Vec<String>,
+    #[serde(default)]
+    pub matched_negative: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AutoscaleRequest {
     pub mode: String,
     #[serde(default)]
@@ -5689,6 +5725,8 @@ pub struct AutoscaleRequest {
     pub execute_confidence_history_input: Option<ExecuteConfidenceHistoryInput>,
     #[serde(default)]
     pub execute_confidence_policy_input: Option<ExecuteConfidencePolicyInput>,
+    #[serde(default)]
+    pub directive_fit_assessment_input: Option<DirectiveFitAssessmentInput>,
 }
 
 fn clamp_ratio(v: f64) -> f64 {
@@ -15687,6 +15725,123 @@ pub fn compute_execute_confidence_policy(
     ExecuteConfidencePolicyOutput { policy }
 }
 
+pub fn compute_directive_fit_assessment(
+    input: &DirectiveFitAssessmentInput,
+) -> DirectiveFitAssessmentOutput {
+    let active_directive_ids = input
+        .active_directive_ids
+        .iter()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+    if !input.profile_available {
+        return DirectiveFitAssessmentOutput {
+            pass: true,
+            score: 100.0,
+            profile_available: false,
+            active_directive_ids,
+            reasons: vec!["directive_profile_unavailable".to_string()],
+            matched_positive: Vec::new(),
+            matched_negative: Vec::new(),
+        };
+    }
+
+    let positive_phrase_hits = input
+        .positive_phrase_hits
+        .iter()
+        .map(|value| normalize_spaces(value))
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+    let positive_token_hits = input
+        .positive_token_hits
+        .iter()
+        .map(|value| normalize_spaces(value))
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+    let strategy_hits = input
+        .strategy_hits
+        .iter()
+        .map(|value| normalize_spaces(value))
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+    let negative_phrase_hits = input
+        .negative_phrase_hits
+        .iter()
+        .map(|value| normalize_spaces(value))
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+    let negative_token_hits = input
+        .negative_token_hits
+        .iter()
+        .map(|value| normalize_spaces(value))
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+
+    let mut score = 30.0;
+    score += positive_phrase_hits.len() as f64 * 18.0;
+    score += ((positive_token_hits.len() as f64) * 5.0).min(30.0);
+    score += ((strategy_hits.len() as f64) * 4.0).min(12.0);
+    score -= negative_phrase_hits.len() as f64 * 20.0;
+    score -= ((negative_token_hits.len() as f64) * 6.0).min(24.0);
+
+    let impact = input
+        .impact
+        .as_ref()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    if impact == "high" {
+        score += 6.0;
+    } else if impact == "medium" {
+        score += 3.0;
+    }
+
+    let final_score = score.round().clamp(0.0, 100.0);
+    let mut reasons = Vec::<String>::new();
+    if positive_phrase_hits.is_empty() && positive_token_hits.is_empty() && strategy_hits.is_empty() {
+        reasons.push("no_directive_alignment".to_string());
+    }
+    if input.strategy_token_count > 0.0 && strategy_hits.is_empty() {
+        reasons.push("no_strategy_marker".to_string());
+    }
+    if !negative_phrase_hits.is_empty() || !negative_token_hits.is_empty() {
+        reasons.push("matches_excluded_scope".to_string());
+    }
+    let pass = final_score >= input.min_directive_fit;
+    if !pass {
+        reasons.push("below_min_directive_fit".to_string());
+    }
+
+    let mut pos_set = std::collections::BTreeSet::<String>::new();
+    for value in positive_phrase_hits
+        .iter()
+        .chain(positive_token_hits.iter())
+        .chain(strategy_hits.iter())
+    {
+        if !value.trim().is_empty() {
+            pos_set.insert(value.trim().to_string());
+        }
+    }
+    let matched_positive = pos_set.into_iter().take(5).collect::<Vec<_>>();
+
+    let mut neg_set = std::collections::BTreeSet::<String>::new();
+    for value in negative_phrase_hits.iter().chain(negative_token_hits.iter()) {
+        if !value.trim().is_empty() {
+            neg_set.insert(value.trim().to_string());
+        }
+    }
+    let matched_negative = neg_set.into_iter().take(5).collect::<Vec<_>>();
+
+    DirectiveFitAssessmentOutput {
+        pass,
+        score: final_score,
+        profile_available: true,
+        active_directive_ids,
+        reasons,
+        matched_positive,
+        matched_negative,
+    }
+}
+
 pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     let request: AutoscaleRequest = serde_json::from_str(payload_json)
         .map_err(|e| format!("autoscale_request_parse_failed:{e}"))?;
@@ -18612,6 +18767,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_execute_confidence_policy_encode_failed:{e}"));
+    }
+    if mode == "directive_fit_assessment" {
+        let input = request
+            .directive_fit_assessment_input
+            .ok_or_else(|| "autoscale_missing_directive_fit_assessment_input".to_string())?;
+        let out = compute_directive_fit_assessment(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "directive_fit_assessment",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_directive_fit_assessment_encode_failed:{e}"));
     }
     if mode == "no_progress_result" {
         let input = request
@@ -22358,6 +22525,48 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale execute_confidence_policy");
         assert!(out.contains("\"mode\":\"execute_confidence_policy\""));
+    }
+
+    #[test]
+    fn directive_fit_assessment_scores_alignment() {
+        let out = compute_directive_fit_assessment(&DirectiveFitAssessmentInput {
+            min_directive_fit: 45.0,
+            profile_available: true,
+            active_directive_ids: vec!["T1_growth".to_string()],
+            positive_phrase_hits: vec!["raise revenue".to_string()],
+            positive_token_hits: vec!["growth".to_string(), "sales".to_string()],
+            strategy_hits: vec!["scale".to_string()],
+            negative_phrase_hits: Vec::new(),
+            negative_token_hits: Vec::new(),
+            strategy_token_count: 3.0,
+            impact: Some("high".to_string()),
+        });
+        assert!(out.pass);
+        assert!(out.score >= 45.0);
+        assert!(out.matched_positive.contains(&"growth".to_string()));
+        assert!(out.reasons.iter().all(|r| r != "below_min_directive_fit"));
+    }
+
+    #[test]
+    fn autoscale_json_directive_fit_assessment_path_works() {
+        let payload = serde_json::json!({
+            "mode": "directive_fit_assessment",
+            "directive_fit_assessment_input": {
+                "min_directive_fit": 50,
+                "profile_available": true,
+                "active_directive_ids": ["T1_growth"],
+                "positive_phrase_hits": ["raise revenue"],
+                "positive_token_hits": ["growth"],
+                "strategy_hits": ["scale"],
+                "negative_phrase_hits": [],
+                "negative_token_hits": [],
+                "strategy_token_count": 2,
+                "impact": "high"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale directive_fit_assessment");
+        assert!(out.contains("\"mode\":\"directive_fit_assessment\""));
     }
 
     #[test]
