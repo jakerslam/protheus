@@ -2043,7 +2043,42 @@ function bandToIndex(band: string) {
 
 const TIER_TARGETS = ['tactical', 'belief', 'identity', 'directive', 'constitution'];
 
+function coerceTierEventMap(v: AnyObj) {
+  const src = v && typeof v === 'object' ? v : {};
+  return {
+    tactical: Array.isArray(src.tactical) ? src.tactical.map((row: unknown) => String(row || '')) : [],
+    belief: Array.isArray(src.belief) ? src.belief.map((row: unknown) => String(row || '')) : [],
+    identity: Array.isArray(src.identity) ? src.identity.map((row: unknown) => String(row || '')) : [],
+    directive: Array.isArray(src.directive) ? src.directive.map((row: unknown) => String(row || '')) : [],
+    constitution: Array.isArray(src.constitution) ? src.constitution.map((row: unknown) => String(row || '')) : []
+  };
+}
+
 function defaultTierEventMap() {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'normalize_tier_event_map',
+      {
+        src: {},
+        fallback: {
+          tactical: [],
+          belief: [],
+          identity: [],
+          directive: [],
+          constitution: []
+        },
+        legacy_counts: {},
+        legacy_ts: nowIso()
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload.map && typeof rust.payload.payload.map === 'object'
+        ? rust.payload.payload.map
+        : {};
+      return coerceTierEventMap(payload);
+    }
+  }
   return {
     tactical: [],
     belief: [],
@@ -2054,6 +2089,21 @@ function defaultTierEventMap() {
 }
 
 function normalizeIsoEvents(src: unknown, maxRows = 10000) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'normalize_iso_events',
+      {
+        src: Array.isArray(src) ? src : [],
+        max_rows: Number(maxRows)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Array.isArray(rust.payload.payload.events)
+        ? rust.payload.payload.events.map((row: unknown) => String(row || '')).filter((row: string) => parseTsMs(row) > 0)
+        : [];
+    }
+  }
   const rows = Array.isArray(src) ? src : [];
   const out = rows
     .map((row) => String(row || '').trim())
@@ -2064,12 +2114,42 @@ function normalizeIsoEvents(src: unknown, maxRows = 10000) {
 }
 
 function expandLegacyCountToEvents(count: unknown, ts: string) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'expand_legacy_count_to_events',
+      { count, ts: ts == null ? nowIso() : String(ts) },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Array.isArray(rust.payload.payload.events)
+        ? rust.payload.payload.events.map((row: unknown) => String(row || ''))
+        : [];
+    }
+  }
   const n = clampInt(count, 0, 4096, 0);
   if (n <= 0) return [];
   return Array.from({ length: n }, () => ts);
 }
 
 function normalizeTierEventMap(src: AnyObj, fallback: AnyObj, legacyCounts: AnyObj = {}, legacyTs = nowIso()) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'normalize_tier_event_map',
+      {
+        src: src && typeof src === 'object' ? src : {},
+        fallback: fallback && typeof fallback === 'object' ? fallback : {},
+        legacy_counts: legacyCounts && typeof legacyCounts === 'object' ? legacyCounts : {},
+        legacy_ts: String(legacyTs || nowIso())
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload.map && typeof rust.payload.payload.map === 'object'
+        ? rust.payload.payload.map
+        : {};
+      return coerceTierEventMap(payload);
+    }
+  }
   const out: AnyObj = {};
   for (const target of TIER_TARGETS) {
     const next = src && Array.isArray(src[target]) ? normalizeIsoEvents(src[target]) : null;
@@ -2090,6 +2170,28 @@ function normalizeTierEventMap(src: AnyObj, fallback: AnyObj, legacyCounts: AnyO
 }
 
 function defaultTierScope(legacy: AnyObj = {}, legacyTs = nowIso()) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'default_tier_scope',
+      {
+        legacy: legacy && typeof legacy === 'object' ? legacy : {},
+        legacy_ts: String(legacyTs || nowIso())
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload.scope && typeof rust.payload.payload.scope === 'object'
+        ? rust.payload.payload.scope
+        : {};
+      return {
+        live_apply_attempts: coerceTierEventMap(payload.live_apply_attempts),
+        live_apply_successes: coerceTierEventMap(payload.live_apply_successes),
+        live_apply_safe_aborts: coerceTierEventMap(payload.live_apply_safe_aborts),
+        shadow_passes: coerceTierEventMap(payload.shadow_passes),
+        shadow_critical_failures: coerceTierEventMap(payload.shadow_critical_failures)
+      };
+    }
+  }
   const baseMap = defaultTierEventMap();
   return {
     live_apply_attempts: normalizeTierEventMap({}, baseMap, legacy.live_apply_attempts || legacy.live_apply_counts || {}, legacyTs),
@@ -2101,6 +2203,29 @@ function defaultTierScope(legacy: AnyObj = {}, legacyTs = nowIso()) {
 }
 
 function normalizeTierScope(scope: AnyObj, legacy: AnyObj = {}, legacyTs = nowIso()) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'normalize_tier_scope',
+      {
+        scope: scope && typeof scope === 'object' ? scope : {},
+        legacy: legacy && typeof legacy === 'object' ? legacy : {},
+        legacy_ts: String(legacyTs || nowIso())
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload.scope && typeof rust.payload.payload.scope === 'object'
+        ? rust.payload.payload.scope
+        : {};
+      return {
+        live_apply_attempts: coerceTierEventMap(payload.live_apply_attempts),
+        live_apply_successes: coerceTierEventMap(payload.live_apply_successes),
+        live_apply_safe_aborts: coerceTierEventMap(payload.live_apply_safe_aborts),
+        shadow_passes: coerceTierEventMap(payload.shadow_passes),
+        shadow_critical_failures: coerceTierEventMap(payload.shadow_critical_failures)
+      };
+    }
+  }
   const src = scope && typeof scope === 'object' ? scope : {};
   const fallback = defaultTierScope(legacy, legacyTs);
   return {
@@ -2113,6 +2238,29 @@ function normalizeTierScope(scope: AnyObj, legacy: AnyObj = {}, legacyTs = nowIs
 }
 
 function defaultTierGovernanceState(policyVersion = '1.0') {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'default_tier_governance_state',
+      { policy_version: policyVersion == null ? '1.0' : String(policyVersion) },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload.state && typeof rust.payload.payload.state === 'object'
+        ? rust.payload.payload.state
+        : {};
+      const version = cleanText(policyVersion || '1.0', 24) || '1.0';
+      const scopes = payload.scopes && typeof payload.scopes === 'object' ? payload.scopes : {};
+      return {
+        schema_id: cleanText(payload.schema_id || 'inversion_tier_governance_state', 80) || 'inversion_tier_governance_state',
+        schema_version: cleanText(payload.schema_version || '1.0', 24) || '1.0',
+        active_policy_version: cleanText(payload.active_policy_version || version, 24) || version,
+        updated_at: cleanText(payload.updated_at || nowIso(), 64) || nowIso(),
+        scopes: {
+          [version]: normalizeTierScope(scopes[version] || defaultTierScope())
+        }
+      };
+    }
+  }
   return {
     schema_id: 'inversion_tier_governance_state',
     schema_version: '1.0',
@@ -2125,10 +2273,51 @@ function defaultTierGovernanceState(policyVersion = '1.0') {
 }
 
 function cloneTierScope(scope: AnyObj) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'clone_tier_scope',
+      { scope: scope && typeof scope === 'object' ? scope : {} },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload.scope && typeof rust.payload.payload.scope === 'object'
+        ? rust.payload.payload.scope
+        : {};
+      return {
+        live_apply_attempts: coerceTierEventMap(payload.live_apply_attempts),
+        live_apply_successes: coerceTierEventMap(payload.live_apply_successes),
+        live_apply_safe_aborts: coerceTierEventMap(payload.live_apply_safe_aborts),
+        shadow_passes: coerceTierEventMap(payload.shadow_passes),
+        shadow_critical_failures: coerceTierEventMap(payload.shadow_critical_failures)
+      };
+    }
+  }
   return normalizeTierScope(scope || {});
 }
 
 function pruneTierScopeEvents(scope: AnyObj, retentionDays: number) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'prune_tier_scope_events',
+      {
+        scope: scope && typeof scope === 'object' ? scope : {},
+        retention_days: Number(retentionDays)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload.scope && typeof rust.payload.payload.scope === 'object'
+        ? rust.payload.payload.scope
+        : {};
+      return {
+        live_apply_attempts: coerceTierEventMap(payload.live_apply_attempts),
+        live_apply_successes: coerceTierEventMap(payload.live_apply_successes),
+        live_apply_safe_aborts: coerceTierEventMap(payload.live_apply_safe_aborts),
+        shadow_passes: coerceTierEventMap(payload.shadow_passes),
+        shadow_critical_failures: coerceTierEventMap(payload.shadow_critical_failures)
+      };
+    }
+  }
   const out = cloneTierScope(scope || {});
   const keepCutoff = Date.now() - (clampInt(retentionDays, 1, 3650, 365) * 24 * 60 * 60 * 1000);
   for (const metric of ['live_apply_attempts', 'live_apply_successes', 'live_apply_safe_aborts', 'shadow_passes', 'shadow_critical_failures']) {
@@ -2256,6 +2445,21 @@ function addTierEvent(paths: AnyObj, policy: AnyObj, metric: string, target: str
 }
 
 function countTierEvents(scope: AnyObj, metric: string, target: string, windowDays: number) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'count_tier_events',
+      {
+        scope: scope && typeof scope === 'object' ? scope : {},
+        metric: metric == null ? '' : String(metric),
+        target: target == null ? 'tactical' : String(target),
+        window_days: Number(windowDays)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return clampInt(rust.payload.payload.count, 0, 1_000_000, 0);
+    }
+  }
   const map = scope && scope[metric] && typeof scope[metric] === 'object'
     ? scope[metric]
     : defaultTierEventMap();
@@ -2289,6 +2493,21 @@ function windowDaysForTarget(windowMap: AnyObj, target: string, fallback: number
 }
 
 function effectiveWindowDaysForTarget(windowMap: AnyObj, minimumWindowMap: AnyObj, target: string, fallback: number) {
+  if (INVERSION_RUST_ENABLED) {
+    const rust = runInversionPrimitive(
+      'effective_window_days_for_target',
+      {
+        window_map: windowMap && typeof windowMap === 'object' ? windowMap : {},
+        minimum_window_map: minimumWindowMap && typeof minimumWindowMap === 'object' ? minimumWindowMap : {},
+        target: target == null ? 'tactical' : String(target),
+        fallback: Number(fallback)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return clampInt(rust.payload.payload.days, 1, 3650, fallback);
+    }
+  }
   const configured = windowDaysForTarget(windowMap, target, fallback);
   const minimum = windowDaysForTarget(minimumWindowMap, target, 1);
   return Math.max(configured, minimum);
@@ -6928,6 +7147,17 @@ module.exports = {
   normalizeImpactMap,
   normalizeTargetMap,
   normalizeTargetPolicy,
+  defaultTierEventMap,
+  normalizeIsoEvents,
+  expandLegacyCountToEvents,
+  normalizeTierEventMap,
+  defaultTierScope,
+  normalizeTierScope,
+  defaultTierGovernanceState,
+  cloneTierScope,
+  pruneTierScopeEvents,
+  countTierEvents,
+  effectiveWindowDaysForTarget,
   windowDaysForTarget,
   tierRetentionDays,
   parseCandidateListFromLlmPayload,

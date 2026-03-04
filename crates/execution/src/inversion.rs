@@ -1,3 +1,4 @@
+use chrono::{SecondsFormat, Utc};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -604,6 +605,146 @@ pub struct MutateTrialCandidatesInput {
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct MutateTrialCandidatesOutput {
     pub rows: Vec<Value>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct NormalizeIsoEventsInput {
+    #[serde(default)]
+    pub src: Vec<Value>,
+    #[serde(default)]
+    pub max_rows: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct NormalizeIsoEventsOutput {
+    pub events: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ExpandLegacyCountToEventsInput {
+    #[serde(default)]
+    pub count: Option<Value>,
+    #[serde(default)]
+    pub ts: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct ExpandLegacyCountToEventsOutput {
+    pub events: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct NormalizeTierEventMapInput {
+    #[serde(default)]
+    pub src: Option<Value>,
+    #[serde(default)]
+    pub fallback: Option<Value>,
+    #[serde(default)]
+    pub legacy_counts: Option<Value>,
+    #[serde(default)]
+    pub legacy_ts: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct NormalizeTierEventMapOutput {
+    pub map: Value,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct DefaultTierScopeInput {
+    #[serde(default)]
+    pub legacy: Option<Value>,
+    #[serde(default)]
+    pub legacy_ts: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct DefaultTierScopeOutput {
+    pub scope: Value,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct NormalizeTierScopeInput {
+    #[serde(default)]
+    pub scope: Option<Value>,
+    #[serde(default)]
+    pub legacy: Option<Value>,
+    #[serde(default)]
+    pub legacy_ts: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct NormalizeTierScopeOutput {
+    pub scope: Value,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct DefaultTierGovernanceStateInput {
+    #[serde(default)]
+    pub policy_version: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct DefaultTierGovernanceStateOutput {
+    pub state: Value,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct CloneTierScopeInput {
+    #[serde(default)]
+    pub scope: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct CloneTierScopeOutput {
+    pub scope: Value,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct PruneTierScopeEventsInput {
+    #[serde(default)]
+    pub scope: Option<Value>,
+    #[serde(default)]
+    pub retention_days: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct PruneTierScopeEventsOutput {
+    pub scope: Value,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct CountTierEventsInput {
+    #[serde(default)]
+    pub scope: Option<Value>,
+    #[serde(default)]
+    pub metric: Option<String>,
+    #[serde(default)]
+    pub target: Option<String>,
+    #[serde(default)]
+    pub window_days: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct CountTierEventsOutput {
+    pub count: i64,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct EffectiveWindowDaysForTargetInput {
+    #[serde(default)]
+    pub window_map: Option<Value>,
+    #[serde(default)]
+    pub minimum_window_map: Option<Value>,
+    #[serde(default)]
+    pub target: Option<String>,
+    #[serde(default)]
+    pub fallback: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct EffectiveWindowDaysForTargetOutput {
+    pub days: i64,
 }
 
 fn normalize_token(raw: &str, max_len: usize) -> String {
@@ -1509,6 +1650,389 @@ pub fn compute_mutate_trial_candidates(
         out.push(Value::Object(next));
     }
     MutateTrialCandidatesOutput { rows: out }
+}
+
+const TIER_TARGETS: [&str; 5] = [
+    "tactical",
+    "belief",
+    "identity",
+    "directive",
+    "constitution",
+];
+const TIER_METRICS: [&str; 5] = [
+    "live_apply_attempts",
+    "live_apply_successes",
+    "live_apply_safe_aborts",
+    "shadow_passes",
+    "shadow_critical_failures",
+];
+
+fn now_iso_runtime() -> String {
+    Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)
+}
+
+fn parse_ts_ms_runtime(value: &str) -> i64 {
+    chrono::DateTime::parse_from_rfc3339(value)
+        .map(|dt| dt.timestamp_millis())
+        .unwrap_or(0)
+}
+
+fn array_to_string_rows(value: Option<&Value>) -> Vec<String> {
+    value
+        .and_then(|v| v.as_array())
+        .map(|rows| {
+            rows.iter()
+                .map(|row| value_to_string(Some(row)))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn default_tier_event_map_value() -> Value {
+    json!({
+        "tactical": [],
+        "belief": [],
+        "identity": [],
+        "directive": [],
+        "constitution": []
+    })
+}
+
+pub fn compute_normalize_iso_events(input: &NormalizeIsoEventsInput) -> NormalizeIsoEventsOutput {
+    let max_rows = input.max_rows.unwrap_or(10000).clamp(1, 100000) as usize;
+    let mut out = input
+        .src
+        .iter()
+        .map(|row| value_to_string(Some(row)).trim().to_string())
+        .filter(|row| parse_ts_ms_runtime(row) > 0)
+        .collect::<Vec<_>>();
+    if out.len() > max_rows {
+        out = out[(out.len() - max_rows)..].to_vec();
+    }
+    out.sort_by_key(|row| parse_ts_ms_runtime(row));
+    let mut dedup = Vec::new();
+    for row in out {
+        if !dedup.iter().any(|existing| existing == &row) {
+            dedup.push(row);
+        }
+    }
+    NormalizeIsoEventsOutput { events: dedup }
+}
+
+pub fn compute_expand_legacy_count_to_events(
+    input: &ExpandLegacyCountToEventsInput,
+) -> ExpandLegacyCountToEventsOutput {
+    let n = clamp_int_value(input.count.as_ref(), 0, 4096, 0);
+    if n <= 0 {
+        return ExpandLegacyCountToEventsOutput { events: Vec::new() };
+    }
+    let ts = input.ts.clone().unwrap_or_else(now_iso_runtime);
+    ExpandLegacyCountToEventsOutput {
+        events: (0..n).map(|_| ts.clone()).collect::<Vec<_>>(),
+    }
+}
+
+fn normalize_tier_event_map_value(
+    src: Option<&Value>,
+    fallback: Option<&Value>,
+    legacy_counts: Option<&Value>,
+    legacy_ts: &str,
+) -> Value {
+    let mut out = serde_json::Map::new();
+    for target in TIER_TARGETS {
+        let src_rows = src
+            .and_then(|v| v.as_object())
+            .and_then(|m| m.get(target))
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        if !src_rows.is_empty() {
+            let normalized = compute_normalize_iso_events(&NormalizeIsoEventsInput {
+                src: src_rows,
+                max_rows: Some(10000),
+            });
+            out.insert(
+                target.to_string(),
+                Value::Array(
+                    normalized
+                        .events
+                        .into_iter()
+                        .map(Value::String)
+                        .collect::<Vec<_>>(),
+                ),
+            );
+            continue;
+        }
+
+        let legacy_count = legacy_counts
+            .and_then(|v| v.as_object())
+            .and_then(|m| m.get(target))
+            .cloned();
+        if legacy_count.is_some() {
+            let legacy = compute_expand_legacy_count_to_events(&ExpandLegacyCountToEventsInput {
+                count: legacy_count,
+                ts: Some(legacy_ts.to_string()),
+            });
+            if !legacy.events.is_empty() {
+                out.insert(
+                    target.to_string(),
+                    Value::Array(
+                        legacy
+                            .events
+                            .into_iter()
+                            .map(Value::String)
+                            .collect::<Vec<_>>(),
+                    ),
+                );
+                continue;
+            }
+        }
+
+        let fallback_rows = array_to_string_rows(
+            fallback
+                .and_then(|v| v.as_object())
+                .and_then(|m| m.get(target)),
+        );
+        out.insert(
+            target.to_string(),
+            Value::Array(
+                fallback_rows
+                    .into_iter()
+                    .map(Value::String)
+                    .collect::<Vec<_>>(),
+            ),
+        );
+    }
+    Value::Object(out)
+}
+
+pub fn compute_normalize_tier_event_map(
+    input: &NormalizeTierEventMapInput,
+) -> NormalizeTierEventMapOutput {
+    let legacy_ts = input.legacy_ts.clone().unwrap_or_else(now_iso_runtime);
+    NormalizeTierEventMapOutput {
+        map: normalize_tier_event_map_value(
+            input.src.as_ref(),
+            input.fallback.as_ref(),
+            input.legacy_counts.as_ref(),
+            &legacy_ts,
+        ),
+    }
+}
+
+fn default_tier_scope_value(legacy: Option<&Value>, legacy_ts: &str) -> Value {
+    let live_apply_attempts = normalize_tier_event_map_value(
+        Some(&json!({})),
+        Some(&default_tier_event_map_value()),
+        legacy
+            .and_then(|v| v.as_object())
+            .and_then(|m| m.get("live_apply_attempts"))
+            .or_else(|| {
+                legacy
+                    .and_then(|v| v.as_object())
+                    .and_then(|m| m.get("live_apply_counts"))
+            }),
+        legacy_ts,
+    );
+    let live_apply_successes = normalize_tier_event_map_value(
+        Some(&json!({})),
+        Some(&default_tier_event_map_value()),
+        legacy
+            .and_then(|v| v.as_object())
+            .and_then(|m| m.get("live_apply_successes"))
+            .or_else(|| {
+                legacy
+                    .and_then(|v| v.as_object())
+                    .and_then(|m| m.get("live_apply_counts"))
+            }),
+        legacy_ts,
+    );
+    let live_apply_safe_aborts = normalize_tier_event_map_value(
+        Some(&json!({})),
+        Some(&default_tier_event_map_value()),
+        legacy
+            .and_then(|v| v.as_object())
+            .and_then(|m| m.get("live_apply_safe_aborts")),
+        legacy_ts,
+    );
+    let shadow_passes = normalize_tier_event_map_value(
+        Some(&json!({})),
+        Some(&default_tier_event_map_value()),
+        legacy
+            .and_then(|v| v.as_object())
+            .and_then(|m| m.get("shadow_passes"))
+            .or_else(|| {
+                legacy
+                    .and_then(|v| v.as_object())
+                    .and_then(|m| m.get("shadow_pass_counts"))
+            }),
+        legacy_ts,
+    );
+    let shadow_critical_failures = normalize_tier_event_map_value(
+        Some(&json!({})),
+        Some(&default_tier_event_map_value()),
+        legacy
+            .and_then(|v| v.as_object())
+            .and_then(|m| m.get("shadow_critical_failures")),
+        legacy_ts,
+    );
+    json!({
+        "live_apply_attempts": live_apply_attempts,
+        "live_apply_successes": live_apply_successes,
+        "live_apply_safe_aborts": live_apply_safe_aborts,
+        "shadow_passes": shadow_passes,
+        "shadow_critical_failures": shadow_critical_failures
+    })
+}
+
+pub fn compute_default_tier_scope(input: &DefaultTierScopeInput) -> DefaultTierScopeOutput {
+    let legacy_ts = input.legacy_ts.clone().unwrap_or_else(now_iso_runtime);
+    DefaultTierScopeOutput {
+        scope: default_tier_scope_value(input.legacy.as_ref(), &legacy_ts),
+    }
+}
+
+fn normalize_tier_scope_value(
+    scope: Option<&Value>,
+    legacy: Option<&Value>,
+    legacy_ts: &str,
+) -> Value {
+    let src = scope
+        .and_then(|v| v.as_object())
+        .cloned()
+        .unwrap_or_default();
+    let fallback = default_tier_scope_value(legacy, legacy_ts);
+    json!({
+        "live_apply_attempts": normalize_tier_event_map_value(src.get("live_apply_attempts"), value_path(Some(&fallback), &["live_apply_attempts"]), None, legacy_ts),
+        "live_apply_successes": normalize_tier_event_map_value(src.get("live_apply_successes"), value_path(Some(&fallback), &["live_apply_successes"]), None, legacy_ts),
+        "live_apply_safe_aborts": normalize_tier_event_map_value(src.get("live_apply_safe_aborts"), value_path(Some(&fallback), &["live_apply_safe_aborts"]), None, legacy_ts),
+        "shadow_passes": normalize_tier_event_map_value(src.get("shadow_passes"), value_path(Some(&fallback), &["shadow_passes"]), None, legacy_ts),
+        "shadow_critical_failures": normalize_tier_event_map_value(src.get("shadow_critical_failures"), value_path(Some(&fallback), &["shadow_critical_failures"]), None, legacy_ts)
+    })
+}
+
+pub fn compute_normalize_tier_scope(input: &NormalizeTierScopeInput) -> NormalizeTierScopeOutput {
+    let legacy_ts = input.legacy_ts.clone().unwrap_or_else(now_iso_runtime);
+    NormalizeTierScopeOutput {
+        scope: normalize_tier_scope_value(input.scope.as_ref(), input.legacy.as_ref(), &legacy_ts),
+    }
+}
+
+pub fn compute_default_tier_governance_state(
+    input: &DefaultTierGovernanceStateInput,
+) -> DefaultTierGovernanceStateOutput {
+    let version = clean_text_runtime(input.policy_version.as_deref().unwrap_or("1.0"), 24);
+    let safe_version = if version.is_empty() {
+        "1.0".to_string()
+    } else {
+        version
+    };
+    let scope = default_tier_scope_value(None, &now_iso_runtime());
+    DefaultTierGovernanceStateOutput {
+        state: json!({
+            "schema_id": "inversion_tier_governance_state",
+            "schema_version": "1.0",
+            "active_policy_version": safe_version,
+            "updated_at": now_iso_runtime(),
+            "scopes": {
+                safe_version.clone(): scope
+            }
+        }),
+    }
+}
+
+pub fn compute_clone_tier_scope(input: &CloneTierScopeInput) -> CloneTierScopeOutput {
+    CloneTierScopeOutput {
+        scope: normalize_tier_scope_value(input.scope.as_ref(), None, &now_iso_runtime()),
+    }
+}
+
+pub fn compute_prune_tier_scope_events(
+    input: &PruneTierScopeEventsInput,
+) -> PruneTierScopeEventsOutput {
+    let retention_days = input.retention_days.unwrap_or(365).clamp(1, 3650);
+    let mut out = normalize_tier_scope_value(input.scope.as_ref(), None, &now_iso_runtime());
+    let keep_cutoff = Utc::now().timestamp_millis() - (retention_days * 24 * 60 * 60 * 1000);
+    for metric in TIER_METRICS {
+        let mut map = out
+            .as_object()
+            .and_then(|obj| obj.get(metric))
+            .cloned()
+            .unwrap_or_else(default_tier_event_map_value);
+        for target in TIER_TARGETS {
+            let rows = map
+                .as_object()
+                .and_then(|m| m.get(target))
+                .and_then(|v| v.as_array())
+                .cloned()
+                .unwrap_or_default();
+            let filtered = rows
+                .iter()
+                .map(|row| value_to_string(Some(row)))
+                .filter(|row| parse_ts_ms_runtime(row) >= keep_cutoff)
+                .collect::<Vec<_>>();
+            let kept = if filtered.len() > 10000 {
+                filtered[(filtered.len() - 10000)..].to_vec()
+            } else {
+                filtered
+            };
+            if let Some(map_obj) = map.as_object_mut() {
+                map_obj.insert(
+                    target.to_string(),
+                    Value::Array(kept.into_iter().map(Value::String).collect::<Vec<_>>()),
+                );
+            }
+        }
+        if let Some(obj) = out.as_object_mut() {
+            obj.insert(metric.to_string(), map);
+        }
+    }
+    PruneTierScopeEventsOutput { scope: out }
+}
+
+pub fn compute_count_tier_events(input: &CountTierEventsInput) -> CountTierEventsOutput {
+    let metric = clean_text_runtime(input.metric.as_deref().unwrap_or(""), 80);
+    let target = normalize_target_for_key(input.target.as_deref().unwrap_or("tactical"));
+    let map = input
+        .scope
+        .as_ref()
+        .and_then(|scope| scope.as_object())
+        .and_then(|scope| scope.get(&metric))
+        .cloned()
+        .unwrap_or_else(default_tier_event_map_value);
+    let rows = map
+        .as_object()
+        .and_then(|m| m.get(&target))
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let window_days = input.window_days.unwrap_or(90).clamp(1, 3650);
+    let cutoff = Utc::now().timestamp_millis() - (window_days * 24 * 60 * 60 * 1000);
+    let count = rows
+        .iter()
+        .filter(|row| parse_ts_ms_runtime(&value_to_string(Some(row))) >= cutoff)
+        .count() as i64;
+    CountTierEventsOutput { count }
+}
+
+pub fn compute_effective_window_days_for_target(
+    input: &EffectiveWindowDaysForTargetInput,
+) -> EffectiveWindowDaysForTargetOutput {
+    let configured = compute_window_days_for_target(&WindowDaysForTargetInput {
+        window_map: input.window_map.clone(),
+        target: input.target.clone(),
+        fallback: input.fallback,
+    })
+    .days;
+    let minimum = compute_window_days_for_target(&WindowDaysForTargetInput {
+        window_map: input.minimum_window_map.clone(),
+        target: input.target.clone(),
+        fallback: Some(1),
+    })
+    .days;
+    EffectiveWindowDaysForTargetOutput {
+        days: configured.max(minimum),
+    }
 }
 
 pub fn compute_creative_penalty(input: &CreativePenaltyInput) -> CreativePenaltyOutput {
@@ -2585,6 +3109,111 @@ pub fn run_inversion_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("inversion_encode_mutate_trial_candidates_failed:{e}"));
     }
+    if mode == "normalize_iso_events" {
+        let input: NormalizeIsoEventsInput = decode_input(&payload, "normalize_iso_events_input")?;
+        let out = compute_normalize_iso_events(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "normalize_iso_events",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_normalize_iso_events_failed:{e}"));
+    }
+    if mode == "expand_legacy_count_to_events" {
+        let input: ExpandLegacyCountToEventsInput =
+            decode_input(&payload, "expand_legacy_count_to_events_input")?;
+        let out = compute_expand_legacy_count_to_events(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "expand_legacy_count_to_events",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_expand_legacy_count_to_events_failed:{e}"));
+    }
+    if mode == "normalize_tier_event_map" {
+        let input: NormalizeTierEventMapInput =
+            decode_input(&payload, "normalize_tier_event_map_input")?;
+        let out = compute_normalize_tier_event_map(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "normalize_tier_event_map",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_normalize_tier_event_map_failed:{e}"));
+    }
+    if mode == "default_tier_scope" {
+        let input: DefaultTierScopeInput = decode_input(&payload, "default_tier_scope_input")?;
+        let out = compute_default_tier_scope(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "default_tier_scope",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_default_tier_scope_failed:{e}"));
+    }
+    if mode == "normalize_tier_scope" {
+        let input: NormalizeTierScopeInput = decode_input(&payload, "normalize_tier_scope_input")?;
+        let out = compute_normalize_tier_scope(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "normalize_tier_scope",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_normalize_tier_scope_failed:{e}"));
+    }
+    if mode == "default_tier_governance_state" {
+        let input: DefaultTierGovernanceStateInput =
+            decode_input(&payload, "default_tier_governance_state_input")?;
+        let out = compute_default_tier_governance_state(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "default_tier_governance_state",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_default_tier_governance_state_failed:{e}"));
+    }
+    if mode == "clone_tier_scope" {
+        let input: CloneTierScopeInput = decode_input(&payload, "clone_tier_scope_input")?;
+        let out = compute_clone_tier_scope(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "clone_tier_scope",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_clone_tier_scope_failed:{e}"));
+    }
+    if mode == "prune_tier_scope_events" {
+        let input: PruneTierScopeEventsInput =
+            decode_input(&payload, "prune_tier_scope_events_input")?;
+        let out = compute_prune_tier_scope_events(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "prune_tier_scope_events",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_prune_tier_scope_events_failed:{e}"));
+    }
+    if mode == "count_tier_events" {
+        let input: CountTierEventsInput = decode_input(&payload, "count_tier_events_input")?;
+        let out = compute_count_tier_events(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "count_tier_events",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_count_tier_events_failed:{e}"));
+    }
+    if mode == "effective_window_days_for_target" {
+        let input: EffectiveWindowDaysForTargetInput =
+            decode_input(&payload, "effective_window_days_for_target_input")?;
+        let out = compute_effective_window_days_for_target(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "effective_window_days_for_target",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_effective_window_days_for_target_failed:{e}"));
+    }
     Err(format!("inversion_mode_unsupported:{mode}"))
 }
 
@@ -3084,5 +3713,88 @@ mod tests {
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .contains("_mutated"));
+    }
+
+    #[test]
+    fn tier_scope_helpers_match_contract() {
+        let iso = compute_normalize_iso_events(&NormalizeIsoEventsInput {
+            src: vec![
+                json!("2026-03-04T00:00:00.000Z"),
+                json!("bad"),
+                json!("2026-03-03T00:00:00.000Z"),
+            ],
+            max_rows: Some(10000),
+        });
+        assert_eq!(iso.events.len(), 2);
+
+        let legacy = compute_expand_legacy_count_to_events(&ExpandLegacyCountToEventsInput {
+            count: Some(json!(3)),
+            ts: Some("2026-03-04T00:00:00.000Z".to_string()),
+        });
+        assert_eq!(legacy.events.len(), 3);
+
+        let map = compute_normalize_tier_event_map(&NormalizeTierEventMapInput {
+            src: Some(json!({"tactical":["2026-03-01T00:00:00.000Z"]})),
+            fallback: Some(default_tier_event_map_value()),
+            legacy_counts: Some(json!({"belief": 2})),
+            legacy_ts: Some("2026-03-04T00:00:00.000Z".to_string()),
+        });
+        assert!(map.map["tactical"].is_array());
+        assert!(map.map["belief"].is_array());
+
+        let scope = compute_default_tier_scope(&DefaultTierScopeInput {
+            legacy: Some(json!({"live_apply_counts": {"tactical": 1}})),
+            legacy_ts: Some("2026-03-04T00:00:00.000Z".to_string()),
+        });
+        assert!(scope.scope["live_apply_attempts"]["tactical"].is_array());
+
+        let norm_scope = compute_normalize_tier_scope(&NormalizeTierScopeInput {
+            scope: Some(json!({"shadow_passes": {"identity": ["2026-03-04T00:00:00.000Z"]}})),
+            legacy: Some(json!({})),
+            legacy_ts: Some("2026-03-04T00:00:00.000Z".to_string()),
+        });
+        assert!(norm_scope.scope["shadow_passes"]["identity"].is_array());
+
+        let state = compute_default_tier_governance_state(&DefaultTierGovernanceStateInput {
+            policy_version: Some("1.2".to_string()),
+        });
+        assert_eq!(
+            state.state["schema_id"],
+            json!("inversion_tier_governance_state")
+        );
+
+        let cloned = compute_clone_tier_scope(&CloneTierScopeInput {
+            scope: Some(norm_scope.scope.clone()),
+        });
+        assert!(cloned.scope["shadow_passes"]["identity"].is_array());
+
+        let pruned = compute_prune_tier_scope_events(&PruneTierScopeEventsInput {
+            scope: Some(json!({
+                "live_apply_attempts": {"tactical":["2000-01-01T00:00:00.000Z","2026-03-04T00:00:00.000Z"]},
+                "live_apply_successes": default_tier_event_map_value(),
+                "live_apply_safe_aborts": default_tier_event_map_value(),
+                "shadow_passes": default_tier_event_map_value(),
+                "shadow_critical_failures": default_tier_event_map_value()
+            })),
+            retention_days: Some(365),
+        });
+        assert!(pruned.scope["live_apply_attempts"]["tactical"].is_array());
+
+        let count = compute_count_tier_events(&CountTierEventsInput {
+            scope: Some(pruned.scope.clone()),
+            metric: Some("live_apply_attempts".to_string()),
+            target: Some("tactical".to_string()),
+            window_days: Some(3650),
+        });
+        assert!(count.count >= 0);
+
+        let effective =
+            compute_effective_window_days_for_target(&EffectiveWindowDaysForTargetInput {
+                window_map: Some(json!({"identity": 30})),
+                minimum_window_map: Some(json!({"identity": 45})),
+                target: Some("identity".to_string()),
+                fallback: Some(90),
+            });
+        assert_eq!(effective.days, 45);
     }
 }
