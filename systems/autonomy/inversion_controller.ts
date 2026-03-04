@@ -4372,6 +4372,24 @@ function pickFirstNumeric(candidates: unknown[]) {
 }
 
 function readDriftFromStateFile(filePath: string) {
+  if (INVERSION_RUST_ENABLED) {
+    const payload = readJson(filePath, null);
+    const rust = runInversionPrimitive(
+      'read_drift_from_state_file',
+      {
+        file_path: filePath == null ? '' : String(filePath),
+        source_path: filePath ? relPath(filePath) : 'none',
+        payload: payload && typeof payload === 'object' ? payload : null
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return {
+        value: Number(clampNumber(rust.payload.payload.value, 0, 1, 0).toFixed(6)),
+        source: cleanText(rust.payload.payload.source || '', 220) || (filePath ? relPath(filePath) : 'none')
+      };
+    }
+  }
   const payload = readJson(filePath, null);
   if (!payload || typeof payload !== 'object') {
     return { value: 0, source: filePath ? relPath(filePath) : 'none' };
@@ -4395,19 +4413,13 @@ function readDriftFromStateFile(filePath: string) {
 }
 
 function resolveLensGateDrift(args: AnyObj, policy: AnyObj) {
-  const argValue = pickFirstNumeric([
+  const argCandidates = [
     args.drift_rate,
     args['drift-rate'],
     args.predicted_drift,
     args['predicted-drift'],
     args.drift
-  ]);
-  if (argValue != null) {
-    return {
-      value: Number(clampNumber(argValue, 0, 1, 0).toFixed(6)),
-      source: 'arg'
-    };
-  }
+  ].filter((row) => row !== undefined);
   const cfg = policy.persona_lens_gate && typeof policy.persona_lens_gate === 'object'
     ? policy.persona_lens_gate
     : {};
@@ -4421,29 +4433,75 @@ function resolveLensGateDrift(args: AnyObj, policy: AnyObj) {
     ? String(policy.organ.trigger_detection.paths.drift_governor_path)
     : '';
   const probePath = explicitPath || fallbackPath;
-  if (probePath) return readDriftFromStateFile(probePath);
-  return { value: 0, source: 'none' };
-}
-
-function resolveParityConfidence(args: AnyObj, policy: AnyObj) {
-  const argValue = pickFirstNumeric([
-    args.parity_confidence,
-    args['parity-confidence'],
-    args.parity_score,
-    args['parity-score']
-  ]);
+  if (INVERSION_RUST_ENABLED) {
+    const probePayload = probePath ? readJson(probePath, null) : null;
+    const rust = runInversionPrimitive(
+      'resolve_lens_gate_drift',
+      {
+        arg_candidates: argCandidates,
+        probe_path: probePath,
+        probe_source: probePath ? relPath(probePath) : 'none',
+        probe_payload: probePayload && typeof probePayload === 'object' ? probePayload : null
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return {
+        value: Number(clampNumber(rust.payload.payload.value, 0, 1, 0).toFixed(6)),
+        source: cleanText(rust.payload.payload.source || '', 220) || 'none'
+      };
+    }
+  }
+  const argValue = pickFirstNumeric(argCandidates);
   if (argValue != null) {
     return {
       value: Number(clampNumber(argValue, 0, 1, 0).toFixed(6)),
       source: 'arg'
     };
   }
+  if (probePath) return readDriftFromStateFile(probePath);
+  return { value: 0, source: 'none' };
+}
+
+function resolveParityConfidence(args: AnyObj, policy: AnyObj) {
+  const argCandidates = [
+    args.parity_confidence,
+    args['parity-confidence'],
+    args.parity_score,
+    args['parity-score']
+  ].filter((row) => row !== undefined);
   const cfg = policy.persona_lens_gate && typeof policy.persona_lens_gate === 'object'
     ? policy.persona_lens_gate
     : {};
   const pathHint = cfg.paths && cfg.paths.parity_confidence_path
     ? String(cfg.paths.parity_confidence_path)
     : '';
+  if (INVERSION_RUST_ENABLED) {
+    const payload = pathHint ? readJson(pathHint, null) : null;
+    const rust = runInversionPrimitive(
+      'resolve_parity_confidence',
+      {
+        arg_candidates: argCandidates,
+        path_hint: pathHint,
+        path_source: pathHint ? relPath(pathHint) : 'none',
+        payload: payload && typeof payload === 'object' ? payload : null
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return {
+        value: Number(clampNumber(rust.payload.payload.value, 0, 1, 0).toFixed(6)),
+        source: cleanText(rust.payload.payload.source || '', 220) || 'none'
+      };
+    }
+  }
+  const argValue = pickFirstNumeric(argCandidates);
+  if (argValue != null) {
+    return {
+      value: Number(clampNumber(argValue, 0, 1, 0).toFixed(6)),
+      source: 'arg'
+    };
+  }
   if (!pathHint) return { value: 0, source: 'none' };
   const payload = readJson(pathHint, null);
   if (!payload || typeof payload !== 'object') {
@@ -7579,6 +7637,9 @@ module.exports = {
   normalizeObserverId,
   extractNumeric,
   pickFirstNumeric,
+  readDriftFromStateFile,
+  resolveLensGateDrift,
+  resolveParityConfidence,
   parseArgs,
   parseJsonFromStdout,
   tokenize,

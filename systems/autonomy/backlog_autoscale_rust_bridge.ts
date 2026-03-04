@@ -505,7 +505,10 @@ function runInversionPrimitive(mode: string, data: AnyObj = {}, opts: AnyObj = {
     principle_key_for_session: 'principle_key_for_session_input',
     normalize_objective_arg: 'normalize_objective_arg_input',
     maturity_band_order: 'maturity_band_order_input',
-    current_runtime_mode: 'current_runtime_mode_input'
+    current_runtime_mode: 'current_runtime_mode_input',
+    read_drift_from_state_file: 'read_drift_from_state_file_input',
+    resolve_lens_gate_drift: 'resolve_lens_gate_drift_input',
+    resolve_parity_confidence: 'resolve_parity_confidence_input'
   };
   const field = fieldByMode[normalizedMode];
   if (!field) return { ok: false, error: `inversion_mode_unsupported:${normalizedMode}` };
