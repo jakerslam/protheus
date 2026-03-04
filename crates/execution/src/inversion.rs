@@ -1232,6 +1232,17 @@ pub struct BuildCodeChangeProposalDraftOutput {
     pub proposal: Value,
 }
 
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct NormalizeLibraryRowInput {
+    #[serde(default)]
+    pub row: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct NormalizeLibraryRowOutput {
+    pub row: Value,
+}
+
 fn normalize_token(raw: &str, max_len: usize) -> String {
     let collapsed = raw
         .split_whitespace()
@@ -3789,6 +3800,119 @@ pub fn compute_build_code_change_proposal_draft(
     }
 }
 
+pub fn compute_normalize_library_row(input: &NormalizeLibraryRowInput) -> NormalizeLibraryRowOutput {
+    let src = input.row.as_ref().and_then(|v| v.as_object());
+
+    let id = clean_text_runtime(&value_to_string(src.and_then(|m| m.get("id"))), 80);
+    let ts = clean_text_runtime(&value_to_string(src.and_then(|m| m.get("ts"))), 40);
+    let objective = clean_text_runtime(&value_to_string(src.and_then(|m| m.get("objective"))), 280);
+    let objective_id =
+        clean_text_runtime(&value_to_string(src.and_then(|m| m.get("objective_id"))), 120);
+    let signature = clean_text_runtime(&value_to_string(src.and_then(|m| m.get("signature"))), 240);
+
+    let signature_tokens = if let Some(tokens) = src
+        .and_then(|m| m.get("signature_tokens"))
+        .and_then(|v| v.as_array())
+    {
+        tokens
+            .iter()
+            .map(|row| {
+                compute_normalize_word_token(&NormalizeWordTokenInput {
+                    value: Some(value_to_string(Some(row))),
+                    max_len: Some(40),
+                })
+                .value
+            })
+            .filter(|row| !row.is_empty())
+            .take(64)
+            .collect::<Vec<_>>()
+    } else {
+        compute_tokenize_text(&TokenizeTextInput {
+            value: Some(if !signature.is_empty() {
+                signature.clone()
+            } else {
+                objective.clone()
+            }),
+            max_tokens: None,
+        })
+        .tokens
+    };
+
+    let target = compute_normalize_target(&NormalizeTargetInput {
+        value: Some(value_to_string(src.and_then(|m| m.get("target")))),
+    })
+    .value;
+    let impact = compute_normalize_impact(&NormalizeImpactInput {
+        value: Some(value_to_string(src.and_then(|m| m.get("impact")))),
+    })
+    .value;
+    let certainty = clamp_number(
+        parse_number_like(src.and_then(|m| m.get("certainty"))).unwrap_or(0.0),
+        0.0,
+        1.0,
+    );
+    let filter_stack_input = src
+        .and_then(|m| m.get("filter_stack"))
+        .cloned()
+        .or_else(|| src.and_then(|m| m.get("filters")).cloned())
+        .unwrap_or_else(|| json!([]));
+    let filter_stack = compute_normalize_list(&NormalizeListInput {
+        value: Some(filter_stack_input),
+        max_len: Some(120),
+    })
+    .items;
+    let outcome_trit = (normalize_trit_value(
+        src.and_then(|m| m.get("outcome_trit"))
+            .unwrap_or(&Value::Null),
+    ))
+    .clamp(-1, 1);
+    let result = compute_normalize_result(&NormalizeResultInput {
+        value: Some(value_to_string(src.and_then(|m| m.get("result")))),
+    })
+    .value;
+    let maturity_band = compute_normalize_token(&NormalizeTokenInput {
+        value: Some(value_to_string(src.and_then(|m| m.get("maturity_band")))),
+        max_len: Some(24),
+    })
+    .value;
+    let principle_id = {
+        let v = clean_text_runtime(&value_to_string(src.and_then(|m| m.get("principle_id"))), 80);
+        if v.is_empty() {
+            Value::Null
+        } else {
+            Value::String(v)
+        }
+    };
+    let session_id = {
+        let v = clean_text_runtime(&value_to_string(src.and_then(|m| m.get("session_id"))), 80);
+        if v.is_empty() {
+            Value::Null
+        } else {
+            Value::String(v)
+        }
+    };
+
+    NormalizeLibraryRowOutput {
+        row: json!({
+            "id": id,
+            "ts": ts,
+            "objective": objective,
+            "objective_id": objective_id,
+            "signature": signature,
+            "signature_tokens": signature_tokens,
+            "target": target,
+            "impact": impact,
+            "certainty": certainty,
+            "filter_stack": filter_stack,
+            "outcome_trit": outcome_trit,
+            "result": result,
+            "maturity_band": maturity_band,
+            "principle_id": principle_id,
+            "session_id": session_id
+        }),
+    }
+}
+
 pub fn compute_creative_penalty(input: &CreativePenaltyInput) -> CreativePenaltyOutput {
     let preferred = input
         .preferred_creative_lane_ids
@@ -5345,6 +5469,17 @@ pub fn run_inversion_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("inversion_encode_build_code_change_proposal_draft_failed:{e}"));
     }
+    if mode == "normalize_library_row" {
+        let input: NormalizeLibraryRowInput =
+            decode_input(&payload, "normalize_library_row_input")?;
+        let out = compute_normalize_library_row(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "normalize_library_row",
+            "payload": out.row
+        }))
+        .map_err(|e| format!("inversion_encode_normalize_library_row_failed:{e}"));
+    }
     Err(format!("inversion_mode_unsupported:{mode}"))
 }
 
@@ -6297,5 +6432,32 @@ mod tests {
                 .unwrap_or(false),
             true
         );
+    }
+
+    #[test]
+    fn helper_primitives_batch12_match_contract() {
+        let out = compute_normalize_library_row(&NormalizeLibraryRowInput {
+            row: Some(json!({
+                "id": " abc ",
+                "ts": "2026-03-04T00:00:00.000Z",
+                "objective": " Ship lane ",
+                "objective_id": " BL-215 ",
+                "signature": "  reduce drift safely ",
+                "target": "directive",
+                "impact": "high",
+                "certainty": 1.2,
+                "filter_stack": ["risk_guard", "  "],
+                "outcome_trit": 2,
+                "result": "OK",
+                "maturity_band": "Developing",
+                "principle_id": " p1 ",
+                "session_id": " s1 "
+            })),
+        });
+        let row = out.row.as_object().expect("row object");
+        assert_eq!(row.get("id").and_then(|v| v.as_str()).unwrap_or(""), "abc");
+        assert_eq!(row.get("target").and_then(|v| v.as_str()).unwrap_or(""), "directive");
+        assert_eq!(row.get("impact").and_then(|v| v.as_str()).unwrap_or(""), "high");
+        assert_eq!(row.get("outcome_trit").and_then(|v| v.as_i64()).unwrap_or(0), 1);
     }
 }
