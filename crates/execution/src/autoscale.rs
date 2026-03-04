@@ -1088,6 +1088,19 @@ pub struct ValueDensityScoreOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DirectiveTierWeightInput {
+    #[serde(default)]
+    pub tier: Option<f64>,
+    #[serde(default)]
+    pub fallback: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DirectiveTierWeightOutput {
+    pub weight: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecutionReserveSnapshotInput {
     pub cap: f64,
     pub used: f64,
@@ -1810,6 +1823,8 @@ pub struct AutoscaleRequest {
     pub time_to_value_score_input: Option<TimeToValueScoreInput>,
     #[serde(default)]
     pub value_density_score_input: Option<ValueDensityScoreInput>,
+    #[serde(default)]
+    pub directive_tier_weight_input: Option<DirectiveTierWeightInput>,
     #[serde(default)]
     pub execution_reserve_snapshot_input: Option<ExecutionReserveSnapshotInput>,
     #[serde(default)]
@@ -3825,6 +3840,30 @@ pub fn compute_value_density_score(input: &ValueDensityScoreInput) -> ValueDensi
         rounded as u32
     };
     ValueDensityScoreOutput { score: clamped }
+}
+
+pub fn compute_directive_tier_weight(
+    input: &DirectiveTierWeightInput,
+) -> DirectiveTierWeightOutput {
+    let fallback = input
+        .fallback
+        .filter(|v| v.is_finite())
+        .unwrap_or(3.0);
+    let raw = input
+        .tier
+        .filter(|v| v.is_finite())
+        .unwrap_or(fallback);
+    let normalized_tier = raw.round().max(1.0);
+    let weight = if normalized_tier <= 1.0 {
+        1.3
+    } else if normalized_tier <= 2.0 {
+        1.0
+    } else if normalized_tier <= 3.0 {
+        0.82
+    } else {
+        0.7
+    };
+    DirectiveTierWeightOutput { weight }
 }
 
 pub fn compute_execution_reserve_snapshot(
@@ -5999,6 +6038,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_value_density_score_encode_failed:{e}"));
+    }
+    if mode == "directive_tier_weight" {
+        let input = request
+            .directive_tier_weight_input
+            .ok_or_else(|| "autoscale_missing_directive_tier_weight_input".to_string())?;
+        let out = compute_directive_tier_weight(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "directive_tier_weight",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_directive_tier_weight_encode_failed:{e}"));
     }
     if mode == "execution_reserve_snapshot" {
         let input = request
@@ -8444,6 +8495,48 @@ mod tests {
             est_tokens: 500.0,
         });
         assert_eq!(zero.score, 0);
+    }
+
+    #[test]
+    fn directive_tier_weight_matches_tier_policy() {
+        let p1 = compute_directive_tier_weight(&DirectiveTierWeightInput {
+            tier: Some(1.0),
+            fallback: Some(3.0),
+        });
+        assert!((p1.weight - 1.3).abs() < 0.000001);
+
+        let p2 = compute_directive_tier_weight(&DirectiveTierWeightInput {
+            tier: Some(2.0),
+            fallback: Some(3.0),
+        });
+        assert!((p2.weight - 1.0).abs() < 0.000001);
+
+        let p3 = compute_directive_tier_weight(&DirectiveTierWeightInput {
+            tier: Some(3.0),
+            fallback: Some(3.0),
+        });
+        assert!((p3.weight - 0.82).abs() < 0.000001);
+
+        let fallback = compute_directive_tier_weight(&DirectiveTierWeightInput {
+            tier: None,
+            fallback: Some(2.0),
+        });
+        assert!((fallback.weight - 1.0).abs() < 0.000001);
+    }
+
+    #[test]
+    fn autoscale_json_directive_tier_weight_path_works() {
+        let payload = serde_json::json!({
+            "mode": "directive_tier_weight",
+            "directive_tier_weight_input": {
+                "tier": 4,
+                "fallback": 3
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale directive_tier_weight");
+        assert!(out.contains("\"mode\":\"directive_tier_weight\""));
+        assert!(out.contains("\"weight\":0.7"));
     }
 
     #[test]
