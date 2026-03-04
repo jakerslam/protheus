@@ -1906,6 +1906,145 @@ pub struct DeriveEntityBiasOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IsDirectiveClarificationProposalInput {
+    #[serde(default)]
+    pub proposal_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IsDirectiveClarificationProposalOutput {
+    pub is_clarification: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IsDirectiveDecompositionProposalInput {
+    #[serde(default)]
+    pub proposal_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IsDirectiveDecompositionProposalOutput {
+    pub is_decomposition: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SanitizeDirectiveObjectiveIdInput {
+    #[serde(default)]
+    pub value: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SanitizeDirectiveObjectiveIdOutput {
+    pub objective_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ParseDirectiveFileArgInput {
+    #[serde(default)]
+    pub command: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ParseDirectiveFileArgOutput {
+    pub file: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ParseDirectiveObjectiveArgInput {
+    #[serde(default)]
+    pub command: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ParseDirectiveObjectiveArgOutput {
+    pub objective_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ParseObjectiveIdFromEvidenceRefsInput {
+    #[serde(default)]
+    pub evidence_refs: Vec<String>,
+    #[serde(default)]
+    pub objective_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ParseObjectiveIdFromEvidenceRefsOutput {
+    #[serde(default)]
+    pub objective_id: Option<String>,
+    #[serde(default)]
+    pub source: Option<String>,
+    #[serde(default)]
+    pub valid: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ParseObjectiveIdFromCommandInput {
+    #[serde(default)]
+    pub command: Option<String>,
+    #[serde(default)]
+    pub objective_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ParseObjectiveIdFromCommandOutput {
+    #[serde(default)]
+    pub objective_id: Option<String>,
+    #[serde(default)]
+    pub source: Option<String>,
+    #[serde(default)]
+    pub valid: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ObjectiveIdForExecutionInput {
+    #[serde(default)]
+    pub objective_binding_id: Option<String>,
+    #[serde(default)]
+    pub directive_pulse_id: Option<String>,
+    #[serde(default)]
+    pub directive_action_id: Option<String>,
+    #[serde(default)]
+    pub meta_objective_id: Option<String>,
+    #[serde(default)]
+    pub meta_directive_objective_id: Option<String>,
+    #[serde(default)]
+    pub action_spec_objective_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ObjectiveIdForExecutionOutput {
+    #[serde(default)]
+    pub objective_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ShortTextInput {
+    #[serde(default)]
+    pub value: Option<String>,
+    #[serde(default)]
+    pub max_len: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ShortTextOutput {
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizedSignalStatusInput {
+    #[serde(default)]
+    pub value: Option<String>,
+    #[serde(default)]
+    pub fallback: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizedSignalStatusOutput {
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecutionReserveSnapshotInput {
     pub cap: f64,
     pub used: f64,
@@ -2899,6 +3038,26 @@ pub struct AutoscaleRequest {
     pub total_outcomes_input: Option<TotalOutcomesInput>,
     #[serde(default)]
     pub derive_entity_bias_input: Option<DeriveEntityBiasInput>,
+    #[serde(default)]
+    pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
+    #[serde(default)]
+    pub is_directive_decomposition_proposal_input: Option<IsDirectiveDecompositionProposalInput>,
+    #[serde(default)]
+    pub sanitize_directive_objective_id_input: Option<SanitizeDirectiveObjectiveIdInput>,
+    #[serde(default)]
+    pub parse_directive_file_arg_input: Option<ParseDirectiveFileArgInput>,
+    #[serde(default)]
+    pub parse_directive_objective_arg_input: Option<ParseDirectiveObjectiveArgInput>,
+    #[serde(default)]
+    pub parse_objective_id_from_evidence_refs_input: Option<ParseObjectiveIdFromEvidenceRefsInput>,
+    #[serde(default)]
+    pub parse_objective_id_from_command_input: Option<ParseObjectiveIdFromCommandInput>,
+    #[serde(default)]
+    pub objective_id_for_execution_input: Option<ObjectiveIdForExecutionInput>,
+    #[serde(default)]
+    pub short_text_input: Option<ShortTextInput>,
+    #[serde(default)]
+    pub normalized_signal_status_input: Option<NormalizedSignalStatusInput>,
     #[serde(default)]
     pub execution_reserve_snapshot_input: Option<ExecutionReserveSnapshotInput>,
     #[serde(default)]
@@ -6278,6 +6437,241 @@ pub fn compute_derive_entity_bias(input: &DeriveEntityBiasInput) -> DeriveEntity
     DeriveEntityBiasOutput { bias, total }
 }
 
+pub fn compute_is_directive_clarification_proposal(
+    input: &IsDirectiveClarificationProposalInput,
+) -> IsDirectiveClarificationProposalOutput {
+    let proposal_type = input
+        .proposal_type
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    IsDirectiveClarificationProposalOutput {
+        is_clarification: proposal_type == "directive_clarification",
+    }
+}
+
+pub fn compute_is_directive_decomposition_proposal(
+    input: &IsDirectiveDecompositionProposalInput,
+) -> IsDirectiveDecompositionProposalOutput {
+    let proposal_type = input
+        .proposal_type
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    IsDirectiveDecompositionProposalOutput {
+        is_decomposition: proposal_type == "directive_decomposition",
+    }
+}
+
+pub fn compute_sanitize_directive_objective_id(
+    input: &SanitizeDirectiveObjectiveIdInput,
+) -> SanitizeDirectiveObjectiveIdOutput {
+    let raw = input.value.as_deref().unwrap_or("").trim();
+    if raw.is_empty() {
+        return SanitizeDirectiveObjectiveIdOutput {
+            objective_id: String::new(),
+        };
+    }
+    let re = Regex::new(r"^T[0-9]_[A-Za-z0-9_]+$").expect("valid directive objective id regex");
+    if !re.is_match(raw) {
+        return SanitizeDirectiveObjectiveIdOutput {
+            objective_id: String::new(),
+        };
+    }
+    SanitizeDirectiveObjectiveIdOutput {
+        objective_id: raw.to_string(),
+    }
+}
+
+pub fn compute_parse_directive_file_arg(input: &ParseDirectiveFileArgInput) -> ParseDirectiveFileArgOutput {
+    let text = input.command.as_deref().unwrap_or("").trim();
+    if text.is_empty() {
+        return ParseDirectiveFileArgOutput {
+            file: String::new(),
+        };
+    }
+    let re = Regex::new(r#"(?:^|\s)--file=(?:"([^"]+)"|'([^']+)'|([^\s]+))"#)
+        .expect("valid directive file arg regex");
+    let raw = re
+        .captures(text)
+        .and_then(|caps| caps.get(1).or_else(|| caps.get(2)).or_else(|| caps.get(3)))
+        .map(|m| m.as_str().trim().replace('\\', "/"))
+        .unwrap_or_default();
+    if raw.is_empty() {
+        return ParseDirectiveFileArgOutput {
+            file: String::new(),
+        };
+    }
+    let allow = Regex::new(r"(?i)^config/directives/[A-Za-z0-9_]+\.ya?ml$")
+        .expect("valid directive file allow regex");
+    if !allow.is_match(&raw) {
+        return ParseDirectiveFileArgOutput {
+            file: String::new(),
+        };
+    }
+    ParseDirectiveFileArgOutput { file: raw }
+}
+
+pub fn compute_parse_directive_objective_arg(
+    input: &ParseDirectiveObjectiveArgInput,
+) -> ParseDirectiveObjectiveArgOutput {
+    let text = normalize_spaces(input.command.as_deref().unwrap_or(""));
+    if text.is_empty() {
+        return ParseDirectiveObjectiveArgOutput {
+            objective_id: String::new(),
+        };
+    }
+    let re = Regex::new(r#"(?:^|\s)--id=(?:"([^"]+)"|'([^']+)'|([^\s]+))"#)
+        .expect("valid directive objective arg regex");
+    let raw = re
+        .captures(&text)
+        .and_then(|caps| caps.get(1).or_else(|| caps.get(2)).or_else(|| caps.get(3)))
+        .map(|m| normalize_spaces(m.as_str()))
+        .unwrap_or_default();
+    let sanitized = compute_sanitize_directive_objective_id(&SanitizeDirectiveObjectiveIdInput {
+        value: Some(raw),
+    });
+    ParseDirectiveObjectiveArgOutput {
+        objective_id: sanitized.objective_id,
+    }
+}
+
+pub fn compute_parse_objective_id_from_evidence_refs(
+    input: &ParseObjectiveIdFromEvidenceRefsInput,
+) -> ParseObjectiveIdFromEvidenceRefsOutput {
+    let objective_set: std::collections::BTreeSet<String> = input
+        .objective_ids
+        .iter()
+        .map(|id| id.trim().to_string())
+        .filter(|id| !id.is_empty())
+        .collect();
+    let pulse_re =
+        Regex::new(r"(?i)directive_pulse/([A-Za-z0-9_]+)").expect("valid pulse objective regex");
+    let direct_re = Regex::new(r"(?i)\bdirective:([A-Za-z0-9_]+)").expect("valid direct objective regex");
+    let fallback_re = Regex::new(r"\b(T[0-9]_[A-Za-z0-9_]+)\b").expect("valid fallback objective regex");
+    for row in input.evidence_refs.iter() {
+        let reference = normalize_spaces(row);
+        if reference.is_empty() {
+            continue;
+        }
+        let pulse_match = pulse_re
+            .captures(&reference)
+            .and_then(|caps| caps.get(1))
+            .map(|m| m.as_str().to_string());
+        let direct_match = direct_re
+            .captures(&reference)
+            .and_then(|caps| caps.get(1))
+            .map(|m| m.as_str().to_string());
+        let fallback_match = fallback_re
+            .captures(&reference)
+            .and_then(|caps| caps.get(1))
+            .map(|m| m.as_str().to_string());
+        let raw = normalize_spaces(
+            pulse_match
+                .as_deref()
+                .or(direct_match.as_deref())
+                .or(fallback_match.as_deref())
+                .unwrap_or(""),
+        );
+        let sanitized = compute_sanitize_directive_objective_id(&SanitizeDirectiveObjectiveIdInput {
+            value: Some(raw),
+        });
+        if sanitized.objective_id.is_empty() {
+            continue;
+        }
+        let valid = objective_set.is_empty() || objective_set.contains(&sanitized.objective_id);
+        return ParseObjectiveIdFromEvidenceRefsOutput {
+            objective_id: Some(sanitized.objective_id),
+            source: Some("evidence_ref".to_string()),
+            valid: Some(valid),
+        };
+    }
+    ParseObjectiveIdFromEvidenceRefsOutput {
+        objective_id: None,
+        source: None,
+        valid: None,
+    }
+}
+
+pub fn compute_parse_objective_id_from_command(
+    input: &ParseObjectiveIdFromCommandInput,
+) -> ParseObjectiveIdFromCommandOutput {
+    let objective_set: std::collections::BTreeSet<String> = input
+        .objective_ids
+        .iter()
+        .map(|id| id.trim().to_string())
+        .filter(|id| !id.is_empty())
+        .collect();
+    let objective_out = compute_parse_directive_objective_arg(&ParseDirectiveObjectiveArgInput {
+        command: input.command.clone(),
+    });
+    if objective_out.objective_id.is_empty() {
+        return ParseObjectiveIdFromCommandOutput {
+            objective_id: None,
+            source: None,
+            valid: None,
+        };
+    }
+    let valid = objective_set.is_empty() || objective_set.contains(&objective_out.objective_id);
+    ParseObjectiveIdFromCommandOutput {
+        objective_id: Some(objective_out.objective_id),
+        source: Some("suggested_next_command".to_string()),
+        valid: Some(valid),
+    }
+}
+
+pub fn compute_objective_id_for_execution(
+    input: &ObjectiveIdForExecutionInput,
+) -> ObjectiveIdForExecutionOutput {
+    let candidates = [
+        input.objective_binding_id.as_deref().unwrap_or(""),
+        input.directive_pulse_id.as_deref().unwrap_or(""),
+        input.directive_action_id.as_deref().unwrap_or(""),
+        input.meta_objective_id.as_deref().unwrap_or(""),
+        input.meta_directive_objective_id.as_deref().unwrap_or(""),
+        input.action_spec_objective_id.as_deref().unwrap_or(""),
+    ];
+    for candidate in candidates {
+        let sanitized = compute_sanitize_directive_objective_id(&SanitizeDirectiveObjectiveIdInput {
+            value: Some(candidate.to_string()),
+        });
+        if !sanitized.objective_id.is_empty() {
+            return ObjectiveIdForExecutionOutput {
+                objective_id: Some(sanitized.objective_id),
+            };
+        }
+    }
+    ObjectiveIdForExecutionOutput { objective_id: None }
+}
+
+pub fn compute_short_text(input: &ShortTextInput) -> ShortTextOutput {
+    let text = input.value.as_deref().unwrap_or("").to_string();
+    let max = input
+        .max_len
+        .and_then(|v| if v.is_finite() && v >= 0.0 { Some(v as usize) } else { None })
+        .unwrap_or(220usize);
+    if text.chars().count() <= max {
+        return ShortTextOutput { text };
+    }
+    let truncated: String = text.chars().take(max).collect();
+    ShortTextOutput {
+        text: format!("{truncated}..."),
+    }
+}
+
+pub fn compute_normalized_signal_status(
+    input: &NormalizedSignalStatusInput,
+) -> NormalizedSignalStatusOutput {
+    let raw = normalize_spaces(input.value.as_deref().unwrap_or("")).to_ascii_lowercase();
+    if raw == "pass" || raw == "warn" || raw == "fail" {
+        return NormalizedSignalStatusOutput { status: raw };
+    }
+    let fallback = input.fallback.as_deref().unwrap_or("unknown").to_string();
+    NormalizedSignalStatusOutput { status: fallback }
+}
+
 pub fn compute_execution_reserve_snapshot(
     input: &ExecutionReserveSnapshotInput,
 ) -> ExecutionReserveSnapshotOutput {
@@ -9438,6 +9832,126 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_derive_entity_bias_encode_failed:{e}"));
+    }
+    if mode == "is_directive_clarification_proposal" {
+        let input = request
+            .is_directive_clarification_proposal_input
+            .ok_or_else(|| "autoscale_missing_is_directive_clarification_proposal_input".to_string())?;
+        let out = compute_is_directive_clarification_proposal(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "is_directive_clarification_proposal",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_is_directive_clarification_proposal_encode_failed:{e}"));
+    }
+    if mode == "is_directive_decomposition_proposal" {
+        let input = request
+            .is_directive_decomposition_proposal_input
+            .ok_or_else(|| "autoscale_missing_is_directive_decomposition_proposal_input".to_string())?;
+        let out = compute_is_directive_decomposition_proposal(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "is_directive_decomposition_proposal",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_is_directive_decomposition_proposal_encode_failed:{e}"));
+    }
+    if mode == "sanitize_directive_objective_id" {
+        let input = request
+            .sanitize_directive_objective_id_input
+            .ok_or_else(|| "autoscale_missing_sanitize_directive_objective_id_input".to_string())?;
+        let out = compute_sanitize_directive_objective_id(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "sanitize_directive_objective_id",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_sanitize_directive_objective_id_encode_failed:{e}"));
+    }
+    if mode == "parse_directive_file_arg" {
+        let input = request
+            .parse_directive_file_arg_input
+            .ok_or_else(|| "autoscale_missing_parse_directive_file_arg_input".to_string())?;
+        let out = compute_parse_directive_file_arg(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "parse_directive_file_arg",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_parse_directive_file_arg_encode_failed:{e}"));
+    }
+    if mode == "parse_directive_objective_arg" {
+        let input = request
+            .parse_directive_objective_arg_input
+            .ok_or_else(|| "autoscale_missing_parse_directive_objective_arg_input".to_string())?;
+        let out = compute_parse_directive_objective_arg(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "parse_directive_objective_arg",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_parse_directive_objective_arg_encode_failed:{e}"));
+    }
+    if mode == "parse_objective_id_from_evidence_refs" {
+        let input = request
+            .parse_objective_id_from_evidence_refs_input
+            .ok_or_else(|| "autoscale_missing_parse_objective_id_from_evidence_refs_input".to_string())?;
+        let out = compute_parse_objective_id_from_evidence_refs(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "parse_objective_id_from_evidence_refs",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_parse_objective_id_from_evidence_refs_encode_failed:{e}"));
+    }
+    if mode == "parse_objective_id_from_command" {
+        let input = request
+            .parse_objective_id_from_command_input
+            .ok_or_else(|| "autoscale_missing_parse_objective_id_from_command_input".to_string())?;
+        let out = compute_parse_objective_id_from_command(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "parse_objective_id_from_command",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_parse_objective_id_from_command_encode_failed:{e}"));
+    }
+    if mode == "objective_id_for_execution" {
+        let input = request
+            .objective_id_for_execution_input
+            .ok_or_else(|| "autoscale_missing_objective_id_for_execution_input".to_string())?;
+        let out = compute_objective_id_for_execution(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "objective_id_for_execution",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_objective_id_for_execution_encode_failed:{e}"));
+    }
+    if mode == "short_text" {
+        let input = request
+            .short_text_input
+            .ok_or_else(|| "autoscale_missing_short_text_input".to_string())?;
+        let out = compute_short_text(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "short_text",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_short_text_encode_failed:{e}"));
+    }
+    if mode == "normalized_signal_status" {
+        let input = request
+            .normalized_signal_status_input
+            .ok_or_else(|| "autoscale_missing_normalized_signal_status_input".to_string())?;
+        let out = compute_normalized_signal_status(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "normalized_signal_status",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_normalized_signal_status_encode_failed:{e}"));
     }
     if mode == "execution_reserve_snapshot" {
         let input = request
