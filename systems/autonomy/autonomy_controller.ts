@@ -3385,6 +3385,31 @@ function policyHoldPressureSnapshot(events, opts: AnyObj = {}) {
 }
 
 function policyHoldCooldownMinutesForPressure(baseMinutes, pressure) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const snapshot = pressure && typeof pressure === 'object' ? pressure : {};
+    const rust = runBacklogAutoscalePrimitive(
+      'policy_hold_cooldown',
+      {
+        base_minutes: Number(baseMinutes || 0),
+        pressure_level: String(snapshot.level || ''),
+        pressure_applicable: snapshot.applicable === true,
+        last_result: '',
+        now_ms: Date.now(),
+        cooldown_warn_minutes: AUTONOMY_POLICY_HOLD_COOLDOWN_WARN_MINUTES,
+        cooldown_hard_minutes: AUTONOMY_POLICY_HOLD_COOLDOWN_HARD_MINUTES,
+        cooldown_cap_minutes: AUTONOMY_POLICY_HOLD_COOLDOWN_CAP_MINUTES,
+        cooldown_manual_review_minutes: AUTONOMY_POLICY_HOLD_COOLDOWN_MANUAL_REVIEW_MINUTES,
+        cooldown_unchanged_state_minutes: AUTONOMY_POLICY_HOLD_COOLDOWN_UNCHANGED_STATE_MINUTES,
+        readiness_retry_minutes: Math.max(0, Math.round(Number(AUTONOMY_READINESS_RETRY_COOLDOWN_HOURS || 0) * 60)),
+        until_next_day_caps: AUTONOMY_POLICY_HOLD_COOLDOWN_UNTIL_NEXT_DAY_CAPS === true
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Math.max(0, Math.round(Number(rust.payload.payload.cooldown_minutes || 0)));
+    }
+  }
+
   let cooldown = Math.max(0, Number(baseMinutes || 0));
   const snapshot = pressure && typeof pressure === 'object' ? pressure : {};
   const level = String(snapshot.level || '').toLowerCase();
