@@ -1,5 +1,5 @@
+use fluxlattice::{init_state, morph, settle, status_map};
 use std::env;
-use fluxlattice::{init_state, settle, morph, status_map};
 
 fn print_json(map: std::collections::BTreeMap<String, String>) {
     let mut parts: Vec<String> = Vec::new();

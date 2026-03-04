@@ -29,7 +29,8 @@ fn load_request_json(args: &[String]) -> Result<String, String> {
         return Ok(text);
     }
     if let Some(v) = parse_arg(args, "--request-file") {
-        return fs::read_to_string(v.as_str()).map_err(|err| format!("request_file_read_failed:{err}"));
+        return fs::read_to_string(v.as_str())
+            .map_err(|err| format!("request_file_read_failed:{err}"));
     }
     Err("missing_request_payload".to_string())
 }
@@ -103,8 +104,7 @@ fn main() {
         },
         "demo" => {
             let request = demo_request();
-            let request_json = serde_json::to_string(&request)
-                .unwrap_or_else(|_| "{}".to_string());
+            let request_json = serde_json::to_string(&request).unwrap_or_else(|_| "{}".to_string());
             match evaluate_vault_policy_json(&request_json) {
                 Ok(payload) => println!("{}", payload),
                 Err(err) => {

@@ -118,7 +118,12 @@ fn topo_order(nodes: &[GraphNode], edges: &[GraphEdge]) -> (Vec<String>, bool) {
     (ordered, cyclic)
 }
 
-fn digest_receipt(workflow_id: &str, ordered: &[String], cyclic: bool, warnings: &[String]) -> String {
+fn digest_receipt(
+    workflow_id: &str,
+    ordered: &[String],
+    cyclic: bool,
+    warnings: &[String],
+) -> String {
     let mut hasher = Sha256::new();
     hasher.update(workflow_id.as_bytes());
     for (idx, node) in ordered.iter().enumerate() {
@@ -171,7 +176,10 @@ pub fn viz_dot(yaml: &str) -> Result<String, String> {
     let workflow: GraphWorkflow =
         serde_yaml::from_str(yaml).map_err(|e| format!("workflow_parse_failed:{e}"))?;
     let mut lines = Vec::<String>::new();
-    lines.push(format!("digraph {} {{", normalize_id(&workflow.workflow_id)));
+    lines.push(format!(
+        "digraph {} {{",
+        normalize_id(&workflow.workflow_id)
+    ));
     let mut seen = BTreeSet::<String>::new();
     for node in &workflow.nodes {
         let id = normalize_id(&node.id);

@@ -4,12 +4,12 @@ use db::{DbIndexEntry, HotStateEnvelopeStats, MemoryDb};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::cmp::Ordering;
 use std::collections::hash_map::DefaultHasher;
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::hash::{Hash, Hasher};
-use std::cmp::Ordering;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
@@ -244,7 +244,10 @@ fn is_date_memory_file(v: &str) -> bool {
 }
 
 fn normalize_file_ref(v: &str) -> String {
-    let mut raw = clean_cell(v).trim_matches('"').trim_matches('\'').to_string();
+    let mut raw = clean_cell(v)
+        .trim_matches('"')
+        .trim_matches('\'')
+        .to_string();
     if raw.is_empty() {
         return String::new();
     }
@@ -309,7 +312,10 @@ fn parse_index_file(file_path: &Path) -> Vec<IndexEntry> {
             continue;
         }
 
-        let normalized = cells.iter().map(|c| normalize_header_cell(c)).collect::<Vec<String>>();
+        let normalized = cells
+            .iter()
+            .map(|c| normalize_header_cell(c))
+            .collect::<Vec<String>>();
         if normalized.iter().any(|h| h == "node_id") && normalized.iter().any(|h| h == "file") {
             headers = Some(normalized);
             continue;
@@ -320,7 +326,10 @@ fn parse_index_file(file_path: &Path) -> Vec<IndexEntry> {
 
         let mut row: HashMap<String, String> = HashMap::new();
         for (idx, key) in hdr.iter().enumerate() {
-            row.insert(key.clone(), clean_cell(cells.get(idx).unwrap_or(&String::new())));
+            row.insert(
+                key.clone(),
+                clean_cell(cells.get(idx).unwrap_or(&String::new())),
+            );
         }
 
         let node_id = normalize_node_id(row.get("node_id").map_or("", String::as_str));
@@ -469,7 +478,10 @@ fn parse_tags_file(file_path: &Path) -> HashMap<String, HashSet<String>> {
 }
 
 fn load_tags_index(root: &Path) -> (Vec<String>, HashMap<String, HashSet<String>>) {
-    let paths = vec![root.join("TAGS_INDEX.md"), root.join("memory").join("TAGS_INDEX.md")];
+    let paths = vec![
+        root.join("TAGS_INDEX.md"),
+        root.join("memory").join("TAGS_INDEX.md"),
+    ];
     let mut source = vec![];
     let mut out: HashMap<String, HashSet<String>> = HashMap::new();
     for p in paths {
@@ -724,15 +736,16 @@ fn build_tag_map_from_entries(entries: &[IndexEntry]) -> HashMap<String, HashSet
             if tag.is_empty() {
                 continue;
             }
-            out.entry(tag)
-                .or_default()
-                .insert(entry.node_id.clone());
+            out.entry(tag).or_default().insert(entry.node_id.clone());
         }
     }
     out
 }
 
-fn build_embedding_map_from_entries(entries: &[IndexEntry], dims: usize) -> HashMap<String, Vec<f32>> {
+fn build_embedding_map_from_entries(
+    entries: &[IndexEntry],
+    dims: usize,
+) -> HashMap<String, Vec<f32>> {
     let mut out = HashMap::new();
     for entry in entries {
         let vector = build_entry_embedding(entry, dims);
@@ -795,7 +808,10 @@ fn publish_memory_event(root: &Path, event: &str, payload: serde_json::Value) {
     if event_id.is_empty() {
         return;
     }
-    let script = root.join("systems").join("ops").join("event_sourced_control_plane.js");
+    let script = root
+        .join("systems")
+        .join("ops")
+        .join("event_sourced_control_plane.js");
     if !script.exists() {
         return;
     }
@@ -898,8 +914,14 @@ fn load_runtime_index(root: &Path, args: &HashMap<String, String>) -> RuntimeInd
         }
         if let Ok(db_rows) = db.load_index_entries() {
             if !db_rows.is_empty() {
-                out.entries = db_rows.iter().map(from_db_index_entry).collect::<Vec<IndexEntry>>();
-                let sqlite_path = out.sqlite_path.clone().unwrap_or_else(|| "sqlite".to_string());
+                out.entries = db_rows
+                    .iter()
+                    .map(from_db_index_entry)
+                    .collect::<Vec<IndexEntry>>();
+                let sqlite_path = out
+                    .sqlite_path
+                    .clone()
+                    .unwrap_or_else(|| "sqlite".to_string());
                 out.index_sources = vec![format!("sqlite:{sqlite_path}")];
                 out.tag_map = build_tag_map_from_entries(&out.entries);
                 out.tag_sources = vec![format!("sqlite:{sqlite_path}")];
@@ -968,7 +990,9 @@ fn load_working_set_cache(cache_path: &str) -> WorkingSetCache {
 }
 
 fn cache_size_bytes(cache: &WorkingSetCache) -> usize {
-    serde_json::to_vec(cache).map(|bytes| bytes.len()).unwrap_or(0)
+    serde_json::to_vec(cache)
+        .map(|bytes| bytes.len())
+        .unwrap_or(0)
 }
 
 fn prune_working_set_cache(cache: &mut WorkingSetCache, max_bytes: usize) {
@@ -1072,7 +1096,9 @@ fn parse_kv_args(args: &[String]) -> HashMap<String, String> {
 }
 
 fn arg_or_default(args: &HashMap<String, String>, key: &str, fallback: &str) -> String {
-    args.get(key).cloned().unwrap_or_else(|| fallback.to_string())
+    args.get(key)
+        .cloned()
+        .unwrap_or_else(|| fallback.to_string())
 }
 
 fn arg_any<'a>(args: &'a HashMap<String, String>, keys: &[&str]) -> String {
@@ -1328,8 +1354,16 @@ fn sort_entries_for_get(entries: &mut [IndexEntry]) {
         if db != da {
             return db.cmp(&da);
         }
-        let aa = if a.file_rel.contains("/_archive/") { 1 } else { 0 };
-        let bb = if b.file_rel.contains("/_archive/") { 1 } else { 0 };
+        let aa = if a.file_rel.contains("/_archive/") {
+            1
+        } else {
+            0
+        };
+        let bb = if b.file_rel.contains("/_archive/") {
+            1
+        } else {
+            0
+        };
         if aa != bb {
             return aa.cmp(&bb);
         }
@@ -1426,7 +1460,8 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
     let mut scored = candidates
         .iter()
         .map(|entry| {
-            let (lexical_score, mut reasons) = score_entry(entry, &query_tokens, &tag_filters, &tag_node_ids);
+            let (lexical_score, mut reasons) =
+                score_entry(entry, &query_tokens, &tag_filters, &tag_node_ids);
             let vector_score = if vector_enabled {
                 if let Some(entry_vector) = embeddings.get(&entry.node_id) {
                     let similarity = cosine_similarity(&query_vector, entry_vector);
@@ -1445,7 +1480,9 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
                 0
             };
             let fused_score = if vector_enabled {
-                lexical_score.saturating_mul(1000).saturating_add(vector_score)
+                lexical_score
+                    .saturating_mul(1000)
+                    .saturating_add(vector_score)
             } else {
                 lexical_score
             };
@@ -1500,12 +1537,7 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
                 continue;
             }
             let section_pair = if cache.is_some() {
-                load_section_cached(
-                    &root,
-                    &hit.file,
-                    &hit.node_id,
-                    cache.as_mut(),
-                )
+                load_section_cached(&root, &hit.file, &hit.node_id, cache.as_mut())
             } else {
                 let content = if let Some(cached) = file_cache.get(&hit.file) {
                     cached.clone()
@@ -1549,7 +1581,11 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
     QueryResult {
         ok: true,
         backend: "protheus_memory_core".to_string(),
-        score_mode: if vector_enabled { "hybrid".to_string() } else { "lexical".to_string() },
+        score_mode: if vector_enabled {
+            "hybrid".to_string()
+        } else {
+            "lexical".to_string()
+        },
         vector_enabled,
         entries_total: entries.len(),
         candidates_total: candidates.len(),
@@ -1561,7 +1597,10 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
 
 fn run_query_index(args: &HashMap<String, String>) {
     let out = query_index_payload(args);
-    println!("{}", serde_json::to_string(&out).expect("serialize query result"));
+    println!(
+        "{}",
+        serde_json::to_string(&out).expect("serialize query result")
+    );
 }
 
 fn get_node_payload(args: &HashMap<String, String>) -> (serde_json::Value, i32) {
@@ -1619,12 +1658,7 @@ fn get_node_payload(args: &HashMap<String, String>) -> (serde_json::Value, i32) 
         );
     };
 
-    let section_pair = load_section_cached(
-        &root,
-        &entry.file_rel,
-        &entry.node_id,
-        cache.as_mut(),
-    );
+    let section_pair = load_section_cached(&root, &entry.file_rel, &entry.node_id, cache.as_mut());
     let (section, section_hash) = match section_pair {
         Ok(pair) => pair,
         Err(reason) => {
@@ -1751,11 +1785,18 @@ fn build_index_payload(args: &HashMap<String, String>) -> BuildIndexResult {
                 let embedding_written = db
                     .replace_embeddings(&embedding_rows, "daily_scan_build_index")
                     .unwrap_or(0);
-                let _ = db.set_hot_state_json("build_index_memory_sha256", &json!(sha256_hex(&memory_index_md)));
-                let _ = db.set_hot_state_json("build_index_tags_sha256", &json!(sha256_hex(&tags_index_md)));
+                let _ = db.set_hot_state_json(
+                    "build_index_memory_sha256",
+                    &json!(sha256_hex(&memory_index_md)),
+                );
+                let _ = db.set_hot_state_json(
+                    "build_index_tags_sha256",
+                    &json!(sha256_hex(&tags_index_md)),
+                );
                 let _ = db.set_hot_state_json("build_index_node_count", &json!(entries.len()));
                 let _ = db.set_hot_state_json("build_index_tag_count", &json!(tag_count));
-                let _ = db.set_hot_state_json("build_index_embedding_count", &json!(embedding_written));
+                let _ =
+                    db.set_hot_state_json("build_index_embedding_count", &json!(embedding_written));
                 publish_memory_event(
                     &root,
                     "rust_memory_build_index",
@@ -2042,8 +2083,9 @@ fn run_daemon(args: &HashMap<String, String>) {
                 false,
             ),
             "verify-envelope" => (
-                serde_json::to_value(verify_envelope_payload(&req_args))
-                    .unwrap_or_else(|_| json!({"ok": false, "error": "verify_envelope_serialize_failed"})),
+                serde_json::to_value(verify_envelope_payload(&req_args)).unwrap_or_else(
+                    |_| json!({"ok": false, "error": "verify_envelope_serialize_failed"}),
+                ),
                 false,
             ),
             "set-hot-state" => (set_hot_state_payload(&req_args), false),

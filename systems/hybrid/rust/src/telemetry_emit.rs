@@ -41,7 +41,11 @@ pub fn aggregate(metrics: &[Metric]) -> serde_json::Value {
     }
     let p95 = percentile(&latencies, 0.95);
     let p99 = percentile(&latencies, 0.99);
-    let error_rate = if total == 0 { 0.0 } else { errors as f64 / total as f64 };
+    let error_rate = if total == 0 {
+        0.0
+    } else {
+        errors as f64 / total as f64
+    };
     json!({
         "sample_count": total,
         "latency_p95_ms": p95,
@@ -52,12 +56,30 @@ pub fn aggregate(metrics: &[Metric]) -> serde_json::Value {
 
 pub fn sample_report() -> serde_json::Value {
     let samples = vec![
-        Metric { name: "latency_ms".into(), value: 18.0 },
-        Metric { name: "latency_ms".into(), value: 22.0 },
-        Metric { name: "latency_ms".into(), value: 44.0 },
-        Metric { name: "latency_ms".into(), value: 31.0 },
-        Metric { name: "error".into(), value: 0.0 },
-        Metric { name: "error".into(), value: 1.0 },
+        Metric {
+            name: "latency_ms".into(),
+            value: 18.0,
+        },
+        Metric {
+            name: "latency_ms".into(),
+            value: 22.0,
+        },
+        Metric {
+            name: "latency_ms".into(),
+            value: 44.0,
+        },
+        Metric {
+            name: "latency_ms".into(),
+            value: 31.0,
+        },
+        Metric {
+            name: "error".into(),
+            value: 0.0,
+        },
+        Metric {
+            name: "error".into(),
+            value: 1.0,
+        },
     ];
 
     let started = Instant::now();
@@ -82,11 +104,25 @@ mod tests {
     #[test]
     fn aggregate_has_percentiles() {
         let data = vec![
-            Metric { name: "latency_ms".into(), value: 10.0 },
-            Metric { name: "latency_ms".into(), value: 20.0 },
-            Metric { name: "error".into(), value: 1.0 },
+            Metric {
+                name: "latency_ms".into(),
+                value: 10.0,
+            },
+            Metric {
+                name: "latency_ms".into(),
+                value: 20.0,
+            },
+            Metric {
+                name: "error".into(),
+                value: 1.0,
+            },
         ];
         let out = aggregate(&data);
-        assert!(out.get("latency_p95_ms").and_then(|v| v.as_f64()).unwrap_or(0.0) > 0.0);
+        assert!(
+            out.get("latency_p95_ms")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0)
+                > 0.0
+        );
     }
 }

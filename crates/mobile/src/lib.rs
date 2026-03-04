@@ -6,7 +6,9 @@ use protheus_observability_core_v1::{run_chaos_resilience, ChaosScenarioRequest,
 use protheus_pinnacle_core_v1::merge_delta;
 use protheus_red_legion_core_v1::{run_chaos_game, ChaosGameRequest};
 use protheus_swarm_core_v1::{orchestrate_swarm, SwarmAgent, SwarmRequest, SwarmTask};
-use protheus_vault_core_v1::{evaluate_vault_policy, load_embedded_vault_policy, VaultOperationRequest};
+use protheus_vault_core_v1::{
+    evaluate_vault_policy, load_embedded_vault_policy, VaultOperationRequest,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -92,7 +94,11 @@ pub fn run_mobile_cycle(request: Option<MobileCycleRequest>) -> Result<MobileCyc
         .to_string();
         let receipt = run_workflow(&wf);
         subsystem_status.push(format!("execution:{}", receipt.status));
-        sovereignty_components.push(if receipt.status == "completed" { 92.0 } else { 55.0 });
+        sovereignty_components.push(if receipt.status == "completed" {
+            92.0
+        } else {
+            55.0
+        });
     }
 
     if request.run_pinnacle {
@@ -251,19 +257,16 @@ pub fn run_mobile_cycle(request: Option<MobileCycleRequest>) -> Result<MobileCyc
     let sovereignty_index_pct = if sovereignty_components.is_empty() {
         0.0
     } else {
-        round3(
-            sovereignty_components.iter().sum::<f64>() / sovereignty_components.len() as f64,
-        )
+        round3(sovereignty_components.iter().sum::<f64>() / sovereignty_components.len() as f64)
     };
 
     let battery_pct_24h = round3(
-        0.55
-            + ((capped_cycles as f64 / 220000.0) * 1.65)
-            + (subsystem_status.len() as f64 * 0.19),
+        0.55 + ((capped_cycles as f64 / 220000.0) * 1.65) + (subsystem_status.len() as f64 * 0.19),
     );
     let within_budget = battery_pct_24h <= profile.battery_budget_pct_24h;
 
-    let fail_closed = profile.enforce_fail_closed && (!within_budget || sovereignty_index_pct < 55.0);
+    let fail_closed =
+        profile.enforce_fail_closed && (!within_budget || sovereignty_index_pct < 55.0);
 
     let mut report = MobileCycleReport {
         cycle_id: request.cycle_id,

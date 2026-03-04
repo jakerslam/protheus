@@ -1,8 +1,7 @@
 mod blob;
 
 use protheus_memory_core_v6::{
-    load_embedded_observability_profile as load_embedded_profile_from_memory,
-    EmbeddedChaosHook,
+    load_embedded_observability_profile as load_embedded_profile_from_memory, EmbeddedChaosHook,
     EmbeddedObservabilityProfile,
 };
 use serde::{Deserialize, Serialize};
@@ -151,7 +150,11 @@ fn channel_triggered(channel: &str, events: &[TraceEvent]) -> bool {
     })
 }
 
-fn hook_triggered(hook: &EmbeddedChaosHook, trace: &TraceWindowReport, events: &[TraceEvent]) -> bool {
+fn hook_triggered(
+    hook: &EmbeddedChaosHook,
+    trace: &TraceWindowReport,
+    events: &[TraceEvent],
+) -> bool {
     if !hook.enabled {
         return false;
     }
@@ -225,8 +228,10 @@ fn reliability_component(events: &[TraceEvent], accepted_events: usize) -> f64 {
     score.clamp(0.0, 100.0)
 }
 
-pub fn load_embedded_observability_profile() -> Result<EmbeddedObservabilityProfile, ObservabilityError> {
-    load_embedded_profile_from_memory().map_err(|err| ObservabilityError::ProfileLoadFailed(err.to_string()))
+pub fn load_embedded_observability_profile(
+) -> Result<EmbeddedObservabilityProfile, ObservabilityError> {
+    load_embedded_profile_from_memory()
+        .map_err(|err| ObservabilityError::ProfileLoadFailed(err.to_string()))
 }
 
 pub fn evaluate_trace_window(
@@ -306,7 +311,8 @@ pub fn compute_sovereignty_index(
         (signed as f64 / accepted_events.len() as f64) * 100.0
     };
 
-    let continuity_component_pct = continuity_component(&accepted_events, profile.stream_policy.trace_window_ms);
+    let continuity_component_pct =
+        continuity_component(&accepted_events, profile.stream_policy.trace_window_ms);
     let reliability_component_pct = reliability_component(events, trace_report.accepted_events);
 
     let fault_penalty = if inject_fault_every == 0 {
@@ -354,7 +360,8 @@ pub fn compute_sovereignty_index(
     }
 
     let threshold = profile.sovereignty_scorer.fail_closed_threshold_pct as f64;
-    let fail_closed = (score_pct < threshold && enforce_fail_closed) || (tamper_critical && enforce_fail_closed);
+    let fail_closed =
+        (score_pct < threshold && enforce_fail_closed) || (tamper_critical && enforce_fail_closed);
     let status = if fail_closed {
         "fail_closed".to_string()
     } else if score_pct < threshold {
@@ -479,7 +486,9 @@ pub fn load_embedded_observability_profile_json() -> Result<String, Observabilit
 
 fn c_str_to_string(ptr: *const c_char) -> Result<String, ObservabilityError> {
     if ptr.is_null() {
-        return Err(ObservabilityError::InvalidRequest("null_pointer".to_string()));
+        return Err(ObservabilityError::InvalidRequest(
+            "null_pointer".to_string(),
+        ));
     }
     // SAFETY: caller owns pointer and guarantees NUL-terminated string.
     let s = unsafe { CStr::from_ptr(ptr) }
@@ -501,10 +510,11 @@ fn into_c_string_ptr(payload: String) -> *mut c_char {
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
 pub extern "C" fn run_chaos_resilience_ffi(request_json: *const c_char) -> *mut c_char {
-    let payload = match c_str_to_string(request_json).and_then(|req| run_chaos_resilience_json(&req)) {
-        Ok(v) => v,
-        Err(err) => serde_json::json!({ "ok": false, "error": err.to_string() }).to_string(),
-    };
+    let payload =
+        match c_str_to_string(request_json).and_then(|req| run_chaos_resilience_json(&req)) {
+            Ok(v) => v,
+            Err(err) => serde_json::json!({ "ok": false, "error": err.to_string() }).to_string(),
+        };
     into_c_string_ptr(payload)
 }
 

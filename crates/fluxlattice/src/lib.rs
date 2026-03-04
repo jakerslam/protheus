@@ -21,20 +21,28 @@ impl FluxState {
 
 pub fn init_state(id: &str) -> FluxState {
     let mut state = FluxState::new(id);
-    state.metadata.insert("phase".to_string(), "initialized".to_string());
+    state
+        .metadata
+        .insert("phase".to_string(), "initialized".to_string());
     state
 }
 
 pub fn settle(mut state: FluxState, target: &str) -> FluxState {
     state.settled = true;
-    state.metadata.insert("target".to_string(), target.to_string());
-    state.metadata.insert("phase".to_string(), "settled".to_string());
+    state
+        .metadata
+        .insert("target".to_string(), target.to_string());
+    state
+        .metadata
+        .insert("phase".to_string(), "settled".to_string());
     state
 }
 
 pub fn morph(mut state: FluxState, morphology: &str) -> FluxState {
     state.morphology = morphology.to_string();
-    state.metadata.insert("phase".to_string(), "morphed".to_string());
+    state
+        .metadata
+        .insert("phase".to_string(), "morphed".to_string());
     state
 }
 
@@ -44,7 +52,7 @@ pub fn status_map(state: &FluxState) -> BTreeMap<String, String> {
     map.insert("settled".to_string(), state.settled.to_string());
     map.insert("morphology".to_string(), state.morphology.clone());
     for (k, v) in state.metadata.iter() {
-      map.insert(format!("meta_{}", k), v.clone());
+        map.insert(format!("meta_{}", k), v.clone());
     }
     map
 }

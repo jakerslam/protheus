@@ -22,7 +22,12 @@ fn decode_payload(raw: String) -> Result<String, String> {
     String::from_utf8(bytes).map_err(|e| format!("utf8_decode_failed:{e}"))
 }
 
-fn load_json_arg(args: &[String], raw_key: &str, b64_key: &str, file_key: &str) -> Result<String, String> {
+fn load_json_arg(
+    args: &[String],
+    raw_key: &str,
+    b64_key: &str,
+    file_key: &str,
+) -> Result<String, String> {
     if let Some(v) = parse_arg(args, raw_key) {
         return Ok(v);
     }
