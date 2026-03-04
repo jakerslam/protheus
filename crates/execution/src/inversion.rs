@@ -283,6 +283,165 @@ pub struct ConclaveHighRiskFlagsOutput {
     pub flags: Vec<String>,
 }
 
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct TokenizeTextInput {
+    #[serde(default)]
+    pub value: Option<String>,
+    #[serde(default)]
+    pub max_tokens: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct TokenizeTextOutput {
+    pub tokens: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct NormalizeListInput {
+    #[serde(default)]
+    pub value: Option<Value>,
+    #[serde(default)]
+    pub max_len: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct NormalizeListOutput {
+    pub items: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct NormalizeTextListInput {
+    #[serde(default)]
+    pub value: Option<Value>,
+    #[serde(default)]
+    pub max_len: Option<i64>,
+    #[serde(default)]
+    pub max_items: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct NormalizeTextListOutput {
+    pub items: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ParseJsonFromStdoutInput {
+    #[serde(default)]
+    pub raw: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct ParseJsonFromStdoutOutput {
+    pub parsed: Option<Value>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ParseArgsInput {
+    #[serde(default)]
+    pub argv: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct ParseArgsOutput {
+    pub args: Value,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct LibraryMatchScoreInput {
+    #[serde(default)]
+    pub query_signature_tokens: Vec<String>,
+    #[serde(default)]
+    pub query_trit_vector: Vec<Value>,
+    #[serde(default)]
+    pub query_target: Option<String>,
+    #[serde(default)]
+    pub row_signature_tokens: Vec<String>,
+    #[serde(default)]
+    pub row_outcome_trit: Option<i64>,
+    #[serde(default)]
+    pub row_target: Option<String>,
+    #[serde(default)]
+    pub token_weight: Option<f64>,
+    #[serde(default)]
+    pub trit_weight: Option<f64>,
+    #[serde(default)]
+    pub target_weight: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct LibraryMatchScoreOutput {
+    pub score: f64,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct KnownFailurePressureInput {
+    #[serde(default)]
+    pub candidates: Vec<Value>,
+    #[serde(default)]
+    pub failed_repetition_similarity_block: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct KnownFailurePressureOutput {
+    pub fail_count: i64,
+    pub hard_block: bool,
+    pub max_similarity: f64,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct HasSignalTermMatchInput {
+    #[serde(default)]
+    pub haystack: Option<String>,
+    #[serde(default)]
+    pub token_set: Vec<String>,
+    #[serde(default)]
+    pub term: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct HasSignalTermMatchOutput {
+    pub matched: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct CountAxiomSignalGroupsInput {
+    #[serde(default)]
+    pub action_terms: Vec<String>,
+    #[serde(default)]
+    pub subject_terms: Vec<String>,
+    #[serde(default)]
+    pub object_terms: Vec<String>,
+    #[serde(default)]
+    pub min_signal_groups: Option<i64>,
+    #[serde(default)]
+    pub haystack: Option<String>,
+    #[serde(default)]
+    pub token_set: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct CountAxiomSignalGroupsOutput {
+    pub configured_groups: i64,
+    pub matched_groups: i64,
+    pub required_groups: i64,
+    pub pass: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct EffectiveFirstNHumanVetoUsesInput {
+    #[serde(default)]
+    pub first_live_uses_require_human_veto: Option<Value>,
+    #[serde(default)]
+    pub minimum_first_live_uses_require_human_veto: Option<Value>,
+    #[serde(default)]
+    pub target: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct EffectiveFirstNHumanVetoUsesOutput {
+    pub uses: i64,
+}
+
 fn normalize_token(raw: &str, max_len: usize) -> String {
     let collapsed = raw
         .split_whitespace()
@@ -913,6 +1072,317 @@ pub fn compute_conclave_high_risk_flags(
     ConclaveHighRiskFlagsOutput { flags }
 }
 
+fn dedupe_preserve_order(values: Vec<String>) -> Vec<String> {
+    let mut out = Vec::new();
+    for value in values {
+        if value.is_empty() {
+            continue;
+        }
+        if !out.iter().any(|existing| existing == &value) {
+            out.push(value);
+        }
+    }
+    out
+}
+
+fn value_to_csv_list(value: Option<&Value>) -> Vec<String> {
+    let Some(v) = value else {
+        return Vec::new();
+    };
+    if let Some(arr) = v.as_array() {
+        return arr
+            .iter()
+            .map(|row| value_to_string(Some(row)))
+            .collect::<Vec<_>>();
+    }
+    value_to_string(Some(v))
+        .split(',')
+        .map(|row| row.to_string())
+        .collect::<Vec<_>>()
+}
+
+pub fn compute_tokenize_text(input: &TokenizeTextInput) -> TokenizeTextOutput {
+    let max_tokens = input.max_tokens.unwrap_or(64).clamp(0, 256) as usize;
+    let text = clean_text_runtime(input.value.as_deref().unwrap_or(""), 1200).to_lowercase();
+    let raw = text
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_lowercase() || ch.is_ascii_digit() {
+                ch
+            } else {
+                ' '
+            }
+        })
+        .collect::<String>();
+    let tokens = dedupe_preserve_order(
+        raw.split(' ')
+            .map(|row| row.trim())
+            .filter(|row| row.len() >= 3)
+            .map(|row| row.to_string())
+            .collect::<Vec<_>>(),
+    )
+    .into_iter()
+    .take(max_tokens)
+    .collect::<Vec<_>>();
+    TokenizeTextOutput { tokens }
+}
+
+pub fn compute_normalize_list(input: &NormalizeListInput) -> NormalizeListOutput {
+    let max_len = input.max_len.unwrap_or(80).clamp(1, 400) as usize;
+    let mut values = value_to_csv_list(input.value.as_ref())
+        .iter()
+        .map(|row| normalize_token_runtime(row, max_len))
+        .filter(|row| !row.is_empty())
+        .collect::<Vec<_>>();
+    values = dedupe_preserve_order(values);
+    values.truncate(64);
+    NormalizeListOutput { items: values }
+}
+
+pub fn compute_normalize_text_list(input: &NormalizeTextListInput) -> NormalizeTextListOutput {
+    let max_len = input.max_len.unwrap_or(180).clamp(1, 2000) as usize;
+    let max_items = input.max_items.unwrap_or(64).clamp(0, 1024) as usize;
+    let mut out = Vec::new();
+    for row in value_to_csv_list(input.value.as_ref()) {
+        let next = clean_text_runtime(&row, max_len);
+        if next.is_empty() {
+            continue;
+        }
+        if out.iter().any(|existing| existing == &next) {
+            continue;
+        }
+        out.push(next);
+        if out.len() >= max_items {
+            break;
+        }
+    }
+    NormalizeTextListOutput { items: out }
+}
+
+pub fn compute_parse_json_from_stdout(input: &ParseJsonFromStdoutInput) -> ParseJsonFromStdoutOutput {
+    let text = input.raw.as_deref().unwrap_or("").trim();
+    if text.is_empty() {
+        return ParseJsonFromStdoutOutput { parsed: None };
+    }
+    if let Ok(value) = serde_json::from_str::<Value>(text) {
+        return ParseJsonFromStdoutOutput { parsed: Some(value) };
+    }
+    let lines = text
+        .split('\n')
+        .map(|row| row.trim())
+        .filter(|row| !row.is_empty())
+        .collect::<Vec<_>>();
+    for line in lines.iter().rev() {
+        if let Ok(value) = serde_json::from_str::<Value>(line) {
+            return ParseJsonFromStdoutOutput { parsed: Some(value) };
+        }
+    }
+    ParseJsonFromStdoutOutput { parsed: None }
+}
+
+pub fn compute_parse_args(input: &ParseArgsInput) -> ParseArgsOutput {
+    let mut positional = Vec::new();
+    let mut map = serde_json::Map::new();
+    let argv = &input.argv;
+    let mut idx = 0usize;
+    while idx < argv.len() {
+        let tok = argv[idx].clone();
+        if !tok.starts_with("--") {
+            positional.push(tok);
+            idx += 1;
+            continue;
+        }
+        if let Some(eq) = tok.find('=') {
+            let key = tok.chars().skip(2).take(eq - 2).collect::<String>();
+            let value = tok.chars().skip(eq + 1).collect::<String>();
+            map.insert(key, Value::String(value));
+            idx += 1;
+            continue;
+        }
+        let key = tok.chars().skip(2).collect::<String>();
+        if idx + 1 < argv.len() && !argv[idx + 1].starts_with("--") {
+            map.insert(key, Value::String(argv[idx + 1].clone()));
+            idx += 2;
+            continue;
+        }
+        map.insert(key, Value::Bool(true));
+        idx += 1;
+    }
+    map.insert(
+        "_".to_string(),
+        Value::Array(positional.into_iter().map(Value::String).collect::<Vec<_>>()),
+    );
+    ParseArgsOutput {
+        args: Value::Object(map),
+    }
+}
+
+pub fn compute_library_match_score(input: &LibraryMatchScoreInput) -> LibraryMatchScoreOutput {
+    let token_score = compute_jaccard_similarity(&JaccardSimilarityInput {
+        left_tokens: input.query_signature_tokens.clone(),
+        right_tokens: input.row_signature_tokens.clone(),
+    })
+    .similarity;
+    let trit_score = compute_trit_similarity(&TritSimilarityInput {
+        query_vector: input.query_trit_vector.clone(),
+        entry_trit: Some(Value::from(input.row_outcome_trit.unwrap_or(0))),
+    })
+    .similarity;
+    let query_target = input.query_target.as_deref().unwrap_or("");
+    let row_target = input.row_target.as_deref().unwrap_or("");
+    let target_score = if query_target == row_target { 1.0 } else { 0.0 };
+    let token_weight = input.token_weight.unwrap_or(0.0);
+    let trit_weight = input.trit_weight.unwrap_or(0.0);
+    let target_weight = input.target_weight.unwrap_or(0.0);
+    let total_weight = (token_weight + trit_weight + target_weight).max(0.0001);
+    let score =
+        ((token_score * token_weight) + (trit_score * trit_weight) + (target_score * target_weight))
+            / total_weight;
+    let score = clamp_number(score, 0.0, 1.0);
+    let score = (score * 1_000_000.0).round() / 1_000_000.0;
+    LibraryMatchScoreOutput { score }
+}
+
+pub fn compute_known_failure_pressure(input: &KnownFailurePressureInput) -> KnownFailurePressureOutput {
+    let block_similarity = input
+        .failed_repetition_similarity_block
+        .unwrap_or(0.72);
+    let mut fail_count = 0i64;
+    let mut hard_block = false;
+    let mut max_similarity = 0.0f64;
+    for candidate in &input.candidates {
+        let row = candidate
+            .as_object()
+            .and_then(|obj| obj.get("row"))
+            .and_then(|v| v.as_object());
+        let similarity = parse_number_like(candidate.as_object().and_then(|obj| obj.get("similarity")))
+            .unwrap_or(0.0);
+        if let Some(row_obj) = row {
+            let outcome = parse_number_like(row_obj.get("outcome_trit")).unwrap_or(0.0);
+            if outcome < 0.0 {
+                fail_count += 1;
+                if similarity >= block_similarity {
+                    hard_block = true;
+                }
+                if similarity > max_similarity {
+                    max_similarity = similarity;
+                }
+            }
+        }
+    }
+    let max_similarity = (max_similarity * 1_000_000.0).round() / 1_000_000.0;
+    KnownFailurePressureOutput {
+        fail_count,
+        hard_block,
+        max_similarity,
+    }
+}
+
+pub fn compute_has_signal_term_match(input: &HasSignalTermMatchInput) -> HasSignalTermMatchOutput {
+    let haystack = input.haystack.as_deref().unwrap_or("");
+    let token_set = input
+        .token_set
+        .iter()
+        .map(|row| row.to_string())
+        .collect::<BTreeSet<_>>();
+    let term = clean_text_runtime(input.term.as_deref().unwrap_or(""), 200).to_lowercase();
+    if term.is_empty() {
+        return HasSignalTermMatchOutput { matched: false };
+    }
+    let words = term
+        .split_whitespace()
+        .map(|row| regex::escape(row))
+        .filter(|row| !row.is_empty())
+        .collect::<Vec<_>>();
+    if words.is_empty() {
+        return HasSignalTermMatchOutput { matched: false };
+    }
+    let phrase_re = Regex::new(&format!(r"\b{}\b", words.join(r"\s+"))).ok();
+    if let Some(re) = phrase_re {
+        if re.is_match(haystack) {
+            return HasSignalTermMatchOutput { matched: true };
+        }
+    }
+    let parts = term.split_whitespace().collect::<Vec<_>>();
+    if parts.len() == 1 {
+        return HasSignalTermMatchOutput {
+            matched: token_set.contains(parts[0]),
+        };
+    }
+    HasSignalTermMatchOutput {
+        matched: parts.iter().all(|part| token_set.contains(*part)),
+    }
+}
+
+pub fn compute_count_axiom_signal_groups(
+    input: &CountAxiomSignalGroupsInput,
+) -> CountAxiomSignalGroupsOutput {
+    let normalize_terms = |rows: &Vec<String>| -> Vec<String> {
+        rows.iter()
+            .map(|row| clean_text_runtime(row, 200).to_lowercase())
+            .filter(|row| !row.is_empty())
+            .take(32)
+            .collect::<Vec<_>>()
+    };
+    let groups = vec![
+        normalize_terms(&input.action_terms),
+        normalize_terms(&input.subject_terms),
+        normalize_terms(&input.object_terms),
+    ];
+    let haystack = input.haystack.as_deref().unwrap_or("");
+    let token_set = input
+        .token_set
+        .iter()
+        .map(|row| row.to_string())
+        .collect::<Vec<_>>();
+    let mut matched = 0i64;
+    let configured = groups.iter().filter(|terms| !terms.is_empty()).count() as i64;
+    for terms in &groups {
+        if terms.is_empty() {
+            continue;
+        }
+        let hit = terms.iter().any(|term| {
+            compute_has_signal_term_match(&HasSignalTermMatchInput {
+                haystack: Some(haystack.to_string()),
+                token_set: token_set.clone(),
+                term: Some(term.to_string()),
+            })
+            .matched
+        });
+        if hit {
+            matched += 1;
+        }
+    }
+    let required_default = configured;
+    let required = input
+        .min_signal_groups
+        .unwrap_or(required_default)
+        .clamp(0, 3);
+    CountAxiomSignalGroupsOutput {
+        configured_groups: configured,
+        matched_groups: matched,
+        required_groups: required,
+        pass: matched >= required,
+    }
+}
+
+pub fn compute_effective_first_n_human_veto_uses(
+    input: &EffectiveFirstNHumanVetoUsesInput,
+) -> EffectiveFirstNHumanVetoUsesOutput {
+    let key = normalize_token(input.target.as_deref().unwrap_or("tactical"), 24);
+    let configured = read_rank_key(input.first_live_uses_require_human_veto.as_ref(), &key, 0)
+        .clamp(0, 100_000);
+    let minimum = read_rank_key(
+        input.minimum_first_live_uses_require_human_veto.as_ref(),
+        &key,
+        0,
+    )
+    .clamp(0, 100_000);
+    EffectiveFirstNHumanVetoUsesOutput {
+        uses: configured.max(minimum),
+    }
+}
+
 fn decode_input<T>(payload: &Value, key: &str) -> Result<T, String>
 where
     T: for<'de> Deserialize<'de> + Default,
@@ -1140,6 +1610,108 @@ pub fn run_inversion_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("inversion_encode_conclave_high_risk_flags_failed:{e}"));
+    }
+    if mode == "tokenize_text" {
+        let input: TokenizeTextInput = decode_input(&payload, "tokenize_text_input")?;
+        let out = compute_tokenize_text(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "tokenize_text",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_tokenize_text_failed:{e}"));
+    }
+    if mode == "normalize_list" {
+        let input: NormalizeListInput = decode_input(&payload, "normalize_list_input")?;
+        let out = compute_normalize_list(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "normalize_list",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_normalize_list_failed:{e}"));
+    }
+    if mode == "normalize_text_list" {
+        let input: NormalizeTextListInput = decode_input(&payload, "normalize_text_list_input")?;
+        let out = compute_normalize_text_list(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "normalize_text_list",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_normalize_text_list_failed:{e}"));
+    }
+    if mode == "parse_json_from_stdout" {
+        let input: ParseJsonFromStdoutInput = decode_input(&payload, "parse_json_from_stdout_input")?;
+        let out = compute_parse_json_from_stdout(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "parse_json_from_stdout",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_parse_json_from_stdout_failed:{e}"));
+    }
+    if mode == "parse_args" {
+        let input: ParseArgsInput = decode_input(&payload, "parse_args_input")?;
+        let out = compute_parse_args(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "parse_args",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_parse_args_failed:{e}"));
+    }
+    if mode == "library_match_score" {
+        let input: LibraryMatchScoreInput = decode_input(&payload, "library_match_score_input")?;
+        let out = compute_library_match_score(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "library_match_score",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_library_match_score_failed:{e}"));
+    }
+    if mode == "known_failure_pressure" {
+        let input: KnownFailurePressureInput = decode_input(&payload, "known_failure_pressure_input")?;
+        let out = compute_known_failure_pressure(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "known_failure_pressure",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_known_failure_pressure_failed:{e}"));
+    }
+    if mode == "has_signal_term_match" {
+        let input: HasSignalTermMatchInput = decode_input(&payload, "has_signal_term_match_input")?;
+        let out = compute_has_signal_term_match(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "has_signal_term_match",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_has_signal_term_match_failed:{e}"));
+    }
+    if mode == "count_axiom_signal_groups" {
+        let input: CountAxiomSignalGroupsInput =
+            decode_input(&payload, "count_axiom_signal_groups_input")?;
+        let out = compute_count_axiom_signal_groups(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "count_axiom_signal_groups",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_count_axiom_signal_groups_failed:{e}"));
+    }
+    if mode == "effective_first_n_human_veto_uses" {
+        let input: EffectiveFirstNHumanVetoUsesInput =
+            decode_input(&payload, "effective_first_n_human_veto_uses_input")?;
+        let out = compute_effective_first_n_human_veto_uses(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "effective_first_n_human_veto_uses",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_effective_first_n_human_veto_uses_failed:{e}"));
     }
     Err(format!("inversion_mode_unsupported:{mode}"))
 }
@@ -1408,5 +1980,110 @@ mod tests {
         assert!(!out.creative_lane_preferred);
         assert!(out.applied);
         assert!((out.penalty - 0.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn parser_and_tokenizer_helpers_match_contract() {
+        let tokens = compute_tokenize_text(&TokenizeTextInput {
+            value: Some("Alpha alpha beta, gamma!".to_string()),
+            max_tokens: Some(64),
+        });
+        assert_eq!(
+            tokens.tokens,
+            vec!["alpha".to_string(), "beta".to_string(), "gamma".to_string()]
+        );
+
+        let norm_list = compute_normalize_list(&NormalizeListInput {
+            value: Some(json!(["A B", "a-b", "c"])),
+            max_len: Some(80),
+        });
+        assert_eq!(
+            norm_list.items,
+            vec!["a_b".to_string(), "a-b".to_string(), "c".to_string()]
+        );
+
+        let text_list = compute_normalize_text_list(&NormalizeTextListInput {
+            value: Some(json!(" one , two , one ")),
+            max_len: Some(180),
+            max_items: Some(64),
+        });
+        assert_eq!(
+            text_list.items,
+            vec!["one".to_string(), "two".to_string()]
+        );
+
+        let parsed = compute_parse_json_from_stdout(&ParseJsonFromStdoutInput {
+            raw: Some("noise\n{\"ok\":true}".to_string()),
+        });
+        assert_eq!(parsed.parsed, Some(json!({"ok": true})));
+
+        let args = compute_parse_args(&ParseArgsInput {
+            argv: vec![
+                "--mode=test".to_string(),
+                "--target".to_string(),
+                "belief".to_string(),
+                "run".to_string(),
+            ],
+        });
+        assert_eq!(args.args["mode"], json!("test"));
+        assert_eq!(args.args["target"], json!("belief"));
+        assert_eq!(args.args["_"], json!(["run"]));
+    }
+
+    #[test]
+    fn scoring_and_signal_helpers_match_contract() {
+        let score = compute_library_match_score(&LibraryMatchScoreInput {
+            query_signature_tokens: vec!["alpha".to_string(), "beta".to_string()],
+            query_trit_vector: vec![json!(1), json!(1)],
+            query_target: Some("identity".to_string()),
+            row_signature_tokens: vec!["beta".to_string(), "gamma".to_string()],
+            row_outcome_trit: Some(1),
+            row_target: Some("identity".to_string()),
+            token_weight: Some(0.5),
+            trit_weight: Some(0.3),
+            target_weight: Some(0.2),
+        });
+        assert!((score.score - 0.666667).abs() < 1e-6);
+
+        let pressure = compute_known_failure_pressure(&KnownFailurePressureInput {
+            failed_repetition_similarity_block: Some(0.72),
+            candidates: vec![
+                json!({"row":{"outcome_trit":-1},"similarity":0.9}),
+                json!({"row":{"outcome_trit":0},"similarity":0.8}),
+            ],
+        });
+        assert_eq!(pressure.fail_count, 1);
+        assert!(pressure.hard_block);
+
+        let has_term = compute_has_signal_term_match(&HasSignalTermMatchInput {
+            haystack: Some("optimize memory safety gate".to_string()),
+            token_set: vec!["optimize".to_string(), "memory".to_string(), "safety".to_string()],
+            term: Some("memory safety".to_string()),
+        });
+        assert!(has_term.matched);
+
+        let groups = compute_count_axiom_signal_groups(&CountAxiomSignalGroupsInput {
+            action_terms: vec!["optimize".to_string()],
+            subject_terms: vec!["memory safety".to_string()],
+            object_terms: vec!["gate".to_string()],
+            min_signal_groups: Some(2),
+            haystack: Some("optimize memory safety gate".to_string()),
+            token_set: vec![
+                "optimize".to_string(),
+                "memory".to_string(),
+                "safety".to_string(),
+                "gate".to_string(),
+            ],
+        });
+        assert_eq!(groups.configured_groups, 3);
+        assert_eq!(groups.matched_groups, 3);
+        assert!(groups.pass);
+
+        let veto = compute_effective_first_n_human_veto_uses(&EffectiveFirstNHumanVetoUsesInput {
+            first_live_uses_require_human_veto: Some(json!({"identity": 2})),
+            minimum_first_live_uses_require_human_veto: Some(json!({"identity": 5})),
+            target: Some("identity".to_string()),
+        });
+        assert_eq!(veto.uses, 5);
     }
 }
