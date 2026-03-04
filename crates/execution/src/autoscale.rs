@@ -5020,6 +5020,153 @@ pub struct NormalizeStoredProposalRowOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RecentProposalKeyCountEventInput {
+    #[serde(default)]
+    pub proposal_key: Option<String>,
+    #[serde(default)]
+    pub ts_ms: Option<f64>,
+    #[serde(default)]
+    pub result: Option<String>,
+    #[serde(default)]
+    pub is_attempt: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RecentProposalKeyCountsInput {
+    #[serde(default)]
+    pub events: Vec<RecentProposalKeyCountEventInput>,
+    #[serde(default)]
+    pub cutoff_ms: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RecentProposalKeyCountsOutput {
+    pub counts: std::collections::BTreeMap<String, f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CapabilityAttemptCountEventInput {
+    #[serde(default)]
+    pub event_type: Option<String>,
+    #[serde(default)]
+    pub capability_key: Option<String>,
+    #[serde(default)]
+    pub is_attempt: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CapabilityAttemptCountForDateInput {
+    #[serde(default)]
+    pub events: Vec<CapabilityAttemptCountEventInput>,
+    #[serde(default)]
+    pub keys: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CapabilityAttemptCountForDateOutput {
+    pub count: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CapabilityOutcomeStatsEventInput {
+    #[serde(default)]
+    pub event_type: Option<String>,
+    #[serde(default)]
+    pub result: Option<String>,
+    #[serde(default)]
+    pub capability_key: Option<String>,
+    #[serde(default)]
+    pub outcome: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CapabilityOutcomeStatsInWindowInput {
+    #[serde(default)]
+    pub events: Vec<CapabilityOutcomeStatsEventInput>,
+    #[serde(default)]
+    pub keys: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CapabilityOutcomeStatsInWindowOutput {
+    pub executed: f64,
+    pub shipped: f64,
+    pub no_change: f64,
+    pub reverted: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExecuteConfidenceHistoryEventInput {
+    pub matched: bool,
+    #[serde(default)]
+    pub result: Option<String>,
+    #[serde(default)]
+    pub outcome: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExecuteConfidenceHistoryInput {
+    pub window_days: f64,
+    #[serde(default)]
+    pub proposal_type: Option<String>,
+    #[serde(default)]
+    pub capability_key: Option<String>,
+    #[serde(default)]
+    pub events: Vec<ExecuteConfidenceHistoryEventInput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExecuteConfidenceHistoryOutput {
+    pub window_days: f64,
+    #[serde(default)]
+    pub proposal_type: Option<String>,
+    #[serde(default)]
+    pub capability_key: Option<String>,
+    pub matched_events: f64,
+    pub confidence_fallback: f64,
+    pub route_blocked: f64,
+    pub executed: f64,
+    pub shipped: f64,
+    pub no_change: f64,
+    pub reverted: f64,
+    pub no_change_rate: f64,
+    pub reverted_rate: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExecuteConfidencePolicyInput {
+    #[serde(default)]
+    pub proposal_type: Option<String>,
+    #[serde(default)]
+    pub capability_key: Option<String>,
+    #[serde(default)]
+    pub risk: Option<String>,
+    #[serde(default)]
+    pub execution_mode: Option<String>,
+    pub adaptive_enabled: bool,
+    pub base_composite_margin: f64,
+    pub base_value_margin: f64,
+    pub low_risk_relax_composite: f64,
+    pub low_risk_relax_value: f64,
+    pub fallback_relax_every: f64,
+    pub fallback_relax_step: f64,
+    pub fallback_relax_max: f64,
+    pub fallback_relax_min_executed: f64,
+    pub fallback_relax_min_shipped: f64,
+    pub fallback_relax_min_ship_rate: f64,
+    pub no_change_tighten_min_executed: f64,
+    pub no_change_tighten_threshold: f64,
+    pub no_change_tighten_step: f64,
+    #[serde(default)]
+    pub history: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ExecuteConfidencePolicyOutput {
+    pub policy: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AutoscaleRequest {
     pub mode: String,
     #[serde(default)]
@@ -5532,6 +5679,16 @@ pub struct AutoscaleRequest {
     pub detect_eyes_terminology_drift_input: Option<DetectEyesTerminologyDriftInput>,
     #[serde(default)]
     pub normalize_stored_proposal_row_input: Option<NormalizeStoredProposalRowInput>,
+    #[serde(default)]
+    pub recent_proposal_key_counts_input: Option<RecentProposalKeyCountsInput>,
+    #[serde(default)]
+    pub capability_attempt_count_for_date_input: Option<CapabilityAttemptCountForDateInput>,
+    #[serde(default)]
+    pub capability_outcome_stats_in_window_input: Option<CapabilityOutcomeStatsInWindowInput>,
+    #[serde(default)]
+    pub execute_confidence_history_input: Option<ExecuteConfidenceHistoryInput>,
+    #[serde(default)]
+    pub execute_confidence_policy_input: Option<ExecuteConfidencePolicyInput>,
 }
 
 fn clamp_ratio(v: f64) -> f64 {
@@ -15206,6 +15363,330 @@ pub fn compute_normalize_stored_proposal_row(
     }
 }
 
+pub fn compute_recent_proposal_key_counts(
+    input: &RecentProposalKeyCountsInput,
+) -> RecentProposalKeyCountsOutput {
+    let cutoff_ms = input
+        .cutoff_ms
+        .filter(|value| value.is_finite())
+        .unwrap_or(0.0);
+    let mut counts = std::collections::BTreeMap::<String, f64>::new();
+    for evt in &input.events {
+        let key = evt
+            .proposal_key
+            .as_ref()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
+        let Some(key) = key else {
+            continue;
+        };
+        let ts_ms = evt.ts_ms.unwrap_or(f64::NAN);
+        if !ts_ms.is_finite() || ts_ms < cutoff_ms {
+            continue;
+        }
+        let result = evt
+            .result
+            .as_ref()
+            .map(|value| value.trim().to_string())
+            .unwrap_or_default();
+        if result != "executed"
+            && result != "score_only_preview"
+            && result != "stop_repeat_gate_circuit_breaker"
+            && !evt.is_attempt
+        {
+            continue;
+        }
+        let next = counts.get(&key).copied().unwrap_or(0.0) + 1.0;
+        counts.insert(key, next);
+    }
+    RecentProposalKeyCountsOutput { counts }
+}
+
+pub fn compute_capability_attempt_count_for_date(
+    input: &CapabilityAttemptCountForDateInput,
+) -> CapabilityAttemptCountForDateOutput {
+    let keys = input
+        .keys
+        .iter()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| !value.is_empty())
+        .collect::<std::collections::BTreeSet<_>>();
+    if keys.is_empty() {
+        return CapabilityAttemptCountForDateOutput { count: 0.0 };
+    }
+    let mut count = 0.0;
+    for evt in &input.events {
+        let event_type = evt
+            .event_type
+            .as_ref()
+            .map(|value| value.trim().to_string())
+            .unwrap_or_default();
+        if event_type != "autonomy_run" || !evt.is_attempt {
+            continue;
+        }
+        let key = evt
+            .capability_key
+            .as_ref()
+            .map(|value| value.trim().to_ascii_lowercase())
+            .unwrap_or_default();
+        if key.is_empty() {
+            continue;
+        }
+        if keys.contains(&key) {
+            count += 1.0;
+        }
+    }
+    CapabilityAttemptCountForDateOutput { count }
+}
+
+pub fn compute_capability_outcome_stats_in_window(
+    input: &CapabilityOutcomeStatsInWindowInput,
+) -> CapabilityOutcomeStatsInWindowOutput {
+    let keys = input
+        .keys
+        .iter()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| !value.is_empty())
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut out = CapabilityOutcomeStatsInWindowOutput {
+        executed: 0.0,
+        shipped: 0.0,
+        no_change: 0.0,
+        reverted: 0.0,
+    };
+    if keys.is_empty() {
+        return out;
+    }
+    for evt in &input.events {
+        let event_type = evt
+            .event_type
+            .as_ref()
+            .map(|value| value.trim().to_string())
+            .unwrap_or_default();
+        let result = evt
+            .result
+            .as_ref()
+            .map(|value| value.trim().to_string())
+            .unwrap_or_default();
+        if event_type != "autonomy_run" || result != "executed" {
+            continue;
+        }
+        let key = evt
+            .capability_key
+            .as_ref()
+            .map(|value| value.trim().to_ascii_lowercase())
+            .unwrap_or_default();
+        if key.is_empty() || !keys.contains(&key) {
+            continue;
+        }
+        out.executed += 1.0;
+        let outcome = evt
+            .outcome
+            .as_ref()
+            .map(|value| value.trim().to_ascii_lowercase())
+            .unwrap_or_default();
+        if outcome == "shipped" {
+            out.shipped += 1.0;
+        } else if outcome == "no_change" {
+            out.no_change += 1.0;
+        } else if outcome == "reverted" {
+            out.reverted += 1.0;
+        }
+    }
+    out
+}
+
+pub fn compute_execute_confidence_history(
+    input: &ExecuteConfidenceHistoryInput,
+) -> ExecuteConfidenceHistoryOutput {
+    let mut out = ExecuteConfidenceHistoryOutput {
+        window_days: input.window_days,
+        proposal_type: input
+            .proposal_type
+            .as_ref()
+            .map(|value| value.trim().to_ascii_lowercase())
+            .filter(|value| !value.is_empty()),
+        capability_key: input
+            .capability_key
+            .as_ref()
+            .map(|value| value.trim().to_ascii_lowercase())
+            .filter(|value| !value.is_empty()),
+        matched_events: 0.0,
+        confidence_fallback: 0.0,
+        route_blocked: 0.0,
+        executed: 0.0,
+        shipped: 0.0,
+        no_change: 0.0,
+        reverted: 0.0,
+        no_change_rate: 0.0,
+        reverted_rate: 0.0,
+    };
+    for evt in &input.events {
+        if !evt.matched {
+            continue;
+        }
+        out.matched_events += 1.0;
+        let result = evt
+            .result
+            .as_ref()
+            .map(|value| value.trim().to_string())
+            .unwrap_or_default();
+        if result == "score_only_fallback_low_execution_confidence" {
+            out.confidence_fallback += 1.0;
+            continue;
+        }
+        if result == "score_only_fallback_route_block" || result == "init_gate_blocked_route" {
+            out.route_blocked += 1.0;
+            continue;
+        }
+        if result != "executed" {
+            continue;
+        }
+        out.executed += 1.0;
+        let outcome = evt
+            .outcome
+            .as_ref()
+            .map(|value| value.trim().to_ascii_lowercase())
+            .unwrap_or_default();
+        if outcome == "shipped" {
+            out.shipped += 1.0;
+        } else if outcome == "no_change" {
+            out.no_change += 1.0;
+        } else if outcome == "reverted" {
+            out.reverted += 1.0;
+        }
+    }
+    if out.executed > 0.0 {
+        out.no_change_rate = ((out.no_change / out.executed) * 1000.0).round() / 1000.0;
+        out.reverted_rate = ((out.reverted / out.executed) * 1000.0).round() / 1000.0;
+    }
+    out
+}
+
+pub fn compute_execute_confidence_policy(
+    input: &ExecuteConfidencePolicyInput,
+) -> ExecuteConfidencePolicyOutput {
+    let history_obj = input
+        .history
+        .as_ref()
+        .and_then(|value| value.as_object())
+        .cloned()
+        .unwrap_or_default();
+    let history_executed = history_obj
+        .get("executed")
+        .and_then(|value| value.as_f64())
+        .unwrap_or(0.0);
+    let history_shipped = history_obj
+        .get("shipped")
+        .and_then(|value| value.as_f64())
+        .unwrap_or(0.0);
+    let history_reverted = history_obj
+        .get("reverted")
+        .and_then(|value| value.as_f64())
+        .unwrap_or(0.0);
+    let history_no_change_rate = history_obj
+        .get("no_change_rate")
+        .and_then(|value| value.as_f64())
+        .unwrap_or(0.0);
+    let history_confidence_fallback = history_obj
+        .get("confidence_fallback")
+        .and_then(|value| value.as_f64())
+        .unwrap_or(0.0);
+
+    let mut composite_margin = input.base_composite_margin.max(0.0);
+    let mut value_margin = input.base_value_margin.max(0.0);
+    let mut reasons = Vec::<String>::new();
+
+    let risk = input
+        .risk
+        .as_ref()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| value == "low" || value == "medium" || value == "high")
+        .unwrap_or_else(|| "low".to_string());
+    let execution_mode = input
+        .execution_mode
+        .as_ref()
+        .map(|value| value.trim().to_string())
+        .unwrap_or_default();
+
+    if input.adaptive_enabled && execution_mode == "canary_execute" && risk == "low" {
+        composite_margin = (composite_margin - input.low_risk_relax_composite.max(0.0)).max(0.0);
+        value_margin = (value_margin - input.low_risk_relax_value.max(0.0)).max(0.0);
+        reasons.push("low_risk_canary_relax".to_string());
+    }
+
+    if input.adaptive_enabled
+        && history_reverted <= 0.0
+        && history_confidence_fallback >= input.fallback_relax_every.max(1.0)
+    {
+        let ship_rate = if history_executed > 0.0 {
+            history_shipped / history_executed.max(1.0)
+        } else {
+            0.0
+        };
+        let relax_eligible = history_executed >= input.fallback_relax_min_executed
+            && history_shipped >= input.fallback_relax_min_shipped
+            && ship_rate >= input.fallback_relax_min_ship_rate;
+        if relax_eligible {
+            let relax_steps = (history_confidence_fallback / input.fallback_relax_every.max(1.0)).floor();
+            let relax_raw = relax_steps * input.fallback_relax_step.max(0.0);
+            let relax = relax_raw.clamp(0.0, input.fallback_relax_max.max(0.0));
+            if relax > 0.0 {
+                composite_margin = (composite_margin - relax).max(0.0);
+                value_margin = (value_margin - relax).max(0.0);
+                reasons.push("fallback_churn_relax".to_string());
+            }
+        } else {
+            reasons.push("fallback_churn_relax_blocked_low_success".to_string());
+        }
+    }
+
+    if input.adaptive_enabled
+        && history_executed >= input.no_change_tighten_min_executed
+        && history_no_change_rate >= input.no_change_tighten_threshold
+    {
+        composite_margin += input.no_change_tighten_step.max(0.0);
+        value_margin += input.no_change_tighten_step.max(0.0);
+        reasons.push("high_no_change_tighten".to_string());
+    }
+
+    if history_reverted > 0.0 {
+        composite_margin = composite_margin.max(input.base_composite_margin.max(0.0));
+        value_margin = value_margin.max(input.base_value_margin.max(0.0));
+        reasons.push("reverted_restore_base".to_string());
+    }
+
+    let ship_rate = if history_executed > 0.0 {
+        ((history_shipped / history_executed.max(1.0)) * 1000.0).round() / 1000.0
+    } else {
+        0.0
+    };
+    let policy = serde_json::json!({
+        "adaptive_enabled": input.adaptive_enabled,
+        "proposal_type": input.proposal_type.as_ref().map(|v| v.trim().to_ascii_lowercase()).filter(|v| !v.is_empty()),
+        "capability_key": input.capability_key.as_ref().map(|v| v.trim().to_ascii_lowercase()).filter(|v| !v.is_empty()),
+        "risk": risk,
+        "execution_mode": execution_mode,
+        "base": {
+            "composite_margin": input.base_composite_margin.max(0.0),
+            "value_margin": input.base_value_margin.max(0.0)
+        },
+        "applied": {
+            "composite_margin": composite_margin.max(0.0),
+            "value_margin": value_margin.max(0.0)
+        },
+        "history": history_obj,
+        "fallback_relax_eligibility": {
+            "min_executed": input.fallback_relax_min_executed,
+            "min_shipped": input.fallback_relax_min_shipped,
+            "min_ship_rate": input.fallback_relax_min_ship_rate,
+            "ship_rate": ship_rate
+        },
+        "reasons": reasons
+    });
+    ExecuteConfidencePolicyOutput { policy }
+}
+
 pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
     let request: AutoscaleRequest = serde_json::from_str(payload_json)
         .map_err(|e| format!("autoscale_request_parse_failed:{e}"))?;
@@ -18071,6 +18552,66 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_execute_confidence_cooldown_key_encode_failed:{e}"));
+    }
+    if mode == "recent_proposal_key_counts" {
+        let input = request
+            .recent_proposal_key_counts_input
+            .ok_or_else(|| "autoscale_missing_recent_proposal_key_counts_input".to_string())?;
+        let out = compute_recent_proposal_key_counts(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "recent_proposal_key_counts",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_recent_proposal_key_counts_encode_failed:{e}"));
+    }
+    if mode == "capability_attempt_count_for_date" {
+        let input = request
+            .capability_attempt_count_for_date_input
+            .ok_or_else(|| "autoscale_missing_capability_attempt_count_for_date_input".to_string())?;
+        let out = compute_capability_attempt_count_for_date(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "capability_attempt_count_for_date",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_capability_attempt_count_for_date_encode_failed:{e}"));
+    }
+    if mode == "capability_outcome_stats_in_window" {
+        let input = request
+            .capability_outcome_stats_in_window_input
+            .ok_or_else(|| "autoscale_missing_capability_outcome_stats_in_window_input".to_string())?;
+        let out = compute_capability_outcome_stats_in_window(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "capability_outcome_stats_in_window",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_capability_outcome_stats_in_window_encode_failed:{e}"));
+    }
+    if mode == "execute_confidence_history" {
+        let input = request
+            .execute_confidence_history_input
+            .ok_or_else(|| "autoscale_missing_execute_confidence_history_input".to_string())?;
+        let out = compute_execute_confidence_history(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "execute_confidence_history",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_execute_confidence_history_encode_failed:{e}"));
+    }
+    if mode == "execute_confidence_policy" {
+        let input = request
+            .execute_confidence_policy_input
+            .ok_or_else(|| "autoscale_missing_execute_confidence_policy_input".to_string())?;
+        let out = compute_execute_confidence_policy(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "execute_confidence_policy",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_execute_confidence_policy_encode_failed:{e}"));
     }
     if mode == "no_progress_result" {
         let input = request
@@ -21682,6 +22223,141 @@ mod tests {
         let out =
             run_autoscale_json(&payload).expect("autoscale execute_confidence_cooldown_key");
         assert!(out.contains("\"mode\":\"execute_confidence_cooldown_key\""));
+    }
+
+    #[test]
+    fn recent_proposal_key_counts_counts_recent_attempts() {
+        let out = compute_recent_proposal_key_counts(&RecentProposalKeyCountsInput {
+            cutoff_ms: Some(1000.0),
+            events: vec![
+                RecentProposalKeyCountEventInput {
+                    proposal_key: Some("proposal:a".to_string()),
+                    ts_ms: Some(1500.0),
+                    result: Some("executed".to_string()),
+                    is_attempt: false,
+                },
+                RecentProposalKeyCountEventInput {
+                    proposal_key: Some("proposal:a".to_string()),
+                    ts_ms: Some(1600.0),
+                    result: Some("stop_repeat_gate_candidate_exhausted".to_string()),
+                    is_attempt: true,
+                },
+                RecentProposalKeyCountEventInput {
+                    proposal_key: Some("proposal:b".to_string()),
+                    ts_ms: Some(900.0),
+                    result: Some("executed".to_string()),
+                    is_attempt: true,
+                },
+            ],
+        });
+        assert_eq!(out.counts.get("proposal:a").copied().unwrap_or(0.0), 2.0);
+        assert_eq!(out.counts.get("proposal:b").copied().unwrap_or(0.0), 0.0);
+    }
+
+    #[test]
+    fn autoscale_json_recent_proposal_key_counts_path_works() {
+        let payload = serde_json::json!({
+            "mode": "recent_proposal_key_counts",
+            "recent_proposal_key_counts_input": {
+                "cutoff_ms": 1000.0,
+                "events": [
+                    { "proposal_key": "proposal:a", "ts_ms": 1200.0, "result": "executed", "is_attempt": false }
+                ]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale recent_proposal_key_counts");
+        assert!(out.contains("\"mode\":\"recent_proposal_key_counts\""));
+    }
+
+    #[test]
+    fn autoscale_json_capability_attempt_count_for_date_path_works() {
+        let payload = serde_json::json!({
+            "mode": "capability_attempt_count_for_date",
+            "capability_attempt_count_for_date_input": {
+                "keys": ["proposal:deploy"],
+                "events": [
+                    { "event_type": "autonomy_run", "capability_key": "proposal:deploy", "is_attempt": true },
+                    { "event_type": "autonomy_run", "capability_key": "proposal:deploy", "is_attempt": false }
+                ]
+            }
+        })
+        .to_string();
+        let out =
+            run_autoscale_json(&payload).expect("autoscale capability_attempt_count_for_date");
+        assert!(out.contains("\"mode\":\"capability_attempt_count_for_date\""));
+    }
+
+    #[test]
+    fn autoscale_json_capability_outcome_stats_in_window_path_works() {
+        let payload = serde_json::json!({
+            "mode": "capability_outcome_stats_in_window",
+            "capability_outcome_stats_in_window_input": {
+                "keys": ["proposal:deploy"],
+                "events": [
+                    { "event_type": "autonomy_run", "result": "executed", "capability_key": "proposal:deploy", "outcome": "shipped" }
+                ]
+            }
+        })
+        .to_string();
+        let out =
+            run_autoscale_json(&payload).expect("autoscale capability_outcome_stats_in_window");
+        assert!(out.contains("\"mode\":\"capability_outcome_stats_in_window\""));
+    }
+
+    #[test]
+    fn autoscale_json_execute_confidence_history_path_works() {
+        let payload = serde_json::json!({
+            "mode": "execute_confidence_history",
+            "execute_confidence_history_input": {
+                "window_days": 7,
+                "proposal_type": "deploy",
+                "capability_key": "proposal:deploy",
+                "events": [
+                    { "matched": true, "result": "executed", "outcome": "no_change" }
+                ]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale execute_confidence_history");
+        assert!(out.contains("\"mode\":\"execute_confidence_history\""));
+    }
+
+    #[test]
+    fn autoscale_json_execute_confidence_policy_path_works() {
+        let payload = serde_json::json!({
+            "mode": "execute_confidence_policy",
+            "execute_confidence_policy_input": {
+                "proposal_type": "deploy",
+                "capability_key": "proposal:deploy",
+                "risk": "low",
+                "execution_mode": "canary_execute",
+                "adaptive_enabled": true,
+                "base_composite_margin": 12,
+                "base_value_margin": 8,
+                "low_risk_relax_composite": 2,
+                "low_risk_relax_value": 1,
+                "fallback_relax_every": 2,
+                "fallback_relax_step": 1,
+                "fallback_relax_max": 3,
+                "fallback_relax_min_executed": 2,
+                "fallback_relax_min_shipped": 1,
+                "fallback_relax_min_ship_rate": 0.5,
+                "no_change_tighten_min_executed": 3,
+                "no_change_tighten_threshold": 0.5,
+                "no_change_tighten_step": 1,
+                "history": {
+                    "executed": 4,
+                    "shipped": 3,
+                    "reverted": 0,
+                    "no_change_rate": 0.25,
+                    "confidence_fallback": 2
+                }
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale execute_confidence_policy");
+        assert!(out.contains("\"mode\":\"execute_confidence_policy\""));
     }
 
     #[test]
