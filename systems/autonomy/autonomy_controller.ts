@@ -5650,6 +5650,29 @@ function isoAfterMinutes(minutes) {
 
 function admissionSummaryFromProposals(proposals) {
   const arr = Array.isArray(proposals) ? proposals : [];
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'admission_summary',
+      {
+        proposals: arr.map((p) => {
+          const preview = p && p.meta && p.meta.admission_preview && typeof p.meta.admission_preview === 'object'
+            ? p.meta.admission_preview
+            : null;
+          const reasons = Array.isArray(preview && preview.blocked_by)
+            ? preview.blocked_by
+            : [];
+          return {
+            preview_eligible: preview ? preview.eligible !== false : true,
+            blocked_by: reasons.map((r) => String(r == null ? '' : r))
+          };
+        })
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
+  }
   const out = {
     total: arr.length,
     eligible: 0,
@@ -20337,6 +20360,7 @@ module.exports = {
   sortedCounts,
   sourceEyeId,
   isDeprioritizedSourceProposal,
+  admissionSummaryFromProposals,
   extractEyeFromEvidenceRef,
   clampThreshold,
   appliedThresholds,
