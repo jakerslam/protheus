@@ -1808,6 +1808,22 @@ function computeBacklogAutoscalePlan(input: AnyObj = {}) {
         trit_shadow_blocked: raw.trit_shadow_blocked === true
       };
     }
+    return {
+      action: 'hold',
+      reason: 'rust_plan_unavailable',
+      pressure: queuePressure.pressure,
+      pending: queuePressure.pending,
+      pending_ratio: queuePressure.pending_ratio,
+      current_cells: currentCells,
+      target_cells: currentCells,
+      warningPressure,
+      highPressure,
+      pressureActive,
+      cooldown_active: cooldownActive,
+      idle_release_ready: idleReleaseReady,
+      budget_blocked: autopauseActive,
+      trit_shadow_blocked: tritBlocked
+    };
   }
 
   if (tritBlocked) {
