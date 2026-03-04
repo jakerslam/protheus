@@ -1111,6 +1111,58 @@ pub struct CurrentRuntimeModeOutput {
     pub mode: String,
 }
 
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ReadDriftFromStateFileInput {
+    #[serde(default)]
+    pub file_path: Option<String>,
+    #[serde(default)]
+    pub source_path: Option<String>,
+    #[serde(default)]
+    pub payload: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct ReadDriftFromStateFileOutput {
+    pub value: f64,
+    pub source: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ResolveLensGateDriftInput {
+    #[serde(default)]
+    pub arg_candidates: Vec<Value>,
+    #[serde(default)]
+    pub probe_path: Option<String>,
+    #[serde(default)]
+    pub probe_source: Option<String>,
+    #[serde(default)]
+    pub probe_payload: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct ResolveLensGateDriftOutput {
+    pub value: f64,
+    pub source: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ResolveParityConfidenceInput {
+    #[serde(default)]
+    pub arg_candidates: Vec<Value>,
+    #[serde(default)]
+    pub path_hint: Option<String>,
+    #[serde(default)]
+    pub path_source: Option<String>,
+    #[serde(default)]
+    pub payload: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct ResolveParityConfidenceOutput {
+    pub value: f64,
+    pub source: String,
+}
+
 fn normalize_token(raw: &str, max_len: usize) -> String {
     let collapsed = raw
         .split_whitespace()
@@ -2913,6 +2965,133 @@ pub fn compute_current_runtime_mode(input: &CurrentRuntimeModeInput) -> CurrentR
     CurrentRuntimeModeOutput { mode }
 }
 
+pub fn compute_read_drift_from_state_file(
+    input: &ReadDriftFromStateFileInput,
+) -> ReadDriftFromStateFileOutput {
+    let payload = input.payload.as_ref().and_then(|v| v.as_object());
+    let source = clean_text_runtime(
+        input
+            .source_path
+            .as_deref()
+            .filter(|row| !row.is_empty())
+            .or(input.file_path.as_deref())
+            .unwrap_or("none"),
+        260,
+    );
+    if payload.is_none() {
+        return ReadDriftFromStateFileOutput { value: 0.0, source };
+    }
+    let payload_value = input.payload.as_ref();
+    let value = [
+        value_path(payload_value, &["drift_rate"]),
+        value_path(payload_value, &["predicted_drift"]),
+        value_path(payload_value, &["effective_drift_rate"]),
+        value_path(payload_value, &["checks_effective", "drift_rate", "value"]),
+        value_path(payload_value, &["checks", "drift_rate", "value"]),
+        value_path(payload_value, &["last_decision", "drift_rate"]),
+        value_path(payload_value, &["last_decision", "effective_drift_rate"]),
+        value_path(
+            payload_value,
+            &["last_decision", "checks_effective", "drift_rate", "value"],
+        ),
+    ]
+    .iter()
+    .find_map(|row| parse_number_like(*row))
+    .unwrap_or(0.0);
+    ReadDriftFromStateFileOutput {
+        value: round6(clamp_number(value, 0.0, 1.0)),
+        source,
+    }
+}
+
+pub fn compute_resolve_lens_gate_drift(
+    input: &ResolveLensGateDriftInput,
+) -> ResolveLensGateDriftOutput {
+    let arg_value = input
+        .arg_candidates
+        .iter()
+        .find_map(|row| compute_extract_numeric(&ExtractNumericInput { value: row.clone() }).value);
+    if let Some(value) = arg_value {
+        return ResolveLensGateDriftOutput {
+            value: round6(clamp_number(value, 0.0, 1.0)),
+            source: "arg".to_string(),
+        };
+    }
+    let probe_path = input.probe_path.clone().unwrap_or_default();
+    if probe_path.is_empty() {
+        return ResolveLensGateDriftOutput {
+            value: 0.0,
+            source: "none".to_string(),
+        };
+    }
+    let out = compute_read_drift_from_state_file(&ReadDriftFromStateFileInput {
+        file_path: Some(probe_path),
+        source_path: input.probe_source.clone(),
+        payload: input.probe_payload.clone(),
+    });
+    ResolveLensGateDriftOutput {
+        value: out.value,
+        source: out.source,
+    }
+}
+
+pub fn compute_resolve_parity_confidence(
+    input: &ResolveParityConfidenceInput,
+) -> ResolveParityConfidenceOutput {
+    let arg_value = input
+        .arg_candidates
+        .iter()
+        .find_map(|row| compute_extract_numeric(&ExtractNumericInput { value: row.clone() }).value);
+    if let Some(value) = arg_value {
+        return ResolveParityConfidenceOutput {
+            value: round6(clamp_number(value, 0.0, 1.0)),
+            source: "arg".to_string(),
+        };
+    }
+    let path_hint = input.path_hint.clone().unwrap_or_default();
+    if path_hint.is_empty() {
+        return ResolveParityConfidenceOutput {
+            value: 0.0,
+            source: "none".to_string(),
+        };
+    }
+    let payload = input.payload.as_ref().and_then(|v| v.as_object());
+    if payload.is_none() {
+        return ResolveParityConfidenceOutput {
+            value: 0.0,
+            source: clean_text_runtime(
+                input
+                    .path_source
+                    .as_deref()
+                    .filter(|row| !row.is_empty())
+                    .unwrap_or(&path_hint),
+                260,
+            ),
+        };
+    }
+    let payload_value = input.payload.as_ref();
+    let value = [
+        value_path(payload_value, &["confidence"]),
+        value_path(payload_value, &["parity_confidence"]),
+        value_path(payload_value, &["pass_rate"]),
+        value_path(payload_value, &["score"]),
+    ]
+    .iter()
+    .find_map(|row| parse_number_like(*row))
+    .unwrap_or(0.0);
+    ResolveParityConfidenceOutput {
+        value: round6(clamp_number(value, 0.0, 1.0)),
+        source: clean_text_runtime(
+            input
+                .path_source
+                .as_deref()
+                .filter(|row| !row.is_empty())
+                .unwrap_or(&path_hint),
+            260,
+        ),
+    }
+}
+
 pub fn compute_creative_penalty(input: &CreativePenaltyInput) -> CreativePenaltyOutput {
     let preferred = input
         .preferred_creative_lane_ids
@@ -4403,6 +4582,39 @@ pub fn run_inversion_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("inversion_encode_current_runtime_mode_failed:{e}"));
     }
+    if mode == "read_drift_from_state_file" {
+        let input: ReadDriftFromStateFileInput =
+            decode_input(&payload, "read_drift_from_state_file_input")?;
+        let out = compute_read_drift_from_state_file(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "read_drift_from_state_file",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_read_drift_from_state_file_failed:{e}"));
+    }
+    if mode == "resolve_lens_gate_drift" {
+        let input: ResolveLensGateDriftInput =
+            decode_input(&payload, "resolve_lens_gate_drift_input")?;
+        let out = compute_resolve_lens_gate_drift(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "resolve_lens_gate_drift",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_resolve_lens_gate_drift_failed:{e}"));
+    }
+    if mode == "resolve_parity_confidence" {
+        let input: ResolveParityConfidenceInput =
+            decode_input(&payload, "resolve_parity_confidence_input")?;
+        let out = compute_resolve_parity_confidence(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "resolve_parity_confidence",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_resolve_parity_confidence_failed:{e}"));
+    }
     Err(format!("inversion_mode_unsupported:{mode}"))
 }
 
@@ -5174,5 +5386,34 @@ mod tests {
             policy_runtime_mode: Some("live".to_string()),
         });
         assert_eq!(mode.mode, "test".to_string());
+    }
+
+    #[test]
+    fn helper_primitives_batch8_match_contract() {
+        let drift = compute_read_drift_from_state_file(&ReadDriftFromStateFileInput {
+            file_path: Some("/tmp/state.json".to_string()),
+            source_path: Some("state.json".to_string()),
+            payload: Some(json!({"drift_rate": 0.1234567})),
+        });
+        assert_eq!(drift.value, 0.123457);
+        assert_eq!(drift.source, "state.json".to_string());
+
+        let resolved = compute_resolve_lens_gate_drift(&ResolveLensGateDriftInput {
+            arg_candidates: vec![json!(null), json!(""), json!("0.2")],
+            probe_path: Some("/tmp/state.json".to_string()),
+            probe_source: Some("state.json".to_string()),
+            probe_payload: Some(json!({"drift_rate": 0.8})),
+        });
+        assert_eq!(resolved.value, 0.0);
+        assert_eq!(resolved.source, "arg".to_string());
+
+        let parity = compute_resolve_parity_confidence(&ResolveParityConfidenceInput {
+            arg_candidates: vec![],
+            path_hint: Some("/tmp/parity.json".to_string()),
+            path_source: Some("parity.json".to_string()),
+            payload: Some(json!({"pass_rate": 0.7777777})),
+        });
+        assert_eq!(parity.value, 0.777778);
+        assert_eq!(parity.source, "parity.json".to_string());
     }
 }
