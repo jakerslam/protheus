@@ -2733,6 +2733,18 @@ pub struct OutcomeBucketsOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RecentRunEventsInput {
+    #[serde(default)]
+    pub day_events: Vec<Vec<serde_json::Value>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RecentRunEventsOutput {
+    #[serde(default)]
+    pub events: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ManualGatePrefilterInput {
     #[serde(default)]
     pub enabled: bool,
@@ -4753,6 +4765,8 @@ pub struct AutoscaleRequest {
     pub new_log_events_input: Option<NewLogEventsInput>,
     #[serde(default)]
     pub outcome_buckets_input: Option<OutcomeBucketsInput>,
+    #[serde(default)]
+    pub recent_run_events_input: Option<RecentRunEventsInput>,
     #[serde(default)]
     pub manual_gate_prefilter_input: Option<ManualGatePrefilterInput>,
     #[serde(default)]
@@ -9604,6 +9618,16 @@ pub fn compute_outcome_buckets(_input: &OutcomeBucketsInput) -> OutcomeBucketsOu
         no_change: 0.0,
         reverted: 0.0,
     }
+}
+
+pub fn compute_recent_run_events(input: &RecentRunEventsInput) -> RecentRunEventsOutput {
+    let mut events = Vec::<serde_json::Value>::new();
+    for bucket in input.day_events.iter() {
+        for evt in bucket.iter() {
+            events.push(evt.clone());
+        }
+    }
+    RecentRunEventsOutput { events }
 }
 
 pub fn compute_manual_gate_prefilter(input: &ManualGatePrefilterInput) -> ManualGatePrefilterOutput {
@@ -14871,6 +14895,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_outcome_buckets_encode_failed:{e}"));
+    }
+    if mode == "recent_run_events" {
+        let input = request
+            .recent_run_events_input
+            .ok_or_else(|| "autoscale_missing_recent_run_events_input".to_string())?;
+        let out = compute_recent_run_events(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "recent_run_events",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_recent_run_events_encode_failed:{e}"));
     }
     if mode == "manual_gate_prefilter" {
         let input = request
@@ -21053,6 +21089,43 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale outcome_buckets");
         assert!(out.contains("\"mode\":\"outcome_buckets\""));
         assert!(out.contains("\"shipped\":0.0"));
+    }
+
+    #[test]
+    fn recent_run_events_flattens_day_buckets_in_order() {
+        let out = compute_recent_run_events(&RecentRunEventsInput {
+            day_events: vec![
+                vec![serde_json::json!({"id":"a"}), serde_json::json!({"id":"b"})],
+                vec![serde_json::json!({"id":"c"})],
+            ],
+        });
+        assert_eq!(out.events.len(), 3);
+        assert_eq!(
+            out.events[0].get("id").and_then(|v| v.as_str()).unwrap_or(""),
+            "a"
+        );
+        assert_eq!(
+            out.events[2].get("id").and_then(|v| v.as_str()).unwrap_or(""),
+            "c"
+        );
+    }
+
+    #[test]
+    fn autoscale_json_recent_run_events_path_works() {
+        let payload = serde_json::json!({
+            "mode": "recent_run_events",
+            "recent_run_events_input": {
+                "day_events": [
+                    [{"id":"a"}],
+                    [{"id":"b"}]
+                ]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale recent_run_events");
+        assert!(out.contains("\"mode\":\"recent_run_events\""));
+        assert!(out.contains("\"id\":\"a\""));
+        assert!(out.contains("\"id\":\"b\""));
     }
 
     #[test]

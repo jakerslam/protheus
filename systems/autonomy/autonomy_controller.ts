@@ -6442,9 +6442,23 @@ function summarizeTopBiases(mapObj, limit = 8) {
 }
 
 function recentRunEvents(endDateStr, days) {
-  const events = [];
+  const buckets = [];
   for (const d of dateWindow(endDateStr, days)) {
-    events.push(...readRuns(d));
+    buckets.push(readRuns(d));
+  }
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'recent_run_events',
+      { day_events: buckets },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return Array.isArray(rust.payload.payload.events) ? rust.payload.payload.events : [];
+    }
+  }
+  const events = [];
+  for (const bucket of buckets) {
+    events.push(...bucket);
   }
   return events;
 }
