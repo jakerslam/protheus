@@ -32,6 +32,7 @@ type ParsedArgs = {
 type LensMode = 'decision' | 'strategic' | 'full';
 type OutputSchema = 'markdown' | 'json';
 type AlignmentMode = 'yellow_auto' | 'green_active';
+type ContextBudgetMode = 'trim' | 'reject';
 type LensControls = {
   gapSeconds: number,
   alignmentMode: AlignmentMode,
@@ -43,6 +44,30 @@ type GapSessionResult = {
   approvedEarly: boolean,
   intercepted: boolean
 };
+type ContextBudgetPolicy = {
+  maxTokens: number,
+  mode: ContextBudgetMode,
+  source: 'default' | 'env' | 'arg'
+};
+type ContextBudgetState = {
+  max_tokens: number,
+  mode: ContextBudgetMode,
+  source: 'default' | 'env' | 'arg',
+  estimated_tokens_before: number,
+  estimated_tokens_after: number,
+  bootstrap_tokens: number,
+  dynamic_tokens_before: number,
+  dynamic_tokens_after: number,
+  dynamic_items_before: number,
+  dynamic_items_after: number,
+  over_budget_before: boolean,
+  over_budget_after: boolean,
+  trimmed: boolean,
+  rejected: boolean,
+  dropped_dynamic_items: number
+};
+const DEFAULT_CONTEXT_TOKEN_BUDGET = 2000;
+const CONTEXT_BUDGET_DEDUP = new Set<string>();
 
 function usage() {
   console.log('Usage:');
@@ -50,7 +75,7 @@ function usage() {
   console.log('  protheus lens <persona1> <persona2> [personaN...] "<query>" [--expected="<text>"]');
   console.log('  protheus lens arbitrate --between=persona1,persona2 [--between=personaN...] --issue="<query>"');
   console.log('  protheus lens <persona> <decision|strategic|full> "<query>"');
-  console.log('  protheus lens <persona> [decision|strategic|full] --gap=<seconds> [--active=1] [--emotion=on|off] [--values=on|off] [--include-feed=1] [--surprise=on|off] [--schema=markdown|json] [--intercept="<override>"] "<query>"');
+  console.log('  protheus lens <persona> [decision|strategic|full] --gap=<seconds> [--active=1] [--emotion=on|off] [--values=on|off] [--include-feed=1] [--surprise=on|off] [--schema=markdown|json] [--max-context-tokens=<n>] [--context-budget-mode=trim|reject] [--intercept="<override>"] "<query>"');
   console.log('  protheus lens trigger <pre-sprint|drift-alert|weekly-checkin> ["<query>"] [--persona=<id>] [--heartbeat=HEARTBEAT.md] [--dry-run=1]');
   console.log('  protheus lens dashboard [--window=<n>] [--json=1]');
   console.log('  protheus lens update-stream <persona> [--dry-run=1]');
@@ -70,7 +95,7 @@ function usage() {
   console.log('  protheus lens jay_haslam "How can we reduce drift in the loops?"');
   console.log('  protheus lens trigger pre-sprint "Foundation Lock sprint planning review"');
   console.log('  protheus lens dashboard --window=20');
-  console.log('  protheus lens vikram --gap=10 --active=1 --emotion=off --values=on --include-feed=1 --surprise=on --schema=json --intercept="Prioritize memory first, with security gate pre-dispatch." "Prioritize memory or security?"');
+  console.log('  protheus lens vikram --gap=10 --active=1 --emotion=off --values=on --include-feed=1 --max-context-tokens=2000 --context-budget-mode=trim --surprise=on --schema=json --intercept="Prioritize memory first, with security gate pre-dispatch." "Prioritize memory or security?"');
   console.log('  protheus lens update-stream vikram_menon');
   console.log('  protheus lens checkin --persona=jay_haslam --heartbeat=HEARTBEAT.md');
   console.log('  protheus lens feed vikram_menon "Cross-signal indicates rising security drift risk." --source=master_llm --tags=drift,security');
@@ -151,6 +176,66 @@ function parseOutputSchema(v: unknown, fallback: OutputSchema = 'markdown'): Out
   if (raw === 'json') return 'json';
   if (raw === 'markdown' || raw === 'md') return 'markdown';
   return fallback;
+}
+
+function estimateTokenCount(input: unknown): number {
+  const text = String(input == null ? '' : input);
+  if (!text.trim()) return 0;
+  return Math.max(1, Math.ceil(text.length / 4));
+}
+
+function defaultContextBudgetPolicy(): ContextBudgetPolicy {
+  const envRaw = cleanText(process.env.PROTHEUS_PERSONA_MAX_CONTEXT_TOKENS || '', 40);
+  if (envRaw) {
+    return {
+      maxTokens: clampInt(envRaw, 200, 12000, DEFAULT_CONTEXT_TOKEN_BUDGET),
+      mode: 'trim',
+      source: 'env'
+    };
+  }
+  return {
+    maxTokens: DEFAULT_CONTEXT_TOKEN_BUDGET,
+    mode: 'trim',
+    source: 'default'
+  };
+}
+
+function parseContextBudgetPolicy(args: ParsedArgs): ContextBudgetPolicy {
+  const modeRaw = normalizeToken(
+    args['context-budget-mode']
+      ?? args.context_budget_mode
+      ?? args.contextBudgetMode
+      ?? '',
+    20
+  );
+  const mode: ContextBudgetMode = modeRaw === 'reject' ? 'reject' : 'trim';
+  const argRaw = cleanText(
+    args['max-context-tokens']
+      ?? args.max_context_tokens
+      ?? args.maxContextTokens
+      ?? '',
+    40
+  );
+  if (argRaw) {
+    return {
+      maxTokens: clampInt(argRaw, 200, 12000, DEFAULT_CONTEXT_TOKEN_BUDGET),
+      mode,
+      source: 'arg'
+    };
+  }
+  const envRaw = cleanText(process.env.PROTHEUS_PERSONA_MAX_CONTEXT_TOKENS || '', 40);
+  if (envRaw) {
+    return {
+      maxTokens: clampInt(envRaw, 200, 12000, DEFAULT_CONTEXT_TOKEN_BUDGET),
+      mode,
+      source: 'env'
+    };
+  }
+  return {
+    maxTokens: DEFAULT_CONTEXT_TOKEN_BUDGET,
+    mode,
+    source: 'default'
+  };
 }
 
 function parseGapSeconds(v: unknown, fallback = 0) {
@@ -1193,6 +1278,80 @@ function appendPersonaTelemetry(row: Record<string, unknown>) {
   return payload;
 }
 
+function shortQueryHash(query: string) {
+  return crypto.createHash('sha256').update(String(query || ''), 'utf8').digest('hex').slice(0, 16);
+}
+
+function appendContextBudgetCorrespondence(
+  ctx: PersonaContext,
+  query: string,
+  budget: ContextBudgetState,
+  invocation: string
+) {
+  const securityCfg = personaSecurityForWrite(ctx);
+  const correspondenceAbs = path.join(ROOT, ctx.correspondencePath);
+  const base = readPlainPersonaFile(correspondenceAbs, securityCfg).replace(/\s+$/, '');
+  const day = nowIso().slice(0, 10);
+  const entry = [
+    '',
+    `## ${day} - Re: context budget guard`,
+    '',
+    `Invocation: ${cleanText(invocation, 120) || 'lens'}`,
+    `Query hash: ${shortQueryHash(query)}`,
+    `Budget mode: ${budget.mode}`,
+    `Max tokens: ${budget.max_tokens}`,
+    `Estimated before: ${budget.estimated_tokens_before}`,
+    `Estimated after: ${budget.estimated_tokens_after}`,
+    `Action: ${budget.rejected ? 'rejected' : budget.trimmed ? 'trimmed' : 'allow'}`,
+    `Dropped dynamic items: ${budget.dropped_dynamic_items}`,
+    ''
+  ].join('\n');
+  writePersonaFile(correspondenceAbs, `${base}\n${entry}`, securityCfg);
+}
+
+function recordContextBudgetEvent(
+  ctx: PersonaContext | null,
+  query: string,
+  budget: ContextBudgetState,
+  invocation: string
+) {
+  if (!ctx || !budget.over_budget_before) return;
+  const key = [
+    ctx.personaId,
+    shortQueryHash(query),
+    invocation,
+    budget.max_tokens,
+    budget.mode,
+    budget.rejected ? 'rejected' : 'trimmed'
+  ].join('|');
+  if (CONTEXT_BUDGET_DEDUP.has(key)) return;
+  CONTEXT_BUDGET_DEDUP.add(key);
+  appendPersonaTelemetry({
+    metric: 'context_budget_guard',
+    persona_id: ctx.personaId,
+    invocation: cleanText(invocation, 120) || 'lens',
+    query_hash: shortQueryHash(query),
+    budget_mode: budget.mode,
+    budget_source: budget.source,
+    max_context_tokens: budget.max_tokens,
+    estimated_tokens_before: budget.estimated_tokens_before,
+    estimated_tokens_after: budget.estimated_tokens_after,
+    bootstrap_tokens: budget.bootstrap_tokens,
+    dynamic_tokens_before: budget.dynamic_tokens_before,
+    dynamic_tokens_after: budget.dynamic_tokens_after,
+    dynamic_items_before: budget.dynamic_items_before,
+    dynamic_items_after: budget.dynamic_items_after,
+    dropped_dynamic_items: budget.dropped_dynamic_items,
+    trimmed: budget.trimmed ? 1 : 0,
+    rejected: budget.rejected ? 1 : 0
+  });
+  try {
+    appendContextBudgetCorrespondence(ctx, query, budget, invocation);
+  } catch {
+    // Correspondence logging is best-effort; telemetry remains authoritative.
+  }
+}
+
 function readJsonlTail(filePath: string, maxRows = 20) {
   try {
     if (!fs.existsSync(filePath)) return [];
@@ -1380,6 +1539,7 @@ function runPersonaCheckin(
   heartbeatInput: unknown,
   emotionEnabled: boolean,
   valuesEnabled: boolean,
+  contextBudgetPolicy: ContextBudgetPolicy,
   dryRun = false
 ) {
   const ctx = loadPersonaContext(checkinPersonaId);
@@ -1403,7 +1563,12 @@ function runPersonaCheckin(
     valuesEnabled ? ctx.valuesLensMd : '',
     ctx.feedMd,
     ctx.memoryMd,
-    false
+    false,
+    false,
+    '',
+    contextBudgetPolicy,
+    ctx,
+    'checkin'
   );
   const payload: any = {
     ok: true,
@@ -2077,7 +2242,10 @@ function buildResponseDetails(
   memoryMd = '',
   includeSystemPassedFeed = false,
   surpriseEnabled = false,
-  surpriseSeed = ''
+  surpriseSeed = '',
+  contextBudgetPolicy: ContextBudgetPolicy = defaultContextBudgetPolicy(),
+  contextCtx: PersonaContext | null = null,
+  invocation = 'lens'
 ) {
   const personaRef = cleanText(personaId || personaName, 120) || personaName;
   const decisionFilters = extractListItems(decisionLensMd, 4);
@@ -2098,42 +2266,141 @@ function buildResponseDetails(
   const systemPassed = includeSystemPassedFeed
     ? parseSystemPassedSignals(feedMd, 3)
     : { total: 0, verified: 0, invalid: 0, signals: [] as string[] };
-  const memorySignals = extractMemoryRecallSignals(memoryMd, query, 3);
+  const memorySignals = extractMemoryRecallSignals(memoryMd, query, 3); // query-matched recall from persona memory plane.
+  const dynamicItems: Array<{
+    bucket: 'memory' | 'system_passed' | 'correspondence_continuity' | 'correspondence_highlight' | 'feed';
+    value: string,
+    score: number,
+    order: number
+  }> = [];
+  let order = 0;
+  for (const signal of memorySignals) {
+    dynamicItems.push({ bucket: 'memory', value: signal, score: 100 - order, order });
+    order += 1;
+  }
+  for (const signal of systemPassed.signals) {
+    dynamicItems.push({ bucket: 'system_passed', value: signal, score: 90 - order, order });
+    order += 1;
+  }
+  for (const signal of correspondenceContinuity.map((v) => `Continuity recall: ${v}`)) {
+    dynamicItems.push({ bucket: 'correspondence_continuity', value: signal, score: 80 - order, order });
+    order += 1;
+  }
+  for (const signal of correspondenceHighlights.map((v) => `Prior correspondence: ${v}`)) {
+    dynamicItems.push({ bucket: 'correspondence_highlight', value: signal, score: 70 - order, order });
+    order += 1;
+  }
+  for (const signal of feedSignals) {
+    dynamicItems.push({ bucket: 'feed', value: signal, score: 60 - order, order });
+    order += 1;
+  }
+
+  const bootstrapItems = [
+    ...(lensMode === 'strategic'
+      ? strategicFilters.map((v) => `Strategic filter: ${v}`)
+      : lensMode === 'full'
+        ? [
+            ...decisionFilters.map((v) => `Decision filter: ${v}`),
+            ...strategicFilters.map((v) => `Strategic filter: ${v}`)
+          ]
+        : decisionFilters.map((v) => `Decision filter: ${v}`)),
+    ...emotionSignals.map((v) => `Emotion signal: ${v}`),
+    ...(lensMode === 'decision' ? [] : strategicAnchors.map((v) => `Strategic anchor: ${v}`)),
+    ...valuesFilters.map((v) => `Values filter: ${v}`),
+    ...valuesAnchors.map((v) => `Values anchor: ${v}`),
+    ...nonNegotiables.map((v) => `Constraint: ${v}`),
+    ...profileHighlights.map((v) => `Profile context: ${v}`)
+  ];
+  const bootstrapTokenEstimate = estimateTokenCount(`${query}\n${bootstrapItems.join('\n')}`);
+  const dynamicTokenEstimateBefore = estimateTokenCount(dynamicItems.map((row) => row.value).join('\n'));
+  const maxTokens = clampInt(contextBudgetPolicy.maxTokens, 200, 12000, DEFAULT_CONTEXT_TOKEN_BUDGET);
+  const mode: ContextBudgetMode = contextBudgetPolicy.mode === 'reject' ? 'reject' : 'trim';
+  let chosenDynamic = dynamicItems.slice();
+  const estimatedTokensBefore = bootstrapTokenEstimate + dynamicTokenEstimateBefore;
+  const overBudgetBefore = estimatedTokensBefore > maxTokens;
+  let trimmed = false;
+  let rejected = false;
+  if (overBudgetBefore) {
+    if (mode === 'reject' || bootstrapTokenEstimate >= maxTokens) {
+      chosenDynamic = [];
+      rejected = true;
+    } else {
+      trimmed = true;
+      const availableDynamicTokens = Math.max(0, maxTokens - bootstrapTokenEstimate);
+      const ranked = dynamicItems
+        .slice()
+        .sort((a, b) => b.score - a.score || a.order - b.order);
+      const keepKeys = new Set<number>();
+      let usedTokens = 0;
+      for (const item of ranked) {
+        const nextTokens = estimateTokenCount(item.value);
+        if (usedTokens + nextTokens > availableDynamicTokens) continue;
+        usedTokens += nextTokens;
+        keepKeys.add(item.order);
+      }
+      chosenDynamic = dynamicItems.filter((item) => keepKeys.has(item.order));
+      if (!chosenDynamic.length && dynamicItems.length) {
+        chosenDynamic = [dynamicItems[0]];
+      }
+    }
+  }
+  const chosenDynamicSorted = chosenDynamic.slice().sort((a, b) => a.order - b.order);
+  const chosenDynamicValues = chosenDynamicSorted.map((row) => row.value);
+  const dynamicTokenEstimateAfter = estimateTokenCount(chosenDynamicValues.join('\n'));
+  const estimatedTokensAfter = bootstrapTokenEstimate + dynamicTokenEstimateAfter;
+  if (!rejected && estimatedTokensAfter > maxTokens) {
+    rejected = true;
+  }
+  const contextBudget: ContextBudgetState = {
+    max_tokens: maxTokens,
+    mode,
+    source: contextBudgetPolicy.source,
+    estimated_tokens_before: estimatedTokensBefore,
+    estimated_tokens_after: estimatedTokensAfter,
+    bootstrap_tokens: bootstrapTokenEstimate,
+    dynamic_tokens_before: dynamicTokenEstimateBefore,
+    dynamic_tokens_after: dynamicTokenEstimateAfter,
+    dynamic_items_before: dynamicItems.length,
+    dynamic_items_after: chosenDynamicValues.length,
+    over_budget_before: overBudgetBefore,
+    over_budget_after: estimatedTokensAfter > maxTokens,
+    trimmed,
+    rejected,
+    dropped_dynamic_items: Math.max(0, dynamicItems.length - chosenDynamicValues.length)
+  };
+  recordContextBudgetEvent(contextCtx, query, contextBudget, invocation);
+  if (rejected) {
+    throw new Error(
+      `context_budget_exceeded:max=${contextBudget.max_tokens};estimated=${contextBudget.estimated_tokens_before};mode=${contextBudget.mode}`
+    );
+  }
+  const chosenByBucket = {
+    memory: chosenDynamicSorted.filter((row) => row.bucket === 'memory').map((row) => row.value),
+    systemPassed: chosenDynamicSorted.filter((row) => row.bucket === 'system_passed').map((row) => row.value),
+    correspondenceContinuity: chosenDynamicSorted.filter((row) => row.bucket === 'correspondence_continuity').map((row) => row.value),
+    correspondenceHighlights: chosenDynamicSorted.filter((row) => row.bucket === 'correspondence_highlight').map((row) => row.value),
+    feed: chosenDynamicSorted.filter((row) => row.bucket === 'feed').map((row) => row.value)
+  };
   const modeText = lensMode === 'full' ? 'decision + strategic' : lensMode;
   const promptTemplate = [
     `As ${personaName}, using your profile, ${modeText} lens, and past correspondence, respond to: ${query}`,
-    `Recent correspondence continuity (last ${correspondenceContinuity.length || 0}):`,
-    ...(correspondenceContinuity.length ? correspondenceContinuity : ['No recent correspondence entries found.'])
+    `Recent correspondence continuity (last ${chosenByBucket.correspondenceContinuity.length || 0}):`,
+    ...(chosenByBucket.correspondenceContinuity.length
+      ? chosenByBucket.correspondenceContinuity.map((row) => row.replace(/^Continuity recall:\s*/i, ''))
+      : ['No recent correspondence entries found.'])
   ].join(' ');
   let recommendation = recommendFromQuery(personaRef, query);
-  if (includeSystemPassedFeed && systemPassed.signals.length) {
-    const firstSignal = cleanText(systemPassed.signals[0].replace(/^SystemPassed:\s*/, ''), 180);
+  if (includeSystemPassedFeed && chosenByBucket.systemPassed.length) {
+    const firstSignal = cleanText(chosenByBucket.systemPassed[0].replace(/^SystemPassed:\s*/, ''), 180);
     recommendation = `${recommendation} System-passed context: ${firstSignal}.`;
   }
-  const lensReasoning = lensMode === 'strategic'
-    ? strategicFilters.map((v) => `Strategic filter: ${v}`)
-    : lensMode === 'full'
-      ? [
-          ...decisionFilters.map((v) => `Decision filter: ${v}`),
-          ...strategicFilters.map((v) => `Strategic filter: ${v}`)
-        ]
-      : decisionFilters.map((v) => `Decision filter: ${v}`);
-  const strategicReasoning = lensMode === 'decision'
-    ? []
-    : strategicAnchors.map((v) => `Strategic anchor: ${v}`);
   const reasoning = [
-    ...lensReasoning,
-    ...emotionSignals.map((v) => `Emotion signal: ${v}`),
-    ...strategicReasoning,
-    ...valuesFilters.map((v) => `Values filter: ${v}`),
-    ...valuesAnchors.map((v) => `Values anchor: ${v}`),
-    ...feedSignals,
-    ...systemPassed.signals,
-    ...memorySignals,
-    ...correspondenceContinuity.map((v) => `Continuity recall: ${v}`),
-    ...nonNegotiables.map((v) => `Constraint: ${v}`),
-    ...correspondenceHighlights.map((v) => `Prior correspondence: ${v}`),
-    ...profileHighlights.map((v) => `Profile context: ${v}`)
+    ...bootstrapItems,
+    ...chosenByBucket.feed,
+    ...chosenByBucket.systemPassed,
+    ...chosenByBucket.memory,
+    ...chosenByBucket.correspondenceContinuity,
+    ...chosenByBucket.correspondenceHighlights
   ].slice(0, 10);
   let surpriseApplied = false;
   let surpriseMode = 'none';
@@ -2152,9 +2419,9 @@ function buildResponseDetails(
       if (bucket === 0) {
         surpriseMode = 'question_back';
         recommendation = `${recommendation} Before finalizing, what hard proof guarantees this remains behavior-preserving under the next parity run?`;
-      } else if (bucket === 1 && correspondenceContinuity.length) {
+      } else if (bucket === 1 && chosenByBucket.correspondenceContinuity.length) {
         surpriseMode = 'pattern_recall';
-        recommendation = `${recommendation} Pattern reminder: ${cleanText(correspondenceContinuity[0], 200)}.`;
+        recommendation = `${recommendation} Pattern reminder: ${cleanText(chosenByBucket.correspondenceContinuity[0], 200)}.`;
       } else {
         surpriseMode = 'context_request';
         recommendation = `${recommendation} I need one additional context point: what is the rollback trigger threshold for this change?`;
@@ -2168,6 +2435,7 @@ function buildResponseDetails(
     reasoning,
     systemPassed,
     recentCorrespondence,
+    contextBudget,
     surpriseApplied,
     surpriseMode,
     surpriseRoll
@@ -2187,12 +2455,15 @@ function renderMarkdownResponse(
   includeFeed = false,
   llmMeta: { enabled: boolean, used: boolean, reason: string, model: string } | null = null,
   surpriseEnabled = false,
-  surpriseSeed = ''
+  surpriseSeed = '',
+  contextBudgetPolicy: ContextBudgetPolicy = defaultContextBudgetPolicy(),
+  invocation = 'lens'
 ): string {
   const {
     promptTemplate,
     recommendation,
     reasoning,
+    contextBudget,
     surpriseApplied,
     surpriseMode,
     surpriseRoll
@@ -2211,7 +2482,10 @@ function renderMarkdownResponse(
     ctx.memoryMd,
     includeFeed,
     surpriseEnabled,
-    surpriseSeed
+    surpriseSeed,
+    contextBudgetPolicy,
+    ctx,
+    invocation
   );
   const resolvedRecommendation = cleanText(overridePosition, 1600) || recommendation;
 
@@ -2223,6 +2497,10 @@ function renderMarkdownResponse(
   lines.push(`**Emotion Lens:** \`${emotionEnabled ? 'on' : 'off'}\``);
   lines.push(`**Values Lens:** \`${valuesEnabled ? 'on' : 'off'}\``);
   lines.push(`**System Passed Feed:** \`${includeFeed ? 'on' : 'off'}\``);
+  lines.push(`**Context Budget:** \`${contextBudget.estimated_tokens_after}/${contextBudget.max_tokens}\` tokens (mode \`${contextBudget.mode}\`, source \`${contextBudget.source}\`)`);
+  if (contextBudget.over_budget_before) {
+    lines.push(`**Context Guard Action:** \`${contextBudget.rejected ? 'rejected' : contextBudget.trimmed ? 'trimmed' : 'allow'}\` (dropped dynamic \`${contextBudget.dropped_dynamic_items}\`)`);
+  }
   lines.push(`**Surprise Mode:** \`${surpriseEnabled ? 'on' : 'off'}\``);
   if (surpriseEnabled) {
     lines.push(`**Surprise Applied:** \`${surpriseApplied ? 'yes' : 'no'}\` (mode \`${cleanText(surpriseMode || 'none', 80)}\`, roll \`${Number(surpriseRoll || 0).toFixed(4)}\`)`);
@@ -2297,13 +2575,16 @@ function renderMarkdownSection(
   valuesEnabled = true,
   includeFeed = false,
   surpriseEnabled = false,
-  surpriseSeed = ''
+  surpriseSeed = '',
+  contextBudgetPolicy: ContextBudgetPolicy = defaultContextBudgetPolicy(),
+  invocation = 'lens'
 ): string {
   const emotionMd = emotionEnabled ? ctx.emotionLensMd : '';
   const {
     promptTemplate,
     recommendation,
     reasoning,
+    contextBudget,
     surpriseApplied,
     surpriseMode,
     surpriseRoll
@@ -2322,13 +2603,20 @@ function renderMarkdownSection(
     ctx.memoryMd,
     includeFeed,
     surpriseEnabled,
-    surpriseSeed
+    surpriseSeed,
+    contextBudgetPolicy,
+    ctx,
+    invocation
   );
 
   const lines: string[] = [];
   lines.push(`## ${ctx.personaName} (\`${ctx.personaId}\`)`);
   lines.push('');
   lines.push(`**Lens Mode:** \`${lensMode}\``);
+  lines.push(`**Context Budget:** \`${contextBudget.estimated_tokens_after}/${contextBudget.max_tokens}\` tokens`);
+  if (contextBudget.over_budget_before) {
+    lines.push(`**Context Guard Action:** \`${contextBudget.rejected ? 'rejected' : contextBudget.trimmed ? 'trimmed' : 'allow'}\``);
+  }
   if (surpriseEnabled) {
     lines.push(`**Surprise Applied:** \`${surpriseApplied ? 'yes' : 'no'}\` (mode \`${cleanText(surpriseMode || 'none', 80)}\`, roll \`${Number(surpriseRoll || 0).toFixed(4)}\`)`);
   }
@@ -2380,7 +2668,9 @@ function renderAllMarkdown(
   valuesEnabled = true,
   includeFeed = false,
   surpriseEnabled = false,
-  surpriseSeed = ''
+  surpriseSeed = '',
+  contextBudgetPolicy: ContextBudgetPolicy = defaultContextBudgetPolicy(),
+  invocation = 'lens'
 ): string {
   const lines: string[] = [];
   lines.push('# Lens Response: All Personas');
@@ -2395,10 +2685,24 @@ function renderAllMarkdown(
   lines.push(`**Emotion Lens:** \`${emotionEnabled ? 'on' : 'off'}\``);
   lines.push(`**Values Lens:** \`${valuesEnabled ? 'on' : 'off'}\``);
   lines.push(`**System Passed Feed:** \`${includeFeed ? 'on' : 'off'}\``);
+  lines.push(`**Context Budget Cap:** \`${contextBudgetPolicy.maxTokens}\` tokens`);
   lines.push(`**Surprise Mode:** \`${surpriseEnabled ? 'on' : 'off'}\``);
   lines.push('');
   for (const ctx of contexts) {
-    lines.push(renderMarkdownSection(ctx, query, lensMode, emotionEnabled, valuesEnabled, includeFeed, surpriseEnabled, surpriseSeed));
+    lines.push(
+      renderMarkdownSection(
+        ctx,
+        query,
+        lensMode,
+        emotionEnabled,
+        valuesEnabled,
+        includeFeed,
+        surpriseEnabled,
+        surpriseSeed,
+        contextBudgetPolicy,
+        invocation
+      )
+    );
   }
   return lines.join('\n');
 }
@@ -2423,7 +2727,9 @@ function renderMultiPersonaMarkdown(
   includeFeed: boolean,
   expected: string,
   surpriseEnabled = false,
-  surpriseSeed = ''
+  surpriseSeed = '',
+  contextBudgetPolicy: ContextBudgetPolicy = defaultContextBudgetPolicy(),
+  invocation = 'multi_persona'
 ) {
   const rules = loadArbitrationRules();
   const domain = inferArbitrationDomain(query);
@@ -2443,7 +2749,10 @@ function renderMultiPersonaMarkdown(
       ctx.memoryMd,
       includeFeed,
       surpriseEnabled,
-      surpriseSeed
+      surpriseSeed,
+      contextBudgetPolicy,
+      ctx,
+      invocation
     );
     return {
       persona_id: ctx.personaId,
@@ -2451,6 +2760,7 @@ function renderMultiPersonaMarkdown(
       recommendation: info.recommendation,
       reasoning: info.reasoning,
       recall: recallSignals(info.reasoning),
+      context_budget: info.contextBudget,
       surprise: {
         applied: Boolean(info.surpriseApplied),
         mode: cleanText(info.surpriseMode || 'none', 60),
@@ -2586,7 +2896,8 @@ function buildStructuredPersonaOutput(opts: {
   query: string,
   lensMode: LensMode,
   surprise: { enabled: boolean, applied: boolean, mode: string, roll: number },
-  systemPassed: { total: number, verified: number, invalid: number }
+  systemPassed: { total: number, verified: number, invalid: number },
+  context_budget?: ContextBudgetState
 }) {
   const blockers = deriveBlockers(opts.reasoning);
   return {
@@ -2609,7 +2920,19 @@ function buildStructuredPersonaOutput(opts: {
       total: Number(opts.systemPassed && opts.systemPassed.total || 0),
       verified: Number(opts.systemPassed && opts.systemPassed.verified || 0),
       invalid: Number(opts.systemPassed && opts.systemPassed.invalid || 0)
-    }
+    },
+    context_budget: opts.context_budget
+      ? {
+          max_tokens: Number(opts.context_budget.max_tokens || 0),
+          mode: cleanText(opts.context_budget.mode || 'trim', 20),
+          source: cleanText(opts.context_budget.source || 'default', 20),
+          estimated_tokens_before: Number(opts.context_budget.estimated_tokens_before || 0),
+          estimated_tokens_after: Number(opts.context_budget.estimated_tokens_after || 0),
+          trimmed: opts.context_budget.trimmed === true,
+          rejected: opts.context_budget.rejected === true,
+          dropped_dynamic_items: Number(opts.context_budget.dropped_dynamic_items || 0)
+        }
+      : null
   };
 }
 
@@ -2707,6 +3030,7 @@ async function main() {
   const surpriseEnabled = parseEmotionEnabled(args.surprise, false);
   const surpriseSeed = cleanText(args['surprise-seed'] ?? args.surprise_seed, 120);
   const outputSchema = parseOutputSchema(args.schema ?? args.output, 'markdown');
+  const contextBudgetPolicy = parseContextBudgetPolicy(args);
   const personaArg = cleanText(args.persona || args._[0] || '', 120);
   const isUpdateStream = normalizeToken(args._[0] || '', 40) === 'update_stream' || normalizeToken(args._[0] || '', 40) === 'update-stream';
   const isTrigger = normalizeToken(args._[0] || '', 40) === 'trigger';
@@ -2764,6 +3088,7 @@ async function main() {
           args.heartbeat || args['heartbeat-path'] || args.heartbeat_path,
           emotionEnabled,
           valuesEnabled,
+          contextBudgetPolicy,
           dryRun
         );
         appendPersonaTelemetry({
@@ -2831,7 +3156,19 @@ async function main() {
             ? `- Skipped personas: ${skipped.map((row) => `${row.persona_id}(${row.reason})`).join(', ')}`
             : '- Skipped personas: none',
           '',
-          renderAllMarkdown(query, fallbackContexts, 'decision', null, emotionEnabled, valuesEnabled, includeFeedForRun, surpriseEnabled, surpriseSeed)
+          renderAllMarkdown(
+            query,
+            fallbackContexts,
+            'decision',
+            null,
+            emotionEnabled,
+            valuesEnabled,
+            includeFeedForRun,
+            surpriseEnabled,
+            surpriseSeed,
+            contextBudgetPolicy,
+            'trigger_pre_sprint'
+          )
         ].join('\n');
         appendPersonaTelemetry({
           kind: 'persona_trigger',
@@ -2883,7 +3220,12 @@ async function main() {
           valuesEnabled ? ctx.valuesLensMd : '',
           ctx.feedMd,
           ctx.memoryMd,
-          true
+          true,
+          false,
+          '',
+          contextBudgetPolicy,
+          ctx,
+          'trigger_drift_alert'
         );
         const markdown = [
           '# Trigger: drift-alert',
@@ -2904,7 +3246,9 @@ async function main() {
             true,
             null,
             surpriseEnabled,
-            surpriseSeed
+            surpriseSeed,
+            contextBudgetPolicy,
+            'trigger_drift_alert'
           )
         ].join('\n');
         appendPersonaTelemetry({
@@ -2943,6 +3287,7 @@ async function main() {
         args.heartbeat || args['heartbeat-path'] || args.heartbeat_path,
         emotionEnabled,
         valuesEnabled,
+        contextBudgetPolicy,
         dryRun
       );
       process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
@@ -3058,7 +3403,9 @@ async function main() {
         includeFeedFlag,
         expected,
         surpriseEnabled,
-        surpriseSeed
+        surpriseSeed,
+        contextBudgetPolicy,
+        'arbitrate'
       );
       appendPersonaTelemetry({
         metric: 'persona_arbitration_resolution',
@@ -3184,7 +3531,9 @@ async function main() {
           includeSystemPassed,
           expected,
           surpriseEnabled,
-          surpriseSeed
+          surpriseSeed,
+          contextBudgetPolicy,
+          'multi_persona'
         );
         const prelude: string[] = [];
         if (includeFailures.length) {
@@ -3237,7 +3586,8 @@ async function main() {
                 total: includeSystemPassed ? 1 : 0,
                 verified: includeSystemPassed ? 1 : 0,
                 invalid: 0
-              }
+              },
+              context_budget: row && row.context_budget ? row.context_budget : undefined
             }))
           };
           process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
@@ -3321,13 +3671,28 @@ async function main() {
           probe.memoryMd,
           includeFeedFlag,
           surpriseEnabled,
-          surpriseSeed
+          surpriseSeed,
+          contextBudgetPolicy,
+          probe,
+          'all_preview'
         );
         const preview = renderStreamPreview('All Personas', queryArg, details.reasoning, controls);
         process.stdout.write(`${preview}\n\n`);
         sleepMs(controls.gapSeconds * 1000);
       }
-      const markdown = renderAllMarkdown(queryArg, contexts, lensMode, controls, emotionEnabled, valuesEnabled, includeFeedFlag, surpriseEnabled, surpriseSeed);
+      const markdown = renderAllMarkdown(
+        queryArg,
+        contexts,
+        lensMode,
+        controls,
+        emotionEnabled,
+        valuesEnabled,
+        includeFeedFlag,
+        surpriseEnabled,
+        surpriseSeed,
+        contextBudgetPolicy,
+        'all_personas'
+      );
       const utilityRate = includeFeedFlag
         ? Number((verifiedTotal / Math.max(1, contexts.length * 3)).toFixed(4))
         : 0;
@@ -3357,7 +3722,10 @@ async function main() {
             ctx.memoryMd,
             includeFeedFlag,
             surpriseEnabled,
-            surpriseSeed
+            surpriseSeed,
+            contextBudgetPolicy,
+            ctx,
+            'all_json'
           );
           return buildStructuredPersonaOutput({
             personaId: ctx.personaId,
@@ -3371,7 +3739,8 @@ async function main() {
               mode: cleanText(info.surpriseMode || 'none', 80),
               roll: Number(info.surpriseRoll || 0)
             },
-            systemPassed: info.systemPassed
+            systemPassed: info.systemPassed,
+            context_budget: info.contextBudget
           });
         });
         process.stdout.write(`${JSON.stringify({
@@ -3435,7 +3804,10 @@ async function main() {
       ctx.memoryMd,
       includeFeedActive,
       surpriseEnabled,
-      surpriseSeed
+      surpriseSeed,
+      contextBudgetPolicy,
+      ctx,
+      'single_persona'
     );
     const llmResult = resolvePersonaLlmRecommendation(
       ctx,
@@ -3481,7 +3853,9 @@ async function main() {
       includeFeedActive,
       llmResult,
       surpriseEnabled,
-      surpriseSeed
+      surpriseSeed,
+      contextBudgetPolicy,
+      'single_persona'
     );
     const utilityRate = includeFeedActive
       ? Number((Number(details.systemPassed && details.systemPassed.verified || 0) / Math.max(1, details.reasoning.length)).toFixed(4))
@@ -3509,7 +3883,8 @@ async function main() {
           mode: cleanText(details.surpriseMode || 'none', 80),
           roll: Number(details.surpriseRoll || 0)
         },
-        systemPassed: details.systemPassed
+        systemPassed: details.systemPassed,
+        context_budget: details.contextBudget
       });
       process.stdout.write(`${JSON.stringify({
         ok: true,
