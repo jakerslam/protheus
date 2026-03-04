@@ -5,6 +5,9 @@ node_modules/
 .env
 .env.local
 config/moltbook/credentials.json
+# Local strategy profiles are instance-specific (keep docs scaffold only)
+config/strategies/*
+!config/strategies/README.md
 state/security/secret_broker_key.txt
 *.tmp
 *.swp
