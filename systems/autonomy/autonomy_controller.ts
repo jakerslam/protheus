@@ -2833,6 +2833,8 @@ const EXECUTION_RESERVE_SNAPSHOT_CACHE = new Map();
 const EXECUTION_RESERVE_SNAPSHOT_CACHE_MAX = 512;
 const BUDGET_PACING_GATE_CACHE = new Map();
 const BUDGET_PACING_GATE_CACHE_MAX = 1024;
+const CAPABILITY_CAP_CACHE = new Map();
+const CAPABILITY_CAP_CACHE_MAX = 1024;
 const ESTIMATE_TOKENS_FOR_CANDIDATE_CACHE = new Map();
 const ESTIMATE_TOKENS_FOR_CANDIDATE_CACHE_MAX = 1024;
 const MINUTES_SINCE_TS_CACHE = new Map();
@@ -8098,6 +8100,40 @@ function capabilityCap(strategyBudget, descriptor) {
   const keys = [descriptor && descriptor.key ? descriptor.key : null]
     .concat(Array.isArray(descriptor && descriptor.aliases) ? descriptor.aliases : [])
     .filter(Boolean);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const normalizedCaps = {};
+    for (const [k, v] of Object.entries(caps)) {
+      normalizedCaps[String(k)] = Number(v);
+    }
+    const key = JSON.stringify({
+      caps: normalizedCaps,
+      primary_key: keys[0] || null,
+      aliases: keys.slice(1)
+    });
+    if (CAPABILITY_CAP_CACHE.has(key)) {
+      const cached = CAPABILITY_CAP_CACHE.get(key);
+      return cached == null ? null : Number(cached);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'capability_cap',
+      {
+        caps: normalizedCaps,
+        primary_key: keys[0] || null,
+        aliases: keys.slice(1)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const raw = rust.payload.payload.cap;
+      const out = raw == null ? null : Math.round(Number(raw));
+      if (CAPABILITY_CAP_CACHE.size >= CAPABILITY_CAP_CACHE_MAX) {
+        const oldest = CAPABILITY_CAP_CACHE.keys().next();
+        if (!oldest.done) CAPABILITY_CAP_CACHE.delete(oldest.value);
+      }
+      CAPABILITY_CAP_CACHE.set(key, out);
+      return out;
+    }
+  }
   for (const k of keys) {
     if (!Object.prototype.hasOwnProperty.call(caps, k)) continue;
     const v = Number(caps[k]);
@@ -18490,6 +18526,7 @@ module.exports = {
   hasAdaptiveMutationSignal,
   adaptiveMutationExecutionGuardDecision,
   strategyAdmissionDecision,
+  capabilityCap,
   assessActionability,
   assessValueSignal,
   expectedValueScore,
