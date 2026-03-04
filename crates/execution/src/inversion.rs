@@ -879,6 +879,124 @@ pub struct BandToIndexOutput {
     pub index: i64,
 }
 
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct EscapeRegexInput {
+    #[serde(default)]
+    pub value: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct EscapeRegexOutput {
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct PatternToWordRegexInput {
+    #[serde(default)]
+    pub pattern: Option<String>,
+    #[serde(default)]
+    pub max_len: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct PatternToWordRegexOutput {
+    pub source: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct StableIdInput {
+    #[serde(default)]
+    pub seed: Option<String>,
+    #[serde(default)]
+    pub prefix: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct StableIdOutput {
+    pub id: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct RelPathInput {
+    #[serde(default)]
+    pub root: Option<String>,
+    #[serde(default)]
+    pub file_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct RelPathOutput {
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct NormalizeAxiomPatternInput {
+    #[serde(default)]
+    pub value: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct NormalizeAxiomPatternOutput {
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct NormalizeAxiomSignalTermsInput {
+    #[serde(default)]
+    pub terms: Vec<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct NormalizeAxiomSignalTermsOutput {
+    pub terms: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct NormalizeObserverIdInput {
+    #[serde(default)]
+    pub value: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct NormalizeObserverIdOutput {
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct ExtractNumericInput {
+    #[serde(default)]
+    pub value: Value,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct ExtractNumericOutput {
+    pub value: Option<f64>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct PickFirstNumericInput {
+    #[serde(default)]
+    pub candidates: Vec<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct PickFirstNumericOutput {
+    pub value: Option<f64>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct SafeRelPathInput {
+    #[serde(default)]
+    pub root: Option<String>,
+    #[serde(default)]
+    pub file_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct SafeRelPathOutput {
+    pub value: String,
+}
+
 fn normalize_token(raw: &str, max_len: usize) -> String {
     let collapsed = raw
         .split_whitespace()
@@ -1315,6 +1433,97 @@ fn stable_id_runtime(seed: &str, prefix: &str) -> String {
     hasher.update(seed.as_bytes());
     let digest = format!("{:x}", hasher.finalize());
     format!("{}_{}", prefix, &digest[..16])
+}
+
+fn normalize_slashes(value: &str) -> String {
+    value.replace('\\', "/")
+}
+
+fn split_path_components(value: &str) -> (String, Vec<String>) {
+    let normalized = normalize_slashes(value.trim());
+    let mut prefix = String::new();
+    let mut cursor = normalized.as_str();
+
+    let bytes = normalized.as_bytes();
+    if bytes.len() >= 2 && bytes[1] == b':' {
+        prefix = normalized[..2].to_lowercase();
+        cursor = &normalized[2..];
+    } else if normalized.starts_with('/') {
+        prefix = "/".to_string();
+        cursor = &normalized[1..];
+    }
+
+    let mut parts: Vec<String> = Vec::new();
+    for raw in cursor.split('/') {
+        if raw.is_empty() || raw == "." {
+            continue;
+        }
+        if raw == ".." {
+            if !parts.is_empty() && parts.last().map(|last| last != "..").unwrap_or(false) {
+                parts.pop();
+            } else if prefix.is_empty() {
+                parts.push("..".to_string());
+            }
+            continue;
+        }
+        parts.push(raw.to_string());
+    }
+    (prefix, parts)
+}
+
+fn rel_path_runtime(root: &str, file_path: &str) -> String {
+    let root_clean = root.trim();
+    let file_clean = file_path.trim();
+    if file_clean.is_empty() {
+        return String::new();
+    }
+    let normalized_file = normalize_slashes(file_clean);
+    if root_clean.is_empty() {
+        return normalized_file;
+    }
+
+    let (root_prefix, root_parts) = split_path_components(root_clean);
+    let (file_prefix, file_parts) = split_path_components(file_clean);
+    if root_prefix != file_prefix {
+        return normalized_file;
+    }
+
+    let mut common = 0usize;
+    while common < root_parts.len() && common < file_parts.len() {
+        if root_parts[common] != file_parts[common] {
+            break;
+        }
+        common += 1;
+    }
+
+    let mut out: Vec<String> = Vec::new();
+    for _ in common..root_parts.len() {
+        out.push("..".to_string());
+    }
+    for part in file_parts.iter().skip(common) {
+        out.push(part.to_string());
+    }
+
+    out.join("/")
+}
+
+fn js_number_for_extract(value: Option<&Value>) -> Option<f64> {
+    let Some(v) = value else {
+        return None;
+    };
+    match v {
+        Value::Null => Some(0.0),
+        Value::Bool(b) => Some(if *b { 1.0 } else { 0.0 }),
+        Value::Number(n) => n.as_f64(),
+        Value::String(s) => {
+            let trimmed = s.trim();
+            if trimmed.is_empty() {
+                return Some(0.0);
+            }
+            trimmed.parse::<f64>().ok()
+        }
+        _ => None,
+    }
 }
 
 pub fn compute_normalize_band_map(input: &NormalizeBandMapInput) -> NormalizeBandMapOutput {
@@ -2277,6 +2486,118 @@ pub fn compute_band_to_index(input: &BandToIndexInput) -> BandToIndexOutput {
         4
     };
     BandToIndexOutput { index }
+}
+
+pub fn compute_escape_regex(input: &EscapeRegexInput) -> EscapeRegexOutput {
+    EscapeRegexOutput {
+        value: regex::escape(input.value.as_deref().unwrap_or("")),
+    }
+}
+
+pub fn compute_pattern_to_word_regex(input: &PatternToWordRegexInput) -> PatternToWordRegexOutput {
+    let max_len = input.max_len.unwrap_or(200).clamp(1, 10000) as usize;
+    let raw = clean_text_runtime(input.pattern.as_deref().unwrap_or(""), max_len);
+    if raw.is_empty() {
+        return PatternToWordRegexOutput { source: None };
+    }
+    let words = raw
+        .split_whitespace()
+        .map(regex::escape)
+        .filter(|row| !row.is_empty())
+        .collect::<Vec<_>>();
+    if words.is_empty() {
+        return PatternToWordRegexOutput { source: None };
+    }
+    PatternToWordRegexOutput {
+        source: Some(format!("\\b{}\\b", words.join("\\s+"))),
+    }
+}
+
+pub fn compute_stable_id(input: &StableIdInput) -> StableIdOutput {
+    let seed = input.seed.as_deref().unwrap_or("");
+    let prefix = clean_text_runtime(input.prefix.as_deref().unwrap_or("inv"), 80);
+    let safe_prefix = if prefix.is_empty() {
+        "inv".to_string()
+    } else {
+        prefix
+    };
+    StableIdOutput {
+        id: stable_id_runtime(seed, &safe_prefix),
+    }
+}
+
+pub fn compute_rel_path(input: &RelPathInput) -> RelPathOutput {
+    RelPathOutput {
+        value: rel_path_runtime(
+            input.root.as_deref().unwrap_or(""),
+            input.file_path.as_deref().unwrap_or(""),
+        ),
+    }
+}
+
+pub fn compute_normalize_axiom_pattern(
+    input: &NormalizeAxiomPatternInput,
+) -> NormalizeAxiomPatternOutput {
+    NormalizeAxiomPatternOutput {
+        value: clean_text_runtime(input.value.as_deref().unwrap_or(""), 200).to_lowercase(),
+    }
+}
+
+pub fn compute_normalize_axiom_signal_terms(
+    input: &NormalizeAxiomSignalTermsInput,
+) -> NormalizeAxiomSignalTermsOutput {
+    let mut out = input
+        .terms
+        .iter()
+        .map(|row| {
+            compute_normalize_axiom_pattern(&NormalizeAxiomPatternInput {
+                value: Some(value_to_string(Some(row))),
+            })
+            .value
+        })
+        .filter(|row| !row.is_empty())
+        .collect::<Vec<_>>();
+    out.truncate(32);
+    NormalizeAxiomSignalTermsOutput { terms: out }
+}
+
+pub fn compute_normalize_observer_id(
+    input: &NormalizeObserverIdInput,
+) -> NormalizeObserverIdOutput {
+    NormalizeObserverIdOutput {
+        value: normalize_token_runtime(input.value.as_deref().unwrap_or(""), 120),
+    }
+}
+
+pub fn compute_extract_numeric(input: &ExtractNumericInput) -> ExtractNumericOutput {
+    let value = js_number_for_extract(Some(&input.value))
+        .filter(|n| n.is_finite());
+    ExtractNumericOutput { value }
+}
+
+pub fn compute_pick_first_numeric(input: &PickFirstNumericInput) -> PickFirstNumericOutput {
+    for candidate in &input.candidates {
+        let out = compute_extract_numeric(&ExtractNumericInput {
+            value: candidate.clone(),
+        });
+        if out.value.is_some() {
+            return PickFirstNumericOutput { value: out.value };
+        }
+    }
+    PickFirstNumericOutput { value: None }
+}
+
+pub fn compute_safe_rel_path(input: &SafeRelPathInput) -> SafeRelPathOutput {
+    let rel = rel_path_runtime(
+        input.root.as_deref().unwrap_or(""),
+        input.file_path.as_deref().unwrap_or(""),
+    );
+    let value = if rel.is_empty() || rel.starts_with("..") {
+        normalize_slashes(input.file_path.as_deref().unwrap_or(""))
+    } else {
+        rel
+    };
+    SafeRelPathOutput { value }
 }
 
 pub fn compute_creative_penalty(input: &CreativePenaltyInput) -> CreativePenaltyOutput {
@@ -3558,6 +3879,106 @@ pub fn run_inversion_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("inversion_encode_band_to_index_failed:{e}"));
     }
+    if mode == "escape_regex" {
+        let input: EscapeRegexInput = decode_input(&payload, "escape_regex_input")?;
+        let out = compute_escape_regex(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "escape_regex",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_escape_regex_failed:{e}"));
+    }
+    if mode == "pattern_to_word_regex" {
+        let input: PatternToWordRegexInput = decode_input(&payload, "pattern_to_word_regex_input")?;
+        let out = compute_pattern_to_word_regex(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "pattern_to_word_regex",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_pattern_to_word_regex_failed:{e}"));
+    }
+    if mode == "stable_id" {
+        let input: StableIdInput = decode_input(&payload, "stable_id_input")?;
+        let out = compute_stable_id(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "stable_id",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_stable_id_failed:{e}"));
+    }
+    if mode == "rel_path" {
+        let input: RelPathInput = decode_input(&payload, "rel_path_input")?;
+        let out = compute_rel_path(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "rel_path",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_rel_path_failed:{e}"));
+    }
+    if mode == "normalize_axiom_pattern" {
+        let input: NormalizeAxiomPatternInput = decode_input(&payload, "normalize_axiom_pattern_input")?;
+        let out = compute_normalize_axiom_pattern(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "normalize_axiom_pattern",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_normalize_axiom_pattern_failed:{e}"));
+    }
+    if mode == "normalize_axiom_signal_terms" {
+        let input: NormalizeAxiomSignalTermsInput = decode_input(&payload, "normalize_axiom_signal_terms_input")?;
+        let out = compute_normalize_axiom_signal_terms(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "normalize_axiom_signal_terms",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_normalize_axiom_signal_terms_failed:{e}"));
+    }
+    if mode == "normalize_observer_id" {
+        let input: NormalizeObserverIdInput = decode_input(&payload, "normalize_observer_id_input")?;
+        let out = compute_normalize_observer_id(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "normalize_observer_id",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_normalize_observer_id_failed:{e}"));
+    }
+    if mode == "extract_numeric" {
+        let input: ExtractNumericInput = decode_input(&payload, "extract_numeric_input")?;
+        let out = compute_extract_numeric(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "extract_numeric",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_extract_numeric_failed:{e}"));
+    }
+    if mode == "pick_first_numeric" {
+        let input: PickFirstNumericInput = decode_input(&payload, "pick_first_numeric_input")?;
+        let out = compute_pick_first_numeric(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "pick_first_numeric",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_pick_first_numeric_failed:{e}"));
+    }
+    if mode == "safe_rel_path" {
+        let input: SafeRelPathInput = decode_input(&payload, "safe_rel_path_input")?;
+        let out = compute_safe_rel_path(&input);
+        return serde_json::to_string(&json!({
+            "ok": true,
+            "mode": "safe_rel_path",
+            "payload": out
+        }))
+        .map_err(|e| format!("inversion_encode_safe_rel_path_failed:{e}"));
+    }
     Err(format!("inversion_mode_unsupported:{mode}"))
 }
 
@@ -4208,5 +4629,62 @@ mod tests {
             band: Some("seasoned".to_string()),
         });
         assert_eq!(band.index, 3);
+    }
+
+    #[test]
+    fn helper_primitives_batch6_match_contract() {
+        let escaped = compute_escape_regex(&EscapeRegexInput {
+            value: Some("a+b?c".to_string()),
+        });
+        assert_eq!(escaped.value, "a\\+b\\?c".to_string());
+
+        let pattern = compute_pattern_to_word_regex(&PatternToWordRegexInput {
+            pattern: Some("risk guard".to_string()),
+            max_len: Some(200),
+        });
+        assert_eq!(pattern.source, Some("\\brisk\\s+guard\\b".to_string()));
+
+        let stable = compute_stable_id(&StableIdInput {
+            seed: Some("seed".to_string()),
+            prefix: Some("inv".to_string()),
+        });
+        assert!(stable.id.starts_with("inv_"));
+
+        let rel = compute_rel_path(&RelPathInput {
+            root: Some("/tmp/root".to_string()),
+            file_path: Some("/tmp/root/state/a.json".to_string()),
+        });
+        assert_eq!(rel.value, "state/a.json".to_string());
+
+        let axiom = compute_normalize_axiom_pattern(&NormalizeAxiomPatternInput {
+            value: Some("  Risk   Guard  ".to_string()),
+        });
+        assert_eq!(axiom.value, "risk guard".to_string());
+
+        let terms = compute_normalize_axiom_signal_terms(&NormalizeAxiomSignalTermsInput {
+            terms: vec![json!(" Risk "), json!("Guard"), json!("")],
+        });
+        assert_eq!(terms.terms, vec!["risk".to_string(), "guard".to_string()]);
+
+        let observer = compute_normalize_observer_id(&NormalizeObserverIdInput {
+            value: Some("Observer 01".to_string()),
+        });
+        assert_eq!(observer.value, "observer_01".to_string());
+
+        let num = compute_extract_numeric(&ExtractNumericInput {
+            value: json!("2.5"),
+        });
+        assert_eq!(num.value, Some(2.5));
+
+        let first = compute_pick_first_numeric(&PickFirstNumericInput {
+            candidates: vec![json!(""), json!("x"), json!(7.0)],
+        });
+        assert_eq!(first.value, Some(0.0));
+
+        let safe = compute_safe_rel_path(&SafeRelPathInput {
+            root: Some("/tmp/root".to_string()),
+            file_path: Some("/tmp/other/a.json".to_string()),
+        });
+        assert_eq!(safe.value, "/tmp/other/a.json".to_string());
     }
 }
