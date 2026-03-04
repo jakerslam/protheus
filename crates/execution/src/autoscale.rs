@@ -1,6 +1,7 @@
 use chrono::{DateTime, Duration, NaiveDate, Utc};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct QueuePressure {
@@ -2030,6 +2031,65 @@ pub struct AdaptiveMutationExecutionGuardOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategySelectionVariantInput {
+    #[serde(default)]
+    pub strategy_id: Option<String>,
+    #[serde(default)]
+    pub score: f64,
+    #[serde(default)]
+    pub confidence: f64,
+    #[serde(default)]
+    pub stage: Option<String>,
+    #[serde(default)]
+    pub execution_mode: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategySelectionInput {
+    #[serde(default)]
+    pub date_str: Option<String>,
+    #[serde(default)]
+    pub attempt_index: f64,
+    #[serde(default)]
+    pub canary_enabled: bool,
+    #[serde(default)]
+    pub canary_allow_execute: bool,
+    #[serde(default)]
+    pub canary_fraction: f64,
+    #[serde(default)]
+    pub max_active: f64,
+    #[serde(default)]
+    pub fallback_strategy_id: Option<String>,
+    #[serde(default)]
+    pub variants: Vec<StrategySelectionVariantInput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategySelectionRankedOutput {
+    pub strategy_id: String,
+    pub score: f64,
+    pub confidence: f64,
+    #[serde(default)]
+    pub stage: Option<String>,
+    pub execution_mode: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategySelectionOutput {
+    #[serde(default)]
+    pub selected_strategy_id: Option<String>,
+    pub mode: String,
+    pub canary_enabled: bool,
+    pub canary_due: bool,
+    #[serde(default)]
+    pub canary_every: Option<u32>,
+    pub attempt_index: u32,
+    pub active_count: u32,
+    #[serde(default)]
+    pub ranked: Vec<StrategySelectionRankedOutput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -3168,6 +3228,8 @@ pub struct AutoscaleRequest {
     pub has_adaptive_mutation_signal_input: Option<HasAdaptiveMutationSignalInput>,
     #[serde(default)]
     pub adaptive_mutation_execution_guard_input: Option<AdaptiveMutationExecutionGuardInput>,
+    #[serde(default)]
+    pub strategy_selection_input: Option<StrategySelectionInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -6792,6 +6854,146 @@ pub fn compute_adaptive_mutation_execution_guard(
     }
 }
 
+fn stable_selection_index(seed: &str, size: usize) -> usize {
+    if size == 0 {
+        return 0;
+    }
+    let mut hasher = Sha256::new();
+    hasher.update(seed.as_bytes());
+    let hash = hasher.finalize();
+    let mut first_12 = String::with_capacity(12);
+    for byte in hash[..6].iter() {
+        first_12.push_str(&format!("{byte:02x}"));
+    }
+    let n = u64::from_str_radix(&first_12, 16).unwrap_or(0);
+    (n % size as u64) as usize
+}
+
+pub fn compute_strategy_selection(input: &StrategySelectionInput) -> StrategySelectionOutput {
+    let attempt_index = input.attempt_index.max(1.0).round() as u32;
+    let mut variants: Vec<StrategySelectionRankedOutput> = input
+        .variants
+        .iter()
+        .map(|row| StrategySelectionRankedOutput {
+            strategy_id: normalize_spaces(row.strategy_id.as_deref().unwrap_or("")),
+            score: if row.score.is_finite() { row.score } else { 0.0 },
+            confidence: if row.confidence.is_finite() {
+                row.confidence
+            } else {
+                0.0
+            },
+            stage: row
+                .stage
+                .as_ref()
+                .map(|v| normalize_spaces(v))
+                .filter(|v| !v.is_empty()),
+            execution_mode: normalize_spaces(row.execution_mode.as_deref().unwrap_or("")),
+        })
+        .filter(|row| !row.strategy_id.is_empty())
+        .collect();
+
+    variants.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.strategy_id.cmp(&b.strategy_id))
+    });
+    let max_active = input.max_active.max(1.0).round() as usize;
+    if variants.len() > max_active {
+        variants.truncate(max_active);
+    }
+
+    let fallback_id = normalize_spaces(input.fallback_strategy_id.as_deref().unwrap_or(""));
+    if variants.is_empty() {
+        return StrategySelectionOutput {
+            selected_strategy_id: if fallback_id.is_empty() {
+                None
+            } else {
+                Some(fallback_id)
+            },
+            mode: "none".to_string(),
+            canary_enabled: input.canary_enabled,
+            canary_due: false,
+            canary_every: None,
+            attempt_index,
+            active_count: 0,
+            ranked: Vec::new(),
+        };
+    }
+
+    let default_id = variants
+        .first()
+        .map(|row| row.strategy_id.clone())
+        .filter(|id| !id.is_empty())
+        .or_else(|| {
+            if fallback_id.is_empty() {
+                None
+            } else {
+                Some(fallback_id.clone())
+            }
+        });
+
+    let canary_pool: Vec<StrategySelectionRankedOutput> = variants
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, row)| {
+            if idx == 0 {
+                return None;
+            }
+            if input.canary_allow_execute {
+                return Some(row.clone());
+            }
+            if row.execution_mode != "execute" {
+                return Some(row.clone());
+            }
+            None
+        })
+        .collect();
+
+    let canary_every = if input.canary_fraction.is_finite() && input.canary_fraction > 0.0 {
+        Some((1.0 / input.canary_fraction).round().max(2.0) as u32)
+    } else {
+        None
+    };
+    let canary_due = input.canary_enabled
+        && !canary_pool.is_empty()
+        && canary_every
+            .map(|every| every > 0 && attempt_index % every == 0)
+            .unwrap_or(false);
+    let selected_strategy_id = if canary_due {
+        let pool_ids: Vec<String> = canary_pool.iter().map(|row| row.strategy_id.clone()).collect();
+        let seed = format!(
+            "{}|{}|{}",
+            normalize_spaces(input.date_str.as_deref().unwrap_or("")),
+            attempt_index,
+            pool_ids.join(",")
+        );
+        let idx = stable_selection_index(&seed, canary_pool.len());
+        canary_pool
+            .get(idx)
+            .map(|row| row.strategy_id.clone())
+            .filter(|row| !row.is_empty())
+            .or_else(|| default_id.clone())
+    } else {
+        default_id.clone()
+    };
+
+    StrategySelectionOutput {
+        selected_strategy_id,
+        mode: if canary_due {
+            "canary_variant".to_string()
+        } else {
+            "primary_best".to_string()
+        },
+        canary_enabled: input.canary_enabled,
+        canary_due,
+        canary_every,
+        attempt_index,
+        active_count: variants.len() as u32,
+        ranked: variants,
+    }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -10223,6 +10425,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_adaptive_mutation_execution_guard_encode_failed:{e}"));
+    }
+    if mode == "strategy_selection" {
+        let input = request
+            .strategy_selection_input
+            .ok_or_else(|| "autoscale_missing_strategy_selection_input".to_string())?;
+        let out = compute_strategy_selection(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "strategy_selection",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_strategy_selection_encode_failed:{e}"));
     }
     if mode == "is_directive_clarification_proposal" {
         let input = request
@@ -14932,6 +15146,73 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale adaptive_mutation_execution_guard");
         assert!(out.contains("\"mode\":\"adaptive_mutation_execution_guard\""));
+    }
+
+    #[test]
+    fn strategy_selection_chooses_primary_when_canary_not_due() {
+        let out = compute_strategy_selection(&StrategySelectionInput {
+            date_str: Some("2026-03-04".to_string()),
+            attempt_index: 1.0,
+            canary_enabled: true,
+            canary_allow_execute: false,
+            canary_fraction: 0.25,
+            max_active: 3.0,
+            fallback_strategy_id: Some("fallback".to_string()),
+            variants: vec![
+                StrategySelectionVariantInput {
+                    strategy_id: Some("s-main".to_string()),
+                    score: 0.9,
+                    confidence: 0.8,
+                    stage: Some("stable".to_string()),
+                    execution_mode: Some("execute".to_string()),
+                },
+                StrategySelectionVariantInput {
+                    strategy_id: Some("s-canary".to_string()),
+                    score: 0.8,
+                    confidence: 0.7,
+                    stage: Some("trial".to_string()),
+                    execution_mode: Some("score_only".to_string()),
+                },
+            ],
+        });
+        assert_eq!(out.mode, "primary_best");
+        assert_eq!(out.selected_strategy_id.as_deref(), Some("s-main"));
+        assert_eq!(out.active_count, 2);
+    }
+
+    #[test]
+    fn autoscale_json_strategy_selection_path_works() {
+        let payload = serde_json::json!({
+            "mode": "strategy_selection",
+            "strategy_selection_input": {
+                "date_str": "2026-03-04",
+                "attempt_index": 4,
+                "canary_enabled": true,
+                "canary_allow_execute": false,
+                "canary_fraction": 0.25,
+                "max_active": 3,
+                "fallback_strategy_id": "fallback",
+                "variants": [
+                    {
+                        "strategy_id": "s-main",
+                        "score": 0.9,
+                        "confidence": 0.8,
+                        "stage": "stable",
+                        "execution_mode": "execute"
+                    },
+                    {
+                        "strategy_id": "s-canary",
+                        "score": 0.8,
+                        "confidence": 0.7,
+                        "stage": "trial",
+                        "execution_mode": "score_only"
+                    }
+                ]
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale strategy_selection");
+        assert!(out.contains("\"mode\":\"strategy_selection\""));
     }
 
     #[test]

@@ -817,20 +817,8 @@ function selectStrategyForRun(dateStr, priorRuns = []) {
   const fallback = primary || (variants.length ? variants[0] : null);
   const attempts = (Array.isArray(priorRuns) ? priorRuns : []).filter((evt) => evt && evt.type === 'autonomy_run').length;
   const attemptIndex = attempts + 1;
-  if (!fallback) {
-    return {
-      strategy: null,
-      mode: 'none',
-      canary_enabled: AUTONOMY_MULTI_STRATEGY_CANARY_ENABLED,
-      canary_due: false,
-      active_count: 0,
-      attempt_index: attemptIndex,
-      ranked: []
-    };
-  }
-
   const scorecards = strategyScorecardSummaries();
-  const ranked = variants
+  const variantRows = variants
     .map((s) => {
       const id = String(s && s.id || '');
       const scoreRow = scorecards && scorecards.by_id && scorecards.by_id[id]
@@ -844,7 +832,75 @@ function selectStrategyForRun(dateStr, priorRuns = []) {
         stage: scoreRow.stage || null,
         execution_mode: strategyExecutionMode(s, 'score_only')
       };
-    })
+    });
+
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'strategy_selection',
+      {
+        date_str: String(dateStr || ''),
+        attempt_index: attemptIndex,
+        canary_enabled: AUTONOMY_MULTI_STRATEGY_CANARY_ENABLED,
+        canary_allow_execute: AUTONOMY_MULTI_STRATEGY_CANARY_ALLOW_EXECUTE,
+        canary_fraction: Number(AUTONOMY_MULTI_STRATEGY_CANARY_FRACTION || 0),
+        max_active: Number(AUTONOMY_MULTI_STRATEGY_MAX_ACTIVE || 1),
+        fallback_strategy_id: String(fallback && fallback.id || ''),
+        variants: variantRows.map((row) => ({
+          strategy_id: row.id,
+          score: Number(row.score || 0),
+          confidence: Number(row.confidence || 0),
+          stage: row.stage || null,
+          execution_mode: String(row.execution_mode || '')
+        }))
+      },
+      { allow_cli_fallback: true }
+    );
+    if (
+      rust
+      && rust.ok === true
+      && rust.payload
+      && rust.payload.ok === true
+      && rust.payload.payload
+    ) {
+      const payload = rust.payload.payload;
+      const ranked = Array.isArray(payload.ranked) ? payload.ranked : [];
+      const strategyById = new Map(variantRows.map((row) => [String(row.id || ''), row.strategy]));
+      const selectedId = String(payload.selected_strategy_id || '');
+      const selectedStrategy = strategyById.get(selectedId) || fallback || null;
+      return {
+        strategy: selectedStrategy,
+        mode: String(payload.mode || (selectedId ? 'primary_best' : 'none')),
+        canary_enabled: payload.canary_enabled === true,
+        canary_due: payload.canary_due === true,
+        canary_every: Number.isFinite(Number(payload.canary_every))
+          ? Number(payload.canary_every)
+          : null,
+        attempt_index: Number(payload.attempt_index || attemptIndex),
+        active_count: Number(payload.active_count || ranked.length || 0),
+        ranked: ranked.map((row) => ({
+          strategy_id: String(row && row.strategy_id || ''),
+          score: Number(row && row.score || 0),
+          confidence: Number(row && row.confidence || 0),
+          stage: row && row.stage ? String(row.stage) : null,
+          execution_mode: String(row && row.execution_mode || '')
+        }))
+      };
+    }
+  }
+
+  if (!fallback) {
+    return {
+      strategy: null,
+      mode: 'none',
+      canary_enabled: AUTONOMY_MULTI_STRATEGY_CANARY_ENABLED,
+      canary_due: false,
+      active_count: 0,
+      attempt_index: attemptIndex,
+      ranked: []
+    };
+  }
+
+  const ranked = variantRows
     .sort((a, b) => Number(b.score || 0) - Number(a.score || 0) || String(a.id || '').localeCompare(String(b.id || '')))
     .slice(0, Math.max(1, AUTONOMY_MULTI_STRATEGY_MAX_ACTIVE));
 
