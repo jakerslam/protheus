@@ -3284,6 +3284,19 @@ pub struct TruthyFlagOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StableSelectionIndexInput {
+    #[serde(default)]
+    pub seed: Option<String>,
+    #[serde(default)]
+    pub size: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StableSelectionIndexOutput {
+    pub index: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ParseDirectiveFileArgInput {
     #[serde(default)]
     pub command: Option<String>,
@@ -4487,6 +4500,8 @@ pub struct AutoscaleRequest {
     pub truthy_flag_input: Option<TruthyFlagInput>,
     #[serde(default)]
     pub falsey_flag_input: Option<TruthyFlagInput>,
+    #[serde(default)]
+    pub stable_selection_index_input: Option<StableSelectionIndexInput>,
     #[serde(default)]
     pub parse_directive_file_arg_input: Option<ParseDirectiveFileArgInput>,
     #[serde(default)]
@@ -10382,6 +10397,25 @@ pub fn compute_falsey_flag(input: &TruthyFlagInput) -> TruthyFlagOutput {
     TruthyFlagOutput { value }
 }
 
+pub fn compute_stable_selection_index(input: &StableSelectionIndexInput) -> StableSelectionIndexOutput {
+    let n = input
+        .size
+        .filter(|v| v.is_finite())
+        .unwrap_or(0.0)
+        .max(0.0)
+        .floor() as u64;
+    if n == 0 {
+        return StableSelectionIndexOutput { index: 0 };
+    }
+    let seed = input.seed.as_deref().unwrap_or("");
+    let hex = format!("{:x}", Sha256::digest(seed.as_bytes()));
+    let slice = &hex[..std::cmp::min(12, hex.len())];
+    let num = u64::from_str_radix(slice, 16).unwrap_or(0);
+    StableSelectionIndexOutput {
+        index: (num % n) as u32,
+    }
+}
+
 pub fn compute_parse_directive_file_arg(input: &ParseDirectiveFileArgInput) -> ParseDirectiveFileArgOutput {
     let text = input.command.as_deref().unwrap_or("").trim();
     if text.is_empty() {
@@ -14353,6 +14387,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_falsey_flag_encode_failed:{e}"));
+    }
+    if mode == "stable_selection_index" {
+        let input = request
+            .stable_selection_index_input
+            .ok_or_else(|| "autoscale_missing_stable_selection_index_input".to_string())?;
+        let out = compute_stable_selection_index(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "stable_selection_index",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_stable_selection_index_encode_failed:{e}"));
     }
     if mode == "parse_directive_file_arg" {
         let input = request
