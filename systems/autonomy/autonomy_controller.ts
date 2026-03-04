@@ -2711,6 +2711,8 @@ const SCORE_ONLY_RESULT_CACHE = new Map();
 const SCORE_ONLY_RESULT_CACHE_MAX = 1024;
 const SCORE_ONLY_FAILURE_LIKE_CACHE = new Map();
 const SCORE_ONLY_FAILURE_LIKE_CACHE_MAX = 1024;
+const GATE_EXHAUSTED_ATTEMPT_CACHE = new Map();
+const GATE_EXHAUSTED_ATTEMPT_CACHE_MAX = 1024;
 
 function isPolicyHoldResult(result): boolean {
   const r = String(result || '').trim();
@@ -3635,6 +3637,28 @@ function scoreOnlyProposalChurn(priorRuns, proposalId, windowHours) {
 
 function isGateExhaustedAttempt(evt) {
   if (!evt || evt.type !== 'autonomy_run') return false;
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const eventType = String(evt.type || '');
+    const result = String(evt.result || '');
+    const key = `${eventType}\u0000${result}`;
+    if (GATE_EXHAUSTED_ATTEMPT_CACHE.has(key)) {
+      return GATE_EXHAUSTED_ATTEMPT_CACHE.get(key) === true;
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'gate_exhausted_attempt',
+      { event_type: eventType, result },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const val = rust.payload.payload.is_gate_exhausted === true;
+      if (GATE_EXHAUSTED_ATTEMPT_CACHE.size >= GATE_EXHAUSTED_ATTEMPT_CACHE_MAX) {
+        const oldest = GATE_EXHAUSTED_ATTEMPT_CACHE.keys().next();
+        if (!oldest.done) GATE_EXHAUSTED_ATTEMPT_CACHE.delete(oldest.value);
+      }
+      GATE_EXHAUSTED_ATTEMPT_CACHE.set(key, val);
+      return val;
+    }
+  }
   return evt.result === 'stop_repeat_gate_stale_signal'
     || evt.result === 'stop_repeat_gate_capability_cap'
     || evt.result === 'stop_repeat_gate_directive_pulse_cooldown'
@@ -16474,5 +16498,6 @@ module.exports = {
   isCapacityCountedAttemptEvent,
   deriveRepeatGateAnchor,
   isScoreOnlyResult,
-  isScoreOnlyFailureLikeEvent
+  isScoreOnlyFailureLikeEvent,
+  isGateExhaustedAttempt
 };

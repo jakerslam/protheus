@@ -250,6 +250,19 @@ pub struct ScoreOnlyFailureLikeOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GateExhaustedAttemptInput {
+    #[serde(default)]
+    pub event_type: Option<String>,
+    #[serde(default)]
+    pub result: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GateExhaustedAttemptOutput {
+    pub is_gate_exhausted: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct NoProgressResultInput {
     #[serde(default)]
     pub event_type: Option<String>,
@@ -687,6 +700,8 @@ pub struct AutoscaleRequest {
     pub score_only_result_input: Option<ScoreOnlyResultInput>,
     #[serde(default)]
     pub score_only_failure_like_input: Option<ScoreOnlyFailureLikeInput>,
+    #[serde(default)]
+    pub gate_exhausted_attempt_input: Option<GateExhaustedAttemptInput>,
     #[serde(default)]
     pub no_progress_result_input: Option<NoProgressResultInput>,
     #[serde(default)]
@@ -1406,6 +1421,49 @@ pub fn compute_score_only_failure_like(
         .unwrap_or_default();
     ScoreOnlyFailureLikeOutput {
         is_failure_like: outcome == "no_change",
+    }
+}
+
+pub fn compute_gate_exhausted_attempt(
+    input: &GateExhaustedAttemptInput,
+) -> GateExhaustedAttemptOutput {
+    let event_type = input
+        .event_type
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    if event_type != "autonomy_run" {
+        return GateExhaustedAttemptOutput {
+            is_gate_exhausted: false,
+        };
+    }
+
+    let result = input
+        .result
+        .as_ref()
+        .map(|v| v.trim())
+        .unwrap_or_default();
+    GateExhaustedAttemptOutput {
+        is_gate_exhausted: result == "stop_repeat_gate_stale_signal"
+            || result == "stop_repeat_gate_capability_cap"
+            || result == "stop_repeat_gate_directive_pulse_cooldown"
+            || result == "stop_repeat_gate_directive_pulse_tier_reservation"
+            || result == "stop_repeat_gate_human_escalation_pending"
+            || result == "init_gate_blocked_route"
+            || result == "stop_init_gate_quality_exhausted"
+            || result == "stop_init_gate_directive_fit_exhausted"
+            || result == "stop_init_gate_actionability_exhausted"
+            || result == "stop_init_gate_optimization_good_enough"
+            || result == "stop_init_gate_value_signal_exhausted"
+            || result == "stop_init_gate_tier1_governance"
+            || result == "stop_init_gate_medium_risk_guard"
+            || result == "stop_init_gate_medium_requires_canary"
+            || result == "stop_init_gate_composite_exhausted"
+            || result == "stop_repeat_gate_capability_cooldown"
+            || result == "stop_repeat_gate_capability_no_change_cooldown"
+            || result == "stop_repeat_gate_preview_churn_cooldown"
+            || result == "stop_repeat_gate_medium_canary_cap"
+            || result == "stop_repeat_gate_candidate_exhausted",
     }
 }
 
@@ -2387,6 +2445,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_score_only_failure_like_encode_failed:{e}"));
     }
+    if mode == "gate_exhausted_attempt" {
+        let input = request
+            .gate_exhausted_attempt_input
+            .ok_or_else(|| "autoscale_missing_gate_exhausted_attempt_input".to_string())?;
+        let out = compute_gate_exhausted_attempt(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "gate_exhausted_attempt",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_gate_exhausted_attempt_encode_failed:{e}"));
+    }
     if mode == "no_progress_result" {
         let input = request
             .no_progress_result_input
@@ -2915,6 +2985,35 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale score_only_failure_like");
         assert!(out.contains("\"mode\":\"score_only_failure_like\""));
+    }
+
+    #[test]
+    fn gate_exhausted_attempt_classifies_expected_values() {
+        let exhausted = compute_gate_exhausted_attempt(&GateExhaustedAttemptInput {
+            event_type: Some("autonomy_run".to_string()),
+            result: Some("stop_repeat_gate_stale_signal".to_string()),
+        });
+        assert!(exhausted.is_gate_exhausted);
+
+        let non_exhausted = compute_gate_exhausted_attempt(&GateExhaustedAttemptInput {
+            event_type: Some("autonomy_run".to_string()),
+            result: Some("executed".to_string()),
+        });
+        assert!(!non_exhausted.is_gate_exhausted);
+    }
+
+    #[test]
+    fn autoscale_json_gate_exhausted_attempt_path_works() {
+        let payload = serde_json::json!({
+            "mode": "gate_exhausted_attempt",
+            "gate_exhausted_attempt_input": {
+                "event_type": "autonomy_run",
+                "result": "stop_repeat_gate_candidate_exhausted"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale gate_exhausted_attempt");
+        assert!(out.contains("\"mode\":\"gate_exhausted_attempt\""));
     }
 
     #[test]

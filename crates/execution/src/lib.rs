@@ -15,6 +15,7 @@ use wasm_bindgen::prelude::*;
 pub use autoscale::{
     compute_attempt_run_event, compute_batch_max, compute_capacity_counted_attempt_event,
     compute_criteria_gate, compute_dynamic_caps,
+    compute_gate_exhausted_attempt,
     compute_no_progress_result, compute_non_yield_category, compute_normalize_queue, compute_plan,
     compute_policy_hold, compute_policy_hold_cooldown, compute_policy_hold_latest_event,
     compute_non_yield_reason, compute_policy_hold_pattern, compute_policy_hold_pressure,
@@ -29,7 +30,8 @@ pub use autoscale::{
     AttemptRunEventInput, AttemptRunEventOutput, BatchMaxInput, BatchMaxOutput,
     CapacityCountedAttemptEventInput, CapacityCountedAttemptEventOutput, CriteriaGateInput,
     CriteriaGateOutput, DynamicCapsInput, DynamicCapsOutput, NoProgressResultInput,
-    NoProgressResultOutput, NonYieldCategoryInput, NonYieldCategoryOutput, NonYieldReasonInput,
+    NoProgressResultOutput, GateExhaustedAttemptInput, GateExhaustedAttemptOutput,
+    NonYieldCategoryInput, NonYieldCategoryOutput, NonYieldReasonInput,
     NonYieldReasonOutput, NormalizeQueueInput, NormalizeQueueOutput, PlanInput, PlanOutput,
     ProposalTypeFromRunEventInput, ProposalTypeFromRunEventOutput,
     RepeatGateAnchorBindingOutput, RepeatGateAnchorInput, RepeatGateAnchorOutput,
