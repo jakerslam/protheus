@@ -2414,6 +2414,59 @@ pub struct OptimizationGoodEnoughOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalDependencySummaryInput {
+    #[serde(default)]
+    pub proposal_id: Option<String>,
+    #[serde(default)]
+    pub decision: Option<String>,
+    #[serde(default)]
+    pub source: Option<String>,
+    #[serde(default)]
+    pub parent_objective_id: Option<String>,
+    #[serde(default)]
+    pub created_ids: Vec<String>,
+    #[serde(default)]
+    pub dry_run: bool,
+    #[serde(default)]
+    pub created_count: Option<f64>,
+    #[serde(default)]
+    pub quality_ok: bool,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalDependencySummaryNode {
+    pub id: String,
+    pub kind: String,
+    pub role: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalDependencySummaryEdge {
+    pub from: String,
+    pub to: String,
+    pub relation: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalDependencySummaryOutput {
+    pub proposal_id: Option<String>,
+    pub decision: String,
+    pub source: Option<String>,
+    pub parent_objective_id: Option<String>,
+    pub child_objective_ids: Vec<String>,
+    pub edge_count: u32,
+    pub nodes: Vec<ProposalDependencySummaryNode>,
+    pub edges: Vec<ProposalDependencySummaryEdge>,
+    pub chain: Vec<String>,
+    pub dry_run: bool,
+    pub created_count: f64,
+    pub quality_ok: bool,
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IsDirectiveClarificationProposalInput {
     #[serde(default)]
     pub proposal_type: Option<String>,
@@ -3576,6 +3629,8 @@ pub struct AutoscaleRequest {
     pub unlinked_optimization_admission_input: Option<UnlinkedOptimizationAdmissionInput>,
     #[serde(default)]
     pub optimization_good_enough_input: Option<OptimizationGoodEnoughInput>,
+    #[serde(default)]
+    pub proposal_dependency_summary_input: Option<ProposalDependencySummaryInput>,
     #[serde(default)]
     pub is_directive_clarification_proposal_input: Option<IsDirectiveClarificationProposalInput>,
     #[serde(default)]
@@ -7890,6 +7945,105 @@ pub fn compute_optimization_good_enough(
     }
 }
 
+pub fn compute_proposal_dependency_summary(
+    input: &ProposalDependencySummaryInput,
+) -> ProposalDependencySummaryOutput {
+    let proposal_id = input
+        .proposal_id
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
+    let decision = input
+        .decision
+        .as_ref()
+        .map(|v| v.split_whitespace().collect::<Vec<_>>().join(" ").to_uppercase())
+        .unwrap_or_default();
+    let source = input
+        .source
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
+    let parent = input
+        .parent_objective_id
+        .as_ref()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
+
+    let mut child_ids = Vec::new();
+    let mut seen = std::collections::BTreeSet::<String>::new();
+    for raw in &input.created_ids {
+        let id = raw.trim().to_string();
+        if id.is_empty() || !seen.insert(id.clone()) {
+            continue;
+        }
+        child_ids.push(id);
+        if child_ids.len() >= 16 {
+            break;
+        }
+    }
+
+    let mut nodes = Vec::<ProposalDependencySummaryNode>::new();
+    let mut edges = Vec::<ProposalDependencySummaryEdge>::new();
+    if let Some(parent_id) = parent.clone() {
+        nodes.push(ProposalDependencySummaryNode {
+            id: parent_id.clone(),
+            kind: "directive".to_string(),
+            role: "parent".to_string(),
+        });
+        for child_id in &child_ids {
+            nodes.push(ProposalDependencySummaryNode {
+                id: child_id.clone(),
+                kind: "directive".to_string(),
+                role: "child".to_string(),
+            });
+            edges.push(ProposalDependencySummaryEdge {
+                from: parent_id.clone(),
+                to: child_id.clone(),
+                relation: "parent_child".to_string(),
+            });
+        }
+    } else {
+        for child_id in &child_ids {
+            nodes.push(ProposalDependencySummaryNode {
+                id: child_id.clone(),
+                kind: "directive".to_string(),
+                role: "child".to_string(),
+            });
+        }
+    }
+
+    let chain = if let Some(parent_id) = parent.clone() {
+        let mut out = vec![parent_id];
+        out.extend(child_ids.clone());
+        out
+    } else {
+        child_ids.clone()
+    };
+
+    ProposalDependencySummaryOutput {
+        proposal_id,
+        decision,
+        source,
+        parent_objective_id: parent,
+        child_objective_ids: child_ids.clone(),
+        edge_count: edges.len() as u32,
+        nodes: nodes.into_iter().take(20).collect(),
+        edges: edges.into_iter().take(20).collect(),
+        chain,
+        dry_run: input.dry_run,
+        created_count: input
+            .created_count
+            .filter(|v| v.is_finite() && *v >= 0.0)
+            .unwrap_or(child_ids.len() as f64),
+        quality_ok: input.quality_ok,
+        reason: input
+            .reason
+            .as_ref()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty()),
+    }
+}
+
 pub fn compute_is_directive_clarification_proposal(
     input: &IsDirectiveClarificationProposalInput,
 ) -> IsDirectiveClarificationProposalOutput {
@@ -11465,6 +11619,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_optimization_good_enough_encode_failed:{e}"));
+    }
+    if mode == "proposal_dependency_summary" {
+        let input = request
+            .proposal_dependency_summary_input
+            .ok_or_else(|| "autoscale_missing_proposal_dependency_summary_input".to_string())?;
+        let out = compute_proposal_dependency_summary(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "proposal_dependency_summary",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_proposal_dependency_summary_encode_failed:{e}"));
     }
     if mode == "is_directive_clarification_proposal" {
         let input = request
@@ -16632,6 +16798,46 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale optimization_good_enough");
         assert!(out.contains("\"mode\":\"optimization_good_enough\""));
+    }
+
+    #[test]
+    fn proposal_dependency_summary_builds_chain_and_edges() {
+        let out = compute_proposal_dependency_summary(&ProposalDependencySummaryInput {
+            proposal_id: Some("p-1".to_string()),
+            decision: Some("accept".to_string()),
+            source: Some("directive_decomposition".to_string()),
+            parent_objective_id: Some("T1_parent".to_string()),
+            created_ids: vec!["T1_child_a".to_string(), "T1_child_b".to_string()],
+            dry_run: false,
+            created_count: Some(2.0),
+            quality_ok: true,
+            reason: None,
+        });
+        assert_eq!(out.decision, "ACCEPT");
+        assert_eq!(out.edge_count, 2);
+        assert_eq!(out.chain.len(), 3);
+        assert_eq!(out.child_objective_ids.len(), 2);
+    }
+
+    #[test]
+    fn autoscale_json_proposal_dependency_summary_path_works() {
+        let payload = serde_json::json!({
+            "mode": "proposal_dependency_summary",
+            "proposal_dependency_summary_input": {
+                "proposal_id": "p-2",
+                "decision": "accept",
+                "source": "directive_decomposition",
+                "parent_objective_id": "T1_parent",
+                "created_ids": ["T1_child_a"],
+                "dry_run": false,
+                "created_count": 1,
+                "quality_ok": true,
+                "reason": null
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale proposal_dependency_summary");
+        assert!(out.contains("\"mode\":\"proposal_dependency_summary\""));
     }
 
     #[test]

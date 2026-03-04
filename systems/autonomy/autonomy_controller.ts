@@ -12223,6 +12223,26 @@ function proposalDependencySummary(proposal, directiveAction, actionSummary = nu
   if (!decision) return null;
   const parentObjectiveId = sanitizeDirectiveObjectiveId(action.objective_id || '');
   const createdIds = sanitizedDirectiveIdList(summary.created_ids, 16);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'proposal_dependency_summary',
+      {
+        proposal_id: String(p.id || '').trim() || null,
+        decision,
+        source: String(action.source || '').trim() || null,
+        parent_objective_id: parentObjectiveId || null,
+        created_ids: createdIds,
+        dry_run: summary.dry_run === true,
+        created_count: Number(summary.created_count),
+        quality_ok: summary.quality_ok === true,
+        reason: summary.reason || null
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload;
+    }
+  }
   const nodes = [];
   const edges = [];
   if (parentObjectiveId) {
@@ -20330,6 +20350,7 @@ module.exports = {
   isOptimizationIntentProposal,
   assessUnlinkedOptimizationAdmission,
   assessOptimizationGoodEnough,
+  proposalDependencySummary,
   sourceEyeRef,
   escapeRegExp,
   toolTokenMentioned,
