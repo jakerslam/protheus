@@ -703,6 +703,23 @@ pub struct ProposalRemediationDepthOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalDedupKeyInput {
+    #[serde(default)]
+    pub proposal_type: Option<String>,
+    #[serde(default)]
+    pub source_eye_id: Option<String>,
+    #[serde(default)]
+    pub remediation_kind: Option<String>,
+    #[serde(default)]
+    pub proposal_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalDedupKeyOutput {
+    pub dedup_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CompositeEligibilityScoreInput {
     pub quality_score: f64,
     pub directive_fit_score: f64,
@@ -1378,6 +1395,8 @@ pub struct AutoscaleRequest {
     pub estimate_tokens_input: Option<EstimateTokensInput>,
     #[serde(default)]
     pub proposal_remediation_depth_input: Option<ProposalRemediationDepthInput>,
+    #[serde(default)]
+    pub proposal_dedup_key_input: Option<ProposalDedupKeyInput>,
     #[serde(default)]
     pub composite_eligibility_score_input: Option<CompositeEligibilityScoreInput>,
     #[serde(default)]
@@ -2612,6 +2631,52 @@ pub fn compute_proposal_remediation_depth(
         0
     };
     ProposalRemediationDepthOutput { depth }
+}
+
+pub fn compute_proposal_dedup_key(input: &ProposalDedupKeyInput) -> ProposalDedupKeyOutput {
+    let proposal_type = input
+        .proposal_type
+        .as_deref()
+        .unwrap_or("unknown")
+        .trim()
+        .to_ascii_lowercase();
+    let proposal_type = if proposal_type.is_empty() {
+        "unknown".to_string()
+    } else {
+        proposal_type
+    };
+    let source_eye_id = input.source_eye_id.as_deref().unwrap_or("").trim();
+    let remediation_kind = input
+        .remediation_kind
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    let proposal_id = input.proposal_id.as_deref().unwrap_or("unknown").trim();
+    let dedup_key = if proposal_type.contains("remediation") {
+        format!(
+            "{}|{}|{}",
+            proposal_type,
+            source_eye_id,
+            if remediation_kind.is_empty() {
+                "none"
+            } else {
+                remediation_kind.as_str()
+            }
+        )
+    } else {
+        format!(
+            "{}|{}|{}",
+            proposal_type,
+            source_eye_id,
+            if proposal_id.is_empty() {
+                "unknown"
+            } else {
+                proposal_id
+            }
+        )
+    };
+    ProposalDedupKeyOutput { dedup_key }
 }
 
 pub fn compute_composite_eligibility_score(
@@ -4543,6 +4608,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_proposal_remediation_depth_encode_failed:{e}"));
     }
+    if mode == "proposal_dedup_key" {
+        let input = request
+            .proposal_dedup_key_input
+            .ok_or_else(|| "autoscale_missing_proposal_dedup_key_input".to_string())?;
+        let out = compute_proposal_dedup_key(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "proposal_dedup_key",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_proposal_dedup_key_encode_failed:{e}"));
+    }
     if mode == "composite_eligibility_score" {
         let input = request
             .composite_eligibility_score_input
@@ -6248,6 +6325,45 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale proposal_remediation_depth");
         assert!(out.contains("\"mode\":\"proposal_remediation_depth\""));
         assert!(out.contains("\"depth\":1"));
+    }
+
+    #[test]
+    fn proposal_dedup_key_uses_remediation_and_id_paths() {
+        let remediation = compute_proposal_dedup_key(&ProposalDedupKeyInput {
+            proposal_type: Some("ops_remediation".to_string()),
+            source_eye_id: Some("github_release".to_string()),
+            remediation_kind: Some("transport".to_string()),
+            proposal_id: Some("abc-1".to_string()),
+        });
+        assert_eq!(
+            remediation.dedup_key,
+            "ops_remediation|github_release|transport"
+        );
+
+        let generic = compute_proposal_dedup_key(&ProposalDedupKeyInput {
+            proposal_type: Some("feature".to_string()),
+            source_eye_id: Some("unknown_eye".to_string()),
+            remediation_kind: None,
+            proposal_id: Some("abc-1".to_string()),
+        });
+        assert_eq!(generic.dedup_key, "feature|unknown_eye|abc-1");
+    }
+
+    #[test]
+    fn autoscale_json_proposal_dedup_key_path_works() {
+        let payload = serde_json::json!({
+            "mode": "proposal_dedup_key",
+            "proposal_dedup_key_input": {
+                "proposal_type": "ops_remediation",
+                "source_eye_id": "github_release",
+                "remediation_kind": "transport",
+                "proposal_id": "abc-1"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale proposal_dedup_key");
+        assert!(out.contains("\"mode\":\"proposal_dedup_key\""));
+        assert!(out.contains("\"dedup_key\":\"ops_remediation|github_release|transport\""));
     }
 
     #[test]

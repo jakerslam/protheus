@@ -2791,6 +2791,8 @@ const ESTIMATE_TOKENS_CACHE = new Map();
 const ESTIMATE_TOKENS_CACHE_MAX = 512;
 const PROPOSAL_REMEDIATION_DEPTH_CACHE = new Map();
 const PROPOSAL_REMEDIATION_DEPTH_CACHE_MAX = 512;
+const PROPOSAL_DEDUP_KEY_CACHE = new Map();
+const PROPOSAL_DEDUP_KEY_CACHE_MAX = 1024;
 const COMPOSITE_ELIGIBILITY_SCORE_CACHE = new Map();
 const COMPOSITE_ELIGIBILITY_SCORE_CACHE_MAX = 1024;
 const TIME_TO_VALUE_SCORE_CACHE = new Map();
@@ -7508,8 +7510,34 @@ function proposalDedupKey(p) {
   const eye = sourceEyeId(p);
   const meta = p && p.meta && typeof p.meta === 'object' ? p.meta : {};
   const remediationKind = String(meta.remediation_kind || '').toLowerCase();
+  const proposalId = String(p && p.id || 'unknown');
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const key = `${type}\u0000${eye}\u0000${remediationKind}\u0000${proposalId}`;
+    if (PROPOSAL_DEDUP_KEY_CACHE.has(key)) {
+      return PROPOSAL_DEDUP_KEY_CACHE.get(key);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'proposal_dedup_key',
+      {
+        proposal_type: type,
+        source_eye_id: eye,
+        remediation_kind: remediationKind,
+        proposal_id: proposalId
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const val = String(rust.payload.payload.dedup_key || '');
+      if (PROPOSAL_DEDUP_KEY_CACHE.size >= PROPOSAL_DEDUP_KEY_CACHE_MAX) {
+        const oldest = PROPOSAL_DEDUP_KEY_CACHE.keys().next();
+        if (!oldest.done) PROPOSAL_DEDUP_KEY_CACHE.delete(oldest.value);
+      }
+      PROPOSAL_DEDUP_KEY_CACHE.set(key, val);
+      return val;
+    }
+  }
   if (type.includes('remediation')) return `${type}|${eye}|${remediationKind || 'none'}`;
-  return `${type}|${eye}|${String(p && p.id || 'unknown')}`;
+  return `${type}|${eye}|${proposalId}`;
 }
 
 function proposalSemanticObjectiveId(p) {
@@ -17697,6 +17725,7 @@ module.exports = {
   riskPenalty,
   estimateTokens,
   proposalRemediationDepth,
+  proposalDedupKey,
   estimateTokensForCandidate,
   candidatePool,
   evaluateDoD,
