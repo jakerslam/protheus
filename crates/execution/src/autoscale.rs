@@ -3232,6 +3232,18 @@ pub struct ReadPathValueOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NumberOrNullInput {
+    #[serde(default)]
+    pub value: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NumberOrNullOutput {
+    #[serde(default)]
+    pub value: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ParseDirectiveFileArgInput {
     #[serde(default)]
     pub command: Option<String>,
@@ -4427,6 +4439,8 @@ pub struct AutoscaleRequest {
     pub parse_json_objects_from_text_input: Option<ParseJsonObjectsFromTextInput>,
     #[serde(default)]
     pub read_path_value_input: Option<ReadPathValueInput>,
+    #[serde(default)]
+    pub number_or_null_input: Option<NumberOrNullInput>,
     #[serde(default)]
     pub parse_directive_file_arg_input: Option<ParseDirectiveFileArgInput>,
     #[serde(default)]
@@ -10234,6 +10248,11 @@ pub fn compute_read_path_value(input: &ReadPathValueInput) -> ReadPathValueOutpu
     }
 }
 
+pub fn compute_number_or_null(input: &NumberOrNullInput) -> NumberOrNullOutput {
+    let value = input.value.filter(|v| v.is_finite() && *v >= 0.0);
+    NumberOrNullOutput { value }
+}
+
 pub fn compute_parse_directive_file_arg(input: &ParseDirectiveFileArgInput) -> ParseDirectiveFileArgOutput {
     let text = input.command.as_deref().unwrap_or("").trim();
     if text.is_empty() {
@@ -14157,6 +14176,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_read_path_value_encode_failed:{e}"));
+    }
+    if mode == "number_or_null" {
+        let input = request
+            .number_or_null_input
+            .ok_or_else(|| "autoscale_missing_number_or_null_input".to_string())?;
+        let out = compute_number_or_null(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "number_or_null",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_number_or_null_encode_failed:{e}"));
     }
     if mode == "parse_directive_file_arg" {
         let input = request

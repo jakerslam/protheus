@@ -12981,6 +12981,16 @@ function proposalDependencySummary(proposal, directiveAction, actionSummary = nu
 }
 
 function numberOrNull(v) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'number_or_null',
+      { value: Number(v) },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.value == null ? null : Number(rust.payload.payload.value);
+    }
+  }
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
@@ -21316,6 +21326,7 @@ module.exports = {
   parseFirstJsonLine,
   parseJsonObjectsFromText,
   readPathValue,
+  numberOrNull,
   parseObjectiveIdFromEvidenceRefs,
   parseObjectiveIdFromCommand,
   sanitizedDirectiveIdList,
