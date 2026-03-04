@@ -3899,6 +3899,16 @@ function cooldownActive(proposalId) {
 }
 
 function capabilityCooldownKey(capabilityKey) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'capability_cooldown_key',
+      { capability_key: capabilityKey == null ? null : String(capabilityKey) },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return String(rust.payload.payload.cooldown_key || '');
+    }
+  }
   const k = String(capabilityKey || '').trim().toLowerCase();
   if (!k) return '';
   return `capability:${k.replace(/[^a-z0-9:_-]/g, '_')}`;
@@ -3948,6 +3958,19 @@ function executeConfidenceCooldownKey(capabilityKey, objectiveId, proposalType) 
 }
 
 function readinessRetryCooldownKey(strategyId, executionMode) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'readiness_retry_cooldown_key',
+      {
+        strategy_id: strategyId == null ? null : String(strategyId),
+        execution_mode: executionMode == null ? null : String(executionMode)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return String(rust.payload.payload.cooldown_key || '');
+    }
+  }
   const sid = normalizeSpaces(strategyId).toLowerCase().replace(/[^a-z0-9:_-]/g, '_');
   if (!sid) return '';
   const mode = normalizeSpaces(executionMode).toLowerCase().replace(/[^a-z0-9:_-]/g, '_');
@@ -5526,11 +5549,35 @@ function admissionSummaryFromProposals(proposals) {
 }
 
 function sourceEyeId(p) {
-  return sourceEyeRef(p).replace(/^eye:/, '');
+  const eyeRef = sourceEyeRef(p);
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'source_eye_id',
+      { eye_ref: eyeRef == null ? null : String(eyeRef) },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return String(rust.payload.payload.eye_id || '');
+    }
+  }
+  return eyeRef.replace(/^eye:/, '');
 }
 
 function isDeprioritizedSourceProposal(p) {
   const eyeId = String(sourceEyeId(p) || '').trim().toLowerCase();
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'deprioritized_source_proposal',
+      {
+        eye_id: eyeId || null,
+        deprioritized_eye_ids: Array.from(AUTONOMY_DEPRIORITIZED_SOURCE_EYES || [])
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      return rust.payload.payload.deprioritized === true;
+    }
+  }
   if (!eyeId) return false;
   return AUTONOMY_DEPRIORITIZED_SOURCE_EYES.has(eyeId);
 }
@@ -5689,6 +5736,17 @@ function thresholdsForProposalType(baseThresholdsObj, proposalType, policy) {
 }
 
 function extractEyeFromEvidenceRef(ref) {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const rust = runBacklogAutoscalePrimitive(
+      'extract_eye_from_evidence_ref',
+      { reference: ref == null ? null : String(ref) },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const eyeId = rust.payload.payload.eye_id;
+      return eyeId == null ? null : String(eyeId);
+    }
+  }
   const s = String(ref || '');
   const m = s.match(/\beye:([^\s]+)/);
   return m ? String(m[1]) : null;
@@ -19705,6 +19763,8 @@ module.exports = {
   policyHoldPressureSnapshot,
   policyHoldCooldownMinutesForPressure,
   policyHoldCooldownMinutesForResult,
+  capabilityCooldownKey,
+  readinessRetryCooldownKey,
   minutesUntilNextUtcDay,
   ageHours,
   executeConfidenceCooldownKey,
@@ -19752,5 +19812,8 @@ module.exports = {
   countEyeOutcomesInWindow,
   countEyeOutcomesInLastHours,
   normalizeStoredProposalStatus,
-  sortedCounts
+  sortedCounts,
+  sourceEyeId,
+  isDeprioritizedSourceProposal,
+  extractEyeFromEvidenceRef
 };
