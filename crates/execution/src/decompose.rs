@@ -389,6 +389,25 @@ pub struct RouteReflexMatchResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RouteComplexityRequest {
+    #[serde(default)]
+    pub task_text: String,
+    #[serde(default)]
+    pub tokens_est: i64,
+    #[serde(default)]
+    pub has_match: bool,
+    #[serde(default)]
+    pub any_trigger: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RouteComplexityResponse {
+    pub ok: bool,
+    pub complexity: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct HeroicGateRequest {
     #[serde(default)]
     pub task_text: String,
@@ -1574,6 +1593,46 @@ pub fn evaluate_route_reflex_match(req: &RouteReflexMatchRequest) -> RouteReflex
     }
 }
 
+pub fn evaluate_route_complexity(req: &RouteComplexityRequest) -> RouteComplexityResponse {
+    if req.tokens_est >= 2500 {
+        return RouteComplexityResponse {
+            ok: true,
+            complexity: "high".to_string(),
+            reason: "tokens_est_high".to_string(),
+        };
+    }
+    if req.tokens_est >= 800 {
+        return RouteComplexityResponse {
+            ok: true,
+            complexity: "medium".to_string(),
+            reason: "tokens_est_medium".to_string(),
+        };
+    }
+    if clean_text(req.task_text.as_str(), 5000).chars().count() >= 240 {
+        return RouteComplexityResponse {
+            ok: true,
+            complexity: "medium".to_string(),
+            reason: "task_text_length".to_string(),
+        };
+    }
+    if req.has_match || req.any_trigger {
+        return RouteComplexityResponse {
+            ok: true,
+            complexity: "medium".to_string(),
+            reason: if req.has_match {
+                "has_match".to_string()
+            } else {
+                "any_trigger".to_string()
+            },
+        };
+    }
+    RouteComplexityResponse {
+        ok: true,
+        complexity: "low".to_string(),
+        reason: "default_low".to_string(),
+    }
+}
+
 pub fn evaluate_route_primitives_json(payload: &str) -> Result<String, String> {
     let req = serde_json::from_str::<RoutePrimitivesRequest>(payload)
         .map_err(|err| format!("route_primitives_payload_parse_failed:{}", err))?;
@@ -1595,6 +1654,14 @@ pub fn evaluate_route_reflex_match_json(payload: &str) -> Result<String, String>
     let resp = evaluate_route_reflex_match(&req);
     serde_json::to_string(&resp)
         .map_err(|err| format!("route_reflex_match_payload_serialize_failed:{}", err))
+}
+
+pub fn evaluate_route_complexity_json(payload: &str) -> Result<String, String> {
+    let req = serde_json::from_str::<RouteComplexityRequest>(payload)
+        .map_err(|err| format!("route_complexity_payload_parse_failed:{}", err))?;
+    let resp = evaluate_route_complexity(&req);
+    serde_json::to_string(&resp)
+        .map_err(|err| format!("route_complexity_payload_serialize_failed:{}", err))
 }
 
 fn is_trust_registry_modification(task_lower: &str) -> bool {
@@ -2475,6 +2542,36 @@ mod tests {
         let out = evaluate_route_reflex_match(&req);
         assert_eq!(out.matched_reflex_id, Some("drift_guard".to_string()));
         assert_eq!(out.match_strategy, "tag");
+    }
+
+    #[test]
+    fn route_complexity_respects_thresholds() {
+        let high = evaluate_route_complexity(&RouteComplexityRequest {
+            task_text: "short".to_string(),
+            tokens_est: 2500,
+            has_match: false,
+            any_trigger: false,
+        });
+        assert_eq!(high.complexity, "high");
+        assert_eq!(high.reason, "tokens_est_high");
+
+        let medium = evaluate_route_complexity(&RouteComplexityRequest {
+            task_text: "short".to_string(),
+            tokens_est: 900,
+            has_match: false,
+            any_trigger: false,
+        });
+        assert_eq!(medium.complexity, "medium");
+        assert_eq!(medium.reason, "tokens_est_medium");
+
+        let low = evaluate_route_complexity(&RouteComplexityRequest {
+            task_text: "short".to_string(),
+            tokens_est: 10,
+            has_match: false,
+            any_trigger: false,
+        });
+        assert_eq!(low.complexity, "low");
+        assert_eq!(low.reason, "default_low");
     }
 
     #[test]
