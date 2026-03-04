@@ -797,6 +797,22 @@ pub struct TritShadowRankScoreOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyCircuitCooldownInput {
+    #[serde(default)]
+    pub last_error_code: Option<String>,
+    #[serde(default)]
+    pub last_error: Option<String>,
+    pub http_429_cooldown_hours: f64,
+    pub http_5xx_cooldown_hours: f64,
+    pub dns_error_cooldown_hours: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StrategyCircuitCooldownOutput {
+    pub cooldown_hours: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CompositeEligibilityScoreInput {
     pub quality_score: f64,
     pub directive_fit_score: f64,
@@ -1480,6 +1496,8 @@ pub struct AutoscaleRequest {
     pub strategy_rank_adjusted_input: Option<StrategyRankAdjustedInput>,
     #[serde(default)]
     pub trit_shadow_rank_score_input: Option<TritShadowRankScoreInput>,
+    #[serde(default)]
+    pub strategy_circuit_cooldown_input: Option<StrategyCircuitCooldownInput>,
     #[serde(default)]
     pub value_signal_score_input: Option<ValueSignalScoreInput>,
     #[serde(default)]
@@ -2826,6 +2844,50 @@ pub fn compute_trit_shadow_rank_score(
     TritShadowRankScoreOutput {
         score: to_fixed3(clamped),
     }
+}
+
+pub fn compute_strategy_circuit_cooldown(
+    input: &StrategyCircuitCooldownInput,
+) -> StrategyCircuitCooldownOutput {
+    let mut err = input
+        .last_error_code
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
+    if err.is_empty() {
+        err = input
+            .last_error
+            .as_deref()
+            .unwrap_or("")
+            .trim()
+            .to_ascii_lowercase();
+    }
+    if err.is_empty() {
+        return StrategyCircuitCooldownOutput { cooldown_hours: 0.0 };
+    }
+
+    if err.contains("429") || err.contains("rate_limit") {
+        return StrategyCircuitCooldownOutput {
+            cooldown_hours: input.http_429_cooldown_hours,
+        };
+    }
+    let has_5xx_code = err
+        .as_bytes()
+        .windows(3)
+        .any(|window| window[0] == b'5' && window[1].is_ascii_digit() && window[2].is_ascii_digit());
+    if err.contains("5xx") || err.contains("server_error") || has_5xx_code {
+        return StrategyCircuitCooldownOutput {
+            cooldown_hours: input.http_5xx_cooldown_hours,
+        };
+    }
+    if err.contains("dns") || err.contains("enotfound") || err.contains("unreachable") {
+        return StrategyCircuitCooldownOutput {
+            cooldown_hours: input.dns_error_cooldown_hours,
+        };
+    }
+
+    StrategyCircuitCooldownOutput { cooldown_hours: 0.0 }
 }
 
 pub fn compute_value_signal_score(input: &ValueSignalScoreInput) -> ValueSignalScoreOutput {
@@ -4815,6 +4877,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_trit_shadow_rank_score_encode_failed:{e}"));
     }
+    if mode == "strategy_circuit_cooldown" {
+        let input = request
+            .strategy_circuit_cooldown_input
+            .ok_or_else(|| "autoscale_missing_strategy_circuit_cooldown_input".to_string())?;
+        let out = compute_strategy_circuit_cooldown(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "strategy_circuit_cooldown",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_strategy_circuit_cooldown_encode_failed:{e}"));
+    }
     if mode == "value_signal_score" {
         let input = request
             .value_signal_score_input
@@ -6687,6 +6761,35 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale trit_shadow_rank_score");
         assert!(out.contains("\"mode\":\"trit_shadow_rank_score\""));
         assert!(out.contains("\"score\":73.5"));
+    }
+
+    #[test]
+    fn strategy_circuit_cooldown_matches_error_classification() {
+        let out = compute_strategy_circuit_cooldown(&StrategyCircuitCooldownInput {
+            last_error_code: Some("HTTP 503".to_string()),
+            last_error: None,
+            http_429_cooldown_hours: 1.0,
+            http_5xx_cooldown_hours: 6.0,
+            dns_error_cooldown_hours: 3.0,
+        });
+        assert!((out.cooldown_hours - 6.0).abs() < 0.000001);
+    }
+
+    #[test]
+    fn autoscale_json_strategy_circuit_cooldown_path_works() {
+        let payload = serde_json::json!({
+            "mode": "strategy_circuit_cooldown",
+            "strategy_circuit_cooldown_input": {
+                "last_error_code": "rate_limit_hit",
+                "http_429_cooldown_hours": 2,
+                "http_5xx_cooldown_hours": 8,
+                "dns_error_cooldown_hours": 4
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale strategy_circuit_cooldown");
+        assert!(out.contains("\"mode\":\"strategy_circuit_cooldown\""));
+        assert!(out.contains("\"cooldown_hours\":2.0"));
     }
 
     #[test]

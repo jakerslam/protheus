@@ -2799,6 +2799,8 @@ const STRATEGY_RANK_ADJUSTED_CACHE = new Map();
 const STRATEGY_RANK_ADJUSTED_CACHE_MAX = 2048;
 const TRIT_SHADOW_RANK_SCORE_CACHE = new Map();
 const TRIT_SHADOW_RANK_SCORE_CACHE_MAX = 1024;
+const STRATEGY_CIRCUIT_COOLDOWN_CACHE = new Map();
+const STRATEGY_CIRCUIT_COOLDOWN_CACHE_MAX = 512;
 const VALUE_SIGNAL_SCORE_CACHE = new Map();
 const VALUE_SIGNAL_SCORE_CACHE_MAX = 1024;
 const COMPOSITE_ELIGIBILITY_SCORE_CACHE = new Map();
@@ -9098,6 +9100,37 @@ function strategyCircuitCooldownHours(p, strategy) {
   const meta = p && p.meta && typeof p.meta === 'object' ? p.meta : {};
   const err = String(meta.last_error_code || meta.last_error || '').toLowerCase();
   if (!err) return 0;
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const key = [
+      err,
+      Number(breakers.http_429_cooldown_hours || 0),
+      Number(breakers.http_5xx_cooldown_hours || 0),
+      Number(breakers.dns_error_cooldown_hours || 0)
+    ].join('\u0000');
+    if (STRATEGY_CIRCUIT_COOLDOWN_CACHE.has(key)) {
+      return Number(STRATEGY_CIRCUIT_COOLDOWN_CACHE.get(key));
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'strategy_circuit_cooldown',
+      {
+        last_error_code: String(meta.last_error_code || ''),
+        last_error: String(meta.last_error || ''),
+        http_429_cooldown_hours: Number(breakers.http_429_cooldown_hours || 0),
+        http_5xx_cooldown_hours: Number(breakers.http_5xx_cooldown_hours || 0),
+        dns_error_cooldown_hours: Number(breakers.dns_error_cooldown_hours || 0)
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const out = Number(rust.payload.payload.cooldown_hours || 0);
+      if (STRATEGY_CIRCUIT_COOLDOWN_CACHE.size >= STRATEGY_CIRCUIT_COOLDOWN_CACHE_MAX) {
+        const oldest = STRATEGY_CIRCUIT_COOLDOWN_CACHE.keys().next();
+        if (!oldest.done) STRATEGY_CIRCUIT_COOLDOWN_CACHE.delete(oldest.value);
+      }
+      STRATEGY_CIRCUIT_COOLDOWN_CACHE.set(key, out);
+      return out;
+    }
+  }
   if (err.includes('429') || err.includes('rate_limit')) {
     return Number(breakers.http_429_cooldown_hours || 0);
   }
@@ -17907,6 +17940,7 @@ module.exports = {
   strategyRankForCandidate,
   strategyRankAdjustedForCandidate,
   tritShadowRankScoreFromBelief,
+  strategyCircuitCooldownHours,
   strategyTritShadowForCandidate,
   strategyTritShadowRankingSummary,
   candidateNonYieldPenaltySignal,
