@@ -3375,6 +3375,19 @@ pub struct ParseArgOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DateArgOrTodayInput {
+    #[serde(default)]
+    pub value: Option<String>,
+    #[serde(default)]
+    pub today: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DateArgOrTodayOutput {
+    pub date: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ParseDirectiveFileArgInput {
     #[serde(default)]
     pub command: Option<String>,
@@ -4592,6 +4605,8 @@ pub struct AutoscaleRequest {
     pub read_first_numeric_metric_input: Option<ReadFirstNumericMetricInput>,
     #[serde(default)]
     pub parse_arg_input: Option<ParseArgInput>,
+    #[serde(default)]
+    pub date_arg_or_today_input: Option<DateArgOrTodayInput>,
     #[serde(default)]
     pub parse_directive_file_arg_input: Option<ParseDirectiveFileArgInput>,
     #[serde(default)]
@@ -10642,6 +10657,25 @@ pub fn compute_parse_arg(input: &ParseArgInput) -> ParseArgOutput {
     ParseArgOutput { value: None }
 }
 
+pub fn compute_date_arg_or_today(input: &DateArgOrTodayInput) -> DateArgOrTodayOutput {
+    let candidate = input.value.as_deref().unwrap_or("").trim();
+    let looks_like_date = Regex::new(r"^\d{4}-\d{2}-\d{2}$")
+        .expect("valid date arg regex")
+        .is_match(candidate);
+    if looks_like_date {
+        return DateArgOrTodayOutput {
+            date: candidate.to_string(),
+        };
+    }
+    DateArgOrTodayOutput {
+        date: input
+            .today
+            .as_deref()
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| Utc::now().format("%Y-%m-%d").to_string()),
+    }
+}
+
 pub fn compute_parse_directive_file_arg(input: &ParseDirectiveFileArgInput) -> ParseDirectiveFileArgOutput {
     let text = input.command.as_deref().unwrap_or("").trim();
     if text.is_empty() {
@@ -14697,6 +14731,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
             "payload": out
         }))
         .map_err(|e| format!("autoscale_parse_arg_encode_failed:{e}"));
+    }
+    if mode == "date_arg_or_today" {
+        let input = request
+            .date_arg_or_today_input
+            .ok_or_else(|| "autoscale_missing_date_arg_or_today_input".to_string())?;
+        let out = compute_date_arg_or_today(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "date_arg_or_today",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_date_arg_or_today_encode_failed:{e}"));
     }
     if mode == "parse_directive_file_arg" {
         let input = request

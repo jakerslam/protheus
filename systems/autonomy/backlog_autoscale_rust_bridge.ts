@@ -328,6 +328,7 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
     selected_model_from_run_event: 'selected_model_from_run_event_input',
     read_first_numeric_metric: 'read_first_numeric_metric_input',
     parse_arg: 'parse_arg_input',
+    date_arg_or_today: 'date_arg_or_today_input',
     parse_directive_file_arg: 'parse_directive_file_arg_input',
     parse_directive_objective_arg: 'parse_directive_objective_arg_input',
     parse_objective_id_from_evidence_refs: 'parse_objective_id_from_evidence_refs_input',
