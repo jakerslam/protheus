@@ -46,11 +46,6 @@ function parseJsonPayload(raw) {
   return null;
 }
 
-function isTsFallbackEnabled() {
-  const raw = String(process.env.ROUTE_TASK_TS_FALLBACK || '0').trim().toLowerCase();
-  return ['1', 'true', 'yes', 'on'].includes(raw);
-}
-
 function executionBinaryCandidates() {
   const explicit = String(process.env.PROTHEUS_EXECUTION_RUST_BIN || '').trim();
   const binOnly = ['1', 'true', 'yes', 'on'].includes(
@@ -66,145 +61,6 @@ function executionBinaryCandidates() {
     path.join(REPO_ROOT, 'crates', 'execution', 'target', 'release', 'execution_core'),
     path.join(REPO_ROOT, 'crates', 'execution', 'target', 'debug', 'execution_core')
   ].filter(Boolean)));
-}
-
-function runRoutePrimitivesViaRust(task, tokensEst, repeats14d, errors30d) {
-  const payload = JSON.stringify({
-    task_text: String(task || ''),
-    tokens_est: Number(tokensEst || 0),
-    repeats_14d: Number(repeats14d || 0),
-    errors_30d: Number(errors30d || 0)
-  });
-  const payloadB64 = Buffer.from(payload, 'utf8').toString('base64');
-  for (const candidate of executionBinaryCandidates()) {
-    try {
-      if (!fs.existsSync(candidate)) continue;
-      const out = spawnSync(candidate, ['route-primitives', `--payload-base64=${payloadB64}`], {
-        cwd: REPO_ROOT,
-        encoding: 'utf8',
-        maxBuffer: 10 * 1024 * 1024
-      });
-      const parsed = parseJsonPayload(out.stdout);
-      if (Number(out.status) === 0 && parsed && typeof parsed === 'object') {
-        return parsed;
-      }
-    } catch {
-      // try next candidate
-    }
-  }
-  return null;
-}
-
-function runRouteMatchViaRust(intentKey, habits, skipHabitId) {
-  const payload = JSON.stringify({
-    intent_key: String(intentKey || ''),
-    skip_habit_id: String(skipHabitId || ''),
-    habits: Array.isArray(habits)
-      ? habits.map((h) => ({ id: String(h && h.id || '') }))
-      : []
-  });
-  const payloadB64 = Buffer.from(payload, 'utf8').toString('base64');
-  let sawBinary = false;
-  for (const candidate of executionBinaryCandidates()) {
-    try {
-      if (!fs.existsSync(candidate)) continue;
-      sawBinary = true;
-      const out = spawnSync(candidate, ['route-match', `--payload-base64=${payloadB64}`], {
-        cwd: REPO_ROOT,
-        encoding: 'utf8',
-        maxBuffer: 10 * 1024 * 1024
-      });
-      const parsed = parseJsonPayload(out.stdout);
-      if (Number(out.status) !== 0 || !parsed || typeof parsed !== 'object') continue;
-      const matchedId = String(parsed.matched_habit_id || '').trim();
-      return { ok: true, matchedId: matchedId || null };
-    } catch {
-      // try next candidate
-    }
-  }
-  return {
-    ok: false,
-    error: sawBinary ? 'route_match_invalid_output' : 'route_match_rust_unavailable',
-    matchedId: null
-  };
-}
-
-function runRouteReflexMatchViaRust(intentKey, task, routinesMap) {
-  const routines = Array.isArray(Object.values(routinesMap || {}))
-    ? Object.values(routinesMap || {})
-    : [];
-  const payload = JSON.stringify({
-    intent_key: String(intentKey || ''),
-    task_text: String(task || ''),
-    routines: routines.map((r) => ({
-      id: String(r && r.id || ''),
-      status: String(r && r.status || ''),
-      tags: Array.isArray(r && r.tags) ? r.tags.map((t) => String(t || '')) : []
-    }))
-  });
-  const payloadB64 = Buffer.from(payload, 'utf8').toString('base64');
-  let sawBinary = false;
-  for (const candidate of executionBinaryCandidates()) {
-    try {
-      if (!fs.existsSync(candidate)) continue;
-      sawBinary = true;
-      const out = spawnSync(candidate, ['route-reflex-match', `--payload-base64=${payloadB64}`], {
-        cwd: REPO_ROOT,
-        encoding: 'utf8',
-        maxBuffer: 10 * 1024 * 1024
-      });
-      const parsed = parseJsonPayload(out.stdout);
-      if (Number(out.status) !== 0 || !parsed || typeof parsed !== 'object') continue;
-      const matchedId = String(parsed.matched_reflex_id || '').trim();
-      return {
-        ok: true,
-        matchedRoutine: matchedId
-          ? (routines.find((r) => String(r && r.id || '') === matchedId) || null)
-          : null
-      };
-    } catch {
-      // try next candidate
-    }
-  }
-  return {
-    ok: false,
-    error: sawBinary ? 'route_reflex_match_invalid_output' : 'route_reflex_match_rust_unavailable',
-    matchedRoutine: null
-  };
-}
-
-function runRouteComplexityViaRust(task, tokensEst, hasMatch, anyTrigger) {
-  const payload = JSON.stringify({
-    task_text: String(task || ''),
-    tokens_est: Number(tokensEst || 0),
-    has_match: hasMatch === true,
-    any_trigger: anyTrigger === true
-  });
-  const payloadB64 = Buffer.from(payload, 'utf8').toString('base64');
-  let sawBinary = false;
-  for (const candidate of executionBinaryCandidates()) {
-    try {
-      if (!fs.existsSync(candidate)) continue;
-      sawBinary = true;
-      const out = spawnSync(candidate, ['route-complexity', `--payload-base64=${payloadB64}`], {
-        cwd: REPO_ROOT,
-        encoding: 'utf8',
-        maxBuffer: 10 * 1024 * 1024
-      });
-      const parsed = parseJsonPayload(out.stdout);
-      if (Number(out.status) !== 0 || !parsed || typeof parsed !== 'object') continue;
-      const complexity = String(parsed.complexity || '').trim().toLowerCase();
-      if (!['low', 'medium', 'high'].includes(complexity)) continue;
-      return { ok: true, complexity };
-    } catch {
-      // try next candidate
-    }
-  }
-  return {
-    ok: false,
-    error: sawBinary ? 'route_complexity_invalid_output' : 'route_complexity_rust_unavailable',
-    complexity: null
-  };
 }
 
 function runRouteEvaluateViaRust(task, tokensEst, repeats14d, errors30d, skipHabitId, habits, reflexRoutines) {
@@ -283,27 +139,12 @@ function runRouteDecisionViaRust(payloadObj) {
   };
 }
 
-function normalizeIntent(text) {
-  if (!text) return '';
-  return text
-    .toLowerCase()
-    .replace(/\b\d{4}-\d{2}-\d{2}\b/g, '')
-    .replace(/\b[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\b/g, '')
-    .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(.\d+)?(Z|[+-]\d{2}:\d{2})?/g, '')
-    .replace(/["'][^"']*["']/g, '<str>')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .split(/\s+/)
-    .slice(0, 12)
-    .join('_');
-}
-
 function getArg(name, def = null) {
   const args = process.argv.slice(2);
   const i = args.indexOf(name);
   if (i === -1) return def;
   const v = args[i + 1];
-  return (v === undefined) ? def : v;
+  return v === undefined ? def : v;
 }
 
 function loadRegistry() {
@@ -339,7 +180,7 @@ function loadReflexRoutines() {
 function requiredInputKeys(habit) {
   if (!habit || !habit.inputs_schema || !Array.isArray(habit.inputs_schema.required)) return [];
   return habit.inputs_schema.required
-    .map(x => String(x || '').trim())
+    .map((x) => String(x || '').trim())
     .filter(Boolean);
 }
 
@@ -351,65 +192,6 @@ function isTrustedEntrypoint(habit, trusted) {
   return !!map[resolved];
 }
 
-function pickBestMatch(habits, intentKey, skipHabitId = '') {
-  // Exact match on id
-  let exact = habits.find(h => h.id === intentKey && h.id !== skipHabitId);
-  if (exact) return exact;
-  // Heuristic: if the task contains the habit id token
-  const tokenMatch = habits.find(h => h.id !== skipHabitId && intentKey.includes(h.id));
-  if (tokenMatch) return tokenMatch;
-  return null;
-}
-
-function resolveHabitMatch(habits, intentKey, skipHabitId = '') {
-  const rustOut = runRouteMatchViaRust(intentKey, habits, skipHabitId);
-  if (rustOut && rustOut.ok === true) {
-    if (!rustOut.matchedId) return { ok: true, match: null };
-    const found = habits.find((h) => String(h && h.id || '') === rustOut.matchedId) || null;
-    return { ok: true, match: found };
-  }
-  if (isTsFallbackEnabled()) {
-    return { ok: true, match: pickBestMatch(habits, intentKey, skipHabitId) };
-  }
-  return {
-    ok: false,
-    error: rustOut && rustOut.error ? rustOut.error : 'route_match_rust_unavailable',
-    match: null
-  };
-}
-
-function pickReflexMatch(routinesMap, intentKey, task) {
-  const rows = Object.values(routinesMap || {}) as Array<Record<string, any>>;
-  if (!rows.length) return null;
-  const direct = rows.find((r) => {
-    if (!r || String(r.status || '').toLowerCase() !== 'enabled') return false;
-    const id = String(r.id || '').trim().toLowerCase();
-    return id && (id === String(intentKey || '').toLowerCase() || String(intentKey || '').includes(id));
-  });
-  if (direct) return direct;
-  const text = String(task || '').toLowerCase();
-  return rows.find((r) => {
-    if (!r || String(r.status || '').toLowerCase() !== 'enabled') return false;
-    const tags = Array.isArray(r.tags) ? r.tags.map((t) => String(t || '').toLowerCase()) : [];
-    return tags.some((t) => t && text.includes(t));
-  }) || null;
-}
-
-function resolveReflexMatch(routinesMap, intentKey, task) {
-  const rustOut = runRouteReflexMatchViaRust(intentKey, task, routinesMap);
-  if (rustOut && rustOut.ok === true) {
-    return { ok: true, match: rustOut.matchedRoutine || null };
-  }
-  if (isTsFallbackEnabled()) {
-    return { ok: true, match: pickReflexMatch(routinesMap, intentKey, task) };
-  }
-  return {
-    ok: false,
-    error: rustOut && rustOut.error ? rustOut.error : 'route_reflex_match_rust_unavailable',
-    match: null
-  };
-}
-
 function makeRunInputs(task, intentKey) {
   return {
     task: String(task || '').slice(0, 1000),
@@ -419,94 +201,8 @@ function makeRunInputs(task, intentKey) {
   };
 }
 
-function predictHabitId(intentKey, task) {
-  const base = String(intentKey || normalizeIntent(task) || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9_]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .slice(0, 48);
-  return base || 'habit';
-}
-
 function jsonArg(obj) {
   return JSON.stringify(obj || {});
-}
-
-function estimateComplexity(tokensEst, task, match, anyTrigger) {
-  if (tokensEst >= 2500) return 'high';
-  if (tokensEst >= 800) return 'medium';
-  if ((task || '').length >= 240) return 'medium';
-  if (match || anyTrigger) return 'medium';
-  return 'low';
-}
-
-function computeRouteComplexity(task, tokensEst, match, anyTrigger) {
-  const rustComplexity = runRouteComplexityViaRust(task, tokensEst, Boolean(match), Boolean(anyTrigger));
-  if (rustComplexity && rustComplexity.ok === true && rustComplexity.complexity) {
-    return { ok: true, complexity: rustComplexity.complexity };
-  }
-  if (isTsFallbackEnabled()) {
-    return { ok: true, complexity: estimateComplexity(tokensEst, task, match, anyTrigger) };
-  }
-  return {
-    ok: false,
-    error: rustComplexity && rustComplexity.error ? rustComplexity.error : 'route_complexity_rust_unavailable',
-    complexity: estimateComplexity(tokensEst, task, match, anyTrigger)
-  };
-}
-
-function computeRoutePrimitivesFallback(task, tokensEst, repeats14d, errors30d) {
-  const intentKey = normalizeIntent(task);
-  const triggerA = repeats14d >= 3 && tokensEst >= 500;
-  const triggerB = tokensEst >= 2000;
-  const triggerC = errors30d >= 2;
-  const whichMet = [
-    triggerA ? 'A' : null,
-    triggerB ? 'B' : null,
-    triggerC ? 'C' : null
-  ].filter(Boolean);
-  return {
-    intent_key: intentKey,
-    intent: task ? task.split(/\s+/).slice(0, 6).join('_').toLowerCase() : 'task',
-    predicted_habit_id: predictHabitId(intentKey, task),
-    trigger_a: triggerA,
-    trigger_b: triggerB,
-    trigger_c: triggerC,
-    any_trigger: triggerA || triggerB || triggerC,
-    which_met: whichMet,
-    thresholds: {
-      A: { repeats_14d_min: 3, tokens_min: 500, met: triggerA },
-      B: { tokens_min: 2000, met: triggerB },
-      C: { errors_30d_min: 2, met: triggerC }
-    }
-  };
-}
-
-function computeRoutePrimitives(task, tokensEst, repeats14d, errors30d) {
-  const fallback = computeRoutePrimitivesFallback(task, tokensEst, repeats14d, errors30d);
-  const rustOut = runRoutePrimitivesViaRust(task, tokensEst, repeats14d, errors30d);
-  if (!rustOut || typeof rustOut !== 'object') {
-    if (isTsFallbackEnabled()) return { ok: true, ...fallback };
-    return { ok: false, error: 'route_primitives_rust_unavailable', ...fallback };
-  }
-  const thresholds = rustOut.thresholds && typeof rustOut.thresholds === 'object'
-    ? rustOut.thresholds
-    : fallback.thresholds;
-  const whichMet = Array.isArray(rustOut.which_met)
-    ? rustOut.which_met.map((x) => String(x || '')).filter(Boolean)
-    : fallback.which_met;
-  return {
-    ok: true,
-    intent_key: String(rustOut.intent_key || fallback.intent_key),
-    intent: String(rustOut.intent || fallback.intent),
-    predicted_habit_id: String(rustOut.predicted_habit_id || fallback.predicted_habit_id),
-    trigger_a: typeof rustOut.trigger_a === 'boolean' ? rustOut.trigger_a : fallback.trigger_a,
-    trigger_b: typeof rustOut.trigger_b === 'boolean' ? rustOut.trigger_b : fallback.trigger_b,
-    trigger_c: typeof rustOut.trigger_c === 'boolean' ? rustOut.trigger_c : fallback.trigger_c,
-    any_trigger: typeof rustOut.any_trigger === 'boolean' ? rustOut.any_trigger : fallback.any_trigger,
-    which_met: whichMet,
-    thresholds
-  };
 }
 
 function shouldUseRouter() {
@@ -1005,5 +701,5 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { normalizeIntent };
+module.exports = {};
 export {};
