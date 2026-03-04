@@ -29,7 +29,8 @@ fn parse_request(args: &[String]) -> Result<CycleRequest, String> {
         return serde_json::from_str(&text).map_err(|err| format!("request_parse_failed:{err}"));
     }
     if let Some(v) = parse_arg(args, "--request-file") {
-        let text = fs::read_to_string(v).map_err(|err| format!("request_file_read_failed:{err}"))?;
+        let text =
+            fs::read_to_string(v).map_err(|err| format!("request_file_read_failed:{err}"))?;
         return serde_json::from_str(&text).map_err(|err| format!("request_parse_failed:{err}"));
     }
 

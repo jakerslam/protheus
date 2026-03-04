@@ -1,9 +1,10 @@
 use protheus_memory_core_v6::{
     clear_cache, compress_store, crdt_exchange_json, ebbinghaus_curve, get_json, ingest_memory,
-    load_embedded_execution_replay, load_embedded_heartbeat,
-    load_embedded_observability_profile, load_embedded_vault_policy,
-    pack_embedded_blob_assets, recall_json, set_hot_state,
+    load_embedded_execution_replay, load_embedded_heartbeat, load_embedded_observability_profile,
+    load_embedded_vault_policy, pack_embedded_blob_assets, recall_json, set_hot_state,
 };
+#[cfg(not(target_arch = "wasm32"))]
+use rusqlite::Connection;
 use serde::Deserialize;
 use serde_json::json;
 use std::collections::BTreeSet;
@@ -14,8 +15,6 @@ use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 use std::path::Path;
 use std::time::Instant;
-#[cfg(not(target_arch = "wasm32"))]
-use rusqlite::Connection;
 
 #[derive(Deserialize, Default)]
 struct DaemonRequest {
@@ -140,9 +139,9 @@ fn parse_tags_inline(raw: &str) -> Vec<String> {
         .map(|token| token.trim_start_matches('#').to_ascii_lowercase())
         .filter(|token| {
             !token.is_empty()
-                && token
-                    .chars()
-                    .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || matches!(ch, '_' | '-'))
+                && token.chars().all(|ch| {
+                    ch.is_ascii_lowercase() || ch.is_ascii_digit() || matches!(ch, '_' | '-')
+                })
         })
         .collect()
 }
@@ -232,7 +231,9 @@ fn daemon_response(cmd: &str, args: &HashMap<String, String>) -> serde_json::Val
         "compress" => {
             let aggressive = parse_bool(args.get("aggressive"), false);
             match compress_store(aggressive) {
-                Ok(compacted) => json!({"ok": true, "aggressive": aggressive, "compacted_rows": compacted}),
+                Ok(compacted) => {
+                    json!({"ok": true, "aggressive": aggressive, "compacted_rows": compacted})
+                }
                 Err(err) => json!({"ok": false, "error": err}),
             }
         }
@@ -292,7 +293,9 @@ fn verify_envelope_report() -> serde_json::Value {
     match Connection::open(&db_path) {
         Ok(conn) => {
             let total_rows = conn
-                .query_row("SELECT COUNT(1) FROM memory_cache", [], |row| row.get::<_, i64>(0))
+                .query_row("SELECT COUNT(1) FROM memory_cache", [], |row| {
+                    row.get::<_, i64>(0)
+                })
                 .unwrap_or(0)
                 .max(0) as u64;
             json!({
@@ -393,7 +396,10 @@ fn main() {
         }
         "set-hot-state" => {
             let key = flags.get("key").cloned().unwrap_or_default();
-            let value_json = flags.get("value_json").cloned().unwrap_or_else(|| "{}".to_string());
+            let value_json = flags
+                .get("value_json")
+                .cloned()
+                .unwrap_or_else(|| "{}".to_string());
             if let Some(db_path) = flags.get("db-path").cloned() {
                 if !db_path.trim().is_empty() {
                     // Required for backward compatibility with psycheforge hot-state sink.
@@ -435,7 +441,10 @@ fn main() {
             print_json(verify_envelope_report());
         }
         "recall" => {
-            let q = flags.get("query").cloned().unwrap_or_else(|| "".to_string());
+            let q = flags
+                .get("query")
+                .cloned()
+                .unwrap_or_else(|| "".to_string());
             let limit = parse_u32(flags.get("limit"), 5);
             let payload = recall_json(&q, limit);
             let parsed = serde_json::from_str::<serde_json::Value>(&payload)

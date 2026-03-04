@@ -8,16 +8,16 @@ mod sqlite_store;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
-pub use crdt::{merge as crdt_merge, CrdtCell, CrdtMap};
 pub use blob::{
     decode_manifest, encode_manifest, fold_blob, generate_manifest, sha256_hex, unfold_blob,
-    BlobArtifactDigest, BlobError, BlobManifest, BlobPackReport, EmbeddedExecutionReceiptModel,
-    EmbeddedExecutionReplay, EmbeddedExecutionStep, EmbeddedObservabilityProfile,
-    EmbeddedSovereigntyScorer, EmbeddedTraceStreamPolicy, EmbeddedVaultAutoRotatePolicy,
-    EmbeddedVaultPolicy, EmbeddedVaultPolicyRule, EmbeddedChaosHook,
+    BlobArtifactDigest, BlobError, BlobManifest, BlobPackReport, EmbeddedChaosHook,
+    EmbeddedExecutionReceiptModel, EmbeddedExecutionReplay, EmbeddedExecutionStep,
+    EmbeddedObservabilityProfile, EmbeddedSovereigntyScorer, EmbeddedTraceStreamPolicy,
+    EmbeddedVaultAutoRotatePolicy, EmbeddedVaultPolicy, EmbeddedVaultPolicyRule,
     EXECUTION_REPLAY_BLOB_ID, HEARTBEAT_BLOB_ID, OBSERVABILITY_PROFILE_BLOB_ID,
     VAULT_POLICY_BLOB_ID,
 };
+pub use crdt::{merge as crdt_merge, CrdtCell, CrdtMap};
 pub use sqlite_store::MemoryRow;
 
 fn c_str_to_string(ptr: *const c_char) -> Result<String, String> {
@@ -36,7 +36,9 @@ fn into_c_string_ptr(payload: String) -> *mut c_char {
     match CString::new(sanitized) {
         Ok(c) => c.into_raw(),
         Err(_) => CString::new("{\"ok\":false,\"error\":\"cstring_encode_failed\"}")
-            .unwrap_or_else(|_| CString::new("{}").expect("fallback CString literal should be valid"))
+            .unwrap_or_else(|_| {
+                CString::new("{}").expect("fallback CString literal should be valid")
+            })
             .into_raw(),
     }
 }

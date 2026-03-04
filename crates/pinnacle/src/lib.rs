@@ -144,7 +144,10 @@ fn compute_scores(
         - (unsigned_rate * profile.unsigned_penalty_pct * 10.0))
         .clamp(0.0, 100.0);
 
-    ((convergence * 1000.0).round() / 1000.0, (sovereignty * 1000.0).round() / 1000.0)
+    (
+        (convergence * 1000.0).round() / 1000.0,
+        (sovereignty * 1000.0).round() / 1000.0,
+    )
 }
 
 fn digest_merge(merged: &BTreeMap<String, CrdtValue>, conflicts: &[MergeConflict]) -> String {
@@ -168,8 +171,10 @@ fn digest_merge(merged: &BTreeMap<String, CrdtValue>, conflicts: &[MergeConflict
 }
 
 pub fn merge_delta(left_json: &str, right_json: &str) -> Result<MergeResult, String> {
-    let left: CrdtDelta = serde_json::from_str(left_json).map_err(|e| format!("left_parse_failed:{e}"))?;
-    let right: CrdtDelta = serde_json::from_str(right_json).map_err(|e| format!("right_parse_failed:{e}"))?;
+    let left: CrdtDelta =
+        serde_json::from_str(left_json).map_err(|e| format!("left_parse_failed:{e}"))?;
+    let right: CrdtDelta =
+        serde_json::from_str(right_json).map_err(|e| format!("right_parse_failed:{e}"))?;
     let profile = load_embedded_pinnacle_profile().map_err(|e| e.to_string())?;
 
     let mut merged = BTreeMap::<String, CrdtValue>::new();
@@ -194,7 +199,8 @@ pub fn merge_delta(left_json: &str, right_json: &str) -> Result<MergeResult, Str
         merged.insert(key, merged_value);
     }
 
-    let (convergence_score_pct, sovereignty_index_pct) = compute_scores(&merged, &conflicts, &profile);
+    let (convergence_score_pct, sovereignty_index_pct) =
+        compute_scores(&merged, &conflicts, &profile);
     let digest = digest_merge(&merged, &conflicts);
 
     Ok(MergeResult {
@@ -316,7 +322,10 @@ mod tests {
         let left = delta("a", "x", 1, 1, true);
         let right = delta("a", "x", 2, 2, true);
         let merged = merge_delta(&left, &right).expect("merge");
-        assert_eq!(merged.merged.get("x").unwrap().payload, serde_json::json!(2));
+        assert_eq!(
+            merged.merged.get("x").unwrap().payload,
+            serde_json::json!(2)
+        );
         assert!(merged.sovereignty_index_pct > 0.0);
     }
 

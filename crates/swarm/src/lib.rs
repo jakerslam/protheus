@@ -70,7 +70,10 @@ fn normalize_text(raw: &str, fallback: &str) -> String {
 
 fn has_skill(agent: &SwarmAgent, skill: &str) -> bool {
     let target = skill.to_ascii_lowercase();
-    agent.skills.iter().any(|s| s.to_ascii_lowercase() == target)
+    agent
+        .skills
+        .iter()
+        .any(|s| s.to_ascii_lowercase() == target)
 }
 
 fn candidate_score(
@@ -98,8 +101,11 @@ fn digest_receipt(receipt: &SwarmReceipt) -> String {
     hasher.update(receipt.swarm_id.as_bytes());
     for assignment in &receipt.assignments {
         hasher.update(
-            format!("{}:{}:{:.3}", assignment.task_id, assignment.agent_id, assignment.score)
-                .as_bytes(),
+            format!(
+                "{}:{}:{:.3}",
+                assignment.task_id, assignment.agent_id, assignment.score
+            )
+            .as_bytes(),
         );
     }
     for task in &receipt.unassigned_tasks {
@@ -169,9 +175,7 @@ pub fn orchestrate_swarm(request: &SwarmRequest) -> Result<SwarmReceipt, String>
     };
     let consensus_ratio = consensus_pct / 100.0;
     let sovereignty_index_pct = round3(
-        (coverage * 60.0)
-            + (consensus_ratio * 30.0)
-            - (unassigned_tasks.len() as f64 * 2.0)
+        (coverage * 60.0) + (consensus_ratio * 30.0) - (unassigned_tasks.len() as f64 * 2.0)
             + if consensus_pct >= profile.consensus_floor_pct {
                 10.0
             } else {

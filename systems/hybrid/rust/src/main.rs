@@ -15,8 +15,7 @@ use std::path::Path;
 
 fn parse_arg<'a>(args: &'a [String], key: &str) -> Option<&'a str> {
     let prefix = format!("--{}=", key);
-    args.iter()
-        .find_map(|arg| arg.strip_prefix(&prefix))
+    args.iter().find_map(|arg| arg.strip_prefix(&prefix))
 }
 
 fn parse_bool(v: Option<&str>, fallback: bool) -> bool {
@@ -51,7 +50,11 @@ fn events_from_arg(v: Option<&str>) -> Vec<String> {
 }
 
 fn print_json(v: &Value) {
-    println!("{}", serde_json::to_string_pretty(v).unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string()));
+    println!(
+        "{}",
+        serde_json::to_string_pretty(v)
+            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
+    );
 }
 
 fn help() -> Value {

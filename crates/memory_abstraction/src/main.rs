@@ -135,7 +135,11 @@ struct CommandRun {
 }
 
 fn run_command_json(bin: &str, args: &[String], cwd: &Path) -> Option<CommandRun> {
-    let output = Command::new(bin).args(args).current_dir(cwd).output().ok()?;
+    let output = Command::new(bin)
+        .args(args)
+        .current_dir(cwd)
+        .output()
+        .ok()?;
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
     let payload = parse_json_payload(&stdout).unwrap_or(Value::Null);
@@ -150,8 +154,12 @@ fn run_memory_core(root: &Path, args: &[String]) -> CommandRun {
     let explicit = env::var("PROTHEUS_MEMORY_CORE_BIN").unwrap_or_default();
     let candidates = vec![
         explicit,
-        root.join("target/release/memory-cli").to_string_lossy().to_string(),
-        root.join("target/debug/memory-cli").to_string_lossy().to_string(),
+        root.join("target/release/memory-cli")
+            .to_string_lossy()
+            .to_string(),
+        root.join("target/debug/memory-cli")
+            .to_string_lossy()
+            .to_string(),
         root.join("crates/memory/target/release/memory-cli")
             .to_string_lossy()
             .to_string(),
@@ -174,7 +182,9 @@ fn run_memory_core(root: &Path, args: &[String]) -> CommandRun {
         "run".to_string(),
         "--quiet".to_string(),
         "--manifest-path".to_string(),
-        root.join("crates/memory/Cargo.toml").to_string_lossy().to_string(),
+        root.join("crates/memory/Cargo.toml")
+            .to_string_lossy()
+            .to_string(),
         "--bin".to_string(),
         "memory-cli".to_string(),
         "--".to_string(),
@@ -196,8 +206,12 @@ fn run_security_check(root: &Path, request: &Value) -> CommandRun {
     let explicit = env::var("PROTHEUS_SECURITY_CORE_BIN").unwrap_or_default();
     let candidates = vec![
         explicit,
-        root.join("target/release/security_core").to_string_lossy().to_string(),
-        root.join("target/debug/security_core").to_string_lossy().to_string(),
+        root.join("target/release/security_core")
+            .to_string_lossy()
+            .to_string(),
+        root.join("target/debug/security_core")
+            .to_string_lossy()
+            .to_string(),
         root.join("crates/security/target/release/security_core")
             .to_string_lossy()
             .to_string(),
@@ -253,16 +267,12 @@ fn memory_view_policy(root: &Path) -> Value {
     let paths = raw.get("paths").cloned().unwrap_or(Value::Null);
     let latest_path = resolve_path(
         root,
-        paths
-            .get("latest_path")
-            .and_then(|v| v.as_str()),
+        paths.get("latest_path").and_then(|v| v.as_str()),
         "state/memory/abstraction/memory_view_latest.json",
     );
     let receipts_path = resolve_path(
         root,
-        paths
-            .get("receipts_path")
-            .and_then(|v| v.as_str()),
+        paths.get("receipts_path").and_then(|v| v.as_str()),
         "state/memory/abstraction/memory_view_receipts.jsonl",
     );
     json!({
@@ -284,10 +294,7 @@ fn cmd_memory_view(root: &Path, subcmd: &str, flags: &HashMap<String, String>) -
             .and_then(|v| v.as_str())
             .unwrap_or(""),
     );
-    let default_limit = p
-        .get("default_limit")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(5) as u32;
+    let default_limit = p.get("default_limit").and_then(|v| v.as_u64()).unwrap_or(5) as u32;
 
     let receipt = match subcmd {
         "query" => {
@@ -307,7 +314,11 @@ fn cmd_memory_view(root: &Path, subcmd: &str, flags: &HashMap<String, String>) -
                 .max(1);
             let run = run_memory_core(
                 root,
-                &[format!("recall"), format!("--query={query}"), format!("--limit={limit}")],
+                &[
+                    format!("recall"),
+                    format!("--query={query}"),
+                    format!("--limit={limit}"),
+                ],
             );
             let payload = run.payload.clone();
             let hits = payload
@@ -360,9 +371,14 @@ fn cmd_memory_view(root: &Path, subcmd: &str, flags: &HashMap<String, String>) -
                 .max(1);
             let recall_run = run_memory_core(
                 root,
-                &[format!("recall"), format!("--query={query}"), format!("--limit={limit}")],
+                &[
+                    format!("recall"),
+                    format!("--query={query}"),
+                    format!("--limit={limit}"),
+                ],
             );
-            let obs_run = run_memory_core(root, &[String::from("load-embedded-observability-profile")]);
+            let obs_run =
+                run_memory_core(root, &[String::from("load-embedded-observability-profile")]);
             let vault_run = run_memory_core(root, &[String::from("load-embedded-vault-policy")]);
 
             let recall_payload = recall_run.payload.clone();
@@ -462,7 +478,11 @@ fn cmd_analytics(root: &Path, subcmd: &str) -> Value {
     }
     let latest_path = PathBuf::from(p.get("latest_path").and_then(|v| v.as_str()).unwrap_or(""));
     let history_path = PathBuf::from(p.get("history_path").and_then(|v| v.as_str()).unwrap_or(""));
-    let baseline_path = PathBuf::from(p.get("baseline_path").and_then(|v| v.as_str()).unwrap_or(""));
+    let baseline_path = PathBuf::from(
+        p.get("baseline_path")
+            .and_then(|v| v.as_str())
+            .unwrap_or(""),
+    );
     let view_receipts_path = PathBuf::from(
         p.get("view_receipts_path")
             .and_then(|v| v.as_str())
@@ -478,8 +498,14 @@ fn cmd_analytics(root: &Path, subcmd: &str) -> Value {
             .and_then(|v| v.as_str())
             .unwrap_or(""),
     );
-    let drift_warn = p.get("drift_warn_pct").and_then(|v| v.as_f64()).unwrap_or(1.0);
-    let drift_fail = p.get("drift_fail_pct").and_then(|v| v.as_f64()).unwrap_or(2.0);
+    let drift_warn = p
+        .get("drift_warn_pct")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(1.0);
+    let drift_fail = p
+        .get("drift_fail_pct")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(2.0);
 
     match subcmd {
         "run" => {
@@ -505,11 +531,9 @@ fn cmd_analytics(root: &Path, subcmd: &str) -> Value {
                 .to_lowercase();
                 let id = clean_text(hit.get("id").and_then(|v| v.as_str()).unwrap_or(""), 200)
                     .to_lowercase();
-                let query = clean_text(
-                    hit.get("query").and_then(|v| v.as_str()).unwrap_or(""),
-                    200,
-                )
-                .to_lowercase();
+                let query =
+                    clean_text(hit.get("query").and_then(|v| v.as_str()).unwrap_or(""), 200)
+                        .to_lowercase();
                 if query.is_empty() || content.contains(&query) || id.contains(&query) {
                     matching_hits += 1.0;
                 }
@@ -536,7 +560,8 @@ fn cmd_analytics(root: &Path, subcmd: &str) -> Value {
                 .and_then(|v| v.as_f64())
                 .unwrap_or(0.0);
 
-            let obs_run = run_memory_core(root, &[String::from("load-embedded-observability-profile")]);
+            let obs_run =
+                run_memory_core(root, &[String::from("load-embedded-observability-profile")]);
             let scorer = obs_run
                 .payload
                 .get("embedded_observability_profile")
@@ -755,8 +780,10 @@ fn cmd_test_harness(root: &Path, subcmd: &str) -> Value {
                 ],
             );
             let get_run = run_memory_core(root, &["get".to_string(), format!("--id={id}")]);
-            let compress_run =
-                run_memory_core(root, &["compress".to_string(), "--aggressive=0".to_string()]);
+            let compress_run = run_memory_core(
+                root,
+                &["compress".to_string(), "--aggressive=0".to_string()],
+            );
             let ebb_run = run_memory_core(
                 root,
                 &[
@@ -800,27 +827,36 @@ fn cmd_test_harness(root: &Path, subcmd: &str) -> Value {
                     .unwrap_or(0.0),
                 bm.get("recall_hit_count")
                     .and_then(|v| v.as_f64())
-                    .unwrap_or(metrics.get("recall_hit_count").and_then(|v| v.as_f64()).unwrap_or(0.0)),
+                    .unwrap_or(
+                        metrics
+                            .get("recall_hit_count")
+                            .and_then(|v| v.as_f64())
+                            .unwrap_or(0.0),
+                    ),
             );
             let d_get = compute_drift_pct(
-                metrics.get("get_ok").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                bm.get("get_ok")
+                metrics
+                    .get("get_ok")
                     .and_then(|v| v.as_f64())
-                    .unwrap_or(metrics.get("get_ok").and_then(|v| v.as_f64()).unwrap_or(0.0)),
+                    .unwrap_or(0.0),
+                bm.get("get_ok").and_then(|v| v.as_f64()).unwrap_or(
+                    metrics
+                        .get("get_ok")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(0.0),
+                ),
             );
             let d_compact = compute_drift_pct(
                 metrics
                     .get("compacted_rows")
                     .and_then(|v| v.as_f64())
                     .unwrap_or(0.0),
-                bm.get("compacted_rows")
-                    .and_then(|v| v.as_f64())
-                    .unwrap_or(
-                        metrics
-                            .get("compacted_rows")
-                            .and_then(|v| v.as_f64())
-                            .unwrap_or(0.0),
-                    ),
+                bm.get("compacted_rows").and_then(|v| v.as_f64()).unwrap_or(
+                    metrics
+                        .get("compacted_rows")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(0.0),
+                ),
             );
             let d_retention = compute_drift_pct(
                 metrics

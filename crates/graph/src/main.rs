@@ -88,7 +88,10 @@ fn main() {
         },
         "demo" => {
             let yaml = demo_yaml();
-            println!("{}", run_workflow_json(&yaml).unwrap_or_else(|_| "{}".to_string()));
+            println!(
+                "{}",
+                run_workflow_json(&yaml).unwrap_or_else(|_| "{}".to_string())
+            );
         }
         _ => {
             usage();

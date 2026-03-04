@@ -81,7 +81,8 @@ pub fn sample_report() -> serde_json::Value {
     let merge_ms_p95 = samples[p95_idx];
     let serialized = serde_json::to_string(&merged_ab).unwrap_or_else(|_| "{}".to_string());
     let restored: CrdtState = serde_json::from_str(&serialized).unwrap_or_default();
-    let suspend_resume_ok = merge_state(&restored, &merged_ba) == merge_state(&merged_ba, &restored);
+    let suspend_resume_ok =
+        merge_state(&restored, &merged_ba) == merge_state(&merged_ba, &restored);
     let idle_battery_pct_24h = ((merge_ms_p95 * 0.08) + 0.12).min(0.49);
 
     json!({
@@ -106,7 +107,10 @@ mod tests {
     #[test]
     fn merge_is_convergent_for_sample() {
         let report = sample_report();
-        assert_eq!(report.get("convergent").and_then(|v| v.as_bool()), Some(true));
+        assert_eq!(
+            report.get("convergent").and_then(|v| v.as_bool()),
+            Some(true)
+        );
     }
 
     #[test]

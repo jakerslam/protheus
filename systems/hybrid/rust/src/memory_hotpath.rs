@@ -85,7 +85,8 @@ fn benchmark_hotpath(iterations: usize) -> (f64, f64, f64) {
                 eta_ms: 20,
             },
         ]);
-        let _ = sqlite_hotpath_checksum(&format!("SELECT * FROM memory_index WHERE node_id='n{i}'"));
+        let _ =
+            sqlite_hotpath_checksum(&format!("SELECT * FROM memory_index WHERE node_id='n{i}'"));
         let elapsed_ms = started.elapsed().as_secs_f64() * 1000.0;
         let recall_latency = (elapsed_ms * 0.45) + 0.04;
         let memory_call_latency = elapsed_ms + 0.12;
@@ -100,10 +101,26 @@ fn benchmark_hotpath(iterations: usize) -> (f64, f64, f64) {
 
 pub fn sample_report() -> serde_json::Value {
     let scheduled = schedule(vec![
-        Task { id: "compact".into(), priority: 3, eta_ms: 40 },
-        Task { id: "recall".into(), priority: 5, eta_ms: 30 },
-        Task { id: "index".into(), priority: 5, eta_ms: 20 },
-        Task { id: "sync".into(), priority: 2, eta_ms: 80 },
+        Task {
+            id: "compact".into(),
+            priority: 3,
+            eta_ms: 40,
+        },
+        Task {
+            id: "recall".into(),
+            priority: 5,
+            eta_ms: 30,
+        },
+        Task {
+            id: "index".into(),
+            priority: 5,
+            eta_ms: 20,
+        },
+        Task {
+            id: "sync".into(),
+            priority: 2,
+            eta_ms: 80,
+        },
     ]);
 
     let payload = b"aaaabbbbccccccdddddddddd";
@@ -140,9 +157,21 @@ mod tests {
     #[test]
     fn scheduler_prioritizes_higher_priority_then_eta() {
         let out = schedule(vec![
-            Task { id: "a".into(), priority: 1, eta_ms: 10 },
-            Task { id: "b".into(), priority: 3, eta_ms: 50 },
-            Task { id: "c".into(), priority: 3, eta_ms: 5 },
+            Task {
+                id: "a".into(),
+                priority: 1,
+                eta_ms: 10,
+            },
+            Task {
+                id: "b".into(),
+                priority: 3,
+                eta_ms: 50,
+            },
+            Task {
+                id: "c".into(),
+                priority: 3,
+                eta_ms: 5,
+            },
         ]);
         assert_eq!(out[0].id, "c");
         assert_eq!(out[1].id, "b");

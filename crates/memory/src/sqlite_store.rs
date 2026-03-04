@@ -70,7 +70,8 @@ mod native {
         let conn = open(&db_path)?;
         ensure_schema(&conn)?;
         row.updated_at = now_ts();
-        let tags_json = serde_json::to_string(&row.tags).map_err(|e| format!("tags_encode_failed:{e}"))?;
+        let tags_json =
+            serde_json::to_string(&row.tags).map_err(|e| format!("tags_encode_failed:{e}"))?;
         conn.execute(
             r#"
             INSERT INTO memories (id, content, tags_json, updated_at, repetitions, retention_score)
@@ -146,8 +147,13 @@ mod native {
                 "#,
             )
             .map_err(|e| format!("sqlite_prepare_failed:{e}"))?;
-        let mut rows = stmt.query(params![id]).map_err(|e| format!("sqlite_query_failed:{e}"))?;
-        if let Some(row) = rows.next().map_err(|e| format!("sqlite_row_next_failed:{e}"))? {
+        let mut rows = stmt
+            .query(params![id])
+            .map_err(|e| format!("sqlite_query_failed:{e}"))?;
+        if let Some(row) = rows
+            .next()
+            .map_err(|e| format!("sqlite_row_next_failed:{e}"))?
+        {
             let tags_json: String = row.get(2).map_err(|e| format!("sqlite_col_failed:{e}"))?;
             let tags = serde_json::from_str::<Vec<String>>(&tags_json).unwrap_or_default();
             return Ok(Some(MemoryRow {
@@ -155,7 +161,10 @@ mod native {
                 content: row.get(1).map_err(|e| format!("sqlite_col_failed:{e}"))?,
                 tags,
                 updated_at: row.get(3).map_err(|e| format!("sqlite_col_failed:{e}"))?,
-                repetitions: row.get::<_, i64>(4).map_err(|e| format!("sqlite_col_failed:{e}"))? as u32,
+                repetitions: row
+                    .get::<_, i64>(4)
+                    .map_err(|e| format!("sqlite_col_failed:{e}"))?
+                    as u32,
                 retention_score: row.get(5).map_err(|e| format!("sqlite_col_failed:{e}"))?,
             }));
         }
@@ -202,7 +211,8 @@ mod native {
                 params![cutoff_ts, if aggressive { 0.55 } else { 0.25 }],
             )
             .map_err(|e| format!("sqlite_compress_failed:{e}"))?;
-        conn.execute_batch("VACUUM;").map_err(|e| format!("sqlite_vacuum_failed:{e}"))?;
+        conn.execute_batch("VACUUM;")
+            .map_err(|e| format!("sqlite_vacuum_failed:{e}"))?;
         Ok(removed as u64)
     }
 
@@ -217,9 +227,27 @@ mod native {
             return Ok(());
         }
         let samples = vec![
-            ("memory://northstar", "Northstar: build resilient compounding systems.", vec!["northstar".to_string(), "strategy".to_string()], 5u32, 1.0f64),
-            ("memory://ops", "Ops reliability rises when rollout and rollback are both deterministic.", vec!["ops".to_string(), "reliability".to_string()], 3u32, 0.92f64),
-            ("memory://rust", "Rust migration must move critical paths, not wrappers only.", vec!["rust".to_string(), "migration".to_string()], 4u32, 0.96f64),
+            (
+                "memory://northstar",
+                "Northstar: build resilient compounding systems.",
+                vec!["northstar".to_string(), "strategy".to_string()],
+                5u32,
+                1.0f64,
+            ),
+            (
+                "memory://ops",
+                "Ops reliability rises when rollout and rollback are both deterministic.",
+                vec!["ops".to_string(), "reliability".to_string()],
+                3u32,
+                0.92f64,
+            ),
+            (
+                "memory://rust",
+                "Rust migration must move critical paths, not wrappers only.",
+                vec!["rust".to_string(), "migration".to_string()],
+                4u32,
+                0.96f64,
+            ),
         ];
         for (id, content, tags, repetitions, score) in samples {
             let row = MemoryRow {
@@ -307,7 +335,13 @@ mod native {
     }
 }
 
-pub fn ingest(id: &str, content: &str, tags: Vec<String>, repetitions: u32, lambda: f64) -> Result<MemoryRow, String> {
+pub fn ingest(
+    id: &str,
+    content: &str,
+    tags: Vec<String>,
+    repetitions: u32,
+    lambda: f64,
+) -> Result<MemoryRow, String> {
     let row = MemoryRow {
         id: id.to_string(),
         content: content.to_string(),

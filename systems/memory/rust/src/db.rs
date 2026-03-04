@@ -1,7 +1,7 @@
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
-use rusqlite::{params, Connection, OptionalExtension};
 use rand::RngCore;
+use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::env;
@@ -79,10 +79,7 @@ fn derive_key_material(root: &Path) -> String {
             return raw;
         }
     }
-    format!(
-        "fallback:{}:memory-runtime-db",
-        root.to_string_lossy()
-    )
+    format!("fallback:{}:memory-runtime-db", root.to_string_lossy())
 }
 
 fn derive_cipher_key(root: &Path) -> [u8; 32] {
@@ -124,8 +121,8 @@ fn legacy_xor_stream(cipher_key: &[u8; 32], nonce: u64, input: &[u8]) -> Vec<u8>
 }
 
 fn encrypt_value(cipher_key: &[u8; 32], plaintext: &str) -> Result<String, String> {
-    let cipher = Aes256Gcm::new_from_slice(cipher_key)
-        .map_err(|err| format!("aead_init_failed:{err}"))?;
+    let cipher =
+        Aes256Gcm::new_from_slice(cipher_key).map_err(|err| format!("aead_init_failed:{err}"))?;
     let mut nonce_bytes = [0u8; 12];
     rand::rngs::OsRng.fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
@@ -173,8 +170,8 @@ fn decrypt_value(cipher_key: &[u8; 32], payload: &str) -> Result<String, String>
         return Err("aead_invalid_nonce_len".to_string());
     }
     let cipher_bytes = hex::decode(parts[2]).map_err(|_| "aead_invalid_cipher_hex".to_string())?;
-    let cipher = Aes256Gcm::new_from_slice(cipher_key)
-        .map_err(|err| format!("aead_init_failed:{err}"))?;
+    let cipher =
+        Aes256Gcm::new_from_slice(cipher_key).map_err(|err| format!("aead_init_failed:{err}"))?;
     let nonce = Nonce::from_slice(&nonce_bytes);
     let plaintext = cipher
         .decrypt(nonce, cipher_bytes.as_ref())
@@ -198,10 +195,7 @@ fn parse_hot_state_envelope_ciphertext(payload: &str) -> Option<String> {
     if schema_id != HOT_STATE_ENVELOPE_SCHEMA_ID {
         return None;
     }
-    let lane = parsed
-        .get("lane")
-        .and_then(Value::as_str)
-        .unwrap_or("");
+    let lane = parsed.get("lane").and_then(Value::as_str).unwrap_or("");
     if lane != "hot_state" {
         return None;
     }
@@ -223,10 +217,14 @@ fn wrap_hot_state_envelope(cipher_key: &[u8; 32], plaintext: &str) -> Result<Str
         "wrapped_at": now_iso(),
         "ciphertext": ciphertext
     });
-    serde_json::to_string(&envelope).map_err(|err| format!("hot_state_envelope_encode_failed:{err}"))
+    serde_json::to_string(&envelope)
+        .map_err(|err| format!("hot_state_envelope_encode_failed:{err}"))
 }
 
-fn decode_hot_state_payload_for_migration(cipher_key: &[u8; 32], payload: &str) -> Result<Option<String>, String> {
+fn decode_hot_state_payload_for_migration(
+    cipher_key: &[u8; 32],
+    payload: &str,
+) -> Result<Option<String>, String> {
     let body = payload.trim();
     if body.is_empty() {
         return Ok(Some(String::new()));
@@ -290,7 +288,8 @@ fn encode_vector_blob(values: &[f32]) -> Result<Vec<u8>, String> {
 }
 
 fn decode_vector_blob(blob: &[u8]) -> Result<Vec<f32>, String> {
-    let parsed = serde_json::from_slice::<Vec<f32>>(blob).map_err(|err| format!("db_vector_decode_failed:{err}"))?;
+    let parsed = serde_json::from_slice::<Vec<f32>>(blob)
+        .map_err(|err| format!("db_vector_decode_failed:{err}"))?;
     Ok(normalize_vector(&parsed))
 }
 
@@ -428,7 +427,9 @@ CREATE INDEX IF NOT EXISTS idx_graph_edges_dst ON temporal_graph_edges(dst_node_
     pub fn count_index_rows(&self) -> Result<usize, String> {
         let count = self
             .conn
-            .query_row("SELECT COUNT(1) FROM memory_index", [], |row| row.get::<_, i64>(0))
+            .query_row("SELECT COUNT(1) FROM memory_index", [], |row| {
+                row.get::<_, i64>(0)
+            })
             .map_err(|err| format!("db_count_index_failed:{err}"))?;
         Ok(count.max(0) as usize)
     }
@@ -477,8 +478,8 @@ CREATE INDEX IF NOT EXISTS idx_graph_edges_dst ON temporal_graph_edges(dst_node_
             .map_err(|err| format!("db_index_clear_failed:{err}"))?;
         let now = now_iso();
         for entry in entries {
-            let tags_json =
-                serde_json::to_string(&entry.tags).map_err(|err| format!("db_tags_encode_failed:{err}"))?;
+            let tags_json = serde_json::to_string(&entry.tags)
+                .map_err(|err| format!("db_tags_encode_failed:{err}"))?;
             tx.execute(
                 "INSERT INTO memory_index (node_id, uid, file_rel, summary, tags_json, source, updated_ts)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
@@ -535,7 +536,9 @@ CREATE INDEX IF NOT EXISTS idx_graph_edges_dst ON temporal_graph_edges(dst_node_
         Ok(entries.len())
     }
 
-    pub fn load_embedding_map(&self) -> Result<std::collections::HashMap<String, Vec<f32>>, String> {
+    pub fn load_embedding_map(
+        &self,
+    ) -> Result<std::collections::HashMap<String, Vec<f32>>, String> {
         let mut stmt = self
             .conn
             .prepare(
@@ -579,8 +582,8 @@ CREATE INDEX IF NOT EXISTS idx_graph_edges_dst ON temporal_graph_edges(dst_node_
             Some(cipher) => {
                 let plain = decrypt_hot_state_envelope(&self.cipher_key, &cipher)
                     .map_err(|err| format!("db_hot_state_decrypt_failed:{err}"))?;
-                let parsed =
-                    serde_json::from_str::<Value>(&plain).map_err(|err| format!("db_hot_state_decode_failed:{err}"))?;
+                let parsed = serde_json::from_str::<Value>(&plain)
+                    .map_err(|err| format!("db_hot_state_decode_failed:{err}"))?;
                 Ok(Some(parsed))
             }
             None => Ok(None),
@@ -588,9 +591,10 @@ CREATE INDEX IF NOT EXISTS idx_graph_edges_dst ON temporal_graph_edges(dst_node_
     }
 
     pub fn set_hot_state_json(&self, key: &str, value: &Value) -> Result<(), String> {
-        let encoded = serde_json::to_string(value).map_err(|err| format!("db_hot_state_encode_failed:{err}"))?;
-        let envelope =
-            wrap_hot_state_envelope(&self.cipher_key, &encoded).map_err(|err| format!("db_hot_state_encrypt_failed:{err}"))?;
+        let encoded = serde_json::to_string(value)
+            .map_err(|err| format!("db_hot_state_encode_failed:{err}"))?;
+        let envelope = wrap_hot_state_envelope(&self.cipher_key, &encoded)
+            .map_err(|err| format!("db_hot_state_encrypt_failed:{err}"))?;
         self.conn
             .execute(
                 "INSERT INTO hot_state (state_key, state_value_json, updated_ts)

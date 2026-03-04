@@ -290,7 +290,8 @@ pub fn unfold_blob_typed<T: DeserializeOwned>(
         });
     }
 
-    bincode::deserialize(&folded.payload).map_err(|err| SeedError::DeserializeFailed(err.to_string()))
+    bincode::deserialize(&folded.payload)
+        .map_err(|err| SeedError::DeserializeFailed(err.to_string()))
 }
 
 fn repo_root() -> PathBuf {
@@ -443,8 +444,8 @@ fn freeze_states(states: &[LoopState], root: &Path) -> Result<Vec<BlobManifestEn
 }
 
 fn load_states(root: &Path) -> Result<(Vec<LoopState>, Vec<BlobManifestEntry>), SeedError> {
-    let manifest_raw = std::fs::read(manifest_path(root))
-        .map_err(|err| SeedError::IoFailed(err.to_string()))?;
+    let manifest_raw =
+        std::fs::read(manifest_path(root)).map_err(|err| SeedError::IoFailed(err.to_string()))?;
     let manifest = decode_manifest(&manifest_raw)?;
 
     let mut loaded = Vec::new();

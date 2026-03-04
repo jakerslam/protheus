@@ -1,8 +1,7 @@
 mod blob;
 
 use protheus_memory_core_v6::{
-    load_embedded_vault_policy as load_embedded_vault_policy_from_memory,
-    EmbeddedVaultPolicy,
+    load_embedded_vault_policy as load_embedded_vault_policy_from_memory, EmbeddedVaultPolicy,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -12,7 +11,9 @@ use std::os::raw::c_char;
 
 const MIN_FHE_NOISE_BUDGET: u32 = 12;
 
-pub use blob::{load_embedded_vault_runtime_envelope, BlobError, VaultRuntimeEnvelope, VAULT_RUNTIME_BLOB_ID};
+pub use blob::{
+    load_embedded_vault_runtime_envelope, BlobError, VaultRuntimeEnvelope, VAULT_RUNTIME_BLOB_ID,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct VaultOperationRequest {
@@ -143,7 +144,8 @@ fn policy_digest(policy: &EmbeddedVaultPolicy) -> String {
 }
 
 pub fn load_embedded_vault_policy() -> Result<EmbeddedVaultPolicy, VaultError> {
-    load_embedded_vault_policy_from_memory().map_err(|err| VaultError::PolicyLoadFailed(err.to_string()))
+    load_embedded_vault_policy_from_memory()
+        .map_err(|err| VaultError::PolicyLoadFailed(err.to_string()))
 }
 
 pub fn evaluate_vault_policy(
@@ -201,10 +203,7 @@ pub fn evaluate_vault_policy(
                     )
                 } else if request.tamper_signal && !rotate_action {
                     should_rotate = true;
-                    (
-                        false,
-                        "tamper_requires_immediate_rotate".to_string(),
-                    )
+                    (false, "tamper_requires_immediate_rotate".to_string())
                 } else if rotate_due && !quorum_ok {
                     (
                         false,
@@ -350,14 +349,15 @@ fn into_c_string_ptr(payload: String) -> *mut c_char {
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
 pub extern "C" fn evaluate_vault_policy_ffi(request_json: *const c_char) -> *mut c_char {
-    let payload = match c_str_to_string(request_json).and_then(|req| evaluate_vault_policy_json(&req)) {
-        Ok(v) => v,
-        Err(err) => serde_json::json!({
-            "ok": false,
-            "error": err.to_string()
-        })
-        .to_string(),
-    };
+    let payload =
+        match c_str_to_string(request_json).and_then(|req| evaluate_vault_policy_json(&req)) {
+            Ok(v) => v,
+            Err(err) => serde_json::json!({
+                "ok": false,
+                "error": err.to_string()
+            })
+            .to_string(),
+        };
     into_c_string_ptr(payload)
 }
 

@@ -1859,7 +1859,9 @@ pub fn evaluate_route_decision(req: &RouteDecisionRequest) -> RouteDecisionRespo
     }
 }
 
-pub fn evaluate_route_habit_readiness(req: &RouteHabitReadinessRequest) -> RouteHabitReadinessResponse {
+pub fn evaluate_route_habit_readiness(
+    req: &RouteHabitReadinessRequest,
+) -> RouteHabitReadinessResponse {
     let state = normalize_route_state(req.habit_state.as_str());
     let required_inputs = req
         .required_inputs
@@ -1911,7 +1913,8 @@ pub fn evaluate_route_match_json(payload: &str) -> Result<String, String> {
     let req = serde_json::from_str::<RouteMatchRequest>(payload)
         .map_err(|err| format!("route_match_payload_parse_failed:{}", err))?;
     let resp = evaluate_route_match(&req);
-    serde_json::to_string(&resp).map_err(|err| format!("route_match_payload_serialize_failed:{}", err))
+    serde_json::to_string(&resp)
+        .map_err(|err| format!("route_match_payload_serialize_failed:{}", err))
 }
 
 pub fn evaluate_route_reflex_match_json(payload: &str) -> Result<String, String> {
@@ -2707,7 +2710,10 @@ mod tests {
             errors_30d: 0,
         };
         let out = evaluate_route_primitives(&req);
-        assert_eq!(out.intent_key, "spawn_a_child_process_to_run_shell_commands");
+        assert_eq!(
+            out.intent_key,
+            "spawn_a_child_process_to_run_shell_commands"
+        );
         assert_eq!(out.intent, "spawn_a_child_process_to_run");
         assert_eq!(
             out.predicted_habit_id,

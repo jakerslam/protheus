@@ -67,7 +67,8 @@ pub fn unfold_blob<T: DeserializeOwned>(bytes: &[u8], expected_hash: &str) -> Re
     serde_json::from_slice(bytes).map_err(|e| BlobError::DecodeFailed(e.to_string()))
 }
 
-pub fn load_embedded_observability_runtime_envelope() -> Result<ObservabilityRuntimeEnvelope, BlobError> {
+pub fn load_embedded_observability_runtime_envelope(
+) -> Result<ObservabilityRuntimeEnvelope, BlobError> {
     let manifest = decode_manifest(MANIFEST_BLOB)?;
     let entry = manifest
         .iter()

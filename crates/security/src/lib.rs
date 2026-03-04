@@ -1,6 +1,4 @@
-use protheus_memory_core_v6::{
-    load_embedded_observability_profile, EmbeddedObservabilityProfile,
-};
+use protheus_memory_core_v6::{load_embedded_observability_profile, EmbeddedObservabilityProfile};
 use protheus_vault_core_v1::{
     evaluate_vault_policy, evaluate_vault_policy_json, load_embedded_vault_policy,
     load_embedded_vault_policy_json, VaultDecision, VaultOperationRequest,
@@ -107,7 +105,9 @@ impl Display for SecurityError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             SecurityError::RequestDecodeFailed(msg) => write!(f, "request_decode_failed:{msg}"),
-            SecurityError::VaultPolicyLoadFailed(msg) => write!(f, "vault_policy_load_failed:{msg}"),
+            SecurityError::VaultPolicyLoadFailed(msg) => {
+                write!(f, "vault_policy_load_failed:{msg}")
+            }
             SecurityError::ObservabilityProfileLoadFailed(msg) => {
                 write!(f, "observability_profile_load_failed:{msg}")
             }
@@ -153,8 +153,7 @@ fn normalize_token(raw: &str, max_len: usize) -> String {
 
 fn has_tag(tags: &[String], target: &str) -> bool {
     let needle = normalize_token(target, 64);
-    tags.iter()
-        .any(|tag| normalize_token(tag, 64) == needle)
+    tags.iter().any(|tag| normalize_token(tag, 64) == needle)
 }
 
 fn digest_for_decision(req: &SecurityOperationRequest, reasons: &[String], score: f64) -> String {
@@ -180,7 +179,11 @@ fn to_vault_request(req: &SecurityOperationRequest) -> VaultOperationRequest {
             .ciphertext_digest
             .clone()
             .or_else(|| req.payload_digest.clone()),
-        fhe_noise_budget: if has_tag(&req.tags, "aggressive") { 12 } else { 24 },
+        fhe_noise_budget: if has_tag(&req.tags, "aggressive") {
+            12
+        } else {
+            24
+        },
         key_age_hours: req.key_age_hours,
         tamper_signal: req.tamper_signal,
         operator_quorum: req.operator_quorum,
@@ -228,7 +231,9 @@ fn compute_sovereignty_score(
     (score, weights.fail_closed_threshold_pct)
 }
 
-pub fn evaluate_operation(req: &SecurityOperationRequest) -> Result<SecurityDecision, SecurityError> {
+pub fn evaluate_operation(
+    req: &SecurityOperationRequest,
+) -> Result<SecurityDecision, SecurityError> {
     let vault_policy = load_embedded_vault_policy()
         .map_err(|err| SecurityError::VaultPolicyLoadFailed(err.to_string()))?;
     let vault_request = to_vault_request(req);
@@ -236,7 +241,8 @@ pub fn evaluate_operation(req: &SecurityOperationRequest) -> Result<SecurityDeci
 
     let observability_profile = load_embedded_observability_profile()
         .map_err(|err| SecurityError::ObservabilityProfileLoadFailed(err.to_string()))?;
-    let (score, threshold) = compute_sovereignty_score(&observability_profile, req, &vault_decision);
+    let (score, threshold) =
+        compute_sovereignty_score(&observability_profile, req, &vault_decision);
 
     let mut reasons: Vec<String> = Vec::new();
     if req.covenant_violation {
@@ -298,8 +304,8 @@ fn append_jsonl(path: &Path, value: &serde_json::Value) -> Result<(), SecurityEr
         std::fs::create_dir_all(parent)
             .map_err(|err| SecurityError::IoFailed(format!("mkdir_failed:{err}")))?;
     }
-    let mut line = serde_json::to_string(value)
-        .map_err(|err| SecurityError::EncodeFailed(err.to_string()))?;
+    let mut line =
+        serde_json::to_string(value).map_err(|err| SecurityError::EncodeFailed(err.to_string()))?;
     line.push('\n');
     use std::io::Write;
     let mut file = std::fs::OpenOptions::new()
@@ -357,7 +363,10 @@ pub fn enforce_operation(
         )?;
 
         let alert = alert_for(req, &decision);
-        append_jsonl(&alerts_path, &serde_json::to_value(alert).unwrap_or_default())?;
+        append_jsonl(
+            &alerts_path,
+            &serde_json::to_value(alert).unwrap_or_default(),
+        )?;
     }
 
     Ok(decision)
@@ -374,7 +383,10 @@ pub fn evaluate_operation_json(request_json: &str) -> Result<String, SecurityErr
     .map_err(|err| SecurityError::EncodeFailed(err.to_string()))
 }
 
-pub fn enforce_operation_json(request_json: &str, state_root: &Path) -> Result<String, SecurityError> {
+pub fn enforce_operation_json(
+    request_json: &str,
+    state_root: &Path,
+) -> Result<String, SecurityError> {
     let req: SecurityOperationRequest = serde_json::from_str(request_json)
         .map_err(|err| SecurityError::RequestDecodeFailed(err.to_string()))?;
     let decision = enforce_operation(&req, state_root)?;
@@ -445,15 +457,23 @@ fn digest_parts(parts: &[&str]) -> String {
     hex::encode(hasher.finalize())
 }
 
-fn to_security_request_for_seal(req: &VaultSealRequest) -> Result<SecurityOperationRequest, SecurityError> {
+fn to_security_request_for_seal(
+    req: &VaultSealRequest,
+) -> Result<SecurityOperationRequest, SecurityError> {
     if req.operation_id.trim().is_empty() {
-        return Err(SecurityError::ValidationFailed("operation_id_required".to_string()));
+        return Err(SecurityError::ValidationFailed(
+            "operation_id_required".to_string(),
+        ));
     }
     if req.key_id.trim().is_empty() {
-        return Err(SecurityError::ValidationFailed("key_id_required".to_string()));
+        return Err(SecurityError::ValidationFailed(
+            "key_id_required".to_string(),
+        ));
     }
     if req.data_base64.trim().is_empty() {
-        return Err(SecurityError::ValidationFailed("data_base64_required".to_string()));
+        return Err(SecurityError::ValidationFailed(
+            "data_base64_required".to_string(),
+        ));
     }
     Ok(SecurityOperationRequest {
         operation_id: req.operation_id.clone(),
@@ -483,9 +503,13 @@ fn to_security_request_for_seal(req: &VaultSealRequest) -> Result<SecurityOperat
     })
 }
 
-fn to_security_request_for_rotate(req: &VaultRotateRequest) -> Result<SecurityOperationRequest, SecurityError> {
+fn to_security_request_for_rotate(
+    req: &VaultRotateRequest,
+) -> Result<SecurityOperationRequest, SecurityError> {
     if req.operation_id.trim().is_empty() {
-        return Err(SecurityError::ValidationFailed("operation_id_required".to_string()));
+        return Err(SecurityError::ValidationFailed(
+            "operation_id_required".to_string(),
+        ));
     }
     let key_ids = if req.key_ids.is_empty() {
         vec!["all_keys".to_string()]
@@ -504,7 +528,10 @@ fn to_security_request_for_rotate(req: &VaultRotateRequest) -> Result<SecurityOp
         risk_class: "critical".to_string(),
         payload_digest: Some(format!(
             "sha256:{}",
-            digest_parts(&[&key_ids.join(","), req.reason.as_deref().unwrap_or("rotate_all")])
+            digest_parts(&[
+                &key_ids.join(","),
+                req.reason.as_deref().unwrap_or("rotate_all")
+            ])
         )),
         tags: vec!["vault".to_string(), "rotate".to_string()],
         covenant_violation: req.covenant_violation,
@@ -616,7 +643,8 @@ pub fn audit_json(request_json: &str, _state_root: &Path) -> Result<String, Secu
         .map_err(|err| SecurityError::VaultPolicyLoadFailed(err.to_string()))?;
     let policy_json = load_embedded_vault_policy_json()
         .map_err(|err| SecurityError::VaultPolicyLoadFailed(err.to_string()))?;
-    let policy_digest = digest_parts(&[&policy.policy_id, &policy.version.to_string(), &policy_json]);
+    let policy_digest =
+        digest_parts(&[&policy.policy_id, &policy.version.to_string(), &policy_json]);
 
     serde_json::to_string(&serde_json::json!({
         "ok": true,
@@ -635,7 +663,9 @@ pub fn audit_json(request_json: &str, _state_root: &Path) -> Result<String, Secu
 
 fn c_str_to_string(ptr: *const c_char) -> Result<String, SecurityError> {
     if ptr.is_null() {
-        return Err(SecurityError::RequestDecodeFailed("null_pointer".to_string()));
+        return Err(SecurityError::RequestDecodeFailed(
+            "null_pointer".to_string(),
+        ));
     }
     let s = unsafe { CStr::from_ptr(ptr) }
         .to_str()
@@ -648,14 +678,17 @@ fn into_c_string_ptr(payload: String) -> *mut c_char {
     match CString::new(sanitized) {
         Ok(c) => c.into_raw(),
         Err(_) => CString::new("{\"ok\":false,\"error\":\"cstring_encode_failed\"}")
-            .unwrap_or_else(|_| CString::new("{}").expect("fallback CString literal should be valid"))
+            .unwrap_or_else(|_| {
+                CString::new("{}").expect("fallback CString literal should be valid")
+            })
             .into_raw(),
     }
 }
 
 #[no_mangle]
 pub extern "C" fn security_check_ffi(request_json: *const c_char) -> *mut c_char {
-    let payload = match c_str_to_string(request_json).and_then(|req| evaluate_operation_json(&req)) {
+    let payload = match c_str_to_string(request_json).and_then(|req| evaluate_operation_json(&req))
+    {
         Ok(v) => v,
         Err(err) => serde_json::json!({
             "ok": false,
@@ -723,7 +756,10 @@ mod tests {
         let req = base_request();
         let decision = evaluate_operation(&req).expect("decision should evaluate");
         assert!(decision.ok, "clean operation should pass security gate");
-        assert!(!decision.fail_closed, "clean operation should not fail-close");
+        assert!(
+            !decision.fail_closed,
+            "clean operation should not fail-close"
+        );
     }
 
     #[test]
@@ -741,7 +777,8 @@ mod tests {
         req.tamper_signal = true;
         req.operator_quorum = 1;
 
-        let temp_dir = std::env::temp_dir().join(format!("security_core_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("security_core_test_{}", std::process::id()));
         if temp_dir.exists() {
             let _ = std::fs::remove_dir_all(&temp_dir);
         }

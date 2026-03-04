@@ -301,8 +301,8 @@ pub fn load_embedded_observability_profile() -> Result<EmbeddedObservabilityProf
 
 pub fn unfold_blob(blob_id: &str, expected_hash: &str) -> Result<Vec<u8>, BlobError> {
     let manifest = decode_manifest(BLOB_MANIFEST)?;
-    let blob_bytes = embedded_blob_by_id(blob_id)
-        .ok_or_else(|| BlobError::UnknownBlob(blob_id.to_string()))?;
+    let blob_bytes =
+        embedded_blob_by_id(blob_id).ok_or_else(|| BlobError::UnknownBlob(blob_id.to_string()))?;
     unfold_blob_from_parts(blob_id, expected_hash, blob_bytes, &manifest)
 }
 
@@ -563,8 +563,7 @@ pub fn write_embedded_blob_assets(heartbeat_sample: &str) -> Result<BlobPackRepo
     let observability_payload = default_observability_profile_sample();
 
     let (heartbeat_blob, heartbeat_hash) = fold_blob(&heartbeat_payload, HEARTBEAT_BLOB_ID)?;
-    let (execution_blob, execution_hash) =
-        fold_blob(&execution_payload, EXECUTION_REPLAY_BLOB_ID)?;
+    let (execution_blob, execution_hash) = fold_blob(&execution_payload, EXECUTION_REPLAY_BLOB_ID)?;
     let (vault_policy_blob, vault_policy_hash) =
         fold_blob(&vault_policy_payload, VAULT_POLICY_BLOB_ID)?;
     let (observability_blob, observability_hash) =
@@ -710,9 +709,8 @@ mod tests {
         let input = default_vault_policy_sample();
         let (blob, hash) = fold_blob(&input, VAULT_POLICY_BLOB_ID).expect("fold should succeed");
         let manifest = generate_manifest(&[(VAULT_POLICY_BLOB_ID, blob.as_slice())]);
-        let payload =
-            unfold_blob_from_parts(VAULT_POLICY_BLOB_ID, &hash, &blob, &manifest)
-                .expect("unfold should succeed");
+        let payload = unfold_blob_from_parts(VAULT_POLICY_BLOB_ID, &hash, &blob, &manifest)
+            .expect("unfold should succeed");
         let decoded: EmbeddedVaultPolicy =
             bincode::deserialize(&payload).expect("decode should succeed");
         assert_eq!(decoded, input);
@@ -724,13 +722,9 @@ mod tests {
         let (blob, hash) =
             fold_blob(&input, OBSERVABILITY_PROFILE_BLOB_ID).expect("fold should succeed");
         let manifest = generate_manifest(&[(OBSERVABILITY_PROFILE_BLOB_ID, blob.as_slice())]);
-        let payload = unfold_blob_from_parts(
-            OBSERVABILITY_PROFILE_BLOB_ID,
-            &hash,
-            &blob,
-            &manifest,
-        )
-        .expect("unfold should succeed");
+        let payload =
+            unfold_blob_from_parts(OBSERVABILITY_PROFILE_BLOB_ID, &hash, &blob, &manifest)
+                .expect("unfold should succeed");
         let decoded: EmbeddedObservabilityProfile =
             bincode::deserialize(&payload).expect("decode should succeed");
         assert_eq!(decoded, input);

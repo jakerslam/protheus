@@ -31,7 +31,8 @@ fn load_request_json(args: &[String]) -> Result<String, String> {
         return Ok(text);
     }
     if let Some(v) = parse_arg(args, "--request-file") {
-        return fs::read_to_string(v.as_str()).map_err(|err| format!("request_file_read_failed:{err}"));
+        return fs::read_to_string(v.as_str())
+            .map_err(|err| format!("request_file_read_failed:{err}"));
     }
     Err("missing_request_payload".to_string())
 }
@@ -101,7 +102,8 @@ fn main() {
         },
         "enforce" => match load_request_json(&args[1..]) {
             Ok(request_json) => {
-                let state_root = parse_arg(&args[1..], "--state-root").unwrap_or_else(|| ".".to_string());
+                let state_root =
+                    parse_arg(&args[1..], "--state-root").unwrap_or_else(|| ".".to_string());
                 match enforce_operation_json(&request_json, Path::new(&state_root)) {
                     Ok(payload) => println!("{}", payload),
                     Err(err) => {
@@ -167,7 +169,8 @@ fn main() {
         },
         "seal" => match load_request_json(&args[1..]) {
             Ok(request_json) => {
-                let state_root = parse_arg(&args[1..], "--state-root").unwrap_or_else(|| ".".to_string());
+                let state_root =
+                    parse_arg(&args[1..], "--state-root").unwrap_or_else(|| ".".to_string());
                 match seal_json(&request_json, Path::new(&state_root)) {
                     Ok(payload) => println!("{}", payload),
                     Err(err) => {
@@ -195,7 +198,8 @@ fn main() {
         },
         "rotate-all" => match load_request_json(&args[1..]) {
             Ok(request_json) => {
-                let state_root = parse_arg(&args[1..], "--state-root").unwrap_or_else(|| ".".to_string());
+                let state_root =
+                    parse_arg(&args[1..], "--state-root").unwrap_or_else(|| ".".to_string());
                 match rotate_all_json(&request_json, Path::new(&state_root)) {
                     Ok(payload) => println!("{}", payload),
                     Err(err) => {
@@ -223,7 +227,8 @@ fn main() {
         },
         "audit" => match load_request_json(&args[1..]) {
             Ok(request_json) => {
-                let state_root = parse_arg(&args[1..], "--state-root").unwrap_or_else(|| ".".to_string());
+                let state_root =
+                    parse_arg(&args[1..], "--state-root").unwrap_or_else(|| ".".to_string());
                 match audit_json(&request_json, Path::new(&state_root)) {
                     Ok(payload) => println!("{}", payload),
                     Err(err) => {
