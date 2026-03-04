@@ -2254,6 +2254,33 @@ function listProposalFiles() {
 }
 
 function normalizeStoredProposalStatus(raw, fallback = 'pending') {
+  if (AUTONOMY_BACKLOG_AUTOSCALE_RUST_ENABLED) {
+    const fallbackRaw = String(fallback || 'pending');
+    const rawStatus = String(raw || '');
+    const cacheKey = `${fallbackRaw}\u0000${rawStatus}`;
+    if (NORMALIZE_PROPOSAL_STATUS_CACHE.has(cacheKey)) {
+      return NORMALIZE_PROPOSAL_STATUS_CACHE.get(cacheKey);
+    }
+    const rust = runBacklogAutoscalePrimitive(
+      'normalize_proposal_status',
+      {
+        raw_status: rawStatus,
+        fallback: fallbackRaw
+      },
+      { allow_cli_fallback: true }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const rustStatus = String(rust.payload.payload.normalized_status || '').trim().toLowerCase();
+      if (rustStatus) {
+        if (NORMALIZE_PROPOSAL_STATUS_CACHE.size >= NORMALIZE_PROPOSAL_STATUS_CACHE_MAX) {
+          const oldest = NORMALIZE_PROPOSAL_STATUS_CACHE.keys().next();
+          if (!oldest.done) NORMALIZE_PROPOSAL_STATUS_CACHE.delete(oldest.value);
+        }
+        NORMALIZE_PROPOSAL_STATUS_CACHE.set(cacheKey, rustStatus);
+        return rustStatus;
+      }
+    }
+  }
   const base = String(fallback || 'pending').trim().toLowerCase() || 'pending';
   const s = String(raw || '').trim().toLowerCase();
   if (!s || s === 'unknown' || s === 'new' || s === 'queued') return base;
@@ -2685,6 +2712,8 @@ function parseIsoTs(ts) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+const NORMALIZE_PROPOSAL_STATUS_CACHE = new Map();
+const NORMALIZE_PROPOSAL_STATUS_CACHE_MAX = 1024;
 const POLICY_HOLD_RESULT_CACHE = new Map();
 const POLICY_HOLD_RESULT_CACHE_MAX = 256;
 const NO_PROGRESS_RESULT_CACHE = new Map();
@@ -17014,5 +17043,6 @@ module.exports = {
   qosLaneUsageFromRuns,
   countEyeOutcomesInWindow,
   countEyeOutcomesInLastHours,
+  normalizeStoredProposalStatus,
   sortedCounts
 };

@@ -460,6 +460,19 @@ pub struct SortedCountsOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizeProposalStatusInput {
+    #[serde(default)]
+    pub raw_status: Option<String>,
+    #[serde(default)]
+    pub fallback: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NormalizeProposalStatusOutput {
+    pub normalized_status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct QosLaneUsageEventInput {
     #[serde(default)]
     pub event_type: Option<String>,
@@ -999,6 +1012,8 @@ pub struct AutoscaleRequest {
     pub eye_outcome_count_last_hours_input: Option<EyeOutcomeLastHoursCountInput>,
     #[serde(default)]
     pub sorted_counts_input: Option<SortedCountsInput>,
+    #[serde(default)]
+    pub normalize_proposal_status_input: Option<NormalizeProposalStatusInput>,
     #[serde(default)]
     pub no_progress_result_input: Option<NoProgressResultInput>,
     #[serde(default)]
@@ -2024,6 +2039,40 @@ pub fn compute_sorted_counts(input: &SortedCountsInput) -> SortedCountsOutput {
         }
     });
     SortedCountsOutput { items }
+}
+
+pub fn compute_normalize_proposal_status(
+    input: &NormalizeProposalStatusInput,
+) -> NormalizeProposalStatusOutput {
+    let base = input
+        .fallback
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "pending".to_string());
+    let status = input
+        .raw_status
+        .as_ref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    let normalized_status = if status.is_empty()
+        || status == "unknown"
+        || status == "new"
+        || status == "queued"
+        || status == "open"
+        || status == "admitted"
+    {
+        base
+    } else if status == "closed_won"
+        || status == "won"
+        || status == "paid"
+        || status == "verified"
+    {
+        "closed".to_string()
+    } else {
+        status
+    };
+    NormalizeProposalStatusOutput { normalized_status }
 }
 
 pub fn compute_qos_lane_usage(input: &QosLaneUsageInput) -> QosLaneUsageOutput {
@@ -3360,6 +3409,18 @@ pub fn run_autoscale_json(payload_json: &str) -> Result<String, String> {
         }))
         .map_err(|e| format!("autoscale_sorted_counts_encode_failed:{e}"));
     }
+    if mode == "normalize_proposal_status" {
+        let input = request
+            .normalize_proposal_status_input
+            .ok_or_else(|| "autoscale_missing_normalize_proposal_status_input".to_string())?;
+        let out = compute_normalize_proposal_status(&input);
+        return serde_json::to_string(&serde_json::json!({
+            "ok": true,
+            "mode": "normalize_proposal_status",
+            "payload": out
+        }))
+        .map_err(|e| format!("autoscale_normalize_proposal_status_encode_failed:{e}"));
+    }
     if mode == "no_progress_result" {
         let input = request
             .no_progress_result_input
@@ -4506,6 +4567,35 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale sorted_counts");
         assert!(out.contains("\"mode\":\"sorted_counts\""));
+    }
+
+    #[test]
+    fn normalize_proposal_status_maps_expected_values() {
+        let out = compute_normalize_proposal_status(&NormalizeProposalStatusInput {
+            raw_status: Some("closed_won".to_string()),
+            fallback: Some("pending".to_string()),
+        });
+        assert_eq!(out.normalized_status, "closed");
+
+        let out2 = compute_normalize_proposal_status(&NormalizeProposalStatusInput {
+            raw_status: Some("queued".to_string()),
+            fallback: Some("pending".to_string()),
+        });
+        assert_eq!(out2.normalized_status, "pending");
+    }
+
+    #[test]
+    fn autoscale_json_normalize_proposal_status_path_works() {
+        let payload = serde_json::json!({
+            "mode": "normalize_proposal_status",
+            "normalize_proposal_status_input": {
+                "raw_status": "closed_won",
+                "fallback": "pending"
+            }
+        })
+        .to_string();
+        let out = run_autoscale_json(&payload).expect("autoscale normalize_proposal_status");
+        assert!(out.contains("\"mode\":\"normalize_proposal_status\""));
     }
 
     #[test]
