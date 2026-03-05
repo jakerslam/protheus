@@ -1818,6 +1818,15 @@ fn cmd_run(root: &Path, cli: &CliArgs, policy: &Policy, paths: &RuntimePaths) ->
                 .unwrap_or(false)
                 && !force
             {
+                let selected_tests = results.len();
+                let passed = results
+                    .iter()
+                    .filter(|row| row.get("ok").and_then(Value::as_bool).unwrap_or(false))
+                    .count();
+                let failed = results
+                    .iter()
+                    .filter(|row| !row.get("ok").and_then(Value::as_bool).unwrap_or(false))
+                    .count();
                 phase_ms["execute_ms"] = json!(execute_started.elapsed().as_millis());
                 phase_ms["total_ms"] = json!(run_start.elapsed().as_millis());
                 let mut out = json!({
@@ -1828,12 +1837,31 @@ fn cmd_run(root: &Path, cli: &CliArgs, policy: &Policy, paths: &RuntimePaths) ->
                     "strict": strict,
                     "aborted": true,
                     "abort_reason": "resource_guard_during_execution",
-                    "selected_tests": results.len(),
-                    "passed": results.iter().filter(|row| row.get("ok").and_then(Value::as_bool).unwrap_or(false)).count(),
-                    "failed": results.iter().filter(|row| !row.get("ok").and_then(Value::as_bool).unwrap_or(false)).count(),
+                    "selected_tests": selected_tests,
+                    "passed": passed,
+                    "failed": failed,
                     "resource_guard_runtime": loop_resources,
                     "partial_results": results,
-                    "phase_ms": phase_ms
+                    "phase_ms": phase_ms,
+                    "claim_evidence": [
+                        {
+                            "id": "resource_guard_runtime",
+                            "claim": "run_aborted_when_runtime_resource_guard_failed",
+                            "evidence": {
+                                "selected_tests": selected_tests,
+                                "failed": failed
+                            }
+                        }
+                    ],
+                    "persona_lenses": {
+                        "operator": {
+                            "mode": "run",
+                            "abort_reason": "resource_guard_during_execution"
+                        },
+                        "auditor": {
+                            "strict": strict
+                        }
+                    }
                 });
                 out["receipt_hash"] = Value::String(receipt_hash(&out));
                 let _ = write_json_atomic(&paths.latest_path, &out);
@@ -1842,6 +1870,15 @@ fn cmd_run(root: &Path, cli: &CliArgs, policy: &Policy, paths: &RuntimePaths) ->
         }
 
         if Instant::now() > run_deadline {
+            let selected_tests = results.len();
+            let passed = results
+                .iter()
+                .filter(|row| row.get("ok").and_then(Value::as_bool).unwrap_or(false))
+                .count();
+            let failed = results
+                .iter()
+                .filter(|row| !row.get("ok").and_then(Value::as_bool).unwrap_or(false))
+                .count();
             phase_ms["execute_ms"] = json!(execute_started.elapsed().as_millis());
             phase_ms["total_ms"] = json!(run_start.elapsed().as_millis());
             let mut out = json!({
@@ -1852,11 +1889,30 @@ fn cmd_run(root: &Path, cli: &CliArgs, policy: &Policy, paths: &RuntimePaths) ->
                 "strict": strict,
                 "timeout": true,
                 "timeout_reason": "execution_budget_exhausted",
-                "selected_tests": results.len(),
-                "passed": results.iter().filter(|row| row.get("ok").and_then(Value::as_bool).unwrap_or(false)).count(),
-                "failed": results.iter().filter(|row| !row.get("ok").and_then(Value::as_bool).unwrap_or(false)).count(),
+                "selected_tests": selected_tests,
+                "passed": passed,
+                "failed": failed,
                 "partial_results": results,
-                "phase_ms": phase_ms
+                "phase_ms": phase_ms,
+                "claim_evidence": [
+                    {
+                        "id": "execution_budget",
+                        "claim": "run_times_out_when_execution_budget_exhausted",
+                        "evidence": {
+                            "selected_tests": selected_tests,
+                            "failed": failed
+                        }
+                    }
+                ],
+                "persona_lenses": {
+                    "operator": {
+                        "mode": "run",
+                        "timeout_reason": "execution_budget_exhausted"
+                    },
+                    "auditor": {
+                        "strict": strict
+                    }
+                }
             });
             out["receipt_hash"] = Value::String(receipt_hash(&out));
             let _ = write_json_atomic(&paths.latest_path, &out);
