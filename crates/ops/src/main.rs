@@ -14,6 +14,7 @@ fn usage() {
     println!("  protheus-ops contract-check <args>");
     println!("  protheus-ops strategy-mode-governor <args>");
     println!("  protheus-ops inversion-controller <command> [flags]");
+    println!("  protheus-ops health-status <command> [flags]");
     println!("  protheus-ops foundation-contract-gate <run|status> [flags]");
     println!("  protheus-ops state-kernel <command> [flags]");
     println!("  protheus-ops autonomy-controller <command> [flags]");
@@ -148,6 +149,11 @@ fn main() {
         "inversion-controller" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::inversion_controller::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "health-status" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::health_status::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "foundation-contract-gate" => {
