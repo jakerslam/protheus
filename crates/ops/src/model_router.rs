@@ -848,4 +848,13 @@ mod tests {
         assert_eq!(high["escalation_chain"].as_array().map(|v| v.len()), Some(4));
         assert_eq!(high["guardrails"]["verification_required"], true);
     }
+
+    #[test]
+    fn role_and_capability_inference_cover_parallel_agent_and_role_fallback_paths() {
+        assert_eq!(infer_role("parallel agent coordination", "sync"), "swarm");
+        assert_eq!(
+            infer_capability("unknown action", "no keyword", "  Coding Lead  "),
+            "role:coding lead"
+        );
+    }
 }
