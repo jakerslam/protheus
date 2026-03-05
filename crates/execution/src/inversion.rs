@@ -12095,6 +12095,35 @@ function runInversionPrimitive(mode: string, data: AnyObj = {}, opts: AnyObj = {
     }
 
     #[test]
+    fn extract_bridge_modes_selects_requested_function_section() {
+        let bridge = r#"
+function runInversionPrimitive(mode: string, data: AnyObj = {}, opts: AnyObj = {}) {
+  const fieldByMode: AnyObj = {
+    alpha: "payload_alpha"
+  };
+}
+function runOtherPrimitive(mode: string, data: AnyObj = {}, opts: AnyObj = {}) {
+  const fieldByMode: AnyObj = {
+    rogue: "payload_rogue"
+  };
+}
+"#;
+        let parsed_inversion = extract_bridge_modes(bridge, "runInversionPrimitive");
+        let expected_inversion = ["alpha"]
+            .iter()
+            .map(|value| value.to_string())
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(parsed_inversion, expected_inversion);
+
+        let parsed_other = extract_bridge_modes(bridge, "runOtherPrimitive");
+        let expected_other = ["rogue"]
+            .iter()
+            .map(|value| value.to_string())
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(parsed_other, expected_other);
+    }
+
+    #[test]
     fn extract_mode_literals_ignores_dynamic_template_modes() {
         let text = r#"
 const a = runInversionPrimitive("alpha", {});
