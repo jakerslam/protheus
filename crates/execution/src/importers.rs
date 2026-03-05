@@ -142,9 +142,107 @@ pub fn run_importer_generic_yaml_json(payload: &str) -> Result<String, String> {
     run_importer_generic_json_json(&normalized_json)
 }
 
+fn coerce_row_name(row: &Value, kind: &str, idx: usize) -> String {
+    let fallback = format!("{kind}_{}", idx + 1);
+    if let Some(obj) = row.as_object() {
+        if let Some(name) = obj.get("name").and_then(Value::as_str) {
+            let trimmed = name.trim();
+            if !trimmed.is_empty() {
+                return trimmed.to_string();
+            }
+        }
+        if let Some(id) = obj.get("id").and_then(Value::as_str) {
+            let trimmed = id.trim();
+            if !trimmed.is_empty() {
+                return trimmed.to_string();
+            }
+        }
+    }
+    fallback
+}
+
+fn map_openfang_rows(rows: &[Value], kind: &str) -> Vec<Value> {
+    rows.iter()
+        .enumerate()
+        .map(|(idx, row)| {
+            let name = coerce_row_name(row, kind, idx);
+            let id = {
+                let normalized = normalize_token(&name);
+                if normalized.is_empty() {
+                    format!("{kind}_{}", idx + 1)
+                } else {
+                    normalized
+                }
+            };
+            json!({
+                "id": id,
+                "name": name,
+                "source_kind": kind,
+                "source": row
+            })
+        })
+        .collect()
+}
+
+pub fn run_importer_openfang_json(payload: &str) -> Result<String, String> {
+    let parsed: Value =
+        serde_json::from_str(payload).map_err(|err| format!("payload_json_parse_failed:{err}"))?;
+    let obj = parsed.as_object().cloned().unwrap_or_default();
+
+    let source_agents = obj
+        .get("agents")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let source_tasks = obj
+        .get("tasks")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let source_workflows = obj
+        .get("workflows")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let source_tools = obj
+        .get("tools")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    let agents = map_openfang_rows(&source_agents, "agent");
+    let tasks = map_openfang_rows(&source_tasks, "task");
+    let workflows = map_openfang_rows(&source_workflows, "workflow");
+    let tools = map_openfang_rows(&source_tools, "tool");
+
+    let source_item_count =
+        source_agents.len() + source_tasks.len() + source_workflows.len() + source_tools.len();
+    let mapped_item_count = agents.len() + tasks.len() + workflows.len() + tools.len();
+
+    let result = json!({
+        "ok": true,
+        "payload": {
+            "entities": {
+                "agents": agents,
+                "tasks": tasks,
+                "workflows": workflows,
+                "tools": tools,
+                "records": []
+            },
+            "source_item_count": source_item_count,
+            "mapped_item_count": mapped_item_count,
+            "warnings": []
+        }
+    });
+    serde_json::to_string(&result).map_err(|err| format!("result_json_serialize_failed:{err}"))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{parse_simple_yaml_text, run_importer_generic_json_json, run_importer_generic_yaml_json};
+    use super::{
+        parse_simple_yaml_text, run_importer_generic_json_json, run_importer_generic_yaml_json,
+        run_importer_openfang_json,
+    };
     use serde_json::{json, Value};
 
     #[test]
@@ -233,5 +331,35 @@ mod tests {
         assert_eq!(parsed["ok"], true);
         assert_eq!(parsed["payload"]["source_item_count"], 2);
         assert_eq!(parsed["payload"]["mapped_item_count"], 2);
+    }
+
+    #[test]
+    fn importer_openfang_maps_named_rows() {
+        let payload = json!({
+            "agents": [{"name": "Planner"}],
+            "tasks": [{"id": "task_alpha"}],
+            "workflows": [{"name": "PrimaryFlow"}],
+            "tools": [{"name": "Search"}]
+        });
+        let out = run_importer_openfang_json(&payload.to_string())
+            .expect("importer_openfang_json should return output");
+        let parsed: Value = serde_json::from_str(&out).expect("valid json output");
+        assert_eq!(parsed["ok"], true);
+        assert_eq!(parsed["payload"]["source_item_count"], 4);
+        assert_eq!(parsed["payload"]["mapped_item_count"], 4);
+        assert_eq!(parsed["payload"]["entities"]["agents"][0]["id"], "planner");
+        assert_eq!(parsed["payload"]["entities"]["tasks"][0]["id"], "task_alpha");
+        assert_eq!(parsed["payload"]["entities"]["workflows"][0]["id"], "primaryflow");
+        assert_eq!(parsed["payload"]["entities"]["tools"][0]["id"], "search");
+    }
+
+    #[test]
+    fn importer_openfang_non_object_payload_is_empty() {
+        let out = run_importer_openfang_json("[]")
+            .expect("importer_openfang_json should return output");
+        let parsed: Value = serde_json::from_str(&out).expect("valid json output");
+        assert_eq!(parsed["ok"], true);
+        assert_eq!(parsed["payload"]["source_item_count"], 0);
+        assert_eq!(parsed["payload"]["mapped_item_count"], 0);
     }
 }
