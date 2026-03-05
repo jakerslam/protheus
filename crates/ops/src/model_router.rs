@@ -21,6 +21,8 @@ pub const ROUTER_PROBE_SUPPRESSION_TIMEOUT_STREAK_DEFAULT: i64 = 3;
 pub const ROUTER_PROBE_SUPPRESSION_MINUTES_DEFAULT: i64 = 45;
 pub const ROUTER_PROBE_REHAB_SUCCESS_THRESHOLD_DEFAULT: i64 = 2;
 pub const ROUTER_BUDGET_DIR_DEFAULT: &str = "state/autonomy/daily_budget";
+pub const ROUTER_BURN_ORACLE_LATEST_PATH_REL_DEFAULT: &str =
+    "state/ops/dynamic_burn_budget_oracle/latest.json";
 pub const DEFAULT_FAST_PATH_DISALLOW_REGEXES: [&str; 5] = [
     "https?:\\/\\/",
     "(^|\\s)--?[a-z0-9][a-z0-9_-]*\\b",
@@ -381,6 +383,21 @@ fn string_or(value: Option<&Value>, fallback: &str) -> String {
         .unwrap_or_else(|| fallback.to_string())
 }
 
+fn string_like(value: Option<&Value>) -> String {
+    match value {
+        Some(Value::String(v)) => v.clone(),
+        Some(Value::Number(v)) => v.to_string(),
+        Some(Value::Bool(v)) => {
+            if *v {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            }
+        }
+        _ => String::new(),
+    }
+}
+
 fn value_string_array(value: Option<&Value>) -> Vec<String> {
     value
         .and_then(Value::as_array)
@@ -585,6 +602,18 @@ pub struct RouterBudgetPolicy {
     pub cheap_local_bonus_hard: f64,
     pub model_token_multipliers: Map<String, Value>,
     pub class_token_multipliers: Map<String, Value>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct RouterBudgetStateInput<'a> {
+    pub cfg: &'a Value,
+    pub repo_root: &'a Path,
+    pub default_state_dir: &'a str,
+    pub today_override: &'a str,
+    pub now_iso: &'a str,
+    pub budget_state: Option<&'a Value>,
+    pub oracle_signal: Option<&'a Value>,
+    pub default_oracle_source_path: &'a str,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1314,6 +1343,158 @@ pub fn budget_date_str(today_override: &str, now_iso: &str) -> String {
         return today_override.to_string();
     }
     now_iso.chars().take(10).collect::<String>()
+}
+
+fn router_budget_policy_value(policy: &RouterBudgetPolicy) -> Value {
+    let mut out = Map::<String, Value>::new();
+    out.insert("enabled".to_string(), Value::Bool(policy.enabled));
+    out.insert("state_dir".to_string(), Value::String(policy.state_dir.clone()));
+    out.insert(
+        "allow_strategy_override".to_string(),
+        Value::Bool(policy.allow_strategy_override),
+    );
+    out.insert("soft_ratio".to_string(), number_value(policy.soft_ratio));
+    out.insert("hard_ratio".to_string(), number_value(policy.hard_ratio));
+    out.insert(
+        "enforce_hard_cap".to_string(),
+        Value::Bool(policy.enforce_hard_cap),
+    );
+    out.insert(
+        "escalate_on_no_local_fallback".to_string(),
+        Value::Bool(policy.escalate_on_no_local_fallback),
+    );
+    out.insert(
+        "cloud_penalty_soft".to_string(),
+        number_value(policy.cloud_penalty_soft),
+    );
+    out.insert(
+        "cloud_penalty_hard".to_string(),
+        number_value(policy.cloud_penalty_hard),
+    );
+    out.insert(
+        "cheap_local_bonus_soft".to_string(),
+        number_value(policy.cheap_local_bonus_soft),
+    );
+    out.insert(
+        "cheap_local_bonus_hard".to_string(),
+        number_value(policy.cheap_local_bonus_hard),
+    );
+    out.insert(
+        "model_token_multipliers".to_string(),
+        Value::Object(policy.model_token_multipliers.clone()),
+    );
+    out.insert(
+        "class_token_multipliers".to_string(),
+        Value::Object(policy.class_token_multipliers.clone()),
+    );
+    Value::Object(out)
+}
+
+pub fn router_burn_oracle_signal(raw_signal: Option<&Value>, default_source_path: &str) -> Value {
+    let src = raw_signal.and_then(Value::as_object);
+    let pressure_input = string_like(src.and_then(|v| v.get("pressure")));
+    let reason_codes = src
+        .and_then(|v| v.get("reason_codes"))
+        .and_then(Value::as_array)
+        .map(|rows| rows.iter().take(10).cloned().collect::<Vec<_>>())
+        .unwrap_or_default();
+    let source_path = normalized_optional_string(src.and_then(|v| v.get("latest_path_rel")))
+        .unwrap_or_else(|| default_source_path.to_string());
+
+    json!({
+        "available": matches!(src.and_then(|v| v.get("available")), Some(Value::Bool(true))),
+        "pressure": normalize_router_pressure(&pressure_input),
+        "pressure_rank": pressure_order(&pressure_input),
+        "projected_runway_days": finite_number(src.and_then(|v| v.get("projected_runway_days"))),
+        "projected_days_to_reset": finite_number(src.and_then(|v| v.get("projected_days_to_reset"))),
+        "reason_codes": reason_codes,
+        "source_path": source_path
+    })
+}
+
+pub fn router_budget_state(input: RouterBudgetStateInput<'_>) -> Value {
+    let policy = router_budget_policy(input.cfg, input.repo_root, input.default_state_dir);
+    let policy_value = router_budget_policy_value(&policy);
+    let date = budget_date_str(input.today_override, input.now_iso);
+    let oracle = router_burn_oracle_signal(input.oracle_signal, input.default_oracle_source_path);
+
+    let mut out = Map::<String, Value>::new();
+    out.insert("enabled".to_string(), Value::Bool(policy.enabled));
+    out.insert("available".to_string(), Value::Bool(false));
+    out.insert("pressure".to_string(), Value::String("none".to_string()));
+    out.insert("ratio".to_string(), Value::Null);
+    out.insert("token_cap".to_string(), Value::Null);
+    out.insert("used_est".to_string(), Value::Null);
+    out.insert("path".to_string(), Value::Null);
+    out.insert("oracle".to_string(), oracle.clone());
+    out.insert("policy".to_string(), policy_value);
+
+    if !policy.enabled {
+        return Value::Object(out);
+    }
+
+    let fallback_path = Path::new(&policy.state_dir)
+        .join(format!("{date}.json"))
+        .to_string_lossy()
+        .to_string();
+    let budget_obj = input.budget_state.and_then(Value::as_object);
+    let path = normalized_optional_string(budget_obj.and_then(|v| v.get("path")))
+        .unwrap_or(fallback_path);
+    out.insert("path".to_string(), Value::String(path));
+
+    if !matches!(
+        budget_obj
+            .and_then(|v| v.get("available"))
+            .and_then(Value::as_bool),
+        Some(true)
+    ) {
+        return Value::Object(out);
+    }
+
+    let cap = finite_number(budget_obj.and_then(|v| v.get("token_cap"))).unwrap_or(0.0);
+    let used = finite_number(budget_obj.and_then(|v| v.get("used_est"))).unwrap_or(0.0);
+    if !(cap.is_finite() && cap > 0.0 && used.is_finite()) {
+        return Value::Object(out);
+    }
+
+    let ratio = (used / cap).max(0.0);
+    let mut pressure = if ratio >= policy.hard_ratio {
+        "hard".to_string()
+    } else if ratio >= policy.soft_ratio {
+        "soft".to_string()
+    } else {
+        "none".to_string()
+    };
+
+    let oracle_available = matches!(
+        oracle
+            .as_object()
+            .and_then(|v| v.get("available"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    let oracle_pressure = oracle
+        .as_object()
+        .and_then(|v| v.get("pressure"))
+        .and_then(Value::as_str)
+        .unwrap_or("none");
+    if oracle_available && pressure_order(oracle_pressure) > pressure_order(&pressure) {
+        pressure = oracle_pressure.to_string();
+    }
+
+    out.insert("available".to_string(), Value::Bool(true));
+    out.insert("pressure".to_string(), Value::String(pressure));
+    out.insert("ratio".to_string(), number_value(rounded_4(ratio)));
+    out.insert("token_cap".to_string(), number_value(cap));
+    out.insert("used_est".to_string(), number_value(used));
+    out.insert(
+        "strategy_id".to_string(),
+        budget_obj
+            .and_then(|v| v.get("strategy_id"))
+            .cloned()
+            .unwrap_or(Value::Null),
+    );
+    Value::Object(out)
 }
 
 pub fn project_budget_state(budget_state: Option<&Value>, request_tokens: Option<f64>) -> Value {
@@ -2421,6 +2602,110 @@ mod tests {
             "2026-03-05"
         );
         assert_eq!(budget_date_str("", "short"), "short");
+    }
+
+    #[test]
+    fn router_burn_oracle_signal_normalizes_pressure_and_limits_reason_codes() {
+        let signal = router_burn_oracle_signal(
+            Some(&json!({
+                "available": true,
+                "pressure": "CRITICAL",
+                "projected_runway_days": "1.5",
+                "projected_days_to_reset": 3,
+                "reason_codes": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"],
+                "latest_path_rel": "state/ops/dynamic_burn_budget_oracle/latest.json"
+            })),
+            ROUTER_BURN_ORACLE_LATEST_PATH_REL_DEFAULT,
+        );
+        assert_eq!(signal["available"], true);
+        assert_eq!(signal["pressure"], "hard");
+        assert_eq!(signal["pressure_rank"], 4);
+        assert_eq!(signal["projected_runway_days"], 1.5);
+        assert_eq!(signal["projected_days_to_reset"], 3.0);
+        assert_eq!(signal["source_path"], "state/ops/dynamic_burn_budget_oracle/latest.json");
+        assert_eq!(signal["reason_codes"].as_array().map(|rows| rows.len()), Some(10));
+
+        let fallback = router_burn_oracle_signal(None, "state/default/latest.json");
+        assert_eq!(fallback["available"], false);
+        assert_eq!(fallback["pressure"], "none");
+        assert_eq!(fallback["pressure_rank"], 0);
+        assert_eq!(fallback["source_path"], "state/default/latest.json");
+        assert_eq!(
+            fallback["reason_codes"].as_array().map(|rows| rows.len()),
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn router_budget_state_matches_disabled_unavailable_and_oracle_override_paths() {
+        let disabled = router_budget_state(RouterBudgetStateInput {
+            cfg: &json!({
+                "routing": {
+                    "router_budget_policy": {
+                        "enabled": false
+                    }
+                }
+            }),
+            repo_root: Path::new("/repo"),
+            default_state_dir: ROUTER_BUDGET_DIR_DEFAULT,
+            today_override: "2026-03-05",
+            now_iso: "2026-03-05T00:00:00.000Z",
+            budget_state: None,
+            oracle_signal: None,
+            default_oracle_source_path: ROUTER_BURN_ORACLE_LATEST_PATH_REL_DEFAULT,
+        });
+        assert_eq!(disabled["enabled"], false);
+        assert_eq!(disabled["available"], false);
+        assert_eq!(disabled["path"], Value::Null);
+
+        let unavailable = router_budget_state(RouterBudgetStateInput {
+            cfg: &json!({}),
+            repo_root: Path::new("/repo"),
+            default_state_dir: ROUTER_BUDGET_DIR_DEFAULT,
+            today_override: "2026-03-06",
+            now_iso: "2026-03-05T00:00:00.000Z",
+            budget_state: None,
+            oracle_signal: Some(&json!({
+                "available": true,
+                "pressure": "soft"
+            })),
+            default_oracle_source_path: ROUTER_BURN_ORACLE_LATEST_PATH_REL_DEFAULT,
+        });
+        assert_eq!(unavailable["enabled"], true);
+        assert_eq!(unavailable["available"], false);
+        assert_eq!(
+            unavailable["path"],
+            "/repo/state/autonomy/daily_budget/2026-03-06.json"
+        );
+        assert_eq!(unavailable["pressure"], "none");
+        assert_eq!(unavailable["oracle"]["pressure"], "soft");
+
+        let overridden = router_budget_state(RouterBudgetStateInput {
+            cfg: &json!({}),
+            repo_root: Path::new("/repo"),
+            default_state_dir: ROUTER_BUDGET_DIR_DEFAULT,
+            today_override: "2026-03-07",
+            now_iso: "2026-03-05T00:00:00.000Z",
+            budget_state: Some(&json!({
+                "available": true,
+                "path": "/tmp/router-budget.json",
+                "token_cap": 1000,
+                "used_est": 760,
+                "strategy_id": "strat-1"
+            })),
+            oracle_signal: Some(&json!({
+                "available": true,
+                "pressure": "hard"
+            })),
+            default_oracle_source_path: ROUTER_BURN_ORACLE_LATEST_PATH_REL_DEFAULT,
+        });
+        assert_eq!(overridden["available"], true);
+        assert_eq!(overridden["path"], "/tmp/router-budget.json");
+        assert_eq!(overridden["ratio"], 0.76);
+        assert_eq!(overridden["token_cap"], 1000.0);
+        assert_eq!(overridden["used_est"], 760.0);
+        assert_eq!(overridden["pressure"], "hard");
+        assert_eq!(overridden["strategy_id"], "strat-1");
     }
 
     #[test]
