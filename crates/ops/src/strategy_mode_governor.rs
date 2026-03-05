@@ -735,4 +735,74 @@ mod tests {
         );
         assert!(tr.is_none());
     }
+
+    #[test]
+    fn transition_score_only_mode_is_trimmed_before_matching() {
+        let policy = base_policy();
+        let readiness = ReadinessState {
+            strict_ready: true,
+            canary_relaxed: false,
+            ready_for_canary: true,
+            ready_for_execute: true,
+            effective_ready: true,
+            failed_checks: vec![],
+        };
+        let canary = CanaryState {
+            preview_ready_for_canary: true,
+            ready_for_execute: true,
+            quality_lock_active: true,
+        };
+        let streak = StreakState {
+            escalate_ready_streak: 3,
+            demote_not_ready_streak: 0,
+        };
+
+        let tr = decide_transition(
+            "  score_only  ",
+            &readiness,
+            &canary,
+            &policy,
+            true,
+            false,
+            &streak,
+        )
+        .expect("transition");
+        assert_eq!(tr.to_mode, "canary_execute");
+    }
+
+    #[test]
+    fn transition_execute_mode_is_trimmed_before_matching() {
+        let policy = base_policy();
+        let readiness = ReadinessState {
+            strict_ready: false,
+            canary_relaxed: false,
+            ready_for_canary: false,
+            ready_for_execute: false,
+            effective_ready: false,
+            failed_checks: vec!["verified_rate".to_string()],
+        };
+        let canary = CanaryState {
+            preview_ready_for_canary: false,
+            ready_for_execute: false,
+            quality_lock_active: true,
+        };
+        let streak = StreakState {
+            escalate_ready_streak: 0,
+            demote_not_ready_streak: 2,
+        };
+
+        let tr = decide_transition(
+            "  execute  ",
+            &readiness,
+            &canary,
+            &policy,
+            true,
+            false,
+            &streak,
+        )
+        .expect("transition");
+        assert_eq!(tr.to_mode, "canary_execute");
+        assert_eq!(tr.reason, "readiness_fail_demote_canary");
+        assert!(tr.cooldown_exempt);
+    }
 }
