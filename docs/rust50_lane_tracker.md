@@ -448,3 +448,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N29 | systems/ops/platform_path_contract_pack.ts | LOC=330 | 2026-03-05T22:00:26Z
 - [x] N30 | systems/ops/federated_sovereign_mesh_runtime.ts | LOC=330 | 2026-03-05T22:00:29Z
 - [x] N31 | systems/contracts/schema_versioning_gate.ts | LOC=330 | 2026-03-05T22:00:32Z
+- [x] N32 | systems/primitives/primitive_runtime.ts | LOC=328 | 2026-03-05T22:00:34Z
