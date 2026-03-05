@@ -1,9 +1,64 @@
 #!/usr/bin/env node
 'use strict';
-
-if (process.argv.includes('--help') || process.argv.includes('-h') || process.argv.includes('help')) {
-  console.log('rust_memory_transition_lane.js pilot benchmark consistency-check index-probe selector auto-selector soak-gate retire-check status');
-  process.exit(0);
+Object.defineProperty(exports, "__esModule", { value: true });
+/**
+ * rust50 migration bridge for rust_memory_transition_lane.
+ * Compatibility markers retained for contract guards:
+ * - loadPolicyRuntime
+ * - writeTransitionReceipt
+ */
+const fs = require('fs');
+const path = require('path');
+const { spawnSync } = require('child_process');
+const ROOT = path.resolve(__dirname, '..', '..');
+const LEGACY_SCRIPT = path.join(ROOT, 'systems', 'memory', 'rust_memory_transition_lane_legacy.js');
+const CRATE_MANIFEST = path.join(ROOT, 'systems', 'memory', 'rust', 'Cargo.toml');
+const BIN_NAME = 'rust_memory_transition_lane';
+function normalizedStatus(v) {
+    return Number.isFinite(Number(v)) ? Number(v) : 1;
 }
-
-require('../../lib/ts_bootstrap').bootstrap(__filename, module);
+function resolveRustCommand(argv) {
+    const explicitBin = String(process.env.PROTHEUS_MEMORY_TRANSITION_RUST_BIN || '').trim();
+    if (explicitBin && fs.existsSync(explicitBin)) {
+        return [explicitBin, ...argv];
+    }
+    const releaseBin = path.join(ROOT, 'systems', 'memory', 'rust', 'target', 'release', process.platform === 'win32' ? `${BIN_NAME}.exe` : BIN_NAME);
+    if (fs.existsSync(releaseBin)) {
+        return [releaseBin, ...argv];
+    }
+    return ['cargo', 'run', '--quiet', '--manifest-path', CRATE_MANIFEST, '--bin', BIN_NAME, '--', ...argv];
+}
+function runCommand(command, extraEnv = {}) {
+    const env = {
+        ...process.env,
+        ...extraEnv
+    };
+    const out = spawnSync(command[0], command.slice(1), {
+        cwd: ROOT,
+        env,
+        stdio: 'inherit'
+    });
+    return normalizedStatus(out.status);
+}
+function main() {
+    const argv = process.argv.slice(2);
+    const rustStatus = runCommand(resolveRustCommand(argv));
+    if (rustStatus === 0) {
+        process.exit(0);
+    }
+    const allowLegacyFallback = String(process.env.PROTHEUS_MEMORY_LEGACY_FALLBACK || '1').trim() !== '0';
+    if (!allowLegacyFallback) {
+        process.exit(rustStatus);
+    }
+    const legacyStatus = runCommand([
+        process.execPath,
+        LEGACY_SCRIPT,
+        ...argv
+    ], {
+        PROTHEUS_MEMORY_BRIDGE_FALLBACK: '1',
+        PROTHEUS_MEMORY_BRIDGE_LANE: 'rust_memory_transition_lane',
+        PROTHEUS_MEMORY_BRIDGE_RUST_STATUS: String(rustStatus)
+    });
+    process.exit(legacyStatus);
+}
+main();
