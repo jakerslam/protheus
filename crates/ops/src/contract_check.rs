@@ -122,6 +122,7 @@ mod tests {
     }
 
     #[test]
+<<<<<<< HEAD
     fn missing_tokens_preserves_missing_order() {
         let text = "run --help";
         let tokens = vec![
@@ -131,6 +132,37 @@ mod tests {
         ];
         let missing = missing_tokens(text, &tokens);
         assert_eq!(missing, vec!["status".to_string(), "contract".to_string()]);
+=======
+    fn guard_registry_contract_receipt_matches_expected_tokens() {
+        let source = "guard_check_registry required_merge_guard_ids";
+        let receipt = guard_registry_contract_receipt(source);
+        assert!(receipt.ok);
+        assert!(!receipt.fail_closed);
+        assert!(receipt.missing_hooks.is_empty());
+    }
+
+    #[test]
+    fn foundation_hook_coverage_receipt_detects_missing_tokens() {
+        let source = "foundation_contract_gate.js";
+        let receipt = foundation_hook_coverage_receipt(source);
+        assert!(!receipt.ok);
+        assert!(!receipt.fail_closed);
+        assert!(!receipt.missing_hooks.is_empty());
+        assert!(receipt
+            .missing_hooks
+            .contains(&"scale_envelope_baseline.js".to_string()));
+    }
+
+    #[test]
+    fn foundation_hook_coverage_receipt_succeeds_when_all_hooks_are_present() {
+        let source = FOUNDATION_HOOK_REQUIRED_TOKENS.join(" ");
+        let receipt = foundation_hook_coverage_receipt(&source);
+        assert!(receipt.ok);
+        assert_eq!(
+            receipt.observed_hooks.len(),
+            FOUNDATION_HOOK_REQUIRED_TOKENS.len()
+        );
+>>>>>>> 4d131d44 (rust50: migrate foundation hook enforcement with ops gate receipts)
     }
 
     #[test]
