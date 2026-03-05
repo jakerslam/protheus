@@ -673,4 +673,33 @@ mod tests {
         );
         assert!(tr.is_none());
     }
+
+    #[test]
+    fn readiness_state_trims_and_filters_failed_checks_deterministically() {
+        let allow = HashSet::from([
+            "success_criteria_pass_rate".to_string(),
+            "verified_rate".to_string(),
+        ]);
+        let state = readiness_state(
+            "score_only",
+            false,
+            &[
+                " success_criteria_pass_rate ".to_string(),
+                "".to_string(),
+                "  ".to_string(),
+                "verified_rate".to_string(),
+            ],
+            true,
+            &allow,
+        );
+        assert_eq!(
+            state.failed_checks,
+            vec![
+                "success_criteria_pass_rate".to_string(),
+                "verified_rate".to_string()
+            ]
+        );
+        assert!(state.canary_relaxed);
+        assert!(state.ready_for_canary);
+    }
 }
