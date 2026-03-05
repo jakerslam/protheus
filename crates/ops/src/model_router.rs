@@ -1,4 +1,4 @@
-use crate::legacy_bridge::{resolve_script_path, run_legacy_script};
+use crate::legacy_bridge::{resolve_script_path, run_legacy_script_compat};
 use std::collections::HashSet;
 use std::path::Path;
 
@@ -7,7 +7,7 @@ const LEGACY_SCRIPT_DEFAULT: &str = "systems/routing/model_router_legacy.js";
 
 pub fn run(root: &Path, args: &[String]) -> i32 {
     let script = resolve_script_path(root, LEGACY_SCRIPT_ENV, LEGACY_SCRIPT_DEFAULT);
-    run_legacy_script(root, "model_router", &script, args, false)
+    run_legacy_script_compat(root, "model_router", &script, args, false)
 }
 
 pub fn is_local_ollama_model(model_id: &str) -> bool {
