@@ -714,6 +714,13 @@ pub struct PromptCachePolicy {
     pub eligible_classes: Vec<String>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct PromptCacheIndex {
+    pub schema_version: i64,
+    pub entries: Map<String, Value>,
+    pub updated_at: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct RouterBudgetStateInput<'a> {
     pub cfg: &'a Value,
@@ -1771,6 +1778,20 @@ pub fn prompt_cache_key(intent: &str, task: &str, capability: &str, role: &str, 
     ]
     .join("|");
     sha1_hex(&base)
+}
+
+pub fn load_prompt_cache_index(raw: Option<&Value>) -> PromptCacheIndex {
+    let src = raw.and_then(Value::as_object);
+    let entries = src
+        .and_then(|v| v.get("entries"))
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    PromptCacheIndex {
+        schema_version: 1,
+        entries,
+        updated_at: normalized_optional_string(src.and_then(|v| v.get("updated_at"))),
+    }
 }
 
 pub fn budget_date_str(today_override: &str, now_iso: &str) -> String {
@@ -3697,6 +3718,35 @@ mod tests {
         );
         assert_eq!(key, "baa9b389aa4cfa8d4656afc5435f298c36fbb9e9");
         assert_eq!(key.len(), 40);
+    }
+
+    #[test]
+    fn load_prompt_cache_index_matches_legacy_shape_contract() {
+        let defaults = load_prompt_cache_index(None);
+        assert_eq!(defaults.schema_version, 1);
+        assert!(defaults.entries.is_empty());
+        assert_eq!(defaults.updated_at, None);
+
+        let parsed = load_prompt_cache_index(Some(&json!({
+            "schema_version": 99,
+            "entries": {
+                "abc": { "hits": 2 }
+            },
+            "updated_at": "2026-03-05T00:00:00.000Z"
+        })));
+        assert_eq!(parsed.schema_version, 1);
+        assert_eq!(parsed.entries.get("abc"), Some(&json!({ "hits": 2 })));
+        assert_eq!(
+            parsed.updated_at.as_deref(),
+            Some("2026-03-05T00:00:00.000Z")
+        );
+
+        let sanitized = load_prompt_cache_index(Some(&json!({
+            "entries": "bad-shape",
+            "updated_at": 123
+        })));
+        assert!(sanitized.entries.is_empty());
+        assert_eq!(sanitized.updated_at, None);
     }
 
     #[test]
