@@ -9,6 +9,9 @@ fn usage() {
     println!("Usage:");
     println!("  protheus-ops runtime-efficiency-floor run [--strict=1|0] [--policy=<path>]");
     println!("  protheus-ops runtime-efficiency-floor status [--policy=<path>]");
+    println!("  protheus-ops model-router <args>");
+    println!("  protheus-ops contract-check <args>");
+    println!("  protheus-ops strategy-mode-governor <args>");
     println!("  protheus-ops protheusctl <command> [flags]");
     println!("  protheus-ops fluxlattice-program <list|run|run-all|status> [flags]");
     println!("  protheus-ops perception-polish-program <list|run|run-all|status> [flags]");
@@ -67,6 +70,21 @@ fn main() {
                     std::process::exit(1);
                 }
             }
+        }
+        "model-router" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::model_router::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "contract-check" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::contract_check::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "strategy-mode-governor" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::strategy_mode_governor::run(&cwd, &rest);
+            std::process::exit(exit);
         }
         "protheusctl" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
