@@ -80,4 +80,24 @@ mod tests {
         let missing = missing_tokens(text, &tokens);
         assert_eq!(missing, vec!["status".to_string(), "contract".to_string()]);
     }
+
+    #[test]
+    fn missing_tokens_does_not_loosen_non_json_colon_spacing() {
+        let text = "value: keep";
+        let tokens = vec!["value:  keep".to_string()];
+        let missing = missing_tokens(text, &tokens);
+        assert_eq!(missing, vec!["value:  keep".to_string()]);
+    }
+
+    #[test]
+    fn missing_tokens_accepts_multiple_compacted_json_tokens() {
+        let text = r#"{"schema":{"id":"x","checks":[1,2]}}"#;
+        let tokens = vec![
+            "\"schema\": {".to_string(),
+            "\"id\":   \"x\"".to_string(),
+            "\"checks\":   [1,2]".to_string(),
+        ];
+        let missing = missing_tokens(text, &tokens);
+        assert!(missing.is_empty());
+    }
 }
