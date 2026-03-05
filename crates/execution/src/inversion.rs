@@ -11990,7 +11990,10 @@ mod tests {
     }
 
     fn extract_mode_literals(text: &str, call_name: &str) -> std::collections::BTreeSet<String> {
-        let pattern = format!(r#"{}\s*\(\s*['"]([^'"]+)['"]"#, regex::escape(call_name));
+        let pattern = format!(
+            r#"{}\s*\(\s*['"`]([^'"`]+)['"`]"#,
+            regex::escape(call_name)
+        );
         let re = Regex::new(&pattern).expect("valid call regex");
         re.captures_iter(text)
             .filter_map(|cap| cap.get(1).map(|m| m.as_str().trim().to_string()))
