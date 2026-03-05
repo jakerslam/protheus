@@ -410,4 +410,47 @@ mod tests {
         );
         assert!(tr.is_none());
     }
+
+    #[test]
+    fn canary_failed_checks_allowed_rejects_blank_entries() {
+        let allow = HashSet::from(["success_criteria_pass_rate".to_string()]);
+        let failed = vec!["success_criteria_pass_rate".to_string(), "   ".to_string()];
+        assert!(!canary_failed_checks_allowed(&failed, &allow));
+    }
+
+    #[test]
+    fn transition_canary_promotion_ignores_spc_when_policy_disabled() {
+        let mut policy = base_policy();
+        policy.require_spc = false;
+
+        let readiness = ReadinessState {
+            strict_ready: true,
+            canary_relaxed: false,
+            ready_for_canary: true,
+            ready_for_execute: true,
+            effective_ready: true,
+            failed_checks: vec![],
+        };
+        let canary = CanaryState {
+            preview_ready_for_canary: true,
+            ready_for_execute: true,
+            quality_lock_active: true,
+        };
+        let streak = StreakState {
+            escalate_ready_streak: 2,
+            demote_not_ready_streak: 0,
+        };
+
+        let tr = decide_transition(
+            "score_only",
+            &readiness,
+            &canary,
+            &policy,
+            false,
+            true,
+            &streak,
+        )
+        .expect("transition");
+        assert_eq!(tr.to_mode, "canary_execute");
+    }
 }
