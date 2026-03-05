@@ -367,3 +367,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N52 | systems/economy/donor_mining_dashboard.ts | LOC=409 | 2026-03-05T21:51:25Z
 - [x] N53 | systems/fractal/morph_planner.ts | LOC=408 | 2026-03-05T21:51:28Z
 - [x] N54 | systems/assimilation/collective_reasoning_primitive.ts | LOC=408 | 2026-03-05T21:51:30Z
+- [x] N55 | systems/actuation/bridge_from_proposals.ts | LOC=406 | 2026-03-05T21:51:32Z
