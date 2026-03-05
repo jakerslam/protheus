@@ -11997,7 +11997,11 @@ mod tests {
         let re = Regex::new(&pattern).expect("valid call regex");
         let static_mode_re =
             Regex::new(r"^[a-zA-Z0-9_-]+$").expect("valid static mode token regex");
-        re.captures_iter(text)
+        let block_comment_re = Regex::new(r"(?s)/\*.*?\*/").expect("valid block comment regex");
+        let line_comment_re = Regex::new(r"(?m)//.*$").expect("valid line comment regex");
+        let without_block = block_comment_re.replace_all(text, "");
+        let cleaned = line_comment_re.replace_all(&without_block, "");
+        re.captures_iter(cleaned.as_ref())
             .filter_map(|cap| cap.get(1).map(|m| m.as_str().trim().to_string()))
             .filter(|mode| !mode.is_empty() && static_mode_re.is_match(mode))
             .collect()
@@ -12096,6 +12100,24 @@ function runInversionPrimitive(mode: string, data: AnyObj = {}, opts: AnyObj = {
 const a = runInversionPrimitive("alpha", {});
 const b = runInversionPrimitive(`beta_${suffix}`, {});
 const c = runInversionPrimitive(modeName, {});
+"#;
+        let parsed = extract_mode_literals(text, "runInversionPrimitive");
+        let expected = ["alpha"]
+            .iter()
+            .map(|value| value.to_string())
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn extract_mode_literals_ignores_commented_calls() {
+        let text = r#"
+// runInversionPrimitive("ignored_line", {});
+/* runInversionPrimitive("ignored_block", {}); */
+const a = runInversionPrimitive(
+  "alpha",
+  {}
+);
 "#;
         let parsed = extract_mode_literals(text, "runInversionPrimitive");
         let expected = ["alpha"]
