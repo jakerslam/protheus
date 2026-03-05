@@ -22,6 +22,8 @@ function main() {
     '--quiet',
     '--manifest-path',
     'crates/ops/Cargo.toml',
+    '--bin',
+    'protheus-ops',
     '--',
     'protheusctl',
     ...args
