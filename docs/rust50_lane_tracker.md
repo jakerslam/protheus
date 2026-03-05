@@ -387,3 +387,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N72 | systems/fractal/warden/complexity_warden_meta_organ.ts | LOC=378 | 2026-03-05T21:52:12Z
 - [x] N73 | systems/observability/siem_bridge.ts | LOC=376 | 2026-03-05T21:52:14Z
 - [x] N74 | systems/echo/value_anchor_renewal.ts | LOC=374 | 2026-03-05T21:52:17Z
+- [x] N75 | systems/primitives/iterative_repair_primitive.ts | LOC=373 | 2026-03-05T21:52:19Z
