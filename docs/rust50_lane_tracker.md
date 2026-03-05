@@ -388,3 +388,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N73 | systems/observability/siem_bridge.ts | LOC=376 | 2026-03-05T21:52:14Z
 - [x] N74 | systems/echo/value_anchor_renewal.ts | LOC=374 | 2026-03-05T21:52:17Z
 - [x] N75 | systems/primitives/iterative_repair_primitive.ts | LOC=373 | 2026-03-05T21:52:19Z
+- [x] N76 | systems/ops/autotest_recipe_verifier.ts | LOC=364 | 2026-03-05T21:52:22Z
