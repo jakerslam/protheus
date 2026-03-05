@@ -14,6 +14,7 @@ fn usage() {
     println!("  protheus-ops contract-check <args>");
     println!("  protheus-ops strategy-mode-governor <args>");
     println!("  protheus-ops backlog-runtime-anchor <build|verify> --lane-id=<V3-RACE-XXX>");
+    println!("  protheus-ops legacy-retired-lane <build|verify> --lane-id=<SYSTEMS-OPS-...>");
     println!("  protheus-ops inversion-controller <command> [flags]");
     println!("  protheus-ops health-status <command> [flags]");
     println!("  protheus-ops foundation-contract-gate <run|status> [flags]");
@@ -151,6 +152,11 @@ fn main() {
         "backlog-runtime-anchor" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::backlog_runtime_anchor::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "legacy-retired-lane" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::legacy_retired_lane::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "inversion-controller" => {
