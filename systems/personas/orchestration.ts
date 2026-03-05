@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { evaluateSecurityGate } = require('../security/rust_security_gate.js');
+const { runPersonasPrimitive } = require('./personas_rust_bridge.js');
 
 const ROOT = process.env.OPENCLAW_WORKSPACE
   ? path.resolve(process.env.OPENCLAW_WORKSPACE)
@@ -27,6 +28,7 @@ const SHADOW_DEPLOYMENT_POLICY_PATH = path.join(ORG_DIR, 'shadow_deployment_poli
 const MEETINGS_LEDGER = path.join(MEETINGS_DIR, 'ledger.jsonl');
 const PROJECTS_LEDGER = path.join(PROJECTS_DIR, 'ledger.jsonl');
 const HARD_RETENTION_TTL_DAYS = 90;
+const PERSONAS_RUST_ENABLED = String(process.env.PROTHEUS_PERSONAS_RUST_ENABLED || '1') !== '0';
 
 function cleanText(v: unknown, maxLen = 800) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, maxLen);
@@ -40,15 +42,41 @@ function normalizeToken(v: unknown, maxLen = 120) {
     .replace(/^_+|_+$/g, '');
 }
 
-function stableStringify(value: unknown): string {
+function stableStringifyLocal(value: unknown): string {
   if (value == null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map((entry) => stableStringify(entry)).join(',')}]`;
+  if (Array.isArray(value)) return `[${value.map((entry) => stableStringifyLocal(entry)).join(',')}]`;
   const obj = value as Record<string, unknown>;
   const keys = Object.keys(obj).sort();
-  return `{${keys.map((key) => `${JSON.stringify(key)}:${stableStringify(obj[key])}`).join(',')}}`;
+  return `{${keys.map((key) => `${JSON.stringify(key)}:${stableStringifyLocal(obj[key])}`).join(',')}}`;
+}
+
+function stableStringify(value: unknown): string {
+  if (PERSONAS_RUST_ENABLED) {
+    const rust = runPersonasPrimitive(
+      'stable_stringify',
+      { value },
+      { allow_cli_fallback: false }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const out = String(rust.payload.payload.value || '').trim();
+      if (out) return out;
+    }
+  }
+  return stableStringifyLocal(value);
 }
 
 function sha256Hex(text: string) {
+  if (PERSONAS_RUST_ENABLED) {
+    const rust = runPersonasPrimitive(
+      'sha256_hex',
+      { text: String(text || '') },
+      { allow_cli_fallback: false }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const hash = cleanText(rust.payload.payload.hash || '', 120).toLowerCase();
+      if (/^[a-f0-9]{64}$/.test(hash)) return hash;
+    }
+  }
   return crypto.createHash('sha256').update(String(text || ''), 'utf8').digest('hex');
 }
 
@@ -109,15 +137,37 @@ function readJsonl(filePath: string) {
 function appendJsonlHashChained(filePath: string, row: Record<string, unknown>) {
   const rows = readJsonl(filePath);
   const prevHash = rows.length ? cleanText(rows[rows.length - 1].hash || '', 200) : '';
-  const base = {
-    ...row,
-    prev_hash: prevHash || null
-  };
-  const hash = sha256Hex(stableStringify(base));
-  const chained = {
-    ...base,
-    hash
-  };
+  let chained: Record<string, unknown> | null = null;
+  if (PERSONAS_RUST_ENABLED) {
+    const rust = runPersonasPrimitive(
+      'append_jsonl_hash_chained_row',
+      {
+        prev_hash: prevHash,
+        row
+      },
+      { allow_cli_fallback: false }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const candidate = rust.payload.payload.row;
+      if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+        const hash = cleanText((candidate as any).hash || '', 120).toLowerCase();
+        if (/^[a-f0-9]{64}$/.test(hash)) {
+          chained = candidate as Record<string, unknown>;
+        }
+      }
+    }
+  }
+  if (!chained) {
+    const base = {
+      ...row,
+      prev_hash: prevHash || null
+    };
+    const hash = sha256Hex(stableStringify(base));
+    chained = {
+      ...base,
+      hash
+    };
+  }
   fs.appendFileSync(filePath, `${JSON.stringify(chained)}\n`, 'utf8');
   return chained;
 }
@@ -1367,6 +1417,17 @@ function rowTimestampMs(row: any) {
 }
 
 function chainRows(rows: any[]) {
+  if (PERSONAS_RUST_ENABLED) {
+    const rust = runPersonasPrimitive(
+      'chain_rows',
+      { rows: Array.isArray(rows) ? rows : [] },
+      { allow_cli_fallback: false }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const outRows = rust.payload.payload.rows;
+      if (Array.isArray(outRows)) return outRows;
+    }
+  }
   const out: any[] = [];
   let prevHash = '';
   for (const raw of rows) {
@@ -1407,6 +1468,23 @@ function pruneFileWithTtl(filePath: string, cutoffMs: number) {
 }
 
 function verifyHashChain(rows: any[]) {
+  if (PERSONAS_RUST_ENABLED) {
+    const rust = runPersonasPrimitive(
+      'verify_hash_chain',
+      { rows: Array.isArray(rows) ? rows : [] },
+      { allow_cli_fallback: false }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const payload = rust.payload.payload;
+      const issues = Array.isArray(payload.issues)
+        ? payload.issues.map((entry: unknown) => cleanText(entry, 160))
+        : [];
+      return {
+        ok: payload.ok === true && issues.length === 0,
+        issues
+      };
+    }
+  }
   const issues: string[] = [];
   let prevHash: string | null = null;
   for (let i = 0; i < rows.length; i += 1) {

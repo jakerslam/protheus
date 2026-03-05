@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const readline = require('readline');
+const { runPersonasPrimitive } = require('./personas_rust_bridge.js');
 
 const ROOT = process.env.OPENCLAW_WORKSPACE
   ? path.resolve(process.env.OPENCLAW_WORKSPACE)
@@ -68,6 +69,7 @@ type ContextBudgetState = {
 };
 const DEFAULT_CONTEXT_TOKEN_BUDGET = 2000;
 const CONTEXT_BUDGET_DEDUP = new Set<string>();
+const PERSONAS_RUST_ENABLED = String(process.env.PROTHEUS_PERSONAS_RUST_ENABLED || '1') !== '0';
 
 function usage() {
   console.log('Usage:');
@@ -778,7 +780,6 @@ function extractMdField(markdown: string, label: string): string {
 }
 
 function computePersonaBundleHash(ctx: PersonaContext) {
-  const hasher = crypto.createHash('sha256');
   const blocks: Array<[string, string]> = [
     ['profile.md', ctx.profileMd],
     ['correspondence.md', ctx.correspondenceMd],
@@ -793,6 +794,20 @@ function computePersonaBundleHash(ctx: PersonaContext) {
     ['feed.md', ctx.feedMd],
     ['memory.md', ctx.memoryMd]
   ];
+  if (PERSONAS_RUST_ENABLED) {
+    const rust = runPersonasPrimitive(
+      'compute_persona_bundle_hash',
+      { blocks },
+      { allow_cli_fallback: false }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const hash = cleanText(rust.payload.payload.hash || '', 120).toLowerCase();
+      if (/^[a-f0-9]{64}$/.test(hash)) {
+        return hash;
+      }
+    }
+  }
+  const hasher = crypto.createHash('sha256');
   for (const [name, body] of blocks) {
     hasher.update(name, 'utf8');
     hasher.update('\n', 'utf8');
@@ -977,6 +992,23 @@ function permissionSources(rows: DataPermissionRow[], source: string): string[] 
 }
 
 function systemPassedPayloadHash(source: string, tags: string[], snippet: string) {
+  if (PERSONAS_RUST_ENABLED) {
+    const rust = runPersonasPrimitive(
+      'system_passed_payload_hash',
+      {
+        source,
+        tags: Array.isArray(tags) ? tags : [],
+        snippet
+      },
+      { allow_cli_fallback: false }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const hash = cleanText(rust.payload.payload.hash || '', 120).toLowerCase();
+      if (/^[a-f0-9]{64}$/.test(hash)) {
+        return hash;
+      }
+    }
+  }
   return crypto
     .createHash('sha256')
     .update(`v1|${normalizeToken(source, 80)}|${(Array.isArray(tags) ? tags : []).join(',')}|${cleanText(snippet, 2000)}`, 'utf8')
@@ -1279,6 +1311,19 @@ function appendPersonaTelemetry(row: Record<string, unknown>) {
 }
 
 function shortQueryHash(query: string) {
+  if (PERSONAS_RUST_ENABLED) {
+    const rust = runPersonasPrimitive(
+      'short_query_hash',
+      { query },
+      { allow_cli_fallback: false }
+    );
+    if (rust && rust.ok === true && rust.payload && rust.payload.ok === true && rust.payload.payload) {
+      const value = cleanText(rust.payload.payload.value || '', 32).toLowerCase();
+      if (/^[a-f0-9]{16}$/.test(value)) {
+        return value;
+      }
+    }
+  }
   return crypto.createHash('sha256').update(String(query || ''), 'utf8').digest('hex').slice(0, 16);
 }
 
