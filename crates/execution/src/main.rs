@@ -6,8 +6,8 @@ use execution_core::{
     evaluate_route_decision_json, evaluate_route_habit_readiness_json, evaluate_route_json,
     evaluate_route_match_json, evaluate_route_primitives_json, evaluate_route_reflex_match_json,
     queue_rows_json, run_autoscale_json, run_importer_generic_json_json,
-    run_importer_generic_yaml_json, run_inversion_json, run_sprint_contract_json, run_workflow,
-    run_workflow_json,
+    run_importer_generic_yaml_json, run_importer_openfang_json, run_inversion_json,
+    run_sprint_contract_json, run_workflow, run_workflow_json,
     summarize_dispatch_json, summarize_tasks_json,
 };
 use std::env;
@@ -81,6 +81,9 @@ fn usage() {
     eprintln!("  execution_core importer-generic-yaml --payload=<json_payload>");
     eprintln!("  execution_core importer-generic-yaml --payload-base64=<base64_json_payload>");
     eprintln!("  execution_core importer-generic-yaml --payload-file=<path>");
+    eprintln!("  execution_core importer-openfang --payload=<json_payload>");
+    eprintln!("  execution_core importer-openfang --payload-base64=<base64_json_payload>");
+    eprintln!("  execution_core importer-openfang --payload-file=<path>");
     eprintln!("  execution_core demo");
 }
 
@@ -450,6 +453,21 @@ fn main() {
         },
         "importer-generic-yaml" => match load_payload(&args[1..]) {
             Ok(payload) => match run_importer_generic_yaml_json(&payload) {
+                Ok(out) => println!("{}", out),
+                Err(err) => {
+                    let payload = serde_json::json!({ "ok": false, "error": err });
+                    eprintln!("{}", payload);
+                    std::process::exit(1);
+                }
+            },
+            Err(err) => {
+                let payload = serde_json::json!({ "ok": false, "error": err });
+                eprintln!("{}", payload);
+                std::process::exit(1);
+            }
+        },
+        "importer-openfang" => match load_payload(&args[1..]) {
+            Ok(payload) => match run_importer_openfang_json(&payload) {
                 Ok(out) => println!("{}", out),
                 Err(err) => {
                     let payload = serde_json::json!({ "ok": false, "error": err });
