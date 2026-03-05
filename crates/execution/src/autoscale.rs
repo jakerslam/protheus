@@ -27517,7 +27517,7 @@ mod tests {
 
     fn extract_bridge_modes(text: &str, fn_name: &str) -> std::collections::BTreeSet<String> {
         let section_re = Regex::new(&format!(
-            r#"(?s)function {}\s*\([^)]*\)\s*\{{.*?const fieldByMode:\s*AnyObj\s*=\s*\{{(.*?)\n\s*\}};"#,
+            r#"(?s)function {}\s*\([^)]*\)\s*\{{.*?const fieldByMode:\s*AnyObj\s*=\s*\{{(.*?)\}}\s*;?"#,
             regex::escape(fn_name)
         ))
         .expect("valid section regex");
@@ -27633,6 +27633,37 @@ function runOtherPrimitive(mode: string, data: AnyObj = {}, opts: AnyObj = {}) {
             .map(|value| value.to_string())
             .collect::<std::collections::BTreeSet<_>>();
         assert_eq!(parsed_other, expected_other);
+    }
+
+    #[test]
+    fn extract_bridge_modes_allows_missing_trailing_semicolon() {
+        let bridge = r#"
+function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: AnyObj = {}) {
+  const fieldByMode: AnyObj = {
+    alpha: "payload_alpha",
+    beta: "payload_beta"
+  }
+}
+"#;
+        let parsed = extract_bridge_modes(bridge, "runBacklogAutoscalePrimitive");
+        let expected = ["alpha", "beta"]
+            .iter()
+            .map(|value| value.to_string())
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn extract_bridge_modes_returns_empty_when_function_missing() {
+        let bridge = r#"
+function runOtherPrimitive(mode: string, data: AnyObj = {}, opts: AnyObj = {}) {
+  const fieldByMode: AnyObj = {
+    rogue: "payload_rogue"
+  };
+}
+"#;
+        let parsed = extract_bridge_modes(bridge, "runBacklogAutoscalePrimitive");
+        assert!(parsed.is_empty());
     }
 
     #[test]
