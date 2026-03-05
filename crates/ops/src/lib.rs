@@ -11,10 +11,10 @@ use std::time::Instant;
 use sysinfo::System;
 use walkdir::WalkDir;
 
+pub mod fluxlattice_program;
 pub mod perception_polish;
 pub mod protheusctl;
 pub mod scale_readiness;
-pub mod fluxlattice_program;
 
 #[derive(Debug, Clone)]
 pub struct ParsedArgs {

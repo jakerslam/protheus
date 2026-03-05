@@ -34,7 +34,10 @@ fn bool_env(name: &str, fallback: bool) -> bool {
 }
 
 fn should_offer_setup(root: &Path, skip_setup: bool) -> bool {
-    if skip_setup || bool_env("PROTHEUS_SKIP_SETUP", false) || bool_env("PROTHEUS_SETUP_DISABLE", false) {
+    if skip_setup
+        || bool_env("PROTHEUS_SKIP_SETUP", false)
+        || bool_env("PROTHEUS_SETUP_DISABLE", false)
+    {
         return false;
     }
     if bool_env("PROTHEUS_SETUP_FORCE", false) {
@@ -431,45 +434,49 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         } else if global_help {
             "help".to_string()
         } else {
-        let force_repl = bool_env("PROTHEUS_FORCE_REPL", false);
-        let repl_disabled = bool_env("PROTHEUS_REPL_DISABLED", false);
-        if !repl_disabled && (force_repl || std::io::stdin().is_terminal()) {
-            if should_offer_setup(root, skip_setup_flag) {
-                let setup_route = Route {
-                    script_rel: "systems/ops/protheus_setup_wizard.js".to_string(),
-                    args: vec!["run".to_string()],
-                    forward_stdin: true,
-                };
-                let setup_gate =
-                    evaluate_dispatch_security(root, &setup_route.script_rel, &setup_route.args);
-                if !setup_gate.ok {
-                    eprintln!(
-                        "{}",
-                        json!({
-                            "ok": false,
-                            "type": "protheusctl_dispatch_security_gate",
-                            "error": setup_gate.reason
-                        })
+            let force_repl = bool_env("PROTHEUS_FORCE_REPL", false);
+            let repl_disabled = bool_env("PROTHEUS_REPL_DISABLED", false);
+            if !repl_disabled && (force_repl || std::io::stdin().is_terminal()) {
+                if should_offer_setup(root, skip_setup_flag) {
+                    let setup_route = Route {
+                        script_rel: "systems/ops/protheus_setup_wizard.js".to_string(),
+                        args: vec!["run".to_string()],
+                        forward_stdin: true,
+                    };
+                    let setup_gate = evaluate_dispatch_security(
+                        root,
+                        &setup_route.script_rel,
+                        &setup_route.args,
                     );
-                    return 1;
+                    if !setup_gate.ok {
+                        eprintln!(
+                            "{}",
+                            json!({
+                                "ok": false,
+                                "type": "protheusctl_dispatch_security_gate",
+                                "error": setup_gate.reason
+                            })
+                        );
+                        return 1;
+                    }
+                    let setup_status = run_node_script(
+                        root,
+                        &setup_route.script_rel,
+                        &setup_route.args,
+                        setup_route.forward_stdin,
+                    );
+                    if setup_status != 0 {
+                        return setup_status;
+                    }
                 }
-                let setup_status = run_node_script(
-                    root,
-                    &setup_route.script_rel,
-                    &setup_route.args,
-                    setup_route.forward_stdin,
-                );
-                if setup_status != 0 {
-                    return setup_status;
-                }
+                "repl".to_string()
+            } else {
+                "status".to_string()
             }
-            "repl".to_string()
-        } else {
-            "status".to_string()
-        }
         }
     } else {
-        filtered_argv.first()
+        filtered_argv
+            .first()
             .cloned()
             .unwrap_or_else(|| "status".to_string())
     };
@@ -482,7 +489,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if global_help
         && !matches!(cmd.as_str(), "help" | "--help" | "-h")
-        && !rest.iter().any(|arg| matches!(arg.as_str(), "--help" | "-h"))
+        && !rest
+            .iter()
+            .any(|arg| matches!(arg.as_str(), "--help" | "-h"))
     {
         rest.push("--help".to_string());
     }
@@ -539,16 +548,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         },
         "version" => Route {
             script_rel: "systems/ops/protheus_version_cli.js".to_string(),
-            args: std::iter::once("version".to_string())
-                .chain(rest)
-                .collect(),
+            args: std::iter::once("version".to_string()).chain(rest).collect(),
             forward_stdin: false,
         },
         "update" => Route {
             script_rel: "systems/ops/protheus_version_cli.js".to_string(),
-            args: std::iter::once("update".to_string())
-                .chain(rest)
-                .collect(),
+            args: std::iter::once("update".to_string()).chain(rest).collect(),
             forward_stdin: false,
         },
         "diagram" => Route {
