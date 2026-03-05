@@ -74,3 +74,60 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - Retirement stubs are fail-closed and emit deterministic JSON error payloads.
 - Full functional replacement for those lanes requires replacing `legacy_bridge::run_passthrough` / `run_legacy_script_compat` in Rust entrypoints.
 - Wrapper source `.ts` files for the above lanes have been removed and replaced by committed `.js` runtime wrappers.
+
+## Completed In This Continuation (Top-100 Wrapper Source Cutover)
+- Timestamp: 2026-03-05 14:05 
+- Result: Ranked top-100 queue now has `0` remaining `.ts + .js` wrapper pairs.
+- Execution mode: lane-by-lane (`test` + `clippy` + `invariants` + commit + push per lane).
+
+| Rank | Path | Commit |
+|---:|---|---|
+| 52 | `systems/autonomy/self_improvement_cadence_orchestrator.ts` | `facc5866` |
+| 53 | `systems/autonomy/improvement_orchestrator.ts` | `b2ebf98f` |
+| 54 | `systems/security/guard.ts` | `e069e308` |
+| 55 | `systems/autonomy/receipt_summary.ts` | `6ced2d93` |
+| 56 | `systems/ops/llm_economy_organ.ts` | `cb5627d5` |
+| 57 | `systems/security/remote_emergency_halt.ts` | `6edba656` |
+| 58 | `systems/autonomy/pain_adaptive_router.ts` | `7f9f0439` |
+| 59 | `systems/autonomy/hold_remediation_engine.ts` | `4df28077` |
+| 60 | `systems/autonomy/collective_shadow.ts` | `bf1f6f97` |
+| 61 | `systems/autonomy/tier1_governance.ts` | `f277041f` |
+| 62 | `systems/workflow/learning_conduit.ts` | `3e0008a3` |
+| 63 | `systems/security/anti_sabotage_shield.ts` | `10e44a75` |
+| 64 | `systems/security/alias_verification_vault.ts` | `bf4cecdd` |
+| 65 | `systems/ops/offsite_backup.ts` | `78c11303` |
+| 66 | `systems/routing/route_task.ts` | `f03dda42` |
+| 67 | `systems/workflow/data_rights_engine.ts` | `11778462` |
+| 68 | `systems/autonomy/lever_experiment_gate.ts` | `be557b3a` |
+| 69 | `systems/security/soul_token_guard.ts` | `c28ae72c` |
+| 70 | `systems/autonomy/autonomy_rollout_controller.ts` | `427e8862` |
+| 71 | `systems/autonomy/self_documentation_closeout.ts` | `422df322` |
+| 72 | `systems/security/delegated_authority_branching.ts` | `beeb339e` |
+| 73 | `systems/ops/settlement_program.ts` | `e4c145a1` |
+| 74 | `systems/routing/router_budget_calibration.ts` | `2f2d27ba` |
+| 75 | `systems/sensory/cross_signal_engine.ts` | `f39cc1a2` |
+| 76 | `systems/memory/creative_links.ts` | `ca7b4493` |
+| 77 | `systems/ops/narrow_agent_parity_harness.ts` | `4132dbf7` |
+| 78 | `systems/memory/cryonics_tier.ts` | `aff238bd` |
+| 79 | `systems/strategy/strategy_controller.ts` | `efc8ec1c` |
+| 80 | `systems/security/secure_heartbeat_endpoint.ts` | `10a81f83` |
+| 81 | `systems/autonomy/multi_agent_debate_orchestrator.ts` | `c1df98f1` |
+| 82 | `systems/autonomy/background_persistent_agent_runtime.ts` | `d886e7c3` |
+| 83 | `systems/tools/assimilate.ts` | `4d4e02de` |
+| 84 | `systems/routing/provider_readiness.ts` | `4d9e0b8c` |
+| 85 | `systems/autonomy/strategy_mode.ts` | `7be54028` |
+| 86 | `systems/tools/cli_suggestion_engine.ts` | `0394006d` |
+| 87 | `systems/autonomy/self_code_evolution_sandbox.ts` | `b512f280` |
+| 88 | `systems/security/organ_state_encryption_plane.ts` | `32c8d680` |
+| 89 | `systems/autonomy/proactive_t1_initiative_engine.ts` | `2825bb3a` |
+| 90 | `systems/nursery/specialist_training.ts` | `e942242e` |
+| 91 | `systems/actuation/disposable_infrastructure_organ.ts` | `f10f3469` |
+| 92 | `systems/memory/memory_federation_plane.ts` | `e3f19491` |
+| 93 | `systems/ops/productized_suite_program.ts` | `aedf10c5` |
+| 94 | `systems/autonomy/trit_shadow_report.ts` | `a910e519` |
+| 95 | `systems/security/dream_warden_guard.ts` | `73424799` |
+| 96 | `systems/autonomy/ethical_reasoning_organ.ts` | `5d47a564` |
+| 97 | `systems/ops/rust_hybrid_migration_program.ts` | `bad36563` |
+| 98 | `systems/security/skin_protection_layer.ts` | `df83b00a` |
+| 99 | `systems/fractal/regime_organ.ts` | `9a539c02` |
+| 100 | `systems/tools/research.ts` | `1274cc60` |
