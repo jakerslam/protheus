@@ -50,6 +50,11 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] `ca667c2f` migrate workflow-executor wrapper source to JavaScript
 - [x] `760f2bc7` migrate idle-dream-cycle wrapper source to JavaScript
 - [x] `d622ecfc` migrate rust-memory-transition-lane wrapper source to JavaScript
+- [x] `b296c600` migrate fluxlattice-program wrapper source to JavaScript
+- [x] `7a06cc8e` migrate perception-polish-program wrapper source to JavaScript
+- [x] `c3ea2e1a` migrate protheusctl wrapper source to JavaScript
+- [x] `88397540` migrate runtime-efficiency-floor wrapper source to JavaScript
+- [x] `8272d457` migrate scale-readiness-program wrapper source to JavaScript
 
 ## Remaining Legacy TS Lanes (Current Queue)
 - [x] `systems/autonomy/strategy_mode_governor_legacy.ts`
