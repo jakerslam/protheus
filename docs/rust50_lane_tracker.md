@@ -1213,3 +1213,64 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - systems/ops/wasi2_lane_adapter.ts
 - systems/ops/legal_language_contract.ts
 - systems/security/merge_guard.ts
+
+## Completed In This Continuation (Non-Anchor Legacy Batch M)
+- Timestamp: 2026-03-05T23:09:06Z
+- Mode: migrate next 50 high-ROI non-anchor TypeScript lanes to Rust runtime (legacy-retired-lane).
+- Scope: 50 lane source files rewired to native Rust receipt path via shared bridge.
+- Gates:
+  - CARGO_TARGET_DIR=/tmp/pc-nextbatch-m cargo test --manifest-path crates/ops/Cargo.toml ✅ (147 passed, 0 failed)
+  - CARGO_TARGET_DIR=/tmp/pc-nextbatch-m cargo clippy --manifest-path crates/ops/Cargo.toml --all-targets -- -D warnings ✅
+  - NODE_PATH=/Users/jay/.openclaw/workspace/node_modules npm run -s formal:invariants:run ✅ (ok: true, failed_invariants: 0)
+
+### Lanes Migrated (50)
+- systems/symbiosis/symbiosis_coherence_gate.ts
+- systems/memory/rust_napi_binding.ts
+- systems/soul/sensor_abstraction_layer.ts
+- systems/ops/ts_clone_drift_guard.ts
+- systems/security/psycheforge/temporal_profile_store.ts
+- systems/ops/package_manifest_contract.ts
+- systems/ops/ci_workflow_rationalization_contract.ts
+- systems/research/pinnacle_tech_integration_engine.ts
+- systems/ops/protheus_examples.ts
+- systems/observability/legacy_observability.ts
+- systems/autonomy/model_catalog_rollback.ts
+- systems/reflex/reflex_worker.ts
+- systems/primitives/replay_verify.ts
+- systems/assimilation/research_probe.ts
+- systems/ops/protheus_demo.ts
+- systems/soul/modality_registry.ts
+- systems/actuation/proposal_template.ts
+- systems/edge/mobile_ops_top.ts
+- systems/security/emergency_stop.ts
+- systems/economy/public_donation_api.ts
+- systems/ops/protheus_diagram.ts
+- systems/security/secret_broker.ts
+- systems/autonomy/strategy_doctor.ts
+- systems/ops/cli_ui.ts
+- systems/execution/legacy_runtime.ts
+- systems/soul/biometric_fusion.ts
+- systems/ops/state_kernel_migrate.ts
+- systems/observability/thought_action_trace_contract.ts
+- systems/economy/peer_lending_market.ts
+- systems/tools/research_api.ts
+- systems/redteam/swarm_tactics.ts
+- systems/routing/model_catalog_service.ts
+- systems/economy/tithe_ledger.ts
+- systems/assimilation/forge_replica.ts
+- systems/tools/assimilate_api.ts
+- systems/economy/gpu_contribution_tracker.ts
+- systems/autonomy/quorum_validator.ts
+- systems/ops/seed_boot_probe.ts
+- systems/autonomy/swarm_orchestration_runtime.ts
+- systems/autonomy/civic_duty_allocation_engine.ts
+- systems/redteam/wisdom_distiller.ts
+- systems/ops/protheus_unknown_guard.ts
+- systems/security/capability_lease.ts
+- systems/helix/sentinel_network.ts
+- systems/security/integrity_kernel.ts
+- systems/security/egress_gateway.ts
+- systems/ops/protheusctl_skills_discover.ts
+- systems/ops/low_urgency_batch_execution_lane.ts
+- systems/fractal/mutator.ts
+- systems/security/wasm_capability_microkernel.ts
