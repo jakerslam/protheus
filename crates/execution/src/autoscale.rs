@@ -27496,4 +27496,53 @@ mod tests {
         let out = run_autoscale_json(&payload).expect("autoscale inversion_maturity_score");
         assert!(out.contains("\"mode\":\"inversion_maturity_score\""));
     }
+
+    fn extract_mode_literals(text: &str, call_name: &str) -> std::collections::BTreeSet<String> {
+        let pattern = format!(r#"{}\s*\(\s*['"]([^'"]+)['"]"#, regex::escape(call_name));
+        let re = Regex::new(&pattern).expect("valid call regex");
+        re.captures_iter(text)
+            .filter_map(|cap| cap.get(1).map(|m| m.as_str().trim().to_string()))
+            .filter(|mode| !mode.is_empty())
+            .collect()
+    }
+
+    fn extract_bridge_modes(text: &str, fn_name: &str) -> std::collections::BTreeSet<String> {
+        let section_re = Regex::new(&format!(
+            r#"(?s)function {}\s*\([^)]*\)\s*\{{.*?const fieldByMode:\s*AnyObj\s*=\s*\{{(.*?)\n\s*\}};"#,
+            regex::escape(fn_name)
+        ))
+        .expect("valid section regex");
+        let keys_re = Regex::new(r#"(?m)^\s*([a-zA-Z0-9_]+):\s*['"]"#).expect("valid key regex");
+        let Some(section) = section_re
+            .captures(text)
+            .and_then(|cap| cap.get(1).map(|m| m.as_str()))
+        else {
+            return std::collections::BTreeSet::new();
+        };
+        keys_re
+            .captures_iter(section)
+            .filter_map(|cap| cap.get(1).map(|m| m.as_str().trim().to_string()))
+            .filter(|key| !key.is_empty())
+            .collect()
+    }
+
+    #[test]
+    fn bridge_maps_all_autonomy_controller_modes() {
+        let ts = include_str!("../../../systems/autonomy/autonomy_controller.ts");
+        let bridge = include_str!("../../../systems/autonomy/backlog_autoscale_rust_bridge.ts");
+        let called = extract_mode_literals(ts, "runBacklogAutoscalePrimitive");
+        assert!(!called.is_empty(), "expected autoscale mode calls in autonomy_controller.ts");
+        let mapped = extract_bridge_modes(bridge, "runBacklogAutoscalePrimitive");
+        assert!(!mapped.is_empty(), "expected fieldByMode map in backlog_autoscale_rust_bridge.ts");
+
+        let missing = called
+            .difference(&mapped)
+            .cloned()
+            .collect::<Vec<_>>();
+        assert!(
+            missing.is_empty(),
+            "autonomy_controller uses autoscale modes missing from Rust bridge map: {:?}",
+            missing
+        );
+    }
 }
