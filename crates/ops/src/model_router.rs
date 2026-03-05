@@ -23,6 +23,7 @@ pub const ROUTER_PROBE_REHAB_SUCCESS_THRESHOLD_DEFAULT: i64 = 2;
 pub const ROUTER_BUDGET_DIR_DEFAULT: &str = "state/autonomy/daily_budget";
 pub const ROUTER_BURN_ORACLE_LATEST_PATH_REL_DEFAULT: &str =
     "state/ops/dynamic_burn_budget_oracle/latest.json";
+pub const PROMPT_CACHE_INDEX_PATH_REL_DEFAULT: &str = "state/routing/prompt_cache_index.json";
 pub const ROUTER_GENERIC_MARKERS: [&str; 9] = [
     "as an ai",
     "i'm an ai",
@@ -450,6 +451,14 @@ fn value_string_array(value: Option<&Value>) -> Vec<String> {
         .unwrap_or_default()
 }
 
+fn normalized_key_array(value: Option<&Value>) -> Vec<String> {
+    value_string_array(value)
+        .into_iter()
+        .map(|row| normalize_key(&row))
+        .filter(|row| !row.is_empty())
+        .collect()
+}
+
 fn contains_cli_flag(raw_text: &str) -> bool {
     raw_text.split_whitespace().any(|token| {
         let tok = token.trim();
@@ -639,6 +648,21 @@ pub struct RouterBudgetPolicy {
     pub cheap_local_bonus_hard: f64,
     pub model_token_multipliers: Map<String, Value>,
     pub class_token_multipliers: Map<String, Value>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PromptCachePolicy {
+    pub enabled: bool,
+    pub index_path: String,
+    pub lane: String,
+    pub window_minutes: i64,
+    pub min_hits: i64,
+    pub max_entries: i64,
+    pub max_timestamps_per_key: i64,
+    pub cache_friendly_bonus: i64,
+    pub cloud_anchor_extra_bonus: i64,
+    pub non_friendly_cloud_penalty: i64,
+    pub eligible_classes: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1330,6 +1354,13 @@ fn default_class_token_multipliers() -> Map<String, Value> {
     out
 }
 
+fn default_prompt_cache_eligible_classes() -> Vec<String> {
+    vec![
+        "cloud_anchor".to_string(),
+        "cloud_specialist".to_string(),
+    ]
+}
+
 fn rounded_4(value: f64) -> f64 {
     (value * 10_000.0).round() / 10_000.0
 }
@@ -1406,6 +1437,161 @@ pub fn router_budget_policy(cfg: &Value, repo_root: &Path, default_state_dir: &s
         model_token_multipliers,
         class_token_multipliers,
     }
+}
+
+pub fn prompt_cache_policy(
+    cfg: &Value,
+    lane_hint: &str,
+    repo_root: &Path,
+    default_index_path: &str,
+) -> PromptCachePolicy {
+    let src = cfg
+        .as_object()
+        .and_then(|v| v.get("routing"))
+        .and_then(Value::as_object)
+        .and_then(|v| v.get("prompt_cache_policy"))
+        .and_then(Value::as_object);
+
+    let path_raw = string_or(src.and_then(|v| v.get("index_path")), default_index_path);
+    let index_path = {
+        let path = Path::new(&path_raw);
+        if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            repo_root.join(path)
+        }
+    };
+    let lane = {
+        let normalized = normalize_key(if lane_hint.is_empty() {
+            "autonomy"
+        } else {
+            lane_hint
+        });
+        if normalized.is_empty() {
+            "autonomy".to_string()
+        } else {
+            normalized
+        }
+    };
+    let lane_policy = src
+        .and_then(|v| v.get("lane_overrides"))
+        .and_then(Value::as_object)
+        .and_then(|v| v.get(&lane))
+        .and_then(Value::as_object);
+
+    let base_eligible_classes = {
+        let classes = normalized_key_array(src.and_then(|v| v.get("eligible_classes")));
+        if classes.is_empty() {
+            default_prompt_cache_eligible_classes()
+        } else {
+            classes
+        }
+    };
+    let lane_eligible_classes = normalized_key_array(lane_policy.and_then(|v| v.get("eligible_classes")));
+
+    let base_window_minutes = to_bounded_number_like(src.and_then(|v| v.get("window_minutes")), 180, 15, 24 * 60);
+    let base_min_hits = to_bounded_number_like(src.and_then(|v| v.get("min_hits")), 2, 1, 20);
+    let base_max_entries = to_bounded_number_like(src.and_then(|v| v.get("max_entries")), 900, 64, 10_000);
+    let base_max_timestamps_per_key = to_bounded_number_like(
+        src.and_then(|v| v.get("max_timestamps_per_key")),
+        32,
+        2,
+        256,
+    );
+    let base_cache_friendly_bonus = to_bounded_number_like(src.and_then(|v| v.get("cache_friendly_bonus")), 2, 0, 40);
+    let base_cloud_anchor_extra_bonus = to_bounded_number_like(
+        src.and_then(|v| v.get("cloud_anchor_extra_bonus")),
+        1,
+        0,
+        20,
+    );
+    let base_non_friendly_cloud_penalty = to_bounded_number_like(
+        src.and_then(|v| v.get("non_friendly_cloud_penalty")),
+        0,
+        0,
+        20,
+    );
+
+    PromptCachePolicy {
+        enabled: to_bool_like_value(src.and_then(|v| v.get("enabled")), true),
+        index_path: index_path.to_string_lossy().to_string(),
+        lane,
+        window_minutes: to_bounded_number_like(
+            lane_policy.and_then(|v| v.get("window_minutes")),
+            base_window_minutes,
+            15,
+            24 * 60,
+        ),
+        min_hits: to_bounded_number_like(lane_policy.and_then(|v| v.get("min_hits")), base_min_hits, 1, 20),
+        max_entries: to_bounded_number_like(
+            lane_policy.and_then(|v| v.get("max_entries")),
+            base_max_entries,
+            64,
+            10_000,
+        ),
+        max_timestamps_per_key: to_bounded_number_like(
+            lane_policy.and_then(|v| v.get("max_timestamps_per_key")),
+            base_max_timestamps_per_key,
+            2,
+            256,
+        ),
+        cache_friendly_bonus: to_bounded_number_like(
+            lane_policy.and_then(|v| v.get("cache_friendly_bonus")),
+            base_cache_friendly_bonus,
+            0,
+            40,
+        ),
+        cloud_anchor_extra_bonus: to_bounded_number_like(
+            lane_policy.and_then(|v| v.get("cloud_anchor_extra_bonus")),
+            base_cloud_anchor_extra_bonus,
+            0,
+            20,
+        ),
+        non_friendly_cloud_penalty: to_bounded_number_like(
+            lane_policy.and_then(|v| v.get("non_friendly_cloud_penalty")),
+            base_non_friendly_cloud_penalty,
+            0,
+            20,
+        ),
+        eligible_classes: if lane_eligible_classes.is_empty() {
+            base_eligible_classes
+        } else {
+            lane_eligible_classes
+        },
+    }
+}
+
+pub fn is_prompt_cache_friendly_model(
+    model_id: &str,
+    profile_class: &str,
+    policy: &PromptCachePolicy,
+    cfg: &Value,
+) -> bool {
+    let explicit = cfg
+        .as_object()
+        .and_then(|v| v.get("routing"))
+        .and_then(Value::as_object)
+        .and_then(|v| v.get("prompt_cache_policy"))
+        .and_then(Value::as_object)
+        .and_then(|v| v.get("cache_friendly_models"))
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .map(|row| normalize_key(&string_like(Some(row))))
+                .filter(|row| !row.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    let model_key = normalize_key(model_id);
+    if explicit.iter().any(|row| row == &model_key) {
+        return true;
+    }
+    if !is_cloud_model(model_id) {
+        return false;
+    }
+    let class_key = normalize_key(profile_class);
+    policy.eligible_classes.iter().any(|row| row == &class_key)
 }
 
 pub fn budget_date_str(today_override: &str, now_iso: &str) -> String {
@@ -3182,6 +3368,124 @@ mod tests {
             "2026-03-04T00:00:00.000Z",
         );
         assert_eq!(fallback, "/repo/state/routing/spend/2026-03-05.json");
+    }
+
+    #[test]
+    fn prompt_cache_policy_matches_base_and_lane_override_contracts() {
+        let defaults = prompt_cache_policy(
+            &json!({}),
+            "AUTONOMY",
+            Path::new("/repo"),
+            PROMPT_CACHE_INDEX_PATH_REL_DEFAULT,
+        );
+        assert!(defaults.enabled);
+        assert_eq!(defaults.lane, "autonomy");
+        assert!(defaults.index_path.ends_with("state/routing/prompt_cache_index.json"));
+        assert_eq!(defaults.window_minutes, 180);
+        assert_eq!(defaults.min_hits, 2);
+        assert_eq!(defaults.max_entries, 900);
+        assert_eq!(defaults.max_timestamps_per_key, 32);
+        assert_eq!(defaults.cache_friendly_bonus, 2);
+        assert_eq!(defaults.cloud_anchor_extra_bonus, 1);
+        assert_eq!(defaults.non_friendly_cloud_penalty, 0);
+        assert_eq!(
+            defaults.eligible_classes,
+            vec!["cloud_anchor".to_string(), "cloud_specialist".to_string()]
+        );
+
+        let cfg = json!({
+            "routing": {
+                "prompt_cache_policy": {
+                    "enabled": "off",
+                    "index_path": "tmp/cache/index.json",
+                    "window_minutes": 5,
+                    "min_hits": 999,
+                    "max_entries": 12,
+                    "max_timestamps_per_key": 500,
+                    "cache_friendly_bonus": 99,
+                    "cloud_anchor_extra_bonus": 99,
+                    "non_friendly_cloud_penalty": -1,
+                    "eligible_classes": [" Cloud ", "cloud_anchor", ""],
+                    "lane_overrides": {
+                        "dream-weave": {
+                            "window_minutes": 2000,
+                            "min_hits": 7,
+                            "cache_friendly_bonus": 8,
+                            "eligible_classes": ["cloud_specialist"]
+                        }
+                    }
+                }
+            }
+        });
+        let overridden = prompt_cache_policy(
+            &cfg,
+            "dream-weave",
+            Path::new("/repo"),
+            PROMPT_CACHE_INDEX_PATH_REL_DEFAULT,
+        );
+        assert!(!overridden.enabled);
+        assert_eq!(overridden.lane, "dream-weave");
+        assert!(overridden.index_path.ends_with("tmp/cache/index.json"));
+        assert_eq!(overridden.window_minutes, 1440);
+        assert_eq!(overridden.min_hits, 7);
+        assert_eq!(overridden.max_entries, 64);
+        assert_eq!(overridden.max_timestamps_per_key, 256);
+        assert_eq!(overridden.cache_friendly_bonus, 8);
+        assert_eq!(overridden.cloud_anchor_extra_bonus, 20);
+        assert_eq!(overridden.non_friendly_cloud_penalty, 0);
+        assert_eq!(overridden.eligible_classes, vec!["cloud_specialist".to_string()]);
+
+        let base_lane = prompt_cache_policy(
+            &cfg,
+            "autonomy",
+            Path::new("/repo"),
+            PROMPT_CACHE_INDEX_PATH_REL_DEFAULT,
+        );
+        assert_eq!(
+            base_lane.eligible_classes,
+            vec!["cloud".to_string(), "cloud_anchor".to_string()]
+        );
+    }
+
+    #[test]
+    fn prompt_cache_friendly_model_matches_explicit_and_class_rules() {
+        let cfg = json!({
+            "routing": {
+                "prompt_cache_policy": {
+                    "cache_friendly_models": ["openai/gpt-4.1-mini"]
+                }
+            }
+        });
+        let policy = prompt_cache_policy(
+            &json!({}),
+            "autonomy",
+            Path::new("/repo"),
+            PROMPT_CACHE_INDEX_PATH_REL_DEFAULT,
+        );
+        assert!(is_prompt_cache_friendly_model(
+            "openai/gpt-4.1-mini",
+            "cloud_specialist",
+            &policy,
+            &cfg
+        ));
+        assert!(is_prompt_cache_friendly_model(
+            "openai/gpt-4.1",
+            "cloud_anchor",
+            &policy,
+            &cfg
+        ));
+        assert!(!is_prompt_cache_friendly_model(
+            "openai/gpt-4.1",
+            "local",
+            &policy,
+            &cfg
+        ));
+        assert!(!is_prompt_cache_friendly_model(
+            "ollama/llama3",
+            "cloud_anchor",
+            &policy,
+            &cfg
+        ));
     }
 
     #[test]
