@@ -689,4 +689,32 @@ mod tests {
         let out_bool_numeric = build_handoff_packet(&bool_numeric_tokens);
         assert_eq!(out_bool_numeric["budget"]["request_tokens_est"], 1.0);
     }
+
+    #[test]
+    fn handoff_packet_tier_one_general_omits_capability_fields() {
+        let payload = json!({
+            "tier": 1,
+            "role": "general",
+            "capability": "file_edit",
+            "fallback_slot": "fallback"
+        });
+        let out = build_handoff_packet(&payload);
+        assert_eq!(out["tier"], 1);
+        assert!(out.get("capability").is_none());
+        assert!(out.get("fallback_slot").is_none());
+    }
+
+    #[test]
+    fn handoff_packet_tier_one_coding_keeps_capability_fields() {
+        let payload = json!({
+            "tier": 1,
+            "role": "coding",
+            "capability": "file_edit",
+            "fallback_slot": "fallback"
+        });
+        let out = build_handoff_packet(&payload);
+        assert_eq!(out["tier"], 1);
+        assert_eq!(out["capability"], "file_edit");
+        assert_eq!(out["fallback_slot"], "fallback");
+    }
 }
