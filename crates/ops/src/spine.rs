@@ -86,14 +86,30 @@ fn parse_cli(argv: &[String]) -> Option<CliArgs> {
         .unwrap_or_else(|| now_iso()[..10].to_string());
 
     let mut max_eyes = None::<i64>;
-    for token in argv {
+    let mut i = 0usize;
+    while i < argv.len() {
+        let token = argv[i].trim();
         if let Some((k, v)) = token.split_once('=') {
             if k == "--max-eyes" {
                 if let Ok(n) = v.parse::<i64>() {
                     max_eyes = Some(n.clamp(1, 500));
                 }
             }
+            i += 1;
+            continue;
         }
+        if token == "--max-eyes" {
+            if let Some(next) = argv.get(i + 1) {
+                if !next.starts_with("--") {
+                    if let Ok(n) = next.trim().parse::<i64>() {
+                        max_eyes = Some(n.clamp(1, 500));
+                    }
+                    i += 2;
+                    continue;
+                }
+            }
+        }
+        i += 1;
     }
 
     Some(CliArgs {
@@ -949,6 +965,20 @@ mod tests {
         assert_eq!(parsed.mode, "daily");
         assert_eq!(parsed.date, "2026-03-04");
         assert_eq!(parsed.max_eyes, Some(7));
+    }
+
+    #[test]
+    fn parse_cli_supports_split_max_eyes_flag() {
+        let args = vec![
+            "eyes".to_string(),
+            "2026-03-04".to_string(),
+            "--max-eyes".to_string(),
+            "12".to_string(),
+        ];
+        let parsed = parse_cli(&args).expect("parsed");
+        assert_eq!(parsed.mode, "eyes");
+        assert_eq!(parsed.date, "2026-03-04");
+        assert_eq!(parsed.max_eyes, Some(12));
     }
 
     #[test]
