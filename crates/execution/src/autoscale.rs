@@ -27517,9 +27517,8 @@ mod tests {
             regex::escape(fn_name)
         ))
         .expect("valid section regex");
-        let keys_re =
-            Regex::new(r#"(?m)^\s*(?:([a-zA-Z0-9_]+)|['"]([^'"]+)['"])\s*:\s*['"]"#)
-                .expect("valid key regex");
+        let keys_re = Regex::new(r#"(?m)^\s*(?:([a-zA-Z0-9_]+)|['"]([^'"]+)['"])\s*:"#)
+            .expect("valid key regex");
         let Some(section) = section_re
             .captures(text)
             .and_then(|cap| cap.get(1).map(|m| m.as_str()))
@@ -27569,6 +27568,25 @@ function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: Any
     alpha: "payload_alpha",
     "beta-mode": "payload_beta",
     'gamma_mode': "payload_gamma"
+  };
+}
+"#;
+        let parsed = extract_bridge_modes(bridge, "runBacklogAutoscalePrimitive");
+        let expected = ["alpha", "beta-mode", "gamma_mode"]
+            .iter()
+            .map(|value| value.to_string())
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn extract_bridge_modes_allows_non_string_values() {
+        let bridge = r#"
+function runBacklogAutoscalePrimitive(mode: string, data: AnyObj = {}, opts: AnyObj = {}) {
+  const fieldByMode: AnyObj = {
+    alpha: payloadAlpha,
+    "beta-mode": payloadBeta,
+    'gamma_mode': payloadGamma
   };
 }
 "#;
