@@ -1,7 +1,8 @@
 use protheus_ops_core::{
-    parse_args, parse_os_args, run_runtime_efficiency_floor, status_runtime_efficiency_floor,
+    deterministic_receipt_hash, parse_args, parse_os_args, run_runtime_efficiency_floor,
+    status_runtime_efficiency_floor,
 };
-use serde_json::json;
+use serde_json::{json, Value};
 use std::env;
 use std::path::PathBuf;
 
@@ -31,11 +32,53 @@ fn print_json(value: &serde_json::Value) {
     );
 }
 
+fn cli_error_receipt(
+    error: &str,
+    exit_code: i32,
+    domain: Option<&str>,
+    command: Option<&str>,
+) -> Value {
+    let ts = protheus_ops_core::now_iso();
+    let mut out = json!({
+        "ok": false,
+        "type": "protheus_ops_cli_error",
+        "ts": ts,
+        "date": ts[..10].to_string(),
+        "error": error,
+        "exit_code": exit_code,
+        "domain": domain,
+        "command": command,
+        "claim_evidence": [
+            {
+                "id": "fail_closed_cli",
+                "claim": "top_level_cli_errors_emit_deterministic_receipts",
+                "evidence": {
+                    "error": error,
+                    "domain_present": domain.is_some(),
+                    "command_present": command.is_some()
+                }
+            }
+        ],
+        "persona_lenses": {
+            "operator": {
+                "entrypoint": "main",
+                "domain": domain
+            },
+            "auditor": {
+                "deterministic_receipt": true
+            }
+        }
+    });
+    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out
+}
+
 fn main() {
     let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let args = parse_os_args(env::args_os().skip(1));
     if args.is_empty() {
         usage();
+        print_json(&cli_error_receipt("missing_domain", 1, None, None));
         std::process::exit(1);
     }
 
@@ -57,11 +100,12 @@ fn main() {
                         std::process::exit(out.exit_code);
                     }
                     Err(err) => {
-                        print_json(&json!({
-                            "ok": false,
-                            "type": "runtime_efficiency_floor",
-                            "error": err
-                        }));
+                        print_json(&cli_error_receipt(
+                            &format!("runtime_efficiency_floor_run_failed:{err}"),
+                            1,
+                            Some(domain),
+                            Some("run"),
+                        ));
                         std::process::exit(1);
                     }
                 },
@@ -72,6 +116,12 @@ fn main() {
                 }
                 _ => {
                     usage();
+                    print_json(&cli_error_receipt(
+                        "runtime_efficiency_floor_unknown_command",
+                        1,
+                        Some(domain),
+                        Some(cmd.as_str()),
+                    ));
                     std::process::exit(1);
                 }
             }
@@ -137,12 +187,46 @@ fn main() {
             std::process::exit(exit);
         }
         _ => {
-            print_json(&json!({
-                "ok": false,
-                "error": "unknown_domain",
-                "domain": domain
-            }));
+            print_json(&cli_error_receipt("unknown_domain", 1, Some(domain), None));
             std::process::exit(1);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_error_receipt_is_deterministic() {
+        let out = cli_error_receipt("unknown_domain", 1, Some("nope"), None);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("type").and_then(Value::as_str),
+            Some("protheus_ops_cli_error")
+        );
+        assert!(out.get("claim_evidence").is_some());
+        assert!(out.get("persona_lenses").is_some());
+        let ts = out
+            .get("ts")
+            .and_then(Value::as_str)
+            .expect("ts");
+        let date = out
+            .get("date")
+            .and_then(Value::as_str)
+            .expect("date");
+        assert!(ts.starts_with(date));
+
+        let expected_hash = out
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .expect("hash")
+            .to_string();
+        let mut unhashed = out.clone();
+        unhashed
+            .as_object_mut()
+            .expect("object")
+            .remove("receipt_hash");
+        assert_eq!(deterministic_receipt_hash(&unhashed), expected_hash);
     }
 }

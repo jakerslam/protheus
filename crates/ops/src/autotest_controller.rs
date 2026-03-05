@@ -1,5 +1,5 @@
 use crate::legacy_bridge::{run_legacy_script, split_legacy_fallback_flag};
-use crate::now_iso;
+use crate::{deterministic_receipt_hash, now_iso};
 use chrono::Timelike;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -365,45 +365,8 @@ fn append_jsonl(path: &Path, row: &Value) -> Result<(), String> {
         .map_err(|e| format!("append_jsonl_failed:{}:{e}", path.display()))
 }
 
-fn stable_json_string(v: &Value) -> String {
-    match v {
-        Value::Null => "null".to_string(),
-        Value::Bool(b) => {
-            if *b {
-                "true".to_string()
-            } else {
-                "false".to_string()
-            }
-        }
-        Value::Number(n) => n.to_string(),
-        Value::String(s) => serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string()),
-        Value::Array(arr) => format!(
-            "[{}]",
-            arr.iter()
-                .map(stable_json_string)
-                .collect::<Vec<_>>()
-                .join(",")
-        ),
-        Value::Object(map) => {
-            let mut keys = map.keys().cloned().collect::<Vec<_>>();
-            keys.sort();
-            let mut out = String::from("{");
-            for (idx, k) in keys.iter().enumerate() {
-                if idx > 0 {
-                    out.push(',');
-                }
-                out.push_str(&serde_json::to_string(k).unwrap_or_else(|_| "\"\"".to_string()));
-                out.push(':');
-                out.push_str(&stable_json_string(map.get(k).unwrap_or(&Value::Null)));
-            }
-            out.push('}');
-            out
-        }
-    }
-}
-
 fn receipt_hash(v: &Value) -> String {
-    stable_hash(&stable_json_string(v), 64)
+    deterministic_receipt_hash(v)
 }
 
 fn default_policy() -> Policy {
@@ -1855,6 +1818,15 @@ fn cmd_run(root: &Path, cli: &CliArgs, policy: &Policy, paths: &RuntimePaths) ->
                 .unwrap_or(false)
                 && !force
             {
+                let selected_tests = results.len();
+                let passed = results
+                    .iter()
+                    .filter(|row| row.get("ok").and_then(Value::as_bool).unwrap_or(false))
+                    .count();
+                let failed = results
+                    .iter()
+                    .filter(|row| !row.get("ok").and_then(Value::as_bool).unwrap_or(false))
+                    .count();
                 phase_ms["execute_ms"] = json!(execute_started.elapsed().as_millis());
                 phase_ms["total_ms"] = json!(run_start.elapsed().as_millis());
                 let mut out = json!({
@@ -1865,12 +1837,31 @@ fn cmd_run(root: &Path, cli: &CliArgs, policy: &Policy, paths: &RuntimePaths) ->
                     "strict": strict,
                     "aborted": true,
                     "abort_reason": "resource_guard_during_execution",
-                    "selected_tests": results.len(),
-                    "passed": results.iter().filter(|row| row.get("ok").and_then(Value::as_bool).unwrap_or(false)).count(),
-                    "failed": results.iter().filter(|row| !row.get("ok").and_then(Value::as_bool).unwrap_or(false)).count(),
+                    "selected_tests": selected_tests,
+                    "passed": passed,
+                    "failed": failed,
                     "resource_guard_runtime": loop_resources,
                     "partial_results": results,
-                    "phase_ms": phase_ms
+                    "phase_ms": phase_ms,
+                    "claim_evidence": [
+                        {
+                            "id": "resource_guard_runtime",
+                            "claim": "run_aborted_when_runtime_resource_guard_failed",
+                            "evidence": {
+                                "selected_tests": selected_tests,
+                                "failed": failed
+                            }
+                        }
+                    ],
+                    "persona_lenses": {
+                        "operator": {
+                            "mode": "run",
+                            "abort_reason": "resource_guard_during_execution"
+                        },
+                        "auditor": {
+                            "strict": strict
+                        }
+                    }
                 });
                 out["receipt_hash"] = Value::String(receipt_hash(&out));
                 let _ = write_json_atomic(&paths.latest_path, &out);
@@ -1879,6 +1870,15 @@ fn cmd_run(root: &Path, cli: &CliArgs, policy: &Policy, paths: &RuntimePaths) ->
         }
 
         if Instant::now() > run_deadline {
+            let selected_tests = results.len();
+            let passed = results
+                .iter()
+                .filter(|row| row.get("ok").and_then(Value::as_bool).unwrap_or(false))
+                .count();
+            let failed = results
+                .iter()
+                .filter(|row| !row.get("ok").and_then(Value::as_bool).unwrap_or(false))
+                .count();
             phase_ms["execute_ms"] = json!(execute_started.elapsed().as_millis());
             phase_ms["total_ms"] = json!(run_start.elapsed().as_millis());
             let mut out = json!({
@@ -1889,11 +1889,30 @@ fn cmd_run(root: &Path, cli: &CliArgs, policy: &Policy, paths: &RuntimePaths) ->
                 "strict": strict,
                 "timeout": true,
                 "timeout_reason": "execution_budget_exhausted",
-                "selected_tests": results.len(),
-                "passed": results.iter().filter(|row| row.get("ok").and_then(Value::as_bool).unwrap_or(false)).count(),
-                "failed": results.iter().filter(|row| !row.get("ok").and_then(Value::as_bool).unwrap_or(false)).count(),
+                "selected_tests": selected_tests,
+                "passed": passed,
+                "failed": failed,
                 "partial_results": results,
-                "phase_ms": phase_ms
+                "phase_ms": phase_ms,
+                "claim_evidence": [
+                    {
+                        "id": "execution_budget",
+                        "claim": "run_times_out_when_execution_budget_exhausted",
+                        "evidence": {
+                            "selected_tests": selected_tests,
+                            "failed": failed
+                        }
+                    }
+                ],
+                "persona_lenses": {
+                    "operator": {
+                        "mode": "run",
+                        "timeout_reason": "execution_budget_exhausted"
+                    },
+                    "auditor": {
+                        "strict": strict
+                    }
+                }
             });
             out["receipt_hash"] = Value::String(receipt_hash(&out));
             let _ = write_json_atomic(&paths.latest_path, &out);
@@ -2568,6 +2587,38 @@ fn print_json_line(value: &Value) {
     );
 }
 
+fn cli_failure_receipt(cmd: &str, error: &str, code: i32) -> Value {
+    let mut out = json!({
+        "ok": false,
+        "type": "autotest_cli_error",
+        "ts": now_iso(),
+        "command": cmd,
+        "error": error,
+        "exit_code": code,
+        "claim_evidence": [
+            {
+                "id": "fail_closed_cli",
+                "claim": "controller_cli_failures_emit_deterministic_receipts",
+                "evidence": {
+                    "command": cmd,
+                    "error": error
+                }
+            }
+        ],
+        "persona_lenses": {
+            "operator": {
+                "mode": "cli",
+                "exit_code": code
+            },
+            "auditor": {
+                "deterministic_receipt": true
+            }
+        }
+    });
+    out["receipt_hash"] = Value::String(receipt_hash(&out));
+    out
+}
+
 fn usage() {
     println!("Usage:");
     println!("  protheus-ops autotest-controller sync [--policy=path] [--strict=1|0]");
@@ -2611,11 +2662,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let policy = load_policy(root, &paths.policy_path);
 
     if let Err(err) = ensure_state_dirs(&paths) {
-        print_json_line(&json!({
-            "ok": false,
-            "type": "autotest",
-            "error": err
-        }));
+        print_json_line(&cli_failure_receipt(&cmd, &err, 1));
         return 1;
     }
 
@@ -2679,6 +2726,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "daemon" => cmd_daemon(root, &cli, &policy, &paths),
         _ => {
             usage();
+            print_json_line(&cli_failure_receipt(&cmd, "unknown_command", 2));
             return 2;
         }
     };
@@ -2729,6 +2777,30 @@ mod tests {
         let h2 = receipt_hash(&payload);
         assert_eq!(h1, h2);
         assert_eq!(h1.len(), 64);
+    }
+
+    #[test]
+    fn cli_failure_receipt_includes_hash_and_invariants() {
+        let out = cli_failure_receipt("daemonx", "unknown_command", 2);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("type").and_then(Value::as_str),
+            Some("autotest_cli_error")
+        );
+        assert!(out.get("claim_evidence").is_some());
+        assert!(out.get("persona_lenses").is_some());
+
+        let expected_hash = out
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .expect("hash")
+            .to_string();
+        let mut unhashed = out.clone();
+        unhashed
+            .as_object_mut()
+            .expect("object")
+            .remove("receipt_hash");
+        assert_eq!(receipt_hash(&unhashed), expected_hash);
     }
 
     #[test]

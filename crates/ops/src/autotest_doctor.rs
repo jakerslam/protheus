@@ -1,5 +1,5 @@
 use crate::legacy_bridge::{run_legacy_script, split_legacy_fallback_flag};
-use crate::now_iso;
+use crate::{deterministic_receipt_hash, now_iso};
 use chrono::Timelike;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -219,45 +219,8 @@ fn stable_id(prefix: &str, seed: &str) -> String {
     format!("{prefix}_{}", stable_hash(seed, 16))
 }
 
-fn stable_json_string(v: &Value) -> String {
-    match v {
-        Value::Null => "null".to_string(),
-        Value::Bool(b) => {
-            if *b {
-                "true".to_string()
-            } else {
-                "false".to_string()
-            }
-        }
-        Value::Number(n) => n.to_string(),
-        Value::String(s) => serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string()),
-        Value::Array(arr) => format!(
-            "[{}]",
-            arr.iter()
-                .map(stable_json_string)
-                .collect::<Vec<_>>()
-                .join(",")
-        ),
-        Value::Object(map) => {
-            let mut keys = map.keys().cloned().collect::<Vec<_>>();
-            keys.sort();
-            let mut out = String::from("{");
-            for (idx, k) in keys.iter().enumerate() {
-                if idx > 0 {
-                    out.push(',');
-                }
-                out.push_str(&serde_json::to_string(k).unwrap_or_else(|_| "\"\"".to_string()));
-                out.push(':');
-                out.push_str(&stable_json_string(map.get(k).unwrap_or(&Value::Null)));
-            }
-            out.push('}');
-            out
-        }
-    }
-}
-
 fn receipt_hash(v: &Value) -> String {
-    stable_hash(&stable_json_string(v), 64)
+    deterministic_receipt_hash(v)
 }
 
 fn read_json(path: &Path) -> Value {
@@ -1491,13 +1454,30 @@ fn status_cmd(root: &Path, date_arg: &str, cli: &CliArgs) -> Value {
     prune_history(&mut state, 24, 200_000);
 
     if !payload.is_object() {
-        return json!({
+        let mut out = json!({
             "ok": false,
             "type": "autotest_doctor_status",
             "error": "autotest_doctor_snapshot_missing",
             "kill_switch": serde_json::to_value(&state.kill_switch).unwrap_or(Value::Null),
-            "state_path": rel_path(root, &paths.state_path)
+            "state_path": rel_path(root, &paths.state_path),
+            "claim_evidence": [
+                {
+                    "id": "status_snapshot_missing",
+                    "claim": "doctor_status_fails_closed_when_snapshot_missing",
+                    "evidence": {
+                        "date_arg": key,
+                        "latest_path": rel_path(root, &paths.latest_path)
+                    }
+                }
+            ],
+            "persona_lenses": {
+                "auditor": {
+                    "kill_switch": state.kill_switch.engaged
+                }
+            }
         });
+        out["receipt_hash"] = Value::String(receipt_hash(&out));
+        return out;
     }
 
     let mut out = json!({
@@ -1556,6 +1536,38 @@ fn print_json_line(value: &Value) {
     );
 }
 
+fn cli_failure_receipt(cmd: &str, error: &str, code: i32) -> Value {
+    let mut out = json!({
+        "ok": false,
+        "type": "autotest_doctor_cli_error",
+        "ts": now_iso(),
+        "command": cmd,
+        "error": error,
+        "exit_code": code,
+        "claim_evidence": [
+            {
+                "id": "fail_closed_cli",
+                "claim": "doctor_cli_failures_emit_deterministic_receipts",
+                "evidence": {
+                    "command": cmd,
+                    "error": error
+                }
+            }
+        ],
+        "persona_lenses": {
+            "operator": {
+                "mode": "cli",
+                "exit_code": code
+            },
+            "auditor": {
+                "deterministic_receipt": true
+            }
+        }
+    });
+    out["receipt_hash"] = Value::String(receipt_hash(&out));
+    out
+}
+
 fn usage() {
     println!("Usage:");
     println!("  protheus-ops autotest-doctor run [YYYY-MM-DD|latest] [--policy=path] [--apply=1|0] [--max-actions=N] [--force=1|0] [--reset-kill-switch=1]");
@@ -1602,6 +1614,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         )
     } else {
         usage();
+        print_json_line(&cli_failure_receipt(&cmd, "unknown_command", 2));
         return 2;
     };
 
@@ -1680,5 +1693,58 @@ mod tests {
         let h2 = receipt_hash(&payload);
         assert_eq!(h1, h2);
         assert_eq!(h1.len(), 64);
+    }
+
+    #[test]
+    fn cli_failure_receipt_includes_hash_and_invariants() {
+        let out = cli_failure_receipt("runx", "unknown_command", 2);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("type").and_then(Value::as_str),
+            Some("autotest_doctor_cli_error")
+        );
+        assert!(out.get("claim_evidence").is_some());
+        assert!(out.get("persona_lenses").is_some());
+
+        let expected_hash = out
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .expect("hash")
+            .to_string();
+        let mut unhashed = out.clone();
+        unhashed
+            .as_object_mut()
+            .expect("object")
+            .remove("receipt_hash");
+        assert_eq!(receipt_hash(&unhashed), expected_hash);
+    }
+
+    #[test]
+    fn status_missing_snapshot_receipt_is_hashed() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let cli = CliArgs {
+            positional: vec!["status".to_string()],
+            flags: HashMap::new(),
+        };
+        let out = status_cmd(root.path(), "latest", &cli);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("error").and_then(Value::as_str),
+            Some("autotest_doctor_snapshot_missing")
+        );
+        assert!(out.get("claim_evidence").is_some());
+        assert!(out.get("persona_lenses").is_some());
+
+        let expected_hash = out
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .expect("hash")
+            .to_string();
+        let mut unhashed = out.clone();
+        unhashed
+            .as_object_mut()
+            .expect("object")
+            .remove("receipt_hash");
+        assert_eq!(receipt_hash(&unhashed), expected_hash);
     }
 }
