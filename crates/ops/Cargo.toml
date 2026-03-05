@@ -3,6 +3,7 @@ name = "protheus-ops-core"
 version = "0.1.0"
 edition = "2021"
 license = "SEE LICENSE IN ../../LICENSE"
+default-run = "personas_core"
 
 [lib]
 name = "protheus_ops_core"

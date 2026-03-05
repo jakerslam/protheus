@@ -19,6 +19,8 @@ function main() {
   const cargoArgs = [
     'run',
     '--quiet',
+    '--bin',
+    'protheus-ops',
     '--manifest-path',
     'crates/ops/Cargo.toml',
     '--bin',

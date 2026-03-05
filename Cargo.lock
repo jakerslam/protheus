@@ -464,6 +464,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ipc"
+version = "0.1.0"
+
+[[package]]
+name = "isolation"
+version = "0.1.0"
+
+[[package]]
 name = "itoa"
 version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -947,6 +955,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 
 [[package]]
+name = "resource"
+version = "0.1.0"
+
+[[package]]
 name = "rusqlite"
 version = "0.32.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1095,6 +1107,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "storage"
+version = "0.1.0"
+
+[[package]]
 name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1124,6 +1140,10 @@ dependencies = [
  "once_cell",
  "windows",
 ]
+
+[[package]]
+name = "task"
+version = "0.1.0"
 
 [[package]]
 name = "tempfile"
@@ -1208,6 +1228,10 @@ name = "unsafe-libyaml"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
+
+[[package]]
+name = "update"
+version = "0.1.0"
 
 [[package]]
 name = "vcpkg"
