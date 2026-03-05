@@ -3366,4 +3366,283 @@ mod tests {
         assert_eq!(out["capability"], "chat");
         assert_eq!(out["fallback_slot"], "fallback");
     }
+
+    #[test]
+    fn handoff_packet_default_shape_is_fail_closed_for_non_object_input() {
+        let out = build_handoff_packet(&json!(null));
+        assert_eq!(out["selected_model"], Value::Null);
+        assert_eq!(out["previous_model"], Value::Null);
+        assert_eq!(out["model_changed"], false);
+        assert_eq!(out["reason"], Value::Null);
+        assert_eq!(out["tier"], 2);
+        assert_eq!(out["role"], Value::Null);
+        assert_eq!(out["route_class"], "default");
+        assert_eq!(out["mode"], Value::Null);
+        assert_eq!(out["slot"], Value::Null);
+        assert_eq!(out["escalation_chain"], json!([]));
+    }
+
+    #[test]
+    fn handoff_packet_budget_tokens_require_numeric_conversion() {
+        let falsey_tokens = json!({
+            "tier": 2,
+            "budget": {
+                "pressure": "soft",
+                "request_tokens_est": ""
+            }
+        });
+        let out_falsey = build_handoff_packet(&falsey_tokens);
+        assert_eq!(out_falsey["budget"]["request_tokens_est"], Value::Null);
+
+        let truthy_non_numeric_tokens = json!({
+            "tier": 2,
+            "budget": {
+                "pressure": "hard",
+                "request_tokens_est": "not-a-number"
+            }
+        });
+        let out_truthy_non_numeric = build_handoff_packet(&truthy_non_numeric_tokens);
+        assert_eq!(out_truthy_non_numeric["budget"]["request_tokens_est"], Value::Null);
+        assert_eq!(out_truthy_non_numeric["budget"]["projected_pressure"], "hard");
+
+        let bool_numeric_tokens = json!({
+            "tier": 2,
+            "budget": {
+                "pressure": "soft",
+                "request_tokens_est": true
+            }
+        });
+        let out_bool_numeric = build_handoff_packet(&bool_numeric_tokens);
+        assert_eq!(out_bool_numeric["budget"]["request_tokens_est"], 1.0);
+    }
+
+    #[test]
+    fn handoff_packet_tier_one_general_omits_capability_fields() {
+        let payload = json!({
+            "tier": 1,
+            "role": "general",
+            "capability": "file_edit",
+            "fallback_slot": "fallback"
+        });
+        let out = build_handoff_packet(&payload);
+        assert_eq!(out["tier"], 1);
+        assert!(out.get("capability").is_none());
+        assert!(out.get("fallback_slot").is_none());
+    }
+
+    #[test]
+    fn handoff_packet_tier_one_coding_keeps_capability_fields() {
+        let payload = json!({
+            "tier": 1,
+            "role": "coding",
+            "capability": "file_edit",
+            "fallback_slot": "fallback"
+        });
+        let out = build_handoff_packet(&payload);
+        assert_eq!(out["tier"], 1);
+        assert_eq!(out["capability"], "file_edit");
+        assert_eq!(out["fallback_slot"], "fallback");
+    }
+
+    #[test]
+    fn handoff_packet_budget_projected_pressure_falls_back_to_pressure() {
+        let payload = json!({
+            "tier": 2,
+            "budget": {
+                "pressure": "hard",
+                "request_tokens_est": 250
+            }
+        });
+        let out = build_handoff_packet(&payload);
+        assert_eq!(out["budget"]["pressure"], "hard");
+        assert_eq!(out["budget"]["projected_pressure"], "hard");
+        assert_eq!(out["budget"]["request_tokens_est"], 250.0);
+    }
+
+    #[test]
+    fn handoff_packet_budget_enforcement_blocked_requires_true_bool() {
+        let payload = json!({
+            "tier": 2,
+            "budget_enforcement": {
+                "action": "allow",
+                "reason": "string-flag",
+                "blocked": "true"
+            }
+        });
+        let out = build_handoff_packet(&payload);
+        assert_eq!(out["budget_enforcement"]["action"], "allow");
+        assert_eq!(out["budget_enforcement"]["reason"], "string-flag");
+        assert_eq!(out["budget_enforcement"]["blocked"], false);
+    }
+
+    #[test]
+    fn handoff_packet_fast_path_and_model_changed_require_true_bools() {
+        let payload = json!({
+            "tier": 2,
+            "fast_path": {
+                "matched": "true"
+            },
+            "model_changed": "true"
+        });
+        let out = build_handoff_packet(&payload);
+        assert!(out.get("fast_path").is_none());
+        assert_eq!(out["model_changed"], false);
+    }
+
+    #[test]
+    fn handoff_packet_post_task_return_model_requires_truthy_value() {
+        let payload = json!({
+            "tier": 3,
+            "deep_thinker": 1,
+            "post_task_return_model": 0
+        });
+        let out = build_handoff_packet(&payload);
+        assert_eq!(out["guardrails"]["deep_thinker"], true);
+        assert_eq!(out["guardrails"]["verification_required"], true);
+        assert!(out.get("post_task_return_model").is_none());
+    }
+
+    #[test]
+    fn helper_fallbacks_cover_general_task_type_and_proposal_capability_family() {
+        assert_eq!(
+            infer_role("prioritize candidate fixes", ""),
+            "planning"
+        );
+        assert_eq!(capability_family_key("proposal"), "proposal");
+        assert_eq!(task_type_key_from_route("default", "", ""), "general");
+    }
+
+    #[test]
+    fn normalize_capability_key_collapses_and_truncates_deterministically() {
+        assert_eq!(
+            normalize_capability_key("  __Proposal@@@Doctor:::Repair__  "),
+            "proposal_doctor:::repair"
+        );
+
+        let long_input = "A".repeat(120);
+        let normalized = normalize_capability_key(&long_input);
+        assert_eq!(normalized.len(), 72);
+        assert!(normalized.chars().all(|ch| ch == 'a'));
+    }
+
+    #[test]
+    fn handoff_packet_tier_three_truthy_guardrails_match_js_for_mixed_types() {
+        let payload = json!({
+            "tier": 3,
+            "deep_thinker": "",
+            "post_task_return_model": {}
+        });
+        let out = build_handoff_packet(&payload);
+        assert_eq!(out["guardrails"]["deep_thinker"], false);
+        assert_eq!(out["guardrails"]["verification_required"], true);
+        assert_eq!(out["post_task_return_model"], json!({}));
+    }
+
+    #[test]
+    fn handoff_packet_blank_role_normalizes_to_null_and_omits_capability_for_tier_one() {
+        let payload = json!({
+            "tier": 1,
+            "role": "   ",
+            "capability": "file_edit",
+            "fallback_slot": "fallback"
+        });
+        let out = build_handoff_packet(&payload);
+        assert_eq!(out["role"], Value::Null);
+        assert!(out.get("capability").is_none());
+        assert!(out.get("fallback_slot").is_none());
+    }
+
+    #[test]
+    fn handoff_packet_tier_chain_limits_clamp_to_js_bounds() {
+        let low_payload = json!({
+            "tier": -1,
+            "role": "general",
+            "escalation_chain": ["a", "b", "c", "d"]
+        });
+        let low = build_handoff_packet(&low_payload);
+        assert_eq!(low["tier"], -1);
+        assert_eq!(low["escalation_chain"].as_array().map(|v| v.len()), Some(2));
+        assert!(low.get("capability").is_none());
+
+        let high_payload = json!({
+            "tier": 99,
+            "role": "general",
+            "escalation_chain": ["a", "b", "c", "d", "e", "f"]
+        });
+        let high = build_handoff_packet(&high_payload);
+        assert_eq!(high["tier"], 99);
+        assert_eq!(high["escalation_chain"].as_array().map(|v| v.len()), Some(4));
+        assert_eq!(high["guardrails"]["verification_required"], true);
+    }
+
+    #[test]
+    fn role_and_capability_inference_cover_parallel_agent_and_role_fallback_paths() {
+        assert_eq!(infer_role("parallel agent coordination", "sync"), "swarm");
+        assert_eq!(
+            infer_capability("unknown action", "no keyword", "  Coding Lead  "),
+            "role:coding lead"
+        );
+    }
+
+    #[test]
+    fn prefix_inference_paths_match_tools_and_planning_contracts() {
+        assert_eq!(infer_role("integrating services", "sync adapters"), "tools");
+        assert_eq!(infer_capability("prioritization sweep", "", ""), "planning");
+    }
+
+    #[test]
+    fn handoff_packet_tier_one_planning_keeps_capability_fields() {
+        let payload = json!({
+            "tier": 1,
+            "role": "Planning",
+            "capability": "planning",
+            "fallback_slot": "fallback"
+        });
+        let out = build_handoff_packet(&payload);
+        assert_eq!(out["tier"], 1);
+        assert_eq!(out["role"], "planning");
+        assert_eq!(out["capability"], "planning");
+        assert_eq!(out["fallback_slot"], "fallback");
+    }
+
+    #[test]
+    fn handoff_packet_budget_enforcement_non_string_fields_map_to_null() {
+        let payload = json!({
+            "tier": 2,
+            "budget_enforcement": {
+                "action": 42,
+                "reason": true,
+                "blocked": true
+            }
+        });
+        let out = build_handoff_packet(&payload);
+        assert_eq!(out["budget_enforcement"]["action"], Value::Null);
+        assert_eq!(out["budget_enforcement"]["reason"], Value::Null);
+        assert_eq!(out["budget_enforcement"]["blocked"], true);
+    }
+
+    #[test]
+    fn inference_precedence_prefers_coding_and_file_edit_over_tool_and_read_keywords() {
+        assert_eq!(
+            infer_role("patch automation cli workflow", "read files"),
+            "coding"
+        );
+        assert_eq!(
+            infer_capability("patch read cli workflow", "inspect file", ""),
+            "file_edit"
+        );
+    }
+
+    #[test]
+    fn handoff_packet_tier_three_keeps_truthy_numeric_post_task_return_model() {
+        let payload = json!({
+            "tier": 3,
+            "deep_thinker": -1,
+            "post_task_return_model": 7
+        });
+        let out = build_handoff_packet(&payload);
+        assert_eq!(out["guardrails"]["deep_thinker"], true);
+        assert_eq!(out["guardrails"]["verification_required"], true);
+        assert_eq!(out["post_task_return_model"], 7);
+    }
 }
