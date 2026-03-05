@@ -401,3 +401,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N86 | systems/sensory/detector_error_taxonomy_autotune.ts | LOC=356 | 2026-03-05T21:52:45Z
 - [x] N87 | systems/ops/protheus_debug_diagnostics.ts | LOC=356 | 2026-03-05T21:52:48Z
 - [x] N88 | systems/security/startup_attestation.ts | LOC=355 | 2026-03-05T21:52:51Z
+- [x] N89 | systems/ops/backlog_lane_batch_delivery.ts | LOC=355 | 2026-03-05T21:52:54Z
