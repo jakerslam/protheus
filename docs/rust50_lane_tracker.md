@@ -463,3 +463,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N44 | systems/sensory/abstain_uncertainty_contract.ts | LOC=321 | 2026-03-05T22:01:08Z
 - [x] N45 | systems/sensory/causal_vs_correlation_signal_scorer.ts | LOC=320 | 2026-03-05T22:01:11Z
 - [x] N46 | systems/edge/protheus_edge_runtime.ts | LOC=320 | 2026-03-05T22:01:13Z
+- [x] N47 | systems/ops/ngc_nvidia_enterprise_distribution_adapter.ts | LOC=319 | 2026-03-05T22:01:15Z
