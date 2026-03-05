@@ -6,7 +6,6 @@ const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const MANIFEST = path.join(ROOT, 'crates', 'execution', 'Cargo.toml');
-const legacy = require('./generic_json_importer_legacy.js');
 
 function cleanText(v, maxLen = 260) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, maxLen);
@@ -114,8 +113,19 @@ function importPayload(payload, _ctx = {}) {
   if (rustCargo.ok && rustCargo.payload) {
     return normalizeImportedPayload(rustCargo.payload);
   }
-
-  return legacy.importPayload(payload, _ctx);
+  const err = cleanText(rustCargo.error || 'rust_importer_unavailable', 220);
+  return {
+    entities: {
+      agents: [],
+      tasks: [],
+      workflows: [],
+      tools: [],
+      records: []
+    },
+    source_item_count: 0,
+    mapped_item_count: 0,
+    warnings: [`rust_importer_unavailable:${err}`]
+  };
 }
 
 module.exports = {
