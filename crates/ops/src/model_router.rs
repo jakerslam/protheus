@@ -811,4 +811,18 @@ mod tests {
         assert_eq!(out["guardrails"]["verification_required"], true);
         assert_eq!(out["post_task_return_model"], json!({}));
     }
+
+    #[test]
+    fn handoff_packet_blank_role_normalizes_to_null_and_omits_capability_for_tier_one() {
+        let payload = json!({
+            "tier": 1,
+            "role": "   ",
+            "capability": "file_edit",
+            "fallback_slot": "fallback"
+        });
+        let out = build_handoff_packet(&payload);
+        assert_eq!(out["role"], Value::Null);
+        assert!(out.get("capability").is_none());
+        assert!(out.get("fallback_slot").is_none());
+    }
 }
