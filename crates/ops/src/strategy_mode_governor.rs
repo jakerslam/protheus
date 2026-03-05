@@ -918,4 +918,56 @@ mod tests {
         assert_eq!(tr.reason, "readiness_fail_demote_score_only");
         assert!(tr.cooldown_exempt);
     }
+
+    #[test]
+    fn readiness_state_trims_execute_mode_before_effective_ready_eval() {
+        let allow = HashSet::from(["success_criteria_pass_rate".to_string()]);
+        let state = readiness_state(
+            "  execute  ",
+            false,
+            &["success_criteria_pass_rate".to_string()],
+            true,
+            &allow,
+        );
+        assert!(state.canary_relaxed);
+        assert!(state.ready_for_canary);
+        assert!(!state.ready_for_execute);
+        assert!(!state.effective_ready);
+    }
+
+    #[test]
+    fn transition_execute_reason_prefers_readiness_when_quality_lock_also_fails() {
+        let policy = base_policy();
+        let readiness = ReadinessState {
+            strict_ready: false,
+            canary_relaxed: false,
+            ready_for_canary: false,
+            ready_for_execute: false,
+            effective_ready: false,
+            failed_checks: vec!["verified_rate".to_string()],
+        };
+        let canary = CanaryState {
+            preview_ready_for_canary: false,
+            ready_for_execute: false,
+            quality_lock_active: false,
+        };
+        let streak = StreakState {
+            escalate_ready_streak: 0,
+            demote_not_ready_streak: 2,
+        };
+
+        let tr = decide_transition(
+            "execute",
+            &readiness,
+            &canary,
+            &policy,
+            true,
+            false,
+            &streak,
+        )
+        .expect("transition");
+        assert_eq!(tr.to_mode, "canary_execute");
+        assert_eq!(tr.reason, "readiness_fail_demote_canary");
+        assert!(tr.cooldown_exempt);
+    }
 }
