@@ -398,6 +398,24 @@ fn string_like(value: Option<&Value>) -> String {
     }
 }
 
+fn bool_or_one_like(value: Option<&Value>) -> bool {
+    match value {
+        Some(Value::Bool(v)) => *v,
+        Some(Value::Number(v)) => v
+            .as_f64()
+            .map(|num| num.is_finite() && (num - 1.0).abs() < f64::EPSILON)
+            .unwrap_or(false),
+        Some(Value::String(v)) => {
+            let trimmed = v.trim();
+            if trimmed == "1" {
+                return true;
+            }
+            matches!(normalize_key(trimmed).as_str(), "true" | "yes" | "on")
+        }
+        _ => false,
+    }
+}
+
 fn value_string_array(value: Option<&Value>) -> Vec<String> {
     value
         .and_then(Value::as_array)
@@ -614,6 +632,39 @@ pub struct RouterBudgetStateInput<'a> {
     pub budget_state: Option<&'a Value>,
     pub oracle_signal: Option<&'a Value>,
     pub default_oracle_source_path: &'a str,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RouterBudgetAutopauseState {
+    pub active: bool,
+    pub source: Option<String>,
+    pub reason: Option<String>,
+    pub until: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RouterGlobalBudgetGateResult {
+    pub enabled: bool,
+    pub blocked: bool,
+    pub deferred: bool,
+    pub bypassed: bool,
+    pub reason: Option<String>,
+    pub autopause_active: bool,
+    pub autopause: RouterBudgetAutopauseState,
+    pub guard: Option<Value>,
+    pub oracle: Option<Value>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct RouterGlobalBudgetGateInput<'a> {
+    pub request_tokens_est: Option<f64>,
+    pub dry_run: Option<&'a Value>,
+    pub execution_intent: Option<&'a Value>,
+    pub enforce_execution_only: bool,
+    pub nonexec_max_tokens: i64,
+    pub autopause: Option<&'a Value>,
+    pub oracle: Option<&'a Value>,
+    pub guard: Option<&'a Value>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1495,6 +1546,198 @@ pub fn router_budget_state(input: RouterBudgetStateInput<'_>) -> Value {
             .unwrap_or(Value::Null),
     );
     Value::Object(out)
+}
+
+fn autopause_state_from_value(value: Option<&Value>) -> RouterBudgetAutopauseState {
+    let src = value.and_then(Value::as_object);
+    RouterBudgetAutopauseState {
+        active: matches!(src.and_then(|v| v.get("active")), Some(Value::Bool(true))),
+        source: normalized_optional_string(src.and_then(|v| v.get("source"))),
+        reason: normalized_optional_string(src.and_then(|v| v.get("reason"))),
+        until: normalized_optional_string(src.and_then(|v| v.get("until"))),
+    }
+}
+
+fn guard_pressure_key(guard: Option<&Value>) -> String {
+    let src = guard.and_then(Value::as_object);
+    let raw = src
+        .and_then(|v| v.get("projected_pressure"))
+        .filter(|value| js_truthy(Some(*value)))
+        .map(|value| string_like(Some(value)))
+        .or_else(|| {
+            src.and_then(|v| v.get("pressure"))
+                .filter(|value| js_truthy(Some(*value)))
+                .map(|value| string_like(Some(value)))
+        })
+        .unwrap_or_else(|| "none".to_string());
+    normalize_key(&raw)
+}
+
+pub fn evaluate_router_global_budget_gate(
+    input: RouterGlobalBudgetGateInput<'_>,
+) -> RouterGlobalBudgetGateResult {
+    let dry_run_mode = bool_or_one_like(input.dry_run);
+    let execution_mode = bool_or_one_like(input.execution_intent);
+    let request_tokens = input
+        .request_tokens_est
+        .filter(|value| value.is_finite())
+        .unwrap_or(0.0);
+    let mut autopause = autopause_state_from_value(input.autopause);
+
+    let non_execute_bypass = input.enforce_execution_only
+        && !execution_mode
+        && request_tokens <= input.nonexec_max_tokens as f64;
+    if non_execute_bypass {
+        return RouterGlobalBudgetGateResult {
+            enabled: true,
+            blocked: false,
+            deferred: false,
+            bypassed: true,
+            reason: Some("budget_guard_nonexecute_bypass".to_string()),
+            autopause_active: autopause.active,
+            autopause,
+            guard: None,
+            oracle: None,
+        };
+    }
+
+    let oracle = router_burn_oracle_signal(input.oracle, ROUTER_BURN_ORACLE_LATEST_PATH_REL_DEFAULT);
+    let oracle_available = matches!(
+        oracle
+            .as_object()
+            .and_then(|v| v.get("available"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    let oracle_pressure = oracle
+        .as_object()
+        .and_then(|v| v.get("pressure"))
+        .and_then(Value::as_str)
+        .unwrap_or("none");
+    if oracle_available && oracle_pressure == "hard" && execution_mode {
+        return RouterGlobalBudgetGateResult {
+            enabled: true,
+            blocked: true,
+            deferred: false,
+            bypassed: false,
+            reason: Some("budget_oracle_runway_critical".to_string()),
+            autopause_active: autopause.active,
+            autopause,
+            guard: None,
+            oracle: Some(oracle),
+        };
+    }
+
+    let guard = input.guard.cloned();
+    let autopause_source_model_router = autopause
+        .source
+        .as_deref()
+        .map(str::trim)
+        .unwrap_or_default()
+        == "model_router";
+
+    if autopause.active && autopause_source_model_router {
+        let hard_stop = matches!(
+            guard
+                .as_ref()
+                .and_then(Value::as_object)
+                .and_then(|v| v.get("hard_stop"))
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        let pressure = guard_pressure_key(guard.as_ref());
+        if !hard_stop && pressure != "hard" {
+            autopause.active = false;
+            autopause.until = None;
+            autopause.source = Some("model_router".to_string());
+        }
+    }
+
+    if autopause.active {
+        if dry_run_mode {
+            return RouterGlobalBudgetGateResult {
+                enabled: true,
+                blocked: false,
+                deferred: true,
+                bypassed: false,
+                reason: Some("budget_autopause_active_dry_run".to_string()),
+                autopause_active: true,
+                autopause,
+                guard,
+                oracle: None,
+            };
+        }
+        return RouterGlobalBudgetGateResult {
+            enabled: true,
+            blocked: true,
+            deferred: false,
+            bypassed: false,
+            reason: Some("budget_autopause_active".to_string()),
+            autopause_active: true,
+            autopause,
+            guard,
+            oracle: None,
+        };
+    }
+
+    let hard_stop = matches!(
+        guard
+            .as_ref()
+            .and_then(Value::as_object)
+            .and_then(|v| v.get("hard_stop"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    if hard_stop {
+        let hard_reason = guard
+            .as_ref()
+            .and_then(Value::as_object)
+            .and_then(|v| v.get("hard_stop_reasons"))
+            .and_then(Value::as_array)
+            .and_then(|rows| rows.first())
+            .and_then(Value::as_str)
+            .unwrap_or("budget_guard_hard_stop")
+            .to_string();
+        if dry_run_mode {
+            return RouterGlobalBudgetGateResult {
+                enabled: true,
+                blocked: false,
+                deferred: true,
+                bypassed: false,
+                reason: Some(format!("{hard_reason}_dry_run")),
+                autopause_active: autopause.active,
+                autopause,
+                guard,
+                oracle: None,
+            };
+        }
+        autopause.active = true;
+        autopause.source = Some("model_router".to_string());
+        autopause.reason = Some(hard_reason.clone());
+        return RouterGlobalBudgetGateResult {
+            enabled: true,
+            blocked: true,
+            deferred: false,
+            bypassed: false,
+            reason: Some(hard_reason),
+            autopause_active: true,
+            autopause,
+            guard,
+            oracle: None,
+        };
+    }
+
+    RouterGlobalBudgetGateResult {
+        enabled: true,
+        blocked: false,
+        deferred: false,
+        bypassed: false,
+        reason: None,
+        autopause_active: false,
+        autopause,
+        guard,
+        oracle: None,
+    }
 }
 
 pub fn project_budget_state(budget_state: Option<&Value>, request_tokens: Option<f64>) -> Value {
@@ -2706,6 +2949,111 @@ mod tests {
         assert_eq!(overridden["used_est"], 760.0);
         assert_eq!(overridden["pressure"], "hard");
         assert_eq!(overridden["strategy_id"], "strat-1");
+    }
+
+    #[test]
+    fn evaluate_router_global_budget_gate_matches_bypass_oracle_and_autopause_paths() {
+        let bypass = evaluate_router_global_budget_gate(RouterGlobalBudgetGateInput {
+            request_tokens_est: Some(800.0),
+            dry_run: Some(&json!(false)),
+            execution_intent: Some(&json!(false)),
+            enforce_execution_only: true,
+            nonexec_max_tokens: 900,
+            autopause: Some(&json!({"active": true, "source": "operator", "reason": "manual"})),
+            oracle: None,
+            guard: None,
+        });
+        assert!(bypass.enabled);
+        assert!(!bypass.blocked);
+        assert!(!bypass.deferred);
+        assert!(bypass.bypassed);
+        assert_eq!(
+            bypass.reason.as_deref(),
+            Some("budget_guard_nonexecute_bypass")
+        );
+        assert!(bypass.autopause_active);
+
+        let oracle_block = evaluate_router_global_budget_gate(RouterGlobalBudgetGateInput {
+            request_tokens_est: Some(1200.0),
+            dry_run: Some(&json!(false)),
+            execution_intent: Some(&json!(true)),
+            enforce_execution_only: true,
+            nonexec_max_tokens: 900,
+            autopause: Some(&json!({"active": false})),
+            oracle: Some(&json!({"available": true, "pressure": "hard"})),
+            guard: None,
+        });
+        assert!(oracle_block.enabled);
+        assert!(oracle_block.blocked);
+        assert!(!oracle_block.deferred);
+        assert_eq!(
+            oracle_block.reason.as_deref(),
+            Some("budget_oracle_runway_critical")
+        );
+        assert_eq!(oracle_block.oracle.as_ref().map(|v| v["pressure"].clone()), Some(json!("hard")));
+
+        let recovered_autopause = evaluate_router_global_budget_gate(RouterGlobalBudgetGateInput {
+            request_tokens_est: Some(1000.0),
+            dry_run: Some(&json!(false)),
+            execution_intent: Some(&json!(true)),
+            enforce_execution_only: true,
+            nonexec_max_tokens: 900,
+            autopause: Some(&json!({"active": true, "source": "model_router", "reason": "prior_hard_stop", "until": "2026-03-05T10:00:00.000Z"})),
+            oracle: Some(&json!({"available": false})),
+            guard: Some(&json!({"hard_stop": false, "pressure": "none"})),
+        });
+        assert!(recovered_autopause.enabled);
+        assert!(!recovered_autopause.blocked);
+        assert!(!recovered_autopause.deferred);
+        assert!(!recovered_autopause.autopause_active);
+        assert!(recovered_autopause.reason.is_none());
+    }
+
+    #[test]
+    fn evaluate_router_global_budget_gate_matches_hard_stop_dry_run_and_enforced_paths() {
+        let hard_guard = json!({
+            "hard_stop": true,
+            "hard_stop_reasons": ["daily_usd_cap_exceeded"]
+        });
+        let dry_run = evaluate_router_global_budget_gate(RouterGlobalBudgetGateInput {
+            request_tokens_est: Some(1300.0),
+            dry_run: Some(&json!("1")),
+            execution_intent: Some(&json!(true)),
+            enforce_execution_only: true,
+            nonexec_max_tokens: 900,
+            autopause: Some(&json!({"active": false})),
+            oracle: Some(&json!({"available": false})),
+            guard: Some(&hard_guard),
+        });
+        assert!(dry_run.enabled);
+        assert!(!dry_run.blocked);
+        assert!(dry_run.deferred);
+        assert_eq!(
+            dry_run.reason.as_deref(),
+            Some("daily_usd_cap_exceeded_dry_run")
+        );
+        assert!(!dry_run.autopause_active);
+
+        let enforced = evaluate_router_global_budget_gate(RouterGlobalBudgetGateInput {
+            request_tokens_est: Some(1300.0),
+            dry_run: Some(&json!(false)),
+            execution_intent: Some(&json!(true)),
+            enforce_execution_only: true,
+            nonexec_max_tokens: 900,
+            autopause: Some(&json!({"active": false})),
+            oracle: Some(&json!({"available": false})),
+            guard: Some(&hard_guard),
+        });
+        assert!(enforced.enabled);
+        assert!(enforced.blocked);
+        assert!(!enforced.deferred);
+        assert_eq!(enforced.reason.as_deref(), Some("daily_usd_cap_exceeded"));
+        assert!(enforced.autopause_active);
+        assert_eq!(enforced.autopause.source.as_deref(), Some("model_router"));
+        assert_eq!(
+            enforced.autopause.reason.as_deref(),
+            Some("daily_usd_cap_exceeded")
+        );
     }
 
     #[test]
