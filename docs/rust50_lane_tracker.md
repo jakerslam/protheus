@@ -357,3 +357,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N42 | lib/egress_gateway.ts | LOC=433 | 2026-03-05T21:51:02Z
 - [x] N43 | systems/science/experiment_scheduler.ts | LOC=431 | 2026-03-05T21:51:04Z
 - [x] N44 | systems/soul/soul_print_manager.ts | LOC=428 | 2026-03-05T21:51:07Z
+- [x] N45 | systems/echo/input_purification_gate.ts | LOC=425 | 2026-03-05T21:51:09Z
