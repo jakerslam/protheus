@@ -557,7 +557,11 @@ fn vectorize_text(text: &str, dims: usize) -> Vec<f32> {
     for token in tokens {
         let idx = hash_token_slot(&token, 0, dims);
         let sign_idx = hash_token_slot(&token, 1, dims);
-        let sign = if sign_idx % 2 == 0 { 1.0f32 } else { -1.0f32 };
+        let sign = if sign_idx.is_multiple_of(2) {
+            1.0f32
+        } else {
+            -1.0f32
+        };
         let weight = 1.0f32 + ((token.len().min(24) as f32) / 24.0f32);
         vec[idx] += sign * weight;
     }
@@ -815,7 +819,7 @@ fn publish_memory_event(root: &Path, event: &str, payload: serde_json::Value) {
     if !script.exists() {
         return;
     }
-    let payload_arg = format!("--payload_json={}", payload.to_string());
+    let payload_arg = format!("--payload_json={payload}");
     let _ = Command::new("node")
         .arg(script)
         .arg("append")
@@ -826,10 +830,12 @@ fn publish_memory_event(root: &Path, event: &str, payload: serde_json::Value) {
         .output();
 }
 
+type RuntimeIndexSyncResult = (Vec<String>, Vec<String>, usize, bool, String);
+
 fn sync_sqlite_runtime_index(
     root: &Path,
     db: &mut MemoryDb,
-) -> Result<(Vec<String>, Vec<String>, usize, bool, String), String> {
+) -> Result<RuntimeIndexSyncResult, String> {
     let signature = daily_scan_signature(root);
     let previous = db
         .get_hot_state_json("daily_scan_signature")?
@@ -1037,7 +1043,7 @@ fn load_section_cached(
     let mtime = file_mtime_ms(&file_abs).ok_or_else(|| "file_read_failed".to_string())?;
     let key = cache_key(node_id, file_rel);
 
-    if let Some(cache_ref) = cache.as_deref_mut() {
+    if let Some(cache_ref) = cache.as_mut() {
         if let Some(entry) = cache_ref.nodes.get(&key) {
             if entry.mtime_ms == mtime && !entry.section_text.is_empty() {
                 return Ok((entry.section_text.clone(), entry.section_hash.clone()));
@@ -1052,7 +1058,7 @@ fn load_section_cached(
     }
     let section_hash = sha256_hex(&section);
 
-    if let Some(cache_ref) = cache.as_deref_mut() {
+    if let Some(cache_ref) = cache.as_mut() {
         cache_ref.nodes.insert(
             key,
             CacheNode {
@@ -1101,7 +1107,7 @@ fn arg_or_default(args: &HashMap<String, String>, key: &str, fallback: &str) -> 
         .unwrap_or_else(|| fallback.to_string())
 }
 
-fn arg_any<'a>(args: &'a HashMap<String, String>, keys: &[&str]) -> String {
+fn arg_any(args: &HashMap<String, String>, keys: &[&str]) -> String {
     for key in keys {
         if let Some(v) = args.get(*key) {
             return v.clone();
@@ -1168,8 +1174,7 @@ fn parse_bool_flag(raw: &str) -> bool {
 }
 
 fn sanitize_table_cell(v: &str) -> String {
-    v.replace('\n', " ")
-        .replace('\r', " ")
+    v.replace(['\n', '\r'], " ")
         .replace('|', "/")
         .trim()
         .to_string()
@@ -1193,11 +1198,7 @@ fn parse_tags_line(raw: &str) -> Vec<String> {
     if body.starts_with('[') && body.ends_with(']') && body.len() >= 2 {
         body = body[1..body.len() - 1].to_string();
     }
-    body = body
-        .replace('[', " ")
-        .replace(']', " ")
-        .replace('"', " ")
-        .replace('\'', " ");
+    body = body.replace(['[', ']', '"', '\''], " ");
     let mut set: BTreeSet<String> = BTreeSet::new();
     for token in body.replace(',', " ").split_whitespace() {
         let tag = normalize_tag(token);
@@ -1952,7 +1953,7 @@ fn run_set_hot_state(args: &HashMap<String, String>) {
         "{}",
         serde_json::to_string(&out).expect("serialize set-hot-state result")
     );
-    if out.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) != true {
+    if !out.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
         std::process::exit(1);
     }
 }
@@ -1999,7 +2000,7 @@ fn run_get_hot_state(args: &HashMap<String, String>) {
         "{}",
         serde_json::to_string(&out).expect("serialize get-hot-state result")
     );
-    if out.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) != true {
+    if !out.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
         std::process::exit(1);
     }
 }
