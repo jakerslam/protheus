@@ -122,7 +122,6 @@ mod tests {
     }
 
     #[test]
-<<<<<<< HEAD
     fn missing_tokens_preserves_missing_order() {
         let text = "run --help";
         let tokens = vec![
@@ -132,7 +131,9 @@ mod tests {
         ];
         let missing = missing_tokens(text, &tokens);
         assert_eq!(missing, vec!["status".to_string(), "contract".to_string()]);
-=======
+    }
+
+    #[test]
     fn guard_registry_contract_receipt_matches_expected_tokens() {
         let source = "guard_check_registry required_merge_guard_ids";
         let receipt = guard_registry_contract_receipt(source);
@@ -162,7 +163,6 @@ mod tests {
             receipt.observed_hooks.len(),
             FOUNDATION_HOOK_REQUIRED_TOKENS.len()
         );
->>>>>>> 4d131d44 (rust50: migrate foundation hook enforcement with ops gate receipts)
     }
 
     #[test]
