@@ -115,4 +115,11 @@ mod tests {
         let missing = missing_tokens(text, &tokens);
         assert_eq!(missing, vec!["absent".to_string()]);
     }
+
+    #[test]
+    fn compact_json_spacing_leaves_non_json_colon_patterns_untouched() {
+        let token = "url:http://example.com key: value";
+        let compacted = compact_json_spacing(token);
+        assert_eq!(compacted, token);
+    }
 }
