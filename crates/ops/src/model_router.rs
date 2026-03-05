@@ -459,6 +459,55 @@ fn normalized_key_array(value: Option<&Value>) -> Vec<String> {
         .collect()
 }
 
+fn is_word_char(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || ch == '_'
+}
+
+fn has_word_boundaries(chars: &[char], start: usize, len: usize) -> bool {
+    let left_ok = start == 0 || !is_word_char(chars[start - 1]);
+    let right = start + len;
+    let right_ok = right >= chars.len() || !is_word_char(chars[right]);
+    left_ok && right_ok
+}
+
+fn is_date_token(chars: &[char], start: usize) -> bool {
+    if start + 10 > chars.len() || !has_word_boundaries(chars, start, 10) {
+        return false;
+    }
+    for offset in 0..10 {
+        let ch = chars[start + offset];
+        if offset == 4 || offset == 7 {
+            if ch != '-' {
+                return false;
+            }
+            continue;
+        }
+        if !ch.is_ascii_digit() {
+            return false;
+        }
+    }
+    true
+}
+
+fn is_uuid_token(chars: &[char], start: usize) -> bool {
+    if start + 36 > chars.len() || !has_word_boundaries(chars, start, 36) {
+        return false;
+    }
+    for offset in 0..36 {
+        let ch = chars[start + offset];
+        if matches!(offset, 8 | 13 | 18 | 23) {
+            if ch != '-' {
+                return false;
+            }
+            continue;
+        }
+        if !ch.is_ascii_hexdigit() {
+            return false;
+        }
+    }
+    true
+}
+
 fn contains_cli_flag(raw_text: &str) -> bool {
     raw_text.split_whitespace().any(|token| {
         let tok = token.trim();
@@ -1592,6 +1641,49 @@ pub fn is_prompt_cache_friendly_model(
     }
     let class_key = normalize_key(profile_class);
     policy.eligible_classes.iter().any(|row| row == &class_key)
+}
+
+pub fn normalize_prompt_for_cache(text: &str) -> String {
+    let lowered = text.to_lowercase();
+    let chars: Vec<char> = lowered.chars().collect();
+
+    let mut date_uuid_replaced = String::new();
+    let mut i = 0usize;
+    while i < chars.len() {
+        if is_date_token(&chars, i) {
+            date_uuid_replaced.push_str("<date>");
+            i += 10;
+            continue;
+        }
+        if is_uuid_token(&chars, i) {
+            date_uuid_replaced.push_str("<uuid>");
+            i += 36;
+            continue;
+        }
+        date_uuid_replaced.push(chars[i]);
+        i += 1;
+    }
+
+    let replaced_chars: Vec<char> = date_uuid_replaced.chars().collect();
+    let mut numbers_replaced = String::new();
+    let mut idx = 0usize;
+    while idx < replaced_chars.len() {
+        if replaced_chars[idx].is_ascii_digit() {
+            numbers_replaced.push_str("<num>");
+            while idx < replaced_chars.len() && replaced_chars[idx].is_ascii_digit() {
+                idx += 1;
+            }
+            continue;
+        }
+        numbers_replaced.push(replaced_chars[idx]);
+        idx += 1;
+    }
+
+    let compact = numbers_replaced
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    compact.chars().take(1200).collect()
 }
 
 pub fn budget_date_str(today_override: &str, now_iso: &str) -> String {
@@ -3486,6 +3578,25 @@ mod tests {
             &policy,
             &cfg
         ));
+    }
+
+    #[test]
+    fn normalize_prompt_for_cache_matches_date_uuid_number_whitespace_contract() {
+        let out = normalize_prompt_for_cache(
+            "  Task 2026-03-05 ID 123e4567-e89b-12d3-a456-426614174000 Count 42 \n\nDone  ",
+        );
+        assert_eq!(out, "task <date> id <uuid> count <num> done");
+
+        let boundary = normalize_prompt_for_cache("abc2026-03-05z raw 333");
+        assert_eq!(boundary, "abc<num>-<num>-<num>z raw <num>");
+    }
+
+    #[test]
+    fn normalize_prompt_for_cache_clamps_to_1200_chars() {
+        let long = "x".repeat(1500);
+        let out = normalize_prompt_for_cache(&long);
+        assert_eq!(out.chars().count(), 1200);
+        assert!(out.chars().all(|ch| ch == 'x'));
     }
 
     #[test]
