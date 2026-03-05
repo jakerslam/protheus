@@ -364,3 +364,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N49 | systems/symbiosis/deep_symbiosis_understanding_layer.ts | LOC=416 | 2026-03-05T21:51:18Z
 - [x] N50 | systems/hardware/surface_budget_controller.ts | LOC=416 | 2026-03-05T21:51:21Z
 - [x] N51 | systems/science/enhanced_reasoning_mirror.ts | LOC=411 | 2026-03-05T21:51:23Z
+- [x] N52 | systems/economy/donor_mining_dashboard.ts | LOC=409 | 2026-03-05T21:51:25Z
