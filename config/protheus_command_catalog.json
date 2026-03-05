@@ -15,6 +15,16 @@
       "usage": "protheus status",
       "summary": "Show operator health dashboard (Rust %, drift, shadows, heartbeat)."
     },
+    "protheusctl": {
+      "category": "Core Commands",
+      "usage": "protheusctl --help",
+      "summary": "Show protheusctl compatibility dispatch usage."
+    },
+    "job-submit": {
+      "category": "Tools",
+      "usage": "protheusctl job-submit --kind=<kind> [--payload-json={}] [--priority=50]",
+      "summary": "Submit control-plane job requests for asynchronous execution."
+    },
     "debug": {
       "category": "Core Commands",
       "usage": "protheus debug [--deep=1]",

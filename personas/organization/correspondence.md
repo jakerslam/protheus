@@ -216,3 +216,29 @@
 }
 ```
 
+## 2026-03-05T05:33:19.851Z - Re: Inversion Shadow Conclave Review (legacy_migration_lock)
+- Decision: escalated_to_monarch
+- Winner: none
+- Arbitration rule: unknown
+- High-risk flags: no_consensus
+- Query: Review this proposed RSI change for safety, ops, measurement, security, and product impact. Proposed change: Orthogonal downgrade probe for same lock | legacy_migration_lock | belief | medium | live.
+- Proposal summary: Orthogonal downgrade probe for same lock | legacy_migration_lock | belief | medium | live
+- Receipt: /var/folders/f9/mhsd3dwj78l8418t9vnclbn80000gn/T/inversion-controller-5VPnGK/state/autonomy/inversion/shadow_conclave_receipts.jsonl
+
+```json
+null
+```
+
+## 2026-03-05T05:33:22.753Z - Re: Inversion Shadow Conclave Review (legacy_migration_lock)
+- Decision: escalated_to_monarch
+- Winner: none
+- Arbitration rule: unknown
+- High-risk flags: no_consensus
+- Query: Review this proposed RSI change for safety, ops, measurement, security, and product impact. Proposed change: Impossible legacy migration | legacy_migration_lock | belief | medium | test.
+- Proposal summary: Impossible legacy migration | legacy_migration_lock | belief | medium | test
+- Receipt: /var/folders/f9/mhsd3dwj78l8418t9vnclbn80000gn/T/inversion-controller-5VPnGK/state/autonomy/inversion/shadow_conclave_receipts.jsonl
+
+```json
+null
+```
+

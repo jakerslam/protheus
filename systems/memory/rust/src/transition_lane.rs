@@ -654,10 +654,16 @@ fn status(policy: &TransitionPolicy, root: &Path) -> Value {
 }
 
 fn usage() {
+    println!("rust_memory_transition_lane.js");
     println!("Usage:");
     println!("  rust_memory_transition_lane selector --backend=js|rust|rust_shadow|rust_live [--policy=<path>]");
     println!("  rust_memory_transition_lane auto-selector [--policy=<path>]");
+    println!("  rust_memory_transition_lane pilot [--policy=<path>]");
+    println!("  rust_memory_transition_lane benchmark [--policy=<path>]");
+    println!("  rust_memory_transition_lane consistency-check [--policy=<path>]");
+    println!("  rust_memory_transition_lane index-probe [--policy=<path>]");
     println!("  rust_memory_transition_lane retire-check [--policy=<path>]");
+    println!("  rust_memory_transition_lane soak-gate [--policy=<path>]");
     println!("  rust_memory_transition_lane status [--policy=<path>]");
     println!("  other commands fall back to legacy bridge");
 }

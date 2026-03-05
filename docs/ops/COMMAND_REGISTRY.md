@@ -1,6 +1,6 @@
 # Command Registry
 
-Generated: 2026-03-03T02:07:49.748Z
+Generated: 2026-03-05T04:02:38.454Z
 
 ## Curated Operator Surface
 - `dev`
@@ -424,5 +424,5 @@ Generated: 2026-03-03T02:07:49.748Z
 | `lane:v3-race-339:run` | race | lane | 2 | registry.groups |
 | `lane:v3-race-340:run` | race | lane | 2 | registry.groups |
 
-Total commands: 1150
+Total commands: 1234
 Missing metadata: 0

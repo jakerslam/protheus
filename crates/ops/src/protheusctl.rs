@@ -694,6 +694,20 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             args: std::iter::once("health".to_string()).chain(rest).collect(),
             forward_stdin: false,
         },
+        "job-submit" => Route {
+            script_rel: "systems/ops/protheus_control_plane.js".to_string(),
+            args: std::iter::once("job-submit".to_string())
+                .chain(rest)
+                .collect(),
+            forward_stdin: false,
+        },
+        "protheusctl" => Route {
+            script_rel: "systems/ops/protheus_command_list.js".to_string(),
+            args: std::iter::once("--mode=help".to_string())
+                .chain(rest)
+                .collect(),
+            forward_stdin: false,
+        },
         "skills" if rest.first().map(String::as_str) == Some("discover") => Route {
             script_rel: "systems/ops/protheusctl_skills_discover.js".to_string(),
             args: rest.into_iter().skip(1).collect(),

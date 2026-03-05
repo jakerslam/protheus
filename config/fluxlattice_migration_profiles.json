@@ -1,16 +1,16 @@
 {
-  "schema_id": "fluxlattice_migration_profiles",
-  "schema_version": "1.0",
   "profiles": [
     {
-      "id": "standalone",
       "dry_run_default": true,
+      "id": "standalone",
       "rollback_checkpoints": true
     },
     {
-      "id": "in_repo",
       "dry_run_default": true,
+      "id": "in_repo",
       "rollback_checkpoints": true
     }
-  ]
+  ],
+  "schema_id": "fluxlattice_migration_profiles",
+  "schema_version": "1.0"
 }
