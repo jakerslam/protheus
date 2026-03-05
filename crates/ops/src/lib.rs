@@ -1,6 +1,7 @@
 use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs;
@@ -112,6 +113,49 @@ pub fn clean(v: impl ToString, max_len: usize) -> String {
         out.push(ch);
     }
     out
+}
+
+fn stable_json_string(value: &Value) -> String {
+    match value {
+        Value::Null => "null".to_string(),
+        Value::Bool(b) => {
+            if *b {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            }
+        }
+        Value::Number(n) => n.to_string(),
+        Value::String(s) => serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string()),
+        Value::Array(arr) => format!(
+            "[{}]",
+            arr.iter()
+                .map(stable_json_string)
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
+        Value::Object(map) => {
+            let mut keys = map.keys().cloned().collect::<Vec<_>>();
+            keys.sort();
+            let mut out = String::from("{");
+            for (idx, key) in keys.iter().enumerate() {
+                if idx > 0 {
+                    out.push(',');
+                }
+                out.push_str(&serde_json::to_string(key).unwrap_or_else(|_| "\"\"".to_string()));
+                out.push(':');
+                out.push_str(&stable_json_string(map.get(key).unwrap_or(&Value::Null)));
+            }
+            out.push('}');
+            out
+        }
+    }
+}
+
+pub fn deterministic_receipt_hash(value: &Value) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(stable_json_string(value).as_bytes());
+    hex::encode(hasher.finalize())
 }
 
 fn to_bool(v: Option<&str>, fallback: bool) -> bool {
