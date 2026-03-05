@@ -399,3 +399,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N84 | systems/ops/public_benchmark_pack.ts | LOC=358 | 2026-03-05T21:52:40Z
 - [x] N85 | systems/hybrid/mobile/protheus_mobile_adapter.ts | LOC=357 | 2026-03-05T21:52:43Z
 - [x] N86 | systems/sensory/detector_error_taxonomy_autotune.ts | LOC=356 | 2026-03-05T21:52:45Z
+- [x] N87 | systems/ops/protheus_debug_diagnostics.ts | LOC=356 | 2026-03-05T21:52:48Z
