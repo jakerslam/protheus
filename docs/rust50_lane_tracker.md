@@ -438,3 +438,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N19 | systems/ops/phone_seed_profile.ts | LOC=336 | 2026-03-05T21:59:58Z
 - [x] N20 | systems/weaver/metric_schema.ts | LOC=335 | 2026-03-05T22:00:00Z
 - [x] N21 | systems/ops/composite_disaster_gameday.ts | LOC=335 | 2026-03-05T22:00:03Z
+- [x] N22 | systems/ops/state_cleanup.ts | LOC=334 | 2026-03-05T22:00:06Z
