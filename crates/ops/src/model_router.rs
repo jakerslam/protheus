@@ -798,4 +798,17 @@ mod tests {
         assert_eq!(normalized.len(), 72);
         assert!(normalized.chars().all(|ch| ch == 'a'));
     }
+
+    #[test]
+    fn handoff_packet_tier_three_truthy_guardrails_match_js_for_mixed_types() {
+        let payload = json!({
+            "tier": 3,
+            "deep_thinker": "",
+            "post_task_return_model": {}
+        });
+        let out = build_handoff_packet(&payload);
+        assert_eq!(out["guardrails"]["deep_thinker"], false);
+        assert_eq!(out["guardrails"]["verification_required"], true);
+        assert_eq!(out["post_task_return_model"], json!({}));
+    }
 }
