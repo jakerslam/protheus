@@ -7,7 +7,6 @@ const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const MANIFEST = path.join(ROOT, 'crates', 'execution', 'Cargo.toml');
-const legacy = require('./workflow_graph_importer_legacy.js');
 
 type AnyObj = Record<string, any>;
 
@@ -106,6 +105,7 @@ function normalizeImportedPayload(payload: AnyObj) {
 }
 
 function importPayload(payload: unknown, context: AnyObj = {}) {
+  void context;
   const encoded = Buffer.from(JSON.stringify(payload == null ? {} : payload), 'utf8').toString('base64');
 
   const rustBinary = runViaRustBinary(encoded);
@@ -117,8 +117,19 @@ function importPayload(payload: unknown, context: AnyObj = {}) {
   if (rustCargo.ok && rustCargo.payload) {
     return normalizeImportedPayload(rustCargo.payload);
   }
-
-  return legacy.importPayload(payload, context);
+  const err = cleanText(rustCargo.error || 'rust_importer_unavailable', 220);
+  return {
+    entities: {
+      agents: [],
+      tasks: [],
+      workflows: [],
+      tools: [],
+      records: []
+    },
+    source_item_count: 0,
+    mapped_item_count: 0,
+    warnings: [`rust_importer_unavailable:${err}`]
+  };
 }
 
 module.exports = {
