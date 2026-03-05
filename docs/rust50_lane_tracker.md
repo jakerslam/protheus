@@ -322,3 +322,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N7 | systems/hardware/attested_assimilation_plane.ts | LOC=672 | 2026-03-05T21:49:36Z
 - [x] N8 | lib/success_criteria_verifier.ts | LOC=667 | 2026-03-05T21:49:39Z
 - [x] N9 | systems/storm/creator_optin_ledger.ts | LOC=664 | 2026-03-05T21:49:42Z
+- [x] N10 | systems/symbiosis/pre_neuralink_interface.ts | LOC=658 | 2026-03-05T21:49:45Z
