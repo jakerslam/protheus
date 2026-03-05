@@ -120,12 +120,13 @@ fn print_json_line(value: &Value) {
 }
 
 fn cli_error_receipt(argv: &[String], error: &str, code: i32) -> Value {
+    let ts = now_iso();
     let mut out = json!({
         "ok": false,
         "type": "spine_cli_error",
-        "ts": now_iso(),
+        "ts": ts,
         "mode": "unknown",
-        "date": now_iso()[..10].to_string(),
+        "date": ts[..10].to_string(),
         "argv": argv,
         "error": error,
         "exit_code": code,
@@ -970,5 +971,15 @@ mod tests {
             .expect("object")
             .remove("receipt_hash");
         assert_eq!(receipt_hash(&unhashed), expected_hash);
+
+        let ts = out
+            .get("ts")
+            .and_then(Value::as_str)
+            .expect("ts");
+        let date = out
+            .get("date")
+            .and_then(Value::as_str)
+            .expect("date");
+        assert!(ts.starts_with(date));
     }
 }
