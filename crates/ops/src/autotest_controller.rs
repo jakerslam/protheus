@@ -1,4 +1,4 @@
-use crate::legacy_bridge::{run_legacy_script, split_legacy_fallback_flag};
+use crate::legacy_bridge::{run_legacy_script_compat, split_legacy_fallback_flag};
 use crate::now_iso;
 use chrono::Timelike;
 use serde::{Deserialize, Serialize};
@@ -2583,7 +2583,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let (use_legacy, cleaned_argv) =
         split_legacy_fallback_flag(argv, "PROTHEUS_OPS_AUTOTEST_CONTROLLER_LEGACY");
     if use_legacy {
-        return run_legacy_script(
+        return run_legacy_script_compat(
             root,
             LEGACY_SCRIPT_REL,
             &cleaned_argv,
