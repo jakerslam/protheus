@@ -237,11 +237,123 @@ pub fn run_importer_openfang_json(payload: &str) -> Result<String, String> {
     serde_json::to_string(&result).map_err(|err| format!("result_json_serialize_failed:{err}"))
 }
 
+fn value_to_plain_string(value: Option<&Value>) -> String {
+    match value {
+        Some(Value::String(v)) => v.clone(),
+        Some(Value::Number(v)) => v.to_string(),
+        Some(Value::Bool(v)) => v.to_string(),
+        _ => String::new(),
+    }
+}
+
+pub fn run_importer_workflow_graph_json(payload: &str) -> Result<String, String> {
+    let parsed: Value =
+        serde_json::from_str(payload).map_err(|err| format!("payload_json_parse_failed:{err}"))?;
+    let obj = parsed.as_object().cloned().unwrap_or_default();
+
+    let nodes = obj
+        .get("nodes")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let edges = obj
+        .get("edges")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    let workflows: Vec<Value> = nodes
+        .iter()
+        .enumerate()
+        .map(|(idx, node)| {
+            let node_obj = node.as_object().cloned().unwrap_or_default();
+            let fallback = format!("node_{}", idx + 1);
+            let node_key = {
+                let id = value_to_plain_string(node_obj.get("id"));
+                if !id.is_empty() {
+                    id
+                } else {
+                    value_to_plain_string(node_obj.get("name"))
+                }
+            };
+            let id_candidate = if node_key.is_empty() {
+                fallback.clone()
+            } else {
+                node_key.clone()
+            };
+            let id = {
+                let normalized = normalize_token(&id_candidate);
+                if normalized.is_empty() {
+                    fallback.clone()
+                } else {
+                    normalized
+                }
+            };
+            let name = {
+                let name = value_to_plain_string(node_obj.get("name"));
+                if !name.is_empty() {
+                    name
+                } else if !node_key.is_empty() {
+                    node_key.clone()
+                } else {
+                    fallback.clone()
+                }
+            };
+            let edges_out = edges
+                .iter()
+                .filter(|edge| {
+                    let edge_obj = edge.as_object().cloned().unwrap_or_default();
+                    let from = value_to_plain_string(edge_obj.get("from"));
+                    from == node_key
+                })
+                .count();
+            json!({
+                "id": id,
+                "name": name,
+                "edges_out": edges_out,
+                "source": node
+            })
+        })
+        .collect();
+
+    let records: Vec<Value> = edges
+        .iter()
+        .enumerate()
+        .map(|(idx, edge)| {
+            json!({
+                "id": format!("edge_{}", idx + 1),
+                "bucket": "edge",
+                "source": edge
+            })
+        })
+        .collect();
+
+    let source_item_count = nodes.len() + edges.len();
+    let mapped_item_count = workflows.len() + records.len();
+
+    let result = json!({
+        "ok": true,
+        "payload": {
+            "entities": {
+                "agents": [],
+                "tasks": [],
+                "workflows": workflows,
+                "tools": [],
+                "records": records
+            },
+            "source_item_count": source_item_count,
+            "mapped_item_count": mapped_item_count,
+            "warnings": []
+        }
+    });
+    serde_json::to_string(&result).map_err(|err| format!("result_json_serialize_failed:{err}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         parse_simple_yaml_text, run_importer_generic_json_json, run_importer_generic_yaml_json,
-        run_importer_openfang_json,
+        run_importer_openfang_json, run_importer_workflow_graph_json,
     };
     use serde_json::{json, Value};
 
@@ -357,6 +469,33 @@ mod tests {
     fn importer_openfang_non_object_payload_is_empty() {
         let out = run_importer_openfang_json("[]")
             .expect("importer_openfang_json should return output");
+        let parsed: Value = serde_json::from_str(&out).expect("valid json output");
+        assert_eq!(parsed["ok"], true);
+        assert_eq!(parsed["payload"]["source_item_count"], 0);
+        assert_eq!(parsed["payload"]["mapped_item_count"], 0);
+    }
+
+    #[test]
+    fn importer_workflow_graph_maps_nodes_and_edges() {
+        let payload = json!({
+            "nodes": [{"id": "a"}, {"id": "b"}],
+            "edges": [{"from": "a", "to": "b"}]
+        });
+        let out = run_importer_workflow_graph_json(&payload.to_string())
+            .expect("importer_workflow_graph_json should return output");
+        let parsed: Value = serde_json::from_str(&out).expect("valid json output");
+        assert_eq!(parsed["ok"], true);
+        assert_eq!(parsed["payload"]["source_item_count"], 3);
+        assert_eq!(parsed["payload"]["mapped_item_count"], 3);
+        assert_eq!(parsed["payload"]["entities"]["workflows"][0]["id"], "a");
+        assert_eq!(parsed["payload"]["entities"]["workflows"][0]["edges_out"], 1);
+        assert_eq!(parsed["payload"]["entities"]["records"][0]["id"], "edge_1");
+    }
+
+    #[test]
+    fn importer_workflow_graph_non_object_payload_is_empty() {
+        let out = run_importer_workflow_graph_json("[]")
+            .expect("importer_workflow_graph_json should return output");
         let parsed: Value = serde_json::from_str(&out).expect("valid json output");
         assert_eq!(parsed["ok"], true);
         assert_eq!(parsed["payload"]["source_item_count"], 0);
