@@ -349,3 +349,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N34 | systems/polyglot/polyglot_service_adapter.ts | LOC=471 | 2026-03-05T21:50:43Z
 - [x] N35 | systems/adaptive/sensory/eyes/focus_trigger_store.ts | LOC=468 | 2026-03-05T21:50:45Z
 - [x] N36 | systems/hardware/embodiment_layer.ts | LOC=462 | 2026-03-05T21:50:48Z
+- [x] N37 | systems/spawn/seed_spawn_lineage.ts | LOC=461 | 2026-03-05T21:50:50Z
