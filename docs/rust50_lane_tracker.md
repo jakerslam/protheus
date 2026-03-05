@@ -382,3 +382,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N67 | systems/science/scientific_method_loop.ts | LOC=382 | 2026-03-05T21:52:00Z
 - [x] N68 | systems/helix/helix_admission_gate.ts | LOC=382 | 2026-03-05T21:52:03Z
 - [x] N69 | systems/sensory/collector_driver.ts | LOC=381 | 2026-03-05T21:52:05Z
+- [x] N70 | systems/forge/forge_organ.ts | LOC=380 | 2026-03-05T21:52:07Z
