@@ -1,5 +1,5 @@
 use crate::legacy_bridge::{run_legacy_script, split_legacy_fallback_flag};
-use crate::now_iso;
+use crate::{deterministic_receipt_hash, now_iso};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -40,45 +40,8 @@ fn stable_hash(seed: &str, len: usize) -> String {
     hex[..len.min(hex.len())].to_string()
 }
 
-fn stable_json_string(v: &Value) -> String {
-    match v {
-        Value::Null => "null".to_string(),
-        Value::Bool(b) => {
-            if *b {
-                "true".to_string()
-            } else {
-                "false".to_string()
-            }
-        }
-        Value::Number(n) => n.to_string(),
-        Value::String(s) => serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string()),
-        Value::Array(arr) => format!(
-            "[{}]",
-            arr.iter()
-                .map(stable_json_string)
-                .collect::<Vec<_>>()
-                .join(",")
-        ),
-        Value::Object(map) => {
-            let mut keys = map.keys().cloned().collect::<Vec<_>>();
-            keys.sort();
-            let mut out = String::from("{");
-            for (idx, k) in keys.iter().enumerate() {
-                if idx > 0 {
-                    out.push(',');
-                }
-                out.push_str(&serde_json::to_string(k).unwrap_or_else(|_| "\"\"".to_string()));
-                out.push(':');
-                out.push_str(&stable_json_string(map.get(k).unwrap_or(&Value::Null)));
-            }
-            out.push('}');
-            out
-        }
-    }
-}
-
 fn receipt_hash(v: &Value) -> String {
-    stable_hash(&stable_json_string(v), 64)
+    deterministic_receipt_hash(v)
 }
 
 fn to_base36(mut n: u64) -> String {
