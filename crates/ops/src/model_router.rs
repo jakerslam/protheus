@@ -305,6 +305,19 @@ fn clamp_request_tokens(value: i64) -> i64 {
     value.clamp(ROUTER_MIN_REQUEST_TOKENS, ROUTER_MAX_REQUEST_TOKENS)
 }
 
+fn to_bool_like_value(value: Option<&Value>, fallback: bool) -> bool {
+    match value {
+        Some(Value::Bool(v)) => *v,
+        Some(Value::Null) | None => fallback,
+        Some(Value::String(raw)) => match normalize_key(raw).as_str() {
+            "1" | "true" | "yes" | "on" => true,
+            "0" | "false" | "no" | "off" => false,
+            _ => fallback,
+        },
+        _ => fallback,
+    }
+}
+
 pub fn estimate_request_tokens(tokens_est: Option<f64>, intent: &str, task: &str) -> i64 {
     if let Some(direct) = tokens_est {
         if direct.is_finite() && direct > 0.0 {
@@ -335,6 +348,37 @@ pub struct ModelTokenEstimate {
     pub tokens_est: Option<i64>,
     pub multiplier: Option<f64>,
     pub source: &'static str,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RouteClassPolicy {
+    pub id: String,
+    pub force_risk: Option<String>,
+    pub force_complexity: Option<String>,
+    pub force_role: String,
+    pub prefer_slot: Option<String>,
+    pub prefer_model: Option<String>,
+    pub fallback_slot: Option<String>,
+    pub disable_fast_path: bool,
+    pub max_tokens_est: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModeAdjustmentInput {
+    pub risk: String,
+    pub complexity: String,
+    pub role: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModeAdjustment {
+    pub risk: String,
+    pub complexity: String,
+    pub role: String,
+    pub mode: String,
+    pub mode_adjusted: bool,
+    pub mode_reason: Option<String>,
+    pub mode_policy_source: String,
 }
 
 fn js_truthy_value(value: &Value) -> bool {
@@ -429,6 +473,241 @@ pub fn estimate_model_request_tokens(
         multiplier: Some(rounded_multiplier),
         source: detail.source,
     }
+}
+
+fn normalized_optional_string(value: Option<&Value>) -> Option<String> {
+    value
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .map(ToString::to_string)
+}
+
+pub fn route_class_policy(cfg: &Value, route_class_raw: &str) -> RouteClassPolicy {
+    let id = {
+        let normalized = normalize_key(if route_class_raw.is_empty() {
+            "default"
+        } else {
+            route_class_raw
+        });
+        if normalized.is_empty() {
+            "default".to_string()
+        } else {
+            normalized
+        }
+    };
+
+    let classes = cfg
+        .as_object()
+        .and_then(|v| v.get("routing"))
+        .and_then(Value::as_object)
+        .and_then(|v| v.get("route_classes"))
+        .and_then(Value::as_object);
+    let src = classes
+        .and_then(|map| map.get(&id))
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+
+    let mut merged = Map::<String, Value>::new();
+    if id == "reflex" {
+        merged.insert("force_risk".to_string(), Value::String("low".to_string()));
+        merged.insert(
+            "force_complexity".to_string(),
+            Value::String("low".to_string()),
+        );
+        merged.insert("force_role".to_string(), Value::String("reflex".to_string()));
+        merged.insert("prefer_slot".to_string(), Value::String("grunt".to_string()));
+        merged.insert(
+            "prefer_model".to_string(),
+            Value::String("ollama/smallthinker".to_string()),
+        );
+        merged.insert(
+            "fallback_slot".to_string(),
+            Value::String("fallback".to_string()),
+        );
+        merged.insert("disable_fast_path".to_string(), Value::Bool(true));
+        merged.insert(
+            "max_tokens_est".to_string(),
+            Value::Number(serde_json::Number::from(420)),
+        );
+    }
+    for (k, v) in src {
+        merged.insert(k, v);
+    }
+
+    let force_risk_raw = normalize_key(
+        merged
+            .get("force_risk")
+            .and_then(Value::as_str)
+            .unwrap_or_default(),
+    );
+    let force_complexity_raw = normalize_key(
+        merged
+            .get("force_complexity")
+            .and_then(Value::as_str)
+            .unwrap_or_default(),
+    );
+
+    let max_tokens = finite_number(merged.get("max_tokens_est"));
+    RouteClassPolicy {
+        id,
+        force_risk: match force_risk_raw.as_str() {
+            "low" | "medium" | "high" => Some(force_risk_raw),
+            _ => None,
+        },
+        force_complexity: match force_complexity_raw.as_str() {
+            "low" | "medium" | "high" => Some(force_complexity_raw),
+            _ => None,
+        },
+        force_role: normalize_key(
+            merged
+                .get("force_role")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+        ),
+        prefer_slot: normalized_optional_string(merged.get("prefer_slot")),
+        prefer_model: normalized_optional_string(merged.get("prefer_model")),
+        fallback_slot: normalized_optional_string(merged.get("fallback_slot")),
+        disable_fast_path: to_bool_like_value(merged.get("disable_fast_path"), false),
+        max_tokens_est: max_tokens.and_then(|value| {
+            if value.is_finite() && value > 0.0 {
+                Some((value.round() as i64).clamp(50, 12_000))
+            } else {
+                None
+            }
+        }),
+    }
+}
+
+pub fn prompt_cache_lane_for_route(route_class_id: &str, mode: &str, execution_intent: bool) -> String {
+    let route_class = normalize_key(route_class_id);
+    let mode_key = normalize_key(mode);
+    if route_class == "reflex" {
+        return "reflex".to_string();
+    }
+    if mode_key.contains("dream") {
+        return "dream".to_string();
+    }
+    if execution_intent {
+        return "autonomy".to_string();
+    }
+    "autonomy".to_string()
+}
+
+fn tier_alias_to_adjustment(tier_alias: &str, base: &ModeAdjustment) -> ModeAdjustment {
+    let key = normalize_key(tier_alias);
+    if key == "tier1_governance" {
+        return ModeAdjustment {
+            risk: "high".to_string(),
+            complexity: "high".to_string(),
+            role: "logic".to_string(),
+            mode_adjusted: true,
+            mode_reason: Some("tier1_governance".to_string()),
+            ..base.clone()
+        };
+    }
+    if key == "tier2_build" {
+        return ModeAdjustment {
+            risk: "medium".to_string(),
+            complexity: "medium".to_string(),
+            role: "coding".to_string(),
+            mode_adjusted: true,
+            mode_reason: Some("tier2_build".to_string()),
+            ..base.clone()
+        };
+    }
+    if key == "tier3_grunt" {
+        return ModeAdjustment {
+            risk: "low".to_string(),
+            complexity: "low".to_string(),
+            role: "chat".to_string(),
+            mode_adjusted: true,
+            mode_reason: Some("tier3_grunt".to_string()),
+            ..base.clone()
+        };
+    }
+    ModeAdjustment {
+        mode_adjusted: false,
+        mode_reason: None,
+        ..base.clone()
+    }
+}
+
+pub fn apply_mode_adjustments(mode: &str, base: &ModeAdjustmentInput, adapters: &Value) -> ModeAdjustment {
+    let m = normalize_key(if mode.is_empty() { "normal" } else { mode });
+    let out = ModeAdjustment {
+        risk: base.risk.clone(),
+        complexity: base.complexity.clone(),
+        role: base.role.clone(),
+        mode: m.clone(),
+        mode_adjusted: false,
+        mode_reason: None,
+        mode_policy_source: "fallback".to_string(),
+    };
+
+    let mode_routing = adapters
+        .as_object()
+        .and_then(|v| v.get("mode_routing"))
+        .and_then(Value::as_object);
+    if let Some(routing) = mode_routing {
+        let has_explicit = routing.contains_key(&m);
+        let allow_default = !(m == "normal" || m == "default");
+        let alias = if has_explicit {
+            routing.get(&m).and_then(Value::as_str)
+        } else if allow_default {
+            routing.get("default").and_then(Value::as_str)
+        } else {
+            None
+        };
+        if let Some(alias) = alias {
+            let mut mapped = tier_alias_to_adjustment(alias, &out);
+            mapped.mode = m.clone();
+            mapped.mode_policy_source = "config/model_adapters.json".to_string();
+            if m == "deep-thinker" || m == "deep_thinker" {
+                mapped.risk = "high".to_string();
+                mapped.complexity = "high".to_string();
+                mapped.role = "logic".to_string();
+                mapped.mode_adjusted = true;
+                mapped.mode_reason = Some("deep_thinker_forces_high_logic".to_string());
+            }
+            return mapped;
+        }
+    }
+
+    if m == "deep-thinker" || m == "deep_thinker" {
+        return ModeAdjustment {
+            risk: "high".to_string(),
+            complexity: "high".to_string(),
+            role: "logic".to_string(),
+            mode_adjusted: true,
+            mode_reason: Some("deep_thinker_forces_high_logic".to_string()),
+            ..out
+        };
+    }
+    if m == "hyper-creative" || m == "hyper_creative" {
+        let next_complexity = if out.complexity == "low" {
+            "medium".to_string()
+        } else {
+            out.complexity.clone()
+        };
+        return ModeAdjustment {
+            complexity: next_complexity,
+            role: "planning".to_string(),
+            mode_adjusted: true,
+            mode_reason: Some("hyper_creative_bias_planning".to_string()),
+            ..out
+        };
+    }
+    if m == "creative" || m == "narrative" {
+        return ModeAdjustment {
+            role: "chat".to_string(),
+            mode_adjusted: true,
+            mode_reason: Some(format!("{m}_bias_chat")),
+            ..out
+        };
+    }
+    out
 }
 
 fn finite_number(value: Option<&Value>) -> Option<f64> {
@@ -771,6 +1050,117 @@ mod tests {
         assert_eq!(none.source, "none");
         assert_eq!(none.tokens_est, None);
         assert_eq!(none.multiplier, None);
+    }
+
+    #[test]
+    fn route_class_policy_matches_reflex_defaults_and_overrides() {
+        let empty = json!({});
+        let reflex = route_class_policy(&empty, "reflex");
+        assert_eq!(reflex.id, "reflex");
+        assert_eq!(reflex.force_risk.as_deref(), Some("low"));
+        assert_eq!(reflex.force_complexity.as_deref(), Some("low"));
+        assert_eq!(reflex.force_role, "reflex");
+        assert_eq!(reflex.prefer_slot.as_deref(), Some("grunt"));
+        assert_eq!(reflex.prefer_model.as_deref(), Some("ollama/smallthinker"));
+        assert_eq!(reflex.fallback_slot.as_deref(), Some("fallback"));
+        assert!(reflex.disable_fast_path);
+        assert_eq!(reflex.max_tokens_est, Some(420));
+
+        let cfg = json!({
+            "routing": {
+                "route_classes": {
+                    "reflex": {
+                        "prefer_model": "openai/gpt-4.1-mini",
+                        "disable_fast_path": "off",
+                        "max_tokens_est": 777
+                    },
+                    "focus": {
+                        "force_risk": "HIGH",
+                        "force_complexity": "medium",
+                        "force_role": " Planning ",
+                        "prefer_slot": "  specialist ",
+                        "max_tokens_est": 0
+                    }
+                }
+            }
+        });
+        let reflex_override = route_class_policy(&cfg, "reflex");
+        assert_eq!(
+            reflex_override.prefer_model.as_deref(),
+            Some("openai/gpt-4.1-mini")
+        );
+        assert!(!reflex_override.disable_fast_path);
+        assert_eq!(reflex_override.max_tokens_est, Some(777));
+
+        let focus = route_class_policy(&cfg, "focus");
+        assert_eq!(focus.id, "focus");
+        assert_eq!(focus.force_risk.as_deref(), Some("high"));
+        assert_eq!(focus.force_complexity.as_deref(), Some("medium"));
+        assert_eq!(focus.force_role, "planning");
+        assert_eq!(focus.prefer_slot.as_deref(), Some("specialist"));
+        assert_eq!(focus.max_tokens_est, None);
+    }
+
+    #[test]
+    fn prompt_cache_lane_for_route_matches_contract() {
+        assert_eq!(prompt_cache_lane_for_route("reflex", "normal", false), "reflex");
+        assert_eq!(
+            prompt_cache_lane_for_route("default", "dream-weave", false),
+            "dream"
+        );
+        assert_eq!(
+            prompt_cache_lane_for_route("default", "normal", true),
+            "autonomy"
+        );
+        assert_eq!(
+            prompt_cache_lane_for_route("default", "normal", false),
+            "autonomy"
+        );
+    }
+
+    #[test]
+    fn mode_adjustments_match_config_and_fallback_contracts() {
+        let base = ModeAdjustmentInput {
+            risk: "medium".to_string(),
+            complexity: "low".to_string(),
+            role: "general".to_string(),
+        };
+        let adapters = json!({
+            "mode_routing": {
+                "autonomy": "tier2_build",
+                "default": "tier3_grunt"
+            }
+        });
+        let mapped = apply_mode_adjustments("autonomy", &base, &adapters);
+        assert_eq!(mapped.risk, "medium");
+        assert_eq!(mapped.complexity, "medium");
+        assert_eq!(mapped.role, "coding");
+        assert!(mapped.mode_adjusted);
+        assert_eq!(mapped.mode_reason.as_deref(), Some("tier2_build"));
+        assert_eq!(mapped.mode_policy_source, "config/model_adapters.json");
+
+        let deep = apply_mode_adjustments("deep-thinker", &base, &adapters);
+        assert_eq!(deep.risk, "high");
+        assert_eq!(deep.complexity, "high");
+        assert_eq!(deep.role, "logic");
+        assert!(deep.mode_adjusted);
+        assert_eq!(
+            deep.mode_reason.as_deref(),
+            Some("deep_thinker_forces_high_logic")
+        );
+
+        let hyper = apply_mode_adjustments("hyper-creative", &base, &json!({}));
+        assert_eq!(hyper.risk, "medium");
+        assert_eq!(hyper.complexity, "medium");
+        assert_eq!(hyper.role, "planning");
+        assert_eq!(
+            hyper.mode_reason.as_deref(),
+            Some("hyper_creative_bias_planning")
+        );
+
+        let creative = apply_mode_adjustments("creative", &base, &json!({}));
+        assert_eq!(creative.role, "chat");
+        assert_eq!(creative.mode_reason.as_deref(), Some("creative_bias_chat"));
     }
 
     #[test]
