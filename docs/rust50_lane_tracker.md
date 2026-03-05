@@ -397,3 +397,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N82 | systems/ops/org_code_format_guard.ts | LOC=359 | 2026-03-05T21:52:35Z
 - [x] N83 | systems/ops/enterprise_scm_cd_mirror_plane.ts | LOC=359 | 2026-03-05T21:52:37Z
 - [x] N84 | systems/ops/public_benchmark_pack.ts | LOC=358 | 2026-03-05T21:52:40Z
+- [x] N85 | systems/hybrid/mobile/protheus_mobile_adapter.ts | LOC=357 | 2026-03-05T21:52:43Z
