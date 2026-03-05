@@ -955,3 +955,16 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - `systems/ops/backlog_runtime_anchors/v6_rust50_003_anchor.ts`
 - `systems/ops/backlog_runtime_anchors/v6_rust50_004_anchor.ts`
 - `systems/ops/backlog_runtime_anchors/v6_rust50_005_anchor.ts`
+
+## Completed In This Continuation (Backlog Anchor Native Batch H)
+- Timestamp: 2026-03-05T22:48:00Z
+- Mode: finalize remaining TS backlog anchor lanes into Rust-backed runtime.
+- Scope: final 2 queued lanes migrated.
+- Gates:
+  - `CARGO_TARGET_DIR=/tmp/pc-next2-ops cargo test --manifest-path crates/ops/Cargo.toml` ✅
+  - `CARGO_TARGET_DIR=/tmp/pc-next2-ops cargo clippy --manifest-path crates/ops/Cargo.toml --all-targets -- -D warnings` ✅
+  - `NODE_PATH=/Users/jay/.openclaw/workspace/node_modules npm run -s formal:invariants:run` ✅ (`ok: true`, `failed_invariants: 0`)
+
+### Final Anchor Lanes Migrated (2)
+- `systems/ops/backlog_runtime_anchors/v6_rust50_006_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/v6_rust50_007_anchor.ts`
