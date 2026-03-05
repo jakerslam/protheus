@@ -11995,9 +11995,11 @@ mod tests {
             regex::escape(call_name)
         );
         let re = Regex::new(&pattern).expect("valid call regex");
+        let static_mode_re =
+            Regex::new(r"^[a-zA-Z0-9_-]+$").expect("valid static mode token regex");
         re.captures_iter(text)
             .filter_map(|cap| cap.get(1).map(|m| m.as_str().trim().to_string()))
-            .filter(|mode| !mode.is_empty())
+            .filter(|mode| !mode.is_empty() && static_mode_re.is_match(mode))
             .collect()
     }
 
@@ -12063,6 +12065,21 @@ function runInversionPrimitive(mode: string, data: AnyObj = {}, opts: AnyObj = {
 "#;
         let parsed = extract_bridge_modes(bridge, "runInversionPrimitive");
         let expected = ["alpha", "beta-mode", "gamma_mode"]
+            .iter()
+            .map(|value| value.to_string())
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(parsed, expected);
+    }
+
+    #[test]
+    fn extract_mode_literals_ignores_dynamic_template_modes() {
+        let text = r#"
+const a = runInversionPrimitive("alpha", {});
+const b = runInversionPrimitive(`beta_${suffix}`, {});
+const c = runInversionPrimitive(modeName, {});
+"#;
+        let parsed = extract_mode_literals(text, "runInversionPrimitive");
+        let expected = ["alpha"]
             .iter()
             .map(|value| value.to_string())
             .collect::<std::collections::BTreeSet<_>>();
