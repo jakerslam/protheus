@@ -1,4 +1,4 @@
-use crate::legacy_bridge::{resolve_script_path, run_legacy_script};
+use crate::legacy_bridge::{resolve_script_path, run_legacy_script_compat};
 use std::collections::HashSet;
 use std::path::Path;
 
@@ -7,7 +7,7 @@ const LEGACY_SCRIPT_DEFAULT: &str = "systems/autonomy/strategy_mode_governor_leg
 
 pub fn run(root: &Path, args: &[String]) -> i32 {
     let script = resolve_script_path(root, LEGACY_SCRIPT_ENV, LEGACY_SCRIPT_DEFAULT);
-    run_legacy_script(root, "strategy_mode_governor", &script, args, false)
+    run_legacy_script_compat(root, "strategy_mode_governor", &script, args, false)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

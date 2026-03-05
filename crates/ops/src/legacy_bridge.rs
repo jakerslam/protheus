@@ -145,6 +145,21 @@ pub fn run_legacy_script(root: &Path, script_rel: &str, argv: &[String], domain:
     run_legacy_script_with_node(root, script_rel, argv, domain, &node, &[])
 }
 
+pub fn run_legacy_script_compat(
+    root: &Path,
+    domain: &str,
+    script_path: &Path,
+    args: &[String],
+    _forward_stdin: bool,
+) -> i32 {
+    let rel = script_path
+        .strip_prefix(root)
+        .unwrap_or(script_path)
+        .to_string_lossy()
+        .replace('\\', "/");
+    run_legacy_script(root, &rel, args, domain)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,4 +1,4 @@
-use crate::legacy_bridge::{resolve_script_path, run_legacy_script};
+use crate::legacy_bridge::{resolve_script_path, run_legacy_script_compat};
 use std::path::Path;
 
 const LEGACY_SCRIPT_ENV: &str = "PROTHEUS_CONTRACT_CHECK_LEGACY_SCRIPT";
@@ -6,7 +6,7 @@ const LEGACY_SCRIPT_DEFAULT: &str = "systems/spine/contract_check_legacy.js";
 
 pub fn run(root: &Path, args: &[String]) -> i32 {
     let script = resolve_script_path(root, LEGACY_SCRIPT_ENV, LEGACY_SCRIPT_DEFAULT);
-    run_legacy_script(root, "contract_check", &script, args, false)
+    run_legacy_script_compat(root, "contract_check", &script, args, false)
 }
 
 fn compact_json_spacing(token: &str) -> String {
