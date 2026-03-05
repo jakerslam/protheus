@@ -405,7 +405,11 @@ fn load_state(policy: &Policy) -> Value {
     if !merged.get("flux").map(Value::is_object).unwrap_or(false) {
         merged.insert("flux".to_string(), default_state()["flux"].clone());
     }
-    if !merged.get("covenant").map(Value::is_object).unwrap_or(false) {
+    if !merged
+        .get("covenant")
+        .map(Value::is_object)
+        .unwrap_or(false)
+    {
         merged.insert("covenant".to_string(), default_state()["covenant"].clone());
     }
     if !merged.get("tamper").map(Value::is_object).unwrap_or(false) {
@@ -544,8 +548,7 @@ fn run_lane(
                 &json!({"ts": now_iso(), "op": "probabilistic_weave", "selected_path": pick}),
                 apply,
             )?;
-            receipt["summary"] =
-                json!({"weave_mode": "probabilistic", "selected_path": pick, "coherence_score": 0.93});
+            receipt["summary"] = json!({"weave_mode": "probabilistic", "selected_path": pick, "coherence_score": 0.93});
             receipt["checks"] =
                 json!({"resolved_path_present": true, "fallback_to_deterministic_ready": true});
             Ok(receipt)
@@ -584,7 +587,8 @@ fn run_lane(
             } else {
                 "Covenant affirmed."
             };
-            receipt["summary"] = json!({"covenant_line": line, "state": state["covenant"]["state"]});
+            receipt["summary"] =
+                json!({"covenant_line": line, "state": state["covenant"]["state"]});
             receipt["checks"] = json!({
                 "covenant_line_deterministic": true,
                 "receipt_chain_hash_len_64": chain_hash.len() == 64
@@ -714,14 +718,14 @@ fn run_lane(
                     .map_err(|e| format!("create_dir_failed:.private-lenses:{e}"))?;
                 write_json_atomic(&policy.paths.lens_mode_policy_path, &lens_policy)?;
             }
-            receipt["summary"] = json!({"lens_mode": "hidden", "private_store": ".private-lenses/"});
+            receipt["summary"] =
+                json!({"lens_mode": "hidden", "private_store": ".private-lenses/"});
             receipt["checks"] = json!({
                 "hidden_default": true,
                 "mode_triplet_present": true,
                 "private_store_present": root.join(".private-lenses").exists()
             });
-            receipt["artifacts"] =
-                json!({"lens_mode_policy_path": rel_path(root, &policy.paths.lens_mode_policy_path)});
+            receipt["artifacts"] = json!({"lens_mode_policy_path": rel_path(root, &policy.paths.lens_mode_policy_path)});
             Ok(receipt)
         }
         "V4-PKG-004" => {
@@ -733,7 +737,8 @@ fn run_lane(
             receipt["summary"] = json!({
                 "required_files": required.iter().map(|p| rel_path(root, p)).collect::<Vec<_>>()
             });
-            receipt["checks"] = json!({"lensmap_artifacts_present": required.iter().all(|p| p.exists())});
+            receipt["checks"] =
+                json!({"lensmap_artifacts_present": required.iter().all(|p| p.exists())});
             Ok(receipt)
         }
         "V4-PKG-005" => {
@@ -745,7 +750,11 @@ fn run_lane(
             let template = run_node_json(
                 root,
                 "packages/lensmap/lensmap_cli.js",
-                &["template".to_string(), "add".to_string(), "service".to_string()],
+                &[
+                    "template".to_string(),
+                    "add".to_string(),
+                    "service".to_string(),
+                ],
             );
             let simplify = run_node_json(
                 root,
@@ -809,10 +818,7 @@ fn run_lane(
             let import_res = run_node_json(
                 root,
                 "packages/lensmap/lensmap_cli.js",
-                &[
-                    "import".to_string(),
-                    "--from=openclaw-comments".to_string(),
-                ],
+                &["import".to_string(), "--from=openclaw-comments".to_string()],
             );
             let sync_res = run_node_json(
                 root,
