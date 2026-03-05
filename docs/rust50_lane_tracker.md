@@ -319,3 +319,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N4 | systems/migration/core_migration_bridge.ts | LOC=768 | 2026-03-05T21:49:28Z
 - [x] N5 | systems/observability/metrics_exporter.ts | LOC=747 | 2026-03-05T21:49:31Z
 - [x] N6 | lib/directive_resolver.ts | LOC=715 | 2026-03-05T21:49:33Z
+- [x] N7 | systems/hardware/attested_assimilation_plane.ts | LOC=672 | 2026-03-05T21:49:36Z
