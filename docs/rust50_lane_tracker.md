@@ -440,3 +440,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N21 | systems/ops/composite_disaster_gameday.ts | LOC=335 | 2026-03-05T22:00:03Z
 - [x] N22 | systems/ops/state_cleanup.ts | LOC=334 | 2026-03-05T22:00:06Z
 - [x] N23 | systems/continuity/sovereign_resurrection_substrate.ts | LOC=334 | 2026-03-05T22:00:09Z
+- [x] N24 | systems/ops/scale_benchmark.ts | LOC=333 | 2026-03-05T22:00:11Z
