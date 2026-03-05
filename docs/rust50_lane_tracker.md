@@ -412,3 +412,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N97 | systems/ops/signal_slo_deadlock_breaker.ts | LOC=351 | 2026-03-05T21:53:15Z
 - [x] N98 | systems/ops/post_launch_migration_readiness.ts | LOC=351 | 2026-03-05T21:53:17Z
 - [x] N99 | systems/ops/platform_adaptation_channel_runtime.ts | LOC=350 | 2026-03-05T21:53:19Z
+- [x] N100 | systems/migration/post_migration_verification_report.ts | LOC=350 | 2026-03-05T21:53:23Z
