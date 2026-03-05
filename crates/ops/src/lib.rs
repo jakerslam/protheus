@@ -18,6 +18,7 @@ pub mod autonomy_controller;
 pub mod contract_check;
 pub mod fluxlattice_program;
 pub mod foundation_contract_gate;
+pub mod inversion_controller;
 pub mod legacy_bridge;
 pub mod model_router;
 pub mod perception_polish;
