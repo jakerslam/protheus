@@ -526,3 +526,66 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N73 | systems/sensory/multimodal_signal_adapter_plane.ts | LOC=304 | 2026-03-05T22:02:27Z
 - [x] N74 | systems/sensory/ground_truth_label_adjudication_lane.ts | LOC=304 | 2026-03-05T22:02:29Z
 - [x] N75 | systems/security/capability_envelope_guard.ts | LOC=304 | 2026-03-05T22:02:31Z
+
+## Completed In This Continuation (Backlog Anchor Native Batch A)
+- Timestamp: 2026-03-05T22:37:00Z
+- Mode: replace TypeScript backlog anchor lane implementations with Rust-backed `backlog-runtime-anchor` bridge modules.
+- Scope:
+  - 16 previously in-flight `v3_race_*` anchor lanes finalized on native bridge.
+  - 50 additional high-ROI anchor lanes migrated in this batch.
+- Gates:
+  - `CARGO_TARGET_DIR=/tmp/pc-next50-ops cargo test --manifest-path crates/ops/Cargo.toml` ✅ (`145 passed`, `0 failed`; `personas_core 6 passed`)
+  - `CARGO_TARGET_DIR=/tmp/pc-next50-ops cargo clippy --manifest-path crates/ops/Cargo.toml --all-targets -- -D warnings` ✅
+  - `NODE_PATH=/Users/jay/.openclaw/workspace/node_modules npm run -s formal:invariants:run` ✅ (`ok: true`, `failed_invariants: 0`)
+
+### New Anchor Lanes Migrated (50)
+- `systems/ops/backlog_runtime_anchors/bl_003_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_004_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_005_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_006_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_007_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_008_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_009_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_010_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_011_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_013_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_015_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_018_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_019_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_022_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_023_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_024_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_025_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_026_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_027_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_029_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_032_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_033_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_034_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_038_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_039_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_040_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_041_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_043_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/bl_044_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/rm_002_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/rm_004_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/rm_005_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/rm_104_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/rm_109_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/rm_114_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/rm_118_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/rm_121_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/rm_122_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/rm_123_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/rm_202_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/v1h_002_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/v1h_005_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/v1h_006_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/v1h_007_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/v1h_008_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/v2_033_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/v2_034_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/v2_035_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/v2_036_anchor.ts`
+- `systems/ops/backlog_runtime_anchors/v2_038_anchor.ts`
