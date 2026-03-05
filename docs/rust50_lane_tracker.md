@@ -1091,3 +1091,64 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - systems/strategy/weekly_executed_outcomes_synthesis.ts
 - systems/security/psycheforge/psycheforge_organ.ts
 - systems/security/startup_attestation_boot_gate.ts
+
+## Completed In This Continuation (Non-Anchor Legacy Batch K)
+- Timestamp: 2026-03-05T23:05:45Z
+- Mode: migrate next 50 high-ROI non-anchor TypeScript lanes to Rust runtime (legacy-retired-lane).
+- Scope: 50 lane source files rewired to native Rust receipt path via shared bridge.
+- Gates:
+  - CARGO_TARGET_DIR=/tmp/pc-nextbatch-k cargo test --manifest-path crates/ops/Cargo.toml ✅ (147 passed, 0 failed)
+  - CARGO_TARGET_DIR=/tmp/pc-nextbatch-k cargo clippy --manifest-path crates/ops/Cargo.toml --all-targets -- -D warnings ✅
+  - NODE_PATH=/Users/jay/.openclaw/workspace/node_modules npm run -s formal:invariants:run ✅ (ok: true, failed_invariants: 0)
+
+### Lanes Migrated (50)
+- systems/fractal/engine.ts
+- systems/fractal/reversion_drill.ts
+- systems/fractal/telemetry_aggregator.ts
+- systems/security/conflict_marker_guard.ts
+- systems/spine/heartbeat_trigger.ts
+- systems/ops/enterprise_readiness_pack.ts
+- systems/ops/state_kernel_dual_write.ts
+- systems/ops/public_repo_presentation_pass.ts
+- systems/ops/relocatable_path_contract.ts
+- systems/helix/strand_verifier.ts
+- systems/runtime/google_ecosystem_runtime_parity.ts
+- systems/edge/mobile_lifecycle_resilience.ts
+- systems/ops/hybrid_interface_stability_contract.ts
+- systems/ops/protheus_core_runtime_envelope.ts
+- systems/memory/memory_fallback_retirement_gate.ts
+- systems/ops/profile_compatibility_gate.ts
+- systems/autonomy/autophagy_baseline_guard.ts
+- systems/security/llm_gateway_guard.ts
+- systems/ops/public_collaboration_surface_pack.ts
+- systems/ops/rust_workspace_quality_gate.ts
+- systems/ops/guard_check_registry.ts
+- systems/obsidian/vault_watcher.ts
+- systems/security/required_checks_policy_guard.ts
+- systems/sensory/adaptive_layer_guard.ts
+- systems/security/policy_rootd.ts
+- systems/ops/benchmark_autonomy_gate.ts
+- systems/ops/requirement_conformance_gate.ts
+- systems/ops/protheus_command_list.ts
+- systems/ops/pinnacle_integration_contract_check.ts
+- systems/runtime/aws_linux_arm_runtime_parity.ts
+- systems/ops/entrypoint_runtime_contract.ts
+- systems/memory/memory_recall.ts
+- systems/identity/visual_signature_engine.ts
+- systems/security/execution_sandbox_rust_wasm_coprocessor_lane.ts
+- systems/reflex/reflex_micro_routine_layer.ts
+- systems/autonomy/doctor_forge_micro_debug_lane.ts
+- systems/security/directive_compiler.ts
+- systems/ops/rust_dual_logic_guard.ts
+- systems/soul/revocation_ceremony.ts
+- systems/security/mcp_a2a_venom_contract_gate.ts
+- systems/economy/_shared.ts
+- systems/ops/rsi_control_plane_cli_surface_contract.ts
+- systems/memory/memory_layer_guard.ts
+- systems/security/critical_runtime_formal_depth_pack.ts
+- systems/security/dire_case_emergency_autonomy_protocol.ts
+- systems/ops/readiness_bridge_pack.ts
+- systems/autonomy/high_tier_mutation_quorum_gate.ts
+- systems/autonomy/backfill_signal_quality.ts
+- systems/workflow/inflight_mutation_engine.ts
+- systems/continuity/succession_continuity_planning.ts
