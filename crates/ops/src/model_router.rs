@@ -775,4 +775,14 @@ mod tests {
         assert_eq!(out["guardrails"]["verification_required"], true);
         assert!(out.get("post_task_return_model").is_none());
     }
+
+    #[test]
+    fn helper_fallbacks_cover_general_task_type_and_proposal_capability_family() {
+        assert_eq!(
+            infer_role("prioritize candidate fixes", ""),
+            "planning"
+        );
+        assert_eq!(capability_family_key("proposal"), "proposal");
+        assert_eq!(task_type_key_from_route("default", "", ""), "general");
+    }
 }
