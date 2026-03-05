@@ -1,4 +1,5 @@
-use serde_json::json;
+use crate::{deterministic_receipt_hash, now_iso};
+use serde_json::{json, Value};
 use std::path::Path;
 use std::process::{Command, Stdio};
 
@@ -8,6 +9,45 @@ fn print_json(value: &serde_json::Value) {
         serde_json::to_string_pretty(value)
             .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
     );
+}
+
+fn bridge_error_receipt(
+    domain: &str,
+    script_rel: &str,
+    error: &str,
+    reason: Option<&str>,
+) -> Value {
+    let mut out = json!({
+        "ok": false,
+        "type": "legacy_bridge_error",
+        "ts": now_iso(),
+        "domain": domain,
+        "script": script_rel,
+        "error": error,
+        "reason": reason,
+        "claim_evidence": [
+            {
+                "id": "fail_closed_bridge",
+                "claim": "legacy_bridge_errors_emit_deterministic_receipts",
+                "evidence": {
+                    "domain": domain,
+                    "script": script_rel,
+                    "error": error
+                }
+            }
+        ],
+        "persona_lenses": {
+            "guardian": {
+                "fallback_mode": "legacy_bridge",
+                "domain": domain
+            },
+            "auditor": {
+                "deterministic_receipt": true
+            }
+        }
+    });
+    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out
 }
 
 fn resolve_node_binary() -> String {
@@ -28,12 +68,12 @@ pub(crate) fn run_legacy_script_with_node(
 ) -> i32 {
     let script_path = root.join(script_rel);
     if !script_path.exists() {
-        print_json(&json!({
-            "ok": false,
-            "error": "legacy_script_missing",
-            "domain": domain,
-            "script": script_rel
-        }));
+        print_json(&bridge_error_receipt(
+            domain,
+            script_rel,
+            "legacy_script_missing",
+            None,
+        ));
         return 1;
     }
 
@@ -52,13 +92,12 @@ pub(crate) fn run_legacy_script_with_node(
     match cmd.status() {
         Ok(status) => status.code().unwrap_or(1),
         Err(err) => {
-            print_json(&json!({
-                "ok": false,
-                "error": "legacy_spawn_failed",
-                "domain": domain,
-                "script": script_rel,
-                "reason": err.to_string()
-            }));
+            print_json(&bridge_error_receipt(
+                domain,
+                script_rel,
+                "legacy_spawn_failed",
+                Some(&err.to_string()),
+            ));
             1
         }
     }
@@ -198,5 +237,34 @@ mod tests {
         let (fallback, cleaned) = split_legacy_fallback_flag(&args, "NO_SUCH_ENV");
         assert!(fallback);
         assert_eq!(cleaned, vec!["run".to_string(), "--strict=1".to_string()]);
+    }
+
+    #[test]
+    fn bridge_error_receipt_is_deterministic() {
+        let out = bridge_error_receipt(
+            "autotest_controller",
+            "systems/ops/autotest_controller_legacy.js",
+            "legacy_script_missing",
+            None,
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("type").and_then(Value::as_str),
+            Some("legacy_bridge_error")
+        );
+        assert!(out.get("claim_evidence").is_some());
+        assert!(out.get("persona_lenses").is_some());
+
+        let expected_hash = out
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .expect("hash")
+            .to_string();
+        let mut unhashed = out.clone();
+        unhashed
+            .as_object_mut()
+            .expect("object")
+            .remove("receipt_hash");
+        assert_eq!(deterministic_receipt_hash(&unhashed), expected_hash);
     }
 }
