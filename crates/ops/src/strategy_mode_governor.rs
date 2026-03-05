@@ -970,4 +970,70 @@ mod tests {
         assert_eq!(tr.reason, "readiness_fail_demote_canary");
         assert!(tr.cooldown_exempt);
     }
+
+    #[test]
+    fn transition_canary_execute_blocks_promotion_when_spc_hold_is_true() {
+        let policy = base_policy();
+        let readiness = ReadinessState {
+            strict_ready: true,
+            canary_relaxed: false,
+            ready_for_canary: true,
+            ready_for_execute: true,
+            effective_ready: true,
+            failed_checks: vec![],
+        };
+        let canary = CanaryState {
+            preview_ready_for_canary: true,
+            ready_for_execute: true,
+            quality_lock_active: true,
+        };
+        let streak = StreakState {
+            escalate_ready_streak: 3,
+            demote_not_ready_streak: 0,
+        };
+
+        let tr = decide_transition(
+            "canary_execute",
+            &readiness,
+            &canary,
+            &policy,
+            true,
+            true,
+            &streak,
+        );
+        assert!(tr.is_none());
+    }
+
+    #[test]
+    fn transition_execute_stays_put_when_ready_even_with_high_demote_streak() {
+        let policy = base_policy();
+        let readiness = ReadinessState {
+            strict_ready: true,
+            canary_relaxed: false,
+            ready_for_canary: true,
+            ready_for_execute: true,
+            effective_ready: true,
+            failed_checks: vec![],
+        };
+        let canary = CanaryState {
+            preview_ready_for_canary: true,
+            ready_for_execute: true,
+            quality_lock_active: true,
+        };
+        let streak = StreakState {
+            escalate_ready_streak: 0,
+            demote_not_ready_streak: 99,
+        };
+
+        let tr = decide_transition(
+            "execute",
+            &readiness,
+            &canary,
+            &policy,
+            true,
+            false,
+            &streak,
+        );
+        assert!(tr.is_none());
+    }
 }
