@@ -457,3 +457,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N38 | systems/security/crimson_wraith_protocol.ts | LOC=324 | 2026-03-05T22:00:50Z
 - [x] N39 | systems/ops/backlog_intake_quality_gate.ts | LOC=324 | 2026-03-05T22:00:53Z
 - [x] N40 | systems/observability/trace_bridge.ts | LOC=324 | 2026-03-05T22:00:56Z
+- [x] N41 | systems/fractal/genome_ledger.ts | LOC=324 | 2026-03-05T22:01:00Z
