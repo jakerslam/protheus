@@ -340,3 +340,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N25 | systems/soul/soul_continuity_adapter.ts | LOC=498 | 2026-03-05T21:50:21Z
 - [x] N26 | systems/research/offline_r_analytics_runner.ts | LOC=497 | 2026-03-05T21:50:24Z
 - [x] N27 | systems/obsidian/obsidian_bridge.ts | LOC=494 | 2026-03-05T21:50:26Z
+- [x] N28 | systems/helix/confirmed_malice_quarantine.ts | LOC=491 | 2026-03-05T21:50:28Z
