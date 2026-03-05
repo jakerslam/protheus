@@ -23,6 +23,8 @@ function runRustCli() {
     '--quiet',
     '--manifest-path',
     'crates/ops/Cargo.toml',
+    '--bin',
+    'protheus-ops',
     '--',
     'model-router',
     ...args
