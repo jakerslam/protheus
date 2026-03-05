@@ -16,6 +16,7 @@ pub mod autotest_controller;
 pub mod autotest_doctor;
 pub mod autonomy_controller;
 pub mod backlog_runtime_anchor;
+pub mod legacy_retired_lane;
 pub mod contract_check;
 pub mod fluxlattice_program;
 pub mod foundation_contract_gate;

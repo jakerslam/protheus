@@ -968,3 +968,65 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 ### Final Anchor Lanes Migrated (2)
 - `systems/ops/backlog_runtime_anchors/v6_rust50_006_anchor.ts`
 - `systems/ops/backlog_runtime_anchors/v6_rust50_007_anchor.ts`
+
+
+## Completed In This Continuation (Non-Anchor Legacy Batch I)
+- Timestamp: 2026-03-05T22:57:00Z
+- Mode: migrate next 50 high-ROI non-anchor TypeScript lanes to Rust runtime (legacy-retired-lane).
+- Scope: 50 lane source files rewired to native Rust receipt path via shared bridge.
+- Gates:
+  - CARGO_TARGET_DIR=/tmp/pc-nextbatch-nonanchor cargo test --manifest-path crates/ops/Cargo.toml ✅ (147 passed, 0 failed)
+  - CARGO_TARGET_DIR=/tmp/pc-nextbatch-nonanchor cargo clippy --manifest-path crates/ops/Cargo.toml --all-targets -- -D warnings ✅
+  - NODE_PATH=/Users/jay/.openclaw/workspace/node_modules npm run -s formal:invariants:run ✅ (ok: true, failed_invariants: 0)
+
+### Lanes Migrated (50)
+- systems/actuation/adapter_defragmentation.ts
+- systems/actuation/claw_registry.ts
+- systems/adaptive/reflex/reflex_runtime_sync.ts
+- systems/autonomy/objective_optimization_floor.ts
+- systems/cli/protheus_suite_tooling.ts
+- systems/distributed/deterministic_control_plane.ts
+- systems/economy/tithe_engine.ts
+- systems/habits/habit_cell_pool.ts
+- systems/hardware/opportunistic_offload_plane.ts
+- systems/memory/cross_cell_exchange_plane.ts
+- systems/ops/architecture_refinement_guard.ts
+- systems/ops/autotest_recipe_release.ts
+- systems/ops/aws_ci_cd_mirror_plane.ts
+- systems/ops/chaos_program.ts
+- systems/ops/command_registry_surface_contract.ts
+- systems/ops/dependency_boundary_guard.ts
+- systems/ops/host_adaptation_operator_surface.ts
+- systems/ops/personas_docs_validation.ts
+- systems/ops/pipeline_handoff_score.ts
+- systems/ops/polish_perception_program.ts
+- systems/ops/protheus_status_dashboard.ts
+- systems/ops/protheus_version_cli.ts
+- systems/ops/queue_log_compact.ts
+- systems/ops/repo_hygiene_generated_guard.ts
+- systems/ops/root_scaffolding_rationalization.ts
+- systems/ops/system_visualizer_guard.ts
+- systems/ops/ui_phase1_polish_consistency_pass.ts
+- systems/routing/hardware_model_planner.ts
+- systems/routing/task_type_outcome_learning.ts
+- systems/runtime/windows_native_runtime_parity.ts
+- systems/science/advanced_statistical_extensions.ts
+- systems/science/reasoning_mirror.ts
+- systems/security/enterprise_access_gate.ts
+- systems/security/habit_hygiene_guard.ts
+- systems/security/ip_posture_review.ts
+- systems/security/mirrorreaper_tier4_resource_inversion.ts
+- systems/security/model_vaccine_sandbox.ts
+- systems/security/psycheforge/_shared.ts
+- systems/security/skill_install_enforcer.ts
+- systems/security/thorn_swarm_protocol.ts
+- systems/sensory/adversarial_hypothesis_challenger.ts
+- systems/sensory/causal_validation_gate_high_impact.ts
+- systems/sensory/champion_challenger_detector_promotion.ts
+- systems/sensory/counterfactual_signal_replay.ts
+- systems/sensory/detector_rollback_migration_safety_contract.ts
+- systems/sensory/distribution_shift_decomposition_engine.ts
+- systems/sensory/ensemble_disagreement_escalation_lane.ts
+- systems/sensory/sensitivity_privacy_aware_scoring_contract.ts
+- systems/strategy/weekly_strategy_synthesis.ts
+- systems/symbiosis/neural_dormant_seed.ts
