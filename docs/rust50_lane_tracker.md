@@ -359,3 +359,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N44 | systems/soul/soul_print_manager.ts | LOC=428 | 2026-03-05T21:51:07Z
 - [x] N45 | systems/echo/input_purification_gate.ts | LOC=425 | 2026-03-05T21:51:09Z
 - [x] N46 | systems/hardware/compression_transfer_plane.ts | LOC=423 | 2026-03-05T21:51:11Z
+- [x] N47 | systems/obsidian/obsidian_phase_pack.ts | LOC=421 | 2026-03-05T21:51:14Z
