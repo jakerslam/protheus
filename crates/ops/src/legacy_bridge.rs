@@ -118,6 +118,15 @@ fn parse_bool_flag(v: Option<&str>) -> bool {
     )
 }
 
+fn resolve_fallback_choice(
+    fallback_from_arg: Option<bool>,
+    module_env: Option<&str>,
+    global_env: Option<&str>,
+) -> bool {
+    fallback_from_arg
+        .unwrap_or_else(|| parse_bool_flag(module_env) || parse_bool_flag(global_env))
+}
+
 pub fn split_legacy_fallback_flag(argv: &[String], module_env_key: &str) -> (bool, Vec<String>) {
     let mut fallback_from_arg = None::<bool>;
     let mut cleaned = Vec::with_capacity(argv.len());
@@ -148,14 +157,13 @@ pub fn split_legacy_fallback_flag(argv: &[String], module_env_key: &str) -> (boo
         i += 1;
     }
 
-    let fallback = fallback_from_arg.unwrap_or_else(|| {
-        parse_bool_flag(std::env::var(module_env_key).ok().as_deref())
-            || parse_bool_flag(
-                std::env::var("PROTHEUS_OPS_LEGACY_FALLBACK")
-                    .ok()
-                    .as_deref(),
-            )
-    });
+    let module_env = std::env::var(module_env_key).ok();
+    let global_env = std::env::var("PROTHEUS_OPS_LEGACY_FALLBACK").ok();
+    let fallback = resolve_fallback_choice(
+        fallback_from_arg,
+        module_env.as_deref(),
+        global_env.as_deref(),
+    );
 
     (fallback, cleaned)
 }
@@ -266,5 +274,28 @@ mod tests {
             .expect("object")
             .remove("receipt_hash");
         assert_eq!(deterministic_receipt_hash(&unhashed), expected_hash);
+    }
+
+    #[test]
+    fn resolve_fallback_prefers_cli_over_env() {
+        let fallback = resolve_fallback_choice(Some(false), Some("1"), Some("1"));
+        assert!(!fallback);
+        let fallback_true = resolve_fallback_choice(Some(true), Some("0"), Some("0"));
+        assert!(fallback_true);
+    }
+
+    #[test]
+    fn resolve_fallback_uses_module_env_then_global_env() {
+        let module_enabled = resolve_fallback_choice(None, Some("true"), Some("0"));
+        assert!(module_enabled);
+
+        let global_enabled = resolve_fallback_choice(None, Some("0"), Some("yes"));
+        assert!(global_enabled);
+    }
+
+    #[test]
+    fn resolve_fallback_defaults_to_false() {
+        let fallback = resolve_fallback_choice(None, None, None);
+        assert!(!fallback);
     }
 }
