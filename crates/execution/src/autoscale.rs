@@ -27749,11 +27749,23 @@ if mode == "alpha" {
     #[test]
     fn bridge_maps_all_backlog_primitive_callsite_modes() {
         let ts_autonomy = include_str!("../../../systems/autonomy/autonomy_controller.ts");
+        let ts_autonomy_legacy =
+            include_str!("../../../systems/autonomy/autonomy_controller_legacy.ts");
         let ts_inversion = include_str!("../../../systems/autonomy/inversion_controller.ts");
+        let ts_inversion_legacy =
+            include_str!("../../../systems/autonomy/inversion_controller_legacy.ts");
         let bridge = include_str!("../../../systems/autonomy/backlog_autoscale_rust_bridge.ts");
         let mut called = extract_mode_literals(ts_autonomy, "runBacklogAutoscalePrimitive");
         called.extend(extract_mode_literals(
+            ts_autonomy_legacy,
+            "runBacklogAutoscalePrimitive",
+        ));
+        called.extend(extract_mode_literals(
             ts_inversion,
+            "runBacklogAutoscalePrimitive",
+        ));
+        called.extend(extract_mode_literals(
+            ts_inversion_legacy,
             "runBacklogAutoscalePrimitive",
         ));
         assert!(
@@ -27777,13 +27789,29 @@ if mode == "alpha" {
     #[test]
     fn controller_callsite_modes_are_dispatched_by_rust_autoscale_json() {
         let ts_autonomy = include_str!("../../../systems/autonomy/autonomy_controller.ts");
+        let ts_autonomy_legacy =
+            include_str!("../../../systems/autonomy/autonomy_controller_legacy.ts");
         let ts_inversion = include_str!("../../../systems/autonomy/inversion_controller.ts");
+        let ts_inversion_legacy =
+            include_str!("../../../systems/autonomy/inversion_controller_legacy.ts");
         let rust_src = include_str!("autoscale.rs");
         let mut called = extract_mode_literals(ts_autonomy, "runBacklogAutoscalePrimitive");
+        called.extend(extract_mode_literals(
+            ts_autonomy_legacy,
+            "runBacklogAutoscalePrimitive",
+        ));
         called.extend(extract_mode_literals(
             ts_inversion,
             "runBacklogAutoscalePrimitive",
         ));
+        called.extend(extract_mode_literals(
+            ts_inversion_legacy,
+            "runBacklogAutoscalePrimitive",
+        ));
+        assert!(
+            !called.is_empty(),
+            "expected runBacklogAutoscalePrimitive mode calls in controller TS sources"
+        );
         let dispatched = extract_dispatch_modes(rust_src);
         let missing = called
             .difference(&dispatched)
