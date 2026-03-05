@@ -394,3 +394,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N79 | systems/assimilation/self_teacher_distillation_primitive.ts | LOC=360 | 2026-03-05T21:52:28Z
 - [x] N80 | systems/sensory/hypothesis_lifecycle_ledger.ts | LOC=359 | 2026-03-05T21:52:31Z
 - [x] N81 | systems/ops/state_kernel_cutover.ts | LOC=359 | 2026-03-05T21:52:33Z
+- [x] N82 | systems/ops/org_code_format_guard.ts | LOC=359 | 2026-03-05T21:52:35Z
