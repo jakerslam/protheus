@@ -27535,11 +27535,19 @@ mod tests {
     }
 
     #[test]
-    fn bridge_maps_all_autonomy_controller_modes() {
-        let ts = include_str!("../../../systems/autonomy/autonomy_controller.ts");
+    fn bridge_maps_all_backlog_primitive_callsite_modes() {
+        let ts_autonomy = include_str!("../../../systems/autonomy/autonomy_controller.ts");
+        let ts_inversion = include_str!("../../../systems/autonomy/inversion_controller.ts");
         let bridge = include_str!("../../../systems/autonomy/backlog_autoscale_rust_bridge.ts");
-        let called = extract_mode_literals(ts, "runBacklogAutoscalePrimitive");
-        assert!(!called.is_empty(), "expected autoscale mode calls in autonomy_controller.ts");
+        let mut called = extract_mode_literals(ts_autonomy, "runBacklogAutoscalePrimitive");
+        called.extend(extract_mode_literals(
+            ts_inversion,
+            "runBacklogAutoscalePrimitive",
+        ));
+        assert!(
+            !called.is_empty(),
+            "expected runBacklogAutoscalePrimitive mode calls in controller TS sources"
+        );
         let mapped = extract_bridge_modes(bridge, "runBacklogAutoscalePrimitive");
         assert!(!mapped.is_empty(), "expected fieldByMode map in backlog_autoscale_rust_bridge.ts");
 
@@ -27549,7 +27557,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert!(
             missing.is_empty(),
-            "autonomy_controller uses autoscale modes missing from Rust bridge map: {:?}",
+            "controller TS sources use autoscale modes missing from Rust bridge map: {:?}",
             missing
         );
     }
