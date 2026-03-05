@@ -484,3 +484,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N65 | systems/red_legion/command_center.ts | LOC=308 | 2026-03-05T22:02:05Z
 - [x] N66 | systems/economy/global_directive_fund.ts | LOC=308 | 2026-03-05T22:02:08Z
 - [x] N67 | systems/ops/rust_hotpath_inventory.ts | LOC=307 | 2026-03-05T22:02:11Z
+- [x] N68 | systems/ops/ts_clone_drift_report.ts | LOC=306 | 2026-03-05T22:02:14Z
