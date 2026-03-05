@@ -22,6 +22,17 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] `3cb7304b` retire spine legacy TypeScript lane
 - [x] `f000496e` retire idle-dream-cycle legacy TypeScript lane
 - [x] `e6b73a53` retire memory-transition legacy TypeScript lane
+- [x] `8f4cccb0` retire strategy-mode-governor legacy TypeScript lane
+- [x] `30d756e6` retire contract-check legacy TypeScript lane
+- [x] `02093c59` retire model-router legacy TypeScript lane
+- [x] `34bfe2b7` retire foundation-contract-gate legacy TypeScript lane
+- [x] `fd350b16` retire state-kernel legacy TypeScript lane
+- [x] `6f06441f` retire personas-cli legacy TypeScript lane
+- [x] `ef061725` retire workflow-executor legacy TypeScript lane
+- [x] `a064cf98` retire autonomy-controller legacy TypeScript lane
+- [x] `c41fddd1` retire inversion-controller legacy TypeScript lane
+- [x] `3ea8e1ea` retire proposal-enricher legacy TypeScript lane
+- [x] `b1444a14` retire health-status legacy TypeScript lane
 
 ## Remaining Legacy TS Lanes (Current Queue)
 - [x] `systems/autonomy/strategy_mode_governor_legacy.ts`
