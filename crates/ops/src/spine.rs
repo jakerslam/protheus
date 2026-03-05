@@ -111,6 +111,47 @@ fn usage() {
     eprintln!("  add --legacy-fallback=1 to execute systems/spine/spine_legacy.js");
 }
 
+fn print_json_line(value: &Value) {
+    println!(
+        "{}",
+        serde_json::to_string(value)
+            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
+    );
+}
+
+fn cli_error_receipt(argv: &[String], error: &str, code: i32) -> Value {
+    let mut out = json!({
+        "ok": false,
+        "type": "spine_cli_error",
+        "ts": now_iso(),
+        "mode": "unknown",
+        "date": now_iso()[..10].to_string(),
+        "argv": argv,
+        "error": error,
+        "exit_code": code,
+        "claim_evidence": [
+            {
+                "id": "fail_closed_cli",
+                "claim": "spine_cli_invalid_args_fail_closed_with_deterministic_receipt",
+                "evidence": {
+                    "error": error,
+                    "argv_len": argv.len()
+                }
+            }
+        ],
+        "persona_lenses": {
+            "guardian": {
+                "constitution_integrity_ok": true
+            },
+            "strategist": {
+                "mode": "cli_error"
+            }
+        }
+    });
+    out["receipt_hash"] = Value::String(receipt_hash(&out));
+    out
+}
+
 fn run_node_json(root: &Path, args: &[String]) -> StepResult {
     let output = Command::new("node")
         .args(args)
@@ -795,6 +836,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     let Some(cli) = parse_cli(&cleaned_argv) else {
         usage();
+        print_json_line(&cli_error_receipt(&cleaned_argv, "invalid_args", 2));
         return 2;
     };
 
@@ -899,5 +941,27 @@ mod tests {
         assert_eq!(parsed.mode, "daily");
         assert_eq!(parsed.date, "2026-03-04");
         assert_eq!(parsed.max_eyes, Some(7));
+    }
+
+    #[test]
+    fn cli_error_receipt_is_deterministic_and_hashed() {
+        let argv = vec!["bad".to_string(), "--x=1".to_string()];
+        let out = cli_error_receipt(&argv, "invalid_args", 2);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(out.get("type").and_then(Value::as_str), Some("spine_cli_error"));
+        assert!(out.get("claim_evidence").is_some());
+        assert!(out.get("persona_lenses").is_some());
+
+        let expected_hash = out
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .expect("hash")
+            .to_string();
+        let mut unhashed = out.clone();
+        unhashed
+            .as_object_mut()
+            .expect("object")
+            .remove("receipt_hash");
+        assert_eq!(receipt_hash(&unhashed), expected_hash);
     }
 }
