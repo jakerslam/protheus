@@ -805,4 +805,74 @@ mod tests {
         assert_eq!(tr.reason, "readiness_fail_demote_canary");
         assert!(tr.cooldown_exempt);
     }
+
+    #[test]
+    fn transition_score_only_skips_when_promote_canary_disabled() {
+        let mut policy = base_policy();
+        policy.promote_canary = false;
+
+        let readiness = ReadinessState {
+            strict_ready: true,
+            canary_relaxed: false,
+            ready_for_canary: true,
+            ready_for_execute: true,
+            effective_ready: true,
+            failed_checks: vec![],
+        };
+        let canary = CanaryState {
+            preview_ready_for_canary: true,
+            ready_for_execute: true,
+            quality_lock_active: true,
+        };
+        let streak = StreakState {
+            escalate_ready_streak: 3,
+            demote_not_ready_streak: 0,
+        };
+
+        let tr = decide_transition(
+            "score_only",
+            &readiness,
+            &canary,
+            &policy,
+            true,
+            false,
+            &streak,
+        );
+        assert!(tr.is_none());
+    }
+
+    #[test]
+    fn transition_canary_execute_skips_when_promote_execute_disabled() {
+        let mut policy = base_policy();
+        policy.promote_execute = false;
+
+        let readiness = ReadinessState {
+            strict_ready: true,
+            canary_relaxed: false,
+            ready_for_canary: true,
+            ready_for_execute: true,
+            effective_ready: true,
+            failed_checks: vec![],
+        };
+        let canary = CanaryState {
+            preview_ready_for_canary: true,
+            ready_for_execute: true,
+            quality_lock_active: true,
+        };
+        let streak = StreakState {
+            escalate_ready_streak: 3,
+            demote_not_ready_streak: 0,
+        };
+
+        let tr = decide_transition(
+            "canary_execute",
+            &readiness,
+            &canary,
+            &policy,
+            true,
+            false,
+            &streak,
+        );
+        assert!(tr.is_none());
+    }
 }
