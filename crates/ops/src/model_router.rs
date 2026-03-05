@@ -20,6 +20,7 @@ pub const ROUTER_MAX_REQUEST_TOKENS: i64 = 12_000;
 pub const ROUTER_PROBE_SUPPRESSION_TIMEOUT_STREAK_DEFAULT: i64 = 3;
 pub const ROUTER_PROBE_SUPPRESSION_MINUTES_DEFAULT: i64 = 45;
 pub const ROUTER_PROBE_REHAB_SUCCESS_THRESHOLD_DEFAULT: i64 = 2;
+pub const ROUTER_BUDGET_DIR_DEFAULT: &str = "state/autonomy/daily_budget";
 pub const DEFAULT_FAST_PATH_DISALLOW_REGEXES: [&str; 5] = [
     "https?:\\/\\/",
     "(^|\\s)--?[a-z0-9][a-z0-9_-]*\\b",
@@ -567,6 +568,23 @@ pub struct FallbackRouteClassification {
     pub risk: String,
     pub complexity: String,
     pub role: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RouterBudgetPolicy {
+    pub enabled: bool,
+    pub state_dir: String,
+    pub allow_strategy_override: bool,
+    pub soft_ratio: f64,
+    pub hard_ratio: f64,
+    pub enforce_hard_cap: bool,
+    pub escalate_on_no_local_fallback: bool,
+    pub cloud_penalty_soft: f64,
+    pub cloud_penalty_hard: f64,
+    pub cheap_local_bonus_soft: f64,
+    pub cheap_local_bonus_hard: f64,
+    pub model_token_multipliers: Map<String, Value>,
+    pub class_token_multipliers: Map<String, Value>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1192,6 +1210,195 @@ pub fn fallback_route_classification(
     }
 }
 
+fn is_budget_date(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    bytes.len() == 10
+        && bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && bytes[..4].iter().all(|ch| ch.is_ascii_digit())
+        && bytes[5..7].iter().all(|ch| ch.is_ascii_digit())
+        && bytes[8..10].iter().all(|ch| ch.is_ascii_digit())
+}
+
+fn default_class_token_multipliers() -> Map<String, Value> {
+    let mut out = Map::<String, Value>::new();
+    out.insert("cheap_local".to_string(), json!(0.42));
+    out.insert("local".to_string(), json!(0.55));
+    out.insert("cloud_anchor".to_string(), json!(1.15));
+    out.insert("cloud_specialist".to_string(), json!(1.35));
+    out.insert("cloud".to_string(), json!(1.2));
+    out.insert("default".to_string(), json!(1.0));
+    out
+}
+
+fn rounded_4(value: f64) -> f64 {
+    (value * 10_000.0).round() / 10_000.0
+}
+
+fn number_value(value: f64) -> Value {
+    serde_json::Number::from_f64(value)
+        .map(Value::Number)
+        .unwrap_or(Value::Null)
+}
+
+pub fn router_budget_policy(cfg: &Value, repo_root: &Path, default_state_dir: &str) -> RouterBudgetPolicy {
+    let src = cfg
+        .as_object()
+        .and_then(|v| v.get("routing"))
+        .and_then(Value::as_object)
+        .and_then(|v| v.get("router_budget_policy"))
+        .and_then(Value::as_object);
+
+    let dir_raw = string_or(src.and_then(|v| v.get("state_dir")), default_state_dir);
+    let state_dir = {
+        let path = Path::new(&dir_raw);
+        if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            repo_root.join(path)
+        }
+    };
+
+    let model_token_multipliers = object_or_empty(src.and_then(|v| v.get("model_token_multipliers")));
+    let class_token_source = object_or_empty(src.and_then(|v| v.get("class_token_multipliers")));
+    let mut class_token_multipliers = default_class_token_multipliers();
+    for (key, value) in class_token_source {
+        class_token_multipliers.insert(key, value);
+    }
+
+    RouterBudgetPolicy {
+        enabled: to_bool_like_value(src.and_then(|v| v.get("enabled")), true),
+        state_dir: state_dir.to_string_lossy().to_string(),
+        allow_strategy_override: to_bool_like_value(
+            src.and_then(|v| v.get("allow_strategy_override")),
+            true,
+        ),
+        soft_ratio: to_bounded_number_like_f64(src.and_then(|v| v.get("soft_ratio")), 0.75, 0.2, 0.98),
+        hard_ratio: to_bounded_number_like_f64(src.and_then(|v| v.get("hard_ratio")), 0.92, 0.3, 0.995),
+        enforce_hard_cap: to_bool_like_value(src.and_then(|v| v.get("enforce_hard_cap")), true),
+        escalate_on_no_local_fallback: to_bool_like_value(
+            src.and_then(|v| v.get("escalate_on_no_local_fallback")),
+            true,
+        ),
+        cloud_penalty_soft: to_bounded_number_like_f64(
+            src.and_then(|v| v.get("cloud_penalty_soft")),
+            4.0,
+            0.0,
+            40.0,
+        ),
+        cloud_penalty_hard: to_bounded_number_like_f64(
+            src.and_then(|v| v.get("cloud_penalty_hard")),
+            10.0,
+            0.0,
+            60.0,
+        ),
+        cheap_local_bonus_soft: to_bounded_number_like_f64(
+            src.and_then(|v| v.get("cheap_local_bonus_soft")),
+            3.0,
+            0.0,
+            40.0,
+        ),
+        cheap_local_bonus_hard: to_bounded_number_like_f64(
+            src.and_then(|v| v.get("cheap_local_bonus_hard")),
+            7.0,
+            0.0,
+            60.0,
+        ),
+        model_token_multipliers,
+        class_token_multipliers,
+    }
+}
+
+pub fn budget_date_str(today_override: &str, now_iso: &str) -> String {
+    if is_budget_date(today_override) {
+        return today_override.to_string();
+    }
+    now_iso.chars().take(10).collect::<String>()
+}
+
+pub fn project_budget_state(budget_state: Option<&Value>, request_tokens: Option<f64>) -> Value {
+    let safe_req = request_tokens
+        .filter(|value| value.is_finite() && *value > 0.0)
+        .map(|value| value.round() as i64)
+        .unwrap_or(0)
+        .max(0);
+
+    let mut out = object_or_empty(budget_state);
+    let available = out
+        .get("available")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+
+    out.insert(
+        "request_tokens_est".to_string(),
+        Value::Number(serde_json::Number::from(safe_req)),
+    );
+
+    if !available {
+        let projected_pressure = out
+            .get("pressure")
+            .filter(|value| js_truthy(Some(*value)))
+            .cloned()
+            .unwrap_or_else(|| Value::String("none".to_string()));
+        out.insert("projected_used_est".to_string(), Value::Null);
+        out.insert("projected_ratio".to_string(), Value::Null);
+        out.insert("projected_pressure".to_string(), projected_pressure);
+        return Value::Object(out);
+    }
+
+    let policy = out.get("policy").and_then(Value::as_object);
+    let soft_ratio = to_bounded_number_like_f64(policy.and_then(|v| v.get("soft_ratio")), 0.75, 0.2, 0.99);
+    let hard_ratio = to_bounded_number_like_f64(policy.and_then(|v| v.get("hard_ratio")), 0.92, 0.3, 1.0);
+    let cap = finite_number(out.get("token_cap"));
+    let used = finite_number(out.get("used_est"));
+
+    let Some(cap) = cap else {
+        out.insert("projected_used_est".to_string(), Value::Null);
+        out.insert("projected_ratio".to_string(), Value::Null);
+        out.insert(
+            "projected_pressure".to_string(),
+            Value::String("none".to_string()),
+        );
+        return Value::Object(out);
+    };
+    let Some(used) = used else {
+        out.insert("projected_used_est".to_string(), Value::Null);
+        out.insert("projected_ratio".to_string(), Value::Null);
+        out.insert(
+            "projected_pressure".to_string(),
+            Value::String("none".to_string()),
+        );
+        return Value::Object(out);
+    };
+    if cap <= 0.0 || used < 0.0 {
+        out.insert("projected_used_est".to_string(), Value::Null);
+        out.insert("projected_ratio".to_string(), Value::Null);
+        out.insert(
+            "projected_pressure".to_string(),
+            Value::String("none".to_string()),
+        );
+        return Value::Object(out);
+    }
+
+    let projected_used = used + safe_req as f64;
+    let projected_ratio = projected_used / cap;
+    let projected_pressure = if projected_ratio >= hard_ratio {
+        "hard"
+    } else if projected_ratio >= soft_ratio {
+        "soft"
+    } else {
+        "none"
+    };
+
+    out.insert("projected_used_est".to_string(), number_value(projected_used));
+    out.insert("projected_ratio".to_string(), number_value(rounded_4(projected_ratio)));
+    out.insert(
+        "projected_pressure".to_string(),
+        Value::String(projected_pressure.to_string()),
+    );
+    Value::Object(out)
+}
+
 pub fn route_class_policy(cfg: &Value, route_class_raw: &str) -> RouteClassPolicy {
     let id = {
         let normalized = normalize_key(if route_class_raw.is_empty() {
@@ -1604,6 +1811,7 @@ pub fn build_handoff_packet(decision: &Value) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
 
     #[test]
     fn local_ollama_model_detection_is_strict() {
@@ -2113,6 +2321,149 @@ mod tests {
         assert_eq!(no_override.risk, "medium");
         assert_eq!(no_override.complexity, "medium");
         assert_eq!(no_override.role, "general");
+    }
+
+    #[test]
+    fn router_budget_policy_matches_defaults_and_overrides() {
+        let defaults =
+            router_budget_policy(&json!({}), Path::new("/repo"), ROUTER_BUDGET_DIR_DEFAULT);
+        assert!(defaults.enabled);
+        assert!(defaults.allow_strategy_override);
+        assert!((defaults.soft_ratio - 0.75).abs() < 1e-9);
+        assert!((defaults.hard_ratio - 0.92).abs() < 1e-9);
+        assert!(defaults.enforce_hard_cap);
+        assert!(defaults.escalate_on_no_local_fallback);
+        assert!((defaults.cloud_penalty_soft - 4.0).abs() < 1e-9);
+        assert!((defaults.cloud_penalty_hard - 10.0).abs() < 1e-9);
+        assert!(defaults.state_dir.ends_with("state/autonomy/daily_budget"));
+        assert_eq!(
+            defaults
+                .class_token_multipliers
+                .get("cheap_local")
+                .and_then(Value::as_f64),
+            Some(0.42)
+        );
+        assert_eq!(
+            defaults
+                .class_token_multipliers
+                .get("default")
+                .and_then(Value::as_f64),
+            Some(1.0)
+        );
+
+        let cfg = json!({
+            "routing": {
+                "router_budget_policy": {
+                    "enabled": "off",
+                    "state_dir": "tmp/router_budget",
+                    "allow_strategy_override": "0",
+                    "soft_ratio": 1.5,
+                    "hard_ratio": 0.1,
+                    "enforce_hard_cap": "false",
+                    "escalate_on_no_local_fallback": "no",
+                    "cloud_penalty_soft": 99,
+                    "cloud_penalty_hard": -10,
+                    "cheap_local_bonus_soft": 77,
+                    "cheap_local_bonus_hard": 88,
+                    "model_token_multipliers": {
+                        "openai/gpt-4.1": "1.8"
+                    },
+                    "class_token_multipliers": {
+                        "cloud": 2.5,
+                        "local": 0
+                    }
+                }
+            }
+        });
+        let overridden = router_budget_policy(&cfg, Path::new("/repo"), ROUTER_BUDGET_DIR_DEFAULT);
+        assert!(!overridden.enabled);
+        assert!(!overridden.allow_strategy_override);
+        assert!((overridden.soft_ratio - 0.98).abs() < 1e-9);
+        assert!((overridden.hard_ratio - 0.3).abs() < 1e-9);
+        assert!(!overridden.enforce_hard_cap);
+        assert!(!overridden.escalate_on_no_local_fallback);
+        assert!((overridden.cloud_penalty_soft - 40.0).abs() < 1e-9);
+        assert!((overridden.cloud_penalty_hard - 0.0).abs() < 1e-9);
+        assert!((overridden.cheap_local_bonus_soft - 40.0).abs() < 1e-9);
+        assert!((overridden.cheap_local_bonus_hard - 60.0).abs() < 1e-9);
+        assert!(overridden.state_dir.ends_with("tmp/router_budget"));
+        assert_eq!(
+            overridden
+                .model_token_multipliers
+                .get("openai/gpt-4.1")
+                .and_then(Value::as_str),
+            Some("1.8")
+        );
+        assert_eq!(
+            overridden
+                .class_token_multipliers
+                .get("cloud")
+                .and_then(Value::as_f64),
+            Some(2.5)
+        );
+        assert_eq!(
+            overridden
+                .class_token_multipliers
+                .get("local")
+                .and_then(Value::as_i64),
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn budget_date_str_prefers_valid_override() {
+        assert_eq!(
+            budget_date_str("2026-03-01", "2020-01-01T00:00:00.000Z"),
+            "2026-03-01"
+        );
+        assert_eq!(
+            budget_date_str("bad-date", "2026-03-05T12:34:56.000Z"),
+            "2026-03-05"
+        );
+        assert_eq!(budget_date_str("", "short"), "short");
+    }
+
+    #[test]
+    fn project_budget_state_matches_unavailable_and_projection_contracts() {
+        let unavailable = project_budget_state(
+            Some(&json!({"enabled": true, "available": false, "pressure": "soft"})),
+            Some(120.6),
+        );
+        assert_eq!(unavailable["request_tokens_est"], 121);
+        assert_eq!(unavailable["projected_used_est"], Value::Null);
+        assert_eq!(unavailable["projected_ratio"], Value::Null);
+        assert_eq!(unavailable["projected_pressure"], "soft");
+
+        let projected = project_budget_state(
+            Some(&json!({
+                "enabled": true,
+                "available": true,
+                "pressure": "none",
+                "token_cap": 1000,
+                "used_est": 850,
+                "policy": { "soft_ratio": 0.75, "hard_ratio": 0.92 }
+            })),
+            Some(100.4),
+        );
+        assert_eq!(projected["request_tokens_est"], 100);
+        assert_eq!(projected["projected_used_est"], 950.0);
+        assert_eq!(projected["projected_ratio"], 0.95);
+        assert_eq!(projected["projected_pressure"], "hard");
+
+        let invalid_cap = project_budget_state(
+            Some(&json!({
+                "enabled": true,
+                "available": true,
+                "pressure": "hard",
+                "token_cap": 0,
+                "used_est": 850
+            })),
+            Some(80.0),
+        );
+        assert_eq!(invalid_cap["request_tokens_est"], 80);
+        assert_eq!(invalid_cap["projected_used_est"], Value::Null);
+        assert_eq!(invalid_cap["projected_ratio"], Value::Null);
+        assert_eq!(invalid_cap["projected_pressure"], "none");
     }
 
     #[test]
