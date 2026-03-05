@@ -27,7 +27,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] `systems/autonomy/strategy_mode_governor_legacy.ts`
 - [x] `systems/spine/contract_check_legacy.ts`
 - [x] `systems/routing/model_router_legacy.ts`
-- [ ] `systems/ops/foundation_contract_gate_legacy.ts`
+- [x] `systems/ops/foundation_contract_gate_legacy.ts`
 - [ ] `systems/ops/state_kernel_legacy.ts`
 - [ ] `systems/personas/cli_legacy.ts`
 - [ ] `systems/workflow/workflow_executor_legacy.ts`
