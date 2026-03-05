@@ -1,6 +1,6 @@
 # Rust50 Lane Tracker
 
-Last updated: 2026-03-05 (America/Denver)
+Last updated: 2026-03-05 (America/Denver, late run)
 Branch target: `main`
 
 ## Purpose
@@ -34,6 +34,23 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] `3ea8e1ea` retire proposal-enricher legacy TypeScript lane
 - [x] `b1444a14` retire health-status legacy TypeScript lane
 
+## Completed In This Continuation (Wrapper Runtime + Source Cutover)
+- [x] `880e4bc4` harden health-status JavaScript rust wrapper
+- [x] `c8de50fe` harden inversion-controller JavaScript rust wrapper
+- [x] `3a5b7fb8` harden proposal-enricher JavaScript rust wrapper
+- [x] `3d406659` harden strategy-mode-governor JavaScript rust wrapper
+- [x] `7226554b` migrate autotest-controller wrapper source to JavaScript
+- [x] `a180eeeb` migrate autotest-doctor wrapper source to JavaScript
+- [x] `56dfec10` migrate foundation-contract-gate wrapper source to JavaScript
+- [x] `888c8390` migrate state-kernel wrapper source to JavaScript
+- [x] `5143267f` migrate personas-cli wrapper source to JavaScript
+- [x] `60dbff35` migrate model-router wrapper source to JavaScript
+- [x] `fcf63d08` migrate contract-check wrapper source to JavaScript
+- [x] `f0d9b0b8` migrate spine wrapper source to JavaScript
+- [x] `ca667c2f` migrate workflow-executor wrapper source to JavaScript
+- [x] `760f2bc7` migrate idle-dream-cycle wrapper source to JavaScript
+- [x] `d622ecfc` migrate rust-memory-transition-lane wrapper source to JavaScript
+
 ## Remaining Legacy TS Lanes (Current Queue)
 - [x] `systems/autonomy/strategy_mode_governor_legacy.ts`
 - [x] `systems/spine/contract_check_legacy.ts`
@@ -51,3 +68,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - Some Rust lane entrypoints still route through legacy script adapters in `crates/ops/src/*`.
 - Retirement stubs are fail-closed and emit deterministic JSON error payloads.
 - Full functional replacement for those lanes requires replacing `legacy_bridge::run_passthrough` / `run_legacy_script_compat` in Rust entrypoints.
+- Wrapper source `.ts` files for the above lanes have been removed and replaced by committed `.js` runtime wrappers.
