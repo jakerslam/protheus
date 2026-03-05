@@ -34,7 +34,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] `systems/autonomy/autonomy_controller_legacy.ts`
 - [x] `systems/autonomy/inversion_controller_legacy.ts`
 - [x] `systems/autonomy/proposal_enricher_legacy.ts`
-- [ ] `systems/autonomy/health_status_legacy.ts`
+- [x] `systems/autonomy/health_status_legacy.ts`
 
 ## Notes
 - Some Rust lane entrypoints still route through legacy script adapters in `crates/ops/src/*`.
