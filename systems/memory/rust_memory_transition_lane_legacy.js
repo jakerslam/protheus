@@ -8,5 +8,16 @@ const payload = {
   replacement: 'systems/memory/rust/bin rust_memory_transition_lane'
 };
 
-process.stderr.write(`${JSON.stringify(payload)}\n`);
-process.exit(2);
+if (require.main === module) {
+  process.stderr.write(`${JSON.stringify(payload)}\n`);
+  process.exit(2);
+}
+
+function run() {
+  return { ...payload };
+}
+
+module.exports = {
+  ...payload,
+  run
+};
