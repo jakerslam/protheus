@@ -12131,6 +12131,25 @@ if another == "gamma" {
     }
 
     #[test]
+    fn controller_callsite_modes_are_dispatched_by_rust_inversion_json() {
+        let ts_autonomy = include_str!("../../../systems/autonomy/autonomy_controller.ts");
+        let ts_inversion = include_str!("../../../systems/autonomy/inversion_controller.ts");
+        let rust_src = include_str!("inversion.rs");
+        let mut called = extract_mode_literals(ts_inversion, "runInversionPrimitive");
+        called.extend(extract_mode_literals(ts_autonomy, "runInversionPrimitive"));
+        let dispatched = extract_dispatch_modes(rust_src);
+        let missing = called
+            .difference(&dispatched)
+            .cloned()
+            .collect::<Vec<_>>();
+        assert!(
+            missing.is_empty(),
+            "controller TS sources use inversion modes not dispatched by Rust inversion_json: {:?}",
+            missing
+        );
+    }
+
+    #[test]
     fn rust_dispatch_covers_all_inversion_bridge_modes() {
         let bridge = include_str!("../../../systems/autonomy/backlog_autoscale_rust_bridge.ts");
         let rust_src = include_str!("inversion.rs");
