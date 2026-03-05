@@ -894,4 +894,29 @@ mod tests {
         assert_eq!(out["budget_enforcement"]["reason"], Value::Null);
         assert_eq!(out["budget_enforcement"]["blocked"], true);
     }
+
+    #[test]
+    fn inference_precedence_prefers_coding_and_file_edit_over_tool_and_read_keywords() {
+        assert_eq!(
+            infer_role("patch automation cli workflow", "read files"),
+            "coding"
+        );
+        assert_eq!(
+            infer_capability("patch read cli workflow", "inspect file", ""),
+            "file_edit"
+        );
+    }
+
+    #[test]
+    fn handoff_packet_tier_three_keeps_truthy_numeric_post_task_return_model() {
+        let payload = json!({
+            "tier": 3,
+            "deep_thinker": -1,
+            "post_task_return_model": 7
+        });
+        let out = build_handoff_packet(&payload);
+        assert_eq!(out["guardrails"]["deep_thinker"], true);
+        assert_eq!(out["guardrails"]["verification_required"], true);
+        assert_eq!(out["post_task_return_model"], 7);
+    }
 }
