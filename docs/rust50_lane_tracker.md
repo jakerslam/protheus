@@ -1152,3 +1152,64 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - systems/autonomy/backfill_signal_quality.ts
 - systems/workflow/inflight_mutation_engine.ts
 - systems/continuity/succession_continuity_planning.ts
+
+## Completed In This Continuation (Non-Anchor Legacy Batch L)
+- Timestamp: 2026-03-05T23:07:44Z
+- Mode: migrate next 50 high-ROI non-anchor TypeScript lanes to Rust runtime (legacy-retired-lane).
+- Scope: 50 lane source files rewired to native Rust receipt path via shared bridge.
+- Gates:
+  - CARGO_TARGET_DIR=/tmp/pc-nextbatch-l cargo test --manifest-path crates/ops/Cargo.toml ✅ (147 passed, 0 failed)
+  - CARGO_TARGET_DIR=/tmp/pc-nextbatch-l cargo clippy --manifest-path crates/ops/Cargo.toml --all-targets -- -D warnings ✅
+  - NODE_PATH=/Users/jay/.openclaw/workspace/node_modules npm run -s formal:invariants:run ✅ (ok: true, failed_invariants: 0)
+
+### Lanes Migrated (50)
+- systems/ops/state_tiering_contract.ts
+- systems/workflow/account_creation_profile_extension.ts
+- systems/assimilation/trajectory_skill_distiller.ts
+- systems/ops/ci_quality_scorecard.ts
+- systems/memory/hybrid_memory_engine.ts
+- systems/memory/dynamic_memory_embedding_adapter.ts
+- systems/hardware/device_mesh_adaptive_runtime.ts
+- systems/ops/openclaw_backup_retention.ts
+- systems/actuation/full_virtual_desktop_claw_lane.ts
+- systems/primitives/canonical_event_log.ts
+- systems/autonomy/inversion_semantic_matcher.ts
+- systems/security/integrity_reseal_assistant.ts
+- systems/ops/spine_kernel_budget_check.ts
+- systems/memory/memory_transport.ts
+- systems/autonomy/slo_runbook_check.ts
+- systems/ops/ui_surface_maturity_pack.ts
+- systems/primitives/primitive_registry.ts
+- systems/assimilation/legal_gate.ts
+- systems/workflow/orchestron/intent_analyzer.ts
+- systems/audit/hash_chain_ledger.ts
+- systems/ops/chaos_self_healing_automation.ts
+- systems/primitives/cognitive_control_primitive.ts
+- systems/ops/cross_instance_federated_learning.ts
+- systems/finance/agent_settlement_extension.ts
+- systems/security/integrity_reseal.ts
+- systems/ops/continuous_parity_maintainer.ts
+- systems/ops/docs_surface_contract.ts
+- systems/ops/protheus_repl.ts
+- systems/ops/collective_intelligence_contract_check.ts
+- systems/primitives/policy_vm.ts
+- systems/ops/enterprise_onboarding_pack.ts
+- systems/research/civilizational_symbiosis_track.ts
+- systems/fractal/critic.ts
+- systems/autonomy/motivational_state_vector.ts
+- systems/ops/universal_distribution_plane.ts
+- systems/ops/holo_overlay_compiler.ts
+- systems/fractal/constitution_hooks.ts
+- systems/ops/history_cleanliness_program.ts
+- systems/ops/critical_protocol_formal_suite.ts
+- systems/fractal/shadow_trial_runner.ts
+- systems/assimilation/source_attestation_extension.ts
+- systems/autonomy/self_change_failsafe.ts
+- systems/ops/documentation_program_hardening.ts
+- systems/storm/economic_value_distribution_layer.ts
+- systems/ops/os_bridge.ts
+- systems/assimilation/graft_manager.ts
+- systems/ops/root_surface_contract.ts
+- systems/ops/wasi2_lane_adapter.ts
+- systems/ops/legal_language_contract.ts
+- systems/security/merge_guard.ts
