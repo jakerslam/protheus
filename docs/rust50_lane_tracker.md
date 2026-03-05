@@ -472,3 +472,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N53 | systems/ops/broken_piece_lab.ts | LOC=314 | 2026-03-05T22:01:30Z
 - [x] N54 | systems/memory/memory_index_freshness_gate.ts | LOC=313 | 2026-03-05T22:01:35Z
 - [x] N55 | systems/memory/napi_build_surface_compat.ts | LOC=312 | 2026-03-05T22:01:38Z
+- [x] N56 | systems/sensory/novelty_saturation_prioritization_engine.ts | LOC=311 | 2026-03-05T22:01:41Z
