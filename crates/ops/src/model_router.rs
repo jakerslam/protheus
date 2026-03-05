@@ -721,6 +721,33 @@ pub struct PromptCacheIndex {
     pub updated_at: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct PromptCacheSignalResult {
+    pub enabled: bool,
+    pub lane: String,
+    pub key: Option<String>,
+    pub eligible: bool,
+    pub hits_recent: i64,
+    pub min_hits: i64,
+    pub window_minutes: i64,
+    pub reason: String,
+    pub policy: PromptCachePolicy,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PromptCacheSignalInput<'a> {
+    pub cfg: &'a Value,
+    pub intent: &'a str,
+    pub task: &'a str,
+    pub capability: &'a str,
+    pub role: &'a str,
+    pub lane: &'a str,
+    pub now_ms: i64,
+    pub index_state_raw: Option<&'a Value>,
+    pub repo_root: &'a Path,
+    pub default_index_path: &'a str,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct RouterBudgetStateInput<'a> {
     pub cfg: &'a Value,
@@ -1791,6 +1818,60 @@ pub fn load_prompt_cache_index(raw: Option<&Value>) -> PromptCacheIndex {
         schema_version: 1,
         entries,
         updated_at: normalized_optional_string(src.and_then(|v| v.get("updated_at"))),
+    }
+}
+
+pub fn prompt_cache_signal(input: PromptCacheSignalInput<'_>) -> PromptCacheSignalResult {
+    let policy = prompt_cache_policy(
+        input.cfg,
+        input.lane,
+        input.repo_root,
+        input.default_index_path,
+    );
+    let base = PromptCacheSignalResult {
+        enabled: policy.enabled,
+        lane: policy.lane.clone(),
+        key: None,
+        eligible: false,
+        hits_recent: 0,
+        min_hits: policy.min_hits,
+        window_minutes: policy.window_minutes,
+        reason: "disabled".to_string(),
+        policy: policy.clone(),
+    };
+    if !policy.enabled {
+        return base;
+    }
+
+    let key = prompt_cache_key(
+        input.intent,
+        input.task,
+        input.capability,
+        input.role,
+        &policy.lane,
+    );
+    let state = load_prompt_cache_index(input.index_state_raw);
+    let entry = state.entries.get(&key).and_then(Value::as_object);
+    let window_ms = (policy.window_minutes.max(0) as i64) * 60 * 1000;
+    let hits_recent = entry
+        .and_then(|v| v.get("timestamps_ms"))
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(|row| finite_number(Some(row)))
+                .filter(|stamp| stamp.is_finite())
+                .map(|stamp| stamp as i64)
+                .filter(|stamp| (input.now_ms - *stamp) <= window_ms)
+                .count() as i64
+        })
+        .unwrap_or(0);
+
+    PromptCacheSignalResult {
+        key: Some(key),
+        eligible: hits_recent >= policy.min_hits,
+        hits_recent,
+        reason: "ok".to_string(),
+        ..base
     }
 }
 
@@ -3747,6 +3828,65 @@ mod tests {
         })));
         assert!(sanitized.entries.is_empty());
         assert_eq!(sanitized.updated_at, None);
+    }
+
+    #[test]
+    fn prompt_cache_signal_matches_disabled_and_recent_hit_eligibility_contract() {
+        let disabled = prompt_cache_signal(PromptCacheSignalInput {
+            cfg: &json!({
+                "routing": {
+                    "prompt_cache_policy": {
+                        "enabled": false
+                    }
+                }
+            }),
+            intent: "status",
+            task: "run checks",
+            capability: "chat",
+            role: "general",
+            lane: "autonomy",
+            now_ms: 1_000_000,
+            index_state_raw: None,
+            repo_root: Path::new("/repo"),
+            default_index_path: PROMPT_CACHE_INDEX_PATH_REL_DEFAULT,
+        });
+        assert!(!disabled.enabled);
+        assert_eq!(disabled.reason, "disabled");
+        assert!(disabled.key.is_none());
+        assert!(!disabled.eligible);
+
+        let key = prompt_cache_key("status", "run checks", "chat", "general", "autonomy");
+        let enabled = prompt_cache_signal(PromptCacheSignalInput {
+            cfg: &json!({
+                "routing": {
+                    "prompt_cache_policy": {
+                        "enabled": true,
+                        "window_minutes": 10,
+                        "min_hits": 2
+                    }
+                }
+            }),
+            intent: "status",
+            task: "run checks",
+            capability: "chat",
+            role: "general",
+            lane: "autonomy",
+            now_ms: 1_000_000,
+            index_state_raw: Some(&json!({
+                "entries": {
+                    (key.clone()): {
+                        "timestamps_ms": [990000, 950000, 100000]
+                    }
+                }
+            })),
+            repo_root: Path::new("/repo"),
+            default_index_path: PROMPT_CACHE_INDEX_PATH_REL_DEFAULT,
+        });
+        assert!(enabled.enabled);
+        assert_eq!(enabled.reason, "ok");
+        assert_eq!(enabled.key.as_deref(), Some(key.as_str()));
+        assert_eq!(enabled.hits_recent, 3);
+        assert!(enabled.eligible);
     }
 
     #[test]
