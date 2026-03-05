@@ -384,3 +384,4 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N69 | systems/sensory/collector_driver.ts | LOC=381 | 2026-03-05T21:52:05Z
 - [x] N70 | systems/forge/forge_organ.ts | LOC=380 | 2026-03-05T21:52:07Z
 - [x] N71 | systems/assimilation/generative_simulation_mode.ts | LOC=380 | 2026-03-05T21:52:10Z
+- [x] N72 | systems/fractal/warden/complexity_warden_meta_organ.ts | LOC=378 | 2026-03-05T21:52:12Z
