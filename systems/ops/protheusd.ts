@@ -68,7 +68,12 @@ async function runConduit(command: string, extraArgs: string[]): Promise<Conduit
     return { routed: false, ok: false, error: 'unsupported_command' };
   }
 
-  const { ConduitClient } = require('../conduit/conduit-client');
+  let ConduitClient: any;
+  try {
+    ({ ConduitClient } = require('../conduit/conduit-client'));
+  } catch (_err) {
+    ({ ConduitClient } = require('../conduit/conduit-client.ts'));
+  }
   const daemonCommand = process.env.CONDUIT_DAEMON_CMD || 'cargo';
   const daemonArgs = process.env.CONDUIT_DAEMON_ARGS
     ? process.env.CONDUIT_DAEMON_ARGS.split(' ').filter(Boolean)

@@ -19,6 +19,15 @@
       "conduit_required_strict"
     ]
   },
+  "conduit_budget_gate": {
+    "path": "crates/conduit/src/lib.rs",
+    "required_tokens": [
+      "MAX_CONDUIT_MESSAGE_TYPES: usize = 10",
+      "pub const TS_COMMAND_TYPES: [&str; 7]",
+      "pub const RUST_EVENT_TYPES: [&str; 3]",
+      "validate_conduit_contract_budget"
+    ]
+  },
   "js_wrapper_contract": {
     "required_wrapper_paths": [
       "systems/spine/spine_safe_launcher.js",
