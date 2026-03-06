@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
   "crates/blob_test",
+  "crates/kernel_layers",
   "crates/execution",
   "crates/foundation_hook_enforcer",
   "crates/fluxlattice",

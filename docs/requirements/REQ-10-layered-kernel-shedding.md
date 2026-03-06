@@ -1,6 +1,6 @@
 # REQ-10 - Layered Kernel Shedding
 
-Status: proposed  
+Status: implemented  
 Owner: core-runtime  
 Last Updated: 2026-03-06
 
@@ -82,3 +82,22 @@ Define and implement sheddable Rust kernel layers so Protheus/InfRing can compil
 - Minimal layer build documented and reproducible.
 - CI verifies all required profiles.
 - Formal invariants and core checks remain green.
+
+## Implementation (2026-03-06)
+
+Code deliverables:
+- `crates/kernel_layers/Cargo.toml` with deterministic feature graph:
+  - `layer0` -> `task`, `resource`
+  - `layer1` -> `layer0` + `isolation`, `ipc`, `storage`, `update`
+  - `layer2` -> `layer1` + `conduit`
+  - `layer3` -> `layer2` + `protheus-observability-core-v1`
+- `crates/kernel_layers/src/lib.rs` with strict `#[cfg(feature = ...)]` exports per layer and profile monotonicity tests.
+- Workspace member registration in root `Cargo.toml`.
+
+Build matrix commands:
+1. Minimal core profile (`layer0`):
+   - `cargo test -p kernel_layers --no-default-features --features layer0`
+2. Conduit execution profile (`layer2`):
+   - `cargo test -p kernel_layers --no-default-features --features layer2`
+3. Full default profile (`layer3`):
+   - `cargo test -p kernel_layers`
