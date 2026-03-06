@@ -142,6 +142,24 @@ fn path_from_policy(root: &Path, raw: Option<&str>, fallback: &str) -> PathBuf {
     }
 }
 
+fn canonicalize_or_self(path: &Path) -> PathBuf {
+    fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+}
+
+fn enforce_canonical_backlog_path(root: &Path, policy: &Policy) -> Result<(), String> {
+    let expected = root.join("SRS.md");
+    let expected_canon = canonicalize_or_self(&expected);
+    let actual_canon = canonicalize_or_self(&policy.paths.backlog_path);
+    if expected_canon != actual_canon {
+        return Err(format!(
+            "canonical_backlog_path_required:expected={}:actual={}",
+            expected.display(),
+            policy.paths.backlog_path.display()
+        ));
+    }
+    Ok(())
+}
+
 fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
     let default_path = root.join("config/backlog_registry_policy.json");
     let policy_path = policy_override
@@ -1111,6 +1129,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
 
     let policy = load_policy(root, parsed.flags.get("policy"));
+    if let Err(err) = enforce_canonical_backlog_path(root, &policy) {
+        print_json_line(&cli_error_receipt(argv, &err, 1));
+        return 1;
+    }
     let strict = parse_bool(parsed.flags.get("strict"), policy.strict_default);
 
     match cmd.as_str() {
