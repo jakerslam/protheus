@@ -1,29 +1,52 @@
 # Protheus Architecture
 
-Protheus is a policy-governed local control plane with deterministic receipts.
+Protheus is built as a Rust-first kernel (trusted core) with a narrow conduit to TypeScript surfaces.
 
-## Pillars
+## InfRing Direction
 
-- Runtime lanes in `systems/`
-- Shared runtime helpers in `lib/`
-- Contracts/policies in `config/`
-- Operator and governance docs in `docs/`
+InfRing is the target operating model: a portable autonomous substrate that runs unchanged across desktop, server, embedded, and high-assurance profiles.
 
-## Core Flow
+- Rust kernel remains the single source of truth.
+- Conduit is the only TS <-> Rust bridge.
+- TS is reserved for flexible surfaces (UI, marketplace, extensions, experimentation).
 
-1. Inputs enter through control surfaces (`protheus`, `protheusctl`, `protheus-top`).
-2. Policy gates and safety checks determine allowed execution paths.
-3. Runtime lanes execute deterministically and emit receipts under `state/`.
-4. Governance lanes verify drift, backlog sync, and documentation integrity.
+## System Map
 
-## Documentation Map
+```mermaid
+flowchart LR
+    UI["TS Surface (UI / Marketplace / Extensions)"]
+    CLI["CLI Surface (protheus / protheusctl / protheusd)"]
+    CONDUIT["Conduit (typed messages + receipts)"]
+    POLICY["Constitution + Policy Gates (Rust)"]
+    PRIMS["7 Core Primitives (Rust): task, resource, isolation, ipc, storage, observability, update"]
+    CORE["Rust Core Runtime (ops/execution/memory/routing)"]
+    STATE["Deterministic Receipts + State Artifacts"]
 
-- [Documentation Hub](docs/README.md)
-- [Developer Lane Quickstart](docs/DEVELOPER_LANE_QUICKSTART.md)
-- [Operator Runbook](docs/OPERATOR_RUNBOOK.md)
-- [Security Policy](SECURITY.md)
+    UI --> CONDUIT
+    CLI --> CONDUIT
+    CONDUIT --> POLICY
+    POLICY --> PRIMS
+    PRIMS --> CORE
+    CORE --> STATE
+    POLICY --> STATE
+```
 
-## Contribution Contract
+## Runtime Flow
 
-- Any user-visible change should include tests + docs + changelog evidence.
-- Backlog status changes must follow verified implementation.
+1. A command enters from CLI or a TS surface.
+2. Conduit normalizes the command into a typed envelope.
+3. Rust policy/constitution checks evaluate fail-closed.
+4. Rust primitives execute deterministic logic.
+5. Crossing + validation receipts are emitted for auditability.
+
+## Portability Contract
+
+- With TS present: conduit-backed orchestration and rich operator surfaces.
+- Without TS: Rust core still runs with no kernel behavior drift.
+
+## Related Docs
+
+- [Getting Started](docs/GETTING_STARTED.md)
+- [Conduit Requirement](docs/requirements/REQ-05-protheus-conduit-bridge.md)
+- [Rust Primitive Requirement](docs/requirements/REQ-08-rust-core-primitives.md)
+- [Security Posture](docs/SECURITY_POSTURE.md)

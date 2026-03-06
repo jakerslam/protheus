@@ -4491,3 +4491,11 @@ Objective: establish a narrow Rust-first conduit between the TCB and TypeScript 
 | V6-PRIM-007 | primitive-upgrade | V6 | done | Update Primitive Rust Completion | Update/install policy at scaffold level blocks auditable kernel-side update safety enforcement. | `crates/update` owns update package validation and fail-closed policy checks with tests. | REQ-08-001 |
 | V6-PRIM-008 | hardening | V6 | in_progress | Primitive TS Wrapper Contract Enforcement | Primitive-adjacent TS lanes can regress into logic ownership unless contract-enforced. | `contract_check` validates `primitive_ts_wrapper_contract` in `config/rust_source_of_truth_policy.json`; wrappers require conduit bridge tokens and forbid legacy bridge imports. | REQ-08-002, REQ-08-004 |
 | V6-PRIM-009 | governance | V6 | in_progress | Primitive Migration Residual Audit | Remaining primitive-like TS files need explicit residual inventory and burn-down tracking. | Publish/update primitive residual report with each migration wave, listing non-wrapper TS primitive candidates and target crate mapping. | REQ-08-005 |
+
+## Testing + Documentation + Installer Gap Closer (2026-03-06)
+
+| ID | Class | Wave | Status | Title | Problem | Acceptance | Dependencies |
+|---|---|---|---|---|---|---|---|
+| V6-GAP-001 | launch-polish | V6 | done | One-Line Installer Parity (`curl ... | sh` + PowerShell) | Onboarding friction remained higher than peers without a direct install bootstrap path. | Root installers (`install.sh`, `install.ps1`) provision release binaries + wrappers (`protheus`, `protheusctl`, `protheusd`) and are documented in quickstart docs. | V6-CONDUIT-003 |
+| V6-GAP-002 | hardening | V6 | done | Coverage Uplift + Badge Gate | Test credibility lacked a visible and automated coverage signal. | Vitest + `cargo llvm-cov` scripts and coverage CI workflow produce combined coverage artifact + badge with threshold gate (`>=70`). | V6-GAP-001 |
+| V6-GAP-003 | launch-polish | V6 | done | Architecture + Quickstart Story Refresh | Documentation lacked an install-first narrative with clear conduit + primitive architecture visibility. | `ARCHITECTURE.md` includes Mermaid map; `README.md` and `docs/GETTING_STARTED.md` provide install-first onboarding and conduit/rust-core positioning. | V6-GAP-001 |

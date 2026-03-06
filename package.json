@@ -1234,7 +1234,12 @@
     "lane:v6-rust50-007:run": "node systems/ops/rust50_migration_program.js run --id=V6-RUST50-007 --apply=1 --strict=1",
     "lane:v6-rust50-conf-003:run": "npm run -s ops:rust50:conf-003:run",
     "lane:v6-rust50-conf-004:run": "npm run -s ops:rust50:conf-004:run",
-    "test:ops:rust50-migration": "node memory/tools/tests/rust50_migration_program.test.js"
+    "test:ops:rust50-migration": "node memory/tools/tests/rust50_migration_program.test.js",
+    "test:vitest": "vitest run --config vitest.config.ts",
+    "coverage:ts": "vitest run --config vitest.config.ts --coverage",
+    "coverage:rust": "mkdir -p coverage && rustup component add llvm-tools-preview >/dev/null 2>&1 || true && cargo llvm-cov -p conduit -p ipc -p storage -p update --ignore-run-fail --summary-only > coverage/rust-summary.txt -- --skip hosted_roundtrip_budget_under_5ms --skip embedded_stdio_budget_under_20ms",
+    "coverage:merge": "node systems/ops/generate_coverage_badge.js --ts=coverage/ts/coverage-summary.json --rust=coverage/rust-summary.txt --out-json=coverage/combined-summary.json --out-badge=docs/badges/coverage.svg",
+    "coverage:all": "npm run -s coverage:ts && npm run -s coverage:rust && npm run -s coverage:merge"
   },
   "bin": {
     "protheus": "./bin/protheus",
@@ -1244,7 +1249,9 @@
   },
   "devDependencies": {
     "typescript": "^5.9.3",
-    "ws": "^8.19.0"
+    "ws": "^8.19.0",
+    "@vitest/coverage-v8": "^2.1.8",
+    "vitest": "^2.1.8"
   },
   "dependencies": {
     "socket.io": "^4.8.3",
