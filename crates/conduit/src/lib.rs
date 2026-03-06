@@ -276,8 +276,6 @@ pub fn validate_conduit_contract_budget(max_budget: usize) -> Result<(), String>
 
 pub struct RegistryPolicyGate {
     policy: ConduitPolicy,
-    constitution_body: Option<String>,
-    guard_check_ids: Option<std::collections::BTreeSet<String>>,
     bootstrap_error: Option<String>,
 }
 
@@ -285,8 +283,6 @@ impl RegistryPolicyGate {
     pub fn new(policy: ConduitPolicy) -> Self {
         let mut gate = Self {
             policy,
-            constitution_body: None,
-            guard_check_ids: None,
             bootstrap_error: None,
         };
         gate.bootstrap();
@@ -323,6 +319,12 @@ impl RegistryPolicyGate {
                 return;
             }
         };
+        for marker in &self.policy.required_constitution_markers {
+            if !constitution_body.contains(marker) {
+                self.bootstrap_error = Some(format!("constitution_marker_missing:{marker}"));
+                return;
+            }
+        }
 
         let registry_body = match fs::read_to_string(&self.policy.guard_registry_path) {
             Ok(body) => body,
@@ -331,60 +333,20 @@ impl RegistryPolicyGate {
                 return;
             }
         };
-        let parsed: Value = match serde_json::from_str(&registry_body) {
-            Ok(parsed) => parsed,
-            Err(_) => {
-                self.bootstrap_error = Some("guard_registry_invalid_json".to_string());
+        let checks = match parse_guard_registry_check_ids(&registry_body) {
+            Ok(ids) => ids,
+            Err(reason) => {
+                self.bootstrap_error = Some(reason);
                 return;
             }
         };
-
-        let checks = match parsed
-            .pointer("/merge_guard/checks")
-            .and_then(Value::as_array)
-        {
-            Some(checks) => checks,
-            None => {
-                self.bootstrap_error = Some("guard_registry_checks_missing".to_string());
-                return;
-            }
-        };
-
-        let mut found = std::collections::BTreeSet::new();
-        for row in checks {
-            if let Some(id) = row.get("id").and_then(Value::as_str) {
-                found.insert(id.to_string());
-            }
-        }
-
-        self.constitution_body = Some(constitution_body);
-        self.guard_check_ids = Some(found);
-    }
-
-    fn validate_constitution(&self) -> Result<(), String> {
-        let body = self
-            .constitution_body
-            .as_ref()
-            .ok_or_else(|| "constitution_file_unavailable".to_string())?;
-        for marker in &self.policy.required_constitution_markers {
-            if !body.contains(marker) {
-                return Err(format!("constitution_marker_missing:{marker}"));
-            }
-        }
-        Ok(())
-    }
-
-    fn validate_guard_registry(&self) -> Result<(), String> {
-        let checks = self
-            .guard_check_ids
-            .as_ref()
-            .ok_or_else(|| "guard_registry_checks_missing".to_string())?;
         for required in &self.policy.required_guard_checks {
             if !checks.contains(required) {
-                return Err(format!("guard_registry_required_check_missing:{required}"));
+                self.bootstrap_error =
+                    Some(format!("guard_registry_required_check_missing:{required}"));
+                return;
             }
         }
-        Ok(())
     }
 
     fn validate_command_mapping(&self, command: &TsCommand) -> Result<(), String> {
@@ -417,17 +379,43 @@ impl PolicyGate for RegistryPolicyGate {
         if let Some(reason) = &self.bootstrap_error {
             return PolicyDecision::deny(reason.clone());
         }
-        if let Err(reason) = self.validate_constitution() {
-            return PolicyDecision::deny(reason);
-        }
-        if let Err(reason) = self.validate_guard_registry() {
-            return PolicyDecision::deny(reason);
-        }
         if let Err(reason) = self.validate_command_mapping(command) {
             return PolicyDecision::deny(reason);
         }
         PolicyDecision::allow()
     }
+}
+
+#[derive(Debug, Deserialize)]
+struct GuardRegistrySnapshot {
+    merge_guard: Option<GuardRegistryMergeGuard>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GuardRegistryMergeGuard {
+    checks: Option<Vec<GuardRegistryCheck>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GuardRegistryCheck {
+    id: Option<String>,
+}
+
+fn parse_guard_registry_check_ids(raw: &str) -> Result<std::collections::BTreeSet<String>, String> {
+    let parsed: GuardRegistrySnapshot =
+        serde_json::from_str(raw).map_err(|_| "guard_registry_invalid_json".to_string())?;
+    let checks = parsed
+        .merge_guard
+        .and_then(|mg| mg.checks)
+        .ok_or_else(|| "guard_registry_checks_missing".to_string())?;
+
+    let mut ids = std::collections::BTreeSet::new();
+    for row in checks {
+        if let Some(id) = row.id {
+            ids.insert(id);
+        }
+    }
+    Ok(ids)
 }
 
 #[derive(Debug, Clone)]
