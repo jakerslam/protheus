@@ -1,6 +1,6 @@
 use conduit::{
     run_stdio_once, validate_conduit_contract_budget, ConduitPolicy, ConduitSecurityContext,
-    EchoCommandHandler, RegistryPolicyGate,
+    KernelLaneCommandHandler, RegistryPolicyGate,
 };
 use std::env;
 use std::io::{self, BufReader};
@@ -33,7 +33,7 @@ fn run() -> io::Result<()> {
         token_key_id,
         token_secret,
     );
-    let mut handler = EchoCommandHandler;
+    let mut handler = KernelLaneCommandHandler;
 
     let stdin = io::stdin();
     let mut reader = BufReader::new(stdin.lock());

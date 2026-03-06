@@ -607,6 +607,93 @@ impl CommandHandler for EchoCommandHandler {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct KernelLaneCommandHandler;
+
+impl CommandHandler for KernelLaneCommandHandler {
+    fn handle(&mut self, command: &TsCommand) -> RustEvent {
+        match command {
+            TsCommand::StartAgent { agent_id } if agent_id.starts_with("lane:") => {
+                let lane_receipt = build_legacy_lane_receipt(
+                    agent_id
+                        .strip_prefix("lane:")
+                        .unwrap_or_default(),
+                );
+                let status = if lane_receipt
+                    .get("ok")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+                {
+                    "legacy_lane_receipt"
+                } else {
+                    "legacy_lane_error"
+                };
+                RustEvent::SystemFeedback {
+                    status: status.to_string(),
+                    detail: serde_json::json!({ "lane_receipt": lane_receipt }),
+                    violation_reason: None,
+                }
+            }
+            _ => {
+                let mut fallback = EchoCommandHandler;
+                fallback.handle(command)
+            }
+        }
+    }
+}
+
+fn build_legacy_lane_receipt(raw_lane_id: &str) -> Value {
+    let lane_id = clean_lane_id(raw_lane_id);
+    if lane_id.is_empty() {
+        return build_legacy_lane_error(raw_lane_id, "lane_id_missing_or_invalid");
+    }
+
+    let ts_ms = now_ts_ms();
+    let lane_hash_seed = serde_json::json!({
+        "lane": lane_id,
+        "ts_ms": ts_ms,
+        "type": "legacy_retired_lane",
+    });
+    let lane_hash_full = deterministic_receipt_hash(&lane_hash_seed);
+    let lane_hash = lane_hash_full.chars().take(32).collect::<String>();
+
+    let mut out = serde_json::json!({
+        "ok": true,
+        "type": "legacy_retired_lane",
+        "lane_id": lane_id,
+        "ts_ms": ts_ms,
+        "lane_hash": lane_hash,
+        "contract": {
+            "deterministic": true,
+            "reversible": true,
+            "receipt_ready": true,
+            "migrated_to_rust": true
+        }
+    });
+    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out
+}
+
+fn build_legacy_lane_error(raw_lane_id: &str, reason: &str) -> Value {
+    let mut out = serde_json::json!({
+        "ok": false,
+        "type": "legacy_retired_lane_cli_error",
+        "lane_id": clean_lane_id(raw_lane_id),
+        "error": reason,
+        "ts_ms": now_ts_ms(),
+    });
+    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out
+}
+
+fn clean_lane_id(raw: &str) -> String {
+    raw.trim()
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.'))
+        .collect::<String>()
+        .to_ascii_uppercase()
+}
+
 pub fn deterministic_receipt_hash<T: Serialize>(value: &T) -> String {
     let canonical = canonical_json(value);
     let mut hasher = Sha256::new();
@@ -917,8 +1004,9 @@ fn now_ts_ms() -> u64 {
 mod tests {
     use super::{
         conduit_message_contract_count, process_command, run_stdio_once, validate_conduit_contract_budget,
-        ConduitPolicy, ConduitSecurityContext, EchoCommandHandler, PolicyGate, RegistryPolicyGate,
-        MAX_CONDUIT_MESSAGE_TYPES, RUST_EVENT_TYPES, TS_COMMAND_TYPES,
+        ConduitPolicy, ConduitSecurityContext, EchoCommandHandler, KernelLaneCommandHandler,
+        PolicyGate, RegistryPolicyGate, RustEvent, MAX_CONDUIT_MESSAGE_TYPES, RUST_EVENT_TYPES,
+        TS_COMMAND_TYPES,
     };
     use super::{CommandEnvelope, TsCommand};
     use conduit_security::{CapabilityTokenAuthority, MessageSigner, RateLimitPolicy, RateLimiter};
@@ -1144,5 +1232,49 @@ mod tests {
             serde_json::from_str(text.trim()).expect("json response");
         assert!(response.validation.ok);
         assert_eq!(response.request_id, "req-test");
+    }
+
+    #[test]
+    fn kernel_lane_handler_returns_lane_receipt_for_lane_start() {
+        let policy = test_policy();
+        let gate = RegistryPolicyGate::new(policy.clone());
+        let mut security = test_security(&policy);
+        let command = signed_envelope(
+            &policy,
+            TsCommand::StartAgent {
+                agent_id: "lane:SYSTEMS-ASSIMILATION-ASSIMILATION-CONTROLLER".to_string(),
+            },
+        );
+
+        let mut handler = KernelLaneCommandHandler;
+        let response = process_command(&command, &gate, &mut security, &mut handler);
+        assert!(response.validation.ok);
+
+        match response.event {
+            RustEvent::SystemFeedback {
+                status,
+                detail,
+                violation_reason,
+            } => {
+                assert_eq!(status, "legacy_lane_receipt");
+                assert_eq!(violation_reason, None);
+                let lane_receipt = detail
+                    .get("lane_receipt")
+                    .and_then(serde_json::Value::as_object)
+                    .expect("lane receipt object");
+                assert_eq!(
+                    lane_receipt.get("ok").and_then(serde_json::Value::as_bool),
+                    Some(true)
+                );
+                assert_eq!(
+                    lane_receipt
+                        .get("lane_id")
+                        .and_then(serde_json::Value::as_str),
+                    Some("SYSTEMS-ASSIMILATION-ASSIMILATION-CONTROLLER")
+                );
+                assert!(lane_receipt.contains_key("receipt_hash"));
+            }
+            _ => panic!("expected system_feedback event"),
+        }
     }
 }
