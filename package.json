@@ -1243,7 +1243,10 @@
     "coverage:ts": "vitest run --config vitest.config.ts --coverage",
     "coverage:rust": "mkdir -p coverage && rustup component add llvm-tools-preview >/dev/null 2>&1 || true && cargo llvm-cov -p conduit -p ipc -p storage -p update --ignore-run-fail --summary-only > coverage/rust-summary.txt -- --skip hosted_roundtrip_budget_under_5ms --skip embedded_stdio_budget_under_20ms",
     "coverage:merge": "node systems/ops/generate_coverage_badge.js --ts=coverage/ts/coverage-summary.json --rust=coverage/rust-summary.txt --out-json=coverage/combined-summary.json --out-badge=docs/badges/coverage.svg",
-    "coverage:all": "npm run -s coverage:ts && npm run -s coverage:rust && npm run -s coverage:merge"
+    "coverage:all": "npm run -s coverage:ts && npm run -s coverage:rust && npm run -s coverage:merge",
+    "ops:f100-enterprise-baseline": "node systems/ops/f100_enterprise_baseline_gate.js run --strict=1 --write=1",
+    "ops:f100-enterprise-baseline:status": "node systems/ops/f100_enterprise_baseline_gate.js status",
+    "test:ops:f100-enterprise-baseline": "node memory/tools/tests/f100_enterprise_baseline_gate.test.js"
   },
   "bin": {
     "protheus": "./bin/protheus",
