@@ -12,7 +12,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 function usage() {
-  console.log('Usage: protheusd start|stop|restart|status|tick [--policy=<path>] [--conduit]');
+  console.log('Usage: protheusd start|stop|restart|status|tick [--policy=<path>] [--conduit] [--allow-legacy-fallback]');
 }
 
 function runLegacy(command: string, extraArgs: string[]) {
@@ -30,8 +30,25 @@ function conduitEnabled(argv: string[]): boolean {
   return process.env.PROTHEUS_CONDUIT_ENABLED === '1';
 }
 
+function allowLegacyFallback(argv: string[]): boolean {
+  if (argv.includes('--allow-legacy-fallback')) return true;
+  return process.env.PROTHEUS_ALLOW_LEGACY_FALLBACK === '1';
+}
+
+function conduitStrict(argv: string[], command: string): boolean {
+  const conduitCommand = ['start', 'stop', 'status'].includes(command);
+  if (!conduitCommand) return false;
+  if (allowLegacyFallback(argv)) return false;
+  if (process.env.PROTHEUS_CONDUIT_STRICT === '0') return false;
+  return true;
+}
+
 function stripConduitFlags(argv: string[]): string[] {
-  return argv.filter((arg) => arg !== '--conduit' && arg !== '--no-conduit');
+  return argv.filter((arg) => (
+    arg !== '--conduit'
+    && arg !== '--no-conduit'
+    && arg !== '--allow-legacy-fallback'
+  ));
 }
 
 function parseAgentId(args: string[]): string {
@@ -40,9 +57,15 @@ function parseAgentId(args: string[]): string {
   return 'protheus-default';
 }
 
-async function runConduit(command: string, extraArgs: string[]): Promise<boolean> {
+type ConduitRouteResult = {
+  routed: boolean;
+  ok: boolean;
+  error?: string;
+};
+
+async function runConduit(command: string, extraArgs: string[]): Promise<ConduitRouteResult> {
   if (!['start', 'stop', 'status'].includes(command)) {
-    return false;
+    return { routed: false, ok: false, error: 'unsupported_command' };
   }
 
   const { ConduitClient } = require('../conduit/conduit-client');
@@ -63,11 +86,13 @@ async function runConduit(command: string, extraArgs: string[]): Promise<boolean
 
     const response = await client.send(message as any, requestId);
     process.stdout.write(`${JSON.stringify(response)}\n`);
-    process.exit(response.validation.ok ? 0 : 1);
-    return true;
+    return { routed: true, ok: response.validation.ok };
   } catch (error: any) {
-    process.stderr.write(`conduit_fallback_to_legacy:${error?.message || String(error)}\n`);
-    return false;
+    return {
+      routed: false,
+      ok: false,
+      error: error?.message || String(error)
+    };
   } finally {
     await client.close();
   }
@@ -77,17 +102,25 @@ async function main() {
   const argv = process.argv.slice(2);
   const cmd = String(argv[0] || 'status');
   const rest = stripConduitFlags(argv.slice(1));
+  const strictConduit = conduitStrict(argv, cmd);
 
   if (cmd === 'help' || cmd === '--help' || cmd === '-h') {
     usage();
     return;
   }
 
-  if (conduitEnabled(argv)) {
+  if (strictConduit || conduitEnabled(argv)) {
     const routed = await runConduit(cmd, rest);
-    if (routed) {
+    if (routed.routed) {
+      process.exit(routed.ok ? 0 : 1);
       return;
     }
+    if (strictConduit) {
+      process.stderr.write(`conduit_required_strict:${routed.error || 'route_failed'}\n`);
+      process.exit(1);
+      return;
+    }
+    process.stderr.write(`conduit_fallback_to_legacy:${routed.error || 'route_failed'}\n`);
   }
 
   if (cmd === 'tick') {

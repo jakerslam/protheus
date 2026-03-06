@@ -1,0 +1,47 @@
+{
+  "version": "1.0",
+  "description": "Rust-authoritative kernel policy. TS is allowed for conduit/client and non-kernel UX surfaces only.",
+  "rust_entrypoint_gate": {
+    "path": "crates/ops/src/main.rs",
+    "required_tokens": [
+      "\"spine\" =>",
+      "\"contract-check\" =>",
+      "\"state-kernel\" =>",
+      "\"autonomy-controller\" =>",
+      "\"protheusctl\" =>"
+    ]
+  },
+  "conduit_strict_gate": {
+    "path": "systems/ops/protheusd.ts",
+    "required_tokens": [
+      "PROTHEUS_CONDUIT_STRICT",
+      "--allow-legacy-fallback",
+      "conduit_required_strict"
+    ]
+  },
+  "js_wrapper_contract": {
+    "required_wrapper_paths": [
+      "systems/spine/spine_safe_launcher.js",
+      "systems/security/directive_compiler.js",
+      "systems/ops/protheusd.js"
+    ]
+  },
+  "rust_shim_contract": {
+    "entries": [
+      {
+        "path": "systems/ops/state_kernel.js",
+        "required_tokens": [
+          "spawnSync('cargo'",
+          "'protheus-ops'",
+          "'state-kernel'"
+        ]
+      }
+    ]
+  },
+  "ts_surface_allowlist_prefixes": [
+    "systems/conduit/",
+    "systems/marketplace/",
+    "systems/ui/",
+    "extensions/"
+  ]
+}
