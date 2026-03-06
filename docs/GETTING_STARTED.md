@@ -22,6 +22,13 @@ curl -fsSL https://raw.githubusercontent.com/protheuslabs/protheus/main/install.
 irm https://raw.githubusercontent.com/protheuslabs/protheus/main/install.ps1 | iex
 ```
 
+### Optional: Python Wrapper (`pip install`)
+
+```bash
+pip install protheus-cli-wrapper
+protheus --help
+```
+
 ## 2) Verify binaries
 
 ```bash
@@ -49,4 +56,5 @@ NODE_PATH=$PWD/node_modules npm run -s formal:invariants:run
 
 - Rust is the source of truth for kernel logic (primitives, constitution, policy, receipts).
 - TypeScript is limited to thin client surfaces and extension/UI workflows via conduit.
+- Python is optional and only provides a thin CLI wrapper that forwards to Rust.
 - If `get.protheus.ai` is not yet wired in your environment, use the raw GitHub fallback command above.

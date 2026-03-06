@@ -83,6 +83,24 @@ protheus status
 protheus-top
 ```
 
+## pip Installation (Thin Wrapper Option)
+
+Install the Python wrapper from PyPI:
+
+```bash
+pip install protheus-cli-wrapper
+protheus --help
+```
+
+Install from this repository:
+
+```bash
+pip install ./packages/protheus-py
+protheus status --dashboard
+```
+
+The Python package is intentionally thin and delegates all kernel authority to Rust (`protheus-ops`).
+
 ## Operator Commands
 
 | Command | Purpose |

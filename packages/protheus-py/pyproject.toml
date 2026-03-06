@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "protheus-cli-wrapper"
+version = "0.1.0"
+description = "Thin Python wrapper for the Rust protheus-ops CLI"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [
+  { name = "Protheus Labs" }
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Environment :: Console",
+  "Intended Audience :: Developers"
+]
+
+[project.urls]
+Homepage = "https://github.com/protheuslabs/protheus"
+Repository = "https://github.com/protheuslabs/protheus"
+
+[project.scripts]
+protheus = "protheus_cli_wrapper.cli:main"
+protheus-py = "protheus_cli_wrapper.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/protheus_cli_wrapper"]
