@@ -14,10 +14,12 @@ const CHECK_IDS_FLAG_PREFIX: &str = "--rust-contract-check-ids=";
 const GUARD_REGISTRY_REL: &str = "config/guard_check_registry.json";
 const CONTRACT_CHECK_SOURCE_REL: &str = "crates/ops/src/contract_check.rs";
 const RUNTIME_MODE_STATE_REL: &str = "state/ops/runtime_mode.json";
+const RUST_SOURCE_OF_TRUTH_POLICY_REL: &str = "config/rust_source_of_truth_policy.json";
 const PROBE_EYES_INTAKE_HELP_TOKENS: &[&str] =
     &["eyes_intake.js", "create", "validate", "list-directives"];
 const PROBE_CONFLICT_MARKER_HELP_TOKENS: &[&str] =
     &["conflict_marker_guard.js", "run", "status"];
+const CHECK_ID_RUST_SOURCE_OF_TRUTH: &str = "rust_source_of_truth_contract";
 pub const GUARD_REGISTRY_REQUIRED_TOKENS: &[&str] =
     &["guard_check_registry", "required_merge_guard_ids"];
 pub const FOUNDATION_HOOK_REQUIRED_TOKENS: &[&str] = &[
@@ -148,6 +150,7 @@ fn execute_contract_checks(root: &Path, args: &[String]) -> Result<Value, String
     let deep_probes = env_flag("CONTRACT_CHECK_DEEP_PROBES", false);
     let mut checks = vec![
         check_dist_runtime_guardrails(root)?,
+        check_rust_source_of_truth_contract(root)?,
         check_guard_registry_contracts(root)?,
         check_source_tokens(
             root,
@@ -184,6 +187,148 @@ fn execute_contract_checks(root: &Path, args: &[String]) -> Result<Value, String
         "ts": now_iso(),
         "required_check_ids": contract_check_ids_from_args(args),
         "checks": checks,
+    }))
+}
+
+fn require_object<'a>(value: &'a Value, field: &str) -> Result<&'a serde_json::Map<String, Value>, String> {
+    value
+        .get(field)
+        .and_then(Value::as_object)
+        .ok_or_else(|| format!("rust_source_of_truth_policy_missing_object:{field}"))
+}
+
+fn require_rel_path(section: &serde_json::Map<String, Value>, key: &str) -> Result<String, String> {
+    let rel = section
+        .get(key)
+        .and_then(Value::as_str)
+        .map(|raw| raw.trim().to_string())
+        .unwrap_or_default();
+    if rel.is_empty() {
+        return Err(format!(
+            "rust_source_of_truth_policy_missing_path:{key}"
+        ));
+    }
+    Ok(rel)
+}
+
+fn require_string_array(section: &serde_json::Map<String, Value>, key: &str) -> Result<Vec<String>, String> {
+    let arr = section
+        .get(key)
+        .and_then(Value::as_array)
+        .ok_or_else(|| format!("rust_source_of_truth_policy_missing_array:{key}"))?;
+    let values = arr
+        .iter()
+        .filter_map(Value::as_str)
+        .map(|raw| raw.trim().to_string())
+        .filter(|raw| !raw.is_empty())
+        .collect::<Vec<_>>();
+    if values.is_empty() {
+        return Err(format!(
+            "rust_source_of_truth_policy_empty_array:{key}"
+        ));
+    }
+    Ok(values)
+}
+
+fn check_required_tokens_at_path(
+    root: &Path,
+    rel_path: &str,
+    required_tokens: &[String],
+    context: &str,
+) -> Result<(), String> {
+    let path = root.join(rel_path);
+    let source = fs::read_to_string(&path)
+        .map_err(|err| format!("read_source_failed:{}:{err}", path.display()))?;
+    let missing = missing_tokens(&source, required_tokens);
+    if !missing.is_empty() {
+        return Err(format!(
+            "missing_source_tokens:{}:{}:{}",
+            context,
+            rel_path,
+            missing.join(",")
+        ));
+    }
+    Ok(())
+}
+
+fn check_rust_source_of_truth_contract(root: &Path) -> Result<Value, String> {
+    let policy_path = root.join(RUST_SOURCE_OF_TRUTH_POLICY_REL);
+    let raw = fs::read_to_string(&policy_path).map_err(|err| {
+        format!(
+            "read_rust_source_of_truth_policy_failed:{}:{err}",
+            policy_path.display()
+        )
+    })?;
+    let policy = serde_json::from_str::<Value>(&raw).map_err(|err| {
+        format!(
+            "parse_rust_source_of_truth_policy_failed:{}:{err}",
+            policy_path.display()
+        )
+    })?;
+
+    let entrypoint_gate = require_object(&policy, "rust_entrypoint_gate")?;
+    let entrypoint_path = require_rel_path(entrypoint_gate, "path")?;
+    let entrypoint_tokens = require_string_array(entrypoint_gate, "required_tokens")?;
+    check_required_tokens_at_path(
+        root,
+        &entrypoint_path,
+        &entrypoint_tokens,
+        "rust_entrypoint_gate",
+    )?;
+
+    let conduit_gate = require_object(&policy, "conduit_strict_gate")?;
+    let conduit_path = require_rel_path(conduit_gate, "path")?;
+    let conduit_tokens = require_string_array(conduit_gate, "required_tokens")?;
+    check_required_tokens_at_path(
+        root,
+        &conduit_path,
+        &conduit_tokens,
+        "conduit_strict_gate",
+    )?;
+
+    let wrapper_contract = require_object(&policy, "js_wrapper_contract")?;
+    let wrapper_paths = require_string_array(wrapper_contract, "required_wrapper_paths")?;
+    for rel in &wrapper_paths {
+        let path = root.join(rel);
+        let source = fs::read_to_string(&path)
+            .map_err(|err| format!("read_wrapper_failed:{}:{err}", path.display()))?;
+        if !is_ts_bootstrap_wrapper(&source) {
+            return Err(format!("required_wrapper_not_bootstrap:{rel}"));
+        }
+    }
+
+    let rust_shim_contract = require_object(&policy, "rust_shim_contract")?;
+    let rust_shim_entries = rust_shim_contract
+        .get("entries")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "rust_source_of_truth_policy_missing_array:entries".to_string())?;
+    if rust_shim_entries.is_empty() {
+        return Err("rust_source_of_truth_policy_empty_array:entries".to_string());
+    }
+    let mut rust_shim_checked = 0usize;
+    for entry in rust_shim_entries {
+        let section = entry
+            .as_object()
+            .ok_or_else(|| "rust_source_of_truth_policy_invalid_entry:entries".to_string())?;
+        let shim_path = require_rel_path(section, "path")?;
+        let shim_tokens = require_string_array(section, "required_tokens")?;
+        check_required_tokens_at_path(
+            root,
+            &shim_path,
+            &shim_tokens,
+            "rust_shim_contract",
+        )?;
+        rust_shim_checked += 1;
+    }
+
+    Ok(json!({
+        "id": CHECK_ID_RUST_SOURCE_OF_TRUTH,
+        "ok": true,
+        "policy_path": RUST_SOURCE_OF_TRUTH_POLICY_REL,
+        "entrypoint_path": entrypoint_path,
+        "conduit_path": conduit_path,
+        "wrapper_paths_checked": wrapper_paths.len(),
+        "rust_shims_checked": rust_shim_checked,
     }))
 }
 

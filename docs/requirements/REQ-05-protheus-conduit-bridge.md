@@ -118,3 +118,17 @@ Delivered:
   - parity check: direct core path vs stdio path
   - hosted average round-trip budget assertion (`<5ms`)
   - embedded stdio budget assertion (`<20ms`)
+
+## Phase 5 Delivery (Rust Source-of-Truth Enforcement)
+
+Delivered:
+
+- `systems/ops/protheusd.ts` now defaults lifecycle commands (`start`, `stop`, `status`) to strict conduit routing.
+  - strict failure path: `conduit_required_strict:*`
+  - explicit temporary escape hatch only via `--allow-legacy-fallback` or `PROTHEUS_ALLOW_LEGACY_FALLBACK=1`
+- `config/rust_source_of_truth_policy.json` defines source-of-truth contract checks for:
+  - Rust kernel entrypoints in `crates/ops/src/main.rs`
+  - strict conduit enforcement tokens in `systems/ops/protheusd.ts`
+  - required JS bootstrap wrappers
+  - required direct JS->Rust shims (token-validated)
+- `crates/ops/src/contract_check.rs` enforces `rust_source_of_truth_contract` as a first-class contract check.
