@@ -337,10 +337,8 @@ pub fn default_policy(root: &Path) -> Policy {
         enforce_hold_streak_strict: false,
         cold_start_probe: ColdStartProbe {
             command: vec![
-                "target/debug/protheus-ops".to_string(),
-                "legacy-retired-lane".to_string(),
-                "build".to_string(),
-                "--lane-id=SYSTEMS-SENSORY-FOCUS-CONTROLLER".to_string(),
+                "node".to_string(),
+                "lib/conduit_full_lifecycle_probe.js".to_string(),
             ],
             samples: 5,
             max_ms: 300.0,
