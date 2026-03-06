@@ -1,0 +1,7 @@
+{
+  "ts_lines_pct": 71.95,
+  "rust_lines_pct": 83.31,
+  "combined_lines_pct": 77.63,
+  "formula": "average(ts_lines_pct,rust_lines_pct)",
+  "generated_at": "2026-03-06T07:44:34.434Z"
+}

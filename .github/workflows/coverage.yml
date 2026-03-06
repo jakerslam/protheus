@@ -1,0 +1,54 @@
+name: Coverage
+
+on:
+  pull_request:
+  push:
+    branches: [main, rust50]
+  workflow_dispatch:
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked
+
+      - name: TS coverage
+        run: npm run -s coverage:ts
+
+      - name: Rust coverage
+        run: npm run -s coverage:rust
+
+      - name: Merge coverage + badge
+        run: npm run -s coverage:merge
+
+      - name: Coverage gate (>=70)
+        run: |
+          node -e "const fs=require('fs');const s=JSON.parse(fs.readFileSync('coverage/combined-summary.json','utf8'));if(s.combined_lines_pct<70){console.error('coverage gate failed:',s.combined_lines_pct);process.exit(1);}console.log('coverage gate passed:',s.combined_lines_pct);"
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-artifacts
+          path: |
+            coverage/ts/coverage-summary.json
+            coverage/rust-summary.txt
+            coverage/combined-summary.json
+            docs/badges/coverage.svg
