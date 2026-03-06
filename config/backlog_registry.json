@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-05T23:16:43Z",
+  "generated_at": "2026-03-06T08:02:21Z",
   "source_hash": "0b45bb837f9490d14047fdea",
-  "row_count": 885,
-  "active_count": 13,
-  "archive_count": 872,
+  "row_count": 898,
+  "active_count": 5,
+  "archive_count": 893,
   "rows": [
     {
       "id": "BL-001",
@@ -10955,6 +10955,129 @@
         "V6-CONDUIT-005",
         "V6-CONDUIT-006",
         "V6-CONDUIT-007"
+      ]
+    },
+    {
+      "id": "V6-F100-016",
+      "class": "f100-hardening",
+      "wave": "V6",
+      "status": "done",
+      "title": "Cron delivery announce/main hardening",
+      "problem": "Silent cron failures in isolated jobs created invisible operational drift.",
+      "acceptance": "All enabled jobs in config/cron_jobs.json use delivery.mode=announce and delivery.channel=main.",
+      "dependencies": [
+        "V6-F100-001"
+      ]
+    },
+    {
+      "id": "V6-F100-017",
+      "class": "f100-hardening",
+      "wave": "V6",
+      "status": "done",
+      "title": "Rust status dashboard SLO metrics expansion",
+      "problem": "Operator posture required measurable SLO metrics, not only pass/fail integrity checks.",
+      "acceptance": "protheus-ops status --dashboard emits SLO metrics for spine success rate, receipt latency p95, assimilation pain score, cron health, and PQTS slippage MAPE.",
+      "dependencies": [
+        "V6-F100-001",
+        "V6-F100-006"
+      ]
+    },
+    {
+      "id": "V6-F100-018",
+      "class": "f100-hardening",
+      "wave": "V6",
+      "status": "done",
+      "title": "Model recovery fallback policy for degraded families",
+      "problem": "Model failures on llama3.2 routes needed deterministic fallback policy to maintain continuity.",
+      "acceptance": "model_health recovery policies define bounded retry backoff and fallback model routing for llama3.2 families.",
+      "dependencies": [
+        "V6-F100-001"
+      ]
+    },
+    {
+      "id": "V6-F100-019",
+      "class": "f100-hardening",
+      "wave": "V6",
+      "status": "done",
+      "title": "Release-build path hardening for conduit launchers",
+      "problem": "Hosted runtime launchers could select slower debug paths even when optimized binaries were present.",
+      "acceptance": "Conduit launchers prefer target/release binaries and release build verification succeeds for protheus-ops.",
+      "dependencies": [
+        "V6-CONDUIT-006"
+      ]
+    },
+    {
+      "id": "V6-F100-020",
+      "class": "f100-hardening",
+      "wave": "V6",
+      "status": "done",
+      "title": "Secret rotation weekly attestation cadence",
+      "problem": "Secrets rotation checks were present but lacked enforced recurring execution cadence.",
+      "acceptance": "Weekly secret-rotation attestation cron job exists and runs the migration auditor with deterministic remediation output.",
+      "dependencies": [
+        "V6-F100-004",
+        "V6-F100-014"
+      ]
+    },
+    {
+      "id": "V6-F100-021",
+      "class": "f100-hardening",
+      "wave": "V6",
+      "status": "done",
+      "title": "Memory continuity index rebuild run",
+      "problem": "Continuity quality regressed when memory indices drifted behind recent node writes.",
+      "acceptance": "memory/tools/rebuild_exclusive.js completes and regenerates memory index artifacts with archive-safe filtering.",
+      "dependencies": [
+        "BL-067"
+      ]
+    },
+    {
+      "id": "V6-F100-022",
+      "class": "f100-hardening",
+      "wave": "V6",
+      "status": "blocked",
+      "title": "Live trading proof gate (30-day promotion evidence)",
+      "problem": "Operational trust still requires sustained live/paper trading proof under real market conditions.",
+      "acceptance": "30-day canary evidence meets promotion PnL/risk/SLO thresholds with deterministic receipts.",
+      "dependencies": [
+        "V6-F100-017",
+        "V6-F100-018"
+      ]
+    },
+    {
+      "id": "V6-F100-023",
+      "class": "f100-hardening",
+      "wave": "V6",
+      "status": "blocked",
+      "title": "Third-party security audit publication",
+      "problem": "External trust ranking cannot reach target without independent audit evidence.",
+      "acceptance": "Public third-party audit report and remediation tracker are published and linked from SECURITY documentation.",
+      "dependencies": [
+        "V6-F100-014"
+      ]
+    },
+    {
+      "id": "V6-F100-024",
+      "class": "f100-hardening",
+      "wave": "V6",
+      "status": "blocked",
+      "title": "Horizontal scaling proof in production profile",
+      "problem": "Single-node execution limits enterprise confidence for failover and sustained load handling.",
+      "acceptance": "Multi-node failover and soak evidence satisfies distributed runtime gates in production profile.",
+      "dependencies": [
+        "V6-F100-013"
+      ]
+    },
+    {
+      "id": "V6-F100-025",
+      "class": "f100-hardening",
+      "wave": "V6",
+      "status": "blocked",
+      "title": "Continuous chaos weekly evidence contract",
+      "problem": "One-time chaos readiness is insufficient; resilience must be continuously evidenced.",
+      "acceptance": "Weekly chaos artifacts pass resilience gates and are surfaced in operator dashboard health checks.",
+      "dependencies": [
+        "V6-F100-013"
       ]
     }
   ]
