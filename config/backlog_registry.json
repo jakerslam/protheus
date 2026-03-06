@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-06T08:02:21Z",
+  "generated_at": "2026-03-06T08:06:30Z",
   "source_hash": "0b45bb837f9490d14047fdea",
-  "row_count": 898,
+  "row_count": 899,
   "active_count": 5,
-  "archive_count": 893,
+  "archive_count": 894,
   "rows": [
     {
       "id": "BL-001",
@@ -11078,6 +11078,19 @@
       "acceptance": "Weekly chaos artifacts pass resilience gates and are surfaced in operator dashboard health checks.",
       "dependencies": [
         "V6-F100-013"
+      ]
+    },
+    {
+      "id": "V6-F100-026",
+      "class": "f100-hardening",
+      "wave": "V6",
+      "status": "done",
+      "title": "Optional pip installation wrapper (thin Python CLI)",
+      "problem": "Python ecosystem onboarding was missing, but any addition must keep Rust as the only kernel authority.",
+      "acceptance": "packages/protheus-py provides a thin protheus/protheus-py CLI wrapper that delegates to protheus-ops without reimplementing kernel logic.",
+      "dependencies": [
+        "V6-F100-010",
+        "V6-CONDUIT-006"
       ]
     }
   ]
