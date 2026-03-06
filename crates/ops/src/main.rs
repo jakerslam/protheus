@@ -35,6 +35,8 @@ fn usage() {
     println!("  protheus-ops persona-schema-contract <validate|status> [--strict=1|0] [--schema-mode=<id>] [--payload=<json>|--input=<path>]");
     println!("  protheus-ops protheusctl <command> [flags]");
     println!("  protheus-ops personas-cli <command> [flags]");
+    println!("  protheus-ops assimilation-controller <command> [flags]");
+    println!("  protheus-ops sensory-eyes-intake <command> [flags]");
     println!("  protheus-ops workflow-executor <command> [flags]");
     println!("  protheus-ops fluxlattice-program <list|run|run-all|status> [flags]");
     println!("  protheus-ops perception-polish-program <list|run|run-all|status> [flags]");
@@ -266,6 +268,16 @@ fn main() {
         "personas-cli" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::personas_cli::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "assimilation-controller" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::assimilation_controller::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "sensory-eyes-intake" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::sensory_eyes_intake::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "workflow-executor" => {

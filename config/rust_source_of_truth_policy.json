@@ -48,9 +48,9 @@
       {
         "path": "systems/ops/state_kernel.js",
         "required_tokens": [
-          "spawnSync('cargo'",
-          "'protheus-ops'",
-          "'state-kernel'"
+          "createOpsLaneBridge",
+          "rust_lane_bridge",
+          "state-kernel"
         ]
       }
     ]
@@ -165,10 +165,18 @@
     ]
   },
   "ts_surface_allowlist_prefixes": [
-    "systems/ops/",
     "systems/conduit/",
     "systems/marketplace/",
     "systems/ui/",
+    "systems/extensions/",
     "extensions/"
+  ],
+  "tcb_rust_required_prefixes": [
+    "systems/security/",
+    "systems/ops/",
+    "systems/memory/",
+    "systems/sensory/",
+    "systems/autonomy/",
+    "systems/assimilation/"
   ]
 }

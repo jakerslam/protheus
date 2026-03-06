@@ -1,62 +1,15 @@
 #!/usr/bin/env node
 'use strict';
-Object.defineProperty(exports, "__esModule", { value: true });
 
-const path = require('path');
-const { spawnSync } = require('child_process');
+const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge');
 
-const ROOT = path.resolve(__dirname, '..', '..');
-const LANE = 'strategy_mode_governor';
-
-function runRust(args = []) {
-  const cargoArgs = [
-    'run',
-    '--quiet',
-    '--manifest-path',
-    'crates/ops/Cargo.toml',
-    '--bin',
-    'protheus-ops',
-    '--',
-    'strategy-mode-governor',
-    ...args
-  ];
-  const run = spawnSync('cargo', cargoArgs, {
-    cwd: ROOT,
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      PROTHEUS_NODE_BINARY: process.execPath || 'node'
-    }
-  });
-
-  const status = Number.isFinite(run.status) ? run.status : 1;
-  const stdout = run.stdout || '';
-  const stderr = run.stderr || '';
-  let payload = null;
-  const lines = stdout.trim().split(/\n+/).reverse();
-  for (const line of lines) {
-    if (!line || line[0] !== '{') continue;
-    try {
-      payload = JSON.parse(line);
-      break;
-    } catch (_) {}
-  }
-
-  return { ok: status === 0, status, stdout, stderr, payload };
-}
-
-function runRustCli() {
-  const out = runRust(process.argv.slice(2));
-  if (out.stdout) process.stdout.write(out.stdout);
-  if (out.stderr) process.stderr.write(out.stderr);
-  process.exit(out.status);
-}
+const bridge = createOpsLaneBridge(__dirname, 'strategy_mode_governor', 'strategy-mode-governor');
 
 if (require.main === module) {
-  runRustCli();
+  bridge.runCli(process.argv.slice(2));
 }
 
 module.exports = {
-  lane: LANE,
-  run: runRust
+  lane: bridge.lane,
+  run: bridge.run
 };

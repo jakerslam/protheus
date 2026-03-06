@@ -39,6 +39,8 @@ Completion requires all of the following:
 - Block message format: `BLOCKED — projected Rust % would fall below 70.0 after adding new files`.
 - Do not migrate `adaptive/**` into Rust unless the path is under `systems/adaptive/**`.
 - Keep user-flex surfaces (`habits`, `reflexes`, `eyes` user-specific paths) non-Rust by default unless explicitly approved.
+- Treat these TCB prefixes as Rust-authoritative migration targets: `systems/security/`, `systems/ops/`, `systems/memory/`, `systems/sensory/`, `systems/autonomy/`, `systems/assimilation/`.
+- Keep these surface prefixes TypeScript-first unless explicitly overridden: `systems/ui/`, `systems/marketplace/`, `systems/extensions/`.
 
 ## Behavior-Preserving Migration Rules
 - Preserve existing behavior unless a breaking change is explicitly requested.
