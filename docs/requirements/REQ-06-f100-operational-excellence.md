@@ -107,12 +107,16 @@ Acceptance: `memory/tools/rebuild_exclusive.js` is part of the recurring operati
 27. `REQ-06-027` SDLC risk-class governance must be fail-closed at merge time.
 Acceptance: `protheus-ops sdlc-change-control run --strict=1` rejects PRs that understate risk class or lack required RFC/ADR/approver/rollback evidence for `major`/`high-risk` changes.
 
+28. `REQ-06-028` Release supply-chain provenance must be enforced before publish.
+Acceptance: `protheus-ops supply-chain-provenance-v2 run --strict=1` verifies per-artifact SBOM/signature/hash parity, dependency vulnerability SLA budget, and rollback-to-last-known-good contract from release provenance bundle.
+
 ## Enforcement
 
 Runtime gate:
 - `protheus-ops enterprise-hardening run --strict=1`
 - `protheus-ops f100-reliability-certification run --strict=1`
 - `protheus-ops sdlc-change-control run --strict=1`
+- `protheus-ops supply-chain-provenance-v2 run --strict=1`
 
 Policy file:
 - `config/f100_enterprise_hardening_policy.json`

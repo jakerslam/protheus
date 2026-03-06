@@ -1,0 +1,11 @@
+{
+  "schema_id": "release_rollback_policy",
+  "schema_version": "1.0",
+  "last_known_good_required": true,
+  "freeze_on_provenance_failure": true,
+  "rollback_channels": ["stable", "canary"],
+  "required_receipts": [
+    "release_gate_canary_rollback_enforcer",
+    "error_budget_release_gate"
+  ]
+}

@@ -22,6 +22,7 @@ pub mod backlog_runtime_anchor;
 pub mod benchmark_matrix;
 pub mod f100_reliability_certification;
 pub mod sdlc_change_control;
+pub mod supply_chain_provenance_v2;
 pub mod dynamic_burn_budget_oracle;
 pub mod enterprise_hardening;
 pub mod execution_yield_recovery;

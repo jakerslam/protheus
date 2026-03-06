@@ -13,6 +13,7 @@ fn usage() {
     println!("  protheus-ops benchmark-matrix <run|status> [--snapshot=<path>] [--refresh-runtime=1|0] [--bar-width=44]");
     println!("  protheus-ops f100-reliability-certification <run|status> [--strict=1|0] [--policy=<path>]");
     println!("  protheus-ops sdlc-change-control <run|status> [--strict=1|0] [--policy=<path>] [--pr-body-path=<path>] [--changed-paths-path=<path>]");
+    println!("  protheus-ops supply-chain-provenance-v2 <run|status> [--strict=1|0] [--policy=<path>] [--bundle-path=<path>] [--vuln-summary-path=<path>]");
     println!("  protheus-ops model-router <args>");
     println!("  protheus-ops ab-lane-eval <status|run> [flags]");
     println!("  protheus-ops contract-check <args>");
@@ -178,6 +179,11 @@ fn main() {
         "sdlc-change-control" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::sdlc_change_control::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "supply-chain-provenance-v2" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::supply_chain_provenance_v2::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "contract-check" => {
