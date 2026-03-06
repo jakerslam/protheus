@@ -137,3 +137,15 @@ Delivered:
   - max bridge message types: `10`
   - TS commands: `7`
   - Rust event types: `3`
+
+## Phase 6 Delivery (Operational Hardening + Dashboard)
+
+Delivered:
+
+- `protheus-ops status --dashboard` now executes natively in Rust and emits deterministic receipts.
+- `health-status` lane performs Rust-side cron delivery integrity checks (fail-closed on `delivery.mode=none` and invalid channels for announce delivery).
+- Rust source-of-truth audit now verifies:
+  - file-type boundary contract (`.rs` core gates, `.ts` client surfaces, `.js` wrappers/shims),
+  - strict token checks for `protheusd.ts`, conduit budget lane, and dashboard wrapper path.
+- TS dashboard surface (`systems/ops/protheus_status_dashboard.ts`) is a Rust bridge wrapper only.
+- Runbook/SLO wiring includes explicit incidents for cron-delivery misconfiguration and Rust source-of-truth drift.

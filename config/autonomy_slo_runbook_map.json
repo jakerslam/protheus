@@ -8,7 +8,9 @@
     "drift",
     "budget_pressure",
     "dream_degradation",
-    "verification_pass_rate"
+    "verification_pass_rate",
+    "cron_delivery_integrity",
+    "rust_source_of_truth"
   ],
   "runbook": {
     "path": "docs/OPERATOR_RUNBOOK.md"
@@ -65,6 +67,20 @@
       "owner": "ops",
       "health_check": "verification_pass_rate",
       "severity": "warn"
+    },
+    "cron_delivery_integrity": {
+      "section": "Incident 11: Cron Delivery Misconfiguration",
+      "runbook_id": "INC-011",
+      "owner": "ops",
+      "health_check": "cron_delivery_integrity",
+      "severity": "critical"
+    },
+    "rust_source_of_truth": {
+      "section": "Incident 12: Rust Source-of-Truth Drift",
+      "runbook_id": "INC-012",
+      "owner": "ops",
+      "health_check": "rust_source_of_truth",
+      "severity": "critical"
     }
   }
 }

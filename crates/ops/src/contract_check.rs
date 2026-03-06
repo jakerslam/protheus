@@ -269,6 +269,11 @@ fn check_rust_source_of_truth_contract(root: &Path) -> Result<Value, String> {
     let entrypoint_gate = require_object(&policy, "rust_entrypoint_gate")?;
     let entrypoint_path = require_rel_path(entrypoint_gate, "path")?;
     let entrypoint_tokens = require_string_array(entrypoint_gate, "required_tokens")?;
+    if !entrypoint_path.ends_with(".rs") {
+        return Err(format!(
+            "rust_source_of_truth_path_extension_mismatch:rust_entrypoint_gate:{entrypoint_path}"
+        ));
+    }
     check_required_tokens_at_path(
         root,
         &entrypoint_path,
@@ -279,6 +284,11 @@ fn check_rust_source_of_truth_contract(root: &Path) -> Result<Value, String> {
     let conduit_gate = require_object(&policy, "conduit_strict_gate")?;
     let conduit_path = require_rel_path(conduit_gate, "path")?;
     let conduit_tokens = require_string_array(conduit_gate, "required_tokens")?;
+    if !conduit_path.ends_with(".ts") {
+        return Err(format!(
+            "rust_source_of_truth_path_extension_mismatch:conduit_strict_gate:{conduit_path}"
+        ));
+    }
     check_required_tokens_at_path(
         root,
         &conduit_path,
@@ -289,6 +299,11 @@ fn check_rust_source_of_truth_contract(root: &Path) -> Result<Value, String> {
     let conduit_budget_gate = require_object(&policy, "conduit_budget_gate")?;
     let conduit_budget_path = require_rel_path(conduit_budget_gate, "path")?;
     let conduit_budget_tokens = require_string_array(conduit_budget_gate, "required_tokens")?;
+    if !conduit_budget_path.ends_with(".rs") {
+        return Err(format!(
+            "rust_source_of_truth_path_extension_mismatch:conduit_budget_gate:{conduit_budget_path}"
+        ));
+    }
     check_required_tokens_at_path(
         root,
         &conduit_budget_path,
@@ -296,9 +311,27 @@ fn check_rust_source_of_truth_contract(root: &Path) -> Result<Value, String> {
         "conduit_budget_gate",
     )?;
 
+    let status_dashboard_gate = require_object(&policy, "status_dashboard_gate")?;
+    let status_dashboard_path = require_rel_path(status_dashboard_gate, "path")?;
+    let status_dashboard_tokens = require_string_array(status_dashboard_gate, "required_tokens")?;
+    if !status_dashboard_path.ends_with(".ts") {
+        return Err(format!(
+            "rust_source_of_truth_path_extension_mismatch:status_dashboard_gate:{status_dashboard_path}"
+        ));
+    }
+    check_required_tokens_at_path(
+        root,
+        &status_dashboard_path,
+        &status_dashboard_tokens,
+        "status_dashboard_gate",
+    )?;
+
     let wrapper_contract = require_object(&policy, "js_wrapper_contract")?;
     let wrapper_paths = require_string_array(wrapper_contract, "required_wrapper_paths")?;
     for rel in &wrapper_paths {
+        if !rel.ends_with(".js") {
+            return Err(format!("required_wrapper_must_be_js:{rel}"));
+        }
         let path = root.join(rel);
         let source = fs::read_to_string(&path)
             .map_err(|err| format!("read_wrapper_failed:{}:{err}", path.display()))?;
@@ -321,6 +354,9 @@ fn check_rust_source_of_truth_contract(root: &Path) -> Result<Value, String> {
             .as_object()
             .ok_or_else(|| "rust_source_of_truth_policy_invalid_entry:entries".to_string())?;
         let shim_path = require_rel_path(section, "path")?;
+        if !shim_path.ends_with(".js") {
+            return Err(format!("rust_shim_must_be_js:{shim_path}"));
+        }
         let shim_tokens = require_string_array(section, "required_tokens")?;
         check_required_tokens_at_path(
             root,
@@ -331,6 +367,35 @@ fn check_rust_source_of_truth_contract(root: &Path) -> Result<Value, String> {
         rust_shim_checked += 1;
     }
 
+    let ts_surface_allowlist_prefixes = policy
+        .get("ts_surface_allowlist_prefixes")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            "rust_source_of_truth_policy_missing_array:ts_surface_allowlist_prefixes".to_string()
+        })?
+        .iter()
+        .filter_map(Value::as_str)
+        .map(|row| row.trim().to_string())
+        .filter(|row| !row.is_empty())
+        .collect::<Vec<_>>();
+    if ts_surface_allowlist_prefixes.is_empty() {
+        return Err(
+            "rust_source_of_truth_policy_empty_array:ts_surface_allowlist_prefixes".to_string(),
+        );
+    }
+
+    for ts_path in [&conduit_path, &status_dashboard_path] {
+        let allowed = ts_surface_allowlist_prefixes
+            .iter()
+            .any(|prefix| ts_path.starts_with(prefix));
+        if !allowed {
+            return Err(format!(
+                "ts_path_outside_surface_allowlist:{ts_path}:{}",
+                ts_surface_allowlist_prefixes.join(",")
+            ));
+        }
+    }
+
     Ok(json!({
         "id": CHECK_ID_RUST_SOURCE_OF_TRUTH,
         "ok": true,
@@ -338,8 +403,10 @@ fn check_rust_source_of_truth_contract(root: &Path) -> Result<Value, String> {
         "entrypoint_path": entrypoint_path,
         "conduit_path": conduit_path,
         "conduit_budget_path": conduit_budget_path,
+        "status_dashboard_path": status_dashboard_path,
         "wrapper_paths_checked": wrapper_paths.len(),
         "rust_shims_checked": rust_shim_checked,
+        "ts_surface_allowlist_prefixes": ts_surface_allowlist_prefixes,
     }))
 }
 

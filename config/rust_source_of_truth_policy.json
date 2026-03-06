@@ -28,6 +28,14 @@
       "validate_conduit_contract_budget"
     ]
   },
+  "status_dashboard_gate": {
+    "path": "systems/ops/protheus_status_dashboard.ts",
+    "required_tokens": [
+      "protheus-ops",
+      "status",
+      "--dashboard"
+    ]
+  },
   "js_wrapper_contract": {
     "required_wrapper_paths": [
       "systems/spine/spine_safe_launcher.js",
@@ -48,6 +56,7 @@
     ]
   },
   "ts_surface_allowlist_prefixes": [
+    "systems/ops/",
     "systems/conduit/",
     "systems/marketplace/",
     "systems/ui/",
