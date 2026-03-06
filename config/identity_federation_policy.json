@@ -1,0 +1,29 @@
+{
+  "schema_id": "identity_federation_policy",
+  "schema_version": "1.0",
+  "strict_default": true,
+  "providers": {
+    "okta": {
+      "issuer_prefix": "https://",
+      "allowed_scopes": ["openid", "profile", "email", "groups", "offline_access", "protheus.read", "protheus.write"],
+      "allowed_roles": ["operator", "admin", "security", "auditor"],
+      "scim_enabled": true
+    },
+    "entra": {
+      "issuer_prefix": "https://login.microsoftonline.com/",
+      "allowed_scopes": ["openid", "profile", "email", "protheus.read", "protheus.write"],
+      "allowed_roles": ["operator", "admin", "security", "auditor"],
+      "scim_enabled": true
+    },
+    "google": {
+      "issuer_prefix": "https://accounts.google.com",
+      "allowed_scopes": ["openid", "profile", "email", "protheus.read"],
+      "allowed_roles": ["operator", "auditor"],
+      "scim_enabled": false
+    }
+  },
+  "outputs": {
+    "latest_path": "state/ops/identity_federation/latest.json",
+    "history_path": "state/ops/identity_federation/history.jsonl"
+  }
+}

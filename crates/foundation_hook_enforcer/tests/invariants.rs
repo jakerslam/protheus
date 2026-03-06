@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use foundation_hook_enforcer::{
     evaluate_required_hook_completeness, evaluate_source_hook_coverage, CHECK_ID_FOUNDATION_HOOKS,
     CHECK_ID_GUARD_REGISTRY_CONSUMPTION, CHECK_ID_MERGE_GUARD_HOOK_COVERAGE, RECEIPT_SCHEMA_ID,

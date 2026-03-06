@@ -1,8 +1,8 @@
 # Backlog Reviewed View
 
-Generated: 2026-03-06T18:29:15.208Z
+Generated: 2026-03-06T18:56:58.887Z
 
-Summary: reviewed 1049/1364 | pass 1049 | warn 299 | fail 0 | blocked 16
+Summary: reviewed 1062/1364 | pass 1062 | warn 286 | fail 0 | blocked 16
 
 | ID | Status | Reviewed Status | Review Result | Reviewed | Title |
 |---|---|---|---|---|---|
@@ -1250,15 +1250,15 @@ Summary: reviewed 1049/1364 | pass 1049 | warn 299 | fail 0 | blocked 16
 | V6-F100-001 | done | reviewed | pass | yes | Reliability Certification Program (SLO/Error-Budget Gate) |
 | V6-F100-002 | done | reviewed | pass | yes | SDLC Change-Control Plane (RFC/ADR/Risk Class) |
 | V6-F100-003 | done | reviewed | pass | yes | Secure Supply-Chain Provenance v2 (SBOM + Signed Artifacts) |
-| V6-F100-004 | queued | queued | needs_implementation | no | Compliance Evidence Automation (SOC2/ISO Audit Bundle) |
-| V6-F100-005 | queued | queued | needs_implementation | no | 1M-User Performance Certification Harness |
-| V6-F100-006 | queued | queued | needs_implementation | no | Multi-Tenant Isolation + Data Governance Contract |
-| V6-F100-007 | queued | queued | needs_implementation | no | API/CLI Contract Lifecycle (Versioning + Deprecation) |
-| V6-F100-008 | queued | queued | needs_implementation | no | On-Call + Incident Command Maturity Pack |
-| V6-F100-009 | queued | queued | needs_implementation | no | Golden-Path Onboarding + Developer Portal |
-| V6-F100-010 | queued | queued | needs_implementation | no | Enterprise Architecture Narrative + Evidence Pack |
-| V6-F100-011 | queued | queued | needs_implementation | no | Operator Surface Consistency Program (UX/Tone/State Model) |
-| V6-F100-012 | queued | queued | needs_implementation | no | Executive Engineering Readiness Scorecard (Path to 90) |
+| V6-F100-004 | done | reviewed | pass | yes | Compliance Evidence Automation (SOC2/ISO Audit Bundle) |
+| V6-F100-005 | done | reviewed | pass | yes | 1M-User Performance Certification Harness |
+| V6-F100-006 | done | reviewed | pass | yes | Multi-Tenant Isolation + Data Governance Contract |
+| V6-F100-007 | done | reviewed | pass | yes | API/CLI Contract Lifecycle (Versioning + Deprecation) |
+| V6-F100-008 | done | reviewed | pass | yes | On-Call + Incident Command Maturity Pack |
+| V6-F100-009 | done | reviewed | pass | yes | Golden-Path Onboarding + Developer Portal |
+| V6-F100-010 | done | reviewed | pass | yes | Enterprise Architecture Narrative + Evidence Pack |
+| V6-F100-011 | done | reviewed | pass | yes | Operator Surface Consistency Program (UX/Tone/State Model) |
+| V6-F100-012 | done | reviewed | pass | yes | Executive Engineering Readiness Scorecard (Path to 90) |
 | V6-F100-016 | done | reviewed | pass | yes | Cron delivery announce/main hardening |
 | V6-F100-017 | done | reviewed | pass | yes | Rust status dashboard SLO metrics expansion |
 | V6-F100-018 | done | reviewed | pass | yes | Model recovery fallback policy for degraded families |
@@ -1278,14 +1278,14 @@ Summary: reviewed 1049/1364 | pass 1049 | warn 299 | fail 0 | blocked 16
 | V6-F100-032 | done | reviewed | pass | yes | OSS legal/governance baseline completion |
 | V6-F100-033 | done | reviewed | pass | yes | Release/security automation baseline uplift |
 | V6-F100-034 | blocked | blocked | blocked | no | First public semantic release + npm publish |
-| V6-F100-035 | queued | queued | needs_implementation | no | SPDX header sweep across source tree |
-| V6-F100-036 | queued | queued | needs_implementation | no | Root experimental folder rationalization |
+| V6-F100-035 | done | reviewed | pass | yes | SPDX header sweep across source tree |
+| V6-F100-036 | done | reviewed | pass | yes | Root experimental folder rationalization |
 | V6-F100-037 | done | reviewed | pass | yes | README governance links + repo hygiene ownership fences |
 | V6-F100-038 | done | reviewed | pass | yes | Backlog canonical rename to SRS with compatibility alias |
 | V6-F100-039 | done | reviewed | pass | yes | F100 baseline reconciliation gate with deterministic receipts |
 | V6-F100-040 | done | reviewed | pass | yes | Enterprise deployment packaging baseline (Helm + Terraform) |
-| V6-F100-041 | queued | queued | needs_implementation | no | Identity federation adapters (SSO/OAuth2/SCIM) for enterprise control plane |
-| V6-F100-042 | queued | queued | needs_implementation | no | Audit-log export adapters for SIEM pipelines (Splunk/ELK/Datadog) |
+| V6-F100-041 | done | reviewed | pass | yes | Identity federation adapters (SSO/OAuth2/SCIM) for enterprise control plane |
+| V6-F100-042 | done | reviewed | pass | yes | Audit-log export adapters for SIEM pipelines (Splunk/ELK/Datadog) |
 | V6-F100-043 | blocked | blocked | blocked | no | External certification and attestation program (SOC2/ISO/FedRAMP/GDPR) |
 | V6-F100-044 | blocked | blocked | blocked | no | Commercial support/SLA contract lane (enterprise readiness) |
 | V6-F100-045 | blocked | blocked | blocked | no | Public compliance report publication lane |

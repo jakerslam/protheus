@@ -1,0 +1,33 @@
+name: SPDX Header Guard
+
+on:
+  push:
+    paths:
+      - "crates/**"
+      - "config/spdx_header_guard_baseline.txt"
+      - "config/f100_readiness_program_policy.json"
+      - "crates/ops/src/f100_readiness_program.rs"
+      - ".github/workflows/spdx-header-guard.yml"
+  pull_request:
+    paths:
+      - "crates/**"
+      - "config/spdx_header_guard_baseline.txt"
+      - "config/f100_readiness_program_policy.json"
+      - "crates/ops/src/f100_readiness_program.rs"
+      - ".github/workflows/spdx-header-guard.yml"
+
+jobs:
+  spdx-header-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run SPDX header guard lane
+        run: |
+          cargo run --quiet --manifest-path crates/ops/Cargo.toml --bin protheus-ops -- \
+            f100-readiness-program run --lane=V6-F100-035 --strict=1 --apply=0

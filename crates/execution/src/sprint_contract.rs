@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};

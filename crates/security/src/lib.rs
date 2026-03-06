@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use protheus_memory_core_v6::{load_embedded_observability_profile, EmbeddedObservabilityProfile};
 use protheus_vault_core_v1::{
     evaluate_vault_policy, evaluate_vault_policy_json, load_embedded_vault_policy,

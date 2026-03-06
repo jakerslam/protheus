@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use conduit::{
     deterministic_receipt_hash, process_command, ConduitPolicy, ConduitSecurityContext,
     EchoCommandHandler, RegistryPolicyGate, TsCommand,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use crate::ebbinghaus;
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};

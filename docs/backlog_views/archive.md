@@ -1,6 +1,6 @@
 # Backlog Archive View
 
-Generated: 2026-03-06T18:29:15.204Z
+Generated: 2026-03-06T18:56:58.883Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -1003,6 +1003,15 @@ Generated: 2026-03-06T18:29:15.204Z
 | V6-F100-001 | hardening | V6 | done | Reliability Certification Program (SLO/Error-Budget Gate) |  |
 | V6-F100-002 | governance | V6 | done | SDLC Change-Control Plane (RFC/ADR/Risk Class) | V6-F100-001 |
 | V6-F100-003 | hardening | V6 | done | Secure Supply-Chain Provenance v2 (SBOM + Signed Artifacts) | V6-F100-002 |
+| V6-F100-004 | governance | V6 | done | Compliance Evidence Automation (SOC2/ISO Audit Bundle) | V6-F100-002, V6-F100-003 |
+| V6-F100-005 | scale-readiness | V6 | done | 1M-User Performance Certification Harness | V6-F100-001, V6-F100-003 |
+| V6-F100-006 | hardening | V6 | done | Multi-Tenant Isolation + Data Governance Contract | V6-F100-003, V6-F100-005 |
+| V6-F100-007 | hardening | V6 | done | API/CLI Contract Lifecycle (Versioning + Deprecation) | V6-F100-002 |
+| V6-F100-008 | governance | V6 | done | On-Call + Incident Command Maturity Pack | V6-F100-001, V6-F100-002 |
+| V6-F100-009 | launch-polish | V6 | done | Golden-Path Onboarding + Developer Portal | V6-F100-001 |
+| V6-F100-010 | launch-polish | V6 | done | Enterprise Architecture Narrative + Evidence Pack | V6-F100-009 |
+| V6-F100-011 | launch-polish | V6 | done | Operator Surface Consistency Program (UX/Tone/State Model) | V6-F100-009, V6-F100-010 |
+| V6-F100-012 | governance | V6 | done | Executive Engineering Readiness Scorecard (Path to 90) | V6-F100-001, V6-F100-002, V6-F100-004, V6-F100-005, V6-F100-009, V6-F100-010, V6-F100-011 |
 | V6-F100-016 | backlog | V6 | done | Cron delivery announce/main hardening |  |
 | V6-F100-017 | backlog | V6 | done | Rust status dashboard SLO metrics expansion |  |
 | V6-F100-018 | backlog | V6 | done | Model recovery fallback policy for degraded families |  |
@@ -1017,10 +1026,14 @@ Generated: 2026-03-06T18:29:15.204Z
 | V6-F100-031 | backlog | V6 | done | Loop/persona A/B trial evaluator with promotion receipts |  |
 | V6-F100-032 | backlog | V6 | done | OSS legal/governance baseline completion |  |
 | V6-F100-033 | backlog | V6 | done | Release/security automation baseline uplift |  |
+| V6-F100-035 | backlog | V6 | done | SPDX header sweep across source tree |  |
+| V6-F100-036 | backlog | V6 | done | Root experimental folder rationalization |  |
 | V6-F100-037 | backlog | V6 | done | README governance links + repo hygiene ownership fences |  |
 | V6-F100-038 | backlog | V6 | done | Backlog canonical rename to SRS with compatibility alias |  |
 | V6-F100-039 | backlog | V6 | done | F100 baseline reconciliation gate with deterministic receipts |  |
 | V6-F100-040 | backlog | V6 | done | Enterprise deployment packaging baseline (Helm + Terraform) |  |
+| V6-F100-041 | backlog | V6 | done | Identity federation adapters (SSO/OAuth2/SCIM) for enterprise control plane |  |
+| V6-F100-042 | backlog | V6 | done | Audit-log export adapters for SIEM pipelines (Splunk/ELK/Datadog) |  |
 | V6-GAP-001 | launch-polish | V6 | done | One-Line Installer Parity (`curl ... | sh` + PowerShell) | V6-CONDUIT-003 |
 | V6-GAP-002 | hardening | V6 | done | Coverage Uplift + Badge Gate | V6-GAP-001 |
 | V6-GAP-003 | launch-polish | V6 | done | Architecture + Quickstart Story Refresh | V6-GAP-001 |

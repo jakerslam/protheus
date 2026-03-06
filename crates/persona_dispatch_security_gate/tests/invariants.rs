@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use persona_dispatch_security_gate::evaluate_persona_dispatch_gate;
 
 #[test]

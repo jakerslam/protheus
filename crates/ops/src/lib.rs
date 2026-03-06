@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -23,6 +24,9 @@ pub mod benchmark_matrix;
 pub mod f100_reliability_certification;
 pub mod sdlc_change_control;
 pub mod supply_chain_provenance_v2;
+pub mod f100_readiness_program;
+pub mod identity_federation;
+pub mod audit_log_export;
 pub mod dynamic_burn_budget_oracle;
 pub mod enterprise_hardening;
 pub mod execution_yield_recovery;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use crate::contract_check::{foundation_hook_coverage_receipt, guard_registry_contract_receipt};
 use crate::{deterministic_receipt_hash, now_iso};
 use burn_oracle_budget_gate::CHECK_ID as BURN_ORACLE_BUDGET_GATE_CHECK_ID;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use protheus_memory_core_v6::{
     clear_cache, compress_store, crdt_exchange_json, ebbinghaus_curve, get_json, ingest_memory,
     load_embedded_execution_replay, load_embedded_heartbeat, load_embedded_observability_profile,
