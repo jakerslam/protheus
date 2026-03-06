@@ -2,11 +2,12 @@
 
 [![CI](https://github.com/protheuslabs/protheus/actions/workflows/ci.yml/badge.svg)](https://github.com/protheuslabs/protheus/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/protheuslabs/protheus/actions/workflows/codeql.yml/badge.svg)](https://github.com/protheuslabs/protheus/actions/workflows/codeql.yml)
+![Coverage](docs/badges/coverage.svg)
 ![Dependabot](https://img.shields.io/badge/dependabot-enabled-025E8C?logo=dependabot)
 
-Protheus is an evidence-first local control plane for autonomous operations, workflow execution, and policy-governed system evolution.
+Protheus is an evidence-first Rust kernel for autonomous operations, workflow execution, and policy-governed system evolution.
 This repository is maintained under the Protheus Labs operating model.
-Protheus is the open substrate for crowdsourcing the singularity — run your own self-improving loop today.
+Protheus is the InfRing substrate: run the same core across desktop/server/embedded while keeping TS as a thin surface layer.
 
 This repository is organized to run like an internal platform team: typed runtime lanes, deterministic receipts, strict governance surfaces, and operational guardrails that are reviewable in-source.
 
@@ -19,6 +20,34 @@ This repository is organized to run like an internal platform team: typed runtim
 - Docs and runbooks that map directly to executable scripts and checks
 
 ## Quick Start
+
+Install with one command (macOS/Linux):
+
+```bash
+curl -fsSL https://get.protheus.ai/install | sh
+```
+
+Fallback installer URL:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/protheuslabs/protheus/main/install.sh | sh
+```
+
+Windows (PowerShell):
+
+```powershell
+irm https://raw.githubusercontent.com/protheuslabs/protheus/main/install.ps1 | iex
+```
+
+Then verify:
+
+```bash
+protheus --help
+protheusctl --help
+protheusd --help
+```
+
+Local source workflow:
 
 ```bash
 npm ci
@@ -214,6 +243,7 @@ See [Cognitive Toolkit Suite](docs/cognitive_toolkit.md) and `examples/*-demo/` 
 The project is operated with explicit documentation and governance contracts:
 
 - [Architecture](ARCHITECTURE.md)
+- [Getting Started](docs/GETTING_STARTED.md)
 - [Security Posture](docs/SECURITY_POSTURE.md)
 - [Security Policy](SECURITY.md)
 - [Onboarding Playbook](docs/ONBOARDING_PLAYBOOK.md)
