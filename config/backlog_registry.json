@@ -11236,10 +11236,10 @@
       "id": "V6-ARCH-001",
       "class": "architecture-portability",
       "wave": "V6",
-      "status": "queued",
+      "status": "done",
       "title": "Layered kernel shedding feature topology (layer0 -> layer3)",
       "problem": "Single-codebase portability requires compile-time layer shedding instead of proliferating runtime compatibility modes.",
-      "acceptance": "Land REQ-10 feature graph in Cargo/workspace and module cfg-gating for core/resource/conduit/observability layers with documented build commands.",
+      "acceptance": "Land REQ-10 feature graph in Cargo/workspace and module cfg-gating for core/resource/conduit/observability layers with documented build commands. Delivered via crates/kernel_layers feature graph + cfg exports and verified by ops:kernel-layer-matrix, cargo check, and formal invariants.",
       "dependencies": [
         "REQ-10"
       ]
