@@ -25,6 +25,7 @@ pub mod foundation_contract_gate;
 pub mod inversion_controller;
 pub mod health_status;
 pub mod model_router;
+pub mod offline_runtime_guard;
 pub mod perception_polish;
 pub mod persona_schema_contract;
 pub mod personas_cli;

@@ -11482,10 +11482,10 @@
       "id": "V6-RUNTIME-003",
       "class": "runtime-hardening",
       "wave": "V6",
-      "status": "queued",
+      "status": "done",
       "title": "Offline-mode degraded-path hardening",
       "problem": "Offline operation is partially available but inconsistent across research/assimilation workflows.",
-      "acceptance": "Implement REQ-14-003 deterministic offline detection, local-only fallback, and operator-visible degraded mode messaging.",
+      "acceptance": "Implement REQ-14-003 deterministic offline detection, local-only fallback, and operator-visible degraded mode messaging. Delivered via config/offline_runtime_guard_policy.json and crates/ops/src/offline_runtime_guard.rs with CLI integration.",
       "dependencies": [
         "REQ-14"
       ]
