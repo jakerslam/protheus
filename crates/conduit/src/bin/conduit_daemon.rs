@@ -1,5 +1,6 @@
 use conduit::{
-    run_stdio_once, ConduitPolicy, ConduitSecurityContext, EchoCommandHandler, RegistryPolicyGate,
+    run_stdio_once, validate_conduit_contract_budget, ConduitPolicy, ConduitSecurityContext,
+    EchoCommandHandler, RegistryPolicyGate,
 };
 use std::env;
 use std::io::{self, BufReader};
@@ -13,6 +14,8 @@ fn main() {
 
 fn run() -> io::Result<()> {
     let policy = load_policy()?;
+    validate_conduit_contract_budget(policy.bridge_message_budget_max)
+        .map_err(|reason| io::Error::new(io::ErrorKind::InvalidData, reason))?;
     let signing_key_id =
         env::var("CONDUIT_SIGNING_KEY_ID").unwrap_or_else(|_| "conduit-msg-k1".to_string());
     let signing_secret = env::var("CONDUIT_SIGNING_SECRET")

@@ -129,6 +129,11 @@ Delivered:
 - `config/rust_source_of_truth_policy.json` defines source-of-truth contract checks for:
   - Rust kernel entrypoints in `crates/ops/src/main.rs`
   - strict conduit enforcement tokens in `systems/ops/protheusd.ts`
+  - conduit message-budget enforcement tokens in `crates/conduit/src/lib.rs`
   - required JS bootstrap wrappers
   - required direct JS->Rust shims (token-validated)
 - `crates/ops/src/contract_check.rs` enforces `rust_source_of_truth_contract` as a first-class contract check.
+- bridge contract budget is enforced fail-closed at runtime:
+  - max bridge message types: `10`
+  - TS commands: `7`
+  - Rust event types: `3`

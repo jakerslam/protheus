@@ -4,6 +4,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 
 export const CONDUIT_SCHEMA_ID = 'protheus_conduit';
 export const CONDUIT_SCHEMA_VERSION = '1.0';
+export const MAX_CONDUIT_MESSAGE_TYPES = 10;
 
 export type TsCommand =
   | { type: 'start_agent'; agent_id: string }
@@ -19,12 +20,35 @@ export type TsCommand =
       capabilities: string[];
     };
 
+export const TS_COMMAND_TYPES = [
+  'start_agent',
+  'stop_agent',
+  'query_receipt_chain',
+  'list_active_agents',
+  'get_system_status',
+  'apply_policy_update',
+  'install_extension',
+] as const;
+
+export type AgentLifecycleState = 'started' | 'stopped';
+
 export type RustEvent =
-  | { type: 'agent_started'; agent_id: string }
-  | { type: 'agent_stopped'; agent_id: string }
+  | { type: 'agent_lifecycle'; state: AgentLifecycleState; agent_id: string }
   | { type: 'receipt_added'; receipt_hash: string }
-  | { type: 'system_status'; status: string; detail: unknown }
-  | { type: 'policy_violation'; reason: string };
+  | { type: 'system_feedback'; status: string; detail: unknown; violation_reason?: string | null };
+
+export const RUST_EVENT_TYPES = [
+  'agent_lifecycle',
+  'receipt_added',
+  'system_feedback',
+] as const;
+
+const BRIDGE_MESSAGE_TYPE_COUNT = TS_COMMAND_TYPES.length + RUST_EVENT_TYPES.length;
+if (BRIDGE_MESSAGE_TYPE_COUNT > MAX_CONDUIT_MESSAGE_TYPES) {
+  throw new Error(
+    `conduit_message_budget_exceeded:${BRIDGE_MESSAGE_TYPE_COUNT}>${MAX_CONDUIT_MESSAGE_TYPES}`,
+  );
+}
 
 export interface CapabilityToken {
   token_id: string;

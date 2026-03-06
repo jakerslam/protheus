@@ -286,6 +286,16 @@ fn check_rust_source_of_truth_contract(root: &Path) -> Result<Value, String> {
         "conduit_strict_gate",
     )?;
 
+    let conduit_budget_gate = require_object(&policy, "conduit_budget_gate")?;
+    let conduit_budget_path = require_rel_path(conduit_budget_gate, "path")?;
+    let conduit_budget_tokens = require_string_array(conduit_budget_gate, "required_tokens")?;
+    check_required_tokens_at_path(
+        root,
+        &conduit_budget_path,
+        &conduit_budget_tokens,
+        "conduit_budget_gate",
+    )?;
+
     let wrapper_contract = require_object(&policy, "js_wrapper_contract")?;
     let wrapper_paths = require_string_array(wrapper_contract, "required_wrapper_paths")?;
     for rel in &wrapper_paths {
@@ -327,6 +337,7 @@ fn check_rust_source_of_truth_contract(root: &Path) -> Result<Value, String> {
         "policy_path": RUST_SOURCE_OF_TRUTH_POLICY_REL,
         "entrypoint_path": entrypoint_path,
         "conduit_path": conduit_path,
+        "conduit_budget_path": conduit_budget_path,
         "wrapper_paths_checked": wrapper_paths.len(),
         "rust_shims_checked": rust_shim_checked,
     }))
