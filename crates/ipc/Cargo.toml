@@ -5,3 +5,5 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+hex = "0.4"
+sha2 = "0.10"
