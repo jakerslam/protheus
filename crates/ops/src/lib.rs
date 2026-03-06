@@ -14,6 +14,7 @@ use walkdir::WalkDir;
 pub mod autotest_controller;
 pub mod autotest_doctor;
 pub mod ab_lane_eval;
+pub mod assimilation_controller;
 pub mod autonomy_controller;
 pub mod backlog_runtime_anchor;
 pub mod benchmark_matrix;
@@ -37,6 +38,7 @@ pub mod scale_readiness;
 pub mod spine;
 pub mod state_kernel;
 pub mod shadow_budget_governance;
+pub mod sensory_eyes_intake;
 pub mod strategy_mode_governor;
 pub mod workflow_executor;
 
