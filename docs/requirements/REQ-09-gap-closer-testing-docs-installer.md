@@ -31,6 +31,12 @@ Close the highest-visibility completeness gaps with a focused implementation wav
   - [README.md](../../README.md) provides an install-first quickstart.
   - [docs/GETTING_STARTED.md](../GETTING_STARTED.md) provides a <2 minute path.
 
+4. `REQ-09-004` Optional Python packaging path must remain thin and Rust-authoritative
+- Acceptance:
+  - A dedicated Python package exists under `packages/protheus-py`.
+  - `pip install` exposes a `protheus` CLI entrypoint that delegates to `protheus-ops`.
+  - No kernel logic is re-implemented in Python; wrapper only forwards command execution.
+
 ## Execution Notes (Current Batch)
 
 Implemented in this batch:

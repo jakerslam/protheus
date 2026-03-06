@@ -22,6 +22,7 @@ Status legend:
 | V6-F100-023 | blocked | Third-party security audit publication | External trust requires independent verification beyond internal controls. | Public external audit report + remediation tracker are published and linked from `SECURITY.md`. |
 | V6-F100-024 | blocked | Horizontal scaling proof in production profile | Single-node posture limits enterprise confidence under fault/load conditions. | Multi-node failover and soak evidence meets distributed runtime gates in production profile. |
 | V6-F100-025 | blocked | Continuous chaos weekly evidence contract | Reliability posture needs sustained resilience proof, not one-off drills. | Weekly chaos report artifacts pass resilience gates and are surfaced in operator dashboard health checks. |
+| V6-F100-026 | done | Optional pip installation wrapper (thin Python CLI) | Add Python ecosystem onboarding without creating a second source of truth. | `packages/protheus-py` ships a thin `protheus` wrapper that delegates to Rust `protheus-ops`; docs and requirements updated. |
 
 ## P0
 
