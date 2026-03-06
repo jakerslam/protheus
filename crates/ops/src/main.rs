@@ -26,6 +26,7 @@ fn usage() {
     println!("  protheus-ops state-kernel <command> [flags]");
     println!("  protheus-ops shadow-budget-governance <evaluate|status> [flags]");
     println!("  protheus-ops offline-runtime-guard <evaluate|status> [flags]");
+    println!("  protheus-ops hardware-route-hardening <evaluate|status> [flags]");
     println!("  protheus-ops autonomy-controller <command> [flags]");
     println!("  protheus-ops autotest-controller <command> [flags]");
     println!("  protheus-ops autotest-doctor <command> [flags]");
@@ -220,6 +221,11 @@ fn main() {
         "offline-runtime-guard" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::offline_runtime_guard::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "hardware-route-hardening" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::hardware_route_hardening::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "autonomy-controller" => {

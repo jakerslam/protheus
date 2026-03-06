@@ -22,6 +22,7 @@ pub mod legacy_retired_lane;
 pub mod contract_check;
 pub mod fluxlattice_program;
 pub mod foundation_contract_gate;
+pub mod hardware_route_hardening;
 pub mod inversion_controller;
 pub mod health_status;
 pub mod model_router;

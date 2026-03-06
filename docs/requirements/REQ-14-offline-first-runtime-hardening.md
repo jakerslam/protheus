@@ -59,6 +59,11 @@ Out of scope:
   - Hardware profile detection is integrated into model selection path at runtime.
   - Micro-task vs deep-task routing adapts to profile constraints under policy.
   - Routing decisions include profile and fallback reasoning in receipts.
+- Implementation (2026-03-06):
+  - Policy contract: `config/hardware_route_hardening_policy.json`
+  - Runtime lane: `crates/ops/src/hardware_route_hardening.rs`
+  - CLI surface: `protheus-ops hardware-route-hardening <evaluate|status>`
+  - Receipts include resolved profile, requested task class, selected model, and deterministic fallback reasons.
 
 ## Verification Requirements
 

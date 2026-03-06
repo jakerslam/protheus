@@ -1,0 +1,26 @@
+{
+  "schema_id": "hardware_route_hardening_policy",
+  "schema_version": "1.0",
+  "default_profile": "desktop",
+  "profiles": {
+    "phone": {
+      "micro_task_model": "qwen2.5:1.5b",
+      "deep_task_model": "qwen2.5:3b",
+      "fallback_model": "llama3.2:1b",
+      "max_context_tokens": 4096
+    },
+    "desktop": {
+      "micro_task_model": "qwen2.5:3b",
+      "deep_task_model": "qwen2.5:7b",
+      "fallback_model": "llama3.2:3b",
+      "max_context_tokens": 8192
+    },
+    "cluster": {
+      "micro_task_model": "qwen2.5:7b",
+      "deep_task_model": "qwen2.5:32b",
+      "fallback_model": "qwen2.5:14b",
+      "max_context_tokens": 32768
+    }
+  },
+  "state_path": "state/ops/hardware_route_hardening/latest.json"
+}

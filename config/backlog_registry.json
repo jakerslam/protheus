@@ -11494,10 +11494,10 @@
       "id": "V6-RUNTIME-004",
       "class": "runtime-hardening",
       "wave": "V6",
-      "status": "queued",
+      "status": "done",
       "title": "Hardware-aware local routing hardening",
       "problem": "Hardware-aware and local-first routing foundations exist but need explicit runtime policy hardening and receipt transparency.",
-      "acceptance": "Implement REQ-14-004 hardware-profile-aware routing decisions for micro/deep tasks with fallback reasoning in receipts.",
+      "acceptance": "Implement REQ-14-004 hardware-profile-aware routing decisions for micro/deep tasks with fallback reasoning in receipts. Delivered via config/hardware_route_hardening_policy.json and crates/ops/src/hardware_route_hardening.rs with CLI integration.",
       "dependencies": [
         "REQ-14",
         "V6-RUNTIME-003"
