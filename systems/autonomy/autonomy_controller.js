@@ -1,9 +1,15 @@
 #!/usr/bin/env node
 'use strict';
 
-if (process.argv.includes('--help') || process.argv.includes('-h') || process.argv.includes('help')) {
-  console.log('autonomy_controller.js run evidence readiness status');
-  process.exit(0);
+const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge');
+
+const bridge = createOpsLaneBridge(__dirname, 'autonomy_controller', 'autonomy-controller');
+
+if (require.main === module) {
+  bridge.runCli(process.argv.slice(2));
 }
 
-require('../../lib/ts_bootstrap').bootstrap(__filename, module);
+module.exports = {
+  lane: bridge.lane,
+  run: bridge.run
+};

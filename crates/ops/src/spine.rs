@@ -996,6 +996,7 @@ mod tests {
             constitution_ok: true,
             evidence_plan: &evidence_plan,
             evidence_ok: 0,
+            started_ms: 0,
         };
 
         let code = emit_terminal_receipt(&mut ledger, &context, false, Some("guard_failed"));
