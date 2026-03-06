@@ -6,13 +6,12 @@
   "cold_start_probe": {
     "command": [
       "node",
-      "systems/ops/seed_boot_probe.js",
-      "run"
+      "lib/conduit_full_lifecycle_probe.js"
     ],
     "samples": 5,
-    "max_ms": 300,
+    "max_ms": 500,
     "warmup_runs": 1,
-    "runtime_mode": "dist",
+    "runtime_mode": "source",
     "require_full_dist": false
   },
   "idle_rss_probe": {

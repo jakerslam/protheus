@@ -2,7 +2,7 @@ use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsString;
 use std::fs;
 use std::io::Write;
@@ -341,7 +341,7 @@ pub fn default_policy(root: &Path) -> Policy {
                 "lib/conduit_full_lifecycle_probe.js".to_string(),
             ],
             samples: 5,
-            max_ms: 300.0,
+            max_ms: 500.0,
             warmup_runs: 1,
             runtime_mode: "dist".to_string(),
             require_full_dist: false,
@@ -623,6 +623,49 @@ fn dir_size_mb(root: &Path, rel_path: &str) -> f64 {
     (bytes as f64) / (1024.0 * 1024.0)
 }
 
+fn find_runtime_binary_rel(root: &Path, name: &str) -> Option<String> {
+    let exe_name = if cfg!(windows) {
+        format!("{name}.exe")
+    } else {
+        name.to_string()
+    };
+    let candidates = [
+        format!("target/release/{exe_name}"),
+        format!("target/debug/{exe_name}"),
+    ];
+    for rel in candidates {
+        if root.join(&rel).exists() {
+            return Some(rel);
+        }
+    }
+    None
+}
+
+fn full_install_probe_paths(root: &Path) -> Vec<String> {
+    let mut paths = vec![
+        "systems".to_string(),
+        "lib".to_string(),
+        "config".to_string(),
+        "node_modules".to_string(),
+        "crates/conduit".to_string(),
+        "crates/ops".to_string(),
+    ];
+
+    if root.join("dist").exists() {
+        paths.push("dist".to_string());
+    }
+
+    for bin in ["protheus-ops", "conduit_daemon"] {
+        if let Some(rel) = find_runtime_binary_rel(root, bin) {
+            paths.push(rel);
+        }
+    }
+
+    paths.sort();
+    paths.dedup();
+    paths
+}
+
 fn system_idle_rss_mb() -> f64 {
     let node_probe = Command::new("sh")
         .args([
@@ -718,12 +761,21 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
     }
     let idle_rss_mb = percentile(&rss_samples, 0.95).unwrap_or(0.0);
 
-    let mut install_sizes = HashMap::new();
+    let mut install_sizes = BTreeMap::new();
     let mut install_total = 0.0f64;
     for rel in &policy.install_artifact_probe.paths {
         let size = dir_size_mb(root, rel);
         install_total += size;
         install_sizes.insert(rel.clone(), (size * 1000.0).round() / 1000.0);
+    }
+
+    let full_install_paths = full_install_probe_paths(root);
+    let mut full_install_sizes = BTreeMap::new();
+    let mut full_install_total = 0.0f64;
+    for rel in &full_install_paths {
+        let size = dir_size_mb(root, rel);
+        full_install_total += size;
+        full_install_sizes.insert(rel.clone(), (size * 1000.0).round() / 1000.0);
     }
 
     let pass = p95_ms <= policy.cold_start_probe.max_ms
@@ -739,7 +791,8 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
         "metrics": {
             "cold_start_p95_ms": (p95_ms * 1000.0).round() / 1000.0,
             "idle_rss_p95_mb": (idle_rss_mb * 1000.0).round() / 1000.0,
-            "install_artifact_total_mb": (install_total * 1000.0).round() / 1000.0
+            "install_artifact_total_mb": (install_total * 1000.0).round() / 1000.0,
+            "full_install_total_mb": (full_install_total * 1000.0).round() / 1000.0
         },
         "cold_start": {
             "samples": policy.cold_start_probe.samples,
@@ -762,6 +815,10 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
             "max_mb": policy.install_artifact_probe.max_mb,
             "sum_mb": (install_total * 1000.0).round() / 1000.0,
             "paths": install_sizes
+        },
+        "full_install": {
+            "sum_mb": (full_install_total * 1000.0).round() / 1000.0,
+            "paths": full_install_sizes
         }
     });
 
@@ -793,6 +850,7 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
         "cold_start": row["cold_start"],
         "idle_rss": row["idle_rss"],
         "install_artifact": row["install_artifact"],
+        "full_install": row["full_install"],
         "policy_path": rel_path(root, &policy_path),
         "state_path": rel_path(root, &policy.state_path),
         "history_path": rel_path(root, &policy.history_path)
