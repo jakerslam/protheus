@@ -8,6 +8,21 @@ Status legend:
 - `blocked` waiting on dependency/decision
 - `done` completed
 
+## Production-Grade Checklist Addendum (2026-03-06)
+
+| ID | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|
+| V6-F100-016 | done | Cron delivery announce/main hardening | Silent cron failures were the highest-risk operations gap. | `config/cron_jobs.json` has `delivery.mode=announce` and `delivery.channel=main` for all enabled jobs. |
+| V6-F100-017 | done | Rust status dashboard SLO metrics expansion | Pass/fail checks alone were insufficient for operator-grade monitoring. | `protheus-ops status --dashboard` emits SLO metrics for spine success rate, receipt latency p95, assimilation pain score, cron health, and PQTS slippage MAPE. |
+| V6-F100-018 | done | Model recovery fallback policy for degraded families | Runtime needed deterministic failover for unstable `llama3.2` routes. | `config/model_health_*_recovery_policy.json` defines bounded retries and `fallback_model` routing for `llama3.2:*`. |
+| V6-F100-019 | done | Release-build path hardening for conduit launchers | Hosted mode should prefer optimized binaries before debug/cargo fallback. | Conduit launchers check `target/release` first and release build validation succeeds (`cargo build --release --manifest-path crates/ops/Cargo.toml`). |
+| V6-F100-020 | done | Secret rotation weekly attestation cadence | Secrets hygiene needed automated recurrence and deterministic evidence. | Weekly cron job `Secret Rotation Attestation (weekly)` exists and runs `systems/security/secret_rotation_migration_auditor.js`. |
+| V6-F100-021 | done | Memory continuity index rebuild run | Session continuity quality degraded when index freshness drifted. | `node memory/tools/rebuild_exclusive.js` completes and regenerates memory index artifacts without archive leakage. |
+| V6-F100-022 | blocked | Live trading proof gate (30-day promotion evidence) | Paper/live performance history must validate runtime under real market stress. | 30-day canary evidence reaches promotion thresholds (PnL/risk/SLO), with deterministic receipts. |
+| V6-F100-023 | blocked | Third-party security audit publication | External trust requires independent verification beyond internal controls. | Public external audit report + remediation tracker are published and linked from `SECURITY.md`. |
+| V6-F100-024 | blocked | Horizontal scaling proof in production profile | Single-node posture limits enterprise confidence under fault/load conditions. | Multi-node failover and soak evidence meets distributed runtime gates in production profile. |
+| V6-F100-025 | blocked | Continuous chaos weekly evidence contract | Reliability posture needs sustained resilience proof, not one-off drills. | Weekly chaos report artifacts pass resilience gates and are surfaced in operator dashboard health checks. |
+
 ## P0
 
 | ID | Status | Upgrade | Why | Exit Criteria |

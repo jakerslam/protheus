@@ -1,5 +1,6 @@
 use crate::{deterministic_receipt_hash, now_iso};
 use serde_json::{json, Value};
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
@@ -507,6 +508,304 @@ fn audit_cron_delivery(root: &Path) -> Value {
     })
 }
 
+fn percentile_95(values: &[f64]) -> Option<f64> {
+    if values.is_empty() {
+        return None;
+    }
+    let mut sorted = values.to_vec();
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let idx = ((sorted.len() as f64) * 0.95).ceil() as usize;
+    let idx = idx.saturating_sub(1).min(sorted.len().saturating_sub(1));
+    sorted.get(idx).copied()
+}
+
+fn collect_spine_dashboard_metrics(root: &Path) -> Value {
+    let runs_dir = root.join("state/spine/runs");
+    let mut completed = 0usize;
+    let mut failed = 0usize;
+    let mut latency_ms = Vec::<f64>::new();
+    let mut files_scanned = 0usize;
+
+    if let Ok(entries) = fs::read_dir(&runs_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|v| v.to_str()) != Some("jsonl") {
+                continue;
+            }
+            files_scanned += 1;
+            let Ok(raw) = fs::read_to_string(&path) else {
+                continue;
+            };
+            for line in raw.lines() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                let Ok(row) = serde_json::from_str::<Value>(trimmed) else {
+                    continue;
+                };
+                match row.get("type").and_then(Value::as_str).unwrap_or("") {
+                    "spine_run_complete" => {
+                        completed += 1;
+                        if let Some(ms) = row.get("elapsed_ms").and_then(Value::as_f64) {
+                            latency_ms.push(ms);
+                        }
+                    }
+                    "spine_run_failed" => {
+                        failed += 1;
+                    }
+                    "spine_observability_trace" => {
+                        if let Some(ms) = row.get("trace_duration_ms").and_then(Value::as_f64) {
+                            latency_ms.push(ms);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    let total = completed + failed;
+    let success_rate = if total > 0 {
+        completed as f64 / total as f64
+    } else {
+        1.0
+    };
+    let p95_latency = percentile_95(&latency_ms);
+
+    let success_status = if success_rate >= 0.999 { "pass" } else { "warn" };
+    let latency_status = match p95_latency {
+        Some(v) if v < 100.0 => "pass",
+        Some(_) => "warn",
+        None => "warn",
+    };
+
+    json!({
+        "spine_success_rate": {
+            "value": success_rate,
+            "target_min": 0.999,
+            "status": success_status,
+            "samples": total,
+            "completed_runs": completed,
+            "failed_runs": failed,
+            "source": "state/spine/runs/*.jsonl"
+        },
+        "receipt_latency_p95_ms": {
+            "value": p95_latency,
+            "target_max": 100.0,
+            "status": latency_status,
+            "samples": latency_ms.len(),
+            "files_scanned": files_scanned,
+            "source": "state/spine/runs/*.jsonl"
+        }
+    })
+}
+
+fn pain_severity_score(severity: &str) -> f64 {
+    match severity.trim().to_ascii_lowercase().as_str() {
+        "low" => 0.25,
+        "medium" => 0.50,
+        "high" => 0.75,
+        "critical" => 1.0,
+        _ => 0.50,
+    }
+}
+
+fn collect_assimilation_pain_dashboard_metric(root: &Path) -> Value {
+    let pain_path = root.join("state/autonomy/pain_signals.jsonl");
+    let mut total_score = 0.0f64;
+    let mut total_count = 0usize;
+    let mut by_source = BTreeMap::<String, (f64, usize)>::new();
+
+    if let Ok(raw) = fs::read_to_string(&pain_path) {
+        for line in raw.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let Ok(row) = serde_json::from_str::<Value>(trimmed) else {
+                continue;
+            };
+            if row.get("type").and_then(Value::as_str) != Some("pain_signal") {
+                continue;
+            }
+            let source = row
+                .get("source")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown")
+                .to_string();
+            let score = pain_severity_score(
+                row.get("severity")
+                    .and_then(Value::as_str)
+                    .unwrap_or("medium"),
+            );
+            total_score += score;
+            total_count += 1;
+            let entry = by_source.entry(source).or_insert((0.0, 0));
+            entry.0 += score;
+            entry.1 += 1;
+        }
+    }
+
+    let avg = if total_count > 0 {
+        total_score / total_count as f64
+    } else {
+        0.0
+    };
+    let status = if avg < 0.5 { "pass" } else { "warn" };
+
+    let mut top_sources = by_source
+        .iter()
+        .map(|(source, (sum, count))| {
+            let avg = if *count > 0 { *sum / *count as f64 } else { 0.0 };
+            json!({
+                "source": source,
+                "avg_score": avg,
+                "samples": count
+            })
+        })
+        .collect::<Vec<_>>();
+    top_sources.sort_by(|a, b| {
+        let av = a.get("avg_score").and_then(Value::as_f64).unwrap_or(0.0);
+        let bv = b.get("avg_score").and_then(Value::as_f64).unwrap_or(0.0);
+        bv.partial_cmp(&av).unwrap_or(std::cmp::Ordering::Equal)
+    });
+    top_sources.truncate(5);
+
+    json!({
+        "assimilation_pain_score": {
+            "value": avg,
+            "target_max": 0.5,
+            "status": status,
+            "samples": total_count,
+            "top_sources": top_sources,
+            "source": "state/autonomy/pain_signals.jsonl"
+        }
+    })
+}
+
+fn collect_pqts_slippage_dashboard_metric(root: &Path) -> Value {
+    let reports_dir = root.join("pqts/data/reports/mape_matrix_no_stress");
+    let mut latest_snapshot = None::<String>;
+
+    if let Ok(entries) = fs::read_dir(&reports_dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let Some(name) = name.to_str() else {
+                continue;
+            };
+            if !name.starts_with("paper_campaign_snapshot_") || !name.ends_with(".json") {
+                continue;
+            }
+            let candidate = name.to_string();
+            if latest_snapshot
+                .as_ref()
+                .map(|current| candidate > *current)
+                .unwrap_or(true)
+            {
+                latest_snapshot = Some(candidate);
+            }
+        }
+    }
+
+    let Some(snapshot_name) = latest_snapshot else {
+        return json!({
+            "pqts_slippage_mape_pct": {
+                "value": Value::Null,
+                "target_max": 15.0,
+                "status": "warn",
+                "reason": "pqts_snapshot_missing",
+                "source": "pqts/data/reports/mape_matrix_no_stress"
+            }
+        });
+    };
+
+    let snapshot_path = reports_dir.join(&snapshot_name);
+    let payload = match read_json(&snapshot_path) {
+        Ok(v) => v,
+        Err(err) => {
+            return json!({
+                "pqts_slippage_mape_pct": {
+                    "value": Value::Null,
+                    "target_max": 15.0,
+                    "status": "warn",
+                    "reason": err,
+                    "source": snapshot_path.to_string_lossy()
+                }
+            });
+        }
+    };
+
+    let mape = payload
+        .get("readiness")
+        .and_then(|v| v.get("slippage_mape_pct"))
+        .and_then(Value::as_f64);
+    let status = match mape {
+        Some(v) if v < 15.0 => "pass",
+        Some(_) => "warn",
+        None => "warn",
+    };
+
+    json!({
+        "pqts_slippage_mape_pct": {
+            "value": mape,
+            "target_max": 15.0,
+            "status": status,
+            "snapshot": snapshot_name,
+            "source": "pqts/data/reports/mape_matrix_no_stress"
+        }
+    })
+}
+
+fn collect_dashboard_metrics(root: &Path, cron_audit: &Value) -> Value {
+    let enabled_jobs = cron_audit
+        .get("enabled_jobs")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let issue_count = cron_audit
+        .get("issues")
+        .and_then(Value::as_array)
+        .map(|rows| rows.len() as u64)
+        .unwrap_or(0);
+    let cron_health = if enabled_jobs > 0 {
+        enabled_jobs.saturating_sub(issue_count) as f64 / enabled_jobs as f64
+    } else {
+        1.0
+    };
+    let cron_status = if cron_health >= 0.90 { "pass" } else { "warn" };
+
+    let mut metrics = serde_json::Map::<String, Value>::new();
+    metrics.insert(
+        "cron_job_health".to_string(),
+        json!({
+            "value": cron_health,
+            "target_min": 0.90,
+            "status": cron_status,
+            "enabled_jobs": enabled_jobs,
+            "issues": issue_count,
+            "source": "config/cron_jobs.json"
+        }),
+    );
+
+    if let Some(obj) = collect_spine_dashboard_metrics(root).as_object() {
+        for (k, v) in obj {
+            metrics.insert(k.clone(), v.clone());
+        }
+    }
+    if let Some(obj) = collect_assimilation_pain_dashboard_metric(root).as_object() {
+        for (k, v) in obj {
+            metrics.insert(k.clone(), v.clone());
+        }
+    }
+    if let Some(obj) = collect_pqts_slippage_dashboard_metric(root).as_object() {
+        for (k, v) in obj {
+            metrics.insert(k.clone(), v.clone());
+        }
+    }
+
+    Value::Object(metrics)
+}
+
 fn checks_summary(cron_ok: bool, source_ok: bool) -> Value {
     let verification_ok = cron_ok && source_ok;
     let status = |ok: bool| if ok { "pass" } else { "warn" };
@@ -545,6 +844,7 @@ fn status_receipt(root: &Path, cmd: &str, args: &[String], dashboard: bool) -> V
     let cron_ok = cron_audit.get("ok").and_then(Value::as_bool).unwrap_or(false);
     let source_ok = source_audit.get("ok").and_then(Value::as_bool).unwrap_or(false);
     let checks = checks_summary(cron_ok, source_ok);
+    let dashboard_metrics = collect_dashboard_metrics(root, &cron_audit);
 
     let mut alert_checks = Vec::<String>::new();
     if let Some(map) = checks.as_object() {
@@ -567,8 +867,10 @@ fn status_receipt(root: &Path, cmd: &str, args: &[String], dashboard: bool) -> V
         "replacement": REPLACEMENT,
         "checks": checks,
         "slo": {
-            "checks": checks
+            "checks": checks,
+            "metrics": dashboard_metrics
         },
+        "dashboard_metrics": dashboard_metrics,
         "cron_delivery_integrity": cron_audit,
         "rust_source_of_truth_integrity": source_audit,
         "alerts": {

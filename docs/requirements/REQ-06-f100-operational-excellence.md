@@ -86,6 +86,24 @@ Acceptance: control `f100_sre_observability_runbook` passes.
 20. `REQ-06-020` Conduit command capability/message-budget constraints must be policy-bound.
 Acceptance: control `f100_conduit_policy_budget` passes.
 
+21. `REQ-06-021` Enabled cron jobs must use explicit announce delivery to the main operator channel.
+Acceptance: every enabled job in `config/cron_jobs.json` has `delivery.mode=announce` and `delivery.channel=main`.
+
+22. `REQ-06-022` Status dashboard must expose measurable SLO metrics, not only pass/fail checks.
+Acceptance: `protheus-ops status --dashboard` emits `slo.metrics` entries for spine success rate, receipt latency, assimilation pain score, cron health, and PQTS slippage MAPE.
+
+23. `REQ-06-023` Runtime model recovery policy must include deterministic retries plus explicit fallback routing for degraded families.
+Acceptance: `config/model_health_recovery_policy.json` and `config/model_health_auto_recovery_policy.json` define bounded backoff and fallback model bindings for `llama3.2:*`.
+
+24. `REQ-06-024` Hosted runtime paths must prefer optimized release binaries when available.
+Acceptance: conduit lane bridge launchers check `target/release/*` before debug/cargo fallback and release build validation is documented in operator workflow.
+
+25. `REQ-06-025` Secret rotation compliance must be enforced on a fixed cadence with auditable attestations.
+Acceptance: scheduled secret-rotation attestation job exists in `config/cron_jobs.json` and emits deterministic remediation output when stale.
+
+26. `REQ-06-026` Memory continuity index maintenance must be operationalized.
+Acceptance: `memory/tools/rebuild_exclusive.js` is part of the recurring operational schedule and produces refreshed index artifacts without archive leakage.
+
 ## Enforcement
 
 Runtime gate:
