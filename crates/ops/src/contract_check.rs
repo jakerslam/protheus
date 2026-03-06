@@ -367,6 +367,78 @@ fn check_rust_source_of_truth_contract(root: &Path) -> Result<Value, String> {
         rust_shim_checked += 1;
     }
 
+    let primitive_wrapper_contract = require_object(&policy, "primitive_ts_wrapper_contract")?;
+    let primitive_wrapper_entries = primitive_wrapper_contract
+        .get("entries")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            "rust_source_of_truth_policy_missing_array:primitive_ts_wrapper_contract.entries"
+                .to_string()
+        })?;
+    if primitive_wrapper_entries.is_empty() {
+        return Err(
+            "rust_source_of_truth_policy_empty_array:primitive_ts_wrapper_contract.entries"
+                .to_string(),
+        );
+    }
+
+    let mut primitive_ts_wrappers_checked = 0usize;
+    for entry in primitive_wrapper_entries {
+        let section = entry.as_object().ok_or_else(|| {
+            "rust_source_of_truth_policy_invalid_entry:primitive_ts_wrapper_contract.entries"
+                .to_string()
+        })?;
+        let wrapper_path = require_rel_path(section, "path")?;
+        if !wrapper_path.ends_with(".ts") {
+            return Err(format!(
+                "primitive_ts_wrapper_must_be_ts:{wrapper_path}"
+            ));
+        }
+
+        let required_tokens = require_string_array(section, "required_tokens")?;
+        check_required_tokens_at_path(
+            root,
+            &wrapper_path,
+            &required_tokens,
+            "primitive_ts_wrapper_contract",
+        )?;
+
+        let forbidden_tokens = section
+            .get("forbidden_tokens")
+            .and_then(Value::as_array)
+            .map(|rows| {
+                rows.iter()
+                    .filter_map(Value::as_str)
+                    .map(|row| row.trim().to_string())
+                    .filter(|row| !row.is_empty())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        if !forbidden_tokens.is_empty() {
+            let wrapper_source = fs::read_to_string(root.join(&wrapper_path)).map_err(|err| {
+                format!(
+                    "read_source_failed:{}:{err}",
+                    root.join(&wrapper_path).display()
+                )
+            })?;
+            let found_forbidden = forbidden_tokens
+                .iter()
+                .filter(|token| wrapper_source.contains(token.as_str()))
+                .cloned()
+                .collect::<Vec<_>>();
+            if !found_forbidden.is_empty() {
+                return Err(format!(
+                    "forbidden_source_tokens:primitive_ts_wrapper_contract:{}:{}",
+                    wrapper_path,
+                    found_forbidden.join(",")
+                ));
+            }
+        }
+
+        primitive_ts_wrappers_checked += 1;
+    }
+
     let ts_surface_allowlist_prefixes = policy
         .get("ts_surface_allowlist_prefixes")
         .and_then(Value::as_array)
@@ -406,6 +478,7 @@ fn check_rust_source_of_truth_contract(root: &Path) -> Result<Value, String> {
         "status_dashboard_path": status_dashboard_path,
         "wrapper_paths_checked": wrapper_paths.len(),
         "rust_shims_checked": rust_shim_checked,
+        "primitive_ts_wrappers_checked": primitive_ts_wrappers_checked,
         "ts_surface_allowlist_prefixes": ts_surface_allowlist_prefixes,
     }))
 }

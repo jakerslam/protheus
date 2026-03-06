@@ -629,16 +629,12 @@ fn find_runtime_binary_rel(root: &Path, name: &str) -> Option<String> {
     } else {
         name.to_string()
     };
-    let candidates = [
+    [
         format!("target/release/{exe_name}"),
         format!("target/debug/{exe_name}"),
-    ];
-    for rel in candidates {
-        if root.join(&rel).exists() {
-            return Some(rel);
-        }
-    }
-    None
+    ]
+    .into_iter()
+    .find(|rel| root.join(rel).exists())
 }
 
 fn full_install_probe_paths(root: &Path) -> Vec<String> {
