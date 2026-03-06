@@ -3,9 +3,9 @@
     "Benchmarks: Measured, Not Marketed",
     "All external competitor values are reference snapshot values from February 2026.",
     "Cold Start Time (lower is better)",
-    "OpenClaw   ############################################  6 ms",
     "ZeroClaw   ############################################  10 ms",
     "OpenFang   ##########################################--  180 ms *",
+    "OpenClaw   #########################################---  268 ms",
     "LangGraph  #################---------------------------  2.50 sec",
     "CrewAI     ###########---------------------------------  3.00 sec",
     "AutoGen    #-------------------------------------------  4.00 sec",
@@ -56,9 +56,9 @@
     {
       "ascii_lines": [
         "Cold Start Time (lower is better)",
-        "OpenClaw   ############################################  6 ms",
         "ZeroClaw   ############################################  10 ms",
         "OpenFang   ##########################################--  180 ms *",
+        "OpenClaw   #########################################---  268 ms",
         "LangGraph  #################---------------------------  2.50 sec",
         "CrewAI     ###########---------------------------------  3.00 sec",
         "AutoGen    #-------------------------------------------  4.00 sec"
@@ -71,16 +71,8 @@
         {
           "bar": "############################################",
           "highlight": false,
-          "project": "OpenClaw",
-          "rank": 1,
-          "score": "6 ms",
-          "value": 6.243
-        },
-        {
-          "bar": "############################################",
-          "highlight": false,
           "project": "ZeroClaw",
-          "rank": 2,
+          "rank": 1,
           "score": "10 ms",
           "value": 10.0
         },
@@ -88,9 +80,17 @@
           "bar": "##########################################--",
           "highlight": true,
           "project": "OpenFang",
-          "rank": 3,
+          "rank": 2,
           "score": "180 ms",
           "value": 180.0
+        },
+        {
+          "bar": "#########################################---",
+          "highlight": false,
+          "project": "OpenClaw",
+          "rank": 3,
+          "score": "268 ms",
+          "value": 267.571
         },
         {
           "bar": "#################---------------------------",
@@ -148,7 +148,7 @@
           "project": "OpenClaw",
           "rank": 2,
           "score": "34.1 MB",
-          "value": 34.063
+          "value": 34.141
         },
         {
           "bar": "######################################------",
@@ -478,9 +478,9 @@
   "ok": true,
   "openclaw_measured": {
     "channel_adapters": 6.0,
-    "cold_start_ms": 6.243,
+    "cold_start_ms": 267.571,
     "data_source": "runtime_efficiency_floor + policy counters",
-    "idle_memory_mb": 34.063,
+    "idle_memory_mb": 34.141,
     "install_size_mb": 0.211,
     "llm_providers": 3.0,
     "measured": true,
@@ -518,9 +518,9 @@
     },
     "OpenClaw": {
       "channel_adapters": 6.0,
-      "cold_start_ms": 6.243,
+      "cold_start_ms": 267.571,
       "data_source": "runtime_efficiency_floor + policy counters",
-      "idle_memory_mb": 34.063,
+      "idle_memory_mb": 34.141,
       "install_size_mb": 0.211,
       "llm_providers": 3.0,
       "measured": true,
@@ -549,7 +549,7 @@
       "security_systems": 6.0
     }
   },
-  "receipt_hash": "d8ad0245a57f8341aaed10ca736caae697a30c412641468a3689c918bc97ebfa",
+  "receipt_hash": "0ce33c7341b44c46376fb5ff61798ba341a5be25c5136bd0af3136071287c1d9",
   "reference_month": "2026-02",
   "runtime_receipt": {
     "cold_start": {
@@ -557,14 +557,12 @@
       "build_error": null,
       "build_ok": null,
       "command": [
-        "target/debug/protheus-ops",
-        "legacy-retired-lane",
-        "build",
-        "--lane-id=SYSTEMS-SENSORY-FOCUS-CONTROLLER"
+        "node",
+        "lib/conduit_full_lifecycle_probe.js"
       ],
       "dist_target": null,
       "max_ms": 300.0,
-      "p95_ms": 6.243,
+      "p95_ms": 267.571,
       "runtime_mode": "dist",
       "samples": 5
     },
@@ -573,7 +571,7 @@
     "hold_streak_days": 1,
     "idle_rss": {
       "max_mb": 120.0,
-      "p95_mb": 34.063,
+      "p95_mb": 34.141,
       "required_modules": [],
       "samples": 3
     },
@@ -585,8 +583,8 @@
       "sum_mb": 0.211
     },
     "metrics": {
-      "cold_start_p95_ms": 6.243,
-      "idle_rss_p95_mb": 34.063,
+      "cold_start_p95_ms": 267.571,
+      "idle_rss_p95_mb": 34.141,
       "install_artifact_total_mb": 0.211
     },
     "ok": true,
@@ -597,12 +595,12 @@
     "strict": false,
     "strict_hold_ok": true,
     "target_hold_days": 7,
-    "ts": "2026-03-06T06:41:50.077Z",
+    "ts": "2026-03-06T06:49:50.087Z",
     "type": "runtime_efficiency_floor"
   },
   "snapshot_generated_from": "official documentation and public repositories",
   "snapshot_path": "config/competitive_benchmark_snapshot_2026_02.json",
   "snapshot_version": "1.0",
-  "ts": "2026-03-06T06:41:50.080Z",
+  "ts": "2026-03-06T06:49:50.091Z",
   "type": "competitive_benchmark_matrix"
 }
