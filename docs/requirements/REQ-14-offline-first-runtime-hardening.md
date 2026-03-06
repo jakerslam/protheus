@@ -48,6 +48,11 @@ Out of scope:
   - Runtime detects offline state and switches to local-only/cached paths deterministically.
   - Research/assimilation flows degrade gracefully instead of hard-failing.
   - CLI clearly indicates offline mode and capability limits.
+- Implementation (2026-03-06):
+  - Policy contract: `config/offline_runtime_guard_policy.json`
+  - Runtime lane: `crates/ops/src/offline_runtime_guard.rs`
+  - CLI surface: `protheus-ops offline-runtime-guard <evaluate|status>`
+  - Deterministic offline reasons + degraded capability map emitted in receipts and persisted to state.
 
 4. `REQ-14-004` Hardware-aware local model routing hardening
 - Acceptance:
