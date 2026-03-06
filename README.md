@@ -1,5 +1,9 @@
 # Protheus
 
+[![CI](https://github.com/protheuslabs/protheus/actions/workflows/ci.yml/badge.svg)](https://github.com/protheuslabs/protheus/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/protheuslabs/protheus/actions/workflows/codeql.yml/badge.svg)](https://github.com/protheuslabs/protheus/actions/workflows/codeql.yml)
+![Dependabot](https://img.shields.io/badge/dependabot-enabled-025E8C?logo=dependabot)
+
 Protheus is an evidence-first local control plane for autonomous operations, workflow execution, and policy-governed system evolution.
 This repository is maintained under the Protheus Labs operating model.
 Protheus is the open substrate for crowdsourcing the singularity — run your own self-improving loop today.
@@ -210,6 +214,8 @@ See [Cognitive Toolkit Suite](docs/cognitive_toolkit.md) and `examples/*-demo/` 
 The project is operated with explicit documentation and governance contracts:
 
 - [Architecture](ARCHITECTURE.md)
+- [Security Posture](docs/SECURITY_POSTURE.md)
+- [Security Policy](SECURITY.md)
 - [Onboarding Playbook](docs/ONBOARDING_PLAYBOOK.md)
 - [Developer Lane Quickstart](docs/DEVELOPER_LANE_QUICKSTART.md)
 - [Help](docs/HELP.md)
