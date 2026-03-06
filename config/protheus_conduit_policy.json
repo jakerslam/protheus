@@ -21,6 +21,7 @@
   "allow_policy_update_prefixes": [
     "constitution_safe/"
   ],
+  "bridge_message_budget_max": 10,
   "rate_limit": {
     "window_ms": 1000,
     "per_client_max": 60,

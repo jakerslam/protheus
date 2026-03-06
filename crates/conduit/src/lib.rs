@@ -13,6 +13,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const CONDUIT_SCHEMA_ID: &str = "protheus_conduit";
 pub const CONDUIT_SCHEMA_VERSION: &str = "1.0";
+pub const MAX_CONDUIT_MESSAGE_TYPES: usize = 10;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -50,23 +51,37 @@ pub const TS_COMMAND_TYPES: [&str; 7] = [
     "install_extension",
 ];
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentLifecycleState {
+    Started,
+    Stopped,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum RustEvent {
-    AgentStarted { agent_id: String },
-    AgentStopped { agent_id: String },
+    AgentLifecycle {
+        state: AgentLifecycleState,
+        agent_id: String,
+    },
     ReceiptAdded { receipt_hash: String },
-    SystemStatus { status: String, detail: Value },
-    PolicyViolation { reason: String },
+    SystemFeedback {
+        status: String,
+        detail: Value,
+        violation_reason: Option<String>,
+    },
 }
 
-pub const RUST_EVENT_TYPES: [&str; 5] = [
-    "agent_started",
-    "agent_stopped",
+pub const RUST_EVENT_TYPES: [&str; 3] = [
+    "agent_lifecycle",
     "receipt_added",
-    "system_status",
-    "policy_violation",
+    "system_feedback",
 ];
+
+fn default_bridge_message_budget_max() -> usize {
+    MAX_CONDUIT_MESSAGE_TYPES
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommandSecurityMetadata {
@@ -192,6 +207,8 @@ pub struct ConduitPolicy {
     pub command_required_capabilities: BTreeMap<String, String>,
     pub allow_policy_update_prefixes: Vec<String>,
     pub rate_limit: RateLimitPolicy,
+    #[serde(default = "default_bridge_message_budget_max")]
+    pub bridge_message_budget_max: usize,
 }
 
 impl Default for ConduitPolicy {
@@ -228,6 +245,7 @@ impl Default for ConduitPolicy {
             command_required_capabilities: capabilities,
             allow_policy_update_prefixes: vec!["constitution_safe/".to_string()],
             rate_limit: RateLimitPolicy::default(),
+            bridge_message_budget_max: MAX_CONDUIT_MESSAGE_TYPES,
         }
     }
 }
@@ -237,6 +255,23 @@ impl ConduitPolicy {
         let raw = fs::read_to_string(path)?;
         serde_json::from_str(&raw).map_err(invalid_data)
     }
+}
+
+pub fn conduit_message_contract_count() -> usize {
+    TS_COMMAND_TYPES.len() + RUST_EVENT_TYPES.len()
+}
+
+pub fn validate_conduit_contract_budget(max_budget: usize) -> Result<(), String> {
+    if max_budget == 0 {
+        return Err("conduit_message_budget_invalid_zero".to_string());
+    }
+    let count = conduit_message_contract_count();
+    if count > max_budget {
+        return Err(format!(
+            "conduit_message_budget_exceeded:{count}>{max_budget}"
+        ));
+    }
+    Ok(())
 }
 
 pub struct RegistryPolicyGate {
@@ -263,6 +298,24 @@ impl RegistryPolicyGate {
     }
 
     fn bootstrap(&mut self) {
+        if let Err(reason) = validate_conduit_contract_budget(self.policy.bridge_message_budget_max)
+        {
+            self.bootstrap_error = Some(reason);
+            return;
+        }
+
+        if self.policy.command_required_capabilities.len() != TS_COMMAND_TYPES.len() {
+            self.bootstrap_error = Some("command_capability_mapping_cardinality_mismatch".to_string());
+            return;
+        }
+        for command_type in TS_COMMAND_TYPES {
+            if !self.policy.command_required_capabilities.contains_key(command_type) {
+                self.bootstrap_error =
+                    Some(format!("policy_missing_command_capability_mapping:{command_type}"));
+                return;
+            }
+        }
+
         let constitution_body = match fs::read_to_string(&self.policy.constitution_path) {
             Ok(body) => body,
             Err(_) => {
@@ -524,26 +577,31 @@ pub struct EchoCommandHandler;
 impl CommandHandler for EchoCommandHandler {
     fn handle(&mut self, command: &TsCommand) -> RustEvent {
         match command {
-            TsCommand::StartAgent { agent_id } => RustEvent::AgentStarted {
+            TsCommand::StartAgent { agent_id } => RustEvent::AgentLifecycle {
+                state: AgentLifecycleState::Started,
                 agent_id: agent_id.clone(),
             },
-            TsCommand::StopAgent { agent_id } => RustEvent::AgentStopped {
+            TsCommand::StopAgent { agent_id } => RustEvent::AgentLifecycle {
+                state: AgentLifecycleState::Stopped,
                 agent_id: agent_id.clone(),
             },
             TsCommand::QueryReceiptChain { .. } => RustEvent::ReceiptAdded {
                 receipt_hash: "query_receipt_chain_ack".to_string(),
             },
-            TsCommand::ListActiveAgents | TsCommand::GetSystemStatus => RustEvent::SystemStatus {
+            TsCommand::ListActiveAgents | TsCommand::GetSystemStatus => RustEvent::SystemFeedback {
                 status: "ok".to_string(),
                 detail: serde_json::json!({"mode":"hosted"}),
+                violation_reason: None,
             },
-            TsCommand::ApplyPolicyUpdate { .. } => RustEvent::SystemStatus {
+            TsCommand::ApplyPolicyUpdate { .. } => RustEvent::SystemFeedback {
                 status: "policy_update_accepted".to_string(),
                 detail: serde_json::json!({"source":"conduit"}),
+                violation_reason: None,
             },
-            TsCommand::InstallExtension { extension_id, .. } => RustEvent::SystemStatus {
+            TsCommand::InstallExtension { extension_id, .. } => RustEvent::SystemFeedback {
                 status: "extension_install_accepted".to_string(),
                 detail: serde_json::json!({"extension_id": extension_id}),
+                violation_reason: None,
             },
         }
     }
@@ -707,8 +765,10 @@ pub fn process_command<P: PolicyGate, H: CommandHandler>(
     let event = if validation.ok {
         handler.handle(&envelope.command)
     } else {
-        RustEvent::PolicyViolation {
-            reason: validation.reason.clone(),
+        RustEvent::SystemFeedback {
+            status: "policy_violation".to_string(),
+            detail: serde_json::json!({"fail_closed": validation.fail_closed}),
+            violation_reason: Some(validation.reason.clone()),
         }
     };
 
@@ -856,8 +916,9 @@ fn now_ts_ms() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        process_command, run_stdio_once, ConduitPolicy, ConduitSecurityContext, EchoCommandHandler,
-        PolicyGate, RegistryPolicyGate, RUST_EVENT_TYPES, TS_COMMAND_TYPES,
+        conduit_message_contract_count, process_command, run_stdio_once, validate_conduit_contract_budget,
+        ConduitPolicy, ConduitSecurityContext, EchoCommandHandler, PolicyGate, RegistryPolicyGate,
+        MAX_CONDUIT_MESSAGE_TYPES, RUST_EVENT_TYPES, TS_COMMAND_TYPES,
     };
     use super::{CommandEnvelope, TsCommand};
     use conduit_security::{CapabilityTokenAuthority, MessageSigner, RateLimitPolicy, RateLimiter};
@@ -933,7 +994,9 @@ mod tests {
     #[test]
     fn command_and_event_contract_counts_match_spec() {
         assert_eq!(TS_COMMAND_TYPES.len(), 7);
-        assert_eq!(RUST_EVENT_TYPES.len(), 5);
+        assert_eq!(RUST_EVENT_TYPES.len(), 3);
+        assert_eq!(conduit_message_contract_count(), MAX_CONDUIT_MESSAGE_TYPES);
+        assert!(validate_conduit_contract_budget(MAX_CONDUIT_MESSAGE_TYPES).is_ok());
     }
 
     #[test]
