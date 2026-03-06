@@ -1,0 +1,32 @@
+name: F100 Enterprise Baseline
+
+on:
+  pull_request:
+    branches: [main, rust50]
+  push:
+    branches: [main, rust50]
+
+jobs:
+  f100-enterprise-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify baseline contract
+        run: node systems/ops/f100_enterprise_baseline_gate.js run --strict=1 --write=0
+
+      - name: Upload baseline status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: f100-enterprise-baseline
+          path: |
+            state/ops/f100_enterprise_baseline_gate/latest.json

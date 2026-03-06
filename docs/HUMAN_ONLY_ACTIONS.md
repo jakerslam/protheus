@@ -37,6 +37,10 @@ Purpose: capture high-impact tasks that cannot be executed autonomously from bac
 | HMAN-023 | Approve mobile signing credential custody and provisioning workflow | Requires legal/security authority over keystore and Apple provisioning profile custody | `state/ops/evidence/mobile_signing_custody_policy_<date>.md` | `V3-RACE-193` |
 | HMAN-024 | Approve mobile battery/thermal safety envelope and background execution policy | Requires human risk acceptance for on-device power/heat and background autonomy behavior | `state/ops/evidence/mobile_power_thermal_policy_<date>.md` | `V3-RACE-190`, `V3-RACE-194` |
 | HMAN-025 | Approve public disclosure policy for mobile competitive benchmark claims | Requires strategic/legal sign-off on competitor comparison messaging and publication scope | `state/ops/evidence/mobile_benchmark_disclosure_policy_<date>.md` | `V3-RACE-194`, `V3-RACE-174` |
+| HMAN-026 | Engage and sign independent certification path for SOC2 Type II / ISO 27001 | Requires legal procurement authority, auditor contracting, and budget approval outside autonomous execution | `state/ops/evidence/soc2_iso_certification_engagement_<date>.pdf` | `V6-F100-043`, `V6-F100-045` |
+| HMAN-027 | Approve regulated-market certification strategy (FedRAMP/GDPR attestation scope) | Requires legal/compliance ownership over jurisdictional obligations and external filing commitments | `state/ops/evidence/regulated_certification_scope_<date>.md` | `V6-F100-043`, `V6-F100-045` |
+| HMAN-028 | Approve enterprise commercial support envelope (SLA tiers, indemnity, support contact) | Requires executive and legal authority for contractual promises and liability boundaries | `state/ops/evidence/enterprise_support_envelope_<date>.md` | `V6-F100-044` |
+| HMAN-029 | Approve release authority model for public cadence (tagging, notes, emergency revocation) | Requires maintainer identity custody and governance sign-off for public release ownership | `state/ops/evidence/release_authority_model_<date>.md` | `V6-F100-034`, `V6-COMP-005` |
 
 ## Non-Negotiable Constraint
 
