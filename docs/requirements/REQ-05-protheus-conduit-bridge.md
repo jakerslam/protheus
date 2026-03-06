@@ -75,3 +75,46 @@ Delivered in this increment:
 - Rust-side validation gate framework
 - Unix socket + stdio transport handlers
 - TS typed client scaffold
+
+## Phase 2 Delivery (Constitution + Runtime Policy Binding)
+
+Delivered:
+
+- `RegistryPolicyGate` in `crates/conduit` binds command validation to:
+  - `AGENT-CONSTITUTION.md` required markers
+  - `config/guard_check_registry.json` required runtime checks
+- deny-by-default capability mapping via `ConduitPolicy.command_required_capabilities`
+- deterministic `policy_receipt_hash` emitted on every request
+
+## Must-Have Security Hardening Delivery
+
+Delivered:
+
+1. Message Signing
+   - `crates/conduit-security` `MessageSigner`
+   - every command verifies deterministic signature before execution
+2. Capability Tokens
+   - `CapabilityTokenAuthority` mint/validate in Rust
+   - command-specific capability scope enforcement
+3. Rate Limiting
+   - `RateLimiter` per-client and per-client-command windows
+   - fail-closed `policy_violation` path on throttle
+
+## Phase 3 Delivery (Feature Migration Path)
+
+Delivered:
+
+- `systems/ops/protheusd.ts` supports conduit-first routing for:
+  - `start`
+  - `stop`
+  - `status`
+- graceful fallback to legacy control-plane route when conduit is unavailable
+
+## Phase 4 Delivery (Certification Gate)
+
+Delivered:
+
+- `crates/conduit/tests/certification.rs`
+  - parity check: direct core path vs stdio path
+  - hosted average round-trip budget assertion (`<5ms`)
+  - embedded stdio budget assertion (`<20ms`)
