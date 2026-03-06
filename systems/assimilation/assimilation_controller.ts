@@ -33,10 +33,14 @@ function loadConduitClient() {
 }
 
 function daemonCommand() {
-  return process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND || 'cargo';
+  if (process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND) {
+    return process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND;
+  }
+  const fast = path.join(ROOT, 'target', 'debug', 'conduit_daemon');
+  return fs.existsSync(fast) ? fast : 'cargo';
 }
 
-function daemonArgs() {
+function daemonArgs(command) {
   const raw = process.env.PROTHEUS_CONDUIT_DAEMON_ARGS;
   if (raw && String(raw).trim()) {
     return String(raw)
@@ -44,12 +48,15 @@ function daemonArgs() {
       .split(/\s+/)
       .filter(Boolean);
   }
-  return ['run', '--quiet', '-p', 'conduit', '--bin', 'conduit_daemon'];
+  return command === 'cargo'
+    ? ['run', '--quiet', '-p', 'conduit', '--bin', 'conduit_daemon']
+    : [];
 }
 
 async function buildLaneReceipt() {
   const { ConduitClient } = loadConduitClient();
-  const client = ConduitClient.overStdio(daemonCommand(), daemonArgs(), ROOT);
+  const command = daemonCommand();
+  const client = ConduitClient.overStdio(command, daemonArgs(command), ROOT);
 
   try {
     const requestId = `lane-${LANE_ID}-${Date.now()}`;
@@ -122,3 +129,5 @@ if (require.main === module) {
       process.exit(1);
     });
 }
+
+export {};

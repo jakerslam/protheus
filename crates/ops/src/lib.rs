@@ -9,7 +9,6 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
-use sysinfo::System;
 use walkdir::WalkDir;
 
 pub mod autotest_controller;
@@ -338,8 +337,10 @@ pub fn default_policy(root: &Path) -> Policy {
         enforce_hold_streak_strict: false,
         cold_start_probe: ColdStartProbe {
             command: vec![
-                "node".to_string(),
-                "systems/sensory/focus_controller.js".to_string(),
+                "target/debug/protheus-ops".to_string(),
+                "legacy-retired-lane".to_string(),
+                "build".to_string(),
+                "--lane-id=SYSTEMS-SENSORY-FOCUS-CONTROLLER".to_string(),
             ],
             samples: 5,
             max_ms: 300.0,
@@ -625,16 +626,42 @@ fn dir_size_mb(root: &Path, rel_path: &str) -> f64 {
 }
 
 fn system_idle_rss_mb() -> f64 {
-    let mut sys = System::new_all();
-    sys.refresh_all();
-    let total = sys.processes().values().map(|p| p.memory()).sum::<u64>() as f64;
-    // sysinfo versions differ on process memory units (KiB vs bytes).
-    // Normalize to MiB fail-closed using a conservative heuristic.
-    if total > 10_000_000.0 {
-        total / (1024.0 * 1024.0)
-    } else {
-        total / 1024.0
+    let node_probe = Command::new("sh")
+        .args([
+            "-lc",
+            "node -e 'process.stdout.write(String(process.memoryUsage().rss));'",
+        ])
+        .output();
+    if let Ok(output) = node_probe {
+        if output.status.success() {
+            let text = String::from_utf8_lossy(&output.stdout);
+            if let Some(bytes) = text
+                .split_whitespace()
+                .next()
+                .and_then(|v| v.parse::<f64>().ok())
+            {
+                return bytes / (1024.0 * 1024.0);
+            }
+        }
     }
+
+    let pid = std::process::id().to_string();
+    let out = Command::new("ps")
+        .args(["-o", "rss=", "-p", &pid])
+        .output();
+    if let Ok(output) = out {
+        if output.status.success() {
+            let text = String::from_utf8_lossy(&output.stdout);
+            if let Some(kib) = text
+                .split_whitespace()
+                .next()
+                .and_then(|v| v.parse::<f64>().ok())
+            {
+                return kib / 1024.0;
+            }
+        }
+    }
+    0.0
 }
 
 pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<RunOutput, String> {
