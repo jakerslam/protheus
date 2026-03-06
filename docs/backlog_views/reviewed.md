@@ -1,8 +1,8 @@
 # Backlog Reviewed View
 
-Generated: 2026-03-06T18:21:22.481Z
+Generated: 2026-03-06T18:29:15.208Z
 
-Summary: reviewed 1048/1364 | pass 1048 | warn 300 | fail 0 | blocked 16
+Summary: reviewed 1049/1364 | pass 1049 | warn 299 | fail 0 | blocked 16
 
 | ID | Status | Reviewed Status | Review Result | Reviewed | Title |
 |---|---|---|---|---|---|
@@ -1249,7 +1249,7 @@ Summary: reviewed 1048/1364 | pass 1048 | warn 300 | fail 0 | blocked 16
 | V6-EDGE-005 | blocked | blocked | blocked | no | Third-party license and source-ingest decision for edge backend |
 | V6-F100-001 | done | reviewed | pass | yes | Reliability Certification Program (SLO/Error-Budget Gate) |
 | V6-F100-002 | done | reviewed | pass | yes | SDLC Change-Control Plane (RFC/ADR/Risk Class) |
-| V6-F100-003 | queued | queued | needs_implementation | no | Secure Supply-Chain Provenance v2 (SBOM + Signed Artifacts) |
+| V6-F100-003 | done | reviewed | pass | yes | Secure Supply-Chain Provenance v2 (SBOM + Signed Artifacts) |
 | V6-F100-004 | queued | queued | needs_implementation | no | Compliance Evidence Automation (SOC2/ISO Audit Bundle) |
 | V6-F100-005 | queued | queued | needs_implementation | no | 1M-User Performance Certification Harness |
 | V6-F100-006 | queued | queued | needs_implementation | no | Multi-Tenant Isolation + Data Governance Contract |
