@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 mod blob;
 
 use protheus_memory_core_v6::{

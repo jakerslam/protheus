@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use burn_oracle_budget_gate::{
     evaluate_burn_oracle_budget_gate, BurnOracleBudgetRequest, OracleStatus,
 };

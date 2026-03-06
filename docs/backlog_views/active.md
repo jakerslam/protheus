@@ -1,6 +1,6 @@
 # Backlog Active View
 
-Generated: 2026-03-06T18:29:15.204Z
+Generated: 2026-03-06T18:56:58.883Z
 
 | ID | Class | Wave | Status | Title | Dependencies |
 |---|---|---|---|---|---|
@@ -33,24 +33,11 @@ Generated: 2026-03-06T18:29:15.204Z
 | V6-COMP-005 | backlog | V6 | blocked | Public multi-release cadence target (9+ tags) |  |
 | V6-EDGE-004 | backlog | V6 | queued | Edge lifecycle validation + substrate-swap proof |  |
 | V6-EDGE-005 | backlog | V6 | blocked | Third-party license and source-ingest decision for edge backend |  |
-| V6-F100-004 | governance | V6 | queued | Compliance Evidence Automation (SOC2/ISO Audit Bundle) | V6-F100-002, V6-F100-003 |
-| V6-F100-005 | scale-readiness | V6 | queued | 1M-User Performance Certification Harness | V6-F100-001, V6-F100-003 |
-| V6-F100-006 | hardening | V6 | queued | Multi-Tenant Isolation + Data Governance Contract | V6-F100-003, V6-F100-005 |
-| V6-F100-007 | hardening | V6 | queued | API/CLI Contract Lifecycle (Versioning + Deprecation) | V6-F100-002 |
-| V6-F100-008 | governance | V6 | queued | On-Call + Incident Command Maturity Pack | V6-F100-001, V6-F100-002 |
-| V6-F100-009 | launch-polish | V6 | queued | Golden-Path Onboarding + Developer Portal | V6-F100-001 |
-| V6-F100-010 | launch-polish | V6 | queued | Enterprise Architecture Narrative + Evidence Pack | V6-F100-009 |
-| V6-F100-011 | launch-polish | V6 | queued | Operator Surface Consistency Program (UX/Tone/State Model) | V6-F100-009, V6-F100-010 |
-| V6-F100-012 | governance | V6 | queued | Executive Engineering Readiness Scorecard (Path to 90) | V6-F100-001, V6-F100-002, V6-F100-004, V6-F100-005, V6-F100-009, V6-F100-010, V6-F100-011 |
 | V6-F100-022 | backlog | V6 | blocked | Live trading proof gate (30-day promotion evidence) |  |
 | V6-F100-023 | backlog | V6 | blocked | Third-party security audit publication |  |
 | V6-F100-024 | backlog | V6 | blocked | Horizontal scaling proof in production profile |  |
 | V6-F100-025 | backlog | V6 | blocked | Continuous chaos weekly evidence contract |  |
 | V6-F100-034 | backlog | V6 | blocked | First public semantic release + npm publish |  |
-| V6-F100-035 | backlog | V6 | queued | SPDX header sweep across source tree |  |
-| V6-F100-036 | backlog | V6 | queued | Root experimental folder rationalization |  |
-| V6-F100-041 | backlog | V6 | queued | Identity federation adapters (SSO/OAuth2/SCIM) for enterprise control plane |  |
-| V6-F100-042 | backlog | V6 | queued | Audit-log export adapters for SIEM pipelines (Splunk/ELK/Datadog) |  |
 | V6-F100-043 | backlog | V6 | blocked | External certification and attestation program (SOC2/ISO/FedRAMP/GDPR) |  |
 | V6-F100-044 | backlog | V6 | blocked | Commercial support/SLA contract lane (enterprise readiness) |  |
 | V6-F100-045 | backlog | V6 | blocked | Public compliance report publication lane |  |
