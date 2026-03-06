@@ -39,6 +39,8 @@ Completion requires all of the following:
 - Preserve existing behavior unless a breaking change is explicitly requested.
 - Add parity checks when migrating logic between TS and Rust.
 - Keep fail-closed security behavior active for gated paths.
+- Do not change file types or migrate logic across file types (`.ts`, `.js`, `.rs`, etc.) without explicit operator permission in the task instructions.
+- If explicit permission is missing for any file-type change or language migration, mark the task `BLOCKED — missing explicit file-type migration permission` and stop.
 
 ## Sprint Gate
 Each sprint/batch must include:
@@ -50,4 +52,3 @@ Each sprint/batch must include:
 - Be direct, factual, and auditable.
 - Surface risks and blockers immediately.
 - Do not hide uncertainty.
-
