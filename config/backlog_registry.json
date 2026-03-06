@@ -481,7 +481,7 @@
       ]
     }
   ],
-  "generated_at": "2026-03-06T17:52:53.549Z",
+  "generated_at": "2026-03-06T18:12:57.995Z",
   "row_count": 1364,
   "rows": [
     {
@@ -15429,12 +15429,12 @@
       "wave": "V6"
     },
     {
-      "acceptance": "Define tiered SLO catalog and error-budget policy for critical services/CLI paths; add release gate that blocks promotion when burn-rate exceeds policy; emit monthly reliability scorecard receipts (`uptime`, `p95/p99`, `incident_rate`, `change_fail_rate`) with drill evidence and rollback drill receipts.",
+      "acceptance": "Added Rust-authoritative lane `protheus-ops f100-reliability-certification run|status` (`crates/ops/src/f100_reliability_certification.rs`) with tiered SLO catalog in `config/f100_reliability_certification_policy.json`; release gate blocks when error-budget burn exceeds policy and monthly scorecard receipts emit `uptime`, `receipt_latency_p95_ms`, `receipt_latency_p99_ms`, `incident_rate`, and `change_fail_rate` plus drill/rollback evidence inventories.",
       "class": "hardening",
       "dependencies": [],
       "id": "V6-F100-001",
       "problem": "Reliability evidence is distributed across lanes and not promoted as one enforceable release contract.",
-      "status": "queued",
+      "status": "in_progress",
       "title": "Reliability Certification Program (SLO/Error-Budget Gate)",
       "wave": "V6"
     },
