@@ -21,3 +21,11 @@ Outputs:
 - Receipts: `state/ops/backlog_registry/latest.json`, `state/ops/backlog_registry/receipts.jsonl`
 
 `check --strict=1` fails when generated artifacts drift from the canonical backlog markdown.
+
+## Conduit Rebuild Chain
+
+Conduit implementation/recovery is explicitly tracked as dependency-linked backlog items:
+
+- `V6-CONDUIT-001` through `V6-CONDUIT-008`
+
+These rows are the authoritative replay chain for rebuilding conduit requirements after regression.

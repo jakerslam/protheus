@@ -362,6 +362,68 @@ Verification:
 2. deny-rate in audit stream drops to baseline.
 3. latest heartbeat advances with accepted signed payloads.
 
+## Incident 11: Cron Delivery Misconfiguration
+
+Symptoms:
+
+- `health_status` reports `cron_delivery_integrity` warn/critical
+- cron jobs fail silently or route to invalid channels
+- isolated cron jobs missing `delivery` config
+
+Diagnose:
+
+1. `protheus-ops status --dashboard`
+2. `protheus-ops health-status status`
+3. Inspect cron definitions:
+`cat config/cron_jobs.json`
+
+Containment / Recovery:
+
+1. Remove/replace any `delivery.mode: \"none\"` entries for enabled jobs.
+2. For isolated jobs, enforce:
+`\"delivery\": { \"mode\": \"announce\", \"channel\": \"last\" }`
+3. Normalize invalid channels to an approved channel:
+`last|main|inbox|discord|slack|email|pagerduty|stdout|stderr|sms`
+
+Verification:
+
+1. `protheus-ops status --dashboard` returns `cron_delivery_integrity.status=pass`.
+2. `health_status` alert list no longer includes `cron_delivery_integrity`.
+3. Latest health receipt hash is present.
+
+## Incident 12: Rust Source-of-Truth Drift
+
+Symptoms:
+
+- `health_status` reports `rust_source_of_truth` warn/critical
+- `contract-check` fails on required Rust/TS/JS boundary tokens
+- TS entrypoints diverge from Rust authoritative command routes
+
+Diagnose:
+
+1. `protheus-ops contract-check`
+2. `protheus-ops status --dashboard`
+3. Inspect policy:
+`cat config/rust_source_of_truth_policy.json`
+
+Containment / Recovery:
+
+1. Restore required gate tokens in:
+   - `crates/ops/src/main.rs`
+   - `crates/conduit/src/lib.rs`
+   - `systems/ops/protheusd.ts`
+   - `systems/ops/protheus_status_dashboard.ts`
+2. Ensure wrappers remain wrappers:
+   - `.js` wrappers use `ts_bootstrap`
+   - Rust shims remain `.js` spawn bridges only
+3. Re-run contract and health checks until both are green.
+
+Verification:
+
+1. `protheus-ops contract-check` exits `0`.
+2. `protheus-ops status --dashboard` returns `rust_source_of_truth.status=pass`.
+3. Formal invariants remain green.
+
 ## BL-034 Incident Contract
 
 This section is the enforced contract for incident + rollback drill coverage.

@@ -3,9 +3,9 @@
   "schema_version": "1.0",
   "generated_at": "2026-03-05T23:16:43Z",
   "source_hash": "0b45bb837f9490d14047fdea",
-  "row_count": 877,
+  "row_count": 885,
   "active_count": 13,
-  "archive_count": 864,
+  "archive_count": 872,
   "rows": [
     {
       "id": "BL-001",
@@ -10814,6 +10814,106 @@
       "dependencies": [
         "V6-PERS-SEAM-001",
         "V6-PERS-SEAM-004"
+      ]
+    },
+    {
+      "id": "V6-CONDUIT-001",
+      "class": "hardening",
+      "wave": "V6",
+      "status": "done",
+      "title": "Conduit Phase 1: Rust crate scaffold + typed 10-message schema",
+      "problem": "Need a narrow, typed Rust↔TS bridge while keeping Rust core portable and authoritative",
+      "acceptance": "`crates/conduit` scaffolded with serde-based message contract (7 TS commands + 3 Rust event/response types), stdio and unix-socket paths wired, deterministic receipts emitted for each crossing.",
+      "dependencies": []
+    },
+    {
+      "id": "V6-CONDUIT-002",
+      "class": "hardening",
+      "wave": "V6",
+      "status": "done",
+      "title": "Conduit Phase 2: Constitution + runtime policy gate binding",
+      "problem": "TS command ingress must be constitution-safe and policy-bound in Rust",
+      "acceptance": "`RegistryPolicyGate` enforces AGENT-CONSTITUTION + guard registry checks in Rust; deny-by-default capability map and deterministic `policy_receipt_hash` on every command.",
+      "dependencies": [
+        "V6-CONDUIT-001"
+      ]
+    },
+    {
+      "id": "V6-CONDUIT-003",
+      "class": "hardening",
+      "wave": "V6",
+      "status": "done",
+      "title": "Conduit security hardening: message signing + capability tokens + rate limiting",
+      "problem": "Bridge crossing must fail-closed under tampering, overreach, and abuse",
+      "acceptance": "`crates/conduit-security` enforces message signature verification, scoped capability tokens, and per-client/per-command rate limiting with deterministic violation receipts.",
+      "dependencies": [
+        "V6-CONDUIT-002"
+      ]
+    },
+    {
+      "id": "V6-CONDUIT-004",
+      "class": "hardening",
+      "wave": "V6",
+      "status": "done",
+      "title": "Conduit certification: parity + latency budgets",
+      "problem": "Need proof that hosted/embedded operation is equivalent and within budget",
+      "acceptance": "Certification tests assert direct vs stdio parity and budget targets (`<5ms` hosted average, `<20ms` embedded/stdin).",
+      "dependencies": [
+        "V6-CONDUIT-003"
+      ]
+    },
+    {
+      "id": "V6-CONDUIT-005",
+      "class": "hardening",
+      "wave": "V6",
+      "status": "done",
+      "title": "Rust source-of-truth contract enforcement for conduit",
+      "problem": "Kernel command authority can drift back into TS without explicit contract checks",
+      "acceptance": "`contract-check` enforces Rust entrypoint tokens, strict conduit tokens, 10-message budget tokens, wrapper/shim type boundaries, and TS surface allowlist constraints from `config/rust_source_of_truth_policy.json`.",
+      "dependencies": [
+        "V6-CONDUIT-004"
+      ]
+    },
+    {
+      "id": "V6-CONDUIT-006",
+      "class": "ops",
+      "wave": "V6",
+      "status": "done",
+      "title": "Rust-native status dashboard + cron delivery integrity SLO",
+      "problem": "Silent scheduling/delivery drift reduces operational confidence",
+      "acceptance": "`protheus-ops status --dashboard` executes natively in Rust, audits cron delivery integrity (fail-closed on `delivery.mode=none` and invalid channels), and emits deterministic health receipts.",
+      "dependencies": [
+        "V6-CONDUIT-005"
+      ]
+    },
+    {
+      "id": "V6-CONDUIT-007",
+      "class": "ops",
+      "wave": "V6",
+      "status": "done",
+      "title": "Runbook + SLO wiring for conduit and source-of-truth drift",
+      "problem": "On-call lacked explicit playbooks for conduit/SoT operational failures",
+      "acceptance": "Runbooks include incidents for cron delivery misconfiguration and Rust source-of-truth drift; SLO map includes `cron_delivery_integrity` and `rust_source_of_truth` checks with deterministic ownership mapping.",
+      "dependencies": [
+        "V6-CONDUIT-006"
+      ]
+    },
+    {
+      "id": "V6-CONDUIT-008",
+      "class": "governance",
+      "wave": "V6",
+      "status": "done",
+      "title": "Conduit rebuild contract in backlog registry",
+      "problem": "Regression recovery requires deterministic, phase-scoped rebuild ordering",
+      "acceptance": "Backlog contains complete conduit phase chain with dependency ordering and acceptance contracts so implementation can be replayed after regression without scope drift.",
+      "dependencies": [
+        "V6-CONDUIT-001",
+        "V6-CONDUIT-002",
+        "V6-CONDUIT-003",
+        "V6-CONDUIT-004",
+        "V6-CONDUIT-005",
+        "V6-CONDUIT-006",
+        "V6-CONDUIT-007"
       ]
     }
   ]
