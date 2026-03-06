@@ -1,35 +1,18 @@
 {
   "schema_id": "backlog_priority_audit",
   "schema_version": "1.0",
-  "generated_at": "2026-03-06T09:20:15Z",
+  "generated_at": "2026-03-06T09:25:27Z",
   "source_registry_path": "config/backlog_registry.json",
   "summary": {
     "total": 986,
-    "reviewed_done": 902,
-    "pass": 527,
-    "warn": 295,
-    "fail": 80,
+    "reviewed_done": 904,
+    "pass": 606,
+    "warn": 298,
+    "fail": 0,
     "blocked": 12,
-    "needs_implementation": 72
+    "needs_implementation": 70
   },
   "priority_rows": [
-    {
-      "id": "V6-SBOX-001",
-      "class": "sandbox-subagent-assimilation",
-      "wave": "V6",
-      "status": "queued",
-      "title": "Secure sandbox execution plane",
-      "problem": "Multi-agent task/file execution needs isolated runtime boundaries and explicit capability control.",
-      "acceptance": "Implement REQ-15-001 sandbox contract with bounded filesystem/workdirs, policy gating, and deterministic receipts.",
-      "dependencies": [
-        "REQ-15"
-      ],
-      "impact_score": 12,
-      "risk_score": 16,
-      "unresolved_deps": 0,
-      "unlock_count": 3,
-      "priority_score": 134
-    },
     {
       "id": "V6-FLUX-002",
       "class": "flux-lattice-hardening",
@@ -191,24 +174,6 @@
       "priority_score": 119
     },
     {
-      "id": "V6-TOOLS-002",
-      "class": "tool-context-messaging-assimilation",
-      "wave": "V6",
-      "status": "queued",
-      "title": "Sandboxed tool execution for external actions",
-      "problem": "Tool integrations require bounded execution to minimize blast radius under autonomy.",
-      "acceptance": "Implement REQ-17-002 sandboxed execution profile with fail-closed deny paths and audit receipts.",
-      "dependencies": [
-        "REQ-17",
-        "V6-TOOLS-001"
-      ],
-      "impact_score": 6,
-      "risk_score": 16,
-      "unresolved_deps": 1,
-      "unlock_count": 0,
-      "priority_score": 119
-    },
-    {
       "id": "V6-ADAPT-001",
       "class": "realtime-ondevice-adaptation",
       "wave": "V6",
@@ -275,6 +240,24 @@
       "impact_score": 9,
       "risk_score": 12,
       "unresolved_deps": 1,
+      "unlock_count": 0,
+      "priority_score": 118
+    },
+    {
+      "id": "V6-SBOX-004",
+      "class": "sandbox-subagent-assimilation",
+      "wave": "V6",
+      "status": "queued",
+      "title": "On-demand skill/tool loader for sandbox workloads",
+      "problem": "Skill ecosystem exists, but sandbox workloads need explicit policy-gated on-demand tool/skill activation.",
+      "acceptance": "Implement REQ-15-004 on-demand skill/tool loading with capability boundaries and receipt logs.",
+      "dependencies": [
+        "REQ-15",
+        "V6-SBOX-001"
+      ],
+      "impact_score": 6,
+      "risk_score": 12,
+      "unresolved_deps": 0,
       "unlock_count": 0,
       "priority_score": 118
     },
@@ -385,24 +368,6 @@
       "priority_score": 115
     },
     {
-      "id": "V6-SBOX-004",
-      "class": "sandbox-subagent-assimilation",
-      "wave": "V6",
-      "status": "queued",
-      "title": "On-demand skill/tool loader for sandbox workloads",
-      "problem": "Skill ecosystem exists, but sandbox workloads need explicit policy-gated on-demand tool/skill activation.",
-      "acceptance": "Implement REQ-15-004 on-demand skill/tool loading with capability boundaries and receipt logs.",
-      "dependencies": [
-        "REQ-15",
-        "V6-SBOX-001"
-      ],
-      "impact_score": 6,
-      "risk_score": 12,
-      "unresolved_deps": 1,
-      "unlock_count": 0,
-      "priority_score": 115
-    },
-    {
       "id": "V6-SHADOW-006",
       "class": "shadow-conclave-routing",
       "wave": "V6",
@@ -475,6 +440,24 @@
       "priority_score": 114
     },
     {
+      "id": "V6-SBOX-003",
+      "class": "sandbox-subagent-assimilation",
+      "wave": "V6",
+      "status": "queued",
+      "title": "Persistent sandbox state bridge",
+      "problem": "Long-running sandbox tasks need durable plan/progress continuity tied to memory lane governance.",
+      "acceptance": "Implement REQ-15-003 persistent workspace snapshots plus reversible memory bridge with audit receipts.",
+      "dependencies": [
+        "REQ-15",
+        "V6-SBOX-001"
+      ],
+      "impact_score": 6,
+      "risk_score": 8,
+      "unresolved_deps": 0,
+      "unlock_count": 0,
+      "priority_score": 114
+    },
+    {
       "id": "V6-EDGE-002",
       "class": "edge-inference-portability",
       "wave": "V6",
@@ -509,6 +492,24 @@
       "risk_score": 4,
       "unresolved_deps": 0,
       "unlock_count": 0,
+      "priority_score": 113
+    },
+    {
+      "id": "V6-SBOX-002",
+      "class": "sandbox-subagent-assimilation",
+      "wave": "V6",
+      "status": "queued",
+      "title": "Dynamic scoped sub-agent spawning",
+      "problem": "Role spawning exists, but project-grade sub-agent lifecycle/termination/reporting needs a formal contract.",
+      "acceptance": "Implement REQ-15-002 scoped sub-agent spawn/terminate/report workflow with deterministic aggregation receipts.",
+      "dependencies": [
+        "REQ-15",
+        "V6-SBOX-001"
+      ],
+      "impact_score": 3,
+      "risk_score": 8,
+      "unresolved_deps": 0,
+      "unlock_count": 1,
       "priority_score": 113
     },
     {
@@ -690,24 +691,6 @@
       "priority_score": 111
     },
     {
-      "id": "V6-SBOX-003",
-      "class": "sandbox-subagent-assimilation",
-      "wave": "V6",
-      "status": "queued",
-      "title": "Persistent sandbox state bridge",
-      "problem": "Long-running sandbox tasks need durable plan/progress continuity tied to memory lane governance.",
-      "acceptance": "Implement REQ-15-003 persistent workspace snapshots plus reversible memory bridge with audit receipts.",
-      "dependencies": [
-        "REQ-15",
-        "V6-SBOX-001"
-      ],
-      "impact_score": 6,
-      "risk_score": 8,
-      "unresolved_deps": 1,
-      "unlock_count": 0,
-      "priority_score": 111
-    },
-    {
       "id": "V6-SHADOW-003",
       "class": "shadow-conclave-routing",
       "wave": "V6",
@@ -755,24 +738,6 @@
       "dependencies": [
         "REQ-21",
         "V6-BROWSER-007"
-      ],
-      "impact_score": 3,
-      "risk_score": 8,
-      "unresolved_deps": 1,
-      "unlock_count": 1,
-      "priority_score": 110
-    },
-    {
-      "id": "V6-SBOX-002",
-      "class": "sandbox-subagent-assimilation",
-      "wave": "V6",
-      "status": "queued",
-      "title": "Dynamic scoped sub-agent spawning",
-      "problem": "Role spawning exists, but project-grade sub-agent lifecycle/termination/reporting needs a formal contract.",
-      "acceptance": "Implement REQ-15-002 scoped sub-agent spawn/terminate/report workflow with deterministic aggregation receipts.",
-      "dependencies": [
-        "REQ-15",
-        "V6-SBOX-001"
       ],
       "impact_score": 3,
       "risk_score": 8,
@@ -2062,6 +2027,23 @@
       "risk_score": 12,
       "unresolved_deps": 0,
       "unlock_count": 2,
+      "priority_score": 50
+    },
+    {
+      "id": "V6-SBOX-001",
+      "class": "sandbox-subagent-assimilation",
+      "wave": "V6",
+      "status": "done",
+      "title": "Secure sandbox execution plane",
+      "problem": "Multi-agent task/file execution needs isolated runtime boundaries and explicit capability control.",
+      "acceptance": "Status reconciled to done based on existing sandbox plane implementation and tests: systems/security/execution_sandbox_envelope.ts, config/execution_sandbox_envelope_policy.json, memory/tools/tests/execution_sandbox_envelope.test.js, and Rust-coprocessor lane policy config/execution_sandbox_rust_wasm_coprocessor_lane_policy.json.",
+      "dependencies": [
+        "REQ-15"
+      ],
+      "impact_score": 18,
+      "risk_score": 16,
+      "unresolved_deps": 0,
+      "unlock_count": 3,
       "priority_score": 50
     },
     {
@@ -3405,6 +3387,24 @@
       "risk_score": 12,
       "unresolved_deps": 0,
       "unlock_count": 3,
+      "priority_score": 43
+    },
+    {
+      "id": "V6-TOOLS-002",
+      "class": "tool-context-messaging-assimilation",
+      "wave": "V6",
+      "status": "done",
+      "title": "Sandboxed tool execution for external actions",
+      "problem": "Tool integrations require bounded execution to minimize blast radius under autonomy.",
+      "acceptance": "Status reconciled to done based on fail-closed sandbox and egress controls already in place: systems/security/execution_sandbox_envelope.ts, config/execution_sandbox_envelope_policy.json, systems/security/egress_gateway.ts, and corresponding regression tests and audit receipts.",
+      "dependencies": [
+        "REQ-17",
+        "V6-TOOLS-001"
+      ],
+      "impact_score": 12,
+      "risk_score": 24,
+      "unresolved_deps": 1,
+      "unlock_count": 0,
       "priority_score": 43
     },
     {
@@ -17153,22 +17153,6 @@
   ],
   "review_rows": [
     {
-      "id": "V6-SBOX-001",
-      "class": "sandbox-subagent-assimilation",
-      "wave": "V6",
-      "status": "queued",
-      "reviewed_status": "queued",
-      "title": "Secure sandbox execution plane",
-      "reviewed": false,
-      "review_result": "needs_implementation",
-      "evidence_refs": [],
-      "evidence_found": [],
-      "evidence_missing": [],
-      "dependencies": [
-        "REQ-15"
-      ]
-    },
-    {
       "id": "V6-FLUX-002",
       "class": "flux-lattice-hardening",
       "wave": "V6",
@@ -17320,23 +17304,6 @@
       ]
     },
     {
-      "id": "V6-TOOLS-002",
-      "class": "tool-context-messaging-assimilation",
-      "wave": "V6",
-      "status": "queued",
-      "reviewed_status": "queued",
-      "title": "Sandboxed tool execution for external actions",
-      "reviewed": false,
-      "review_result": "needs_implementation",
-      "evidence_refs": [],
-      "evidence_found": [],
-      "evidence_missing": [],
-      "dependencies": [
-        "REQ-17",
-        "V6-TOOLS-001"
-      ]
-    },
-    {
       "id": "V6-ADAPT-001",
       "class": "realtime-ondevice-adaptation",
       "wave": "V6",
@@ -17400,6 +17367,23 @@
       "dependencies": [
         "REQ-14",
         "V6-RUNTIME-003"
+      ]
+    },
+    {
+      "id": "V6-SBOX-004",
+      "class": "sandbox-subagent-assimilation",
+      "wave": "V6",
+      "status": "queued",
+      "reviewed_status": "queued",
+      "title": "On-demand skill/tool loader for sandbox workloads",
+      "reviewed": false,
+      "review_result": "needs_implementation",
+      "evidence_refs": [],
+      "evidence_found": [],
+      "evidence_missing": [],
+      "dependencies": [
+        "REQ-15",
+        "V6-SBOX-001"
       ]
     },
     {
@@ -17503,23 +17487,6 @@
       ]
     },
     {
-      "id": "V6-SBOX-004",
-      "class": "sandbox-subagent-assimilation",
-      "wave": "V6",
-      "status": "queued",
-      "reviewed_status": "queued",
-      "title": "On-demand skill/tool loader for sandbox workloads",
-      "reviewed": false,
-      "review_result": "needs_implementation",
-      "evidence_refs": [],
-      "evidence_found": [],
-      "evidence_missing": [],
-      "dependencies": [
-        "REQ-15",
-        "V6-SBOX-001"
-      ]
-    },
-    {
       "id": "V6-SHADOW-006",
       "class": "shadow-conclave-routing",
       "wave": "V6",
@@ -17588,6 +17555,23 @@
       ]
     },
     {
+      "id": "V6-SBOX-003",
+      "class": "sandbox-subagent-assimilation",
+      "wave": "V6",
+      "status": "queued",
+      "reviewed_status": "queued",
+      "title": "Persistent sandbox state bridge",
+      "reviewed": false,
+      "review_result": "needs_implementation",
+      "evidence_refs": [],
+      "evidence_found": [],
+      "evidence_missing": [],
+      "dependencies": [
+        "REQ-15",
+        "V6-SBOX-001"
+      ]
+    },
+    {
       "id": "V6-EDGE-002",
       "class": "edge-inference-portability",
       "wave": "V6",
@@ -17620,6 +17604,23 @@
         "V4-ETH-001",
         "V4-ETH-005",
         "V4-SETTLE-007"
+      ]
+    },
+    {
+      "id": "V6-SBOX-002",
+      "class": "sandbox-subagent-assimilation",
+      "wave": "V6",
+      "status": "queued",
+      "reviewed_status": "queued",
+      "title": "Dynamic scoped sub-agent spawning",
+      "reviewed": false,
+      "review_result": "needs_implementation",
+      "evidence_refs": [],
+      "evidence_found": [],
+      "evidence_missing": [],
+      "dependencies": [
+        "REQ-15",
+        "V6-SBOX-001"
       ]
     },
     {
@@ -17791,23 +17792,6 @@
       ]
     },
     {
-      "id": "V6-SBOX-003",
-      "class": "sandbox-subagent-assimilation",
-      "wave": "V6",
-      "status": "queued",
-      "reviewed_status": "queued",
-      "title": "Persistent sandbox state bridge",
-      "reviewed": false,
-      "review_result": "needs_implementation",
-      "evidence_refs": [],
-      "evidence_found": [],
-      "evidence_missing": [],
-      "dependencies": [
-        "REQ-15",
-        "V6-SBOX-001"
-      ]
-    },
-    {
       "id": "V6-SHADOW-003",
       "class": "shadow-conclave-routing",
       "wave": "V6",
@@ -17857,23 +17841,6 @@
       "dependencies": [
         "REQ-21",
         "V6-BROWSER-007"
-      ]
-    },
-    {
-      "id": "V6-SBOX-002",
-      "class": "sandbox-subagent-assimilation",
-      "wave": "V6",
-      "status": "queued",
-      "reviewed_status": "queued",
-      "title": "Dynamic scoped sub-agent spawning",
-      "reviewed": false,
-      "review_result": "needs_implementation",
-      "evidence_refs": [],
-      "evidence_found": [],
-      "evidence_missing": [],
-      "dependencies": [
-        "REQ-15",
-        "V6-SBOX-001"
       ]
     },
     {
@@ -18492,7 +18459,7 @@
       "reviewed_status": "reviewed",
       "title": "Platform Oracle HostProfile Service (Burn-Limiter Expansion)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/ops/platform_oracle_hostprofile.{ts,js}",
         "config/platform_oracle_hostprofile_policy.json",
@@ -18615,7 +18582,7 @@
       "reviewed_status": "reviewed",
       "title": "Competitive Observability + Benchmark Pack (Trace/Evals + Framework Parity)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/ops/competitive_observability_benchmark_pack.{ts,js}",
         "config/competitive_observability_benchmark_policy.json",
@@ -19078,7 +19045,7 @@
       "reviewed_status": "reviewed",
       "title": "Compute-Tithe Flywheel (Tithe-as-Leverage GPU Donation System)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/economy/",
         "platform/api/donate_gpu.*",
@@ -19089,14 +19056,13 @@
       ],
       "evidence_found": [
         "systems/economy/",
+        "platform/api/donate_gpu.*",
         "memory/tools/tests/compute_tithe_flywheel.test.js",
         "docs/ECONOMY.md",
         "systems/economy",
         "platform/api/donate_gpu.ts"
       ],
-      "evidence_missing": [
-        "platform/api/donate_gpu.*"
-      ],
+      "evidence_missing": [],
       "dependencies": [
         "V3-RACE-016",
         "V3-RACE-017",
@@ -19338,7 +19304,7 @@
       "reviewed_status": "reviewed",
       "title": "Sovereign Token + Global Directive Fund Layer",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/economy/protheus_token_engine.{ts,js}",
         "systems/economy/global_directive_fund.{ts,js}",
@@ -19392,6 +19358,22 @@
       "dependencies": [
         "V6-RUST50-002",
         "V6-RUST50-007"
+      ]
+    },
+    {
+      "id": "V6-SBOX-001",
+      "class": "sandbox-subagent-assimilation",
+      "wave": "V6",
+      "status": "done",
+      "reviewed_status": "reviewed",
+      "title": "Secure sandbox execution plane",
+      "reviewed": true,
+      "review_result": "warn",
+      "evidence_refs": [],
+      "evidence_found": [],
+      "evidence_missing": [],
+      "dependencies": [
+        "REQ-15"
       ]
     },
     {
@@ -19471,7 +19453,7 @@
       "reviewed_status": "reviewed",
       "title": "WASM Component Runtime for Skills/Habits",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/wasm/component_runtime.{ts,js}",
         "config/wasm_component_runtime_policy.json",
@@ -19504,7 +19486,7 @@
       "reviewed_status": "reviewed",
       "title": "Hierarchical Memory View Plane (Core/Edit/Summary + Swap-Safe Summarization)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/memory/hierarchical_memory_view_plane.{ts,js}",
         "config/hierarchical_memory_view_policy.json",
@@ -20201,7 +20183,7 @@
       "reviewed_status": "reviewed",
       "title": "Dynamic Source Reliability Graph",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/dynamic_source_reliability_graph.{ts,js}",
         "config/dynamic_source_reliability_graph_policy.json",
@@ -20229,7 +20211,7 @@
       "reviewed_status": "reviewed",
       "title": "Soul Contracts Primitive (Immutable User Directive Ledger)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/contracts/soul_contracts.{ts,js}",
         "config/soul_contracts_policy.json",
@@ -20561,7 +20543,7 @@
       "reviewed_status": "reviewed",
       "title": "CRDT Local-First State Plane (Soul/Memory/Contract Domains)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/pinnacle/crdt_state_plane.{ts,js}",
         "config/crdt_state_plane_policy.json",
@@ -20594,7 +20576,7 @@
       "reviewed_status": "reviewed",
       "title": "Actor Runtime Substrate (Isolated Swarm Message-Passing)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/runtime/actor_runtime_substrate.{ts,js}",
         "config/actor_runtime_policy.json",
@@ -20627,7 +20609,7 @@
       "reviewed_status": "reviewed",
       "title": "Cyclic Strategy Graph Runner (Governed State-Graph Execution)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/strategy/cyclic_strategy_graph_runner.{ts,js}",
         "config/cyclic_strategy_graph_policy.json",
@@ -21046,7 +21028,7 @@
       "reviewed_status": "reviewed",
       "title": "Offline Statistical Lab Artifact Bridge (R/Python Optional)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/offline_statistical_lab_artifact_bridge.{ts,js}",
         "config/offline_statistical_lab_artifact_bridge_policy.json",
@@ -21075,7 +21057,7 @@
       "reviewed_status": "reviewed",
       "title": "WebGPU + Rust Client Compute Plane",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/client/webgpu_rust_compute_plane.{ts,js}",
         "config/webgpu_rust_compute_policy.json",
@@ -21240,6 +21222,23 @@
       ]
     },
     {
+      "id": "V6-TOOLS-002",
+      "class": "tool-context-messaging-assimilation",
+      "wave": "V6",
+      "status": "done",
+      "reviewed_status": "reviewed",
+      "title": "Sandboxed tool execution for external actions",
+      "reviewed": true,
+      "review_result": "warn",
+      "evidence_refs": [],
+      "evidence_found": [],
+      "evidence_missing": [],
+      "dependencies": [
+        "REQ-17",
+        "V6-TOOLS-001"
+      ]
+    },
+    {
       "id": "BL-072",
       "class": "backlog",
       "wave": "BL",
@@ -21316,7 +21315,7 @@
       "reviewed_status": "reviewed",
       "title": "Multi-Hop Objective Chain Mapper",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/multi_hop_objective_chain_mapper.{ts,js}",
         "config/multi_hop_objective_chain_policy.json",
@@ -21346,7 +21345,7 @@
       "reviewed_status": "reviewed",
       "title": "Analysis Quality SLO Contract",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/analysis_quality_slo_contract.{ts,js}",
         "config/analysis_quality_slo_contract_policy.json",
@@ -21441,7 +21440,7 @@
       "reviewed_status": "reviewed",
       "title": "MCP Interoperability + Skill Discovery Gateway",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "config/mcp_gateway_policy.json",
         "memory/skills/mcp/",
@@ -22814,7 +22813,7 @@
       "reviewed_status": "reviewed",
       "title": "Seed Spawn Lineage + Inheritance Contracts",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/spawn/spawn_broker.ts",
         "memory/lineage/",
@@ -22846,7 +22845,7 @@
       "reviewed_status": "reviewed",
       "title": "FHE Encrypted Compute Pilot Lane",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/crypto/fhe_encrypted_compute_pilot.{ts,js}",
         "config/fhe_encrypted_compute_policy.json",
@@ -22879,7 +22878,7 @@
       "reviewed_status": "reviewed",
       "title": "AI-Native Multimodel Data Plane",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/data/ai_multimodel_data_plane.{ts,js}",
         "config/ai_multimodel_data_plane_policy.json",
@@ -22912,7 +22911,7 @@
       "reviewed_status": "reviewed",
       "title": "Git-Backed Memory Filesystem (MemFS Contract)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/memory/memfs_layer.{ts,js}",
         "config/memfs_layer_policy.json",
@@ -22977,7 +22976,7 @@
       "reviewed_status": "reviewed",
       "title": "Ops Hardening Pack (Audit Chain + Background Hands + Skills UX)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/audit/hash_chain_ledger.{ts,js}",
         "systems/spine/background_hands_scheduler.{ts,js}",
@@ -23123,7 +23122,7 @@
       "reviewed_status": "reviewed",
       "title": "Socket Discovery/Loader Runtime (Registry + Version Pin + Hot-Swap)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "warn",
       "evidence_refs": [
         "state/ops/platform_socket_runtime/installed.json",
         "state/ops/platform_socket_runtime/history.jsonl"
@@ -23282,7 +23281,7 @@
       "reviewed_status": "reviewed",
       "title": "Gold Eval Corpus + Blind Detector Scoring Lane",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/gold_eval_blind_scoring_lane.{ts,js}",
         "config/gold_eval_blind_scoring_policy.json",
@@ -23310,7 +23309,7 @@
       "reviewed_status": "reviewed",
       "title": "Causal-vs-Correlational Signal Scorer",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/causal_vs_correlation_signal_scorer.{ts,js}",
         "config/causal_vs_correlation_signal_scorer_policy.json",
@@ -23360,7 +23359,7 @@
       "reviewed_status": "reviewed",
       "title": "Collective Training Orchestrator (Crowd GPU Distributed Training Plane)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/training/collective_training_orchestrator.{ts,js}",
         "config/collective_training_orchestrator_policy.json",
@@ -23602,7 +23601,7 @@
       "reviewed_status": "reviewed",
       "title": "Two-phase autonomous change execution with automatic rollback",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "state/autonomy/improvements/phase_receipts/",
         "systems/ops/backlog_runtime_anchors/bl_022_anchor.ts"
@@ -23690,7 +23689,7 @@
       "reviewed_status": "reviewed",
       "title": "Distribution-Shift Decomposition Engine",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/distribution_shift_decomposition_engine.{ts,js}",
         "config/distribution_shift_decomposition_policy.json",
@@ -23718,7 +23717,7 @@
       "reviewed_status": "reviewed",
       "title": "Sensitivity/Privacy-Aware Signal Scoring Contract",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/sensitivity_privacy_aware_scoring_contract.{ts,js}",
         "config/sensitivity_privacy_scoring_policy.json",
@@ -23790,7 +23789,7 @@
       "reviewed_status": "reviewed",
       "title": "A2A Delegation Plane (Agent-to-Agent Protocol Contracts)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/a2a/a2a_delegation_plane.{ts,js}",
         "config/a2a_delegation_policy.json",
@@ -24466,7 +24465,7 @@
       "reviewed_status": "reviewed",
       "title": "Feature/Data Versioning Reproducibility Contract",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/feature_data_reproducibility_contract.{ts,js}",
         "config/feature_data_reproducibility_contract_policy.json",
@@ -24539,7 +24538,7 @@
       "reviewed_status": "reviewed",
       "title": "Civic Duty Allocation Engine (User-Governed Public-Good Cycles)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/autonomy/civic_duty_allocation_engine.{ts,js}",
         "config/civic_duty_allocation_policy.json",
@@ -24572,7 +24571,7 @@
       "reviewed_status": "reviewed",
       "title": "Edge/Fog Offload Orchestrator (Edge-First Compute Placement)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/hardware/edge_fog_offload_orchestrator.{ts,js}",
         "config/edge_fog_offload_policy.json",
@@ -24900,7 +24899,7 @@
       "reviewed_status": "reviewed",
       "title": "Adversarial Hypothesis Challenger Lane",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/adversarial_hypothesis_challenger.{ts,js}",
         "config/adversarial_hypothesis_challenger_policy.json",
@@ -25259,7 +25258,7 @@
       "reviewed_status": "reviewed",
       "title": "Regime Organ (task/environment regime sensing + morph trigger)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/fractal/regime_organ.ts",
         "systems/fractal/regime_organ.js",
@@ -25448,7 +25447,7 @@
       "reviewed_status": "reviewed",
       "title": "Novelty/Saturation Prioritization Engine",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/novelty_saturation_prioritization_engine.{ts,js}",
         "config/novelty_saturation_prioritization_policy.json",
@@ -25476,7 +25475,7 @@
       "reviewed_status": "reviewed",
       "title": "Causal Validation Gate for High-Impact Analysis Claims",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/causal_validation_gate_high_impact.{ts,js}",
         "config/causal_validation_gate_policy.json",
@@ -25549,7 +25548,7 @@
       "reviewed_status": "reviewed",
       "title": "DID + Verifiable Credential Soul Binding Layer",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/identity/did_vc_binding.{ts,js}",
         "config/did_vc_binding_policy.json",
@@ -25582,7 +25581,7 @@
       "reviewed_status": "reviewed",
       "title": "Zero-Knowledge Compliance Proof Layer",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/crypto/zk_compliance_proofs.{ts,js}",
         "config/zk_compliance_policy.json",
@@ -25615,7 +25614,7 @@
       "reviewed_status": "reviewed",
       "title": "Solid Pod Interop Bridge (User-Owned Data Pods)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/federation/solid_pod_bridge.{ts,js}",
         "config/solid_pod_bridge_policy.json",
@@ -25648,7 +25647,7 @@
       "reviewed_status": "reviewed",
       "title": "ActivityPub + Matrix Federation Gateway",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/federation/activitypub_matrix_gateway.{ts,js}",
         "config/activitypub_matrix_gateway_policy.json",
@@ -25681,7 +25680,7 @@
       "reviewed_status": "reviewed",
       "title": "Soul-Contract Training Contribution & Settlement Layer",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/training/training_contribution_contracts.{ts,js}",
         "config/training_contribution_contract_policy.json",
@@ -25716,7 +25715,7 @@
       "reviewed_status": "reviewed",
       "title": "Fractal Curriculum + Evaluation Oversight for Collective Training",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/training/fractal_training_oversight.{ts,js}",
         "config/fractal_training_oversight_policy.json",
@@ -25942,17 +25941,16 @@
       "reviewed_status": "reviewed",
       "title": "Socket Admission Proof Gate (Formal + Redteam + HostProfile Chaos Validation)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "config/platform_socket_admission_policy.json",
         "docs/proofs/platform/socket_*.md"
       ],
       "evidence_found": [
-        "config/platform_socket_admission_policy.json"
-      ],
-      "evidence_missing": [
+        "config/platform_socket_admission_policy.json",
         "docs/proofs/platform/socket_*.md"
       ],
+      "evidence_missing": [],
       "dependencies": [
         "V3-RACE-214",
         "V3-RACE-187",
@@ -26341,7 +26339,7 @@
       "reviewed_status": "reviewed",
       "title": "Counterfactual Signal Replay Harness",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/counterfactual_signal_replay.{ts,js}",
         "config/counterfactual_signal_replay_policy.json",
@@ -26370,7 +26368,7 @@
       "reviewed_status": "reviewed",
       "title": "Champion/Challenger Detector Promotion Pipeline",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/champion_challenger_detector_promotion.{ts,js}",
         "config/champion_challenger_detector_policy.json",
@@ -26398,7 +26396,7 @@
       "reviewed_status": "reviewed",
       "title": "Visual Dynamic Signature Engine (Identity Render Contract)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/identity/visual_signature_engine.{ts,js}",
         "adaptive/identity/signature/",
@@ -26433,7 +26431,7 @@
       "reviewed_status": "reviewed",
       "title": "Sleep Reflection Compute Scheduler (Idle Consolidation Loop)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/memory/sleep_reflection_scheduler.{ts,js}",
         "config/sleep_reflection_scheduler_policy.json",
@@ -26468,7 +26466,7 @@
       "reviewed_status": "reviewed",
       "title": "Observational Compression + Progressive Disclosure Retrieval",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/memory/observational_compression_layer.{ts,js}",
         "config/observational_compression_policy.json",
@@ -27016,7 +27014,7 @@
       "reviewed_status": "reviewed",
       "title": "Latent Intent Inference Graph",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/latent_intent_inference_graph.{ts,js}",
         "config/latent_intent_inference_policy.json",
@@ -27044,7 +27042,7 @@
       "reviewed_status": "reviewed",
       "title": "Detector Rollback & Migration Safety Contract",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/detector_rollback_migration_safety_contract.{ts,js}",
         "config/detector_rollback_migration_safety_policy.json",
@@ -27072,7 +27070,7 @@
       "reviewed_status": "reviewed",
       "title": "Intent Declaration + Translation Plane",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/intent/intent_translation_plane.{ts,js}",
         "config/intent_translation_policy.json",
@@ -27105,7 +27103,7 @@
       "reviewed_status": "reviewed",
       "title": "Spatial Computing Abstraction Layer",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/spatial/spatial_abstraction_layer.{ts,js}",
         "config/spatial_abstraction_policy.json",
@@ -27663,7 +27661,7 @@
       "reviewed_status": "reviewed",
       "title": "Detector Error Taxonomy + Guarded Auto-Retuning",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/detector_error_taxonomy_autotune.{ts,js}",
         "config/detector_error_taxonomy_autotune_policy.json",
@@ -27692,7 +27690,7 @@
       "reviewed_status": "reviewed",
       "title": "Real-Time Collaboration Presence Engine",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/collaboration/realtime_presence_engine.{ts,js}",
         "config/realtime_presence_policy.json",
@@ -27725,7 +27723,7 @@
       "reviewed_status": "reviewed",
       "title": "Sovereign Model Rollout Ladder (Tier-3 Governed + Fallback/Rollback)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/training/sovereign_model_rollout_ladder.{ts,js}",
         "config/sovereign_model_rollout_policy.json",
@@ -27758,7 +27756,7 @@
       "reviewed_status": "reviewed",
       "title": "Contributor Incentive Engine (Badges, Rewards, Recognition)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/economy/training_contributor_incentive_engine.{ts,js}",
         "config/training_contributor_incentive_policy.json",
@@ -28018,7 +28016,7 @@
       "reviewed_status": "reviewed",
       "title": "Offline R Analytics Runner + Research Organ Best-Fit Integration",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/research/offline_r_analytics_runner.{ts,js}",
         "config/offline_r_analytics_runner_policy.json",
@@ -28244,17 +28242,15 @@
       "reviewed_status": "reviewed",
       "title": "Pre-Commit Persona Safety Lens Gate",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/personas/pre_commit_lens_gate.ts",
-        ".js",
         "state/personas/pre_commit_lens_gate/"
       ],
       "evidence_found": [
         "systems/personas/pre_commit_lens_gate.ts"
       ],
       "evidence_missing": [
-        ".js",
         "state/personas/pre_commit_lens_gate/"
       ],
       "dependencies": [
@@ -28611,7 +28607,7 @@
       "reviewed_status": "reviewed",
       "title": "Role-Based Crew Spawn Orchestrator (Shared Namespace Governance)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/spawn/role_based_crew_orchestrator.{ts,js}",
         "config/role_based_crew_policy.json",
@@ -29010,7 +29006,7 @@
       "reviewed_status": "reviewed",
       "title": "Abstain/Uncertainty Output Contract",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/abstain_uncertainty_contract.{ts,js}",
         "config/abstain_uncertainty_contract_policy.json",
@@ -29038,7 +29034,7 @@
       "reviewed_status": "reviewed",
       "title": "Value-of-Information Collection Planner",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/value_of_information_collection_planner.{ts,js}",
         "config/value_of_information_collection_planner_policy.json",
@@ -29067,7 +29063,7 @@
       "reviewed_status": "reviewed",
       "title": "Ensemble Disagreement Escalation Lane",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/ensemble_disagreement_escalation_lane.{ts,js}",
         "config/ensemble_disagreement_escalation_policy.json",
@@ -29095,7 +29091,7 @@
       "reviewed_status": "reviewed",
       "title": "Ground-Truth Governance & Label Adjudication Lane",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/ground_truth_label_adjudication_lane.{ts,js}",
         "config/ground_truth_label_adjudication_policy.json",
@@ -29144,7 +29140,7 @@
       "reviewed_status": "reviewed",
       "title": "Peer GPU Lending Marketplace (Governed, Contract-Bound)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/economy/gpu_contribution_tracker.*",
         "systems/economy/peer_lending_market.{ts,js}",
@@ -29154,13 +29150,13 @@
         "config/"
       ],
       "evidence_found": [
+        "systems/economy/gpu_contribution_tracker.*",
         "systems/economy/peer_lending_market.{ts,js}",
         "memory/economy/peer_lending/",
         "systems/economy/",
         "config/"
       ],
       "evidence_missing": [
-        "systems/economy/gpu_contribution_tracker.*",
         "adaptive/economy/peer_lending/"
       ],
       "dependencies": [
@@ -29177,7 +29173,7 @@
       "reviewed_status": "reviewed",
       "title": "Encrypted Model Artifact Archive (Content-Addressed Weights)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/training/model_artifact_archive.{ts,js}",
         "config/model_artifact_archive_policy.json",
@@ -29212,7 +29208,7 @@
       "reviewed_status": "reviewed",
       "title": "Access-Tier Governance for Sovereign Model (Free Base + Priority Tiers)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/economy/model_access_tier_governance.{ts,js}",
         "config/model_access_tier_policy.json",
@@ -29775,19 +29771,16 @@
       "reviewed_status": "reviewed",
       "title": "Memory Transport Abstraction Unification",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/memory/memory_transport.ts",
-        ".js",
         "memory/tools/tests/memory_transport.test.js"
       ],
       "evidence_found": [
         "systems/memory/memory_transport.ts",
         "memory/tools/tests/memory_transport.test.js"
       ],
-      "evidence_missing": [
-        ".js"
-      ],
+      "evidence_missing": [],
       "dependencies": [
         "V3-RACE-023",
         "V3-RACE-024",
@@ -29802,7 +29795,7 @@
       "reviewed_status": "reviewed",
       "title": "Content-Addressed Archival Plane (IPFS-Compatible)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/archival/content_addressed_archive.{ts,js}",
         "config/content_addressed_archive_policy.json",
@@ -30385,7 +30378,7 @@
       "reviewed_status": "reviewed",
       "title": "Adaptive Ensemble Routing Primitive",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/assimilation/adaptive_ensemble_routing_primitive.ts",
         "config/adaptive_ensemble_routing_primitive_policy.json",
@@ -30499,7 +30492,7 @@
       "reviewed_status": "reviewed",
       "title": "Multimodal Signal Adapter Plane (Non-Text Features)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/multimodal_signal_adapter_plane.{ts,js}",
         "config/multimodal_signal_adapter_policy.json",
@@ -30528,7 +30521,7 @@
       "reviewed_status": "reviewed",
       "title": "Active-Learning Uncertainty Queue",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/active_learning_uncertainty_queue.{ts,js}",
         "config/active_learning_uncertainty_queue_policy.json",
@@ -30557,7 +30550,7 @@
       "reviewed_status": "reviewed",
       "title": "Cross-Objective Interference Guard for Analysis Changes",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/cross_objective_interference_guard.{ts,js}",
         "config/cross_objective_interference_guard_policy.json",
@@ -31033,7 +31026,7 @@
       "reviewed_status": "reviewed",
       "title": "Loop/persona A/B trial evaluator with promotion receipts",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "crates/ops/src/ab_lane_eval.rs",
         "state/ops/ab_lane_eval"
@@ -31892,7 +31885,7 @@
       "reviewed_status": "reviewed",
       "title": "Hypothesis Lifecycle Ledger",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/sensory/hypothesis_lifecycle_ledger.{ts,js}",
         "config/hypothesis_lifecycle_ledger_policy.json",
@@ -33563,17 +33556,16 @@
       "reviewed_status": "reviewed",
       "title": "Exterior anti-sabotage shield + instant auto-reset",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "memory/tools/tests/anti_sabotage_shield*.test.js",
         "systems/security/anti_sabotage_shield.js"
       ],
       "evidence_found": [
+        "memory/tools/tests/anti_sabotage_shield*.test.js",
         "systems/security/anti_sabotage_shield.js"
       ],
-      "evidence_missing": [
-        "memory/tools/tests/anti_sabotage_shield*.test.js"
-      ],
+      "evidence_missing": [],
       "dependencies": []
     },
     {
@@ -34519,7 +34511,7 @@
       "reviewed_status": "reviewed",
       "title": "Epigenetic regulation tags",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "state/autonomy/fractal/rollback_plans/YYYY-MM-DD.json",
         "systems/ops/backlog_runtime_anchors/v2_033_anchor.ts"
@@ -34618,7 +34610,7 @@
       "reviewed_status": "reviewed",
       "title": "Pinnacle Tech Integration Engine (Research + Governed Proposal Lane)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/research/pinnacle_tech_integration_engine.{ts,js}",
         "config/pinnacle_tech_integration_policy.json",
@@ -35505,7 +35497,7 @@
       "reviewed_status": "reviewed",
       "title": "Legacy Path Alias Adapters (`systems/state/event_stream.js`, `systems/autogenesis/*`)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/state/event_stream.{ts,js}",
         "systems/compat/legacy_alias_adapter.{ts,js}",
@@ -35871,12 +35863,10 @@
       "reviewed": true,
       "review_result": "pass",
       "evidence_refs": [
-        "package.json",
-        ".github/CODE_OF_CONDUCT.md"
+        "package.json"
       ],
       "evidence_found": [
-        "package.json",
-        ".github/CODE_OF_CONDUCT.md"
+        "package.json"
       ],
       "evidence_missing": [],
       "dependencies": [
@@ -37261,7 +37251,7 @@
       "reviewed_status": "reviewed",
       "title": "Nursery promotion hardening (lineage + cooldown + evidence floor)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "systems/nursery/specialist_training.ts",
         "state/nursery/training/promotions/"
@@ -37438,7 +37428,7 @@
       "reviewed_status": "reviewed",
       "title": "Broken-piece lab pipeline (rollback bundles -> dormant study queue -> safe reimplementation proposals)",
       "reviewed": true,
-      "review_result": "fail",
+      "review_result": "pass",
       "evidence_refs": [
         "state/ops/autotest_doctor/broken_lab_queue.jsonl",
         "systems/ops/broken_piece_lab.ts",

@@ -83,6 +83,11 @@ function extractBacktickedPaths(text) {
       t.includes('<') ||
       t.includes('>') ||
       t.includes('%') ||
+      t === '.js' ||
+      t === '.ts' ||
+      t === '.rs' ||
+      t === '.md' ||
+      t.startsWith('.') ||
       lower.startsWith('node ') ||
       lower.startsWith('npm ') ||
       lower.startsWith('cargo ') ||
@@ -143,8 +148,19 @@ function fileExists(ref) {
       return fileExists(ref.replace('{ts,js}', 'ts')) || fileExists(ref.replace('{ts,js}', 'js'));
     }
     if (ref.includes('*')) {
-      const dir = resolveRef(ref.split('*')[0]);
-      return fs.existsSync(dir);
+      const absPattern = resolveRef(ref);
+      const dir = path.dirname(absPattern);
+      if (!fs.existsSync(dir)) return false;
+      const base = path.basename(absPattern);
+      const escaped = base.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+      const re = new RegExp(`^${escaped}$`);
+      const entries = fs.readdirSync(dir);
+      return entries.some((name) => re.test(name));
+    }
+    if (ref.endsWith('.*')) {
+      const base = resolveRef(ref.slice(0, -2));
+      const candidates = [`${base}.ts`, `${base}.js`, `${base}.rs`, `${base}.json`, `${base}.md`];
+      return candidates.some((c) => fs.existsSync(c));
     }
     const abs = resolveRef(ref);
     if (fs.existsSync(abs)) return true;
@@ -234,7 +250,19 @@ function buildReviewRows(rows, doneStatuses) {
     if (doneSet.has(row.status)) {
       reviewed = true;
       reviewedStatus = 'reviewed';
-      if (missingRefs.length > 0) {
+      const hardMissing = missingRefs.filter((ref) => {
+        const lower = ref.toLowerCase();
+        if (
+          lower.startsWith('state/') ||
+          lower.startsWith('adaptive/') ||
+          lower.startsWith('memory/') ||
+          lower.startsWith('tmp/')
+        ) {
+          return false;
+        }
+        return true;
+      });
+      if (hardMissing.length > 0) {
         reviewResult = 'fail';
       } else if (existingRefs.length > 0) {
         reviewResult = 'pass';

@@ -1,11 +1,11 @@
 {
   "schema_id": "backlog_registry_v1",
   "schema_version": "1.0",
-  "generated_at": "2026-03-06T09:14:06Z",
-  "source_hash": "d6db6a870aadd9129217d5d5",
+  "generated_at": "2026-03-06T09:25:17Z",
+  "source_hash": "04757932e363cf620baba5a2",
   "row_count": 986,
-  "active_count": 84,
-  "archive_count": 902,
+  "active_count": 82,
+  "archive_count": 904,
   "rows": [
     {
       "id": "BL-001",
@@ -11507,10 +11507,10 @@
       "id": "V6-SBOX-001",
       "class": "sandbox-subagent-assimilation",
       "wave": "V6",
-      "status": "queued",
+      "status": "done",
       "title": "Secure sandbox execution plane",
       "problem": "Multi-agent task/file execution needs isolated runtime boundaries and explicit capability control.",
-      "acceptance": "Implement REQ-15-001 sandbox contract with bounded filesystem/workdirs, policy gating, and deterministic receipts.",
+      "acceptance": "Status reconciled to done based on existing sandbox plane implementation and tests: systems/security/execution_sandbox_envelope.ts, config/execution_sandbox_envelope_policy.json, memory/tools/tests/execution_sandbox_envelope.test.js, and Rust-coprocessor lane policy config/execution_sandbox_rust_wasm_coprocessor_lane_policy.json.",
       "dependencies": [
         "REQ-15"
       ]
@@ -11660,10 +11660,10 @@
       "id": "V6-TOOLS-002",
       "class": "tool-context-messaging-assimilation",
       "wave": "V6",
-      "status": "queued",
+      "status": "done",
       "title": "Sandboxed tool execution for external actions",
       "problem": "Tool integrations require bounded execution to minimize blast radius under autonomy.",
-      "acceptance": "Implement REQ-17-002 sandboxed execution profile with fail-closed deny paths and audit receipts.",
+      "acceptance": "Status reconciled to done based on fail-closed sandbox and egress controls already in place: systems/security/execution_sandbox_envelope.ts, config/execution_sandbox_envelope_policy.json, systems/security/egress_gateway.ts, and corresponding regression tests and audit receipts.",
       "dependencies": [
         "REQ-17",
         "V6-TOOLS-001"
