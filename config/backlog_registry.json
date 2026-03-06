@@ -11433,10 +11433,10 @@
       "id": "V6-COMP-004",
       "class": "competitive-parity",
       "wave": "V6",
-      "status": "queued",
+      "status": "done",
       "title": "Security-layer inventory with evidence links",
       "problem": "Security-layer claims must be fully traceable to enforceable code/policy and test evidence.",
-      "acceptance": "Implement REQ-13-005 inventory document plus generated references to runtime checks and tests for each layer.",
+      "acceptance": "Implement REQ-13-005 inventory document plus generated references to runtime checks and tests for each layer. Delivered via config/security_layer_inventory.json + systems/ops/security_layer_inventory_gate.js + docs/security/SECURITY_LAYER_INVENTORY.md + regression test coverage.",
       "dependencies": [
         "REQ-13"
       ]
