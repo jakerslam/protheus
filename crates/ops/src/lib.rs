@@ -20,6 +20,7 @@ pub mod backlog_github_sync;
 pub mod backlog_registry;
 pub mod backlog_runtime_anchor;
 pub mod benchmark_matrix;
+pub mod f100_reliability_certification;
 pub mod dynamic_burn_budget_oracle;
 pub mod enterprise_hardening;
 pub mod execution_yield_recovery;

@@ -1,6 +1,6 @@
 # Backlog Priority Queue
 
-Generated: 2026-03-06T17:52:53.551Z
+Generated: 2026-03-06T18:12:57.997Z
 
 Scoring model: impact + risk + dependency pressure (unblocks and unresolved deps), with status weighting.
 
@@ -14,7 +14,7 @@ Scoring model: impact + risk + dependency pressure (unblocks and unresolved deps
 
 | Rank | ID | Status | Priority | Impact | Risk | Unresolved Deps | Unlock Count | Title |
 |---|---|---|---:|---:|---:|---:|---:|---|
-| 1 | V6-F100-001 | queued | 38 | 12 | 8 | 0 | 5 | Reliability Certification Program (SLO/Error-Budget Gate) |
+| 1 | V6-F100-001 | in_progress | 42 | 12 | 10 | 0 | 5 | Reliability Certification Program (SLO/Error-Budget Gate) |
 | 2 | V6-RUST50-CONF-004 | blocked | 38 | 18 | 16 | 0 | 0 | Mega Sprint 1 Public 50 Percent Rust Migration (8 Crates + Blobized Core Paths) |
 | 3 | V6-SEC-001 | in_progress | 37 | 12 | 10 | 1 | 4 | Audited Release + SBOM Bundle (`v0.2.0`) |
 | 4 | V6-PRIM-001 | in_progress | 35 | 18 | 10 | 1 | 0 | Task Primitive Rust Completion |

@@ -1,6 +1,6 @@
 # Backlog Execution Path
 
-Generated: 2026-03-06T17:52:53.553Z
+Generated: 2026-03-06T18:12:57.999Z
 
 ## Summary
 
@@ -13,7 +13,7 @@ Generated: 2026-03-06T17:52:53.553Z
 
 | Rank | ID | Status | Priority | Open Dependencies | Title |
 |---|---|---|---:|---|---|
-| 1 | V6-F100-001 | queued | 38 |  | Reliability Certification Program (SLO/Error-Budget Gate) |
+| 1 | V6-F100-001 | in_progress | 42 |  | Reliability Certification Program (SLO/Error-Budget Gate) |
 | 2 | V6-SEC-001 | in_progress | 37 | V6-F100-003 | Audited Release + SBOM Bundle (`v0.2.0`) |
 | 3 | V6-PRIM-001 | in_progress | 35 | REQ-08-001 | Task Primitive Rust Completion |
 | 4 | V6-PRIM-002 | in_progress | 35 | REQ-08-001 | Resource Primitive Rust Completion |

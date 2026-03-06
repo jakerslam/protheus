@@ -108,6 +108,7 @@ Acceptance: `memory/tools/rebuild_exclusive.js` is part of the recurring operati
 
 Runtime gate:
 - `protheus-ops enterprise-hardening run --strict=1`
+- `protheus-ops f100-reliability-certification run --strict=1`
 
 Policy file:
 - `config/f100_enterprise_hardening_policy.json`
