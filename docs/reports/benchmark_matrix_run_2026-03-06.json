@@ -3,20 +3,20 @@
     "Benchmarks: Measured, Not Marketed",
     "All external competitor values are reference snapshot values from February 2026.",
     "Cold Start Time (lower is better)",
+    "OpenClaw   ############################################  6 ms",
     "ZeroClaw   ############################################  10 ms",
     "OpenFang   ##########################################--  180 ms *",
-    "OpenClaw   ######################################------  583 ms",
     "LangGraph  #################---------------------------  2.50 sec",
     "CrewAI     ###########---------------------------------  3.00 sec",
     "AutoGen    #-------------------------------------------  4.00 sec",
     "",
     "Idle Memory Usage (lower is better)",
     "ZeroClaw   ############################################  5.0 MB",
-    "OpenFang   ############################################  40.0 MB *",
-    "LangGraph  ##########################################--  180.0 MB",
-    "CrewAI     ##########################################--  200.0 MB",
-    "AutoGen    #########################################---  250.0 MB",
-    "OpenClaw   #-------------------------------------------  3526.6 MB",
+    "OpenClaw   #######################################-----  34.1 MB",
+    "OpenFang   ######################################------  40.0 MB *",
+    "LangGraph  #############-------------------------------  180.0 MB",
+    "CrewAI     #########-----------------------------------  200.0 MB",
+    "AutoGen    #-------------------------------------------  250.0 MB",
     "",
     "Install Size (lower is better)",
     "OpenClaw   ############################################  0.2 MB",
@@ -56,9 +56,9 @@
     {
       "ascii_lines": [
         "Cold Start Time (lower is better)",
+        "OpenClaw   ############################################  6 ms",
         "ZeroClaw   ############################################  10 ms",
         "OpenFang   ##########################################--  180 ms *",
-        "OpenClaw   ######################################------  583 ms",
         "LangGraph  #################---------------------------  2.50 sec",
         "CrewAI     ###########---------------------------------  3.00 sec",
         "AutoGen    #-------------------------------------------  4.00 sec"
@@ -71,8 +71,16 @@
         {
           "bar": "############################################",
           "highlight": false,
-          "project": "ZeroClaw",
+          "project": "OpenClaw",
           "rank": 1,
+          "score": "6 ms",
+          "value": 6.243
+        },
+        {
+          "bar": "############################################",
+          "highlight": false,
+          "project": "ZeroClaw",
+          "rank": 2,
           "score": "10 ms",
           "value": 10.0
         },
@@ -80,17 +88,9 @@
           "bar": "##########################################--",
           "highlight": true,
           "project": "OpenFang",
-          "rank": 2,
+          "rank": 3,
           "score": "180 ms",
           "value": 180.0
-        },
-        {
-          "bar": "######################################------",
-          "highlight": false,
-          "project": "OpenClaw",
-          "rank": 3,
-          "score": "583 ms",
-          "value": 582.753
         },
         {
           "bar": "#################---------------------------",
@@ -123,11 +123,11 @@
       "ascii_lines": [
         "Idle Memory Usage (lower is better)",
         "ZeroClaw   ############################################  5.0 MB",
-        "OpenFang   ############################################  40.0 MB *",
-        "LangGraph  ##########################################--  180.0 MB",
-        "CrewAI     ##########################################--  200.0 MB",
-        "AutoGen    #########################################---  250.0 MB",
-        "OpenClaw   #-------------------------------------------  3526.6 MB"
+        "OpenClaw   #######################################-----  34.1 MB",
+        "OpenFang   ######################################------  40.0 MB *",
+        "LangGraph  #############-------------------------------  180.0 MB",
+        "CrewAI     #########-----------------------------------  200.0 MB",
+        "AutoGen    #-------------------------------------------  250.0 MB"
       ],
       "bar_width": 44,
       "key": "idle_memory_mb",
@@ -143,44 +143,44 @@
           "value": 5.0
         },
         {
-          "bar": "############################################",
+          "bar": "#######################################-----",
+          "highlight": false,
+          "project": "OpenClaw",
+          "rank": 2,
+          "score": "34.1 MB",
+          "value": 34.063
+        },
+        {
+          "bar": "######################################------",
           "highlight": true,
           "project": "OpenFang",
-          "rank": 2,
+          "rank": 3,
           "score": "40.0 MB",
           "value": 40.0
         },
         {
-          "bar": "##########################################--",
+          "bar": "#############-------------------------------",
           "highlight": false,
           "project": "LangGraph",
-          "rank": 3,
+          "rank": 4,
           "score": "180.0 MB",
           "value": 180.0
         },
         {
-          "bar": "##########################################--",
+          "bar": "#########-----------------------------------",
           "highlight": false,
           "project": "CrewAI",
-          "rank": 4,
+          "rank": 5,
           "score": "200.0 MB",
           "value": 200.0
         },
         {
-          "bar": "#########################################---",
-          "highlight": false,
-          "project": "AutoGen",
-          "rank": 5,
-          "score": "250.0 MB",
-          "value": 250.0
-        },
-        {
           "bar": "#-------------------------------------------",
           "highlight": false,
-          "project": "OpenClaw",
+          "project": "AutoGen",
           "rank": 6,
-          "score": "3526.6 MB",
-          "value": 3526.578
+          "score": "250.0 MB",
+          "value": 250.0
         }
       ],
       "unit": "MB"
@@ -478,9 +478,9 @@
   "ok": true,
   "openclaw_measured": {
     "channel_adapters": 6.0,
-    "cold_start_ms": 582.753,
+    "cold_start_ms": 6.243,
     "data_source": "runtime_efficiency_floor + policy counters",
-    "idle_memory_mb": 3526.578,
+    "idle_memory_mb": 34.063,
     "install_size_mb": 0.211,
     "llm_providers": 3.0,
     "measured": true,
@@ -518,9 +518,9 @@
     },
     "OpenClaw": {
       "channel_adapters": 6.0,
-      "cold_start_ms": 582.753,
+      "cold_start_ms": 6.243,
       "data_source": "runtime_efficiency_floor + policy counters",
-      "idle_memory_mb": 3526.578,
+      "idle_memory_mb": 34.063,
       "install_size_mb": 0.211,
       "llm_providers": 3.0,
       "measured": true,
@@ -549,7 +549,7 @@
       "security_systems": 6.0
     }
   },
-  "receipt_hash": "e365adfe0cdead6e83a6c43dafaf383b71b6fa4e1a1d0f3c13cda753063e0a84",
+  "receipt_hash": "d8ad0245a57f8341aaed10ca736caae697a30c412641468a3689c918bc97ebfa",
   "reference_month": "2026-02",
   "runtime_receipt": {
     "cold_start": {
@@ -557,21 +557,23 @@
       "build_error": null,
       "build_ok": null,
       "command": [
-        "node",
-        "dist/systems/sensory/focus_controller.js"
+        "target/debug/protheus-ops",
+        "legacy-retired-lane",
+        "build",
+        "--lane-id=SYSTEMS-SENSORY-FOCUS-CONTROLLER"
       ],
-      "dist_target": "dist/systems/sensory/focus_controller.js",
+      "dist_target": null,
       "max_ms": 300.0,
-      "p95_ms": 582.753,
+      "p95_ms": 6.243,
       "runtime_mode": "dist",
       "samples": 5
     },
     "enforce_hold_streak_strict": false,
     "history_path": "state/ops/runtime_efficiency_floor_history.jsonl",
-    "hold_streak_days": 0,
+    "hold_streak_days": 1,
     "idle_rss": {
       "max_mb": 120.0,
-      "p95_mb": 3526.578,
+      "p95_mb": 34.063,
       "required_modules": [],
       "samples": 3
     },
@@ -583,24 +585,24 @@
       "sum_mb": 0.211
     },
     "metrics": {
-      "cold_start_p95_ms": 582.753,
-      "idle_rss_p95_mb": 3526.578,
+      "cold_start_p95_ms": 6.243,
+      "idle_rss_p95_mb": 34.063,
       "install_artifact_total_mb": 0.211
     },
-    "ok": false,
-    "pass": false,
+    "ok": true,
+    "pass": true,
     "policy_path": "config/runtime_efficiency_floor.json",
     "policy_version": "1.0",
     "state_path": "state/ops/runtime_efficiency_floor.json",
     "strict": false,
     "strict_hold_ok": true,
     "target_hold_days": 7,
-    "ts": "2026-03-06T06:00:46.779Z",
+    "ts": "2026-03-06T06:41:50.077Z",
     "type": "runtime_efficiency_floor"
   },
   "snapshot_generated_from": "official documentation and public repositories",
   "snapshot_path": "config/competitive_benchmark_snapshot_2026_02.json",
   "snapshot_version": "1.0",
-  "ts": "2026-03-06T06:00:46.783Z",
+  "ts": "2026-03-06T06:41:50.080Z",
   "type": "competitive_benchmark_matrix"
 }

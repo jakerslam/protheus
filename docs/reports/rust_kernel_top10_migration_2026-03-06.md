@@ -24,9 +24,16 @@ Top 10 targets from `docs/RUST_KERNEL_MIGRATION_CANDIDATES.md` lines 32-41:
 - TS surfaces are thin wrappers only.
 - Shared lane bridge (`lib/legacy_retired_lane_bridge.js`) now routes through conduit daemon instead of direct legacy-retired-lane CLI calls.
 - `systems/assimilation/assimilation_controller.ts` was explicitly converted to direct conduit client routing.
+- Additional direct-conduit uplift for high-impact lanes:
+  - `systems/security/guard.ts`
+  - `systems/echo/heroic_echo_controller.ts`
+  - `systems/helix/helix_controller.ts`
+  - `systems/assimilation/group_evolving_agents_primitive.ts`
+  - `systems/autonomy/self_documentation_closeout.ts`
 
 ## Validation
 
 - `node` execution for all 10 target wrappers returns `ok: true` with Rust-generated deterministic lane receipts.
 - `cargo check -p conduit -p protheus-ops-core` passed.
 - `npm run -s formal:invariants:run` passed (`failed_invariants: 0`).
+- Benchmark matrix rerun uses live `run` metrics with no fallback (`runtime_metric_source.mode=run`, `fallback_reason=null`).
