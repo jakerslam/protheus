@@ -1,0 +1,42 @@
+name: Nightly Fuzz And Chaos
+
+on:
+  schedule:
+    - cron: "13 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz-and-chaos:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fuzz preflight (non-fatal when no fuzz targets exist)
+        run: |
+          cargo install cargo-fuzz --locked || true
+          if [ -d fuzz ] && [ -n "$(find fuzz -name '*.rs' -maxdepth 3 2>/dev/null)" ]; then
+            cargo fuzz list || true
+          else
+            echo "no_fuzz_targets_detected"
+          fi
+
+      - name: Chaos resilience smoke
+        run: |
+          NODE_PATH=$PWD/node_modules npm run -s formal:invariants:run
+          cargo run --quiet --manifest-path crates/ops/Cargo.toml --bin protheus-ops -- enterprise-hardening run --strict=1

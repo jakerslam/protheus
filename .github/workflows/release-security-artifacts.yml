@@ -1,0 +1,61 @@
+name: Release Security Artifacts
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release-security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Rust release binaries
+        run: |
+          cargo build --release --manifest-path crates/ops/Cargo.toml --bin protheus-ops
+          cargo build --release -p conduit --bin conduit_daemon
+
+      - name: Install Syft
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          syft version
+
+      - name: Generate CycloneDX SBOM
+        run: |
+          syft dir:. -o cyclonedx-json=sbom-${GITHUB_REF_NAME}.cdx.json
+          sha256sum sbom-${GITHUB_REF_NAME}.cdx.json > sbom-${GITHUB_REF_NAME}.sha256
+
+      - name: Render release notes
+        run: |
+          cat > release-notes-${GITHUB_REF_NAME}.md <<'EOF'
+          # Protheus ${GITHUB_REF_NAME}
+
+          This release ships with:
+          - CycloneDX SBOM (`sbom-${GITHUB_REF_NAME}.cdx.json`)
+          - SHA256 checksum (`sbom-${GITHUB_REF_NAME}.sha256`)
+          - Rust-first conduit/runtime migration updates
+
+          See `docs/requirements/REQ-05-protheus-conduit-bridge.md` and
+          `docs/requirements/REQ-07-security-credibility-verification.md`.
+          EOF
+
+      - name: Upload release artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            sbom-${{ github.ref_name }}.cdx.json
+            sbom-${{ github.ref_name }}.sha256
+            release-notes-${{ github.ref_name }}.md
