@@ -13,6 +13,7 @@ fn usage() {
     println!("  protheus-ops model-router <args>");
     println!("  protheus-ops contract-check <args>");
     println!("  protheus-ops strategy-mode-governor <args>");
+    println!("  protheus-ops status [--dashboard]");
     println!("  protheus-ops backlog-runtime-anchor <build|verify> --lane-id=<V3-RACE-XXX>");
     println!("  protheus-ops legacy-retired-lane <build|verify> --lane-id=<SYSTEMS-OPS-...>");
     println!("  protheus-ops inversion-controller <command> [flags]");
@@ -147,6 +148,11 @@ fn main() {
         "strategy-mode-governor" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::strategy_mode_governor::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "status" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::health_status::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "backlog-runtime-anchor" => {
