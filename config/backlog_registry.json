@@ -481,7 +481,7 @@
       ]
     }
   ],
-  "generated_at": "2026-03-06T18:21:22.477Z",
+  "generated_at": "2026-03-06T18:29:15.204Z",
   "row_count": 1364,
   "rows": [
     {
@@ -15451,14 +15451,14 @@
       "wave": "V6"
     },
     {
-      "acceptance": "Generate SBOM per release artifact, sign build outputs, verify signatures before deploy, and enforce dependency-vulnerability SLA gates; publish provenance bundle for every tagged release with rollback-to-last-known-good artifact policy and receipts.",
+      "acceptance": "Added Rust gate `protheus-ops supply-chain-provenance-v2 run|status` (`crates/ops/src/supply_chain_provenance_v2.rs`) with policy `config/supply_chain_provenance_v2_policy.json`; release workflow now emits per-artifact SBOM/signature/vulnerability summary/provenance bundle and fail-closes before publish (`.github/workflows/release-security-artifacts.yml`) when signature/hash parity, vulnerability SLA, or rollback-to-last-known-good contract is violated.",
       "class": "hardening",
       "dependencies": [
         "V6-F100-002"
       ],
       "id": "V6-F100-003",
       "problem": "Dependency and artifact trust posture exists but is not yet one end-to-end provenance contract visible at release time.",
-      "status": "queued",
+      "status": "done",
       "title": "Secure Supply-Chain Provenance v2 (SBOM + Signed Artifacts)",
       "wave": "V6"
     },
