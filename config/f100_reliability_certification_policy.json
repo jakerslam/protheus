@@ -1,0 +1,47 @@
+{
+  "schema_id": "f100_reliability_certification_policy",
+  "schema_version": "1.0",
+  "strict_default": true,
+  "active_tier": "seed",
+  "window_days": 30,
+  "missing_metric_fail_closed": false,
+  "tiers": {
+    "seed": {
+      "min_uptime": 0.9,
+      "max_receipt_p95_ms": 200,
+      "max_receipt_p99_ms": 300,
+      "max_incident_rate": 0.35,
+      "max_change_fail_rate": 0.5,
+      "max_error_budget_burn_ratio": 0.45
+    },
+    "production": {
+      "min_uptime": 0.999,
+      "max_receipt_p95_ms": 100,
+      "max_receipt_p99_ms": 150,
+      "max_incident_rate": 0.1,
+      "max_change_fail_rate": 0.2,
+      "max_error_budget_burn_ratio": 0.3
+    }
+  },
+  "sources": {
+    "execution_reliability_path": "state/ops/execution_reliability_slo.json",
+    "error_budget_latest_path": "state/ops/error_budget_release_gate/latest.json",
+    "error_budget_history_path": "state/ops/error_budget_release_gate/history.jsonl",
+    "spine_runs_dir": "state/spine/runs",
+    "incident_log_path": "state/security/autonomy_human_escalations.jsonl",
+    "drill_evidence_paths": [
+      "state/ops/dr_gameday_gate_receipts.jsonl",
+      "state/ops/continuous_chaos_resilience/latest.json"
+    ],
+    "rollback_evidence_paths": [
+      "state/ops/release_gate_canary_rollback_enforcer/latest.json",
+      "state/ops/error_budget_release_gate/freeze_state.json"
+    ],
+    "min_drill_evidence_count": 1,
+    "min_rollback_evidence_count": 1
+  },
+  "outputs": {
+    "latest_path": "state/ops/f100_reliability_certification/latest.json",
+    "history_path": "state/ops/f100_reliability_certification/history.jsonl"
+  }
+}
