@@ -1,0 +1,25 @@
+{
+  "schema_id": "operator_surface_consistency_snapshot",
+  "schema_version": "1.0",
+  "surfaces": {
+    "protheus": {
+      "status_vocab": ["ok", "degraded", "blocked"],
+      "error_shape": ["code", "message", "receipt_hash"]
+    },
+    "protheusctl": {
+      "status_vocab": ["ok", "degraded", "blocked"],
+      "error_shape": ["code", "message", "receipt_hash"]
+    },
+    "protheus_top": {
+      "status_vocab": ["ok", "degraded", "blocked"],
+      "error_shape": ["code", "message", "receipt_hash"]
+    }
+  },
+  "error_taxonomy": [
+    "validation_error",
+    "authorization_error",
+    "policy_violation",
+    "runtime_degraded",
+    "internal_error"
+  ]
+}

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use serde_json::{json, Map, Number, Value};
 
 fn normalize_token(input: &str) -> String {

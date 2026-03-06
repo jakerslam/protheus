@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use std::collections::BTreeSet;
 
 pub const RECEIPT_SCHEMA_ID: &str = "foundation_hook_enforcer/v1";

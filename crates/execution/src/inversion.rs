@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use chrono::{SecondsFormat, TimeZone, Utc};
 use regex::Regex;
 use serde::{Deserialize, Serialize};

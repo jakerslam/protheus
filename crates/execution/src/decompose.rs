@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};

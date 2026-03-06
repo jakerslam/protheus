@@ -1,0 +1,11 @@
+{
+  "schema_id": "audit_log_export_policy",
+  "schema_version": "1.0",
+  "strict_default": true,
+  "max_events_per_export": 5000,
+  "output_dir": "state/ops/audit_log_export/exports",
+  "outputs": {
+    "latest_path": "state/ops/audit_log_export/latest.json",
+    "history_path": "state/ops/audit_log_export/history.jsonl"
+  }
+}

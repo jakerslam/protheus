@@ -1,0 +1,12 @@
+{
+  "schema_id": "operator_surface_consistency_policy",
+  "schema_version": "1.0",
+  "required_surfaces": ["protheus", "protheusctl", "protheus_top"],
+  "required_taxonomy": [
+    "validation_error",
+    "authorization_error",
+    "policy_violation",
+    "runtime_degraded",
+    "internal_error"
+  ]
+}

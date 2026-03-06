@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 pub const CHECK_ID: &str = "persona_dispatch_security_gate";
 pub const RECEIPT_SCHEMA_ID: &str = "persona_dispatch_security_gate_receipt";
 

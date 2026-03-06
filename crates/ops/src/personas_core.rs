@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use crate::{deterministic_receipt_hash, now_iso, parse_args};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;

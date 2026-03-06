@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use conduit_security::{
     deterministic_hash, CapabilityToken, CapabilityTokenAuthority, MessageSigner, RateLimitPolicy,
     RateLimiter, SecurityError,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use blob_test::{
     build_demo_bundle, demo_blob_path, load_manifest, sample_execution_policy, sample_memory_state,
     sample_soul_contract_snippet, unfold_blob_typed, BlobError, MockExecutionPolicy,

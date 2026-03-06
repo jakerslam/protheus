@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use protheus_graph_core_v1::{run_workflow_json, viz_dot};

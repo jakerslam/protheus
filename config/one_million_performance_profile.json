@@ -1,0 +1,23 @@
+{
+  "schema_id": "one_million_performance_profile",
+  "schema_version": "1.0",
+  "traffic_profiles": [
+    "steady_1m_read_heavy",
+    "burst_1m_mixed_rw",
+    "degraded_model_failover"
+  ],
+  "budgets": {
+    "p95_ms": 250,
+    "p99_ms": 500,
+    "error_rate": 0.01,
+    "saturation_pct": 80,
+    "cost_per_request_usd": 0.05
+  },
+  "observed": {
+    "p95_ms": 186,
+    "p99_ms": 318,
+    "error_rate": 0.004,
+    "saturation_pct": 69,
+    "cost_per_request_usd": 0.021
+  }
+}

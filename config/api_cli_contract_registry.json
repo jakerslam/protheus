@@ -1,0 +1,26 @@
+{
+  "schema_id": "api_cli_contract_registry",
+  "schema_version": "1.0",
+  "api_contracts": [
+    {
+      "name": "protheus_conduit_v1",
+      "version": "1.2.0",
+      "status": "active",
+      "deprecation_window_days": 120
+    }
+  ],
+  "cli_contracts": [
+    {
+      "name": "protheus-ops",
+      "version": "0.2.0",
+      "status": "active",
+      "deprecation_window_days": 120
+    },
+    {
+      "name": "legacy-bridge",
+      "version": "0.1.0",
+      "status": "deprecated",
+      "deprecation_window_days": 120
+    }
+  ]
+}

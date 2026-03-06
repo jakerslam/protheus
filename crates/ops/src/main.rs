@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use protheus_ops_core::{
     deterministic_receipt_hash, parse_args, parse_os_args, run_runtime_efficiency_floor,
     status_runtime_efficiency_floor,
@@ -14,6 +15,9 @@ fn usage() {
     println!("  protheus-ops f100-reliability-certification <run|status> [--strict=1|0] [--policy=<path>]");
     println!("  protheus-ops sdlc-change-control <run|status> [--strict=1|0] [--policy=<path>] [--pr-body-path=<path>] [--changed-paths-path=<path>]");
     println!("  protheus-ops supply-chain-provenance-v2 <run|status> [--strict=1|0] [--policy=<path>] [--bundle-path=<path>] [--vuln-summary-path=<path>]");
+    println!("  protheus-ops f100-readiness-program <run|run-all|status> [--lane=<V6-F100-XXX>] [--strict=1|0] [--apply=1|0] [--policy=<path>]");
+    println!("  protheus-ops identity-federation <authorize|scim-lifecycle|status> [flags]");
+    println!("  protheus-ops audit-log-export <export|status> [flags]");
     println!("  protheus-ops model-router <args>");
     println!("  protheus-ops ab-lane-eval <status|run> [flags]");
     println!("  protheus-ops contract-check <args>");
@@ -184,6 +188,21 @@ fn main() {
         "supply-chain-provenance-v2" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::supply_chain_provenance_v2::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "f100-readiness-program" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::f100_readiness_program::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "identity-federation" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::identity_federation::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "audit-log-export" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::audit_log_export::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "contract-check" => {

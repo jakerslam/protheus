@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use fluxlattice::{init_state, morph, settle, status_map};
 use std::env;
 

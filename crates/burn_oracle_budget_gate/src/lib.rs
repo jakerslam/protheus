@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 pub const CHECK_ID: &str = "burn_oracle_budget_gate";
 pub const RECEIPT_SCHEMA_ID: &str = "burn_oracle_budget_gate_receipt";
 

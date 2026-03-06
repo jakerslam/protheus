@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use chrono::Utc;
 use serde_json::{json, Value};
 use std::collections::HashMap;
