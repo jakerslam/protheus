@@ -382,6 +382,35 @@ function isBudgetHoldEvent(evt) {
     || blockReason.includes('burn_rate');
 }
 
+function policyHoldReasonFromEvent(evt) {
+  if (!evt || evt.type !== 'autonomy_run') return 'unknown';
+  return String(
+    evt.policy_hold_reason
+    || evt.route_block_reason
+    || evt.result
+    || 'unknown'
+  ).trim().toLowerCase() || 'unknown';
+}
+
+function budgetHoldReasonFromEvent(evt) {
+  if (!evt || evt.type !== 'autonomy_run') return 'unknown';
+  return String(
+    evt.route_block_reason
+    || evt.policy_hold_reason
+    || evt.result
+    || 'unknown'
+  ).trim().toLowerCase() || 'unknown';
+}
+
+function countReasons(rows, reasonFn) {
+  const counts = {};
+  for (const row of (Array.isArray(rows) ? rows : [])) {
+    const key = String(reasonFn(row) || 'unknown').trim().toLowerCase() || 'unknown';
+    counts[key] = Number(counts[key] || 0) + 1;
+  }
+  return counts;
+}
+
 function deriveBudgetAutopauseFromRuns(runRows, endDateStr) {
   const endMs = Date.parse(`${String(endDateStr || '')}T23:59:59.999Z`);
   let latestExplicit = null;
@@ -921,6 +950,16 @@ function computeSimulation(endDateStr, days) {
   const safetyStops = attempts.filter(isSafetyStop);
   const effectivePolicyHolds = projectedAccepted.filter(isPolicyHoldEvent);
   const effectiveBudgetHolds = effectivePolicyHolds.filter(isBudgetHoldEvent);
+  const holdReasons = {
+    baseline: {
+      policy: countReasons(baselinePolicyHolds, policyHoldReasonFromEvent),
+      budget: countReasons(baselineBudgetHolds, budgetHoldReasonFromEvent)
+    },
+    effective: {
+      policy: countReasons(effectivePolicyHolds, policyHoldReasonFromEvent),
+      budget: countReasons(effectiveBudgetHolds, budgetHoldReasonFromEvent)
+    }
+  };
 
   const objectiveCounts = {};
   for (const row of executed) {
@@ -971,6 +1010,10 @@ function computeSimulation(endDateStr, days) {
       : 0
   };
   const verdict = worstVerdict(verdictRaw, verdictEffective);
+  const topPolicyHoldReason = Object.entries(holdReasons.effective.policy || {})
+    .sort((a, b) => Number(b[1]) - Number(a[1]))[0] || null;
+  const topBudgetHoldReason = Object.entries(holdReasons.effective.budget || {})
+    .sort((a, b) => Number(b[1]) - Number(a[1]))[0] || null;
 
   const recommendations = [];
   if (checksRaw.drift_rate.status !== 'pass' || checksEffective.drift_rate.status !== 'pass') {
@@ -980,13 +1023,21 @@ function computeSimulation(endDateStr, days) {
     recommendations.push('Bias selection toward high-value, executable proposals and reduce medium-risk capacity until shipped rate recovers.');
   }
   if (checksRaw.policy_hold_rate.status !== 'pass' || checksEffective.policy_hold_rate.status !== 'pass') {
-    recommendations.push('Reduce policy-hold churn: tighten admission routing, quarantine low-actionability proposals, and cut retry pressure during governance holds.');
+    if (topPolicyHoldReason) {
+      recommendations.push(`Reduce policy-hold churn: top effective reason is ${topPolicyHoldReason[0]} (${topPolicyHoldReason[1]}). Tighten admission and queue hygiene for that path first.`);
+    } else {
+      recommendations.push('Reduce policy-hold churn: tighten admission routing, quarantine low-actionability proposals, and cut retry pressure during governance holds.');
+    }
   }
   if (identityProjection.enabled === true && Array.isArray(identityProjection.blocked_attempts) && identityProjection.blocked_attempts.length > 0) {
     recommendations.push('Identity projection blocked misaligned attempts; review blocked reasons and tighten objective/value propagation at proposal ingress.');
   }
   if (checksRaw.budget_hold_rate.status !== 'pass' || checksEffective.budget_hold_rate.status !== 'pass') {
-    recommendations.push('Budget holds are elevated; reduce action frequency or projected token cost before resuming full autonomy cadence.');
+    if (topBudgetHoldReason) {
+      recommendations.push(`Budget holds are elevated; top effective reason is ${topBudgetHoldReason[0]} (${topBudgetHoldReason[1]}). Apply pacing/defer strategy before resuming full cadence.`);
+    } else {
+      recommendations.push('Budget holds are elevated; reduce action frequency or projected token cost before resuming full autonomy cadence.');
+    }
   }
   if (checksRaw.budget_autopause_active.status !== 'pass') {
     recommendations.push('Budget autopause is active for the current window; treat the lane as flow-blocked until autopause clears or budget policy is adjusted.');
@@ -1019,6 +1070,7 @@ function computeSimulation(endDateStr, days) {
     },
     baseline_counters: baselineCounters,
     effective_counters: effectiveCounters,
+    hold_reasons: holdReasons,
     budget_autopause: budgetAutopause,
     compiler_projection: {
       enabled: SIM_LINEAGE_REQUIRED === true,

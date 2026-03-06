@@ -17,6 +17,7 @@ export {};
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { compileDirectiveLineage } = require('../security/directive_compiler');
 
 type AnyObj = Record<string, any>;
 
@@ -156,13 +157,29 @@ function defaultPolicy() {
     checks: {
       command_timeout_ms: 180000
     },
+    queue_hygiene: {
+      enabled: true,
+      stale_open_hours: 72,
+      retry_cap_no_progress: 3,
+      retry_window_days: 14,
+      objective_binding_required: true,
+      executable_spec_required: true
+    },
+    budget_pacing: {
+      enabled: true,
+      min_remaining_ratio: 0.2,
+      block_pressure_levels: ['hard', 'critical']
+    },
     paths: {
       root: 'state/autonomy/runtime_stability_soak',
       state_path: 'state/autonomy/runtime_stability_soak/state.json',
       latest_path: 'state/autonomy/runtime_stability_soak/latest.json',
       checks_path: 'state/autonomy/runtime_stability_soak/checks.jsonl',
       cycles_path: 'state/autonomy/runtime_stability_soak/cycles.jsonl',
-      reports_dir: 'state/autonomy/runtime_stability_soak/reports'
+      reports_dir: 'state/autonomy/runtime_stability_soak/reports',
+      proposals_dir: 'state/sensory/proposals',
+      runs_dir: 'state/autonomy/runs',
+      daily_budget_dir: 'state/autonomy/daily_budget'
     }
   };
 }
@@ -175,6 +192,12 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   const gated = raw.gated_cycle && typeof raw.gated_cycle === 'object' ? raw.gated_cycle : {};
   const attribution = raw.attribution && typeof raw.attribution === 'object' ? raw.attribution : {};
   const checks = raw.checks && typeof raw.checks === 'object' ? raw.checks : {};
+  const queueHygiene = raw.queue_hygiene && typeof raw.queue_hygiene === 'object'
+    ? raw.queue_hygiene
+    : {};
+  const budgetPacing = raw.budget_pacing && typeof raw.budget_pacing === 'object'
+    ? raw.budget_pacing
+    : {};
   const paths = raw.paths && typeof raw.paths === 'object' ? raw.paths : {};
   return {
     version: cleanText(raw.version || base.version, 32) || base.version,
@@ -225,13 +248,51 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
     checks: {
       command_timeout_ms: clampInt(checks.command_timeout_ms, 5_000, 30 * 60 * 1000, base.checks.command_timeout_ms)
     },
+    queue_hygiene: {
+      enabled: queueHygiene.enabled !== false,
+      stale_open_hours: clampInt(
+        queueHygiene.stale_open_hours,
+        24,
+        24 * 30,
+        base.queue_hygiene.stale_open_hours
+      ),
+      retry_cap_no_progress: clampInt(
+        queueHygiene.retry_cap_no_progress,
+        1,
+        20,
+        base.queue_hygiene.retry_cap_no_progress
+      ),
+      retry_window_days: clampInt(
+        queueHygiene.retry_window_days,
+        1,
+        60,
+        base.queue_hygiene.retry_window_days
+      ),
+      objective_binding_required: queueHygiene.objective_binding_required !== false,
+      executable_spec_required: queueHygiene.executable_spec_required !== false
+    },
+    budget_pacing: {
+      enabled: budgetPacing.enabled !== false,
+      min_remaining_ratio: clampNumber(
+        budgetPacing.min_remaining_ratio,
+        0.01,
+        0.95,
+        base.budget_pacing.min_remaining_ratio
+      ),
+      block_pressure_levels: Array.isArray(budgetPacing.block_pressure_levels)
+        ? budgetPacing.block_pressure_levels.map((v: unknown) => normalizeToken(v, 32)).filter(Boolean)
+        : base.budget_pacing.block_pressure_levels
+    },
     paths: {
       root: resolvePath(paths.root || base.paths.root, base.paths.root),
       state_path: resolvePath(paths.state_path || base.paths.state_path, base.paths.state_path),
       latest_path: resolvePath(paths.latest_path || base.paths.latest_path, base.paths.latest_path),
       checks_path: resolvePath(paths.checks_path || base.paths.checks_path, base.paths.checks_path),
       cycles_path: resolvePath(paths.cycles_path || base.paths.cycles_path, base.paths.cycles_path),
-      reports_dir: resolvePath(paths.reports_dir || base.paths.reports_dir, base.paths.reports_dir)
+      reports_dir: resolvePath(paths.reports_dir || base.paths.reports_dir, base.paths.reports_dir),
+      proposals_dir: resolvePath(paths.proposals_dir || base.paths.proposals_dir, base.paths.proposals_dir),
+      runs_dir: resolvePath(paths.runs_dir || base.paths.runs_dir, base.paths.runs_dir),
+      daily_budget_dir: resolvePath(paths.daily_budget_dir || base.paths.daily_budget_dir, base.paths.daily_budget_dir)
     },
     policy_path: path.resolve(policyPath)
   };
@@ -337,6 +398,290 @@ function readJsonl(filePath: string) {
   }
 }
 
+function parseDateFromFilename(name: string) {
+  const m = String(name || '').match(/^(\d{4}-\d{2}-\d{2})\.json(?:l)?$/);
+  return m ? m[1] : null;
+}
+
+function windowDateSet(days: number) {
+  const limit = Math.max(1, Number(days) || 1);
+  const out = new Set<string>();
+  const base = new Date();
+  base.setUTCHours(0, 0, 0, 0);
+  for (let i = 0; i < limit; i += 1) {
+    const d = new Date(base.getTime() - i * 24 * 60 * 60 * 1000);
+    out.add(d.toISOString().slice(0, 10));
+  }
+  return out;
+}
+
+function normalizeDirectiveId(v: unknown) {
+  const txt = cleanText(v, 220);
+  return /^T\d+_[A-Za-z0-9_]+$/.test(txt) ? txt : '';
+}
+
+function objectiveFromProposal(row: AnyObj = {}) {
+  const actionSpec = row && row.action_spec && typeof row.action_spec === 'object'
+    ? row.action_spec
+    : {};
+  const meta = row && row.meta && typeof row.meta === 'object'
+    ? row.meta
+    : {};
+  return normalizeDirectiveId(
+    actionSpec.objective_id
+    || meta.objective_id
+    || meta.directive_objective_id
+    || row.objective_id
+    || ''
+  );
+}
+
+function commandFromProposal(row: AnyObj = {}) {
+  const actionSpec = row && row.action_spec && typeof row.action_spec === 'object'
+    ? row.action_spec
+    : {};
+  return cleanText(
+    actionSpec.next_command
+    || row.suggested_next_command
+    || row.next_command
+    || '',
+    600
+  );
+}
+
+function proposalTimestampMs(row: AnyObj = {}, fileDate: string) {
+  const candidates = [
+    Date.parse(`${fileDate}T00:00:00.000Z`),
+    Date.parse(String(row.created_at || '')),
+    Date.parse(String(row.ts || '')),
+    Date.parse(String(row.updated_at || ''))
+  ].filter((v) => Number.isFinite(v));
+  if (!candidates.length) return null;
+  return Math.min(...candidates);
+}
+
+function proposalIdFromRun(row: AnyObj = {}) {
+  return cleanText(row.proposal_id || row.selected_proposal_id || '', 180);
+}
+
+function buildNoProgressRetryCounts(runsDir: string, windowDays: number) {
+  const counts: AnyObj = {};
+  if (!fs.existsSync(runsDir)) return counts;
+  const allowDates = windowDateSet(windowDays);
+  const files = fs.readdirSync(runsDir)
+    .filter((name) => name.endsWith('.jsonl') && allowDates.has(String(parseDateFromFilename(name) || '')))
+    .sort();
+  for (const file of files) {
+    const rows = readJsonl(path.join(runsDir, file));
+    for (const row of rows) {
+      if (!(row && row.type === 'autonomy_run')) continue;
+      const proposalId = proposalIdFromRun(row);
+      if (!proposalId) continue;
+      const result = cleanText(row.result || '', 120).toLowerCase();
+      const outcome = cleanText(row.outcome || '', 120).toLowerCase();
+      const noProgress = (
+        (result === 'executed' && outcome !== 'shipped')
+        || result.includes('no_progress')
+        || result.includes('unchanged_state')
+        || result.includes('low_execution_confidence')
+      );
+      if (!noProgress) continue;
+      counts[proposalId] = Number(counts[proposalId] || 0) + 1;
+    }
+  }
+  return counts;
+}
+
+function runQueueHygiene(policy: AnyObj, apply = true) {
+  const summary: AnyObj = {
+    enabled: policy.queue_hygiene && policy.queue_hygiene.enabled === true,
+    applied: apply === true,
+    scanned: 0,
+    open_seen: 0,
+    parked: 0,
+    files_touched: 0,
+    reasons: {}
+  };
+  if (summary.enabled !== true) return summary;
+
+  const proposalsDir = policy.paths.proposals_dir;
+  const allowDates = windowDateSet(180);
+  const retryCounts = buildNoProgressRetryCounts(
+    policy.paths.runs_dir,
+    Number(policy.queue_hygiene.retry_window_days || 14)
+  );
+  const compiler = compileDirectiveLineage();
+  const activeObjectives = new Set(
+    Array.isArray(compiler && compiler.entries)
+      ? compiler.entries.map((row: AnyObj) => normalizeDirectiveId(row && row.id || '')).filter(Boolean)
+      : []
+  );
+  const nowMs = Date.now();
+  const staleMs = Number(policy.queue_hygiene.stale_open_hours || 72) * 60 * 60 * 1000;
+  const retryCap = Number(policy.queue_hygiene.retry_cap_no_progress || 3);
+
+  if (!fs.existsSync(proposalsDir)) {
+    return {
+      ...summary,
+      missing_proposals_dir: rel(proposalsDir)
+    };
+  }
+  const files = fs.readdirSync(proposalsDir)
+    .filter((name) => name.endsWith('.json') && allowDates.has(String(parseDateFromFilename(name) || '')))
+    .sort();
+
+  for (const name of files) {
+    const fileDate = String(parseDateFromFilename(name) || '');
+    const fp = path.join(proposalsDir, name);
+    const rows = readJson(fp, []);
+    if (!Array.isArray(rows)) continue;
+    let touched = false;
+    for (const row of rows) {
+      if (!(row && typeof row === 'object')) continue;
+      summary.scanned += 1;
+      const status = normalizeToken(row.status || row.state || 'open', 32);
+      if (!(status === 'open' || status === 'pending')) continue;
+      summary.open_seen += 1;
+
+      const reasons: string[] = [];
+      const objectiveId = objectiveFromProposal(row);
+      const command = commandFromProposal(row);
+      const tsMs = proposalTimestampMs(row, fileDate);
+      const proposalAgeMs = tsMs == null ? 0 : Math.max(0, nowMs - tsMs);
+      const proposalId = cleanText(row.id || '', 180);
+      const noProgressRetries = proposalId ? Number(retryCounts[proposalId] || 0) : 0;
+      const admissionPreview = row.meta && row.meta.admission_preview && typeof row.meta.admission_preview === 'object'
+        ? row.meta.admission_preview
+        : {};
+      const blockedByPreview = Array.isArray(admissionPreview.blocked_by)
+        ? admissionPreview.blocked_by.filter(Boolean)
+        : [];
+
+      if (policy.queue_hygiene.objective_binding_required === true) {
+        if (!objectiveId) {
+          reasons.push('objective_binding_missing');
+        } else if (!activeObjectives.has(objectiveId)) {
+          reasons.push('objective_binding_invalid');
+        }
+      }
+      if (policy.queue_hygiene.executable_spec_required === true && !command) {
+        reasons.push('executable_spec_missing');
+      }
+      if (admissionPreview.eligible === false && blockedByPreview.length > 0) {
+        reasons.push('admission_preview_blocked');
+      }
+      if (proposalAgeMs >= staleMs) {
+        reasons.push('stale_open_age');
+      }
+      if (noProgressRetries >= retryCap) {
+        reasons.push('retry_cap_exhausted');
+      }
+      if (!reasons.length) continue;
+
+      summary.parked += 1;
+      for (const reason of reasons) {
+        summary.reasons[reason] = Number(summary.reasons[reason] || 0) + 1;
+      }
+      if (apply !== true) continue;
+
+      row.status = 'parked';
+      row.state = 'parked';
+      row.meta = row.meta && typeof row.meta === 'object' ? row.meta : {};
+      row.meta.queue_hygiene = {
+        remediated_at: nowIso(),
+        reasons,
+        objective_id: objectiveId || null,
+        proposal_age_hours: Number((proposalAgeMs / (60 * 60 * 1000)).toFixed(3)),
+        no_progress_retries: noProgressRetries
+      };
+      const preview = row.meta.admission_preview && typeof row.meta.admission_preview === 'object'
+        ? row.meta.admission_preview
+        : {};
+      const blocked = Array.isArray(preview.blocked_by) ? preview.blocked_by.slice() : [];
+      for (const reason of reasons) {
+        if (!blocked.includes(reason)) blocked.push(reason);
+      }
+      row.meta.admission_preview = {
+        ...preview,
+        eligible: false,
+        blocked_by: blocked
+      };
+      touched = true;
+    }
+    if (touched && apply === true) {
+      writeJsonAtomic(fp, rows);
+      summary.files_touched += 1;
+    }
+  }
+
+  summary.active_objectives = Array.from(activeObjectives).slice(0, 16);
+  return summary;
+}
+
+function readBudgetPacingSnapshot(policy: AnyObj) {
+  const out: AnyObj = {
+    enabled: policy.budget_pacing && policy.budget_pacing.enabled === true,
+    allow_execute: true,
+    defer_reason: null,
+    path: null,
+    pressure: 'unknown',
+    token_cap: 0,
+    used_est: 0,
+    remaining_tokens: 0,
+    remaining_ratio: 1,
+    max_tokens_per_action: null
+  };
+  if (out.enabled !== true) return out;
+
+  const dir = policy.paths.daily_budget_dir;
+  if (!fs.existsSync(dir)) {
+    out.path = rel(dir);
+    return out;
+  }
+  const today = nowIso().slice(0, 10);
+  const direct = path.join(dir, `${today}.json`);
+  let filePath = direct;
+  if (!fs.existsSync(filePath)) {
+    const fallback = fs.readdirSync(dir)
+      .filter((name) => /^\d{4}-\d{2}-\d{2}\.json$/.test(name))
+      .sort()
+      .pop();
+    if (!fallback) return out;
+    filePath = path.join(dir, fallback);
+  }
+  const row = readJson(filePath, {});
+  const tokenCap = Number(row && row.token_cap || 0);
+  const usedEst = Number(row && row.used_est || 0);
+  const remaining = Math.max(0, tokenCap - usedEst);
+  const ratio = tokenCap > 0 ? (remaining / tokenCap) : 1;
+  let pressure = normalizeToken(
+    row && row.pressure
+    || (row && row.strategy_budget && row.strategy_budget.pressure)
+    || '',
+    24
+  );
+  if (!pressure) {
+    pressure = ratio <= 0.1 ? 'critical' : ratio <= Number(policy.budget_pacing.min_remaining_ratio || 0.2) ? 'hard' : 'normal';
+  }
+  const blockedLevels = new Set(
+    Array.isArray(policy.budget_pacing.block_pressure_levels)
+      ? policy.budget_pacing.block_pressure_levels.map((v: unknown) => normalizeToken(v, 24)).filter(Boolean)
+      : ['hard', 'critical']
+  );
+  const shouldDefer = ratio <= Number(policy.budget_pacing.min_remaining_ratio || 0.2)
+    && blockedLevels.has(pressure);
+  out.path = rel(filePath);
+  out.pressure = pressure || 'unknown';
+  out.token_cap = tokenCap;
+  out.used_est = usedEst;
+  out.remaining_tokens = remaining;
+  out.remaining_ratio = Number(ratio.toFixed(6));
+  out.max_tokens_per_action = Number(row && row.strategy_budget && row.strategy_budget.max_tokens_per_action || 0) || null;
+  out.allow_execute = !shouldDefer;
+  out.defer_reason = shouldDefer ? 'budget_pacing_hold' : null;
+  return out;
+}
+
 function isoToMs(iso: unknown) {
   const ms = Date.parse(String(iso || ''));
   return Number.isFinite(ms) ? ms : null;
@@ -404,11 +749,19 @@ function diagnoseAndAttemptFix(policy: AnyObj, row: AnyObj = {}, startedAt: stri
   }
   if (row.health_status_ok !== true) {
     actions.push('retry_health_status_strict');
-    outcomes.health_status_retry = runNode('systems/autonomy/health_status.js', ['--strict', '--alerts=0', '--write=0'], {
+    outcomes.health_status_retry = runNode('systems/autonomy/health_status.js', ['status'], {
       timeout_ms: policy.checks.command_timeout_ms
     });
     row.health_status_ok = outcomes.health_status_retry.ok === true;
   }
+  actions.push('queue_hygiene_apply');
+  outcomes.queue_hygiene = {
+    ok: true,
+    code: 0,
+    timed_out: false,
+    payload: runQueueHygiene(policy, true)
+  };
+  row.queue_hygiene = outcomes.queue_hygiene.payload;
   if (row.helix_ok !== true) {
     actions.push('helix_reinit_and_reattest');
     outcomes.helix_init = runNode('systems/helix/helix_controller.js', ['init'], {
@@ -442,10 +795,11 @@ function diagnoseAndAttemptFix(policy: AnyObj, row: AnyObj = {}, startedAt: stri
 }
 
 function runHourlyHealthBundle(policy: AnyObj, startedAt: string, index: number) {
+  const queueHygiene = runQueueHygiene(policy, true);
   const contractCheck = runNode('systems/spine/contract_check.js', [], {
     timeout_ms: policy.checks.command_timeout_ms
   });
-  const healthStatus = runNode('systems/autonomy/health_status.js', ['--strict', '--alerts=0', '--write=0'], {
+  const healthStatus = runNode('systems/autonomy/health_status.js', ['status'], {
     timeout_ms: policy.checks.command_timeout_ms
   });
   const helixAttest = runNode('systems/helix/helix_controller.js', ['attest'], {
@@ -471,6 +825,7 @@ function runHourlyHealthBundle(policy: AnyObj, startedAt: string, index: number)
     ),
     symbiosis_ok: Number(sym.coherence_score || 0) >= Number(policy.thresholds.symbiosis_min_score || 0.7),
     tithe_ok: tithe.ok === true,
+    queue_hygiene: queueHygiene,
     helix,
     symbiosis: sym,
     tithe,
@@ -494,6 +849,11 @@ function runHourlyHealthBundle(policy: AnyObj, startedAt: string, index: number)
         ok: symbiosis.ok,
         code: symbiosis.code,
         timed_out: symbiosis.timed_out
+      },
+      queue_hygiene: {
+        ok: true,
+        code: 0,
+        timed_out: false
       }
     }
   };
@@ -554,6 +914,18 @@ function recordAttributionAndTithe(policy: AnyObj, cycleTag: string, proposalId:
 
 function runSingleLiveCycle(policy: AnyObj, cycleIndex: number) {
   const cycleTag = `live_cycle_${cycleIndex}`;
+  const budgetPacing = readBudgetPacingSnapshot(policy);
+  if (budgetPacing.enabled === true && budgetPacing.allow_execute !== true) {
+    return {
+      ok: true,
+      ts: nowIso(),
+      cycle: cycleIndex,
+      cycle_tag: cycleTag,
+      deferred: true,
+      defer_reason: budgetPacing.defer_reason || 'budget_pacing_hold',
+      budget_pacing: budgetPacing
+    };
+  }
   const propose = runNode(
     'systems/autonomy/gated_self_improvement_loop.js',
     [
@@ -653,7 +1025,8 @@ function runSingleLiveCycle(policy: AnyObj, cycleIndex: number) {
       effective_tithe_bps: Number(stormRoot.effective_tithe_bps || 0),
       root_tithe_usd: Number(stormRoot.root_tithe_usd || 0),
       reason_codes: Array.isArray(stormRoot.reason_codes) ? stormRoot.reason_codes : []
-    }
+    },
+    budget_pacing: budgetPacing
   };
 }
 
@@ -662,7 +1035,7 @@ function summarizeNoLlmValidation(policy: AnyObj) {
   const contractCheck = runNode('systems/spine/contract_check.js', [], { timeout_ms: timeout });
   const schemaCheck = runNode('systems/security/schema_contract_check.js', ['run'], { timeout_ms: timeout });
   const foundationGate = runNode('systems/ops/foundation_contract_gate.js', ['run'], { timeout_ms: timeout });
-  const healthStrict = runNode('systems/autonomy/health_status.js', ['--strict', '--alerts=0', '--write=0'], {
+  const healthStrict = runNode('systems/autonomy/health_status.js', ['status'], {
     timeout_ms: timeout
   });
   return {
@@ -762,13 +1135,15 @@ async function commandStart(args: AnyObj) {
     cycles_total: cycleCount,
     last_error: null
   });
+  const initialQueueHygiene = runQueueHygiene(policy, true);
   writeJsonAtomic(policy.paths.latest_path, {
     type: 'runtime_stability_soak_started',
     ts: nowIso(),
     run_id: runId,
     duration_hours: durationHours,
     interval_minutes: intervalMinutes,
-    cycle_count: cycleCount
+    cycle_count: cycleCount,
+    queue_hygiene: initialQueueHygiene
   });
 
   const hourlyRows: AnyObj[] = [];
@@ -882,6 +1257,7 @@ async function commandStart(args: AnyObj) {
       cycle_count: cycleCount,
       symbiosis_min_score: Number(policy.thresholds.symbiosis_min_score || 0.7)
     },
+    queue_hygiene_initial: initialQueueHygiene,
     soak: {
       checks_completed: hourlyRows.length,
       checks_total: totalChecks,
@@ -1053,4 +1429,3 @@ module.exports = {
   runSingleLiveCycle,
   summarizeNoLlmValidation
 };
-
