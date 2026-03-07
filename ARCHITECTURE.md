@@ -63,6 +63,28 @@ Provisioning contract:
 - Synthesized nodes are tagged with the conversation taxonomy:
   `conversation`, `decision`, `insight`, `directive`, `t1`.
 
+Conversation hierarchy additions:
+
+- Synthesized nodes now include leveled memory metadata:
+  - `node1` (highest), `tag2`, `jot3` (lowest)
+- Nodes include deterministic hex IDs and XML-style payload boundaries for low-cost parsing.
+- Weekly node admission is quota-bound (10/week default) with bounded level-1 promotion overrides.
+
+## Dream Sequencer + Auto Recall (Memory Integrity)
+
+Memory relevance is continuously reordered through a dream-cycle sequencer:
+
+- Matrix builder: `client/systems/memory/memory_matrix.ts`
+- Sequencer runner: `client/systems/memory/dream_sequencer.ts`
+- Auto recall lane: `client/systems/memory/memory_auto_recall.ts`
+
+Contracts:
+
+- Tag-memory matrix stores every indexed tag with ranked node IDs and scores.
+- Scoring combines memory level (`node1>tag2>jot3`), recency, and dream inclusion signals.
+- Dream cycle runs trigger sequencer reorder passes and emit updated ranked tags.
+- New memory filings can trigger bounded top-match recall pushes to attention queue through conduit only.
+
 ## Why Root Is Clean
 
 Repository root is intentionally reduced to:

@@ -12,6 +12,15 @@ function sha16(v: unknown) {
   return crypto.createHash('sha256').update(String(v == null ? '' : v), 'utf8').digest('hex').slice(0, 16);
 }
 
+function xmlEscape(v: unknown) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
 function normalizeArray(v: unknown) {
   return Array.isArray(v) ? v : [];
 }
@@ -70,6 +79,13 @@ function classifyKind(text: string) {
   return 'insight';
 }
 
+function classifyLevel(kind: string) {
+  const k = String(kind || '').toLowerCase();
+  if (k === 'decision' || k === 'directive') return { level: 1, level_token: 'node1', xml_tag: 'node' };
+  if (k === 'insight') return { level: 2, level_token: 'tag2', xml_tag: 'tag' };
+  return { level: 3, level_token: 'jot3', xml_tag: 'jot' };
+}
+
 function deriveEdges(envelope: any) {
   const edges = new Set<string>();
   if (envelope && envelope.attention) edges.add('attention_queue');
@@ -86,9 +102,11 @@ function synthesizeEnvelope(envelope: any) {
   if (highlights.length === 0) return null;
   const key = highlights[0];
   const kind = classifyKind(key);
+  const level = classifyLevel(kind);
   const ts = cleanText(envelope.ts || new Date().toISOString(), 64) || new Date().toISOString();
   const date = ts.slice(0, 10);
   const nodeId = `conversation-eye-${sha16(`${ts}|${key}`)}`;
+  const hexId = `0x${sha16(nodeId).slice(0, 12)}`;
   const title = `[Conversation Eye] ${key}`.slice(0, 180);
   const preview = cleanText(
     `kind=${kind}; highlights=${highlights.slice(0, 3).join(' | ')}; envelope_sequence=${Number(envelope.sequence || 0) || 0}`,
@@ -96,15 +114,20 @@ function synthesizeEnvelope(envelope: any) {
   );
   const tags = ['conversation', 'decision', 'insight', 'directive', 't1'];
   const edgesTo = deriveEdges(envelope);
+  const xml = `<${level.xml_tag} id="${xmlEscape(hexId)}" level="${level.level}" node_id="${xmlEscape(nodeId)}" tags="${xmlEscape(tags.join(','))}">${xmlEscape(preview)}</${level.xml_tag}>`;
   return {
     node_id: nodeId,
+    hex_id: hexId,
     node_kind: kind,
+    level: level.level,
+    level_token: level.level_token,
     node_tags: tags,
     edges_to: edgesTo,
     ts,
     date,
     title,
-    preview
+    preview,
+    xml
   };
 }
 
