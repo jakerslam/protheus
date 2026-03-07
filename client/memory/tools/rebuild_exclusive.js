@@ -773,6 +773,20 @@ if (fs.existsSync(matrixScript)) {
   }
 }
 
+const sequencerScript = path.join(CLIENT_ROOT, 'systems', 'memory', 'dream_sequencer.js');
+if (fs.existsSync(sequencerScript)) {
+  const sequencerRun = spawnSync('node', [sequencerScript, 'run', '--apply=1', '--reason=rebuild_exclusive'], {
+    cwd: WORKSPACE_ROOT,
+    encoding: 'utf8',
+    env: { ...process.env }
+  });
+  if (Number(sequencerRun.status) === 0) {
+    console.log('Dream sequencer reordered matrix');
+  } else {
+    console.log(`Dream sequencer warning: ${(sequencerRun.stderr || sequencerRun.stdout || '').toString().trim().slice(0, 220) || 'unknown_error'}`);
+  }
+}
+
 // Scan for @decision entries in daily files
 function scanForDecisions() {
   const decisions = [];
