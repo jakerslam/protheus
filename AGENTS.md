@@ -177,7 +177,7 @@ You are free to edit `HEARTBEAT.md` with a short checklist or reminders. Keep it
 - **Mentions** - Twitter/social notifications?
 - **Weather** - Relevant if your human might go out?
 
-**Track your checks** in `client/memory/heartbeat-state.json`:
+**Track your checks** in `client/local/memory/heartbeat-state.json`:
 
 ```json
 {

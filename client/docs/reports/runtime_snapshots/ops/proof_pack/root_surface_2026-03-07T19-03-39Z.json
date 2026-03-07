@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "pass": true,
+  "strict": true,
+  "type": "root_surface_contract",
+  "ts": "2026-03-07T19:03:40.123Z",
+  "checks": {
+    "root_files_curated": true,
+    "root_dirs_curated": true,
+    "deprecated_root_entries_removed": true
+  },
+  "blocking_checks": [],
+  "unapproved_files": [],
+  "unapproved_dirs": [],
+  "deprecated_present": [],
+  "counts": {
+    "root_files": 40,
+    "root_dirs": 9
+  }
+}

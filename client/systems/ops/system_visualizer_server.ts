@@ -3,16 +3,25 @@
  * Compatibility launcher.
  *
  * Canonical visualizer server now lives in:
- *   agent-holo-viz/server/system_visualizer_server.js
+ *   client/local/workspaces/agent-holo-viz/server/system_visualizer_server.js
  */
 const fs = require('fs');
 const path = require('path');
 
-const sidecarMain = path.join(__dirname, '..', '..', 'agent-holo-viz', 'server', 'system_visualizer_server.js');
+const sidecarMain = path.join(
+  __dirname,
+  '..',
+  '..',
+  'local',
+  'workspaces',
+  'agent-holo-viz',
+  'server',
+  'system_visualizer_server.js'
+);
 if (!fs.existsSync(sidecarMain)) {
   process.stderr.write(
-    '[visualizer] sidecar repo not found at agent-holo-viz/. ' +
-    'Create/populate $OPENCLAW_WORKSPACE/agent-holo-viz first.\n'
+    '[visualizer] sidecar repo not found at client/local/workspaces/agent-holo-viz/. ' +
+    'Create/populate $OPENCLAW_WORKSPACE/client/local/workspaces/agent-holo-viz first.\n'
   );
   process.exit(1);
 }

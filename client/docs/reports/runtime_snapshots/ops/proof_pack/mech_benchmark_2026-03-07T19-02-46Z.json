@@ -1,0 +1,311 @@
+{
+  "ok": false,
+  "type": "mech_suit_benchmark",
+  "ts": "2026-03-07T19:02:53.992Z",
+  "ambient_mode_active": true,
+  "benchmark_root": "/var/folders/f9/mhsd3dwj78l8418t9vnclbn80000gn/T/mech-suit-bench-VL4Jez",
+  "cases": [
+    {
+      "name": "spine_live_status",
+      "baseline": {
+        "status": 0,
+        "stdout": "{\n  \"ok\": true,\n  \"type\": \"spine_safe_launcher\",\n  \"ts\": \"2026-03-07T19:02:49.379Z\",\n  \"compatibility_shell\": true,\n  \"authority\": \"rust_spine\",\n  \"command\": \"status\",\n  \"mode\": \"daily\",\n  \"date\": \"2026-03-07\",\n  \"ambient_mode_active\": false,\n  \"heartbeat_hours\": 4,\n  \"manual_triggers_allowed\": false,\n  \"quiet_non_critical\": true,\n  \"silent_subprocess_output\": true,\n  \"reseal_required\": false,\n  \"reseal_applied\": false,\n  \"allow_risky_env\": false,\n  \"run_context\": \"manual\",\n  \"active_risky_toggles\": [],\n  \"neutralized_risky_toggles\": [],\n  \"spine_status\": {\n    \"ok\": true,\n    \"type\": \"spine_status\",\n    \"ts\": \"2026-03-07T19:02:49.374Z\",\n    \"mode\": \"daily\",\n    \"date\": \"2026-03-07\",\n    \"run_context\": \"manual\",\n    \"ambient_mode_active\": false,\n    \"heartbeat_hours\": 4,\n    \"manual_triggers_allowed\": false,\n    \"quiet_non_critical\": true,\n    \"silent_subprocess_output\": true,\n    \"attention_contract\": {\n      \"event_owner\": \"eyes\",\n      \"escalation_authority\": \"runtime_policy\",\n      \"push_attention_queue\": true,\n      \"max_queue_depth\": 2048,\n      \"ttl_hours\": 48,\n      \"dedupe_window_hours\": 24,\n      \"backpressure_drop_below\": \"critical\",\n      \"escalate_levels\": [\n        \"critical\"\n      ]\n    },\n    \"personas\": {\n      \"ambient_stance\": true\n    },\n    \"dopamine\": {\n      \"threshold_breach_only\": true\n    },\n    \"compatibility_mode\": \"ts_local_fallback\",\n    \"receipt_hash\": \"6921cf2922988e0c42dad441e9ffdc7e99f6a855fc451307752d89d3e90309c5\",\n    \"routed_via\": \"conduit_compat\"\n  }\n}\n",
+        "stderr": "",
+        "timed_out": false,
+        "signal": null,
+        "error": null,
+        "token_estimate": 379,
+        "char_count": 1515
+      },
+      "ambient": {
+        "status": 0,
+        "stdout": "{\n  \"ok\": true,\n  \"type\": \"spine_safe_launcher\",\n  \"ts\": \"2026-03-07T19:02:50.568Z\",\n  \"compatibility_shell\": true,\n  \"authority\": \"rust_spine\",\n  \"command\": \"status\",\n  \"mode\": \"daily\",\n  \"date\": \"2026-03-07\",\n  \"ambient_mode_active\": true,\n  \"heartbeat_hours\": 4,\n  \"manual_triggers_allowed\": false,\n  \"quiet_non_critical\": true,\n  \"silent_subprocess_output\": true,\n  \"reseal_required\": false,\n  \"reseal_applied\": false,\n  \"allow_risky_env\": false,\n  \"run_context\": \"manual\",\n  \"active_risky_toggles\": [],\n  \"neutralized_risky_toggles\": [],\n  \"spine_status\": {\n    \"ok\": true,\n    \"type\": \"spine_status\",\n    \"ts\": \"2026-03-07T19:02:50.562Z\",\n    \"mode\": \"daily\",\n    \"date\": \"2026-03-07\",\n    \"run_context\": \"manual\",\n    \"ambient_mode_active\": true,\n    \"heartbeat_hours\": 4,\n    \"manual_triggers_allowed\": false,\n    \"quiet_non_critical\": true,\n    \"silent_subprocess_output\": true,\n    \"attention_contract\": {\n      \"event_owner\": \"eyes\",\n      \"escalation_authority\": \"runtime_policy\",\n      \"push_attention_queue\": true,\n      \"max_queue_depth\": 2048,\n      \"ttl_hours\": 48,\n      \"dedupe_window_hours\": 24,\n      \"backpressure_drop_below\": \"critical\",\n      \"escalate_levels\": [\n        \"critical\"\n      ]\n    },\n    \"personas\": {\n      \"ambient_stance\": true\n    },\n    \"dopamine\": {\n      \"threshold_breach_only\": true\n    },\n    \"compatibility_mode\": \"ts_local_fallback\",\n    \"receipt_hash\": \"0d71c22a2de3549aaf8d9159a7a5e55232b6ad4ab3fc87b2c100d59adfe6f0db\",\n    \"routed_via\": \"conduit_compat\"\n  }\n}\n",
+        "stderr": "",
+        "timed_out": false,
+        "signal": null,
+        "error": null,
+        "token_estimate": 379,
+        "char_count": 1513
+      },
+      "token_burn_reduction_pct": 0,
+      "chars_reduction_pct": 0.13,
+      "ok": true
+    },
+    {
+      "name": "eyes_stub_run",
+      "baseline": {
+        "status": 0,
+        "stdout": "═══════════════════════════════════════════════════════════\n   EXTERNAL EYES - RUN CYCLE\n═══════════════════════════════════════════════════════════\n⚠️  collector_starved window=24h path=/var/folders/f9/mhsd3dwj78l8418t9vnclbn80000gn/T/mech-suit-bench-VL4Jez/anomalies/2026-03-07.collectors.json\n⚠️  signal_slo failed checks=real_external_items,proposal_generated streak=1\n⚠️  temporal_patterns failed: analyzeTemporalPatterns is not a function\n───────────────────────────────────────────────────────────\n🎯 Ran 0/0 eyes eligible\n═══════════════════════════════════════════════════════════\n",
+        "stderr": "",
+        "timed_out": false,
+        "signal": null,
+        "error": null,
+        "token_estimate": 148,
+        "char_count": 590
+      },
+      "ambient": {
+        "status": 0,
+        "stdout": "⚠️  signal_slo failed checks=real_external_items,proposal_generated streak=2\n⚠️  temporal_patterns failed: analyzeTemporalPatterns is not a function\n",
+        "stderr": "",
+        "timed_out": false,
+        "signal": null,
+        "error": null,
+        "token_estimate": 38,
+        "char_count": 149
+      },
+      "attention_queue_lines": 1,
+      "attention_latest": {
+        "queued_total": 1,
+        "ts": "2026-03-07T19:02:51.625Z",
+        "active": true,
+        "last_event": {
+          "eye_id": "unknown_eye",
+          "source_type": "infra_outage_state",
+          "severity": "warn",
+          "summary": "eyes outage recovered"
+        }
+      },
+      "token_burn_reduction_pct": 74.32,
+      "chars_reduction_pct": 74.75,
+      "ok": true
+    },
+    {
+      "name": "persona_ambient_stance",
+      "include_in_reduction": false,
+      "baseline": {
+        "status": 0,
+        "stdout": "{\"ok\":true,\"blocked\":true,\"type\":\"persona_ambient_status\",\"degraded\":true,\"degraded_reason\":\"conduit_runtime_gate_active\",\"gate_active\":true,\"gate_reason\":\"conduit_runtime_gate_active_until:2026-03-07T19:10:23.456Z\",\"routed_via\":\"conduit\"}\n",
+        "stderr": "",
+        "timed_out": false,
+        "signal": null,
+        "error": null,
+        "token_estimate": 61,
+        "char_count": 240
+      },
+      "ambient": {
+        "status": 0,
+        "stdout": "{\"ok\":true,\"blocked\":true,\"type\":\"persona_ambient_status\",\"degraded\":true,\"degraded_reason\":\"conduit_runtime_gate_active\",\"gate_active\":true,\"gate_reason\":\"conduit_runtime_gate_active_until:2026-03-07T19:10:23.456Z\",\"routed_via\":\"conduit\"}\n",
+        "stderr": "",
+        "timed_out": false,
+        "signal": null,
+        "error": null,
+        "token_estimate": 61,
+        "char_count": 240
+      },
+      "apply_status": 0,
+      "apply_payload": {
+        "ok": true,
+        "blocked": true,
+        "type": "persona_ambient_status",
+        "degraded": true,
+        "degraded_reason": "conduit_runtime_gate_active",
+        "gate_active": true,
+        "gate_reason": "conduit_runtime_gate_active_until:2026-03-07T19:10:23.456Z",
+        "routed_via": "conduit"
+      },
+      "ambient_status_payload": {
+        "ok": true,
+        "blocked": true,
+        "type": "persona_ambient_status",
+        "degraded": true,
+        "degraded_reason": "conduit_runtime_gate_active",
+        "gate_active": true,
+        "gate_reason": "conduit_runtime_gate_active_until:2026-03-07T19:10:23.456Z",
+        "routed_via": "conduit"
+      },
+      "degraded_by_gate": true,
+      "token_burn_reduction_pct": 0,
+      "chars_reduction_pct": 0,
+      "ok": true
+    },
+    {
+      "name": "dopamine_ambient_threshold_gating",
+      "baseline": {
+        "status": 2,
+        "stdout": "{\"ok\":false,\"type\":\"dopamine_snapshot_error\",\"ts\":\"2026-03-07T19:02:52.479Z\",\"error\":\"unknown_command\",\"command\":\"evaluate\",\"receipt_hash\":\"a52d7cfdc74da099f67520a62150ce65745b87ee5607206f79588633208e6099\",\"routed_via\":\"conduit_compat\",\"reason\":\"conduit_runtime_gate_active_until:2026-03-07T19:10:23.456Z\"}\n",
+        "stderr": "",
+        "timed_out": false,
+        "signal": null,
+        "error": null,
+        "token_estimate": 77,
+        "char_count": 307
+      },
+      "ambient": {
+        "status": 2,
+        "stdout": "{\"ok\":false,\"type\":\"dopamine_snapshot_error\",\"ts\":\"2026-03-07T19:02:52.716Z\",\"error\":\"unknown_command\",\"command\":\"evaluate\",\"receipt_hash\":\"239a78f2ee1696e5b0adcdadc0f498b1da5baed1a3312c254aeb5be95cdd244b\",\"routed_via\":\"conduit_compat\",\"reason\":\"conduit_runtime_gate_active_until:2026-03-07T19:10:23.456Z\"}\n",
+        "stderr": "",
+        "timed_out": false,
+        "signal": null,
+        "error": null,
+        "token_estimate": 77,
+        "char_count": 307
+      },
+      "status_probe_status": 0,
+      "breach_eval_status": 2,
+      "baseline_eval_payload": {
+        "ok": false,
+        "type": "dopamine_snapshot_error",
+        "ts": "2026-03-07T19:02:52.479Z",
+        "error": "unknown_command",
+        "command": "evaluate",
+        "receipt_hash": "a52d7cfdc74da099f67520a62150ce65745b87ee5607206f79588633208e6099",
+        "routed_via": "conduit_compat",
+        "reason": "conduit_runtime_gate_active_until:2026-03-07T19:10:23.456Z"
+      },
+      "safe_eval_payload": {
+        "ok": false,
+        "type": "dopamine_snapshot_error",
+        "ts": "2026-03-07T19:02:52.716Z",
+        "error": "unknown_command",
+        "command": "evaluate",
+        "receipt_hash": "239a78f2ee1696e5b0adcdadc0f498b1da5baed1a3312c254aeb5be95cdd244b",
+        "routed_via": "conduit_compat",
+        "reason": "conduit_runtime_gate_active_until:2026-03-07T19:10:23.456Z"
+      },
+      "breach_eval_payload": {
+        "ok": false,
+        "type": "dopamine_snapshot_error",
+        "ts": "2026-03-07T19:02:52.947Z",
+        "error": "unknown_command",
+        "command": "evaluate",
+        "receipt_hash": "d248e29fb18f127610e31c84b970c9c9761b43a8331691784998015ca9ad0dbf",
+        "routed_via": "conduit_compat",
+        "reason": "conduit_runtime_gate_active_until:2026-03-07T19:10:23.456Z"
+      },
+      "ambient_status_payload": {
+        "ok": true,
+        "type": "dopamine_snapshot",
+        "mode": "status",
+        "ts": "2026-03-07T19:02:53.183Z",
+        "date": "2026-03-06",
+        "summary": {
+          "date": "2026-03-07",
+          "sds": 36,
+          "streak": 1,
+          "avg7": 6,
+          "avg30": 6,
+          "high_leverage_minutes": 30,
+          "drift_minutes": 0,
+          "revenue_actions_count": 0,
+          "revenue_bonus": 0,
+          "context_switches": 0,
+          "artifact_count": 3,
+          "artifact_bonus": 5,
+          "has_artifacts": true,
+          "verified_objective_entries": 0,
+          "revenue_actions_verified_count": 0,
+          "revenue_actions_total_count": 0,
+          "unlinked_self_optimization_count": 0,
+          "unlinked_high_leverage_ratio": 0.5,
+          "directive_pain": {
+            "active": true,
+            "reasons": [
+              "directive_progress_stalled"
+            ],
+            "stall_days": 7,
+            "thresholds": {
+              "stall_days": 3,
+              "unlinked_hl_ratio_threshold": 0.6,
+              "unlinked_self_optimization_threshold": 1
+            }
+          }
+        },
+        "receipt_hash": "5cc19e3c53a665311fa924503b28985a97d8b8371b3ec62d09867f86a74640b6",
+        "routed_via": "conduit_compat"
+      },
+      "degraded_by_gate": false,
+      "attention_queue_lines": 1,
+      "token_burn_reduction_pct": 0,
+      "chars_reduction_pct": 0,
+      "ok": false
+    },
+    {
+      "name": "memory_ambient_lane",
+      "ingest_status": 0,
+      "ingest_payload": {
+        "ok": true,
+        "blocked": true,
+        "type": "memory_ambient_status",
+        "degraded": true,
+        "degraded_reason": "conduit_runtime_gate_active",
+        "gate_active": true,
+        "gate_reason": "conduit_runtime_gate_active_until:2026-03-07T19:10:23.456Z",
+        "routed_via": "conduit"
+      },
+      "baseline": {
+        "status": 0,
+        "stdout": "{\"ok\":true,\"blocked\":true,\"type\":\"memory_ambient_status\",\"degraded\":true,\"degraded_reason\":\"conduit_runtime_gate_active\",\"gate_active\":true,\"gate_reason\":\"conduit_runtime_gate_active_until:2026-03-07T19:10:23.456Z\",\"routed_via\":\"conduit\"}\n",
+        "stderr": "",
+        "timed_out": false,
+        "signal": null,
+        "error": null,
+        "token_estimate": 60,
+        "char_count": 239
+      },
+      "ambient": {
+        "status": 0,
+        "stdout": "{\"ok\":true,\"blocked\":true,\"type\":\"memory_ambient_status\",\"degraded\":true,\"degraded_reason\":\"conduit_runtime_gate_active\",\"gate_active\":true,\"gate_reason\":\"conduit_runtime_gate_active_until:2026-03-07T19:10:23.456Z\",\"routed_via\":\"conduit\"}\n",
+        "stderr": "",
+        "timed_out": false,
+        "signal": null,
+        "error": null,
+        "token_estimate": 60,
+        "char_count": 239
+      },
+      "status_probe_status": 0,
+      "status_payload": {
+        "ok": true,
+        "blocked": true,
+        "type": "memory_ambient_status",
+        "degraded": true,
+        "degraded_reason": "conduit_runtime_gate_active",
+        "gate_active": true,
+        "gate_reason": "conduit_runtime_gate_active_until:2026-03-07T19:10:23.456Z",
+        "routed_via": "conduit"
+      },
+      "baseline_payload": {
+        "ok": true,
+        "blocked": true,
+        "type": "memory_ambient_status",
+        "degraded": true,
+        "degraded_reason": "conduit_runtime_gate_active",
+        "gate_active": true,
+        "gate_reason": "conduit_runtime_gate_active_until:2026-03-07T19:10:23.456Z",
+        "routed_via": "conduit"
+      },
+      "ambient_payload": {
+        "ok": true,
+        "blocked": true,
+        "type": "memory_ambient_status",
+        "degraded": true,
+        "degraded_reason": "conduit_runtime_gate_active",
+        "gate_active": true,
+        "gate_reason": "conduit_runtime_gate_active_until:2026-03-07T19:10:23.456Z",
+        "routed_via": "conduit"
+      },
+      "degraded_by_gate": true,
+      "token_burn_reduction_pct": 0,
+      "chars_reduction_pct": 0,
+      "ok": true
+    }
+  ],
+  "host_fault": {
+    "timeout_detected": false,
+    "timed_out_cases": []
+  },
+  "degraded": {
+    "gate_active_detected": true,
+    "gate_degraded_cases": [
+      "persona_ambient_stance",
+      "memory_ambient_lane"
+    ]
+  },
+  "summary": {
+    "token_burn_reduction_pct": 16.57,
+    "chars_reduction_pct": 16.71,
+    "persona_ambient_mode_active": false,
+    "persona_delta_applied": false,
+    "dopamine_threshold_only": false,
+    "memory_rust_authoritative": false
+  }
+}

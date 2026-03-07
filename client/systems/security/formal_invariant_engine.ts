@@ -112,6 +112,10 @@ function resolveWorkspacePath(raw: unknown) {
   const rewrite = (input: string) => {
     const norm = String(input || '').replace(/\\/g, '/').replace(/^\/+/, '');
     if (!norm) return norm;
+    if (norm === 'local' || norm.startsWith('local/')) {
+      const suffix = norm === 'local' ? '' : norm.slice('local/'.length);
+      return path.join('client', 'local', suffix);
+    }
     if (norm === 'state' || norm.startsWith('state/')) {
       const suffix = norm === 'state' ? '' : norm.slice('state/'.length);
       return path.join('client', 'local', 'state', suffix);

@@ -44,7 +44,7 @@ function defaultPolicy() {
       adaptive: ['client/adaptive'],
       habits: ['client/habits'],
       memory: ['client/memory'],
-      state: ['client/local/state', 'core/local/state', 'state'],
+      state: ['client/local/state', 'core/local/state'],
       docs: ['docs'],
       tests: ['client/tests', 'client/memory/tools/tests']
     },

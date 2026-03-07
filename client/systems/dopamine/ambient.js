@@ -6,11 +6,32 @@ const { runDopamineAmbientCommand } = require('../../lib/spine_conduit_bridge');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 
+function normalizeGateDegraded(out) {
+  if (!out || !out.payload || out.payload.gate_active !== true) return out;
+  return {
+    ...out,
+    ok: true,
+    status: 0,
+    payload: {
+      ok: true,
+      blocked: true,
+      type: 'dopamine_ambient_status',
+      degraded: true,
+      degraded_reason: 'conduit_runtime_gate_active',
+      gate_active: true,
+      gate_reason: String(out.payload.reason || '').slice(0, 240) || 'conduit_runtime_gate_active',
+      routed_via: 'conduit'
+    },
+    stderr: ''
+  };
+}
+
 async function run(args = [], opts = {}) {
   const routed = Array.isArray(args) && args.length > 0 ? args : ['status'];
-  return runDopamineAmbientCommand(routed, {
+  const out = await runDopamineAmbientCommand(routed, {
     cwdHint: opts.cwdHint || ROOT
   });
+  return normalizeGateDegraded(out);
 }
 
 async function main() {

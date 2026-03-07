@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "pass": true,
+  "strict": true,
+  "type": "source_runtime_classifier_contract",
+  "ts": "2026-03-07T19:03:40.753Z",
+  "checks": {
+    "runtime_roots_exist": true,
+    "required_runtime_paths_present": true,
+    "runtime_memory_roots_present": true,
+    "no_legacy_runtime_roots": true,
+    "no_source_files_in_runtime_roots": true,
+    "no_runtime_like_files_in_source_memory": true
+  },
+  "blocking_checks": [],
+  "counts": {
+    "runtime_files_scanned": 16882,
+    "source_memory_files_scanned": 1396,
+    "runtime_source_violations": 0,
+    "source_memory_runtime_like_violations": 0,
+    "missing_runtime_roots": 0,
+    "missing_runtime_paths": 0,
+    "runtime_memory_roots_missing": 0,
+    "legacy_runtime_roots_present": 0
+  },
+  "missing_runtime_roots": [],
+  "missing_runtime_paths": [],
+  "runtime_memory_roots_missing": [],
+  "legacy_runtime_roots_present": [],
+  "runtime_source_violations": [],
+  "source_memory_runtime_like_violations": []
+}

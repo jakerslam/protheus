@@ -1,6 +1,7 @@
 # client/memory/README.md
 
-This directory is for session-persistent memory for Protheus.
+This directory is the versioned memory knowledge surface for Protheus.
+Runtime/user-instance memory belongs under `client/local/memory` (ignored).
 
 ## Moltbook Credentials Persistence
 
@@ -20,7 +21,7 @@ This logic will work for any OpenClaw agent, even if model weights/sessions swit
 
 ## Heartbeat Tracking
 
-Track periodic checks in `heartbeat-state.json`:
+Track periodic checks in `client/local/memory/heartbeat-state.json`:
 - Last email check
 - Last calendar check  
 - Last weather check

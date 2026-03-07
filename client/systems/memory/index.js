@@ -81,7 +81,7 @@ function evaluateMemorySecurityGate(command, args, opts = {}) {
   }
   const stateRoot = cleanText(opts.state_root
     || process.env.PROTHEUS_SECURITY_STATE_ROOT
-    || path.join(ROOT, 'state'), 500);
+    || path.join(ROOT, 'local', 'state'), 500);
   const request = buildMemorySecurityRequest(command, args, opts);
   const gate = evaluateSecurityGate(request, {
     enforce: opts.security_enforce !== false,

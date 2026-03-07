@@ -36,3 +36,9 @@ networkPolicy:
   enabled: true
   allowDns: true
   allowHttps: true
+
+secrets:
+  existingSecretName: ""
+  create: false
+  optional: true
+  data: {}

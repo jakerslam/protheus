@@ -1,0 +1,300 @@
+{
+  "ok": true,
+  "type": "autonomy_simulation_harness",
+  "ts": "2026-03-07T19:02:54.536Z",
+  "end_date": "2026-03-07",
+  "days": 180,
+  "verdict": "warn",
+  "verdict_raw": "warn",
+  "verdict_effective": "warn",
+  "checks": {
+    "drift_rate": {
+      "value": 0.282,
+      "warn": 0.65,
+      "fail": 0.85,
+      "status": "pass"
+    },
+    "yield_rate": {
+      "value": 0.7,
+      "warn": 0.2,
+      "fail": 0.08,
+      "status": "pass"
+    },
+    "safety_stop_rate": {
+      "value": 0.033,
+      "warn": 0.25,
+      "fail": 0.45,
+      "status": "pass"
+    },
+    "attempt_volume": {
+      "value": 330,
+      "min": 5,
+      "status": "pass"
+    },
+    "policy_hold_rate": {
+      "value": 0.285,
+      "warn": 0.2,
+      "fail": 0.35,
+      "enforce_fail": false,
+      "status": "warn"
+    },
+    "budget_hold_rate": {
+      "value": 0.058,
+      "warn": 0.12,
+      "fail": 0.25,
+      "enforce_fail": false,
+      "status": "pass"
+    },
+    "budget_autopause_active": {
+      "value": false,
+      "fail_when_active": true,
+      "status": "pass"
+    }
+  },
+  "checks_effective": {
+    "drift_rate": {
+      "value": 0.056,
+      "warn": 0.65,
+      "fail": 0.85,
+      "status": "pass"
+    },
+    "yield_rate": {
+      "value": 0.7,
+      "warn": 0.2,
+      "fail": 0.08,
+      "status": "pass"
+    },
+    "safety_stop_rate": {
+      "value": 0,
+      "warn": 0.25,
+      "fail": 0.45,
+      "status": "pass"
+    },
+    "attempt_volume": {
+      "value": 124,
+      "min": 5,
+      "status": "pass"
+    },
+    "policy_hold_rate": {
+      "value": 0.54,
+      "warn": 0.2,
+      "fail": 0.35,
+      "enforce_fail": false,
+      "status": "warn"
+    },
+    "budget_hold_rate": {
+      "value": 0.153,
+      "warn": 0.12,
+      "fail": 0.25,
+      "enforce_fail": false,
+      "status": "warn"
+    },
+    "budget_autopause_active": {
+      "value": false,
+      "fail_when_active": true,
+      "status": "pass"
+    }
+  },
+  "metric_integrity": {
+    "mode": "dual_track",
+    "baseline_preserved": true,
+    "effective_projection_present": true,
+    "denominator_reduction_only": true,
+    "denominator_delta": 206,
+    "identity_projection_enabled": false,
+    "identity_projection_blocked_attempts": 0
+  },
+  "counters": {
+    "run_rows": 353,
+    "attempts": 330,
+    "executed": 10,
+    "shipped": 7,
+    "no_progress": 93,
+    "safety_stops": 11,
+    "policy_holds": 94,
+    "budget_holds": 19
+  },
+  "baseline_counters": {
+    "attempts": 330,
+    "executed": 10,
+    "shipped": 7,
+    "no_progress": 93,
+    "safety_stops": 11,
+    "policy_holds": 94,
+    "budget_holds": 19
+  },
+  "effective_counters": {
+    "attempts": 124,
+    "executed": 10,
+    "shipped": 7,
+    "no_progress": 7,
+    "safety_stops": 0,
+    "policy_holds": 67,
+    "budget_holds": 19
+  },
+  "hold_reasons": {
+    "baseline": {
+      "policy": {
+        "stop_repeat_gate_unchanged_state": 21,
+        "stop_init_gate_readiness": 1,
+        "gate_manual": 4,
+        "burn_rate_exceeded": 2,
+        "not_executable": 6,
+        "stop_init_gate_budget_autopause": 12,
+        "stop_repeat_gate_human_escalation_pending": 3,
+        "score_only_fallback_low_execution_confidence": 13,
+        "no_candidates_policy_canary_cap": 5,
+        "no_candidates_policy_unchanged_state": 1,
+        "no_candidates_policy_manual_review_pending": 1,
+        "no_candidates_policy_daily_cap": 4,
+        "stop_repeat_gate_preview_structural_cooldown": 6,
+        "stop_repeat_gate_preview_churn_cooldown": 1,
+        "stop_repeat_gate_canary_cap": 5,
+        "stop_repeat_gate_daily_cap": 9
+      },
+      "budget": {
+        "gate_manual": 1,
+        "burn_rate_exceeded": 2,
+        "not_executable": 4,
+        "stop_init_gate_budget_autopause": 12
+      }
+    },
+    "effective": {
+      "policy": {
+        "stop_repeat_gate_unchanged_state": 14,
+        "stop_init_gate_readiness": 1,
+        "gate_manual": 4,
+        "burn_rate_exceeded": 2,
+        "not_executable": 6,
+        "stop_init_gate_budget_autopause": 12,
+        "stop_repeat_gate_human_escalation_pending": 3,
+        "score_only_fallback_low_execution_confidence": 13,
+        "no_candidates_policy_manual_review_pending": 1,
+        "no_candidates_policy_daily_cap": 4,
+        "stop_repeat_gate_preview_structural_cooldown": 6,
+        "stop_repeat_gate_preview_churn_cooldown": 1
+      },
+      "budget": {
+        "gate_manual": 1,
+        "burn_rate_exceeded": 2,
+        "not_executable": 4,
+        "stop_init_gate_budget_autopause": 12
+      }
+    }
+  },
+  "budget_autopause": {
+    "path": "/Users/jay/.openclaw/workspace/client/local/state/autonomy/budget_autopause.json",
+    "active": false,
+    "currently_active": false,
+    "active_relevant": false,
+    "source": "idle_dream_cycle",
+    "reason": "burn_rate_exceeded",
+    "pressure": "hard",
+    "until": null,
+    "updated_at": "2026-03-07T18:54:42.240Z",
+    "observed_in_window": true,
+    "active_at_window_end": false,
+    "signal_source": "route_summary.autopause",
+    "explicit_last_ts": "2026-03-02T19:14:08.632Z",
+    "implicit_last_ts": "2026-03-02T17:22:51.113Z",
+    "source_mode": "live_state_plus_runs",
+    "snapshot_fallback_used": false
+  },
+  "compiler_projection": {
+    "enabled": true,
+    "lineage_require_t1_root": true,
+    "lineage_block_missing_objective": true,
+    "filter_contextless_attempts": true,
+    "rolling_context_enabled": false,
+    "compiler_hash": "40cc5cf18353cd99",
+    "compiler_active_count": 3,
+    "accepted_attempts": 191,
+    "rejected_attempts": 0,
+    "skipped_attempts": 139,
+    "rejected_by_reason": {},
+    "skipped_by_reason": {
+      "non_proposal_gate": 139
+    },
+    "sample_rejected": [],
+    "sample_skipped": [
+      {
+        "result": "stop_init_gate_budget_pacing",
+        "proposal_id": null,
+        "objective_id": null,
+        "reason": "non_proposal_gate"
+      },
+      {
+        "result": "stop_init_gate_budget_pacing",
+        "proposal_id": null,
+        "objective_id": null,
+        "reason": "non_proposal_gate"
+      },
+      {
+        "result": "init_gate_canary_relaxed_spc",
+        "proposal_id": null,
+        "objective_id": null,
+        "reason": "non_proposal_gate"
+      },
+      {
+        "result": "init_gate_canary_relaxed_spc",
+        "proposal_id": null,
+        "objective_id": null,
+        "reason": "non_proposal_gate"
+      },
+      {
+        "result": "stop_init_gate_value_signal_exhausted",
+        "proposal_id": null,
+        "objective_id": null,
+        "reason": "non_proposal_gate"
+      },
+      {
+        "result": "init_gate_canary_relaxed_spc",
+        "proposal_id": null,
+        "objective_id": null,
+        "reason": "non_proposal_gate"
+      }
+    ]
+  },
+  "identity_projection": {
+    "enabled": false,
+    "unavailable": false,
+    "unavailable_reason": null,
+    "policy_path": null,
+    "active_objective_ids": [],
+    "attempted": 0,
+    "blocked_attempts": 0,
+    "blocked_by_reason": {},
+    "summary": {
+      "checked": 0,
+      "blocked": 0,
+      "allowed": 0,
+      "identity_drift_score": 0,
+      "max_identity_drift_score": 0.58,
+      "max_candidate_drift_score": 0,
+      "blocking_code_counts": {}
+    },
+    "sample_blocked": []
+  },
+  "queue": {
+    "total": 242,
+    "pending": 22,
+    "stale_pending_72h": 5
+  },
+  "objective_mix": {
+    "executed_total": 10,
+    "objective_count": 2,
+    "counts": {
+      "T1_generational_wealth_v1": 6,
+      "T1_make_jay_billionaire_v1": 4
+    }
+  },
+  "insufficient_data": {
+    "active": false,
+    "reasons": []
+  },
+  "recommendations": [
+    "Reduce policy-hold churn: top effective reason is stop_repeat_gate_unchanged_state (14). Tighten admission and queue hygiene for that path first.",
+    "Budget holds are elevated; top effective reason is stop_init_gate_budget_autopause (12). Apply pacing/defer strategy before resuming full cadence."
+  ],
+  "report_path": "/Users/jay/.openclaw/workspace/client/local/state/autonomy/simulations/2026-03-07.json"
+}

@@ -64,10 +64,16 @@ const SPINE_CONSOLE_BASE = {
   warn: console.warn.bind(console),
   error: console.error.bind(console)
 };
+const SPINE_COMPAT_ROOT = path.resolve(__dirname, "..", "..");
+const SPINE_TS_ENTRYPOINT = path.join(SPINE_COMPAT_ROOT, "lib", "ts_entrypoint.js");
 const SPINE_MECH_SUIT_POLICY = loadMechSuitModePolicy({ root: path.resolve(__dirname, "..", "..") });
 
 function spineTsCompatEnabled() {
   return String(process.env.PROTHEUS_SPINE_TS_COMPAT || "0").trim() === "1";
+}
+
+function spineTsLocalCompatEnabled() {
+  return String(process.env.PROTHEUS_SPINE_TS_LOCAL_COMPAT || "0").trim() === "1";
 }
 
 function emitCompatOnlyReceiptAndExit() {
@@ -96,6 +102,24 @@ function todayOr(dateStr) {
   return new Date().toISOString().slice(0, 10);
 }
 
+function resolveNodeInvocation(args) {
+  if (!Array.isArray(args) || !args.length) return args;
+  const first = String(args[0] || "").trim();
+  if (!first) return args;
+  const rest = args.slice(1);
+  const abs = path.isAbsolute(first) ? first : path.join(SPINE_COMPAT_ROOT, first);
+  if (first.endsWith(".ts")) {
+    const target = fs.existsSync(abs) ? abs : first;
+    return [SPINE_TS_ENTRYPOINT, target, ...rest];
+  }
+  if (!first.endsWith(".js")) return args;
+  const tsAbs = abs.replace(/\.js$/i, ".ts");
+  if (!fs.existsSync(abs) && fs.existsSync(tsAbs)) {
+    return [SPINE_TS_ENTRYPOINT, tsAbs, ...rest];
+  }
+  return args;
+}
+
 function run(cmd, args, opts = {}) {
   const ambientQuiet = SPINE_MECH_SUIT_POLICY.enabled === true
     && SPINE_MECH_SUIT_POLICY.spine
@@ -104,7 +128,8 @@ function run(cmd, args, opts = {}) {
   const runOpts = ambientQuiet
     ? { encoding: "utf8", ...opts }
     : { stdio: "inherit", ...opts };
-  const r = spawnSync(cmd, args, runOpts);
+  const resolvedArgs = (cmd === "node" || cmd === process.execPath) ? resolveNodeInvocation(args) : args;
+  const r = spawnSync(cmd, resolvedArgs, runOpts);
   if (ambientQuiet) {
     const stdout = String(r.stdout || "").trim();
     const stderr = String(r.stderr || "").trim();
@@ -112,14 +137,15 @@ function run(cmd, args, opts = {}) {
     if (stderr) emitAmbientConsole(stderr, "error", SPINE_MECH_SUIT_POLICY);
   }
   if (r.status !== 0) {
-    const tool = path.basename(String(args && args[0] || cmd || "command"));
+    const tool = path.basename(String(resolvedArgs && resolvedArgs[0] || cmd || "command"));
     SPINE_LAST_FAILURE_REASON = `subprocess_failed:${tool}:exit_${Number(r.status || 1)}`;
     process.exit(r.status || 1);
   }
 }
 
 function runJson(cmd, args, opts = {}) {
-  const r = spawnSync(cmd, args, { encoding: "utf8", ...opts });
+  const resolvedArgs = (cmd === "node" || cmd === process.execPath) ? resolveNodeInvocation(args) : args;
+  const r = spawnSync(cmd, resolvedArgs, { encoding: "utf8", ...opts });
   const spawnError = r.error ? String(r.error && r.error.message ? r.error.message : r.error) : "";
   const timedOut = /\bETIMEDOUT\b/i.test(spawnError);
   const rawOut = String(r.stdout || "").trim();
@@ -127,8 +153,8 @@ function runJson(cmd, args, opts = {}) {
     .filter(Boolean)
     .join("\n")
     .trim();
-  const compactStdout = compactCommandOutput(rawOut, `${path.basename(String(args && args[0] || cmd || "command"))}:stdout`);
-  const compactStderr = compactCommandOutput(rawErr, `${path.basename(String(args && args[0] || cmd || "command"))}:stderr`);
+  const compactStdout = compactCommandOutput(rawOut, `${path.basename(String(resolvedArgs && resolvedArgs[0] || cmd || "command"))}:stdout`);
+  const compactStderr = compactCommandOutput(rawErr, `${path.basename(String(resolvedArgs && resolvedArgs[0] || cmd || "command"))}:stderr`);
   const out = compactStdout.text;
   const err = compactStderr.text;
   let payload = null;
@@ -1290,12 +1316,55 @@ async function main() {
   if (!spineTsCompatEnabled()) {
     emitCompatOnlyReceiptAndExit();
   }
-  await runSpineCommandCli(process.argv.slice(2), {
-    cwdHint: path.resolve(__dirname, "..", ".."),
-    echoPayload: true
-  });
+  if (!spineTsLocalCompatEnabled()) {
+    await runSpineCommandCli(process.argv.slice(2), {
+      cwdHint: path.resolve(__dirname, "..", ".."),
+      echoPayload: true
+    });
+    return;
+  }
   const spineRunStartMs = Date.now();
-  const mode = process.argv[2];
+  const mode = String(process.argv[2] || "").trim().toLowerCase();
+  if (mode === "status") {
+    const statusMode = String(arg("mode") || "daily").trim().toLowerCase() === "eyes" ? "eyes" : "daily";
+    const statusDate = todayOr(arg("date") || process.argv[3]);
+    const runContext = String(process.env.SPINE_RUN_CONTEXT || "manual").trim() || "manual";
+    const payload = {
+      ok: true,
+      type: "spine_status",
+      ts: nowIso(),
+      mode: statusMode,
+      date: statusDate,
+      run_context: runContext,
+      ambient_mode_active: SPINE_MECH_SUIT_POLICY.enabled === true,
+      heartbeat_hours: Math.max(1, Number(SPINE_MECH_SUIT_POLICY.spine && SPINE_MECH_SUIT_POLICY.spine.heartbeat_hours || 4) || 4),
+      manual_triggers_allowed: !!(SPINE_MECH_SUIT_POLICY.spine && SPINE_MECH_SUIT_POLICY.spine.manual_triggers_allowed),
+      quiet_non_critical: !!(SPINE_MECH_SUIT_POLICY.spine && SPINE_MECH_SUIT_POLICY.spine.quiet_non_critical),
+      silent_subprocess_output: !!(SPINE_MECH_SUIT_POLICY.spine && SPINE_MECH_SUIT_POLICY.spine.silent_subprocess_output),
+      attention_contract: {
+        event_owner: "eyes",
+        escalation_authority: "runtime_policy",
+        push_attention_queue: !!(SPINE_MECH_SUIT_POLICY.eyes && SPINE_MECH_SUIT_POLICY.eyes.push_attention_queue),
+        max_queue_depth: Number(SPINE_MECH_SUIT_POLICY.eyes && SPINE_MECH_SUIT_POLICY.eyes.attention_contract && SPINE_MECH_SUIT_POLICY.eyes.attention_contract.max_queue_depth || 2048),
+        ttl_hours: Number(SPINE_MECH_SUIT_POLICY.eyes && SPINE_MECH_SUIT_POLICY.eyes.attention_contract && SPINE_MECH_SUIT_POLICY.eyes.attention_contract.ttl_hours || 48),
+        dedupe_window_hours: Number(SPINE_MECH_SUIT_POLICY.eyes && SPINE_MECH_SUIT_POLICY.eyes.attention_contract && SPINE_MECH_SUIT_POLICY.eyes.attention_contract.dedupe_window_hours || 24),
+        backpressure_drop_below: String(SPINE_MECH_SUIT_POLICY.eyes && SPINE_MECH_SUIT_POLICY.eyes.attention_contract && SPINE_MECH_SUIT_POLICY.eyes.attention_contract.backpressure_drop_below || "critical"),
+        escalate_levels: Array.isArray(SPINE_MECH_SUIT_POLICY.eyes && SPINE_MECH_SUIT_POLICY.eyes.attention_contract && SPINE_MECH_SUIT_POLICY.eyes.attention_contract.escalate_levels)
+          ? SPINE_MECH_SUIT_POLICY.eyes.attention_contract.escalate_levels
+          : ["critical"]
+      },
+      personas: {
+        ambient_stance: !!(SPINE_MECH_SUIT_POLICY.personas && SPINE_MECH_SUIT_POLICY.personas.ambient_stance)
+      },
+      dopamine: {
+        threshold_breach_only: !!(SPINE_MECH_SUIT_POLICY.dopamine && SPINE_MECH_SUIT_POLICY.dopamine.threshold_breach_only)
+      },
+      compatibility_mode: "ts_local_fallback"
+    };
+    payload.receipt_hash = crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+    process.stdout.write(`${JSON.stringify(payload)}\n`);
+    process.exit(0);
+  }
   const dateStr = todayOr(process.argv[3]);
   const maxEyes = arg("max-eyes");
   let signalGateOk = null;
@@ -1539,53 +1608,71 @@ async function main() {
   }
 
   if (mode === "daily") {
-    const skillInstallEnforcer = runJson("node", ["systems/security/skill_install_enforcer.js", "run", "--strict"]);
+    const skillInstallStrict = String(process.env.SPINE_SKILL_INSTALL_ENFORCER_STRICT || "1") !== "0";
+    const skillInstallArgs = ["systems/security/skill_install_enforcer.js", "run"];
+    if (skillInstallStrict) skillInstallArgs.push("--strict");
+    const skillInstallEnforcer = runJson("node", skillInstallArgs);
     const enforcerPayload = skillInstallEnforcer.payload && typeof skillInstallEnforcer.payload === "object"
       ? skillInstallEnforcer.payload
       : null;
+    const skillInstallOk = skillInstallEnforcer.ok && !!enforcerPayload && enforcerPayload.ok === true;
     appendLedger(dateStr, {
       ts: nowIso(),
       type: "spine_skill_install_enforcer",
       mode,
       date: dateStr,
-      ok: skillInstallEnforcer.ok && !!enforcerPayload && enforcerPayload.ok === true,
+      ok: skillInstallOk,
+      strict: skillInstallStrict,
       violation_count: enforcerPayload ? Number(enforcerPayload.violation_count || 0) : null,
       structure_ok: enforcerPayload && enforcerPayload.structure ? enforcerPayload.structure.ok === true : null,
-      reason: (!skillInstallEnforcer.ok || !enforcerPayload)
+      reason: !skillInstallOk
         ? String(skillInstallEnforcer.stderr || skillInstallEnforcer.stdout || `skill_install_enforcer_exit_${skillInstallEnforcer.code}`).slice(0, 180)
         : null
     });
-    if (!skillInstallEnforcer.ok || !enforcerPayload || enforcerPayload.ok !== true) {
-      console.error(` skill_install_enforcer FAIL violations=${enforcerPayload ? Number(enforcerPayload.violation_count || 0) : "unknown"}`);
-      process.exit(skillInstallEnforcer.code || 1);
+    if (!skillInstallOk) {
+      if (skillInstallStrict) {
+        console.error(` skill_install_enforcer FAIL violations=${enforcerPayload ? Number(enforcerPayload.violation_count || 0) : "unknown"}`);
+        process.exit(skillInstallEnforcer.code || 1);
+      }
+      console.log(` skill_install_enforcer WARN violations=${enforcerPayload ? Number(enforcerPayload.violation_count || 0) : "unknown"}`);
+    } else {
+      console.log(` skill_install_enforcer ok violations=${Number(enforcerPayload.violation_count || 0)}`);
     }
-    console.log(` skill_install_enforcer ok violations=${Number(enforcerPayload.violation_count || 0)}`);
 
-    const llmGatewayGuard = runJson("node", ["systems/security/llm_gateway_guard.js", "run", "--strict"]);
+    const llmGatewayStrict = String(process.env.SPINE_LLM_GATEWAY_GUARD_STRICT || "1") !== "0";
+    const llmGatewayArgs = ["systems/security/llm_gateway_guard.js", "run"];
+    if (llmGatewayStrict) llmGatewayArgs.push("--strict");
+    const llmGatewayGuard = runJson("node", llmGatewayArgs);
     const llmGatewayPayload = llmGatewayGuard.payload && typeof llmGatewayGuard.payload === "object"
       ? llmGatewayGuard.payload
       : null;
+    const llmGatewayOk = llmGatewayGuard.ok && !!llmGatewayPayload && llmGatewayPayload.ok === true;
     appendLedger(dateStr, {
       ts: nowIso(),
       type: "spine_llm_gateway_guard",
       mode,
       date: dateStr,
-      ok: llmGatewayGuard.ok && !!llmGatewayPayload && llmGatewayPayload.ok === true,
+      ok: llmGatewayOk,
+      strict: llmGatewayStrict,
       checked_files: llmGatewayPayload ? Number(llmGatewayPayload.checked_files || 0) : null,
       violation_count: llmGatewayPayload ? Number(llmGatewayPayload.violation_count || 0) : null,
       violation_counts: llmGatewayPayload ? llmGatewayPayload.violation_counts || {} : {},
-      reason: (!llmGatewayGuard.ok || !llmGatewayPayload)
+      reason: !llmGatewayOk
         ? String(llmGatewayGuard.stderr || llmGatewayGuard.stdout || `llm_gateway_guard_exit_${llmGatewayGuard.code}`).slice(0, 180)
         : null
     });
-    if (!llmGatewayGuard.ok || !llmGatewayPayload || llmGatewayPayload.ok !== true) {
-      console.error(` llm_gateway_guard FAIL violations=${llmGatewayPayload ? Number(llmGatewayPayload.violation_count || 0) : "unknown"}`);
-      process.exit(llmGatewayGuard.code || 1);
+    if (!llmGatewayOk) {
+      if (llmGatewayStrict) {
+        console.error(` llm_gateway_guard FAIL violations=${llmGatewayPayload ? Number(llmGatewayPayload.violation_count || 0) : "unknown"}`);
+        process.exit(llmGatewayGuard.code || 1);
+      }
+      console.log(` llm_gateway_guard WARN violations=${llmGatewayPayload ? Number(llmGatewayPayload.violation_count || 0) : "unknown"}`);
+    } else {
+      console.log(
+        ` llm_gateway_guard ok checked=${Number(llmGatewayPayload.checked_files || 0)}` +
+        ` violations=${Number(llmGatewayPayload.violation_count || 0)}`
+      );
     }
-    console.log(
-      ` llm_gateway_guard ok checked=${Number(llmGatewayPayload.checked_files || 0)}` +
-      ` violations=${Number(llmGatewayPayload.violation_count || 0)}`
-    );
 
     const integrityPolicy = String(process.env.SPINE_INTEGRITY_POLICY || "config/security_integrity_policy.json").trim();
     const integrityStrict = String(process.env.SPINE_INTEGRITY_STRICT || "1") !== "0";

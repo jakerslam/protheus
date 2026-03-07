@@ -180,6 +180,10 @@ function normalizeRelativePathToken(input: string) {
 function rewriteLegacyRuntimeRelative(relPath: string) {
   const rel = normalizeRelativePathToken(relPath);
   if (!rel) return rel;
+  if (rel === 'local' || rel.startsWith('local/')) {
+    const suffix = rel === 'local' ? '' : rel.slice('local/'.length);
+    return normalizeRelativePathToken(path.join('client', 'local', suffix));
+  }
   if (rel === 'state' || rel.startsWith('state/')) {
     const suffix = rel === 'state' ? '' : rel.slice('state/'.length);
     return normalizeRelativePathToken(path.join('client', 'local', 'state', suffix));
@@ -197,9 +201,14 @@ function rewriteLegacyRuntimeRelative(relPath: string) {
 
 function rewriteLegacyRuntimeAbsolute(absPath: string) {
   const normalized = path.resolve(String(absPath || ''));
+  const workspaceLocal = path.resolve(ROOT, 'local');
   const workspaceState = path.resolve(ROOT, 'state');
   const clientState = path.resolve(CLIENT_ROOT, 'state');
   const coreState = path.resolve(CORE_ROOT, 'state');
+  if (normalized === workspaceLocal || normalized.startsWith(`${workspaceLocal}${path.sep}`)) {
+    const suffix = path.relative(workspaceLocal, normalized);
+    return path.resolve(CLIENT_ROOT, 'local', suffix);
+  }
   if (normalized === workspaceState || normalized.startsWith(`${workspaceState}${path.sep}`)) {
     const suffix = path.relative(workspaceState, normalized);
     return path.resolve(CLIENT_ROOT, 'local', 'state', suffix);

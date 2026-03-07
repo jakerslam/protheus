@@ -1,6 +1,6 @@
 /**
  * Compatibility note:
  * Canonical visualizer client implementation moved to:
- *   $OPENCLAW_WORKSPACE/agent-holo-viz/client/app.js
+ *   $OPENCLAW_WORKSPACE/client/local/workspaces/agent-holo-viz/client/app.js
  */
 export {};

@@ -74,19 +74,19 @@ function evaluateVaultPolicy(request, _opts = {}) {
 
 function sealVaultData(request, opts = {}) {
   const requestBase64 = encodeRequestBase64(request);
-  const stateRoot = cleanText(opts.state_root || path.join(ROOT, 'state'), 500);
+  const stateRoot = cleanText(opts.state_root || path.join(ROOT, 'local', 'state'), 500);
   return runViaSecurityBinary('run', [`--request-base64=${requestBase64}`, `--state-root=${stateRoot}`]);
 }
 
 function rotateVaultKeys(request, opts = {}) {
   const requestBase64 = encodeRequestBase64(request);
-  const stateRoot = cleanText(opts.state_root || path.join(ROOT, 'state'), 500);
+  const stateRoot = cleanText(opts.state_root || path.join(ROOT, 'local', 'state'), 500);
   return runViaSecurityBinary('run', [`--request-base64=${requestBase64}`, `--state-root=${stateRoot}`]);
 }
 
 function auditVault(request, opts = {}) {
   const requestBase64 = encodeRequestBase64(request);
-  const stateRoot = cleanText(opts.state_root || path.join(ROOT, 'state'), 500);
+  const stateRoot = cleanText(opts.state_root || path.join(ROOT, 'local', 'state'), 500);
   return runViaSecurityBinary('run', [`--request-base64=${requestBase64}`, `--state-root=${stateRoot}`]);
 }
 

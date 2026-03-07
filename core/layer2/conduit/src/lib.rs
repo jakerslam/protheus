@@ -16,6 +16,8 @@ use std::time::Duration;
 use wait_timeout::ChildExt;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+mod runtime_paths;
+
 pub const CONDUIT_SCHEMA_ID: &str = "protheus_conduit";
 pub const CONDUIT_SCHEMA_VERSION: &str = "1.0";
 pub const MAX_CONDUIT_MESSAGE_TYPES: usize = 10;
@@ -1072,7 +1074,7 @@ fn resolve_cockpit_latest_path(root: &PathBuf) -> PathBuf {
         }
         return root.join(candidate);
     }
-    root.join("state")
+    root.join(runtime_paths::CLIENT_STATE_ROOT)
         .join("cockpit")
         .join("inbox")
         .join("latest.json")

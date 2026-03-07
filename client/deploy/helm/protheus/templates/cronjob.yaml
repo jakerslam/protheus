@@ -37,6 +37,11 @@ spec:
               envFrom:
                 - configMapRef:
                     name: {{ include "protheus.fullname" . }}-runtime
+{{- if or .Values.secrets.create .Values.secrets.existingSecretName }}
+                - secretRef:
+                    name: {{ include "protheus.secretName" . }}
+                    optional: {{ .Values.secrets.optional }}
+{{- end }}
               securityContext:
                 allowPrivilegeEscalation: false
                 readOnlyRootFilesystem: true

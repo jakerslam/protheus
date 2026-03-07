@@ -40,6 +40,7 @@ try {
   const requiredDirs = [
     'client/local/adaptive',
     'client/local/memory',
+    'client/local/state/memory',
     'client/local/logs',
     'client/local/secrets',
     'client/local/state',

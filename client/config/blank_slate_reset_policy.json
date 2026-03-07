@@ -20,13 +20,15 @@
         "LEARNINGS_INDEX.md",
         "client/memory/*.md",
         "client/memory/*.md.backup.*",
-        "client/memory/heartbeat-state.json",
+        "client/local/memory/heartbeat-state.json",
         "client/memory/_archive",
         "client/local/memory/.rebuild_delta_cache.json",
         "client/local/memory/_snapshots",
+        "client/local/memory/core_profiles",
+        "client/local/memory/spine/preferences",
         "client/memory/handoff",
         "client/memory/reports",
-        "client/memory/state"
+        "client/local/memory/state"
       ],
       "exclude_exact": [
         "client/memory/README.md"

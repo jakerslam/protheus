@@ -30,6 +30,12 @@
       "path": ".github/workflows/release-security-artifacts.yml"
     },
     {
+      "id": "slsa_attestation_release_workflow",
+      "type": "file_contains",
+      "path": ".github/workflows/release-security-artifacts.yml",
+      "pattern": "actions/attest-build-provenance@v2"
+    },
+    {
       "id": "coverage_workflow",
       "type": "file_exists",
       "path": ".github/workflows/coverage.yml"
@@ -43,6 +49,37 @@
       "id": "terraform_packaging_present",
       "type": "file_exists",
       "path": "client/deploy/terraform/protheus_helm/main.tf"
+    },
+    {
+      "id": "k8s_secret_runtime_manifest_present",
+      "type": "file_exists",
+      "path": "client/deploy/k8s/secret.runtime.example.yaml"
+    },
+    {
+      "id": "helm_secret_wiring_enabled",
+      "type": "file_contains",
+      "path": "client/deploy/helm/protheus/templates/cronjob.yaml",
+      "pattern": "secretRef"
+    },
+    {
+      "id": "enterprise_support_template_present",
+      "type": "file_exists",
+      "path": "client/docs/ENTERPRISE_SUPPORT_ENVELOPE_TEMPLATE.md"
+    },
+    {
+      "id": "case_study_template_present",
+      "type": "file_exists",
+      "path": "client/docs/REFERENCE_CUSTOMER_CASE_STUDY_TEMPLATE.md"
+    },
+    {
+      "id": "legal_packet_checklist_present",
+      "type": "file_exists",
+      "path": "client/docs/LEGAL_ENTERPRISE_PACKET_CHECKLIST.md"
+    },
+    {
+      "id": "a_plus_gate_script_present",
+      "type": "file_exists",
+      "path": "client/systems/ops/f100_a_plus_readiness_gate.js"
     },
     {
       "id": "human_split_compliance_certs",

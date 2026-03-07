@@ -132,6 +132,34 @@ function readJsonl(filePath: string) {
   }
 }
 
+function readConduitRuntimeGate() {
+  const gatePath = path.join(ROOT, 'local', 'state', 'conduit', 'runtime_gate.json');
+  const payload = readJson(gatePath, null);
+  if (!payload || typeof payload !== 'object') {
+    return {
+      available: false,
+      path: relPath(gatePath),
+      gate_active: false
+    };
+  }
+  const blockedUntilMs = Number.isFinite(Number(payload.blocked_until_ms))
+    ? Number(payload.blocked_until_ms)
+    : 0;
+  const remainingMs = blockedUntilMs > 0 ? Math.max(0, blockedUntilMs - Date.now()) : 0;
+  const gateActive = payload.gate_active === true && remainingMs > 0;
+  return {
+    available: true,
+    path: relPath(gatePath),
+    gate_active: gateActive,
+    blocked_until: String(payload.blocked_until || ''),
+    blocked_until_ms: blockedUntilMs || null,
+    remaining_ms: remainingMs,
+    consecutive_failures: Number(payload.consecutive_failures || 0) || 0,
+    threshold: Number(payload.threshold || 0) || null,
+    last_error: String(payload.last_error || '')
+  };
+}
+
 function ensureDir(dirPath: string) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
@@ -168,10 +196,29 @@ function dateDistanceDaysUtc(olderDate: string, newerDate: string) {
   return Math.floor((t1 - t0) / (24 * 60 * 60 * 1000));
 }
 
+function normalizeRelativeForRoot(raw: string) {
+  const trimmed = String(raw || '')
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/^\/+/, '');
+  if (!trimmed) return trimmed;
+  const rootName = path.basename(ROOT).toLowerCase();
+  if (rootName === 'client' && trimmed.startsWith('client/')) {
+    return trimmed.slice('client/'.length);
+  }
+  if (rootName === 'core' && trimmed.startsWith('core/')) {
+    return trimmed.slice('core/'.length);
+  }
+  return trimmed;
+}
+
 function resolvePath(raw: unknown, fallbackRel: string) {
   const value = String(raw == null ? '' : raw).trim();
-  if (!value) return path.join(ROOT, fallbackRel);
-  return path.isAbsolute(value) ? path.resolve(value) : path.join(ROOT, value);
+  if (!value) return path.join(ROOT, normalizeRelativeForRoot(fallbackRel));
+  return path.isAbsolute(value)
+    ? path.resolve(value)
+    : path.join(ROOT, normalizeRelativeForRoot(value));
 }
 
 function numOr(v: unknown, fallback: number | null = null) {
@@ -260,15 +307,15 @@ function defaultPolicy() {
       }
     ],
     sources: {
-      execution_reliability_slo_path: 'state/ops/execution_reliability_slo.json',
-      runtime_efficiency_floor_path: 'state/ops/runtime_efficiency_floor.json',
-      workflow_execution_closure_path: 'state/ops/workflow_execution_closure.json',
-      daily_budget_dir: 'state/autonomy/daily_budget',
-      budget_events_path: 'state/autonomy/budget_events.jsonl'
+      execution_reliability_slo_path: 'local/state/ops/execution_reliability_slo.json',
+      runtime_efficiency_floor_path: 'local/state/ops/runtime_efficiency_floor.json',
+      workflow_execution_closure_path: 'local/state/ops/workflow_execution_closure.json',
+      daily_budget_dir: 'local/state/autonomy/daily_budget',
+      budget_events_path: 'local/state/autonomy/budget_events.jsonl'
     },
-    state_path: 'state/ops/narrow_agent_parity_harness.json',
-    history_path: 'state/ops/narrow_agent_parity_harness_history.jsonl',
-    weekly_receipts_dir: 'state/ops/parity_scorecards'
+    state_path: 'local/state/ops/narrow_agent_parity_harness.json',
+    history_path: 'local/state/ops/narrow_agent_parity_harness_history.jsonl',
+    weekly_receipts_dir: 'local/state/ops/parity_scorecards'
   };
 }
 
@@ -716,6 +763,7 @@ function runHarness(args: AnyObj) {
     history_path: relPath(historyPath),
     weekly_receipt_path: relPath(weeklyPath)
   };
+  const conduitRuntimeGate = readConduitRuntimeGate();
   const insufficientDataReasons = [];
   if (!(derived.source_summary && derived.source_summary.execution_reliability && derived.source_summary.execution_reliability.sufficient_data === true)) {
     insufficientDataReasons.push('execution_reliability_insufficient');
@@ -731,10 +779,14 @@ function runHarness(args: AnyObj) {
   if (Number(derived.source_summary && derived.source_summary.budget_window && derived.source_summary.budget_window.samples || 0) <= 0) {
     insufficientDataReasons.push('budget_window_samples_missing');
   }
+  if (conduitRuntimeGate.gate_active === true) {
+    insufficientDataReasons.push('conduit_runtime_gate_active');
+  }
   payload.insufficient_data = {
     active: insufficientDataReasons.length > 0,
     reasons: insufficientDataReasons
   };
+  payload.conduit_runtime_gate = conduitRuntimeGate;
 
   writeJsonAtomic(statePath, {
     schema_id: 'narrow_agent_parity_harness',

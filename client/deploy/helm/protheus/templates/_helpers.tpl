@@ -9,3 +9,11 @@
 {{- printf "%s-%s" .Release.Name (include "protheus.name" .) | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 {{- end -}}
+
+{{- define "protheus.secretName" -}}
+{{- if .Values.secrets.existingSecretName -}}
+{{- .Values.secrets.existingSecretName | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- printf "%s-runtime-secrets" (include "protheus.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}

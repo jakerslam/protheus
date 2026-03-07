@@ -8,6 +8,7 @@ const { spawnSync } = require('child_process');
 const DEFAULT_CONDUIT_GATE_BASE_MS = 5 * 60 * 1000;
 const DEFAULT_CONDUIT_GATE_MAX_MS = 30 * 60 * 1000;
 const DEFAULT_CONDUIT_GATE_THRESHOLD = 2;
+const DEFAULT_CONDUIT_GATE_FAILURE_TTL_MS = 6 * 60 * 60 * 1000;
 
 function findRepoRoot(startDir) {
   let dir = path.resolve(startDir || process.cwd());
@@ -119,6 +120,16 @@ function runtimeGateMaxMs() {
   );
 }
 
+function runtimeGateFailureTtlMs() {
+  return Math.max(
+    runtimeGateBaseMs() * 2,
+    parsePositiveInt(
+      process.env.PROTHEUS_CONDUIT_RUNTIME_GATE_FAILURE_TTL_MS,
+      DEFAULT_CONDUIT_GATE_FAILURE_TTL_MS
+    )
+  );
+}
+
 function runtimeGateForceProbe() {
   return String(process.env.PROTHEUS_CONDUIT_FORCE_PROBE || '0').trim() === '1';
 }
@@ -192,7 +203,7 @@ function recordRuntimeGateFailure(root, errorText) {
   const previousBlockedUntil = Number(existing.blocked_until_ms || 0);
   const previousFailureAtMs = Date.parse(String(existing.last_failure_at || ''));
   const previousFailureStale = Number.isFinite(previousFailureAtMs)
-    ? (now - previousFailureAtMs) > (runtimeGateBaseMs() * 2)
+    ? (now - previousFailureAtMs) > runtimeGateFailureTtlMs()
     : true;
   const previousWindowExpired = Number.isFinite(previousBlockedUntil)
     && previousBlockedUntil > 0

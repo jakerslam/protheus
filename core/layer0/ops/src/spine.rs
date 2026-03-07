@@ -406,7 +406,7 @@ fn parse_json_payload(raw: &str) -> Option<Value> {
 }
 
 fn spine_runs_dir(root: &Path) -> PathBuf {
-    root.join("state/spine/runs")
+    root.join("client/local/state/spine/runs")
 }
 
 fn ensure_dir(path: &Path) {
@@ -459,7 +459,14 @@ fn normalize_path(root: &Path, value: Option<&Value>, fallback: &str) -> PathBuf
 }
 
 fn load_mech_suit_policy(root: &Path) -> MechSuitPolicy {
-    let default_path = root.join("config").join("mech_suit_mode_policy.json");
+    let default_path = {
+        let candidate = root.join("client").join("config").join("mech_suit_mode_policy.json");
+        if candidate.exists() {
+            candidate
+        } else {
+            root.join("config").join("mech_suit_mode_policy.json")
+        }
+    };
     let policy_path = std::env::var("MECH_SUIT_MODE_POLICY_PATH")
         .ok()
         .map(PathBuf::from)
@@ -503,21 +510,21 @@ fn load_mech_suit_policy(root: &Path) -> MechSuitPolicy {
         attention_queue_path: normalize_path(
             root,
             eyes.and_then(|v| v.get("attention_queue_path")),
-            "state/attention/queue.jsonl",
+            "client/local/state/attention/queue.jsonl",
         )
         .to_string_lossy()
         .to_string(),
         attention_receipts_path: normalize_path(
             root,
             eyes.and_then(|v| v.get("receipts_path")),
-            "state/attention/receipts.jsonl",
+            "client/local/state/attention/receipts.jsonl",
         )
         .to_string_lossy()
         .to_string(),
         attention_latest_path: normalize_path(
             root,
             eyes.and_then(|v| v.get("latest_path")),
-            "state/attention/latest.json",
+            "client/local/state/attention/latest.json",
         )
         .to_string_lossy()
         .to_string(),
@@ -565,12 +572,12 @@ fn load_mech_suit_policy(root: &Path) -> MechSuitPolicy {
         status_path: normalize_path(
             root,
             state.and_then(|v| v.get("status_path")),
-            "state/ops/mech_suit_mode/latest.json",
+            "client/local/state/ops/mech_suit_mode/latest.json",
         ),
         history_path: normalize_path(
             root,
             state.and_then(|v| v.get("history_path")),
-            "state/ops/mech_suit_mode/history.jsonl",
+            "client/local/state/ops/mech_suit_mode/history.jsonl",
         ),
         policy_path,
     }

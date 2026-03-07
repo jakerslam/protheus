@@ -1,0 +1,10 @@
+{
+  "schema_id": "ci_stable_test_manifest",
+  "schema_version": "1.0",
+  "description": "Deterministic migration-era CI baseline. Use --full-corpus for exhaustive parity runs.",
+  "tests": [
+    "adaptive_layer_boundary_guards.test.js",
+    "migrate_to_planes.test.js",
+    "source_runtime_classifier_contract.test.js"
+  ]
+}

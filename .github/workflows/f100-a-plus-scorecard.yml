@@ -1,0 +1,34 @@
+name: F100 A+ Scorecard
+
+on:
+  pull_request:
+    branches: [main, rust50]
+  push:
+    branches: [main, rust50]
+  workflow_dispatch:
+
+jobs:
+  f100-a-plus-scorecard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Generate A+ readiness scorecard (non-blocking)
+        run: node client/systems/ops/f100_a_plus_readiness_gate.js run --strict=0 --write=1
+
+      - name: Upload A+ readiness artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: f100-a-plus-readiness
+          path: |
+            client/docs/ops/F100_A_PLUS_READINESS_STATUS.md
+            state/ops/f100_a_plus_readiness_gate/latest.json

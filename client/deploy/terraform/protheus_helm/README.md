@@ -12,6 +12,7 @@ module "protheus" {
   namespace        = "protheus"
   image_repository = "protheuslabs/protheus"
   image_tag        = "latest"
+  existing_secret_name = "protheus-runtime-secrets"
 }
 ```
 

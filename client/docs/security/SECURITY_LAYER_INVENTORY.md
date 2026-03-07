@@ -1,6 +1,6 @@
 # Security Layer Inventory
 
-Generated: 2026-03-06T09:38:40.032Z
+Generated: 2026-03-07T16:55:21.331Z
 
 This inventory maps each security layer to enforceable implementation paths, policy contracts, runtime guard checks, and test evidence.
 
@@ -17,7 +17,7 @@ This inventory maps each security layer to enforceable implementation paths, pol
 ## Verification Summary
 
 - Layers checked: 7
-- Missing paths: 0
+- Missing paths: 41
 - Missing guard checks: 0
-- Contract status: PASS
-- Receipt hash: `42b439e9126fd9324abddb33402943a427b8e0ca39c257eded7541a34b655031`
+- Contract status: FAIL
+- Receipt hash: `86720c16ae5e896ba7e8860d8f1eb0472f477e9c633481cd67d646155b2b0c4a`

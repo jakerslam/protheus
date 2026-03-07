@@ -100,7 +100,7 @@ function evaluateExecutionSecurityGate(yaml: string, opts: AnyObj = {}) {
   const stateRoot = cleanText(
     opts.state_root
       || process.env.PROTHEUS_SECURITY_STATE_ROOT
-      || path.join(ROOT, 'state'),
+      || path.join(ROOT, 'client', 'local', 'state'),
     500
   );
   const request = buildSecurityGateRequest(yaml, opts);

@@ -43,6 +43,23 @@ Purpose: capture high-impact tasks that cannot be executed autonomously from bac
 | HMAN-029 | Approve release authority model for public cadence (tagging, notes, emergency revocation) | Requires maintainer identity custody and governance sign-off for public release ownership | `state/ops/evidence/release_authority_model_<date>.md` | `V6-F100-034`, `V6-COMP-005` |
 | HMAN-030 | Publish `v0.2.0` release artifacts to GitHub Releases and npm | Requires maintainer token custody, package publication authority, and public release accountability | `state/ops/evidence/v0_2_0_public_release_links_<date>.md` | `V6-F100-034`, `V6-SEC-001`, `V6-GAP-006` |
 | HMAN-031 | Post public launch announcements (X/HN/Reddit) using approved messaging | Requires brand/legal authority and external account ownership | `state/ops/evidence/infring_launch_posts_<date>.md` | `V6-GAP-005`, `V6-GAP-006` |
+| HMAN-032 | Approve and publish enterprise legal packet (MSA + DPA + privacy + subprocessor list) | Requires legal authority and binding policy publication ownership | `state/ops/evidence/enterprise_legal_packet_publish_<date>.md` | `V6-F100-A-008` |
+| HMAN-033 | Secure reference-customer publication rights and publish first case study | Requires customer relationship ownership, legal approval, and quote authorization | `state/ops/evidence/reference_case_study_publish_<date>.md` | `V6-F100-A-009` |
+| HMAN-034 | Approve and execute cloud marketplace listings (AWS/Azure/GCP) | Requires publisher account ownership, billing setup, and legal distribution approvals | `state/ops/evidence/cloud_marketplace_listing_<date>.md` | `V6-F100-A-010` |
+| HMAN-035 | Activate named 24x7 enterprise support roster and escalation channels | Requires staffing authority and operational ownership for on-call commitments | `state/ops/evidence/enterprise_support_roster_<date>.md` | `V6-F100-A-011` |
+
+## A-Grade External Status Register (2026-03-07)
+
+| Track | Completion | Human Owners / Items | Why Not Auto-Executable |
+|---|---|---|---|
+| Independent third-party penetration test + publication | not complete | `HMAN-001`, `V6-F100-023` | Contracting and publishing require legal authority and external vendor execution. |
+| SOC2 / ISO certification path | not complete | `HMAN-026`, `HMAN-027`, `V6-F100-043` | Certification is issued by third parties and cannot be self-attested. |
+| Commercial support/SLA publication | not complete | `HMAN-028`, `V6-F100-044` | Contractual SLA and indemnification require executive/legal signature. |
+| Public semantic release cadence | not complete | `HMAN-029`, `HMAN-030`, `V6-F100-034`, `V6-COMP-005` | Tag custody and package publication credentials are human-controlled. |
+| Public references/case studies/community launch | not complete | `HMAN-031` | External relationship management and account posting are human-owned. |
+| Enterprise legal packet publication (MSA/DPA/privacy/subprocessors) | not complete | `HMAN-032`, `V6-F100-A-008` | Legal publication and liability acceptance cannot be delegated. |
+| Cloud marketplace packaging and publication | not complete | `HMAN-034`, `V6-F100-A-010` | Marketplace ownership and billing/legal setup require human account control. |
+| 24x7 support operations activation | not complete | `HMAN-035`, `V6-F100-A-011` | Staffing and on-call authority must be human-run. |
 
 ## Non-Negotiable Constraint
 

@@ -11,9 +11,9 @@
     "client/systems/spine/spine.ts"
   ],
   "paths": {
-    "memory_pref_dir": "client/memory/spine/preferences",
+    "memory_pref_dir": "client/local/memory/spine/preferences",
     "adaptive_index_path": "client/adaptive/spine/index.json",
-    "latest_path": "state/ops/spine_kernel_budget_check/latest.json",
-    "receipts_path": "state/ops/spine_kernel_budget_check/receipts.jsonl"
+    "latest_path": "client/local/state/ops/spine_kernel_budget_check/latest.json",
+    "receipts_path": "client/local/state/ops/spine_kernel_budget_check/receipts.jsonl"
   }
 }

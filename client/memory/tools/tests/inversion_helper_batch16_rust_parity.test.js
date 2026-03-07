@@ -38,7 +38,7 @@ function stripTs(row) {
 }
 
 function run() {
-  const tmpRoot = path.join(REPO_ROOT, 'tmp', 'inversion-batch16-parity');
+  const tmpRoot = path.join(REPO_ROOT, 'client', 'local', 'tmp', 'inversion-batch16-parity');
   fs.rmSync(tmpRoot, { recursive: true, force: true });
   fs.mkdirSync(tmpRoot, { recursive: true });
 

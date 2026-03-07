@@ -12,7 +12,7 @@ const ALLOWLIST_ROOTS = [
   path.join(ROOT, 'habits'),
   path.join(ROOT, 'memory'),
   path.join(ROOT, 'config'),
-  path.join(ROOT, 'state')
+  path.join(ROOT, 'local', 'state')
 ];
 
 const HIGH_RISK_PATTERNS = {

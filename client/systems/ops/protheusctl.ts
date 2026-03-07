@@ -36,7 +36,8 @@ function usage() {
   console.log('  protheusctl socket admission');
   console.log('  protheusctl mine dashboard --human=1');
   console.log('  protheusctl migrate --to=<org/repo|url> [--workspace=<path>] [--apply=1]');
-  console.log('  protheusctl migrate-to-planes [plan|run|status|rollback] [--apply=1] [--move-untracked=1] [--compat-symlinks=1] [--id=<migration_id|latest>]');
+  console.log('  protheusctl migrate-to-planes [plan|run|status|rollback] [--apply=1] [--move-untracked=1] [--compat-symlinks=1 (deprecated)] [--id=<migration_id|latest>]');
+  console.log('  protheusctl migrate-cleanup [plan|run|status] [--apply=1] [--strict=1]');
   console.log('  protheusctl import --from=<engine> --path=<source> [--apply=1]');
   console.log('  protheusctl wasi2 run|status');
   console.log('  protheusctl rust run|report|status');
@@ -130,7 +131,7 @@ function evaluateDispatchSecurity(script: string, args: string[]) {
 
   const request = buildDispatchSecurityRequest(script, args);
   const stateRoot = cleanText(
-    process.env.PROTHEUS_SECURITY_STATE_ROOT || path.join(REPO_ROOT, 'state'),
+    process.env.PROTHEUS_SECURITY_STATE_ROOT || path.join(REPO_ROOT, 'client', 'local', 'state'),
     500
   );
   const gate = evaluateSecurityGate(request, {
@@ -394,6 +395,23 @@ function main() {
       return;
     }
     runScript(migrationScript, [sub, ...laneRest.slice(1)]);
+    return;
+  }
+
+  if (cmd === 'migrate-cleanup' || (cmd === 'migrate' && ['cleanup'].includes(String(rest[0] || '').trim().toLowerCase()))) {
+    const cleanupScript = path.join(__dirname, 'migrate_cleanup.js');
+    const laneRest = cmd === 'migrate' ? rest.slice(1) : rest;
+    const sub = String(laneRest[0] || '').trim().toLowerCase();
+    const supported = new Set(['plan', 'run', 'status', 'help', '--help', '-h']);
+    if (!sub || sub.startsWith('--') || !supported.has(sub)) {
+      runScript(cleanupScript, ['run', ...laneRest]);
+      return;
+    }
+    if (sub === 'help' || sub === '--help' || sub === '-h') {
+      runScript(cleanupScript, ['help']);
+      return;
+    }
+    runScript(cleanupScript, [sub, ...laneRest.slice(1)]);
     return;
   }
 
