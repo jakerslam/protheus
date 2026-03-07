@@ -12,7 +12,7 @@ Tracks temporary compatibility surfaces that must be removed after core-authorit
 | `client/lib/legacy_retired_lane_bridge.js` | Legacy conduit fallback shim | `client/lib/spine_conduit_bridge.ts` and domain bridges | no production path imports legacy bridge |
 | `client/systems/ops/protheusd.ts` local fallback lane | Operational compatibility path | conduit-only runtime control | `--allow-legacy-fallback` path retired |
 | `client/systems/adaptive/core/*` TS primitives | Temporary adaptation bootstrap authority | `core/layer2` adaptation primitives (REQ-19 set) | `V6-ADAPT-CORE-001` complete |
-| legacy runtime roots (`state/`, `.private-lenses/`, `client/logs/`) | Legacy mutable artifact paths | `client/local/*`, `core/local/*` partitions | `LOCAL-PARTITION-001` fully migrated and compatibility mirror removed |
+| legacy runtime roots (`state/`, `.clawhub/`, `.private-lenses/`, `client/logs/`) | Legacy mutable artifact paths | `client/local/*`, `core/local/*` partitions | `LOCAL-PARTITION-001` fully migrated and root-level duplicates removed |
 
 ## Backlog Anchors
 

@@ -60,7 +60,7 @@ function main() {
   write(gitignorePath, [
     'state/**',
     'tmp/',
-    'client/logs/tool_raw/',
+    'client/local/logs/tool_raw/',
     '!client/memory/tools/**',
     '!client/skills/mcp/*.ts',
     '!client/skills/mcp/*.js',
@@ -76,7 +76,7 @@ function main() {
       { id: 'runtime_state', mode: 'ignored', paths: ['state/**'] },
       { id: 'skills_local', mode: 'ignored', paths: ['client/skills/**'] }
     ],
-    required_ignore_patterns: ['state/**', 'tmp/', 'client/logs/tool_raw/'],
+    required_ignore_patterns: ['state/**', 'tmp/', 'client/local/logs/tool_raw/'],
     required_unignore_patterns: ['!client/memory/tools/**', '!client/skills/mcp/*.ts', '!client/skills/mcp/*.js', '!client/skills/mcp/*.json'],
     outputs: {
       latest_path: latestPath,

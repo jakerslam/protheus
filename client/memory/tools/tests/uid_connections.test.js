@@ -51,7 +51,7 @@ function run() {
       layer: 'sensory',
       tags: ['adaptive', 'sensory', 'trend'],
       summary: 'Existing adaptive trend eye',
-      path_ref: 'client/adaptive/sensory/eyes/catalog.json'
+      path_ref: 'client/local/adaptive/sensory/eyes/catalog.json'
     }
   ]);
 
@@ -96,4 +96,3 @@ try {
   console.error(`uid_connections.test.js: FAIL: ${err.message}`);
   process.exit(1);
 }
-

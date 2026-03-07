@@ -33,3 +33,5 @@ This boundary is mandatory for future neural I/O surfaces.
 
 Safety must always provide deterministic fallback paths when cognition/substrate services degrade.
 See `planes/substrate/degradation_contract.schema.json`.
+
+Implementation mapping: `core/layer0..2`; mutable artifacts in `core/local/`.

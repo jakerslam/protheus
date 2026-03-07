@@ -8,9 +8,14 @@ const { stableUid, isAlnum } = require('../../../lib/uid.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
 const ADAPTIVE_ROOT = path.join(REPO_ROOT, 'adaptive');
-const MUTATION_LOG_PATH = path.join(REPO_ROOT, 'client', 'local', 'state', 'security', 'adaptive_mutations.jsonl');
-const ADAPTIVE_POINTERS_PATH = path.join(REPO_ROOT, 'client', 'local', 'state', 'memory', 'adaptive_pointers.jsonl');
-const ADAPTIVE_POINTER_INDEX_PATH = path.join(REPO_ROOT, 'client', 'local', 'state', 'memory', 'adaptive_pointer_index.json');
+const ADAPTIVE_RUNTIME_ROOT = path.join(REPO_ROOT, 'local', 'adaptive');
+const RUNTIME_ADAPTIVE_REL_PATHS = new Set([
+  'sensory/eyes/catalog.json',
+  'sensory/eyes/focus_triggers.json'
+]);
+const MUTATION_LOG_PATH = path.join(REPO_ROOT, 'local', 'state', 'security', 'adaptive_mutations.jsonl');
+const ADAPTIVE_POINTERS_PATH = path.join(REPO_ROOT, 'local', 'state', 'memory', 'adaptive_pointers.jsonl');
+const ADAPTIVE_POINTER_INDEX_PATH = path.join(REPO_ROOT, 'local', 'state', 'memory', 'adaptive_pointer_index.json');
 const WRITE_LOCK_TIMEOUT_MS = Number(process.env.ADAPTIVE_WRITE_LOCK_TIMEOUT_MS || 8000);
 const WRITE_LOCK_RETRY_MS = Number(process.env.ADAPTIVE_WRITE_LOCK_RETRY_MS || 15);
 const WRITE_LOCK_STALE_MS = Number(process.env.ADAPTIVE_WRITE_LOCK_STALE_MS || 30000);
@@ -27,24 +32,66 @@ function normalizePathString(v) {
   return String(v || '').replace(/\\/g, '/');
 }
 
+function normalizeAdaptiveRel(v) {
+  return normalizePathString(String(v || ''))
+    .replace(/^\.?\//, '')
+    .replace(/^adaptive\//, '')
+    .replace(/\/+/g, '/')
+    .trim();
+}
+
+function relativeWithin(rootPath, targetPath) {
+  const rel = normalizePathString(path.relative(rootPath, targetPath));
+  if (rel === '') return '';
+  if (rel.startsWith('../') || rel === '..') return null;
+  return rel;
+}
+
 function isWithinAdaptiveRoot(targetPath) {
   const abs = path.resolve(String(targetPath || ''));
-  const rel = normalizePathString(path.relative(ADAPTIVE_ROOT, abs));
-  if (!rel || rel === '') return true;
-  return !rel.startsWith('../') && rel !== '..';
+  return relativeWithin(ADAPTIVE_ROOT, abs) !== null || relativeWithin(ADAPTIVE_RUNTIME_ROOT, abs) !== null;
 }
 
 function resolveAdaptivePath(targetPath) {
   const raw = String(targetPath || '').trim();
-  const abs = path.isAbsolute(raw) ? path.resolve(raw) : path.resolve(ADAPTIVE_ROOT, raw);
-  if (!isWithinAdaptiveRoot(abs)) {
-    throw new Error(`adaptive_store: target outside adaptive root: ${abs}`);
-  }
-  const rel = normalizePathString(path.relative(ADAPTIVE_ROOT, abs));
-  if (!rel || rel === '') {
+  if (!raw) {
     throw new Error('adaptive_store: target must be file path under adaptive/');
   }
-  return { abs, rel };
+
+  if (path.isAbsolute(raw)) {
+    const absPath = path.resolve(raw);
+    const sourceRel = relativeWithin(ADAPTIVE_ROOT, absPath);
+    if (sourceRel !== null) {
+      if (sourceRel === '') throw new Error('adaptive_store: target must be file path under adaptive/');
+      const rel = normalizeAdaptiveRel(sourceRel);
+      if (RUNTIME_ADAPTIVE_REL_PATHS.has(rel)) {
+        return { abs: path.join(ADAPTIVE_RUNTIME_ROOT, rel), rel };
+      }
+      return { abs: absPath, rel };
+    }
+
+    const runtimeRel = relativeWithin(ADAPTIVE_RUNTIME_ROOT, absPath);
+    if (runtimeRel === null || runtimeRel === '') {
+      throw new Error(`adaptive_store: target outside adaptive roots: ${absPath}`);
+    }
+    const rel = normalizeAdaptiveRel(runtimeRel);
+    if (!RUNTIME_ADAPTIVE_REL_PATHS.has(rel)) {
+      throw new Error(`adaptive_store: runtime path not allowed: ${absPath}`);
+    }
+    return { abs: absPath, rel };
+  }
+
+  const rel = normalizeAdaptiveRel(raw);
+  if (!rel) throw new Error('adaptive_store: target must be file path under adaptive/');
+  if (RUNTIME_ADAPTIVE_REL_PATHS.has(rel)) {
+    return { abs: path.join(ADAPTIVE_RUNTIME_ROOT, rel), rel };
+  }
+  const abs = path.resolve(ADAPTIVE_ROOT, rel);
+  const sourceRel = relativeWithin(ADAPTIVE_ROOT, abs);
+  if (sourceRel === null || sourceRel === '') {
+    throw new Error(`adaptive_store: target outside adaptive root: ${abs}`);
+  }
+  return { abs, rel: normalizeAdaptiveRel(sourceRel) };
 }
 
 function cloneJsonSafe(v) {
@@ -433,6 +480,7 @@ function deletePath(targetPath, meta = {}) {
 module.exports = {
   REPO_ROOT,
   ADAPTIVE_ROOT,
+  ADAPTIVE_RUNTIME_ROOT,
   MUTATION_LOG_PATH,
   ADAPTIVE_POINTERS_PATH,
   ADAPTIVE_POINTER_INDEX_PATH,

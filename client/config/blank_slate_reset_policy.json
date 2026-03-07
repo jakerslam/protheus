@@ -5,8 +5,8 @@
     "adaptive_memory_blank_slate": {
       "description": "Archive adaptive-state + memory artifacts for reversible blank-slate tests.",
       "includes": [
-        "client/adaptive/sensory/eyes/catalog.json",
-        "client/adaptive/sensory/eyes/focus_triggers.json",
+        "client/local/adaptive/sensory/eyes/catalog.json",
+        "client/local/adaptive/sensory/eyes/focus_triggers.json",
         "client/adaptive/strategy/registry.json",
         "state/client/adaptive/reflex/pool_state.json",
         "state/client/adaptive/strategy/outcome_fitness.json",
@@ -22,7 +22,8 @@
         "client/memory/*.md.backup.*",
         "client/memory/heartbeat-state.json",
         "client/memory/_archive",
-        "client/memory/_snapshots",
+        "client/local/memory/.rebuild_delta_cache.json",
+        "client/local/memory/_snapshots",
         "client/memory/handoff",
         "client/memory/reports",
         "client/memory/state"

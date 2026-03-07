@@ -47,11 +47,9 @@
     "vitest.config.ts"
   ],
   "allowed_root_dirs": [
-    ".clawhub",
     ".githooks",
     ".github",
     ".internal",
-    ".private-lenses",
     "agent-holo-viz",
     "benchmarks",
     "bin",
@@ -81,7 +79,6 @@
     "rohankapoor-projects",
     "runbooks",
     "scripts",
-    "state",
     "STATE_ROOT",
     "target",
     "templates",

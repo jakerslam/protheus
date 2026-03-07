@@ -7,11 +7,12 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const REGISTRY_PATH = '/Users/jay/.openclaw/workspace/client/habits/registry.json';
-const TRUSTED_HABITS_PATH = '/Users/jay/.openclaw/workspace/client/config/trusted_habits.json';
-const TRUSTED_SKILLS_PATH = '/Users/jay/.openclaw/workspace/client/config/trusted_skills.json';
-const RUNS_LOG = '/Users/jay/.openclaw/workspace/client/habits/client/logs/habit_runs.ndjson';
-const ERRORS_LOG = '/Users/jay/.openclaw/workspace/client/habits/client/logs/habit_errors.ndjson';
+const CLIENT_ROOT = path.resolve(__dirname, '..', '..');
+const REGISTRY_PATH = path.join(CLIENT_ROOT, 'habits', 'registry.json');
+const TRUSTED_HABITS_PATH = path.join(CLIENT_ROOT, 'config', 'trusted_habits.json');
+const TRUSTED_SKILLS_PATH = path.join(CLIENT_ROOT, 'config', 'trusted_skills.json');
+const RUNS_LOG = path.join(CLIENT_ROOT, 'local', 'logs', 'habits', 'habit_runs.ndjson');
+const ERRORS_LOG = path.join(CLIENT_ROOT, 'local', 'logs', 'habits', 'habit_errors.ndjson');
 
 let exitCode = 0;
 let warnings = 0;
@@ -419,7 +420,7 @@ function checkCronDependencies() {
   console.log('\n⏰ CRON DEPENDENCIES');
   console.log('─'.repeat(50));
   
-  const CRON_JOBS_PATH = '/Users/jay/.openclaw/workspace/client/config/cron_jobs.json';
+  const CRON_JOBS_PATH = path.join(CLIENT_ROOT, 'config', 'cron_jobs.json');
   
   if (!fs.existsSync(CRON_JOBS_PATH)) {
     logCheck('cron_jobs.json', 'WARN', 'File not found');
@@ -511,7 +512,7 @@ function checkDocDrift() {
   // Read propose_habit.js
   let proposeSrc;
   try {
-    proposeSrc = fs.readFileSync('/Users/jay/.openclaw/workspace/client/habits/scripts/propose_habit.js', 'utf8');
+    proposeSrc = fs.readFileSync(path.join(CLIENT_ROOT, 'habits', 'scripts', 'propose_habit.js'), 'utf8');
   } catch (e) {
     logCheck('doc_drift/propose_read', 'WARN', 'Could not read propose_habit.js');
     return;
@@ -531,8 +532,8 @@ function checkDocDrift() {
   };
   
   // Check documentation files
-  const QUICKREF_PATH = '/Users/jay/.openclaw/workspace/client/habits/QUICKREF.md';
-  const GOV_PATH = '/Users/jay/.openclaw/workspace/client/habits/GOVERNANCE.md';
+  const QUICKREF_PATH = path.join(CLIENT_ROOT, 'habits', 'QUICKREF.md');
+  const GOV_PATH = path.join(CLIENT_ROOT, 'habits', 'GOVERNANCE.md');
   
   let quickrefContent, govContent;
   try { quickrefContent = fs.readFileSync(QUICKREF_PATH, 'utf8'); } catch (e) {}

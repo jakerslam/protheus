@@ -20,7 +20,7 @@
     },
     {
       "id": "vault",
-      "path": "client/secrets/vault",
+      "path": "client/local/secrets/vault",
       "required": false
     },
     {

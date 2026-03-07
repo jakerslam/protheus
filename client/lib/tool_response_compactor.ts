@@ -3,7 +3,7 @@
  * Tool Response Compactor
  * 
  * Rules:
- * - If output > 1200 chars OR > 40 lines → save raw to logs/tool_raw/<timestamp>.txt
+ * - If output > 1200 chars OR > 40 lines → save raw to client/local/logs/tool_raw/<timestamp>.txt
  * - Inject only: 5-10 bullet summary with key ids/urls/counts/errors
  * - Include pointer to raw log path
  * - Redact secrets (moltbook_sk_*, Authorization headers)
@@ -12,7 +12,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const TOOL_RAW_DIR = path.join(__dirname, '..', 'logs', 'tool_raw');
+const CLIENT_ROOT = path.resolve(__dirname, '..');
+const TOOL_RAW_DIR = path.join(CLIENT_ROOT, 'local', 'logs', 'tool_raw');
 const COMPACTION_THRESHOLD_CHARS = 1200;
 const COMPACTION_THRESHOLD_LINES = 40;
 
@@ -159,6 +160,7 @@ function compactToolResponse(data, options = {}) {
   
   // Redact and save raw
   const redactedRaw = redactSecrets(rawContent);
+  fs.mkdirSync(TOOL_RAW_DIR, { recursive: true });
   fs.writeFileSync(rawPath, redactedRaw, 'utf8');
   
   // Generate summary
@@ -170,7 +172,7 @@ function compactToolResponse(data, options = {}) {
     ``,
     ...summary,
     ``,
-    `📁 Raw output saved to: logs/tool_raw/${rawFilename}`,
+    `📁 Raw output saved to: client/local/logs/tool_raw/${rawFilename}`,
     `📊 Original: ${charCount} chars, ${lineCount} lines`,
     `📊 Compacted: ${summary.join('').length} chars (summary only)`
   ].join('\n');

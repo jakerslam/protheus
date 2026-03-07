@@ -156,8 +156,12 @@ class StdioTransport implements Transport {
 
   constructor(command: string, args: string[] = [], cwd?: string) {
     this.proc = spawn(command, args, { cwd, stdio: 'pipe' });
-    const configured = Number(process.env.PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS || 20000);
-    this.timeoutMs = Number.isFinite(configured) && configured > 0 ? Math.floor(configured) : 20000;
+    const configured = Number(
+      process.env.PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS
+      || process.env.PROTHEUS_CONDUIT_TIMEOUT_MS
+      || 120000
+    );
+    this.timeoutMs = Number.isFinite(configured) && configured > 0 ? Math.floor(configured) : 120000;
   }
 
   async sendLine(line: string): Promise<string> {

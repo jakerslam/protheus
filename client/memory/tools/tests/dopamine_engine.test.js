@@ -566,7 +566,7 @@ function runTests() {
     const { shouldSkipFile } = require('../../../habits/scripts/dopamine_engine.js');
     
     assert.strictEqual(shouldSkipFile('state/test.json'), true, 'Should skip state/ files');
-    assert.strictEqual(shouldSkipFile('client/logs/test.log'), true, 'Should skip client/logs/ files');
+    assert.strictEqual(shouldSkipFile('client/local/logs/test.log'), true, 'Should skip client/local/logs/ files');
     assert.strictEqual(shouldSkipFile('client/config/trusted_skills.json'), true, 'Should skip trusted_skills.json');
     assert.strictEqual(shouldSkipFile('src/code.js'), false, 'Should not skip normal files');
     
@@ -723,10 +723,10 @@ function runTests() {
     
     // Test shouldSkipFile for state/
     assert.strictEqual(shouldSkipFile('state/daily_client/logs/2026-02-17.json'), true, 'Should skip state/ files');
-    assert.strictEqual(shouldSkipFile('client/logs/test.log'), true, 'Should skip client/logs/ files');
+    assert.strictEqual(shouldSkipFile('client/local/logs/test.log'), true, 'Should skip client/local/logs/ files');
     assert.strictEqual(shouldSkipFile('src/code.js'), false, 'Should not skip normal src files');
     
-    console.log(`   ✅ Recursion guard works: state/, client/logs/ excluded`);
+    console.log(`   ✅ Recursion guard works: state/, client/local/logs/ excluded`);
   } catch (err) {
     console.error('   ❌ FAILED:', err.message);
     throw err;

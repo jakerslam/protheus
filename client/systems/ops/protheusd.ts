@@ -163,6 +163,18 @@ function resolveRuntime(argv: string[]) {
     ? heartbeatOverrideSec * 1000
     : mechPolicy.heartbeatHours * 60 * 60 * 1000;
   const pollMs = toInt(process.env.PROTHEUS_AMBIENT_LOOP_POLL_MS, 15000, 1000, 300000);
+  const spineRunTimeoutMs = toInt(
+    process.env.PROTHEUSD_SPINE_RUN_TIMEOUT_MS || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS,
+    300000,
+    1000,
+    15 * 60 * 1000
+  );
+  const spineStatusTimeoutMs = toInt(
+    process.env.PROTHEUSD_SPINE_STATUS_TIMEOUT_MS || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS,
+    120000,
+    1000,
+    15 * 60 * 1000
+  );
 
   const cockpitInboxDirRaw = cleanText(parseFlag(argv, 'inbox-dir') || process.env.COCKPIT_INBOX_DIR, 500);
   const cockpitInboxDir = cockpitInboxDirRaw
@@ -187,6 +199,8 @@ function resolveRuntime(argv: string[]) {
     mechPolicyPath,
     mechPolicy,
     heartbeatMs,
+    spineRunTimeoutMs,
+    spineStatusTimeoutMs,
     pollMs,
     cockpitInboxDir,
     cockpitLatestPath: path.join(cockpitInboxDir, 'latest.json'),
@@ -276,7 +290,8 @@ async function runHeartbeat(runtime: any, trigger: string) {
   if (maxEyes > 0) args.push(`--max-eyes=${maxEyes}`);
   const primarySpine = await runSpineCommand(args, {
     cwdHint: runtime.root,
-    runContext: 'heartbeat'
+    runContext: 'heartbeat',
+    timeoutMs: runtime.spineRunTimeoutMs
   });
   let spine = primarySpine;
   let spineFallbackApplied = false;
@@ -285,7 +300,8 @@ async function runHeartbeat(runtime: any, trigger: string) {
       ['status', '--mode=daily', `--date=${date}`],
       {
         cwdHint: runtime.root,
-        runContext: 'heartbeat'
+        runContext: 'heartbeat',
+        timeoutMs: runtime.spineStatusTimeoutMs
       }
     );
     if (fallback && fallback.ok === true) {

@@ -20,3 +20,5 @@ Protheus is structured as a substrate-independent metakernel with three explicit
 - Safety plane implementation: `core/layer0`, `core/layer1`, `core/layer2`.
 - Cognition plane implementation: `client/systems/*` user-facing and model orchestration surfaces.
 - Substrate plane implementation: backend adapters in `core/layer0/*` and capability descriptors under this directory.
+
+See `ARCHITECTURE.md` for the authoritative filesystem mapping and root-hygiene rationale.

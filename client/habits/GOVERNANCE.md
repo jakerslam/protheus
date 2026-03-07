@@ -128,7 +128,7 @@ Must pass with **0 errors** after promotion.
 1. Move routine file to `client/habits/_archive/<id>.<date>.js`
 2. Mark registry `status: archived`
 3. Keep trusted hash record, add `"status": "archived"`
-4. Log to `client/habits/client/logs/gc.ndjson`:
+4. Log to `client/local/logs/habits/gc.ndjson`:
    ```json
    { "ts": "...", "habit_id": "...", "reason": "inactive 30d + uses<1 + no dependents", "archived_to": "..." }
    ```
@@ -176,7 +176,7 @@ Use `safe_cron_swap.js` for atomic cron replacement:
 | Aspect | Default | Override Requires Justification |
 |--------|---------|----------------------------------|
 | Network | `"deny"` | Must document why needed |
-| Write paths | Explicit only | No broad globs beyond `client/memory/*.md`, `client/habits/client/logs/*`, `client/habits/registry.json` |
+| Write paths | Explicit only | No broad globs beyond `client/memory/*.md`, `client/local/logs/habits/*`, `client/habits/registry.json` |
 | Exec | Exact commands | Never `"node *"` — must specify script path |
 
 ### Posting/Publishing Habits (Extra Guardrails)
@@ -198,7 +198,7 @@ Any habit that touches posting/publishing must:
 ## 7) Metrics (Prove It's Working)
 
 ### Per-Run Logging
-Each habit run logs to `client/habits/client/logs/habit_runs.ndjson`:
+Each habit run logs to `client/local/logs/habits/habit_runs.ndjson`:
 ```json
 {
   "ts": "ISO-8601",

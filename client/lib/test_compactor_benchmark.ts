@@ -8,6 +8,9 @@
 const { compactToolResponse } = require('./tool_response_compactor.js');
 const fs = require('fs');
 const path = require('path');
+const CLIENT_ROOT = path.resolve(__dirname, '..');
+const LOCAL_TOOL_RAW_DIR = path.join(CLIENT_ROOT, 'local', 'logs', 'tool_raw');
+fs.mkdirSync(LOCAL_TOOL_RAW_DIR, { recursive: true });
 
 // Simulated feed data based on earlier curl output
 const feedData = {
@@ -128,10 +131,10 @@ console.log(resultFeed.content);
 console.log();
 
 console.log('=== RAW LOGS ===');
-const rawFiles = fs.readdirSync(path.join(__dirname, '..', 'logs', 'tool_raw'));
-console.log(`Files in logs/tool_raw/: ${rawFiles.length}`);
+const rawFiles = fs.readdirSync(LOCAL_TOOL_RAW_DIR);
+console.log(`Files in client/local/logs/tool_raw/: ${rawFiles.length}`);
 rawFiles.forEach(f => {
-  const stats = fs.statSync(path.join(__dirname, '..', 'logs', 'tool_raw', f));
+  const stats = fs.statSync(path.join(LOCAL_TOOL_RAW_DIR, f));
   console.log(`  - ${f} (${stats.size} bytes)`);
 });
 
@@ -184,9 +187,9 @@ const largeTestData = {
 const largeJson = JSON.stringify(largeTestData, null, 2);
 console.log(`  Test data size: ${largeJson.length} chars`);
 
-const preLogCount = fs.readdirSync(path.join(__dirname, '..', 'logs', 'tool_raw')).length;
+const preLogCount = fs.readdirSync(LOCAL_TOOL_RAW_DIR).length;
 const integrationResult = compactToolResponse(largeTestData, { toolName: 'regression_test' });
-const postLogCount = fs.readdirSync(path.join(__dirname, '..', 'logs', 'tool_raw')).length;
+const postLogCount = fs.readdirSync(LOCAL_TOOL_RAW_DIR).length;
 
 const hasCompactedMarker = integrationResult.content.includes('📦 [TOOL OUTPUT COMPACTED]');
 const logCreated = postLogCount > preLogCount;
@@ -252,7 +255,7 @@ Some normal content here"`;
   };
 
 fs.writeFileSync(
-  path.join(__dirname, '..', 'logs', 'tool_raw', `regression_test_${new Date().toISOString().replace(/[:.]/g, '-')}.json`),
+  path.join(LOCAL_TOOL_RAW_DIR, `regression_test_${new Date().toISOString().replace(/[:.]/g, '-')}.json`),
   JSON.stringify(finalResults, null, 2)
 );
 

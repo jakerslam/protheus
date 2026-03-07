@@ -55,10 +55,20 @@ try {
   payload = parseJson(out.stdout);
   assert.ok(payload && payload.ok === true, 'run apply should succeed');
   assert.ok(payload.migrated >= 1, 'at least one mapping should migrate');
+  assert.ok(payload.migration_id, 'run should emit migration id');
 
   assert.ok(fs.existsSync(path.join(tmp, 'client', 'local', 'state', 'ops', 'latest.json')), 'state should migrate into client/local/state');
   assert.ok(fs.existsSync(path.join(tmp, 'client', 'local', 'private-lenses', 'README.md')), 'private lenses should mirror into client/local/private-lenses');
   assert.ok(fs.existsSync(path.join(tmp, 'client', 'local', 'logs', 'session.log')), 'client logs should mirror into client/local/logs');
+  const statePath = path.join(tmp, 'state');
+  assert.ok(fs.lstatSync(statePath).isSymbolicLink(), 'state should become compatibility symlink after move');
+
+  out = run(['rollback', '--id=latest'], env);
+  assert.strictEqual(out.status, 0, out.stderr);
+  payload = parseJson(out.stdout);
+  assert.ok(payload && payload.ok === true, 'rollback should succeed');
+  assert.ok(fs.existsSync(path.join(tmp, 'state', 'ops', 'latest.json')), 'state file should restore at root on rollback');
+  assert.strictEqual(fs.lstatSync(path.join(tmp, 'state')).isSymbolicLink(), false, 'state symlink should be removed by rollback');
 
   out = run(['status'], env);
   assert.strictEqual(out.status, 0, out.stderr);

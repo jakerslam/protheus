@@ -199,7 +199,7 @@ function addHabit(registry, params) {
     entrypoint,
     permissions: {
       network: 'deny',
-      write_paths_allowlist: ['client/habits/client/logs/*'],
+      write_paths_allowlist: ['client/local/logs/habits/*'],
       exec_allowlist: []
     },
     status: 'candidate',

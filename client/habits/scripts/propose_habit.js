@@ -20,9 +20,10 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const REGISTRY_PATH = '/Users/jay/.openclaw/workspace/client/habits/registry.json';
-const SNIPPET_DIR = '/Users/jay/.openclaw/workspace/memory';
-const HABITS_LOG = '/Users/jay/.openclaw/workspace/client/habits/client/logs/habit_runs.ndjson';
+const CLIENT_ROOT = path.resolve(__dirname, '..', '..');
+const REGISTRY_PATH = path.join(CLIENT_ROOT, 'habits', 'registry.json');
+const SNIPPET_DIR = path.join(CLIENT_ROOT, 'memory');
+const HABITS_LOG = path.join(CLIENT_ROOT, 'local', 'logs', 'habits', 'habit_runs.ndjson');
 
 /** Normalizes intent text to create deterministic "intent key" */
 function normalizeIntent(text) {
@@ -103,7 +104,7 @@ function main() {
     : [];
   const writeAllowlist = writeAllowIndex !== -1 && args[writeAllowIndex + 1]
     ? args[writeAllowIndex + 1].split(',')
-    : ['client/memory/*.md', 'client/habits/client/logs/*'];
+    : ['client/memory/*.md', 'client/local/logs/habits/*'];
   
   // Generate intent key
   const intentKey = normalizeIntent(description);

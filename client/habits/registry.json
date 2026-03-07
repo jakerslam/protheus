@@ -36,7 +36,7 @@
         "network": "deny",
         "write_paths_allowlist": [
           "client/memory/*.md",
-          "client/habits/client/logs/*",
+          "client/local/logs/habits/*",
           "client/habits/registry.json"
         ],
         "exec_allowlist": [
@@ -137,7 +137,7 @@
         "network": "deny",
         "write_paths_allowlist": [
           "client/memory/*.md",
-          "client/habits/client/logs/*",
+          "client/local/logs/habits/*",
           "client/habits/registry.json",
           "client/config/*.json"
         ],
@@ -229,7 +229,7 @@
       "permissions": {
         "network": "deny",
         "write_paths_allowlist": [
-          "client/habits/client/logs/*"
+          "client/local/logs/habits/*"
         ],
         "exec_allowlist": []
       },
@@ -329,7 +329,7 @@
       "permissions": {
         "network": "deny",
         "write_paths_allowlist": [
-          "client/habits/client/logs/*"
+          "client/local/logs/habits/*"
         ],
         "exec_allowlist": []
       },
@@ -445,7 +445,7 @@
       "permissions": {
         "network": "deny",
         "write_paths_allowlist": [
-          "client/habits/client/logs/*"
+          "client/local/logs/habits/*"
         ],
         "exec_allowlist": []
       },
@@ -551,7 +551,7 @@
       "permissions": {
         "network": "deny",
         "write_paths_allowlist": [
-          "client/habits/client/logs/*"
+          "client/local/logs/habits/*"
         ],
         "exec_allowlist": []
       },
@@ -657,7 +657,7 @@
       "permissions": {
         "network": "deny",
         "write_paths_allowlist": [
-          "client/habits/client/logs/*"
+          "client/local/logs/habits/*"
         ],
         "exec_allowlist": []
       },
@@ -763,7 +763,7 @@
       "permissions": {
         "network": "deny",
         "write_paths_allowlist": [
-          "client/habits/client/logs/*"
+          "client/local/logs/habits/*"
         ],
         "exec_allowlist": []
       },
@@ -869,7 +869,7 @@
       "permissions": {
         "network": "deny",
         "write_paths_allowlist": [
-          "client/habits/client/logs/*"
+          "client/local/logs/habits/*"
         ],
         "exec_allowlist": []
       },
@@ -975,7 +975,7 @@
       "permissions": {
         "network": "deny",
         "write_paths_allowlist": [
-          "client/habits/client/logs/*"
+          "client/local/logs/habits/*"
         ],
         "exec_allowlist": []
       },
@@ -1070,7 +1070,7 @@
       "permissions": {
         "network": "deny",
         "write_paths_allowlist": [
-          "client/habits/client/logs/*"
+          "client/local/logs/habits/*"
         ],
         "exec_allowlist": []
       },
@@ -1145,7 +1145,7 @@
       "permissions": {
         "network": "deny",
         "write_paths_allowlist": [
-          "client/habits/client/logs/*"
+          "client/local/logs/habits/*"
         ],
         "exec_allowlist": []
       },
@@ -1220,7 +1220,7 @@
       "permissions": {
         "network": "deny",
         "write_paths_allowlist": [
-          "client/habits/client/logs/*"
+          "client/local/logs/habits/*"
         ],
         "exec_allowlist": []
       },
@@ -1295,7 +1295,7 @@
       "permissions": {
         "network": "deny",
         "write_paths_allowlist": [
-          "client/habits/client/logs/*"
+          "client/local/logs/habits/*"
         ],
         "exec_allowlist": []
       },
@@ -1370,7 +1370,7 @@
       "permissions": {
         "network": "deny",
         "write_paths_allowlist": [
-          "client/habits/client/logs/*"
+          "client/local/logs/habits/*"
         ],
         "exec_allowlist": []
       },
@@ -1445,7 +1445,7 @@
       "permissions": {
         "network": "deny",
         "write_paths_allowlist": [
-          "client/habits/client/logs/*"
+          "client/local/logs/habits/*"
         ],
         "exec_allowlist": []
       },
@@ -1520,7 +1520,7 @@
       "permissions": {
         "network": "deny",
         "write_paths_allowlist": [
-          "client/habits/client/logs/*"
+          "client/local/logs/habits/*"
         ],
         "exec_allowlist": []
       },
@@ -1595,7 +1595,7 @@
       "permissions": {
         "network": "deny",
         "write_paths_allowlist": [
-          "client/habits/client/logs/*"
+          "client/local/logs/habits/*"
         ],
         "exec_allowlist": []
       },

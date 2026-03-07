@@ -1,14 +1,14 @@
 # Public Benchmarks
 
-Updated: 2026-03-07T04:11:08.486Z
+Updated: 2026-03-07T15:37:56.798Z
 Date: 2026-03-07
 Verdict: warn
 
 | Metric | Value |
 |---|---|
-| Drift rate | n/a |
-| Yield rate | n/a |
-| Safety stop rate | n/a |
+| Drift rate | 0.056 |
+| Yield rate | 0.700 |
+| Safety stop rate | 0.000 |
 | Red-team fail cases | 0 |
 | Red-team critical fail cases | 0 |
 | Active workflows | 0 |

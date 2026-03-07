@@ -7,7 +7,7 @@ This policy defines which repository streams are source-of-truth (`tracked`) vs 
 | Class ID | Mode | Paths | Intent |
 |---|---|---|---|
 | `source_of_truth` | tracked | `client/systems/**`, `client/lib/**`, `client/config/**`, `client/docs/**`, `client/memory/tools/**` | Canonical implementation, policies, and operator docs stay reviewable in git history. |
-| `runtime_state` | ignored | `state/**`, `tmp/**`, `client/logs/**` | High-churn local runtime outputs are instance-local and should not pollute PRs. |
+| `runtime_state` | ignored | `state/**`, `tmp/**`, `client/local/logs/**` | High-churn local runtime outputs are instance-local and should not pollute PRs. |
 | `skills_local` | ignored | `client/skills/**` | Local skill installs are machine-specific; only curated MCP stubs are tracked. |
 
 ## .gitignore Alignment
@@ -15,7 +15,7 @@ This policy defines which repository streams are source-of-truth (`tracked`) vs 
 Required ignore entries:
 - `state/**`
 - `tmp/`
-- `client/logs/tool_raw/`
+- `client/local/logs/tool_raw/`
 
 Required unignore exceptions:
 - `!client/memory/tools/**`

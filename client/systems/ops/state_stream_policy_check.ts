@@ -117,7 +117,7 @@ function defaultPolicy() {
     version: '1.0',
     enabled: true,
     docs_path: 'docs/STATE_STREAM_POLICY.md',
-    gitignore_path: '.gitignore',
+    gitignore_path: '../.gitignore',
     state_classes: [
       {
         id: 'source_of_truth',
@@ -127,7 +127,7 @@ function defaultPolicy() {
       {
         id: 'runtime_state',
         mode: 'ignored',
-        paths: ['state/**', 'tmp/**', 'logs/**']
+        paths: ['state/**', 'tmp/**', 'local/logs/**']
       },
       {
         id: 'skills_local',
@@ -135,11 +135,11 @@ function defaultPolicy() {
         paths: ['skills/**']
       }
     ],
-    required_ignore_patterns: ['state/**', 'tmp/', 'logs/tool_raw/'],
+    required_ignore_patterns: ['state/**', 'tmp/', 'local/logs/tool_raw/'],
     required_unignore_patterns: ['!memory/tools/**', '!skills/mcp/*.ts', '!skills/mcp/*.js', '!skills/mcp/*.json'],
     outputs: {
-      latest_path: 'state/ops/state_stream_policy_check/latest.json',
-      history_path: 'state/ops/state_stream_policy_check/history.jsonl'
+      latest_path: 'local/state/ops/state_stream_policy_check/latest.json',
+      history_path: 'local/state/ops/state_stream_policy_check/history.jsonl'
     }
   };
 }
