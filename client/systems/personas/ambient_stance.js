@@ -154,8 +154,28 @@ async function run(args = [], opts = {}) {
     return localCompatRun(args);
   }
   const routed = Array.isArray(args) && args.length > 0 ? args : ['status'];
+  const command = String(routed[0] || 'status').trim().toLowerCase();
+  const timeoutMs = Math.max(
+    1000,
+    Number(
+      opts.timeoutMs
+      || process.env.PROTHEUS_PERSONA_AMBIENT_TIMEOUT_MS
+      || (command === 'status' ? 15000 : 60000)
+    ) || (command === 'status' ? 15000 : 60000)
+  );
+  const stdioTimeoutMs = Math.max(
+    1000,
+    Number(
+      opts.stdioTimeoutMs
+      || process.env.PROTHEUS_PERSONA_AMBIENT_STDIO_TIMEOUT_MS
+      || process.env.PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS
+      || (command === 'status' ? 8000 : 12000)
+    ) || (command === 'status' ? 8000 : 12000)
+  );
   const out = await runPersonaAmbientCommand(routed, {
-    cwdHint: opts.cwdHint || ROOT
+    cwdHint: opts.cwdHint || ROOT,
+    timeoutMs,
+    stdioTimeoutMs: Math.min(timeoutMs, stdioTimeoutMs)
   });
   return normalizeGateDegraded(out);
 }
