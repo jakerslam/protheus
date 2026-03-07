@@ -6,8 +6,18 @@ const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge');
 
 const bridge = createOpsLaneBridge(__dirname, 'protheus_control_plane', 'protheus-control-plane');
 
+function usage() {
+  process.stdout.write('Usage: protheus_control_plane.js protheus start|status|job-submit|incident|release-promote|doctor-bundle [options]\n');
+}
+
 if (require.main === module) {
-  bridge.runCli(process.argv.slice(2));
+  const args = process.argv.slice(2);
+  const first = String(args[0] || '').trim().toLowerCase();
+  if (!first || first === '--help' || first === '-h' || first === 'help') {
+    usage();
+    process.exit(0);
+  }
+  bridge.runCli(args);
 }
 
 module.exports = {
