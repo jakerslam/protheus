@@ -92,6 +92,153 @@ function parseFlag(argv: string[], key: string) {
   return null;
 }
 
+function bridgeReasonMarker(reason: string) {
+  const marker = 'conduit_runtime_gate_active_until:';
+  const raw = String(reason || '');
+  const index = raw.indexOf(marker);
+  if (index === -1) return null;
+  return raw.slice(index + marker.length).trim();
+}
+
+function bridgeReasonFromRuntimeGate(gate: any) {
+  if (!gate || gate.gate_active !== true) return null;
+  const until = cleanText(gate.blocked_until || '', 64)
+    || new Date(Date.now() + Math.max(0, Number(gate.remaining_ms || 0))).toISOString();
+  return cleanText(`conduit_runtime_gate_active_until:${until}`, 260);
+}
+
+function isBridgeTimeoutReason(value: unknown) {
+  const text = String(value == null ? '' : value).toLowerCase();
+  if (!text) return false;
+  return text.includes('conduit_runtime_gate_active_until:')
+    || text.includes('conduit_stdio_timeout:')
+    || text.includes('conduit_bridge_timeout:')
+    || text.includes('bridge_wait_failed')
+    || text.includes('conduit_stdio_exit:')
+    || text.includes('conduit_stdio_error:');
+}
+
+function bridgeReasonFromSpineResult(spine: any) {
+  if (!spine || typeof spine !== 'object') return null;
+  const payloadReason = cleanText(spine.payload && spine.payload.reason, 260);
+  if (payloadReason && isBridgeTimeoutReason(payloadReason)) return payloadReason;
+  const stderrReason = cleanText(spine.stderr, 260);
+  if (stderrReason && isBridgeTimeoutReason(stderrReason)) return stderrReason;
+  return null;
+}
+
+function bridgeProbeBaseMs() {
+  return toInt(process.env.PROTHEUSD_BRIDGE_PROBE_BASE_MS, 30000, 5000, 60 * 60 * 1000);
+}
+
+function bridgeProbeMaxMs() {
+  return toInt(
+    process.env.PROTHEUSD_BRIDGE_PROBE_MAX_MS,
+    30 * 60 * 1000,
+    bridgeProbeBaseMs(),
+    6 * 60 * 60 * 1000
+  );
+}
+
+function bridgeProbeDelayMs(consecutiveFailures: number, reason: string, gate: any) {
+  if (gate && gate.gate_active === true) {
+    const remaining = Number(gate.remaining_ms || 0);
+    if (Number.isFinite(remaining) && remaining > 0) {
+      return Math.max(5000, Math.min(bridgeProbeMaxMs(), Math.floor(remaining)));
+    }
+  }
+  const marker = bridgeReasonMarker(reason || '');
+  if (marker) {
+    const untilMs = Date.parse(marker);
+    if (Number.isFinite(untilMs) && untilMs > Date.now()) {
+      const remaining = untilMs - Date.now();
+      return Math.max(5000, Math.min(bridgeProbeMaxMs(), Math.floor(remaining)));
+    }
+  }
+  const safeFailures = Math.max(1, Number.isFinite(Number(consecutiveFailures)) ? Number(consecutiveFailures) : 1);
+  const scaled = bridgeProbeBaseMs() * Math.pow(2, Math.min(8, safeFailures - 1));
+  return Math.min(bridgeProbeMaxMs(), Math.max(bridgeProbeBaseMs(), Math.floor(scaled)));
+}
+
+function normalizedBridgeHealth(existing: any = {}) {
+  const out = existing && typeof existing === 'object' ? existing : {};
+  return {
+    status: out.degraded === true ? 'degraded' : (cleanText(out.status || 'healthy', 40) || 'healthy'),
+    degraded: out.degraded === true,
+    reason: cleanText(out.reason || '', 260) || null,
+    source: cleanText(out.source || '', 80) || null,
+    since: cleanText(out.since || '', 64) || null,
+    last_probe_at: cleanText(out.last_probe_at || '', 64) || null,
+    last_probe_ok: out.last_probe_ok === true,
+    next_probe_at: cleanText(out.next_probe_at || '', 64) || null,
+    consecutive_failures: Number.isFinite(Number(out.consecutive_failures))
+      ? Math.max(0, Number(out.consecutive_failures))
+      : 0,
+    gate_active: out.gate_active === true,
+    gate_remaining_ms: Number.isFinite(Number(out.gate_remaining_ms))
+      ? Math.max(0, Number(out.gate_remaining_ms))
+      : 0,
+    last_recovered_at: cleanText(out.last_recovered_at || '', 64) || null
+  };
+}
+
+function markBridgeDegraded(state: any, runtime: any, reason: string, source: string) {
+  const gate = readConduitRuntimeGate(runtime.root);
+  const current = normalizedBridgeHealth(state.bridge_health);
+  const now = Date.now();
+  const failures = Math.max(1, Number(current.consecutive_failures || 0) + 1);
+  const delayMs = bridgeProbeDelayMs(failures, reason, gate);
+  const nextProbeAt = new Date(now + delayMs).toISOString();
+  state.bridge_health = {
+    ...current,
+    status: 'degraded',
+    degraded: true,
+    reason: cleanText(reason || 'conduit_bridge_degraded', 260) || 'conduit_bridge_degraded',
+    source: cleanText(source || 'ambient_loop', 80) || 'ambient_loop',
+    since: current.degraded === true && current.since ? current.since : new Date(now).toISOString(),
+    last_probe_at: new Date(now).toISOString(),
+    last_probe_ok: false,
+    next_probe_at: nextProbeAt,
+    consecutive_failures: failures,
+    gate_active: gate && gate.gate_active === true,
+    gate_remaining_ms: Number.isFinite(Number(gate && gate.remaining_ms)) ? Math.max(0, Number(gate.remaining_ms)) : 0
+  };
+  state.last_error = cleanText(`bridge_degraded:${state.bridge_health.reason}`, 260);
+  state.last_heartbeat_code = 1;
+  state.next_heartbeat_at = nextProbeAt;
+}
+
+function clearBridgeDegraded(state: any, source: string) {
+  const current = normalizedBridgeHealth(state.bridge_health);
+  const now = nowIso();
+  state.bridge_health = {
+    ...current,
+    status: 'healthy',
+    degraded: false,
+    reason: null,
+    source: cleanText(source || 'ambient_loop', 80) || 'ambient_loop',
+    since: null,
+    last_probe_at: now,
+    last_probe_ok: true,
+    next_probe_at: null,
+    consecutive_failures: 0,
+    gate_active: false,
+    gate_remaining_ms: 0,
+    last_recovered_at: now
+  };
+  if (String(state.last_error || '').startsWith('bridge_degraded:')) {
+    state.last_error = null;
+  }
+}
+
+function bridgeProbeDue(state: any) {
+  const health = normalizedBridgeHealth(state && state.bridge_health);
+  if (!health.degraded) return true;
+  const dueAtMs = health.next_probe_at ? Date.parse(String(health.next_probe_at)) : 0;
+  if (!Number.isFinite(dueAtMs) || dueAtMs <= 0) return true;
+  return Date.now() >= dueAtMs;
+}
+
 function resolvePath(root: string, maybePath: unknown, fallbackRel: string) {
   const raw = cleanText(maybePath, 500);
   const base = raw || fallbackRel;
@@ -130,17 +277,20 @@ function readConduitRuntimeGate(root: string) {
       gate_active: false
     };
   }
+  const blockedUntilMs = Number.isFinite(Number(payload.blocked_until_ms))
+    ? Number(payload.blocked_until_ms)
+    : null;
+  const remainingMs = blockedUntilMs != null
+    ? Math.max(0, blockedUntilMs - Date.now())
+    : 0;
+  const gateActive = payload.gate_active === true && remainingMs > 0;
   return {
     available: true,
     path: gatePath,
-    gate_active: payload.gate_active === true,
+    gate_active: gateActive,
     blocked_until: cleanText(payload.blocked_until || '', 64) || null,
-    blocked_until_ms: Number.isFinite(Number(payload.blocked_until_ms))
-      ? Number(payload.blocked_until_ms)
-      : null,
-    remaining_ms: Number.isFinite(Number(payload.blocked_until_ms))
-      ? Math.max(0, Number(payload.blocked_until_ms) - Date.now())
-      : 0,
+    blocked_until_ms: blockedUntilMs,
+    remaining_ms: remainingMs,
     consecutive_failures: Number.isFinite(Number(payload.consecutive_failures))
       ? Number(payload.consecutive_failures)
       : 0,
@@ -198,13 +348,13 @@ function resolveRuntime(argv: string[]) {
   const pollMs = toInt(process.env.PROTHEUS_AMBIENT_LOOP_POLL_MS, 15000, 1000, 300000);
   const spineRunTimeoutMs = toInt(
     process.env.PROTHEUSD_SPINE_RUN_TIMEOUT_MS || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS,
-    300000,
+    30000,
     1000,
     15 * 60 * 1000
   );
   const spineStatusTimeoutMs = toInt(
     process.env.PROTHEUSD_SPINE_STATUS_TIMEOUT_MS || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS,
-    120000,
+    10000,
     1000,
     15 * 60 * 1000
   );
@@ -269,6 +419,7 @@ function loadDaemonState(runtime: any) {
           last_exit_at: null,
           last_exit_code: null
         },
+    bridge_health: normalizedBridgeHealth(existing && existing.bridge_health),
     last_error: cleanText(existing && existing.last_error || '', 260) || null
   };
 }
@@ -374,6 +525,12 @@ async function runHeartbeat(runtime: any, trigger: string) {
   state.last_heartbeat_at = nowIso();
   state.next_heartbeat_at = new Date(Date.now() + runtime.heartbeatMs).toISOString();
   state.last_heartbeat_code = spine && spine.ok && cockpit.status === 0 ? 0 : 1;
+  const bridgeReason = bridgeReasonFromSpineResult(spine);
+  if (bridgeReason) {
+    markBridgeDegraded(state, runtime, bridgeReason, `heartbeat:${trigger}`);
+  } else if (spine && spine.ok === true) {
+    clearBridgeDegraded(state, `heartbeat:${trigger}`);
+  }
   if (!spine || spine.ok !== true) {
     state.last_error = cleanText(
       spine && spine.payload && spine.payload.reason
@@ -412,10 +569,37 @@ async function runHeartbeat(runtime: any, trigger: string) {
       type: cockpit.payload && cockpit.payload.type ? cockpit.payload.type : 'cockpit_context_envelope'
     },
     run_seq: state.run_seq,
-    next_heartbeat_at: state.next_heartbeat_at
+    next_heartbeat_at: state.next_heartbeat_at,
+    bridge_health: normalizedBridgeHealth(state.bridge_health)
   });
   emitLatest(runtime, receipt);
   return receipt;
+}
+
+async function runBridgeProbe(runtime: any, trigger: string) {
+  const date = nowIso().slice(0, 10);
+  const probe = await runSpineCommand(
+    ['status', '--mode=daily', `--date=${date}`],
+    {
+      cwdHint: runtime.root,
+      runContext: 'bridge_probe',
+      timeoutMs: runtime.spineStatusTimeoutMs
+    }
+  );
+  const reason = cleanText(
+    bridgeReasonFromSpineResult(probe)
+      || (probe && probe.payload && probe.payload.reason ? probe.payload.reason : '')
+      || (probe && probe.stderr ? probe.stderr : '')
+      || 'conduit_bridge_probe_failed',
+    260
+  ) || 'conduit_bridge_probe_failed';
+  return {
+    ok: probe && probe.ok === true,
+    status: Number.isFinite(Number(probe && probe.status)) ? Number(probe.status) : 1,
+    reason,
+    trigger: cleanText(trigger, 80) || 'probe',
+    probe
+  };
 }
 
 async function runAmbientLoop(argv: string[]) {
@@ -430,6 +614,11 @@ async function runAmbientLoop(argv: string[]) {
   state.updated_at = nowIso();
   state.heartbeat_hours = runtime.mechPolicy.heartbeatHours;
   state.next_heartbeat_at = nowIso();
+  const startupGate = readConduitRuntimeGate(runtime.root);
+  const startupGateReason = bridgeReasonFromRuntimeGate(startupGate);
+  if (startupGateReason) {
+    markBridgeDegraded(state, runtime, startupGateReason, 'startup_runtime_gate');
+  }
   persistDaemonState(runtime, state);
 
   let shuttingDown = false;
@@ -518,7 +707,91 @@ async function runAmbientLoop(argv: string[]) {
 
   const maybeHeartbeat = async (trigger: string) => {
     if (heartbeatInFlight || shuttingDown) return;
-    const row = loadDaemonState(runtime);
+    let row = loadDaemonState(runtime);
+    const gate = readConduitRuntimeGate(runtime.root);
+    const gateReason = bridgeReasonFromRuntimeGate(gate);
+    if (gateReason) {
+      const previous = normalizedBridgeHealth(row.bridge_health);
+      const previousProbeMs = previous.next_probe_at ? Date.parse(String(previous.next_probe_at)) : 0;
+      if (
+        previous.degraded === true
+        && previous.reason === gateReason
+        && Number.isFinite(previousProbeMs)
+        && previousProbeMs > Date.now()
+      ) {
+        return;
+      }
+      markBridgeDegraded(row, runtime, gateReason, `runtime_gate:${trigger}`);
+      const persisted = persistDaemonState(runtime, row);
+      if (
+        previous.degraded !== true
+        || previous.reason !== persisted.bridge_health.reason
+        || previous.next_probe_at !== persisted.bridge_health.next_probe_at
+      ) {
+        emitLatest(runtime, withReceipt({
+          ok: false,
+          shadow_only: false,
+          type: 'protheus_bridge_health',
+          ts: nowIso(),
+          trigger: cleanText(trigger, 80) || 'interval',
+          action: 'runtime_gate_active',
+          bridge_health: normalizedBridgeHealth(persisted.bridge_health),
+          conduit_runtime_gate: gate
+        }));
+      }
+      return;
+    }
+
+    const bridgeHealth = normalizedBridgeHealth(row.bridge_health);
+    if (bridgeHealth.degraded === true) {
+      const degradedReason = cleanText(bridgeHealth.reason || '', 260);
+      const degradedFromRuntimeGate = !!bridgeReasonMarker(degradedReason);
+      const gateCleared = degradedFromRuntimeGate && !(gate && gate.gate_active === true);
+      if (!gateCleared && !bridgeProbeDue(row)) return;
+      heartbeatInFlight = true;
+      try {
+        const probe = await runBridgeProbe(runtime, trigger);
+        row = loadDaemonState(runtime);
+        if (!probe.ok) {
+          markBridgeDegraded(row, runtime, probe.reason, `bridge_probe:${trigger}`);
+          const persisted = persistDaemonState(runtime, row);
+          emitLatest(runtime, withReceipt({
+            ok: false,
+            shadow_only: false,
+            type: 'protheus_bridge_probe',
+            ts: nowIso(),
+            trigger: cleanText(trigger, 80) || 'interval',
+            bridge_probe: {
+              ok: false,
+              status: probe.status,
+              reason: cleanText(probe.reason, 260) || 'conduit_bridge_probe_failed'
+            },
+            bridge_health: normalizedBridgeHealth(persisted.bridge_health)
+          }));
+          return;
+        }
+
+        clearBridgeDegraded(row, `bridge_probe:${trigger}`);
+        row.next_heartbeat_at = nowIso();
+        const persisted = persistDaemonState(runtime, row);
+        emitLatest(runtime, withReceipt({
+          ok: true,
+          shadow_only: false,
+          type: 'protheus_bridge_probe',
+          ts: nowIso(),
+          trigger: cleanText(trigger, 80) || 'interval',
+          bridge_probe: {
+            ok: true,
+            status: probe.status
+          },
+          bridge_health: normalizedBridgeHealth(persisted.bridge_health)
+        }));
+      } finally {
+        heartbeatInFlight = false;
+      }
+      row = loadDaemonState(runtime);
+    }
+
     const nextDueMs = row.next_heartbeat_at ? Date.parse(String(row.next_heartbeat_at)) : Date.now();
     if (Number.isFinite(nextDueMs) && Date.now() < nextDueMs) return;
     heartbeatInFlight = true;
@@ -666,8 +939,11 @@ function statusReceipt(runtime: any, state: any) {
   const conduitRuntimeGate = readConduitRuntimeGate(runtime.root);
   const heartbeatHealthy = daemon.last_heartbeat_code === 0;
   const ambientConfigured = !!(mechLatest && mechLatest.active === true);
-  const ambientHealthy = ambientConfigured && running && heartbeatHealthy;
-  const degradedReason = conduitRuntimeGate.gate_active === true
+  const bridgeHealth = normalizedBridgeHealth(state.bridge_health);
+  const ambientHealthy = ambientConfigured && running && heartbeatHealthy && bridgeHealth.degraded !== true;
+  const degradedReason = bridgeHealth.degraded === true
+    ? (bridgeHealth.reason || 'bridge_degraded')
+    : conduitRuntimeGate.gate_active === true
     ? 'conduit_runtime_gate_active'
     : !ambientConfigured
     ? 'ambient_policy_inactive'
@@ -689,6 +965,7 @@ function statusReceipt(runtime: any, state: any) {
       configured: ambientConfigured,
       healthy: ambientHealthy,
       degraded_reason: degradedReason,
+      bridge_health: bridgeHealth,
       manual_triggers_allowed: runtime.mechPolicy.manualTriggersAllowed,
       heartbeat_hours: runtime.mechPolicy.heartbeatHours
     },

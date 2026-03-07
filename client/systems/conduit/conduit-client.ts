@@ -159,9 +159,9 @@ class StdioTransport implements Transport {
     const configured = Number(
       process.env.PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS
       || process.env.PROTHEUS_CONDUIT_TIMEOUT_MS
-      || 120000
+      || 30000
     );
-    this.timeoutMs = Number.isFinite(configured) && configured > 0 ? Math.floor(configured) : 120000;
+    this.timeoutMs = Number.isFinite(configured) && configured > 0 ? Math.floor(configured) : 30000;
   }
 
   async sendLine(line: string): Promise<string> {

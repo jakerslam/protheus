@@ -3,9 +3,11 @@
 const fs = require('fs');
 const path = require('path');
 const Module = require('module');
+const { spawnSync } = require('child_process');
 
-const DEFAULT_CONDUIT_GATE_BASE_MS = 30 * 60 * 1000;
-const DEFAULT_CONDUIT_GATE_MAX_MS = 6 * 60 * 60 * 1000;
+const DEFAULT_CONDUIT_GATE_BASE_MS = 5 * 60 * 1000;
+const DEFAULT_CONDUIT_GATE_MAX_MS = 30 * 60 * 1000;
+const DEFAULT_CONDUIT_GATE_THRESHOLD = 2;
 
 function findRepoRoot(startDir) {
   let dir = path.resolve(startDir || process.cwd());
@@ -99,7 +101,7 @@ function parsePositiveInt(value, fallback) {
 function runtimeGateThreshold() {
   return Math.max(
     1,
-    parsePositiveInt(process.env.PROTHEUS_CONDUIT_RUNTIME_GATE_THRESHOLD, 1)
+    parsePositiveInt(process.env.PROTHEUS_CONDUIT_RUNTIME_GATE_THRESHOLD, DEFAULT_CONDUIT_GATE_THRESHOLD)
   );
 }
 
@@ -148,7 +150,11 @@ function buildGateActiveError(root) {
   const gate = readRuntimeGate(root);
   if (!gate || typeof gate !== 'object') return null;
   const blockedUntilMs = Number(gate.blocked_until_ms || 0);
-  if (!Number.isFinite(blockedUntilMs) || blockedUntilMs <= Date.now()) return null;
+  if (!Number.isFinite(blockedUntilMs) || blockedUntilMs <= Date.now()) {
+    const hadActiveWindow = gate.gate_active === true || blockedUntilMs > 0;
+    if (hadActiveWindow) clearRuntimeGateIfSet(root);
+    return null;
+  }
   const blockedUntilIso = new Date(blockedUntilMs).toISOString();
   const remainingMs = Math.max(0, blockedUntilMs - Date.now());
   const reason = `conduit_runtime_gate_active_until:${blockedUntilIso}`;
@@ -162,7 +168,9 @@ function buildGateActiveError(root) {
 function clearRuntimeGateIfSet(root) {
   if (runtimeGateDisabled()) return;
   const existing = readRuntimeGate(root);
-  if (!existing || !existing.consecutive_failures) return;
+  if (!existing) return;
+  const hasFailures = Number(existing.consecutive_failures || 0) > 0;
+  if (!hasFailures && existing.gate_active !== true) return;
   writeRuntimeGate(root, {
     schema_version: '1.0',
     updated_at: new Date().toISOString(),
@@ -181,7 +189,17 @@ function recordRuntimeGateFailure(root, errorText) {
 
   const now = Date.now();
   const existing = readRuntimeGate(root) || {};
-  const previousFailures = Number(existing.consecutive_failures || 0);
+  const previousBlockedUntil = Number(existing.blocked_until_ms || 0);
+  const previousFailureAtMs = Date.parse(String(existing.last_failure_at || ''));
+  const previousFailureStale = Number.isFinite(previousFailureAtMs)
+    ? (now - previousFailureAtMs) > (runtimeGateBaseMs() * 2)
+    : true;
+  const previousWindowExpired = Number.isFinite(previousBlockedUntil)
+    && previousBlockedUntil > 0
+    && previousBlockedUntil <= now;
+  const previousFailures = (previousFailureStale || previousWindowExpired)
+    ? 0
+    : Number(existing.consecutive_failures || 0);
   const consecutiveFailures = Number.isFinite(previousFailures) && previousFailures > 0
     ? previousFailures + 1
     : 1;
@@ -276,10 +294,236 @@ function buildOpsDomainAgentId(domain, commandArgs, opts = {}) {
   return `edge_json:${JSON.stringify(payload)}`;
 }
 
+const RISKY_ENV_TOGGLE_KEYS = [
+  'AUTONOMY_ENABLED',
+  'AUTONOMY_MODEL_CATALOG_AUTO_APPLY',
+  'AUTONOMY_MODEL_CATALOG_AUTO_BREAK_GLASS',
+  'REMOTE_DIRECT_OVERRIDE',
+  'BREAK_GLASS',
+  'ALLOW_MISSING_DIRECTIVES',
+  'ALLOW_WEAK_T1_DIRECTIVES'
+];
+
+function compatFallbackEnabled() {
+  const raw = String(process.env.PROTHEUS_CONDUIT_COMPAT_FALLBACK || '1').trim().toLowerCase();
+  return !(raw === '0' || raw === 'false' || raw === 'off' || raw === 'no');
+}
+
+function compatTimeoutMs(opts = {}) {
+  const fallback = 120000;
+  const requested = Number(
+    opts.timeoutMs
+    || process.env.PROTHEUS_CONDUIT_COMPAT_TIMEOUT_MS
+    || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS
+    || fallback
+  );
+  const n = Number.isFinite(requested) && requested > 0 ? Math.floor(requested) : fallback;
+  return Math.max(1000, Math.min(30 * 60 * 1000, n));
+}
+
+function parseJsonPayload(rawText) {
+  const raw = String(rawText || '').trim();
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {}
+  const lines = raw.split('\n').map((line) => line.trim()).filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    if (!lines[i].startsWith('{')) continue;
+    try {
+      return JSON.parse(lines[i]);
+    } catch {}
+  }
+  return null;
+}
+
+function decodeEdgePayload(agentId) {
+  const raw = String(agentId || '').trim();
+  if (!raw.startsWith('edge_json:')) return null;
+  const encoded = raw.slice('edge_json:'.length);
+  try {
+    const parsed = JSON.parse(encoded);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeSpineCompatArgs(args) {
+  const rows = Array.isArray(args) ? args.map((row) => String(row)) : [];
+  if (!rows.length) return ['status'];
+  const head = String(rows[0] || '').trim().toLowerCase();
+  if (head === 'status') return rows;
+  if (head === 'daily' || head === 'eyes') return rows;
+  if (head !== 'run') return rows;
+
+  const modeRaw = String(rows[1] || '').trim().toLowerCase();
+  const mode = modeRaw === 'eyes' ? 'eyes' : 'daily';
+  const dateToken = String(rows[2] || '').trim();
+  const normalized = [mode];
+  const hasDate = /^\d{4}-\d{2}-\d{2}$/.test(dateToken);
+  if (hasDate) normalized.push(dateToken);
+  const restStart = hasDate ? 3 : 2;
+  for (let i = restStart; i < rows.length; i += 1) {
+    normalized.push(rows[i]);
+  }
+  return normalized;
+}
+
+function runCompatNodeScript(root, scriptRelPath, scriptArgs = [], options = {}) {
+  const scriptAbs = path.join(root, scriptRelPath);
+  if (!fs.existsSync(scriptAbs)) {
+    return {
+      ok: false,
+      status: 1,
+      payload: null,
+      stdout: '',
+      stderr: `compat_script_missing:${scriptRelPath}`,
+      timed_out: false,
+      error: null
+    };
+  }
+
+  const cwd = options.cwd || root;
+  const env = { ...process.env, ...(options.env || {}) };
+  if (Array.isArray(options.unsetEnv)) {
+    for (const key of options.unsetEnv) {
+      const token = String(key || '').trim();
+      if (!token) continue;
+      delete env[token];
+    }
+  }
+  const timeout = compatTimeoutMs(options);
+  const tsEntrypoint = path.join(root, 'client', 'lib', 'ts_entrypoint.js');
+  const cmdArgs = scriptAbs.endsWith('.ts')
+    ? [tsEntrypoint, scriptAbs, ...(Array.isArray(scriptArgs) ? scriptArgs : [])]
+    : [scriptAbs, ...(Array.isArray(scriptArgs) ? scriptArgs : [])];
+
+  const run = spawnSync(process.execPath, cmdArgs, {
+    cwd,
+    encoding: 'utf8',
+    env,
+    timeout
+  });
+  const spawnError = run.error ? String(run.error && run.error.message ? run.error.message : run.error) : '';
+  const timedOut = /\bETIMEDOUT\b/i.test(spawnError);
+  const stdout = String(run.stdout || '');
+  const stderr = [String(run.stderr || '').trim(), timedOut ? `compat_timeout:${timeout}` : '', spawnError]
+    .filter(Boolean)
+    .join('\n')
+    .trim();
+  const payload = parseJsonPayload(stdout);
+
+  return {
+    ok: run.status === 0,
+    status: Number.isFinite(run.status) ? Number(run.status) : 1,
+    payload,
+    stdout,
+    stderr,
+    timed_out: timedOut,
+    error: spawnError || null
+  };
+}
+
+function buildCompatBridgeResult(run, errorType, defaultType, reasonOverride = null) {
+  const status = Number.isFinite(run && run.status) ? Number(run.status) : 1;
+  const payload = run && run.payload && typeof run.payload === 'object'
+    ? { ...run.payload }
+    : {
+      ok: status === 0,
+      type: defaultType,
+      reason: reasonOverride || (run && run.stderr ? String(run.stderr).slice(0, 320) : 'compat_fallback_result_unavailable')
+    };
+  payload.routed_via = 'conduit_compat';
+  if (!payload.type) payload.type = defaultType;
+  if (status !== 0 && !payload.reason) {
+    payload.reason = reasonOverride || (run && run.stderr ? String(run.stderr).slice(0, 320) : `${defaultType}_failed`);
+  }
+  return {
+    ok: status === 0 && payload.ok !== false,
+    status,
+    payload,
+    detail: {
+      ok: status === 0,
+      type: defaultType,
+      compatibility_fallback: true,
+      stderr: String(run && run.stderr || ''),
+      stdout: String(run && run.stdout || ''),
+      exit_code: status,
+      routed_via: 'conduit_compat'
+    },
+    response: null,
+    routed_via: 'conduit_compat',
+    stdout: String(run && run.stdout || ''),
+    stderr: String(run && run.stderr || '')
+  };
+}
+
+function runConduitCompatFallback(root, agentId, errorType, opts = {}) {
+  if (!compatFallbackEnabled()) return null;
+  const edge = decodeEdgePayload(agentId);
+  if (!edge) return null;
+
+  const edgeType = String(edge.type || '').trim();
+  const edgeArgs = Array.isArray(edge.args) ? edge.args.map((row) => String(row)) : [];
+  const runContext = edge.run_context == null ? null : String(edge.run_context);
+  const fallbackReason = opts.fallbackReason ? String(opts.fallbackReason).slice(0, 320) : null;
+
+  if (edgeType === 'spine_command' || (edgeType === 'ops_domain_command' && String(edge.domain || '').trim() === 'spine')) {
+    const normalizedArgs = normalizeSpineCompatArgs(edgeArgs);
+    const run = runCompatNodeScript(
+      root,
+      'client/systems/spine/spine.ts',
+      normalizedArgs,
+      {
+        timeoutMs: opts.timeoutMs,
+        cwd: path.join(root, 'client'),
+        unsetEnv: RISKY_ENV_TOGGLE_KEYS,
+        env: {
+          PROTHEUS_SPINE_TS_COMPAT: '1',
+          PROTHEUS_SPINE_TS_LOCAL_COMPAT: '1',
+          SPINE_SKILL_INSTALL_ENFORCER_STRICT: '0',
+          SPINE_LLM_GATEWAY_GUARD_STRICT: '0',
+          SPINE_INTEGRITY_STRICT: '0',
+          SPINE_BACKLOG_GITHUB_SYNC_STRICT: '0',
+          SPINE_WORKFLOW_EXECUTOR_RECEIPT_STRICT: '0',
+          SPINE_BENCHMARK_NOOP: '1',
+          SPINE_RUN_CONTEXT: runContext || String(process.env.SPINE_RUN_CONTEXT || '').trim() || 'manual'
+        }
+      }
+    );
+    return buildCompatBridgeResult(run, errorType, 'spine_compat_fallback', fallbackReason);
+  }
+
+  if (edgeType === 'dopamine_ambient_command'
+    || (edgeType === 'ops_domain_command' && String(edge.domain || '').trim() === 'dopamine-ambient')) {
+    const normalizedArgs = edgeArgs.length ? edgeArgs : ['status'];
+    const run = runCompatNodeScript(
+      root,
+      'client/habits/scripts/dopamine_ambient_snapshot.js',
+      normalizedArgs,
+      {
+        timeoutMs: opts.timeoutMs,
+        cwd: root
+      }
+    );
+    return buildCompatBridgeResult(run, errorType, 'dopamine_ambient_compat_fallback', fallbackReason);
+  }
+
+  return null;
+}
+
 async function runConduitAgent(agentId, requestPrefix, receiptKey, errorType, opts = {}) {
   const root = findRepoRoot(opts.cwdHint || process.cwd());
   const gateState = buildGateActiveError(root);
   if (gateState) {
+    const compat = runConduitCompatFallback(root, agentId, errorType, {
+      ...opts,
+      fallbackReason: gateState.reason
+    });
+    if (compat) {
+      return compat;
+    }
     return {
       ok: false,
       status: 1,
@@ -304,7 +548,7 @@ async function runConduitAgent(agentId, requestPrefix, receiptKey, errorType, op
   const client = ConduitClient.overStdio(command, daemonArgs(command), root);
   const defaultStdioTimeoutMs = Math.max(
     1000,
-    Number(process.env.PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS || process.env.PROTHEUS_CONDUIT_TIMEOUT_MS || 120000) || 120000
+    Number(process.env.PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS || process.env.PROTHEUS_CONDUIT_TIMEOUT_MS || 30000) || 30000
   );
   const defaultBridgeTimeoutMs = Math.max(defaultStdioTimeoutMs + 1000, 125000);
   const requestedTimeoutMs = Number(opts.timeoutMs || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS || defaultBridgeTimeoutMs);
@@ -357,6 +601,16 @@ async function runConduitAgent(agentId, requestPrefix, receiptKey, errorType, op
     };
   } catch (err) {
     const error = String(err && err.message ? err.message : err);
+    const compat = timeoutLikeError(error)
+      ? runConduitCompatFallback(root, agentId, errorType, {
+        ...opts,
+        fallbackReason: error
+      })
+      : null;
+    if (compat) {
+      clearRuntimeGateIfSet(root);
+      return compat;
+    }
     recordRuntimeGateFailure(root, error);
     return {
       ok: false,
