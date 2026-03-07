@@ -2,14 +2,28 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+
+// Install TS require hook via a stable bootstrap wrapper.
+require('../../../lib/rust_lane_bridge.js');
+
+function requireJsOrTs(relFromClientRoot) {
+  const clientRoot = path.resolve(__dirname, '..', '..', '..');
+  const jsAbs = path.join(clientRoot, `${relFromClientRoot}.js`);
+  if (fs.existsSync(jsAbs)) return require(jsAbs);
+  const tsAbs = path.join(clientRoot, `${relFromClientRoot}.ts`);
+  if (fs.existsSync(tsAbs)) return require(tsAbs);
+  throw new Error(`missing_module_variant:${relFromClientRoot}`);
+}
 
 function run() {
-  const layerStore = require('../../../systems/adaptive/core/layer_store.js');
-  const catalogStore = require('../../../systems/adaptive/sensory/eyes/catalog_store.js');
-  const focusStore = require('../../../systems/adaptive/sensory/eyes/focus_trigger_store.js');
-  const habitStore = require('../../../systems/adaptive/habits/habit_store.js');
-  const reflexStore = require('../../../systems/adaptive/reflex/reflex_store.js');
-  const strategyStore = require('../../../systems/adaptive/strategy/strategy_store.js');
+  const layerStore = requireJsOrTs('systems/adaptive/core/layer_store');
+  const catalogStore = requireJsOrTs('systems/adaptive/sensory/eyes/catalog_store');
+  const focusStore = requireJsOrTs('systems/adaptive/sensory/eyes/focus_trigger_store');
+  const habitStore = requireJsOrTs('systems/adaptive/habits/habit_store');
+  const reflexStore = requireJsOrTs('systems/adaptive/reflex/reflex_store');
+  const strategyStore = requireJsOrTs('systems/adaptive/strategy/strategy_store');
 
   assert.throws(
     () => layerStore.resolveAdaptivePath('/tmp/not_under_adaptive.json'),
