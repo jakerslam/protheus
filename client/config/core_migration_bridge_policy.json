@@ -30,8 +30,8 @@
     },
     {
       "id": "vault",
-      "source": "client/secrets/vault",
-      "target": "client/secrets/vault",
+      "source": "client/local/secrets/vault",
+      "target": "client/local/secrets/vault",
       "required": false
     },
     {

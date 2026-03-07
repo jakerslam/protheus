@@ -78,7 +78,7 @@
 ```json
 {
   "network": "deny",
-  "write_paths_allowlist": ["client/memory/*.md", "client/habits/client/logs/*"],
+  "write_paths_allowlist": ["client/memory/*.md", "client/local/logs/habits/*"],
   "exec_allowlist": ["explicit/command/here"]
 }
 ```

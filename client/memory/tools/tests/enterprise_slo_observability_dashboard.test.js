@@ -50,7 +50,7 @@ try {
   },
   {
     "id": "otel_default_profiles",
-    "description": "OpenTelemetry defaults configured for client/logs/metrics/traces"
+    "description": "OpenTelemetry defaults configured for client/local/logs/metrics/traces"
   },
   {
     "id": "burn_alert_routes",

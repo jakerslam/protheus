@@ -29,7 +29,7 @@ try {
   assert.strictEqual(r.status, 0, `expected pass when TS/JS pair both change; stderr=${r.stderr}`);
   assert.ok(r.payload && r.payload.ok === true, 'payload ok expected');
 
-  r = run(['run', '--strict', '--files=state/autonomy/runs/2026-02-21.jsonl,client/memory/_snapshots/TAGS_INDEX-2026-02-14-1151.md']);
+  r = run(['run', '--strict', '--files=state/autonomy/runs/2026-02-21.jsonl,client/local/memory/_snapshots/TAGS_INDEX-2026-02-14-1151.md']);
   assert.strictEqual(r.status, 1, 'expected strict failure for generated paths');
   assert.ok(r.payload && r.payload.violations >= 1, 'expected violations >= 1');
 

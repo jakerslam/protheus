@@ -9,9 +9,11 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::fmt;
 use std::fs;
-use std::io::{self, BufRead, Write};
+use std::io::{self, BufRead, Read, Write};
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::time::Duration;
+use wait_timeout::ChildExt;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const CONDUIT_SCHEMA_ID: &str = "protheus_conduit";
@@ -1158,16 +1160,43 @@ fn resolve_protheus_ops_command(root: &PathBuf, domain: &str) -> (String, Vec<St
     )
 }
 
+fn bridge_command_timeout_ms() -> u64 {
+    std::env::var("PROTHEUS_OPS_BRIDGE_TIMEOUT_MS")
+        .ok()
+        .and_then(|raw| raw.trim().parse::<u64>().ok())
+        .map(|ms| ms.clamp(1_000, 15 * 60 * 1_000))
+        .unwrap_or(110_000)
+}
+
+fn collect_child_output(child: &mut std::process::Child) -> (String, String) {
+    let mut stdout = String::new();
+    let mut stderr = String::new();
+    if let Some(mut handle) = child.stdout.take() {
+        let mut buf = Vec::new();
+        let _ = handle.read_to_end(&mut buf);
+        stdout = String::from_utf8_lossy(&buf).to_string();
+    }
+    if let Some(mut handle) = child.stderr.take() {
+        let mut buf = Vec::new();
+        let _ = handle.read_to_end(&mut buf);
+        stderr = String::from_utf8_lossy(&buf).to_string();
+    }
+    (stdout, stderr)
+}
+
 fn execute_ops_bridge_command(domain: &str, args: &[String], run_context: Option<&str>) -> Value {
     let root = repo_root_from_current_dir();
     let (command, mut command_args) = resolve_protheus_ops_command(&root, domain);
     command_args.extend(args.iter().cloned());
+    let timeout_ms = bridge_command_timeout_ms();
 
     let mut cmd = Command::new(&command);
     cmd.args(&command_args).current_dir(&root).env(
         "PROTHEUS_NODE_BINARY",
         std::env::var("PROTHEUS_NODE_BINARY").unwrap_or_else(|_| "node".to_string()),
-    );
+    )
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped());
     if let Some(context) = run_context {
         let trimmed = context.trim();
         if !trimmed.is_empty() {
@@ -1175,45 +1204,86 @@ fn execute_ops_bridge_command(domain: &str, args: &[String], run_context: Option
         }
     }
 
-    match cmd.output() {
-        Ok(out) => {
-            let stdout = String::from_utf8_lossy(&out.stdout).to_string();
-            let stderr = String::from_utf8_lossy(&out.stderr).to_string();
-            let exit_code = out.status.code().unwrap_or(1);
-            let spine_receipt = parse_json_payload(&stdout);
-            let mut detail = serde_json::json!({
-                "ok": exit_code == 0,
-                "type": if exit_code == 0 {
-                    format!("{domain}_bridge_ok")
-                } else {
-                    format!("{domain}_bridge_error")
-                },
-                "exit_code": exit_code,
-                "command": command,
-                "args": command_args,
-                "run_context": run_context,
-                "stdout": stdout,
-                "stderr": stderr,
-                "routed_via": "conduit",
-                "domain": domain
-            });
-            if let Some(receipt) = spine_receipt {
-                detail["domain_receipt"] = receipt.clone();
-                if let Some(kind) = receipt.get("type").and_then(Value::as_str) {
-                    detail["type"] = Value::String(kind.to_string());
+    match cmd.spawn() {
+        Ok(mut child) => match child.wait_timeout(Duration::from_millis(timeout_ms)) {
+            Ok(Some(status)) => {
+                let (stdout, stderr) = collect_child_output(&mut child);
+                let exit_code = status.code().unwrap_or(1);
+                let spine_receipt = parse_json_payload(&stdout);
+                let mut detail = serde_json::json!({
+                    "ok": exit_code == 0,
+                    "type": if exit_code == 0 {
+                        format!("{domain}_bridge_ok")
+                    } else {
+                        format!("{domain}_bridge_error")
+                    },
+                    "exit_code": exit_code,
+                    "command": command,
+                    "args": command_args,
+                    "run_context": run_context,
+                    "stdout": stdout,
+                    "stderr": stderr,
+                    "routed_via": "conduit",
+                    "domain": domain,
+                    "bridge_timeout_ms": timeout_ms
+                });
+                if let Some(receipt) = spine_receipt {
+                    detail["domain_receipt"] = receipt.clone();
+                    if let Some(kind) = receipt.get("type").and_then(Value::as_str) {
+                        detail["type"] = Value::String(kind.to_string());
+                    }
+                    if let Some(ok) = receipt.get("ok").and_then(Value::as_bool) {
+                        detail["ok"] = Value::Bool(ok && exit_code == 0);
+                    }
+                    if let Some(reason) = receipt.get("reason").and_then(Value::as_str) {
+                        detail["reason"] = Value::String(reason.to_string());
+                    } else if let Some(reason) = receipt.get("failure_reason").and_then(Value::as_str) {
+                        detail["reason"] = Value::String(reason.to_string());
+                    }
                 }
-                if let Some(ok) = receipt.get("ok").and_then(Value::as_bool) {
-                    detail["ok"] = Value::Bool(ok && exit_code == 0);
-                }
-                if let Some(reason) = receipt.get("reason").and_then(Value::as_str) {
-                    detail["reason"] = Value::String(reason.to_string());
-                } else if let Some(reason) = receipt.get("failure_reason").and_then(Value::as_str) {
-                    detail["reason"] = Value::String(reason.to_string());
-                }
+                detail["receipt_hash"] = Value::String(deterministic_receipt_hash(&detail));
+                detail
             }
-            detail["receipt_hash"] = Value::String(deterministic_receipt_hash(&detail));
-            detail
-        }
+            Ok(None) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                let (stdout, stderr) = collect_child_output(&mut child);
+                let mut detail = serde_json::json!({
+                    "ok": false,
+                    "type": format!("{domain}_bridge_timeout"),
+                    "exit_code": 124,
+                    "reason": format!("{domain}_bridge_timeout:{timeout_ms}"),
+                    "command": command,
+                    "args": command_args,
+                    "run_context": run_context,
+                    "stdout": stdout,
+                    "stderr": stderr,
+                    "routed_via": "conduit",
+                    "domain": domain,
+                    "bridge_timeout_ms": timeout_ms
+                });
+                detail["receipt_hash"] = Value::String(deterministic_receipt_hash(&detail));
+                detail
+            }
+            Err(err) => {
+                let mut detail = serde_json::json!({
+                    "ok": false,
+                    "type": format!("{domain}_bridge_wait_error"),
+                    "exit_code": 1,
+                    "reason": format!("{domain}_bridge_wait_failed:{err}"),
+                    "command": command,
+                    "args": command_args,
+                    "run_context": run_context,
+                    "stdout": "",
+                    "stderr": "",
+                    "routed_via": "conduit",
+                    "domain": domain,
+                    "bridge_timeout_ms": timeout_ms
+                });
+                detail["receipt_hash"] = Value::String(deterministic_receipt_hash(&detail));
+                detail
+            }
+        },
         Err(err) => {
             let mut detail = serde_json::json!({
                 "ok": false,
@@ -1226,7 +1296,8 @@ fn execute_ops_bridge_command(domain: &str, args: &[String], run_context: Option
                 "stdout": "",
                 "stderr": "",
                 "routed_via": "conduit",
-                "domain": domain
+                "domain": domain,
+                "bridge_timeout_ms": timeout_ms
             });
             detail["receipt_hash"] = Value::String(deterministic_receipt_hash(&detail));
             detail

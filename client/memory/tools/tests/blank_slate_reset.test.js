@@ -38,7 +38,7 @@ function setupWorkspace() {
     profiles: {
       test_blank_slate: {
         includes: [
-          'client/adaptive/sensory/eyes/catalog.json',
+          'client/local/adaptive/sensory/eyes/catalog.json',
           'state/client/adaptive/strategy/*.json',
           'MEMORY.md',
           'client/memory/*.md',
@@ -53,7 +53,7 @@ function setupWorkspace() {
 
   writeFile(path.join(TEMP, 'config', 'blank_slate_reset_policy.json'), JSON.stringify(policy, null, 2));
 
-  writeFile(path.join(TEMP, 'adaptive', 'sensory', 'eyes', 'catalog.json'), '{"ok":true}\n');
+  writeFile(path.join(TEMP, 'local', 'adaptive', 'sensory', 'eyes', 'catalog.json'), '{"ok":true}\n');
   writeFile(path.join(TEMP, 'state', 'adaptive', 'strategy', 'outcome_fitness.json'), '{"score":1}\n');
   writeFile(path.join(TEMP, 'state', 'adaptive', 'strategy', 'receipts.jsonl'), '{"keep":"log"}\n');
   writeFile(path.join(TEMP, 'MEMORY.md'), '# memory\n');
@@ -101,7 +101,7 @@ test('run defaults to dry-run and preserves source paths', () => {
   assert.ok(r.payload && r.payload.ok === true, 'payload.ok should be true');
   assert.strictEqual(r.payload.dry_run, true, 'run should default to dry-run');
 
-  assert.ok(fs.existsSync(path.join(TEMP, 'adaptive', 'sensory', 'eyes', 'catalog.json')), 'adaptive catalog should remain');
+  assert.ok(fs.existsSync(path.join(TEMP, 'local', 'adaptive', 'sensory', 'eyes', 'catalog.json')), 'adaptive catalog should remain');
   assert.ok(fs.existsSync(path.join(TEMP, 'MEMORY.md')), 'MEMORY.md should remain');
   assert.ok(fs.existsSync(path.join(TEMP, 'memory', '2026-02-21.md')), 'daily memory should remain');
   assert.strictEqual(fs.existsSync(DEST), false, 'dry-run should not create backup destination');
@@ -123,7 +123,7 @@ test('apply archives target set and rollback restores it', () => {
   assert.strictEqual(apply.payload.dry_run, false, 'apply should not be dry-run');
   assert.ok(apply.payload.id, 'apply should return snapshot id');
 
-  assert.strictEqual(fs.existsSync(path.join(TEMP, 'adaptive', 'sensory', 'eyes', 'catalog.json')), false, 'adaptive catalog should be archived');
+  assert.strictEqual(fs.existsSync(path.join(TEMP, 'local', 'adaptive', 'sensory', 'eyes', 'catalog.json')), false, 'adaptive catalog should be archived');
   assert.strictEqual(fs.existsSync(path.join(TEMP, 'MEMORY.md')), false, 'MEMORY.md should be archived');
   assert.strictEqual(fs.existsSync(path.join(TEMP, 'memory', '2026-02-21.md')), false, 'daily memory should be archived');
   assert.ok(fs.existsSync(path.join(TEMP, 'state', 'adaptive', 'strategy', 'receipts.jsonl')), 'jsonl log should remain in place');
@@ -139,7 +139,7 @@ test('apply archives target set and rollback restores it', () => {
   assert.strictEqual(rollback.code, 0, `rollback exit should be 0; stderr=${rollback.stderr}`);
   assert.ok(rollback.payload && rollback.payload.ok === true, 'rollback payload.ok should be true');
 
-  assert.ok(fs.existsSync(path.join(TEMP, 'adaptive', 'sensory', 'eyes', 'catalog.json')), 'adaptive catalog should be restored');
+  assert.ok(fs.existsSync(path.join(TEMP, 'local', 'adaptive', 'sensory', 'eyes', 'catalog.json')), 'adaptive catalog should be restored');
   assert.ok(fs.existsSync(path.join(TEMP, 'MEMORY.md')), 'MEMORY.md should be restored');
   assert.ok(fs.existsSync(path.join(TEMP, 'memory', '2026-02-21.md')), 'daily memory should be restored');
   assert.ok(fs.existsSync(path.join(TEMP, 'memory', '_archive', 'old.md')), 'archived memory subtree should be restored');

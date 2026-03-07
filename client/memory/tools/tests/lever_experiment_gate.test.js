@@ -56,14 +56,14 @@ function testClassifyPaths() {
   const paths = [
     'state/autonomy/simulations/2026-02-23.json',
     'state/security/startup_attestation.json',
-    'client/memory/.rebuild_delta_cache.json',
+    'client/local/memory/.rebuild_delta_cache.json',
     'client/memory/MEMORY_INDEX.md',
     'client/systems/autonomy/lever_experiment_gate.js',
     'client/config/lever_experiment_policy.json'
   ];
   const churnExcludes = [
     'state/**',
-    'client/memory/.rebuild_delta_cache.json',
+    'client/local/memory/.rebuild_delta_cache.json',
     'client/memory/MEMORY_INDEX.md'
   ];
   const out = gate.classifyPaths(paths, churnExcludes);

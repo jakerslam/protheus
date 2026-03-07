@@ -1048,7 +1048,7 @@ function autocap(mode = 'git') {
       // Find files modified in last 24 hours, excluding patterns
       const findCmd = `find "${workspaceRoot}" -type f -mtime -1 \
         -not -path "*/state/*" \
-        -not -path "*/client/logs/*" \
+        -not -path "*/client/local/logs/*" \
         -not -path "*/node_modules/*" \
         -not -path "*/.git/*" \
         -not -path "*/client/config/trusted_skills.json" \

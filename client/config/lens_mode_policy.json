@@ -9,7 +9,7 @@
     "minimal",
     "full"
   ],
-  "private_store": ".private-lenses/",
+  "private_store": "client/local/private-lenses/",
   "schema_id": "lens_mode_policy",
   "schema_version": "1.0"
 }

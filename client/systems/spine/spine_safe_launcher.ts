@@ -347,11 +347,16 @@ function runIntegrityPrecheck(args: Record<string, any>) {
 }
 
 async function runSpine(plan: { mode: string, date: string, maxEyes: string }, env: Record<string, string | undefined>) {
+  const runTimeoutMs = Math.max(
+    1000,
+    Number(process.env.SPINE_SAFE_LAUNCHER_RUN_TIMEOUT_MS || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS || 300000) || 300000
+  );
   const args = ['run', plan.mode, plan.date];
   if (cleanText(plan.maxEyes, 20)) args.push(`--max-eyes=${plan.maxEyes}`);
   const out = await runSpineCommand(args, {
     cwdHint: CODE_ROOT,
-    runContext: env && env.SPINE_RUN_CONTEXT ? env.SPINE_RUN_CONTEXT : null
+    runContext: env && env.SPINE_RUN_CONTEXT ? env.SPINE_RUN_CONTEXT : null,
+    timeoutMs: runTimeoutMs
   });
   if (out.payload && out.status !== 0) {
     process.stdout.write(`${JSON.stringify(out.payload)}\n`);
@@ -360,11 +365,16 @@ async function runSpine(plan: { mode: string, date: string, maxEyes: string }, e
 }
 
 async function runSpineStatus(plan: { mode: string, date: string }, env: Record<string, string | undefined>) {
+  const statusTimeoutMs = Math.max(
+    1000,
+    Number(process.env.SPINE_SAFE_LAUNCHER_STATUS_TIMEOUT_MS || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS || 120000) || 120000
+  );
   return runSpineCommand(
     ['status', `--mode=${plan.mode}`, `--date=${plan.date}`],
     {
       cwdHint: CODE_ROOT,
-      runContext: env && env.SPINE_RUN_CONTEXT ? env.SPINE_RUN_CONTEXT : null
+      runContext: env && env.SPINE_RUN_CONTEXT ? env.SPINE_RUN_CONTEXT : null,
+      timeoutMs: statusTimeoutMs
     }
   );
 }

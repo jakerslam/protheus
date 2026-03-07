@@ -12,7 +12,7 @@
   },
   "churn_excludes": [
     "state/**",
-    "client/memory/.rebuild_delta_cache.json",
+    "client/local/memory/.rebuild_delta_cache.json",
     "client/memory/MEMORY_INDEX.md",
     "client/memory/TAGS_INDEX.md",
     "client/memory/SNIPPET_INDEX.md"

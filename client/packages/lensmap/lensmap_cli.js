@@ -5,8 +5,9 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const STATE_DIR = path.join(ROOT, 'state', 'ops', 'lensmap');
-const PRIVATE_DIR = path.join(ROOT, '.private-lenses');
+const STATE_DIR = path.join(ROOT, 'local', 'state', 'ops', 'lensmap');
+const PRIVATE_DIR = path.join(ROOT, 'local', 'private-lenses');
+const LEGACY_PRIVATE_DIR = path.join(ROOT, '.private-lenses');
 
 function nowIso() {
   return new Date().toISOString();
@@ -123,7 +124,12 @@ function cmdExpose(name) {
   ensureDir(PRIVATE_DIR);
   const privatePath = path.join(PRIVATE_DIR, `${lensName}.private.lens.json`);
   if (!fs.existsSync(privatePath)) {
-    fs.writeFileSync(privatePath, `${JSON.stringify({ lens: lensName, entries: [] }, null, 2)}\n`, 'utf8');
+    const legacyPath = path.join(LEGACY_PRIVATE_DIR, `${lensName}.private.lens.json`);
+    if (fs.existsSync(legacyPath)) {
+      fs.copyFileSync(legacyPath, privatePath);
+    } else {
+      fs.writeFileSync(privatePath, `${JSON.stringify({ lens: lensName, entries: [] }, null, 2)}\n`, 'utf8');
+    }
   }
   const publicPath = path.join(ROOT, 'packages', 'lensmap', `${lensName}.public.lens.json`);
   ensureDir(path.dirname(publicPath));

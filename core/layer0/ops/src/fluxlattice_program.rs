@@ -387,7 +387,7 @@ fn default_state() -> Value {
         },
         "lens": {
           "mode": "hidden",
-          "private_store": ".private-lenses/"
+          "private_store": "client/local/private-lenses/"
         }
     })
 }
@@ -709,22 +709,22 @@ fn run_lane(
                 "schema_version": "1.0",
                 "default_mode": "hidden",
                 "modes": ["hidden", "minimal", "full"],
-                "private_store": ".private-lenses/",
+                "private_store": "client/local/private-lenses/",
                 "commands": ["expose", "sync"]
             });
             state["lens"]["mode"] = Value::String("hidden".to_string());
-            state["lens"]["private_store"] = Value::String(".private-lenses/".to_string());
+            state["lens"]["private_store"] = Value::String("client/local/private-lenses/".to_string());
             if apply {
-                fs::create_dir_all(root.join(".private-lenses"))
-                    .map_err(|e| format!("create_dir_failed:.private-lenses:{e}"))?;
+                fs::create_dir_all(root.join("client/local/private-lenses"))
+                    .map_err(|e| format!("create_dir_failed:client/local/private-lenses:{e}"))?;
                 write_json_atomic(&policy.paths.lens_mode_policy_path, &lens_policy)?;
             }
             receipt["summary"] =
-                json!({"lens_mode": "hidden", "private_store": ".private-lenses/"});
+                json!({"lens_mode": "hidden", "private_store": "client/local/private-lenses/"});
             receipt["checks"] = json!({
                 "hidden_default": true,
                 "mode_triplet_present": true,
-                "private_store_present": root.join(".private-lenses").exists()
+                "private_store_present": root.join("client/local/private-lenses").exists()
             });
             receipt["artifacts"] = json!({"lens_mode_policy_path": rel_path(root, &policy.paths.lens_mode_policy_path)});
             Ok(receipt)

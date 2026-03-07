@@ -29,7 +29,7 @@ const durationMinutes = parseInt(process.argv[2]) || DEFAULT_DURATION_MINUTES;
 const targetUrl = process.argv[3] || DEFAULT_URL;
 const durationMs = durationMinutes * 60 * 1000;
 
-const LOG_FILE = path.join(__dirname, '..', 'logs', 'websocket-stability-test.log');
+const LOG_FILE = path.join(__dirname, '..', 'local', 'logs', 'websocket-stability-test.log');
 
 // Ensure logs directory exists
 fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });

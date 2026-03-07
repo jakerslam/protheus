@@ -23,7 +23,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { execSync } = require('child_process');
+const { execSync, spawnSync } = require('child_process');
 const { writeContractReceipt } = require('../../lib/action_receipts');
 const {
   GLOBAL_BUDGET_DEFAULT_DIR,
@@ -39,12 +39,13 @@ const {
   writeRegistryWithUids
 } = require('./habit_uid_store.js');
 
-const REGISTRY_PATH = '/Users/jay/.openclaw/workspace/client/habits/registry.json';
-const TRUSTED_HABITS_PATH = '/Users/jay/.openclaw/workspace/client/config/trusted_habits.json';
-const RUNS_LOG = '/Users/jay/.openclaw/workspace/client/habits/client/logs/habit_runs.ndjson';
-const ERRORS_LOG = '/Users/jay/.openclaw/workspace/client/habits/client/logs/habit_errors.ndjson';
-const SNIPPET_DIR = '/Users/jay/.openclaw/workspace/memory';
-const RECEIPTS_DIR = '/Users/jay/.openclaw/workspace/state/client/habits/receipts';
+const CLIENT_ROOT = path.resolve(__dirname, '..', '..');
+const REGISTRY_PATH = path.join(CLIENT_ROOT, 'habits', 'registry.json');
+const TRUSTED_HABITS_PATH = path.join(CLIENT_ROOT, 'config', 'trusted_habits.json');
+const RUNS_LOG = path.join(CLIENT_ROOT, 'local', 'logs', 'habits', 'habit_runs.ndjson');
+const ERRORS_LOG = path.join(CLIENT_ROOT, 'local', 'logs', 'habits', 'habit_errors.ndjson');
+const SNIPPET_DIR = path.join(CLIENT_ROOT, 'memory');
+const RECEIPTS_DIR = path.join(CLIENT_ROOT, 'local', 'state', 'client', 'habits', 'receipts');
 const HABIT_BUDGET_ENABLED = !['0', 'false', 'no', 'off'].includes(String(process.env.HABIT_BUDGET_ENABLED || '1').trim().toLowerCase());
 const HABIT_BUDGET_MODULE = String(process.env.HABIT_BUDGET_MODULE || 'run_habit').trim() || 'run_habit';
 const HABIT_BUDGET_STATE_DIR = process.env.HABIT_BUDGET_STATE_DIR
@@ -216,11 +217,13 @@ function loadTrustedHabits() {
 }
 
 function logRun(record) {
+  fs.mkdirSync(path.dirname(RUNS_LOG), { recursive: true });
   const line = JSON.stringify(record) + '\n';
   fs.appendFileSync(RUNS_LOG, line, 'utf8');
 }
 
 function logError(record) {
+  fs.mkdirSync(path.dirname(ERRORS_LOG), { recursive: true });
   const line = JSON.stringify(record) + '\n';
   fs.appendFileSync(ERRORS_LOG, line, 'utf8');
 }
@@ -347,9 +350,13 @@ function getRecentPermissionViolations(habit) {
 /** Run doctor check */
 function doctorPasses(habit) {
   try {
-    execSync('node /Users/jay/.openclaw/workspace/client/habits/scripts/doctor.js > /dev/null 2>&1', 
-      { timeout: 30000 });
-    return true;
+    const doctorScript = path.join(CLIENT_ROOT, 'habits', 'scripts', 'doctor.js');
+    const proc = spawnSync(process.execPath, [doctorScript], {
+      cwd: path.resolve(CLIENT_ROOT, '..'),
+      stdio: 'ignore',
+      timeout: 30000
+    });
+    return Number(proc.status || 0) === 0;
   } catch (e) {
     return false;
   }
@@ -823,7 +830,7 @@ async function main() {
     process.exit(1);
   }
   
-  const workspaceRoot = '/Users/jay/.openclaw/workspace';
+  const workspaceRoot = path.resolve(CLIENT_ROOT, '..');
   const ctx = createContext(habit, workspaceRoot, actionLog);
   
   console.log(`Running habit: ${habitId} [state: ${govState}]`);

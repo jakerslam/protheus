@@ -16,7 +16,7 @@ function writeJson(filePath, obj) {
 
 async function run() {
   const repoRoot = path.resolve(__dirname, '..', '..', '..');
-  const focusPath = path.join(repoRoot, 'adaptive', 'sensory', 'eyes', 'focus_triggers.json');
+  const focusPath = path.join(repoRoot, 'local', 'adaptive', 'sensory', 'eyes', 'focus_triggers.json');
   const before = fs.existsSync(focusPath) ? fs.readFileSync(focusPath, 'utf8') : null;
   const tmpRoot = path.join(__dirname, 'temp_focus_controller');
 
