@@ -5647,7 +5647,7 @@
       "status": "done",
       "title": "Rust Memory Path-Contract Compatibility (`core/memory` alias client/docs/wrappers)",
       "problem": "External directives reference `core/memory` layout and `protheus-memory` naming, while canonical implementation lives at `client/systems/memory/rust`.",
-      "acceptance": "Added `core/memory` compatibility surface (`README.md`, , `compat_bridge.{ts,js}`) that deterministically maps alias -> canonical runtime/crate paths and crate-name aliases without introducing a parallel runtime; regression coverage added in `client/memory/tools/tests/core_memory_compat_bridge.test.js`. Verify via npm run -s lane:v3-race-conf-004:run and npm run -s test:lane:v3-race-conf-004; receipt must be present in state artifacts. Rollback via git revert of completion commit or canonical status reset to queued if regression is detected.",
+      "acceptance": "Retired the temporary `core/memory` compatibility shim and locked direct wiring to canonical memory lanes. Enforced no-legacy runtime surfaces with `client/systems/ops/runtime_state_surface_guard.{ts,js}` + `client/systems/ops/source_runtime_classifier_contract.{ts,js}`, and documented removals in `client/docs/architecture/DIRECT_WIRING_AUDIT_2026-03-07.md`. Verify via npm run -s lane:v3-race-conf-004:run and npm run -s test:lane:v3-race-conf-004; receipt must be present in state artifacts. Rollback via git revert of completion commit or canonical status reset to queued if regression is detected.",
       "dependencies": [
         "V3-RACE-023",
         "V3-DOC-001"
@@ -24220,11 +24220,11 @@
       "review_result": "pass",
       "evidence_refs": [
         "README.md",
-        "client/memory/tools/tests/core_memory_compat_bridge.test.js"
+        "client/docs/architecture/DIRECT_WIRING_AUDIT_2026-03-07.md"
       ],
       "evidence_found": [
         "README.md",
-        "client/memory/tools/tests/core_memory_compat_bridge.test.js"
+        "client/docs/architecture/DIRECT_WIRING_AUDIT_2026-03-07.md"
       ],
       "evidence_missing": [],
       "dependencies": [

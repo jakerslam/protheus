@@ -184,21 +184,42 @@ function resolveScriptInvocation(scriptRelPath: string) {
   return [scriptRelPath];
 }
 
-function runNodeJson(scriptRelPath: string, scriptArgs: string[], extraEnv: Record<string, string | undefined> = {}) {
+function resolveSubprocessTimeoutMs(override: unknown, fallbackMs = 15000) {
+  const raw = Number(
+    override != null && String(override).trim() !== ''
+      ? override
+      : (process.env.SPINE_SAFE_LAUNCHER_SUBPROCESS_TIMEOUT_MS || fallbackMs)
+  );
+  if (!Number.isFinite(raw) || raw <= 0) return fallbackMs;
+  return Math.max(1000, Math.floor(raw));
+}
+
+function runNodeJson(
+  scriptRelPath: string,
+  scriptArgs: string[],
+  extraEnv: Record<string, string | undefined> = {},
+  timeoutOverride: unknown = null
+) {
   const invocation = resolveScriptInvocation(scriptRelPath);
+  const timeoutMs = resolveSubprocessTimeoutMs(timeoutOverride, 15000);
   const r = spawnSync(process.execPath, [...invocation, ...scriptArgs], {
     cwd: ROOT,
     encoding: 'utf8',
+    timeout: timeoutMs,
+    killSignal: 'SIGKILL',
     env: {
       ...process.env,
       ...extraEnv
     }
   });
+  const timedOut = Boolean(r.error && String(r.error.code || '') === 'ETIMEDOUT');
   return {
     ok: r.status === 0,
     status: Number.isFinite(r.status) ? Number(r.status) : 1,
     stdout: String(r.stdout || ''),
     stderr: String(r.stderr || ''),
+    timed_out: timedOut,
+    timeout_ms: timeoutMs,
     payload: parseJsonLines(String(r.stdout || ''))
   };
 }
@@ -272,13 +293,24 @@ function buildResealApplyNote(args: Record<string, any>, statusPayload: any) {
 }
 
 function runIntegrityPrecheck(args: Record<string, any>) {
-  const status = runNodeJson('systems/security/integrity_reseal_assistant.js', ['status']);
+  const precheckTimeoutMs = resolveSubprocessTimeoutMs(
+    args['precheck-timeout-ms'] || args.precheck_timeout_ms || process.env.SPINE_SAFE_LAUNCHER_PRECHECK_TIMEOUT_MS,
+    15000
+  );
+  const status = runNodeJson(
+    'systems/security/integrity_reseal_assistant.js',
+    ['status'],
+    {},
+    precheckTimeoutMs
+  );
   if (!status.ok || !status.payload || typeof status.payload !== 'object') {
     return {
       ok: false,
       blocked: true,
-      reason: 'integrity_reseal_status_unavailable',
+      reason: status.timed_out === true ? 'integrity_reseal_status_timeout' : 'integrity_reseal_status_unavailable',
       status_code: status.status,
+      timed_out: status.timed_out === true,
+      timeout_ms: status.timeout_ms || precheckTimeoutMs,
       status_stdout: cleanText(status.stdout, 500),
       status_stderr: cleanText(status.stderr, 500)
     };
@@ -351,12 +383,17 @@ async function runSpine(plan: { mode: string, date: string, maxEyes: string }, e
     1000,
     Number(process.env.SPINE_SAFE_LAUNCHER_RUN_TIMEOUT_MS || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS || 300000) || 300000
   );
+  const runStdioTimeoutMs = Math.max(
+    1000,
+    Number(process.env.SPINE_SAFE_LAUNCHER_STDIO_TIMEOUT_MS || 20000) || 20000
+  );
   const args = ['run', plan.mode, plan.date];
   if (cleanText(plan.maxEyes, 20)) args.push(`--max-eyes=${plan.maxEyes}`);
   const out = await runSpineCommand(args, {
     cwdHint: CODE_ROOT,
     runContext: env && env.SPINE_RUN_CONTEXT ? env.SPINE_RUN_CONTEXT : null,
-    timeoutMs: runTimeoutMs
+    timeoutMs: runTimeoutMs,
+    stdioTimeoutMs: Math.min(runTimeoutMs, runStdioTimeoutMs)
   });
   if (out.payload && out.status !== 0) {
     process.stdout.write(`${JSON.stringify(out.payload)}\n`);
@@ -367,14 +404,19 @@ async function runSpine(plan: { mode: string, date: string, maxEyes: string }, e
 async function runSpineStatus(plan: { mode: string, date: string }, env: Record<string, string | undefined>) {
   const statusTimeoutMs = Math.max(
     1000,
-    Number(process.env.SPINE_SAFE_LAUNCHER_STATUS_TIMEOUT_MS || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS || 120000) || 120000
+    Number(process.env.SPINE_SAFE_LAUNCHER_STATUS_TIMEOUT_MS || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS || 15000) || 15000
+  );
+  const statusStdioTimeoutMs = Math.max(
+    1000,
+    Number(process.env.SPINE_SAFE_LAUNCHER_STATUS_STDIO_TIMEOUT_MS || process.env.SPINE_SAFE_LAUNCHER_STDIO_TIMEOUT_MS || 8000) || 8000
   );
   return runSpineCommand(
     ['status', `--mode=${plan.mode}`, `--date=${plan.date}`],
     {
       cwdHint: CODE_ROOT,
       runContext: env && env.SPINE_RUN_CONTEXT ? env.SPINE_RUN_CONTEXT : null,
-      timeoutMs: statusTimeoutMs
+      timeoutMs: statusTimeoutMs,
+      stdioTimeoutMs: Math.min(statusTimeoutMs, statusStdioTimeoutMs)
     }
   );
 }
@@ -447,7 +489,7 @@ async function main() {
   const { childEnv, active, neutralized } = sanitizeEnvForSpine(process.env as any, allowRiskyEnv);
   const runContext = cleanText(process.env.SPINE_RUN_CONTEXT || args['run-context'] || '', 40) || 'manual';
   const precheck = runIntegrityPrecheck(args);
-  if (!precheck.ok) {
+  if (!precheck.ok && plan.command !== 'status') {
     process.stdout.write(`${JSON.stringify({
       ok: false,
       blocked: true,
@@ -506,6 +548,10 @@ async function main() {
       run_context: runContext,
       active_risky_toggles: active,
       neutralized_risky_toggles: neutralized,
+      precheck_ok: precheck.ok === true,
+      precheck_reason: precheck.ok === true ? null : cleanText(precheck.reason || 'integrity_precheck_unavailable', 120),
+      precheck_timeout_ms: precheck && precheck.timeout_ms ? Number(precheck.timeout_ms) : null,
+      precheck_timed_out: precheck && precheck.timed_out === true,
       spine_status: spineStatus
     };
     process.stdout.write(`${JSON.stringify(statusPayload, null, 2)}\n`);
