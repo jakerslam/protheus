@@ -24,6 +24,7 @@ const { evaluateLocalProviderGate } = require('../routing/provider_readiness.js'
 const { emitPainSignal } = require('../autonomy/pain_signal.js');
 const { mapCrossDomainRows } = require('./cross_domain_mapper.js');
 const { enforceMutationProvenance, recordMutationAudit } = require('../../lib/mutation_provenance.js');
+const { resolveClientState } = require('../../lib/runtime_path_registry.js');
 const {
   DEFAULT_STATE_DIR: GLOBAL_BUDGET_STATE_DIR,
   DEFAULT_EVENTS_PATH: GLOBAL_BUDGET_EVENTS_PATH,
@@ -38,7 +39,7 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const SCRIPT_SOURCE = 'systems/memory/idle_dream_cycle.js';
 const DREAMS_DIR = process.env.IDLE_DREAM_DREAMS_DIR
   ? path.resolve(String(process.env.IDLE_DREAM_DREAMS_DIR))
-  : path.join(REPO_ROOT, 'state', 'memory', 'dreams');
+  : resolveClientState(REPO_ROOT, 'memory/dreams');
 const IDLE_DIR = process.env.IDLE_DREAM_IDLE_DIR
   ? path.resolve(String(process.env.IDLE_DREAM_IDLE_DIR))
   : path.join(DREAMS_DIR, 'idle');
@@ -53,10 +54,10 @@ const LEDGER_PATH = process.env.IDLE_DREAM_LEDGER_PATH
   : path.join(DREAMS_DIR, 'idle_runs.jsonl');
 const ROUTING_DECISIONS_PATH = process.env.IDLE_DREAM_ROUTING_DECISIONS_PATH
   ? path.resolve(String(process.env.IDLE_DREAM_ROUTING_DECISIONS_PATH))
-  : path.join(REPO_ROOT, 'state', 'routing', 'routing_decisions.jsonl');
+  : resolveClientState(REPO_ROOT, 'routing/routing_decisions.jsonl');
 const FAILURE_POINTERS_DIR = process.env.IDLE_DREAM_FAILURE_POINTERS_DIR
   ? path.resolve(String(process.env.IDLE_DREAM_FAILURE_POINTERS_DIR))
-  : path.join(REPO_ROOT, 'state', 'memory', 'failure_pointers');
+  : resolveClientState(REPO_ROOT, 'memory/failure_pointers');
 const MEMORY_DREAM_SCRIPT = process.env.IDLE_DREAM_MEMORY_DREAM_SCRIPT
   ? path.resolve(String(process.env.IDLE_DREAM_MEMORY_DREAM_SCRIPT))
   : path.join(REPO_ROOT, 'systems', 'memory', 'memory_dream.js');

@@ -17,11 +17,12 @@ const {
   emit,
   relPath
 } = require('../../lib/queued_backlog_runtime');
+const { CANONICAL_PATHS } = require('../../lib/runtime_path_registry');
 
 const CLIENT_ROOT = path.join(ROOT, 'client');
 const CORE_ROOT = path.join(ROOT, 'core');
-const CLIENT_LOCAL = path.join(CLIENT_ROOT, 'local');
-const CORE_LOCAL = path.join(CORE_ROOT, 'local');
+const CLIENT_LOCAL = path.join(ROOT, CANONICAL_PATHS.client_local_root);
+const CORE_LOCAL = path.join(ROOT, CANONICAL_PATHS.core_local_root);
 const STATE_ROOT = path.join(CLIENT_LOCAL, 'state', 'ops', 'migrate_to_planes');
 const LATEST_PATH = path.join(STATE_ROOT, 'latest.json');
 const RECEIPTS_PATH = path.join(STATE_ROOT, 'receipts.jsonl');
@@ -58,10 +59,18 @@ const MAPPINGS: Mapping[] = [
     notes: 'legacy runtime state mirror'
   },
   {
+    id: 'root_local_state',
+    source: path.join(ROOT, 'local', 'state'),
+    target: path.join(CLIENT_LOCAL, 'state'),
+    default_mode: 'move',
+    allow_tracked_move: false,
+    notes: 'legacy root local state mirror'
+  },
+  {
     id: 'root_private_lenses',
     source: path.join(ROOT, '.private-lenses'),
     target: path.join(CLIENT_LOCAL, 'private-lenses'),
-    default_mode: 'copy',
+    default_mode: 'move',
     allow_tracked_move: false,
     notes: 'private lens config surface'
   },
@@ -108,7 +117,7 @@ const MAPPINGS: Mapping[] = [
 
 function usage() {
   console.log('Usage:');
-  console.log('  node client/systems/ops/migrate_to_planes.js run [--apply=0|1] [--move-untracked=1|0] [--include-missing=0|1] [--compat-symlinks=1|0]');
+  console.log('  node client/systems/ops/migrate_to_planes.js run [--apply=0|1] [--move-untracked=1|0] [--include-missing=0|1] [--compat-symlinks=1|0 (deprecated, default 0)]');
   console.log('  node client/systems/ops/migrate_to_planes.js rollback --id=<migration_id|latest> [--prune-copies=1|0]');
   console.log('  node client/systems/ops/migrate_to_planes.js status');
   console.log('  node client/systems/ops/migrate_to_planes.js plan');
@@ -353,7 +362,7 @@ function runMigration(args: Record<string, any>) {
   const apply = toBool(args.apply, false);
   const moveUntracked = toBool(args['move-untracked'], true);
   const includeMissing = toBool(args['include-missing'], false);
-  const compatSymlinks = toBool(args['compat-symlinks'], true);
+  const compatSymlinks = toBool(args['compat-symlinks'], false);
   const migration_id = apply ? migrationId() : null;
 
   mkdirBlueprint();

@@ -2303,7 +2303,7 @@ function evaluateStepSecurityGate(step: AnyObj, command: string, executionContex
   const stateRoot = cleanText(
     options && options.state_root
       ? options.state_root
-      : path.join(REPO_ROOT, 'state'),
+      : path.join(REPO_ROOT, 'client', 'local', 'state'),
     500
   );
   const request = {
@@ -3999,7 +3999,7 @@ function runCmd(dateStr: string, args: AnyObj) {
       String(
         args['state-root']
         || process.env.PROTHEUS_SECURITY_STATE_ROOT
-        || path.join(REPO_ROOT, 'state')
+        || path.join(REPO_ROOT, 'client', 'local', 'state')
       )
     ),
     policy,

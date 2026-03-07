@@ -44,12 +44,28 @@ fn normalize_model_name(raw: &str) -> String {
         .collect::<String>()
 }
 
+fn resolve_client_root(root: &Path) -> PathBuf {
+    if root
+        .file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| name.eq_ignore_ascii_case("client"))
+        .unwrap_or(false)
+    {
+        return root.to_path_buf();
+    }
+    if root.join("client").is_dir() {
+        return root.join("client");
+    }
+    root.to_path_buf()
+}
+
 fn resolve_paths(root: &Path) -> IdlePaths {
+    let client_root = resolve_client_root(root);
     let dreams_dir = std::env::var("IDLE_DREAM_DREAMS_DIR")
         .ok()
         .filter(|v| !v.trim().is_empty())
         .map(PathBuf::from)
-        .unwrap_or_else(|| root.join("state/client/memory/dreams"));
+        .unwrap_or_else(|| client_root.join("local/state/memory/dreams"));
     let idle_dir = std::env::var("IDLE_DREAM_IDLE_DIR")
         .ok()
         .filter(|v| !v.trim().is_empty())
@@ -286,7 +302,7 @@ mod tests {
     #[test]
     fn status_payload_reads_state_and_outputs_expected_keys() {
         let root = unique_temp_dir("idle-dream-status");
-        let dreams_dir = root.join("state/client/memory/dreams");
+        let dreams_dir = root.join("client/local/state/memory/dreams");
         let idle_dir = dreams_dir.join("idle");
         let rem_dir = dreams_dir.join("rem");
         fs::create_dir_all(&idle_dir).expect("mkdir idle");

@@ -33,3 +33,15 @@ variable "cron_schedule" {
   type        = string
   default     = "0 */4 * * *"
 }
+
+variable "existing_secret_name" {
+  description = "Existing Kubernetes secret name for runtime credentials (optional)"
+  type        = string
+  default     = ""
+}
+
+variable "secret_optional" {
+  description = "Whether the runtime secret reference is optional"
+  type        = bool
+  default     = true
+}

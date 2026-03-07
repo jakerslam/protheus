@@ -49,7 +49,7 @@ function makeScript(filePath, body) {
 }
 
 try {
-  const tmp = fs.mkdtempSync(path.join(ROOT, 'tmp', 'open-platform-release-pack-'));
+  const tmp = fs.mkdtempSync(path.join(ROOT, 'client', 'local', 'tmp', 'open-platform-release-pack-'));
   const policyPath = path.join(tmp, 'config', 'open_platform_release_pack_policy.json');
   const stateDir = path.join(tmp, 'state');
   const stubsDir = path.join(tmp, 'stubs');

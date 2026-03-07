@@ -43,10 +43,10 @@ function defaultPolicy() {
     forbidden_patterns: ['spawnSync(', 'execSync(', 'writeFileSync('],
     spine_entrypoints: ['systems/spine/spine.ts'],
     paths: {
-      memory_pref_dir: 'memory/spine/preferences',
-      adaptive_index_path: 'adaptive/spine/index.json',
-      latest_path: 'state/ops/spine_kernel_budget_check/latest.json',
-      receipts_path: 'state/ops/spine_kernel_budget_check/receipts.jsonl'
+      memory_pref_dir: 'client/local/memory/spine/preferences',
+      adaptive_index_path: 'client/adaptive/spine/index.json',
+      latest_path: 'client/local/state/ops/spine_kernel_budget_check/latest.json',
+      receipts_path: 'client/local/state/ops/spine_kernel_budget_check/receipts.jsonl'
     }
   };
 }

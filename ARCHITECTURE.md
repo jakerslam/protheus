@@ -35,7 +35,18 @@ Additional split rules:
 
 - Source of truth code: `core/` and `client/` only.
 - Runtime/user/device/instance data: `client/local/` and `core/local/` only.
-- Compatibility links from legacy paths are transitional and must not carry policy authority.
+- Legacy compatibility links are disabled by default. Canonical runtime roots are direct:
+  - `client/local/*` for client runtime data
+  - `core/local/*` for core runtime data
+
+## Direct Wiring Policy
+
+- Deprecated compat surfaces (`client/state`, root `state/`, root `local/`) are not valid runtime paths.
+- Client wrappers must call core through conduit/scrambler only; no policy authority exists in TS compatibility shells.
+- Migration tooling may provide one-time compatibility options, but defaults are direct to canonical roots.
+- Canonical path constants are centralized in:
+  - TS: `client/lib/runtime_path_registry.ts`
+  - Rust (conduit): `core/layer2/conduit/src/runtime_paths.rs`
 
 ## Why Root Is Clean
 

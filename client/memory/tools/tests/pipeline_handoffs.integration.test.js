@@ -73,7 +73,7 @@ async function main() {
   console.log('═══════════════════════════════════════════════════════════');
 
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pipeline-handoff-'));
-  const adapterSandboxDir = fs.mkdtempSync(path.join(path.join(ROOT, 'tmp'), 'pipeline-handoff-adapter-'));
+  const adapterSandboxDir = fs.mkdtempSync(path.join(path.join(ROOT, 'client', 'local', 'tmp'), 'pipeline-handoff-adapter-'));
   const adapterSandboxFile = path.join(adapterSandboxDir, 'unstable_adapter.js');
   fs.writeFileSync(adapterSandboxFile, [
     "'use strict';",

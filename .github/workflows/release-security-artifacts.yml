@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  attestations: write
+  id-token: write
 
 jobs:
   release-security:
@@ -175,6 +177,13 @@ jobs:
           fs.writeFileSync('state/release/provenance_bundle/latest.json', JSON.stringify(bundle, null, 2) + '\n');
           NODE
 
+      - name: Generate SLSA provenance attestations
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            target/release/protheus-ops
+            target/release/conduit_daemon
+
       - name: Enforce supply-chain provenance v2 gate
         run: |
           cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- \
@@ -191,6 +200,7 @@ jobs:
           This release ships with:
           - Per-artifact CycloneDX SBOMs (`state/release/provenance/sbom/*.cdx.json`)
           - Detached artifact signatures (`state/release/provenance/signatures/*.sig`)
+          - GitHub SLSA build provenance attestations (attached to release subjects)
           - Dependency vulnerability SLA summary (`state/release/provenance_bundle/dependency_vulnerability_summary.json`)
           - Provenance bundle (`state/release/provenance_bundle/latest.json`)
 
