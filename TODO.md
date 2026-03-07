@@ -57,6 +57,25 @@
     - `npm run -s test:memory:auto-recall`
     - `node client/memory/tools/tests/idle_dream_cycle.test.js`
 
+- [x] `V6-MEMORY-CONTEXT-CAP-001` Enforce hard context budget in memory runtime query path.
+  - Layer target: `client/systems/memory/memory_recall.ts` runtime query surface.
+  - Delivered:
+    - Added configurable context budget contract (`--context-budget-tokens`, `--context-budget-mode=trim|reject`).
+    - Added deterministic trimming/rejection behavior with token estimation and structured `context_budget` telemetry in query payloads.
+    - Added regression coverage in `client/memory/tools/tests/memory_recall_context_budget.test.js` for trim + reject modes.
+  - Validation:
+    - `npm run -s test:memory:context-budget`
+
+- [x] `V6-REFLEX-CORE-001` Add five low-burn core reflexes for common operator actions.
+  - Layer target: `client/reflexes/*` cognition helper surface.
+  - Delivered:
+    - Added TS reflex registry + runner: `client/reflexes/index.ts` (wrapper: `client/reflexes/index.js`).
+    - Added reflex set: `read_snippet`, `write_quick`, `summarize_brief`, `git_status`, `memory_lookup`.
+    - Enforced per-reflex cap (`<=150` estimated tokens) in runtime output contract.
+    - Added regression coverage: `client/memory/tools/tests/client_reflexes.test.js`.
+  - Validation:
+    - `npm run -s test:reflexes`
+
 - [ ] `V6-MEMORY-HIERARCHY-XML-001` Backfill explicit XML hierarchy across historical daily memory files.
   - Current state:
     - New conversation synthesis output emits level metadata and XML payload boundaries, but historical `client/memory/YYYY-MM-DD.md` entries remain frontmatter + separator format.
@@ -128,7 +147,7 @@
     - Keep source/test/docs artifacts in their canonical source directories.
   - Completion criteria:
     - Runtime writes default to `client/local/*` and `core/local/*`.
-    - Legacy path reads remain as compatibility fallback during transition.
+    - Legacy path reads are blocked in runtime lanes; compatibility handling is limited to explicit migration tooling only.
     - Reset command can wipe local partitions without touching source code.
   - Completed deliverables:
     - `protheusctl migrate-to-planes` (`plan|run|status`) shipped.

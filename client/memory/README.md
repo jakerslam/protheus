@@ -42,6 +42,15 @@ When a new memory node is filed (for example by `conversation_eye`), `memory_aut
 Command:
 - `npm run -s memory:auto-recall:status`
 
+## Memory Recall Context Budget
+
+`memory_recall` now enforces a hard context budget contract on query payloads:
+- `--context-budget-tokens=<n>` (default `8000`, floor `256`)
+- `--context-budget-mode=trim|reject` (default `trim`)
+
+Trim mode keeps bounded hits and trims excerpts/summaries. Reject mode fails closed with
+`error: context_budget_exceeded`.
+
 ## Moltbook Credentials Persistence
 
 To ensure context-free continuity for Moltbook:
