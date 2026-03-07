@@ -53,12 +53,12 @@ function defaultPolicy() {
       min_integrity_coverage: 0.98
     },
     paths: {
-      state_root: 'state/ops/benchmark_autonomy_gate',
-      latest_path: 'state/ops/benchmark_autonomy_gate/latest.json',
-      receipts_path: 'state/ops/benchmark_autonomy_gate/receipts.jsonl',
-      benchmark_history_path: 'state/ops/public_benchmark_pack/results.jsonl',
-      autonomy_queue_path: 'state/ops/benchmark_autonomy_gate/backlog_queue.json',
-      metadata_contract_path: 'state/ops/benchmark_autonomy_gate/backlog_metadata.json'
+      state_root: 'client/local/state/ops/benchmark_autonomy_gate',
+      latest_path: 'client/local/state/ops/benchmark_autonomy_gate/latest.json',
+      receipts_path: 'client/local/state/ops/benchmark_autonomy_gate/receipts.jsonl',
+      benchmark_history_path: 'client/local/state/ops/public_benchmarks/results.jsonl',
+      autonomy_queue_path: 'client/local/state/ops/benchmark_autonomy_gate/backlog_queue.json',
+      metadata_contract_path: 'client/local/state/ops/benchmark_autonomy_gate/backlog_metadata.json'
     }
   };
 }

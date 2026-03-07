@@ -1,5 +1,5 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "enabled": true,
   "strict_default": true,
   "required_bins": {
@@ -10,9 +10,9 @@
   },
   "paths": {
     "package_json_path": "package.json",
-    "bin_dir": "bin",
+    "bin_dir": "client/bin",
     "bootstrap_path": "client/lib/ts_bootstrap.js",
-    "latest_path": "state/ops/entrypoint_runtime_contract/latest.json",
-    "receipts_path": "state/ops/entrypoint_runtime_contract/receipts.jsonl"
+    "latest_path": "client/local/state/ops/entrypoint_runtime_contract/latest.json",
+    "receipts_path": "client/local/state/ops/entrypoint_runtime_contract/receipts.jsonl"
   }
 }

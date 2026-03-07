@@ -2,8 +2,8 @@
   "version": "1.0",
   "enabled": true,
   "state": {
-    "status_path": "state/ops/mech_suit_mode/latest.json",
-    "history_path": "state/ops/mech_suit_mode/history.jsonl"
+    "status_path": "local/state/ops/mech_suit_mode/latest.json",
+    "history_path": "local/state/ops/mech_suit_mode/history.jsonl"
   },
   "spine": {
     "heartbeat_hours": 4,
@@ -25,9 +25,9 @@
   "eyes": {
     "push_attention_queue": true,
     "quiet_non_critical": true,
-    "attention_queue_path": "state/attention/queue.jsonl",
-    "receipts_path": "state/attention/receipts.jsonl",
-    "latest_path": "state/attention/latest.json",
+    "attention_queue_path": "local/state/attention/queue.jsonl",
+    "receipts_path": "local/state/attention/receipts.jsonl",
+    "latest_path": "local/state/attention/latest.json",
     "attention_contract": {
       "max_queue_depth": 2048,
       "ttl_hours": 48,
@@ -62,9 +62,9 @@
     "ambient_stance": true,
     "auto_apply": true,
     "full_reload": false,
-    "cache_path": "state/personas/ambient_stance/cache.json",
-    "latest_path": "state/personas/ambient_stance/latest.json",
-    "receipts_path": "state/personas/ambient_stance/receipts.jsonl",
+    "cache_path": "local/state/personas/ambient_stance/cache.json",
+    "latest_path": "local/state/personas/ambient_stance/latest.json",
+    "receipts_path": "local/state/personas/ambient_stance/receipts.jsonl",
     "max_personas": 256,
     "max_patch_bytes": 65536
   },
@@ -73,7 +73,9 @@
     "surface_levels": [
       "warn",
       "critical"
-    ]
+    ],
+    "latest_path": "local/state/dopamine/ambient/latest.json",
+    "receipts_path": "local/state/dopamine/ambient/receipts.jsonl"
   },
   "memory": {
     "rust_authoritative": true,
@@ -83,8 +85,8 @@
       "warn",
       "critical"
     ],
-    "latest_path": "state/client/memory/ambient/latest.json",
-    "receipts_path": "state/client/memory/ambient/receipts.jsonl"
+    "latest_path": "local/state/client/memory/ambient/latest.json",
+    "receipts_path": "local/state/client/memory/ambient/receipts.jsonl"
   },
   "receipts": {
     "silent_unless_critical": true

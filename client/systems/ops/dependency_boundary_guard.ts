@@ -44,7 +44,7 @@ function defaultPolicy() {
       adaptive: ['client/adaptive'],
       habits: ['client/habits'],
       memory: ['client/memory'],
-      state: ['state'],
+      state: ['client/local/state', 'core/local/state', 'state'],
       docs: ['docs'],
       tests: ['client/tests', 'client/memory/tools/tests']
     },
@@ -77,7 +77,15 @@ function defaultPolicy() {
         "spawnSync('cargo'",
         'spawnSync(\"cargo\"',
         "execSync('cargo",
-        'execSync(\"cargo'
+        'execSync(\"cargo',
+        "target', 'release', 'protheus-ops'",
+        "target', 'debug', 'protheus-ops'",
+        "target\", \"release\", \"protheus-ops\"",
+        "target\", \"debug\", \"protheus-ops\"",
+        "--bin', 'protheus-ops'",
+        "--bin\", \"protheus-ops\"",
+        "--package', 'protheus-ops-core'",
+        "--package\", \"protheus-ops-core\""
       ]
     },
     scan: {
@@ -86,8 +94,8 @@ function defaultPolicy() {
       exclude_contains: ['.bak.', '.tmp', 'node_modules', 'dist/']
     },
     paths: {
-      latest_path: 'state/ops/dependency_boundary_guard/latest.json',
-      receipts_path: 'state/ops/dependency_boundary_guard/receipts.jsonl'
+      latest_path: 'client/local/state/ops/dependency_boundary_guard/latest.json',
+      receipts_path: 'client/local/state/ops/dependency_boundary_guard/receipts.jsonl'
     }
   };
 }

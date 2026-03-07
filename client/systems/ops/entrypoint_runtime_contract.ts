@@ -19,7 +19,11 @@ const {
 
 const DEFAULT_POLICY_PATH = process.env.ENTRYPOINT_RUNTIME_CONTRACT_POLICY_PATH
   ? path.resolve(process.env.ENTRYPOINT_RUNTIME_CONTRACT_POLICY_PATH)
-  : path.join(ROOT, 'config', 'entrypoint_runtime_contract_policy.json');
+  : (
+    fs.existsSync(path.join(ROOT, 'client', 'config', 'entrypoint_runtime_contract_policy.json'))
+      ? path.join(ROOT, 'client', 'config', 'entrypoint_runtime_contract_policy.json')
+      : path.join(ROOT, 'config', 'entrypoint_runtime_contract_policy.json')
+  );
 
 function rel(absPath: string) {
   return path.relative(ROOT, absPath).replace(/\\/g, '/');
@@ -27,8 +31,8 @@ function rel(absPath: string) {
 
 function usage() {
   console.log('Usage:');
-  console.log('  node systems/ops/entrypoint_runtime_contract.js check [--strict=1|0] [--policy=<path>]');
-  console.log('  node systems/ops/entrypoint_runtime_contract.js status [--policy=<path>]');
+  console.log('  node client/systems/ops/entrypoint_runtime_contract.js check [--strict=1|0] [--policy=<path>]');
+  console.log('  node client/systems/ops/entrypoint_runtime_contract.js status [--policy=<path>]');
 }
 
 function defaultPolicy() {
@@ -46,8 +50,8 @@ function defaultPolicy() {
       package_json_path: 'package.json',
       bin_dir: 'bin',
       bootstrap_path: 'lib/ts_bootstrap.js',
-      latest_path: 'state/ops/entrypoint_runtime_contract/latest.json',
-      receipts_path: 'state/ops/entrypoint_runtime_contract/receipts.jsonl'
+      latest_path: 'client/local/state/ops/entrypoint_runtime_contract/latest.json',
+      receipts_path: 'client/local/state/ops/entrypoint_runtime_contract/receipts.jsonl'
     }
   };
 }
@@ -113,6 +117,7 @@ function runCheck(policy: any, strict: boolean) {
   const missingBinMappings: string[] = [];
   const missingWrappers: string[] = [];
   const missingDistFallback: string[] = [];
+  const missingSourceEntrypoints: string[] = [];
 
   for (const [binName, targetRel] of Object.entries(policy.required_bins)) {
     const mapped = bins[binName];
@@ -124,12 +129,15 @@ function runCheck(policy: any, strict: boolean) {
 
     const binPath = path.join(ROOT, cleanText(mapped, 300));
     const check = checkBinWrapper(binPath, target);
+    const sourceEntrypointAbs = path.join(ROOT, target);
     if (!check.exists) missingWrappers.push(binName);
     if (!(check.dist_fallback && check.source_fallback)) missingDistFallback.push(binName);
+    if (!fs.existsSync(sourceEntrypointAbs)) missingSourceEntrypoints.push(binName);
     binChecks.push({
       bin: binName,
       mapped_path: cleanText(mapped, 300),
       expected_target: target,
+      source_entrypoint_exists: fs.existsSync(sourceEntrypointAbs),
       ...check
     });
   }
@@ -144,6 +152,7 @@ function runCheck(policy: any, strict: boolean) {
     required_bin_mapping_present: missingBinMappings.length === 0,
     wrapper_files_exist: missingWrappers.length === 0,
     wrapper_dist_and_source_fallback: missingDistFallback.length === 0,
+    source_entrypoints_exist: missingSourceEntrypoints.length === 0,
     bootstrap_exists: bootstrapCheck.exists,
     bootstrap_runtime_mode_toggle: bootstrapCheck.runtime_mode_toggle,
     bootstrap_missing_dist_detection: bootstrapCheck.missing_dist_detection,
@@ -167,7 +176,8 @@ function runCheck(policy: any, strict: boolean) {
     missing: {
       bin_mappings: missingBinMappings,
       wrapper_files: missingWrappers,
-      dist_fallbacks: missingDistFallback
+      dist_fallbacks: missingDistFallback,
+      source_entrypoints: missingSourceEntrypoints
     },
     bootstrap: bootstrapCheck,
     artifacts: {

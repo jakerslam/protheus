@@ -141,13 +141,22 @@ async function runConduitAgent(agentId, requestPrefix, receiptKey, errorType, op
   const { ConduitClient } = loadConduitClient(root);
   const command = daemonCommand(root);
   const client = ConduitClient.overStdio(command, daemonArgs(command), root);
+  const timeoutMs = Math.max(
+    1000,
+    Number(opts.timeoutMs || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS || 25000) || 25000
+  );
 
   try {
     const requestId = `${requestPrefix}-${Date.now()}`;
-    const response = await client.send(
-      { type: 'start_agent', agent_id: String(agentId) },
-      requestId
-    );
+    const response = await Promise.race([
+      client.send(
+        { type: 'start_agent', agent_id: String(agentId) },
+        requestId
+      ),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error(`conduit_bridge_timeout:${timeoutMs}`)), timeoutMs);
+      })
+    ]);
     const detail = response
       && response.event
       && response.event.type === 'system_feedback'
@@ -180,6 +189,7 @@ async function runConduitAgent(agentId, requestPrefix, receiptKey, errorType, op
         ok: false,
         type: errorType,
         reason: error,
+        timed_out: error.startsWith('conduit_bridge_timeout:') || error.startsWith('conduit_stdio_timeout:'),
         routed_via: 'conduit'
       },
       detail: null,

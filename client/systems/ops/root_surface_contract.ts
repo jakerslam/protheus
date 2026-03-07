@@ -19,12 +19,16 @@ const {
 
 const DEFAULT_POLICY_PATH = process.env.ROOT_SURFACE_CONTRACT_POLICY_PATH
   ? path.resolve(process.env.ROOT_SURFACE_CONTRACT_POLICY_PATH)
-  : path.join(ROOT, 'config', 'root_surface_contract.json');
+  : (
+    fs.existsSync(path.join(ROOT, 'client', 'config', 'root_surface_contract.json'))
+      ? path.join(ROOT, 'client', 'config', 'root_surface_contract.json')
+      : path.join(ROOT, 'config', 'root_surface_contract.json')
+  );
 
 function usage() {
   console.log('Usage:');
-  console.log('  node systems/ops/root_surface_contract.js check [--strict=1|0] [--policy=<path>]');
-  console.log('  node systems/ops/root_surface_contract.js status [--policy=<path>]');
+  console.log('  node client/systems/ops/root_surface_contract.js check [--strict=1|0] [--policy=<path>]');
+  console.log('  node client/systems/ops/root_surface_contract.js status [--policy=<path>]');
 }
 
 function defaultPolicy() {
@@ -35,8 +39,8 @@ function defaultPolicy() {
     allowed_root_dirs: [],
     deprecated_root_entries: [],
     paths: {
-      latest_path: 'state/ops/root_surface_contract/latest.json',
-      receipts_path: 'state/ops/root_surface_contract/receipts.jsonl'
+      latest_path: 'client/local/state/ops/root_surface_contract/latest.json',
+      receipts_path: 'client/local/state/ops/root_surface_contract/receipts.jsonl'
     }
   };
 }

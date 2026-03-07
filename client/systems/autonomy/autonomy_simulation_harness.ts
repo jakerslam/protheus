@@ -84,16 +84,16 @@ const summarizeIdentityEvaluations = typeof identityAnchor.summarizeIdentityEval
 const ROOT = path.resolve(__dirname, '..', '..');
 const RUNS_DIR = process.env.AUTONOMY_SIM_RUNS_DIR
   ? path.resolve(String(process.env.AUTONOMY_SIM_RUNS_DIR))
-  : path.join(ROOT, 'state', 'autonomy', 'runs');
+  : path.join(ROOT, 'local', 'state', 'autonomy', 'runs');
 const PROPOSALS_DIR = process.env.AUTONOMY_SIM_PROPOSALS_DIR
   ? path.resolve(String(process.env.AUTONOMY_SIM_PROPOSALS_DIR))
-  : path.join(ROOT, 'state', 'sensory', 'proposals');
+  : path.join(ROOT, 'local', 'state', 'sensory', 'proposals');
 const OUTPUT_DIR = process.env.AUTONOMY_SIM_OUTPUT_DIR
   ? path.resolve(String(process.env.AUTONOMY_SIM_OUTPUT_DIR))
-  : path.join(ROOT, 'state', 'autonomy', 'simulations');
+  : path.join(ROOT, 'local', 'state', 'autonomy', 'simulations');
 const BUDGET_AUTOPAUSE_PATH = process.env.AUTONOMY_SIM_BUDGET_AUTOPAUSE_PATH
   ? path.resolve(String(process.env.AUTONOMY_SIM_BUDGET_AUTOPAUSE_PATH))
-  : path.join(ROOT, 'state', 'autonomy', 'budget_autopause.json');
+  : path.join(ROOT, 'local', 'state', 'autonomy', 'budget_autopause.json');
 
 const DRIFT_WARN = Number(process.env.AUTONOMY_SIM_DRIFT_WARN || 0.65);
 const DRIFT_FAIL = Number(process.env.AUTONOMY_SIM_DRIFT_FAIL || 0.85);

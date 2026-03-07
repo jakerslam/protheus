@@ -106,7 +106,7 @@ function resolveRoot(args: Record<string, any>) {
 function resolvePaths(root: string, args: Record<string, any>) {
   const inboxDir = cleanText(args['inbox-dir'] || process.env.COCKPIT_INBOX_DIR || '', 500)
     ? path.resolve(String(args['inbox-dir'] || process.env.COCKPIT_INBOX_DIR))
-    : path.join(root, 'state', 'cockpit', 'inbox');
+    : path.join(root, 'local', 'state', 'cockpit', 'inbox');
   return {
     inboxDir,
     latestPath: path.join(inboxDir, 'latest.json'),
@@ -294,7 +294,7 @@ async function watch(args: Record<string, any>) {
     : {};
   const queuePath = payload && payload.attention_contract && payload.attention_contract.queue_path
     ? String(payload.attention_contract.queue_path)
-    : path.join(root, 'state', 'attention', 'queue.jsonl');
+    : path.join(root, 'local', 'state', 'attention', 'queue.jsonl');
   const queueDir = path.dirname(queuePath);
   const queueFile = path.basename(queuePath);
 

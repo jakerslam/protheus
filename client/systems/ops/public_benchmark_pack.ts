@@ -22,7 +22,7 @@ const { spawnSync } = require('child_process');
 const ROOT = path.resolve(__dirname, '..', '..');
 const OUT_DIR = process.env.PUBLIC_BENCHMARK_OUT_DIR
   ? path.resolve(process.env.PUBLIC_BENCHMARK_OUT_DIR)
-  : path.join(ROOT, 'state', 'ops', 'public_benchmarks');
+  : path.join(ROOT, 'local', 'state', 'ops', 'public_benchmarks');
 const LATEST_PATH = path.join(OUT_DIR, 'latest.json');
 const HISTORY_PATH = path.join(OUT_DIR, 'history.jsonl');
 const DOC_PATH = path.join(ROOT, 'docs', 'PUBLIC_BENCHMARKS.md');

@@ -15,6 +15,7 @@ use walkdir::WalkDir;
 pub mod autotest_controller;
 pub mod autotest_doctor;
 pub mod ab_lane_eval;
+pub mod adaptive_runtime;
 pub mod assimilation_controller;
 pub mod autonomy_controller;
 pub mod backlog_github_sync;

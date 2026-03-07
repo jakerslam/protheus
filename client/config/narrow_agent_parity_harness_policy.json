@@ -70,13 +70,13 @@
     }
   ],
   "sources": {
-    "execution_reliability_slo_path": "state/ops/execution_reliability_slo.json",
-    "runtime_efficiency_floor_path": "state/ops/runtime_efficiency_floor.json",
-    "workflow_execution_closure_path": "state/ops/workflow_execution_closure.json",
-    "daily_budget_dir": "state/autonomy/daily_budget",
-    "budget_events_path": "state/autonomy/budget_events.jsonl"
+    "execution_reliability_slo_path": "local/state/ops/execution_reliability_slo.json",
+    "runtime_efficiency_floor_path": "local/state/ops/runtime_efficiency_floor.json",
+    "workflow_execution_closure_path": "local/state/ops/workflow_execution_closure.json",
+    "daily_budget_dir": "local/state/autonomy/daily_budget",
+    "budget_events_path": "local/state/autonomy/budget_events.jsonl"
   },
-  "state_path": "state/ops/narrow_agent_parity_harness.json",
-  "history_path": "state/ops/narrow_agent_parity_harness_history.jsonl",
-  "weekly_receipts_dir": "state/ops/parity_scorecards"
+  "state_path": "local/state/ops/narrow_agent_parity_harness.json",
+  "history_path": "local/state/ops/narrow_agent_parity_harness_history.jsonl",
+  "weekly_receipts_dir": "local/state/ops/parity_scorecards"
 }
