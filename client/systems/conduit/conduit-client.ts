@@ -118,6 +118,10 @@ type Transport = {
   close(): Promise<void>;
 };
 
+type StdioTransportOptions = {
+  timeoutMs?: number;
+};
+
 class UnixSocketTransport implements Transport {
   constructor(private readonly socketPath: string) {}
 
@@ -154,10 +158,13 @@ class StdioTransport implements Transport {
   private readonly proc: ChildProcessWithoutNullStreams;
   private readonly timeoutMs: number;
 
-  constructor(command: string, args: string[] = [], cwd?: string) {
+  constructor(command: string, args: string[] = [], cwd?: string, options: StdioTransportOptions = {}) {
     this.proc = spawn(command, args, { cwd, stdio: 'pipe' });
+    const override = Number(options.timeoutMs);
     const configured = Number(
-      process.env.PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS
+      Number.isFinite(override) && override > 0
+        ? override
+        : process.env.PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS
       || process.env.PROTHEUS_CONDUIT_TIMEOUT_MS
       || 30000
     );
@@ -222,8 +229,9 @@ export class ConduitClient {
     args: string[] = [],
     cwd?: string,
     security?: Partial<ConduitClientSecurityConfig>,
+    options: StdioTransportOptions = {},
   ): ConduitClient {
-    return new ConduitClient(new StdioTransport(command, args, cwd), resolveSecurityConfig(security));
+    return new ConduitClient(new StdioTransport(command, args, cwd, options), resolveSecurityConfig(security));
   }
 
   async send(command: TsCommand, requestId?: string): Promise<ResponseEnvelope> {

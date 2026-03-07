@@ -19,7 +19,7 @@ const RUNTIME_GATE_PATH = path.join(ROOT, 'local', 'state', 'conduit', 'runtime_
 const OUTPUT_DIR = path.join(ROOT, 'local', 'state', 'ops', 'mech_suit_benchmark');
 const OUTPUT_LATEST = path.join(OUTPUT_DIR, 'latest.json');
 const OUTPUT_HISTORY = path.join(OUTPUT_DIR, 'history.jsonl');
-const DEFAULT_NODE_TIMEOUT_MS = Math.max(1000, Number(process.env.MECH_SUIT_BENCH_NODE_TIMEOUT_MS || 90000));
+const DEFAULT_NODE_TIMEOUT_MS = Math.max(1000, Number(process.env.MECH_SUIT_BENCH_NODE_TIMEOUT_MS || 15000));
 const DEFAULT_CONDUIT_TIMEOUT_MS = Math.max(1000, Number(process.env.MECH_SUIT_BENCH_CONDUIT_TIMEOUT_MS || 12000));
 const PRECHECK_TIMEOUT_MS = Math.max(1000, Number(process.env.MECH_SUIT_BENCH_PREFLIGHT_TIMEOUT_MS || 20000));
 const ALLOW_HOST_SKIP = String(process.env.MECH_SUIT_BENCH_ALLOW_HOST_SKIP || '1').trim() !== '0';

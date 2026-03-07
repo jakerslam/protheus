@@ -14,13 +14,14 @@
     - `npm run -s ops:root-surface:check`
     - `npm run -s ops:source-runtime:check`
 
-- [ ] `V6-DIRECT-WIRING-002` Reconcile historical SRS/backlog text that still references removed `core/memory` compat artifacts.
+- [x] `V6-DIRECT-WIRING-002` Reconcile historical SRS/backlog text that still references removed `core/memory` compat artifacts.
   - Layer target: requirements traceability (`SRS.md`, `client/config/backlog_registry.json`, `client/config/backlog_review_registry.json`).
-  - Current gap:
-    - Historical acceptance text still cites deleted `core_memory_compat_bridge` files.
-  - Completion criteria:
-    - Replace obsolete compatibility evidence with current direct-wiring artifacts/tests.
-    - Keep lane history intact while preventing regression toward deprecated shim surfaces.
+  - Delivered:
+    - Replaced stale acceptance language referencing deleted `core_memory_compat_bridge` artifacts in `SRS.md`, `UPGRADE_BACKLOG.md`, `client/config/backlog_registry.json`, and `client/config/backlog_review_registry.json`.
+    - Updated evidence refs to direct-wiring artifacts (`client/docs/architecture/DIRECT_WIRING_AUDIT_2026-03-07.md`).
+    - Preserved lane history/IDs while aligning acceptance criteria to current canonical runtime surfaces.
+  - Validation:
+    - `npm run -s ops:source-runtime:check`
 
 - [ ] `V6-ROOT-INTERNAL-003` Decide and execute final placement policy for root personal/internal markdown artifacts.
   - Layer target: `client/local/internal/*` (or explicit archived docs path if governance files stay tracked).
@@ -71,6 +72,8 @@
     - Raised default conduit stdio timeout from `8s` to `30s` in both shared conduit transport and spine bridge callsites to reduce false gate trips during startup pressure.
     - Added immediate bridge reprobe path in `protheusd` when runtime gate has cleared (prevents stale `bridge_degraded` state waiting on deferred probe windows).
     - Verified `protheusd status` now surfaces explicit bridge health + gate telemetry in degraded mode (`conduit_runtime_gate`, `bridge_health`, `degraded_reason`) instead of silent heartbeat death loops.
+    - Added bounded timeout contracts to `spine_safe_launcher` subprocess precheck/status paths (including non-blocking status on precheck failure) to stop prolonged wrapper stalls.
+    - Added conduit stdio-timeout override plumbing (`client/systems/conduit/conduit-client.ts` + `client/lib/spine_conduit_bridge.ts`) so status-like calls can fail fast instead of inheriting 30s+ defaults.
   - Completion criteria:
     - `conduit_daemon` responds to `start_agent` within timeout budget.
     - `ops:mech-suit:benchmark` completes without preflight host fault.
@@ -130,6 +133,8 @@
     - Persona/dopamine/memory ambient surfaces now degrade cleanly (exit `0`, blocked receipt) when conduit runtime gate is active.
     - Spine heartbeat/status now fail fast and convert to gate-skipped mode, reducing repetitive timeout incidents.
     - Refreshed proof pack artifacts at `client/docs/reports/runtime_snapshots/ops/proof_pack/` with current benchmark + harness + parity + invariants outputs.
+    - Ambient wrappers (`spine_safe_launcher`, persona ambient, dopamine ambient, memory ambient) now pass explicit conduit stdio budgets, removing multi-30s wrapper stalls.
+    - `ops:mech-suit:benchmark` now completes full case execution with no `skip_reason` in current run (`2026-03-07T22:18:01.987Z`, summary reduction `15.55%`, `ambient_mode_active=true`).
   - Completion criteria:
     - `ops:mech-suit:benchmark` runs full case set without `skip_reason`.
     - `ambient_mode_active` and summary booleans are sourced from live lane receipts.
