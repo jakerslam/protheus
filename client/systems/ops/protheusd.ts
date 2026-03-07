@@ -120,6 +120,9 @@ function isBridgeTimeoutReason(value: unknown) {
 
 function bridgeReasonFromSpineResult(spine: any) {
   if (!spine || typeof spine !== 'object') return null;
+  if (spine.ok === true && Number.isFinite(Number(spine.status)) && Number(spine.status) === 0) {
+    return null;
+  }
   const payloadReason = cleanText(spine.payload && spine.payload.reason, 260);
   if (payloadReason && isBridgeTimeoutReason(payloadReason)) return payloadReason;
   const stderrReason = cleanText(spine.stderr, 260);
@@ -358,6 +361,18 @@ function resolveRuntime(argv: string[]) {
     1000,
     15 * 60 * 1000
   );
+  const cockpitOnceTimeoutMs = toInt(
+    process.env.PROTHEUSD_COCKPIT_ONCE_TIMEOUT_MS,
+    12000,
+    1000,
+    15 * 60 * 1000
+  );
+  const cockpitConduitTimeoutMs = toInt(
+    process.env.PROTHEUSD_COCKPIT_CONDUIT_TIMEOUT_MS || process.env.COCKPIT_CONDUIT_PROBE_TIMEOUT_MS,
+    4000,
+    1000,
+    15 * 60 * 1000
+  );
 
   const cockpitInboxDirRaw = cleanText(parseFlag(argv, 'inbox-dir') || process.env.COCKPIT_INBOX_DIR, 500);
   const cockpitInboxDir = cockpitInboxDirRaw
@@ -384,6 +399,8 @@ function resolveRuntime(argv: string[]) {
     heartbeatMs,
     spineRunTimeoutMs,
     spineStatusTimeoutMs,
+    cockpitOnceTimeoutMs,
+    cockpitConduitTimeoutMs,
     pollMs,
     cockpitInboxDir,
     cockpitLatestPath: path.join(cockpitInboxDir, 'latest.json'),
@@ -420,7 +437,8 @@ function loadDaemonState(runtime: any) {
           last_exit_code: null
         },
     bridge_health: normalizedBridgeHealth(existing && existing.bridge_health),
-    last_error: cleanText(existing && existing.last_error || '', 260) || null
+    last_error: cleanText(existing && existing.last_error || '', 260) || null,
+    last_cockpit_error: cleanText(existing && existing.last_cockpit_error || '', 260) || null
   };
 }
 
@@ -451,18 +469,26 @@ function recordCommand(runtime: any, command: string, args: string[], requestId:
 }
 
 function runNode(script: string, args: string[], opts: any = {}) {
+  const timeoutMs = Number.isFinite(Number(opts.timeoutMs)) && Number(opts.timeoutMs) > 0
+    ? Math.floor(Number(opts.timeoutMs))
+    : 0;
   const out = spawnSync(process.execPath, [script, ...args], {
     cwd: opts.cwd || ROOT,
     encoding: 'utf8',
+    timeout: timeoutMs > 0 ? timeoutMs : undefined,
+    killSignal: 'SIGTERM',
     env: {
       ...process.env,
       ...(opts.env || {})
     }
   });
+  const timedOut = !!(out.error && (out.error as any).code === 'ETIMEDOUT');
+  const spawnError = out.error ? String((out.error as any).message || out.error) : '';
+  const stderrParts = [String(out.stderr || '').trim(), timedOut ? `spawn_timeout:${timeoutMs}` : '', spawnError].filter(Boolean);
   return {
-    status: Number.isFinite(out.status) ? Number(out.status) : 1,
+    status: Number.isFinite(out.status) ? Number(out.status) : (timedOut ? 124 : 1),
     stdout: String(out.stdout || ''),
-    stderr: String(out.stderr || ''),
+    stderr: stderrParts.join('\n'),
     payload: parseJson(out.stdout)
   };
 }
@@ -517,14 +543,22 @@ async function runHeartbeat(runtime: any, trigger: string) {
       `--limit=${runtime.batchLimit}`,
       `--inbox-dir=${runtime.cockpitInboxDir}`
     ],
-    { cwd: runtime.root }
+    {
+      cwd: runtime.root,
+      timeoutMs: runtime.cockpitOnceTimeoutMs,
+      env: {
+        COCKPIT_CONDUIT_PROBE_TIMEOUT_MS: String(runtime.cockpitConduitTimeoutMs),
+        PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS: String(runtime.cockpitConduitTimeoutMs),
+        PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS: String(Math.max(runtime.cockpitConduitTimeoutMs + 1000, 5000))
+      }
+    }
   );
 
   const state = loadDaemonState(runtime);
   state.run_seq = Number(state.run_seq || 0) + 1;
   state.last_heartbeat_at = nowIso();
   state.next_heartbeat_at = new Date(Date.now() + runtime.heartbeatMs).toISOString();
-  state.last_heartbeat_code = spine && spine.ok && cockpit.status === 0 ? 0 : 1;
+  state.last_heartbeat_code = spine && spine.ok ? 0 : 1;
   const bridgeReason = bridgeReasonFromSpineResult(spine);
   if (bridgeReason) {
     markBridgeDegraded(state, runtime, bridgeReason, `heartbeat:${trigger}`);
@@ -540,10 +574,13 @@ async function runHeartbeat(runtime: any, trigger: string) {
           : 'spine_heartbeat_failed',
       260
     );
+    state.last_cockpit_error = null;
   } else if (cockpit.status !== 0) {
-    state.last_error = cleanText(cockpit.stderr || 'cockpit_ingest_failed', 260);
+    state.last_error = null;
+    state.last_cockpit_error = cleanText(cockpit.stderr || 'cockpit_ingest_failed', 260);
   } else {
     state.last_error = null;
+    state.last_cockpit_error = null;
   }
   persistDaemonState(runtime, state);
 
@@ -652,7 +689,10 @@ async function runAmbientLoop(argv: string[]) {
       env: {
         ...process.env,
         COCKPIT_CONSUMER_ID: runtime.consumerId,
-        COCKPIT_INBOX_DIR: runtime.cockpitInboxDir
+        COCKPIT_INBOX_DIR: runtime.cockpitInboxDir,
+        COCKPIT_CONDUIT_PROBE_TIMEOUT_MS: String(runtime.cockpitConduitTimeoutMs),
+        PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS: String(runtime.cockpitConduitTimeoutMs),
+        PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS: String(Math.max(runtime.cockpitConduitTimeoutMs + 1000, 5000))
       }
     });
     const next = loadDaemonState(runtime);
@@ -928,6 +968,7 @@ function statusReceipt(runtime: any, state: any) {
       ? Number(state.last_heartbeat_code)
       : null,
     last_error: cleanText(state.last_error || '', 260) || null,
+    last_cockpit_error: cleanText(state.last_cockpit_error || '', 260) || null,
     cockpit_watch: state.cockpit_watch || null
   };
   const mechLatest = readJson(runtime.mechPolicy.statusPath, null);

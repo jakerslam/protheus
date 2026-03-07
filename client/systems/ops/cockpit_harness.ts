@@ -70,6 +70,15 @@ function toInt(v: unknown, fallback: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, Math.floor(n)));
 }
 
+function conduitProbeTimeoutMs() {
+  return toInt(
+    process.env.COCKPIT_CONDUIT_PROBE_TIMEOUT_MS,
+    4000,
+    1000,
+    120000
+  );
+}
+
 function ensureDir(filePath: string) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
 }
@@ -147,7 +156,11 @@ async function fetchAttentionBatch(root: string, consumerId: string, limit: numb
     `--limit=${limit}`,
     '--run-context=cockpit_harness'
   ];
-  const out = await runAttentionCommand(args, { cwdHint: root });
+  const out = await runAttentionCommand(args, {
+    cwdHint: root,
+    skipRuntimeGate: true,
+    timeoutMs: conduitProbeTimeoutMs()
+  });
   const payload = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
   return {
     ok: !!(out && out.ok && payload && payload.ok === true),
@@ -159,11 +172,28 @@ async function fetchAttentionBatch(root: string, consumerId: string, limit: numb
 
 async function fetchAmbientSnapshots(root: string) {
   const date = dayToken();
+  const timeoutMs = conduitProbeTimeoutMs();
   const [spine, personas, dopamine, memory] = await Promise.all([
-    runSpineCommand(['status', '--mode=daily', `--date=${date}`], { cwdHint: root }),
-    runPersonaAmbientCommand(['status'], { cwdHint: root }),
-    runDopamineAmbientCommand(['status', `--date=${date}`], { cwdHint: root }),
-    runMemoryAmbientCommand(['status'], { cwdHint: root })
+    runSpineCommand(['status', '--mode=daily', `--date=${date}`], {
+      cwdHint: root,
+      skipRuntimeGate: true,
+      timeoutMs
+    }),
+    runPersonaAmbientCommand(['status'], {
+      cwdHint: root,
+      skipRuntimeGate: true,
+      timeoutMs
+    }),
+    runDopamineAmbientCommand(['status', `--date=${date}`], {
+      cwdHint: root,
+      skipRuntimeGate: true,
+      timeoutMs
+    }),
+    runMemoryAmbientCommand(['status'], {
+      cwdHint: root,
+      skipRuntimeGate: true,
+      timeoutMs
+    })
   ]);
   const parse = (row: any) => (row && row.payload && typeof row.payload === 'object')
     ? row.payload
@@ -184,39 +214,40 @@ async function ingestOnce(args: Record<string, any>) {
   const state = loadHarnessState(paths, consumerId);
 
   const attention = await fetchAttentionBatch(root, consumerId, limit);
-  if (!attention.ok || !attention.payload) {
-    const receipt = {
-      ok: false,
-      type: 'cockpit_harness_once_error',
-      ts: nowIso(),
-      reason: attention.payload && attention.payload.reason
-        ? cleanText(attention.payload.reason, 160)
-        : cleanText(attention.stderr || 'attention_drain_failed', 160),
-      consumer_id: consumerId,
-      root,
-      limit
-    };
-    receipt.receipt_hash = stableHash(receipt);
-    process.stdout.write(`${JSON.stringify(receipt)}\n`);
-    return { ok: false, status: attention.status || 1, payload: receipt };
-  }
-
+  const attentionFailed = !attention.ok || !attention.payload;
+  const attentionPayload = attentionFailed
+    ? {
+        ok: false,
+        type: 'attention_drain_degraded',
+        reason: attention.payload && attention.payload.reason
+          ? cleanText(attention.payload.reason, 160)
+          : cleanText(attention.stderr || 'attention_drain_failed', 160),
+        queue_depth: 0,
+        cursor_offset: 0,
+        cursor_offset_after: 0,
+        acked: false,
+        events: [],
+        receipt_hash: null
+      }
+    : attention.payload;
   const snapshots = await fetchAmbientSnapshots(root);
-  const events = Array.isArray(attention.payload.events) ? attention.payload.events : [];
+  const events = Array.isArray(attentionPayload.events) ? attentionPayload.events : [];
   const nextSequence = Number(state.sequence || 0) + 1;
   const envelope: any = {
     ok: true,
     type: 'cockpit_context_envelope',
+    degraded: attentionFailed,
     ts: nowIso(),
     sequence: nextSequence,
     consumer_id: consumerId,
     root,
     attention: {
       batch_count: Number(events.length || 0),
-      queue_depth: Number(attention.payload.queue_depth || 0),
-      cursor_offset: Number(attention.payload.cursor_offset || 0),
-      cursor_offset_after: Number(attention.payload.cursor_offset_after || 0),
-      acked: attention.payload.acked === true,
+      queue_depth: Number(attentionPayload.queue_depth || 0),
+      cursor_offset: Number(attentionPayload.cursor_offset || 0),
+      cursor_offset_after: Number(attentionPayload.cursor_offset_after || 0),
+      acked: attentionPayload.acked === true,
+      degraded_reason: attentionFailed ? cleanText(attentionPayload.reason || 'attention_drain_failed', 160) : null,
       events
     },
     spine_status: snapshots.spine,
@@ -224,7 +255,7 @@ async function ingestOnce(args: Record<string, any>) {
     dopamine_status: snapshots.dopamine,
     memory_status: snapshots.memory,
     source_receipts: {
-      attention_receipt_hash: attention.payload.receipt_hash || null,
+      attention_receipt_hash: attentionPayload.receipt_hash || null,
       spine_receipt_hash: snapshots.spine && snapshots.spine.receipt_hash || null,
       persona_receipt_hash: snapshots.personas && snapshots.personas.receipt_hash || null,
       dopamine_receipt_hash: snapshots.dopamine && snapshots.dopamine.receipt_hash || null,
@@ -246,7 +277,7 @@ async function ingestOnce(args: Record<string, any>) {
     sequence: nextSequence,
     last_ingest_ts: envelope.ts,
     last_batch_count: Number(events.length || 0),
-    last_attention_receipt_hash: attention.payload.receipt_hash || null,
+    last_attention_receipt_hash: attentionPayload.receipt_hash || null,
     consumer_id: consumerId,
     root
   });
@@ -283,8 +314,12 @@ async function watch(args: Record<string, any>) {
   if (runOnceFirst) {
     const out = await ingestOnce(args);
     if (!out.ok) {
-      process.exit(out.status || 1);
-      return;
+      process.stderr.write(`${JSON.stringify({
+        ok: false,
+        type: 'cockpit_harness_watch_warn',
+        ts: nowIso(),
+        reason: cleanText(out && out.payload && out.payload.reason ? out.payload.reason : 'initial_ingest_failed', 180)
+      })}\n`);
     }
   }
 

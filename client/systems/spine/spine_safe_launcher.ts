@@ -425,6 +425,15 @@ function runtimeGateStatusPayload(plan: { command: string, mode: string, date: s
   };
 }
 
+function manualTriggerBlocked(plan: { command: string }, runContext: string) {
+  if (plan.command !== 'run') return false;
+  const force = toBool(process.env.MECH_SUIT_MODE_FORCE, false);
+  if (!force) return false;
+  const context = normalizeToken(runContext || 'manual', 40) || 'manual';
+  if (context === 'heartbeat' || context === 'daemon') return false;
+  return true;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const cmd = normalizeToken(args._[0] || 'run', 32) || 'run';
@@ -501,6 +510,25 @@ async function main() {
     };
     process.stdout.write(`${JSON.stringify(statusPayload, null, 2)}\n`);
     process.exit(0);
+  }
+
+  if (manualTriggerBlocked(plan, runContext)) {
+    process.stdout.write(`${JSON.stringify({
+      ok: false,
+      blocked: true,
+      type: 'spine_safe_launcher',
+      ts: nowIso(),
+      compatibility_shell: true,
+      authority: 'rust_spine',
+      command: plan.command,
+      mode: plan.mode,
+      date: plan.date,
+      run_context: runContext,
+      reason: 'manual_trigger_blocked_mech_suit_mode',
+      manual_triggers_allowed: false,
+      ambient_mode_active: true
+    })}\n`);
+    process.exit(3);
   }
 
   const preflightPayload = {
