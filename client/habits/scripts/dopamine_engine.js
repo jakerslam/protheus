@@ -1129,7 +1129,7 @@ function shouldSkipFile(filePath) {
     /node_modules\//,
     /\.git\//,
     /config\/trusted_skills\.json/,
-    /trusted_client/skills/,
+    /trusted_client\/skills/,
     /credentials/,
     /secrets?/,
     /\.key$/,

@@ -6,12 +6,13 @@
 [![Release](https://img.shields.io/github/v/release/protheuslabs/protheus?display_name=tag)](https://github.com/protheuslabs/protheus/releases)
 [![npm version](https://img.shields.io/npm/v/protheus)](https://www.npmjs.com/package/protheus)
 [![Docker](https://img.shields.io/badge/docker-ghcr.io%2Fprotheuslabs%2Fprotheus-blue)](https://github.com/protheuslabs/protheus/pkgs/container/protheus)
+[![Architecture](https://img.shields.io/badge/architecture-three--plane%20metakernel-0A7A5E)](planes/README.md)
 ![Coverage](client/docs/badges/coverage.svg)
 ![Dependabot](https://img.shields.io/badge/dependabot-enabled-025E8C?logo=dependabot)
 
 Protheus is an evidence-first Rust kernel for autonomous operations, workflow execution, and policy-governed system evolution.
 This repository is maintained under the Protheus Labs operating model.
-Protheus is the InfRing substrate: run the same core across desktop/server/embedded while keeping TS as a thin surface layer.
+Protheus is the InfRing substrate and three-plane metakernel: deterministic safety core, probabilistic cognition userland, and substrate adapters for heterogeneous execution.
 
 This repository is organized to run like an internal platform team: typed runtime lanes, deterministic receipts, strict governance surfaces, and operational guardrails that are reviewable in-source.
 
@@ -253,12 +254,13 @@ See [Cognitive Toolkit Suite](client/docs/cognitive_toolkit.md) and `examples/*-
 
 | Path | Responsibility |
 |---|---|
+| `planes/` | Three-plane architecture contracts and schemas |
 | `client/systems/` | Executable runtime lanes and control-plane modules |
 | `client/lib/` | Shared runtime helpers used by lanes |
 | `client/config/` | Policy, registries, and lane configuration |
 | `client/docs/` | Architecture, governance, runbooks, and contracts |
 | `client/memory/tools/tests/` | Deterministic tests and regression harnesses |
-| `state/` | Runtime artifacts and receipts (operational output) |
+| `client/local/`, `core/local/` | Instance-local runtime artifacts and receipts |
 
 ## Quality And Governance Baseline
 

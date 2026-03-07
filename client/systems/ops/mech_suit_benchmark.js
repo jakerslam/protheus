@@ -15,10 +15,12 @@ const PERSONA_AMBIENT = path.join(ROOT, 'systems', 'personas', 'ambient_stance.j
 const DOPAMINE_AMBIENT = path.join(ROOT, 'systems', 'dopamine', 'ambient.js');
 const MEMORY_AMBIENT = path.join(ROOT, 'systems', 'memory', 'ambient.js');
 const CATALOG_PATH = path.join(ROOT, 'adaptive', 'sensory', 'eyes', 'catalog.json');
-const OUTPUT_DIR = path.join(ROOT, 'state', 'ops', 'mech_suit_benchmark');
+const OUTPUT_DIR = path.join(ROOT, 'local', 'state', 'ops', 'mech_suit_benchmark');
 const OUTPUT_LATEST = path.join(OUTPUT_DIR, 'latest.json');
 const OUTPUT_HISTORY = path.join(OUTPUT_DIR, 'history.jsonl');
 const DEFAULT_NODE_TIMEOUT_MS = Math.max(1000, Number(process.env.MECH_SUIT_BENCH_NODE_TIMEOUT_MS || 90000));
+const DEFAULT_CONDUIT_TIMEOUT_MS = Math.max(1000, Number(process.env.MECH_SUIT_BENCH_CONDUIT_TIMEOUT_MS || 12000));
+const PRECHECK_TIMEOUT_MS = Math.max(1000, Number(process.env.MECH_SUIT_BENCH_PREFLIGHT_TIMEOUT_MS || 20000));
 
 function ensureDir(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -76,6 +78,8 @@ function runNode(script, args, env = {}, timeoutMs = DEFAULT_NODE_TIMEOUT_MS) {
     env: {
       ...process.env,
       PROTHEUS_SECURITY_GLOBAL_GATE: process.env.PROTHEUS_SECURITY_GLOBAL_GATE || '0',
+      PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS: String(DEFAULT_CONDUIT_TIMEOUT_MS),
+      PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS: String(DEFAULT_CONDUIT_TIMEOUT_MS),
       ...env
     }
   });
@@ -118,6 +122,43 @@ function reduction(baseline, ambient) {
 function reductionOrNull(baseline, ambient, hostFaultDetected) {
   if (hostFaultDetected) return null;
   return reduction(baseline, ambient);
+}
+
+function buildEarlyHostFault(tempRoot, preflight, reason) {
+  const out = {
+    ok: false,
+    type: 'mech_suit_benchmark',
+    ts: new Date().toISOString(),
+    ambient_mode_active: false,
+    benchmark_root: tempRoot,
+    cases: [
+      {
+        name: 'spine_conduit_preflight',
+        baseline: preflight,
+        ambient: preflight,
+        token_burn_reduction_pct: 0,
+        chars_reduction_pct: 0,
+        ok: false
+      }
+    ],
+    host_fault: {
+      timeout_detected: preflight && preflight.timed_out === true,
+      timed_out_cases: preflight && preflight.timed_out === true ? ['spine_conduit_preflight'] : [],
+      reason: cleanText(reason || preflight && preflight.error || 'spine_conduit_preflight_failed', 200)
+    },
+    summary: {
+      token_burn_reduction_pct: null,
+      chars_reduction_pct: null,
+      persona_ambient_mode_active: false,
+      persona_delta_applied: false,
+      dopamine_threshold_only: false,
+      memory_rust_authoritative: false
+    }
+  };
+  writeJson(OUTPUT_LATEST, out);
+  appendJsonl(OUTPUT_HISTORY, out);
+  process.stdout.write(JSON.stringify(out, null, 2) + '\n');
+  return out;
 }
 
 function writePolicy(tempRoot) {
@@ -493,6 +534,19 @@ function runBenchmark() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'mech-suit-bench-'));
   try {
     const policyPath = writePolicy(tempRoot);
+    const preflight = runNode(
+      SPINE,
+      ['status', '--apply-reseal=1'],
+      {
+        MECH_SUIT_MODE_POLICY_PATH: policyPath,
+        MECH_SUIT_MODE_FORCE: '1'
+      },
+      PRECHECK_TIMEOUT_MS
+    );
+    if (preflight.status !== 0 || preflight.timed_out === true) {
+      return buildEarlyHostFault(tempRoot, preflight, 'spine_conduit_unavailable');
+    }
+
     const spine = benchmarkSpine(policyPath);
     const eyes = benchmarkEyes(tempRoot, policyPath);
     const personas = benchmarkPersonas(policyPath);

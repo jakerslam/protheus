@@ -24,10 +24,10 @@ const DEFAULT_POLICY_PATH = process.env.NARROW_AGENT_PARITY_POLICY_PATH
   : path.join(ROOT, 'config', 'narrow_agent_parity_harness_policy.json');
 const DEFAULT_STATE_PATH = process.env.NARROW_AGENT_PARITY_STATE_PATH
   ? path.resolve(String(process.env.NARROW_AGENT_PARITY_STATE_PATH))
-  : path.join(ROOT, 'state', 'ops', 'narrow_agent_parity_harness.json');
+  : path.join(ROOT, 'local', 'state', 'ops', 'narrow_agent_parity_harness.json');
 const DEFAULT_HISTORY_PATH = process.env.NARROW_AGENT_PARITY_HISTORY_PATH
   ? path.resolve(String(process.env.NARROW_AGENT_PARITY_HISTORY_PATH))
-  : path.join(ROOT, 'state', 'ops', 'narrow_agent_parity_harness_history.jsonl');
+  : path.join(ROOT, 'local', 'state', 'ops', 'narrow_agent_parity_harness_history.jsonl');
 
 function nowIso() {
   return new Date().toISOString();
