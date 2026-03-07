@@ -7,6 +7,41 @@ Conversation synthesis runtime output is emitted to:
 - `client/local/state/memory/conversation_eye/nodes.jsonl`
 - `client/local/state/memory/conversation_eye/index.json`
 
+Dream-sequenced matrix runtime output is emitted to:
+- `client/local/state/memory/matrix/tag_memory_matrix.json`
+- `client/memory/TAG_MEMORY_MATRIX.md` (readable export)
+
+Auto-recall runtime output is emitted to:
+- `client/local/state/memory/auto_recall/events.jsonl`
+- `client/local/state/memory/auto_recall/latest.json`
+
+## Memory Matrix + Dream Sequencer
+
+`memory_matrix` builds a scored tag->memory matrix for low-burn retrieval and recall ordering.
+
+Scoring priority is:
+- memory level (`node1 > tag2 > jot3`)
+- recency decay
+- dream inclusion signal
+
+`dream_sequencer` runs the matrix reorder cycle and writes the latest ranked tag surface.
+
+Commands:
+- `npm run -s memory:matrix:build`
+- `npm run -s memory:matrix:status`
+- `npm run -s memory:dream-sequencer:run`
+- `npm run -s memory:dream-sequencer:status`
+
+## Auto Recall
+
+When a new memory node is filed (for example by `conversation_eye`), `memory_auto_recall`:
+- finds top matches by shared tags + matrix rank
+- pushes a bounded attention event through conduit (`attention-queue enqueue`)
+- records deterministic recall receipts under `client/local/state/memory/auto_recall/*`
+
+Command:
+- `npm run -s memory:auto-recall:status`
+
 ## Moltbook Credentials Persistence
 
 To ensure context-free continuity for Moltbook:

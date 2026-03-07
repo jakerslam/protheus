@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { spawnSync } = require('child_process');
 
 const WORKSPACE_ROOT = path.resolve(__dirname, '..', '..', '..');
 const CLIENT_ROOT = path.join(WORKSPACE_ROOT, 'client');
@@ -757,6 +758,20 @@ ${Array.from(allTags.entries())
 
 fs.writeFileSync(path.join(memoryDir, 'TAGS_INDEX.md'), tagIndex);
 console.log('TAGS_INDEX.md rebuilt');
+
+const matrixScript = path.join(CLIENT_ROOT, 'systems', 'memory', 'memory_matrix.js');
+if (fs.existsSync(matrixScript)) {
+  const matrixRun = spawnSync('node', [matrixScript, 'run', '--apply=1', '--reason=rebuild_exclusive'], {
+    cwd: WORKSPACE_ROOT,
+    encoding: 'utf8',
+    env: { ...process.env }
+  });
+  if (Number(matrixRun.status) === 0) {
+    console.log('TAG_MEMORY_MATRIX rebuilt');
+  } else {
+    console.log(`TAG_MEMORY_MATRIX rebuild warning: ${(matrixRun.stderr || matrixRun.stdout || '').toString().trim().slice(0, 220) || 'unknown_error'}`);
+  }
+}
 
 // Scan for @decision entries in daily files
 function scanForDecisions() {

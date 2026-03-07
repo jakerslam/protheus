@@ -39,6 +39,30 @@
     - `npm run -s test:ops:conversation-eye-bootstrap`
     - `npm run -s test:ops:conversation-eye-collector`
 
+- [x] `V6-MEMORY-MATRIX-001` Add scored tag-memory matrix, dream sequencer reorder cycle, and conduit-routed auto-recall.
+  - Layer target: `client/systems/memory/*` cognition runtime with state in `client/local/state/memory/*`.
+  - Delivered:
+    - Added `memory_matrix` builder (`client/systems/memory/memory_matrix.{ts,js}`) with weighted scoring: `level(node1>tag2>jot3) + recency + dream inclusion`.
+    - Added `dream_sequencer` runner (`client/systems/memory/dream_sequencer.{ts,js}`) and dream-cycle integration in `idle_dream_cycle.ts`.
+    - Added `memory_auto_recall` lane (`client/systems/memory/memory_auto_recall.{ts,js}`) that pushes bounded recall matches to attention queue via conduit (`runOpsDomainCommand('attention-queue', ...)`).
+    - Conversation Eye collector now writes leveled/hex-tagged nodes, enforces weekly quota defaults, and triggers auto-recall on new node filings.
+    - Added matrix/reference artifacts:
+      - `client/local/state/memory/matrix/tag_memory_matrix.json`
+      - `client/memory/TAG_MEMORY_MATRIX.md`
+    - Added policies:
+      - `client/config/memory_matrix_policy.json`
+      - `client/config/memory_auto_recall_policy.json`
+  - Validation:
+    - `npm run -s test:memory:matrix`
+    - `npm run -s test:memory:auto-recall`
+    - `node client/memory/tools/tests/idle_dream_cycle.test.js`
+
+- [ ] `V6-MEMORY-HIERARCHY-XML-001` Backfill explicit XML hierarchy across historical daily memory files.
+  - Current state:
+    - New conversation synthesis output emits level metadata and XML payload boundaries, but historical `client/memory/YYYY-MM-DD.md` entries remain frontmatter + separator format.
+  - Completion criteria:
+    - Historical nodes carry explicit `<node|tag|jot>` boundaries + stable hex IDs without breaking recall/index parity.
+
 - [ ] `V6-ROOT-INTERNAL-003` Decide and execute final placement policy for root personal/internal markdown artifacts.
   - Layer target: `client/local/internal/*` (or explicit archived docs path if governance files stay tracked).
   - Current gap:
