@@ -23,20 +23,21 @@ export {};
 const fs = require('fs');
 const path = require('path');
 const { loadActiveStrategy, strategyBudgetCaps } = require('../../lib/strategy_resolver');
+const { resolveClientState } = require('../../lib/runtime_path_registry');
 
 type AnyObj = Record<string, any>;
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
-const GLOBAL_BUDGET_DEFAULT_DIR = path.join(REPO_ROOT, 'state', 'autonomy', 'daily_budget');
+const GLOBAL_BUDGET_DEFAULT_DIR = resolveClientState(REPO_ROOT, 'autonomy/daily_budget');
 const DEFAULT_STATE_DIR = process.env.SYSTEM_BUDGET_STATE_DIR
   ? path.resolve(process.env.SYSTEM_BUDGET_STATE_DIR)
   : GLOBAL_BUDGET_DEFAULT_DIR;
 const DEFAULT_EVENTS_PATH = process.env.SYSTEM_BUDGET_EVENTS_PATH
   ? path.resolve(process.env.SYSTEM_BUDGET_EVENTS_PATH)
-  : path.join(REPO_ROOT, 'state', 'autonomy', 'budget_events.jsonl');
+  : resolveClientState(REPO_ROOT, 'autonomy/budget_events.jsonl');
 const DEFAULT_AUTOPAUSE_PATH = process.env.SYSTEM_BUDGET_AUTOPAUSE_PATH
   ? path.resolve(process.env.SYSTEM_BUDGET_AUTOPAUSE_PATH)
-  : path.join(REPO_ROOT, 'state', 'autonomy', 'budget_autopause.json');
+  : resolveClientState(REPO_ROOT, 'autonomy/budget_autopause.json');
 const SYSTEM_BUDGET_STATE_SCHEMA = Object.freeze({
   schema_id: 'system_budget_state',
   schema_version: '1.0.0'

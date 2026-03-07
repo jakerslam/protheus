@@ -13,8 +13,11 @@ async function run() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'conversation-eye-collector-'));
   const inboxDir = path.join(tmp, 'cockpit', 'inbox');
   const memoryDir = path.join(tmp, 'memory', 'conversation_eye');
+  const matrixPath = path.join(tmp, 'memory', 'matrix', 'tag_memory_matrix.json');
+  const recallPolicyPath = path.join(tmp, 'memory', 'memory_auto_recall_policy.json');
   fs.mkdirSync(inboxDir, { recursive: true });
   fs.mkdirSync(memoryDir, { recursive: true });
+  fs.mkdirSync(path.dirname(matrixPath), { recursive: true });
 
   const historyPath = path.join(inboxDir, 'history.jsonl');
   const latestPath = path.join(inboxDir, 'latest.json');
@@ -44,10 +47,25 @@ async function run() {
   };
   fs.writeFileSync(historyPath, `${JSON.stringify(envelope)}\n`, 'utf8');
   fs.writeFileSync(latestPath, `${JSON.stringify(envelope, null, 2)}\n`, 'utf8');
+  fs.writeFileSync(matrixPath, `${JSON.stringify({
+    ok: true,
+    type: 'tag_memory_matrix',
+    generated_at: new Date().toISOString(),
+    tags: []
+  }, null, 2)}\n`, 'utf8');
+  fs.writeFileSync(recallPolicyPath, `${JSON.stringify({
+    enabled: true,
+    dry_run: true,
+    enqueue_to_attention: true,
+    max_matrix_age_ms: 3600000
+  }, null, 2)}\n`, 'utf8');
 
   process.env.CONVERSATION_EYE_HISTORY_PATH = historyPath;
   process.env.CONVERSATION_EYE_LATEST_PATH = latestPath;
   process.env.CONVERSATION_EYE_MEMORY_DIR = memoryDir;
+  process.env.CONVERSATION_EYE_AUTO_RECALL_DRY_RUN = '1';
+  process.env.MEMORY_MATRIX_JSON_PATH = matrixPath;
+  process.env.MEMORY_AUTO_RECALL_POLICY_PATH = recallPolicyPath;
 
   const eyeConfig = {
     id: 'conversation_eye',

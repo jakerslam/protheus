@@ -2294,6 +2294,46 @@ function emitDreamPainSignal(dateStr, phase, result) {
     : { emitted: false, reason: 'emit_failed' };
 }
 
+function runDreamSequencerForCycle(dateStr, opts = {}) {
+  try {
+    const dreamSequencer = require('./dream_sequencer.js');
+    if (!dreamSequencer || typeof dreamSequencer.runDreamSequencer !== 'function') {
+      return { ok: false, skipped: true, reason: 'dream_sequencer_missing' };
+    }
+    const out = dreamSequencer.runDreamSequencer({
+      apply: true,
+      reason: `idle_dream_cycle:${dateStr}:${normalizeToken(opts && opts.phaseHint || 'cycle')}`
+    });
+    if (out && out.ok === true) {
+      return {
+        ok: true,
+        skipped: false,
+        matrix_path: out.matrix_path || null,
+        tags_indexed: Number(out && out.stats && out.stats.tags_indexed || 0),
+        nodes_scored: Number(out && out.stats && out.stats.nodes_scored || 0),
+        top_tags: Array.isArray(out.top_tags) ? out.top_tags.slice(0, 6) : []
+      };
+    }
+    return {
+      ok: false,
+      skipped: false,
+      reason: normalizeText(out && out.reason, 'dream_sequencer_failed')
+    };
+  } catch (err) {
+    appendJsonl(LEDGER_PATH, {
+      ts: nowIso(),
+      type: 'idle_dream_dream_sequencer_error',
+      date: dateStr,
+      error: normalizeText(err && err.message ? err.message : err, 'dream_sequencer_error').slice(0, 220)
+    });
+    return {
+      ok: false,
+      skipped: false,
+      reason: normalizeText(err && err.message ? err.message : err, 'dream_sequencer_error').slice(0, 220)
+    };
+  }
+}
+
 function runCycle(dateStr, opts = {}) {
   const provenance = enforceMutationProvenance('memory', {
     source: SCRIPT_SOURCE,
@@ -2345,6 +2385,9 @@ function runCycle(dateStr, opts = {}) {
   ) {
     painResolution.rem = resolveDreamPainProposals(dateStr, 'rem', 'dream_rem_fallback_success');
   }
+  const dreamSequencer = runDreamSequencerForCycle(dateStr, {
+    phaseHint: remOnly ? 'rem_only' : 'idle_rem'
+  });
   saveState(state);
 
   const out = {
@@ -2359,6 +2402,7 @@ function runCycle(dateStr, opts = {}) {
       idle: idlePain,
       rem: remPain
     },
+    dream_sequencer: dreamSequencer,
     pain_resolution: painResolution,
     state: {
       last_idle_ts: state.last_idle_ts,
@@ -2388,6 +2432,9 @@ function runCycle(dateStr, opts = {}) {
     rem_skipped: !!(remResult && remResult.skipped),
     rem_reason: remResult ? remResult.reason || null : null,
     rem_fallback_reason: remResult ? remResult.fallback_reason || null : null,
+    dream_sequencer_ok: !!(dreamSequencer && dreamSequencer.ok),
+    dream_sequencer_reason: dreamSequencer && dreamSequencer.ok ? null : (dreamSequencer ? dreamSequencer.reason || null : 'missing'),
+    dream_sequencer_tags_indexed: Number(dreamSequencer && dreamSequencer.tags_indexed || 0),
     pain_resolved_idle: Number(painResolution.idle || 0),
     pain_resolved_rem: Number(painResolution.rem || 0),
     idle_runs_before: Number(before.idle_runs || 0),
