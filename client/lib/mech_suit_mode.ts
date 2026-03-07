@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { CANONICAL_PATHS } = require('./runtime_path_registry');
 
 const DEFAULT_POLICY_REL = path.join('config', 'mech_suit_mode_policy.json');
 
@@ -56,8 +57,8 @@ function defaultPolicy() {
     version: '1.0',
     enabled: true,
     state: {
-      status_path: 'state/ops/mech_suit_mode/latest.json',
-      history_path: 'state/ops/mech_suit_mode/history.jsonl'
+      status_path: 'local/state/ops/mech_suit_mode/latest.json',
+      history_path: 'local/state/ops/mech_suit_mode/history.jsonl'
     },
     spine: {
       heartbeat_hours: 4,
@@ -69,9 +70,9 @@ function defaultPolicy() {
     eyes: {
       push_attention_queue: true,
       quiet_non_critical: true,
-      attention_queue_path: 'state/attention/queue.jsonl',
-      receipts_path: 'state/attention/receipts.jsonl',
-      latest_path: 'state/attention/latest.json',
+      attention_queue_path: 'local/state/attention/queue.jsonl',
+      receipts_path: 'local/state/attention/receipts.jsonl',
+      latest_path: 'local/state/attention/latest.json',
       attention_contract: {
         max_queue_depth: 2048,
         ttl_hours: 48,
@@ -92,9 +93,9 @@ function defaultPolicy() {
       ambient_stance: true,
       auto_apply: true,
       full_reload: false,
-      cache_path: 'state/personas/ambient_stance/cache.json',
-      latest_path: 'state/personas/ambient_stance/latest.json',
-      receipts_path: 'state/personas/ambient_stance/receipts.jsonl',
+      cache_path: 'local/state/personas/ambient_stance/cache.json',
+      latest_path: 'local/state/personas/ambient_stance/latest.json',
+      receipts_path: 'local/state/personas/ambient_stance/receipts.jsonl',
       max_personas: 256,
       max_patch_bytes: 65536
     },
@@ -224,7 +225,14 @@ function resolveStatePath(policy, relPath) {
   const requested = String(relPath || '').trim();
   if (!requested) return root;
   if (path.isAbsolute(requested)) return requested;
-  return path.join(root, requested);
+  const canonicalRel = String(requested)
+    .replace(/\\/g, '/')
+    .replace(/^state(\/|$)/, `${CANONICAL_PATHS.client_state_root}/`)
+    .replace(/^local(\/|$)/, `${CANONICAL_PATHS.client_local_root}/`);
+  const normalized = path.basename(root).toLowerCase() === 'client'
+    ? canonicalRel.replace(/^client\//, '')
+    : canonicalRel;
+  return path.join(root, normalized);
 }
 
 function approxTokenCount(value) {

@@ -156,6 +156,9 @@ function buildEarlyHostFault(tempRoot, preflight, reason) {
   const preflightStderr = cleanText(preflight && preflight.stderr, 800);
   const hostRuntimeTimeout = String(reason || '').includes('spine_conduit_unavailable')
     && (
+      (preflight && preflight.timed_out === true)
+      || (preflight && preflight.status === 124)
+      ||
       preflightStderr.includes('conduit_stdio_timeout')
       || preflightStdout.includes('conduit_stdio_timeout')
       || preflightStderr.includes('conduit_bridge_timeout')

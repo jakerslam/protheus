@@ -50,6 +50,7 @@ function main() {
 
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'f100-baseline-contract-'));
   const badContractPath = path.join(tempDir, 'bad-contract.json');
+  const badStatePath = path.join(tempDir, 'bad-state.json');
   const badContract = JSON.parse(fs.readFileSync(DEFAULT_CONTRACT, 'utf8'));
   badContract.checks.push({
     id: 'forced_missing_file',
@@ -59,14 +60,16 @@ function main() {
   fs.writeFileSync(badContractPath, `${JSON.stringify(badContract, null, 2)}\n`);
 
   const badNonStrict = run(['run', '--strict=0', '--write=0'], {
-    F100_BASELINE_CONTRACT_PATH: badContractPath
+    F100_BASELINE_CONTRACT_PATH: badContractPath,
+    F100_BASELINE_STATE_PATH: badStatePath
   });
   assert(badNonStrict.status === 0, 'non-strict bad contract run should not fail');
   const badPayload = parseJson(badNonStrict.stdout);
   assert(badPayload && badPayload.ok === false, 'bad payload should fail contract');
 
   const badStrict = run(['run', '--strict=1', '--write=0'], {
-    F100_BASELINE_CONTRACT_PATH: badContractPath
+    F100_BASELINE_CONTRACT_PATH: badContractPath,
+    F100_BASELINE_STATE_PATH: badStatePath
   });
   assert(badStrict.status !== 0, 'strict bad contract run should fail');
 

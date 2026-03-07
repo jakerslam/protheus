@@ -14,8 +14,8 @@ Defines ownership intent for repository-root entries after the core/client split
 - `.githooks/`: local hook helpers.
 - `dist/`: generated build output.
 - `target/`: Rust build artifacts.
-- `tmp/`: scratch/runtime transient files.
 - `node_modules/`: npm dependency cache.
+- `client/local/workspaces/`: relocated local-only sidecars/scratch workspaces (ignored).
 
 ## Root File Classes
 
@@ -28,5 +28,6 @@ Defines ownership intent for repository-root entries after the core/client split
 
 1. New source code must land under `core/` or `client/` only.
 2. Legacy root runtime folders (`adaptive`, `memory`, `habits`, `logs`, `patches`, `reports`, `research`, `secrets`, `state`, `.clawhub`, `.private-lenses`) are disallowed.
-3. Runtime mutable data belongs in `client/local/*` and `core/local/*`.
-4. Root allowances are enforced by `ops:root-surface:check` and `ops:source-runtime:check`.
+3. Root sidecar/scratch dirs (`agent-holo-viz`, `pqts`, `projects`, `rohan-*`, `tmp`) are disallowed and must live under `client/local/workspaces/`.
+4. Runtime mutable data belongs in `client/local/*` and `core/local/*`.
+5. Root allowances are enforced by `ops:root-surface:check` and `ops:source-runtime:check`.

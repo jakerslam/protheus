@@ -117,7 +117,7 @@ function runRust(args: string[], p: any, timeoutMs = 180000) {
     operator_quorum: 2
   }, {
     enforce: true,
-    state_root: path.join(ROOT, 'state')
+    state_root: path.join(ROOT, 'client', 'local', 'state')
   });
 
   const cmd = cleanText(args[0], 64) || 'help';

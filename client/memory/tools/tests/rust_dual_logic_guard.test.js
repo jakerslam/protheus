@@ -8,7 +8,7 @@ const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const GUARD = path.join(ROOT, 'systems', 'ops', 'rust_dual_logic_guard.js');
-const TMP_DIR = path.join(ROOT, 'tmp', 'tests', 'rust_dual_logic_guard');
+const TMP_DIR = path.join(ROOT, 'client', 'local', 'tmp', 'tests', 'rust_dual_logic_guard');
 const TMP_FILE = path.join(TMP_DIR, 'tmp_guard_file.ts');
 const TMP_POLICY = path.join(TMP_DIR, 'tmp_guard_policy.json');
 

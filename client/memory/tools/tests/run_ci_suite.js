@@ -28,7 +28,12 @@ const REPO_ROOT = resolveRepoRoot(__dirname);
 const CLIENT_ROOT = fs.existsSync(path.join(REPO_ROOT, 'client')) ? path.join(REPO_ROOT, 'client') : REPO_ROOT;
 const TEST_DIR = path.join(CLIENT_ROOT, 'memory', 'tools', 'tests');
 const INCLUDE_STATEFUL = process.argv.includes('--include-stateful');
-const CI_STREAK_STATE_PATH = path.join(REPO_ROOT, 'state', 'ops', 'ci_baseline_streak.json');
+const RUN_FULL_CORPUS = process.argv.includes('--full-corpus')
+  || ['1', 'true', 'yes', 'on'].includes(String(process.env.CI_FULL_CORPUS || '0').trim().toLowerCase());
+const STABLE_MANIFEST_PATH = process.env.CI_STABLE_TEST_MANIFEST_PATH
+  ? path.resolve(String(process.env.CI_STABLE_TEST_MANIFEST_PATH))
+  : path.join(CLIENT_ROOT, 'config', 'ci_stable_test_manifest.json');
+const CI_STREAK_STATE_PATH = path.join(CLIENT_ROOT, 'local', 'state', 'ops', 'ci_baseline_streak.json');
 const DEFAULT_STEP_TIMEOUT_MS = Math.max(30_000, Number(process.env.CI_STEP_TIMEOUT_MS || (12 * 60 * 1000)));
 const DEFAULT_TEST_TIMEOUT_MS = Math.max(15_000, Number(process.env.CI_TEST_TIMEOUT_MS || (5 * 60 * 1000)));
 const DEFAULT_TOTAL_TIMEOUT_MS = Math.max(DEFAULT_STEP_TIMEOUT_MS, Number(process.env.CI_TOTAL_TIMEOUT_MS || (45 * 60 * 1000)));
@@ -42,12 +47,32 @@ const DEFAULT_EXCLUDES = new Set([
   'skill_gate.smoke.test.js'
 ]);
 
+function loadStableManifestTests() {
+  try {
+    if (!fs.existsSync(STABLE_MANIFEST_PATH)) return [];
+    const parsed = JSON.parse(fs.readFileSync(STABLE_MANIFEST_PATH, 'utf8'));
+    const rows = Array.isArray(parsed && parsed.tests) ? parsed.tests : [];
+    return rows
+      .map((row) => String(row || '').trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 function listTests() {
   const files = fs.readdirSync(TEST_DIR)
     .filter((f) => f.endsWith('.test.js'))
     .sort();
-  if (INCLUDE_STATEFUL) return files;
-  return files.filter((f) => !DEFAULT_EXCLUDES.has(f));
+  const stateless = files.filter((f) => !DEFAULT_EXCLUDES.has(f));
+  if (RUN_FULL_CORPUS) {
+    if (INCLUDE_STATEFUL) return files;
+    return stateless;
+  }
+  const stable = loadStableManifestTests();
+  if (stable.length === 0) return [];
+  const allow = new Set(stable);
+  return stateless.filter((f) => allow.has(f));
 }
 
 function runNode(args, opts = {}) {
@@ -239,6 +264,7 @@ function main() {
   let passed = 0;
 
   console.log(`=== CI SUITE: tests (${tests.length}) ===`);
+  console.log(`=== CI TEST MODE: ${RUN_FULL_CORPUS ? 'full_corpus' : `stable_manifest:${path.relative(REPO_ROOT, STABLE_MANIFEST_PATH).replace(/\\/g, '/')}`} ===`);
   for (const file of tests) {
     ensureTotalBudget(ciStartedAtMs, `tests:${file}`);
     const rel = path.relative(REPO_ROOT, path.join(TEST_DIR, file));

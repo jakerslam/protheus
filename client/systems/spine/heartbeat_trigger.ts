@@ -37,6 +37,9 @@ const SPINE_HEARTBEAT_RETRY_TIMEOUT_MS = Math.max(30000, Math.min(
 
 function nowIso() { return new Date().toISOString(); }
 function todayStr() { return new Date().toISOString().slice(0, 10); }
+function cleanText(v, maxLen = 240) {
+  return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, maxLen);
+}
 
 function usage() {
   console.log('Usage:');
@@ -73,6 +76,18 @@ function parseGateUntil(reason) {
     until_iso: new Date(ms).toISOString(),
     remaining_ms: Math.max(0, ms - Date.now())
   };
+}
+
+function isBridgeTimeoutReason(value) {
+  const text = String(value == null ? '' : value).toLowerCase();
+  if (!text) return false;
+  return text.includes('conduit_runtime_gate_active_until:')
+    || text.includes('conduit_stdio_timeout:')
+    || text.includes('conduit_bridge_timeout:')
+    || text.includes('bridge_wait_failed')
+    || text.includes('conduit_stdio_exit:')
+    || text.includes('conduit_stdio_error:')
+    || text.includes('etimedout');
 }
 
 function resolveScriptInvocation(scriptRelPath: string) {
@@ -190,7 +205,7 @@ function fallbackHeartbeatHours() {
 async function runSpineStatus(mode, dateStr, runContext = null) {
   const statusTimeoutMs = Math.max(
     1000,
-    Number(process.env.SPINE_HEARTBEAT_STATUS_TIMEOUT_MS || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS || 120000) || 120000
+    Number(process.env.SPINE_HEARTBEAT_STATUS_TIMEOUT_MS || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS || 10000) || 10000
   );
   const args = ['status'];
   if (mode) args.push(`--mode=${mode}`);
@@ -228,6 +243,17 @@ async function cmdStatus() {
     }) + '\n');
     process.exit(0);
   }
+  if (r && r.ok !== true && isBridgeTimeoutReason(`${r.stderr}\n${r.stdout}`)) {
+    process.stdout.write(JSON.stringify({
+      ok: true,
+      type: 'spine_heartbeat_status',
+      result: 'bridge_degraded',
+      gate_active: true,
+      gate_reason: cleanText(`${r.stderr}\n${r.stdout}`, 240),
+      ts: nowIso()
+    }) + '\n');
+    process.exit(0);
+  }
   if (r.stdout) process.stdout.write(String(r.stdout));
   if (r.stderr) process.stderr.write(String(r.stderr));
   if (r.status !== 0) {
@@ -244,6 +270,18 @@ async function cmdRun() {
 
   const dateStr = todayStr();
   const rustStatus = await runSpineStatus(mode, dateStr, 'heartbeat');
+  if (rustStatus && rustStatus.ok !== true && isBridgeTimeoutReason(`${rustStatus.stderr}\n${rustStatus.stdout}`)) {
+    process.stdout.write(JSON.stringify({
+      ok: true,
+      result: 'skipped_bridge_degraded',
+      mode,
+      date: dateStr,
+      gate_active: true,
+      gate_reason: cleanText(`${rustStatus.stderr}\n${rustStatus.stdout}`, 240),
+      ts: nowIso()
+    }) + '\n');
+    return;
+  }
   if (rustStatus && rustStatus.payload && rustStatus.payload.gate_active === true) {
     const gate = parseGateUntil(rustStatus.payload.reason || rustStatus.stderr || '');
     process.stdout.write(JSON.stringify({

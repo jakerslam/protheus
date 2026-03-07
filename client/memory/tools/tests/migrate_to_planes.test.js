@@ -50,7 +50,7 @@ try {
   assert.ok(payload && payload.ok === true, 'plan should succeed');
   assert.ok(Array.isArray(payload.rows) && payload.rows.length > 0, 'plan should include mappings');
 
-  out = run(['run', '--apply=1', '--move-untracked=1'], env);
+  out = run(['run', '--apply=1', '--move-untracked=1', '--compat-symlinks=0'], env);
   assert.strictEqual(out.status, 0, out.stderr);
   payload = parseJson(out.stdout);
   assert.ok(payload && payload.ok === true, 'run apply should succeed');
@@ -61,7 +61,7 @@ try {
   assert.ok(fs.existsSync(path.join(tmp, 'client', 'local', 'private-lenses', 'README.md')), 'private lenses should mirror into client/local/private-lenses');
   assert.ok(fs.existsSync(path.join(tmp, 'client', 'local', 'logs', 'session.log')), 'client logs should mirror into client/local/logs');
   const statePath = path.join(tmp, 'state');
-  assert.ok(fs.lstatSync(statePath).isSymbolicLink(), 'state should become compatibility symlink after move');
+  assert.strictEqual(fs.existsSync(statePath), false, 'state root should be removed after direct migration');
 
   out = run(['rollback', '--id=latest'], env);
   assert.strictEqual(out.status, 0, out.stderr);

@@ -25,6 +25,10 @@ resource "helm_release" "protheus" {
       cron = {
         schedule = var.cron_schedule
       }
+      secrets = {
+        existingSecretName = var.existing_secret_name
+        optional           = var.secret_optional
+      }
     })
   ]
 }

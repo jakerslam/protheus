@@ -30,6 +30,9 @@ spec:
               envFrom:
                 - configMapRef:
                     name: protheus-runtime-config
+                - secretRef:
+                    name: protheus-runtime-secrets
+                    optional: true
               securityContext:
                 allowPrivilegeEscalation: false
                 readOnlyRootFilesystem: true

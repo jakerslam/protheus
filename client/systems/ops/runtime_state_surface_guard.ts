@@ -16,6 +16,7 @@ const {
   emit,
   resolvePath
 } = require('../../lib/queued_backlog_runtime');
+const { CANONICAL_PATHS, LEGACY_SURFACES } = require('../../lib/runtime_path_registry');
 
 function usage() {
   console.log('Usage:');
@@ -25,11 +26,12 @@ function usage() {
 
 function defaultPolicy() {
   return {
-    version: '1.0',
+    version: '2.0',
     strict_default: true,
-    expected_links: [
-      { path: 'client/state', target: 'local/state' },
-      { path: 'state', target: 'client/local/state' }
+    disallowed_runtime_surfaces: LEGACY_SURFACES.slice(),
+    required_runtime_roots: [
+      CANONICAL_PATHS.client_state_root,
+      CANONICAL_PATHS.core_state_root
     ],
     outputs: {
       latest_path: 'client/local/state/ops/runtime_state_surface_guard/latest.json',
@@ -51,64 +53,56 @@ function trackedPaths(prefix: string) {
   return String(run.stdout || '')
     .split('\n')
     .map((row) => cleanText(row, 520).replace(/\\/g, '/'))
+    .filter((row) => row && fs.existsSync(path.join(ROOT, row)))
     .filter(Boolean);
 }
 
-function linkCheck(relPath: string, expectedTarget: string) {
+function pathStatus(relPath: string) {
   const abs = path.join(ROOT, relPath);
   if (!fs.existsSync(abs)) {
-    return { path: relPath, ok: false, reason: 'missing' };
+    return { path: relPath, exists: false, symlink: false, kind: null };
   }
   let stat: any = null;
   try {
     stat = fs.lstatSync(abs);
   } catch {
-    return { path: relPath, ok: false, reason: 'stat_failed' };
+    return { path: relPath, exists: true, symlink: false, kind: 'stat_failed' };
   }
-  if (!stat.isSymbolicLink()) {
-    return { path: relPath, ok: false, reason: 'not_symlink' };
+  const isSym = stat.isSymbolicLink();
+  if (isSym) {
+    let target = '';
+    try {
+      target = cleanText(fs.readlinkSync(abs), 320);
+    } catch {}
+    return { path: relPath, exists: true, symlink: true, kind: 'symlink', target };
   }
-  let actualTarget = '';
-  try {
-    actualTarget = fs.readlinkSync(abs);
-  } catch {
-    return { path: relPath, ok: false, reason: 'readlink_failed' };
-  }
-  const actualResolved = path.resolve(path.dirname(abs), actualTarget);
-  const expectedResolved = path.resolve(path.dirname(abs), expectedTarget);
-  if (actualResolved !== expectedResolved) {
-    return {
-      path: relPath,
-      ok: false,
-      reason: 'target_mismatch',
-      actual_target: actualTarget,
-      expected_target: expectedTarget
-    };
-  }
-  return {
-    path: relPath,
-    ok: true,
-    target: expectedTarget,
-    resolved_target: rel(actualResolved)
-  };
+  const kind = stat.isDirectory() ? 'directory' : stat.isFile() ? 'file' : 'other';
+  return { path: relPath, exists: true, symlink: false, kind };
 }
 
 function runCheck(strict: boolean) {
   const policy = defaultPolicy();
-  const linkResults = policy.expected_links.map((row) => linkCheck(row.path, row.target));
-  const trackedClientState = trackedPaths('client/state');
-  const trackedRootState = trackedPaths('state');
+  const disallowed: string[] = Array.isArray(policy.disallowed_runtime_surfaces)
+    ? policy.disallowed_runtime_surfaces.map((x) => cleanText(x, 160)).filter(Boolean)
+    : [];
+  const required: string[] = Array.isArray(policy.required_runtime_roots)
+    ? policy.required_runtime_roots.map((x) => cleanText(x, 160)).filter(Boolean)
+    : [];
 
-  const illegalTrackedClientState = trackedClientState
-    .filter((row) => row !== 'client/state');
-  const illegalTrackedRootState = trackedRootState
-    .filter((row) => row !== 'state');
+  const surfaceResults = disallowed.map((surface) => pathStatus(surface));
+  const requiredResults = required.map((surface) => pathStatus(surface));
+
+  const trackedBySurface = disallowed.map((surface) => ({
+    surface,
+    entries: trackedPaths(surface)
+  }));
+  const illegalTracked = trackedBySurface
+    .flatMap((row) => row.entries.map((entry: string) => ({ surface: row.surface, entry })));
 
   const checks = {
-    client_state_symlink: linkResults.find((row) => row.path === 'client/state')?.ok === true,
-    root_state_symlink: linkResults.find((row) => row.path === 'state')?.ok === true,
-    no_tracked_runtime_under_client_state: illegalTrackedClientState.length === 0,
-    no_tracked_runtime_under_root_state: illegalTrackedRootState.length === 0
+    no_legacy_runtime_surfaces_present: surfaceResults.every((row) => row.exists === false),
+    no_tracked_legacy_runtime_surfaces: illegalTracked.length === 0,
+    canonical_runtime_roots_present: requiredResults.every((row) => row.exists === true)
   };
 
   const blocking = Object.entries(checks)
@@ -124,13 +118,10 @@ function runCheck(strict: boolean) {
     ts: nowIso(),
     checks,
     blocking_checks: blocking,
-    link_results: linkResults,
-    tracked: {
-      client_state: trackedClientState,
-      root_state: trackedRootState,
-      illegal_client_state_entries: illegalTrackedClientState,
-      illegal_root_state_entries: illegalTrackedRootState
-    }
+    disallowed_surface_results: surfaceResults,
+    required_root_results: requiredResults,
+    tracked_disallowed_surfaces: trackedBySurface,
+    illegal_tracked_entries: illegalTracked
   };
   const latestPath = resolvePath(policy.outputs.latest_path, policy.outputs.latest_path);
   const receiptsPath = resolvePath(policy.outputs.receipts_path, policy.outputs.receipts_path);
@@ -172,4 +163,3 @@ function main() {
 }
 
 main();
-

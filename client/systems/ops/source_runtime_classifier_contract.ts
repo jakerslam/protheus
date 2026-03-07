@@ -43,6 +43,11 @@ function defaultPolicy() {
     enabled: true,
     strict_default: true,
     runtime_roots: ['client/local', 'core/local'],
+    source_memory_root: 'client/memory',
+    runtime_memory_roots: ['client/local/memory', 'client/local/state/memory'],
+    source_memory_runtime_like_ext: ['.json', '.jsonl', '.sqlite', '.db', '.log', '.lock'],
+    source_memory_runtime_like_allow_prefixes: ['tools/tests/'],
+    source_memory_runtime_like_allow_files: ['README.md'],
     required_runtime_paths: [
       'client/local/adaptive',
       'client/local/memory',
@@ -67,6 +72,7 @@ function defaultPolicy() {
     forbidden_source_ext_in_runtime: ['.ts', '.tsx', '.js', '.jsx', '.rs', '.c', '.cc', '.cpp', '.h', '.hpp', '.py', '.sh', '.ps1', '.html', '.css'],
     runtime_ignore_files: ['.gitkeep', '.gitignore', 'README.md'],
     runtime_ignore_path_contains: [
+      '/local/workspaces/',
       '/security/anti_sabotage/snapshots/',
       '/state/snapshots/',
       '/state/tmp/'
@@ -87,6 +93,19 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
     enabled: toBool(raw.enabled, true),
     strict_default: toBool(raw.strict_default, true),
     runtime_roots: Array.isArray(raw.runtime_roots) ? raw.runtime_roots : base.runtime_roots,
+    source_memory_root: cleanText(raw.source_memory_root || base.source_memory_root, 240) || base.source_memory_root,
+    runtime_memory_roots: Array.isArray(raw.runtime_memory_roots)
+      ? raw.runtime_memory_roots
+      : base.runtime_memory_roots,
+    source_memory_runtime_like_ext: Array.isArray(raw.source_memory_runtime_like_ext)
+      ? raw.source_memory_runtime_like_ext
+      : base.source_memory_runtime_like_ext,
+    source_memory_runtime_like_allow_prefixes: Array.isArray(raw.source_memory_runtime_like_allow_prefixes)
+      ? raw.source_memory_runtime_like_allow_prefixes
+      : base.source_memory_runtime_like_allow_prefixes,
+    source_memory_runtime_like_allow_files: Array.isArray(raw.source_memory_runtime_like_allow_files)
+      ? raw.source_memory_runtime_like_allow_files
+      : base.source_memory_runtime_like_allow_files,
     required_runtime_paths: Array.isArray(raw.required_runtime_paths) ? raw.required_runtime_paths : base.required_runtime_paths,
     legacy_runtime_root_dirs: Array.isArray(raw.legacy_runtime_root_dirs)
       ? raw.legacy_runtime_root_dirs
@@ -175,11 +194,59 @@ function runCheck(policy: AnyObj, strict: boolean) {
     }
   }
 
+  const sourceMemoryRoot = cleanText(policy.source_memory_root, 240);
+  const runtimeMemoryRootsMissing = (policy.runtime_memory_roots || [])
+    .map((token: unknown) => cleanText(token, 240))
+    .filter(Boolean)
+    .filter((relPath: string) => !fs.existsSync(path.join(ROOT, relPath)));
+  const sourceMemoryRuntimeLikeViolations: AnyObj[] = [];
+  let sourceMemoryFilesScanned = 0;
+
+  if (sourceMemoryRoot) {
+    const absSourceMemoryRoot = path.join(ROOT, sourceMemoryRoot);
+    const sourceMemoryExists = fs.existsSync(absSourceMemoryRoot);
+    if (sourceMemoryExists) {
+      const sourceMemoryFiles: string[] = [];
+      walkFiles(absSourceMemoryRoot, sourceMemoryFiles);
+      sourceMemoryFilesScanned = sourceMemoryFiles.length;
+      const runtimeLikeExt = new Set(
+        (policy.source_memory_runtime_like_ext || [])
+          .map((v: unknown) => String(v || '').trim().toLowerCase())
+          .filter(Boolean)
+      );
+      const allowPrefixes = (policy.source_memory_runtime_like_allow_prefixes || [])
+        .map((v: unknown) => cleanText(v, 260))
+        .filter(Boolean);
+      const allowFiles = new Set(
+        (policy.source_memory_runtime_like_allow_files || [])
+          .map((v: unknown) => cleanText(v, 260))
+          .filter(Boolean)
+      );
+      for (const absFile of sourceMemoryFiles) {
+        const relFile = rel(absFile);
+        const relWithinSource = relFile.startsWith(`${sourceMemoryRoot}/`)
+          ? relFile.slice(sourceMemoryRoot.length + 1)
+          : relFile;
+        const fileName = path.basename(relFile);
+        if (allowFiles.has(relWithinSource) || allowFiles.has(fileName)) continue;
+        if (allowPrefixes.some((prefix: string) => relWithinSource.startsWith(prefix))) continue;
+        const ext = path.extname(fileName).toLowerCase();
+        if (!runtimeLikeExt.has(ext)) continue;
+        sourceMemoryRuntimeLikeViolations.push({
+          file: relFile,
+          ext
+        });
+      }
+    }
+  }
+
   const checks = {
     runtime_roots_exist: missingRuntimeRoots.length === 0,
     required_runtime_paths_present: missingRuntimePaths.length === 0,
+    runtime_memory_roots_present: runtimeMemoryRootsMissing.length === 0,
     no_legacy_runtime_roots: legacyRuntimeRootsPresent.length === 0,
-    no_source_files_in_runtime_roots: runtimeSourceViolations.length === 0
+    no_source_files_in_runtime_roots: runtimeSourceViolations.length === 0,
+    no_runtime_like_files_in_source_memory: sourceMemoryRuntimeLikeViolations.length === 0
   };
 
   const blocking = Object.entries(checks)
@@ -199,15 +266,20 @@ function runCheck(policy: AnyObj, strict: boolean) {
     blocking_checks: blocking,
     counts: {
       runtime_files_scanned: runtimeFilesScanned,
+      source_memory_files_scanned: sourceMemoryFilesScanned,
       runtime_source_violations: runtimeSourceViolations.length,
+      source_memory_runtime_like_violations: sourceMemoryRuntimeLikeViolations.length,
       missing_runtime_roots: missingRuntimeRoots.length,
       missing_runtime_paths: missingRuntimePaths.length,
+      runtime_memory_roots_missing: runtimeMemoryRootsMissing.length,
       legacy_runtime_roots_present: legacyRuntimeRootsPresent.length
     },
     missing_runtime_roots: missingRuntimeRoots,
     missing_runtime_paths: missingRuntimePaths,
+    runtime_memory_roots_missing: runtimeMemoryRootsMissing,
     legacy_runtime_roots_present: legacyRuntimeRootsPresent,
-    runtime_source_violations: runtimeSourceViolations.slice(0, 500)
+    runtime_source_violations: runtimeSourceViolations.slice(0, 500),
+    source_memory_runtime_like_violations: sourceMemoryRuntimeLikeViolations.slice(0, 500)
   };
 
   writeJsonAtomic(policy.paths.latest_path, out);

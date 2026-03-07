@@ -7,6 +7,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { spawn, spawnSync } = require('child_process');
 const { runSpineCommand } = require('../../lib/spine_conduit_bridge');
+const { CANONICAL_PATHS, normalizeForRoot } = require('../../lib/runtime_path_registry');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const INTERNAL_AMBIENT_LOOP = '__ambient-loop';
@@ -245,7 +246,8 @@ function bridgeProbeDue(state: any) {
 function resolvePath(root: string, maybePath: unknown, fallbackRel: string) {
   const raw = cleanText(maybePath, 500);
   const base = raw || fallbackRel;
-  return path.isAbsolute(base) ? base : path.join(root, base);
+  if (path.isAbsolute(base)) return base;
+  return path.join(root, normalizeForRoot(root, base));
 }
 
 function isPidAlive(pid: unknown) {
@@ -317,10 +319,10 @@ function loadMechPolicy(policyPath: string) {
     enabled: raw && raw.enabled !== false,
     heartbeatHours: toInt(spine.heartbeat_hours, 4, 1, 168),
     manualTriggersAllowed: spine.manual_triggers_allowed === true,
-    statusPath: resolvePath(ROOT, state.status_path, 'local/state/ops/mech_suit_mode/latest.json'),
-    attentionLatestPath: resolvePath(ROOT, eyes.latest_path, 'local/state/attention/latest.json'),
-    personaLatestPath: resolvePath(ROOT, personas.latest_path, 'local/state/personas/ambient_stance/latest.json'),
-    dopamineLatestPath: resolvePath(ROOT, dopamine.latest_path, 'local/state/dopamine/ambient/latest.json')
+    statusPath: resolvePath(ROOT, state.status_path, `${CANONICAL_PATHS.client_state_root}/ops/mech_suit_mode/latest.json`),
+    attentionLatestPath: resolvePath(ROOT, eyes.latest_path, `${CANONICAL_PATHS.client_state_root}/attention/latest.json`),
+    personaLatestPath: resolvePath(ROOT, personas.latest_path, `${CANONICAL_PATHS.client_state_root}/personas/ambient_stance/latest.json`),
+    dopamineLatestPath: resolvePath(ROOT, dopamine.latest_path, `${CANONICAL_PATHS.client_state_root}/dopamine/ambient/latest.json`)
   };
 }
 

@@ -2,6 +2,41 @@
 
 ## Backlog Follow-Up (Layer Ownership Guard)
 
+- [x] `V6-DIRECT-WIRING-001` Remove legacy runtime stubs/redirects and enforce canonical local partitions.
+  - Layer target: `client/local/*` and `core/local/*` runtime roots.
+  - Delivered:
+    - Removed deprecated memory compat shim surfaces (`client/core_memory_compat/*`, `client/core/memory/compat_bridge.ts`).
+    - Removed tracked `client/state` compatibility symlink; runtime guard now fail-closes on `state`, `client/state`, and root `local`.
+    - Migration lane defaults to direct mode (`--compat-symlinks=0` by default) and migrates `local/state -> client/local/state`.
+    - Canonical defaults updated for security/workflow/memory/vault paths to `client/local/state`.
+  - Validation:
+    - `npm run -s ops:runtime-state:guard`
+    - `npm run -s ops:root-surface:check`
+    - `npm run -s ops:source-runtime:check`
+
+- [ ] `V6-DIRECT-WIRING-002` Reconcile historical SRS/backlog text that still references removed `core/memory` compat artifacts.
+  - Layer target: requirements traceability (`SRS.md`, `client/config/backlog_registry.json`, `client/config/backlog_review_registry.json`).
+  - Current gap:
+    - Historical acceptance text still cites deleted `core_memory_compat_bridge` files.
+  - Completion criteria:
+    - Replace obsolete compatibility evidence with current direct-wiring artifacts/tests.
+    - Keep lane history intact while preventing regression toward deprecated shim surfaces.
+
+- [ ] `V6-ROOT-INTERNAL-003` Decide and execute final placement policy for root personal/internal markdown artifacts.
+  - Layer target: `client/local/internal/*` (or explicit archived docs path if governance files stay tracked).
+  - Current gap:
+    - Root still carries operational identity/memory docs (`MEMORY.md`, `SOUL.md`, `HEARTBEAT.md`, `IDENTITY.md`, etc.) that are intentionally referenced by agent bootstrap and tests.
+  - Completion criteria:
+    - Either migrate to `client/local/internal/*` with bootstrap/test path updates, or formalize as intentionally tracked root exceptions in root-surface contracts and docs.
+
+- [ ] `V6-TSCONFIG-004` Finalize TypeScript config flattening beyond current extends chain.
+  - Current state:
+    - `tsconfig.json -> tsconfig.systems.json -> tsconfig.base.json` is already active.
+  - Remaining gap:
+    - Narrow include list and build profile split still carry historical debt from broad mixed JS/TS surfaces.
+  - Completion criteria:
+    - Single canonical runtime typecheck profile + single build profile with documented ownership and minimal overlap.
+
 - [ ] `V6-ADAPT-CORE-001` Port adaptation primitives from temporary client bootstrap to core authority.
   - Layer target: `core/layer2` (authoritative runtime primitive for `REQ-19-001`, `REQ-19-002`, `REQ-19-003`).
   - Client role: Layer 3 conduit-only wrappers, operator CLI surface, and tests.

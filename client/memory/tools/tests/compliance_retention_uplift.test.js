@@ -47,7 +47,7 @@ function setAgeDays(filePath, days) {
 }
 
 try {
-  const tmpRoot = path.join(ROOT, 'tmp');
+  const tmpRoot = path.join(ROOT, 'client', 'local', 'tmp');
   fs.mkdirSync(tmpRoot, { recursive: true });
   const tmp = fs.mkdtempSync(path.join(tmpRoot, 'compliance-retention-'));
   const scopeRoot = path.join(tmp, 'state', 'observability');
