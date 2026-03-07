@@ -7,6 +7,14 @@ function cleanText(v, maxLen = 240) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, maxLen);
 }
 
+function toBool(v, fallback = false) {
+  const raw = cleanText(v, 32).toLowerCase();
+  if (!raw) return fallback;
+  if (['1', 'true', 'yes', 'on'].includes(raw)) return true;
+  if (['0', 'false', 'no', 'off'].includes(raw)) return false;
+  return fallback;
+}
+
 function parseArgs(argv) {
   const out = { _: [] };
   for (let i = 0; i < argv.length; i += 1) {
@@ -47,8 +55,13 @@ async function main() {
   }
 
   const passArgs = Array.isArray(args._) && args._.length > 1 ? args._.slice(1) : [];
+  const skipRuntimeGate = toBool(
+    args['skip-runtime-gate'],
+    toBool(process.env.PROTHEUS_OPS_DOMAIN_SKIP_RUNTIME_GATE, true)
+  );
   const result = await runOpsDomainCommand(domain, passArgs, {
-    runContext: args['run-context'] == null ? null : String(args['run-context'])
+    runContext: args['run-context'] == null ? null : String(args['run-context']),
+    skipRuntimeGate
   });
 
   if (result && result.payload) {
@@ -69,4 +82,3 @@ main().catch((err) => {
   process.stdout.write(`${JSON.stringify(out)}\n`);
   process.exit(1);
 });
-
