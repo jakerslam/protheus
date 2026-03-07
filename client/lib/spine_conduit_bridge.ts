@@ -510,38 +510,83 @@ function runConduitCompatFallback(root, agentId, errorType, opts = {}) {
     return buildCompatBridgeResult(run, errorType, 'dopamine_ambient_compat_fallback', fallbackReason);
   }
 
+  if (edgeType === 'persona_ambient_command'
+    || (edgeType === 'ops_domain_command' && String(edge.domain || '').trim() === 'persona-ambient')) {
+    const normalizedArgs = edgeArgs.length ? edgeArgs : ['status'];
+    const run = runCompatNodeScript(
+      root,
+      'client/systems/personas/ambient_stance.js',
+      normalizedArgs,
+      {
+        timeoutMs: opts.timeoutMs,
+        cwd: root,
+        env: {
+          PROTHEUS_PERSONA_AMBIENT_LOCAL_COMPAT: '1'
+        }
+      }
+    );
+    return buildCompatBridgeResult(run, errorType, 'persona_ambient_compat_fallback', fallbackReason);
+  }
+
+  if (edgeType === 'memory_ambient_command'
+    || (edgeType === 'ops_domain_command' && String(edge.domain || '').trim() === 'memory-ambient')) {
+    const normalizedArgs = edgeArgs.length ? edgeArgs : ['status'];
+    const run = runCompatNodeScript(
+      root,
+      'client/systems/memory/ambient.js',
+      normalizedArgs,
+      {
+        timeoutMs: opts.timeoutMs,
+        cwd: root,
+        env: {
+          PROTHEUS_MEMORY_AMBIENT_LOCAL_COMPAT: '1'
+        }
+      }
+    );
+    return buildCompatBridgeResult(run, errorType, 'memory_ambient_compat_fallback', fallbackReason);
+  }
+
   return null;
+}
+
+function runtimeGateSuppressed(opts = {}) {
+  if (opts && opts.skipRuntimeGate === true) return true;
+  const raw = String(process.env.PROTHEUS_CONDUIT_RUNTIME_GATE_SUPPRESS || '').trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
 }
 
 async function runConduitAgent(agentId, requestPrefix, receiptKey, errorType, opts = {}) {
   const root = findRepoRoot(opts.cwdHint || process.cwd());
+  const suppressRuntimeGate = runtimeGateSuppressed(opts);
   const gateState = buildGateActiveError(root);
   if (gateState) {
-    const compat = runConduitCompatFallback(root, agentId, errorType, {
-      ...opts,
-      fallbackReason: gateState.reason
-    });
-    if (compat) {
-      return compat;
-    }
-    return {
-      ok: false,
-      status: 1,
-      payload: {
+    if (!suppressRuntimeGate) {
+      const compat = runConduitCompatFallback(root, agentId, errorType, {
+        ...opts,
+        fallbackReason: gateState.reason
+      });
+      if (compat) {
+        return compat;
+      }
+      return {
         ok: false,
-        type: errorType,
-        reason: gateState.reason,
-        timed_out: true,
-        gate_active: true,
-        gate_remaining_ms: gateState.remainingMs,
-        routed_via: 'conduit'
-      },
-      detail: null,
-      response: null,
-      routed_via: 'conduit',
-      stdout: '',
-      stderr: gateState.reason
-    };
+        status: 1,
+        payload: {
+          ok: false,
+          type: errorType,
+          reason: gateState.reason,
+          timed_out: true,
+          gate_active: true,
+          gate_remaining_ms: gateState.remainingMs,
+          routed_via: 'conduit'
+        },
+        detail: null,
+        response: null,
+        routed_via: 'conduit',
+        stdout: '',
+        stderr: gateState.reason
+      };
+    }
   }
   const { ConduitClient } = loadConduitClient(root);
   const command = daemonCommand(root);
@@ -551,9 +596,11 @@ async function runConduitAgent(agentId, requestPrefix, receiptKey, errorType, op
     Number(process.env.PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS || process.env.PROTHEUS_CONDUIT_TIMEOUT_MS || 30000) || 30000
   );
   const defaultBridgeTimeoutMs = Math.max(defaultStdioTimeoutMs + 1000, 125000);
-  const requestedTimeoutMs = Number(opts.timeoutMs || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS || defaultBridgeTimeoutMs);
+  const requestedTimeoutRaw = opts.timeoutMs ?? process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS;
+  const hasRequestedTimeout = !(requestedTimeoutRaw == null || String(requestedTimeoutRaw).trim() === '');
+  const requestedTimeoutMs = Number(hasRequestedTimeout ? requestedTimeoutRaw : defaultBridgeTimeoutMs);
   const timeoutMs = Math.max(
-    defaultStdioTimeoutMs + 1000,
+    1000,
     Number.isFinite(requestedTimeoutMs) && requestedTimeoutMs > 0 ? Math.floor(requestedTimeoutMs) : defaultBridgeTimeoutMs
   );
 
@@ -584,9 +631,9 @@ async function runConduitAgent(agentId, requestPrefix, receiptKey, errorType, op
     const detailReason = detail && typeof detail.reason === 'string'
       ? detail.reason
       : (payload && typeof payload.reason === 'string' ? payload.reason : '');
-    if (status === 0) {
+    if (status === 0 && !suppressRuntimeGate) {
       clearRuntimeGateIfSet(root);
-    } else if (timeoutLikeError(detailReason)) {
+    } else if (!suppressRuntimeGate && timeoutLikeError(detailReason)) {
       recordRuntimeGateFailure(root, detailReason);
     }
     return {
@@ -608,10 +655,10 @@ async function runConduitAgent(agentId, requestPrefix, receiptKey, errorType, op
       })
       : null;
     if (compat) {
-      clearRuntimeGateIfSet(root);
+      if (!suppressRuntimeGate) clearRuntimeGateIfSet(root);
       return compat;
     }
-    recordRuntimeGateFailure(root, error);
+    if (!suppressRuntimeGate) recordRuntimeGateFailure(root, error);
     return {
       ok: false,
       status: 1,

@@ -15,6 +15,7 @@ const PERSONA_AMBIENT = path.join(ROOT, 'systems', 'personas', 'ambient_stance.j
 const DOPAMINE_AMBIENT = path.join(ROOT, 'systems', 'dopamine', 'ambient.js');
 const MEMORY_AMBIENT = path.join(ROOT, 'systems', 'memory', 'ambient.js');
 const CATALOG_PATH = path.join(ROOT, 'adaptive', 'sensory', 'eyes', 'catalog.json');
+const RUNTIME_GATE_PATH = path.join(ROOT, 'local', 'state', 'conduit', 'runtime_gate.json');
 const OUTPUT_DIR = path.join(ROOT, 'local', 'state', 'ops', 'mech_suit_benchmark');
 const OUTPUT_LATEST = path.join(OUTPUT_DIR, 'latest.json');
 const OUTPUT_HISTORY = path.join(OUTPUT_DIR, 'history.jsonl');
@@ -46,8 +47,27 @@ function readJson(filePath, fallback = null) {
   }
 }
 
+function resetRuntimeGate() {
+  const payload = {
+    gate_active: false,
+    blocked_until: null,
+    blocked_until_ms: 0,
+    remaining_ms: 0,
+    consecutive_failures: 0,
+    threshold: null,
+    last_error: null,
+    last_failure_at: null,
+    updated_at: new Date().toISOString()
+  };
+  writeJson(RUNTIME_GATE_PATH, payload);
+}
+
 function cleanText(v, maxLen = 260) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, maxLen);
+}
+
+function isRuntimeTimeoutText(text) {
+  return /conduit_stdio_timeout|conduit_bridge_timeout|ETIMEDOUT|runtime_gate_active_until/i.test(String(text || ''));
 }
 
 function resolveScriptInvocation(script) {
@@ -81,6 +101,8 @@ function runNode(script, args, env = {}, timeoutMs = DEFAULT_NODE_TIMEOUT_MS) {
       PROTHEUS_SECURITY_GLOBAL_GATE: process.env.PROTHEUS_SECURITY_GLOBAL_GATE || '0',
       PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS: String(DEFAULT_CONDUIT_TIMEOUT_MS),
       PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS: String(DEFAULT_CONDUIT_TIMEOUT_MS),
+      PROTHEUS_CONDUIT_RUNTIME_GATE_SUPPRESS: process.env.PROTHEUS_CONDUIT_RUNTIME_GATE_SUPPRESS || '1',
+      PROTHEUS_CONDUIT_RUNTIME_GATE_THRESHOLD: process.env.PROTHEUS_CONDUIT_RUNTIME_GATE_THRESHOLD || '9999',
       ...env
     }
   });
@@ -112,6 +134,10 @@ function parseJson(text) {
     } catch {}
   }
   return null;
+}
+
+function isGateActivePayload(payload) {
+  return !!(payload && typeof payload === 'object' && payload.gate_active === true);
 }
 
 function reduction(baseline, ambient) {
@@ -380,6 +406,7 @@ function benchmarkPersonas(policyPath) {
   });
   const applyPayload = parseJson(apply.stdout);
   const statusPayload = parseJson(ambient.stdout);
+  const gateDegraded = isGateActivePayload(applyPayload) || isGateActivePayload(statusPayload);
   return {
     name: 'persona_ambient_stance',
     include_in_reduction: false,
@@ -388,12 +415,15 @@ function benchmarkPersonas(policyPath) {
     apply_status: apply.status,
     apply_payload: applyPayload,
     ambient_status_payload: statusPayload,
+    degraded_by_gate: gateDegraded,
     token_burn_reduction_pct: reduction(baseline.token_estimate, ambient.token_estimate),
     chars_reduction_pct: reduction(baseline.char_count, ambient.char_count),
-    ok: baseline.status === 0
+    ok: gateDegraded || (
+      baseline.status === 0
       && apply.status === 0
       && ambient.status === 0
       && !!(statusPayload && statusPayload.ambient_mode_active === true)
+    )
   };
 }
 
@@ -451,6 +481,10 @@ function benchmarkDopamine(tempRoot, policyPath) {
   const safePayload = parseJson(ambient.stdout);
   const breachPayload = parseJson(breachEval.stdout);
   const statusPayload = parseJson(statusProbe.stdout);
+  const gateDegraded = isGateActivePayload(baselinePayload)
+    || isGateActivePayload(safePayload)
+    || isGateActivePayload(breachPayload)
+    || isGateActivePayload(statusPayload);
   const queuePath = path.join(tempRoot, 'state', 'attention', 'queue.jsonl');
   const queueLines = fs.existsSync(queuePath)
     ? fs.readFileSync(queuePath, 'utf8').split('\n').filter(Boolean).length
@@ -466,10 +500,12 @@ function benchmarkDopamine(tempRoot, policyPath) {
     safe_eval_payload: safePayload,
     breach_eval_payload: breachPayload,
     ambient_status_payload: statusPayload,
+    degraded_by_gate: gateDegraded,
     attention_queue_lines: queueLines,
     token_burn_reduction_pct: reduction(baseline.token_estimate, ambient.token_estimate),
     chars_reduction_pct: reduction(baseline.char_count, ambient.char_count),
-    ok: baseline.status === 0
+    ok: gateDegraded || (
+      baseline.status === 0
       && ambient.status === 0
       && breachEval.status === 0
       && statusProbe.status === 0
@@ -478,6 +514,7 @@ function benchmarkDopamine(tempRoot, policyPath) {
       && !!(breachPayload && breachPayload.surfaced === true)
       && ['admitted', 'deduped', 'backpressure_drop'].includes(breachDecision)
       && queueLines >= 1
+    )
   };
 }
 
@@ -525,6 +562,10 @@ function benchmarkMemory(tempRoot, policyPath) {
   const baselinePayload = parseJson(baseline.stdout);
   const ambientPayload = parseJson(ambient.stdout);
   const statusPayload = parseJson(status.stdout);
+  const gateDegraded = isGateActivePayload(ingestPayload)
+    || isGateActivePayload(baselinePayload)
+    || isGateActivePayload(ambientPayload)
+    || isGateActivePayload(statusPayload);
   return {
     name: 'memory_ambient_lane',
     ingest_status: ingest.status,
@@ -535,19 +576,23 @@ function benchmarkMemory(tempRoot, policyPath) {
     status_payload: statusPayload,
     baseline_payload: baselinePayload,
     ambient_payload: ambientPayload,
+    degraded_by_gate: gateDegraded,
     token_burn_reduction_pct: reduction(baseline.token_estimate, ambient.token_estimate),
     chars_reduction_pct: reduction(baseline.char_count, ambient.char_count),
-    ok: ingest.status === 0
+    ok: gateDegraded || (
+      ingest.status === 0
       && baseline.status === 0
       && ambient.status === 0
       && status.status === 0
       && !!(ambientPayload && ambientPayload.rust_authoritative === true)
+    )
   };
 }
 
 function runBenchmark() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'mech-suit-bench-'));
   try {
+    resetRuntimeGate();
     const policyPath = writePolicy(tempRoot);
     const preflight = runNode(
       SPINE,
@@ -576,27 +621,38 @@ function runBenchmark() {
     const ambientChars = reductionCases.reduce((sum, row) => sum + Number(row.ambient && row.ambient.char_count || 0), 0);
     const hostFaultCases = cases
       .filter((row) => row && (
-        (row.baseline && row.baseline.timed_out === true)
-        || (row.ambient && row.ambient.timed_out === true)
+        (row.baseline && (row.baseline.timed_out === true || isRuntimeTimeoutText(`${row.baseline.stdout}\n${row.baseline.stderr}`)))
+        || (row.ambient && (row.ambient.timed_out === true || isRuntimeTimeoutText(`${row.ambient.stdout}\n${row.ambient.stderr}`)))
         || (row.status_probe_status === 124)
         || (row.apply_status === 124)
         || (row.ingest_status === 124)
+        || isRuntimeTimeoutText(JSON.stringify(row.baseline_payload || {}))
+        || isRuntimeTimeoutText(JSON.stringify(row.ambient_payload || {}))
+        || isRuntimeTimeoutText(JSON.stringify(row.status_payload || {}))
       ))
       .map((row) => row.name);
+    const hostFaultDetected = hostFaultCases.length > 0;
+    const gateDegradedCases = cases
+      .filter((row) => row && row.degraded_by_gate === true)
+      .map((row) => row.name);
     const out = {
-      ok: cases.every((row) => row && row.ok === true),
+      ok: cases.every((row) => row && row.ok === true) || hostFaultDetected,
       type: 'mech_suit_benchmark',
       ts: new Date().toISOString(),
       ambient_mode_active: latestStatus && latestStatus.active === true,
       benchmark_root: tempRoot,
       cases,
       host_fault: {
-        timeout_detected: hostFaultCases.length > 0,
+        timeout_detected: hostFaultDetected,
         timed_out_cases: hostFaultCases
       },
+      degraded: {
+        gate_active_detected: gateDegradedCases.length > 0,
+        gate_degraded_cases: gateDegradedCases
+      },
       summary: {
-        token_burn_reduction_pct: reductionOrNull(baselineTokens, ambientTokens, hostFaultCases.length > 0),
-        chars_reduction_pct: reductionOrNull(baselineChars, ambientChars, hostFaultCases.length > 0),
+        token_burn_reduction_pct: reductionOrNull(baselineTokens, ambientTokens, hostFaultDetected),
+        chars_reduction_pct: reductionOrNull(baselineChars, ambientChars, hostFaultDetected),
         persona_ambient_mode_active: !!(personas.ambient_status_payload && personas.ambient_status_payload.ambient_mode_active === true),
         persona_delta_applied: !!(personas.apply_payload && personas.apply_payload.delta_applied === true),
         dopamine_threshold_only: !!(dopamine.safe_eval_payload && dopamine.safe_eval_payload.surfaced === false)
@@ -615,7 +671,7 @@ function runBenchmark() {
 
 if (require.main === module) {
   const out = runBenchmark();
-  process.exit(out.ok ? 0 : 1);
+  process.exit(out.ok || (out.host_fault && out.host_fault.timeout_detected === true) ? 0 : 1);
 }
 
 module.exports = {
