@@ -85,6 +85,21 @@ Contracts:
 - Dream cycle runs trigger sequencer reorder passes and emit updated ranked tags.
 - New memory filings can trigger bounded top-match recall pushes to attention queue through conduit only.
 
+Context guard:
+
+- `memory_recall` query path enforces a hard context budget contract:
+  - `--context-budget-tokens` (default `8000`, floor `256`)
+  - `--context-budget-mode=trim|reject`
+- Trim mode reduces excerpt/summaries to fit budget; reject mode fails closed with `context_budget_exceeded`.
+
+## Low-Burn Reflexes
+
+Client cognition exposes a compact reflex set for frequent operations under strict output caps:
+
+- Registry/runner: `client/reflexes/index.ts`
+- Reflexes: `read_snippet`, `write_quick`, `summarize_brief`, `git_status`, `memory_lookup`
+- Each reflex response is capped at `<=150` estimated tokens.
+
 ## Why Root Is Clean
 
 Repository root is intentionally reduced to:

@@ -1293,7 +1293,10 @@
     "memory:dream-sequencer:status": "node client/systems/memory/dream_sequencer.js status",
     "memory:auto-recall:status": "node client/systems/memory/memory_auto_recall.js status",
     "test:memory:matrix": "node client/memory/tools/tests/memory_matrix.test.js",
-    "test:memory:auto-recall": "node client/memory/tools/tests/memory_auto_recall.test.js"
+    "test:memory:auto-recall": "node client/memory/tools/tests/memory_auto_recall.test.js",
+    "test:memory:context-budget": "node client/memory/tools/tests/memory_recall_context_budget.test.js",
+    "reflexes:list": "node client/reflexes/index.js list",
+    "test:reflexes": "node client/memory/tools/tests/client_reflexes.test.js"
   },
   "bin": {
     "protheus": "./client/bin/protheus",

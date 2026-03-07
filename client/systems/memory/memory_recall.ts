@@ -27,6 +27,8 @@ const DEFAULT_MAX_FILES = clampInt(process.env.MEMORY_RECALL_MAX_FILES || 1, 1, 
 const DEFAULT_CONFIDENCE = clampNumber(process.env.MEMORY_RECALL_CONFIDENCE || 0.58, 0.05, 1);
 const DEFAULT_CACHE_MAX_BYTES = clampInt(process.env.MEMORY_RECALL_CACHE_MAX_BYTES || (1024 * 1024), 65536, 8 * 1024 * 1024);
 const DEFAULT_EXCERPT_LINES = clampInt(process.env.MEMORY_RECALL_EXCERPT_LINES || 14, 4, 100);
+const DEFAULT_CONTEXT_BUDGET_TOKENS = clampInt(process.env.MEMORY_RECALL_CONTEXT_BUDGET_TOKENS || 8000, 256, 64000);
+const DEFAULT_CONTEXT_BUDGET_MODE = normalizeContextBudgetMode(process.env.MEMORY_RECALL_CONTEXT_BUDGET_MODE || 'trim');
 const DEFAULT_BACKEND = String(process.env.MEMORY_RECALL_BACKEND || 'rust').trim().toLowerCase();
 const DEFAULT_RUST_SELECTOR_PATH = process.env.MEMORY_RECALL_RUST_SELECTOR_PATH
   ? path.resolve(String(process.env.MEMORY_RECALL_RUST_SELECTOR_PATH))
@@ -87,9 +89,15 @@ function parseBoolFlag(v, fallback) {
   return fallback;
 }
 
+function normalizeContextBudgetMode(v) {
+  const raw = String(v == null ? '' : v).trim().toLowerCase();
+  if (raw === 'reject') return 'reject';
+  return 'trim';
+}
+
 function usage() {
   console.log('Usage:');
-  console.log('  node systems/memory/memory_recall.js query --q="..." [--tags=t1,t2] [--top=N] [--expand=auto|none|always] [--score-mode=hybrid|lexical] [--confidence=0.58] [--max-files=1] [--session=name]');
+  console.log('  node systems/memory/memory_recall.js query --q="..." [--tags=t1,t2] [--top=N] [--expand=auto|none|always] [--score-mode=hybrid|lexical] [--confidence=0.58] [--max-files=1] [--context-budget-tokens=8000] [--context-budget-mode=trim|reject] [--session=name]');
   console.log('  node systems/memory/memory_recall.js get --node-id=<id> [--file=memory/YYYY-MM-DD.md] [--session=name]');
   console.log('  node systems/memory/memory_recall.js get --uid=<alnum_uid> [--file=memory/YYYY-MM-DD.md] [--session=name]');
   console.log('  node systems/memory/memory_recall.js clear-cache [--session=name]');
@@ -1141,6 +1149,143 @@ function excerpt(text, lines) {
   return String(text || '').split('\n').slice(0, lines).join('\n');
 }
 
+function estimateTokens(text) {
+  const chars = String(text || '').length;
+  if (chars <= 0) return 0;
+  return Math.max(1, Math.ceil(chars / 4));
+}
+
+function trimToTokenBudget(text, maxTokens) {
+  const safeBudget = Math.max(0, Number(maxTokens || 0));
+  if (safeBudget <= 0) return '';
+  const raw = String(text || '');
+  const charBudget = Math.max(0, Math.floor(safeBudget * 4));
+  if (raw.length <= charBudget) return raw;
+  if (charBudget <= 1) return '';
+  return `${raw.slice(0, charBudget - 1).trimEnd()}…`;
+}
+
+function estimateHitTokens(hit) {
+  if (!hit || typeof hit !== 'object') return 0;
+  let total = 0;
+  total += estimateTokens(hit.node_id || '');
+  total += estimateTokens(hit.uid || '');
+  total += estimateTokens(hit.file || '');
+  total += estimateTokens(hit.summary || '');
+  total += Array.isArray(hit.tags) ? hit.tags.reduce((sum, tag) => sum + estimateTokens(tag), 0) : 0;
+  total += Array.isArray(hit.reasons) ? hit.reasons.reduce((sum, reason) => sum + estimateTokens(reason), 0) : 0;
+  total += estimateTokens(hit.section_excerpt || '');
+  total += 12; // structural overhead per hit
+  return total;
+}
+
+function estimateHitsTokens(hits) {
+  return (Array.isArray(hits) ? hits : []).reduce((sum, hit) => sum + estimateHitTokens(hit), 0);
+}
+
+function applyContextBudget(hitsRaw, budgetTokens, modeRaw) {
+  const mode = normalizeContextBudgetMode(modeRaw);
+  const budget = clampInt(budgetTokens, 256, 64000);
+  const hits = Array.isArray(hitsRaw)
+    ? hitsRaw.map((hit) => ({ ...(hit && typeof hit === 'object' ? hit : {}) }))
+    : [];
+  const before = estimateHitsTokens(hits);
+  if (before <= budget) {
+    return {
+      ok: true,
+      mode,
+      budget_tokens: budget,
+      capped: false,
+      tokens_est_before: before,
+      tokens_est_after: before,
+      trimmed_hits: 0,
+      dropped_hits: 0,
+      hits
+    };
+  }
+
+  if (mode === 'reject') {
+    return {
+      ok: false,
+      mode,
+      budget_tokens: budget,
+      capped: true,
+      tokens_est_before: before,
+      tokens_est_after: before,
+      trimmed_hits: 0,
+      dropped_hits: 0,
+      hits: []
+    };
+  }
+
+  let trimmedHits = 0;
+  let droppedHits = 0;
+
+  // Trim heavy excerpts from lowest-ranked hits first.
+  for (let i = hits.length - 1; i >= 0 && estimateHitsTokens(hits) > budget; i -= 1) {
+    const hit = hits[i];
+    if (!hit || typeof hit !== 'object') continue;
+    const section = typeof hit.section_excerpt === 'string' ? hit.section_excerpt : '';
+    if (!section) continue;
+    if (i > 0) {
+      delete hit.section_excerpt;
+      hit.expanded = false;
+      hit.expand_blocked = 'context_budget_trim';
+      trimmedHits += 1;
+      continue;
+    }
+    const withoutSection = estimateHitsTokens(hits) - estimateTokens(section);
+    const allowance = Math.max(0, budget - withoutSection - 2);
+    const trimmed = trimToTokenBudget(section, allowance);
+    if (trimmed !== section) {
+      trimmedHits += 1;
+      if (trimmed) {
+        hit.section_excerpt = trimmed;
+      } else {
+        delete hit.section_excerpt;
+        hit.expanded = false;
+        hit.expand_blocked = 'context_budget_trim';
+      }
+    }
+  }
+
+  // Drop lowest-ranked hits if still over budget.
+  while (hits.length > 1 && estimateHitsTokens(hits) > budget) {
+    hits.pop();
+    droppedHits += 1;
+  }
+
+  // Final trim on top hit summary if required.
+  if (hits.length > 0 && estimateHitsTokens(hits) > budget) {
+    const top = hits[0];
+    const summary = String(top.summary || '');
+    if (summary) {
+      const withoutSummary = estimateHitsTokens(hits) - estimateTokens(summary);
+      const allowance = Math.max(0, budget - withoutSummary - 1);
+      const trimmedSummary = trimToTokenBudget(summary, allowance);
+      top.summary = trimmedSummary;
+      if (trimmedSummary !== summary) trimmedHits += 1;
+    }
+    if (estimateHitsTokens(hits) > budget) {
+      top.reasons = [];
+      top.tags = Array.isArray(top.tags) ? top.tags.slice(0, 2) : [];
+    }
+  }
+
+  const after = estimateHitsTokens(hits);
+  return {
+    ok: true,
+    mode,
+    budget_tokens: budget,
+    capped: after < before,
+    tokens_est_before: before,
+    tokens_est_after: after,
+    trimmed_hits: trimmedHits,
+    dropped_hits: droppedHits,
+    hits
+  };
+}
+
 function loadSection(entry, cacheObj, metrics, fileContents, cacheMaxBytes) {
   const key = cacheKeyFor(entry);
   const stamp = fileStamp(entry.file_abs);
@@ -1264,6 +1409,18 @@ async function queryCmd(args) {
   const session = safeSessionName(args.session || process.env.MEMORY_RECALL_SESSION || 'default');
   const cacheMaxBytes = clampInt(args['cache-max-bytes'] == null ? DEFAULT_CACHE_MAX_BYTES : args['cache-max-bytes'], 65536, 8 * 1024 * 1024);
   const excerptLines = clampInt(args['excerpt-lines'] == null ? DEFAULT_EXCERPT_LINES : args['excerpt-lines'], 4, 200);
+  const contextBudgetTokens = clampInt(
+    args['context-budget-tokens'] == null
+      ? (args.context_budget_tokens == null ? DEFAULT_CONTEXT_BUDGET_TOKENS : args.context_budget_tokens)
+      : args['context-budget-tokens'],
+    256,
+    64000
+  );
+  const contextBudgetMode = normalizeContextBudgetMode(
+    args['context-budget-mode'] == null
+      ? (args.context_budget_mode == null ? DEFAULT_CONTEXT_BUDGET_MODE : args.context_budget_mode)
+      : args['context-budget-mode']
+  );
   const scoreModeRaw = cleanCell(args['score-mode'] == null ? (args.score_mode == null ? '' : args.score_mode) : args['score-mode']).toLowerCase();
   const scoreMode = scoreModeRaw === 'lexical' ? 'lexical' : (scoreModeRaw === 'hybrid' ? 'hybrid' : '');
   const backendRequested = resolveBackendChoice(args.backend == null ? DEFAULT_BACKEND : args.backend);
@@ -1449,9 +1606,8 @@ async function queryCmd(args) {
   const fileContents = new Map();
   const fileOrder = uniqueSorted(topScored.map(x => x.entry.file_rel));
   const expandFiles = new Set(fileOrder.slice(0, maxFiles));
-  let expandedCount = 0;
 
-  const hits = topScored.map((row, idx) => {
+  const rawHits = topScored.map((row, idx) => {
     const base = {
       rank: idx + 1,
       node_id: row.entry.node_id,
@@ -1465,7 +1621,6 @@ async function queryCmd(args) {
     if (!shouldExpand) return { ...base, expanded: false };
     if (backendUsed === 'rust') {
       if (typeof row.rust_section_excerpt === 'string' && row.rust_section_excerpt.length > 0) {
-        expandedCount += 1;
         return {
           ...base,
           expanded: true,
@@ -1488,7 +1643,6 @@ async function queryCmd(args) {
     if (!sec.ok) {
       return { ...base, expanded: false, expand_error: sec.reason || 'unknown' };
     }
-    expandedCount += 1;
     return {
       ...base,
       expanded: true,
@@ -1498,6 +1652,42 @@ async function queryCmd(args) {
     };
   });
 
+  const contextBudget = applyContextBudget(rawHits, contextBudgetTokens, contextBudgetMode);
+  if (!contextBudget.ok && contextBudget.mode === 'reject') {
+    const response = {
+      ok: false,
+      error: 'context_budget_exceeded',
+      type: 'memory_recall_query',
+      session,
+      context_budget: {
+        mode: contextBudget.mode,
+        budget_tokens: contextBudget.budget_tokens,
+        tokens_est_before: contextBudget.tokens_est_before,
+        tokens_est_after: contextBudget.tokens_est_after,
+        capped: true,
+        trimmed_hits: contextBudget.trimmed_hits,
+        dropped_hits: contextBudget.dropped_hits
+      }
+    };
+    appendAuditMirror('memory_recall_query', {
+      ok: false,
+      session,
+      query_hash: sha256(query),
+      query_length: String(query || '').length,
+      tags: tagFilters,
+      backend_requested: transportTelemetry.backend_requested,
+      backend_used: transportTelemetry.backend_used,
+      backend_fallback_reason: transportTelemetry.fallback_reason,
+      fallback_incident_id: fallbackIncidentId,
+      error: 'context_budget_exceeded',
+      context_budget: response.context_budget
+    });
+    process.stdout.write(JSON.stringify(response, null, 2) + '\n');
+    process.exit(1);
+  }
+
+  const hits = contextBudget.hits;
+  const outputExpandedCount = hits.reduce((sum, hit) => sum + (hit && hit.expanded === true ? 1 : 0), 0);
   saveCache(session, cacheObj, cacheMaxBytes);
 
   const response = {
@@ -1510,7 +1700,16 @@ async function queryCmd(args) {
     confidence_threshold: confidenceThreshold,
     expand_mode: expandMode,
     score_mode: scoreMode || 'hybrid',
-    expanded_count: expandedCount,
+    expanded_count: outputExpandedCount,
+    context_budget: {
+      mode: contextBudget.mode,
+      budget_tokens: contextBudget.budget_tokens,
+      tokens_est_before: contextBudget.tokens_est_before,
+      tokens_est_after: contextBudget.tokens_est_after,
+      capped: contextBudget.capped,
+      trimmed_hits: contextBudget.trimmed_hits,
+      dropped_hits: contextBudget.dropped_hits
+    },
     max_files: maxFiles,
     backend_requested: transportTelemetry.backend_requested,
     backend_used: transportTelemetry.backend_used,
@@ -1539,8 +1738,9 @@ async function queryCmd(args) {
     transport_attempts: transportTelemetry.transport_attempts,
     fallback_incident_id: fallbackIncidentId,
     confidence,
-    expanded_count: expandedCount,
+    expanded_count: outputExpandedCount,
     hit_count: hits.length,
+    context_budget: response.context_budget,
     index_sources: indexSources,
     tag_sources: tagSources
   });
