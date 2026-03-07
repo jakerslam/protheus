@@ -2,7 +2,15 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const memoryDir = process.env.MEMORY_DIR || '/Users/jay/.openclaw/workspace/memory';
+const WORKSPACE_ROOT = path.resolve(__dirname, '..', '..', '..');
+const CLIENT_ROOT = path.join(WORKSPACE_ROOT, 'client');
+const memoryDir = path.resolve(process.env.MEMORY_DIR || path.join(CLIENT_ROOT, 'memory'));
+const SNAPSHOT_DIR = path.resolve(
+  process.env.MEMORY_SNAPSHOT_DIR || path.join(CLIENT_ROOT, 'local', 'memory', '_snapshots')
+);
+const DELTA_CACHE_PATH = path.resolve(
+  process.env.MEMORY_REBUILD_DELTA_CACHE_PATH || path.join(CLIENT_ROOT, 'local', 'memory', '.rebuild_delta_cache.json')
+);
 const whitelistRegex = /^\d{4}-\d{2}-\d{2}\.md$/;
 const UID_PATTERN = /^[A-Za-z0-9]+$/;
 const UID_ENFORCE_SINCE = normalizeDate(process.env.MEMORY_UID_ENFORCE_SINCE || '2026-02-22');
@@ -19,8 +27,6 @@ const CONTROL_PLANE_NODES = ['project-registry', 'mode-restrictions', 'query-mod
 const SNIPPET_WINDOW = 8;
 const EXCLUDE_PATHS = ['node_modules', 'dist', 'build', '.git', '.next', 'out', 'coverage'];
 const INCLUDE_EXTENSIONS = ['.md', '.txt', '.js', '.ts', '.json', '.yaml', '.yml', '.sh', '.py', '.rb', '.go', '.rs', '.c', '.cpp', '.h', '.java', '.kt', '.swift', '.php', '.pl', '.r', '.scala', '.groovy', '.clj', '.erl', '.ex', '.exs', '.lua', '.vim', '.el', '.lisp', '.scm', '.hs', '.ml', '.sql', '.css', '.scss', '.less', '.html', '.xml', '.toml', '.ini', '.cfg', '.conf', '.dockerfile', '.tf', '.hcl'];
-const WORKSPACE_ROOT = '/Users/jay/.openclaw/workspace';
-const DELTA_CACHE_PATH = path.join(memoryDir, '.rebuild_delta_cache.json');
 
 function sha1Text(content) {
   return crypto.createHash('sha1').update(String(content || '')).digest('hex');
@@ -53,6 +59,7 @@ function saveDeltaCache(cache) {
   payload.version = 1;
   payload.updated_at = new Date().toISOString();
   if (!payload.files || typeof payload.files !== 'object') payload.files = {};
+  fs.mkdirSync(path.dirname(DELTA_CACHE_PATH), { recursive: true });
   fs.writeFileSync(DELTA_CACHE_PATH, JSON.stringify(payload, null, 2));
 }
 
@@ -157,7 +164,7 @@ function getProjectRegistryFromNodes() {
 
 // Snapshot backup function
 function createSnapshotBackups() {
-  const snapshotDir = path.join(memoryDir, '_snapshots');
+  const snapshotDir = SNAPSHOT_DIR;
   if (!fs.existsSync(snapshotDir)) {
     fs.mkdirSync(snapshotDir, { recursive: true });
   }
@@ -372,7 +379,7 @@ console.log('║              CREATING SNAPSHOT BACKUPS                     ║'
 console.log('╚════════════════════════════════════════════════════════════╝');
 const backedUpFiles = createSnapshotBackups();
 console.log(`Backed up: ${backedUpFiles.join(', ') || 'none'}`);
-console.log(`Snapshot location: client/memory/_snapshots/`);
+console.log(`Snapshot location: ${path.relative(WORKSPACE_ROOT, SNAPSHOT_DIR).replace(/\\/g, '/')}/`);
 console.log();
 
 const allRegisteredProjects = [...projectRegistry['active-core'], ...projectRegistry.paused, ...projectRegistry.retired];

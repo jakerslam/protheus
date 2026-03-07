@@ -171,8 +171,8 @@ Every proposal, promotion, demotion, or archive writes a memory SNIP:
 - `client/habits/routines/` — Habit code (routines)
 - `client/habits/routines/_archived/` — Archived routines
 - `client/habits/scripts/` — Infrastructure (runner, doctor, GC, proposer)
-- `client/habits/client/logs/habit_runs.ndjson` — Execution log with outcome_score/delta_value
-- `client/habits/client/logs/habit_errors.ndjson` — Error log
+- `client/local/logs/habits/habit_runs.ndjson` — Execution log with outcome_score/delta_value
+- `client/local/logs/habits/habit_errors.ndjson` — Error log
 
 ## Schema Reference
 

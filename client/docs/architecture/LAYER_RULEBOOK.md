@@ -12,7 +12,6 @@ All actual source code must live under one of these two directories.
 The following standard repo metadata and infrastructure items are explicitly allowed (and expected) to remain at the repository root:
 - `.github/`
 - `.githooks/`
-- `.private-lenses/` (or any private config)
 - `README.md`, `LICENSE`, `CONTRIBUTING.md`
 - `Cargo.toml`, `package.json`, `Cargo.lock`, `pnpm-lock.yaml`
 - Any build scripts, Dockerfiles, Helm charts, deploy configs, or CI files that are not source code.

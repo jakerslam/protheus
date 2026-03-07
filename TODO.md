@@ -18,6 +18,10 @@
   - Symptoms:
     - `conduit_stdio_timeout` on spine/status and mech benchmark preflight.
     - Rust binaries remain non-responsive in this environment until forcibly killed.
+  - Progress:
+    - Raised conduit stdio/bridge default timeout budgets (20s -> 120s+) across bridge callsites.
+    - Added bridge-side child timeout/kill path in Rust conduit ops bridge to avoid indefinite child hangs.
+    - Heartbeat and daemon spine calls now pass explicit timeout budgets for run/status lanes.
   - Completion criteria:
     - `conduit_daemon` responds to `start_agent` within timeout budget.
     - `ops:mech-suit:benchmark` completes without preflight host fault.
@@ -39,3 +43,43 @@
     - `client/tools/migrate_to_planes_runtime.sh` shipped for one-command migration bootstrap.
     - `local_runtime_partitioner` init/status/reset shipped + tested.
     - Benchmark/harness defaults moved to `client/local/state/*` for generated artifacts.
+
+- [ ] `LOCAL-PARTITION-002` Finish remaining tracked runtime root migrations (`client/logs`, `client/secrets`) into `client/local/*`.
+  - Layer target: `client/local` runtime partition + migration tooling in `client/systems/ops/migrate_to_planes.ts`.
+  - Current gap:
+    - `migrate_to_planes plan` still reports copy work for `client/logs` and `client/secrets`.
+    - Legacy tracked root paths remain present instead of fully consolidated.
+  - Completion criteria:
+    - Run apply migration with checkpoint/rollback manifest.
+    - Remove legacy tracked runtime copies from source root paths.
+    - `ops:root-surface:check` and `ops:source-runtime:check` remain green.
+
+- [ ] `V6-CI-HYGIENE-002` Restore strict CI pass for policy/contract gates after migration.
+  - Layer target: `client/systems` policy contract surfaces + CI guard configuration.
+  - Current gap:
+    - `test:ci` fails on `js_holdout_audit_advisory` (unapproved unpaired JS inventory).
+    - `contract_check` fails due missing expected tokens for `systems/sensory/eyes_intake.js`.
+  - Completion criteria:
+    - `npm run -s test:ci` exits `0`.
+    - JS/TS holdout policy and contract tokens match declared architecture rules.
+    - Any intentional exceptions are explicitly documented in policy registries.
+
+- [ ] `V6-PARITY-003` Close current Protheus-vs-OpenClaw parity harness gap.
+  - Layer target: cross-lane runtime health (`core` authority + `client` governance surfaces).
+  - Current gap:
+    - `ops:protheus-vs-openclaw` executes but returns exit `2` (`parity_pass: false`).
+    - Failing scenarios include reliability and sustained autonomy dimensions.
+  - Completion criteria:
+    - `ops:protheus-vs-openclaw` exits `0` with `parity_pass: true`.
+    - Weekly scorecard shows required pass ratio and weighted score thresholds.
+    - Regression guard added so parity failures are surfaced before merge.
+
+- [ ] `V6-MECH-LIVE-001` Remove mech benchmark host-timeout skip and require live ambient-lane execution.
+  - Layer target: `core/layer2/conduit` + `core/layer0/ops` + mech benchmark contract in `client/systems/ops/mech_suit_benchmark.js`.
+  - Current gap:
+    - Benchmark now returns structured `host_runtime_timeout` skip instead of hard fail.
+    - Ambient preflight still cannot validate live Rust spine path in this host runtime.
+  - Completion criteria:
+    - `ops:mech-suit:benchmark` runs full case set without `skip_reason`.
+    - `ambient_mode_active` and summary booleans are sourced from live lane receipts.
+    - Host-skip fallback stays disabled in CI/prod validation profiles.

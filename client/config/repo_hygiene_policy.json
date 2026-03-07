@@ -1,11 +1,11 @@
 {
   "version": "1.0",
   "blocked_prefixes": [
-    "client/memory/_snapshots/",
-    "client/logs/tool_raw/",
+    "client/local/memory/_snapshots/",
+    "client/local/logs/tool_raw/",
     "tmp/",
     "state/",
-    "client/habits/client/logs/"
+    "client/local/logs/habits/"
   ],
   "blocked_globs": [
     "client/memory/*.backup.*",

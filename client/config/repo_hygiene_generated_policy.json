@@ -4,7 +4,7 @@
   "blocked_globs": [
     "state/**",
     "tmp/**",
-    "client/logs/**",
+    "client/local/logs/**",
     "dist/**"
   ],
   "allow_globs": [

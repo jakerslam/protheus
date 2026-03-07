@@ -12,10 +12,7 @@ Defines ownership intent for repository-root entries after the core/client split
 
 - `.github/`: CI workflows and branch policy.
 - `.githooks/`: local hook helpers.
-- `.private-lenses/`: local/private config surface.
-- `.clawhub/`: local workspace lock and helper metadata.
 - `dist/`: generated build output.
-- `state/`: compatibility symlink to `client/local/state` (legacy callers only).
 - `target/`: Rust build artifacts.
 - `tmp/`: scratch/runtime transient files.
 - `node_modules/`: npm dependency cache.
@@ -30,6 +27,6 @@ Defines ownership intent for repository-root entries after the core/client split
 ## Guarding Rules
 
 1. New source code must land under `core/` or `client/` only.
-2. Legacy root runtime folders (`adaptive`, `memory`, `habits`, `logs`, `patches`, `reports`, `research`, `secrets`) are disallowed.
+2. Legacy root runtime folders (`adaptive`, `memory`, `habits`, `logs`, `patches`, `reports`, `research`, `secrets`, `state`, `.clawhub`, `.private-lenses`) are disallowed.
 3. Runtime mutable data belongs in `client/local/*` and `core/local/*`.
 4. Root allowances are enforced by `ops:root-surface:check` and `ops:source-runtime:check`.

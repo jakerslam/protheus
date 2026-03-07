@@ -262,6 +262,13 @@ See [Cognitive Toolkit Suite](client/docs/cognitive_toolkit.md) and `examples/*-
 | `client/memory/tools/tests/` | Deterministic tests and regression harnesses |
 | `client/local/`, `core/local/` | Instance-local runtime artifacts and receipts |
 
+### Three-Plane Filesystem Alignment
+
+- `planes/` is the architecture contract surface (`safety`, `cognition`, `substrate`).
+- `core/` and `client/` are the only source-code roots.
+- `client/local/` and `core/local/` are the only mutable runtime roots.
+- Root stays intentionally clean so runtime churn does not pollute source history.
+
 ## Quality And Governance Baseline
 
 The project is operated with explicit documentation and governance contracts:

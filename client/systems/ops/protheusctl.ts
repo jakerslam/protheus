@@ -36,7 +36,7 @@ function usage() {
   console.log('  protheusctl socket admission');
   console.log('  protheusctl mine dashboard --human=1');
   console.log('  protheusctl migrate --to=<org/repo|url> [--workspace=<path>] [--apply=1]');
-  console.log('  protheusctl migrate-to-planes [plan|run|status] [--apply=1] [--move-untracked=1]');
+  console.log('  protheusctl migrate-to-planes [plan|run|status|rollback] [--apply=1] [--move-untracked=1] [--compat-symlinks=1] [--id=<migration_id|latest>]');
   console.log('  protheusctl import --from=<engine> --path=<source> [--apply=1]');
   console.log('  protheusctl wasi2 run|status');
   console.log('  protheusctl rust run|report|status');
@@ -384,7 +384,7 @@ function main() {
     const migrationScript = path.join(__dirname, 'migrate_to_planes.js');
     const laneRest = cmd === 'migrate' ? rest.slice(1) : rest;
     const sub = String(laneRest[0] || '').trim().toLowerCase();
-    const supported = new Set(['plan', 'run', 'status', 'help', '--help', '-h']);
+    const supported = new Set(['plan', 'run', 'status', 'rollback', 'help', '--help', '-h']);
     if (!sub || sub.startsWith('--') || !supported.has(sub)) {
       runScript(migrationScript, ['run', ...laneRest]);
       return;

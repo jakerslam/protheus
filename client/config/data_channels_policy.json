@@ -23,8 +23,8 @@
     "runtime_state_logs": {
       "roots": [
         "state/",
-        "client/logs/",
-        "client/habits/client/logs/"
+        "client/local/logs/",
+        "client/local/logs/habits/"
       ],
       "controllers": [
         "client/systems/spine/",
@@ -40,9 +40,9 @@
     },
     "secrets": {
       "repo_scaffold": [
-        "client/secrets/"
+        "client/local/secrets/"
       ],
-      "external_root_default": "~/.client/config/protheus/client/secrets/",
+      "external_root_default": "~/.client/config/protheus/client/local/secrets/",
       "controllers": [
         "client/lib/secret_broker.js",
         "client/systems/security/secret_broker.js"

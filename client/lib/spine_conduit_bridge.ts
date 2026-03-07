@@ -141,9 +141,15 @@ async function runConduitAgent(agentId, requestPrefix, receiptKey, errorType, op
   const { ConduitClient } = loadConduitClient(root);
   const command = daemonCommand(root);
   const client = ConduitClient.overStdio(command, daemonArgs(command), root);
-  const timeoutMs = Math.max(
+  const defaultStdioTimeoutMs = Math.max(
     1000,
-    Number(opts.timeoutMs || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS || 25000) || 25000
+    Number(process.env.PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS || process.env.PROTHEUS_CONDUIT_TIMEOUT_MS || 120000) || 120000
+  );
+  const defaultBridgeTimeoutMs = Math.max(defaultStdioTimeoutMs + 1000, 125000);
+  const requestedTimeoutMs = Number(opts.timeoutMs || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS || defaultBridgeTimeoutMs);
+  const timeoutMs = Math.max(
+    defaultStdioTimeoutMs + 1000,
+    Number.isFinite(requestedTimeoutMs) && requestedTimeoutMs > 0 ? Math.floor(requestedTimeoutMs) : defaultBridgeTimeoutMs
   );
 
   try {

@@ -21,7 +21,7 @@ client/secrets/*
 
 # Runtime/ops outputs (high churn, non-source artifacts)
 client/logs/tool_raw/
-client/habits/client/logs/*.ndjson
+client/local/logs/tool_raw/
 tmp/
 dist/
 .internal/
@@ -149,7 +149,7 @@ client/skills/**
 !client/skills/mcp/*.json
 
 # Additional runtime churn (adaptive + memory + ops)
-.clawhub/lock.json
+.clawhub
 state/actuation/receipts/*.chain.json
 state/autonomy/budget_autopause.json
 state/autonomy/pain*.json
@@ -181,14 +181,8 @@ pqts/
 !personas/organization/projects/**
 
 # Unified local runtime partitions (instance-specific)
-client/local/**
-!client/local/.gitignore
-!client/local/README.md
-!client/local/**/.gitkeep
-core/local/**
-!core/local/.gitignore
-!core/local/README.md
-!core/local/**/.gitkeep
+/client/local/
+/core/local/
 
 # Instance-specific sensory collectors (local only)
 client/adaptive/sensory/eyes/collectors/abstractapi_enrich.js
@@ -264,3 +258,10 @@ state/security/black_box_ledger/attestations/*.jsonl
 client/config/rohan_github_credentials.md
 rohan-kapoor-projects/
 rohankapoor-projects/
+
+# BL-020 memory snapshot ignore rules (backup-verified)
+client/local/memory/_snapshots/
+client/memory/*.backup.*
+state/client/memory/snapshots/*.json
+state/client/memory/snapshots/*.jsonl
+# /BL-020

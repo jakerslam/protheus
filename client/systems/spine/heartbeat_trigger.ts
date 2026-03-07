@@ -174,11 +174,19 @@ function fallbackHeartbeatHours() {
   return Math.max(1, Number(parseArg('min-hours', process.env.SPINE_HEARTBEAT_MIN_HOURS || 4)) || 4);
 }
 
-async function runSpineStatus(mode, dateStr) {
+async function runSpineStatus(mode, dateStr, runContext = null) {
+  const statusTimeoutMs = Math.max(
+    1000,
+    Number(process.env.SPINE_HEARTBEAT_STATUS_TIMEOUT_MS || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS || 120000) || 120000
+  );
   const args = ['status'];
   if (mode) args.push(`--mode=${mode}`);
   if (dateStr) args.push(`--date=${dateStr}`);
-  const out = await runSpineCommand(args, { cwdHint: ROOT });
+  const out = await runSpineCommand(args, {
+    cwdHint: ROOT,
+    timeoutMs: statusTimeoutMs,
+    runContext: runContext || null
+  });
   return {
     ok: out.ok,
     status: Number.isFinite(out.status) ? Number(out.status) : 1,
@@ -191,7 +199,8 @@ async function runSpineStatus(mode, dateStr) {
 async function cmdStatus() {
   const mode = parseArg('mode', '');
   const date = parseArg('date', '');
-  const r = await runSpineStatus(mode, date);
+  const runContext = String(process.env.SPINE_RUN_CONTEXT || '').trim() || 'manual';
+  const r = await runSpineStatus(mode, date, runContext);
   if (r.stdout) process.stdout.write(String(r.stdout));
   if (r.stderr) process.stderr.write(String(r.stderr));
   if (r.status !== 0) {
@@ -207,7 +216,7 @@ async function cmdRun() {
   }
 
   const dateStr = todayStr();
-  const rustStatus = await runSpineStatus(mode, dateStr);
+  const rustStatus = await runSpineStatus(mode, dateStr, 'heartbeat');
   const minHours = rustStatus.ok && rustStatus.payload && Number(rustStatus.payload.heartbeat_hours || 0) > 0
     ? Number(rustStatus.payload.heartbeat_hours)
     : fallbackHeartbeatHours();

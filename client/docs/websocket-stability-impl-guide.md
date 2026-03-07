@@ -15,7 +15,7 @@ Fixes OpenClaw Control UI "missing chat until refresh" caused by WebSocket disco
 |------|---------|
 | `client/patches/websocket-server-patch.js` | Server-side heartbeat + event buffer |
 | `client/patches/websocket-client-patch.js` | Client-side reconnect + catch-up |
-| `client/logs/websocket-stability-example.log` | Example log output |
+| `client/local/logs/websocket-stability-example.log` | Example log output |
 
 ## Quick Start
 

@@ -75,16 +75,16 @@ function defaultPolicy() {
     enabled: true,
     required_channels: ['state_backup', 'offsite_state_backup'],
     backup_integrity_script: 'systems/ops/backup_integrity_check.js',
-    gitignore_path: '.gitignore',
+    gitignore_path: '../.gitignore',
     snapshot_patterns: [
-      'memory/_snapshots/',
+      'local/memory/_snapshots/',
       'memory/*.backup.*',
       'state/memory/snapshots/*.json',
       'state/memory/snapshots/*.jsonl'
     ],
     outputs: {
-      latest_path: 'state/ops/memory_snapshot_ignore_gate/latest.json',
-      history_path: 'state/ops/memory_snapshot_ignore_gate/history.jsonl'
+      latest_path: 'local/state/ops/memory_snapshot_ignore_gate/latest.json',
+      history_path: 'local/state/ops/memory_snapshot_ignore_gate/history.jsonl'
     }
   };
 }
@@ -117,13 +117,34 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
 }
 
 function runBackupChannel(scriptPath: string, channel: string) {
-  const proc = spawnSync(process.execPath, [scriptPath, 'run', `--channel=${channel}`, '--strict'], {
+  let argv = [scriptPath, 'run', `--channel=${channel}`, '--strict'];
+  if (!fs.existsSync(scriptPath) && scriptPath.endsWith('.js')) {
+    const tsPath = scriptPath.replace(/\.js$/i, '.ts');
+    const tsEntrypoint = path.join(ROOT, 'lib', 'ts_entrypoint.js');
+    if (fs.existsSync(tsPath) && fs.existsSync(tsEntrypoint)) {
+      argv = [tsEntrypoint, tsPath, 'run', `--channel=${channel}`, '--strict'];
+    }
+  }
+
+  const proc = spawnSync(process.execPath, argv, {
     cwd: ROOT,
     encoding: 'utf8'
   });
   const stdout = String(proc.stdout || '').trim();
   let payload = null;
-  try { payload = JSON.parse(stdout); } catch {}
+  try {
+    payload = JSON.parse(stdout);
+  } catch {
+    const lines = stdout.split('\n').filter(Boolean);
+    for (let i = lines.length - 1; i >= 0; i -= 1) {
+      try {
+        payload = JSON.parse(lines[i]);
+        break;
+      } catch {
+        // keep scanning
+      }
+    }
+  }
   return {
     channel,
     ok: proc.status === 0 && !!payload && payload.ok === true,

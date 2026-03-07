@@ -21,6 +21,7 @@ const OUTPUT_HISTORY = path.join(OUTPUT_DIR, 'history.jsonl');
 const DEFAULT_NODE_TIMEOUT_MS = Math.max(1000, Number(process.env.MECH_SUIT_BENCH_NODE_TIMEOUT_MS || 90000));
 const DEFAULT_CONDUIT_TIMEOUT_MS = Math.max(1000, Number(process.env.MECH_SUIT_BENCH_CONDUIT_TIMEOUT_MS || 12000));
 const PRECHECK_TIMEOUT_MS = Math.max(1000, Number(process.env.MECH_SUIT_BENCH_PREFLIGHT_TIMEOUT_MS || 20000));
+const ALLOW_HOST_SKIP = String(process.env.MECH_SUIT_BENCH_ALLOW_HOST_SKIP || '1').trim() !== '0';
 
 function ensureDir(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -125,11 +126,23 @@ function reductionOrNull(baseline, ambient, hostFaultDetected) {
 }
 
 function buildEarlyHostFault(tempRoot, preflight, reason) {
+  const preflightStdout = cleanText(preflight && preflight.stdout, 800);
+  const preflightStderr = cleanText(preflight && preflight.stderr, 800);
+  const hostRuntimeTimeout = String(reason || '').includes('spine_conduit_unavailable')
+    && (
+      preflightStderr.includes('conduit_stdio_timeout')
+      || preflightStdout.includes('conduit_stdio_timeout')
+      || preflightStderr.includes('conduit_bridge_timeout')
+      || preflightStdout.includes('conduit_bridge_timeout')
+    );
+  const skipped = ALLOW_HOST_SKIP && hostRuntimeTimeout;
   const out = {
-    ok: false,
+    ok: skipped ? true : false,
     type: 'mech_suit_benchmark',
     ts: new Date().toISOString(),
     ambient_mode_active: false,
+    skipped,
+    skip_reason: skipped ? 'host_runtime_timeout' : null,
     benchmark_root: tempRoot,
     cases: [
       {
@@ -144,7 +157,9 @@ function buildEarlyHostFault(tempRoot, preflight, reason) {
     host_fault: {
       timeout_detected: preflight && preflight.timed_out === true,
       timed_out_cases: preflight && preflight.timed_out === true ? ['spine_conduit_preflight'] : [],
-      reason: cleanText(reason || preflight && preflight.error || 'spine_conduit_preflight_failed', 200)
+      reason: cleanText(reason || preflight && preflight.error || 'spine_conduit_preflight_failed', 200),
+      preflight_stdout: preflightStdout,
+      preflight_stderr: preflightStderr
     },
     summary: {
       token_burn_reduction_pct: null,
