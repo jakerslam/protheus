@@ -19,12 +19,16 @@ const {
 
 const DEFAULT_POLICY_PATH = process.env.RELOCATABLE_PATH_CONTRACT_POLICY_PATH
   ? path.resolve(process.env.RELOCATABLE_PATH_CONTRACT_POLICY_PATH)
-  : path.join(ROOT, 'config', 'relocatable_path_contract_policy.json');
+  : (
+    fs.existsSync(path.join(ROOT, 'client', 'config', 'relocatable_path_contract_policy.json'))
+      ? path.join(ROOT, 'client', 'config', 'relocatable_path_contract_policy.json')
+      : path.join(ROOT, 'config', 'relocatable_path_contract_policy.json')
+  );
 
 function usage() {
   console.log('Usage:');
-  console.log('  node systems/ops/relocatable_path_contract.js check [--strict=1|0] [--policy=<path>]');
-  console.log('  node systems/ops/relocatable_path_contract.js status [--policy=<path>]');
+  console.log('  node client/systems/ops/relocatable_path_contract.js check [--strict=1|0] [--policy=<path>]');
+  console.log('  node client/systems/ops/relocatable_path_contract.js status [--policy=<path>]');
 }
 
 function rel(absPath: string) {
@@ -43,9 +47,9 @@ function defaultPolicy() {
       allowlist: ['memory/', 'state/', 'docs/backlog_views/', 'SRS.md', 'UPGRADE_BACKLOG.md']
     },
     paths: {
-      latest_path: 'state/ops/relocatable_path_contract/latest.json',
-      receipts_path: 'state/ops/relocatable_path_contract/receipts.jsonl',
-      rewrite_inventory_path: 'state/ops/relocatable_path_contract/path_rewrite_inventory.json'
+      latest_path: 'client/local/state/ops/relocatable_path_contract/latest.json',
+      receipts_path: 'client/local/state/ops/relocatable_path_contract/receipts.jsonl',
+      rewrite_inventory_path: 'client/local/state/ops/relocatable_path_contract/path_rewrite_inventory.json'
     }
   };
 }

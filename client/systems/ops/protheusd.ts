@@ -12,7 +12,7 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const INTERNAL_AMBIENT_LOOP = '__ambient-loop';
 
 function usage() {
-  console.log('Usage: protheusd start|stop|restart|status|tick [--policy=<path>] [--conduit] [--allow-legacy-fallback] [--no-cockpit]');
+  console.log('Usage: protheusd start|stop|restart|status|tick [--policy=<path>] [--conduit] [--allow-legacy-fallback] [--autostart] [--no-autostart] [--no-cockpit]');
 }
 
 function nowIso() {
@@ -110,7 +110,7 @@ function isPidAlive(pid: unknown) {
 }
 
 function defaultControlPlanePaths(root: string) {
-  const stateRoot = path.join(root, 'state', 'ops', 'protheus_control_plane');
+  const stateRoot = path.join(root, 'local', 'state', 'ops', 'protheus_control_plane');
   return {
     stateRoot,
     daemonPath: path.join(stateRoot, 'daemon.json'),
@@ -131,10 +131,10 @@ function loadMechPolicy(policyPath: string) {
     enabled: raw && raw.enabled !== false,
     heartbeatHours: toInt(spine.heartbeat_hours, 4, 1, 168),
     manualTriggersAllowed: spine.manual_triggers_allowed === true,
-    statusPath: resolvePath(ROOT, state.status_path, 'state/ops/mech_suit_mode/latest.json'),
-    attentionLatestPath: resolvePath(ROOT, eyes.latest_path, 'state/attention/latest.json'),
-    personaLatestPath: resolvePath(ROOT, personas.latest_path, 'state/personas/ambient_stance/latest.json'),
-    dopamineLatestPath: resolvePath(ROOT, dopamine.latest_path, 'state/dopamine/ambient/latest.json')
+    statusPath: resolvePath(ROOT, state.status_path, 'local/state/ops/mech_suit_mode/latest.json'),
+    attentionLatestPath: resolvePath(ROOT, eyes.latest_path, 'local/state/attention/latest.json'),
+    personaLatestPath: resolvePath(ROOT, personas.latest_path, 'local/state/personas/ambient_stance/latest.json'),
+    dopamineLatestPath: resolvePath(ROOT, dopamine.latest_path, 'local/state/dopamine/ambient/latest.json')
   };
 }
 
@@ -167,7 +167,7 @@ function resolveRuntime(argv: string[]) {
   const cockpitInboxDirRaw = cleanText(parseFlag(argv, 'inbox-dir') || process.env.COCKPIT_INBOX_DIR, 500);
   const cockpitInboxDir = cockpitInboxDirRaw
     ? (path.isAbsolute(cockpitInboxDirRaw) ? cockpitInboxDirRaw : path.join(ROOT, cockpitInboxDirRaw))
-    : path.join(ROOT, 'state', 'cockpit', 'inbox');
+    : path.join(ROOT, 'local', 'state', 'cockpit', 'inbox');
   const consumerId = cleanText(parseFlag(argv, 'consumer') || process.env.COCKPIT_CONSUMER_ID || 'cockpit_llm', 80)
     .toLowerCase()
     .replace(/[^a-z0-9._:@-]+/g, '_')
@@ -513,9 +513,17 @@ function stripControlFlags(argv: string[]) {
     arg !== '--conduit'
     && arg !== '--no-conduit'
     && arg !== '--allow-legacy-fallback'
+    && arg !== '--autostart'
+    && arg !== '--no-autostart'
     && arg !== '--cockpit'
     && arg !== '--no-cockpit'
   ));
+}
+
+function ambientAutostartEnabled(argv: string[]) {
+  if (argv.includes('--no-autostart')) return false;
+  if (argv.includes('--autostart')) return true;
+  return String(process.env.PROTHEUS_AMBIENT_AUTOSTART || '1').trim() !== '0';
 }
 
 function parseAgentId(args: string[]) {
@@ -594,6 +602,16 @@ function statusReceipt(runtime: any, state: any) {
   const dopamineLatest = readJson(runtime.mechPolicy.dopamineLatestPath, null);
   const cockpitLatest = readJson(runtime.cockpitLatestPath, null);
   const cockpitState = readJson(runtime.cockpitStatePath, null);
+  const heartbeatHealthy = daemon.last_heartbeat_code === 0;
+  const ambientConfigured = !!(mechLatest && mechLatest.active === true);
+  const ambientHealthy = ambientConfigured && running && heartbeatHealthy;
+  const degradedReason = !ambientConfigured
+    ? 'ambient_policy_inactive'
+    : !running
+      ? 'daemon_stopped'
+      : !heartbeatHealthy
+        ? (daemon.last_error ? 'heartbeat_failed' : 'heartbeat_missing')
+        : null;
 
   return withReceipt({
     ok: true,
@@ -603,7 +621,10 @@ function statusReceipt(runtime: any, state: any) {
     updated: state.updated_at || nowIso(),
     daemon,
     ambient_mode: {
-      active: !!(mechLatest && mechLatest.active === true),
+      active: ambientHealthy,
+      configured: ambientConfigured,
+      healthy: ambientHealthy,
+      degraded_reason: degradedReason,
       manual_triggers_allowed: runtime.mechPolicy.manualTriggersAllowed,
       heartbeat_hours: runtime.mechPolicy.heartbeatHours
     },
@@ -761,7 +782,11 @@ async function runTick(runtime: any, argv: string[]) {
 }
 
 function runStatus(runtime: any, argv: string[]) {
-  const state = loadDaemonState(runtime);
+  let state = loadDaemonState(runtime);
+  if (!isPidAlive(state.pid) && runtime.mechPolicy.enabled === true && ambientAutostartEnabled(argv)) {
+    startDaemon(runtime, argv, { exitOnFinish: false });
+    state = loadDaemonState(runtime);
+  }
   const requestId = `req_${String(Number(state.request_seq || 0) + 1).padStart(6, '0')}`;
   recordCommand(runtime, 'status', argv, requestId);
   const out = statusReceipt(runtime, state);

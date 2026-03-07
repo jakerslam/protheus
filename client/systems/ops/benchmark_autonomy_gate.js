@@ -1,13 +1,4 @@
 #!/usr/bin/env node
 'use strict';
 
-const path = require('path');
-
-process.argv = [
-  process.argv[0],
-  process.argv[1],
-  path.resolve(__dirname, 'benchmark_autonomy_gate.ts'),
-  ...process.argv.slice(2)
-];
-
-require(path.resolve(__dirname, '..', '..', 'lib', 'ts_entrypoint.js'));
+require('../../lib/ts_bootstrap').bootstrap(__filename, module);

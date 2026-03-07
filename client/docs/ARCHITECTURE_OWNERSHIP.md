@@ -2,6 +2,10 @@
 
 Purpose: define which layer owns which decisions, and which modules are allowed to mutate adaptive state.
 
+Companion docs:
+- `client/docs/architecture/ROOT_OWNERSHIP_MAP.md` (root ownership + allowed surfaces)
+- `client/docs/architecture/MIGRATION_LEDGER.md` (temporary compatibility lanes and removal triggers)
+
 ## Ownership Matrix
 
 | Layer/Path | Ownership | May Mutate | Mutation Channel |
@@ -11,7 +15,7 @@ Purpose: define which layer owns which decisions, and which modules are allowed 
 | `client/habits/` | Dynamic routine execution and generation | Habit runtime/state only | Habit scripts + adaptive habit store |
 | `client/skills/` | Task-specific integrations | Skill-local files and allowed state receipts | Skill wrappers + guards |
 | `client/config/` | Static policy/config contracts | Only approved governance flows | Guarded writes |
-| `state/` | Runtime outputs and ledgers | Runtime emitters only | Append/log + bounded writers |
+| `client/local/state/` + `core/local/state/` | Runtime outputs and ledgers | Runtime emitters only | Append/log + bounded writers |
 
 ## Adaptive Store Controllers (Single Writer Channels)
 
@@ -51,7 +55,7 @@ CI executes this check before general test execution.
 2. `client/adaptive/` is resettable; deleting adaptive data should return the system to a blank-slate learning posture.
 3. All adaptive writes must go through store getters/setters/mutators.
 4. Contract changes require a schema version bump and CI passing against updated contracts.
-5. Runtime churn in `state/` should not be treated as source-of-truth for code review.
+5. Runtime churn in local state mirrors should not be treated as source-of-truth for code review.
 
 ## Incident Boundaries
 
@@ -59,6 +63,5 @@ If behavior drifts:
 
 1. Check `schema_contract_check` output.
 2. Check adaptive guard strict output.
-3. Check recent store mutation logs in `state/security/adaptive_mutations.jsonl`.
+3. Check recent store mutation logs in `client/local/state/security/adaptive_mutations.jsonl`.
 4. Roll back by commit boundary, not ad-hoc file edits.
-

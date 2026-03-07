@@ -32,6 +32,7 @@ fn usage() {
     println!("  protheus-ops foundation-contract-gate <run|status> [flags]");
     println!("  protheus-ops state-kernel <command> [flags]");
     println!("  protheus-ops shadow-budget-governance <evaluate|status> [flags]");
+    println!("  protheus-ops adaptive-runtime <tick|status> [flags]");
     println!("  protheus-ops offline-runtime-guard <evaluate|status> [flags]");
     println!("  protheus-ops hardware-route-hardening <evaluate|status> [flags]");
     println!("  protheus-ops autonomy-controller <command> [flags]");
@@ -281,6 +282,11 @@ fn main() {
         "shadow-budget-governance" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::shadow_budget_governance::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "adaptive-runtime" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::adaptive_runtime::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "offline-runtime-guard" => {

@@ -145,6 +145,22 @@ jobs:
       - name: docs_coverage_gate
         run: node client/systems/ops/docs_coverage_gate.js run --strict=1
 
+  source_runtime_classifier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: source_runtime_classifier
+        run: npm run ops:source-runtime:check
+
   deployment_packaging_gate:
     runs-on: ubuntu-latest
     timeout-minutes: 10
