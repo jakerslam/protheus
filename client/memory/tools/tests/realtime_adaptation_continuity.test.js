@@ -38,7 +38,8 @@ try {
   writeJson(path.join(tmp, 'AGENTS.md'), { ok: true });
   writeJson(path.join(tmp, 'package.json'), { name: 'tmp' });
 
-  const statePath = path.join(tmp, 'state', 'adaptive', 'realtime_adaptation_loop', 'state.json');
+  const stateRoot = path.join(tmp, 'client', 'local', 'state', 'adaptive', 'realtime_adaptation_loop');
+  const statePath = path.join(stateRoot, 'state.json');
   const policyPath = path.join(tmp, 'client', 'config', 'realtime_adaptation_loop_policy.json');
   writeJson(policyPath, {
     version: '1.0-test',
@@ -51,8 +52,8 @@ try {
     },
     paths: {
       state_path: statePath,
-      latest_path: path.join(tmp, 'state', 'adaptive', 'realtime_adaptation_loop', 'latest.json'),
-      receipts_path: path.join(tmp, 'state', 'adaptive', 'realtime_adaptation_loop', 'receipts.jsonl')
+      latest_path: path.join(stateRoot, 'latest.json'),
+      receipts_path: path.join(stateRoot, 'receipts.jsonl')
     }
   });
 
