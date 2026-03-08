@@ -267,3 +267,28 @@ jobs:
         run: npm ci
       - name: test_ci
         run: npm run test:ci
+
+  dependabot_contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Verify Dependabot config
+        run: |
+          test -f .github/dependabot.yml
+          grep -q "package-ecosystem: \"cargo\"" .github/dependabot.yml
+          grep -q "package-ecosystem: \"npm\"" .github/dependabot.yml
+          grep -q "package-ecosystem: \"github-actions\"" .github/dependabot.yml
+
+  ghas_code_scanning_contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Verify CodeQL workflow contract
+        run: |
+          test -f .github/workflows/codeql.yml
+          grep -q "github/codeql-action/init@v3" .github/workflows/codeql.yml
+          grep -q "github/codeql-action/analyze@v3" .github/workflows/codeql.yml

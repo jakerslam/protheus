@@ -1,6 +1,6 @@
 # F100 Enterprise Baseline Status
 
-Generated: 2026-03-07T18:19:29.437Z
+Generated: 2026-03-08T05:19:04.541Z
 
 | Check | Type | Path | Status | Reason |
 |---|---|---|---|---|
@@ -9,10 +9,27 @@ Generated: 2026-03-07T18:19:29.437Z
 | `dependabot_enabled` | `file_exists` | `.github/dependabot.yml` | PASS | `ok` |
 | `codeql_enabled` | `file_exists` | `.github/workflows/codeql.yml` | PASS | `ok` |
 | `sbom_release_workflow` | `file_exists` | `.github/workflows/release-security-artifacts.yml` | PASS | `ok` |
+| `ga_release_pipeline_present` | `file_exists` | `.github/workflows/release.yml` | PASS | `ok` |
+| `ga_release_semver_contract` | `file_contains` | `.github/workflows/release.yml` | PASS | `ok` |
+| `ga_release_spdx_sbom_attach` | `file_contains` | `.github/workflows/release.yml` | PASS | `ok` |
+| `ga_release_signatures_attached` | `file_contains` | `.github/workflows/release.yml` | PASS | `ok` |
 | `slsa_attestation_release_workflow` | `file_contains` | `.github/workflows/release-security-artifacts.yml` | PASS | `ok` |
 | `coverage_workflow` | `file_exists` | `.github/workflows/coverage.yml` | PASS | `ok` |
 | `helm_packaging_present` | `file_exists` | `client/deploy/helm/protheus/Chart.yaml` | PASS | `ok` |
+| `helm_conformance_ci_present` | `file_exists` | `.github/workflows/helm-conformance.yml` | PASS | `ok` |
+| `helm_sso_values_present` | `file_contains` | `client/deploy/helm/protheus/values.yaml` | PASS | `ok` |
+| `helm_vault_values_present` | `file_contains` | `client/deploy/helm/protheus/values.yaml` | PASS | `ok` |
+| `helm_nvidia_values_present` | `file_contains` | `client/deploy/helm/protheus/values.yaml` | PASS | `ok` |
+| `helm_daemon_multinode_present` | `file_exists` | `client/deploy/helm/protheus/templates/deployment.yaml` | PASS | `ok` |
+| `helm_conformance_test_hook_present` | `file_exists` | `client/deploy/helm/protheus/templates/tests/conformance.yaml` | PASS | `ok` |
 | `terraform_packaging_present` | `file_exists` | `client/deploy/terraform/protheus_helm/main.tf` | PASS | `ok` |
+| `terraform_enterprise_inputs_present` | `file_contains` | `client/deploy/terraform/protheus_helm/variables.tf` | PASS | `ok` |
+| `docker_supply_chain_workflow_present` | `file_exists` | `.github/workflows/docker-supply-chain.yml` | PASS | `ok` |
+| `dockerfile_fips_contract_present` | `file_contains` | `Dockerfile` | PASS | `ok` |
+| `dependabot_required_checks_contract` | `file_contains` | `.github/workflows/required-checks.yml` | PASS | `ok` |
+| `codeql_required_checks_contract` | `file_contains` | `.github/workflows/required-checks.yml` | PASS | `ok` |
+| `runtime_telemetry_policy_present` | `file_exists` | `client/config/runtime_telemetry_policy.json` | PASS | `ok` |
+| `runtime_telemetry_lane_present` | `file_exists` | `client/systems/observability/runtime_telemetry_optin.ts` | PASS | `ok` |
 | `k8s_secret_runtime_manifest_present` | `file_exists` | `client/deploy/k8s/secret.runtime.example.yaml` | PASS | `ok` |
 | `helm_secret_wiring_enabled` | `file_contains` | `client/deploy/helm/protheus/templates/cronjob.yaml` | PASS | `ok` |
 | `enterprise_support_template_present` | `file_exists` | `client/docs/ENTERPRISE_SUPPORT_ENVELOPE_TEMPLATE.md` | PASS | `ok` |
@@ -23,8 +40,8 @@ Generated: 2026-03-07T18:19:29.437Z
 
 ## Summary
 
-- Total checks: 16
-- Passed checks: 16
+- Total checks: 33
+- Passed checks: 33
 - Failed checks: 0
 - Contract status: PASS
-- Receipt hash: `a635bc4796736a53a0b88340eecb30ef10f63a2b04a6096d2068a1acca578061`
+- Receipt hash: `81fec63c7fb5fc4fed2c09d0cdc6f9a211ffa65ae92d90109ba76913f038a7c2`

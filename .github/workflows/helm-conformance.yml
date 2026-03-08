@@ -1,0 +1,34 @@
+name: Helm Conformance
+
+on:
+  pull_request:
+    branches: [main, rust50]
+  push:
+    branches: [main, rust50]
+  workflow_dispatch:
+
+jobs:
+  helm-conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.2
+
+      - name: Helm lint
+        run: helm lint ./client/deploy/helm/protheus
+
+      - name: Helm conformance render
+        run: |
+          helm template protheus ./client/deploy/helm/protheus > /tmp/protheus-manifest.yaml
+          test -s /tmp/protheus-manifest.yaml
+          grep -q "kind: Deployment" /tmp/protheus-manifest.yaml
+          grep -q "helm.sh/hook: test" /tmp/protheus-manifest.yaml
+          grep -q "PROTHEUS_SSO_ENABLED" /tmp/protheus-manifest.yaml
+          grep -q "PROTHEUS_SECRETS_VAULT_ENABLED" /tmp/protheus-manifest.yaml
+          grep -q "PROTHEUS_NVIDIA_ENABLED" /tmp/protheus-manifest.yaml

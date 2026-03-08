@@ -1,0 +1,56 @@
+name: Docker Supply Chain
+
+on:
+  push:
+    branches: [main, rust50]
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  docker-build-sbom:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image metadata
+        id: meta
+        run: |
+          REF="${GITHUB_REF_NAME}"
+          if [ -z "$REF" ]; then REF="main"; fi
+          echo "tag=${REF}" >> "$GITHUB_OUTPUT"
+          echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (FIPS contract)
+        run: |
+          docker build \
+            --build-arg PROTHEUS_FIPS_MODE=1 \
+            --build-arg VCS_REF="${GITHUB_SHA}" \
+            --build-arg BUILD_DATE="${{ steps.meta.outputs.created }}" \
+            -t protheus:${{ steps.meta.outputs.tag }} .
+
+      - name: Install Syft
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          syft version
+
+      - name: Generate image SPDX SBOM
+        run: |
+          mkdir -p client/local/state/release/sbom
+          syft "docker:protheus:${{ steps.meta.outputs.tag }}" -o spdx-json=client/local/state/release/sbom/protheus-image.spdx.json
+
+      - name: Upload Docker SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-sbom-${{ steps.meta.outputs.tag }}
+          path: client/local/state/release/sbom/protheus-image.spdx.json

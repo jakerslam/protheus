@@ -21,6 +21,11 @@ spec:
             app.kubernetes.io/instance: {{ .Release.Name }}
             app.kubernetes.io/component: daily-orchestrator
         spec:
+          serviceAccountName: {{ include "protheus.serviceAccountName" . }}
+{{- if .Values.image.pullSecrets }}
+          imagePullSecrets:
+{{ toYaml .Values.image.pullSecrets | indent 12 }}
+{{- end }}
           restartPolicy: Never
           securityContext:
             runAsNonRoot: true
@@ -61,11 +66,32 @@ spec:
                   mountPath: /app/tmp
           volumes:
             - name: state
-              emptyDir: {}
+              emptyDir:
+                sizeLimit: {{ .Values.persistence.state.sizeLimit | quote }}
             - name: logs
-              emptyDir: {}
+              emptyDir:
+                sizeLimit: {{ .Values.persistence.logs.sizeLimit | quote }}
             - name: tmp
-              emptyDir: {}
+              emptyDir:
+                sizeLimit: {{ .Values.persistence.tmp.sizeLimit | quote }}
             - name: app-tmp
-              emptyDir: {}
+              emptyDir:
+                sizeLimit: {{ .Values.persistence.tmp.sizeLimit | quote }}
+{{- if .Values.nvidia.enabled }}
+{{- if .Values.nvidia.runtimeClassName }}
+          runtimeClassName: {{ .Values.nvidia.runtimeClassName | quote }}
+{{- end }}
+{{- end }}
+{{- with .Values.scheduling.nodeSelector }}
+          nodeSelector:
+{{ toYaml . | indent 12 }}
+{{- end }}
+{{- with .Values.scheduling.tolerations }}
+          tolerations:
+{{ toYaml . | indent 12 }}
+{{- end }}
+{{- with .Values.scheduling.affinity }}
+          affinity:
+{{ toYaml . | indent 12 }}
+{{- end }}
 {{- end }}
