@@ -206,7 +206,8 @@ function runNodeJson(
     cwd: ROOT,
     encoding: 'utf8',
     timeout: timeoutMs,
-    killSignal: 'SIGKILL',
+    // SIGTERM avoids misclassifying launcher timeouts as OOM-style hard kills.
+    killSignal: 'SIGTERM',
     env: {
       ...process.env,
       ...extraEnv

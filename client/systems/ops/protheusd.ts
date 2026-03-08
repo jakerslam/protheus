@@ -5,6 +5,7 @@ export {};
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const os = require('os');
 const { spawn, spawnSync } = require('child_process');
 const { runSpineCommand } = require('../../lib/spine_conduit_bridge');
 const { CANONICAL_PATHS, normalizeForRoot } = require('../../lib/runtime_path_registry');
@@ -79,6 +80,12 @@ function toInt(v: unknown, fallback: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, Math.floor(n)));
 }
 
+function toFloat(v: unknown, fallback: number, lo: number, hi: number) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(lo, Math.min(hi, n));
+}
+
 function parseFlag(argv: string[], key: string) {
   const pref = `--${key}=`;
   for (let i = 0; i < argv.length; i += 1) {
@@ -91,6 +98,42 @@ function parseFlag(argv: string[], key: string) {
     }
   }
   return null;
+}
+
+function toMb(bytes: unknown) {
+  const n = Number(bytes);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Number((n / (1024 * 1024)).toFixed(2));
+}
+
+function collectResourceSnapshot(memoryPressureRatio: number) {
+  const usage = process.memoryUsage();
+  const totalMem = os.totalmem();
+  const freeMem = os.freemem();
+  const usedRatio = totalMem > 0 ? Number(((totalMem - freeMem) / totalMem).toFixed(6)) : 0;
+  return {
+    ts: nowIso(),
+    pid: process.pid,
+    process_rss_mb: toMb(usage.rss),
+    process_heap_used_mb: toMb(usage.heapUsed),
+    process_heap_total_mb: toMb(usage.heapTotal),
+    process_external_mb: toMb(usage.external),
+    process_array_buffers_mb: toMb((usage as any).arrayBuffers || 0),
+    system_total_mb: toMb(totalMem),
+    system_free_mb: toMb(freeMem),
+    system_used_ratio: usedRatio,
+    memory_pressure_threshold: Number(memoryPressureRatio.toFixed(3)),
+    memory_pressure: usedRatio >= memoryPressureRatio
+  };
+}
+
+function shouldBackoffCockpit(errorText: unknown) {
+  const text = String(errorText == null ? '' : errorText);
+  if (!text.trim()) return false;
+  return /\bETIMEDOUT\b/i.test(text)
+    || /spawn_timeout:/i.test(text)
+    || /conduit_stdio_timeout:/i.test(text)
+    || /conduit_bridge_timeout:/i.test(text);
 }
 
 function bridgeReasonMarker(reason: string) {
@@ -375,12 +418,30 @@ function resolveRuntime(argv: string[]) {
     1000,
     15 * 60 * 1000
   );
+  const cockpitCooldownMs = toInt(
+    process.env.PROTHEUSD_COCKPIT_RETRY_COOLDOWN_MS,
+    10 * 60 * 1000,
+    5000,
+    6 * 60 * 60 * 1000
+  );
   const conversationEyeEnabled = toBool(process.env.PROTHEUSD_CONVERSATION_EYE_ENABLED, true);
   const conversationEyeTimeoutMs = toInt(
     process.env.PROTHEUSD_CONVERSATION_EYE_TIMEOUT_MS,
     12000,
     1000,
     15 * 60 * 1000
+  );
+  const conversationEyeCooldownMs = toInt(
+    process.env.PROTHEUSD_CONVERSATION_EYE_RETRY_COOLDOWN_MS,
+    10 * 60 * 1000,
+    5000,
+    6 * 60 * 60 * 1000
+  );
+  const memoryPressureRatio = toFloat(
+    process.env.PROTHEUSD_MEMORY_PRESSURE_RATIO,
+    0.99,
+    0.7,
+    0.995
   );
 
   const cockpitInboxDirRaw = cleanText(parseFlag(argv, 'inbox-dir') || process.env.COCKPIT_INBOX_DIR, 500);
@@ -410,8 +471,11 @@ function resolveRuntime(argv: string[]) {
     spineStatusTimeoutMs,
     cockpitOnceTimeoutMs,
     cockpitConduitTimeoutMs,
+    cockpitCooldownMs,
     conversationEyeEnabled,
     conversationEyeTimeoutMs,
+    conversationEyeCooldownMs,
+    memoryPressureRatio,
     pollMs,
     cockpitInboxDir,
     cockpitLatestPath: path.join(cockpitInboxDir, 'latest.json'),
@@ -451,7 +515,12 @@ function loadDaemonState(runtime: any) {
     bridge_health: normalizedBridgeHealth(existing && existing.bridge_health),
     last_error: cleanText(existing && existing.last_error || '', 260) || null,
     last_cockpit_error: cleanText(existing && existing.last_cockpit_error || '', 260) || null,
-    last_conversation_eye_error: cleanText(existing && existing.last_conversation_eye_error || '', 260) || null
+    last_conversation_eye_error: cleanText(existing && existing.last_conversation_eye_error || '', 260) || null,
+    cockpit_backoff_until: cleanText(existing && existing.cockpit_backoff_until || '', 64) || null,
+    conversation_eye_backoff_until: cleanText(existing && existing.conversation_eye_backoff_until || '', 64) || null,
+    resource_snapshot: existing && existing.resource_snapshot && typeof existing.resource_snapshot === 'object'
+      ? existing.resource_snapshot
+      : null
   };
 }
 
@@ -548,45 +617,78 @@ async function runHeartbeat(runtime: any, trigger: string) {
     }
   }
 
-  const cockpit = runNode(
-    path.join(runtime.root, 'systems', 'ops', 'cockpit_harness.js'),
-    [
-      'once',
-      `--consumer=${runtime.consumerId}`,
-      `--limit=${runtime.batchLimit}`,
-      `--inbox-dir=${runtime.cockpitInboxDir}`
-    ],
-    {
-      cwd: runtime.root,
-      timeoutMs: runtime.cockpitOnceTimeoutMs,
-      env: {
-        COCKPIT_CONDUIT_PROBE_TIMEOUT_MS: String(runtime.cockpitConduitTimeoutMs),
-        PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS: String(runtime.cockpitConduitTimeoutMs),
-        PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS: String(Math.max(runtime.cockpitConduitTimeoutMs + 1000, 5000))
+  const stateBefore = loadDaemonState(runtime);
+  const backoffUntilMs = stateBefore.cockpit_backoff_until ? Date.parse(String(stateBefore.cockpit_backoff_until)) : 0;
+  const cockpitBackoffActive = Number.isFinite(backoffUntilMs) && backoffUntilMs > Date.now();
+  const cockpit = cockpitBackoffActive
+    ? {
+        status: 0,
+        stdout: '',
+        stderr: '',
+        payload: {
+          ok: true,
+          skipped: true,
+          reason: cleanText(`cooldown_until:${stateBefore.cockpit_backoff_until}`, 120)
+        }
       }
-    }
-  );
-  const conversationEye = runtime.conversationEyeEnabled
-    ? runNode(
-      path.join(runtime.root, 'habits', 'scripts', 'external_eyes.js'),
-      ['run', '--eye=conversation_eye', '--max-eyes=1'],
+    : runNode(
+      path.join(runtime.root, 'systems', 'ops', 'cockpit_harness.js'),
+      [
+        'once',
+        `--consumer=${runtime.consumerId}`,
+        `--limit=${runtime.batchLimit}`,
+        `--inbox-dir=${runtime.cockpitInboxDir}`
+      ],
       {
         cwd: runtime.root,
-        timeoutMs: runtime.conversationEyeTimeoutMs
+        timeoutMs: runtime.cockpitOnceTimeoutMs,
+        env: {
+          COCKPIT_CONDUIT_PROBE_TIMEOUT_MS: String(runtime.cockpitConduitTimeoutMs),
+          PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS: String(runtime.cockpitConduitTimeoutMs),
+          PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS: String(Math.max(runtime.cockpitConduitTimeoutMs + 1000, 5000))
+        }
       }
+    );
+  const conversationBackoffUntilMs = stateBefore.conversation_eye_backoff_until
+    ? Date.parse(String(stateBefore.conversation_eye_backoff_until))
+    : 0;
+  const conversationBackoffActive = Number.isFinite(conversationBackoffUntilMs) && conversationBackoffUntilMs > Date.now();
+  const conversationEye = runtime.conversationEyeEnabled
+    ? (
+      conversationBackoffActive
+        ? {
+            status: 0,
+            stdout: '',
+            stderr: '',
+            payload: {
+              ok: true,
+              skipped: true,
+              reason: cleanText(`cooldown_until:${stateBefore.conversation_eye_backoff_until}`, 120)
+            }
+          }
+        : runNode(
+          path.join(runtime.root, 'habits', 'scripts', 'external_eyes.js'),
+          ['run', '--eye=conversation_eye', '--max-eyes=1'],
+          {
+            cwd: runtime.root,
+            timeoutMs: runtime.conversationEyeTimeoutMs
+          }
+        )
     )
     : {
-      status: 0,
-      stdout: '',
-      stderr: '',
-      payload: { ok: true, skipped: true, reason: 'conversation_eye_disabled' }
-    };
+        status: 0,
+        stdout: '',
+        stderr: '',
+        payload: { ok: true, skipped: true, reason: 'conversation_eye_disabled' }
+      };
 
   const state = loadDaemonState(runtime);
   state.run_seq = Number(state.run_seq || 0) + 1;
   state.last_heartbeat_at = nowIso();
   state.next_heartbeat_at = new Date(Date.now() + runtime.heartbeatMs).toISOString();
   state.last_heartbeat_code = spine && spine.ok ? 0 : 1;
+  state.cockpit_backoff_until = cockpitBackoffActive ? stateBefore.cockpit_backoff_until : null;
+  state.conversation_eye_backoff_until = conversationBackoffActive ? stateBefore.conversation_eye_backoff_until : null;
   const bridgeReason = bridgeReasonFromSpineResult(spine);
   if (bridgeReason) {
     markBridgeDegraded(state, runtime, bridgeReason, `heartbeat:${trigger}`);
@@ -607,16 +709,23 @@ async function runHeartbeat(runtime: any, trigger: string) {
   } else if (cockpit.status !== 0) {
     state.last_error = null;
     state.last_cockpit_error = cleanText(cockpit.stderr || 'cockpit_ingest_failed', 260);
+    if (shouldBackoffCockpit(cockpit.stderr)) {
+      state.cockpit_backoff_until = new Date(Date.now() + runtime.cockpitCooldownMs).toISOString();
+    }
     state.last_conversation_eye_error = null;
   } else if (conversationEye.status !== 0) {
     state.last_error = null;
     state.last_cockpit_error = null;
     state.last_conversation_eye_error = cleanText(conversationEye.stderr || 'conversation_eye_failed', 260);
+    if (shouldBackoffCockpit(conversationEye.stderr)) {
+      state.conversation_eye_backoff_until = new Date(Date.now() + runtime.conversationEyeCooldownMs).toISOString();
+    }
   } else {
     state.last_error = null;
     state.last_cockpit_error = null;
     state.last_conversation_eye_error = null;
   }
+  state.resource_snapshot = collectResourceSnapshot(runtime.memoryPressureRatio);
   persistDaemonState(runtime, state);
 
   const receipt = withReceipt({
@@ -638,7 +747,8 @@ async function runHeartbeat(runtime: any, trigger: string) {
     cockpit: {
       ok: cockpit.status === 0,
       status: cockpit.status,
-      type: cockpit.payload && cockpit.payload.type ? cockpit.payload.type : 'cockpit_context_envelope'
+      type: cockpit.payload && cockpit.payload.type ? cockpit.payload.type : 'cockpit_context_envelope',
+      skipped: !!(cockpit.payload && cockpit.payload.skipped)
     },
     conversation_eye: {
       enabled: runtime.conversationEyeEnabled === true,
@@ -649,7 +759,8 @@ async function runHeartbeat(runtime: any, trigger: string) {
     },
     run_seq: state.run_seq,
     next_heartbeat_at: state.next_heartbeat_at,
-    bridge_health: normalizedBridgeHealth(state.bridge_health)
+    bridge_health: normalizedBridgeHealth(state.bridge_health),
+    resource: state.resource_snapshot
   });
   emitLatest(runtime, receipt);
   return receipt;
@@ -996,6 +1107,9 @@ async function runConduit(command: string, extraArgs: string[]): Promise<Conduit
 
 function statusReceipt(runtime: any, state: any) {
   const running = isPidAlive(state.pid);
+  const resourceSnapshot = state && state.resource_snapshot && typeof state.resource_snapshot === 'object'
+    ? state.resource_snapshot
+    : collectResourceSnapshot(runtime.memoryPressureRatio);
   const daemon = {
     running,
     mode: running ? 'ambient' : 'stopped',
@@ -1012,6 +1126,8 @@ function statusReceipt(runtime: any, state: any) {
     last_error: cleanText(state.last_error || '', 260) || null,
     last_cockpit_error: cleanText(state.last_cockpit_error || '', 260) || null,
     last_conversation_eye_error: cleanText(state.last_conversation_eye_error || '', 260) || null,
+    cockpit_backoff_until: cleanText(state.cockpit_backoff_until || '', 64) || null,
+    conversation_eye_backoff_until: cleanText(state.conversation_eye_backoff_until || '', 64) || null,
     cockpit_watch: state.cockpit_watch || null
   };
   const mechLatest = readJson(runtime.mechPolicy.statusPath, null);
@@ -1072,6 +1188,7 @@ function statusReceipt(runtime: any, state: any) {
         ? Object.keys(conversationEyeIndex.emitted_node_ids).length
         : 0
     },
+    resource: resourceSnapshot,
     attention: attentionLatest && typeof attentionLatest === 'object'
       ? {
           queue_depth: Number(attentionLatest.queue_depth || 0),
