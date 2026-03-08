@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
+use crate::importance::{band_rank, infer_from_event, to_json as importance_to_json};
 use crate::{deterministic_receipt_hash, now_iso};
 use base64::Engine;
 use chrono::{TimeZone, Utc};
 use serde_json::{json, Value};
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -29,9 +31,7 @@ fn usage() {
     eprintln!(
         "  protheus-ops attention-queue enqueue --event-json-base64=<base64> [--run-context=<value>]"
     );
-    eprintln!(
-        "  protheus-ops attention-queue enqueue --event-json=<json> [--run-context=<value>]"
-    );
+    eprintln!("  protheus-ops attention-queue enqueue --event-json=<json> [--run-context=<value>]");
     eprintln!("  protheus-ops attention-queue status");
     eprintln!(
         "  protheus-ops attention-queue next [--consumer=<id>] [--limit=<n>] [--run-context=<value>]"
@@ -97,7 +97,9 @@ fn append_jsonl(path: &Path, row: &Value) {
             .create(true)
             .append(true)
             .open(path)
-            .and_then(|mut file| std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes()));
+            .and_then(|mut file| {
+                std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes())
+            });
     }
 }
 
@@ -223,6 +225,110 @@ fn normalize_severity(raw: Option<&str>) -> String {
     }
 }
 
+fn parse_f64(value: Option<&Value>) -> Option<f64> {
+    value
+        .and_then(Value::as_f64)
+        .and_then(|n| if n.is_finite() { Some(n) } else { None })
+}
+
+fn event_score(row: &Value) -> f64 {
+    parse_f64(
+        row.pointer("/importance/score")
+            .or_else(|| row.get("score")),
+    )
+    .unwrap_or_else(|| {
+        let sev = row
+            .get("severity")
+            .and_then(Value::as_str)
+            .unwrap_or("info")
+            .trim()
+            .to_ascii_lowercase();
+        if sev == "critical" {
+            0.85
+        } else if sev == "warn" {
+            0.60
+        } else {
+            0.35
+        }
+    })
+    .clamp(0.0, 1.0)
+}
+
+fn event_band_rank(row: &Value) -> i64 {
+    let band = row
+        .pointer("/importance/band")
+        .and_then(Value::as_str)
+        .or_else(|| row.get("band").and_then(Value::as_str))
+        .unwrap_or("p4");
+    let rank = band_rank(band);
+    if rank > 0 {
+        rank
+    } else {
+        let sev = row
+            .get("severity")
+            .and_then(Value::as_str)
+            .unwrap_or("info")
+            .trim()
+            .to_ascii_lowercase();
+        if sev == "critical" {
+            band_rank("p1")
+        } else if sev == "warn" {
+            band_rank("p2")
+        } else {
+            band_rank("p4")
+        }
+    }
+}
+
+fn event_priority(row: &Value) -> i64 {
+    row.get("priority")
+        .and_then(Value::as_i64)
+        .unwrap_or(20)
+        .clamp(1, 1000)
+}
+
+fn event_deadline_ts_ms(row: &Value) -> i64 {
+    let direct = row
+        .get("deadline_at")
+        .and_then(Value::as_str)
+        .and_then(parse_ts_ms);
+    let raw_event = row
+        .pointer("/raw_event/deadline_at")
+        .and_then(Value::as_str)
+        .and_then(parse_ts_ms);
+    direct.or(raw_event).unwrap_or(i64::MAX)
+}
+
+fn event_ts_ms(row: &Value) -> i64 {
+    row.get("ts")
+        .and_then(Value::as_str)
+        .and_then(parse_ts_ms)
+        .unwrap_or(i64::MAX)
+}
+
+fn event_attention_key(row: &Value) -> String {
+    row.get("attention_key")
+        .and_then(Value::as_str)
+        .map(|s| s.to_string())
+        .unwrap_or_default()
+}
+
+fn sort_active_rows(rows: &mut [Value]) {
+    rows.sort_by(|a, b| {
+        event_band_rank(b)
+            .cmp(&event_band_rank(a))
+            .then_with(|| event_priority(b).cmp(&event_priority(a)))
+            .then_with(|| {
+                event_score(b)
+                    .partial_cmp(&event_score(a))
+                    .unwrap_or(Ordering::Equal)
+            })
+            .then_with(|| event_deadline_ts_ms(a).cmp(&event_deadline_ts_ms(b)))
+            .then_with(|| event_ts_ms(a).cmp(&event_ts_ms(b)))
+            .then_with(|| event_attention_key(a).cmp(&event_attention_key(b)))
+    });
+}
+
 fn default_priority_map() -> BTreeMap<String, i64> {
     let mut out = BTreeMap::new();
     out.insert("critical".to_string(), 100);
@@ -239,15 +345,22 @@ fn load_contract(root: &Path) -> AttentionContract {
         .map(|p| if p.is_absolute() { p } else { root.join(p) })
         .unwrap_or(default_policy);
     let policy = read_json(&policy_path).unwrap_or_else(|| json!({}));
-    let enabled = bool_from_env("MECH_SUIT_MODE_FORCE")
-        .unwrap_or_else(|| policy.get("enabled").and_then(Value::as_bool).unwrap_or(true));
+    let enabled = bool_from_env("MECH_SUIT_MODE_FORCE").unwrap_or_else(|| {
+        policy
+            .get("enabled")
+            .and_then(Value::as_bool)
+            .unwrap_or(true)
+    });
     let eyes = policy.get("eyes").and_then(Value::as_object);
     let contract_obj = eyes
         .and_then(|v| v.get("attention_contract"))
         .and_then(Value::as_object);
 
     let mut priority_map = default_priority_map();
-    if let Some(obj) = contract_obj.and_then(|v| v.get("priority_map")).and_then(Value::as_object) {
+    if let Some(obj) = contract_obj
+        .and_then(|v| v.get("priority_map"))
+        .and_then(Value::as_object)
+    {
         for (k, v) in obj {
             if let Some(n) = v.as_i64() {
                 priority_map.insert(k.trim().to_ascii_lowercase(), n.clamp(1, 1000));
@@ -332,7 +445,8 @@ fn parse_event(flags: &BTreeMap<String, String>) -> Result<Value, String> {
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(raw.as_bytes())
             .map_err(|err| format!("event_json_base64_invalid:{err}"))?;
-        let text = String::from_utf8(bytes).map_err(|err| format!("event_json_utf8_invalid:{err}"))?;
+        let text =
+            String::from_utf8(bytes).map_err(|err| format!("event_json_utf8_invalid:{err}"))?;
         return serde_json::from_str::<Value>(&text)
             .map_err(|err| format!("event_json_invalid:{err}"));
     }
@@ -377,18 +491,15 @@ fn normalize_event(event: &Value, contract: &AttentionContract) -> Value {
     } else {
         attention_key
     };
-    let priority = event
-        .get("priority")
-        .and_then(Value::as_i64)
-        .unwrap_or_else(|| *contract.priority_map.get(&severity).unwrap_or(&20))
-        .clamp(1, 1000);
+    let importance = infer_from_event(event, &severity, &contract.priority_map);
+    let priority = importance.priority;
     let ttl_ms = contract.ttl_hours.saturating_mul(60 * 60 * 1000);
     let event_ts_ms = parse_ts_ms(&ts).unwrap_or_else(|| Utc::now().timestamp_millis());
     let expires_at = ts_ms_to_iso(event_ts_ms.saturating_add(ttl_ms));
-    let escalate_required = contract
-        .escalate_levels
-        .iter()
-        .any(|row| row == &severity);
+    let escalate_required_by_policy = contract.escalate_levels.iter().any(|row| row == &severity);
+    let escalate_required_by_importance = importance.score >= 0.85;
+    let escalate_required = escalate_required_by_policy || escalate_required_by_importance;
+    let initiative_action = importance.initiative_action.clone();
     let mut out = json!({
         "ts": ts,
         "type": "attention_event",
@@ -396,6 +507,8 @@ fn normalize_event(event: &Value, contract: &AttentionContract) -> Value {
         "source_type": source_type,
         "severity": severity,
         "priority": priority,
+        "score": importance.score,
+        "band": importance.band,
         "summary": summary,
         "attention_key": attention_key,
         "ttl_hours": contract.ttl_hours,
@@ -403,6 +516,8 @@ fn normalize_event(event: &Value, contract: &AttentionContract) -> Value {
         "expires_at": expires_at,
         "escalate_required": escalate_required,
         "escalation_authority": "runtime_policy",
+        "initiative_action": initiative_action,
+        "importance": importance_to_json(&importance),
         "raw_event": event
     });
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
@@ -481,8 +596,9 @@ fn contract_snapshot(contract: &AttentionContract) -> Value {
 fn emit(value: &Value) {
     println!(
         "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"type\":\"attention_queue_encode_failed\"}".to_string())
+        serde_json::to_string(value).unwrap_or_else(|_| {
+            "{\"ok\":false,\"type\":\"attention_queue_encode_failed\"}".to_string()
+        })
     );
 }
 
@@ -533,7 +649,11 @@ fn update_latest(
             "source": evt.get("source").and_then(Value::as_str).unwrap_or("unknown_source"),
             "source_type": evt.get("source_type").and_then(Value::as_str).unwrap_or("unknown_type"),
             "severity": evt.get("severity").and_then(Value::as_str).unwrap_or("info"),
-            "summary": evt.get("summary").and_then(Value::as_str).unwrap_or("attention_event")
+            "summary": evt.get("summary").and_then(Value::as_str).unwrap_or("attention_event"),
+            "priority": evt.get("priority").cloned().unwrap_or(Value::Number(20.into())),
+            "score": evt.get("score").cloned().unwrap_or(Value::Number(serde_json::Number::from_f64(0.0).unwrap_or(0.into()))),
+            "band": evt.get("band").cloned().unwrap_or(Value::String("p4".to_string())),
+            "initiative_action": evt.get("initiative_action").cloned().unwrap_or(Value::String("silent".to_string()))
         });
     }
     write_json(&contract.latest_path, &latest);
@@ -591,7 +711,12 @@ fn write_consumer_offset(
     });
 }
 
-fn cursor_token_for_event(contract: &AttentionContract, consumer_id: &str, index: usize, event: &Value) -> String {
+fn cursor_token_for_event(
+    contract: &AttentionContract,
+    consumer_id: &str,
+    index: usize,
+    event: &Value,
+) -> String {
     let seed = json!({
         "type": "attention_cursor_token",
         "consumer_id": consumer_id,
@@ -609,7 +734,8 @@ fn load_active_queue(contract: &AttentionContract) -> (Vec<Value>, usize) {
         return (Vec::new(), 0);
     }
     let rows = read_jsonl(&contract.queue_path);
-    let (active, expired_pruned) = prune_expired(rows);
+    let (mut active, expired_pruned) = prune_expired(rows);
+    sort_active_rows(&mut active);
     if expired_pruned > 0 {
         write_jsonl(&contract.queue_path, &active);
     }
@@ -618,10 +744,13 @@ fn load_active_queue(contract: &AttentionContract) -> (Vec<Value>, usize) {
 
 fn next(root: &Path, flags: &BTreeMap<String, String>, auto_ack: bool) -> i32 {
     let contract = load_contract(root);
-    let run_context = flags
-        .get("run-context")
-        .cloned()
-        .unwrap_or_else(|| if auto_ack { "drain".to_string() } else { "next".to_string() });
+    let run_context = flags.get("run-context").cloned().unwrap_or_else(|| {
+        if auto_ack {
+            "drain".to_string()
+        } else {
+            "next".to_string()
+        }
+    });
     let consumer_id = normalize_consumer_id(
         flags
             .get("consumer")
@@ -686,11 +815,7 @@ fn next(root: &Path, flags: &BTreeMap<String, String>, auto_ack: bool) -> i32 {
         acked_through_index = Value::Number((through_index as u64).into());
     }
 
-    let cursor_after = if auto_ack {
-        end
-    } else {
-        cursor_offset
-    };
+    let cursor_after = if auto_ack { end } else { cursor_offset };
     let mut out = json!({
         "ok": true,
         "type": if auto_ack { "attention_queue_drain" } else { "attention_queue_next" },
@@ -942,16 +1067,24 @@ fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
             .and_then(Value::as_str)
             .unwrap_or("info");
         let sev_rank = severity_rank(severity);
+        let event_band = event.get("band").and_then(Value::as_str).unwrap_or("p4");
+        let high_importance = band_rank(event_band) >= band_rank("p2");
         let at_or_over_cap = queue_depth_before >= contract.max_queue_depth;
-        let should_drop_for_backpressure = at_or_over_cap && sev_rank < drop_rank;
+        let should_drop_for_backpressure =
+            at_or_over_cap && sev_rank < drop_rank && !high_importance;
         if should_drop_for_backpressure {
             action = "dropped_backpressure".to_string();
             queued = false;
             queue_depth_after = queue_depth_before;
         } else {
-            action = "admitted".to_string();
+            action = if high_importance {
+                "admitted_priority".to_string()
+            } else {
+                "admitted".to_string()
+            };
             queued = true;
             active_rows.push(event.clone());
+            sort_active_rows(&mut active_rows);
             write_jsonl(&contract.queue_path, &active_rows);
             queue_depth_after = active_rows.len();
         }
@@ -981,9 +1114,12 @@ fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
             "source_type": event.get("source_type").cloned().unwrap_or(Value::String("unknown_type".to_string())),
             "severity": event.get("severity").cloned().unwrap_or(Value::String("info".to_string())),
             "priority": event.get("priority").cloned().unwrap_or(Value::Number(20.into())),
+            "score": event.get("score").cloned().unwrap_or(Value::Number(serde_json::Number::from_f64(0.0).unwrap_or(0.into()))),
+            "band": event.get("band").cloned().unwrap_or(Value::String("p4".to_string())),
             "summary": event.get("summary").cloned().unwrap_or(Value::String("attention_event".to_string())),
             "attention_key": event.get("attention_key").cloned().unwrap_or(Value::String("".to_string())),
-            "escalate_required": event.get("escalate_required").cloned().unwrap_or(Value::Bool(false))
+            "escalate_required": event.get("escalate_required").cloned().unwrap_or(Value::Bool(false)),
+            "initiative_action": event.get("initiative_action").cloned().unwrap_or(Value::String("silent".to_string()))
         },
         "latest": latest
     });
@@ -1004,8 +1140,11 @@ fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
             "expired_pruned": expired_pruned,
             "severity": event.get("severity").cloned().unwrap_or(Value::String("info".to_string())),
             "priority": event.get("priority").cloned().unwrap_or(Value::Number(20.into())),
+            "score": event.get("score").cloned().unwrap_or(Value::Number(serde_json::Number::from_f64(0.0).unwrap_or(0.into()))),
+            "band": event.get("band").cloned().unwrap_or(Value::String("p4".to_string())),
             "attention_key": event.get("attention_key").cloned().unwrap_or(Value::String("".to_string())),
             "escalate_required": event.get("escalate_required").cloned().unwrap_or(Value::Bool(false)),
+            "initiative_action": event.get("initiative_action").cloned().unwrap_or(Value::String("silent".to_string())),
             "run_context": run_context,
             "receipt_hash": receipt.get("receipt_hash").cloned().unwrap_or(Value::String("".to_string()))
         }),
@@ -1021,10 +1160,7 @@ fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
 
 fn status(root: &Path) -> i32 {
     let contract = load_contract(root);
-    let (active_rows, expired_pruned) = prune_expired(read_jsonl(&contract.queue_path));
-    if expired_pruned > 0 {
-        write_jsonl(&contract.queue_path, &active_rows);
-    }
+    let (active_rows, expired_pruned) = load_active_queue(&contract);
     let latest = read_json(&contract.latest_path).unwrap_or_else(|| json!({}));
     let mut out = json!({
         "ok": true,
@@ -1105,9 +1241,8 @@ mod tests {
     }
 
     fn enqueue_event(root: &Path, event: &Value) -> i32 {
-        let payload = base64::engine::general_purpose::STANDARD.encode(
-            serde_json::to_string(event).expect("encode event"),
-        );
+        let payload = base64::engine::general_purpose::STANDARD
+            .encode(serde_json::to_string(event).expect("encode event"));
         run(
             root,
             &[
@@ -1129,9 +1264,8 @@ mod tests {
             "summary": "item one",
             "attention_key": "dup-key"
         });
-        let payload = base64::engine::general_purpose::STANDARD.encode(
-            serde_json::to_string(&event).expect("encode event"),
-        );
+        let payload = base64::engine::general_purpose::STANDARD
+            .encode(serde_json::to_string(&event).expect("encode event"));
         let code_a = run(
             dir.path(),
             &[
@@ -1167,9 +1301,8 @@ mod tests {
             "summary": "critical event",
             "attention_key": "first"
         });
-        let warn_payload = base64::engine::general_purpose::STANDARD.encode(
-            serde_json::to_string(&warn_event).expect("encode event"),
-        );
+        let warn_payload = base64::engine::general_purpose::STANDARD
+            .encode(serde_json::to_string(&warn_event).expect("encode event"));
         let code_a = run(
             dir.path(),
             &[
@@ -1187,9 +1320,8 @@ mod tests {
             "summary": "informational event",
             "attention_key": "second"
         });
-        let info_payload = base64::engine::general_purpose::STANDARD.encode(
-            serde_json::to_string(&info_event).expect("encode event"),
-        );
+        let info_payload = base64::engine::general_purpose::STANDARD
+            .encode(serde_json::to_string(&info_event).expect("encode event"));
         let code_b = run(
             dir.path(),
             &[
@@ -1205,6 +1337,83 @@ mod tests {
             queue[0].get("severity").and_then(Value::as_str),
             Some("critical")
         );
+    }
+
+    #[test]
+    fn enqueue_orders_queue_by_band_then_priority_then_score() {
+        let dir = tempdir().expect("tempdir");
+        write_policy(dir.path(), 64, "critical");
+        let low = json!({
+            "ts": "2026-03-07T10:00:00.000Z",
+            "source": "external_eyes",
+            "source_type": "external_item",
+            "severity": "info",
+            "summary": "low priority item",
+            "attention_key": "prio-low"
+        });
+        let mid = json!({
+            "ts": "2026-03-07T10:01:00.000Z",
+            "source": "memory_ambient",
+            "source_type": "memory_event",
+            "severity": "warn",
+            "summary": "mid priority item",
+            "attention_key": "prio-mid",
+            "importance": {
+                "score": 0.74
+            }
+        });
+        let high = json!({
+            "ts": "2026-03-07T10:02:00.000Z",
+            "source": "spine",
+            "source_type": "infra_outage_state",
+            "severity": "critical",
+            "summary": "conduit bridge timeout degraded",
+            "attention_key": "prio-high"
+        });
+        assert_eq!(enqueue_event(dir.path(), &low), 0);
+        assert_eq!(enqueue_event(dir.path(), &mid), 0);
+        assert_eq!(enqueue_event(dir.path(), &high), 0);
+
+        let queue = read_jsonl(&dir.path().join("state/attention/queue.jsonl"));
+        assert_eq!(queue.len(), 3);
+        assert_eq!(
+            queue[0].get("attention_key").and_then(Value::as_str),
+            Some("prio-high")
+        );
+        assert_eq!(
+            queue[1].get("attention_key").and_then(Value::as_str),
+            Some("prio-mid")
+        );
+        assert_eq!(
+            queue[2].get("attention_key").and_then(Value::as_str),
+            Some("prio-low")
+        );
+    }
+
+    #[test]
+    fn enqueue_attaches_importance_and_initiative_metadata() {
+        let dir = tempdir().expect("tempdir");
+        write_policy(dir.path(), 64, "critical");
+        let event = json!({
+            "ts": now_iso(),
+            "source": "security",
+            "source_type": "integrity_fault",
+            "severity": "critical",
+            "summary": "security_global_gate_failed conduit timeout",
+            "attention_key": "importance-meta"
+        });
+        assert_eq!(enqueue_event(dir.path(), &event), 0);
+        let queue = read_jsonl(&dir.path().join("state/attention/queue.jsonl"));
+        assert_eq!(queue.len(), 1);
+        let row = &queue[0];
+        let score = row.get("score").and_then(Value::as_f64).unwrap_or(0.0);
+        assert!(score >= 0.95);
+        assert_eq!(row.get("band").and_then(Value::as_str), Some("p0"));
+        assert_eq!(
+            row.get("initiative_action").and_then(Value::as_str),
+            Some("persistent_until_ack")
+        );
+        assert!(row.get("importance").map(Value::is_object).unwrap_or(false));
     }
 
     #[test]
