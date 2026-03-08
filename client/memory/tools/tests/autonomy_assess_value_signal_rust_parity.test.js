@@ -24,7 +24,7 @@ function makeProposal(idx) {
     title: `Remediate lane ${idx}`,
     summary: 'Improve execution reliability',
     action_spec: {
-      command: 'node client/systems/ops/protheusctl.js status',
+      command: 'node client/runtime/systems/ops/protheusctl.js status',
       verify: ['status check'],
       rollback_command: 'echo rollback'
     },

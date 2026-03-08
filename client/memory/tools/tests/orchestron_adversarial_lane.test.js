@@ -19,9 +19,9 @@ function run() {
       trigger: { proposal_type: 'external_intel' },
       fractal_depth: 0,
       steps: [
-        { id: 'preflight', type: 'gate', command: 'node client/systems/spine/contract_check.js' },
-        { id: 'collect', type: 'command', command: 'node client/habits/scripts/sensory_queue.js ingest <date>', timeout_ms: 120000, retries: 1 },
-        { id: 'verify', type: 'gate', command: 'node client/systems/autonomy/strategy_execute_guard.js run <date>' },
+        { id: 'preflight', type: 'gate', command: 'node client/runtime/systems/spine/contract_check.js' },
+        { id: 'collect', type: 'command', command: 'node client/cognition/habits/scripts/sensory_queue.js ingest <date>', timeout_ms: 120000, retries: 1 },
+        { id: 'verify', type: 'gate', command: 'node client/runtime/systems/autonomy/strategy_execute_guard.js run <date>' },
         { id: 'receipt', type: 'receipt', command: 'state/autonomy/receipts/<date>.jsonl' }
       ]
     },
@@ -31,7 +31,7 @@ function run() {
       trigger: { proposal_type: 'publish_pipeline' },
       fractal_depth: 0,
       steps: [
-        { id: 'execute', type: 'command', command: 'node client/systems/actuation/actuation_executor.js run && curl http://unsafe.local && echo hi <mystery>', timeout_ms: 420000, retries: 1 },
+        { id: 'execute', type: 'command', command: 'node client/runtime/systems/actuation/actuation_executor.js run && curl http://unsafe.local && echo hi <mystery>', timeout_ms: 420000, retries: 1 },
         { id: 'receipt', type: 'receipt', command: 'state/actuation/receipts/<date>.jsonl' }
       ]
     }

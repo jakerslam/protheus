@@ -568,7 +568,7 @@ mod tests {
         TraceEvent {
             trace_id: id.to_string(),
             ts_millis: ts,
-            source: "client/systems/observability".to_string(),
+            source: "client/runtime/systems/observability".to_string(),
             operation: "trace.capture".to_string(),
             severity: severity.to_string(),
             tags: vec![tag.to_string()],

@@ -264,10 +264,10 @@ pub fn default_policy(root: &Path) -> Policy {
             history_path: root.join("state/ops/fluxlattice_program/history.jsonl"),
             security_panel_path: root.join("state/ops/protheus_top/security_panel.json"),
             flux_events_path: root.join("state/ops/fluxlattice_program/flux_events.jsonl"),
-            migration_profiles_path: root.join("client/config/fluxlattice_migration_profiles.json"),
-            lens_mode_policy_path: root.join("client/config/lens_mode_policy.json"),
+            migration_profiles_path: root.join("client/runtime/config/fluxlattice_migration_profiles.json"),
+            lens_mode_policy_path: root.join("client/runtime/config/lens_mode_policy.json"),
         },
-        policy_path: root.join("client/config/fluxlattice_program_policy.json"),
+        policy_path: root.join("client/runtime/config/fluxlattice_program_policy.json"),
     }
 }
 
@@ -347,12 +347,12 @@ pub fn load_policy(root: &Path, policy_path: &Path) -> Policy {
         migration_profiles_path: resolve_path(
             root,
             paths.get("migration_profiles_path"),
-            "client/config/fluxlattice_migration_profiles.json",
+            "client/runtime/config/fluxlattice_migration_profiles.json",
         ),
         lens_mode_policy_path: resolve_path(
             root,
             paths.get("lens_mode_policy_path"),
-            "client/config/lens_mode_policy.json",
+            "client/runtime/config/lens_mode_policy.json",
         ),
     };
 
@@ -387,7 +387,7 @@ fn default_state() -> Value {
         },
         "lens": {
           "mode": "hidden",
-          "private_store": "client/local/private-lenses/"
+          "private_store": "client/runtime/local/private-lenses/"
         }
     })
 }
@@ -675,7 +675,7 @@ fn run_lane(
                     {"id": "in_repo", "dry_run_default": true, "rollback_checkpoints": true}
                 ]
             });
-            let runbook_path = root.join("client/docs/FLUXLATTICE_MIGRATION_RUNBOOK.md");
+            let runbook_path = root.join("docs/client/FLUXLATTICE_MIGRATION_RUNBOOK.md");
             if apply {
                 write_json_atomic(&policy.paths.migration_profiles_path, &profiles)?;
                 if let Some(parent) = runbook_path.parent() {
@@ -709,22 +709,22 @@ fn run_lane(
                 "schema_version": "1.0",
                 "default_mode": "hidden",
                 "modes": ["hidden", "minimal", "full"],
-                "private_store": "client/local/private-lenses/",
+                "private_store": "client/runtime/local/private-lenses/",
                 "commands": ["expose", "sync"]
             });
             state["lens"]["mode"] = Value::String("hidden".to_string());
-            state["lens"]["private_store"] = Value::String("client/local/private-lenses/".to_string());
+            state["lens"]["private_store"] = Value::String("client/runtime/local/private-lenses/".to_string());
             if apply {
-                fs::create_dir_all(root.join("client/local/private-lenses"))
-                    .map_err(|e| format!("create_dir_failed:client/local/private-lenses:{e}"))?;
+                fs::create_dir_all(root.join("client/runtime/local/private-lenses"))
+                    .map_err(|e| format!("create_dir_failed:client/runtime/local/private-lenses:{e}"))?;
                 write_json_atomic(&policy.paths.lens_mode_policy_path, &lens_policy)?;
             }
             receipt["summary"] =
-                json!({"lens_mode": "hidden", "private_store": "client/local/private-lenses/"});
+                json!({"lens_mode": "hidden", "private_store": "client/runtime/local/private-lenses/"});
             receipt["checks"] = json!({
                 "hidden_default": true,
                 "mode_triplet_present": true,
-                "private_store_present": root.join("client/local/private-lenses").exists()
+                "private_store_present": root.join("client/runtime/local/private-lenses").exists()
             });
             receipt["artifacts"] = json!({"lens_mode_policy_path": rel_path(root, &policy.paths.lens_mode_policy_path)});
             Ok(receipt)
@@ -786,7 +786,7 @@ fn run_lane(
             Ok(receipt)
         }
         "V4-PKG-006" => {
-            let narrative_path = root.join("client/docs/LENSMAP_INTERNAL_NARRATIVE.md");
+            let narrative_path = root.join("docs/client/LENSMAP_INTERNAL_NARRATIVE.md");
             if apply {
                 if let Some(parent) = narrative_path.parent() {
                     fs::create_dir_all(parent)
@@ -974,12 +974,12 @@ fn run_all(
 
 pub fn usage() {
     println!("Usage:");
-    println!("  node client/systems/ops/fluxlattice_program.js list");
+    println!("  node client/runtime/systems/ops/fluxlattice_program.js list");
     println!(
-        "  node client/systems/ops/fluxlattice_program.js run --id=V4-ETH-001 [--apply=1|0] [--strict=1|0]"
+        "  node client/runtime/systems/ops/fluxlattice_program.js run --id=V4-ETH-001 [--apply=1|0] [--strict=1|0]"
     );
-    println!("  node client/systems/ops/fluxlattice_program.js run-all [--apply=1|0] [--strict=1|0]");
-    println!("  node client/systems/ops/fluxlattice_program.js status");
+    println!("  node client/runtime/systems/ops/fluxlattice_program.js run-all [--apply=1|0] [--strict=1|0]");
+    println!("  node client/runtime/systems/ops/fluxlattice_program.js status");
 }
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -1003,7 +1003,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .flags
         .get("policy")
         .map(PathBuf::from)
-        .unwrap_or_else(|| root.join("client/config/fluxlattice_program_policy.json"));
+        .unwrap_or_else(|| root.join("client/runtime/config/fluxlattice_program_policy.json"));
     let policy_path = if policy_arg.is_absolute() {
         policy_arg
     } else {

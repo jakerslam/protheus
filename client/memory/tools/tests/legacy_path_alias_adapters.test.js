@@ -125,9 +125,9 @@ try {
     .filter(Boolean)
     .map((line) => JSON.parse(line));
   assert.ok(receiptRows.length >= 3, 'alias adapter should emit receipts for alias invocations');
-  assert.ok(receiptRows.some((row) => row.alias_path === 'client/systems/state/event_stream.js'), 'event_stream alias receipt missing');
-  assert.ok(receiptRows.some((row) => row.alias_path === 'client/systems/autogenesis/trace_habit_autogenesis.js'), 'trace_habit_autogenesis alias receipt missing');
-  assert.ok(receiptRows.some((row) => row.alias_path === 'client/systems/autogenesis/trace_habit_loop.js'), 'trace_habit_loop alias receipt missing');
+  assert.ok(receiptRows.some((row) => row.alias_path === 'client/runtime/systems/state/event_stream.js'), 'event_stream alias receipt missing');
+  assert.ok(receiptRows.some((row) => row.alias_path === 'client/runtime/systems/autogenesis/trace_habit_autogenesis.js'), 'trace_habit_autogenesis alias receipt missing');
+  assert.ok(receiptRows.some((row) => row.alias_path === 'client/runtime/systems/autogenesis/trace_habit_loop.js'), 'trace_habit_loop alias receipt missing');
   assert.ok(receiptRows.every((row) => row.deprecated === true), 'all alias adapter receipts should be marked deprecated');
 
   const latest = JSON.parse(fs.readFileSync(aliasLatestPath, 'utf8'));

@@ -9,7 +9,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 const LANE_ID: &str = "supply_chain_provenance_v2";
-const DEFAULT_POLICY_REL: &str = "client/config/supply_chain_provenance_v2_policy.json";
+const DEFAULT_POLICY_REL: &str = "client/runtime/config/supply_chain_provenance_v2_policy.json";
 
 #[derive(Debug, Clone)]
 struct ArtifactRequirement {
@@ -215,7 +215,7 @@ fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
         rollback_policy_path: resolve_path(
             root,
             raw.get("rollback_policy_path").and_then(Value::as_str),
-            "client/config/release_rollback_policy.json",
+            "client/runtime/config/release_rollback_policy.json",
         ),
         vulnerability_sla: VulnerabilitySla {
             max_critical: sla
@@ -737,7 +737,7 @@ mod tests {
 
     fn write_policy(root: &Path) {
         write_text(
-            &root.join("client/config/supply_chain_provenance_v2_policy.json"),
+            &root.join("client/runtime/config/supply_chain_provenance_v2_policy.json"),
             &json!({
                 "strict_default": true,
                 "required_artifacts": [
@@ -750,7 +750,7 @@ mod tests {
                 ],
                 "bundle_path": "state/release/provenance_bundle/latest.json",
                 "vulnerability_summary_path": "state/release/provenance_bundle/dependency_vulnerability_summary.json",
-                "rollback_policy_path": "client/config/release_rollback_policy.json",
+                "rollback_policy_path": "client/runtime/config/release_rollback_policy.json",
                 "vulnerability_sla": {
                     "max_critical": 0,
                     "max_high": 1,
@@ -790,7 +790,7 @@ mod tests {
         );
 
         write_text(
-            &root.join("client/config/release_rollback_policy.json"),
+            &root.join("client/runtime/config/release_rollback_policy.json"),
             &json!({
                 "schema_id": "release_rollback_policy",
                 "schema_version": "1.0",
@@ -818,7 +818,7 @@ mod tests {
             ],
             "rollback": {
                 "last_known_good_tag": "v0.1.9",
-                "policy_path": "client/config/release_rollback_policy.json"
+                "policy_path": "client/runtime/config/release_rollback_policy.json"
             }
         });
         write_text(

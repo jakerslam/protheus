@@ -35,7 +35,7 @@ function run(args) {
 }
 
 function main() {
-  const clean = run(['run', '--strict=1', '--files=client/systems/security/merge_guard.ts']);
+  const clean = run(['run', '--strict=1', '--files=client/runtime/systems/security/merge_guard.ts']);
   assert.strictEqual(clean.status, 0, `expected clean baseline to pass; stderr=${clean.stderr}`);
   assert.ok(clean.payload && clean.payload.ok === true, 'baseline payload should be ok');
 

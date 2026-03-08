@@ -77,8 +77,8 @@ function run() {
         status: 'draft',
         trigger: { proposal_type: 'external_intel', min_occurrences: 2 },
         steps: [
-          { id: 'collect', type: 'command', command: 'node client/habits/scripts/external_eyes.js run --eye=test' },
-          { id: 'verify', type: 'gate', command: 'node client/systems/autonomy/strategy_execute_guard.js run <date>' },
+          { id: 'collect', type: 'command', command: 'node client/cognition/habits/scripts/external_eyes.js run --eye=test' },
+          { id: 'verify', type: 'gate', command: 'node client/runtime/systems/autonomy/strategy_execute_guard.js run <date>' },
           { id: 'receipt', type: 'receipt', command: 'state/autonomy/receipts/<date>.jsonl' }
         ],
         metrics: {
@@ -95,8 +95,8 @@ function run() {
         status: 'draft',
         trigger: { proposal_type: 'publish_pipeline', min_occurrences: 2 },
         steps: [
-          { id: 'execute', type: 'command', command: 'node client/systems/actuation/actuation_executor.js run --kind=publish --dry-run' },
-          { id: 'verify', type: 'gate', command: 'node client/systems/autonomy/strategy_execute_guard.js run <date>' }
+          { id: 'execute', type: 'command', command: 'node client/runtime/systems/actuation/actuation_executor.js run --kind=publish --dry-run' },
+          { id: 'verify', type: 'gate', command: 'node client/runtime/systems/autonomy/strategy_execute_guard.js run <date>' }
         ],
         metrics: {
           score: 0.66,

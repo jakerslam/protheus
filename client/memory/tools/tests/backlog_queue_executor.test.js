@@ -66,7 +66,7 @@ try {
         status: 'queued',
         review_result: 'pass',
         evidence: {
-          substantive_code_paths: ['client/systems/ops/backlog_queue_executor.ts']
+          substantive_code_paths: ['client/runtime/systems/ops/backlog_queue_executor.ts']
         }
       }
     ]

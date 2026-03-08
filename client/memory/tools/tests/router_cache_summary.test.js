@@ -116,7 +116,7 @@ function run() {
   const r = spawnSync(
     'node',
     [
-      'client/systems/routing/model_router.js',
+      'client/runtime/systems/routing/model_router.js',
       'cache-summary',
       '--for-routing=1',
       '--risk=low',

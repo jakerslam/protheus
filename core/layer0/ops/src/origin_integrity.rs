@@ -8,7 +8,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const DEFAULT_POLICY_REL: &str = "client/config/origin_integrity_policy.json";
+const DEFAULT_POLICY_REL: &str = "client/runtime/config/origin_integrity_policy.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -28,14 +28,14 @@ impl Default for OriginIntegrityPolicy {
             version: "1.0".to_string(),
             strict_default: true,
             verify_script_relpath: "verify.sh".to_string(),
-            dependency_boundary_policy_path: "client/config/dependency_boundary_manifest.json"
+            dependency_boundary_policy_path: "client/runtime/config/dependency_boundary_manifest.json"
                 .to_string(),
             safety_plane_paths: vec![
                 "AGENT-CONSTITUTION.md".to_string(),
-                "client/config/dependency_boundary_manifest.json".to_string(),
-                "client/config/rust_source_of_truth_policy.json".to_string(),
-                "client/config/constitution_guardian_policy.json".to_string(),
-                "client/config/rsi_bootstrap_policy.json".to_string(),
+                "client/runtime/config/dependency_boundary_manifest.json".to_string(),
+                "client/runtime/config/rust_source_of_truth_policy.json".to_string(),
+                "client/runtime/config/constitution_guardian_policy.json".to_string(),
+                "client/runtime/config/rsi_bootstrap_policy.json".to_string(),
                 "core/layer0/ops/src/main.rs".to_string(),
                 "core/layer0/ops/src/contract_check.rs".to_string(),
                 "core/layer0/ops/src/foundation_contract_gate.rs".to_string(),
@@ -59,8 +59,8 @@ impl Default for ConstitutionContract {
     fn default() -> Self {
         Self {
             constitution_path: "AGENT-CONSTITUTION.md".to_string(),
-            guardian_policy_path: "client/config/constitution_guardian_policy.json".to_string(),
-            rsi_bootstrap_policy_path: "client/config/rsi_bootstrap_policy.json".to_string(),
+            guardian_policy_path: "client/runtime/config/constitution_guardian_policy.json".to_string(),
+            rsi_bootstrap_policy_path: "client/runtime/config/rsi_bootstrap_policy.json".to_string(),
         }
     }
 }
@@ -76,9 +76,9 @@ struct OriginIntegrityPaths {
 impl Default for OriginIntegrityPaths {
     fn default() -> Self {
         Self {
-            latest_path: "client/local/state/security/origin_integrity/latest.json".to_string(),
-            receipts_path: "client/local/state/security/origin_integrity/receipts.jsonl".to_string(),
-            certificate_path: "client/local/state/security/origin_integrity/origin_verify_certificate.json"
+            latest_path: "client/runtime/local/state/security/origin_integrity/latest.json".to_string(),
+            receipts_path: "client/runtime/local/state/security/origin_integrity/receipts.jsonl".to_string(),
+            certificate_path: "client/runtime/local/state/security/origin_integrity/origin_verify_certificate.json"
                 .to_string(),
         }
     }
@@ -253,7 +253,7 @@ fn collect_safety_plane_state(root: &Path, policy: &OriginIntegrityPolicy) -> Va
 }
 
 fn run_dependency_boundary_check(root: &Path, policy: &OriginIntegrityPolicy) -> Value {
-    let script = root.join("client/systems/ops/dependency_boundary_guard.js");
+    let script = root.join("client/runtime/systems/ops/dependency_boundary_guard.js");
     if !script.exists() {
         return json!({
             "ok": false,

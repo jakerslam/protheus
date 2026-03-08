@@ -104,8 +104,8 @@ function makeWorkspace() {
 
   writeJson(path.join(ws, 'package.json'), {
     scripts: {
-      'lane:v3-race-002:run': 'node client/systems/v3_race_002.js run',
-      'lane:v3-race-003:run': 'node client/systems/v3_race_003.js run'
+      'lane:v3-race-002:run': 'node client/runtime/systems/v3_race_002.js run',
+      'lane:v3-race-003:run': 'node client/runtime/systems/v3_race_003.js run'
     }
   });
 

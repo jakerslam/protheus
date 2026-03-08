@@ -92,7 +92,7 @@ function run() {
     assert.strictEqual(out.ok, false, 'legacy-pairs output should fail');
     assert.ok(Number(out.legacy_pair_count || 0) >= 1, 'legacy pair count should be positive');
     assert.ok(
-      Array.isArray(out.legacy_pairs) && out.legacy_pairs.includes('client/systems/ops/__legacy_runtime_pair_fixture__.js'),
+      Array.isArray(out.legacy_pairs) && out.legacy_pairs.includes('client/runtime/systems/ops/__legacy_runtime_pair_fixture__.js'),
       'fixture legacy pair should be detected'
     );
     assert.strictEqual(out.incident_opened, true, 'pair delta failure should auto-open an incident');

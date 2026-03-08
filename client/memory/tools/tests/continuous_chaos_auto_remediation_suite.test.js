@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-const SCRIPT = path.join(ROOT, 'client/systems/ops/continuous_chaos_auto_remediation_suite.js');
+const SCRIPT = path.join(ROOT, 'client/runtime/systems/ops/continuous_chaos_auto_remediation_suite.js');
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });

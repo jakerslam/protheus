@@ -11,7 +11,7 @@
       "id": "pain_external_eyes_0251f4298561",
       "name": "Pain Habit external_eyes collector_preflight:collector_pr",
       "summary": "Collector preflight failed for ollama_search",
-      "routine_path": "client/habits/routines/pain_external_eyes_0251f4298561.js",
+      "routine_path": "client/cognition/habits/routines/pain_external_eyes_0251f4298561.js",
       "status": "disabled",
       "usage": {
         "uses_total": 0,
@@ -26,7 +26,7 @@
       "id": "pain_external_eyes_4278015a179e",
       "name": "Pain Habit external_eyes collector_preflight:collector_pr",
       "summary": "Collector preflight failed for x_trends",
-      "routine_path": "client/habits/routines/pain_external_eyes_4278015a179e.js",
+      "routine_path": "client/cognition/habits/routines/pain_external_eyes_4278015a179e.js",
       "status": "disabled",
       "usage": {
         "uses_total": 0,
@@ -41,7 +41,7 @@
       "id": "pain_external_eyes_5f2d02fb9874",
       "name": "Pain Habit external_eyes collector_preflight:domain_not_a",
       "summary": "Collector preflight failed for reddit_ai_automation",
-      "routine_path": "client/habits/routines/pain_external_eyes_5f2d02fb9874.js",
+      "routine_path": "client/cognition/habits/routines/pain_external_eyes_5f2d02fb9874.js",
       "status": "disabled",
       "usage": {
         "uses_total": 0,
@@ -56,7 +56,7 @@
       "id": "pain_external_eyes_a86a891d7237",
       "name": "Pain Habit external_eyes collector_preflight:collector_er",
       "summary": "Collector preflight failed for ollama_search",
-      "routine_path": "client/habits/routines/pain_external_eyes_a86a891d7237.js",
+      "routine_path": "client/cognition/habits/routines/pain_external_eyes_a86a891d7237.js",
       "status": "disabled",
       "usage": {
         "uses_total": 0,
@@ -71,7 +71,7 @@
       "id": "pain_idle_dream_cycle_9fac4cbaf305",
       "name": "Pain Habit idle_dream_cycle dream_idle:all_model_attempts_fa",
       "summary": "Dream idle phase degraded or blocked (all_model_attempts_failed)",
-      "routine_path": "client/habits/routines/pain_idle_dream_cycle_9fac4cbaf305.js",
+      "routine_path": "client/cognition/habits/routines/pain_idle_dream_cycle_9fac4cbaf305.js",
       "status": "disabled",
       "usage": {
         "uses_total": 0,
@@ -86,7 +86,7 @@
       "id": "pain_idle_dream_cycle_b08c5c382628",
       "name": "Pain Habit idle_dream_cycle dream_rem:local_model_unavailabl",
       "summary": "Dream rem phase degraded or blocked (local_model_unavailable)",
-      "routine_path": "client/habits/routines/pain_idle_dream_cycle_b08c5c382628.js",
+      "routine_path": "client/cognition/habits/routines/pain_idle_dream_cycle_b08c5c382628.js",
       "status": "disabled",
       "usage": {
         "uses_total": 0,
@@ -101,7 +101,7 @@
       "id": "pain_idle_dream_cycle_ed445d71f2fe",
       "name": "Pain Habit idle_dream_cycle dream_idle:local_model_unavailab",
       "summary": "Dream idle phase degraded or blocked (local_model_unavailable)",
-      "routine_path": "client/habits/routines/pain_idle_dream_cycle_ed445d71f2fe.js",
+      "routine_path": "client/cognition/habits/routines/pain_idle_dream_cycle_ed445d71f2fe.js",
       "status": "disabled",
       "usage": {
         "uses_total": 0,

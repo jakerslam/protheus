@@ -52,19 +52,19 @@ function main() {
     'source_of_truth',
     'runtime_state',
     'skills_local',
-    'client/systems/**',
+    'client/runtime/systems/**',
     'state/**',
-    'client/skills/**'
+    'client/cognition/skills/**'
   ].join('\n'));
 
   write(gitignorePath, [
     'state/**',
     'tmp/',
-    'client/local/logs/tool_raw/',
+    'client/runtime/local/logs/tool_raw/',
     '!client/memory/tools/**',
-    '!client/skills/mcp/*.ts',
-    '!client/skills/mcp/*.js',
-    '!client/skills/mcp/*.json'
+    '!client/cognition/skills/mcp/*.ts',
+    '!client/cognition/skills/mcp/*.js',
+    '!client/cognition/skills/mcp/*.json'
   ].join('\n'));
 
   writeJson(policyPath, {
@@ -72,12 +72,12 @@ function main() {
     docs_path: docsPath,
     gitignore_path: gitignorePath,
     state_classes: [
-      { id: 'source_of_truth', mode: 'tracked', paths: ['client/systems/**'] },
+      { id: 'source_of_truth', mode: 'tracked', paths: ['client/runtime/systems/**'] },
       { id: 'runtime_state', mode: 'ignored', paths: ['state/**'] },
-      { id: 'skills_local', mode: 'ignored', paths: ['client/skills/**'] }
+      { id: 'skills_local', mode: 'ignored', paths: ['client/cognition/skills/**'] }
     ],
-    required_ignore_patterns: ['state/**', 'tmp/', 'client/local/logs/tool_raw/'],
-    required_unignore_patterns: ['!client/memory/tools/**', '!client/skills/mcp/*.ts', '!client/skills/mcp/*.js', '!client/skills/mcp/*.json'],
+    required_ignore_patterns: ['state/**', 'tmp/', 'client/runtime/local/logs/tool_raw/'],
+    required_unignore_patterns: ['!client/memory/tools/**', '!client/cognition/skills/mcp/*.ts', '!client/cognition/skills/mcp/*.js', '!client/cognition/skills/mcp/*.json'],
     outputs: {
       latest_path: latestPath,
       history_path: historyPath

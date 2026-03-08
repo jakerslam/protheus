@@ -9,7 +9,7 @@ const END = '<!-- EMPTY_FORT:END -->';
 
 function parseArgs(argv) {
   const args = {
-    manifest: 'client/docs/community/contributors_manifest.json',
+    manifest: 'docs/client/community/contributors_manifest.json',
     readme: 'README.md',
     contributors: 'CONTRIBUTORS.md'
   };
@@ -58,7 +58,7 @@ function renderBlock(contributors) {
     '',
     `**${count} verified contributors** (consent-backed manifest, generated).`,
     '',
-    'Claims in this section are generated from `client/docs/community/contributors_manifest.json`.',
+    'Claims in this section are generated from `docs/client/community/contributors_manifest.json`.',
     '',
     avatarGrid(contributors),
     END

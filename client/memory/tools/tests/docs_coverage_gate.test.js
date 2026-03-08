@@ -53,7 +53,7 @@ function runTest() {
     require_docs_touched: true,
     critical_paths: [
       {
-        path_prefix: 'client/systems/ops/',
+        path_prefix: 'client/runtime/systems/ops/',
         required_docs: [reqDocRel]
       }
     ]
@@ -65,7 +65,7 @@ function runTest() {
   };
 
   try {
-    let r = run(['run', '--strict=1', '--files=client/systems/ops/new_file.ts'], env);
+    let r = run(['run', '--strict=1', '--files=client/runtime/systems/ops/new_file.ts'], env);
     assert.notStrictEqual(r.status, 0, 'require_docs_touched should fail when docs not in diff');
     assert.ok(r.payload && r.payload.ok === false, 'payload should fail');
     assert.ok(
@@ -73,12 +73,12 @@ function runTest() {
       'expected required docs touched failure reason'
     );
 
-    r = run(['run', '--strict=1', `--files=client/systems/ops/new_file.ts,${reqDocRel}`], env);
+    r = run(['run', '--strict=1', `--files=client/runtime/systems/ops/new_file.ts,${reqDocRel}`], env);
     assert.strictEqual(r.status, 0, `should pass when required doc touched: ${r.stderr}`);
     assert.ok(r.payload && r.payload.ok === true, 'payload should pass');
 
     writeText(reqDoc, '# req\nBad [missing](./MISSING.md)\n');
-    r = run(['run', '--strict=1', `--files=client/systems/ops/new_file.ts,${reqDocRel}`], env);
+    r = run(['run', '--strict=1', `--files=client/runtime/systems/ops/new_file.ts,${reqDocRel}`], env);
     assert.notStrictEqual(r.status, 0, 'broken local links should fail gate');
     assert.ok(r.payload && r.payload.ok === false, 'broken-link payload should fail');
     assert.ok(Array.isArray(r.payload.broken_links) && r.payload.broken_links.length > 0, 'broken links expected');

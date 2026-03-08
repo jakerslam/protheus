@@ -305,7 +305,7 @@ fn blob_root() -> PathBuf {
             return PathBuf::from(explicit);
         }
     }
-    repo_root().join("client/systems/singularity_seed/blobs")
+    repo_root().join("client/runtime/systems/singularity_seed/blobs")
 }
 
 fn manifest_path(root: &Path) -> PathBuf {

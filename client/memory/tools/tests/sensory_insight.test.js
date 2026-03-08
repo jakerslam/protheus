@@ -114,7 +114,7 @@ function testFileChangeSpikeProposal() {
 
     // Run insight generator
     const result = execSync(
-      `node client/habits/scripts/sensory_insight.js daily ${testDate} 2>&1`,
+      `node client/cognition/habits/scripts/sensory_insight.js daily ${testDate} 2>&1`,
       {
         cwd: workspaceRoot,
         encoding: 'utf8',
@@ -185,7 +185,7 @@ function testLowSignalProposal() {
 
     // v1.2.0: Must pass SENSORY_TEST_DIR to use isolated directories
     execSync(
-      `node client/habits/scripts/sensory_insight.js daily ${testDate}`,
+      `node client/cognition/habits/scripts/sensory_insight.js daily ${testDate}`,
       {
         cwd: workspaceRoot,
         encoding: 'utf8',
@@ -229,9 +229,9 @@ function testHighChurnProposal() {
       anomalies: [
         {
           type: 'high_churn',
-          path: 'client/config/settings.js',
+          path: 'client/runtime/config/settings.js',
           severity: 'medium',
-          message: 'client/config/settings.js modified across 4 days',
+          message: 'client/runtime/config/settings.js modified across 4 days',
           days_active: 4
         }
       ],
@@ -258,7 +258,7 @@ function testHighChurnProposal() {
 
     // v1.2.0: Must pass SENSORY_TEST_DIR env var
     execSync(
-      `node client/habits/scripts/sensory_insight.js daily ${testDate}`,
+      `node client/cognition/habits/scripts/sensory_insight.js daily ${testDate}`,
       {
         cwd: workspaceRoot,
         encoding: 'utf8',
@@ -276,7 +276,7 @@ function testHighChurnProposal() {
 
     assert.ok(churnProposal, 'Should have proposal for high_churn');
     assert.strictEqual(churnProposal.type, 'refactor', 'Should be refactor type');
-    assert.ok(churnProposal.title.includes('churn') || churnProposal.title.includes('client/config/settings'),
+    assert.ok(churnProposal.title.includes('churn') || churnProposal.title.includes('client/runtime/config/settings'),
               'Title should reference churn');
 
     console.log('   ✅ Proposal generated for high_churn');
@@ -326,7 +326,7 @@ function testWeeklyAggregation() {
 
     // v1.2.0: Must pass SENSORY_TEST_DIR env var
     execSync(
-      `node client/habits/scripts/sensory_insight.js weekly ${testDate}`,
+      `node client/cognition/habits/scripts/sensory_insight.js weekly ${testDate}`,
       {
         cwd: workspaceRoot,
         encoding: 'utf8',

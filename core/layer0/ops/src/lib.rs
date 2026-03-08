@@ -590,7 +590,7 @@ fn cmd_with_runtime_mode(cmd: &[String], runtime_mode: &str) -> DistRewrite {
     if rewritten.len() >= 2 {
         let first = rewritten[0].to_ascii_lowercase();
         let second = rewritten[1].replace('\\', "/");
-        if first == "node" && second.starts_with("client/systems/") && second.ends_with(".js") {
+        if first == "node" && second.starts_with("client/runtime/systems/") && second.ends_with(".js") {
             let dist_candidate = format!("dist/{second}");
             rewritten[1] = dist_candidate.clone();
             dist_target = Some(dist_candidate);
@@ -763,7 +763,7 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
         .flags
         .get("policy")
         .map(PathBuf::from)
-        .unwrap_or_else(|| root.join("client/config/runtime_efficiency_floor.json"));
+        .unwrap_or_else(|| root.join("client/runtime/config/runtime_efficiency_floor.json"));
 
     let policy = load_policy(root, &policy_path);
     let strict = to_bool(
@@ -922,7 +922,7 @@ pub fn status_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> RunO
         .flags
         .get("policy")
         .map(PathBuf::from)
-        .unwrap_or_else(|| root.join("client/config/runtime_efficiency_floor.json"));
+        .unwrap_or_else(|| root.join("client/runtime/config/runtime_efficiency_floor.json"));
 
     let policy = load_policy(root, &policy_path);
     let latest = read_json(&policy.state_path);
@@ -983,7 +983,7 @@ mod tests {
     #[test]
     fn sovereignty_fail_closed_hold_streak_gate() {
         let root = tempfile::tempdir().unwrap();
-        let policy_path = root.path().join("client/config/runtime_efficiency_floor.json");
+        let policy_path = root.path().join("client/runtime/config/runtime_efficiency_floor.json");
         fs::create_dir_all(policy_path.parent().unwrap()).unwrap();
         fs::write(
             &policy_path,

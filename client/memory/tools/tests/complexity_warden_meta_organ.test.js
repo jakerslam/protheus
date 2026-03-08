@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-const SCRIPT = path.join(ROOT, 'client/systems/fractal/warden/complexity_warden_meta_organ.js');
+const SCRIPT = path.join(ROOT, 'client/runtime/systems/fractal/warden/complexity_warden_meta_organ.js');
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -47,7 +47,7 @@ try {
   {
     "id": "warden_scoring_core",
     "description": "Complexity scoring core computes normalized dimensions",
-    "file_must_exist": "client/systems/fractal/warden/README.md"
+    "file_must_exist": "client/runtime/systems/fractal/warden/README.md"
   },
   {
     "id": "complexity_budget_enforcement",

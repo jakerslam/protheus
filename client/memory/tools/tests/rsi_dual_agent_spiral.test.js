@@ -47,7 +47,7 @@ try {
     system3_script: path.join(ROOT, 'adaptive', 'executive', 'system3_executive_layer.js'),
     rsi_script: path.join(ROOT, 'adaptive', 'rsi', 'rsi_bootstrap.js'),
     rsi_policy_path: path.join(ROOT, 'config', 'rsi_bootstrap_policy.json'),
-    target_paths: ['client/systems/strategy/strategy_learner.ts', 'client/systems/autonomy/model_catalog_loop.ts'],
+    target_paths: ['client/runtime/systems/strategy/strategy_learner.ts', 'client/runtime/systems/autonomy/model_catalog_loop.ts'],
     paths: {
       memory_dir: path.join(tmp, 'memory', 'adaptive', 'rsi_dual_agent_spiral'),
       adaptive_index_path: path.join(tmp, 'adaptive', 'rsi', 'dual_agent_spiral', 'index.json'),

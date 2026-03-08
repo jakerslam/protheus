@@ -201,7 +201,7 @@ mod tests {
     #[test]
     fn selects_requested_lens_when_present() {
         let decision = evaluate_persona_dispatch_gate(
-            "client/systems/ops/protheus_control_plane.js",
+            "client/runtime/systems/ops/protheus_control_plane.js",
             Some("guardian"),
             &["operator", "guardian"],
             &[],

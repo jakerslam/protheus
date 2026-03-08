@@ -95,7 +95,7 @@ runTest('allowlist makes strict mode pass', () => {
     enabled: true,
     strict_default: true,
     scan_roots: [systemsDir],
-    approved_non_wrapper_js: ['client/systems/legacy.js'],
+    approved_non_wrapper_js: ['client/runtime/systems/legacy.js'],
     wrapper_patterns: ["ts_bootstrap').bootstrap(__filename, module);"],
     paths: {
       latest_path: path.join(tempRoot, 'state', 'latest.json'),

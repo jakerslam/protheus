@@ -406,7 +406,7 @@ fn parse_json_payload(raw: &str) -> Option<Value> {
 }
 
 fn spine_runs_dir(root: &Path) -> PathBuf {
-    root.join("client/local/state/spine/runs")
+    root.join("client/runtime/local/state/spine/runs")
 }
 
 fn ensure_dir(path: &Path) {
@@ -510,21 +510,21 @@ fn load_mech_suit_policy(root: &Path) -> MechSuitPolicy {
         attention_queue_path: normalize_path(
             root,
             eyes.and_then(|v| v.get("attention_queue_path")),
-            "client/local/state/attention/queue.jsonl",
+            "client/runtime/local/state/attention/queue.jsonl",
         )
         .to_string_lossy()
         .to_string(),
         attention_receipts_path: normalize_path(
             root,
             eyes.and_then(|v| v.get("receipts_path")),
-            "client/local/state/attention/receipts.jsonl",
+            "client/runtime/local/state/attention/receipts.jsonl",
         )
         .to_string_lossy()
         .to_string(),
         attention_latest_path: normalize_path(
             root,
             eyes.and_then(|v| v.get("latest_path")),
-            "client/local/state/attention/latest.json",
+            "client/runtime/local/state/attention/latest.json",
         )
         .to_string_lossy()
         .to_string(),
@@ -572,12 +572,12 @@ fn load_mech_suit_policy(root: &Path) -> MechSuitPolicy {
         status_path: normalize_path(
             root,
             state.and_then(|v| v.get("status_path")),
-            "client/local/state/ops/mech_suit_mode/latest.json",
+            "client/runtime/local/state/ops/mech_suit_mode/latest.json",
         ),
         history_path: normalize_path(
             root,
             state.and_then(|v| v.get("history_path")),
-            "client/local/state/ops/mech_suit_mode/history.jsonl",
+            "client/runtime/local/state/ops/mech_suit_mode/history.jsonl",
         ),
         policy_path,
     }
@@ -1002,7 +1002,7 @@ fn run_guard(root: &Path, files: &[&str]) -> StepResult {
     run_node_json(
         root,
         &[
-            "client/systems/security/guard.js".to_string(),
+            "client/runtime/systems/security/guard.js".to_string(),
             format!("--files={file_list}"),
         ],
     )
@@ -1076,7 +1076,7 @@ fn append_self_documentation_closeout(
     }
 
     let args = vec![
-        "client/systems/autonomy/self_documentation_closeout.js".to_string(),
+        "client/runtime/systems/autonomy/self_documentation_closeout.js".to_string(),
         "run".to_string(),
         date.to_string(),
         "--approve=1".to_string(),
@@ -1175,15 +1175,15 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
 
     let mut ledger = LedgerWriter::new(root, &cli.date, &run_id);
     let invoked = vec![
-        "client/systems/spine/spine.js",
-        "client/systems/security/guard.js",
-        "client/habits/scripts/external_eyes.js",
-        "client/habits/scripts/eyes_insight.js",
-        "client/habits/scripts/sensory_queue.js",
-        "client/systems/actuation/bridge_from_proposals.js",
-        "client/systems/sensory/cross_signal_engine.js",
-        "client/systems/autonomy/autonomy_controller.js",
-        "client/systems/autonomy/self_documentation_closeout.js",
+        "client/runtime/systems/spine/spine.js",
+        "client/runtime/systems/security/guard.js",
+        "client/cognition/habits/scripts/external_eyes.js",
+        "client/cognition/habits/scripts/eyes_insight.js",
+        "client/cognition/habits/scripts/sensory_queue.js",
+        "client/runtime/systems/actuation/bridge_from_proposals.js",
+        "client/runtime/systems/sensory/cross_signal_engine.js",
+        "client/runtime/systems/autonomy/autonomy_controller.js",
+        "client/runtime/systems/autonomy/self_documentation_closeout.js",
     ];
 
     let (constitution_ok, constitution_hash, expected_hash) = constitution_hash(root);
@@ -1249,7 +1249,7 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
     }
 
     let mut step_args = vec![
-        "client/habits/scripts/external_eyes.js".to_string(),
+        "client/cognition/habits/scripts/external_eyes.js".to_string(),
         "run".to_string(),
     ];
     if let Some(max_eyes) = cli.max_eyes {
@@ -1286,14 +1286,14 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
             (
                 "external_eyes_canary",
                 vec![
-                    "client/habits/scripts/external_eyes.js".to_string(),
+                    "client/cognition/habits/scripts/external_eyes.js".to_string(),
                     "canary".to_string(),
                 ],
             ),
             (
                 "external_eyes_canary_signal",
                 vec![
-                    "client/habits/scripts/external_eyes.js".to_string(),
+                    "client/cognition/habits/scripts/external_eyes.js".to_string(),
                     "canary-signal".to_string(),
                 ],
             ),
@@ -1323,7 +1323,7 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
         (
             "external_eyes_score",
             vec![
-                "client/habits/scripts/external_eyes.js".to_string(),
+                "client/cognition/habits/scripts/external_eyes.js".to_string(),
                 "score".to_string(),
                 cli.date.clone(),
             ],
@@ -1331,7 +1331,7 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
         (
             "external_eyes_evolve",
             vec![
-                "client/habits/scripts/external_eyes.js".to_string(),
+                "client/cognition/habits/scripts/external_eyes.js".to_string(),
                 "evolve".to_string(),
                 cli.date.clone(),
             ],
@@ -1339,7 +1339,7 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
         (
             "cross_signal_engine",
             vec![
-                "client/systems/sensory/cross_signal_engine.js".to_string(),
+                "client/runtime/systems/sensory/cross_signal_engine.js".to_string(),
                 "run".to_string(),
                 cli.date.clone(),
             ],
@@ -1347,7 +1347,7 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
         (
             "eyes_insight",
             vec![
-                "client/habits/scripts/eyes_insight.js".to_string(),
+                "client/cognition/habits/scripts/eyes_insight.js".to_string(),
                 "run".to_string(),
                 cli.date.clone(),
             ],
@@ -1355,7 +1355,7 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
         (
             "sensory_queue_ingest",
             vec![
-                "client/habits/scripts/sensory_queue.js".to_string(),
+                "client/cognition/habits/scripts/sensory_queue.js".to_string(),
                 "ingest".to_string(),
                 cli.date.clone(),
             ],
@@ -1363,7 +1363,7 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
         (
             "bridge_from_proposals",
             vec![
-                "client/systems/actuation/bridge_from_proposals.js".to_string(),
+                "client/runtime/systems/actuation/bridge_from_proposals.js".to_string(),
                 "run".to_string(),
                 cli.date.clone(),
             ],
@@ -1418,7 +1418,7 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
             let res = run_node_json(
                 root,
                 &[
-                    "client/systems/autonomy/autonomy_controller.js".to_string(),
+                    "client/runtime/systems/autonomy/autonomy_controller.js".to_string(),
                     "evidence".to_string(),
                     cli.date.clone(),
                 ],
@@ -1472,7 +1472,7 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
             (
                 "queue_gc",
                 vec![
-                    "client/habits/scripts/queue_gc.js".to_string(),
+                    "client/cognition/habits/scripts/queue_gc.js".to_string(),
                     "run".to_string(),
                     cli.date.clone(),
                 ],
@@ -1480,7 +1480,7 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
             (
                 "git_outcomes",
                 vec![
-                    "client/habits/scripts/git_outcomes.js".to_string(),
+                    "client/cognition/habits/scripts/git_outcomes.js".to_string(),
                     "run".to_string(),
                     cli.date.clone(),
                 ],
@@ -1488,7 +1488,7 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
             (
                 "sensory_digest_daily",
                 vec![
-                    "client/habits/scripts/sensory_digest.js".to_string(),
+                    "client/cognition/habits/scripts/sensory_digest.js".to_string(),
                     "daily".to_string(),
                     cli.date.clone(),
                 ],
@@ -1647,7 +1647,7 @@ mod tests {
             dopamine_threshold_breach_only: true,
             status_path: root.path().join("state/ops/mech_suit_mode/latest.json"),
             history_path: root.path().join("state/ops/mech_suit_mode/history.jsonl"),
-            policy_path: root.path().join("client/config/mech_suit_mode_policy.json"),
+            policy_path: root.path().join("client/runtime/config/mech_suit_mode_policy.json"),
         };
         let context = TerminalReceiptContext {
             run_id,
@@ -1754,7 +1754,7 @@ mod tests {
             dopamine_threshold_breach_only: true,
             status_path: PathBuf::from("state/ops/mech_suit_mode/latest.json"),
             history_path: PathBuf::from("state/ops/mech_suit_mode/history.jsonl"),
-            policy_path: PathBuf::from("client/config/mech_suit_mode_policy.json"),
+            policy_path: PathBuf::from("client/runtime/config/mech_suit_mode_policy.json"),
         };
         let cli = CliArgs {
             command: "run".to_string(),

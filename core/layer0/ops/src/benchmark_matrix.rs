@@ -10,7 +10,7 @@ use std::io::Write;
 use std::path::Path;
 
 const LANE_ID: &str = "benchmark_matrix";
-const DEFAULT_SNAPSHOT_REL: &str = "client/config/competitive_benchmark_snapshot_2026_02.json";
+const DEFAULT_SNAPSHOT_REL: &str = "client/runtime/config/competitive_benchmark_snapshot_2026_02.json";
 const STATE_LATEST_REL: &str = "state/ops/competitive_benchmark_matrix/latest.json";
 const STATE_HISTORY_REL: &str = "state/ops/competitive_benchmark_matrix/history.jsonl";
 const MIN_BAR_WIDTH: usize = 10;
@@ -129,7 +129,7 @@ fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
 }
 
 fn count_guard_checks(root: &Path) -> Result<f64, String> {
-    let payload = read_json(&root.join("client/config/guard_check_registry.json"))?;
+    let payload = read_json(&root.join("client/runtime/config/guard_check_registry.json"))?;
     let count = payload
         .get("merge_guard")
         .and_then(|v| v.get("checks"))
@@ -140,7 +140,7 @@ fn count_guard_checks(root: &Path) -> Result<f64, String> {
 }
 
 fn count_channel_adapters(root: &Path) -> Result<f64, String> {
-    let payload = read_json(&root.join("client/config/platform_adaptation_channels.json"))?;
+    let payload = read_json(&root.join("client/runtime/config/platform_adaptation_channels.json"))?;
     let count = payload
         .get("channels")
         .and_then(Value::as_array)
@@ -152,7 +152,7 @@ fn count_channel_adapters(root: &Path) -> Result<f64, String> {
 fn count_llm_providers(root: &Path) -> Result<f64, String> {
     let mut providers = BTreeSet::<String>::new();
 
-    let onboarding = read_json(&root.join("client/config/provider_onboarding_manifest.json"))?;
+    let onboarding = read_json(&root.join("client/runtime/config/provider_onboarding_manifest.json"))?;
     if let Some(entries) = onboarding.get("providers").and_then(Value::as_object) {
         for record in entries.values() {
             if let Some(provider_key) = record.get("provider_key").and_then(Value::as_str) {
@@ -164,7 +164,7 @@ fn count_llm_providers(root: &Path) -> Result<f64, String> {
         }
     }
 
-    let recovery = read_json(&root.join("client/config/model_health_auto_recovery_policy.json"))?;
+    let recovery = read_json(&root.join("client/runtime/config/model_health_auto_recovery_policy.json"))?;
     if let Some(items) = recovery.get("providers").and_then(Value::as_array) {
         for item in items {
             if let Some(name) = item.as_str() {
@@ -441,10 +441,10 @@ fn run_impl(root: &Path, cmd: &str, snapshot_rel: &str, refresh_runtime: bool, b
                 "evidence": {
                     "runtime_source": "runtime_efficiency_floor",
                     "counter_sources": [
-                        "client/config/guard_check_registry.json",
-                        "client/config/platform_adaptation_channels.json",
-                        "client/config/provider_onboarding_manifest.json",
-                        "client/config/model_health_auto_recovery_policy.json"
+                        "client/runtime/config/guard_check_registry.json",
+                        "client/runtime/config/platform_adaptation_channels.json",
+                        "client/runtime/config/provider_onboarding_manifest.json",
+                        "client/runtime/config/model_health_auto_recovery_policy.json"
                     ]
                 }
             },

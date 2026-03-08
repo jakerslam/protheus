@@ -21,11 +21,11 @@ jobs:
           version: v3.16.2
 
       - name: Helm lint
-        run: helm lint ./client/deploy/helm/protheus
+        run: helm lint ./client/runtime/deploy/helm/protheus
 
       - name: Helm conformance render
         run: |
-          helm template protheus ./client/deploy/helm/protheus > /tmp/protheus-manifest.yaml
+          helm template protheus ./client/runtime/deploy/helm/protheus > /tmp/protheus-manifest.yaml
           test -s /tmp/protheus-manifest.yaml
           grep -q "kind: Deployment" /tmp/protheus-manifest.yaml
           grep -q "helm.sh/hook: test" /tmp/protheus-manifest.yaml

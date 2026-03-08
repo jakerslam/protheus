@@ -64,7 +64,7 @@ function main() {
     required_channels: ['state_backup', 'offsite_state_backup'],
     backup_integrity_script: mockBackupScript,
     gitignore_path: gitignorePath,
-    snapshot_patterns: ['client/local/memory/_snapshots/', 'client/memory/*.backup.*'],
+    snapshot_patterns: ['client/runtime/local/memory/_snapshots/', 'client/memory/*.backup.*'],
     outputs: {
       latest_path: path.join(tmp, 'state', 'ops', 'latest.json'),
       history_path: path.join(tmp, 'state', 'ops', 'history.jsonl')
@@ -82,7 +82,7 @@ function main() {
   assert.ok(out && out.ok === true, 'payload should pass');
   const gitignore = fs.readFileSync(gitignorePath, 'utf8');
   assert.ok(gitignore.includes('# BL-020 memory snapshot ignore rules (backup-verified)'), 'gitignore should contain BL-020 marker');
-  assert.ok(gitignore.includes('client/local/memory/_snapshots/'), 'gitignore should include snapshot ignore rule');
+  assert.ok(gitignore.includes('client/runtime/local/memory/_snapshots/'), 'gitignore should include snapshot ignore rule');
 
   r = run(['verify-and-sync', '--apply=1', '--strict=1'], { ...env, MOCK_FAIL_CHANNEL: 'offsite_state_backup' });
   assert.notStrictEqual(r.status, 0, 'strict run should fail when a channel check fails');

@@ -6,7 +6,7 @@ on:
     paths:
       - 'core/layer0/fluxlattice/**'
       - 'packages/lensmap/**'
-      - 'client/systems/ops/fluxlattice_program.*'
+      - 'client/runtime/systems/ops/fluxlattice_program.*'
 
 jobs:
   placeholder:

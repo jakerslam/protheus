@@ -64,7 +64,7 @@ function runTests() {
   try {
     // Run digest generator
     const result = execSync(
-      `node client/habits/scripts/sensory_digest.js daily ${dateStr}`,
+      `node client/cognition/habits/scripts/sensory_digest.js daily ${dateStr}`,
       { cwd: workspaceRoot, encoding: 'utf8' }
     );
 
@@ -93,7 +93,7 @@ function runTests() {
   try {
     // Run weekly digest generator
     const result = execSync(
-      `node client/habits/scripts/sensory_digest.js weekly ${dateStr}`,
+      `node client/cognition/habits/scripts/sensory_digest.js weekly ${dateStr}`,
       { cwd: workspaceRoot, encoding: 'utf8' }
     );
 
@@ -178,7 +178,7 @@ function runTests() {
 
     // Run anomaly detection
     execSync(
-      `node client/habits/scripts/sensory_digest.js daily ${anomalyDateStr}`,
+      `node client/cognition/habits/scripts/sensory_digest.js daily ${anomalyDateStr}`,
       { cwd: workspaceRoot, encoding: 'utf8' }
     );
 

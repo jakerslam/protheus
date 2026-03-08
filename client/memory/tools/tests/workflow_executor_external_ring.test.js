@@ -143,7 +143,7 @@ function run() {
     external_orchestration: {
       enabled: true,
       detect_actuation_commands: true,
-      command_pattern: 'client/systems/actuation/actuation_executor.js',
+      command_pattern: 'client/runtime/systems/actuation/actuation_executor.js',
       require_policy_root_for_live: true,
       allow_dry_run_without_policy_root: true,
       policy_root_scope: 'workflow_external_orchestration',
@@ -300,7 +300,7 @@ function run() {
     env
   });
 
-  writeWorkflow('node client/systems/actuation/actuation_executor.js run --kind=<adapter> --dry-run');
+  writeWorkflow('node client/runtime/systems/actuation/actuation_executor.js run --kind=<adapter> --dry-run');
   let r = runExecutor(['--dry-run=1']);
   assert.strictEqual(r.status, 0, `dry-run external workflow should pass: ${r.stderr}`);
   let out = parsePayload(r.stdout);
@@ -311,7 +311,7 @@ function run() {
     `dry-run should not require policy root lease: ${JSON.stringify(out)}`
   );
 
-  writeWorkflow('node client/systems/actuation/actuation_executor.js run --kind=<adapter>');
+  writeWorkflow('node client/runtime/systems/actuation/actuation_executor.js run --kind=<adapter>');
   r = runExecutor(['--dry-run=0']);
   assert.strictEqual(r.status, 0, `live external run should return payload even when blocked: ${r.stderr}`);
   out = parsePayload(r.stdout);

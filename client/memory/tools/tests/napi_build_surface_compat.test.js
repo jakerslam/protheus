@@ -73,7 +73,7 @@ process.exit(0);
           id: 'daemon_first',
           role: 'production_default',
           description: 'daemon first default',
-          run_command: 'node client/systems/memory/memory_recall.js query --q=probe --top=1'
+          run_command: 'node client/runtime/systems/memory/memory_recall.js query --q=probe --top=1'
         }
       ]
     },

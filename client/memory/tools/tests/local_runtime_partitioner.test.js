@@ -39,7 +39,7 @@ try {
   let payload = parseJson(out.stdout);
   assert.ok(payload && payload.ok === true, 'init should succeed');
 
-  const junkClient = path.join(tmp, 'client', 'local', 'state', 'junk.json');
+  const junkClient = path.join(tmp, 'client', 'runtime', 'local', 'state', 'junk.json');
   const junkCore = path.join(tmp, 'core', 'local', 'cache', 'junk.bin');
   fs.mkdirSync(path.dirname(junkClient), { recursive: true });
   fs.mkdirSync(path.dirname(junkCore), { recursive: true });
@@ -62,7 +62,7 @@ try {
   assert.ok(payload && payload.ok === true, 'reset should succeed with confirmation');
   assert.ok(!fs.existsSync(junkClient), 'reset should remove client-local junk');
   assert.ok(!fs.existsSync(junkCore), 'reset should remove core-local junk');
-  assert.ok(fs.existsSync(path.join(tmp, 'client', 'local', 'state', '.gitkeep')), 'reset should preserve scaffold markers');
+  assert.ok(fs.existsSync(path.join(tmp, 'client', 'runtime', 'local', 'state', '.gitkeep')), 'reset should preserve scaffold markers');
   assert.ok(fs.existsSync(path.join(tmp, 'core', 'local', 'cache', '.gitkeep')), 'reset should preserve scaffold markers');
 
   fs.rmSync(tmp, { recursive: true, force: true });

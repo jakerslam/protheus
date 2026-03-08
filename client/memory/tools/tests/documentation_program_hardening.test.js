@@ -55,7 +55,7 @@ try {
     version: '1.0-test',
     enabled: true,
     governance_doc: path.join(tmp, 'docs', 'DOCUMENTATION_PROGRAM_GOVERNANCE.md'),
-    required_files: ['client/docs/adr/README.md', 'client/docs/adr/TEMPLATE.md', 'client/docs/adr/INDEX.md'],
+    required_files: ['docs/client/adr/README.md', 'docs/client/adr/TEMPLATE.md', 'docs/client/adr/INDEX.md'],
     required_sections: ['ownership model', 'review cadence', 'artifact tiers', 'adr', 'freshness process', 'backlog + release linkage'],
     paths: { latest_path: latestPath, history_path: historyPath }
   });

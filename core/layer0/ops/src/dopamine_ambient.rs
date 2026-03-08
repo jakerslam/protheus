@@ -207,7 +207,7 @@ fn load_policy(root: &Path) -> DopamineAmbientPolicy {
         runtime_script: normalize_path(
             root,
             dopamine.and_then(|v| v.get("runtime_script")),
-            "client/habits/scripts/dopamine_ambient_snapshot.js",
+            "client/cognition/habits/scripts/dopamine_ambient_snapshot.js",
         ),
         status_path: normalize_path(
             root,

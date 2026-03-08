@@ -22,7 +22,7 @@ function run() {
       summary: 'Improve safety',
       suggested_next_command: 'run checks',
       notes: 'urgent',
-      evidence: [{ evidence_ref: 'ref://a', path: 'client/docs/a.md', title: 'Doc A' }]
+      evidence: [{ evidence_ref: 'ref://a', path: 'docs/client/a.md', title: 'Doc A' }]
     },
     {
       title: 'Refactor',

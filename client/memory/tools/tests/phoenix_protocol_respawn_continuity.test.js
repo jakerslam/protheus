@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-const SCRIPT = path.join(ROOT, 'client/systems/security/phoenix_protocol_respawn_continuity.js');
+const SCRIPT = path.join(ROOT, 'client/runtime/systems/security/phoenix_protocol_respawn_continuity.js');
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });

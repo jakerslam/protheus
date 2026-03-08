@@ -45,13 +45,13 @@ try {
     strict_default: true,
     event_stream: { enabled: false, publish: false, stream: 'security.mcp_a2a_venom_gate' },
     fail_closed: true,
-    venom_script: 'client/systems/security/venom_containment_layer.js',
+    venom_script: 'client/runtime/systems/security/venom_containment_layer.js',
     routes: {
-      mcp_discover: { script: 'client/skills/mcp/mcp_gateway.js', args: ['discover', '--query=memory', '--risk-tier=2'] },
-      a2a_delegate: { script: 'client/systems/a2a/a2a_delegation_plane.js', args: ['execute', '--owner=system', '--task=delegate', '--risk-tier=2'] }
+      mcp_discover: { script: 'client/cognition/skills/mcp/mcp_gateway.js', args: ['discover', '--query=memory', '--risk-tier=2'] },
+      a2a_delegate: { script: 'client/runtime/systems/a2a/a2a_delegation_plane.js', args: ['execute', '--owner=system', '--task=delegate', '--risk-tier=2'] }
     },
     contract_lanes: [
-      { id: 'RR-001', script: 'client/systems/ops/config_flag_conflict_check.js', check_cmd: 'check' }
+      { id: 'RR-001', script: 'client/runtime/systems/ops/config_flag_conflict_check.js', check_cmd: 'check' }
     ],
     paths: {
       memory_dir: path.join(tmp, 'memory', 'security', 'mcp_a2a_venom_contract_gate'),

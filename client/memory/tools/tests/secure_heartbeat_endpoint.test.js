@@ -44,7 +44,7 @@ function main() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'secure-heartbeat-endpoint-'));
   const runbookPath = path.join(tmp, 'docs', 'OPERATOR_RUNBOOK.md');
   fs.mkdirSync(path.dirname(runbookPath), { recursive: true });
-  fs.writeFileSync(runbookPath, 'node client/systems/security/secure_heartbeat_endpoint.js verify --strict=1\n', 'utf8');
+  fs.writeFileSync(runbookPath, 'node client/runtime/systems/security/secure_heartbeat_endpoint.js verify --strict=1\n', 'utf8');
 
   const policyPath = path.join(tmp, 'config', 'secure_heartbeat_endpoint_policy.json');
   writeJson(policyPath, {

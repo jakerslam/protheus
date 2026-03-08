@@ -93,7 +93,7 @@ try {
     schema_version: '1.0-test',
     enabled: true,
     oracle_state_path: path.join(stateDir, 'ops/platform_oracle_hostprofile/latest.json'),
-    channels_registry_path: path.join(ROOT, 'client/config/platform_adaptation_channels.json'),
+    channels_registry_path: path.join(ROOT, 'client/runtime/config/platform_adaptation_channels.json'),
     state_path: path.join(stateDir, 'ops/platform_adaptation_channel_runtime/latest.json'),
     history_path: path.join(stateDir, 'ops/platform_adaptation_channel_runtime/history.jsonl'),
     signing_secret: 'test-secret'
@@ -103,7 +103,7 @@ try {
     schema_id: 'platform_universal_abstraction_matrix_policy',
     schema_version: '1.0-test',
     enabled: true,
-    matrix_path: path.join(ROOT, 'client/config/platform_universal_abstraction_matrix.json'),
+    matrix_path: path.join(ROOT, 'client/runtime/config/platform_universal_abstraction_matrix.json'),
     state_path: path.join(stateDir, 'ops/platform_universal_abstraction_matrix/latest.json'),
     history_path: path.join(stateDir, 'ops/platform_universal_abstraction_matrix/history.jsonl'),
     signing_secret: 'test-secret'
@@ -127,7 +127,7 @@ try {
     enabled: true,
     oracle_state_path: path.join(stateDir, 'ops/platform_oracle_hostprofile/latest.json'),
     channel_state_path: path.join(stateDir, 'ops/platform_adaptation_channel_runtime/latest.json'),
-    lane_predicates_path: path.join(ROOT, 'client/config/host_profile_lane_predicates.json'),
+    lane_predicates_path: path.join(ROOT, 'client/runtime/config/host_profile_lane_predicates.json'),
     state_path: path.join(stateDir, 'ops/host_profile_conformance_formal_gate/latest.json'),
     history_path: path.join(stateDir, 'ops/host_profile_conformance_formal_gate/history.jsonl'),
     signing_secret: 'test-secret'
@@ -138,8 +138,8 @@ try {
     schema_version: '1.0-test',
     enabled: true,
     oracle_state_path: path.join(stateDir, 'ops/platform_oracle_hostprofile/latest.json'),
-    socket_registry_path: path.join(ROOT, 'client/config/platform_socket_registry.json'),
-    admission_policy_path: path.join(ROOT, 'client/config/platform_socket_admission_policy.json'),
+    socket_registry_path: path.join(ROOT, 'client/runtime/config/platform_socket_registry.json'),
+    admission_policy_path: path.join(ROOT, 'client/runtime/config/platform_socket_admission_policy.json'),
     state_path: path.join(stateDir, 'ops/platform_socket_runtime/latest.json'),
     history_path: path.join(stateDir, 'ops/platform_socket_runtime/history.jsonl'),
     install_state_path: path.join(stateDir, 'ops/platform_socket_runtime/installed.json'),

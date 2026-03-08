@@ -10,7 +10,7 @@ Mode: Manual framework audit (scored 1-10)
 | 2. Efficiency & Resource Usage | 8.5 | Runtime efficiency pass (`cold_start_p95_ms=213`, `idle_rss_p95_mb=37.75`, install artifact 3.323 MB); token economics allow with low defer ratio |
 | 3. Wiring & Architectural Integrity | 7.5 | No TS circular deps detected in `systems` (0 cycles); cross-organ imports present (88), mostly expected governance links |
 | 4. Bugs & Reliability | 7.0 | Critical targeted tests green; explicit fail/deny events exist in last 24h (budget denies, llm gateway fails, eye command denies) |
-| 5. Primitive-First Purity | 6.5 | Core strict roots are TS-paired; advisory JS holdouts remain high in `client/habits/scripts` + `client/memory/tools/tests` (430 unpaired) |
+| 5. Primitive-First Purity | 6.5 | Core strict roots are TS-paired; advisory JS holdouts remain high in `client/cognition/habits/scripts` + `client/memory/tools/tests` (430 unpaired) |
 | 6. Governance, Alignment & Duality | 8.0 | Duality seeded and integrated across key lanes; echo/weaver shadow outputs include duality and gate behavior |
 | 7. Security & Sovereignty | 7.5 | Helix clear, red team active, sandbox enforce mode; integrity reseal check currently reports 2 hash mismatches |
 | 8. Observability & Explainability | 6.5 | Many status lanes are observable; explanation primitive enabled but currently empty (`index_entries=0`) |
@@ -57,7 +57,7 @@ Overall weighted health: **7.3 / 10**
 
 ### 5) Primitive-First Purity
 - Strict TS roots are clean (`systems`/`lib` paired with TS or exception-approved).
-- Advisory roots still large JS surface (430 files) in client/habits/tests tooling.
+- Advisory roots still large JS surface (430 files) in client/cognition/habits/tests tooling.
 - Action:
   1. Split advisory JS migration into measurable waves (habits first, then client/memory/tools tests).
 
@@ -70,8 +70,8 @@ Overall weighted health: **7.3 / 10**
 ### 7) Security & Sovereignty
 - Helix status clear, malice quarantine idle, red-team colony healthy, soul attestation match true.
 - Security gap: `integrity:check` currently fails with 2 hash mismatches:
-  - `client/systems/echo/heroic_echo_controller.ts`
-  - `client/systems/weaver/weaver_core.ts`
+  - `client/runtime/systems/echo/heroic_echo_controller.ts`
+  - `client/runtime/systems/weaver/weaver_core.ts`
 - Agent passport status currently has no active passport/action chain state.
 - Action:
   1. Reseal integrity policy immediately after verifying those two files.
@@ -105,7 +105,7 @@ Overall weighted health: **7.3 / 10**
 7. Execute one gated self-improvement shadow run + rollback drill.
 8. Create continuity vault + resurrection test bundle baseline.
 9. Address simplicity-budget missing offset receipts for new organs (`attribution`, `execution`, `finance`, `storm`, `symbiosis`).
-10. Start advisory JS migration wave for `client/habits/scripts` and `client/memory/tools`.
+10. Start advisory JS migration wave for `client/cognition/habits/scripts` and `client/memory/tools`.
 
 ## Commands Used (selected)
 - `npm run -s helix:status`

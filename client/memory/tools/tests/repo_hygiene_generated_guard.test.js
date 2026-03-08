@@ -59,7 +59,7 @@ function main() {
   let out = run([
     'check',
     '--strict=1',
-    '--staged-file=client/systems/ops/new.ts',
+    '--staged-file=client/runtime/systems/ops/new.ts',
     '--staged-file=state/runtime.json',
     '--staged-file=state/README.md'
   ], env);
@@ -71,8 +71,8 @@ function main() {
   out = run([
     'check',
     '--strict=0',
-    '--staged-file=client/systems/ops/new.ts',
-    '--staged-file=client/docs/readme.md'
+    '--staged-file=client/runtime/systems/ops/new.ts',
+    '--staged-file=docs/client/readme.md'
   ], env);
   assert.strictEqual(out.status, 0, out.stderr || 'non-strict run should pass process');
   payload = parseJson(out.stdout);

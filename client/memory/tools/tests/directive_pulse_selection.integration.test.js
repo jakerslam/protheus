@@ -85,12 +85,12 @@ function run() {
           'Define one measurable output metric with 24h target',
           'Run dry-run route and capture receipt'
         ],
-        suggested_next_command: 'node client/systems/routing/route_execute.js --task="Implement one bounded compounding automation step" --tokens_est=700 --dry-run',
+        suggested_next_command: 'node client/runtime/systems/routing/route_execute.js --task="Implement one bounded compounding automation step" --tokens_est=700 --dry-run',
         action_spec: {
           version: 1,
           objective_id: primaryObjective.id,
           target: 'signal:pulse-sel-t1',
-          next_command: 'node client/systems/routing/route_execute.js --task="Implement one bounded compounding automation step" --tokens_est=700 --dry-run',
+          next_command: 'node client/runtime/systems/routing/route_execute.js --task="Implement one bounded compounding automation step" --tokens_est=700 --dry-run',
           verify: [
             'Define one measurable output metric with 24h target',
             'Run dry-run route and capture receipt'
@@ -128,12 +128,12 @@ function run() {
           'Define measurable reliability metric and 48h threshold',
           'Route dry-run'
         ],
-        suggested_next_command: 'node client/systems/routing/route_execute.js --task="Improve reliability logging" --tokens_est=500 --dry-run',
+        suggested_next_command: 'node client/runtime/systems/routing/route_execute.js --task="Improve reliability logging" --tokens_est=500 --dry-run',
         action_spec: {
           version: 1,
           objective_id: secondaryObjective.id,
           target: 'signal:pulse-sel-alt',
-          next_command: 'node client/systems/routing/route_execute.js --task="Improve reliability logging" --tokens_est=500 --dry-run',
+          next_command: 'node client/runtime/systems/routing/route_execute.js --task="Improve reliability logging" --tokens_est=500 --dry-run',
           verify: [
             'Define measurable reliability metric and 48h threshold',
             'Route dry-run'

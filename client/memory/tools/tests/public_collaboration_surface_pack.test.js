@@ -73,9 +73,9 @@ try {
     '.github/ISSUE_TEMPLATE/bug_report.md',
     '.github/ISSUE_TEMPLATE/feature_request.md',
     '.github/ISSUE_TEMPLATE/security_report.md',
-    'client/docs/PUBLIC_COLLABORATION_TRIAGE.md',
-    'client/docs/CLAIM_EVIDENCE_POLICY.md',
-    'client/docs/DOCUMENTATION_PROGRAM_GOVERNANCE.md'
+    'docs/client/PUBLIC_COLLABORATION_TRIAGE.md',
+    'docs/client/CLAIM_EVIDENCE_POLICY.md',
+    'docs/client/DOCUMENTATION_PROGRAM_GOVERNANCE.md'
   ].join('\n'));
 
   writeJson(policyPath, {
@@ -86,8 +86,8 @@ try {
       '.github/ISSUE_TEMPLATE/feature_request.md',
       '.github/ISSUE_TEMPLATE/security_report.md',
       '.github/ISSUE_TEMPLATE/config.yml',
-      'client/docs/PUBLIC_COLLABORATION_TRIAGE.md',
-      'client/docs/PUBLIC_COLLABORATION_SURFACE.md'
+      'docs/client/PUBLIC_COLLABORATION_TRIAGE.md',
+      'docs/client/PUBLIC_COLLABORATION_SURFACE.md'
     ],
     triage_doc: path.join(tmp, 'docs', 'PUBLIC_COLLABORATION_TRIAGE.md'),
     contributing_doc: path.join(tmp, 'CONTRIBUTING.md'),
@@ -112,9 +112,9 @@ try {
       '.github/ISSUE_TEMPLATE/security_report.md'
     ],
     required_governance_links: [
-      'client/docs/PUBLIC_COLLABORATION_TRIAGE.md',
-      'client/docs/CLAIM_EVIDENCE_POLICY.md',
-      'client/docs/DOCUMENTATION_PROGRAM_GOVERNANCE.md'
+      'docs/client/PUBLIC_COLLABORATION_TRIAGE.md',
+      'docs/client/CLAIM_EVIDENCE_POLICY.md',
+      'docs/client/DOCUMENTATION_PROGRAM_GOVERNANCE.md'
     ],
     paths: {
       latest_path: latestPath,

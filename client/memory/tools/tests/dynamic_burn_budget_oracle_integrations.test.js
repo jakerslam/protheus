@@ -128,7 +128,7 @@ function main() {
     GATED_SELF_IMPROVEMENT_POLICY_PATH: gsiPolicyPath,
     GATED_SELF_IMPROVEMENT_BURN_ORACLE_LATEST_PATH: oracleLatestPath
   };
-  proc = run(GSI_SCRIPT, ['propose', '--objective-id=x', '--target-path=client/systems/autonomy/x.ts'], env);
+  proc = run(GSI_SCRIPT, ['propose', '--objective-id=x', '--target-path=client/runtime/systems/autonomy/x.ts'], env);
   assert.strictEqual(proc.status, 0, proc.stderr || 'gsi propose should pass');
   out = parseJson(proc.stdout);
   const proposalId = out && out.proposal && out.proposal.proposal_id;

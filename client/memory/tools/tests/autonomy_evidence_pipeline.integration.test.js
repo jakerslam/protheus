@@ -92,7 +92,7 @@ async function main() {
       version: '1.0',
       adapters: {
         moltbook_publish: {
-          module: 'client/skills/moltbook/actuation_adapter.js',
+          module: 'client/cognition/skills/moltbook/actuation_adapter.js',
           description: 'Guarded Moltbook post publication with verification receipts.'
         }
       }

@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const DEFAULT_POLICY_REL: &str = "client/config/autotest_doctor_policy.json";
+const DEFAULT_POLICY_REL: &str = "client/runtime/config/autotest_doctor_policy.json";
 
 #[derive(Debug, Clone)]
 struct CliArgs {
@@ -1644,7 +1644,7 @@ mod tests {
         assert!(ok.trusted);
         assert_eq!(ok.path.as_deref(), Some("client/memory/tools/tests/a.test.js"));
 
-        let bad = extract_trusted_test_path("node client/systems/ops/a.test.js");
+        let bad = extract_trusted_test_path("node client/runtime/systems/ops/a.test.js");
         assert!(!bad.trusted);
         assert_eq!(bad.reason.as_deref(), Some("path_outside_allowlist"));
     }

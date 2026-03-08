@@ -51,7 +51,7 @@ function run() {
       layer: 'sensory',
       tags: ['adaptive', 'sensory', 'trend'],
       summary: 'Existing adaptive trend eye',
-      path_ref: 'client/local/adaptive/sensory/eyes/catalog.json'
+      path_ref: 'client/runtime/local/adaptive/sensory/eyes/catalog.json'
     }
   ]);
 

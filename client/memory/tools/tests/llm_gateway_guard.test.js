@@ -48,7 +48,7 @@ function main() {
     assert.strictEqual(first.code, 1, 'guard should fail on direct non-gateway ollama spawn');
     assert.ok(first.payload && first.payload.ok === false, 'payload should report failure');
     assert.strictEqual(Number(first.payload.violation_count || 0), 1, 'should report exactly one violation');
-    assert.strictEqual(String(first.payload.violations[0].file), 'client/systems/memory/bad_direct_llm.js');
+    assert.strictEqual(String(first.payload.violations[0].file), 'client/runtime/systems/memory/bad_direct_llm.js');
     assert.strictEqual(String(first.payload.violations[0].type), 'direct_ollama_spawn');
 
     fs.rmSync(path.join(tempRoot, 'systems', 'memory', 'bad_direct_llm.js'), { force: true });

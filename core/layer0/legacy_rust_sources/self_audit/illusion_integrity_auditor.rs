@@ -133,7 +133,7 @@ fn main() {
     let required_files_arg = parse_arg(
         &args,
         "required-files",
-        "README.md,CHANGELOG.md,client/docs/ONBOARDING_PLAYBOOK.md,client/docs/UI_SURFACE_MATURITY_MATRIX.md,client/docs/HISTORY_CLEANLINESS.md,.github/ISSUE_TEMPLATE/bug_report.md,.github/ISSUE_TEMPLATE/feature_request.md,.github/ISSUE_TEMPLATE/security_report.md",
+        "README.md,CHANGELOG.md,docs/client/ONBOARDING_PLAYBOOK.md,docs/client/UI_SURFACE_MATURITY_MATRIX.md,docs/client/HISTORY_CLEANLINESS.md,.github/ISSUE_TEMPLATE/bug_report.md,.github/ISSUE_TEMPLATE/feature_request.md,.github/ISSUE_TEMPLATE/security_report.md",
     );
     let suspicious_names_arg = parse_arg(
         &args,

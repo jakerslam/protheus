@@ -302,7 +302,7 @@ mod tests {
     #[test]
     fn status_payload_reads_state_and_outputs_expected_keys() {
         let root = unique_temp_dir("idle-dream-status");
-        let dreams_dir = root.join("client/local/state/memory/dreams");
+        let dreams_dir = root.join("client/runtime/local/state/memory/dreams");
         let idle_dir = dreams_dir.join("idle");
         let rem_dir = dreams_dir.join("rem");
         fs::create_dir_all(&idle_dir).expect("mkdir idle");

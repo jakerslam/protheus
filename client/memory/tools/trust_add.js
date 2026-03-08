@@ -13,7 +13,7 @@ function main() {
   
   if (args.length < 2) {
     console.error('Usage: node trust_add.js /path/to/skill.js "approval note"');
-    console.error('Example: node trust_add.js /Users/jay/.openclaw/workspace/client/skills/moltbook/moltbook_api.js "Core Moltbook API, reviewed and safe"');
+    console.error('Example: node trust_add.js /Users/jay/.openclaw/workspace/client/cognition/skills/moltbook/moltbook_api.js "Core Moltbook API, reviewed and safe"');
     process.exit(1);
   }
   

@@ -74,9 +74,9 @@ try {
     enable_on_apply: false,
     required_files: [
       'README.md',
-      'client/docs/UI_SURFACE_MATURITY_MATRIX.md',
-      'client/docs/UI_PHASE1_TRADITIONAL_POLISH.md',
-      'client/docs/ONBOARDING_PLAYBOOK.md'
+      'docs/client/UI_SURFACE_MATURITY_MATRIX.md',
+      'docs/client/UI_PHASE1_TRADITIONAL_POLISH.md',
+      'docs/client/ONBOARDING_PLAYBOOK.md'
     ],
     required_sections: ['spacing', 'typography', 'motion', 'states', 'theme', 'keyboard navigation', 'command palette', 'responsive'],
     accessibility_terms: ['aria', 'keyboard', 'focus', 'contrast'],

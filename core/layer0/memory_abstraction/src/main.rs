@@ -258,7 +258,7 @@ fn memory_view_policy(root: &Path) -> Value {
     let policy_path = env::var("MEMORY_ABSTRACTION_VIEW_POLICY_PATH")
         .ok()
         .map(PathBuf::from)
-        .unwrap_or_else(|| root.join("client/config/memory_abstraction_view_policy.json"));
+        .unwrap_or_else(|| root.join("client/runtime/config/memory_abstraction_view_policy.json"));
     let raw = read_json(&policy_path);
     let default_limit = raw
         .get("default_limit")
@@ -446,7 +446,7 @@ fn analytics_policy(root: &Path) -> Value {
     let policy_path = env::var("MEMORY_ABSTRACTION_ANALYTICS_POLICY_PATH")
         .ok()
         .map(PathBuf::from)
-        .unwrap_or_else(|| root.join("client/config/memory_abstraction_analytics_policy.json"));
+        .unwrap_or_else(|| root.join("client/runtime/config/memory_abstraction_analytics_policy.json"));
     let raw = read_json(&policy_path);
     let paths = raw.get("paths").cloned().unwrap_or(Value::Null);
     json!({
@@ -710,7 +710,7 @@ fn harness_policy(root: &Path) -> Value {
     let policy_path = env::var("MEMORY_ABSTRACTION_TEST_POLICY_PATH")
         .ok()
         .map(PathBuf::from)
-        .unwrap_or_else(|| root.join("client/config/memory_abstraction_test_harness_policy.json"));
+        .unwrap_or_else(|| root.join("client/runtime/config/memory_abstraction_test_harness_policy.json"));
     let raw = read_json(&policy_path);
     let paths = raw.get("paths").cloned().unwrap_or(Value::Null);
     json!({
@@ -752,7 +752,7 @@ fn cmd_test_harness(root: &Path, subcmd: &str) -> Value {
               "operation_id": format!("memory_harness_probe_{now_ms}"),
               "subsystem": "memory",
               "action": "harness",
-              "actor": "client/systems/memory/abstraction/test_harness",
+              "actor": "client/runtime/systems/memory/abstraction/test_harness",
               "risk_class": "high",
               "tags": ["memory", "test_harness", "foundation_lock"],
               "audit_receipt_nonce": format!("nonce-{token}"),

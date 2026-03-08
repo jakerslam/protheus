@@ -85,7 +85,7 @@ function buildCase(seed) {
     events.push({
       trace_id: `trace_${seed}_${i}`,
       ts_millis: ts,
-      source: rnd() > 0.2 ? 'client/systems/observability' : 'client/systems/red_legion',
+      source: rnd() > 0.2 ? 'client/runtime/systems/observability' : 'client/runtime/systems/red_legion',
       operation: rnd() > 0.5 ? 'trace.capture' : 'chaos.replay',
       severity: sev,
       tags: [primaryTag, secondaryTag],
@@ -119,7 +119,7 @@ function main() {
         {
           trace_id: 'fixed_1',
           ts_millis: 1000,
-          source: 'client/systems/observability',
+          source: 'client/runtime/systems/observability',
           operation: 'trace.capture',
           severity: 'low',
           tags: ['runtime.guardrails'],
@@ -129,7 +129,7 @@ function main() {
         {
           trace_id: 'fixed_2',
           ts_millis: 1080,
-          source: 'client/systems/red_legion',
+          source: 'client/runtime/systems/red_legion',
           operation: 'chaos.replay',
           severity: 'medium',
           tags: ['chaos.replay', 'drift'],
@@ -147,7 +147,7 @@ function main() {
         {
           trace_id: 'tamper_1',
           ts_millis: 2000,
-          source: 'client/systems/observability',
+          source: 'client/runtime/systems/observability',
           operation: 'trace.capture',
           severity: 'critical',
           tags: ['tamper'],

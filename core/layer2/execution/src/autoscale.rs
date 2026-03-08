@@ -12633,7 +12633,7 @@ pub fn compute_parse_directive_file_arg(
             file: String::new(),
         };
     }
-    let allow = Regex::new(r"(?i)^client/config/directives/[A-Za-z0-9_]+\.ya?ml$")
+    let allow = Regex::new(r"(?i)^client/runtime/config/directives/[A-Za-z0-9_]+\.ya?ml$")
         .expect("valid directive file allow regex");
     if !allow.is_match(&raw) {
         return ParseDirectiveFileArgOutput {
@@ -13026,7 +13026,7 @@ pub fn compute_directive_clarification_exec_spec(
     let mut rel_file = if objective_id.is_empty() {
         String::new()
     } else {
-        format!("client/config/directives/{objective_id}.yaml")
+        format!("client/runtime/config/directives/{objective_id}.yaml")
     };
     let mut source = if objective_id.is_empty() {
         String::new()
@@ -23379,13 +23379,13 @@ mod tests {
             notes: Some(" urgent ".to_string()),
             evidence: vec![ProposalTextBlobEvidenceEntryInput {
                 evidence_ref: Some("ref://a".to_string()),
-                path: Some("client/docs/a.md".to_string()),
+                path: Some("docs/client/a.md".to_string()),
                 title: Some("Doc A".to_string()),
             }],
         });
         assert_eq!(
             out.blob,
-            "fix drift | improve safety | run checks | urgent | ref://a | client/docs/a.md | doc a"
+            "fix drift | improve safety | run checks | urgent | ref://a | docs/client/a.md | doc a"
         );
     }
 
@@ -23401,7 +23401,7 @@ mod tests {
                 "evidence": [
                     {
                         "evidence_ref": "ref://a",
-                        "path": "client/docs/a.md",
+                        "path": "docs/client/a.md",
                         "title": "Doc A"
                     }
                 ]
@@ -23410,7 +23410,7 @@ mod tests {
         .to_string();
         let out = run_autoscale_json(&payload).expect("autoscale proposal_text_blob");
         assert!(out.contains("\"mode\":\"proposal_text_blob\""));
-        assert!(out.contains("\"blob\":\"fix drift | improve safety | run checks | urgent | ref://a | client/docs/a.md | doc a\""));
+        assert!(out.contains("\"blob\":\"fix drift | improve safety | run checks | urgent | ref://a | docs/client/a.md | doc a\""));
     }
 
     #[test]
@@ -27749,13 +27749,13 @@ if mode == "alpha" {
 
     #[test]
     fn bridge_maps_all_backlog_primitive_callsite_modes() {
-        let ts_autonomy = include_str!("../../../client/systems/autonomy/autonomy_controller.ts");
+        let ts_autonomy = include_str!("../../../client/runtime/systems/autonomy/autonomy_controller.ts");
         let ts_autonomy_legacy =
-            include_str!("../../../client/systems/autonomy/autonomy_controller_legacy.ts");
-        let ts_inversion = include_str!("../../../client/systems/autonomy/inversion_controller.ts");
+            include_str!("../../../client/runtime/systems/autonomy/autonomy_controller_legacy.ts");
+        let ts_inversion = include_str!("../../../client/runtime/systems/autonomy/inversion_controller.ts");
         let ts_inversion_legacy =
-            include_str!("../../../client/systems/autonomy/inversion_controller_legacy.ts");
-        let bridge = include_str!("../../../client/systems/autonomy/backlog_autoscale_rust_bridge.ts");
+            include_str!("../../../client/runtime/systems/autonomy/inversion_controller_legacy.ts");
+        let bridge = include_str!("../../../client/runtime/systems/autonomy/backlog_autoscale_rust_bridge.ts");
         let mut called = extract_mode_literals(ts_autonomy, "runBacklogAutoscalePrimitive");
         called.extend(extract_mode_literals(
             ts_autonomy_legacy,
@@ -27789,12 +27789,12 @@ if mode == "alpha" {
 
     #[test]
     fn controller_callsite_modes_are_dispatched_by_rust_autoscale_json() {
-        let ts_autonomy = include_str!("../../../client/systems/autonomy/autonomy_controller.ts");
+        let ts_autonomy = include_str!("../../../client/runtime/systems/autonomy/autonomy_controller.ts");
         let ts_autonomy_legacy =
-            include_str!("../../../client/systems/autonomy/autonomy_controller_legacy.ts");
-        let ts_inversion = include_str!("../../../client/systems/autonomy/inversion_controller.ts");
+            include_str!("../../../client/runtime/systems/autonomy/autonomy_controller_legacy.ts");
+        let ts_inversion = include_str!("../../../client/runtime/systems/autonomy/inversion_controller.ts");
         let ts_inversion_legacy =
-            include_str!("../../../client/systems/autonomy/inversion_controller_legacy.ts");
+            include_str!("../../../client/runtime/systems/autonomy/inversion_controller_legacy.ts");
         let rust_src = include_str!("autoscale.rs");
         let mut called = extract_mode_literals(ts_autonomy, "runBacklogAutoscalePrimitive");
         called.extend(extract_mode_literals(
@@ -27827,7 +27827,7 @@ if mode == "alpha" {
 
     #[test]
     fn rust_dispatch_covers_all_backlog_bridge_modes() {
-        let bridge = include_str!("../../../client/systems/autonomy/backlog_autoscale_rust_bridge.ts");
+        let bridge = include_str!("../../../client/runtime/systems/autonomy/backlog_autoscale_rust_bridge.ts");
         let rust_src = include_str!("autoscale.rs");
         let mapped = extract_bridge_modes(bridge, "runBacklogAutoscalePrimitive");
         let dispatched = extract_dispatch_modes(rust_src);

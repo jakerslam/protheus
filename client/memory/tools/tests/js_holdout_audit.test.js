@@ -45,10 +45,10 @@ function run() {
   writeJson(registryPath, {
     version: '1.0-test',
     strict_roots: ['systems'],
-    advisory_roots: ['client/habits/scripts'],
+    advisory_roots: ['client/cognition/habits/scripts'],
     exceptions: [
       {
-        path: 'client/systems/holdout.js',
+        path: 'client/runtime/systems/holdout.js',
         owner: 'unit',
         reason: 'test',
         benchmark_evidence: 'test',
@@ -65,8 +65,8 @@ function run() {
   assert.ok(Number(strictPayload.strict_total || 0) >= 2, 'strict total should include scanned JS files');
   assert.ok(
     Array.isArray(strictPayload.advisory_violations)
-      && strictPayload.advisory_violations.some((row) => String(row.path || '').endsWith('client/habits/scripts/probe.js')),
-    'advisory violation should include client/habits/scripts probe.js'
+      && strictPayload.advisory_violations.some((row) => String(row.path || '').endsWith('client/cognition/habits/scripts/probe.js')),
+    'advisory violation should include client/cognition/habits/scripts probe.js'
   );
   const wave1 = runNode(script, ['wave-plan', `--registry=${registryPath}`, '--wave-size=10', '--churn-days=30'], tmp, env);
   assert.strictEqual(wave1.status, 0, wave1.stderr || wave1.stdout);
@@ -74,7 +74,7 @@ function run() {
   assert.ok(wave1Payload && wave1Payload.type === 'js_holdout_wave_plan', 'wave-plan should emit plan payload');
   assert.ok(
     Array.isArray(wave1Payload.wave_candidates)
-      && wave1Payload.wave_candidates.some((row) => String(row.path || '').endsWith('client/systems/holdout.js')),
+      && wave1Payload.wave_candidates.some((row) => String(row.path || '').endsWith('client/runtime/systems/holdout.js')),
     'wave-plan should include holdout.js as candidate'
   );
   assert.ok(wave1Payload.exception_registry_diff && wave1Payload.exception_registry_diff.added_count >= 1, 'first wave-plan should detect added exception snapshot');
@@ -83,7 +83,7 @@ function run() {
   writeJson(registryPath, {
     version: '1.0-test',
     strict_roots: ['systems'],
-    advisory_roots: ['client/habits/scripts'],
+    advisory_roots: ['client/cognition/habits/scripts'],
     exceptions: []
   });
   const wave2 = runNode(script, ['wave-plan', `--registry=${registryPath}`, '--wave-size=10', '--churn-days=30'], tmp, env);
@@ -92,7 +92,7 @@ function run() {
   assert.ok(wave2Payload && wave2Payload.exception_registry_diff, 'second wave-plan should include exception diff');
   assert.ok(
     Array.isArray(wave2Payload.exception_registry_diff.removed)
-      && wave2Payload.exception_registry_diff.removed.includes('client/systems/holdout.js'),
+      && wave2Payload.exception_registry_diff.removed.includes('client/runtime/systems/holdout.js'),
     'exception diff should show removed holdout exception'
   );
 
@@ -102,7 +102,7 @@ function run() {
   assert.ok(failPayload && failPayload.ok === false, 'strict failure payload should set ok=false');
   assert.ok(
     Array.isArray(failPayload.strict_violations)
-      && failPayload.strict_violations.some((row) => String(row.path || '').endsWith('client/systems/holdout.js')),
+      && failPayload.strict_violations.some((row) => String(row.path || '').endsWith('client/runtime/systems/holdout.js')),
     'strict violations should include unapproved holdout.js'
   );
 

@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-const SCRIPT = path.join(ROOT, 'client/systems/security/signed_plugin_trust_marketplace.js');
+const SCRIPT = path.join(ROOT, 'client/runtime/systems/security/signed_plugin_trust_marketplace.js');
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });

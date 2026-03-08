@@ -6,7 +6,7 @@ on:
     paths:
       - '.all-contributorsrc'
       - 'README.md'
-      - 'client/docs/community/contributors_manifest.json'
+      - 'docs/client/community/contributors_manifest.json'
       - 'scripts/verify-empty-fort.sh'
       - '.github/workflows/empty-fort-verify.yml'
 

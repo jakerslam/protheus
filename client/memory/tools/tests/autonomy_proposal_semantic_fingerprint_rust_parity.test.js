@@ -21,7 +21,7 @@ function makeProposal(id, title, summary) {
     type: 'ops_remediation',
     title,
     summary,
-    suggested_next_command: 'node client/systems/ops/protheusctl.js status --id=T1_Objective',
+    suggested_next_command: 'node client/runtime/systems/ops/protheusctl.js status --id=T1_Objective',
     meta: {
       source_eye: 'github_release',
       objective_id: 'T1_Objective'

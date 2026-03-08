@@ -104,7 +104,7 @@ try {
   assert.strictEqual(out.payload.checks_passed, 7);
 
   const readme = fs.readFileSync(path.join(platformDir, 'README.md'), 'utf8');
-  assert.ok(readme.includes('Canonical implementation remains in `client/systems/ops/open_platform_release_pack.ts`'));
+  assert.ok(readme.includes('Canonical implementation remains in `client/runtime/systems/ops/open_platform_release_pack.ts`'));
   assert.ok(readme.includes('release pack:'), 'README should include source references');
 
   const badges = JSON.parse(fs.readFileSync(path.join(platformDir, 'compatibility_badges.json'), 'utf8'));

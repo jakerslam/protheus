@@ -2154,7 +2154,7 @@ pub fn apply_mode_adjustments(mode: &str, base: &ModeAdjustmentInput, adapters: 
         if let Some(alias) = alias {
             let mut mapped = tier_alias_to_adjustment(alias, &out);
             mapped.mode = m.clone();
-            mapped.mode_policy_source = "client/config/model_adapters.json".to_string();
+            mapped.mode_policy_source = "client/runtime/config/model_adapters.json".to_string();
             if m == "deep-thinker" || m == "deep_thinker" {
                 mapped.risk = "high".to_string();
                 mapped.complexity = "high".to_string();
@@ -3335,7 +3335,7 @@ mod tests {
         assert_eq!(mapped.role, "coding");
         assert!(mapped.mode_adjusted);
         assert_eq!(mapped.mode_reason.as_deref(), Some("tier2_build"));
-        assert_eq!(mapped.mode_policy_source, "client/config/model_adapters.json");
+        assert_eq!(mapped.mode_policy_source, "client/runtime/config/model_adapters.json");
 
         let deep = apply_mode_adjustments("deep-thinker", &base, &adapters);
         assert_eq!(deep.risk, "high");

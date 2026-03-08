@@ -70,25 +70,25 @@ try {
   writeText(path.join(tmp, 'README.md'), 'Public claims include evidence links only.');
   writeText(path.join(tmp, 'docs', 'README.md'), 'Docs hub with receipts and evidence.');
   writeText(path.join(tmp, 'docs', 'PUBLIC_OPERATOR_PROFILE.md'), 'Profile summary.');
-  writeText(path.join(tmp, 'docs', 'release', 'templates', 'release_plan.md'), 'Claim-Evidence Matrix\nEvidence link: client/docs/benchmarks.md');
+  writeText(path.join(tmp, 'docs', 'release', 'templates', 'release_plan.md'), 'Claim-Evidence Matrix\nEvidence link: docs/client/benchmarks.md');
 
   writeJson(policyPath, {
     version: '1.0-test',
     enabled: true,
     required_docs: [
-      'client/docs/CLAIM_EVIDENCE_POLICY.md',
-      'client/docs/EMPTY_FORT_INTEGRITY_CHECKLIST.md',
-      'client/docs/PUBLIC_COLLABORATION_TRIAGE.md',
-      'client/docs/RELEASE_DISCIPLINE_POLICY.md'
+      'docs/client/CLAIM_EVIDENCE_POLICY.md',
+      'docs/client/EMPTY_FORT_INTEGRITY_CHECKLIST.md',
+      'docs/client/PUBLIC_COLLABORATION_TRIAGE.md',
+      'docs/client/RELEASE_DISCIPLINE_POLICY.md'
     ],
     release_surfaces: [
       'README.md',
-      'client/docs/README.md',
-      'client/docs/PUBLIC_OPERATOR_PROFILE.md',
-      'client/docs/release/templates/release_plan.md'
+      'docs/client/README.md',
+      'docs/client/PUBLIC_OPERATOR_PROFILE.md',
+      'docs/client/release/templates/release_plan.md'
     ],
     claim_terms: ['proven at scale', 'fully autonomous', '99.9%'],
-    evidence_terms: ['evidence', 'receipt', 'client/docs/'],
+    evidence_terms: ['evidence', 'receipt', 'docs/client/'],
     required_policy_terms: ['measurable', 'security-sensitive', 'required evidence', 'prohibited patterns', 'review gate'],
     required_checklist_terms: ['claim class', 'evidence link', 'owner', 'verification date', 'status'],
     paths: {

@@ -11,6 +11,6 @@ node apps/examples/personas-demo/run.js
 This executes:
 
 ```bash
-node client/systems/ops/protheusctl.js toolkit personas --list
+node client/runtime/systems/ops/protheusctl.js toolkit personas --list
 ```
 

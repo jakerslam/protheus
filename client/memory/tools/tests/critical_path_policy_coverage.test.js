@@ -61,7 +61,7 @@ function main() {
         {
           id: 'sample_lane_status',
           command: 'node',
-          args: ['client/systems/ops/sample_lane.js']
+          args: ['client/runtime/systems/ops/sample_lane.js']
         }
       ],
       optional_checks: []

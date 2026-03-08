@@ -72,7 +72,7 @@ fn synthesize_events(request: &ChaosGameRequest) -> Vec<TraceEvent> {
         events.push(TraceEvent {
             trace_id: format!("{}-evt-{}", request.mission_id, i + 1),
             ts_millis: request.event_seed.saturating_add((i as u64) * 120),
-            source: "client/systems/red_legion".to_string(),
+            source: "client/runtime/systems/red_legion".to_string(),
             operation: if i % 2 == 0 {
                 "chaos.inject".to_string()
             } else {

@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const POLICY_REL: &str = "client/config/adaptive_runtime_policy.json";
+const POLICY_REL: &str = "client/runtime/config/adaptive_runtime_policy.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct AdaptiveRuntimePolicy {

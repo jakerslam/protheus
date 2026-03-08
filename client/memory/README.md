@@ -1,19 +1,19 @@
 # client/memory/README.md
 
 This directory is the versioned memory knowledge surface for Protheus.
-Runtime/user-instance memory belongs under `client/local/memory` (ignored).
+Runtime/user-instance memory belongs under `client/runtime/local/memory` (ignored).
 
 Conversation synthesis runtime output is emitted to:
-- `client/local/state/memory/conversation_eye/nodes.jsonl`
-- `client/local/state/memory/conversation_eye/index.json`
+- `client/runtime/local/state/memory/conversation_eye/nodes.jsonl`
+- `client/runtime/local/state/memory/conversation_eye/index.json`
 
 Dream-sequenced matrix runtime output is emitted to:
-- `client/local/state/memory/matrix/tag_memory_matrix.json`
+- `client/runtime/local/state/memory/matrix/tag_memory_matrix.json`
 - `client/memory/TAG_MEMORY_MATRIX.md` (readable export)
 
 Auto-recall runtime output is emitted to:
-- `client/local/state/memory/auto_recall/events.jsonl`
-- `client/local/state/memory/auto_recall/latest.json`
+- `client/runtime/local/state/memory/auto_recall/events.jsonl`
+- `client/runtime/local/state/memory/auto_recall/latest.json`
 
 ## Memory Matrix + Dream Sequencer
 
@@ -37,7 +37,7 @@ Commands:
 When a new memory node is filed (for example by `conversation_eye`), `memory_auto_recall`:
 - finds top matches by shared tags + matrix rank
 - pushes a bounded attention event through conduit (`attention-queue enqueue`)
-- records deterministic recall receipts under `client/local/state/memory/auto_recall/*`
+- records deterministic recall receipts under `client/runtime/local/state/memory/auto_recall/*`
 
 Command:
 - `npm run -s memory:auto-recall:status`
@@ -54,7 +54,7 @@ Trim mode keeps bounded hits and trims excerpts/summaries. Reject mode fails clo
 ## Moltbook Credentials Persistence
 
 To ensure context-free continuity for Moltbook:
-- The Moltbook API key and agent_name are stored in `/Users/jay/.client/config/moltbook/credentials.json`.
+- The Moltbook API key and agent_name are stored in `/Users/jay/.client/runtime/config/moltbook/credentials.json`.
 - On *every* session startup that allows file read access, load this file and cache contents locally for any Moltbook API/skill task (even if prior chat history/context is missing).
 - If file is missing, alert human for re-entry of credentials.
 
@@ -62,14 +62,14 @@ To ensure context-free continuity for Moltbook:
 
 This logic will work for any OpenClaw agent, even if model weights/sessions switch, as long as:
 - The workspace filesystem is retained
-- Read/write access to `/.client/config/moltbook/` remains
+- Read/write access to `/.client/runtime/config/moltbook/` remains
 - No restrictions on agent-specific file read ops
 
 **If switching LLMs breaks this flow, alert the human and request intervention!**
 
 ## Heartbeat Tracking
 
-Track periodic checks in `client/local/memory/heartbeat-state.json`:
+Track periodic checks in `client/runtime/local/memory/heartbeat-state.json`:
 - Last email check
 - Last calendar check  
 - Last weather check
