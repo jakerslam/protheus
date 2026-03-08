@@ -138,6 +138,7 @@ try {
   const policyPath = writePolicy(tempRoot);
   const inboxDir = path.join(tempRoot, 'state', 'cockpit', 'inbox');
   const latestPath = path.join(inboxDir, 'latest.json');
+  const alertsLatestPath = path.join(tempRoot, 'state', 'cockpit', 'alerts', 'latest.json');
 
   const env = {
     MECH_SUIT_MODE_POLICY_PATH: policyPath,
@@ -173,6 +174,28 @@ try {
   assert.ok(out.payload && out.payload.ok === true, 'second cockpit once should succeed');
   assert.strictEqual(Number(out.payload.sequence || 0), 2, 'second ingest sequence should be 2');
   assert.strictEqual(Number(out.payload.attention && out.payload.attention.batch_count || 0), 0, 'second ingest should have empty batch');
+  assert.strictEqual(Boolean(out.payload && out.payload.alerts && out.payload.alerts.emitted), false, 'no alerts should emit for empty batch');
+
+  const criticalEvent = {
+    ts: '2026-03-06T00:00:30.000Z',
+    source: 'external_eyes',
+    source_type: 'infra_outage_state',
+    severity: 'critical',
+    summary: 'critical outage',
+    attention_key: 'cockpit-harness-critical-event'
+  };
+  out = runOps(['attention-queue', 'enqueue', `--event-json=${JSON.stringify(criticalEvent)}`], env);
+  maybeSkipForHostTimeout(out, tempRoot);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  assert.ok(out.payload && out.payload.ok === true, 'critical enqueue should succeed');
+
+  out = runNode(COCKPIT, ['once', '--consumer=cockpit_test', '--limit=8'], env);
+  maybeSkipForHostTimeout(out, tempRoot);
+  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
+  assert.ok(out.payload && out.payload.ok === true, 'third cockpit once should succeed');
+  assert.strictEqual(Boolean(out.payload && out.payload.alerts && out.payload.alerts.emitted), true, 'critical event should emit alert');
+  assert.strictEqual(Number(out.payload && out.payload.alerts && out.payload.alerts.count || 0), 1, 'critical alert count should be one');
+  assert.ok(fs.existsSync(alertsLatestPath), 'cockpit alerts latest.json should be written');
 
   out = runNode(PROTHEUSD, ['status'], {
     ...env,
@@ -185,7 +208,7 @@ try {
     ? out.payload.event.detail.cockpit_context
     : out.payload.cockpit;
   assert.ok(cockpitSummary && cockpitSummary.available === true, 'status should surface cockpit summary');
-  assert.strictEqual(Number(cockpitSummary.sequence || 0), 2, 'status should show latest cockpit sequence');
+  assert.strictEqual(Number(cockpitSummary.sequence || 0), 3, 'status should show latest cockpit sequence');
 
   fs.rmSync(tempRoot, { recursive: true, force: true });
   console.log('cockpit_harness.test.js: OK');

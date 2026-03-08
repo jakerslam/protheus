@@ -116,11 +116,17 @@ function resolvePaths(root: string, args: Record<string, any>) {
   const inboxDir = cleanText(args['inbox-dir'] || process.env.COCKPIT_INBOX_DIR || '', 500)
     ? path.resolve(String(args['inbox-dir'] || process.env.COCKPIT_INBOX_DIR))
     : path.join(root, 'local', 'state', 'cockpit', 'inbox');
+  const alertsDir = cleanText(args['alerts-dir'] || process.env.COCKPIT_ALERTS_DIR || '', 500)
+    ? path.resolve(String(args['alerts-dir'] || process.env.COCKPIT_ALERTS_DIR))
+    : path.join(root, 'local', 'state', 'cockpit', 'alerts');
   return {
     inboxDir,
     latestPath: path.join(inboxDir, 'latest.json'),
     historyPath: path.join(inboxDir, 'history.jsonl'),
-    statePath: path.join(inboxDir, 'state.json')
+    statePath: path.join(inboxDir, 'state.json'),
+    alertsDir,
+    alertsLatestPath: path.join(alertsDir, 'latest.json'),
+    alertsHistoryPath: path.join(alertsDir, 'history.jsonl')
   };
 }
 
@@ -130,9 +136,9 @@ function dayToken() {
 
 function usage() {
   console.log('Usage:');
-  console.log('  node systems/ops/cockpit_harness.js once [--consumer=<id>] [--limit=<n>] [--root=<path>] [--inbox-dir=<path>]');
-  console.log('  node systems/ops/cockpit_harness.js watch [--consumer=<id>] [--limit=<n>] [--once=1|0] [--duration-sec=<n>] [--root=<path>] [--inbox-dir=<path>]');
-  console.log('  node systems/ops/cockpit_harness.js status [--root=<path>] [--inbox-dir=<path>]');
+  console.log('  node systems/ops/cockpit_harness.js once [--consumer=<id>] [--limit=<n>] [--root=<path>] [--inbox-dir=<path>] [--alerts-dir=<path>]');
+  console.log('  node systems/ops/cockpit_harness.js watch [--consumer=<id>] [--limit=<n>] [--once=1|0] [--duration-sec=<n>] [--root=<path>] [--inbox-dir=<path>] [--alerts-dir=<path>]');
+  console.log('  node systems/ops/cockpit_harness.js status [--root=<path>] [--inbox-dir=<path>] [--alerts-dir=<path>]');
 }
 
 function loadHarnessState(paths: { statePath: string }, consumerId: string) {
@@ -143,9 +149,76 @@ function loadHarnessState(paths: { statePath: string }, consumerId: string) {
     sequence: Number(state && state.sequence || 0),
     last_ingest_ts: state && state.last_ingest_ts || null,
     last_batch_count: Number(state && state.last_batch_count || 0),
+    last_alert_ts: state && state.last_alert_ts || null,
+    last_alert_count: Number(state && state.last_alert_count || 0),
     last_attention_receipt_hash: state && state.last_attention_receipt_hash || null,
     consumer_id: state && state.consumer_id || consumerId,
     root: state && state.root || null
+  };
+}
+
+function isEscalationEvent(event: any) {
+  const severity = cleanText(event && event.severity, 24).toLowerCase();
+  if (severity === 'critical') return true;
+  if (event && event.escalate_required === true) return true;
+  const band = cleanText(event && event.band, 16).toLowerCase();
+  if (band === 'p1') return true;
+  const initiative = cleanText(event && event.initiative_action, 40).toLowerCase();
+  return initiative === 'escalate';
+}
+
+function compactAlertEvent(event: any) {
+  return {
+    ts: cleanText(event && event.ts, 40) || nowIso(),
+    source: cleanText(event && event.source, 80) || 'unknown_source',
+    source_type: cleanText(event && event.source_type, 80) || 'unknown_type',
+    severity: cleanText(event && event.severity, 24).toLowerCase() || 'info',
+    band: cleanText(event && event.band, 16).toLowerCase() || null,
+    score: Number.isFinite(Number(event && event.score)) ? Number(event.score) : null,
+    summary: cleanText(event && event.summary, 180) || 'attention_event',
+    attention_key: cleanText(event && event.attention_key, 180) || ''
+  };
+}
+
+function emitAlertArtifacts(paths: { alertsLatestPath: string, alertsHistoryPath: string }, envelope: any) {
+  const sourceEvents = Array.isArray(envelope && envelope.attention && envelope.attention.events)
+    ? envelope.attention.events
+    : [];
+  const escalations = sourceEvents
+    .filter((row) => isEscalationEvent(row))
+    .map((row) => compactAlertEvent(row));
+  if (!escalations.length) {
+    return {
+      emitted: false,
+      count: 0,
+      latest_path: paths.alertsLatestPath,
+      history_path: paths.alertsHistoryPath,
+      receipt_hash: null
+    };
+  }
+  const out: any = {
+    ok: true,
+    type: 'cockpit_alert',
+    ts: nowIso(),
+    sequence: Number(envelope && envelope.sequence || 0),
+    consumer_id: cleanText(envelope && envelope.consumer_id, 80) || 'cockpit_llm',
+    count: escalations.length,
+    events: escalations
+  };
+  out.receipt_hash = stableHash({
+    sequence: out.sequence,
+    consumer_id: out.consumer_id,
+    count: out.count,
+    keys: escalations.map((row) => row.attention_key).filter(Boolean)
+  });
+  writeJson(paths.alertsLatestPath, out);
+  appendJsonl(paths.alertsHistoryPath, out);
+  return {
+    emitted: true,
+    count: escalations.length,
+    latest_path: paths.alertsLatestPath,
+    history_path: paths.alertsHistoryPath,
+    receipt_hash: out.receipt_hash
   };
 }
 
@@ -262,12 +335,19 @@ async function ingestOnce(args: Record<string, any>) {
       memory_receipt_hash: snapshots.memory && snapshots.memory.receipt_hash || null
     }
   };
+  const alerts = emitAlertArtifacts(paths, envelope);
+  envelope.alerts = alerts;
   envelope.receipt_hash = stableHash({
     sequence: envelope.sequence,
     consumer_id: envelope.consumer_id,
     attention_batch_count: envelope.attention.batch_count,
     attention_cursor_after: envelope.attention.cursor_offset_after,
-    source_receipts: envelope.source_receipts
+    source_receipts: envelope.source_receipts,
+    alerts: {
+      emitted: alerts.emitted,
+      count: alerts.count,
+      receipt_hash: alerts.receipt_hash
+    }
   });
 
   writeJson(paths.latestPath, envelope);
@@ -277,6 +357,8 @@ async function ingestOnce(args: Record<string, any>) {
     sequence: nextSequence,
     last_ingest_ts: envelope.ts,
     last_batch_count: Number(events.length || 0),
+    last_alert_ts: alerts.emitted ? envelope.ts : state.last_alert_ts || null,
+    last_alert_count: Number(alerts.count || 0),
     last_attention_receipt_hash: attentionPayload.receipt_hash || null,
     consumer_id: consumerId,
     root
@@ -291,6 +373,7 @@ async function status(args: Record<string, any>) {
   const paths = resolvePaths(root, args);
   const latest = readJson(paths.latestPath, null);
   const state = readJson(paths.statePath, null);
+  const latestAlert = readJson(paths.alertsLatestPath, null);
   const out = {
     ok: !!latest,
     type: 'cockpit_harness_status',
@@ -301,7 +384,15 @@ async function status(args: Record<string, any>) {
     consumer_id: latest && latest.consumer_id || (state && state.consumer_id) || null,
     last_ingest_ts: latest && latest.ts || (state && state.last_ingest_ts) || null,
     last_batch_count: latest && latest.attention ? Number(latest.attention.batch_count || 0) : Number(state && state.last_batch_count || 0),
-    receipt_hash: latest && latest.receipt_hash || null
+    receipt_hash: latest && latest.receipt_hash || null,
+    alerts: {
+      available: !!latestAlert,
+      last_ts: latestAlert && latestAlert.ts || (state && state.last_alert_ts) || null,
+      last_count: latestAlert ? Number(latestAlert.count || 0) : Number(state && state.last_alert_count || 0),
+      latest_path: paths.alertsLatestPath,
+      history_path: paths.alertsHistoryPath,
+      receipt_hash: latestAlert && latestAlert.receipt_hash || null
+    }
   };
   process.stdout.write(`${JSON.stringify(out)}\n`);
   return out.ok ? 0 : 1;

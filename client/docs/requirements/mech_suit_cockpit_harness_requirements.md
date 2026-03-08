@@ -3,6 +3,7 @@
 Date: 2026-03-06  
 Owner: Runtime Foundation  
 Status: Approved for implementation
+Source refresh: Google Doc `1enNG3VyrUCYu1a7eGH_eSOytPwVZBCSMJxFBwZyCHSQ` (retrieved 2026-03-08 via export)
 
 ## Objective
 
@@ -13,8 +14,10 @@ Attach ambient mech-suit outputs to cockpit-facing LLM runtime so the system can
 - Add Rust attention-queue consumer contract for deterministic event handoff.
 - Add cockpit harness worker to ingest attention events through conduit.
 - Enrich cockpit envelopes with ambient spine, persona, and dopamine status.
+- Add critical-alert push artifacts for high-severity attention events.
 - Persist bounded cockpit inbox artifacts for deterministic replay.
 - Expose cockpit context through control-plane status path.
+- Add operator mode control for mech suit ambient mode (`status/on/off`).
 
 ## Non-Goals
 
@@ -47,8 +50,14 @@ Attach ambient mech-suit outputs to cockpit-facing LLM runtime so the system can
 - `state/cockpit/inbox/latest.json`
 - `state/cockpit/inbox/history.jsonl`
 - `state/cockpit/inbox/state.json` (cursor/worker metadata)
+- `state/cockpit/alerts/latest.json`
+- `state/cockpit/alerts/history.jsonl`
 
 6. Control-plane status path includes latest cockpit envelope summary when available.
+
+7. Mode switch surface:
+- `ops:mech-suit:status` reports ambient mode status + policy paths.
+- `ops:mech-suit:on` and `ops:mech-suit:off` persist policy `enabled` state and emit deterministic receipt payloads.
 
 ## Safety Requirements
 
@@ -64,4 +73,5 @@ Attach ambient mech-suit outputs to cockpit-facing LLM runtime so the system can
 4. Conduit `get_system_status` includes cockpit summary when inbox exists.
 5. Existing mech-suit benchmark remains passing.
 6. `formal:invariants:run` remains passing.
-
+7. Critical attention events emit cockpit alert artifacts with deterministic `receipt_hash`.
+8. `test:ops:mech-suit:control` validates mode control (`status/on/off/set`).
