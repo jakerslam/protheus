@@ -1,0 +1,43 @@
+{
+  "enabled": true,
+  "paths": {
+    "state_path": "local/state/ops/runtime_retention_prune/latest.json",
+    "receipts_path": "local/state/ops/runtime_retention_prune/receipts.jsonl"
+  },
+  "jsonl_targets": [
+    {
+      "path": "local/state/ops/protheus_control_plane/commands.jsonl",
+      "keep_lines": 5000
+    },
+    {
+      "path": "local/state/ops/protheus_control_plane/receipts.jsonl",
+      "keep_lines": 10000
+    },
+    {
+      "path": "local/state/attention/queue.jsonl",
+      "keep_lines": 5000
+    },
+    {
+      "path": "local/state/attention/receipts.jsonl",
+      "keep_lines": 10000
+    },
+    {
+      "path": "local/state/memory/conversation_eye/nodes.jsonl",
+      "keep_lines": 10000
+    },
+    {
+      "path": "local/state/memory/auto_recall/events.jsonl",
+      "keep_lines": 10000
+    }
+  ],
+  "directory_targets": [
+    {
+      "path": "local/state/tools/research/runs",
+      "max_files": 400
+    },
+    {
+      "path": "local/state/tools/assimilate/runs",
+      "max_files": 400
+    }
+  ]
+}
