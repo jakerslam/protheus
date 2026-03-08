@@ -29,6 +29,7 @@ pub mod f100_readiness_program;
 pub mod identity_federation;
 pub mod audit_log_export;
 pub mod attention_queue;
+pub mod importance;
 pub mod memory_ambient;
 pub mod dynamic_burn_budget_oracle;
 pub mod enterprise_hardening;
