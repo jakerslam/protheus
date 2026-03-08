@@ -2,9 +2,17 @@
 
 ## Cockpit Delta Follow-Up (Post REQ-33)
 
-- [ ] `V6-COCKPIT-005` Eliminate remaining `conduit_bridge_timeout` in `protheusd subscribe` under host pressure.
+- [x] `V6-COCKPIT-005` Eliminate remaining `conduit_bridge_timeout` in `protheusd subscribe` under host pressure.
   - Target: stable non-degraded subscription batches for idle queue conditions (no false timeout degradation).
-  - Current behavior: degraded-safe envelopes are emitted (no crash loop), but bridge path still times out on some hosts.
+  - Delivered:
+    - `protheusd subscribe` now supports bounded wait chunking (`--wait-chunk-ms` / `PROTHEUSD_SUBSCRIBE_WAIT_CHUNK_MS`) to prevent long single-call bridge stalls.
+    - Added deterministic local compatibility drain path (`client/local/state/attention/queue.jsonl` + per-consumer cursor under `client/local/state/attention/consumers/*.json`) that activates only on bridge timeout/gate conditions.
+    - Timeout/gate fallback now emits non-degraded `protheus_daemon_subscribe_batch` envelopes with `bridge_fallback_local=true` and bounded cursor advancement, preventing timeout-noise death loops.
+  - Validation:
+    - `node client/systems/ops/protheusd.js subscribe --once --consumer=timeout_probe --limit=3 --poll-ms=500 --wait-ms=45000`
+      - observed: `degraded=false`, `bridge_fallback_local=true`, `batch_count=3`.
+    - `node client/systems/ops/protheusd.js subscribe --once --consumer=timeout_probe --limit=100 --poll-ms=500 --wait-ms=15000`
+      - observed: `degraded=false`, `batch_count=0`, stable done receipt.
 
 - [ ] `V6-COCKPIT-006` Promote attention stream from long-poll contract to native push transport.
   - Target: direct conduit subscription lane (server-push) with ack/cursor guarantees and bounded backpressure.
