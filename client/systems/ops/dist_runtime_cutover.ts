@@ -91,7 +91,7 @@ function defaultReconciliationPolicy() {
     schema_id: 'dist_runtime_reconciliation_policy',
     schema_version: '1.0',
     enabled: true,
-    backlog_path: 'UPGRADE_BACKLOG.md',
+    backlog_path: '../UPGRADE_BACKLOG.md',
     backlog_done_status: ['done'],
     backlog_reopen_target_ids: ['V2-001', 'V2-003', 'BL-014'],
     incident: {
