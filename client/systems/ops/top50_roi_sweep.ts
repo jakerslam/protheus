@@ -485,7 +485,12 @@ function main() {
   const args = parseArgs(process.argv.slice(2));
   const policy = loadPolicy(args.policy || DEFAULT_POLICY_PATH);
   const continueOnFail = toBool(args['continue-on-fail'], true);
-  const commitEach = toBool(args['commit-each'], true);
+  // Backward-compat alias: some callers still pass --commit=0/1.
+  // Prefer explicit --commit-each when provided.
+  const commitEach = toBool(
+    Object.prototype.hasOwnProperty.call(args, 'commit-each') ? args['commit-each'] : args.commit,
+    true
+  );
   const pushEnd = toBool(args['push-end'], true);
   const ephemeral = toBool(args.ephemeral, false);
   const startRank = parseRankBound(args['start-rank'], 1);
