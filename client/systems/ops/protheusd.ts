@@ -340,6 +340,7 @@ function isBridgeTimeoutReason(value: unknown) {
   return text.includes('conduit_runtime_gate_active_until:')
     || text.includes('conduit_stdio_timeout:')
     || text.includes('conduit_bridge_timeout:')
+    || text.includes('conduit_startup_probe_timeout:')
     || text.includes('bridge_wait_failed')
     || text.includes('conduit_stdio_exit:')
     || text.includes('conduit_stdio_error:')
