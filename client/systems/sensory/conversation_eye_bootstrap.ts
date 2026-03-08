@@ -64,11 +64,11 @@ function defaultConversationEye() {
     cadence_hours: 1,
     allowed_domains: ['local.workspace'],
     budgets: {
-      max_items: 6,
-      max_seconds: 8,
+      max_items: 3,
+      max_seconds: 20,
       max_bytes: 65536,
       max_requests: 1,
-      max_rows: 10
+      max_rows: 24
     },
     parser_type: 'conversation_eye',
     topics: ['conversation', 'decision', 'insight', 'directive', 't1'],

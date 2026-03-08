@@ -269,13 +269,17 @@
     - `cargo test -p execution_core initiative` completes deterministically on the validation host profile.
     - Stall detector emits actionable reason code instead of hanging lanes.
 
-- [ ] `V6-CONVERSATION-EYE-TIMEOUT-001` Reduce conversation-eye timeout incidence in protheusd heartbeat.
+- [x] `V6-CONVERSATION-EYE-TIMEOUT-001` Reduce conversation-eye timeout incidence in protheusd heartbeat.
   - Layer target: `client/systems/sensory/*` execution path + daemon heartbeat contract in `client/systems/ops/protheusd.ts`.
-  - Current gap:
-    - `protheusd tick --no-autostart` currently reports `conversation_eye.status=124` in some heartbeat runs while other lanes pass.
-  - Completion criteria:
-    - Conversation-eye lane returns `status=0` under normal heartbeat execution.
-    - Any lane timeout is classified with deterministic reason and bounded backoff without hiding successful core lanes.
+  - Completed deliverables:
+    - Added bounded work-budget controls to `client/adaptive/sensory/eyes/collectors/conversation_eye.ts` (`CONVERSATION_EYE_MAX_ITEMS`, `CONVERSATION_EYE_MAX_ROWS`, `CONVERSATION_EYE_MAX_WORK_MS`).
+    - Raised default conversation-eye budgets in bootstrap (`client/systems/sensory/conversation_eye_bootstrap.ts`) to avoid 8s collector starvation.
+    - Hardened heartbeat invocation in `client/systems/ops/protheusd.ts` with single-attempt collector env overrides and higher lane timeout budget.
+  - Validation:
+    - `PROTHEUSD_RUNTIME_RETENTION_HOOK=1 node client/systems/ops/protheusd.js tick --no-autostart` (conversation_eye status now `0`).
+    - `npm run -s test:ops:conversation-eye-bootstrap`
+    - `npm run -s test:ops:conversation-eye-collector`
+    - `node client/systems/ops/mech_suit_benchmark.js`
 
 - [x] `V6-DOPAMINE-CONTRACT-002` Resolve dopamine ambient command contract mismatch in mech benchmark.
   - Layer target: `client/systems/habits/dopamine_ambient.ts` + conduit bridge command contract + `client/systems/ops/mech_suit_benchmark.js`.

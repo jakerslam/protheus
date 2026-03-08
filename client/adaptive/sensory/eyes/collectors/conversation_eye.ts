@@ -27,6 +27,9 @@ const CONVERSATION_MEMORY_JSONL = path.join(CONVERSATION_MEMORY_DIR, 'nodes.json
 const CONVERSATION_MEMORY_INDEX = path.join(CONVERSATION_MEMORY_DIR, 'index.json');
 const WEEKLY_NODE_LIMIT = Math.max(1, Math.min(50, Number(process.env.CONVERSATION_EYE_WEEKLY_NODE_LIMIT || 10) || 10));
 const WEEKLY_PROMOTION_OVERRIDES = Math.max(0, Math.min(20, Number(process.env.CONVERSATION_EYE_WEEKLY_PROMOTION_OVERRIDES || 2) || 2));
+const CONVERSATION_EYE_MAX_ITEMS_CAP = Math.max(1, Math.min(32, Number(process.env.CONVERSATION_EYE_MAX_ITEMS || 3) || 3));
+const CONVERSATION_EYE_MAX_ROWS_CAP = Math.max(4, Math.min(256, Number(process.env.CONVERSATION_EYE_MAX_ROWS || 24) || 24));
+const CONVERSATION_EYE_MAX_WORK_MS = Math.max(1000, Math.min(30000, Number(process.env.CONVERSATION_EYE_MAX_WORK_MS || 7000) || 7000));
 
 function nowIso() {
   return new Date().toISOString();
@@ -233,8 +236,8 @@ async function collectConversationEye(eyeConfig, budgets) {
     throw err;
   }
 
-  const maxItems = Math.max(1, Math.min(Number((budgets && budgets.max_items) || 6), 32));
-  const maxRows = Math.max(4, Math.min(Number((budgets && budgets.max_rows) || 10), 500));
+  const maxItems = Math.max(1, Math.min(Number((budgets && budgets.max_items) || CONVERSATION_EYE_MAX_ITEMS_CAP), CONVERSATION_EYE_MAX_ITEMS_CAP));
+  const maxRows = Math.max(4, Math.min(Number((budgets && budgets.max_rows) || CONVERSATION_EYE_MAX_ROWS_CAP), CONVERSATION_EYE_MAX_ROWS_CAP));
   const topics = normalizeTopics(eyeConfig);
   const sourceRows = synthesizeFromSource(maxRows);
   const index = loadMemoryIndex();
@@ -246,8 +249,13 @@ async function collectConversationEye(eyeConfig, budgets) {
   let recallQueued = 0;
   let recallMatched = 0;
   let quotaSkipped = 0;
+  let workBudgetExceeded = false;
 
   for (let i = sourceRows.length - 1; i >= 0; i -= 1) {
+    if ((Date.now() - started) >= CONVERSATION_EYE_MAX_WORK_MS) {
+      workBudgetExceeded = true;
+      break;
+    }
     const row = sourceRows[i];
     const node = synthesizeEnvelope(row);
     if (!node || !node.node_id) continue;
@@ -309,7 +317,11 @@ async function collectConversationEye(eyeConfig, budgets) {
       source_rows_seen: sourceRows.length,
       recall_queued: recallQueued,
       recall_matches: recallMatched,
-      quota_skipped: quotaSkipped
+      quota_skipped: quotaSkipped,
+      work_budget_exceeded: workBudgetExceeded,
+      max_work_ms: CONVERSATION_EYE_MAX_WORK_MS,
+      max_rows_cap: CONVERSATION_EYE_MAX_ROWS_CAP,
+      max_items_cap: CONVERSATION_EYE_MAX_ITEMS_CAP
     }
   };
 }
