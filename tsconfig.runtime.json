@@ -1,4 +1,6 @@
 {
+  "//": "Runtime TypeScript configuration for client systems and libs. Extends base for consistency.",
+  "_comment": "This config is used for client-side code compilation. See ARCHITECTURE.md for system organization.",
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "strict": false,

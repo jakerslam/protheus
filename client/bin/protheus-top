@@ -17,6 +17,11 @@ if (!fs.existsSync(script)) {
 }
 
 const run = spawnSync(process.execPath, [script, ...process.argv.slice(2)], {
-  stdio: 'inherit'
+  stdio: 'inherit',
+  env: {
+    ...process.env,
+    PROTHEUS_CONDUIT_STARTUP_PROBE_TIMEOUT_MS: process.env.PROTHEUS_CONDUIT_STARTUP_PROBE_TIMEOUT_MS || '30000',
+    PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS: process.env.PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS || '90000'
+  }
 });
 process.exit(Number.isFinite(run.status) ? run.status : 1);
