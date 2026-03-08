@@ -14,7 +14,7 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const INTERNAL_AMBIENT_LOOP = '__ambient-loop';
 
 function usage() {
-  console.log('Usage: protheusd start|stop|restart|status|tick [--policy=<path>] [--conduit] [--allow-legacy-fallback] [--autostart] [--no-autostart] [--no-cockpit]');
+  console.log('Usage: protheusd start|stop|restart|status|diagnostics|tick [--policy=<path>] [--conduit] [--allow-legacy-fallback] [--autostart] [--no-autostart] [--no-cockpit]');
 }
 
 function nowIso() {
@@ -548,6 +548,33 @@ function recordCommand(runtime: any, command: string, args: string[], requestId:
     },
     status: 'queued'
   });
+}
+
+function tailFileLines(filePath: string, maxLines = 20) {
+  const cap = Math.max(1, Math.min(200, Number(maxLines) || 20));
+  try {
+    if (!fs.existsSync(filePath)) return [];
+    const lines = String(fs.readFileSync(filePath, 'utf8') || '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (lines.length <= cap) return lines;
+    return lines.slice(lines.length - cap);
+  } catch {
+    return [];
+  }
+}
+
+function parseJsonLineRecords(filePath: string, maxLines = 20) {
+  return tailFileLines(filePath, maxLines)
+    .map((line) => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
+    })
+    .filter((row) => !!row);
 }
 
 function runNode(script: string, args: string[], opts: any = {}) {
@@ -1348,6 +1375,89 @@ function runStatus(runtime: any, argv: string[]) {
   process.exit(0);
 }
 
+function diagnosticsReceipt(runtime: any, state: any) {
+  const base = statusReceipt(runtime, state);
+  const bridgeHealth = normalizedBridgeHealth(state && state.bridge_health);
+  const commandHistory = parseJsonLineRecords(runtime.commandsPath, 20).map((row: any) => ({
+    ts: cleanText(row.ts || '', 64) || null,
+    request_id: cleanText(row.request_id || '', 40) || null,
+    command: cleanText(row.command || '', 32) || null,
+    status: cleanText(row.status || '', 24) || null
+  }));
+  const receiptHistory = parseJsonLineRecords(runtime.receiptsPath, 20).map((row: any) => ({
+    ts: cleanText(row.ts || '', 64) || null,
+    type: cleanText(row.type || '', 64) || null,
+    ok: row && row.ok === true,
+    receipt_hash: cleanText(row.receipt_hash || '', 64) || null
+  }));
+  const gate = readConduitRuntimeGate(runtime.root);
+  const degradedClass = bridgeHealth.degraded === true
+    ? 'bridge_degraded'
+    : gate && gate.gate_active === true
+      ? 'runtime_gate_active'
+      : (base.ambient_mode && base.ambient_mode.active === true ? 'healthy' : 'ambient_degraded');
+  return withReceipt({
+    ok: true,
+    shadow_only: false,
+    type: 'protheusd_diagnostics',
+    ts: nowIso(),
+    status: base,
+    degraded_class: degradedClass,
+    bridge_health: bridgeHealth,
+    conduit_runtime_gate: gate,
+    resource: collectResourceSnapshot(runtime.memoryPressureRatio),
+    recent: {
+      commands: commandHistory,
+      receipts: receiptHistory
+    }
+  });
+}
+
+function renderDiagnosticsHuman(diag: any) {
+  const status = diag && diag.status ? diag.status : {};
+  const daemon = status && status.daemon ? status.daemon : {};
+  const ambient = status && status.ambient_mode ? status.ambient_mode : {};
+  const bridge = diag && diag.bridge_health ? diag.bridge_health : {};
+  const gate = diag && diag.conduit_runtime_gate ? diag.conduit_runtime_gate : {};
+  const resource = diag && diag.resource ? diag.resource : {};
+  const lines: string[] = [];
+  lines.push('== protheusd diagnostics ==');
+  lines.push(`ts: ${cleanText(diag && diag.ts, 64) || nowIso()}`);
+  lines.push(`degraded_class: ${cleanText(diag && diag.degraded_class, 64) || 'unknown'}`);
+  lines.push(`daemon: running=${daemon.running === true ? 'yes' : 'no'} pid=${daemon.pid || 'null'} run_seq=${Number(daemon.run_seq || 0)}`);
+  lines.push(`ambient: active=${ambient.active === true ? 'yes' : 'no'} configured=${ambient.configured === true ? 'yes' : 'no'} healthy=${ambient.healthy === true ? 'yes' : 'no'} reason=${cleanText(ambient.degraded_reason, 160) || 'none'}`);
+  lines.push(`bridge: degraded=${bridge.degraded === true ? 'yes' : 'no'} reason=${cleanText(bridge.reason, 160) || 'none'} failures=${Number(bridge.consecutive_failures || 0)} next_probe_at=${cleanText(bridge.next_probe_at, 64) || 'none'}`);
+  lines.push(`gate: active=${gate.gate_active === true ? 'yes' : 'no'} remaining_ms=${Number(gate.remaining_ms || 0)} last_error=${cleanText(gate.last_error, 160) || 'none'}`);
+  lines.push(`resource: rss_mb=${Number(resource.process_rss_mb || 0)} heap_used_mb=${Number(resource.process_heap_used_mb || 0)} system_used_ratio=${Number(resource.system_used_ratio || 0)}`);
+  const commands = diag && diag.recent && Array.isArray(diag.recent.commands) ? diag.recent.commands : [];
+  if (commands.length) {
+    lines.push('recent_commands:');
+    for (const row of commands.slice(-5)) {
+      lines.push(`- ${cleanText(row.ts, 64) || 'n/a'} ${cleanText(row.command, 32) || 'unknown'} req=${cleanText(row.request_id, 40) || 'n/a'} status=${cleanText(row.status, 24) || 'n/a'}`);
+    }
+  }
+  return `${lines.join('\n')}\n`;
+}
+
+function runDiagnostics(runtime: any, argv: string[]) {
+  let state = loadDaemonState(runtime);
+  if (!isPidAlive(state.pid) && runtime.mechPolicy.enabled === true && ambientAutostartEnabled(argv)) {
+    startDaemon(runtime, argv, { exitOnFinish: false });
+    state = loadDaemonState(runtime);
+  }
+  const requestId = `req_${String(Number(state.request_seq || 0) + 1).padStart(6, '0')}`;
+  recordCommand(runtime, 'diagnostics', argv, requestId);
+  const out = diagnosticsReceipt(runtime, state);
+  emitLatest(runtime, out);
+  const format = cleanText(parseFlag(argv, 'format') || 'json', 20).toLowerCase();
+  if (format === 'human' || format === 'text') {
+    process.stdout.write(renderDiagnosticsHuman(out));
+  } else {
+    process.stdout.write(`${JSON.stringify(out)}\n`);
+  }
+  process.exit(0);
+}
+
 async function main() {
   const argv = process.argv.slice(2);
   const cmd = String(argv[0] || 'status').trim();
@@ -1402,6 +1512,10 @@ async function main() {
   }
   if (cmd === 'status') {
     runStatus(runtime, argv);
+    return;
+  }
+  if (cmd === 'diagnostics') {
+    runDiagnostics(runtime, argv);
     return;
   }
   if (cmd === 'tick') {
