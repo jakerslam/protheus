@@ -118,6 +118,8 @@
     "js:holdout:status": "node client/systems/ops/js_holdout_audit.js status",
     "ops:runtime-state:guard": "node client/systems/ops/runtime_state_surface_guard.js check --strict=1",
     "ops:runtime-state:status": "node client/lib/ts_entrypoint.js client/systems/ops/runtime_state_surface_guard.ts status",
+    "ops:empty-fort:add-contributors": "node scripts/add_contributors_from_csv.js",
+    "test:ops:empty-fort:add-contributors": "node client/memory/tools/tests/add_contributors_from_csv.test.js",
     "ops:narrow-agent-parity": "node client/systems/ops/narrow_agent_parity_harness.js run",
     "ops:seed-boot-probe": "node client/systems/ops/seed_boot_probe.js run",
     "ops:prime-seed:manifest": "node client/systems/ops/protheus_prime_seed.js manifest",
