@@ -45,3 +45,45 @@ variable "secret_optional" {
   type        = bool
   default     = true
 }
+
+variable "daemon_enabled" {
+  description = "Enable always-on protheusd deployment"
+  type        = bool
+  default     = true
+}
+
+variable "daemon_replicas" {
+  description = "Number of daemon replicas when enabled"
+  type        = number
+  default     = 2
+}
+
+variable "sso_enabled" {
+  description = "Enable SSO environment projection"
+  type        = bool
+  default     = false
+}
+
+variable "sso_issuer_url" {
+  description = "OIDC issuer URL"
+  type        = string
+  default     = ""
+}
+
+variable "sso_client_id" {
+  description = "SSO client id"
+  type        = string
+  default     = ""
+}
+
+variable "nvidia_enabled" {
+  description = "Enable NVIDIA adapter scheduling options"
+  type        = bool
+  default     = false
+}
+
+variable "nvidia_runtime_class_name" {
+  description = "RuntimeClass name for NVIDIA workloads"
+  type        = string
+  default     = ""
+}

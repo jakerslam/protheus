@@ -1,4 +1,4 @@
-name: Release Draft
+name: Release GA
 
 on:
   push:
@@ -8,37 +8,123 @@ on:
 
 permissions:
   contents: write
+  packages: write
+  attestations: write
+  id-token: write
 
 jobs:
-  draft-release:
+  release:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Resolve version
-        id: version
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve semantic release plan (conventional commits)
+        id: semver
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          node client/systems/ops/release_semver_contract.js run --strict=0 --write=1 --plan=client/local/state/release/semantic_release_plan.json --changelog=client/local/state/release/CHANGELOG.auto.md > /tmp/release-plan.json
+          cat /tmp/release-plan.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const payload = JSON.parse(fs.readFileSync('/tmp/release-plan.json', 'utf8'));
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_ready=${payload.release_ready ? '1' : '0'}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `tag=${payload.next_tag}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `previous_tag=${payload.previous_tag}\n`);
+          NODE
+
+      - name: Stop when no releasable conventional commits
+        if: steps.semver.outputs.release_ready != '1'
+        run: |
+          echo "No conventional commit requiring a release."
+          exit 0
 
       - name: Build release binaries
+        if: steps.semver.outputs.release_ready == '1'
         run: |
           cargo build --release --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops
+          cargo build --release -p conduit --bin conduit_daemon
+          npm pack --silent
 
-      - name: Create draft release
+      - name: Install Syft
+        if: steps.semver.outputs.release_ready == '1'
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          syft version
+
+      - name: Generate SPDX SBOM artifacts
+        if: steps.semver.outputs.release_ready == '1'
+        run: |
+          mkdir -p client/local/state/release/sbom
+          PKG=$(ls -1 *.tgz | head -n 1)
+          syft file:target/release/protheus-ops -o spdx-json=client/local/state/release/sbom/protheus-ops.spdx.json
+          syft file:target/release/conduit_daemon -o spdx-json=client/local/state/release/sbom/conduit_daemon.spdx.json
+          syft file:${PKG} -o spdx-json=client/local/state/release/sbom/protheus-npm.spdx.json
+
+      - name: Sign release artifacts
+        if: steps.semver.outputs.release_ready == '1'
+        env:
+          RELEASE_SIGNING_PRIVATE_KEY: ${{ secrets.RELEASE_SIGNING_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p client/local/state/release/signatures
+          if [ -n "${RELEASE_SIGNING_PRIVATE_KEY:-}" ]; then
+            printf '%s\n' "$RELEASE_SIGNING_PRIVATE_KEY" > /tmp/release_private.pem
+          else
+            openssl genrsa -out /tmp/release_private.pem 4096
+          fi
+          openssl rsa -in /tmp/release_private.pem -pubout -out client/local/state/release/signatures/release_public.pem
+          for f in target/release/protheus-ops target/release/conduit_daemon client/local/state/release/sbom/protheus-ops.spdx.json client/local/state/release/sbom/conduit_daemon.spdx.json client/local/state/release/sbom/protheus-npm.spdx.json; do
+            base=$(basename "$f")
+            openssl dgst -sha256 -sign /tmp/release_private.pem -out "client/local/state/release/signatures/${base}.sig" "$f"
+          done
+
+      - name: Create release tag
+        if: steps.semver.outputs.release_ready == '1'
+        run: |
+          TAG="${{ steps.semver.outputs.tag }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag "${TAG}"
+            git push origin "${TAG}"
+          fi
+
+      - name: Publish GA release
+        if: steps.semver.outputs.release_ready == '1'
         uses: softprops/action-gh-release@v2
         with:
-          draft: true
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: Protheus ${{ steps.version.outputs.tag }}
-          body: |
-            Automated draft release generated from `main`.
-
-            Includes:
-            - Rust `protheus-ops` release binary build
-            - CI/checkpoint validation from required workflows
-            - See `CHANGELOG.md` for detailed lane-level deltas
+          tag_name: ${{ steps.semver.outputs.tag }}
+          name: Protheus ${{ steps.semver.outputs.tag }}
+          draft: false
+          generate_release_notes: true
+          body_path: client/local/state/release/CHANGELOG.auto.md
+          files: |
+            target/release/protheus-ops
+            target/release/conduit_daemon
+            *.tgz
+            client/local/state/release/sbom/protheus-ops.spdx.json
+            client/local/state/release/sbom/conduit_daemon.spdx.json
+            client/local/state/release/sbom/protheus-npm.spdx.json
+            client/local/state/release/signatures/protheus-ops.sig
+            client/local/state/release/signatures/conduit_daemon.sig
+            client/local/state/release/signatures/protheus-ops.spdx.json.sig
+            client/local/state/release/signatures/conduit_daemon.spdx.json.sig
+            client/local/state/release/signatures/protheus-npm.spdx.json.sig
+            client/local/state/release/signatures/release_public.pem

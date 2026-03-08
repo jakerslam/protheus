@@ -9,3 +9,14 @@ data:
 {{- range $key, $value := .Values.runtimeConfig }}
   {{ $key }}: {{ $value | quote }}
 {{- end }}
+  PROTHEUS_SSO_ENABLED: {{ ternary "1" "0" .Values.sso.enabled | quote }}
+  PROTHEUS_SSO_PROVIDER: {{ .Values.sso.provider | quote }}
+  PROTHEUS_SSO_ISSUER_URL: {{ .Values.sso.issuerUrl | quote }}
+  PROTHEUS_SSO_AUDIENCE: {{ .Values.sso.audience | quote }}
+  PROTHEUS_SECRETS_VAULT_ENABLED: {{ ternary "1" "0" .Values.secrets.vault.enabled | quote }}
+  PROTHEUS_SECRETS_VAULT_ROLE: {{ .Values.secrets.vault.role | quote }}
+  PROTHEUS_SECRETS_VAULT_PATH: {{ .Values.secrets.vault.path | quote }}
+  PROTHEUS_SECRETS_KMS_ENABLED: {{ ternary "1" "0" .Values.secrets.kms.enabled | quote }}
+  PROTHEUS_SECRETS_KMS_PROVIDER: {{ .Values.secrets.kms.provider | quote }}
+  PROTHEUS_SECRETS_KMS_KEY_ID: {{ .Values.secrets.kms.keyId | quote }}
+  PROTHEUS_NVIDIA_ENABLED: {{ ternary "1" "0" .Values.nvidia.enabled | quote }}

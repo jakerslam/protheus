@@ -32,4 +32,20 @@ spec:
         - protocol: TCP
           port: 443
 {{- end }}
+{{- if .Values.networkPolicy.allowOidc }}
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
+{{- end }}
+{{- if .Values.networkPolicy.allowVault }}
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 8200
+{{- end }}
 {{- end }}
