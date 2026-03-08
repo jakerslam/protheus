@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "allowlist": {
+    "shadows": ["*"],
+    "personas": ["*"]
+  },
+  "notification": {
+    "default_channel": "main",
+    "default_severity": "info"
+  },
+  "paths": {
+    "latest_path": "state/tools/shadow_tool_bridge/latest.json",
+    "history_path": "state/tools/shadow_tool_bridge/history.jsonl"
+  }
+}
