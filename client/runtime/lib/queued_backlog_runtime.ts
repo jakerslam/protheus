@@ -188,8 +188,8 @@ function rewriteLegacyRuntimeRelative(relPath: string) {
     const suffix = rel === 'state' ? '' : rel.slice('state/'.length);
     return normalizeRelativePathToken(path.join('client', 'runtime', 'local', 'state', suffix));
   }
-  if (rel === 'client/state' || rel.startsWith('client/state/')) {
-    const suffix = rel === 'client/state' ? '' : rel.slice('client/state/'.length);
+  if (rel === 'client/runtime/state' || rel.startsWith('client/runtime/state/')) {
+    const suffix = rel === 'client/runtime/state' ? '' : rel.slice('client/runtime/state/'.length);
     return normalizeRelativePathToken(path.join('client', 'runtime', 'local', 'state', suffix));
   }
   if (rel === 'core/state' || rel.startsWith('core/state/')) {

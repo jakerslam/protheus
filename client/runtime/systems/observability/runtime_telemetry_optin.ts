@@ -249,7 +249,7 @@ function main(): void {
   if (command === 'emit-crash') return emitEvent('crash', params, policy);
   if (command === 'emit-perf') return emitEvent('perf', params, policy);
   process.stderr.write(
-    'usage: node client/lib/ts_entrypoint.js client/runtime/systems/observability/runtime_telemetry_optin.ts <status|emit-usage|emit-crash|emit-perf> [--counter=.. --value=..]\n'
+    'usage: node client/runtime/lib/ts_entrypoint.js client/runtime/systems/observability/runtime_telemetry_optin.ts <status|emit-usage|emit-crash|emit-perf> [--counter=.. --value=..]\n'
   );
   process.exit(1);
 }

@@ -20,7 +20,7 @@ const {
   strategyBudgetCaps,
   strategyPromotionPolicy,
   strategyMaxRiskPerAction
-} = require('../../../lib/strategy_resolver');
+} = require('../../lib/strategy_resolver');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const OUT_DIR = process.env.STRATEGY_PRINCIPLES_OUT_DIR

@@ -10,7 +10,7 @@ const {
   parseArgs,
   cleanText,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const OPS_DIR = path.join(ROOT, 'client', 'runtime', 'systems', 'ops');
 

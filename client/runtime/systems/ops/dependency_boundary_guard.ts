@@ -15,7 +15,7 @@ const {
   appendJsonl,
   resolvePath,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const DEFAULT_POLICY_PATH = process.env.DEPENDENCY_BOUNDARY_MANIFEST_PATH
   ? path.resolve(process.env.DEPENDENCY_BOUNDARY_MANIFEST_PATH)
@@ -38,10 +38,10 @@ function defaultPolicy() {
     version: '1.0',
     enabled: true,
     layers: {
-      core: ['client/lib', 'client/cli/bin'],
+      core: ['client/runtime/lib', 'client/cli/bin'],
       config: ['client/runtime/config'],
       systems: ['client/runtime/systems'],
-      adaptive: ['client/adaptive'],
+      adaptive: ['client/cognition/adaptive'],
       habits: ['client/cognition/habits'],
       memory: ['client/memory'],
       state: ['client/runtime/local/state', 'core/local/state'],
@@ -53,15 +53,15 @@ function defaultPolicy() {
     enforce_cycles: true,
     conduit_boundary: {
       enabled: true,
-      include_dirs: ['client/runtime/systems', 'client/lib'],
+      include_dirs: ['client/runtime/systems', 'client/runtime/lib'],
       include_ext: ['.ts', '.js'],
       exclude_contains: ['.bak.', '.tmp', 'node_modules', 'dist/', '/tests/', '.test.'],
       allowlisted_files: [
-        'client/lib/direct_conduit_lane_bridge.js',
-        'client/lib/legacy_retired_lane_bridge.js',
-        'client/lib/spine_conduit_bridge.ts',
-        'client/lib/ops_domain_conduit_runner.ts',
-        'client/lib/conduit_full_lifecycle_probe.js',
+        'client/runtime/lib/direct_conduit_lane_bridge.js',
+        'client/runtime/lib/legacy_retired_lane_bridge.js',
+        'client/runtime/lib/spine_conduit_bridge.ts',
+        'client/runtime/lib/ops_domain_conduit_runner.ts',
+        'client/runtime/lib/conduit_full_lifecycle_probe.js',
         'client/runtime/systems/ops/dependency_boundary_guard.ts',
         'client/runtime/systems/ops/rust50_conf001_execution_cutover.ts',
         'client/runtime/systems/ops/rust50_sprint1_batch.ts',
@@ -89,7 +89,7 @@ function defaultPolicy() {
       ]
     },
     scan: {
-      include_dirs: ['client/runtime/systems', 'client/lib', 'client/adaptive', 'client/cognition/habits', 'client/memory/tools', 'client/tests'],
+      include_dirs: ['client/runtime/systems', 'client/runtime/lib', 'client/cognition/adaptive', 'client/cognition/habits', 'client/memory/tools', 'client/tests'],
       include_ext: ['.ts', '.js'],
       exclude_contains: ['.bak.', '.tmp', 'node_modules', 'dist/']
     },

@@ -41,7 +41,7 @@
     ],
     "paths": {
       "gated_loop_latest_path": "state/autonomy/gated_self_improvement/latest.json",
-      "strategy_scorecard_latest_path": "state/client/adaptive/strategy/scorecards/latest.json",
+      "strategy_scorecard_latest_path": "state/client/cognition/adaptive/strategy/scorecards/latest.json",
       "trigger_state_path": "state/autonomy/self_improvement_cadence/trigger_state.json"
     }
   },

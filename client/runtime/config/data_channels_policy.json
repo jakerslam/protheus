@@ -12,8 +12,8 @@
     },
     "adaptive": {
       "roots": [
-        "client/adaptive/",
-        "state/client/adaptive/"
+        "client/cognition/adaptive/",
+        "state/client/cognition/adaptive/"
       ],
       "controllers": [
         "client/runtime/systems/adaptive/"
@@ -44,7 +44,7 @@
       ],
       "external_root_default": "~/.client/runtime/config/protheus/client/runtime/local/secrets/",
       "controllers": [
-        "client/lib/secret_broker.js",
+        "client/runtime/lib/secret_broker.js",
         "client/runtime/systems/security/secret_broker.js"
       ],
       "purpose": "Secret values and key material outside git"

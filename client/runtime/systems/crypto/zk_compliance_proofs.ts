@@ -8,8 +8,8 @@ export {};
  */
 
 const path = require('path');
-const { normalizeToken, cleanText, stableHash } = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+const { normalizeToken, cleanText, stableHash } = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 
 const POLICY_PATH = process.env.ZK_COMPLIANCE_POLICY_PATH
   ? path.resolve(process.env.ZK_COMPLIANCE_POLICY_PATH)

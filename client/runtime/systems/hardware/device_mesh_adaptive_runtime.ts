@@ -16,7 +16,7 @@ const {
   appendJsonl,
   resolvePath,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const DEFAULT_POLICY_PATH = process.env.DEVICE_MESH_ADAPTIVE_RUNTIME_POLICY_PATH
   ? path.resolve(process.env.DEVICE_MESH_ADAPTIVE_RUNTIME_POLICY_PATH)

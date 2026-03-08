@@ -250,7 +250,7 @@ Introducing the Cognitive Toolkit Suite: internal operators tooling for red-team
 - `protheus toolkit assimilate <path|url>` runs the same assimilation flow through the toolkit wrapper.
 - `protheus toolkit research "<query>"` runs the research command through the toolkit wrapper.
 
-See [Cognitive Toolkit Suite](docs/client/cognitive_toolkit.md) and `client/apps/examples/*-demo/` for runnable examples.
+See [Cognitive Toolkit Suite](docs/client/cognitive_toolkit.md) and `client/cli/apps/examples/*-demo/` for runnable examples.
 
 ## Architecture Map
 
@@ -258,11 +258,11 @@ See [Cognitive Toolkit Suite](docs/client/cognitive_toolkit.md) and `client/apps
 |---|---|
 | `planes/` | Three-plane architecture contracts and schemas |
 | `client/runtime/systems/` | Executable runtime lanes and control-plane modules |
-| `client/lib/` | Shared runtime helpers used by lanes |
+| `client/runtime/lib/` | Shared runtime helpers used by lanes |
 | `client/runtime/config/` | Policy, registries, and lane configuration |
 | `client/observability/` | Reports, runbooks, dashboard specs, and research artifacts |
-| `client/apps/` | User-facing/internal app layers and runnable example suites |
-| `client/developer/` | Developer templates and scaffolding assets |
+| `client/cli/apps/` | User-facing/internal app layers and runnable example suites |
+| `client/cli/developer/` | Developer templates and scaffolding assets |
 | `docs/client/` | Architecture, governance, runbooks, and contracts |
 | `client/memory/tools/tests/` | Deterministic tests and regression harnesses |
 | `client/runtime/local/`, `core/local/` | Instance-local runtime artifacts and receipts |
@@ -341,4 +341,4 @@ The project is operated with explicit documentation and governance contracts:
 
 - License: [LICENSE](LICENSE)
 - License details: Apache-2.0
-- Archived historical legal docs: [client/legal/archive](client/legal/archive)
+- Archived historical legal docs: [docs/client/legal/archive](docs/client/legal/archive)

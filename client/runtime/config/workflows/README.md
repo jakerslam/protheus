@@ -6,10 +6,10 @@ Purpose: store executable agentic workflows (n8n-style intent) separately from s
 - `client/runtime/config/workflows/` defines **how/steps/triggers/contracts**.
 
 Generated adaptive workflow drafts are stored in:
-- `state/client/adaptive/workflows/drafts/YYYY-MM-DD.json`
+- `state/client/cognition/adaptive/workflows/drafts/YYYY-MM-DD.json`
 
 Applied workflows are stored in:
-- `state/client/adaptive/workflows/registry.json`
+- `state/client/cognition/adaptive/workflows/registry.json`
 
 Controllers:
 - `node client/runtime/systems/workflow/workflow_generator.js run [YYYY-MM-DD]`
@@ -43,6 +43,6 @@ Orchestron emergent lanes (configured in `client/runtime/config/orchestron_polic
 - `fractal`: recursive sub-workflow spawning (`children`) with parent linkage
 - `runtime_evolution`: mutate active workflows under live failure/no-change pressure
 - `nursery.min_trit_alignment`: trit-aware pass gate
-- `telemetry.emit_birth_events`: emits stage events to `state/client/adaptive/workflows/orchestron/birth_events.jsonl`
+- `telemetry.emit_birth_events`: emits stage events to `state/client/cognition/adaptive/workflows/orchestron/birth_events.jsonl`
 - Skill-first integration bridge: workflow steps include temporary `client/memory/tools/skill_runner.js` commands for collector/comms/publish lanes until native adapters are complete.
 - Adaptive value measurement: strategy `value_currency_policy` now feeds Orchestron candidate generation + nursery ranking (revenue, delivery, quality, etc.).

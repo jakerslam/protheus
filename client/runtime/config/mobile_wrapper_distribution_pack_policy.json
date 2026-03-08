@@ -29,7 +29,7 @@
   },
   "paths": {
     "memory_dir": "client/memory/edge/mobile_wrapper_distribution",
-    "adaptive_index_path": "client/adaptive/edge/mobile_wrapper_distribution/index.json",
+    "adaptive_index_path": "client/cognition/adaptive/edge/mobile_wrapper_distribution/index.json",
     "events_path": "state/edge/mobile_wrapper_distribution/events.jsonl",
     "latest_path": "state/edge/mobile_wrapper_distribution/latest.json",
     "receipts_path": "state/edge/mobile_wrapper_distribution/receipts.jsonl",

@@ -209,13 +209,13 @@ process.stdin.on('data', (chunk) => {
 
 describe('direct conduit lane bridge coverage paths', () => {
   test('findRepoRoot resolves workspace root from nested directory', async () => {
-    const bridge = await import(pathToFileURL(path.join(ROOT, 'client/lib/direct_conduit_lane_bridge.js')).href);
+    const bridge = await import(pathToFileURL(path.join(ROOT, 'client/runtime/lib/direct_conduit_lane_bridge.js')).href);
     const found = bridge.findRepoRoot(path.join(ROOT, 'client', 'runtime', 'systems', 'ops'));
     expect(found).toBe(ROOT);
   });
 
   test('createConduitLaneModule normalizes lane id and exposes async builders', async () => {
-    const bridge = await import(pathToFileURL(path.join(ROOT, 'client/lib/direct_conduit_lane_bridge.js')).href);
+    const bridge = await import(pathToFileURL(path.join(ROOT, 'client/runtime/lib/direct_conduit_lane_bridge.js')).href);
     const lane = bridge.createConduitLaneModule('systems-primitives-policy-vm', ROOT);
     expect(lane.LANE_ID).toBe('SYSTEMS-PRIMITIVES-POLICY-VM');
     expect(typeof lane.buildLaneReceipt).toBe('function');
@@ -227,7 +227,7 @@ describe('direct conduit lane bridge coverage paths', () => {
     const previousArgs = process.env.PROTHEUS_CONDUIT_DAEMON_ARGS;
     process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND = process.execPath;
     process.env.PROTHEUS_CONDUIT_DAEMON_ARGS = '-e process.exit(0)';
-    const bridge = await import(pathToFileURL(path.join(ROOT, 'client/lib/direct_conduit_lane_bridge.js')).href);
+    const bridge = await import(pathToFileURL(path.join(ROOT, 'client/runtime/lib/direct_conduit_lane_bridge.js')).href);
     const receipt = await bridge.runLaneViaConduit('SYSTEMS-PRIMITIVES-POLICY-VM', ROOT);
     if (previousCommand == null) {
       delete process.env.PROTHEUS_CONDUIT_DAEMON_COMMAND;

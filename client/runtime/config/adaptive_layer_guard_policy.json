@@ -27,8 +27,8 @@
     "client/runtime/systems/adaptive/reflex/reflex_store.ts",
     "client/runtime/systems/adaptive/strategy/strategy_store.js",
     "client/runtime/systems/adaptive/strategy/strategy_store.ts",
-    "client/lib/eyes_catalog.js",
-    "client/lib/eyes_catalog.ts",
+    "client/runtime/lib/eyes_catalog.js",
+    "client/runtime/lib/eyes_catalog.ts",
     "client/runtime/systems/ops/mech_suit_benchmark.js",
     "systems/ops/mech_suit_benchmark.js"
   ]

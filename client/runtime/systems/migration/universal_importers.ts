@@ -22,7 +22,7 @@ const {
   resolvePath,
   stableHash,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const openfangImporter = require('./importers/openfang_importer.js');
 const genericJsonImporter = require('./importers/generic_json_importer.js');

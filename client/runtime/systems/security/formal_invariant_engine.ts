@@ -120,8 +120,8 @@ function resolveWorkspacePath(raw: unknown) {
       const suffix = norm === 'state' ? '' : norm.slice('state/'.length);
       return path.join('client', 'runtime', 'local', 'state', suffix);
     }
-    if (norm === 'client/state' || norm.startsWith('client/state/')) {
-      const suffix = norm === 'client/state' ? '' : norm.slice('client/state/'.length);
+    if (norm === 'client/runtime/state' || norm.startsWith('client/runtime/state/')) {
+      const suffix = norm === 'client/runtime/state' ? '' : norm.slice('client/runtime/state/'.length);
       return path.join('client', 'runtime', 'local', 'state', suffix);
     }
     return norm;

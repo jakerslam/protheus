@@ -12,7 +12,7 @@ const CANONICAL_PATHS = {
   core_state_root: 'core/local/state'
 };
 
-const LEGACY_SURFACES = ['state', 'client/state', 'local'];
+const LEGACY_SURFACES = ['state', 'client/runtime/state', 'local'];
 
 function clean(v: unknown) {
   return String(v == null ? '' : v)

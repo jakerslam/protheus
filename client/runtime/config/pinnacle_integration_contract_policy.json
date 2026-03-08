@@ -12,43 +12,43 @@
       "id": "V3-RACE-137",
       "module_path": "client/runtime/systems/pinnacle/crdt_state_plane.ts",
       "policy_path": "client/runtime/config/crdt_state_plane_policy.json",
-      "user_paths": ["client/memory/crdt", "client/adaptive/crdt"]
+      "user_paths": ["client/memory/crdt", "client/cognition/adaptive/crdt"]
     },
     {
       "id": "V3-RACE-138",
       "module_path": "client/runtime/systems/wasm/component_runtime.ts",
       "policy_path": "client/runtime/config/wasm_component_runtime_policy.json",
-      "user_paths": ["client/memory/wasm", "client/adaptive/wasm"]
+      "user_paths": ["client/memory/wasm", "client/cognition/adaptive/wasm"]
     },
     {
       "id": "V3-RACE-139",
       "module_path": "client/runtime/systems/intent/intent_translation_plane.ts",
       "policy_path": "client/runtime/config/intent_translation_policy.json",
-      "user_paths": ["client/memory/intent", "client/adaptive/intent"]
+      "user_paths": ["client/memory/intent", "client/cognition/adaptive/intent"]
     },
     {
       "id": "V3-RACE-140",
       "module_path": "client/runtime/systems/identity/did_vc_binding.ts",
       "policy_path": "client/runtime/config/did_vc_binding_policy.json",
-      "user_paths": ["client/memory/identity/did", "client/adaptive/identity/did"]
+      "user_paths": ["client/memory/identity/did", "client/cognition/adaptive/identity/did"]
     },
     {
       "id": "V3-RACE-141",
       "module_path": "client/runtime/systems/archival/content_addressed_archive.ts",
       "policy_path": "client/runtime/config/content_addressed_archive_policy.json",
-      "user_paths": ["client/memory/archival/content_addressed", "client/adaptive/archival"]
+      "user_paths": ["client/memory/archival/content_addressed", "client/cognition/adaptive/archival"]
     },
     {
       "id": "V3-RACE-142",
       "module_path": "client/runtime/systems/crypto/zk_compliance_proofs.ts",
       "policy_path": "client/runtime/config/zk_compliance_policy.json",
-      "user_paths": ["client/memory/crypto/zk", "client/adaptive/crypto/zk"]
+      "user_paths": ["client/memory/crypto/zk", "client/cognition/adaptive/crypto/zk"]
     },
     {
       "id": "V3-RACE-143",
       "module_path": "client/runtime/systems/crypto/fhe_encrypted_compute_pilot.ts",
       "policy_path": "client/runtime/config/fhe_encrypted_compute_policy.json",
-      "user_paths": ["client/memory/crypto/fhe", "client/adaptive/crypto/fhe"]
+      "user_paths": ["client/memory/crypto/fhe", "client/cognition/adaptive/crypto/fhe"]
     }
   ],
   "paths": {

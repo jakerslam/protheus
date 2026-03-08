@@ -67,27 +67,27 @@
           "suffixes": [".json"]
         },
         {
-          "path": "state/client/adaptive/workflows/orchestron/adversarial",
+          "path": "state/client/cognition/adaptive/workflows/orchestron/adversarial",
           "max_age_hours": 168,
           "suffixes": [".json"]
         },
         {
-          "path": "state/client/adaptive/workflows/executor/runs",
+          "path": "state/client/cognition/adaptive/workflows/executor/runs",
           "max_age_hours": 336,
           "suffixes": [".json"]
         },
         {
-          "path": "state/client/adaptive/workflows/executor/step_receipts",
+          "path": "state/client/cognition/adaptive/workflows/executor/step_receipts",
           "max_age_hours": 168,
           "suffixes": [".jsonl"]
         },
         {
-          "path": "state/client/adaptive/workflows/executor/mutations",
+          "path": "state/client/cognition/adaptive/workflows/executor/mutations",
           "max_age_hours": 336,
           "suffixes": [".jsonl"]
         },
         {
-          "path": "state/client/adaptive/workflows/executor/history.jsonl",
+          "path": "state/client/cognition/adaptive/workflows/executor/history.jsonl",
           "max_age_hours": 720,
           "suffixes": [".jsonl"]
         }

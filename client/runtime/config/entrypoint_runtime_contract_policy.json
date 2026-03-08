@@ -11,7 +11,7 @@
   "paths": {
     "package_json_path": "package.json",
     "bin_dir": "client/cli/bin",
-    "bootstrap_path": "client/lib/ts_bootstrap.js",
+    "bootstrap_path": "client/runtime/lib/ts_bootstrap.js",
     "latest_path": "client/runtime/local/state/ops/entrypoint_runtime_contract/latest.json",
     "receipts_path": "client/runtime/local/state/ops/entrypoint_runtime_contract/receipts.jsonl"
   }

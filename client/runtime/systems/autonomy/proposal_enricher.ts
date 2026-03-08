@@ -17,25 +17,25 @@ export {};
 
 const fs = require('fs');
 const path = require('path');
-const { loadActiveDirectives } = require('../../../lib/directive_resolver');
-const { resolveCatalogPath } = require('../../../lib/eyes_catalog');
+const { loadActiveDirectives } = require('../../lib/directive_resolver');
+const { resolveCatalogPath } = require('../../lib/eyes_catalog');
 const {
   loadActiveStrategy,
   applyThresholdOverrides,
   effectiveAllowedRisks,
   strategyAllowsProposalType
-} = require('../../../lib/strategy_resolver');
+} = require('../../lib/strategy_resolver');
 const {
   loadOutcomeFitnessPolicy,
   proposalTypeThresholdOffsetsFor
-} = require('../../../lib/outcome_fitness');
+} = require('../../lib/outcome_fitness');
 const {
   evaluateMutationSafetyEnvelope,
   loadPolicy: loadMutationSafetyKernelPolicy
 } = require('./mutation_safety_kernel');
-const { compileProposalSuccessCriteria } = require('../../../lib/success_criteria_compiler');
-const { evaluateProposalQuorum } = require('../../../lib/quorum_validator');
-const { classifyProposalType } = require('../../../lib/proposal_type_classifier');
+const { compileProposalSuccessCriteria } = require('../../lib/success_criteria_compiler');
+const { evaluateProposalQuorum } = require('../../lib/quorum_validator');
+const { classifyProposalType } = require('../../lib/proposal_type_classifier');
 
 type AnyObj = Record<string, any>;
 

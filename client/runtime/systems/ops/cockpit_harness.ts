@@ -11,7 +11,7 @@ const {
   runPersonaAmbientCommand,
   runDopamineAmbientCommand,
   runMemoryAmbientCommand
-} = require('../../../lib/spine_conduit_bridge');
+} = require('../../lib/spine_conduit_bridge');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 

@@ -109,7 +109,7 @@
     {
       "name": "tiered_directives",
       "current_version": "v1.0",
-      "path": "client/lib/directive_resolver.js",
+      "path": "client/runtime/lib/directive_resolver.js",
       "changelog": {
         "v1.0": "T0 invariants and T1 northstar constraint system"
       },
@@ -135,7 +135,7 @@
     {
       "name": "exec_compacted",
       "current_version": "v1.0",
-      "path": "client/lib/exec_compacted.js",
+      "path": "client/runtime/lib/exec_compacted.js",
       "changelog": {
         "v1.0": "Global exec wrapper with audit enforcement"
       },

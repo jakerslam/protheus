@@ -15,7 +15,7 @@ const {
   appendJsonl,
   resolvePath,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const DEFAULT_POLICY_PATH = process.env.STATE_TIER_MANIFEST_PATH
   ? path.resolve(process.env.STATE_TIER_MANIFEST_PATH)

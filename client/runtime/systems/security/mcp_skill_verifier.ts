@@ -6,7 +6,7 @@ export {};
  * MCP skill verifier primitive for V3-RACE-165.
  */
 
-const { cleanText, stableHash } = require('../../../lib/queued_backlog_runtime');
+const { cleanText, stableHash } = require('../../lib/queued_backlog_runtime');
 
 function verifyMcpSkillDescriptor(descriptor: Record<string, any>) {
   const id = cleanText(descriptor && descriptor.id || '', 120);

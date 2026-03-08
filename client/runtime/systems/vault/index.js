@@ -3,7 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 
 const path = require('path');
-const { createDomainProxy } = require('../../../lib/legacy_conduit_proxy');
+const { createDomainProxy } = require('../../lib/legacy_conduit_proxy');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const runDomain = createDomainProxy(__dirname, 'VAULT', 'foundation-contract-gate');

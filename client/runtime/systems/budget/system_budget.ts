@@ -22,8 +22,8 @@ export {};
 
 const fs = require('fs');
 const path = require('path');
-const { loadActiveStrategy, strategyBudgetCaps } = require('../../../lib/strategy_resolver');
-const { resolveClientState } = require('../../../lib/runtime_path_registry');
+const { loadActiveStrategy, strategyBudgetCaps } = require('../../lib/strategy_resolver');
+const { resolveClientState } = require('../../lib/runtime_path_registry');
 
 type AnyObj = Record<string, any>;
 

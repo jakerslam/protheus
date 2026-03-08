@@ -11,7 +11,7 @@ Companion docs:
 | Layer/Path | Ownership | May Mutate | Mutation Channel |
 |---|---|---|---|
 | `client/runtime/systems/` | Control plane + safety infrastructure | No direct adaptive writes except controller stores | N/A |
-| `client/adaptive/` | Runtime-adaptive policy/state data | Data only (no arbitrary writes) | `client/runtime/systems/adaptive/*/*_store.js` |
+| `client/cognition/adaptive/` | Runtime-adaptive policy/state data | Data only (no arbitrary writes) | `client/runtime/systems/adaptive/*/*_store.js` |
 | `client/cognition/habits/` | Dynamic routine execution and generation | Habit runtime/state only | Habit scripts + adaptive habit store |
 | `client/cognition/skills/` | Task-specific integrations | Skill-local files and allowed state receipts | Skill wrappers + guards |
 | `client/runtime/config/` | Static policy/config contracts | Only approved governance flows | Guarded writes |
@@ -52,7 +52,7 @@ CI executes this check before general test execution.
 ## Design Rules
 
 1. `client/runtime/systems/` should remain broadly reusable; no business specialization in system modules.
-2. `client/adaptive/` is resettable; deleting adaptive data should return the system to a blank-slate learning posture.
+2. `client/cognition/adaptive/` is resettable; deleting adaptive data should return the system to a blank-slate learning posture.
 3. All adaptive writes must go through store getters/setters/mutators.
 4. Contract changes require a schema version bump and CI passing against updated contracts.
 5. Runtime churn in local state mirrors should not be treated as source-of-truth for code review.

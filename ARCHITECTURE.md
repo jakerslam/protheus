@@ -90,18 +90,18 @@ Additional split rules:
 
 ## Direct Wiring Policy
 
-- Deprecated compat surfaces (`client/state`, root `state/`, root `local/`) are not valid runtime paths.
+- Deprecated compat surfaces (`client/runtime/state`, root `state/`, root `local/`) are not valid runtime paths.
 - Client wrappers must call core through conduit/scrambler only; no policy authority exists in TS compatibility shells.
 - Migration tooling may provide one-time compatibility options, but defaults are direct to canonical roots.
 - Canonical path constants are centralized in:
-  - TS: `client/lib/runtime_path_registry.ts`
+  - TS: `client/runtime/lib/runtime_path_registry.ts`
   - Rust (conduit): `core/layer2/conduit/src/runtime_paths.rs`
 
 ## Conversation Eye (Default)
 
 `conversation_eye` is a default cognition-plane sensory collector:
 
-- Collector source: `client/adaptive/sensory/eyes/collectors/conversation_eye.ts`
+- Collector source: `client/cognition/adaptive/sensory/eyes/collectors/conversation_eye.ts`
 - Synthesizer: `client/runtime/systems/sensory/conversation_eye_synthesizer.ts`
 - Bootstrap/auto-provision: `client/runtime/systems/sensory/conversation_eye_bootstrap.ts`
 

@@ -17,7 +17,7 @@ const {
   loadSymbiosisCoherencePolicy,
   evaluateSymbiosisCoherenceSignal,
   loadSymbiosisCoherenceSignal
-} = require('../../../lib/symbiosis_coherence_signal');
+} = require('../../lib/symbiosis_coherence_signal');
 
 type AnyObj = Record<string, any>;
 

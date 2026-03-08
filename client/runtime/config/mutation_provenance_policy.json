@@ -8,7 +8,7 @@
         "client/runtime/systems/strategy/",
         "client/runtime/systems/autonomy/",
         "client/runtime/systems/spine/",
-        "client/lib/"
+        "client/runtime/lib/"
       ],
       "require_reason": true
     },
@@ -17,7 +17,7 @@
         "client/runtime/systems/memory/",
         "client/runtime/systems/spine/",
         "client/runtime/systems/adaptive/core/",
-        "client/lib/"
+        "client/runtime/lib/"
       ],
       "require_reason": true
     }

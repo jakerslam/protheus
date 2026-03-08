@@ -13,7 +13,7 @@
   },
   "paths": {
     "memory_dir": "client/memory/ops/benchmarks",
-    "adaptive_index_path": "client/adaptive/ops/benchmarks/index.json",
+    "adaptive_index_path": "client/cognition/adaptive/ops/benchmarks/index.json",
     "events_path": "state/ops/competitive_benchmark/events.jsonl",
     "latest_path": "state/ops/competitive_benchmark/latest.json",
     "receipts_path": "state/ops/competitive_benchmark/receipts.jsonl",

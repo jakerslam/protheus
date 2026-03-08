@@ -15,7 +15,7 @@ node client/runtime/systems/spine/contract_check.js
 ## Workflow layer contribution rules
 
 - Keep strategy policy in `client/runtime/config/strategies/`.
-- Keep workflow definitions in `client/runtime/config/workflows/` + `state/client/adaptive/workflows/`.
+- Keep workflow definitions in `client/runtime/config/workflows/` + `state/client/cognition/adaptive/workflows/`.
 - Do not mix workflow DAG logic into core strategy ranking code.
 
 ## Minimum checks before PR

@@ -19,7 +19,7 @@ const {
   stampGuardEnv,
   normalizeKeyId,
   secretKeyEnvVarName
-} = require('../../../lib/request_envelope');
+} = require('../../lib/request_envelope');
 const { evaluateContainment, verifyChallengeProof } = require('./venom_containment_layer');
 
 function usage() {

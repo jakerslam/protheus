@@ -4,8 +4,8 @@ export {};
 
 const fs = require('fs');
 const path = require('path');
-const { nowIso, cleanText } = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+const { nowIso, cleanText } = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 
 const POLICY_PATH = process.env.NATIVE_BROWSER_DAEMON_POLICY_PATH
   ? path.resolve(process.env.NATIVE_BROWSER_DAEMON_POLICY_PATH)

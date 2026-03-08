@@ -13,8 +13,8 @@ node client/runtime/systems/weaver/drift_aware_revenue_optimizer.js status --day
 ## Inputs
 
 - `state/ops/execution_reliability_slo.json`
-- `state/client/adaptive/workflows/high_value_play/latest.json`
-- `state/client/adaptive/workflows/high_value_play/history.jsonl`
+- `state/client/cognition/adaptive/workflows/high_value_play/latest.json`
+- `state/client/cognition/adaptive/workflows/high_value_play/history.jsonl`
 
 ## Output
 

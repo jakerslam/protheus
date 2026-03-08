@@ -46,7 +46,7 @@ node ~/.openclaw/workspace/client/cognition/skills/polymarket-arbitrage/cli.js -
 
 ### Helix (Immortal Helix)
 - **Codex verified**: 4 bootstrap truths loaded
-- **Strand tracking**: client/runtime/systems/, client/lib/, client/runtime/config/
+- **Strand tracking**: client/runtime/systems/, client/runtime/lib/, client/runtime/config/
 - **Shadow**: FALSE → Advisory: TRUE
 - **Integrity**: All files sealed
 

@@ -290,7 +290,7 @@ When Jay says **"watch [something]"** in an info-related context, this is a dire
 
 **Implementation:**
 1. Determine the source type (RSS, API, scrape, GitHub, etc.)
-2. Create collector in `client/adaptive/sensory/eyes/collectors/` (never in `client/cognition/habits/scripts/eyes_collectors/`)
+2. Create collector in `client/cognition/adaptive/sensory/eyes/collectors/` (never in `client/cognition/habits/scripts/eyes_collectors/`)
 3. Keep `client/runtime/systems/` generic only. Do not add source-specific collector code outside adaptive layer.
 4. Add the eye through controller only:
    `node client/runtime/systems/sensory/eyes_intake.js create --name="..." --parser=<parser_type> --directive=<active_directive_id> [--domains=d1,d2]`

@@ -16,7 +16,7 @@ export {};
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { loadActiveStrategy } = require('../../../lib/strategy_resolver');
+const { loadActiveStrategy } = require('../../lib/strategy_resolver');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const RUNS_DIR = process.env.WORKFLOW_GENERATOR_RUNS_DIR

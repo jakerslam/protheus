@@ -56,13 +56,13 @@ protheus toolkit research "creating a quant trading software" --dry-run=1
 
 ## Examples
 
-- `client/apps/examples/personas-demo/`
-- `client/apps/examples/dictionary-demo/`
-- `client/apps/examples/orchestration-demo/`
-- `client/apps/examples/blob-morphing-demo/`
-- `client/apps/examples/comment-mapper-demo/`
-- `client/apps/examples/assimilate-demo/`
-- `client/apps/examples/research-demo/`
+- `client/cli/apps/examples/personas-demo/`
+- `client/cli/apps/examples/dictionary-demo/`
+- `client/cli/apps/examples/orchestration-demo/`
+- `client/cli/apps/examples/blob-morphing-demo/`
+- `client/cli/apps/examples/comment-mapper-demo/`
+- `client/cli/apps/examples/assimilate-demo/`
+- `client/cli/apps/examples/research-demo/`
 
 ## Internal Positioning
 

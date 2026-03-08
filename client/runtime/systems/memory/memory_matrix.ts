@@ -5,7 +5,7 @@ export {};
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { resolveClientState } = require('../../../lib/runtime_path_registry');
+const { resolveClientState } = require('../../lib/runtime_path_registry');
 
 const CLIENT_ROOT = path.resolve(__dirname, '..', '..');
 const WORKSPACE_ROOT = path.resolve(CLIENT_ROOT, '..');

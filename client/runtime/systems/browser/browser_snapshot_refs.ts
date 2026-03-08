@@ -4,8 +4,8 @@ export {};
 
 const path = require('path');
 const crypto = require('crypto');
-const { cleanText } = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+const { cleanText } = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 
 const POLICY_PATH = process.env.BROWSER_SNAPSHOT_REFS_POLICY_PATH
   ? path.resolve(process.env.BROWSER_SNAPSHOT_REFS_POLICY_PATH)

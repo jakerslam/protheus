@@ -16,7 +16,7 @@ const {
   appendJsonl,
   resolvePath,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const POLICY_PATH = process.env.TYPE_DERIVED_LANE_DOCS_AUTOGEN_POLICY_PATH
   ? path.resolve(process.env.TYPE_DERIVED_LANE_DOCS_AUTOGEN_POLICY_PATH)

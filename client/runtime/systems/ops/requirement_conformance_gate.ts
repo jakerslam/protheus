@@ -20,7 +20,7 @@ const {
   appendJsonl,
   resolvePath,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const POLICY_PATH = process.env.REQUIREMENT_CONFORMANCE_GATE_POLICY_PATH
   ? path.resolve(process.env.REQUIREMENT_CONFORMANCE_GATE_POLICY_PATH)

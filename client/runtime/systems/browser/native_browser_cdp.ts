@@ -3,8 +3,8 @@
 export {};
 
 const path = require('path');
-const { cleanText } = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+const { cleanText } = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 
 const POLICY_PATH = process.env.NATIVE_BROWSER_CDP_POLICY_PATH
   ? path.resolve(process.env.NATIVE_BROWSER_CDP_POLICY_PATH)

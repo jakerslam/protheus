@@ -11,7 +11,7 @@ const LATEST_PATH = path.join(STATE_DIR, 'latest.json');
 const RECEIPTS_PATH = path.join(STATE_DIR, 'receipts.jsonl');
 
 function usage() {
-  console.log('Usage: node client/lib/ts_entrypoint.js client/runtime/systems/ops/formal_spec_guard.ts run|status [--strict=1|0]');
+  console.log('Usage: node client/runtime/lib/ts_entrypoint.js client/runtime/systems/ops/formal_spec_guard.ts run|status [--strict=1|0]');
 }
 
 function nowIso() {

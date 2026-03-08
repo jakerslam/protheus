@@ -18,7 +18,7 @@ const {
   normalizeToken,
   clampInt,
   stableHash
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const CONSTITUTION_PATH = path.join(ROOT, 'AGENT-CONSTITUTION.md');
 
