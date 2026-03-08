@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
+// FIXME(rk): Consider adding validation for CSV encoding edge cases (UTF-8 BOM, quoted newlines)
+// See docs/ops/CONTRIBUTOR_IMPORT.md for current handling. Tracked under OPS-284.
 const fs = require('fs');
 const path = require('path');
 

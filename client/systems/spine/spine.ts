@@ -330,7 +330,7 @@ function emitSpineRunTerminal(code, explicitReason = null) {
           || `exit_code_${exitCode}`
       ).replace(/\s+/g, " ").trim().slice(0, 200);
     const elapsedMs = Math.max(0, Date.now() - Number(SPINE_ACTIVE_RUN.started_ms || Date.now()));
-    const payload = {
+    const payload: any = {
       ts: nowIso(),
       type: ok ? "spine_run_complete" : "spine_run_failed",
       run_id: SPINE_ACTIVE_RUN.run_id || null,
@@ -363,7 +363,7 @@ const SYSTEM_HEALTH_EVENTS_PATH = process.env.SYSTEM_HEALTH_EVENTS_PATH
 function appendSystemHealthEvent(evt) {
   try {
     const row = evt && typeof evt === "object" ? evt : {};
-    const payload = {
+    const payload: any = {
       ts: nowIso(),
       type: "system_health_event",
       source: "spine",
@@ -1329,7 +1329,7 @@ async function main() {
     const statusMode = String(arg("mode") || "daily").trim().toLowerCase() === "eyes" ? "eyes" : "daily";
     const statusDate = todayOr(arg("date") || process.argv[3]);
     const runContext = String(process.env.SPINE_RUN_CONTEXT || "manual").trim() || "manual";
-    const payload = {
+    const payload: any = {
       ok: true,
       type: "spine_status",
       ts: nowIso(),

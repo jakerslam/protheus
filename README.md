@@ -52,6 +52,8 @@ protheusctl --help
 protheusd --help
 ```
 
+> **Note:** The CLI tools require Node.js 18+. If you encounter module resolution issues, ensure your Node version meets this requirement. See docs/TROUBLESHOOTING.md for common environment issues.
+
 Local source workflow:
 
 ```bash
