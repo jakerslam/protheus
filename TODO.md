@@ -221,14 +221,15 @@
     - Retention policy is codified in config and enforced by a runnable lane.
     - Artifact growth is bounded with no impact to required receipts/audit chain windows.
 
-- [ ] `V6-RUNTIME-DIAGNOSTICS-001` Add single-shot `protheusd` diagnostics report for triage.
+- [x] `V6-RUNTIME-DIAGNOSTICS-001` Add single-shot `protheusd` diagnostics report for triage.
   - Layer target: `client/systems/ops/protheusd.ts` status/ops surface.
-  - Scope:
-    - Add consolidated diagnostics output (bridge health, runtime gate, timeout counters, cooldown state, resource snapshot, recent error reasons).
-    - Provide machine-readable and human-readable forms for Slack/incident triage.
-  - Completion criteria:
-    - One command yields a complete triage snapshot without manual log spelunking.
-    - Output includes enough context to distinguish timeout/deadlock/resource-pressure classes.
+  - Delivered:
+    - Added `protheusd diagnostics` command with bounded recent history (`commands.jsonl` + `receipts.jsonl` tails), bridge/runtime-gate state, ambient health, and resource snapshot.
+    - Added dual output formats: default JSON (`--format=json`) and triage-friendly text (`--format=human`).
+    - Reused existing `statusReceipt` surface for deterministic machine-readable envelope and appended diagnostics metadata for incident triage.
+  - Validation:
+    - `node client/systems/ops/protheusd.js diagnostics --no-autostart`
+    - `node client/systems/ops/protheusd.js diagnostics --format=human --no-autostart`
 
 - [ ] `V6-VALIDATION-HOST-001` Run full non-skipped runtime validation on stable host profile.
   - Layer target: validation harnesses under `client/memory/tools/tests/*` and ops benchmark/harness scripts.
