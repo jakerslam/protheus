@@ -55,6 +55,27 @@ function appendJsonl(filePath: string, payload: any) {
   fs.appendFileSync(filePath, `${JSON.stringify(payload)}\n`, 'utf8');
 }
 
+function readJsonl(filePath: string, maxRows = 50000) {
+  try {
+    if (!fs.existsSync(filePath)) return [];
+    const raw = String(fs.readFileSync(filePath, 'utf8') || '');
+    if (!raw.trim()) return [];
+    const out: any[] = [];
+    const lines = raw.split('\n');
+    for (let i = 0; i < lines.length; i += 1) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      try {
+        out.push(JSON.parse(line));
+      } catch {}
+      if (out.length >= maxRows) break;
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 function deterministicHash(payload: any) {
   const canonical = JSON.stringify(payload, Object.keys(payload || {}).sort());
   return crypto.createHash('sha256').update(canonical, 'utf8').digest('hex');
@@ -527,6 +548,8 @@ function loadMechPolicy(policyPath: string) {
     heartbeatHours: toInt(spine.heartbeat_hours, 4, 1, 168),
     manualTriggersAllowed: spine.manual_triggers_allowed === true,
     statusPath: resolvePath(ROOT, state.status_path, `${CANONICAL_PATHS.client_state_root}/ops/mech_suit_mode/latest.json`),
+    attentionQueuePath: resolvePath(ROOT, eyes.attention_queue_path, `${CANONICAL_PATHS.client_state_root}/attention/queue.jsonl`),
+    attentionCursorRoot: resolvePath(ROOT, eyes.consumer_state_path, `${CANONICAL_PATHS.client_state_root}/attention/consumers`),
     attentionLatestPath: resolvePath(ROOT, eyes.latest_path, `${CANONICAL_PATHS.client_state_root}/attention/latest.json`),
     personaLatestPath: resolvePath(ROOT, personas.latest_path, `${CANONICAL_PATHS.client_state_root}/personas/ambient_stance/latest.json`),
     dopamineLatestPath: resolvePath(ROOT, dopamine.latest_path, `${CANONICAL_PATHS.client_state_root}/dopamine/ambient/latest.json`)
@@ -2024,6 +2047,47 @@ function runAttach(runtime: any, argv: string[]) {
   process.exit(out.ok ? 0 : 1);
 }
 
+function drainAttentionLocalCompat(runtime: any, consumer: string, limit: number) {
+  const queuePath = runtime && runtime.mechPolicy ? runtime.mechPolicy.attentionQueuePath : null;
+  const cursorRoot = runtime && runtime.mechPolicy ? runtime.mechPolicy.attentionCursorRoot : null;
+  if (!queuePath || !cursorRoot) {
+    return {
+      ok: false,
+      events: [],
+      queueDepth: 0,
+      cursorAfter: 0,
+      cursorBefore: 0
+    };
+  }
+  const consumerSafe = cleanText(consumer, 80)
+    .toLowerCase()
+    .replace(/[^a-z0-9._:@-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '') || 'default';
+  const cursorPath = path.join(cursorRoot, `${consumerSafe}.json`);
+  const cursor = readJson(cursorPath, null);
+  const allEvents = readJsonl(queuePath, 200000).filter((row) => row && typeof row === 'object');
+  const total = allEvents.length;
+  const start = Math.max(0, Math.min(total, Number(cursor && cursor.cursor_after || 0) || 0));
+  const batchLimit = Math.max(1, Math.min(2048, Number(limit || 0) || 1));
+  const events = allEvents.slice(start, Math.min(total, start + batchLimit));
+  const cursorAfter = start + events.length;
+  writeJson(cursorPath, {
+    consumer: consumerSafe,
+    cursor_before: start,
+    cursor_after: cursorAfter,
+    queue_size: total,
+    ts: nowIso()
+  });
+  return {
+    ok: true,
+    events,
+    queueDepth: Math.max(0, total - cursorAfter),
+    cursorAfter,
+    cursorBefore: start
+  };
+}
+
 async function runSubscribe(runtime: any, argv: string[]) {
   let state = loadDaemonState(runtime);
   if (!isPidAlive(state.pid) && runtime.mechPolicy.enabled === true && ambientAutostartEnabled(argv)) {
@@ -2052,9 +2116,28 @@ async function runSubscribe(runtime: any, argv: string[]) {
   const limit = toInt(parseFlag(argv, 'limit') || runtime.batchLimit, runtime.batchLimit, 1, 512);
   const pollMs = toInt(parseFlag(argv, 'poll-ms') || process.env.PROTHEUSD_SUBSCRIBE_POLL_MS, 1500, 250, 60000);
   const waitMs = toInt(parseFlag(argv, 'wait-ms') || process.env.PROTHEUSD_SUBSCRIBE_WAIT_MS, pollMs, 0, 300000);
+  const waitChunkMs = toInt(
+    parseFlag(argv, 'wait-chunk-ms') || process.env.PROTHEUSD_SUBSCRIBE_WAIT_CHUNK_MS,
+    Math.min(Math.max(waitMs, 0), 5000),
+    250,
+    30000
+  );
+  const subscribeBridgeFloorMs = toInt(
+    process.env.PROTHEUSD_SUBSCRIBE_BRIDGE_TIMEOUT_MS,
+    20000,
+    4000,
+    5 * 60 * 1000
+  );
+  const subscribeStdioFloorMs = toInt(
+    process.env.PROTHEUSD_SUBSCRIBE_STDIO_TIMEOUT_MS,
+    25000,
+    5000,
+    5 * 60 * 1000
+  );
   const once = toBool(parseFlag(argv, 'once'), false);
   const maxCycles = toInt(parseFlag(argv, 'max-cycles'), once ? 1 : 0, 0, 1000000);
   let consecutiveTimeouts = 0;
+  let onceWaitAccumulatedMs = 0;
 
   let cycles = 0;
   const started = withReceipt({
@@ -2072,19 +2155,30 @@ async function runSubscribe(runtime: any, argv: string[]) {
 
   while (true) {
     cycles += 1;
+    const cycleWaitMs = Math.min(waitMs, waitChunkMs);
+    const bridgeTimeoutMs = Math.max(
+      subscribeBridgeFloorMs,
+      runtime.cockpitConduitTimeoutMs,
+      cycleWaitMs + 5000
+    );
+    const stdioTimeoutMs = Math.max(
+      subscribeStdioFloorMs,
+      runtime.cockpitConduitTimeoutMs + 5000,
+      bridgeTimeoutMs + 3000
+    );
     const drained = await runAttentionCommand(
       [
         'drain',
         `--consumer=${consumer}`,
         `--limit=${limit}`,
         '--run-context=daemon_subscribe',
-        `--wait-ms=${waitMs}`
+        `--wait-ms=${cycleWaitMs}`
       ],
       {
         cwdHint: runtime.root,
         runContext: 'daemon_subscribe',
-        skipRuntimeGate: true,
-        timeoutMs: Math.max(12000, runtime.cockpitConduitTimeoutMs * 2, waitMs + 8000)
+        timeoutMs: bridgeTimeoutMs,
+        stdioTimeoutMs
       }
     );
 
@@ -2099,6 +2193,41 @@ async function runSubscribe(runtime: any, argv: string[]) {
       ) || 'attention_drain_failed';
       if (isBridgeTimeoutReason(rawReason)) {
         consecutiveTimeouts += 1;
+        const localCompat = drainAttentionLocalCompat(runtime, consumer, limit);
+        if (localCompat.ok) {
+          const compatEvents = Array.isArray(localCompat.events) ? localCompat.events : [];
+          const compatBatch = withReceipt({
+            ok: true,
+            shadow_only: false,
+            type: 'protheus_daemon_subscribe_batch',
+            ts: nowIso(),
+            consumer,
+            cycle: cycles,
+            batch_count: compatEvents.length,
+            queue_depth: Number(localCompat.queueDepth || 0),
+            cursor_after: Number(localCompat.cursorAfter || 0),
+            wait_ms: cycleWaitMs,
+            waited_ms: 0,
+            degraded: false,
+            bridge_fallback_local: true,
+            bridge_fallback_reason: rawReason,
+            attention: compatEvents
+          });
+          if (once && waitMs > cycleWaitMs && compatEvents.length === 0) {
+            const waitedNow = Math.max(1, cycleWaitMs);
+            onceWaitAccumulatedMs += waitedNow;
+            if (onceWaitAccumulatedMs < waitMs) {
+              await sleep(Math.max(250, cycleWaitMs));
+              continue;
+            }
+          }
+          process.stdout.write(`${JSON.stringify(compatBatch)}\n`);
+          if (once || maxCycles > 0 && cycles >= maxCycles) {
+            break;
+          }
+          await sleep(Math.max(250, pollMs));
+          continue;
+        }
         const backoffMs = Math.min(15000, Math.max(pollMs, 500 * Math.pow(2, Math.min(6, consecutiveTimeouts - 1))));
         const degraded = withReceipt({
           ok: true,
@@ -2153,10 +2282,19 @@ async function runSubscribe(runtime: any, argv: string[]) {
       batch_count: events.length,
       queue_depth: Number(payload.queue_depth || 0),
       cursor_after: Number(payload.cursor_after || 0),
-      wait_ms: Number(payload.wait_ms || waitMs),
+      wait_ms: Number(payload.wait_ms || cycleWaitMs),
       waited_ms: Number(payload.waited_ms || 0),
       attention: events.map((row: any) => (row && typeof row === 'object' ? row : null)).filter(Boolean)
     });
+
+    if (once && waitMs > cycleWaitMs && events.length === 0) {
+      const waitedNow = Math.max(1, Number(payload.waited_ms || cycleWaitMs));
+      onceWaitAccumulatedMs += waitedNow;
+      if (onceWaitAccumulatedMs < waitMs) {
+        continue;
+      }
+    }
+
     process.stdout.write(`${JSON.stringify(batch)}\n`);
 
     if (once || maxCycles > 0 && cycles >= maxCycles) {
