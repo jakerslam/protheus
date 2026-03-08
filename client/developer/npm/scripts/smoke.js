@@ -28,12 +28,12 @@ function main() {
     combined.includes('Usage') || combined.includes('protheus'),
     'expected help output from protheus wrapper'
   );
-  process.stdout.write('npm/scripts/smoke.js: OK\n');
+  process.stdout.write('client/developer/npm/scripts/smoke.js: OK\n');
 }
 
 try {
   main();
 } catch (err) {
-  process.stderr.write(`npm/scripts/smoke.js: FAIL: ${err.message}\n`);
+  process.stderr.write(`client/developer/npm/scripts/smoke.js: FAIL: ${err.message}\n`);
   process.exit(1);
 }

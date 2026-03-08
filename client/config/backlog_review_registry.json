@@ -16821,7 +16821,7 @@
       "status": "done",
       "title": "npm distribution wrapper for `npm install -g protheus`",
       "problem": "Current root package is private/internal; adoption needs a dedicated npm package that installs a `protheus` CLI with Rust binary provisioning.",
-      "acceptance": "Added publishable `npm/` package with global `protheus` bin entry (`npm/client/bin/protheus.js`), installer provisioning (`npm/scripts/install.js`: release download + local Cargo build fallback), smoke coverage (`npm/scripts/smoke.js`), package docs (`npm/README.md`), and root README install guidance. Install smoke verified via `cd npm && npm install -g . --prefix ./.global-test` and `./.global-test/client/bin/protheus --help`.",
+      "acceptance": "Added publishable `npm/` package with global `protheus` bin entry (`client/developer/npm/bin/protheus.js`), installer provisioning (`client/developer/npm/scripts/install.js`: release download + local Cargo build fallback), smoke coverage (`client/developer/npm/scripts/smoke.js`), package docs (`client/developer/npm/README.md`), and root README install guidance. Install smoke verified via `cd client/developer/npm && npm install -g . --prefix ./.global-test` and `./.global-test/client/bin/protheus --help`.",
       "dependencies": [],
       "impact_score": 3,
       "risk_score": 0,
@@ -37328,16 +37328,16 @@
       "reviewed": true,
       "review_result": "pass",
       "evidence_refs": [
-        "npm/client/bin/protheus.js",
-        "npm/scripts/install.js",
-        "npm/scripts/smoke.js",
-        "npm/README.md"
+        "client/developer/npm/bin/protheus.js",
+        "client/developer/npm/scripts/install.js",
+        "client/developer/npm/scripts/smoke.js",
+        "client/developer/npm/README.md"
       ],
       "evidence_found": [
-        "npm/client/bin/protheus.js",
-        "npm/scripts/install.js",
-        "npm/scripts/smoke.js",
-        "npm/README.md"
+        "client/developer/npm/bin/protheus.js",
+        "client/developer/npm/scripts/install.js",
+        "client/developer/npm/scripts/smoke.js",
+        "client/developer/npm/README.md"
       ],
       "evidence_missing": [],
       "dependencies": []
