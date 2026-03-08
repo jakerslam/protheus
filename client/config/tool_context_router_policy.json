@@ -1,0 +1,34 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "allow_unknown_tool": false,
+  "score_weights": {
+    "scope": 0.45,
+    "tag_overlap": 0.35,
+    "base_priority": 0.2
+  },
+  "tool_profiles": [
+    {
+      "tool": "research",
+      "scopes": ["analysis", "intelligence", "market"],
+      "tags": ["research", "intel", "market", "competitor"],
+      "base_priority": 0.82
+    },
+    {
+      "tool": "assimilate",
+      "scopes": ["memory", "knowledge", "synthesis"],
+      "tags": ["memory", "insight", "decision", "node"],
+      "base_priority": 0.8
+    },
+    {
+      "tool": "cli_suggestion_engine",
+      "scopes": ["ops", "cli", "runtime"],
+      "tags": ["terminal", "command", "ops", "status"],
+      "base_priority": 0.74
+    }
+  ],
+  "paths": {
+    "latest_path": "state/tools/tool_context_router/latest.json",
+    "history_path": "state/tools/tool_context_router/history.jsonl"
+  }
+}
