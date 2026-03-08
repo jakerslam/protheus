@@ -41,8 +41,11 @@ try {
   const matrixMdPath = path.join(memoryDir, 'TAG_MEMORY_MATRIX.md');
   const idleDir = path.join(stateDir, 'dreams', 'idle');
   const remDir = path.join(stateDir, 'dreams', 'rem');
+  const conversationDir = path.join(stateDir, 'conversation_eye');
+  const conversationNodesPath = path.join(conversationDir, 'nodes.jsonl');
   fs.mkdirSync(idleDir, { recursive: true });
   fs.mkdirSync(remDir, { recursive: true });
+  fs.mkdirSync(conversationDir, { recursive: true });
 
   fs.writeFileSync(memoryIndexPath, [
     '# MEMORY_INDEX.md',
@@ -55,6 +58,7 @@ try {
   ].join('\n'));
   fs.writeFileSync(tagsIndexPath, '#focus → node-alpha, tag-beta, jot-gamma\n');
   fs.writeFileSync(path.join(idleDir, '2026-03-07.jsonl'), `${JSON.stringify({ seeds: [] })}\n`);
+  fs.writeFileSync(conversationNodesPath, '');
 
   const env = {
     MEMORY_MATRIX_MEMORY_DIR: memoryDir,
@@ -64,7 +68,8 @@ try {
     MEMORY_MATRIX_MD_PATH: matrixMdPath,
     MEMORY_MATRIX_IDLE_DIR: idleDir,
     MEMORY_MATRIX_REM_DIR: remDir,
-    CONVERSATION_EYE_MEMORY_DIR: path.join(stateDir, 'conversation_eye')
+    CONVERSATION_EYE_MEMORY_DIR: conversationDir,
+    MEMORY_MATRIX_CONVERSATION_PATH: conversationNodesPath
   };
 
   const out = run(['run', '--apply=1', '--reason=test'], env);
