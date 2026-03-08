@@ -1,0 +1,22 @@
+name: empty-fort-verify
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.all-contributorsrc'
+      - 'README.md'
+      - 'client/docs/community/contributors_manifest.json'
+      - 'scripts/verify-empty-fort.sh'
+      - '.github/workflows/empty-fort-verify.yml'
+
+jobs:
+  verify-empty-fort:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify Empty Fort integrity
+        run: |
+          bash scripts/verify-empty-fort.sh --min-count=1
