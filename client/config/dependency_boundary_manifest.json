@@ -41,6 +41,7 @@
       "client/lib/spine_conduit_bridge.ts",
       "client/lib/ops_domain_conduit_runner.ts",
       "client/lib/conduit_full_lifecycle_probe.js",
+      "client/systems/ops/protheusd.ts",
       "client/systems/ops/dependency_boundary_guard.ts",
       "client/systems/ops/rust50_conf001_execution_cutover.ts",
       "client/systems/ops/rust50_sprint1_batch.ts",

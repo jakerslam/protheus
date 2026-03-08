@@ -86,6 +86,8 @@ function sourceFallbackAllowed(text) {
     || normalized.includes('conduit_runtime_gate_active_until:')
     || normalized.includes('conduit_stdio_timeout:')
     || normalized.includes('conduit_bridge_timeout:')
+    || normalized.includes('dyld_loader_stall_detected')
+    || normalized.includes('stale_build_script_detected')
     || normalized.includes('security_global_gate_failed')
     || normalized.includes('etimedout');
 }

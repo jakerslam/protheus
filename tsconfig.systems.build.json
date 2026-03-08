@@ -1,11 +1,3 @@
 {
-  "extends": "./tsconfig.systems.json",
-  "compilerOptions": {
-    "noEmit": false,
-    "checkJs": false,
-    "declaration": false,
-    "sourceMap": false,
-    "outDir": "./dist",
-    "rootDir": "."
-  }
+  "extends": "./tsconfig.build.json"
 }
