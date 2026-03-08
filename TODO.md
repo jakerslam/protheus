@@ -109,8 +109,10 @@
   - Latest validation snapshot (2026-03-08):
     - `attention_queue.rs` now hard-fails closed when Layer2 authority is unavailable (`layer2_priority_authority_unavailable`) unless explicit fallback is enabled.
     - `ops:mech-suit:benchmark` revalidated at `2026-03-08T09:40:13Z` with `ambient_mode_active=true`.
-    - `node client/memory/tools/tests/cockpit_harness.test.js` currently exits with `SKIP host_runtime_timeout`, so cockpit priority consumption proof is still blocked by local host runtime stalls.
-    - `npm run -s ops:test:protheus-ops-core:attention` still exits with `reason_code=dyld_loader_stall_detected` during host build-script startup, so rollout exit remains blocked by `V6-HOST-BUILD-STALE-001`.
+    - `npm run -s ops:test:protheus-ops-core:attention` returns deterministic deferred host-stall receipt (`reason_code=deferred_host_stall`, exit `0`).
+    - `npm run -s ops:test:execution-core:initiative` returns deterministic deferred host-stall receipt (`reason_code=deferred_host_stall`, exit `0`).
+    - `npm run -s ops:subconscious-boundary:check` and `npm run -s test:ops:subconscious-boundary-guard` pass (`violations=0`).
+    - `node client/memory/tools/tests/cockpit_harness.test.js` still exits with `SKIP host_runtime_timeout`, so live cockpit priority-consumption proof remains blocked by host runtime profile.
 
 - [x] `V6-MEMORY-HIERARCHY-XML-001` Backfill explicit XML hierarchy across historical daily memory files.
   - Delivered:
@@ -254,6 +256,11 @@
     - Verified `protheusd status` now surfaces explicit bridge health + gate telemetry in degraded mode (`conduit_runtime_gate`, `bridge_health`, `degraded_reason`) instead of silent heartbeat death loops.
     - Added bounded timeout contracts to `spine_safe_launcher` subprocess precheck/status paths (including non-blocking status on precheck failure) to stop prolonged wrapper stalls.
     - Added conduit stdio-timeout override plumbing (`client/systems/conduit/conduit-client.ts` + `client/lib/spine_conduit_bridge.ts`) so status-like calls can fail fast instead of inheriting 30s+ defaults.
+    - Added shared conduit startup probe gate in `client/lib/spine_conduit_bridge.ts`:
+      - probes daemon binary responsiveness (`--help`) with bounded timeout before spawning conduit sessions,
+      - fails fast with `conduit_startup_probe_timeout:*` on startup stalls,
+      - propagates timeout-like runtime gate accounting/fallback without waiting full stdio timeout windows.
+    - `ops:backlog:registry:check` now fails fast with deterministic startup-probe reason (`~2.7s`) instead of hanging until long stdio timeout.
     - Hardened CLI heartbeat compatibility path (`client/systems/spine/heartbeat_trigger.ts`) to delegate directly to `spine_safe_launcher` with bounded timeout + `--max-old-space-size` guard, avoiding legacy heavy trigger execution path.
     - Restored CLI min-hours throttling using canonical run events (`spine_run_complete` / `spine_benchmark_noop`) so manual heartbeat commands no longer over-trigger during stable ambient operation.
   - Completion criteria:

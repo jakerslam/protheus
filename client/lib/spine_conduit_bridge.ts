@@ -9,6 +9,7 @@ const DEFAULT_CONDUIT_GATE_BASE_MS = 5 * 60 * 1000;
 const DEFAULT_CONDUIT_GATE_MAX_MS = 30 * 60 * 1000;
 const DEFAULT_CONDUIT_GATE_THRESHOLD = 2;
 const DEFAULT_CONDUIT_GATE_FAILURE_TTL_MS = 6 * 60 * 60 * 1000;
+const CONDUIT_STARTUP_PROBE_CACHE = new Map();
 
 function findRepoRoot(startDir) {
   let dir = path.resolve(startDir || process.cwd());
@@ -150,6 +151,7 @@ function timeoutLikeError(text) {
   const normalized = String(text || '').toLowerCase();
   return normalized.includes('conduit_stdio_timeout:')
     || normalized.includes('conduit_bridge_timeout:')
+    || normalized.includes('conduit_startup_probe_timeout:')
     || normalized.includes('_bridge_timeout:')
     || normalized.includes('bridge_wait_failed')
     || normalized.includes('conduit_stdio_exit:')
@@ -252,6 +254,69 @@ function daemonArgs(command) {
   return command === 'cargo'
     ? ['run', '--quiet', '-p', 'conduit', '--bin', 'conduit_daemon']
     : [];
+}
+
+function conduitStartupProbeEnabled() {
+  const raw = String(process.env.PROTHEUS_CONDUIT_STARTUP_PROBE || '1').trim().toLowerCase();
+  return !(raw === '0' || raw === 'false' || raw === 'off' || raw === 'no');
+}
+
+function conduitStartupProbeTimeoutMs() {
+  return Math.max(
+    250,
+    parsePositiveInt(process.env.PROTHEUS_CONDUIT_STARTUP_PROBE_TIMEOUT_MS, 2000)
+  );
+}
+
+function conduitStartupProbeCacheTtlMs() {
+  return Math.max(
+    250,
+    parsePositiveInt(process.env.PROTHEUS_CONDUIT_STARTUP_PROBE_CACHE_TTL_MS, 5000)
+  );
+}
+
+function runConduitStartupProbe(command, args, root) {
+  if (!conduitStartupProbeEnabled()) {
+    return { ok: true, skipped: true, reason: 'probe_disabled' };
+  }
+  if (!command || String(command) === 'cargo') {
+    return { ok: true, skipped: true, reason: 'probe_skipped_cargo' };
+  }
+
+  const key = `${String(command)}::${Array.isArray(args) ? args.join(' ') : ''}`;
+  const cached = CONDUIT_STARTUP_PROBE_CACHE.get(key);
+  const now = Date.now();
+  if (cached && (now - Number(cached.ts || 0)) < conduitStartupProbeCacheTtlMs()) {
+    return cached;
+  }
+
+  const timeoutMs = conduitStartupProbeTimeoutMs();
+  const probeArgsRaw = String(process.env.PROTHEUS_CONDUIT_STARTUP_PROBE_ARGS || '--help').trim();
+  const probeArgs = probeArgsRaw ? probeArgsRaw.split(/\s+/).filter(Boolean) : ['--help'];
+  const run = spawnSync(command, probeArgs, {
+    cwd: root,
+    encoding: 'utf8',
+    timeout: timeoutMs,
+    env: process.env
+  });
+
+  let out;
+  if (run.error) {
+    const code = String(run.error && run.error.code || '').toUpperCase();
+    if (code === 'ETIMEDOUT') {
+      out = { ok: false, reason: `conduit_startup_probe_timeout:${timeoutMs}` };
+    } else {
+      const msg = String(run.error && run.error.message || run.error).slice(0, 260);
+      out = { ok: false, reason: `conduit_startup_probe_error:${msg}` };
+    }
+  } else if (run.signal) {
+    out = { ok: false, reason: `conduit_startup_probe_signal:${String(run.signal)}` };
+  } else {
+    out = { ok: true };
+  }
+  out.ts = now;
+  CONDUIT_STARTUP_PROBE_CACHE.set(key, out);
+  return out;
 }
 
 function buildAgentId(commandArgs, opts = {}) {
@@ -599,8 +664,39 @@ async function runConduitAgent(agentId, requestPrefix, receiptKey, errorType, op
       };
     }
   }
-  const { ConduitClient } = loadConduitClient(root);
   const command = daemonCommand(root);
+  const args = daemonArgs(command);
+  const startupProbe = runConduitStartupProbe(command, args, root);
+  if (!startupProbe.ok) {
+    const reason = String(startupProbe.reason || 'conduit_startup_probe_failed');
+    const compat = runConduitCompatFallback(root, agentId, errorType, {
+      ...opts,
+      fallbackReason: reason
+    });
+    if (compat) {
+      if (!suppressRuntimeGate) clearRuntimeGateIfSet(root);
+      return compat;
+    }
+    if (!suppressRuntimeGate) recordRuntimeGateFailure(root, reason);
+    return {
+      ok: false,
+      status: 1,
+      payload: {
+        ok: false,
+        type: errorType,
+        reason,
+        timed_out: timeoutLikeError(reason),
+        startup_probe: true,
+        routed_via: 'conduit'
+      },
+      detail: null,
+      response: null,
+      routed_via: 'conduit',
+      stdout: '',
+      stderr: reason
+    };
+  }
+  const { ConduitClient } = loadConduitClient(root);
   const defaultStdioTimeoutMs = Math.max(
     1000,
     Number(process.env.PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS || process.env.PROTHEUS_CONDUIT_TIMEOUT_MS || 30000) || 30000
@@ -615,7 +711,7 @@ async function runConduitAgent(agentId, requestPrefix, receiptKey, errorType, op
   );
   const client = ConduitClient.overStdio(
     command,
-    daemonArgs(command),
+    args,
     root,
     undefined,
     { timeoutMs: stdioTimeoutMs }
