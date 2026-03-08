@@ -1,399 +1,225 @@
 #!/usr/bin/env node
 'use strict';
+export {};
 
 /**
  * systems/spine/heartbeat_trigger.js
  *
- * Deterministic heartbeat entrypoint for spine.
- * - Throttles runs by min-hours window
- * - Calls spine.js with today's date
- *
- * Usage:
- *   node systems/spine/heartbeat_trigger.js run [--mode=eyes|daily] [--min-hours=N] [--max-eyes=N]
- *   node systems/spine/heartbeat_trigger.js --help
+ * Compatibility shell only.
+ * - Delegates run/status to spine_safe_launcher.
+ * - Applies bounded memory + timeout guard for CLI stability.
+ * - Preserves optional min-hours throttling for manual invocations.
  */
 
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { runSpineCommand } = require('../../lib/spine_conduit_bridge');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const TS_ENTRYPOINT = path.join(ROOT, 'lib', 'ts_entrypoint.js');
-const RUNS_DIR = path.join(ROOT, 'local', 'state', 'spine', 'runs');
-const IDLE_DREAM_SKIP_TIMEOUT_MS = Math.max(5000, Math.min(
-  15 * 60 * 1000,
-  Number(process.env.SPINE_HEARTBEAT_IDLE_DREAM_TIMEOUT_MS || 120000) || 120000
-));
-const SPINE_HEARTBEAT_RUN_TIMEOUT_MS = Math.max(30000, Math.min(
-  60 * 60 * 1000,
-  Number(process.env.SPINE_HEARTBEAT_RUN_TIMEOUT_MS || 300000) || 300000
-));
-const SPINE_HEARTBEAT_RETRY_WITHOUT_DREAM = String(process.env.SPINE_HEARTBEAT_RETRY_WITHOUT_DREAM || '1') !== '0';
-const SPINE_HEARTBEAT_RETRY_TIMEOUT_MS = Math.max(30000, Math.min(
-  60 * 60 * 1000,
-  Number(process.env.SPINE_HEARTBEAT_RETRY_TIMEOUT_MS || 180000) || 180000
-));
+const SAFE_LAUNCHER = path.join(ROOT, 'systems', 'spine', 'spine_safe_launcher.js');
+const DEFAULT_TIMEOUT_MS = Math.max(
+  5000,
+  Math.min(10 * 60 * 1000, Number(process.env.SPINE_HEARTBEAT_TRIGGER_TIMEOUT_MS || 30000) || 30000)
+);
+const DEFAULT_MAX_OLD_SPACE_MB = Math.max(
+  96,
+  Math.min(1024, Number(process.env.SPINE_HEARTBEAT_TRIGGER_MAX_OLD_SPACE_MB || 192) || 192)
+);
 
-function nowIso() { return new Date().toISOString(); }
-function todayStr() { return new Date().toISOString().slice(0, 10); }
-function cleanText(v, maxLen = 240) {
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function cleanText(v: unknown, maxLen = 240) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, maxLen);
+}
+
+function toNumber(v: unknown, fallback: number, lo: number, hi: number) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(lo, Math.min(hi, n));
+}
+
+function parseArg(name: string, fallback: string | null = null) {
+  const pref = `--${name}=`;
+  const arg = process.argv.find((token) => String(token).startsWith(pref));
+  return arg ? String(arg).slice(pref.length) : fallback;
 }
 
 function usage() {
   console.log('Usage:');
   console.log('  node systems/spine/heartbeat_trigger.js run [--mode=eyes|daily] [--min-hours=N] [--max-eyes=N]');
-  console.log('  node systems/spine/heartbeat_trigger.js status');
+  console.log('  node systems/spine/heartbeat_trigger.js status [--mode=eyes|daily] [--date=YYYY-MM-DD]');
   console.log('  node systems/spine/heartbeat_trigger.js --help');
 }
 
-function parseArg(name, fallback = null) {
-  const pref = `--${name}=`;
-  const a = process.argv.find(x => x.startsWith(pref));
-  return a ? a.slice(pref.length) : fallback;
+function resolveScriptInvocation(scriptAbsPath: string) {
+  if (fs.existsSync(scriptAbsPath)) return [scriptAbsPath];
+  if (scriptAbsPath.endsWith('.js')) {
+    const tsPath = scriptAbsPath.slice(0, -3) + '.ts';
+    if (fs.existsSync(tsPath)) return [path.join(ROOT, 'lib', 'ts_entrypoint.js'), tsPath];
+  }
+  return [scriptAbsPath];
 }
 
-function parseJson(text) {
-  const raw = String(text || '').trim();
+function parseJsonLinePayload(stdout: string) {
+  const raw = String(stdout || '').trim();
   if (!raw) return null;
-  try { return JSON.parse(raw); } catch {}
+  try {
+    return JSON.parse(raw);
+  } catch {}
   const lines = raw.split('\n').map((line) => line.trim()).filter(Boolean);
   for (let i = lines.length - 1; i >= 0; i -= 1) {
-    try { return JSON.parse(lines[i]); } catch {}
+    try {
+      return JSON.parse(lines[i]);
+    } catch {}
   }
   return null;
 }
 
-function parseGateUntil(reason) {
-  const raw = String(reason || '').trim();
-  const marker = 'conduit_runtime_gate_active_until:';
-  if (!raw.startsWith(marker)) return null;
-  const iso = raw.slice(marker.length).trim();
-  const ms = Date.parse(iso);
-  if (!Number.isFinite(ms)) return null;
-  return {
-    until_iso: new Date(ms).toISOString(),
-    remaining_ms: Math.max(0, ms - Date.now())
-  };
-}
-
-function isBridgeTimeoutReason(value) {
-  const text = String(value == null ? '' : value).toLowerCase();
-  if (!text) return false;
-  return text.includes('conduit_runtime_gate_active_until:')
-    || text.includes('conduit_stdio_timeout:')
-    || text.includes('conduit_bridge_timeout:')
-    || text.includes('bridge_wait_failed')
-    || text.includes('conduit_stdio_exit:')
-    || text.includes('conduit_stdio_error:')
-    || text.includes('etimedout');
-}
-
-function resolveScriptInvocation(scriptRelPath: string) {
-  const scriptAbs = path.join(ROOT, scriptRelPath);
-  if (fs.existsSync(scriptAbs)) {
-    return [scriptRelPath];
-  }
-  if (scriptRelPath.endsWith('.js')) {
-    const tsRel = scriptRelPath.slice(0, -3) + '.ts';
-    const tsAbs = path.join(ROOT, tsRel);
-    if (fs.existsSync(tsAbs)) {
-      return [TS_ENTRYPOINT, tsAbs];
-    }
-  }
-  if (scriptRelPath.endsWith('.ts')) {
-    const jsRel = scriptRelPath.slice(0, -3) + '.js';
-    const jsAbs = path.join(ROOT, jsRel);
-    if (fs.existsSync(jsAbs)) {
-      return [jsRel];
-    }
-  }
-  return [scriptRelPath];
-}
-
-function readJsonl(filePath) {
+function readJsonl(filePath: string) {
   if (!fs.existsSync(filePath)) return [];
   return fs.readFileSync(filePath, 'utf8')
     .split('\n')
     .filter(Boolean)
     .map((line) => {
-      try { return JSON.parse(line); } catch { return null; }
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
     })
     .filter(Boolean);
 }
 
-function lastSpineRunStarted(mode, dateStr) {
-  const fp = path.join(RUNS_DIR, `${dateStr}.jsonl`);
+function lastSpineRunStarted(mode: string, dateStr: string) {
+  const fp = path.join(ROOT, 'local', 'state', 'spine', 'runs', `${dateStr}.jsonl`);
+  const accepted = new Set(['spine_run_started', 'spine_run_complete', 'spine_benchmark_noop']);
   const events = readJsonl(fp)
-    .filter(e => e && e.type === 'spine_run_started' && String(e.mode || '') === mode)
-    .sort((a, b) => String(a.ts || '').localeCompare(String(b.ts || '')));
-  return events.length ? events[events.length - 1] : null;
+    .filter((row: any) => row && accepted.has(String(row.type || '')) && String(row.mode || '') === mode)
+    .sort((a: any, b: any) => String(a.ts || '').localeCompare(String(b.ts || '')));
+  return events.length > 0 ? events[events.length - 1] : null;
 }
 
-type HeartbeatRunSpineOpts = {
-  env?: Record<string, string | undefined>,
-  timeout_ms?: number
-};
-
-function runSpine(mode, dateStr, maxEyes, opts: HeartbeatRunSpineOpts = {}) {
-  const launcherRel = path.join('systems', 'spine', 'spine_safe_launcher.js');
-  const args = [...resolveScriptInvocation(launcherRel), 'run', mode, dateStr];
-  if (maxEyes != null && maxEyes !== '') args.push(`--max-eyes=${maxEyes}`);
-  const envForFlags = opts.env && typeof opts.env === 'object'
-    ? { ...process.env, ...opts.env }
-    : process.env;
-  if (String(envForFlags.SPINE_HEARTBEAT_APPLY_RESEAL || '').trim() === '1') {
-    args.push('--apply-reseal=1');
+function commandPlan() {
+  const cmd = String(process.argv[2] || '').trim().toLowerCase();
+  if (!cmd || cmd === '--help' || cmd === '-h' || cmd === 'help') return { command: 'help' };
+  if (cmd === 'status') {
+    return {
+      command: 'status',
+      mode: String(parseArg('mode', 'daily') || 'daily') === 'eyes' ? 'eyes' : 'daily',
+      date: cleanText(parseArg('date', todayStr()), 20) || todayStr()
+    };
   }
-  if (String(envForFlags.SPINE_HEARTBEAT_ALLOW_RISKY_ENV || '').trim() === '1') {
-    args.push('--allow-risky-env=1');
+  if (cmd === 'run') {
+    return {
+      command: 'run',
+      mode: String(parseArg('mode', 'daily') || 'daily') === 'eyes' ? 'eyes' : 'daily',
+      date: todayStr(),
+      minHours: toNumber(parseArg('min-hours', process.env.SPINE_HEARTBEAT_MIN_HOURS || '4'), 4, 0, 168),
+      maxEyes: cleanText(parseArg('max-eyes', ''), 16)
+    };
   }
-  const runEnv = opts.env && typeof opts.env === 'object'
-    ? { ...process.env, ...opts.env }
-    : process.env;
-  const timeoutMs = Math.max(1000, Number(opts.timeout_ms || SPINE_HEARTBEAT_RUN_TIMEOUT_MS));
-  const r = spawnSync('node', args, {
-    cwd: ROOT,
-    stdio: 'inherit',
-    env: runEnv,
-    timeout: timeoutMs
-  });
-  const spawnError = r.error ? String(r.error && r.error.message ? r.error.message : r.error) : '';
-  const timedOut = /\bETIMEDOUT\b/i.test(spawnError);
-  return {
-    ok: r.status === 0,
-    code: r.status == null ? 1 : r.status,
-    timed_out: timedOut,
-    timeout_ms: timeoutMs,
-    error: spawnError || null
-  };
+  return { command: 'invalid', raw: cmd };
 }
 
-function runIdleDreamCycle(dateStr) {
-  const idleRel = path.join('systems', 'memory', 'idle_dream_cycle.js');
-  const args = [...resolveScriptInvocation(idleRel), 'run', dateStr];
-  const r = spawnSync('node', args, {
-    cwd: ROOT,
-    encoding: 'utf8',
-    timeout: IDLE_DREAM_SKIP_TIMEOUT_MS
-  });
-  const stdout = String(r.stdout || '').trim();
-  const spawnError = r.error ? String(r.error && r.error.message ? r.error.message : r.error) : '';
-  const timedOut = /\bETIMEDOUT\b/i.test(spawnError);
-  const stderr = [String(r.stderr || '').trim(), timedOut ? 'process_timeout' : '', spawnError]
-    .filter(Boolean)
-    .join('\n')
-    .trim();
-  let payload = null;
-  if (stdout) {
-    try { payload = JSON.parse(stdout); } catch {}
-  }
-  return {
-    ok: r.status === 0 && !!payload && payload.ok === true,
-    code: r.status == null ? 1 : r.status,
-    payload,
-    timed_out: timedOut,
-    stderr: stderr || null
-  };
-}
-
-function fallbackHeartbeatHours() {
-  return Math.max(1, Number(parseArg('min-hours', process.env.SPINE_HEARTBEAT_MIN_HOURS || 4)) || 4);
-}
-
-async function runSpineStatus(mode, dateStr, runContext = null) {
-  const statusTimeoutMs = Math.max(
-    1000,
-    Number(process.env.SPINE_HEARTBEAT_STATUS_TIMEOUT_MS || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS || 10000) || 10000
-  );
-  const args = ['status'];
-  if (mode) args.push(`--mode=${mode}`);
-  if (dateStr) args.push(`--date=${dateStr}`);
-  const out = await runSpineCommand(args, {
-    cwdHint: ROOT,
-    timeoutMs: statusTimeoutMs,
-    runContext: runContext || null
-  });
-  return {
-    ok: out.ok,
-    status: Number.isFinite(out.status) ? Number(out.status) : 1,
-    stdout: out.payload ? JSON.stringify(out.payload) : String(out.stdout || ''),
-    stderr: String(out.stderr || ''),
-    payload: out.payload && typeof out.payload === 'object' ? out.payload : parseJson(String(out.stdout || ''))
-  };
-}
-
-async function cmdStatus() {
-  const mode = parseArg('mode', '');
-  const date = parseArg('date', '');
-  const runContext = String(process.env.SPINE_RUN_CONTEXT || '').trim() || 'manual';
-  const r = await runSpineStatus(mode, date, runContext);
-  if (r && r.payload && r.payload.gate_active === true) {
-    const gate = parseGateUntil(r.payload.reason || r.stderr || '');
-    process.stdout.write(JSON.stringify({
-      ok: true,
-      type: 'spine_heartbeat_status',
-      result: 'runtime_gate_active',
-      gate_active: true,
-      gate_reason: String(r.payload.reason || '').slice(0, 240),
-      gate_until: gate ? gate.until_iso : null,
-      gate_remaining_ms: gate ? gate.remaining_ms : Number(r.payload.gate_remaining_ms || 0) || null,
-      ts: nowIso()
-    }) + '\n');
-    process.exit(0);
-  }
-  if (r && r.ok !== true && isBridgeTimeoutReason(`${r.stderr}\n${r.stdout}`)) {
-    process.stdout.write(JSON.stringify({
-      ok: true,
-      type: 'spine_heartbeat_status',
-      result: 'bridge_degraded',
-      gate_active: true,
-      gate_reason: cleanText(`${r.stderr}\n${r.stdout}`, 240),
-      ts: nowIso()
-    }) + '\n');
-    process.exit(0);
-  }
-  if (r.stdout) process.stdout.write(String(r.stdout));
-  if (r.stderr) process.stderr.write(String(r.stderr));
-  if (r.status !== 0) {
-    process.exit(r.status);
-  }
-}
-
-async function cmdRun() {
-  const mode = String(parseArg('mode', 'daily') || 'daily');
-  if (mode !== 'daily' && mode !== 'eyes') {
-    process.stdout.write(JSON.stringify({ ok: false, error: 'invalid --mode (daily|eyes)' }) + '\n');
-    process.exit(2);
-  }
-
-  const dateStr = todayStr();
-  const rustStatus = await runSpineStatus(mode, dateStr, 'heartbeat');
-  if (rustStatus && rustStatus.ok !== true && isBridgeTimeoutReason(`${rustStatus.stderr}\n${rustStatus.stdout}`)) {
-    process.stdout.write(JSON.stringify({
-      ok: true,
-      result: 'skipped_bridge_degraded',
-      mode,
-      date: dateStr,
-      gate_active: true,
-      gate_reason: cleanText(`${rustStatus.stderr}\n${rustStatus.stdout}`, 240),
-      ts: nowIso()
-    }) + '\n');
-    return;
-  }
-  if (rustStatus && rustStatus.payload && rustStatus.payload.gate_active === true) {
-    const gate = parseGateUntil(rustStatus.payload.reason || rustStatus.stderr || '');
-    process.stdout.write(JSON.stringify({
-      ok: true,
-      result: 'skipped_runtime_gate_active',
-      mode,
-      date: dateStr,
-      gate_active: true,
-      gate_reason: String(rustStatus.payload.reason || '').slice(0, 240),
-      gate_until: gate ? gate.until_iso : null,
-      gate_remaining_ms: gate ? gate.remaining_ms : Number(rustStatus.payload.gate_remaining_ms || 0) || null,
-      ts: nowIso()
-    }) + '\n');
-    return;
-  }
-  const minHours = rustStatus.ok && rustStatus.payload && Number(rustStatus.payload.heartbeat_hours || 0) > 0
-    ? Number(rustStatus.payload.heartbeat_hours)
-    : fallbackHeartbeatHours();
-  const maxEyes = parseArg('max-eyes', '');
-  const last = lastSpineRunStarted(mode, dateStr);
-  const nowMs = Date.now();
-  const lastMs = last ? new Date(String(last.ts || '')).getTime() : 0;
-  const hoursSince = last ? ((nowMs - lastMs) / (1000 * 60 * 60)) : null;
-
-  if (last && Number.isFinite(hoursSince) && hoursSince < minHours) {
-    const idleEnabled = String(process.env.IDLE_DREAM_ON_HEARTBEAT_SKIP || '1') !== '0';
-    const idle = idleEnabled ? runIdleDreamCycle(dateStr) : null;
-    process.stdout.write(JSON.stringify({
-      ok: true,
-      result: 'skipped_recent_run',
-      mode,
-      date: dateStr,
-      min_hours: minHours,
-      hours_since_last: Number(hoursSince.toFixed(3)),
-      last_run_ts: last.ts,
-      idle_dream: idleEnabled
-        ? {
-            attempted: true,
-            ok: !!(idle && idle.ok),
-            code: idle ? idle.code : null,
-            result: idle && idle.payload ? idle.payload : null,
-            timeout_ms: IDLE_DREAM_SKIP_TIMEOUT_MS,
-            reason: idle && !idle.ok
-              ? String(
-                idle.timed_out === true
-                  ? `idle_dream_timeout_${IDLE_DREAM_SKIP_TIMEOUT_MS}ms`
-                  : (idle.stderr || (idle.payload && idle.payload.reason) || 'idle_dream_failed')
-              ).slice(0, 180)
-              : null
-          }
-        : { attempted: false, reason: 'feature_flag_disabled' },
-      ts: nowIso()
-    }) + '\n');
-    return;
-  }
-
-  let r = runSpine(mode, dateStr, maxEyes, {
-    env: {
-      SPINE_RUN_CONTEXT: 'heartbeat'
-    },
-    timeout_ms: SPINE_HEARTBEAT_RUN_TIMEOUT_MS
-  });
-  let retry = null;
-  if (!r.ok && r.timed_out === true && SPINE_HEARTBEAT_RETRY_WITHOUT_DREAM) {
-    retry = runSpine(mode, dateStr, maxEyes, {
-      timeout_ms: SPINE_HEARTBEAT_RETRY_TIMEOUT_MS,
+function runDelegated(args: string[], timeoutMs: number, maxOldSpaceMb: number, envExtra: Record<string, string>) {
+  const invocation = resolveScriptInvocation(SAFE_LAUNCHER);
+  const child = spawnSync(
+    process.execPath,
+    [`--max-old-space-size=${Math.floor(maxOldSpaceMb)}`, ...invocation, ...args],
+    {
+      cwd: ROOT,
+      encoding: 'utf8',
+      timeout: timeoutMs,
+      killSignal: 'SIGTERM',
       env: {
-        SPINE_RUN_CONTEXT: 'heartbeat',
-        IDLE_DREAM_CYCLE_ENABLED: '0'
+        ...process.env,
+        ...envExtra
       }
-    });
-    if (retry.ok === true) r = retry;
-  }
-  process.stdout.write(JSON.stringify({
-    ok: r.ok,
-    result: r.ok
-      ? (retry && retry.ok === true ? 'triggered_retry_without_dream' : 'triggered')
-      : 'spine_failed',
-    mode,
-    date: dateStr,
-    min_hours: minHours,
-    timeout_ms: Number(r.timeout_ms || SPINE_HEARTBEAT_RUN_TIMEOUT_MS),
-    timed_out: r.timed_out === true,
-    error: r.error || null,
-    retry_without_dream: retry
-      ? {
-          attempted: true,
-          ok: retry.ok === true,
-          timeout_ms: Number(retry.timeout_ms || SPINE_HEARTBEAT_RETRY_TIMEOUT_MS),
-          timed_out: retry.timed_out === true,
-          error: retry.error || null
-        }
-      : { attempted: false },
-    ts: nowIso()
-  }) + '\n');
-  if (!r.ok) process.exit(r.code || 1);
+    }
+  );
+  return {
+    status: Number.isFinite(child.status) ? Number(child.status) : 1,
+    signal: child.signal ? String(child.signal) : null,
+    timedOut: !!(child.error && String(child.error.code || '') === 'ETIMEDOUT'),
+    stdout: String(child.stdout || ''),
+    stderr: String(child.stderr || ''),
+    payload: parseJsonLinePayload(String(child.stdout || ''))
+  };
 }
 
 async function main() {
-  const cmd = process.argv[2] || '';
-  if (!cmd || cmd === '--help' || cmd === '-h' || cmd === 'help') {
+  const plan = commandPlan();
+  if (plan.command === 'help') {
     usage();
     process.exit(0);
   }
-  if (cmd === 'status') return cmdStatus();
-  if (cmd === 'run') return cmdRun();
-  usage();
-  process.exit(2);
+  if (plan.command === 'invalid') {
+    usage();
+    process.exit(2);
+  }
+
+  const timeoutMs = toNumber(process.env.SPINE_HEARTBEAT_TRIGGER_TIMEOUT_MS, DEFAULT_TIMEOUT_MS, 5000, 10 * 60 * 1000);
+  const maxOldSpaceMb = toNumber(process.env.SPINE_HEARTBEAT_TRIGGER_MAX_OLD_SPACE_MB, DEFAULT_MAX_OLD_SPACE_MB, 96, 1024);
+
+  if (plan.command === 'run') {
+    const last = lastSpineRunStarted(plan.mode, plan.date);
+    const nowMs = Date.now();
+    const lastMs = last ? Date.parse(String(last.ts || '')) : NaN;
+    const hoursSince = Number.isFinite(lastMs) ? ((nowMs - lastMs) / (1000 * 60 * 60)) : null;
+    if (last && Number.isFinite(hoursSince) && hoursSince! < plan.minHours) {
+      process.stdout.write(`${JSON.stringify({
+        ok: true,
+        type: 'heartbeat_trigger_compat',
+        compatibility_shell: true,
+        authority: 'rust_spine',
+        delegated_to: 'spine_safe_launcher',
+        result: 'skipped_recent_run',
+        mode: plan.mode,
+        date: plan.date,
+        min_hours: plan.minHours,
+        hours_since_last: Number(hoursSince!.toFixed(3)),
+        last_run_ts: String(last.ts || ''),
+        ts: nowIso()
+      })}\n`);
+      process.exit(0);
+    }
+    const delegatedArgs = ['run', plan.mode, plan.date];
+    if (plan.maxEyes) delegatedArgs.push(`--max-eyes=${plan.maxEyes}`);
+    const result = runDelegated(delegatedArgs, timeoutMs, maxOldSpaceMb, {
+      SPINE_RUN_CONTEXT: process.env.SPINE_RUN_CONTEXT || 'heartbeat_cli',
+      SPINE_HEARTBEAT_COMPAT_SHELL: '1'
+    });
+    if (result.stdout) process.stdout.write(result.stdout);
+    if (result.stderr) process.stderr.write(result.stderr);
+    if (result.status !== 0) {
+      process.stderr.write(
+        `heartbeat_trigger_delegation_failed:status=${result.status} timed_out=${result.timedOut ? '1' : '0'} signal=${cleanText(result.signal || '', 40)}\n`
+      );
+    }
+    process.exit(result.status);
+  }
+
+  const statusResult = runDelegated(
+    ['status', `--mode=${plan.mode}`, `--date=${plan.date}`],
+    timeoutMs,
+    maxOldSpaceMb,
+    {
+      SPINE_RUN_CONTEXT: process.env.SPINE_RUN_CONTEXT || 'heartbeat_cli',
+      SPINE_HEARTBEAT_COMPAT_SHELL: '1'
+    }
+  );
+  if (statusResult.stdout) process.stdout.write(statusResult.stdout);
+  if (statusResult.stderr) process.stderr.write(statusResult.stderr);
+  process.exit(statusResult.status);
 }
 
 main().catch((err: any) => {
-  process.stderr.write(`spine_heartbeat_trigger_error:${String(err && err.message ? err.message : err)}\n`);
+  process.stderr.write(`heartbeat_trigger_unhandled:${cleanText(err && err.message ? err.message : err, 280)}\n`);
   process.exit(1);
 });
-export {};
