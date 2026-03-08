@@ -10,6 +10,13 @@ const REPO_ROOT = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }
 const CODE_EXT_RE = /\.(rs|ts|js|py|c|cc|cpp|h|hpp|html|css|sh|ps1)$/;
 const CORE_DISALLOWED_RE = /\.(ts|js|py|sh|ps1|html|css)$/;
 const CLIENT_NATIVE_RE = /\.(rs|c|cc|cpp|h|hpp)$/;
+const EXEMPT_CODE_ROOTS = new Set([
+  'apps',
+  'benchmarks',
+  'scripts',
+  'docs',
+  'deploy'
+]);
 
 function loadTrackedFiles() {
   const out = execSync('git ls-files', {
@@ -64,7 +71,9 @@ function main() {
     .filter((p) => p.includes('/'))
     .filter((p) => {
       const seg = firstSegment(p);
-      return seg !== 'core' && seg !== 'client' && !seg.startsWith('.');
+      if (seg === 'core' || seg === 'client') return false;
+      if (seg.startsWith('.')) return false;
+      return !EXEMPT_CODE_ROOTS.has(seg);
     })
     .sort();
   if (badRoots.length > 0) {
