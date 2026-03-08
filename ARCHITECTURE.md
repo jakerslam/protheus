@@ -204,6 +204,7 @@ flowchart TB
 - [Conduit Requirement](client/docs/requirements/REQ-05-protheus-conduit-bridge.md)
 - [Rust Primitive Requirement](client/docs/requirements/REQ-08-rust-core-primitives.md)
 - [Layered Templates Requirement](client/docs/requirements/REQ-31-layered-templates-and-os-personality.md)
+- [Mech-Suit Cockpit Runtime Requirement](client/docs/requirements/REQ-32-mech-suit-cockpit-persistent-push.md)
 - [Security Posture](client/docs/SECURITY_POSTURE.md)
 - [Three-Plane Model](planes/README.md)
 - [Three-Plane Formal Spec Surface](planes/spec/README.md)
