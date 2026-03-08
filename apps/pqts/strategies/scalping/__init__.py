@@ -1,1 +1,0 @@
-"""scalping package."""
