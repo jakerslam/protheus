@@ -10,7 +10,7 @@ export default defineConfig({
       reporter: ['text-summary', 'json-summary'],
       reportsDirectory: 'coverage/ts',
       include: [
-        'client/systems/conduit/conduit-client.ts',
+        'client/runtime/systems/conduit/conduit-client.ts',
         'client/lib/direct_conduit_lane_bridge.js'
       ]
     }

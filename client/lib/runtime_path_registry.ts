@@ -5,9 +5,9 @@ export {};
 const path = require('path');
 
 const CANONICAL_PATHS = {
-  client_local_root: 'client/local',
-  client_state_root: 'client/local/state',
-  client_internal_root: 'client/local/internal',
+  client_local_root: 'client/runtime/local',
+  client_state_root: 'client/runtime/local/state',
+  client_internal_root: 'client/runtime/local/internal',
   core_local_root: 'core/local',
   core_state_root: 'core/local/state'
 };

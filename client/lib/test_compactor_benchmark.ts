@@ -132,7 +132,7 @@ console.log();
 
 console.log('=== RAW LOGS ===');
 const rawFiles = fs.readdirSync(LOCAL_TOOL_RAW_DIR);
-console.log(`Files in client/local/logs/tool_raw/: ${rawFiles.length}`);
+console.log(`Files in client/runtime/local/logs/tool_raw/: ${rawFiles.length}`);
 rawFiles.forEach(f => {
   const stats = fs.statSync(path.join(LOCAL_TOOL_RAW_DIR, f));
   console.log(`  - ${f} (${stats.size} bytes)`);

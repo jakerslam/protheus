@@ -17,7 +17,7 @@ function loadInversion(rustEnabled) {
 }
 
 function run() {
-  const tempDir = path.join(REPO_ROOT, 'client', 'local', 'tmp', 'inversion-batch8-parity');
+  const tempDir = path.join(REPO_ROOT, 'client', 'runtime', 'local', 'tmp', 'inversion-batch8-parity');
   fs.mkdirSync(tempDir, { recursive: true });
 
   const driftPath = path.join(tempDir, 'drift.json');

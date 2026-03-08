@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const POLICY_REL: &str = "client/config/hardware_route_hardening_policy.json";
+const POLICY_REL: &str = "client/runtime/config/hardware_route_hardening_policy.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ProfilePolicy {

@@ -33,7 +33,7 @@
 
 ### Primitive-First Purity
 - FAIL Simplicity budget gate
-  - Reason: { "ok": false, "type": "simplicity_budget_gate", "ts": "2026-02-28T01:32:52.761Z", "policy_version": "1.0", "policy_path": "client/config/simplicity_budget_policy.json", "baseline_path": "client/config/simplicity_baseline.json", "offset_receipts_path": "
+  - Reason: { "ok": false, "type": "simplicity_budget_gate", "ts": "2026-02-28T01:32:52.761Z", "policy_version": "1.0", "policy_path": "client/runtime/config/simplicity_budget_policy.json", "baseline_path": "client/runtime/config/simplicity_baseline.json", "offset_receipts_path": "
 
 ### Governance, Alignment & Duality
 - PASS Heroic Echo status

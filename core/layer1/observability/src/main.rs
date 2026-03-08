@@ -44,7 +44,7 @@ fn demo_request() -> ChaosScenarioRequest {
             TraceEvent {
                 trace_id: "e1".to_string(),
                 ts_millis: 1_000,
-                source: "client/systems/observability".to_string(),
+                source: "client/runtime/systems/observability".to_string(),
                 operation: "trace.capture".to_string(),
                 severity: "low".to_string(),
                 tags: vec!["runtime.guardrails".to_string()],
@@ -54,7 +54,7 @@ fn demo_request() -> ChaosScenarioRequest {
             TraceEvent {
                 trace_id: "e2".to_string(),
                 ts_millis: 1_120,
-                source: "client/systems/red_legion".to_string(),
+                source: "client/runtime/systems/red_legion".to_string(),
                 operation: "chaos.replay".to_string(),
                 severity: "medium".to_string(),
                 tags: vec!["chaos.replay".to_string(), "drift".to_string()],

@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 
-const DEFAULT_POLICY_REL: &str = "client/config/f100_enterprise_hardening_policy.json";
+const DEFAULT_POLICY_REL: &str = "client/runtime/config/f100_enterprise_hardening_policy.json";
 const ALLOWED_DELIVERY_CHANNELS: &[&str] = &[
     "last",
     "main",
@@ -481,10 +481,10 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tmp");
         write_text(
             tmp.path(),
-            "client/config/cron_jobs.json",
+            "client/runtime/config/cron_jobs.json",
             r#"{"jobs":[{"id":"j1","name":"x","enabled":true,"sessionTarget":"isolated","delivery":{"mode":"none","channel":"last"}}]}"#,
         );
-        let (ok, details) = check_cron_delivery_integrity(tmp.path(), "client/config/cron_jobs.json")
+        let (ok, details) = check_cron_delivery_integrity(tmp.path(), "client/runtime/config/cron_jobs.json")
             .expect("audit");
         assert!(!ok);
         assert!(details.to_string().contains("delivery_mode_none_forbidden"));
@@ -495,10 +495,10 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tmp");
         write_text(
             tmp.path(),
-            "client/config/cron_jobs.json",
+            "client/runtime/config/cron_jobs.json",
             r#"{"jobs":[{"id":"j1","name":"x","enabled":true,"sessionTarget":"main"}]}"#,
         );
-        let (ok, details) = check_cron_delivery_integrity(tmp.path(), "client/config/cron_jobs.json")
+        let (ok, details) = check_cron_delivery_integrity(tmp.path(), "client/runtime/config/cron_jobs.json")
             .expect("audit");
         assert!(!ok);
         assert!(details
@@ -509,12 +509,12 @@ mod tests {
     #[test]
     fn run_control_json_fields_detects_missing_field() {
         let tmp = tempfile::tempdir().expect("tmp");
-        write_text(tmp.path(), "client/config/x.json", r#"{"a":{"b":1}}"#);
+        write_text(tmp.path(), "client/runtime/config/x.json", r#"{"a":{"b":1}}"#);
         let control = json!({
             "id": "c1",
             "title": "json",
             "type": "json_fields",
-            "path": "client/config/x.json",
+            "path": "client/runtime/config/x.json",
             "required_fields": ["a.b", "a.c"]
         });
         let out = run_control(tmp.path(), control.as_object().expect("obj"));

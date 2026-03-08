@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 
-const POLICY_REL: &str = "client/config/rust_lane_canary_rollout_policy.json";
+const POLICY_REL: &str = "client/runtime/config/rust_lane_canary_rollout_policy.json";
 const LANE_ID: &str = "rollout_rings";
 
 fn print_json_line(value: &Value) {

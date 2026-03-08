@@ -4,10 +4,10 @@ use persona_dispatch_security_gate::evaluate_persona_dispatch_gate;
 #[test]
 fn blocked_dispatch_path_fails_closed() {
     let decision = evaluate_persona_dispatch_gate(
-        "client/systems/ops/protheus_control_plane.js",
+        "client/runtime/systems/ops/protheus_control_plane.js",
         Some("guardian"),
         &["guardian", "operator"],
-        &["client/systems/ops/protheus_control_plane.js"],
+        &["client/runtime/systems/ops/protheus_control_plane.js"],
         false,
         false,
     );
@@ -19,7 +19,7 @@ fn blocked_dispatch_path_fails_closed() {
 #[test]
 fn invalid_requested_lens_uses_valid_fallback() {
     let decision = evaluate_persona_dispatch_gate(
-        "client/systems/ops/protheus_control_plane.js",
+        "client/runtime/systems/ops/protheus_control_plane.js",
         Some("nonexistent"),
         &["guardian", "operator"],
         &[],
@@ -35,18 +35,18 @@ fn invalid_requested_lens_uses_valid_fallback() {
 #[test]
 fn deterministic_error_envelope_is_stable() {
     let first = evaluate_persona_dispatch_gate(
-        "client/systems/ops/protheus_control_plane.js",
+        "client/runtime/systems/ops/protheus_control_plane.js",
         Some("guardian"),
         &["guardian"],
-        &["client/systems/ops/protheus_control_plane.js"],
+        &["client/runtime/systems/ops/protheus_control_plane.js"],
         false,
         false,
     );
     let second = evaluate_persona_dispatch_gate(
-        "client/systems/ops/protheus_control_plane.js",
+        "client/runtime/systems/ops/protheus_control_plane.js",
         Some("guardian"),
         &["guardian"],
-        &["client/systems/ops/protheus_control_plane.js"],
+        &["client/runtime/systems/ops/protheus_control_plane.js"],
         false,
         false,
     );

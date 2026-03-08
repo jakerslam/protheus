@@ -32,7 +32,7 @@ try {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tool-notify-lane-'));
   writeJson(path.join(tmp, 'AGENTS.md'), { ok: true });
   writeJson(path.join(tmp, 'package.json'), { name: 'tmp' });
-  const policyPath = path.join(tmp, 'client', 'config', 'tool_notification_policy.json');
+  const policyPath = path.join(tmp, 'client', 'runtime', 'config', 'tool_notification_policy.json');
   writeJson(policyPath, {
     version: 'test',
     enabled: true,
@@ -62,7 +62,7 @@ try {
   assert.strictEqual(payload.ok, true, 'notify should pass');
   assert.strictEqual(payload.escalation, true, 'critical severity must escalate');
 
-  const outboxPath = path.join(tmp, 'client', 'local', 'state', 'tools', 'notification_lane', 'outbox.jsonl');
+  const outboxPath = path.join(tmp, 'client', 'runtime', 'local', 'state', 'tools', 'notification_lane', 'outbox.jsonl');
   assert.ok(fs.existsSync(outboxPath), 'outbox should be written');
   const lines = fs.readFileSync(outboxPath, 'utf8').trim().split('\n').filter(Boolean);
   assert.ok(lines.length >= 1, 'outbox should contain entries');

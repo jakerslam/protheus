@@ -57,7 +57,7 @@ function main() {
   assert.ok(runtime && typeof runtime.executeCommandPrimitiveSync === 'function', 'runtime export missing');
 
   const result = runtime.executeCommandPrimitiveSync({
-    command: 'node client/systems/autonomy/strategy_execute_guard.js run 2026-02-27',
+    command: 'node client/runtime/systems/autonomy/strategy_execute_guard.js run 2026-02-27',
     step: { id: 'step_a', type: 'command', timeout_ms: 1000 },
     context: { workflow_id: 'wf_a', run_id: 'run_a', objective_id: 'obj_a' },
     timeout_ms: 1000,

@@ -7,14 +7,14 @@ const fs = require('fs');
 const path = require('path');
 
 function parseArgs(argv) {
-  const args = { csv: '', role: 'code', outManifest: 'client/docs/community/contributors_manifest.json' };
+  const args = { csv: '', role: 'code', outManifest: 'docs/client/community/contributors_manifest.json' };
   for (let i = 2; i < argv.length; i += 1) {
     const token = argv[i];
     if (token.startsWith('--csv=')) args.csv = token.slice('--csv='.length);
     else if (token.startsWith('--role=')) args.role = token.slice('--role='.length);
     else if (token.startsWith('--out-manifest=')) args.outManifest = token.slice('--out-manifest='.length);
     else if (token === '--help' || token === '-h') {
-      console.log('Usage: node scripts/add_contributors_from_csv.js --csv=<path> [--role=code] [--out-manifest=client/docs/community/contributors_manifest.json]');
+      console.log('Usage: node scripts/add_contributors_from_csv.js --csv=<path> [--role=code] [--out-manifest=docs/client/community/contributors_manifest.json]');
       process.exit(0);
     }
   }

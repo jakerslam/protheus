@@ -58,8 +58,8 @@ REQ-27 authority implementation:
 - Importance scoring engine: `core/layer0/ops/src/importance.rs`
 - Priority ordering + queue metadata: `core/layer0/ops/src/attention_queue.rs`
 - Layer2 initiative primitives (score/action/priority queue shaping): `core/layer2/execution/src/initiative.rs`
-- Regression guard (no subconscious authority in client): `client/systems/ops/subconscious_boundary_guard.ts`
-- Cockpit + layer wrapper delta requirements: `client/docs/requirements/REQ-33-cockpit-stream-and-layer-wrappers.md`
+- Regression guard (no subconscious authority in client): `client/runtime/systems/ops/subconscious_boundary_guard.ts`
+- Cockpit + layer wrapper delta requirements: `docs/client/requirements/REQ-33-cockpit-stream-and-layer-wrappers.md`
 
 Migration note:
 - Strictly follow Protheus / InfRing Layering Specification v1.0 with upward-only flow:
@@ -77,15 +77,15 @@ Migration note:
 | Plane | Contract Location | Implementation Location | Mutable Runtime Location |
 |---|---|---|---|
 | Safety | `planes/safety/` | `core/layer_minus_one/`, `core/layer0/`, `core/layer1/`, `core/layer2/`, `core/layer3/` | `core/local/` |
-| Cognition | `planes/cognition/` | `client/` (`systems`, `lib`, `config`, `packages`, `tools`, `tests`, `observability`, `apps`, `developer`) | `client/local/` |
-| Substrate | `planes/substrate/` | Template adapters in `core/layer_minus_one/` + capability descriptors under `planes/substrate/` | `core/local/` + `client/local/` |
+| Cognition | `planes/cognition/` | `client/` (`systems`, `lib`, `config`, `packages`, `tools`, `tests`, `observability`, `apps`, `developer`) | `client/runtime/local/` |
+| Substrate | `planes/substrate/` | Template adapters in `core/layer_minus_one/` + capability descriptors under `planes/substrate/` | `core/local/` + `client/runtime/local/` |
 
 Additional split rules:
 
 - Source of truth code: `core/` and `client/` only.
-- Runtime/user/device/instance data: `client/local/` and `core/local/` only.
+- Runtime/user/device/instance data: `client/runtime/local/` and `core/local/` only.
 - Legacy compatibility links are disabled by default. Canonical runtime roots are direct:
-  - `client/local/*` for client runtime data
+  - `client/runtime/local/*` for client runtime data
   - `core/local/*` for core runtime data
 
 ## Direct Wiring Policy
@@ -102,13 +102,13 @@ Additional split rules:
 `conversation_eye` is a default cognition-plane sensory collector:
 
 - Collector source: `client/adaptive/sensory/eyes/collectors/conversation_eye.ts`
-- Synthesizer: `client/systems/sensory/conversation_eye_synthesizer.ts`
-- Bootstrap/auto-provision: `client/systems/sensory/conversation_eye_bootstrap.ts`
+- Synthesizer: `client/runtime/systems/sensory/conversation_eye_synthesizer.ts`
+- Bootstrap/auto-provision: `client/runtime/systems/sensory/conversation_eye_bootstrap.ts`
 
 Provisioning contract:
 
 - Every `local:init` run auto-ensures `conversation_eye` exists in the eyes catalog.
-- Runtime synthesis output is written to `client/local/state/memory/conversation_eye/nodes.jsonl`.
+- Runtime synthesis output is written to `client/runtime/local/state/memory/conversation_eye/nodes.jsonl`.
 - Synthesized nodes are tagged with the conversation taxonomy:
   `conversation`, `decision`, `insight`, `directive`, `t1`.
 
@@ -123,9 +123,9 @@ Conversation hierarchy additions:
 
 Memory relevance is continuously reordered through a dream-cycle sequencer:
 
-- Matrix builder: `client/systems/memory/memory_matrix.ts`
-- Sequencer runner: `client/systems/memory/dream_sequencer.ts`
-- Auto recall lane: `client/systems/memory/memory_auto_recall.ts`
+- Matrix builder: `client/runtime/systems/memory/memory_matrix.ts`
+- Sequencer runner: `client/runtime/systems/memory/dream_sequencer.ts`
+- Auto recall lane: `client/runtime/systems/memory/memory_auto_recall.ts`
 
 Contracts:
 
@@ -145,7 +145,7 @@ Context guard:
 
 Client cognition exposes a compact reflex set for frequent operations under strict output caps:
 
-- Registry/runner: `client/reflexes/index.ts`
+- Registry/runner: `client/cognition/reflexes/index.ts`
 - Reflexes: `read_snippet`, `write_quick`, `summarize_brief`, `git_status`, `memory_lookup`
 - Each reflex response is capped at `<=150` estimated tokens.
 
@@ -157,7 +157,7 @@ Repository root is intentionally reduced to:
 - governance and product docs (`README.md`, `ARCHITECTURE.md`, `SRS.md`, `TODO.md`)
 - build/deploy metadata (`Cargo.toml`, `package.json`, lockfiles, CI/deploy manifests)
 
-All high-churn runtime artifacts are localized to `client/local/` and `core/local/` so:
+All high-churn runtime artifacts are localized to `client/runtime/local/` and `core/local/` so:
 
 - source diffs stay reviewable
 - sensitive/user-specific state is easier to reset or ignore
@@ -195,9 +195,9 @@ flowchart TB
 
 Runtime subsystem ownership, interfaces, failure modes, and lane links are tracked in the generated map:
 
-- [Generated System Map](client/docs/architecture/SYSTEM_MAP.md)
-- Source registry: `client/config/system_map_registry.json`
-- Generator lane: `client/systems/ops/system_map_generator.ts`
+- [Generated System Map](docs/client/architecture/SYSTEM_MAP.md)
+- Source registry: `client/runtime/config/system_map_registry.json`
+- Generator lane: `client/runtime/systems/ops/system_map_generator.ts`
 
 ## Runtime Flow
 
@@ -216,15 +216,15 @@ Runtime subsystem ownership, interfaces, failure modes, and lane links are track
 
 ## Related Docs
 
-- [Getting Started](client/docs/GETTING_STARTED.md)
-- [Conduit Requirement](client/docs/requirements/REQ-05-protheus-conduit-bridge.md)
-- [Rust Primitive Requirement](client/docs/requirements/REQ-08-rust-core-primitives.md)
-- [Layered Templates Requirement](client/docs/requirements/REQ-31-layered-templates-and-os-personality.md)
-- [Mech-Suit Cockpit Runtime Requirement](client/docs/requirements/REQ-32-mech-suit-cockpit-persistent-push.md)
-- [Executable System Map Requirement](client/docs/requirements/REQ-34-executable-system-map-registry.md)
-- [Security Posture](client/docs/SECURITY_POSTURE.md)
+- [Getting Started](docs/client/GETTING_STARTED.md)
+- [Conduit Requirement](docs/client/requirements/REQ-05-protheus-conduit-bridge.md)
+- [Rust Primitive Requirement](docs/client/requirements/REQ-08-rust-core-primitives.md)
+- [Layered Templates Requirement](docs/client/requirements/REQ-31-layered-templates-and-os-personality.md)
+- [Mech-Suit Cockpit Runtime Requirement](docs/client/requirements/REQ-32-mech-suit-cockpit-persistent-push.md)
+- [Executable System Map Requirement](docs/client/requirements/REQ-34-executable-system-map-registry.md)
+- [Security Posture](docs/client/SECURITY_POSTURE.md)
 - [Three-Plane Model](planes/README.md)
 - [Three-Plane Formal Spec Surface](planes/spec/README.md)
 - [Planes Contract Registry](planes/contracts/README.md)
-- [Layer Rulebook](client/docs/architecture/LAYER_RULEBOOK.md)
-- [Generated System Map](client/docs/architecture/SYSTEM_MAP.md)
+- [Layer Rulebook](docs/client/architecture/LAYER_RULEBOOK.md)
+- [Generated System Map](docs/client/architecture/SYSTEM_MAP.md)

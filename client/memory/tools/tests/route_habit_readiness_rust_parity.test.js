@@ -52,8 +52,8 @@ function main() {
 
   const required = runRust({
     habit_state: 'active',
-    entrypoint_resolved: '/repo/client/habits/scripts/run_habit.js',
-    trusted_entrypoints: ['/repo/client/habits/scripts/run_habit.js'],
+    entrypoint_resolved: '/repo/client/cognition/habits/scripts/run_habit.js',
+    trusted_entrypoints: ['/repo/client/cognition/habits/scripts/run_habit.js'],
     required_inputs: ['user_id']
   });
   assert.strictEqual(required.state, 'active');
@@ -63,8 +63,8 @@ function main() {
 
   const untrusted = runRust({
     habit_state: 'candidate',
-    entrypoint_resolved: '/repo/client/habits/scripts/untrusted.js',
-    trusted_entrypoints: ['/repo/client/habits/scripts/run_habit.js'],
+    entrypoint_resolved: '/repo/client/cognition/habits/scripts/untrusted.js',
+    trusted_entrypoints: ['/repo/client/cognition/habits/scripts/run_habit.js'],
     required_inputs: []
   });
   assert.strictEqual(untrusted.state, 'candidate');
@@ -74,8 +74,8 @@ function main() {
 
   const runnable = runRust({
     habit_state: 'active',
-    entrypoint_resolved: '/repo/client/habits/scripts/run_habit.js',
-    trusted_entrypoints: ['/repo/client/habits/scripts/run_habit.js'],
+    entrypoint_resolved: '/repo/client/cognition/habits/scripts/run_habit.js',
+    trusted_entrypoints: ['/repo/client/cognition/habits/scripts/run_habit.js'],
     required_inputs: []
   });
   assert.strictEqual(runnable.state, 'active');

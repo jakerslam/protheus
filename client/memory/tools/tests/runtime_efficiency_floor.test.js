@@ -31,7 +31,7 @@ function parseJson(stdout) {
 }
 
 try {
-  const tmpRoot = path.join(ROOT, 'client', 'local', 'tmp');
+  const tmpRoot = path.join(ROOT, 'client', 'runtime', 'local', 'tmp');
   fs.mkdirSync(tmpRoot, { recursive: true });
   const tmp = fs.mkdtempSync(path.join(tmpRoot, 'runtime-eff-'));
 

@@ -57,7 +57,7 @@ function run() {
     id: 'P_MUTATION_MISSING',
     type: 'adaptive_topology_mutation',
     title: 'Adaptive mutation without execution receipts',
-    suggested_next_command: 'node client/systems/routing/route_execute.js --task="mutation rewire test" --dry-run',
+    suggested_next_command: 'node client/runtime/systems/routing/route_execute.js --task="mutation rewire test" --dry-run',
     meta: {
       admission_preview: {
         eligible: true,

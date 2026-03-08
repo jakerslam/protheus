@@ -42,8 +42,8 @@ function main() {
     enabled: true,
     shadow_only: true,
     target_profiles: ['phone_seed', 'desktop_seed'],
-    package_cmd: ['node', 'client/systems/ops/protheus_prime_seed.js', 'status'],
-    verify_cmd: ['node', 'client/systems/ops/protheus_prime_seed.js', 'status'],
+    package_cmd: ['node', 'client/runtime/systems/ops/protheus_prime_seed.js', 'status'],
+    verify_cmd: ['node', 'client/runtime/systems/ops/protheus_prime_seed.js', 'status'],
     paths: {
       latest_path: path.join(tmp, 'dist_latest.json'),
       receipts_path: path.join(tmp, 'dist_receipts.jsonl'),
@@ -55,7 +55,7 @@ function main() {
     enabled: true,
     shadow_only: true,
     treasury_split: { sovereign_root: 0.1, generator_lane: 0.65, reserve_lane: 0.25 },
-    storm_plan_cmd: ['node', 'client/systems/storm/storm_value_distribution.js', 'status'],
+    storm_plan_cmd: ['node', 'client/runtime/systems/storm/storm_value_distribution.js', 'status'],
     paths: {
       latest_path: path.join(tmp, 'econ_latest.json'),
       receipts_path: path.join(tmp, 'econ_receipts.jsonl'),

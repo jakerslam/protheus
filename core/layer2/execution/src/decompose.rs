@@ -2974,8 +2974,8 @@ mod tests {
     fn route_habit_readiness_reports_required_inputs() {
         let out = evaluate_route_habit_readiness(&RouteHabitReadinessRequest {
             habit_state: "active".to_string(),
-            entrypoint_resolved: "/repo/client/habits/scripts/run_habit.js".to_string(),
-            trusted_entrypoints: vec!["/repo/client/habits/scripts/run_habit.js".to_string()],
+            entrypoint_resolved: "/repo/client/cognition/habits/scripts/run_habit.js".to_string(),
+            trusted_entrypoints: vec!["/repo/client/cognition/habits/scripts/run_habit.js".to_string()],
             required_inputs: vec!["user_id".to_string(), "scope".to_string()],
         });
         assert_eq!(out.state, "active");
@@ -2988,8 +2988,8 @@ mod tests {
     fn route_habit_readiness_reports_untrusted_entrypoint() {
         let out = evaluate_route_habit_readiness(&RouteHabitReadinessRequest {
             habit_state: "candidate".to_string(),
-            entrypoint_resolved: "/repo/client/habits/scripts/untrusted.js".to_string(),
-            trusted_entrypoints: vec!["/repo/client/habits/scripts/run_habit.js".to_string()],
+            entrypoint_resolved: "/repo/client/cognition/habits/scripts/untrusted.js".to_string(),
+            trusted_entrypoints: vec!["/repo/client/cognition/habits/scripts/run_habit.js".to_string()],
             required_inputs: vec![],
         });
         assert_eq!(out.state, "candidate");
@@ -3002,8 +3002,8 @@ mod tests {
     fn route_habit_readiness_reports_runnable_active() {
         let out = evaluate_route_habit_readiness(&RouteHabitReadinessRequest {
             habit_state: "active".to_string(),
-            entrypoint_resolved: "/repo/client/habits/scripts/run_habit.js".to_string(),
-            trusted_entrypoints: vec!["/repo/client/habits/scripts/run_habit.js".to_string()],
+            entrypoint_resolved: "/repo/client/cognition/habits/scripts/run_habit.js".to_string(),
+            trusted_entrypoints: vec!["/repo/client/cognition/habits/scripts/run_habit.js".to_string()],
             required_inputs: vec![],
         });
         assert_eq!(out.state, "active");

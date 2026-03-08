@@ -45,8 +45,8 @@ function findRepoRoot(startDir) {
 
 function loadConduitClient(root) {
   const candidates = [
-    path.join(root, 'client', 'systems', 'conduit', 'conduit-client.js'),
-    path.join(root, 'client', 'systems', 'conduit', 'conduit-client.ts'),
+    path.join(root, 'client', 'runtime', 'systems', 'conduit', 'conduit-client.js'),
+    path.join(root, 'client', 'runtime', 'systems', 'conduit', 'conduit-client.ts'),
     path.join(root, 'systems', 'conduit', 'conduit-client.js'),
     path.join(root, 'systems', 'conduit', 'conduit-client.ts')
   ];

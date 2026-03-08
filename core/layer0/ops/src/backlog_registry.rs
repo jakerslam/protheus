@@ -162,7 +162,7 @@ fn enforce_canonical_backlog_path(root: &Path, policy: &Policy) -> Result<(), St
 }
 
 fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
-    let default_path = root.join("client/config/backlog_registry_policy.json");
+    let default_path = root.join("client/runtime/config/backlog_registry_policy.json");
     let policy_path = policy_override
         .map(PathBuf::from)
         .unwrap_or(default_path);
@@ -235,25 +235,25 @@ fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
             paths_obj
                 .and_then(|o| o.get("registry_path"))
                 .and_then(Value::as_str),
-            "client/config/backlog_registry.json",
+            "client/runtime/config/backlog_registry.json",
         ),
         active_view_path: path_from_policy(
             root,
             paths_obj
                 .and_then(|o| o.get("active_view_path"))
                 .and_then(Value::as_str),
-            "client/docs/backlog_views/active.md",
+            "docs/client/backlog_views/active.md",
         ),
         archive_view_path: path_from_policy(
             root,
             paths_obj
                 .and_then(|o| o.get("archive_view_path"))
                 .and_then(Value::as_str),
-            "client/docs/backlog_views/archive.md",
+            "docs/client/backlog_views/archive.md",
         ),
-        priority_view_path: root.join("client/docs/backlog_views/priority_queue.md"),
-        reviewed_view_path: root.join("client/docs/backlog_views/reviewed.md"),
-        execution_path_view_path: root.join("client/docs/backlog_views/execution_path.md"),
+        priority_view_path: root.join("docs/client/backlog_views/priority_queue.md"),
+        reviewed_view_path: root.join("docs/client/backlog_views/reviewed.md"),
+        execution_path_view_path: root.join("docs/client/backlog_views/execution_path.md"),
         state_path: path_from_policy(
             root,
             paths_obj

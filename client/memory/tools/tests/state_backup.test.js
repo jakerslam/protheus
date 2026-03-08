@@ -3,7 +3,7 @@
 
 /**
  * state_backup.test.js
- * Deterministic contract test for client/systems/ops/state_backup.js
+ * Deterministic contract test for client/runtime/systems/ops/state_backup.js
  */
 
 const assert = require('assert');

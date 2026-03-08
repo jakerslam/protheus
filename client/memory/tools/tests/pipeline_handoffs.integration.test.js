@@ -73,7 +73,7 @@ async function main() {
   console.log('═══════════════════════════════════════════════════════════');
 
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pipeline-handoff-'));
-  const adapterSandboxDir = fs.mkdtempSync(path.join(path.join(ROOT, 'client', 'local', 'tmp'), 'pipeline-handoff-adapter-'));
+  const adapterSandboxDir = fs.mkdtempSync(path.join(path.join(ROOT, 'client', 'runtime', 'local', 'tmp'), 'pipeline-handoff-adapter-'));
   const adapterSandboxFile = path.join(adapterSandboxDir, 'unstable_adapter.js');
   fs.writeFileSync(adapterSandboxFile, [
     "'use strict';",
@@ -127,7 +127,7 @@ async function main() {
     version: '1.0',
     adapters: {
       moltbook_publish: {
-        module: 'client/skills/moltbook/actuation_adapter.js',
+        module: 'client/cognition/skills/moltbook/actuation_adapter.js',
         description: 'Guarded Moltbook post publication with verification receipts.'
       },
       test_chaos: {

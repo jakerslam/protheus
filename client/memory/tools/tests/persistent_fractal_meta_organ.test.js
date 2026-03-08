@@ -96,9 +96,9 @@ process.exit(2);
       cooldown_minutes: 0
     },
     mutation_domains: [
-      { id: 'habit_code', target_path: 'client/systems/a.ts', risk: 'medium', summary: 'm1' },
-      { id: 'memory_schema', target_path: 'client/systems/b.ts', risk: 'medium', summary: 'm2' },
-      { id: 'routing_policy', target_path: 'client/systems/c.ts', risk: 'medium', summary: 'm3' }
+      { id: 'habit_code', target_path: 'client/runtime/systems/a.ts', risk: 'medium', summary: 'm1' },
+      { id: 'memory_schema', target_path: 'client/runtime/systems/b.ts', risk: 'medium', summary: 'm2' },
+      { id: 'routing_policy', target_path: 'client/runtime/systems/c.ts', risk: 'medium', summary: 'm3' }
     ],
     scripts: {
       loop_script: loopScript

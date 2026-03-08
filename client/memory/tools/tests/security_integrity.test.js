@@ -30,8 +30,8 @@ function run() {
   if (fs.existsSync(tmpRoot)) fs.rmSync(tmpRoot, { recursive: true, force: true });
   mkDir(tmpRoot);
 
-  const systemsSecurityRel = `${tmpRel}/client/systems/security`;
-  const directivesRel = `${tmpRel}/client/config/directives`;
+  const systemsSecurityRel = `${tmpRel}/client/runtime/systems/security`;
+  const directivesRel = `${tmpRel}/client/runtime/config/directives`;
   const resolverRel = `${tmpRel}/client/lib/directive_resolver.js`;
 
   const guardPath = path.join(repoRoot, systemsSecurityRel, 'guard.js');

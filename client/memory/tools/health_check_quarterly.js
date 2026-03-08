@@ -102,7 +102,7 @@ console.log('[3/4] Checking critical files...');
 console.log('───────────────────────────────────────────────');
 
 const criticalFiles = [
-  '~/.openclaw/workspace/client/config/model_adapters.json',
+  '~/.openclaw/workspace/client/runtime/config/model_adapters.json',
   '~/.openclaw/workspace/client/memory/MEMORY_INDEX.md',
   '~/.openclaw/workspace/client/memory/TAGS_INDEX.md',
   '~/.openclaw/workspace/client/memory/SNIPPET_INDEX.md',
@@ -151,8 +151,8 @@ console.log('BACKUP THIS AGENT:');
 console.log();
 console.log('Required snapshots:');
 console.log('  ☐ ~/.openclaw/workspace/client/memory/ (nodes + indices + tools)');
-console.log('  ☐ ~/.openclaw/workspace/client/skills/ (if custom)');
-console.log('  ☐ ~/.openclaw/workspace/client/config/ (model_adapters.json + credentials)');
+console.log('  ☐ ~/.openclaw/workspace/client/cognition/skills/ (if custom)');
+console.log('  ☐ ~/.openclaw/workspace/client/runtime/config/ (model_adapters.json + credentials)');
 console.log('  ☐ Cron list: openclaw cron list → save to file');
 console.log();
 console.log('Quick backup command:');
@@ -160,7 +160,7 @@ console.log('  tar -czf protheus-backup-$(date +%Y%m%d).tar.gz \\\
 ');
 console.log('    ~/.openclaw/workspace/client/memory/ \\\
 ');
-console.log('    ~/.openclaw/workspace/client/config/');
+console.log('    ~/.openclaw/workspace/client/runtime/config/');
 console.log();
 console.log('Restore test:');
 console.log('  1) Install OpenClaw + deps on new machine');

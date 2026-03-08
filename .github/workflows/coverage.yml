@@ -51,4 +51,4 @@ jobs:
             coverage/ts/coverage-summary.json
             coverage/rust-summary.txt
             coverage/combined-summary.json
-            client/docs/badges/coverage.svg
+            docs/client/badges/coverage.svg

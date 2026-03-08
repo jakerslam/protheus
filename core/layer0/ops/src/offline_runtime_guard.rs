@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const POLICY_REL: &str = "client/config/offline_runtime_guard_policy.json";
+const POLICY_REL: &str = "client/runtime/config/offline_runtime_guard_policy.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Policy {

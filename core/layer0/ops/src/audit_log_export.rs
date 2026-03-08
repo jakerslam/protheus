@@ -7,7 +7,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 const LANE_ID: &str = "audit_log_export";
-const DEFAULT_POLICY_REL: &str = "client/config/audit_log_export_policy.json";
+const DEFAULT_POLICY_REL: &str = "client/runtime/config/audit_log_export_policy.json";
 
 #[derive(Debug, Clone)]
 struct Policy {
@@ -368,7 +368,7 @@ mod tests {
 
     fn write_policy(root: &Path) {
         write_text(
-            &root.join("client/config/audit_log_export_policy.json"),
+            &root.join("client/runtime/config/audit_log_export_policy.json"),
             &json!({
                 "strict_default": true,
                 "max_events_per_export": 100,

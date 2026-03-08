@@ -8,10 +8,10 @@ import { describe, expect, test } from 'vitest';
 const ROOT = process.cwd();
 
 const wrapperFiles = [
-  'client/systems/primitives/canonical_event_log.ts',
-  'client/systems/primitives/policy_vm.ts',
-  'client/systems/primitives/primitive_catalog.ts',
-  'client/systems/sensory/temporal_patterns.ts',
+  'client/runtime/systems/primitives/canonical_event_log.ts',
+  'client/runtime/systems/primitives/policy_vm.ts',
+  'client/runtime/systems/primitives/primitive_catalog.ts',
+  'client/runtime/systems/sensory/temporal_patterns.ts',
 ] as const;
 
 describe('conduit primitive wrapper contract', () => {
@@ -51,7 +51,7 @@ describe('conduit primitive wrapper contract', () => {
   });
 
   test('getting started doc includes curl and powershell install paths', () => {
-    const source = fs.readFileSync(path.join(ROOT, 'client/docs/GETTING_STARTED.md'), 'utf8');
+    const source = fs.readFileSync(path.join(ROOT, 'docs/client/GETTING_STARTED.md'), 'utf8');
     expect(source.includes('curl -fsSL https://get.protheus.ai/install | sh')).toBe(true);
     expect(source.includes('install.ps1')).toBe(true);
     expect(source.includes('protheus --help')).toBe(true);
@@ -60,13 +60,13 @@ describe('conduit primitive wrapper contract', () => {
 
 describe('conduit client coverage paths', () => {
   test('message budget constants match expected contract count', async () => {
-    const conduit = await import(pathToFileURL(path.join(ROOT, 'client/systems/conduit/conduit-client.ts')).href);
+    const conduit = await import(pathToFileURL(path.join(ROOT, 'client/runtime/systems/conduit/conduit-client.ts')).href);
     expect(conduit.MAX_CONDUIT_MESSAGE_TYPES).toBe(10);
     expect(conduit.TS_COMMAND_TYPES.length + conduit.RUST_EVENT_TYPES.length).toBe(10);
   });
 
   test('overStdio sends signed envelope and parses response', async () => {
-    const conduit = await import(pathToFileURL(path.join(ROOT, 'client/systems/conduit/conduit-client.ts')).href);
+    const conduit = await import(pathToFileURL(path.join(ROOT, 'client/runtime/systems/conduit/conduit-client.ts')).href);
     const script = `
 process.stdin.setEncoding('utf8');
 let buffer = '';
@@ -128,7 +128,7 @@ process.stdin.on('data', (chunk) => {
   });
 
   test('overStdio surfaces stderr as conduit error', async () => {
-    const conduit = await import(pathToFileURL(path.join(ROOT, 'client/systems/conduit/conduit-client.ts')).href);
+    const conduit = await import(pathToFileURL(path.join(ROOT, 'client/runtime/systems/conduit/conduit-client.ts')).href);
     const client = conduit.ConduitClient.overStdio(
       process.execPath,
       ['-e', 'process.stderr.write(\"boom\\n\"); setTimeout(() => process.exit(1), 10);'],
@@ -143,7 +143,7 @@ process.stdin.on('data', (chunk) => {
 
   test.skip('overUnixSocket path works for single roundtrip', async () => {
     if (process.platform === 'win32') return;
-    const conduit = await import(pathToFileURL(path.join(ROOT, 'client/systems/conduit/conduit-client.ts')).href);
+    const conduit = await import(pathToFileURL(path.join(ROOT, 'client/runtime/systems/conduit/conduit-client.ts')).href);
     const socketPath = path.join(os.tmpdir(), `pc-${process.pid}-${Date.now()}.sock`);
     if (fs.existsSync(socketPath)) {
       fs.unlinkSync(socketPath);
@@ -210,7 +210,7 @@ process.stdin.on('data', (chunk) => {
 describe('direct conduit lane bridge coverage paths', () => {
   test('findRepoRoot resolves workspace root from nested directory', async () => {
     const bridge = await import(pathToFileURL(path.join(ROOT, 'client/lib/direct_conduit_lane_bridge.js')).href);
-    const found = bridge.findRepoRoot(path.join(ROOT, 'client', 'systems', 'ops'));
+    const found = bridge.findRepoRoot(path.join(ROOT, 'client', 'runtime', 'systems', 'ops'));
     expect(found).toBe(ROOT);
   });
 

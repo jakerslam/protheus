@@ -12,10 +12,10 @@ use std::process::Command;
 use walkdir::WalkDir;
 
 const CHECK_IDS_FLAG_PREFIX: &str = "--rust-contract-check-ids=";
-const GUARD_REGISTRY_REL: &str = "client/config/guard_check_registry.json";
+const GUARD_REGISTRY_REL: &str = "client/runtime/config/guard_check_registry.json";
 const CONTRACT_CHECK_SOURCE_REL: &str = "core/layer0/ops/src/contract_check.rs";
 const RUNTIME_MODE_STATE_REL: &str = "state/ops/runtime_mode.json";
-const RUST_SOURCE_OF_TRUTH_POLICY_REL: &str = "client/config/rust_source_of_truth_policy.json";
+const RUST_SOURCE_OF_TRUTH_POLICY_REL: &str = "client/runtime/config/rust_source_of_truth_policy.json";
 const PROBE_EYES_INTAKE_HELP_TOKENS: &[&str] =
     &["eyes_intake.js", "create", "validate", "list-directives"];
 const PROBE_CONFLICT_MARKER_HELP_TOKENS: &[&str] =
@@ -170,12 +170,12 @@ fn execute_contract_checks(root: &Path, args: &[String]) -> Result<Value, String
     if !status_only && deep_probes {
         checks.push(check_script_help_tokens(
             root,
-            "client/systems/sensory/eyes_intake.js",
+            "client/runtime/systems/sensory/eyes_intake.js",
             PROBE_EYES_INTAKE_HELP_TOKENS,
         )?);
         checks.push(check_script_help_tokens(
             root,
-            "client/systems/security/conflict_marker_guard.js",
+            "client/runtime/systems/security/conflict_marker_guard.js",
             PROBE_CONFLICT_MARKER_HELP_TOKENS,
         )?);
     }

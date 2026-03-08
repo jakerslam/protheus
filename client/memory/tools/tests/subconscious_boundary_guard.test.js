@@ -37,11 +37,11 @@ try {
   fs.writeFileSync(path.join(tmp, 'AGENTS.md'), '# tmp\n', 'utf8');
   fs.writeFileSync(path.join(tmp, 'package.json'), '{"name":"tmp"}\n', 'utf8');
 
-  mkdirp(path.join(tmp, 'client', 'systems', 'ops'));
+  mkdirp(path.join(tmp, 'client', 'runtime', 'systems', 'ops'));
   mkdirp(path.join(tmp, 'client', 'lib'));
 
   fs.writeFileSync(
-    path.join(tmp, 'client', 'systems', 'ops', 'safe.ts'),
+    path.join(tmp, 'client', 'runtime', 'systems', 'ops', 'safe.ts'),
     'export function ok(){ return "surface-only"; }\n',
     'utf8'
   );
@@ -55,7 +55,7 @@ try {
   assert.ok(payload.checks && payload.checks.no_subconscious_authority_patterns_in_client === true);
 
   fs.writeFileSync(
-    path.join(tmp, 'client', 'systems', 'ops', 'violating.ts'),
+    path.join(tmp, 'client', 'runtime', 'systems', 'ops', 'violating.ts'),
     'const action = "persistent_until_ack";\nexport { action };\n',
     'utf8'
   );

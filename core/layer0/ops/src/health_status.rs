@@ -8,8 +8,8 @@ use std::path::Path;
 
 const LANE_ID: &str = "health_status";
 const REPLACEMENT: &str = "protheus-ops health-status";
-const CRON_JOBS_REL: &str = "client/config/cron_jobs.json";
-const RUST_SOURCE_OF_TRUTH_POLICY_REL: &str = "client/config/rust_source_of_truth_policy.json";
+const CRON_JOBS_REL: &str = "client/runtime/config/cron_jobs.json";
+const RUST_SOURCE_OF_TRUTH_POLICY_REL: &str = "client/runtime/config/rust_source_of_truth_policy.json";
 const JSONL_TAIL_MAX_BYTES: usize = 2 * 1024 * 1024;
 const SPINE_RUN_FILES_MAX: usize = 7;
 const ALLOWED_DELIVERY_CHANNELS: &[&str] = &[
@@ -554,7 +554,7 @@ fn percentile_99(values: &[f64]) -> Option<f64> {
 }
 
 fn collect_spine_dashboard_metrics(root: &Path) -> Value {
-    let runs_dir = root.join("client/local/state/spine/runs");
+    let runs_dir = root.join("client/runtime/local/state/spine/runs");
     let mut completed = 0usize;
     let mut failed = 0usize;
     let mut latency_ms = Vec::<f64>::new();
@@ -633,7 +633,7 @@ fn collect_spine_dashboard_metrics(root: &Path) -> Value {
             "samples": total,
             "completed_runs": completed,
             "failed_runs": failed,
-            "source": "client/local/state/spine/runs/*.jsonl"
+            "source": "client/runtime/local/state/spine/runs/*.jsonl"
         },
         "receipt_latency_p95_ms": {
             "value": p95_latency,
@@ -641,7 +641,7 @@ fn collect_spine_dashboard_metrics(root: &Path) -> Value {
             "status": latency_status,
             "samples": latency_ms.len(),
             "files_scanned": files_scanned,
-            "source": "client/local/state/spine/runs/*.jsonl"
+            "source": "client/runtime/local/state/spine/runs/*.jsonl"
         },
         "receipt_latency_p99_ms": {
             "value": p99_latency,
@@ -649,7 +649,7 @@ fn collect_spine_dashboard_metrics(root: &Path) -> Value {
             "status": latency_p99_status,
             "samples": latency_ms.len(),
             "files_scanned": files_scanned,
-            "source": "client/local/state/spine/runs/*.jsonl"
+            "source": "client/runtime/local/state/spine/runs/*.jsonl"
         }
     })
 }
@@ -665,7 +665,7 @@ fn pain_severity_score(severity: &str) -> f64 {
 }
 
 fn collect_assimilation_pain_dashboard_metric(root: &Path) -> Value {
-    let pain_path = root.join("client/local/state/autonomy/pain_signals.jsonl");
+    let pain_path = root.join("client/runtime/local/state/autonomy/pain_signals.jsonl");
     let mut total_score = 0.0f64;
     let mut total_count = 0usize;
     let mut by_source = BTreeMap::<String, (f64, usize)>::new();
@@ -732,13 +732,13 @@ fn collect_assimilation_pain_dashboard_metric(root: &Path) -> Value {
             "status": status,
             "samples": total_count,
             "top_sources": top_sources,
-            "source": "client/local/state/autonomy/pain_signals.jsonl"
+            "source": "client/runtime/local/state/autonomy/pain_signals.jsonl"
         }
     })
 }
 
 fn collect_human_escalation_dashboard_metric(root: &Path) -> Value {
-    let escalation_path = root.join("client/local/state/security/autonomy_human_escalations.jsonl");
+    let escalation_path = root.join("client/runtime/local/state/security/autonomy_human_escalations.jsonl");
     let mut latest_status_by_id = BTreeMap::<String, String>::new();
     let mut total_events = 0usize;
 
@@ -798,7 +798,7 @@ fn collect_human_escalation_dashboard_metric(root: &Path) -> Value {
             "resolved_count": resolved_count,
             "unique_escalations": total_unique,
             "events_scanned": total_events,
-            "source": "client/local/state/security/autonomy_human_escalations.jsonl"
+            "source": "client/runtime/local/state/security/autonomy_human_escalations.jsonl"
         }
     })
 }
@@ -812,7 +812,7 @@ fn value_as_f64(value: Option<&Value>) -> Option<f64> {
 }
 
 fn collect_token_burn_cost_dashboard_metric(root: &Path) -> Value {
-    let budget_path = root.join("client/local/state/autonomy/budget_events.jsonl");
+    let budget_path = root.join("client/runtime/local/state/autonomy/budget_events.jsonl");
     let mut latest_day = String::new();
     let mut tokens_by_day = BTreeMap::<String, f64>::new();
     let mut module_tokens = BTreeMap::<String, f64>::new();
@@ -912,13 +912,13 @@ fn collect_token_burn_cost_dashboard_metric(root: &Path) -> Value {
             "deny_decisions": deny_count,
             "events_scanned": scanned,
             "top_modules": top_modules,
-            "source": "client/local/state/autonomy/budget_events.jsonl"
+            "source": "client/runtime/local/state/autonomy/budget_events.jsonl"
         }
     })
 }
 
 fn collect_pqts_slippage_dashboard_metric(root: &Path) -> Value {
-    let reports_dir = root.join("client/local/workspaces/pqts/data/client/reports/mape_matrix_no_stress");
+    let reports_dir = root.join("client/runtime/local/workspaces/pqts/data/client/reports/mape_matrix_no_stress");
     let mut latest_snapshot = None::<String>;
 
     if let Ok(entries) = fs::read_dir(&reports_dir) {
@@ -948,7 +948,7 @@ fn collect_pqts_slippage_dashboard_metric(root: &Path) -> Value {
                 "target_max": 15.0,
                 "status": "warn",
                 "reason": "pqts_snapshot_missing",
-                "source": "client/local/workspaces/pqts/data/client/reports/mape_matrix_no_stress"
+                "source": "client/runtime/local/workspaces/pqts/data/client/reports/mape_matrix_no_stress"
             }
         });
     };
@@ -985,7 +985,7 @@ fn collect_pqts_slippage_dashboard_metric(root: &Path) -> Value {
             "target_max": 15.0,
             "status": status,
             "snapshot": snapshot_name,
-            "source": "client/local/workspaces/pqts/data/client/reports/mape_matrix_no_stress"
+            "source": "client/runtime/local/workspaces/pqts/data/client/reports/mape_matrix_no_stress"
         }
     })
 }
@@ -1016,7 +1016,7 @@ fn collect_dashboard_metrics_light(cron_audit: &Value) -> Value {
             "status": cron_status,
             "enabled_jobs": enabled_jobs,
             "issues": issue_count,
-            "source": "client/config/cron_jobs.json"
+            "source": "client/runtime/config/cron_jobs.json"
         }),
     );
     Value::Object(metrics)
@@ -1048,7 +1048,7 @@ fn collect_dashboard_metrics(root: &Path, cron_audit: &Value) -> Value {
             "status": cron_status,
             "enabled_jobs": enabled_jobs,
             "issues": issue_count,
-            "source": "client/config/cron_jobs.json"
+            "source": "client/runtime/config/cron_jobs.json"
         }),
     );
 
@@ -1301,7 +1301,7 @@ mod tests {
     "required_tokens": ["\"spine\" =>"]
   },
   "conduit_strict_gate": {
-    "path": "client/systems/ops/protheusd.ts",
+    "path": "client/runtime/systems/ops/protheusd.ts",
     "required_tokens": ["PROTHEUS_CONDUIT_STRICT"]
   },
   "conduit_budget_gate": {
@@ -1309,28 +1309,28 @@ mod tests {
     "required_tokens": ["MAX_CONDUIT_MESSAGE_TYPES: usize = 10"]
   },
   "status_dashboard_gate": {
-    "path": "client/systems/ops/protheus_status_dashboard.ts",
+    "path": "client/runtime/systems/ops/protheus_status_dashboard.ts",
     "required_tokens": ["status", "--dashboard"]
   },
   "js_wrapper_contract": {
-    "required_wrapper_paths": ["client/systems/ops/protheusd.js"]
+    "required_wrapper_paths": ["client/runtime/systems/ops/protheusd.js"]
   },
   "rust_shim_contract": {
     "entries": [
       {
-        "path": "client/systems/ops/state_kernel.js",
+        "path": "client/runtime/systems/ops/state_kernel.js",
         "required_tokens": ["spawnSync('cargo'"]
       }
     ]
   },
   "ts_surface_allowlist_prefixes": [
-    "client/systems/ops/"
+    "client/runtime/systems/ops/"
   ]
 }"#,
         );
 
         write_text(root, "core/layer0/ops/src/main.rs", "match x { \"spine\" => {} }");
-        write_text(root, "client/systems/ops/protheusd.ts", "const PROTHEUS_CONDUIT_STRICT = true;");
+        write_text(root, "client/runtime/systems/ops/protheusd.ts", "const PROTHEUS_CONDUIT_STRICT = true;");
         write_text(
             root,
             "core/layer2/conduit/src/lib.rs",
@@ -1338,17 +1338,17 @@ mod tests {
         );
         write_text(
             root,
-            "client/systems/ops/protheus_status_dashboard.ts",
+            "client/runtime/systems/ops/protheus_status_dashboard.ts",
             "run status --dashboard",
         );
         write_text(
             root,
-            "client/systems/ops/protheusd.js",
+            "client/runtime/systems/ops/protheusd.js",
             "#!/usr/bin/env node\n'use strict';\nrequire('../../client/lib/ts_bootstrap').bootstrap(__filename, module);\n",
         );
         write_text(
             root,
-            "client/systems/ops/state_kernel.js",
+            "client/runtime/systems/ops/state_kernel.js",
             "spawnSync('cargo', ['run']);",
         );
     }
@@ -1461,7 +1461,7 @@ mod tests {
         let root = tempfile::tempdir().expect("tempdir");
         write_text(
             root.path(),
-            "client/local/state/security/autonomy_human_escalations.jsonl",
+            "client/runtime/local/state/security/autonomy_human_escalations.jsonl",
             r#"{"type":"autonomy_human_escalation","escalation_id":"e1","status":"open"}
 {"type":"autonomy_human_escalation","escalation_id":"e2","status":"resolved"}
 "#,
@@ -1480,7 +1480,7 @@ mod tests {
         let root = tempfile::tempdir().expect("tempdir");
         write_text(
             root.path(),
-            "client/local/state/autonomy/budget_events.jsonl",
+            "client/runtime/local/state/autonomy/budget_events.jsonl",
             r#"{"type":"system_budget_record","date":"2026-03-06","module":"sensory_focus","tokens_est":120}
 {"type":"system_budget_record","date":"2026-03-06","module":"sensory_focus","tokens_est":80}
 {"type":"system_budget_record","date":"2026-03-06","module":"reflex","tokens_est":50}

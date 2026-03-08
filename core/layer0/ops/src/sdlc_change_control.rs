@@ -7,7 +7,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 const LANE_ID: &str = "sdlc_change_control";
-const DEFAULT_POLICY_REL: &str = "client/config/sdlc_change_control_policy.json";
+const DEFAULT_POLICY_REL: &str = "client/runtime/config/sdlc_change_control_policy.json";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum RiskClass {
@@ -252,9 +252,9 @@ fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
             vec![
                 "core/layer0/security/".to_string(),
                 "core/layer2/conduit/".to_string(),
-                "client/systems/security/".to_string(),
-                "client/config/protheus_conduit_policy.json".to_string(),
-                "client/config/rust_source_of_truth_policy.json".to_string(),
+                "client/runtime/systems/security/".to_string(),
+                "client/runtime/config/protheus_conduit_policy.json".to_string(),
+                "client/runtime/config/rust_source_of_truth_policy.json".to_string(),
             ]
         });
 
@@ -272,9 +272,9 @@ fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
         .unwrap_or_else(|| {
             vec![
                 "core/layer0/ops/".to_string(),
-                "client/systems/ops/".to_string(),
+                "client/runtime/systems/ops/".to_string(),
                 ".github/workflows/".to_string(),
-                "client/config/".to_string(),
+                "client/runtime/config/".to_string(),
             ]
         });
 
@@ -642,7 +642,7 @@ mod tests {
 
     fn write_policy(root: &Path) {
         write_text(
-            &root.join("client/config/sdlc_change_control_policy.json"),
+            &root.join("client/runtime/config/sdlc_change_control_policy.json"),
             &json!({
                 "strict_default": true,
                 "required_approvers_major": 1,
@@ -651,8 +651,8 @@ mod tests {
                 "require_adr_for_high_risk": true,
                 "require_rollback_drill_for_high_risk": true,
                 "require_approval_receipts_for_major": true,
-                "high_risk_path_prefixes": ["core/layer0/security/", "client/systems/security/"],
-                "major_path_prefixes": ["core/layer0/ops/", "client/systems/ops/"],
+                "high_risk_path_prefixes": ["core/layer0/security/", "client/runtime/systems/security/"],
+                "major_path_prefixes": ["core/layer0/ops/", "client/runtime/systems/ops/"],
                 "outputs": {
                     "latest_path": "state/ops/sdlc_change_control/latest.json",
                     "history_path": "state/ops/sdlc_change_control/history.jsonl"
@@ -669,15 +669,15 @@ mod tests {
 
         write_text(
             &root.join("state/ops/sdlc_change_control/pr_body.md"),
-            "- Risk class: high-risk\n- Rollback plan: revert and freeze\n- Rollback owner: ops-oncall\n- Approvers: alice\n- Approval receipts: client/docs/approvals/one.md\n- Rollback drill receipt: client/docs/drills/rollback.json\n",
+            "- Risk class: high-risk\n- Rollback plan: revert and freeze\n- Rollback owner: ops-oncall\n- Approvers: alice\n- Approval receipts: docs/client/approvals/one.md\n- Rollback drill receipt: docs/client/drills/rollback.json\n",
         );
         write_text(
             &root.join("state/ops/sdlc_change_control/changed_paths.txt"),
             "core/layer0/security/src/lib.rs\n",
         );
 
-        write_text(&root.join("client/docs/approvals/one.md"), "ok");
-        write_text(&root.join("client/docs/drills/rollback.json"), "{}");
+        write_text(&root.join("docs/client/approvals/one.md"), "ok");
+        write_text(&root.join("docs/client/drills/rollback.json"), "{}");
 
         let code = run(
             root,
@@ -706,12 +706,12 @@ mod tests {
         let root = temp.path();
         write_policy(root);
 
-        write_text(&root.join("client/docs/rfc/RFC-1.md"), "rfc");
-        write_text(&root.join("client/docs/approvals/approve-1.md"), "receipt");
+        write_text(&root.join("docs/client/rfc/RFC-1.md"), "rfc");
+        write_text(&root.join("docs/client/approvals/approve-1.md"), "receipt");
 
         write_text(
             &root.join("state/ops/sdlc_change_control/pr_body.md"),
-            "- Risk class: major\n- RFC link: client/docs/rfc/RFC-1.md\n- Rollback plan: git revert\n- Rollback owner: platform\n- Approvers: alice\n- Approval receipts: client/docs/approvals/approve-1.md\n",
+            "- Risk class: major\n- RFC link: docs/client/rfc/RFC-1.md\n- Rollback plan: git revert\n- Rollback owner: platform\n- Approvers: alice\n- Approval receipts: docs/client/approvals/approve-1.md\n",
         );
         write_text(
             &root.join("state/ops/sdlc_change_control/changed_paths.txt"),

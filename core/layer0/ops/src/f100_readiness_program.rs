@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 const LANE_ID: &str = "f100_readiness_program";
-const DEFAULT_POLICY_REL: &str = "client/config/f100_readiness_program_policy.json";
+const DEFAULT_POLICY_REL: &str = "client/runtime/config/f100_readiness_program_policy.json";
 
 const EXECUTABLE_LANES: &[&str] = &[
     "V6-F100-004",
@@ -150,7 +150,7 @@ fn lane_004_compliance_bundle(root: &Path, policy: &Policy) -> Value {
     let control_map_path = resolve_path(
         root,
         lane_policy.get("control_map_path").and_then(Value::as_str),
-        "client/config/compliance_control_map.json",
+        "client/runtime/config/compliance_control_map.json",
     );
     let bundle_path = resolve_path(
         root,
@@ -248,7 +248,7 @@ fn lane_005_million_user(root: &Path, policy: &Policy) -> Value {
     let profile_path = resolve_path(
         root,
         lane_policy.get("profile_path").and_then(Value::as_str),
-        "client/config/one_million_performance_profile.json",
+        "client/runtime/config/one_million_performance_profile.json",
     );
     let profile = read_json(&profile_path).unwrap_or_else(|| json!({}));
     let budgets = profile.get("budgets").cloned().unwrap_or_else(|| json!({}));
@@ -301,7 +301,7 @@ fn lane_006_multi_tenant(root: &Path, policy: &Policy) -> Value {
     let contract_path = resolve_path(
         root,
         lane_policy.get("contract_path").and_then(Value::as_str),
-        "client/config/multi_tenant_isolation_contract.json",
+        "client/runtime/config/multi_tenant_isolation_contract.json",
     );
     let adversarial_path = resolve_path(
         root,
@@ -345,7 +345,7 @@ fn lane_007_interface_lifecycle(root: &Path, policy: &Policy) -> Value {
     let registry_path = resolve_path(
         root,
         lane_policy.get("registry_path").and_then(Value::as_str),
-        "client/config/api_cli_contract_registry.json",
+        "client/runtime/config/api_cli_contract_registry.json",
     );
     let changelog_path = resolve_path(root, Some("CHANGELOG.md"), "CHANGELOG.md");
     let required_dep_window = lane_policy
@@ -411,7 +411,7 @@ fn lane_008_oncall(root: &Path, policy: &Policy) -> Value {
     let policy_path = resolve_path(
         root,
         lane_policy.get("incident_policy_path").and_then(Value::as_str),
-        "client/config/oncall_incident_policy.json",
+        "client/runtime/config/oncall_incident_policy.json",
     );
     let gameday_path = resolve_path(
         root,
@@ -465,7 +465,7 @@ fn lane_009_onboarding(root: &Path, policy: &Policy) -> Value {
     let bootstrap_script = resolve_path(
         root,
         lane_policy.get("bootstrap_script").and_then(Value::as_str),
-        "client/bin/protheus_onboarding_bootstrap.sh",
+        "client/cli/bin/protheus_onboarding_bootstrap.sh",
     );
     let metrics_path = resolve_path(
         root,
@@ -513,7 +513,7 @@ fn lane_010_architecture_pack(root: &Path, policy: &Policy) -> Value {
     let pack_path = resolve_path(
         root,
         lane_policy.get("pack_path").and_then(Value::as_str),
-        "client/docs/ops/ENTERPRISE_ARCHITECTURE_EVIDENCE_PACK.md",
+        "docs/client/ops/ENTERPRISE_ARCHITECTURE_EVIDENCE_PACK.md",
     );
     let required_tokens = lane_policy
         .get("required_tokens")
@@ -561,12 +561,12 @@ fn lane_011_surface_consistency(root: &Path, policy: &Policy) -> Value {
     let snapshot_path = resolve_path(
         root,
         lane_policy.get("snapshot_path").and_then(Value::as_str),
-        "client/docs/ops/operator_surface_consistency_snapshot.json",
+        "docs/client/ops/operator_surface_consistency_snapshot.json",
     );
     let surface_policy_path = resolve_path(
         root,
         lane_policy.get("surface_policy_path").and_then(Value::as_str),
-        "client/config/operator_surface_consistency_policy.json",
+        "client/runtime/config/operator_surface_consistency_policy.json",
     );
 
     let snap = read_json(&snapshot_path).unwrap_or_else(|| json!({}));
@@ -749,7 +749,7 @@ fn lane_035_spdx(root: &Path, policy: &Policy, apply: bool) -> Value {
     let baseline_path = resolve_path(
         root,
         lane_policy.get("baseline_missing_path").and_then(Value::as_str),
-        "client/config/spdx_header_guard_baseline.txt",
+        "client/runtime/config/spdx_header_guard_baseline.txt",
     );
 
     let mut scanned = 0usize;
@@ -1168,7 +1168,7 @@ mod tests {
 
     fn setup_policy(root: &Path) {
         write_text(
-            &root.join("client/config/f100_readiness_program_policy.json"),
+            &root.join("client/runtime/config/f100_readiness_program_policy.json"),
             &json!({
                 "strict_default": true,
                 "outputs": {
@@ -1178,7 +1178,7 @@ mod tests {
                 },
                 "lanes": {
                     "V6-F100-005": {
-                        "profile_path": "client/config/one_million_performance_profile.json"
+                        "profile_path": "client/runtime/config/one_million_performance_profile.json"
                     }
                 }
             }).to_string(),
@@ -1190,7 +1190,7 @@ mod tests {
         let tmp = tempdir().expect("tmp");
         setup_policy(tmp.path());
         write_text(
-            &tmp.path().join("client/config/one_million_performance_profile.json"),
+            &tmp.path().join("client/runtime/config/one_million_performance_profile.json"),
             &json!({
                 "budgets": {
                     "p95_ms": 250,

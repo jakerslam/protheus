@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-const SCRIPT = path.join(ROOT, 'client/systems/ops/black_swan_disaster_gamebooks.js');
+const SCRIPT = path.join(ROOT, 'client/runtime/systems/ops/black_swan_disaster_gamebooks.js');
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });

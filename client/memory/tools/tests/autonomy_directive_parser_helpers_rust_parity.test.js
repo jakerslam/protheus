@@ -48,8 +48,8 @@ function run() {
   }
 
   const fileCmdSamples = [
-    'node tool --file=client/config/directives/T1_ALPHA.yaml',
-    "node tool --file='client/config/directives/T2_BETA.yml'",
+    'node tool --file=client/runtime/config/directives/T1_ALPHA.yaml',
+    "node tool --file='client/runtime/config/directives/T2_BETA.yml'",
     'node tool --file=../../etc/passwd',
     ''
   ];
@@ -89,7 +89,7 @@ function run() {
   );
 
   const commandProposal = {
-    suggested_next_command: 'node client/systems/directive --id=T3_GAMMA'
+    suggested_next_command: 'node client/runtime/systems/directive --id=T3_GAMMA'
   };
   assert.deepStrictEqual(
     rust.parseObjectiveIdFromCommand(commandProposal, objectiveSet),

@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-const SCRIPT = path.join(ROOT, 'client/systems/honor/legion_honor_codex.js');
+const SCRIPT = path.join(ROOT, 'client/runtime/systems/honor/legion_honor_codex.js');
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -47,7 +47,7 @@ try {
   {
     "id": "soul_bound_honor_ledger",
     "description": "Soul-bound honor ledger is active",
-    "file_must_exist": "client/systems/honor/README.md"
+    "file_must_exist": "client/runtime/systems/honor/README.md"
   },
   {
     "id": "onchain_medal_bridge",
@@ -60,7 +60,7 @@ try {
   {
     "id": "red_legion_alias_migration",
     "description": "redteam to red_legion compatibility alias in place",
-    "file_must_exist": "client/systems/red_legion/README.md"
+    "file_must_exist": "client/runtime/systems/red_legion/README.md"
   }
 ];
 

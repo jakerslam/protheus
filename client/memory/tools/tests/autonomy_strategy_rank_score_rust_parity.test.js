@@ -31,7 +31,7 @@ function candidateFor(idx) {
         remediation_kind: idx % 2 === 0 ? 'transport' : 'policy'
       },
       action_spec: {
-        command: 'node client/systems/ops/protheusctl.js status',
+        command: 'node client/runtime/systems/ops/protheusctl.js status',
         verify: ['status check'],
         rollback_command: 'echo rollback'
       }

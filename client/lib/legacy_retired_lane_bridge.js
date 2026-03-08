@@ -41,13 +41,13 @@ const fs = require('fs');
 const ROOT = process.cwd();
 function loadConduitClient() {
   try {
-    return require(path.join(ROOT, 'client', 'systems', 'conduit', 'conduit-client.js'));
+    return require(path.join(ROOT, 'client', 'runtime', 'systems', 'conduit', 'conduit-client.js'));
   } catch {
     try {
       return require(path.join(ROOT, 'systems', 'conduit', 'conduit-client.js'));
     } catch {
       try {
-        return require(path.join(ROOT, 'client', 'systems', 'conduit', 'conduit-client.ts'));
+        return require(path.join(ROOT, 'client', 'runtime', 'systems', 'conduit', 'conduit-client.ts'));
       } catch {
         return require(path.join(ROOT, 'systems', 'conduit', 'conduit-client.ts'));
       }

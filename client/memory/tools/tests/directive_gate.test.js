@@ -78,7 +78,7 @@ test('trust modify detection: delete trust_add.js task => MANUAL', () => {
 
 // Test 4: Harmless internal file write => ALLOW
 test('safe: read file in workspace => ALLOW', () => {
-  const result = evaluateTask('Read the file ~/.openclaw/workspace/client/config/settings.json');
+  const result = evaluateTask('Read the file ~/.openclaw/workspace/client/runtime/config/settings.json');
   assert.strictEqual(result.decision, 'ALLOW');
   assert.strictEqual(result.risk, 'low');
 });
@@ -89,7 +89,7 @@ test('safe: write to allowlisted path => ALLOW', () => {
 });
 
 test('safe: list files in habits directory => ALLOW', () => {
-  const result = evaluateTask('List all files in the client/habits/scripts directory');
+  const result = evaluateTask('List all files in the client/cognition/habits/scripts directory');
   assert.strictEqual(result.decision, 'ALLOW');
   assert.ok(result.reasons.some(r => r.includes('No high-risk patterns')));
 });

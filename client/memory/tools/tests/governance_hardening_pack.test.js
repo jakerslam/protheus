@@ -62,7 +62,7 @@ function main() {
     escalation_target_modes: ['execute'],
     dual_control: { required_approvals: 2, require_distinct: true },
     caps: { max_daily_usd: 10, max_risk_score: 0.6 },
-    immutable_files: ['client/config/caps.json', 'client/systems/security/kernel.ts'],
+    immutable_files: ['client/runtime/config/caps.json', 'client/runtime/systems/security/kernel.ts'],
     immutable_baseline_path: baselinePath,
     emergency_stop_path: emergencyPath,
     outputs: {
@@ -79,7 +79,7 @@ function main() {
   let r = run(['refresh-baseline', '--apply=1'], env);
   assert.strictEqual(r.status, 0, r.stderr || 'refresh-baseline should pass');
   const baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
-  assert.strictEqual(baseline['client/config/caps.json'], sha256(immutableA), 'baseline hash should be recorded');
+  assert.strictEqual(baseline['client/runtime/config/caps.json'], sha256(immutableA), 'baseline hash should be recorded');
 
   r = run(['evaluate', '--strict=1', '--target-mode=execute', '--approval=alice', '--daily-usd=2', '--risk-score=0.2'], env);
   assert.notStrictEqual(r.status, 0, 'single approval should fail dual-control gate');

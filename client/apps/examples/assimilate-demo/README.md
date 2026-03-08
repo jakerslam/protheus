@@ -3,7 +3,7 @@
 Run the assimilation command in proposal mode (no persona file mutations):
 
 ```bash
-protheus assimilate ./client/docs/cognitive_toolkit.md --dry-run=1
+protheus assimilate ./docs/client/cognitive_toolkit.md --dry-run=1
 ```
 
 Optional URL example (allowlisted domains only):

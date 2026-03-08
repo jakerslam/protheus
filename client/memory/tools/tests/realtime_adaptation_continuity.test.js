@@ -38,9 +38,9 @@ try {
   writeJson(path.join(tmp, 'AGENTS.md'), { ok: true });
   writeJson(path.join(tmp, 'package.json'), { name: 'tmp' });
 
-  const stateRoot = path.join(tmp, 'client', 'local', 'state', 'adaptive', 'realtime_adaptation_loop');
+  const stateRoot = path.join(tmp, 'client', 'runtime', 'local', 'state', 'adaptive', 'realtime_adaptation_loop');
   const statePath = path.join(stateRoot, 'state.json');
-  const policyPath = path.join(tmp, 'client', 'config', 'realtime_adaptation_loop_policy.json');
+  const policyPath = path.join(tmp, 'client', 'runtime', 'config', 'realtime_adaptation_loop_policy.json');
   writeJson(policyPath, {
     version: '1.0-test',
     enabled: true,

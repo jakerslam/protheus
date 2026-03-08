@@ -10992,7 +10992,7 @@ mod tests {
             args: Some(json!({
                 "code_change_title": "Migrate proposal draft builder",
                 "code_change_summary": "Rust-first proposal generation with parity fallback.",
-                "code_change_files": ["client/systems/autonomy/inversion_controller.ts"],
+                "code_change_files": ["client/runtime/systems/autonomy/inversion_controller.ts"],
                 "code_change_tests": ["client/memory/tools/tests/inversion_helper_batch11_rust_parity.test.js"],
                 "code_change_risk": "low"
             })),
@@ -11100,7 +11100,7 @@ mod tests {
         assert!(out_channel.test_enabled);
 
         let normalized_repo = compute_normalize_repo_path(&NormalizeRepoPathInput {
-            value: Some("client/config/x.json".to_string()),
+            value: Some("client/runtime/config/x.json".to_string()),
             fallback: Some("/tmp/fallback.json".to_string()),
             root: Some("/tmp/root".to_string()),
         });
@@ -12241,13 +12241,13 @@ if mode == "alpha" {
 
     #[test]
     fn bridge_maps_all_inversion_primitive_callsite_modes() {
-        let ts_autonomy = include_str!("../../../client/systems/autonomy/autonomy_controller.ts");
+        let ts_autonomy = include_str!("../../../client/runtime/systems/autonomy/autonomy_controller.ts");
         let ts_autonomy_legacy =
-            include_str!("../../../client/systems/autonomy/autonomy_controller_legacy.ts");
-        let ts_inversion = include_str!("../../../client/systems/autonomy/inversion_controller.ts");
+            include_str!("../../../client/runtime/systems/autonomy/autonomy_controller_legacy.ts");
+        let ts_inversion = include_str!("../../../client/runtime/systems/autonomy/inversion_controller.ts");
         let ts_inversion_legacy =
-            include_str!("../../../client/systems/autonomy/inversion_controller_legacy.ts");
-        let bridge = include_str!("../../../client/systems/autonomy/backlog_autoscale_rust_bridge.ts");
+            include_str!("../../../client/runtime/systems/autonomy/inversion_controller_legacy.ts");
+        let bridge = include_str!("../../../client/runtime/systems/autonomy/backlog_autoscale_rust_bridge.ts");
         let mut called = extract_mode_literals(ts_inversion, "runInversionPrimitive");
         called.extend(extract_mode_literals(
             ts_inversion_legacy,
@@ -12278,12 +12278,12 @@ if mode == "alpha" {
 
     #[test]
     fn controller_callsite_modes_are_dispatched_by_rust_inversion_json() {
-        let ts_autonomy = include_str!("../../../client/systems/autonomy/autonomy_controller.ts");
+        let ts_autonomy = include_str!("../../../client/runtime/systems/autonomy/autonomy_controller.ts");
         let ts_autonomy_legacy =
-            include_str!("../../../client/systems/autonomy/autonomy_controller_legacy.ts");
-        let ts_inversion = include_str!("../../../client/systems/autonomy/inversion_controller.ts");
+            include_str!("../../../client/runtime/systems/autonomy/autonomy_controller_legacy.ts");
+        let ts_inversion = include_str!("../../../client/runtime/systems/autonomy/inversion_controller.ts");
         let ts_inversion_legacy =
-            include_str!("../../../client/systems/autonomy/inversion_controller_legacy.ts");
+            include_str!("../../../client/runtime/systems/autonomy/inversion_controller_legacy.ts");
         let rust_src = include_str!("inversion.rs");
         let mut called = extract_mode_literals(ts_inversion, "runInversionPrimitive");
         called.extend(extract_mode_literals(
@@ -12313,7 +12313,7 @@ if mode == "alpha" {
 
     #[test]
     fn rust_dispatch_covers_all_inversion_bridge_modes() {
-        let bridge = include_str!("../../../client/systems/autonomy/backlog_autoscale_rust_bridge.ts");
+        let bridge = include_str!("../../../client/runtime/systems/autonomy/backlog_autoscale_rust_bridge.ts");
         let rust_src = include_str!("inversion.rs");
         let mapped = extract_bridge_modes(bridge, "runInversionPrimitive");
         let dispatched = extract_dispatch_modes(rust_src);

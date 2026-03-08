@@ -81,7 +81,7 @@ function main() {
     max_bespoke_actuation_modules: 3,
     require_offset_receipt_for_new_organs: true,
     systems_root: 'systems',
-    baseline_path: 'client/config/simplicity_baseline.json',
+    baseline_path: 'client/runtime/config/simplicity_baseline.json',
     offset_receipts_path: 'state/ops/complexity_offsets.jsonl',
     latest_path: 'state/ops/simplicity_budget/latest.json'
   });

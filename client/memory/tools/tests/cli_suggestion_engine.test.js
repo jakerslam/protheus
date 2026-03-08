@@ -63,7 +63,7 @@ try {
   let out = run([
     'suggest',
     '--cmd=status',
-    '--text=I just used client/docs/cognitive_toolkit.md for this workflow.',
+    '--text=I just used docs/client/cognitive_toolkit.md for this workflow.',
     '--auto-reject=1',
     '--dry-run=1',
     '--json=1'
@@ -102,7 +102,7 @@ try {
   out = run([
     'suggest',
     '--cmd=status',
-    '--text=I just used client/docs/cognitive_toolkit.md for this workflow.',
+    '--text=I just used docs/client/cognitive_toolkit.md for this workflow.',
     '--auto-reject=1',
     '--dry-run=1',
     '--json=1'

@@ -86,7 +86,7 @@ function run() {
       license_id: 'internal_protheus',
       consent_status: 'granted',
       consent_mode: 'explicit_opt_in',
-      consent_evidence_ref: 'client/config/training_conduit_policy.json',
+      consent_evidence_ref: 'client/runtime/config/training_conduit_policy.json',
       retention_days: 365,
       delete_scope: 'workflow_learning_conduit'
     }

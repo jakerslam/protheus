@@ -49,8 +49,8 @@ try {
     event_stream: { enabled: false, publish: false, stream: 'executive.system3_curriculum' },
     scripts: {
       system3: 'client/adaptive/executive/system3_executive_layer.js',
-      strategy_learner: 'client/systems/strategy/strategy_learner.js',
-      model_catalog: 'client/systems/autonomy/model_catalog_loop.js'
+      strategy_learner: 'client/runtime/systems/strategy/strategy_learner.js',
+      model_catalog: 'client/runtime/systems/autonomy/model_catalog_loop.js'
     },
     paths: {
       memory_dir: path.join(tmp, 'memory', 'executive', 'system3_meta_curriculum_bridge'),

@@ -7,7 +7,7 @@ const { spawnSync } = require('child_process');
 
 function parseArgs(argv) {
   const args = {
-    manifest: 'client/docs/community/contributors_manifest.json',
+    manifest: 'docs/client/community/contributors_manifest.json',
     outDir: 'artifacts/empty-fort',
     releaseTag: process.env.GITHUB_REF_NAME || 'local'
   };

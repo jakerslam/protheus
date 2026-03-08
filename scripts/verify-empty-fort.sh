@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MANIFEST="client/docs/community/contributors_manifest.json"
+MANIFEST="docs/client/community/contributors_manifest.json"
 README_FILE="README.md"
 RC_FILE=".all-contributorsrc"
 MIN_COUNT="${EMPTY_FORT_MIN_COUNT:-100}"

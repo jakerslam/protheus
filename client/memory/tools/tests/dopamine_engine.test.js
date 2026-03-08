@@ -9,7 +9,7 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
-// Load engine from client/habits/scripts
+// Load engine from client/cognition/habits/scripts
 const {
   calculateSDS,
   logWorkEntry,
@@ -348,7 +348,7 @@ function runTests() {
     // Call closeout via exec (since it uses console.log)
     const { execSync } = require('child_process');
     const output = execSync(
-      'node client/habits/scripts/dopamine_engine.js closeout',
+      'node client/cognition/habits/scripts/dopamine_engine.js closeout',
       { cwd: path.join(__dirname, '..', '..', '..'), encoding: 'utf8' }
     );
     
@@ -377,7 +377,7 @@ function runTests() {
     
     // Add revenue action
     const output = execSync(
-      'node client/habits/scripts/dopamine_engine.js revenue lead "Acme Corp"',
+      'node client/cognition/habits/scripts/dopamine_engine.js revenue lead "Acme Corp"',
       { cwd: path.join(__dirname, '..', '..', '..'), encoding: 'utf8' }
     );
     
@@ -411,11 +411,11 @@ function runTests() {
     
     // Tap switch twice
     execSync(
-      'node client/habits/scripts/dopamine_engine.js switch',
+      'node client/cognition/habits/scripts/dopamine_engine.js switch',
       { cwd: path.join(__dirname, '..', '..', '..'), encoding: 'utf8' }
     );
     execSync(
-      'node client/habits/scripts/dopamine_engine.js switch',
+      'node client/cognition/habits/scripts/dopamine_engine.js switch',
       { cwd: path.join(__dirname, '..', '..', '..'), encoding: 'utf8' }
     );
     
@@ -439,8 +439,8 @@ function runTests() {
     
     // Test dop score
     const output = execSync(
-      'PATH="$HOME/.local/bin:$PATH" node client/habits/scripts/dop score',
-      { cwd: workspace, encoding: 'utf8', shell: '/client/bin/zsh' }
+      'PATH="$HOME/.local/bin:$PATH" node client/cognition/habits/scripts/dop score',
+      { cwd: workspace, encoding: 'utf8', shell: '/client/cli/bin/zsh' }
     );
     
     assert.ok(output.includes('SDS:') || output.includes('Strategic Dopamine Score'),
@@ -464,8 +464,8 @@ function runTests() {
     
     // Run via dop wrapper
     execSync(
-      'PATH="$HOME/.local/bin:$PATH" node client/habits/scripts/dop switch',
-      { cwd: path.join(__dirname, '..', '..', '..'), encoding: 'utf8', shell: '/client/bin/zsh' }
+      'PATH="$HOME/.local/bin:$PATH" node client/cognition/habits/scripts/dop switch',
+      { cwd: path.join(__dirname, '..', '..', '..'), encoding: 'utf8', shell: '/client/cli/bin/zsh' }
     );
     
     const afterLog = JSON.parse(fs.readFileSync(logPath, 'utf8'));
@@ -491,8 +491,8 @@ function runTests() {
     
     // Run via dop wrapper
     execSync(
-      'PATH="$HOME/.local/bin:$PATH" node client/habits/scripts/dop revenue invoice "Test Client"',
-      { cwd: path.join(__dirname, '..', '..', '..'), encoding: 'utf8', shell: '/client/bin/zsh' }
+      'PATH="$HOME/.local/bin:$PATH" node client/cognition/habits/scripts/dop revenue invoice "Test Client"',
+      { cwd: path.join(__dirname, '..', '..', '..'), encoding: 'utf8', shell: '/client/cli/bin/zsh' }
     );
     
     const afterLog = JSON.parse(fs.readFileSync(logPath, 'utf8'));
@@ -566,8 +566,8 @@ function runTests() {
     const { shouldSkipFile } = require('../../../habits/scripts/dopamine_engine.js');
     
     assert.strictEqual(shouldSkipFile('state/test.json'), true, 'Should skip state/ files');
-    assert.strictEqual(shouldSkipFile('client/local/logs/test.log'), true, 'Should skip client/local/logs/ files');
-    assert.strictEqual(shouldSkipFile('client/config/trusted_skills.json'), true, 'Should skip trusted_skills.json');
+    assert.strictEqual(shouldSkipFile('client/runtime/local/logs/test.log'), true, 'Should skip client/runtime/local/logs/ files');
+    assert.strictEqual(shouldSkipFile('client/runtime/config/trusted_skills.json'), true, 'Should skip trusted_skills.json');
     assert.strictEqual(shouldSkipFile('src/code.js'), false, 'Should not skip normal files');
     
     console.log(`   ✅ Duplicate detection and skip patterns work`);
@@ -631,8 +631,8 @@ function runTests() {
     
     // Run closeout
     const output = execSync(
-      'PATH="$HOME/.local/bin:$PATH" node client/habits/scripts/dop closeout',
-      { cwd: workspace, encoding: 'utf8', shell: '/client/bin/zsh', timeout: 30000 }
+      'PATH="$HOME/.local/bin:$PATH" node client/cognition/habits/scripts/dop closeout',
+      { cwd: workspace, encoding: 'utf8', shell: '/client/cli/bin/zsh', timeout: 30000 }
     );
     
     // Verify closeout output contains expected elements
@@ -723,10 +723,10 @@ function runTests() {
     
     // Test shouldSkipFile for state/
     assert.strictEqual(shouldSkipFile('state/daily_client/logs/2026-02-17.json'), true, 'Should skip state/ files');
-    assert.strictEqual(shouldSkipFile('client/local/logs/test.log'), true, 'Should skip client/local/logs/ files');
+    assert.strictEqual(shouldSkipFile('client/runtime/local/logs/test.log'), true, 'Should skip client/runtime/local/logs/ files');
     assert.strictEqual(shouldSkipFile('src/code.js'), false, 'Should not skip normal src files');
     
-    console.log(`   ✅ Recursion guard works: state/, client/local/logs/ excluded`);
+    console.log(`   ✅ Recursion guard works: state/, client/runtime/local/logs/ excluded`);
   } catch (err) {
     console.error('   ❌ FAILED:', err.message);
     throw err;

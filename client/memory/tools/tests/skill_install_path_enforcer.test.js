@@ -53,7 +53,7 @@ function main() {
   );
   writeText(
     goodFile,
-    "const { spawnSync } = require('child_process');\nspawnSync('node', ['client/habits/scripts/install_skill_safe.js', '--spec=github:ok/skill']);\n"
+    "const { spawnSync } = require('child_process');\nspawnSync('node', ['client/cognition/habits/scripts/install_skill_safe.js', '--spec=github:ok/skill']);\n"
   );
 
   writeJson(policyPath, {
@@ -65,7 +65,7 @@ function main() {
     forbidden_patterns: [
       { id: 'direct', regex: 'molthub\\\\s+install' }
     ],
-    required_wrapper_refs: ['client/habits/scripts/install_skill_safe.js'],
+    required_wrapper_refs: ['client/cognition/habits/scripts/install_skill_safe.js'],
     outputs: {
       latest_path: latestPath,
       history_path: historyPath

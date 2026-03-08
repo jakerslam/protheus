@@ -151,13 +151,13 @@ pub fn default_policy(root: &Path) -> Policy {
             latest_path: root.join("state/ops/perception_polish_program/latest.json"),
             receipts_path: root.join("state/ops/perception_polish_program/receipts.jsonl"),
             history_path: root.join("state/ops/perception_polish_program/history.jsonl"),
-            flags_path: root.join("client/config/feature_flags/perception_flags.json"),
+            flags_path: root.join("client/runtime/config/feature_flags/perception_flags.json"),
             observability_panel_path: root.join("state/ops/protheus_top/observability_panel.json"),
             reasoning_footer_path: root.join("state/ops/protheus_top/reasoning_mirror_footer.txt"),
-            tone_policy_path: root.join("client/config/perception_tone_policy.json"),
-            post_reveal_easter_egg_path: root.join("client/docs/blog/the_fort_was_empty_easter_egg.md"),
+            tone_policy_path: root.join("client/runtime/config/perception_tone_policy.json"),
+            post_reveal_easter_egg_path: root.join("docs/client/blog/the_fort_was_empty_easter_egg.md"),
         },
-        policy_path: root.join("client/config/perception_polish_program_policy.json"),
+        policy_path: root.join("client/runtime/config/perception_polish_program_policy.json"),
     }
 }
 
@@ -226,7 +226,7 @@ pub fn load_policy(root: &Path, policy_path: &Path) -> Policy {
         flags_path: resolve_path(
             root,
             paths.get("flags_path"),
-            "client/config/feature_flags/perception_flags.json",
+            "client/runtime/config/feature_flags/perception_flags.json",
         ),
         observability_panel_path: resolve_path(
             root,
@@ -241,12 +241,12 @@ pub fn load_policy(root: &Path, policy_path: &Path) -> Policy {
         tone_policy_path: resolve_path(
             root,
             paths.get("tone_policy_path"),
-            "client/config/perception_tone_policy.json",
+            "client/runtime/config/perception_tone_policy.json",
         ),
         post_reveal_easter_egg_path: resolve_path(
             root,
             paths.get("post_reveal_easter_egg_path"),
-            "client/docs/blog/the_fort_was_empty_easter_egg.md",
+            "docs/client/blog/the_fort_was_empty_easter_egg.md",
         ),
     };
     out.policy_path = if policy_path.is_absolute() {
@@ -594,12 +594,12 @@ fn run_all(
 
 pub fn usage() {
     println!("Usage:");
-    println!("  node client/systems/ops/perception_polish_program.js list");
-    println!("  node client/systems/ops/perception_polish_program.js run --id=V4-ILLUSION-001 [--apply=1|0] [--strict=1|0]");
+    println!("  node client/runtime/systems/ops/perception_polish_program.js list");
+    println!("  node client/runtime/systems/ops/perception_polish_program.js run --id=V4-ILLUSION-001 [--apply=1|0] [--strict=1|0]");
     println!(
-        "  node client/systems/ops/perception_polish_program.js run-all [--apply=1|0] [--strict=1|0]"
+        "  node client/runtime/systems/ops/perception_polish_program.js run-all [--apply=1|0] [--strict=1|0]"
     );
-    println!("  node client/systems/ops/perception_polish_program.js status");
+    println!("  node client/runtime/systems/ops/perception_polish_program.js status");
 }
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -623,7 +623,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .flags
         .get("policy")
         .map(PathBuf::from)
-        .unwrap_or_else(|| root.join("client/config/perception_polish_program_policy.json"));
+        .unwrap_or_else(|| root.join("client/runtime/config/perception_polish_program_policy.json"));
     let policy_path = if policy_arg.is_absolute() {
         policy_arg
     } else {

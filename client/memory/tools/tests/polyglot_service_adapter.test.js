@@ -41,7 +41,7 @@ function run() {
     allow_fallback_baseline: true,
     worker: {
       runtime: 'python3',
-      script: 'client/systems/polyglot/pilot_task_classifier.py',
+      script: 'client/runtime/systems/polyglot/pilot_task_classifier.py',
       timeout_ms: 2500
     },
     benchmark: {

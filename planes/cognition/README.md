@@ -28,4 +28,4 @@ Cognition memory items are first-class epistemic objects with:
 
 Schema: `planes/cognition/epistemic_memory.schema.json`.
 
-Implementation mapping: `client/` source surfaces; mutable artifacts in `client/local/`.
+Implementation mapping: `client/` source surfaces; mutable artifacts in `client/runtime/local/`.

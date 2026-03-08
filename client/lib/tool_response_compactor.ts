@@ -3,7 +3,7 @@
  * Tool Response Compactor
  * 
  * Rules:
- * - If output > 1200 chars OR > 40 lines → save raw to client/local/logs/tool_raw/<timestamp>.txt
+ * - If output > 1200 chars OR > 40 lines → save raw to client/runtime/local/logs/tool_raw/<timestamp>.txt
  * - Inject only: 5-10 bullet summary with key ids/urls/counts/errors
  * - Include pointer to raw log path
  * - Redact secrets (moltbook_sk_*, Authorization headers)
@@ -172,7 +172,7 @@ function compactToolResponse(data, options = {}) {
     ``,
     ...summary,
     ``,
-    `📁 Raw output saved to: client/local/logs/tool_raw/${rawFilename}`,
+    `📁 Raw output saved to: client/runtime/local/logs/tool_raw/${rawFilename}`,
     `📊 Original: ${charCount} chars, ${lineCount} lines`,
     `📊 Compacted: ${summary.join('').length} chars (summary only)`
   ].join('\n');

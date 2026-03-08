@@ -1,0 +1,186 @@
+{
+  "schema_id": "f100_enterprise_baseline_contract",
+  "schema_version": "1.0.0",
+  "description": "Deterministic baseline checks for externally visible Fortune-100 readiness claims.",
+  "checks": [
+    {
+      "id": "license_apache2",
+      "type": "file_contains",
+      "path": "LICENSE",
+      "pattern": "Apache License"
+    },
+    {
+      "id": "security_posture_doc",
+      "type": "file_exists",
+      "path": "docs/client/SECURITY_POSTURE.md"
+    },
+    {
+      "id": "dependabot_enabled",
+      "type": "file_exists",
+      "path": ".github/dependabot.yml"
+    },
+    {
+      "id": "codeql_enabled",
+      "type": "file_exists",
+      "path": ".github/workflows/codeql.yml"
+    },
+    {
+      "id": "sbom_release_workflow",
+      "type": "file_exists",
+      "path": ".github/workflows/release-security-artifacts.yml"
+    },
+    {
+      "id": "ga_release_pipeline_present",
+      "type": "file_exists",
+      "path": ".github/workflows/release.yml"
+    },
+    {
+      "id": "ga_release_semver_contract",
+      "type": "file_contains",
+      "path": ".github/workflows/release.yml",
+      "pattern": "release_semver_contract.js"
+    },
+    {
+      "id": "ga_release_spdx_sbom_attach",
+      "type": "file_contains",
+      "path": ".github/workflows/release.yml",
+      "pattern": "spdx.json"
+    },
+    {
+      "id": "ga_release_signatures_attached",
+      "type": "file_contains",
+      "path": ".github/workflows/release.yml",
+      "pattern": "release_public.pem"
+    },
+    {
+      "id": "slsa_attestation_release_workflow",
+      "type": "file_contains",
+      "path": ".github/workflows/release-security-artifacts.yml",
+      "pattern": "actions/attest-build-provenance@v2"
+    },
+    {
+      "id": "coverage_workflow",
+      "type": "file_exists",
+      "path": ".github/workflows/coverage.yml"
+    },
+    {
+      "id": "helm_packaging_present",
+      "type": "file_exists",
+      "path": "client/runtime/deploy/helm/protheus/Chart.yaml"
+    },
+    {
+      "id": "helm_conformance_ci_present",
+      "type": "file_exists",
+      "path": ".github/workflows/helm-conformance.yml"
+    },
+    {
+      "id": "helm_sso_values_present",
+      "type": "file_contains",
+      "path": "client/runtime/deploy/helm/protheus/values.yaml",
+      "pattern": "sso:"
+    },
+    {
+      "id": "helm_vault_values_present",
+      "type": "file_contains",
+      "path": "client/runtime/deploy/helm/protheus/values.yaml",
+      "pattern": "vault:"
+    },
+    {
+      "id": "helm_nvidia_values_present",
+      "type": "file_contains",
+      "path": "client/runtime/deploy/helm/protheus/values.yaml",
+      "pattern": "nvidia:"
+    },
+    {
+      "id": "helm_daemon_multinode_present",
+      "type": "file_exists",
+      "path": "client/runtime/deploy/helm/protheus/templates/deployment.yaml"
+    },
+    {
+      "id": "helm_conformance_test_hook_present",
+      "type": "file_exists",
+      "path": "client/runtime/deploy/helm/protheus/templates/tests/conformance.yaml"
+    },
+    {
+      "id": "terraform_packaging_present",
+      "type": "file_exists",
+      "path": "client/runtime/deploy/terraform/protheus_helm/main.tf"
+    },
+    {
+      "id": "terraform_enterprise_inputs_present",
+      "type": "file_contains",
+      "path": "client/runtime/deploy/terraform/protheus_helm/variables.tf",
+      "pattern": "daemon_replicas"
+    },
+    {
+      "id": "docker_supply_chain_workflow_present",
+      "type": "file_exists",
+      "path": ".github/workflows/docker-supply-chain.yml"
+    },
+    {
+      "id": "dockerfile_fips_contract_present",
+      "type": "file_contains",
+      "path": "Dockerfile",
+      "pattern": "PROTHEUS_FIPS_MODE"
+    },
+    {
+      "id": "dependabot_required_checks_contract",
+      "type": "file_contains",
+      "path": ".github/workflows/required-checks.yml",
+      "pattern": "dependabot_contract"
+    },
+    {
+      "id": "codeql_required_checks_contract",
+      "type": "file_contains",
+      "path": ".github/workflows/required-checks.yml",
+      "pattern": "ghas_code_scanning_contract"
+    },
+    {
+      "id": "runtime_telemetry_policy_present",
+      "type": "file_exists",
+      "path": "client/runtime/config/runtime_telemetry_policy.json"
+    },
+    {
+      "id": "runtime_telemetry_lane_present",
+      "type": "file_exists",
+      "path": "client/runtime/systems/observability/runtime_telemetry_optin.ts"
+    },
+    {
+      "id": "k8s_secret_runtime_manifest_present",
+      "type": "file_exists",
+      "path": "client/runtime/deploy/k8s/secret.runtime.example.yaml"
+    },
+    {
+      "id": "helm_secret_wiring_enabled",
+      "type": "file_contains",
+      "path": "client/runtime/deploy/helm/protheus/templates/cronjob.yaml",
+      "pattern": "secretRef"
+    },
+    {
+      "id": "enterprise_support_template_present",
+      "type": "file_exists",
+      "path": "docs/client/ENTERPRISE_SUPPORT_ENVELOPE_TEMPLATE.md"
+    },
+    {
+      "id": "case_study_template_present",
+      "type": "file_exists",
+      "path": "docs/client/REFERENCE_CUSTOMER_CASE_STUDY_TEMPLATE.md"
+    },
+    {
+      "id": "legal_packet_checklist_present",
+      "type": "file_exists",
+      "path": "docs/client/LEGAL_ENTERPRISE_PACKET_CHECKLIST.md"
+    },
+    {
+      "id": "a_plus_gate_script_present",
+      "type": "file_exists",
+      "path": "client/runtime/systems/ops/f100_a_plus_readiness_gate.js"
+    },
+    {
+      "id": "human_split_compliance_certs",
+      "type": "file_contains",
+      "path": "docs/client/HUMAN_ONLY_ACTIONS.md",
+      "pattern": "SOC2 Type II / ISO 27001"
+    }
+  ]
+}

@@ -14,7 +14,7 @@ function run() {
     title: 'Fix collector retry policy and test recovery',
     expected_impact: 'medium',
     risk: 'medium',
-    suggested_next_command: 'node client/systems/routing/route_execute.js --task="repair collector retries for downtime recovery"',
+    suggested_next_command: 'node client/runtime/systems/routing/route_execute.js --task="repair collector retries for downtime recovery"',
     summary: 'Apply bounded retry and verify restored collection rate.',
     validation: [
       'error rate <= 5% within 24 hours',

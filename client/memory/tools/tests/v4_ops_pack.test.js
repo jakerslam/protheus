@@ -56,8 +56,8 @@ function main() {
     enabled: true,
     shadow_only: true,
     strict_fail_closed: true,
-    required_paths: ['client/systems/spine/spine.js'],
-    verifier_cmd: ['node', 'client/systems/security/critical_path_formal_verifier.js', 'status'],
+    required_paths: ['client/runtime/systems/spine/spine.js'],
+    verifier_cmd: ['node', 'client/runtime/systems/security/critical_path_formal_verifier.js', 'status'],
     paths: {
       latest_path: path.join(tmp, 'formal_latest.json'),
       receipts_path: path.join(tmp, 'formal_receipts.jsonl')
@@ -70,7 +70,7 @@ function main() {
     strict_default: false,
     remediation_threshold: 0.95,
     remediation_limit: 4,
-    parity_cmd: ['node', 'client/systems/ops/narrow_agent_parity_harness.js', 'status', 'latest'],
+    parity_cmd: ['node', 'client/runtime/systems/ops/narrow_agent_parity_harness.js', 'status', 'latest'],
     paths: {
       latest_path: path.join(tmp, 'parity_latest.json'),
       receipts_path: path.join(tmp, 'parity_receipts.jsonl'),

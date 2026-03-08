@@ -52,7 +52,7 @@ function loadTsModule(modulePath) {
 
 function loadConduitClient(root) {
   const jsCandidates = [
-    path.join(root, 'client', 'systems', 'conduit', 'conduit-client.js'),
+    path.join(root, 'client', 'runtime', 'systems', 'conduit', 'conduit-client.js'),
     path.join(root, 'systems', 'conduit', 'conduit-client.js')
   ];
   for (const candidate of jsCandidates) {
@@ -61,7 +61,7 @@ function loadConduitClient(root) {
     }
   }
   const tsCandidates = [
-    path.join(root, 'client', 'systems', 'conduit', 'conduit-client.ts'),
+    path.join(root, 'client', 'runtime', 'systems', 'conduit', 'conduit-client.ts'),
     path.join(root, 'systems', 'conduit', 'conduit-client.ts')
   ];
   for (const candidate of tsCandidates) {
@@ -73,7 +73,7 @@ function loadConduitClient(root) {
 }
 
 function runtimeGatePath(root) {
-  return path.join(root, 'client', 'local', 'state', 'conduit', 'runtime_gate.json');
+  return path.join(root, 'client', 'runtime', 'local', 'state', 'conduit', 'runtime_gate.json');
 }
 
 function readRuntimeGate(root) {
@@ -549,7 +549,7 @@ function runConduitCompatFallback(root, agentId, errorType, opts = {}) {
     const normalizedArgs = normalizeSpineCompatArgs(edgeArgs);
     const run = runCompatNodeScript(
       root,
-      'client/systems/spine/spine.ts',
+      'client/runtime/systems/spine/spine.ts',
       normalizedArgs,
       {
         timeoutMs: opts.timeoutMs,
@@ -576,7 +576,7 @@ function runConduitCompatFallback(root, agentId, errorType, opts = {}) {
     const normalizedArgs = edgeArgs.length ? edgeArgs : ['status'];
     const run = runCompatNodeScript(
       root,
-      'client/habits/scripts/dopamine_ambient_snapshot.js',
+      'client/cognition/habits/scripts/dopamine_ambient_snapshot.js',
       normalizedArgs,
       {
         timeoutMs: opts.timeoutMs,
@@ -591,7 +591,7 @@ function runConduitCompatFallback(root, agentId, errorType, opts = {}) {
     const normalizedArgs = edgeArgs.length ? edgeArgs : ['status'];
     const run = runCompatNodeScript(
       root,
-      'client/systems/personas/ambient_stance.js',
+      'client/runtime/systems/personas/ambient_stance.js',
       normalizedArgs,
       {
         timeoutMs: opts.timeoutMs,
@@ -609,7 +609,7 @@ function runConduitCompatFallback(root, agentId, errorType, opts = {}) {
     const normalizedArgs = edgeArgs.length ? edgeArgs : ['status'];
     const run = runCompatNodeScript(
       root,
-      'client/systems/memory/ambient.js',
+      'client/runtime/systems/memory/ambient.js',
       normalizedArgs,
       {
         timeoutMs: opts.timeoutMs,

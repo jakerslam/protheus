@@ -46,4 +46,4 @@ jobs:
           branch: 'codex/empty-fort-pulse-${{ github.run_id }}'
           labels: 'empty-fort-pulse,maintenance'
           add-paths: |
-            client/docs/ops/empty_fort_pulse_log.md
+            docs/client/ops/empty_fort_pulse_log.md

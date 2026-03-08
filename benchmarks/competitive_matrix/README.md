@@ -17,5 +17,5 @@ Deterministic benchmark entrypoint for competitive parity claims.
 
 The runner writes a receipt-backed snapshot to:
 
-- `client/local/state/ops/competitive_benchmark_matrix/latest.json`
-- `client/local/state/ops/competitive_benchmark_matrix/snapshots.jsonl`
+- `client/runtime/local/state/ops/competitive_benchmark_matrix/latest.json`
+- `client/runtime/local/state/ops/competitive_benchmark_matrix/snapshots.jsonl`

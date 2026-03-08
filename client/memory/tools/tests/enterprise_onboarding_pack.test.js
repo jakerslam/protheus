@@ -57,7 +57,7 @@ try {
   writeJson(policyPath, {
     version: '1.0-test',
     enabled: true,
-    onboarding_docs: ['client/docs/ONBOARDING_PLAYBOOK.md', 'client/docs/ENTERPRISE_ONBOARDING_PACK.md'],
+    onboarding_docs: ['docs/client/ONBOARDING_PLAYBOOK.md', 'docs/client/ENTERPRISE_ONBOARDING_PACK.md'],
     required_roles: ['Operator', 'Platform Engineer', 'External Contributor'],
     required_milestones: ['Day 0', 'Day 7', 'Day 30'],
     required_terms: ['prerequisites', 'safety gates', 'success criteria', 'bootstrap', 'ci', 'escalation'],

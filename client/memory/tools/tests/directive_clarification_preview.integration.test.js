@@ -54,7 +54,7 @@ function run() {
           'Directive intake validate returns ok=true',
           'Preview receipt shows executable=true'
         ],
-        suggested_next_command: 'node client/systems/security/directive_intake.js validate --id=T1_make_jay_billionaire_v1 --file=client/config/directives/T1_make_jay_billionaire_v1.yaml',
+        suggested_next_command: 'node client/runtime/systems/security/directive_intake.js validate --id=T1_make_jay_billionaire_v1 --file=client/runtime/config/directives/T1_make_jay_billionaire_v1.yaml',
         evidence: [
           { evidence_ref: 'eye:directive_pulse/T1_make_jay_billionaire_v1' }
         ],
@@ -95,7 +95,7 @@ function run() {
     assert.strictEqual(out.preview_summary.decision, 'DIRECTIVE_VALIDATE');
     assert.strictEqual(out.preview_summary.executable, true);
     assert.strictEqual(out.preview_summary.gate_decision, 'ALLOW');
-    assert.strictEqual(out.preview_summary.file, 'client/config/directives/T1_make_jay_billionaire_v1.yaml');
+    assert.strictEqual(out.preview_summary.file, 'client/runtime/config/directives/T1_make_jay_billionaire_v1.yaml');
     assert.ok(out.preview_verification && out.preview_verification.passed === true, 'expected passing preview_verification');
 
     console.log('directive_clarification_preview.integration.test.js: OK');

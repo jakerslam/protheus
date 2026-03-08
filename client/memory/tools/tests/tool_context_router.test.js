@@ -32,7 +32,7 @@ try {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tool-context-router-'));
   writeJson(path.join(tmp, 'AGENTS.md'), { ok: true });
   writeJson(path.join(tmp, 'package.json'), { name: 'tmp' });
-  const policyPath = path.join(tmp, 'client', 'config', 'tool_context_router_policy.json');
+  const policyPath = path.join(tmp, 'client', 'runtime', 'config', 'tool_context_router_policy.json');
   writeJson(policyPath, {
     version: 'test',
     enabled: true,
@@ -55,7 +55,7 @@ try {
   const payload = JSON.parse(out.stdout);
   assert.strictEqual(payload.ok, true, 'route should pass');
   assert.strictEqual(payload.selected_tool, 'research', 'research should win');
-  const latestPath = path.join(tmp, 'client', 'local', 'state', 'tools', 'tool_context_router', 'latest.json');
+  const latestPath = path.join(tmp, 'client', 'runtime', 'local', 'state', 'tools', 'tool_context_router', 'latest.json');
   assert.ok(fs.existsSync(latestPath), 'latest receipt missing');
   console.log('tool_context_router.test.js: OK');
 } catch (err) {

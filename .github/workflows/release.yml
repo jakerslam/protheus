@@ -37,7 +37,7 @@ jobs:
       - name: Resolve semantic release plan (conventional commits)
         id: semver
         run: |
-          node client/systems/ops/release_semver_contract.js run --strict=0 --write=1 --plan=client/local/state/release/semantic_release_plan.json --changelog=client/local/state/release/CHANGELOG.auto.md > /tmp/release-plan.json
+          node client/runtime/systems/ops/release_semver_contract.js run --strict=0 --write=1 --plan=client/runtime/local/state/release/semantic_release_plan.json --changelog=client/runtime/local/state/release/CHANGELOG.auto.md > /tmp/release-plan.json
           cat /tmp/release-plan.json
           node - <<'NODE'
           const fs = require('fs');
@@ -69,11 +69,11 @@ jobs:
       - name: Generate SPDX SBOM artifacts
         if: steps.semver.outputs.release_ready == '1'
         run: |
-          mkdir -p client/local/state/release/sbom
+          mkdir -p client/runtime/local/state/release/sbom
           PKG=$(ls -1 *.tgz | head -n 1)
-          syft file:target/release/protheus-ops -o spdx-json=client/local/state/release/sbom/protheus-ops.spdx.json
-          syft file:target/release/conduit_daemon -o spdx-json=client/local/state/release/sbom/conduit_daemon.spdx.json
-          syft file:${PKG} -o spdx-json=client/local/state/release/sbom/protheus-npm.spdx.json
+          syft file:target/release/protheus-ops -o spdx-json=client/runtime/local/state/release/sbom/protheus-ops.spdx.json
+          syft file:target/release/conduit_daemon -o spdx-json=client/runtime/local/state/release/sbom/conduit_daemon.spdx.json
+          syft file:${PKG} -o spdx-json=client/runtime/local/state/release/sbom/protheus-npm.spdx.json
 
       - name: Sign release artifacts
         if: steps.semver.outputs.release_ready == '1'
@@ -81,16 +81,16 @@ jobs:
           RELEASE_SIGNING_PRIVATE_KEY: ${{ secrets.RELEASE_SIGNING_PRIVATE_KEY }}
         run: |
           set -euo pipefail
-          mkdir -p client/local/state/release/signatures
+          mkdir -p client/runtime/local/state/release/signatures
           if [ -n "${RELEASE_SIGNING_PRIVATE_KEY:-}" ]; then
             printf '%s\n' "$RELEASE_SIGNING_PRIVATE_KEY" > /tmp/release_private.pem
           else
             openssl genrsa -out /tmp/release_private.pem 4096
           fi
-          openssl rsa -in /tmp/release_private.pem -pubout -out client/local/state/release/signatures/release_public.pem
-          for f in target/release/protheus-ops target/release/conduit_daemon client/local/state/release/sbom/protheus-ops.spdx.json client/local/state/release/sbom/conduit_daemon.spdx.json client/local/state/release/sbom/protheus-npm.spdx.json; do
+          openssl rsa -in /tmp/release_private.pem -pubout -out client/runtime/local/state/release/signatures/release_public.pem
+          for f in target/release/protheus-ops target/release/conduit_daemon client/runtime/local/state/release/sbom/protheus-ops.spdx.json client/runtime/local/state/release/sbom/conduit_daemon.spdx.json client/runtime/local/state/release/sbom/protheus-npm.spdx.json; do
             base=$(basename "$f")
-            openssl dgst -sha256 -sign /tmp/release_private.pem -out "client/local/state/release/signatures/${base}.sig" "$f"
+            openssl dgst -sha256 -sign /tmp/release_private.pem -out "client/runtime/local/state/release/signatures/${base}.sig" "$f"
           done
 
       - name: Create release tag
@@ -114,17 +114,17 @@ jobs:
           name: Protheus ${{ steps.semver.outputs.tag }}
           draft: false
           generate_release_notes: true
-          body_path: client/local/state/release/CHANGELOG.auto.md
+          body_path: client/runtime/local/state/release/CHANGELOG.auto.md
           files: |
             target/release/protheus-ops
             target/release/conduit_daemon
             *.tgz
-            client/local/state/release/sbom/protheus-ops.spdx.json
-            client/local/state/release/sbom/conduit_daemon.spdx.json
-            client/local/state/release/sbom/protheus-npm.spdx.json
-            client/local/state/release/signatures/protheus-ops.sig
-            client/local/state/release/signatures/conduit_daemon.sig
-            client/local/state/release/signatures/protheus-ops.spdx.json.sig
-            client/local/state/release/signatures/conduit_daemon.spdx.json.sig
-            client/local/state/release/signatures/protheus-npm.spdx.json.sig
-            client/local/state/release/signatures/release_public.pem
+            client/runtime/local/state/release/sbom/protheus-ops.spdx.json
+            client/runtime/local/state/release/sbom/conduit_daemon.spdx.json
+            client/runtime/local/state/release/sbom/protheus-npm.spdx.json
+            client/runtime/local/state/release/signatures/protheus-ops.sig
+            client/runtime/local/state/release/signatures/conduit_daemon.sig
+            client/runtime/local/state/release/signatures/protheus-ops.spdx.json.sig
+            client/runtime/local/state/release/signatures/conduit_daemon.spdx.json.sig
+            client/runtime/local/state/release/signatures/protheus-npm.spdx.json.sig
+            client/runtime/local/state/release/signatures/release_public.pem

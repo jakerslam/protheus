@@ -250,14 +250,14 @@ function recordCiRun(outcome) {
 
 function main() {
   const ciStartedAtMs = Date.now();
-  runCiStep('typecheck_systems', ['client/systems/ops/typecheck_systems.js'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
-  runCiStep('ts_clone_drift_guard', ['client/systems/ops/ts_clone_drift_guard.js', '--baseline=config/ts_clone_drift_baseline.json'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
-  runCiStep('js_holdout_audit_advisory', ['client/systems/ops/js_holdout_audit.js', 'run', '--strict=0'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
-  runCiStep('contract_check', ['client/systems/spine/contract_check.js'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
-  runCiStep('integrity_kernel', ['client/systems/security/integrity_kernel.js', 'run'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
-  runCiStep('adaptive_layer_guard_strict', ['client/systems/sensory/adaptive_layer_guard.js', 'run', '--strict'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
+  runCiStep('typecheck_systems', ['client/runtime/systems/ops/typecheck_systems.js'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
+  runCiStep('ts_clone_drift_guard', ['client/runtime/systems/ops/ts_clone_drift_guard.js', '--baseline=config/ts_clone_drift_baseline.json'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
+  runCiStep('js_holdout_audit_advisory', ['client/runtime/systems/ops/js_holdout_audit.js', 'run', '--strict=0'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
+  runCiStep('contract_check', ['client/runtime/systems/spine/contract_check.js'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
+  runCiStep('integrity_kernel', ['client/runtime/systems/security/integrity_kernel.js', 'run'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
+  runCiStep('adaptive_layer_guard_strict', ['client/runtime/systems/sensory/adaptive_layer_guard.js', 'run', '--strict'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
   runCiStep('adaptive_layer_boundary', ['client/memory/tools/tests/adaptive_layer_boundary_guards.test.js'], DEFAULT_TEST_TIMEOUT_MS, ciStartedAtMs);
-  runCiStep('schema_contract_check', ['client/systems/security/schema_contract_check.js', 'run'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
+  runCiStep('schema_contract_check', ['client/runtime/systems/security/schema_contract_check.js', 'run'], DEFAULT_STEP_TIMEOUT_MS, ciStartedAtMs);
 
   const tests = listTests();
   let failed = 0;
@@ -288,7 +288,7 @@ function main() {
   console.log(`=== CI RESULT: passed=${passed} failed=${failed} ===`);
   const ciDurationMs = Date.now() - ciStartedAtMs;
   const qualityScorecard = runNode([
-    'client/systems/ops/ci_quality_scorecard.js',
+    'client/runtime/systems/ops/ci_quality_scorecard.js',
     'check',
     '--strict=0',
     `--critical-suite-pass=${failed === 0 ? '1' : '0'}`,

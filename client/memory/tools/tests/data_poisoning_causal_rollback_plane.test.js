@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-const SCRIPT = path.join(ROOT, 'client/systems/memory/data_poisoning_causal_rollback_plane.js');
+const SCRIPT = path.join(ROOT, 'client/runtime/systems/memory/data_poisoning_causal_rollback_plane.js');
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });

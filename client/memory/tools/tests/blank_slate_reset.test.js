@@ -3,7 +3,7 @@
 
 /**
  * blank_slate_reset.test.js
- * Contract tests for client/systems/ops/blank_slate_reset.js
+ * Contract tests for client/runtime/systems/ops/blank_slate_reset.js
  */
 
 const assert = require('assert');
@@ -38,7 +38,7 @@ function setupWorkspace() {
     profiles: {
       test_blank_slate: {
         includes: [
-          'client/local/adaptive/sensory/eyes/catalog.json',
+          'client/runtime/local/adaptive/sensory/eyes/catalog.json',
           'state/client/adaptive/strategy/*.json',
           'MEMORY.md',
           'client/memory/*.md',

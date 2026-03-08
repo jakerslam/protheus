@@ -17,7 +17,7 @@ function run(args) {
 }
 
 try {
-  let r = run(['run', '--strict', '--files=client/systems/spine/spine.js,client/docs/OPERATOR_RUNBOOK.md']);
+  let r = run(['run', '--strict', '--files=client/runtime/systems/spine/spine.js,docs/client/OPERATOR_RUNBOOK.md']);
   assert.strictEqual(r.status, 1, 'expected strict failure when TS pair change is missing');
   assert.ok(r.payload && r.payload.ok === false, 'payload ok=false expected');
   assert.ok(
@@ -25,22 +25,22 @@ try {
     'expected ts_pair_drift violation for js-only change'
   );
 
-  r = run(['run', '--strict', '--files=client/systems/spine/spine.js,client/systems/spine/spine.ts,client/docs/OPERATOR_RUNBOOK.md']);
+  r = run(['run', '--strict', '--files=client/runtime/systems/spine/spine.js,client/runtime/systems/spine/spine.ts,docs/client/OPERATOR_RUNBOOK.md']);
   assert.strictEqual(r.status, 0, `expected pass when TS/JS pair both change; stderr=${r.stderr}`);
   assert.ok(r.payload && r.payload.ok === true, 'payload ok expected');
 
-  r = run(['run', '--strict', '--files=state/autonomy/runs/2026-02-21.jsonl,client/local/memory/_snapshots/TAGS_INDEX-2026-02-14-1151.md']);
+  r = run(['run', '--strict', '--files=state/autonomy/runs/2026-02-21.jsonl,client/runtime/local/memory/_snapshots/TAGS_INDEX-2026-02-14-1151.md']);
   assert.strictEqual(r.status, 1, 'expected strict failure for generated paths');
   assert.ok(r.payload && r.payload.violations >= 1, 'expected violations >= 1');
 
-  r = run(['run', '--strict', '--files=client/systems/spine/spine.ts']);
+  r = run(['run', '--strict', '--files=client/runtime/systems/spine/spine.ts']);
   assert.strictEqual(r.status, 0, 'expected pass for TS-only changes when JS pair is bootstrap wrapper');
   assert.ok(
     Array.isArray(r.payload.ts_pair_drift_violations) && r.payload.ts_pair_drift_violations.length === 0,
     'bootstrap wrapper TS-only change should not trigger pair drift'
   );
 
-  r = run(['run', '--strict', '--files=client/systems/fractal/regime_organ.ts']);
+  r = run(['run', '--strict', '--files=client/runtime/systems/fractal/regime_organ.ts']);
   assert.strictEqual(r.status, 0, 'expected pass for TS-only changes when JS pair is now bootstrap wrapper');
   assert.ok(
     Array.isArray(r.payload.ts_pair_drift_violations) && r.payload.ts_pair_drift_violations.length === 0,

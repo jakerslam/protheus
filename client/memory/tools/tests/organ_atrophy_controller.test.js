@@ -74,7 +74,7 @@ function run() {
     },
     exclusions: {
       organ_ids: ['spine', 'security', 'identity', 'contracts'],
-      path_prefixes: ['client/systems/spine/', 'client/systems/security/', 'client/systems/identity/', 'client/systems/contracts/']
+      path_prefixes: ['client/runtime/systems/spine/', 'client/runtime/systems/security/', 'client/runtime/systems/identity/', 'client/runtime/systems/contracts/']
     },
     endpoint: {
       enabled: true,
@@ -94,8 +94,8 @@ function run() {
       ts: '2026-02-25T12:00:00.000Z',
       type: 'spine_run_started',
       files_touched: [
-        'client/systems/workflow/workflow_controller.ts',
-        'client/systems/fractal/regime_organ.ts'
+        'client/runtime/systems/workflow/workflow_controller.ts',
+        'client/runtime/systems/fractal/regime_organ.ts'
       ]
     },
     {
@@ -112,9 +112,9 @@ function run() {
 
   writeJson(autotestRegistryPath, {
     modules: {
-      'client/systems/workflow/workflow_controller.ts': { checked: true },
-      'client/systems/fractal/regime_organ.ts': { checked: true },
-      'client/systems/continuum/continuum_core.ts': { checked: false, stale: true }
+      'client/runtime/systems/workflow/workflow_controller.ts': { checked: true },
+      'client/runtime/systems/fractal/regime_organ.ts': { checked: true },
+      'client/runtime/systems/continuum/continuum_core.ts': { checked: false, stale: true }
     }
   });
 

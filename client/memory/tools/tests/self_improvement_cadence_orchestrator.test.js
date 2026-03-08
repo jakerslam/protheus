@@ -94,7 +94,7 @@ function main() {
     proposal_cap_per_cycle: 2,
     apply_cap_per_cycle: 1,
     objective_id: 'test_self_improvement',
-    target_paths: ['client/systems/a.ts', 'client/systems/b.ts', 'client/systems/c.ts'],
+    target_paths: ['client/runtime/systems/a.ts', 'client/runtime/systems/b.ts', 'client/runtime/systems/c.ts'],
     timeout_ms_per_step: 10000,
     quiet_hours: {
       enabled: false,

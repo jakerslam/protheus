@@ -32,7 +32,7 @@ try {
   writeJson(policyPath, {
     version: '1.0',
     ttl_hours: 24,
-    critical_paths: ['client/config/critical.json']
+    critical_paths: ['client/runtime/config/critical.json']
   });
 
   const statePath = path.join(root, 'state', 'security', 'startup_attestation.json');

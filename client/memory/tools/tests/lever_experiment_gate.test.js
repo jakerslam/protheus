@@ -56,28 +56,28 @@ function testClassifyPaths() {
   const paths = [
     'state/autonomy/simulations/2026-02-23.json',
     'state/security/startup_attestation.json',
-    'client/local/memory/.rebuild_delta_cache.json',
+    'client/runtime/local/memory/.rebuild_delta_cache.json',
     'client/memory/MEMORY_INDEX.md',
-    'client/systems/autonomy/lever_experiment_gate.js',
-    'client/config/lever_experiment_policy.json'
+    'client/runtime/systems/autonomy/lever_experiment_gate.js',
+    'client/runtime/config/lever_experiment_policy.json'
   ];
   const churnExcludes = [
     'state/**',
-    'client/local/memory/.rebuild_delta_cache.json',
+    'client/runtime/local/memory/.rebuild_delta_cache.json',
     'client/memory/MEMORY_INDEX.md'
   ];
   const out = gate.classifyPaths(paths, churnExcludes);
   assert.strictEqual(out.counts.all, 6);
   assert.strictEqual(out.counts.churn, 4);
   assert.strictEqual(out.counts.code, 2);
-  assert.ok(out.code.includes('client/systems/autonomy/lever_experiment_gate.js'));
-  assert.ok(out.code.includes('client/config/lever_experiment_policy.json'));
+  assert.ok(out.code.includes('client/runtime/systems/autonomy/lever_experiment_gate.js'));
+  assert.ok(out.code.includes('client/runtime/config/lever_experiment_policy.json'));
 }
 
 function testParseGitStatusPaths() {
   const status = [
     ' M state/autonomy/simulations/2026-02-23.json',
-    ' M client/systems/autonomy/lever_experiment_gate.js',
+    ' M client/runtime/systems/autonomy/lever_experiment_gate.js',
     'R  old/path.txt -> new/path.txt',
     '?? client/memory/MEMORY_INDEX.md'
   ].join('\n');
@@ -86,7 +86,7 @@ function testParseGitStatusPaths() {
     'client/memory/MEMORY_INDEX.md',
     'new/path.txt',
     'state/autonomy/simulations/2026-02-23.json',
-    'client/systems/autonomy/lever_experiment_gate.js'
+    'client/runtime/systems/autonomy/lever_experiment_gate.js'
   ]);
 }
 
