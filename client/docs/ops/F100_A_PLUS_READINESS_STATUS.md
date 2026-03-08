@@ -1,10 +1,10 @@
 # F100 A+ Readiness Status
 
-Generated: 2026-03-07T18:19:29.684Z
+Generated: 2026-03-08T05:22:11.440Z
 
 | Check | Status | Expected | Actual | Source |
 |---|---|---|---|---|
-| `enterprise_baseline_contract_pass` | PASS | `baseline.ok == true` | `true` | `client/local/state/ops/f100_enterprise_baseline_gate/latest.json` |
+| `enterprise_baseline_contract_pass` | PASS | `baseline.ok == true` | `true` | `client/state/ops/f100_enterprise_baseline_gate/latest.json` |
 | `combined_coverage_threshold` | FAIL | `combined_lines_pct >= 90` | `77.63` | `client/docs/reports/coverage_baseline_2026-03-06.json` |
 | `semantic_release_cadence` | FAIL | `v* tags >= 9` | `0` | `git tag -l v*` |
 | `release_slsa_attestation_enabled` | PASS | `release workflow contains actions/attest-build-provenance@v2` | `present` | `.github/workflows/release-security-artifacts.yml` |
@@ -19,7 +19,7 @@ Generated: 2026-03-07T18:19:29.684Z
 - Passed checks: 6
 - Failed checks: 2
 - Overall status: FAIL
-- Receipt hash: `082b54467f15c14807fa97649036f6bd8e8f82002286ae1f20691f312d19055d`
+- Receipt hash: `cab2a213e806d88d08fd7044921a61a35904854f1f7cd0a15ccdafee1afc2299`
 
 ## Note
 

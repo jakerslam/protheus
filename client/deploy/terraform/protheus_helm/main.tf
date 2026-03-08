@@ -25,6 +25,19 @@ resource "helm_release" "protheus" {
       cron = {
         schedule = var.cron_schedule
       }
+      daemon = {
+        enabled  = var.daemon_enabled
+        replicas = var.daemon_replicas
+      }
+      sso = {
+        enabled   = var.sso_enabled
+        issuerUrl = var.sso_issuer_url
+        clientId  = var.sso_client_id
+      }
+      nvidia = {
+        enabled          = var.nvidia_enabled
+        runtimeClassName = var.nvidia_runtime_class_name
+      }
       secrets = {
         existingSecretName = var.existing_secret_name
         optional           = var.secret_optional

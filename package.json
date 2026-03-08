@@ -1304,7 +1304,15 @@
     "test:memory:auto-recall": "node client/memory/tools/tests/memory_auto_recall.test.js",
     "test:memory:context-budget": "node client/memory/tools/tests/memory_recall_context_budget.test.js",
     "reflexes:list": "node client/reflexes/index.js list",
-    "test:reflexes": "node client/memory/tools/tests/client_reflexes.test.js"
+    "test:reflexes": "node client/memory/tools/tests/client_reflexes.test.js",
+    "ops:release-semver:plan": "node client/systems/ops/release_semver_contract.js run --strict=0 --write=1",
+    "ops:release-semver:status": "node client/systems/ops/release_semver_contract.js status",
+    "test:ops:release-semver": "node client/memory/tools/tests/release_semver_contract.test.js",
+    "ops:runtime-telemetry:status": "node client/lib/ts_entrypoint.js client/systems/observability/runtime_telemetry_optin.ts status",
+    "ops:runtime-telemetry:emit-usage": "node client/lib/ts_entrypoint.js client/systems/observability/runtime_telemetry_optin.ts emit-usage --counter=manual_probe --value=1",
+    "ops:runtime-telemetry:emit-crash": "node client/lib/ts_entrypoint.js client/systems/observability/runtime_telemetry_optin.ts emit-crash --component=manual_probe --reason=probe",
+    "ops:runtime-telemetry:emit-perf": "node client/lib/ts_entrypoint.js client/systems/observability/runtime_telemetry_optin.ts emit-perf --component=manual_probe --metric=latency_ms --value=12.5",
+    "test:ops:runtime-telemetry": "node client/memory/tools/tests/runtime_telemetry_optin.test.js"
   },
   "bin": {
     "protheus": "./client/bin/protheus",

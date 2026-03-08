@@ -17,3 +17,11 @@
 {{- printf "%s-runtime-secrets" (include "protheus.fullname" .) | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 {{- end -}}
+
+{{- define "protheus.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create -}}
+{{- default (include "protheus.fullname" .) .Values.serviceAccount.name | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- default "default" .Values.serviceAccount.name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}
