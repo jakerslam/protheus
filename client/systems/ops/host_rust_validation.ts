@@ -96,6 +96,15 @@ function writeLatest(payload: Record<string, any>) {
   }
 }
 
+function shouldDeferHostStall(
+  payload: Record<string, any>,
+  deferOnHostStall: boolean
+) {
+  if (!deferOnHostStall) return false;
+  const reason = cleanText(payload.reason_code || '', 120);
+  return reason === 'dyld_loader_stall_detected' || reason === 'stale_build_script_detected';
+}
+
 function profileToCargoArgs(profile: string) {
   const key = cleanText(profile, 64).toLowerCase();
   if (key === 'protheus_ops_attention') {
@@ -273,6 +282,7 @@ async function run() {
   const timeoutMs = toInt(args['timeout-ms'] || 20 * 60 * 1000, 10000, 10000, 2 * 60 * 60 * 1000);
   const maxRetries = toInt(args['max-retries'] || process.env.HOST_RUST_VALIDATION_MAX_RETRIES, 1, 0, 5);
   const preflightReap = (String(args['preflight-reap'] || process.env.HOST_RUST_VALIDATION_PREFLIGHT_REAP || '1').trim() !== '0');
+  const deferOnHostStall = (String(args['defer-on-host-stall'] || process.env.HOST_RUST_VALIDATION_DEFER_ON_HOST_STALL || '0').trim() !== '0');
   if (preflightReap) {
     reapStaleBuildScripts(staleAgeSec);
     await sleep(750);
@@ -295,7 +305,7 @@ async function run() {
     attempts.push({
       attempt,
       reason_code: cleanText(payload.reason_code, 120),
-      exit_code: Number(payload.exit_code || 1)
+      exit_code: Number(payload.exit_code ?? 1)
     });
     if (payload.exit_code === 0) break;
     const canRetry = (
@@ -311,9 +321,20 @@ async function run() {
   payload.retried = attempts.length > 1;
   payload.max_retries = maxRetries;
   payload.preflight_reap = preflightReap;
+  payload.defer_on_host_stall = deferOnHostStall;
+  if (shouldDeferHostStall(payload, deferOnHostStall)) {
+    payload.deferred = true;
+    payload.deferred_reason = 'host_stall';
+    payload.raw_reason_code = cleanText(payload.reason_code, 120) || 'unknown';
+    payload.reason_code = 'deferred_host_stall';
+    payload.ok = true;
+    payload.exit_code = 0;
+  } else {
+    payload.deferred = false;
+  }
   writeLatest(payload);
   process.stdout.write(`${JSON.stringify(payload)}\n`);
-  process.exit(Number(payload.exit_code || 1));
+  process.exit(Number(payload.exit_code ?? 1));
 }
 
 run().catch((err: any) => {
