@@ -146,6 +146,8 @@
     - Verified `protheusd status` now surfaces explicit bridge health + gate telemetry in degraded mode (`conduit_runtime_gate`, `bridge_health`, `degraded_reason`) instead of silent heartbeat death loops.
     - Added bounded timeout contracts to `spine_safe_launcher` subprocess precheck/status paths (including non-blocking status on precheck failure) to stop prolonged wrapper stalls.
     - Added conduit stdio-timeout override plumbing (`client/systems/conduit/conduit-client.ts` + `client/lib/spine_conduit_bridge.ts`) so status-like calls can fail fast instead of inheriting 30s+ defaults.
+    - Hardened CLI heartbeat compatibility path (`client/systems/spine/heartbeat_trigger.ts`) to delegate directly to `spine_safe_launcher` with bounded timeout + `--max-old-space-size` guard, avoiding legacy heavy trigger execution path.
+    - Restored CLI min-hours throttling using canonical run events (`spine_run_complete` / `spine_benchmark_noop`) so manual heartbeat commands no longer over-trigger during stable ambient operation.
   - Completion criteria:
     - `conduit_daemon` responds to `start_agent` within timeout budget.
     - `ops:mech-suit:benchmark` completes without preflight host fault.
