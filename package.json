@@ -1312,7 +1312,9 @@
     "ops:runtime-telemetry:emit-usage": "node client/lib/ts_entrypoint.js client/systems/observability/runtime_telemetry_optin.ts emit-usage --counter=manual_probe --value=1",
     "ops:runtime-telemetry:emit-crash": "node client/lib/ts_entrypoint.js client/systems/observability/runtime_telemetry_optin.ts emit-crash --component=manual_probe --reason=probe",
     "ops:runtime-telemetry:emit-perf": "node client/lib/ts_entrypoint.js client/systems/observability/runtime_telemetry_optin.ts emit-perf --component=manual_probe --metric=latency_ms --value=12.5",
-    "test:ops:runtime-telemetry": "node client/memory/tools/tests/runtime_telemetry_optin.test.js"
+    "test:ops:runtime-telemetry": "node client/memory/tools/tests/runtime_telemetry_optin.test.js",
+    "memory:backfill:xml": "node client/memory/tools/backfill_xml_hierarchy.js",
+    "memory:backfill:xml:apply": "node client/memory/tools/backfill_xml_hierarchy.js --apply=1"
   },
   "bin": {
     "protheus": "./client/bin/protheus",

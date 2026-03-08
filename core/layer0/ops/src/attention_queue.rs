@@ -3,6 +3,7 @@ use crate::importance::{band_rank, infer_from_event, to_json as importance_to_js
 use crate::{deterministic_receipt_hash, now_iso};
 use base64::Engine;
 use chrono::{TimeZone, Utc};
+use execution_core::{evaluate_importance_json, prioritize_attention_json};
 use serde_json::{json, Value};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -24,6 +25,17 @@ struct AttentionContract {
     backpressure_drop_below: String,
     escalate_levels: Vec<String>,
     priority_map: BTreeMap<String, i64>,
+}
+
+#[derive(Debug, Clone)]
+struct Layer2ImportanceDecision {
+    score: f64,
+    band: String,
+    priority: i64,
+    front_jump: bool,
+    initiative_action: String,
+    initiative_repeat_after_sec: i64,
+    initiative_max_messages: i64,
 }
 
 fn usage() {
@@ -231,6 +243,85 @@ fn parse_f64(value: Option<&Value>) -> Option<f64> {
         .and_then(|n| if n.is_finite() { Some(n) } else { None })
 }
 
+fn parse_layer2_importance(raw: &str) -> Option<Layer2ImportanceDecision> {
+    let parsed = serde_json::from_str::<Value>(raw).ok()?;
+    if parsed.get("ok").and_then(Value::as_bool) != Some(true) {
+        return None;
+    }
+    let score = parsed.get("score").and_then(Value::as_f64)?;
+    let band = parsed
+        .get("band")
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .unwrap_or_else(|| "p4".to_string());
+    let priority = parsed
+        .get("priority")
+        .and_then(Value::as_i64)
+        .unwrap_or_else(|| ((score * 1000.0).round() as i64).clamp(1, 1000))
+        .clamp(1, 1000);
+    let front_jump = parsed
+        .get("front_jump")
+        .and_then(Value::as_bool)
+        .unwrap_or(score >= 0.70);
+    let initiative_action = parsed
+        .get("initiative_action")
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .unwrap_or_else(|| "silent".to_string());
+    let initiative_repeat_after_sec = parsed
+        .get("initiative_repeat_after_sec")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        .max(0);
+    let initiative_max_messages = parsed
+        .get("initiative_max_messages")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        .max(0);
+    Some(Layer2ImportanceDecision {
+        score: score.clamp(0.0, 1.0),
+        band,
+        priority,
+        front_jump,
+        initiative_action,
+        initiative_repeat_after_sec,
+        initiative_max_messages,
+    })
+}
+
+fn evaluate_importance_via_layer2(event: &Value, fallback: &crate::importance::ImportanceDecision) -> Option<Layer2ImportanceDecision> {
+    let payload = json!({
+        "criticality": fallback.criticality,
+        "urgency": fallback.urgency,
+        "impact": fallback.impact,
+        "user_relevance": fallback.user_relevance,
+        "confidence": fallback.confidence,
+        "core_floor": fallback.core_floor,
+        "inherited_score": event.pointer("/importance/score").and_then(Value::as_f64).unwrap_or(fallback.score),
+        "front_jump_threshold": 0.70
+    });
+    let encoded = serde_json::to_string(&payload).ok()?;
+    let raw = evaluate_importance_json(&encoded).ok()?;
+    parse_layer2_importance(&raw)
+}
+
+fn prioritize_rows_via_layer2(rows: &[Value]) -> Option<Vec<Value>> {
+    let payload = json!({
+        "events": rows,
+        "front_jump_threshold": 0.70
+    });
+    let encoded = serde_json::to_string(&payload).ok()?;
+    let raw = prioritize_attention_json(&encoded).ok()?;
+    let parsed = serde_json::from_str::<Value>(&raw).ok()?;
+    if parsed.get("ok").and_then(Value::as_bool) != Some(true) {
+        return None;
+    }
+    parsed
+        .get("events")
+        .and_then(Value::as_array)
+        .map(|arr| arr.to_vec())
+}
+
 fn event_score(row: &Value) -> f64 {
     parse_f64(
         row.pointer("/importance/score")
@@ -327,6 +418,14 @@ fn sort_active_rows(rows: &mut [Value]) {
             .then_with(|| event_ts_ms(a).cmp(&event_ts_ms(b)))
             .then_with(|| event_attention_key(a).cmp(&event_attention_key(b)))
     });
+}
+
+fn sort_active_rows_with_authority(rows: &mut Vec<Value>) {
+    if let Some(prioritized) = prioritize_rows_via_layer2(rows.as_slice()) {
+        *rows = prioritized;
+        return;
+    }
+    sort_active_rows(rows.as_mut_slice());
 }
 
 fn default_priority_map() -> BTreeMap<String, i64> {
@@ -491,15 +590,59 @@ fn normalize_event(event: &Value, contract: &AttentionContract) -> Value {
     } else {
         attention_key
     };
-    let importance = infer_from_event(event, &severity, &contract.priority_map);
-    let priority = importance.priority;
+    let importance_fallback = infer_from_event(event, &severity, &contract.priority_map);
+    let layer2_decision = evaluate_importance_via_layer2(event, &importance_fallback);
+    let score = layer2_decision
+        .as_ref()
+        .map(|row| row.score)
+        .unwrap_or(importance_fallback.score);
+    let band = layer2_decision
+        .as_ref()
+        .map(|row| row.band.clone())
+        .unwrap_or_else(|| importance_fallback.band.clone());
+    let priority = layer2_decision
+        .as_ref()
+        .map(|row| row.priority)
+        .unwrap_or(importance_fallback.priority);
     let ttl_ms = contract.ttl_hours.saturating_mul(60 * 60 * 1000);
     let event_ts_ms = parse_ts_ms(&ts).unwrap_or_else(|| Utc::now().timestamp_millis());
     let expires_at = ts_ms_to_iso(event_ts_ms.saturating_add(ttl_ms));
     let escalate_required_by_policy = contract.escalate_levels.iter().any(|row| row == &severity);
-    let escalate_required_by_importance = importance.score >= 0.85;
+    let escalate_required_by_importance = score >= 0.85;
     let escalate_required = escalate_required_by_policy || escalate_required_by_importance;
-    let initiative_action = importance.initiative_action.clone();
+    let initiative_action = layer2_decision
+        .as_ref()
+        .map(|row| row.initiative_action.clone())
+        .unwrap_or_else(|| importance_fallback.initiative_action.clone());
+    let initiative_repeat_after_sec = layer2_decision
+        .as_ref()
+        .map(|row| row.initiative_repeat_after_sec)
+        .unwrap_or(importance_fallback.initiative_repeat_after_sec);
+    let initiative_max_messages = layer2_decision
+        .as_ref()
+        .map(|row| row.initiative_max_messages)
+        .unwrap_or(importance_fallback.initiative_max_messages);
+    let queue_front = layer2_decision
+        .as_ref()
+        .map(|row| row.front_jump)
+        .unwrap_or(importance_fallback.queue_front);
+    let mut importance_json = importance_to_json(&importance_fallback);
+    importance_json["authority"] = Value::String(if layer2_decision.is_some() {
+        "core.layer2.execution.initiative".to_string()
+    } else {
+        "core.layer0.ops.importance_fallback".to_string()
+    });
+    importance_json["score"] = json!(score);
+    importance_json["band"] = json!(band.clone());
+    importance_json["priority"] = json!(priority);
+    if let Some(decision) = &layer2_decision {
+        importance_json["layer2"] = json!({
+            "front_jump": decision.front_jump,
+            "initiative_action": decision.initiative_action,
+            "initiative_repeat_after_sec": decision.initiative_repeat_after_sec,
+            "initiative_max_messages": decision.initiative_max_messages
+        });
+    }
     let mut out = json!({
         "ts": ts,
         "type": "attention_event",
@@ -507,8 +650,8 @@ fn normalize_event(event: &Value, contract: &AttentionContract) -> Value {
         "source_type": source_type,
         "severity": severity,
         "priority": priority,
-        "score": importance.score,
-        "band": importance.band,
+        "score": score,
+        "band": band,
         "summary": summary,
         "attention_key": attention_key,
         "ttl_hours": contract.ttl_hours,
@@ -517,7 +660,10 @@ fn normalize_event(event: &Value, contract: &AttentionContract) -> Value {
         "escalate_required": escalate_required,
         "escalation_authority": "runtime_policy",
         "initiative_action": initiative_action,
-        "importance": importance_to_json(&importance),
+        "initiative_repeat_after_sec": initiative_repeat_after_sec,
+        "initiative_max_messages": initiative_max_messages,
+        "queue_front": queue_front,
+        "importance": importance_json,
         "raw_event": event
     });
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
@@ -735,7 +881,7 @@ fn load_active_queue(contract: &AttentionContract) -> (Vec<Value>, usize) {
     }
     let rows = read_jsonl(&contract.queue_path);
     let (mut active, expired_pruned) = prune_expired(rows);
-    sort_active_rows(&mut active);
+    sort_active_rows_with_authority(&mut active);
     if expired_pruned > 0 {
         write_jsonl(&contract.queue_path, &active);
     }
@@ -1084,7 +1230,7 @@ fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
             };
             queued = true;
             active_rows.push(event.clone());
-            sort_active_rows(&mut active_rows);
+            sort_active_rows_with_authority(&mut active_rows);
             write_jsonl(&contract.queue_path, &active_rows);
             queue_depth_after = active_rows.len();
         }

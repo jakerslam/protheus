@@ -133,7 +133,9 @@ function shouldBackoffCockpit(errorText: unknown) {
   return /\bETIMEDOUT\b/i.test(text)
     || /spawn_timeout:/i.test(text)
     || /conduit_stdio_timeout:/i.test(text)
-    || /conduit_bridge_timeout:/i.test(text);
+    || /conduit_bridge_timeout:/i.test(text)
+    || /dyld_loader_stall_detected/i.test(text)
+    || /stale_build_script_detected/i.test(text);
 }
 
 function bridgeReasonMarker(reason: string) {
@@ -159,7 +161,9 @@ function isBridgeTimeoutReason(value: unknown) {
     || text.includes('conduit_bridge_timeout:')
     || text.includes('bridge_wait_failed')
     || text.includes('conduit_stdio_exit:')
-    || text.includes('conduit_stdio_error:');
+    || text.includes('conduit_stdio_error:')
+    || text.includes('dyld_loader_stall_detected')
+    || text.includes('stale_build_script_detected');
 }
 
 function bridgeReasonFromSpineResult(spine: any) {
@@ -375,6 +379,9 @@ function resolveRuntime(argv: string[]) {
     ? (path.isAbsolute(policyArg) ? policyArg : path.join(ROOT, policyArg))
     : path.join(ROOT, 'config', 'protheus_control_plane_policy.json');
   const policy = readJson(policyPath, {});
+  const originIntegrityPolicy = policy && policy.origin_integrity && typeof policy.origin_integrity === 'object'
+    ? policy.origin_integrity
+    : {};
   const defaults = defaultControlPlanePaths(ROOT);
   const paths = policy && policy.paths && typeof policy.paths === 'object' ? policy.paths : {};
   const stateRoot = resolvePath(ROOT, paths.state_root, path.relative(ROOT, defaults.stateRoot));
@@ -448,6 +455,32 @@ function resolveRuntime(argv: string[]) {
     process.env.RUNTIME_RETENTION_POLICY_PATH || path.join(ROOT, 'config', 'runtime_retention_policy.json'),
     500
   );
+  const workspaceRoot = path.resolve(ROOT, '..');
+  const originIntegrityEnabled = toBool(
+    process.env.PROTHEUSD_ORIGIN_INTEGRITY_ENABLED,
+    toBool(originIntegrityPolicy.enabled, true)
+  );
+  const originIntegrityTimeoutMs = toInt(
+    process.env.PROTHEUSD_ORIGIN_INTEGRITY_TIMEOUT_MS || originIntegrityPolicy.timeout_ms,
+    30000,
+    1000,
+    15 * 60 * 1000
+  );
+  const originIntegrityRequirePass = toBool(
+    process.env.PROTHEUSD_ORIGIN_INTEGRITY_REQUIRE_PASS,
+    toBool(originIntegrityPolicy.require_pass_on_start, true)
+  );
+  const originIntegrityPolicyRaw = cleanText(
+    process.env.PROTHEUS_ORIGIN_INTEGRITY_POLICY_PATH || originIntegrityPolicy.policy_path || 'config/origin_integrity_policy.json',
+    500
+  );
+  const originIntegrityPolicyPath = path.isAbsolute(originIntegrityPolicyRaw)
+    ? originIntegrityPolicyRaw
+    : path.join(ROOT, originIntegrityPolicyRaw);
+  const verifyScriptPath = path.join(workspaceRoot, 'verify.sh');
+  const protheusOpsManifestPath = path.join(workspaceRoot, 'core', 'layer0', 'ops', 'Cargo.toml');
+  const protheusOpsReleasePath = path.join(workspaceRoot, 'target', 'release', 'protheus-ops');
+  const protheusOpsDebugPath = path.join(workspaceRoot, 'target', 'debug', 'protheus-ops');
 
   const cockpitInboxDirRaw = cleanText(parseFlag(argv, 'inbox-dir') || process.env.COCKPIT_INBOX_DIR, 500);
   const cockpitInboxDir = cockpitInboxDirRaw
@@ -490,6 +523,15 @@ function resolveRuntime(argv: string[]) {
     runtimeRetentionPolicyPath: path.isAbsolute(runtimeRetentionPolicyPath)
       ? runtimeRetentionPolicyPath
       : path.join(ROOT, runtimeRetentionPolicyPath),
+    workspaceRoot,
+    originIntegrityEnabled,
+    originIntegrityTimeoutMs,
+    originIntegrityRequirePass,
+    originIntegrityPolicyPath,
+    verifyScriptPath,
+    protheusOpsManifestPath,
+    protheusOpsReleasePath,
+    protheusOpsDebugPath,
     consumerId,
     batchLimit
   };
@@ -529,6 +571,18 @@ function loadDaemonState(runtime: any) {
     conversation_eye_backoff_until: cleanText(existing && existing.conversation_eye_backoff_until || '', 64) || null,
     resource_snapshot: existing && existing.resource_snapshot && typeof existing.resource_snapshot === 'object'
       ? existing.resource_snapshot
+      : null,
+    origin_integrity: existing && existing.origin_integrity && typeof existing.origin_integrity === 'object'
+      ? {
+          ok: existing.origin_integrity.ok === true,
+          ts: cleanText(existing.origin_integrity.ts || '', 64) || null,
+          trigger: cleanText(existing.origin_integrity.trigger || '', 80) || null,
+          source: cleanText(existing.origin_integrity.source || '', 80) || null,
+          status: Number.isFinite(Number(existing.origin_integrity.status)) ? Number(existing.origin_integrity.status) : null,
+          reason: cleanText(existing.origin_integrity.reason || '', 260) || null,
+          receipt_hash: cleanText(existing.origin_integrity.receipt_hash || '', 96) || null,
+          safety_plane_state_hash: cleanText(existing.origin_integrity.safety_plane_state_hash || '', 128) || null
+        }
       : null
   };
 }
@@ -609,6 +663,135 @@ function runNode(script: string, args: string[], opts: any = {}) {
     stderr: stderrParts.join('\n'),
     payload: parseJson(out.stdout)
   };
+}
+
+function resolveOriginIntegrityCommand(runtime: any) {
+  const explicitBin = cleanText(process.env.PROTHEUS_OPS_BIN || '', 500);
+  if (explicitBin) {
+    return {
+      source: 'explicit_bin',
+      cmd: explicitBin,
+      args: [
+        'origin-integrity',
+        'run',
+        '--strict=1',
+        `--policy=${runtime.originIntegrityPolicyPath}`
+      ]
+    };
+  }
+
+  if (fs.existsSync(runtime.protheusOpsReleasePath)) {
+    return {
+      source: 'release_bin',
+      cmd: runtime.protheusOpsReleasePath,
+      args: [
+        'origin-integrity',
+        'run',
+        '--strict=1',
+        `--policy=${runtime.originIntegrityPolicyPath}`
+      ]
+    };
+  }
+
+  if (fs.existsSync(runtime.protheusOpsDebugPath)) {
+    return {
+      source: 'debug_bin',
+      cmd: runtime.protheusOpsDebugPath,
+      args: [
+        'origin-integrity',
+        'run',
+        '--strict=1',
+        `--policy=${runtime.originIntegrityPolicyPath}`
+      ]
+    };
+  }
+
+  if (fs.existsSync(runtime.verifyScriptPath)) {
+    return {
+      source: 'verify_script',
+      cmd: 'bash',
+      args: [runtime.verifyScriptPath]
+    };
+  }
+
+  return {
+    source: 'cargo_run',
+    cmd: 'cargo',
+    args: [
+      'run',
+      '--quiet',
+      '--manifest-path',
+      runtime.protheusOpsManifestPath,
+      '--bin',
+      'protheus-ops',
+      '--',
+      'origin-integrity',
+      'run',
+      '--strict=1',
+      `--policy=${runtime.originIntegrityPolicyPath}`
+    ]
+  };
+}
+
+function runOriginIntegrityCheck(runtime: any, trigger: string) {
+  if (runtime.originIntegrityEnabled !== true) {
+    return withReceipt({
+      ok: true,
+      type: 'protheusd_origin_integrity_check',
+      ts: nowIso(),
+      trigger: cleanText(trigger, 80) || 'unknown',
+      skipped: true,
+      reason: 'origin_integrity_disabled'
+    });
+  }
+
+  const command = resolveOriginIntegrityCommand(runtime);
+  const out = spawnSync(command.cmd, command.args, {
+    cwd: runtime.workspaceRoot,
+    encoding: 'utf8',
+    timeout: runtime.originIntegrityTimeoutMs,
+    killSignal: 'SIGTERM',
+    env: {
+      ...process.env
+    }
+  });
+  const timedOut = !!(out.error && (out.error as any).code === 'ETIMEDOUT');
+  const stderr = [
+    String(out.stderr || '').trim(),
+    timedOut ? `origin_integrity_timeout:${runtime.originIntegrityTimeoutMs}` : '',
+    out.error ? cleanText((out.error as any).message || out.error, 260) : ''
+  ].filter(Boolean).join('\n');
+  const payload = parseJson(out.stdout);
+  const ok = Number(out.status || 1) === 0 && !!(payload && payload.ok === true);
+  const reason = ok
+    ? null
+    : cleanText(
+      (payload && payload.error)
+      || (payload && payload.reason)
+      || stderr
+      || 'origin_integrity_check_failed',
+      260
+    ) || 'origin_integrity_check_failed';
+
+  const receipt = withReceipt({
+    ok,
+    type: 'protheusd_origin_integrity_check',
+    ts: nowIso(),
+    trigger: cleanText(trigger, 80) || 'unknown',
+    source: command.source,
+    cmd: cleanText(command.cmd, 260),
+    args: Array.isArray(command.args) ? command.args : [],
+    timeout_ms: runtime.originIntegrityTimeoutMs,
+    status: Number.isFinite(Number(out.status)) ? Number(out.status) : (timedOut ? 124 : 1),
+    reason,
+    payload: payload && typeof payload === 'object' ? payload : null,
+    stderr: stderr || null
+  });
+  const latestPath = path.join(runtime.stateRoot, 'origin_integrity', 'latest.json');
+  const receiptsPath = path.join(runtime.stateRoot, 'origin_integrity', 'receipts.jsonl');
+  writeJson(latestPath, receipt);
+  appendJsonl(receiptsPath, receipt);
+  return receipt;
 }
 
 async function runHeartbeat(runtime: any, trigger: string) {
@@ -867,6 +1050,41 @@ async function runAmbientLoop(argv: string[]) {
   let state = loadDaemonState(runtime);
   const pid = process.pid;
 
+  const originIntegrity = runOriginIntegrityCheck(runtime, 'ambient_startup');
+  if (originIntegrity.ok !== true && runtime.originIntegrityRequirePass === true) {
+    state.running = false;
+    state.mode = 'stopped';
+    state.pid = null;
+    state.last_error = cleanText(`origin_integrity_failed:${originIntegrity.reason || 'check_failed'}`, 260);
+    state.origin_integrity = {
+      ok: false,
+      ts: cleanText(originIntegrity.ts || '', 64) || nowIso(),
+      trigger: 'ambient_startup',
+      source: cleanText(originIntegrity.source || '', 80) || null,
+      status: Number.isFinite(Number(originIntegrity.status)) ? Number(originIntegrity.status) : 1,
+      reason: cleanText(originIntegrity.reason || '', 260) || 'origin_integrity_check_failed',
+      receipt_hash: cleanText(originIntegrity.receipt_hash || '', 96) || null,
+      safety_plane_state_hash: cleanText(
+        originIntegrity.payload && originIntegrity.payload.state_binding
+          ? originIntegrity.payload.state_binding.safety_plane_state_hash
+          : '',
+        128
+      ) || null
+    };
+    persistDaemonState(runtime, state);
+    emitLatest(runtime, withReceipt({
+      ok: false,
+      shadow_only: false,
+      type: 'protheus_daemon_control',
+      ts: nowIso(),
+      command: '__ambient-loop-startup__',
+      blocked_by: 'origin_integrity_check_failed',
+      origin_integrity: originIntegrity
+    }));
+    process.exit(1);
+    return;
+  }
+
   state.running = true;
   state.mode = 'ambient';
   state.pid = pid;
@@ -874,6 +1092,21 @@ async function runAmbientLoop(argv: string[]) {
   state.updated_at = nowIso();
   state.heartbeat_hours = runtime.mechPolicy.heartbeatHours;
   state.next_heartbeat_at = nowIso();
+  state.origin_integrity = {
+    ok: originIntegrity.ok === true,
+    ts: cleanText(originIntegrity.ts || '', 64) || nowIso(),
+    trigger: 'ambient_startup',
+    source: cleanText(originIntegrity.source || '', 80) || null,
+    status: Number.isFinite(Number(originIntegrity.status)) ? Number(originIntegrity.status) : 0,
+    reason: cleanText(originIntegrity.reason || '', 260) || null,
+    receipt_hash: cleanText(originIntegrity.receipt_hash || '', 96) || null,
+    safety_plane_state_hash: cleanText(
+      originIntegrity.payload && originIntegrity.payload.state_binding
+        ? originIntegrity.payload.state_binding.safety_plane_state_hash
+        : '',
+      128
+    ) || null
+  };
   const startupGate = readConduitRuntimeGate(runtime.root);
   const startupGateReason = bridgeReasonFromRuntimeGate(startupGate);
   if (startupGateReason) {
@@ -1177,6 +1410,9 @@ async function runConduit(command: string, extraArgs: string[]): Promise<Conduit
 
 function statusReceipt(runtime: any, state: any) {
   const running = isPidAlive(state.pid);
+  const originIntegrity = state && state.origin_integrity && typeof state.origin_integrity === 'object'
+    ? state.origin_integrity
+    : null;
   const resourceSnapshot = state && state.resource_snapshot && typeof state.resource_snapshot === 'object'
     ? state.resource_snapshot
     : collectResourceSnapshot(runtime.memoryPressureRatio);
@@ -1198,7 +1434,8 @@ function statusReceipt(runtime: any, state: any) {
     last_conversation_eye_error: cleanText(state.last_conversation_eye_error || '', 260) || null,
     cockpit_backoff_until: cleanText(state.cockpit_backoff_until || '', 64) || null,
     conversation_eye_backoff_until: cleanText(state.conversation_eye_backoff_until || '', 64) || null,
-    cockpit_watch: state.cockpit_watch || null
+    cockpit_watch: state.cockpit_watch || null,
+    origin_integrity: originIntegrity
   };
   const mechLatest = readJson(runtime.mechPolicy.statusPath, null);
   const attentionLatest = readJson(runtime.mechPolicy.attentionLatestPath, null);
@@ -1241,6 +1478,7 @@ function statusReceipt(runtime: any, state: any) {
       heartbeat_hours: runtime.mechPolicy.heartbeatHours
     },
     conduit_runtime_gate: conduitRuntimeGate,
+    origin_integrity: originIntegrity,
     cockpit: {
       available: !!cockpitLatest,
       path: runtime.cockpitLatestPath,
@@ -1308,6 +1546,50 @@ function startDaemon(runtime: any, argv: string[], opts: { exitOnFinish?: boolea
     return out;
   }
 
+  const originIntegrity = runOriginIntegrityCheck(runtime, 'start');
+  if (originIntegrity.ok !== true && runtime.originIntegrityRequirePass === true) {
+    const next = loadDaemonState(runtime);
+    next.running = false;
+    next.mode = 'stopped';
+    next.pid = null;
+    next.request_seq = Number(next.request_seq || 0) + 1;
+    next.last_error = cleanText(`origin_integrity_failed:${originIntegrity.reason || 'check_failed'}`, 260);
+    next.origin_integrity = {
+      ok: false,
+      ts: cleanText(originIntegrity.ts || '', 64) || nowIso(),
+      trigger: 'start',
+      source: cleanText(originIntegrity.source || '', 80) || null,
+      status: Number.isFinite(Number(originIntegrity.status)) ? Number(originIntegrity.status) : 1,
+      reason: cleanText(originIntegrity.reason || '', 260) || 'origin_integrity_check_failed',
+      receipt_hash: cleanText(originIntegrity.receipt_hash || '', 96) || null,
+      safety_plane_state_hash: cleanText(
+        originIntegrity.payload && originIntegrity.payload.state_binding
+          ? originIntegrity.payload.state_binding.safety_plane_state_hash
+          : '',
+        128
+      ) || null
+    };
+    persistDaemonState(runtime, next);
+    const out = withReceipt({
+      ok: false,
+      shadow_only: false,
+      type: 'protheus_daemon_control',
+      ts: nowIso(),
+      command: 'start',
+      request_id: requestId,
+      running: false,
+      mode: 'stopped',
+      blocked_by: 'origin_integrity_check_failed',
+      origin_integrity: originIntegrity
+    });
+    emitLatest(runtime, out);
+    if (exitOnFinish) {
+      process.stdout.write(`${JSON.stringify(out)}\n`);
+      process.exit(1);
+    }
+    return out;
+  }
+
   const script = path.join(__dirname, 'protheusd.js');
   const childArgs = [script, INTERNAL_AMBIENT_LOOP, `--policy=${runtime.policyPath}`, `--inbox-dir=${runtime.cockpitInboxDir}`, `--consumer=${runtime.consumerId}`, `--limit=${runtime.batchLimit}`];
   const child = spawn(process.execPath, childArgs, {
@@ -1329,6 +1611,21 @@ function startDaemon(runtime: any, argv: string[], opts: { exitOnFinish?: boolea
   next.request_seq = Number(next.request_seq || 0) + 1;
   next.heartbeat_hours = runtime.mechPolicy.heartbeatHours;
   next.next_heartbeat_at = nowIso();
+  next.origin_integrity = {
+    ok: originIntegrity.ok === true,
+    ts: cleanText(originIntegrity.ts || '', 64) || nowIso(),
+    trigger: 'start',
+    source: cleanText(originIntegrity.source || '', 80) || null,
+    status: Number.isFinite(Number(originIntegrity.status)) ? Number(originIntegrity.status) : 0,
+    reason: cleanText(originIntegrity.reason || '', 260) || null,
+    receipt_hash: cleanText(originIntegrity.receipt_hash || '', 96) || null,
+    safety_plane_state_hash: cleanText(
+      originIntegrity.payload && originIntegrity.payload.state_binding
+        ? originIntegrity.payload.state_binding.safety_plane_state_hash
+        : '',
+      128
+    ) || null
+  };
   persistDaemonState(runtime, next);
 
   const out = withReceipt({
@@ -1459,6 +1756,7 @@ function diagnosticsReceipt(runtime: any, state: any) {
 function renderDiagnosticsHuman(diag: any) {
   const status = diag && diag.status ? diag.status : {};
   const daemon = status && status.daemon ? status.daemon : {};
+  const origin = daemon && daemon.origin_integrity ? daemon.origin_integrity : {};
   const ambient = status && status.ambient_mode ? status.ambient_mode : {};
   const bridge = diag && diag.bridge_health ? diag.bridge_health : {};
   const gate = diag && diag.conduit_runtime_gate ? diag.conduit_runtime_gate : {};
@@ -1469,6 +1767,7 @@ function renderDiagnosticsHuman(diag: any) {
   lines.push(`degraded_class: ${cleanText(diag && diag.degraded_class, 64) || 'unknown'}`);
   lines.push(`daemon: running=${daemon.running === true ? 'yes' : 'no'} pid=${daemon.pid || 'null'} run_seq=${Number(daemon.run_seq || 0)}`);
   lines.push(`ambient: active=${ambient.active === true ? 'yes' : 'no'} configured=${ambient.configured === true ? 'yes' : 'no'} healthy=${ambient.healthy === true ? 'yes' : 'no'} reason=${cleanText(ambient.degraded_reason, 160) || 'none'}`);
+  lines.push(`origin_integrity: ok=${origin.ok === true ? 'yes' : 'no'} source=${cleanText(origin.source, 80) || 'none'} reason=${cleanText(origin.reason, 160) || 'none'} ts=${cleanText(origin.ts, 64) || 'none'}`);
   lines.push(`bridge: degraded=${bridge.degraded === true ? 'yes' : 'no'} reason=${cleanText(bridge.reason, 160) || 'none'} failures=${Number(bridge.consecutive_failures || 0)} next_probe_at=${cleanText(bridge.next_probe_at, 64) || 'none'}`);
   lines.push(`gate: active=${gate.gate_active === true ? 'yes' : 'no'} remaining_ms=${Number(gate.remaining_ms || 0)} last_error=${cleanText(gate.last_error, 160) || 'none'}`);
   lines.push(`resource: rss_mb=${Number(resource.process_rss_mb || 0)} heap_used_mb=${Number(resource.process_heap_used_mb || 0)} system_used_ratio=${Number(resource.system_used_ratio || 0)}`);

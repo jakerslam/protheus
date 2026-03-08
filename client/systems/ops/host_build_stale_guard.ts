@@ -74,32 +74,45 @@ function etimeToSeconds(etime: string) {
 }
 
 function listProcesses() {
-  const out = execSync('ps -axo pid,ppid,etime,command', { encoding: 'utf8' });
+  const out = execSync('ps -axo pid,ppid,etime,rss,command', { encoding: 'utf8' });
   return String(out || '')
     .split('\n')
     .slice(1)
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const match = line.match(/^(\d+)\s+(\d+)\s+(\S+)\s+(.+)$/);
+      const match = line.match(/^(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s+(.+)$/);
       if (!match) return null;
       return {
         pid: Number(match[1]),
         ppid: Number(match[2]),
         etime: match[3],
         age_sec: etimeToSeconds(match[3]),
-        command: match[4]
+        rss_kb: Number(match[4]) || 0,
+        command: match[5]
       };
     })
-    .filter(Boolean) as Array<{pid:number, ppid:number, etime:string, age_sec:number, command:string}>;
+    .filter(Boolean) as Array<{pid:number, ppid:number, etime:string, age_sec:number, rss_kb:number, command:string}>;
 }
 
-function buildStaleSet(rows: Array<{pid:number, ppid:number, age_sec:number, command:string}>, maxAgeSec: number) {
+function buildStaleSet(
+  rows: Array<{pid:number, ppid:number, age_sec:number, rss_kb:number, command:string}>,
+  maxAgeSec: number,
+  loaderStallAgeSec: number,
+  loaderStallRssKbMax: number
+) {
   const staleBuildScripts = rows.filter((row) => row.command.includes('build-script-build') && row.age_sec >= maxAgeSec);
+  const loaderStallBuildScripts = rows.filter((row) =>
+    row.command.includes('build-script-build')
+    && row.age_sec >= loaderStallAgeSec
+    && row.rss_kb > 0
+    && row.rss_kb <= loaderStallRssKbMax
+  );
   const staleCargo = new Set<number>();
   for (const row of staleBuildScripts) staleCargo.add(row.ppid);
+  for (const row of loaderStallBuildScripts) staleCargo.add(row.ppid);
   const staleCargoRows = rows.filter((row) => staleCargo.has(row.pid) && row.command.includes('/cargo'));
-  return { staleBuildScripts, staleCargoRows };
+  return { staleBuildScripts, loaderStallBuildScripts, staleCargoRows };
 }
 
 function killPid(pid: number) {
@@ -115,11 +128,24 @@ function run() {
   const args = parseArgs(process.argv.slice(2));
   const cmd = cleanText(args._[0] || 'check', 20).toLowerCase();
   const maxAgeSec = toInt(args['max-age-sec'] || process.env.HOST_BUILD_STALE_MAX_AGE_SEC, 90, 10, 3600);
+  const loaderStallAgeSec = toInt(
+    args['loader-stall-age-sec'] || process.env.HOST_BUILD_LOADER_STALL_AGE_SEC,
+    25,
+    5,
+    300
+  );
+  const loaderStallRssKbMax = toInt(
+    args['loader-stall-rss-kb-max'] || process.env.HOST_BUILD_LOADER_STALL_RSS_KB_MAX,
+    256,
+    64,
+    2048
+  );
   const applyKill = cmd === 'reap' || toBool(args.apply, false) || toBool(args.kill, false);
   const rows = listProcesses();
-  const stale = buildStaleSet(rows, maxAgeSec);
+  const stale = buildStaleSet(rows, maxAgeSec, loaderStallAgeSec, loaderStallRssKbMax);
   const stalePids = [
     ...stale.staleBuildScripts.map((row) => row.pid),
+    ...stale.loaderStallBuildScripts.map((row) => row.pid),
     ...stale.staleCargoRows.map((row) => row.pid)
   ];
   const uniqueStalePids = Array.from(new Set(stalePids));
@@ -136,11 +162,22 @@ function run() {
     command: cmd,
     max_age_sec: maxAgeSec,
     stale_detected: uniqueStalePids.length > 0,
+    loader_stall_detected: stale.loaderStallBuildScripts.length > 0,
     stale_count: uniqueStalePids.length,
+    loader_stall_age_sec: loaderStallAgeSec,
+    loader_stall_rss_kb_max: loaderStallRssKbMax,
     stale_build_scripts: stale.staleBuildScripts.map((row) => ({
       pid: row.pid,
       ppid: row.ppid,
       age_sec: row.age_sec,
+      rss_kb: row.rss_kb,
+      command: cleanText(row.command, 180)
+    })),
+    loader_stall_build_scripts: stale.loaderStallBuildScripts.map((row) => ({
+      pid: row.pid,
+      ppid: row.ppid,
+      age_sec: row.age_sec,
+      rss_kb: row.rss_kb,
       command: cleanText(row.command, 180)
     })),
     stale_cargo_parents: stale.staleCargoRows.map((row) => ({
@@ -150,7 +187,9 @@ function run() {
       command: cleanText(row.command, 180)
     })),
     killed_pids: killed,
-    reason_code: uniqueStalePids.length > 0 ? 'stale_build_script_detected' : 'none'
+    reason_code: stale.loaderStallBuildScripts.length > 0
+      ? 'dyld_loader_stall_detected'
+      : (uniqueStalePids.length > 0 ? 'stale_build_script_detected' : 'none')
   };
   process.stdout.write(`${JSON.stringify(payload)}\n`);
   // check exits 2 on stale so wrappers can fail-fast.
@@ -159,4 +198,3 @@ function run() {
 }
 
 run();
-

@@ -3,6 +3,8 @@
 export {};
 
 const { spawn, execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
 function nowIso() {
   return new Date().toISOString();
@@ -62,25 +64,36 @@ function etimeToSeconds(etime: string) {
 }
 
 function listBuildScriptsForParent(parentPid: number) {
-  const out = execSync('ps -axo pid,ppid,etime,command', { encoding: 'utf8' });
+  const out = execSync('ps -axo pid,ppid,etime,rss,command', { encoding: 'utf8' });
   return String(out || '')
     .split('\n')
     .slice(1)
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const match = line.match(/^(\d+)\s+(\d+)\s+(\S+)\s+(.+)$/);
+      const match = line.match(/^(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s+(.+)$/);
       if (!match) return null;
       return {
         pid: Number(match[1]),
         ppid: Number(match[2]),
         etime: match[3],
         age_sec: etimeToSeconds(match[3]),
-        command: match[4]
+        rss_kb: Number(match[4]) || 0,
+        command: match[5]
       };
     })
     .filter((row) => !!row)
-    .filter((row: any) => row.ppid === parentPid && String(row.command).includes('build-script-build')) as Array<{pid:number,ppid:number,etime:string,age_sec:number,command:string}>;
+    .filter((row: any) => row.ppid === parentPid && String(row.command).includes('build-script-build')) as Array<{pid:number,ppid:number,etime:string,age_sec:number,rss_kb:number,command:string}>;
+}
+
+function writeLatest(payload: Record<string, any>) {
+  try {
+    const outPath = path.join(process.cwd(), 'client', 'local', 'state', 'ops', 'host_rust_validation', 'latest.json');
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    fs.writeFileSync(outPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+  } catch {
+    // best-effort artifact only
+  }
 }
 
 function profileToCargoArgs(profile: string) {
@@ -102,13 +115,19 @@ async function runValidationAttempt(
   profile: string,
   cargoArgs: string[],
   staleAgeSec: number,
+  loaderStallAgeSec: number,
+  loaderStallRssKbMax: number,
   checkIntervalMs: number,
   timeoutMs: number
 ) {
   const startedAt = Date.now();
+  const targetDir = path.join(process.cwd(), 'client', 'local', 'state', 'ops', 'host_rust_validation', 'target', profile);
   const child = spawn('cargo', cargoArgs, {
     cwd: process.cwd(),
-    env: process.env,
+    env: {
+      ...process.env,
+      CARGO_TARGET_DIR: targetDir
+    },
     stdio: ['ignore', 'pipe', 'pipe']
   });
   let stdout = '';
@@ -117,6 +136,7 @@ async function runValidationAttempt(
   child.stderr.on('data', (chunk: Buffer) => { stderr += String(chunk || ''); process.stderr.write(chunk); });
 
   let staleDetected = null as any;
+  let loaderStallDetected = null as any;
   let timeoutTriggered = false;
   while (true) {
     const finished = child.exitCode != null;
@@ -127,6 +147,13 @@ async function runValidationAttempt(
       break;
     }
     const staleRows = listBuildScriptsForParent(child.pid);
+    const loaderStall = staleRows.find((row) => row.age_sec >= loaderStallAgeSec && row.rss_kb > 0 && row.rss_kb <= loaderStallRssKbMax);
+    if (loaderStall) {
+      loaderStallDetected = loaderStall;
+      try { process.kill(loaderStall.pid, 'SIGTERM'); } catch {}
+      try { process.kill(child.pid, 'SIGTERM'); } catch {}
+      break;
+    }
     const stale = staleRows.find((row) => row.age_sec >= staleAgeSec);
     if (stale) {
       staleDetected = stale;
@@ -138,7 +165,9 @@ async function runValidationAttempt(
   }
 
   await sleep(250);
-  const exitCode = Number.isFinite(child.exitCode) ? Number(child.exitCode) : (timeoutTriggered || staleDetected ? 124 : 1);
+  const exitCode = Number.isFinite(child.exitCode)
+    ? Number(child.exitCode)
+    : (timeoutTriggered || staleDetected || loaderStallDetected ? 124 : 1);
   const payload = {
     ok: exitCode === 0,
     type: 'host_rust_validation',
@@ -147,16 +176,24 @@ async function runValidationAttempt(
     command: ['cargo', ...cargoArgs],
     elapsed_ms: Date.now() - startedAt,
     stale_age_sec: staleAgeSec,
+    loader_stall_age_sec: loaderStallAgeSec,
+    loader_stall_rss_kb_max: loaderStallRssKbMax,
     timeout_ms: timeoutMs,
     stale_detected: !!staleDetected,
+    loader_stall_detected: !!loaderStallDetected,
     stale_process: staleDetected
       ? { pid: staleDetected.pid, age_sec: staleDetected.age_sec, command: cleanText(staleDetected.command, 180) }
       : null,
+    loader_stall_process: loaderStallDetected
+      ? { pid: loaderStallDetected.pid, age_sec: loaderStallDetected.age_sec, rss_kb: loaderStallDetected.rss_kb, command: cleanText(loaderStallDetected.command, 180) }
+      : null,
     timeout_triggered: timeoutTriggered,
     exit_code: exitCode,
-    reason_code: staleDetected
-      ? 'stale_build_script_detected'
-      : (timeoutTriggered ? 'validation_timeout' : (exitCode === 0 ? 'none' : 'validation_failed')),
+    reason_code: loaderStallDetected
+      ? 'dyld_loader_stall_detected'
+      : (staleDetected
+        ? 'stale_build_script_detected'
+        : (timeoutTriggered ? 'validation_timeout' : (exitCode === 0 ? 'none' : 'validation_failed'))),
     stderr_tail: cleanText(stderr.slice(-1000), 1000),
     stdout_tail: cleanText(stdout.slice(-1000), 1000)
   };
@@ -182,6 +219,8 @@ async function run() {
   const profile = cleanText(args.profile || '', 80) || 'protheus_ops_attention';
   const cargoArgs = profileToCargoArgs(profile);
   const staleAgeSec = toInt(args['stale-age-sec'] || process.env.HOST_BUILD_STALE_MAX_AGE_SEC, 90, 20, 3600);
+  const loaderStallAgeSec = toInt(args['loader-stall-age-sec'] || process.env.HOST_BUILD_LOADER_STALL_AGE_SEC, 25, 5, 300);
+  const loaderStallRssKbMax = toInt(args['loader-stall-rss-kb-max'] || process.env.HOST_BUILD_LOADER_STALL_RSS_KB_MAX, 256, 64, 2048);
   const checkIntervalMs = toInt(args['check-interval-ms'] || 5000, 1000, 1000, 60000);
   const timeoutMs = toInt(args['timeout-ms'] || 20 * 60 * 1000, 10000, 10000, 2 * 60 * 60 * 1000);
   const maxRetries = toInt(args['max-retries'] || process.env.HOST_RUST_VALIDATION_MAX_RETRIES, 1, 0, 5);
@@ -189,14 +228,25 @@ async function run() {
   const attempts: Array<{ attempt: number, reason_code: string, exit_code: number }> = [];
   let payload = null as any;
   for (let attempt = 1; attempt <= (maxRetries + 1); attempt += 1) {
-    payload = await runValidationAttempt(profile, cargoArgs, staleAgeSec, checkIntervalMs, timeoutMs);
+    payload = await runValidationAttempt(
+      profile,
+      cargoArgs,
+      staleAgeSec,
+      loaderStallAgeSec,
+      loaderStallRssKbMax,
+      checkIntervalMs,
+      timeoutMs
+    );
     attempts.push({
       attempt,
       reason_code: cleanText(payload.reason_code, 120),
       exit_code: Number(payload.exit_code || 1)
     });
     if (payload.exit_code === 0) break;
-    const canRetry = payload.reason_code === 'stale_build_script_detected' && attempt <= maxRetries;
+    const canRetry = (
+      payload.reason_code === 'stale_build_script_detected'
+      || payload.reason_code === 'dyld_loader_stall_detected'
+    ) && attempt <= maxRetries;
     if (!canRetry) break;
     reapStaleBuildScripts(staleAgeSec);
     await sleep(1200);
@@ -205,6 +255,7 @@ async function run() {
   payload.attempts = attempts;
   payload.retried = attempts.length > 1;
   payload.max_retries = maxRetries;
+  writeLatest(payload);
   process.stdout.write(`${JSON.stringify(payload)}\n`);
   process.exit(Number(payload.exit_code || 1));
 }

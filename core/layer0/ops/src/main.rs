@@ -30,6 +30,7 @@ fn usage() {
     println!("  protheus-ops inversion-controller <command> [flags]");
     println!("  protheus-ops health-status <command> [flags]");
     println!("  protheus-ops foundation-contract-gate <run|status> [flags]");
+    println!("  protheus-ops origin-integrity <run|status|certificate|seed-bootstrap-verify> [flags]");
     println!("  protheus-ops state-kernel <command> [flags]");
     println!("  protheus-ops shadow-budget-governance <evaluate|status> [flags]");
     println!("  protheus-ops adaptive-runtime <tick|status> [flags]");
@@ -272,6 +273,11 @@ fn main() {
         "foundation-contract-gate" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::foundation_contract_gate::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "origin-integrity" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::origin_integrity::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "state-kernel" => {

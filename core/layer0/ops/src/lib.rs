@@ -43,6 +43,7 @@ pub mod inversion_controller;
 pub mod health_status;
 pub mod model_router;
 pub mod offline_runtime_guard;
+pub mod origin_integrity;
 pub mod perception_polish;
 pub mod persona_ambient;
 pub mod dopamine_ambient;

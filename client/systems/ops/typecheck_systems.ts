@@ -23,7 +23,9 @@ function resolveRepoRoot(startDir) {
 
 function resolveProjectPath(root) {
   const candidates = [
+    path.join(root, 'tsconfig.runtime.json'),
     path.join(root, 'tsconfig.systems.json'),
+    path.join(root, 'client', 'tsconfig.runtime.json'),
     path.join(root, 'client', 'tsconfig.systems.json')
   ];
   for (const candidate of candidates) {
