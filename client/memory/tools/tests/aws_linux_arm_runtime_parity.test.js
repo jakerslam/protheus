@@ -56,7 +56,7 @@ try {
       bottlerocket_profile: true
     },
     fallback_runtime: 'cross_platform_runtime',
-    rollback_command: 'node client/systems/runtime/aws_linux_arm_runtime_parity.js run --force-fallback=1',
+    rollback_command: 'node client/runtime/systems/runtime/aws_linux_arm_runtime_parity.js run --force-fallback=1',
     paths: {
       latest_path: latestPath,
       history_path: historyPath

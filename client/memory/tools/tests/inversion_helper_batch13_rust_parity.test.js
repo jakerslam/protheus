@@ -17,7 +17,7 @@ function loadInversion(rustEnabled) {
 }
 
 function run() {
-  const tmpRoot = path.join(REPO_ROOT, 'client', 'local', 'tmp', 'inversion-batch13-parity');
+  const tmpRoot = path.join(REPO_ROOT, 'client', 'runtime', 'local', 'tmp', 'inversion-batch13-parity');
   fs.mkdirSync(tmpRoot, { recursive: true });
 
   const stateDir = path.join(tmpRoot, 'state');

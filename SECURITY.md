@@ -48,12 +48,12 @@ If there is active exploitation or high-confidence critical impact, emergency re
 ## Bug Bounty
 
 - Starter bounty program is active (minimum target pool: $500 total per cycle).
-- Scope and payout guidance: [client/docs/BUG_BOUNTY.md](client/docs/BUG_BOUNTY.md).
+- Scope and payout guidance: [docs/client/BUG_BOUNTY.md](docs/client/BUG_BOUNTY.md).
 
 ## Hardening References
 
-- [client/docs/SECURITY.md](client/docs/SECURITY.md)
-- [client/docs/SECURITY_POSTURE.md](client/docs/SECURITY_POSTURE.md)
-- [client/docs/BUG_BOUNTY.md](client/docs/BUG_BOUNTY.md)
-- [client/docs/BRANCH_PROTECTION_POLICY.md](client/docs/BRANCH_PROTECTION_POLICY.md)
-- [client/docs/COMPLIANCE_POSTURE.md](client/docs/COMPLIANCE_POSTURE.md)
+- [docs/client/SECURITY.md](docs/client/SECURITY.md)
+- [docs/client/SECURITY_POSTURE.md](docs/client/SECURITY_POSTURE.md)
+- [docs/client/BUG_BOUNTY.md](docs/client/BUG_BOUNTY.md)
+- [docs/client/BRANCH_PROTECTION_POLICY.md](docs/client/BRANCH_PROTECTION_POLICY.md)
+- [docs/client/COMPLIANCE_POSTURE.md](docs/client/COMPLIANCE_POSTURE.md)

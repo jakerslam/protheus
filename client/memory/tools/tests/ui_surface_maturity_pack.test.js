@@ -46,7 +46,7 @@ try {
   const latestPath = path.join(tmp, 'state', 'ops', 'ui_surface_maturity_pack', 'latest.json');
   const historyPath = path.join(tmp, 'state', 'ops', 'ui_surface_maturity_pack', 'history.jsonl');
 
-  writeText(path.join(tmp, 'README.md'), 'client/docs/UI_SURFACE_MATURITY_MATRIX.md\nclient/docs/UI_SURFACE_INVENTORY.md\nclient/docs/UI_ACCESSIBILITY_INTERACTION_CONTRACT.md\n');
+  writeText(path.join(tmp, 'README.md'), 'docs/client/UI_SURFACE_MATURITY_MATRIX.md\ndocs/client/UI_SURFACE_INVENTORY.md\ndocs/client/UI_ACCESSIBILITY_INTERACTION_CONTRACT.md\n');
   writeText(path.join(tmp, 'docs', 'UI_SURFACE_MATURITY_MATRIX.md'), 'keyboard focus contrast command palette responsive\n');
   writeText(path.join(tmp, 'docs', 'UI_SURFACE_INVENTORY.md'), 'inventory\n');
   writeText(path.join(tmp, 'docs', 'UI_DESIGN_TOKEN_STANDARD.md'), 'tokens\n');
@@ -56,16 +56,16 @@ try {
     version: '1.0-test',
     enabled: true,
     required_docs: [
-      'client/docs/UI_SURFACE_MATURITY_MATRIX.md',
-      'client/docs/UI_SURFACE_INVENTORY.md',
-      'client/docs/UI_DESIGN_TOKEN_STANDARD.md',
-      'client/docs/UI_ACCESSIBILITY_INTERACTION_CONTRACT.md'
+      'docs/client/UI_SURFACE_MATURITY_MATRIX.md',
+      'docs/client/UI_SURFACE_INVENTORY.md',
+      'docs/client/UI_DESIGN_TOKEN_STANDARD.md',
+      'docs/client/UI_ACCESSIBILITY_INTERACTION_CONTRACT.md'
     ],
     readme_path: path.join(tmp, 'README.md'),
     readme_required_links: [
-      'client/docs/UI_SURFACE_MATURITY_MATRIX.md',
-      'client/docs/UI_SURFACE_INVENTORY.md',
-      'client/docs/UI_ACCESSIBILITY_INTERACTION_CONTRACT.md'
+      'docs/client/UI_SURFACE_MATURITY_MATRIX.md',
+      'docs/client/UI_SURFACE_INVENTORY.md',
+      'docs/client/UI_ACCESSIBILITY_INTERACTION_CONTRACT.md'
     ],
     required_terms: ['keyboard', 'focus', 'contrast', 'command palette', 'responsive'],
     paths: { latest_path: latestPath, history_path: historyPath }

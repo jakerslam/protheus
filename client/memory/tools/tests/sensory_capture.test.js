@@ -80,7 +80,7 @@ function runTests() {
     
     // Run note via CLI
     const { execSync } = require('child_process');
-    execSync('node client/habits/scripts/sensory_capture.js note "Test note from sensory capture test"', {
+    execSync('node client/cognition/habits/scripts/sensory_capture.js note "Test note from sensory capture test"', {
       cwd: path.join(__dirname, '..', '..', '..'),
       encoding: 'utf8'
     });
@@ -107,11 +107,11 @@ function runTests() {
     const { execSync } = require('child_process');
     
     // Add more notes
-    execSync('node client/habits/scripts/sensory_capture.js note "Second note"', {
+    execSync('node client/cognition/habits/scripts/sensory_capture.js note "Second note"', {
       cwd: path.join(__dirname, '..', '..', '..'),
       encoding: 'utf8'
     });
-    execSync('node client/habits/scripts/sensory_capture.js note "Third note"', {
+    execSync('node client/cognition/habits/scripts/sensory_capture.js note "Third note"', {
       cwd: path.join(__dirname, '..', '..', '..'),
       encoding: 'utf8'
     });
@@ -142,7 +142,7 @@ function runTests() {
   try {
     const { execSync } = require('child_process');
     
-    const output = execSync('node client/habits/scripts/sensory_capture.js show --days=1', {
+    const output = execSync('node client/cognition/habits/scripts/sensory_capture.js show --days=1', {
       cwd: path.join(__dirname, '..', '..', '..'),
       encoding: 'utf8'
     });
@@ -198,7 +198,7 @@ function runTests() {
     fs.copyFileSync(tempConfig, realConfig);
     
     try {
-      const output = execSync('node client/habits/scripts/sensory_capture.js capture', {
+      const output = execSync('node client/cognition/habits/scripts/sensory_capture.js capture', {
         cwd: path.join(__dirname, '..', '..', '..'),
         encoding: 'utf8'
       });

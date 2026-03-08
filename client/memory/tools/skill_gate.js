@@ -8,7 +8,7 @@ const path = require('path');
 const crypto = require('crypto');
 const os = require('os');
 
-const CONFIG_PATH = '/Users/jay/.openclaw/workspace/client/config/trusted_skills.json';
+const CONFIG_PATH = '/Users/jay/.openclaw/workspace/client/runtime/config/trusted_skills.json';
 
 /**
  * Expand ~ to home directory

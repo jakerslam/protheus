@@ -29,7 +29,7 @@ function main() {
   assert.strictEqual(termRes.status, 0, termRes.stderr);
   assert.strictEqual(termRes.payload.ok, true);
 
-  const snapRes = run('systems/security/sandbox_state_bridge.js', ['snapshot', '--workspace=client/systems', '--apply=1']);
+  const snapRes = run('systems/security/sandbox_state_bridge.js', ['snapshot', '--workspace=client/runtime/systems', '--apply=1']);
   assert.strictEqual(snapRes.status, 0, snapRes.stderr);
   assert.strictEqual(snapRes.payload.ok, true);
   assert.ok(snapRes.payload.payload.snapshot.snapshot_id);

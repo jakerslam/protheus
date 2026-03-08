@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-const SCRIPT = path.join(ROOT, 'client/systems/security/smart_knot_crown_jewel_obfuscation.js');
+const SCRIPT = path.join(ROOT, 'client/runtime/systems/security/smart_knot_crown_jewel_obfuscation.js');
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -51,7 +51,7 @@ try {
   },
   {
     "id": "crown_jewel_scope_enforced",
-    "description": "Scope excludes open platform/client/habits/skills"
+    "description": "Scope excludes open platform/client/cognition/habits/skills"
   },
   {
     "id": "capability_token_resolution",

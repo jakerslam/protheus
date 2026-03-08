@@ -33,9 +33,9 @@ try {
   writeJson(path.join(tmp, 'AGENTS.md'), { ok: true });
   writeJson(path.join(tmp, 'package.json'), { name: 'tmp' });
 
-  const bridgePolicy = path.join(tmp, 'client', 'config', 'shadow_tool_notification_bridge_policy.json');
-  const routerPolicy = path.join(tmp, 'client', 'config', 'tool_context_router_policy.json');
-  const notifyPolicy = path.join(tmp, 'client', 'config', 'tool_notification_policy.json');
+  const bridgePolicy = path.join(tmp, 'client', 'runtime', 'config', 'shadow_tool_notification_bridge_policy.json');
+  const routerPolicy = path.join(tmp, 'client', 'runtime', 'config', 'tool_context_router_policy.json');
+  const notifyPolicy = path.join(tmp, 'client', 'runtime', 'config', 'tool_notification_policy.json');
 
   writeJson(bridgePolicy, {
     version: 'test',
@@ -89,7 +89,7 @@ try {
   assert.strictEqual(payload.ok, true, 'bridge should pass');
   assert.strictEqual(payload.selected_tool, 'assimilate', 'bridge must route expected tool');
 
-  const outboxPath = path.join(tmp, 'client', 'local', 'state', 'tools', 'notification_lane', 'outbox.jsonl');
+  const outboxPath = path.join(tmp, 'client', 'runtime', 'local', 'state', 'tools', 'notification_lane', 'outbox.jsonl');
   assert.ok(fs.existsSync(outboxPath), 'bridge should emit notification');
   console.log('shadow_tool_notification_bridge.test.js: OK');
 } catch (err) {

@@ -152,7 +152,7 @@ test('ingest filters low-quality scored proposals and logs proposal_filtered', (
         version: 1,
         objective: 'Ship one measurable routing cost optimization change this week',
         target: 'workflow:routing_cost',
-        next_command: 'node client/systems/routing/route_execute.js --task="Optimize routing spend with measurable verification" --dry-run',
+        next_command: 'node client/runtime/systems/routing/route_execute.js --task="Optimize routing spend with measurable verification" --dry-run',
         verify: ['Record before/after token burn metric in receipt'],
         rollback: 'Revert routing policy changes and restore prior baseline'
       },
@@ -174,7 +174,7 @@ test('ingest filters low-quality scored proposals and logs proposal_filtered', (
         version: 1,
         objective: 'Run one scoped low-value experiment for queue gating test',
         target: 'workflow:test_low_quality',
-        next_command: 'node client/systems/routing/route_execute.js --task="Run low quality test" --dry-run',
+        next_command: 'node client/runtime/systems/routing/route_execute.js --task="Run low quality test" --dry-run',
         verify: ['Record result event for low quality gate path'],
         rollback: 'Remove test-only experiment changes and keep baseline'
       },
@@ -550,7 +550,7 @@ test('ingest keeps high execution-worthiness proposals with audit score', () => 
         version: 1,
         objective: 'Reduce collector fetch failure rate below 5% within 24 hours using deterministic fallback sequencing',
         target: 'collector:hn_frontpage',
-        next_command: 'node client/systems/routing/route_execute.js --task=\"Diagnose collector failure and apply deterministic fallback\" --dry-run',
+        next_command: 'node client/runtime/systems/routing/route_execute.js --task=\"Diagnose collector failure and apply deterministic fallback\" --dry-run',
         verify: [
           'Error rate is <= 5% across two consecutive runs',
           'Receipt shows collector fallback path verified with pass status'

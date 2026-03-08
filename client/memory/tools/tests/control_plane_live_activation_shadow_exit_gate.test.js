@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-const SCRIPT = path.join(ROOT, 'client/systems/ops/control_plane_live_activation_shadow_exit_gate.js');
+const SCRIPT = path.join(ROOT, 'client/runtime/systems/ops/control_plane_live_activation_shadow_exit_gate.js');
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -47,17 +47,17 @@ try {
   {
     "id": "protheus_control_plane_live",
     "description": "protheus_control_plane no longer shadow by default",
-    "file_must_exist": "client/systems/ops/protheus_control_plane.ts"
+    "file_must_exist": "client/runtime/systems/ops/protheus_control_plane.ts"
   },
   {
     "id": "event_stream_authoritative_live",
     "description": "event_sourced_control_plane stream authority live",
-    "file_must_exist": "client/systems/ops/event_sourced_control_plane.ts"
+    "file_must_exist": "client/runtime/systems/ops/event_sourced_control_plane.ts"
   },
   {
     "id": "rust_cutover_shadow_exit",
     "description": "rust_control_plane_cutover exits shadow after soak",
-    "file_must_exist": "client/systems/ops/rust_control_plane_cutover.ts"
+    "file_must_exist": "client/runtime/systems/ops/rust_control_plane_cutover.ts"
   },
   {
     "id": "emergency_fallback_toggle",

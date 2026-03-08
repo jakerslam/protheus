@@ -1,0 +1,37 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "feature_flag_name": "phase1_docs_dx_overhaul",
+  "feature_flag_default": false,
+  "required_docs": [
+    "README.md",
+    "ARCHITECTURE.md",
+    "CONTRIBUTING.md",
+    "docs/client/README.md",
+    "docs/client/HELP.md",
+    "docs/client/DEVELOPER_LANE_QUICKSTART.md",
+    "docs/client/ONBOARDING_PLAYBOOK.md"
+  ],
+  "required_links": [
+    { "source": "README.md", "target": "ARCHITECTURE.md" },
+    { "source": "README.md", "target": "docs/client/DEVELOPER_LANE_QUICKSTART.md" },
+    { "source": "README.md", "target": "docs/client/HELP.md" },
+    { "source": "ARCHITECTURE.md", "target": "docs/client/README.md" },
+    { "source": "CONTRIBUTING.md", "target": "docs/client/DEVELOPER_LANE_QUICKSTART.md" },
+    { "source": "docs/client/README.md", "target": "DEVELOPER_LANE_QUICKSTART.md" }
+  ],
+  "quickstart_requirements": {
+    "path": "docs/client/DEVELOPER_LANE_QUICKSTART.md",
+    "required_phrases": ["under 10 minutes", "first custom lane", "rollback"]
+  },
+  "onboarding_check": {
+    "script": "client/runtime/systems/ops/first_run_onboarding_wizard.js",
+    "args": ["status"]
+  },
+  "paths": {
+    "feature_flags_path": "client/runtime/config/feature_flags.json",
+    "latest_path": "state/ops/public_docs_developer_experience_overhaul/latest.json",
+    "history_path": "state/ops/public_docs_developer_experience_overhaul/history.jsonl",
+    "snapshot_root": "state/ops/public_docs_developer_experience_overhaul/snapshots"
+  }
+}

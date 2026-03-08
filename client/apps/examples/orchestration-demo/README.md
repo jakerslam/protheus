@@ -11,6 +11,6 @@ node apps/examples/orchestration-demo/run.js
 This executes:
 
 ```bash
-node client/systems/ops/protheusctl.js toolkit orchestration status
+node client/runtime/systems/ops/protheusctl.js toolkit orchestration status
 ```
 

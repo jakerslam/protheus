@@ -11,6 +11,6 @@ node apps/examples/blob-morphing-demo/run.js
 This executes:
 
 ```bash
-node client/systems/ops/protheusctl.js toolkit blob-morphing status
+node client/runtime/systems/ops/protheusctl.js toolkit blob-morphing status
 ```
 

@@ -183,7 +183,7 @@ function run() {
 
   assert.ok(
     typeof one.suggested_next_command === 'string'
-      && one.suggested_next_command.startsWith('node client/systems/routing/route_execute.js --task='),
+      && one.suggested_next_command.startsWith('node client/runtime/systems/routing/route_execute.js --task='),
     'suggested_next_command should be route_execute dry-run command'
   );
   ok('suggested_next_command is actionable (not browser-open only)');

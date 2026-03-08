@@ -98,7 +98,7 @@ function run() {
     yield_rate: 0.709
   });
   writeJsonl(integrityLogPath, [
-    { ts: `${date2}T02:11:00.000Z`, violated_files: ['client/systems/security/merge_guard.js'] }
+    { ts: `${date2}T02:11:00.000Z`, violated_files: ['client/runtime/systems/security/merge_guard.js'] }
   ]);
 
   const out2 = runCmd(scriptPath, date2, env);

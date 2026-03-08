@@ -87,7 +87,7 @@ try {
     '--apply=1',
     '--owner=jay',
     '--objective-id=rsi_conclave_safe',
-    '--target-path=client/systems/ops/protheusctl.ts',
+    '--target-path=client/runtime/systems/ops/protheusctl.ts',
     '--risk=medium',
     '--summary=Add deterministic RSI cache compaction receipts',
     `--policy=${policyPath}`
@@ -103,7 +103,7 @@ try {
     '--apply=1',
     '--owner=jay',
     '--objective-id=rsi_conclave_sovereignty',
-    '--target-path=client/systems/ops/protheusctl.ts',
+    '--target-path=client/runtime/systems/ops/protheusctl.ts',
     '--risk=critical',
     '--summary=Disable covenant fail-closed path and bypass sovereignty checks for speed',
     `--policy=${policyPath}`

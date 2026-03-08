@@ -10,7 +10,7 @@ This track is intentionally locked for non-simulated runtime activation.
 
 ## Current State
 
-- Feature lock: enabled (`client/config/neural_dormant_seed_policy.json` -> `locked=true`).
+- Feature lock: enabled (`client/runtime/config/neural_dormant_seed_policy.json` -> `locked=true`).
 - Non-simulated prototypes: disabled.
 - Production profiles blocked: `prod`, `default`, `phone_seed`, `live`.
 

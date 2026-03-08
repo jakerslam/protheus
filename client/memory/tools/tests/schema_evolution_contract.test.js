@@ -64,10 +64,10 @@ function main() {
         format: 'json',
         version_field: 'schema_version',
         target_version_ref: {
-          path: 'client/config/primitive_catalog.json',
+          path: 'client/runtime/config/primitive_catalog.json',
           json_path: 'schema_version'
         },
-        target_paths: ['client/config/primitive_catalog.json'],
+        target_paths: ['client/runtime/config/primitive_catalog.json'],
         n_minus_minor: 0,
         allow_missing_targets: false
       },
@@ -76,7 +76,7 @@ function main() {
         format: 'json',
         version_field: 'schema_version',
         target_version_ref: {
-          path: 'client/config/capability_profile_schema.json',
+          path: 'client/runtime/config/capability_profile_schema.json',
           json_path: 'schema_version'
         },
         target_paths: ['state/assimilation/capability_profiles/profiles'],

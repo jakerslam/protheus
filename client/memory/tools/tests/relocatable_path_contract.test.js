@@ -56,8 +56,8 @@ try {
   writeText(
     sourceFile,
     [
-      'const oldPath = "client/habits/scripts/external_eyes.js";',
-      'const fallbackPath = "client/habits/routines/nightly_scan.js";',
+      'const oldPath = "client/cognition/habits/scripts/external_eyes.js";',
+      'const fallbackPath = "client/cognition/habits/routines/nightly_scan.js";',
       'export { oldPath, fallbackPath };'
     ].join('\n')
   );
@@ -88,8 +88,8 @@ try {
   assert.strictEqual(inventory.schema_id, 'relocatable_path_rewrite_inventory');
   assert.ok(
     inventory.entries.some((row) => (
-      row.legacy_path === 'client/habits/scripts/external_eyes.js'
-      && row.suggested_path === 'client/systems/adaptive/habits/scripts/external_eyes.js'
+      row.legacy_path === 'client/cognition/habits/scripts/external_eyes.js'
+      && row.suggested_path === 'client/runtime/systems/adaptive/habits/scripts/external_eyes.js'
     )),
     'inventory should include deterministic suggested rewrite path'
   );

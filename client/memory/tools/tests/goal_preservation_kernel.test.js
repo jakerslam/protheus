@@ -106,7 +106,7 @@ function run() {
     strict_mode: true,
     constitution_path: constitution,
     protected_axiom_markers: ['user sovereignty'],
-    blocked_mutation_paths: ['^client/systems/security/guard\\.(ts|js)$'],
+    blocked_mutation_paths: ['^client/runtime/systems/security/guard\\.(ts|js)$'],
     symbiosis_recursion_gate: {
       enabled: true,
       shadow_only: false,
@@ -121,7 +121,7 @@ function run() {
   const blockedProposalPath = path.join(tmp, 'blocked_proposal.json');
   writeJson(blockedProposalPath, {
     proposal_id: 'p_blocked',
-    mutation_paths: ['client/systems/security/guard.ts'],
+    mutation_paths: ['client/runtime/systems/security/guard.ts'],
     summary: 'disable user sovereignty checks'
   });
 
@@ -134,7 +134,7 @@ function run() {
   const safeProposalPath = path.join(tmp, 'safe_proposal.json');
   writeJson(safeProposalPath, {
     proposal_id: 'p_safe',
-    mutation_paths: ['client/systems/weaver/weaver_core.ts'],
+    mutation_paths: ['client/runtime/systems/weaver/weaver_core.ts'],
     summary: 'improve value arbitration logging only'
   });
 
@@ -147,7 +147,7 @@ function run() {
   writeJson(recursionProposalPath, {
     proposal_id: 'p_recursion',
     target_system: 'self_improvement',
-    mutation_paths: ['client/systems/autonomy/self_code_evolution_sandbox.ts'],
+    mutation_paths: ['client/runtime/systems/autonomy/self_code_evolution_sandbox.ts'],
     summary: 'raise recursive self-improvement depth',
     recursion_depth: 9
   });

@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-const SCRIPT = path.join(ROOT, 'client/systems/security/independent_safety_coprocessor_veto_plane.js');
+const SCRIPT = path.join(ROOT, 'client/runtime/systems/security/independent_safety_coprocessor_veto_plane.js');
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });

@@ -70,8 +70,8 @@ try {
     version: '1.0',
     aliases: [
       {
-        alias: 'client/config/legacy_policy_alias.json',
-        canonical: 'client/config/canonical_policy.json',
+        alias: 'client/runtime/config/legacy_policy_alias.json',
+        canonical: 'client/runtime/config/canonical_policy.json',
         mode: 'copy'
       }
     ]
@@ -95,7 +95,7 @@ try {
     },
     legacy_aliases: {
       enabled: true,
-      alias_map_path: 'client/config/config_aliases.json',
+      alias_map_path: 'client/runtime/config/config_aliases.json',
       strict_canonical_exists: true
     }
   });

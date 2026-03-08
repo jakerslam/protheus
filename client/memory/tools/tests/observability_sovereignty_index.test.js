@@ -33,7 +33,7 @@ function main() {
       {
         trace_id: 'h1',
         ts_millis: 1000,
-        source: 'client/systems/observability',
+        source: 'client/runtime/systems/observability',
         operation: 'trace.capture',
         severity: 'low',
         tags: ['runtime.guardrails'],
@@ -43,7 +43,7 @@ function main() {
       {
         trace_id: 'h2',
         ts_millis: 1100,
-        source: 'client/systems/security',
+        source: 'client/runtime/systems/security',
         operation: 'trace.capture',
         severity: 'low',
         tags: ['lane.integrity'],
@@ -64,7 +64,7 @@ function main() {
       {
         trace_id: 'd1',
         ts_millis: 1000,
-        source: 'client/systems/observability',
+        source: 'client/runtime/systems/observability',
         operation: 'trace.capture',
         severity: 'high',
         tags: ['drift'],
@@ -85,7 +85,7 @@ function main() {
       {
         trace_id: 'c1',
         ts_millis: 1000,
-        source: 'client/systems/observability',
+        source: 'client/runtime/systems/observability',
         operation: 'trace.capture',
         severity: 'critical',
         tags: ['tamper', 'drift'],

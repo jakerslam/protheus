@@ -1,0 +1,56 @@
+{
+  "schema_id": "proof_pack_f100",
+  "schema_version": "1.0",
+  "ts": "2026-03-07T18:41:10.244Z",
+  "commit": "21ced43ecba408875861f9c0e15665af8568c9b1",
+  "proofs": {
+    "root_hygiene": {
+      "ok": true,
+      "pass": true,
+      "path": "client/runtime/local/state/ops/root_surface_contract/latest.json"
+    },
+    "source_runtime_split": {
+      "ok": true,
+      "pass": true,
+      "path": "client/runtime/local/state/ops/source_runtime_classifier/latest.json"
+    },
+    "mech_suit_benchmark": {
+      "ok": false,
+      "ambient_mode_active": true,
+      "token_burn_reduction_pct": 16.69,
+      "chars_reduction_pct": 16.83,
+      "path": "client/runtime/local/state/ops/mech_suit_benchmark/latest.json"
+    },
+    "autonomy_harness_6m": {
+      "ok": true,
+      "verdict": "warn",
+      "days": 180,
+      "report_path": "client/runtime/local/state/autonomy/simulations/2026-03-07.json",
+      "path": "client/runtime/local/state/autonomy/simulations/2026-03-07.json"
+    },
+    "protheus_vs_openclaw": {
+      "ok": false,
+      "parity_pass": false,
+      "weighted_score_avg": 0.8616,
+      "pass_ratio": 0.3333,
+      "path": "client/runtime/local/state/ops/narrow_agent_parity_harness.json"
+    },
+    "formal_invariants": {
+      "ok": true,
+      "failed_invariants": 0,
+      "total_invariants": 9,
+      "path": "client/runtime/local/state/security/formal_invariant_engine/latest.json"
+    }
+  },
+  "overall_ok": false,
+  "blockers": [
+    {
+      "id": "mech_suit_benchmark_failed",
+      "detail": "benchmark returned ok=false; see benchmark artifact for degraded lanes"
+    },
+    {
+      "id": "parity_not_met",
+      "detail": "narrow-agent parity harness did not meet aggregate pass gates"
+    }
+  ]
+}

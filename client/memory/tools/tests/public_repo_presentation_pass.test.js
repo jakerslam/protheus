@@ -58,7 +58,7 @@ try {
   writeText(rootContract, "#!/usr/bin/env node\nconsole.log(JSON.stringify({ok:true,type:'root_surface_contract'}));\n");
   writeText(docsContract, "#!/usr/bin/env node\nconsole.log(JSON.stringify({ok:true,type:'docs_surface_contract'}));\n");
 
-  writeText(path.join(tmp, 'README.md'), 'client/docs/README.md\nclient/docs/PUBLIC_OPERATOR_PROFILE.md\nclient/docs/ONBOARDING_PLAYBOOK.md\n');
+  writeText(path.join(tmp, 'README.md'), 'docs/client/README.md\ndocs/client/PUBLIC_OPERATOR_PROFILE.md\ndocs/client/ONBOARDING_PLAYBOOK.md\n');
   writeText(path.join(tmp, '.gitattributes'), '*.ts linguist-language=TypeScript\n');
   writeText(path.join(tmp, 'docs', 'PUBLIC_REPO_PRESENTATION_CHECKLIST.md'), 'commit --amend\npush --force\nreset --hard\n');
 
@@ -71,9 +71,9 @@ try {
     docs_contract_script: docsContract,
     readme_path: path.join(tmp, 'README.md'),
     readme_required_links: [
-      'client/docs/README.md',
-      'client/docs/PUBLIC_OPERATOR_PROFILE.md',
-      'client/docs/ONBOARDING_PLAYBOOK.md'
+      'docs/client/README.md',
+      'docs/client/PUBLIC_OPERATOR_PROFILE.md',
+      'docs/client/ONBOARDING_PLAYBOOK.md'
     ],
     forbidden_history_rewrite_tokens: ['commit --amend', 'push --force', 'reset --hard'],
     paths: {

@@ -43,8 +43,8 @@ function main() {
 
   fs.writeFileSync(runbookPath, [
     '# Secret rotation',
-    'node client/systems/security/secret_broker.js rotation-check --strict=1',
-    'node client/systems/security/secret_rotation_migration_auditor.js attest --apply=1'
+    'node client/runtime/systems/security/secret_broker.js rotation-check --strict=1',
+    'node client/runtime/systems/security/secret_rotation_migration_auditor.js attest --apply=1'
   ].join('\n'), 'utf8');
 
   writeJson(brokerPolicyPath, {

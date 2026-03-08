@@ -59,13 +59,13 @@ function run() {
     profile_id: 'protheus-prime-test',
     version: '1.0',
     mandatory_paths: [
-      'client/systems/eye/eye_kernel.ts',
-      'client/systems/security/guard.ts',
-      'client/systems/ops/seed_boot_probe.ts'
+      'client/runtime/systems/eye/eye_kernel.ts',
+      'client/runtime/systems/security/guard.ts',
+      'client/runtime/systems/ops/seed_boot_probe.ts'
     ],
     mandatory_governance_paths: [
-      'client/systems/eye/eye_kernel.ts',
-      'client/systems/security/guard.ts'
+      'client/runtime/systems/eye/eye_kernel.ts',
+      'client/runtime/systems/security/guard.ts'
     ],
     provision_on_bootstrap: true,
     probes: {
@@ -141,11 +141,11 @@ function run() {
     profile_id: 'protheus-prime-test-broken',
     version: '1.0',
     mandatory_paths: [
-      'client/systems/eye/eye_kernel.ts'
+      'client/runtime/systems/eye/eye_kernel.ts'
     ],
     mandatory_governance_paths: [
-      'client/systems/eye/eye_kernel.ts',
-      'client/systems/security/DOES_NOT_EXIST.ts'
+      'client/runtime/systems/eye/eye_kernel.ts',
+      'client/runtime/systems/security/DOES_NOT_EXIST.ts'
     ],
     probes: {
       seed_boot_probe: false,

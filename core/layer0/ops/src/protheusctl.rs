@@ -140,7 +140,7 @@ fn security_request(root: &Path, script_rel: &str, args: &[String]) -> Value {
         "operation_id": clean(format!("protheusctl_dispatch_{}_{}", now_ms, &digest[..10]), 160),
         "subsystem": "ops",
         "action": "cli_dispatch",
-        "actor": "client/systems/ops/protheusctl",
+        "actor": "client/runtime/systems/ops/protheusctl",
         "risk_class": if bool_env("PROTHEUS_CTL_SECURITY_HIGH_RISK", false) { "high" } else { "normal" },
         "payload_digest": format!("sha256:{digest}"),
         "tags": ["protheusctl", "dispatch", "foundation_lock"],
@@ -362,8 +362,8 @@ fn maybe_run_cli_suggestion_engine(root: &Path, cmd: &str, rest: &[String]) {
     ) {
         return;
     }
-    let suggestion_script = root.join("client/systems/tools/cli_suggestion_engine.js");
-    let suggestion_ts = root.join("client/systems/tools/cli_suggestion_engine.ts");
+    let suggestion_script = root.join("client/runtime/systems/tools/cli_suggestion_engine.js");
+    let suggestion_ts = root.join("client/runtime/systems/tools/cli_suggestion_engine.ts");
     if !suggestion_script.exists() || !suggestion_ts.exists() {
         return;
     }
@@ -395,7 +395,7 @@ fn maybe_run_update_checker(root: &Path, cmd: &str) {
     if matches!(cmd, "version" | "update" | "help" | "--help" | "-h") {
         return;
     }
-    let script = root.join("client/systems/ops/protheus_version_cli.js");
+    let script = root.join("client/runtime/systems/ops/protheus_version_cli.js");
     if !script.exists() {
         return;
     }
@@ -421,7 +421,7 @@ fn route_edge(rest: &[String]) -> Route {
                 .map(|v| v.trim().to_ascii_lowercase())
                 .unwrap_or_else(|| "status".to_string());
             Route {
-                script_rel: "client/systems/edge/mobile_lifecycle_resilience.js".to_string(),
+                script_rel: "client/runtime/systems/edge/mobile_lifecycle_resilience.js".to_string(),
                 args: std::iter::once(action)
                     .chain(rest.iter().skip(2).cloned())
                     .collect(),
@@ -434,7 +434,7 @@ fn route_edge(rest: &[String]) -> Route {
                 .map(|v| v.trim().to_ascii_lowercase())
                 .unwrap_or_else(|| "status".to_string());
             Route {
-                script_rel: "client/systems/spawn/mobile_edge_swarm_bridge.js".to_string(),
+                script_rel: "client/runtime/systems/spawn/mobile_edge_swarm_bridge.js".to_string(),
                 args: std::iter::once(action)
                     .chain(rest.iter().skip(2).cloned())
                     .collect(),
@@ -447,7 +447,7 @@ fn route_edge(rest: &[String]) -> Route {
                 .map(|v| v.trim().to_ascii_lowercase())
                 .unwrap_or_else(|| "status".to_string());
             Route {
-                script_rel: "client/systems/ops/mobile_wrapper_distribution_pack.js".to_string(),
+                script_rel: "client/runtime/systems/ops/mobile_wrapper_distribution_pack.js".to_string(),
                 args: std::iter::once(action)
                     .chain(rest.iter().skip(2).cloned())
                     .collect(),
@@ -460,7 +460,7 @@ fn route_edge(rest: &[String]) -> Route {
                 .map(|v| v.trim().to_ascii_lowercase())
                 .unwrap_or_else(|| "status".to_string());
             Route {
-                script_rel: "client/systems/ops/mobile_competitive_benchmark_matrix.js".to_string(),
+                script_rel: "client/runtime/systems/ops/mobile_competitive_benchmark_matrix.js".to_string(),
                 args: std::iter::once(action)
                     .chain(rest.iter().skip(2).cloned())
                     .collect(),
@@ -468,14 +468,14 @@ fn route_edge(rest: &[String]) -> Route {
             }
         }
         "top" => Route {
-            script_rel: "client/systems/edge/mobile_ops_top.js".to_string(),
+            script_rel: "client/runtime/systems/edge/mobile_ops_top.js".to_string(),
             args: std::iter::once("status".to_string())
                 .chain(rest.iter().skip(1).cloned())
                 .collect(),
             forward_stdin: false,
         },
         _ => Route {
-            script_rel: "client/systems/edge/protheus_edge_runtime.js".to_string(),
+            script_rel: "client/runtime/systems/edge/protheus_edge_runtime.js".to_string(),
             args: std::iter::once(sub)
                 .chain(rest.iter().skip(1).cloned())
                 .collect(),
@@ -530,7 +530,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             if !repl_disabled && (force_repl || std::io::stdin().is_terminal()) {
                 if should_offer_setup(root, skip_setup_flag) {
                     let setup_route = Route {
-                        script_rel: "client/systems/ops/protheus_setup_wizard.js".to_string(),
+                        script_rel: "client/runtime/systems/ops/protheus_setup_wizard.js".to_string(),
                         args: vec!["run".to_string()],
                         forward_stdin: true,
                     };
@@ -598,14 +598,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     let mut route = match cmd.as_str() {
         "list" => Route {
-            script_rel: "client/systems/ops/protheus_command_list.js".to_string(),
+            script_rel: "client/runtime/systems/ops/protheus_command_list.js".to_string(),
             args: std::iter::once("--mode=list".to_string())
                 .chain(rest)
                 .collect(),
             forward_stdin: false,
         },
         "completion" => Route {
-            script_rel: "client/systems/ops/protheus_completion.js".to_string(),
+            script_rel: "client/runtime/systems/ops/protheus_completion.js".to_string(),
             args: if rest.is_empty() {
                 vec!["--help".to_string()]
             } else {
@@ -614,12 +614,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             forward_stdin: false,
         },
         "repl" => Route {
-            script_rel: "client/systems/ops/protheus_repl.js".to_string(),
+            script_rel: "client/runtime/systems/ops/protheus_repl.js".to_string(),
             args: rest,
             forward_stdin: true,
         },
         "setup" => Route {
-            script_rel: "client/systems/ops/protheus_setup_wizard.js".to_string(),
+            script_rel: "client/runtime/systems/ops/protheus_setup_wizard.js".to_string(),
             args: if rest.is_empty() {
                 vec!["run".to_string()]
             } else {
@@ -628,32 +628,32 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             forward_stdin: true,
         },
         "demo" => Route {
-            script_rel: "client/systems/ops/protheus_demo.js".to_string(),
+            script_rel: "client/runtime/systems/ops/protheus_demo.js".to_string(),
             args: rest,
             forward_stdin: false,
         },
         "examples" => Route {
-            script_rel: "client/systems/ops/protheus_examples.js".to_string(),
+            script_rel: "client/runtime/systems/ops/protheus_examples.js".to_string(),
             args: rest,
             forward_stdin: false,
         },
         "version" => Route {
-            script_rel: "client/systems/ops/protheus_version_cli.js".to_string(),
+            script_rel: "client/runtime/systems/ops/protheus_version_cli.js".to_string(),
             args: std::iter::once("version".to_string()).chain(rest).collect(),
             forward_stdin: false,
         },
         "update" => Route {
-            script_rel: "client/systems/ops/protheus_version_cli.js".to_string(),
+            script_rel: "client/runtime/systems/ops/protheus_version_cli.js".to_string(),
             args: std::iter::once("update".to_string()).chain(rest).collect(),
             forward_stdin: false,
         },
         "diagram" => Route {
-            script_rel: "client/systems/ops/protheus_diagram.js".to_string(),
+            script_rel: "client/runtime/systems/ops/protheus_diagram.js".to_string(),
             args: rest,
             forward_stdin: false,
         },
         "shadow" => Route {
-            script_rel: "client/systems/personas/shadow_cli.js".to_string(),
+            script_rel: "client/runtime/systems/personas/shadow_cli.js".to_string(),
             args: if rest.is_empty() {
                 vec!["status".to_string()]
             } else {
@@ -662,21 +662,21 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             forward_stdin: false,
         },
         "help" => Route {
-            script_rel: "client/systems/ops/protheus_command_list.js".to_string(),
+            script_rel: "client/runtime/systems/ops/protheus_command_list.js".to_string(),
             args: std::iter::once("--mode=help".to_string())
                 .chain(rest)
                 .collect(),
             forward_stdin: false,
         },
         "--help" => Route {
-            script_rel: "client/systems/ops/protheus_command_list.js".to_string(),
+            script_rel: "client/runtime/systems/ops/protheus_command_list.js".to_string(),
             args: std::iter::once("--mode=help".to_string())
                 .chain(rest)
                 .collect(),
             forward_stdin: false,
         },
         "-h" => Route {
-            script_rel: "client/systems/ops/protheus_command_list.js".to_string(),
+            script_rel: "client/runtime/systems/ops/protheus_command_list.js".to_string(),
             args: std::iter::once("--mode=help".to_string())
                 .chain(rest)
                 .collect(),
@@ -688,44 +688,44 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .any(|arg| arg == "--dashboard" || arg == "dashboard");
             if use_dashboard {
                 Route {
-                    script_rel: "client/systems/ops/protheus_status_dashboard.js".to_string(),
+                    script_rel: "client/runtime/systems/ops/protheus_status_dashboard.js".to_string(),
                     args: rest,
                     forward_stdin: false,
                 }
             } else {
                 Route {
-                    script_rel: "client/systems/ops/protheusd.js".to_string(),
+                    script_rel: "client/runtime/systems/ops/protheusd.js".to_string(),
                     args: std::iter::once("status".to_string()).chain(rest).collect(),
                     forward_stdin: false,
                 }
             }
         }
         "debug" => Route {
-            script_rel: "client/systems/ops/protheus_debug_diagnostics.js".to_string(),
+            script_rel: "client/runtime/systems/ops/protheus_debug_diagnostics.js".to_string(),
             args: rest,
             forward_stdin: false,
         },
         "health" => Route {
-            script_rel: "client/systems/ops/protheus_control_plane.js".to_string(),
+            script_rel: "client/runtime/systems/ops/protheus_control_plane.js".to_string(),
             args: std::iter::once("health".to_string()).chain(rest).collect(),
             forward_stdin: false,
         },
         "job-submit" => Route {
-            script_rel: "client/systems/ops/protheus_control_plane.js".to_string(),
+            script_rel: "client/runtime/systems/ops/protheus_control_plane.js".to_string(),
             args: std::iter::once("job-submit".to_string())
                 .chain(rest)
                 .collect(),
             forward_stdin: false,
         },
         "protheusctl" => Route {
-            script_rel: "client/systems/ops/protheus_command_list.js".to_string(),
+            script_rel: "client/runtime/systems/ops/protheus_command_list.js".to_string(),
             args: std::iter::once("--mode=help".to_string())
                 .chain(rest)
                 .collect(),
             forward_stdin: false,
         },
         "skills" if rest.first().map(String::as_str) == Some("discover") => Route {
-            script_rel: "client/systems/ops/protheusctl_skills_discover.js".to_string(),
+            script_rel: "client/runtime/systems/ops/protheusctl_skills_discover.js".to_string(),
             args: rest.into_iter().skip(1).collect(),
             forward_stdin: false,
         },
@@ -736,7 +736,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .map(|v| v.trim().to_ascii_lowercase())
                 .unwrap_or_else(|| "status".to_string());
             Route {
-                script_rel: "client/systems/ops/host_adaptation_operator_surface.js".to_string(),
+                script_rel: "client/runtime/systems/ops/host_adaptation_operator_surface.js".to_string(),
                 args: std::iter::once(sub)
                     .chain(rest.into_iter().skip(1))
                     .collect(),
@@ -763,7 +763,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 _ => std::iter::once("status".to_string()).chain(rest).collect(),
             };
             Route {
-                script_rel: "client/systems/ops/platform_socket_runtime.js".to_string(),
+                script_rel: "client/runtime/systems/ops/platform_socket_runtime.js".to_string(),
                 args,
                 forward_stdin: false,
             }
@@ -774,7 +774,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .map(|v| v.trim().to_ascii_lowercase())
                 .unwrap_or_else(|| "dashboard".to_string());
             Route {
-                script_rel: "client/systems/economy/donor_mining_dashboard.js".to_string(),
+                script_rel: "client/runtime/systems/economy/donor_mining_dashboard.js".to_string(),
                 args: std::iter::once(sub)
                     .chain(rest.into_iter().skip(1))
                     .collect(),
@@ -798,7 +798,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                         .collect()
                 };
             Route {
-                script_rel: "client/systems/migration/core_migration_bridge.js".to_string(),
+                script_rel: "client/runtime/systems/migration/core_migration_bridge.js".to_string(),
                 args,
                 forward_stdin: false,
             }
@@ -820,7 +820,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                         .collect()
                 };
             Route {
-                script_rel: "client/systems/migration/universal_importers.js".to_string(),
+                script_rel: "client/runtime/systems/migration/universal_importers.js".to_string(),
                 args,
                 forward_stdin: false,
             }
@@ -832,7 +832,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .unwrap_or_else(|| "status".to_string());
             let normalized = if sub == "run" { "run" } else { "status" };
             Route {
-                script_rel: "client/systems/ops/wasi2_execution_completeness_gate.js".to_string(),
+                script_rel: "client/runtime/systems/ops/wasi2_execution_completeness_gate.js".to_string(),
                 args: std::iter::once(normalized.to_string())
                     .chain(rest.into_iter().skip(1))
                     .collect(),
@@ -870,20 +870,20 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                         .collect()
                 };
             Route {
-                script_rel: "client/systems/ops/settlement_program.js".to_string(),
+                script_rel: "client/runtime/systems/ops/settlement_program.js".to_string(),
                 args,
                 forward_stdin: false,
             }
         }
         "edit-core" => Route {
-            script_rel: "client/systems/ops/settlement_program.js".to_string(),
+            script_rel: "client/runtime/systems/ops/settlement_program.js".to_string(),
             args: std::iter::once("edit-core".to_string())
                 .chain(rest)
                 .collect(),
             forward_stdin: false,
         },
         "edit" => Route {
-            script_rel: "client/systems/ops/settlement_program.js".to_string(),
+            script_rel: "client/runtime/systems/ops/settlement_program.js".to_string(),
             args: if rest.is_empty() {
                 vec!["edit-module".to_string()]
             } else {
@@ -904,7 +904,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "status".to_string()
             };
             Route {
-                script_rel: "client/systems/ops/scale_readiness_program.js".to_string(),
+                script_rel: "client/runtime/systems/ops/scale_readiness_program.js".to_string(),
                 args: std::iter::once(normalized)
                     .chain(rest.into_iter().skip(1))
                     .collect(),
@@ -922,7 +922,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "status".to_string()
             };
             Route {
-                script_rel: "client/systems/ops/perception_polish_program.js".to_string(),
+                script_rel: "client/runtime/systems/ops/perception_polish_program.js".to_string(),
                 args: std::iter::once(normalized)
                     .chain(rest.into_iter().skip(1))
                     .collect(),
@@ -940,7 +940,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "status".to_string()
             };
             Route {
-                script_rel: "client/systems/ops/fluxlattice_program.js".to_string(),
+                script_rel: "client/runtime/systems/ops/fluxlattice_program.js".to_string(),
                 args: std::iter::once(normalized)
                     .chain(rest.into_iter().skip(1))
                     .collect(),
@@ -953,19 +953,19 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             forward_stdin: false,
         },
         "lens" => Route {
-            script_rel: "client/systems/personas/cli.js".to_string(),
+            script_rel: "client/runtime/systems/personas/cli.js".to_string(),
             args: rest,
             forward_stdin: true,
         },
         "arbitrate" => Route {
-            script_rel: "client/systems/personas/cli.js".to_string(),
+            script_rel: "client/runtime/systems/personas/cli.js".to_string(),
             args: std::iter::once("arbitrate".to_string())
                 .chain(rest)
                 .collect(),
             forward_stdin: true,
         },
         "orchestrate" => Route {
-            script_rel: "client/systems/personas/orchestration.js".to_string(),
+            script_rel: "client/runtime/systems/personas/orchestration.js".to_string(),
             args: if rest.is_empty() {
                 vec!["status".to_string()]
             } else {
@@ -980,7 +980,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .unwrap_or_default();
             if sub == "ambient" {
                 Route {
-                    script_rel: "client/systems/personas/ambient_stance.js".to_string(),
+                    script_rel: "client/runtime/systems/personas/ambient_stance.js".to_string(),
                     args: if rest.len() > 1 {
                         rest.into_iter().skip(1).collect()
                     } else {
@@ -990,7 +990,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 }
             } else {
                 Route {
-                    script_rel: "client/systems/personas/cli.js".to_string(),
+                    script_rel: "client/runtime/systems/personas/cli.js".to_string(),
                     args: if rest.is_empty() {
                         vec!["--help".to_string()]
                     } else {
@@ -1001,7 +1001,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             }
         }
         "assimilate" => Route {
-            script_rel: "client/systems/tools/assimilate.js".to_string(),
+            script_rel: "client/runtime/systems/tools/assimilate.js".to_string(),
             args: if rest.is_empty() {
                 vec!["--help".to_string()]
             } else {
@@ -1010,7 +1010,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             forward_stdin: false,
         },
         "research" => Route {
-            script_rel: "client/systems/tools/research.js".to_string(),
+            script_rel: "client/runtime/systems/tools/research.js".to_string(),
             args: if rest.is_empty() {
                 vec!["--help".to_string()]
             } else {
@@ -1019,7 +1019,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             forward_stdin: false,
         },
         "tutorial" => Route {
-            script_rel: "client/systems/tools/cli_suggestion_engine.js".to_string(),
+            script_rel: "client/runtime/systems/tools/cli_suggestion_engine.js".to_string(),
             args: if rest.is_empty() {
                 vec!["tutorial".to_string(), "status".to_string()]
             } else {
@@ -1030,7 +1030,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             forward_stdin: false,
         },
         "toolkit" => Route {
-            script_rel: "client/systems/ops/cognitive_toolkit_cli.js".to_string(),
+            script_rel: "client/runtime/systems/ops/cognitive_toolkit_cli.js".to_string(),
             args: if rest.is_empty() {
                 vec!["list".to_string()]
             } else {
@@ -1039,7 +1039,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             forward_stdin: true,
         },
         "spine" => Route {
-            script_rel: "client/systems/spine/spine_safe_launcher.js".to_string(),
+            script_rel: "client/runtime/systems/spine/spine_safe_launcher.js".to_string(),
             args: if rest.is_empty() {
                 vec!["status".to_string()]
             } else {
@@ -1059,7 +1059,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "status".to_string()
             };
             Route {
-                script_rel: "client/systems/autonomy/hold_remediation_engine.js".to_string(),
+                script_rel: "client/runtime/systems/autonomy/hold_remediation_engine.js".to_string(),
                 args: std::iter::once(normalized)
                     .chain(rest.into_iter().skip(1))
                     .collect(),
@@ -1077,7 +1077,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "status".to_string()
             };
             Route {
-                script_rel: "client/systems/ops/rust_authoritative_microkernel_acceleration.js"
+                script_rel: "client/runtime/systems/ops/rust_authoritative_microkernel_acceleration.js"
                     .to_string(),
                 args: std::iter::once(normalized)
                     .chain(rest.into_iter().skip(1))
@@ -1096,7 +1096,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "status".to_string()
             };
             Route {
-                script_rel: "client/systems/ops/rust_hybrid_migration_program.js".to_string(),
+                script_rel: "client/runtime/systems/ops/rust_hybrid_migration_program.js".to_string(),
                 args: std::iter::once(normalized)
                     .chain(rest.into_iter().skip(1))
                     .collect(),
@@ -1114,7 +1114,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "status".to_string()
             };
             Route {
-                script_rel: "client/systems/ops/productized_suite_program.js".to_string(),
+                script_rel: "client/runtime/systems/ops/productized_suite_program.js".to_string(),
                 args: std::iter::once(normalized)
                     .chain(rest.into_iter().skip(1))
                     .collect(),
@@ -1145,7 +1145,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             forward_stdin: false,
         },
         _ => Route {
-            script_rel: "client/systems/ops/protheus_unknown_guard.js".to_string(),
+            script_rel: "client/runtime/systems/ops/protheus_unknown_guard.js".to_string(),
             args: std::iter::once(cmd).chain(rest).collect(),
             forward_stdin: false,
         },
@@ -1153,17 +1153,17 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     let supports_json_flag = matches!(
         route.script_rel.as_str(),
-        "client/systems/ops/protheus_command_list.js"
-            | "client/systems/ops/protheus_setup_wizard.js"
-            | "client/systems/ops/protheus_demo.js"
-            | "client/systems/ops/protheus_examples.js"
-            | "client/systems/ops/protheus_version_cli.js"
-            | "client/systems/ops/protheus_diagram.js"
-            | "client/systems/ops/protheus_completion.js"
-            | "client/systems/ops/protheus_status_dashboard.js"
-            | "client/systems/ops/protheus_debug_diagnostics.js"
-            | "client/systems/personas/shadow_cli.js"
-            | "client/systems/tools/cli_suggestion_engine.js"
+        "client/runtime/systems/ops/protheus_command_list.js"
+            | "client/runtime/systems/ops/protheus_setup_wizard.js"
+            | "client/runtime/systems/ops/protheus_demo.js"
+            | "client/runtime/systems/ops/protheus_examples.js"
+            | "client/runtime/systems/ops/protheus_version_cli.js"
+            | "client/runtime/systems/ops/protheus_diagram.js"
+            | "client/runtime/systems/ops/protheus_completion.js"
+            | "client/runtime/systems/ops/protheus_status_dashboard.js"
+            | "client/runtime/systems/ops/protheus_debug_diagnostics.js"
+            | "client/runtime/systems/personas/shadow_cli.js"
+            | "client/runtime/systems/tools/cli_suggestion_engine.js"
     );
     if global_json
         && supports_json_flag
@@ -1177,9 +1177,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     let supports_quiet_flag = matches!(
         route.script_rel.as_str(),
-        "client/systems/ops/protheus_demo.js"
-            | "client/systems/ops/protheus_examples.js"
-            | "client/systems/ops/protheus_version_cli.js"
+        "client/runtime/systems/ops/protheus_demo.js"
+            | "client/runtime/systems/ops/protheus_examples.js"
+            | "client/runtime/systems/ops/protheus_version_cli.js"
     );
     if global_quiet
         && supports_quiet_flag
@@ -1229,7 +1229,7 @@ mod tests {
         ]);
         assert_eq!(
             route.script_rel,
-            "client/systems/spawn/mobile_edge_swarm_bridge.js"
+            "client/runtime/systems/spawn/mobile_edge_swarm_bridge.js"
         );
         assert_eq!(route.args.first().map(String::as_str), Some("enroll"));
     }
@@ -1241,7 +1241,7 @@ mod tests {
         std::env::set_var("PROTHEUS_CTL_SECURITY_COVENANT_VIOLATION", "1");
         let root = PathBuf::from(".");
         let verdict =
-            evaluate_dispatch_security(&root, "client/systems/ops/protheus_control_plane.js", &[]);
+            evaluate_dispatch_security(&root, "client/runtime/systems/ops/protheus_control_plane.js", &[]);
         assert!(!verdict.ok);
         assert!(verdict.reason.contains("fail_closed"));
         std::env::remove_var("PROTHEUS_CTL_SECURITY_COVENANT_VIOLATION");
@@ -1254,11 +1254,11 @@ mod tests {
         std::env::set_var("PROTHEUS_CTL_SECURITY_GATE_DISABLED", "0");
         std::env::set_var(
             "PROTHEUS_CTL_PERSONA_BLOCKED_PATHS",
-            "client/systems/ops/protheus_control_plane.js",
+            "client/runtime/systems/ops/protheus_control_plane.js",
         );
         let root = PathBuf::from(".");
         let verdict =
-            evaluate_dispatch_security(&root, "client/systems/ops/protheus_control_plane.js", &[]);
+            evaluate_dispatch_security(&root, "client/runtime/systems/ops/protheus_control_plane.js", &[]);
         assert!(!verdict.ok);
         assert!(verdict
             .reason

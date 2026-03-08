@@ -62,11 +62,11 @@ try {
     version: '1.0',
     adapters: {
       shared_http: {
-        module: 'client/systems/actuation/multi_channel_adapter.js',
+        module: 'client/runtime/systems/actuation/multi_channel_adapter.js',
         description: 'shared http'
       },
       bespoke_legacy: {
-        module: 'client/systems/actuation/legacy_one_off_adapter.js',
+        module: 'client/runtime/systems/actuation/legacy_one_off_adapter.js',
         description: 'legacy bespoke'
       }
     }
@@ -81,7 +81,7 @@ try {
     state_root: stateRoot,
     low_usage_threshold: 3,
     profile_ratio_target: 0.8,
-    shared_module_hints: ['client/systems/actuation/multi_channel_adapter.js'],
+    shared_module_hints: ['client/runtime/systems/actuation/multi_channel_adapter.js'],
     exempt_adapters: []
   });
 

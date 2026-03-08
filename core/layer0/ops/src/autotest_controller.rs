@@ -13,7 +13,7 @@ use std::time::{Duration, Instant};
 use sysinfo::System;
 use walkdir::WalkDir;
 
-const DEFAULT_POLICY_REL: &str = "client/config/autotest_policy.json";
+const DEFAULT_POLICY_REL: &str = "client/runtime/config/autotest_policy.json";
 
 #[derive(Debug, Clone)]
 struct CliArgs {
@@ -374,7 +374,7 @@ fn default_policy() -> Policy {
         enabled: true,
         strict_default: true,
         module_include_ext: vec![".ts".to_string()],
-        module_ignore_prefixes: vec!["client/systems/ops/visualizer/".to_string()],
+        module_ignore_prefixes: vec!["client/runtime/systems/ops/visualizer/".to_string()],
         test_include_suffix: ".test.js".to_string(),
         test_ignore_prefixes: Vec::new(),
         min_match_score: 4,
@@ -384,7 +384,7 @@ fn default_policy() -> Policy {
         layer_hint_score: 2,
         explicit_prefix_maps: BTreeMap::from([
             (
-                "client/systems/security/".to_string(),
+                "client/runtime/systems/security/".to_string(),
                 vec![
                     "client/memory/tools/tests/security_integrity.test.js".to_string(),
                     "client/memory/tools/tests/guard_remote_gate.test.js".to_string(),
@@ -392,15 +392,15 @@ fn default_policy() -> Policy {
                 ],
             ),
             (
-                "client/systems/spine/".to_string(),
+                "client/runtime/systems/spine/".to_string(),
                 vec!["client/memory/tools/tests/spine_evidence_run_plan.test.js".to_string()],
             ),
         ]),
         critical_commands: vec![
-            "node client/systems/ops/typecheck_systems.js".to_string(),
-            "node client/systems/ops/ts_clone_drift_guard.js --baseline=client/config/ts_clone_drift_baseline.json"
+            "node client/runtime/systems/ops/typecheck_systems.js".to_string(),
+            "node client/runtime/systems/ops/ts_clone_drift_guard.js --baseline=client/runtime/config/ts_clone_drift_baseline.json"
                 .to_string(),
-            "node client/systems/spine/contract_check.js".to_string(),
+            "node client/runtime/systems/spine/contract_check.js".to_string(),
         ],
         execution: ExecPolicy {
             default_scope: "changed".to_string(),
@@ -1417,7 +1417,7 @@ fn command_path_hints(command: &str) -> Vec<String> {
         .split_whitespace()
         .map(|tok| tok.trim_matches('"').trim_matches('\''))
         .filter(|tok| {
-            (tok.starts_with("client/systems/") || tok.starts_with("client/memory/tools/tests/"))
+            (tok.starts_with("client/runtime/systems/") || tok.starts_with("client/memory/tools/tests/"))
                 && (tok.ends_with(".js") || tok.ends_with(".ts"))
         })
         .map(|s| s.to_string())
@@ -1451,7 +1451,7 @@ fn run_guard_for_files(root: &Path, files: &[String]) -> GuardResult {
             duration_ms: 0,
         };
     }
-    let guard_path = root.join("client/systems/security/guard.js");
+    let guard_path = root.join("client/runtime/systems/security/guard.js");
     if !guard_path.exists() {
         return GuardResult {
             ok: true,
@@ -2736,8 +2736,8 @@ mod tests {
         let policy = default_policy();
         let module = ModuleCandidate {
             id: "mod_1".to_string(),
-            path: "client/systems/ops/autotest_controller.ts".to_string(),
-            abs_path: PathBuf::from("client/systems/ops/autotest_controller.ts"),
+            path: "client/runtime/systems/ops/autotest_controller.ts".to_string(),
+            abs_path: PathBuf::from("client/runtime/systems/ops/autotest_controller.ts"),
             basename: "autotest_controller".to_string(),
         };
         let test = TestCandidate {

@@ -3,7 +3,7 @@
 
 /**
  * state_cleanup.test.js
- * Deterministic contract test for client/systems/ops/state_cleanup.js
+ * Deterministic contract test for client/runtime/systems/ops/state_cleanup.js
  */
 
 const assert = require('assert');

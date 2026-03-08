@@ -53,9 +53,9 @@ try {
   const auditLatestPath = path.join(tmp, 'state', 'ops', 'polish_perception_program', 'audit_latest.json');
   const auditHistoryPath = path.join(tmp, 'state', 'ops', 'polish_perception_program', 'audit_history.jsonl');
 
-  writeText(path.join(tmp, 'README.md'), 'See client/docs/ORG_CODE_FORMAT_STANDARD.md for style.');
+  writeText(path.join(tmp, 'README.md'), 'See docs/client/ORG_CODE_FORMAT_STANDARD.md for style.');
   writeText(path.join(tmp, 'docs', 'README.md'), 'See ORG_CODE_FORMAT_STANDARD.md for docs style.');
-  writeText(path.join(tmp, 'CONTRIBUTING.md'), 'Use client/docs/ORG_CODE_FORMAT_STANDARD.md before PR.');
+  writeText(path.join(tmp, 'CONTRIBUTING.md'), 'Use docs/client/ORG_CODE_FORMAT_STANDARD.md before PR.');
   writeText(path.join(tmp, 'docs', 'ORG_CODE_FORMAT_STANDARD.md'), 'style guide');
   writeText(path.join(tmp, 'docs', 'PERCEPTION_AUDIT_PROGRAM.md'), 'monthly audit');
   writeText(path.join(tmp, 'docs', 'EMPTY_FORT_INTEGRITY_CHECKLIST.md'), 'checklist');
@@ -87,9 +87,9 @@ try {
     version: '1.0-test',
     enabled: true,
     required_docs: [
-      'client/docs/ORG_CODE_FORMAT_STANDARD.md',
-      'client/docs/PERCEPTION_AUDIT_PROGRAM.md',
-      'client/docs/EMPTY_FORT_INTEGRITY_CHECKLIST.md'
+      'docs/client/ORG_CODE_FORMAT_STANDARD.md',
+      'docs/client/PERCEPTION_AUDIT_PROGRAM.md',
+      'docs/client/EMPTY_FORT_INTEGRITY_CHECKLIST.md'
     ],
     package_json_path: path.join(tmp, 'package.json'),
     required_package_scripts: ['ops:format:check', 'lint'],
@@ -101,7 +101,7 @@ try {
       '.github/pull_request_template.md': ['summary', 'roadmap', 'validation', 'risk'],
       '.github/ISSUE_TEMPLATE/bug_report.md': ['summary', 'reproduction steps', 'impact'],
       '.github/ISSUE_TEMPLATE/feature_request.md': ['problem statement', 'acceptance criteria', 'risks and tradeoffs'],
-      'client/docs/release/templates/release_plan.md': ['scope', 'risk', 'rollback', 'claim-evidence matrix']
+      'docs/client/release/templates/release_plan.md': ['scope', 'risk', 'rollback', 'claim-evidence matrix']
     },
     audit: {
       max_age_days: 31,

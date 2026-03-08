@@ -1211,7 +1211,7 @@ function run() {
       '--emit-code-change-proposal=1',
       '--code-change-title=Harden inversion fallback routing',
       '--code-change-summary=Draft a guarded patch proposal to improve fallback certainty and preserve shadow-only behavior.',
-      '--code-change-files=client/systems/autonomy/inversion_controller.ts,client/systems/routing/llm_gateway.ts',
+      '--code-change-files=client/runtime/systems/autonomy/inversion_controller.ts,client/runtime/systems/routing/llm_gateway.ts',
       '--code-change-tests=client/memory/tools/tests/inversion_controller.test.js,client/memory/tools/tests/llm_gateway_opacity.test.js',
       '--code-change-risk=Must stay proposal-only and require mirror simulation before live apply.',
       `--policy=${codeProposalPolicyPath}`

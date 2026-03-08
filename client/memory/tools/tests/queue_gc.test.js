@@ -63,7 +63,7 @@ function makeProposal(i, dateStr) {
       version: 1,
       objective: 'Keep queue pressure bounded with deterministic hygiene.',
       target: `queue_gc:${i}`,
-      next_command: `node client/habits/scripts/queue_gc.js run ${dateStr}`,
+      next_command: `node client/cognition/habits/scripts/queue_gc.js run ${dateStr}`,
       verify: ['Queue open count within cap per eye'],
       rollback: 'Restore previous queue dispositions from queue log history'
     },
@@ -122,7 +122,7 @@ function testDefaultParsingAndIdempotence() {
 
   // Explicit empty args should still use safe defaults (cap=10, ttl=48), rejecting exactly one overflow item.
   const first = runNode(
-    ['client/habits/scripts/queue_gc.js', 'run', dateStr, '--cap-per-eye=', '--ttl-hours='],
+    ['client/cognition/habits/scripts/queue_gc.js', 'run', dateStr, '--cap-per-eye=', '--ttl-hours='],
     baseEnv
   );
   assert.strictEqual(first.status, 0, `queue_gc first run failed: ${String(first.stderr || first.stdout)}`);
@@ -134,7 +134,7 @@ function testDefaultParsingAndIdempotence() {
 
   // Second run should be idempotent: no additional reject events.
   const second = runNode(
-    ['client/habits/scripts/queue_gc.js', 'run', dateStr],
+    ['client/cognition/habits/scripts/queue_gc.js', 'run', dateStr],
     baseEnv
   );
   assert.strictEqual(second.status, 0, `queue_gc second run failed: ${String(second.stderr || second.stdout)}`);
@@ -177,7 +177,7 @@ function testBudgetAwareHardPressureTuning() {
     QUEUE_GC_BUDGET_PRESSURE: 'hard'
   };
 
-  const run = runNode(['client/habits/scripts/queue_gc.js', 'run', dateStr], env);
+  const run = runNode(['client/cognition/habits/scripts/queue_gc.js', 'run', dateStr], env);
   assert.strictEqual(run.status, 0, `queue_gc hard-pressure run failed: ${String(run.stderr || run.stdout)}`);
 
   const after = readJsonl(queueLog).filter((e) => e && e.type === 'proposal_rejected');
@@ -211,7 +211,7 @@ function testAdaptiveEscalationSalvagePath() {
         version: 1,
         objective: 'Salvage high-score escalation',
         target: 'queue_gc:esc-high',
-        next_command: `node client/habits/scripts/queue_gc.js run ${dateStr}`,
+        next_command: `node client/cognition/habits/scripts/queue_gc.js run ${dateStr}`,
         verify: ['proposal parked'],
         rollback: 'unsnooze escalation proposal'
       },
@@ -236,7 +236,7 @@ function testAdaptiveEscalationSalvagePath() {
         version: 1,
         objective: 'Reject low-score escalation',
         target: 'queue_gc:esc-low',
-        next_command: `node client/habits/scripts/queue_gc.js run ${dateStr}`,
+        next_command: `node client/cognition/habits/scripts/queue_gc.js run ${dateStr}`,
         verify: ['proposal rejected'],
         rollback: 'restore proposal status open'
       },
@@ -272,7 +272,7 @@ function testAdaptiveEscalationSalvagePath() {
 
   const run = runNode(
     [
-      'client/habits/scripts/queue_gc.js',
+      'client/cognition/habits/scripts/queue_gc.js',
       'run',
       dateStr,
       '--cap-per-eye=10',
@@ -335,7 +335,7 @@ function testDeterministicNowOverrideForDefaultDate() {
     QUEUE_GC_NOW_ISO: `${overriddenDate}T12:00:00.000Z`
   };
 
-  const run = runNode(['client/habits/scripts/queue_gc.js', 'run'], env);
+  const run = runNode(['client/cognition/habits/scripts/queue_gc.js', 'run'], env);
   assert.strictEqual(run.status, 0, `queue_gc now-override run failed: ${String(run.stderr || run.stdout)}`);
 
   const rejected = readJsonl(queueLog).filter((e) => e && e.type === 'proposal_rejected');

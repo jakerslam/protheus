@@ -49,7 +49,7 @@ function jsDirectiveClarificationExecSpec(input) {
     };
   }
   const objectiveId = sanitizeDirectiveObjectiveId(input.meta_directive_objective_id || '');
-  let relFile = objectiveId ? `client/config/directives/${objectiveId}.yaml` : '';
+  let relFile = objectiveId ? `client/runtime/config/directives/${objectiveId}.yaml` : '';
   let source = objectiveId ? 'meta.directive_objective_id' : '';
   if (!relFile) {
     relFile = parseDirectiveFileArgFromCommand(input.suggested_next_command);
@@ -185,7 +185,7 @@ function run() {
     {
       proposal_type: 'directive_clarification',
       meta_directive_objective_id: '',
-      suggested_next_command: "node client/systems/security/directive_intake.js validate --file=client/config/directives/quant_intel_acquisition.yaml"
+      suggested_next_command: "node client/runtime/systems/security/directive_intake.js validate --file=client/runtime/config/directives/quant_intel_acquisition.yaml"
     },
     {
       proposal_type: 'route_execute',
@@ -215,7 +215,7 @@ function run() {
     {
       proposal_type: 'directive_decomposition',
       meta_directive_objective_id: '',
-      suggested_next_command: "node client/systems/security/directive_intake.js decompose --id=T3_ALPHA"
+      suggested_next_command: "node client/runtime/systems/security/directive_intake.js decompose --id=T3_ALPHA"
     },
     {
       proposal_type: 'route_execute',

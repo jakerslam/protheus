@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-const SCRIPT = path.join(ROOT, 'client/systems/continuity/human_machine_merge_interface_security_substrate.js');
+const SCRIPT = path.join(ROOT, 'client/runtime/systems/continuity/human_machine_merge_interface_security_substrate.js');
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });

@@ -55,7 +55,7 @@ try {
       onnx_runtime: true
     },
     fallback_runtime: 'cross_platform_runtime',
-    rollback_command: 'node client/systems/runtime/windows_native_runtime_parity.js run --force-fallback=1',
+    rollback_command: 'node client/runtime/systems/runtime/windows_native_runtime_parity.js run --force-fallback=1',
     paths: {
       latest_path: latestPath,
       history_path: historyPath

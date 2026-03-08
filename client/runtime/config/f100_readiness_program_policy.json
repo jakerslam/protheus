@@ -1,0 +1,80 @@
+{
+  "schema_id": "f100_readiness_program_policy",
+  "schema_version": "1.0",
+  "strict_default": true,
+  "outputs": {
+    "state_root": "state/ops/f100_readiness_program",
+    "latest_path": "state/ops/f100_readiness_program/latest.json",
+    "history_path": "state/ops/f100_readiness_program/history.jsonl"
+  },
+  "lanes": {
+    "V6-F100-004": {
+      "control_map_path": "client/runtime/config/compliance_control_map.json",
+      "bundle_path": "state/ops/compliance_evidence_bundle/latest.json"
+    },
+    "V6-F100-005": {
+      "profile_path": "client/runtime/config/one_million_performance_profile.json"
+    },
+    "V6-F100-006": {
+      "contract_path": "client/runtime/config/multi_tenant_isolation_contract.json",
+      "adversarial_path": "state/security/multi_tenant_isolation_adversarial/latest.json"
+    },
+    "V6-F100-007": {
+      "registry_path": "client/runtime/config/api_cli_contract_registry.json",
+      "required_deprecation_days": 90
+    },
+    "V6-F100-008": {
+      "incident_policy_path": "client/runtime/config/oncall_incident_policy.json",
+      "gameday_path": "state/ops/oncall_gameday/latest.json",
+      "target_mtta_minutes": 5,
+      "target_mttr_minutes": 30,
+      "required_docs": [
+        "observability/runbooks/INCIDENT_COMMAND.md",
+        "observability/runbooks/POSTMORTEM_TEMPLATE.md"
+      ]
+    },
+    "V6-F100-009": {
+      "bootstrap_script": "client/cli/bin/protheus_onboarding_bootstrap.sh",
+      "metrics_path": "state/ops/onboarding_portal/success_metrics.json",
+      "track_docs": [
+        "docs/client/onboarding/operator.md",
+        "docs/client/onboarding/backend.md",
+        "docs/client/onboarding/infra.md",
+        "docs/client/onboarding/security.md"
+      ]
+    },
+    "V6-F100-010": {
+      "pack_path": "docs/client/ops/ENTERPRISE_ARCHITECTURE_EVIDENCE_PACK.md",
+      "required_tokens": [
+        "## Component Boundaries",
+        "## Failure Domains",
+        "## Security Model",
+        "## Benchmark Claims",
+        "## Rollback Narratives"
+      ],
+      "required_artifact_paths": [
+        "client/runtime/config/f100_reliability_certification_policy.json",
+        "client/runtime/config/supply_chain_provenance_v2_policy.json",
+        "state/ops/f100_reliability_certification/latest.json"
+      ]
+    },
+    "V6-F100-011": {
+      "snapshot_path": "docs/client/ops/operator_surface_consistency_snapshot.json",
+      "surface_policy_path": "client/runtime/config/operator_surface_consistency_policy.json"
+    },
+    "V6-F100-012": {
+      "scorecard_path": "state/ops/executive_readiness_scorecard/latest.json",
+      "history_path": "state/ops/executive_readiness_scorecard/history.jsonl"
+    },
+    "V6-F100-035": {
+      "roots": ["crates"],
+      "extensions": ["rs"],
+      "exclude_paths": ["target", "state", "node_modules"],
+      "baseline_missing_path": "client/runtime/config/spdx_header_guard_baseline.txt"
+    },
+    "V6-F100-036": {
+      "archive_root": "research/archive/root_surface",
+      "root_dirs": ["drafts", "notes", "experiments"]
+    }
+  }
+}

@@ -134,13 +134,13 @@ function main() {
     GATED_SELF_IMPROVEMENT_POLICY_PATH: policyPath
   };
 
-  let r = run(['propose', '--target-path=client/systems/autonomy/example.ts'], env);
+  let r = run(['propose', '--target-path=client/runtime/systems/autonomy/example.ts'], env);
   assert.strictEqual(r.status, 1, 'objective_id should be required');
 
   r = run([
     'propose',
     '--objective-id=self_improvement_objective',
-    '--target-path=client/systems/autonomy/example.ts',
+    '--target-path=client/runtime/systems/autonomy/example.ts',
     '--summary=improve guarded rollout',
     '--risk=medium',
     '--recursion-depth=2'
@@ -263,7 +263,7 @@ function main() {
   r = run([
     'propose',
     '--objective-id=self_improvement_objective',
-    '--target-path=client/systems/autonomy/example.ts',
+    '--target-path=client/runtime/systems/autonomy/example.ts',
     '--summary=attempt deep recursion under low symbiosis',
     '--risk=high',
     '--recursion-depth=9'

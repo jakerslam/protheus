@@ -4,17 +4,17 @@ on:
   push:
     paths:
       - "SRS.md"
-      - "client/config/backlog_registry.json"
-      - "client/config/backlog_registry_policy.json"
-      - "client/docs/backlog_views/**"
+      - "client/runtime/config/backlog_registry.json"
+      - "client/runtime/config/backlog_registry_policy.json"
+      - "docs/client/backlog_views/**"
       - "core/layer0/ops/src/backlog_registry.rs"
       - ".github/workflows/backlog-consistency.yml"
   pull_request:
     paths:
       - "SRS.md"
-      - "client/config/backlog_registry.json"
-      - "client/config/backlog_registry_policy.json"
-      - "client/docs/backlog_views/**"
+      - "client/runtime/config/backlog_registry.json"
+      - "client/runtime/config/backlog_registry_policy.json"
+      - "docs/client/backlog_views/**"
       - "core/layer0/ops/src/backlog_registry.rs"
       - ".github/workflows/backlog-consistency.yml"
 

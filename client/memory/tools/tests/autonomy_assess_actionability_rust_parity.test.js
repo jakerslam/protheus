@@ -60,7 +60,7 @@ function run() {
     summary: 'Execute concrete follow-up workflow and verify conversion lift.',
     expected_impact: 'high',
     risk: 'medium',
-    suggested_next_command: 'node client/systems/autonomy/autonomy_controller.js run --task=\"apply follow-up\"',
+    suggested_next_command: 'node client/runtime/systems/autonomy/autonomy_controller.js run --task=\"apply follow-up\"',
     validation: [
       'conversion rate >= 10%',
       'weekly report generated'

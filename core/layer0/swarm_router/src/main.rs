@@ -38,7 +38,7 @@ fn parse_bool(args: &[String], name: &str, default: bool) -> bool {
 }
 
 fn queue_path(args: &[String]) -> PathBuf {
-    let raw = parse_flag(args, "queue", Some("client/local/state/swarm/queue.json"));
+    let raw = parse_flag(args, "queue", Some("client/runtime/local/state/swarm/queue.json"));
     PathBuf::from(raw)
 }
 

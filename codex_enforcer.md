@@ -37,10 +37,10 @@ Completion requires all of the following:
 - Before adding any **new file** (`git add` path that did not previously exist), run a projected Rust composition check.
 - If the projected repository Rust percentage would drop below **70.0%**, the change is blocked.
 - Block message format: `BLOCKED — projected Rust % would fall below 70.0 after adding new files`.
-- Do not migrate `client/adaptive/**` into Rust unless the path is under `client/systems/adaptive/**`.
+- Do not migrate `client/adaptive/**` into Rust unless the path is under `client/runtime/systems/adaptive/**`.
 - Keep user-flex surfaces (`habits`, `reflexes`, `eyes` user-specific paths) non-Rust by default unless explicitly approved.
-- Treat these TCB prefixes as Rust-authoritative migration targets: `client/systems/security/`, `client/systems/ops/`, `client/systems/memory/`, `client/systems/sensory/`, `client/systems/autonomy/`, `client/systems/assimilation/`.
-- Keep these surface prefixes TypeScript-first unless explicitly overridden: `client/systems/ui/`, `client/systems/marketplace/`, `client/systems/extensions/`.
+- Treat these TCB prefixes as Rust-authoritative migration targets: `client/runtime/systems/security/`, `client/runtime/systems/ops/`, `client/runtime/systems/memory/`, `client/runtime/systems/sensory/`, `client/runtime/systems/autonomy/`, `client/runtime/systems/assimilation/`.
+- Keep these surface prefixes TypeScript-first unless explicitly overridden: `client/runtime/systems/ui/`, `client/runtime/systems/marketplace/`, `client/runtime/systems/extensions/`.
 
 ## Behavior-Preserving Migration Rules
 - Preserve existing behavior unless a breaking change is explicitly requested.

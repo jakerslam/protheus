@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const POLICY_REL: &str = "client/config/shadow_budget_governance_policy.json";
+const POLICY_REL: &str = "client/runtime/config/shadow_budget_governance_policy.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ShadowOverride {

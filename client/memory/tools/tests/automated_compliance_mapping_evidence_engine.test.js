@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-const SCRIPT = path.join(ROOT, 'client/systems/ops/automated_compliance_mapping_evidence_engine.js');
+const SCRIPT = path.join(ROOT, 'client/runtime/systems/ops/automated_compliance_mapping_evidence_engine.js');
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });

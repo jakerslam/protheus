@@ -33,7 +33,7 @@ function run(args, cwd) {
   assert.strictEqual(ok.status, 0, ok.stderr || ok.stdout);
 
   const rcPath = path.join(tmp, '.all-contributorsrc');
-  const manifestPath = path.join(tmp, 'client/docs/community/contributors_manifest.json');
+  const manifestPath = path.join(tmp, 'docs/client/community/contributors_manifest.json');
 
   assert.ok(fs.existsSync(rcPath), 'missing .all-contributorsrc');
   assert.ok(fs.existsSync(manifestPath), 'missing contributors manifest');

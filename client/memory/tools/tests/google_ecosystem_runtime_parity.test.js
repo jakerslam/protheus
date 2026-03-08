@@ -56,7 +56,7 @@ try {
     },
     min_android_api_level: 16,
     fallback_runtime: 'baseline_mobile_runtime',
-    rollback_command: 'node client/systems/runtime/google_ecosystem_runtime_parity.js run --force-fallback=1',
+    rollback_command: 'node client/runtime/systems/runtime/google_ecosystem_runtime_parity.js run --force-fallback=1',
     paths: {
       latest_path: latestPath,
       history_path: historyPath

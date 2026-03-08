@@ -42,7 +42,7 @@ function runNode(script, args, env = {}) {
 try {
   let out = runNode(PROACTIVE, [
     'scan',
-    '--text=I just used client/docs/cognitive_toolkit.md for this workflow.',
+    '--text=I just used docs/client/cognitive_toolkit.md for this workflow.',
     '--auto-confirm=1',
     '--dry-run=1',
     '--format=json',
@@ -57,7 +57,7 @@ try {
 
   out = runNode(PROTHEUSCTL, [
     'research',
-    'I just used client/docs/cognitive_toolkit.md for this workflow',
+    'I just used docs/client/cognitive_toolkit.md for this workflow',
     '--dry-run=1',
     '--auto-confirm-assimilate=1',
     '--format=json'

@@ -49,7 +49,7 @@ try {
     enabled: true,
     strict_default: false,
     defaults: {
-      migration_guide_url: 'client/docs/CORE_MIGRATION_BRIDGE.md'
+      migration_guide_url: 'docs/client/CORE_MIGRATION_BRIDGE.md'
     },
     files: {
       legacy_readme_path: path.join(workspaceRoot, 'README.md'),

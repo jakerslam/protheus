@@ -92,7 +92,7 @@ function main() {
           version: 1,
           objective: 'Ship high-worth proposal',
           target: 'proposal:P-HIGH1',
-          next_command: 'node client/habits/scripts/proposal_queue.js accept P-HIGH1 "ship now"',
+          next_command: 'node client/cognition/habits/scripts/proposal_queue.js accept P-HIGH1 "ship now"',
           verify: ['decision recorded', 'outcome logged'],
           rollback: 'mark rejected with reason rollback_test'
         }
@@ -102,7 +102,7 @@ function main() {
         title: 'Filtered missing action spec',
         type: 'external_intel',
         execution_worthiness_score: 92,
-        suggested_next_command: 'node client/habits/scripts/proposal_queue.js accept P-MISS "recover missing spec"'
+        suggested_next_command: 'node client/cognition/habits/scripts/proposal_queue.js accept P-MISS "recover missing spec"'
       },
       {
         id: 'P-LOW1',

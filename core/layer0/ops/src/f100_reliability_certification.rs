@@ -8,7 +8,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 const LANE_ID: &str = "f100_reliability_certification";
-const DEFAULT_POLICY_REL: &str = "client/config/f100_reliability_certification_policy.json";
+const DEFAULT_POLICY_REL: &str = "client/runtime/config/f100_reliability_certification_policy.json";
 
 #[derive(Debug, Clone)]
 struct Tier {
@@ -815,7 +815,7 @@ mod tests {
                 "history_path": "state/ops/f100_reliability_certification/history.jsonl"
             }
         });
-        write_json(&root.join("client/config/f100_reliability_certification_policy.json"), &policy);
+        write_json(&root.join("client/runtime/config/f100_reliability_certification_policy.json"), &policy);
     }
 
     fn write_common_fixtures(root: &Path, burn_ratio: f64) {

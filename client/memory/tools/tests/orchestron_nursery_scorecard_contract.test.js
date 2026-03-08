@@ -17,8 +17,8 @@ function candidate(id, proposalType, opts = {}) {
     },
     mutation: opts.mutation || null,
     steps: opts.steps || [
-      { id: 'execute', type: 'command', command: 'node client/systems/autonomy/autonomy_controller.js run <date>', retries: 1, timeout_ms: 120000 },
-      { id: 'verify', type: 'gate', command: 'node client/systems/autonomy/strategy_execute_guard.js run <date>', retries: 0, timeout_ms: 120000 },
+      { id: 'execute', type: 'command', command: 'node client/runtime/systems/autonomy/autonomy_controller.js run <date>', retries: 1, timeout_ms: 120000 },
+      { id: 'verify', type: 'gate', command: 'node client/runtime/systems/autonomy/strategy_execute_guard.js run <date>', retries: 0, timeout_ms: 120000 },
       { id: 'receipt', type: 'receipt', command: 'state/autonomy/receipts/<date>.jsonl', retries: 0, timeout_ms: 30000 }
     ],
     metadata: {
@@ -38,10 +38,10 @@ function run() {
     signals: { feasibility: 1, risk: 0, novelty: 0 },
     mutation: { kind: 'guard_hardening' },
     steps: [
-      { id: 'preflight', type: 'gate', command: 'node client/systems/spine/contract_check.js', retries: 0, timeout_ms: 60000 },
-      { id: 'execute', type: 'command', command: 'node client/systems/autonomy/autonomy_controller.js run <date>', retries: 1, timeout_ms: 120000 },
-      { id: 'rollback', type: 'command', command: 'node client/systems/autonomy/strategy_execute_guard.js rollback <date>', retries: 0, timeout_ms: 90000 },
-      { id: 'verify', type: 'gate', command: 'node client/systems/autonomy/strategy_execute_guard.js run <date>', retries: 0, timeout_ms: 120000 },
+      { id: 'preflight', type: 'gate', command: 'node client/runtime/systems/spine/contract_check.js', retries: 0, timeout_ms: 60000 },
+      { id: 'execute', type: 'command', command: 'node client/runtime/systems/autonomy/autonomy_controller.js run <date>', retries: 1, timeout_ms: 120000 },
+      { id: 'rollback', type: 'command', command: 'node client/runtime/systems/autonomy/strategy_execute_guard.js rollback <date>', retries: 0, timeout_ms: 90000 },
+      { id: 'verify', type: 'gate', command: 'node client/runtime/systems/autonomy/strategy_execute_guard.js run <date>', retries: 0, timeout_ms: 120000 },
       { id: 'receipt', type: 'receipt', command: 'state/autonomy/receipts/<date>.jsonl', retries: 0, timeout_ms: 30000 }
     ],
     shipped_rate: 0.55,

@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-const SCRIPT = path.join(ROOT, 'client/systems/security/mind_fortress_principle.js');
+const SCRIPT = path.join(ROOT, 'client/runtime/systems/security/mind_fortress_principle.js');
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -52,7 +52,7 @@ try {
   {
     "id": "manifesto_doc_present",
     "description": "Mind sovereignty manifesto present",
-    "file_must_exist": "client/docs/MIND_SOVEREIGNTY.md"
+    "file_must_exist": "docs/client/MIND_SOVEREIGNTY.md"
   },
   {
     "id": "contract_alignment_field",

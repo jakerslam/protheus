@@ -128,7 +128,7 @@ function run() {
   const proposed = runNode(scriptPath, [
     'propose',
     '--sandbox-id=sb_unit',
-    '--target-path=client/systems/workflow/workflow_executor.ts',
+    '--target-path=client/runtime/systems/workflow/workflow_executor.ts',
     '--summary=adjust retry guard',
     '--risk=medium',
     '--recursion-depth=2'
@@ -218,7 +218,7 @@ function run() {
   const blockedBySymbiosis = runNode(scriptPath, [
     'propose',
     '--sandbox-id=sb_blocked',
-    '--target-path=client/systems/workflow/workflow_executor.ts',
+    '--target-path=client/runtime/systems/workflow/workflow_executor.ts',
     '--summary=attempt deep recursive mutation',
     '--risk=high',
     '--recursion-depth=9'

@@ -37,7 +37,7 @@ try {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'adapt-review-bridge-'));
   writeJson(path.join(tmp, 'AGENTS.md'), { ok: true });
   writeJson(path.join(tmp, 'package.json'), { name: 'tmp' });
-  const policyPath = path.join(tmp, 'client', 'config', 'adaptation_review_bridge_policy.json');
+  const policyPath = path.join(tmp, 'client', 'runtime', 'config', 'adaptation_review_bridge_policy.json');
   writeJson(policyPath, {
     version: 'test',
     enabled: true,

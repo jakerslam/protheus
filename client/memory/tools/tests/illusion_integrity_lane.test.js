@@ -45,17 +45,17 @@ function seedWorkspace(rootDir) {
   const files = [
     'README.md',
     'CHANGELOG.md',
-    'client/docs/ONBOARDING_PLAYBOOK.md',
-    'client/docs/UI_SURFACE_MATURITY_MATRIX.md',
-    'client/docs/HISTORY_CLEANLINESS.md',
-    'client/docs/CLAIM_EVIDENCE_POLICY.md',
-    'client/docs/PUBLIC_COLLABORATION_TRIAGE.md',
+    'docs/client/ONBOARDING_PLAYBOOK.md',
+    'docs/client/UI_SURFACE_MATURITY_MATRIX.md',
+    'docs/client/HISTORY_CLEANLINESS.md',
+    'docs/client/CLAIM_EVIDENCE_POLICY.md',
+    'docs/client/PUBLIC_COLLABORATION_TRIAGE.md',
     '.github/ISSUE_TEMPLATE/bug_report.md',
     '.github/ISSUE_TEMPLATE/feature_request.md',
     '.github/ISSUE_TEMPLATE/security_report.md',
-    'client/systems/research/research_organ.ts',
-    'client/systems/forge/forge_organ.ts',
-    'client/systems/workflow/orchestron_controller.ts'
+    'client/runtime/systems/research/research_organ.ts',
+    'client/runtime/systems/forge/forge_organ.ts',
+    'client/runtime/systems/workflow/orchestron_controller.ts'
   ];
   for (const rel of files) {
     const abs = path.join(rootDir, rel);

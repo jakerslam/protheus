@@ -54,8 +54,8 @@ function runTest() {
     required_docs: [path.relative(ROOT, fakeDoc)],
     critical_commands: ['node -e "process.exit(0)"'],
     ownership_matrix: [
-      { path_prefix: 'client/systems/spine/', primary_owner: 'jay', secondary_owner: 'ops', service_level: 'critical' },
-      { path_prefix: 'client/systems/security/', primary_owner: 'jay', secondary_owner: 'ops', service_level: 'critical' }
+      { path_prefix: 'client/runtime/systems/spine/', primary_owner: 'jay', secondary_owner: 'ops', service_level: 'critical' },
+      { path_prefix: 'client/runtime/systems/security/', primary_owner: 'jay', secondary_owner: 'ops', service_level: 'critical' }
     ]
   }, null, 2));
 

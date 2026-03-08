@@ -10,7 +10,7 @@ const {
 
 function run() {
   const secret = 'test-secret-key';
-  const files = ['client/systems/security/guard.js', 'client/config/agent_routing_rules.json'];
+  const files = ['client/runtime/systems/security/guard.js', 'client/runtime/config/agent_routing_rules.json'];
 
   const env = stampGuardEnv(
     { REQUEST_GATE_SECRET_PRIMARY_V1: secret, REQUEST_KEY_ID: 'primary.v1' },

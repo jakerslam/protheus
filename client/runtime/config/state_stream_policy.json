@@ -1,0 +1,38 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "docs_path": "docs/STATE_STREAM_POLICY.md",
+  "gitignore_path": "../.gitignore",
+  "state_classes": [
+    {
+      "id": "source_of_truth",
+      "mode": "tracked",
+      "paths": ["client/runtime/systems/**", "client/lib/**", "client/runtime/config/**", "docs/client/**", "client/memory/tools/**"]
+    },
+    {
+      "id": "runtime_state",
+      "mode": "ignored",
+      "paths": ["state/**", "tmp/**", "client/runtime/local/logs/**"]
+    },
+    {
+      "id": "skills_local",
+      "mode": "ignored",
+      "paths": ["client/cognition/skills/**"]
+    }
+  ],
+  "required_ignore_patterns": [
+    "state/**",
+    "tmp/",
+    "client/runtime/local/logs/tool_raw/"
+  ],
+  "required_unignore_patterns": [
+    "!client/memory/tools/**",
+    "!client/cognition/skills/mcp/*.ts",
+    "!client/cognition/skills/mcp/*.js",
+    "!client/cognition/skills/mcp/*.json"
+  ],
+  "outputs": {
+    "latest_path": "local/state/ops/state_stream_policy_check/latest.json",
+    "history_path": "local/state/ops/state_stream_policy_check/history.jsonl"
+  }
+}

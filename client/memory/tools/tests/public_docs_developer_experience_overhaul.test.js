@@ -58,11 +58,11 @@ try {
 
   writeText(path.join(tmp, 'README.md'), [
     'See ARCHITECTURE.md',
-    'See client/docs/DEVELOPER_LANE_QUICKSTART.md',
-    'See client/docs/HELP.md'
+    'See docs/client/DEVELOPER_LANE_QUICKSTART.md',
+    'See docs/client/HELP.md'
   ].join('\n'));
-  writeText(path.join(tmp, 'ARCHITECTURE.md'), 'Hub: client/docs/README.md\n');
-  writeText(path.join(tmp, 'CONTRIBUTING.md'), 'Use client/docs/DEVELOPER_LANE_QUICKSTART.md\n');
+  writeText(path.join(tmp, 'ARCHITECTURE.md'), 'Hub: docs/client/README.md\n');
+  writeText(path.join(tmp, 'CONTRIBUTING.md'), 'Use docs/client/DEVELOPER_LANE_QUICKSTART.md\n');
   writeText(path.join(tmp, 'docs', 'README.md'), 'Guide: DEVELOPER_LANE_QUICKSTART.md\n');
   writeText(path.join(tmp, 'docs', 'HELP.md'), 'help\n');
   writeText(path.join(tmp, 'docs', 'ONBOARDING_PLAYBOOK.md'), 'onboarding\n');
@@ -81,18 +81,18 @@ try {
       'README.md',
       'ARCHITECTURE.md',
       'CONTRIBUTING.md',
-      'client/docs/README.md',
-      'client/docs/HELP.md',
-      'client/docs/DEVELOPER_LANE_QUICKSTART.md',
-      'client/docs/ONBOARDING_PLAYBOOK.md'
+      'docs/client/README.md',
+      'docs/client/HELP.md',
+      'docs/client/DEVELOPER_LANE_QUICKSTART.md',
+      'docs/client/ONBOARDING_PLAYBOOK.md'
     ],
     required_links: [
       { source: 'README.md', target: 'ARCHITECTURE.md' },
-      { source: 'README.md', target: 'client/docs/DEVELOPER_LANE_QUICKSTART.md' },
-      { source: 'README.md', target: 'client/docs/HELP.md' },
-      { source: 'ARCHITECTURE.md', target: 'client/docs/README.md' },
-      { source: 'CONTRIBUTING.md', target: 'client/docs/DEVELOPER_LANE_QUICKSTART.md' },
-      { source: 'client/docs/README.md', target: 'DEVELOPER_LANE_QUICKSTART.md' }
+      { source: 'README.md', target: 'docs/client/DEVELOPER_LANE_QUICKSTART.md' },
+      { source: 'README.md', target: 'docs/client/HELP.md' },
+      { source: 'ARCHITECTURE.md', target: 'docs/client/README.md' },
+      { source: 'CONTRIBUTING.md', target: 'docs/client/DEVELOPER_LANE_QUICKSTART.md' },
+      { source: 'docs/client/README.md', target: 'DEVELOPER_LANE_QUICKSTART.md' }
     ],
     quickstart_requirements: {
       path: path.join(tmp, 'docs', 'DEVELOPER_LANE_QUICKSTART.md'),

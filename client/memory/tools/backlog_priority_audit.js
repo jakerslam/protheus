@@ -14,10 +14,10 @@ const STATE_DIR = path.join(ROOT, 'state', 'ops', 'backlog_priority_audit');
 const LATEST_PATH = path.join(STATE_DIR, 'latest.json');
 const HISTORY_PATH = path.join(STATE_DIR, 'history.jsonl');
 const ROOT_PATH_PREFIXES = [
-  'client/systems/',
+  'client/runtime/systems/',
   'crates/',
-  'client/config/',
-  'client/docs/',
+  'client/runtime/config/',
+  'docs/client/',
   'client/memory/',
   'client/adaptive/',
   'state/',

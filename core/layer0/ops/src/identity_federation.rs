@@ -7,7 +7,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 const LANE_ID: &str = "identity_federation";
-const DEFAULT_POLICY_REL: &str = "client/config/identity_federation_policy.json";
+const DEFAULT_POLICY_REL: &str = "client/runtime/config/identity_federation_policy.json";
 
 #[derive(Debug, Clone)]
 struct ProviderPolicy {
@@ -486,7 +486,7 @@ mod tests {
 
     fn write_policy(root: &Path) {
         write_text(
-            &root.join("client/config/identity_federation_policy.json"),
+            &root.join("client/runtime/config/identity_federation_policy.json"),
             &json!({
                 "strict_default": true,
                 "providers": {

@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-const SCRIPT = path.join(ROOT, 'client/systems/ops/permanent_guidelines_drift_gate.js');
+const SCRIPT = path.join(ROOT, 'client/runtime/systems/ops/permanent_guidelines_drift_gate.js');
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -47,7 +47,7 @@ try {
   {
     "id": "canonical_guidelines_artifact",
     "description": "Canonical permanent guidelines artifact exists",
-    "file_must_exist": "client/docs/PERMANENT_GUIDELINES.md"
+    "file_must_exist": "docs/client/PERMANENT_GUIDELINES.md"
   },
   {
     "id": "checksum_drift_gate",
@@ -56,7 +56,7 @@ try {
   {
     "id": "ticket_output_contract",
     "description": "Ticket output contract markers enforced",
-    "file_must_exist": "client/config/ticket_output_contract.json"
+    "file_must_exist": "client/runtime/config/ticket_output_contract.json"
   },
   {
     "id": "ci_fail_on_divergence",

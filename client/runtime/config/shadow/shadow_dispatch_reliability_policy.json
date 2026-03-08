@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "strict_default": true,
+  "max_retries": 3,
+  "event_stream": {
+    "enabled": true,
+    "publish": true,
+    "stream": "shadow.dispatch_reliability"
+  },
+  "paths": {
+    "memory_dir": "client/runtime/local/state/shadow/dispatch_reliability/memory",
+    "adaptive_index_path": "client/runtime/local/adaptive/shadow/dispatch_reliability/index.json",
+    "events_path": "client/runtime/local/state/shadow/dispatch_reliability/events.jsonl",
+    "latest_path": "client/runtime/local/state/shadow/dispatch_reliability/latest.json",
+    "receipts_path": "client/runtime/local/state/shadow/dispatch_reliability/receipts.jsonl",
+    "queue_path": "client/runtime/local/state/shadow/dispatch_reliability/queue.json"
+  }
+}

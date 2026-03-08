@@ -63,7 +63,7 @@ function main() {
     archive_path: path.join(tmp, 'state', 'primitives', 'synthesis', 'archive.jsonl'),
     promotions_path: path.join(tmp, 'state', 'primitives', 'synthesis', 'promotions.jsonl'),
     receipts_path: path.join(tmp, 'state', 'primitives', 'synthesis', 'receipts.jsonl'),
-    invariant_check_command: ['node', 'client/systems/security/formal_invariant_engine.js', 'run', '--strict=1']
+    invariant_check_command: ['node', 'client/runtime/systems/security/formal_invariant_engine.js', 'run', '--strict=1']
   });
 
   const envPass = {

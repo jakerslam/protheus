@@ -8,7 +8,7 @@ const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const PROTHEUSCTL = path.join(ROOT, 'systems', 'ops', 'protheusctl.js');
-const TMP_ROOT = path.join(ROOT, 'client', 'local', 'tmp', 'tests', 'protheus_internal_operator_commands');
+const TMP_ROOT = path.join(ROOT, 'client', 'runtime', 'local', 'tmp', 'tests', 'protheus_internal_operator_commands');
 const SHADOW_STATE_PATH = path.join(TMP_ROOT, 'state', 'shadow_cli_state.json');
 const SHADOW_TELEMETRY_PATH = path.join(TMP_ROOT, 'state', 'shadow_cli_telemetry.jsonl');
 

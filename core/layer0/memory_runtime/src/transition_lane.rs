@@ -688,7 +688,7 @@ pub fn maybe_run(root: &Path, argv: &[String]) -> Option<i32> {
                 root.join(candidate)
             }
         } else {
-            root.join("client/config/rust_memory_transition_policy.json")
+            root.join("client/runtime/config/rust_memory_transition_policy.json")
         }
     };
     let policy = load_policy(root, &policy_path);

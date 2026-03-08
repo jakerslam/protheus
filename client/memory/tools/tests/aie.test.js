@@ -73,7 +73,7 @@ function runTests() {
   try {
     // Use CLI to log an event
     const result = execSync(
-      'node client/habits/scripts/aie_logger.js log patch_applied repo=workspace path=scripts/test.js tests_passed=true artifact_refs="test.js,utils.js"',
+      'node client/cognition/habits/scripts/aie_logger.js log patch_applied repo=workspace path=scripts/test.js tests_passed=true artifact_refs="test.js,utils.js"',
       { cwd: workspaceRoot, encoding: 'utf8' }
     );
     
@@ -180,7 +180,7 @@ function runTests() {
   console.log('\n5. Testing scorer CLI...');
   try {
     // Test rules command
-    const rulesOutput = execSync('node client/habits/scripts/aie_scorer.js rules', {
+    const rulesOutput = execSync('node client/cognition/habits/scripts/aie_scorer.js rules', {
       cwd: workspaceRoot,
       encoding: 'utf8'
     });
@@ -210,7 +210,7 @@ function runTests() {
     
     // Log event with evidence using auto_hash
     const logResult = execSync(
-      `node client/habits/scripts/aie_logger.js log patch_applied repo=test path=src/file.js tests_passed=true test_log_path=${testLogPath} auto_hash=true`,
+      `node client/cognition/habits/scripts/aie_logger.js log patch_applied repo=test path=src/file.js tests_passed=true test_log_path=${testLogPath} auto_hash=true`,
       { cwd: workspaceRoot, encoding: 'utf8' }
     );
     
@@ -244,7 +244,7 @@ function runTests() {
     
     // Log event claiming tests_passed=true but without evidence
     execSync(
-      'node client/habits/scripts/aie_logger.js log patch_applied repo=test2 path=src/file2.js tests_passed=true',
+      'node client/cognition/habits/scripts/aie_logger.js log patch_applied repo=test2 path=src/file2.js tests_passed=true',
       { cwd: workspaceRoot, encoding: 'utf8' }
     );
     
@@ -273,7 +273,7 @@ function runTests() {
   try {
     // Run a trivial passing command via aie_run
     const runResult = execSync(
-      'node client/habits/scripts/aie_run.js --repo=. -- node -e "process.exit(0)"',
+      'node client/cognition/habits/scripts/aie_run.js --repo=. -- node -e "process.exit(0)"',
       { cwd: workspaceRoot, encoding: 'utf8', timeout: 30000 }
     );
     
@@ -326,7 +326,7 @@ function runTests() {
     let runOutput = '';
     try {
       runOutput = execSync(
-        'node client/habits/scripts/aie_run.js --repo=. -- node -e "process.exit(1)"',
+        'node client/cognition/habits/scripts/aie_run.js --repo=. -- node -e "process.exit(1)"',
         { cwd: workspaceRoot, encoding: 'utf8', timeout: 30000 }
       );
     } catch (execErr) {

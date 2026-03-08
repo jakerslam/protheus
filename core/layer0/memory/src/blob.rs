@@ -502,9 +502,9 @@ pub fn default_observability_profile_sample() -> EmbeddedObservabilityProfile {
             "sovereignty.index".to_string(),
         ],
         allowed_emitters: vec![
-            "client/systems/observability".to_string(),
-            "client/systems/red_legion".to_string(),
-            "client/systems/security".to_string(),
+            "client/runtime/systems/observability".to_string(),
+            "client/runtime/systems/red_legion".to_string(),
+            "client/runtime/systems/security".to_string(),
             "core/layer1/observability".to_string(),
         ],
         stream_policy: EmbeddedTraceStreamPolicy {

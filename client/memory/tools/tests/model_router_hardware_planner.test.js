@@ -158,7 +158,7 @@ function caseDoctorAndCacheSurfaceHardwareReasons(repoRoot, root) {
   const env = baseEnv(cfgPath, adaptersPath, stateDir, runsDir);
 
   const doctor = runNode(repoRoot, [
-    'client/systems/routing/model_router.js',
+    'client/runtime/systems/routing/model_router.js',
     'doctor',
     '--risk=low',
     '--complexity=low',
@@ -173,7 +173,7 @@ function caseDoctorAndCacheSurfaceHardwareReasons(repoRoot, root) {
   assert.strictEqual(doctorOut.policy && doctorOut.policy.hardware_plan && doctorOut.policy.hardware_plan.active_filter, true, 'doctor policy should expose active hardware filter');
 
   const cache = runNode(repoRoot, [
-    'client/systems/routing/model_router.js',
+    'client/runtime/systems/routing/model_router.js',
     'cache-summary',
     '--for-routing=1',
     '--risk=low',
@@ -189,7 +189,7 @@ function caseDoctorAndCacheSurfaceHardwareReasons(repoRoot, root) {
   assert.ok((qwenRow.reasons || []).includes('local_hardware_ineligible'), 'cache-summary should include local_hardware_ineligible reason');
   assert.strictEqual(cacheOut.hardware_plan && cacheOut.hardware_plan.active_filter, true, 'cache-summary should include hardware plan summary');
 
-  const plan = runNode(repoRoot, ['client/systems/routing/model_router.js', 'hardware-plan'], env);
+  const plan = runNode(repoRoot, ['client/runtime/systems/routing/model_router.js', 'hardware-plan'], env);
   assert.strictEqual(plan.status, 0, `hardware-plan failed: ${plan.stderr}`);
   const planOut = JSON.parse(String(plan.stdout || '{}'));
   assert.strictEqual(planOut.type, 'hardware_plan', 'hardware-plan command should emit typed payload');

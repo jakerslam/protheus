@@ -11,6 +11,6 @@ node apps/examples/dictionary-demo/run.js
 This executes:
 
 ```bash
-node client/systems/ops/protheusctl.js toolkit dictionary term "Binary Blobs"
+node client/runtime/systems/ops/protheusctl.js toolkit dictionary term "Binary Blobs"
 ```
 

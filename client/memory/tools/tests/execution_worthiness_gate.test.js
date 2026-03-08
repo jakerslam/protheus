@@ -49,9 +49,9 @@ function main() {
     id: 'p_good',
     objective_id: 'T1_GROWTH',
     action_spec: {
-      command: 'node client/systems/ops/do.js run',
-      verify: { command: 'node client/systems/ops/do.js verify' },
-      rollback: { command: 'node client/systems/ops/do.js rollback' }
+      command: 'node client/runtime/systems/ops/do.js run',
+      verify: { command: 'node client/runtime/systems/ops/do.js verify' },
+      rollback: { command: 'node client/runtime/systems/ops/do.js rollback' }
     }
   });
 

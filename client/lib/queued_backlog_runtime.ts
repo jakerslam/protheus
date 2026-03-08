@@ -182,15 +182,15 @@ function rewriteLegacyRuntimeRelative(relPath: string) {
   if (!rel) return rel;
   if (rel === 'local' || rel.startsWith('local/')) {
     const suffix = rel === 'local' ? '' : rel.slice('local/'.length);
-    return normalizeRelativePathToken(path.join('client', 'local', suffix));
+    return normalizeRelativePathToken(path.join('client', 'runtime', 'local', suffix));
   }
   if (rel === 'state' || rel.startsWith('state/')) {
     const suffix = rel === 'state' ? '' : rel.slice('state/'.length);
-    return normalizeRelativePathToken(path.join('client', 'local', 'state', suffix));
+    return normalizeRelativePathToken(path.join('client', 'runtime', 'local', 'state', suffix));
   }
   if (rel === 'client/state' || rel.startsWith('client/state/')) {
     const suffix = rel === 'client/state' ? '' : rel.slice('client/state/'.length);
-    return normalizeRelativePathToken(path.join('client', 'local', 'state', suffix));
+    return normalizeRelativePathToken(path.join('client', 'runtime', 'local', 'state', suffix));
   }
   if (rel === 'core/state' || rel.startsWith('core/state/')) {
     const suffix = rel === 'core/state' ? '' : rel.slice('core/state/'.length);

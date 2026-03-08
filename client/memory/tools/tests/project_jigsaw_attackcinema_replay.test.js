@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-const SCRIPT = path.join(ROOT, 'client/systems/security/jigsaw/attackcinema_replay_theater.js');
+const SCRIPT = path.join(ROOT, 'client/runtime/systems/security/jigsaw/attackcinema_replay_theater.js');
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -47,7 +47,7 @@ try {
   {
     "id": "recording_engine_live",
     "description": "Recorder lane captures security timelines",
-    "file_must_exist": "client/systems/security/jigsaw/README.md"
+    "file_must_exist": "client/runtime/systems/security/jigsaw/README.md"
   },
   {
     "id": "highlight_editor_lane",

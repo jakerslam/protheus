@@ -49,7 +49,7 @@ function main() {
     '--step=reproduce',
     '--iteration=1',
     '--objective-id=obj_1',
-    '--target-path=client/systems/workflow/workflow_executor.ts',
+    '--target-path=client/runtime/systems/workflow/workflow_executor.ts',
     '--metadata-json={"status":"ok"}'
   ], env);
   assert.strictEqual(r.status, 0, `record 1 failed: ${r.stderr}`);
@@ -62,7 +62,7 @@ function main() {
     '--step=verify',
     '--iteration=1',
     '--objective-id=obj_1',
-    '--target-path=client/systems/workflow/workflow_executor.ts',
+    '--target-path=client/runtime/systems/workflow/workflow_executor.ts',
     '--metadata-json={"status":"ok","verified":true}'
   ], env);
   assert.strictEqual(r.status, 0, `record 2 failed: ${r.stderr}`);

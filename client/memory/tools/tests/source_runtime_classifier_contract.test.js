@@ -38,12 +38,12 @@ try {
   fs.writeFileSync(path.join(tmp, 'package.json'), '{"name":"tmp"}\n', 'utf8');
 
   const requiredDirs = [
-    'client/local/adaptive',
-    'client/local/memory',
-    'client/local/state/memory',
-    'client/local/logs',
-    'client/local/secrets',
-    'client/local/state',
+    'client/runtime/local/adaptive',
+    'client/runtime/local/memory',
+    'client/runtime/local/state/memory',
+    'client/runtime/local/logs',
+    'client/runtime/local/secrets',
+    'client/runtime/local/state',
     'core/local/state',
     'core/local/logs',
     'core/local/cache',
@@ -69,7 +69,7 @@ try {
   assert.ok(payload && payload.checks && payload.checks.no_legacy_runtime_roots === false, 'legacy root detection expected');
 
   fs.rmSync(path.join(tmp, 'memory'), { recursive: true, force: true });
-  fs.writeFileSync(path.join(tmp, 'client/local/state', 'rogue.ts'), 'export const rogue = true;\n', 'utf8');
+  fs.writeFileSync(path.join(tmp, 'client/runtime/local/state', 'rogue.ts'), 'export const rogue = true;\n', 'utf8');
 
   out = run(['check', '--strict=1'], env);
   assert.notStrictEqual(out.status, 0, 'runtime source file should fail strict check');

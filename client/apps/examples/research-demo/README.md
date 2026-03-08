@@ -9,7 +9,7 @@ protheus research "creating a quant trading software" --dry-run=1
 Programmatic call from loop/shadow code:
 
 ```js
-const { systemResearch } = require('../../client/systems/tools/research_api.js');
+const { systemResearch } = require('../../client/runtime/systems/tools/research_api.js');
 const result = systemResearch('creating a quant trading software', { dryRun: true, format: 'json' });
 ```
 

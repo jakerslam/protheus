@@ -66,7 +66,7 @@ try {
         status: 'done',
         review_result: 'pass',
         evidence: {
-          substantive_code_paths: ['client/systems/ops/backlog_lane_batch_delivery.ts']
+          substantive_code_paths: ['client/runtime/systems/ops/backlog_lane_batch_delivery.ts']
         }
       }
     ]

@@ -44,7 +44,7 @@ function run() {
         uid: 'h123abc456def789ghi012jk',
         status: 'candidate',
         governance: { state: 'candidate', pinned: false },
-        entrypoint: 'client/habits/routines/good_habit.js',
+        entrypoint: 'client/cognition/habits/routines/good_habit.js',
         provenance: {
           source: 'repeat_trigger',
           created_by: 'test',

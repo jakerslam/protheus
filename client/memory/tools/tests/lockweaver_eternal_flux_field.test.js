@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-const SCRIPT = path.join(ROOT, 'client/systems/security/lockweaver/eternal_flux_field.js');
+const SCRIPT = path.join(ROOT, 'client/runtime/systems/security/lockweaver/eternal_flux_field.js');
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -47,7 +47,7 @@ try {
   {
     "id": "origin_lock_verification",
     "description": "Origin lock verify and reseed loop active",
-    "file_must_exist": "client/systems/security/lockweaver/README.md"
+    "file_must_exist": "client/runtime/systems/security/lockweaver/README.md"
   },
   {
     "id": "mutation_cycle_receipts",
@@ -59,7 +59,7 @@ try {
   },
   {
     "id": "scope_exclusion_invariant",
-    "description": "Open platform/client/habits/skills exclusion enforced"
+    "description": "Open platform/client/cognition/habits/skills exclusion enforced"
   }
 ];
 

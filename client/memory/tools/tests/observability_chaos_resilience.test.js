@@ -27,7 +27,7 @@ function main() {
       {
         trace_id: 's1',
         ts_millis: 1000,
-        source: 'client/systems/observability',
+        source: 'client/runtime/systems/observability',
         operation: 'trace.capture',
         severity: 'low',
         tags: ['runtime.guardrails'],
@@ -37,7 +37,7 @@ function main() {
       {
         trace_id: 's2',
         ts_millis: 1080,
-        source: 'client/systems/red_legion',
+        source: 'client/runtime/systems/red_legion',
         operation: 'chaos.replay',
         severity: 'medium',
         tags: ['chaos.replay'],
@@ -62,7 +62,7 @@ function main() {
       {
         trace_id: 't1',
         ts_millis: 2000,
-        source: 'client/systems/observability',
+        source: 'client/runtime/systems/observability',
         operation: 'trace.capture',
         severity: 'critical',
         tags: ['tamper', 'drift'],
@@ -72,7 +72,7 @@ function main() {
       {
         trace_id: 't2',
         ts_millis: 2050,
-        source: 'client/systems/red_legion',
+        source: 'client/runtime/systems/red_legion',
         operation: 'chaos.replay',
         severity: 'high',
         tags: ['chaos.replay', 'drift'],

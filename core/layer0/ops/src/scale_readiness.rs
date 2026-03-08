@@ -183,7 +183,7 @@ pub fn default_policy(root: &Path) -> Policy {
             latest_path: root.join("state/ops/scale_readiness_program/latest.json"),
             receipts_path: root.join("state/ops/scale_readiness_program/receipts.jsonl"),
             history_path: root.join("state/ops/scale_readiness_program/history.jsonl"),
-            contract_dir: root.join("client/config/scale_readiness"),
+            contract_dir: root.join("client/runtime/config/scale_readiness"),
             report_dir: root.join("state/ops/scale_readiness_program/reports"),
         },
         budgets: Budgets {
@@ -192,7 +192,7 @@ pub fn default_policy(root: &Path) -> Policy {
             max_p99_latency_ms: 450,
             error_budget_pct: 0.01,
         },
-        policy_path: root.join("client/config/scale_readiness_program_policy.json"),
+        policy_path: root.join("client/runtime/config/scale_readiness_program_policy.json"),
     }
 }
 
@@ -274,7 +274,7 @@ pub fn load_policy(root: &Path, policy_path: &Path) -> Policy {
             paths.get("history_path"),
             "state/ops/scale_readiness_program/history.jsonl",
         ),
-        contract_dir: resolve_path(root, paths.get("contract_dir"), "client/config/scale_readiness"),
+        contract_dir: resolve_path(root, paths.get("contract_dir"), "client/runtime/config/scale_readiness"),
         report_dir: resolve_path(
             root,
             paths.get("report_dir"),
@@ -467,7 +467,7 @@ fn lane_scale(
                 write_contract(policy, "load_model_contract.json", &load_model, apply, root)?;
             let baseline = run_json_script(
                 root,
-                "client/systems/ops/scale_envelope_baseline.js",
+                "client/runtime/systems/ops/scale_envelope_baseline.js",
                 &["run".to_string(), "--strict=0".to_string()],
             );
             receipt["summary"] = json!({
@@ -637,7 +637,7 @@ fn lane_scale(
         "V4-SCALE-010" => {
             let benchmark = run_json_script(
                 root,
-                "client/systems/ops/scale_benchmark.js",
+                "client/runtime/systems/ops/scale_benchmark.js",
                 &[
                     "run".to_string(),
                     "--tier=all".to_string(),
@@ -830,10 +830,10 @@ fn status(policy: &Policy, root: &Path) -> Value {
 
 pub fn usage() {
     println!("Usage:");
-    println!("  node client/systems/ops/scale_readiness_program.js list");
-    println!("  node client/systems/ops/scale_readiness_program.js run --id=V4-SCALE-001 [--apply=1|0] [--strict=1|0]");
-    println!("  node client/systems/ops/scale_readiness_program.js run-all [--apply=1|0] [--strict=1|0]");
-    println!("  node client/systems/ops/scale_readiness_program.js status");
+    println!("  node client/runtime/systems/ops/scale_readiness_program.js list");
+    println!("  node client/runtime/systems/ops/scale_readiness_program.js run --id=V4-SCALE-001 [--apply=1|0] [--strict=1|0]");
+    println!("  node client/runtime/systems/ops/scale_readiness_program.js run-all [--apply=1|0] [--strict=1|0]");
+    println!("  node client/runtime/systems/ops/scale_readiness_program.js status");
 }
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -860,7 +860,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .unwrap_or_else(|| {
             env::var("SCALE_READINESS_PROGRAM_POLICY_PATH")
                 .map(PathBuf::from)
-                .unwrap_or_else(|_| root.join("client/config/scale_readiness_program_policy.json"))
+                .unwrap_or_else(|_| root.join("client/runtime/config/scale_readiness_program_policy.json"))
         });
     let policy_path = if policy_arg.is_absolute() {
         policy_arg

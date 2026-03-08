@@ -63,7 +63,7 @@ function main() {
     allow_missing_sources: true,
     sources: [
       { path: 'state/continuity/vault/latest.json', required: true },
-      { path: 'client/config/helix_policy.json', required: true }
+      { path: 'client/runtime/config/helix_policy.json', required: true }
     ],
     state: {
       index_path: path.join(tmp, 'state', 'continuity', 'resurrection', 'index.json'),

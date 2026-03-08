@@ -68,7 +68,7 @@ try {
             enabled: true,
             service: 'protheus.demo.keychain',
             account: 'default',
-            command: ['/client/bin/sh', '-lc', 'printf "{\\"value\\":\\"KEYCHAIN_SECRET\\",\\"rotated_at\\":\\"2026-03-01T00:00:00Z\\"}"'],
+            command: ['/client/cli/bin/sh', '-lc', 'printf "{\\"value\\":\\"KEYCHAIN_SECRET\\",\\"rotated_at\\":\\"2026-03-01T00:00:00Z\\"}"'],
             parse_json: true,
             value_path: 'value',
             rotated_at_path: 'rotated_at'
@@ -85,7 +85,7 @@ try {
             type: 'age_file',
             enabled: true,
             paths: [agePayloadPath],
-            decrypt_command: ['/client/bin/sh', '-lc', 'cat "$SECRET_FILE_PATH"'],
+            decrypt_command: ['/client/cli/bin/sh', '-lc', 'cat "$SECRET_FILE_PATH"'],
             parse_json: true,
             value_path: 'value',
             rotated_at_path: 'rotated_at'

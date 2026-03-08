@@ -177,7 +177,7 @@ You are free to edit `HEARTBEAT.md` with a short checklist or reminders. Keep it
 - **Mentions** - Twitter/social notifications?
 - **Weather** - Relevant if your human might go out?
 
-**Track your checks** in `client/local/memory/heartbeat-state.json`:
+**Track your checks** in `client/runtime/local/memory/heartbeat-state.json`:
 
 ```json
 {
@@ -290,9 +290,9 @@ When Jay says **"watch [something]"** in an info-related context, this is a dire
 
 **Implementation:**
 1. Determine the source type (RSS, API, scrape, GitHub, etc.)
-2. Create collector in `client/adaptive/sensory/eyes/collectors/` (never in `client/habits/scripts/eyes_collectors/`)
-3. Keep `client/systems/` generic only. Do not add source-specific collector code outside adaptive layer.
+2. Create collector in `client/adaptive/sensory/eyes/collectors/` (never in `client/cognition/habits/scripts/eyes_collectors/`)
+3. Keep `client/runtime/systems/` generic only. Do not add source-specific collector code outside adaptive layer.
 4. Add the eye through controller only:
-   `node client/systems/sensory/eyes_intake.js create --name="..." --parser=<parser_type> --directive=<active_directive_id> [--domains=d1,d2]`
-5. Test with `node client/habits/scripts/external_eyes.js run --eye=<id>`
+   `node client/runtime/systems/sensory/eyes_intake.js create --name="..." --parser=<parser_type> --directive=<active_directive_id> [--domains=d1,d2]`
+5. Test with `node client/cognition/habits/scripts/external_eyes.js run --eye=<id>`
 6. Report eye creation + test results

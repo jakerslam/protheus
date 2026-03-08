@@ -22,7 +22,7 @@ const ROOT = findRepoRoot(__dirname);
 
 function loadConduitClient() {
   const jsCandidates = [
-    path.join(ROOT, 'client', 'systems', 'conduit', 'conduit-client.js'),
+    path.join(ROOT, 'client', 'runtime', 'systems', 'conduit', 'conduit-client.js'),
     path.join(ROOT, 'systems', 'conduit', 'conduit-client.js')
   ];
   for (const candidate of jsCandidates) {

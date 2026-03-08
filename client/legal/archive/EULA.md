@@ -34,7 +34,7 @@ Operator must comply with:
 - `LICENSE`
 - `CONTRIBUTING_TERMS.md`
 - `TERMS_OF_SERVICE.md`
-- Applicable security and governance policies in `client/config/`
+- Applicable security and governance policies in `client/runtime/config/`
 
 ## 6. Termination
 

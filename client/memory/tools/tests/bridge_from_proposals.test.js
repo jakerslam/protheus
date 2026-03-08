@@ -45,7 +45,7 @@ function run() {
       type: 'external_intel',
       title: 'Stabilize collector retries',
       summary: 'Add bounded retries and verify with metrics',
-      suggested_next_command: 'node client/systems/routing/route_execute.js --task="Stabilize collector retries with bounded checks" --dry-run',
+      suggested_next_command: 'node client/runtime/systems/routing/route_execute.js --task="Stabilize collector retries with bounded checks" --dry-run',
       validation: [
         'Define measurable retry success rate target for 24h',
         'Verify with dry-run receipt'

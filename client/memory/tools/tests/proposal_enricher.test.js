@@ -186,14 +186,14 @@ function run() {
               version: 1,
               objective_id: objectiveId,
               target: 'eye:local_state_fallback',
-              next_command: 'node client/systems/routing/route_execute.js --task="Improve automation growth reliability with deterministic checks" --dry-run',
+              next_command: 'node client/runtime/systems/routing/route_execute.js --task="Improve automation growth reliability with deterministic checks" --dry-run',
               verify: ['record outcome'],
               success_criteria: [{ metric: 'artifact_count', target: '>=1 artifact', horizon: '24h' }],
               rollback: 'revert bounded remediation'
             }
           : undefined,
         meta: objectiveId ? { directive_objective_id: objectiveId } : undefined,
-        suggested_next_command: 'node client/systems/routing/route_execute.js --task="Improve automation growth reliability with deterministic checks" --dry-run'
+        suggested_next_command: 'node client/runtime/systems/routing/route_execute.js --task="Improve automation growth reliability with deterministic checks" --dry-run'
       },
       {
         id: 'PMISSING',
@@ -204,7 +204,7 @@ function run() {
         evidence: [{ evidence_ref: 'eye:local_state_fallback', match: 'collector failed repeatedly' }],
         validation: ['Implement deterministic collector fix', 'Record proposal outcome'],
         meta: objectiveId ? { directive_objective_id: objectiveId } : undefined,
-        suggested_next_command: 'node client/systems/routing/route_execute.js --task=\"Restore parser coverage with deterministic collector diagnostics\" --dry-run'
+        suggested_next_command: 'node client/runtime/systems/routing/route_execute.js --task=\"Restore parser coverage with deterministic collector diagnostics\" --dry-run'
       },
       {
         id: 'PHIGH',
@@ -215,7 +215,7 @@ function run() {
         evidence: [{ evidence_ref: 'eye:local_state_fallback', match: 'high risk source' }],
         validation: ['Review manually'],
         meta: objectiveId ? { directive_objective_id: objectiveId } : undefined,
-        suggested_next_command: 'node client/systems/routing/route_execute.js --task="Explore discretionary high risk option" --dry-run'
+        suggested_next_command: 'node client/runtime/systems/routing/route_execute.js --task="Explore discretionary high risk option" --dry-run'
       }
     ], null, 2));
 
@@ -304,7 +304,7 @@ function run() {
       title: 'Unbound executable proposal should default to first active objective',
       risk: 'low',
       evidence: [{ evidence_ref: 'eye:local_state_fallback' }],
-      suggested_next_command: 'node client/systems/routing/route_execute.js --task=\"Run one bounded execution\" --dry-run',
+      suggested_next_command: 'node client/runtime/systems/routing/route_execute.js --task=\"Run one bounded execution\" --dry-run',
       validation: ['Emit one artifact receipt with measurable outcome']
     }, {
       eyes: new Map(),
@@ -344,7 +344,7 @@ function run() {
       title: '[Cross-Signal] Topic convergence with bounded execution',
       risk: 'low',
       evidence: [{ evidence_ref: 'cross_signal:HYP-1', match: 'topic convergence' }],
-      suggested_next_command: 'node client/systems/routing/route_execute.js --task=\"Validate one bounded experiment\" --dry-run',
+      suggested_next_command: 'node client/runtime/systems/routing/route_execute.js --task=\"Validate one bounded experiment\" --dry-run',
       action_spec: {
         version: 1,
         objective_id: 'T1_ALPHA_OBJECTIVE',
@@ -405,7 +405,7 @@ function run() {
         }
       },
       validation: ['Actuation preflight is executable'],
-      suggested_next_command: 'node client/systems/actuation/actuation_executor.js run --kind=git_task --params=\"{\\\"action\\\":\\\"status\\\"}\"'
+      suggested_next_command: 'node client/runtime/systems/actuation/actuation_executor.js run --kind=git_task --params=\"{\\\"action\\\":\\\"status\\\"}\"'
     }, {
       eyes: new Map(),
       directiveProfile: { available: false, active_directive_ids: [] },
@@ -443,7 +443,7 @@ function run() {
       risk: 'low',
       evidence: [{ evidence_ref: 'eye:local_state_fallback', match: 'proposal backlog unchanged' }],
       validation: ['Review proposal status and report findings'],
-      suggested_next_command: 'node client/systems/routing/route_execute.js --task=\"Review automation health and triage proposals\" --dry-run'
+      suggested_next_command: 'node client/runtime/systems/routing/route_execute.js --task=\"Review automation health and triage proposals\" --dry-run'
     }, {
       eyes: new Map(),
       directiveProfile: { available: false, active_directive_ids: [] },
@@ -483,7 +483,7 @@ function run() {
       risk: 'low',
       evidence: [{ evidence_ref: 'dream:idle:model_timeout', match: 'idle dream preflight degradation' }],
       validation: ['Run bounded simulation and verify queue impact'],
-      suggested_next_command: 'node client/systems/routing/route_execute.js --task=\"Simulate one bounded dream intervention\" --dry-run'
+      suggested_next_command: 'node client/runtime/systems/routing/route_execute.js --task=\"Simulate one bounded dream intervention\" --dry-run'
     }, {
       eyes: new Map(),
       directiveProfile: { available: false, active_directive_ids: [] },
@@ -518,7 +518,7 @@ function run() {
       risk: 'low',
       evidence: [{ evidence_ref: 'dream:idle:market_signal', match: 'external demand for automation gigs' }],
       validation: ['Simulate one pilot and verify projected ROI before execution'],
-      suggested_next_command: 'node client/systems/routing/route_execute.js --task=\"Simulate one bounded Upwork lead pilot\" --dry-run',
+      suggested_next_command: 'node client/runtime/systems/routing/route_execute.js --task=\"Simulate one bounded Upwork lead pilot\" --dry-run',
       action_spec: {
         version: 1,
         objective_id: 'T1_ALPHA_OBJECTIVE',
@@ -567,7 +567,7 @@ function run() {
       risk: 'low',
       evidence: [{ evidence_ref: 'dream:idle:workflow_gap', match: 'delivery bottleneck found in dream synthesis' }],
       validation: ['Implement one bounded file-level patch and verify postconditions'],
-      suggested_next_command: 'node client/systems/routing/route_execute.js --task=\"Implement one bounded workflow patch\" --dry-run'
+      suggested_next_command: 'node client/runtime/systems/routing/route_execute.js --task=\"Implement one bounded workflow patch\" --dry-run'
     }, {
       eyes: new Map(),
       directiveProfile: {
@@ -616,7 +616,7 @@ function run() {
       risk: 'low',
       evidence: [{ evidence_ref: 'dream:idle:topology_shift', match: 'spawn branch churn detected' }],
       validation: ['Run bounded dry-run and verify postconditions'],
-      suggested_next_command: 'node client/systems/routing/route_execute.js --task=\"Simulate topology mutation\" --dry-run'
+      suggested_next_command: 'node client/runtime/systems/routing/route_execute.js --task=\"Simulate topology mutation\" --dry-run'
     }, {
       eyes: new Map(),
       directiveProfile: { available: false, active_directive_ids: [] },
@@ -657,7 +657,7 @@ function run() {
       risk: 'low',
       evidence: [{ evidence_ref: 'eye:local_state_fallback', match: 'topology pressure under sustained load' }],
       validation: ['Apply bounded mutation dry-run', 'Verify postconditions and rollback receipt'],
-      suggested_next_command: 'node client/systems/routing/route_execute.js --task=\"Run guarded topology mutation dry-run\" --dry-run',
+      suggested_next_command: 'node client/runtime/systems/routing/route_execute.js --task=\"Run guarded topology mutation dry-run\" --dry-run',
       action_spec: {
         version: 1,
         objective_id: 'T1_ALPHA_OBJECTIVE',
@@ -728,7 +728,7 @@ function run() {
       risk: 'low',
       evidence: [{ evidence_ref: 'eye:ops_log', match: 'collector timeout burst detected' }],
       validation: ['Run deterministic regression checks and verify receipts'],
-      suggested_next_command: 'node client/systems/ops/collector_preflight.js run --dry-run'
+      suggested_next_command: 'node client/runtime/systems/ops/collector_preflight.js run --dry-run'
     }, {
       eyes: new Map(),
       directiveProfile: { available: false, active_directive_ids: [] },

@@ -161,7 +161,7 @@ mod tests {
 
     #[test]
     fn clean_lane_id_normalizes_case_and_symbols() {
-        assert_eq!(clean_lane_id(" client/systems/ops/status "), "SYSTEMSOPSSTATUS");
+        assert_eq!(clean_lane_id(" client/runtime/systems/ops/status "), "SYSTEMSOPSSTATUS");
         assert_eq!(
             clean_lane_id("systems-ops-protheus_status"),
             "SYSTEMS-OPS-PROTHEUS_STATUS"

@@ -1,0 +1,25 @@
+{
+  "version": "1.0",
+  "channels": {
+    "adaptive": {
+      "allowed_source_prefixes": [
+        "client/runtime/systems/adaptive/",
+        "client/runtime/systems/sensory/",
+        "client/runtime/systems/strategy/",
+        "client/runtime/systems/autonomy/",
+        "client/runtime/systems/spine/",
+        "client/lib/"
+      ],
+      "require_reason": true
+    },
+    "memory": {
+      "allowed_source_prefixes": [
+        "client/runtime/systems/memory/",
+        "client/runtime/systems/spine/",
+        "client/runtime/systems/adaptive/core/",
+        "client/lib/"
+      ],
+      "require_reason": true
+    }
+  }
+}

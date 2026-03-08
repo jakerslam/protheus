@@ -50,7 +50,7 @@ try {
     commands: [
       { id: 'bootstrap', command: 'bootstrap', args: ['--mock=1'], expect_type: 'rsi_bootstrap' },
       { id: 'status', command: 'status', args: ['--mock=1'], expect_type: 'rsi_status' },
-      { id: 'step', command: 'step', args: ['--mock=1', '--apply=0', '--target-path=client/systems/ops/protheusctl.ts', '--objective-id=canon_test'], expect_type: 'rsi_step' }
+      { id: 'step', command: 'step', args: ['--mock=1', '--apply=0', '--target-path=client/runtime/systems/ops/protheusctl.ts', '--objective-id=canon_test'], expect_type: 'rsi_step' }
     ],
     paths: {
       memory_dir: path.join(tmp, 'memory', 'adaptive', 'rsi_bootstrap_canonicalization'),

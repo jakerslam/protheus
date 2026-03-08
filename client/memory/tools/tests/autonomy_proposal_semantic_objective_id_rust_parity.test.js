@@ -22,7 +22,7 @@ function run() {
       directive_objective_id: 'T1_DIRECTIVE',
       linked_objective_id: 'T2_LINKED'
     },
-    suggested_next_command: 'node client/systems/security/directive_intake.js validate --id=T3_CMD',
+    suggested_next_command: 'node client/runtime/systems/security/directive_intake.js validate --id=T3_CMD',
     suggested_command: 'node x --id=T4_FALLBACK'
   };
 

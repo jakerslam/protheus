@@ -133,7 +133,7 @@ try {
     'step',
     '--owner=test_owner',
     '--objective-id=test_rsi',
-    '--target-path=client/systems/ops/protheusctl.ts',
+    '--target-path=client/runtime/systems/ops/protheusctl.ts',
     '--apply=1',
     '--approval-a=test_a',
     '--approval-b=test_b',

@@ -57,9 +57,9 @@ try {
   assert.ok(payload.migrated >= 1, 'at least one mapping should migrate');
   assert.ok(payload.migration_id, 'run should emit migration id');
 
-  assert.ok(fs.existsSync(path.join(tmp, 'client', 'local', 'state', 'ops', 'latest.json')), 'state should migrate into client/local/state');
-  assert.ok(fs.existsSync(path.join(tmp, 'client', 'local', 'private-lenses', 'README.md')), 'private lenses should mirror into client/local/private-lenses');
-  assert.ok(fs.existsSync(path.join(tmp, 'client', 'local', 'logs', 'session.log')), 'client logs should mirror into client/local/logs');
+  assert.ok(fs.existsSync(path.join(tmp, 'client', 'runtime', 'local', 'state', 'ops', 'latest.json')), 'state should migrate into client/runtime/local/state');
+  assert.ok(fs.existsSync(path.join(tmp, 'client', 'runtime', 'local', 'private-lenses', 'README.md')), 'private lenses should mirror into client/runtime/local/private-lenses');
+  assert.ok(fs.existsSync(path.join(tmp, 'client', 'runtime', 'local', 'logs', 'session.log')), 'client logs should mirror into client/runtime/local/logs');
   const statePath = path.join(tmp, 'state');
   assert.strictEqual(fs.existsSync(statePath), false, 'state root should be removed after direct migration');
 

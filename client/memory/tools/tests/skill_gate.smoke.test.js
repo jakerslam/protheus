@@ -10,7 +10,7 @@ const { execSync } = require('child_process');
 const { verifySkillOrThrow, checkSkill, computeHash } = require('../skill_gate');
 
 const TEST_DIR = path.join(__dirname, '_test_skills');
-const CONFIG_PATH = '/Users/jay/.openclaw/workspace/client/config/trusted_skills.json';
+const CONFIG_PATH = '/Users/jay/.openclaw/workspace/client/runtime/config/trusted_skills.json';
 
 function setup() {
   // Create test directory

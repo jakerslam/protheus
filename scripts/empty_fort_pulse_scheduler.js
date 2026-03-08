@@ -7,7 +7,7 @@ const path = require('path');
 function parseArgs(argv) {
   const out = {
     apply: false,
-    policy: 'client/config/empty_fort_pulse_policy.json',
+    policy: 'client/runtime/config/empty_fort_pulse_policy.json',
     audit: 'artifacts/empty-fort/pulse_audit.json',
     actor: process.env.GITHUB_ACTOR || 'local',
     now: new Date().toISOString()
@@ -79,7 +79,7 @@ function main() {
       throw new Error(`pulse apply denied: ${result.reason}`);
     }
 
-    const targetFile = path.resolve(policy.target_file || 'client/docs/ops/empty_fort_pulse_log.md');
+    const targetFile = path.resolve(policy.target_file || 'docs/client/ops/empty_fort_pulse_log.md');
     ensureDir(targetFile);
     const line = `- ${now.toISOString()} | actor=${args.actor} | labels=${(policy.labels || []).join(',')}\n`;
     fs.appendFileSync(targetFile, fs.existsSync(targetFile) ? line : `# Empty Fort Pulse Log\n\n${line}`);

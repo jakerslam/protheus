@@ -229,7 +229,7 @@ function run() {
           exit_code: 1,
           stderr_excerpt: 'simulated assertion failure',
           stdout_excerpt: '',
-          guard_files: ['client/systems/ops/autotest_doctor.ts']
+          guard_files: ['client/runtime/systems/ops/autotest_doctor.ts']
         }
       ]
     }
@@ -280,7 +280,7 @@ function run() {
           exit_code: 1,
           stderr_excerpt: 'simulated suspicious failure',
           stdout_excerpt: '',
-          guard_files: ['client/systems/ops/autotest_doctor.ts']
+          guard_files: ['client/runtime/systems/ops/autotest_doctor.ts']
         }
       ]
     }
@@ -316,7 +316,7 @@ function run() {
           exit_code: 13,
           stderr_excerpt: 'unknown route capture probe',
           stdout_excerpt: '',
-          guard_files: ['client/systems/ops/autotest_doctor.ts']
+          guard_files: ['client/runtime/systems/ops/autotest_doctor.ts']
         }
       ]
     }
@@ -354,7 +354,7 @@ function run() {
           exit_code: 1,
           stderr_excerpt: 'missing fixture',
           stdout_excerpt: '',
-          guard_files: ['client/systems/ops/autotest_doctor.ts']
+          guard_files: ['client/runtime/systems/ops/autotest_doctor.ts']
         }
       ]
     }
@@ -404,7 +404,7 @@ function run() {
           exit_code: 1,
           stderr_excerpt: 'detected disable_guard path',
           stdout_excerpt: '',
-          guard_files: ['client/systems/ops/autotest_doctor.ts']
+          guard_files: ['client/runtime/systems/ops/autotest_doctor.ts']
         }
       ]
     }

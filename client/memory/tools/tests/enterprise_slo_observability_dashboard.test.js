@@ -8,7 +8,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
-const SCRIPT = path.join(ROOT, 'client/systems/observability/enterprise_slo_observability_dashboard.js');
+const SCRIPT = path.join(ROOT, 'client/runtime/systems/observability/enterprise_slo_observability_dashboard.js');
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -50,7 +50,7 @@ try {
   },
   {
     "id": "otel_default_profiles",
-    "description": "OpenTelemetry defaults configured for client/local/logs/metrics/traces"
+    "description": "OpenTelemetry defaults configured for client/runtime/local/logs/metrics/traces"
   },
   {
     "id": "burn_alert_routes",
