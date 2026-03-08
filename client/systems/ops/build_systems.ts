@@ -6,7 +6,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const PROJECT_PATH = path.join(ROOT, 'tsconfig.systems.build.json');
+const PROJECT_PATH = path.join(ROOT, 'tsconfig.build.json');
 const DIST_PATH = path.join(ROOT, 'dist');
 const LOCAL_TSC = path.join(ROOT, 'node_modules', '.bin', process.platform === 'win32' ? 'tsc.cmd' : 'tsc');
 

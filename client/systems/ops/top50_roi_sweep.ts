@@ -143,8 +143,8 @@ function defaultPolicy(): SweepPolicy {
         'memory/tools/tests',
         'types',
         'package.json',
-        'tsconfig.systems.json',
-        'tsconfig.systems.build.json'
+        'tsconfig.runtime.json',
+        'tsconfig.build.json'
       ]
     },
     actions: {}

@@ -25,6 +25,7 @@ struct AttentionContract {
     backpressure_drop_below: String,
     escalate_levels: Vec<String>,
     priority_map: BTreeMap<String, i64>,
+    require_layer2_authority: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -479,6 +480,13 @@ fn load_contract(root: &Path) -> AttentionContract {
         })
         .filter(|rows| !rows.is_empty())
         .unwrap_or_else(|| vec!["critical".to_string()]);
+    let allow_layer0_fallback = bool_from_env("PROTHEUS_ATTENTION_ALLOW_LAYER0_FALLBACK")
+        .or_else(|| {
+            contract_obj
+                .and_then(|v| v.get("allow_layer0_importance_fallback"))
+                .and_then(Value::as_bool)
+        })
+        .unwrap_or(false);
 
     AttentionContract {
         enabled,
@@ -536,6 +544,7 @@ fn load_contract(root: &Path) -> AttentionContract {
             .unwrap_or_else(|| "critical".to_string()),
         escalate_levels,
         priority_map,
+        require_layer2_authority: !allow_layer0_fallback,
     }
 }
 
@@ -556,7 +565,7 @@ fn parse_event(flags: &BTreeMap<String, String>) -> Result<Value, String> {
     Err("missing_event_json".to_string())
 }
 
-fn normalize_event(event: &Value, contract: &AttentionContract) -> Value {
+fn normalize_event(event: &Value, contract: &AttentionContract) -> Result<Value, String> {
     let ts = clean_text(event.get("ts").and_then(Value::as_str), 64);
     let ts = if ts.is_empty() { now_iso() } else { ts };
     let source = clean_text(event.get("source").and_then(Value::as_str), 80);
@@ -592,6 +601,9 @@ fn normalize_event(event: &Value, contract: &AttentionContract) -> Value {
     };
     let importance_fallback = infer_from_event(event, &severity, &contract.priority_map);
     let layer2_decision = evaluate_importance_via_layer2(event, &importance_fallback);
+    if layer2_decision.is_none() && contract.require_layer2_authority {
+        return Err("layer2_priority_authority_unavailable".to_string());
+    }
     let score = layer2_decision
         .as_ref()
         .map(|row| row.score)
@@ -667,7 +679,7 @@ fn normalize_event(event: &Value, contract: &AttentionContract) -> Value {
         "raw_event": event
     });
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    out
+    Ok(out)
 }
 
 fn dedupe_hit(active_rows: &[Value], candidate: &Value, dedupe_window_hours: i64) -> bool {
@@ -735,7 +747,8 @@ fn contract_snapshot(contract: &AttentionContract) -> Value {
         "dedupe_window_hours": contract.dedupe_window_hours,
         "backpressure_drop_below": contract.backpressure_drop_below,
         "escalate_levels": contract.escalate_levels,
-        "priority_map": contract.priority_map
+        "priority_map": contract.priority_map,
+        "require_layer2_authority": contract.require_layer2_authority
     })
 }
 
@@ -1181,7 +1194,34 @@ fn enqueue(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
         }
     };
 
-    let event = normalize_event(&event_raw, &contract);
+    let event = match normalize_event(&event_raw, &contract) {
+        Ok(row) => row,
+        Err(reason) => {
+            let mut out = json!({
+                "ok": false,
+                "type": "attention_queue_enqueue_error",
+                "ts": now_iso(),
+                "reason": reason,
+                "run_context": run_context,
+                "attention_contract": contract_snapshot(&contract)
+            });
+            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            append_jsonl(
+                &contract.receipts_path,
+                &json!({
+                    "ts": now_iso(),
+                    "type": "attention_receipt",
+                    "decision": "rejected_layer2_authority_unavailable",
+                    "queued": false,
+                    "run_context": run_context,
+                    "reason": out.get("reason").cloned().unwrap_or(Value::String("layer2_priority_authority_unavailable".to_string())),
+                    "receipt_hash": out.get("receipt_hash").cloned().unwrap_or(Value::String("".to_string()))
+                }),
+            );
+            emit(&out);
+            return 2;
+        }
+    };
     let queue_depth_before;
     let queue_depth_after;
     let action;
