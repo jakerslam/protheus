@@ -91,6 +91,7 @@
   - Latest validation snapshot (2026-03-08):
     - `npm run -s ops:test:protheus-ops-core:attention` currently exits with `reason_code=stale_build_script_detected` (host build-script stall), not a priority-kernel logic regression.
     - Rollout exit is blocked by `V6-HOST-BUILD-STALE-001` host determinism work.
+    - Revalidated at `2026-03-08T06:08:02Z`: same deterministic failure (`reason_code=stale_build_script_detected`, `serde_json ... build-script-build`), confirming host-profile stall remains the blocker.
 
 - [ ] `V6-MEMORY-HIERARCHY-XML-001` Backfill explicit XML hierarchy across historical daily memory files.
   - Current state:
@@ -201,6 +202,7 @@
     - Harness now emits conduit runtime gate health and marks `insufficient_data.active=true` when gate is active.
     - `ops:protheus-vs-openclaw` no longer hard-fails strict mode during active runtime-gate incidents (exit `0`, explicit degraded reason).
     - Latest run (`2026-03-08T04:41:48Z`) still fails parity gates (`parity_pass=false`, pass_ratio `0.3333`, weighted_score `0.7463`) with largest gap in `sustained_autonomy` reliability.
+    - Revalidated at `2026-03-08T06:11:20Z`: still `parity_pass=false` with `pass_ratio=0.3333`, `weighted_score_avg=0.7463`, and weakest lane `sustained_autonomy` (`closure_pass_ratio=0.142857`).
   - Completion criteria:
     - `ops:protheus-vs-openclaw` exits `0` with `parity_pass: true`.
     - Weekly scorecard shows required pass ratio and weighted score thresholds.
@@ -218,6 +220,7 @@
     - Ambient wrappers (`spine_safe_launcher`, persona ambient, dopamine ambient, memory ambient) now pass explicit conduit stdio budgets, removing multi-30s wrapper stalls.
     - `ops:mech-suit:benchmark` now completes full case execution with no `skip_reason` in current run (`2026-03-08T04:41:39.157Z`, summary reduction `18.19%`, `ambient_mode_active=true`).
     - `npm run -s test:ops:mech-suit` now executes fully (`mech_suit_mode.test.js: OK`) after aligning test timeout with real benchmark runtime (default 240s).
+    - Revalidated at `2026-03-08T06:11:02Z`: benchmark still completes with `ambient_mode_active=true`, `host_fault.timeout_detected=false`, and no gate-degraded cases.
   - Completion criteria:
     - `ops:mech-suit:benchmark` runs full case set without `skip_reason`.
     - `ambient_mode_active` and summary booleans are sourced from live lane receipts.
@@ -256,6 +259,7 @@
   - Progress:
     - `npm run -s test:ops:mech-suit` now executes fully with no `host_runtime_timeout` skip path.
     - Remaining blocker is host Rust validation stalls (tracked in `V6-HOST-BUILD-STALE-001`) for attention/initiative cargo test profiles.
+    - `npm run -s formal:invariants:run` passes (`ok=true`, `failed_invariants=0`) on `2026-03-08T06:11:25Z`.
   - Completion criteria:
     - Previously skipped tests execute fully (no host-timeout skip path).
     - Benchmark/harness/proof-pack outputs are published and linked in reports.
@@ -280,6 +284,22 @@
     - Wired guarded scripts: `ops:test:protheus-ops-core:attention` and `ops:test:execution-core:initiative`.
     - Validation now returns deterministic `reason_code=stale_build_script_detected` instead of hanging.
     - Added auto-reap retry flow in `host_rust_validation.ts` (`max_retries` default `1`) to self-heal transient stale build-script pools before failing.
+    - Revalidated stale guard controls at `2026-03-08T06:04:55Z`: both `ops:host-build-stale:reap` and `ops:host-build-stale:check` return `stale_detected=false`.
+    - Despite clean guard status, guarded attention cargo profile still deterministically reports `reason_code=stale_build_script_detected` (`2026-03-08T06:08:02Z`), so root host/toolchain behavior remains unresolved.
+
+- [x] `V6-APPS-RESTORE-003` Restore historical image-sensor tool lineage under `apps/`.
+  - Layer target: `apps/photo-grit/*` tool workspace.
+  - Delivered:
+    - Restored verbatim from commit `af8d1241afd1fb4b25c8edbd738329ae26cd8391`:
+      - `apps/photo-grit/systems/sensory/multimodal_signal_adapter_plane.{ts,js}`
+      - `apps/photo-grit/config/multimodal_signal_adapter_policy.json`
+      - `apps/photo-grit/memory/tools/tests/multimodal_signal_adapter_plane.test.js`
+    - Added `apps/photo-grit/README.md` with provenance.
+    - Updated `.gitignore` to explicitly unignore `apps/photo-grit/**`.
+  - Validation:
+    - Byte-for-byte verification against historical source via `cmp -s` for all restored files.
+    - Standalone restored test executes successfully with gate bypass:
+      - `PROTHEUS_SECURITY_GLOBAL_GATE=0 node apps/photo-grit/memory/tools/tests/multimodal_signal_adapter_plane.test.js`
   - Completion criteria:
     - `cargo test -p execution_core initiative` completes deterministically on the validation host profile.
     - Stall detector emits actionable reason code instead of hanging lanes.
