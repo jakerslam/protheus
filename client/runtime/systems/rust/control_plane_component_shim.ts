@@ -7,7 +7,7 @@ export {};
  * Provides deterministic probe envelopes for parity/route checks.
  */
 
-const { nowIso, parseArgs, normalizeToken, emit } = require('../../../lib/queued_backlog_runtime');
+const { nowIso, parseArgs, normalizeToken, emit } = require('../../lib/queued_backlog_runtime');
 
 function usage() {
   console.log('Usage:');

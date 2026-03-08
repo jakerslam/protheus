@@ -1344,7 +1344,7 @@ mod tests {
         write_text(
             root,
             "client/runtime/systems/ops/protheusd.js",
-            "#!/usr/bin/env node\n'use strict';\nrequire('../../client/lib/ts_bootstrap').bootstrap(__filename, module);\n",
+            "#!/usr/bin/env node\n'use strict';\nrequire('../../client/runtime/lib/ts_bootstrap').bootstrap(__filename, module);\n",
         );
         write_text(
             root,

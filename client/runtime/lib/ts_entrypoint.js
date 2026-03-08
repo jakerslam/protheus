@@ -7,7 +7,7 @@ const Module = require('module');
 const { bootstrap } = require('./ts_bootstrap');
 
 function usage() {
-  process.stderr.write('Usage: node client/lib/ts_entrypoint.js <target.ts> [args...]\n');
+  process.stderr.write('Usage: node client/runtime/lib/ts_entrypoint.js <target.ts> [args...]\n');
 }
 
 function main() {

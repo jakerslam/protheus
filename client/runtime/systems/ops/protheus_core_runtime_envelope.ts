@@ -19,8 +19,8 @@ const {
   clampNumber,
   readJson,
   writeJsonAtomic
-} = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+} = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 
 const POLICY_PATH = process.env.PROTHEUS_CORE_RUNTIME_ENVELOPE_POLICY_PATH
   ? path.resolve(process.env.PROTHEUS_CORE_RUNTIME_ENVELOPE_POLICY_PATH)

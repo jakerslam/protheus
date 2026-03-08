@@ -23,7 +23,7 @@ const {
   writeJsonAtomic,
   resolvePath,
   stableHash
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 function parseJsonFromStdout(stdout: string) {
   const text = String(stdout || '').trim();

@@ -5,8 +5,8 @@ export {};
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { stableHash, nowIso, toBool } = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+const { stableHash, nowIso, toBool } = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const POLICY_PATH = process.env.COMPETITIVE_BENCHMARK_MATRIX_POLICY_PATH

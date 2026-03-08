@@ -30,7 +30,7 @@ const {
   appendJsonl,
   resolvePath,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const POLICY_PATH = process.env.RUST_CONTROL_PLANE_CUTOVER_POLICY_PATH
   ? path.resolve(process.env.RUST_CONTROL_PLANE_CUTOVER_POLICY_PATH)

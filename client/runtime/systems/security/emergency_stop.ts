@@ -18,7 +18,7 @@ const {
   getStopState,
   engageEmergencyStop,
   releaseEmergencyStop
-} = require('../../../lib/emergency_stop');
+} = require('../../lib/emergency_stop');
 
 function usage() {
   console.log('Usage:');

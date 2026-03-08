@@ -25,17 +25,17 @@
     "min_dopamine_score": 1
   },
   "paths": {
-    "state_path": "state/client/adaptive/rsi/state.json",
-    "latest_path": "state/client/adaptive/rsi/latest.json",
-    "receipts_path": "state/client/adaptive/rsi/receipts.jsonl",
-    "chain_path": "state/client/adaptive/rsi/chain.jsonl",
-    "merkle_path": "state/client/adaptive/rsi/merkle.json",
-    "approvals_path": "state/client/adaptive/rsi/approvals.json",
-    "step_artifacts_dir": "state/client/adaptive/rsi/steps"
+    "state_path": "state/client/cognition/adaptive/rsi/state.json",
+    "latest_path": "state/client/cognition/adaptive/rsi/latest.json",
+    "receipts_path": "state/client/cognition/adaptive/rsi/receipts.jsonl",
+    "chain_path": "state/client/cognition/adaptive/rsi/chain.jsonl",
+    "merkle_path": "state/client/cognition/adaptive/rsi/merkle.json",
+    "approvals_path": "state/client/cognition/adaptive/rsi/approvals.json",
+    "step_artifacts_dir": "state/client/cognition/adaptive/rsi/steps"
   },
   "scripts": {
     "event_stream": "client/runtime/systems/ops/event_sourced_control_plane.js",
-    "system3": "client/adaptive/executive/system3_executive_layer.js",
+    "system3": "client/cognition/adaptive/executive/system3_executive_layer.js",
     "strategy_learner": "client/runtime/systems/strategy/strategy_learner.js",
     "model_catalog": "client/runtime/systems/autonomy/model_catalog_loop.js",
     "memfs": "client/runtime/systems/memory/memfs_layer.js",

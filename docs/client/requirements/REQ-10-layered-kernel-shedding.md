@@ -73,7 +73,7 @@ Define and implement sheddable Rust kernel layers so Protheus/InfRing can compil
 
 - Rewriting all runtime crates immediately.
 - Introducing parallel compatibility-mode codepaths.
-- Moving client/adaptive/user-flex surfaces into hard-kernel scope.
+- Moving client/cognition/adaptive/user-flex surfaces into hard-kernel scope.
 
 ## Exit Criteria
 

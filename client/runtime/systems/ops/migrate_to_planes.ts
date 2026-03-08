@@ -16,8 +16,8 @@ const {
   appendJsonl,
   emit,
   relPath
-} = require('../../../lib/queued_backlog_runtime');
-const { CANONICAL_PATHS } = require('../../../lib/runtime_path_registry');
+} = require('../../lib/queued_backlog_runtime');
+const { CANONICAL_PATHS } = require('../../lib/runtime_path_registry');
 
 const CLIENT_ROOT = path.join(ROOT, 'client');
 const CORE_ROOT = path.join(ROOT, 'core');

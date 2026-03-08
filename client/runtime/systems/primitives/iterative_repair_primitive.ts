@@ -7,8 +7,8 @@ const path = require('path');
 const {
   sha256Hex,
   stableStringify
-} = require('../../../lib/integrity_hash_utility');
-const passportIterationChain = require('../../../lib/passport_iteration_chain');
+} = require('../../lib/integrity_hash_utility');
+const passportIterationChain = require('../../lib/passport_iteration_chain');
 
 type AnyObj = Record<string, any>;
 

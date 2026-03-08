@@ -24,7 +24,7 @@
   - Layer target: `client/runtime/local/*` and `core/local/*` runtime roots.
   - Delivered:
     - Removed deprecated memory compat shim surfaces (`client/core_memory_compat/*`, `client/core/memory/compat_bridge.ts`).
-    - Removed tracked `client/state` compatibility symlink; runtime guard now fail-closes on `state`, `client/state`, and root `local`.
+    - Removed tracked `client/runtime/state` compatibility symlink; runtime guard now fail-closes on `state`, `client/runtime/state`, and root `local`.
     - Migration lane defaults to direct mode (`--compat-symlinks=0` by default) and migrates `local/state -> client/runtime/local/state`.
     - Canonical defaults updated for security/workflow/memory/vault paths to `client/runtime/local/state`.
   - Validation:
@@ -42,9 +42,9 @@
     - `npm run -s ops:source-runtime:check`
 
 - [x] `V6-CONVERSATION-EYE-001` Implement Conversation Eye synthesis lane and make it default-on for every instance.
-  - Layer target: client cognition plane (`client/adaptive/sensory/eyes/*` + `client/runtime/systems/sensory/*`), runtime memory sink in `client/runtime/local/state/memory/conversation_eye/*`.
+  - Layer target: client cognition plane (`client/cognition/adaptive/sensory/eyes/*` + `client/runtime/systems/sensory/*`), runtime memory sink in `client/runtime/local/state/memory/conversation_eye/*`.
   - Delivered:
-    - Added collector: `client/adaptive/sensory/eyes/collectors/conversation_eye.ts`.
+    - Added collector: `client/cognition/adaptive/sensory/eyes/collectors/conversation_eye.ts`.
     - Added synthesizer: `client/runtime/systems/sensory/conversation_eye_synthesizer.ts`.
     - Added bootstrap lane + wrapper: `client/runtime/systems/sensory/conversation_eye_bootstrap.{ts,js}`.
     - `local_runtime_partitioner init/status` now ensures/reports conversation-eye installation.
@@ -240,7 +240,7 @@
     - Raised conduit stdio/bridge default timeout budgets (20s -> 120s+) across bridge callsites.
     - Added bridge-side child timeout/kill path in Rust conduit ops bridge to avoid indefinite child hangs.
     - Heartbeat and daemon spine calls now pass explicit timeout budgets for run/status lanes.
-    - Added shared conduit runtime fault gate in `client/lib/spine_conduit_bridge.ts`:
+    - Added shared conduit runtime fault gate in `client/runtime/lib/spine_conduit_bridge.ts`:
       - records timeout-like failures,
       - activates backoff gate (`conduit_runtime_gate_active_until:*`),
       - fails fast on subsequent calls to stop death-loop timeouts.
@@ -255,8 +255,8 @@
     - Added immediate bridge reprobe path in `protheusd` when runtime gate has cleared (prevents stale `bridge_degraded` state waiting on deferred probe windows).
     - Verified `protheusd status` now surfaces explicit bridge health + gate telemetry in degraded mode (`conduit_runtime_gate`, `bridge_health`, `degraded_reason`) instead of silent heartbeat death loops.
     - Added bounded timeout contracts to `spine_safe_launcher` subprocess precheck/status paths (including non-blocking status on precheck failure) to stop prolonged wrapper stalls.
-    - Added conduit stdio-timeout override plumbing (`client/runtime/systems/conduit/conduit-client.ts` + `client/lib/spine_conduit_bridge.ts`) so status-like calls can fail fast instead of inheriting 30s+ defaults.
-    - Added shared conduit startup probe gate in `client/lib/spine_conduit_bridge.ts`:
+    - Added conduit stdio-timeout override plumbing (`client/runtime/systems/conduit/conduit-client.ts` + `client/runtime/lib/spine_conduit_bridge.ts`) so status-like calls can fail fast instead of inheriting 30s+ defaults.
+    - Added shared conduit startup probe gate in `client/runtime/lib/spine_conduit_bridge.ts`:
       - probes daemon binary responsiveness (`--help`) with bounded timeout before spawning conduit sessions,
       - fails fast with `conduit_startup_probe_timeout:*` on startup stalls,
       - propagates timeout-like runtime gate accounting/fallback without waiting full stdio timeout windows.
@@ -270,7 +270,7 @@
     - `formal:invariants:run` + conduit bridge smoke tests pass with live Rust lane.
   - Latest validation snapshot (2026-03-08):
     - `ops:mech-suit:benchmark` passes (`host_fault.timeout_detected=false`) and `formal:invariants:run` passes.
-    - `node client/lib/conduit_full_lifecycle_probe.js` still fails (`probe_error:conduit_stdio_timeout:15000`), and direct `./target/debug/conduit_daemon --help` hangs in this host profile.
+    - `node client/runtime/lib/conduit_full_lifecycle_probe.js` still fails (`probe_error:conduit_stdio_timeout:15000`), and direct `./target/debug/conduit_daemon --help` hangs in this host profile.
     - Shared bridge startup probe now fails fast with `conduit_startup_probe_timeout:2000` so callers avoid long stdio timeout loops while closure remains open.
 
 - [x] `LOCAL-PARTITION-001` Migrate mutable runtime paths into unified local partitions.
@@ -434,7 +434,7 @@
 - [x] `V6-CONVERSATION-EYE-TIMEOUT-001` Reduce conversation-eye timeout incidence in protheusd heartbeat.
   - Layer target: `client/runtime/systems/sensory/*` execution path + daemon heartbeat contract in `client/runtime/systems/ops/protheusd.ts`.
   - Completed deliverables:
-    - Added bounded work-budget controls to `client/adaptive/sensory/eyes/collectors/conversation_eye.ts` (`CONVERSATION_EYE_MAX_ITEMS`, `CONVERSATION_EYE_MAX_ROWS`, `CONVERSATION_EYE_MAX_WORK_MS`).
+    - Added bounded work-budget controls to `client/cognition/adaptive/sensory/eyes/collectors/conversation_eye.ts` (`CONVERSATION_EYE_MAX_ITEMS`, `CONVERSATION_EYE_MAX_ROWS`, `CONVERSATION_EYE_MAX_WORK_MS`).
     - Raised default conversation-eye budgets in bootstrap (`client/runtime/systems/sensory/conversation_eye_bootstrap.ts`) to avoid 8s collector starvation.
     - Hardened heartbeat invocation in `client/runtime/systems/ops/protheusd.ts` with single-attempt collector env overrides and higher lane timeout budget.
   - Validation:
@@ -446,7 +446,7 @@
 - [x] `V6-DOPAMINE-CONTRACT-002` Resolve dopamine ambient command contract mismatch in mech benchmark.
   - Layer target: `client/runtime/systems/habits/dopamine_ambient.ts` + conduit bridge command contract + `client/runtime/systems/ops/mech_suit_benchmark.js`.
   - Delivered:
-    - Added explicit unknown-command compatibility fallback in conduit bridge (`client/lib/spine_conduit_bridge.ts`) so dopamine evaluate/status probes degrade to supported compat lane with deterministic payloads.
+    - Added explicit unknown-command compatibility fallback in conduit bridge (`client/runtime/lib/spine_conduit_bridge.ts`) so dopamine evaluate/status probes degrade to supported compat lane with deterministic payloads.
     - Updated benchmark dopamine probes to run with runtime-gate suppression disabled (`PROTHEUS_CONDUIT_RUNTIME_GATE_SUPPRESS=0`) and typed payload parsing.
   - Validation:
     - `node client/runtime/systems/ops/mech_suit_benchmark.js` (2026-03-08) now reports dopamine case `ok: true` without `unknown_command`.

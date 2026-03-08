@@ -395,7 +395,7 @@ pub fn default_policy(root: &Path) -> Policy {
         cold_start_probe: ColdStartProbe {
             command: vec![
                 "node".to_string(),
-                "client/lib/conduit_full_lifecycle_probe.js".to_string(),
+                "client/runtime/lib/conduit_full_lifecycle_probe.js".to_string(),
             ],
             samples: 5,
             max_ms: 500.0,

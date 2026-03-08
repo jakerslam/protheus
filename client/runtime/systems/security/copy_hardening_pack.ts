@@ -25,7 +25,7 @@ const {
   resolvePath,
   stableHash,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const DEFAULT_POLICY_PATH = process.env.COPY_HARDENING_PACK_POLICY_PATH
   ? path.resolve(process.env.COPY_HARDENING_PACK_POLICY_PATH)

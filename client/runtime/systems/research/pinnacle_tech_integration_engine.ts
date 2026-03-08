@@ -15,8 +15,8 @@ const {
   normalizeToken,
   stableHash,
   nowIso
-} = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+} = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 
 const POLICY_PATH = process.env.PINNACLE_TECH_INTEGRATION_POLICY_PATH
   ? path.resolve(process.env.PINNACLE_TECH_INTEGRATION_POLICY_PATH)

@@ -4,8 +4,8 @@ export {};
 
 const fs = require('fs');
 const path = require('path');
-const { nowIso, normalizeToken, cleanText, toBool } = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+const { nowIso, normalizeToken, cleanText, toBool } = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 
 const POLICY_PATH = process.env.SANDBOX_SUBAGENT_SCOPE_POLICY_PATH
   ? path.resolve(process.env.SANDBOX_SUBAGENT_SCOPE_POLICY_PATH)

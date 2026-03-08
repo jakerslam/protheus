@@ -244,7 +244,7 @@ function generateDailyProposals(dateStr, digestContent, anomalyData) {
       'low',
       [
         'Reduce max_events_per_run in client/runtime/config/work_roots.json',
-        'Add more ignore_patterns for client/build/cache dirs',
+        'Add more ignore_patterns for client/runtime/build/cache dirs',
         'Reduce lookback_hours_default',
         'Expect file_change_spike count <= 0 in next digest'
       ],

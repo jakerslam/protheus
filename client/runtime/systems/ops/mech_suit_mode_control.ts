@@ -10,7 +10,7 @@ const {
   resolvePolicyPath,
   resolveStatePath,
   updateMechSuitStatus
-} = require('../../../lib/mech_suit_mode');
+} = require('../../lib/mech_suit_mode');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 

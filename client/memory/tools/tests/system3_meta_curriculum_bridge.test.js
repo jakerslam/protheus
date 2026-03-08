@@ -48,7 +48,7 @@ try {
     strict_default: true,
     event_stream: { enabled: false, publish: false, stream: 'executive.system3_curriculum' },
     scripts: {
-      system3: 'client/adaptive/executive/system3_executive_layer.js',
+      system3: 'client/cognition/adaptive/executive/system3_executive_layer.js',
       strategy_learner: 'client/runtime/systems/strategy/strategy_learner.js',
       model_catalog: 'client/runtime/systems/autonomy/model_catalog_loop.js'
     },

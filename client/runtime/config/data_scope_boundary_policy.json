@@ -16,7 +16,7 @@
       ],
       "user_paths": [
         "client/memory/contracts",
-        "client/adaptive/contracts"
+        "client/cognition/adaptive/contracts"
       ]
     },
     {
@@ -27,7 +27,7 @@
       ],
       "user_paths": [
         "client/memory/economy/preferences",
-        "client/adaptive/economy/preferences"
+        "client/cognition/adaptive/economy/preferences"
       ]
     },
     {
@@ -38,7 +38,7 @@
       ],
       "user_paths": [
         "client/memory/lineage",
-        "client/adaptive/lineage"
+        "client/cognition/adaptive/lineage"
       ]
     },
     {
@@ -48,7 +48,7 @@
       ],
       "user_paths": [
         "client/memory/civic_duty",
-        "client/adaptive/civic_duty"
+        "client/cognition/adaptive/civic_duty"
       ]
     },
     {
@@ -59,7 +59,7 @@
       ],
       "user_paths": [
         "client/memory/economy/peer_lending",
-        "client/adaptive/economy/peer_lending"
+        "client/cognition/adaptive/economy/peer_lending"
       ]
     },
     {
@@ -69,7 +69,7 @@
       ],
       "user_paths": [
         "client/memory/identity/signature",
-        "client/adaptive/identity/signature"
+        "client/cognition/adaptive/identity/signature"
       ]
     },
     {
@@ -79,7 +79,7 @@
       ],
       "user_paths": [
         "client/memory/research/preferences",
-        "client/adaptive/research/preferences"
+        "client/cognition/adaptive/research/preferences"
       ]
     }
   ],

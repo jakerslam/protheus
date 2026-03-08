@@ -19,9 +19,9 @@ const ROOT_PATH_PREFIXES = [
   'client/runtime/config/',
   'docs/client/',
   'client/memory/',
-  'client/adaptive/',
+  'client/cognition/adaptive/',
   'state/',
-  'client/lib/',
+  'client/runtime/lib/',
   'packages/',
   'platform/'
 ];
@@ -254,7 +254,7 @@ function buildReviewRows(rows, doneStatuses) {
         const lower = ref.toLowerCase();
         if (
           lower.startsWith('state/') ||
-          lower.startsWith('client/adaptive/') ||
+          lower.startsWith('client/cognition/adaptive/') ||
           lower.startsWith('client/memory/') ||
           lower.startsWith('tmp/')
         ) {

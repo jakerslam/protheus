@@ -6,7 +6,7 @@
  * Native execution delegated to Rust backlog-runtime-anchor lane.
  */
 
-const { createLaneModule } = require('../../../../lib/backlog_runtime_anchor_bridge');
+const { createLaneModule } = require('../../lib/backlog_runtime_anchor_bridge');
 
 const lane = createLaneModule('V1H-007');
 const { LANE_ID, buildAnchor, verifyAnchor } = lane;

@@ -4,8 +4,8 @@ export {};
 
 const fs = require('fs');
 const path = require('path');
-const { nowIso, toBool } = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+const { nowIso, toBool } = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const POLICY_PATH = process.env.EVIDENCE_AUDIT_DASHBOARD_POLICY_PATH

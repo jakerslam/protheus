@@ -7,7 +7,7 @@ const path = require('path');
 const {
   ROOT, nowIso, parseArgs, normalizeToken, toBool, clampNumber,
   readJson, writeJsonAtomic, appendJsonl, resolvePath, emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const POLICY_PATH = process.env.HABIT_ADAPTER_FINETUNE_POLICY_PATH
   ? path.resolve(process.env.HABIT_ADAPTER_FINETUNE_POLICY_PATH)

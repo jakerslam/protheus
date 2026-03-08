@@ -5,7 +5,7 @@ The RSI self-modification path now runs a mandatory Core-5 Shadow Conclave revie
 ## Conclave Hook
 
 - Entry points:
-  - `client/adaptive/rsi/rsi_bootstrap.ts` (`step`)
+  - `client/cognition/adaptive/rsi/rsi_bootstrap.ts` (`step`)
   - `client/runtime/systems/autonomy/inversion_controller.ts` (`run`, apply path)
 - Reviewer command:
   - `node client/runtime/systems/personas/cli.js vikram rohan priya aarav liwei "Review this proposed RSI change for safety, ops, measurement, security, and product impact" --schema=json --max-context-tokens=2000 --context-budget-mode=trim`
@@ -27,7 +27,7 @@ The RSI self-modification path now runs a mandatory Core-5 Shadow Conclave revie
 ## Audit Trail
 
 - Receipts:
-  - RSI: `state/client/adaptive/rsi/conclave_receipts.jsonl`
+  - RSI: `state/client/cognition/adaptive/rsi/conclave_receipts.jsonl`
   - Inversion: `state/autonomy/inversion/shadow_conclave_receipts.jsonl`
 - Memory log:
   - `personas/organization/correspondence.md`

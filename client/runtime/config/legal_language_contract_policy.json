@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "enabled": true,
-  "files": ["LICENSE", "README.md", "client/legal/archive/EULA.md", "client/legal/archive/TERMS_OF_SERVICE.md", "client/legal/archive/CONTRIBUTING_TERMS.md"],
+  "files": ["LICENSE", "README.md", "docs/client/legal/archive/EULA.md", "docs/client/legal/archive/TERMS_OF_SERVICE.md", "docs/client/legal/archive/CONTRIBUTING_TERMS.md"],
   "discouraged_terms": [
     "soul-token-bound",
     "bite at your own risk",

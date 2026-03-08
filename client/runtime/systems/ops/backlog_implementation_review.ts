@@ -27,8 +27,8 @@ const {
   appendJsonl,
   stableHash,
   emit
-} = require('../../../lib/queued_backlog_runtime');
-const { writeArtifactSet } = require('../../../lib/state_artifact_contract');
+} = require('../../lib/queued_backlog_runtime');
+const { writeArtifactSet } = require('../../lib/state_artifact_contract');
 
 const DEFAULT_POLICY_PATH = process.env.BACKLOG_IMPLEMENTATION_REVIEW_POLICY_PATH
   ? path.resolve(process.env.BACKLOG_IMPLEMENTATION_REVIEW_POLICY_PATH)
@@ -87,7 +87,7 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
     },
     search: {
       roots: asList(
-        search.roots || ['client/runtime/systems', 'client/lib', 'core', 'client/cli/packages', 'client/platform', 'client/runtime/config', 'docs/client', 'client/memory/tools/tests', 'tests'],
+        search.roots || ['client/runtime/systems', 'client/runtime/lib', 'core', 'client/cli/packages', 'client/runtime/platform', 'client/runtime/config', 'docs/client', 'client/memory/tools/tests', 'tests'],
         220
       ),
       exclude_paths: asList(
@@ -123,9 +123,9 @@ function looksLikePath(raw: string) {
     || plain.startsWith('./')
     || plain.startsWith('../')
     || plain.startsWith('client/runtime/systems/')
-    || plain.startsWith('client/lib/')
+    || plain.startsWith('client/runtime/lib/')
     || plain.startsWith('client/cli/packages/')
-    || plain.startsWith('client/platform/')
+    || plain.startsWith('client/runtime/platform/')
     || plain.startsWith('client/runtime/config/')
     || plain.startsWith('docs/client/')
     || plain.startsWith('client/memory/')
@@ -286,12 +286,12 @@ function classifyBucket(relPath: string) {
     v.startsWith('systems/')
     || v.startsWith('client/runtime/systems/')
     || v.startsWith('lib/')
-    || v.startsWith('client/lib/')
+    || v.startsWith('client/runtime/lib/')
     || v.startsWith('core/')
     || v.startsWith('packages/')
     || v.startsWith('client/cli/packages/')
     || v.startsWith('platform/')
-    || v.startsWith('client/platform/')
+    || v.startsWith('client/runtime/platform/')
   ) return 'runtime';
   return 'other';
 }

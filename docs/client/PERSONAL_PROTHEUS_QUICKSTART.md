@@ -32,4 +32,4 @@ Before contributing or deploying commercially, review:
 - `LICENSE`
 - `SECURITY.md`
 - `CONTRIBUTING.md`
-- `client/legal/archive/` (historical terms retained for audit context)
+- `docs/client/legal/archive/` (historical terms retained for audit context)

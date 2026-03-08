@@ -19,8 +19,8 @@ const {
   stableHash,
   readJson,
   writeJsonAtomic
-} = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+} = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 
 const POLICY_PATH = process.env.MOBILE_COMPETITIVE_BENCHMARK_MATRIX_POLICY_PATH
   ? path.resolve(process.env.MOBILE_COMPETITIVE_BENCHMARK_MATRIX_POLICY_PATH)

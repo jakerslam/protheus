@@ -180,7 +180,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 | 105 | `client/runtime/systems/ops/rust_control_plane_cutover.ts` | `cb947e73` |
 | 106 | `client/runtime/systems/assimilation/group_evolving_agents_primitive.ts` | `93ead3ea` |
 | 107 | `client/runtime/systems/memory/causal_temporal_graph.ts` | `61c0d7ef` |
-| 108 | `client/lib/secret_broker.ts` | `5f18bba2` |
+| 108 | `client/runtime/lib/secret_broker.ts` | `5f18bba2` |
 | 109 | `client/runtime/systems/security/remote_tamper_heartbeat.ts` | `fffa75bd` |
 | 110 | `client/runtime/systems/ops/backlog_implementation_review.ts` | `9e125c52` |
 | 111 | `client/runtime/systems/autonomy/batch_lane.ts` | `9b280daa` |
@@ -212,7 +212,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 | 137 | `client/runtime/systems/autonomy/persistent_fractal_meta_organ.ts` | `1decff06` |
 | 138 | `client/runtime/systems/memory/eyes_memory_bridge.ts` | `bab0cc9d` |
 | 139 | `client/runtime/systems/assimilation/capability_profile_compiler.ts` | `42657ac0` |
-| 140 | `client/lib/trit_shadow_control.ts` | `fbd4eb4c` |
+| 140 | `client/runtime/lib/trit_shadow_control.ts` | `fbd4eb4c` |
 | 141 | `client/runtime/systems/workflow/client_communication_organ.ts` | `73534677` |
 | 142 | `client/runtime/systems/ops/backlog_queue_executor.ts` | `3ec194b8` |
 | 143 | `client/runtime/systems/ops/blank_slate_reset.ts` | `f4634321` |
@@ -231,7 +231,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 | 156 | `client/runtime/systems/workflow/gated_account_creation_organ.ts` | `ee83a589` |
 | 157 | `client/runtime/systems/ops/model_health_auto_recovery.ts` | `fca16ae6` |
 | 158 | `client/runtime/systems/ops/platform_socket_runtime.ts` | `b4f36d74` |
-| 159 | `client/lib/strategy_resolver.ts` | `cad32d81` |
+| 159 | `client/runtime/lib/strategy_resolver.ts` | `cad32d81` |
 | 160 | `client/runtime/systems/ops/postmortem_loop.ts` | `7688cdfd` |
 | 161 | `client/runtime/systems/reflex/reflex_dispatcher.ts` | `b1eabe98` |
 | 162 | `client/runtime/systems/memory/memory_efficiency_plane.ts` | `1513229a` |
@@ -241,7 +241,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 | 166 | `client/runtime/systems/ops/event_sourced_control_plane.ts` | `600da186` |
 | 167 | `client/runtime/systems/ops/dist_runtime_cutover.ts` | `fc6c779d` |
 | 168 | `client/runtime/systems/workflow/rate_limit_intelligence.ts` | `b6781334` |
-| 169 | `client/lib/duality_seed.ts` | `193c0730` |
+| 169 | `client/runtime/lib/duality_seed.ts` | `193c0730` |
 | 170 | `client/runtime/systems/ops/deployment_packaging.ts` | `51c4f215` |
 | 171 | `client/runtime/systems/ops/backup_integrity_check.ts` | `76785690` |
 | 172 | `client/runtime/systems/ops/protheus_setup_wizard.ts` | `d970c5ca` |
@@ -347,18 +347,18 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 ## Completed In This Continuation (Post-200 Next 100 LOC-Ranked TS+JS Cutover)
 - Timestamp start: 2026-03-05T21:49:19Z
 - Rule: each lane runs test + clippy + invariants, then commit + push, with tracker update in same commit.
-- [x] N1 | client/adaptive/rsi/rsi_bootstrap.ts | LOC=1597 | 2026-03-05T21:49:21Z
+- [x] N1 | client/cognition/adaptive/rsi/rsi_bootstrap.ts | LOC=1597 | 2026-03-05T21:49:21Z
 - [x] N2 | client/runtime/systems/redteam/self_improving_redteam_trainer.ts | LOC=843 | 2026-03-05T21:49:23Z
 - [x] N3 | client/runtime/systems/blockchain/sovereign_blockchain_bridge.ts | LOC=823 | 2026-03-05T21:49:26Z
 - [x] N4 | client/runtime/systems/migration/core_migration_bridge.ts | LOC=768 | 2026-03-05T21:49:28Z
 - [x] N5 | client/runtime/systems/observability/metrics_exporter.ts | LOC=747 | 2026-03-05T21:49:31Z
-- [x] N6 | client/lib/directive_resolver.ts | LOC=715 | 2026-03-05T21:49:33Z
+- [x] N6 | client/runtime/lib/directive_resolver.ts | LOC=715 | 2026-03-05T21:49:33Z
 - [x] N7 | client/runtime/systems/hardware/attested_assimilation_plane.ts | LOC=672 | 2026-03-05T21:49:36Z
-- [x] N8 | client/lib/success_criteria_verifier.ts | LOC=667 | 2026-03-05T21:49:39Z
+- [x] N8 | client/runtime/lib/success_criteria_verifier.ts | LOC=667 | 2026-03-05T21:49:39Z
 - [x] N9 | client/runtime/systems/storm/creator_optin_ledger.ts | LOC=664 | 2026-03-05T21:49:42Z
 - [x] N10 | client/runtime/systems/symbiosis/pre_neuralink_interface.ts | LOC=658 | 2026-03-05T21:49:45Z
 - [x] N11 | client/runtime/systems/redteam/ant_colony_controller.ts | LOC=655 | 2026-03-05T21:49:48Z
-- [x] N12 | client/lib/symbiosis_coherence_signal.ts | LOC=652 | 2026-03-05T21:49:51Z
+- [x] N12 | client/runtime/lib/symbiosis_coherence_signal.ts | LOC=652 | 2026-03-05T21:49:51Z
 - [x] N13 | client/runtime/systems/attribution/value_attribution_primitive.ts | LOC=634 | 2026-03-05T21:49:53Z
 - [x] N14 | client/runtime/systems/continuity/resurrection_protocol.ts | LOC=619 | 2026-03-05T21:49:55Z
 - [x] N15 | client/runtime/systems/nursery/nursery_bootstrap.ts | LOC=617 | 2026-03-05T21:49:57Z
@@ -385,10 +385,10 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N36 | client/runtime/systems/hardware/embodiment_layer.ts | LOC=462 | 2026-03-05T21:50:48Z
 - [x] N37 | client/runtime/systems/spawn/seed_spawn_lineage.ts | LOC=461 | 2026-03-05T21:50:50Z
 - [x] N38 | client/runtime/systems/continuity/active_state_bridge.ts | LOC=460 | 2026-03-05T21:50:52Z
-- [x] N39 | client/lib/ternary_belief_engine.ts | LOC=450 | 2026-03-05T21:50:55Z
+- [x] N39 | client/runtime/lib/ternary_belief_engine.ts | LOC=450 | 2026-03-05T21:50:55Z
 - [x] N40 | client/runtime/systems/science/meta_science_active_learning_loop.ts | LOC=443 | 2026-03-05T21:50:57Z
 - [x] N41 | client/runtime/systems/budget/global_cost_governor.ts | LOC=438 | 2026-03-05T21:51:00Z
-- [x] N42 | client/lib/egress_gateway.ts | LOC=433 | 2026-03-05T21:51:02Z
+- [x] N42 | client/runtime/lib/egress_gateway.ts | LOC=433 | 2026-03-05T21:51:02Z
 - [x] N43 | client/runtime/systems/science/experiment_scheduler.ts | LOC=431 | 2026-03-05T21:51:04Z
 - [x] N44 | client/runtime/systems/soul/soul_print_manager.ts | LOC=428 | 2026-03-05T21:51:07Z
 - [x] N45 | client/runtime/systems/echo/input_purification_gate.ts | LOC=425 | 2026-03-05T21:51:09Z
@@ -405,12 +405,12 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N56 | client/runtime/systems/assimilation/context_navigation_primitive.ts | LOC=405 | 2026-03-05T21:51:35Z
 - [x] N57 | client/runtime/systems/actuation/multi_channel_adapter.ts | LOC=401 | 2026-03-05T21:51:37Z
 - [x] N58 | client/runtime/systems/assimilation/environment_evolution_layer.ts | LOC=400 | 2026-03-05T21:51:39Z
-- [x] N59 | client/lib/strategy_campaign_scheduler.ts | LOC=396 | 2026-03-05T21:51:41Z
+- [x] N59 | client/runtime/lib/strategy_campaign_scheduler.ts | LOC=396 | 2026-03-05T21:51:41Z
 - [x] N60 | client/runtime/systems/assimilation/generative_meta_model_primitive.ts | LOC=395 | 2026-03-05T21:51:44Z
 - [x] N61 | client/runtime/systems/adaptive/habits/habit_runtime_sync.ts | LOC=393 | 2026-03-05T21:51:46Z
 - [x] N62 | client/runtime/systems/science/hypothesis_forge.ts | LOC=390 | 2026-03-05T21:51:48Z
 - [x] N63 | client/runtime/systems/ops/execution_doctor_ga.ts | LOC=390 | 2026-03-05T21:51:50Z
-- [x] N64 | client/lib/upgrade_lane_runtime.ts | LOC=390 | 2026-03-05T21:51:52Z
+- [x] N64 | client/runtime/lib/upgrade_lane_runtime.ts | LOC=390 | 2026-03-05T21:51:52Z
 - [x] N65 | client/runtime/systems/sensory/dynamic_source_reliability_graph.ts | LOC=384 | 2026-03-05T21:51:55Z
 - [x] N66 | client/runtime/systems/strategy/strategy_learner.ts | LOC=382 | 2026-03-05T21:51:57Z
 - [x] N67 | client/runtime/systems/science/scientific_method_loop.ts | LOC=382 | 2026-03-05T21:52:00Z
@@ -436,7 +436,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N87 | client/runtime/systems/ops/protheus_debug_diagnostics.ts | LOC=356 | 2026-03-05T21:52:48Z
 - [x] N88 | client/runtime/systems/security/startup_attestation.ts | LOC=355 | 2026-03-05T21:52:51Z
 - [x] N89 | client/runtime/systems/ops/backlog_lane_batch_delivery.ts | LOC=355 | 2026-03-05T21:52:54Z
-- [x] N90 | client/lib/approval_gate.ts | LOC=354 | 2026-03-05T21:52:57Z
+- [x] N90 | client/runtime/lib/approval_gate.ts | LOC=354 | 2026-03-05T21:52:57Z
 - [x] N91 | client/runtime/systems/ops/rm_progress_dashboard.ts | LOC=353 | 2026-03-05T21:53:01Z
 - [x] N92 | client/runtime/systems/migration/self_healing_migration_daemon.ts | LOC=353 | 2026-03-05T21:53:03Z
 - [x] N93 | client/runtime/systems/assimilation/candidacy_ledger.ts | LOC=353 | 2026-03-05T21:53:05Z
@@ -461,9 +461,9 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N8 | client/runtime/systems/ops/chromeos_fuchsia_distribution_ota_adapter.ts | LOC=344 | 2026-03-05T21:59:33Z
 - [x] N9 | client/runtime/systems/sensory/value_of_information_collection_planner.ts | LOC=343 | 2026-03-05T21:59:35Z
 - [x] N10 | client/runtime/systems/fractal/introspection_map.ts | LOC=342 | 2026-03-05T21:59:38Z
-- [x] N11 | client/adaptive/sensory/eyes/collectors/google_trends.ts | LOC=342 | 2026-03-05T21:59:40Z
+- [x] N11 | client/cognition/adaptive/sensory/eyes/collectors/google_trends.ts | LOC=342 | 2026-03-05T21:59:40Z
 - [x] N12 | client/runtime/systems/sensory/gold_eval_blind_scoring_lane.ts | LOC=341 | 2026-03-05T21:59:42Z
-- [x] N13 | client/adaptive/rsi/rsi_integrity_chain_guard.ts | LOC=341 | 2026-03-05T21:59:44Z
+- [x] N13 | client/cognition/adaptive/rsi/rsi_integrity_chain_guard.ts | LOC=341 | 2026-03-05T21:59:44Z
 - [x] N14 | client/runtime/systems/weaver/monoculture_guard.ts | LOC=339 | 2026-03-05T21:59:46Z
 - [x] N15 | client/runtime/systems/migration/community_repo_graduation_pack.ts | LOC=339 | 2026-03-05T21:59:49Z
 - [x] N16 | client/runtime/systems/ops/rust50_conf001_execution_cutover.ts | LOC=338 | 2026-03-05T21:59:51Z
@@ -475,7 +475,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N22 | client/runtime/systems/ops/state_cleanup.ts | LOC=334 | 2026-03-05T22:00:06Z
 - [x] N23 | client/runtime/systems/continuity/sovereign_resurrection_substrate.ts | LOC=334 | 2026-03-05T22:00:09Z
 - [x] N24 | client/runtime/systems/ops/scale_benchmark.ts | LOC=333 | 2026-03-05T22:00:11Z
-- [x] N25 | client/adaptive/sensory/eyes/collectors/ollama_search.ts | LOC=333 | 2026-03-05T22:00:14Z
+- [x] N25 | client/cognition/adaptive/sensory/eyes/collectors/ollama_search.ts | LOC=333 | 2026-03-05T22:00:14Z
 - [x] N26 | client/runtime/systems/security/skill_quarantine.ts | LOC=332 | 2026-03-05T22:00:17Z
 - [x] N27 | client/runtime/systems/ops/ci_baseline_guard.ts | LOC=332 | 2026-03-05T22:00:19Z
 - [x] N28 | client/runtime/systems/ops/rust50_sprint1_batch.ts | LOC=330 | 2026-03-05T22:00:22Z
@@ -502,15 +502,15 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N49 | client/runtime/systems/security/autonomous_skill_necessity_audit.ts | LOC=318 | 2026-03-05T22:01:20Z
 - [x] N50 | client/runtime/systems/continuity/active_state_continuity_layer.ts | LOC=318 | 2026-03-05T22:01:23Z
 - [x] N51 | client/runtime/systems/primitives/explanation_auto_emit.ts | LOC=316 | 2026-03-05T22:01:26Z
-- [x] N52 | client/adaptive/sensory/eyes/collectors/producthunt_launches.ts | LOC=315 | 2026-03-05T22:01:28Z
+- [x] N52 | client/cognition/adaptive/sensory/eyes/collectors/producthunt_launches.ts | LOC=315 | 2026-03-05T22:01:28Z
 - [x] N53 | client/runtime/systems/ops/broken_piece_lab.ts | LOC=314 | 2026-03-05T22:01:30Z
 - [x] N54 | client/runtime/systems/memory/memory_index_freshness_gate.ts | LOC=313 | 2026-03-05T22:01:35Z
 - [x] N55 | client/runtime/systems/memory/napi_build_surface_compat.ts | LOC=312 | 2026-03-05T22:01:38Z
 - [x] N56 | client/runtime/systems/sensory/novelty_saturation_prioritization_engine.ts | LOC=311 | 2026-03-05T22:01:41Z
 - [x] N57 | client/runtime/systems/ops/aws_reproducible_artifact_profile.ts | LOC=311 | 2026-03-05T22:01:43Z
-- [x] N58 | client/adaptive/sensory/eyes/collectors/hn_rss.ts | LOC=311 | 2026-03-05T22:01:46Z
+- [x] N58 | client/cognition/adaptive/sensory/eyes/collectors/hn_rss.ts | LOC=311 | 2026-03-05T22:01:46Z
 - [x] N59 | client/runtime/systems/ops/autonomy_health_visibility_dashboard.ts | LOC=310 | 2026-03-05T22:01:49Z
-- [x] N60 | client/adaptive/sensory/eyes/collectors/medium_rss.ts | LOC=310 | 2026-03-05T22:01:52Z
+- [x] N60 | client/cognition/adaptive/sensory/eyes/collectors/medium_rss.ts | LOC=310 | 2026-03-05T22:01:52Z
 - [x] N61 | client/runtime/systems/sensory/latent_intent_inference_graph.ts | LOC=309 | 2026-03-05T22:01:54Z
 - [x] N62 | client/runtime/systems/ops/script_surface_reduction_wave2.ts | LOC=309 | 2026-03-05T22:01:57Z
 - [x] N63 | client/runtime/systems/ops/guided_recovery_error_ux.ts | LOC=309 | 2026-03-05T22:02:00Z
@@ -522,7 +522,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - [x] N69 | client/runtime/systems/security/repo_hygiene_guard.ts | LOC=305 | 2026-03-05T22:02:17Z
 - [x] N70 | client/runtime/systems/ops/protheus_completion.ts | LOC=305 | 2026-03-05T22:02:19Z
 - [x] N71 | client/runtime/systems/memory/cross_domain_mapper.ts | LOC=305 | 2026-03-05T22:02:22Z
-- [x] N72 | client/lib/redaction_classification.ts | LOC=305 | 2026-03-05T22:02:24Z
+- [x] N72 | client/runtime/lib/redaction_classification.ts | LOC=305 | 2026-03-05T22:02:24Z
 - [x] N73 | client/runtime/systems/sensory/multimodal_signal_adapter_plane.ts | LOC=304 | 2026-03-05T22:02:27Z
 - [x] N74 | client/runtime/systems/sensory/ground_truth_label_adjudication_lane.ts | LOC=304 | 2026-03-05T22:02:29Z
 - [x] N75 | client/runtime/systems/security/capability_envelope_guard.ts | LOC=304 | 2026-03-05T22:02:31Z
@@ -1277,7 +1277,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 
 ## Completed In This Continuation (Top-40 Kernel TS Lanes -> Rust Runtime Delegation)
 - Timestamp: 2026-03-06 (America/Denver)
-- Scope guard: no migration in client/adaptive/ root; only client/runtime/systems/adaptive allowed; user-flex surfaces remain non-Rust by policy.
+- Scope guard: no migration in client/cognition/adaptive/ root; only client/runtime/systems/adaptive allowed; user-flex surfaces remain non-Rust by policy.
 - Execution mode: each lane converted to Rust `legacy-retired-lane` runtime delegation wrapper with deterministic receipts.
 - Gate evidence: cargo test/clippy + formal invariants + live lane receipt samples.
 
@@ -1288,8 +1288,8 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - `client/runtime/systems/weaver/weaver_core.ts`
 - `client/runtime/systems/identity/identity_anchor.ts`
 - `client/runtime/systems/dual_brain/coordinator.ts`
-- `client/lib/strategy_resolver.ts`
-- `client/lib/duality_seed.ts`
+- `client/runtime/lib/strategy_resolver.ts`
+- `client/runtime/lib/duality_seed.ts`
 - `client/runtime/systems/autonomy/pain_signal.ts`
 - `client/runtime/systems/budget/system_budget.ts`
 - `client/runtime/systems/security/guard.ts`
@@ -1297,7 +1297,7 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - `client/runtime/systems/helix/helix_controller.ts`
 - `client/runtime/systems/assimilation/group_evolving_agents_primitive.ts`
 - `client/runtime/systems/autonomy/self_documentation_closeout.ts`
-- `client/lib/directive_resolver.ts`
+- `client/runtime/lib/directive_resolver.ts`
 - `client/runtime/systems/redteam/ant_colony_controller.ts`
 - `client/runtime/systems/attribution/value_attribution_primitive.ts`
 - `client/runtime/systems/assimilation/capability_profile_compiler.ts`

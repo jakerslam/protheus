@@ -122,12 +122,12 @@
   "primitive_ts_wrapper_contract": {
     "entries": [
       {
-        "path": "client/lib/strategy_resolver.ts",
+        "path": "client/runtime/lib/strategy_resolver.ts",
         "required_tokens": ["createConduitLaneModule", "direct_conduit_lane_bridge.js"],
         "forbidden_tokens": ["legacy_retired_lane_bridge"]
       },
       {
-        "path": "client/lib/duality_seed.ts",
+        "path": "client/runtime/lib/duality_seed.ts",
         "required_tokens": ["createConduitLaneModule", "direct_conduit_lane_bridge.js"],
         "forbidden_tokens": ["legacy_retired_lane_bridge"]
       },

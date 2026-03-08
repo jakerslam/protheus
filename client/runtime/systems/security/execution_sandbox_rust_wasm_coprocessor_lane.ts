@@ -4,8 +4,8 @@ export {};
 
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { normalizeToken, cleanText, toBool, readJson, resolvePath } = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+const { normalizeToken, cleanText, toBool, readJson, resolvePath } = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 
 const POLICY_PATH = process.env.EXECUTION_SANDBOX_RUST_WASM_COPROCESSOR_LANE_POLICY_PATH
   ? path.resolve(process.env.EXECUTION_SANDBOX_RUST_WASM_COPROCESSOR_LANE_POLICY_PATH)

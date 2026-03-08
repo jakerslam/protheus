@@ -6,7 +6,7 @@
     {
       "id": "knot_pipeline_present",
       "description": "Knot build pipeline exists",
-      "file_must_exist": "client/build/knot/knot_pipeline_manifest.json"
+      "file_must_exist": "client/runtime/build/knot/knot_pipeline_manifest.json"
     },
     {
       "id": "crown_jewel_scope_enforced",

@@ -23,7 +23,7 @@ const path = require('path');
 const {
   verifyIntegrity,
   DEFAULT_POLICY_PATH: DEFAULT_INTEGRITY_POLICY_PATH
-} = require('../../../lib/security_integrity');
+} = require('../../lib/security_integrity');
 
 type AnyObj = Record<string, any>;
 

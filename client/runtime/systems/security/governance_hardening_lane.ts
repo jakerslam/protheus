@@ -26,7 +26,7 @@ const {
   resolvePath,
   stableHash,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const DEFAULT_POLICY_PATH = process.env.GOVERNANCE_HARDENING_POLICY_PATH
   ? path.resolve(process.env.GOVERNANCE_HARDENING_POLICY_PATH)

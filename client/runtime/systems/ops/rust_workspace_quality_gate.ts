@@ -17,7 +17,7 @@ const {
   appendJsonl,
   resolvePath,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const POLICY_PATH = process.env.RUST_WORKSPACE_QUALITY_GATE_POLICY_PATH
   ? path.resolve(process.env.RUST_WORKSPACE_QUALITY_GATE_POLICY_PATH)

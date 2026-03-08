@@ -12,7 +12,7 @@
   "wasm_runtime_script": "client/runtime/systems/wasm/component_runtime.js",
   "paths": {
     "memory_dir": "client/memory/security/execution_sandbox_rust_wasm_coprocessor_lane",
-    "adaptive_index_path": "client/adaptive/security/execution_sandbox_rust_wasm_coprocessor_lane/index.json",
+    "adaptive_index_path": "client/cognition/adaptive/security/execution_sandbox_rust_wasm_coprocessor_lane/index.json",
     "events_path": "state/security/execution_sandbox_rust_wasm_coprocessor_lane/events.jsonl",
     "latest_path": "state/security/execution_sandbox_rust_wasm_coprocessor_lane/latest.json",
     "receipts_path": "state/security/execution_sandbox_rust_wasm_coprocessor_lane/receipts.jsonl",

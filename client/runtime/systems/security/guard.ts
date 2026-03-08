@@ -32,10 +32,10 @@ const path = require("path");
 const {
   verifyIntegrity,
   appendIntegrityEvent
-} = require("../../../lib/security_integrity");
+} = require("../../lib/security_integrity");
 const {
   verifySignedEnvelopeFromEnv
-} = require("../../../lib/request_envelope");
+} = require("../../lib/request_envelope");
 
 const SYSTEM_HEALTH_EVENTS_PATH = process.env.SYSTEM_HEALTH_EVENTS_PATH
   ? path.resolve(process.env.SYSTEM_HEALTH_EVENTS_PATH)

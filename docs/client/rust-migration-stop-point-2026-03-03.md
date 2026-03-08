@@ -47,6 +47,6 @@ Command used:
 ## Non-negotiable gate for next batch
 - Do not mark any backlog item done until:
   - code exists,
-  - client/build/test proof is present,
+  - client/runtime/build/test proof is present,
   - output is shown.
 

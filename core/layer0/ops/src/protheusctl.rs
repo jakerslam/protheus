@@ -1122,7 +1122,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             }
         }
         "rsi" => Route {
-            script_rel: "client/adaptive/rsi/rsi_bootstrap.js".to_string(),
+            script_rel: "client/cognition/adaptive/rsi/rsi_bootstrap.js".to_string(),
             args: if rest.is_empty() {
                 vec!["status".to_string()]
             } else {
@@ -1131,14 +1131,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             forward_stdin: false,
         },
         "contract-lane" if rest.first().map(String::as_str) == Some("status") => Route {
-            script_rel: "client/adaptive/rsi/rsi_bootstrap.js".to_string(),
+            script_rel: "client/cognition/adaptive/rsi/rsi_bootstrap.js".to_string(),
             args: std::iter::once("contract-lane-status".to_string())
                 .chain(rest.into_iter().skip(1))
                 .collect(),
             forward_stdin: false,
         },
         "approve" if rest.iter().any(|arg| arg == "--rsi") => Route {
-            script_rel: "client/adaptive/rsi/rsi_bootstrap.js".to_string(),
+            script_rel: "client/cognition/adaptive/rsi/rsi_bootstrap.js".to_string(),
             args: std::iter::once("approve".to_string())
                 .chain(rest.into_iter().filter(|arg| arg != "--rsi"))
                 .collect(),

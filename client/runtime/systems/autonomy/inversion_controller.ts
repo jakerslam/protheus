@@ -34,7 +34,7 @@ const {
   TRIT_PAIN,
   TRIT_UNKNOWN,
   TRIT_OK
-} = require('../../../lib/trit');
+} = require('../../lib/trit');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const DEFAULT_POLICY_PATH = path.join(ROOT, 'config', 'inversion_policy.json');

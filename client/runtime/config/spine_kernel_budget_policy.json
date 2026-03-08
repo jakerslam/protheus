@@ -12,7 +12,7 @@
   ],
   "paths": {
     "memory_pref_dir": "client/runtime/local/memory/spine/preferences",
-    "adaptive_index_path": "client/adaptive/spine/index.json",
+    "adaptive_index_path": "client/cognition/adaptive/spine/index.json",
     "latest_path": "client/runtime/local/state/ops/spine_kernel_budget_check/latest.json",
     "receipts_path": "client/runtime/local/state/ops/spine_kernel_budget_check/receipts.jsonl"
   }

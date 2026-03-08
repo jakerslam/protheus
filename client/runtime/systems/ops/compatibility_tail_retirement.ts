@@ -19,9 +19,9 @@ const {
   readJson,
   resolvePath,
   emit
-} = require('../../../lib/queued_backlog_runtime');
-const { loadPolicyRuntime } = require('../../../lib/policy_runtime');
-const { writeArtifactSet } = require('../../../lib/state_artifact_contract');
+} = require('../../lib/queued_backlog_runtime');
+const { loadPolicyRuntime } = require('../../lib/policy_runtime');
+const { writeArtifactSet } = require('../../lib/state_artifact_contract');
 
 const DEFAULT_POLICY_PATH = process.env.COMPATIBILITY_TAIL_RETIREMENT_POLICY_PATH
   ? path.resolve(process.env.COMPATIBILITY_TAIL_RETIREMENT_POLICY_PATH)

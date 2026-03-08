@@ -17,12 +17,12 @@ export {};
 
 const fs = require('fs');
 const path = require('path');
-const { loadActiveDirectives } = require('../../../lib/directive_resolver');
-const { loadSymbiosisCoherenceSignal } = require('../../../lib/symbiosis_coherence_signal');
+const { loadActiveDirectives } = require('../../lib/directive_resolver');
+const { loadSymbiosisCoherenceSignal } = require('../../lib/symbiosis_coherence_signal');
 const {
   loadActiveStrategy,
   resolveStrategyRankingContext
-} = require('../../../lib/strategy_resolver');
+} = require('../../lib/strategy_resolver');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const DEFAULT_POLICY_PATH = path.join(ROOT, 'config', 'identity_anchor_policy.json');

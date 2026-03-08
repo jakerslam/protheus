@@ -17,7 +17,7 @@ Generated: 2026-03-06T19:03:30.018Z
 | BL-011 | backlog | BL | done | Swarm verification mode for deep-thinker |  |
 | BL-012 | backlog | BL | done | Strategy profile layer + architecture genericity guard |  |
 | BL-013 | backlog | BL | done | AGI security/governance hardening pack |  |
-| BL-014 | backlog | BL | done | Phased TypeScript migration for `client/runtime/systems/` + `client/lib/` |  |
+| BL-014 | backlog | BL | done | Phased TypeScript migration for `client/runtime/systems/` + `client/runtime/lib/` |  |
 | BL-015 | backlog | BL | done | Optional reflex sub-layer under habits (fast micro-routines) |  |
 | BL-016 | backlog | BL | done | Cross-device active-state continuity layer |  |
 | BL-017 | backlog | BL | done | Autonomous skill-add with necessity justification gate |  |
@@ -630,7 +630,7 @@ Generated: 2026-03-06T19:03:30.018Z
 | V3-RACE-175 | hardening | V3 | done | `protheus-core` Runtime Envelope Tightening (`<5MB`, `<200ms`, Optional-Flag Matrix) | V3-RACE-169, V3-RACE-174 |
 | V3-RACE-176 | hardening | V3 | done | MCP/A2A Contract-Lane and Venom-Gate Convergence | V3-RACE-165, V3-RACE-166, V3-RACE-031 |
 | V3-RACE-177 | primitive-upgrade | V3 | done | System-3 Meta-Curriculum Bridge (`system3 -> strategy_learner/model_catalog_loop`) | V3-RACE-167, V3-RACE-171 |
-| V3-RACE-178 | primitive-upgrade | V3 | done | RSI Bootstrap Orchestrator Canonicalization (`client/adaptive/rsi`) | V3-RACE-161, V3-RACE-164, V3-RACE-167, V3-RACE-168 |
+| V3-RACE-178 | primitive-upgrade | V3 | done | RSI Bootstrap Orchestrator Canonicalization (`client/cognition/adaptive/rsi`) | V3-RACE-161, V3-RACE-164, V3-RACE-167, V3-RACE-168 |
 | V3-RACE-179 | extension | V3 | done | Dual-Agent RSI Spiral (Proposal/Executor Separation) | V3-RACE-177, V3-RACE-178 |
 | V3-RACE-180 | hardening | V3 | done | Safe Git-Patch Self-Modification Gate (Chaos + Constitution + Habit + Contract + Optional Human Approval) | V3-RACE-178, V3-RACE-055, V3-RACE-040 |
 | V3-RACE-181 | hardening | V3 | done | RSI Integrity Chain + Merkle Rollback + Resurrection Linkage | V3-RACE-178, V3-RACE-168, V3-RACE-160 |

@@ -6,7 +6,7 @@
       "client/runtime/systems/",
       "client/runtime/config/",
       "docs/client/",
-      "client/lib/",
+      "client/runtime/lib/",
       "client/runtime/deploy/"
     ],
     "extensions": [

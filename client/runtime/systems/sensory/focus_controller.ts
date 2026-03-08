@@ -19,11 +19,11 @@ export {};
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { loadActiveDirectives } = require('../../../lib/directive_resolver');
-const { loadActiveStrategy } = require('../../../lib/strategy_resolver');
-const { loadOutcomeFitnessPolicy } = require('../../../lib/outcome_fitness');
-const { ensureCatalog } = require('../../../lib/eyes_catalog');
-const { egressFetch, EgressGatewayError } = require('../../../lib/egress_gateway');
+const { loadActiveDirectives } = require('../../lib/directive_resolver');
+const { loadActiveStrategy } = require('../../lib/strategy_resolver');
+const { loadOutcomeFitnessPolicy } = require('../../lib/outcome_fitness');
+const { ensureCatalog } = require('../../lib/eyes_catalog');
+const { egressFetch, EgressGatewayError } = require('../../lib/egress_gateway');
 const {
   DEFAULT_STATE_DIR: GLOBAL_BUDGET_STATE_DIR,
   DEFAULT_EVENTS_PATH: GLOBAL_BUDGET_EVENTS_PATH,

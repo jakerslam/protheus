@@ -13,7 +13,7 @@ const {
   writeJsonAtomic,
   appendJsonl,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const LATEST_PATH = path.join(ROOT, 'state', 'ops', 'ci_workflow_rationalization', 'latest.json');
 const RECEIPTS_PATH = path.join(ROOT, 'state', 'ops', 'ci_workflow_rationalization', 'receipts.jsonl');

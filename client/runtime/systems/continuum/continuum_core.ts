@@ -25,16 +25,16 @@ const {
   TRIT_OK,
   tritLabel,
   majorityTrit
-} = require('../../../lib/trit');
+} = require('../../lib/trit');
 const {
   loadTrainingConduitPolicy,
   buildTrainingConduitMetadata,
   validateTrainingConduitMetadata
-} = require('../../../lib/training_conduit_schema');
+} = require('../../lib/training_conduit_schema');
 const {
   loadTrainabilityMatrixPolicy,
   evaluateTrainingDatumTrainability
-} = require('../../../lib/trainability_matrix');
+} = require('../../lib/trainability_matrix');
 let decideBrainRoute = null;
 try {
   ({ decideBrainRoute } = require('../dual_brain/coordinator.js'));

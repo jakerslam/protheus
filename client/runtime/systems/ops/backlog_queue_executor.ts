@@ -5,7 +5,7 @@ export {};
 import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
-const queueSqlite = require('../../../lib/queue_sqlite_runtime.js');
+const queueSqlite = require('../../lib/queue_sqlite_runtime.js');
 
 type AnyObj = Record<string, any>;
 

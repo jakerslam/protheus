@@ -4,7 +4,7 @@ export {};
 
 const path = require('path');
 const fs = require('fs');
-const { resolveCatalogPath, ensureCatalog, setCatalog } = require('../../../lib/eyes_catalog');
+const { resolveCatalogPath, ensureCatalog, setCatalog } = require('../../lib/eyes_catalog');
 
 const WORKSPACE_ROOT = process.env.OPENCLAW_WORKSPACE
   ? path.resolve(process.env.OPENCLAW_WORKSPACE)

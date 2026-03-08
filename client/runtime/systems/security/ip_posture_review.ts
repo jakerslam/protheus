@@ -23,7 +23,7 @@ const {
   resolvePath,
   emit,
   stableHash
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const DEFAULT_POLICY_PATH = process.env.IP_POSTURE_REVIEW_POLICY_PATH
   ? path.resolve(process.env.IP_POSTURE_REVIEW_POLICY_PATH)

@@ -34,7 +34,7 @@
   },
   "paths": {
     "memory_dir": "client/memory/ops/protheus_core_runtime_envelope",
-    "adaptive_index_path": "client/adaptive/ops/protheus_core_runtime_envelope/index.json",
+    "adaptive_index_path": "client/cognition/adaptive/ops/protheus_core_runtime_envelope/index.json",
     "events_path": "state/ops/protheus_core_runtime_envelope/events.jsonl",
     "latest_path": "state/ops/protheus_core_runtime_envelope/latest.json",
     "receipts_path": "state/ops/protheus_core_runtime_envelope/receipts.jsonl",

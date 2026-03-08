@@ -17,7 +17,7 @@ const {
   resolvePath,
   stableHash,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const DEFAULT_POLICY_PATH = process.env.DIRE_CASE_EMERGENCY_AUTONOMY_PROTOCOL_POLICY_PATH
   ? path.resolve(process.env.DIRE_CASE_EMERGENCY_AUTONOMY_PROTOCOL_POLICY_PATH)

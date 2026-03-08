@@ -72,7 +72,7 @@ Governance is implemented as runtime policy, not informal convention.
 - Runtime audit state:
   - `state/security/`
   - `state/ops/`
-  - `state/client/adaptive/workflows/executor/`
+  - `state/client/cognition/adaptive/workflows/executor/`
 
 ## 6. External Narrative (Short Form)
 
@@ -90,7 +90,7 @@ Positioning claims are anchored to concrete runtime evidence:
 
 - Verification signals:
   - policy gate receipts (`state/security/`, `state/ops/`)
-  - workflow execution + mutation receipts (`state/client/adaptive/workflows/executor/`)
+  - workflow execution + mutation receipts (`state/client/cognition/adaptive/workflows/executor/`)
   - actuation and learning receipts (`state/actuation/`, `state/workflow/`)
 - Rollback signals:
   - mutation rollback receipts (`runtime_mutation_receipts_path`)

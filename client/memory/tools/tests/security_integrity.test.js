@@ -32,7 +32,7 @@ function run() {
 
   const systemsSecurityRel = `${tmpRel}/client/runtime/systems/security`;
   const directivesRel = `${tmpRel}/client/runtime/config/directives`;
-  const resolverRel = `${tmpRel}/client/lib/directive_resolver.js`;
+  const resolverRel = `${tmpRel}/client/runtime/lib/directive_resolver.js`;
 
   const guardPath = path.join(repoRoot, systemsSecurityRel, 'guard.js');
   const activePath = path.join(repoRoot, directivesRel, 'ACTIVE.yaml');

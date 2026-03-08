@@ -17,7 +17,7 @@ const {
   resolvePath,
   stableHash,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const DEFAULT_POLICY_PATH = process.env.SUCCESSION_CONTINUITY_PLANNING_POLICY_PATH
   ? path.resolve(process.env.SUCCESSION_CONTINUITY_PLANNING_POLICY_PATH)

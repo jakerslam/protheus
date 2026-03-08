@@ -21,7 +21,7 @@ const {
   appendJsonl,
   stableHash,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const POLICY_ROOT = process.env.MEMORY_RECALL_ROOT
   ? path.resolve(String(process.env.MEMORY_RECALL_ROOT))

@@ -15,7 +15,7 @@ const {
   normalizeToken,
   clampInt,
   stableHash
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 const constitutionHooks = require('./constitution_hooks');
 
 function normalizeRiskTier(raw: unknown) {

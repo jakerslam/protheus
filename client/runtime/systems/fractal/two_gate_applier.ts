@@ -16,7 +16,7 @@ const {
   toBool,
   clampInt,
   clampNumber
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 function approve(candidate: any, trialResult: any, options: any = {}) {
   const requestedTier = clampInt(

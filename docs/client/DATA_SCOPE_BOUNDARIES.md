@@ -4,7 +4,7 @@ This repository enforces a strict scope split:
 
 - User-specific data:
   - `client/memory/` for user-owned records, preferences, and histories.
-  - `client/adaptive/` for learned heuristics/tuning tied to user behavior.
+  - `client/cognition/adaptive/` for learned heuristics/tuning tied to user behavior.
 - Permanent/shared implementation:
   - `client/runtime/systems/` for runtime logic.
   - `client/runtime/config/` for policy contracts.
@@ -14,11 +14,11 @@ This repository enforces a strict scope split:
 
 ## Hard Rules
 
-1. `client/memory/` and `client/adaptive/` must not contain executable `.ts` or `.js` runtime modules.
+1. `client/memory/` and `client/cognition/adaptive/` must not contain executable `.ts` or `.js` runtime modules.
 2. Canonical implementation files must live under `client/runtime/systems/` (with config in `client/runtime/config/`).
 3. `.internal/` content is never a source-of-truth runtime path and should remain local-only.
 4. New feature lanes must declare:
-   - user paths (`client/memory/`, `client/adaptive/`)
+   - user paths (`client/memory/`, `client/cognition/adaptive/`)
    - permanent runtime paths (`client/runtime/systems/`, `client/runtime/config/`)
    - check coverage in `client/runtime/systems/ops/data_scope_boundary_check.ts`
 

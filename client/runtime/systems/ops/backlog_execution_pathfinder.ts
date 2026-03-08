@@ -24,8 +24,8 @@ const {
   readJson,
   resolvePath,
   emit
-} = require('../../../lib/queued_backlog_runtime');
-const { writeArtifactSet } = require('../../../lib/state_artifact_contract');
+} = require('../../lib/queued_backlog_runtime');
+const { writeArtifactSet } = require('../../lib/state_artifact_contract');
 
 type AnyObj = Record<string, any>;
 

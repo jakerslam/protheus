@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const {
   loadSymbiosisCoherenceSignal,
   evaluateRecursionRequest
-} = require('../../../lib/symbiosis_coherence_signal');
+} = require('../../lib/symbiosis_coherence_signal');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const POLICY_PATH = process.env.CONSTITUTION_GUARDIAN_POLICY_PATH

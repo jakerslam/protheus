@@ -11,7 +11,7 @@ const {
   stableHash,
   appendJsonl,
   writeJsonAtomic
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 type AliasSpec = {
   alias_rel: string;

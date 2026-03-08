@@ -29,7 +29,7 @@ const {
   resolvePath,
   stableHash,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const POLICY_PATH = process.env.OPEN_PLATFORM_RELEASE_PACK_POLICY_PATH
   ? path.resolve(process.env.OPEN_PLATFORM_RELEASE_PACK_POLICY_PATH)

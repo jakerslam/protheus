@@ -19,7 +19,7 @@ Summary: reviewed 1062/1364 | pass 1062 | warn 286 | fail 0 | blocked 16
 | BL-011 | done | reviewed | pass | yes | Swarm verification mode for deep-thinker |
 | BL-012 | done | reviewed | pass | yes | Strategy profile layer + architecture genericity guard |
 | BL-013 | done | reviewed | pass | yes | AGI security/governance hardening pack |
-| BL-014 | done | reviewed | pass | yes | Phased TypeScript migration for `client/runtime/systems/` + `client/lib/` |
+| BL-014 | done | reviewed | pass | yes | Phased TypeScript migration for `client/runtime/systems/` + `client/runtime/lib/` |
 | BL-015 | done | reviewed | pass | yes | Optional reflex sub-layer under habits (fast micro-routines) |
 | BL-016 | done | reviewed | pass | yes | Cross-device active-state continuity layer |
 | BL-017 | done | reviewed | pass | yes | Autonomous skill-add with necessity justification gate |
@@ -819,7 +819,7 @@ Summary: reviewed 1062/1364 | pass 1062 | warn 286 | fail 0 | blocked 16
 | V3-RACE-175 | done | reviewed | pass | yes | `protheus-core` Runtime Envelope Tightening (`<5MB`, `<200ms`, Optional-Flag Matrix) |
 | V3-RACE-176 | done | reviewed | pass | yes | MCP/A2A Contract-Lane and Venom-Gate Convergence |
 | V3-RACE-177 | done | reviewed | pass | yes | System-3 Meta-Curriculum Bridge (`system3 -> strategy_learner/model_catalog_loop`) |
-| V3-RACE-178 | done | reviewed | pass | yes | RSI Bootstrap Orchestrator Canonicalization (`client/adaptive/rsi`) |
+| V3-RACE-178 | done | reviewed | pass | yes | RSI Bootstrap Orchestrator Canonicalization (`client/cognition/adaptive/rsi`) |
 | V3-RACE-179 | done | reviewed | pass | yes | Dual-Agent RSI Spiral (Proposal/Executor Separation) |
 | V3-RACE-180 | done | reviewed | pass | yes | Safe Git-Patch Self-Modification Gate (Chaos + Constitution + Habit + Contract + Optional Human Approval) |
 | V3-RACE-181 | done | reviewed | pass | yes | RSI Integrity Chain + Merkle Rollback + Resurrection Linkage |

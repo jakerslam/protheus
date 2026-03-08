@@ -13,7 +13,7 @@
   },
   "paths": {
     "memory_dir": "client/memory/archival/content_addressed",
-    "adaptive_index_path": "client/adaptive/archival/index.json",
+    "adaptive_index_path": "client/cognition/adaptive/archival/index.json",
     "events_path": "state/archival/content_addressed/events.jsonl",
     "latest_path": "state/archival/content_addressed/latest.json",
     "receipts_path": "state/archival/content_addressed/receipts.jsonl",

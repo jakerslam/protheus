@@ -5,7 +5,7 @@
   "scan": {
     "include": [
       "client/runtime/systems",
-      "client/lib",
+      "client/runtime/lib",
       "client/runtime/config",
       "client/cli/bin",
       "client/cli/tools",

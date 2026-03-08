@@ -13,8 +13,8 @@ Top 10 targets from `docs/client/RUST_KERNEL_MIGRATION_CANDIDATES.md` lines 32-4
 4. client/runtime/systems/weaver/weaver_core.ts
 5. client/runtime/systems/identity/identity_anchor.ts
 6. client/runtime/systems/dual_brain/coordinator.ts
-7. client/lib/strategy_resolver.ts
-8. client/lib/duality_seed.ts
+7. client/runtime/lib/strategy_resolver.ts
+8. client/runtime/lib/duality_seed.ts
 9. client/runtime/systems/autonomy/pain_signal.ts
 10. client/runtime/systems/budget/system_budget.ts
 
@@ -22,7 +22,7 @@ Top 10 targets from `docs/client/RUST_KERNEL_MIGRATION_CANDIDATES.md` lines 32-4
 
 - Rust execution authority moved to conduit kernel path in `core/layer2/conduit` via `KernelLaneCommandHandler`.
 - TS surfaces are thin wrappers only.
-- Shared lane bridge (`client/lib/legacy_retired_lane_bridge.js`) now routes through conduit daemon instead of direct legacy-retired-lane CLI calls.
+- Shared lane bridge (`client/runtime/lib/legacy_retired_lane_bridge.js`) now routes through conduit daemon instead of direct legacy-retired-lane CLI calls.
 - `client/runtime/systems/assimilation/assimilation_controller.ts` was explicitly converted to direct conduit client routing.
 - Additional direct-conduit uplift for high-impact lanes:
   - `client/runtime/systems/security/guard.ts`

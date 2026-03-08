@@ -13,7 +13,7 @@
   },
   "paths": {
     "memory_dir": "client/runtime/local/memory/core_profiles",
-    "adaptive_index_path": "client/adaptive/core_profiles/index.json",
+    "adaptive_index_path": "client/cognition/adaptive/core_profiles/index.json",
     "events_path": "client/runtime/local/state/core/profiles/events.jsonl",
     "latest_path": "client/runtime/local/state/core/profiles/latest.json",
     "receipts_path": "client/runtime/local/state/core/profiles/receipts.jsonl"

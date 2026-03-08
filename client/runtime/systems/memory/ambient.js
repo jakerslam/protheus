@@ -4,7 +4,7 @@
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const { runMemoryAmbientCommand } = require('../../../lib/spine_conduit_bridge');
+const { runMemoryAmbientCommand } = require('../../lib/spine_conduit_bridge');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 

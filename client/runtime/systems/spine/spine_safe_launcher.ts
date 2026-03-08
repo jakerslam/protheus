@@ -27,7 +27,7 @@ export {};
 const path = require('path');
 const fs = require('fs');
 const { spawnSync } = require('child_process');
-const { runSpineCommand } = require('../../../lib/spine_conduit_bridge');
+const { runSpineCommand } = require('../../lib/spine_conduit_bridge');
 
 function repoRoot() {
   if (process.env.OPENCLAW_WORKSPACE) return path.resolve(process.env.OPENCLAW_WORKSPACE);

@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { approxTokenCount } = require('../../../lib/mech_suit_mode');
+const { approxTokenCount } = require('../../lib/mech_suit_mode');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const TS_ENTRYPOINT = path.join(ROOT, 'lib', 'ts_entrypoint.js');

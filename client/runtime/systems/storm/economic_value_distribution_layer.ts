@@ -17,7 +17,7 @@ const {
   appendJsonl,
   resolvePath,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const DEFAULT_POLICY_PATH = process.env.ECONOMIC_VALUE_DISTRIBUTION_LAYER_POLICY_PATH
   ? path.resolve(process.env.ECONOMIC_VALUE_DISTRIBUTION_LAYER_POLICY_PATH)

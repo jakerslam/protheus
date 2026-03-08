@@ -8,8 +8,8 @@ export {};
  */
 
 const path = require('path');
-const { normalizeToken, stableHash } = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+const { normalizeToken, stableHash } = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 
 const POLICY_PATH = process.env.WASM_COMPONENT_RUNTIME_POLICY_PATH
   ? path.resolve(process.env.WASM_COMPONENT_RUNTIME_POLICY_PATH)

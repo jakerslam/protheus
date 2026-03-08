@@ -2,7 +2,7 @@
 'use strict';
 
 const path = require('path');
-const { runDopamineAmbientCommand } = require('../../../lib/spine_conduit_bridge');
+const { runDopamineAmbientCommand } = require('../../lib/spine_conduit_bridge');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 

@@ -10,7 +10,7 @@
   ],
   "exceptions": [
     {
-      "path": "client/lib/ts_bootstrap.js",
+      "path": "client/runtime/lib/ts_bootstrap.js",
       "owner": "systems-core",
       "reason": "Runtime bootstrap loader for TS entrypoints",
       "benchmark_evidence": "required_bootstrap_lane",

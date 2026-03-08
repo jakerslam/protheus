@@ -30,7 +30,7 @@ const {
   writeJsonAtomic,
   stableHash,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const telemetry = require('./telemetry_aggregator');
 const critic = require('./critic');

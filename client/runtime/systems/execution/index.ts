@@ -5,7 +5,7 @@ export {};
 const path = require('path');
 const crypto = require('crypto');
 const { evaluateSecurityGate } = require('../security/rust_security_gate.js');
-const { createDomainProxy } = require('../../../lib/legacy_conduit_proxy');
+const { createDomainProxy } = require('../../lib/legacy_conduit_proxy');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const runExecutionDomain = createDomainProxy(__dirname, 'EXECUTION', 'execution-yield-recovery');

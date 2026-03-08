@@ -7,7 +7,7 @@ const path = require('path');
 const {
   ROOT, nowIso, parseArgs, cleanText, normalizeToken, toBool,
   readJson, writeJsonAtomic, appendJsonl, resolvePath, stableHash, emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const POLICY_PATH = process.env.SOUL_VECTOR_SUBSTRATE_POLICY_PATH
   ? path.resolve(process.env.SOUL_VECTOR_SUBSTRATE_POLICY_PATH)

@@ -14,7 +14,7 @@
 
 - User-specific data:
   - `client/memory/training/**`, `client/memory/economy/**`
-  - `client/adaptive/training/**`, `client/adaptive/economy/**`
+  - `client/cognition/adaptive/training/**`, `client/cognition/adaptive/economy/**`
 - Permanent runtime/policy:
   - `client/runtime/systems/training/**`, `client/runtime/systems/economy/**`
   - `client/runtime/config/*training*`, `client/runtime/config/*model_access*`

@@ -2,7 +2,7 @@
 'use strict';
 Object.defineProperty(exports, "__esModule", { value: true });
 const path = require('path');
-const { createDomainProxy } = require('../../../lib/legacy_conduit_proxy');
+const { createDomainProxy } = require('../../lib/legacy_conduit_proxy');
 const ROOT = path.resolve(__dirname, '..', '..');
 const runExecutionDomain = createDomainProxy(__dirname, 'BACKLOG_AUTOSCALE', 'execution-yield-recovery');
 function cleanText(v, maxLen = 260) {

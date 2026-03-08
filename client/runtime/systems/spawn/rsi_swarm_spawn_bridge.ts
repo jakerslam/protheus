@@ -18,8 +18,8 @@ const {
   readJson,
   writeJsonAtomic,
   nowIso
-} = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+} = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 
 const POLICY_PATH = process.env.RSI_SWARM_SPAWN_BRIDGE_POLICY_PATH
   ? path.resolve(process.env.RSI_SWARM_SPAWN_BRIDGE_POLICY_PATH)

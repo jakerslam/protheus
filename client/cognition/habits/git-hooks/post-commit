@@ -25,7 +25,7 @@ if [ "$NOISY_FILES" -eq "$CHANGED_COUNT" ] && [ "$CHANGED_COUNT" -gt 3 ]; then
 fi
 
 # Recursion guard: Skip if commit is in local runtime state directory (feedback loop prevention)
-if echo "$REPO_ROOT" | grep -q "/Users/jay/.openclaw/workspace/client/local/state/"; then
+if echo "$REPO_ROOT" | grep -q "/Users/jay/.openclaw/workspace/client/runtime/local/state/"; then
     exit 0
 fi
 

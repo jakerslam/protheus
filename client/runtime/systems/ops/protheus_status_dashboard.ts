@@ -6,7 +6,7 @@
  * TS remains a thin CLI surface only.
  */
 
-const { createOpsLaneBridge } = require('../../../lib/rust_lane_bridge');
+const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge');
 const bridge = createOpsLaneBridge(__dirname, 'protheus_status_dashboard', 'status');
 
 function runRustStatusDashboard(args = []) {

@@ -13,7 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
-const { verifyIntegrity } = require('../../../lib/security_integrity');
+const { verifyIntegrity } = require('../../lib/security_integrity');
 
 type AnyObj = Record<string, any>;
 

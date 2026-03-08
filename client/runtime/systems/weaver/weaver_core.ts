@@ -14,8 +14,8 @@ export {};
 
 const fs = require('fs');
 const path = require('path');
-const { loadActiveStrategy } = require('../../../lib/strategy_resolver');
-const { loadDynamicBurnOracleSignal } = require('../../../lib/dynamic_burn_budget_signal');
+const { loadActiveStrategy } = require('../../lib/strategy_resolver');
+const { loadDynamicBurnOracleSignal } = require('../../lib/dynamic_burn_budget_signal');
 const { buildMetricSchema } = require('./metric_schema');
 const { arbitrateMetrics, buildStrategyOverlayFromAllocation } = require('./arbitration_engine');
 const { applyMonocultureGuard } = require('./monoculture_guard');

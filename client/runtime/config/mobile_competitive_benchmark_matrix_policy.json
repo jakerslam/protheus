@@ -40,7 +40,7 @@
   },
   "paths": {
     "memory_dir": "client/memory/ops/mobile_benchmark",
-    "adaptive_index_path": "client/adaptive/ops/mobile_benchmark/index.json",
+    "adaptive_index_path": "client/cognition/adaptive/ops/mobile_benchmark/index.json",
     "events_path": "state/ops/mobile_benchmark/events.jsonl",
     "latest_path": "state/ops/mobile_benchmark/latest.json",
     "receipts_path": "state/ops/mobile_benchmark/receipts.jsonl",

@@ -15,7 +15,7 @@ const {
   appendJsonl,
   resolvePath,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 type AnyObj = Record<string, any>;
 
@@ -43,7 +43,7 @@ function defaultPolicy() {
     schema_version: '1.0.0',
     enabled: true,
     strict_default: true,
-    scan_roots: ['client/runtime/systems', 'client/lib'],
+    scan_roots: ['client/runtime/systems', 'client/runtime/lib'],
     file_extensions: ['.ts', '.js'],
     skip_path_contains: [
       '/memory/tools/tests/',

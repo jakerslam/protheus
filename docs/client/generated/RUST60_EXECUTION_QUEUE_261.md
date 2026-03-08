@@ -121,7 +121,7 @@ TS LOC needed: 225545
 | R60-0105 | 105 | client/runtime/systems/ops/rust_control_plane_cutover.ts | 609 | 1461.6 | 39.241 | queued |
 | R60-0106 | 106 | client/runtime/systems/assimilation/group_evolving_agents_primitive.ts | 730 | 1460 | 39.432 | queued |
 | R60-0107 | 107 | client/runtime/systems/memory/causal_temporal_graph.ts | 633 | 1455.9 | 39.597 | queued |
-| R60-0108 | 108 | client/lib/secret_broker.ts | 1211 | 1453.2 | 39.913 | queued |
+| R60-0108 | 108 | client/runtime/lib/secret_broker.ts | 1211 | 1453.2 | 39.913 | queued |
 | R60-0109 | 109 | client/runtime/systems/security/remote_tamper_heartbeat.ts | 581 | 1452.5 | 40.064 | queued |
 | R60-0110 | 110 | client/runtime/systems/ops/backlog_implementation_review.ts | 602 | 1444.8 | 40.221 | queued |
 | R60-0111 | 111 | client/runtime/systems/autonomy/batch_lane.ts | 480 | 1440 | 40.346 | queued |
@@ -153,7 +153,7 @@ TS LOC needed: 225545
 | R60-0137 | 137 | client/runtime/systems/autonomy/persistent_fractal_meta_organ.ts | 418 | 1254 | 44.113 | queued |
 | R60-0138 | 138 | client/runtime/systems/memory/eyes_memory_bridge.ts | 544 | 1251.2 | 44.254 | queued |
 | R60-0139 | 139 | client/runtime/systems/assimilation/capability_profile_compiler.ts | 625 | 1250 | 44.417 | queued |
-| R60-0140 | 140 | client/lib/trit_shadow_control.ts | 1040 | 1248 | 44.689 | queued |
+| R60-0140 | 140 | client/runtime/lib/trit_shadow_control.ts | 1040 | 1248 | 44.689 | queued |
 | R60-0141 | 141 | client/runtime/systems/workflow/client_communication_organ.ts | 566 | 1245.2 | 44.836 | queued |
 | R60-0142 | 142 | client/runtime/systems/ops/backlog_queue_executor.ts | 518 | 1243.2 | 44.972 | queued |
 | R60-0143 | 143 | client/runtime/systems/ops/blank_slate_reset.ts | 518 | 1243.2 | 45.107 | queued |
@@ -172,7 +172,7 @@ TS LOC needed: 225545
 | R60-0156 | 156 | client/runtime/systems/workflow/gated_account_creation_organ.ts | 539 | 1185.8 | 46.739 | queued |
 | R60-0157 | 157 | client/runtime/systems/ops/model_health_auto_recovery.ts | 492 | 1180.8 | 46.867 | queued |
 | R60-0158 | 158 | client/runtime/systems/ops/platform_socket_runtime.ts | 492 | 1180.8 | 46.995 | queued |
-| R60-0159 | 159 | client/lib/strategy_resolver.ts | 983 | 1179.6 | 47.252 | queued |
+| R60-0159 | 159 | client/runtime/lib/strategy_resolver.ts | 983 | 1179.6 | 47.252 | queued |
 | R60-0160 | 160 | client/runtime/systems/ops/postmortem_loop.ts | 491 | 1178.4 | 47.38 | queued |
 | R60-0161 | 161 | client/runtime/systems/reflex/reflex_dispatcher.ts | 1176 | 1176 | 47.687 | queued |
 | R60-0162 | 162 | client/runtime/systems/memory/memory_efficiency_plane.ts | 511 | 1175.3 | 47.82 | queued |
@@ -182,7 +182,7 @@ TS LOC needed: 225545
 | R60-0166 | 166 | client/runtime/systems/ops/event_sourced_control_plane.ts | 481 | 1154.4 | 48.29 | queued |
 | R60-0167 | 167 | client/runtime/systems/ops/dist_runtime_cutover.ts | 478 | 1147.2 | 48.414 | queued |
 | R60-0168 | 168 | client/runtime/systems/workflow/rate_limit_intelligence.ts | 520 | 1144 | 48.55 | queued |
-| R60-0169 | 169 | client/lib/duality_seed.ts | 952 | 1142.4 | 48.798 | queued |
+| R60-0169 | 169 | client/runtime/lib/duality_seed.ts | 952 | 1142.4 | 48.798 | queued |
 | R60-0170 | 170 | client/runtime/systems/ops/deployment_packaging.ts | 471 | 1130.4 | 48.921 | queued |
 | R60-0171 | 171 | client/runtime/systems/ops/backup_integrity_check.ts | 470 | 1128 | 49.044 | queued |
 | R60-0172 | 172 | client/runtime/systems/ops/protheus_setup_wizard.ts | 468 | 1123.2 | 49.166 | queued |

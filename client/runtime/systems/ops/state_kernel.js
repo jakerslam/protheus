@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-const { createOpsLaneBridge } = require('../../../lib/rust_lane_bridge');
+const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge');
 
 const bridge = createOpsLaneBridge(__dirname, 'state_kernel', 'state-kernel');
 

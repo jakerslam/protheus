@@ -9,8 +9,8 @@ export {};
 
 const fs = require('fs');
 const path = require('path');
-const { stableHash, nowIso } = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+const { stableHash, nowIso } = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 
 const POLICY_PATH = process.env.COMPETITIVE_OBSERVABILITY_BENCHMARK_POLICY_PATH
   ? path.resolve(process.env.COMPETITIVE_OBSERVABILITY_BENCHMARK_POLICY_PATH)

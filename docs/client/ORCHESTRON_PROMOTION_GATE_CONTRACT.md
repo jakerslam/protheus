@@ -31,7 +31,7 @@ Before any `promotable_draft` is applied to active registry, promotion gate enfo
 ## Promotion Receipts
 
 Each promote run appends a gate receipt to:
-- `state/client/adaptive/workflows/promotion_receipts/<date>.jsonl`
+- `state/client/cognition/adaptive/workflows/promotion_receipts/<date>.jsonl`
 
 Receipt includes:
 - selected / eligible / blocked counts

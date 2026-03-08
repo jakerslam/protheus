@@ -4,7 +4,7 @@ export {};
 
 const fs = require('fs');
 const path = require('path');
-const { resolveClientState } = require('../../../lib/runtime_path_registry');
+const { resolveClientState } = require('../../lib/runtime_path_registry');
 const { buildTagMemoryMatrix, status: matrixStatus, MATRIX_JSON_PATH } = require('./memory_matrix.js');
 
 const CLIENT_ROOT = path.resolve(__dirname, '..', '..');

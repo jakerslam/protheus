@@ -18,8 +18,8 @@ const {
   toBool,
   readJson,
   writeJsonAtomic
-} = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+} = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 
 const POLICY_PATH = process.env.HYBRID_INTERFACE_STABILITY_CONTRACT_POLICY_PATH
   ? path.resolve(process.env.HYBRID_INTERFACE_STABILITY_CONTRACT_POLICY_PATH)

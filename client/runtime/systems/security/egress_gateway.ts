@@ -3,12 +3,12 @@
 export {};
 
 const path = require('path');
-const { parseArgs, normalizeToken, cleanText, emit } = require('../../../lib/queued_backlog_runtime');
+const { parseArgs, normalizeToken, cleanText, emit } = require('../../lib/queued_backlog_runtime');
 const {
   authorizeEgress,
   loadPolicy,
   loadState
-} = require('../../../lib/egress_gateway');
+} = require('../../lib/egress_gateway');
 
 function parseCsv(raw: unknown) {
   const txt = cleanText(raw || '', 2000);

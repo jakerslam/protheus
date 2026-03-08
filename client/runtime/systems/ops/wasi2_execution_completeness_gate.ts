@@ -15,7 +15,7 @@ const {
   appendJsonl,
   resolvePath,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const POLICY_PATH = process.env.WASI2_EXECUTION_COMPLETENESS_GATE_POLICY_PATH
   ? path.resolve(process.env.WASI2_EXECUTION_COMPLETENESS_GATE_POLICY_PATH)

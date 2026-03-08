@@ -30,8 +30,8 @@ From workflow `Required Checks`:
 
 - `/client/runtime/systems/`
 - `/client/runtime/config/`
-- `/client/lib/`
-- `/client/adaptive/`
+- `/client/runtime/lib/`
+- `/client/cognition/adaptive/`
 - `/.github/workflows/`
 
 All matching pull requests require owner review before merge.

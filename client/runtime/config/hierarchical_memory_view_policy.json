@@ -13,7 +13,7 @@
   },
   "paths": {
     "memory_dir": "client/memory/views",
-    "adaptive_index_path": "client/adaptive/client/memory/views/index.json",
+    "adaptive_index_path": "client/cognition/adaptive/client/memory/views/index.json",
     "events_path": "state/memory\/hierarchical_views/events.jsonl",
     "latest_path": "state/memory\/hierarchical_views/latest.json",
     "receipts_path": "state/memory\/hierarchical_views/receipts.jsonl"

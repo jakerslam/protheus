@@ -8,8 +8,8 @@ export {};
  */
 
 const path = require('path');
-const { ROOT } = require('../../../lib/queued_backlog_runtime');
-const { runLaneCli } = require('../../../lib/backlog_lane_cli');
+const { ROOT } = require('../../lib/queued_backlog_runtime');
+const { runLaneCli } = require('../../lib/backlog_lane_cli');
 
 const POLICY_PATH = process.env.PHOENIX_PROTOCOL_RESPAWN_CONTINUITY_POLICY_PATH
   ? path.resolve(process.env.PHOENIX_PROTOCOL_RESPAWN_CONTINUITY_POLICY_PATH)
