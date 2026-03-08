@@ -30,23 +30,23 @@ const path = require("path");
 const fs = require("fs");
 const os = require("os");
 const crypto = require("crypto");
-const { runSpineCommandCli } = require("../../../lib/spine_conduit_bridge");
-const { isEmergencyStopEngaged } = require("../../../lib/emergency_stop");
-const { stampGuardEnv } = require("../../../lib/request_envelope");
-const { compactCommandOutput } = require("../../../lib/command_output_compactor");
+const { runSpineCommandCli } = require("../../lib/spine_conduit_bridge");
+const { isEmergencyStopEngaged } = require("../../lib/emergency_stop");
+const { stampGuardEnv } = require("../../lib/request_envelope");
+const { compactCommandOutput } = require("../../lib/command_output_compactor");
 const {
   emitAmbientConsole,
   loadMechSuitModePolicy,
   updateMechSuitStatus
-} = require("../../../lib/mech_suit_mode");
+} = require("../../lib/mech_suit_mode");
 const {
   setSystemBudgetAutopause,
   clearSystemBudgetAutopause,
   loadSystemBudgetAutopauseState
 } = require("../budget/system_budget");
-const { loadTritShadowPolicy, applyInfluenceGuardFromShadowReport } = require("../../../lib/trit_shadow_control");
+const { loadTritShadowPolicy, applyInfluenceGuardFromShadowReport } = require("../../lib/trit_shadow_control");
 const { computeEvidenceRunPlan } = require("./evidence_run_plan");
-const { evaluateTernaryBelief, serializeBeliefResult } = require("../../../lib/ternary_belief_engine");
+const { evaluateTernaryBelief, serializeBeliefResult } = require("../../lib/ternary_belief_engine");
 let stateKernelDualWriteMod: any = null;
 try {
   stateKernelDualWriteMod = require('../ops/state_kernel_dual_write.js');

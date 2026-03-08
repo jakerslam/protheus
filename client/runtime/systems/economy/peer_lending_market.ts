@@ -11,8 +11,8 @@ const path = require('path');
 const {
   normalizeToken,
   clampNumber
-} = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+} = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 const { recordPeerLendingEvent } = require('./gpu_contribution_tracker.js');
 
 const POLICY_PATH = process.env.PEER_LENDING_MARKET_POLICY_PATH

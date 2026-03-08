@@ -1,7 +1,7 @@
 'use strict';
 export {};
 
-const { createDomainProxy } = require('../../../../lib/legacy_conduit_proxy');
+const { createDomainProxy } = require('../../lib/legacy_conduit_proxy');
 
 type AnyObj = Record<string, any>;
 

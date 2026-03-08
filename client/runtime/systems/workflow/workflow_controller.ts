@@ -19,7 +19,7 @@ const { generateDrafts, loadPolicy } = require('./workflow_generator');
 const {
   loadActiveStrategy,
   strategyExecutionMode
-} = require('../../../lib/strategy_resolver');
+} = require('../../lib/strategy_resolver');
 const {
   generateAdaptiveDrafts,
   loadPolicy: loadOrchestronPolicy

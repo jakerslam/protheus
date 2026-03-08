@@ -20,7 +20,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
-const { engageEmergencyStop } = require('../../../lib/emergency_stop');
+const { engageEmergencyStop } = require('../../lib/emergency_stop');
 
 type AnyObj = Record<string, any>;
 

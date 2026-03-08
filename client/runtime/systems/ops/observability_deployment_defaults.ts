@@ -7,7 +7,7 @@ const path = require('path');
 const {
   ROOT, nowIso, parseArgs, normalizeToken, toBool,
   readJson, writeJsonAtomic, appendJsonl, resolvePath, emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const POLICY_PATH = process.env.OBS_DEPLOY_DEFAULTS_POLICY_PATH
   ? path.resolve(process.env.OBS_DEPLOY_DEFAULTS_POLICY_PATH)

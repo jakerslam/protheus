@@ -8,8 +8,8 @@ export {};
  */
 
 const path = require('path');
-const { ROOT } = require('../../../lib/queued_backlog_runtime');
-const { runLaneCli } = require('../../../lib/backlog_lane_cli');
+const { ROOT } = require('../../lib/queued_backlog_runtime');
+const { runLaneCli } = require('../../lib/backlog_lane_cli');
 
 const POLICY_PATH = process.env.SOVEREIGN_DECOMMISSION_SUCCESSION_PROTOCOL_POLICY_PATH
   ? path.resolve(process.env.SOVEREIGN_DECOMMISSION_SUCCESSION_PROTOCOL_POLICY_PATH)

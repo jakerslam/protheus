@@ -7,8 +7,8 @@ const fs = require('fs');
 const crypto = require('crypto');
 const os = require('os');
 const { spawn, spawnSync } = require('child_process');
-const { runSpineCommand, runAttentionCommand, runMemoryAmbientCommand } = require('../../../lib/spine_conduit_bridge');
-const { CANONICAL_PATHS, normalizeForRoot } = require('../../../lib/runtime_path_registry');
+const { runSpineCommand, runAttentionCommand, runMemoryAmbientCommand } = require('../../lib/spine_conduit_bridge');
+const { CANONICAL_PATHS, normalizeForRoot } = require('../../lib/runtime_path_registry');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const INTERNAL_AMBIENT_LOOP = '__ambient-loop';

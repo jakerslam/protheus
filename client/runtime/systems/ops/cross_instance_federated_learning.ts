@@ -18,7 +18,7 @@ const {
   resolvePath,
   rollingAverage,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const DEFAULT_POLICY_PATH = process.env.CROSS_INSTANCE_FEDERATED_LEARNING_POLICY_PATH
   ? path.resolve(process.env.CROSS_INSTANCE_FEDERATED_LEARNING_POLICY_PATH)

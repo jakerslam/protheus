@@ -35,8 +35,8 @@ These are the largest TS files tied to control, cognition, policy, orchestration
 4. `client/runtime/systems/weaver/weaver_core.ts` (1734)
 5. `client/runtime/systems/identity/identity_anchor.ts` (1072)
 6. `client/runtime/systems/dual_brain/coordinator.ts` (1009)
-7. `client/lib/strategy_resolver.ts` (982)
-8. `client/lib/duality_seed.ts` (951)
+7. `client/runtime/lib/strategy_resolver.ts` (982)
+8. `client/runtime/lib/duality_seed.ts` (951)
 9. `client/runtime/systems/autonomy/pain_signal.ts` (913)
 10. `client/runtime/systems/budget/system_budget.ts` (903)
 11. `client/runtime/systems/security/guard.ts` (895)
@@ -44,7 +44,7 @@ These are the largest TS files tied to control, cognition, policy, orchestration
 13. `client/runtime/systems/helix/helix_controller.ts` (793)
 14. `client/runtime/systems/assimilation/group_evolving_agents_primitive.ts` (729)
 15. `client/runtime/systems/autonomy/self_documentation_closeout.ts` (717)
-16. `client/lib/directive_resolver.ts` (715)
+16. `client/runtime/lib/directive_resolver.ts` (715)
 17. `client/runtime/systems/redteam/ant_colony_controller.ts` (655)
 18. `client/runtime/systems/attribution/value_attribution_primitive.ts` (634)
 19. `client/runtime/systems/assimilation/capability_profile_compiler.ts` (624)
@@ -96,7 +96,7 @@ Highest-impact files from `client/runtime/systems/ops` + `client/runtime/systems
 
 Migration shape:
 
-- TS/JS files are now thin wrappers through `client/lib/rust_lane_bridge.js`.
+- TS/JS files are now thin wrappers through `client/runtime/lib/rust_lane_bridge.js`.
 - Runtime authority is in `core/layer0/ops` rust domains.
 - Each crossing emits deterministic claim-evidence receipts.
 

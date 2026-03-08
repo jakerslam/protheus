@@ -7,7 +7,7 @@
     {
       "id": "source_of_truth",
       "mode": "tracked",
-      "paths": ["client/runtime/systems/**", "client/lib/**", "client/runtime/config/**", "docs/client/**", "client/memory/tools/**"]
+      "paths": ["client/runtime/systems/**", "client/runtime/lib/**", "client/runtime/config/**", "docs/client/**", "client/memory/tools/**"]
     },
     {
       "id": "runtime_state",

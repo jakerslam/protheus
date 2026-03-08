@@ -12,7 +12,7 @@ const {
   normalizeToken,
   ensureDir,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 const { ensureConversationEye, statusConversationEye } = require('../sensory/conversation_eye_bootstrap');
 
 type AnyObj = Record<string, any>;

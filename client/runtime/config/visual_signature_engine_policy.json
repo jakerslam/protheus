@@ -16,8 +16,8 @@
   },
   "paths": {
     "memory_dir": "client/memory/identity/signature",
-    "adaptive_index_path": "client/adaptive/identity/signature/index.json",
-    "style_tuning_path": "client/adaptive/identity/signature/style_tuning.json",
+    "adaptive_index_path": "client/cognition/adaptive/identity/signature/index.json",
+    "style_tuning_path": "client/cognition/adaptive/identity/signature/style_tuning.json",
     "events_path": "state/identity/visual_signature/events.jsonl",
     "latest_path": "state/identity/visual_signature/latest.json",
     "receipts_path": "state/identity/visual_signature/receipts.jsonl",

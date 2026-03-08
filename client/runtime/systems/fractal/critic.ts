@@ -14,7 +14,7 @@ const {
   cleanText,
   normalizeToken,
   clampNumber
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 function pressurePenalty(pressure: string) {
   const p = normalizeToken(pressure || 'none', 24);

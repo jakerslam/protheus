@@ -17,7 +17,7 @@ const {
   writeJsonAtomic,
   appendJsonl,
   resolvePath
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const DEFAULT_POLICY_PATH = process.env.PROTHEUSCTL_SKILLS_DISCOVER_POLICY_PATH
   ? path.resolve(process.env.PROTHEUSCTL_SKILLS_DISCOVER_POLICY_PATH)

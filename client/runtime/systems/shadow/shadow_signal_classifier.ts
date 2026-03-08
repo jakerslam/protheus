@@ -3,8 +3,8 @@
 export {};
 
 const path = require('path');
-const { cleanText, readJson } = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+const { cleanText, readJson } = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 
 const POLICY_PATH = process.env.SHADOW_SIGNAL_CLASSIFIER_POLICY_PATH
   ? path.resolve(process.env.SHADOW_SIGNAL_CLASSIFIER_POLICY_PATH)

@@ -88,8 +88,8 @@ function normalizeRelativeForRoot(raw: string) {
   if (rel === 'state' || rel.startsWith('state/')) {
     return path.join('local', rel);
   }
-  if (rel === 'client/state' || rel.startsWith('client/state/')) {
-    const suffix = rel === 'client/state' ? '' : rel.slice('client/state/'.length);
+  if (rel === 'client/runtime/state' || rel.startsWith('client/runtime/state/')) {
+    const suffix = rel === 'client/runtime/state' ? '' : rel.slice('client/runtime/state/'.length);
     return path.join('local', 'state', suffix);
   }
   if (rel.startsWith('client/')) {

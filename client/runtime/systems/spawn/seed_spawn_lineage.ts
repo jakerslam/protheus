@@ -31,7 +31,7 @@ const {
   resolvePath,
   stableHash,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const POLICY_PATH = process.env.SEED_SPAWN_LINEAGE_POLICY_PATH
   ? path.resolve(process.env.SEED_SPAWN_LINEAGE_POLICY_PATH)

@@ -8,8 +8,8 @@ export {};
  */
 
 const path = require('path');
-const { ROOT } = require('../../../lib/queued_backlog_runtime');
-const { runLaneCli } = require('../../../lib/backlog_lane_cli');
+const { ROOT } = require('../../lib/queued_backlog_runtime');
+const { runLaneCli } = require('../../lib/backlog_lane_cli');
 
 const POLICY_PATH = process.env.PERMANENT_GUIDELINES_DRIFT_GATE_POLICY_PATH
   ? path.resolve(process.env.PERMANENT_GUIDELINES_DRIFT_GATE_POLICY_PATH)

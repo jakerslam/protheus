@@ -22,7 +22,7 @@ const {
   readJsonl,
   resolvePath,
   relPath
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 function normalizePressure(raw: unknown) {
   const key = normalizeToken(raw || 'none', 24);

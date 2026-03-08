@@ -39,7 +39,7 @@ function setupWorkspace() {
       test_blank_slate: {
         includes: [
           'client/runtime/local/adaptive/sensory/eyes/catalog.json',
-          'state/client/adaptive/strategy/*.json',
+          'state/client/cognition/adaptive/strategy/*.json',
           'MEMORY.md',
           'client/memory/*.md',
           'client/memory/_archive'

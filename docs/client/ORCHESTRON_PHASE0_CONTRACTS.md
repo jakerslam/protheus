@@ -83,11 +83,11 @@ Gates that can block autonomous promotion/apply:
 ## Runtime Receipts and Paths
 
 - Latest Orchestron run snapshot:
-  `state/client/adaptive/workflows/orchestron/latest.json`
+  `state/client/cognition/adaptive/workflows/orchestron/latest.json`
 - Per-run payload:
-  `state/client/adaptive/workflows/orchestron/<date>.json`
+  `state/client/cognition/adaptive/workflows/orchestron/<date>.json`
 - Birth event stream:
-  `state/client/adaptive/workflows/orchestron/birth_events.jsonl`
+  `state/client/cognition/adaptive/workflows/orchestron/birth_events.jsonl`
 
 ## Validation Commands
 

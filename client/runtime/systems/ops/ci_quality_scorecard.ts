@@ -15,7 +15,7 @@ const {
   appendJsonl,
   resolvePath,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const DEFAULT_POLICY_PATH = process.env.CI_QUALITY_SCORECARD_POLICY_PATH
   ? path.resolve(process.env.CI_QUALITY_SCORECARD_POLICY_PATH)

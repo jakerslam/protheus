@@ -14,7 +14,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { ROOT, nowIso, parseArgs, cleanText, normalizeToken, toBool, readJson, writeJsonAtomic, appendJsonl, resolvePath, stableHash, emit } = require('../../../lib/queued_backlog_runtime');
+const { ROOT, nowIso, parseArgs, cleanText, normalizeToken, toBool, readJson, writeJsonAtomic, appendJsonl, resolvePath, stableHash, emit } = require('../../lib/queued_backlog_runtime');
 const DEFAULT_POLICY_PATH = process.env.RUST50_SPRINT_CONTRACT_POLICY_PATH
     ? path.resolve(process.env.RUST50_SPRINT_CONTRACT_POLICY_PATH)
     : path.join(ROOT, 'config', 'rust50_sprint_contract_policy.json');

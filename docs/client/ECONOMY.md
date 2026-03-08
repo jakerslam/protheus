@@ -27,7 +27,7 @@
 
 - User-specific economy preferences/agreements:
   - `client/memory/economy/**`
-  - `client/adaptive/economy/**`
+  - `client/cognition/adaptive/economy/**`
 - Permanent economy runtime/policy:
   - `client/runtime/systems/economy/**`
   - `client/runtime/config/*economy*` and related policy contracts

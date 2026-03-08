@@ -22,7 +22,7 @@ node client/runtime/systems/security/psycheforge/psycheforge_organ.js status
 
 ## Defense Hardening Expansion (`V3-RACE-DEF-025` ... `V3-RACE-DEF-031C`)
 
-- `V3-RACE-DEF-025`: Smart Knot crown-jewel obfuscation contract lane (`client/runtime/systems/security/smart_knot_crown_jewel_obfuscation.ts`) with `client/build/knot/knot_pipeline_manifest.json` + `client/runtime/config/knot_config.json`.
+- `V3-RACE-DEF-025`: Smart Knot crown-jewel obfuscation contract lane (`client/runtime/systems/security/smart_knot_crown_jewel_obfuscation.ts`) with `client/runtime/build/knot/knot_pipeline_manifest.json` + `client/runtime/config/knot_config.json`.
 - `V3-RACE-DEF-026`: Lockweaver structural flux lane (`client/runtime/systems/security/lockweaver/eternal_flux_field.ts`) with origin-lock verify/reseed checks.
 - `V3-RACE-DEF-027`: Project Jigsaw replay theater lane (`client/runtime/systems/security/jigsaw/attackcinema_replay_theater.ts`) for capture/edit/playback governance.
 - `V3-RACE-DEF-028`: Phoenix auto-respawn continuity lane (`client/runtime/systems/security/phoenix_protocol_respawn_continuity.ts`).
@@ -52,4 +52,4 @@ node client/runtime/systems/security/psycheforge/psycheforge_organ.js status
 - Scope boundaries are enforced jointly with:
   - `docs/client/PINNACLE_TECH.md`
   - `docs/client/DATA_SCOPE_BOUNDARIES.md`
-- Integration lanes (`V3-RACE-137`..`143`) must keep user data in `client/memory/` + `client/adaptive/` and permanent runtime logic in `client/runtime/systems/` + `client/runtime/config/`.
+- Integration lanes (`V3-RACE-137`..`143`) must keep user data in `client/memory/` + `client/cognition/adaptive/` and permanent runtime logic in `client/runtime/systems/` + `client/runtime/config/`.

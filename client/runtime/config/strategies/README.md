@@ -82,7 +82,7 @@ Each `*.json` here is declarative policy consumed by generic controllers.
 - Strict validation blocks profiles with contradictory admission lists (`allowed_types` intersect `blocked_types`) or invalid promotion policy (`min_shipped > min_attempted`).
 - Strategy lifecycle grading can be generated via:
   - `node client/runtime/systems/strategy/strategy_learner.js run [YYYY-MM-DD] --days=14`
-  - Output defaults to `state/client/adaptive/strategy/scorecards/` with stages: `theory -> trial -> validated -> scaled`.
+  - Output defaults to `state/client/cognition/adaptive/strategy/scorecards/` with stages: `theory -> trial -> validated -> scaled`.
 - Campaign scheduling (v1):
   - Optional `campaigns[]` lets strategy profiles prioritize proposal sequencing by campaign phase before flat ranking.
   - Matching keys are phase/campaign `proposal_types`, `source_eyes`, `tags`, and optional `objective_id`.

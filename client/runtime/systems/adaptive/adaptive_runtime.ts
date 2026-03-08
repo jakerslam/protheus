@@ -3,7 +3,7 @@
 export {};
 
 const path = require('path');
-const { runOpsDomainCommand } = require('../../../lib/spine_conduit_bridge');
+const { runOpsDomainCommand } = require('../../lib/spine_conduit_bridge');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 

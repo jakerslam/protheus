@@ -15,8 +15,8 @@ const {
   normalizeToken,
   toBool,
   readJson
-} = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+} = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 
 const POLICY_PATH = process.env.MCP_A2A_VENOM_CONTRACT_GATE_POLICY_PATH
   ? path.resolve(process.env.MCP_A2A_VENOM_CONTRACT_GATE_POLICY_PATH)

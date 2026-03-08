@@ -2,7 +2,7 @@
 'use strict';
 Object.defineProperty(exports, "__esModule", { value: true });
 
-const { createDomainProxy } = require('../../../../lib/legacy_conduit_proxy');
+const { createDomainProxy } = require('../../lib/legacy_conduit_proxy');
 
 const runDomain = createDomainProxy(__dirname, 'MEMORY_ABSTRACTION_ANALYTICS', 'memory-ambient');
 

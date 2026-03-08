@@ -4,7 +4,7 @@ Identity contracts in this workspace are split into three scopes:
 
 - User-specific state:
   - `client/memory/identity/` for owner-facing identity preferences/history.
-  - `client/adaptive/identity/` for adaptive tuning metadata.
+  - `client/cognition/adaptive/identity/` for adaptive tuning metadata.
 - Permanent runtime logic:
   - `client/runtime/systems/identity/` for deterministic engines and verifiers.
   - `client/runtime/config/` for policy contracts and limits.
@@ -21,4 +21,4 @@ Identity contracts in this workspace are split into three scopes:
 - Runtime identity decisions are receipted.
 - Tier `3+` actions require explicit approval.
 - Visual signature manifests are deterministic and hash-verifiable.
-- User identity history stays in `client/memory/` and `client/adaptive/`, not in `client/runtime/systems/`.
+- User identity history stays in `client/memory/` and `client/cognition/adaptive/`, not in `client/runtime/systems/`.

@@ -2,7 +2,7 @@
 
 ## Scope
 
-This guide covers the additive backend uplift for `client/lib/secret_broker`:
+This guide covers the additive backend uplift for `client/runtime/lib/secret_broker`:
 
 - `env` and `json_file` stay as stable defaults.
 - New optional backends: `keychain` and `age_file`.

@@ -52,7 +52,7 @@ TS surface-only allowlist:
   - `client/runtime/systems/assimilation/assimilation_controller.js`
   - `client/runtime/systems/sensory/eyes_intake.js`
 - Added shared bridge helper:
-  - `client/lib/rust_lane_bridge.js`
+  - `client/runtime/lib/rust_lane_bridge.js`
 - Updated governance policy:
   - `client/runtime/config/rust_source_of_truth_policy.json`
   - `codex_enforcer.md`
@@ -74,5 +74,5 @@ TS surface-only allowlist:
   - `backlog_registry`
   - `rust_enterprise_productivity_program`
   - `backlog_github_sync`
-- Updated both TS and JS lane entrypoints for these domains to thin wrappers through `client/lib/rust_lane_bridge.js`.
+- Updated both TS and JS lane entrypoints for these domains to thin wrappers through `client/runtime/lib/rust_lane_bridge.js`.
 - Added CLI domains in `core/layer0/ops/src/main.rs` and module exports in `core/layer0/ops/src/lib.rs`.

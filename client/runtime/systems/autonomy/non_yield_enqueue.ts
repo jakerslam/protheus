@@ -3,7 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { loadQueue, queueForApproval } = require('../../../lib/approval_gate');
+const { loadQueue, queueForApproval } = require('../../lib/approval_gate');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const DEFAULT_AUTONOMY_DIR = fs.existsSync(path.join(ROOT, 'local', 'state', 'autonomy'))

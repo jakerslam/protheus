@@ -16,7 +16,7 @@ const {
   resolvePath,
   stableHash,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 const { routeTool } = require('./tool_context_router');
 const { deliverNotification } = require('./tool_notification_lane');
 

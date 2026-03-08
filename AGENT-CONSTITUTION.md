@@ -3,7 +3,7 @@
 ## Licensing
 
 - Repository license: Apache-2.0 (see `LICENSE`)
-- Historical proprietary terms are archived under `client/legal/archive/` for audit context only.
+- Historical proprietary terms are archived under `docs/client/legal/archive/` for audit context only.
 
 ## Mind Sovereignty Covenant (Immutable)
 

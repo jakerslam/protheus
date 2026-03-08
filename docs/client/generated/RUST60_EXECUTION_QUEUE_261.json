@@ -1083,7 +1083,7 @@
     {
       "lane_id": "R60-0108",
       "rank": 108,
-      "path": "client/lib/secret_broker.ts",
+      "path": "client/runtime/lib/secret_broker.ts",
       "loc": 1211,
       "impact_score": 1453.2,
       "cumulative_migrated_ts_lines": 148542,
@@ -1403,7 +1403,7 @@
     {
       "lane_id": "R60-0140",
       "rank": 140,
-      "path": "client/lib/trit_shadow_control.ts",
+      "path": "client/runtime/lib/trit_shadow_control.ts",
       "loc": 1040,
       "impact_score": 1248,
       "cumulative_migrated_ts_lines": 166851,
@@ -1593,7 +1593,7 @@
     {
       "lane_id": "R60-0159",
       "rank": 159,
-      "path": "client/lib/strategy_resolver.ts",
+      "path": "client/runtime/lib/strategy_resolver.ts",
       "loc": 983,
       "impact_score": 1179.6,
       "cumulative_migrated_ts_lines": 176676,
@@ -1693,7 +1693,7 @@
     {
       "lane_id": "R60-0169",
       "rank": 169,
-      "path": "client/lib/duality_seed.ts",
+      "path": "client/runtime/lib/duality_seed.ts",
       "loc": 952,
       "impact_score": 1142.4,
       "cumulative_migrated_ts_lines": 182604,

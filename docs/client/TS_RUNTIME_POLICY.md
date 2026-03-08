@@ -1,6 +1,6 @@
 # TS/JS Runtime Policy (Migration Safety)
 
-Purpose: prevent drift while `client/runtime/systems/` + `client/lib/` are in phased TypeScript migration.
+Purpose: prevent drift while `client/runtime/systems/` + `client/runtime/lib/` are in phased TypeScript migration.
 
 ## Decision
 
@@ -13,7 +13,7 @@ Purpose: prevent drift while `client/runtime/systems/` + `client/lib/` are in ph
 
 ## Enforcement
 
-- `client/runtime/systems/security/repo_hygiene_guard.js` now fails strict mode when a changed file in `client/runtime/systems/` or `client/lib/` has a TS/JS twin and only one side changed.
+- `client/runtime/systems/security/repo_hygiene_guard.js` now fails strict mode when a changed file in `client/runtime/systems/` or `client/runtime/lib/` has a TS/JS twin and only one side changed.
 - Escape hatch for emergency use only:
   - `--allow-ts-pair-drift`
 

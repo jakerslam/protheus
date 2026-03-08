@@ -19,7 +19,7 @@ const {
   appendJsonl,
   resolvePath,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const DEFAULT_POLICY_PATH = process.env.PROOF_PACK_THRESHOLD_GATE_POLICY_PATH
   ? path.resolve(process.env.PROOF_PACK_THRESHOLD_GATE_POLICY_PATH)

@@ -18,7 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
-const { parseYaml } = require('../../../lib/directive_resolver');
+const { parseYaml } = require('../../lib/directive_resolver');
 let dualityEvaluate = null;
 let registerDualityObservation = null;
 try {

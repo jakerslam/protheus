@@ -11,7 +11,7 @@ Purpose: run runtime entrypoints from deterministic `dist/` output while preserv
 
 ## Runtime Resolution
 
-`client/lib/ts_bootstrap.js` now resolves mode in this order:
+`client/runtime/lib/ts_bootstrap.js` now resolves mode in this order:
 
 1. `PROTHEUS_RUNTIME_MODE` env (`dist|source`)
 2. `state/ops/runtime_mode.json` (`set-mode` writes this)

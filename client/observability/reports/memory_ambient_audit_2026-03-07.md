@@ -9,7 +9,7 @@
 
 1. Added Rust `memory-ambient` domain (`core/layer0/ops/src/memory_ambient.rs`).
 2. Added conduit message type `memory_ambient_command` and bridge execution in `core/layer2/conduit/src/lib.rs`.
-3. Added JS conduit bridge helper `runMemoryAmbientCommand` (`client/lib/spine_conduit_bridge.js`).
+3. Added JS conduit bridge helper `runMemoryAmbientCommand` (`client/runtime/lib/spine_conduit_bridge.js`).
 4. Added thin memory ambient surface (`client/runtime/systems/memory/ambient.js`).
 5. Converted `client/runtime/systems/memory/index.js` to conduit-first routing with explicit compat mode fallback (`PROTHEUS_MEMORY_COMPAT_MODE`).
 6. Routed cockpit harness snapshots to include memory status (`client/runtime/systems/ops/cockpit_harness.ts`).

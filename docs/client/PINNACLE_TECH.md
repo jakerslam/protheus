@@ -14,7 +14,7 @@
 
 1. Risk-tier gating defaults to `<=2`; tier `3+` requires explicit approval.
 2. Event publication and receipts are mandatory for every mutation path.
-3. User-specific state stays in `client/memory/` + `client/adaptive/`.
+3. User-specific state stays in `client/memory/` + `client/cognition/adaptive/`.
 4. Permanent runtime and policy logic stays in `client/runtime/systems/` + `client/runtime/config/` + `docs/client/`.
 
 ## Contract Check

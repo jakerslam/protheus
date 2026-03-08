@@ -26,7 +26,7 @@ const {
   stableHash,
   rollingAverage,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const DEFAULT_POLICY_PATH = process.env.BENCHMARK_AUTONOMY_POLICY_PATH
   ? path.resolve(process.env.BENCHMARK_AUTONOMY_POLICY_PATH)

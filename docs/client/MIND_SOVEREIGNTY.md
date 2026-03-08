@@ -28,6 +28,6 @@ Mind sovereignty is the non-negotiable top rule for Protheus.
 - Pinnacle integration lanes (`V3-RACE-137`..`143`) are compatible only when:
   - event publication + receipts remain mandatory,
   - risk-tier governance remains non-bypass,
-  - user-private data boundaries remain intact (`client/memory/` + `client/adaptive/` only).
+  - user-private data boundaries remain intact (`client/memory/` + `client/cognition/adaptive/` only).
 - Enforcement is machine-checked via:
   - `client/runtime/systems/ops/pinnacle_integration_contract_check.ts`

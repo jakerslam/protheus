@@ -23,10 +23,10 @@
   "search": {
     "roots": [
       "client/runtime/systems",
-      "client/lib",
+      "client/runtime/lib",
       "core",
       "client/cli/packages",
-      "client/platform",
+      "client/runtime/platform",
       "client/runtime/config",
       "docs/client",
       "client/memory/tools/tests",

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-const { createManifestLaneBridge } = require('../../../lib/rust_lane_bridge');
+const { createManifestLaneBridge } = require('../../lib/rust_lane_bridge');
 
 const bridge = createManifestLaneBridge(__dirname, 'rust_memory_transition_lane', {
   manifestPath: 'client/runtime/systems/memory/rust/Cargo.toml',

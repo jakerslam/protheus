@@ -65,7 +65,7 @@ Establish one core-authoritative priority system that scores importance across a
 1. Fail closed on malformed importance hints (ignore hint, compute deterministic fallback).
 2. Never allow client-surface code to become a second authority for scoring/ordering.
 3. Preserve existing conduit-only boundary between client and core.
-4. Enforce a regression guard that fails CI if REQ-27 subconscious authority tokens appear in `client/runtime/systems` or `client/lib`.
+4. Enforce a regression guard that fails CI if REQ-27 subconscious authority tokens appear in `client/runtime/systems` or `client/runtime/lib`.
 
 ## Acceptance Criteria
 

@@ -25,7 +25,7 @@ const {
   setSystemBudgetAutopause,
   clearSystemBudgetAutopause
 } = require("../budget/system_budget");
-const { loadDynamicBurnOracleSignal } = require('../../../lib/dynamic_burn_budget_signal');
+const { loadDynamicBurnOracleSignal } = require('../../lib/dynamic_burn_budget_signal');
 
 type AnyObj = Record<string, any>;
 

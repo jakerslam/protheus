@@ -22,7 +22,7 @@ const {
   appendJsonl,
   resolvePath,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const DEFAULT_POLICY_PATH = process.env.SPINE_KERNEL_BUDGET_POLICY_PATH
   ? path.resolve(process.env.SPINE_KERNEL_BUDGET_POLICY_PATH)
@@ -44,7 +44,7 @@ function defaultPolicy() {
     spine_entrypoints: ['systems/spine/spine.ts'],
     paths: {
       memory_pref_dir: 'client/runtime/local/memory/spine/preferences',
-      adaptive_index_path: 'client/adaptive/spine/index.json',
+      adaptive_index_path: 'client/cognition/adaptive/spine/index.json',
       latest_path: 'client/runtime/local/state/ops/spine_kernel_budget_check/latest.json',
       receipts_path: 'client/runtime/local/state/ops/spine_kernel_budget_check/receipts.jsonl'
     }

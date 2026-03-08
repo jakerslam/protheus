@@ -9,7 +9,7 @@ Scope: unattended autonomy with adaptive mutation, outbound network access, and 
 - Primary controls: request envelope validation, remote gate signature checks, directive gate deny rules.
 - Regression tests: `client/memory/tools/tests/request_envelope.test.js`, `client/memory/tools/tests/guard_remote_gate.test.js`, `client/memory/tools/tests/directive_gate.test.js`.
 
-2. Unauthorized mutation of protected client/adaptive/client/memory/system paths
+2. Unauthorized mutation of protected client/cognition/adaptive/client/memory/system paths
 - Risk: model or tool writes outside controller channels and silently corrupts policy/state.
 - Primary controls: adaptive boundary guard, client/memory/workspace dump guards, integrity kernel.
 - Regression tests: `client/memory/tools/tests/adaptive_layer_boundary_guards.test.js`, `client/memory/tools/tests/security_integrity.test.js`.

@@ -2,8 +2,8 @@
 'use strict';
 export {};
 
-const { nowIso, clampInt, cleanText } = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+const { nowIso, clampInt, cleanText } = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 const path = require('path');
 
 const POLICY_PATH = process.env.SANDBOX_CONTEXT_CONTROLS_POLICY_PATH

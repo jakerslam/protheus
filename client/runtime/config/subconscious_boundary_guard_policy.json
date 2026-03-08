@@ -5,7 +5,7 @@
   "strict_default": true,
   "scan_roots": [
     "client/runtime/systems",
-    "client/lib"
+    "client/runtime/lib"
   ],
   "file_extensions": [
     ".ts",

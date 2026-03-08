@@ -8,7 +8,7 @@ const {
   loadActiveStrategy,
   strategyMaxRiskPerAction,
   resolveStrategyRankingContext
-} = require('../../../../lib/strategy_resolver');
+} = require('../../lib/strategy_resolver');
 let runWeaver = null;
 try {
   ({ runWeaver } = require('../../weaver/weaver_core.js'));

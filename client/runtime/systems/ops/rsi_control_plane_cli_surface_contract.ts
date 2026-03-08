@@ -19,8 +19,8 @@ const {
   readJson,
   readJsonl,
   writeJsonAtomic
-} = require('../../../lib/queued_backlog_runtime');
-const { runStandardLane } = require('../../../lib/upgrade_lane_runtime');
+} = require('../../lib/queued_backlog_runtime');
+const { runStandardLane } = require('../../lib/upgrade_lane_runtime');
 
 const POLICY_PATH = process.env.RSI_CONTROL_PLANE_CLI_SURFACE_CONTRACT_POLICY_PATH
   ? path.resolve(process.env.RSI_CONTROL_PLANE_CLI_SURFACE_CONTRACT_POLICY_PATH)

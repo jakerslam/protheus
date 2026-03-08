@@ -15,8 +15,8 @@ const {
   appendJsonl,
   emit,
   resolvePath
-} = require('../../../lib/queued_backlog_runtime');
-const { CANONICAL_PATHS, LEGACY_SURFACES } = require('../../../lib/runtime_path_registry');
+} = require('../../lib/queued_backlog_runtime');
+const { CANONICAL_PATHS, LEGACY_SURFACES } = require('../../lib/runtime_path_registry');
 
 function usage() {
   console.log('Usage:');

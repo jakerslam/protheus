@@ -184,7 +184,7 @@ async function main() {
       console.warn(`  • Line ${w.line}: ${w.code.substring(0, 50)}${w.code.length > 50 ? '...' : ''}`);
     }
     console.warn('');
-    console.warn('Recommended fix: Use execCompacted() from client/lib/exec_compacted.js');
+    console.warn('Recommended fix: Use execCompacted() from client/runtime/lib/exec_compacted.js');
     console.warn('');
   }
   

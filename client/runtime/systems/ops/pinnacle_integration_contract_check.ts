@@ -20,7 +20,7 @@ const {
   appendJsonl,
   resolvePath,
   emit
-} = require('../../../lib/queued_backlog_runtime');
+} = require('../../lib/queued_backlog_runtime');
 
 const DEFAULT_POLICY_PATH = process.env.PINNACLE_INTEGRATION_CONTRACT_POLICY_PATH
   ? path.resolve(process.env.PINNACLE_INTEGRATION_CONTRACT_POLICY_PATH)

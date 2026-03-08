@@ -2,7 +2,7 @@
 'use strict';
 export {};
 
-const { createOpsLaneBridge } = require('../../../lib/rust_lane_bridge');
+const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge');
 
 const bridge = createOpsLaneBridge(__dirname, 'backlog_registry', 'backlog-registry');
 
