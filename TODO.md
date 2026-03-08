@@ -76,6 +76,18 @@
   - Validation:
     - `npm run -s test:reflexes`
 
+- [ ] `V6-PRIORITY-KERNEL-001` Finalize global importance/priority kernel rollout (`REQ-27`).
+  - Layer target: `core/layer0/ops` (authoritative scoring, queue ordering, initiative thresholds).
+  - Progress delivered:
+    - Added core importance engine: `core/layer0/ops/src/importance.rs`.
+    - Attention queue now computes/persists importance metadata and priority ordering in `core/layer0/ops/src/attention_queue.rs`.
+    - Receipts/latest snapshots now include `score`, `band`, `priority`, and `initiative_action`.
+    - SRS lane tracked at `V6-INITIATIVE-013` + requirement spec `client/docs/requirements/REQ-27-global-importance-priority-kernel.md`.
+  - Completion criteria:
+    - `cargo test -p protheus-ops-core attention_queue` and `cargo test -p protheus-ops-core importance` pass in this environment.
+    - Cockpit/mech harness confirms priority-first attention consumption on mixed-severity inputs.
+    - No TS/client authority for scoring/order paths (core remains single authority).
+
 - [ ] `V6-MEMORY-HIERARCHY-XML-001` Backfill explicit XML hierarchy across historical daily memory files.
   - Current state:
     - New conversation synthesis output emits level metadata and XML payload boundaries, but historical `client/memory/YYYY-MM-DD.md` entries remain frontmatter + separator format.
