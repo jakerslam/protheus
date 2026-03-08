@@ -4,7 +4,7 @@ Defines ownership intent for repository-root entries after the core/client split
 
 ## Source Code Directories
 
-- `core/`: core authority implementation (Rust and low-level layer0 native code).
+- `core/`: core authority implementation (`layer_minus_one`, `layer0`, `layer1`, `layer2`, `layer3`).
 - `client/`: surface implementation (TS/JS/Python/Shell/PowerShell + tests).
 - `planes/`: architecture contracts (safety/cognition/substrate) and schemas.
 - `apps/`: optional top-of-client application/tool workspaces (default local-first, explicitly allowlisted tools may be tracked).
