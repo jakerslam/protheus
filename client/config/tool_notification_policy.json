@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "channels": {
+    "main": {
+      "enabled": true,
+      "retry_limit": 2,
+      "escalate_after": 1
+    },
+    "background": {
+      "enabled": true,
+      "retry_limit": 1,
+      "escalate_after": 2
+    }
+  },
+  "paths": {
+    "latest_path": "state/tools/notification_lane/latest.json",
+    "history_path": "state/tools/notification_lane/history.jsonl",
+    "outbox_path": "state/tools/notification_lane/outbox.jsonl"
+  }
+}
