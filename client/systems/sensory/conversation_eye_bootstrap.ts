@@ -68,7 +68,7 @@ function defaultConversationEye() {
       max_seconds: 8,
       max_bytes: 65536,
       max_requests: 1,
-      max_rows: 96
+      max_rows: 10
     },
     parser_type: 'conversation_eye',
     topics: ['conversation', 'decision', 'insight', 'directive', 't1'],
