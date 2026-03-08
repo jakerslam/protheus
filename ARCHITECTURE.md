@@ -1,9 +1,9 @@
 # Protheus Architecture
 
-Protheus is built as a Rust-first kernel (trusted core) with a narrow conduit to TypeScript surfaces.
+Protheus is built as a Rust-first deterministic core with a narrow conduit to cognition surfaces.
 
 Canonical architecture contract:
-- `docs/SYSTEM-ARCHITECTURE-SPECS.md` (Conscious/Subconscious Iceberg Specification v1.0)
+- `docs/SYSTEM-ARCHITECTURE-SPECS.md` (Protheus / InfRing Layering Specification v1.0)
 
 ## InfRing Direction
 
@@ -17,9 +17,14 @@ InfRing is the target operating model: a portable autonomous substrate that runs
 
 Protheus is explicitly modeled as a substrate-independent metakernel with three planes:
 
-1. Safety plane (`planes/safety`, implemented in `core/layer0..2`): deterministic authority for policy, isolation, scheduling, receipts, and fail-closed execution.
+1. Safety plane (`planes/safety`, implemented in `core/`): deterministic authority stack with strict upward-only flow:
+   - `core/layer_minus_one/` - Exotic Hardware Template (thin substrate adapter contract)
+   - `core/layer0/` - Safety Plane origin (sacred/immutable contract)
+   - `core/layer1/` - Policy Engine + deterministic receipts
+   - `core/layer2/` - Scheduling + execution orchestration
+   - `core/layer3/` - OS Personality Template (traditional OS growth layer)
 2. Cognition plane (`planes/cognition`, implemented in `client/`): probabilistic model orchestration, retrieval, planning, persona overlays, and user-facing cognition surfaces.
-3. Substrate plane (`planes/substrate`): runtime/backend descriptors for CPU/MCU/GPU/NPU/QPU/neural channels with explicit degradation contracts.
+3. Substrate plane (`planes/substrate`): runtime/backend descriptors for CPU/MCU/GPU/NPU/QPU/neural channels with explicit degradation contracts and fallback declarations.
 
 Hard boundary:
 - AI can propose; kernel authority decides.
@@ -30,13 +35,14 @@ Formal contract surfaces:
 - Boundary/formal specs: `planes/spec/`
 - Inter-plane contract schemas: `planes/contracts/`
 
-## Conscious vs Subconscious Split (Iceberg Model)
+## Core Stack Contract
 
-Protheus follows an explicit iceberg contract:
+The deterministic core stack is now explicitly layered and growth-safe:
 
-- Subconscious runtime (hidden engine) lives in `core/` and owns scoring, priority, policy, escalation, and fail-closed authority.
-- Conscious runtime (cockpit surface) lives in `client/` and consumes core outputs through conduit only.
-- The cockpit can observe and render importance metadata; it cannot compute or override authority decisions.
+- Layer 0 is immutable and proof-preserving.
+- Layer -1 is where exotic hardware paradigms are adapted into standard envelopes.
+- Layer 3 is where full OS personality capabilities grow (processes, VFS, drivers, syscalls, namespaces, windowing, networking).
+- Cognition remains outside numbered core layers and never becomes root-of-correctness.
 
 Driver analogy:
 
@@ -52,16 +58,17 @@ REQ-27 authority implementation:
 - Regression guard (no subconscious authority in client): `client/systems/ops/subconscious_boundary_guard.ts`
 
 Migration note:
-- Strictly follow Protheus Conscious/Subconscious Iceberg Specification v1.0 — subconscious code only in core/ layers with upward-only flow.
-- Existing `layer0/ops` authority lanes remain active while Layer2-only ownership is completed incrementally without runtime regressions.
+- Strictly follow Protheus / InfRing Layering Specification v1.0 with upward-only flow:
+  `Layer -1 -> Layer 0 -> Layer 1 -> Layer 2 -> Layer 3 -> Cognition`.
+- Existing `layer0/ops` authority lanes remain active while Layer2 ownership is completed incrementally without runtime regressions.
 
 ## Filesystem Mapping (Authoritative)
 
 | Plane | Contract Location | Implementation Location | Mutable Runtime Location |
 |---|---|---|---|
-| Safety | `planes/safety/` | `core/layer0/`, `core/layer1/`, `core/layer2/` | `core/local/` |
+| Safety | `planes/safety/` | `core/layer_minus_one/`, `core/layer0/`, `core/layer1/`, `core/layer2/`, `core/layer3/` | `core/local/` |
 | Cognition | `planes/cognition/` | `client/` (`systems`, `lib`, `config`, `packages`, `tools`, `tests`) | `client/local/` |
-| Substrate | `planes/substrate/` | Core adapters in `core/layer0/` + substrate lane surfaces in `client/systems/` | `core/local/` + `client/local/` |
+| Substrate | `planes/substrate/` | Template adapters in `core/layer_minus_one/` + capability descriptors under `planes/substrate/` | `core/local/` + `client/local/` |
 
 Additional split rules:
 
@@ -151,30 +158,40 @@ All high-churn runtime artifacts are localized to `client/local/` and `core/loca
 ## System Map
 
 ```mermaid
-flowchart LR
+flowchart TB
+    SUBSTRATE["Exotic/Classic Hardware Substrates"]
+    LNEG1["Layer -1: Exotic Hardware Template"]
+    L0["Layer 0: Safety Plane (Immutable Origin)"]
+    L1["Layer 1: Policy + Deterministic Receipts"]
+    L2["Layer 2: Scheduling + Execution"]
+    L3["Layer 3: OS Personality Template"]
+    CONDUIT["Conduit + Scrambler"]
     UI["Cognition Plane (Client Surface)"]
     CLI["Operator Surface (protheus/protheusctl/protheusd)"]
-    CONDUIT["Conduit + Scrambler"]
-    SAFETY["Safety Plane (Deterministic Rust Authority)"]
-    SUBSTRATE["Substrate Plane (Node + Adapter Contracts)"]
     RECEIPTS["Deterministic Receipts + State Artifacts"]
 
+    SUBSTRATE --> LNEG1
+    LNEG1 --> L0
+    L0 --> L1
+    L1 --> L2
+    L2 --> L3
+    L3 --> CONDUIT
     UI --> CONDUIT
     CLI --> CONDUIT
-    CONDUIT --> SAFETY
-    SAFETY --> SUBSTRATE
-    SAFETY --> RECEIPTS
-    SUBSTRATE --> RECEIPTS
+    L0 --> RECEIPTS
+    L1 --> RECEIPTS
+    L2 --> RECEIPTS
 ```
 
 ## Runtime Flow
 
-1. A command enters from CLI or a TS surface.
+1. A command enters from CLI or a cognition surface.
 2. Conduit normalizes the command into a typed envelope.
-3. Safety plane policy/constitution checks evaluate fail-closed.
-4. Safety authority schedules deterministic execution against substrate adapters.
-5. Cognition outputs are treated as probabilistic inputs unless authorized by safety policy.
-6. Crossing + validation receipts are emitted for auditability.
+3. Layer 3 maps envelope into deterministic execution intents.
+4. Layer 2 schedules execution; Layer 1 enforces policy/receipts.
+5. Layer 0 evaluates constitution/safety gates and binds receipts to safety state.
+6. Layer -1 executes through the active substrate template with declared fallback behavior.
+7. Crossing + validation receipts are emitted for auditability.
 
 ## Portability Contract
 
@@ -186,6 +203,7 @@ flowchart LR
 - [Getting Started](client/docs/GETTING_STARTED.md)
 - [Conduit Requirement](client/docs/requirements/REQ-05-protheus-conduit-bridge.md)
 - [Rust Primitive Requirement](client/docs/requirements/REQ-08-rust-core-primitives.md)
+- [Layered Templates Requirement](client/docs/requirements/REQ-31-layered-templates-and-os-personality.md)
 - [Security Posture](client/docs/SECURITY_POSTURE.md)
 - [Three-Plane Model](planes/README.md)
 - [Three-Plane Formal Spec Surface](planes/spec/README.md)

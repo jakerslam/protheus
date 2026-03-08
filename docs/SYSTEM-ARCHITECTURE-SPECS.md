@@ -1,91 +1,111 @@
-# Protheus System Architecture Specification
-## Conscious/Subconscious Iceberg Model
-Version 1.0 - March 7, 2026
-Status: Locked (use this document for all future Codex sprints, regression checks, code reviews, and onboarding)
+# Protheus / InfRing Layering Specification
+Version 1.0 — March 2026  
+Status: Locked architecture contract (authoritative for layering, flow direction, and invariants)
 
-## 1. Purpose and Core Philosophy
-Protheus is deliberately structured as an iceberg:
+## 1. Purpose
+Define the permanent layered architecture that supports:
+- infallible origin safety,
+- unlimited exotic hardware growth,
+- and expansion into a full traditional operating system,
+while preserving strict upward-only information flow.
 
-- `client/` = Conscious mind (the driver)
-  The user and client layer only see clean controls, notifications, and high-level outputs. They never see how the engine works.
-- `core/` = Subconscious mind (the engine + electronics)
-  All intelligence, memory, scoring, initiative, and efficiency logic lives here and is completely hidden.
-- Conduit = The dashboard + quantum schema scrambler
-  The only bidirectional interface between client and core. No other path exists.
+## 2. Core Principles (Non-Negotiable)
+- Strict upward-only information flow: lower layers may emit to higher layers only.
+- Layer 0 is sacred and immutable: no contract or invariant weakening.
+- Two template layers:
+  - Layer -1 for exotic/future hardware paradigms.
+  - Layer 3 for full OS personality growth.
+- Backward compatibility: existing behavior and proofs must remain valid.
 
-This separation is non-negotiable. It protects our secret sauce (5% token burn rate) and keeps the system maintainable, auditable, and future-proof.
-
-## 2. High-Level Structure
+## 3. Final Layer Stack
 
 ```text
-Client (conscious mind - driver)
-          ↑↓ (only via Conduit + quantum schema scrambler)
-   core/layer3/  <- Surface and Integration Layer (thin placeholder)
-          ↑
-   core/layer2/  <- Reasoning, Priority and Agency Engine
-          ↑
-   core/layer1/  <- Memory and Persistence Engine
-          ↑
-   core/layer0/  <- Deterministic Foundation Kernel
-          ↑
-Raw inputs (adapters, eyes, hardware, timers, external APIs)
+Exotic Hardware (quantum, ternary, optical, DNA, neuromorphic, etc.)
+        ↓
+Layer -1: Exotic Hardware Template (thin adapter)
+        ↓
+Layer 0: Safety Plane (Rust core, immutable origin)
+        ↓
+Layer 1: Policy Engine + Deterministic Receipts
+        ↓
+Layer 2: Scheduling + Execution
+        ↓
+Layer 3: OS Personality Template
+        ↓
+Cognition Plane (TS/Python client surfaces)
 ```
 
-## 3. Strict Layer Ownership (Codex MUST obey these rules)
+## 4. Layer Responsibilities
 
-### `core/layer0/` — Deterministic Foundation Kernel
-ONLY: raw event ingestion from adapters/hardware/timers, deterministic scheduling, isolation, capabilities, resource accounting, covenant/policy enforcement, receipts generation, watchdogs, boot/update trust, low-level I/O primitives.
+### Layer -1 — Exotic Hardware Template (`core/layer_minus_one/`)
+- Translates exotic primitives into the standard envelope contract expected by Layer 0.
+- Must stay thin: trait + minimal adapter logic.
+- Must declare capability metadata and degradation fallback.
 
-NEVER: memory nodes, indexing, scoring, reasoning, initiative, proactive messaging, reflexes, epistemic logic, or any cognitive/probabilistic behavior.
+### Layer 0 — Safety Plane (`core/layer0/`)
+- Conduit/scrambler boundary validation, deterministic receipts, constitution enforcement, RSI gates, root invariants, self-audit primitives.
+- Single source of truth for safety-state binding.
+- Immutable public contract.
 
-### `core/layer1/` — Memory and Persistence Engine
-ONLY: jot/tag/node system, Memory Matrix, indices, Dream Sequencer, Auto-Recall logic, Conversation Eye synthesis engine, epistemic memory (confidence/provenance/expiry), reflexes (crystallized low-burn tasks), tag-based lookup and persistence.
+### Layer 1 — Policy + Deterministic Receipts (`core/layer1/`)
+- Deterministic policy interpretation and receipt projection.
+- Bridges Layer 0 invariants into execution/policy outcomes without weakening guarantees.
 
-NEVER: importance scoring, priority queue management, initiative/outreach logic, task collision resolution, or direct Conduit calls.
+### Layer 2 — Scheduling + Execution (`core/layer2/`)
+- Deterministic execution planning, lane scheduling, and bounded runtime coordination.
+- Hosts queueing/execution orchestration primitives that feed Layer 3.
 
-### `core/layer2/` — Reasoning, Priority and Agency Engine
-ONLY: importance scoring engine, Attention Queue (priority queue with front-jump logic), Initiative Layer (proactive messaging + escalation thresholds), task collision resolution, attention management, burn monitoring, context compression rules.
+### Layer 3 — OS Personality Template (`core/layer3/`)
+- Growth layer for process model, VFS/filesystems, driver contracts, syscall surfaces, memory management, namespaces, networking stack, userland isolation, and windowing.
+- Must consume lower-layer contracts; never bypass them.
 
-NEVER: raw memory storage, indexing, low-level primitives, direct Conduit communication, or substrate integration.
+### Cognition Plane (`client/`)
+- User-facing and probabilistic surfaces.
+- Can propose/assist; cannot become root-of-correctness.
+- Communicates with core only through conduit + scrambler.
 
-### `core/layer3/` — Surface and Integration Layer (thin placeholder)
-ONLY: final event preparation and humanization before Conduit, coordination with quantum schema scrambler, clean translation to client-visible formats, substrate adapters for new tech (quantum, BCI, ternary, neural I/O, etc.).
+## 5. Interface Contracts (Generation Targets)
 
-NEVER: heavy business logic, memory operations, scoring, initiative decisions.
+### Layer -1 trait
+```rust
+pub trait ExoticSubstrate {
+    fn execute_envelope(&self, envelope: &ConduitEnvelope) -> Result<Receipt, SafetyError>;
+    fn declare_capabilities(&self) -> SubstrateCapabilities;
+    fn degradation_fallback(&self) -> FallbackMode;
+}
+```
 
-### `core/conduit/` — Single Gate to Client
-ONLY: bidirectional communication between core and `client/`, quantum schema scrambler enforcement.
+### Layer 3 trait
+```rust
+pub trait OSPersonality {
+    fn create_process(&self, config: ProcessConfig) -> Result<ProcessId, OsError>;
+    fn vfs_operation(&self, op: VfsOperation) -> Result<VfsResult, OsError>;
+    fn register_driver(&self, driver: Box<dyn DeviceDriver>);
+    fn syscall_handler(&self, call: Syscall) -> Result<SyscallResult, OsError>;
+}
+```
 
-NEVER: scoring, memory logic, initiative decisions, or business logic.
+## 6. Data Flow Rules
+- Exotic hardware -> Layer -1 only.
+- Layer -1 -> Layer 0 only (standardized envelopes).
+- Layer 0 -> Layer 1 -> Layer 2 -> Layer 3 only.
+- Layer 3 -> Cognition plane only.
+- No downward calls, no hidden back-channels, no bypass paths.
 
-## 4. Flow and Communication Rules
-- Events flow upward only: Layer0 -> Layer1 -> Layer2 -> Layer3 -> Conduit.
-- No downward calls, no peer-to-peer communication, no spaghetti.
-- Each layer may receive its own direct inputs from adapters (no single bottleneck at Layer0).
-- Only Layer3 communicates with Conduit.
-- All inter-layer communication uses typed internal events.
+## 7. Migration Contract
+1. Maintain `core/layer_minus_one/` and `core/layer3/` as first-class architecture directories.
+2. Keep Layer 0 boot path compatible with an `ExoticSubstrate` adapter contract.
+3. Expand Layer 3 as the OS personality growth surface (without mutating Layer 0 invariants).
+4. Keep architecture docs and enforcement docs synchronized with this stack.
+5. Add/maintain regression checks for flow direction and boundary integrity.
 
-## 5. Initiative Layer and Priority Queue (Layer2 only)
-- Importance Scoring Engine: deterministic, low-latency, non-LLM.
-  `weighted_score = 0.35*criticality + 0.25*urgency + 0.20*impact + 0.15*user_relevance + 0.05*confidence` plus optional `core_floor` boost for system-critical events.
-- Attention Queue: true priority queue. On insert, if score >= 0.7, auto-push to front.
-- Initiative Layer threshold contract:
-  - `< 0.40` -> internal only
-  - `0.40–0.70` -> one polite message + wait
-  - `0.70–0.85` -> double-message
-  - `> 0.85` -> escalate
-  - `> 0.95` -> persistent until acknowledged
+## 8. Preserved Invariants
+- Layer 0 contract remains stable and proof-preserving.
+- Receipts remain bound to Layer 0 state.
+- Constitution + RSI gate authority stays at Layer 0.
+- Self-audit remains active at Layer 0.
 
-## 6. Future-Proofing Rules
-Adding new tech (quantum, BCI, ternary, neural I/O) should only require:
-- New adapters (if needed)
-- Optional new Layer4+ (if required)
-- Updates to Layer3 and Conduit
-
-Layers 0-2 remain untouched.
-
-## 7. Enforcement and Regression Prevention
-- Future Codex prompts should include:
-  "Strictly follow Protheus Conscious/Subconscious Iceberg Specification v1.0 — subconscious code only in core/ layers with upward-only flow."
-- Any ONLY/NEVER violation is a blocking regression.
-- This document is the architecture contract source of truth.
+## 9. Implementation Status (March 2026 snapshot)
+- Architecture contract updated to include Layer -1 and Layer 3.
+- `core/layer_minus_one/` and `core/layer3/` scaffolds are present as template ownership anchors.
+- Runtime migration of all lane authority to the final stack remains incremental and must preserve receipts/invariants at every step.
