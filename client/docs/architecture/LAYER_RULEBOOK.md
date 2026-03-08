@@ -1,63 +1,57 @@
 # InfRing Layer Rulebook — Strict Enforcement Policy
-**Version 1.0** — March 2026  
-**This is the single source of truth for file placement, language, and boundaries. No deviations allowed without explicit user permission.**
+**Version 1.1** — March 2026  
+**This is the source of truth for file placement, language boundaries, and layer ownership. No deviations without explicit user approval.**
 
 ### 1. Directory Split (Enforced)
-The repository must be split into exactly two top-level **source code** directories:
-- `/core` — Rust + low-level languages only. Contains all protected layers, TCB, conduit server, scrambler, governance, and performance-critical code.
-- `/client` — Surface layer only. Contains all user-facing code, extensions, UI, marketplace, SDKs, scripts, and thin conduit clients.
+The repository has two top-level source code roots:
+- `/core` — deterministic core stack (`layer_minus_one`, `layer0`, `layer1`, `layer2`, `layer3`) and trusted low-level logic.
+- `/client` — cognition/user-facing surfaces, SDKs, scripts, and extensions.
 
-All actual source code must live under one of these two directories.
+All source code must live in one of these roots.
 
-The following standard repo metadata and infrastructure items are explicitly allowed (and expected) to remain at the repository root:
-- `.github/`
-- `.githooks/`
-- `README.md`, `LICENSE`, `CONTRIBUTING.md`
-- `Cargo.toml`, `package.json`, `Cargo.lock`, `pnpm-lock.yaml`
-- Any build scripts, Dockerfiles, Helm charts, deploy configs, or CI files that are not source code.
-
-These root-level items are exempt from the core/client rule and do not count as violations.
+Allowed root-level exceptions (metadata/infrastructure): `.github/`, `.githooks/`, policy docs, lockfiles, build manifests, deploy manifests.
 
 ### 2. Layer Definitions (Strict)
-- **Layer 0 (Core TCB)** — Rust + C/C++ only. Lives in `/core/layer0/`.  
-  Primitives, conduit server, scrambler, governance, attention queue, memory ambient, dopamine ambient, persona ambient cache, spine authority, **and low-level C/C++ code (e.g. PicoLM edge brain)**.
+- **Layer -1 (Exotic Hardware Template)** — `/core/layer_minus_one/`  
+  Thin adapter contract for exotic substrates; capability + fallback declarations only.
 
-- **Layer 1 (Resource Primitives)** — Rust only. Lives in `/core/layer1/`.
+- **Layer 0 (Safety Plane / Immutable Origin)** — `/core/layer0/`  
+  Constitution, deterministic receipts, invariant enforcement, security gates, and root safety authority.
 
-- **Layer 2 (Conduit + Ambient Logic)** — Rust only. Lives in `/core/layer2/`.
+- **Layer 1 (Policy + Deterministic Receipts)** — `/core/layer1/`  
+  Deterministic policy interpretation and receipt shaping.
 
-- **Client Surface (Layer 3)** — TS/JS/HTML/CSS/Python/Shell/PowerShell only. Lives in `/client/`.  
-  All UI, marketplace, extensions, templates, thin conduit clients, SDKs, tests, deployment scripts, and user-facing tools.
+- **Layer 2 (Scheduling + Execution)** — `/core/layer2/`  
+  Execution orchestration, deterministic scheduling, queue/runtime coordination.
 
-### 3. Language Rules (Strict — No Exceptions)
-- **Rust + C/C++ only** in `/core/` (all layers).  
-  C/C++ is allowed **only** for low-level performance-critical code (e.g. PicoLM integration) and must stay in `/core/layer0/`.
+- **Layer 3 (OS Personality Template)** — `/core/layer3/`  
+  Traditional OS growth surface (process/VFS/drivers/syscalls/namespaces/network/userland isolation).
 
-- **TS/JS/HTML/CSS/Python/Shell/PowerShell only** in `/client/`.  
-  - Shell scripts (`.sh`) and PowerShell (`.ps1`) belong exclusively in `/client/` (for installers, deployment, dev tools, and surface scripts).  
-  - Python belongs exclusively in `/client/` (for SDKs, tools, scripts, extensions, and user-facing integrations).
+- **Cognition Plane (Unnumbered)** — `/client/`  
+  TS/JS/Python/Shell/PowerShell/HTML/CSS surfaces for user-facing and probabilistic workflows.
 
-- No JS/TS pairs anywhere. For any feature, choose one language and delete the other.
-- Pair resolution override: if both `.ts` and `.js` exist for the same feature path, `.ts` is canonical and `.js` must be deleted unless the `.js` file is a true deployment/installer script or explicitly marked legacy.
-- Never delete `.ts` files during migration without explicit user approval.
-- Tests live in `/client/tests/` and may be JS/TS.
-- No non-Rust/C++ languages are ever allowed in `/core/`.
-- No Rust or C/C++ is ever allowed in `/client/`.
+### 3. Language Rules
+- `/core/`: Rust by default; C/C++ only for approved low-level performance-critical modules.
+- `/client/`: TS/JS/Python/Shell/PowerShell/HTML/CSS only.
+- No Rust/C/C++ in `/client/`.
+- No TS/JS/Python/Shell in `/core/`.
+- No JS/TS duplicate feature pairs. If both exist, TS is canonical and JS must be removed unless installer/deploy legacy is explicitly documented.
 
-### 4. Boundary Rule (Enforced)
-- The **only** way `/client/` talks to `/core/` is through the conduit + scrambler.
-- No direct CLI execs, no file I/O, no legacy bridges, no raw state reads, no bypassing the conduit.
-- All communication (including Python, Shell, PowerShell) must go exclusively through the conduit + scrambler.
+### 4. Boundary Rules (Enforced)
+- Client <-> core communication is conduit + scrambler only.
+- No direct client-side policy authority over core decisions.
+- No direct back-channels, raw state bypasses, or legacy bridges around conduit.
+- Layer flow is upward-only:
+  `Layer -1 -> Layer 0 -> Layer 1 -> Layer 2 -> Layer 3 -> Cognition`.
 
-### 5. Open-Source Benefit
-- `/client/` is designed to be published as the open-source package (e.g. `@infring/client`).
-- `/core/` remains closed and protected behind the quantum gate.
+### 5. Runtime Data Placement
+- Client runtime/user/device/instance data: `client/local/`.
+- Core runtime/user/device/instance data: `core/local/`.
+- Source trees remain stable and reviewable; runtime churn never defines architecture authority.
 
-### 6. Migration & Enforcement Rules
-- No layer changes without explicit user permission (tracked in audit log).
-- New files must follow these rules immediately.
-- Delete all JS/TS pairs and legacy bridges during migration.
-- Add a CI gate that fails the build if any rule is violated.
-- After migration, run full benchmark + formal:invariants:run.
+### 6. Enforcement Rules
+- No layer ownership changes without explicit user approval and audit note.
+- CI/guards must fail on boundary violations.
+- Architecture docs (`ARCHITECTURE.md`, `docs/SYSTEM-ARCHITECTURE-SPECS.md`, this rulebook) must remain synchronized.
 
-This rulebook is the constitution of the codebase. All future work must obey it strictly.
+This rulebook is a live constitution artifact and must be kept aligned with the layered stack contract.
