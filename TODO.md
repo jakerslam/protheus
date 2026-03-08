@@ -262,6 +262,7 @@
       - propagates timeout-like runtime gate accounting/fallback without waiting full stdio timeout windows.
     - `ops:backlog:registry:check` now fails fast with deterministic startup-probe reason (`~2.7s`) instead of hanging until long stdio timeout.
     - Hardened CLI heartbeat compatibility path (`client/systems/spine/heartbeat_trigger.ts`) to delegate directly to `spine_safe_launcher` with bounded timeout + `--max-old-space-size` guard, avoiding legacy heavy trigger execution path.
+    - Increased heartbeat CLI launcher timeout default (`120s`) and added bounded retry on timeout/kill-signal failures (`SPINE_HEARTBEAT_TRIGGER_RETRIES`, default `1`) to reduce SIGKILL/timeout flakiness under host pressure.
     - Restored CLI min-hours throttling using canonical run events (`spine_run_complete` / `spine_benchmark_noop`) so manual heartbeat commands no longer over-trigger during stable ambient operation.
   - Completion criteria:
     - `conduit_daemon` responds to `start_agent` within timeout budget.

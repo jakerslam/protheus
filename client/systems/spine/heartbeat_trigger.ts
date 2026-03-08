@@ -19,11 +19,15 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const SAFE_LAUNCHER = path.join(ROOT, 'systems', 'spine', 'spine_safe_launcher.js');
 const DEFAULT_TIMEOUT_MS = Math.max(
   5000,
-  Math.min(10 * 60 * 1000, Number(process.env.SPINE_HEARTBEAT_TRIGGER_TIMEOUT_MS || 30000) || 30000)
+  Math.min(10 * 60 * 1000, Number(process.env.SPINE_HEARTBEAT_TRIGGER_TIMEOUT_MS || 120000) || 120000)
 );
 const DEFAULT_MAX_OLD_SPACE_MB = Math.max(
   96,
   Math.min(1024, Number(process.env.SPINE_HEARTBEAT_TRIGGER_MAX_OLD_SPACE_MB || 192) || 192)
+);
+const DEFAULT_RETRIES = Math.max(
+  0,
+  Math.min(3, Number(process.env.SPINE_HEARTBEAT_TRIGGER_RETRIES || 1) || 1)
 );
 
 function nowIso() {
@@ -121,6 +125,15 @@ function runDelegated(args: string[], timeoutMs: number, maxOldSpaceMb: number) 
   };
 }
 
+function shouldRetry(result: any) {
+  if (!result) return false;
+  if (result.timedOut) return true;
+  const signal = String(result.signal || '').toUpperCase();
+  if (signal === 'SIGKILL' || signal === 'SIGTERM') return true;
+  const stderr = String(result.stderr || '');
+  return /conduit_stdio_timeout|conduit_bridge_timeout|ETIMEDOUT/i.test(stderr);
+}
+
 function main() {
   const cmd = String(process.argv[2] || '').trim().toLowerCase();
   if (!cmd || cmd === '--help' || cmd === '-h' || cmd === 'help') {
@@ -163,11 +176,20 @@ function main() {
     }
   }
 
-  const delegated = runDelegated(buildDelegatedArgs(cmd), timeoutMs, maxOldSpaceMb);
+  const delegatedArgs = buildDelegatedArgs(cmd);
+  let delegated = runDelegated(delegatedArgs, timeoutMs, maxOldSpaceMb);
+  let attempt = 1;
+  while (attempt <= DEFAULT_RETRIES && delegated.status !== 0 && shouldRetry(delegated)) {
+    attempt += 1;
+    const retryTimeoutMs = Math.min(10 * 60 * 1000, timeoutMs * attempt);
+    delegated = runDelegated(delegatedArgs, retryTimeoutMs, maxOldSpaceMb);
+  }
   if (delegated.stdout) process.stdout.write(delegated.stdout);
   if (delegated.stderr) process.stderr.write(delegated.stderr);
   if (delegated.timedOut) {
-    process.stderr.write('heartbeat_trigger_timeout: delegated launcher exceeded timeout\n');
+    process.stderr.write(
+      `heartbeat_trigger_timeout: delegated launcher exceeded timeout after ${attempt} attempt(s)\n`
+    );
     process.exit(124);
   }
   if (delegated.status !== 0 && delegated.signal) {
