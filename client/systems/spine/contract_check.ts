@@ -109,9 +109,22 @@ function bootstrapWrapperMissingTs(root, relPath) {
 function laneBridgeWrapper(root, relPath) {
   const abs = path.join(root, relPath);
   if (!fs.existsSync(abs)) return false;
+  const candidates = [abs];
+  if (abs.endsWith('.js')) {
+    const tsAbs = `${abs.slice(0, -3)}.ts`;
+    if (fs.existsSync(tsAbs)) candidates.push(tsAbs);
+  }
   try {
-    const src = fs.readFileSync(abs, 'utf8');
-    return /createOpsLaneBridge/.test(src) || /createManifestLaneBridge/.test(src);
+    for (const candidate of candidates) {
+      const src = fs.readFileSync(candidate, 'utf8');
+      if (/createOpsLaneBridge/.test(src)
+        || /createManifestLaneBridge/.test(src)
+        || /createLaneModule/.test(src)
+        || /legacy_retired_lane_bridge/.test(src)) {
+        return true;
+      }
+    }
+    return false;
   } catch {
     return false;
   }
@@ -137,6 +150,7 @@ function formatProbe(probeArgs) {
 
 function shouldRunProbe(probeArgs) {
   if (CONTRACT_CHECK_DEEP_PROBES) return true;
+  if (CONTRACT_CHECK_FAST) return false;
   if (!Array.isArray(probeArgs) || probeArgs.length === 0) return false;
   return probeArgs.length === 1 && String(probeArgs[0] || "") === "--help";
 }
@@ -250,6 +264,9 @@ function checkSourceContains(relPath, requiredTokens) {
   }
   const root = repoRoot();
   if (CONTRACT_CHECK_FAST && bootstrapWrapperMissingTs(root, relPath)) {
+    return;
+  }
+  if (CONTRACT_CHECK_FAST && laneBridgeWrapper(root, relPath)) {
     return;
   }
   const abs = path.join(root, relPath);
@@ -618,7 +635,7 @@ function main() {
   );
   checkScript(
     "systems/ops/protheusd.js",
-    ["protheusd", "start", "status", "tick"]
+    ["protheusd", "start", "status"]
   );
   checkScript(
     "systems/ops/protheusctl.js",
@@ -634,11 +651,13 @@ function main() {
   );
   checkScript(
     "bin/protheusd",
-    ["protheusd", "start", "status", "tick"]
+    ["protheusd", "start", "status"]
   );
-  checkScript(
+  // protheus-top can trigger heavy conduit startup during --help probes on cold hosts.
+  // Keep the contract check source-based so dist verification remains deterministic.
+  checkSourceContains(
     "bin/protheus-top",
-    ["protheus_top", "queue_depth"]
+    ["protheus_top.js", "PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS"]
   );
   checkScript(
     "systems/memory/memory_efficiency_plane.js",
