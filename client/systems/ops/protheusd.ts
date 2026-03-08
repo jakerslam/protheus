@@ -7,14 +7,14 @@ const fs = require('fs');
 const crypto = require('crypto');
 const os = require('os');
 const { spawn, spawnSync } = require('child_process');
-const { runSpineCommand } = require('../../lib/spine_conduit_bridge');
+const { runSpineCommand, runAttentionCommand, runMemoryAmbientCommand } = require('../../lib/spine_conduit_bridge');
 const { CANONICAL_PATHS, normalizeForRoot } = require('../../lib/runtime_path_registry');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const INTERNAL_AMBIENT_LOOP = '__ambient-loop';
 
 function usage() {
-  console.log('Usage: protheusd start|stop|restart|status|diagnostics|tick [--policy=<path>] [--conduit] [--allow-legacy-fallback] [--autostart] [--no-autostart] [--no-cockpit]');
+  console.log('Usage: protheusd start|stop|restart|status|diagnostics|tick|attach|subscribe [--policy=<path>] [--conduit] [--allow-legacy-fallback] [--autostart] [--no-autostart] [--no-cockpit]');
 }
 
 function nowIso() {
@@ -98,6 +98,166 @@ function parseFlag(argv: string[], key: string) {
     }
   }
   return null;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+}
+
+function estimateTokens(text: unknown) {
+  const raw = String(text == null ? '' : text);
+  if (!raw) return 0;
+  return Math.max(1, Math.ceil(raw.length / 4));
+}
+
+function readFileHead(filePath: string, maxChars: number) {
+  try {
+    if (!fs.existsSync(filePath)) return { exists: false, excerpt: '', truncated: false };
+    const raw = String(fs.readFileSync(filePath, 'utf8') || '');
+    if (!raw) return { exists: true, excerpt: '', truncated: false };
+    const cap = Math.max(64, Math.min(200000, Number(maxChars) || 2000));
+    const excerpt = raw.slice(0, cap);
+    return {
+      exists: true,
+      excerpt,
+      truncated: raw.length > excerpt.length
+    };
+  } catch {
+    return { exists: false, excerpt: '', truncated: false };
+  }
+}
+
+function loadIdentityHydrationPolicy(runtime: any) {
+  const fallback = {
+    enabled: true,
+    startup_token_budget: 1800,
+    per_file_max_chars: 1800,
+    base_files: [
+      'SOUL.md',
+      'USER.md',
+      'MEMORY.md',
+      'MEMORY_INDEX.md',
+      'TAGS_INDEX.md'
+    ],
+    lazy_pages: [
+      'client/local/state/memory/conversation_eye/nodes.jsonl',
+      'client/local/state/attention/latest.json'
+    ]
+  };
+  const raw = readJson(runtime.identityHydrationPolicyPath, fallback) || fallback;
+  return {
+    enabled: raw.enabled !== false,
+    startup_token_budget: toInt(raw.startup_token_budget, fallback.startup_token_budget, 256, 64000),
+    per_file_max_chars: toInt(raw.per_file_max_chars, fallback.per_file_max_chars, 256, 200000),
+    base_files: Array.isArray(raw.base_files) ? raw.base_files.map((row: any) => cleanText(row, 500)).filter(Boolean) : fallback.base_files,
+    lazy_pages: Array.isArray(raw.lazy_pages) ? raw.lazy_pages.map((row: any) => cleanText(row, 500)).filter(Boolean) : fallback.lazy_pages
+  };
+}
+
+function buildIdentityHydrationSnapshot(runtime: any) {
+  const policy = loadIdentityHydrationPolicy(runtime);
+  const now = nowIso();
+  const out = {
+    schema_version: '1.0',
+    enabled: policy.enabled,
+    ts: now,
+    startup_token_budget: policy.startup_token_budget,
+    estimated_tokens_loaded: 0,
+    files_loaded: [] as any[],
+    files_deferred: [] as any[]
+  };
+  if (!policy.enabled) return out;
+  let remainingBudget = Number(policy.startup_token_budget || 0);
+  for (const rel of policy.base_files) {
+    const abs = path.isAbsolute(rel) ? rel : path.join(runtime.workspaceRoot, rel);
+    const head = readFileHead(abs, policy.per_file_max_chars);
+    if (!head.exists) {
+      out.files_deferred.push({
+        file: rel,
+        reason: 'missing'
+      });
+      continue;
+    }
+    const tokenCost = estimateTokens(head.excerpt);
+    if (remainingBudget - tokenCost < 0) {
+      out.files_deferred.push({
+        file: rel,
+        reason: 'startup_budget_exceeded',
+        estimated_tokens: tokenCost
+      });
+      continue;
+    }
+    remainingBudget -= tokenCost;
+    out.estimated_tokens_loaded += tokenCost;
+    out.files_loaded.push({
+      file: rel,
+      estimated_tokens: tokenCost,
+      truncated: head.truncated === true
+    });
+  }
+  for (const rel of policy.lazy_pages) {
+    out.files_deferred.push({
+      file: rel,
+      reason: 'lazy_hydration'
+    });
+  }
+  return out;
+}
+
+async function buildResidentMemorySnapshot(runtime: any) {
+  const now = nowIso();
+  const out = {
+    schema_version: '1.0',
+    ts: now,
+    mode: 'ambient_resident',
+    rust_authoritative: true,
+    sqlite_path: path.join(runtime.workspaceRoot, 'core', 'local', 'state', 'memory', 'runtime_memory.sqlite'),
+    working_set_cache_path: path.join(runtime.workspaceRoot, 'core', 'local', 'state', 'memory', 'working_set_cache.json'),
+    conversation_nodes_path: runtime.conversationEyeIndexPath,
+    hotset: {
+      conversation_nodes: 0,
+      attention_last_ts: null as string | null,
+      ambient_last_ts: null as string | null
+    },
+    health: {
+      memory_ambient_ok: null as boolean | null,
+      memory_ambient_reason: null as string | null
+    }
+  };
+  const convo = readJson(runtime.conversationEyeIndexPath, null);
+  if (convo && typeof convo === 'object') {
+    out.hotset.conversation_nodes = convo.emitted_node_ids && typeof convo.emitted_node_ids === 'object'
+      ? Object.keys(convo.emitted_node_ids).length
+      : 0;
+  }
+  const attentionLatest = readJson(runtime.mechPolicy.attentionLatestPath, null);
+  if (attentionLatest && typeof attentionLatest === 'object') {
+    out.hotset.attention_last_ts = cleanText(attentionLatest.ts || '', 64) || null;
+  }
+  try {
+    const mem = await runMemoryAmbientCommand(['status'], {
+      cwdHint: runtime.root,
+      runContext: 'protheusd_resident_memory',
+      timeoutMs: Math.max(2000, Math.min(20000, runtime.cockpitConduitTimeoutMs * 2))
+    });
+    out.health.memory_ambient_ok = !!(mem && mem.ok === true);
+    out.health.memory_ambient_reason = cleanText(
+      mem && mem.payload && mem.payload.reason
+        ? mem.payload.reason
+        : mem && mem.stderr
+          ? mem.stderr
+          : '',
+      260
+    ) || null;
+    out.hotset.ambient_last_ts = cleanText(
+      mem && mem.payload && mem.payload.ts ? mem.payload.ts : '',
+      64
+    ) || null;
+  } catch (error: any) {
+    out.health.memory_ambient_ok = false;
+    out.health.memory_ambient_reason = cleanText(error && error.message ? error.message : String(error), 260) || 'memory_ambient_status_failed';
+  }
+  return out;
 }
 
 function toMb(bytes: unknown) {
@@ -486,6 +646,15 @@ function resolveRuntime(argv: string[]) {
   const cockpitInboxDir = cockpitInboxDirRaw
     ? (path.isAbsolute(cockpitInboxDirRaw) ? cockpitInboxDirRaw : path.join(ROOT, cockpitInboxDirRaw))
     : path.join(ROOT, 'local', 'state', 'cockpit', 'inbox');
+  const identityHydrationPolicyPathRaw = cleanText(
+    process.env.PROTHEUSD_IDENTITY_HYDRATION_POLICY_PATH || path.join(ROOT, 'config', 'cockpit_identity_hydration_policy.json'),
+    500
+  );
+  const identityHydrationPolicyPath = path.isAbsolute(identityHydrationPolicyPathRaw)
+    ? identityHydrationPolicyPathRaw
+    : path.join(ROOT, identityHydrationPolicyPathRaw);
+  const identityHydrationStatePath = path.join(ROOT, 'local', 'state', 'ops', 'identity_hydration', 'latest.json');
+  const residentMemoryStatePath = path.join(ROOT, 'local', 'state', 'ops', 'resident_memory', 'latest.json');
   const consumerId = cleanText(parseFlag(argv, 'consumer') || process.env.COCKPIT_CONSUMER_ID || 'cockpit_llm', 80)
     .toLowerCase()
     .replace(/[^a-z0-9._:@-]+/g, '_')
@@ -533,7 +702,10 @@ function resolveRuntime(argv: string[]) {
     protheusOpsReleasePath,
     protheusOpsDebugPath,
     consumerId,
-    batchLimit
+    batchLimit,
+    identityHydrationPolicyPath,
+    identityHydrationStatePath,
+    residentMemoryStatePath
   };
 }
 
@@ -571,6 +743,12 @@ function loadDaemonState(runtime: any) {
     conversation_eye_backoff_until: cleanText(existing && existing.conversation_eye_backoff_until || '', 64) || null,
     resource_snapshot: existing && existing.resource_snapshot && typeof existing.resource_snapshot === 'object'
       ? existing.resource_snapshot
+      : null,
+    identity_hydration: existing && existing.identity_hydration && typeof existing.identity_hydration === 'object'
+      ? existing.identity_hydration
+      : null,
+    resident_memory: existing && existing.resident_memory && typeof existing.resident_memory === 'object'
+      ? existing.resident_memory
       : null,
     origin_integrity: existing && existing.origin_integrity && typeof existing.origin_integrity === 'object'
       ? {
@@ -972,6 +1150,10 @@ async function runHeartbeat(runtime: any, trigger: string) {
     state.last_conversation_eye_error = null;
   }
   state.resource_snapshot = collectResourceSnapshot(runtime.memoryPressureRatio);
+  state.identity_hydration = buildIdentityHydrationSnapshot(runtime);
+  writeJson(runtime.identityHydrationStatePath, state.identity_hydration);
+  state.resident_memory = await buildResidentMemorySnapshot(runtime);
+  writeJson(runtime.residentMemoryStatePath, state.resident_memory);
   persistDaemonState(runtime, state);
 
   const receipt = withReceipt({
@@ -1013,7 +1195,9 @@ async function runHeartbeat(runtime: any, trigger: string) {
     run_seq: state.run_seq,
     next_heartbeat_at: state.next_heartbeat_at,
     bridge_health: normalizedBridgeHealth(state.bridge_health),
-    resource: state.resource_snapshot
+    resource: state.resource_snapshot,
+    identity_hydration: state.identity_hydration,
+    resident_memory: state.resident_memory
   });
   emitLatest(runtime, receipt);
   return receipt;
@@ -1107,6 +1291,10 @@ async function runAmbientLoop(argv: string[]) {
       128
     ) || null
   };
+  state.identity_hydration = buildIdentityHydrationSnapshot(runtime);
+  writeJson(runtime.identityHydrationStatePath, state.identity_hydration);
+  state.resident_memory = await buildResidentMemorySnapshot(runtime);
+  writeJson(runtime.residentMemoryStatePath, state.resident_memory);
   const startupGate = readConduitRuntimeGate(runtime.root);
   const startupGateReason = bridgeReasonFromRuntimeGate(startupGate);
   if (startupGateReason) {
@@ -1362,6 +1550,10 @@ function parseAgentId(args: string[]) {
   return 'protheus-default';
 }
 
+function conduitRouteTimeoutMs() {
+  return toInt(process.env.PROTHEUSD_CONDUIT_ROUTE_TIMEOUT_MS, 8000, 1000, 120000);
+}
+
 type ConduitRouteResult = {
   routed: boolean;
   ok: boolean;
@@ -1393,8 +1585,13 @@ async function runConduit(command: string, extraArgs: string[]): Promise<Conduit
         : command === 'stop'
           ? { type: 'stop_agent', agent_id: parseAgentId(extraArgs) }
           : { type: 'get_system_status' };
-
-    const response = await client.send(message as any, requestId);
+    const timeoutMs = conduitRouteTimeoutMs();
+    const response = await Promise.race([
+      client.send(message as any, requestId),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error(`conduit_route_timeout:${timeoutMs}`)), timeoutMs);
+      })
+    ]);
     process.stdout.write(`${JSON.stringify(response)}\n`);
     return { routed: true, ok: response.validation.ok };
   } catch (error: any) {
@@ -1444,6 +1641,12 @@ function statusReceipt(runtime: any, state: any) {
   const cockpitLatest = readJson(runtime.cockpitLatestPath, null);
   const cockpitState = readJson(runtime.cockpitStatePath, null);
   const conversationEyeIndex = readJson(runtime.conversationEyeIndexPath, null);
+  const identityHydration = state && state.identity_hydration && typeof state.identity_hydration === 'object'
+    ? state.identity_hydration
+    : readJson(runtime.identityHydrationStatePath, null);
+  const residentMemory = state && state.resident_memory && typeof state.resident_memory === 'object'
+    ? state.resident_memory
+    : readJson(runtime.residentMemoryStatePath, null);
   const conduitRuntimeGate = readConduitRuntimeGate(runtime.root);
   const heartbeatHealthy = daemon.last_heartbeat_code === 0;
   const ambientConfigured = !!(mechLatest && mechLatest.active === true);
@@ -1496,6 +1699,25 @@ function statusReceipt(runtime: any, state: any) {
         ? Object.keys(conversationEyeIndex.emitted_node_ids).length
         : 0
     },
+    identity_hydration: identityHydration && typeof identityHydration === 'object'
+      ? {
+          enabled: identityHydration.enabled !== false,
+          startup_token_budget: Number(identityHydration.startup_token_budget || 0),
+          estimated_tokens_loaded: Number(identityHydration.estimated_tokens_loaded || 0),
+          loaded_count: Array.isArray(identityHydration.files_loaded) ? identityHydration.files_loaded.length : 0,
+          deferred_count: Array.isArray(identityHydration.files_deferred) ? identityHydration.files_deferred.length : 0,
+          ts: cleanText(identityHydration.ts || '', 64) || null
+        }
+      : null,
+    resident_memory: residentMemory && typeof residentMemory === 'object'
+      ? {
+          rust_authoritative: residentMemory.rust_authoritative === true,
+          memory_ambient_ok: residentMemory.health && residentMemory.health.memory_ambient_ok === true,
+          sqlite_path: cleanText(residentMemory.sqlite_path || '', 260) || null,
+          conversation_nodes: residentMemory.hotset ? Number(residentMemory.hotset.conversation_nodes || 0) : 0,
+          ts: cleanText(residentMemory.ts || '', 64) || null
+        }
+      : null,
     resource: resourceSnapshot,
     attention: attentionLatest && typeof attentionLatest === 'object'
       ? {
@@ -1701,6 +1923,174 @@ async function runTick(runtime: any, argv: string[]) {
   process.exit(enriched.ok ? 0 : 1);
 }
 
+function runAttach(runtime: any, argv: string[]) {
+  let state = loadDaemonState(runtime);
+  const attached = isPidAlive(state.pid);
+  if (!attached && runtime.mechPolicy.enabled === true && ambientAutostartEnabled(argv)) {
+    startDaemon(runtime, argv, { exitOnFinish: false });
+    state = loadDaemonState(runtime);
+  }
+  const requestId = `req_${String(Number(state.request_seq || 0) + 1).padStart(6, '0')}`;
+  recordCommand(runtime, 'attach', argv, requestId);
+  const status = statusReceipt(runtime, state);
+  const out = withReceipt({
+    ok: status && status.daemon && status.daemon.running === true,
+    shadow_only: false,
+    type: 'protheus_daemon_attach',
+    ts: nowIso(),
+    request_id: requestId,
+    attach: {
+      attached: status && status.daemon && status.daemon.running === true,
+      mode: status && status.daemon ? status.daemon.mode : 'stopped',
+      pid: status && status.daemon ? status.daemon.pid : null,
+      subscribe_hint: `node client/systems/ops/protheusd.js subscribe --consumer=${runtime.consumerId} --limit=${runtime.batchLimit}`,
+      conduit_only: true
+    },
+    status
+  });
+  emitLatest(runtime, out);
+  process.stdout.write(`${JSON.stringify(out)}\n`);
+  process.exit(out.ok ? 0 : 1);
+}
+
+async function runSubscribe(runtime: any, argv: string[]) {
+  let state = loadDaemonState(runtime);
+  if (!isPidAlive(state.pid) && runtime.mechPolicy.enabled === true && ambientAutostartEnabled(argv)) {
+    startDaemon(runtime, argv, { exitOnFinish: false });
+    state = loadDaemonState(runtime);
+  }
+  if (!isPidAlive(state.pid)) {
+    const fail = withReceipt({
+      ok: false,
+      shadow_only: false,
+      type: 'protheus_daemon_subscribe_error',
+      ts: nowIso(),
+      reason: 'daemon_not_running'
+    });
+    emitLatest(runtime, fail);
+    process.stdout.write(`${JSON.stringify(fail)}\n`);
+    process.exit(1);
+    return;
+  }
+
+  const consumer = cleanText(parseFlag(argv, 'consumer') || runtime.consumerId, 80)
+    .toLowerCase()
+    .replace(/[^a-z0-9._:@-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '') || runtime.consumerId;
+  const limit = toInt(parseFlag(argv, 'limit') || runtime.batchLimit, runtime.batchLimit, 1, 512);
+  const pollMs = toInt(parseFlag(argv, 'poll-ms') || process.env.PROTHEUSD_SUBSCRIBE_POLL_MS, 1500, 250, 60000);
+  const once = toBool(parseFlag(argv, 'once'), false);
+  const maxCycles = toInt(parseFlag(argv, 'max-cycles'), once ? 1 : 0, 0, 1000000);
+
+  let cycles = 0;
+  const started = withReceipt({
+    ok: true,
+    shadow_only: false,
+    type: 'protheus_daemon_subscribe_start',
+    ts: nowIso(),
+    consumer,
+    limit,
+    poll_ms: pollMs,
+    once
+  });
+  process.stdout.write(`${JSON.stringify(started)}\n`);
+
+  while (true) {
+    cycles += 1;
+    const drained = await runAttentionCommand(
+      ['drain', `--consumer=${consumer}`, `--limit=${limit}`, '--run-context=daemon_subscribe'],
+      {
+        cwdHint: runtime.root,
+        runContext: 'daemon_subscribe',
+        skipRuntimeGate: true,
+        timeoutMs: Math.max(3000, runtime.cockpitConduitTimeoutMs)
+      }
+    );
+
+    if (!drained || drained.ok !== true) {
+      const rawReason = cleanText(
+        drained && drained.payload && drained.payload.reason
+          ? drained.payload.reason
+          : drained && drained.stderr
+            ? drained.stderr
+            : 'attention_drain_failed',
+        260
+      ) || 'attention_drain_failed';
+      if (isBridgeTimeoutReason(rawReason)) {
+        const degraded = withReceipt({
+          ok: true,
+          shadow_only: false,
+          type: 'protheus_daemon_subscribe_batch',
+          ts: nowIso(),
+          consumer,
+          cycle: cycles,
+          batch_count: 0,
+          queue_depth: 0,
+          cursor_after: null,
+          degraded: true,
+          degraded_reason: rawReason,
+          attention: []
+        });
+        process.stdout.write(`${JSON.stringify(degraded)}\n`);
+        if (once || maxCycles > 0 && cycles >= maxCycles) {
+          break;
+        }
+        await sleep(pollMs);
+        continue;
+      }
+      const err = withReceipt({
+        ok: false,
+        shadow_only: false,
+        type: 'protheus_daemon_subscribe_error',
+        ts: nowIso(),
+        consumer,
+        cycle: cycles,
+        reason: rawReason
+      });
+      process.stdout.write(`${JSON.stringify(err)}\n`);
+      if (once || maxCycles > 0 && cycles >= maxCycles) {
+        process.exit(1);
+        return;
+      }
+      await sleep(pollMs);
+      continue;
+    }
+
+    const payload = drained && drained.payload && typeof drained.payload === 'object' ? drained.payload : {};
+    const events = Array.isArray(payload.events) ? payload.events : [];
+    const batch = withReceipt({
+      ok: true,
+      shadow_only: false,
+      type: 'protheus_daemon_subscribe_batch',
+      ts: nowIso(),
+      consumer,
+      cycle: cycles,
+      batch_count: events.length,
+      queue_depth: Number(payload.queue_depth || 0),
+      cursor_after: Number(payload.cursor_after || 0),
+      attention: events.map((row: any) => (row && typeof row === 'object' ? row : null)).filter(Boolean)
+    });
+    process.stdout.write(`${JSON.stringify(batch)}\n`);
+
+    if (once || maxCycles > 0 && cycles >= maxCycles) {
+      break;
+    }
+    await sleep(pollMs);
+  }
+
+  const done = withReceipt({
+    ok: true,
+    shadow_only: false,
+    type: 'protheus_daemon_subscribe_done',
+    ts: nowIso(),
+    consumer,
+    cycles
+  });
+  process.stdout.write(`${JSON.stringify(done)}\n`);
+  process.exit(0);
+}
+
 function runStatus(runtime: any, argv: string[]) {
   let state = loadDaemonState(runtime);
   if (!isPidAlive(state.pid) && runtime.mechPolicy.enabled === true && ambientAutostartEnabled(argv)) {
@@ -1854,6 +2244,14 @@ async function main() {
   }
   if (cmd === 'status') {
     runStatus(runtime, argv);
+    return;
+  }
+  if (cmd === 'attach') {
+    runAttach(runtime, argv);
+    return;
+  }
+  if (cmd === 'subscribe') {
+    await runSubscribe(runtime, argv);
     return;
   }
   if (cmd === 'diagnostics') {
