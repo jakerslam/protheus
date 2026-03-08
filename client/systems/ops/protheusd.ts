@@ -427,7 +427,7 @@ function resolveRuntime(argv: string[]) {
   const conversationEyeEnabled = toBool(process.env.PROTHEUSD_CONVERSATION_EYE_ENABLED, true);
   const conversationEyeTimeoutMs = toInt(
     process.env.PROTHEUSD_CONVERSATION_EYE_TIMEOUT_MS,
-    12000,
+    30000,
     1000,
     15 * 60 * 1000
   );
@@ -707,7 +707,15 @@ async function runHeartbeat(runtime: any, trigger: string) {
           ['run', '--eye=conversation_eye', '--max-eyes=1'],
           {
             cwd: runtime.root,
-            timeoutMs: runtime.conversationEyeTimeoutMs
+            timeoutMs: runtime.conversationEyeTimeoutMs,
+            env: {
+              EYES_PARALLEL_ENABLED: '0',
+              EYES_MAX_PARALLEL: '1',
+              EYES_COLLECT_RETRY_MAX_ATTEMPTS: '1',
+              CONVERSATION_EYE_MAX_ITEMS: '3',
+              CONVERSATION_EYE_MAX_ROWS: '24',
+              CONVERSATION_EYE_MAX_WORK_MS: '7000'
+            }
           }
         )
     )
