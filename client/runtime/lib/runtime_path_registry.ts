@@ -23,8 +23,13 @@ function clean(v: unknown) {
 
 function normalizeForRoot(rootAbs: string, relPath: string) {
   const rootName = path.basename(rootAbs).toLowerCase();
+  const rootClean = clean(rootAbs);
   const rel = clean(relPath);
   if (!rel) return rel;
+  if (rootClean.endsWith('client/runtime')) {
+    if (rel === 'client/runtime') return '';
+    if (rel.startsWith('client/runtime/')) return rel.slice('client/runtime/'.length);
+  }
   if (rootName === 'client' && rel.startsWith('client/')) return rel.slice('client/'.length);
   if (rootName === 'core' && rel.startsWith('core/')) return rel.slice('core/'.length);
   return rel;
@@ -51,4 +56,3 @@ module.exports = {
   resolveClientState,
   resolveCoreState
 };
-
