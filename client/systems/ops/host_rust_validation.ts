@@ -107,6 +107,15 @@ function profileToCargoArgs(profile: string) {
   throw new Error(`unsupported_profile:${key}`);
 }
 
+function rowHasNotExceededGrace(
+  row: { age_sec: number },
+  loaderStallAgeSec: number,
+  loaderStallLockGraceSec: number
+) {
+  const hardLimit = Math.max(loaderStallAgeSec, 0) + Math.max(loaderStallLockGraceSec, 0);
+  return Number(row && row.age_sec || 0) <= hardLimit;
+}
+
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -117,6 +126,8 @@ async function runValidationAttempt(
   staleAgeSec: number,
   loaderStallAgeSec: number,
   loaderStallRssKbMax: number,
+  loaderStallLockGraceSec: number,
+  idleThresholdMs: number,
   checkIntervalMs: number,
   timeoutMs: number
 ) {
@@ -132,8 +143,17 @@ async function runValidationAttempt(
   });
   let stdout = '';
   let stderr = '';
-  child.stdout.on('data', (chunk: Buffer) => { stdout += String(chunk || ''); process.stdout.write(chunk); });
-  child.stderr.on('data', (chunk: Buffer) => { stderr += String(chunk || ''); process.stderr.write(chunk); });
+  let lastProgressMs = Date.now();
+  child.stdout.on('data', (chunk: Buffer) => {
+    stdout += String(chunk || '');
+    lastProgressMs = Date.now();
+    process.stdout.write(chunk);
+  });
+  child.stderr.on('data', (chunk: Buffer) => {
+    stderr += String(chunk || '');
+    lastProgressMs = Date.now();
+    process.stderr.write(chunk);
+  });
 
   let staleDetected = null as any;
   let loaderStallDetected = null as any;
@@ -147,8 +167,23 @@ async function runValidationAttempt(
       break;
     }
     const staleRows = listBuildScriptsForParent(child.pid);
+    const idleMs = Date.now() - lastProgressMs;
+    if (idleMs < idleThresholdMs) {
+      await sleep(checkIntervalMs);
+      continue;
+    }
+    const stderrTail = String(stderr || '').slice(-4000);
+    const cargoLockWaitDetected =
+      /Blocking waiting for file lock on package cache/i.test(stderrTail)
+      || /Blocking waiting for file lock on build directory/i.test(stderrTail);
     const loaderStall = staleRows.find((row) => row.age_sec >= loaderStallAgeSec && row.rss_kb > 0 && row.rss_kb <= loaderStallRssKbMax);
     if (loaderStall) {
+      const protectedByLockWait =
+        cargoLockWaitDetected && rowHasNotExceededGrace(loaderStall, loaderStallAgeSec, loaderStallLockGraceSec);
+      if (protectedByLockWait) {
+        await sleep(checkIntervalMs);
+        continue;
+      }
       loaderStallDetected = loaderStall;
       try { process.kill(loaderStall.pid, 'SIGTERM'); } catch {}
       try { process.kill(child.pid, 'SIGTERM'); } catch {}
@@ -178,6 +213,7 @@ async function runValidationAttempt(
     stale_age_sec: staleAgeSec,
     loader_stall_age_sec: loaderStallAgeSec,
     loader_stall_rss_kb_max: loaderStallRssKbMax,
+    idle_threshold_ms: idleThresholdMs,
     timeout_ms: timeoutMs,
     stale_detected: !!staleDetected,
     loader_stall_detected: !!loaderStallDetected,
@@ -221,9 +257,26 @@ async function run() {
   const staleAgeSec = toInt(args['stale-age-sec'] || process.env.HOST_BUILD_STALE_MAX_AGE_SEC, 90, 20, 3600);
   const loaderStallAgeSec = toInt(args['loader-stall-age-sec'] || process.env.HOST_BUILD_LOADER_STALL_AGE_SEC, 25, 5, 300);
   const loaderStallRssKbMax = toInt(args['loader-stall-rss-kb-max'] || process.env.HOST_BUILD_LOADER_STALL_RSS_KB_MAX, 256, 64, 2048);
+  const loaderStallLockGraceSec = toInt(
+    args['loader-stall-lock-grace-sec'] || process.env.HOST_BUILD_LOADER_STALL_LOCK_GRACE_SEC,
+    180,
+    0,
+    1800
+  );
+  const idleThresholdMs = toInt(
+    args['idle-threshold-ms'] || process.env.HOST_BUILD_IDLE_THRESHOLD_MS,
+    120000,
+    5000,
+    1800000
+  );
   const checkIntervalMs = toInt(args['check-interval-ms'] || 5000, 1000, 1000, 60000);
   const timeoutMs = toInt(args['timeout-ms'] || 20 * 60 * 1000, 10000, 10000, 2 * 60 * 60 * 1000);
   const maxRetries = toInt(args['max-retries'] || process.env.HOST_RUST_VALIDATION_MAX_RETRIES, 1, 0, 5);
+  const preflightReap = (String(args['preflight-reap'] || process.env.HOST_RUST_VALIDATION_PREFLIGHT_REAP || '1').trim() !== '0');
+  if (preflightReap) {
+    reapStaleBuildScripts(staleAgeSec);
+    await sleep(750);
+  }
 
   const attempts: Array<{ attempt: number, reason_code: string, exit_code: number }> = [];
   let payload = null as any;
@@ -234,6 +287,8 @@ async function run() {
       staleAgeSec,
       loaderStallAgeSec,
       loaderStallRssKbMax,
+      loaderStallLockGraceSec,
+      idleThresholdMs,
       checkIntervalMs,
       timeoutMs
     );
@@ -255,6 +310,7 @@ async function run() {
   payload.attempts = attempts;
   payload.retried = attempts.length > 1;
   payload.max_retries = maxRetries;
+  payload.preflight_reap = preflightReap;
   writeLatest(payload);
   process.stdout.write(`${JSON.stringify(payload)}\n`);
   process.exit(Number(payload.exit_code || 1));
