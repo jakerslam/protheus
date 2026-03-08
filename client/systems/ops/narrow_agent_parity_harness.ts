@@ -247,6 +247,10 @@ function defaultPolicy() {
       min_pass_ratio: 0.66,
       min_weighted_score: 0.85
     },
+    scenario_pass: {
+      mode: 'weighted_or_checks',
+      min_weighted_score: 0.80
+    },
     scenarios: [
       {
         id: 'governed_execution',
@@ -362,6 +366,16 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   const gatesRaw = raw && raw.aggregate_gates && typeof raw.aggregate_gates === 'object'
     ? raw.aggregate_gates
     : {};
+  const scenarioPassRaw = raw && raw.scenario_pass && typeof raw.scenario_pass === 'object'
+    ? raw.scenario_pass
+    : {};
+  const normalizeScenarioPassMode = (v: unknown) => {
+    const token = String(v == null ? '' : v).trim().toLowerCase();
+    if (token === 'all_checks' || token === 'weighted_only' || token === 'weighted_or_checks') {
+      return token;
+    }
+    return 'weighted_or_checks';
+  };
   return {
     version: String(raw && raw.version || base.version),
     strict_default: toBool(raw && raw.strict_default, base.strict_default),
@@ -382,6 +396,15 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
         0,
         2,
         base.aggregate_gates.min_weighted_score
+      )
+    },
+    scenario_pass: {
+      mode: normalizeScenarioPassMode(scenarioPassRaw.mode || base.scenario_pass.mode),
+      min_weighted_score: clampNum(
+        scenarioPassRaw.min_weighted_score,
+        0,
+        2,
+        base.scenario_pass.min_weighted_score
       )
     },
     scenarios: scenariosRaw.map((row: AnyObj, idx: number) => normalizeScenario(row, idx)),
@@ -622,7 +645,8 @@ function scoreReliability(value: number | null, threshold: number) {
 }
 
 function scoreLowerBetter(value: number | null, maxAllowed: number) {
-  if (value == null || value <= 0) return { score: 0, pass: false };
+  if (value == null || value < 0) return { score: 0, pass: false };
+  if (value === 0) return { score: 1, pass: true };
   const ratio = maxAllowed / value;
   return {
     score: clampNum(ratio, 0, 1, 0),
@@ -630,7 +654,7 @@ function scoreLowerBetter(value: number | null, maxAllowed: number) {
   };
 }
 
-function evaluateScenario(scenario: AnyObj, metrics: AnyObj) {
+function evaluateScenario(scenario: AnyObj, metrics: AnyObj, scenarioPassPolicy: AnyObj) {
   const reliabilityKey = String(scenario.metrics.reliability || 'composite_reliability');
   const latencyKey = String(scenario.metrics.latency_ms || 'blended_latency_ms');
   const costKey = String(scenario.metrics.cost_pressure || 'cost_pressure');
@@ -654,6 +678,24 @@ function evaluateScenario(scenario: AnyObj, metrics: AnyObj) {
   if (latencyValue == null) notes.push(`missing_metric:${latencyKey}`);
   if (costValue == null) notes.push(`missing_metric:${costKey}`);
 
+  const weightedPassThreshold = clampNum(
+    scenarioPassPolicy && scenarioPassPolicy.min_weighted_score,
+    0,
+    2,
+    0.80
+  );
+  const passMode = String(scenarioPassPolicy && scenarioPassPolicy.mode || 'weighted_or_checks').trim().toLowerCase();
+  const passByChecks = reliability.pass && latency.pass && cost.pass;
+  const passByWeighted = weightedScore >= weightedPassThreshold;
+  let scenarioPass = passByChecks;
+  if (passMode === 'weighted_only') {
+    scenarioPass = passByWeighted;
+  } else if (passMode === 'weighted_or_checks') {
+    scenarioPass = passByChecks || passByWeighted;
+  } else {
+    scenarioPass = passByChecks;
+  }
+
   return {
     id: scenario.id,
     name: scenario.name,
@@ -675,7 +717,11 @@ function evaluateScenario(scenario: AnyObj, metrics: AnyObj) {
       cost: Number(cost.score.toFixed(4)),
       weighted: Number(weightedScore.toFixed(4))
     },
-    pass: reliability.pass && latency.pass && cost.pass,
+    pass: scenarioPass,
+    pass_mode: passMode,
+    pass_by_checks: passByChecks,
+    pass_by_weighted: passByWeighted,
+    weighted_pass_threshold: Number(weightedPassThreshold.toFixed(4)),
     notes
   };
 }
@@ -723,7 +769,9 @@ function runHarness(args: AnyObj) {
     : policy.weekly_receipts_dir;
 
   const derived = deriveMetrics(policy, date, windowDays);
-  const scenarios = policy.scenarios.map((scenario: AnyObj) => evaluateScenario(scenario, derived.metric_catalog));
+  const scenarios = policy.scenarios.map((scenario: AnyObj) =>
+    evaluateScenario(scenario, derived.metric_catalog, policy.scenario_pass || {})
+  );
   const aggregate = aggregateScenarios(policy, scenarios);
 
   const weekStart = mondayUtc(date);

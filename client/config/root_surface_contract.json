@@ -42,8 +42,9 @@
     "sleep",
     "tsconfig.base.json",
     "tsconfig.json",
-    "tsconfig.systems.build.json",
-    "tsconfig.systems.json",
+    "tsconfig.build.json",
+    "tsconfig.runtime.json",
+    "verify.sh",
     "vitest.config.ts"
   ],
   "allowed_root_dirs": [

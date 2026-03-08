@@ -10,6 +10,10 @@
     "min_pass_ratio": 0.66,
     "min_weighted_score": 0.85
   },
+  "scenario_pass": {
+    "mode": "weighted_or_checks",
+    "min_weighted_score": 0.8
+  },
   "scenarios": [
     {
       "id": "governed_execution",

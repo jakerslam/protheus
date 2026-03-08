@@ -99,12 +99,20 @@ function buildStaleSet(
   rows: Array<{pid:number, ppid:number, age_sec:number, rss_kb:number, command:string}>,
   maxAgeSec: number,
   loaderStallAgeSec: number,
-  loaderStallRssKbMax: number
+  loaderStallRssKbMax: number,
+  loaderStallLockGraceSec: number
 ) {
+  const pidSet = new Set(rows.map((row) => row.pid));
+  const loaderStallHardAgeSec = Math.max(loaderStallAgeSec, 0) + Math.max(loaderStallLockGraceSec, 0);
   const staleBuildScripts = rows.filter((row) => row.command.includes('build-script-build') && row.age_sec >= maxAgeSec);
+  const orphanBuildScripts = rows.filter((row) =>
+    row.command.includes('build-script-build')
+    && row.age_sec >= maxAgeSec
+    && (row.ppid === 1 || !pidSet.has(row.ppid))
+  );
   const loaderStallBuildScripts = rows.filter((row) =>
     row.command.includes('build-script-build')
-    && row.age_sec >= loaderStallAgeSec
+    && row.age_sec >= loaderStallHardAgeSec
     && row.rss_kb > 0
     && row.rss_kb <= loaderStallRssKbMax
   );
@@ -112,7 +120,7 @@ function buildStaleSet(
   for (const row of staleBuildScripts) staleCargo.add(row.ppid);
   for (const row of loaderStallBuildScripts) staleCargo.add(row.ppid);
   const staleCargoRows = rows.filter((row) => staleCargo.has(row.pid) && row.command.includes('/cargo'));
-  return { staleBuildScripts, loaderStallBuildScripts, staleCargoRows };
+  return { staleBuildScripts, orphanBuildScripts, loaderStallBuildScripts, staleCargoRows };
 }
 
 function killPid(pid: number) {
@@ -140,11 +148,24 @@ function run() {
     64,
     2048
   );
+  const loaderStallLockGraceSec = toInt(
+    args['loader-stall-lock-grace-sec'] || process.env.HOST_BUILD_LOADER_STALL_LOCK_GRACE_SEC,
+    180,
+    0,
+    1800
+  );
   const applyKill = cmd === 'reap' || toBool(args.apply, false) || toBool(args.kill, false);
   const rows = listProcesses();
-  const stale = buildStaleSet(rows, maxAgeSec, loaderStallAgeSec, loaderStallRssKbMax);
+  const stale = buildStaleSet(
+    rows,
+    maxAgeSec,
+    loaderStallAgeSec,
+    loaderStallRssKbMax,
+    loaderStallLockGraceSec
+  );
   const stalePids = [
     ...stale.staleBuildScripts.map((row) => row.pid),
+    ...stale.orphanBuildScripts.map((row) => row.pid),
     ...stale.loaderStallBuildScripts.map((row) => row.pid),
     ...stale.staleCargoRows.map((row) => row.pid)
   ];
@@ -165,8 +186,16 @@ function run() {
     loader_stall_detected: stale.loaderStallBuildScripts.length > 0,
     stale_count: uniqueStalePids.length,
     loader_stall_age_sec: loaderStallAgeSec,
+    loader_stall_lock_grace_sec: loaderStallLockGraceSec,
     loader_stall_rss_kb_max: loaderStallRssKbMax,
     stale_build_scripts: stale.staleBuildScripts.map((row) => ({
+      pid: row.pid,
+      ppid: row.ppid,
+      age_sec: row.age_sec,
+      rss_kb: row.rss_kb,
+      command: cleanText(row.command, 180)
+    })),
+    orphan_build_scripts: stale.orphanBuildScripts.map((row) => ({
       pid: row.pid,
       ppid: row.ppid,
       age_sec: row.age_sec,
