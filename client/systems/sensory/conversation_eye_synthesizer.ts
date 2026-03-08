@@ -25,6 +25,40 @@ function normalizeArray(v: unknown) {
   return Array.isArray(v) ? v : [];
 }
 
+function extractConversationLines(envelope: any) {
+  const out: string[] = [];
+  const directFields = [
+    envelope && envelope.prompt,
+    envelope && envelope.query,
+    envelope && envelope.user_message,
+    envelope && envelope.user,
+    envelope && envelope.request,
+    envelope && envelope.response,
+    envelope && envelope.reply,
+    envelope && envelope.summary
+  ];
+  for (const field of directFields) {
+    const text = cleanText(field, 240);
+    if (text) out.push(text);
+  }
+
+  const messageArrays = [
+    envelope && envelope.messages,
+    envelope && envelope.dialogue,
+    envelope && envelope.chat_messages,
+    envelope && envelope.conversation && envelope.conversation.messages
+  ];
+  for (const rows of messageArrays) {
+    for (const row of normalizeArray(rows)) {
+      const role = cleanText(row && (row.role || row.speaker || row.author), 32).toLowerCase();
+      const text = cleanText(row && (row.text || row.content || row.message || row.summary), 240);
+      if (!text) continue;
+      out.push(role ? `${role}: ${text}` : text);
+    }
+  }
+  return out.slice(-10);
+}
+
 function extractHighlights(envelope: any) {
   const out: string[] = [];
   const attentionEvents = normalizeArray(envelope && envelope.attention && envelope.attention.events);
@@ -55,6 +89,11 @@ function extractHighlights(envelope: any) {
     .filter(Boolean);
   if (dopamineReasons.length) {
     out.push(`dopamine_breach:${dopamineReasons.slice(0, 3).join('|')}`);
+  }
+
+  const conversationLines = extractConversationLines(envelope);
+  for (const line of conversationLines) {
+    out.push(line);
   }
 
   return out.filter(Boolean);

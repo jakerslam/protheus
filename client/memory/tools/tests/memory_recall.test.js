@@ -59,6 +59,29 @@ function makeWorkspace() {
     ].join('\n')
   );
 
+  // Compatibility root indices intentionally contain stale summaries to verify
+  // that runtime prefers client/memory indices before root fallback files.
+  writeFile(
+    path.join(root, 'MEMORY_INDEX.md'),
+    [
+      '# MEMORY_INDEX.md',
+      '| node_id | uid | tags | file | summary |',
+      '|---------|-----|------|------|---------|',
+      '| routing-cache-design | memabc123routing01 | #routing #memory | 2026-01-01.md | STALE_ROOT_SUMMARY_SHOULD_NOT_WIN |',
+      '| autonomy-loop-gate | memabc123autonomy2 | #autonomy #memory | 2026-01-01.md | STALE_ROOT_AUTONOMY_SUMMARY |',
+      ''
+    ].join('\n')
+  );
+  writeFile(
+    path.join(root, 'TAGS_INDEX.md'),
+    [
+      '# TAGS_INDEX.md',
+      '#routing -> routing-cache-design',
+      '#autonomy -> autonomy-loop-gate',
+      ''
+    ].join('\n')
+  );
+
   writeFile(
     path.join(root, 'memory', '2026-01-01.md'),
     [
@@ -210,7 +233,42 @@ runTest('query returns ranked hits with tag filtering and no expansion', () => {
   assert.ok(Array.isArray(out.hits) && out.hits.length >= 1, 'expected at least one hit');
   assert.strictEqual(out.hits[0].node_id, 'routing-cache-design');
   assert.strictEqual(out.hits[0].uid, 'memabc123routing01');
+  assert.strictEqual(String(out.hits[0].summary || ''), 'Routing cache and fallback behavior');
   assert.strictEqual(out.hits[0].expanded, false);
+});
+
+runTest('query includes conversation-eye runtime node supplements with virtual sections', () => {
+  const root = makeWorkspace();
+  const convoPath = path.join(root, 'local', 'state', 'memory', 'conversation_eye', 'nodes.jsonl');
+  writeFile(
+    convoPath,
+    `${JSON.stringify({
+      ts: '2026-03-07T22:43:39.711Z',
+      source: 'conversation_eye',
+      node_id: 'conversation-eye-test-node',
+      node_kind: 'decision',
+      level: 1,
+      level_token: 'node1',
+      tags: ['conversation', 'decision', 'insight', 'directive', 't1'],
+      edges_to: ['attention_queue', 'spine'],
+      title: '[Conversation Eye] token burn restoration decision',
+      preview: 'decision: restore memory index freshness and context budget guard'
+    })}\n`
+  );
+  const r = runRecall(
+    root,
+    ['query', '--q=token burn restoration decision', '--expand=always', '--top=1', '--session=convosupp'],
+    {
+      MEMORY_RECALL_BACKEND: 'js'
+    }
+  );
+  assert.strictEqual(r.status, 0, `query failed: ${r.stderr}`);
+  const out = parseJson(r.stdout);
+  assert.ok(out && out.ok === true, 'expected ok=true');
+  assert.ok(Array.isArray(out.hits) && out.hits.length >= 1, 'expected at least one hit');
+  assert.strictEqual(String(out.hits[0].node_id || ''), 'conversation-eye-test-node');
+  assert.strictEqual(String(out.hits[0].section_source || ''), 'virtual');
+  assert.ok(String(out.hits[0].section_excerpt || '').includes('source: conversation_eye'), 'virtual section excerpt should carry conversation-eye provenance');
 });
 
 runTest('query requested rust backend falls back to js when crate is missing', () => {

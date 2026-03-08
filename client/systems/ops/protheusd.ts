@@ -375,6 +375,13 @@ function resolveRuntime(argv: string[]) {
     1000,
     15 * 60 * 1000
   );
+  const conversationEyeEnabled = toBool(process.env.PROTHEUSD_CONVERSATION_EYE_ENABLED, true);
+  const conversationEyeTimeoutMs = toInt(
+    process.env.PROTHEUSD_CONVERSATION_EYE_TIMEOUT_MS,
+    12000,
+    1000,
+    15 * 60 * 1000
+  );
 
   const cockpitInboxDirRaw = cleanText(parseFlag(argv, 'inbox-dir') || process.env.COCKPIT_INBOX_DIR, 500);
   const cockpitInboxDir = cockpitInboxDirRaw
@@ -403,10 +410,13 @@ function resolveRuntime(argv: string[]) {
     spineStatusTimeoutMs,
     cockpitOnceTimeoutMs,
     cockpitConduitTimeoutMs,
+    conversationEyeEnabled,
+    conversationEyeTimeoutMs,
     pollMs,
     cockpitInboxDir,
     cockpitLatestPath: path.join(cockpitInboxDir, 'latest.json'),
     cockpitStatePath: path.join(cockpitInboxDir, 'state.json'),
+    conversationEyeIndexPath: path.join(ROOT, 'local', 'state', 'memory', 'conversation_eye', 'index.json'),
     consumerId,
     batchLimit
   };
@@ -440,7 +450,8 @@ function loadDaemonState(runtime: any) {
         },
     bridge_health: normalizedBridgeHealth(existing && existing.bridge_health),
     last_error: cleanText(existing && existing.last_error || '', 260) || null,
-    last_cockpit_error: cleanText(existing && existing.last_cockpit_error || '', 260) || null
+    last_cockpit_error: cleanText(existing && existing.last_cockpit_error || '', 260) || null,
+    last_conversation_eye_error: cleanText(existing && existing.last_conversation_eye_error || '', 260) || null
   };
 }
 
@@ -555,6 +566,21 @@ async function runHeartbeat(runtime: any, trigger: string) {
       }
     }
   );
+  const conversationEye = runtime.conversationEyeEnabled
+    ? runNode(
+      path.join(runtime.root, 'habits', 'scripts', 'external_eyes.js'),
+      ['run', '--eye=conversation_eye', '--max-eyes=1'],
+      {
+        cwd: runtime.root,
+        timeoutMs: runtime.conversationEyeTimeoutMs
+      }
+    )
+    : {
+      status: 0,
+      stdout: '',
+      stderr: '',
+      payload: { ok: true, skipped: true, reason: 'conversation_eye_disabled' }
+    };
 
   const state = loadDaemonState(runtime);
   state.run_seq = Number(state.run_seq || 0) + 1;
@@ -577,12 +603,19 @@ async function runHeartbeat(runtime: any, trigger: string) {
       260
     );
     state.last_cockpit_error = null;
+    state.last_conversation_eye_error = null;
   } else if (cockpit.status !== 0) {
     state.last_error = null;
     state.last_cockpit_error = cleanText(cockpit.stderr || 'cockpit_ingest_failed', 260);
+    state.last_conversation_eye_error = null;
+  } else if (conversationEye.status !== 0) {
+    state.last_error = null;
+    state.last_cockpit_error = null;
+    state.last_conversation_eye_error = cleanText(conversationEye.stderr || 'conversation_eye_failed', 260);
   } else {
     state.last_error = null;
     state.last_cockpit_error = null;
+    state.last_conversation_eye_error = null;
   }
   persistDaemonState(runtime, state);
 
@@ -606,6 +639,13 @@ async function runHeartbeat(runtime: any, trigger: string) {
       ok: cockpit.status === 0,
       status: cockpit.status,
       type: cockpit.payload && cockpit.payload.type ? cockpit.payload.type : 'cockpit_context_envelope'
+    },
+    conversation_eye: {
+      enabled: runtime.conversationEyeEnabled === true,
+      ok: conversationEye.status === 0,
+      status: conversationEye.status,
+      type: conversationEye.payload && conversationEye.payload.type ? conversationEye.payload.type : 'external_eyes_run',
+      skipped: !!(conversationEye.payload && conversationEye.payload.skipped)
     },
     run_seq: state.run_seq,
     next_heartbeat_at: state.next_heartbeat_at,
@@ -971,6 +1011,7 @@ function statusReceipt(runtime: any, state: any) {
       : null,
     last_error: cleanText(state.last_error || '', 260) || null,
     last_cockpit_error: cleanText(state.last_cockpit_error || '', 260) || null,
+    last_conversation_eye_error: cleanText(state.last_conversation_eye_error || '', 260) || null,
     cockpit_watch: state.cockpit_watch || null
   };
   const mechLatest = readJson(runtime.mechPolicy.statusPath, null);
@@ -979,6 +1020,7 @@ function statusReceipt(runtime: any, state: any) {
   const dopamineLatest = readJson(runtime.mechPolicy.dopamineLatestPath, null);
   const cockpitLatest = readJson(runtime.cockpitLatestPath, null);
   const cockpitState = readJson(runtime.cockpitStatePath, null);
+  const conversationEyeIndex = readJson(runtime.conversationEyeIndexPath, null);
   const conduitRuntimeGate = readConduitRuntimeGate(runtime.root);
   const heartbeatHealthy = daemon.last_heartbeat_code === 0;
   const ambientConfigured = !!(mechLatest && mechLatest.active === true);
@@ -1020,6 +1062,15 @@ function statusReceipt(runtime: any, state: any) {
       consumer_id: cockpitLatest && cockpitLatest.consumer_id || (cockpitState && cockpitState.consumer_id) || null,
       last_ingest_ts: cockpitLatest && cockpitLatest.ts || (cockpitState && cockpitState.last_ingest_ts) || null,
       batch_count: cockpitLatest && cockpitLatest.attention ? Number(cockpitLatest.attention.batch_count || 0) : 0
+    },
+    conversation_eye: {
+      enabled: runtime.conversationEyeEnabled === true,
+      path: runtime.conversationEyeIndexPath,
+      available: !!conversationEyeIndex,
+      updated_ts: conversationEyeIndex && cleanText(conversationEyeIndex.updated_ts || '', 64) || null,
+      emitted_nodes: conversationEyeIndex && conversationEyeIndex.emitted_node_ids
+        ? Object.keys(conversationEyeIndex.emitted_node_ids).length
+        : 0
     },
     attention: attentionLatest && typeof attentionLatest === 'object'
       ? {

@@ -759,6 +759,23 @@ ${Array.from(allTags.entries())
 fs.writeFileSync(path.join(memoryDir, 'TAGS_INDEX.md'), tagIndex);
 console.log('TAGS_INDEX.md rebuilt');
 
+function syncRootMemoryIndexCompat() {
+  const mappings = [
+    { from: path.join(memoryDir, 'MEMORY_INDEX.md'), to: path.join(WORKSPACE_ROOT, 'MEMORY_INDEX.md') },
+    { from: path.join(memoryDir, 'TAGS_INDEX.md'), to: path.join(WORKSPACE_ROOT, 'TAGS_INDEX.md') }
+  ];
+  for (const mapping of mappings) {
+    try {
+      fs.copyFileSync(mapping.from, mapping.to);
+    } catch (err) {
+      console.log(`Root index sync warning (${path.basename(mapping.to)}): ${String(err && err.message ? err.message : err).slice(0, 200)}`);
+    }
+  }
+}
+
+syncRootMemoryIndexCompat();
+console.log('Root MEMORY/TAGS compatibility indices synced');
+
 const matrixScript = path.join(CLIENT_ROOT, 'systems', 'memory', 'memory_matrix.js');
 if (fs.existsSync(matrixScript)) {
   const matrixRun = spawnSync('node', [matrixScript, 'run', '--apply=1', '--reason=rebuild_exclusive'], {
