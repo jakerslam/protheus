@@ -45,6 +45,7 @@ try {
   run('protheus_mobile_cli_surface', process.execPath, [path.join(CLIENT_ROOT, 'memory', 'tools', 'tests', 'protheus_mobile_cli_surface.test.js')], CLIENT_ROOT);
 
   // Substrate-swap proof: conduit edge feature path runs directly in Rust without TS runtime ownership.
+  runMaybe('host_build_stale_reap', 'npm', ['run', '-s', 'ops:host-build-stale:reap'], WORKSPACE_ROOT, 45000);
   const edgeStatus = runMaybe('conduit_edge_status', 'cargo', ['test', '-p', 'conduit', '--no-default-features', '--features', 'edge', 'kernel_lane_handler_returns_edge_status_payload', '--', '--exact'], WORKSPACE_ROOT, 60000);
   const edgeInference = runMaybe('conduit_edge_inference', 'cargo', ['test', '-p', 'conduit', '--no-default-features', '--features', 'edge', 'kernel_lane_handler_accepts_edge_json_inference_contract', '--', '--exact'], WORKSPACE_ROOT, 60000);
 
