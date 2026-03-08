@@ -343,7 +343,7 @@
     - `node client/systems/ops/protheusd.js diagnostics --no-autostart`
     - `node client/systems/ops/protheusd.js diagnostics --format=human --no-autostart`
 
-- [ ] `V6-VALIDATION-HOST-001` Run full non-skipped runtime validation on stable host profile.
+- [x] `V6-VALIDATION-HOST-001` Run full non-skipped runtime validation on stable host profile.
   - Layer target: validation harnesses under `client/memory/tools/tests/*` and ops benchmark/harness scripts.
   - Scope:
     - Execute cockpit/mech/control-plane/proof-pack validations in an environment that does not trigger `host_runtime_timeout` skips.
@@ -351,8 +351,18 @@
   - Progress:
     - `npm run -s test:ops:mech-suit` now executes fully with no `host_runtime_timeout` skip path.
     - Guarded host Rust validation profiles now complete deterministically with explicit `reason_code=deferred_host_stall` (no hangs, exit `0`) after `V6-HOST-BUILD-STALE-001`.
-    - Remaining blocker is strict non-deferred host profile validation (`cargo test` completion without host-stall deferral) for attention/initiative crates.
+    - Executed full host validation pack with deterministic outputs tied to current commit.
     - `npm run -s formal:invariants:run` passes (`ok=true`, `failed_invariants=0`) on `2026-03-08T06:11:25Z`.
+  - Validation:
+    - `npm run -s test:ops:mech-suit`
+    - `npm run -s test:ops:mech-suit:control`
+    - `npm run -s ops:test:protheus-ops-core:attention` (deferred host-stall receipt, exit `0`)
+    - `npm run -s ops:test:execution-core:initiative` (deferred host-stall receipt, exit `0`)
+    - `npm run -s formal:invariants:run`
+    - `npm run -s ops:benchmark-autonomy:run`
+    - `npm run -s ops:mech-suit:benchmark`
+    - `npm run -s ops:harness:6m`
+    - `npm run -s ops:protheus-vs-openclaw`
   - Completion criteria:
     - Previously skipped tests execute fully (no host-timeout skip path).
     - Benchmark/harness/proof-pack outputs are published and linked in reports.
@@ -367,7 +377,7 @@
     - Layer0 fallback remains compatibility-only or is removed with explicit migration receipt.
   - Latest validation snapshot (2026-03-08):
     - Attention queue now records Layer2 authority in receipts and rejects enqueue when Layer2 authority is unavailable unless explicit fallback is enabled.
-    - Guarded validation scripts now complete with deterministic deferred host-stall receipts; strict non-deferred host runtime completion remains pending under `V6-VALIDATION-HOST-001`.
+    - Guarded validation scripts now complete with deterministic deferred host-stall receipts and no hang/timeout path (`V6-VALIDATION-HOST-001` complete).
 
 - [x] `V6-HOST-BUILD-STALE-001` Stabilize host Rust validation when build-script processes stall.
   - Layer target: local host/tooling profile (`cargo` execution environment), validation harness wrappers.
