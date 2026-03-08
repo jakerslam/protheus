@@ -61,7 +61,22 @@ function defaultPolicy() {
         cpu_multiplier: 0.6,
         tokens_multiplier: 0.65,
         memory_multiplier: 0.75
+      },
+      apple_silicon: {
+        cadence_multiplier: 1,
+        cpu_multiplier: 1.15,
+        tokens_multiplier: 1.1,
+        memory_multiplier: 1.1
       }
+    },
+    platform_profile_policy: {
+      enable_apple_silicon: true,
+      fallback_profile_for_non_arm: 'default'
+    },
+    drift_gates: {
+      enabled: true,
+      max_drift_score: 0.65,
+      require_covenant_ok: true
     },
     paths: {
       state_path: 'state/adaptive/realtime_adaptation_loop/state.json',
@@ -81,6 +96,11 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   const baseProfiles = base.profiles || {};
   const defaultProfile = profiles.default && typeof profiles.default === 'object' ? profiles.default : {};
   const lowPowerProfile = profiles.low_power && typeof profiles.low_power === 'object' ? profiles.low_power : {};
+  const appleProfile = profiles.apple_silicon && typeof profiles.apple_silicon === 'object' ? profiles.apple_silicon : {};
+  const platformProfilePolicy = raw.platform_profile_policy && typeof raw.platform_profile_policy === 'object'
+    ? raw.platform_profile_policy
+    : {};
+  const driftGates = raw.drift_gates && typeof raw.drift_gates === 'object' ? raw.drift_gates : {};
   const paths = raw.paths && typeof raw.paths === 'object' ? raw.paths : {};
   return {
     version: cleanText(raw.version || base.version, 24) || '1.0',
@@ -103,7 +123,22 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
         cpu_multiplier: Number(lowPowerProfile.cpu_multiplier ?? baseProfiles.low_power.cpu_multiplier) || 0.6,
         tokens_multiplier: Number(lowPowerProfile.tokens_multiplier ?? baseProfiles.low_power.tokens_multiplier) || 0.65,
         memory_multiplier: Number(lowPowerProfile.memory_multiplier ?? baseProfiles.low_power.memory_multiplier) || 0.75
+      },
+      apple_silicon: {
+        cadence_multiplier: Number(appleProfile.cadence_multiplier ?? baseProfiles.apple_silicon.cadence_multiplier) || 1,
+        cpu_multiplier: Number(appleProfile.cpu_multiplier ?? baseProfiles.apple_silicon.cpu_multiplier) || 1.15,
+        tokens_multiplier: Number(appleProfile.tokens_multiplier ?? baseProfiles.apple_silicon.tokens_multiplier) || 1.1,
+        memory_multiplier: Number(appleProfile.memory_multiplier ?? baseProfiles.apple_silicon.memory_multiplier) || 1.1
       }
+    },
+    platform_profile_policy: {
+      enable_apple_silicon: toBool(platformProfilePolicy.enable_apple_silicon, true),
+      fallback_profile_for_non_arm: normalizeToken(platformProfilePolicy.fallback_profile_for_non_arm || 'default', 40) || 'default'
+    },
+    drift_gates: {
+      enabled: toBool(driftGates.enabled, true),
+      max_drift_score: Number(clampInt(Math.round(Number(driftGates.max_drift_score) * 1000), 0, 1000, Math.round(base.drift_gates.max_drift_score * 1000)) / 1000),
+      require_covenant_ok: toBool(driftGates.require_covenant_ok, true)
     },
     paths: {
       state_path: resolvePath(paths.state_path, base.paths.state_path),
@@ -178,12 +213,35 @@ function parseMetrics(args: AnyObj) {
 }
 
 function parseProfile(raw: unknown) {
-  const profile = normalizeToken(raw || 'default', 40) || 'default';
-  return profile === 'low_power' ? 'low_power' : 'default';
+  const profile = normalizeToken(raw || 'auto', 40) || 'auto';
+  if (profile === 'default' || profile === 'low_power' || profile === 'apple_silicon' || profile === 'auto') return profile;
+  return 'auto';
+}
+
+function selectProfile(policy: AnyObj, requestedProfile: string, hardwareProfile: AnyObj) {
+  if (requestedProfile === 'default' || requestedProfile === 'low_power' || requestedProfile === 'apple_silicon') {
+    return { profile: requestedProfile, profile_source: 'explicit' };
+  }
+  const arch = normalizeToken(hardwareProfile.arch || '', 40);
+  const platform = normalizeToken(hardwareProfile.platform || '', 40);
+  if (policy.platform_profile_policy.enable_apple_silicon && platform === 'darwin' && arch === 'arm64') {
+    return { profile: 'apple_silicon', profile_source: 'hardware_auto' };
+  }
+  if (hardwareProfile.low_power_class === true) {
+    return { profile: 'low_power', profile_source: 'hardware_auto' };
+  }
+  return {
+    profile: policy.platform_profile_policy.fallback_profile_for_non_arm === 'low_power' ? 'low_power' : 'default',
+    profile_source: 'fallback_auto'
+  };
 }
 
 function resolveProfileBudgets(policy: AnyObj, profile: string) {
-  const selected = profile === 'low_power' ? policy.profiles.low_power : policy.profiles.default;
+  const selected = profile === 'low_power'
+    ? policy.profiles.low_power
+    : profile === 'apple_silicon'
+      ? policy.profiles.apple_silicon
+      : policy.profiles.default;
   const cadenceMul = Number(selected.cadence_multiplier) > 0 ? Number(selected.cadence_multiplier) : 1;
   const cpuMul = Number(selected.cpu_multiplier) > 0 ? Number(selected.cpu_multiplier) : 1;
   const tokenMul = Number(selected.tokens_multiplier) > 0 ? Number(selected.tokens_multiplier) : 1;
@@ -221,12 +279,16 @@ function detectHardwareProfile(args: AnyObj) {
 function cycle(args: AnyObj, policy: AnyObj) {
   const apply = toBool(args.apply, true);
   const trigger = parseTrigger(args.trigger);
-  const profile = parseProfile(args.profile);
-  const budgets = resolveProfileBudgets(policy, profile);
+  const requestedProfile = parseProfile(args.profile);
   const interactionId = cleanText(args['interaction-id'] || args.interaction_id || '', 120) || null;
   const heartbeatId = cleanText(args['heartbeat-id'] || args.heartbeat_id || '', 120) || null;
   const hardwareProfile = detectHardwareProfile(args);
+  const profileResolution = selectProfile(policy, requestedProfile, hardwareProfile);
+  const profile = profileResolution.profile;
+  const budgets = resolveProfileBudgets(policy, profile);
   const metrics = parseMetrics(args);
+  const driftScore = Number(clampInt(Math.round(Number(args['drift-score'] ?? args.drift_score ?? 0) * 1000), 0, 1000, 0) / 1000);
+  const covenantOk = toBool(args['covenant-ok'] ?? args.covenant_ok, true);
   const state = loadState(policy);
   const integrity = continuityCheck(state);
   const ts = nowIso();
@@ -240,6 +302,10 @@ function cycle(args: AnyObj, policy: AnyObj) {
   if (metrics.cpu_ms > budgets.resource_ceilings.max_cpu_ms) reasons.push('cpu_ceiling_exceeded');
   if (metrics.tokens > budgets.resource_ceilings.max_tokens) reasons.push('token_ceiling_exceeded');
   if (metrics.memory_mb > budgets.resource_ceilings.max_memory_mb) reasons.push('memory_ceiling_exceeded');
+  if (policy.drift_gates.enabled === true) {
+    if (policy.drift_gates.require_covenant_ok === true && covenantOk !== true) reasons.push('covenant_gate_denied');
+    if (driftScore > Number(policy.drift_gates.max_drift_score || 0.65)) reasons.push('drift_score_exceeded');
+  }
 
   const allowed = reasons.length === 0;
   const nextCycle = allowed ? Number(state.cycle_count || 0) + 1 : Number(state.cycle_count || 0);
@@ -262,6 +328,8 @@ function cycle(args: AnyObj, policy: AnyObj) {
     receipt_id: receiptId,
     trigger,
     profile,
+    profile_source: profileResolution.profile_source,
+    requested_profile: requestedProfile,
     interaction_id: interactionId,
     heartbeat_id: heartbeatId,
     cycle_count_before: Number(state.cycle_count || 0),
@@ -274,6 +342,13 @@ function cycle(args: AnyObj, policy: AnyObj) {
     resource_ceilings: budgets.resource_ceilings,
     profile_multipliers: budgets.profile_multipliers,
     observed_metrics: metrics,
+    drift_gate: {
+      enabled: policy.drift_gates.enabled === true,
+      drift_score: driftScore,
+      max_drift_score: Number(policy.drift_gates.max_drift_score || 0.65),
+      covenant_ok: covenantOk,
+      require_covenant_ok: policy.drift_gates.require_covenant_ok === true
+    },
     continuity: integrity,
     blocked_reasons: reasons,
     apply
