@@ -90,12 +90,16 @@
     "systems/security/integrity_reseal_assistant.js": "d289872fa9fa3bf06a3324338a13ba1453b1a5e0e887654727bdeedc7bb5e903",
     "systems/security/integrity_reseal.js": "d289872fa9fa3bf06a3324338a13ba1453b1a5e0e887654727bdeedc7bb5e903",
     "systems/security/rust_security_gate.js": "d6676a57b1242989746c39cbe82801762fb6e0f1e9d7857ebb980b32cc97f377",
+    "systems/security/sandbox_context_controls.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
+    "systems/security/sandbox_skill_loader.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
+    "systems/security/sandbox_state_bridge.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
+    "systems/security/sandbox_subagent_scope_runtime.js": "9a32f0511e146372f8a620027400520d3245a5616ebfcfc272136bbf572e6be2",
     "systems/weaver/arbitration_engine.ts": "28489b3b8663af46d106583a41014047bce15d5c756ae49df58359cff9df4aa4",
     "systems/weaver/metric_schema.ts": "e6131fe5269782fe6411e280bb80d6543efdb2f095020d0ac851478142dd6f5b",
     "systems/weaver/monoculture_guard.ts": "5549cb6b21dbfa618604b9d5bef972745988a190e2252a7fb54062fff45ce5ab",
     "systems/weaver/weaver_core.ts": "438e474ce9979667c0154630e1c00d2f4e447d06bf468aea674dc48675261131"
   },
-  "sealed_at": "2026-03-08T08:30:16.480Z",
+  "sealed_at": "2026-03-08T20:26:00.499Z",
   "sealed_by": "jay",
-  "last_approval_note": "Operator-approved env_toggle-safe spine reseal preflight (unsealed=1) 2026-03-08T08:30:15.928Z"
+  "last_approval_note": "Operator-approved env_toggle-safe spine reseal preflight (unsealed=4) 2026-03-08T20:25:59.883Z"
 }
