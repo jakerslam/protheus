@@ -443,6 +443,11 @@ function resolveRuntime(argv: string[]) {
     0.7,
     0.995
   );
+  const runtimeRetentionHookEnabled = toBool(process.env.PROTHEUSD_RUNTIME_RETENTION_HOOK, false);
+  const runtimeRetentionPolicyPath = cleanText(
+    process.env.RUNTIME_RETENTION_POLICY_PATH || path.join(ROOT, 'config', 'runtime_retention_policy.json'),
+    500
+  );
 
   const cockpitInboxDirRaw = cleanText(parseFlag(argv, 'inbox-dir') || process.env.COCKPIT_INBOX_DIR, 500);
   const cockpitInboxDir = cockpitInboxDirRaw
@@ -481,6 +486,10 @@ function resolveRuntime(argv: string[]) {
     cockpitLatestPath: path.join(cockpitInboxDir, 'latest.json'),
     cockpitStatePath: path.join(cockpitInboxDir, 'state.json'),
     conversationEyeIndexPath: path.join(ROOT, 'local', 'state', 'memory', 'conversation_eye', 'index.json'),
+    runtimeRetentionHookEnabled,
+    runtimeRetentionPolicyPath: path.isAbsolute(runtimeRetentionPolicyPath)
+      ? runtimeRetentionPolicyPath
+      : path.join(ROOT, runtimeRetentionPolicyPath),
     consumerId,
     batchLimit
   };
@@ -708,6 +717,21 @@ async function runHeartbeat(runtime: any, trigger: string) {
         stderr: '',
         payload: { ok: true, skipped: true, reason: 'conversation_eye_disabled' }
       };
+  const runtimeRetention = runtime.runtimeRetentionHookEnabled
+    ? runNode(
+      path.join(runtime.root, 'systems', 'ops', 'runtime_retention_prune.js'),
+      ['run', '--apply=1', `--policy=${runtime.runtimeRetentionPolicyPath}`],
+      {
+        cwd: runtime.root,
+        timeoutMs: 15000
+      }
+    )
+    : {
+        status: 0,
+        stdout: '',
+        stderr: '',
+        payload: { ok: true, skipped: true, reason: 'runtime_retention_hook_disabled' }
+      };
 
   const state = loadDaemonState(runtime);
   state.run_seq = Number(state.run_seq || 0) + 1;
@@ -747,6 +771,10 @@ async function runHeartbeat(runtime: any, trigger: string) {
     if (shouldBackoffCockpit(conversationEye.stderr)) {
       state.conversation_eye_backoff_until = new Date(Date.now() + runtime.conversationEyeCooldownMs).toISOString();
     }
+  } else if (runtimeRetention.status !== 0) {
+    state.last_error = cleanText(runtimeRetention.stderr || 'runtime_retention_failed', 260);
+    state.last_cockpit_error = null;
+    state.last_conversation_eye_error = null;
   } else {
     state.last_error = null;
     state.last_cockpit_error = null;
@@ -783,6 +811,13 @@ async function runHeartbeat(runtime: any, trigger: string) {
       status: conversationEye.status,
       type: conversationEye.payload && conversationEye.payload.type ? conversationEye.payload.type : 'external_eyes_run',
       skipped: !!(conversationEye.payload && conversationEye.payload.skipped)
+    },
+    runtime_retention: {
+      enabled: runtime.runtimeRetentionHookEnabled === true,
+      ok: runtimeRetention.status === 0,
+      status: runtimeRetention.status,
+      type: runtimeRetention.payload && runtimeRetention.payload.type ? runtimeRetention.payload.type : 'runtime_retention_prune',
+      skipped: !!(runtimeRetention.payload && runtimeRetention.payload.skipped)
     },
     run_seq: state.run_seq,
     next_heartbeat_at: state.next_heartbeat_at,

@@ -212,14 +212,20 @@
     - `ambient_mode_active` and summary booleans are sourced from live lane receipts.
     - Host-skip fallback stays disabled in CI/prod validation profiles.
 
-- [ ] `V6-RUNTIME-HYGIENE-001` Add retention pruning for high-churn local runtime artifacts.
+- [x] `V6-RUNTIME-HYGIENE-001` Add retention pruning for high-churn local runtime artifacts.
   - Layer target: `client/local/state/*` (runtime data only), daemon/report lanes in `client/systems/ops/*`.
   - Scope:
     - Add bounded retention/rotation policy for high-volume JSONL artifacts (control-plane receipts, cockpit history, bridge health traces).
     - Add deterministic prune command + optional scheduled execution hook.
-  - Completion criteria:
-    - Retention policy is codified in config and enforced by a runnable lane.
-    - Artifact growth is bounded with no impact to required receipts/audit chain windows.
+  - Completed deliverables:
+    - Added policy: `client/config/runtime_retention_policy.json`.
+    - Added runnable lane: `client/systems/ops/runtime_retention_prune.{ts,js}` with `run/status` commands.
+    - Added package scripts: `ops:runtime-retention:run` and `ops:runtime-retention:status`.
+    - Added optional daemon heartbeat hook: `PROTHEUSD_RUNTIME_RETENTION_HOOK=1` in `client/systems/ops/protheusd.ts`.
+  - Validation:
+    - `npm run -s ops:runtime-retention:status`
+    - `npm run -s ops:runtime-retention:run`
+    - `PROTHEUSD_RUNTIME_RETENTION_HOOK=1 node client/systems/ops/protheusd.js tick --no-autostart`
 
 - [x] `V6-RUNTIME-DIAGNOSTICS-001` Add single-shot `protheusd` diagnostics report for triage.
   - Layer target: `client/systems/ops/protheusd.ts` status/ops surface.
@@ -254,9 +260,22 @@
   - Scope:
     - Detect and fail fast on stale `build-script-build` process pools before launching new validation runs.
     - Emit clear diagnostic artifact for lock/stall incidents so test results are not silently inconclusive.
+  - Progress:
+    - Added stale detector/reaper lane: `client/systems/ops/host_build_stale_guard.{ts,js}`.
+    - Added monitored cargo wrapper: `client/systems/ops/host_rust_validation.{ts,js}`.
+    - Wired guarded scripts: `ops:test:protheus-ops-core:attention` and `ops:test:execution-core:initiative`.
+    - Validation now returns deterministic `reason_code=stale_build_script_detected` instead of hanging.
   - Completion criteria:
     - `cargo test -p execution_core initiative` completes deterministically on the validation host profile.
     - Stall detector emits actionable reason code instead of hanging lanes.
+
+- [ ] `V6-CONVERSATION-EYE-TIMEOUT-001` Reduce conversation-eye timeout incidence in protheusd heartbeat.
+  - Layer target: `client/systems/sensory/*` execution path + daemon heartbeat contract in `client/systems/ops/protheusd.ts`.
+  - Current gap:
+    - `protheusd tick --no-autostart` currently reports `conversation_eye.status=124` in some heartbeat runs while other lanes pass.
+  - Completion criteria:
+    - Conversation-eye lane returns `status=0` under normal heartbeat execution.
+    - Any lane timeout is classified with deterministic reason and bounded backoff without hiding successful core lanes.
 
 - [x] `V6-DOPAMINE-CONTRACT-002` Resolve dopamine ambient command contract mismatch in mech benchmark.
   - Layer target: `client/systems/habits/dopamine_ambient.ts` + conduit bridge command contract + `client/systems/ops/mech_suit_benchmark.js`.
