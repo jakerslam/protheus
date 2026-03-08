@@ -68,6 +68,9 @@ const DEFAULT_RUST_HEALTH_PATH = process.env.MEMORY_RECALL_RUST_HEALTH_PATH
 const DEFAULT_RUST_POLICY_PATH = process.env.MEMORY_RECALL_RUST_POLICY_PATH
   ? path.resolve(String(process.env.MEMORY_RECALL_RUST_POLICY_PATH))
   : path.join(REPO_ROOT, 'config', 'rust_memory_transition_policy.json');
+const CONVERSATION_EYE_NODES_PATH = process.env.MEMORY_RECALL_CONVERSATION_NODES_PATH
+  ? path.resolve(String(process.env.MEMORY_RECALL_CONVERSATION_NODES_PATH))
+  : path.join(REPO_ROOT, 'local', 'state', 'memory', 'conversation_eye', 'nodes.jsonl');
 
 function clampInt(v, min, max) {
   const n = Number(v);
@@ -206,16 +209,104 @@ function parseTagCell(v) {
 
 function indexPaths() {
   return [
-    path.join(REPO_ROOT, 'MEMORY_INDEX.md'),
-    path.join(MEMORY_DIR, 'MEMORY_INDEX.md')
+    path.join(MEMORY_DIR, 'MEMORY_INDEX.md'),
+    path.join(REPO_ROOT, 'MEMORY_INDEX.md')
   ];
 }
 
 function tagsPaths() {
   return [
-    path.join(REPO_ROOT, 'TAGS_INDEX.md'),
-    path.join(MEMORY_DIR, 'TAGS_INDEX.md')
+    path.join(MEMORY_DIR, 'TAGS_INDEX.md'),
+    path.join(REPO_ROOT, 'TAGS_INDEX.md')
   ];
+}
+
+function readJsonlTail(filePath, maxRows = 4096) {
+  try {
+    if (!fs.existsSync(filePath)) return [];
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const lines = String(raw || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const tail = lines.slice(Math.max(0, lines.length - Math.max(1, Number(maxRows) || 4096)));
+    const out = [];
+    for (const line of tail) {
+      try {
+        out.push(JSON.parse(line));
+      } catch {
+        // ignore malformed rows
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+function relativeFromRepo(absPath) {
+  try {
+    const rel = path.relative(REPO_ROOT, absPath).replace(/\\/g, '/');
+    if (!rel || rel.startsWith('..')) return '';
+    return rel;
+  } catch {
+    return '';
+  }
+}
+
+function buildConversationVirtualSection(row, nodeId, tags, summary) {
+  const ts = cleanCell(row && row.ts || '').slice(0, 64) || nowIso();
+  const date = /^\d{4}-\d{2}-\d{2}/.test(ts) ? ts.slice(0, 10) : nowIso().slice(0, 10);
+  const kind = cleanCell(row && row.node_kind || '').toLowerCase() || 'insight';
+  const level = Number(row && row.level || 3);
+  const levelToken = cleanCell(row && row.level_token || '')
+    || (level === 1 ? 'node1' : level === 2 ? 'tag2' : 'jot3');
+  const title = cleanCell(row && row.title || '').slice(0, 220) || '[Conversation Eye] synthesized memory node';
+  const preview = cleanCell(row && row.preview || '').slice(0, 480) || summary || title;
+  const edges = Array.isArray(row && row.edges_to)
+    ? row.edges_to.map((edge) => cleanCell(edge).slice(0, 80)).filter(Boolean).slice(0, 12)
+    : [];
+  return [
+    '---',
+    `date: ${date}`,
+    `node_id: ${nodeId}`,
+    `tags: [${tags.join(', ')}]`,
+    `edges_to: [${edges.join(', ')}]`,
+    '---',
+    `# ${nodeId}`,
+    '- source: conversation_eye',
+    `- kind: ${kind}`,
+    `- level: ${levelToken}`,
+    `- title: ${title}`,
+    `- summary: ${summary || title}`,
+    `- preview: ${preview}`,
+    `- ts: ${ts}`
+  ].join('\n');
+}
+
+function parseConversationSupplementRows(filePath) {
+  const fileAbs = path.resolve(String(filePath || ''));
+  if (!fileAbs || !fs.existsSync(fileAbs)) return [];
+  const fileRel = relativeFromRepo(fileAbs) || 'local/state/memory/conversation_eye/nodes.jsonl';
+  const rows = readJsonlTail(fileAbs, 6000);
+  const out = [];
+  for (const row of rows) {
+    const nodeId = normalizeNodeId(row && row.node_id);
+    if (!nodeId) continue;
+    const uid = normalizeUid(row && row.uid || '');
+    const tags = Array.isArray(row && row.tags)
+      ? row.tags.map((tag) => normalizeTag(tag)).filter(Boolean).slice(0, 12)
+      : [];
+    if (!tags.length) tags.push('conversation');
+    const summary = cleanCell(row && (row.preview || row.title || row.node_kind || '')).slice(0, 280);
+    out.push({
+      node_id: nodeId,
+      uid,
+      file_rel: fileRel,
+      file_abs: fileAbs,
+      summary: summary || 'conversation_eye synthesized memory node',
+      tags,
+      virtual_section: buildConversationVirtualSection(row, nodeId, tags, summary)
+    });
+  }
+  return out;
 }
 
 function parseIndexFile(filePath) {
@@ -284,7 +375,36 @@ function loadMemoryIndex() {
       for (const t of row.tags || []) {
         if (!cur.tags.includes(t)) cur.tags.push(t);
       }
+      if (!cur.virtual_section && row.virtual_section) cur.virtual_section = row.virtual_section;
     }
+  }
+  const conversationRows = parseConversationSupplementRows(CONVERSATION_EYE_NODES_PATH);
+  if (conversationRows.length > 0) {
+    const rel = relativeFromRepo(CONVERSATION_EYE_NODES_PATH);
+    source.push(rel || 'local/state/memory/conversation_eye/nodes.jsonl');
+  }
+  for (const row of conversationRows) {
+    const key = `${row.node_id}@${row.file_rel}`;
+    const cur = merged.get(key);
+    if (!cur) {
+      merged.set(key, {
+        key,
+        node_id: row.node_id,
+        uid: row.uid || '',
+        file_rel: row.file_rel,
+        file_abs: row.file_abs,
+        summary: row.summary || '',
+        tags: Array.isArray(row.tags) ? row.tags.slice() : [],
+        virtual_section: row.virtual_section || ''
+      });
+      continue;
+    }
+    if (!cur.uid && row.uid) cur.uid = row.uid;
+    if (!cur.summary && row.summary) cur.summary = row.summary;
+    for (const t of row.tags || []) {
+      if (!cur.tags.includes(t)) cur.tags.push(t);
+    }
+    if (!cur.virtual_section && row.virtual_section) cur.virtual_section = row.virtual_section;
   }
   return {
     source,
@@ -470,7 +590,19 @@ function resolveLocalPath(rawPath, fallbackRelPath) {
   const raw = String(rawPath || '').trim();
   if (!raw) return path.join(REPO_ROOT, String(fallbackRelPath || '').replace(/^\/+/, ''));
   if (path.isAbsolute(raw)) return path.resolve(raw);
-  return path.join(REPO_ROOT, raw);
+  const normalized = raw.replace(/\\/g, '/').replace(/^\.\/+/, '');
+  const candidates = [normalized];
+  if (normalized.startsWith('state/client/')) {
+    candidates.push(`state/${normalized.slice('state/client/'.length)}`);
+  }
+  if (normalized.startsWith('client/')) {
+    candidates.push(normalized.slice('client/'.length));
+  }
+  for (const rel of candidates) {
+    const abs = path.join(REPO_ROOT, rel);
+    if (fs.existsSync(abs)) return abs;
+  }
+  return path.join(REPO_ROOT, normalized);
 }
 
 function appendAuditMirror(eventType, payload) {
@@ -772,8 +904,20 @@ function resolveRustCliInvocation(subcommandArgs: string[]) {
       transport_detail: 'binary'
     };
   }
+  const rustBin = String(DEFAULT_RUST_BIN || '').trim() || 'cargo';
+  const rustBinExt = path.extname(rustBin).toLowerCase();
+  const rustBinLooksLikeScript = ['.js', '.cjs', '.mjs', '.ts'].includes(rustBinExt);
+  if (rustBinLooksLikeScript) {
+    return {
+      command: process.execPath || 'node',
+      args: [rustBin, 'run', '--quiet', '--', ...subcommandArgs],
+      cwd: DEFAULT_RUST_CRATE_PATH,
+      transport: 'cli',
+      transport_detail: 'cargo_run'
+    };
+  }
   return {
-    command: DEFAULT_RUST_BIN,
+    command: rustBin,
     args: ['run', '--quiet', '--', ...subcommandArgs],
     cwd: DEFAULT_RUST_CRATE_PATH,
     transport: 'cli',
@@ -1287,6 +1431,18 @@ function applyContextBudget(hitsRaw, budgetTokens, modeRaw) {
 }
 
 function loadSection(entry, cacheObj, metrics, fileContents, cacheMaxBytes) {
+  const virtualSection = entry && typeof entry.virtual_section === 'string'
+    ? String(entry.virtual_section || '').trim()
+    : '';
+  if (virtualSection) {
+    return {
+      ok: true,
+      source: 'virtual',
+      section: virtualSection,
+      section_hash: sha256(virtualSection),
+      mtime_ms: null
+    };
+  }
   const key = cacheKeyFor(entry);
   const stamp = fileStamp(entry.file_abs);
   if (!stamp) {

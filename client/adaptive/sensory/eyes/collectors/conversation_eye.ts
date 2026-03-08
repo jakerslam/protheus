@@ -234,7 +234,7 @@ async function collectConversationEye(eyeConfig, budgets) {
   }
 
   const maxItems = Math.max(1, Math.min(Number((budgets && budgets.max_items) || 6), 32));
-  const maxRows = Math.max(4, Math.min(Number((budgets && budgets.max_rows) || 96), 500));
+  const maxRows = Math.max(4, Math.min(Number((budgets && budgets.max_rows) || 10), 500));
   const topics = normalizeTopics(eyeConfig);
   const sourceRows = synthesizeFromSource(maxRows);
   const index = loadMemoryIndex();
