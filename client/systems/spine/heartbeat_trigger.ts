@@ -7,8 +7,8 @@ export {};
  *
  * Compatibility shell only.
  * - Delegates run/status to spine_safe_launcher.
- * - Applies bounded memory + timeout guard for CLI stability.
- * - Preserves optional min-hours throttling for manual invocations.
+ * - Uses bounded timeout/memory for CLI stability.
+ * - Keeps optional min-hours throttling for manual invocations.
  */
 
 const fs = require('fs');
@@ -34,10 +34,6 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function cleanText(v: unknown, maxLen = 240) {
-  return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, maxLen);
-}
-
 function toNumber(v: unknown, fallback: number, lo: number, hi: number) {
   const n = Number(v);
   if (!Number.isFinite(n)) return fallback;
@@ -57,36 +53,13 @@ function usage() {
   console.log('  node systems/spine/heartbeat_trigger.js --help');
 }
 
-function resolveScriptInvocation(scriptAbsPath: string) {
-  if (fs.existsSync(scriptAbsPath)) return [scriptAbsPath];
-  if (scriptAbsPath.endsWith('.js')) {
-    const tsPath = scriptAbsPath.slice(0, -3) + '.ts';
-    if (fs.existsSync(tsPath)) return [path.join(ROOT, 'lib', 'ts_entrypoint.js'), tsPath];
-  }
-  return [scriptAbsPath];
-}
-
-function parseJsonLinePayload(stdout: string) {
-  const raw = String(stdout || '').trim();
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {}
-  const lines = raw.split('\n').map((line) => line.trim()).filter(Boolean);
-  for (let i = lines.length - 1; i >= 0; i -= 1) {
-    try {
-      return JSON.parse(lines[i]);
-    } catch {}
-  }
-  return null;
-}
-
 function readJsonl(filePath: string) {
   if (!fs.existsSync(filePath)) return [];
-  return fs.readFileSync(filePath, 'utf8')
+  return fs
+    .readFileSync(filePath, 'utf8')
     .split('\n')
     .filter(Boolean)
-    .map((line) => {
+    .map((line: string) => {
       try {
         return JSON.parse(line);
       } catch {
@@ -105,33 +78,28 @@ function lastSpineRunStarted(mode: string, dateStr: string) {
   return events.length > 0 ? events[events.length - 1] : null;
 }
 
-function commandPlan() {
-  const cmd = String(process.argv[2] || '').trim().toLowerCase();
-  if (!cmd || cmd === '--help' || cmd === '-h' || cmd === 'help') return { command: 'help' };
+function buildDelegatedArgs(cmd: string) {
+  if (!cmd || cmd === '--help' || cmd === '-h' || cmd === 'help') return ['--help'];
   if (cmd === 'status') {
-    return {
-      command: 'status',
-      mode: String(parseArg('mode', 'daily') || 'daily') === 'eyes' ? 'eyes' : 'daily',
-      date: cleanText(parseArg('date', todayStr()), 20) || todayStr()
-    };
+    const mode = String(parseArg('mode', 'daily') || 'daily') === 'eyes' ? 'eyes' : 'daily';
+    const date = String(parseArg('date', todayStr()) || todayStr()).slice(0, 20);
+    return ['status', `--mode=${mode}`, `--date=${date}`];
   }
   if (cmd === 'run') {
-    return {
-      command: 'run',
-      mode: String(parseArg('mode', 'daily') || 'daily') === 'eyes' ? 'eyes' : 'daily',
-      date: todayStr(),
-      minHours: toNumber(parseArg('min-hours', process.env.SPINE_HEARTBEAT_MIN_HOURS || '4'), 4, 0, 168),
-      maxEyes: cleanText(parseArg('max-eyes', ''), 16)
-    };
+    const mode = String(parseArg('mode', 'daily') || 'daily') === 'eyes' ? 'eyes' : 'daily';
+    const date = todayStr();
+    const maxEyes = String(parseArg('max-eyes', '') || '').slice(0, 16);
+    const delegated = ['run', mode, date];
+    if (maxEyes) delegated.push(`--max-eyes=${maxEyes}`);
+    return delegated;
   }
-  return { command: 'invalid', raw: cmd };
+  return ['--help'];
 }
 
-function runDelegated(args: string[], timeoutMs: number, maxOldSpaceMb: number, envExtra: Record<string, string>) {
-  const invocation = resolveScriptInvocation(SAFE_LAUNCHER);
+function runDelegated(args: string[], timeoutMs: number, maxOldSpaceMb: number) {
   const child = spawnSync(
     process.execPath,
-    [`--max-old-space-size=${Math.floor(maxOldSpaceMb)}`, ...invocation, ...args],
+    [`--max-old-space-size=${Math.floor(maxOldSpaceMb)}`, SAFE_LAUNCHER, ...args],
     {
       cwd: ROOT,
       encoding: 'utf8',
@@ -139,7 +107,8 @@ function runDelegated(args: string[], timeoutMs: number, maxOldSpaceMb: number, 
       killSignal: 'SIGTERM',
       env: {
         ...process.env,
-        ...envExtra
+        SPINE_RUN_CONTEXT: process.env.SPINE_RUN_CONTEXT || 'heartbeat_cli',
+        SPINE_HEARTBEAT_COMPAT_SHELL: '1'
       }
     }
   );
@@ -148,78 +117,63 @@ function runDelegated(args: string[], timeoutMs: number, maxOldSpaceMb: number, 
     signal: child.signal ? String(child.signal) : null,
     timedOut: !!(child.error && String(child.error.code || '') === 'ETIMEDOUT'),
     stdout: String(child.stdout || ''),
-    stderr: String(child.stderr || ''),
-    payload: parseJsonLinePayload(String(child.stdout || ''))
+    stderr: String(child.stderr || '')
   };
 }
 
-async function main() {
-  const plan = commandPlan();
-  if (plan.command === 'help') {
+function main() {
+  const cmd = String(process.argv[2] || '').trim().toLowerCase();
+  if (!cmd || cmd === '--help' || cmd === '-h' || cmd === 'help') {
     usage();
     process.exit(0);
   }
-  if (plan.command === 'invalid') {
-    usage();
-    process.exit(2);
+
+  const timeoutMs = DEFAULT_TIMEOUT_MS;
+  const maxOldSpaceMb = DEFAULT_MAX_OLD_SPACE_MB;
+
+  if (cmd === 'run') {
+    const mode = String(parseArg('mode', 'daily') || 'daily') === 'eyes' ? 'eyes' : 'daily';
+    const date = todayStr();
+    const minHours = toNumber(parseArg('min-hours', process.env.SPINE_HEARTBEAT_MIN_HOURS || '4'), 4, 0, 168);
+    const last = lastSpineRunStarted(mode, date);
+    if (last) {
+      const lastMs = Date.parse(String(last.ts || ''));
+      if (Number.isFinite(lastMs)) {
+        const hoursSince = (Date.now() - lastMs) / (1000 * 60 * 60);
+        if (hoursSince < minHours) {
+          process.stdout.write(
+            `${JSON.stringify({
+              ok: true,
+              type: 'heartbeat_trigger_compat',
+              compatibility_shell: true,
+              authority: 'rust_spine',
+              delegated_to: 'spine_safe_launcher',
+              result: 'skipped_recent_run',
+              mode,
+              date,
+              min_hours: minHours,
+              hours_since_last: Number(hoursSince.toFixed(3)),
+              last_run_ts: String(last.ts || ''),
+              ts: nowIso()
+            })}\n`
+          );
+          process.exit(0);
+        }
+      }
+    }
   }
 
-  const timeoutMs = toNumber(process.env.SPINE_HEARTBEAT_TRIGGER_TIMEOUT_MS, DEFAULT_TIMEOUT_MS, 5000, 10 * 60 * 1000);
-  const maxOldSpaceMb = toNumber(process.env.SPINE_HEARTBEAT_TRIGGER_MAX_OLD_SPACE_MB, DEFAULT_MAX_OLD_SPACE_MB, 96, 1024);
-
-  if (plan.command === 'run') {
-    const last = lastSpineRunStarted(plan.mode, plan.date);
-    const nowMs = Date.now();
-    const lastMs = last ? Date.parse(String(last.ts || '')) : NaN;
-    const hoursSince = Number.isFinite(lastMs) ? ((nowMs - lastMs) / (1000 * 60 * 60)) : null;
-    if (last && Number.isFinite(hoursSince) && hoursSince! < plan.minHours) {
-      process.stdout.write(`${JSON.stringify({
-        ok: true,
-        type: 'heartbeat_trigger_compat',
-        compatibility_shell: true,
-        authority: 'rust_spine',
-        delegated_to: 'spine_safe_launcher',
-        result: 'skipped_recent_run',
-        mode: plan.mode,
-        date: plan.date,
-        min_hours: plan.minHours,
-        hours_since_last: Number(hoursSince!.toFixed(3)),
-        last_run_ts: String(last.ts || ''),
-        ts: nowIso()
-      })}\n`);
-      process.exit(0);
-    }
-    const delegatedArgs = ['run', plan.mode, plan.date];
-    if (plan.maxEyes) delegatedArgs.push(`--max-eyes=${plan.maxEyes}`);
-    const result = runDelegated(delegatedArgs, timeoutMs, maxOldSpaceMb, {
-      SPINE_RUN_CONTEXT: process.env.SPINE_RUN_CONTEXT || 'heartbeat_cli',
-      SPINE_HEARTBEAT_COMPAT_SHELL: '1'
-    });
-    if (result.stdout) process.stdout.write(result.stdout);
-    if (result.stderr) process.stderr.write(result.stderr);
-    if (result.status !== 0) {
-      process.stderr.write(
-        `heartbeat_trigger_delegation_failed:status=${result.status} timed_out=${result.timedOut ? '1' : '0'} signal=${cleanText(result.signal || '', 40)}\n`
-      );
-    }
-    process.exit(result.status);
+  const delegated = runDelegated(buildDelegatedArgs(cmd), timeoutMs, maxOldSpaceMb);
+  if (delegated.stdout) process.stdout.write(delegated.stdout);
+  if (delegated.stderr) process.stderr.write(delegated.stderr);
+  if (delegated.timedOut) {
+    process.stderr.write('heartbeat_trigger_timeout: delegated launcher exceeded timeout\n');
+    process.exit(124);
   }
-
-  const statusResult = runDelegated(
-    ['status', `--mode=${plan.mode}`, `--date=${plan.date}`],
-    timeoutMs,
-    maxOldSpaceMb,
-    {
-      SPINE_RUN_CONTEXT: process.env.SPINE_RUN_CONTEXT || 'heartbeat_cli',
-      SPINE_HEARTBEAT_COMPAT_SHELL: '1'
-    }
-  );
-  if (statusResult.stdout) process.stdout.write(statusResult.stdout);
-  if (statusResult.stderr) process.stderr.write(statusResult.stderr);
-  process.exit(statusResult.status);
+  if (delegated.status !== 0 && delegated.signal) {
+    process.stderr.write(`heartbeat_trigger_failed: signal=${delegated.signal}\n`);
+  }
+  process.exit(delegated.status);
 }
 
-main().catch((err: any) => {
-  process.stderr.write(`heartbeat_trigger_unhandled:${cleanText(err && err.message ? err.message : err, 280)}\n`);
-  process.exit(1);
-});
+main();
