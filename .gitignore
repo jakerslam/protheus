@@ -200,6 +200,8 @@ apps/*
 /core/local/
 /client/tmp/
 /client/workspaces/
+/client/runtime/local/
+/client/runtime/state/
 
 # Instance-specific sensory collectors (local only)
 client/adaptive/sensory/eyes/collectors/abstractapi_enrich.js
@@ -212,11 +214,22 @@ client/adaptive/sensory/eyes/collectors/marketstack_quote.js
 client/adaptive/sensory/eyes/collectors/sentiment_proxy.js
 client/adaptive/sensory/eyes/collectors/spine_healthcheck.js
 client/adaptive/sensory/eyes/collectors/virustotal_threat.js
+client/cognition/adaptive/sensory/eyes/collectors/abstractapi_enrich.js
+client/cognition/adaptive/sensory/eyes/collectors/coingecko_global.js
+client/cognition/adaptive/sensory/eyes/collectors/finnhub_market.js
+client/cognition/adaptive/sensory/eyes/collectors/github_pulse.js
+client/cognition/adaptive/sensory/eyes/collectors/iex_fundamentals.js
+client/cognition/adaptive/sensory/eyes/collectors/ipstack_geo.js
+client/cognition/adaptive/sensory/eyes/collectors/marketstack_quote.js
+client/cognition/adaptive/sensory/eyes/collectors/sentiment_proxy.js
+client/cognition/adaptive/sensory/eyes/collectors/spine_healthcheck.js
+client/cognition/adaptive/sensory/eyes/collectors/virustotal_threat.js
 
 # Local transient runtime artifacts (non-canonical)
 sleep
 state/autonomy/*.lock
 state/sensory/*.backup.*.jsonl
+client/cognition/habits/scripts/*.bak.*
 
 # Persona private data (keep orchestration assets, ignore personal persona profiles/client/memory/logs)
 personas/*/

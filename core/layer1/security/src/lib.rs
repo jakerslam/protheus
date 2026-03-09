@@ -18,10 +18,15 @@ use walkdir::WalkDir;
 type HmacSha256 = Hmac<Sha256>;
 
 mod security_planes;
+mod security_wave1;
 
 pub use security_planes::{
     run_anti_sabotage_shield, run_constitution_guardian, run_guard, run_remote_emergency_halt,
     run_soul_token_guard,
+};
+pub use security_wave1::{
+    run_black_box_ledger, run_capability_switchboard, run_directive_hierarchy_controller,
+    run_dream_warden_guard, run_goal_preservation_kernel,
 };
 
 #[derive(Debug, Clone, Default)]
