@@ -149,6 +149,19 @@ Source reference:
 | V6-SUBSTRATE-001.4 | queued | Conduit-routed privacy/consent guardrails for non-visual sensing | Through-wall and biometric-adjacent sensing requires strict local-first privacy controls and auditability. | Enforce local-only default policy, consent requirements, and budget/privacy checks for CSI events in Layer-0/1; every detection path is receipted and bypass attempts fail closed. |
 | V6-SUBSTRATE-001.5 | queued | Persona/shadow integration for WiFi sensing as native Eye | Sensor capability must be directly consumable by personas/shadows to be operationally useful. | Add `protheus eye enable wifi`/persona trigger integration with observability streams, so shadows can subscribe to CSI events via governed eye lanes and receipt-linked dashboards. |
 
+## Biological Neural Hybrid Integration Intake (x.com/Crypto_Jargon 2030603197237387411, 2026-03-09)
+
+Source reference:
+- https://x.com/Crypto_Jargon/status/2030603197237387411
+
+| ID | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|
+| V6-SUBSTRATE-002.1 | queued | Biological substrate interface lane (living-neuron signal -> model control) | Layer `-1` needs a formal biological adapter contract for real-time neuron-signal modulation of model behavior. | Add interface contract for multi-electrode neuronal input streams that can deterministically map spike activity to bounded model-control parameters (temperature/sampling/attention controls) with per-event receipts. |
+| V6-SUBSTRATE-002.2 | queued | Closed-loop biological feedback engine | Bidirectional neuron-AI coupling requires explicit feedback/stimulation control with safe fallback behavior. | Implement closed-loop lane where model state can issue bounded stimulation patterns; add deterministic degrade path to silicon-only mode on signal loss or health-policy failure. |
+| V6-SUBSTRATE-002.3 | queued | Layer `-1` pluggable biological adapter template | Biological computing must fit the existing exotic-hardware substrate template without leaking substrate specifics into Layer 0. | Add `layer_minus_one` biological adapter template declaring capabilities (spike-rate channels, stimulation channels, health telemetry), with Layer-0 remaining substrate-agnostic through conduit envelopes. |
+| V6-SUBSTRATE-002.4 | blocked | Bioethics/consent policy gate contract for biological interaction | Biological stimulation/control requires human-governed ethics and consent boundaries beyond purely technical implementation. | Human-approved ethics/consent policy artifacts are linked (`HMAN-BIO-001`), Layer-1 policy lanes enforce revocable consent + high-risk disable paths, and all bio interactions are fully auditable via deterministic receipts. |
+| V6-SUBSTRATE-002.5 | queued | CLI/persona observability integration for biological substrate | Advanced users need explicit enablement/monitoring surfaces to safely use biological substrate adapters. | Add `protheus substrate enable biological` + monitoring surfaces in `protheus-top`/dashboard, and persona hooks for research/health workflows with policy-scoped activation receipts. |
+
 ## Production-Grade Checklist Addendum (2026-03-06)
 
 | ID | Status | Upgrade | Why | Exit Criteria |
