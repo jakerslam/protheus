@@ -1,26 +1,38 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "enabled": true,
   "strict_default": true,
-  "notes": "Fail closed when migrated lanes re-introduce broad TS fallback branches in rust-authoritative paths.",
+  "notes": "Fail closed when migrated wrappers re-introduce authority logic in rust-authoritative paths.",
   "checks": [
     {
-      "id": "route_task_no_ts_fallback_toggle",
-      "path": "client/runtime/systems/routing/route_task.ts",
-      "deny_regex": "ROUTE_TASK_TS_FALLBACK\\s*=",
-      "description": "route_task must remain rust-authoritative by default."
+      "id": "memory_recall_wrapper_no_token_authority_logic",
+      "path": "systems/memory/memory_recall.js",
+      "deny_regex": "estimateTokens|appendFileSync|MEMORY_RECALL_TOKEN_TELEMETRY_PATH|tokenTelemetry",
+      "description": "token burn accounting must remain in Rust memory_ambient lane, not in JS wrapper."
     },
     {
-      "id": "route_task_no_fallback_branch",
-      "path": "client/runtime/systems/routing/route_task.ts",
-      "deny_regex": "legacy fallback",
-      "description": "legacy fallback markers are not allowed to reappear in route_task."
+      "id": "spine_wrapper_must_use_conduit_bridge",
+      "path": "systems/spine/spine.js",
+      "deny_regex": "spawnSync\\(|execSync\\(",
+      "description": "spine wrapper cannot reintroduce local shell authority logic."
     },
     {
-      "id": "task_decomposition_no_js_gate_fallback",
-      "path": "client/runtime/systems/execution/task_decomposition_primitive.ts",
-      "deny_regex": "constitution_gate_fallback|heroic_gate_fallback",
-      "description": "task decomposition gates must stay rust fail-closed."
+      "id": "daemon_wrapper_must_use_ops_bridge",
+      "path": "systems/ops/protheusd.js",
+      "deny_regex": "spawnSync\\(|execSync\\(",
+      "description": "daemon wrapper cannot reintroduce direct shell authority logic."
+    },
+    {
+      "id": "workflow_wrapper_must_use_ops_bridge",
+      "path": "systems/workflow/workflow_controller.js",
+      "deny_regex": "spawnSync\\(|execSync\\(",
+      "description": "workflow wrapper cannot reintroduce local shell authority logic."
+    },
+    {
+      "id": "autonomy_wrapper_must_use_ops_bridge",
+      "path": "systems/autonomy/autonomy_controller.js",
+      "deny_regex": "spawnSync\\(|execSync\\(",
+      "description": "autonomy wrapper cannot reintroduce local shell authority logic."
     }
   ]
 }
