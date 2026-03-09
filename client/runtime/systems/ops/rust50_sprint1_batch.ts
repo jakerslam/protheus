@@ -83,7 +83,7 @@ function defaultPolicy() {
     enabled: true,
     strict_default: true,
     lane_id: 'V6-RUST50-CONF-003',
-    accepted_preamble: 'ENFORCER RULES ACTIVE — READ codex_enforcer.md FIRST.',
+    accepted_preamble: 'ENFORCER RULES ACTIVE — READ docs/workspace/codex_enforcer.md FIRST.',
     crates: [
       { id: 'execution', manifest: 'crates/execution/Cargo.toml' },
       { id: 'pinnacle', manifest: 'crates/pinnacle/Cargo.toml' },

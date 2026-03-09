@@ -13,7 +13,7 @@ function hasWorkspaceMarkers(absPath: string) {
     if (!absPath || !path.isAbsolute(absPath)) return false;
     return fs.existsSync(path.join(absPath, '.git'))
       || fs.existsSync(path.join(absPath, 'package.json'))
-      || fs.existsSync(path.join(absPath, 'AGENTS.md'));
+      || fs.existsSync(path.join(absPath, 'docs/workspace/AGENTS.md'));
   } catch {
     return false;
   }

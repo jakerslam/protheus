@@ -154,11 +154,11 @@ function loadIdentityHydrationPolicy(runtime: any) {
     startup_token_budget: 1800,
     per_file_max_chars: 1800,
     base_files: [
-      'SOUL.md',
-      'USER.md',
-      'MEMORY.md',
-      'MEMORY_INDEX.md',
-      'TAGS_INDEX.md'
+      'docs/workspace/SOUL.md',
+      'docs/workspace/USER.md',
+      'docs/workspace/MEMORY.md',
+      'docs/workspace/MEMORY_INDEX.md',
+      'docs/workspace/TAGS_INDEX.md'
     ],
     lazy_pages: [
       'client/runtime/local/state/memory/conversation_eye/nodes.jsonl',

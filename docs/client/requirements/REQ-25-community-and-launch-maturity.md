@@ -27,7 +27,7 @@ Rust remains the source of truth for core logic. These requirements only affect 
 
 3. `REQ-25-003` Contributing docs must route first-time contributors to starter tasks.
 - Acceptance:
-  - `CONTRIBUTING.md` links the good-first issue pack and seeder instructions.
+  - `docs/workspace/CONTRIBUTING.md` links the good-first issue pack and seeder instructions.
 
 4. `REQ-25-004` Launch announcement templates must be available for X/HN/Reddit.
 - Acceptance:

@@ -11,7 +11,7 @@ OpenClaw is a local automation and orchestration runtime for macOS/Linux with ty
 - `README.md` for overview and quick start
 - `docs/client/README.md` for navigation
 - `docs/client/OPERATOR_RUNBOOK.md` for incident/operations procedures
-- `CONTRIBUTING.md`, `SECURITY.md`, and `LICENSE` for contribution and policy posture
+- `docs/workspace/CONTRIBUTING.md`, `SECURITY.md`, and `LICENSE` for contribution and policy posture
 
 ## Internal Artifact Handling
 
@@ -19,11 +19,11 @@ Persona- and memory-heavy root artifacts are treated as internal compatibility s
 
 The canonical internal aliases are:
 
-- `AGENT-CONSTITUTION.md` -> `docs/client/internal/persona/AGENT-CONSTITUTION.md`
-- `IDENTITY.md` -> `docs/client/internal/persona/IDENTITY.md`
-- `SOUL.md` -> `docs/client/internal/persona/SOUL.md`
-- `USER.md` -> `docs/client/internal/persona/USER.md`
-- `MEMORY.md` -> `docs/client/internal/persona/MEMORY.md`
+- `docs/workspace/AGENT-CONSTITUTION.md` -> `docs/client/internal/persona/AGENT-CONSTITUTION.md`
+- `docs/workspace/IDENTITY.md` -> `docs/client/internal/persona/IDENTITY.md`
+- `docs/workspace/SOUL.md` -> `docs/client/internal/persona/SOUL.md`
+- `docs/workspace/USER.md` -> `docs/client/internal/persona/USER.md`
+- `docs/workspace/MEMORY.md` -> `docs/client/internal/persona/MEMORY.md`
 - `codex.helix` -> `docs/client/internal/persona/CODEX_HELIX.md`
 
 ## Regression Gates

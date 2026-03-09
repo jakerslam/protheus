@@ -281,7 +281,7 @@ impl Default for ConduitPolicy {
         );
 
         Self {
-            constitution_path: "AGENT-CONSTITUTION.md".to_string(),
+            constitution_path: "docs/workspace/AGENT-CONSTITUTION.md".to_string(),
             guard_registry_path: "client/runtime/config/guard_check_registry.json".to_string(),
             required_constitution_markers: vec![
                 "Mind Sovereignty Covenant".to_string(),
@@ -1707,8 +1707,11 @@ mod tests {
 
     fn test_policy_paths() -> (PathBuf, PathBuf, tempfile::TempDir) {
         let temp = tempfile::tempdir().expect("tempdir");
-        let constitution = temp.path().join("AGENT-CONSTITUTION.md");
+        let constitution = temp.path().join("docs/workspace/AGENT-CONSTITUTION.md");
         let guard_registry = temp.path().join("guard_check_registry.json");
+        if let Some(parent) = constitution.parent() {
+            fs::create_dir_all(parent).expect("create constitution dir");
+        }
 
         fs::write(&constitution, "Mind Sovereignty Covenant\nRSI Guardrails\n")
             .expect("write constitution");

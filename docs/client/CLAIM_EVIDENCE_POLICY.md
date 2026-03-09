@@ -63,7 +63,6 @@ Before merging public-facing docs/client/release text:
 
 ## Evidence Locations
 
-- `CHANGELOG.md`
+- `docs/workspace/CHANGELOG.md`
 - `docs/client/` policy and benchmark pages
 - `state/` receipts and artifacts (when versioned and shareable)
-

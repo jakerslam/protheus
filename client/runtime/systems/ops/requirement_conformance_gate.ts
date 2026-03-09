@@ -48,7 +48,7 @@ function defaultPolicy() {
     version: '1.0',
     enabled: true,
     strict_default: true,
-    backlog_path: 'SRS.md',
+    backlog_path: 'docs/workspace/SRS.md',
     matrix_path: 'config/requirement_conformance_matrix.json',
     required_external_ids: [],
     outputs: {

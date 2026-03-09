@@ -63,7 +63,7 @@ Apply these labels to each issue:
 9. **Contributing: add first-PR checklist snippet**
 - Area: `area/community`
 - Acceptance:
-  - Add checklist block to `CONTRIBUTING.md` for first-time contributors.
+  - Add checklist block to `docs/workspace/CONTRIBUTING.md` for first-time contributors.
   - Include local verification command sequence.
 
 10. **Announcement automation: add markdown lint check for launch templates**

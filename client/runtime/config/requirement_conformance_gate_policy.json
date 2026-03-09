@@ -2,7 +2,7 @@
   "version": "1.0",
   "enabled": true,
   "strict_default": true,
-  "backlog_path": "SRS.md",
+  "backlog_path": "docs/workspace/SRS.md",
   "matrix_path": "client/runtime/config/requirement_conformance_matrix.json",
   "required_external_ids": [
     "ext_v3_race_016_open_platform_release_pack",

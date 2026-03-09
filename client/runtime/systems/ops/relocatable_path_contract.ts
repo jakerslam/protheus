@@ -44,7 +44,7 @@ function defaultPolicy() {
       include: ['systems', 'lib', 'config', 'bin', '.github', 'package.json'],
       ext: ['.ts', '.js', '.json', '.md', '.yml', '.yaml'],
       forbidden_patterns: ['/Users/', '\\\\Users\\\\', '/home/'],
-      allowlist: ['memory/', 'state/', 'docs/backlog_views/', 'SRS.md', 'UPGRADE_BACKLOG.md']
+      allowlist: ['memory/', 'state/', 'docs/backlog_views/', 'docs/workspace/SRS.md', 'docs/workspace/UPGRADE_BACKLOG.md']
     },
     paths: {
       latest_path: 'client/runtime/local/state/ops/relocatable_path_contract/latest.json',

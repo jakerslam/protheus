@@ -15,7 +15,7 @@
     "latest_path": "state/soul/continuity_adapters/latest.json",
     "receipts_path": "state/soul/continuity_adapters/receipts.jsonl",
     "soul_vector_latest_path": "state/symbiosis/soul_vector/latest.json",
-    "identity_path": "IDENTITY.md",
-    "constitution_path": "AGENT-CONSTITUTION.md"
+    "identity_path": "docs/workspace/IDENTITY.md",
+    "constitution_path": "docs/workspace/AGENT-CONSTITUTION.md"
   }
 }

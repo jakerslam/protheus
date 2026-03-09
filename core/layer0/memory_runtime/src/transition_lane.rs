@@ -233,7 +233,7 @@ fn default_policy(root: &Path) -> TransitionPolicy {
             benchmark_path: root.join("state/client/memory/rust_transition/benchmark_history.json"),
             benchmark_latest_path: root.join("state/client/memory/rust_transition/benchmark_latest.json"),
             benchmark_report_path: root.join("benchmarks/memory-stage1.md"),
-            memory_index_path: root.join("MEMORY_INDEX.md"),
+            memory_index_path: root.join("client/memory/MEMORY_INDEX.md"),
             rust_crate_path: root.join("core/layer0/memory"),
         },
         thresholds: TransitionThresholds {
@@ -314,7 +314,7 @@ fn load_policy(root: &Path, policy_path: &Path) -> TransitionPolicy {
             memory_index_path: resolve_path(
                 root,
                 paths_raw.get("memory_index_path"),
-                "MEMORY_INDEX.md",
+                "client/memory/MEMORY_INDEX.md",
             ),
             rust_crate_path: resolve_path(root, paths_raw.get("rust_crate_path"), "core/layer0/memory"),
         },

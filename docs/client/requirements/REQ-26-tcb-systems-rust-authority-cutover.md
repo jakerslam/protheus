@@ -55,7 +55,7 @@ TS surface-only allowlist:
   - `client/runtime/lib/rust_lane_bridge.js`
 - Updated governance policy:
   - `client/runtime/config/rust_source_of_truth_policy.json`
-  - `codex_enforcer.md`
+  - `docs/workspace/codex_enforcer.md`
 
 ## Remaining Work
 

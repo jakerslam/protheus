@@ -124,7 +124,7 @@ function defaultPolicy() {
     codex: {
       codex_path: 'codex.helix',
       key_env: 'HELIX_CODEX_KEY',
-      constitution_path: 'AGENT-CONSTITUTION.md',
+      constitution_path: 'docs/workspace/AGENT-CONSTITUTION.md',
       soul_token_state_path: 'state/security/soul_token_guard.json',
       soul_biometric_state_path: 'state/security/soul_biometric/latest.json',
       bootstrap_truths: [

@@ -795,7 +795,7 @@ impl LedgerWriter {
 }
 
 fn constitution_hash(root: &Path) -> (bool, Option<String>, Option<String>) {
-    let path = root.join("AGENT-CONSTITUTION.md");
+    let path = root.join("docs/workspace/AGENT-CONSTITUTION.md");
     match fs::read_to_string(&path) {
         Ok(raw) => {
             let digest = stable_hash(&raw, 64);

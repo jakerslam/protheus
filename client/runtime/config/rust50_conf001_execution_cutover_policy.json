@@ -3,9 +3,9 @@
   "enabled": true,
   "strict_default": true,
   "lane_id": "V6-RUST50-CONF-001",
-  "accepted_preamble": "ENFORCER RULES ACTIVE — READ codex_enforcer.md FIRST.",
+  "accepted_preamble": "ENFORCER RULES ACTIVE — READ docs/workspace/codex_enforcer.md FIRST.",
   "required_refs": [
-    "codex_enforcer.md",
+    "docs/workspace/codex_enforcer.md",
     "core/layer2/execution/Cargo.toml",
     "core/layer2/execution/src/lib.rs",
     "core/layer2/execution/src/main.rs",

@@ -10,7 +10,7 @@
 
 ## Changelog Discipline
 
-- user-visible behavior/docs changes update `CHANGELOG.md`
+- user-visible behavior/docs changes update `docs/workspace/CHANGELOG.md`
 - release notes include rollback guidance when relevant
 
 ## Commit Hygiene

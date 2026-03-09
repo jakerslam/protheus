@@ -1,5 +1,5 @@
 # TAGS_INDEX.md
-# Last regenerated: 2026-03-08
+# Last regenerated: 2026-03-09
 
 #accountability → weekly-goals
 #across → creative-link-across-998vz2

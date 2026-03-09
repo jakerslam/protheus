@@ -31,5 +31,5 @@ Before contributing or deploying commercially, review:
 
 - `LICENSE`
 - `SECURITY.md`
-- `CONTRIBUTING.md`
+- `docs/workspace/CONTRIBUTING.md`
 - `docs/client/legal/archive/` (historical terms retained for audit context)

@@ -26,7 +26,6 @@ Enforced by:
 
 ## Remaining intentional exceptions
 
-- Root identity/memory markdown files remain tracked for current bootstrap/test contracts:
-  - `MEMORY.md`, `SOUL.md`, `HEARTBEAT.md`, `IDENTITY.md`, `TAGS_INDEX.md`, `LEARNINGS_INDEX.md`
-- Follow-up item: `V6-ROOT-INTERNAL-003` in `TODO.md` to either migrate these to `client/runtime/local/internal/*` or formally keep them as root exceptions.
-
+- Workspace identity/memory markdown files remain tracked for bootstrap/test contracts:
+  - `docs/workspace/MEMORY.md`, `docs/workspace/SOUL.md`, `docs/workspace/HEARTBEAT.md`, `docs/workspace/IDENTITY.md`, `docs/workspace/TAGS_INDEX.md`, `docs/workspace/LEARNINGS_INDEX.md`
+- Follow-up item: `V6-ROOT-INTERNAL-003` in `docs/workspace/TODO.md` to either migrate these to `client/runtime/local/internal/*` or keep them under `docs/workspace/*`.

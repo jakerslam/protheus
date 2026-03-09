@@ -4,7 +4,7 @@
 
 ## Contract Gates
 - Enforcer preamble acknowledgement is required:
-  - `ENFORCER RULES ACTIVE — READ codex_enforcer.md FIRST.`
+  - `ENFORCER RULES ACTIVE — READ docs/workspace/codex_enforcer.md FIRST.`
 - Single batch mode only.
 - Ordered execution only (no out-of-order completion).
 - No skipped tasks.
@@ -23,7 +23,7 @@ node client/runtime/systems/ops/rust50_sprint_contract.js run \
   --plan-file=tmp/sprint_plan.json \
   --requested-status=in_progress \
   --enforcer-active=1 \
-  --preamble-text="ENFORCER RULES ACTIVE — READ codex_enforcer.md FIRST."
+  --preamble-text="ENFORCER RULES ACTIVE — READ docs/workspace/codex_enforcer.md FIRST."
 
 node client/runtime/systems/ops/rust50_sprint_contract.js status
 ```

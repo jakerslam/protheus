@@ -19,7 +19,11 @@ const {
 
 const DEFAULT_POLICY_PATH = process.env.DOCS_SURFACE_CONTRACT_POLICY_PATH
   ? path.resolve(process.env.DOCS_SURFACE_CONTRACT_POLICY_PATH)
-  : path.join(ROOT, 'config', 'docs_surface_contract_policy.json');
+  : (
+    fs.existsSync(path.join(ROOT, 'client', 'runtime', 'config', 'docs_surface_contract_policy.json'))
+      ? path.join(ROOT, 'client', 'runtime', 'config', 'docs_surface_contract_policy.json')
+      : path.join(ROOT, 'config', 'docs_surface_contract_policy.json')
+  );
 
 function usage() {
   console.log('Usage:');
@@ -31,18 +35,18 @@ function defaultPolicy() {
   return {
     version: '1.0',
     enabled: true,
-    required_operator_docs: ['README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'docs/README.md', 'docs/OPERATOR_RUNBOOK.md'],
-    required_public_docs: ['docs/PUBLIC_OPERATOR_PROFILE.md'],
-    readme_required_links: ['docs/PUBLIC_OPERATOR_PROFILE.md'],
-    readme_forbidden_root_internal_links: ['AGENT-CONSTITUTION.md', 'SOUL.md', 'USER.md', 'MEMORY.md', 'codex.helix'],
-    required_internal_namespace: ['docs/internal/README.md', 'docs/internal/persona/AGENT-CONSTITUTION.md', 'docs/internal/persona/IDENTITY.md'],
+    required_operator_docs: ['README.md', 'docs/workspace/CONTRIBUTING.md', 'SECURITY.md', 'docs/client/README.md', 'docs/client/OPERATOR_RUNBOOK.md'],
+    required_public_docs: ['docs/client/PUBLIC_OPERATOR_PROFILE.md'],
+    readme_required_links: ['docs/client/PUBLIC_OPERATOR_PROFILE.md'],
+    readme_forbidden_root_internal_links: ['docs/workspace/AGENT-CONSTITUTION.md', 'docs/workspace/SOUL.md', 'docs/workspace/USER.md', 'docs/workspace/MEMORY.md', 'codex.helix'],
+    required_internal_namespace: ['docs/client/internal/README.md', 'docs/client/internal/persona/AGENT-CONSTITUTION.md', 'docs/client/internal/persona/IDENTITY.md'],
     internal_aliases: {
-      'AGENT-CONSTITUTION.md': 'docs/internal/persona/AGENT-CONSTITUTION.md',
-      'IDENTITY.md': 'docs/internal/persona/IDENTITY.md',
-      'SOUL.md': 'docs/internal/persona/SOUL.md',
-      'USER.md': 'docs/internal/persona/USER.md',
-      'MEMORY.md': 'docs/internal/persona/MEMORY.md',
-      'codex.helix': 'docs/internal/persona/CODEX_HELIX.md'
+      'docs/workspace/AGENT-CONSTITUTION.md': 'docs/client/internal/persona/AGENT-CONSTITUTION.md',
+      'docs/workspace/IDENTITY.md': 'docs/client/internal/persona/IDENTITY.md',
+      'docs/workspace/SOUL.md': 'docs/client/internal/persona/SOUL.md',
+      'docs/workspace/USER.md': 'docs/client/internal/persona/USER.md',
+      'docs/workspace/MEMORY.md': 'docs/client/internal/persona/MEMORY.md',
+      'codex.helix': 'docs/client/internal/persona/CODEX_HELIX.md'
     },
     paths: {
       latest_path: 'state/ops/docs_surface_contract/latest.json',

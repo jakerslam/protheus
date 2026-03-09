@@ -177,7 +177,7 @@ protheus shadow list --json=1
 - Emotion toggle: `--emotion=on|off` (default `on`).
 - Surprise toggle: `--surprise=on|off` (default `off`) enables deterministic 20% anti-puppet deviation.
 - Structured output: `--schema=json` returns machine-readable recommendations (`recommendation`, `confidence`, `time_estimate`, `blockers`, `escalate_to`, `reasoning`).
-- Daily internal check-in: `protheus lens checkin --persona=jay_haslam --heartbeat=HEARTBEAT.md`.
+- Daily internal check-in: `protheus lens checkin --persona=jay_haslam --heartbeat=docs/workspace/HEARTBEAT.md`.
 - Meta-feedback loop: `protheus lens feedback ...` and `protheus lens feedback-summary` capture utility signals to tune persona weighting over time.
 
 ### Persona Orchestration Command
@@ -315,7 +315,7 @@ The project is operated with explicit documentation and governance contracts:
 - [Branch Protection Policy](docs/client/BRANCH_PROTECTION_POLICY.md)
 - [Operator Runbook](docs/client/OPERATOR_RUNBOOK.md)
 - [Documentation Hub](docs/client/README.md)
-- [Changelog](CHANGELOG.md)
+- [Changelog](docs/workspace/CHANGELOG.md)
 
 ### Public Automation Disclosure
 
@@ -324,12 +324,12 @@ The project is operated with explicit documentation and governance contracts:
 
 ## Contribution Workflow
 
-1. Read [CONTRIBUTING.md](CONTRIBUTING.md).
+1. Read [CONTRIBUTING.md](docs/workspace/CONTRIBUTING.md).
 2. Follow the [Code of Conduct](.github/CODE_OF_CONDUCT.md).
 3. Keep changes scoped and test-backed.
 4. Run quality gates before PR.
 5. Link measurable claims to evidence per [Claim-Evidence Policy](docs/client/CLAIM_EVIDENCE_POLICY.md).
-6. Update [CHANGELOG.md](CHANGELOG.md) for user-visible behavior/docs changes.
+6. Update [CHANGELOG.md](docs/workspace/CHANGELOG.md) for user-visible behavior/docs changes.
 7. Use [Bug report](.github/ISSUE_TEMPLATE/bug_report.yml), [Feature request](.github/ISSUE_TEMPLATE/feature_request.yml), and [Pull request](.github/PULL_REQUEST_TEMPLATE.md) templates.
 
 ## Security

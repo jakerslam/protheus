@@ -20,7 +20,7 @@ const {
   stableHash
 } = require('../../lib/queued_backlog_runtime');
 
-const CONSTITUTION_PATH = path.join(ROOT, 'AGENT-CONSTITUTION.md');
+const CONSTITUTION_PATH = path.join(ROOT, 'docs/workspace/AGENT-CONSTITUTION.md');
 
 function defaultConstitutionPolicy() {
   return {
