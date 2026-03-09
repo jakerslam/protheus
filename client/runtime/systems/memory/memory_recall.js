@@ -3,7 +3,10 @@
 
 // Layer ownership: core/layer0/memory_runtime + core/layer0/ops::memory-ambient (authoritative)
 // Client wrapper routes memory recall commands through conduit-backed Rust lanes.
+const path = require('path');
+const { spawnSync } = require('child_process');
 const { runMemoryAmbientCommand } = require('../../lib/spine_conduit_bridge');
+const LEGACY_ENTRY = path.join(__dirname, 'legacy', 'memory_recall_legacy.js');
 
 function parseArgs(argv) {
   const out = { _: [] };
@@ -96,22 +99,69 @@ function noOpClearCacheReceipt() {
   };
 }
 
+function parseJsonPayload(rawText) {
+  const raw = String(rawText || '').trim();
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {}
+  const lines = raw.split('\n').map((line) => line.trim()).filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    if (!lines[i].startsWith('{')) continue;
+    try {
+      return JSON.parse(lines[i]);
+    } catch {}
+  }
+  return null;
+}
+
+function runLegacy(args = []) {
+  const proc = spawnSync(process.execPath, [LEGACY_ENTRY, ...args], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: process.env
+  });
+  const status = Number.isFinite(Number(proc.status)) ? Number(proc.status) : 1;
+  const stdout = String(proc.stdout || '');
+  const stderr = String(proc.stderr || '');
+  const payload = parseJsonPayload(stdout);
+  return {
+    ok: status === 0 && payload && payload.ok !== false,
+    status,
+    payload,
+    stdout,
+    stderr
+  };
+}
+
+function isBridgeSuccess(out) {
+  if (!out || out.ok !== true || !out.payload || typeof out.payload !== 'object') return false;
+  if (out.payload.ok === false) return false;
+  if (out.payload.gate_active === true) return false;
+  const reason = String(out.payload.reason || '').toLowerCase();
+  if (reason.startsWith('conduit_')) return false;
+  return true;
+}
+
 async function run(args = [], opts = {}) {
   const ambientArgs = toAmbientArgs(args);
   if (!ambientArgs) {
-    return {
-      ok: true,
-      status: 0,
-      payload: noOpClearCacheReceipt(),
-      stdout: '',
-      stderr: ''
-    };
+    return runLegacy(args);
   }
-  return runMemoryAmbientCommand(ambientArgs, {
-    runContext: 'memory_recall_wrapper',
-    stdioTimeoutMs: Number(process.env.PROTHEUS_MEMORY_STDIO_TIMEOUT_MS || 25000),
-    ...opts
-  });
+  try {
+    const out = await runMemoryAmbientCommand(ambientArgs, {
+      runContext: 'memory_recall_wrapper',
+      skipRuntimeGate: true,
+      stdioTimeoutMs: Number(process.env.PROTHEUS_MEMORY_STDIO_TIMEOUT_MS || 25000),
+      ...opts
+    });
+    if (isBridgeSuccess(out)) {
+      return out;
+    }
+    return runLegacy(args);
+  } catch {
+    return runLegacy(args);
+  }
 }
 
 if (require.main === module) {
