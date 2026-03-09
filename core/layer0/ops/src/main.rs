@@ -21,6 +21,7 @@ fn usage() {
     println!("  protheus-ops model-router <args>");
     println!("  protheus-ops ab-lane-eval <status|run> [flags]");
     println!("  protheus-ops contract-check <args>");
+    println!("  protheus-ops security-plane <integrity-reseal|integrity-reseal-assistant|capability-lease|startup-attestation|status> [flags]");
     println!("  protheus-ops enterprise-hardening <run|status> [--strict=1|0] [--policy=<path>]");
     println!("  protheus-ops rollout-rings <status|evaluate> [flags]");
     println!("  protheus-ops strategy-mode-governor <args>");
@@ -228,6 +229,11 @@ fn main() {
         "contract-check" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::contract_check::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "security-plane" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::security_plane::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "enterprise-hardening" => {
