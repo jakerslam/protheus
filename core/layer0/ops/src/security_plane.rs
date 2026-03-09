@@ -62,6 +62,21 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "startup-attestation" | "startup_attestation" => {
             infring_layer1_security::run_startup_attestation(root, rest)
         }
+        "directive-hierarchy-controller" | "directive_hierarchy_controller" => {
+            infring_layer1_security::run_directive_hierarchy_controller(root, rest)
+        }
+        "capability-switchboard" | "capability_switchboard" => {
+            infring_layer1_security::run_capability_switchboard(root, rest)
+        }
+        "black-box-ledger" | "black_box_ledger" => {
+            infring_layer1_security::run_black_box_ledger(root, rest)
+        }
+        "goal-preservation-kernel" | "goal_preservation_kernel" => {
+            infring_layer1_security::run_goal_preservation_kernel(root, rest)
+        }
+        "dream-warden-guard" | "dream_warden_guard" => {
+            infring_layer1_security::run_dream_warden_guard(root, rest)
+        }
         "delegated-authority-branching" | "delegated_authority_branching" => {
             compatibility_security_command("delegated-authority-branching", rest)
         }
@@ -104,6 +119,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "integrity-reseal-assistant",
                     "capability-lease",
                     "startup-attestation",
+                    "directive-hierarchy-controller",
+                    "capability-switchboard",
+                    "black-box-ledger",
+                    "goal-preservation-kernel",
+                    "dream-warden-guard",
                     "delegated-authority-branching",
                     "organ-state-encryption-plane",
                     "remote-tamper-heartbeat",
@@ -131,7 +151,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "protheus-ops security-plane integrity-reseal <check|apply> [flags]",
                     "protheus-ops security-plane integrity-reseal-assistant <run|status> [flags]",
                     "protheus-ops security-plane capability-lease <issue|verify|consume> [flags]",
-                    "protheus-ops security-plane startup-attestation <issue|verify|status> [flags]"
+                    "protheus-ops security-plane startup-attestation <issue|verify|status> [flags]",
+                    "protheus-ops security-plane directive-hierarchy-controller <status|decompose> [flags]",
+                    "protheus-ops security-plane capability-switchboard <status|evaluate|set> [flags]",
+                    "protheus-ops security-plane black-box-ledger <rollup|verify|status> [flags]",
+                    "protheus-ops security-plane goal-preservation-kernel <evaluate|status> [flags]",
+                    "protheus-ops security-plane dream-warden-guard <run|status> [flags]"
                 ]
             }),
             2,
