@@ -2,8 +2,6 @@
 'use strict';
 
 // Layer ownership: core/layer1/security::dream-warden-guard (authoritative)
-const path = require('path');
-const { spawnSync } = require('child_process');
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge');
 
 process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS =
@@ -13,36 +11,13 @@ process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS =
 
 const SECURITY_CMD = 'dream-warden-guard';
 const bridge = createOpsLaneBridge(__dirname, 'dream_warden_guard', 'security-plane');
-const ROOT = path.resolve(__dirname, '..', '..');
-const TS_ENTRYPOINT = path.join(ROOT, 'lib', 'ts_entrypoint.js');
-const LEGACY_ENTRY = path.join(__dirname, 'legacy', 'dream_warden_guard_legacy.ts');
-
-function runLegacy(args = []) {
-  const run = spawnSync(process.execPath, [TS_ENTRYPOINT, LEGACY_ENTRY, ...(Array.isArray(args) ? args : [])], {
-    cwd: ROOT,
-    encoding: 'utf8',
-    timeout: 20000
-  });
-  return {
-    status: Number.isFinite(run.status) ? Number(run.status) : 1,
-    stdout: String(run.stdout || ''),
-    stderr: String(run.stderr || ''),
-    payload: null
-  };
-}
 
 function runCore(args = []) {
   const out = bridge.run([SECURITY_CMD, ...(Array.isArray(args) ? args : [])]);
-  if (out && out.status === 0) {
-    if (out.stdout) process.stdout.write(out.stdout);
-    if (out.stderr) process.stderr.write(out.stderr);
-    if (out.payload && !out.stdout) process.stdout.write(`${JSON.stringify(out.payload)}\n`);
-    return out;
-  }
-  const fallback = runLegacy(args);
-  if (fallback.stdout) process.stdout.write(fallback.stdout);
-  if (fallback.stderr) process.stderr.write(fallback.stderr);
-  return fallback;
+  if (out && out.stdout) process.stdout.write(out.stdout);
+  if (out && out.stderr) process.stderr.write(out.stderr);
+  if (out && out.payload && !out.stdout) process.stdout.write(`${JSON.stringify(out.payload)}\n`);
+  return out;
 }
 
 if (require.main === module) {
