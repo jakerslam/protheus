@@ -117,6 +117,20 @@ Source note:
 | V6-BINVULN-001.5 | queued | Extensible custom/community rulepack intake | Capability growth requires user-extensible detection rules without modifying authoritative core logic. | Add client-facing rulepack install/enable contracts with schema validation and signature/provenance checks; user rulepacks can be activated without core source edits. |
 | V6-BINVULN-001.6 | queued | Developer DX + CLI/observability integration for vuln scans | Adoption depends on simple entrypoints and visibility into scan outcomes. | Add thin wrappers for `protheus scan binary ...` and `protheus research --firmware`, plus observability surfaces for scan status/findings in `protheus-top` and dashboard lanes. |
 
+## Hermes-Style Autonomous Runtime Intake (Doc `1BLeP2bP00zlj8JwXec7OPeqk4dIMXgp5Oq6z-HTSCLY`, 2026-03-09)
+
+Source note:
+- External draft labels this as `V6-COCKPIT-007`; this backlog maps it to `V6-HERMES-001.*` to avoid collision with existing cockpit stream transport IDs.
+- Overlap with existing cockpit items is intentional; this intake captures remaining deltas for self-discovery UX/TUI/subagent ergonomics.
+
+| ID | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|
+| V6-HERMES-001.1 | queued | Autonomous self-discovery identity lane | Agent runtime needs deterministic self-profile generation (model/runtime/GPU/flags) for better autonomous diagnostics and reproducible identity docs. | Add `protheus shadow discover` lane producing signed identity artifact (runtime profile + capability surface + model/runtime metadata) with conduit receipts and replay-safe provenance. |
+| V6-HERMES-001.2 | queued | Premium real-time TUI envelope for shadow/cockpit execution | Operator ergonomics and observability are limited without a high-signal live execution surface. | Upgrade `protheus-top`/watch surfaces with rich real-time stream blocks (timings, tool call classes, status colors, optional ASCII header skins) while preserving deterministic machine-readable telemetry contracts. |
+| V6-HERMES-001.3 | queued | Persistent memory continuity hardening across attach/disconnect boundaries | Persistent cockpit exists, but continuity quality still needs explicit cross-session reconstruction guarantees for user modeling + learned context. | Add continuity contract tests proving context/user model reconstruction across daemon restart and detached/reattached sessions with deterministic reconstruction receipts. |
+| V6-HERMES-001.4 | queued | Subagent delegation primitives + governed tool-rich execution packs | Autonomous workflows need first-class delegated execution packs under strict capability controls. | Add subagent delegation primitives with policy-scoped tool packs (file/terminal/browser/code/cron) and deterministic parent-child receipt chains for each delegated run. |
+| V6-HERMES-001.5 | queued | Conduit-only autonomous discovery/delegation guard contract | New autonomous affordances must remain fail-closed under Safety Plane authority. | Enforce Layer-0 policy checks for self-discovery, tool execution, and delegation actions; any bypass attempt fails closed and emits auditable denial receipts. |
+
 ## Production-Grade Checklist Addendum (2026-03-06)
 
 | ID | Status | Upgrade | Why | Exit Criteria |
