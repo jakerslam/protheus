@@ -23,6 +23,9 @@ fn usage() {
     println!("  protheus-ops autonomy-controller status");
     println!("  protheus-ops autonomy-controller run [--max-actions=<n>] [--objective=<id>]");
     println!(
+        "  protheus-ops autonomy-controller pain-signal [--action=<status|emit|focus-start|focus-stop|focus-status>] [--source=<id>] [--code=<id>] [--severity=<low|medium|high|critical>] [--risk=<low|medium|high>]"
+    );
+    println!(
         "  protheus-ops autonomy-controller runtime-stability-soak [--action=<start|check-now|status|report>] [flags]"
     );
     println!(
@@ -36,6 +39,13 @@ fn parse_flag(argv: &[String], key: &str) -> Option<String> {
         let t = arg.trim();
         t.strip_prefix(&pref).map(|v| v.to_string())
     })
+}
+
+fn parse_positional(argv: &[String], idx: usize) -> Option<String> {
+    argv.iter()
+        .filter(|arg| !arg.trim().starts_with("--"))
+        .nth(idx)
+        .map(|v| v.trim().to_string())
 }
 
 fn native_receipt(root: &Path, cmd: &str, argv: &[String]) -> Value {
@@ -59,6 +69,42 @@ fn native_receipt(root: &Path, cmd: &str, argv: &[String]) -> Value {
             "evidence": {
                 "command": cmd,
                 "max_actions": max_actions
+            }
+        }
+    ]);
+    out["receipt_hash"] = Value::String(receipt_hash(&out));
+    out
+}
+
+fn native_pain_signal_receipt(root: &Path, argv: &[String]) -> Value {
+    let action = parse_flag(argv, "action")
+        .or_else(|| parse_positional(argv, 1))
+        .unwrap_or_else(|| "status".to_string());
+    let source = parse_flag(argv, "source");
+    let code = parse_flag(argv, "code");
+    let severity = parse_flag(argv, "severity");
+    let risk = parse_flag(argv, "risk");
+
+    let mut out = protheus_autonomy_core_v1::pain_signal_receipt(
+        action.as_str(),
+        source.as_deref(),
+        code.as_deref(),
+        severity.as_deref(),
+        risk.as_deref(),
+    );
+    out["lane"] = Value::String(LANE_ID.to_string());
+    out["ts"] = Value::String(now_iso());
+    out["argv"] = json!(argv);
+    out["replacement"] = Value::String(REPLACEMENT.to_string());
+    out["root"] = Value::String(root.to_string_lossy().to_string());
+    out["claim_evidence"] = json!([
+        {
+            "id": "native_autonomy_pain_signal_lane",
+            "claim": "pain_signal_contract_executes_natively_in_rust",
+            "evidence": {
+                "action": action,
+                "source": source,
+                "code": code
             }
         }
     ]);
@@ -94,6 +140,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     match cmd.as_str() {
         "status" | "run" | "runtime-stability-soak" | "self-documentation-closeout" => {
             print_json_line(&native_receipt(root, &cmd, argv));
+            0
+        }
+        "pain-signal" => {
+            print_json_line(&native_pain_signal_receipt(root, argv));
             0
         }
         _ => {
