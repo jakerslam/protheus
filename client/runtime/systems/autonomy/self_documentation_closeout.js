@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 
-// Layer ownership: core/layer2/autonomy + core/layer0/ops::workflow-controller (authoritative)
+// Layer ownership: core/layer2/autonomy + core/layer0/ops::autonomy-controller (authoritative)
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge');
 
-const bridge = createOpsLaneBridge(__dirname, 'workflow_controller', 'workflow-controller');
+const bridge = createOpsLaneBridge(__dirname, 'autonomy_controller', 'autonomy-controller');
 
 function toCoreArgs(argv = []) {
   const args = Array.isArray(argv) ? argv.slice() : [];
@@ -13,7 +13,7 @@ function toCoreArgs(argv = []) {
   const allowed = new Set(['run', 'status']);
   const action = allowed.has(cmd) ? cmd : 'status';
   const tail = args.slice(args.length > 0 ? 1 : 0);
-  return ['workflow-generator', `--action=${action}`, ...tail];
+  return ['self-documentation-closeout', `--action=${action}`, ...tail];
 }
 
 function run(args = []) {

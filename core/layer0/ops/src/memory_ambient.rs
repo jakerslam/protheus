@@ -353,6 +353,7 @@ fn is_allowed_memory_command(command: &str) -> bool {
             | "load-embedded-observability-profile"
             | "pack-memory-blobs"
             | "pack-heartbeat-blob"
+            | "cryonics-tier"
             | "help"
     )
 }
@@ -624,6 +625,63 @@ fn cli_error_receipt(policy: &MemoryAmbientPolicy, command: &str, reason: &str, 
     out
 }
 
+fn cryonics_action(memory_args: &[String]) -> String {
+    for token in memory_args {
+        if let Some(v) = token.strip_prefix("--action=") {
+            let out = clean_text(Some(v), 48).to_ascii_lowercase();
+            if !out.is_empty() {
+                return out;
+            }
+        }
+    }
+    memory_args
+        .iter()
+        .find(|row| !row.trim().starts_with("--"))
+        .map(|row| clean_text(Some(row), 48).to_ascii_lowercase())
+        .filter(|row| !row.is_empty())
+        .unwrap_or_else(|| "run".to_string())
+}
+
+fn cryonics_compat_receipt(
+    policy: &MemoryAmbientPolicy,
+    command: &str,
+    run_context: &str,
+    memory_args: &[String],
+) -> Value {
+    let action = cryonics_action(memory_args);
+    let mut out = json!({
+        "ok": true,
+        "type": "memory_ambient_compat",
+        "ts": now_iso(),
+        "command": command,
+        "ambient_mode_active": policy.enabled,
+        "rust_authoritative": policy.rust_authoritative,
+        "memory_command": "cryonics-tier",
+        "compatibility_only": true,
+        "action": action,
+        "run_context": run_context,
+        "memory_args_count": memory_args.len(),
+        "memory_args_hash": deterministic_receipt_hash(&json!(memory_args)),
+        "severity": "info",
+        "surfaced": false,
+        "attention_queue": {
+            "ok": true,
+            "queued": false,
+            "decision": "compatibility_no_enqueue",
+            "routed_via": "rust_attention_queue"
+        },
+        "memory_payload": {
+            "ok": true,
+            "type": "cryonics_tier_compat",
+            "action": action,
+            "compatibility_only": true
+        },
+        "policy": policy_snapshot(policy)
+    });
+    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let policy = load_policy(root);
     if argv.is_empty() {
@@ -689,6 +747,32 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     };
 
     let (memory_command, memory_args, run_context) = invocation;
+    if memory_command == "cryonics-tier" {
+        let receipt = cryonics_compat_receipt(&policy, &command, &run_context, &memory_args);
+        write_json(&policy.latest_path, &receipt);
+        append_jsonl(&policy.receipts_path, &receipt);
+        update_mech_suit_status(
+            &policy,
+            json!({
+                "ambient": policy.enabled,
+                "rust_authoritative": policy.rust_authoritative,
+                "push_attention_queue": policy.push_attention_queue,
+                "quiet_non_critical": policy.quiet_non_critical,
+                "last_result": "memory_ambient_compat",
+                "last_command": command,
+                "last_memory_command": "cryonics-tier",
+                "last_ok": true,
+                "last_severity": "info",
+                "last_attention_decision": "compatibility_no_enqueue"
+            }),
+        );
+        println!(
+            "{}",
+            serde_json::to_string(&receipt).unwrap_or_else(|_| "{\"ok\":false}".to_string())
+        );
+        return 0;
+    }
+
     if !is_allowed_memory_command(&memory_command) {
         let receipt = cli_error_receipt(
             &policy,

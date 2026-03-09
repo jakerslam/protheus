@@ -28,6 +28,12 @@ fn parse_scope(argv: &[String]) -> Option<String> {
 fn usage() {
     println!("Usage:");
     println!("  protheus-ops workflow-controller <run|status|list|promote> [--scope=<value>] [--max=<n>]");
+    println!(
+        "  protheus-ops workflow-controller workflow-generator [--action=<run|status>] [flags]"
+    );
+    println!(
+        "  protheus-ops workflow-controller data-rights-engine [--action=<ingest|revoke|process|status>] [flags]"
+    );
 }
 
 fn success_receipt(command: &str, scope: Option<&str>, argv: &[String], root: &Path) -> Value {
@@ -80,7 +86,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         return 0;
     }
     let scope = parse_scope(argv).or_else(|| Some("changed".to_string()));
-    if matches!(command.as_str(), "run" | "status" | "list" | "promote") {
+    if matches!(
+        command.as_str(),
+        "run"
+            | "status"
+            | "list"
+            | "promote"
+            | "workflow-generator"
+            | "data-rights-engine"
+    ) {
         print_json_line(&success_receipt(
             command.as_str(),
             scope.as_deref(),
@@ -93,4 +107,3 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     print_json_line(&error_receipt("unknown_command", argv));
     2
 }
-
