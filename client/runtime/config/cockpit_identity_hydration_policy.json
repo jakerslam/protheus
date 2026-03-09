@@ -1,16 +1,16 @@
 {
   "schema_version": "1.0",
   "enabled": true,
-  "startup_token_budget": 1800,
-  "per_file_max_chars": 1800,
+  "startup_token_budget": 180,
+  "per_file_max_chars": 220,
   "base_files": [
     "docs/workspace/SOUL.md",
-    "docs/workspace/USER.md",
-    "docs/workspace/MEMORY.md",
-    "docs/workspace/MEMORY_INDEX.md",
-    "docs/workspace/TAGS_INDEX.md"
+    "docs/workspace/USER.md"
   ],
   "lazy_pages": [
+    "docs/workspace/MEMORY_INDEX.md",
+    "docs/workspace/TAGS_INDEX.md",
+    "docs/workspace/MEMORY.md",
     "client/runtime/local/state/memory/conversation_eye/nodes.jsonl",
     "client/runtime/local/state/attention/latest.json"
   ]
