@@ -89,6 +89,34 @@ function conduitProbeTimeoutMs() {
   return timeoutMs;
 }
 
+function commandBridgeTimeoutMs() {
+  const base = conduitProbeTimeoutMs();
+  return Math.max(
+    15000,
+    toInt(process.env.COCKPIT_COMMAND_BRIDGE_TIMEOUT_MS, base * 3, 5000, 300000)
+  );
+}
+
+function commandStdioTimeoutMs() {
+  const bridge = commandBridgeTimeoutMs();
+  return Math.max(
+    bridge + 2000,
+    toInt(process.env.COCKPIT_COMMAND_STDIO_TIMEOUT_MS, bridge + 5000, 7000, 300000)
+  );
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isTimeoutLike(reason: unknown) {
+  const text = cleanText(reason, 260).toLowerCase();
+  return text.includes('timeout')
+    || text.includes('conduit_bridge_timeout')
+    || text.includes('conduit_stdio_timeout')
+    || text.includes('conduit_startup_probe_timeout');
+}
+
 function ensureDir(filePath: string) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
 }
@@ -239,43 +267,62 @@ async function fetchAttentionBatch(root: string, consumerId: string, limit: numb
     `--limit=${limit}`,
     '--run-context=cockpit_harness'
   ];
-  const out = await runAttentionCommand(args, {
-    cwdHint: root,
-    skipRuntimeGate: true,
-    timeoutMs: conduitProbeTimeoutMs()
-  });
-  const payload = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
-  return {
-    ok: !!(out && out.ok && payload && payload.ok === true),
-    status: Number.isFinite(out && out.status) ? Number(out.status) : 1,
-    payload,
-    stderr: cleanText(out && out.stderr || '', 400)
-  };
+  const attempts = toInt(process.env.COCKPIT_ATTENTION_RETRY_ATTEMPTS, 2, 1, 5);
+  let last: any = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const out = await runAttentionCommand(args, {
+      cwdHint: root,
+      skipRuntimeGate: true,
+      timeoutMs: commandBridgeTimeoutMs(),
+      stdioTimeoutMs: commandStdioTimeoutMs()
+    });
+    const payload = out && out.payload && typeof out.payload === 'object' ? out.payload : null;
+    const ok = !!(out && out.ok && payload && payload.ok === true);
+    last = {
+      ok,
+      status: Number.isFinite(out && out.status) ? Number(out.status) : 1,
+      payload,
+      stderr: cleanText(out && out.stderr || '', 400)
+    };
+    if (ok) return last;
+    const reason = cleanText((payload && payload.reason) || last.stderr || '', 220);
+    if (attempt < attempts && isTimeoutLike(reason)) {
+      await sleep(200 * attempt);
+      continue;
+    }
+    break;
+  }
+  return last || { ok: false, status: 1, payload: null, stderr: 'attention_drain_failed' };
 }
 
 async function fetchAmbientSnapshots(root: string) {
   const date = dayToken();
-  const timeoutMs = conduitProbeTimeoutMs();
+  const timeoutMs = commandBridgeTimeoutMs();
+  const stdioTimeoutMs = commandStdioTimeoutMs();
   const [spine, personas, dopamine, memory] = await Promise.all([
     runSpineCommand(['status', '--mode=daily', `--date=${date}`], {
       cwdHint: root,
       skipRuntimeGate: true,
-      timeoutMs
+      timeoutMs,
+      stdioTimeoutMs
     }),
     runPersonaAmbientCommand(['status'], {
       cwdHint: root,
       skipRuntimeGate: true,
-      timeoutMs
+      timeoutMs,
+      stdioTimeoutMs
     }),
     runDopamineAmbientCommand(['status', `--date=${date}`], {
       cwdHint: root,
       skipRuntimeGate: true,
-      timeoutMs
+      timeoutMs,
+      stdioTimeoutMs
     }),
     runMemoryAmbientCommand(['status'], {
       cwdHint: root,
       skipRuntimeGate: true,
-      timeoutMs
+      timeoutMs,
+      stdioTimeoutMs
     })
   ]);
   const parse = (row: any) => (row && row.payload && typeof row.payload === 'object')
@@ -297,14 +344,20 @@ async function ingestOnce(args: Record<string, any>) {
   const state = loadHarnessState(paths, consumerId);
 
   const attention = await fetchAttentionBatch(root, consumerId, limit);
+  const attentionReason = cleanText(
+    (attention.payload && attention.payload.reason) || attention.stderr || 'attention_drain_failed',
+    200
+  );
   const attentionFailed = !attention.ok || !attention.payload;
+  const previousFailStreak = Number(state.last_attention_fail_streak || 0);
+  const nextFailStreak = attentionFailed ? previousFailStreak + 1 : 0;
+  const timeoutFailure = attentionFailed && isTimeoutLike(attentionReason);
+  const degradeOnFailure = attentionFailed && (!timeoutFailure || nextFailStreak >= 2);
   const attentionPayload = attentionFailed
     ? {
         ok: false,
         type: 'attention_drain_degraded',
-        reason: attention.payload && attention.payload.reason
-          ? cleanText(attention.payload.reason, 160)
-          : cleanText(attention.stderr || 'attention_drain_failed', 160),
+        reason: attentionReason,
         queue_depth: 0,
         cursor_offset: 0,
         cursor_offset_after: 0,
@@ -319,7 +372,7 @@ async function ingestOnce(args: Record<string, any>) {
   const envelope: any = {
     ok: true,
     type: 'cockpit_context_envelope',
-    degraded: attentionFailed,
+    degraded: degradeOnFailure,
     ts: nowIso(),
     sequence: nextSequence,
     consumer_id: consumerId,
@@ -330,7 +383,11 @@ async function ingestOnce(args: Record<string, any>) {
       cursor_offset: Number(attentionPayload.cursor_offset || 0),
       cursor_offset_after: Number(attentionPayload.cursor_offset_after || 0),
       acked: attentionPayload.acked === true,
-      degraded_reason: attentionFailed ? cleanText(attentionPayload.reason || 'attention_drain_failed', 160) : null,
+      degraded_reason: degradeOnFailure ? cleanText(attentionPayload.reason || 'attention_drain_failed', 160) : null,
+      transient_reason: attentionFailed && !degradeOnFailure
+        ? cleanText(attentionPayload.reason || 'attention_transient_failure', 160)
+        : null,
+      fail_streak: nextFailStreak,
       events
     },
     spine_status: snapshots.spine,
@@ -370,6 +427,7 @@ async function ingestOnce(args: Record<string, any>) {
     last_alert_ts: alerts.emitted ? envelope.ts : state.last_alert_ts || null,
     last_alert_count: Number(alerts.count || 0),
     last_attention_receipt_hash: attentionPayload.receipt_hash || null,
+    last_attention_fail_streak: nextFailStreak,
     consumer_id: consumerId,
     root
   });
@@ -394,6 +452,11 @@ async function status(args: Record<string, any>) {
     consumer_id: latest && latest.consumer_id || (state && state.consumer_id) || null,
     last_ingest_ts: latest && latest.ts || (state && state.last_ingest_ts) || null,
     last_batch_count: latest && latest.attention ? Number(latest.attention.batch_count || 0) : Number(state && state.last_batch_count || 0),
+    last_attention_fail_streak: Number(
+      latest && latest.attention && latest.attention.fail_streak != null
+        ? latest.attention.fail_streak
+        : state && state.last_attention_fail_streak || 0
+    ),
     receipt_hash: latest && latest.receipt_hash || null,
     alerts: {
       available: !!latestAlert,
