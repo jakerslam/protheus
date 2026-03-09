@@ -105,8 +105,7 @@ function dominantReason(harness: any, subscribeBatch: any) {
 function feelGrade(status: any, harness: any, subscribeBatch: any) {
   const ambient = !!(status && status.ambient_mode && status.ambient_mode.active === true);
   const harnessHealthy = !!(harness && harness.degraded !== true);
-  const batchCount = Number(subscribeBatch && subscribeBatch.batch_count || 0);
-  if (ambient && harnessHealthy && batchCount > 0) return 'mech_like';
+  if (ambient && harnessHealthy) return 'mech_like';
   if (ambient) return 'partial';
   return 'manual';
 }
@@ -230,4 +229,3 @@ if (require.main === module) {
     process.exit(1);
   });
 }
-
