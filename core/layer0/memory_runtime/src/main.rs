@@ -1,4 +1,5 @@
 mod db;
+mod wave1;
 
 use db::{DbIndexEntry, HotStateEnvelopeStats, MemoryDb};
 use serde::{Deserialize, Serialize};
@@ -2093,6 +2094,9 @@ fn run_daemon(args: &HashMap<String, String>) {
             ),
             "set-hot-state" => (set_hot_state_payload(&req_args), false),
             "get-hot-state" => (get_hot_state_payload(&req_args), false),
+            "memory-matrix" => (wave1::memory_matrix_payload(&req_args), false),
+            "memory-auto-recall" => (wave1::memory_auto_recall_payload(&req_args), false),
+            "dream-sequencer" => (wave1::dream_sequencer_payload(&req_args), false),
             "shutdown" => (
                 json!({
                     "ok": true,
@@ -2133,6 +2137,15 @@ fn main() {
         "verify-envelope" => run_verify_envelope(&kv),
         "set-hot-state" => run_set_hot_state(&kv),
         "get-hot-state" => run_get_hot_state(&kv),
+        "memory-matrix" => std::process::exit(wave1::print_payload_and_exit_code(
+            wave1::memory_matrix_payload(&kv),
+        )),
+        "memory-auto-recall" => std::process::exit(wave1::print_payload_and_exit_code(
+            wave1::memory_auto_recall_payload(&kv),
+        )),
+        "dream-sequencer" => std::process::exit(wave1::print_payload_and_exit_code(
+            wave1::dream_sequencer_payload(&kv),
+        )),
         "daemon" => run_daemon(&kv),
         _ => {
             eprintln!("unsupported command: {}", cmd);
