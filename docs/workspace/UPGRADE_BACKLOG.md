@@ -162,6 +162,20 @@ Source reference:
 | V6-SUBSTRATE-002.4 | blocked | Bioethics/consent policy gate contract for biological interaction | Biological stimulation/control requires human-governed ethics and consent boundaries beyond purely technical implementation. | Human-approved ethics/consent policy artifacts are linked (`HMAN-BIO-001`), Layer-1 policy lanes enforce revocable consent + high-risk disable paths, and all bio interactions are fully auditable via deterministic receipts. |
 | V6-SUBSTRATE-002.5 | queued | CLI/persona observability integration for biological substrate | Advanced users need explicit enablement/monitoring surfaces to safely use biological substrate adapters. | Add `protheus substrate enable biological` + monitoring surfaces in `protheus-top`/dashboard, and persona hooks for research/health workflows with policy-scoped activation receipts. |
 
+## Self-Hosted Observability + Orchestration + Incident Response Intake (xyOps, 2026-03-09)
+
+Source references:
+- https://x.com/ErickSky/status/2030813294521373039
+- https://github.com/pixlcore/xyops
+
+| ID | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|
+| V6-OBSERVABILITY-001.1 | queued | Real-time monitoring + intelligent alert context lane | Operators need live system/shadow health with auto-attached context to triage issues quickly. | `protheus-top`/dashboard surfaces live CPU/memory/network/process/agent-health telemetry with alert events that include snapshot/log/metric context and deterministic alert receipts. |
+| V6-OBSERVABILITY-001.2 | queued | Visual workflow editor + job scheduling lane | Complex automation requires a first-class workflow/scheduler surface beyond ad hoc command chains. | Add visual workflow editor + cron/event scheduling so users can run workflows via dashboard/CLI (`protheus orchestrate workflow`) with full receipt-audited execution traces. |
+| V6-OBSERVABILITY-001.3 | queued | Automatic incident-response orchestration lane | Reliability posture improves when incidents can trigger governed, deterministic auto-response playbooks. | Incident triggers run policy-bounded response actions (snapshots/log capture/recovery hooks/escalation) with deterministic receipts and explicit escalation path artifacts. |
+| V6-OBSERVABILITY-001.4 | queued | Self-hosted single-command deploy profile for observability stack | Adoption requires low-friction self-hosted deployment without vendor lock-in or mandatory telemetry. | Provide one-command self-hosted deployment profile (Docker-first) for monitoring/workflow/incident stack, with no mandatory external telemetry and deterministic deployment health receipts. |
+| V6-OBSERVABILITY-001.5 | queued | Conduit-only observability/workflow/incident control guardrails | Monitoring and response operations must remain Safety Plane governed and auditable. | Enforce Layer-0 conduit gates for all monitor/workflow/incident actions; every event/action yields deterministic receipts and bypass attempts fail closed under policy/capability checks. |
+
 ## Production-Grade Checklist Addendum (2026-03-06)
 
 | ID | Status | Upgrade | Why | Exit Criteria |
