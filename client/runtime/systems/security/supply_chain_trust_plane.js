@@ -1,3 +1,17 @@
 #!/usr/bin/env node
 'use strict';
-require('../../lib/ts_bootstrap.js').bootstrap(__filename, module);
+
+// Layer ownership: core/layer1/security (authoritative)
+const { runSecurityPlane, runSecurityPlaneCli } = require('../../lib/security_plane_bridge');
+
+function run(args = []) {
+  return runSecurityPlane('supply-chain-trust-plane', args);
+}
+
+if (require.main === module) {
+  runSecurityPlaneCli('supply-chain-trust-plane', process.argv.slice(2));
+}
+
+module.exports = {
+  run
+};
