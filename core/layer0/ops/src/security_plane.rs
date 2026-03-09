@@ -77,6 +77,36 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "dream-warden-guard" | "dream_warden_guard" => {
             infring_layer1_security::run_dream_warden_guard(root, rest)
         }
+        "copy-hardening-pack" | "copy_hardening_pack" => {
+            compatibility_security_command("copy-hardening-pack", rest)
+        }
+        "governance-hardening-pack" | "governance_hardening_pack" => {
+            compatibility_security_command("governance-hardening-pack", rest)
+        }
+        "repository-access-auditor" | "repository_access_auditor" => {
+            compatibility_security_command("repository-access-auditor", rest)
+        }
+        "operator-terms-ack" | "operator_terms_ack" => {
+            compatibility_security_command("operator-terms-ack", rest)
+        }
+        "governance-hardening-lane" | "governance_hardening_lane" => {
+            compatibility_security_command("governance-hardening-lane", rest)
+        }
+        "skill-install-path-enforcer" | "skill_install_path_enforcer" => {
+            compatibility_security_command("skill-install-path-enforcer", rest)
+        }
+        "skill-quarantine" | "skill_quarantine" => {
+            compatibility_security_command("skill-quarantine", rest)
+        }
+        "autonomous-skill-necessity-audit" | "autonomous_skill_necessity_audit" => {
+            compatibility_security_command("autonomous-skill-necessity-audit", rest)
+        }
+        "formal-invariant-engine" | "formal_invariant_engine" => {
+            compatibility_security_command("formal-invariant-engine", rest)
+        }
+        "repo-hygiene-guard" | "repo_hygiene_guard" => {
+            compatibility_security_command("repo-hygiene-guard", rest)
+        }
         "delegated-authority-branching" | "delegated_authority_branching" => {
             compatibility_security_command("delegated-authority-branching", rest)
         }
@@ -156,7 +186,17 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "protheus-ops security-plane capability-switchboard <status|evaluate|set> [flags]",
                     "protheus-ops security-plane black-box-ledger <rollup|verify|status> [flags]",
                     "protheus-ops security-plane goal-preservation-kernel <evaluate|status> [flags]",
-                    "protheus-ops security-plane dream-warden-guard <run|status> [flags]"
+                    "protheus-ops security-plane dream-warden-guard <run|status> [flags]",
+                    "protheus-ops security-plane copy-hardening-pack <command> [flags]",
+                    "protheus-ops security-plane governance-hardening-pack <command> [flags]",
+                    "protheus-ops security-plane repository-access-auditor <command> [flags]",
+                    "protheus-ops security-plane operator-terms-ack <command> [flags]",
+                    "protheus-ops security-plane governance-hardening-lane <command> [flags]",
+                    "protheus-ops security-plane skill-install-path-enforcer <command> [flags]",
+                    "protheus-ops security-plane skill-quarantine <command> [flags]",
+                    "protheus-ops security-plane autonomous-skill-necessity-audit <command> [flags]",
+                    "protheus-ops security-plane formal-invariant-engine <command> [flags]",
+                    "protheus-ops security-plane repo-hygiene-guard <command> [flags]"
                 ]
             }),
             2,

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// Layer ownership: core/layer1/security::operator-terms-ack (authoritative)
+// Layer ownership: core/layer1/security::autonomous-skill-necessity-audit (authoritative)
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge');
 
 process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS =
@@ -9,8 +9,8 @@ process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS =
 process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS =
   process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '2000';
 
-const SECURITY_CMD = 'operator-terms-ack';
-const bridge = createOpsLaneBridge(__dirname, 'operator_terms_ack', 'security-plane');
+const SECURITY_CMD = 'autonomous-skill-necessity-audit';
+const bridge = createOpsLaneBridge(__dirname, 'autonomous_skill_necessity_audit', 'security-plane');
 
 function runCore(args = []) {
   const out = bridge.run([SECURITY_CMD, ...(Array.isArray(args) ? args : [])]);
