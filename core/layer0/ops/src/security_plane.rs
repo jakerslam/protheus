@@ -65,6 +65,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "directive-hierarchy-controller" | "directive_hierarchy_controller" => {
             infring_layer1_security::run_directive_hierarchy_controller(root, rest)
         }
+        "integrity-kernel" | "integrity_kernel" => {
+            infring_layer1_security::run_integrity_kernel(root, rest)
+        }
+        "emergency-stop" | "emergency_stop" => {
+            infring_layer1_security::run_emergency_stop(root, rest)
+        }
         "capability-switchboard" | "capability_switchboard" => {
             infring_layer1_security::run_capability_switchboard(root, rest)
         }
@@ -254,6 +260,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "capability-lease",
                     "startup-attestation",
                     "directive-hierarchy-controller",
+                    "integrity-kernel",
+                    "emergency-stop",
                     "capability-switchboard",
                     "black-box-ledger",
                     "goal-preservation-kernel",
@@ -311,6 +319,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "protheus-ops security-plane capability-lease <issue|verify|consume> [flags]",
                     "protheus-ops security-plane startup-attestation <issue|verify|status> [flags]",
                     "protheus-ops security-plane directive-hierarchy-controller <status|decompose> [flags]",
+                    "protheus-ops security-plane integrity-kernel <run|status|seal> [flags]",
+                    "protheus-ops security-plane emergency-stop <status|engage|release> [flags]",
                     "protheus-ops security-plane capability-switchboard <status|evaluate|set> [flags]",
                     "protheus-ops security-plane black-box-ledger <rollup|verify|status> [flags]",
                     "protheus-ops security-plane goal-preservation-kernel <evaluate|status> [flags]",

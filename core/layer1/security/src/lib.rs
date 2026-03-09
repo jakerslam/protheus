@@ -765,6 +765,287 @@ pub fn run_integrity_reseal_assistant(repo_root: &Path, argv: &[String]) -> (Val
     }
 }
 
+fn emergency_stop_state_path(repo_root: &Path) -> PathBuf {
+    runtime_root(repo_root)
+        .join("state")
+        .join("security")
+        .join("emergency_stop.json")
+}
+
+fn emergency_stop_valid_scopes() -> Vec<&'static str> {
+    vec!["all", "autonomy", "routing", "actuation", "spine"]
+}
+
+fn emergency_stop_normalize_scopes(raw: Option<&str>) -> Vec<String> {
+    let valid = emergency_stop_valid_scopes();
+    let mut out = Vec::<String>::new();
+    let input = raw.unwrap_or("all");
+    for seg in input.split(',') {
+        let scope = clean(seg, 64).to_ascii_lowercase();
+        if scope.is_empty() {
+            continue;
+        }
+        if !valid.iter().any(|row| *row == scope) {
+            continue;
+        }
+        if !out.iter().any(|row| row == &scope) {
+            out.push(scope);
+        }
+    }
+    if out.is_empty() {
+        out.push("all".to_string());
+    }
+    if out.iter().any(|row| row == "all") {
+        return vec!["all".to_string()];
+    }
+    out.sort();
+    out
+}
+
+fn emergency_stop_state_default() -> Value {
+    json!({
+        "engaged": false,
+        "scopes": [],
+        "updated_at": Value::Null,
+        "reason": Value::Null,
+        "actor": Value::Null,
+        "approval_note": Value::Null
+    })
+}
+
+fn emergency_stop_load_state(repo_root: &Path) -> Value {
+    let path = emergency_stop_state_path(repo_root);
+    let raw = read_json_or(&path, emergency_stop_state_default());
+    let engaged = raw.get("engaged").and_then(Value::as_bool).unwrap_or(false);
+    let scopes = if engaged {
+        emergency_stop_normalize_scopes(
+            raw.get("scopes")
+                .and_then(Value::as_array)
+                .map(|rows| {
+                    rows.iter()
+                        .filter_map(Value::as_str)
+                        .collect::<Vec<_>>()
+                        .join(",")
+                })
+                .as_deref(),
+        )
+    } else {
+        Vec::new()
+    };
+    json!({
+        "engaged": engaged,
+        "scopes": scopes,
+        "updated_at": raw.get("updated_at").cloned().unwrap_or(Value::Null),
+        "reason": raw.get("reason").cloned().unwrap_or(Value::Null),
+        "actor": raw.get("actor").cloned().unwrap_or(Value::Null),
+        "approval_note": raw.get("approval_note").cloned().unwrap_or(Value::Null)
+    })
+}
+
+pub fn run_emergency_stop(repo_root: &Path, argv: &[String]) -> (Value, i32) {
+    let parsed = parse_args(argv);
+    let cmd = parsed
+        .positional
+        .first()
+        .map(|v| v.to_ascii_lowercase())
+        .unwrap_or_else(|| "help".to_string());
+    let state_path = emergency_stop_state_path(repo_root);
+
+    match cmd.as_str() {
+        "status" => (
+            json!({
+                "ok": true,
+                "type": "emergency_stop_status",
+                "ts": now_iso(),
+                "state": emergency_stop_load_state(repo_root)
+            }),
+            0,
+        ),
+        "engage" => {
+            let note = flag(&parsed, "approval-note")
+                .or_else(|| flag(&parsed, "approval_note"))
+                .map(|v| clean(v, 240))
+                .unwrap_or_default();
+            if note.len() < 10 {
+                return (
+                    json!({
+                        "ok": false,
+                        "error": "approval_note_too_short",
+                        "min_len": 10
+                    }),
+                    2,
+                );
+            }
+
+            let scopes = emergency_stop_normalize_scopes(flag(&parsed, "scope"));
+            let reason = flag(&parsed, "reason")
+                .map(|v| clean(v, 240))
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| "manual_emergency_stop".to_string());
+            let actor = flag(&parsed, "actor")
+                .map(|v| clean(v, 120))
+                .filter(|v| !v.is_empty())
+                .or_else(|| std::env::var("USER").ok())
+                .unwrap_or_else(|| "unknown".to_string());
+            let next = json!({
+                "engaged": true,
+                "scopes": scopes,
+                "updated_at": now_iso(),
+                "reason": reason,
+                "actor": actor,
+                "approval_note": note
+            });
+            if let Err(err) = write_json_atomic(&state_path, &next) {
+                return (
+                    json!({
+                        "ok": false,
+                        "error": clean(err, 220)
+                    }),
+                    1,
+                );
+            }
+            (
+                json!({
+                    "ok": true,
+                    "result": "engaged",
+                    "ts": now_iso(),
+                    "valid_scopes": emergency_stop_valid_scopes(),
+                    "state": next
+                }),
+                0,
+            )
+        }
+        "release" => {
+            let note = flag(&parsed, "approval-note")
+                .or_else(|| flag(&parsed, "approval_note"))
+                .map(|v| clean(v, 240))
+                .unwrap_or_default();
+            if note.len() < 10 {
+                return (
+                    json!({
+                        "ok": false,
+                        "error": "approval_note_too_short",
+                        "min_len": 10
+                    }),
+                    2,
+                );
+            }
+
+            let reason = flag(&parsed, "reason")
+                .map(|v| clean(v, 240))
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| "manual_release".to_string());
+            let actor = flag(&parsed, "actor")
+                .map(|v| clean(v, 120))
+                .filter(|v| !v.is_empty())
+                .or_else(|| std::env::var("USER").ok())
+                .unwrap_or_else(|| "unknown".to_string());
+            let next = json!({
+                "engaged": false,
+                "scopes": [],
+                "updated_at": now_iso(),
+                "reason": reason,
+                "actor": actor,
+                "approval_note": note
+            });
+            if let Err(err) = write_json_atomic(&state_path, &next) {
+                return (
+                    json!({
+                        "ok": false,
+                        "error": clean(err, 220)
+                    }),
+                    1,
+                );
+            }
+            (
+                json!({
+                    "ok": true,
+                    "result": "released",
+                    "ts": now_iso(),
+                    "state": next
+                }),
+                0,
+            )
+        }
+        _ => (
+            json!({
+                "ok": false,
+                "error": "unknown_command",
+                "usage": [
+                    "emergency-stop status",
+                    "emergency-stop engage --scope=<all|autonomy|routing|actuation|spine[,..]> --approval-note=<text>",
+                    "emergency-stop release --approval-note=<text>"
+                ]
+            }),
+            2,
+        ),
+    }
+}
+
+pub fn run_integrity_kernel(repo_root: &Path, argv: &[String]) -> (Value, i32) {
+    let parsed = parse_args(argv);
+    let cmd = parsed
+        .positional
+        .first()
+        .map(|v| v.to_ascii_lowercase())
+        .unwrap_or_else(|| "help".to_string());
+    let policy = flag(&parsed, "policy").map(ToString::to_string);
+
+    match cmd.as_str() {
+        "run" | "status" => {
+            let mut args = vec!["check".to_string()];
+            if let Some(policy_path) = policy {
+                args.push(format!("--policy={policy_path}"));
+            }
+            let (check, code) = run_integrity_reseal(repo_root, &args);
+            (
+                json!({
+                    "ok": code == 0,
+                    "type": "integrity_kernel_status",
+                    "ts": now_iso(),
+                    "kernel": check
+                }),
+                code,
+            )
+        }
+        "seal" => {
+            let note = flag(&parsed, "approval-note")
+                .or_else(|| flag(&parsed, "approval_note"))
+                .map(ToString::to_string)
+                .unwrap_or_default();
+            let mut args = vec![
+                "apply".to_string(),
+                format!("--approval-note={}", clean(note, 240)),
+            ];
+            if let Some(policy_path) = policy {
+                args.push(format!("--policy={policy_path}"));
+            }
+            let (apply, code) = run_integrity_reseal(repo_root, &args);
+            (
+                json!({
+                    "ok": code == 0,
+                    "type": "integrity_kernel_seal",
+                    "ts": now_iso(),
+                    "kernel": apply
+                }),
+                code,
+            )
+        }
+        _ => (
+            json!({
+                "ok": false,
+                "error": "unknown_command",
+                "usage": [
+                    "integrity-kernel run [--policy=<path>]",
+                    "integrity-kernel status [--policy=<path>]",
+                    "integrity-kernel seal --approval-note=<text> [--policy=<path>]"
+                ]
+            }),
+            2,
+        ),
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 struct LeaseState {
