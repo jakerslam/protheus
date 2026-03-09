@@ -153,6 +153,148 @@ fn clean_text(value: Option<&str>, max_len: usize) -> String {
     out.trim().to_string()
 }
 
+fn estimate_tokens(value: &Value) -> i64 {
+    let rendered = serde_json::to_string(value).unwrap_or_default();
+    ((rendered.chars().count() + 3) / 4) as i64
+}
+
+fn parse_arg_value(memory_args: &[String], key: &str) -> Option<String> {
+    let exact = format!("--{key}");
+    let pref = format!("--{key}=");
+    let mut i = 0usize;
+    while i < memory_args.len() {
+        let token = memory_args[i].as_str();
+        if token == exact {
+            if let Some(next) = memory_args.get(i + 1) {
+                if !next.starts_with("--") {
+                    return Some(next.clone());
+                }
+            }
+            return Some(String::new());
+        }
+        if let Some(value) = token.strip_prefix(&pref) {
+            return Some(value.to_string());
+        }
+        i += 1;
+    }
+    None
+}
+
+fn command_label(memory_command: &str) -> String {
+    match memory_command {
+        "query-index" => "query".to_string(),
+        "get-node" => "get".to_string(),
+        other => other.to_string(),
+    }
+}
+
+fn classify_retrieval_mode(memory_command: &str, memory_args: &[String]) -> String {
+    if memory_command == "get-node" {
+        return "node_read".to_string();
+    }
+    if memory_command != "query-index" {
+        return "index_only".to_string();
+    }
+    let expand_lines = parse_arg_value(memory_args, "expand-lines")
+        .and_then(|value| value.parse::<i64>().ok())
+        .unwrap_or(0);
+    if expand_lines >= 120 {
+        return "full_file".to_string();
+    }
+    if expand_lines > 0 {
+        return "node_read".to_string();
+    }
+    "index_only".to_string()
+}
+
+fn token_threshold() -> i64 {
+    std::env::var("MEMORY_RECALL_TOKEN_BURN_THRESHOLD")
+        .ok()
+        .and_then(|raw| raw.trim().parse::<i64>().ok())
+        .filter(|value| *value >= 50)
+        .unwrap_or(200)
+}
+
+fn telemetry_reasons(
+    retrieval_mode: &str,
+    total_tokens: i64,
+    threshold_tokens: i64,
+    memory_args: &[String],
+) -> Vec<String> {
+    let mut out = Vec::new();
+    match retrieval_mode {
+        "full_file" => out.push("full_file_mode".to_string()),
+        "node_read" => out.push("node_expansion_path".to_string()),
+        _ => out.push("index_first_path".to_string()),
+    }
+
+    let expand_lines = parse_arg_value(memory_args, "expand-lines")
+        .and_then(|value| value.parse::<i64>().ok())
+        .unwrap_or(0);
+    if expand_lines > 40 {
+        out.push("large_expand_lines".to_string());
+    }
+    if total_tokens > threshold_tokens {
+        out.push("high_burn_threshold_exceeded".to_string());
+    }
+    out
+}
+
+fn build_token_telemetry(memory_command: &str, memory_args: &[String], payload: &Value) -> Value {
+    let command = command_label(memory_command);
+    let retrieval_mode = classify_retrieval_mode(memory_command, memory_args);
+    let threshold_tokens = token_threshold();
+    let retrieval_input = json!({
+        "cmd": command,
+        "q": parse_arg_value(memory_args, "q").unwrap_or_default(),
+        "tags": parse_arg_value(memory_args, "tags").unwrap_or_default(),
+        "top": parse_arg_value(memory_args, "top").unwrap_or_default(),
+        "expand_lines": parse_arg_value(memory_args, "expand-lines").unwrap_or_default(),
+        "node_id": parse_arg_value(memory_args, "node-id").unwrap_or_default(),
+        "uid": parse_arg_value(memory_args, "uid").unwrap_or_default(),
+        "args_count": memory_args.len()
+    });
+    let hydration_tokens = 0_i64;
+    let retrieval_tokens = estimate_tokens(&retrieval_input);
+    let response_tokens = estimate_tokens(payload);
+    let total_tokens = hydration_tokens + retrieval_tokens + response_tokens;
+    let reason_codes =
+        telemetry_reasons(&retrieval_mode, total_tokens, threshold_tokens, memory_args);
+
+    json!({
+        "version": "1.0",
+        "command": command,
+        "retrieval_mode": retrieval_mode,
+        "threshold_tokens": threshold_tokens,
+        "tokens": {
+            "hydration": hydration_tokens,
+            "retrieval": retrieval_tokens,
+            "response": response_tokens,
+            "total": total_tokens
+        },
+        "reason_codes": reason_codes
+    })
+}
+
+fn token_telemetry_path(root: &Path) -> PathBuf {
+    if let Ok(custom) = std::env::var("MEMORY_RECALL_TOKEN_TELEMETRY_PATH") {
+        let trimmed = custom.trim();
+        if !trimmed.is_empty() {
+            let candidate = PathBuf::from(trimmed);
+            if candidate.is_absolute() {
+                return candidate;
+            }
+            return root.join(candidate);
+        }
+    }
+    root.join("client")
+        .join("runtime")
+        .join("local")
+        .join("state")
+        .join("memory")
+        .join("query_token_metrics.jsonl")
+}
+
 fn normalize_path(root: &Path, value: Option<&Value>, fallback: &str) -> PathBuf {
     let raw = value
         .and_then(Value::as_str)
@@ -195,22 +337,22 @@ fn load_policy(root: &Path) -> MemoryAmbientPolicy {
         .map(|p| if p.is_absolute() { p } else { root.join(p) })
         .unwrap_or(default_policy);
     let policy = read_json(&policy_path).unwrap_or_else(|| json!({}));
-    let enabled = bool_from_env("MECH_SUIT_MODE_FORCE")
-        .unwrap_or_else(|| policy.get("enabled").and_then(Value::as_bool).unwrap_or(true));
+    let enabled = bool_from_env("MECH_SUIT_MODE_FORCE").unwrap_or_else(|| {
+        policy
+            .get("enabled")
+            .and_then(Value::as_bool)
+            .unwrap_or(true)
+    });
     let eyes = policy.get("eyes");
     let receipts = policy.get("receipts");
     let memory = policy.get("memory");
     let state = policy.get("state");
 
-    let surface_levels = parse_string_array(
-        memory.and_then(|v| v.get("surface_levels")),
-        6,
-        24,
-    )
-    .into_iter()
-    .map(|row| row.to_ascii_lowercase())
-    .filter(|row| matches!(row.as_str(), "critical" | "warn" | "info"))
-    .collect::<Vec<_>>();
+    let surface_levels = parse_string_array(memory.and_then(|v| v.get("surface_levels")), 6, 24)
+        .into_iter()
+        .map(|row| row.to_ascii_lowercase())
+        .filter(|row| matches!(row.as_str(), "critical" | "warn" | "info"))
+        .collect::<Vec<_>>();
 
     MemoryAmbientPolicy {
         enabled,
@@ -314,7 +456,10 @@ fn resolve_protheus_ops_command(root: &PathBuf, domain: &str) -> (String, Vec<St
     }
     let debug = root.join("target").join("debug").join("protheus-ops");
     if debug.exists() {
-        return (debug.to_string_lossy().to_string(), vec![domain.to_string()]);
+        return (
+            debug.to_string_lossy().to_string(),
+            vec![domain.to_string()],
+        );
     }
 
     (
@@ -609,7 +754,12 @@ fn update_mech_suit_status(policy: &MemoryAmbientPolicy, patch: Value) {
     );
 }
 
-fn cli_error_receipt(policy: &MemoryAmbientPolicy, command: &str, reason: &str, exit_code: i32) -> Value {
+fn cli_error_receipt(
+    policy: &MemoryAmbientPolicy,
+    command: &str,
+    reason: &str,
+    exit_code: i32,
+) -> Value {
     let mut out = json!({
         "ok": false,
         "type": "memory_ambient_error",
@@ -701,7 +851,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if command == "status" {
         let latest = read_json(&policy.latest_path).unwrap_or_else(|| json!({}));
-        let status_source = if latest.get("type").and_then(Value::as_str) == Some("memory_ambient") {
+        let status_source = if latest.get("type").and_then(Value::as_str) == Some("memory_ambient")
+        {
             "cached_latest"
         } else {
             "cold_status"
@@ -734,17 +885,19 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         return 2;
     }
 
-    let invocation = match extract_memory_invocation(&argv.iter().skip(1).cloned().collect::<Vec<_>>()) {
-        Ok(v) => v,
-        Err(reason) => {
-            let receipt = cli_error_receipt(&policy, &command, &reason, 2);
-            println!(
-                "{}",
-                serde_json::to_string(&receipt).unwrap_or_else(|_| "{\"ok\":false}".to_string())
-            );
-            return 2;
-        }
-    };
+    let invocation =
+        match extract_memory_invocation(&argv.iter().skip(1).cloned().collect::<Vec<_>>()) {
+            Ok(v) => v,
+            Err(reason) => {
+                let receipt = cli_error_receipt(&policy, &command, &reason, 2);
+                println!(
+                    "{}",
+                    serde_json::to_string(&receipt)
+                        .unwrap_or_else(|_| "{\"ok\":false}".to_string())
+                );
+                return 2;
+            }
+        };
 
     let (memory_command, memory_args, run_context) = invocation;
     if memory_command == "cryonics-tier" {
@@ -787,21 +940,19 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         return 1;
     }
 
-    let (memory_payload, stdout, stderr, exit_code, command_info) = match run_memory_command(
-        root,
-        &memory_command,
-        &memory_args,
-    ) {
-        Ok(value) => value,
-        Err(reason) => {
-            let receipt = cli_error_receipt(&policy, &command, &reason, 1);
-            println!(
-                "{}",
-                serde_json::to_string(&receipt).unwrap_or_else(|_| "{\"ok\":false}".to_string())
-            );
-            return 1;
-        }
-    };
+    let (memory_payload, stdout, stderr, exit_code, command_info) =
+        match run_memory_command(root, &memory_command, &memory_args) {
+            Ok(value) => value,
+            Err(reason) => {
+                let receipt = cli_error_receipt(&policy, &command, &reason, 1);
+                println!(
+                    "{}",
+                    serde_json::to_string(&receipt)
+                        .unwrap_or_else(|_| "{\"ok\":false}".to_string())
+                );
+                return 1;
+            }
+        };
 
     let memory_ok = memory_payload
         .get("ok")
@@ -819,6 +970,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     } else {
         format!("memory op failed ({memory_command})")
     };
+    let token_telemetry = build_token_telemetry(&memory_command, &memory_args, &memory_payload);
 
     let attention_queue = if surfaced {
         match enqueue_attention(
@@ -834,7 +986,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 let receipt = cli_error_receipt(&policy, &command, &reason, 1);
                 println!(
                     "{}",
-                    serde_json::to_string(&receipt).unwrap_or_else(|_| "{\"ok\":false}".to_string())
+                    serde_json::to_string(&receipt)
+                        .unwrap_or_else(|_| "{\"ok\":false}".to_string())
                 );
                 return 1;
             }
@@ -867,9 +1020,43 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "stdout": if op_ok && policy.quiet_non_critical { "".to_string() } else { clean_text(Some(&stdout), 2_000) },
         "stderr": clean_text(Some(&stderr), 2_000),
         "exit_code": exit_code,
+        "token_telemetry": token_telemetry,
         "policy": policy_snapshot(&policy)
     });
     receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
+
+    append_jsonl(
+        &token_telemetry_path(root),
+        &json!({
+            "ts": now_iso(),
+            "lane": "memory_recall",
+            "retrieval_mode": receipt
+                .get("token_telemetry")
+                .and_then(|v| v.get("retrieval_mode"))
+                .and_then(Value::as_str)
+                .unwrap_or("index_only"),
+            "reason_codes": receipt
+                .get("token_telemetry")
+                .and_then(|v| v.get("reason_codes"))
+                .cloned()
+                .unwrap_or_else(|| json!([])),
+            "tokens": receipt
+                .get("token_telemetry")
+                .and_then(|v| v.get("tokens"))
+                .cloned()
+                .unwrap_or_else(|| json!({})),
+            "threshold_tokens": receipt
+                .get("token_telemetry")
+                .and_then(|v| v.get("threshold_tokens"))
+                .and_then(Value::as_i64)
+                .unwrap_or(200),
+            "command": receipt
+                .get("token_telemetry")
+                .and_then(|v| v.get("command"))
+                .and_then(Value::as_str)
+                .unwrap_or("query")
+        }),
+    );
 
     write_json(&policy.latest_path, &receipt);
     append_jsonl(&policy.receipts_path, &receipt);
@@ -899,7 +1086,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         serde_json::to_string(&receipt).unwrap_or_else(|_| "{\"ok\":false}".to_string())
     );
 
-    if op_ok { 0 } else { 1 }
+    if op_ok {
+        0
+    } else {
+        1
+    }
 }
 
 #[cfg(test)]
