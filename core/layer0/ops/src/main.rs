@@ -52,6 +52,7 @@ fn usage() {
     println!("  protheus-ops personas-cli <command> [flags]");
     println!("  protheus-ops assimilation-controller <command> [flags]");
     println!("  protheus-ops sensory-eyes-intake <command> [flags]");
+    println!("  protheus-ops spawn-broker <status|request|release> [flags]");
     println!("  protheus-ops execution-yield-recovery <command> [flags]");
     println!("  protheus-ops protheus-control-plane <command> [flags]");
     println!("  protheus-ops rust50-migration-program <command> [flags]");
@@ -386,6 +387,11 @@ fn main() {
         "sensory-eyes-intake" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::sensory_eyes_intake::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "spawn-broker" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::spawn_broker::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "execution-yield-recovery" => {
