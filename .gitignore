@@ -190,6 +190,8 @@ apps/*
 !apps/comment-matrix/**
 !apps/photo-grit/
 !apps/photo-grit/**
+!apps/ad_factory/
+!apps/ad_factory/**
 
 # Unified local runtime partitions (instance-specific)
 /client/local/
