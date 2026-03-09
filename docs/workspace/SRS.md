@@ -269,6 +269,22 @@ Notes:
 | V6-NETWORK-001.5 | queued | One-command browser/CLI node onboarding lane (`protheus node join`) | Distributed adoption depends on low-friction node spawn/join flows across CLI and web onboarding paths. | Add CLI + browser onboarding contracts that register nodes, complete identity/capability handshake, and join gossip mesh with deterministic join receipts and fail-closed policy gates. |
 | V6-NETWORK-001.6 | queued | Conduit-only network safety guardrails + full activity audit lane | Gossip/compute-share actions can widen risk surface unless constrained by explicit capability/policy checks. | Enforce Layer-0 conduit checks for all network discovery, gossip exchange, compute-share, idle behavior, and credit mutations; bypass attempts fail closed and all actions emit deterministic audit receipts. |
 
+## The Agency Specialized Division Templates Intake (2026-03-09)
+
+Source references:
+- https://x.com/meta_alchemist/status/2030640919268254048
+
+Notes:
+- Proposed for next Snowball after Coreization Wave 1.
+- This intake complements prior agency/company items with concrete startup-division template coverage and role-pack scale.
+
+| ID | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|
+| V6-COCKPIT-013.1 | queued | Division-based agency template pack (9 startup divisions) | Operators need one-command structured team deployment across common startup functions instead of manual role assembly. | `protheus orchestrate agency startup-mvp` provisions policy-scoped teams across Engineering, Design, Marketing, Product, Project Management, Testing, Support, Spatial Computing, and Specialized divisions with reporting-line artifacts and deterministic orchestration receipts. |
+| V6-COCKPIT-013.2 | queued | Specialized role template library expansion (target 61 templates) | Startup agency utility depends on rich ready-to-run role templates with bounded tools, workflows, and success metrics. | Add role-template registry supporting 61 specialized agents (e.g., frontend wizard, growth hacker, reality checker, community roles) where `protheus shadow create --role <role>` yields deterministic template activation receipts and default deliverable contracts. |
+| V6-COCKPIT-013.3 | queued | Vibe-coding + workflow automation agency run mode | Teams should be able to collaboratively operate projects and automate recurring workflows under governed handoffs. | Extend orchestrator workflows so division agents can run collaborative coding/ops automations with explicit handoff states, deliverable metrics, and deterministic parent-child receipt chaining. |
+| V6-COCKPIT-013.4 | queued | Conduit-only agency orchestration guardrails for division templates | Expanded role/division automation must remain strictly Safety Plane governed with full auditability. | Enforce Layer-0 conduit checks for all division orchestration, role activation, tool use, and workflow handoffs; bypass attempts fail closed and every agency operation emits deterministic receipts. |
+
 ## Production-Grade Checklist Addendum (2026-03-06)
 
 | ID | Status | Upgrade | Why | Exit Criteria |
