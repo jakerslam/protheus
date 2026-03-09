@@ -277,6 +277,22 @@ Notes:
 | V6-SUBSTRATE-003.4 | queued | Conduit-routed browser inference guardrails + token-stream receipts | High-speed browser inference must remain Safety Plane governed despite client-local execution paths. | Enforce conduit-only invocation and deterministic token-stream receipt logging for browser inference calls; bypass attempts fail closed with policy denial receipts. |
 | V6-SUBSTRATE-003.5 | queued | Persona/shadow substrate switch contract (`protheus substrate enable webgpu`) | Operators need explicit routing controls to use browser-native inference for privacy-sensitive or edge-constrained tasks. | Add substrate switch/selection contract and thin client wrappers so shadows/personas can select `webgpu` profile under policy/budget gates with observability metrics (tokens/s, latency, fallback reason) in receipts. |
 
+## Context Doctor Bootstrap Health Monitor Intake (2026-03-09)
+
+Source references:
+- https://x.com/xxx111god/status/2030661557873451370
+
+Notes:
+- Proposed for next Snowball after Coreization Wave 1.
+- Focuses on bootstrap-memory integrity diagnostics with clear operator-readable status and receipt-backed automation.
+
+| ID | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|
+| V6-COCKPIT-014.1 | queued | Three-signal bootstrap context health diagnostic lane | Long sessions degrade reliability when bootstrap memory is truncated/missing without explicit operator signal. | Add `context doctor` diagnostic lane that reports `TRUNCATED`, `MISSING`, and `HEALTHY (<10% bootstrap budget)` statuses with file-level token counts and deterministic health receipts. |
+| V6-COCKPIT-014.2 | queued | Visual + JSON/export diagnostic output contract | Diagnostics must be consumable by terminal operators, dashboards, and automation lanes. | `protheus context doctor` supports terminal summary plus machine output (`json`) and image export contract (`png`) suitable for observability surfaces and artifact attachments. |
+| V6-COCKPIT-014.3 | queued | Installable `context-doctor` skill package lane | Tooling adoption improves when diagnostic logic is distributed as a first-class installable skill surface. | Add install/run contract (`protheus skill install context-doctor`, `protheus context doctor`) with workspace scan defaults and deterministic install/run receipts. |
+| V6-COCKPIT-014.4 | queued | Conduit-only context diagnostic guardrails + audit lane | Context health checks must remain Safety Plane governed and auditable like other cockpit operations. | Enforce Layer-0 conduit checks for all context-doctor scans/exports/scheduled runs; bypass attempts fail closed and every diagnostic action emits deterministic receipts. |
+
 ## Production-Grade Checklist Addendum (2026-03-06)
 
 | ID | Status | Upgrade | Why | Exit Criteria |
