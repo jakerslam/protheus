@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// Layer ownership: core/layer1/security::ip-posture-review (authoritative)
+// Layer ownership: core/layer1/security::skill-install-enforcer (authoritative)
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge');
 
 process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS =
@@ -9,8 +9,8 @@ process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS =
 process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS =
   process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '2000';
 
-const SECURITY_CMD = 'ip-posture-review';
-const bridge = createOpsLaneBridge(__dirname, 'ip_posture_review', 'security-plane');
+const SECURITY_CMD = 'skill-install-enforcer';
+const bridge = createOpsLaneBridge(__dirname, 'skill_install_enforcer', 'security-plane');
 
 function runCore(args = []) {
   const out = bridge.run([SECURITY_CMD, ...(Array.isArray(args) ? args : [])]);
