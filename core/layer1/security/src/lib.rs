@@ -17,6 +17,13 @@ use walkdir::WalkDir;
 
 type HmacSha256 = Hmac<Sha256>;
 
+mod security_planes;
+
+pub use security_planes::{
+    run_anti_sabotage_shield, run_constitution_guardian, run_guard, run_remote_emergency_halt,
+    run_soul_token_guard,
+};
+
 #[derive(Debug, Clone, Default)]
 pub struct ParsedArgs {
     pub positional: Vec<String>,

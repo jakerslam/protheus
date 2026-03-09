@@ -21,6 +21,19 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let rest = if argv.is_empty() { &[][..] } else { &argv[1..] };
 
     let (payload, code) = match cmd.as_str() {
+        "guard" => infring_layer1_security::run_guard(root, rest),
+        "anti-sabotage-shield" | "anti_sabotage_shield" => {
+            infring_layer1_security::run_anti_sabotage_shield(root, rest)
+        }
+        "constitution-guardian" | "constitution_guardian" => {
+            infring_layer1_security::run_constitution_guardian(root, rest)
+        }
+        "remote-emergency-halt" | "remote_emergency_halt" => {
+            infring_layer1_security::run_remote_emergency_halt(root, rest)
+        }
+        "soul-token-guard" | "soul_token_guard" => {
+            infring_layer1_security::run_soul_token_guard(root, rest)
+        }
         "integrity-reseal" | "integrity_reseal" => {
             infring_layer1_security::run_integrity_reseal(root, rest)
         }
@@ -39,6 +52,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "type": "security_plane_status",
                 "lane": "core/layer1/security",
                 "commands": [
+                    "guard",
+                    "anti-sabotage-shield",
+                    "constitution-guardian",
+                    "remote-emergency-halt",
+                    "soul-token-guard",
                     "integrity-reseal",
                     "integrity-reseal-assistant",
                     "capability-lease",
@@ -53,6 +71,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "type": "security_plane_error",
                 "error": format!("unknown_command:{}", clean(cmd, 120)),
                 "usage": [
+                    "protheus-ops security-plane guard [--files=<a,b,c>] [--strict=1|0]",
+                    "protheus-ops security-plane anti-sabotage-shield <snapshot|verify|watch|status> [flags]",
+                    "protheus-ops security-plane constitution-guardian <init-genesis|propose-change|approve-change|veto-change|run-gauntlet|activate-change|enforce-inheritance|emergency-rollback|status> [flags]",
+                    "protheus-ops security-plane remote-emergency-halt <status|sign-halt|sign-purge|receive|receive-b64> [flags]",
+                    "protheus-ops security-plane soul-token-guard <issue|stamp-build|verify|status> [flags]",
                     "protheus-ops security-plane integrity-reseal <check|apply> [flags]",
                     "protheus-ops security-plane integrity-reseal-assistant <run|status> [flags]",
                     "protheus-ops security-plane capability-lease <issue|verify|consume> [flags]",

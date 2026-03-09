@@ -21,7 +21,7 @@ fn usage() {
     println!("  protheus-ops model-router <args>");
     println!("  protheus-ops ab-lane-eval <status|run> [flags]");
     println!("  protheus-ops contract-check <args>");
-    println!("  protheus-ops security-plane <integrity-reseal|integrity-reseal-assistant|capability-lease|startup-attestation|status> [flags]");
+    println!("  protheus-ops security-plane <guard|anti-sabotage-shield|constitution-guardian|remote-emergency-halt|soul-token-guard|integrity-reseal|integrity-reseal-assistant|capability-lease|startup-attestation|status> [flags]");
     println!("  protheus-ops enterprise-hardening <run|status> [--strict=1|0] [--policy=<path>]");
     println!("  protheus-ops rollout-rings <status|evaluate> [flags]");
     println!("  protheus-ops strategy-mode-governor <args>");
