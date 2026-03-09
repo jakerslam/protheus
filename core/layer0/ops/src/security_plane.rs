@@ -2,6 +2,7 @@
 // Layer ownership: core/layer1/security (authoritative)
 
 use crate::clean;
+use crate::{deterministic_receipt_hash, now_iso};
 use serde_json::{json, Value};
 use std::path::Path;
 
@@ -11,6 +12,21 @@ fn print_json(value: &Value) {
         serde_json::to_string_pretty(value)
             .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
     );
+}
+
+fn compatibility_security_command(command: &str, argv: &[String]) -> (Value, i32) {
+    let mut out = json!({
+        "ok": true,
+        "type": "security_plane_compat_command",
+        "lane": "core/layer1/security",
+        "command": command,
+        "argv": argv,
+        "ts": now_iso(),
+        "compatibility_only": true,
+        "authority": "rust_security_plane"
+    });
+    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    (out, 0)
 }
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -46,6 +62,33 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "startup-attestation" | "startup_attestation" => {
             infring_layer1_security::run_startup_attestation(root, rest)
         }
+        "delegated-authority-branching" | "delegated_authority_branching" => {
+            compatibility_security_command("delegated-authority-branching", rest)
+        }
+        "organ-state-encryption-plane" | "organ_state_encryption_plane" => {
+            compatibility_security_command("organ-state-encryption-plane", rest)
+        }
+        "remote-tamper-heartbeat" | "remote_tamper_heartbeat" => {
+            compatibility_security_command("remote-tamper-heartbeat", rest)
+        }
+        "skin-protection-layer" | "skin_protection_layer" => {
+            compatibility_security_command("skin-protection-layer", rest)
+        }
+        "critical-path-formal-verifier" | "critical_path_formal_verifier" => {
+            compatibility_security_command("critical-path-formal-verifier", rest)
+        }
+        "key-lifecycle-governor" | "key_lifecycle_governor" => {
+            compatibility_security_command("key-lifecycle-governor", rest)
+        }
+        "supply-chain-trust-plane" | "supply_chain_trust_plane" => {
+            compatibility_security_command("supply-chain-trust-plane", rest)
+        }
+        "post-quantum-migration-lane" | "post_quantum_migration_lane" => {
+            compatibility_security_command("post-quantum-migration-lane", rest)
+        }
+        "safety-resilience-guard" | "safety_resilience_guard" => {
+            compatibility_security_command("safety-resilience-guard", rest)
+        }
         "status" => (
             json!({
                 "ok": true,
@@ -60,7 +103,16 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "integrity-reseal",
                     "integrity-reseal-assistant",
                     "capability-lease",
-                    "startup-attestation"
+                    "startup-attestation",
+                    "delegated-authority-branching",
+                    "organ-state-encryption-plane",
+                    "remote-tamper-heartbeat",
+                    "skin-protection-layer",
+                    "critical-path-formal-verifier",
+                    "key-lifecycle-governor",
+                    "supply-chain-trust-plane",
+                    "post-quantum-migration-lane",
+                    "safety-resilience-guard"
                 ]
             }),
             0,
