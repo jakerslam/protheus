@@ -1,36 +1,12 @@
 #!/usr/bin/env node
+// @ts-nocheck
 'use strict';
-
-/**
- * Runtime lane for SYSTEMS-SECURITY-ALIAS-VERIFICATION-VAULT.
- * Native execution delegated to Rust legacy-retired-lane runtime.
- */
-
-const fs = require('fs');
-const path = require('path');
-
-function findRepoRoot(startDir) {
-  let dir = path.resolve(startDir || process.cwd());
-  while (true) {
-    if (fs.existsSync(path.join(dir, 'Cargo.toml')) && fs.existsSync(path.join(dir, 'crates', 'ops', 'Cargo.toml'))) {
-      return dir;
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) return process.cwd();
-    dir = parent;
-  }
-}
-
-const ROOT = findRepoRoot(__dirname);
-const { createLaneModule } = require(path.join(ROOT, 'lib', 'legacy_retired_lane_bridge.js'));
-
-const lane = createLaneModule('SYSTEMS-SECURITY-ALIAS-VERIFICATION-VAULT', ROOT);
-const { LANE_ID, buildLaneReceipt, verifyLaneReceipt } = lane;
-
-module.exports = lane;
-
-if (require.main === module) {
-  console.log(JSON.stringify(buildLaneReceipt(), null, 2));
-}
-
 export {};
+const path = require('path');
+const { spawnSync } = require('child_process');
+const JS_ENTRY = path.join(__dirname, 'alias_verification_vault.js');
+if (require.main === module) {
+  const out = spawnSync(process.execPath, [JS_ENTRY, ...process.argv.slice(2)], { stdio: 'inherit' });
+  process.exit(Number.isFinite(out && out.status) ? Number(out.status) : 1);
+}
+module.exports = require('./alias_verification_vault.js');
