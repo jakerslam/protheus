@@ -164,6 +164,41 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "dire-case-emergency-autonomy-protocol" | "dire_case_emergency_autonomy_protocol" => {
             compatibility_security_command("dire-case-emergency-autonomy-protocol", rest)
         }
+        "supply-chain-reproducible-build-plane" | "supply_chain_reproducible_build_plane" => {
+            compatibility_security_command("supply-chain-reproducible-build-plane", rest)
+        }
+        "signed-plugin-trust-marketplace" | "signed_plugin_trust_marketplace" => {
+            compatibility_security_command("signed-plugin-trust-marketplace", rest)
+        }
+        "phoenix-protocol-respawn-continuity" | "phoenix_protocol_respawn_continuity" => {
+            compatibility_security_command("phoenix-protocol-respawn-continuity", rest)
+        }
+        "multi-mind-isolation-boundary-plane" | "multi_mind_isolation_boundary_plane" => {
+            compatibility_security_command("multi-mind-isolation-boundary-plane", rest)
+        }
+        "irrevocable-geas-covenant" | "irrevocable_geas_covenant" => {
+            compatibility_security_command("irrevocable-geas-covenant", rest)
+        }
+        "insider-threat-split-trust-command-governance"
+        | "insider_threat_split_trust_command_governance" => {
+            compatibility_security_command("insider-threat-split-trust-command-governance", rest)
+        }
+        "independent-safety-coprocessor-veto-plane"
+        | "independent_safety_coprocessor_veto_plane" => {
+            compatibility_security_command("independent-safety-coprocessor-veto-plane", rest)
+        }
+        "hardware-root-of-trust-attestation-mesh" | "hardware_root_of_trust_attestation_mesh" => {
+            compatibility_security_command("hardware-root-of-trust-attestation-mesh", rest)
+        }
+        "formal-threat-modeling-engine" | "formal_threat_modeling_engine" => {
+            compatibility_security_command("formal-threat-modeling-engine", rest)
+        }
+        "formal-mind-sovereignty-verification" | "formal_mind_sovereignty_verification" => {
+            compatibility_security_command("formal-mind-sovereignty-verification", rest)
+        }
+        "alias-verification-vault" | "alias_verification_vault" => {
+            compatibility_security_command("alias-verification-vault", rest)
+        }
         "delegated-authority-branching" | "delegated_authority_branching" => {
             compatibility_security_command("delegated-authority-branching", rest)
         }
@@ -228,7 +263,18 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "required-checks-policy-guard",
                     "mcp-a2a-venom-contract-gate",
                     "critical-runtime-formal-depth-pack",
-                    "dire-case-emergency-autonomy-protocol"
+                    "dire-case-emergency-autonomy-protocol",
+                    "supply-chain-reproducible-build-plane",
+                    "signed-plugin-trust-marketplace",
+                    "phoenix-protocol-respawn-continuity",
+                    "multi-mind-isolation-boundary-plane",
+                    "irrevocable-geas-covenant",
+                    "insider-threat-split-trust-command-governance",
+                    "independent-safety-coprocessor-veto-plane",
+                    "hardware-root-of-trust-attestation-mesh",
+                    "formal-threat-modeling-engine",
+                    "formal-mind-sovereignty-verification",
+                    "alias-verification-vault"
                 ]
             }),
             0,
@@ -271,7 +317,18 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "protheus-ops security-plane required-checks-policy-guard <command> [flags]",
                     "protheus-ops security-plane mcp-a2a-venom-contract-gate <command> [flags]",
                     "protheus-ops security-plane critical-runtime-formal-depth-pack <command> [flags]",
-                    "protheus-ops security-plane dire-case-emergency-autonomy-protocol <command> [flags]"
+                    "protheus-ops security-plane dire-case-emergency-autonomy-protocol <command> [flags]",
+                    "protheus-ops security-plane supply-chain-reproducible-build-plane <command> [flags]",
+                    "protheus-ops security-plane signed-plugin-trust-marketplace <command> [flags]",
+                    "protheus-ops security-plane phoenix-protocol-respawn-continuity <command> [flags]",
+                    "protheus-ops security-plane multi-mind-isolation-boundary-plane <command> [flags]",
+                    "protheus-ops security-plane irrevocable-geas-covenant <command> [flags]",
+                    "protheus-ops security-plane insider-threat-split-trust-command-governance <command> [flags]",
+                    "protheus-ops security-plane independent-safety-coprocessor-veto-plane <command> [flags]",
+                    "protheus-ops security-plane hardware-root-of-trust-attestation-mesh <command> [flags]",
+                    "protheus-ops security-plane formal-threat-modeling-engine <command> [flags]",
+                    "protheus-ops security-plane formal-mind-sovereignty-verification <command> [flags]",
+                    "protheus-ops security-plane alias-verification-vault <command> [flags]"
                 ]
             }),
             2,
