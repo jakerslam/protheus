@@ -25,7 +25,7 @@ const ROOT = process.env.AUTONOMY_SELF_DOC_ROOT
 
 const MEMORY_MD_PATH = process.env.AUTONOMY_SELF_DOC_MEMORY_PATH
   ? path.resolve(process.env.AUTONOMY_SELF_DOC_MEMORY_PATH)
-  : path.join(ROOT, 'MEMORY.md');
+  : path.join(ROOT, 'docs/workspace/MEMORY.md');
 const SESSION_SUMMARY_PATH = process.env.AUTONOMY_SELF_DOC_SESSION_SUMMARY_PATH
   ? path.resolve(process.env.AUTONOMY_SELF_DOC_SESSION_SUMMARY_PATH)
   : path.join(ROOT, 'local', 'state', 'session_summary.md');

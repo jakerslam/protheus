@@ -84,7 +84,7 @@ function defaultPolicy() {
   return {
     version: '1.0',
     strict_mode: true,
-    constitution_path: 'AGENT-CONSTITUTION.md',
+    constitution_path: 'docs/workspace/AGENT-CONSTITUTION.md',
     protected_axiom_markers: [
       'to be a hero',
       'to test the limits',

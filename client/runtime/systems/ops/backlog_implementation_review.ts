@@ -92,8 +92,8 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
       ),
       exclude_paths: asList(
         search.exclude_paths || [
-          'SRS.md',
-          'UPGRADE_BACKLOG.md',
+          'docs/workspace/SRS.md',
+          'docs/workspace/UPGRADE_BACKLOG.md',
           'docs/client/backlog_views/active.md',
           'docs/client/backlog_views/archive.md',
           'docs/client/backlog_views/reviewed.md',
@@ -138,8 +138,8 @@ function looksLikePath(raw: string) {
     || plain.startsWith('docs/')
     || plain.startsWith('memory/')
     || plain.startsWith('tests/')
-    || plain === 'SRS.md'
-    || plain === 'UPGRADE_BACKLOG.md'
+    || plain === 'docs/workspace/SRS.md'
+    || plain === 'docs/workspace/UPGRADE_BACKLOG.md'
   ) {
     return plain;
   }

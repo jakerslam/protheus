@@ -51,7 +51,7 @@ function usage() {
   console.log('  protheus lens <persona> [decision|strategic|full] [--gap=<seconds>] [--active=1] [--emotion=on|off] [--values=on|off] [--include-feed=1] [--intercept="<override>"] "<query>"');
   console.log('  protheus lens <persona1> <persona2> [personaN...] "<query>" [--expected="<baseline>"]');
   console.log('  protheus arbitrate --between=persona1,persona2 --issue="<query>" [--schema=json]');
-  console.log('  protheus lens trigger <pre-sprint|drift-alert|weekly-checkin> ["<query>"] [--persona=<id>] [--heartbeat=HEARTBEAT.md] [--dry-run=1]');
+  console.log('  protheus lens trigger <pre-sprint|drift-alert|weekly-checkin> ["<query>"] [--persona=<id>] [--heartbeat=docs/workspace/HEARTBEAT.md] [--dry-run=1]');
   console.log('  protheus lens dashboard [--window=<n>] [--json=1]');
   console.log('  protheus orchestrate status');
   console.log('  protheus orchestrate telemetry [--window=20]');
@@ -67,7 +67,7 @@ function usage() {
   console.log('  protheus toolkit blob-morphing [status|verify]');
   console.log('  protheus toolkit comment-mapper --persona=<id> --query="<text>" [--gap=<seconds>] [--active=1] [--intercept="<override>"]');
   console.log('  protheus lens update-stream <persona> [--dry-run=1]');
-  console.log('  protheus lens checkin [--persona=jay_haslam] [--heartbeat=HEARTBEAT.md] [--emotion=on|off] [--dry-run=1]');
+  console.log('  protheus lens checkin [--persona=jay_haslam] [--heartbeat=docs/workspace/HEARTBEAT.md] [--emotion=on|off] [--dry-run=1]');
   console.log('  protheus lens feed <persona> "<snippet>" [--source=master_llm] [--tags=tag1,tag2] [--dry-run=1]');
   console.log('  protheus persona feed <persona> "<snippet>" [--source=master_llm] [--tags=tag1,tag2] [--dry-run=1]');
   console.log('  protheus persona ambient apply --persona=<id> --stance-json=<json>|--stance-json-base64=<base64>');

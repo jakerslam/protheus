@@ -4,7 +4,7 @@
   "verify_script_relpath": "verify.sh",
   "dependency_boundary_policy_path": "client/runtime/config/dependency_boundary_manifest.json",
   "safety_plane_paths": [
-    "AGENT-CONSTITUTION.md",
+    "docs/workspace/AGENT-CONSTITUTION.md",
     "client/runtime/config/dependency_boundary_manifest.json",
     "client/runtime/config/rust_source_of_truth_policy.json",
     "client/runtime/config/constitution_guardian_policy.json",
@@ -15,7 +15,7 @@
     "core/layer0/ops/src/spine.rs"
   ],
   "constitution": {
-    "constitution_path": "AGENT-CONSTITUTION.md",
+    "constitution_path": "docs/workspace/AGENT-CONSTITUTION.md",
     "guardian_policy_path": "client/runtime/config/constitution_guardian_policy.json",
     "rsi_bootstrap_policy_path": "client/runtime/config/rsi_bootstrap_policy.json"
   },

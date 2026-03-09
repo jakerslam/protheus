@@ -26,7 +26,7 @@ Update docs references:
 
 - `README.md` if command surface changed
 - `docs/client/README.md` for discoverability
-- `CHANGELOG.md` for user-visible behavior
+- `docs/workspace/CHANGELOG.md` for user-visible behavior
 
 Run:
 

@@ -347,7 +347,7 @@ fn lane_007_interface_lifecycle(root: &Path, policy: &Policy) -> Value {
         lane_policy.get("registry_path").and_then(Value::as_str),
         "client/runtime/config/api_cli_contract_registry.json",
     );
-    let changelog_path = resolve_path(root, Some("CHANGELOG.md"), "CHANGELOG.md");
+    let changelog_path = resolve_path(root, Some("docs/workspace/CHANGELOG.md"), "docs/workspace/CHANGELOG.md");
     let required_dep_window = lane_policy
         .get("required_deprecation_days")
         .and_then(Value::as_u64)

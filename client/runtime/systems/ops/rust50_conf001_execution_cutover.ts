@@ -91,9 +91,9 @@ function defaultPolicy() {
     enabled: true,
     strict_default: true,
     lane_id: 'V6-RUST50-CONF-001',
-    accepted_preamble: 'ENFORCER RULES ACTIVE — READ codex_enforcer.md FIRST.',
+    accepted_preamble: 'ENFORCER RULES ACTIVE — READ docs/workspace/codex_enforcer.md FIRST.',
     required_refs: [
-      'codex_enforcer.md',
+      'docs/workspace/codex_enforcer.md',
       'crates/execution/Cargo.toml',
       'crates/execution/src/lib.rs',
       'crates/execution/src/main.rs',

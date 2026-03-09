@@ -5,7 +5,7 @@
 This file is for human-readable strategy and sequencing.
 **Do not use it for task tracking.**
 
-Status, ownership, dependencies, and completion are canonical in [SRS.md](/Users/jay/.openclaw/workspace/SRS.md).
+Status, ownership, dependencies, and completion are canonical in [SRS.md](/Users/jay/.openclaw/workspace/docs/workspace/SRS.md).
 Generated execution/status views are canonical in:
 - [priority_queue.md](/Users/jay/.openclaw/workspace/docs/client/backlog_views/priority_queue.md)
 - [execution_path.md](/Users/jay/.openclaw/workspace/docs/client/backlog_views/execution_path.md)

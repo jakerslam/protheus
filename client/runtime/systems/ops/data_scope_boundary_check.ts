@@ -45,7 +45,7 @@ function defaultPolicy() {
     require_user_dirs: false,
     required_docs: [
       'docs/ECONOMY.md',
-      'docs/IDENTITY.md',
+      'docs/workspace/IDENTITY.md',
       'docs/DATA_SCOPE_BOUNDARIES.md'
     ],
     lanes: [

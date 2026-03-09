@@ -93,7 +93,7 @@ function loadPolicy() {
       { prefix: "state/", min_clearance: 1, label: "state_data" }
     ],
     protected_files: [
-      "AGENT-CONSTITUTION.md",
+      "docs/workspace/AGENT-CONSTITUTION.md",
       "config/constitution_guardian_policy.json"
     ],
     remote_request_gate: {

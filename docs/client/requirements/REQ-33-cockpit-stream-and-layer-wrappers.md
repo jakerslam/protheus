@@ -31,5 +31,4 @@ Owner: runtime-core
 - `core/layer0/kernel_layers/*`
 - `Cargo.toml`
 - `ARCHITECTURE.md`
-- `SRS.md`
-
+- `docs/workspace/SRS.md`

@@ -37,7 +37,7 @@ Every PR should include:
   - backlog ID(s) or explicit rationale
   - operator impact statement
   - rollback notes when applicable
-- Document final outcomes in `CHANGELOG.md`.
+- Document final outcomes in `docs/workspace/CHANGELOG.md`.
 
 ## Allowed History Rewrites
 
@@ -59,4 +59,3 @@ When rewrite is required:
 - Monthly:
   - review template adherence
   - identify recurring hygiene regressions and update policy
-

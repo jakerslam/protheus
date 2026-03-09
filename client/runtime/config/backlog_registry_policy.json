@@ -59,7 +59,7 @@
     ]
   },
   "paths": {
-    "backlog_path": "SRS.md",
+    "backlog_path": "docs/workspace/SRS.md",
     "registry_path": "client/runtime/config/backlog_registry.json",
     "active_view_path": "docs/client/backlog_views/active.md",
     "archive_view_path": "docs/client/backlog_views/archive.md",

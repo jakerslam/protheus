@@ -154,7 +154,7 @@ Client cognition exposes a compact reflex set for frequent operations under stri
 Repository root is intentionally reduced to:
 
 - source roots (`core/`, `client/`, `planes/`)
-- governance and product docs (`README.md`, `ARCHITECTURE.md`, `SRS.md`, `TODO.md`)
+- governance and product docs (`README.md`, `ARCHITECTURE.md`, `docs/workspace/SRS.md`, `docs/workspace/TODO.md`)
 - build/deploy metadata (`Cargo.toml`, `package.json`, lockfiles, CI/deploy manifests)
 
 All high-churn runtime artifacts are localized to `client/runtime/local/` and `core/local/` so:

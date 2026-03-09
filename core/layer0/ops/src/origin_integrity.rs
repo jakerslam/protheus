@@ -31,7 +31,7 @@ impl Default for OriginIntegrityPolicy {
             dependency_boundary_policy_path: "client/runtime/config/dependency_boundary_manifest.json"
                 .to_string(),
             safety_plane_paths: vec![
-                "AGENT-CONSTITUTION.md".to_string(),
+                "docs/workspace/AGENT-CONSTITUTION.md".to_string(),
                 "client/runtime/config/dependency_boundary_manifest.json".to_string(),
                 "client/runtime/config/rust_source_of_truth_policy.json".to_string(),
                 "client/runtime/config/constitution_guardian_policy.json".to_string(),
@@ -58,7 +58,7 @@ struct ConstitutionContract {
 impl Default for ConstitutionContract {
     fn default() -> Self {
         Self {
-            constitution_path: "AGENT-CONSTITUTION.md".to_string(),
+            constitution_path: "docs/workspace/AGENT-CONSTITUTION.md".to_string(),
             guardian_policy_path: "client/runtime/config/constitution_guardian_policy.json".to_string(),
             rsi_bootstrap_policy_path: "client/runtime/config/rsi_bootstrap_policy.json".to_string(),
         }

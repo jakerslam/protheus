@@ -60,7 +60,7 @@ function defaultPolicy() {
       'docs/PUBLIC_COLLABORATION_SURFACE.md'
     ],
     triage_doc: 'docs/PUBLIC_COLLABORATION_TRIAGE.md',
-    contributing_doc: 'CONTRIBUTING.md',
+    contributing_doc: 'docs/workspace/CONTRIBUTING.md',
     required_labels: [
       'type:bug',
       'type:feature',

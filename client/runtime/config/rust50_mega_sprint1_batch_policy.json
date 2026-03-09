@@ -3,7 +3,7 @@
   "enabled": true,
   "strict_default": true,
   "lane_id": "V6-RUST50-CONF-004",
-  "accepted_preamble": "ENFORCER RULES ACTIVE — READ codex_enforcer.md FIRST.",
+  "accepted_preamble": "ENFORCER RULES ACTIVE — READ docs/workspace/codex_enforcer.md FIRST.",
   "crates": [
     { "id": "execution", "manifest": "core/layer2/execution/Cargo.toml" },
     { "id": "pinnacle", "manifest": "core/layer0/pinnacle/Cargo.toml" },

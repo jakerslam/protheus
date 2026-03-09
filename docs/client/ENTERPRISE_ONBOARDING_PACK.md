@@ -6,7 +6,7 @@
 
 - local clone access
 - bootstrap readiness (`npm ci`, `npm run build`, `npm run test`)
-- policy reading baseline (`README.md`, `CONTRIBUTING.md`, `docs/client/ONBOARDING_PLAYBOOK.md`)
+- policy reading baseline (`README.md`, `docs/workspace/CONTRIBUTING.md`, `docs/client/ONBOARDING_PLAYBOOK.md`)
 
 ## Tracks
 

@@ -51,7 +51,7 @@ function defaultPolicy() {
   return {
     version: '1.0',
     enabled: true,
-    required_docs: ['docs/HISTORY_CLEANLINESS.md', 'docs/RELEASE_DISCIPLINE_POLICY.md', 'CHANGELOG.md', '.github/pull_request_template.md'],
+    required_docs: ['docs/HISTORY_CLEANLINESS.md', 'docs/RELEASE_DISCIPLINE_POLICY.md', 'docs/workspace/CHANGELOG.md', '.github/pull_request_template.md'],
     history_required_terms: ['append-only', 'no force-push', 'changelog'],
     pr_template_required_terms: ['summary', 'validation', 'changelog'],
     paths: {

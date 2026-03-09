@@ -148,7 +148,7 @@ fn canonicalize_or_self(path: &Path) -> PathBuf {
 }
 
 fn enforce_canonical_backlog_path(root: &Path, policy: &Policy) -> Result<(), String> {
-    let expected = root.join("SRS.md");
+    let expected = root.join("docs/workspace/SRS.md");
     let expected_canon = canonicalize_or_self(&expected);
     let actual_canon = canonicalize_or_self(&policy.paths.backlog_path);
     if expected_canon != actual_canon {
@@ -228,7 +228,7 @@ fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
             paths_obj
                 .and_then(|o| o.get("backlog_path"))
                 .and_then(Value::as_str),
-            "SRS.md",
+            "docs/workspace/SRS.md",
         ),
         registry_path: path_from_policy(
             root,

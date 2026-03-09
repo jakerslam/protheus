@@ -1,5 +1,5 @@
 {
-  "constitution_path": "AGENT-CONSTITUTION.md",
+  "constitution_path": "docs/workspace/AGENT-CONSTITUTION.md",
   "guard_registry_path": "client/runtime/config/guard_check_registry.json",
   "required_constitution_markers": [
     "Mind Sovereignty Covenant",

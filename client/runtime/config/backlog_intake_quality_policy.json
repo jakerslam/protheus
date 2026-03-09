@@ -3,7 +3,7 @@
   "schema_version": "1.0",
   "enabled": true,
   "strict_default": true,
-  "backlog_path": "SRS.md",
+  "backlog_path": "docs/workspace/SRS.md",
   "target_sections": [
     "X AI Feature Abstraction Intake",
     "Controlled Self-Improvement Intake",

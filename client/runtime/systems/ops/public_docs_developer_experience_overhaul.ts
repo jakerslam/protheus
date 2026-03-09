@@ -60,7 +60,7 @@ function defaultPolicy() {
     required_docs: [
       'README.md',
       'ARCHITECTURE.md',
-      'CONTRIBUTING.md',
+      'docs/workspace/CONTRIBUTING.md',
       'docs/README.md',
       'docs/HELP.md',
       'docs/DEVELOPER_LANE_QUICKSTART.md',
@@ -71,7 +71,7 @@ function defaultPolicy() {
       { source: 'README.md', target: 'docs/DEVELOPER_LANE_QUICKSTART.md' },
       { source: 'README.md', target: 'docs/HELP.md' },
       { source: 'ARCHITECTURE.md', target: 'docs/README.md' },
-      { source: 'CONTRIBUTING.md', target: 'docs/DEVELOPER_LANE_QUICKSTART.md' },
+      { source: 'docs/workspace/CONTRIBUTING.md', target: 'docs/DEVELOPER_LANE_QUICKSTART.md' },
       { source: 'docs/README.md', target: 'DEVELOPER_LANE_QUICKSTART.md' }
     ],
     quickstart_requirements: {

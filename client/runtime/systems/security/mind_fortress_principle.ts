@@ -30,7 +30,7 @@ runLaneCli({
     {
         "id": "constitution_covenant_preamble",
         "description": "Covenant preamble anchored in constitution",
-        "file_must_exist": "AGENT-CONSTITUTION.md"
+        "file_must_exist": "docs/workspace/AGENT-CONSTITUTION.md"
     },
     {
         "id": "manifesto_doc_present",

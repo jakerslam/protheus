@@ -58,7 +58,7 @@ Adopt the final layered core stack:
 2. Architecture docs no longer classify `/client` as “Layer 3.”
 3. `core/layer_minus_one/` and `core/layer3/` exist as explicit ownership anchors.
 4. Flow rule text is consistent across architecture docs.
-5. Requirement linkage is present in `SRS.md`.
+5. Requirement linkage is present in `docs/workspace/SRS.md`.
 
 ## Implementation Notes
 - This requirement establishes architecture contracts and scaffolding.  
