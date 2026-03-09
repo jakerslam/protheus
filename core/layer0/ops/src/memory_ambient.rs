@@ -499,6 +499,9 @@ fn is_allowed_memory_command(command: &str) -> bool {
             | "pack-memory-blobs"
             | "pack-heartbeat-blob"
             | "cryonics-tier"
+            | "memory-matrix"
+            | "memory-auto-recall"
+            | "dream-sequencer"
             | "help"
     )
 }
