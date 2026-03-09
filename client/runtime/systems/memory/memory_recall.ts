@@ -22,13 +22,14 @@ const MEMORY_DIR = path.join(REPO_ROOT, 'memory');
 const CACHE_DIR = process.env.MEMORY_RECALL_CACHE_DIR
   ? path.resolve(String(process.env.MEMORY_RECALL_CACHE_DIR))
   : path.join(REPO_ROOT, 'state', 'memory', 'working_set');
-const DEFAULT_TOP = clampInt(process.env.MEMORY_RECALL_TOP || 5, 1, 20);
+const DEFAULT_TOP = clampInt(process.env.MEMORY_RECALL_TOP || 2, 1, 20);
 const DEFAULT_MAX_FILES = clampInt(process.env.MEMORY_RECALL_MAX_FILES || 1, 1, 10);
 const DEFAULT_CONFIDENCE = clampNumber(process.env.MEMORY_RECALL_CONFIDENCE || 0.58, 0.05, 1);
 const DEFAULT_CACHE_MAX_BYTES = clampInt(process.env.MEMORY_RECALL_CACHE_MAX_BYTES || (1024 * 1024), 65536, 8 * 1024 * 1024);
-const DEFAULT_EXCERPT_LINES = clampInt(process.env.MEMORY_RECALL_EXCERPT_LINES || 14, 4, 100);
-const DEFAULT_CONTEXT_BUDGET_TOKENS = clampInt(process.env.MEMORY_RECALL_CONTEXT_BUDGET_TOKENS || 8000, 256, 64000);
+const DEFAULT_EXCERPT_LINES = clampInt(process.env.MEMORY_RECALL_EXCERPT_LINES || 6, 4, 100);
+const DEFAULT_CONTEXT_BUDGET_TOKENS = clampInt(process.env.MEMORY_RECALL_CONTEXT_BUDGET_TOKENS || 192, 64, 64000);
 const DEFAULT_CONTEXT_BUDGET_MODE = normalizeContextBudgetMode(process.env.MEMORY_RECALL_CONTEXT_BUDGET_MODE || 'trim');
+const DEFAULT_EXPAND_MODE = normalizeExpandMode(process.env.MEMORY_RECALL_EXPAND_DEFAULT || 'none');
 const DEFAULT_BACKEND = String(process.env.MEMORY_RECALL_BACKEND || 'rust').trim().toLowerCase();
 const DEFAULT_RUST_SELECTOR_PATH = process.env.MEMORY_RECALL_RUST_SELECTOR_PATH
   ? path.resolve(String(process.env.MEMORY_RECALL_RUST_SELECTOR_PATH))
@@ -98,9 +99,16 @@ function normalizeContextBudgetMode(v) {
   return 'trim';
 }
 
+function normalizeExpandMode(v) {
+  const raw = String(v == null ? '' : v).trim().toLowerCase();
+  if (raw === 'always') return 'always';
+  if (raw === 'auto') return 'auto';
+  return 'none';
+}
+
 function usage() {
   console.log('Usage:');
-  console.log('  node systems/memory/memory_recall.js query --q="..." [--tags=t1,t2] [--top=N] [--expand=auto|none|always] [--score-mode=hybrid|lexical] [--confidence=0.58] [--max-files=1] [--context-budget-tokens=8000] [--context-budget-mode=trim|reject] [--session=name]');
+  console.log(`  node systems/memory/memory_recall.js query --q="..." [--tags=t1,t2] [--top=N] [--expand=auto|none|always] [--score-mode=hybrid|lexical] [--confidence=0.58] [--max-files=1] [--context-budget-tokens=${DEFAULT_CONTEXT_BUDGET_TOKENS}] [--context-budget-mode=trim|reject] [--session=name]`);
   console.log('  node systems/memory/memory_recall.js get --node-id=<id> [--file=memory/YYYY-MM-DD.md] [--session=name]');
   console.log('  node systems/memory/memory_recall.js get --uid=<alnum_uid> [--file=memory/YYYY-MM-DD.md] [--session=name]');
   console.log('  node systems/memory/memory_recall.js clear-cache [--session=name]');
@@ -1329,7 +1337,7 @@ function estimateHitsTokens(hits) {
 
 function applyContextBudget(hitsRaw, budgetTokens, modeRaw) {
   const mode = normalizeContextBudgetMode(modeRaw);
-  const budget = clampInt(budgetTokens, 256, 64000);
+  const budget = clampInt(budgetTokens, 64, 64000);
   const hits = Array.isArray(hitsRaw)
     ? hitsRaw.map((hit) => ({ ...(hit && typeof hit === 'object' ? hit : {}) }))
     : [];
@@ -1559,7 +1567,7 @@ async function queryCmd(args) {
   const query = String(args.q || args.query || '').trim();
   const tagFilters = parseListArg(args.tags);
   const top = clampInt(args.top == null ? DEFAULT_TOP : args.top, 1, 20);
-  const expandMode = String(args.expand || 'auto').trim().toLowerCase();
+  const expandMode = normalizeExpandMode(args.expand == null ? DEFAULT_EXPAND_MODE : args.expand);
   const confidenceThreshold = clampNumber(args.confidence == null ? DEFAULT_CONFIDENCE : args.confidence, 0.05, 1);
   const maxFiles = clampInt(args['max-files'] == null ? (args.max_files == null ? DEFAULT_MAX_FILES : args.max_files) : args['max-files'], 1, 10);
   const session = safeSessionName(args.session || process.env.MEMORY_RECALL_SESSION || 'default');
@@ -1569,7 +1577,7 @@ async function queryCmd(args) {
     args['context-budget-tokens'] == null
       ? (args.context_budget_tokens == null ? DEFAULT_CONTEXT_BUDGET_TOKENS : args.context_budget_tokens)
       : args['context-budget-tokens'],
-    256,
+    64,
     64000
   );
   const contextBudgetMode = normalizeContextBudgetMode(
