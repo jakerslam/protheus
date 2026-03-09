@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 'use strict';
 
-// Layer ownership: core/layer0/ops::inversion-controller (authoritative)
+// Layer ownership: core/layer2/autonomy + core/layer0/ops::autonomy-proposal-enricher (authoritative)
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge');
-process.env.PROTHEUS_CONDUIT_STARTUP_PROBE = '0';
 
-const bridge = createOpsLaneBridge(__dirname, 'inversion_controller', 'inversion-controller');
+process.env.PROTHEUS_CONDUIT_STARTUP_PROBE = '0';
+process.env.PROTHEUS_CONDUIT_COMPAT_FALLBACK = '0';
+
+const bridge = createOpsLaneBridge(__dirname, 'proposal_enricher', 'autonomy-proposal-enricher');
 
 function runCore(args) {
   const out = bridge.run(args);
@@ -16,8 +18,7 @@ function runCore(args) {
 }
 
 if (require.main === module) {
-  const args = process.argv.slice(2);
-  const out = runCore(args);
+  const out = runCore(process.argv.slice(2));
   process.exit(Number.isFinite(out && out.status) ? Number(out.status) : 1);
 }
 

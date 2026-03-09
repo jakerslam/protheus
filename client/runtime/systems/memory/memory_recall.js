@@ -4,7 +4,6 @@
 // Layer ownership: core/layer0/memory_runtime + core/layer0/ops::memory-ambient (authoritative)
 // Client wrapper routes memory recall commands through conduit-backed Rust lanes.
 const { runMemoryAmbientCommand } = require('../../lib/spine_conduit_bridge');
-const tsBootstrap = require('../../lib/ts_bootstrap');
 
 function parseArgs(argv) {
   const out = { _: [] };
@@ -117,16 +116,12 @@ async function run(args = [], opts = {}) {
 
 if (require.main === module) {
   process.env.PROTHEUS_CONDUIT_STARTUP_PROBE = '0';
+  process.env.PROTHEUS_CONDUIT_COMPAT_FALLBACK = '0';
   process.env.PROTHEUS_CONDUIT_STARTUP_PROBE_TIMEOUT_MS =
     process.env.PROTHEUS_CONDUIT_STARTUP_PROBE_TIMEOUT_MS || '8000';
   run(process.argv.slice(2))
     .then((out) => {
       const status = Number.isFinite(out && out.status) ? Number(out.status) : 0;
-      const reason = String((out && out.payload && out.payload.reason) || out && out.stderr || '');
-      if (status !== 0 && (/conduit_/i.test(reason) || /timeout/i.test(reason))) {
-        tsBootstrap.bootstrap(__filename, module);
-        return;
-      }
       if (out && out.payload) {
         process.stdout.write(`${JSON.stringify(out.payload)}\n`);
       } else {
