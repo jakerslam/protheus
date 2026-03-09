@@ -4,13 +4,8 @@
 /**
  * emergency_stop.js
  *
- * One-command kill-switch for autonomy/routing/actuation execution paths.
- *
- * Usage:
- *   node systems/security/emergency_stop.js status
- *   node systems/security/emergency_stop.js engage [--scope=all|autonomy|routing|actuation|spine[,..]] --approval-note="..."
- *   node systems/security/emergency_stop.js release --approval-note="..."
- *   node systems/security/emergency_stop.js --help
+ * Layer ownership: core/layer1/security::emergency-stop (authoritative)
+ * Client wrapper is core-first with compatibility fallback.
  */
 
 const {
@@ -19,6 +14,15 @@ const {
   engageEmergencyStop,
   releaseEmergencyStop
 } = require('../../lib/emergency_stop');
+const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge');
+
+process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS =
+  process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS || '1500';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS =
+  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '2000';
+
+const COMMAND = 'emergency-stop';
+const bridge = createOpsLaneBridge(__dirname, 'emergency_stop', 'security-plane');
 
 function usage() {
   console.log('Usage:');
@@ -53,8 +57,30 @@ function requireApprovalNote(note) {
   process.exit(2);
 }
 
-function main() {
-  const args = parseArgs(process.argv.slice(2));
+function runCore(args = []) {
+  try {
+    return bridge.run([COMMAND, ...(Array.isArray(args) ? args : [])]);
+  } catch {
+    return null;
+  }
+}
+
+function coreResultUsable(out) {
+  if (!out || Number(out.status) !== 0) return false;
+  if (!out.payload || typeof out.payload !== 'object') return false;
+  if (out.payload.ok === false) return false;
+  return true;
+}
+
+function printCore(out) {
+  if (!out) return;
+  if (out.stdout) process.stdout.write(out.stdout);
+  else if (out.payload) process.stdout.write(`${JSON.stringify(out.payload, null, 2)}\n`);
+  if (out.stderr) process.stderr.write(out.stderr);
+}
+
+function runLegacy(argv) {
+  const args = parseArgs(argv);
   const cmd = String(args._[0] || '');
   if (!cmd || cmd === '--help' || cmd === '-h' || cmd === 'help' || args.help) {
     usage();
@@ -67,7 +93,7 @@ function main() {
       ts: new Date().toISOString(),
       state: getStopState()
     }, null, 2) + '\n');
-    return;
+    process.exit(0);
   }
 
   if (cmd === 'engage') {
@@ -86,7 +112,7 @@ function main() {
       valid_scopes: Array.from(VALID_SCOPES),
       state: next
     }, null, 2) + '\n');
-    return;
+    process.exit(0);
   }
 
   if (cmd === 'release') {
@@ -102,7 +128,7 @@ function main() {
       ts: new Date().toISOString(),
       state: next
     }, null, 2) + '\n');
-    return;
+    process.exit(0);
   }
 
   usage();
@@ -110,5 +136,20 @@ function main() {
 }
 
 if (require.main === module) {
-  main();
+  const argv = process.argv.slice(2);
+  const out = runCore(argv);
+  if (coreResultUsable(out)) {
+    printCore(out);
+    process.exit(0);
+  }
+  runLegacy(argv);
 }
+
+module.exports = {
+  lane: bridge.lane,
+  run: (args = []) => {
+    const out = runCore(args);
+    if (coreResultUsable(out)) return out;
+    return null;
+  }
+};
