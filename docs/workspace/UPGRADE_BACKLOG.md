@@ -123,6 +123,19 @@ Source note:
 | V6-COLLAB-001.3 | queued | Native team automation scheduling lane | Team workflows need built-in scheduling + handoff orchestration under one contract. | Add scheduling commands for individual shadows and team runs (`protheus schedule ...`) with cron-like triggers, deterministic kickoff/handoff receipts, and automatic summary artifact generation. |
 | V6-COLLAB-001.4 | queued | Conduit-only collaboration control guardrails | Dashboard actions, role activation, and scheduled runs must stay Safety Plane governed. | Enforce Layer-0 conduit checks for all team-dashboard controls and schedule triggers; every action emits deterministic receipts and fail-closed denials on policy violations. |
 
+## Paperclip Company Layer & Zero-Human Orchestration Intake (x.com/hasantoxr 2030604968416412144, 2026-03-09)
+
+Source note:
+- External draft labels this as `V6-COCKPIT-010`; this backlog maps it to `V6-COMPANY-001.*` to avoid collision with existing `V6-COCKPIT-010` (integrity reseal auto-clear lane).
+
+| ID | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|
+| V6-COMPANY-001.1 | queued | Company layer org-chart/runtime hierarchy model | Multi-agent agency execution needs explicit reporting lines, titles, and goal ownership to operate as a coherent org rather than ad hoc groups. | Add company layer model that defines org charts, reporting edges, titles, and team goals; `protheus orchestrate agency <team>` instantiates hierarchy artifacts visible in `protheus-top` and receipted state. |
+| V6-COMPANY-001.2 | queued | Per-agent period budget enforcement (tokens/cost/compute/privacy) | Long-running autonomous teams require hard budget containment to prevent runaway spend/risk. | Add policy-backed per-agent budget ledgers with period windows and hard-stop enforcement; budget breaches fail closed with deterministic budget receipts and no silent overrun paths. |
+| V6-COMPANY-001.3 | queued | Ticket system with immutable audit chain | Agency-grade delegation requires durable ticket assignment/handoff lifecycle with searchable lineage. | Add ticket primitives (create/assign/transition/handoff/close) with immutable audit log + tool-call trace linkage; every task run references a ticket ID and full receipt chain in dashboard/search surfaces. |
+| V6-COMPANY-001.4 | queued | 24/7 heartbeat agent runtime + remote monitoring surface | Zero-human mode depends on continuous operation independent of attached operator sessions. | Extend heartbeat scheduler for always-on teams, ensuring autonomous continuation during detach windows; expose live health/status in `protheus-top` and remote/mobile-safe monitoring feeds with deterministic heartbeat receipts. |
+| V6-COMPANY-001.5 | queued | Conduit-only company-operation guardrails | Company-level orchestration actions must remain strictly within Safety Plane authority boundaries. | Enforce Layer-0 conduit gates for org changes, budget operations, ticket transitions, and heartbeat controls; all actions produce deterministic receipts and fail-closed denials on policy/capability violations. |
+
 ## Production-Grade Checklist Addendum (2026-03-06)
 
 | ID | Status | Upgrade | Why | Exit Criteria |
