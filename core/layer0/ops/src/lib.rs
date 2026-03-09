@@ -63,6 +63,7 @@ pub mod spine;
 pub mod state_kernel;
 pub mod shadow_budget_governance;
 pub mod sensory_eyes_intake;
+pub mod spawn_broker;
 pub mod strategy_mode_governor;
 pub mod ops_lane_runtime;
 pub mod venom_containment_layer;
