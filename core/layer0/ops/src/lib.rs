@@ -56,6 +56,7 @@ pub mod rollout_rings;
 pub mod rust50_migration_program;
 pub mod rust_enterprise_productivity_program;
 pub mod scale_readiness;
+pub mod security_plane;
 pub mod spine;
 pub mod state_kernel;
 pub mod shadow_budget_governance;

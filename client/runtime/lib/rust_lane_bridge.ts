@@ -53,9 +53,30 @@ function runBridge(config, args = [], cliMode = false) {
   const passArgs = Array.isArray(args) ? args.slice(0) : [];
 
   if (config.mode === 'ops_domain') {
-    const runner = fs.existsSync(path.join(root, 'client', 'lib', 'ops_domain_conduit_runner.js'))
-      ? path.join(root, 'client', 'lib', 'ops_domain_conduit_runner.js')
-      : path.join(root, 'lib', 'ops_domain_conduit_runner.js');
+    const runnerCandidates = [
+      path.join(root, 'client', 'runtime', 'lib', 'ops_domain_conduit_runner.js'),
+      path.join(root, 'client', 'lib', 'ops_domain_conduit_runner.js'),
+      path.join(root, 'lib', 'ops_domain_conduit_runner.js')
+    ];
+    const runner = runnerCandidates.find((candidate) => fs.existsSync(candidate));
+    if (!runner) {
+      return {
+        ok: false,
+        status: 1,
+        stdout: '',
+        stderr: 'ops_domain_conduit_runner_missing',
+        payload: {
+          ok: false,
+          type: 'ops_domain_conduit_bridge_error',
+          reason: 'ops_domain_conduit_runner_missing',
+          searched: runnerCandidates
+        },
+        lane: config.lane,
+        rust_command: null,
+        rust_args: [],
+        routed_via: 'conduit'
+      };
+    }
     const commandArgs = [runner, '--domain', config.domain].concat(passArgs);
     const run = spawnSync(process.execPath, commandArgs, {
       cwd: root,
