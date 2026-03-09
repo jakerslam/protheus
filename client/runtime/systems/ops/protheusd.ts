@@ -151,16 +151,16 @@ function readFileHead(filePath: string, maxChars: number) {
 function loadIdentityHydrationPolicy(runtime: any) {
   const fallback = {
     enabled: true,
-    startup_token_budget: 1800,
-    per_file_max_chars: 1800,
+    startup_token_budget: 180,
+    per_file_max_chars: 220,
     base_files: [
       'docs/workspace/SOUL.md',
-      'docs/workspace/USER.md',
-      'docs/workspace/MEMORY.md',
-      'docs/workspace/MEMORY_INDEX.md',
-      'docs/workspace/TAGS_INDEX.md'
+      'docs/workspace/USER.md'
     ],
     lazy_pages: [
+      'docs/workspace/MEMORY_INDEX.md',
+      'docs/workspace/TAGS_INDEX.md',
+      'docs/workspace/MEMORY.md',
       'client/runtime/local/state/memory/conversation_eye/nodes.jsonl',
       'client/runtime/local/state/attention/latest.json'
     ]
@@ -168,8 +168,8 @@ function loadIdentityHydrationPolicy(runtime: any) {
   const raw = readJson(runtime.identityHydrationPolicyPath, fallback) || fallback;
   return {
     enabled: raw.enabled !== false,
-    startup_token_budget: toInt(raw.startup_token_budget, fallback.startup_token_budget, 256, 64000),
-    per_file_max_chars: toInt(raw.per_file_max_chars, fallback.per_file_max_chars, 256, 200000),
+    startup_token_budget: toInt(raw.startup_token_budget, fallback.startup_token_budget, 64, 64000),
+    per_file_max_chars: toInt(raw.per_file_max_chars, fallback.per_file_max_chars, 64, 200000),
     base_files: Array.isArray(raw.base_files) ? raw.base_files.map((row: any) => cleanText(row, 500)).filter(Boolean) : fallback.base_files,
     lazy_pages: Array.isArray(raw.lazy_pages) ? raw.lazy_pages.map((row: any) => cleanText(row, 500)).filter(Boolean) : fallback.lazy_pages
   };
@@ -647,7 +647,8 @@ function resolveRuntime(argv: string[]) {
     process.env.RUNTIME_RETENTION_POLICY_PATH || path.join(ROOT, 'config', 'runtime_retention_policy.json'),
     500
   );
-  const workspaceRoot = path.resolve(ROOT, '..');
+  // ROOT points at client/runtime; workspaceRoot must be repository root.
+  const workspaceRoot = path.resolve(ROOT, '..', '..');
   const originIntegrityEnabled = toBool(
     process.env.PROTHEUSD_ORIGIN_INTEGRITY_ENABLED,
     toBool(originIntegrityPolicy.enabled, true)
