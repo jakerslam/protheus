@@ -59,9 +59,23 @@ async function main() {
     args['skip-runtime-gate'],
     toBool(process.env.PROTHEUS_OPS_DOMAIN_SKIP_RUNTIME_GATE, true)
   );
+  const stdioTimeoutMs = Number(
+    args['stdio-timeout-ms']
+      || process.env.PROTHEUS_OPS_DOMAIN_STDIO_TIMEOUT_MS
+      || process.env.PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS
+      || 120000
+  );
+  const timeoutMs = Number(
+    args['timeout-ms']
+      || process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS
+      || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS
+      || Math.max(stdioTimeoutMs + 1000, 125000)
+  );
   const result = await runOpsDomainCommand(domain, passArgs, {
     runContext: args['run-context'] == null ? null : String(args['run-context']),
-    skipRuntimeGate
+    skipRuntimeGate,
+    stdioTimeoutMs: Number.isFinite(stdioTimeoutMs) ? stdioTimeoutMs : 120000,
+    timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : 125000
   });
 
   if (result && result.payload) {
