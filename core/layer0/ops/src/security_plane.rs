@@ -107,6 +107,36 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "repo-hygiene-guard" | "repo_hygiene_guard" => {
             compatibility_security_command("repo-hygiene-guard", rest)
         }
+        "capability-envelope-guard" | "capability_envelope_guard" => {
+            compatibility_security_command("capability-envelope-guard", rest)
+        }
+        "ip-posture-review" | "ip_posture_review" => {
+            compatibility_security_command("ip-posture-review", rest)
+        }
+        "habit-hygiene-guard" | "habit_hygiene_guard" => {
+            compatibility_security_command("habit-hygiene-guard", rest)
+        }
+        "enterprise-access-gate" | "enterprise_access_gate" => {
+            compatibility_security_command("enterprise-access-gate", rest)
+        }
+        "model-vaccine-sandbox" | "model_vaccine_sandbox" => {
+            compatibility_security_command("model-vaccine-sandbox", rest)
+        }
+        "skill-install-enforcer" | "skill_install_enforcer" => {
+            compatibility_security_command("skill-install-enforcer", rest)
+        }
+        "execution-sandbox-envelope" | "execution_sandbox_envelope" => {
+            compatibility_security_command("execution-sandbox-envelope", rest)
+        }
+        "workspace-dump-guard" | "workspace_dump_guard" => {
+            compatibility_security_command("workspace-dump-guard", rest)
+        }
+        "external-security-cycle" | "external_security_cycle" => {
+            compatibility_security_command("external-security-cycle", rest)
+        }
+        "log-redaction-guard" | "log_redaction_guard" => {
+            compatibility_security_command("log-redaction-guard", rest)
+        }
         "delegated-authority-branching" | "delegated_authority_branching" => {
             compatibility_security_command("delegated-authority-branching", rest)
         }
