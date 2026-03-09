@@ -210,14 +210,14 @@ function parseTagCell(v) {
 function indexPaths() {
   return [
     path.join(MEMORY_DIR, 'MEMORY_INDEX.md'),
-    path.join(REPO_ROOT, 'MEMORY_INDEX.md')
+    path.join(REPO_ROOT, 'docs/workspace/MEMORY_INDEX.md')
   ];
 }
 
 function tagsPaths() {
   return [
     path.join(MEMORY_DIR, 'TAGS_INDEX.md'),
-    path.join(REPO_ROOT, 'TAGS_INDEX.md')
+    path.join(REPO_ROOT, 'docs/workspace/TAGS_INDEX.md')
   ];
 }
 

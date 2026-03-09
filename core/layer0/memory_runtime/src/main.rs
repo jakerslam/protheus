@@ -376,7 +376,8 @@ fn merge_tags(dst: &mut Vec<String>, src: &[String]) {
 
 fn load_memory_index(root: &Path) -> (Vec<String>, Vec<IndexEntry>) {
     let paths = vec![
-        root.join("MEMORY_INDEX.md"),
+        root.join("docs/workspace/MEMORY_INDEX.md"),
+        root.join("client/memory/MEMORY_INDEX.md"),
         root.join("memory").join("MEMORY_INDEX.md"),
     ];
     let mut source = vec![];
@@ -479,7 +480,8 @@ fn parse_tags_file(file_path: &Path) -> HashMap<String, HashSet<String>> {
 
 fn load_tags_index(root: &Path) -> (Vec<String>, HashMap<String, HashSet<String>>) {
     let paths = vec![
-        root.join("TAGS_INDEX.md"),
+        root.join("docs/workspace/TAGS_INDEX.md"),
+        root.join("client/memory/TAGS_INDEX.md"),
         root.join("memory").join("TAGS_INDEX.md"),
     ];
     let mut source = vec![];
@@ -1732,7 +1734,7 @@ fn build_index_payload(args: &HashMap<String, String>) -> BuildIndexResult {
     let tags_index_path_raw = arg_any(args, &["tags-index-path", "tags_index_path"]);
 
     let memory_index_abs = if memory_index_path_raw.is_empty() {
-        root.join("memory").join("MEMORY_INDEX.md")
+        root.join("client/memory/MEMORY_INDEX.md")
     } else {
         let p = PathBuf::from(memory_index_path_raw.clone());
         if p.is_absolute() {
@@ -1742,7 +1744,7 @@ fn build_index_payload(args: &HashMap<String, String>) -> BuildIndexResult {
         }
     };
     let tags_index_abs = if tags_index_path_raw.is_empty() {
-        root.join("memory").join("TAGS_INDEX.md")
+        root.join("client/memory/TAGS_INDEX.md")
     } else {
         let p = PathBuf::from(tags_index_path_raw.clone());
         if p.is_absolute() {

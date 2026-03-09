@@ -3,7 +3,7 @@
   "enabled": true,
   "required_operator_docs": [
     "README.md",
-    "CONTRIBUTING.md",
+    "docs/workspace/CONTRIBUTING.md",
     "SECURITY.md",
     "docs/client/README.md",
     "docs/client/OPERATOR_RUNBOOK.md"
@@ -15,10 +15,10 @@
     "docs/client/PUBLIC_OPERATOR_PROFILE.md"
   ],
   "readme_forbidden_root_internal_links": [
-    "AGENT-CONSTITUTION.md",
-    "SOUL.md",
-    "USER.md",
-    "MEMORY.md",
+    "docs/workspace/AGENT-CONSTITUTION.md",
+    "docs/workspace/SOUL.md",
+    "docs/workspace/USER.md",
+    "docs/workspace/MEMORY.md",
     "codex.helix"
   ],
   "required_internal_namespace": [
@@ -27,11 +27,11 @@
     "docs/client/internal/persona/IDENTITY.md"
   ],
   "internal_aliases": {
-    "AGENT-CONSTITUTION.md": "docs/client/internal/persona/AGENT-CONSTITUTION.md",
-    "IDENTITY.md": "docs/client/internal/persona/IDENTITY.md",
-    "SOUL.md": "docs/client/internal/persona/SOUL.md",
-    "USER.md": "docs/client/internal/persona/USER.md",
-    "MEMORY.md": "docs/client/internal/persona/MEMORY.md",
+    "docs/workspace/AGENT-CONSTITUTION.md": "docs/client/internal/persona/AGENT-CONSTITUTION.md",
+    "docs/workspace/IDENTITY.md": "docs/client/internal/persona/IDENTITY.md",
+    "docs/workspace/SOUL.md": "docs/client/internal/persona/SOUL.md",
+    "docs/workspace/USER.md": "docs/client/internal/persona/USER.md",
+    "docs/workspace/MEMORY.md": "docs/client/internal/persona/MEMORY.md",
     "codex.helix": "docs/client/internal/persona/CODEX_HELIX.md"
   },
   "paths": {

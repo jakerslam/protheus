@@ -118,7 +118,7 @@ function rel(filePath: string) {
 function defaultPolicy() {
   return {
     version: '1.0',
-    constitution_path: 'AGENT-CONSTITUTION.md',
+    constitution_path: 'docs/workspace/AGENT-CONSTITUTION.md',
     state_dir: 'state/security/constitution_guardian',
     veto_window_days: 14,
     min_approval_note_chars: 12,

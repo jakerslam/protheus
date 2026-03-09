@@ -253,8 +253,8 @@ fn main() {
         }
     }
 
-    let canonical_backlog_path = root.join("SRS.md");
-    let compat_backlog_path = root.join("UPGRADE_BACKLOG.md");
+    let canonical_backlog_path = root.join("docs/workspace/SRS.md");
+    let compat_backlog_path = root.join("docs/workspace/UPGRADE_BACKLOG.md");
     let backlog_path = if canonical_backlog_path.exists() {
         canonical_backlog_path
     } else {

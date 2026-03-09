@@ -3,7 +3,7 @@
 Use this before implementation sessions:
 
 ```
-ENFORCER RULES ACTIVE — READ codex_enforcer.md FIRST.
+ENFORCER RULES ACTIVE — READ docs/workspace/codex_enforcer.md FIRST.
 
 Before writing code, consult these lenses:
 - protheus lens vikram --lens=decision "<task query>"

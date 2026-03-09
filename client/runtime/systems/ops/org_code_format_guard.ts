@@ -47,7 +47,7 @@ function defaultPolicy() {
     enabled: true,
     include_roots: [
       'README.md',
-      'CONTRIBUTING.md',
+      'docs/workspace/CONTRIBUTING.md',
       'docs/README.md',
       'docs/ORG_CODE_FORMAT_STANDARD.md',
       'docs/PERCEPTION_AUDIT_PROGRAM.md',

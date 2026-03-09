@@ -7,7 +7,7 @@
       "id": "constitution_policy_core",
       "title": "Constitution + policy contract enforcement",
       "implementation_paths": [
-        "AGENT-CONSTITUTION.md",
+        "docs/workspace/AGENT-CONSTITUTION.md",
         "core/layer0/ops/src/contract_check.rs"
       ],
       "policy_paths": [

@@ -14,7 +14,7 @@ Provide role-based onboarding that can scale to a larger engineering organizatio
   - `npm run test`
 - Read before first code change:
   - `README.md`
-  - `CONTRIBUTING.md`
+  - `docs/workspace/CONTRIBUTING.md`
   - `docs/client/OPERATOR_RUNBOOK.md`
   - `docs/client/HISTORY_CLEANLINESS.md`
   - `docs/client/CLAIM_EVIDENCE_POLICY.md`
@@ -103,4 +103,3 @@ Provide role-based onboarding that can scale to a larger engineering organizatio
 - Build/test failures: platform owner on current lane.
 - Governance mismatch: backlog governance owner.
 - Security concerns: follow `SECURITY.md` private reporting guidance.
-

@@ -95,7 +95,7 @@ function codexMetaFromPolicy(policy: AnyObj = {}) {
         .filter(Boolean)
         .slice(0, 64)
     : [];
-  const constitutionPathRaw = cleanText(codex.constitution_path || 'AGENT-CONSTITUTION.md', 300) || 'AGENT-CONSTITUTION.md';
+  const constitutionPathRaw = cleanText(codex.constitution_path || 'docs/workspace/AGENT-CONSTITUTION.md', 300) || 'docs/workspace/AGENT-CONSTITUTION.md';
   const constitutionPath = path.isAbsolute(constitutionPathRaw)
     ? constitutionPathRaw
     : path.join(ROOT, constitutionPathRaw);

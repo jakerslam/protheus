@@ -3,7 +3,7 @@
   "enabled": true,
   "include_roots": [
     "README.md",
-    "CONTRIBUTING.md",
+    "docs/workspace/CONTRIBUTING.md",
     "docs/client/README.md",
     "docs/client/ORG_CODE_FORMAT_STANDARD.md",
     "docs/client/PERCEPTION_AUDIT_PROGRAM.md",

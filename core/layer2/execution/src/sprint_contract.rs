@@ -179,7 +179,7 @@ pub fn run_sprint_contract_json(payload: &str) -> Result<String, String> {
         parsed
             .accepted_preamble
             .as_deref()
-            .unwrap_or("ENFORCER RULES ACTIVE — READ codex_enforcer.md FIRST."),
+            .unwrap_or("ENFORCER RULES ACTIVE — READ docs/workspace/codex_enforcer.md FIRST."),
         220,
     );
     let strict = parsed.strict.unwrap_or(true);
@@ -310,8 +310,8 @@ mod tests {
             "batch_id": "batch_a",
             "requested_status": "in_progress",
             "enforcer_active": false,
-            "preamble_text": "ENFORCER RULES ACTIVE — READ codex_enforcer.md FIRST.",
-            "accepted_preamble": "ENFORCER RULES ACTIVE — READ codex_enforcer.md FIRST.",
+            "preamble_text": "ENFORCER RULES ACTIVE — READ docs/workspace/codex_enforcer.md FIRST.",
+            "accepted_preamble": "ENFORCER RULES ACTIVE — READ docs/workspace/codex_enforcer.md FIRST.",
             "plan": {
                 "batch_mode": true,
                 "tasks": [
@@ -339,8 +339,8 @@ mod tests {
             "requested_status": "done",
             "enforcer_active": true,
             "approval_recorded": true,
-            "preamble_text": "ENFORCER RULES ACTIVE — READ codex_enforcer.md FIRST.",
-            "accepted_preamble": "ENFORCER RULES ACTIVE — READ codex_enforcer.md FIRST.",
+            "preamble_text": "ENFORCER RULES ACTIVE — READ docs/workspace/codex_enforcer.md FIRST.",
+            "accepted_preamble": "ENFORCER RULES ACTIVE — READ docs/workspace/codex_enforcer.md FIRST.",
             "proof_refs": ["diff://x", "build://x", "test://x"],
             "plan": {
                 "batch_mode": true,

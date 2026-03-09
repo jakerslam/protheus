@@ -55,7 +55,7 @@ function loadPolicy(policyPath) {
   const fallback = {
     version: '1.1-fallback',
     target_roots: ['systems', 'habits', 'skills', 'memory/tools'],
-    target_files: ['README.md', 'AGENTS.md'],
+    target_files: ['README.md', 'docs/workspace/AGENTS.md'],
     file_extensions: ['.js', '.sh', '.md', '.json'],
     exclude_paths: [
       'systems/security/skill_install_enforcer.js',

@@ -27,8 +27,8 @@ function policy() {
       substrate_path: 'state/symbiosis/soul_vector/substrate.json',
       latest_path: 'state/symbiosis/soul_vector/latest.json',
       receipts_path: 'state/symbiosis/soul_vector/receipts.jsonl',
-      identity_path: 'IDENTITY.md',
-      constitution_path: 'AGENT-CONSTITUTION.md'
+      identity_path: 'docs/workspace/IDENTITY.md',
+      constitution_path: 'docs/workspace/AGENT-CONSTITUTION.md'
     }
   };
   const raw = readJson(POLICY_PATH, {});

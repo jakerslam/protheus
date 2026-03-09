@@ -127,7 +127,7 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
 function runAudit(policy: AnyObj) {
   const readme = readText(path.join(ROOT, 'README.md'));
   const docsHub = readText(path.join(ROOT, 'docs/README.md'));
-  const contributing = readText(path.join(ROOT, 'CONTRIBUTING.md'));
+  const contributing = readText(path.join(ROOT, 'docs/workspace/CONTRIBUTING.md'));
   const ciText = readText(policy.ci_workflow_path);
   const preCommitText = readText(policy.pre_commit_path);
 

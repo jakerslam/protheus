@@ -15,7 +15,7 @@
       "fail_secure_before_actuation"
     ],
     "constitution": {
-      "path": "AGENT-CONSTITUTION.md",
+      "path": "docs/workspace/AGENT-CONSTITUTION.md",
       "sha256": "52c7304f790e1268e61860b9ae2bc75026bb335447afbe7c1fea60688506fe79"
     },
     "soul_binding": {

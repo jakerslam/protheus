@@ -6,7 +6,7 @@
   "required_docs": [
     "README.md",
     "ARCHITECTURE.md",
-    "CONTRIBUTING.md",
+    "docs/workspace/CONTRIBUTING.md",
     "docs/client/README.md",
     "docs/client/HELP.md",
     "docs/client/DEVELOPER_LANE_QUICKSTART.md",
@@ -17,7 +17,7 @@
     { "source": "README.md", "target": "docs/client/DEVELOPER_LANE_QUICKSTART.md" },
     { "source": "README.md", "target": "docs/client/HELP.md" },
     { "source": "ARCHITECTURE.md", "target": "docs/client/README.md" },
-    { "source": "CONTRIBUTING.md", "target": "docs/client/DEVELOPER_LANE_QUICKSTART.md" },
+    { "source": "docs/workspace/CONTRIBUTING.md", "target": "docs/client/DEVELOPER_LANE_QUICKSTART.md" },
     { "source": "docs/client/README.md", "target": "DEVELOPER_LANE_QUICKSTART.md" }
   ],
   "quickstart_requirements": {

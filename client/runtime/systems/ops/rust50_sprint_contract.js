@@ -115,7 +115,7 @@ function defaultPolicy() {
         enabled: true,
         strict_default: true,
         sprint_id: 'V6-RUST50-CONF-002',
-        accepted_preamble: 'ENFORCER RULES ACTIVE — READ codex_enforcer.md FIRST.',
+        accepted_preamble: 'ENFORCER RULES ACTIVE — READ docs/workspace/codex_enforcer.md FIRST.',
         paths: {
             latest_path: 'state/ops/rust50_sprint_contract/latest.json',
             history_path: 'state/ops/rust50_sprint_contract/history.jsonl',

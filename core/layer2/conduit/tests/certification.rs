@@ -8,8 +8,11 @@ use std::time::Instant;
 
 fn policy_fixture() -> (ConduitPolicy, tempfile::TempDir) {
     let temp = tempfile::tempdir().expect("tempdir");
-    let constitution = temp.path().join("AGENT-CONSTITUTION.md");
+    let constitution = temp.path().join("docs/workspace/AGENT-CONSTITUTION.md");
     let registry = temp.path().join("guard_check_registry.json");
+    if let Some(parent) = constitution.parent() {
+        std::fs::create_dir_all(parent).expect("create constitution dir");
+    }
 
     std::fs::write(&constitution, "Mind Sovereignty Covenant\nRSI Guardrails\n")
         .expect("write constitution");
