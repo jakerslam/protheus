@@ -34,6 +34,27 @@ pub fn workflow_receipt(command: &str, scope: Option<&str>) -> Value {
     out
 }
 
+pub fn pain_signal_receipt(
+    action: &str,
+    source: Option<&str>,
+    code: Option<&str>,
+    severity: Option<&str>,
+    risk: Option<&str>,
+) -> Value {
+    let mut out = json!({
+        "ok": true,
+        "type": "pain_signal_contract_receipt",
+        "authority": "core/layer2/autonomy",
+        "action": action,
+        "source": source,
+        "code": code,
+        "severity": severity,
+        "risk": risk
+    });
+    out["receipt_hash"] = Value::String(stable_hash(&out));
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -44,4 +65,3 @@ mod tests {
         assert!(payload.get("receipt_hash").and_then(Value::as_str).is_some());
     }
 }
-
