@@ -1376,7 +1376,8 @@
     "lane:v6-shadow-004:run": "npm run -s ops:shadow:dispatch",
     "ops:system-map:run": "node client/runtime/systems/ops/system_map_generator.js run --apply=1",
     "ops:system-map:status": "node client/runtime/systems/ops/system_map_generator.js status",
-    "test:ops:system-map-generator": "node client/memory/tools/tests/system_map_generator.test.js"
+    "test:ops:system-map-generator": "node client/memory/tools/tests/system_map_generator.test.js",
+    "ops:cockpit:inside": "node client/runtime/systems/ops/cockpit_inside_probe.js"
   },
   "bin": {
     "protheus": "./client/cli/bin/protheus",

@@ -71,12 +71,22 @@ function toInt(v: unknown, fallback: number, lo: number, hi: number) {
 }
 
 function conduitProbeTimeoutMs() {
-  return toInt(
+  const timeoutMs = toInt(
     process.env.COCKPIT_CONDUIT_PROBE_TIMEOUT_MS,
     4000,
     1000,
     120000
   );
+  if (!cleanText(process.env.PROTHEUS_CONDUIT_STARTUP_PROBE || '', 16)) {
+    process.env.PROTHEUS_CONDUIT_STARTUP_PROBE = '0';
+  }
+  const startupProbeRaw = cleanText(process.env.PROTHEUS_CONDUIT_STARTUP_PROBE_TIMEOUT_MS || '', 32);
+  const startupProbeMs = Number(startupProbeRaw);
+  const desiredFloorMs = Math.max(5000, timeoutMs);
+  if (!Number.isFinite(startupProbeMs) || startupProbeMs < desiredFloorMs) {
+    process.env.PROTHEUS_CONDUIT_STARTUP_PROBE_TIMEOUT_MS = String(desiredFloorMs);
+  }
+  return timeoutMs;
 }
 
 function ensureDir(filePath: string) {

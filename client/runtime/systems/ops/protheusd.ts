@@ -609,6 +609,14 @@ function resolveRuntime(argv: string[]) {
     1000,
     15 * 60 * 1000
   );
+  if (!cleanText(process.env.PROTHEUS_CONDUIT_STARTUP_PROBE || '', 16)) {
+    process.env.PROTHEUS_CONDUIT_STARTUP_PROBE = '0';
+  }
+  // Keep conduit startup probe aligned with cockpit bridge timeout to avoid false degraded states
+  // when the daemon is healthy but cold-start probe defaults are too aggressive.
+  if (!cleanText(process.env.PROTHEUS_CONDUIT_STARTUP_PROBE_TIMEOUT_MS || '', 32)) {
+    process.env.PROTHEUS_CONDUIT_STARTUP_PROBE_TIMEOUT_MS = String(Math.max(5000, cockpitConduitTimeoutMs));
+  }
   const cockpitCooldownMs = toInt(
     process.env.PROTHEUSD_COCKPIT_RETRY_COOLDOWN_MS,
     10 * 60 * 1000,
