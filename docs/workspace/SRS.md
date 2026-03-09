@@ -157,6 +157,18 @@ Source note:
 | V6-AGENCY-001.4 | queued | Workflow + success-metric contract binding for agency runs | Agency templates are not production-grade without explicit deliverable gates and measurable run outcomes. | Bind each agent template to workflow stages + metric contracts; orchestrated runs must output deliverable artifacts and success metrics as receipted Epistemic Objects. |
 | V6-AGENCY-001.5 | queued | Conduit-only activation/handoff guardrails for agency mode | Multi-agent activation/handoffs must remain fully Safety Plane governed to prevent implicit authority widening. | Enforce Layer-0 conduit checks for all role activations, tool invocations, and inter-agent handoffs; any bypass attempt fails closed with deterministic denial receipts. |
 
+## Visual Agent Team Dashboard & Role Templates Intake (Doc `1Aegff87diqP1piog54qjAmWyPrxLOMO4CCoAuOWfmlU`, 2026-03-09)
+
+Source note:
+- External draft labels this as `V6-COCKPIT-005`; this backlog maps it to `V6-COLLAB-001.*` to avoid collision with existing `V6-COCKPIT-005` (subscribe bridge timeout elimination).
+
+| ID | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|
+| V6-COLLAB-001.1 | queued | Visual team dashboard lane for multi-agent collaboration | Team orchestration visibility remains fragmented without a unified real-time collaboration surface. | Add a live team dashboard (`protheus-top` / `protheus team dashboard`) showing per-agent status, active task, handoff history, and contribution logs with sub-2s refresh and receipt drilldown links. |
+| V6-COLLAB-001.2 | queued | Instant role template launcher with runtime enforcement | Fast role-based onboarding needs one-command templates with policy-safe defaults. | Add role template launcher for common roles (`frontend-engineer`, `qa-tester`, `marketing-strategist`, `research-lead`) so `protheus shadow create --role ...` provisions tool/memory/workflow defaults with deterministic activation receipts. |
+| V6-COLLAB-001.3 | queued | Native team automation scheduling lane | Team workflows need built-in scheduling + handoff orchestration under one contract. | Add scheduling commands for individual shadows and team runs (`protheus schedule ...`) with cron-like triggers, deterministic kickoff/handoff receipts, and automatic summary artifact generation. |
+| V6-COLLAB-001.4 | queued | Conduit-only collaboration control guardrails | Dashboard actions, role activation, and scheduled runs must stay Safety Plane governed. | Enforce Layer-0 conduit checks for all team-dashboard controls and schedule triggers; every action emits deterministic receipts and fail-closed denials on policy violations. |
+
 ## Production-Grade Checklist Addendum (2026-03-06)
 
 | ID | Status | Upgrade | Why | Exit Criteria |
