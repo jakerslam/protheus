@@ -354,6 +354,24 @@ Notes:
 | V6-COCKPIT-015.5 | queued | Discord presence + voice-message support lane | Production Discord operation needs explicit online presence and voice input/output support with auditable flows. | Add managed online presence contract (green-dot heartbeat) and voice message handling pipeline with deterministic transcribe/respond receipts and policy gates. |
 | V6-COCKPIT-015.6 | queued | Conduit-only Discord interaction guardrails + full audit lane | Discord integrations can expand risk surface unless every interaction remains Safety Plane governed. | Enforce Layer-0 conduit checks for Discord messages, bindings, worker spawns, presence, and voice actions; bypass attempts fail closed and all operations emit deterministic receipts. |
 
+## Siftly-Style Bookmark & Knowledge Base Processor Intake (2026-03-09)
+
+Source references:
+- https://x.com/RoundtableSpace/status/2030308743078986013
+- https://github.com/viperrcrypto/Siftly
+
+Notes:
+- Proposed for next Snowball after Coreization Wave 1.
+- Self-hosted/local-first scope with conduit-governed processing and receipt lineage.
+
+| ID | Status | Upgrade | Why | Exit Criteria |
+|---|---|---|---|---|
+| V6-MEMORY-002.1 | queued | Four-stage bookmark assimilation pipeline (entity + vision + semantic tagging + categorization) | Saved content/bookmarks need deterministic enrichment to become usable memory assets instead of raw links/files. | Add `protheus assimilate bookmarks` pipeline that processes bookmark exports/folders into Epistemic Objects with extracted entities, image/vision metadata (where present), semantic tags, and category labels, each with deterministic per-item receipts. |
+| V6-MEMORY-002.2 | queued | Searchable bookmark knowledge base (full-text + semantic + confidence/provenance ranking) | Processed bookmark memory is only useful if retrieval is high-signal and explainable. | Add query surface (`protheus search ...`) over assimilated bookmark objects with ranking by relevance + confidence + provenance, and deterministic retrieval receipts documenting scoring inputs. |
+| V6-MEMORY-002.3 | queued | Mindmap knowledge-base visualization lane | Dense bookmark corpora require graph-style visualization for discovery and context linking. | Add `protheus mindmap`/dashboard mindmap view built from bookmark Epistemic Objects and tag/entity links, with deterministic exportable graph artifacts and refresh receipts. |
+| V6-MEMORY-002.4 | queued | Local-only/self-hosted bookmark processing contract | Privacy posture requires bookmark/content processing to run locally unless policy explicitly permits egress. | Enforce local-only default for assimilation/search/indexing pipelines with policy-gated egress controls and deterministic policy decision receipts. |
+| V6-MEMORY-002.5 | queued | Conduit-only bookmark pipeline guardrails + audit lane | Bookmark ingestion/search/visualization must remain Safety Plane governed and replay-auditable. | Enforce Layer-0 conduit checks for all bookmark processing/query/mindmap actions; bypass attempts fail closed and all operations emit deterministic audit receipts. |
+
 ## Production-Grade Checklist Addendum (2026-03-06)
 
 | ID | Status | Upgrade | Why | Exit Criteria |
