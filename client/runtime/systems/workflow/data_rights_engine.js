@@ -10,10 +10,10 @@ function toCoreArgs(argv = []) {
   const args = Array.isArray(argv) ? argv.slice() : [];
   const cmd = String(args[0] || 'status').trim().toLowerCase();
   if (cmd === 'help' || cmd === '--help' || cmd === '-h') return ['help'];
-  const allowed = new Set(['run', 'status']);
+  const allowed = new Set(['ingest', 'revoke', 'process', 'status']);
   const action = allowed.has(cmd) ? cmd : 'status';
   const tail = args.slice(args.length > 0 ? 1 : 0);
-  return ['workflow-generator', `--action=${action}`, ...tail];
+  return ['data-rights-engine', `--action=${action}`, ...tail];
 }
 
 function run(args = []) {

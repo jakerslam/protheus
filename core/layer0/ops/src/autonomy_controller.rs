@@ -22,6 +22,12 @@ fn usage() {
     println!("Usage:");
     println!("  protheus-ops autonomy-controller status");
     println!("  protheus-ops autonomy-controller run [--max-actions=<n>] [--objective=<id>]");
+    println!(
+        "  protheus-ops autonomy-controller runtime-stability-soak [--action=<start|check-now|status|report>] [flags]"
+    );
+    println!(
+        "  protheus-ops autonomy-controller self-documentation-closeout [--action=<run|status>] [flags]"
+    );
 }
 
 fn parse_flag(argv: &[String], key: &str) -> Option<String> {
@@ -86,7 +92,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
 
     match cmd.as_str() {
-        "status" | "run" => {
+        "status" | "run" | "runtime-stability-soak" | "self-documentation-closeout" => {
             print_json_line(&native_receipt(root, &cmd, argv));
             0
         }
