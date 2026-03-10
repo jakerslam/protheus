@@ -60,6 +60,8 @@
   - `npm run -s ops:layer-placement:check` -> pass (`violations_count:0`)
 - Full regression artifact:
   - `artifacts/blocker_regression_2026-03-10.json`
+- Ordered TODO execution artifact:
+  - `artifacts/todo_execution_2026-03-10.json`
 - Action when environment clears:
   - Re-run `./verify.sh`
   - Re-run system suite:
