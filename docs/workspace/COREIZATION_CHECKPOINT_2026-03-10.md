@@ -75,6 +75,8 @@
   - `V6-LLMN-001..004` (mode registry/parity/path/conformance shield)
   - `V6-MEMORY-013..019` (low-burn retrieval/hydration/budget/ranking/freshness + LensMap annotation shield)
   - `V6-MEMORY-021` (per-query token telemetry + burn-SLO trace lane)
+  - `V6-SWARM-001..006` (swarm router closure tranche)
+  - `V6-INITIATIVE-013`, `V6-ARCH-ICEBERG-028` (initiative + iceberg live runtime closure tranche)
 - Validation evidence:
   - `client/memory/tools/tests/llmn_mode_conformance.test.js`
   - `client/memory/tools/tests/strategy_resolver.test.js`
@@ -88,5 +90,10 @@
   - `client/memory/tools/tests/memory_matrix.test.js`
   - `client/memory/tools/tests/memory_auto_recall.test.js`
   - `client/memory/tools/tests/memory_index_freshness_gate.test.js`
+  - `cargo test --manifest-path core/layer0/swarm_router/Cargo.toml`
+  - `cargo test -p protheus-ops-core attention_queue`
+  - `cargo test -p execution_core initiative`
+  - `npm run -s test:ops:source-runtime-classifier`
+  - `npm run -s test:ops:subconscious-boundary-guard`
 - Actionable backlog count after tranche:
-  - `artifacts/backlog_actionable_report_2026-03-10_resume.json` -> `actionable_count: 390`
+  - `artifacts/backlog_actionable_report_2026-03-10_resume.json` -> `actionable_count: 381`
