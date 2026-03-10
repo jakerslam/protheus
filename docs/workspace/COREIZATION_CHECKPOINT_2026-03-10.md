@@ -34,23 +34,32 @@
 - Command:
   - `npm run -s metrics:rust-share:gate`
 - Result:
-  - `rust_share_pct: 63.724`
-  - `rs: 118795`, `ts: 39298`, `js: 28329`
+  - `rust_share_pct: 63.723`
+  - `rs: 118795`, `ts: 39301`, `js: 28329`
 
 ## Runtime Regression Status
 - Runtime execution remains blocked in this session:
   - Local compiled binaries (including minimal `/tmp` test binaries) hang before `main`.
-  - Existing wrappers therefore may emit deferred host-stall receipts rather than true runtime execution.
-- Current command snapshot:
-  - `npm run -s typecheck:systems` -> deferred host stall receipt (`legacy-retired-lane`, `ETIMEDOUT`)
-  - `npm run -s ops:source-runtime:check` -> deferred host stall receipt (`legacy-retired-lane`, `ETIMEDOUT`)
-  - `npm run -s ops:subconscious-boundary:check` -> deferred host stall receipt (`legacy-retired-lane`, `ETIMEDOUT`)
-  - `npm run -s test:memory:context-budget` -> deferred host stall receipt (`legacy-retired-lane`, `ETIMEDOUT`)
-  - `npm run -s test:memory:matrix` -> deferred host stall receipt (`legacy-retired-lane`, `ETIMEDOUT`)
-  - `npm run -s test:memory:auto-recall` -> deferred host stall receipt (`legacy-retired-lane`, `ETIMEDOUT`)
-  - `npm run -s test:reflexes` -> deferred host stall receipt (`legacy-retired-lane`, `ETIMEDOUT`)
+- Host policy evidence:
+  - `/tmp/hello_c_test` and `/tmp/hello_rust_test` hang with no stdout.
+  - `spctl --assess --type execute /tmp/hello_c_test` -> rejected.
+- Deferred fallback status:
+  - `OPS-BLOCKER-002` completed (fail-closed defaults enabled).
+  - Active bridge defaults now set `PROTHEUS_OPS_DEFER_ON_HOST_STALL=0`.
+- Current command snapshot (fail-closed):
+  - `./verify.sh` -> timed out (60s cap in blocker run)
+  - `npm run -s typecheck:systems` -> `spawnSync .../target/debug/protheus-ops ETIMEDOUT`
+  - `npm run -s ops:source-runtime:check` -> `spawnSync .../target/debug/protheus-ops ETIMEDOUT`
+  - `npm run -s ops:subconscious-boundary:check` -> `spawnSync .../target/debug/protheus-ops ETIMEDOUT`
+  - `npm run -s test:memory:context-budget` -> `spawnSync .../target/debug/protheus-ops ETIMEDOUT`
+  - `npm run -s test:memory:matrix` -> `spawnSync .../target/debug/protheus-ops ETIMEDOUT`
+  - `npm run -s test:memory:auto-recall` -> `spawnSync .../target/debug/protheus-ops ETIMEDOUT`
+  - `npm run -s test:reflexes` -> `spawnSync .../target/debug/protheus-ops ETIMEDOUT`
   - `npm run -s ops:srs:top200:regression` -> pass (`fail:0 warn:0 pass:200`)
+  - `npm run -s metrics:rust-share:gate` -> pass (`rust_share_pct: 63.723`)
   - `npm run -s ops:layer-placement:check` -> pass (`violations_count:0`)
+- Full regression artifact:
+  - `artifacts/blocker_regression_2026-03-10.json`
 - Action when environment clears:
   - Re-run `./verify.sh`
   - Re-run system suite:
