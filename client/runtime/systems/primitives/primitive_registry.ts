@@ -7,3 +7,7 @@
 const mod = require('./primitive_registry.js');
 if (require.main === module) mod.run(process.argv.slice(2));
 module.exports = mod;
+
+const { createConduitLaneModule } = require("../../lib/direct_conduit_lane_bridge.js");
+const __directConduitLane = createConduitLaneModule("SYSTEMS_PRIMITIVES_PRIMITIVE_REGISTRY");
+void __directConduitLane;

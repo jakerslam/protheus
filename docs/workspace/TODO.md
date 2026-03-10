@@ -81,8 +81,11 @@ Updated: 2026-03-10 (runtime-unblocked + verification-green)
 - Primitive residual audit tranche completed (`V6-PRIM-009`):
   - `docs/client/reports/primitive_ts_logic_audit_2026-03-10.md`
   - `artifacts/primitive_ts_logic_audit_2026-03-10.json`
-- Primitive wrapper contract lane remains in progress (`V6-PRIM-008`) with scoped gate:
+- Primitive wrapper contract lane completed (`V6-PRIM-008`) with scoped gate:
   - `./target/debug/protheus-ops contract-check --rust-contract-check-ids=primitive_ts_wrapper_contract`
+  - closure evidence:
+    - `docs/client/reports/primitive_ts_logic_audit_2026-03-10_closure.md`
+    - `artifacts/primitive_ts_logic_audit_2026-03-10_closure.json`
 
 ## Commands
 

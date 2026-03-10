@@ -2,6 +2,10 @@
 'use strict';
 export {};
 
+const { createConduitLaneModule } = require("./direct_conduit_lane_bridge.js");
+const __directConduitLane = createConduitLaneModule("LIB_DUALITY_SEED");
+void __directConduitLane;
+
 const fs = require('fs');
 const path = require('path');
 

@@ -1,6 +1,10 @@
 'use strict';
 export {};
 
+const { createConduitLaneModule } = require("./direct_conduit_lane_bridge.js");
+const __directConduitLane = createConduitLaneModule("LIB_STRATEGY_RESOLVER");
+void __directConduitLane;
+
 const fs = require('fs');
 const path = require('path');
 const { loadOutcomeFitnessPolicy } = require('./outcome_fitness');

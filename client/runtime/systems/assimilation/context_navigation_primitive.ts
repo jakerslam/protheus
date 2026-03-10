@@ -7,3 +7,7 @@
 const mod = require('./context_navigation_primitive.js');
 if (require.main === module) mod.run(process.argv.slice(2));
 module.exports = mod;
+
+const { createConduitLaneModule } = require("../../lib/direct_conduit_lane_bridge.js");
+const __directConduitLane = createConduitLaneModule("SYSTEMS_ASSIMILATION_CONTEXT_NAVIGATION_PRIMITIVE");
+void __directConduitLane;
