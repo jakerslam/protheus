@@ -1,7 +1,7 @@
 {
   "type": "repo_surface_policy_audit",
-  "generated_at": "2026-03-10T21:52:36.780Z",
-  "revision": "5fd00f6f602d20d642fa8e48451d3762d14fa3f8",
+  "generated_at": "2026-03-10T22:02:05.319Z",
+  "revision": "a519b61a9cf0175f7d11088e858bc4b6069ef64a",
   "policy_path": "client/runtime/config/repo_surface_policy.json",
   "summary": {
     "hard_violation_count": 0,
@@ -18,10 +18,10 @@
     },
     "client": {
       "exists": true,
-      "file_count": 11949,
+      "file_count": 11857,
       "by_ext": {
         "ts": 7568,
-        "js": 4349,
+        "js": 4257,
         "sh": 19,
         "py": 11,
         "ps1": 1,
@@ -52,9 +52,9 @@
     {
       "root": "client",
       "reason": "legacy_extension_debt",
-      "count": 4380,
+      "count": 4288,
       "by_ext": {
-        "js": 4349,
+        "js": 4257,
         "sh": 19,
         "py": 11,
         "ps1": 1

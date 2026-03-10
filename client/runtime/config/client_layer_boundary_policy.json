@@ -43,17 +43,11 @@
     "client/runtime/systems/ops/release_gate_canary_rollback_enforcer.ts",
     "client/runtime/systems/ops/system_visualizer_server.ts",
     "client/runtime/systems/ops/visualizer/app.ts",
-    "client/runtime/systems/mobile/index.js",
-    "client/runtime/systems/personas/personas_rust_bridge.js",
-    "client/runtime/systems/red_legion/index.js",
     "client/runtime/systems/sensory/eyes_collectors/bird_x.ts",
     "client/runtime/systems/sensory/eyes_collectors/cache_store.ts",
     "client/runtime/systems/sensory/eyes_collectors/ollama_search.ts",
-    "client/runtime/systems/singularity_seed/orchestrator.ts",
-    "client/runtime/systems/swarm/index.js"
+    "client/runtime/systems/singularity_seed/orchestrator.ts"
   ],
-  "allowed_non_wrapper_roots": [
-    "client/runtime/systems/lib/"
-  ],
-  "max_allowed_non_wrapper_count": 81
+  "allowed_non_wrapper_roots": [],
+  "max_allowed_non_wrapper_count": 22
 }

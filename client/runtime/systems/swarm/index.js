@@ -2,6 +2,7 @@
 'use strict';
 Object.defineProperty(exports, "__esModule", { value: true });
 
+// Layer ownership: core/layer2/autonomy + core/layer0/ops::swarm-domain (authoritative)
 const { createDomainProxy } = require('../../lib/legacy_conduit_proxy');
 
 const runDomain = createDomainProxy(__dirname, 'SWARM', 'swarm');
