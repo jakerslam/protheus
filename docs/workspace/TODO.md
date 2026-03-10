@@ -97,6 +97,16 @@ Updated: 2026-03-10 (security TODO execution tranche applied)
 - Notes:
 - Keep queued until `COREIZATION-NEXT-001` is closed to avoid splitting authority lanes.
 
+11. `MAINT-004` `P1` `ROI=9/10` `DEP=coreization+security` Client layer boundary lock (wrapper-only runtime systems + explicit residual allowlist). `STATUS: COMPLETE`
+- Exit criteria:
+- Full `client/runtime/systems` source scan has zero unexpected non-wrapper files.
+- Explicit policy tracks residual developer/app surfaces still in client.
+- Completion evidence:
+- `client/runtime/config/client_layer_boundary_policy.json`
+- `scripts/ci/client_layer_boundary_audit.mjs`
+- `artifacts/client_layer_boundary_audit_2026-03-10.json`
+- `npm run -s ops:client-layer:boundary`
+
 ## Commands used in this tranche
 - `node scripts/ci/nightly_fuzz_chaos_report.mjs`
 - `./target/debug/protheus-ops contract-check --rust-contract-check-ids=primitive_ts_wrapper_contract`
@@ -104,6 +114,7 @@ Updated: 2026-03-10 (security TODO execution tranche applied)
 - `node scripts/ci/coreization_wave1_static_audit.mjs --out artifacts/coreization_wave1_static_audit_2026-03-10_coreization_next_001.json`
 - `node scripts/ci/release_security_readiness_report.mjs`
 - `node scripts/ci/formal_verification_expansion_report.mjs`
+- `node scripts/ci/client_layer_boundary_audit.mjs --strict=1 --out=artifacts/client_layer_boundary_audit_2026-03-10.json`
 - `npm run -s metrics:rust-share:gate`
 - `./verify.sh`
 - `node scripts/ci/backlog_actionable_report.mjs > artifacts/backlog_actionable_report_2026-03-10_post_security_todo.json`
