@@ -83,6 +83,19 @@ function localFallbackEnabled() {
   return !(raw === '0' || raw === 'false' || raw === 'no' || raw === 'off');
 }
 
+function deferOnHostStallEnabled() {
+  const raw = String(process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL || '0').trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+}
+
+function isTimeoutLikeSpawnError(err) {
+  if (!err) return false;
+  const code = String(err.code || '');
+  if (code.toUpperCase() === 'ETIMEDOUT') return true;
+  const msg = String(err.message || err);
+  return /\b(etimedout|timed out|timeout)\b/i.test(msg);
+}
+
 function defaultEnv() {
   return {
     ...process.env,
@@ -163,6 +176,28 @@ function runLocalOpsDomain(root, domain, passArgs, cliMode, inheritStdio) {
     timeout: timeoutMs,
     maxBuffer: 1024 * 1024 * 4
   });
+  if (deferOnHostStallEnabled() && isTimeoutLikeSpawnError(run.error)) {
+    const payload = {
+      ok: true,
+      type: 'ops_domain_deferred_host_stall',
+      reason_code: 'deferred_host_stall',
+      raw_error_code: String(run.error.code || ''),
+      domain,
+      timeout_ms: timeoutMs
+    };
+    return {
+      ok: true,
+      status: 0,
+      stdout: cliMode && inheritStdio ? '' : `${JSON.stringify(payload)}\n`,
+      stderr: String(run.error && run.error.message ? run.error.message : run.error),
+      payload,
+      rust_command: resolved.command,
+      rust_args: [resolved.command, ...commandArgs],
+      timeout_ms: timeoutMs,
+      routed_via: 'core_local',
+      deferred_host_stall: true
+    };
+  }
   const status = run.error ? 1 : normalizeStatus(run.status);
   const stdout = run.stdout || '';
   const stderr = `${run.stderr || ''}${run.error ? `\n${String(run.error && run.error.message ? run.error.message : run.error)}` : ''}`;
@@ -286,6 +321,13 @@ function runCliWithOutput(out, inheritStdio) {
 }
 
 function createOpsLaneBridge(scriptDir, lane, domain, opts = {}) {
+  process.env.PROTHEUS_OPS_USE_PREBUILT =
+    process.env.PROTHEUS_OPS_USE_PREBUILT || '1';
+  process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL =
+    process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL || '0';
+  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS =
+    process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '20000';
+
   const config = {
     scriptDir,
     lane,

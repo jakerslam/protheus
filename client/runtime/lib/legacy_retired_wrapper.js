@@ -19,6 +19,12 @@ function createLegacyRetiredModule(scriptDir, scriptName, laneId) {
     process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS || '15000';
   process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS =
     process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '20000';
+  // Retired lanes should use the existing core binary in this host profile
+  // instead of triggering fresh cargo builds during wrapper execution.
+  process.env.PROTHEUS_OPS_USE_PREBUILT =
+    process.env.PROTHEUS_OPS_USE_PREBUILT || '1';
+  process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL =
+    process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL || '0';
 
   const bridge = createOpsLaneBridge(scriptDir, scriptName, 'legacy-retired-lane');
 
