@@ -36,7 +36,13 @@ jobs:
             echo "no_fuzz_targets_detected"
           fi
 
-      - name: Chaos resilience smoke
+      - name: Generate fuzz + chaos evidence report
         run: |
-          NODE_PATH=$PWD/node_modules npm run -s formal:invariants:run
-          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- enterprise-hardening run --strict=1
+          node scripts/ci/nightly_fuzz_chaos_report.mjs
+
+      - name: Upload fuzz + chaos report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-fuzz-chaos-report
+          path: artifacts/nightly_fuzz_chaos_report_*.json
+          if-no-files-found: error

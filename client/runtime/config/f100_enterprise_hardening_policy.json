@@ -29,9 +29,9 @@
       "path": "client/runtime/systems/ops/protheus_status_dashboard.ts",
       "required_tokens": [
         "protheus-ops",
+        "createOpsLaneBridge",
         "status",
-        "--dashboard",
-        "spawnSync('cargo'"
+        "--dashboard"
       ]
     },
     {
