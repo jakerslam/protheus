@@ -12240,64 +12240,36 @@ if mode == "alpha" {
     }
 
     #[test]
-    fn bridge_maps_all_inversion_primitive_callsite_modes() {
-        let ts_autonomy = include_str!("../../../client/runtime/systems/autonomy/autonomy_controller.ts");
-        let ts_autonomy_legacy =
-            include_str!("../../../client/runtime/systems/autonomy/autonomy_controller_legacy.ts");
-        let ts_inversion = include_str!("../../../client/runtime/systems/autonomy/inversion_controller.ts");
-        let ts_inversion_legacy =
-            include_str!("../../../client/runtime/systems/autonomy/inversion_controller_legacy.ts");
-        let bridge = include_str!("../../../client/runtime/systems/autonomy/backlog_autoscale_rust_bridge.ts");
+    fn inversion_bridge_is_wrapper_only_in_coreized_layout() {
+        let ts_autonomy = include_str!("../../../../client/runtime/systems/autonomy/autonomy_controller.ts");
+        let ts_inversion = include_str!("../../../../client/runtime/systems/autonomy/inversion_controller.ts");
+        let bridge = include_str!("../../../../client/runtime/systems/autonomy/backlog_autoscale_rust_bridge.js");
         let mut called = extract_mode_literals(ts_inversion, "runInversionPrimitive");
-        called.extend(extract_mode_literals(
-            ts_inversion_legacy,
-            "runInversionPrimitive",
-        ));
         called.extend(extract_mode_literals(ts_autonomy, "runInversionPrimitive"));
-        called.extend(extract_mode_literals(
-            ts_autonomy_legacy,
-            "runInversionPrimitive",
-        ));
         assert!(
-            !called.is_empty(),
-            "expected runInversionPrimitive mode calls in controller TS sources"
+            bridge.contains("createLegacyRetiredModule"),
+            "backlog_autoscale_rust_bridge.js must remain a thin wrapper"
         );
-        let mapped = extract_bridge_modes(bridge, "runInversionPrimitive");
-        assert!(!mapped.is_empty(), "expected inversion fieldByMode map in backlog_autoscale_rust_bridge.ts");
-
-        let missing = called
-            .difference(&mapped)
-            .cloned()
-            .collect::<Vec<_>>();
         assert!(
-            missing.is_empty(),
-            "controller TS sources use modes missing from Rust inversion bridge map: {:?}",
-            missing
+            !bridge.contains("fieldByMode"),
+            "wrapper-only bridge must not contain legacy inversion mode maps"
+        );
+        assert!(
+            called.is_empty(),
+            "coreized wrappers should not carry inversion mode calls"
         );
     }
 
     #[test]
     fn controller_callsite_modes_are_dispatched_by_rust_inversion_json() {
-        let ts_autonomy = include_str!("../../../client/runtime/systems/autonomy/autonomy_controller.ts");
-        let ts_autonomy_legacy =
-            include_str!("../../../client/runtime/systems/autonomy/autonomy_controller_legacy.ts");
-        let ts_inversion = include_str!("../../../client/runtime/systems/autonomy/inversion_controller.ts");
-        let ts_inversion_legacy =
-            include_str!("../../../client/runtime/systems/autonomy/inversion_controller_legacy.ts");
+        let ts_autonomy = include_str!("../../../../client/runtime/systems/autonomy/autonomy_controller.ts");
+        let ts_inversion = include_str!("../../../../client/runtime/systems/autonomy/inversion_controller.ts");
         let rust_src = include_str!("inversion.rs");
         let mut called = extract_mode_literals(ts_inversion, "runInversionPrimitive");
-        called.extend(extract_mode_literals(
-            ts_inversion_legacy,
-            "runInversionPrimitive",
-        ));
         called.extend(extract_mode_literals(ts_autonomy, "runInversionPrimitive"));
-        called.extend(extract_mode_literals(
-            ts_autonomy_legacy,
-            "runInversionPrimitive",
-        ));
         assert!(
-            !called.is_empty(),
-            "expected runInversionPrimitive mode calls in controller TS sources"
+            ts_autonomy.contains("createOpsLaneBridge") || ts_inversion.contains("createLegacyRetiredModule"),
+            "expected thin-wrapper bridge markers in autonomy wrappers"
         );
         let dispatched = extract_dispatch_modes(rust_src);
         let missing = called
@@ -12313,9 +12285,16 @@ if mode == "alpha" {
 
     #[test]
     fn rust_dispatch_covers_all_inversion_bridge_modes() {
-        let bridge = include_str!("../../../client/runtime/systems/autonomy/backlog_autoscale_rust_bridge.ts");
+        let bridge = include_str!("../../../../client/runtime/systems/autonomy/backlog_autoscale_rust_bridge.js");
         let rust_src = include_str!("inversion.rs");
         let mapped = extract_bridge_modes(bridge, "runInversionPrimitive");
+        if mapped.is_empty() {
+            assert!(
+                bridge.contains("createLegacyRetiredModule"),
+                "wrapper-only bridge expected when inversion map literals are retired"
+            );
+            return;
+        }
         let dispatched = extract_dispatch_modes(rust_src);
         let missing = mapped
             .difference(&dispatched)

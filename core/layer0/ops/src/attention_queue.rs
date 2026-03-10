@@ -1570,7 +1570,7 @@ mod tests {
         let dir = tempdir().expect("tempdir");
         write_policy(dir.path(), 64, "critical");
         let low = json!({
-            "ts": "2026-03-07T10:00:00.000Z",
+            "ts": now_iso(),
             "source": "external_eyes",
             "source_type": "external_item",
             "severity": "info",
@@ -1578,7 +1578,7 @@ mod tests {
             "attention_key": "prio-low"
         });
         let mid = json!({
-            "ts": "2026-03-07T10:01:00.000Z",
+            "ts": now_iso(),
             "source": "memory_ambient",
             "source_type": "memory_event",
             "severity": "warn",
@@ -1589,7 +1589,7 @@ mod tests {
             }
         });
         let high = json!({
-            "ts": "2026-03-07T10:02:00.000Z",
+            "ts": now_iso(),
             "source": "spine",
             "source_type": "infra_outage_state",
             "severity": "critical",

@@ -42,7 +42,7 @@ Updated: 2026-03-10 (runtime-unblocked + verification-green)
 - `npm run -s metrics:rust-share:gate` -> `rust_share_pct >= 60`.
 - Current evidence:
 - `artifacts/coreization_wave1_static_audit_2026-03-10_resume.json`
-- Rust share now `64.818%`.
+- Rust share now `64.884%`.
 
 5. `BACKLOG-RESUME` `P2` `ROI=10/10` `DEP=001,002,003,COREIZATION-GATE-001` Resume ROI backlog execution now that blockers are clear. `STATUS: IN_PROGRESS`
 - Exit criteria:
@@ -66,6 +66,13 @@ Updated: 2026-03-10 (runtime-unblocked + verification-green)
 - Token telemetry extension completed for `V6-MEMORY-021`:
   - `core/layer1/memory_runtime/src/token_telemetry.rs`
   - `cargo test --manifest-path core/layer1/memory_runtime/Cargo.toml`
+- Swarm router closure tranche completed (`V6-SWARM-001..006`):
+  - `cargo test --manifest-path core/layer0/swarm_router/Cargo.toml`
+- Initiative/iceberg closure tranche completed (`V6-INITIATIVE-013`, `V6-ARCH-ICEBERG-028`):
+  - `cargo test -p protheus-ops-core attention_queue`
+  - `cargo test -p execution_core initiative`
+  - `npm run -s test:ops:source-runtime-classifier`
+  - `npm run -s test:ops:subconscious-boundary-guard`
 
 ## Commands
 
