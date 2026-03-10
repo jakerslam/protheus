@@ -1,0 +1,3818 @@
+{
+  "summary": {
+    "generatedAt": "2026-03-10T14:30:28.227Z",
+    "source": {
+      "srs": "docs/workspace/SRS.md",
+      "todo": "docs/workspace/TODO.md"
+    },
+    "totalSrsRows": 1670,
+    "top200Count": 200,
+    "regression": {
+      "fail": 0,
+      "warn": 0,
+      "pass": 200
+    }
+  },
+  "top200": [
+    {
+      "rank": 1,
+      "id": "V6-INITIATIVE-013",
+      "status": "in_progress",
+      "upgrade": "Core global importance/priority kernel (`REQ-27`)",
+      "why": "Initiative and queue-collision behavior needed a single deterministic importance authority spanning all ambient producers.",
+      "exitCriteria": "Added Rust importance engine + priority queue ordering in `core/layer0/ops/src/importance.rs` and `core/layer0/ops/src/attention_queue.rs`; enqueue/status receipts now carry `score`, `band`, `priority`, and `initiative_action`. Added subconscious/client boundary regression guard lane (`client/runtime/systems/ops/subconscious_boundary_guard.ts`) with strict policy + required-check wiring. Remaining exit: complete live runtime validation and cockpit-priority consumption proof.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 425,
+      "evidenceCount": 30,
+      "nonBacklogEvidenceCount": 28,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 2,
+      "id": "V6-SWARM-001",
+      "status": "in_progress",
+      "upgrade": "Swarm router primitive crate",
+      "why": "Coordinator routing needs a typed bus contract to reduce manual handoff errors and enable deterministic orchestration scaling.",
+      "exitCriteria": "Added `core/layer0/swarm_router` crate with typed envelope + queue primitives (`core/layer0/swarm_router/src/lib.rs`, `src/main.rs`) implementing `id/reply_to/route/payload/priority/status` and queue schema `swarm_queue_v1`. Remaining exit: cargo lane validation is currently blocked by host dyld build-script stalls (`V6-HOST-BUILD-STALE-001`, `cargo_test_timeout` after stale-reap).",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 415,
+      "evidenceCount": 67,
+      "nonBacklogEvidenceCount": 17,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 3,
+      "id": "V6-SWARM-002",
+      "status": "in_progress",
+      "upgrade": "Auto-ID + in-flight lifecycle tracker",
+      "why": "Manual IDs and weak run-state tracking increase coordination mistakes under parallel execution pressure.",
+      "exitCriteria": "Implemented deterministic role-prefixed auto-ID generation and in-flight lifecycle tracker (`pending/in_progress/complete/failed`) in `core/layer0/swarm_router/src/lib.rs` (`auto_id`, `InFlightTracker`). Remaining exit: crate test execution blocked by host dyld stall profile (`V6-HOST-BUILD-STALE-001`).",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 415,
+      "evidenceCount": 57,
+      "nonBacklogEvidenceCount": 55,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 4,
+      "id": "V6-SWARM-003",
+      "status": "in_progress",
+      "upgrade": "Self-healing reroute policy for failed tasks",
+      "why": "Swarm resiliency requires deterministic retry/reassign behavior rather than manual intervention loops.",
+      "exitCriteria": "Implemented policy-backed retry/reroute logic (`RecoveryPolicy`, `recovery_decision`) with receipt envelope support in `core/layer0/swarm_router/src/lib.rs` + CLI `recover` path in `src/main.rs`. Remaining exit: cargo test validation blocked by host build-script stalls.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 415,
+      "evidenceCount": 43,
+      "nonBacklogEvidenceCount": 41,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 5,
+      "id": "V6-SWARM-004",
+      "status": "in_progress",
+      "upgrade": "Queue-pressure auto-scaling planner",
+      "why": "Parallel throughput is capped when worker scaling remains manual during backlog spikes.",
+      "exitCriteria": "Implemented deterministic scaling planner (`ScalingPolicy`, `plan_scaling`) with reversible `scale_up/scale_down/hold` decisions in `core/layer0/swarm_router/src/lib.rs` and CLI `scale` command. Remaining exit: cargo test validation blocked by host build-script stalls.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 415,
+      "evidenceCount": 29,
+      "nonBacklogEvidenceCount": 27,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 6,
+      "id": "V6-SWARM-005",
+      "status": "in_progress",
+      "upgrade": "File-backed queue contract + priority ordering",
+      "why": "Reliable worker handoff and scheduling need schema-backed queue artifacts and deterministic priority sorting.",
+      "exitCriteria": "Implemented file-backed queue artifact (`QueueArtifact`) with schema versioning (`swarm_queue_v1`), deterministic validation, and priority/tie-break ordering (`priority desc`, `id asc`) in `core/layer0/swarm_router/src/lib.rs`. Remaining exit: cargo test validation blocked by host build-script stalls.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 415,
+      "evidenceCount": 71,
+      "nonBacklogEvidenceCount": 69,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 7,
+      "id": "V6-SWARM-006",
+      "status": "in_progress",
+      "upgrade": "Swarm observability and self-upgrade protocol",
+      "why": "Router operations need auditable traces and safe upgrade/rollback controls to avoid orchestration drift.",
+      "exitCriteria": "Added swarm receipt/metric primitives (`SwarmReceipt`, `SwarmMetrics`) and upgrade/rollback protocol (`apply_upgrade`, `apply_rollback`) in `core/layer0/swarm_router/src/lib.rs` with CLI surfaces in `src/main.rs`. Remaining exit: cargo test validation blocked by host build-script stalls.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 415,
+      "evidenceCount": 37,
+      "nonBacklogEvidenceCount": 11,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 8,
+      "id": "V6-ARCH-ICEBERG-028",
+      "status": "in_progress",
+      "upgrade": "Conscious/Subconscious Iceberg v1.0 execution (`REQ-28`)",
+      "why": "The architecture spec existed externally but needed executable repo contracts and Layer2 initiative primitives tied to it.",
+      "exitCriteria": "Added canonical contract doc `docs/SYSTEM-ARCHITECTURE-SPECS.md`, derived requirement `docs/client/requirements/REQ-28-conscious-subconscious-iceberg-v1.md`, linked `ARCHITECTURE.md` to the contract, and shipped Layer2 deterministic initiative primitives in `core/layer2/execution/src/initiative.rs` (`initiative-score`, `initiative-action`, `attention-priority`). Remaining exit: complete migration of live queue authority from `core/layer0/ops` to Layer2 lanes without regression.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 412,
+      "evidenceCount": 14,
+      "nonBacklogEvidenceCount": 12,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 9,
+      "id": "V6-COCKPIT-008",
+      "status": "queued",
+      "upgrade": "Rust/Node runtime unification contract (`REQ-37`)",
+      "why": "Split authority between Rust spine lanes and Node wrappers can reintroduce drift in behavior, codes, and performance under load.",
+      "exitCriteria": "Define one Rust-authoritative runtime command schema and migrate Node surfaces to thin conduit wrappers only; parity suite proves identical receipt/error contracts across CLI and daemon paths.",
+      "section": "Production-Grade Checklist Addendum (2026-03-06)",
+      "score": 380,
+      "evidenceCount": 15,
+      "nonBacklogEvidenceCount": 11,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 10,
+      "id": "V6-COCKPIT-007",
+      "status": "queued",
+      "upgrade": "WebSocket-native conduit push stream (`REQ-37`)",
+      "why": "Current push mode still relies on queue-mutation wake loops and drain polling semantics rather than a true socket stream.",
+      "exitCriteria": "Add `protheusd subscribe --transport=ws` with native WebSocket stream frames, resumable cursor/ack contract, bounded heartbeat/reconnect logic, and deterministic stream lifecycle receipts (`open`, `message`, `ack`, `reconnect`, `close`).",
+      "section": "Production-Grade Checklist Addendum (2026-03-06)",
+      "score": 375,
+      "evidenceCount": 12,
+      "nonBacklogEvidenceCount": 8,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 11,
+      "id": "V6-MEMORY-013",
+      "status": "queued",
+      "upgrade": "Index-first and node-only retrieval enforcement (`REQ-36`)",
+      "why": "Token burn regresses whenever retrieval bypasses index traversal and reads broad files.",
+      "exitCriteria": "Default retrieval path enforces `TAGS_INDEX -> MEMORY_INDEX -> node section`; full daily-file reads are blocked unless explicit narrative/manual/maintenance override is present.",
+      "section": "LLMN Mode + Smart Memory Regression Shield (2026-03-09)",
+      "score": 365,
+      "evidenceCount": 10,
+      "nonBacklogEvidenceCount": 8,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 12,
+      "id": "V6-MEMORY-014",
+      "status": "queued",
+      "upgrade": "Lean dynamic hydration policy hardening (`REQ-36`)",
+      "why": "Eager hydration of memory protocol/index files reintroduces cold-start token tax.",
+      "exitCriteria": "Default startup hydration loads only minimal identity files; memory/index artifacts remain lazy and load on demand with persisted hydration receipts.",
+      "section": "LLMN Mode + Smart Memory Regression Shield (2026-03-09)",
+      "score": 365,
+      "evidenceCount": 6,
+      "nonBacklogEvidenceCount": 4,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 13,
+      "id": "V6-MEMORY-015",
+      "status": "queued",
+      "upgrade": "Memory-query burn SLO gate (`<200`) (`REQ-36`)",
+      "why": "Low-burn behavior previously achieved regressed without executable SLO enforcement.",
+      "exitCriteria": "Add automated burn checks so standard memory query path stays under configured `<200` token target with deterministic `tokens_before/after` receipts; fail CI on sustained regression.",
+      "section": "LLMN Mode + Smart Memory Regression Shield (2026-03-09)",
+      "score": 365,
+      "evidenceCount": 6,
+      "nonBacklogEvidenceCount": 4,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 14,
+      "id": "V6-COMP-005",
+      "status": "blocked",
+      "upgrade": "Public multi-release cadence target (9+ tags)",
+      "why": "Cadence parity requires maintainers to execute remote tagging/publishing repeatedly over time.",
+      "exitCriteria": "Publish at least 9 semantic releases with signed notes and artifact checks; blocked on maintainer release authority + calendar execution.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 350,
+      "evidenceCount": 32,
+      "nonBacklogEvidenceCount": 28,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 15,
+      "id": "V6-SUBSTRATE-002.4",
+      "status": "blocked",
+      "upgrade": "Bioethics/consent policy gate contract for biological interaction",
+      "why": "Biological stimulation/control requires human-governed ethics and consent boundaries beyond purely technical implementation.",
+      "exitCriteria": "Human-approved ethics/consent policy artifacts are linked (`HMAN-BIO-001`), Layer-1 policy lanes enforce revocable consent + high-risk disable paths, and all bio interactions are fully auditable via deterministic receipts.",
+      "section": "Biological Neural Hybrid Integration Intake (x.com/Crypto_Jargon 2030603197237387411, 2026-03-09)",
+      "score": 336,
+      "evidenceCount": 6,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 16,
+      "id": "V7-META-016",
+      "status": "blocked",
+      "upgrade": "Live QPU provider validation campaign",
+      "why": "Quantum broker claims require real provider execution evidence and credentialed access.",
+      "exitCriteria": "Human-approved provider access is active (`HMAN-084`) and signed live QPU run artifacts satisfy fidelity/latency policy thresholds.",
+      "section": "Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08)",
+      "score": 326,
+      "evidenceCount": 6,
+      "nonBacklogEvidenceCount": 4,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 17,
+      "id": "V7-META-017",
+      "status": "blocked",
+      "upgrade": "Ternary hardware lowering validation campaign",
+      "why": "Ternary lowering claims need real hardware proof before production promotion.",
+      "exitCriteria": "Human-approved hardware access (`HMAN-081`) plus benchmark artifact bundle shows class-scoped gains and no safety-policy violations.",
+      "section": "Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08)",
+      "score": 326,
+      "evidenceCount": 6,
+      "nonBacklogEvidenceCount": 4,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 18,
+      "id": "V7-META-018",
+      "status": "blocked",
+      "upgrade": "Neural I/O safety validation campaign",
+      "why": "Neural interface paths require ethics/legal/hardware governance not executable from autonomous lanes.",
+      "exitCriteria": "Human approvals (`HMAN-082`, `HMAN-083`) and device-access evidence complete staged safety validation before lane promotion.",
+      "section": "Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08)",
+      "score": 326,
+      "evidenceCount": 7,
+      "nonBacklogEvidenceCount": 5,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 19,
+      "id": "V6-COCKPIT-009",
+      "status": "queued",
+      "upgrade": "Fully deferred identity hydration (`REQ-37`)",
+      "why": "Startup still pays unnecessary identity burn when `SOUL` and memory-protocol context are eagerly loaded.",
+      "exitCriteria": "Replace eager identity preload with minimal boot identity stub; defer `SOUL`/memory protocol pages until query intent requires them; enforce startup token ceiling with deterministic hydration receipts.",
+      "section": "Production-Grade Checklist Addendum (2026-03-06)",
+      "score": 320,
+      "evidenceCount": 45,
+      "nonBacklogEvidenceCount": 31,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 20,
+      "id": "V6-COCKPIT-009.1",
+      "status": "queued",
+      "upgrade": "OpenDev dual-agent architecture (Planner + Executor)",
+      "why": "Long-running coding sessions suffer instruction fade and control drift when planning and execution share one loop.",
+      "exitCriteria": "Add Layer-2 dual-agent coordinator contract with planner/executor split and deterministic handoff receipts (`core/layer2/orchestrator/dual_agent.rs`); add Layer-3 persona split template (`client/cognition/personas/dual_agent_template/`); prove shadows run in dual-agent mode with planner re-injection preventing instruction fade-out.",
+      "section": "Production-Grade Checklist Addendum (2026-03-06)",
+      "score": 320,
+      "evidenceCount": 9,
+      "nonBacklogEvidenceCount": 7,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 21,
+      "id": "V6-COCKPIT-009.2",
+      "status": "queued",
+      "upgrade": "OpenDev lazy tool discovery lane",
+      "why": "Full upfront tool-manifest preload bloats context and increases cold/query burn in coding sessions.",
+      "exitCriteria": "Add on-demand lazy tool discovery lane (`core/layer2/tools/lazy_discovery.rs`) that loads tools only when planner requests them; all discoveries route via conduit with receipts; verify no full manifest preload at boot and >=70% context-bloat reduction on long tasks.",
+      "section": "Production-Grade Checklist Addendum (2026-03-06)",
+      "score": 320,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 22,
+      "id": "V6-COCKPIT-009.3",
+      "status": "queued",
+      "upgrade": "OpenDev adaptive context compaction engine",
+      "why": "High-token contexts degrade coding reliability unless relevance-ranked compaction runs continuously.",
+      "exitCriteria": "Add Layer-1 compaction policy + Layer-2 engine (`core/layer1/context/compaction.rs`) to trim/summarize/rank context every N steps or threshold breach; store compacted context as Epistemic Object with provenance; pass recall-accuracy regression suite at 100k+ token context envelope.",
+      "section": "Production-Grade Checklist Addendum (2026-03-06)",
+      "score": 320,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 23,
+      "id": "V6-COCKPIT-009.4",
+      "status": "queued",
+      "upgrade": "OpenDev event-driven reminder injection lane",
+      "why": "Instruction adherence decays over long autonomous coding runs without deterministic reminder re-injection.",
+      "exitCriteria": "Add reminder lane (`core/layer2/reminders/event_reminder.rs`) that injects structured planner reminders on step/time/drift triggers (10-15 steps or 5-minute cadence by policy); every reminder emits deterministic receipt; no manual reminder intervention required in long tasks.",
+      "section": "Production-Grade Checklist Addendum (2026-03-06)",
+      "score": 320,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 24,
+      "id": "V6-COCKPIT-009.5",
+      "status": "queued",
+      "upgrade": "OpenDev cross-session automated memory reconstruction",
+      "why": "Session continuity still depends on ad hoc recovery rather than deterministic persistent state reconstruction.",
+      "exitCriteria": "Add persistent memory service (`core/layer1/memory/persistent.rs`) that survives daemon restarts/disconnects and reconstructs planner/executor state across `protheus attach`; persist as Epistemic Objects with rollback pointers; pass cross-session recall regression checks.",
+      "section": "Production-Grade Checklist Addendum (2026-03-06)",
+      "score": 320,
+      "evidenceCount": 6,
+      "nonBacklogEvidenceCount": 0,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 25,
+      "id": "V6-COCKPIT-009.6",
+      "status": "queued",
+      "upgrade": "OpenDev strict autonomous safety controls for coding execution",
+      "why": "Autonomous coding/file/terminal operations require explicit policy gates to preserve Layer-0 safety invariants.",
+      "exitCriteria": "Add Layer-1 autonomous safety policy lane (`core/layer1/policy/autonomous_safety.rs`) and Layer-0 enforcement bindings so high-risk actions (terminal/file-write/code-run) require capability grant + policy check + receipt; `protheus-top` shows complete audit trail for autonomous actions.",
+      "section": "Production-Grade Checklist Addendum (2026-03-06)",
+      "score": 320,
+      "evidenceCount": 8,
+      "nonBacklogEvidenceCount": 6,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 26,
+      "id": "V6-COCKPIT-010",
+      "status": "queued",
+      "upgrade": "Integrity reseal auto-clear lane for trusted update classes (`REQ-37`)",
+      "why": "Manual or sticky reseal states create avoidable degraded loops even when updates are policy-safe and deterministic.",
+      "exitCriteria": "Add policy-gated auto-reseal path that clears trusted reseal classes with signed receipts; blocked reseals must emit explicit remediation hints and never silently suppress cockpit runtime.",
+      "section": "Production-Grade Checklist Addendum (2026-03-06)",
+      "score": 320,
+      "evidenceCount": 11,
+      "nonBacklogEvidenceCount": 7,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 27,
+      "id": "V6-COCKPIT-011",
+      "status": "queued",
+      "upgrade": "Moltbook skill-path contract repair + heartbeat verification lane (`REQ-37`)",
+      "why": "Client/runtime compaction can leave stale skill/import paths that silently break social heartbeat delivery even when core runtime is healthy.",
+      "exitCriteria": "Add canonical Moltbook path-contract checks with deterministic import-resolution receipts, restore any broken wrapper aliases, and prove 4h heartbeat delivery path emits successful status receipts end-to-end.",
+      "section": "Production-Grade Checklist Addendum (2026-03-06)",
+      "score": 320,
+      "evidenceCount": 18,
+      "nonBacklogEvidenceCount": 14,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 28,
+      "id": "V6-COCKPIT-012.1",
+      "status": "queued",
+      "upgrade": "Workspace bootstrap memory contract (`AGENTS/SOUL/USER/MEMORY/HEARTBEAT/TOOLS + daily logs`)",
+      "why": "Persistent operator quality depends on deterministic workspace bootstrap context without manual reload loops.",
+      "exitCriteria": "Add workspace bootstrap contract so each attach/invocation deterministically loads configured bootstrap memory surfaces with policy-bounded token budgets and receipt telemetry (`loaded`, `deferred`, `skipped`).",
+      "section": "OpenClaw-Style Workspace, Gateway & Persistent Agent Runtime Intake (2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 29,
+      "id": "V6-COCKPIT-012.2",
+      "status": "queued",
+      "upgrade": "Gateway daemon runtime with persistent connector sessions + WebSocket UI bridge",
+      "why": "Multi-channel autonomy requires one persistent routing daemon instead of per-session connector spin-up.",
+      "exitCriteria": "Extend `protheusd` gateway mode to maintain durable channel connections (Discord/Slack/etc.), provide attach/reconnect-safe routing, and expose WebSocket stream endpoints with deterministic lifecycle receipts (`connect`, `route`, `reconnect`, `close`).",
+      "section": "OpenClaw-Style Workspace, Gateway & Persistent Agent Runtime Intake (2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 30,
+      "id": "V6-COCKPIT-012.3",
+      "status": "queued",
+      "upgrade": "`dmScope` isolation contract (per-agent / per-channel-peer context fences)",
+      "why": "Shared daemon operation needs strict isolation boundaries to prevent cross-user/peer context leakage.",
+      "exitCriteria": "Implement scoped runtime partitions keyed by agent/channel-peer identity, enforce no cross-scope memory/tool leakage, and emit deterministic scope-boundary receipts on create/read/write/route actions.",
+      "section": "OpenClaw-Style Workspace, Gateway & Persistent Agent Runtime Intake (2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 31,
+      "id": "V6-COCKPIT-012.4",
+      "status": "queued",
+      "upgrade": "Native cron + heartbeat automation envelope for detached autonomy",
+      "why": "Autonomous operation quality depends on deterministic scheduled runs and periodic self-check loops while detached.",
+      "exitCriteria": "Add native scheduler + heartbeat engine contracts so periodic tasks/checklists run with policy/budget gates, deterministic receipts, and delivery guarantees through gateway routing even when no active attached client exists.",
+      "section": "OpenClaw-Style Workspace, Gateway & Persistent Agent Runtime Intake (2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 32,
+      "id": "V6-COCKPIT-012.5",
+      "status": "queued",
+      "upgrade": "Safe exec/browser tool-mode governance (`sandbox`/`gateway`/`full`) + conduit receipts",
+      "why": "Tool execution surfaces must remain Safety Plane governed while enabling practical detached operations.",
+      "exitCriteria": "Add explicit tool-mode policy contract for exec/browser lanes with isolated browser profiles and fail-closed escalation rules; every tool call routes through Layer-0 conduit and emits deterministic audit receipts with mode + policy decision metadata.",
+      "section": "OpenClaw-Style Workspace, Gateway & Persistent Agent Runtime Intake (2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 33,
+      "id": "V6-COCKPIT-013.1",
+      "status": "queued",
+      "upgrade": "Division-based agency template pack (9 startup divisions)",
+      "why": "Operators need one-command structured team deployment across common startup functions instead of manual role assembly.",
+      "exitCriteria": "`protheus orchestrate agency startup-mvp` provisions policy-scoped teams across Engineering, Design, Marketing, Product, Project Management, Testing, Support, Spatial Computing, and Specialized divisions with reporting-line artifacts and deterministic orchestration receipts.",
+      "section": "The Agency Specialized Division Templates Intake (2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 34,
+      "id": "V6-COCKPIT-013.2",
+      "status": "queued",
+      "upgrade": "Specialized role template library expansion (target 61 templates)",
+      "why": "Startup agency utility depends on rich ready-to-run role templates with bounded tools, workflows, and success metrics.",
+      "exitCriteria": "Add role-template registry supporting 61 specialized agents (e.g., frontend wizard, growth hacker, reality checker, community roles) where `protheus shadow create --role <role>` yields deterministic template activation receipts and default deliverable contracts.",
+      "section": "The Agency Specialized Division Templates Intake (2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 35,
+      "id": "V6-COCKPIT-013.3",
+      "status": "queued",
+      "upgrade": "Vibe-coding + workflow automation agency run mode",
+      "why": "Teams should be able to collaboratively operate projects and automate recurring workflows under governed handoffs.",
+      "exitCriteria": "Extend orchestrator workflows so division agents can run collaborative coding/ops automations with explicit handoff states, deliverable metrics, and deterministic parent-child receipt chaining.",
+      "section": "The Agency Specialized Division Templates Intake (2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 36,
+      "id": "V6-COCKPIT-013.4",
+      "status": "queued",
+      "upgrade": "Conduit-only agency orchestration guardrails for division templates",
+      "why": "Expanded role/division automation must remain strictly Safety Plane governed with full auditability.",
+      "exitCriteria": "Enforce Layer-0 conduit checks for all division orchestration, role activation, tool use, and workflow handoffs; bypass attempts fail closed and every agency operation emits deterministic receipts.",
+      "section": "The Agency Specialized Division Templates Intake (2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 37,
+      "id": "V6-COCKPIT-014.1",
+      "status": "queued",
+      "upgrade": "Three-signal bootstrap context health diagnostic lane",
+      "why": "Long sessions degrade reliability when bootstrap memory is truncated/missing without explicit operator signal.",
+      "exitCriteria": "Add `context doctor` diagnostic lane that reports `TRUNCATED`, `MISSING`, and `HEALTHY (<10% bootstrap budget)` statuses with file-level token counts and deterministic health receipts.",
+      "section": "Context Doctor Bootstrap Health Monitor Intake (2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 38,
+      "id": "V6-COCKPIT-014.2",
+      "status": "queued",
+      "upgrade": "Visual + JSON/export diagnostic output contract",
+      "why": "Diagnostics must be consumable by terminal operators, dashboards, and automation lanes.",
+      "exitCriteria": "`protheus context doctor` supports terminal summary plus machine output (`json`) and image export contract (`png`) suitable for observability surfaces and artifact attachments.",
+      "section": "Context Doctor Bootstrap Health Monitor Intake (2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 39,
+      "id": "V6-COCKPIT-014.3",
+      "status": "queued",
+      "upgrade": "Installable `context-doctor` skill package lane",
+      "why": "Tooling adoption improves when diagnostic logic is distributed as a first-class installable skill surface.",
+      "exitCriteria": "Add install/run contract (`protheus skill install context-doctor`, `protheus context doctor`) with workspace scan defaults and deterministic install/run receipts.",
+      "section": "Context Doctor Bootstrap Health Monitor Intake (2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 40,
+      "id": "V6-COCKPIT-014.4",
+      "status": "queued",
+      "upgrade": "Conduit-only context diagnostic guardrails + audit lane",
+      "why": "Context health checks must remain Safety Plane governed and auditable like other cockpit operations.",
+      "exitCriteria": "Enforce Layer-0 conduit checks for all context-doctor scans/exports/scheduled runs; bypass attempts fail closed and every diagnostic action emits deterministic receipts.",
+      "section": "Context Doctor Bootstrap Health Monitor Intake (2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 41,
+      "id": "V6-COCKPIT-015.1",
+      "status": "queued",
+      "upgrade": "Discord context-engine plugin contract for long-thread memory",
+      "why": "Long-running Discord threads degrade if memory compression drops early context and decisions.",
+      "exitCriteria": "Add pluggable context-engine surface for Discord lanes so 200+ message threads can recall early-turn context deterministically, with provenance and receipt-linked retrieval traces.",
+      "section": "Discord Swarm Orchestration & Persistent Channel Binding Intake (2026-03-09)",
+      "score": 320,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 0,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 42,
+      "id": "V6-COCKPIT-015.2",
+      "status": "queued",
+      "upgrade": "Persistent Discord channel binding lane",
+      "why": "Operators need durable channel-to-shadow bindings that survive daemon restarts without manual rebind.",
+      "exitCriteria": "Add `protheus shadow bind channel` contract with persisted binding state and deterministic restart recovery receipts; bound shadows reattach automatically after daemon restart.",
+      "section": "Discord Swarm Orchestration & Persistent Channel Binding Intake (2026-03-09)",
+      "score": 320,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 43,
+      "id": "V6-COCKPIT-015.3",
+      "status": "queued",
+      "upgrade": "Sub-worker inheritance contract for Discord orchestration",
+      "why": "Spawned sub-workers must preserve parent voice/context/config to avoid inconsistent swarm behavior.",
+      "exitCriteria": "Add inheritance rules so child workers receive parent voice/profile/context policies by default with explicit override receipts and no silent divergence.",
+      "section": "Discord Swarm Orchestration & Persistent Channel Binding Intake (2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 44,
+      "id": "V6-COCKPIT-015.4",
+      "status": "queued",
+      "upgrade": "Non-blocking parallel Discord message handling lane",
+      "why": "Multi-agent Discord swarms need concurrent message handling without cross-agent blocking contention.",
+      "exitCriteria": "Implement parallel message scheduler for same-channel multi-agent queries; prove concurrent fan-out where multiple agents respond independently with deterministic per-agent receipts.",
+      "section": "Discord Swarm Orchestration & Persistent Channel Binding Intake (2026-03-09)",
+      "score": 320,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 45,
+      "id": "V6-COCKPIT-015.5",
+      "status": "queued",
+      "upgrade": "Discord presence + voice-message support lane",
+      "why": "Production Discord operation needs explicit online presence and voice input/output support with auditable flows.",
+      "exitCriteria": "Add managed online presence contract (green-dot heartbeat) and voice message handling pipeline with deterministic transcribe/respond receipts and policy gates.",
+      "section": "Discord Swarm Orchestration & Persistent Channel Binding Intake (2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 46,
+      "id": "V6-COCKPIT-015.6",
+      "status": "queued",
+      "upgrade": "Conduit-only Discord interaction guardrails + full audit lane",
+      "why": "Discord integrations can expand risk surface unless every interaction remains Safety Plane governed.",
+      "exitCriteria": "Enforce Layer-0 conduit checks for Discord messages, bindings, worker spawns, presence, and voice actions; bypass attempts fail closed and all operations emit deterministic receipts.",
+      "section": "Discord Swarm Orchestration & Persistent Channel Binding Intake (2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 47,
+      "id": "V6-COCKPIT-016.1",
+      "status": "queued",
+      "upgrade": "Automated Script Generation Lane",
+      "why": "Ad ideation is manual and slow, limiting marketing throughput and experimentation velocity.",
+      "exitCriteria": "`protheus ad generate \"<brief>\"` yields 10+ script variants with hook/CTA diversity and receipt-linked prompt/model metadata.",
+      "section": "AI Video Ad Factory App Intake (Source: Nano Banana + MakeUGC + Veo 3 workflow, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 6,
+      "nonBacklogEvidenceCount": 4,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 48,
+      "id": "V6-COCKPIT-016.2",
+      "status": "queued",
+      "upgrade": "UGC-Style Video Generation Lane",
+      "why": "Script-to-video conversion requires manual editing steps and inconsistent model/tool orchestration.",
+      "exitCriteria": "Pipeline generates short UGC-style variants (voiceover, overlays, media composition) with deterministic output hashes and per-asset receipts; target render under 60s/video where substrate allows.",
+      "section": "AI Video Ad Factory App Intake (Source: Nano Banana + MakeUGC + Veo 3 workflow, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 6,
+      "nonBacklogEvidenceCount": 4,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 49,
+      "id": "V6-COCKPIT-016.3",
+      "status": "queued",
+      "upgrade": "High-Volume Ad Factory Batch Mode",
+      "why": "High-volume ad production lacks one orchestrated cost-aware mode with controlled variation strategy.",
+      "exitCriteria": "`protheus ad factory` can run batch generation (100+ variants/run target) with tracked spend, variation matrix, and failure-retry receipts.",
+      "section": "AI Video Ad Factory App Intake (Source: Nano Banana + MakeUGC + Veo 3 workflow, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 50,
+      "id": "V6-COCKPIT-016.4",
+      "status": "queued",
+      "upgrade": "Conduit-Only Ad Generation Enforcement",
+      "why": "Creative generation flows can bypass policy and budget enforcement when directly invoked from app/tool layers.",
+      "exitCriteria": "All script/video generation calls route through conduit with capability + budget + content policy checks; bypass paths fail closed and are detectable by contract checks.",
+      "section": "AI Video Ad Factory App Intake (Source: Nano Banana + MakeUGC + Veo 3 workflow, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 51,
+      "id": "V6-COCKPIT-016.5",
+      "status": "queued",
+      "upgrade": "`/apps` Default App Placement + Persona Hooks",
+      "why": "App/runtime boundaries are blurred when app logic is embedded in `client/`, reducing extensibility and violating top-surface separation goals.",
+      "exitCriteria": "Ship default ad-factory app scaffold under `/apps/ad_factory/` (or equivalent canonical `/apps` path), keep `client/` wrappers thin, and wire optional MarketingHand/CreativeEye triggers through scheduled persona hooks with receipts.",
+      "section": "AI Video Ad Factory App Intake (Source: Nano Banana + MakeUGC + Veo 3 workflow, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 52,
+      "id": "V6-COCKPIT-017.1",
+      "status": "queued",
+      "upgrade": "Autonomous Training Loop Engine",
+      "why": "Model/agent improvement remains manual and sporadic, limiting overnight progress and reproducible iteration cadence.",
+      "exitCriteria": "`protheus improve model` runs bounded iterative training experiments (short-cycle target) with eval gating that retains only improved candidates and emits deterministic experiment receipts.",
+      "section": "Autoresearch Self-Improving Loop Intake (Source: Karpathy `autoresearch` pattern + Alex Finn thread, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 8,
+      "nonBacklogEvidenceCount": 6,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 53,
+      "id": "V6-COCKPIT-017.2",
+      "status": "queued",
+      "upgrade": "Dual Iteration Mode (Prompt Agent + Code Agent)",
+      "why": "Prompt and training-code optimization are conflated, reducing clarity and making handoff quality hard to audit.",
+      "exitCriteria": "Add explicit dual-lane operation separating prompt iteration from code iteration with deterministic handoff receipts and role-scoped policy boundaries.",
+      "section": "Autoresearch Self-Improving Loop Intake (Source: Karpathy `autoresearch` pattern + Alex Finn thread, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 54,
+      "id": "V6-COCKPIT-017.3",
+      "status": "queued",
+      "upgrade": "Git-Based Experiment Tracking + Merge Policy",
+      "why": "Experiment provenance is weak without branch-level history tied to validation metrics and promotion rules.",
+      "exitCriteria": "Each experiment is commit-linked on feature branch with metric artifacts; merge/promotion only occurs when policy thresholds are met and receipts link commit → evaluation result.",
+      "section": "Autoresearch Self-Improving Loop Intake (Source: Karpathy `autoresearch` pattern + Alex Finn thread, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 55,
+      "id": "V6-COCKPIT-017.4",
+      "status": "queued",
+      "upgrade": "Hardware-Agnostic Single-GPU Runtime Profile",
+      "why": "Personal-hardware improvement loops are inconsistent across GPU classes and can exceed local resource budgets.",
+      "exitCriteria": "Provide single-GPU profile with budget-aware scheduling, deterministic fallback behavior, and no required external managed training service for baseline operation.",
+      "section": "Autoresearch Self-Improving Loop Intake (Source: Karpathy `autoresearch` pattern + Alex Finn thread, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 56,
+      "id": "V6-COCKPIT-017.5",
+      "status": "queued",
+      "upgrade": "Conduit-Only Self-Improvement Enforcement + Receipts",
+      "why": "Training and git mutation paths can bypass canonical safety/policy controls if executed directly from tool/app layers.",
+      "exitCriteria": "Route all training runs, git mutations, and model promotions through conduit with capability/budget checks and deterministic receipts; bypass detections fail closed via contract gates.",
+      "section": "Autoresearch Self-Improving Loop Intake (Source: Karpathy `autoresearch` pattern + Alex Finn thread, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 57,
+      "id": "V6-COCKPIT-018.1",
+      "status": "queued",
+      "upgrade": "Cron-Based Autonomous Scanning",
+      "why": "Continuous market/intel monitoring remains operator-dependent without deterministic schedule-native background execution.",
+      "exitCriteria": "`protheus schedule \"daily-intel\"` creates durable cron-backed scan jobs (e.g., X/blog/GitHub sweeps) that emit findings into Epistemic Objects or daily intel surfaces with deterministic receipts.",
+      "section": "Cron-Based Autonomous Scanning & Cost-Optimized Routing Intake (Source: Shubham Saboo OpenClaw ops pattern, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 9,
+      "nonBacklogEvidenceCount": 7,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 58,
+      "id": "V6-COCKPIT-018.2",
+      "status": "queued",
+      "upgrade": "Cost-Optimized Model Routing Engine",
+      "why": "Model selection is not consistently optimized by task complexity, causing avoidable spend and latency in routine sweeps.",
+      "exitCriteria": "Add routing policy that sends low-complexity tasks to cost-efficient models and high-complexity tasks to stronger models with per-run budget/cost telemetry and decision receipts.",
+      "section": "Cron-Based Autonomous Scanning & Cost-Optimized Routing Intake (Source: Shubham Saboo OpenClaw ops pattern, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 6,
+      "nonBacklogEvidenceCount": 4,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 59,
+      "id": "V6-COCKPIT-018.3",
+      "status": "queued",
+      "upgrade": "Context Engine Plugin Contract",
+      "why": "Long-session memory behavior is hard-coded, making it difficult to preserve critical context without forking runtime logic.",
+      "exitCriteria": "Add plugin interface for keep/compress/drop memory policies so custom plugins can preserve key decisions and produce deterministic plugin-action receipts.",
+      "section": "Cron-Based Autonomous Scanning & Cost-Optimized Routing Intake (Source: Shubham Saboo OpenClaw ops pattern, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 60,
+      "id": "V6-COCKPIT-018.4",
+      "status": "queued",
+      "upgrade": "Zero-Human 24/7 Operation Profile",
+      "why": "Autonomous operation is still partial without explicit always-on heartbeat+cron orchestration contracts and observability status.",
+      "exitCriteria": "Shadows can run continuously without attached user, with `protheus-top` exposing live job/agent health, schedule state, and last-receipt markers.",
+      "section": "Cron-Based Autonomous Scanning & Cost-Optimized Routing Intake (Source: Shubham Saboo OpenClaw ops pattern, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 61,
+      "id": "V6-COCKPIT-018.5",
+      "status": "queued",
+      "upgrade": "Conduit-Only Execution + Receipts for Cron/Router/Plugins",
+      "why": "Scheduled jobs, routing decisions, and context plugins can bypass canonical safety/audit paths if executed through direct side channels.",
+      "exitCriteria": "Route all cron tasks, model routing decisions, and plugin executions through conduit with capability/policy/budget checks and deterministic receipts; bypass paths fail closed via contract checks.",
+      "section": "Cron-Based Autonomous Scanning & Cost-Optimized Routing Intake (Source: Shubham Saboo OpenClaw ops pattern, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 62,
+      "id": "V6-COCKPIT-019.1",
+      "status": "queued",
+      "upgrade": "Elegant GUI Management Layer",
+      "why": "Setup and day-2 operations remain CLI-heavy, increasing operator friction for routine maintenance and onboarding.",
+      "exitCriteria": "`protheus gui` exposes a self-hosted management UI (deploy/bootstrap/status/settings) including env/model-key controls and management receipts for all actions.",
+      "section": "AlphaClaw-Style GUI Management Intake (Source: `alphaclaw`, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 10,
+      "nonBacklogEvidenceCount": 8,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 63,
+      "id": "V6-COCKPIT-019.2",
+      "status": "queued",
+      "upgrade": "Auto-Backup + GitHub Sync Lane",
+      "why": "Workspace/config/state recovery depends on manual backup discipline, risking drift and lost operational context.",
+      "exitCriteria": "Add policy-gated auto-backup lane with one-click import/sync and deterministic commit/push receipts for backup actions.",
+      "section": "AlphaClaw-Style GUI Management Intake (Source: `alphaclaw`, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 6,
+      "nonBacklogEvidenceCount": 4,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 64,
+      "id": "V6-COCKPIT-019.3",
+      "status": "queued",
+      "upgrade": "Prompt Hardening + Drift Doctor Engine",
+      "why": "Prompt/config drift can silently degrade quality and policy compliance without continuous diagnostic tooling.",
+      "exitCriteria": "`protheus doctor drift` scans prompts/workspace state, emits hardening recommendations, and writes deterministic drift-analysis receipts.",
+      "section": "AlphaClaw-Style GUI Management Intake (Source: `alphaclaw`, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 65,
+      "id": "V6-COCKPIT-019.4",
+      "status": "queued",
+      "upgrade": "Telegram Multi-Topic Setup Wizard",
+      "why": "Multi-topic Telegram orchestration is operationally complex and error-prone when configured manually.",
+      "exitCriteria": "`protheus connector add telegram` runs guided multi-topic setup with concurrency-safe defaults and receipt-linked provisioning state.",
+      "section": "AlphaClaw-Style GUI Management Intake (Source: `alphaclaw`, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 66,
+      "id": "V6-COCKPIT-019.5",
+      "status": "queued",
+      "upgrade": "In-Browser File Browser/Editor + Git View",
+      "why": "File-level operations still require shell workflows, limiting accessibility for non-terminal operators.",
+      "exitCriteria": "GUI supports browse/edit/commit workflows with explicit git state visibility and deterministic file-operation receipts.",
+      "section": "AlphaClaw-Style GUI Management Intake (Source: `alphaclaw`, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 67,
+      "id": "V6-COCKPIT-019.6",
+      "status": "queued",
+      "upgrade": "Watchdog Self-Healing + Webhook Replay/Debug + Token Analytics",
+      "why": "Runtime failures and webhook/debug telemetry handling are fragmented, making incident response slower and less predictable.",
+      "exitCriteria": "Add always-on watchdog restart policies, webhook replay/debug tooling, token analytics view, and one-click update controls with deterministic operation receipts.",
+      "section": "AlphaClaw-Style GUI Management Intake (Source: `alphaclaw`, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 68,
+      "id": "V6-COCKPIT-019.7",
+      "status": "queued",
+      "upgrade": "Conduit-Only Management Enforcement + Receipts",
+      "why": "GUI/ops actions can bypass canonical policy and audit paths when executed via direct management surfaces.",
+      "exitCriteria": "Route all GUI management, backup, drift, webhook, key-management, and watchdog actions through conduit with capability/policy checks and deterministic receipts; bypass paths fail closed by contract checks.",
+      "section": "AlphaClaw-Style GUI Management Intake (Source: `alphaclaw`, 2026-03-09)",
+      "score": 320,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 69,
+      "id": "V6-MEMORY-002.1",
+      "status": "queued",
+      "upgrade": "Four-stage bookmark assimilation pipeline (entity + vision + semantic tagging + categorization)",
+      "why": "Saved content/bookmarks need deterministic enrichment to become usable memory assets instead of raw links/files.",
+      "exitCriteria": "Add `protheus assimilate bookmarks` pipeline that processes bookmark exports/folders into Epistemic Objects with extracted entities, image/vision metadata (where present), semantic tags, and category labels, each with deterministic per-item receipts.",
+      "section": "Siftly-Style Bookmark & Knowledge Base Processor Intake (2026-03-09)",
+      "score": 315,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 70,
+      "id": "V6-MEMORY-002.2",
+      "status": "queued",
+      "upgrade": "Searchable bookmark knowledge base (full-text + semantic + confidence/provenance ranking)",
+      "why": "Processed bookmark memory is only useful if retrieval is high-signal and explainable.",
+      "exitCriteria": "Add query surface (`protheus search ...`) over assimilated bookmark objects with ranking by relevance + confidence + provenance, and deterministic retrieval receipts documenting scoring inputs.",
+      "section": "Siftly-Style Bookmark & Knowledge Base Processor Intake (2026-03-09)",
+      "score": 315,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 71,
+      "id": "V6-MEMORY-002.3",
+      "status": "queued",
+      "upgrade": "Mindmap knowledge-base visualization lane",
+      "why": "Dense bookmark corpora require graph-style visualization for discovery and context linking.",
+      "exitCriteria": "Add `protheus mindmap`/dashboard mindmap view built from bookmark Epistemic Objects and tag/entity links, with deterministic exportable graph artifacts and refresh receipts.",
+      "section": "Siftly-Style Bookmark & Knowledge Base Processor Intake (2026-03-09)",
+      "score": 315,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 72,
+      "id": "V6-MEMORY-002.4",
+      "status": "queued",
+      "upgrade": "Local-only/self-hosted bookmark processing contract",
+      "why": "Privacy posture requires bookmark/content processing to run locally unless policy explicitly permits egress.",
+      "exitCriteria": "Enforce local-only default for assimilation/search/indexing pipelines with policy-gated egress controls and deterministic policy decision receipts.",
+      "section": "Siftly-Style Bookmark & Knowledge Base Processor Intake (2026-03-09)",
+      "score": 315,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 73,
+      "id": "V6-MEMORY-002.5",
+      "status": "queued",
+      "upgrade": "Conduit-only bookmark pipeline guardrails + audit lane",
+      "why": "Bookmark ingestion/search/visualization must remain Safety Plane governed and replay-auditable.",
+      "exitCriteria": "Enforce Layer-0 conduit checks for all bookmark processing/query/mindmap actions; bypass attempts fail closed and all operations emit deterministic audit receipts.",
+      "section": "Siftly-Style Bookmark & Knowledge Base Processor Intake (2026-03-09)",
+      "score": 315,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 74,
+      "id": "V6-MEMORY-016",
+      "status": "queued",
+      "upgrade": "Recall budget default contract + fail-closed cap mode (`REQ-36`)",
+      "why": "Query defaults can drift toward high-burn expansion if budget/expand settings are not contract-locked.",
+      "exitCriteria": "Lock low-burn defaults (`top`, excerpt lines, expand mode, context budget) and enforce deterministic `trim",
+      "section": "LLMN Mode + Smart Memory Regression Shield (2026-03-09)",
+      "score": 315,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 75,
+      "id": "V6-MEMORY-017",
+      "status": "queued",
+      "upgrade": "Matrix/sequencer/auto-recall ranking invariants (`REQ-36`)",
+      "why": "Smart memory quality degrades if ranking math or sequencing order drifts silently.",
+      "exitCriteria": "Validate matrix scoring inputs (`level + recency + dream inclusion`), periodic sequencer reorder execution, and bounded auto-recall push behavior via deterministic tests/receipts.",
+      "section": "LLMN Mode + Smart Memory Regression Shield (2026-03-09)",
+      "score": 315,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 76,
+      "id": "V6-MEMORY-018",
+      "status": "queued",
+      "upgrade": "Index freshness + stale-read gate (`REQ-36`)",
+      "why": "Stale indexes force expensive fallback reads and degrade retrieval precision.",
+      "exitCriteria": "Enforce scheduled/threshold index rebuild contract and fail or warn on stale-index retrieval beyond policy limits.",
+      "section": "LLMN Mode + Smart Memory Regression Shield (2026-03-09)",
+      "score": 315,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 77,
+      "id": "V6-MEMORY-019",
+      "status": "queued",
+      "upgrade": "LensMap memory annotation schema (tags/nodes/jots in docs comments) (`REQ-36`)",
+      "why": "Future code-intent retrieval can regress into full-file scans without structured annotation in LensMap/doc surfaces.",
+      "exitCriteria": "Add optional annotation schema for LensMap/docs comments with tags/nodes/jots metadata and validators that keep execution code untouched while improving retrieval indexability.",
+      "section": "LLMN Mode + Smart Memory Regression Shield (2026-03-09)",
+      "score": 315,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 78,
+      "id": "V6-MEMORY-020",
+      "status": "queued",
+      "upgrade": "Shared-pointer resident memory plane (mmap/zero-copy hotset) (`REQ-37`)",
+      "why": "Ambient memory is currently snapshot-backed; hot queries still depend on file/state reads instead of direct in-memory pointer access.",
+      "exitCriteria": "Add shared-memory/mmap hotset surface for resident memory reads with zero-copy retrieval on hot paths, deterministic fallback to indexed file path when unavailable, and token-burn SLO regression checks.",
+      "section": "Production-Grade Checklist Addendum (2026-03-06)",
+      "score": 315,
+      "evidenceCount": 1,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 79,
+      "id": "V6-MEMORY-021",
+      "status": "queued",
+      "upgrade": "Per-query token burn telemetry + budget trace lane (`REQ-36`)",
+      "why": "Low-burn targets cannot be protected reliably without per-query token accounting and retrieval-path attribution.",
+      "exitCriteria": "Emit deterministic per-query token telemetry (`startup/hydration/retrieval/response`) with path attribution (`index-only`, `node-read`, `full-file`), persist rolling session stats, and fail regression checks when standard memory query path drifts above configured thresholds.",
+      "section": "Production-Grade Checklist Addendum (2026-03-06)",
+      "score": 315,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 80,
+      "id": "V2-012",
+      "status": "blocked",
+      "upgrade": "External security assessment and pen-test cycle (canonical blocker)",
+      "why": "Independent validation reduces blind spots in internal security assumptions",
+      "exitCriteria": "Internal intake/closure tracking is ready (`client/runtime/systems/security/external_security_cycle.ts`), but completion is blocked on third-party assessor execution + signed external report delivery",
+      "section": "V2",
+      "score": 310,
+      "evidenceCount": 74,
+      "nonBacklogEvidenceCount": 64,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 81,
+      "id": "V6-EDGE-005",
+      "status": "blocked",
+      "upgrade": "Third-party license and source-ingest decision for edge backend",
+      "why": "External C engine ingestion requires explicit client/legal/source governance decision before vendoring/submodule import.",
+      "exitCriteria": "Complete legal review + approved ingest strategy (submodule vs vendored) and record decision in security/legal docs before code import.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 310,
+      "evidenceCount": 28,
+      "nonBacklogEvidenceCount": 26,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 82,
+      "id": "V6-F100-022",
+      "status": "blocked",
+      "upgrade": "Live trading proof gate (30-day promotion evidence)",
+      "why": "Paper/live performance history must validate runtime under real market stress.",
+      "exitCriteria": "30-day canary evidence reaches promotion thresholds (PnL/risk/SLO), with deterministic receipts.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 310,
+      "evidenceCount": 30,
+      "nonBacklogEvidenceCount": 26,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 83,
+      "id": "V6-F100-023",
+      "status": "blocked",
+      "upgrade": "Third-party security audit publication",
+      "why": "External trust requires independent verification beyond internal controls.",
+      "exitCriteria": "Public external audit report + remediation tracker are published and linked from `SECURITY.md`.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 310,
+      "evidenceCount": 62,
+      "nonBacklogEvidenceCount": 56,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 84,
+      "id": "V6-F100-024",
+      "status": "blocked",
+      "upgrade": "Horizontal scaling proof in production profile",
+      "why": "Single-node posture limits enterprise confidence under fault/load conditions.",
+      "exitCriteria": "Multi-node failover and soak evidence meets distributed runtime gates in production profile.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 310,
+      "evidenceCount": 30,
+      "nonBacklogEvidenceCount": 26,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 85,
+      "id": "V6-F100-025",
+      "status": "blocked",
+      "upgrade": "Continuous chaos weekly evidence contract",
+      "why": "Reliability posture needs sustained resilience proof, not one-off drills.",
+      "exitCriteria": "Weekly chaos report artifacts pass resilience gates and are surfaced in operator dashboard health checks.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 310,
+      "evidenceCount": 32,
+      "nonBacklogEvidenceCount": 26,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 86,
+      "id": "V6-F100-034",
+      "status": "blocked",
+      "upgrade": "First public semantic release + npm publish",
+      "why": "Public release/publish still requires maintainer credentials and remote registry actions.",
+      "exitCriteria": "Tag + publish `v0.2.0` release artifacts and publish npm package via maintainer token; GitHub Releases + npm listing show the new version (version/prep now staged in repo manifests).",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 310,
+      "evidenceCount": 57,
+      "nonBacklogEvidenceCount": 51,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 87,
+      "id": "V6-F100-043",
+      "status": "blocked",
+      "upgrade": "External certification and attestation program (SOC2/ISO/FedRAMP/GDPR)",
+      "why": "Certification evidence requires third-party organizations and legal authority outside autonomous execution.",
+      "exitCriteria": "Human-governed certification artifacts are attached under `state/ops/evidence/` and linked from `SECURITY.md`; see `HMAN-026` and `HMAN-027`.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 310,
+      "evidenceCount": 22,
+      "nonBacklogEvidenceCount": 16,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 88,
+      "id": "V6-F100-044",
+      "status": "blocked",
+      "upgrade": "Commercial support/SLA contract lane (enterprise readiness)",
+      "why": "Support promises and indemnification terms require executive/legal authorization and cannot be auto-issued.",
+      "exitCriteria": "Approved support envelope evidence exists and is published; see `HMAN-028`.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 310,
+      "evidenceCount": 20,
+      "nonBacklogEvidenceCount": 14,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 89,
+      "id": "V6-F100-045",
+      "status": "blocked",
+      "upgrade": "Public compliance report publication lane",
+      "why": "Public certification claims require legal approval plus externally issued evidence artifacts.",
+      "exitCriteria": "Publish compliance posture report with linked third-party artifacts once `HMAN-026` and `HMAN-027` are complete.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 310,
+      "evidenceCount": 17,
+      "nonBacklogEvidenceCount": 13,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 90,
+      "id": "V6-F100-A-008",
+      "status": "blocked",
+      "upgrade": "Enterprise legal packet publication (MSA/DPA/privacy/subprocessors)",
+      "why": "A+ procurement requires public/legal packet completeness beyond technical controls and cannot be auto-published.",
+      "exitCriteria": "Legal-approved packet is published and linked, with evidence attached under `state/ops/evidence/`; owner `HMAN-032`.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 310,
+      "evidenceCount": 11,
+      "nonBacklogEvidenceCount": 5,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 91,
+      "id": "V6-F100-A-009",
+      "status": "blocked",
+      "upgrade": "First reference customer case study publication",
+      "why": "Fortune-100 procurement requires public reference proof and measurable production outcomes.",
+      "exitCriteria": "At least one legally approved public case study is published with before/after metrics and evidence links; owner `HMAN-033`.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 310,
+      "evidenceCount": 8,
+      "nonBacklogEvidenceCount": 4,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 92,
+      "id": "V6-F100-A-010",
+      "status": "blocked",
+      "upgrade": "Cloud marketplace listing publication (AWS/Azure/GCP)",
+      "why": "Enterprise buying motions frequently require marketplace procurement paths and listing trust signals.",
+      "exitCriteria": "At least one marketplace listing is published with current release artifacts and governance links; owner `HMAN-034`.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 310,
+      "evidenceCount": 10,
+      "nonBacklogEvidenceCount": 4,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 93,
+      "id": "V6-F100-A-011",
+      "status": "blocked",
+      "upgrade": "Named 24x7 support roster activation",
+      "why": "Contract-grade SLA commitments require staffed escalation ownership, not template-only documentation.",
+      "exitCriteria": "Published support roster and escalation contacts are active and validated in drill evidence; owner `HMAN-035`.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 310,
+      "evidenceCount": 12,
+      "nonBacklogEvidenceCount": 6,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 94,
+      "id": "V6-FLUX-007",
+      "status": "blocked",
+      "upgrade": "Advanced substrate live validation lane",
+      "why": "Production-grade ternary/qubit validation cannot be closed without hardware/provider access evidence.",
+      "exitCriteria": "Execute live advanced-substrate validation runs and publish signed evidence bundle once target hardware/provider access is available.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 310,
+      "evidenceCount": 28,
+      "nonBacklogEvidenceCount": 26,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 95,
+      "id": "V6-GAP-006",
+      "status": "blocked",
+      "upgrade": "Public Release + Announcement Publication Authority",
+      "why": "Final publication (GitHub release, npm publish, public posting) requires maintainer account authority and client/legal/commercial approval outside autonomous execution.",
+      "exitCriteria": "Human-owned publication evidence is attached via authority artifacts (`HMAN-028`, `HMAN-029`) and corresponding release/post links are recorded in state evidence.",
+      "section": "Testing + Documentation + Installer Gap Closer (2026-03-06)",
+      "score": 310,
+      "evidenceCount": 18,
+      "nonBacklogEvidenceCount": 16,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 96,
+      "id": "V6-PAY-007",
+      "status": "blocked",
+      "upgrade": "Monero network/compliance profile decision for production rollout",
+      "why": "Production payment rollout requires explicit client/legal/compliance and operational policy approval for Monero usage.",
+      "exitCriteria": "Publish approved Monero usage policy + rollout profile before enabling production payment lanes.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 310,
+      "evidenceCount": 28,
+      "nonBacklogEvidenceCount": 26,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 97,
+      "id": "V6-SBOX-006",
+      "status": "blocked",
+      "upgrade": "Sandbox runtime substrate decision (container vs lightweight jail)",
+      "why": "Full sandbox rollout depends on approved runtime substrate across target environments and security policy.",
+      "exitCriteria": "Approve sandbox substrate strategy and publish policy contract before full implementation rollout.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 310,
+      "evidenceCount": 28,
+      "nonBacklogEvidenceCount": 26,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 98,
+      "id": "V6-TOOLS-005",
+      "status": "blocked",
+      "upgrade": "Optional reactions/worktree event automation track",
+      "why": "Event-driven auto-reactions and isolated worktree operations need explicit policy approval before rollout.",
+      "exitCriteria": "Gate `REQ-17-005` behind an approved enable policy and define rollback contract before activation.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 310,
+      "evidenceCount": 28,
+      "nonBacklogEvidenceCount": 26,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 99,
+      "id": "V7-TOP1-009",
+      "status": "blocked",
+      "upgrade": "Independent third-party verification publication lane",
+      "why": "External assurance requires non-self-asserted verification from respected third parties.",
+      "exitCriteria": "Human-contracted external verification is completed and published with linked findings/remediation evidence (`HMAN-087`).",
+      "section": "Technical Excellence #1 Intake (Doc `12_nnoI-1YXaxVc6YSgYRCMRKXNIWCcP1XKCJHv_NBeY`, 2026-03-09)",
+      "score": 310,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 100,
+      "id": "V7-TOP1-010",
+      "status": "blocked",
+      "upgrade": "High-assurance profile release gate (medical/defense-class)",
+      "why": "High-stakes profile claims require governance/legal scope approval beyond technical implementation.",
+      "exitCriteria": "Human-approved high-assurance profile scope and claim boundaries are published, and profile artifacts pass policy + proof + benchmark gates (`HMAN-086`).",
+      "section": "Technical Excellence #1 Intake (Doc `12_nnoI-1YXaxVc6YSgYRCMRKXNIWCcP1XKCJHv_NBeY`, 2026-03-09)",
+      "score": 310,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 101,
+      "id": "V6-OBSERVABILITY-001.1",
+      "status": "queued",
+      "upgrade": "Real-time monitoring + intelligent alert context lane",
+      "why": "Operators need live system/shadow health with auto-attached context to triage issues quickly.",
+      "exitCriteria": "`protheus-top`/dashboard surfaces live CPU/memory/network/process/agent-health telemetry with alert events that include snapshot/log/metric context and deterministic alert receipts.",
+      "section": "Self-Hosted Observability + Orchestration + Incident Response Intake (xyOps, 2026-03-09)",
+      "score": 298,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 102,
+      "id": "V6-OBSERVABILITY-001.2",
+      "status": "queued",
+      "upgrade": "Visual workflow editor + job scheduling lane",
+      "why": "Complex automation requires a first-class workflow/scheduler surface beyond ad hoc command chains.",
+      "exitCriteria": "Add visual workflow editor + cron/event scheduling so users can run workflows via dashboard/CLI (`protheus orchestrate workflow`) with full receipt-audited execution traces.",
+      "section": "Self-Hosted Observability + Orchestration + Incident Response Intake (xyOps, 2026-03-09)",
+      "score": 298,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 103,
+      "id": "V6-OBSERVABILITY-001.3",
+      "status": "queued",
+      "upgrade": "Automatic incident-response orchestration lane",
+      "why": "Reliability posture improves when incidents can trigger governed, deterministic auto-response playbooks.",
+      "exitCriteria": "Incident triggers run policy-bounded response actions (snapshots/log capture/recovery hooks/escalation) with deterministic receipts and explicit escalation path artifacts.",
+      "section": "Self-Hosted Observability + Orchestration + Incident Response Intake (xyOps, 2026-03-09)",
+      "score": 298,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 104,
+      "id": "V6-OBSERVABILITY-001.4",
+      "status": "queued",
+      "upgrade": "Self-hosted single-command deploy profile for observability stack",
+      "why": "Adoption requires low-friction self-hosted deployment without vendor lock-in or mandatory telemetry.",
+      "exitCriteria": "Provide one-command self-hosted deployment profile (Docker-first) for monitoring/workflow/incident stack, with no mandatory external telemetry and deterministic deployment health receipts.",
+      "section": "Self-Hosted Observability + Orchestration + Incident Response Intake (xyOps, 2026-03-09)",
+      "score": 298,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 105,
+      "id": "V6-OBSERVABILITY-001.5",
+      "status": "queued",
+      "upgrade": "Conduit-only observability/workflow/incident control guardrails",
+      "why": "Monitoring and response operations must remain Safety Plane governed and auditable.",
+      "exitCriteria": "Enforce Layer-0 conduit gates for all monitor/workflow/incident actions; every event/action yields deterministic receipts and bypass attempts fail closed under policy/capability checks.",
+      "section": "Self-Hosted Observability + Orchestration + Incident Response Intake (xyOps, 2026-03-09)",
+      "score": 298,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 106,
+      "id": "V6-COMPANY-001.1",
+      "status": "queued",
+      "upgrade": "Company layer org-chart/runtime hierarchy model",
+      "why": "Multi-agent agency execution needs explicit reporting lines, titles, and goal ownership to operate as a coherent org rather than ad hoc groups.",
+      "exitCriteria": "Add company layer model that defines org charts, reporting edges, titles, and team goals; `protheus orchestrate agency <team>` instantiates hierarchy artifacts visible in `protheus-top` and receipted state.",
+      "section": "Paperclip Company Layer & Zero-Human Orchestration Intake (x.com/hasantoxr 2030604968416412144, 2026-03-09)",
+      "score": 288,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 107,
+      "id": "V6-COMPANY-001.2",
+      "status": "queued",
+      "upgrade": "Per-agent period budget enforcement (tokens/cost/compute/privacy)",
+      "why": "Long-running autonomous teams require hard budget containment to prevent runaway spend/risk.",
+      "exitCriteria": "Add policy-backed per-agent budget ledgers with period windows and hard-stop enforcement; budget breaches fail closed with deterministic budget receipts and no silent overrun paths.",
+      "section": "Paperclip Company Layer & Zero-Human Orchestration Intake (x.com/hasantoxr 2030604968416412144, 2026-03-09)",
+      "score": 288,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 108,
+      "id": "V6-COMPANY-001.3",
+      "status": "queued",
+      "upgrade": "Ticket system with immutable audit chain",
+      "why": "Agency-grade delegation requires durable ticket assignment/handoff lifecycle with searchable lineage.",
+      "exitCriteria": "Add ticket primitives (create/assign/transition/handoff/close) with immutable audit log + tool-call trace linkage; every task run references a ticket ID and full receipt chain in dashboard/search surfaces.",
+      "section": "Paperclip Company Layer & Zero-Human Orchestration Intake (x.com/hasantoxr 2030604968416412144, 2026-03-09)",
+      "score": 288,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 109,
+      "id": "V6-COMPANY-001.4",
+      "status": "queued",
+      "upgrade": "24/7 heartbeat agent runtime + remote monitoring surface",
+      "why": "Zero-human mode depends on continuous operation independent of attached operator sessions.",
+      "exitCriteria": "Extend heartbeat scheduler for always-on teams, ensuring autonomous continuation during detach windows; expose live health/status in `protheus-top` and remote/mobile-safe monitoring feeds with deterministic heartbeat receipts.",
+      "section": "Paperclip Company Layer & Zero-Human Orchestration Intake (x.com/hasantoxr 2030604968416412144, 2026-03-09)",
+      "score": 288,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 110,
+      "id": "V6-COMPANY-001.5",
+      "status": "queued",
+      "upgrade": "Conduit-only company-operation guardrails",
+      "why": "Company-level orchestration actions must remain strictly within Safety Plane authority boundaries.",
+      "exitCriteria": "Enforce Layer-0 conduit gates for org changes, budget operations, ticket transitions, and heartbeat controls; all actions produce deterministic receipts and fail-closed denials on policy/capability violations.",
+      "section": "Paperclip Company Layer & Zero-Human Orchestration Intake (x.com/hasantoxr 2030604968416412144, 2026-03-09)",
+      "score": 288,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 111,
+      "id": "V6-AGENCY-001.1",
+      "status": "queued",
+      "upgrade": "Personality-driven agent template pack",
+      "why": "Orchestration quality and launch speed improve when production-ready role templates include explicit rules, voice, workflows, and success metrics.",
+      "exitCriteria": "Add role template pack (`frontend-wizard`, `security-engineer`, `growth-hacker`, `reality-checker`, etc.) with one-command shadow creation and deterministic template-activation receipts.",
+      "section": "Agency-Style Multi-Agent Templates & Orchestrator Intake (Doc `1TqdYYidNv1tJF7P5C-dxgy2FR8CX09AfXSjGE3ZatSQ`, 2026-03-09)",
+      "score": 286,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 112,
+      "id": "V6-AGENCY-001.2",
+      "status": "queued",
+      "upgrade": "Division-based agency topology for orchestration",
+      "why": "Complex projects need predictable multi-role composition across divisions rather than ad hoc role grouping.",
+      "exitCriteria": "Add division model (engineering/design/marketing/growth/qa/etc.) and orchestration manifests so `protheus orchestrate agency ...` can deploy cross-division teams with deterministic handoff receipts.",
+      "section": "Agency-Style Multi-Agent Templates & Orchestrator Intake (Doc `1TqdYYidNv1tJF7P5C-dxgy2FR8CX09AfXSjGE3ZatSQ`, 2026-03-09)",
+      "score": 286,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 113,
+      "id": "V6-AGENCY-001.3",
+      "status": "queued",
+      "upgrade": "Multi-agent orchestrator coordinator lane",
+      "why": "Parallel specialized-agent execution needs a dedicated coordinator for decomposition, fan-out, and merge decisions under one contract.",
+      "exitCriteria": "Extend Layer-2 orchestrator with deterministic multi-agent run coordination (5-10 concurrent agents), with coordinator decisions and child-run lineage visible in `protheus-top` receipts.",
+      "section": "Agency-Style Multi-Agent Templates & Orchestrator Intake (Doc `1TqdYYidNv1tJF7P5C-dxgy2FR8CX09AfXSjGE3ZatSQ`, 2026-03-09)",
+      "score": 286,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 114,
+      "id": "V6-AGENCY-001.4",
+      "status": "queued",
+      "upgrade": "Workflow + success-metric contract binding for agency runs",
+      "why": "Agency templates are not production-grade without explicit deliverable gates and measurable run outcomes.",
+      "exitCriteria": "Bind each agent template to workflow stages + metric contracts; orchestrated runs must output deliverable artifacts and success metrics as receipted Epistemic Objects.",
+      "section": "Agency-Style Multi-Agent Templates & Orchestrator Intake (Doc `1TqdYYidNv1tJF7P5C-dxgy2FR8CX09AfXSjGE3ZatSQ`, 2026-03-09)",
+      "score": 286,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 0,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 115,
+      "id": "V6-AGENCY-001.5",
+      "status": "queued",
+      "upgrade": "Conduit-only activation/handoff guardrails for agency mode",
+      "why": "Multi-agent activation/handoffs must remain fully Safety Plane governed to prevent implicit authority widening.",
+      "exitCriteria": "Enforce Layer-0 conduit checks for all role activations, tool invocations, and inter-agent handoffs; any bypass attempt fails closed with deterministic denial receipts.",
+      "section": "Agency-Style Multi-Agent Templates & Orchestrator Intake (Doc `1TqdYYidNv1tJF7P5C-dxgy2FR8CX09AfXSjGE3ZatSQ`, 2026-03-09)",
+      "score": 286,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 116,
+      "id": "V6-NETWORK-001.1",
+      "status": "queued",
+      "upgrade": "P2P gossip collaboration protocol lane",
+      "why": "Distributed RSI seed quality depends on bounded peer discovery, handoff, critique, and breakthrough exchange across nodes.",
+      "exitCriteria": "Add governed gossip protocol for node discovery + task/insight exchange with deterministic peer/session/handoff receipts; include compatibility bridge contract for approved external agent networks.",
+      "section": "P2P Gossip Network & Compute-Sharing Seed Intake (2026-03-09)",
+      "score": 284,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 117,
+      "id": "V6-NETWORK-001.2",
+      "status": "queued",
+      "upgrade": "Compute sharing + social credit ledger lane",
+      "why": "Idle node capacity should compound network throughput while preserving fair-use/reputation controls.",
+      "exitCriteria": "Add compute-offer/accept execution contracts with metered contribution accounting and social-credit ledger updates as Epistemic Objects; credits are auditable and reversible by policy.",
+      "section": "P2P Gossip Network & Compute-Sharing Seed Intake (2026-03-09)",
+      "score": 284,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 118,
+      "id": "V6-NETWORK-001.3",
+      "status": "queued",
+      "upgrade": "Cryptographic proof-of-compute verifier lane (matmul challenge)",
+      "why": "Compute-share claims require anti-spoof validation before credit or scheduling trust is granted.",
+      "exitCriteria": "Implement periodic challenge/response verifier (matmul class) with deterministic proof receipts; credit awards are blocked unless proof policy passes.",
+      "section": "P2P Gossip Network & Compute-Sharing Seed Intake (2026-03-09)",
+      "score": 284,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 119,
+      "id": "V6-NETWORK-001.4",
+      "status": "queued",
+      "upgrade": "Idle RSS read/commentary collaboration behavior lane",
+      "why": "Network intelligence compounds when idle agents perform bounded research and peer critique instead of idle spin.",
+      "exitCriteria": "Add policy-gated idle behavior where detached nodes run RSS ingestion/commentary workflows with budget caps, peer-comment lineage, and deterministic receipts for every idle cycle action.",
+      "section": "P2P Gossip Network & Compute-Sharing Seed Intake (2026-03-09)",
+      "score": 284,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 120,
+      "id": "V6-NETWORK-001.5",
+      "status": "queued",
+      "upgrade": "One-command browser/CLI node onboarding lane (`protheus node join`)",
+      "why": "Distributed adoption depends on low-friction node spawn/join flows across CLI and web onboarding paths.",
+      "exitCriteria": "Add CLI + browser onboarding contracts that register nodes, complete identity/capability handshake, and join gossip mesh with deterministic join receipts and fail-closed policy gates.",
+      "section": "P2P Gossip Network & Compute-Sharing Seed Intake (2026-03-09)",
+      "score": 284,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 121,
+      "id": "V6-NETWORK-001.6",
+      "status": "queued",
+      "upgrade": "Conduit-only network safety guardrails + full activity audit lane",
+      "why": "Gossip/compute-share actions can widen risk surface unless constrained by explicit capability/policy checks.",
+      "exitCriteria": "Enforce Layer-0 conduit checks for all network discovery, gossip exchange, compute-share, idle behavior, and credit mutations; bypass attempts fail closed and all actions emit deterministic audit receipts.",
+      "section": "P2P Gossip Network & Compute-Sharing Seed Intake (2026-03-09)",
+      "score": 284,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 122,
+      "id": "V6-NETWORK-002.1",
+      "status": "queued",
+      "upgrade": "Decentralized Data Discovery Catalog",
+      "why": "Dataset discovery is fragmented across isolated sources and nodes, limiting RSI network utility and repeatability for research ingestion.",
+      "exitCriteria": "Add local + P2P searchable dataset catalog with periodic sync from connected nodes/external open sources; `protheus data search \"<query>\"` returns ranked results with provenance metadata.",
+      "section": "Decentralized Open Data Marketplace Intake (Source bundle: Ocean/OriginTrail/data.all/Opendatabay/Delta Sharing, 2026-03-09)",
+      "score": 284,
+      "evidenceCount": 7,
+      "nonBacklogEvidenceCount": 5,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 123,
+      "id": "V6-NETWORK-002.2",
+      "status": "queued",
+      "upgrade": "Secure Data Sharing with Provenance Contracts",
+      "why": "Data exchange currently lacks one uniform capability-gated sharing contract with cryptographic provenance and retention policy controls.",
+      "exitCriteria": "Implement capability/tokenized sharing envelopes where each shared dataset carries Epistemic metadata (provenance/confidence/policy/retention) and produces a deterministic receipt chain; raw transfer denied without explicit grant.",
+      "section": "Decentralized Open Data Marketplace Intake (Source bundle: Ocean/OriginTrail/data.all/Opendatabay/Delta Sharing, 2026-03-09)",
+      "score": 284,
+      "evidenceCount": 6,
+      "nonBacklogEvidenceCount": 4,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 124,
+      "id": "V6-NETWORK-002.3",
+      "status": "queued",
+      "upgrade": "Compute-to-Data Execution Lane",
+      "why": "Current workflows often require copying data to compute, increasing exposure and policy risk for sensitive datasets.",
+      "exitCriteria": "Add remote compute-to-data execution so analysis runs at data owner node and returns bounded result artifacts only; raw dataset remains local and policy-enforced receipts prove execution path.",
+      "section": "Decentralized Open Data Marketplace Intake (Source bundle: Ocean/OriginTrail/data.all/Opendatabay/Delta Sharing, 2026-03-09)",
+      "score": 284,
+      "evidenceCount": 1,
+      "nonBacklogEvidenceCount": 4,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 125,
+      "id": "V6-NETWORK-002.4",
+      "status": "queued",
+      "upgrade": "Knowledge Graph Provenance Index Integration",
+      "why": "Shared datasets are not consistently indexed with lineage relationships, reducing traceability and downstream recall quality.",
+      "exitCriteria": "Integrate marketplace datasets into knowledge graph index with lineage edges and provenance links; search/assimilation outputs include graph relationships and source ancestry.",
+      "section": "Decentralized Open Data Marketplace Intake (Source bundle: Ocean/OriginTrail/data.all/Opendatabay/Delta Sharing, 2026-03-09)",
+      "score": 284,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 126,
+      "id": "V6-NETWORK-002.5",
+      "status": "queued",
+      "upgrade": "Conduit-Only Marketplace Enforcement + Receipts",
+      "why": "Discovery/sharing/compute marketplace actions can bypass canonical audit flow without explicit conduit gating.",
+      "exitCriteria": "Enforce conduit-only routing for all marketplace operations with deterministic receipts, capability checks, and policy/budget gates; contract checker fails on bypass paths.",
+      "section": "Decentralized Open Data Marketplace Intake (Source bundle: Ocean/OriginTrail/data.all/Opendatabay/Delta Sharing, 2026-03-09)",
+      "score": 284,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 127,
+      "id": "V6-STORAGE-001.1",
+      "status": "queued",
+      "upgrade": "Time-series container primitive for receipts/events/memory logs",
+      "why": "Append-heavy runtime telemetry and receipts need a dedicated time-ordered storage primitive instead of generic mixed-path persistence.",
+      "exitCriteria": "Add a core time-series container contract with time-partitioning + index strategy for receipts, heartbeat, and event lanes; verify high-ingest profile (`100k+/s` target lane benchmark) and recent-window low-latency query receipts.",
+      "section": "High-Performance Time-Series Storage Engine Intake (2026-03-09)",
+      "score": 282,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 128,
+      "id": "V6-STORAGE-001.2",
+      "status": "queued",
+      "upgrade": "Hybrid ingest/query acceleration lane (memory-hot + durable tier)",
+      "why": "Current file/SQLite-heavy paths can bottleneck high-volume telemetry and recall workloads.",
+      "exitCriteria": "Implement hybrid ingestion/tiering path with hot in-memory write/query acceleration and durable persistence; benchmark/receipt evidence shows material improvement over baseline file/SQLite paths under controlled workload gates.",
+      "section": "High-Performance Time-Series Storage Engine Intake (2026-03-09)",
+      "score": 282,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 129,
+      "id": "V6-STORAGE-001.3",
+      "status": "queued",
+      "upgrade": "Scale-out sharding/replication contract for network seed nodes",
+      "why": "Distributed seed operation requires resilient multi-node storage without single-node bottlenecks.",
+      "exitCriteria": "Add shard/replica coordination contracts for time-series lanes with deterministic consistency and failover receipts; multi-node harness demonstrates no single point of failure under node-loss scenarios.",
+      "section": "High-Performance Time-Series Storage Engine Intake (2026-03-09)",
+      "score": 282,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 130,
+      "id": "V6-STORAGE-001.4",
+      "status": "queued",
+      "upgrade": "Workload-aware data model selector (time-series vs key-value vs document lanes)",
+      "why": "Epistemic objects and receipt workloads have different access patterns that benefit from model-specific optimization.",
+      "exitCriteria": "Add policy-governed model-selection layer that routes workloads to optimal storage model or hybrid mode with deterministic selection rationale in receipts.",
+      "section": "High-Performance Time-Series Storage Engine Intake (2026-03-09)",
+      "score": 282,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 131,
+      "id": "V6-STORAGE-001.5",
+      "status": "queued",
+      "upgrade": "Conduit-only storage operations guardrail + audit lane",
+      "why": "Storage engine expansion must remain Safety Plane governed and fully auditable.",
+      "exitCriteria": "Enforce Layer-0 conduit checks for all storage writes/queries/compaction/tiering actions; every operation emits deterministic receipts and bypass attempts fail closed.",
+      "section": "High-Performance Time-Series Storage Engine Intake (2026-03-09)",
+      "score": 282,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 132,
+      "id": "V6-APP-001.1",
+      "status": "queued",
+      "upgrade": "Creator Discovery Engine (YouTube/Twitch)",
+      "why": "Creator lead generation is manual and inconsistent, limiting campaign scale and response speed.",
+      "exitCriteria": "`protheus app run creator-outreach` discovers and scores creators by niche/engagement/fit (100+ target per run) with deterministic discovery receipts.",
+      "section": "Creator Outreach Automation App Intake (Source: OpenClaw creator-outreach demo pattern, 2026-03-09)",
+      "score": 280,
+      "evidenceCount": 6,
+      "nonBacklogEvidenceCount": 4,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 133,
+      "id": "V6-APP-001.2",
+      "status": "queued",
+      "upgrade": "Personalized Outreach + Follow-Up Sequences",
+      "why": "Outreach messaging lacks individualized personalization and repeatable follow-up automation.",
+      "exitCriteria": "Generate unique per-creator messages and follow-up sequences via approved connectors with receipt-linked prompt/template metadata and send outcomes.",
+      "section": "Creator Outreach Automation App Intake (Source: OpenClaw creator-outreach demo pattern, 2026-03-09)",
+      "score": 280,
+      "evidenceCount": 7,
+      "nonBacklogEvidenceCount": 5,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 134,
+      "id": "V6-APP-001.3",
+      "status": "queued",
+      "upgrade": "Response Handling + Call Booking Workflow",
+      "why": "Reply handling and meeting booking are fragmented and can miss qualified responses in high-volume campaigns.",
+      "exitCriteria": "Run 24/7 response triage + booking flow with human-review gate options, deterministic response receipts, and booking event linkage.",
+      "section": "Creator Outreach Automation App Intake (Source: OpenClaw creator-outreach demo pattern, 2026-03-09)",
+      "score": 280,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 135,
+      "id": "V6-APP-001.4",
+      "status": "queued",
+      "upgrade": "24/7 Autonomous Campaign Operation Profile",
+      "why": "Campaign execution stalls without continuous schedule/heartbeat operation when users are offline.",
+      "exitCriteria": "Support persistent scheduled/background operation with campaign state checkpoints, health markers, and resumable execution receipts.",
+      "section": "Creator Outreach Automation App Intake (Source: OpenClaw creator-outreach demo pattern, 2026-03-09)",
+      "score": 280,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 136,
+      "id": "V6-APP-001.5",
+      "status": "queued",
+      "upgrade": "Conduit-Only Outreach Enforcement + Default `/apps` Placement",
+      "why": "Outreach apps can bypass policy controls or drift into client-owned authority paths without explicit placement and boundary contracts.",
+      "exitCriteria": "Ship scaffold at `/apps/creator_outreach/`, keep client wrappers thin, and enforce conduit-only routing for discovery/sending/response/booking with deterministic receipts and policy checks.",
+      "section": "Creator Outreach Automation App Intake (Source: OpenClaw creator-outreach demo pattern, 2026-03-09)",
+      "score": 280,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 137,
+      "id": "V6-SUBSTRATE-001.1",
+      "status": "queued",
+      "upgrade": "WiFi CSI sensing engine lane (pose/vitals/presence)",
+      "why": "Non-visual sensing provides privacy-preserving perception and through-wall detection without camera dependency.",
+      "exitCriteria": "Add CSI sensing lane capable of real-time pose proxy, breathing/heartbeat signal extraction, and presence events from supported WiFi/CSI hardware; detections emit deterministic receipts with confidence and sensor provenance.",
+      "section": "WiFi CSI Non-Visual Sensing Intake (RuView, x.com/heygurisingh 2030779994767851980, 2026-03-09)",
+      "score": 276,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 138,
+      "id": "V6-SUBSTRATE-001.2",
+      "status": "queued",
+      "upgrade": "Edge module library enable/disable contract for CSI workloads",
+      "why": "Practical adoption needs modular enablement per shadow/persona instead of one fixed sensing pipeline.",
+      "exitCriteria": "Add module registry (fall/sleep/activity/security/emotion/etc.) with one-command enable/disable by persona/shadow and deterministic module activation receipts.",
+      "section": "WiFi CSI Non-Visual Sensing Intake (RuView, x.com/heygurisingh 2030779994767851980, 2026-03-09)",
+      "score": 276,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 139,
+      "id": "V6-SUBSTRATE-001.3",
+      "status": "queued",
+      "upgrade": "ESP32/low-power deployment profile lane",
+      "why": "Substrate value depends on low-cost embedded deployment and offline operation.",
+      "exitCriteria": "Add embedded profile contract for ESP32-class deployment with no-cloud requirement, power budget telemetry, and deterministic degraded-mode behavior under constrained hardware.",
+      "section": "WiFi CSI Non-Visual Sensing Intake (RuView, x.com/heygurisingh 2030779994767851980, 2026-03-09)",
+      "score": 276,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 140,
+      "id": "V6-SUBSTRATE-001.4",
+      "status": "queued",
+      "upgrade": "Conduit-routed privacy/consent guardrails for non-visual sensing",
+      "why": "Through-wall and biometric-adjacent sensing requires strict local-first privacy controls and auditability.",
+      "exitCriteria": "Enforce local-only default policy, consent requirements, and budget/privacy checks for CSI events in Layer-0/1; every detection path is receipted and bypass attempts fail closed.",
+      "section": "WiFi CSI Non-Visual Sensing Intake (RuView, x.com/heygurisingh 2030779994767851980, 2026-03-09)",
+      "score": 276,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 141,
+      "id": "V6-SUBSTRATE-001.5",
+      "status": "queued",
+      "upgrade": "Persona/shadow integration for WiFi sensing as native Eye",
+      "why": "Sensor capability must be directly consumable by personas/shadows to be operationally useful.",
+      "exitCriteria": "Add `protheus eye enable wifi`/persona trigger integration with observability streams, so shadows can subscribe to CSI events via governed eye lanes and receipt-linked dashboards.",
+      "section": "WiFi CSI Non-Visual Sensing Intake (RuView, x.com/heygurisingh 2030779994767851980, 2026-03-09)",
+      "score": 276,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 142,
+      "id": "V6-SUBSTRATE-002.1",
+      "status": "queued",
+      "upgrade": "Biological substrate interface lane (living-neuron signal -> model control)",
+      "why": "Layer `-1` needs a formal biological adapter contract for real-time neuron-signal modulation of model behavior.",
+      "exitCriteria": "Add interface contract for multi-electrode neuronal input streams that can deterministically map spike activity to bounded model-control parameters (temperature/sampling/attention controls) with per-event receipts.",
+      "section": "Biological Neural Hybrid Integration Intake (x.com/Crypto_Jargon 2030603197237387411, 2026-03-09)",
+      "score": 276,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 143,
+      "id": "V6-SUBSTRATE-002.2",
+      "status": "queued",
+      "upgrade": "Closed-loop biological feedback engine",
+      "why": "Bidirectional neuron-AI coupling requires explicit feedback/stimulation control with safe fallback behavior.",
+      "exitCriteria": "Implement closed-loop lane where model state can issue bounded stimulation patterns; add deterministic degrade path to silicon-only mode on signal loss or health-policy failure.",
+      "section": "Biological Neural Hybrid Integration Intake (x.com/Crypto_Jargon 2030603197237387411, 2026-03-09)",
+      "score": 276,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 144,
+      "id": "V6-SUBSTRATE-002.3",
+      "status": "queued",
+      "upgrade": "Layer `-1` pluggable biological adapter template",
+      "why": "Biological computing must fit the existing exotic-hardware substrate template without leaking substrate specifics into Layer 0.",
+      "exitCriteria": "Add `layer_minus_one` biological adapter template declaring capabilities (spike-rate channels, stimulation channels, health telemetry), with Layer-0 remaining substrate-agnostic through conduit envelopes.",
+      "section": "Biological Neural Hybrid Integration Intake (x.com/Crypto_Jargon 2030603197237387411, 2026-03-09)",
+      "score": 276,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 145,
+      "id": "V6-SUBSTRATE-002.5",
+      "status": "queued",
+      "upgrade": "CLI/persona observability integration for biological substrate",
+      "why": "Advanced users need explicit enablement/monitoring surfaces to safely use biological substrate adapters.",
+      "exitCriteria": "Add `protheus substrate enable biological` + monitoring surfaces in `protheus-top`/dashboard, and persona hooks for research/health workflows with policy-scoped activation receipts.",
+      "section": "Biological Neural Hybrid Integration Intake (x.com/Crypto_Jargon 2030603197237387411, 2026-03-09)",
+      "score": 276,
+      "evidenceCount": 1,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 146,
+      "id": "V6-SUBSTRATE-003.1",
+      "status": "queued",
+      "upgrade": "WebGPU + WGSL accelerated browser inference runtime",
+      "why": "Zero-cloud local inference at high throughput requires a dedicated browser substrate contract rather than generic model paths.",
+      "exitCriteria": "Add `layer_minus_one/webgpu` adapter profile supporting quantized inference (INT4/INT8/FP16), WGSL kernel path, and SafeTensors ingestion with benchmark gate targeting >=150 tok/s on supported class hardware.",
+      "section": "Browser-Native High-Speed LLM Inference Intake (2026-03-09)",
+      "score": 276,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 147,
+      "id": "V6-SUBSTRATE-003.2",
+      "status": "queued",
+      "upgrade": "Single-tab zero-dependency execution contract",
+      "why": "Privacy-first/browser portability requires full local execution without mandatory external API/server dependencies.",
+      "exitCriteria": "Prove browser-local inference sessions run end-to-end in one tab with no required external inference endpoints and deterministic local-only mode receipts.",
+      "section": "Browser-Native High-Speed LLM Inference Intake (2026-03-09)",
+      "score": 276,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 148,
+      "id": "V6-SUBSTRATE-003.3",
+      "status": "queued",
+      "upgrade": "Model-agnostic SafeTensors loader + adaptive quantization selector",
+      "why": "Practical adoption requires multi-model loading with automatic quantization/memory fit decisions.",
+      "exitCriteria": "Implement loader contract for arbitrary SafeTensors models with policy-bounded quantization selection based on device memory/runtime constraints and deterministic loader decision receipts.",
+      "section": "Browser-Native High-Speed LLM Inference Intake (2026-03-09)",
+      "score": 276,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 149,
+      "id": "V6-SUBSTRATE-003.4",
+      "status": "queued",
+      "upgrade": "Conduit-routed browser inference guardrails + token-stream receipts",
+      "why": "High-speed browser inference must remain Safety Plane governed despite client-local execution paths.",
+      "exitCriteria": "Enforce conduit-only invocation and deterministic token-stream receipt logging for browser inference calls; bypass attempts fail closed with policy denial receipts.",
+      "section": "Browser-Native High-Speed LLM Inference Intake (2026-03-09)",
+      "score": 276,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 150,
+      "id": "V6-SUBSTRATE-003.5",
+      "status": "queued",
+      "upgrade": "Persona/shadow substrate switch contract (`protheus substrate enable webgpu`)",
+      "why": "Operators need explicit routing controls to use browser-native inference for privacy-sensitive or edge-constrained tasks.",
+      "exitCriteria": "Add substrate switch/selection contract and thin client wrappers so shadows/personas can select `webgpu` profile under policy/budget gates with observability metrics (tokens/s, latency, fallback reason) in receipts.",
+      "section": "Browser-Native High-Speed LLM Inference Intake (2026-03-09)",
+      "score": 276,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 151,
+      "id": "V6-HERMES-001.1",
+      "status": "queued",
+      "upgrade": "Autonomous self-discovery identity lane",
+      "why": "Agent runtime needs deterministic self-profile generation (model/runtime/GPU/flags) for better autonomous diagnostics and reproducible identity docs.",
+      "exitCriteria": "Add `protheus shadow discover` lane producing signed identity artifact (runtime profile + capability surface + model/runtime metadata) with conduit receipts and replay-safe provenance.",
+      "section": "Hermes-Style Autonomous Runtime Intake (Doc `1BLeP2bP00zlj8JwXec7OPeqk4dIMXgp5Oq6z-HTSCLY`, 2026-03-09)",
+      "score": 274,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 152,
+      "id": "V6-HERMES-001.2",
+      "status": "queued",
+      "upgrade": "Premium real-time TUI envelope for shadow/cockpit execution",
+      "why": "Operator ergonomics and observability are limited without a high-signal live execution surface.",
+      "exitCriteria": "Upgrade `protheus-top`/watch surfaces with rich real-time stream blocks (timings, tool call classes, status colors, optional ASCII header skins) while preserving deterministic machine-readable telemetry contracts.",
+      "section": "Hermes-Style Autonomous Runtime Intake (Doc `1BLeP2bP00zlj8JwXec7OPeqk4dIMXgp5Oq6z-HTSCLY`, 2026-03-09)",
+      "score": 274,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 153,
+      "id": "V6-HERMES-001.3",
+      "status": "queued",
+      "upgrade": "Persistent memory continuity hardening across attach/disconnect boundaries",
+      "why": "Persistent cockpit exists, but continuity quality still needs explicit cross-session reconstruction guarantees for user modeling + learned context.",
+      "exitCriteria": "Add continuity contract tests proving context/user model reconstruction across daemon restart and detached/reattached sessions with deterministic reconstruction receipts.",
+      "section": "Hermes-Style Autonomous Runtime Intake (Doc `1BLeP2bP00zlj8JwXec7OPeqk4dIMXgp5Oq6z-HTSCLY`, 2026-03-09)",
+      "score": 274,
+      "evidenceCount": 1,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 154,
+      "id": "V6-HERMES-001.4",
+      "status": "queued",
+      "upgrade": "Subagent delegation primitives + governed tool-rich execution packs",
+      "why": "Autonomous workflows need first-class delegated execution packs under strict capability controls.",
+      "exitCriteria": "Add subagent delegation primitives with policy-scoped tool packs (file/terminal/browser/code/cron) and deterministic parent-child receipt chains for each delegated run.",
+      "section": "Hermes-Style Autonomous Runtime Intake (Doc `1BLeP2bP00zlj8JwXec7OPeqk4dIMXgp5Oq6z-HTSCLY`, 2026-03-09)",
+      "score": 274,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 155,
+      "id": "V6-HERMES-001.5",
+      "status": "queued",
+      "upgrade": "Conduit-only autonomous discovery/delegation guard contract",
+      "why": "New autonomous affordances must remain fail-closed under Safety Plane authority.",
+      "exitCriteria": "Enforce Layer-0 policy checks for self-discovery, tool execution, and delegation actions; any bypass attempt fails closed and emits auditable denial receipts.",
+      "section": "Hermes-Style Autonomous Runtime Intake (Doc `1BLeP2bP00zlj8JwXec7OPeqk4dIMXgp5Oq6z-HTSCLY`, 2026-03-09)",
+      "score": 274,
+      "evidenceCount": 1,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 156,
+      "id": "V6-VBROWSER-001.1",
+      "status": "queued",
+      "upgrade": "Sandboxed virtual browser runtime with low-latency streaming",
+      "why": "Research and operator flows need isolated browser/desktop sessions without exposing host browser state.",
+      "exitCriteria": "Add containerized browser runtime (ephemeral + persistent profiles) with low-latency stream transport and strict host-state isolation guarantees validated by policy receipts.",
+      "section": "Virtual Browser Streaming & Collaboration Intake (Doc `1BaYvmljJ6VnYyjk4l_E-prfUKvjjuBJCCP8m4lj4uzE`, 2026-03-09)",
+      "score": 270,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 157,
+      "id": "V6-VBROWSER-001.2",
+      "status": "queued",
+      "upgrade": "Multi-user collaborative session controls",
+      "why": "Collaborative shadow/user investigation requires shared sessions with explicit control boundaries.",
+      "exitCriteria": "Support joined session roles (`watch-only`, `shared-control`) with deterministic control handoff, participant actions, and session-event receipts.",
+      "section": "Virtual Browser Streaming & Collaboration Intake (Doc `1BaYvmljJ6VnYyjk4l_E-prfUKvjjuBJCCP8m4lj4uzE`, 2026-03-09)",
+      "score": 270,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 158,
+      "id": "V6-VBROWSER-001.3",
+      "status": "queued",
+      "upgrade": "Automation-in-container lane with live monitoring",
+      "why": "Browser automation requires both scriptability and real-time operator observability.",
+      "exitCriteria": "Provide governed automation execution inside session container (Playwright/Puppeteer-style) with live telemetry surfaced to `protheus-top` and auditable run receipts.",
+      "section": "Virtual Browser Streaming & Collaboration Intake (Doc `1BaYvmljJ6VnYyjk4l_E-prfUKvjjuBJCCP8m4lj4uzE`, 2026-03-09)",
+      "score": 270,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 159,
+      "id": "V6-VBROWSER-001.4",
+      "status": "queued",
+      "upgrade": "Privacy/security controls for streamed browser sessions",
+      "why": "Streaming sessions can widen exfiltration/risk without strict privacy/network/budget controls.",
+      "exitCriteria": "Add policy-gated controls for network posture (e.g., tor/vpn profiles), session recording/broadcast toggles, and hard budgets (duration/data/request volume) with fail-closed enforcement receipts.",
+      "section": "Virtual Browser Streaming & Collaboration Intake (Doc `1BaYvmljJ6VnYyjk4l_E-prfUKvjjuBJCCP8m4lj4uzE`, 2026-03-09)",
+      "score": 270,
+      "evidenceCount": 1,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 160,
+      "id": "V6-VBROWSER-001.5",
+      "status": "queued",
+      "upgrade": "InfRing-native CLI + observability integration for streamed sessions",
+      "why": "Adoption depends on first-class commands and consistent observability surfaces.",
+      "exitCriteria": "Add thin wrappers for `protheus browser` / `protheus shadow --browser` with conduit-only execution and dashboard stream integration; every session action emits deterministic receipts under persona/policy governance.",
+      "section": "Virtual Browser Streaming & Collaboration Intake (Doc `1BaYvmljJ6VnYyjk4l_E-prfUKvjjuBJCCP8m4lj4uzE`, 2026-03-09)",
+      "score": 270,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 161,
+      "id": "V7-META-001",
+      "status": "queued",
+      "upgrade": "Core primitive contract registry (`node/cell/task/capability/object/stream/journal/budget/policy/model/supervisor/attestation`)",
+      "why": "The architecture needs one canonical primitive surface before additional profile-specific work can be trusted.",
+      "exitCriteria": "Add versioned primitive contract registry (`planes/contracts/metakernel_primitives_v1.json`) and enforce no-unknown-primitive usage in lane/config validation checks.",
+      "section": "Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08)",
+      "score": 266,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 162,
+      "id": "V7-META-002",
+      "status": "queued",
+      "upgrade": "Invariant gate for the first eight metakernel invariants",
+      "why": "Safety guarantees must be executable and fail-closed, not descriptive text only.",
+      "exitCriteria": "Add `ops:metakernel:invariants` lane that evaluates all eight invariants with deterministic pass/fail receipts and CI required-check wiring.",
+      "section": "Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08)",
+      "score": 266,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 163,
+      "id": "V7-META-003",
+      "status": "queued",
+      "upgrade": "`CellBundle` manifest schema + validator lane",
+      "why": "Portable deploy units need a strict manifest contract for capability/budget/provenance correctness.",
+      "exitCriteria": "Ship `cellbundle.schema.json` + `protheus-ops metakernel-manifest validate` with strict mode and deterministic error receipts for invalid bundles.",
+      "section": "Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08)",
+      "score": 266,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 164,
+      "id": "V7-META-004",
+      "status": "queued",
+      "upgrade": "WIT world registry + wasm component ABI contract",
+      "why": "Pluggable substrate execution requires a stable component boundary independent of TS wrappers.",
+      "exitCriteria": "Add WIT world registry under `planes/contracts/wit/`, validate declared worlds from bundle manifests, and run compatibility checks in CI.",
+      "section": "Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08)",
+      "score": 266,
+      "evidenceCount": 6,
+      "nonBacklogEvidenceCount": 4,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 165,
+      "id": "V7-META-005",
+      "status": "queued",
+      "upgrade": "Effect-typed capability taxonomy + risk class policy defaults (R0-R4)",
+      "why": "Capability safety depends on typed effects and deterministic risk-tier handling rules.",
+      "exitCriteria": "Add capability taxonomy policy (`observe/infer/store/communicate/actuate/train/quantum/admin`) with R0-R4 defaults; gate high-risk effects via policy checks and receipts.",
+      "section": "Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08)",
+      "score": 266,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 166,
+      "id": "V7-META-006",
+      "status": "queued",
+      "upgrade": "Budget admission controller across CPU/RAM/storage/network/tokens/power/privacy/cognitive-load",
+      "why": "Budgets must bind before execution to prevent post-hoc overrun behavior.",
+      "exitCriteria": "Add admission-control lane that denies execution when any hard budget is exceeded and records bounded reason codes in receipts.",
+      "section": "Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08)",
+      "score": 266,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 167,
+      "id": "V7-META-007",
+      "status": "queued",
+      "upgrade": "Epistemic object schema v1 (value/schema/provenance/confidence/policy/retention/export/rollback)",
+      "why": "AI-native state needs typed uncertainty and lineage metadata, not byte-only storage semantics.",
+      "exitCriteria": "Add `epistemic_object_v1` schema + validators and require all durable memory objects to include lineage + confidence fields.",
+      "section": "Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08)",
+      "score": 266,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 168,
+      "id": "V7-META-008",
+      "status": "queued",
+      "upgrade": "Effect journal commit-before-actuate enforcement",
+      "why": "External side effects must be journaled deterministically to preserve replay and audit guarantees.",
+      "exitCriteria": "Enforce no unjournaled external effect path in runtime gates; actuation calls fail-closed without associated journal entries.",
+      "section": "Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08)",
+      "score": 266,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 169,
+      "id": "V7-META-009",
+      "status": "queued",
+      "upgrade": "Substrate descriptor registry + degrade matrix",
+      "why": "Portable execution across MCU/edge/cloud/quantum/neural nodes requires machine-readable substrate contracts.",
+      "exitCriteria": "Add substrate descriptor registry with required fields (determinism, latency, energy, isolation, observability, privacy locality) and degrade-path validation.",
+      "section": "Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08)",
+      "score": 266,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 170,
+      "id": "V7-META-010",
+      "status": "queued",
+      "upgrade": "Radix policy guard (binary baseline, ternary optional class-scoped lowering)",
+      "why": "Radix experimentation must not weaken core security invariants.",
+      "exitCriteria": "Enforce binary-only for crypto/policy/capability/attestation/journal paths; allow ternary lowering only for approved workload classes with receipts.",
+      "section": "Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08)",
+      "score": 266,
+      "evidenceCount": 5,
+      "nonBacklogEvidenceCount": 3,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 171,
+      "id": "V7-META-011",
+      "status": "queued",
+      "upgrade": "Quantum broker domain contract (`compile/estimate/submit/session/batch/measure`)",
+      "why": "Quantum execution is hybrid and queue-bound; it needs explicit broker semantics and fallback guarantees.",
+      "exitCriteria": "Add broker API + policy gates (cost/fidelity/latency thresholds) and classical fallback receipts for unavailable/low-fidelity QPU paths.",
+      "section": "Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08)",
+      "score": 266,
+      "evidenceCount": 6,
+      "nonBacklogEvidenceCount": 4,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 172,
+      "id": "V7-META-012",
+      "status": "queued",
+      "upgrade": "Neural consent kernel scaffold with separated authorities (`observe/infer/feedback/stimulate`)",
+      "why": "Neural interfaces require strict authority boundaries and highest-risk controls for stimulation paths.",
+      "exitCriteria": "Add consent-kernel policy surface with dual-control + immutable audit + rate limits for `actuate.neural.stimulate`; fail-closed by default when consent token is absent.",
+      "section": "Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08)",
+      "score": 266,
+      "evidenceCount": 8,
+      "nonBacklogEvidenceCount": 6,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 173,
+      "id": "V7-META-013",
+      "status": "queued",
+      "upgrade": "Attestation graph service for code/model/policy/data/effect lineage",
+      "why": "Runtime trust requires signed lineage across artifacts, not isolated per-lane proofs.",
+      "exitCriteria": "Add attestation graph writer/query lane linking SBOM/signature/transparency-log/measured-boot pointers to execution receipts.",
+      "section": "Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08)",
+      "score": 266,
+      "evidenceCount": 6,
+      "nonBacklogEvidenceCount": 4,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 174,
+      "id": "V7-META-014",
+      "status": "queued",
+      "upgrade": "Degradation-contract verifier (`no-network/no-ternary/no-qpu/neural-link-loss`)",
+      "why": "Degraded operation must preserve safety while staying operational within declared fallbacks.",
+      "exitCriteria": "Add verifier ensuring each critical lane declares fallback behavior and that fallback never widens privilege; emit deterministic degraded-mode receipts.",
+      "section": "Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08)",
+      "score": 266,
+      "evidenceCount": 6,
+      "nonBacklogEvidenceCount": 4,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 175,
+      "id": "V7-META-015",
+      "status": "queued",
+      "upgrade": "Execution profile matrix harness (`mcu`, `edge`, `cloud`)",
+      "why": "Profile claims need reproducible execution evidence, not architecture-only assertions.",
+      "exitCriteria": "Add profile harness that runs deterministic conformance checks per profile with pass/fail artifacts and regression deltas.",
+      "section": "Metakernel v0.1 Intake (ChatGPT Draft, 2026-03-08)",
+      "score": 266,
+      "evidenceCount": 6,
+      "nonBacklogEvidenceCount": 4,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 176,
+      "id": "V6-ADAPT-CORE-001",
+      "status": "queued",
+      "upgrade": "Port adaptation primitives to core and demote client runtime",
+      "why": "Adaptation primitives are currently bootstrapped in TS client runtime for execution speed; authority must live in core to satisfy strict layering/security.",
+      "exitCriteria": "Port `REQ-19-001`/`002`/`003` primitives to Rust `core/layer2`, expose only conduit APIs, keep `client` Layer 3 as thin compatibility shell + tests, and remove policy authority from client runtime code.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 250,
+      "evidenceCount": 22,
+      "nonBacklogEvidenceCount": 20,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 177,
+      "id": "V6-BINVULN-001.1",
+      "status": "queued",
+      "upgrade": "Binary/firmware analysis engine lane",
+      "why": "Security research workflows need first-class binary and firmware inspection instead of ad hoc external tooling.",
+      "exitCriteria": "Add scan support for binaries, UEFI images, BA2 archives, and Binary Ninja DB artifacts with rulepack-based detection; store findings with deterministic provenance receipts.",
+      "section": "Binary & Firmware Vulnerability Detection Intake (Doc `1h3B8ayq-A9Ubx_pPKaRGFdLF8WFKWW38Do42u9wdqUI`, 2026-03-09)",
+      "score": 250,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 178,
+      "id": "V6-BINVULN-001.2",
+      "status": "queued",
+      "upgrade": "MCP analysis server surface for AI-assisted vuln hunting",
+      "why": "Shadows/personas need delegated binary analysis through governed tool surfaces.",
+      "exitCriteria": "Expose binary analysis via MCP-compatible service contract (stdio/HTTP-SSE variants) so agents can request scans and receive structured Epistemic Objects with receipt links.",
+      "section": "Binary & Firmware Vulnerability Detection Intake (Doc `1h3B8ayq-A9Ubx_pPKaRGFdLF8WFKWW38Do42u9wdqUI`, 2026-03-09)",
+      "score": 250,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 179,
+      "id": "V6-BINVULN-001.3",
+      "status": "queued",
+      "upgrade": "Structured output contract (`json/jsonl` + confidence/policy metadata)",
+      "why": "Vulnerability workflows require machine-readable outputs with policy context for triage automation.",
+      "exitCriteria": "Emit structured findings (`json` and streaming `jsonl`) carrying provenance hash, confidence score, policy labels, and deterministic scan metadata for replay/audit.",
+      "section": "Binary & Firmware Vulnerability Detection Intake (Doc `1h3B8ayq-A9Ubx_pPKaRGFdLF8WFKWW38Do42u9wdqUI`, 2026-03-09)",
+      "score": 250,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 180,
+      "id": "V6-BINVULN-001.4",
+      "status": "queued",
+      "upgrade": "Safety-plane sandboxed scan execution",
+      "why": "Binary analysis must not bypass Layer-0 guardrails even when processing untrusted artifacts.",
+      "exitCriteria": "Run all scans through conduit-routed sandbox/container lanes with budget/privacy/degrade policy checks; fail closed on policy violations and persist deterministic receipts for each run.",
+      "section": "Binary & Firmware Vulnerability Detection Intake (Doc `1h3B8ayq-A9Ubx_pPKaRGFdLF8WFKWW38Do42u9wdqUI`, 2026-03-09)",
+      "score": 250,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 181,
+      "id": "V6-BINVULN-001.5",
+      "status": "queued",
+      "upgrade": "Extensible custom/community rulepack intake",
+      "why": "Capability growth requires user-extensible detection rules without modifying authoritative core logic.",
+      "exitCriteria": "Add client-facing rulepack install/enable contracts with schema validation and signature/provenance checks; user rulepacks can be activated without core source edits.",
+      "section": "Binary & Firmware Vulnerability Detection Intake (Doc `1h3B8ayq-A9Ubx_pPKaRGFdLF8WFKWW38Do42u9wdqUI`, 2026-03-09)",
+      "score": 250,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 182,
+      "id": "V6-BINVULN-001.6",
+      "status": "queued",
+      "upgrade": "Developer DX + CLI/observability integration for vuln scans",
+      "why": "Adoption depends on simple entrypoints and visibility into scan outcomes.",
+      "exitCriteria": "Add thin wrappers for `protheus scan binary ...` and `protheus research --firmware`, plus observability surfaces for scan status/findings in `protheus-top` and dashboard lanes.",
+      "section": "Binary & Firmware Vulnerability Detection Intake (Doc `1h3B8ayq-A9Ubx_pPKaRGFdLF8WFKWW38Do42u9wdqUI`, 2026-03-09)",
+      "score": 250,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 183,
+      "id": "V6-BROWSER-008",
+      "status": "queued",
+      "upgrade": "Multi-instance orchestration + real-time dashboard lane",
+      "why": "Scaled web-capable shadows need bounded multi-instance control and immediate operator visibility.",
+      "exitCriteria": "Implement `REQ-20-003` multi-instance lifecycle controls, policy caps, and dashboard metrics with receipts.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 250,
+      "evidenceCount": 29,
+      "nonBacklogEvidenceCount": 27,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 184,
+      "id": "V6-BROWSER-009",
+      "status": "queued",
+      "upgrade": "Stealth + headed handoff control lane",
+      "why": "Real-world browser workflows need anti-bot resilience and safe human-assisted checkpoints (e.g., 2FA).",
+      "exitCriteria": "Implement `REQ-20-004` stealth profile + headed handoff transitions under explicit allow/deny policy receipts.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 250,
+      "evidenceCount": 29,
+      "nonBacklogEvidenceCount": 27,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 185,
+      "id": "V6-BROWSER-010",
+      "status": "queued",
+      "upgrade": "Blob-backed encrypted session continuity lane",
+      "why": "Session persistence should be morphable/portable while remaining tamper-evident and fail-closed.",
+      "exitCriteria": "Implement `REQ-20-005` encrypted blob-backed continuity with restore/morph integrity checks.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 250,
+      "evidenceCount": 29,
+      "nonBacklogEvidenceCount": 27,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 186,
+      "id": "V6-BROWSER-011",
+      "status": "queued",
+      "upgrade": "Multi-browser fallback profile lane",
+      "why": "Browser coverage and resilience improve when Chrome-first control has policy-driven fallback providers.",
+      "exitCriteria": "Implement `REQ-20-006` Firefox/Edge fallback profile contract with typed unsupported-provider failures.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 250,
+      "evidenceCount": 29,
+      "nonBacklogEvidenceCount": 27,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 187,
+      "id": "V6-BROWSER-012",
+      "status": "queued",
+      "upgrade": "Shadow/persona browser governance + drift breaker lane",
+      "why": "Web-capable autonomy must remain sovereign with drift controls and review escalation on risky actions.",
+      "exitCriteria": "Implement `REQ-20-007` shadow/persona bridge, drift telemetry thresholds, breaker hooks, and escalation receipts.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 250,
+      "evidenceCount": 29,
+      "nonBacklogEvidenceCount": 27,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 188,
+      "id": "V6-BROWSER-013",
+      "status": "queued",
+      "upgrade": "Browser API conformance harness lane",
+      "why": "Pinch-class parity needs deterministic endpoint conformance checks, not one-off manual demos.",
+      "exitCriteria": "Implement `REQ-21-001` core endpoint conformance suite with replayable pass/fail receipts.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 250,
+      "evidenceCount": 43,
+      "nonBacklogEvidenceCount": 41,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 189,
+      "id": "V6-BROWSER-014",
+      "status": "queued",
+      "upgrade": "Snapshot/diff token-efficiency SLO gate lane",
+      "why": "Browser agent cost control requires hard efficiency ceilings on text and diff payloads.",
+      "exitCriteria": "Implement `REQ-21-002` token-budget SLO gates with fail-closed thresholds and benchmark receipts.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 250,
+      "evidenceCount": 43,
+      "nonBacklogEvidenceCount": 41,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 190,
+      "id": "V6-BROWSER-015",
+      "status": "queued",
+      "upgrade": "Zero-config startup + footprint verification lane",
+      "why": "Operational parity needs measurable startup/client/memory/size budgets across release artifacts.",
+      "exitCriteria": "Implement `REQ-21-003` startup latency, RSS, and binary footprint verification with regression deltas.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 250,
+      "evidenceCount": 43,
+      "nonBacklogEvidenceCount": 41,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 191,
+      "id": "V6-BROWSER-016",
+      "status": "queued",
+      "upgrade": "Cross-language HTTP integration contract lane",
+      "why": "Browser control should remain framework/language-agnostic for broad agent ecosystem adoption.",
+      "exitCriteria": "Implement `REQ-21-004` curl-first fixtures and non-TS integration tests preserving receipt/policy metadata.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 250,
+      "evidenceCount": 29,
+      "nonBacklogEvidenceCount": 27,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 192,
+      "id": "V6-BROWSER-017",
+      "status": "queued",
+      "upgrade": "Comparative browser benchmark publication lane",
+      "why": "Competitive claims require reproducible parity benchmarks tied to receipts and release evidence.",
+      "exitCriteria": "Implement `REQ-21-005` measured benchmark matrix publication with dashboard/release integration.",
+      "section": "OpenDev Dual-Agent Coding Patterns Intake (2026-03-09)",
+      "score": 250,
+      "evidenceCount": 29,
+      "nonBacklogEvidenceCount": 27,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 193,
+      "id": "V6-COLLAB-001.1",
+      "status": "queued",
+      "upgrade": "Visual team dashboard lane for multi-agent collaboration",
+      "why": "Team orchestration visibility remains fragmented without a unified real-time collaboration surface.",
+      "exitCriteria": "Add a live team dashboard (`protheus-top` / `protheus team dashboard`) showing per-agent status, active task, handoff history, and contribution logs with sub-2s refresh and receipt drilldown links.",
+      "section": "Visual Agent Team Dashboard & Role Templates Intake (Doc `1Aegff87diqP1piog54qjAmWyPrxLOMO4CCoAuOWfmlU`, 2026-03-09)",
+      "score": 250,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 194,
+      "id": "V6-COLLAB-001.2",
+      "status": "queued",
+      "upgrade": "Instant role template launcher with runtime enforcement",
+      "why": "Fast role-based onboarding needs one-command templates with policy-safe defaults.",
+      "exitCriteria": "Add role template launcher for common roles (`frontend-engineer`, `qa-tester`, `marketing-strategist`, `research-lead`) so `protheus shadow create --role ...` provisions tool/memory/workflow defaults with deterministic activation receipts.",
+      "section": "Visual Agent Team Dashboard & Role Templates Intake (Doc `1Aegff87diqP1piog54qjAmWyPrxLOMO4CCoAuOWfmlU`, 2026-03-09)",
+      "score": 250,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 195,
+      "id": "V6-COLLAB-001.3",
+      "status": "queued",
+      "upgrade": "Native team automation scheduling lane",
+      "why": "Team workflows need built-in scheduling + handoff orchestration under one contract.",
+      "exitCriteria": "Add scheduling commands for individual shadows and team runs (`protheus schedule ...`) with cron-like triggers, deterministic kickoff/handoff receipts, and automatic summary artifact generation.",
+      "section": "Visual Agent Team Dashboard & Role Templates Intake (Doc `1Aegff87diqP1piog54qjAmWyPrxLOMO4CCoAuOWfmlU`, 2026-03-09)",
+      "score": 250,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 196,
+      "id": "V6-COLLAB-001.4",
+      "status": "queued",
+      "upgrade": "Conduit-only collaboration control guardrails",
+      "why": "Dashboard actions, role activation, and scheduled runs must stay Safety Plane governed.",
+      "exitCriteria": "Enforce Layer-0 conduit checks for all team-dashboard controls and schedule triggers; every action emits deterministic receipts and fail-closed denials on policy violations.",
+      "section": "Visual Agent Team Dashboard & Role Templates Intake (Doc `1Aegff87diqP1piog54qjAmWyPrxLOMO4CCoAuOWfmlU`, 2026-03-09)",
+      "score": 250,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 197,
+      "id": "V6-DOM-401",
+      "status": "queued",
+      "upgrade": "Polyglot GA release contract (`v0.1.0`)",
+      "why": "Multi-channel release packaging is fragmented, limiting adoption and credibility across Rust/TS/Python ecosystems.",
+      "exitCriteria": "Ship versioned release contract for GitHub Releases + crates.io + npm + PyPI with signed multi-arch artifacts and SBOM bundle; release gate fails if any channel or signature artifact is missing.",
+      "section": "Dominance Roadmap Intake (Google Doc `1u_KCXofHnG2OGFsLp3J0r-Yk-YyN0Ft0dzeEeOFd4kk`, 2026-03-08)",
+      "score": 250,
+      "evidenceCount": 3,
+      "nonBacklogEvidenceCount": 1,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 198,
+      "id": "V6-DOM-402",
+      "status": "queued",
+      "upgrade": "Native Python SDK parity lane (Rust-backed)",
+      "why": "Existing Python wrapper surface is too thin to compete with first-class Python agent frameworks.",
+      "exitCriteria": "Add Rust-backed Python SDK under `sdk/python` with async client parity for core APIs (`lens`, `orchestrate`, `shadow`, `research`), receipt propagation, and parity regression tests against TS client behavior.",
+      "section": "Dominance Roadmap Intake (Google Doc `1u_KCXofHnG2OGFsLp3J0r-Yk-YyN0Ft0dzeEeOFd4kk`, 2026-03-08)",
+      "score": 250,
+      "evidenceCount": 3,
+      "nonBacklogEvidenceCount": 0,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 199,
+      "id": "V6-DOM-403",
+      "status": "queued",
+      "upgrade": "Public benchmark crown harness + reproducibility gate",
+      "why": "Performance claims are not yet continuously published through one reproducible benchmark lane.",
+      "exitCriteria": "Add benchmark workflow + artifact pack that runs concurrency/cold-start/throughput/token-efficiency suites in reproducible containers, publishes machine-readable reports, and fails on regressions against policy thresholds.",
+      "section": "Dominance Roadmap Intake (Google Doc `1u_KCXofHnG2OGFsLp3J0r-Yk-YyN0Ft0dzeEeOFd4kk`, 2026-03-08)",
+      "score": 250,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    },
+    {
+      "rank": 200,
+      "id": "V6-DOM-404",
+      "status": "queued",
+      "upgrade": "Zero-to-production developer bootstrap UX lane",
+      "why": "New-user onboarding requires too many manual steps across languages and safety primitives.",
+      "exitCriteria": "Add `protheus init --lang <python",
+      "section": "Dominance Roadmap Intake (Google Doc `1u_KCXofHnG2OGFsLp3J0r-Yk-YyN0Ft0dzeEeOFd4kk`, 2026-03-08)",
+      "score": 250,
+      "evidenceCount": 4,
+      "nonBacklogEvidenceCount": 2,
+      "todoUnchecked": false,
+      "validationCommandsResolved": 0,
+      "validationCommandsUnresolved": [],
+      "regression": {
+        "severity": "pass",
+        "findings": []
+      }
+    }
+  ]
+}
