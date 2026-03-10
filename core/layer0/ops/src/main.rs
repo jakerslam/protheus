@@ -27,6 +27,8 @@ fn usage() {
     println!("  protheus-ops strategy-mode-governor <args>");
     println!("  protheus-ops status [--dashboard]");
     println!("  protheus-ops daemon-control <start|stop|restart|status|attach|subscribe|tick|diagnostics> [flags]");
+    println!("  protheus-ops organ-atrophy-controller <scan|status|revive> [flags]");
+    println!("  protheus-ops narrow-agent-parity-harness <run|status> [flags]");
     println!("  protheus-ops backlog-runtime-anchor <build|verify> --lane-id=<V3-RACE-XXX>");
     println!("  protheus-ops legacy-retired-lane <build|verify> --lane-id=<SYSTEMS-OPS-...>");
     println!("  protheus-ops inversion-controller <command> [flags]");
@@ -262,6 +264,16 @@ fn main() {
         "daemon-control" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::daemon_control::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "organ-atrophy-controller" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::organ_atrophy_controller::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "narrow-agent-parity-harness" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::narrow_agent_parity_harness::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "backlog-runtime-anchor" => {
