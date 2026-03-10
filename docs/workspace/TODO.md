@@ -44,9 +44,24 @@ Updated: 2026-03-10 (runtime-unblocked + verification-green)
 - `artifacts/coreization_wave1_static_audit_2026-03-10_resume.json`
 - Rust share now `64.818%`.
 
-5. `BACKLOG-RESUME` `P2` `ROI=10/10` `DEP=001,002,003,COREIZATION-GATE-001` Resume ROI backlog execution now that blockers are clear. `STATUS: READY`
+5. `BACKLOG-RESUME` `P2` `ROI=10/10` `DEP=001,002,003,COREIZATION-GATE-001` Resume ROI backlog execution now that blockers are clear. `STATUS: IN_PROGRESS`
 - Exit criteria:
 - Select next ROI tranche and execute against core-first lane ownership.
+- Tranche progress:
+- LLMN regression shield tranche completed (`V6-LLMN-001..004`), with passing evidence:
+  - `node client/memory/tools/tests/llmn_mode_conformance.test.js`
+  - `node client/memory/tools/tests/strategy_resolver.test.js`
+  - `node client/memory/tools/tests/model_router_routing_features.test.js`
+  - `node client/memory/tools/tests/model_router_variant_policy.test.js`
+  - `node client/memory/tools/tests/legacy_path_alias_adapters.test.js`
+- Smart-memory low-burn tranche completed for `V6-MEMORY-013..018` (`V6-MEMORY-019` still queued), with passing evidence:
+  - `node client/memory/tools/tests/memory_recall_context_budget.test.js`
+  - `node client/memory/tools/tests/conversation_eye_bootstrap.test.js`
+  - `node client/memory/tools/tests/memory_burn_slo_guard.test.js`
+  - `node client/memory/tools/tests/memory_efficiency_plane.test.js`
+  - `node client/memory/tools/tests/memory_matrix.test.js`
+  - `node client/memory/tools/tests/memory_auto_recall.test.js`
+  - `node client/memory/tools/tests/memory_index_freshness_gate.test.js`
 
 ## Commands
 

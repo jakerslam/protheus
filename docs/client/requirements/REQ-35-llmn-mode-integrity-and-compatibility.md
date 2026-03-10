@@ -1,8 +1,8 @@
 # REQ-35 — LLMN Mode Integrity and Compatibility Contract
 
-Status: proposed  
+Status: implemented  
 Owner: Runtime + Cognition  
-Updated: 2026-03-09
+Updated: 2026-03-10
 
 ## Objective
 
