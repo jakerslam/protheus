@@ -2,6 +2,7 @@
 'use strict';
 Object.defineProperty(exports, "__esModule", { value: true });
 
+// Layer ownership: core/layer2/mobile + core/layer0/ops::mobile-domain (authoritative)
 const { createDomainProxy } = require('../../lib/legacy_conduit_proxy');
 
 const runDomain = createDomainProxy(__dirname, 'MOBILE', 'mobile');
