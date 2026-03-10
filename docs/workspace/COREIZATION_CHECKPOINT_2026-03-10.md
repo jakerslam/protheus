@@ -80,18 +80,18 @@
   - `V6-PRIM-001`, `V6-PRIM-002`, `V6-PRIM-003`, `V6-PRIM-006` (layer1 primitive rust-closure tranche)
   - `V6-PRIM-009` (primitive residual audit refresh)
 - Validation evidence:
-  - `client/memory/tools/tests/llmn_mode_conformance.test.js`
-  - `client/memory/tools/tests/strategy_resolver.test.js`
-  - `client/memory/tools/tests/model_router_routing_features.test.js`
-  - `client/memory/tools/tests/model_router_variant_policy.test.js`
-  - `client/memory/tools/tests/legacy_path_alias_adapters.test.js`
-  - `client/memory/tools/tests/memory_recall_context_budget.test.js`
-  - `client/memory/tools/tests/conversation_eye_bootstrap.test.js`
-  - `client/memory/tools/tests/memory_burn_slo_guard.test.js`
-  - `client/memory/tools/tests/memory_efficiency_plane.test.js`
-  - `client/memory/tools/tests/memory_matrix.test.js`
-  - `client/memory/tools/tests/memory_auto_recall.test.js`
-  - `client/memory/tools/tests/memory_index_freshness_gate.test.js`
+  - `tests/client-memory-tools/llmn_mode_conformance.test.js`
+  - `tests/client-memory-tools/strategy_resolver.test.js`
+  - `tests/client-memory-tools/model_router_routing_features.test.js`
+  - `tests/client-memory-tools/model_router_variant_policy.test.js`
+  - `tests/client-memory-tools/legacy_path_alias_adapters.test.js`
+  - `tests/client-memory-tools/memory_recall_context_budget.test.js`
+  - `tests/client-memory-tools/conversation_eye_bootstrap.test.js`
+  - `tests/client-memory-tools/memory_burn_slo_guard.test.js`
+  - `tests/client-memory-tools/memory_efficiency_plane.test.js`
+  - `tests/client-memory-tools/memory_matrix.test.js`
+  - `tests/client-memory-tools/memory_auto_recall.test.js`
+  - `tests/client-memory-tools/memory_index_freshness_gate.test.js`
   - `cargo test --manifest-path core/layer0/swarm_router/Cargo.toml`
   - `cargo test -p protheus-ops-core attention_queue`
   - `cargo test -p execution_core initiative`

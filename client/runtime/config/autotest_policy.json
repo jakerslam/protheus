@@ -25,12 +25,12 @@
   "explicit_maps": {
     "by_prefix": {
       "client/runtime/systems/security/": [
-        "client/memory/tools/tests/security_integrity.test.js",
-        "client/memory/tools/tests/guard_remote_gate.test.js",
-        "client/memory/tools/tests/directive_gate.test.js"
+        "tests/client-memory-tools/security_integrity.test.js",
+        "tests/client-memory-tools/guard_remote_gate.test.js",
+        "tests/client-memory-tools/directive_gate.test.js"
       ],
       "client/runtime/systems/spine/": [
-        "client/memory/tools/tests/spine_evidence_run_plan.test.js"
+        "tests/client-memory-tools/spine_evidence_run_plan.test.js"
       ]
     }
   },

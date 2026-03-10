@@ -8,9 +8,8 @@ Run:
 node apps/examples/orchestration-demo/run.js
 ```
 
-This executes:
+This executes the public CLI contract:
 
 ```bash
-node client/runtime/systems/ops/protheusctl.js toolkit orchestration status
+target/debug/protheus-ops protheusctl toolkit orchestration status
 ```
-

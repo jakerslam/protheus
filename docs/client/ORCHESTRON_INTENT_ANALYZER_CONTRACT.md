@@ -42,6 +42,6 @@ Response envelope:
 ## Verification
 
 ```bash
-node client/memory/tools/tests/orchestron_intent_analyzer.test.js
+node tests/client-memory-tools/orchestron_intent_analyzer.test.js
 node client/runtime/systems/spine/contract_check.js
 ```

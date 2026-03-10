@@ -3,7 +3,7 @@
 Run one full sovereignty-guarded singularity seed cycle:
 
 ```bash
-node apps/examples/singularity_seed_demo/run.js
+node apps/examples/singularity-seed-demo/run.js
 ```
 
 Expected behavior:
@@ -11,3 +11,5 @@ Expected behavior:
 - Evolves each loop one generation.
 - Unfolds and verifies evolved loop blobs via signed manifest.
 - Fail-closes automatically if drift exceeds 2%.
+
+This example executes the public Rust seed binary (`singularity_seed_core demo`) rather than importing private runtime internals from `client/`.

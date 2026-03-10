@@ -55,8 +55,8 @@ node client/runtime/systems/workflow/workflow_controller.js promote \
 ## Verification
 
 ```bash
-node client/memory/tools/tests/workflow_controller_promote.test.js
-node client/memory/tools/tests/workflow_controller_identity_gate.test.js
-node client/memory/tools/tests/workflow_controller_promotion_gate.test.js
+node tests/client-memory-tools/workflow_controller_promote.test.js
+node tests/client-memory-tools/workflow_controller_identity_gate.test.js
+node tests/client-memory-tools/workflow_controller_promotion_gate.test.js
 node client/runtime/systems/spine/contract_check.js
 ```

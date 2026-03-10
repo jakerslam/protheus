@@ -12,7 +12,7 @@
         "client/runtime/config/error_budget_release_gate_policy.json"
       ],
       "test_paths": [
-        "client/memory/tools/tests/error_budget_release_gate.test.js"
+        "tests/client-memory-tools/error_budget_release_gate.test.js"
       ]
     },
     {
@@ -22,7 +22,7 @@
         "client/runtime/config/critical_path_policy_coverage_policy.json"
       ],
       "test_paths": [
-        "client/memory/tools/tests/critical_path_policy_coverage.test.js"
+        "tests/client-memory-tools/critical_path_policy_coverage.test.js"
       ]
     },
     {
@@ -32,7 +32,7 @@
         "client/runtime/config/composite_disaster_gameday_policy.json"
       ],
       "test_paths": [
-        "client/memory/tools/tests/composite_disaster_gameday.test.js"
+        "tests/client-memory-tools/composite_disaster_gameday.test.js"
       ]
     },
     {
@@ -42,7 +42,7 @@
         "client/runtime/config/backlog_intake_quality_policy.json"
       ],
       "test_paths": [
-        "client/memory/tools/tests/backlog_intake_quality_gate.test.js"
+        "tests/client-memory-tools/backlog_intake_quality_gate.test.js"
       ]
     }
   ],

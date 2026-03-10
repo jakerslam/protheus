@@ -4,7 +4,7 @@
 
 - `client/core_memory_compat/` (deprecated memory compatibility shim)
 - `client/core/memory/compat_bridge.ts` (duplicate shim entrypoint)
-- `client/memory/tools/tests/core_memory_compat_bridge.test.js` (shim-only test)
+- `tests/client-memory-tools/core_memory_compat_bridge.test.js` (shim-only test)
 - `client/runtime/state` symlink (legacy runtime alias)
 - root `local/` runtime leakage (migrated into `client/runtime/local/state/*`)
 

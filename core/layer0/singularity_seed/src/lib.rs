@@ -296,7 +296,7 @@ pub fn unfold_blob_typed<T: DeserializeOwned>(
 }
 
 fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..")
 }
 
 fn blob_root() -> PathBuf {

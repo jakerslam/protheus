@@ -1,0 +1,12 @@
+{
+  "type": "public_platform_contract_audit",
+  "generated_at": "2026-03-10T21:52:35.785Z",
+  "revision": "5fd00f6f602d20d642fa8e48451d3762d14fa3f8",
+  "policy_path": "client/runtime/config/public_platform_contract_policy.json",
+  "summary": {
+    "scanned_files": 7,
+    "violation_count": 0,
+    "pass": true
+  },
+  "violations": []
+}

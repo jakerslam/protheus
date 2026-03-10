@@ -5,11 +5,11 @@
  * Monitors WebSocket connection for disconnects over specified duration.
  * 
  * Usage:
- *   node websocket-stability-test.js [duration_minutes] [url]
+ *   node tests/websocket-stability-test.js [duration_minutes] [url]
  * 
  * Examples:
- *   node websocket-stability-test.js 2
- *   node websocket-stability-test.js 5 ws://127.0.0.1:18789/
+ *   node tests/websocket-stability-test.js 2
+ *   node tests/websocket-stability-test.js 5 ws://127.0.0.1:18789/
  * 
  * Environment:
  *   WS_DEBUG=1                    Enable debug logging
@@ -29,7 +29,7 @@ const durationMinutes = parseInt(process.argv[2]) || DEFAULT_DURATION_MINUTES;
 const targetUrl = process.argv[3] || DEFAULT_URL;
 const durationMs = durationMinutes * 60 * 1000;
 
-const LOG_FILE = path.join(__dirname, '..', 'local', 'logs', 'websocket-stability-test.log');
+const LOG_FILE = path.join(__dirname, '..', 'client', 'local', 'logs', 'websocket-stability-test.log');
 
 // Ensure logs directory exists
 fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });

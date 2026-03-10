@@ -60,8 +60,8 @@ If SQLite path fails or must be disabled:
 
 ## Validation Checklist
 
-- `node client/memory/tools/tests/backlog_queue_executor.test.js`
-- `node client/memory/tools/tests/backlog_queue_executor_sqlite_concurrency.test.js`
+- `node tests/client-memory-tools/backlog_queue_executor.test.js`
+- `node tests/client-memory-tools/backlog_queue_executor_sqlite_concurrency.test.js`
 - `node client/runtime/systems/ops/backlog_queue_executor.js run --all=1 --strict=1`
 - `node client/runtime/systems/ops/backlog_queue_executor.js status`
 

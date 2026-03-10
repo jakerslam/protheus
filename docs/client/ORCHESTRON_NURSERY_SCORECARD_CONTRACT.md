@@ -48,7 +48,7 @@ Each blocked row includes:
 ## Verification
 
 ```bash
-node client/memory/tools/tests/orchestron_nursery_scorecard_contract.test.js
-node client/memory/tools/tests/orchestron_adaptive_controller.test.js
+node tests/client-memory-tools/orchestron_nursery_scorecard_contract.test.js
+node tests/client-memory-tools/orchestron_adaptive_controller.test.js
 node client/runtime/systems/spine/contract_check.js
 ```
