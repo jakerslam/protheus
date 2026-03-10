@@ -1,44 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
-const assert = require('assert');
-const path = require('path');
-
-const ROOT = path.resolve(__dirname, '..', '..', '..');
-const { computeEvidenceRunPlan } = require(path.join(ROOT, 'systems', 'spine', 'evidence_run_plan.js'));
-
-try {
-  let out = computeEvidenceRunPlan(2, 'none', 'none');
-  if (!out) {
-    console.log('spine_evidence_run_plan.test.js: SKIP (core spine lane unavailable)');
-    process.exit(0);
-  }
-  assert.strictEqual(out.configured_runs, 2);
-  assert.strictEqual(out.pressure_throttle, false);
-  assert.strictEqual(out.evidence_runs, 2);
-
-  out = computeEvidenceRunPlan(3, 'soft', 'none');
-  assert.strictEqual(out.pressure_throttle, true);
-  assert.strictEqual(out.evidence_runs, 1, 'soft pressure should throttle to one evidence run');
-
-  out = computeEvidenceRunPlan(4, 'none', 'hard');
-  assert.strictEqual(out.pressure_throttle, true);
-  assert.strictEqual(out.evidence_runs, 1, 'projected hard pressure should throttle to one evidence run');
-
-  out = computeEvidenceRunPlan(0, 'hard', 'hard');
-  assert.strictEqual(out.configured_runs, 0);
-  assert.strictEqual(out.evidence_runs, 0, 'zero configured runs should remain zero');
-
-  out = computeEvidenceRunPlan('not-a-number', '', '');
-  assert.strictEqual(out.configured_runs, 2, 'invalid configured runs should fallback to 2');
-  assert.strictEqual(out.evidence_runs, 2);
-
-  out = computeEvidenceRunPlan(99, 'none', 'none');
-  assert.strictEqual(out.configured_runs, 6, 'configured runs should be clamped to max 6');
-  assert.strictEqual(out.evidence_runs, 6);
-
-  console.log('spine_evidence_run_plan.test.js: OK');
-} catch (err) {
-  console.error(`spine_evidence_run_plan.test.js: FAIL: ${err.message}`);
-  process.exit(1);
-}
+// Layer ownership: core/layer1/memory_runtime + core/layer0/ops::legacy-retired-lane (authoritative)
+// Legacy JS test surface retired; authoritative checks are Rust-side.
+const { createTestModule, runAsMain } = require('./_legacy_retired_test_wrapper.js');
+const mod = createTestModule(__dirname, 'spine_evidence_run_plan.test', 'MEMORY-TEST-SPINE_EVIDENCE_RUN_PLAN.TEST');
+if (require.main === module) runAsMain(mod, process.argv.slice(2));
+module.exports = mod;
