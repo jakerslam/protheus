@@ -28,8 +28,8 @@ impl Default for OriginIntegrityPolicy {
             version: "1.0".to_string(),
             strict_default: true,
             verify_script_relpath: "verify.sh".to_string(),
-            dependency_boundary_policy_path: "client/runtime/config/dependency_boundary_manifest.json"
-                .to_string(),
+            dependency_boundary_policy_path:
+                "client/runtime/config/dependency_boundary_manifest.json".to_string(),
             safety_plane_paths: vec![
                 "docs/workspace/AGENT-CONSTITUTION.md".to_string(),
                 "client/runtime/config/dependency_boundary_manifest.json".to_string(),
@@ -59,8 +59,10 @@ impl Default for ConstitutionContract {
     fn default() -> Self {
         Self {
             constitution_path: "docs/workspace/AGENT-CONSTITUTION.md".to_string(),
-            guardian_policy_path: "client/runtime/config/constitution_guardian_policy.json".to_string(),
-            rsi_bootstrap_policy_path: "client/runtime/config/rsi_bootstrap_policy.json".to_string(),
+            guardian_policy_path: "client/runtime/config/constitution_guardian_policy.json"
+                .to_string(),
+            rsi_bootstrap_policy_path: "client/runtime/config/rsi_bootstrap_policy.json"
+                .to_string(),
         }
     }
 }
@@ -113,10 +115,14 @@ fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
     ));
     let payload = serde_json::to_vec_pretty(value)
         .map_err(|err| format!("encode_json_failed:{}:{err}", path.display()))?;
-    fs::write(&tmp, &payload)
-        .map_err(|err| format!("write_tmp_failed:{}:{err}", tmp.display()))?;
-    fs::rename(&tmp, path)
-        .map_err(|err| format!("rename_tmp_failed:{}:{}:{err}", tmp.display(), path.display()))
+    fs::write(&tmp, &payload).map_err(|err| format!("write_tmp_failed:{}:{err}", tmp.display()))?;
+    fs::rename(&tmp, path).map_err(|err| {
+        format!(
+            "rename_tmp_failed:{}:{}:{err}",
+            tmp.display(),
+            path.display()
+        )
+    })
 }
 
 fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
@@ -158,7 +164,8 @@ fn sha256_bytes(bytes: &[u8]) -> String {
 }
 
 fn sha256_file(path: &Path) -> Result<String, String> {
-    let bytes = fs::read(path).map_err(|err| format!("read_file_failed:{}:{err}", path.display()))?;
+    let bytes =
+        fs::read(path).map_err(|err| format!("read_file_failed:{}:{err}", path.display()))?;
     Ok(sha256_bytes(&bytes))
 }
 
@@ -189,15 +196,26 @@ fn parse_bool(v: Option<&str>, fallback: bool) -> bool {
     }
 }
 
-fn load_policy(root: &Path, policy_path: Option<&str>) -> Result<(OriginIntegrityPolicy, PathBuf), String> {
+fn load_policy(
+    root: &Path,
+    policy_path: Option<&str>,
+) -> Result<(OriginIntegrityPolicy, PathBuf), String> {
     let path = resolve_path(root, policy_path.unwrap_or(DEFAULT_POLICY_REL));
     if !path.exists() {
         return Ok((OriginIntegrityPolicy::default(), path));
     }
-    let raw = fs::read_to_string(&path)
-        .map_err(|err| format!("read_origin_integrity_policy_failed:{}:{err}", path.display()))?;
-    let parsed = serde_json::from_str::<OriginIntegrityPolicy>(&raw)
-        .map_err(|err| format!("parse_origin_integrity_policy_failed:{}:{err}", path.display()))?;
+    let raw = fs::read_to_string(&path).map_err(|err| {
+        format!(
+            "read_origin_integrity_policy_failed:{}:{err}",
+            path.display()
+        )
+    })?;
+    let parsed = serde_json::from_str::<OriginIntegrityPolicy>(&raw).map_err(|err| {
+        format!(
+            "parse_origin_integrity_policy_failed:{}:{err}",
+            path.display()
+        )
+    })?;
     Ok((parsed, path))
 }
 
@@ -330,10 +348,12 @@ fn check_constitution_contract(root: &Path, policy: &OriginIntegrityPolicy) -> V
 
     let guardian = read_json(&guardian_policy_path).unwrap_or_else(|_| json!({}));
     let require_dual_approval = bool_from_path(&guardian, &["require_dual_approval"]);
-    let require_emergency_approval = bool_from_path(&guardian, &["emergency_rollback_requires_approval"]);
+    let require_emergency_approval =
+        bool_from_path(&guardian, &["emergency_rollback_requires_approval"]);
 
     let rsi = read_json(&rsi_policy_path).unwrap_or_else(|_| json!({}));
-    let require_constitution_status = bool_from_path(&rsi, &["gating", "require_constitution_status"]);
+    let require_constitution_status =
+        bool_from_path(&rsi, &["gating", "require_constitution_status"]);
     let merkle_path = string_from_path(&rsi, &["paths", "merkle_path"]);
     let resurrection_script = string_from_path(&rsi, &["scripts", "continuity_resurrection"]);
     let resurrection_exists = resurrection_script
@@ -385,7 +405,11 @@ fn evaluate_invariants(root: &Path, policy: &OriginIntegrityPolicy, command: &st
 
     let ok = conduit_only.get("ok").and_then(Value::as_bool) == Some(true)
         && constitution.get("ok").and_then(Value::as_bool) == Some(true)
-        && safety_plane.get("missing_count").and_then(Value::as_u64).unwrap_or(0) == 0;
+        && safety_plane
+            .get("missing_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            == 0;
 
     let mut out = json!({
         "ok": ok,
@@ -463,7 +487,11 @@ fn build_certificate(root: &Path, policy: &OriginIntegrityPolicy, run_receipt: &
     out
 }
 
-fn check_seed_certificate(root: &Path, policy: &OriginIntegrityPolicy, certificate_path: &Path) -> Value {
+fn check_seed_certificate(
+    root: &Path,
+    policy: &OriginIntegrityPolicy,
+    certificate_path: &Path,
+) -> Value {
     let remote = read_json(certificate_path).unwrap_or_else(|_| json!({}));
     let local = evaluate_invariants(root, policy, "seed-bootstrap-verify-local");
 
@@ -553,12 +581,18 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "ts": now_iso()
             });
             out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-            println!("{}", serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string()));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
+            );
             return 1;
         }
     };
 
-    let strict = parse_bool(parsed.flags.get("strict").map(String::as_str), policy.strict_default);
+    let strict = parse_bool(
+        parsed.flags.get("strict").map(String::as_str),
+        policy.strict_default,
+    );
     let latest_path = resolve_path(root, &policy.paths.latest_path);
     let receipts_path = resolve_path(root, &policy.paths.receipts_path);
     let certificate_path = resolve_path(root, &policy.paths.certificate_path);
@@ -569,7 +603,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             out["policy_path"] = Value::String(resolved_policy_path.display().to_string());
             let _ = write_json_atomic(&latest_path, &out);
             let _ = append_jsonl(&receipts_path, &out);
-            println!("{}", serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string()));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
+            );
             if out.get("ok").and_then(Value::as_bool) == Some(true) {
                 0
             } else if strict {
@@ -593,7 +630,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "latest": latest
             });
             out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-            println!("{}", serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string()));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
+            );
             0
         }
         "certificate" => {
@@ -613,7 +653,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             let cert = build_certificate(root, &policy, &run_receipt);
             let _ = write_json_atomic(&certificate_path, &cert);
             let _ = append_jsonl(&receipts_path, &cert);
-            println!("{}", serde_json::to_string_pretty(&cert).unwrap_or_else(|_| "{}".to_string()));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&cert).unwrap_or_else(|_| "{}".to_string())
+            );
             if cert.get("ok").and_then(Value::as_bool) == Some(true) {
                 0
             } else if strict {
@@ -632,14 +675,20 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "error": "certificate_required"
                 });
                 out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-                println!("{}", serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string()));
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
+                );
                 return 1;
             };
             let cert_path = resolve_path(root, certificate_raw);
             let out = check_seed_certificate(root, &policy, &cert_path);
             let _ = write_json_atomic(&latest_path, &out);
             let _ = append_jsonl(&receipts_path, &out);
-            println!("{}", serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string()));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
+            );
             if out.get("ok").and_then(Value::as_bool) == Some(true) {
                 0
             } else if strict {
@@ -656,7 +705,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "error": format!("unknown_command:{}", command)
             });
             out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-            println!("{}", serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string()));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&out).unwrap_or_else(|_| "{}".to_string())
+            );
             1
         }
     }

@@ -10,7 +10,8 @@ use std::io::Write;
 use std::path::Path;
 
 const LANE_ID: &str = "benchmark_matrix";
-const DEFAULT_SNAPSHOT_REL: &str = "client/runtime/config/competitive_benchmark_snapshot_2026_02.json";
+const DEFAULT_SNAPSHOT_REL: &str =
+    "client/runtime/config/competitive_benchmark_snapshot_2026_02.json";
 const STATE_LATEST_REL: &str = "state/ops/competitive_benchmark_matrix/latest.json";
 const STATE_HISTORY_REL: &str = "state/ops/competitive_benchmark_matrix/history.jsonl";
 const MIN_BAR_WIDTH: usize = 10;
@@ -152,7 +153,8 @@ fn count_channel_adapters(root: &Path) -> Result<f64, String> {
 fn count_llm_providers(root: &Path) -> Result<f64, String> {
     let mut providers = BTreeSet::<String>::new();
 
-    let onboarding = read_json(&root.join("client/runtime/config/provider_onboarding_manifest.json"))?;
+    let onboarding =
+        read_json(&root.join("client/runtime/config/provider_onboarding_manifest.json"))?;
     if let Some(entries) = onboarding.get("providers").and_then(Value::as_object) {
         for record in entries.values() {
             if let Some(provider_key) = record.get("provider_key").and_then(Value::as_str) {
@@ -164,7 +166,8 @@ fn count_llm_providers(root: &Path) -> Result<f64, String> {
         }
     }
 
-    let recovery = read_json(&root.join("client/runtime/config/model_health_auto_recovery_policy.json"))?;
+    let recovery =
+        read_json(&root.join("client/runtime/config/model_health_auto_recovery_policy.json"))?;
     if let Some(items) = recovery.get("providers").and_then(Value::as_array) {
         for item in items {
             if let Some(name) = item.as_str() {
@@ -192,7 +195,10 @@ fn extract_runtime_metrics(runtime_json: &Value) -> Option<(f64, f64, f64)> {
     Some((cold_start_ms, idle_memory_mb, install_size_mb))
 }
 
-fn runtime_metrics(root: &Path, refresh_runtime: bool) -> Result<(f64, f64, f64, Value, Value), String> {
+fn runtime_metrics(
+    root: &Path,
+    refresh_runtime: bool,
+) -> Result<(f64, f64, f64, Value, Value), String> {
     let mut source = "status".to_string();
     let mut fallback_reason = Value::Null;
     let mut runtime_json = Value::Null;
@@ -222,8 +228,9 @@ fn runtime_metrics(root: &Path, refresh_runtime: bool) -> Result<(f64, f64, f64,
         runtime_json = status_runtime_efficiency_floor(root, &parsed).json;
     }
 
-    let (cold_start_ms, idle_memory_mb, install_size_mb) = extract_runtime_metrics(&runtime_json)
-        .ok_or_else(|| "runtime_efficiency_missing_metrics".to_string())?;
+    let (cold_start_ms, idle_memory_mb, install_size_mb) =
+        extract_runtime_metrics(&runtime_json)
+            .ok_or_else(|| "runtime_efficiency_missing_metrics".to_string())?;
 
     let source_meta = json!({
         "mode": source,
@@ -239,7 +246,10 @@ fn runtime_metrics(root: &Path, refresh_runtime: bool) -> Result<(f64, f64, f64,
     ))
 }
 
-fn measure_openclaw(root: &Path, refresh_runtime: bool) -> Result<(Map<String, Value>, Value), String> {
+fn measure_openclaw(
+    root: &Path,
+    refresh_runtime: bool,
+) -> Result<(Map<String, Value>, Value), String> {
     let (cold_start_ms, idle_memory_mb, install_size_mb, runtime_json, runtime_source) =
         runtime_metrics(root, refresh_runtime)?;
     let security_systems = count_guard_checks(root)?;
@@ -263,7 +273,10 @@ fn measure_openclaw(root: &Path, refresh_runtime: bool) -> Result<(Map<String, V
     Ok((measured, runtime_json))
 }
 
-fn merge_projects(snapshot: &Value, openclaw_measured: &Map<String, Value>) -> Result<Map<String, Value>, String> {
+fn merge_projects(
+    snapshot: &Value,
+    openclaw_measured: &Map<String, Value>,
+) -> Result<Map<String, Value>, String> {
     let base_projects = snapshot
         .get("projects")
         .and_then(Value::as_object)
@@ -298,7 +311,11 @@ fn bar_fill(value: f64, min: f64, max: f64, width: usize, lower_is_better: bool)
 }
 
 fn render_bar(width: usize, fill: usize) -> String {
-    format!("{}{}", "#".repeat(fill), "-".repeat(width.saturating_sub(fill)))
+    format!(
+        "{}{}",
+        "#".repeat(fill),
+        "-".repeat(width.saturating_sub(fill))
+    )
 }
 
 fn format_metric_value(category: Category, value: f64) -> String {
@@ -335,7 +352,10 @@ fn category_report(
         rows.push((name.clone(), value, highlight));
     }
     if rows.is_empty() {
-        return Err(format!("benchmark_category_missing_values:{}", category.key));
+        return Err(format!(
+            "benchmark_category_missing_values:{}",
+            category.key
+        ));
     }
 
     let min = rows
@@ -362,13 +382,7 @@ fn category_report(
         let bar = render_bar(bar_width, fill);
         let score = format_metric_value(category, *value);
         let marker = if *highlight { " *" } else { "" };
-        lines.push(format!(
-            "{:<10} {}  {}{}",
-            name,
-            bar,
-            score,
-            marker
-        ));
+        lines.push(format!("{:<10} {}  {}{}", name, bar, score, marker));
 
         report_rows.push(json!({
             "rank": idx + 1,
@@ -391,7 +405,13 @@ fn category_report(
     }))
 }
 
-fn run_impl(root: &Path, cmd: &str, snapshot_rel: &str, refresh_runtime: bool, bar_width: usize) -> Result<Value, String> {
+fn run_impl(
+    root: &Path,
+    cmd: &str,
+    snapshot_rel: &str,
+    refresh_runtime: bool,
+    bar_width: usize,
+) -> Result<Value, String> {
     let snapshot_path = root.join(snapshot_rel);
     let snapshot = read_json(&snapshot_path)?;
 
@@ -504,8 +524,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             Ok(out) => {
                 println!(
                     "{}",
-                    serde_json::to_string_pretty(&out)
-                        .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
+                    serde_json::to_string_pretty(&out).unwrap_or_else(|_| {
+                        "{\"ok\":false,\"error\":\"encode_failed\"}".to_string()
+                    })
                 );
                 0
             }
@@ -522,8 +543,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
                 println!(
                     "{}",
-                    serde_json::to_string_pretty(&out)
-                        .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
+                    serde_json::to_string_pretty(&out).unwrap_or_else(|_| {
+                        "{\"ok\":false,\"error\":\"encode_failed\"}".to_string()
+                    })
                 );
                 1
             }
@@ -592,6 +614,9 @@ mod tests {
             openclaw.get("cold_start_ms").and_then(Value::as_f64),
             Some(253.0)
         );
-        assert_eq!(openclaw.get("measured").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            openclaw.get("measured").and_then(Value::as_bool),
+            Some(true)
+        );
     }
 }

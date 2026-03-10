@@ -84,10 +84,7 @@ fn cli_error_receipt(argv: &[String], err: &str, code: i32) -> Value {
 
 fn run_verify(lane_id: &str) -> Value {
     let row = build_receipt_with_ts(lane_id, &now_iso());
-    let ok = row
-        .get("ok")
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
+    let ok = row.get("ok").and_then(Value::as_bool).unwrap_or(false)
         && row
             .get("lane_id")
             .and_then(Value::as_str)
@@ -141,7 +138,11 @@ pub fn run(_root: &Path, argv: &[String]) -> i32 {
 
     let ok = out.get("ok").and_then(Value::as_bool).unwrap_or(false);
     print_json_line(&out);
-    if ok { 0 } else { 1 }
+    if ok {
+        0
+    } else {
+        1
+    }
 }
 
 #[cfg(test)]
@@ -150,8 +151,14 @@ mod tests {
 
     #[test]
     fn build_receipt_is_deterministic_for_same_lane_and_ts() {
-        let a = build_receipt_with_ts("SYSTEMS-OPS-PROTHEUS-STATUS-DASHBOARD", "2026-03-05T00:00:00.000Z");
-        let b = build_receipt_with_ts("SYSTEMS-OPS-PROTHEUS-STATUS-DASHBOARD", "2026-03-05T00:00:00.000Z");
+        let a = build_receipt_with_ts(
+            "SYSTEMS-OPS-PROTHEUS-STATUS-DASHBOARD",
+            "2026-03-05T00:00:00.000Z",
+        );
+        let b = build_receipt_with_ts(
+            "SYSTEMS-OPS-PROTHEUS-STATUS-DASHBOARD",
+            "2026-03-05T00:00:00.000Z",
+        );
         assert_eq!(a, b);
         assert_eq!(
             a.get("lane_hash").and_then(Value::as_str).map(str::len),
@@ -161,7 +168,10 @@ mod tests {
 
     #[test]
     fn clean_lane_id_normalizes_case_and_symbols() {
-        assert_eq!(clean_lane_id(" client/runtime/systems/ops/status "), "SYSTEMSOPSSTATUS");
+        assert_eq!(
+            clean_lane_id(" client/runtime/systems/ops/status "),
+            "SYSTEMSOPSSTATUS"
+        );
         assert_eq!(
             clean_lane_id("systems-ops-protheus_status"),
             "SYSTEMS-OPS-PROTHEUS_STATUS"

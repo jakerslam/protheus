@@ -155,7 +155,8 @@ pub fn default_policy(root: &Path) -> Policy {
             observability_panel_path: root.join("state/ops/protheus_top/observability_panel.json"),
             reasoning_footer_path: root.join("state/ops/protheus_top/reasoning_mirror_footer.txt"),
             tone_policy_path: root.join("client/runtime/config/perception_tone_policy.json"),
-            post_reveal_easter_egg_path: root.join("docs/client/blog/the_fort_was_empty_easter_egg.md"),
+            post_reveal_easter_egg_path: root
+                .join("docs/client/blog/the_fort_was_empty_easter_egg.md"),
         },
         policy_path: root.join("client/runtime/config/perception_polish_program_policy.json"),
     }
@@ -623,7 +624,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .flags
         .get("policy")
         .map(PathBuf::from)
-        .unwrap_or_else(|| root.join("client/runtime/config/perception_polish_program_policy.json"));
+        .unwrap_or_else(|| {
+            root.join("client/runtime/config/perception_polish_program_policy.json")
+        });
     let policy_path = if policy_arg.is_absolute() {
         policy_arg
     } else {

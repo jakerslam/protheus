@@ -78,10 +78,7 @@ fn check_cron_delivery_integrity(root: &Path, path_rel: &str) -> Result<(bool, V
             continue;
         }
         enabled_jobs += 1;
-        let name = job
-            .get("name")
-            .and_then(Value::as_str)
-            .unwrap_or("unknown");
+        let name = job.get("name").and_then(Value::as_str).unwrap_or("unknown");
         let id = job.get("id").and_then(Value::as_str).unwrap_or("unknown");
         let target = job
             .get("sessionTarget")
@@ -328,7 +325,12 @@ fn run_control(root: &Path, control: &serde_json::Map<String, Value>) -> Value {
     }
 }
 
-fn run_with_policy(root: &Path, cmd: &str, strict: bool, policy_path_rel: &str) -> Result<Value, String> {
+fn run_with_policy(
+    root: &Path,
+    cmd: &str,
+    strict: bool,
+    policy_path_rel: &str,
+) -> Result<Value, String> {
     let policy_path = root.join(policy_path_rel);
     let policy = read_json(&policy_path)?;
     let controls = policy
@@ -401,7 +403,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .unwrap_or_else(|| "run".to_string());
 
     let strict_default = cmd == "run";
-    let strict = bool_flag(parsed.flags.get("strict").map(String::as_str), strict_default);
+    let strict = bool_flag(
+        parsed.flags.get("strict").map(String::as_str),
+        strict_default,
+    );
     let policy_path = parsed
         .flags
         .get("policy")
@@ -414,8 +419,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             Ok(out) => {
                 println!(
                     "{}",
-                    serde_json::to_string_pretty(&out)
-                        .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
+                    serde_json::to_string_pretty(&out).unwrap_or_else(|_| {
+                        "{\"ok\":false,\"error\":\"encode_failed\"}".to_string()
+                    })
                 );
                 if strict && !out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
                     1
@@ -437,8 +443,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
                 println!(
                     "{}",
-                    serde_json::to_string_pretty(&out)
-                        .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
+                    serde_json::to_string_pretty(&out).unwrap_or_else(|_| {
+                        "{\"ok\":false,\"error\":\"encode_failed\"}".to_string()
+                    })
                 );
                 1
             }
@@ -484,8 +491,9 @@ mod tests {
             "client/runtime/config/cron_jobs.json",
             r#"{"jobs":[{"id":"j1","name":"x","enabled":true,"sessionTarget":"isolated","delivery":{"mode":"none","channel":"last"}}]}"#,
         );
-        let (ok, details) = check_cron_delivery_integrity(tmp.path(), "client/runtime/config/cron_jobs.json")
-            .expect("audit");
+        let (ok, details) =
+            check_cron_delivery_integrity(tmp.path(), "client/runtime/config/cron_jobs.json")
+                .expect("audit");
         assert!(!ok);
         assert!(details.to_string().contains("delivery_mode_none_forbidden"));
     }
@@ -498,8 +506,9 @@ mod tests {
             "client/runtime/config/cron_jobs.json",
             r#"{"jobs":[{"id":"j1","name":"x","enabled":true,"sessionTarget":"main"}]}"#,
         );
-        let (ok, details) = check_cron_delivery_integrity(tmp.path(), "client/runtime/config/cron_jobs.json")
-            .expect("audit");
+        let (ok, details) =
+            check_cron_delivery_integrity(tmp.path(), "client/runtime/config/cron_jobs.json")
+                .expect("audit");
         assert!(!ok);
         assert!(details
             .to_string()
@@ -509,7 +518,11 @@ mod tests {
     #[test]
     fn run_control_json_fields_detects_missing_field() {
         let tmp = tempfile::tempdir().expect("tmp");
-        write_text(tmp.path(), "client/runtime/config/x.json", r#"{"a":{"b":1}}"#);
+        write_text(
+            tmp.path(),
+            "client/runtime/config/x.json",
+            r#"{"a":{"b":1}}"#,
+        );
         let control = json!({
             "id": "c1",
             "title": "json",

@@ -137,7 +137,11 @@ mod tests {
         let payload = status_receipt(
             root.path(),
             "run",
-            &["run".to_string(), "--scope=all".to_string(), "--max=5".to_string()],
+            &[
+                "run".to_string(),
+                "--scope=all".to_string(),
+                "--max=5".to_string(),
+            ],
         );
         let hash = payload
             .get("receipt_hash")

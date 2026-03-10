@@ -26,6 +26,9 @@ fn usage() {
     println!("  protheus-ops enterprise-hardening <run|status> [--strict=1|0] [--policy=<path>]");
     println!("  protheus-ops rollout-rings <status|evaluate> [flags]");
     println!("  protheus-ops strategy-mode-governor <args>");
+    println!(
+        "  protheus-ops strategy-resolver <status|invoke> [--payload=<json>|--payload-file=<path>]"
+    );
     println!("  protheus-ops status [--dashboard]");
     println!("  protheus-ops daemon-control <start|stop|restart|status|attach|subscribe|tick|diagnostics> [flags]");
     println!("  protheus-ops organ-atrophy-controller <scan|status|revive> [flags]");
@@ -39,7 +42,9 @@ fn usage() {
     println!("  protheus-ops inversion-controller <command> [flags]");
     println!("  protheus-ops health-status <command> [flags]");
     println!("  protheus-ops foundation-contract-gate <run|status> [flags]");
-    println!("  protheus-ops origin-integrity <run|status|certificate|seed-bootstrap-verify> [flags]");
+    println!(
+        "  protheus-ops origin-integrity <run|status|certificate|seed-bootstrap-verify> [flags]"
+    );
     println!("  protheus-ops state-kernel <command> [flags]");
     println!("  protheus-ops shadow-budget-governance <evaluate|status> [flags]");
     println!("  protheus-ops adaptive-runtime <tick|status> [flags]");
@@ -52,6 +57,9 @@ fn usage() {
     println!("  protheus-ops spine <mode> [date] [flags]");
     println!("  protheus-ops attention-queue <enqueue|status> [flags]");
     println!("  protheus-ops memory-ambient <run|status> [flags]");
+    println!(
+        "  protheus-ops duality-seed <status|invoke> [--payload=<json>|--payload-file=<path>]"
+    );
     println!("  protheus-ops persona-ambient <apply|status> [flags]");
     println!("  protheus-ops dopamine-ambient <closeout|status|evaluate> [flags]");
     println!("  protheus-ops persona-schema-contract <validate|status> [--strict=1|0] [--schema-mode=<id>] [--payload=<json>|--input=<path>]");
@@ -154,7 +162,12 @@ fn cli_error_receipt(
 fn main() {
     if std::env::var("PROTHEUS_OPS_TRACE_BOOT")
         .ok()
-        .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+        .map(|v| {
+            matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
         .unwrap_or(false)
     {
         eprintln!("protheus_ops_boot:main_enter");
@@ -162,7 +175,12 @@ fn main() {
     let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     if std::env::var("PROTHEUS_OPS_TRACE_BOOT")
         .ok()
-        .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+        .map(|v| {
+            matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
         .unwrap_or(false)
     {
         eprintln!("protheus_ops_boot:cwd={}", cwd.display());
@@ -286,6 +304,11 @@ fn main() {
         "strategy-mode-governor" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::strategy_mode_governor::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "strategy-resolver" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::strategy_resolver::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "status" => {
@@ -418,6 +441,11 @@ fn main() {
             let exit = protheus_ops_core::memory_ambient::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "duality-seed" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::duality_seed::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "persona-ambient" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::persona_ambient::run(&cwd, &rest);
@@ -479,7 +507,11 @@ fn main() {
             std::process::exit(exit);
         }
         "dynamic-burn-budget-oracle" => {
-            exit_domain!(&cwd, &args, protheus_ops_core::dynamic_burn_budget_oracle::run);
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core::dynamic_burn_budget_oracle::run
+            );
         }
         "backlog-registry" => {
             exit_domain!(&cwd, &args, protheus_ops_core::backlog_registry::run);
@@ -513,13 +545,21 @@ fn main() {
             exit_domain!(&cwd, &args, protheus_ops_core_v1::opendev_dual_agent::run);
         }
         "company-layer-orchestration" => {
-            exit_domain!(&cwd, &args, protheus_ops_core_v1::company_layer_orchestration::run);
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core_v1::company_layer_orchestration::run
+            );
         }
         "wifi-csi-engine" => {
             exit_domain!(&cwd, &args, protheus_ops_core_v1::wifi_csi_engine::run);
         }
         "biological-computing-adapter" => {
-            exit_domain!(&cwd, &args, protheus_ops_core_v1::biological_computing_adapter::run);
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core_v1::biological_computing_adapter::run
+            );
         }
         "observability-automation-engine" => {
             exit_domain!(
@@ -536,28 +576,52 @@ fn main() {
             );
         }
         "workspace-gateway-runtime" => {
-            exit_domain!(&cwd, &args, protheus_ops_core_v1::workspace_gateway_runtime::run);
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core_v1::workspace_gateway_runtime::run
+            );
         }
         "p2p-gossip-seed" => {
             exit_domain!(&cwd, &args, protheus_ops_core_v1::p2p_gossip_seed::run);
         }
         "startup-agency-builder" => {
-            exit_domain!(&cwd, &args, protheus_ops_core_v1::startup_agency_builder::run);
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core_v1::startup_agency_builder::run
+            );
         }
         "timeseries-receipt-engine" => {
-            exit_domain!(&cwd, &args, protheus_ops_core_v1::timeseries_receipt_engine::run);
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core_v1::timeseries_receipt_engine::run
+            );
         }
         "webgpu-inference-adapter" => {
-            exit_domain!(&cwd, &args, protheus_ops_core_v1::webgpu_inference_adapter::run);
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core_v1::webgpu_inference_adapter::run
+            );
         }
         "context-doctor" => {
             exit_domain!(&cwd, &args, protheus_ops_core_v1::context_doctor::run);
         }
         "discord-swarm-orchestration" => {
-            exit_domain!(&cwd, &args, protheus_ops_core_v1::discord_swarm_orchestration::run);
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core_v1::discord_swarm_orchestration::run
+            );
         }
         "bookmark-knowledge-pipeline" => {
-            exit_domain!(&cwd, &args, protheus_ops_core_v1::bookmark_knowledge_pipeline::run);
+            exit_domain!(
+                &cwd,
+                &args,
+                protheus_ops_core_v1::bookmark_knowledge_pipeline::run
+            );
         }
         "public-api-catalog" => {
             exit_domain!(&cwd, &args, protheus_ops_core_v1::public_api_catalog::run);
@@ -599,14 +663,8 @@ mod tests {
         );
         assert!(out.get("claim_evidence").is_some());
         assert!(out.get("persona_lenses").is_some());
-        let ts = out
-            .get("ts")
-            .and_then(Value::as_str)
-            .expect("ts");
-        let date = out
-            .get("date")
-            .and_then(Value::as_str)
-            .expect("date");
+        let ts = out.get("ts").and_then(Value::as_str).expect("ts");
+        let date = out.get("date").and_then(Value::as_str).expect("date");
         assert!(ts.starts_with(date));
 
         let expected_hash = out

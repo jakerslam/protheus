@@ -112,10 +112,10 @@ fn normalize_id(raw: &str) -> Option<String> {
     if parts.iter().any(|p| p.is_empty()) {
         return None;
     }
-    if parts
-        .iter()
-        .all(|p| p.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit()))
-    {
+    if parts.iter().all(|p| {
+        p.chars()
+            .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
+    }) {
         Some(id)
     } else {
         None
@@ -163,9 +163,7 @@ fn enforce_canonical_backlog_path(root: &Path, policy: &Policy) -> Result<(), St
 
 fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
     let default_path = root.join("client/runtime/config/backlog_registry_policy.json");
-    let policy_path = policy_override
-        .map(PathBuf::from)
-        .unwrap_or(default_path);
+    let policy_path = policy_override.map(PathBuf::from).unwrap_or(default_path);
 
     let raw = fs::read_to_string(&policy_path)
         .ok()
@@ -352,7 +350,8 @@ fn status_weight(status: &str) -> i32 {
 fn parse_dependencies(raw: &str) -> Vec<String> {
     let mut out = Vec::new();
     let upper = raw.to_ascii_uppercase();
-    for token in upper.split(|c: char| !(c.is_ascii_uppercase() || c.is_ascii_digit() || c == '-')) {
+    for token in upper.split(|c: char| !(c.is_ascii_uppercase() || c.is_ascii_digit() || c == '-'))
+    {
         if let Some(id) = normalize_id(token) {
             if !out.contains(&id) {
                 out.push(id);
@@ -378,8 +377,14 @@ fn parse_backlog_rows(markdown: &str) -> Vec<ParsedRow> {
             continue;
         };
 
-        let compact_status = cells.get(1).map(|s| normalize_token(s, 40)).unwrap_or_default();
-        let canonical_status = cells.get(3).map(|s| normalize_token(s, 40)).unwrap_or_default();
+        let compact_status = cells
+            .get(1)
+            .map(|s| normalize_token(s, 40))
+            .unwrap_or_default();
+        let canonical_status = cells
+            .get(3)
+            .map(|s| normalize_token(s, 40))
+            .unwrap_or_default();
 
         let (canonical, class, wave, status, title, problem, acceptance, deps_raw) =
             if cells.len() >= 8 && !canonical_status.is_empty() {
@@ -552,7 +557,12 @@ fn render_priority_queue(rows: &[RegistryRow], active_statuses: &BTreeSet<String
 
     let done_set: BTreeSet<String> = rows
         .iter()
-        .filter(|r| matches!(r.status.as_str(), "done" | "reviewed" | "archived" | "dropped" | "obsolete"))
+        .filter(|r| {
+            matches!(
+                r.status.as_str(),
+                "done" | "reviewed" | "archived" | "dropped" | "obsolete"
+            )
+        })
         .map(|r| r.id.clone())
         .collect();
 
@@ -594,15 +604,14 @@ fn render_priority_queue(rows: &[RegistryRow], active_statuses: &BTreeSet<String
         });
     }
 
-    ranked.sort_by(|a, b| {
-        b.priority
-            .cmp(&a.priority)
-            .then_with(|| a.id.cmp(&b.id))
-    });
+    ranked.sort_by(|a, b| b.priority.cmp(&a.priority).then_with(|| a.id.cmp(&b.id)));
 
     let total_rows = rows.len();
     let active_rows = ranked.len();
-    let completed_rows = rows.iter().filter(|r| !active_statuses.contains(&r.status)).count();
+    let completed_rows = rows
+        .iter()
+        .filter(|r| !active_statuses.contains(&r.status))
+        .count();
 
     let mut lines = vec![
         "# Backlog Priority Queue".to_string(),
@@ -705,7 +714,10 @@ fn render_execution_path(rows: &[RegistryRow], active_statuses: &BTreeSet<String
 
     let mut done_ids = BTreeSet::new();
     for row in rows {
-        if matches!(row.status.as_str(), "done" | "reviewed" | "archived" | "dropped" | "obsolete") {
+        if matches!(
+            row.status.as_str(),
+            "done" | "reviewed" | "archived" | "dropped" | "obsolete"
+        ) {
             done_ids.insert(row.id.clone());
         }
     }
@@ -759,7 +771,11 @@ fn render_execution_path(rows: &[RegistryRow], active_statuses: &BTreeSet<String
         }
     }
 
-    queued.sort_by(|a, b| b.priority.cmp(&a.priority).then_with(|| a.row.id.cmp(&b.row.id)));
+    queued.sort_by(|a, b| {
+        b.priority
+            .cmp(&a.priority)
+            .then_with(|| a.row.id.cmp(&b.row.id))
+    });
     blocked.sort_by(|a, b| a.row.id.cmp(&b.row.id));
 
     let mut lines = vec![
@@ -910,10 +926,22 @@ fn sync(policy: &Policy) -> Result<Value, String> {
         .map_err(|e| format!("encode_registry_failed:{}", e))?;
 
     write_text_atomic(&policy.paths.registry_path, &registry_text)?;
-    write_text_atomic(&policy.paths.active_view_path, &format!("{}\n", compiled.active_view))?;
-    write_text_atomic(&policy.paths.archive_view_path, &format!("{}\n", compiled.archive_view))?;
-    write_text_atomic(&policy.paths.priority_view_path, &format!("{}\n", compiled.priority_view))?;
-    write_text_atomic(&policy.paths.reviewed_view_path, &format!("{}\n", compiled.reviewed_view))?;
+    write_text_atomic(
+        &policy.paths.active_view_path,
+        &format!("{}\n", compiled.active_view),
+    )?;
+    write_text_atomic(
+        &policy.paths.archive_view_path,
+        &format!("{}\n", compiled.archive_view),
+    )?;
+    write_text_atomic(
+        &policy.paths.priority_view_path,
+        &format!("{}\n", compiled.priority_view),
+    )?;
+    write_text_atomic(
+        &policy.paths.reviewed_view_path,
+        &format!("{}\n", compiled.reviewed_view),
+    )?;
     write_text_atomic(
         &policy.paths.execution_path_view_path,
         &format!("{}\n", compiled.execution_view),
@@ -951,7 +979,8 @@ fn sync(policy: &Policy) -> Result<Value, String> {
         &policy.paths.latest_path,
         &format!(
             "{}\n",
-            serde_json::to_string_pretty(&latest).map_err(|e| format!("encode_latest_failed:{}", e))?
+            serde_json::to_string_pretty(&latest)
+                .map_err(|e| format!("encode_latest_failed:{}", e))?
         ),
     )?;
 
@@ -1012,10 +1041,22 @@ fn check(policy: &Policy, strict: bool) -> Result<(Value, i32), String> {
     }
 
     let checks: Vec<(PathBuf, String)> = vec![
-        (policy.paths.active_view_path.clone(), format!("{}\n", compiled.active_view)),
-        (policy.paths.archive_view_path.clone(), format!("{}\n", compiled.archive_view)),
-        (policy.paths.priority_view_path.clone(), format!("{}\n", compiled.priority_view)),
-        (policy.paths.reviewed_view_path.clone(), format!("{}\n", compiled.reviewed_view)),
+        (
+            policy.paths.active_view_path.clone(),
+            format!("{}\n", compiled.active_view),
+        ),
+        (
+            policy.paths.archive_view_path.clone(),
+            format!("{}\n", compiled.archive_view),
+        ),
+        (
+            policy.paths.priority_view_path.clone(),
+            format!("{}\n", compiled.priority_view),
+        ),
+        (
+            policy.paths.reviewed_view_path.clone(),
+            format!("{}\n", compiled.reviewed_view),
+        ),
         (
             policy.paths.execution_path_view_path.clone(),
             format!("{}\n", compiled.execution_view),

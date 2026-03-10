@@ -42,8 +42,8 @@ fn to_f64(raw: Option<String>, fallback: f64) -> f64 {
 }
 
 fn read_json(path: &Path) -> Result<Value, String> {
-    let raw =
-        fs::read_to_string(path).map_err(|err| format!("read_policy_failed:{}:{err}", path.display()))?;
+    let raw = fs::read_to_string(path)
+        .map_err(|err| format!("read_policy_failed:{}:{err}", path.display()))?;
     serde_json::from_str::<Value>(&raw)
         .map_err(|err| format!("parse_policy_failed:{}:{err}", path.display()))
 }
@@ -234,7 +234,10 @@ fn usage() {
 }
 
 pub fn run(root: &Path, args: &[String]) -> i32 {
-    if args.iter().any(|v| matches!(v.as_str(), "help" | "--help" | "-h")) {
+    if args
+        .iter()
+        .any(|v| matches!(v.as_str(), "help" | "--help" | "-h"))
+    {
         usage();
         return 0;
     }
@@ -286,7 +289,10 @@ mod tests {
         let root = tempfile::tempdir().expect("tempdir");
         let payload = status_receipt(root.path());
         assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
-        let phases = payload.get("phases").and_then(Value::as_array).expect("phases");
+        let phases = payload
+            .get("phases")
+            .and_then(Value::as_array)
+            .expect("phases");
         assert!(phases.len() >= 3);
     }
 
@@ -302,7 +308,10 @@ mod tests {
         ];
         let payload = evaluate_receipt(root.path(), &args);
         assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
-        assert_eq!(payload.get("action").and_then(Value::as_str), Some("promote"));
+        assert_eq!(
+            payload.get("action").and_then(Value::as_str),
+            Some("promote")
+        );
     }
 
     #[test]
@@ -318,6 +327,9 @@ mod tests {
         ];
         let payload = evaluate_receipt(root.path(), &args);
         assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(false));
-        assert_eq!(payload.get("action").and_then(Value::as_str), Some("rollback"));
+        assert_eq!(
+            payload.get("action").and_then(Value::as_str),
+            Some("rollback")
+        );
     }
 }

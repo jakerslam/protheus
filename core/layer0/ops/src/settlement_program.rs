@@ -25,7 +25,11 @@ fn state_root(root: &Path) -> PathBuf {
             return PathBuf::from(s);
         }
     }
-    root.join("client").join("local").join("state").join("ops").join("settlement_program")
+    root.join("client")
+        .join("local")
+        .join("state")
+        .join("ops")
+        .join("settlement_program")
 }
 
 fn latest_path(root: &Path) -> PathBuf {
@@ -60,7 +64,9 @@ fn append_jsonl(path: &Path, value: &Value) {
             .create(true)
             .append(true)
             .open(path)
-            .and_then(|mut file| std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes()));
+            .and_then(|mut file| {
+                std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes())
+            });
     }
 }
 
@@ -91,8 +97,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
         println!("  protheus-ops settlement-program list|status");
-        println!("  protheus-ops settlement-program run --id=V4-SETTLE-001 [--apply=1|0] [--strict=1|0]");
-        println!("  protheus-ops settlement-program run-all|settle|revert|edit-core|edit-module [flags]");
+        println!(
+            "  protheus-ops settlement-program run --id=V4-SETTLE-001 [--apply=1|0] [--strict=1|0]"
+        );
+        println!(
+            "  protheus-ops settlement-program run-all|settle|revert|edit-core|edit-module [flags]"
+        );
         return 0;
     }
 
@@ -127,7 +137,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     let apply = parse_bool(parsed.flags.get("apply"), false);
     let strict = parse_bool(parsed.flags.get("strict"), true);
-    let target = clean(parsed.flags.get("target").cloned().unwrap_or_else(|| "binary".to_string()), 80);
+    let target = clean(
+        parsed
+            .flags
+            .get("target")
+            .cloned()
+            .unwrap_or_else(|| "binary".to_string()),
+        80,
+    );
     let module_name = clean(parsed.flags.get("module").cloned().unwrap_or_default(), 160);
     let id = clean(parsed.flags.get("id").cloned().unwrap_or_default(), 120);
 

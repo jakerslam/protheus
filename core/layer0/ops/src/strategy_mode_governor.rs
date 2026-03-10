@@ -106,8 +106,14 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
     );
 
     let canary = CanaryState {
-        preview_ready_for_canary: parse_bool(flag_value(args, "canary-preview-ready"), readiness.ready_for_canary),
-        ready_for_execute: parse_bool(flag_value(args, "canary-ready"), readiness.ready_for_execute),
+        preview_ready_for_canary: parse_bool(
+            flag_value(args, "canary-preview-ready"),
+            readiness.ready_for_canary,
+        ),
+        ready_for_execute: parse_bool(
+            flag_value(args, "canary-ready"),
+            readiness.ready_for_execute,
+        ),
         quality_lock_active: parse_bool(flag_value(args, "quality-lock"), true),
     };
 
@@ -117,7 +123,10 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
         demote_not_ready: parse_bool(flag_value(args, "demote-not-ready"), true),
         min_escalate_streak: parse_u32(flag_value(args, "min-escalate-streak"), 1, 1, 100),
         min_demote_streak: parse_u32(flag_value(args, "min-demote-streak"), 1, 1, 100),
-        canary_require_quality_lock_for_execute: parse_bool(flag_value(args, "require-quality-lock"), true),
+        canary_require_quality_lock_for_execute: parse_bool(
+            flag_value(args, "require-quality-lock"),
+            true,
+        ),
         require_spc: parse_bool(flag_value(args, "require-spc"), true),
     };
 
@@ -232,7 +241,8 @@ pub fn readiness_state(
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
         .collect::<Vec<_>>();
-    let canary_relaxed = canary_relax_enabled && canary_failed_checks_allowed(&failed, canary_relax_checks);
+    let canary_relaxed =
+        canary_relax_enabled && canary_failed_checks_allowed(&failed, canary_relax_checks);
     let ready_for_canary = ready_for_execute || canary_relaxed;
     let effective_ready = if mode.trim() == "execute" {
         ready_for_execute
@@ -250,7 +260,11 @@ pub fn readiness_state(
     }
 }
 
-fn spc_allows_escalation(spc_pass: bool, spc_hold_escalation: bool, policy: &GovernorPolicy) -> bool {
+fn spc_allows_escalation(
+    spc_pass: bool,
+    spc_hold_escalation: bool,
+    policy: &GovernorPolicy,
+) -> bool {
     if !policy.require_spc {
         return true;
     }
@@ -315,8 +329,8 @@ pub fn decide_transition(
 
     if mode == "execute" {
         let quality_lock_required = policy.canary_require_quality_lock_for_execute;
-        let needs_demotion = !readiness.ready_for_execute
-            || (quality_lock_required && !canary.quality_lock_active);
+        let needs_demotion =
+            !readiness.ready_for_execute || (quality_lock_required && !canary.quality_lock_active);
 
         if policy.demote_not_ready && needs_demotion && demote_ready {
             return Some(Transition {
@@ -450,13 +464,7 @@ mod tests {
         };
 
         let tr = decide_transition(
-            "execute",
-            &readiness,
-            &canary,
-            &policy,
-            true,
-            false,
-            &streak,
+            "execute", &readiness, &canary, &policy, true, false, &streak,
         )
         .expect("transition");
 
@@ -681,13 +689,7 @@ mod tests {
         };
 
         let tr = decide_transition(
-            "execute",
-            &readiness,
-            &canary,
-            &policy,
-            true,
-            false,
-            &streak,
+            "execute", &readiness, &canary, &policy, true, false, &streak,
         );
         assert!(tr.is_none());
     }
@@ -751,13 +753,7 @@ mod tests {
         };
 
         let tr = decide_transition(
-            "execute",
-            &readiness,
-            &canary,
-            &policy,
-            true,
-            false,
-            &streak,
+            "execute", &readiness, &canary, &policy, true, false, &streak,
         );
         assert!(tr.is_none());
     }
@@ -1113,13 +1109,7 @@ mod tests {
         };
 
         let tr = decide_transition(
-            "execute",
-            &readiness,
-            &canary,
-            &policy,
-            true,
-            false,
-            &streak,
+            "execute", &readiness, &canary, &policy, true, false, &streak,
         )
         .expect("transition");
         assert_eq!(tr.to_mode, "canary_execute");
@@ -1182,13 +1172,7 @@ mod tests {
         };
 
         let tr = decide_transition(
-            "execute",
-            &readiness,
-            &canary,
-            &policy,
-            true,
-            false,
-            &streak,
+            "execute", &readiness, &canary, &policy, true, false, &streak,
         );
         assert!(tr.is_none());
     }
