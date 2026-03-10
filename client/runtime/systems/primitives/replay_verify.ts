@@ -7,3 +7,7 @@
 const mod = require('./replay_verify.js');
 if (require.main === module) mod.run(process.argv.slice(2));
 module.exports = mod;
+
+const { createConduitLaneModule } = require("../../lib/direct_conduit_lane_bridge.js");
+const __directConduitLane = createConduitLaneModule("SYSTEMS_PRIMITIVES_REPLAY_VERIFY");
+void __directConduitLane;
