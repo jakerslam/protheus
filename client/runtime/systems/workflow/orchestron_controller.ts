@@ -1,41 +1,9 @@
 #!/usr/bin/env node
+// @ts-nocheck
 'use strict';
-export {};
 
-/**
- * Orchestron-branded entrypoint alias for workflow_controller.
- * Keeps legacy controller path stable while exposing a clearer public command.
- */
-
-const controller = require('./workflow_controller');
-
-function main() {
-  if (controller && typeof controller.main === 'function') {
-    return controller.main();
-  }
-  process.stdout.write(`${JSON.stringify({
-    ok: false,
-    type: 'orchestron_controller',
-    error: 'workflow_controller_main_missing'
-  })}\n`);
-  process.exit(1);
-}
-
-if (require.main === module) {
-  try {
-    main();
-  } catch (err) {
-    process.stdout.write(`${JSON.stringify({
-      ok: false,
-      type: 'orchestron_controller',
-      error: String(err && err.message ? err.message : err || 'orchestron_controller_failed')
-    })}\n`);
-    process.exit(1);
-  }
-}
-
-module.exports = {
-  ...controller,
-  main
-};
-
+// Layer ownership: core/layer2/runtime + core/layer0/ops::legacy-retired-lane (authoritative)
+// TypeScript compatibility shim only.
+const mod = require('./orchestron_controller.js');
+if (require.main === module) mod.run(process.argv.slice(2));
+module.exports = mod;
