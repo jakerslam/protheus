@@ -4,20 +4,14 @@
 // Layer ownership: core/layer2/autonomy + core/layer0/ops::workflow-controller (authoritative)
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge');
 
-const bridge = createOpsLaneBridge(__dirname, 'orchestron_adaptive_controller', 'workflow-controller');
-
-function mapArgs(argv = []) {
-  const cmd = String(argv[0] || 'status').trim().toLowerCase();
-  if (cmd === 'run') return ['run', ...argv.slice(1)];
-  if (cmd === 'status') return ['status', ...argv.slice(1)];
-  if (cmd === 'list') return ['list', ...argv.slice(1)];
-  if (cmd === 'promote') return ['promote', ...argv.slice(1)];
-  if (cmd === 'help' || cmd === '--help' || cmd === '-h') return ['help'];
-  return ['status', ...argv];
-}
+const bridge = createOpsLaneBridge(__dirname, 'orchestron_intent_analyzer', 'workflow-controller');
 
 function run(args = []) {
-  return bridge.run(mapArgs(args));
+  const cmd = String(args[0] || '').trim().toLowerCase();
+  if (cmd === 'help' || cmd === '--help' || cmd === '-h') {
+    return bridge.run(['help']);
+  }
+  return bridge.run(['status']);
 }
 
 if (require.main === module) {
