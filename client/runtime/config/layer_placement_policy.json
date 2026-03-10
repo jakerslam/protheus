@@ -1,0 +1,30 @@
+{
+  "version": "2026-03-10",
+  "authority_client_roots": [
+    "client/runtime/systems/security/",
+    "client/runtime/systems/spine/",
+    "client/runtime/systems/memory/",
+    "client/runtime/systems/autonomy/",
+    "client/runtime/systems/workflow/"
+  ],
+  "wrapper_markers": [
+    "createLegacyRetiredModule",
+    "runAsMain",
+    "legacy_retired_wrapper"
+  ],
+  "ownership_required_globs": [
+    "core/layer0/**/*.rs",
+    "core/layer1/**/*.rs",
+    "core/layer2/**/*.rs",
+    "client/runtime/systems/**/*.ts",
+    "client/runtime/systems/**/*.js",
+    "apps/**/*.ts",
+    "apps/**/*.js",
+    "apps/**/*.rs"
+  ],
+  "ownership_markers": [
+    "Layer ownership:",
+    "App ownership:"
+  ],
+  "ownership_header_scan_lines": 12
+}

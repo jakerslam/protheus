@@ -1,6 +1,6 @@
 # TODO (Ordered Blocker Queue)
 
-Updated: 2026-03-10
+Updated: 2026-03-10 (resume2)
 
 Backlog implementation remains paused until runtime validation is real (non-deferred).
 
@@ -19,7 +19,10 @@ Backlog implementation remains paused until runtime validation is real (non-defe
 - Current evidence:
 - `/tmp/hello_c_test` hangs (`ETIMEDOUT` / no stdout).
 - `/tmp/hello_rust_test` hangs (`ETIMEDOUT` / no stdout).
+- `./target/debug/protheus-ops status` hangs (`SIGALRM` timeout in guarded runner).
 - `/usr/sbin/spctl --assess --type execute /tmp/hello_c_test` => rejected.
+- `sample` shows stuck at `_dyld_start` before `main`.
+- `syspolicyd` observed pegged for extended runtime and cannot be restarted from current user context.
 
 2. `OPS-BLOCKER-002` `P0` `ROI=9/10` `DEP=001` Remove deferred host-stall fallback from validation path. `STATUS: COMPLETE`
 - Exit criteria:
@@ -36,8 +39,11 @@ Backlog implementation remains paused until runtime validation is real (non-defe
 - System test suite reports real pass/fail outcomes.
 - Current evidence:
 - Full snapshot artifact: `artifacts/blocker_regression_2026-03-10.json`.
-- Ordered TODO execution artifact: `artifacts/todo_execution_2026-03-10.json`.
-- Non-runtime checks pass (`ops:srs:top200:regression`, `metrics:rust-share:gate`, `ops:layer-placement:check`).
+- Ordered TODO execution artifacts:
+- `artifacts/todo_execution_2026-03-10_resume.json`
+- `artifacts/todo_execution_2026-03-10_resume2.json`
+- Non-runtime checks pass (`metrics:rust-share:gate`, `ops:layer-placement:check`, `coreization_wave1_static_audit`).
+- Long suite commands (`./verify.sh`, `ops:srs:top200:regression`) still timeout in this host/runtime state.
 - Runtime checks fail-closed on local binary timeout until blocker 001 is resolved.
 
 4. `COREIZATION-GATE-001` `P1` `ROI=7/10` `DEP=none` Keep client authority surfaces wrapper-only. `STATUS: COMPLETE`

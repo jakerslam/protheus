@@ -1,3 +1,4 @@
+// Layer ownership: core/layer0/ops (authoritative)
 // SPDX-License-Identifier: Apache-2.0
 use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
