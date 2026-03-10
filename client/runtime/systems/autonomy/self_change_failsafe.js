@@ -12,8 +12,8 @@ process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS =
 process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS =
   process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '20000';
 
-const LANE_ID = 'SYSTEMS-AUTONOMY-MOTIVATIONAL-STATE-VECTOR';
-const bridge = createOpsLaneBridge(__dirname, 'motivational_state_vector', 'legacy-retired-lane');
+const LANE_ID = 'SYSTEMS-AUTONOMY-SELF-CHANGE-FAILSAFE';
+const bridge = createOpsLaneBridge(__dirname, 'self_change_failsafe', 'legacy-retired-lane');
 
 function mapArgs(args = []) {
   const cmd = String((Array.isArray(args) && args[0]) || '').trim().toLowerCase();
