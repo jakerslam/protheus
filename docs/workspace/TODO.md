@@ -100,8 +100,8 @@ Updated: 2026-03-10 (policy enforcement + Protheus 2.0 intake applied)
 - `scripts/ci/client_legacy_debt_report.mjs`
 - `artifacts/client_legacy_debt_report_2026-03-10_policy_enforcement.json`
 - Current baseline summary:
-  - `total=4380`
-  - `js=4349`
+  - `total=4288`
+  - `js=4257`
   - `sh=19`
   - `py=11`
   - `ps1=1`
@@ -182,20 +182,29 @@ Updated: 2026-03-10 (policy enforcement + Protheus 2.0 intake applied)
 18. `MAINT-006` `P1` `ROI=9/10` `DEP=009,010` Client legacy language debt burn-down (`JS/Python/Shell -> TS/client or apps/adapters/tests`). `STATUS: IN_PROGRESS`
 - Current baseline:
 - `client` legacy debt tracked by repo-surface audit + debt ledger:
-  - `total=4380`
-  - `js=4349`
+  - `total=4288`
+  - `js=4257`
   - `sh=19`
   - `py=11`
   - `ps1=1`
 - High-value residual slices:
   - `move_to_tests=0` (executed by relocating `client/memory/tools/tests` to `/tests/client-memory-tools`)
-  - `runtime_or_authority_debt=809`
+  - `runtime_or_authority_debt=717`
+  - `tracked_state_debt=3382`
+  - `adapter_surface=9`
+  - `sdk_package_surface=3`
   - `move_to_apps=0`
 - Latest tranche evidence:
   - `tests/client-memory-tools/`
   - `tests/websocket-stability-test.js`
   - `artifacts/client_legacy_debt_report_2026-03-10_policy_enforcement.json`
   - `artifacts/repo_surface_policy_audit_2026-03-10_policy_enforcement.json`
+  - removed legacy shim roots:
+    - `client/systems/security/`
+    - `client/systems/memory/`
+    - `client/systems/audit/`
+    - `client/systems/spine/`
+    - `client/runtime/systems/lib/`
 - Exit criteria:
 - Client reaches TS/TSX + HTML/CSS target state except explicitly-approved installer/package shims.
 - App/adaptor/test candidates are relocated out of `client`.
