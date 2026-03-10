@@ -12,8 +12,8 @@ process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS =
 process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS =
   process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '20000';
 
-const LANE_ID = 'SYSTEMS-OPS-PROTHEUS-TOP';
-const bridge = createOpsLaneBridge(__dirname, 'protheus_top', 'legacy-retired-lane');
+const LANE_ID = 'SYSTEMS-OPS-SCHEMA-MIGRATION-N2-CHECK';
+const bridge = createOpsLaneBridge(__dirname, 'schema_migration_n2_check', 'legacy-retired-lane');
 
 function mapArgs(args = []) {
   const cmd = String((Array.isArray(args) && args[0]) || '').trim().toLowerCase();

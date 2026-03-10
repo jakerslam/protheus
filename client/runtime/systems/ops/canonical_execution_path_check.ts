@@ -1,54 +1,22 @@
 #!/usr/bin/env node
+// @ts-nocheck
 'use strict';
-export {};
 
-/**
- * RR-002
- * Canonical execution path contract
- */
+// Layer ownership: core/layer2/ops + core/layer0/ops::legacy-retired-lane (authoritative)
+// TypeScript compatibility shim only.
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
 
-const path = require('path');
-const { normalizeToken } = require(path.join(__dirname, '..', '..', 'lib', 'queued_backlog_runtime.js'));
-const { runStandardLane } = require(path.join(__dirname, '..', '..', 'lib', 'upgrade_lane_runtime.js'));
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const JS_ENTRY = path.join(__dirname, 'canonical_execution_path_check.js');
 
-const POLICY_PATH = process.env.RR_002_POLICY_PATH
-  ? path.resolve(process.env.RR_002_POLICY_PATH)
-  : path.join(__dirname, '..', '..', 'config/rr-002_policy.json');
-
-function usage() {
-  console.log('Usage:');
-  console.log('  node systems/ops/canonical_execution_path_check.js configure --owner=<owner_id> [--mode=default]');
-  console.log('  node systems/ops/canonical_execution_path_check.js check --owner=<owner_id> [--risk-tier=2]');
-  console.log('  node systems/ops/canonical_execution_path_check.js status [--owner=<owner_id>]');
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  const out = spawnSync(process.execPath, [JS_ENTRY, ...process.argv.slice(2)], { stdio: 'inherit' });
+  process.exit(Number.isFinite(out && out.status) ? Number(out.status) : 1);
 }
 
-runStandardLane({
-  lane_id: 'RR-002',
-  script_rel: 'systems/ops/canonical_execution_path_check.js',
-  policy_path: POLICY_PATH,
-  stream: 'ops.execution_path',
-  paths: {
-    memory_dir: 'memory/ops/rr-002',
-    adaptive_index_path: 'adaptive/ops/rr-002/index.json',
-    events_path: 'state/ops/rr-002/events.jsonl',
-    latest_path: 'state/ops/rr-002/latest.json',
-    receipts_path: 'state/ops/rr-002/receipts.jsonl'
-  },
-  usage,
-  handlers: {
-    check(policy, args, ctx) {
-      const mode = normalizeToken(args.mode || 'strict', 80) || 'strict';
-      return ctx.cmdRecord(policy, {
-        ...args,
-        event: 'canonical_execution_path_check_check',
-        payload_json: JSON.stringify({
-          rr_id: 'RR-002',
-          mode,
-          summary: 'Canonical execution path contract',
-          ci_gate_ready: true,
-          deterministic_receipt: true
-        })
-      });
-    }
-  }
-});
+export const { run } = require('./canonical_execution_path_check.js');

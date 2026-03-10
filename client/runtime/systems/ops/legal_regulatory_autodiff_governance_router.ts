@@ -1,54 +1,22 @@
 #!/usr/bin/env node
+// @ts-nocheck
 'use strict';
-export {};
 
-/**
- * V3-RACE-058
- * Legal and Regulatory Auto-Diff Governance Router
- */
+// Layer ownership: core/layer2/ops + core/layer0/ops::legacy-retired-lane (authoritative)
+// TypeScript compatibility shim only.
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
 
-const path = require('path');
-const { ROOT } = require('../../lib/queued_backlog_runtime');
-const { runLaneCli } = require('../../lib/backlog_lane_cli');
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const JS_ENTRY = path.join(__dirname, 'legal_regulatory_autodiff_governance_router.js');
 
-const POLICY_PATH = process.env.LEGAL_REGULATORY_AUTODIFF_GOVERNANCE_ROUTER_POLICY_PATH
-  ? path.resolve(process.env.LEGAL_REGULATORY_AUTODIFF_GOVERNANCE_ROUTER_POLICY_PATH)
-  : path.join(ROOT, 'config/legal_regulatory_autodiff_governance_router_policy.json');
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  const out = spawnSync(process.execPath, [JS_ENTRY, ...process.argv.slice(2)], { stdio: 'inherit' });
+  process.exit(Number.isFinite(out && out.status) ? Number(out.status) : 1);
+}
 
-runLaneCli({
-  lane_id: 'V3-RACE-058',
-  title: 'Legal and Regulatory Auto-Diff Governance Router',
-  type: 'legal_regulatory_autodiff_governance_router',
-  default_action: 'diff',
-  script_label: 'systems/ops/legal_regulatory_autodiff_governance_router.js',
-  policy_path: POLICY_PATH,
-  default_policy: {
-    version: '1.0',
-    enabled: true,
-    strict_default: true,
-    checks: [
-    {
-        "id": "legal_source_diff_ingestion",
-        "description": "Legal source diff ingestion active"
-    },
-    {
-        "id": "impact_classification_router",
-        "description": "Control impact classification available"
-    },
-    {
-        "id": "human_approval_checkpoints",
-        "description": "Human approval checkpoints enforced"
-    },
-    {
-        "id": "evidence_update_trails",
-        "description": "Evidence update trails emitted"
-    }
-],
-    paths: {
-      state_path: 'state/ops/legal_regulatory_autodiff_governance_router/state.json',
-      latest_path: 'state/ops/legal_regulatory_autodiff_governance_router/latest.json',
-      receipts_path: 'state/ops/legal_regulatory_autodiff_governance_router/receipts.jsonl',
-      history_path: 'state/ops/legal_regulatory_autodiff_governance_router/history.jsonl'
-    }
-  }
-});
+export const { run } = require('./legal_regulatory_autodiff_governance_router.js');

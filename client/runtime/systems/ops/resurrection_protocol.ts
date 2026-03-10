@@ -1,54 +1,22 @@
 #!/usr/bin/env node
+// @ts-nocheck
 'use strict';
-export {};
 
-/**
- * RR-011
- * Deterministic resurrection protocol lane
- */
+// Layer ownership: core/layer2/ops + core/layer0/ops::legacy-retired-lane (authoritative)
+// TypeScript compatibility shim only.
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
 
-const path = require('path');
-const { normalizeToken } = require(path.join(__dirname, '..', '..', 'lib', 'queued_backlog_runtime.js'));
-const { runStandardLane } = require(path.join(__dirname, '..', '..', 'lib', 'upgrade_lane_runtime.js'));
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const JS_ENTRY = path.join(__dirname, 'resurrection_protocol.js');
 
-const POLICY_PATH = process.env.RR_011_POLICY_PATH
-  ? path.resolve(process.env.RR_011_POLICY_PATH)
-  : path.join(__dirname, '..', '..', 'config/rr-011_policy.json');
-
-function usage() {
-  console.log('Usage:');
-  console.log('  node systems/ops/resurrection_protocol.js configure --owner=<owner_id> [--mode=default]');
-  console.log('  node systems/ops/resurrection_protocol.js check --owner=<owner_id> [--risk-tier=2]');
-  console.log('  node systems/ops/resurrection_protocol.js status [--owner=<owner_id>]');
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  const out = spawnSync(process.execPath, [JS_ENTRY, ...process.argv.slice(2)], { stdio: 'inherit' });
+  process.exit(Number.isFinite(out && out.status) ? Number(out.status) : 1);
 }
 
-runStandardLane({
-  lane_id: 'RR-011',
-  script_rel: 'systems/ops/resurrection_protocol.js',
-  policy_path: POLICY_PATH,
-  stream: 'ops.resurrection',
-  paths: {
-    memory_dir: 'memory/ops/rr-011',
-    adaptive_index_path: 'adaptive/ops/rr-011/index.json',
-    events_path: 'state/ops/rr-011/events.jsonl',
-    latest_path: 'state/ops/rr-011/latest.json',
-    receipts_path: 'state/ops/rr-011/receipts.jsonl'
-  },
-  usage,
-  handlers: {
-    check(policy, args, ctx) {
-      const mode = normalizeToken(args.mode || 'strict', 80) || 'strict';
-      return ctx.cmdRecord(policy, {
-        ...args,
-        event: 'resurrection_protocol_check',
-        payload_json: JSON.stringify({
-          rr_id: 'RR-011',
-          mode,
-          summary: 'Deterministic resurrection protocol lane',
-          ci_gate_ready: true,
-          deterministic_receipt: true
-        })
-      });
-    }
-  }
-});
+export const { run } = require('./resurrection_protocol.js');
