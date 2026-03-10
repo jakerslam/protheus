@@ -2,6 +2,7 @@
 'use strict';
 
 // Layer ownership: core/layer2/spine::evidence_run_plan (authoritative)
+// Thin wrapper only; authority logic lives in core/layer2/spine.
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge');
 
 process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS =
@@ -17,28 +18,12 @@ function toPressure(raw) {
   return s === 'soft' || s === 'hard' ? s : 'none';
 }
 
-function clampConfigured(raw) {
-  const n = Number(raw);
-  if (!Number.isFinite(n)) return 2;
-  const i = Math.floor(n);
-  if (i < 0) return 0;
-  if (i > 6) return 6;
-  return i;
-}
-
-function localFallbackPlan(configuredRunsRaw, budgetPressureRaw, projectedPressureRaw) {
-  const configuredRuns = clampConfigured(configuredRunsRaw);
-  const budgetPressure = toPressure(budgetPressureRaw);
-  const projectedPressure = toPressure(projectedPressureRaw);
-  const pressureThrottle = budgetPressure !== 'none' || projectedPressure !== 'none';
-  const evidenceRuns = pressureThrottle ? Math.min(configuredRuns, 1) : configuredRuns;
-  return {
-    configured_runs: configuredRuns,
-    budget_pressure: budgetPressure,
-    projected_pressure: projectedPressure,
-    pressure_throttle: pressureThrottle,
-    evidence_runs: evidenceRuns
-  };
+function runCore(args = []) {
+  const out = bridge.run([COMMAND, ...(Array.isArray(args) ? args : [])]);
+  if (out && out.stdout) process.stdout.write(out.stdout);
+  if (out && out.stderr) process.stderr.write(out.stderr);
+  if (out && out.payload && !out.stdout) process.stdout.write(`${JSON.stringify(out.payload)}\n`);
+  return out;
 }
 
 function computeEvidenceRunPlan(configuredRunsRaw, budgetPressureRaw, projectedPressureRaw) {
@@ -49,16 +34,7 @@ function computeEvidenceRunPlan(configuredRunsRaw, budgetPressureRaw, projectedP
     `--projected-pressure=${toPressure(projectedPressureRaw)}`
   ];
   const out = bridge.run(args);
-  const plan = out && out.payload && out.payload.plan ? out.payload.plan : null;
-  return plan || localFallbackPlan(configuredRunsRaw, budgetPressureRaw, projectedPressureRaw);
-}
-
-function runCore(args = []) {
-  const out = bridge.run([COMMAND, ...(Array.isArray(args) ? args : [])]);
-  if (out && out.stdout) process.stdout.write(out.stdout);
-  if (out && out.stderr) process.stderr.write(out.stderr);
-  if (out && out.payload && !out.stdout) process.stdout.write(`${JSON.stringify(out.payload)}\n`);
-  return out;
+  return out && out.payload && out.payload.plan ? out.payload.plan : null;
 }
 
 if (require.main === module) {
@@ -68,6 +44,6 @@ if (require.main === module) {
 
 module.exports = {
   lane: bridge.lane,
-  run: (args = []) => bridge.run([COMMAND, ...args]),
+  run: (args = []) => bridge.run([COMMAND, ...(Array.isArray(args) ? args : [])]),
   computeEvidenceRunPlan
 };
