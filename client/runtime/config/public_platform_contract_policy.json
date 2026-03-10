@@ -1,0 +1,22 @@
+{
+  "version": "2026-03-10",
+  "scan_roots": [
+    "apps",
+    "adapters"
+  ],
+  "allowed_client_prefixes": [
+    "client/cli/",
+    "client/lib/",
+    "client/observability/"
+  ],
+  "forbidden_prefixes": [
+    "core/",
+    "client/runtime/",
+    "client/cognition/",
+    "client/memory/"
+  ],
+  "ignore_path_prefixes": [
+    "apps/README.md",
+    "adapters/README.md"
+  ]
+}

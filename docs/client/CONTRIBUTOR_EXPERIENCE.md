@@ -21,10 +21,10 @@ node client/runtime/systems/spine/contract_check.js
 ## Minimum checks before PR
 
 ```bash
-node client/memory/tools/tests/strategy_principles.test.js
-node client/memory/tools/tests/workflow_controller.test.js
-node client/memory/tools/tests/collective_shadow.test.js
-node client/memory/tools/tests/observer_mirror.test.js
+node tests/client-memory-tools/strategy_principles.test.js
+node tests/client-memory-tools/workflow_controller.test.js
+node tests/client-memory-tools/collective_shadow.test.js
+node tests/client-memory-tools/observer_mirror.test.js
 node client/runtime/systems/ops/public_benchmark_pack.js run
 node client/runtime/systems/ops/deployment_packaging.js run --profile=prod --strict=1
 node client/runtime/systems/ops/compliance_posture.js run --days=30 --profile=prod --strict=0

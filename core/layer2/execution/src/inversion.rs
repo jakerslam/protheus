@@ -10993,7 +10993,7 @@ mod tests {
                 "code_change_title": "Migrate proposal draft builder",
                 "code_change_summary": "Rust-first proposal generation with parity fallback.",
                 "code_change_files": ["client/runtime/systems/autonomy/inversion_controller.ts"],
-                "code_change_tests": ["client/memory/tools/tests/inversion_helper_batch11_rust_parity.test.js"],
+                "code_change_tests": ["tests/client-memory-tools/inversion_helper_batch11_rust_parity.test.js"],
                 "code_change_risk": "low"
             })),
             opts: Some(json!({

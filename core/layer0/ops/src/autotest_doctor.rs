@@ -767,7 +767,7 @@ fn extract_trusted_test_path(command: &str) -> TrustedTestPath {
         };
     }
     let norm = path.trim_matches('"').trim_matches('\'').replace('\\', "/");
-    if !norm.starts_with("client/memory/tools/tests/") {
+    if !norm.starts_with("tests/client-memory-tools/") {
         return TrustedTestPath {
             path: None,
             trusted: false,
@@ -1640,11 +1640,11 @@ mod tests {
 
     #[test]
     fn parity_fixture_extract_trusted_test_path() {
-        let ok = extract_trusted_test_path("node client/memory/tools/tests/a.test.js");
+        let ok = extract_trusted_test_path("node tests/client-memory-tools/a.test.js");
         assert!(ok.trusted);
         assert_eq!(
             ok.path.as_deref(),
-            Some("client/memory/tools/tests/a.test.js")
+            Some("tests/client-memory-tools/a.test.js")
         );
 
         let bad = extract_trusted_test_path("node client/runtime/systems/ops/a.test.js");
@@ -1659,7 +1659,7 @@ mod tests {
                 {
                     "id": "tst_a",
                     "ok": false,
-                    "command": "node client/memory/tools/tests/a.test.js",
+                    "command": "node tests/client-memory-tools/a.test.js",
                     "exit_code": 1,
                     "guard_ok": true,
                     "guard_reason": null,

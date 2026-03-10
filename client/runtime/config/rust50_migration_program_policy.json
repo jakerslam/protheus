@@ -37,7 +37,7 @@
       "core/layer2/execution/src/main.rs",
       "client/runtime/systems/execution/index.ts",
       "client/runtime/systems/execution/legacy_runtime.ts",
-      "client/memory/tools/tests/execution_phase2_rust_parity.test.js"
+      "tests/client-memory-tools/execution_phase2_rust_parity.test.js"
     ],
     "V6-RUST50-003": [
       "client/runtime/systems/hybrid/rust/src/crdt_merge.rs",
@@ -49,8 +49,8 @@
       "core/layer0/vault/src/main.rs",
       "client/runtime/systems/vault/index.ts",
       "client/runtime/systems/vault/legacy_vault.ts",
-      "client/memory/tools/tests/vault_phase3_rust_parity.test.js",
-      "client/memory/tools/tests/vault_sovereignty_fail_closed.test.js"
+      "tests/client-memory-tools/vault_phase3_rust_parity.test.js",
+      "tests/client-memory-tools/vault_sovereignty_fail_closed.test.js"
     ],
     "V6-RUST50-005": [
       "core/layer1/observability/Cargo.toml",
@@ -58,9 +58,9 @@
       "core/layer1/observability/src/main.rs",
       "client/runtime/systems/observability/index.ts",
       "client/runtime/systems/observability/legacy_observability.ts",
-      "client/memory/tools/tests/observability_phase5_rust_parity.test.js",
-      "client/memory/tools/tests/observability_chaos_resilience.test.js",
-      "client/memory/tools/tests/observability_sovereignty_index.test.js"
+      "tests/client-memory-tools/observability_phase5_rust_parity.test.js",
+      "tests/client-memory-tools/observability_chaos_resilience.test.js",
+      "tests/client-memory-tools/observability_sovereignty_index.test.js"
     ],
     "V6-RUST50-006": [
       "client/runtime/systems/hybrid/mobile/protheus_mobile_adapter.ts",

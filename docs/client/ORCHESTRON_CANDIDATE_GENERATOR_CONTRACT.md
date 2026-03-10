@@ -43,7 +43,7 @@ Every generated candidate (and nested child candidate) must include:
 ## Verification
 
 ```bash
-node client/memory/tools/tests/orchestron_candidate_generator_contract.test.js
-node client/memory/tools/tests/orchestron_candidate_generator_emergence.test.js
+node tests/client-memory-tools/orchestron_candidate_generator_contract.test.js
+node tests/client-memory-tools/orchestron_candidate_generator_emergence.test.js
 node client/runtime/systems/spine/contract_check.js
 ```

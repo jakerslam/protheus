@@ -92,8 +92,8 @@ Gates that can block autonomous promotion/apply:
 ## Validation Commands
 
 ```bash
-node client/memory/tools/tests/workflow_controller_orchestron_phase0_shadow.test.js
-node client/memory/tools/tests/workflow_controller_orchestron_auto_apply.test.js
-node client/memory/tools/tests/workflow_controller_orchestron_shadow.test.js
+node tests/client-memory-tools/workflow_controller_orchestron_phase0_shadow.test.js
+node tests/client-memory-tools/workflow_controller_orchestron_auto_apply.test.js
+node tests/client-memory-tools/workflow_controller_orchestron_shadow.test.js
 node client/runtime/systems/spine/contract_check.js
 ```

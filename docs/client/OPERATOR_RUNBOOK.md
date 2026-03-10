@@ -266,7 +266,7 @@ Containment / Recovery:
 `node client/runtime/systems/autonomy/strategy_mode.js set --mode=score_only --approval-note="verification pass-rate containment"`
 2. Prioritize failure-class remediation from top failure reasons (timeout/rate-limit/rollback).
 3. Re-run targeted integration tests for failing lane:
-`node client/memory/tools/tests/pipeline_handoffs.integration.test.js`
+`node tests/client-memory-tools/pipeline_handoffs.integration.test.js`
 
 Verification:
 

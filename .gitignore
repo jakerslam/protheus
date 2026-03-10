@@ -37,6 +37,7 @@ client/memory/**
 client/memory/_snapshots/
 client/memory/*.backup.*
 client/memory/tools/tests/temp_*/
+tests/client-memory-tools/temp_*/
 client/habits/scripts/*.bak.*
 
 # Generated state streams/snapshots

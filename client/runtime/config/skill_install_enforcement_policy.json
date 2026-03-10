@@ -18,7 +18,7 @@
   ],
   "exclude_paths": [
     "client/runtime/systems/security/skill_install_enforcer.js",
-    "client/memory/tools/tests/**"
+    "tests/client-memory-tools/**"
   ],
   "allow_paths": [
     "client/cognition/habits/scripts/install_skill_safe.js",

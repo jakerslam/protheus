@@ -8,9 +8,8 @@ Run:
 node apps/examples/blob-morphing-demo/run.js
 ```
 
-This executes:
+This executes the public CLI contract:
 
 ```bash
-node client/runtime/systems/ops/protheusctl.js toolkit blob-morphing status
+target/debug/protheus-ops protheusctl toolkit blob-morphing status
 ```
-

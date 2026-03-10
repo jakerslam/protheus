@@ -250,7 +250,7 @@ Introducing the Cognitive Toolkit Suite: internal operators tooling for red-team
 - `protheus toolkit assimilate <path|url>` runs the same assimilation flow through the toolkit wrapper.
 - `protheus toolkit research "<query>"` runs the research command through the toolkit wrapper.
 
-See [Cognitive Toolkit Suite](docs/client/cognitive_toolkit.md) and `client/cli/apps/examples/*-demo/` for runnable examples.
+See [Cognitive Toolkit Suite](docs/client/cognitive_toolkit.md) and `apps/examples/*-demo/` for runnable examples.
 
 ## Architecture Map
 
@@ -261,10 +261,10 @@ See [Cognitive Toolkit Suite](docs/client/cognitive_toolkit.md) and `client/cli/
 | `client/runtime/lib/` | Shared runtime helpers used by lanes |
 | `client/runtime/config/` | Policy, registries, and lane configuration |
 | `client/observability/` | Reports, runbooks, dashboard specs, and research artifacts |
-| `client/cli/apps/` | User-facing/internal app layers and runnable example suites |
+| `apps/` | User-facing/internal app layers and runnable example suites |
 | `client/cli/developer/` | Developer templates and scaffolding assets |
 | `docs/client/` | Architecture, governance, runbooks, and contracts |
-| `client/memory/tools/tests/` | Deterministic tests and regression harnesses |
+| `tests/client-memory-tools/` | Deterministic tests and regression harnesses |
 | `client/runtime/local/`, `core/local/` | Instance-local runtime artifacts and receipts |
 
 ### Three-Plane Filesystem Alignment

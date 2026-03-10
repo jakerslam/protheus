@@ -46,5 +46,5 @@ Route receipts include:
 
 ## Tests
 
-- `client/memory/tools/tests/eye_kernel.test.js`
+- `tests/client-memory-tools/eye_kernel.test.js`
 

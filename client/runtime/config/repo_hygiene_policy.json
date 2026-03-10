@@ -9,7 +9,7 @@
   ],
   "blocked_globs": [
     "client/memory/*.backup.*",
-    "client/memory/tools/tests/temp_*/*",
+    "tests/client-memory-tools/temp_*/*",
     "client/cognition/habits/scripts/*.bak.*",
     "client/runtime/config/moltbook/credentials.json",
     "state/security/secret_broker_key.txt",

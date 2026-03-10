@@ -7,7 +7,7 @@ const runtimeHelper = require(path.join(
   __dirname,
   '..',
   '..',
-  '..',
+  'client',
   'runtime',
   'lib',
   'legacy_retired_wrapper.js'
