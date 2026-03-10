@@ -34,6 +34,7 @@ pub mod memory_ambient;
 pub mod dynamic_burn_budget_oracle;
 pub mod enterprise_hardening;
 pub mod execution_yield_recovery;
+pub mod organ_atrophy_controller;
 pub mod legacy_retired_lane;
 pub mod contract_check;
 pub mod fluxlattice_program;
@@ -66,6 +67,7 @@ pub mod sensory_eyes_intake;
 pub mod spawn_broker;
 pub mod strategy_mode_governor;
 pub mod ops_lane_runtime;
+pub mod narrow_agent_parity_harness;
 pub mod venom_containment_layer;
 pub mod workflow_executor;
 
