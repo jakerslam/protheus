@@ -69,3 +69,25 @@
   - `artifacts/todo_execution_2026-03-10_resume_runtime_unblocked.json`
   - `artifacts/regression_suite_resume_runtime_unblocked.json`
   - `artifacts/srs_top200_regression_2026-03-10.json`
+
+## Backlog Resume Tranche (Post-Unblock)
+- Completed and marked `done`:
+  - `V6-LLMN-001..004` (mode registry/parity/path/conformance shield)
+  - `V6-MEMORY-013..018` (low-burn retrieval/hydration/budget/ranking/freshness shield)
+- Validation evidence:
+  - `client/memory/tools/tests/llmn_mode_conformance.test.js`
+  - `client/memory/tools/tests/strategy_resolver.test.js`
+  - `client/memory/tools/tests/model_router_routing_features.test.js`
+  - `client/memory/tools/tests/model_router_variant_policy.test.js`
+  - `client/memory/tools/tests/legacy_path_alias_adapters.test.js`
+  - `client/memory/tools/tests/memory_recall_context_budget.test.js`
+  - `client/memory/tools/tests/conversation_eye_bootstrap.test.js`
+  - `client/memory/tools/tests/memory_burn_slo_guard.test.js`
+  - `client/memory/tools/tests/memory_efficiency_plane.test.js`
+  - `client/memory/tools/tests/memory_matrix.test.js`
+  - `client/memory/tools/tests/memory_auto_recall.test.js`
+  - `client/memory/tools/tests/memory_index_freshness_gate.test.js`
+- Remaining in this shield group:
+  - `V6-MEMORY-019` (LensMap tags/nodes/jots annotation schema)
+- Actionable backlog count after tranche:
+  - `artifacts/backlog_actionable_report_2026-03-10_resume.json` -> `actionable_count: 391`
