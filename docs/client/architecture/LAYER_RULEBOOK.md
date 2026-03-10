@@ -30,6 +30,15 @@ Allowed root-level exceptions (metadata/infrastructure): `.github/`, `.githooks/
 - **Cognition Plane (Unnumbered)** — `/client/`  
   TS/JS/Python/Shell/PowerShell/HTML/CSS surfaces for user-facing and probabilistic workflows.
 
+### 2.1 Client Scope Contract (Developer-Only Surface)
+Client code must be limited to:
+1. SDK/wrapper surfaces that call core through conduit/lanes.
+2. Developer experience tooling (CLI, templates, local orchestrators, diagnostics).
+3. Developer-visible interfaces (observability UI, dashboards, docs, runbooks).
+4. App construction and app hosting surfaces (`/apps` and client app glue).
+
+Safety, policy, receipts, and system-truth authority remain in core.
+
 ### 3. Language Rules
 - `/core/`: Rust by default; C/C++ only for approved low-level performance-critical modules.
 - `/client/`: TS/JS/Python/Shell/PowerShell/HTML/CSS only.
@@ -53,5 +62,8 @@ Allowed root-level exceptions (metadata/infrastructure): `.github/`, `.githooks/
 - No layer ownership changes without explicit user approval and audit note.
 - CI/guards must fail on boundary violations.
 - Architecture docs (`ARCHITECTURE.md`, `docs/SYSTEM-ARCHITECTURE-SPECS.md`, this rulebook) must remain synchronized.
+- Client boundary audit:
+  - `npm run -s ops:client-layer:boundary`
+  - policy: `client/runtime/config/client_layer_boundary_policy.json`
 
 This rulebook is a live constitution artifact and must be kept aligned with the layered stack contract.
