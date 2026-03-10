@@ -16589,7 +16589,7 @@
       ],
       "id": "V6-SEC-004",
       "problem": "No third-party audit report exists for conduit/policy/receipt surfaces.",
-      "status": "queued",
+      "status": "in_progress",
       "title": "Independent Security Audit Publication",
       "wave": "V6"
     },
@@ -16602,7 +16602,7 @@
       ],
       "id": "V6-SEC-005",
       "problem": "Formal proof exists in parts but not as one explicit externally auditable package for core bypass resistance.",
-      "status": "queued",
+      "status": "done",
       "title": "Formal Verification Expansion (Constitution + Receipts + Conduit)",
       "wave": "V6"
     },

@@ -349,3 +349,6 @@ client/memory/*.backup.*
 state/client/memory/snapshots/*.json
 state/client/memory/snapshots/*.jsonl
 # /BL-020
+
+# local Linear credentials
+.linear/

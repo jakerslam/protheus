@@ -46,7 +46,9 @@ fn append_jsonl(path: &Path, value: &Value) {
             .create(true)
             .append(true)
             .open(path)
-            .and_then(|mut file| std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes()));
+            .and_then(|mut file| {
+                std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes())
+            });
     }
 }
 
@@ -82,7 +84,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops narrow-agent-parity-harness run [YYYY-MM-DD] [--days=N] [--strict=1|0]");
+        println!(
+            "  protheus-ops narrow-agent-parity-harness run [YYYY-MM-DD] [--days=N] [--strict=1|0]"
+        );
         println!("  protheus-ops narrow-agent-parity-harness status [latest|YYYY-MM-DD]");
         return 0;
     }

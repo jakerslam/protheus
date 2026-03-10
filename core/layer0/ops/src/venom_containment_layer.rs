@@ -17,8 +17,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             lane_type: "venom_containment_layer",
             replacement: "protheus-ops venom-containment-layer",
             usage: USAGE,
-            passthrough_flags: &["apply", "strict", "policy", "session-id", "source", "action", "risk"],
+            passthrough_flags: &[
+                "apply",
+                "strict",
+                "policy",
+                "session-id",
+                "source",
+                "action",
+                "risk",
+            ],
         },
     )
 }
-

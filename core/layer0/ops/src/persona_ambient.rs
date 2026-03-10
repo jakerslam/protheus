@@ -26,7 +26,9 @@ fn usage() {
     eprintln!(
         "  protheus-ops persona-ambient apply --persona=<id> --stance-json-base64=<base64-json> [--source=<value>] [--reason=<value>] [--run-context=<value>] [--full-reload=1|0]"
     );
-    eprintln!("  protheus-ops persona-ambient apply --persona=<id> --stance-json=<json-object> [flags]");
+    eprintln!(
+        "  protheus-ops persona-ambient apply --persona=<id> --stance-json=<json-object> [flags]"
+    );
     eprintln!("  protheus-ops persona-ambient status [--persona=<id>]");
 }
 
@@ -54,7 +56,9 @@ fn append_jsonl(path: &Path, row: &Value) {
             .create(true)
             .append(true)
             .open(path)
-            .and_then(|mut file| std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes()));
+            .and_then(|mut file| {
+                std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes())
+            });
     }
 }
 
@@ -151,8 +155,12 @@ fn load_policy(root: &Path) -> PersonaAmbientPolicy {
         .map(|p| if p.is_absolute() { p } else { root.join(p) })
         .unwrap_or(default_policy);
     let policy = read_json(&policy_path).unwrap_or_else(|| json!({}));
-    let enabled = bool_from_env("MECH_SUIT_MODE_FORCE")
-        .unwrap_or_else(|| policy.get("enabled").and_then(Value::as_bool).unwrap_or(true));
+    let enabled = bool_from_env("MECH_SUIT_MODE_FORCE").unwrap_or_else(|| {
+        policy
+            .get("enabled")
+            .and_then(Value::as_bool)
+            .unwrap_or(true)
+    });
     let personas = policy.get("personas");
     let eyes = policy.get("eyes");
 
@@ -209,7 +217,8 @@ fn parse_stance(flags: &BTreeMap<String, String>) -> Result<Value, String> {
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(raw.as_bytes())
             .map_err(|err| format!("stance_json_base64_invalid:{err}"))?;
-        let text = String::from_utf8(bytes).map_err(|err| format!("stance_json_utf8_invalid:{err}"))?;
+        let text =
+            String::from_utf8(bytes).map_err(|err| format!("stance_json_utf8_invalid:{err}"))?;
         let value = serde_json::from_str::<Value>(&text)
             .map_err(|err| format!("stance_json_invalid:{err}"))?;
         return Ok(value);
@@ -221,7 +230,8 @@ fn parse_stance(flags: &BTreeMap<String, String>) -> Result<Value, String> {
     }
     if let Some(raw) = flags.get("stance-file") {
         let path = PathBuf::from(raw);
-        let content = fs::read_to_string(path).map_err(|err| format!("stance_file_read_failed:{err}"))?;
+        let content =
+            fs::read_to_string(path).map_err(|err| format!("stance_file_read_failed:{err}"))?;
         let value = serde_json::from_str::<Value>(&content)
             .map_err(|err| format!("stance_file_json_invalid:{err}"))?;
         return Ok(value);
@@ -251,11 +261,7 @@ fn load_cache(path: &Path) -> Value {
     if !cache.is_object() {
         cache = default_cache();
     }
-    if !cache
-        .get("personas")
-        .map(Value::is_object)
-        .unwrap_or(false)
-    {
+    if !cache.get("personas").map(Value::is_object).unwrap_or(false) {
         cache["personas"] = Value::Object(Map::new());
     }
     cache
@@ -303,7 +309,10 @@ fn resolve_protheus_ops_command(root: &PathBuf, domain: &str) -> (String, Vec<St
     }
     let debug = root.join("target").join("debug").join("protheus-ops");
     if debug.exists() {
-        return (debug.to_string_lossy().to_string(), vec![domain.to_string()]);
+        return (
+            debug.to_string_lossy().to_string(),
+            vec![domain.to_string()],
+        );
     }
 
     (
@@ -410,8 +419,9 @@ fn policy_snapshot(policy: &PersonaAmbientPolicy) -> Value {
 fn emit(value: &Value) {
     println!(
         "{}",
-        serde_json::to_string(value)
-            .unwrap_or_else(|_| "{\"ok\":false,\"type\":\"persona_ambient_encode_failed\"}".to_string())
+        serde_json::to_string(value).unwrap_or_else(|_| {
+            "{\"ok\":false,\"type\":\"persona_ambient_encode_failed\"}".to_string()
+        })
     );
 }
 
@@ -481,22 +491,12 @@ fn stance_diff(
 fn apply(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
     let policy = load_policy(root);
     if !policy.enabled || !policy.ambient_stance {
-        let receipt = fail_receipt(
-            &policy,
-            "apply",
-            "ambient_persona_stance_disabled",
-            None,
-        );
+        let receipt = fail_receipt(&policy, "apply", "ambient_persona_stance_disabled", None);
         emit(&receipt);
         return 2;
     }
     if !policy.auto_apply {
-        let receipt = fail_receipt(
-            &policy,
-            "apply",
-            "auto_apply_disabled",
-            None,
-        );
+        let receipt = fail_receipt(&policy, "apply", "auto_apply_disabled", None);
         emit(&receipt);
         return 2;
     }
@@ -517,20 +517,12 @@ fn apply(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
         }
     };
     let Value::Object(patch_map) = stance else {
-        let receipt = fail_receipt(
-            &policy,
-            "apply",
-            "stance_patch_must_be_object",
-            None,
-        );
+        let receipt = fail_receipt(&policy, "apply", "stance_patch_must_be_object", None);
         emit(&receipt);
         return 2;
     };
 
-    let full_reload_requested = parse_bool(
-        flags.get("full-reload").map(String::as_str),
-        false,
-    );
+    let full_reload_requested = parse_bool(flags.get("full-reload").map(String::as_str), false);
     if full_reload_requested && !policy.full_reload {
         let receipt = fail_receipt(
             &policy,
@@ -724,7 +716,10 @@ fn status(root: &Path, flags: &BTreeMap<String, String>) -> i32 {
         Value::Null
     } else {
         cache
-            .pointer(&format!("/personas/{}", sanitize_json_pointer_key(&persona)))
+            .pointer(&format!(
+                "/personas/{}",
+                sanitize_json_pointer_key(&persona)
+            ))
             .cloned()
             .unwrap_or(Value::Null)
     };

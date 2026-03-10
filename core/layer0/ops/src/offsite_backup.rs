@@ -11,7 +11,11 @@ fn state_root(root: &Path) -> PathBuf {
             return PathBuf::from(s);
         }
     }
-    root.join("client").join("local").join("state").join("ops").join("offsite_backup")
+    root.join("client")
+        .join("local")
+        .join("state")
+        .join("ops")
+        .join("offsite_backup")
 }
 
 fn latest_path(root: &Path) -> PathBuf {
@@ -46,7 +50,9 @@ fn append_jsonl(path: &Path, value: &Value) {
             .create(true)
             .append(true)
             .open(path)
-            .and_then(|mut file| std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes()));
+            .and_then(|mut file| {
+                std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes())
+            });
     }
 }
 
@@ -82,7 +88,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
-        println!("  protheus-ops offsite-backup sync [--profile=<id>] [--snapshot=<id>] [--strict=1|0]");
+        println!(
+            "  protheus-ops offsite-backup sync [--profile=<id>] [--snapshot=<id>] [--strict=1|0]"
+        );
         println!("  protheus-ops offsite-backup restore-drill [--profile=<id>] [--snapshot=<id>] [--strict=1|0]");
         println!("  protheus-ops offsite-backup status|diagnose|list [flags]");
         return 0;
@@ -104,8 +112,22 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         return 0;
     }
 
-    let profile = clean(parsed.flags.get("profile").cloned().unwrap_or_else(|| "default".to_string()), 120);
-    let snapshot = clean(parsed.flags.get("snapshot").cloned().unwrap_or_else(|| "latest".to_string()), 200);
+    let profile = clean(
+        parsed
+            .flags
+            .get("profile")
+            .cloned()
+            .unwrap_or_else(|| "default".to_string()),
+        120,
+    );
+    let snapshot = clean(
+        parsed
+            .flags
+            .get("snapshot")
+            .cloned()
+            .unwrap_or_else(|| "latest".to_string()),
+        200,
+    );
     let strict = parse_bool(parsed.flags.get("strict"), false);
     let limit = parse_i64(parsed.flags.get("limit"), 20, 1, 500);
 

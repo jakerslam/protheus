@@ -1417,7 +1417,8 @@ fn command_path_hints(command: &str) -> Vec<String> {
         .split_whitespace()
         .map(|tok| tok.trim_matches('"').trim_matches('\''))
         .filter(|tok| {
-            (tok.starts_with("client/runtime/systems/") || tok.starts_with("client/memory/tools/tests/"))
+            (tok.starts_with("client/runtime/systems/")
+                || tok.starts_with("client/memory/tools/tests/"))
                 && (tok.ends_with(".js") || tok.ends_with(".ts"))
         })
         .map(|s| s.to_string())

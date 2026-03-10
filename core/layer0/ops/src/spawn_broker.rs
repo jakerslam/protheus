@@ -198,14 +198,8 @@ fn read_json(path: &Path) -> Option<Value> {
 
 fn write_json_atomic(path: &Path, payload: &Value) -> Result<(), String> {
     ensure_parent(path)?;
-    let tmp = path.with_extension(format!(
-        "tmp-{}-{}",
-        std::process::id(),
-        now_ms().max(0)
-    ));
-    let encoded = serde_json::to_string_pretty(payload)
-        .unwrap_or_else(|_| "{}".to_string())
-        + "\n";
+    let tmp = path.with_extension(format!("tmp-{}-{}", std::process::id(), now_ms().max(0)));
+    let encoded = serde_json::to_string_pretty(payload).unwrap_or_else(|_| "{}".to_string()) + "\n";
     fs::write(&tmp, encoded).map_err(|e| format!("write_tmp_failed:{}:{e}", tmp.display()))?;
     fs::rename(&tmp, path).map_err(|e| {
         format!(
@@ -244,7 +238,9 @@ fn policy_path(root: &Path) -> PathBuf {
             return root.join(p);
         }
     }
-    root_client_runtime(root).join("config").join("spawn_policy.json")
+    root_client_runtime(root)
+        .join("config")
+        .join("spawn_policy.json")
 }
 
 fn state_dir(root: &Path) -> PathBuf {
@@ -461,7 +457,11 @@ fn default_state() -> BrokerState {
 fn parse_allocation(raw: &Value) -> Option<Allocation> {
     let obj = raw.as_object()?;
     Some(Allocation {
-        cells: clamp_i64(obj.get("cells").and_then(Value::as_i64).unwrap_or(0), 0, 4096),
+        cells: clamp_i64(
+            obj.get("cells").and_then(Value::as_i64).unwrap_or(0),
+            0,
+            4096,
+        ),
         ts: obj
             .get("ts")
             .and_then(Value::as_str)
@@ -628,7 +628,9 @@ fn hardware_bounds(policy: &SpawnPolicy, payload: &Value) -> HardwareBounds {
     let cpu_threads = profile
         .and_then(|p| p.get("cpu_threads"))
         .and_then(Value::as_f64);
-    let ram_gb = profile.and_then(|p| p.get("ram_gb")).and_then(Value::as_f64);
+    let ram_gb = profile
+        .and_then(|p| p.get("ram_gb"))
+        .and_then(Value::as_f64);
 
     let class_cap = hw_class
         .as_ref()
@@ -689,7 +691,12 @@ fn module_quota_max(policy: &SpawnPolicy, module: &str, global_max: i64) -> i64 
 }
 
 fn cells_for(state: &BrokerState, module: &str) -> i64 {
-    state.allocations.get(module).map(|r| r.cells).unwrap_or(0).max(0)
+    state
+        .allocations
+        .get(module)
+        .map(|r| r.cells)
+        .unwrap_or(0)
+        .max(0)
 }
 
 fn sum_allocations(state: &BrokerState, skip_module: &str) -> i64 {
@@ -806,8 +813,7 @@ fn load_autopause(root: &Path) -> AutopauseState {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty());
         let until_ms = obj.get("until_ms").and_then(Value::as_i64).unwrap_or(0);
-        active = obj.get("active").and_then(Value::as_bool).unwrap_or(false)
-            && until_ms > now_ms();
+        active = obj.get("active").and_then(Value::as_bool).unwrap_or(false) && until_ms > now_ms();
     }
     AutopauseState {
         active,
@@ -1151,4 +1157,3 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         }
     }
 }
-

@@ -11,7 +11,11 @@ fn state_root(root: &Path) -> PathBuf {
             return PathBuf::from(s);
         }
     }
-    root.join("client").join("local").join("state").join("ops").join("llm_economy_organ")
+    root.join("client")
+        .join("local")
+        .join("state")
+        .join("ops")
+        .join("llm_economy_organ")
 }
 
 fn latest_path(root: &Path) -> PathBuf {
@@ -46,7 +50,9 @@ fn append_jsonl(path: &Path, value: &Value) {
             .create(true)
             .append(true)
             .open(path)
-            .and_then(|mut file| std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes()));
+            .and_then(|mut file| {
+                std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes())
+            });
     }
 }
 

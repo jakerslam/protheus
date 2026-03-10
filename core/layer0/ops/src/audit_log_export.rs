@@ -178,7 +178,11 @@ fn build_payload(target: &str, events: &[Value]) -> Result<Value, String> {
     }
 }
 
-fn export_run(root: &Path, policy: &Policy, flags: &std::collections::HashMap<String, String>) -> Value {
+fn export_run(
+    root: &Path,
+    policy: &Policy,
+    flags: &std::collections::HashMap<String, String>,
+) -> Value {
     let target = flags
         .get("target")
         .map(|v| v.trim().to_ascii_lowercase())
@@ -280,7 +284,8 @@ fn persist(policy: &Policy, payload: &Value) -> Result<(), String> {
         &policy.latest_path,
         &format!(
             "{}\n",
-            serde_json::to_string_pretty(payload).map_err(|e| format!("encode_latest_failed:{e}"))?
+            serde_json::to_string_pretty(payload)
+                .map_err(|e| format!("encode_latest_failed:{e}"))?
         ),
     )?;
     append_jsonl(&policy.history_path, payload)
@@ -324,13 +329,19 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "export" => export_run(root, &policy, &parsed.flags),
         "status" => {
             let out = status(&policy);
-            println!("{}", serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string()));
+            println!(
+                "{}",
+                serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string())
+            );
             return 0;
         }
         _ => {
             usage();
             let out = cli_error(argv, "unknown_command", 2);
-            println!("{}", serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string()));
+            println!(
+                "{}",
+                serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string())
+            );
             return 2;
         }
     };
@@ -342,11 +353,17 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if let Err(err) = persist(&policy, &out) {
         let fail = cli_error(argv, &format!("persist_failed:{err}"), 1);
-        println!("{}", serde_json::to_string(&fail).unwrap_or_else(|_| "{}".to_string()));
+        println!(
+            "{}",
+            serde_json::to_string(&fail).unwrap_or_else(|_| "{}".to_string())
+        );
         return 1;
     }
 
-    println!("{}", serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string()));
+    println!(
+        "{}",
+        serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string())
+    );
     if strict && !out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
         1
     } else {
@@ -377,7 +394,8 @@ mod tests {
                     "latest_path": "state/ops/audit_log_export/latest.json",
                     "history_path": "state/ops/audit_log_export/history.jsonl"
                 }
-            }).to_string(),
+            })
+            .to_string(),
         );
     }
 

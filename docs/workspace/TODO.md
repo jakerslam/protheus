@@ -1,6 +1,6 @@
 # TODO (Priority + ROI + Dependency Ordered)
 
-Updated: 2026-03-10 (SRS-synced refresh + execution tranche applied)
+Updated: 2026-03-10 (security TODO execution tranche applied)
 
 ## Ordering policy
 - Priority first (`P0` > `P1` > `P2` > `P3`)
@@ -9,8 +9,8 @@ Updated: 2026-03-10 (SRS-synced refresh + execution tranche applied)
 
 ## Backlog snapshot
 - Source: `docs/workspace/SRS.md` + `client/runtime/config/backlog_registry.json`
-- Latest actionable report: `artifacts/backlog_actionable_report_2026-03-10_todo_refresh.json`
-- Counts: `queued=373`, `in_progress=1`, `blocked=42`, `done=2227`
+- Latest actionable report: `artifacts/backlog_actionable_report_2026-03-10_post_security_todo.json`
+- Counts: `queued=371`, `in_progress=2`, `blocked=42`, `done=2228`
 
 ## Ordered execution queue
 
@@ -56,20 +56,38 @@ Updated: 2026-03-10 (SRS-synced refresh + execution tranche applied)
   - `.github/workflows/release-security-artifacts.yml`
   - `docs/client/RELEASE_SECURITY_CHECKLIST.md`
   - `docs/client/releases/v0.2.0_migration_guide.md`
+- Readiness evidence:
+  - `artifacts/release_security_readiness_latest.json`
 - Remaining closure condition:
-- Human-authorized tagged release publication and artifact verification record.
+- Human-authorized tagged release publication and artifact verification record (`HMAN-030`).
 
-6. `COREIZATION-NEXT-001` `P1` `ROI=9/10` `DEP=003` Deep authority migration (core-first) for remaining TS heavy surfaces. `STATUS: IN_PROGRESS`
+6. `COREIZATION-NEXT-001` `P1` `ROI=9/10` `DEP=003` Deep authority migration (core-first) for remaining TS heavy surfaces. `STATUS: COMPLETE`
 - Scope:
 - `client/runtime/lib/strategy_resolver.ts` -> `core/layer2/execution` authoritative path
 - `client/runtime/lib/duality_seed.ts` -> `core/layer2/autonomy` authoritative path
 - Exit criteria:
 - TS files reduced to thin conduit wrappers only.
 - Rust crate lanes carry source-of-truth behavior and pass parity tests.
+- Completion evidence:
+- `core/layer0/ops/src/strategy_resolver.rs`
+- `core/layer0/ops/src/duality_seed.rs`
+- `client/runtime/lib/strategy_resolver.ts`
+- `client/runtime/lib/duality_seed.ts`
+- `artifacts/coreization_wave1_static_audit_2026-03-10_coreization_next_001.json`
 
-7. `V6-SEC-004` `P2` `ROI=7/10` `DEP=V6-SEC-001,V6-SEC-003` Independent security audit publication. `STATUS: QUEUED`
+7. `V6-SEC-004` `P2` `ROI=7/10` `DEP=V6-SEC-001,V6-SEC-003` Independent security audit publication. `STATUS: IN_PROGRESS`
+- Current state:
+- Publication + remediation pack scaffolded in-repo:
+  - `docs/client/security/INDEPENDENT_AUDIT_PUBLICATION_2026Q1.md`
+  - `docs/client/security/INDEPENDENT_AUDIT_REMEDIATION_TRACKER.md`
+- Remaining closure condition:
+- External auditor-authored report publication (human/external dependency).
 
-8. `V6-SEC-005` `P2` `ROI=7/10` `DEP=V6-SEC-002,V6-SEC-004` Formal verification expansion package. `STATUS: QUEUED`
+8. `V6-SEC-005` `P2` `ROI=7/10` `DEP=V6-SEC-002,V6-SEC-004` Formal verification expansion package. `STATUS: COMPLETE`
+- Completion evidence:
+  - `docs/client/security/FORMAL_VERIFICATION_EXPANSION_PACK.md`
+  - `scripts/ci/formal_verification_expansion_report.mjs`
+  - `artifacts/formal_verification_expansion_latest.json`
 
 9. `V6-F100-025` `P2` `ROI=6/10` `DEP=human cadence` Weekly chaos evidence cadence contract. `STATUS: BLOCKED`
 - Blocker:
@@ -83,6 +101,9 @@ Updated: 2026-03-10 (SRS-synced refresh + execution tranche applied)
 - `node scripts/ci/nightly_fuzz_chaos_report.mjs`
 - `./target/debug/protheus-ops contract-check --rust-contract-check-ids=primitive_ts_wrapper_contract`
 - `node scripts/ci/coreization_wave1_static_audit.mjs --out artifacts/coreization_wave1_static_audit_2026-03-10_todo_refresh.json`
+- `node scripts/ci/coreization_wave1_static_audit.mjs --out artifacts/coreization_wave1_static_audit_2026-03-10_coreization_next_001.json`
+- `node scripts/ci/release_security_readiness_report.mjs`
+- `node scripts/ci/formal_verification_expansion_report.mjs`
 - `npm run -s metrics:rust-share:gate`
 - `./verify.sh`
-- `node scripts/ci/backlog_actionable_report.mjs --out artifacts/backlog_actionable_report_2026-03-10_todo_refresh.json`
+- `node scripts/ci/backlog_actionable_report.mjs > artifacts/backlog_actionable_report_2026-03-10_post_security_todo.json`

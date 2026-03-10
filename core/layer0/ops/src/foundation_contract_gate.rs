@@ -2,11 +2,11 @@
 use crate::contract_check::{foundation_hook_coverage_receipt, guard_registry_contract_receipt};
 use crate::{deterministic_receipt_hash, now_iso};
 use burn_oracle_budget_gate::CHECK_ID as BURN_ORACLE_BUDGET_GATE_CHECK_ID;
-use persona_dispatch_security_gate::CHECK_ID as PERSONA_DISPATCH_SECURITY_GATE_CHECK_ID;
 use foundation_hook_enforcer::{
     evaluate_required_hook_completeness, HookCoverageReceipt, CHECK_ID_FOUNDATION_HOOKS,
     CHECK_ID_GUARD_REGISTRY_CONSUMPTION, CHECK_ID_MERGE_GUARD_HOOK_COVERAGE,
 };
+use persona_dispatch_security_gate::CHECK_ID as PERSONA_DISPATCH_SECURITY_GATE_CHECK_ID;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
@@ -160,7 +160,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     });
     out["receipt_hash"] = Value::String(receipt_hash(&out));
     print_json_line(&out);
-    if ok { 0 } else { 1 }
+    if ok {
+        0
+    } else {
+        1
+    }
 }
 
 pub fn merge_guard_hook_coverage_receipt(merge_guard_ids: &[&str]) -> HookCoverageReceipt {
@@ -236,9 +240,7 @@ mod tests {
 
     #[test]
     fn parse_merge_guard_check_ids_parses_csv_flag() {
-        let ids = parse_merge_guard_check_ids(&[
-            "--merge-guard-check-ids=foo,bar,baz".to_string(),
-        ]);
+        let ids = parse_merge_guard_check_ids(&["--merge-guard-check-ids=foo,bar,baz".to_string()]);
         assert_eq!(
             ids,
             vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]

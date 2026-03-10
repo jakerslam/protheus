@@ -75,7 +75,8 @@ fn stable_stringify(value: &Value) -> String {
             let joined = keys
                 .iter()
                 .map(|key| {
-                    let key_json = serde_json::to_string(key).unwrap_or_else(|_| "\"\"".to_string());
+                    let key_json =
+                        serde_json::to_string(key).unwrap_or_else(|_| "\"\"".to_string());
                     let value_json = stable_stringify(map.get(key).unwrap_or(&Value::Null));
                     format!("{key_json}:{value_json}")
                 })
@@ -280,7 +281,8 @@ fn parse_payload_base64(args: &[String]) -> Result<String, String> {
 fn emit_json(payload: &Value) {
     println!(
         "{}",
-        serde_json::to_string(payload).unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
+        serde_json::to_string(payload)
+            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
     );
 }
 
@@ -361,10 +363,7 @@ mod tests {
             }
         });
         let out = stable_stringify(&value);
-        assert_eq!(
-            out,
-            "{\"a\":{\"y\":[2,{\"a\":2,\"m\":1}],\"z\":1},\"b\":2}"
-        );
+        assert_eq!(out, "{\"a\":{\"y\":[2,{\"a\":2,\"m\":1}],\"z\":1},\"b\":2}");
     }
 
     #[test]
@@ -440,6 +439,9 @@ mod tests {
         let verified = primitive_verify_hash_chain(&json!({"rows": rows}));
         assert_eq!(verified["ok"], Value::Bool(false));
         let issues = verified["issues"].as_array().cloned().unwrap_or_default();
-        assert!(issues.iter().any(|v| v.as_str().unwrap_or("").starts_with("hash_mismatch:index=1")));
+        assert!(issues.iter().any(|v| v
+            .as_str()
+            .unwrap_or("")
+            .starts_with("hash_mismatch:index=1")));
     }
 }

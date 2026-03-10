@@ -23,8 +23,12 @@ fn usage() {
     println!("  protheus-ops assimilation-controller status [--capability-id=<id>]");
     println!("  protheus-ops assimilation-controller run [YYYY-MM-DD] [--capability-id=<id>] [--apply=1|0]");
     println!("  protheus-ops assimilation-controller assess [--capability-id=<id>]");
-    println!("  protheus-ops assimilation-controller record-use --capability-id=<id> [--success=1|0]");
-    println!("  protheus-ops assimilation-controller rollback --capability-id=<id> [--reason=<text>]");
+    println!(
+        "  protheus-ops assimilation-controller record-use --capability-id=<id> [--success=1|0]"
+    );
+    println!(
+        "  protheus-ops assimilation-controller rollback --capability-id=<id> [--reason=<text>]"
+    );
 }
 
 fn parse_flag(argv: &[String], key: &str) -> Option<String> {
@@ -38,7 +42,12 @@ fn parse_flag(argv: &[String], key: &str) -> Option<String> {
 fn native_receipt(root: &Path, cmd: &str, argv: &[String]) -> Value {
     let capability_id = parse_flag(argv, "capability-id").unwrap_or_else(|| "unknown".to_string());
     let apply = parse_flag(argv, "apply")
-        .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+        .map(|v| {
+            matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
         .unwrap_or(false);
 
     let mut out = json!({

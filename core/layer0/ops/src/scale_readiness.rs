@@ -274,7 +274,11 @@ pub fn load_policy(root: &Path, policy_path: &Path) -> Policy {
             paths.get("history_path"),
             "state/ops/scale_readiness_program/history.jsonl",
         ),
-        contract_dir: resolve_path(root, paths.get("contract_dir"), "client/runtime/config/scale_readiness"),
+        contract_dir: resolve_path(
+            root,
+            paths.get("contract_dir"),
+            "client/runtime/config/scale_readiness",
+        ),
         report_dir: resolve_path(
             root,
             paths.get("report_dir"),
@@ -860,7 +864,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .unwrap_or_else(|| {
             env::var("SCALE_READINESS_PROGRAM_POLICY_PATH")
                 .map(PathBuf::from)
-                .unwrap_or_else(|_| root.join("client/runtime/config/scale_readiness_program_policy.json"))
+                .unwrap_or_else(|_| {
+                    root.join("client/runtime/config/scale_readiness_program_policy.json")
+                })
         });
     let policy_path = if policy_arg.is_absolute() {
         policy_arg

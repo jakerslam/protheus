@@ -9,7 +9,8 @@ use std::path::Path;
 const LANE_ID: &str = "health_status";
 const REPLACEMENT: &str = "protheus-ops health-status";
 const CRON_JOBS_REL: &str = "client/runtime/config/cron_jobs.json";
-const RUST_SOURCE_OF_TRUTH_POLICY_REL: &str = "client/runtime/config/rust_source_of_truth_policy.json";
+const RUST_SOURCE_OF_TRUTH_POLICY_REL: &str =
+    "client/runtime/config/rust_source_of_truth_policy.json";
 const JSONL_TAIL_MAX_BYTES: usize = 2 * 1024 * 1024;
 const SPINE_RUN_FILES_MAX: usize = 7;
 const ALLOWED_DELIVERY_CHANNELS: &[&str] = &[
@@ -45,7 +46,8 @@ fn usage() {
 }
 
 fn read_json(path: &Path) -> Result<Value, String> {
-    let raw = fs::read_to_string(path).map_err(|err| format!("read_json_failed:{}:{err}", path.display()))?;
+    let raw = fs::read_to_string(path)
+        .map_err(|err| format!("read_json_failed:{}:{err}", path.display()))?;
     serde_json::from_str::<Value>(&raw)
         .map_err(|err| format!("parse_json_failed:{}:{err}", path.display()))
 }
@@ -98,14 +100,21 @@ fn missing_tokens(text: &str, tokens: &[String]) -> Vec<String> {
     out
 }
 
-fn check_required_tokens_at_path(root: &Path, rel_path: &str, required_tokens: &[String]) -> Result<Vec<String>, String> {
+fn check_required_tokens_at_path(
+    root: &Path,
+    rel_path: &str,
+    required_tokens: &[String],
+) -> Result<Vec<String>, String> {
     let path = root.join(rel_path);
     let source = fs::read_to_string(&path)
         .map_err(|err| format!("read_source_failed:{}:{err}", path.display()))?;
     Ok(missing_tokens(&source, required_tokens))
 }
 
-fn require_object<'a>(value: &'a Value, field: &str) -> Result<&'a serde_json::Map<String, Value>, String> {
+fn require_object<'a>(
+    value: &'a Value,
+    field: &str,
+) -> Result<&'a serde_json::Map<String, Value>, String> {
     value
         .get(field)
         .and_then(Value::as_object)
@@ -124,7 +133,10 @@ fn require_rel_path(section: &serde_json::Map<String, Value>, key: &str) -> Resu
     Ok(rel)
 }
 
-fn require_string_array(section: &serde_json::Map<String, Value>, key: &str) -> Result<Vec<String>, String> {
+fn require_string_array(
+    section: &serde_json::Map<String, Value>,
+    key: &str,
+) -> Result<Vec<String>, String> {
     let arr = section
         .get(key)
         .and_then(Value::as_array)
@@ -537,7 +549,11 @@ fn percentile(values: &[f64], q: f64) -> Option<f64> {
     if values.is_empty() {
         return None;
     }
-    let quantile = if q.is_finite() { q.clamp(0.0, 1.0) } else { 0.5 };
+    let quantile = if q.is_finite() {
+        q.clamp(0.0, 1.0)
+    } else {
+        0.5
+    };
     let mut sorted = values.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let idx = ((sorted.len() as f64) * quantile).ceil() as usize;
@@ -613,7 +629,11 @@ fn collect_spine_dashboard_metrics(root: &Path) -> Value {
     let p95_latency = percentile_95(&latency_ms);
     let p99_latency = percentile_99(&latency_ms);
 
-    let success_status = if success_rate >= 0.999 { "pass" } else { "warn" };
+    let success_status = if success_rate >= 0.999 {
+        "pass"
+    } else {
+        "warn"
+    };
     let latency_status = match p95_latency {
         Some(v) if v < 100.0 => "pass",
         Some(_) => "warn",
@@ -710,7 +730,11 @@ fn collect_assimilation_pain_dashboard_metric(root: &Path) -> Value {
     let mut top_sources = by_source
         .iter()
         .map(|(source, (sum, count))| {
-            let avg = if *count > 0 { *sum / *count as f64 } else { 0.0 };
+            let avg = if *count > 0 {
+                *sum / *count as f64
+            } else {
+                0.0
+            };
             json!({
                 "source": source,
                 "avg_score": avg,
@@ -738,7 +762,8 @@ fn collect_assimilation_pain_dashboard_metric(root: &Path) -> Value {
 }
 
 fn collect_human_escalation_dashboard_metric(root: &Path) -> Value {
-    let escalation_path = root.join("client/runtime/local/state/security/autonomy_human_escalations.jsonl");
+    let escalation_path =
+        root.join("client/runtime/local/state/security/autonomy_human_escalations.jsonl");
     let mut latest_status_by_id = BTreeMap::<String, String>::new();
     let mut total_events = 0usize;
 
@@ -918,7 +943,8 @@ fn collect_token_burn_cost_dashboard_metric(root: &Path) -> Value {
 }
 
 fn collect_pqts_slippage_dashboard_metric(root: &Path) -> Value {
-    let reports_dir = root.join("client/runtime/local/workspaces/pqts/data/client/reports/mape_matrix_no_stress");
+    let reports_dir =
+        root.join("client/runtime/local/workspaces/pqts/data/client/reports/mape_matrix_no_stress");
     let mut latest_snapshot = None::<String>;
 
     if let Ok(entries) = fs::read_dir(&reports_dir) {
@@ -1116,8 +1142,14 @@ fn status_receipt(root: &Path, cmd: &str, args: &[String], dashboard: bool) -> V
     let cron_audit = audit_cron_delivery(root);
     let source_audit = audit_rust_source_of_truth(root);
 
-    let cron_ok = cron_audit.get("ok").and_then(Value::as_bool).unwrap_or(false);
-    let source_ok = source_audit.get("ok").and_then(Value::as_bool).unwrap_or(false);
+    let cron_ok = cron_audit
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let source_ok = source_audit
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let checks = checks_summary(cron_ok, source_ok);
     let dashboard_metrics = if dashboard {
         collect_dashboard_metrics(root, &cron_audit)
@@ -1329,8 +1361,16 @@ mod tests {
 }"#,
         );
 
-        write_text(root, "core/layer0/ops/src/main.rs", "match x { \"spine\" => {} }");
-        write_text(root, "client/runtime/systems/ops/protheusd.ts", "const PROTHEUS_CONDUIT_STRICT = true;");
+        write_text(
+            root,
+            "core/layer0/ops/src/main.rs",
+            "match x { \"spine\" => {} }",
+        );
+        write_text(
+            root,
+            "client/runtime/systems/ops/protheusd.ts",
+            "const PROTHEUS_CONDUIT_STRICT = true;",
+        );
         write_text(
             root,
             "core/layer2/conduit/src/lib.rs",
@@ -1471,7 +1511,10 @@ mod tests {
             .get("human_escalation_open_rate")
             .expect("metric payload");
         assert_eq!(payload.get("open_count").and_then(Value::as_u64), Some(1));
-        assert_eq!(payload.get("resolved_count").and_then(Value::as_u64), Some(1));
+        assert_eq!(
+            payload.get("resolved_count").and_then(Value::as_u64),
+            Some(1)
+        );
         assert_eq!(payload.get("status").and_then(Value::as_str), Some("warn"));
     }
 
@@ -1495,7 +1538,10 @@ mod tests {
             payload.get("latest_day_tokens").and_then(Value::as_i64),
             Some(250)
         );
-        assert_eq!(payload.get("deny_decisions").and_then(Value::as_u64), Some(1));
+        assert_eq!(
+            payload.get("deny_decisions").and_then(Value::as_u64),
+            Some(1)
+        );
         assert_eq!(payload.get("status").and_then(Value::as_str), Some("pass"));
     }
 }

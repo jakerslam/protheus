@@ -149,7 +149,9 @@ fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
         providers.insert(
             "okta".to_string(),
             ProviderPolicy {
-                allowed_scopes: split_csv("openid,profile,email,groups,offline_access,protheus.read,protheus.write"),
+                allowed_scopes: split_csv(
+                    "openid,profile,email,groups,offline_access,protheus.read,protheus.write",
+                ),
                 issuer_prefix: "https://".to_string(),
                 allowed_roles: split_csv("operator,admin,security,auditor"),
                 scim_enabled: true,
@@ -187,7 +189,8 @@ fn persist(policy: &Policy, payload: &Value) -> Result<(), String> {
         &policy.latest_path,
         &format!(
             "{}\n",
-            serde_json::to_string_pretty(payload).map_err(|e| format!("encode_latest_failed:{e}"))?
+            serde_json::to_string_pretty(payload)
+                .map_err(|e| format!("encode_latest_failed:{e}"))?
         ),
     )?;
     append_jsonl(&policy.history_path, payload)
@@ -215,10 +218,7 @@ fn run_authorize(policy: &Policy, flags: &std::collections::HashMap<String, Stri
         .get("scopes")
         .map(|v| split_csv(v))
         .unwrap_or_default();
-    let roles = flags
-        .get("roles")
-        .map(|v| split_csv(v))
-        .unwrap_or_default();
+    let roles = flags.get("roles").map(|v| split_csv(v)).unwrap_or_default();
 
     let mut checks = BTreeMap::<String, Value>::new();
 
@@ -442,13 +442,19 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "scim-lifecycle" => run_scim(&policy, &parsed.flags),
         "status" => {
             let out = status(&policy);
-            println!("{}", serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string()));
+            println!(
+                "{}",
+                serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string())
+            );
             return 0;
         }
         _ => {
             usage();
             let out = cli_error(argv, "unknown_command", 2);
-            println!("{}", serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string()));
+            println!(
+                "{}",
+                serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string())
+            );
             return 2;
         }
     };
@@ -460,11 +466,17 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if let Err(err) = persist(&policy, &out) {
         let fail = cli_error(argv, &format!("persist_failed:{err}"), 1);
-        println!("{}", serde_json::to_string(&fail).unwrap_or_else(|_| "{}".to_string()));
+        println!(
+            "{}",
+            serde_json::to_string(&fail).unwrap_or_else(|_| "{}".to_string())
+        );
         return 1;
     }
 
-    println!("{}", serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string()));
+    println!(
+        "{}",
+        serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string())
+    );
     if strict && !out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
         1
     } else {
