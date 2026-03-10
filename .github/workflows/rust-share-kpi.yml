@@ -1,0 +1,52 @@
+name: Rust Share KPI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  tracked-loc-rust-share:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build tracked LOC report
+        id: report
+        shell: bash
+        run: |
+          mkdir -p artifacts/rust_share
+          BASE_ARGS=""
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+            BASE_ARGS="--base-ref=origin/${{ github.base_ref }}"
+          fi
+          scripts/metrics/tracked_loc_report.sh --ref=HEAD ${BASE_ARGS} --out=artifacts/rust_share/tracked_loc_report.json
+          cat artifacts/rust_share/tracked_loc_report.json
+
+      - name: Upload KPI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-share-kpi
+          path: artifacts/rust_share/tracked_loc_report.json
+
+      - name: Append summary
+        shell: bash
+        run: |
+          REPORT="artifacts/rust_share/tracked_loc_report.json"
+          RS="$(node -e "const f=require('fs');const j=JSON.parse(f.readFileSync(process.argv[1],'utf8'));console.log(j.counts.rs)" "$REPORT")"
+          TS="$(node -e "const f=require('fs');const j=JSON.parse(f.readFileSync(process.argv[1],'utf8'));console.log(j.counts.ts)" "$REPORT")"
+          JS="$(node -e "const f=require('fs');const j=JSON.parse(f.readFileSync(process.argv[1],'utf8'));console.log(j.counts.js)" "$REPORT")"
+          SHARE="$(node -e "const f=require('fs');const j=JSON.parse(f.readFileSync(process.argv[1],'utf8'));console.log(j.rust_share_pct)" "$REPORT")"
+          {
+            echo "### Rust Share KPI"
+            echo ""
+            echo "- Rust LOC: ${RS}"
+            echo "- TypeScript LOC: ${TS}"
+            echo "- JavaScript LOC: ${JS}"
+            echo "- Rust Share (% of tracked rs/ts/js): ${SHARE}"
+          } >> "$GITHUB_STEP_SUMMARY"
