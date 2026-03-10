@@ -1,69 +1,22 @@
 #!/usr/bin/env node
+// @ts-nocheck
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
-const { spawnSync } = require('child_process');
+// Layer ownership: core/layer2/ops + core/layer0/ops::legacy-retired-lane (authoritative)
+// TypeScript compatibility shim only.
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
 
-const ROOT = path.resolve(__dirname, '..', '..');
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const JS_ENTRY = path.join(__dirname, 'build_smoke.js');
 
-const REQUIRED_DIST_FILES = [
-  'lib/directive_resolver.js',
-  'systems/security/directive_gate.js',
-  'systems/sensory/focus_controller.js',
-  'systems/autonomy/self_documentation_closeout.js',
-  'systems/budget/system_budget.js'
-];
-
-const DIST_LAYOUT_ROOTS = [
-  path.join(ROOT, 'dist'),
-  path.resolve(ROOT, '..', 'dist', 'client')
-];
-
-function resolveDistPath(rel) {
-  for (const layoutRoot of DIST_LAYOUT_ROOTS) {
-    const abs = path.join(layoutRoot, rel);
-    if (fs.existsSync(abs)) {
-      return { ok: true, abs, rel: path.relative(ROOT, abs).replace(/\\/g, '/') };
-    }
-  }
-  return {
-    ok: false,
-    rel,
-    attempted: DIST_LAYOUT_ROOTS.map((layoutRoot) => path.relative(ROOT, path.join(layoutRoot, rel)).replace(/\\/g, '/'))
-  };
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  const out = spawnSync(process.execPath, [JS_ENTRY, ...process.argv.slice(2)], { stdio: 'inherit' });
+  process.exit(Number.isFinite(out && out.status) ? Number(out.status) : 1);
 }
 
-function main() {
-  for (const rel of REQUIRED_DIST_FILES) {
-    const resolved = resolveDistPath(rel);
-    if (!resolved.ok) {
-      throw new Error(`missing_dist_file:${rel}:attempted=${(resolved.attempted || []).join(',')}`);
-    }
-    const abs = resolved.abs;
-    const check = spawnSync(process.execPath, ['--check', abs], {
-      cwd: ROOT,
-      encoding: 'utf8'
-    });
-    if (check.status !== 0) {
-      const detail = String(check.stderr || check.stdout || '').trim();
-      throw new Error(`syntax_check_failed:${resolved.rel}:${detail}`);
-    }
-  }
-
-  process.stdout.write(JSON.stringify({
-    ok: true,
-    type: 'build_smoke',
-    checked: REQUIRED_DIST_FILES.length,
-    mode: 'emit_and_syntax'
-  }) + '\n');
-}
-
-try {
-  if (require.main === module) {
-    main();
-  }
-} catch (err) {
-  process.stderr.write(`build_smoke.js: FAIL: ${err.message}\n`);
-  process.exit(1);
-}
+export const { run } = require('./build_smoke.js');

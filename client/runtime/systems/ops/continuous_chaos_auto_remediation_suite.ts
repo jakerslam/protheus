@@ -1,54 +1,22 @@
 #!/usr/bin/env node
+// @ts-nocheck
 'use strict';
-export {};
 
-/**
- * V3-RACE-040
- * Continuous Chaos Engineering and Auto-Remediation Suite
- */
+// Layer ownership: core/layer2/ops + core/layer0/ops::legacy-retired-lane (authoritative)
+// TypeScript compatibility shim only.
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
 
-const path = require('path');
-const { ROOT } = require('../../lib/queued_backlog_runtime');
-const { runLaneCli } = require('../../lib/backlog_lane_cli');
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const JS_ENTRY = path.join(__dirname, 'continuous_chaos_auto_remediation_suite.js');
 
-const POLICY_PATH = process.env.CONTINUOUS_CHAOS_AUTO_REMEDIATION_SUITE_POLICY_PATH
-  ? path.resolve(process.env.CONTINUOUS_CHAOS_AUTO_REMEDIATION_SUITE_POLICY_PATH)
-  : path.join(ROOT, 'config/continuous_chaos_auto_remediation_suite_policy.json');
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  const out = spawnSync(process.execPath, [JS_ENTRY, ...process.argv.slice(2)], { stdio: 'inherit' });
+  process.exit(Number.isFinite(out && out.status) ? Number(out.status) : 1);
+}
 
-runLaneCli({
-  lane_id: 'V3-RACE-040',
-  title: 'Continuous Chaos Engineering and Auto-Remediation Suite',
-  type: 'continuous_chaos_auto_remediation_suite',
-  default_action: 'gameday',
-  script_label: 'systems/ops/continuous_chaos_auto_remediation_suite.js',
-  policy_path: POLICY_PATH,
-  default_policy: {
-    version: '1.0',
-    enabled: true,
-    strict_default: true,
-    checks: [
-    {
-        "id": "chaos_scenario_library",
-        "description": "Chaos scenario library covers fault/network/process/event classes"
-    },
-    {
-        "id": "scheduled_gamedays",
-        "description": "Scheduled gameday cadence configured"
-    },
-    {
-        "id": "auto_remediation_workflows",
-        "description": "Bounded auto-remediation workflows available"
-    },
-    {
-        "id": "rollback_safety_receipts",
-        "description": "Fail-safe rollback receipts emitted for remediation"
-    }
-],
-    paths: {
-      state_path: 'state/ops/continuous_chaos_auto_remediation_suite/state.json',
-      latest_path: 'state/ops/continuous_chaos_auto_remediation_suite/latest.json',
-      receipts_path: 'state/ops/continuous_chaos_auto_remediation_suite/receipts.jsonl',
-      history_path: 'state/ops/continuous_chaos_auto_remediation_suite/history.jsonl'
-    }
-  }
-});
+export const { run } = require('./continuous_chaos_auto_remediation_suite.js');
