@@ -353,3 +353,7 @@ state/client/memory/snapshots/*.jsonl
 
 # local Linear credentials
 .linear/
+
+# Python runtime cache
+__pycache__/
+*.pyc
