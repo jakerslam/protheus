@@ -1,0 +1,28 @@
+# Heartbeat KPI
+
+Canonical report for reminder/heartbeat readiness.
+
+## Command
+
+```bash
+npm run -s metrics:heartbeat-kpi
+```
+
+## Outputs
+
+- Latest snapshot: `artifacts/heartbeat/heartbeat_kpi_latest.json`
+- History stream: `artifacts/heartbeat/heartbeat_kpi_history.jsonl`
+
+## KPI Contract
+
+- `checks_total`: fixed at 3
+- `checks_passed`: count of passing checks
+- `completion_rate`: `checks_passed / checks_total`
+
+Checks:
+
+1. `slack_status` readiness from `client/runtime/systems/ops/reminder_data_bridge.js`
+2. `moltcheck_status` readiness from `client/runtime/systems/ops/reminder_data_bridge.js`
+3. `deployment_health` from `scripts/utils/health-check-deployment.sh`
+
+This report is published daily via `.github/workflows/heartbeat-kpi.yml`.
