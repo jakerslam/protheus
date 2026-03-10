@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// Layer ownership: core/layer2/autonomy + core/layer0/ops::legacy-retired-lane (authoritative)
+// Layer ownership: core/layer1/security + core/layer0/ops::legacy-retired-lane (authoritative)
 // Thin wrapper only; historical TS authority retired to Rust lane receipts.
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge');
 
@@ -12,8 +12,8 @@ process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS =
 process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS =
   process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '20000';
 
-const LANE_ID = 'SYSTEMS-AUTONOMY-MOTIVATIONAL-STATE-VECTOR';
-const bridge = createOpsLaneBridge(__dirname, 'motivational_state_vector', 'legacy-retired-lane');
+const LANE_ID = 'SYSTEMS-SECURITY-EXECUTION-SANDBOX-RUST-WASM-COPROCESSOR-LANE';
+const bridge = createOpsLaneBridge(__dirname, 'execution_sandbox_rust_wasm_coprocessor_lane', 'legacy-retired-lane');
 
 function mapArgs(args = []) {
   const cmd = String((Array.isArray(args) && args[0]) || '').trim().toLowerCase();
