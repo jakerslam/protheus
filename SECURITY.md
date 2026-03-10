@@ -57,3 +57,4 @@ If there is active exploitation or high-confidence critical impact, emergency re
 - [docs/client/BUG_BOUNTY.md](docs/client/BUG_BOUNTY.md)
 - [docs/client/BRANCH_PROTECTION_POLICY.md](docs/client/BRANCH_PROTECTION_POLICY.md)
 - [docs/client/COMPLIANCE_POSTURE.md](docs/client/COMPLIANCE_POSTURE.md)
+- [docs/client/FUZZ_CHAOS_TRIAGE.md](docs/client/FUZZ_CHAOS_TRIAGE.md)
