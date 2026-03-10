@@ -12,8 +12,8 @@ process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS =
 process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS =
   process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '20000';
 
-const LANE_ID = 'SYSTEMS-OPS-WORKFLOW-EXECUTION-CLOSURE';
-const bridge = createOpsLaneBridge(__dirname, 'workflow_execution_closure', 'legacy-retired-lane');
+const LANE_ID = 'SYSTEMS-OPS-RUST-CONTROL-PLANE-CUTOVER';
+const bridge = createOpsLaneBridge(__dirname, 'rust_control_plane_cutover', 'legacy-retired-lane');
 
 function mapArgs(args = []) {
   const cmd = String((Array.isArray(args) && args[0]) || '').trim().toLowerCase();
