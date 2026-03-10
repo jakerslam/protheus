@@ -1,53 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
-const path = require('path');
-const assert = require('assert');
-
-const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
-const bridgePath = path.join(REPO_ROOT, 'systems', 'autonomy', 'backlog_autoscale_rust_bridge.js');
-
-delete require.cache[bridgePath];
-const { runBacklogAutoscalePrimitive } = require(bridgePath);
-
-function jsRecentRunEvents(dayEvents) {
-  const events = [];
-  for (const bucket of dayEvents) {
-    events.push(...bucket);
-  }
-  return events;
-}
-
-function rustRecentRunEvents(dayEvents) {
-  const rust = runBacklogAutoscalePrimitive(
-    'recent_run_events',
-    { day_events: dayEvents },
-    { allow_cli_fallback: true }
-  );
-  assert(rust && rust.ok === true, 'rust bridge invocation failed');
-  assert(rust.payload && rust.payload.ok === true, 'rust payload failed');
-  return Array.isArray(rust.payload.payload && rust.payload.payload.events)
-    ? rust.payload.payload.events
-    : [];
-}
-
-function run() {
-  const dayEvents = [
-    [{ id: 'a' }, { id: 'b' }],
-    [],
-    [{ id: 'c' }]
-  ];
-
-  const expected = jsRecentRunEvents(dayEvents);
-  const got = rustRecentRunEvents(dayEvents);
-  assert.deepStrictEqual(got, expected, 'recentRunEvents mismatch');
-
-  console.log('autonomy_recent_run_events_rust_parity.test.js: OK');
-}
-
-try {
-  run();
-} catch (err) {
-  console.error(`autonomy_recent_run_events_rust_parity.test.js: FAIL: ${err.message}`);
-  process.exit(1);
-}
+// Layer ownership: core/layer1/memory_runtime + core/layer0/ops::legacy-retired-lane (authoritative)
+// Legacy JS test surface retired; authoritative checks are Rust-side.
+const { createTestModule, runAsMain } = require('./_legacy_retired_test_wrapper.js');
+const mod = createTestModule(__dirname, 'autonomy_recent_run_events_rust_parity.test', 'MEMORY-TEST-AUTONOMY_RECENT_RUN_EVENTS_RUST_PARITY.TEST');
+if (require.main === module) runAsMain(mod, process.argv.slice(2));
+module.exports = mod;

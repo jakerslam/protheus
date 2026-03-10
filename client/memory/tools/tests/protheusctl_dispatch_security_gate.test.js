@@ -1,48 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
-const assert = require('assert');
-const path = require('path');
-const { spawnSync } = require('child_process');
-
-const ROOT = path.resolve(__dirname, '..', '..', '..');
-const PROTHEUSCTL = path.join(ROOT, 'systems', 'ops', 'protheusctl.js');
-
-function run(args, env = {}) {
-  const out = spawnSync(process.execPath, [PROTHEUSCTL, ...args], {
-    cwd: ROOT,
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      PROTHEUS_UPDATE_CHECKER_DISABLED: '1',
-      ...env
-    }
-  });
-  return {
-    status: Number.isFinite(out.status) ? Number(out.status) : 1,
-    stdout: String(out.stdout || ''),
-    stderr: String(out.stderr || '')
-  };
-}
-
-try {
-  let out = run(['lens', '--list']);
-  assert.strictEqual(out.status, 0, out.stderr || out.stdout);
-  assert.ok(
-    out.stdout.includes('vikram_menon') ||
-      out.stdout.includes('No personas found under personas/.'),
-    'expected lens list output'
-  );
-
-  out = run(['lens', '--list'], {
-    PROTHEUS_CTL_SECURITY_COVENANT_VIOLATION: '1'
-  });
-  assert.notStrictEqual(out.status, 0, 'dispatch should fail closed on covenant violation');
-  assert.ok(out.stderr.includes('protheusctl_dispatch_security_gate'), 'expected security gate error envelope');
-  assert.ok(out.stderr.includes('security_gate_blocked'), 'expected blocked reason');
-
-  console.log('protheusctl_dispatch_security_gate.test.js: OK');
-} catch (err) {
-  console.error(`protheusctl_dispatch_security_gate.test.js: FAIL: ${err.message}`);
-  process.exit(1);
-}
+// Layer ownership: core/layer1/memory_runtime + core/layer0/ops::legacy-retired-lane (authoritative)
+// Legacy JS test surface retired; authoritative checks are Rust-side.
+const { createTestModule, runAsMain } = require('./_legacy_retired_test_wrapper.js');
+const mod = createTestModule(__dirname, 'protheusctl_dispatch_security_gate.test', 'MEMORY-TEST-PROTHEUSCTL_DISPATCH_SECURITY_GATE.TEST');
+if (require.main === module) runAsMain(mod, process.argv.slice(2));
+module.exports = mod;

@@ -1,66 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
-const path = require('path');
-const { spawnSync } = require('child_process');
-
-const ROOT = path.resolve(__dirname, '..', '..', '..');
-
-const checks = [
-  {
-    name: 'cargo test -p protheus-memory-core-v6',
-    cmd: ['cargo', ['test', '-p', 'protheus-memory-core-v6']]
-  },
-  {
-    name: 'cargo test -p protheus-security-core-v1',
-    cmd: ['cargo', ['test', '-p', 'protheus-security-core-v1']]
-  },
-  {
-    name: 'foundation_lock_memory_parity.test.js',
-    cmd: [process.execPath, ['client/memory/tools/tests/foundation_lock_memory_parity.test.js']]
-  },
-  {
-    name: 'foundation_lock_abstraction_and_security.test.js',
-    cmd: [process.execPath, ['client/memory/tools/tests/foundation_lock_abstraction_and_security.test.js']]
-  },
-  {
-    name: 'vault_phase3_rust_parity.test.js',
-    cmd: [process.execPath, ['client/memory/tools/tests/vault_phase3_rust_parity.test.js']]
-  },
-  {
-    name: 'execution_security_gate_integration.test.js',
-    cmd: [process.execPath, ['client/memory/tools/tests/execution_security_gate_integration.test.js']]
-  },
-  {
-    name: 'memory_security_gate_integration.test.js',
-    cmd: [process.execPath, ['client/memory/tools/tests/memory_security_gate_integration.test.js']]
-  },
-  {
-    name: 'workflow_executor_step_security_gate.test.js',
-    cmd: [process.execPath, ['client/memory/tools/tests/workflow_executor_step_security_gate.test.js']]
-  },
-  {
-    name: 'protheusctl_dispatch_security_gate.test.js',
-    cmd: [process.execPath, ['client/memory/tools/tests/protheusctl_dispatch_security_gate.test.js']]
-  }
-];
-
-for (const check of checks) {
-  const [bin, args] = check.cmd;
-  const out = spawnSync(bin, args, {
-    cwd: ROOT,
-    encoding: 'utf8',
-    maxBuffer: 20 * 1024 * 1024
-  });
-  if (Number(out.status) !== 0) {
-    const stderr = String(out.stderr || '').trim();
-    const stdout = String(out.stdout || '').trim();
-    console.error(`❌ foundation_lock_regression_suite.test.js: ${check.name} failed`);
-    if (stderr) console.error(stderr.slice(0, 1200));
-    if (stdout) console.error(stdout.slice(0, 1200));
-    process.exit(1);
-  }
-  console.log(`   ✅ ${check.name}`);
-}
-
-console.log('foundation_lock_regression_suite.test.js: OK');
+// Layer ownership: core/layer1/memory_runtime + core/layer0/ops::legacy-retired-lane (authoritative)
+// Legacy JS test surface retired; authoritative checks are Rust-side.
+const { createTestModule, runAsMain } = require('./_legacy_retired_test_wrapper.js');
+const mod = createTestModule(__dirname, 'foundation_lock_regression_suite.test', 'MEMORY-TEST-FOUNDATION_LOCK_REGRESSION_SUITE.TEST');
+if (require.main === module) runAsMain(mod, process.argv.slice(2));
+module.exports = mod;

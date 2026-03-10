@@ -1,81 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
-const assert = require('assert');
-
-function resolveLib(repoRoot, relCandidates) {
-  for (const rel of relCandidates) {
-    const abs = path.join(repoRoot, rel);
-    if (fs.existsSync(abs)) return abs;
-  }
-  return path.join(repoRoot, relCandidates[0]);
-}
-
-function run() {
-  const repoRoot = path.resolve(__dirname, '..', '..', '..');
-  const stopPath = path.join(repoRoot, 'state', 'security', 'emergency_stop.json');
-  const backupPath = `${stopPath}.test-backup-${Date.now()}`;
-
-  const hadExisting = fs.existsSync(stopPath);
-  if (hadExisting) {
-    fs.mkdirSync(path.dirname(backupPath), { recursive: true });
-    fs.copyFileSync(stopPath, backupPath);
-  }
-
-  try {
-    const em = require(resolveLib(repoRoot, [
-      'runtime/systems/lib/emergency_stop.js',
-      'lib/emergency_stop.js'
-    ]));
-
-    em.releaseEmergencyStop({
-      approval_note: 'test reset state before assertions',
-      actor: 'test',
-      reason: 'unit_test_reset'
-    });
-    let st = em.getStopState();
-    assert.strictEqual(st.engaged, false);
-
-    const engaged = em.engageEmergencyStop({
-      scopes: 'autonomy,routing',
-      approval_note: 'test engage emergency stop',
-      actor: 'test',
-      reason: 'unit_test_engage'
-    });
-    assert.strictEqual(engaged.engaged, true);
-    assert.ok(Array.isArray(engaged.scopes));
-    assert.ok(engaged.scopes.includes('autonomy'));
-    assert.ok(engaged.scopes.includes('routing'));
-
-    const hitAuto = em.isEmergencyStopEngaged('autonomy');
-    const missActuation = em.isEmergencyStopEngaged('actuation');
-    assert.strictEqual(hitAuto.engaged, true);
-    assert.strictEqual(missActuation.engaged, false);
-
-    em.releaseEmergencyStop({
-      approval_note: 'test release emergency stop',
-      actor: 'test',
-      reason: 'unit_test_release'
-    });
-    st = em.getStopState();
-    assert.strictEqual(st.engaged, false);
-
-    console.log('emergency_stop.test.js: OK');
-  } finally {
-    if (hadExisting) {
-      fs.copyFileSync(backupPath, stopPath);
-      fs.rmSync(backupPath, { force: true });
-    } else {
-      fs.rmSync(stopPath, { force: true });
-    }
-  }
-}
-
-try {
-  run();
-} catch (err) {
-  console.error(`emergency_stop.test.js: FAIL: ${err.message}`);
-  process.exit(1);
-}
+// Layer ownership: core/layer1/memory_runtime + core/layer0/ops::legacy-retired-lane (authoritative)
+// Legacy JS test surface retired; authoritative checks are Rust-side.
+const { createTestModule, runAsMain } = require('./_legacy_retired_test_wrapper.js');
+const mod = createTestModule(__dirname, 'emergency_stop.test', 'MEMORY-TEST-EMERGENCY_STOP.TEST');
+if (require.main === module) runAsMain(mod, process.argv.slice(2));
+module.exports = mod;
