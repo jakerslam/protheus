@@ -386,14 +386,14 @@ fn default_policy() -> Policy {
             (
                 "client/runtime/systems/security/".to_string(),
                 vec![
-                    "client/memory/tools/tests/security_integrity.test.js".to_string(),
-                    "client/memory/tools/tests/guard_remote_gate.test.js".to_string(),
-                    "client/memory/tools/tests/directive_gate.test.js".to_string(),
+                    "tests/client-memory-tools/security_integrity.test.js".to_string(),
+                    "tests/client-memory-tools/guard_remote_gate.test.js".to_string(),
+                    "tests/client-memory-tools/directive_gate.test.js".to_string(),
                 ],
             ),
             (
                 "client/runtime/systems/spine/".to_string(),
-                vec!["client/memory/tools/tests/spine_evidence_run_plan.test.js".to_string()],
+                vec!["tests/client-memory-tools/spine_evidence_run_plan.test.js".to_string()],
             ),
         ]),
         critical_commands: vec![
@@ -1418,7 +1418,7 @@ fn command_path_hints(command: &str) -> Vec<String> {
         .map(|tok| tok.trim_matches('"').trim_matches('\''))
         .filter(|tok| {
             (tok.starts_with("client/runtime/systems/")
-                || tok.starts_with("client/memory/tools/tests/"))
+                || tok.starts_with("tests/client-memory-tools/"))
                 && (tok.ends_with(".js") || tok.ends_with(".ts"))
         })
         .map(|s| s.to_string())
@@ -2744,8 +2744,8 @@ mod tests {
         let test = TestCandidate {
             id: "tst_1".to_string(),
             kind: "node_test".to_string(),
-            path: "client/memory/tools/tests/autotest_controller.test.js".to_string(),
-            command: "node client/memory/tools/tests/autotest_controller.test.js".to_string(),
+            path: "tests/client-memory-tools/autotest_controller.test.js".to_string(),
+            command: "node tests/client-memory-tools/autotest_controller.test.js".to_string(),
             stem: "autotest_controller.test".to_string(),
         };
         let score = score_module_test_pair(&module, &test, &policy);

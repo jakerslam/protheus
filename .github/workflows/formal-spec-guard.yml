@@ -28,3 +28,12 @@ jobs:
 
       - name: Formal Spec Guard
         run: npm run -s ops:formal-spec:check
+
+      - name: Client Layer Boundary Audit
+        run: npm run -s ops:client-layer:boundary
+
+      - name: Repo Surface Policy Audit
+        run: npm run -s ops:repo-surface:audit
+
+      - name: Public Platform Contract Audit
+        run: npm run -s ops:public-platform:contract

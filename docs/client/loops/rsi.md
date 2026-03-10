@@ -38,4 +38,4 @@ The RSI self-modification path now runs a mandatory Core-5 Shadow Conclave revie
 ## Verification
 
 - Regression + sovereignty fail-closed coverage:
-  - `client/memory/tools/tests/rsi_shadow_conclave_gate.test.js`
+  - `tests/client-memory-tools/rsi_shadow_conclave_gate.test.js`

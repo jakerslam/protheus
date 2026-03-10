@@ -77,6 +77,9 @@ function main() {
     ? policy.ignore_path_prefixes
     : [];
   const ignoreExactPaths = new Set(Array.isArray(policy.ignore_exact_paths) ? policy.ignore_exact_paths : []);
+  const forbiddenPathPrefixes = Array.isArray(policy.forbidden_path_prefixes)
+    ? policy.forbidden_path_prefixes
+    : [];
   const rootRules = policy.root_rules || {};
 
   const rootSummaries = {};
@@ -98,6 +101,18 @@ function main() {
           root,
           file,
           reason: 'extension_not_allowed_for_root',
+          ext: extOf(file),
+        });
+      }
+    }
+
+    const forbiddenFiles = files.filter((file) => startsWithAny(file, forbiddenPathPrefixes));
+    if (forbiddenFiles.length > 0) {
+      for (const file of forbiddenFiles) {
+        hardViolations.push({
+          root,
+          file,
+          reason: 'file_under_forbidden_path_prefix',
           ext: extOf(file),
         });
       }

@@ -82,6 +82,7 @@ Tests are a separate verification surface, with one exception:
 - No Rust/C/C++ in `/client/`.
 - No TS/JS/Python/Shell in `/core/`.
 - No JS/TS duplicate feature pairs. If both exist, TS is canonical and JS must be removed unless installer/deploy legacy is explicitly documented.
+- No runnable app code under `client/cli/apps/`; runnable apps and demos must live under top-level `/apps`.
 
 ### 3.1 Public Platform Contract
 The extension boundary for apps and adapters is:
@@ -115,5 +116,13 @@ Apps and adapters should build against the contract, not against private impleme
 - Repo surface audit:
   - `npm run -s ops:repo-surface:audit`
   - policy: `client/runtime/config/repo_surface_policy.json`
+- Public platform contract audit:
+  - `npm run -s ops:public-platform:contract`
+  - policy: `client/runtime/config/public_platform_contract_policy.json`
+- Client legacy debt inventory:
+  - `npm run -s ops:client-legacy-debt:report`
+  - emits a path-classified migration ledger for non-TS client debt
+- Default verification path:
+  - `./verify.sh` must run boundary + repo-surface + public-platform contract gates before origin-integrity checks
 
 This rulebook is a live constitution artifact and must be kept aligned with the layered stack contract.

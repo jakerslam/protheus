@@ -16,7 +16,7 @@ Create:
 - `client/runtime/systems/<domain>/my_lane.ts`
 - `client/runtime/systems/<domain>/my_lane.js` (ts bootstrap wrapper)
 - `client/runtime/config/my_lane_policy.json`
-- `client/memory/tools/tests/my_lane.test.js`
+- `tests/client-memory-tools/my_lane.test.js`
 
 Use a deterministic JSON output contract and include `--strict` behavior.
 
@@ -31,7 +31,7 @@ Update docs references:
 Run:
 
 ```bash
-node client/memory/tools/tests/my_lane.test.js
+node tests/client-memory-tools/my_lane.test.js
 node client/runtime/systems/ops/docs_surface_contract.js check --strict=1
 node client/runtime/systems/ops/root_surface_contract.js check --strict=1
 ```

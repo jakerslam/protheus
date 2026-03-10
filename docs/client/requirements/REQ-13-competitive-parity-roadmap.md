@@ -53,7 +53,7 @@ Out of scope:
   - Inventory contract: `client/runtime/config/security_layer_inventory.json`
   - Verifier/generator: `client/runtime/systems/ops/security_layer_inventory_gate.js`
   - Published artifact: `docs/client/security/SECURITY_LAYER_INVENTORY.md`
-  - Regression test: `client/memory/tools/tests/security_layer_inventory_gate.test.js`
+  - Regression test: `tests/client-memory-tools/security_layer_inventory_gate.test.js`
 
 ## Verification Requirements
 

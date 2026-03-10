@@ -10,8 +10,8 @@
     "core/layer2/execution/src/lib.rs",
     "core/layer2/execution/src/main.rs",
     "client/runtime/systems/execution/index.ts",
-    "client/memory/tools/tests/execution_phase2_rust_parity.test.js",
-    "client/memory/tools/tests/execution_security_gate_integration.test.js"
+    "tests/client-memory-tools/execution_phase2_rust_parity.test.js",
+    "tests/client-memory-tools/execution_security_gate_integration.test.js"
   ],
   "checks": {
     "wasm_build_cmd": [
@@ -25,11 +25,11 @@
     ],
     "parity_test_cmd": [
       "node",
-      "client/memory/tools/tests/execution_phase2_rust_parity.test.js"
+      "tests/client-memory-tools/execution_phase2_rust_parity.test.js"
     ],
     "sovereignty_test_cmd": [
       "node",
-      "client/memory/tools/tests/execution_security_gate_integration.test.js"
+      "tests/client-memory-tools/execution_security_gate_integration.test.js"
     ]
   },
   "outputs": {
