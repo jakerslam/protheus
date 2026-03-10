@@ -1,79 +1,22 @@
 #!/usr/bin/env node
+// @ts-nocheck
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
-const { spawnSync } = require('child_process');
+// Layer ownership: core/layer2/ops + core/layer0/ops::legacy-retired-lane (authoritative)
+// TypeScript compatibility shim only.
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
 
-function resolveRepoRoot(startDir) {
-  let dir = path.resolve(startDir);
-  while (true) {
-    const pkg = path.join(dir, 'package.json');
-    const cargo = path.join(dir, 'Cargo.toml');
-    const coreDir = path.join(dir, 'core');
-    const clientDir = path.join(dir, 'client');
-    if (fs.existsSync(pkg) && (fs.existsSync(cargo) || fs.existsSync(coreDir) || fs.existsSync(clientDir))) {
-      return dir;
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) return path.resolve(__dirname, '..', '..');
-    dir = parent;
-  }
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const JS_ENTRY = path.join(__dirname, 'typecheck_systems.js');
+
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  const out = spawnSync(process.execPath, [JS_ENTRY, ...process.argv.slice(2)], { stdio: 'inherit' });
+  process.exit(Number.isFinite(out && out.status) ? Number(out.status) : 1);
 }
 
-function resolveProjectPath(root) {
-  const candidates = [
-    path.join(root, 'tsconfig.runtime.json'),
-    path.join(root, 'client', 'tsconfig.runtime.json'),
-    path.join(root, 'tsconfig.json'),
-    path.join(root, 'client', 'tsconfig.json')
-  ];
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) return candidate;
-  }
-  return candidates[0];
-}
-
-function resolveLocalTsc(root) {
-  const bin = process.platform === 'win32' ? 'tsc.cmd' : 'tsc';
-  const candidates = [
-    path.join(root, 'node_modules', '.bin', bin),
-    path.join(root, 'client', 'node_modules', '.bin', bin)
-  ];
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) return candidate;
-  }
-  return candidates[0];
-}
-
-const ROOT = resolveRepoRoot(__dirname);
-const PROJECT_PATH = resolveProjectPath(ROOT);
-const LOCAL_TSC = resolveLocalTsc(ROOT);
-
-function run(bin, args) {
-  return spawnSync(bin, args, {
-    cwd: ROOT,
-    stdio: 'inherit',
-    shell: false
-  });
-}
-
-function main() {
-  const args = ['-p', PROJECT_PATH];
-  if (fs.existsSync(LOCAL_TSC)) {
-    const r = run(LOCAL_TSC, args);
-    process.exit(typeof r.status === 'number' ? r.status : 1);
-  }
-
-  const r = run('tsc', args);
-  if (r.error && r.error.code === 'ENOENT') {
-    process.stderr.write('typecheck:systems requires TypeScript. Install with `npm install --save-dev typescript`.\n');
-    process.exit(2);
-  }
-  process.exit(typeof r.status === 'number' ? r.status : 1);
-}
-
-if (require.main === module) {
-  main();
-}
-export {};
+export const { run } = require('./typecheck_systems.js');
