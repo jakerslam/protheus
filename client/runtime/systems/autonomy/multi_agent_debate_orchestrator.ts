@@ -8,3 +8,7 @@ const { createLegacyRetiredModule, runAsMain } = require('../../lib/legacy_retir
 const mod = createLegacyRetiredModule(__dirname, 'multi_agent_debate_orchestrator', 'RUNTIME-SYSTEMS-AUTONOMY-MULTI_AGENT_DEBATE_ORCHESTRATOR');
 if (require.main === module) runAsMain(mod, process.argv.slice(2));
 module.exports = mod;
+
+const { createConduitLaneModule } = require("../../lib/direct_conduit_lane_bridge.js");
+const __directConduitLane = createConduitLaneModule("SYSTEMS_AUTONOMY_MULTI_AGENT_DEBATE_ORCHESTRATOR");
+void __directConduitLane;

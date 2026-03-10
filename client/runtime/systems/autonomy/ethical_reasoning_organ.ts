@@ -8,3 +8,7 @@ const { createLegacyRetiredModule, runAsMain } = require('../../lib/legacy_retir
 const mod = createLegacyRetiredModule(__dirname, 'ethical_reasoning_organ', 'RUNTIME-SYSTEMS-AUTONOMY-ETHICAL_REASONING_ORGAN');
 if (require.main === module) runAsMain(mod, process.argv.slice(2));
 module.exports = mod;
+
+const { createConduitLaneModule } = require("../../lib/direct_conduit_lane_bridge.js");
+const __directConduitLane = createConduitLaneModule("SYSTEMS_AUTONOMY_ETHICAL_REASONING_ORGAN");
+void __directConduitLane;
