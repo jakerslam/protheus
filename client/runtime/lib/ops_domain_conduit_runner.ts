@@ -40,62 +40,104 @@ function parseArgs(argv) {
   return out;
 }
 
-async function main() {
-  const args = parseArgs(process.argv.slice(2));
-  const domain = cleanText(args.domain || args._[0] || '', 120);
-  if (!domain) {
-    const out = {
-      ok: false,
-      type: 'ops_domain_conduit_bridge_error',
-      reason: 'missing_domain',
-      routed_via: 'conduit'
-    };
-    process.stdout.write(`${JSON.stringify(out)}\n`);
-    process.exit(2);
+function buildPassArgs(parsedArgs) {
+  if (!parsedArgs || !Array.isArray(parsedArgs._)) return [];
+  const positional = parsedArgs._.slice();
+  // --domain=<name> keeps positional arguments untouched (`run --mode=daily`).
+  if (parsedArgs.domain != null && String(parsedArgs.domain).trim()) {
+    return positional;
   }
+  // Positional domain (`spine run`) should not leak the domain token into payload args.
+  return positional.length ? positional.slice(1) : [];
+}
 
-  // Keep all positional args when domain is provided via --domain=<name>.
-  // The previous slice(1) dropped the first command token (e.g. "run"),
-  // which broke domains that require explicit subcommands.
-  const passArgs = Array.isArray(args._) ? args._.slice() : [];
+function buildRunOptions(parsedArgs) {
   const skipRuntimeGate = toBool(
-    args['skip-runtime-gate'],
+    parsedArgs['skip-runtime-gate'],
     toBool(process.env.PROTHEUS_OPS_DOMAIN_SKIP_RUNTIME_GATE, true)
   );
   const stdioTimeoutMs = Number(
-    args['stdio-timeout-ms']
+    parsedArgs['stdio-timeout-ms']
       || process.env.PROTHEUS_OPS_DOMAIN_STDIO_TIMEOUT_MS
       || process.env.PROTHEUS_CONDUIT_STDIO_TIMEOUT_MS
       || 120000
   );
   const timeoutMs = Number(
-    args['timeout-ms']
+    parsedArgs['timeout-ms']
       || process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS
       || process.env.PROTHEUS_CONDUIT_BRIDGE_TIMEOUT_MS
       || Math.max(stdioTimeoutMs + 1000, 125000)
   );
-  const result = await runOpsDomainCommand(domain, passArgs, {
-    runContext: args['run-context'] == null ? null : String(args['run-context']),
+  return {
+    runContext: parsedArgs['run-context'] == null ? null : String(parsedArgs['run-context']),
     skipRuntimeGate,
     stdioTimeoutMs: Number.isFinite(stdioTimeoutMs) ? stdioTimeoutMs : 120000,
     timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : 125000
-  });
-
-  if (result && result.payload) {
-    process.stdout.write(`${JSON.stringify(result.payload)}\n`);
-  } else {
-    process.stdout.write(`${JSON.stringify(result || { ok: false, type: 'ops_domain_conduit_bridge_error', reason: 'missing_result' })}\n`);
-  }
-  process.exit(Number.isFinite(result && result.status) ? Number(result.status) : 1);
+  };
 }
 
-main().catch((err) => {
-  const out = {
-    ok: false,
-    type: 'ops_domain_conduit_bridge_error',
-    reason: cleanText(err && err.message ? err.message : err, 220),
-    routed_via: 'conduit'
+async function run(argv = process.argv.slice(2)) {
+  const args = parseArgs(argv);
+  const domain = cleanText(args.domain || args._[0] || '', 120);
+  if (!domain) {
+    return {
+      status: 2,
+      payload: {
+        ok: false,
+        type: 'ops_domain_conduit_bridge_error',
+        reason: 'missing_domain',
+        routed_via: 'conduit'
+      }
+    };
+  }
+
+  const result = await runOpsDomainCommand(domain, buildPassArgs(args), buildRunOptions(args));
+  return {
+    status: Number.isFinite(result && result.status) ? Number(result.status) : 1,
+    payload: result && result.payload
+      ? result.payload
+      : (result || {
+        ok: false,
+        type: 'ops_domain_conduit_bridge_error',
+        reason: 'missing_result'
+      }),
+    result
   };
-  process.stdout.write(`${JSON.stringify(out)}\n`);
-  process.exit(1);
-});
+}
+
+async function main() {
+  const out = await run(process.argv.slice(2));
+  const payload = out && out.payload
+    ? out.payload
+    : {
+      ok: false,
+      type: 'ops_domain_conduit_bridge_error',
+      reason: 'missing_result',
+      routed_via: 'conduit'
+    };
+  process.stdout.write(`${JSON.stringify(payload)}\n`);
+  process.exit(Number.isFinite(out && out.status) ? Number(out.status) : 1);
+}
+
+if (require.main === module) {
+  main().catch((err) => {
+    const out = {
+      ok: false,
+      type: 'ops_domain_conduit_bridge_error',
+      reason: cleanText(err && err.message ? err.message : err, 220),
+      routed_via: 'conduit'
+    };
+    process.stdout.write(`${JSON.stringify(out)}\n`);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  cleanText,
+  toBool,
+  parseArgs,
+  buildPassArgs,
+  buildRunOptions,
+  run,
+  main
+};
