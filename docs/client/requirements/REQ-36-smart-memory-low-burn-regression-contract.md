@@ -1,8 +1,8 @@
 # REQ-36 — Smart Memory Low-Burn Regression Contract
 
-Status: proposed  
+Status: partially_implemented (`REQ-36-001`..`REQ-36-010` complete, `REQ-36-011` pending)  
 Owner: Runtime + Memory  
-Updated: 2026-03-09
+Updated: 2026-03-10
 
 ## Objective
 
