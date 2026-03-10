@@ -18,17 +18,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             replacement: "protheus-ops protheus-control-plane",
             usage: USAGE,
             passthrough_flags: &[
-                "apply",
-                "strict",
-                "policy",
-                "id",
-                "limit",
-                "statuses",
-                "max",
-                "action",
-                "to",
+                "apply", "strict", "policy", "id", "limit", "statuses", "max", "action", "to",
             ],
         },
     )
 }
-

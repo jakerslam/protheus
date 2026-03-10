@@ -13,67 +13,69 @@ use std::process::Command;
 use std::time::Instant;
 use walkdir::WalkDir;
 
-pub mod autotest_controller;
-pub mod autotest_doctor;
 pub mod ab_lane_eval;
 pub mod adaptive_runtime;
 pub mod assimilation_controller;
+pub mod attention_queue;
+pub mod audit_log_export;
 pub mod autonomy_controller;
-pub mod backlog_queue_executor;
+pub mod autotest_controller;
+pub mod autotest_doctor;
 pub mod backlog_github_sync;
+pub mod backlog_queue_executor;
 pub mod backlog_registry;
 pub mod backlog_runtime_anchor;
 pub mod benchmark_matrix;
-pub mod f100_reliability_certification;
-pub mod sdlc_change_control;
-pub mod supply_chain_provenance_v2;
-pub mod f100_readiness_program;
-pub mod identity_federation;
-pub mod audit_log_export;
-pub mod attention_queue;
-pub mod importance;
-pub mod memory_ambient;
+pub mod contract_check;
+pub mod daemon_control;
+pub mod dopamine_ambient;
+pub mod duality_seed;
 pub mod dynamic_burn_budget_oracle;
 pub mod enterprise_hardening;
 pub mod execution_yield_recovery;
-pub mod organ_atrophy_controller;
-pub mod legacy_retired_lane;
-pub mod llm_economy_organ;
-pub mod contract_check;
+pub mod f100_readiness_program;
+pub mod f100_reliability_certification;
 pub mod fluxlattice_program;
 pub mod foundation_contract_gate;
 pub mod hardware_route_hardening;
-pub mod inversion_controller;
 pub mod health_status;
+pub mod identity_federation;
+pub mod importance;
+pub mod inversion_controller;
+pub mod legacy_retired_lane;
+pub mod llm_economy_organ;
+pub mod memory_ambient;
 pub mod model_router;
+pub mod narrow_agent_parity_harness;
 pub mod offline_runtime_guard;
+pub mod offsite_backup;
+pub mod ops_lane_runtime;
+pub mod organ_atrophy_controller;
 pub mod origin_integrity;
 pub mod perception_polish;
 pub mod persona_ambient;
-pub mod dopamine_ambient;
-pub mod daemon_control;
 pub mod persona_schema_contract;
 pub mod personas_cli;
 pub mod proposal_enricher;
-pub mod protheusctl;
 pub mod protheus_control_plane;
-pub mod workflow_controller;
+pub mod protheusctl;
 pub mod rollout_rings;
 pub mod rust50_migration_program;
 pub mod rust_enterprise_productivity_program;
 pub mod scale_readiness;
+pub mod sdlc_change_control;
 pub mod security_plane;
+pub mod sensory_eyes_intake;
+pub mod settlement_program;
+pub mod shadow_budget_governance;
+pub mod spawn_broker;
 pub mod spine;
 pub mod state_kernel;
-pub mod shadow_budget_governance;
-pub mod sensory_eyes_intake;
-pub mod spawn_broker;
 pub mod strategy_mode_governor;
-pub mod ops_lane_runtime;
-pub mod narrow_agent_parity_harness;
-pub mod offsite_backup;
-pub mod settlement_program;
+pub mod strategy_resolver;
+pub mod supply_chain_provenance_v2;
 pub mod venom_containment_layer;
+pub mod workflow_controller;
 pub mod workflow_executor;
 
 #[derive(Debug, Clone)]
@@ -576,7 +578,11 @@ pub fn load_policy(root: &Path, policy_path: &Path) -> Policy {
 fn cmd_with_runtime_mode(cmd: &[String], runtime_mode: &str) -> DistRewrite {
     if cmd.is_empty() {
         return DistRewrite {
-            command: vec!["node".to_string(), "-e".to_string(), "console.log(\"noop\")".to_string()],
+            command: vec![
+                "node".to_string(),
+                "-e".to_string(),
+                "console.log(\"noop\")".to_string(),
+            ],
             build_attempted: false,
             build_ok: None,
             dist_target: None,
@@ -601,7 +607,10 @@ fn cmd_with_runtime_mode(cmd: &[String], runtime_mode: &str) -> DistRewrite {
     if rewritten.len() >= 2 {
         let first = rewritten[0].to_ascii_lowercase();
         let second = rewritten[1].replace('\\', "/");
-        if first == "node" && second.starts_with("client/runtime/systems/") && second.ends_with(".js") {
+        if first == "node"
+            && second.starts_with("client/runtime/systems/")
+            && second.ends_with(".js")
+        {
             let dist_candidate = format!("dist/{second}");
             rewritten[1] = dist_candidate.clone();
             dist_target = Some(dist_candidate);
@@ -751,9 +760,7 @@ fn system_idle_rss_mb() -> f64 {
     }
 
     let pid = std::process::id().to_string();
-    let out = Command::new("ps")
-        .args(["-o", "rss=", "-p", &pid])
-        .output();
+    let out = Command::new("ps").args(["-o", "rss=", "-p", &pid]).output();
     if let Ok(output) = out {
         if output.status.success() {
             let text = String::from_utf8_lossy(&output.stdout);
@@ -786,7 +793,11 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
         &policy.cold_start_probe.command,
         &policy.cold_start_probe.runtime_mode,
     );
-    maybe_build_dist(root, &mut rewrite, policy.cold_start_probe.require_full_dist);
+    maybe_build_dist(
+        root,
+        &mut rewrite,
+        policy.cold_start_probe.require_full_dist,
+    );
 
     if let Some(false) = rewrite.build_ok {
         let payload = json!({
@@ -994,7 +1005,9 @@ mod tests {
     #[test]
     fn sovereignty_fail_closed_hold_streak_gate() {
         let root = tempfile::tempdir().unwrap();
-        let policy_path = root.path().join("client/runtime/config/runtime_efficiency_floor.json");
+        let policy_path = root
+            .path()
+            .join("client/runtime/config/runtime_efficiency_floor.json");
         fs::create_dir_all(policy_path.parent().unwrap()).unwrap();
         fs::write(
             &policy_path,
@@ -1021,11 +1034,16 @@ mod tests {
 
         let parsed = ParsedArgs {
             positional: vec!["run".to_string()],
-            flags: HashMap::from([("policy".to_string(), policy_path.to_string_lossy().to_string())]),
+            flags: HashMap::from([(
+                "policy".to_string(),
+                policy_path.to_string_lossy().to_string(),
+            )]),
         };
 
         let out1 = run_runtime_efficiency_floor(root.path(), &parsed).unwrap();
-        assert_eq!(out1.exit_code, 1, "strict hold streak should fail closed before target");
+        assert_eq!(
+            out1.exit_code, 1,
+            "strict hold streak should fail closed before target"
+        );
     }
 }
-

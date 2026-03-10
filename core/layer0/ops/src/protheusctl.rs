@@ -421,7 +421,8 @@ fn route_edge(rest: &[String]) -> Route {
                 .map(|v| v.trim().to_ascii_lowercase())
                 .unwrap_or_else(|| "status".to_string());
             Route {
-                script_rel: "client/runtime/systems/edge/mobile_lifecycle_resilience.js".to_string(),
+                script_rel: "client/runtime/systems/edge/mobile_lifecycle_resilience.js"
+                    .to_string(),
                 args: std::iter::once(action)
                     .chain(rest.iter().skip(2).cloned())
                     .collect(),
@@ -447,7 +448,8 @@ fn route_edge(rest: &[String]) -> Route {
                 .map(|v| v.trim().to_ascii_lowercase())
                 .unwrap_or_else(|| "status".to_string());
             Route {
-                script_rel: "client/runtime/systems/ops/mobile_wrapper_distribution_pack.js".to_string(),
+                script_rel: "client/runtime/systems/ops/mobile_wrapper_distribution_pack.js"
+                    .to_string(),
                 args: std::iter::once(action)
                     .chain(rest.iter().skip(2).cloned())
                     .collect(),
@@ -460,7 +462,8 @@ fn route_edge(rest: &[String]) -> Route {
                 .map(|v| v.trim().to_ascii_lowercase())
                 .unwrap_or_else(|| "status".to_string());
             Route {
-                script_rel: "client/runtime/systems/ops/mobile_competitive_benchmark_matrix.js".to_string(),
+                script_rel: "client/runtime/systems/ops/mobile_competitive_benchmark_matrix.js"
+                    .to_string(),
                 args: std::iter::once(action)
                     .chain(rest.iter().skip(2).cloned())
                     .collect(),
@@ -530,7 +533,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             if !repl_disabled && (force_repl || std::io::stdin().is_terminal()) {
                 if should_offer_setup(root, skip_setup_flag) {
                     let setup_route = Route {
-                        script_rel: "client/runtime/systems/ops/protheus_setup_wizard.js".to_string(),
+                        script_rel: "client/runtime/systems/ops/protheus_setup_wizard.js"
+                            .to_string(),
                         args: vec!["run".to_string()],
                         forward_stdin: true,
                     };
@@ -688,7 +692,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .any(|arg| arg == "--dashboard" || arg == "dashboard");
             if use_dashboard {
                 Route {
-                    script_rel: "client/runtime/systems/ops/protheus_status_dashboard.js".to_string(),
+                    script_rel: "client/runtime/systems/ops/protheus_status_dashboard.js"
+                        .to_string(),
                     args: rest,
                     forward_stdin: false,
                 }
@@ -736,7 +741,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .map(|v| v.trim().to_ascii_lowercase())
                 .unwrap_or_else(|| "status".to_string());
             Route {
-                script_rel: "client/runtime/systems/ops/host_adaptation_operator_surface.js".to_string(),
+                script_rel: "client/runtime/systems/ops/host_adaptation_operator_surface.js"
+                    .to_string(),
                 args: std::iter::once(sub)
                     .chain(rest.into_iter().skip(1))
                     .collect(),
@@ -832,7 +838,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .unwrap_or_else(|| "status".to_string());
             let normalized = if sub == "run" { "run" } else { "status" };
             Route {
-                script_rel: "client/runtime/systems/ops/wasi2_execution_completeness_gate.js".to_string(),
+                script_rel: "client/runtime/systems/ops/wasi2_execution_completeness_gate.js"
+                    .to_string(),
                 args: std::iter::once(normalized.to_string())
                     .chain(rest.into_iter().skip(1))
                     .collect(),
@@ -1059,7 +1066,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "status".to_string()
             };
             Route {
-                script_rel: "client/runtime/systems/autonomy/hold_remediation_engine.js".to_string(),
+                script_rel: "client/runtime/systems/autonomy/hold_remediation_engine.js"
+                    .to_string(),
                 args: std::iter::once(normalized)
                     .chain(rest.into_iter().skip(1))
                     .collect(),
@@ -1077,8 +1085,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "status".to_string()
             };
             Route {
-                script_rel: "client/runtime/systems/ops/rust_authoritative_microkernel_acceleration.js"
-                    .to_string(),
+                script_rel:
+                    "client/runtime/systems/ops/rust_authoritative_microkernel_acceleration.js"
+                        .to_string(),
                 args: std::iter::once(normalized)
                     .chain(rest.into_iter().skip(1))
                     .collect(),
@@ -1096,7 +1105,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "status".to_string()
             };
             Route {
-                script_rel: "client/runtime/systems/ops/rust_hybrid_migration_program.js".to_string(),
+                script_rel: "client/runtime/systems/ops/rust_hybrid_migration_program.js"
+                    .to_string(),
                 args: std::iter::once(normalized)
                     .chain(rest.into_iter().skip(1))
                     .collect(),
@@ -1240,8 +1250,11 @@ mod tests {
         std::env::set_var("PROTHEUS_CTL_SECURITY_GATE_DISABLED", "0");
         std::env::set_var("PROTHEUS_CTL_SECURITY_COVENANT_VIOLATION", "1");
         let root = PathBuf::from(".");
-        let verdict =
-            evaluate_dispatch_security(&root, "client/runtime/systems/ops/protheus_control_plane.js", &[]);
+        let verdict = evaluate_dispatch_security(
+            &root,
+            "client/runtime/systems/ops/protheus_control_plane.js",
+            &[],
+        );
         assert!(!verdict.ok);
         assert!(verdict.reason.contains("fail_closed"));
         std::env::remove_var("PROTHEUS_CTL_SECURITY_COVENANT_VIOLATION");
@@ -1257,8 +1270,11 @@ mod tests {
             "client/runtime/systems/ops/protheus_control_plane.js",
         );
         let root = PathBuf::from(".");
-        let verdict =
-            evaluate_dispatch_security(&root, "client/runtime/systems/ops/protheus_control_plane.js", &[]);
+        let verdict = evaluate_dispatch_security(
+            &root,
+            "client/runtime/systems/ops/protheus_control_plane.js",
+            &[],
+        );
         assert!(!verdict.ok);
         assert!(verdict
             .reason

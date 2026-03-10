@@ -129,7 +129,8 @@ fn persist_lane(policy: &Policy, lane: &str, payload: &Value) -> Result<(), Stri
         &latest,
         &format!(
             "{}\n",
-            serde_json::to_string_pretty(payload).map_err(|e| format!("encode_latest_failed:{e}"))?
+            serde_json::to_string_pretty(payload)
+                .map_err(|e| format!("encode_latest_failed:{e}"))?
         ),
     )?;
     append_jsonl(&history, payload)
@@ -146,7 +147,9 @@ fn file_contains_all(path: &Path, tokens: &[String]) -> (bool, Vec<String>) {
 }
 
 fn lane_004_compliance_bundle(root: &Path, policy: &Policy) -> Value {
-    let lane_policy = get_lane_policy(policy, "V6-F100-004").cloned().unwrap_or_else(|| json!({}));
+    let lane_policy = get_lane_policy(policy, "V6-F100-004")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let control_map_path = resolve_path(
         root,
         lane_policy.get("control_map_path").and_then(Value::as_str),
@@ -221,7 +224,10 @@ fn lane_004_compliance_bundle(root: &Path, policy: &Policy) -> Value {
         "ts": now_iso(),
         "controls": rows
     });
-    let _ = write_text_atomic(&bundle_path, &(serde_json::to_string_pretty(&bundle).unwrap_or_else(|_| "{}".to_string()) + "\n"));
+    let _ = write_text_atomic(
+        &bundle_path,
+        &(serde_json::to_string_pretty(&bundle).unwrap_or_else(|_| "{}".to_string()) + "\n"),
+    );
 
     json!({
         "ok": ok,
@@ -244,7 +250,9 @@ fn lane_004_compliance_bundle(root: &Path, policy: &Policy) -> Value {
 }
 
 fn lane_005_million_user(root: &Path, policy: &Policy) -> Value {
-    let lane_policy = get_lane_policy(policy, "V6-F100-005").cloned().unwrap_or_else(|| json!({}));
+    let lane_policy = get_lane_policy(policy, "V6-F100-005")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let profile_path = resolve_path(
         root,
         lane_policy.get("profile_path").and_then(Value::as_str),
@@ -252,11 +260,23 @@ fn lane_005_million_user(root: &Path, policy: &Policy) -> Value {
     );
     let profile = read_json(&profile_path).unwrap_or_else(|| json!({}));
     let budgets = profile.get("budgets").cloned().unwrap_or_else(|| json!({}));
-    let observed = profile.get("observed").cloned().unwrap_or_else(|| json!({}));
+    let observed = profile
+        .get("observed")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
 
-    let p95 = observed.get("p95_ms").and_then(Value::as_f64).unwrap_or(9e9);
-    let p99 = observed.get("p99_ms").and_then(Value::as_f64).unwrap_or(9e9);
-    let error_rate = observed.get("error_rate").and_then(Value::as_f64).unwrap_or(1.0);
+    let p95 = observed
+        .get("p95_ms")
+        .and_then(Value::as_f64)
+        .unwrap_or(9e9);
+    let p99 = observed
+        .get("p99_ms")
+        .and_then(Value::as_f64)
+        .unwrap_or(9e9);
+    let error_rate = observed
+        .get("error_rate")
+        .and_then(Value::as_f64)
+        .unwrap_or(1.0);
     let saturation = observed
         .get("saturation_pct")
         .and_then(Value::as_f64)
@@ -297,7 +317,9 @@ fn lane_005_million_user(root: &Path, policy: &Policy) -> Value {
 }
 
 fn lane_006_multi_tenant(root: &Path, policy: &Policy) -> Value {
-    let lane_policy = get_lane_policy(policy, "V6-F100-006").cloned().unwrap_or_else(|| json!({}));
+    let lane_policy = get_lane_policy(policy, "V6-F100-006")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let contract_path = resolve_path(
         root,
         lane_policy.get("contract_path").and_then(Value::as_str),
@@ -341,13 +363,19 @@ fn lane_006_multi_tenant(root: &Path, policy: &Policy) -> Value {
 }
 
 fn lane_007_interface_lifecycle(root: &Path, policy: &Policy) -> Value {
-    let lane_policy = get_lane_policy(policy, "V6-F100-007").cloned().unwrap_or_else(|| json!({}));
+    let lane_policy = get_lane_policy(policy, "V6-F100-007")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let registry_path = resolve_path(
         root,
         lane_policy.get("registry_path").and_then(Value::as_str),
         "client/runtime/config/api_cli_contract_registry.json",
     );
-    let changelog_path = resolve_path(root, Some("docs/workspace/CHANGELOG.md"), "docs/workspace/CHANGELOG.md");
+    let changelog_path = resolve_path(
+        root,
+        Some("docs/workspace/CHANGELOG.md"),
+        "docs/workspace/CHANGELOG.md",
+    );
     let required_dep_window = lane_policy
         .get("required_deprecation_days")
         .and_then(Value::as_u64)
@@ -407,10 +435,14 @@ fn lane_007_interface_lifecycle(root: &Path, policy: &Policy) -> Value {
 }
 
 fn lane_008_oncall(root: &Path, policy: &Policy) -> Value {
-    let lane_policy = get_lane_policy(policy, "V6-F100-008").cloned().unwrap_or_else(|| json!({}));
+    let lane_policy = get_lane_policy(policy, "V6-F100-008")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let policy_path = resolve_path(
         root,
-        lane_policy.get("incident_policy_path").and_then(Value::as_str),
+        lane_policy
+            .get("incident_policy_path")
+            .and_then(Value::as_str),
         "client/runtime/config/oncall_incident_policy.json",
     );
     let gameday_path = resolve_path(
@@ -461,7 +493,9 @@ fn lane_008_oncall(root: &Path, policy: &Policy) -> Value {
 }
 
 fn lane_009_onboarding(root: &Path, policy: &Policy) -> Value {
-    let lane_policy = get_lane_policy(policy, "V6-F100-009").cloned().unwrap_or_else(|| json!({}));
+    let lane_policy = get_lane_policy(policy, "V6-F100-009")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let bootstrap_script = resolve_path(
         root,
         lane_policy.get("bootstrap_script").and_then(Value::as_str),
@@ -509,7 +543,9 @@ fn lane_009_onboarding(root: &Path, policy: &Policy) -> Value {
 }
 
 fn lane_010_architecture_pack(root: &Path, policy: &Policy) -> Value {
-    let lane_policy = get_lane_policy(policy, "V6-F100-010").cloned().unwrap_or_else(|| json!({}));
+    let lane_policy = get_lane_policy(policy, "V6-F100-010")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let pack_path = resolve_path(
         root,
         lane_policy.get("pack_path").and_then(Value::as_str),
@@ -557,7 +593,9 @@ fn lane_010_architecture_pack(root: &Path, policy: &Policy) -> Value {
 }
 
 fn lane_011_surface_consistency(root: &Path, policy: &Policy) -> Value {
-    let lane_policy = get_lane_policy(policy, "V6-F100-011").cloned().unwrap_or_else(|| json!({}));
+    let lane_policy = get_lane_policy(policy, "V6-F100-011")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let snapshot_path = resolve_path(
         root,
         lane_policy.get("snapshot_path").and_then(Value::as_str),
@@ -565,7 +603,9 @@ fn lane_011_surface_consistency(root: &Path, policy: &Policy) -> Value {
     );
     let surface_policy_path = resolve_path(
         root,
-        lane_policy.get("surface_policy_path").and_then(Value::as_str),
+        lane_policy
+            .get("surface_policy_path")
+            .and_then(Value::as_str),
         "client/runtime/config/operator_surface_consistency_policy.json",
     );
 
@@ -600,7 +640,9 @@ fn lane_011_surface_consistency(root: &Path, policy: &Policy) -> Value {
 }
 
 fn lane_012_scorecard(root: &Path, policy: &Policy) -> Value {
-    let lane_policy = get_lane_policy(policy, "V6-F100-012").cloned().unwrap_or_else(|| json!({}));
+    let lane_policy = get_lane_policy(policy, "V6-F100-012")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let scorecard_path = resolve_path(
         root,
         lane_policy.get("scorecard_path").and_then(Value::as_str),
@@ -621,19 +663,21 @@ fn lane_012_scorecard(root: &Path, policy: &Policy) -> Value {
                 .map(|v| v.to_string())
                 .collect::<Vec<_>>()
         })
-        .unwrap_or_else(|| vec![
-            "V6-F100-001".to_string(),
-            "V6-F100-002".to_string(),
-            "V6-F100-003".to_string(),
-            "V6-F100-004".to_string(),
-            "V6-F100-005".to_string(),
-            "V6-F100-006".to_string(),
-            "V6-F100-007".to_string(),
-            "V6-F100-008".to_string(),
-            "V6-F100-009".to_string(),
-            "V6-F100-010".to_string(),
-            "V6-F100-011".to_string(),
-        ]);
+        .unwrap_or_else(|| {
+            vec![
+                "V6-F100-001".to_string(),
+                "V6-F100-002".to_string(),
+                "V6-F100-003".to_string(),
+                "V6-F100-004".to_string(),
+                "V6-F100-005".to_string(),
+                "V6-F100-006".to_string(),
+                "V6-F100-007".to_string(),
+                "V6-F100-008".to_string(),
+                "V6-F100-009".to_string(),
+                "V6-F100-010".to_string(),
+                "V6-F100-011".to_string(),
+            ]
+        });
 
     let mut lane_ok_count = 0usize;
     let mut lane_total = 0usize;
@@ -684,7 +728,10 @@ fn lane_012_scorecard(root: &Path, policy: &Policy) -> Value {
     let recent_two = recent.iter().rev().take(2).cloned().collect::<Vec<_>>();
     let sustained = recent_two.len() == 2
         && recent_two.iter().all(|row| {
-            row.get("sophistication").and_then(Value::as_f64).unwrap_or(0.0) >= 90.0
+            row.get("sophistication")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0)
+                >= 90.0
                 && row.get("appearance").and_then(Value::as_f64).unwrap_or(0.0) >= 90.0
         });
 
@@ -712,7 +759,9 @@ fn lane_012_scorecard(root: &Path, policy: &Policy) -> Value {
 }
 
 fn lane_035_spdx(root: &Path, policy: &Policy, apply: bool) -> Value {
-    let lane_policy = get_lane_policy(policy, "V6-F100-035").cloned().unwrap_or_else(|| json!({}));
+    let lane_policy = get_lane_policy(policy, "V6-F100-035")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let roots = lane_policy
         .get("roots")
         .and_then(Value::as_array)
@@ -748,7 +797,9 @@ fn lane_035_spdx(root: &Path, policy: &Policy, apply: bool) -> Value {
 
     let baseline_path = resolve_path(
         root,
-        lane_policy.get("baseline_missing_path").and_then(Value::as_str),
+        lane_policy
+            .get("baseline_missing_path")
+            .and_then(Value::as_str),
         "client/runtime/config/spdx_header_guard_baseline.txt",
     );
 
@@ -891,7 +942,9 @@ fn lane_035_spdx(root: &Path, policy: &Policy, apply: bool) -> Value {
 }
 
 fn lane_036_root_rationalization(root: &Path, policy: &Policy, apply: bool) -> Value {
-    let lane_policy = get_lane_policy(policy, "V6-F100-036").cloned().unwrap_or_else(|| json!({}));
+    let lane_policy = get_lane_policy(policy, "V6-F100-036")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let archive_root = resolve_path(
         root,
         lane_policy.get("archive_root").and_then(Value::as_str),
@@ -906,7 +959,13 @@ fn lane_036_root_rationalization(root: &Path, policy: &Policy, apply: bool) -> V
                 .map(|v| v.to_string())
                 .collect::<Vec<_>>()
         })
-        .unwrap_or_else(|| vec!["drafts".to_string(), "notes".to_string(), "experiments".to_string()]);
+        .unwrap_or_else(|| {
+            vec![
+                "drafts".to_string(),
+                "notes".to_string(),
+                "experiments".to_string(),
+            ]
+        });
 
     let mut moved = Vec::new();
     if apply {
@@ -931,9 +990,18 @@ fn lane_036_root_rationalization(root: &Path, policy: &Policy, apply: bool) -> V
 
     let root_absent = dirs.iter().all(|d| !root.join(d).exists());
     let archive_present = dirs.iter().all(|d| archive_root.join(d).exists())
-        || dirs
-            .iter()
-            .all(|d| fs::read_dir(&archive_root).ok().map(|mut it| it.any(|e| e.ok().map(|x| x.file_name().to_string_lossy().starts_with(d)).unwrap_or(false))).unwrap_or(false));
+        || dirs.iter().all(|d| {
+            fs::read_dir(&archive_root)
+                .ok()
+                .map(|mut it| {
+                    it.any(|e| {
+                        e.ok()
+                            .map(|x| x.file_name().to_string_lossy().starts_with(d))
+                            .unwrap_or(false)
+                    })
+                })
+                .unwrap_or(false)
+        });
 
     json!({
         "ok": root_absent && archive_present,
@@ -1014,7 +1082,8 @@ fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
 
 fn status(policy: &Policy, lane: &str) -> Value {
     let (lane_latest, lane_history) = lane_state_paths(policy, lane);
-    let latest = read_json(&lane_latest).unwrap_or_else(|| json!({ "ok": false, "error": "latest_missing" }));
+    let latest = read_json(&lane_latest)
+        .unwrap_or_else(|| json!({ "ok": false, "error": "latest_missing" }));
     let mut out = json!({
         "ok": latest.get("ok").and_then(Value::as_bool).unwrap_or(false),
         "type": "f100_readiness_program_status",
@@ -1063,26 +1132,40 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     match cmd.as_str() {
         "status" => {
-            let lane = parsed.flags.get("lane").map(String::as_str).unwrap_or("V6-F100-012");
+            let lane = parsed
+                .flags
+                .get("lane")
+                .map(String::as_str)
+                .unwrap_or("V6-F100-012");
             let out = status(&policy, lane);
-            println!("{}", serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string()));
+            println!(
+                "{}",
+                serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string())
+            );
             0
         }
         "run" => {
             let Some(lane) = parsed.flags.get("lane").map(|v| v.trim().to_string()) else {
                 let out = cli_error(argv, "missing_lane", 2);
-                println!("{}", serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string()));
+                println!(
+                    "{}",
+                    serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string())
+                );
                 return 2;
             };
             let mut lane_payload = run_lane(root, &policy, &lane, apply);
             lane_payload["ts"] = Value::String(now_iso());
             lane_payload["strict"] = Value::Bool(strict);
-            lane_payload["policy_path"] = Value::String(policy.policy_path.to_string_lossy().to_string());
+            lane_payload["policy_path"] =
+                Value::String(policy.policy_path.to_string_lossy().to_string());
             lane_payload["receipt_hash"] = Value::String(deterministic_receipt_hash(&lane_payload));
 
             if let Err(err) = persist_lane(&policy, &lane, &lane_payload) {
                 let out = cli_error(argv, &format!("persist_lane_failed:{err}"), 1);
-                println!("{}", serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string()));
+                println!(
+                    "{}",
+                    serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string())
+                );
                 return 1;
             }
 
@@ -1099,10 +1182,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
             let _ = write_text_atomic(
                 &policy.latest_path,
-                &(serde_json::to_string_pretty(&receipt).unwrap_or_else(|_| "{}".to_string()) + "\n"),
+                &(serde_json::to_string_pretty(&receipt).unwrap_or_else(|_| "{}".to_string())
+                    + "\n"),
             );
             let _ = append_jsonl(&policy.history_path, &receipt);
-            println!("{}", serde_json::to_string(&receipt).unwrap_or_else(|_| "{}".to_string()));
+            println!(
+                "{}",
+                serde_json::to_string(&receipt).unwrap_or_else(|_| "{}".to_string())
+            );
             if strict && !receipt.get("ok").and_then(Value::as_bool).unwrap_or(false) {
                 1
             } else {
@@ -1116,10 +1203,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 let mut lane_payload = run_lane(root, &policy, lane, apply);
                 lane_payload["ts"] = Value::String(now_iso());
                 lane_payload["strict"] = Value::Bool(strict);
-                lane_payload["policy_path"] = Value::String(policy.policy_path.to_string_lossy().to_string());
-                lane_payload["receipt_hash"] = Value::String(deterministic_receipt_hash(&lane_payload));
+                lane_payload["policy_path"] =
+                    Value::String(policy.policy_path.to_string_lossy().to_string());
+                lane_payload["receipt_hash"] =
+                    Value::String(deterministic_receipt_hash(&lane_payload));
                 let _ = persist_lane(&policy, lane, &lane_payload);
-                all_ok &= lane_payload.get("ok").and_then(Value::as_bool).unwrap_or(false);
+                all_ok &= lane_payload
+                    .get("ok")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
                 lane_results.push(lane_payload);
             }
 
@@ -1135,10 +1227,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
             let _ = write_text_atomic(
                 &policy.latest_path,
-                &(serde_json::to_string_pretty(&receipt).unwrap_or_else(|_| "{}".to_string()) + "\n"),
+                &(serde_json::to_string_pretty(&receipt).unwrap_or_else(|_| "{}".to_string())
+                    + "\n"),
             );
             let _ = append_jsonl(&policy.history_path, &receipt);
-            println!("{}", serde_json::to_string(&receipt).unwrap_or_else(|_| "{}".to_string()));
+            println!(
+                "{}",
+                serde_json::to_string(&receipt).unwrap_or_else(|_| "{}".to_string())
+            );
             if strict && !all_ok {
                 1
             } else {
@@ -1148,7 +1244,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         _ => {
             usage();
             let out = cli_error(argv, "unknown_command", 2);
-            println!("{}", serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string()));
+            println!(
+                "{}",
+                serde_json::to_string(&out).unwrap_or_else(|_| "{}".to_string())
+            );
             2
         }
     }
@@ -1181,7 +1280,8 @@ mod tests {
                         "profile_path": "client/runtime/config/one_million_performance_profile.json"
                     }
                 }
-            }).to_string(),
+            })
+            .to_string(),
         );
     }
 
@@ -1190,7 +1290,8 @@ mod tests {
         let tmp = tempdir().expect("tmp");
         setup_policy(tmp.path());
         write_text(
-            &tmp.path().join("client/runtime/config/one_million_performance_profile.json"),
+            &tmp.path()
+                .join("client/runtime/config/one_million_performance_profile.json"),
             &json!({
                 "budgets": {
                     "p95_ms": 250,
@@ -1206,7 +1307,8 @@ mod tests {
                     "saturation_pct": 72,
                     "cost_per_request_usd": 0.02
                 }
-            }).to_string(),
+            })
+            .to_string(),
         );
         let code = run(
             tmp.path(),
@@ -1225,11 +1327,19 @@ mod tests {
         setup_policy(tmp.path());
         let _ = run(
             tmp.path(),
-            &["run".to_string(), "--lane=V6-F100-012".to_string(), "--strict=0".to_string()],
+            &[
+                "run".to_string(),
+                "--lane=V6-F100-012".to_string(),
+                "--strict=0".to_string(),
+            ],
         );
         let code = run(
             tmp.path(),
-            &["run".to_string(), "--lane=V6-F100-012".to_string(), "--strict=1".to_string()],
+            &[
+                "run".to_string(),
+                "--lane=V6-F100-012".to_string(),
+                "--strict=1".to_string(),
+            ],
         );
         assert_eq!(code, 0);
     }

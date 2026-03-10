@@ -15,11 +15,11 @@ const CHECK_IDS_FLAG_PREFIX: &str = "--rust-contract-check-ids=";
 const GUARD_REGISTRY_REL: &str = "client/runtime/config/guard_check_registry.json";
 const CONTRACT_CHECK_SOURCE_REL: &str = "core/layer0/ops/src/contract_check.rs";
 const RUNTIME_MODE_STATE_REL: &str = "state/ops/runtime_mode.json";
-const RUST_SOURCE_OF_TRUTH_POLICY_REL: &str = "client/runtime/config/rust_source_of_truth_policy.json";
+const RUST_SOURCE_OF_TRUTH_POLICY_REL: &str =
+    "client/runtime/config/rust_source_of_truth_policy.json";
 const PROBE_EYES_INTAKE_HELP_TOKENS: &[&str] =
     &["eyes_intake.js", "create", "validate", "list-directives"];
-const PROBE_CONFLICT_MARKER_HELP_TOKENS: &[&str] =
-    &["conflict_marker_guard.js", "run", "status"];
+const PROBE_CONFLICT_MARKER_HELP_TOKENS: &[&str] = &["conflict_marker_guard.js", "run", "status"];
 const CHECK_ID_RUST_SOURCE_OF_TRUTH: &str = "rust_source_of_truth_contract";
 pub const GUARD_REGISTRY_REQUIRED_TOKENS: &[&str] =
     &["guard_check_registry", "required_merge_guard_ids"];
@@ -147,9 +147,7 @@ fn contract_check_ids_from_args(args: &[String]) -> Vec<String> {
 }
 
 fn should_run_rust_subcheck(selected: &HashSet<String>, id: &str) -> bool {
-    selected.is_empty()
-        || selected.contains(CHECK_ID_RUST_SOURCE_OF_TRUTH)
-        || selected.contains(id)
+    selected.is_empty() || selected.contains(CHECK_ID_RUST_SOURCE_OF_TRUTH) || selected.contains(id)
 }
 
 fn execute_contract_checks(root: &Path, args: &[String]) -> Result<Value, String> {
@@ -200,7 +198,10 @@ fn execute_contract_checks(root: &Path, args: &[String]) -> Result<Value, String
     }))
 }
 
-fn require_object<'a>(value: &'a Value, field: &str) -> Result<&'a serde_json::Map<String, Value>, String> {
+fn require_object<'a>(
+    value: &'a Value,
+    field: &str,
+) -> Result<&'a serde_json::Map<String, Value>, String> {
     value
         .get(field)
         .and_then(Value::as_object)
@@ -214,14 +215,15 @@ fn require_rel_path(section: &serde_json::Map<String, Value>, key: &str) -> Resu
         .map(|raw| raw.trim().to_string())
         .unwrap_or_default();
     if rel.is_empty() {
-        return Err(format!(
-            "rust_source_of_truth_policy_missing_path:{key}"
-        ));
+        return Err(format!("rust_source_of_truth_policy_missing_path:{key}"));
     }
     Ok(rel)
 }
 
-fn require_string_array(section: &serde_json::Map<String, Value>, key: &str) -> Result<Vec<String>, String> {
+fn require_string_array(
+    section: &serde_json::Map<String, Value>,
+    key: &str,
+) -> Result<Vec<String>, String> {
     let arr = section
         .get(key)
         .and_then(Value::as_array)
@@ -233,9 +235,7 @@ fn require_string_array(section: &serde_json::Map<String, Value>, key: &str) -> 
         .filter(|raw| !raw.is_empty())
         .collect::<Vec<_>>();
     if values.is_empty() {
-        return Err(format!(
-            "rust_source_of_truth_policy_empty_array:{key}"
-        ));
+        return Err(format!("rust_source_of_truth_policy_empty_array:{key}"));
     }
     Ok(values)
 }
@@ -433,12 +433,13 @@ fn check_rust_source_of_truth_contract(
                 .unwrap_or_default();
 
             if !forbidden_tokens.is_empty() {
-                let wrapper_source = fs::read_to_string(root.join(&wrapper_path)).map_err(|err| {
-                    format!(
-                        "read_source_failed:{}:{err}",
-                        root.join(&wrapper_path).display()
-                    )
-                })?;
+                let wrapper_source =
+                    fs::read_to_string(root.join(&wrapper_path)).map_err(|err| {
+                        format!(
+                            "read_source_failed:{}:{err}",
+                            root.join(&wrapper_path).display()
+                        )
+                    })?;
                 let found_forbidden = forbidden_tokens
                     .iter()
                     .filter(|token| wrapper_source.contains(token.as_str()))
@@ -752,10 +753,7 @@ fn check_guard_registry_contracts(root: &Path) -> Result<Value, String> {
         if !script_path.exists() {
             return Err(format!(
                 "guard_registry_missing_script:{}:{}",
-                check
-                    .get("id")
-                    .and_then(Value::as_str)
-                    .unwrap_or("unknown"),
+                check.get("id").and_then(Value::as_str).unwrap_or("unknown"),
                 rel_script
             ));
         }

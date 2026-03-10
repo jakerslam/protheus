@@ -83,10 +83,7 @@ fn cli_error_receipt(argv: &[String], err: &str, code: i32) -> Value {
 
 fn run_verify(lane_id: &str) -> Value {
     let row = build_anchor_with_ts(lane_id, &now_iso());
-    let ok = row
-        .get("ok")
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
+    let ok = row.get("ok").and_then(Value::as_bool).unwrap_or(false)
         && row
             .get("lane_id")
             .and_then(Value::as_str)
@@ -140,7 +137,11 @@ pub fn run(_root: &Path, argv: &[String]) -> i32 {
 
     let ok = out.get("ok").and_then(Value::as_bool).unwrap_or(false);
     print_json_line(&out);
-    if ok { 0 } else { 1 }
+    if ok {
+        0
+    } else {
+        1
+    }
 }
 
 #[cfg(test)]

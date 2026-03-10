@@ -231,7 +231,11 @@ fn evaluate(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
     print_json(&receipt);
 
-    if decision == DecisionKind::Deny { 1 } else { 0 }
+    if decision == DecisionKind::Deny {
+        1
+    } else {
+        0
+    }
 }
 
 fn status(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
@@ -286,7 +290,8 @@ fn parse_bool(raw: Option<&str>, fallback: bool) -> bool {
 }
 
 fn parse_u64(raw: Option<&str>, fallback: u64) -> u64 {
-    raw.and_then(|v| v.trim().parse::<u64>().ok()).unwrap_or(fallback)
+    raw.and_then(|v| v.trim().parse::<u64>().ok())
+        .unwrap_or(fallback)
 }
 
 fn load_policy(path: &Path) -> Result<Policy, String> {
@@ -296,7 +301,11 @@ fn load_policy(path: &Path) -> Result<Policy, String> {
 
 fn resolve_state_path(root: &Path, configured: &str) -> PathBuf {
     let path = PathBuf::from(configured);
-    if path.is_absolute() { path } else { root.join(path) }
+    if path.is_absolute() {
+        path
+    } else {
+        root.join(path)
+    }
 }
 
 fn load_state(path: &Path) -> Option<UsageState> {
@@ -426,10 +435,7 @@ mod tests {
         let state_path = root.join("state/ops/shadow_budget_governance/usage.json");
         let state_raw = fs::read_to_string(&state_path).expect("state");
         let state: UsageState = serde_json::from_str(&state_raw).expect("decode");
-        let usage = state
-            .shadows
-            .get("research_shadow")
-            .expect("shadow usage");
+        let usage = state.shadows.get("research_shadow").expect("shadow usage");
         assert_eq!(usage.tokens_used, 430);
     }
 

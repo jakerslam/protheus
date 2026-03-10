@@ -11,7 +11,11 @@ fn state_root(root: &Path) -> PathBuf {
             return PathBuf::from(s);
         }
     }
-    root.join("client").join("local").join("state").join("ops").join("organ_atrophy")
+    root.join("client")
+        .join("local")
+        .join("state")
+        .join("ops")
+        .join("organ_atrophy")
 }
 
 fn latest_path(root: &Path) -> PathBuf {
@@ -46,7 +50,9 @@ fn append_jsonl(path: &Path, value: &Value) {
             .create(true)
             .append(true)
             .open(path)
-            .and_then(|mut file| std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes()));
+            .and_then(|mut file| {
+                std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes())
+            });
     }
 }
 
@@ -66,9 +72,7 @@ fn parse_bool(raw: Option<&String>, fallback: bool) -> bool {
 
 fn parse_date(raw: Option<&String>) -> String {
     let candidate = raw.map(|v| v.trim().to_string()).unwrap_or_default();
-    if !candidate.is_empty()
-        && chrono::NaiveDate::parse_from_str(&candidate, "%Y-%m-%d").is_ok()
-    {
+    if !candidate.is_empty() && chrono::NaiveDate::parse_from_str(&candidate, "%Y-%m-%d").is_ok() {
         return candidate;
     }
     now_iso().chars().take(10).collect()
@@ -164,7 +168,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             .and_then(|v| if v == "scan" { None } else { Some(v) })
             .or_else(|| parsed.flags.get("date")),
     );
-    let window_days = parse_i64(parsed.flags.get("window-days").or_else(|| parsed.flags.get("window_days")), 21, 1, 365);
+    let window_days = parse_i64(
+        parsed
+            .flags
+            .get("window-days")
+            .or_else(|| parsed.flags.get("window_days")),
+        21,
+        1,
+        365,
+    );
     let max_candidates = parse_i64(
         parsed
             .flags

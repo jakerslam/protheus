@@ -299,7 +299,10 @@ fn parse_layer2_importance(raw: &str) -> Option<Layer2ImportanceDecision> {
     })
 }
 
-fn evaluate_importance_via_layer2(event: &Value, fallback: &crate::importance::ImportanceDecision) -> Option<Layer2ImportanceDecision> {
+fn evaluate_importance_via_layer2(
+    event: &Value,
+    fallback: &crate::importance::ImportanceDecision,
+) -> Option<Layer2ImportanceDecision> {
     let payload = json!({
         "criticality": fallback.criticality,
         "urgency": fallback.urgency,

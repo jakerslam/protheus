@@ -195,7 +195,9 @@ fn usage() {
     eprintln!("  protheus-ops spine daily [YYYY-MM-DD] [--max-eyes=N]");
     eprintln!("  protheus-ops spine run [eyes|daily] [YYYY-MM-DD] [--max-eyes=N]");
     eprintln!("  protheus-ops spine status [--mode=eyes|daily] [--date=YYYY-MM-DD]");
-    eprintln!("  protheus-ops spine background-hands-scheduler <configure|schedule|status> [flags]");
+    eprintln!(
+        "  protheus-ops spine background-hands-scheduler <configure|schedule|status> [flags]"
+    );
     eprintln!("  protheus-ops spine rsi-idle-hands-scheduler <run|status> [flags]");
     eprintln!("  protheus-ops spine evidence-run-plan [--configured-runs=N] [--budget-pressure=none|soft|hard] [--projected-pressure=none|soft|hard]");
 }
@@ -371,9 +373,8 @@ fn enqueue_spine_attention(root: &Path, source_type: &str, severity: &str, summa
         "attention_key": format!("spine:{source_type}")
     });
     event["receipt_hash"] = Value::String(receipt_hash(&event));
-    let encoded = BASE64_STANDARD.encode(
-        serde_json::to_string(&event).unwrap_or_else(|_| "{}".to_string()),
-    );
+    let encoded =
+        BASE64_STANDARD.encode(serde_json::to_string(&event).unwrap_or_else(|_| "{}".to_string()));
     let (command, mut args) = resolve_protheus_ops_command(root, "attention-queue");
     args.push("enqueue".to_string());
     args.push(format!("--event-json-base64={encoded}"));
@@ -466,7 +467,10 @@ fn normalize_path(root: &Path, value: Option<&Value>, fallback: &str) -> PathBuf
 
 fn load_mech_suit_policy(root: &Path) -> MechSuitPolicy {
     let default_path = {
-        let candidate = root.join("client").join("config").join("mech_suit_mode_policy.json");
+        let candidate = root
+            .join("client")
+            .join("config")
+            .join("mech_suit_mode_policy.json");
         if candidate.exists() {
             candidate
         } else {
@@ -1672,7 +1676,9 @@ mod tests {
             dopamine_threshold_breach_only: true,
             status_path: root.path().join("state/ops/mech_suit_mode/latest.json"),
             history_path: root.path().join("state/ops/mech_suit_mode/history.jsonl"),
-            policy_path: root.path().join("client/runtime/config/mech_suit_mode_policy.json"),
+            policy_path: root
+                .path()
+                .join("client/runtime/config/mech_suit_mode_policy.json"),
         };
         let context = TerminalReceiptContext {
             run_id,

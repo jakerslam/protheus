@@ -58,3 +58,6 @@ If there is active exploitation or high-confidence critical impact, emergency re
 - [docs/client/BRANCH_PROTECTION_POLICY.md](docs/client/BRANCH_PROTECTION_POLICY.md)
 - [docs/client/COMPLIANCE_POSTURE.md](docs/client/COMPLIANCE_POSTURE.md)
 - [docs/client/FUZZ_CHAOS_TRIAGE.md](docs/client/FUZZ_CHAOS_TRIAGE.md)
+- [docs/client/security/INDEPENDENT_AUDIT_PUBLICATION_2026Q1.md](docs/client/security/INDEPENDENT_AUDIT_PUBLICATION_2026Q1.md)
+- [docs/client/security/INDEPENDENT_AUDIT_REMEDIATION_TRACKER.md](docs/client/security/INDEPENDENT_AUDIT_REMEDIATION_TRACKER.md)
+- [docs/client/security/FORMAL_VERIFICATION_EXPANSION_PACK.md](docs/client/security/FORMAL_VERIFICATION_EXPANSION_PACK.md)

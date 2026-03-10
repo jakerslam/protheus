@@ -84,7 +84,10 @@ fn evaluate(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
         .get("requested-context-tokens")
         .and_then(|v| v.parse::<u64>().ok())
         .unwrap_or(0);
-    let provider_online = parse_bool(parsed.flags.get("provider-online").map(String::as_str), true);
+    let provider_online = parse_bool(
+        parsed.flags.get("provider-online").map(String::as_str),
+        true,
+    );
 
     let resolved_profile = if policy.profiles.contains_key(&requested_profile) {
         requested_profile.clone()
@@ -235,7 +238,8 @@ fn write_state(path: &Path, value: &Value) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|err| format!("mkdir_failed:{err}"))?;
     }
-    let encoded = serde_json::to_string_pretty(value).map_err(|err| format!("encode_failed:{err}"))?;
+    let encoded =
+        serde_json::to_string_pretty(value).map_err(|err| format!("encode_failed:{err}"))?;
     fs::write(path, format!("{encoded}\n")).map_err(|err| format!("write_failed:{err}"))
 }
 
@@ -371,6 +375,8 @@ mod tests {
             .into_iter()
             .filter_map(|v| v.as_str().map(|s| s.to_string()))
             .collect::<Vec<_>>();
-        assert!(reasons.iter().any(|reason| reason == "context_exceeds_profile_limit"));
+        assert!(reasons
+            .iter()
+            .any(|reason| reason == "context_exceeds_profile_limit"));
     }
 }

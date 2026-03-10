@@ -1642,7 +1642,10 @@ mod tests {
     fn parity_fixture_extract_trusted_test_path() {
         let ok = extract_trusted_test_path("node client/memory/tools/tests/a.test.js");
         assert!(ok.trusted);
-        assert_eq!(ok.path.as_deref(), Some("client/memory/tools/tests/a.test.js"));
+        assert_eq!(
+            ok.path.as_deref(),
+            Some("client/memory/tools/tests/a.test.js")
+        );
 
         let bad = extract_trusted_test_path("node client/runtime/systems/ops/a.test.js");
         assert!(!bad.trusted);

@@ -264,7 +264,8 @@ pub fn default_policy(root: &Path) -> Policy {
             history_path: root.join("state/ops/fluxlattice_program/history.jsonl"),
             security_panel_path: root.join("state/ops/protheus_top/security_panel.json"),
             flux_events_path: root.join("state/ops/fluxlattice_program/flux_events.jsonl"),
-            migration_profiles_path: root.join("client/runtime/config/fluxlattice_migration_profiles.json"),
+            migration_profiles_path: root
+                .join("client/runtime/config/fluxlattice_migration_profiles.json"),
             lens_mode_policy_path: root.join("client/runtime/config/lens_mode_policy.json"),
         },
         policy_path: root.join("client/runtime/config/fluxlattice_program_policy.json"),
@@ -713,14 +714,15 @@ fn run_lane(
                 "commands": ["expose", "sync"]
             });
             state["lens"]["mode"] = Value::String("hidden".to_string());
-            state["lens"]["private_store"] = Value::String("client/runtime/local/private-lenses/".to_string());
+            state["lens"]["private_store"] =
+                Value::String("client/runtime/local/private-lenses/".to_string());
             if apply {
-                fs::create_dir_all(root.join("client/runtime/local/private-lenses"))
-                    .map_err(|e| format!("create_dir_failed:client/runtime/local/private-lenses:{e}"))?;
+                fs::create_dir_all(root.join("client/runtime/local/private-lenses")).map_err(
+                    |e| format!("create_dir_failed:client/runtime/local/private-lenses:{e}"),
+                )?;
                 write_json_atomic(&policy.paths.lens_mode_policy_path, &lens_policy)?;
             }
-            receipt["summary"] =
-                json!({"lens_mode": "hidden", "private_store": "client/runtime/local/private-lenses/"});
+            receipt["summary"] = json!({"lens_mode": "hidden", "private_store": "client/runtime/local/private-lenses/"});
             receipt["checks"] = json!({
                 "hidden_default": true,
                 "mode_triplet_present": true,

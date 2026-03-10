@@ -43,7 +43,8 @@ fn to_f64(raw: Option<String>, fallback: f64) -> f64 {
 
 fn ensure_parent(path: &Path) -> Result<(), String> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|err| format!("create_dir_failed:{}:{err}", parent.display()))?;
+        fs::create_dir_all(parent)
+            .map_err(|err| format!("create_dir_failed:{}:{err}", parent.display()))?;
     }
     Ok(())
 }
@@ -58,7 +59,8 @@ fn write_json(path: &Path, value: &Value) -> Result<(), String> {
 
 fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
     ensure_parent(path)?;
-    let encoded = serde_json::to_string(value).map_err(|err| format!("encode_jsonl_failed:{err}"))?;
+    let encoded =
+        serde_json::to_string(value).map_err(|err| format!("encode_jsonl_failed:{err}"))?;
     let mut line = encoded;
     line.push('\n');
     use std::io::Write;
@@ -77,7 +79,10 @@ fn score_variant(quality: f64, drift: f64, escalation: f64, cost: f64) -> f64 {
 
 fn state_paths(root: &Path) -> (PathBuf, PathBuf) {
     let state_dir = root.join(STATE_DIR_REL);
-    (state_dir.join("latest.json"), state_dir.join("history.jsonl"))
+    (
+        state_dir.join("latest.json"),
+        state_dir.join("history.jsonl"),
+    )
 }
 
 fn run_receipt(root: &Path, args: &[String]) -> Value {
@@ -178,7 +183,10 @@ fn usage() {
 }
 
 pub fn run(root: &Path, args: &[String]) -> i32 {
-    if args.iter().any(|v| matches!(v.as_str(), "help" | "--help" | "-h")) {
+    if args
+        .iter()
+        .any(|v| matches!(v.as_str(), "help" | "--help" | "-h"))
+    {
         usage();
         return 0;
     }

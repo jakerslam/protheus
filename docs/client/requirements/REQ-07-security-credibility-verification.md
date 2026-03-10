@@ -53,6 +53,8 @@ Rust remains the only kernel source of truth for constitution, policy, claim-evi
   - `REQ-07-001` (release SBOM workflow scaffolding)
   - `REQ-07-002`
   - `REQ-07-003`
+  - `REQ-07-005` (formal verification expansion evidence pack)
   - `REQ-07-006`
   - `REQ-07-008` (initial scheduled workflow baseline)
 - Remaining items tracked in `docs/workspace/SRS.md` (compatibility alias: `docs/workspace/UPGRADE_BACKLOG.md`) under the Security Credibility section.
+- `REQ-07-004` remains in progress pending external auditor publication authority.

@@ -113,7 +113,11 @@ mod tests {
 
     #[test]
     fn parse_bool_flag_accepts_truthy_values() {
-        assert!(parse_bool_flag(&["--dry-run=1".to_string()], "dry-run", false));
+        assert!(parse_bool_flag(
+            &["--dry-run=1".to_string()],
+            "dry-run",
+            false
+        ));
         assert!(parse_bool_flag(
             &["--dry-run=true".to_string()],
             "dry-run",
@@ -132,7 +136,11 @@ mod tests {
         let payload = native_receipt(
             root.path(),
             "run",
-            &["run".to_string(), "2026-03-05".to_string(), "--dry-run=1".to_string()],
+            &[
+                "run".to_string(),
+                "2026-03-05".to_string(),
+                "--dry-run=1".to_string(),
+            ],
         );
         let hash = payload
             .get("receipt_hash")

@@ -17,7 +17,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             lane_type: "execution_yield_recovery",
             replacement: "protheus-ops execution-yield-recovery",
             usage: USAGE,
-            passthrough_flags: &["apply", "strict", "policy", "scope", "max-tests", "id", "limit"],
+            passthrough_flags: &[
+                "apply",
+                "strict",
+                "policy",
+                "scope",
+                "max-tests",
+                "id",
+                "limit",
+            ],
         },
     )
 }

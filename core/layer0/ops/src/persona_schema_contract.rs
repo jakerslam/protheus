@@ -94,7 +94,11 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
             receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
             print_json(&receipt);
             let _ = write_state(root, &receipt);
-            if fail_closed { 1 } else { 0 }
+            if fail_closed {
+                1
+            } else {
+                0
+            }
         }
         "status" => {
             let state_path = root.join(STATE_REL);
@@ -109,24 +113,22 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
                 return 1;
             }
             match fs::read_to_string(&state_path) {
-                Ok(raw) => {
-                    match serde_json::from_str::<Value>(&raw) {
-                        Ok(mut value) => {
-                            value["type"] = Value::String("persona_schema_contract_status".to_string());
-                            print_json(&value);
-                            0
-                        }
-                        Err(err) => {
-                            let receipt = json!({
-                                "ok": false,
-                                "type": "persona_schema_contract_status",
-                                "error": format!("state_decode_failed:{err}")
-                            });
-                            print_json(&receipt);
-                            1
-                        }
+                Ok(raw) => match serde_json::from_str::<Value>(&raw) {
+                    Ok(mut value) => {
+                        value["type"] = Value::String("persona_schema_contract_status".to_string());
+                        print_json(&value);
+                        0
                     }
-                }
+                    Err(err) => {
+                        let receipt = json!({
+                            "ok": false,
+                            "type": "persona_schema_contract_status",
+                            "error": format!("state_decode_failed:{err}")
+                        });
+                        print_json(&receipt);
+                        1
+                    }
+                },
                 Err(err) => {
                     let receipt = json!({
                         "ok": false,
@@ -182,11 +184,20 @@ fn load_payload(root: &Path, parsed: &crate::ParsedArgs) -> Result<Value, String
 fn validate_payload(payload: &Value, schema_mode: &str) -> Vec<ValidationIssue> {
     let mut issues = Vec::new();
     if !payload.is_object() {
-        issues.push(issue("payload_not_object", "top-level payload must be an object"));
+        issues.push(issue(
+            "payload_not_object",
+            "top-level payload must be an object",
+        ));
         return issues;
     }
 
-    expect_exact_string(payload, "/schema_id", schema_mode, "schema_id_mismatch", &mut issues);
+    expect_exact_string(
+        payload,
+        "/schema_id",
+        schema_mode,
+        "schema_id_mismatch",
+        &mut issues,
+    );
     expect_nonempty_string(
         payload,
         "/schema_version",
@@ -229,7 +240,10 @@ fn expect_nonempty_string(
         .map(|value| !value.trim().is_empty())
         .unwrap_or(false);
     if !valid {
-        issues.push(issue(code, &format!("{pointer} must be a non-empty string")));
+        issues.push(issue(
+            code,
+            &format!("{pointer} must be a non-empty string"),
+        ));
     }
 }
 
@@ -240,7 +254,10 @@ fn expect_exact_string(
     code: &str,
     issues: &mut Vec<ValidationIssue>,
 ) {
-    let actual = payload.pointer(pointer).and_then(Value::as_str).unwrap_or("");
+    let actual = payload
+        .pointer(pointer)
+        .and_then(Value::as_str)
+        .unwrap_or("");
     if actual != expected {
         issues.push(issue(
             code,
@@ -324,16 +341,12 @@ mod tests {
         });
         let issues = validate_payload(&payload, "persona_lens_v1");
         assert!(!issues.is_empty());
-        assert!(
-            issues
-                .iter()
-                .any(|issue| issue.code == "persona_lenses_active_missing_or_invalid")
-        );
-        assert!(
-            issues
-                .iter()
-                .any(|issue| issue.code == "persona_lenses_clearance_missing_or_invalid")
-        );
+        assert!(issues
+            .iter()
+            .any(|issue| issue.code == "persona_lenses_active_missing_or_invalid"));
+        assert!(issues
+            .iter()
+            .any(|issue| issue.code == "persona_lenses_clearance_missing_or_invalid"));
     }
 
     #[test]
@@ -365,8 +378,7 @@ mod tests {
     fn cli_validate_writes_schema_mode_and_metadata() {
         let temp = tempdir().expect("tempdir");
         let root = temp.path();
-        let payload =
-            r#"{"schema_id":"persona_lens_v1","schema_version":"1.0","persona_lenses":{"active":"guardian","clearance":"3"}}"#;
+        let payload = r#"{"schema_id":"persona_lens_v1","schema_version":"1.0","persona_lenses":{"active":"guardian","clearance":"3"}}"#;
         let args = vec![
             "validate".to_string(),
             "--strict=1".to_string(),

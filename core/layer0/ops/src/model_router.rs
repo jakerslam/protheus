@@ -603,7 +603,11 @@ fn contains_cli_flag(raw_text: &str) -> bool {
 
 fn contains_shell_or_path_marker(raw_text: &str) -> bool {
     let lower = raw_text.to_ascii_lowercase();
-    if lower.contains("~/") || lower.contains("../") || lower.contains("./") || lower.contains("/users/") {
+    if lower.contains("~/")
+        || lower.contains("../")
+        || lower.contains("./")
+        || lower.contains("/users/")
+    {
         return true;
     }
     lower
@@ -626,17 +630,23 @@ fn pattern_match_ci(pattern: &str, text: &str, raw_text: &str) -> bool {
             .iter()
             .any(|token| tokens.contains(*token))
         }
-        "[`{}\\[\\]<>$;=]" => raw_text
-            .chars()
-            .any(|ch| matches!(ch, '`' | '{' | '}' | '[' | ']' | '<' | '>' | '$' | ';' | '=')),
-        "(^|\\s)(~\\/|\\.\\.?\\/|\\/users\\/|[a-z]:\\\\)" => contains_shell_or_path_marker(raw_text),
+        "[`{}\\[\\]<>$;=]" => raw_text.chars().any(|ch| {
+            matches!(
+                ch,
+                '`' | '{' | '}' | '[' | ']' | '<' | '>' | '$' | ';' | '='
+            )
+        }),
+        "(^|\\s)(~\\/|\\.\\.?\\/|\\/users\\/|[a-z]:\\\\)" => {
+            contains_shell_or_path_marker(raw_text)
+        }
         _ => {
             let simplified = pattern_key
                 .replace("\\b", "")
                 .replace("\\s", " ")
                 .replace("\\/", "/")
                 .replace("\\\\", "\\");
-            let needle = simplified.trim_matches(|ch| ch == '^' || ch == '$' || ch == '(' || ch == ')' || ch == '?');
+            let needle = simplified
+                .trim_matches(|ch| ch == '^' || ch == '$' || ch == '(' || ch == ')' || ch == '?');
             !needle.is_empty() && text.to_ascii_lowercase().contains(needle)
         }
     }
@@ -956,8 +966,12 @@ pub fn normalize_probe_blocked_record(rec: Option<&Value>) -> ProbeBlockedNormal
 
     let txt = format!(
         "{} {}",
-        row.get("reason").and_then(Value::as_str).unwrap_or_default(),
-        row.get("stderr").and_then(Value::as_str).unwrap_or_default()
+        row.get("reason")
+            .and_then(Value::as_str)
+            .unwrap_or_default(),
+        row.get("stderr")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
     );
     let blocked = matches!(row.get("probe_blocked"), Some(Value::Bool(true)))
         || is_env_probe_blocked_text(&txt);
@@ -1068,7 +1082,10 @@ pub fn apply_probe_health_stabilizer(
         };
         let suppressed_at_number = serde_json::Number::from_f64(suppressed_at)
             .unwrap_or_else(|| serde_json::Number::from(now_ms));
-        rec.insert("suppressed_at_ms".to_string(), Value::Number(suppressed_at_number));
+        rec.insert(
+            "suppressed_at_ms".to_string(),
+            Value::Number(suppressed_at_number),
+        );
         rec.insert(
             "reason".to_string(),
             Value::String("probe_suppressed_timeout_rehab".to_string()),
@@ -1127,25 +1144,27 @@ pub fn detect_communication_fast_path(
 ) -> CommunicationFastPathResult {
     let policy = communication_fast_path_policy(cfg);
 
-    let make_nomatch = |reason: &str, blocked_pattern: Option<String>| CommunicationFastPathResult {
-        matched: false,
-        reason: reason.to_string(),
-        policy: policy.clone(),
-        blocked_pattern,
-        matched_pattern: None,
-        text: None,
-        slot: None,
-        prefer_model: None,
-        fallback_slot: None,
-        skip_outcome_scan: None,
-    };
+    let make_nomatch =
+        |reason: &str, blocked_pattern: Option<String>| CommunicationFastPathResult {
+            matched: false,
+            reason: reason.to_string(),
+            policy: policy.clone(),
+            blocked_pattern,
+            matched_pattern: None,
+            text: None,
+            slot: None,
+            prefer_model: None,
+            fallback_slot: None,
+            skip_outcome_scan: None,
+        };
 
     if !policy.enabled {
         return make_nomatch("disabled", None);
     }
 
     let m = normalize_key(if mode.is_empty() { "normal" } else { mode });
-    if m == "deep-thinker" || m == "deep_thinker" || m == "hyper-creative" || m == "hyper_creative" {
+    if m == "deep-thinker" || m == "deep_thinker" || m == "hyper-creative" || m == "hyper_creative"
+    {
         return make_nomatch("mode_disallowed", None);
     }
 
@@ -1243,10 +1262,12 @@ fn contains_code_like_markers(raw_text: &str) -> bool {
     if raw_text.contains("```") {
         return true;
     }
-    if raw_text
-        .chars()
-        .any(|ch| matches!(ch, '`' | '{' | '}' | '[' | ']' | '<' | '>' | '$' | ';' | '='))
-    {
+    if raw_text.chars().any(|ch| {
+        matches!(
+            ch,
+            '`' | '{' | '}' | '[' | ']' | '<' | '>' | '$' | ';' | '='
+        )
+    }) {
         return true;
     }
     if contains_cli_flag(raw_text) {
@@ -1472,7 +1493,11 @@ fn number_value(value: f64) -> Value {
         .unwrap_or(Value::Null)
 }
 
-pub fn router_budget_policy(cfg: &Value, repo_root: &Path, default_state_dir: &str) -> RouterBudgetPolicy {
+pub fn router_budget_policy(
+    cfg: &Value,
+    repo_root: &Path,
+    default_state_dir: &str,
+) -> RouterBudgetPolicy {
     let src = cfg
         .as_object()
         .and_then(|v| v.get("routing"))
@@ -1490,7 +1515,8 @@ pub fn router_budget_policy(cfg: &Value, repo_root: &Path, default_state_dir: &s
         }
     };
 
-    let model_token_multipliers = object_or_empty(src.and_then(|v| v.get("model_token_multipliers")));
+    let model_token_multipliers =
+        object_or_empty(src.and_then(|v| v.get("model_token_multipliers")));
     let class_token_source = object_or_empty(src.and_then(|v| v.get("class_token_multipliers")));
     let mut class_token_multipliers = default_class_token_multipliers();
     for (key, value) in class_token_source {
@@ -1504,8 +1530,18 @@ pub fn router_budget_policy(cfg: &Value, repo_root: &Path, default_state_dir: &s
             src.and_then(|v| v.get("allow_strategy_override")),
             true,
         ),
-        soft_ratio: to_bounded_number_like_f64(src.and_then(|v| v.get("soft_ratio")), 0.75, 0.2, 0.98),
-        hard_ratio: to_bounded_number_like_f64(src.and_then(|v| v.get("hard_ratio")), 0.92, 0.3, 0.995),
+        soft_ratio: to_bounded_number_like_f64(
+            src.and_then(|v| v.get("soft_ratio")),
+            0.75,
+            0.2,
+            0.98,
+        ),
+        hard_ratio: to_bounded_number_like_f64(
+            src.and_then(|v| v.get("hard_ratio")),
+            0.92,
+            0.3,
+            0.995,
+        ),
         enforce_hard_cap: to_bool_like_value(src.and_then(|v| v.get("enforce_hard_cap")), true),
         escalate_on_no_local_fallback: to_bool_like_value(
             src.and_then(|v| v.get("escalate_on_no_local_fallback")),
@@ -1550,7 +1586,10 @@ pub fn budget_date_str(today_override: &str, now_iso: &str) -> String {
 fn router_budget_policy_value(policy: &RouterBudgetPolicy) -> Value {
     let mut out = Map::<String, Value>::new();
     out.insert("enabled".to_string(), Value::Bool(policy.enabled));
-    out.insert("state_dir".to_string(), Value::String(policy.state_dir.clone()));
+    out.insert(
+        "state_dir".to_string(),
+        Value::String(policy.state_dir.clone()),
+    );
     out.insert(
         "allow_strategy_override".to_string(),
         Value::Bool(policy.allow_strategy_override),
@@ -1640,8 +1679,8 @@ pub fn router_budget_state(input: RouterBudgetStateInput<'_>) -> Value {
         .to_string_lossy()
         .to_string();
     let budget_obj = input.budget_state.and_then(Value::as_object);
-    let path = normalized_optional_string(budget_obj.and_then(|v| v.get("path")))
-        .unwrap_or(fallback_path);
+    let path =
+        normalized_optional_string(budget_obj.and_then(|v| v.get("path"))).unwrap_or(fallback_path);
     out.insert("path".to_string(), Value::String(path));
 
     if !matches!(
@@ -1752,7 +1791,8 @@ pub fn evaluate_router_global_budget_gate(
         };
     }
 
-    let oracle = router_burn_oracle_signal(input.oracle, ROUTER_BURN_ORACLE_LATEST_PATH_REL_DEFAULT);
+    let oracle =
+        router_burn_oracle_signal(input.oracle, ROUTER_BURN_ORACLE_LATEST_PATH_REL_DEFAULT);
     let oracle_available = matches!(
         oracle
             .as_object()
@@ -1922,8 +1962,10 @@ pub fn project_budget_state(budget_state: Option<&Value>, request_tokens: Option
     }
 
     let policy = out.get("policy").and_then(Value::as_object);
-    let soft_ratio = to_bounded_number_like_f64(policy.and_then(|v| v.get("soft_ratio")), 0.75, 0.2, 0.99);
-    let hard_ratio = to_bounded_number_like_f64(policy.and_then(|v| v.get("hard_ratio")), 0.92, 0.3, 1.0);
+    let soft_ratio =
+        to_bounded_number_like_f64(policy.and_then(|v| v.get("soft_ratio")), 0.75, 0.2, 0.99);
+    let hard_ratio =
+        to_bounded_number_like_f64(policy.and_then(|v| v.get("hard_ratio")), 0.92, 0.3, 1.0);
     let cap = finite_number(out.get("token_cap"));
     let used = finite_number(out.get("used_est"));
 
@@ -1965,8 +2007,14 @@ pub fn project_budget_state(budget_state: Option<&Value>, request_tokens: Option
         "none"
     };
 
-    out.insert("projected_used_est".to_string(), number_value(projected_used));
-    out.insert("projected_ratio".to_string(), number_value(rounded_4(projected_ratio)));
+    out.insert(
+        "projected_used_est".to_string(),
+        number_value(projected_used),
+    );
+    out.insert(
+        "projected_ratio".to_string(),
+        number_value(rounded_4(projected_ratio)),
+    );
     out.insert(
         "projected_pressure".to_string(),
         Value::String(projected_pressure.to_string()),
@@ -2007,8 +2055,14 @@ pub fn route_class_policy(cfg: &Value, route_class_raw: &str) -> RouteClassPolic
             "force_complexity".to_string(),
             Value::String("low".to_string()),
         );
-        merged.insert("force_role".to_string(), Value::String("reflex".to_string()));
-        merged.insert("prefer_slot".to_string(), Value::String("grunt".to_string()));
+        merged.insert(
+            "force_role".to_string(),
+            Value::String("reflex".to_string()),
+        );
+        merged.insert(
+            "prefer_slot".to_string(),
+            Value::String("grunt".to_string()),
+        );
         merged.insert(
             "prefer_model".to_string(),
             Value::String("ollama/smallthinker".to_string()),
@@ -2071,7 +2125,11 @@ pub fn route_class_policy(cfg: &Value, route_class_raw: &str) -> RouteClassPolic
     }
 }
 
-pub fn prompt_cache_lane_for_route(route_class_id: &str, mode: &str, execution_intent: bool) -> String {
+pub fn prompt_cache_lane_for_route(
+    route_class_id: &str,
+    mode: &str,
+    execution_intent: bool,
+) -> String {
     let route_class = normalize_key(route_class_id);
     let mode_key = normalize_key(mode);
     if route_class == "reflex" {
@@ -2125,7 +2183,11 @@ fn tier_alias_to_adjustment(tier_alias: &str, base: &ModeAdjustment) -> ModeAdju
     }
 }
 
-pub fn apply_mode_adjustments(mode: &str, base: &ModeAdjustmentInput, adapters: &Value) -> ModeAdjustment {
+pub fn apply_mode_adjustments(
+    mode: &str,
+    base: &ModeAdjustmentInput,
+    adapters: &Value,
+) -> ModeAdjustment {
     let m = normalize_key(if mode.is_empty() { "normal" } else { mode });
     let out = ModeAdjustment {
         risk: base.risk.clone(),
@@ -3016,8 +3078,14 @@ mod tests {
         assert_eq!(signal["pressure_rank"], 4);
         assert_eq!(signal["projected_runway_days"], 1.5);
         assert_eq!(signal["projected_days_to_reset"], 3.0);
-        assert_eq!(signal["source_path"], "state/ops/dynamic_burn_budget_oracle/latest.json");
-        assert_eq!(signal["reason_codes"].as_array().map(|rows| rows.len()), Some(10));
+        assert_eq!(
+            signal["source_path"],
+            "state/ops/dynamic_burn_budget_oracle/latest.json"
+        );
+        assert_eq!(
+            signal["reason_codes"].as_array().map(|rows| rows.len()),
+            Some(10)
+        );
 
         let fallback = router_burn_oracle_signal(None, "state/default/latest.json");
         assert_eq!(fallback["available"], false);
@@ -3141,7 +3209,10 @@ mod tests {
             oracle_block.reason.as_deref(),
             Some("budget_oracle_runway_critical")
         );
-        assert_eq!(oracle_block.oracle.as_ref().map(|v| v["pressure"].clone()), Some(json!("hard")));
+        assert_eq!(
+            oracle_block.oracle.as_ref().map(|v| v["pressure"].clone()),
+            Some(json!("hard"))
+        );
 
         let recovered_autopause = evaluate_router_global_budget_gate(RouterGlobalBudgetGateInput {
             request_tokens_est: Some(1000.0),
@@ -3149,7 +3220,9 @@ mod tests {
             execution_intent: Some(&json!(true)),
             enforce_execution_only: true,
             nonexec_max_tokens: 900,
-            autopause: Some(&json!({"active": true, "source": "model_router", "reason": "prior_hard_stop", "until": "2026-03-05T10:00:00.000Z"})),
+            autopause: Some(
+                &json!({"active": true, "source": "model_router", "reason": "prior_hard_stop", "until": "2026-03-05T10:00:00.000Z"}),
+            ),
             oracle: Some(&json!({"available": false})),
             guard: Some(&json!({"hard_stop": false, "pressure": "none"})),
         });
@@ -3301,7 +3374,10 @@ mod tests {
 
     #[test]
     fn prompt_cache_lane_for_route_matches_contract() {
-        assert_eq!(prompt_cache_lane_for_route("reflex", "normal", false), "reflex");
+        assert_eq!(
+            prompt_cache_lane_for_route("reflex", "normal", false),
+            "reflex"
+        );
         assert_eq!(
             prompt_cache_lane_for_route("default", "dream-weave", false),
             "dream"
@@ -3335,7 +3411,10 @@ mod tests {
         assert_eq!(mapped.role, "coding");
         assert!(mapped.mode_adjusted);
         assert_eq!(mapped.mode_reason.as_deref(), Some("tier2_build"));
-        assert_eq!(mapped.mode_policy_source, "client/runtime/config/model_adapters.json");
+        assert_eq!(
+            mapped.mode_policy_source,
+            "client/runtime/config/model_adapters.json"
+        );
 
         let deep = apply_mode_adjustments("deep-thinker", &base, &adapters);
         assert_eq!(deep.risk, "high");
@@ -3369,7 +3448,9 @@ mod tests {
         assert!(is_env_probe_blocked_text(
             "sandbox denied outbound connect 11434"
         ));
-        assert!(!is_env_probe_blocked_text("timeout while probing localhost"));
+        assert!(!is_env_probe_blocked_text(
+            "timeout while probing localhost"
+        ));
 
         let raw = json!({
             "reason": "Permission denied on socket 11434",
@@ -3553,8 +3634,14 @@ mod tests {
             }
         });
         let out_truthy_non_numeric = build_handoff_packet(&truthy_non_numeric_tokens);
-        assert_eq!(out_truthy_non_numeric["budget"]["request_tokens_est"], Value::Null);
-        assert_eq!(out_truthy_non_numeric["budget"]["projected_pressure"], "hard");
+        assert_eq!(
+            out_truthy_non_numeric["budget"]["request_tokens_est"],
+            Value::Null
+        );
+        assert_eq!(
+            out_truthy_non_numeric["budget"]["projected_pressure"],
+            "hard"
+        );
 
         let bool_numeric_tokens = json!({
             "tier": 2,
@@ -3655,10 +3742,7 @@ mod tests {
 
     #[test]
     fn helper_fallbacks_cover_general_task_type_and_proposal_capability_family() {
-        assert_eq!(
-            infer_role("prioritize candidate fixes", ""),
-            "planning"
-        );
+        assert_eq!(infer_role("prioritize candidate fixes", ""), "planning");
         assert_eq!(capability_family_key("proposal"), "proposal");
         assert_eq!(task_type_key_from_route("default", "", ""), "general");
     }
@@ -3722,7 +3806,10 @@ mod tests {
         });
         let high = build_handoff_packet(&high_payload);
         assert_eq!(high["tier"], 99);
-        assert_eq!(high["escalation_chain"].as_array().map(|v| v.len()), Some(4));
+        assert_eq!(
+            high["escalation_chain"].as_array().map(|v| v.len()),
+            Some(4)
+        );
         assert_eq!(high["guardrails"]["verification_required"], true);
     }
 

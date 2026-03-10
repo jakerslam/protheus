@@ -127,7 +127,11 @@ fn percentile(values: &[f64], q: f64) -> Option<f64> {
     if values.is_empty() {
         return None;
     }
-    let quantile = if q.is_finite() { q.clamp(0.0, 1.0) } else { 0.5 };
+    let quantile = if q.is_finite() {
+        q.clamp(0.0, 1.0)
+    } else {
+        0.5
+    };
     let mut sorted = values.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let idx = ((sorted.len() as f64) * quantile).ceil() as usize;
@@ -135,7 +139,9 @@ fn percentile(values: &[f64], q: f64) -> Option<f64> {
     sorted.get(idx).copied()
 }
 
-fn collect_spine_latency_metrics(spine_runs_dir: &Path) -> (Option<f64>, Option<f64>, usize, usize) {
+fn collect_spine_latency_metrics(
+    spine_runs_dir: &Path,
+) -> (Option<f64>, Option<f64>, usize, usize) {
     let mut latency_ms = Vec::<f64>::new();
     let mut files_scanned = 0usize;
 
@@ -172,7 +178,11 @@ fn collect_spine_latency_metrics(spine_runs_dir: &Path) -> (Option<f64>, Option<
     )
 }
 
-fn collect_incident_rate(incident_log_path: &Path, window_start: NaiveDate, now: NaiveDate) -> (f64, usize) {
+fn collect_incident_rate(
+    incident_log_path: &Path,
+    window_start: NaiveDate,
+    now: NaiveDate,
+) -> (f64, usize) {
     let rows = read_jsonl(incident_log_path);
     let mut incidents = 0usize;
     for row in rows {
@@ -191,7 +201,11 @@ fn collect_incident_rate(incident_log_path: &Path, window_start: NaiveDate, now:
     (incidents as f64 / window_days, incidents)
 }
 
-fn collect_change_fail_rate(history_path: &Path, window_start: NaiveDate, now: NaiveDate) -> (f64, usize, usize) {
+fn collect_change_fail_rate(
+    history_path: &Path,
+    window_start: NaiveDate,
+    now: NaiveDate,
+) -> (f64, usize, usize) {
     let rows = read_jsonl(history_path);
     let mut total = 0usize;
     let mut failed = 0usize;
@@ -301,18 +315,24 @@ fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
                 min_uptime: value_as_f64(tier_obj.and_then(|m| m.get("min_uptime")))
                     .unwrap_or(default_seed.min_uptime)
                     .clamp(0.0, 1.0),
-                max_receipt_p95_ms: value_as_f64(tier_obj.and_then(|m| m.get("max_receipt_p95_ms")))
-                    .unwrap_or(default_seed.max_receipt_p95_ms)
-                    .max(1.0),
-                max_receipt_p99_ms: value_as_f64(tier_obj.and_then(|m| m.get("max_receipt_p99_ms")))
-                    .unwrap_or(default_seed.max_receipt_p99_ms)
-                    .max(1.0),
+                max_receipt_p95_ms: value_as_f64(
+                    tier_obj.and_then(|m| m.get("max_receipt_p95_ms")),
+                )
+                .unwrap_or(default_seed.max_receipt_p95_ms)
+                .max(1.0),
+                max_receipt_p99_ms: value_as_f64(
+                    tier_obj.and_then(|m| m.get("max_receipt_p99_ms")),
+                )
+                .unwrap_or(default_seed.max_receipt_p99_ms)
+                .max(1.0),
                 max_incident_rate: value_as_f64(tier_obj.and_then(|m| m.get("max_incident_rate")))
                     .unwrap_or(default_seed.max_incident_rate)
                     .clamp(0.0, 10.0),
-                max_change_fail_rate: value_as_f64(tier_obj.and_then(|m| m.get("max_change_fail_rate")))
-                    .unwrap_or(default_seed.max_change_fail_rate)
-                    .clamp(0.0, 1.0),
+                max_change_fail_rate: value_as_f64(
+                    tier_obj.and_then(|m| m.get("max_change_fail_rate")),
+                )
+                .unwrap_or(default_seed.max_change_fail_rate)
+                .clamp(0.0, 1.0),
                 max_error_budget_burn_ratio: value_as_f64(
                     tier_obj.and_then(|m| m.get("max_error_budget_burn_ratio")),
                 )
@@ -461,20 +481,18 @@ fn evaluate(policy: &Policy) -> Result<Value, String> {
         .or_else(|| policy.tiers.get("seed").cloned())
         .ok_or_else(|| "missing_slo_tier".to_string())?;
 
-    let reliability = read_json(&policy.sources_execution_reliability_path).unwrap_or_else(|_| json!({}));
+    let reliability =
+        read_json(&policy.sources_execution_reliability_path).unwrap_or_else(|_| json!({}));
     let uptime = value_as_f64(
         reliability
             .get("measured")
             .and_then(|v| v.get("execution_success_rate")),
     );
 
-    let error_budget = read_json(&policy.sources_error_budget_latest_path).unwrap_or_else(|_| json!({}));
-    let burn_ratio = value_as_f64(
-        error_budget
-            .get("gate")
-            .and_then(|v| v.get("burn_ratio")),
-    )
-    .unwrap_or(0.0);
+    let error_budget =
+        read_json(&policy.sources_error_budget_latest_path).unwrap_or_else(|_| json!({}));
+    let burn_ratio =
+        value_as_f64(error_budget.get("gate").and_then(|v| v.get("burn_ratio"))).unwrap_or(0.0);
 
     let (p95, p99, latency_samples, latency_files_scanned) =
         collect_spine_latency_metrics(&policy.sources_spine_runs_dir);
@@ -483,10 +501,16 @@ fn evaluate(policy: &Policy) -> Result<Value, String> {
     let window_start = today - Duration::days(policy.window_days.saturating_sub(1));
     let (incident_rate, incident_count) =
         collect_incident_rate(&policy.sources_incident_log_path, window_start, today);
-    let (change_fail_rate, change_window_total, change_window_failed) =
-        collect_change_fail_rate(&policy.sources_error_budget_history_path, window_start, today);
+    let (change_fail_rate, change_window_total, change_window_failed) = collect_change_fail_rate(
+        &policy.sources_error_budget_history_path,
+        window_start,
+        today,
+    );
 
-    let drill = evidence_status(&policy.drill_evidence_paths, policy.min_drill_evidence_count);
+    let drill = evidence_status(
+        &policy.drill_evidence_paths,
+        policy.min_drill_evidence_count,
+    );
     let rollback = evidence_status(
         &policy.rollback_evidence_paths,
         policy.min_rollback_evidence_count,
@@ -764,7 +788,11 @@ mod tests {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("create parent");
         }
-        fs::write(path, format!("{}\n", serde_json::to_string_pretty(value).unwrap())).expect("write json");
+        fs::write(
+            path,
+            format!("{}\n", serde_json::to_string_pretty(value).unwrap()),
+        )
+        .expect("write json");
     }
 
     fn write_jsonl(path: &Path, rows: &[Value]) {
@@ -815,7 +843,10 @@ mod tests {
                 "history_path": "state/ops/f100_reliability_certification/history.jsonl"
             }
         });
-        write_json(&root.join("client/runtime/config/f100_reliability_certification_policy.json"), &policy);
+        write_json(
+            &root.join("client/runtime/config/f100_reliability_certification_policy.json"),
+            &policy,
+        );
     }
 
     fn write_common_fixtures(root: &Path, burn_ratio: f64) {
@@ -841,13 +872,13 @@ mod tests {
             &root.join("state/ops/error_budget_release_gate/history.jsonl"),
             &[
                 json!({"ts": "2026-03-01T10:00:00Z", "ok": true, "gate": {"promotion_blocked": false}}),
-                json!({"ts": "2026-03-02T10:00:00Z", "ok": true, "gate": {"promotion_blocked": false}})
+                json!({"ts": "2026-03-02T10:00:00Z", "ok": true, "gate": {"promotion_blocked": false}}),
             ],
         );
         write_jsonl(
             &root.join("state/security/autonomy_human_escalations.jsonl"),
             &[
-                json!({"type":"autonomy_human_escalation", "ts":"2026-03-02T12:00:00Z", "status":"resolved"})
+                json!({"type":"autonomy_human_escalation", "ts":"2026-03-02T12:00:00Z", "status":"resolved"}),
             ],
         );
         write_jsonl(
@@ -855,7 +886,7 @@ mod tests {
             &[
                 json!({"type":"spine_run_complete", "elapsed_ms": 85.0}),
                 json!({"type":"spine_run_complete", "elapsed_ms": 95.0}),
-                json!({"type":"spine_observability_trace", "trace_duration_ms": 100.0})
+                json!({"type":"spine_observability_trace", "trace_duration_ms": 100.0}),
             ],
         );
         write_jsonl(
@@ -885,7 +916,9 @@ mod tests {
         assert!(latest
             .get("blocking_checks")
             .and_then(Value::as_array)
-            .map(|rows| rows.iter().any(|v| v.as_str() == Some("error_budget_burn_ratio")))
+            .map(|rows| rows
+                .iter()
+                .any(|v| v.as_str() == Some("error_budget_burn_ratio")))
             .unwrap_or(false));
     }
 

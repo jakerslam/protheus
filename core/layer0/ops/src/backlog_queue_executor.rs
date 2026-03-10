@@ -11,7 +11,11 @@ fn state_root(root: &Path) -> PathBuf {
             return PathBuf::from(s);
         }
     }
-    root.join("client").join("local").join("state").join("ops").join("backlog_queue_executor")
+    root.join("client")
+        .join("local")
+        .join("state")
+        .join("ops")
+        .join("backlog_queue_executor")
 }
 
 fn latest_path(root: &Path) -> PathBuf {
@@ -46,7 +50,9 @@ fn append_jsonl(path: &Path, value: &Value) {
             .create(true)
             .append(true)
             .open(path)
-            .and_then(|mut file| std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes()));
+            .and_then(|mut file| {
+                std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes())
+            });
     }
 }
 
@@ -103,7 +109,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         return 0;
     }
 
-    let dry_run = parse_bool(parsed.flags.get("dry-run").or_else(|| parsed.flags.get("dry_run")), false);
+    let dry_run = parse_bool(
+        parsed
+            .flags
+            .get("dry-run")
+            .or_else(|| parsed.flags.get("dry_run")),
+        false,
+    );
     let max = parse_i64(parsed.flags.get("max"), 50, 1, 2000);
     let ids = clean(parsed.flags.get("ids").cloned().unwrap_or_default(), 4000);
     let all = parse_bool(parsed.flags.get("all"), false);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-use base64::Engine as _;
 use crate::{deterministic_receipt_hash, now_iso};
+use base64::Engine as _;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 
@@ -77,14 +77,17 @@ fn parse_i64(raw: Option<&str>, fallback: i64, lo: i64, hi: i64) -> i64 {
 
 fn parse_payload_json(argv: &[String]) -> Result<Value, String> {
     if let Some(raw) = parse_flag(argv, "input-json") {
-        return serde_json::from_str::<Value>(&raw).map_err(|e| format!("input_json_parse_failed:{e}"));
+        return serde_json::from_str::<Value>(&raw)
+            .map_err(|e| format!("input_json_parse_failed:{e}"));
     }
     if let Some(raw) = parse_flag(argv, "input-base64") {
         let decoded = base64::engine::general_purpose::STANDARD
             .decode(raw.trim())
             .map_err(|e| format!("input_base64_decode_failed:{e}"))?;
-        let text = String::from_utf8(decoded).map_err(|e| format!("input_base64_utf8_failed:{e}"))?;
-        return serde_json::from_str::<Value>(&text).map_err(|e| format!("input_base64_json_parse_failed:{e}"));
+        let text =
+            String::from_utf8(decoded).map_err(|e| format!("input_base64_utf8_failed:{e}"))?;
+        return serde_json::from_str::<Value>(&text)
+            .map_err(|e| format!("input_base64_json_parse_failed:{e}"));
     }
     Ok(json!({}))
 }
@@ -190,18 +193,31 @@ fn run_multi_agent_debate(root: &Path, argv: &[String]) -> i32 {
             );
             let ok = out.get("ok").and_then(Value::as_bool).unwrap_or(false);
             print_json_line(&out);
-            if ok { 0 } else { 1 }
+            if ok {
+                0
+            } else {
+                1
+            }
         }
         "status" => {
             let policy = parse_flag(argv, "policy").map(PathBuf::from);
             let key = parse_positional(argv, 2).or_else(|| parse_flag(argv, "date"));
-            let out = protheus_autonomy_core_v1::debate_status(root, policy.as_deref(), key.as_deref());
+            let out =
+                protheus_autonomy_core_v1::debate_status(root, policy.as_deref(), key.as_deref());
             let ok = out.get("ok").and_then(Value::as_bool).unwrap_or(false);
             print_json_line(&out);
-            if ok { 0 } else { 1 }
+            if ok {
+                0
+            } else {
+                1
+            }
         }
         _ => {
-            print_json_line(&cli_error_receipt(argv, "multi_agent_debate_unknown_action", 2));
+            print_json_line(&cli_error_receipt(
+                argv,
+                "multi_agent_debate_unknown_action",
+                2,
+            ));
             2
         }
     }
@@ -230,19 +246,34 @@ fn run_ethical_reasoning(root: &Path, argv: &[String]) -> i32 {
             );
             let ok = out.get("ok").and_then(Value::as_bool).unwrap_or(false);
             print_json_line(&out);
-            if ok { 0 } else { 1 }
+            if ok {
+                0
+            } else {
+                1
+            }
         }
         "status" => {
             let policy = parse_flag(argv, "policy").map(PathBuf::from);
             let state_dir = parse_flag(argv, "state-dir").map(PathBuf::from);
-            let out =
-                protheus_autonomy_core_v1::ethical_reasoning_status(root, policy.as_deref(), state_dir.as_deref());
+            let out = protheus_autonomy_core_v1::ethical_reasoning_status(
+                root,
+                policy.as_deref(),
+                state_dir.as_deref(),
+            );
             let ok = out.get("ok").and_then(Value::as_bool).unwrap_or(false);
             print_json_line(&out);
-            if ok { 0 } else { 1 }
+            if ok {
+                0
+            } else {
+                1
+            }
         }
         _ => {
-            print_json_line(&cli_error_receipt(argv, "ethical_reasoning_unknown_action", 2));
+            print_json_line(&cli_error_receipt(
+                argv,
+                "ethical_reasoning_unknown_action",
+                2,
+            ));
             2
         }
     }
@@ -278,13 +309,22 @@ fn run_simulation_harness(root: &Path, argv: &[String]) -> i32 {
             }
         }
         _ => {
-            print_json_line(&cli_error_receipt(argv, "autonomy_simulation_unknown_action", 2));
+            print_json_line(&cli_error_receipt(
+                argv,
+                "autonomy_simulation_unknown_action",
+                2,
+            ));
             2
         }
     }
 }
 
-fn run_extended_autonomy_lane(root: &Path, argv: &[String], command: &str, receipt_type: &str) -> i32 {
+fn run_extended_autonomy_lane(
+    root: &Path,
+    argv: &[String],
+    command: &str,
+    receipt_type: &str,
+) -> i32 {
     let action = parse_positional(argv, 1).unwrap_or_else(|| "status".to_string());
     let date = parse_flag(argv, "date").or_else(|| parse_positional(argv, 2));
     let days = parse_i64(parse_flag(argv, "days").as_deref(), 14, 1, 365);
@@ -428,12 +468,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "non-yield-enqueue",
             "autonomy_non_yield_enqueue",
         ),
-        "non-yield-replay" => run_extended_autonomy_lane(
-            root,
-            argv,
-            "non-yield-replay",
-            "autonomy_non_yield_replay",
-        ),
+        "non-yield-replay" => {
+            run_extended_autonomy_lane(root, argv, "non-yield-replay", "autonomy_non_yield_replay")
+        }
         "non-yield-ledger-backfill" => run_extended_autonomy_lane(
             root,
             argv,

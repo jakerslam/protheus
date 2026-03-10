@@ -209,7 +209,8 @@ fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
         ),
         vulnerability_summary_path: resolve_path(
             root,
-            raw.get("vulnerability_summary_path").and_then(Value::as_str),
+            raw.get("vulnerability_summary_path")
+                .and_then(Value::as_str),
             "state/release/provenance_bundle/dependency_vulnerability_summary.json",
         ),
         rollback_policy_path: resolve_path(
@@ -254,7 +255,8 @@ fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
 }
 
 fn file_sha256(path: &Path) -> Result<String, String> {
-    let bytes = fs::read(path).map_err(|e| format!("read_for_hash_failed:{}:{e}", path.display()))?;
+    let bytes =
+        fs::read(path).map_err(|e| format!("read_for_hash_failed:{}:{e}", path.display()))?;
     let mut h = Sha256::new();
     h.update(&bytes);
     Ok(format!("{:x}", h.finalize()))
@@ -292,7 +294,8 @@ fn read_counts(summary: &Value) -> (u64, u64, u64) {
     let mut medium = 0u64;
     for key in ["cargo", "npm"] {
         if let Some(obj) = summary.get(key).and_then(Value::as_object) {
-            critical = critical.saturating_add(obj.get("critical").and_then(Value::as_u64).unwrap_or(0));
+            critical =
+                critical.saturating_add(obj.get("critical").and_then(Value::as_u64).unwrap_or(0));
             high = high.saturating_add(obj.get("high").and_then(Value::as_u64).unwrap_or(0));
             medium = medium.saturating_add(obj.get("medium").and_then(Value::as_u64).unwrap_or(0));
         }
@@ -391,8 +394,8 @@ fn evaluate(root: &Path, policy: &Policy, bundle_path: &Path, vuln_summary_path:
                     == normalize_rel(root, &req.artifact_path);
             }
             if let Some(bundle_sbom_path) = row.get("sbom_path").and_then(Value::as_str) {
-                sbom_hash_ok &= bundle_sbom_path.replace('\\', "/")
-                    == normalize_rel(root, &req.sbom_path);
+                sbom_hash_ok &=
+                    bundle_sbom_path.replace('\\', "/") == normalize_rel(root, &req.sbom_path);
             }
             if let Some(bundle_signature_path) = row.get("signature_path").and_then(Value::as_str) {
                 signature_hash_ok &= bundle_signature_path.replace('\\', "/")
@@ -836,8 +839,9 @@ mod tests {
         let code = run(root, &["run".to_string(), "--strict=1".to_string()]);
         assert_eq!(code, 0);
 
-        let latest = fs::read_to_string(root.join("state/ops/supply_chain_provenance_v2/latest.json"))
-            .expect("read latest");
+        let latest =
+            fs::read_to_string(root.join("state/ops/supply_chain_provenance_v2/latest.json"))
+                .expect("read latest");
         let payload: Value = serde_json::from_str(&latest).expect("decode latest");
         assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
     }
@@ -851,14 +855,17 @@ mod tests {
         let code = run(root, &["run".to_string(), "--strict=1".to_string()]);
         assert_eq!(code, 1);
 
-        let latest = fs::read_to_string(root.join("state/ops/supply_chain_provenance_v2/latest.json"))
-            .expect("read latest");
+        let latest =
+            fs::read_to_string(root.join("state/ops/supply_chain_provenance_v2/latest.json"))
+                .expect("read latest");
         let payload: Value = serde_json::from_str(&latest).expect("decode latest");
         assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(false));
         assert!(payload
             .get("blocking_checks")
             .and_then(Value::as_array)
-            .map(|rows| rows.iter().any(|v| v.as_str() == Some("dependency_vulnerability_sla")))
+            .map(|rows| rows
+                .iter()
+                .any(|v| v.as_str() == Some("dependency_vulnerability_sla")))
             .unwrap_or(false));
     }
 }

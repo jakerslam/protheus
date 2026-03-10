@@ -419,15 +419,16 @@ fn evaluate(root: &Path, policy: &Policy, pr_body_path: &Path, changed_paths_pat
         }),
     );
 
-    let approval_receipts_ok = if declared >= RiskClass::Major && policy.require_approval_receipts_for_major {
-        !fields.approval_receipts.is_empty()
-            && fields
-                .approval_receipts
-                .iter()
-                .all(|receipt| ref_exists(root, receipt))
-    } else {
-        true
-    };
+    let approval_receipts_ok =
+        if declared >= RiskClass::Major && policy.require_approval_receipts_for_major {
+            !fields.approval_receipts.is_empty()
+                && fields
+                    .approval_receipts
+                    .iter()
+                    .all(|receipt| ref_exists(root, receipt))
+        } else {
+            true
+        };
     checks.insert(
         "approval_receipts_requirement".to_string(),
         json!({
@@ -437,13 +438,12 @@ fn evaluate(root: &Path, policy: &Policy, pr_body_path: &Path, changed_paths_pat
         }),
     );
 
-    let rollback_drill_ok = if declared == RiskClass::HighRisk
-        && policy.require_rollback_drill_for_high_risk
-    {
-        ref_exists(root, &fields.rollback_drill_receipt)
-    } else {
-        true
-    };
+    let rollback_drill_ok =
+        if declared == RiskClass::HighRisk && policy.require_rollback_drill_for_high_risk {
+            ref_exists(root, &fields.rollback_drill_receipt)
+        } else {
+            true
+        };
     checks.insert(
         "rollback_drill_requirement".to_string(),
         json!({
@@ -690,13 +690,16 @@ mod tests {
         );
         assert_eq!(code, 1);
 
-        let latest = fs::read_to_string(root.join("state/ops/sdlc_change_control/latest.json")).unwrap();
+        let latest =
+            fs::read_to_string(root.join("state/ops/sdlc_change_control/latest.json")).unwrap();
         let payload: Value = serde_json::from_str(&latest).unwrap();
         assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(false));
         assert!(payload
             .get("blocking_checks")
             .and_then(Value::as_array)
-            .map(|rows| rows.iter().any(|v| v.as_str() == Some("adr_link_requirement")))
+            .map(|rows| rows
+                .iter()
+                .any(|v| v.as_str() == Some("adr_link_requirement")))
             .unwrap_or(false));
     }
 
@@ -729,13 +732,12 @@ mod tests {
         );
         assert_eq!(code, 0);
 
-        let latest = fs::read_to_string(root.join("state/ops/sdlc_change_control/latest.json")).unwrap();
+        let latest =
+            fs::read_to_string(root.join("state/ops/sdlc_change_control/latest.json")).unwrap();
         let payload: Value = serde_json::from_str(&latest).unwrap();
         assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(
-            payload
-                .get("declared_risk_class")
-                .and_then(Value::as_str),
+            payload.get("declared_risk_class").and_then(Value::as_str),
             Some("major")
         );
     }

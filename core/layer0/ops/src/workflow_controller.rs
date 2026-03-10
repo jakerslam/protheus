@@ -85,12 +85,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let scope = parse_scope(argv).or_else(|| Some("changed".to_string()));
     if matches!(
         command.as_str(),
-        "run"
-            | "status"
-            | "list"
-            | "promote"
-            | "workflow-generator"
-            | "data-rights-engine"
+        "run" | "status" | "list" | "promote" | "workflow-generator" | "data-rights-engine"
     ) {
         print_json_line(&success_receipt(
             command.as_str(),

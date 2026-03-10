@@ -48,7 +48,10 @@ fn evaluate(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
         .map(PathBuf::from)
         .unwrap_or_else(|| root.join(POLICY_REL));
     let force_offline = parse_bool(parsed.flags.get("force-offline").map(String::as_str), false);
-    let network_probe_ok = parse_bool(parsed.flags.get("network-probe-ok").map(String::as_str), true);
+    let network_probe_ok = parse_bool(
+        parsed.flags.get("network-probe-ok").map(String::as_str),
+        true,
+    );
 
     let policy = match load_policy(&policy_path) {
         Ok(value) => value,
@@ -91,7 +94,11 @@ fn evaluate(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     }
 
     let offline = !offline_reasons.is_empty();
-    let mode = if offline { "offline_degraded" } else { "online_full" };
+    let mode = if offline {
+        "offline_degraded"
+    } else {
+        "online_full"
+    };
 
     let capabilities = if offline {
         policy.degraded_capabilities.clone()
@@ -217,7 +224,8 @@ fn write_state(path: &Path, value: &Value) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|err| format!("mkdir_failed:{err}"))?;
     }
-    let encoded = serde_json::to_string_pretty(value).map_err(|err| format!("encode_failed:{err}"))?;
+    let encoded =
+        serde_json::to_string_pretty(value).map_err(|err| format!("encode_failed:{err}"))?;
     fs::write(path, format!("{encoded}\n")).map_err(|err| format!("write_failed:{err}"))
 }
 
@@ -306,7 +314,10 @@ mod tests {
         let state_path = root.join("state/ops/offline_runtime_guard/latest.json");
         let raw = fs::read_to_string(state_path).expect("state");
         let out: Value = serde_json::from_str(&raw).expect("json");
-        assert_eq!(out.get("mode").and_then(Value::as_str), Some("offline_degraded"));
+        assert_eq!(
+            out.get("mode").and_then(Value::as_str),
+            Some("offline_degraded")
+        );
         assert_eq!(out.get("offline").and_then(Value::as_bool), Some(true));
     }
 
@@ -338,6 +349,8 @@ mod tests {
             .into_iter()
             .filter_map(|value| value.as_str().map(|raw| raw.to_string()))
             .collect::<Vec<_>>();
-        assert!(reasons.iter().any(|reason| reason.contains("offline_marker")));
+        assert!(reasons
+            .iter()
+            .any(|reason| reason.contains("offline_marker")));
     }
 }
