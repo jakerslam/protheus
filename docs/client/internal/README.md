@@ -12,6 +12,11 @@ This namespace stores persona/internal artifacts that are not required for opera
 
 ## Legacy/Internal Artifacts
 - `docs/client/internal/legacy/moltbook_cron_job.json`
+- `docs/client/internal/legacy/slack_status_cron_job.json`
 - `docs/client/internal/legacy/moltstack.skill`
+
+## Reminder Data Bridge
+- `client/runtime/systems/ops/reminder_data_bridge.js`
+- Purpose: read-only readiness snapshots for reminder jobs (`slack-status`, `moltcheck-status`) so heartbeat reminders can degrade gracefully when required runtime data or credentials are unavailable.
 
 Runtime compatibility mirrors remain at repository root where required by existing contracts.

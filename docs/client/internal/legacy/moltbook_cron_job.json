@@ -2,12 +2,12 @@
   "name": "Moltbook Activity",
   "schedule": {
     "kind": "every",
-    "everyMs": 14400000
+    "everyMs": 86400000
   },
   "sessionTarget": "main",
   "enabled": true,
   "payload": {
     "kind": "systemEvent",
-    "text": "HEARTBEAT: Check Moltbook for activity. If I haven't posted or commented in the last 4 hours, browse the feed and either upvote interesting posts or make a relevant comment to stay active per Moltbook heartbeat requirement (max 4h inactivity). Report back on what I did."
+    "text": "HEARTBEAT: Run `node client/runtime/systems/ops/reminder_data_bridge.js moltcheck-status` first. If mode=automation_ready, run Moltbook activity checks and report actions. If mode=manual_only, skip automation and only send a brief manual reminder."
   }
 }

@@ -1,0 +1,13 @@
+{
+  "name": "Slack Status Snapshot",
+  "schedule": {
+    "kind": "every",
+    "everyMs": 21600000
+  },
+  "sessionTarget": "main",
+  "enabled": true,
+  "payload": {
+    "kind": "systemEvent",
+    "text": "HEARTBEAT: Run `node client/runtime/systems/ops/reminder_data_bridge.js slack-status` before posting status. If ready=false, suppress noisy status ping and retry at reduced cadence."
+  }
+}
