@@ -1,3 +1,34 @@
 #!/usr/bin/env node
 'use strict';
-require('../../lib/ts_bootstrap.js').bootstrap(__filename, module);
+
+// Layer ownership: core/layer2/autonomy + core/layer0/ops::autonomy-controller (authoritative)
+// Thin wrapper only; authority logic lives in Rust.
+const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge');
+
+process.env.PROTHEUS_CONDUIT_STARTUP_PROBE = '0';
+process.env.PROTHEUS_CONDUIT_COMPAT_FALLBACK = '0';
+process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS =
+  process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS || '15000';
+process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS =
+  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '20000';
+
+const COMMAND = 'doctor-forge-micro-debug-lane';
+const bridge = createOpsLaneBridge(__dirname, 'autonomy_controller', 'autonomy-controller');
+
+function runCore(args = []) {
+  const out = bridge.run([COMMAND, ...(Array.isArray(args) ? args : [])]);
+  if (out && out.stdout) process.stdout.write(out.stdout);
+  if (out && out.stderr) process.stderr.write(out.stderr);
+  if (out && out.payload && !out.stdout) process.stdout.write(`${JSON.stringify(out.payload)}\n`);
+  return out;
+}
+
+if (require.main === module) {
+  const out = runCore(process.argv.slice(2));
+  process.exit(Number.isFinite(out && out.status) ? Number(out.status) : 1);
+}
+
+module.exports = {
+  lane: bridge.lane,
+  run: (args = []) => bridge.run([COMMAND, ...(Array.isArray(args) ? args : [])])
+};
