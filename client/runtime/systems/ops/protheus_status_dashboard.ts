@@ -4,6 +4,7 @@
 /**
  * Rust-authoritative status dashboard wrapper.
  * TS remains a thin CLI surface only.
+ * Routed to protheus-ops status --dashboard via rust lane bridge.
  */
 
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge');
