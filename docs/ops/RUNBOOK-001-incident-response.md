@@ -76,6 +76,11 @@ ETA next update: [HH:MM]
 # TODO: Define on-call rotation handoff procedure for incidents spanning multiple shifts
 # See: https://wiki.protheus.io/escalation-procedures (internal link)
 
+## Additional Context
+# NOTE(rohan): The handoff procedure should include explicit artifact transfer for
+# incidents in progress. This prevents context loss during shift changes, which
+# historically has caused 15-20 min delays in resolution. See MEETING-NOTES-2026-03-11.
+
 ## Useful Commands
 
 ```bash
