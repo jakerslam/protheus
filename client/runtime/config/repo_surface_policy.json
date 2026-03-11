@@ -119,6 +119,8 @@
     "client/runtime/local/"
   ],
   "ignore_exact_paths": [
+    "install.ps1",
+    "install.sh",
     "verify.sh",
     "vitest.config.ts"
   ],

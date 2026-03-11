@@ -198,8 +198,8 @@
       "approved_at": "2026-02-17",
       "note": "Zero-friction CLI wrapper for dopamine engine"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/dopamine-git-hook.sh": {
-      "sha256": "47667d0c2ac365172f3a63c5192fe37fb5882ac0a27a6e23f3dce72c1cf68f62",
+    "/Users/jay/.openclaw/workspace/apps/habits/scripts/dopamine-git-hook.sh": {
+      "sha256": "fb18808e34562e417d13436c4d38b7e6146a9b1c47c31eacd5c20681273053c1",
       "approved_by": "jay",
       "approved_at": "2026-02-17",
       "note": "Git post-commit hook - auto-captures artifacts on every commit"
