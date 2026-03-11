@@ -15,7 +15,7 @@
   "venom_script": "client/runtime/systems/security/venom_containment_layer.ts",
   "routes": {
     "mcp_discover": {
-      "script": "client/cognition/skills/mcp/mcp_gateway.ts",
+      "script": "adapters/cognition/skills/mcp/mcp_gateway.ts",
       "args": [
         "discover",
         "--query=memory",
