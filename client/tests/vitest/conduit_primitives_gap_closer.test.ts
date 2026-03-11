@@ -30,14 +30,14 @@ describe('conduit primitive wrapper contract', () => {
   });
 
   test('install.sh exists and references hosted installer endpoint', () => {
-    const source = fs.readFileSync(path.join(ROOT, 'client', 'install.sh'), 'utf8');
+    const source = fs.readFileSync(path.join(ROOT, 'install.sh'), 'utf8');
     expect(source.includes('api.github.com/repos')).toBe(true);
     expect(source.includes('protheus-ops')).toBe(true);
     expect(source.includes('protheusd')).toBe(true);
   });
 
   test('install.ps1 exists and provisions Windows wrappers', () => {
-    const source = fs.readFileSync(path.join(ROOT, 'client', 'install.ps1'), 'utf8');
+    const source = fs.readFileSync(path.join(ROOT, 'install.ps1'), 'utf8');
     expect(source.includes('protheus-ops.exe')).toBe(true);
     expect(source.includes('protheusd.cmd')).toBe(true);
     expect(source.includes('conduit_daemon')).toBe(true);

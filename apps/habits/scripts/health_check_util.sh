@@ -1,4 +1,4 @@
-#!/client/cli/bin/bash
+#!/usr/bin/env bash
 # Health Check Utility Script
 # Created: March 6, 2026
 # Purpose: Quick operational health checks for Protheus infrastructure
