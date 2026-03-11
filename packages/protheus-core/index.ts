@@ -38,7 +38,7 @@ function reflexStatus(extraArgs: string[] = []) {
 }
 
 function gateStatus(extraArgs: string[] = []) {
-  return runNodeScript('client/runtime/systems/security/guard.js', ['status', ...extraArgs]);
+  return runNodeScript('client/runtime/systems/security/guard.ts', ['status', ...extraArgs]);
 }
 
 function toBoolOption(v: unknown, fallback = true) {
@@ -65,7 +65,7 @@ function coreStatus(options: Record<string, any> = {}) {
   };
   if (includeSpine) out.spine = runNodeScript('client/runtime/systems/spine/spine.js', ['status'], timeoutMs);
   if (includeReflex) out.reflex = runNodeScript('client/cognition/habits/scripts/reflex_habit_bridge.js', ['status'], timeoutMs);
-  if (includeGates) out.gates = runNodeScript('client/runtime/systems/security/guard.js', ['status'], timeoutMs);
+  if (includeGates) out.gates = runNodeScript('client/runtime/systems/security/guard.ts', ['status'], timeoutMs);
   out.ok = ['spine', 'reflex', 'gates']
     .filter((key) => Object.prototype.hasOwnProperty.call(out, key))
     .every((key) => out[key] && out[key].ok === true);

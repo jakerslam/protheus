@@ -12,7 +12,7 @@
     "stream": "security.mcp_a2a_venom_gate"
   },
   "fail_closed": true,
-  "venom_script": "client/runtime/systems/security/venom_containment_layer.js",
+  "venom_script": "client/runtime/systems/security/venom_containment_layer.ts",
   "routes": {
     "mcp_discover": {
       "script": "client/cognition/skills/mcp/mcp_gateway.js",

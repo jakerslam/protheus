@@ -26,7 +26,7 @@ The lane prefers Rust, then falls back to TS when policy allows.
 
 - Root-level naming and personal-marker leaks
 - Required artifact presence (README/changelog/docs/client/templates)
-- Backlog drift (`client/runtime/systems/ops/backlog_registry.js check`)
+- Backlog drift (`client/runtime/systems/ops/backlog_registry.ts check`)
 - UI/documentation consistency score
 - Scientific reasoning surface completeness score
 - Git metadata concentration/burst heuristics

@@ -54,15 +54,15 @@ function toFlags(options: Record<string, any> = {}) {
 }
 
 function edgeRuntime(command: string, options: Record<string, any> = {}) {
-  return runNodeScript('client/runtime/systems/edge/protheus_edge_runtime.js', [command, ...toFlags(options)]);
+  return runNodeScript('client/runtime/systems/edge/protheus_edge_runtime.ts', [command, ...toFlags(options)]);
 }
 
 function edgeLifecycle(command: string, options: Record<string, any> = {}) {
-  return runNodeScript('client/runtime/systems/edge/mobile_lifecycle_resilience.js', [command, ...toFlags(options)]);
+  return runNodeScript('client/runtime/systems/edge/mobile_lifecycle_resilience.ts', [command, ...toFlags(options)]);
 }
 
 function edgeSwarm(command: string, options: Record<string, any> = {}) {
-  return runNodeScript('client/runtime/systems/spawn/mobile_edge_swarm_bridge.js', [command, ...toFlags(options)]);
+  return runNodeScript('client/runtime/systems/spawn/mobile_edge_swarm_bridge.ts', [command, ...toFlags(options)]);
 }
 
 function edgeWrapper(command: string, options: Record<string, any> = {}) {
@@ -74,7 +74,7 @@ function edgeBenchmark(command: string, options: Record<string, any> = {}) {
 }
 
 function mobileTop(options: Record<string, any> = {}) {
-  return runNodeScript('client/runtime/systems/edge/mobile_ops_top.js', ['status', ...toFlags(options)]);
+  return runNodeScript('client/runtime/systems/edge/mobile_ops_top.ts', ['status', ...toFlags(options)]);
 }
 
 function folderSizeBytes(dirPath: string) {

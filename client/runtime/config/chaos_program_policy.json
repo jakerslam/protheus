@@ -21,14 +21,14 @@
       "id": "actuation_fault",
       "lane": "actuation",
       "fault": "actuation_adapter_failure_simulation",
-      "recovery_command": "node client/runtime/systems/security/guard.js run --strict",
+      "recovery_command": "node client/runtime/systems/security/guard.ts run --strict",
       "timeout_ms": 30000
     },
     {
       "id": "state_fault",
       "lane": "state",
       "fault": "state_write_contention_simulation",
-      "recovery_command": "node client/runtime/systems/memory/memory_layer_guard.js run --strict",
+      "recovery_command": "node client/runtime/systems/memory/memory_layer_guard.ts run --strict",
       "timeout_ms": 30000
     }
   ]

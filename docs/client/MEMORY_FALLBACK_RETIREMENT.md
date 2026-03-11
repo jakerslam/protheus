@@ -14,9 +14,9 @@ Key controls:
 ## Commands
 
 ```bash
-node client/runtime/systems/memory/memory_fallback_retirement_gate.js status
-node client/runtime/systems/memory/memory_fallback_retirement_gate.js enable-emergency --reason="manual_emergency"
-node client/runtime/systems/memory/memory_fallback_retirement_gate.js disable-emergency
+node client/runtime/systems/memory/memory_fallback_retirement_gate.ts status
+node client/runtime/systems/memory/memory_fallback_retirement_gate.ts enable-emergency --reason="manual_emergency"
+node client/runtime/systems/memory/memory_fallback_retirement_gate.ts disable-emergency
 ```
 
 ## Incident Receipts

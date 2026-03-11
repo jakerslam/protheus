@@ -4,7 +4,7 @@
 
 It sequences layer scripts in a deterministic order and runs a single clearance gate:
 
-- `client/runtime/systems/security/guard.js` is the choke point (clearance tiers)
+- `client/runtime/systems/security/guard.ts` is the choke point (clearance tiers)
 - `client/runtime/systems/spine/spine.js` orchestrates calls (no scoring, no prompting, no habit logic)
 - `client/cognition/habits/scripts/spine_*.js` are convenience wrappers ("reflexes")
 

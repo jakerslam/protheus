@@ -1,15 +1,15 @@
 # Adapter Defragmentation + Profile Consolidation
 
-`client/runtime/systems/actuation/adapter_defragmentation.js` analyzes adapter usage and profile coverage to identify bespoke adapters that should migrate to the universal primitive lane.
+`client/runtime/systems/actuation/adapter_defragmentation.ts` analyzes adapter usage and profile coverage to identify bespoke adapters that should migrate to the universal primitive lane.
 
 ## Commands
 
 ```bash
 # Generate daily snapshot
-node client/runtime/systems/actuation/adapter_defragmentation.js run
+node client/runtime/systems/actuation/adapter_defragmentation.ts run
 
 # Read latest snapshot
-node client/runtime/systems/actuation/adapter_defragmentation.js status latest
+node client/runtime/systems/actuation/adapter_defragmentation.ts status latest
 ```
 
 NPM shortcuts:

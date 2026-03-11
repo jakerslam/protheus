@@ -14,8 +14,8 @@ node client/runtime/systems/security/remote_tamper_heartbeat.js clear-quarantine
 For hardened off-host ingress, pair with:
 
 ```bash
-node client/runtime/systems/security/secure_heartbeat_endpoint.js verify --strict=1
-node client/runtime/systems/security/secure_heartbeat_endpoint.js status
+node client/runtime/systems/security/secure_heartbeat_endpoint.ts verify --strict=1
+node client/runtime/systems/security/secure_heartbeat_endpoint.ts status
 ```
 
 ## Coverage
