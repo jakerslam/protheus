@@ -1,11 +1,11 @@
 {
   "type": "client_target_contract_audit",
-  "generated_at": "2026-03-11T10:54:35.365Z",
-  "revision": "952dbe5562e7dd548f5e4d4e020dac4cd521c030",
+  "generated_at": "2026-03-11T11:41:27.394Z",
+  "revision": "abc10d59d28a5717f5d4763b83c5ddfa3a84109f",
   "policy_path": "client/runtime/config/client_target_contract_policy.json",
   "summary": {
     "hard_violation_count": 0,
-    "target_gap_count": 4,
+    "target_gap_count": 0,
     "pass": true
   },
   "ext_counts": {
@@ -13,9 +13,9 @@
     "1771315386": 2,
     "1771315610": 2,
     "<none>": 56,
-    "ts": 701,
+    "ts": 232,
     "template": 2,
-    "md": 807,
+    "md": 806,
     "json": 801,
     "ndjson": 2,
     "jsonl": 4,
@@ -32,44 +32,19 @@
     "blob": 5
   },
   "metrics": {
-    "total_ts_files": 701,
-    "runtime_system_surface": 553,
-    "cognition_surface": 15,
-    "runtime_sdk_surface": 58,
-    "sdk_surface": 57,
-    "wrapper_count": 546,
+    "total_ts_files": 232,
+    "runtime_system_surface": 116,
+    "cognition_surface": 0,
+    "runtime_sdk_surface": 40,
+    "sdk_surface": 58,
+    "wrapper_count": 109,
     "allowed_non_wrapper_count": 8,
-    "keep_public_client": 138,
-    "promote_to_core": 148,
-    "move_to_apps": 13,
-    "move_to_adapters": 2,
-    "collapse_to_generic_wrapper": 400
+    "keep_public_client": 121,
+    "promote_to_core": 108,
+    "move_to_apps": 0,
+    "move_to_adapters": 0,
+    "collapse_to_generic_wrapper": 3
   },
-  "target_gaps": [
-    {
-      "metric": "total_ts_files",
-      "current": 701,
-      "target": 250,
-      "reason": "client should be a thin public platform, not the main implementation surface"
-    },
-    {
-      "metric": "runtime_system_surface",
-      "current": 553,
-      "target": 150,
-      "reason": "client/runtime/systems should hold public bridges only"
-    },
-    {
-      "metric": "runtime_sdk_surface",
-      "current": 58,
-      "target": 40,
-      "reason": "runtime SDK aliases should be consolidated"
-    },
-    {
-      "metric": "wrapper_count",
-      "current": 546,
-      "target": 200,
-      "reason": "wrapper duplication should be collapsed behind generic entrypoints"
-    }
-  ],
+  "target_gaps": [],
   "hard_violations": []
 }

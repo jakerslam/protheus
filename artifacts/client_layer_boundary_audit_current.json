@@ -1,11 +1,11 @@
 {
   "type": "client_layer_boundary_audit",
-  "generated_at": "2026-03-11T10:54:35.098Z",
-  "revision": "952dbe5562e7dd548f5e4d4e020dac4cd521c030",
+  "generated_at": "2026-03-11T11:41:27.168Z",
+  "revision": "abc10d59d28a5717f5d4763b83c5ddfa3a84109f",
   "policy_path": "client/runtime/config/client_layer_boundary_policy.json",
   "summary": {
-    "scanned_files": 554,
-    "wrapper_count": 546,
+    "scanned_files": 117,
+    "wrapper_count": 109,
     "allowed_non_wrapper_count": 8,
     "violation_count": 0,
     "pass": true

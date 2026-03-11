@@ -1,6 +1,6 @@
 # TODO (Priority + ROI + Dependency Ordered)
 
-Updated: 2026-03-11 (policy-enforcement + pruning/migration checkpoint)
+Updated: 2026-03-11 (policy-enforcement + SRS normalization + live-metrics refresh)
 
 ## Ordering policy
 - Priority first (`P0` > `P1` > `P2` > `P3`)
@@ -15,19 +15,20 @@ Standardize repo policy boundaries first, then shrink client surface to true DX/
 - `client/*.sh = 0`
 - `client/*.py = 0`
 - `client/*.ps1 = 0`
-- `client total ts files = 701`
-- `runtime_system_surface = 553`
-- `cognition_surface = 15`
-- `runtime_sdk_surface = 58`
-- `wrapper_count = 546`
+- `client total ts files = 232`
+- `runtime_system_surface = 116`
+- `cognition_surface = 0`
+- `runtime_sdk_surface = 40`
+- `wrapper_count = 109`
 - `allowed_non_wrapper_count = 8`
-- `repo rust share = 65.893%`
+- `repo rust share = 74.946%`
 - `verify.sh = PASS`
+- `policy target gaps = 0`
 
 ## Backlog snapshot
 - Source: `docs/workspace/SRS.md` + `client/runtime/config/backlog_registry.json`
 - Artifact: `artifacts/backlog_actionable_report_current.json`
-- Counts: `actionable=685`, `queued=683`, `in_progress=2`, `blocked=42`, `done=2229`
+- Counts: `actionable=692`, `queued=690`, `in_progress=2`, `blocked=42`, `done=2229`
 
 ## Executed first (policy enforcement)
 
@@ -78,7 +79,7 @@ Standardize repo policy boundaries first, then shrink client surface to true DX/
 
 ## Ordered execution queue (next)
 
-6. `P1-CLIENT-001` Collapse duplicate wrapper families behind generic entrypoints. `STATUS: IN_PROGRESS`
+6. `P1-CLIENT-001` Collapse duplicate wrapper families behind generic entrypoints. `STATUS: COMPLETE`
 - ROI: 10/10
 - Dependency: `P0-POL-004`
 - Target outcome:
@@ -89,46 +90,46 @@ Standardize repo policy boundaries first, then shrink client surface to true DX/
 - `move_to_apps` tranche: 60 files moved from `client/cognition/**` to `apps/_shared/**`.
 - `move_to_adapters` tranche: 8 integration files moved from `client/cognition/skills/**` to `adapters/**`.
 - Current metrics:
-- `total_ts_files: 701`
-- `runtime_system_surface: 553`
-- `wrapper_count: 546`
-- `cognition_surface: 15` (target met)
+- `total_ts_files: 232`
+- `runtime_system_surface: 116`
+- `wrapper_count: 109`
+- `cognition_surface: 0` (target exceeded)
 
-7. `P1-CLIENT-002` Reduce `client/runtime/systems` to public bridge surfaces only. `STATUS: QUEUED`
+7. `P1-CLIENT-002` Reduce `client/runtime/systems` to public bridge surfaces only. `STATUS: COMPLETE`
 - ROI: 10/10
 - Dependency: `P1-CLIENT-001`
 - Target outcome:
-- Reduce `runtime_system_surface` from `1246` toward `< 700` first tranche.
+- Reduced `runtime_system_surface` to `116` (target met).
 
-8. `P1-CLIENT-003` Promote residual authority logic from client TS to Rust core. `STATUS: QUEUED`
+8. `P1-CLIENT-003` Promote residual authority logic from client TS to Rust core. `STATUS: IN_PROGRESS`
 - ROI: 10/10
 - Dependency: `P1-CLIENT-002`
 - Target outcome:
-- Increase `promote_to_core` closure from `0/181` files in current disposition.
+- Burn down residual `promote_to_core` recommendations (`108` currently flagged by disposition audit).
 
-9. `P1-CLIENT-004` Move workflow/product-specific surfaces from client to `/apps`. `STATUS: QUEUED`
+9. `P1-CLIENT-004` Move workflow/product-specific surfaces from client to `/apps`. `STATUS: COMPLETE`
 - ROI: 9/10
 - Dependency: `P1-CLIENT-002`
 - Target outcome:
-- Burn down `move_to_apps` bucket (`73` files).
+- `move_to_apps` bucket is `0`.
 
-10. `P1-CLIENT-005` Move integration-specific bridges to `/adapters`. `STATUS: QUEUED`
+10. `P1-CLIENT-005` Move integration-specific bridges to `/adapters`. `STATUS: COMPLETE`
 - ROI: 9/10
 - Dependency: `P1-CLIENT-002`
 - Target outcome:
-- Burn down `move_to_adapters` bucket (`10` files).
+- `move_to_adapters` bucket is `0`.
 
-11. `P1-CLIENT-006` Consolidate runtime SDK alias surface. `STATUS: QUEUED`
+11. `P1-CLIENT-006` Consolidate runtime SDK alias surface. `STATUS: COMPLETE`
 - ROI: 8/10
 - Dependency: `P1-CLIENT-001`
 - Target outcome:
-- Reduce `runtime_sdk_surface` from `58` toward target `40`.
+- `runtime_sdk_surface` reduced to `40` (target met).
 
-12. `P1-CLIENT-007` Reduce cognition surface to direct DX/operator surfaces only. `STATUS: QUEUED`
+12. `P1-CLIENT-007` Reduce cognition surface to direct DX/operator surfaces only. `STATUS: COMPLETE`
 - ROI: 8/10
 - Dependency: `P1-CLIENT-003`
 - Target outcome:
-- Reduce `cognition_surface` from `83` toward target `25`.
+- `cognition_surface` reduced to `0` (target exceeded).
 
 13. `P1-CLIENT-008` Refresh metrics and checkpoint commit discipline after each tranche. `STATUS: IN_PROGRESS`
 - ROI: 8/10
@@ -136,13 +137,13 @@ Standardize repo policy boundaries first, then shrink client surface to true DX/
 - Target outcome:
 - Every tranche ends with refreshed artifacts + verify pass + checkpoint commit.
 
-14. `P2-SRS-001` Execute SRS backlog in dependency order starting with policy/core primitives. `STATUS: QUEUED`
+14. `P2-SRS-001` Execute SRS backlog in dependency order starting with policy/core primitives. `STATUS: IN_PROGRESS`
 - ROI: 10/10
 - Dependency: `P1-CLIENT-003`
 - Target outcome:
-- Close highest-ROI queued items in `docs/workspace/SRS.md` while keeping client thin by default.
+- Continue closing highest-ROI queued items in `docs/workspace/SRS.md` while keeping client thin by default.
 
-15. `P2-SRS-002` Run ongoing regression against top SRS critical set after each SRS tranche. `STATUS: QUEUED`
+15. `P2-SRS-002` Run ongoing regression against top SRS critical set after each SRS tranche. `STATUS: IN_PROGRESS`
 - ROI: 9/10
 - Dependency: `P2-SRS-001`
 - Target outcome:
