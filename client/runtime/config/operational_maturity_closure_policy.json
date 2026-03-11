@@ -5,7 +5,7 @@
   "state_path": "state/ops/operational_maturity_closure/latest.json",
   "history_path": "state/ops/operational_maturity_closure/history.jsonl",
   "escalation": {
-    "script": "client/runtime/systems/ops/alert_transport_health.js",
+    "script": "client/runtime/systems/ops/alert_transport_health.ts",
     "args": [
       "run",
       "--strict=1"
@@ -54,14 +54,14 @@
       "retries": 1,
       "timeout_ms": 40000,
       "health": {
-        "script": "client/runtime/systems/ops/alert_transport_health.js",
+        "script": "client/runtime/systems/ops/alert_transport_health.ts",
         "args": [
           "run",
           "--strict=1"
         ]
       },
       "remediate": {
-        "script": "client/runtime/systems/ops/alert_transport_health.js",
+        "script": "client/runtime/systems/ops/alert_transport_health.ts",
         "args": [
           "run"
         ]

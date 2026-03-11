@@ -5,7 +5,7 @@
 `client/runtime/systems/ops/compliance_posture.js` provides a single operational score for deployment + controls readiness by aggregating:
 - SOC2 evidence/readiness (`client/runtime/systems/ops/compliance_reports.js`)
 - Integrity kernel state (`client/runtime/systems/security/integrity_kernel.js`)
-- Startup attestation freshness (`client/runtime/systems/security/startup_attestation.js`)
+- Startup attestation freshness (`client/runtime/systems/security/startup_attestation.ts`)
 - Deployment hardening gate (`client/runtime/systems/ops/deployment_packaging.js`)
 - Contract surface stability (`client/runtime/systems/spine/contract_check.js`)
 

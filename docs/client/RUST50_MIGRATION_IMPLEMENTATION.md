@@ -12,10 +12,10 @@ This document defines the executable contract for `V6-RUST50-001..007`.
 ## Commands
 
 ```bash
-node client/runtime/systems/ops/rust50_migration_program.js list
-node client/runtime/systems/ops/rust50_migration_program.js run-all --apply=1 --strict=0
-node client/runtime/systems/ops/rust50_migration_program.js run --id=V6-RUST50-007 --apply=1 --strict=1
-node client/runtime/systems/ops/rust50_migration_program.js status
+node client/runtime/systems/ops/rust50_migration_program.ts list
+node client/runtime/systems/ops/rust50_migration_program.ts run-all --apply=1 --strict=0
+node client/runtime/systems/ops/rust50_migration_program.ts run --id=V6-RUST50-007 --apply=1 --strict=1
+node client/runtime/systems/ops/rust50_migration_program.ts status
 ```
 
 ## Receipts and State

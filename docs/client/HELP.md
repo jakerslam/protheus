@@ -4,7 +4,7 @@
 
 - `npm run build` -> compile/check baseline
 - `npm run test` -> run stable test suite
-- `node client/runtime/systems/ops/backlog_registry.js triage` -> inspect ready queue
+- `node client/runtime/systems/ops/backlog_registry.ts triage` -> inspect ready queue
 - `node client/runtime/systems/ops/docs_surface_contract.js check --strict=1` -> verify docs contract
 - `node client/runtime/systems/ops/root_surface_contract.js check --strict=1` -> verify root surface contract
 

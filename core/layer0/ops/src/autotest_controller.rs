@@ -1452,7 +1452,7 @@ fn run_guard_for_files(root: &Path, files: &[String]) -> GuardResult {
             duration_ms: 0,
         };
     }
-    let guard_path = root.join("client/runtime/systems/security/guard.js");
+    let guard_path = root.join("client/runtime/systems/security/guard.ts");
     if !guard_path.exists() {
         return GuardResult {
             ok: true,

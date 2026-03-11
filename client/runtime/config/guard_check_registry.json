@@ -55,7 +55,7 @@
         "id": "memory_layer_guard_strict",
         "command": "node",
         "args": [
-          "client/runtime/systems/memory/memory_layer_guard.js",
+          "client/runtime/systems/memory/memory_layer_guard.ts",
           "run",
           "--strict"
         ],
@@ -307,7 +307,7 @@
         "id": "account_creation_profile_extension_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/workflow/account_creation_profile_extension.js",
+          "client/runtime/systems/workflow/account_creation_profile_extension.ts",
           "status"
         ],
         "strict": false
@@ -560,7 +560,7 @@
         "id": "secure_heartbeat_endpoint_verify",
         "command": "node",
         "args": [
-          "client/runtime/systems/security/secure_heartbeat_endpoint.js",
+          "client/runtime/systems/security/secure_heartbeat_endpoint.ts",
           "verify",
           "--strict=1"
         ],
@@ -580,7 +580,7 @@
         "id": "secret_rotation_migration_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/security/secret_rotation_migration_auditor.js",
+          "client/runtime/systems/security/secret_rotation_migration_auditor.ts",
           "status",
           "--strict=1"
         ],
@@ -693,7 +693,7 @@
         "id": "dynamic_burn_budget_oracle_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/dynamic_burn_budget_oracle.js",
+          "client/runtime/systems/ops/dynamic_burn_budget_oracle.ts",
           "status"
         ],
         "strict": false
@@ -730,7 +730,7 @@
         "id": "dynamic_memory_embedding_adapter_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/memory/dynamic_memory_embedding_adapter.js",
+          "client/runtime/systems/memory/dynamic_memory_embedding_adapter.ts",
           "status"
         ],
         "strict": false
@@ -768,7 +768,7 @@
         "id": "agent_settlement_extension_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/finance/agent_settlement_extension.js",
+          "client/runtime/systems/finance/agent_settlement_extension.ts",
           "status"
         ],
         "strict": false

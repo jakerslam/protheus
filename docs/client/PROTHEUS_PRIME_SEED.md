@@ -1,18 +1,18 @@
 # Protheus Prime Seed Bootstrap + Packaging
 
-`client/runtime/systems/ops/protheus_prime_seed.js` is the conformance and packaging entrypoint for the Prime seed profile.
+`client/runtime/systems/ops/protheus_prime_seed.ts` is the conformance and packaging entrypoint for the Prime seed profile.
 
 ## Commands
 
 ```bash
 # Show normalized profile contract
-node client/runtime/systems/ops/protheus_prime_seed.js manifest
+node client/runtime/systems/ops/protheus_prime_seed.ts manifest
 
 # Verify bootstrap conformance and provision minimal core files
-node client/runtime/systems/ops/protheus_prime_seed.js bootstrap
+node client/runtime/systems/ops/protheus_prime_seed.ts bootstrap
 
 # Build reproducible package metadata (strict fail-closed)
-node client/runtime/systems/ops/protheus_prime_seed.js package --strict=1
+node client/runtime/systems/ops/protheus_prime_seed.ts package --strict=1
 ```
 
 Equivalent npm scripts:

@@ -1,6 +1,6 @@
 # TODO (Priority + ROI + Dependency Ordered)
 
-Updated: 2026-03-10 (policy enforcement tranche closed + Protheus 2.0 intake applied)
+Updated: 2026-03-11 (client JS bootstrap duplicate tranche applied)
 
 ## Ordering policy
 - Priority first (`P0` > `P1` > `P2` > `P3`)
@@ -21,18 +21,18 @@ Goal:
 - authority/system truth stays in `core`; apps/connectors/integration-specific logic live in `apps` or `adapters`.
 
 Live baseline from current worktree:
-- `client/*.js = 0`
+- `client/*.js = 780`
 - `client/*.sh = 0`
 - `client/*.py = 0`
 - `client/*.ps1 = 0`
-- `client total ts files = 926`
-- `client/runtime/systems = 679`
-- `wrapper_count = 673`
-- `allowed_non_wrapper_count = 15`
-- `cognition_surface = 100`
-- `runtime_sdk_surface = 59`
-- hard client target violations: `0`
-- repo language share: `Rust = 65.744%`
+- `client total ts files = 1159`
+- `runtime_system_surface = 1031`
+- `wrapper_count = 1676`
+- `allowed_non_wrapper_count = 8`
+- `cognition_surface = 21`
+- `runtime_sdk_surface = 57`
+- hard client target violations: `1` (`js=780`)
+- repo language share: `Rust = 65.819%`
 
 Execution list for this objective only:
 
@@ -64,11 +64,11 @@ Execution list for this objective only:
 - `client/runtime/config/client_target_contract_policy.json`
 - `artifacts/client_surface_disposition_current.json`
 
-3. `OBJ-CLIENT-003` `P0` Collapse dead and duplicate wrapper families. `STATUS: QUEUED`
+3. `OBJ-CLIENT-003` `P0` Collapse dead and duplicate wrapper families. `STATUS: IN_PROGRESS`
 - Exit criteria:
 - legacy-retired wrapper families are reduced behind a small number of generic entrypoints.
 - dead alias shells are deleted instead of renamed.
-- wrapper inventory count drops materially from the current `667`.
+- wrapper inventory count drops materially from the current `1676`.
 - Purpose:
 - Most of the remaining client bloat is wrapper duplication, not useful public surface.
 
@@ -85,13 +85,13 @@ Execution list for this objective only:
 - Progress evidence:
 - `client/runtime/config/client_layer_boundary_policy.json`
 - `client/runtime/config/client_target_contract_policy.json`
-- allowlist reduced `21 -> 15` in the current worktree
+- allowlist reduced `21 -> 8` in the current worktree
 
 5. `OBJ-CLIENT-005` `P1` Shrink `client/runtime/systems` to true public bridges only. `STATUS: QUEUED`
 - Exit criteria:
 - runtime-system files that only front Rust receipts are collapsed or removed.
 - non-user-facing internal compatibility scaffolding is promoted to `core`, `adapters`, `scripts`, or deleted.
-- `client/runtime/systems` count is driven down substantially from the current `679`.
+- `runtime_system_surface` is driven down substantially from the current `1031`.
 - Purpose:
 - This directory is still far too large relative to the intended policy.
 
@@ -146,7 +146,7 @@ Execution list for this objective only:
 
 11. `OBJ-CLIENT-011` `P1` Recover Rust share while reducing client TS surface. `STATUS: QUEUED`
 - Exit criteria:
-- Rust share trends upward from the current `65.744%`.
+- Rust share trends upward from the current `65.819%`.
 - TS reductions come from real removals/collapses, not file shuffling.
 - core-authority migrations continue wherever client shrink reveals non-core truth.
 - Purpose:
@@ -343,18 +343,18 @@ Execution list for this objective only:
 
 18. `MAINT-006` `P1` `ROI=9/10` `DEP=009,010` Client legacy surface burn-down (language debt closed, wrapper volume still oversized). `STATUS: IN_PROGRESS`
 - Current baseline:
-- Language/format debt is now closed in the live worktree:
-  - `client/*.js = 0`
+- Language/format debt is partially closed in the live worktree:
+  - `client/*.js = 780`
   - `client/*.sh = 0`
   - `client/*.py = 0`
   - `client/*.ps1 = 0`
 - Remaining oversized TS surface:
-  - `client total ts files = 898`
-  - `runtime_system_surface = 679`
-  - `cognition_surface = 83`
-  - `runtime_sdk_surface = 58`
-  - `wrapper_count = 667`
-  - `allowed_non_wrapper_count = 21`
+  - `client total ts files = 1159`
+  - `runtime_system_surface = 1031`
+  - `cognition_surface = 21`
+  - `runtime_sdk_surface = 57`
+  - `wrapper_count = 1676`
+  - `allowed_non_wrapper_count = 8`
 - Latest tranche evidence:
   - `tests/client-memory-tools/`
   - `tests/websocket-stability-test.js`
@@ -365,6 +365,8 @@ Execution list for this objective only:
   - `packages/protheus-py/`
   - `artifacts/client_legacy_debt_report_2026-03-10_policy_enforcement.json`
   - `artifacts/repo_surface_policy_audit_2026-03-10_policy_enforcement.json`
+  - removed `65` duplicate `ts_bootstrap` JS wrappers from `client/runtime/systems/**/*.js`
+  - patched live references from deleted wrapper paths to the surviving `.ts` bridges across config, docs, packages, workflow metadata, and core operator docs
   - removed legacy shim roots:
     - `client/systems/security/`
     - `client/systems/memory/`

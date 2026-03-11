@@ -421,7 +421,7 @@ fn route_edge(rest: &[String]) -> Route {
                 .map(|v| v.trim().to_ascii_lowercase())
                 .unwrap_or_else(|| "status".to_string());
             Route {
-                script_rel: "client/runtime/systems/edge/mobile_lifecycle_resilience.js"
+                script_rel: "client/runtime/systems/edge/mobile_lifecycle_resilience.ts"
                     .to_string(),
                 args: std::iter::once(action)
                     .chain(rest.iter().skip(2).cloned())
@@ -435,7 +435,7 @@ fn route_edge(rest: &[String]) -> Route {
                 .map(|v| v.trim().to_ascii_lowercase())
                 .unwrap_or_else(|| "status".to_string());
             Route {
-                script_rel: "client/runtime/systems/spawn/mobile_edge_swarm_bridge.js".to_string(),
+                script_rel: "client/runtime/systems/spawn/mobile_edge_swarm_bridge.ts".to_string(),
                 args: std::iter::once(action)
                     .chain(rest.iter().skip(2).cloned())
                     .collect(),
@@ -471,14 +471,14 @@ fn route_edge(rest: &[String]) -> Route {
             }
         }
         "top" => Route {
-            script_rel: "client/runtime/systems/edge/mobile_ops_top.js".to_string(),
+            script_rel: "client/runtime/systems/edge/mobile_ops_top.ts".to_string(),
             args: std::iter::once("status".to_string())
                 .chain(rest.iter().skip(1).cloned())
                 .collect(),
             forward_stdin: false,
         },
         _ => Route {
-            script_rel: "client/runtime/systems/edge/protheus_edge_runtime.js".to_string(),
+            script_rel: "client/runtime/systems/edge/protheus_edge_runtime.ts".to_string(),
             args: std::iter::once(sub)
                 .chain(rest.iter().skip(1).cloned())
                 .collect(),
@@ -1239,7 +1239,7 @@ mod tests {
         ]);
         assert_eq!(
             route.script_rel,
-            "client/runtime/systems/spawn/mobile_edge_swarm_bridge.js"
+            "client/runtime/systems/spawn/mobile_edge_swarm_bridge.ts"
         );
         assert_eq!(route.args.first().map(String::as_str), Some("enroll"));
     }

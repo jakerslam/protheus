@@ -9,13 +9,13 @@
   ],
   "package_cmd": [
     "node",
-    "client/runtime/systems/ops/protheus_prime_seed.js",
+    "client/runtime/systems/ops/protheus_prime_seed.ts",
     "package",
     "--strict=1"
   ],
   "verify_cmd": [
     "node",
-    "client/runtime/systems/ops/protheus_prime_seed.js",
+    "client/runtime/systems/ops/protheus_prime_seed.ts",
     "verify",
     "--strict=1"
   ],

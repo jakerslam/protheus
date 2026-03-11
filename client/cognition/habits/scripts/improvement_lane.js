@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Compatibility wrapper.
- * Moved to: client/runtime/systems/autonomy/improvement_orchestrator.js
+ * Moved to: client/runtime/systems/autonomy/improvement_orchestrator.ts
  */
 
 const path = require('path');

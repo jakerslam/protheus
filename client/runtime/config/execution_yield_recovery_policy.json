@@ -70,7 +70,7 @@
   },
   "event_stream": {
     "enabled": true,
-    "script_path": "client/runtime/systems/ops/event_sourced_control_plane.js",
+    "script_path": "client/runtime/systems/ops/event_sourced_control_plane.ts",
     "stream": "ops",
     "event": "yield_recovery_tick"
   }

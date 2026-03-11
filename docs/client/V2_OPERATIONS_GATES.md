@@ -66,7 +66,7 @@ Checks:
 
 ## Merge/CI Wiring
 
-- `client/runtime/systems/security/merge_guard.js run` includes:
+- `client/runtime/systems/security/merge_guard.ts run` includes:
   - `docs_coverage_gate`
   - `dr_gameday_gate`
 - GitHub required checks include dedicated jobs for both gates.

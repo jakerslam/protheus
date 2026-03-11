@@ -3,7 +3,7 @@
   "enabled": true,
   "max_attestation_age_hours": 24,
   "scripts": {
-    "startup_attestation": "client/runtime/systems/security/startup_attestation.js",
+    "startup_attestation": "client/runtime/systems/security/startup_attestation.ts",
     "integrity_kernel": "client/runtime/systems/security/integrity_kernel.js"
   },
   "outputs": {

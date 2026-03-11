@@ -159,7 +159,7 @@
       ],
       "proposed_components": [
         "client/runtime/systems/spawn/spawn_broker.js",
-        "client/runtime/systems/security/capability_lease.js",
+        "client/runtime/systems/security/capability_lease.ts",
         "client/runtime/systems/autonomy/health_status.js"
       ],
       "expected_effect": {

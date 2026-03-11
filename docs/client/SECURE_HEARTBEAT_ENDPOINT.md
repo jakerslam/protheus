@@ -5,11 +5,11 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/security/secure_heartbeat_endpoint.js issue-key --client-id=primary
-node client/runtime/systems/security/secure_heartbeat_endpoint.js receive --payload-json='{"heartbeat_id":"hb_1","ts":"2026-02-27T00:00:00.000Z"}' --key-id=<key_id> --ts=<unix_sec> --signature=<hex>
-node client/runtime/systems/security/secure_heartbeat_endpoint.js verify --strict=1
-node client/runtime/systems/security/secure_heartbeat_endpoint.js status
-node client/runtime/systems/security/secure_heartbeat_endpoint.js serve --host=127.0.0.1 --port=8787
+node client/runtime/systems/security/secure_heartbeat_endpoint.ts issue-key --client-id=primary
+node client/runtime/systems/security/secure_heartbeat_endpoint.ts receive --payload-json='{"heartbeat_id":"hb_1","ts":"2026-02-27T00:00:00.000Z"}' --key-id=<key_id> --ts=<unix_sec> --signature=<hex>
+node client/runtime/systems/security/secure_heartbeat_endpoint.ts verify --strict=1
+node client/runtime/systems/security/secure_heartbeat_endpoint.ts status
+node client/runtime/systems/security/secure_heartbeat_endpoint.ts serve --host=127.0.0.1 --port=8787
 ```
 
 ## Security Controls

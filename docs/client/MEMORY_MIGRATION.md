@@ -24,7 +24,7 @@ This document tracks the staged Rust memory migration for `V3-RACE-023`.
 - Runtime commands (`query-index`, `get-node`, `build-index`) use SQLite-first behavior.
 - Markdown index files remain compatibility fallback artifacts.
 - TypeScript integration (`client/runtime/systems/memory/memory_recall.ts`) defaults to Rust first with deterministic JS fallback.
-- Memory write receipts are published via `client/runtime/systems/ops/event_sourced_control_plane.js`.
+- Memory write receipts are published via `client/runtime/systems/ops/event_sourced_control_plane.ts`.
 - Stage 1 benchmark report is generated at `benchmarks/memory-stage1.md` from `client/runtime/systems/memory/rust_memory_transition_lane.ts`.
 
 ## Stage 1 Safety Notes

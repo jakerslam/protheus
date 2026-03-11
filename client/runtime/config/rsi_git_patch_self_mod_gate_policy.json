@@ -14,7 +14,7 @@
     "rsi_bootstrap": "client/cognition/adaptive/rsi/rsi_bootstrap.js",
     "rsi_policy": "client/runtime/config/rsi_bootstrap_policy.json",
     "chaos": "client/runtime/systems/autonomy/red_team_harness.js",
-    "constitution": "client/runtime/systems/security/constitution_guardian.js",
+    "constitution": "client/runtime/systems/security/constitution_guardian.ts",
     "habit_lifecycle": "client/cognition/habits/scripts/reflex_habit_bridge.js",
     "dopamine": "client/cognition/habits/scripts/dopamine_engine.js"
   },

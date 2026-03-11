@@ -10,7 +10,7 @@
     ".js"
   ],
   "exclude_paths": [
-    "client/runtime/systems/memory/memory_layer_guard.js"
+    "client/runtime/systems/memory/memory_layer_guard.ts"
   ],
   "allow_paths": [
     "client/runtime/systems/memory/eyes_memory_bridge.js",

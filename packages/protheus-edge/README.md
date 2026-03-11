@@ -2,9 +2,9 @@
 
 Lightweight runtime surface for mobile/edge operation:
 
-- edge runtime (`client/runtime/systems/edge/protheus_edge_runtime.js`)
-- lifecycle resilience (`client/runtime/systems/edge/mobile_lifecycle_resilience.js`)
-- swarm enrollment bridge (`client/runtime/systems/spawn/mobile_edge_swarm_bridge.js`)
+- edge runtime (`client/runtime/systems/edge/protheus_edge_runtime.ts`)
+- lifecycle resilience (`client/runtime/systems/edge/mobile_lifecycle_resilience.ts`)
+- swarm enrollment bridge (`client/runtime/systems/spawn/mobile_edge_swarm_bridge.ts`)
 - wrapper distribution lane (`client/runtime/systems/ops/mobile_wrapper_distribution_pack.js`)
 - benchmark matrix lane (`client/runtime/systems/ops/mobile_competitive_benchmark_matrix.js`)
 

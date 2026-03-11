@@ -343,17 +343,17 @@ Symptoms:
 
 Diagnose:
 
-1. `node client/runtime/systems/security/secure_heartbeat_endpoint.js verify --strict=1`
-2. `node client/runtime/systems/security/secure_heartbeat_endpoint.js status`
+1. `node client/runtime/systems/security/secure_heartbeat_endpoint.ts verify --strict=1`
+2. `node client/runtime/systems/security/secure_heartbeat_endpoint.ts status`
 3. `tail -n 30 state/security/secure_heartbeat_endpoint/audit.jsonl`
 4. `tail -n 30 state/security/secure_heartbeat_endpoint/alerts.jsonl`
 
 Containment / Recovery:
 
 1. Revoke suspicious key:
-`node client/runtime/systems/security/secure_heartbeat_endpoint.js revoke-key --key-id=<id> --reason="incident_response"`
+`node client/runtime/systems/security/secure_heartbeat_endpoint.ts revoke-key --key-id=<id> --reason="incident_response"`
 2. Rotate client key:
-`node client/runtime/systems/security/secure_heartbeat_endpoint.js issue-key --client-id=<client>`
+`node client/runtime/systems/security/secure_heartbeat_endpoint.ts issue-key --client-id=<client>`
 3. If endpoint behavior is uncertain, keep remote channels advisory-only until audit stabilizes.
 
 Verification:

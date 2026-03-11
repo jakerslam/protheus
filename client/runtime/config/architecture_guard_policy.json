@@ -25,7 +25,7 @@
     "client/runtime/systems/spine/spine.js"
   ],
   "allow_token_overrides": {
-    "client/runtime/systems/security/guard.js": [
+    "client/runtime/systems/security/guard.ts": [
       "moltbook"
     ],
     "client/runtime/systems/security/request_ingress.js": [

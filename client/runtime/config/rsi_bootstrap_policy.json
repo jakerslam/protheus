@@ -34,7 +34,7 @@
     "step_artifacts_dir": "state/client/cognition/adaptive/rsi/steps"
   },
   "scripts": {
-    "event_stream": "client/runtime/systems/ops/event_sourced_control_plane.js",
+    "event_stream": "client/runtime/systems/ops/event_sourced_control_plane.ts",
     "system3": "client/cognition/adaptive/executive/system3_executive_layer.js",
     "strategy_learner": "client/runtime/systems/strategy/strategy_learner.js",
     "model_catalog": "client/runtime/systems/autonomy/model_catalog_loop.js",
@@ -46,8 +46,8 @@
     "a2a_delegation": "client/runtime/systems/a2a/a2a_delegation_plane.js",
     "gated_self_improvement": "client/runtime/systems/autonomy/gated_self_improvement_loop.js",
     "red_team_harness": "client/runtime/systems/autonomy/red_team_harness.js",
-    "venom": "client/runtime/systems/security/venom_containment_layer.js",
-    "constitution": "client/runtime/systems/security/constitution_guardian.js",
+    "venom": "client/runtime/systems/security/venom_containment_layer.ts",
+    "constitution": "client/runtime/systems/security/constitution_guardian.ts",
     "mutation_safety": "client/runtime/systems/autonomy/mutation_safety_kernel.js",
     "reversion_drill": "client/runtime/systems/autonomy/self_mod_reversion_drill.js",
     "dopamine": "client/cognition/habits/scripts/dopamine_engine.js",

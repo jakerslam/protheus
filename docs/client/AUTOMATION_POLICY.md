@@ -64,7 +64,7 @@ These require explicit operator intent and/or elevated guard paths:
 
 - External actuation execution (`client/runtime/systems/actuation/actuation_executor.js run ...`)
 - Model catalog apply operations (`model_catalog_loop.js apply ...`) with approval note
-- Any break-glass guarded operation under `client/runtime/systems/security/guard.js`
+- Any break-glass guarded operation under `client/runtime/systems/security/guard.ts`
 
 ## Current Mode Clarification
 
