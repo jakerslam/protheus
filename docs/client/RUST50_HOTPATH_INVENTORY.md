@@ -5,8 +5,8 @@ Use the inventory tool to rank migration order by measured TypeScript line conce
 ## Commands
 
 ```bash
-node client/runtime/systems/ops/rust_hotpath_inventory.js run
-node client/runtime/systems/ops/rust_hotpath_inventory.js status
+node client/runtime/systems/ops/rust_hotpath_inventory.ts run
+node client/runtime/systems/ops/rust_hotpath_inventory.ts status
 ```
 
 ## Outputs

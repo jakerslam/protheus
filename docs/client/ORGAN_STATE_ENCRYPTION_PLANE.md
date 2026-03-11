@@ -5,11 +5,11 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/security/organ_state_encryption_plane.js encrypt --organ=workflow --lane=state --source=state/example.json
-node client/runtime/systems/security/organ_state_encryption_plane.js decrypt --organ=workflow --cipher=state/example.json.enc.json --out=state/example.restored.json
-node client/runtime/systems/security/organ_state_encryption_plane.js rotate-key --organ=workflow --reason="scheduled_rotation"
-node client/runtime/systems/security/organ_state_encryption_plane.js verify --strict=1
-node client/runtime/systems/security/organ_state_encryption_plane.js status
+node client/runtime/systems/security/organ_state_encryption_plane.ts encrypt --organ=workflow --lane=state --source=state/example.json
+node client/runtime/systems/security/organ_state_encryption_plane.ts decrypt --organ=workflow --cipher=state/example.json.enc.json --out=state/example.restored.json
+node client/runtime/systems/security/organ_state_encryption_plane.ts rotate-key --organ=workflow --reason="scheduled_rotation"
+node client/runtime/systems/security/organ_state_encryption_plane.ts verify --strict=1
+node client/runtime/systems/security/organ_state_encryption_plane.ts status
 ```
 
 ## Guarantees

@@ -12,6 +12,6 @@ Primary runtime: `client/runtime/systems/ops/fluxlattice_program.ts`.
 ## Run
 
 ```bash
-node client/runtime/systems/ops/fluxlattice_program.js run-all --apply=1 --strict=1
-node client/runtime/systems/ops/fluxlattice_program.js status
+node client/runtime/systems/ops/fluxlattice_program.ts run-all --apply=1 --strict=1
+node client/runtime/systems/ops/fluxlattice_program.ts status
 ```

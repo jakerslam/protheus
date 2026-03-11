@@ -11,7 +11,7 @@ export default defineConfig({
       reportsDirectory: 'coverage/ts',
       include: [
         'client/runtime/systems/conduit/conduit-client.ts',
-        'client/runtime/lib/direct_conduit_lane_bridge.js'
+        'client/runtime/lib/direct_conduit_lane_bridge.ts'
       ]
     }
   }

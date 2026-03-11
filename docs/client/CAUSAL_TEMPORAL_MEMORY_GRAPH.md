@@ -24,14 +24,14 @@ Outputs:
 
 ```bash
 # Build graph from canonical events
-node client/runtime/systems/memory/causal_temporal_graph.js build --strict=1
+node client/runtime/systems/memory/causal_temporal_graph.ts build --strict=1
 
 # Explain why an event happened
-node client/runtime/systems/memory/causal_temporal_graph.js query --mode=why --event-id=<event_id>
+node client/runtime/systems/memory/causal_temporal_graph.ts query --mode=why --event-id=<event_id>
 
 # Counterfactual ripple from an event
-node client/runtime/systems/memory/causal_temporal_graph.js query --mode=what-if --event-id=<event_id> --assume-ok=0
+node client/runtime/systems/memory/causal_temporal_graph.ts query --mode=what-if --event-id=<event_id> --assume-ok=0
 
 # View graph/query status
-node client/runtime/systems/memory/causal_temporal_graph.js status
+node client/runtime/systems/memory/causal_temporal_graph.ts status
 ```

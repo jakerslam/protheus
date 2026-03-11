@@ -19,4 +19,4 @@ if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
   process.exit(Number.isFinite(out && out.status) ? Number(out.status) : 1);
 }
 
-export const { run } = require('./backlog_lane_batch_delivery.js');
+export const { run } = require('./backlog_lane_batch_delivery.ts');

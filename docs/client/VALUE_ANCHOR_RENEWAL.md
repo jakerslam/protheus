@@ -25,11 +25,11 @@ State outputs:
 
 ```bash
 # Propose renewal (no apply)
-node client/runtime/systems/echo/value_anchor_renewal.js run --apply=0
+node client/runtime/systems/echo/value_anchor_renewal.ts run --apply=0
 
 # Apply renewal with explicit review metadata when required
-node client/runtime/systems/echo/value_anchor_renewal.js run --apply=1 --approved-by=operator --approval-note="reviewed"
+node client/runtime/systems/echo/value_anchor_renewal.ts run --apply=1 --approved-by=operator --approval-note="reviewed"
 
 # Inspect status
-node client/runtime/systems/echo/value_anchor_renewal.js status
+node client/runtime/systems/echo/value_anchor_renewal.ts status
 ```

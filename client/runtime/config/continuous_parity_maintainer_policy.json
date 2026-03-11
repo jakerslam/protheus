@@ -7,7 +7,7 @@
   "remediation_limit": 4,
   "parity_cmd": [
     "node",
-    "client/runtime/systems/ops/narrow_agent_parity_harness.js",
+    "client/runtime/systems/ops/narrow_agent_parity_harness.ts",
     "run",
     "--strict=1"
   ],

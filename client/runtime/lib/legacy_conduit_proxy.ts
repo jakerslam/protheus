@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-const { createOpsLaneBridge } = require('./rust_lane_bridge');
+const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
 
 function cleanText(v, maxLen = 260) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, maxLen);

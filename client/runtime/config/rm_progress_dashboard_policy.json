@@ -9,8 +9,8 @@
     "rm001_ci_guard_path": "state/ops/ci_baseline_guard.json"
   },
   "refresh_scripts": {
-    "rm113": "client/runtime/systems/ops/workflow_execution_closure.js",
-    "rm119": "client/runtime/systems/ops/execution_reliability_slo.js",
-    "rm001": "client/runtime/systems/ops/ci_baseline_guard.js"
+    "rm113": "client/runtime/systems/ops/workflow_execution_closure.ts",
+    "rm119": "client/runtime/systems/ops/execution_reliability_slo.ts",
+    "rm001": "client/runtime/systems/ops/ci_baseline_guard.ts"
   }
 }

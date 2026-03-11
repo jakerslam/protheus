@@ -16,7 +16,7 @@ const {
   appendJsonl,
   resolvePath,
   emit
-} = require('./queued_backlog_runtime');
+} = require('./queued_backlog_runtime.ts');
 
 function normalizeCheck(row, idx) {
   const id = normalizeToken((row && row.id) || (row && row.name) || ('check_' + String(idx + 1)), 120) || ('check_' + String(idx + 1));

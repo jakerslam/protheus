@@ -70,8 +70,8 @@
     "execute_immediately": false,
     "autonomous_executor": "universal_execution_primitive",
     "storm_executor": "storm_human_lane",
-    "universal_execution_script": "client/runtime/systems/actuation/universal_execution_primitive.js",
-    "workflow_executor_script": "client/runtime/systems/workflow/workflow_executor.js",
+    "universal_execution_script": "client/runtime/systems/actuation/universal_execution_primitive.ts",
+    "workflow_executor_script": "client/runtime/systems/workflow/workflow_executor.ts",
     "dispatch_queue_path": "state/execution/task_decomposition_primitive/execution_dispatch_queue.jsonl",
     "execution_log_path": "state/execution/task_decomposition_primitive/execution_log.jsonl"
   },

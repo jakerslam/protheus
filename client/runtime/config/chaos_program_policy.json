@@ -1,20 +1,20 @@
 {
   "version": "1.0",
   "strict_default": true,
-  "integrity_command": "node client/runtime/systems/security/integrity_kernel.js run",
+  "integrity_command": "node client/runtime/systems/security/integrity_kernel.ts run",
   "scenarios": [
     {
       "id": "collector_fault",
       "lane": "sensory",
       "fault": "collector_timeout_simulation",
-      "recovery_command": "node client/runtime/systems/sensory/adaptive_layer_guard.js run --strict",
+      "recovery_command": "node client/runtime/systems/sensory/adaptive_layer_guard.ts run --strict",
       "timeout_ms": 30000
     },
     {
       "id": "routing_fault",
       "lane": "routing",
       "fault": "model_health_degraded_simulation",
-      "recovery_command": "node client/runtime/systems/routing/route_probe.js",
+      "recovery_command": "node client/runtime/systems/routing/route_probe.ts",
       "timeout_ms": 30000
     },
     {

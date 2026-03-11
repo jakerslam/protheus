@@ -13,7 +13,7 @@
 ## Command
 
 ```bash
-node client/runtime/systems/migration/post_migration_verification_report.js run \
+node client/runtime/systems/migration/post_migration_verification_report.ts run \
   --migration-id=<id> \
   --strict=1 \
   --telemetry-consent=1 \

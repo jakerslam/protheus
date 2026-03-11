@@ -14,29 +14,29 @@ Seal V2 hardening components to enable advisory/active mode flip.
 
 ### Helix (Immortal Helix)
 - client/runtime/systems/helix/helix_controller.ts
-- client/runtime/systems/helix/helix_controller.js
+- client/runtime/systems/helix/helix_controller.ts
 - client/runtime/systems/helix/sentinel_network.ts
-- client/runtime/systems/helix/sentinel_network.js
+- client/runtime/systems/helix/sentinel_network.ts
 
 **Purpose:** Strand verification, codex integrity, manifest building
 
 ### Echo (Heroic Echo)
 - client/runtime/systems/echo/heroic_echo_controller.ts
-- client/runtime/systems/echo/heroic_echo_controller.js
+- client/runtime/systems/echo/heroic_echo_controller.ts
 - client/runtime/systems/echo/input_purification_gate.ts
-- client/runtime/systems/echo/input_purification_gate.js
+- client/runtime/systems/echo/input_purification_gate.ts
 
 **Purpose:** Input purification, belief integration, positive-only filtering
 
 ### Weaver
 - client/runtime/systems/weaver/weaver_core.ts
-- client/runtime/systems/weaver/weaver_core.js
+- client/runtime/systems/weaver/weaver_core.ts
 
 **Purpose:** Metric overlay, regime tracking, autocorrelation detection
 
 ### Red Team (Soldier Ants)
 - client/runtime/systems/redteam/ant_colony_controller.ts
-- client/runtime/systems/redteam/ant_colony_controller.js
+- client/runtime/systems/redteam/ant_colony_controller.ts
 
 **Purpose:** 24/7 peaceful probing, organ hardening
 
@@ -49,17 +49,17 @@ const fs = require('fs');
 const crypto = require('crypto');
 const files = [
   'client/runtime/systems/helix/helix_controller.ts',
-  'client/runtime/systems/helix/helix_controller.js',
+  'client/runtime/systems/helix/helix_controller.ts',
   'client/runtime/systems/helix/sentinel_network.ts',
-  'client/runtime/systems/helix/sentinel_network.js',
+  'client/runtime/systems/helix/sentinel_network.ts',
   'client/runtime/systems/echo/heroic_echo_controller.ts',
-  'client/runtime/systems/echo/heroic_echo_controller.js',
+  'client/runtime/systems/echo/heroic_echo_controller.ts',
   'client/runtime/systems/echo/input_purification_gate.ts',
-  'client/runtime/systems/echo/input_purification_gate.js',
+  'client/runtime/systems/echo/input_purification_gate.ts',
   'client/runtime/systems/weaver/weaver_core.ts',
-  'client/runtime/systems/weaver/weaver_core.js',
+  'client/runtime/systems/weaver/weaver_core.ts',
   'client/runtime/systems/redteam/ant_colony_controller.ts',
-  'client/runtime/systems/redteam/ant_colony_controller.js'
+  'client/runtime/systems/redteam/ant_colony_controller.ts'
 ];
 files.forEach(f => {
   if (fs.existsSync(f)) {
@@ -80,7 +80,7 @@ Expected after sealing: 53
 ## Verification
 
 After sealing:
-1. Run integrity check: `node client/runtime/systems/security/integrity_kernel.js check`
+1. Run integrity check: `node client/runtime/systems/security/integrity_kernel.ts check`
 2. Verify no violations
 3. Test shadow runs for each component
 4. Confirm no integrity blocks

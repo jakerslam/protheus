@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { hashFileSha256 } = require('./integrity_hash_utility');
+const { hashFileSha256 } = require('./integrity_hash_utility.ts');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const DEFAULT_POLICY_PATH = path.join(REPO_ROOT, 'config', 'security_integrity_policy.json');

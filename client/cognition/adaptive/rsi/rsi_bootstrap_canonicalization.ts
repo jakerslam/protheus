@@ -4,6 +4,6 @@
 
 // Layer ownership: core/layer3/cognition + core/layer0/ops::legacy-retired-lane (authoritative)
 // TypeScript compatibility shim only.
-const mod = require('./rsi_bootstrap_canonicalization.js');
+const mod = require('./rsi_bootstrap_canonicalization.ts');
 if (require.main === module) mod.run(process.argv.slice(2));
 module.exports = mod;

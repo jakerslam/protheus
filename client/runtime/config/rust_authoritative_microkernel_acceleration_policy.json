@@ -24,33 +24,33 @@
   "commands": {
     "rust_spine_parity": [
       "node",
-      "client/runtime/systems/ops/rust_spine_microkernel.js",
+      "client/runtime/systems/ops/rust_spine_microkernel.ts",
       "parity",
       "--apply=1"
     ],
     "rust_spine_benchmark": [
       "node",
-      "client/runtime/systems/ops/rust_spine_microkernel.js",
+      "client/runtime/systems/ops/rust_spine_microkernel.ts",
       "benchmark",
       "--apply=1",
       "--window=30"
     ],
     "rust_spine_cutover": [
       "node",
-      "client/runtime/systems/ops/rust_spine_microkernel.js",
+      "client/runtime/systems/ops/rust_spine_microkernel.ts",
       "cutover",
       "--apply=1"
     ],
     "wasi2_gate": [
       "node",
-      "client/runtime/systems/ops/wasi2_execution_completeness_gate.js",
+      "client/runtime/systems/ops/wasi2_execution_completeness_gate.ts",
       "run",
       "--apply=1",
       "--strict=1"
     ],
     "sandbox_coprocessor": [
       "node",
-      "client/runtime/systems/security/execution_sandbox_rust_wasm_coprocessor_lane.js",
+      "client/runtime/systems/security/execution_sandbox_rust_wasm_coprocessor_lane.ts",
       "verify",
       "--owner=rust_accel",
       "--strict=1",

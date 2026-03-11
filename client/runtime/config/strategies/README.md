@@ -81,7 +81,7 @@ Each `*.json` here is declarative policy consumed by generic controllers.
   - `value_currency_policy.objective_overrides.<objective_id>` can force objective-specific currency and ranking weights.
 - Strict validation blocks profiles with contradictory admission lists (`allowed_types` intersect `blocked_types`) or invalid promotion policy (`min_shipped > min_attempted`).
 - Strategy lifecycle grading can be generated via:
-  - `node client/runtime/systems/strategy/strategy_learner.js run [YYYY-MM-DD] --days=14`
+  - `node client/runtime/systems/strategy/strategy_learner.ts run [YYYY-MM-DD] --days=14`
   - Output defaults to `state/client/cognition/adaptive/strategy/scorecards/` with stages: `theory -> trial -> validated -> scaled`.
 - Campaign scheduling (v1):
   - Optional `campaigns[]` lets strategy profiles prioritize proposal sequencing by campaign phase before flat ranking.

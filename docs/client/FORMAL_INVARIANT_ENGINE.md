@@ -1,6 +1,6 @@
 # Formal Invariant Engine (`V3-045`)
 
-`client/runtime/systems/security/formal_invariant_engine.js` is the machine-checkable invariant lane.
+`client/runtime/systems/security/formal_invariant_engine.ts` is the machine-checkable invariant lane.
 
 ## Spec
 
@@ -21,8 +21,8 @@ Supported deterministic invariant types:
 
 ```bash
 npm run -s formal:invariants:run
-node client/runtime/systems/security/formal_invariants_bootstrap.js run --strict=1
-node client/runtime/systems/security/formal_invariant_engine.js status
+node client/runtime/systems/security/formal_invariants_bootstrap.ts run --strict=1
+node client/runtime/systems/security/formal_invariant_engine.ts status
 ```
 
 `formal:invariants:run` now auto-installs `typescript` (`npm install --no-save typescript`) when missing, so clean validation worktrees do not fail on bootstrap.

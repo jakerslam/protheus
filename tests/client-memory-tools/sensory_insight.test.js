@@ -114,7 +114,7 @@ function testFileChangeSpikeProposal() {
 
     // Run insight generator
     const result = execSync(
-      `node client/cognition/habits/scripts/sensory_insight.js daily ${testDate} 2>&1`,
+      `node client/cognition/habits/scripts/sensory_insight.ts daily ${testDate} 2>&1`,
       {
         cwd: workspaceRoot,
         encoding: 'utf8',
@@ -185,7 +185,7 @@ function testLowSignalProposal() {
 
     // v1.2.0: Must pass SENSORY_TEST_DIR to use isolated directories
     execSync(
-      `node client/cognition/habits/scripts/sensory_insight.js daily ${testDate}`,
+      `node client/cognition/habits/scripts/sensory_insight.ts daily ${testDate}`,
       {
         cwd: workspaceRoot,
         encoding: 'utf8',
@@ -258,7 +258,7 @@ function testHighChurnProposal() {
 
     // v1.2.0: Must pass SENSORY_TEST_DIR env var
     execSync(
-      `node client/cognition/habits/scripts/sensory_insight.js daily ${testDate}`,
+      `node client/cognition/habits/scripts/sensory_insight.ts daily ${testDate}`,
       {
         cwd: workspaceRoot,
         encoding: 'utf8',
@@ -326,7 +326,7 @@ function testWeeklyAggregation() {
 
     // v1.2.0: Must pass SENSORY_TEST_DIR env var
     execSync(
-      `node client/cognition/habits/scripts/sensory_insight.js weekly ${testDate}`,
+      `node client/cognition/habits/scripts/sensory_insight.ts weekly ${testDate}`,
       {
         cwd: workspaceRoot,
         encoding: 'utf8',

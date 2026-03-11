@@ -5,9 +5,9 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/ops/phone_seed_profile.js run
-node client/runtime/systems/ops/phone_seed_profile.js run --strict=1
-node client/runtime/systems/ops/phone_seed_profile.js status
+node client/runtime/systems/ops/phone_seed_profile.ts run
+node client/runtime/systems/ops/phone_seed_profile.ts run --strict=1
+node client/runtime/systems/ops/phone_seed_profile.ts status
 ```
 
 ## Policy

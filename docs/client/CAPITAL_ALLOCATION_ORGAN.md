@@ -5,11 +5,11 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/budget/capital_allocation_organ.js seed --balance=1000
-node client/runtime/systems/budget/capital_allocation_organ.js simulate --bucket=compute --amount=100 --expected-return=0.2 --risk-score=0.2
-node client/runtime/systems/budget/capital_allocation_organ.js allocate --bucket=compute --amount=100 --simulation-id=<id> --strict=1
-node client/runtime/systems/budget/capital_allocation_organ.js settle --allocation-id=<id> --actual-return=0.08
-node client/runtime/systems/budget/capital_allocation_organ.js evaluate --days=30 --strict=1
+node client/runtime/systems/budget/capital_allocation_organ.ts seed --balance=1000
+node client/runtime/systems/budget/capital_allocation_organ.ts simulate --bucket=compute --amount=100 --expected-return=0.2 --risk-score=0.2
+node client/runtime/systems/budget/capital_allocation_organ.ts allocate --bucket=compute --amount=100 --simulation-id=<id> --strict=1
+node client/runtime/systems/budget/capital_allocation_organ.ts settle --allocation-id=<id> --actual-return=0.08
+node client/runtime/systems/budget/capital_allocation_organ.ts evaluate --days=30 --strict=1
 ```
 
 ## Governance Controls

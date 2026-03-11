@@ -26,7 +26,7 @@ Required unignore exceptions:
 ## Check Command
 
 ```bash
-node client/runtime/systems/ops/state_stream_policy_check.js check --strict=1
+node client/runtime/systems/ops/state_stream_policy_check.ts check --strict=1
 ```
 
 This command verifies that this document and `.gitignore` remain aligned with the policy contract.

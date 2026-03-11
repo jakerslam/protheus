@@ -9,8 +9,8 @@
   },
   "rsi_chain_path": "state/client/cognition/adaptive/rsi/chain.jsonl",
   "rsi_merkle_path": "state/client/cognition/adaptive/rsi/merkle.json",
-  "reversion_script": "client/runtime/systems/autonomy/self_mod_reversion_drill.js",
-  "continuity_script": "client/runtime/systems/continuity/resurrection_protocol.js",
+  "reversion_script": "client/runtime/systems/autonomy/self_mod_reversion_drill.ts",
+  "continuity_script": "client/runtime/systems/continuity/resurrection_protocol.ts",
   "paths": {
     "memory_dir": "client/memory/client/cognition/adaptive/rsi_integrity_chain_guard",
     "adaptive_index_path": "client/cognition/adaptive/rsi/integrity_chain_guard/index.json",

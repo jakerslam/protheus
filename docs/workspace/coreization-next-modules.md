@@ -8,7 +8,7 @@ Continue Hard Coreization Wave 1 by prioritizing high-ROI authority lanes and ke
 1. `routing/model_router` -> `core/layer0/ops::model_router` + `core/layer2/autonomy` policy helpers
 - Why first: central dependency for spawn, autonomy, and workflow lane selection.
 - Dependency note: unlocks clean cutover for `spawn_broker` and `llm_gateway` guard logic.
-- Current state: `client/runtime/systems/routing/model_router.js` exists and is core-first with TS fallback; deeper function-by-function parity still pending.
+- Current state: `client/runtime/systems/routing/model_router.ts` exists and is core-first with TS fallback; deeper function-by-function parity still pending.
 
 2. `autonomy/pain_signal` -> `core/layer2/autonomy::pain_signal` + `core/layer1/policy` escalation gates
 - Why second: shared failure/escalation contract used across multiple autonomy and ops lanes.

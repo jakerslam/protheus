@@ -5,10 +5,10 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/symbiosis/neural_dormant_seed.js status --profile=prod
-node client/runtime/systems/symbiosis/neural_dormant_seed.js check --strict=1 --profile=prod
-node client/runtime/systems/symbiosis/neural_dormant_seed.js request-sim --purpose="evaluate consent signal contract"
-node client/runtime/systems/symbiosis/neural_dormant_seed.js request-live --purpose="prototype" --approval-note="manual"
+node client/runtime/systems/symbiosis/neural_dormant_seed.ts status --profile=prod
+node client/runtime/systems/symbiosis/neural_dormant_seed.ts check --strict=1 --profile=prod
+node client/runtime/systems/symbiosis/neural_dormant_seed.ts request-sim --purpose="evaluate consent signal contract"
+node client/runtime/systems/symbiosis/neural_dormant_seed.ts request-live --purpose="prototype" --approval-note="manual"
 ```
 
 `request-live` is expected to fail while policy is locked or profile is blocked.

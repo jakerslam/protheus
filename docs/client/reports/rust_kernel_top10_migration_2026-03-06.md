@@ -22,7 +22,7 @@ Top 10 targets from `docs/client/RUST_KERNEL_MIGRATION_CANDIDATES.md` lines 32-4
 
 - Rust execution authority moved to conduit kernel path in `core/layer2/conduit` via `KernelLaneCommandHandler`.
 - TS surfaces are thin wrappers only.
-- Shared lane bridge (`client/runtime/lib/legacy_retired_lane_bridge.js`) now routes through conduit daemon instead of direct legacy-retired-lane CLI calls.
+- Shared lane bridge (`client/runtime/lib/legacy_retired_lane_bridge.ts`) now routes through conduit daemon instead of direct legacy-retired-lane CLI calls.
 - `client/runtime/systems/assimilation/assimilation_controller.ts` was explicitly converted to direct conduit client routing.
 - Additional direct-conduit uplift for high-impact lanes:
   - `client/runtime/systems/security/guard.ts`

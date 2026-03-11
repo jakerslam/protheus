@@ -15,13 +15,13 @@ Covers:
 ## Global Triage
 
 1. Capture health snapshot:
-`node client/runtime/systems/autonomy/health_status.js [YYYY-MM-DD]`
+`node client/runtime/systems/autonomy/health_status.ts [YYYY-MM-DD]`
 2. If unsafe behavior is live, engage kill switch first:
-`node client/runtime/systems/security/emergency_stop.js engage --scope=all --approval-note="contain incident"`
+`node client/runtime/systems/security/emergency_stop.ts engage --scope=all --approval-note="contain incident"`
 3. Run core contract guards:
-`node client/runtime/systems/spine/contract_check.js`
-`node client/runtime/systems/security/schema_contract_check.js run`
-`node client/runtime/systems/sensory/adaptive_layer_guard.js run --strict`
+`node client/runtime/systems/spine/contract_check.ts`
+`node client/runtime/systems/security/schema_contract_check.ts run`
+`node client/runtime/systems/sensory/adaptive_layer_guard.ts run --strict`
 
 Expected artifacts:
 
@@ -38,22 +38,22 @@ Symptoms:
 
 Diagnose:
 
-1. `node client/runtime/systems/autonomy/health_status.js [YYYY-MM-DD]`
-2. `node client/runtime/systems/routing/model_router.js doctor --risk=low --complexity=low --intent=ops_triage --task="routing incident diagnosis"`
-3. `node client/runtime/systems/routing/model_router.js probe-all`
-4. `node client/runtime/systems/routing/model_router.js stats`
+1. `node client/runtime/systems/autonomy/health_status.ts [YYYY-MM-DD]`
+2. `node client/runtime/systems/routing/model_router.ts doctor --risk=low --complexity=low --intent=ops_triage --task="routing incident diagnosis"`
+3. `node client/runtime/systems/routing/model_router.ts probe-all`
+4. `node client/runtime/systems/routing/model_router.ts stats`
 
 Containment:
 
 - Optional scope-limited stop while recovering:
-`node client/runtime/systems/security/emergency_stop.js engage --scope=routing --approval-note="routing containment"`
+`node client/runtime/systems/security/emergency_stop.ts engage --scope=routing --approval-note="routing containment"`
 
 Recovery:
 
 1. Unban false positives if needed:
-`node client/runtime/systems/routing/model_router.js unban --model=ollama/<name>`
+`node client/runtime/systems/routing/model_router.ts unban --model=ollama/<name>`
 2. Force safe execution mode if routing quality is uncertain:
-`node client/runtime/systems/autonomy/strategy_mode.js set --mode=score_only --approval-note="routing degraded; reduce blast radius"`
+`node client/runtime/systems/autonomy/strategy_mode.ts set --mode=score_only --approval-note="routing degraded; reduce blast radius"`
 
 Verification:
 
@@ -72,13 +72,13 @@ Symptoms:
 
 Diagnose:
 
-1. `node client/runtime/systems/security/schema_contract_check.js run`
-2. `node client/runtime/systems/spine/contract_check.js`
-3. `node client/runtime/systems/sensory/adaptive_layer_guard.js run --strict`
+1. `node client/runtime/systems/security/schema_contract_check.ts run`
+2. `node client/runtime/systems/spine/contract_check.ts`
+3. `node client/runtime/systems/sensory/adaptive_layer_guard.ts run --strict`
 
 Containment:
 
-`node client/runtime/systems/security/emergency_stop.js engage --scope=autonomy,routing,actuation --approval-note="schema drift containment"`
+`node client/runtime/systems/security/emergency_stop.ts engage --scope=autonomy,routing,actuation --approval-note="schema drift containment"`
 
 Recovery:
 
@@ -104,20 +104,20 @@ Symptoms:
 
 Diagnose:
 
-1. `node client/cognition/habits/scripts/external_eyes.js doctor`
-2. `node client/cognition/habits/scripts/external_eyes.js slo [YYYY-MM-DD]`
-3. `node client/runtime/systems/spine/spine.js eyes [YYYY-MM-DD] --max-eyes=3`
-4. `node client/runtime/systems/autonomy/proposal_enricher.js run [YYYY-MM-DD] --dry-run`
+1. `node client/cognition/habits/scripts/external_eyes.ts doctor`
+2. `node client/cognition/habits/scripts/external_eyes.ts slo [YYYY-MM-DD]`
+3. `node client/runtime/systems/spine/spine.ts eyes [YYYY-MM-DD] --max-eyes=3`
+4. `node client/runtime/systems/autonomy/proposal_enricher.ts run [YYYY-MM-DD] --dry-run`
 
 Containment:
 
 - Keep autonomy in safer mode while sensory is degraded:
-`node client/runtime/systems/autonomy/strategy_mode.js set --mode=score_only --approval-note="sensory degraded; hold execution risk"`
+`node client/runtime/systems/autonomy/strategy_mode.ts set --mode=score_only --approval-note="sensory degraded; hold execution risk"`
 
 Recovery:
 
 1. Refresh focus triggers:
-`node client/runtime/systems/sensory/focus_controller.js refresh [YYYY-MM-DD]`
+`node client/runtime/systems/sensory/focus_controller.ts refresh [YYYY-MM-DD]`
 2. Resolve collector-specific failures indicated by doctor/slo output.
 
 Verification:
@@ -136,23 +136,23 @@ Symptoms:
 
 Diagnose:
 
-1. `node client/runtime/systems/autonomy/health_status.js [YYYY-MM-DD]`
-2. `node client/runtime/systems/autonomy/strategy_readiness.js run [YYYY-MM-DD] --days=14`
-3. `node client/runtime/systems/autonomy/pipeline_spc_gate.js run [YYYY-MM-DD] --days=1 --baseline-days=7 --sigma=3`
-4. `node client/runtime/systems/autonomy/receipt_summary.js run [YYYY-MM-DD] --days=7`
-5. `node client/runtime/systems/autonomy/strategy_mode_governor.js status [YYYY-MM-DD] --days=14`
+1. `node client/runtime/systems/autonomy/health_status.ts [YYYY-MM-DD]`
+2. `node client/runtime/systems/autonomy/strategy_readiness.ts run [YYYY-MM-DD] --days=14`
+3. `node client/runtime/systems/autonomy/pipeline_spc_gate.ts run [YYYY-MM-DD] --days=1 --baseline-days=7 --sigma=3`
+4. `node client/runtime/systems/autonomy/receipt_summary.ts run [YYYY-MM-DD] --days=7`
+5. `node client/runtime/systems/autonomy/strategy_mode_governor.ts status [YYYY-MM-DD] --days=14`
 
 Containment:
 
 - keep/return to score-only until pass rates recover:
-`node client/runtime/systems/autonomy/strategy_mode.js set --mode=score_only --approval-note="autonomy stall containment"`
+`node client/runtime/systems/autonomy/strategy_mode.ts set --mode=score_only --approval-note="autonomy stall containment"`
 
 Recovery:
 
 1. Recompute admission metadata:
-`node client/runtime/systems/autonomy/proposal_enricher.js run [YYYY-MM-DD]`
+`node client/runtime/systems/autonomy/proposal_enricher.ts run [YYYY-MM-DD]`
 2. Run governor in dry mode to inspect proposed transition:
-`node client/runtime/systems/autonomy/strategy_mode_governor.js run [YYYY-MM-DD] --days=14 --dry-run`
+`node client/runtime/systems/autonomy/strategy_mode_governor.ts run [YYYY-MM-DD] --days=14 --dry-run`
 
 Verification:
 
@@ -169,19 +169,19 @@ Symptoms:
 
 Diagnose:
 
-1. `node client/cognition/habits/scripts/sensory_queue.js stats --days=7`
-2. `node client/cognition/habits/scripts/sensory_queue.js list --status=open --days=7`
-3. `node client/runtime/systems/autonomy/health_status.js [YYYY-MM-DD]` (check queue backlog SLO + recovery pulse)
+1. `node client/cognition/habits/scripts/sensory_queue.ts stats --days=7`
+2. `node client/cognition/habits/scripts/sensory_queue.ts list --status=open --days=7`
+3. `node client/runtime/systems/autonomy/health_status.ts [YYYY-MM-DD]` (check queue backlog SLO + recovery pulse)
 
 Containment / Recovery:
 
 1. Run deterministic hygiene:
-`node client/cognition/habits/scripts/queue_gc.js run [YYYY-MM-DD]`
-`node client/cognition/habits/scripts/sensory_queue.js sweep [YYYY-MM-DD]`
+`node client/cognition/habits/scripts/queue_gc.ts run [YYYY-MM-DD]`
+`node client/cognition/habits/scripts/sensory_queue.ts sweep [YYYY-MM-DD]`
 2. Force compact terminal churn:
-`node client/runtime/systems/ops/queue_log_compact.js run --apply=1`
+`node client/runtime/systems/ops/queue_log_compact.ts run --apply=1`
 3. If backlog is budget-constrained, pin pressure explicitly for a run:
-`QUEUE_GC_BUDGET_PRESSURE=hard node client/cognition/habits/scripts/queue_gc.js run [YYYY-MM-DD]`
+`QUEUE_GC_BUDGET_PRESSURE=hard node client/cognition/habits/scripts/queue_gc.ts run [YYYY-MM-DD]`
 
 Verification:
 
@@ -199,16 +199,16 @@ Symptoms:
 
 Diagnose:
 
-1. `node client/runtime/systems/autonomy/health_status.js [YYYY-MM-DD]`
-2. `node client/runtime/systems/memory/idle_dream_cycle.js status`
-3. `node client/runtime/systems/memory/idle_dream_cycle.js run [YYYY-MM-DD] --force=1`
+1. `node client/runtime/systems/autonomy/health_status.ts [YYYY-MM-DD]`
+2. `node client/runtime/systems/memory/idle_dream_cycle.ts status`
+3. `node client/runtime/systems/memory/idle_dream_cycle.ts run [YYYY-MM-DD] --force=1`
 
 Containment / Recovery:
 
 1. If repeated cloud/local timeout loops occur, keep dream lane degraded until stable:
-`IDLE_DREAM_FORCE_DEGRADED=1 node client/runtime/systems/memory/idle_dream_cycle.js run [YYYY-MM-DD] --force=1`
+`IDLE_DREAM_FORCE_DEGRADED=1 node client/runtime/systems/memory/idle_dream_cycle.ts run [YYYY-MM-DD] --force=1`
 2. Reduce dream pressure during instability:
-`IDLE_DREAM_MAX_ITEMS=6 node client/runtime/systems/memory/idle_dream_cycle.js run [YYYY-MM-DD] --force=1`
+`IDLE_DREAM_MAX_ITEMS=6 node client/runtime/systems/memory/idle_dream_cycle.ts run [YYYY-MM-DD] --force=1`
 3. Restore normal lane after two stable cycles.
 
 Verification:
@@ -227,14 +227,14 @@ Symptoms:
 
 Diagnose:
 
-1. `node client/runtime/systems/autonomy/health_status.js [YYYY-MM-DD]`
-2. `node client/runtime/systems/budget/system_budget.js status`
-3. `node client/runtime/systems/budget/system_budget.js tail --limit=50`
+1. `node client/runtime/systems/autonomy/health_status.ts [YYYY-MM-DD]`
+2. `node client/runtime/systems/budget/system_budget.ts status`
+3. `node client/runtime/systems/budget/system_budget.ts tail --limit=50`
 
 Containment / Recovery:
 
 1. Keep autonomy in score-only while pressure is unresolved:
-`node client/runtime/systems/autonomy/strategy_mode.js set --mode=score_only --approval-note="budget pressure containment"`
+`node client/runtime/systems/autonomy/strategy_mode.ts set --mode=score_only --approval-note="budget pressure containment"`
 2. Allow autopause window to expire or clear with approved operator action.
 3. Lower non-critical lane usage before re-enabling execute/canary.
 
@@ -254,16 +254,16 @@ Symptoms:
 
 Diagnose:
 
-1. `node client/runtime/systems/autonomy/health_status.js [YYYY-MM-DD]`
-2. `node client/runtime/systems/autonomy/receipt_summary.js run [YYYY-MM-DD] --days=7`
-3. `node client/runtime/systems/autonomy/slo_runbook_check.js run [YYYY-MM-DD]`
+1. `node client/runtime/systems/autonomy/health_status.ts [YYYY-MM-DD]`
+2. `node client/runtime/systems/autonomy/receipt_summary.ts run [YYYY-MM-DD] --days=7`
+3. `node client/runtime/systems/autonomy/slo_runbook_check.ts run [YYYY-MM-DD]`
 4. Inspect top reasons:
 `jq '.receipts.combined.top_failure_reasons' state/autonomy/health_client/reports/[YYYY-MM-DD].daily.json`
 
 Containment / Recovery:
 
 1. Keep execution bounded while quality recovers:
-`node client/runtime/systems/autonomy/strategy_mode.js set --mode=score_only --approval-note="verification pass-rate containment"`
+`node client/runtime/systems/autonomy/strategy_mode.ts set --mode=score_only --approval-note="verification pass-rate containment"`
 2. Prioritize failure-class remediation from top failure reasons (timeout/rate-limit/rollback).
 3. Re-run targeted integration tests for failing lane:
 `node tests/client-memory-tools/pipeline_handoffs.integration.test.js`
@@ -279,14 +279,14 @@ Verification:
 Goal: verify rollback muscle memory and logging path.
 
 1. Snapshot status:
-`node client/runtime/systems/autonomy/health_status.js [YYYY-MM-DD]`
+`node client/runtime/systems/autonomy/health_status.ts [YYYY-MM-DD]`
 2. Simulate change containment:
-`node client/runtime/systems/security/emergency_stop.js engage --scope=autonomy --approval-note="rollback drill"`
+`node client/runtime/systems/security/emergency_stop.ts engage --scope=autonomy --approval-note="rollback drill"`
 3. Run core guards:
-`node client/runtime/systems/security/schema_contract_check.js run`
-`node client/runtime/systems/sensory/adaptive_layer_guard.js run --strict`
+`node client/runtime/systems/security/schema_contract_check.ts run`
+`node client/runtime/systems/sensory/adaptive_layer_guard.ts run --strict`
 4. Release stop:
-`node client/runtime/systems/security/emergency_stop.js release --approval-note="rollback drill complete"`
+`node client/runtime/systems/security/emergency_stop.ts release --approval-note="rollback drill complete"`
 5. Record drill outcome in commit/ops notes.
 
 ## Verification Logs and Receipts
@@ -312,8 +312,8 @@ Symptoms:
 
 Diagnose:
 
-1. `node client/runtime/systems/ops/offsite_backup.js status`
-2. `node client/runtime/systems/ops/offsite_backup.js list --limit=3`
+1. `node client/runtime/systems/ops/offsite_backup.ts status`
+2. `node client/runtime/systems/ops/offsite_backup.ts list --limit=3`
 3. `tail -n 20 state/ops/offsite_backup_sync_receipts.jsonl`
 4. `tail -n 20 state/ops/offsite_restore_drill_receipts.jsonl`
 
@@ -323,9 +323,9 @@ Containment / Recovery:
 `echo $STATE_BACKUP_OFFSITE_KEY | wc -c`
 `echo $STATE_BACKUP_OFFSITE_DEST`
 2. Run strict sync:
-`node client/runtime/systems/ops/offsite_backup.js sync --strict=1`
+`node client/runtime/systems/ops/offsite_backup.ts sync --strict=1`
 3. Run strict restore drill:
-`node client/runtime/systems/ops/offsite_backup.js restore-drill --strict=1`
+`node client/runtime/systems/ops/offsite_backup.ts restore-drill --strict=1`
 
 Verification:
 
@@ -431,21 +431,21 @@ This section is the enforced contract for incident + rollback drill coverage.
 Required incident classes and deterministic first actions:
 
 1. `routing_degraded`
-   - Run: `node client/runtime/systems/routing/model_router.js doctor --risk=low --complexity=low --intent=ops_triage --task="routing incident diagnosis"`
+   - Run: `node client/runtime/systems/routing/model_router.ts doctor --risk=low --complexity=low --intent=ops_triage --task="routing incident diagnosis"`
 2. `schema_drift`
-   - Run: `node client/runtime/systems/security/schema_contract_check.js run --strict=1`
+   - Run: `node client/runtime/systems/security/schema_contract_check.ts run --strict=1`
 3. `sensory_starvation`
-   - Run: `node client/cognition/habits/scripts/external_eyes.js preflight --strict=0`
+   - Run: `node client/cognition/habits/scripts/external_eyes.ts preflight --strict=0`
 4. `autonomy_stall`
-   - Run: `node client/runtime/systems/autonomy/ops_dashboard.js status`
+   - Run: `node client/runtime/systems/autonomy/ops_dashboard.ts status`
 
 Rollback drill contract (weekly):
 
 1. Engage containment:
-   - `node client/runtime/systems/security/emergency_stop.js engage --scope=autonomy --approval-note="rollback drill"`
+   - `node client/runtime/systems/security/emergency_stop.ts engage --scope=autonomy --approval-note="rollback drill"`
 2. Execute rollback target check:
-   - `node client/runtime/systems/autonomy/improvement_controller.js evaluate --force=1 --auto-revert=1`
+   - `node client/runtime/systems/autonomy/improvement_controller.ts evaluate --force=1 --auto-revert=1`
 3. Release containment:
-   - `node client/runtime/systems/security/emergency_stop.js release --approval-note="rollback drill complete"`
+   - `node client/runtime/systems/security/emergency_stop.ts release --approval-note="rollback drill complete"`
 4. Record verification artifact:
    - Write receipt under `state/ops/evidence/rollback_drill_<YYYY-MM-DD>.md`

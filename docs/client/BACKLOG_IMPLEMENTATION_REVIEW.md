@@ -10,9 +10,9 @@ It verifies:
 ## Commands
 
 ```bash
-node client/runtime/systems/ops/backlog_implementation_review.js run
-node client/runtime/systems/ops/backlog_implementation_review.js run --strict=1
-node client/runtime/systems/ops/backlog_implementation_review.js status
+node client/runtime/systems/ops/backlog_implementation_review.ts run
+node client/runtime/systems/ops/backlog_implementation_review.ts run --strict=1
+node client/runtime/systems/ops/backlog_implementation_review.ts status
 ```
 
 ## Policy

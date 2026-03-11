@@ -32,8 +32,8 @@
 ## CLI
 
 ```bash
-node client/runtime/systems/helix/confirmed_malice_quarantine.js status
-node client/runtime/systems/helix/confirmed_malice_quarantine.js evaluate --input-json='{"sentinel":{"tier":"confirmed_malice","score":4}}' --apply=1
-node client/runtime/systems/helix/confirmed_malice_quarantine.js release --human-approved=1
+node client/runtime/systems/helix/confirmed_malice_quarantine.ts status
+node client/runtime/systems/helix/confirmed_malice_quarantine.ts evaluate --input-json='{"sentinel":{"tier":"confirmed_malice","score":4}}' --apply=1
+node client/runtime/systems/helix/confirmed_malice_quarantine.ts release --human-approved=1
 ```
 

@@ -10,7 +10,7 @@
   ],
   "exceptions": [
     {
-      "path": "client/runtime/lib/ts_bootstrap.js",
+      "path": "client/runtime/lib/ts_bootstrap.ts",
       "owner": "systems-core",
       "reason": "Runtime bootstrap loader for TS entrypoints",
       "benchmark_evidence": "required_bootstrap_lane",
@@ -45,7 +45,7 @@
       "expires_at": "2026-12-31T00:00:00.000Z"
     },
     {
-      "path": "client/runtime/systems/ops/personas_docs_validation.js",
+      "path": "client/runtime/systems/ops/personas_docs_validation.ts",
       "owner": "ops-core",
       "reason": "JS validator entrypoint retained during docs-validation TS migration",
       "benchmark_evidence": "persona_docs_validation_lane",

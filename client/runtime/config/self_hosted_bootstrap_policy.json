@@ -7,15 +7,15 @@
   "source_root": ".",
   "build_command": [
     "node",
-    "client/runtime/systems/ops/build_systems.js"
+    "client/runtime/systems/ops/build_systems.ts"
   ],
   "smoke_command": [
     "node",
-    "client/runtime/systems/ops/build_smoke.js"
+    "client/runtime/systems/ops/build_smoke.ts"
   ],
   "verify_commands": [
-    ["node", "client/runtime/systems/security/formal_invariant_engine.js", "run", "--strict=1"],
-    ["node", "client/runtime/systems/security/supply_chain_trust_plane.js", "run", "--strict=1", "--verify-only=1"]
+    ["node", "client/runtime/systems/security/formal_invariant_engine.ts", "run", "--strict=1"],
+    ["node", "client/runtime/systems/security/supply_chain_trust_plane.ts", "run", "--strict=1", "--verify-only=1"]
   ],
   "outputs": {
     "state_path": "state/ops/self_hosted_bootstrap/state.json",

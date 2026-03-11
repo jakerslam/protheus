@@ -1,6 +1,6 @@
 'use strict';
 
-const { createOpsLaneBridge } = require('./rust_lane_bridge');
+const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
 
 const bridge = createOpsLaneBridge(
   __dirname,

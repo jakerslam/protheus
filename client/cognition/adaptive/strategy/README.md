@@ -7,6 +7,6 @@ Strategy stores adaptive policy formulas, not concrete use-case implementations.
 - Evidence source: autonomy runs + receipts-derived outcomes.
 
 Mutation channel:
-- Controller: `client/runtime/systems/strategy/strategy_controller.js`
-- Store: `client/runtime/systems/adaptive/strategy/strategy_store.js`
+- Controller: `client/runtime/systems/strategy/strategy_controller.ts`
+- Store: `client/runtime/systems/adaptive/strategy/strategy_store.ts`
 - No direct file mutation of adaptive strategy memory outside store/controller getters/setters/mutators.

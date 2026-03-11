@@ -5,7 +5,7 @@
  * Using previously captured Moltbook API responses
  */
 
-const { compactToolResponse } = require('./tool_response_compactor.js');
+const { compactToolResponse } = require('./tool_response_compactor.ts');
 const fs = require('fs');
 const path = require('path');
 const CLIENT_ROOT = path.resolve(__dirname, '..');
@@ -151,7 +151,7 @@ const benchmarkResults = {
 // Add regression tests at the end
 console.log('=== REGRESSION TESTS ===\n');
 
-const { redactSecretsOnly } = require('./tool_response_compactor');
+const { redactSecretsOnly } = require('./tool_response_compactor.ts');
 
 // TEST 1 - Redaction
 console.log('[TEST 1] Redaction of secrets...');
@@ -200,7 +200,7 @@ console.log(`  Compaction occurred: ${integrationResult.compacted ? '✅' : '❌
 
 // TEST 3 - execCompacted() wrapper + redaction
 console.log('\n[TEST 3] execCompacted() wrapper redaction...');
-const { execCompacted } = require('./exec_compacted');
+const { execCompacted } = require('./exec_compacted.ts');
 
 (async () => {
   const testCmd = `echo "API call with token moltbook_sk_TEST1234567890ABCDEF1234567890ABCDEF1234567890

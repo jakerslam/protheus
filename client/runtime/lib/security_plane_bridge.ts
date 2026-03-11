@@ -3,7 +3,7 @@ export {};
 
 // Layer ownership: core/layer1/security (authoritative)
 
-const { createOpsLaneBridge } = require('./rust_lane_bridge');
+const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
 
 function normalizeTool(tool: unknown) {
   return String(tool == null ? '' : tool).trim().toLowerCase();

@@ -8,8 +8,8 @@
     "stream": "security.execution_sandbox_rust_wasm_coprocessor"
   },
   "enable_coprocessor": true,
-  "sandbox_script": "client/runtime/systems/security/execution_sandbox_envelope.js",
-  "wasm_runtime_script": "client/runtime/systems/wasm/component_runtime.js",
+  "sandbox_script": "client/runtime/systems/security/execution_sandbox_envelope.ts",
+  "wasm_runtime_script": "client/runtime/systems/wasm/component_runtime.ts",
   "paths": {
     "memory_dir": "client/memory/security/execution_sandbox_rust_wasm_coprocessor_lane",
     "adaptive_index_path": "client/cognition/adaptive/security/execution_sandbox_rust_wasm_coprocessor_lane/index.json",

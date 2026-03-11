@@ -23,8 +23,8 @@ Each stale profile emits a compiler-queue delta payload with normalized `capabil
 
 ## Commands
 
-- `node client/runtime/systems/assimilation/world_model_freshness.js run [--apply=1|0] [--strict=1|0] [--max-profiles=N]`
-- `node client/runtime/systems/assimilation/world_model_freshness.js status`
+- `node client/runtime/systems/assimilation/world_model_freshness.ts run [--apply=1|0] [--strict=1|0] [--max-profiles=N]`
+- `node client/runtime/systems/assimilation/world_model_freshness.ts status`
 
 ## Notes
 

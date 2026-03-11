@@ -22,7 +22,7 @@ Rust remains the source of truth for core logic. These requirements only affect 
 
 2. `REQ-25-002` Good-first issue publication must be automatable from repo state.
 - Acceptance:
-  - `client/runtime/systems/ops/good_first_issue_seed.js` supports dry-run and apply modes.
+  - `client/runtime/systems/ops/good_first_issue_seed.ts` supports dry-run and apply modes.
   - Seeder emits deterministic status receipt under `state/ops/good_first_issue_seed/latest.json`.
 
 3. `REQ-25-003` Contributing docs must route first-time contributors to starter tasks.

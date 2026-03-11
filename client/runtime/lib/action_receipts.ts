@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { linkReceiptToPassport } = require('./agent_passport_link');
+const { linkReceiptToPassport } = require('./agent_passport_link.ts');
 
 function nowIso() {
   return new Date().toISOString();

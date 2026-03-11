@@ -2,9 +2,9 @@
 
 This stack adds three production control-plane observability lanes:
 
-- `client/runtime/systems/observability/metrics_exporter.js`
-- `client/runtime/systems/observability/trace_bridge.js`
-- `client/runtime/systems/observability/slo_alert_router.js`
+- `client/runtime/systems/observability/metrics_exporter.ts`
+- `client/runtime/systems/observability/trace_bridge.ts`
+- `client/runtime/systems/observability/slo_alert_router.ts`
 
 Policy:
 
@@ -15,7 +15,7 @@ Policy:
 Command:
 
 ```bash
-node client/runtime/systems/observability/metrics_exporter.js run 2026-02-26 --window=daily
+node client/runtime/systems/observability/metrics_exporter.ts run 2026-02-26 --window=daily
 ```
 
 Outputs:
@@ -37,7 +37,7 @@ Primary metric groups:
 Emit span:
 
 ```bash
-node client/runtime/systems/observability/trace_bridge.js span \
+node client/runtime/systems/observability/trace_bridge.ts span \
   --name=spine.autonomy_health.daily \
   --status=warn \
   --duration-ms=120 \
@@ -47,7 +47,7 @@ node client/runtime/systems/observability/trace_bridge.js span \
 Summarize:
 
 ```bash
-node client/runtime/systems/observability/trace_bridge.js summary --hours=24
+node client/runtime/systems/observability/trace_bridge.ts summary --hours=24
 ```
 
 Outputs:
@@ -60,7 +60,7 @@ Outputs:
 Route alerts from health status output:
 
 ```bash
-node client/runtime/systems/observability/slo_alert_router.js route 2026-02-26 --min-level=warn
+node client/runtime/systems/observability/slo_alert_router.ts route 2026-02-26 --min-level=warn
 ```
 
 Outputs:
@@ -81,7 +81,7 @@ Webhook config:
 
 ## Spine Integration
 
-`client/runtime/systems/spine/spine.js` can emit observability lanes automatically.
+`client/runtime/systems/spine/spine.ts` can emit observability lanes automatically.
 
 Relevant env flags:
 

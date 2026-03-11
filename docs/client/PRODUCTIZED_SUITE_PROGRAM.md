@@ -15,10 +15,10 @@ This program executes and verifies the backlog implementation lanes for the
 
 ## Runtime Entrypoints
 
-- Program: `node client/runtime/systems/ops/productized_suite_program.js <list|run|run-all|status>`
+- Program: `node client/runtime/systems/ops/productized_suite_program.ts <list|run|run-all|status>`
 - Policy: `client/runtime/config/productized_suite_program_policy.json`
-- Tool runtime: `node client/runtime/systems/cli/protheus_suite_tooling.js <tool> <command> [--k=v]`
-- Standalone wrappers: `client/cli/bin/protheus-graph.js`, `client/cli/bin/protheus-mem.js`, `client/cli/bin/protheus-telemetry.js`, `client/cli/bin/protheus-vault.js`, `client/cli/bin/protheus-swarm.js`, `client/cli/bin/protheus-redlegion.js`, `client/cli/bin/protheus-forge.js`, `client/cli/bin/protheus-bootstrap.js`, `client/cli/bin/protheus-econ.js`, `client/cli/bin/protheus-soul.js`, `client/cli/bin/protheus-pinnacle.js`
+- Tool runtime: `node client/runtime/systems/cli/protheus_suite_tooling.ts <tool> <command> [--k=v]`
+- Standalone wrappers: `client/cli/bin/protheus-graph.ts`, `client/cli/bin/protheus-mem.ts`, `client/cli/bin/protheus-telemetry.ts`, `client/cli/bin/protheus-vault.ts`, `client/cli/bin/protheus-swarm.ts`, `client/cli/bin/protheus-redlegion.ts`, `client/cli/bin/protheus-forge.ts`, `client/cli/bin/protheus-bootstrap.ts`, `client/cli/bin/protheus-econ.ts`, `client/cli/bin/protheus-soul.ts`, `client/cli/bin/protheus-pinnacle.ts`
 
 ## Verification and Receipts
 
@@ -31,10 +31,10 @@ This program executes and verifies the backlog implementation lanes for the
 ## Commands
 
 ```bash
-node client/runtime/systems/ops/productized_suite_program.js list
-node client/runtime/systems/ops/productized_suite_program.js run --id=V4-SUITE-001 --apply=1 --strict=1
-node client/runtime/systems/ops/productized_suite_program.js run-all --apply=1 --strict=1
-node client/runtime/systems/ops/productized_suite_program.js status
+node client/runtime/systems/ops/productized_suite_program.ts list
+node client/runtime/systems/ops/productized_suite_program.ts run --id=V4-SUITE-001 --apply=1 --strict=1
+node client/runtime/systems/ops/productized_suite_program.ts run-all --apply=1 --strict=1
+node client/runtime/systems/ops/productized_suite_program.ts status
 ```
 
 ## Governance

@@ -13,8 +13,8 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/ops/rust_workspace_quality_gate.js run --strict=1 --apply=1
-node client/runtime/systems/ops/rust_workspace_quality_gate.js status
+node client/runtime/systems/ops/rust_workspace_quality_gate.ts run --strict=1 --apply=1
+node client/runtime/systems/ops/rust_workspace_quality_gate.ts status
 ```
 
 By default, the gate enforces manifest/toolchain/docs presence + `cargo metadata` validity.

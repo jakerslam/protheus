@@ -5,9 +5,9 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/ops/rust_authoritative_microkernel_acceleration.js run --strict=1 --apply=1
-node client/runtime/systems/ops/rust_authoritative_microkernel_acceleration.js report
-node client/runtime/systems/ops/rust_authoritative_microkernel_acceleration.js status
+node client/runtime/systems/ops/rust_authoritative_microkernel_acceleration.ts run --strict=1 --apply=1
+node client/runtime/systems/ops/rust_authoritative_microkernel_acceleration.ts report
+node client/runtime/systems/ops/rust_authoritative_microkernel_acceleration.ts status
 ```
 
 ## What It Runs

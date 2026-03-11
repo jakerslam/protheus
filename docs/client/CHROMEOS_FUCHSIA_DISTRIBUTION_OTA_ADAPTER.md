@@ -9,10 +9,10 @@ Provide a governed distribution and OTA verification lane for ChromeOS and Fuchs
 ## Commands
 
 ```bash
-node client/runtime/systems/ops/chromeos_fuchsia_distribution_ota_adapter.js run --channel=chromeos-stable --strict=1
-node client/runtime/systems/ops/chromeos_fuchsia_distribution_ota_adapter.js freeze-channel --channel=chromeos-stable --reason=integrity_drift
-node client/runtime/systems/ops/chromeos_fuchsia_distribution_ota_adapter.js restore-channel --channel=chromeos-stable
-node client/runtime/systems/ops/chromeos_fuchsia_distribution_ota_adapter.js status
+node client/runtime/systems/ops/chromeos_fuchsia_distribution_ota_adapter.ts run --channel=chromeos-stable --strict=1
+node client/runtime/systems/ops/chromeos_fuchsia_distribution_ota_adapter.ts freeze-channel --channel=chromeos-stable --reason=integrity_drift
+node client/runtime/systems/ops/chromeos_fuchsia_distribution_ota_adapter.ts restore-channel --channel=chromeos-stable
+node client/runtime/systems/ops/chromeos_fuchsia_distribution_ota_adapter.ts status
 ```
 
 ## Verified Contracts

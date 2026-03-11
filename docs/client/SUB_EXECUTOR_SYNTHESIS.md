@@ -1,6 +1,6 @@
 # Sub-Executor Synthesis (`V3-041`)
 
-`client/runtime/systems/actuation/sub_executor_synthesis.js` is the bounded edge-case lane for profile execution failures.
+`client/runtime/systems/actuation/sub_executor_synthesis.ts` is the bounded edge-case lane for profile execution failures.
 
 ## Purpose
 
@@ -11,21 +11,21 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/actuation/sub_executor_synthesis.js propose \
+node client/runtime/systems/actuation/sub_executor_synthesis.ts propose \
   --profile-id=<id> \
   --intent=<intent> \
   --failure-reason=<reason> \
   --risk-class=low|medium|high
 
-node client/runtime/systems/actuation/sub_executor_synthesis.js evaluate \
+node client/runtime/systems/actuation/sub_executor_synthesis.ts evaluate \
   --candidate-id=<id> \
   --nursery-pass=1 \
   --adversarial-pass=1 \
   --evidence='{"lane":"nursery"}'
 
-node client/runtime/systems/actuation/sub_executor_synthesis.js distill --candidate-id=<id>
-node client/runtime/systems/actuation/sub_executor_synthesis.js gc
-node client/runtime/systems/actuation/sub_executor_synthesis.js status [--candidate-id=<id>]
+node client/runtime/systems/actuation/sub_executor_synthesis.ts distill --candidate-id=<id>
+node client/runtime/systems/actuation/sub_executor_synthesis.ts gc
+node client/runtime/systems/actuation/sub_executor_synthesis.ts status [--candidate-id=<id>]
 ```
 
 ## Lifecycle
@@ -55,7 +55,7 @@ Key controls:
 
 ## Universal Primitive Integration
 
-`client/runtime/systems/actuation/universal_execution_primitive.js` can auto-propose candidates on configured failures via `client/runtime/config/universal_execution_primitive_policy.json`:
+`client/runtime/systems/actuation/universal_execution_primitive.ts` can auto-propose candidates on configured failures via `client/runtime/config/universal_execution_primitive_policy.json`:
 
 - `sub_executor_synthesis.enabled`
 - `sub_executor_synthesis.auto_propose_on_errors`

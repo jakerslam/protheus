@@ -13,12 +13,12 @@
     "client/runtime/systems/memory/memory_layer_guard.ts"
   ],
   "allow_paths": [
-    "client/runtime/systems/memory/eyes_memory_bridge.js",
-    "client/runtime/systems/memory/failure_memory_bridge.js",
-    "client/runtime/systems/memory/memory_dream.js",
-    "client/runtime/systems/memory/idle_dream_cycle.js",
-    "client/runtime/systems/memory/uid_connections.js",
-    "client/runtime/systems/memory/creative_links.js",
-    "client/runtime/systems/adaptive/core/layer_store.js"
+    "client/runtime/systems/memory/eyes_memory_bridge.ts",
+    "client/runtime/systems/memory/failure_memory_bridge.ts",
+    "client/runtime/systems/memory/memory_dream.ts",
+    "client/runtime/systems/memory/idle_dream_cycle.ts",
+    "client/runtime/systems/memory/uid_connections.ts",
+    "client/runtime/systems/memory/creative_links.ts",
+    "client/runtime/systems/adaptive/core/layer_store.ts"
   ]
 }

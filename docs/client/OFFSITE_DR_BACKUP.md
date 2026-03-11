@@ -1,6 +1,6 @@
 # Offsite DR Backup (RM-007)
 
-Encrypted offsite backup and restore-drill flow now runs through `client/runtime/systems/ops/offsite_backup.js`.
+Encrypted offsite backup and restore-drill flow now runs through `client/runtime/systems/ops/offsite_backup.ts`.
 
 ## Policy
 
@@ -17,10 +17,10 @@ Encrypted offsite backup and restore-drill flow now runs through `client/runtime
 ## CLI
 
 ```bash
-node client/runtime/systems/ops/offsite_backup.js sync --strict=1
-node client/runtime/systems/ops/offsite_backup.js restore-drill --strict=1
-node client/runtime/systems/ops/offsite_backup.js status
-node client/runtime/systems/ops/offsite_backup.js list --limit=10
+node client/runtime/systems/ops/offsite_backup.ts sync --strict=1
+node client/runtime/systems/ops/offsite_backup.ts restore-drill --strict=1
+node client/runtime/systems/ops/offsite_backup.ts status
+node client/runtime/systems/ops/offsite_backup.ts list --limit=10
 ```
 
 ## Receipts

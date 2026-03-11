@@ -21,16 +21,16 @@ Companion docs:
 
 Only these modules are canonical adaptive mutators:
 
-- `client/runtime/systems/adaptive/core/layer_store.js`
-- `client/runtime/systems/adaptive/sensory/eyes/catalog_store.js`
-- `client/runtime/systems/adaptive/sensory/eyes/focus_trigger_store.js`
-- `client/runtime/systems/adaptive/habits/habit_store.js`
-- `client/runtime/systems/adaptive/reflex/reflex_store.js`
-- `client/runtime/systems/adaptive/strategy/strategy_store.js`
+- `client/runtime/systems/adaptive/core/layer_store.ts`
+- `client/runtime/systems/adaptive/sensory/eyes/catalog_store.ts`
+- `client/runtime/systems/adaptive/sensory/eyes/focus_trigger_store.ts`
+- `client/runtime/systems/adaptive/habits/habit_store.ts`
+- `client/runtime/systems/adaptive/reflex/reflex_store.ts`
+- `client/runtime/systems/adaptive/strategy/strategy_store.ts`
 
 Guard policy:
 
-- `client/runtime/systems/sensory/adaptive_layer_guard.js`
+- `client/runtime/systems/sensory/adaptive_layer_guard.ts`
 - `client/runtime/config/adaptive_layer_guard_policy.json`
 
 CI enforces this in strict mode.
@@ -45,7 +45,7 @@ Versioned contracts live in:
 
 Validation entrypoint:
 
-- `node client/runtime/systems/security/schema_contract_check.js run`
+- `node client/runtime/systems/security/schema_contract_check.ts run`
 
 CI executes this check before general test execution.
 

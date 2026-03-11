@@ -66,49 +66,49 @@
       "approved_at": "2026-02-14",
       "note": "Skill gate smoke tests"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/run_habit.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/run_habit.ts": {
       "sha256": "d7cbd2c6c11a286fa1a99e9f38a6a8d33b501d064fad52fbad454dd076e7c65b",
       "approved_by": "jay",
       "approved_at": "2026-02-14",
       "note": "Habit runner v1.5 - executes with clear triggers, promotion/demotion, cooldown"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/doctor.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/doctor.ts": {
       "sha256": "7965a12d470fbda594d077daac5f54a3464f7d737c7a5a419e6ccefb5b886949",
       "approved_by": "jay",
       "approved_at": "2026-02-14",
       "note": "Habit system doctor v1.5 + Governance v1.0: INFO support, legacy=INFO, doc drift with fixed B_TOKENS extraction, Unicode >= patterns, GOV=OK"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/propose_habit.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/propose_habit.ts": {
       "sha256": "650d7e9c3f001613ec94ad295006f35b582aa03552e04689480c66544000dfb4",
       "approved_by": "jay",
       "approved_at": "2026-02-14",
       "note": "Habit proposal v1.5: ANY A/B/C, valid JSON, thresholds (A:3+500,B:2000,C:2)"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/habit_gc.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/habit_gc.ts": {
       "sha256": "3a9e80c0643e283cdd7fbcc9c72421884fb4def16abcb3f7baa026752373e17a",
       "approved_by": "jay",
       "approved_at": "2026-02-14",
       "note": "Habit garbage collector v1.5 - clear archive triggers, hard cap, state-change SNIPs"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/habit_list.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/habit_list.ts": {
       "sha256": "1de19d8f3933782b8836811710fdc0bd35dfb326ae4a54f8c5c92c6421f3f817",
       "approved_by": "jay",
       "approved_at": "2026-02-14",
       "note": "Habit registry lister - shows active/archived habits"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/trust_add_habit.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/trust_add_habit.ts": {
       "sha256": "a97b30b1a027e210b23982085e5244630aa02762790cd98bf4f477e04f6702f2",
       "approved_by": "jay",
       "approved_at": "2026-02-14",
       "note": "Trust add wrapper for habits - pins SHA-256 hashes"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/trust_list_habits.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/trust_list_habits.ts": {
       "sha256": "b3102f9e3e362d9aca9033445a878c70ce46407c802de2ab5385ad78a5fe46fa",
       "approved_by": "jay",
       "approved_at": "2026-02-14",
       "note": "Trust list wrapper for habits - shows trusted habit files"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/route_task.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/route_task.ts": {
       "sha256": "5d029fdbfdb210bfc8f4c7c4bc4ae33d45b138f0508434f4d211f75869dac743",
       "approved_by": "jay",
       "approved_at": "2026-02-17",
@@ -168,7 +168,7 @@
       "approved_at": "2026-02-17",
       "note": "v1.2.0 tests - agent mode + 3 new tests (26 total)"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/dopamine_engine.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/dopamine_engine.ts": {
       "sha256": "5d14576cd144f26771721a70e2b85fb44d1bc2cfb5c335b7c73a15c2590693cc",
       "approved_by": "jay",
       "approved_at": "2026-02-17",
@@ -180,7 +180,7 @@
       "approved_at": "2026-02-17",
       "note": "v1.2.1/1.3.0 - Added QUEUE and EXTERNAL EYES features"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/check_versions.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/check_versions.ts": {
       "sha256": "d32a7d178aacf70bd96663ba295f5918783ff1a5ff173588f31df7853c8295ac",
       "approved_by": "jay",
       "approved_at": "2026-02-16",
@@ -204,7 +204,7 @@
       "approved_at": "2026-02-17",
       "note": "Git post-commit hook - auto-captures artifacts on every commit"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/sensory_capture.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/sensory_capture.ts": {
       "sha256": "c1a8d415af85409f51eb94a2ee20cdbac96164e90e110428727c4d0adf352883",
       "approved_by": "jay",
       "approved_at": "2026-02-17",
@@ -228,13 +228,13 @@
       "approved_at": "2026-02-17",
       "note": "v1.0.2 - Added test_run event type with +6/-6 scoring"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/aie_logger.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/aie_logger.ts": {
       "sha256": "7c008f50958e9abca7c6bd9574b559b72b7f9091c631c37b0a679596af1ff14a",
       "approved_by": "jay",
       "approved_at": "2026-02-17",
       "note": "v1.0.2 - Auto-compute hash by default; fix hex string parsing"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/aie_scorer.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/aie_scorer.ts": {
       "sha256": "d75fc87eb052aa1abe73bf42d07d4d14c8a4301cc68f38223d198ed5c9fcefb3",
       "approved_by": "jay",
       "approved_at": "2026-02-17",
@@ -246,13 +246,13 @@
       "approved_at": "2026-02-17",
       "note": "v1.0.2 tests - 9 tests including aie_run wrapper"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/aie_run.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/aie_run.ts": {
       "sha256": "e1c52e0f92607c255cedfbb05f80aeda634c1117c4d84c57d855daee032053f5",
       "approved_by": "jay",
       "approved_at": "2026-02-17",
       "note": "v1.0.2 - NEW: Auto-capture wrapper for test runs"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/sensory_digest.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/sensory_digest.ts": {
       "sha256": "48b62c7c1639de55f24fbf712a05ff050f3496ee9ee047b70d5541c40b869c2f",
       "approved_by": "jay",
       "approved_at": "2026-02-17",
@@ -264,7 +264,7 @@
       "approved_at": "2026-02-17",
       "note": "v1.1.3 tests - 5 tests, truthful PASS/FAIL, exit code 1 on failure"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/sensory_insight.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/sensory_insight.ts": {
       "sha256": "d1c6635e93c5ffa92ccdac207b6bf10f7148c7818792f7eda8862a914a4ea95c",
       "approved_by": "jay",
       "approved_at": "2026-02-17",
@@ -276,7 +276,7 @@
       "approved_at": "2026-02-17",
       "note": "v1.2.0 tests - 5 tests, NO raw JSONL enforcement, truthful PASS/FAIL"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/directive_gate.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/directive_gate.ts": {
       "sha256": "f62ef89615329921cdbd3e9442c9be73a6ad99aedab260118ab0df6d73981c26",
       "approved_by": "jay",
       "approved_at": "2026-02-17",
@@ -294,7 +294,7 @@
       "approved_at": "2026-02-20",
       "note": "v1.1 - External Eyes catalog runtime moved to client/runtime/local/adaptive/sensory/eyes/catalog.json"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/external_eyes.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/external_eyes.ts": {
       "sha256": "9a994d1e98cc1febd9869527135196655b24cbaf86f36c3be11b768cab7e3841",
       "approved_by": "jay",
       "approved_at": "2026-02-17",
@@ -306,7 +306,7 @@
       "approved_at": "2026-02-17",
       "note": "v1.0 - 8 tests for External Eyes: registry, budgets, JSONL events, metrics, evolve, domain validation, hashing, propose"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/sensory_queue.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/sensory_queue.ts": {
       "sha256": "c8139ef0476a58c39326d0fed45c7b3d9fc6104bced57ce4ba5e65541f7e08e3",
       "approved_by": "jay",
       "approved_at": "2026-02-17",
@@ -318,7 +318,7 @@
       "approved_at": "2026-02-17",
       "note": "v1.2.1 - 8 tests: ingest, idempotent, accept/reject/done/snooze, stats, recurring"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/proposal_queue.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/proposal_queue.ts": {
       "sha256": "145d544c3000b6cc709dc9d6f4dd708aa56e8e68e58cb332115ea7dd6f887433",
       "approved_by": "jay",
       "approved_at": "2026-02-17",
@@ -330,7 +330,7 @@
       "approved_at": "2026-02-17",
       "note": "v1.0 - 7 tests: decision, outcome, overlay, status, proposals (array/wrapper), metrics"
     },
-    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/eyes_insight.js": {
+    "/Users/jay/.openclaw/workspace/client/cognition/habits/scripts/eyes_insight.ts": {
       "sha256": "ed6462069cdd08c12ab6aa8571e04327adcdd50611f6d7f5f2d126c6bac303c8",
       "approved_by": "jay",
       "approved_at": "2026-02-17",

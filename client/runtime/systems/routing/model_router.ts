@@ -18,4 +18,4 @@ if (require.main === module) {
   process.exit(Number.isFinite(out && out.status) ? Number(out.status) : 1);
 }
 
-module.exports = require('./model_router.js');
+module.exports = require('./model_router.ts');

@@ -25,13 +25,13 @@ Key controls:
 
 ```bash
 # Generate/verify artifacts
-node client/runtime/systems/security/supply_chain_trust_plane.js run --strict=1
+node client/runtime/systems/security/supply_chain_trust_plane.ts run --strict=1
 
 # Verification-only lane used by merge guard
-node client/runtime/systems/security/supply_chain_trust_plane.js run --strict=1 --verify-only=1
+node client/runtime/systems/security/supply_chain_trust_plane.ts run --strict=1 --verify-only=1
 
 # Inspect latest status
-node client/runtime/systems/security/supply_chain_trust_plane.js status
+node client/runtime/systems/security/supply_chain_trust_plane.ts status
 ```
 
 ## Release gate

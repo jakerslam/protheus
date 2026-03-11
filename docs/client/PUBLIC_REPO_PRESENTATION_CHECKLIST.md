@@ -23,7 +23,7 @@ Automated cleanup lanes must not use history-rewrite operations:
 Run:
 
 ```bash
-node client/runtime/systems/ops/public_repo_presentation_pass.js verify --strict=1
+node client/runtime/systems/ops/public_repo_presentation_pass.ts verify --strict=1
 ```
 
 This writes a verification bundle under:

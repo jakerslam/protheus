@@ -13,6 +13,6 @@ Each reflex is hard-capped at `<=150` estimated tokens.
 
 ## Usage
 ```bash
-node client/cognition/reflexes/index.js list
-node client/cognition/reflexes/index.js run --id=memory_lookup --input="ambient mode regression"
+node client/cognition/reflexes/index.ts list
+node client/cognition/reflexes/index.ts run --id=memory_lookup --input="ambient mode regression"
 ```

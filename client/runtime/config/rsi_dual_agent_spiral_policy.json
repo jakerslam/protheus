@@ -11,8 +11,8 @@
   "difficulty_start": 1,
   "difficulty_step": 1,
   "difficulty_max": 6,
-  "system3_script": "client/cognition/adaptive/executive/system3_executive_layer.js",
-  "rsi_script": "client/cognition/adaptive/rsi/rsi_bootstrap.js",
+  "system3_script": "client/cognition/adaptive/executive/system3_executive_layer.ts",
+  "rsi_script": "client/cognition/adaptive/rsi/rsi_bootstrap.ts",
   "rsi_policy_path": "client/runtime/config/rsi_bootstrap_policy.json",
   "target_paths": [
     "client/runtime/systems/strategy/strategy_learner.ts",

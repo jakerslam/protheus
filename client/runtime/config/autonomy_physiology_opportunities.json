@@ -52,7 +52,7 @@
       "proposed_components": [
         "client/runtime/systems/homeostasis/homeostasis_controller.js",
         "client/runtime/systems/autonomy/autonomy_controller.ts",
-        "client/runtime/systems/autonomy/health_status.js"
+        "client/runtime/systems/autonomy/health_status.ts"
       ],
       "expected_effect": {
         "effective_policy_hold_rate_delta": -0.08,
@@ -78,8 +78,8 @@
       ],
       "proposed_components": [
         "client/runtime/systems/telemetry/interoception_stream.js",
-        "client/runtime/systems/autonomy/health_status.js",
-        "client/runtime/systems/routing/model_router.js"
+        "client/runtime/systems/autonomy/health_status.ts",
+        "client/runtime/systems/routing/model_router.ts"
       ],
       "expected_effect": {
         "effective_drift_rate_delta": -0.004,
@@ -104,9 +104,9 @@
         { "key": "safety_stop_rate_raw", "weight": 0.15 }
       ],
       "proposed_components": [
-        "client/runtime/systems/autonomy/non_yield_harvest.js",
-        "client/runtime/systems/autonomy/non_yield_replay.js",
-        "client/runtime/systems/security/policy_rootd.js"
+        "client/runtime/systems/autonomy/non_yield_harvest.ts",
+        "client/runtime/systems/autonomy/non_yield_replay.ts",
+        "client/runtime/systems/security/policy_rootd.ts"
       ],
       "expected_effect": {
         "effective_policy_hold_rate_delta": -0.06,
@@ -131,9 +131,9 @@
         { "key": "objective_concentration", "weight": 0.1 }
       ],
       "proposed_components": [
-        "client/runtime/systems/memory/memory_dream.js",
-        "client/runtime/systems/memory/idle_dream_cycle.js",
-        "client/runtime/systems/autonomy/proposal_enricher.js"
+        "client/runtime/systems/memory/memory_dream.ts",
+        "client/runtime/systems/memory/idle_dream_cycle.ts",
+        "client/runtime/systems/autonomy/proposal_enricher.ts"
       ],
       "expected_effect": {
         "effective_yield_rate_delta": 0.04,
@@ -158,9 +158,9 @@
         { "key": "objective_concentration", "weight": 0.25 }
       ],
       "proposed_components": [
-        "client/runtime/systems/spawn/spawn_broker.js",
+        "client/runtime/systems/spawn/spawn_broker.ts",
         "client/runtime/systems/security/capability_lease.ts",
-        "client/runtime/systems/autonomy/health_status.js"
+        "client/runtime/systems/autonomy/health_status.ts"
       ],
       "expected_effect": {
         "queue_pending_ratio_delta": -0.08,
@@ -185,9 +185,9 @@
         { "key": "no_progress_rate_raw", "weight": 0.15 }
       ],
       "proposed_components": [
-        "client/cognition/habits/scripts/sensory_queue.js",
+        "client/cognition/habits/scripts/sensory_queue.ts",
         "client/runtime/systems/autonomy/autonomy_controller.ts",
-        "client/runtime/systems/actuation/bridge_from_proposals.js"
+        "client/runtime/systems/actuation/bridge_from_proposals.ts"
       ],
       "expected_effect": {
         "queue_pending_ratio_delta": -0.1,

@@ -9,7 +9,7 @@
         "id": "contract_check",
         "command": "node",
         "args": [
-          "client/runtime/systems/spine/contract_check.js"
+          "client/runtime/systems/spine/contract_check.ts"
         ],
         "strict": false
       },
@@ -17,7 +17,7 @@
         "id": "integrity_kernel_check",
         "command": "node",
         "args": [
-          "client/runtime/systems/security/integrity_kernel.js",
+          "client/runtime/systems/security/integrity_kernel.ts",
           "run"
         ],
         "strict": false
@@ -26,7 +26,7 @@
         "id": "skin_protection_verify",
         "command": "node",
         "args": [
-          "client/runtime/systems/security/skin_protection_layer.js",
+          "client/runtime/systems/security/skin_protection_layer.ts",
           "verify",
           "--strict=1"
         ],
@@ -36,7 +36,7 @@
         "id": "schema_contract_check",
         "command": "node",
         "args": [
-          "client/runtime/systems/security/schema_contract_check.js",
+          "client/runtime/systems/security/schema_contract_check.ts",
           "run"
         ],
         "strict": false
@@ -45,7 +45,7 @@
         "id": "adaptive_layer_guard_strict",
         "command": "node",
         "args": [
-          "client/runtime/systems/sensory/adaptive_layer_guard.js",
+          "client/runtime/systems/sensory/adaptive_layer_guard.ts",
           "run",
           "--strict"
         ],
@@ -65,7 +65,7 @@
         "id": "workspace_dump_guard_strict",
         "command": "node",
         "args": [
-          "client/runtime/systems/security/workspace_dump_guard.js",
+          "client/runtime/systems/security/workspace_dump_guard.ts",
           "run",
           "--strict"
         ],
@@ -75,7 +75,7 @@
         "id": "conflict_marker_guard",
         "command": "node",
         "args": [
-          "client/runtime/systems/security/conflict_marker_guard.js",
+          "client/runtime/systems/security/conflict_marker_guard.ts",
           "run",
           "--strict=1"
         ],
@@ -85,7 +85,7 @@
         "id": "repo_hygiene_guard_strict",
         "command": "node",
         "args": [
-          "client/runtime/systems/security/repo_hygiene_guard.js",
+          "client/runtime/systems/security/repo_hygiene_guard.ts",
           "run",
           "--strict",
           "--staged"
@@ -96,7 +96,7 @@
         "id": "dist_runtime_legacy_pairs",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/dist_runtime_cutover.js",
+          "client/runtime/systems/ops/dist_runtime_cutover.ts",
           "legacy-pairs",
           "--strict=1"
         ],
@@ -106,7 +106,7 @@
         "id": "js_holdout_audit_strict",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/js_holdout_audit.js",
+          "client/runtime/systems/ops/js_holdout_audit.ts",
           "run",
           "--strict=1"
         ],
@@ -116,7 +116,7 @@
         "id": "formal_invariant_engine",
         "command": "node",
         "args": [
-          "client/runtime/systems/security/formal_invariant_engine.js",
+          "client/runtime/systems/security/formal_invariant_engine.ts",
           "run",
           "--strict=1"
         ],
@@ -126,7 +126,7 @@
         "id": "critical_path_formal_verifier",
         "command": "node",
         "args": [
-          "client/runtime/systems/security/critical_path_formal_verifier.js",
+          "client/runtime/systems/security/critical_path_formal_verifier.ts",
           "run",
           "--strict=1"
         ],
@@ -136,7 +136,7 @@
         "id": "supply_chain_trust_plane",
         "command": "node",
         "args": [
-          "client/runtime/systems/security/supply_chain_trust_plane.js",
+          "client/runtime/systems/security/supply_chain_trust_plane.ts",
           "run",
           "--strict=1",
           "--verify-only=1"
@@ -147,7 +147,7 @@
         "id": "key_lifecycle_verify",
         "command": "node",
         "args": [
-          "client/runtime/systems/security/key_lifecycle_governor.js",
+          "client/runtime/systems/security/key_lifecycle_governor.ts",
           "verify",
           "--strict=1"
         ],
@@ -157,7 +157,7 @@
         "id": "post_quantum_migration_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/security/post_quantum_migration_lane.js",
+          "client/runtime/systems/security/post_quantum_migration_lane.ts",
           "status"
         ],
         "strict": false
@@ -166,7 +166,7 @@
         "id": "quantum_security_synthesis_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/redteam/quantum_security_primitive_synthesis.js",
+          "client/runtime/systems/redteam/quantum_security_primitive_synthesis.ts",
           "status"
         ],
         "strict": false
@@ -175,7 +175,7 @@
         "id": "docs_coverage_gate",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/docs_coverage_gate.js",
+          "client/runtime/systems/ops/docs_coverage_gate.ts",
           "run",
           "--strict=1"
         ],
@@ -185,7 +185,7 @@
         "id": "dr_gameday_gate",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/dr_gameday_gate.js",
+          "client/runtime/systems/ops/dr_gameday_gate.ts",
           "run",
           "--strict=1"
         ],
@@ -195,7 +195,7 @@
         "id": "simplicity_budget_gate",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/simplicity_budget_gate.js",
+          "client/runtime/systems/ops/simplicity_budget_gate.ts",
           "run",
           "--strict=1"
         ],
@@ -205,7 +205,7 @@
         "id": "causal_temporal_graph_build",
         "command": "node",
         "args": [
-          "client/runtime/systems/memory/causal_temporal_graph.js",
+          "client/runtime/systems/memory/causal_temporal_graph.ts",
           "build",
           "--strict=1"
         ],
@@ -215,7 +215,7 @@
         "id": "emergent_primitive_synthesis_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/primitives/emergent_primitive_synthesis.js",
+          "client/runtime/systems/primitives/emergent_primitive_synthesis.ts",
           "status"
         ],
         "strict": false
@@ -224,7 +224,7 @@
         "id": "hardware_embodiment_parity",
         "command": "node",
         "args": [
-          "client/runtime/systems/hardware/embodiment_layer.js",
+          "client/runtime/systems/hardware/embodiment_layer.ts",
           "verify-parity",
           "--profiles=phone,desktop,cluster",
           "--strict=1"
@@ -235,7 +235,7 @@
         "id": "resurrection_protocol_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/continuity/resurrection_protocol.js",
+          "client/runtime/systems/continuity/resurrection_protocol.ts",
           "status"
         ],
         "strict": false
@@ -244,7 +244,7 @@
         "id": "value_anchor_renewal_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/echo/value_anchor_renewal.js",
+          "client/runtime/systems/echo/value_anchor_renewal.ts",
           "status"
         ],
         "strict": false
@@ -253,7 +253,7 @@
         "id": "explanation_primitive_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/primitives/explanation_primitive.js",
+          "client/runtime/systems/primitives/explanation_primitive.ts",
           "status"
         ],
         "strict": false
@@ -262,7 +262,7 @@
         "id": "gated_self_improvement_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/autonomy/gated_self_improvement_loop.js",
+          "client/runtime/systems/autonomy/gated_self_improvement_loop.ts",
           "status"
         ],
         "strict": false
@@ -271,7 +271,7 @@
         "id": "iterative_repair_primitive_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/primitives/iterative_repair_primitive.js",
+          "client/runtime/systems/primitives/iterative_repair_primitive.ts",
           "status"
         ],
         "strict": false
@@ -280,7 +280,7 @@
         "id": "interactive_desktop_session_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/primitives/interactive_desktop_session_primitive.js",
+          "client/runtime/systems/primitives/interactive_desktop_session_primitive.ts",
           "status"
         ],
         "strict": false
@@ -289,7 +289,7 @@
         "id": "doctor_forge_micro_debug_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/autonomy/doctor_forge_micro_debug_lane.js",
+          "client/runtime/systems/autonomy/doctor_forge_micro_debug_lane.ts",
           "status"
         ],
         "strict": false
@@ -298,7 +298,7 @@
         "id": "full_virtual_desktop_claw_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/actuation/full_virtual_desktop_claw_lane.js",
+          "client/runtime/systems/actuation/full_virtual_desktop_claw_lane.ts",
           "status"
         ],
         "strict": false
@@ -316,7 +316,7 @@
         "id": "delegated_authority_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/security/delegated_authority_branching.js",
+          "client/runtime/systems/security/delegated_authority_branching.ts",
           "status"
         ],
         "strict": false
@@ -325,7 +325,7 @@
         "id": "world_model_freshness_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/assimilation/world_model_freshness.js",
+          "client/runtime/systems/assimilation/world_model_freshness.ts",
           "status"
         ],
         "strict": false
@@ -334,7 +334,7 @@
         "id": "continuous_chaos_resilience_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/continuous_chaos_resilience.js",
+          "client/runtime/systems/ops/continuous_chaos_resilience.ts",
           "status"
         ],
         "strict": false
@@ -343,7 +343,7 @@
         "id": "error_budget_release_gate",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/error_budget_release_gate.js",
+          "client/runtime/systems/ops/error_budget_release_gate.ts",
           "gate",
           "--strict=1"
         ],
@@ -353,7 +353,7 @@
         "id": "critical_path_policy_coverage",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/critical_path_policy_coverage.js",
+          "client/runtime/systems/ops/critical_path_policy_coverage.ts",
           "run",
           "--strict=1"
         ],
@@ -363,7 +363,7 @@
         "id": "backlog_intake_quality_gate",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/backlog_intake_quality_gate.js",
+          "client/runtime/systems/ops/backlog_intake_quality_gate.ts",
           "run",
           "--strict=1"
         ],
@@ -373,7 +373,7 @@
         "id": "composite_disaster_gameday_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/composite_disaster_gameday.js",
+          "client/runtime/systems/ops/composite_disaster_gameday.ts",
           "status"
         ],
         "strict": false
@@ -382,7 +382,7 @@
         "id": "self_hosted_bootstrap_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/self_hosted_bootstrap_compiler.js",
+          "client/runtime/systems/ops/self_hosted_bootstrap_compiler.ts",
           "status"
         ],
         "strict": false
@@ -391,7 +391,7 @@
         "id": "surface_budget_controller_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/hardware/surface_budget_controller.js",
+          "client/runtime/systems/hardware/surface_budget_controller.ts",
           "status"
         ],
         "strict": false
@@ -400,7 +400,7 @@
         "id": "compression_transfer_plane_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/hardware/compression_transfer_plane.js",
+          "client/runtime/systems/hardware/compression_transfer_plane.ts",
           "status"
         ],
         "strict": false
@@ -409,7 +409,7 @@
         "id": "opportunistic_offload_plane_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/hardware/opportunistic_offload_plane.js",
+          "client/runtime/systems/hardware/opportunistic_offload_plane.ts",
           "status"
         ],
         "strict": false
@@ -418,7 +418,7 @@
         "id": "phone_seed_profile_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/phone_seed_profile.js",
+          "client/runtime/systems/ops/phone_seed_profile.ts",
           "status"
         ],
         "strict": false
@@ -427,7 +427,7 @@
         "id": "client_relationship_manager_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/workflow/client_relationship_manager.js",
+          "client/runtime/systems/workflow/client_relationship_manager.ts",
           "status",
           "--days=30"
         ],
@@ -437,7 +437,7 @@
         "id": "gated_account_creation_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/workflow/gated_account_creation_organ.js",
+          "client/runtime/systems/workflow/gated_account_creation_organ.ts",
           "status"
         ],
         "strict": false
@@ -446,7 +446,7 @@
         "id": "capital_allocation_organ_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/budget/capital_allocation_organ.js",
+          "client/runtime/systems/budget/capital_allocation_organ.ts",
           "status",
           "--days=30"
         ],
@@ -456,7 +456,7 @@
         "id": "economic_entity_manager_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/finance/economic_entity_manager.js",
+          "client/runtime/systems/finance/economic_entity_manager.ts",
           "status"
         ],
         "strict": false
@@ -465,7 +465,7 @@
         "id": "drift_aware_revenue_optimizer_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/weaver/drift_aware_revenue_optimizer.js",
+          "client/runtime/systems/weaver/drift_aware_revenue_optimizer.ts",
           "status",
           "--days=30"
         ],
@@ -475,7 +475,7 @@
         "id": "siem_bridge_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/observability/siem_bridge.js",
+          "client/runtime/systems/observability/siem_bridge.ts",
           "status"
         ],
         "strict": false
@@ -484,7 +484,7 @@
         "id": "soc2_type2_track_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/soc2_type2_track.js",
+          "client/runtime/systems/ops/soc2_type2_track.ts",
           "status"
         ],
         "strict": false
@@ -493,7 +493,7 @@
         "id": "predictive_capacity_forecast_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/predictive_capacity_forecast.js",
+          "client/runtime/systems/ops/predictive_capacity_forecast.ts",
           "status"
         ],
         "strict": false
@@ -502,7 +502,7 @@
         "id": "neural_dormant_seed_check",
         "command": "node",
         "args": [
-          "client/runtime/systems/symbiosis/neural_dormant_seed.js",
+          "client/runtime/systems/symbiosis/neural_dormant_seed.ts",
           "check",
           "--strict=1",
           "--profile=prod"
@@ -513,7 +513,7 @@
         "id": "pre_neuralink_interface_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/symbiosis/pre_neuralink_interface.js",
+          "client/runtime/systems/symbiosis/pre_neuralink_interface.ts",
           "status"
         ],
         "strict": false
@@ -522,7 +522,7 @@
         "id": "execution_sandbox_envelope_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/security/execution_sandbox_envelope.js",
+          "client/runtime/systems/security/execution_sandbox_envelope.ts",
           "status"
         ],
         "strict": false
@@ -531,7 +531,7 @@
         "id": "organ_state_encryption_verify",
         "command": "node",
         "args": [
-          "client/runtime/systems/security/organ_state_encryption_plane.js",
+          "client/runtime/systems/security/organ_state_encryption_plane.ts",
           "verify",
           "--strict=1"
         ],
@@ -541,7 +541,7 @@
         "id": "remote_tamper_heartbeat_verify",
         "command": "node",
         "args": [
-          "client/runtime/systems/security/remote_tamper_heartbeat.js",
+          "client/runtime/systems/security/remote_tamper_heartbeat.ts",
           "verify",
           "--strict=1"
         ],
@@ -551,7 +551,7 @@
         "id": "operator_terms_ack_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/security/operator_terms_ack.js",
+          "client/runtime/systems/security/operator_terms_ack.ts",
           "status"
         ],
         "strict": false
@@ -570,7 +570,7 @@
         "id": "repository_access_auditor_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/security/repository_access_auditor.js",
+          "client/runtime/systems/security/repository_access_auditor.ts",
           "status",
           "--strict=1"
         ],
@@ -590,7 +590,7 @@
         "id": "helix_baseline_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/helix/helix_controller.js",
+          "client/runtime/systems/helix/helix_controller.ts",
           "baseline"
         ],
         "strict": false
@@ -599,7 +599,7 @@
         "id": "helix_admission_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/helix/helix_admission_gate.js",
+          "client/runtime/systems/helix/helix_admission_gate.ts",
           "status"
         ],
         "strict": false
@@ -608,7 +608,7 @@
         "id": "helix_confirmed_malice_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/helix/confirmed_malice_quarantine.js",
+          "client/runtime/systems/helix/confirmed_malice_quarantine.ts",
           "status"
         ],
         "strict": false
@@ -617,7 +617,7 @@
         "id": "redteam_ant_colony_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/redteam/ant_colony_controller.js",
+          "client/runtime/systems/redteam/ant_colony_controller.ts",
           "status"
         ],
         "strict": false
@@ -626,7 +626,7 @@
         "id": "profile_compatibility_gate",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/profile_compatibility_gate.js",
+          "client/runtime/systems/ops/profile_compatibility_gate.ts",
           "run",
           "--strict=1"
         ],
@@ -636,7 +636,7 @@
         "id": "schema_evolution_contract",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/schema_evolution_contract.js",
+          "client/runtime/systems/ops/schema_evolution_contract.ts",
           "run",
           "--strict=1",
           "--apply=0"
@@ -647,7 +647,7 @@
         "id": "state_kernel_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/state_kernel.js",
+          "client/runtime/systems/ops/state_kernel.ts",
           "status"
         ],
         "strict": false
@@ -656,7 +656,7 @@
         "id": "state_kernel_parity",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/state_kernel.js",
+          "client/runtime/systems/ops/state_kernel.ts",
           "verify-parity"
         ],
         "strict": false
@@ -665,7 +665,7 @@
         "id": "state_kernel_replay_verify",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/state_kernel.js",
+          "client/runtime/systems/ops/state_kernel.ts",
           "replay-verify",
           "--profiles=phone,desktop,cluster"
         ],
@@ -675,7 +675,7 @@
         "id": "state_kernel_cutover_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/state_kernel_cutover.js",
+          "client/runtime/systems/ops/state_kernel_cutover.ts",
           "status"
         ],
         "strict": false
@@ -684,7 +684,7 @@
         "id": "state_kernel_dual_write_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/ops/state_kernel_dual_write.js",
+          "client/runtime/systems/ops/state_kernel_dual_write.ts",
           "status"
         ],
         "strict": false
@@ -702,7 +702,7 @@
         "id": "rust_memory_benchmark_consistency",
         "command": "node",
         "args": [
-          "client/runtime/systems/memory/rust_memory_transition_lane.js",
+          "client/runtime/systems/memory/rust_memory_transition_lane.ts",
           "consistency-check",
           "--strict=1"
         ],
@@ -712,7 +712,7 @@
         "id": "rust_memory_daemon_supervisor_healthcheck",
         "command": "node",
         "args": [
-          "client/runtime/systems/memory/rust_memory_daemon_supervisor.js",
+          "client/runtime/systems/memory/rust_memory_daemon_supervisor.ts",
           "healthcheck"
         ],
         "strict": false
@@ -721,7 +721,7 @@
         "id": "cognitive_control_primitive_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/primitives/cognitive_control_primitive.js",
+          "client/runtime/systems/primitives/cognitive_control_primitive.ts",
           "status"
         ],
         "strict": false
@@ -739,7 +739,7 @@
         "id": "memory_index_freshness_gate",
         "command": "node",
         "args": [
-          "client/runtime/systems/memory/memory_index_freshness_gate.js",
+          "client/runtime/systems/memory/memory_index_freshness_gate.ts",
           "run",
           "--strict=1",
           "--apply=0"
@@ -750,7 +750,7 @@
         "id": "trajectory_skill_distiller_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/assimilation/trajectory_skill_distiller.js",
+          "client/runtime/systems/assimilation/trajectory_skill_distiller.ts",
           "status"
         ],
         "strict": false
@@ -759,7 +759,7 @@
         "id": "motivational_state_vector_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/autonomy/motivational_state_vector.js",
+          "client/runtime/systems/autonomy/motivational_state_vector.ts",
           "status"
         ],
         "strict": false
@@ -777,7 +777,7 @@
         "id": "source_attestation_extension_status",
         "command": "node",
         "args": [
-          "client/runtime/systems/assimilation/source_attestation_extension.js",
+          "client/runtime/systems/assimilation/source_attestation_extension.ts",
           "status"
         ],
         "strict": false

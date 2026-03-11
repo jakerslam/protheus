@@ -5,11 +5,11 @@ export {};
 // Thin TypeScript wrapper only.
 
 const path = require('path');
-const { createConduitLaneModule } = require('./direct_conduit_lane_bridge.js');
+const { createConduitLaneModule } = require('./direct_conduit_lane_bridge.ts');
 const __directConduitLane = createConduitLaneModule('LIB_STRATEGY_RESOLVER');
 void __directConduitLane;
 
-const { createOpsLaneBridge } = require('./rust_lane_bridge');
+const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
 
 type AnyObj = Record<string, any>;
 

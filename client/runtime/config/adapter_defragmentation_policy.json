@@ -8,8 +8,8 @@
   "low_usage_threshold": 3,
   "profile_ratio_target": 0.8,
   "shared_module_hints": [
-    "client/runtime/systems/actuation/multi_channel_adapter.js",
-    "client/runtime/systems/actuation/universal_execution_primitive.js"
+    "client/runtime/systems/actuation/multi_channel_adapter.ts",
+    "client/runtime/systems/actuation/universal_execution_primitive.ts"
   ],
   "exempt_adapters": [
     "moltbook_publish",

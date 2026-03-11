@@ -23,13 +23,13 @@ Outputs:
 
 ```bash
 # Measure and persist embodiment snapshot
-node client/runtime/systems/hardware/embodiment_layer.js sense --profile=auto
+node client/runtime/systems/hardware/embodiment_layer.ts sense --profile=auto
 
 # Verify profile parity invariants (ignoring configured capacity fields)
-node client/runtime/systems/hardware/embodiment_layer.js verify-parity --profiles=phone,desktop,cluster --strict=1
+node client/runtime/systems/hardware/embodiment_layer.ts verify-parity --profiles=phone,desktop,cluster --strict=1
 
 # Read latest snapshot
-node client/runtime/systems/hardware/embodiment_layer.js status
+node client/runtime/systems/hardware/embodiment_layer.ts status
 ```
 
 Runtime lanes can consume latest embodiment state instead of direct hardware probes.

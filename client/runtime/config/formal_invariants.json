@@ -68,7 +68,7 @@
       "path": "client/runtime/config/guard_check_registry.json",
       "patterns": [
         "\"id\": \"profile_compatibility_gate\"",
-        "client/runtime/systems/ops/profile_compatibility_gate.js",
+        "client/runtime/systems/ops/profile_compatibility_gate.ts",
         "--strict=1"
       ]
     }

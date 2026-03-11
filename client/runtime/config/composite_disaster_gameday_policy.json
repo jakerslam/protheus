@@ -14,7 +14,7 @@
       "timeout_ms": 120000,
       "command": [
         "node",
-        "client/runtime/systems/continuity/resurrection_protocol.js",
+        "client/runtime/systems/continuity/resurrection_protocol.ts",
         "status"
       ]
     },
@@ -25,7 +25,7 @@
       "timeout_ms": 120000,
       "command": [
         "node",
-        "client/runtime/systems/security/remote_tamper_heartbeat.js",
+        "client/runtime/systems/security/remote_tamper_heartbeat.ts",
         "status"
       ]
     },
@@ -36,7 +36,7 @@
       "timeout_ms": 120000,
       "command": [
         "node",
-        "client/runtime/systems/helix/helix_controller.js",
+        "client/runtime/systems/helix/helix_controller.ts",
         "status"
       ]
     }

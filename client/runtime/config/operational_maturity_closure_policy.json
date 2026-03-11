@@ -18,14 +18,14 @@
       "retries": 2,
       "timeout_ms": 120000,
       "health": {
-        "script": "client/cognition/habits/scripts/external_eyes.js",
+        "script": "client/cognition/habits/scripts/external_eyes.ts",
         "args": [
           "preflight",
           "--strict"
         ]
       },
       "remediate": {
-        "script": "client/cognition/habits/scripts/external_eyes.js",
+        "script": "client/cognition/habits/scripts/external_eyes.ts",
         "args": [
           "preflight"
         ]
@@ -36,14 +36,14 @@
       "retries": 1,
       "timeout_ms": 40000,
       "health": {
-        "script": "client/runtime/systems/ops/system_visualizer_guard.js",
+        "script": "client/runtime/systems/ops/system_visualizer_guard.ts",
         "args": [
           "check",
           "--strict=1"
         ]
       },
       "remediate": {
-        "script": "client/runtime/systems/ops/system_visualizer_guard.js",
+        "script": "client/runtime/systems/ops/system_visualizer_guard.ts",
         "args": [
           "restart"
         ]

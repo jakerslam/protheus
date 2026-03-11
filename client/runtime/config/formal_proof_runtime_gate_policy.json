@@ -24,7 +24,7 @@
       "id": "critical_path_formal",
       "bin": "node",
       "args": [
-        "client/runtime/systems/security/critical_path_formal_verifier.js",
+        "client/runtime/systems/security/critical_path_formal_verifier.ts",
         "run",
         "--strict=1"
       ],
@@ -46,7 +46,7 @@
       "id": "critical_protocol_suite",
       "bin": "node",
       "args": [
-        "client/runtime/systems/ops/critical_protocol_formal_suite.js",
+        "client/runtime/systems/ops/critical_protocol_formal_suite.ts",
         "run",
         "--strict=1"
       ],

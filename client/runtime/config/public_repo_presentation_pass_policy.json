@@ -3,8 +3,8 @@
   "enabled": true,
   "checklist_path": "docs/client/PUBLIC_REPO_PRESENTATION_CHECKLIST.md",
   "gitattributes_path": ".gitattributes",
-  "root_contract_script": "client/runtime/systems/ops/root_surface_contract.js",
-  "docs_contract_script": "client/runtime/systems/ops/docs_surface_contract.js",
+  "root_contract_script": "client/runtime/systems/ops/root_surface_contract.ts",
+  "docs_contract_script": "client/runtime/systems/ops/docs_surface_contract.ts",
   "readme_path": "README.md",
   "readme_required_links": [
     "docs/client/README.md",

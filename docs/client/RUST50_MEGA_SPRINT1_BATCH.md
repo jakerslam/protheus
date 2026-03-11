@@ -16,13 +16,13 @@
 
 ## Commands
 ```bash
-node client/runtime/systems/ops/rust50_sprint1_batch.js run \
+node client/runtime/systems/ops/rust50_sprint1_batch.ts run \
   --policy=client/runtime/config/rust50_mega_sprint1_batch_policy.json \
   --enforcer-active=1 \
   --preamble-text="ENFORCER RULES ACTIVE — READ docs/workspace/codex_enforcer.md FIRST." \
   --strict=1 --apply=1
 
-node client/runtime/systems/ops/rust50_sprint1_batch.js status \
+node client/runtime/systems/ops/rust50_sprint1_batch.ts status \
   --policy=client/runtime/config/rust50_mega_sprint1_batch_policy.json
 ```
 

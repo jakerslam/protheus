@@ -6,7 +6,7 @@
   "default_command_effect": "compute",
   "command_rules": [
     {
-      "contains": "client/runtime/systems/actuation/actuation_executor.js",
+      "contains": "client/runtime/systems/actuation/actuation_executor.ts",
       "opcode": "ACTUATION_ADAPTER",
       "effect": "actuation"
     },

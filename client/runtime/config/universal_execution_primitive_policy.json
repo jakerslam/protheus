@@ -27,7 +27,7 @@
   },
   "sub_executor_synthesis": {
     "enabled": true,
-    "script_path": "client/runtime/systems/actuation/sub_executor_synthesis.js",
+    "script_path": "client/runtime/systems/actuation/sub_executor_synthesis.ts",
     "auto_propose_on_errors": [
       "adapter_kind_unresolved",
       "adapter_kind_not_allowed",
