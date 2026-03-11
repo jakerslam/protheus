@@ -1,0 +1,87 @@
+{
+  "type": "client_target_contract_audit",
+  "generated_at": "2026-03-11T04:47:07.529Z",
+  "revision": "844d5c9b5af0f53b20945e9d4f69589c469ec2d2",
+  "policy_path": "client/runtime/config/client_target_contract_policy.json",
+  "summary": {
+    "hard_violation_count": 0,
+    "target_gap_count": 6,
+    "pass": true
+  },
+  "ext_counts": {
+    "1771207494": 1,
+    "1771315386": 2,
+    "1771315610": 2,
+    "ts": 926,
+    "template": 2,
+    "md": 804,
+    "json": 799,
+    "ndjson": 2,
+    "jsonl": 4,
+    "mjs": 2,
+    "<none>": 38,
+    "r": 1,
+    "tfvars": 1,
+    "yaml": 22,
+    "env": 1,
+    "txt": 2,
+    "tpl": 1,
+    "yml": 1,
+    "tf": 3,
+    "html": 1,
+    "blob": 5
+  },
+  "metrics": {
+    "total_ts_files": 926,
+    "runtime_system_surface": 687,
+    "cognition_surface": 100,
+    "runtime_sdk_surface": 59,
+    "sdk_surface": 57,
+    "wrapper_count": 673,
+    "allowed_non_wrapper_count": 15,
+    "keep_public_client": 144,
+    "promote_to_core": 32,
+    "move_to_apps": 90,
+    "move_to_adapters": 10,
+    "collapse_to_generic_wrapper": 650
+  },
+  "target_gaps": [
+    {
+      "metric": "total_ts_files",
+      "current": 926,
+      "target": 250,
+      "reason": "client should be a thin public platform, not the main implementation surface"
+    },
+    {
+      "metric": "runtime_system_surface",
+      "current": 687,
+      "target": 150,
+      "reason": "client/runtime/systems should hold public bridges only"
+    },
+    {
+      "metric": "cognition_surface",
+      "current": 100,
+      "target": 25,
+      "reason": "cognition workflow logic should mostly live above client or in core"
+    },
+    {
+      "metric": "runtime_sdk_surface",
+      "current": 59,
+      "target": 40,
+      "reason": "runtime SDK aliases should be consolidated"
+    },
+    {
+      "metric": "wrapper_count",
+      "current": 673,
+      "target": 200,
+      "reason": "wrapper duplication should be collapsed behind generic entrypoints"
+    },
+    {
+      "metric": "allowed_non_wrapper_count",
+      "current": 15,
+      "target": 8,
+      "reason": "non-wrapper exceptions should be rare and explicit"
+    }
+  ],
+  "hard_violations": []
+}

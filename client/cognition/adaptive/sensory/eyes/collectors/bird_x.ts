@@ -9,8 +9,8 @@
 
 const { execSync } = require("child_process");
 const crypto = require("crypto");
-const { classifyCollectorError, makeCollectorError } = require("./collector_errors");
-const { loadCollectorCache, saveCollectorCache } = require("./cache_store");
+const { classifyCollectorError, makeCollectorError } = require("./collector_errors.ts");
+const { loadCollectorCache, saveCollectorCache } = require("./cache_store.ts");
 
 function sha16(s) {
   return crypto.createHash("sha256").update(String(s)).digest("hex").slice(0, 16);

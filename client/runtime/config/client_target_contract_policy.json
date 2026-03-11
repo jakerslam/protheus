@@ -1,0 +1,96 @@
+{
+  "version": "2026-03-11",
+  "hard_zero_exts": ["js", "sh", "py", "ps1"],
+  "target_caps": {
+    "total_ts_files": {
+      "target": 250,
+      "reason": "client should be a thin public platform, not the main implementation surface"
+    },
+    "runtime_system_surface": {
+      "target": 150,
+      "reason": "client/runtime/systems should hold public bridges only"
+    },
+    "cognition_surface": {
+      "target": 25,
+      "reason": "cognition workflow logic should mostly live above client or in core"
+    },
+    "runtime_sdk_surface": {
+      "target": 40,
+      "reason": "runtime SDK aliases should be consolidated"
+    },
+    "wrapper_count": {
+      "target": 200,
+      "reason": "wrapper duplication should be collapsed behind generic entrypoints"
+    },
+    "allowed_non_wrapper_count": {
+      "target": 8,
+      "reason": "non-wrapper exceptions should be rare and explicit"
+    }
+  },
+  "allowlist_decisions": {
+    "client/runtime/systems/adaptive/core/layer_store.ts": {
+      "bucket": "promote_to_core",
+      "reason": "adaptive state store is internal runtime truth, not public client surface"
+    },
+    "client/runtime/systems/adaptive/habits/habit_store.ts": {
+      "bucket": "promote_to_core",
+      "reason": "habit state store is internal runtime truth, not public client surface"
+    },
+    "client/runtime/systems/adaptive/reflex/reflex_store.ts": {
+      "bucket": "promote_to_core",
+      "reason": "reflex state store is internal runtime truth, not public client surface"
+    },
+    "client/runtime/systems/adaptive/sensory/eyes/catalog_store.ts": {
+      "bucket": "promote_to_core",
+      "reason": "eye catalog store is internal runtime truth, not public client surface"
+    },
+    "client/runtime/systems/adaptive/sensory/eyes/focus_trigger_store.ts": {
+      "bucket": "promote_to_core",
+      "reason": "focus trigger store is internal runtime truth, not public client surface"
+    },
+    "client/runtime/systems/adaptive/strategy/strategy_store.ts": {
+      "bucket": "promote_to_core",
+      "reason": "strategy store is internal runtime truth, not public client surface"
+    },
+    "client/runtime/systems/conduit/conduit-client.ts": {
+      "bucket": "keep_public_client",
+      "reason": "public client-to-core transport bridge"
+    },
+    "client/runtime/systems/contracts/adaptive_contract_version_governance_closure.ts": {
+      "bucket": "promote_to_core",
+      "reason": "contract governance closure is system truth, not DX surface"
+    },
+    "client/runtime/systems/economy/contribution_oracle.ts": {
+      "bucket": "promote_to_core",
+      "reason": "economy oracle is authoritative runtime logic"
+    },
+    "client/runtime/systems/ops/observability_slo_runbook_closure_pass.ts": {
+      "bucket": "promote_to_core",
+      "reason": "operational closure logic is authoritative ops truth"
+    },
+    "client/runtime/systems/ops/release_gate_canary_rollback_enforcer.ts": {
+      "bucket": "promote_to_core",
+      "reason": "release rollback enforcement is authoritative ops truth"
+    },
+    "client/runtime/systems/ops/system_visualizer_server.ts": {
+      "bucket": "keep_public_client",
+      "reason": "operator-facing visualization service belongs to client UX"
+    },
+    "client/runtime/systems/ops/visualizer/app.ts": {
+      "bucket": "keep_public_client",
+      "reason": "operator-facing visualizer app belongs to client UX"
+    },
+    "client/runtime/systems/sensory/eyes_collectors/bird_x.ts": {
+      "bucket": "keep_public_client",
+      "reason": "collector bridge remains in client until the underlying cognition collector is extracted cleanly"
+    },
+    "client/runtime/systems/sensory/eyes_collectors/cache_store.ts": {
+      "bucket": "promote_to_core",
+      "reason": "collector cache store is runtime truth, not a client UX surface"
+    },
+    "client/runtime/systems/sensory/eyes_collectors/ollama_search.ts": {
+      "bucket": "keep_public_client",
+      "reason": "collector bridge remains in client until the underlying cognition collector is extracted cleanly"
+    }
+  }
+}

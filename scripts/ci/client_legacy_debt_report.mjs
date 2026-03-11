@@ -7,6 +7,7 @@ import { execSync } from 'node:child_process';
 const ROOT = process.cwd();
 const LEGACY_RE = /\.(js|py|sh|ps1)$/;
 const SOURCE_CACHE = new Map();
+const SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'coverage', 'state']);
 
 function parseArgs(argv) {
   const out = {
@@ -24,17 +25,16 @@ function rel(p) {
   return path.relative(ROOT, p).replace(/\\/g, '/');
 }
 
-function walk(dir, out = []) {
+function walkLegacyFiles(dir, out = []) {
   if (!fs.existsSync(dir)) return out;
   for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
-    const abs = path.join(dir, ent.name);
+    const p = path.join(dir, ent.name);
     if (ent.isDirectory()) {
-      if (abs.includes('/runtime/local/')) continue;
-      if (fs.existsSync(path.join(abs, '.git'))) continue;
-      walk(abs, out);
-      continue;
+      if (SKIP_DIRS.has(ent.name)) continue;
+      walkLegacyFiles(p, out);
+    } else if (LEGACY_RE.test(ent.name)) {
+      out.push(p);
     }
-    if (LEGACY_RE.test(ent.name)) out.push(abs);
   }
   return out;
 }
@@ -114,7 +114,7 @@ function classify(file) {
   if (file.startsWith('client/runtime/state/')) return 'tracked_state_debt';
   if (file.startsWith('client/runtime/tmp/')) return 'tmp_generated_debt';
   if (file.startsWith('client/runtime/patches/')) return 'platform_patch_surface';
-  if (file.startsWith('client/install.') || file.startsWith('client/runtime/deploy/') || file.startsWith('client/cli/bin/') || file.startsWith('client/cli/npm/') || file.startsWith('client/cli/tools/')) return 'installer_or_dev_shell';
+  if (file.startsWith('client/install.') || file.startsWith('client/runtime/deploy/') || file.startsWith('client/cli/bin/') || file.startsWith('packages/protheus-npm/') || file.startsWith('client/cli/tools/')) return 'installer_or_dev_shell';
   if (file.startsWith('client/cognition/skills/')) return 'skill_script_or_connector';
   if (isRuntimeWrapper(file)) return 'compat_runtime_wrapper_surface';
   if ((file.startsWith('client/runtime/lib/') || file.startsWith('client/lib/')) && (isBootstrapWrapper(file) || isAliasWrapper(file) || hasTwinTs(file))) return 'platform_compat_surface';
@@ -122,7 +122,7 @@ function classify(file) {
   if (file.startsWith('client/cognition/habits/routines/') || file.startsWith('client/cognition/habits/scripts/') || file.startsWith('client/cognition/personas/')) return 'move_to_apps';
   if (file.startsWith('client/runtime/systems/') || file.startsWith('client/systems/')) return 'runtime_or_authority_debt';
   if (file.startsWith('client/runtime/lib/') || file.startsWith('client/lib/')) return 'platform_shim_debt';
-  if (file.startsWith('client/memory/tools/')) return 'tooling_or_test_debt';
+  if (file.startsWith('scripts/memory/')) return 'tooling_or_test_debt';
   if (file.startsWith('client/cognition/')) return 'cognition_surface_debt';
   return 'unclassified';
 }
@@ -139,7 +139,7 @@ function countBy(items, keyFn) {
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const rootDir = path.resolve(ROOT, args.root);
-  const files = walk(rootDir).map(rel).sort();
+  const files = walkLegacyFiles(rootDir).map(rel).sort();
 
   let revision = 'unknown';
   try {

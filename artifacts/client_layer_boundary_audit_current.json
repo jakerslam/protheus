@@ -1,30 +1,15 @@
 {
-  "version": "2026-03-10",
-  "scan_roots": [
-    "client/runtime/systems"
-  ],
-  "wrapper_required_roots": [
-    "client/runtime/systems/"
-  ],
-  "wrapper_markers": [
-    "createLegacyRetiredModule",
-    "createOpsLaneBridge",
-    "createManifestLaneBridge",
-    "legacy-retired-lane",
-    "ts_bootstrap",
-    "ts_entrypoint",
-    "createConduitLaneModule",
-    "createRustLaneBridge",
-    "createDirectConduitBridge",
-    "createConduitBridge",
-    "runLegacyAlias",
-    "legacy_alias_adapter",
-    "module.exports = require(",
-    "TypeScript compatibility shim only.",
-    "Layer ownership: core/",
-    "spawnSync(process.execPath",
-    "createLaneModule("
-  ],
+  "type": "client_layer_boundary_audit",
+  "generated_at": "2026-03-11T04:47:07.245Z",
+  "revision": "844d5c9b5af0f53b20945e9d4f69589c469ec2d2",
+  "policy_path": "client/runtime/config/client_layer_boundary_policy.json",
+  "summary": {
+    "scanned_files": 688,
+    "wrapper_count": 673,
+    "allowed_non_wrapper_count": 15,
+    "violation_count": 0,
+    "pass": true
+  },
   "allowed_non_wrapper_paths": [
     "client/runtime/systems/adaptive/core/layer_store.ts",
     "client/runtime/systems/adaptive/habits/habit_store.ts",
@@ -40,9 +25,7 @@
     "client/runtime/systems/ops/system_visualizer_server.ts",
     "client/runtime/systems/ops/visualizer/app.ts",
     "client/runtime/systems/sensory/eyes_collectors/bird_x.ts",
-    "client/runtime/systems/sensory/eyes_collectors/cache_store.ts",
     "client/runtime/systems/sensory/eyes_collectors/ollama_search.ts"
   ],
-  "allowed_non_wrapper_roots": [],
-  "max_allowed_non_wrapper_count": 15
+  "violations": []
 }

@@ -1,38 +1,14 @@
 #!/usr/bin/env node
-'use strict';
-export {};
+import path from 'node:path';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 
-const { runSingularitySeedCycle } = require('./index.js');
-
-type AnyObj = Record<string, any>;
-
-const DRIFT_THRESHOLD_PCT = 2.0;
-
-function runSovereigntyGuardedCycle(opts: AnyObj = {}) {
-  const result = runSingularitySeedCycle(opts);
-  if (!result || result.ok !== true || !result.payload || typeof result.payload !== 'object') {
-    return {
-      ok: false,
-      error: result && result.error ? String(result.error) : 'cycle_execution_failed',
-      fail_closed: true
-    };
-  }
-
-  const payload = result.payload;
-  const maxDrift = Number(payload.max_drift_pct || 0);
-  const failClosed = Boolean(payload.fail_closed) || maxDrift > DRIFT_THRESHOLD_PCT;
-
-  return {
-    ok: !failClosed,
-    fail_closed: failClosed,
-    threshold_pct: DRIFT_THRESHOLD_PCT,
-    max_drift_pct: maxDrift,
-    sovereignty_index: Number(payload.sovereignty_index || 0),
-    cycle: payload
-  };
-}
-
-module.exports = {
-  runSovereigntyGuardedCycle,
-  DRIFT_THRESHOLD_PCT
-};
+// Layer ownership: apps/examples/singularity-seed-demo/orchestrator.ts (authoritative)
+// TypeScript compatibility shim only.
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const mod = require(path.resolve(__dirname, '../../../../apps/examples/singularity-seed-demo/orchestrator.ts'));
+export const runSovereigntyGuardedCycle = mod.runSovereigntyGuardedCycle;
+export const DRIFT_THRESHOLD_PCT = mod.DRIFT_THRESHOLD_PCT;
+export default mod;
