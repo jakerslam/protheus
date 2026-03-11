@@ -5,9 +5,9 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/helix/helix_admission_gate.js candidate --source=assimilation --capability-id=cap_example
-node client/runtime/systems/helix/helix_admission_gate.js admit --candidate-json="$CANDIDATE_JSON" --apply=1 --doctor-approved=1
-node client/runtime/systems/helix/helix_admission_gate.js status
+node client/runtime/systems/helix/helix_admission_gate.ts candidate --source=assimilation --capability-id=cap_example
+node client/runtime/systems/helix/helix_admission_gate.ts admit --candidate-json="$CANDIDATE_JSON" --apply=1 --doctor-approved=1
+node client/runtime/systems/helix/helix_admission_gate.ts status
 ```
 
 ## Behavior

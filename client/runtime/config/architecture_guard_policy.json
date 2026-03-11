@@ -7,7 +7,7 @@
     ".js"
   ],
   "exclude_paths": [
-    "client/runtime/systems/security/architecture_guard.js"
+    "client/runtime/systems/security/architecture_guard.ts"
   ],
   "banned_tokens": [
     "moltbook",
@@ -21,23 +21,23 @@
     "bird"
   ],
   "allow_paths": [
-    "client/runtime/systems/autonomy/autonomy_controller.js",
-    "client/runtime/systems/spine/spine.js"
+    "client/runtime/systems/autonomy/autonomy_controller.ts",
+    "client/runtime/systems/spine/spine.ts"
   ],
   "allow_token_overrides": {
     "client/runtime/systems/security/guard.ts": [
       "moltbook"
     ],
-    "client/runtime/systems/security/request_ingress.js": [
+    "client/runtime/systems/security/request_ingress.ts": [
       "moltbook"
     ],
-    "client/runtime/systems/sensory/eyes_intake.js": [
+    "client/runtime/systems/sensory/eyes_intake.ts": [
       "hnrss.org",
       "moltbook",
       "twitter",
       "bird"
     ],
-    "client/runtime/systems/sensory/eyes_collectors/bird_x.js": [
+    "client/runtime/systems/sensory/eyes_collectors/bird_x.ts": [
       "bird"
     ]
   }

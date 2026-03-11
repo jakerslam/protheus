@@ -31,7 +31,7 @@ Source implementation:
 ## CLI Contract
 
 ```bash
-node client/runtime/systems/workflow/orchestron/intent_analyzer.js run --intent="..."
+node client/runtime/systems/workflow/orchestron/intent_analyzer.ts run --intent="..."
 ```
 
 Response envelope:
@@ -43,5 +43,5 @@ Response envelope:
 
 ```bash
 node tests/client-memory-tools/orchestron_intent_analyzer.test.js
-node client/runtime/systems/spine/contract_check.js
+node client/runtime/systems/spine/contract_check.ts
 ```

@@ -43,7 +43,7 @@ Receipt includes:
 ## CLI Contract
 
 ```bash
-node client/runtime/systems/workflow/workflow_controller.js promote \
+node client/runtime/systems/workflow/workflow_controller.ts promote \
   --source=promotable \
   --status=active \
   --ignore-threshold=1 \
@@ -58,5 +58,5 @@ node client/runtime/systems/workflow/workflow_controller.js promote \
 node tests/client-memory-tools/workflow_controller_promote.test.js
 node tests/client-memory-tools/workflow_controller_identity_gate.test.js
 node tests/client-memory-tools/workflow_controller_promotion_gate.test.js
-node client/runtime/systems/spine/contract_check.js
+node client/runtime/systems/spine/contract_check.ts
 ```

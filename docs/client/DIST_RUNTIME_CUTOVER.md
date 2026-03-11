@@ -4,14 +4,14 @@ Purpose: run runtime entrypoints from deterministic `dist/` output while preserv
 
 ## Commands
 
-- `node client/runtime/systems/ops/dist_runtime_cutover.js status`
-- `node client/runtime/systems/ops/dist_runtime_cutover.js set-mode --mode=dist`
-- `node client/runtime/systems/ops/dist_runtime_cutover.js set-mode --mode=source`
-- `node client/runtime/systems/ops/dist_runtime_cutover.js verify --build=1 --strict=1`
+- `node client/runtime/systems/ops/dist_runtime_cutover.ts status`
+- `node client/runtime/systems/ops/dist_runtime_cutover.ts set-mode --mode=dist`
+- `node client/runtime/systems/ops/dist_runtime_cutover.ts set-mode --mode=source`
+- `node client/runtime/systems/ops/dist_runtime_cutover.ts verify --build=1 --strict=1`
 
 ## Runtime Resolution
 
-`client/runtime/lib/ts_bootstrap.js` now resolves mode in this order:
+`client/runtime/lib/ts_bootstrap.ts` now resolves mode in this order:
 
 1. `PROTHEUS_RUNTIME_MODE` env (`dist|source`)
 2. `state/ops/runtime_mode.json` (`set-mode` writes this)
@@ -21,9 +21,9 @@ In `dist` mode, wrappers compile from `dist/<same-path>.js` when present. If mis
 
 ## Guardrails
 
-- `client/runtime/systems/spine/contract_check.js` now fails if runtime mode resolves to `dist` while `PROTHEUS_RUNTIME_DIST_REQUIRED` is not `1`.
+- `client/runtime/systems/spine/contract_check.ts` now fails if runtime mode resolves to `dist` while `PROTHEUS_RUNTIME_DIST_REQUIRED` is not `1`.
 - Optional strict wrapper coverage check:
-  - `CONTRACT_CHECK_DIST_WRAPPER_STRICT=1 node client/runtime/systems/spine/contract_check.js`
+  - `CONTRACT_CHECK_DIST_WRAPPER_STRICT=1 node client/runtime/systems/spine/contract_check.ts`
   - Fails if any TS bootstrap wrapper lacks its `dist/` counterpart.
 
 ## Rollback

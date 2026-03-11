@@ -5,11 +5,11 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/ops/soc2_type2_track.js run --days=90 --strict=1
-node client/runtime/systems/ops/soc2_type2_track.js exception-open --id=exc_cc6 --control=cc6 --reason="control evidence gap"
-node client/runtime/systems/ops/soc2_type2_track.js exception-close --id=exc_cc6 --resolution="evidence attached"
-node client/runtime/systems/ops/soc2_type2_track.js bundle --window-id=latest
-node client/runtime/systems/ops/soc2_type2_track.js status
+node client/runtime/systems/ops/soc2_type2_track.ts run --days=90 --strict=1
+node client/runtime/systems/ops/soc2_type2_track.ts exception-open --id=exc_cc6 --control=cc6 --reason="control evidence gap"
+node client/runtime/systems/ops/soc2_type2_track.ts exception-close --id=exc_cc6 --resolution="evidence attached"
+node client/runtime/systems/ops/soc2_type2_track.ts bundle --window-id=latest
+node client/runtime/systems/ops/soc2_type2_track.ts status
 ```
 
 ## Policy

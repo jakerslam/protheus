@@ -5,8 +5,8 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/ops/predictive_capacity_forecast.js run --strict=1
-node client/runtime/systems/ops/predictive_capacity_forecast.js status
+node client/runtime/systems/ops/predictive_capacity_forecast.ts run --strict=1
+node client/runtime/systems/ops/predictive_capacity_forecast.ts status
 ```
 
 ## Inputs

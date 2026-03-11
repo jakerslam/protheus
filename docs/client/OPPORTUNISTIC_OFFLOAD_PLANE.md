@@ -5,8 +5,8 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/hardware/opportunistic_offload_plane.js dispatch --job-id=example --complexity=0.8 --required-ram-gb=4 --required-cpu-threads=4
-node client/runtime/systems/hardware/opportunistic_offload_plane.js status
+node client/runtime/systems/hardware/opportunistic_offload_plane.ts dispatch --job-id=example --complexity=0.8 --required-ram-gb=4 --required-cpu-threads=4
+node client/runtime/systems/hardware/opportunistic_offload_plane.ts status
 ```
 
 ## Routing Logic

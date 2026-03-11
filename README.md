@@ -205,7 +205,7 @@ protheus shadow list --json=1
 - Example: `protheus assimilate https://github.com/example/repo`
 - Programmatic use for loops/shadows:
   ```js
-  const { systemAssimilate } = require('./client/runtime/systems/tools/assimilate_api.js');
+  const { systemAssimilate } = require('./client/runtime/systems/tools/assimilate_api.ts');
   const result = systemAssimilate('./docs/client/cognitive_toolkit.md', { dryRun: true, format: 'json' });
   ```
 
@@ -219,7 +219,7 @@ protheus shadow list --json=1
 - Example proactive flow: `protheus research "I just used docs/client/cognitive_toolkit.md for this workflow" --dry-run=1 --auto-confirm-assimilate=1`
 - Programmatic use for loops/shadows:
   ```js
-  const { systemResearch } = require('./client/runtime/systems/tools/research_api.js');
+  const { systemResearch } = require('./client/runtime/systems/tools/research_api.ts');
   const result = systemResearch('creating a quant trading software', { dryRun: true, format: 'json' });
   ```
 
@@ -233,9 +233,9 @@ protheus shadow list --json=1
   - `protheus tutorial on`
   - `protheus tutorial off`
 - Example contexts (JSON mode for deterministic output):
-  - `node client/runtime/systems/tools/cli_suggestion_engine.js suggest --cmd=status --text="I just used docs/client/cognitive_toolkit.md for this workflow." --auto-reject=1 --dry-run=1 --json=1`
-  - `node client/runtime/systems/tools/cli_suggestion_engine.js suggest --cmd=status --text="drift regression detected in memory lane" --auto-reject=1 --dry-run=1 --json=1`
-  - `node client/runtime/systems/tools/cli_suggestion_engine.js suggest --cmd=status --text="plan next sprint backlog for rust migration" --auto-reject=1 --dry-run=1 --json=1`
+  - `node client/runtime/systems/tools/cli_suggestion_engine.ts suggest --cmd=status --text="I just used docs/client/cognitive_toolkit.md for this workflow." --auto-reject=1 --dry-run=1 --json=1`
+  - `node client/runtime/systems/tools/cli_suggestion_engine.ts suggest --cmd=status --text="drift regression detected in memory lane" --auto-reject=1 --dry-run=1 --json=1`
+  - `node client/runtime/systems/tools/cli_suggestion_engine.ts suggest --cmd=status --text="plan next sprint backlog for rust migration" --auto-reject=1 --dry-run=1 --json=1`
 
 ### Cognitive Toolkit Suite
 

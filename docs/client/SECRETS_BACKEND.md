@@ -16,10 +16,10 @@ Each secret can define ordered providers:
 ## CLI
 
 ```bash
-node client/runtime/systems/security/secret_broker.js issue --secret-id=<id> --scope=<scope>
-node client/runtime/systems/security/secret_broker.js resolve --handle=<token> --scope=<scope>
-node client/runtime/systems/security/secret_broker.js status
-node client/runtime/systems/security/secret_broker.js rotation-check --strict=1
+node client/runtime/systems/security/secret_broker.ts issue --secret-id=<id> --scope=<scope>
+node client/runtime/systems/security/secret_broker.ts resolve --handle=<token> --scope=<scope>
+node client/runtime/systems/security/secret_broker.ts status
+node client/runtime/systems/security/secret_broker.ts rotation-check --strict=1
 ```
 
 Migration governance lane:

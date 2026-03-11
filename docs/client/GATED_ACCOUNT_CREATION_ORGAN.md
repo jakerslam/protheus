@@ -6,7 +6,7 @@
 
 - No bespoke per-service runtime branches.
 - Uses profile templates from `client/runtime/config/account_creation_templates.json`.
-- Executes steps through `client/runtime/systems/actuation/universal_execution_primitive.js`.
+- Executes steps through `client/runtime/systems/actuation/universal_execution_primitive.ts`.
 - Reuses existing safety/governance layers:
   - Eye/constitution route gate
   - Weaver status gate
@@ -21,7 +21,7 @@ Risk classes in `high_risk_classes` require `--human-approved=1`.
 ## CLI
 
 ```bash
-node client/runtime/systems/workflow/gated_account_creation_organ.js create --template=generic_email_account --objective-id=acct_growth --apply=0
-node client/runtime/systems/workflow/gated_account_creation_organ.js status
+node client/runtime/systems/workflow/gated_account_creation_organ.ts create --template=generic_email_account --objective-id=acct_growth --apply=0
+node client/runtime/systems/workflow/gated_account_creation_organ.ts status
 ```
 

@@ -34,25 +34,25 @@ TS surface-only allowlist:
 ## Phase-1 Deliverables (this batch)
 
 - Restored Rust runtime dispatch shims for reverted launchers:
-  - `client/runtime/systems/ops/protheusctl.js`
-  - `client/runtime/systems/ops/state_kernel.js`
-  - `client/runtime/systems/ops/autotest_controller.js`
-  - `client/runtime/systems/ops/autotest_doctor.js`
-  - `client/runtime/systems/autonomy/autonomy_controller.js`
-  - `client/runtime/systems/autonomy/health_status.js`
-  - `client/runtime/systems/autonomy/inversion_controller.js`
-  - `client/runtime/systems/autonomy/strategy_mode_governor.js`
-  - `client/runtime/systems/memory/idle_dream_cycle.js`
-  - `client/runtime/systems/memory/rust_memory_transition_lane.js`
-  - `client/runtime/systems/memory/memory_recall.js` (mapped to `memory-cli` command semantics)
+  - `client/runtime/systems/ops/protheusctl.ts`
+  - `client/runtime/systems/ops/state_kernel.ts`
+  - `client/runtime/systems/ops/autotest_controller.ts`
+  - `client/runtime/systems/ops/autotest_doctor.ts`
+  - `client/runtime/systems/autonomy/autonomy_controller.ts`
+  - `client/runtime/systems/autonomy/health_status.ts`
+  - `client/runtime/systems/autonomy/inversion_controller.ts`
+  - `client/runtime/systems/autonomy/strategy_mode_governor.ts`
+  - `client/runtime/systems/memory/idle_dream_cycle.ts`
+  - `client/runtime/systems/memory/rust_memory_transition_lane.ts`
+  - `client/runtime/systems/memory/memory_recall.ts` (mapped to `memory-cli` command semantics)
 - Added Rust-native domains:
   - `assimilation-controller` (`core/layer0/ops/src/assimilation_controller.rs`)
   - `sensory-eyes-intake` (`core/layer0/ops/src/sensory_eyes_intake.rs`)
 - Switched launcher entrypoints:
-  - `client/runtime/systems/assimilation/assimilation_controller.js`
-  - `client/runtime/systems/sensory/eyes_intake.js`
+  - `client/runtime/systems/assimilation/assimilation_controller.ts`
+  - `client/runtime/systems/sensory/eyes_intake.ts`
 - Added shared bridge helper:
-  - `client/runtime/lib/rust_lane_bridge.js`
+  - `client/runtime/lib/rust_lane_bridge.ts`
 - Updated governance policy:
   - `client/runtime/config/rust_source_of_truth_policy.json`
   - `docs/workspace/codex_enforcer.md`
@@ -74,5 +74,5 @@ TS surface-only allowlist:
   - `backlog_registry`
   - `rust_enterprise_productivity_program`
   - `backlog_github_sync`
-- Updated both TS and JS lane entrypoints for these domains to thin wrappers through `client/runtime/lib/rust_lane_bridge.js`.
+- Updated both TS and JS lane entrypoints for these domains to thin wrappers through `client/runtime/lib/rust_lane_bridge.ts`.
 - Added CLI domains in `core/layer0/ops/src/main.rs` and module exports in `core/layer0/ops/src/lib.rs`.

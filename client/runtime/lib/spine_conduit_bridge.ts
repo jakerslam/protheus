@@ -576,7 +576,7 @@ function runConduitCompatFallback(root, agentId, errorType, opts = {}) {
     const normalizedArgs = edgeArgs.length ? edgeArgs : ['status'];
     const run = runCompatNodeScript(
       root,
-      'client/cognition/habits/scripts/dopamine_ambient_snapshot.js',
+      'client/cognition/habits/scripts/dopamine_ambient_snapshot.ts',
       normalizedArgs,
       {
         timeoutMs: opts.timeoutMs,
@@ -591,7 +591,7 @@ function runConduitCompatFallback(root, agentId, errorType, opts = {}) {
     const normalizedArgs = edgeArgs.length ? edgeArgs : ['status'];
     const run = runCompatNodeScript(
       root,
-      'client/runtime/systems/personas/ambient_stance.js',
+      'client/runtime/systems/personas/ambient_stance.ts',
       normalizedArgs,
       {
         timeoutMs: opts.timeoutMs,
@@ -609,7 +609,7 @@ function runConduitCompatFallback(root, agentId, errorType, opts = {}) {
     const normalizedArgs = edgeArgs.length ? edgeArgs : ['status'];
     const run = runCompatNodeScript(
       root,
-      'client/runtime/systems/memory/ambient.js',
+      'client/runtime/systems/memory/ambient.ts',
       normalizedArgs,
       {
         timeoutMs: opts.timeoutMs,

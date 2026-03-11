@@ -18,12 +18,12 @@ No `internal_only` directories are currently designated for migration.
 ## Contract-First Workflow
 
 1. Run rationalization check:
-   - `node client/runtime/systems/ops/root_scaffolding_rationalization.js run --strict=1`
+   - `node client/runtime/systems/ops/root_scaffolding_rationalization.ts run --strict=1`
 2. If any directory is marked `internal_only`, move only through the lane:
-   - `node client/runtime/systems/ops/root_scaffolding_rationalization.js run --apply=1 --move_internal=1 --strict=1`
+   - `node client/runtime/systems/ops/root_scaffolding_rationalization.ts run --apply=1 --move_internal=1 --strict=1`
 3. Verify downstream contracts:
-   - `node client/runtime/systems/ops/root_surface_contract.js check --strict=1`
-   - `node client/runtime/systems/ops/docs_surface_contract.js check --strict=1`
+   - `node client/runtime/systems/ops/root_surface_contract.ts check --strict=1`
+   - `node client/runtime/systems/ops/docs_surface_contract.ts check --strict=1`
 
 ## Data-Scope Boundary
 

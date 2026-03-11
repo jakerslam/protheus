@@ -2,7 +2,7 @@
 'use strict';
 export {};
 
-const { runLegacyAlias } = require('../compat/legacy_alias_adapter');
+const { runLegacyAlias } = require('../compat/legacy_alias_adapter.ts');
 
 runLegacyAlias({
   alias_rel: 'systems/autogenesis/trace_habit_loop.js',

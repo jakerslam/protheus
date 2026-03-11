@@ -3,7 +3,7 @@
 
 const path = require('path');
 const crypto = require('crypto');
-const { stableUid, randomUid, isAlnum } = require('../../lib/uid.js');
+const { stableUid, randomUid, isAlnum } = require('../../../lib/uid.ts');
 const {
   ADAPTIVE_ROOT,
   readJson,

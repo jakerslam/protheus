@@ -7,7 +7,7 @@
     "max_regression": 0.05
   },
   "scripts": {
-    "soul_vector_refresh_script": "client/runtime/systems/symbiosis/soul_vector_substrate.js"
+    "soul_vector_refresh_script": "client/runtime/systems/symbiosis/soul_vector_substrate.ts"
   },
   "paths": {
     "bundle_dir": "state/soul/continuity_adapters/bundles",

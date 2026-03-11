@@ -2,63 +2,63 @@
   "version": "1.0",
   "adapters": {
     "moltbook_publish": {
-      "module": "client/cognition/skills/moltbook/actuation_adapter.js",
+      "module": "client/cognition/skills/moltbook/actuation_adapter.ts",
       "description": "Guarded Moltbook post publication with verification receipts."
     },
     "eyes_create": {
-      "module": "client/runtime/systems/actuation/eyes_create_adapter.js",
+      "module": "client/runtime/systems/actuation/eyes_create_adapter.ts",
       "description": "Create sensory eyes through eyes_intake with directive gating."
     },
     "http_request": {
-      "module": "client/runtime/systems/actuation/multi_channel_adapter.js",
+      "module": "client/runtime/systems/actuation/multi_channel_adapter.ts",
       "description": "Queue deterministic HTTP/webhook request actions with dry-run/live contracts."
     },
     "browser_task": {
-      "module": "client/runtime/systems/actuation/multi_channel_adapter.js",
+      "module": "client/runtime/systems/actuation/multi_channel_adapter.ts",
       "description": "Queue governed browser tasks for external execution lanes."
     },
     "filesystem_task": {
-      "module": "client/runtime/systems/actuation/multi_channel_adapter.js",
+      "module": "client/runtime/systems/actuation/multi_channel_adapter.ts",
       "description": "Perform bounded filesystem operations under allowed root."
     },
     "shell_task": {
-      "module": "client/runtime/systems/actuation/multi_channel_adapter.js",
+      "module": "client/runtime/systems/actuation/multi_channel_adapter.ts",
       "description": "Execute allowlisted shell commands with deterministic receipts."
     },
     "slack_message": {
-      "module": "client/runtime/systems/actuation/multi_channel_adapter.js",
+      "module": "client/runtime/systems/actuation/multi_channel_adapter.ts",
       "description": "Queue Slack outbound messages with deterministic outbox receipts."
     },
     "discord_message": {
-      "module": "client/runtime/systems/actuation/multi_channel_adapter.js",
+      "module": "client/runtime/systems/actuation/multi_channel_adapter.ts",
       "description": "Queue Discord outbound messages with deterministic outbox receipts."
     },
     "email_message": {
-      "module": "client/runtime/systems/actuation/multi_channel_adapter.js",
+      "module": "client/runtime/systems/actuation/multi_channel_adapter.ts",
       "description": "Queue outbound email payloads with deterministic outbox receipts."
     },
     "upwork_message": {
-      "module": "client/runtime/systems/actuation/multi_channel_adapter.js",
+      "module": "client/runtime/systems/actuation/multi_channel_adapter.ts",
       "description": "Queue Upwork thread replies with deterministic outbox receipts."
     },
     "calendar_event": {
-      "module": "client/runtime/systems/actuation/multi_channel_adapter.js",
+      "module": "client/runtime/systems/actuation/multi_channel_adapter.ts",
       "description": "Queue calendar event upserts with deterministic outbox receipts."
     },
     "payment_task": {
-      "module": "client/runtime/systems/actuation/multi_channel_adapter.js",
+      "module": "client/runtime/systems/actuation/multi_channel_adapter.ts",
       "description": "Queue payment intents through governed payment lane controls."
     },
     "git_task": {
-      "module": "client/runtime/systems/actuation/multi_channel_adapter.js",
+      "module": "client/runtime/systems/actuation/multi_channel_adapter.ts",
       "description": "Execute bounded git status/log probes with deterministic receipts."
     },
     "crm_record": {
-      "module": "client/runtime/systems/actuation/multi_channel_adapter.js",
+      "module": "client/runtime/systems/actuation/multi_channel_adapter.ts",
       "description": "Queue CRM record upsert payloads with deterministic outbox receipts."
     },
     "helpdesk_ticket": {
-      "module": "client/runtime/systems/actuation/multi_channel_adapter.js",
+      "module": "client/runtime/systems/actuation/multi_channel_adapter.ts",
       "description": "Queue helpdesk ticket payloads with deterministic outbox receipts."
     }
   }

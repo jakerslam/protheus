@@ -8,13 +8,13 @@
  */
 
 const { exec, execFile } = require('child_process');
-const { processToolOutput } = require('./tool_compactor_integration');
-const { redactSecretsOnly } = require('./tool_response_compactor');
+const { processToolOutput } = require('./tool_compactor_integration.ts');
+const { redactSecretsOnly } = require('./tool_response_compactor.ts');
 
 // NEW: Tiered Directives enforcement
-const { autoClassifyAndCreate, ACTION_TYPES } = require('./action_envelope');
-const { validateAction } = require('./directive_resolver');
-const { queueForApproval, formatBlockedResponse, formatApprovalRequiredResponse, wasApproved } = require('./approval_gate');
+const { autoClassifyAndCreate, ACTION_TYPES } = require('./action_envelope.ts');
+const { validateAction } = require('./directive_resolver.ts');
+const { queueForApproval, formatBlockedResponse, formatApprovalRequiredResponse, wasApproved } = require('./approval_gate.ts');
 
 /**
  * Check if text is already compacted (prevent double-compaction)

@@ -1,15 +1,15 @@
 # Compliance Reports
 
-`client/runtime/systems/ops/compliance_reports.js` produces machine-checkable control evidence and readiness reports.
+`client/runtime/systems/ops/compliance_reports.ts` produces machine-checkable control evidence and readiness reports.
 
 ## Commands
 
 ```bash
-node client/runtime/systems/ops/compliance_reports.js evidence-index --days=30
-node client/runtime/systems/ops/compliance_reports.js control-inventory
-node client/runtime/systems/ops/compliance_reports.js framework-readiness --framework=all --days=30 --strict=0
-node client/runtime/systems/ops/compliance_reports.js soc2-readiness --days=30 --strict=0
-node client/runtime/systems/ops/compliance_reports.js status
+node client/runtime/systems/ops/compliance_reports.ts evidence-index --days=30
+node client/runtime/systems/ops/compliance_reports.ts control-inventory
+node client/runtime/systems/ops/compliance_reports.ts framework-readiness --framework=all --days=30 --strict=0
+node client/runtime/systems/ops/compliance_reports.ts soc2-readiness --days=30 --strict=0
+node client/runtime/systems/ops/compliance_reports.ts status
 ```
 
 ## Framework Coverage

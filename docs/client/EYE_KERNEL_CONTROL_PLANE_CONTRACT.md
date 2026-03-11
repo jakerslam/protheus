@@ -14,8 +14,8 @@ Provides a unified policy-gated command bus that decides whether a lane route is
 ## Commands
 
 ```bash
-node client/runtime/systems/eye/eye_kernel.js route --lane=<lane> --target=<target> --action=<action> [--risk=low|medium|high|critical] [--clearance=L0|L1|L2|L3] [--estimated-tokens=N] [--apply=1|0]
-node client/runtime/systems/eye/eye_kernel.js status [--date=YYYY-MM-DD]
+node client/runtime/systems/eye/eye_kernel.ts route --lane=<lane> --target=<target> --action=<action> [--risk=low|medium|high|critical] [--clearance=L0|L1|L2|L3] [--estimated-tokens=N] [--apply=1|0]
+node client/runtime/systems/eye/eye_kernel.ts status [--date=YYYY-MM-DD]
 ```
 
 ## Policy Contract

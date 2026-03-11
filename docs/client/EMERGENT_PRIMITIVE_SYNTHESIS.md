@@ -25,17 +25,17 @@ State/receipts:
 
 ```bash
 # Propose primitive candidate (forge/inversion/research source)
-node client/runtime/systems/primitives/emergent_primitive_synthesis.js propose --name=adaptive_reduce --intent="bounded reduction primitive" --source=forge
+node client/runtime/systems/primitives/emergent_primitive_synthesis.ts propose --name=adaptive_reduce --intent="bounded reduction primitive" --source=forge
 
 # Evaluate candidate with required safety proofs
-node client/runtime/systems/primitives/emergent_primitive_synthesis.js evaluate --candidate-id=<id> --nursery-pass=1 --adversarial-pass=1
+node client/runtime/systems/primitives/emergent_primitive_synthesis.ts evaluate --candidate-id=<id> --nursery-pass=1 --adversarial-pass=1
 
 # Human gate
-node client/runtime/systems/primitives/emergent_primitive_synthesis.js approve --candidate-id=<id> --approved-by=operator --approval-note="reviewed"
+node client/runtime/systems/primitives/emergent_primitive_synthesis.ts approve --candidate-id=<id> --approved-by=operator --approval-note="reviewed"
 
 # Promotion proposal (auto-promotion remains policy-gated)
-node client/runtime/systems/primitives/emergent_primitive_synthesis.js promote --candidate-id=<id> --apply=0
+node client/runtime/systems/primitives/emergent_primitive_synthesis.ts promote --candidate-id=<id> --apply=0
 
 # Manual rejection with lesson capture
-node client/runtime/systems/primitives/emergent_primitive_synthesis.js reject --candidate-id=<id> --lesson="unsafe side effect under adversarial lane"
+node client/runtime/systems/primitives/emergent_primitive_synthesis.ts reject --candidate-id=<id> --lesson="unsafe side effect under adversarial lane"
 ```

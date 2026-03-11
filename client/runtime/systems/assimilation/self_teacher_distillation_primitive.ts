@@ -4,6 +4,6 @@
 
 // Layer ownership: core/layer2/runtime + core/layer0/ops::legacy-retired-lane (authoritative)
 // TypeScript compatibility shim only.
-const mod = require('./self_teacher_distillation_primitive.js');
+const mod = require('./self_teacher_distillation_primitive.ts');
 if (require.main === module) mod.run(process.argv.slice(2));
 module.exports = mod;

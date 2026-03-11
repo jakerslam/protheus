@@ -14,9 +14,9 @@ This repository uses a policy-driven access audit lane to keep source visibility
 ## Commands
 
 ```bash
-node client/runtime/systems/security/repository_access_auditor.js status --strict=1
-node client/runtime/systems/security/repository_access_auditor.js status --strict=1 --remote=1
-node client/runtime/systems/security/repository_access_auditor.js review-plan --apply=1
+node client/runtime/systems/security/repository_access_auditor.ts status --strict=1
+node client/runtime/systems/security/repository_access_auditor.ts status --strict=1 --remote=1
+node client/runtime/systems/security/repository_access_auditor.ts review-plan --apply=1
 ```
 
 Package scripts:

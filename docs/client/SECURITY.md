@@ -15,9 +15,9 @@ Key properties:
 Commands:
 
 ```bash
-node client/runtime/systems/security/psycheforge/psycheforge_organ.js evaluate --actor=probe --telemetry_json='{"probe_density":0.9,"escalation_attempts":12}' --apply=1
-node client/runtime/systems/security/psycheforge/psycheforge_organ.js promote --decision_id=<id> --two_gate_approved=1 --apply=1
-node client/runtime/systems/security/psycheforge/psycheforge_organ.js status
+node client/runtime/systems/security/psycheforge/psycheforge_organ.ts evaluate --actor=probe --telemetry_json='{"probe_density":0.9,"escalation_attempts":12}' --apply=1
+node client/runtime/systems/security/psycheforge/psycheforge_organ.ts promote --decision_id=<id> --two_gate_approved=1 --apply=1
+node client/runtime/systems/security/psycheforge/psycheforge_organ.ts status
 ```
 
 ## Defense Hardening Expansion (`V3-RACE-DEF-025` ... `V3-RACE-DEF-031C`)

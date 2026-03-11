@@ -1004,7 +1004,7 @@ Summary: reviewed 1062/1364 | pass 1062 | warn 286 | fail 0 | blocked 16
 | V3-RACE-360 | done | reviewed | pass | yes | Socket Admission Proof Gate (Formal + Redteam + HostProfile Chaos Validation) |
 | V3-RACE-361 | done | reviewed | pass | yes | Offline R Analytics Runner + Research Organ Best-Fit Integration |
 | V3-RACE-CONF-001 | done | reviewed | pass | yes | Open Platform Path-Contract Compatibility Pack (`platform/` artifacts) |
-| V3-RACE-CONF-002 | done | reviewed | pass | yes | Legacy Path Alias Adapters (`client/runtime/systems/state/event_stream.js`, `client/runtime/systems/autogenesis/*`) |
+| V3-RACE-CONF-002 | done | reviewed | pass | yes | Legacy Path Alias Adapters (`client/runtime/systems/state/event_stream.ts`, `client/runtime/systems/autogenesis/*`) |
 | V3-RACE-CONF-003 | done | reviewed | pass | yes | Requirement Conformance Matrix + Gate (`external prompt -> canonical lane`) |
 | V3-RACE-CONF-004 | done | reviewed | pass | yes | Rust Memory Path-Contract Compatibility (`core/memory` alias docs/client/wrappers) |
 | V3-RACE-CONF-005 | done | reviewed | pass | yes | N-API Build Surface Compatibility Contract (`build:memory`/postinstall expectations) |

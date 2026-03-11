@@ -26,7 +26,7 @@ spec:
             - name: spine-daily
               image: protheus:latest
               imagePullPolicy: IfNotPresent
-              command: ["node", "client/runtime/systems/spine/spine.js", "daily"]
+              command: ["node", "client/runtime/systems/spine/spine.ts", "daily"]
               envFrom:
                 - configMapRef:
                     name: protheus-runtime-config

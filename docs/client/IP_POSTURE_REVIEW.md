@@ -24,10 +24,10 @@ This document defines the SEC-M05 strategy baseline.
 ## Commands
 
 ```bash
-node client/runtime/systems/security/ip_posture_review.js draft --apply=1
-node client/runtime/systems/security/ip_posture_review.js evidence-pack --apply=1
-node client/runtime/systems/security/ip_posture_review.js record-counsel --counsel="outside_counsel" --decision=approve --approval-note="initial review" --apply=1
-node client/runtime/systems/security/ip_posture_review.js status --strict=1
+node client/runtime/systems/security/ip_posture_review.ts draft --apply=1
+node client/runtime/systems/security/ip_posture_review.ts evidence-pack --apply=1
+node client/runtime/systems/security/ip_posture_review.ts record-counsel --counsel="outside_counsel" --decision=approve --approval-note="initial review" --apply=1
+node client/runtime/systems/security/ip_posture_review.ts status --strict=1
 ```
 
 ## Retention

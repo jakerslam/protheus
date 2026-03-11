@@ -80,18 +80,18 @@
     "client/runtime/systems/migration/importers/generic_yaml_importer.ts",
     "client/runtime/systems/migration/importers/openfang_importer.ts",
     "client/runtime/systems/migration/importers/workflow_graph_importer.ts",
-    "client/runtime/systems/mobile/index.js",
+    "client/runtime/systems/mobile/index.ts",
     "client/runtime/systems/ops/observability_slo_runbook_closure_pass.ts",
     "client/runtime/systems/ops/release_gate_canary_rollback_enforcer.ts",
     "client/runtime/systems/ops/system_visualizer_server.ts",
     "client/runtime/systems/ops/visualizer/app.ts",
-    "client/runtime/systems/personas/personas_rust_bridge.js",
-    "client/runtime/systems/red_legion/index.js",
+    "client/runtime/systems/personas/personas_rust_bridge.ts",
+    "client/runtime/systems/red_legion/index.ts",
     "client/runtime/systems/sensory/eyes_collectors/bird_x.ts",
     "client/runtime/systems/sensory/eyes_collectors/cache_store.ts",
     "client/runtime/systems/sensory/eyes_collectors/ollama_search.ts",
     "client/runtime/systems/singularity_seed/orchestrator.ts",
-    "client/runtime/systems/swarm/index.js"
+    "client/runtime/systems/swarm/index.ts"
   ],
   "violations": []
 }

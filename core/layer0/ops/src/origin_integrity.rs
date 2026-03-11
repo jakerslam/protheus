@@ -271,7 +271,13 @@ fn collect_safety_plane_state(root: &Path, policy: &OriginIntegrityPolicy) -> Va
 }
 
 fn run_dependency_boundary_check(root: &Path, policy: &OriginIntegrityPolicy) -> Value {
-    let script = root.join("client/runtime/systems/ops/dependency_boundary_guard.js");
+    let js_script = root.join("client/runtime/systems/ops/dependency_boundary_guard.js");
+    let ts_script = root.join("client/runtime/systems/ops/dependency_boundary_guard.ts");
+    let script = if js_script.exists() {
+        js_script
+    } else {
+        ts_script
+    };
     if !script.exists() {
         return json!({
             "ok": false,

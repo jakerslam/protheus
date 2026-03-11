@@ -24,7 +24,7 @@
 Run:
 
 ```bash
-node client/runtime/systems/ops/collective_intelligence_contract_check.js check --strict=1
+node client/runtime/systems/ops/collective_intelligence_contract_check.ts check --strict=1
 ```
 
 Artifacts:

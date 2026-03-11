@@ -5,8 +5,8 @@ V2-HLX-001 and V2-HLX-003 are implemented through `client/runtime/systems/helix/
 ## Baseline
 
 ```bash
-node client/runtime/systems/helix/helix_controller.js init
-node client/runtime/systems/helix/helix_controller.js baseline
+node client/runtime/systems/helix/helix_controller.ts init
+node client/runtime/systems/helix/helix_controller.ts baseline
 ```
 
 Baseline status verifies:
@@ -19,8 +19,8 @@ Baseline status verifies:
 ## Reweave
 
 ```bash
-node client/runtime/systems/helix/helix_controller.js reweave --reason="manual_recovery" --apply=0
-node client/runtime/systems/helix/helix_controller.js reweave --reason="manual_recovery" --apply=1 --approval-note="incident_approved"
+node client/runtime/systems/helix/helix_controller.ts reweave --reason="manual_recovery" --apply=0
+node client/runtime/systems/helix/helix_controller.ts reweave --reason="manual_recovery" --apply=1 --approval-note="incident_approved"
 ```
 
 - `--apply=0`: plan only.

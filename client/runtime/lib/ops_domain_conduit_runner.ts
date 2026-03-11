@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-const { runOpsDomainCommand } = require('./spine_conduit_bridge');
+const { runOpsDomainCommand } = require('./spine_conduit_bridge.ts');
 
 function cleanText(v, maxLen = 240) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, maxLen);

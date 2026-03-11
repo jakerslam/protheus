@@ -8,7 +8,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { requiresApprovalByDefault, detectIrreversible, RISK_LEVELS } = require('./action_envelope');
+const { requiresApprovalByDefault, detectIrreversible, RISK_LEVELS } = require('./action_envelope.ts');
 
 const DIRECTIVES_DIR = path.join(__dirname, '..', 'config', 'directives');
 const ACTIVE_FILE = path.join(DIRECTIVES_DIR, 'ACTIVE.yaml');

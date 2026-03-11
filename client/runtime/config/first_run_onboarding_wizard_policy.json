@@ -34,7 +34,7 @@
     "prediction": "First-run scientific receipt is generated within SLA"
   },
   "rollback": {
-    "fallback_entrypoint": "client/runtime/systems/ops/protheus_control_plane.js doctor-init",
+    "fallback_entrypoint": "client/runtime/systems/ops/protheus_control_plane.ts doctor-init",
     "disable_hint": "set PROTHEUS_ONBOARDING_DISABLE=1"
   },
   "paths": {

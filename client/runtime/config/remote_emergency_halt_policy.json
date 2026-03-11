@@ -13,7 +13,7 @@
   },
   "policy_root": {
     "enabled": true,
-    "script": "client/runtime/systems/security/policy_rootd.js",
+    "script": "client/runtime/systems/security/policy_rootd.ts",
     "scope": "workflow_external_orchestration",
     "source": "remote_emergency_halt",
     "timeout_ms": 15000,

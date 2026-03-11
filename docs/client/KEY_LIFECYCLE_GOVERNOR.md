@@ -22,9 +22,9 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/security/key_lifecycle_governor.js issue --key-id=signing_root --class=signing --hardware-backed=1
-node client/runtime/systems/security/key_lifecycle_governor.js rotate --key-id=signing_root --algorithm=pq-dilithium3 --hardware-backed=1
-node client/runtime/systems/security/key_lifecycle_governor.js drill --key-id=signing_root
-node client/runtime/systems/security/key_lifecycle_governor.js verify --strict=1
-node client/runtime/systems/security/key_lifecycle_governor.js status
+node client/runtime/systems/security/key_lifecycle_governor.ts issue --key-id=signing_root --class=signing --hardware-backed=1
+node client/runtime/systems/security/key_lifecycle_governor.ts rotate --key-id=signing_root --algorithm=pq-dilithium3 --hardware-backed=1
+node client/runtime/systems/security/key_lifecycle_governor.ts drill --key-id=signing_root
+node client/runtime/systems/security/key_lifecycle_governor.ts verify --strict=1
+node client/runtime/systems/security/key_lifecycle_governor.ts status
 ```

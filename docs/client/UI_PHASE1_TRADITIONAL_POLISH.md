@@ -26,5 +26,5 @@ Presentation changes are gated by `client/runtime/config/feature_flags.json` -> 
 Disable path:
 
 ```bash
-node client/runtime/systems/ops/ui_phase1_polish_consistency_pass.js disable
+node client/runtime/systems/ops/ui_phase1_polish_consistency_pass.ts disable
 ```

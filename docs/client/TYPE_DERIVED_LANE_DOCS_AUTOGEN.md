@@ -5,9 +5,9 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/ops/type_derived_lane_docs_autogen.js generate --apply=1 --strict=1
-node client/runtime/systems/ops/type_derived_lane_docs_autogen.js verify --strict=1
-node client/runtime/systems/ops/type_derived_lane_docs_autogen.js rollback --apply=1
+node client/runtime/systems/ops/type_derived_lane_docs_autogen.ts generate --apply=1 --strict=1
+node client/runtime/systems/ops/type_derived_lane_docs_autogen.ts verify --strict=1
+node client/runtime/systems/ops/type_derived_lane_docs_autogen.ts rollback --apply=1
 ```
 
 ## Outputs

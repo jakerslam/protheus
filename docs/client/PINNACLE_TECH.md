@@ -22,7 +22,7 @@
 Run:
 
 ```bash
-node client/runtime/systems/ops/pinnacle_integration_contract_check.js check --strict=1
+node client/runtime/systems/ops/pinnacle_integration_contract_check.ts check --strict=1
 ```
 
 Artifacts:

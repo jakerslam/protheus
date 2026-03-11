@@ -77,11 +77,11 @@ Apply these labels to each issue:
 When maintainer credentials are available, use the seeder:
 
 ```bash
-node client/runtime/systems/ops/good_first_issue_seed.js --apply=1
+node client/runtime/systems/ops/good_first_issue_seed.ts --apply=1
 ```
 
 Dry-run preview:
 
 ```bash
-node client/runtime/systems/ops/good_first_issue_seed.js --apply=0
+node client/runtime/systems/ops/good_first_issue_seed.ts --apply=0
 ```

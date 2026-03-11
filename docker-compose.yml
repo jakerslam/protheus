@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: protheus
-    command: ["node", "client/runtime/systems/spine/spine.js", "daily"]
+    command: ["node", "client/runtime/systems/spine/spine.ts", "daily"]
     environment:
       CLEARANCE: "3"
       NODE_ENV: "production"

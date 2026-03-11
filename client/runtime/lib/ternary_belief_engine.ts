@@ -8,12 +8,12 @@ import {
   consensusTrit,
   propagateTrit,
   serializeTritVector
-} from './trit';
+} from './trit.ts';
 type AnyObj = Record<string, any>;
 let dualityEvaluate: null | ((context: AnyObj, opts?: AnyObj) => AnyObj) = null;
 let registerDualityObservation: null | ((input: AnyObj, opts?: AnyObj) => AnyObj) = null;
 try {
-  const duality = require('./duality_seed.js');
+  const duality = require('./duality_seed.ts');
   dualityEvaluate = (
     duality.duality_evaluate
     || duality.evaluateDualitySignal

@@ -17,7 +17,7 @@ const path = require('path');
 const WORKSPACE_ROOT = path.join(__dirname, '..', '..');
 const EXCLUDED_DIRS = ['node_modules', '.git', '.clawhub', 'logs', 'tool_raw'];
 const ALLOWED_FILES = [
-  'client/runtime/lib/exec_compacted.js',  // The authorized wrapper
+  'client/runtime/lib/exec_compacted.ts',  // The authorized wrapper
   'scripts/memory/skill_runner.ts', // Uses spawn for child process management (legitimate)
 ];
 
@@ -72,7 +72,7 @@ function analyzeFile(filePath, relativePath) {
             severity,
             message: `Direct ${name} detected - bypasses exec_compacted.js`,
             code: line.trim(),
-            fix: 'Use execCompacted() or execFileCompacted() from client/runtime/lib/exec_compacted.js'
+            fix: 'Use execCompacted() or execFileCompacted() from client/runtime/lib/exec_compacted.ts'
           });
         }
       }

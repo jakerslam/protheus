@@ -15,7 +15,7 @@
     },
     {
       "id": "control_plane_cutover",
-      "rust_surface": "client/runtime/systems/rust/control_plane_component_shim.js",
+      "rust_surface": "client/runtime/systems/rust/control_plane_component_shim.ts",
       "ts_surface": "client/runtime/systems/ops/rust_control_plane_cutover.ts",
       "fallback": "emergency_profile"
     },

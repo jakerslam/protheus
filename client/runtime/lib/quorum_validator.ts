@@ -1,4 +1,4 @@
-import { compileProposalSuccessCriteria } from './success_criteria_compiler';
+import { compileProposalSuccessCriteria } from './success_criteria_compiler.ts';
 
 const HIGH_TIER_TYPE_RE = /(self|mutat|security|routing|governance|integrity|policy|strategy|kernel|spine|attestation)/i;
 const HIGH_TIER_CMD_RE = /(systems\/(security|spine)\/|config\/directives\/|strategy_controller|policy_rootd|capability_lease|integrity_kernel|startup_attestation)/i;

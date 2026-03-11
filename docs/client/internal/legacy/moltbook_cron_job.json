@@ -8,6 +8,6 @@
   "enabled": true,
   "payload": {
     "kind": "systemEvent",
-    "text": "HEARTBEAT: Run `node client/runtime/systems/ops/reminder_data_bridge.js moltcheck-status` first. If mode=automation_ready, run Moltbook activity checks and report actions. If mode=manual_only, skip automation and only send a brief manual reminder."
+    "text": "HEARTBEAT: Run `node client/runtime/systems/ops/reminder_data_bridge.ts moltcheck-status` first. If mode=automation_ready, run Moltbook activity checks and report actions. If mode=manual_only, skip automation and only send a brief manual reminder."
   }
 }

@@ -15,7 +15,7 @@
   "venom_script": "client/runtime/systems/security/venom_containment_layer.ts",
   "routes": {
     "mcp_discover": {
-      "script": "client/cognition/skills/mcp/mcp_gateway.js",
+      "script": "client/cognition/skills/mcp/mcp_gateway.ts",
       "args": [
         "discover",
         "--query=memory",
@@ -23,7 +23,7 @@
       ]
     },
     "a2a_delegate": {
-      "script": "client/runtime/systems/a2a/a2a_delegation_plane.js",
+      "script": "client/runtime/systems/a2a/a2a_delegation_plane.ts",
       "args": [
         "execute",
         "--owner=system",
@@ -35,12 +35,12 @@
   "contract_lanes": [
     {
       "id": "RR-001",
-      "script": "client/runtime/systems/ops/config_flag_conflict_check.js",
+      "script": "client/runtime/systems/ops/config_flag_conflict_check.ts",
       "check_cmd": "check"
     },
     {
       "id": "RR-002",
-      "script": "client/runtime/systems/ops/canonical_execution_path_check.js",
+      "script": "client/runtime/systems/ops/canonical_execution_path_check.ts",
       "check_cmd": "check"
     }
   ],

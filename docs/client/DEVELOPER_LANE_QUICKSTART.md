@@ -32,8 +32,8 @@ Run:
 
 ```bash
 node tests/client-memory-tools/my_lane.test.js
-node client/runtime/systems/ops/docs_surface_contract.js check --strict=1
-node client/runtime/systems/ops/root_surface_contract.js check --strict=1
+node client/runtime/systems/ops/docs_surface_contract.ts check --strict=1
+node client/runtime/systems/ops/root_surface_contract.ts check --strict=1
 ```
 
 ## 4) Rollback path (2 minutes)

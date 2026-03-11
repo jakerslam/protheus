@@ -1,31 +1,31 @@
 # Universal Execution Primitive (Profile-Driven)
 
-`client/runtime/systems/actuation/universal_execution_primitive.js` is the profile-driven execution entrypoint for capability profiles.
+`client/runtime/systems/actuation/universal_execution_primitive.ts` is the profile-driven execution entrypoint for capability profiles.
 
 ## Why
 
 - Routes actions through one governed primitive path over capability profiles.
 - Avoids bespoke per-tool execution branches.
-- Preserves existing safety gates by delegating to `client/runtime/systems/actuation/actuation_executor.js`.
+- Preserves existing safety gates by delegating to `client/runtime/systems/actuation/actuation_executor.ts`.
 
 ## Commands
 
 ```bash
 # Execute from profile id (loaded from configured profile roots)
-node client/runtime/systems/actuation/universal_execution_primitive.js run \
+node client/runtime/systems/actuation/universal_execution_primitive.ts run \
   --profile-id=my_profile \
   --params='{"url":"https://example.com/hook","method":"POST"}' \
   --context='{"passport_id":"passport-abc"}' \
   --dry-run
 
 # Execute from inline/file profile payload
-node client/runtime/systems/actuation/universal_execution_primitive.js run \
+node client/runtime/systems/actuation/universal_execution_primitive.ts run \
   --profile-json=@state/assimilation/capability_profiles/profiles/my_profile.json \
   --intent=write_file \
   --params='{"action":"write_file","path":"notes/out.txt","content":"hello"}'
 
 # Coverage/health snapshot
-node client/runtime/systems/actuation/universal_execution_primitive.js status
+node client/runtime/systems/actuation/universal_execution_primitive.ts status
 ```
 
 NPM shortcuts:

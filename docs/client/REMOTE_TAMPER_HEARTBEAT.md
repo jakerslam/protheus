@@ -5,10 +5,10 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/security/remote_tamper_heartbeat.js emit
-node client/runtime/systems/security/remote_tamper_heartbeat.js verify --strict=1
-node client/runtime/systems/security/remote_tamper_heartbeat.js status
-node client/runtime/systems/security/remote_tamper_heartbeat.js clear-quarantine --reason="manual_review_complete"
+node client/runtime/systems/security/remote_tamper_heartbeat.ts emit
+node client/runtime/systems/security/remote_tamper_heartbeat.ts verify --strict=1
+node client/runtime/systems/security/remote_tamper_heartbeat.ts status
+node client/runtime/systems/security/remote_tamper_heartbeat.ts clear-quarantine --reason="manual_review_complete"
 ```
 
 For hardened off-host ingress, pair with:

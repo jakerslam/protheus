@@ -128,8 +128,8 @@
       "id": "state_kernel_integrity",
       "title": "State kernel integrity and replay guardrails",
       "implementation_paths": [
-        "client/runtime/systems/ops/state_kernel.js",
-        "client/runtime/systems/ops/state_kernel_cutover.js"
+        "client/runtime/systems/ops/state_kernel.ts",
+        "client/runtime/systems/ops/state_kernel_cutover.ts"
       ],
       "policy_paths": [
         "client/runtime/config/state_kernel_policy.json",

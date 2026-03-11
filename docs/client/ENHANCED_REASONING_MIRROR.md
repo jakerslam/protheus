@@ -9,9 +9,9 @@ Add calibration and uncertainty instrumentation to the reasoning mirror and prov
 ## Commands
 
 ```bash
-node client/runtime/systems/science/enhanced_reasoning_mirror.js render --scientific-mode=1 --brier-score=0.18 --sample-size=300 --strict=1
-node client/runtime/systems/science/enhanced_reasoning_mirror.js route-suggested --apply=1 --consent-map-file=state/science/experiment_scheduler/consent_map.json --strict=1
-node client/runtime/systems/science/enhanced_reasoning_mirror.js status
+node client/runtime/systems/science/enhanced_reasoning_mirror.ts render --scientific-mode=1 --brier-score=0.18 --sample-size=300 --strict=1
+node client/runtime/systems/science/enhanced_reasoning_mirror.ts route-suggested --apply=1 --consent-map-file=state/science/experiment_scheduler/consent_map.json --strict=1
+node client/runtime/systems/science/enhanced_reasoning_mirror.ts status
 ```
 
 ## Contract Surface

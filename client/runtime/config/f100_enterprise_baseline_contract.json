@@ -174,7 +174,7 @@
     {
       "id": "a_plus_gate_script_present",
       "type": "file_exists",
-      "path": "client/runtime/systems/ops/f100_a_plus_readiness_gate.js"
+      "path": "client/runtime/systems/ops/f100_a_plus_readiness_gate.ts"
     },
     {
       "id": "human_split_compliance_certs",

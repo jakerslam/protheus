@@ -4,9 +4,9 @@ Purpose: provide deterministic operational maturity controls for V2 rollout.
 
 ## 1) DR Game-Day + Release Gate
 
-- Runner: `node client/runtime/systems/ops/dr_gameday.js run --strict=1`
-- Cadence status: `node client/runtime/systems/ops/dr_gameday.js status`
-- Regression gate: `node client/runtime/systems/ops/dr_gameday_gate.js run --strict=1`
+- Runner: `node client/runtime/systems/ops/dr_gameday.ts run --strict=1`
+- Cadence status: `node client/runtime/systems/ops/dr_gameday.ts status`
+- Regression gate: `node client/runtime/systems/ops/dr_gameday_gate.ts run --strict=1`
 
 Policy: `client/runtime/config/dr_gameday_policy.json`
 
@@ -22,11 +22,11 @@ Gate behavior:
 ## 2) Incident Postmortem Learning Loop
 
 CLI:
-- Open: `node client/runtime/systems/ops/postmortem_loop.js open --incident-id=INC-001 --summary="..."`
-- Add action: `node client/runtime/systems/ops/postmortem_loop.js add-action --incident-id=INC-001 --type=preventive --description="..." --owner=... --check-ref=...`
-- Verify action: `node client/runtime/systems/ops/postmortem_loop.js verify-action --incident-id=INC-001 --action-id=A1 --pass=1 --evidence="..."`
-- Resolve action: `node client/runtime/systems/ops/postmortem_loop.js resolve-action --incident-id=INC-001 --action-id=A1`
-- Close: `node client/runtime/systems/ops/postmortem_loop.js close --incident-id=INC-001 --strict=1`
+- Open: `node client/runtime/systems/ops/postmortem_loop.ts open --incident-id=INC-001 --summary="..."`
+- Add action: `node client/runtime/systems/ops/postmortem_loop.ts add-action --incident-id=INC-001 --type=preventive --description="..." --owner=... --check-ref=...`
+- Verify action: `node client/runtime/systems/ops/postmortem_loop.ts verify-action --incident-id=INC-001 --action-id=A1 --pass=1 --evidence="..."`
+- Resolve action: `node client/runtime/systems/ops/postmortem_loop.ts resolve-action --incident-id=INC-001 --action-id=A1`
+- Close: `node client/runtime/systems/ops/postmortem_loop.ts close --incident-id=INC-001 --strict=1`
 
 Policy: `client/runtime/config/postmortem_policy.json`
 
@@ -36,8 +36,8 @@ Guarantee:
 ## 3) Maintainer Handoff Pack + Simulation
 
 CLI:
-- Build pack: `node client/runtime/systems/ops/handoff_pack.js build`
-- Simulate takeover: `node client/runtime/systems/ops/handoff_pack.js simulate --strict=1`
+- Build pack: `node client/runtime/systems/ops/handoff_pack.ts build`
+- Simulate takeover: `node client/runtime/systems/ops/handoff_pack.ts simulate --strict=1`
 
 Policy: `client/runtime/config/handoff_pack_policy.json`
 
@@ -54,7 +54,7 @@ Simulation gates:
 ## 4) Documentation Coverage Gate
 
 CLI:
-- `node client/runtime/systems/ops/docs_coverage_gate.js run --strict=1`
+- `node client/runtime/systems/ops/docs_coverage_gate.ts run --strict=1`
 
 Policy: `client/runtime/config/docs_coverage_map.json`
 

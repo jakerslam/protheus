@@ -5,9 +5,9 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/security/execution_sandbox_envelope.js status
-node client/runtime/systems/security/execution_sandbox_envelope.js evaluate-workflow --step-id=step_1 --step-type=command --command="node script.js"
-node client/runtime/systems/security/execution_sandbox_envelope.js evaluate-actuation --kind=browser_automation --context='{"risk_class":"shell"}'
+node client/runtime/systems/security/execution_sandbox_envelope.ts status
+node client/runtime/systems/security/execution_sandbox_envelope.ts evaluate-workflow --step-id=step_1 --step-type=command --command="node script.js"
+node client/runtime/systems/security/execution_sandbox_envelope.ts evaluate-actuation --kind=browser_automation --context='{"risk_class":"shell"}'
 ```
 
 ## Behavior

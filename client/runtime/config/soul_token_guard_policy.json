@@ -16,7 +16,7 @@
     "min_confidence": 0.82,
     "min_live_modalities": 2,
     "timeout_ms": 8000,
-    "script": "client/runtime/systems/soul/soul_print_manager.js",
+    "script": "client/runtime/systems/soul/soul_print_manager.ts",
     "policy_path": "client/runtime/config/soul_policy.json"
   }
 }

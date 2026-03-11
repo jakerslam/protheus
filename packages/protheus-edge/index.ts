@@ -66,11 +66,11 @@ function edgeSwarm(command: string, options: Record<string, any> = {}) {
 }
 
 function edgeWrapper(command: string, options: Record<string, any> = {}) {
-  return runNodeScript('client/runtime/systems/ops/mobile_wrapper_distribution_pack.js', [command, ...toFlags(options)]);
+  return runNodeScript('client/runtime/systems/ops/mobile_wrapper_distribution_pack.ts', [command, ...toFlags(options)]);
 }
 
 function edgeBenchmark(command: string, options: Record<string, any> = {}) {
-  return runNodeScript('client/runtime/systems/ops/mobile_competitive_benchmark_matrix.js', [command, ...toFlags(options)]);
+  return runNodeScript('client/runtime/systems/ops/mobile_competitive_benchmark_matrix.ts', [command, ...toFlags(options)]);
 }
 
 function mobileTop(options: Record<string, any> = {}) {

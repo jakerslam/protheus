@@ -4,10 +4,10 @@ This lane formalizes governance/execution separation and deterministic replay be
 
 ## Core Components
 
-- Policy VM: `client/runtime/systems/primitives/policy_vm.js`
-- Canonical event log: `client/runtime/systems/primitives/canonical_event_log.js`
-- Runtime scheduler modes: `client/runtime/systems/primitives/runtime_scheduler.js`
-- N-2 compatibility gate: `client/runtime/systems/ops/profile_compatibility_gate.js`
+- Policy VM: `client/runtime/systems/primitives/policy_vm.ts`
+- Canonical event log: `client/runtime/systems/primitives/canonical_event_log.ts`
+- Runtime scheduler modes: `client/runtime/systems/primitives/runtime_scheduler.ts`
+- N-2 compatibility gate: `client/runtime/systems/ops/profile_compatibility_gate.ts`
 
 ## Scheduler Modes
 
@@ -26,14 +26,14 @@ Transitions are policy-bound. Invalid transitions fail closed and are receipted.
 All primitive execution emits append-only canonical events:
 
 - hash-chained (`prev_hash` / `hash`)
-- replay-verifiable (`client/runtime/systems/primitives/replay_verify.js`)
+- replay-verifiable (`client/runtime/systems/primitives/replay_verify.ts`)
 - scheduler mode transitions emit governance events (`FLOW_GATE`)
 
 ## N-2 Compatibility Gate
 
 Policy file: `client/runtime/config/profile_compatibility_policy.json`
 
-`client/runtime/systems/ops/profile_compatibility_gate.js run --strict=1` enforces schema compatibility:
+`client/runtime/systems/ops/profile_compatibility_gate.ts run --strict=1` enforces schema compatibility:
 
 - capability profile schema version window (N-2)
 - primitive catalog schema readability

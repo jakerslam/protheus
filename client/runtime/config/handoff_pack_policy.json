@@ -10,9 +10,9 @@
     "docs/client/STATE_STREAM_POLICY.md"
   ],
   "critical_commands": [
-    "node client/runtime/systems/spine/contract_check.js",
-    "node client/runtime/systems/security/integrity_kernel.js run",
-    "node client/runtime/systems/ops/dr_gameday.js status"
+    "node client/runtime/systems/spine/contract_check.ts",
+    "node client/runtime/systems/security/integrity_kernel.ts run",
+    "node client/runtime/systems/ops/dr_gameday.ts status"
   ],
   "ownership_matrix": [
     {

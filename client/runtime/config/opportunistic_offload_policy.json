@@ -7,7 +7,7 @@
   "embodiment_snapshot_path": "state/hardware/embodiment/latest.json",
   "schedule_command": [
     "node",
-    "client/runtime/systems/hardware/attested_assimilation_plane.js",
+    "client/runtime/systems/hardware/attested_assimilation_plane.ts",
     "schedule"
   ],
   "latest_path": "state/hardware/opportunistic_offload/latest.json",

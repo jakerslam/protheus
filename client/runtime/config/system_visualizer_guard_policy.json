@@ -4,7 +4,7 @@
   "health_url": "http://127.0.0.1:8787/",
   "timeout_ms": 2000,
   "restart_wait_ms": 900,
-  "server_script": "client/runtime/systems/ops/system_visualizer_server.js",
+  "server_script": "client/runtime/systems/ops/system_visualizer_server.ts",
   "server_args": [
     "--host=127.0.0.1",
     "--port=8787",

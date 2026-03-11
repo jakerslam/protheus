@@ -9,7 +9,7 @@ const {
   appendJsonl,
   writeJsonAtomic,
   clampInt
-} = require('./queued_backlog_runtime');
+} = require('./queued_backlog_runtime.ts');
 
 type AnyObj = Record<string, any>;
 

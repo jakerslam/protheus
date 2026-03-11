@@ -94,7 +94,7 @@
       "inbound": ["client lane request", "daemon probes"],
       "outbound": ["typed conduit response", "runtime gate diagnostics"],
       "failure_mode": "conduit_stdio_timeout_or_runtime_gate",
-      "health_check": "node client/runtime/lib/conduit_full_lifecycle_probe.js",
+      "health_check": "node client/runtime/lib/conduit_full_lifecycle_probe.ts",
       "srs": ["V6-COCKPIT-005", "V6-CONDUIT-RUNTIME-STALL-001"]
     },
     {
@@ -106,7 +106,7 @@
       "inbound": ["attach/start/subscribe commands", "attention queue drain"],
       "outbound": ["status envelopes", "degraded class diagnostics", "subscribe batches"],
       "failure_mode": "bridge_degraded_or_origin_pending",
-      "health_check": "node client/runtime/systems/ops/protheusd.js status",
+      "health_check": "node client/runtime/systems/ops/protheusd.ts status",
       "srs": ["V6-COCKPIT-001", "V6-COCKPIT-004", "V6-COCKPIT-005"]
     },
     {
@@ -118,7 +118,7 @@
       "inbound": ["daemon status", "alert events"],
       "outbound": ["cockpit alert artifacts", "harness receipts"],
       "failure_mode": "alert_publish_failed",
-      "health_check": "node client/runtime/systems/ops/cockpit_harness.js status",
+      "health_check": "node client/runtime/systems/ops/cockpit_harness.ts status",
       "srs": ["V6-MECH-014"]
     },
     {
@@ -130,7 +130,7 @@
       "inbound": ["collectors", "eye directives"],
       "outbound": ["signal events", "memory bridge entries"],
       "failure_mode": "collector_failure_or_route_denied",
-      "health_check": "node client/runtime/systems/sensory/eyes_intake.js status",
+      "health_check": "node client/runtime/systems/sensory/eyes_intake.ts status",
       "srs": ["V6-SHADOW-003"]
     },
     {

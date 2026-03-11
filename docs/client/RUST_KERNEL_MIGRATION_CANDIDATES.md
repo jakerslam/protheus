@@ -96,7 +96,7 @@ Highest-impact files from `client/runtime/systems/ops` + `client/runtime/systems
 
 Migration shape:
 
-- TS/JS files are now thin wrappers through `client/runtime/lib/rust_lane_bridge.js`.
+- TS/JS files are now thin wrappers through `client/runtime/lib/rust_lane_bridge.ts`.
 - Runtime authority is in `core/layer0/ops` rust domains.
 - Each crossing emits deterministic claim-evidence receipts.
 

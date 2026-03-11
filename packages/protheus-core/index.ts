@@ -30,11 +30,11 @@ function runNodeScript(relScript: string, args: string[] = [], timeoutMs = 12000
 }
 
 function spineStatus(extraArgs: string[] = []) {
-  return runNodeScript('client/runtime/systems/spine/spine.js', ['status', ...extraArgs]);
+  return runNodeScript('client/runtime/systems/spine/spine.ts', ['status', ...extraArgs]);
 }
 
 function reflexStatus(extraArgs: string[] = []) {
-  return runNodeScript('client/cognition/habits/scripts/reflex_habit_bridge.js', ['status', ...extraArgs]);
+  return runNodeScript('client/cognition/habits/scripts/reflex_habit_bridge.ts', ['status', ...extraArgs]);
 }
 
 function gateStatus(extraArgs: string[] = []) {
@@ -63,8 +63,8 @@ function coreStatus(options: Record<string, any> = {}) {
       gates: includeGates
     }
   };
-  if (includeSpine) out.spine = runNodeScript('client/runtime/systems/spine/spine.js', ['status'], timeoutMs);
-  if (includeReflex) out.reflex = runNodeScript('client/cognition/habits/scripts/reflex_habit_bridge.js', ['status'], timeoutMs);
+  if (includeSpine) out.spine = runNodeScript('client/runtime/systems/spine/spine.ts', ['status'], timeoutMs);
+  if (includeReflex) out.reflex = runNodeScript('client/cognition/habits/scripts/reflex_habit_bridge.ts', ['status'], timeoutMs);
   if (includeGates) out.gates = runNodeScript('client/runtime/systems/security/guard.ts', ['status'], timeoutMs);
   out.ok = ['spine', 'reflex', 'gates']
     .filter((key) => Object.prototype.hasOwnProperty.call(out, key))

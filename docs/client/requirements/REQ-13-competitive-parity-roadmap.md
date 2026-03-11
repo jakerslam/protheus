@@ -51,7 +51,7 @@ Out of scope:
   - Each listed layer links to enforceable code path or policy contract plus test coverage.
 - Implementation (2026-03-06):
   - Inventory contract: `client/runtime/config/security_layer_inventory.json`
-  - Verifier/generator: `client/runtime/systems/ops/security_layer_inventory_gate.js`
+  - Verifier/generator: `client/runtime/systems/ops/security_layer_inventory_gate.ts`
   - Published artifact: `docs/client/security/SECURITY_LAYER_INVENTORY.md`
   - Regression test: `tests/client-memory-tools/security_layer_inventory_gate.test.js`
 

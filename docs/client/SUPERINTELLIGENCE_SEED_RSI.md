@@ -6,8 +6,8 @@ Vision: "Protheus / OpenClaw — the first superintelligence seed, built on its 
 
 This upgrade adds an RSI wrapper at `client/cognition/adaptive/rsi/rsi_bootstrap.{ts,js}` that composes and governs existing live primitives:
 
-- System 3 executive (`client/cognition/adaptive/executive/system3_executive_layer.js`)
-- Existing executors (`client/runtime/systems/strategy/strategy_learner.js`, `client/runtime/systems/autonomy/model_catalog_loop.js`)
+- System 3 executive (`client/cognition/adaptive/executive/system3_executive_layer.ts`)
+- Existing executors (`client/runtime/systems/strategy/strategy_learner.ts`, `client/runtime/systems/autonomy/model_catalog_loop.ts`)
 - Memory lanes (memfs/sleep reflection/hierarchical/agentic)
 - MCP + A2A adapters
 - Contract lanes RR-001..RR-014
@@ -29,10 +29,10 @@ This upgrade adds an RSI wrapper at `client/cognition/adaptive/rsi/rsi_bootstrap
    - Measure `packages/protheus-core` cold start and package size:
      - `node packages/protheus-core/starter.js --mode=contract --max-mb=5 --max-ms=200`
 2. RSI orchestration latency:
-   - `node client/cognition/adaptive/rsi/rsi_bootstrap.js step --owner=jay --mock=1`
+   - `node client/cognition/adaptive/rsi/rsi_bootstrap.ts step --owner=jay --mock=1`
    - Record p50/p95 step duration from `state/client/cognition/adaptive/rsi/receipts.jsonl`.
 3. Contract-lane health:
-   - `node client/cognition/adaptive/rsi/rsi_bootstrap.js contract-lane-status --owner=jay`
+   - `node client/cognition/adaptive/rsi/rsi_bootstrap.ts contract-lane-status --owner=jay`
 4. Comparative harness entrypoint (external):
    - Run equivalent "proposal->trial->gate->apply" flow in Agent0/FAOS reference benches.
    - Compare throughput, gate-failure precision, rollback MTTD/MTTR.

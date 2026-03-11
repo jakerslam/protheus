@@ -5,7 +5,7 @@
 It sequences layer scripts in a deterministic order and runs a single clearance gate:
 
 - `client/runtime/systems/security/guard.ts` is the choke point (clearance tiers)
-- `client/runtime/systems/spine/spine.js` orchestrates calls (no scoring, no prompting, no habit logic)
+- `client/runtime/systems/spine/spine.ts` orchestrates calls (no scoring, no prompting, no habit logic)
 - `client/cognition/habits/scripts/spine_*.js` are convenience wrappers ("reflexes")
 
 ## Commands
@@ -13,13 +13,13 @@ It sequences layer scripts in a deterministic order and runs a single clearance 
 Run eyes pipeline:
 
 ```bash
-node client/runtime/systems/spine/spine.js eyes [YYYY-MM-DD] [--max-eyes=N]
+node client/runtime/systems/spine/spine.ts eyes [YYYY-MM-DD] [--max-eyes=N]
 ```
 
 Run daily pipeline (currently same as eyes, reserved for expansion):
 
 ```bash
-node client/runtime/systems/spine/spine.js daily [YYYY-MM-DD] [--max-eyes=N]
+node client/runtime/systems/spine/spine.ts daily [YYYY-MM-DD] [--max-eyes=N]
 ```
 
 ## Clearance defaults
@@ -30,5 +30,5 @@ node client/runtime/systems/spine/spine.js daily [YYYY-MM-DD] [--max-eyes=N]
 Override (not recommended):
 
 ```bash
-BREAK_GLASS=1 APPROVAL_NOTE="why" CLEARANCE=2 node client/runtime/systems/spine/spine.js eyes
+BREAK_GLASS=1 APPROVAL_NOTE="why" CLEARANCE=2 node client/runtime/systems/spine/spine.ts eyes
 ```

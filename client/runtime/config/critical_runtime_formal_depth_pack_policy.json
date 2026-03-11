@@ -7,11 +7,11 @@
     "publish": true,
     "stream": "security.critical_runtime_formal_depth_pack"
   },
-  "critical_path_formal_script": "client/runtime/systems/security/critical_path_formal_verifier.js",
-  "sovereignty_formal_script": "client/runtime/systems/security/formal_mind_sovereignty_verification.js",
-  "self_mod_gate_script": "client/runtime/systems/security/rsi_git_patch_self_mod_gate.js",
-  "integrity_chain_script": "client/cognition/adaptive/rsi/rsi_integrity_chain_guard.js",
-  "provenance_gate_script": "client/runtime/systems/security/supply_chain_provenance_gate.js",
+  "critical_path_formal_script": "client/runtime/systems/security/critical_path_formal_verifier.ts",
+  "sovereignty_formal_script": "client/runtime/systems/security/formal_mind_sovereignty_verification.ts",
+  "self_mod_gate_script": "client/runtime/systems/security/rsi_git_patch_self_mod_gate.ts",
+  "integrity_chain_script": "client/cognition/adaptive/rsi/rsi_integrity_chain_guard.ts",
+  "provenance_gate_script": "client/runtime/systems/security/supply_chain_provenance_gate.ts",
   "paths": {
     "memory_dir": "client/memory/security/critical_runtime_formal_depth_pack",
     "adaptive_index_path": "client/cognition/adaptive/security/critical_runtime_formal_depth_pack/index.json",

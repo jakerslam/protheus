@@ -6,8 +6,8 @@ Default runtime transport: `daemon_first`
 
 | Profile | Role | Run Command |
 |---|---|---|
-| daemon_first | production_default | `node client/runtime/systems/memory/memory_recall.js query --q="probe" --top=1` |
-| napi_optional | performance_optional | `MEMORY_RECALL_RUST_NAPI_ENABLED=1 node client/runtime/systems/memory/memory_recall.js query --q="probe" --top=1` |
+| daemon_first | production_default | `node client/runtime/systems/memory/memory_recall.ts query --q="probe" --top=1` |
+| napi_optional | performance_optional | `MEMORY_RECALL_RUST_NAPI_ENABLED=1 node client/runtime/systems/memory/memory_recall.ts query --q="probe" --top=1` |
 | cli_compat | legacy_compat | `cargo run --manifest-path core/layer0/memory_runtime/Cargo.toml --bin memory-cli -- query-index --q probe --root=.` |
 
 ## Build Checks

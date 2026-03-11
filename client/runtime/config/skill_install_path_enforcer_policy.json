@@ -39,8 +39,8 @@
     }
   ],
   "required_wrapper_refs": [
-    "client/cognition/habits/scripts/install_skill_safe.js",
-    "client/runtime/systems/security/skill_quarantine.js"
+    "client/cognition/habits/scripts/install_skill_safe.ts",
+    "client/runtime/systems/security/skill_quarantine.ts"
   ],
   "outputs": {
     "latest_path": "state/security/skill_install_path_enforcer/latest.json",

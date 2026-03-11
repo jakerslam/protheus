@@ -14,7 +14,7 @@
 
 ```bash
 # Direct lane
-node client/runtime/systems/migration/universal_importers.js run --from=openfang --path=./dump/openfang.json --apply=1 --strict=1
+node client/runtime/systems/migration/universal_importers.ts run --from=openfang --path=./dump/openfang.json --apply=1 --strict=1
 
 # Control-plane façade
 protheusctl import --from=openfang --path=./dump/openfang.json --apply=1 --strict=1

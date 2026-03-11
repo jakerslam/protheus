@@ -8,11 +8,11 @@
 ## CLI
 
 ```bash
-node client/runtime/systems/ops/settlement_program.js settle --apply=1 --strict=1
-node client/runtime/systems/ops/settlement_program.js revert --apply=1 --strict=1
-node client/runtime/systems/ops/settlement_program.js edit-core --apply=1 --strict=1
-node client/runtime/systems/ops/settlement_program.js edit-module --module=autonomy --apply=1 --strict=1
-node client/runtime/systems/ops/settlement_program.js status
+node client/runtime/systems/ops/settlement_program.ts settle --apply=1 --strict=1
+node client/runtime/systems/ops/settlement_program.ts revert --apply=1 --strict=1
+node client/runtime/systems/ops/settlement_program.ts edit-core --apply=1 --strict=1
+node client/runtime/systems/ops/settlement_program.ts edit-module --module=autonomy --apply=1 --strict=1
+node client/runtime/systems/ops/settlement_program.ts status
 ```
 
 ## Substrate Fallback Contract (`V4-SETTLE-011`)

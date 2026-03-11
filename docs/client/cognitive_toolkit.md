@@ -23,11 +23,11 @@ Purpose: Stream-of-thought mapping with optional intercept controls.
 
 6. Assimilate  
 Purpose: Ingest local/web sources into a deterministic sprint prompt with Core-5 review and safety gates.
-Also available as a programmatic API (`client/runtime/systems/tools/assimilate_api.js`) for loop/shadow self-use.
+Also available as a programmatic API (`client/runtime/systems/tools/assimilate_api.ts`) for loop/shadow self-use.
 
 7. Research  
 Purpose: Run natural-language research queries through hybrid evidence grading + Core-5 arbitration.
-Also available as a programmatic API (`client/runtime/systems/tools/research_api.js`) for loop/shadow self-use.
+Also available as a programmatic API (`client/runtime/systems/tools/research_api.ts`) for loop/shadow self-use.
 Includes proactive assimilation suggestions when tool/path/URL mentions are detected in query text.
 
 8. Tutorial Suggestions

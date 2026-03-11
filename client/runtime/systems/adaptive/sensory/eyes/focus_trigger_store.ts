@@ -2,7 +2,7 @@
 'use strict';
 
 const path = require('path');
-const { stableUid, randomUid, isAlnum } = require('../../../lib/uid.js');
+const { stableUid, randomUid, isAlnum } = require('../../../../lib/uid.ts');
 const {
   ADAPTIVE_ROOT,
   readJson,

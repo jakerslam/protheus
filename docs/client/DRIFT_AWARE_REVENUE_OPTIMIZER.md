@@ -5,9 +5,9 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/weaver/drift_aware_revenue_optimizer.js optimize
-node client/runtime/systems/weaver/drift_aware_revenue_optimizer.js optimize --strict=1
-node client/runtime/systems/weaver/drift_aware_revenue_optimizer.js status --days=30
+node client/runtime/systems/weaver/drift_aware_revenue_optimizer.ts optimize
+node client/runtime/systems/weaver/drift_aware_revenue_optimizer.ts optimize --strict=1
+node client/runtime/systems/weaver/drift_aware_revenue_optimizer.ts status --days=30
 ```
 
 ## Inputs

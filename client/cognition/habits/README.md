@@ -6,30 +6,30 @@ Crystallized routines for token-saving, deterministic execution. Upgraded with s
 
 ```bash
 # List all habits with states
-node client/cognition/habits/scripts/run_habit.js --list
+node client/cognition/habits/scripts/run_habit.ts --list
 
 # Run a habit (active habits; candidates require --force to auto-promote tracking)
-node client/cognition/habits/scripts/run_habit.js --id rebuild_validate_memory --json '{"notes":"optional"}'
+node client/cognition/habits/scripts/run_habit.ts --id rebuild_validate_memory --json '{"notes":"optional"}'
 
 # Propose a new habit (requires BOTH triggers A AND B)
-node client/cognition/habits/scripts/propose_habit.js \
+node client/cognition/habits/scripts/propose_habit.ts \
   --from "Rebuild and validate memory" \
   --tokens_est 2500 \
   --repeats_14d 4 \
   --operations 8
 
 # Garbage collection (preview)
-node client/cognition/habits/scripts/habit_gc.js --dry-run
-node client/cognition/habits/scripts/habit_gc.js --apply
+node client/cognition/habits/scripts/habit_gc.ts --dry-run
+node client/cognition/habits/scripts/habit_gc.ts --apply
 
 # Check capacity
-node client/cognition/habits/scripts/habit_gc.js --check-cap
+node client/cognition/habits/scripts/habit_gc.ts --check-cap
 
 # List habits with trust status
-node client/cognition/habits/scripts/habit_list.js --trusted
+node client/cognition/habits/scripts/habit_list.ts --trusted
 
 # System health check
-node client/cognition/habits/scripts/doctor.js
+node client/cognition/habits/scripts/doctor.ts
 ```
 
 ## Clear Triggers (When to Crystallize)
@@ -135,12 +135,12 @@ Habits are security-gated like skills. Before running:
 
 ```bash
 # For candidate habits (routines)
-node client/cognition/habits/scripts/trust_add_habit.js \
+node client/cognition/habits/scripts/trust_add_habit.ts \
   client/cognition/habits/routines/<habit>.js \
   "habit approval: description"
 
 # Verify
-node client/cognition/habits/scripts/habit_list.js --trusted
+node client/cognition/habits/scripts/habit_list.ts --trusted
 ```
 
 ## Security

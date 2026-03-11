@@ -6,7 +6,7 @@
   "freshness_days": 35,
   "timeout_ms": 30000,
   "scripts": {
-    "loop": "client/runtime/systems/autonomy/gated_self_improvement_loop.js"
+    "loop": "client/runtime/systems/autonomy/gated_self_improvement_loop.ts"
   },
   "latest_state_paths": {
     "gated_self_improvement_policy_path": "client/runtime/config/gated_self_improvement_policy.json"

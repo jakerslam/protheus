@@ -25,16 +25,16 @@ State outputs:
 
 ```bash
 # Create encrypted multi-shard bundle
-node client/runtime/systems/continuity/resurrection_protocol.js bundle --bundle-id=seed_a --shards=3
+node client/runtime/systems/continuity/resurrection_protocol.ts bundle --bundle-id=seed_a --shards=3
 
 # Verify bundle integrity + decryptability
-node client/runtime/systems/continuity/resurrection_protocol.js verify --bundle-id=seed_a --strict=1
+node client/runtime/systems/continuity/resurrection_protocol.ts verify --bundle-id=seed_a --strict=1
 
 # Restore ceremony (apply=0 preview by default)
-node client/runtime/systems/continuity/resurrection_protocol.js restore --bundle-id=seed_a --target-host=new_host --attestation-token=<token> --apply=1
+node client/runtime/systems/continuity/resurrection_protocol.ts restore --bundle-id=seed_a --target-host=new_host --attestation-token=<token> --apply=1
 
 # Inspect bundle index/status
-node client/runtime/systems/continuity/resurrection_protocol.js status
+node client/runtime/systems/continuity/resurrection_protocol.ts status
 ```
 
 `RESURRECTION_PROTOCOL_KEY` must be set for bundle/verify/restore.

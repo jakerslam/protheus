@@ -23,13 +23,13 @@
     {
       "id": "command_shell_guard",
       "kind": "command",
-      "command": "node client/runtime/systems/autonomy/strategy_execute_guard.js run <date>",
+      "command": "node client/runtime/systems/autonomy/strategy_execute_guard.ts run <date>",
       "step_type": "command"
     },
     {
       "id": "command_external_actuation",
       "kind": "command",
-      "command": "node client/runtime/systems/actuation/actuation_executor.js run --kind=http_request --params={\"url\":\"https://example.com\"}",
+      "command": "node client/runtime/systems/actuation/actuation_executor.ts run --kind=http_request --params={\"url\":\"https://example.com\"}",
       "step_type": "external"
     },
     {

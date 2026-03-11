@@ -23,11 +23,11 @@ Offset receipts: `state/ops/complexity_offsets.jsonl`
 
 ```bash
 # Capture baseline from current runtime shape
-node client/runtime/systems/ops/simplicity_budget_gate.js capture-baseline
+node client/runtime/systems/ops/simplicity_budget_gate.ts capture-baseline
 
 # Evaluate budgets (strict fail-closed)
-node client/runtime/systems/ops/simplicity_budget_gate.js run --strict=1
+node client/runtime/systems/ops/simplicity_budget_gate.ts run --strict=1
 
 # Read latest result
-node client/runtime/systems/ops/simplicity_budget_gate.js status
+node client/runtime/systems/ops/simplicity_budget_gate.ts status
 ```

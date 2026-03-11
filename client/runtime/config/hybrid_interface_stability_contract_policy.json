@@ -7,10 +7,10 @@
     "publish": true,
     "stream": "ops.hybrid_interface_stability_contract"
   },
-  "protheusctl_script": "client/runtime/systems/ops/protheusctl.js",
+  "protheusctl_script": "client/runtime/systems/ops/protheusctl.ts",
   "rsi_policy_path": "client/runtime/config/rsi_bootstrap_policy.json",
-  "rust_cutover_script": "client/runtime/systems/ops/rust_control_plane_cutover.js",
-  "profile_compat_script": "client/runtime/systems/ops/profile_compatibility_gate.js",
+  "rust_cutover_script": "client/runtime/systems/ops/rust_control_plane_cutover.ts",
+  "profile_compat_script": "client/runtime/systems/ops/profile_compatibility_gate.ts",
   "snapshot_path": "state/ops/hybrid_interface_stability_contract/snapshot.json",
   "auto_rollback_on_drift": true,
   "refresh_snapshot_on_apply": true,

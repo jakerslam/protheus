@@ -34,6 +34,6 @@ Key controls:
 ## Commands
 
 ```bash
-node client/runtime/systems/primitives/effect_type_system.js evaluate --workflow-json=@/tmp/workflow.json --strict=1
-node client/runtime/systems/primitives/effect_type_system.js status
+node client/runtime/systems/primitives/effect_type_system.ts evaluate --workflow-json=@/tmp/workflow.json --strict=1
+node client/runtime/systems/primitives/effect_type_system.ts status
 ```

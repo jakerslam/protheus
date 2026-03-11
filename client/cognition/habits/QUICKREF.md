@@ -58,12 +58,12 @@
 
 ```bash
 # 1. ADD
- node client/cognition/habits/scripts/propose_habit.js ...
- node client/cognition/habits/scripts/trust_add_habit.js ...
+ node client/cognition/habits/scripts/propose_habit.ts ...
+ node client/cognition/habits/scripts/trust_add_habit.ts ...
 
 # 2. VERIFY
- node client/cognition/habits/scripts/run_habit.js --id NEW --json '{}'
- node client/cognition/habits/scripts/doctor.js  # must pass
+ node client/cognition/habits/scripts/run_habit.ts --id NEW --json '{}'
+ node client/cognition/habits/scripts/doctor.ts  # must pass
 
 # 3. SWAP (only then remove old)
 # For crons: safe_cron_swap.js does this atomically
@@ -89,26 +89,26 @@
 
 ```bash
 # Propose (Trigger A: repeats>=3 + tokens>=500)
-node client/cognition/habits/scripts/propose_habit.js --from "desc" --repeats_14d 4 --tokens_est 600
+node client/cognition/habits/scripts/propose_habit.ts --from "desc" --repeats_14d 4 --tokens_est 600
 
 # Propose (Trigger B: tokens>=2000)
-node client/cognition/habits/scripts/propose_habit.js --from "desc" --tokens_est 2500
+node client/cognition/habits/scripts/propose_habit.ts --from "desc" --tokens_est 2500
 
 # Propose (Trigger C: errors>=2)
-node client/cognition/habits/scripts/propose_habit.js --from "desc" --errors_30d 3
+node client/cognition/habits/scripts/propose_habit.ts --from "desc" --errors_30d 3
 
 # List
-node client/cognition/habits/scripts/run_habit.js --list
+node client/cognition/habits/scripts/run_habit.ts --list
 
 # Run
-node client/cognition/habits/scripts/run_habit.js --id HABIT_ID --json '{}'
+node client/cognition/habits/scripts/run_habit.ts --id HABIT_ID --json '{}'
 
 # Doctor (validation)
-node client/cognition/habits/scripts/doctor.js
+node client/cognition/habits/scripts/doctor.ts
 
 # GC (garbage collection)
-node client/cognition/habits/scripts/habit_gc.js --dry-run
-node client/cognition/habits/scripts/habit_gc.js --apply
+node client/cognition/habits/scripts/habit_gc.ts --dry-run
+node client/cognition/habits/scripts/habit_gc.ts --apply
 ```
 
 ---

@@ -1,54 +1,43 @@
 {
   "type": "client_scope_inventory",
-  "generated_at": "2026-03-11T04:47:07.170Z",
-  "revision": "844d5c9b5af0f53b20945e9d4f69589c469ec2d2",
+  "generated_at": "2026-03-11T10:54:35.025Z",
+  "revision": "952dbe5562e7dd548f5e4d4e020dac4cd521c030",
   "summary": {
-    "total_ts_files": 926,
+    "total_ts_files": 701,
     "by_category": {
-      "runtime_system_surface": 687,
-      "cognition_surface": 100,
-      "runtime_sdk_surface": 59,
+      "runtime_system_surface": 553,
+      "runtime_sdk_surface": 58,
       "sdk_surface": 57,
-      "cli_surface": 17,
+      "cognition_surface": 15,
+      "cli_surface": 11,
       "runtime_patch_surface": 3,
       "platform_surface": 2,
+      "misplaced_test_surface": 1,
       "type_support_surface": 1
     },
     "top_dirs": [
       {
         "dir": "client/runtime/systems",
-        "count": 687
+        "count": 553
       },
       {
         "dir": "client/runtime/lib",
-        "count": 59
-      },
-      {
-        "dir": "client/cognition/habits",
-        "count": 47
-      },
-      {
-        "dir": "client/cognition/adaptive",
-        "count": 35
+        "count": 58
       },
       {
         "dir": "client/cli/bin",
-        "count": 16
+        "count": 11
       },
       {
-        "dir": "client/cognition/skills",
-        "count": 10
-      },
-      {
-        "dir": "client/cognition/lib",
-        "count": 5
+        "dir": "client/cognition/adaptive",
+        "count": 11
       },
       {
         "dir": "client/runtime/patches",
         "count": 3
       },
       {
-        "dir": "client/cognition/systems",
+        "dir": "client/cognition/skills",
         "count": 2
       },
       {
@@ -56,7 +45,7 @@
         "count": 2
       },
       {
-        "dir": "client/cli/lib",
+        "dir": "client/cognition/lib",
         "count": 1
       },
       {
@@ -174,6 +163,18 @@
       {
         "dir": "client/lib/proposal_type_classifier.ts",
         "count": 1
+      },
+      {
+        "dir": "client/lib/queue_sqlite_runtime.ts",
+        "count": 1
+      },
+      {
+        "dir": "client/lib/queued_backlog_runtime.ts",
+        "count": 1
+      },
+      {
+        "dir": "client/lib/quorum_validator.ts",
+        "count": 1
       }
     ]
   },
@@ -219,31 +220,7 @@
       "category": "cli_surface"
     },
     {
-      "file": "client/cli/bin/protheus-top.ts",
-      "category": "cli_surface"
-    },
-    {
       "file": "client/cli/bin/protheus-vault.ts",
-      "category": "cli_surface"
-    },
-    {
-      "file": "client/cli/bin/protheus.ts",
-      "category": "cli_surface"
-    },
-    {
-      "file": "client/cli/bin/protheus_ops_launcher.ts",
-      "category": "cli_surface"
-    },
-    {
-      "file": "client/cli/bin/protheusctl.ts",
-      "category": "cli_surface"
-    },
-    {
-      "file": "client/cli/bin/protheusd.ts",
-      "category": "cli_surface"
-    },
-    {
-      "file": "client/cli/lib/protheus_suite_tooling.ts",
       "category": "cli_surface"
     },
     {
@@ -259,19 +236,7 @@
       "category": "cognition_surface"
     },
     {
-      "file": "client/cognition/adaptive/rsi/rsi_bootstrap.ts",
-      "category": "cognition_surface"
-    },
-    {
       "file": "client/cognition/adaptive/rsi/rsi_bootstrap_canonicalization.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/rsi/rsi_integrity_chain_guard.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/abstractapi_enrich.ts",
       "category": "cognition_surface"
     },
     {
@@ -279,15 +244,7 @@
       "category": "cognition_surface"
     },
     {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/bird_x.ts",
-      "category": "cognition_surface"
-    },
-    {
       "file": "client/cognition/adaptive/sensory/eyes/collectors/cache_store.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/coingecko_global.ts",
       "category": "cognition_surface"
     },
     {
@@ -295,59 +252,7 @@
       "category": "cognition_surface"
     },
     {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/conversation_eye.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/finnhub_market.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/github_pulse.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/github_repo.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/google_trends.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/hn_rss.ts",
-      "category": "cognition_surface"
-    },
-    {
       "file": "client/cognition/adaptive/sensory/eyes/collectors/huggingface_papers.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/iex_fundamentals.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/ipstack_geo.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/local_state_digest.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/marketstack_quote.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/medium_rss.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/moltbook_hot.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/moltstack_discover.ts",
       "category": "cognition_surface"
     },
     {
@@ -363,235 +268,7 @@
       "category": "cognition_surface"
     },
     {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/producthunt_launches.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/sentiment_proxy.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/spine_healthcheck.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/stock_market.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/upwork_gigs.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/virustotal_threat.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/routines/adaptive_candidate_proxy.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/routines/auto_canary_deterministic_habit_crystallization_.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/routines/execute_bounded_proposal_csg_3c7677ecc41e6fba__c.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/routines/execute_bounded_proposal_eye_edb4c560e0b6aef6__e.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/routines/execute_bounded_proposal_prp_28492a3aa16ac61f__e.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/routines/execute_bounded_proposal_prp_9eca862955cf4462__e.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/routines/execute_bounded_proposal_prp_b422f9b8183ba4d0__e.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/routines/execute_bounded_proposal_prp_d97b20e8b824f700__e.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/routines/rebuild_validate_memory.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/routines/safe_cron_swap.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/routines/zeta_muon_sigma_habit_crystallization_fresh_rout.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/aie_logger.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/aie_run.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/aie_scorer.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/autonomy_controller.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/check_versions.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/directive_gate.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/doctor.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/dop.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/dopamine_ambient_snapshot.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/dopamine_engine.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/external_eyes.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/eyes_insight.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/eyes_inventory.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/git_outcomes.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/habit_crystallizer.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/habit_gc.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/habit_list.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/habit_uid_store.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/improvement_lane.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/install_skill_safe.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/proposal_queue.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/propose_habit.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/queue_gc.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/reflex_habit_bridge.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/route_execute.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/route_probe.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/route_task.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/run_habit.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/sensory_capture.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/sensory_digest.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/sensory_insight.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/sensory_queue.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/spine_daily.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/spine_eyes.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/trust_add_habit.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/habits/scripts/trust_list_habits.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/lib/egress_gateway.ts",
-      "category": "cognition_surface"
-    },
-    {
       "file": "client/cognition/lib/legacy_retired_wrapper.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/lib/secret_broker.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/lib/ts_bootstrap.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/lib/uid.ts",
       "category": "cognition_surface"
     },
     {
@@ -599,51 +276,11 @@
       "category": "cognition_surface"
     },
     {
-      "file": "client/cognition/skills/imap-smtp-email/scripts/imap.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/skills/imap-smtp-email/scripts/smtp.ts",
-      "category": "cognition_surface"
-    },
-    {
       "file": "client/cognition/skills/mcp/mcp_gateway.ts",
       "category": "cognition_surface"
     },
     {
-      "file": "client/cognition/skills/moltbook/actuation_adapter.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/skills/moltbook/moltbook_api.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/skills/moltbook/moltbook_post_cli.ts",
-      "category": "cognition_surface"
-    },
-    {
       "file": "client/cognition/skills/moltbook/moltbook_publish_guard.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/skills/moltbook/proposal_template.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/skills/moltstack/scripts/publish.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/skills/moltstack/scripts/quality-check.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/systems/memory/memory_auto_recall.ts",
-      "category": "cognition_surface"
-    },
-    {
-      "file": "client/cognition/systems/sensory/conversation_eye_synthesizer.ts",
       "category": "cognition_surface"
     },
     {
@@ -931,10 +568,6 @@
       "category": "runtime_sdk_surface"
     },
     {
-      "file": "client/runtime/lib/economy_shared.ts",
-      "category": "runtime_sdk_surface"
-    },
-    {
       "file": "client/runtime/lib/egress_gateway.ts",
       "category": "runtime_sdk_surface"
     },
@@ -1159,6 +792,10 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/actuation/proposal_template.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/actuation/real_world_claws_bundle.ts",
       "category": "runtime_system_surface"
     },
@@ -1195,6 +832,10 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/adaptive/reflex/reflex_runtime_sync.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/adaptive/reflex/reflex_store.ts",
       "category": "runtime_system_surface"
     },
@@ -1223,19 +864,15 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/assimilation/capability_profile_compiler.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/assimilation/collective_reasoning_primitive.ts",
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/assimilation/context_navigation_primitive.ts",
+      "file": "client/runtime/systems/assimilation/environment_evolution_layer.ts",
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/assimilation/environment_evolution_layer.ts",
+      "file": "client/runtime/systems/assimilation/forge_replica.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1244,6 +881,10 @@
     },
     {
       "file": "client/runtime/systems/assimilation/generative_simulation_mode.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/assimilation/graft_manager.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1256,10 +897,6 @@
     },
     {
       "file": "client/runtime/systems/assimilation/legal_gate.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/assimilation/memory_evolution_primitive.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1287,7 +924,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/attribution/value_attribution_primitive.ts",
+      "file": "client/runtime/systems/audit/hash_chain_ledger.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1299,75 +936,11 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/autonomy/adaptive_crystallizer.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/alignment_oracle.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/autonomy_controller.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/autonomy_rollout_controller.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/autonomy_simulation_harness.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/autophagy_baseline_guard.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/autonomy/background_persistent_agent_runtime.ts",
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/autonomy/backlog_autoscale_rust_bridge.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/batch_lane.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/autonomy/canary_scheduler.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/civic_duty_allocation_engine.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/collective_shadow.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/doctor_forge_micro_debug_lane.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/dream_signal_bridge.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/drift_target_governor.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/escalation_resolver.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/ethical_reasoning_organ.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/exception_recovery_classifier.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1379,27 +952,11 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/autonomy/health_status.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/autonomy/hold_remediation_engine.ts",
       "category": "runtime_system_surface"
     },
     {
       "file": "client/runtime/systems/autonomy/improvement_controller.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/improvement_orchestrator.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/inversion_controller.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/inversion_readiness_cert.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1415,39 +972,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/autonomy/motivational_state_vector.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/multi_agent_debate_orchestrator.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/autonomy/mutation_safety_kernel.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/non_yield_cycle.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/non_yield_enqueue.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/non_yield_harvest.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/non_yield_replay.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/objective_optimization_floor.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/objective_runtime_governor.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1467,19 +992,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/autonomy/pain_adaptive_router.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/pain_signal.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/autonomy/persistent_fractal_meta_organ.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/physiology_opportunity_map.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1488,18 +1001,6 @@
     },
     {
       "file": "client/runtime/systems/autonomy/proactive_t1_initiative_engine.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/proposal_enricher.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/proposal_type_outcome_calibrator.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/receipt_dashboard.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1512,10 +1013,6 @@
     },
     {
       "file": "client/runtime/systems/autonomy/self_code_evolution_sandbox.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/self_documentation_closeout.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1547,23 +1044,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/autonomy/swarm_orchestration_runtime.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/autonomy/tier1_governance.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/trit_shadow_replay_calibration.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/trit_shadow_report.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/trit_shadow_weekly_adaptation.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1575,7 +1056,31 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/browser/browser_cli_shadow_bridge.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/browser/browser_policy_gate.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/browser/browser_session_vault.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/browser/browser_snapshot_refs.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/browser/browser_text_diff_lane.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/browser/native_browser_cdp.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/browser/native_browser_daemon.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1583,27 +1088,19 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/budget/global_cost_governor.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/budget/system_budget.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/budget/unified_global_budget_governor.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/cli/protheus_suite_tooling.ts",
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/compat/legacy_alias_adapter.ts",
+      "file": "client/runtime/systems/client/webgpu_rust_compute_plane.ts",
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/compat/legacy_retired_lane.ts",
+      "file": "client/runtime/systems/collaboration/realtime_presence_engine.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/compat/legacy_alias_adapter.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1612,10 +1109,6 @@
     },
     {
       "file": "client/runtime/systems/continuity/active_state_bridge.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/continuity/active_state_continuity_layer.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1643,15 +1136,11 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/continuity/succession_continuity_planning.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/continuum/continuum_core.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/contracts/adaptive_contract_version_governance_closure.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/contracts/schema_versioning_gate.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1664,6 +1153,10 @@
     },
     {
       "file": "client/runtime/systems/crypto/zk_compliance_proofs.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/data/ai_multimodel_data_plane.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1683,10 +1176,6 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/echo/input_purification_gate.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/echo/value_anchor_renewal.ts",
       "category": "runtime_system_surface"
     },
@@ -1699,7 +1188,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/economy/contribution_oracle.ts",
+      "file": "client/runtime/systems/economy/discount_policy.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1735,27 +1224,15 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/economy/smart_contract_bridge.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/economy/tithe_engine.ts",
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/economy/tithe_ledger.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/economy/training_contributor_incentive_engine.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/edge/mobile_lifecycle_resilience.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/edge/mobile_ops_top.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/edge/protheus_edge_runtime.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1775,7 +1252,11 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/eye/subsumption_registry.ts",
+      "file": "client/runtime/systems/federation/activitypub_matrix_gateway.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/federation/solid_pod_bridge.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1788,6 +1269,14 @@
     },
     {
       "file": "client/runtime/systems/fractal/child_organ_runtime.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/fractal/constitution_hooks.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/fractal/critic.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1815,6 +1304,10 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/fractal/mutator.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/fractal/organism_cycle.ts",
       "category": "runtime_system_surface"
     },
@@ -1827,7 +1320,23 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/fractal/reversion_drill.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/fractal/shadow_trial_runner.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/fractal/symbiotic_fusion_chamber.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/fractal/telemetry_aggregator.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/fractal/two_gate_applier.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1835,7 +1344,11 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/habits/habit_cell_pool_executor.ts",
+      "file": "client/runtime/systems/habits/habit_cell_pool.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/habits/habit_promotion_quality_gate.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1844,6 +1357,14 @@
     },
     {
       "file": "client/runtime/systems/hardware/compression_transfer_plane.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/hardware/device_mesh_adaptive_runtime.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/hardware/edge_fog_offload_orchestrator.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1863,6 +1384,10 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/helix/codex_root.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/helix/confirmed_malice_quarantine.ts",
       "category": "runtime_system_surface"
     },
@@ -1875,7 +1400,23 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/helix/hunter_strand.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/helix/quarantine_manager.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/helix/reweave_doctor.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/helix/sentinel_network.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/helix/strand_verifier.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1903,59 +1444,11 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/lib/backlog_runtime_anchor_bridge.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/lib/legacy_conduit_proxy.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/lib/legacy_retired_wrapper.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/lib/ts_bootstrap.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/agentic_memory_operation_controller.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/ambient.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/memory/causal_temporal_graph.ts",
       "category": "runtime_system_surface"
     },
     {
       "file": "client/runtime/systems/memory/creative_links.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/cross_cell_exchange_plane.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/cryonics_tier.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/data_poisoning_causal_rollback_plane.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/dream_model_failover.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/dream_sequencer.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/dynamic_memory_embedding_adapter.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -1967,39 +1460,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/memory/hierarchical_memory_view_plane.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/hybrid_memory_engine.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/idle_dream_cycle.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/index.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/memfs_layer.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/memory_auto_recall.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/memory_dream.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/memory/memory_efficiency_plane.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/memory_fallback_retirement_gate.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2011,27 +1472,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/memory/memory_layer_guard.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/memory_matrix.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/memory_recall.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/memory_transport.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/memory/napi_build_surface_compat.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/observational_compression_layer.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2047,14 +1488,6 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/memory/rust_napi_binding.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/memory/sleep_reflection_scheduler.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/memory/uid_connections.ts",
       "category": "runtime_system_surface"
     },
@@ -2064,22 +1497,6 @@
     },
     {
       "file": "client/runtime/systems/migration/core_migration_bridge.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/migration/importers/generic_json_importer.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/migration/importers/generic_yaml_importer.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/migration/importers/openfang_importer.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/migration/importers/workflow_graph_importer.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2095,10 +1512,6 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/mobile/index.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/nursery/nursery_bootstrap.ts",
       "category": "runtime_system_surface"
     },
@@ -2107,15 +1520,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/nursery/training_quarantine_loop.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/observability/enterprise_slo_observability_dashboard.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/observability/index.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2147,10 +1552,6 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/obsidian/obsidian_phase_pack.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/obsidian/vault_watcher.ts",
       "category": "runtime_system_surface"
     },
@@ -2163,11 +1564,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/autotest_controller.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/ops/autotest_doctor.ts",
+      "file": "client/runtime/systems/ops/autonomy_health_visibility_dashboard.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2195,7 +1592,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/backlog_github_sync.ts",
+      "file": "client/runtime/systems/ops/backlog_implementation_review.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2211,15 +1608,15 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/backlog_registry.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/ops/backlog_runtime_anchor.ts",
+      "file": "client/runtime/systems/ops/backup_integrity_check.ts",
       "category": "runtime_system_surface"
     },
     {
       "file": "client/runtime/systems/ops/benchmark_autonomy_gate.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/ops/binary_runtime_hardening.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2251,6 +1648,10 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/ops/chromeos_fuchsia_distribution_ota_adapter.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/ops/ci_baseline_guard.ts",
       "category": "runtime_system_surface"
     },
@@ -2260,6 +1661,10 @@
     },
     {
       "file": "client/runtime/systems/ops/ci_workflow_rationalization_contract.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/ops/cleanup_orchestrator.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2276,6 +1681,10 @@
     },
     {
       "file": "client/runtime/systems/ops/cognitive_toolkit_cli.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/ops/collective_intelligence_contract_check.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2323,6 +1732,10 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/ops/config_plane_pilot.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/ops/config_registry.ts",
       "category": "runtime_system_surface"
     },
@@ -2348,6 +1761,10 @@
     },
     {
       "file": "client/runtime/systems/ops/critical_protocol_formal_suite.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/ops/cross_instance_federated_learning.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2387,6 +1804,10 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/ops/documentation_program_hardening.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/ops/dr_gameday.ts",
       "category": "runtime_system_surface"
     },
@@ -2395,11 +1816,11 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/dynamic_burn_budget_oracle.ts",
+      "file": "client/runtime/systems/ops/empty_fort_integrity_guard.ts",
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/empty_fort_integrity_guard.ts",
+      "file": "client/runtime/systems/ops/enterprise_onboarding_pack.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2427,11 +1848,11 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/execution_reliability_slo.ts",
+      "file": "client/runtime/systems/ops/execution_doctor_ga.ts",
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/execution_yield_recovery.ts",
+      "file": "client/runtime/systems/ops/execution_reliability_slo.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2443,19 +1864,11 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/f100_a_plus_readiness_gate.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/ops/f100_enterprise_baseline_gate.ts",
+      "file": "client/runtime/systems/ops/federated_sovereign_mesh_runtime.ts",
       "category": "runtime_system_surface"
     },
     {
       "file": "client/runtime/systems/ops/first_run_onboarding_wizard.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/ops/fluxlattice_program.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2467,11 +1880,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/foundation_contract_gate.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/ops/generate_coverage_badge.ts",
+      "file": "client/runtime/systems/ops/full_pipeline_e2e_hardening_pack.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2479,7 +1888,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/good_first_issue_seed.ts",
+      "file": "client/runtime/systems/ops/guard_check_registry.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2488,6 +1897,10 @@
     },
     {
       "file": "client/runtime/systems/ops/handoff_pack.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/ops/history_cleanliness_program.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2511,6 +1924,10 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/ops/hybrid_interface_stability_contract.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/ops/js_holdout_audit.ts",
       "category": "runtime_system_surface"
     },
@@ -2523,15 +1940,23 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/ops/llm_economy_organ.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/ops/local_runtime_partitioner.ts",
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/mech_suit_benchmark.ts",
+      "file": "client/runtime/systems/ops/low_urgency_batch_execution_lane.ts",
       "category": "runtime_system_surface"
     },
     {
       "file": "client/runtime/systems/ops/mech_suit_mode_control.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/ops/memory_snapshot_ignore_gate.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2559,11 +1984,11 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/observability_deployment_defaults.ts",
+      "file": "client/runtime/systems/ops/ngc_nvidia_enterprise_distribution_adapter.ts",
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/observability_slo_runbook_closure_pass.ts",
+      "file": "client/runtime/systems/ops/observability_deployment_defaults.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2575,11 +2000,19 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/ops/openclaw_backup_retention.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/ops/openfang_capability_pack.ts",
       "category": "runtime_system_surface"
     },
     {
       "file": "client/runtime/systems/ops/openfang_parity_runtime.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/ops/operational_maturity_closure.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2595,11 +2028,15 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/ops/os_bridge.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/ops/package_manifest_contract.ts",
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/perception_polish_program.ts",
+      "file": "client/runtime/systems/ops/perception_layer.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2619,6 +2056,14 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/ops/pinnacle_integration_contract_check.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/ops/pipeline_handoff_score.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/ops/platform_adaptation_channel_runtime.ts",
       "category": "runtime_system_surface"
     },
@@ -2632,6 +2077,10 @@
     },
     {
       "file": "client/runtime/systems/ops/platform_socket_runtime.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/ops/platform_universal_abstraction_matrix.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2663,11 +2112,15 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/ops/protheus_command_list.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/ops/protheus_completion.ts",
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/protheus_control_plane.ts",
+      "file": "client/runtime/systems/ops/protheus_core_runtime_envelope.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2699,10 +2152,6 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/protheus_status_dashboard.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/ops/protheus_top.ts",
       "category": "runtime_system_surface"
     },
@@ -2715,15 +2164,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/protheusctl.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/ops/protheusctl_skills_discover.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/ops/protheusd.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2739,15 +2180,19 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/ops/public_repo_presentation_pass.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/ops/queue_hygiene_summary.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/ops/queue_log_compact.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/ops/readiness_bridge_pack.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/ops/release_gate_canary_rollback_enforcer.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/ops/release_semver_contract.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2756,6 +2201,10 @@
     },
     {
       "file": "client/runtime/systems/ops/replay_parity_gate.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/ops/repo_hygiene_generated_guard.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2775,11 +2224,15 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/ops/root_scaffolding_rationalization.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/ops/root_surface_contract.ts",
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/runtime_efficiency_floor.ts",
+      "file": "client/runtime/systems/ops/rsi_control_plane_cli_surface_contract.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2795,15 +2248,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/rust50_migration_program.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/ops/rust50_sprint1_batch.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/ops/rust50_sprint_contract.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2816,10 +2261,6 @@
     },
     {
       "file": "client/runtime/systems/ops/rust_dual_logic_guard.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/ops/rust_enterprise_productivity_program.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2847,10 +2288,6 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/scale_readiness_program.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/ops/schema_evolution_contract.ts",
       "category": "runtime_system_surface"
     },
@@ -2863,10 +2300,6 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/security_layer_inventory_gate.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/ops/seed_boot_probe.ts",
       "category": "runtime_system_surface"
     },
@@ -2876,6 +2309,10 @@
     },
     {
       "file": "client/runtime/systems/ops/settlement_program.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/ops/signal_slo_deadlock_breaker.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2895,7 +2332,15 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/ops/state_kernel.ts",
+      "file": "client/runtime/systems/ops/spine_kernel_budget_check.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/ops/stale_state_cleanup.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/ops/state_backup_integrity.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2908,6 +2353,10 @@
     },
     {
       "file": "client/runtime/systems/ops/state_kernel_migrate.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/ops/state_stream_policy_check.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -2963,6 +2412,22 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/ops/ui_phase1_polish_consistency_pass.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/ops/ui_surface_maturity_pack.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/ops/universal_distribution_plane.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/ops/v1_hardening_checkpoint.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/ops/visualizer/app.ts",
       "category": "runtime_system_surface"
     },
@@ -2979,19 +2444,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/personas/ambient_stance.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/personas/cli.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/personas/orchestration.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/personas/personas_rust_bridge.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3011,11 +2464,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/primitives/canonical_event_log.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/primitives/cognitive_control_primitive.ts",
+      "file": "client/runtime/systems/primitives/action_grammar.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3043,23 +2492,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/primitives/long_horizon_planning_primitive.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/primitives/policy_vm.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/primitives/primitive_catalog.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/primitives/primitive_registry.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/primitives/replay_verify.ts",
+      "file": "client/runtime/systems/primitives/primitive_runtime.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3071,15 +2504,11 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/red_legion/index.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/redteam/adaptive_defense_expansion.ts",
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/redteam/ant_colony_controller.ts",
+      "file": "client/runtime/systems/redteam/morph_manager.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3091,11 +2520,27 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/redteam/swarm_tactics.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/redteam/wisdom_distiller.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/reflex/reflex_dispatcher.ts",
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/research/offline_r_analytics_runner.ts",
+      "file": "client/runtime/systems/reflex/reflex_micro_routine_layer.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/reflex/reflex_worker.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/research/civilizational_symbiosis_track.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3108,6 +2553,10 @@
     },
     {
       "file": "client/runtime/systems/research/world_model_freshness_loop.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/routing/hardware_model_planner.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3127,15 +2576,19 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/routing/model_variant_profile.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/routing/provider_onboarding_manifest.ts",
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/routing/provider_readiness.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/routing/route_execute.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/routing/route_probe.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3147,11 +2600,15 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/rust/control_plane_component_shim.ts",
+      "file": "client/runtime/systems/routing/task_type_outcome_learning.ts",
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/science/enhanced_reasoning_mirror.ts",
+      "file": "client/runtime/systems/runtime/actor_runtime_substrate.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/rust/control_plane_component_shim.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3176,338 +2633,6 @@
     },
     {
       "file": "client/runtime/systems/science/scientific_mode_v4.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/adversarial_goal_drift_auditor.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/agent_passport.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/alias_verification_vault.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/anti_sabotage_shield.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/architecture_guard.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/autonomous_skill_necessity_audit.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/black_box_ledger.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/capability_envelope_guard.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/capability_lease.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/capability_switchboard.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/conflict_marker_guard.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/constitution_guardian.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/crimson_wraith_protocol.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/critical_path_formal_verifier.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/delegated_authority_branching.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/directive_compiler.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/directive_gate.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/directive_hierarchy_controller.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/egress_gateway.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/emergency_stop.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/execution_sandbox_envelope.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/execution_sandbox_rust_wasm_coprocessor_lane.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/external_security_cycle.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/formal_invariant_engine.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/formal_invariants_bootstrap.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/formal_mind_sovereignty_verification.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/formal_threat_modeling_engine.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/goal_preservation_kernel.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/governance_hardening_lane.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/guard.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/hardware_root_of_trust_attestation_mesh.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/independent_safety_coprocessor_veto_plane.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/insider_threat_split_trust_command_governance.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/integrity_kernel.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/integrity_reseal.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/integrity_reseal_assistant.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/ip_posture_review.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/irrevocable_geas_covenant.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/jigsaw/attackcinema_replay_theater.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/key_lifecycle_drill.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/key_lifecycle_governor.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/legion_geas_protocol.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/lockweaver/eternal_flux_field.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/log_redaction_guard.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/merge_guard.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/mind_fortress_principle.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/mirrorreaper_tier4_resource_inversion.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/model_vaccine_sandbox.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/multi_mind_isolation_boundary_plane.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/operator_terms_ack.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/organ_state_encryption_plane.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/phoenix_protocol_respawn_continuity.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/policy_rootd.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/post_quantum_migration_lane.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/psycheforge/_shared.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/psycheforge/psycheforge_organ.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/psycheforge/temporal_profile_store.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/remote_tamper_heartbeat.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/repo_hygiene_guard.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/repository_access_auditor.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/request_ingress.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/required_checks_policy_guard.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/rsi_git_patch_self_mod_gate.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/safety_resilience_guard.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/schema_contract_check.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/secret_broker.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/secret_rotation_migration_auditor.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/secure_heartbeat_endpoint.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/signed_plugin_trust_marketplace.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/skill_install_enforcer.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/skill_quarantine.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/skin_protection_layer.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/smart_knot_crown_jewel_obfuscation.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/soul_token_guard.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/startup_attestation.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/startup_attestation_boot_gate.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/supply_chain_provenance_gate.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/supply_chain_reproducible_build_plane.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/supply_chain_trust_plane.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/thorn_swarm_protocol.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/venom_containment_layer.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/wasm_capability_microkernel.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/security/workspace_dump_guard.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3539,7 +2664,15 @@
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/sensory/collector_driver.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/sensory/conversation_eye_bootstrap.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/sensory/conversation_eye_synthesizer.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3579,15 +2712,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/sensory/eyes_collectors/cache_store.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/sensory/eyes_collectors/ollama_search.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/sensory/eyes_intake.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3631,11 +2756,11 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/sensory/sensitivity_privacy_aware_scoring_contract.ts",
+      "file": "client/runtime/systems/sensory/parallel_eyes_budget_aware_lane.ts",
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/sensory/temporal_patterns.ts",
+      "file": "client/runtime/systems/sensory/sensitivity_privacy_aware_scoring_contract.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3651,15 +2776,23 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/singularity_seed/index.ts",
+      "file": "client/runtime/systems/soul/biometric_fusion.ts",
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/singularity_seed/orchestrator.ts",
+      "file": "client/runtime/systems/soul/liveness_engine.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/soul/modality_registry.ts",
       "category": "runtime_system_surface"
     },
     {
       "file": "client/runtime/systems/soul/revocation_ceremony.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/soul/sensor_abstraction_layer.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3671,7 +2804,15 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/spawn/mobile_edge_swarm_bridge.ts",
+      "file": "client/runtime/systems/spatial/spatial_abstraction_layer.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/spawn/role_based_crew_orchestrator.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/spawn/rsi_swarm_spawn_bridge.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3683,27 +2824,19 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/spine/background_hands_scheduler.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/spine/contract_check.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/spine/spine.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/spine/spine_safe_launcher.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/storm/creator_optin_ledger.ts",
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/storm/economic_value_distribution_layer.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/storm/storm_value_distribution.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/strategy/cyclic_strategy_graph_runner.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3719,7 +2852,15 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/swarm/index.ts",
+      "file": "client/runtime/systems/strategy/strategy_profile_layer_guard.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/strategy/weekly_executed_outcomes_synthesis.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/strategy/weekly_strategy_synthesis.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3739,7 +2880,11 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/tools/assimilate.ts",
+      "file": "client/runtime/systems/symbiosis/symbiosis_coherence_gate.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/tools/assimilate_api.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3747,11 +2892,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/tools/proactive_assimilation.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/tools/research.ts",
+      "file": "client/runtime/systems/tools/research_api.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3787,10 +2928,6 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/vault/index.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/vault/legacy_vault.ts",
       "category": "runtime_system_surface"
     },
@@ -3799,23 +2936,19 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/weaver/arbitration_engine.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/weaver/drift_aware_revenue_optimizer.ts",
       "category": "runtime_system_surface"
     },
     {
+      "file": "client/runtime/systems/weaver/metric_schema.ts",
+      "category": "runtime_system_surface"
+    },
+    {
+      "file": "client/runtime/systems/weaver/monoculture_guard.ts",
+      "category": "runtime_system_surface"
+    },
+    {
       "file": "client/runtime/systems/weaver/weaver_core.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/workflow/account_creation_profile_extension.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/workflow/client_communication_organ.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3827,15 +2960,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/workflow/high_value_play_detector.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/workflow/learning_conduit.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/workflow/lib/ts_bootstrap.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3843,23 +2968,7 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/workflow/orchestron/adaptive_controller.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/workflow/orchestron/adversarial_lane.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/workflow/orchestron_controller.ts",
-      "category": "runtime_system_surface"
-    },
-    {
       "file": "client/runtime/systems/workflow/payment_skills_bridge.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/workflow/rate_limit_intelligence.ts",
       "category": "runtime_system_surface"
     },
     {
@@ -3867,16 +2976,8 @@
       "category": "runtime_system_surface"
     },
     {
-      "file": "client/runtime/systems/workflow/workflow_controller.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/workflow/workflow_executor.ts",
-      "category": "runtime_system_surface"
-    },
-    {
-      "file": "client/runtime/systems/workflow/workflow_generator.ts",
-      "category": "runtime_system_surface"
+      "file": "client/tests/vitest/conduit_primitives_gap_closer.test.ts",
+      "category": "misplaced_test_surface"
     },
     {
       "file": "client/types/node_compat.d.ts",

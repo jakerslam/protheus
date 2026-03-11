@@ -5,10 +5,10 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/observability/siem_bridge.js export --format=otlp
-node client/runtime/systems/observability/siem_bridge.js export --format=cef
-node client/runtime/systems/observability/siem_bridge.js correlate --strict=1
-node client/runtime/systems/observability/siem_bridge.js status
+node client/runtime/systems/observability/siem_bridge.ts export --format=otlp
+node client/runtime/systems/observability/siem_bridge.ts export --format=cef
+node client/runtime/systems/observability/siem_bridge.ts correlate --strict=1
+node client/runtime/systems/observability/siem_bridge.ts status
 ```
 
 ## Correlation Rules

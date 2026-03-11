@@ -9,8 +9,8 @@
   },
   "internal_target_dir": ".internal/root_scaffolds",
   "move_internal_on_apply": false,
-  "root_contract_script": "client/runtime/systems/ops/root_surface_contract.js",
-  "docs_contract_script": "client/runtime/systems/ops/docs_surface_contract.js",
+  "root_contract_script": "client/runtime/systems/ops/root_surface_contract.ts",
+  "docs_contract_script": "client/runtime/systems/ops/docs_surface_contract.ts",
   "data_scope_doc_path": "docs/client/DATA_SCOPE_BOUNDARIES.md",
   "require_data_scope_reference": ".internal/",
   "paths": {

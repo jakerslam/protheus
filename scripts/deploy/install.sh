@@ -13,7 +13,7 @@ mkdir -p "${INSTALL_DIR}"
 
 cat > "${INSTALL_DIR}/protheus" <<'WRAP'
 #!/usr/bin/env bash
-exec node /Users/jay/.openclaw/workspace/client/runtime/systems/ops/protheusctl.js "$@"
+exec node /Users/jay/.openclaw/workspace/client/runtime/systems/ops/protheusctl.ts "$@"
 WRAP
 chmod +x "${INSTALL_DIR}/protheus"
 

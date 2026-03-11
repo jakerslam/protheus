@@ -13,8 +13,8 @@ Fixes OpenClaw Control UI "missing chat until refresh" caused by WebSocket disco
 
 | File | Purpose |
 |------|---------|
-| `client/runtime/patches/websocket-server-patch.js` | Server-side heartbeat + event buffer |
-| `client/runtime/patches/websocket-client-patch.js` | Client-side reconnect + catch-up |
+| `client/runtime/patches/websocket-server-patch.ts` | Server-side heartbeat + event buffer |
+| `client/runtime/patches/websocket-client-patch.ts` | Client-side reconnect + catch-up |
 | `client/runtime/local/logs/websocket-stability-example.log` | Example log output |
 
 ## Quick Start
@@ -24,7 +24,7 @@ Fixes OpenClaw Control UI "missing chat until refresh" caused by WebSocket disco
 1. **Include server patch** in your gateway startup:
    ```javascript
    // In your gateway server file
-   const { patchWebSocketServer } = require('./client/runtime/patches/websocket-server-patch.js');
+   const { patchWebSocketServer } = require('./client/runtime/patches/websocket-server-patch.ts');
    
    const wss = new WebSocketServer({ port: 18789 });
    patchWebSocketServer(wss);
@@ -33,7 +33,7 @@ Fixes OpenClaw Control UI "missing chat until refresh" caused by WebSocket disco
 2. **Serve client patch** from your control-ui:
    ```html
    <!-- In control-ui/index.html, BEFORE main bundle -->
-   <script src="/client/runtime/patches/websocket-client-patch.js"></script>
+   <script src="/client/runtime/patches/websocket-client-patch.ts"></script>
    <script type="module" src="./assets/index-B4LPvte9.js"></script>
    ```
 
@@ -178,7 +178,7 @@ Find where `WebSocketServer` is created and insert patch:
 
 ```javascript
 // Example integration point in Chrome extension handler
-const { patchWebSocketServer } = require('./client/runtime/patches/websocket-server-patch.js');
+const { patchWebSocketServer } = require('./client/runtime/patches/websocket-server-patch.ts');
 
 const wssExtension = new WebSocketServer({ noServer: true });
 patchWebSocketServer(wssExtension);

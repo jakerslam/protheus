@@ -51,13 +51,13 @@ If you are new to the repo, start with the curated starter pack:
 Maintainers can seed GitHub issues from this pack with labels:
 
 ```bash
-node client/runtime/systems/ops/good_first_issue_seed.js --apply=1
+node client/runtime/systems/ops/good_first_issue_seed.ts --apply=1
 ```
 
 Dry-run (no GitHub writes):
 
 ```bash
-node client/runtime/systems/ops/good_first_issue_seed.js --apply=0
+node client/runtime/systems/ops/good_first_issue_seed.ts --apply=0
 ```
 
 ## Commit Style

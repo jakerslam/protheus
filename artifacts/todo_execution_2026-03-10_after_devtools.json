@@ -54,11 +54,11 @@
     {
       "step": "OPS-BLOCKER-002.no-deferred",
       "result": {
-        "cmd": "/bin/zsh -lc rg -n 'PROTHEUS_OPS_DEFER_ON_HOST_STALL|ops_domain_deferred_host_stall' client/runtime/lib/rust_lane_bridge.ts client/runtime/lib/legacy_retired_wrapper.js package.json",
+        "cmd": "/bin/zsh -lc rg -n 'PROTHEUS_OPS_DEFER_ON_HOST_STALL|ops_domain_deferred_host_stall' client/runtime/lib/rust_lane_bridge.ts client/runtime/lib/legacy_retired_wrapper.ts package.json",
         "status": 0,
         "signal": null,
         "error": null,
-        "stdout": "client/runtime/lib/legacy_retired_wrapper.js:26:  process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL =\nclient/runtime/lib/legacy_retired_wrapper.js:27:    process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL || '0';\nclient/runtime/lib/rust_lane_bridge.ts:87:  const raw = String(process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL || '0').trim().toLowerCase();\nclient/runtime/lib/rust_lane_bridge.ts:182:      type: 'ops_domain_deferred_host_stall',\nclient/runtime/lib/rust_lane_bridge.ts:326:  process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL =\nclient/runtime/lib/rust_lane_bridge.ts:327:    process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL || '0';\n",
+        "stdout": "client/runtime/lib/legacy_retired_wrapper.ts:26:  process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL =\nclient/runtime/lib/legacy_retired_wrapper.ts:27:    process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL || '0';\nclient/runtime/lib/rust_lane_bridge.ts:87:  const raw = String(process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL || '0').trim().toLowerCase();\nclient/runtime/lib/rust_lane_bridge.ts:182:      type: 'ops_domain_deferred_host_stall',\nclient/runtime/lib/rust_lane_bridge.ts:326:  process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL =\nclient/runtime/lib/rust_lane_bridge.ts:327:    process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL || '0';\n",
         "stderr": "/Users/jay/.zprofile:source:19: no such file or directory: /Users/jay/.openclaw/workspace/config/dream_cloud_routing.env\n",
         "timeout_ms": 10000
       }

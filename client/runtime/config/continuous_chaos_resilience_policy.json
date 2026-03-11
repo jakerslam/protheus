@@ -4,7 +4,7 @@
   "enabled": true,
   "shadow_only": false,
   "strict_default": true,
-  "chaos_program_script": "client/runtime/systems/ops/chaos_program.js",
+  "chaos_program_script": "client/runtime/systems/ops/chaos_program.ts",
   "chaos_program_policy": "client/runtime/config/chaos_program_policy.json",
   "max_scenarios_per_tick": 4,
   "scenario_cadence_minutes": {

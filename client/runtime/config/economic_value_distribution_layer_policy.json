@@ -10,7 +10,7 @@
   "require_policy_bound_payout_routing": true,
   "storm_plan_cmd": [
     "node",
-    "client/runtime/systems/storm/storm_value_distribution.js",
+    "client/runtime/systems/storm/storm_value_distribution.ts",
     "plan"
   ],
   "paths": {

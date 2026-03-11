@@ -11,25 +11,25 @@
     ".ts"
   ],
   "exclude_paths": [
-    "client/runtime/systems/sensory/adaptive_layer_guard.js",
+    "client/runtime/systems/sensory/adaptive_layer_guard.ts",
     "client/runtime/systems/sensory/adaptive_layer_guard.ts"
   ],
   "allow_paths": [
-    "client/runtime/systems/adaptive/core/layer_store.js",
     "client/runtime/systems/adaptive/core/layer_store.ts",
-    "client/runtime/systems/adaptive/sensory/eyes/catalog_store.js",
+    "client/runtime/systems/adaptive/core/layer_store.ts",
     "client/runtime/systems/adaptive/sensory/eyes/catalog_store.ts",
-    "client/runtime/systems/adaptive/sensory/eyes/focus_trigger_store.js",
+    "client/runtime/systems/adaptive/sensory/eyes/catalog_store.ts",
     "client/runtime/systems/adaptive/sensory/eyes/focus_trigger_store.ts",
-    "client/runtime/systems/adaptive/habits/habit_store.js",
+    "client/runtime/systems/adaptive/sensory/eyes/focus_trigger_store.ts",
     "client/runtime/systems/adaptive/habits/habit_store.ts",
-    "client/runtime/systems/adaptive/reflex/reflex_store.js",
+    "client/runtime/systems/adaptive/habits/habit_store.ts",
     "client/runtime/systems/adaptive/reflex/reflex_store.ts",
-    "client/runtime/systems/adaptive/strategy/strategy_store.js",
+    "client/runtime/systems/adaptive/reflex/reflex_store.ts",
     "client/runtime/systems/adaptive/strategy/strategy_store.ts",
-    "client/runtime/lib/eyes_catalog.js",
+    "client/runtime/systems/adaptive/strategy/strategy_store.ts",
     "client/runtime/lib/eyes_catalog.ts",
-    "client/runtime/systems/ops/mech_suit_benchmark.js",
+    "client/runtime/lib/eyes_catalog.ts",
+    "client/runtime/systems/ops/mech_suit_benchmark.ts",
     "systems/ops/mech_suit_benchmark.js"
   ]
 }

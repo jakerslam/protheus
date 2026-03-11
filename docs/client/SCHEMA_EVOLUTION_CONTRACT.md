@@ -27,11 +27,11 @@ Each lane defines:
 
 ```bash
 # Verify only (strict fail closed)
-node client/runtime/systems/ops/schema_evolution_contract.js run --strict=1 --apply=0
+node client/runtime/systems/ops/schema_evolution_contract.ts run --strict=1 --apply=0
 
 # Apply allowed migrations (auto minor drift)
-node client/runtime/systems/ops/schema_evolution_contract.js run --strict=1 --apply=1
+node client/runtime/systems/ops/schema_evolution_contract.ts run --strict=1 --apply=1
 
 # Inspect latest run
-node client/runtime/systems/ops/schema_evolution_contract.js status
+node client/runtime/systems/ops/schema_evolution_contract.ts status
 ```

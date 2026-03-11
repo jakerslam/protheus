@@ -26,10 +26,10 @@ It is part of the Protheus Labs runtime migration program.
 ## Commands
 
 ```bash
-node client/runtime/systems/ops/rust_hybrid_migration_program.js list
-node client/runtime/systems/ops/rust_hybrid_migration_program.js run --id=V5-RUST-HYB-001 --apply=1 --strict=1
-node client/runtime/systems/ops/rust_hybrid_migration_program.js run-all --apply=1 --strict=1
-node client/runtime/systems/ops/rust_hybrid_migration_program.js status
+node client/runtime/systems/ops/rust_hybrid_migration_program.ts list
+node client/runtime/systems/ops/rust_hybrid_migration_program.ts run --id=V5-RUST-HYB-001 --apply=1 --strict=1
+node client/runtime/systems/ops/rust_hybrid_migration_program.ts run-all --apply=1 --strict=1
+node client/runtime/systems/ops/rust_hybrid_migration_program.ts status
 ```
 
 ## Guardrails

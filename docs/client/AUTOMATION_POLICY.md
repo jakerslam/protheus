@@ -16,7 +16,7 @@ As of 2026-02-19, this policy defines what is automatic, what is gated, and what
 
 ## Always Automatic (Spine Pipeline)
 
-When `node client/runtime/systems/spine/spine.js eyes|daily` runs, these stages run deterministically:
+When `node client/runtime/systems/spine/spine.ts eyes|daily` runs, these stages run deterministically:
 
 1. `external_eyes run`
 2. `external_eyes score`
@@ -53,7 +53,7 @@ These are automatic and do not perform external side effects:
 
 Autonomy execution is conditional:
 
-- If `AUTONOMY_ENABLED=1`: `client/runtime/systems/autonomy/autonomy_controller.js run` executes in daily spine.
+- If `AUTONOMY_ENABLED=1`: `client/runtime/systems/autonomy/autonomy_controller.ts run` executes in daily spine.
 - Otherwise: spine records `spine_autonomy_skipped` with reason `feature_flag_disabled`.
 
 This means proposal generation can be automatic while proposal execution remains gated.
@@ -62,7 +62,7 @@ This means proposal generation can be automatic while proposal execution remains
 
 These require explicit operator intent and/or elevated guard paths:
 
-- External actuation execution (`client/runtime/systems/actuation/actuation_executor.js run ...`)
+- External actuation execution (`client/runtime/systems/actuation/actuation_executor.ts run ...`)
 - Model catalog apply operations (`model_catalog_loop.js apply ...`) with approval note
 - Any break-glass guarded operation under `client/runtime/systems/security/guard.ts`
 
@@ -74,10 +74,10 @@ These require explicit operator intent and/or elevated guard paths:
 
 ## Operator Controls
 
-- Check current health: `node client/runtime/systems/autonomy/health_status.js`
-- View collector reliability: `node client/cognition/habits/scripts/external_eyes.js doctor`
-- Force one collector probe run: `node client/cognition/habits/scripts/external_eyes.js canary`
-- Inspect queue: `node client/cognition/habits/scripts/sensory_queue.js list --date=YYYY-MM-DD`
+- Check current health: `node client/runtime/systems/autonomy/health_status.ts`
+- View collector reliability: `node client/cognition/habits/scripts/external_eyes.ts doctor`
+- Force one collector probe run: `node client/cognition/habits/scripts/external_eyes.ts canary`
+- Inspect queue: `node client/cognition/habits/scripts/sensory_queue.ts list --date=YYYY-MM-DD`
 
 ## Queue Hygiene Behavior
 
@@ -85,7 +85,7 @@ These require explicit operator intent and/or elevated guard paths:
 - Budget pressure source order:
 1. `QUEUE_GC_BUDGET_PRESSURE` override (`none|soft|hard`)
 2. active system budget autopause (`hard`)
-3. `client/runtime/systems/budget/system_budget.js status` projection pressure
+3. `client/runtime/systems/budget/system_budget.ts status` projection pressure
 - Under pressure, GC tightens:
 1. `cap_per_eye`
 2. `cap_per_type`

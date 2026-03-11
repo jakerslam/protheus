@@ -35,5 +35,5 @@ This repository enforces a strict scope split:
 
 ## Enforcement
 
-- `node client/runtime/systems/ops/data_scope_boundary_check.js check --strict=1`
+- `node client/runtime/systems/ops/data_scope_boundary_check.ts check --strict=1`
 - Latest receipt: `state/ops/data_scope_boundary_check/latest.json`

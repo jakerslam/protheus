@@ -3,15 +3,15 @@
   "enabled": true,
   "strict_default": true,
   "required_bins": {
-    "protheus": "client/runtime/systems/ops/protheusctl.js",
-    "protheusctl": "client/runtime/systems/ops/protheusctl.js",
-    "protheusd": "client/runtime/systems/ops/protheusd.js",
-    "protheus-top": "client/runtime/systems/ops/protheus_top.js"
+    "protheus": "client/runtime/systems/ops/protheusctl.ts",
+    "protheusctl": "client/runtime/systems/ops/protheusctl.ts",
+    "protheusd": "client/runtime/systems/ops/protheusd.ts",
+    "protheus-top": "client/runtime/systems/ops/protheus_top.ts"
   },
   "paths": {
     "package_json_path": "package.json",
     "bin_dir": "client/cli/bin",
-    "bootstrap_path": "client/runtime/lib/ts_bootstrap.js",
+    "bootstrap_path": "client/runtime/lib/ts_bootstrap.ts",
     "latest_path": "client/runtime/local/state/ops/entrypoint_runtime_contract/latest.json",
     "receipts_path": "client/runtime/local/state/ops/entrypoint_runtime_contract/receipts.jsonl"
   }

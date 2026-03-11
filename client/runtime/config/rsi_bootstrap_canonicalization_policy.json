@@ -8,7 +8,7 @@
     "stream": "adaptive.rsi.bootstrap_canonicalization"
   },
   "rsi_policy_path": "client/runtime/config/rsi_bootstrap_policy.json",
-  "rsi_script": "client/cognition/adaptive/rsi/rsi_bootstrap.js",
+  "rsi_script": "client/cognition/adaptive/rsi/rsi_bootstrap.ts",
   "commands": [
     {
       "id": "bootstrap",

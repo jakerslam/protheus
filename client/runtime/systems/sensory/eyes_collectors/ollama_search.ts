@@ -3,7 +3,7 @@
 const http = require('http');
 const https = require('https');
 const { URL: NodeURL } = require('url');
-const adaptive = require('../../../../adaptive/sensory/eyes/collectors/ollama_search');
+const adaptive = require('../../../../cognition/adaptive/sensory/eyes/collectors/ollama_search.ts');
 
 type FetchLikeResponse = {
   ok: boolean;

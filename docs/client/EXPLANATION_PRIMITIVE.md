@@ -9,9 +9,9 @@ It creates canonical explanation artifacts for major decisions, policy denials, 
 
 ## Commands
 
-- `node client/runtime/systems/primitives/explanation_primitive.js explain --event-id=<id|latest> --category=<major_decision|policy_denial|self_modification> --summary="..." [--narrative="..."] [--decision=<allow|deny|propose>] [--objective-id=<id>] [--apply=1|0]`
-- `node client/runtime/systems/primitives/explanation_primitive.js verify --explanation-id=<id> [--strict=1|0]`
-- `node client/runtime/systems/primitives/explanation_primitive.js status`
+- `node client/runtime/systems/primitives/explanation_primitive.ts explain --event-id=<id|latest> --category=<major_decision|policy_denial|self_modification> --summary="..." [--narrative="..."] [--decision=<allow|deny|propose>] [--objective-id=<id>] [--apply=1|0]`
+- `node client/runtime/systems/primitives/explanation_primitive.ts verify --explanation-id=<id> [--strict=1|0]`
+- `node client/runtime/systems/primitives/explanation_primitive.ts status`
 
 ## Artifact Contract
 

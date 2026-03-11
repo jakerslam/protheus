@@ -4,14 +4,14 @@
   "shadow_only": true,
   "strict_fail_closed": true,
   "required_paths": [
-    "client/runtime/systems/spine/spine.js",
-    "client/runtime/systems/autonomy/autonomy_controller.js",
-    "client/runtime/systems/actuation/actuation_executor.js",
-    "client/runtime/systems/security/critical_path_formal_verifier.js"
+    "client/runtime/systems/spine/spine.ts",
+    "client/runtime/systems/autonomy/autonomy_controller.ts",
+    "client/runtime/systems/actuation/actuation_executor.ts",
+    "client/runtime/systems/security/critical_path_formal_verifier.ts"
   ],
   "verifier_cmd": [
     "node",
-    "client/runtime/systems/security/critical_path_formal_verifier.js",
+    "client/runtime/systems/security/critical_path_formal_verifier.ts",
     "run",
     "--strict=1"
   ],

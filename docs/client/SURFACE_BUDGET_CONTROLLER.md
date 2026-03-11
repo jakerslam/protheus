@@ -5,9 +5,9 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/hardware/surface_budget_controller.js run
-node client/runtime/systems/hardware/surface_budget_controller.js run --apply=1 --strict=1
-node client/runtime/systems/hardware/surface_budget_controller.js status
+node client/runtime/systems/hardware/surface_budget_controller.ts run
+node client/runtime/systems/hardware/surface_budget_controller.ts run --apply=1 --strict=1
+node client/runtime/systems/hardware/surface_budget_controller.ts status
 ```
 
 ## Policy

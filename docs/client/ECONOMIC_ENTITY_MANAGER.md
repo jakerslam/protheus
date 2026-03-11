@@ -12,13 +12,13 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/finance/economic_entity_manager.js ledger-entry --kind=income --amount-usd=1200 --category=saas_income --source=stripe --apply=0
-node client/runtime/systems/finance/economic_entity_manager.js classify-tax --entry-id=<entry_id> --apply=0
-node client/runtime/systems/finance/economic_entity_manager.js tax-report --month=2026-02 --apply=0
-node client/runtime/systems/finance/economic_entity_manager.js contract-sign --contract-id=msa_1 --counterparty=client_a --value-usd=3000 --terms="..." --apply=0
-node client/runtime/systems/finance/economic_entity_manager.js contract-verify --contract-id=msa_1
-node client/runtime/systems/finance/economic_entity_manager.js payout-route --provider=stripe --recipient=acct_123 --amount-usd=450 --apply=0
-node client/runtime/systems/finance/economic_entity_manager.js status --month=2026-02
+node client/runtime/systems/finance/economic_entity_manager.ts ledger-entry --kind=income --amount-usd=1200 --category=saas_income --source=stripe --apply=0
+node client/runtime/systems/finance/economic_entity_manager.ts classify-tax --entry-id=<entry_id> --apply=0
+node client/runtime/systems/finance/economic_entity_manager.ts tax-report --month=2026-02 --apply=0
+node client/runtime/systems/finance/economic_entity_manager.ts contract-sign --contract-id=msa_1 --counterparty=client_a --value-usd=3000 --terms="..." --apply=0
+node client/runtime/systems/finance/economic_entity_manager.ts contract-verify --contract-id=msa_1
+node client/runtime/systems/finance/economic_entity_manager.ts payout-route --provider=stripe --recipient=acct_123 --amount-usd=450 --apply=0
+node client/runtime/systems/finance/economic_entity_manager.ts status --month=2026-02
 ```
 
 ## Governance

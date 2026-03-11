@@ -5,10 +5,10 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/hardware/compression_transfer_plane.js compress
-node client/runtime/systems/hardware/compression_transfer_plane.js expand --bundle-id=<id> --apply=1
-node client/runtime/systems/hardware/compression_transfer_plane.js auto --target-profile=desktop --apply=1
-node client/runtime/systems/hardware/compression_transfer_plane.js status
+node client/runtime/systems/hardware/compression_transfer_plane.ts compress
+node client/runtime/systems/hardware/compression_transfer_plane.ts expand --bundle-id=<id> --apply=1
+node client/runtime/systems/hardware/compression_transfer_plane.ts auto --target-profile=desktop --apply=1
+node client/runtime/systems/hardware/compression_transfer_plane.ts status
 ```
 
 ## Guarantees

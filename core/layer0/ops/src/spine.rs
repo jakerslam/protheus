@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// Layer ownership: core/layer0/ops (authoritative)
 use crate::{deterministic_receipt_hash, now_iso};
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
