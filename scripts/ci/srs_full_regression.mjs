@@ -113,7 +113,9 @@ function countHitsById(ids, paths, globs = []) {
 
   const tmp = mkdtempSync(join(tmpdir(), 'srs-full-regression-'));
   const patternFile = join(tmp, 'id_patterns.txt');
-  writeFileSync(patternFile, `${ids.join('\n')}\n`, 'utf8');
+  // Longest-first prevents prefix collisions (e.g. `V6-X-1` matching inside `V6-X-10`).
+  const ordered = [...ids].sort((a, b) => b.length - a.length || a.localeCompare(b));
+  writeFileSync(patternFile, `${ordered.join('\n')}\n`, 'utf8');
 
   const args = ['-F', '--no-messages', '-n', '--json', '-f', patternFile, ...paths];
   for (const g of globs) args.push('-g', g);

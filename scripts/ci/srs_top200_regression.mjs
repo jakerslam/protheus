@@ -6,6 +6,7 @@ import { dirname, resolve } from 'node:path';
 
 const SRS_PATH = 'docs/workspace/SRS.md';
 const TODO_PATH = 'docs/workspace/TODO.md';
+const FULL_REGRESSION_JSON = 'artifacts/srs_full_regression_current.json';
 const OUT_JSON = 'artifacts/srs_top200_regression_2026-03-10.json';
 const OUT_MD = 'docs/workspace/SRS_TOP_200_REGRESSION_2026-03-10.md';
 
@@ -135,14 +136,33 @@ function countIdHits(id, nonBacklog = false) {
   const q = quoteForSingleShell(id);
   if (nonBacklog) {
     const out = shell(
-      `rg -F --no-messages -n ${q} core client apps scripts .github docs -g '!docs/workspace/SRS.md' -g '!docs/workspace/TODO.md' | wc -l | awk '{print $1}'`,
+      `rg -F --no-messages -n ${q} core client apps adapters scripts tests .github docs -g '!docs/workspace/SRS.md' -g '!docs/workspace/TODO.md' -g '!docs/workspace/UPGRADE_BACKLOG.md' -g '!docs/workspace/SRS_*REGRESSION*.md' -g '!artifacts/srs_*regression*.json' | wc -l | awk '{print $1}'`,
     );
     return Number(out.trim() || '0');
   }
   const out = shell(
-    `rg -F --no-messages -n ${q} docs/workspace/SRS.md docs/workspace/TODO.md core client apps scripts .github docs | wc -l | awk '{print $1}'`,
+    `rg -F --no-messages -n ${q} docs/workspace/SRS.md docs/workspace/TODO.md core client apps adapters scripts tests .github docs | wc -l | awk '{print $1}'`,
   );
   return Number(out.trim() || '0');
+}
+
+function loadFullRegressionCounts() {
+  if (!existsSync(FULL_REGRESSION_JSON)) return null;
+  try {
+    const payload = JSON.parse(read(FULL_REGRESSION_JSON));
+    const rows = Array.isArray(payload.rows) ? payload.rows : [];
+    const map = new Map();
+    for (const row of rows) {
+      if (!row || typeof row.id !== 'string') continue;
+      map.set(row.id, {
+        evidenceCount: Number(row.evidenceCount ?? 0),
+        nonBacklogEvidenceCount: Number(row.nonBacklogEvidenceCount ?? 0),
+      });
+    }
+    return map;
+  } catch {
+    return null;
+  }
 }
 
 function loadPackageScripts() {
@@ -251,14 +271,16 @@ function main() {
   const commandsById = parseTodoValidationCommands(todo);
   const packageScripts = loadPackageScripts();
   const cmdResolution = commandResolution(commandsById, packageScripts);
+  const fullCounts = loadFullRegressionCounts();
 
   const ranked = srsRows
     .map((row) => ({ ...row, score: score(row, todoUnchecked) }))
     .sort((a, b) => (b.score - a.score) || a.id.localeCompare(b.id))
     .slice(0, 200)
     .map((row, index) => {
-      const evidenceCount = countIdHits(row.id, false);
-      const nonBacklogEvidenceCount = countIdHits(row.id, true);
+      const fromFull = fullCounts?.get(row.id);
+      const evidenceCount = fromFull?.evidenceCount ?? countIdHits(row.id, false);
+      const nonBacklogEvidenceCount = fromFull?.nonBacklogEvidenceCount ?? countIdHits(row.id, true);
       const cmdAudit = cmdResolution.get(row.id) ?? { resolved: [], unresolved: [] };
       const regression = regressionSummary(
         row,

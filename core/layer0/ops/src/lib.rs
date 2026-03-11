@@ -23,6 +23,7 @@ pub mod autotest_controller;
 pub mod autotest_doctor;
 pub mod backlog_github_sync;
 pub mod backlog_queue_executor;
+pub mod backlog_executor_evidence_anchor;
 pub mod backlog_registry;
 pub mod backlog_runtime_anchor;
 pub mod benchmark_matrix;
