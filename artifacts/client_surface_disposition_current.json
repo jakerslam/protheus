@@ -1,14 +1,12 @@
 {
   "type": "client_surface_disposition",
-  "generated_at": "2026-03-11T10:54:35.290Z",
-  "revision": "952dbe5562e7dd548f5e4d4e020dac4cd521c030",
+  "generated_at": "2026-03-11T11:41:27.329Z",
+  "revision": "abc10d59d28a5717f5d4763b83c5ddfa3a84109f",
   "policy_path": "client/runtime/config/client_target_contract_policy.json",
   "summary": {
-    "collapse_to_generic_wrapper": 400,
-    "promote_to_core": 148,
-    "keep_public_client": 138,
-    "move_to_apps": 13,
-    "move_to_adapters": 2
+    "keep_public_client": 121,
+    "promote_to_core": 108,
+    "collapse_to_generic_wrapper": 3
   },
   "allowlist_audit": [
     {
@@ -122,81 +120,6 @@
       "file": "client/cli/bin/protheus-vault.ts",
       "bucket": "keep_public_client",
       "reason": "public CLI entrypoint"
-    },
-    {
-      "file": "client/cognition/adaptive/executive/system3_executive_layer.ts",
-      "bucket": "move_to_apps",
-      "reason": "cognition product/workflow logic should sit on top of the client"
-    },
-    {
-      "file": "client/cognition/adaptive/executive/system3_meta_curriculum_bridge.ts",
-      "bucket": "move_to_apps",
-      "reason": "cognition product/workflow logic should sit on top of the client"
-    },
-    {
-      "file": "client/cognition/adaptive/rsi/dual_agent_spiral.ts",
-      "bucket": "move_to_apps",
-      "reason": "cognition product/workflow logic should sit on top of the client"
-    },
-    {
-      "file": "client/cognition/adaptive/rsi/rsi_bootstrap_canonicalization.ts",
-      "bucket": "move_to_apps",
-      "reason": "cognition product/workflow logic should sit on top of the client"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/arxiv_ai.ts",
-      "bucket": "move_to_apps",
-      "reason": "cognition product/workflow logic should sit on top of the client"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/cache_store.ts",
-      "bucket": "move_to_apps",
-      "reason": "cognition product/workflow logic should sit on top of the client"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/collector_errors.ts",
-      "bucket": "move_to_apps",
-      "reason": "cognition product/workflow logic should sit on top of the client"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/huggingface_papers.ts",
-      "bucket": "move_to_apps",
-      "reason": "cognition product/workflow logic should sit on top of the client"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/ollama_search.ts",
-      "bucket": "move_to_apps",
-      "reason": "cognition product/workflow logic should sit on top of the client"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/openreview_venues.ts",
-      "bucket": "move_to_apps",
-      "reason": "cognition product/workflow logic should sit on top of the client"
-    },
-    {
-      "file": "client/cognition/adaptive/sensory/eyes/collectors/papers_with_code.ts",
-      "bucket": "move_to_apps",
-      "reason": "cognition product/workflow logic should sit on top of the client"
-    },
-    {
-      "file": "client/cognition/lib/legacy_retired_wrapper.ts",
-      "bucket": "move_to_apps",
-      "reason": "cognition product/workflow logic should sit on top of the client"
-    },
-    {
-      "file": "client/cognition/reflexes/index.ts",
-      "bucket": "move_to_apps",
-      "reason": "cognition product/workflow logic should sit on top of the client"
-    },
-    {
-      "file": "client/cognition/skills/mcp/mcp_gateway.ts",
-      "bucket": "move_to_adapters",
-      "reason": "skill/integration surface belongs to adapters"
-    },
-    {
-      "file": "client/cognition/skills/moltbook/moltbook_publish_guard.ts",
-      "bucket": "move_to_adapters",
-      "reason": "skill/integration surface belongs to adapters"
     },
     {
       "file": "client/lib/action_envelope.ts",
@@ -335,6 +258,11 @@
     },
     {
       "file": "client/lib/proposal_type_classifier.ts",
+      "bucket": "keep_public_client",
+      "reason": "public SDK/bridge layer pending consolidation"
+    },
+    {
+      "file": "client/lib/protheus_suite_tooling.ts",
       "bucket": "keep_public_client",
       "reason": "public SDK/bridge layer pending consolidation"
     },
@@ -504,11 +432,6 @@
       "reason": "public SDK/bridge layer pending consolidation"
     },
     {
-      "file": "client/runtime/lib/autonomy_receipt_schema.ts",
-      "bucket": "keep_public_client",
-      "reason": "public SDK/bridge layer pending consolidation"
-    },
-    {
       "file": "client/runtime/lib/backlog_lane_cli.ts",
       "bucket": "keep_public_client",
       "reason": "public SDK/bridge layer pending consolidation"
@@ -519,17 +442,7 @@
       "reason": "public SDK/bridge layer pending consolidation"
     },
     {
-      "file": "client/runtime/lib/capability_lease.ts",
-      "bucket": "keep_public_client",
-      "reason": "public SDK/bridge layer pending consolidation"
-    },
-    {
       "file": "client/runtime/lib/command_output_compactor.ts",
-      "bucket": "keep_public_client",
-      "reason": "public SDK/bridge layer pending consolidation"
-    },
-    {
-      "file": "client/runtime/lib/conduit_full_lifecycle_probe.ts",
       "bucket": "keep_public_client",
       "reason": "public SDK/bridge layer pending consolidation"
     },
@@ -549,17 +462,7 @@
       "reason": "public SDK/bridge layer pending consolidation"
     },
     {
-      "file": "client/runtime/lib/dynamic_burn_budget_signal.ts",
-      "bucket": "keep_public_client",
-      "reason": "public SDK/bridge layer pending consolidation"
-    },
-    {
       "file": "client/runtime/lib/egress_gateway.ts",
-      "bucket": "keep_public_client",
-      "reason": "public SDK/bridge layer pending consolidation"
-    },
-    {
-      "file": "client/runtime/lib/emergency_stop.ts",
       "bucket": "keep_public_client",
       "reason": "public SDK/bridge layer pending consolidation"
     },
@@ -584,11 +487,6 @@
       "reason": "public SDK/bridge layer pending consolidation"
     },
     {
-      "file": "client/runtime/lib/legacy_retired_lane_bridge.ts",
-      "bucket": "keep_public_client",
-      "reason": "public SDK/bridge layer pending consolidation"
-    },
-    {
       "file": "client/runtime/lib/legacy_retired_wrapper.ts",
       "bucket": "keep_public_client",
       "reason": "public SDK/bridge layer pending consolidation"
@@ -599,17 +497,7 @@
       "reason": "public SDK/bridge layer pending consolidation"
     },
     {
-      "file": "client/runtime/lib/mutation_provenance.ts",
-      "bucket": "keep_public_client",
-      "reason": "public SDK/bridge layer pending consolidation"
-    },
-    {
       "file": "client/runtime/lib/ops_domain_conduit_runner.ts",
-      "bucket": "keep_public_client",
-      "reason": "public SDK/bridge layer pending consolidation"
-    },
-    {
-      "file": "client/runtime/lib/outcome_fitness.ts",
       "bucket": "keep_public_client",
       "reason": "public SDK/bridge layer pending consolidation"
     },
@@ -624,32 +512,12 @@
       "reason": "public SDK/bridge layer pending consolidation"
     },
     {
-      "file": "client/runtime/lib/proposal_type_classifier.ts",
-      "bucket": "keep_public_client",
-      "reason": "public SDK/bridge layer pending consolidation"
-    },
-    {
-      "file": "client/runtime/lib/queue_sqlite_runtime.ts",
-      "bucket": "keep_public_client",
-      "reason": "public SDK/bridge layer pending consolidation"
-    },
-    {
       "file": "client/runtime/lib/queued_backlog_runtime.ts",
       "bucket": "keep_public_client",
       "reason": "public SDK/bridge layer pending consolidation"
     },
     {
       "file": "client/runtime/lib/quorum_validator.ts",
-      "bucket": "keep_public_client",
-      "reason": "public SDK/bridge layer pending consolidation"
-    },
-    {
-      "file": "client/runtime/lib/redaction_classification.ts",
-      "bucket": "keep_public_client",
-      "reason": "public SDK/bridge layer pending consolidation"
-    },
-    {
-      "file": "client/runtime/lib/request_envelope.ts",
       "bucket": "keep_public_client",
       "reason": "public SDK/bridge layer pending consolidation"
     },
@@ -689,11 +557,6 @@
       "reason": "public SDK/bridge layer pending consolidation"
     },
     {
-      "file": "client/runtime/lib/strategy_campaign_scheduler.ts",
-      "bucket": "keep_public_client",
-      "reason": "public SDK/bridge layer pending consolidation"
-    },
-    {
       "file": "client/runtime/lib/strategy_resolver.ts",
       "bucket": "keep_public_client",
       "reason": "public SDK/bridge layer pending consolidation"
@@ -705,11 +568,6 @@
     },
     {
       "file": "client/runtime/lib/success_criteria_verifier.ts",
-      "bucket": "keep_public_client",
-      "reason": "public SDK/bridge layer pending consolidation"
-    },
-    {
-      "file": "client/runtime/lib/symbiosis_coherence_signal.ts",
       "bucket": "keep_public_client",
       "reason": "public SDK/bridge layer pending consolidation"
     },
@@ -730,26 +588,6 @@
     },
     {
       "file": "client/runtime/lib/tool_response_compactor.ts",
-      "bucket": "keep_public_client",
-      "reason": "public SDK/bridge layer pending consolidation"
-    },
-    {
-      "file": "client/runtime/lib/trainability_matrix.ts",
-      "bucket": "keep_public_client",
-      "reason": "public SDK/bridge layer pending consolidation"
-    },
-    {
-      "file": "client/runtime/lib/training_conduit_schema.ts",
-      "bucket": "keep_public_client",
-      "reason": "public SDK/bridge layer pending consolidation"
-    },
-    {
-      "file": "client/runtime/lib/trit.ts",
-      "bucket": "keep_public_client",
-      "reason": "public SDK/bridge layer pending consolidation"
-    },
-    {
-      "file": "client/runtime/lib/trit_shadow_control.ts",
       "bucket": "keep_public_client",
       "reason": "public SDK/bridge layer pending consolidation"
     },
@@ -799,44 +637,9 @@
       "reason": "client platform/runtime support surface"
     },
     {
-      "file": "client/runtime/systems/a2a/a2a_delegation_plane.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/actuation/actuation_executor.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/actuation/bridge_from_proposals.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
       "file": "client/runtime/systems/actuation/disposable_infrastructure_organ.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/actuation/eyes_create_adapter.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/actuation/full_virtual_desktop_claw_lane.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/actuation/multi_channel_adapter.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/actuation/proposal_template.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/actuation/real_world_claws_bundle.ts",
@@ -854,39 +657,14 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/adaptive/adaptation_review_bridge.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/adaptive/adaptive_runtime.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/adaptive/core/layer_store.ts",
       "bucket": "promote_to_core",
       "reason": "adaptive state store is internal runtime truth, not public client surface"
     },
     {
-      "file": "client/runtime/systems/adaptive/habits/habit_runtime_sync.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
       "file": "client/runtime/systems/adaptive/habits/habit_store.ts",
       "bucket": "promote_to_core",
       "reason": "habit state store is internal runtime truth, not public client surface"
-    },
-    {
-      "file": "client/runtime/systems/adaptive/realtime_adaptation_loop.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/adaptive/reflex/reflex_runtime_sync.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/adaptive/reflex/reflex_store.ts",
@@ -909,99 +687,9 @@
       "reason": "strategy store is internal runtime truth, not public client surface"
     },
     {
-      "file": "client/runtime/systems/archival/content_addressed_archive.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/assimilation/assimilation_controller.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/assimilation/candidacy_ledger.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/assimilation/collective_reasoning_primitive.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/assimilation/environment_evolution_layer.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/assimilation/forge_replica.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/assimilation/generative_meta_model_primitive.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/assimilation/generative_simulation_mode.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/assimilation/graft_manager.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/assimilation/group_evolving_agents_primitive.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/assimilation/habit_adapter_finetune_lane.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/assimilation/legal_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/assimilation/research_probe.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/assimilation/self_teacher_distillation_primitive.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/assimilation/source_attestation_extension.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/assimilation/test_time_memory_evolution_primitive.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/assimilation/trajectory_skill_distiller.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/assimilation/world_model_freshness.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/audit/hash_chain_ledger.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/autogenesis/trace_habit_autogenesis.ts",
@@ -1010,16 +698,6 @@
     },
     {
       "file": "client/runtime/systems/autogenesis/trace_habit_loop.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/background_persistent_agent_runtime.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/canary_scheduler.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
@@ -1039,17 +717,7 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/autonomy/improvement_controller.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
       "file": "client/runtime/systems/autonomy/lever_experiment_gate.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/mirror_organ.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
@@ -1059,52 +727,7 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/autonomy/mutation_safety_kernel.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/observer_mirror.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/ops_dashboard.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/optimization_aperture_controller.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/outcome_fitness_loop.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/persistent_fractal_meta_organ.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/pipeline_spc_gate.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
       "file": "client/runtime/systems/autonomy/proactive_t1_initiative_engine.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/receipt_summary.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/red_team_harness.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
@@ -1119,41 +742,6 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/autonomy/self_mod_reversion_drill.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/skill_generation_pipeline.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/strategy_execute_guard.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/strategy_mode.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/strategy_readiness.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/suggestion_lane.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/autonomy/tier1_governance.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
       "file": "client/runtime/systems/autonomy/zero_permission_conversational_layer.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
@@ -1164,59 +752,9 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/browser/browser_cli_shadow_bridge.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/browser/browser_policy_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/browser/browser_session_vault.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/browser/browser_snapshot_refs.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/browser/browser_text_diff_lane.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/browser/native_browser_cdp.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/browser/native_browser_daemon.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/budget/capital_allocation_organ.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/cli/protheus_suite_tooling.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/client/webgpu_rust_compute_plane.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/collaboration/realtime_presence_engine.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/compat/legacy_alias_adapter.ts",
@@ -1229,21 +767,6 @@
       "reason": "public client-to-core transport bridge"
     },
     {
-      "file": "client/runtime/systems/continuity/active_state_bridge.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/continuity/human_machine_merge_interface_security_substrate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/continuity/inter_protheus_federation_trust_web.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/continuity/resurrection_protocol.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
@@ -1254,64 +777,9 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/continuity/sovereign_decommission_succession_protocol.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/continuity/sovereign_resurrection_substrate.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/continuity/succession_continuity_planning.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/continuum/continuum_core.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/contracts/soul_contracts.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/crypto/fhe_encrypted_compute_pilot.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/crypto/zk_compliance_proofs.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/data/ai_multimodel_data_plane.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/distributed/deterministic_control_plane.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/distributed/partition_quorum_simulator.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/dual_brain/coordinator.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/echo/heroic_echo_controller.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/echo/value_anchor_renewal.ts",
@@ -1319,104 +787,9 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/echo/value_anchor_renewal_loop.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/economy/_shared.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/economy/discount_policy.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/economy/donor_mining_dashboard.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/economy/flywheel_acceptance_harness.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/economy/global_directive_fund.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/economy/gpu_contribution_tracker.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/economy/model_access_tier_governance.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/economy/peer_lending_market.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/economy/protheus_token_engine.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/economy/public_donation_api.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/economy/tithe_engine.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/economy/tithe_ledger.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/economy/training_contributor_incentive_engine.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/execution/index.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/execution/legacy_runtime.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/execution/task_decomposition_primitive.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/eye/eye_kernel.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/federation/activitypub_matrix_gateway.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/federation/solid_pod_bridge.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/finance/economic_entity_manager.ts",
@@ -1434,36 +807,6 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/fractal/constitution_hooks.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/fractal/critic.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/fractal/engine.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/fractal/evolution_arena.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/fractal/genome_ledger.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/fractal/introspection_map.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
       "file": "client/runtime/systems/fractal/mini_core_instancer.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
@@ -1472,11 +815,6 @@
       "file": "client/runtime/systems/fractal/morph_planner.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/fractal/mutator.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/fractal/organism_cycle.ts",
@@ -1489,49 +827,14 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/fractal/resonance_field_gates.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/fractal/reversion_drill.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/fractal/shadow_trial_runner.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/fractal/symbiotic_fusion_chamber.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/fractal/telemetry_aggregator.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/fractal/two_gate_applier.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/fractal/warden/complexity_warden_meta_organ.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/habits/habit_cell_pool.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/habits/habit_promotion_quality_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/hardware/attested_assimilation_plane.ts",
@@ -1544,39 +847,14 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/hardware/device_mesh_adaptive_runtime.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/hardware/edge_fog_offload_orchestrator.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/hardware/embodiment_layer.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/hardware/opportunistic_offload_plane.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/hardware/surface_budget_controller.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/hardware/surface_embodiment_freshness_guard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/helix/codex_root.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/helix/confirmed_malice_quarantine.ts",
@@ -1589,64 +867,9 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/helix/helix_controller.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/helix/hunter_strand.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/helix/quarantine_manager.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/helix/reweave_doctor.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/helix/sentinel_network.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/helix/strand_verifier.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/honor/legion_honor_codex.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/hybrid/mobile/protheus_mobile_adapter.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/identity/did_vc_binding.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/identity/identity_anchor.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/identity/visual_signature_engine.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/intent/intent_translation_plane.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/memory/causal_temporal_graph.ts",
@@ -1709,16 +932,6 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/migration/community_repo_graduation_pack.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/migration/core_migration_bridge.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/migration/post_migration_verification_report.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
@@ -1727,11 +940,6 @@
       "file": "client/runtime/systems/migration/self_healing_migration_daemon.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/migration/universal_importers.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/nursery/nursery_bootstrap.ts",
@@ -1744,24 +952,9 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/observability/enterprise_slo_observability_dashboard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/observability/legacy_observability.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/observability/metrics_exporter.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/observability/runtime_telemetry_optin.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/observability/siem_bridge.ts",
@@ -1774,417 +967,12 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/observability/trace_bridge.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
       "file": "client/runtime/systems/obsidian/obsidian_bridge.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/obsidian/vault_watcher.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/architecture_refinement_guard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/automated_compliance_mapping_evidence_engine.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/autonomy_health_visibility_dashboard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/autotest_doctor_watchdog.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/autotest_recipe_release.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/autotest_recipe_verifier.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/aws_ci_cd_mirror_plane.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/aws_reproducible_artifact_profile.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/backlog_execution_pathfinder.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/backlog_implementation_review.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/backlog_intake_quality_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/backlog_lane_batch_delivery.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/backlog_queue_executor.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/backup_integrity_check.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/benchmark_autonomy_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/binary_runtime_hardening.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/black_swan_disaster_gamebooks.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/broken_piece_lab.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/build_smoke.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/build_systems.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/canonical_execution_path_check.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/chaos_program.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/chaos_self_healing_automation.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/chromeos_fuchsia_distribution_ota_adapter.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/ci_baseline_guard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/ci_quality_scorecard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/ci_workflow_rationalization_contract.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/cleanup_orchestrator.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/cli_ui.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/cockpit_harness.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/cockpit_inside_probe.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/cognitive_toolkit_cli.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/collective_intelligence_contract_check.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/command_registry_surface_contract.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/compatibility_conformance_program.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/compatibility_tail_retirement.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/competitive_benchmark_matrix.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/competitive_observability_benchmark_pack.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/complexity_budget_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/compliance_posture.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/compliance_reports.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/compliance_retention_uplift.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/composite_disaster_gameday.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/config_flag_conflict_check.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/config_plane_pilot.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/config_registry.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/continuous_chaos_auto_remediation_suite.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/continuous_chaos_resilience.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/continuous_parity_maintainer.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/control_plane_live_activation_shadow_exit_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/critical_path_policy_coverage.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/critical_protocol_formal_suite.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/cross_instance_federated_learning.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/data_retention_tiering.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/data_scope_boundary_check.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/deny_telemetry_normalizer.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/ops/dependency_boundary_guard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/deployment_packaging.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/dist_runtime_cutover.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/docs_coverage_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/docs_structure_pack.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/docs_surface_contract.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/documentation_program_hardening.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/dr_gameday.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/dr_gameday_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/empty_fort_integrity_guard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/enterprise_onboarding_pack.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/enterprise_readiness_pack.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/enterprise_scm_cd_mirror_plane.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/entrypoint_runtime_contract.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/environment_promotion_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/error_budget_release_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/evidence_audit_dashboard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/execution_doctor_ga.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/execution_reliability_slo.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/explain_decision.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/explainability_artifact_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/federated_sovereign_mesh_runtime.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/first_run_onboarding_wizard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/formal_proof_runtime_gate.ts",
       "bucket": "collapse_to_generic_wrapper",
       "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
@@ -2194,689 +982,9 @@
       "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
-      "file": "client/runtime/systems/ops/full_pipeline_e2e_hardening_pack.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/global_molt_cycle.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/guard_check_registry.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/guided_recovery_error_ux.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/handoff_pack.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/history_cleanliness_program.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/holo_overlay_compiler.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/host_adaptation_operator_surface.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/host_build_stale_guard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/host_profile_conformance_formal_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/host_rust_validation.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/hybrid_interface_stability_contract.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/js_holdout_audit.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/legal_language_contract.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/legal_regulatory_autodiff_governance_router.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/llm_economy_organ.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/local_runtime_partitioner.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/low_urgency_batch_execution_lane.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/mech_suit_mode_control.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/memory_snapshot_ignore_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/migrate_cleanup.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/migrate_to_planes.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/mobile_competitive_benchmark_matrix.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/mobile_wrapper_distribution_pack.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/model_health_auto_recovery.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/narrow_agent_parity_harness.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/ngc_nvidia_enterprise_distribution_adapter.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/observability_deployment_defaults.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/offsite_backup.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/open_platform_release_pack.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/openclaw_backup_retention.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/openfang_capability_pack.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/openfang_parity_runtime.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/operational_maturity_closure.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/operator_override_drill.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/org_code_format_guard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/organ_atrophy_controller.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/os_bridge.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/package_manifest_contract.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/perception_layer.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/permanent_guidelines_drift_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/personal_protheus_installer.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/personas_docs_validation.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/phone_seed_profile.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/pinnacle_integration_contract_check.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/pipeline_handoff_score.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/platform_adaptation_channel_runtime.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/platform_oracle_hostprofile.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/platform_path_contract_pack.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/platform_socket_runtime.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/platform_universal_abstraction_matrix.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/polish_perception_program.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/post_launch_migration_readiness.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/postmortem_loop.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/predictive_capacity_forecast.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/productized_suite_program.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/profile_compatibility_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/proof_pack_threshold_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/protheus_command_list.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/protheus_completion.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/protheus_core_runtime_envelope.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/protheus_core_rust_binding_plane.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/protheus_debug_diagnostics.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/protheus_demo.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/protheus_diagram.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/protheus_examples.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/protheus_repl.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/protheus_setup_wizard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/protheus_top.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/protheus_unknown_guard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/protheus_version_cli.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/protheusctl_skills_discover.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/public_benchmark_pack.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/public_collaboration_surface_pack.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/public_docs_developer_experience_overhaul.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/public_repo_presentation_pass.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/queue_hygiene_summary.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/queue_log_compact.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/readiness_bridge_pack.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/relocatable_path_contract.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/replay_parity_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/repo_hygiene_generated_guard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/reproducible_distribution_artifact_pack.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/requirement_conformance_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/resurrection_protocol.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/rm_progress_dashboard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/root_scaffolding_rationalization.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/root_surface_contract.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/rsi_control_plane_cli_surface_contract.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/runtime_retention_prune.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/runtime_state_surface_guard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/rust50_conf001_execution_cutover.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/rust50_sprint1_batch.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/rust_authoritative_microkernel_acceleration.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/rust_control_plane_cutover.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/rust_dual_logic_guard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/rust_hotpath_inventory.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/rust_hybrid_migration_program.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/rust_spine_microkernel.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/rust_workspace_quality_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/scale_benchmark.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/scale_envelope_baseline.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/schema_evolution_contract.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/schema_migration_n2_check.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/script_surface_reduction_wave2.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/seed_boot_probe.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/self_hosted_bootstrap_compiler.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/settlement_program.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/signal_slo_deadlock_breaker.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/simplicity_budget_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/simplicity_offset_backfill.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/soc2_type2_track.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/source_runtime_classifier_contract.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/spine_kernel_budget_check.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/stale_state_cleanup.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/state_backup_integrity.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/state_kernel_cutover.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/state_kernel_dual_write.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/state_kernel_migrate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/state_stream_policy_check.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/state_tiering_contract.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/subconscious_boundary_guard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/system_health_audit_runner.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/system_map_generator.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/system_visualizer_guard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/ops/system_visualizer_server.ts",
       "bucket": "keep_public_client",
       "reason": "operator-facing visualization service belongs to client UX"
-    },
-    {
-      "file": "client/runtime/systems/ops/token_economics_engine.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/top50_roi_sweep.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/trace_habit_autogenesis.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/ts_clone_drift_guard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/ts_clone_drift_report.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/type_derived_lane_docs_autogen.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/typecheck_systems.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/ui_phase1_polish_consistency_pass.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/ui_surface_maturity_pack.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/universal_distribution_plane.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/v1_hardening_checkpoint.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/ops/visualizer/app.ts",
@@ -2884,29 +992,9 @@
       "reason": "operator-facing visualizer app belongs to client UX"
     },
     {
-      "file": "client/runtime/systems/ops/wasi2_execution_completeness_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/wasi2_lane_adapter.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/ops/workflow_execution_closure.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/personas/orchestration.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/personas/pre_commit_lens_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/personas/shadow_cli.ts",
@@ -2914,74 +1002,9 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/pinnacle/crdt_state_plane.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/polyglot/polyglot_service_adapter.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/primitives/action_grammar.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/primitives/effect_type_system.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/primitives/emergent_primitive_synthesis.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/primitives/explanation_auto_emit.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/primitives/explanation_primitive.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/primitives/interactive_desktop_session_primitive.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/primitives/iterative_repair_primitive.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/primitives/primitive_runtime.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/primitives/runtime_scheduler.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/red_legion/command_center.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
       "file": "client/runtime/systems/redteam/adaptive_defense_expansion.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/redteam/morph_manager.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/redteam/quantum_security_primitive_synthesis.ts",
@@ -2994,59 +1017,9 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/redteam/swarm_tactics.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/redteam/wisdom_distiller.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/reflex/reflex_dispatcher.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/reflex/reflex_micro_routine_layer.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/reflex/reflex_worker.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/research/civilizational_symbiosis_track.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/research/pinnacle_tech_integration_engine.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/research/research_organ.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/research/world_model_freshness_loop.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/routing/hardware_model_planner.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/routing/llm_gateway.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/routing/llm_gateway_failure_classifier.ts",
@@ -3054,24 +1027,9 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/routing/model_behavior_drift_containment_shield.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/routing/model_router.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/routing/provider_onboarding_manifest.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/routing/provider_readiness.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/routing/route_execute.ts",
@@ -3079,34 +1037,9 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/routing/route_probe.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/routing/route_task.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/routing/router_budget_calibration.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/routing/task_type_outcome_learning.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/runtime/actor_runtime_substrate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/rust/control_plane_component_shim.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/science/experiment_scheduler.ts",
@@ -3122,11 +1055,6 @@
       "file": "client/runtime/systems/science/meta_science_active_learning_loop.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/science/reasoning_mirror.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/science/scientific_method_loop.ts",
@@ -3149,57 +1077,7 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/sensory/adaptive_layer_guard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/sensory/analysis_kernel_stage_interface.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/sensory/causal_validation_gate_high_impact.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/sensory/causal_vs_correlation_signal_scorer.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/sensory/champion_challenger_detector_promotion.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/sensory/collector_driver.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/sensory/conversation_eye_bootstrap.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/sensory/conversation_eye_synthesizer.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/sensory/counterfactual_signal_replay.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/sensory/cross_objective_interference_guard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/sensory/cross_signal_engine.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
@@ -3209,24 +1087,9 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/sensory/detector_rollback_migration_safety_contract.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/sensory/distribution_shift_decomposition_engine.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/sensory/dynamic_source_reliability_graph.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/sensory/ensemble_disagreement_escalation_lane.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/sensory/eyes_collectors/bird_x.ts",
@@ -3242,11 +1105,6 @@
       "file": "client/runtime/systems/sensory/feature_data_reproducibility_contract.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/sensory/focus_controller.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/sensory/gold_eval_blind_scoring_lane.ts",
@@ -3284,59 +1142,9 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/sensory/offline_statistical_lab_artifact_bridge.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/sensory/parallel_eyes_budget_aware_lane.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/sensory/sensitivity_privacy_aware_scoring_contract.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/sensory/value_of_information_collection_planner.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/shadow/shadow_dispatch_reliability.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/shadow/shadow_signal_classifier.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/soul/biometric_fusion.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/soul/liveness_engine.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/soul/modality_registry.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/soul/revocation_ceremony.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/soul/sensor_abstraction_layer.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/soul/soul_continuity_adapter.ts",
@@ -3349,52 +1157,12 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/spatial/spatial_abstraction_layer.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/spawn/role_based_crew_orchestrator.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/spawn/rsi_swarm_spawn_bridge.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/spawn/seed_spawn_lineage.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/spawn/spawn_broker.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/storm/creator_optin_ledger.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/storm/economic_value_distribution_layer.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/storm/storm_value_distribution.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/strategy/cyclic_strategy_graph_runner.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/strategy/strategy_controller.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
@@ -3404,34 +1172,9 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/strategy/strategy_principles.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/strategy/strategy_profile_layer_guard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/strategy/weekly_executed_outcomes_synthesis.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/strategy/weekly_strategy_synthesis.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/symbiosis/deep_symbiosis_understanding_layer.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/symbiosis/neural_dormant_seed.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/symbiosis/pre_neuralink_interface.ts",
@@ -3439,99 +1182,14 @@
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/symbiosis/soul_vector_substrate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/symbiosis/symbiosis_coherence_gate.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/tools/assimilate_api.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/tools/cli_suggestion_engine.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
     {
-      "file": "client/runtime/systems/tools/research_api.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/tools/shadow_tool_notification_bridge.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/tools/tool_context_router.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/tools/tool_notification_lane.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/training/collective_training_orchestrator.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/training/fractal_training_oversight.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/training/model_artifact_archive.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/training/sovereign_model_rollout_ladder.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/training/training_contribution_contracts.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/vault/legacy_vault.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/wasm/component_runtime.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
       "file": "client/runtime/systems/weaver/drift_aware_revenue_optimizer.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/weaver/metric_schema.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/weaver/monoculture_guard.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
-    },
-    {
-      "file": "client/runtime/systems/weaver/weaver_core.ts",
-      "bucket": "collapse_to_generic_wrapper",
-      "reason": "thin wrapper family should be collapsed behind generic entrypoints"
     },
     {
       "file": "client/runtime/systems/workflow/client_relationship_manager.ts",
@@ -3545,11 +1203,6 @@
     },
     {
       "file": "client/runtime/systems/workflow/learning_conduit.ts",
-      "bucket": "promote_to_core",
-      "reason": "runtime system logic belongs in core unless explicitly public bridge"
-    },
-    {
-      "file": "client/runtime/systems/workflow/lib/ts_entrypoint.ts",
       "bucket": "promote_to_core",
       "reason": "runtime system logic belongs in core unless explicitly public bridge"
     },
