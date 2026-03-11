@@ -48,7 +48,7 @@
     "burst_threshold": 12
   },
   "backlog_check": {
-    "script": "client/runtime/systems/ops/backlog_registry.js",
+    "script": "client/runtime/systems/ops/backlog_registry.ts",
     "strict": false
   },
   "autofix": {

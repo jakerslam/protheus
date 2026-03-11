@@ -13,7 +13,7 @@ Applied workflows are stored in:
 
 Controllers:
 - `node client/runtime/systems/workflow/workflow_generator.js run [YYYY-MM-DD]`
-- `node client/runtime/systems/workflow/orchestron_controller.js run [YYYY-MM-DD] --apply=1` (preferred entrypoint)
+- `node client/runtime/systems/workflow/orchestron_controller.ts run [YYYY-MM-DD] --apply=1` (preferred entrypoint)
 - `node client/runtime/systems/workflow/workflow_controller.js run [YYYY-MM-DD] --apply=1` (legacy-compatible)
 - `node client/runtime/systems/workflow/orchestron/adaptive_controller.js run [YYYY-MM-DD] --intent="..."` (intent -> candidates -> nursery scorecards)
 - `node client/runtime/systems/workflow/orchestron/adaptive_controller.js run [YYYY-MM-DD] --value-currency=delivery --objective-id=<id>` (override adaptive value-currency context)

@@ -25,9 +25,9 @@ node client/runtime/systems/security/secret_broker.js rotation-check --strict=1
 Migration governance lane:
 
 ```bash
-node client/runtime/systems/security/secret_rotation_migration_auditor.js status --strict=1
-node client/runtime/systems/security/secret_rotation_migration_auditor.js scan
-node client/runtime/systems/security/secret_rotation_migration_auditor.js attest --operator-id=$USER --approval-note=\"rotation_complete\" --apply=1
+node client/runtime/systems/security/secret_rotation_migration_auditor.ts status --strict=1
+node client/runtime/systems/security/secret_rotation_migration_auditor.ts scan
+node client/runtime/systems/security/secret_rotation_migration_auditor.ts attest --operator-id=$USER --approval-note=\"rotation_complete\" --apply=1
 ```
 
 ## Spine integration

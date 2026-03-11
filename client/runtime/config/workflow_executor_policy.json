@@ -133,7 +133,7 @@
       "enforce_shadow_on_violation": true,
       "strict_verify": false,
       "timeout_ms": 8000,
-      "script": "client/runtime/systems/security/soul_token_guard.js"
+      "script": "client/runtime/systems/security/soul_token_guard.ts"
     }
   },
   "token_economics": {

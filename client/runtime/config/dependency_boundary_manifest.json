@@ -48,7 +48,7 @@
       "client/runtime/systems/ops/rust50_sprint_contract.js",
       "client/runtime/systems/ops/rust_hybrid_migration_program.ts",
       "client/runtime/systems/conduit/conduit-client.ts",
-      "client/runtime/systems/conduit/conduit-client.js"
+      "client/runtime/systems/conduit/conduit-client.ts"
     ],
     "forbidden_patterns": [
       "path.join(ROOT, 'target', 'release'",

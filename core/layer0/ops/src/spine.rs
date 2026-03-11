@@ -1012,7 +1012,7 @@ fn run_guard(root: &Path, files: &[&str]) -> StepResult {
     run_node_json(
         root,
         &[
-            "client/runtime/systems/security/guard.js".to_string(),
+            "client/runtime/systems/security/guard.ts".to_string(),
             format!("--files={file_list}"),
         ],
     )
@@ -1186,7 +1186,7 @@ fn execute_native(root: &Path, cli: &CliArgs) -> i32 {
     let mut ledger = LedgerWriter::new(root, &cli.date, &run_id);
     let invoked = vec![
         "client/runtime/systems/spine/spine.js",
-        "client/runtime/systems/security/guard.js",
+        "client/runtime/systems/security/guard.ts",
         "client/cognition/habits/scripts/external_eyes.js",
         "client/cognition/habits/scripts/eyes_insight.js",
         "client/cognition/habits/scripts/sensory_queue.js",

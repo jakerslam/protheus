@@ -1,13 +1,13 @@
 # Backlog Registry
 
-`client/runtime/systems/ops/backlog_registry.ts` (runtime: `client/runtime/systems/ops/backlog_registry.js`) provides a canonical machine-readable backlog source and generated markdown views.
+`client/runtime/systems/ops/backlog_registry.ts` (runtime: `client/runtime/systems/ops/backlog_registry.ts`) provides a canonical machine-readable backlog source and generated markdown views.
 
 ## Commands
 
 ```bash
-node client/runtime/systems/ops/backlog_registry.js sync
-node client/runtime/systems/ops/backlog_registry.js check --strict=1
-node client/runtime/systems/ops/backlog_registry.js status
+node client/runtime/systems/ops/backlog_registry.ts sync
+node client/runtime/systems/ops/backlog_registry.ts check --strict=1
+node client/runtime/systems/ops/backlog_registry.ts status
 ```
 
 ## Policy
