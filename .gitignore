@@ -218,6 +218,13 @@ TOOLS.md
 USER.md
 .trash/
 
+# Local/simulated operator scratch (not source-of-truth)
+local/
+simulated-commits/
+config/rohan_github_credentials.md
+artifacts/churn_guard_current.json
+docs/workspace/CHURN_GUARD_CURRENT.md
+
 # Runtime local credentials (instance-specific)
 client/runtime/config/credentials.json
 client/runtime/config/moltbook/credentials.json
