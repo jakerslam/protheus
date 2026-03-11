@@ -161,6 +161,19 @@ Updated: 2026-03-11 20:39 America/Denver
 - `srs_top200_regression`: fail `0`, warn `0`, pass `200`.
 - `verify.sh`: PASS.
 
+21. `P0-SIMPL-001` Run system simplicity sweep and collapse parallel command functionality to canonical aliases. `STATUS: DONE`
+- Exit criteria met:
+- Collapsed duplicate script bodies to single-source aliases in `package.json` (`orchestron:run`, `start`, `lane:v6-rust50-007:run`, `test:lane:v6-edge-004`).
+- Added `scripts/ci/simplicity_drift_audit.mjs` and `ops:simplicity:audit` strict gate.
+- Current simplicity audit: duplicate command groups `0`, client hard/gap violations `0`.
+
+22. `P0-TEST-001` Run full CI test suite and patch failures. `STATUS: DONE`
+- Exit criteria met:
+- Found and fixed `MODULE_NOT_FOUND` test blocker by updating `tests/client-memory-tools/_legacy_retired_test_wrapper.js` to load TS runtime wrapper directly with local TS require hook.
+- `npm run -s test:ci:full`: PASS.
+- `./verify.sh`: PASS.
+- `srs_full_regression` and `srs_top200_regression`: PASS.
+
 ## Executed in this pass
 - Added `scripts/ci/srs_actionable_map.mjs` to produce canonical remaining-work mapping and executability buckets.
 - Reviewed enforcer policy and kept DoD evidence gates strict.
@@ -178,6 +191,8 @@ Updated: 2026-03-11 20:39 America/Denver
 - Added deterministic blocked-external scaffold generator (`scripts/ci/blocked_external_scaffold.mjs`) and pre-created `evidence/external/<ID>/README.md` packets for all 27 blockers.
 - Added deterministic blocked-external reconcile helper (`scripts/ci/blocked_external_reconcile.mjs`) to promote evidence-ready IDs with controlled `--apply=1` mutation path.
 - Added deterministic blocked-external Top-10 prioritizer (`scripts/ci/blocked_external_top10.mjs`) and packet-quality audit (`scripts/ci/blocked_external_packet_audit.mjs`) plus operator runbook.
+- Added system simplicity drift gate (`scripts/ci/simplicity_drift_audit.mjs`) and collapsed duplicate npm command bodies to canonical alias chains.
+- Patched full CI test blocker in `_legacy_retired_test_wrapper.js` (TS wrapper resolution).
 - Kept client/core policy audits and full regression suite passing after state transitions.
 
 ## Next command bundle
@@ -188,8 +203,10 @@ Updated: 2026-03-11 20:39 America/Denver
 - `node scripts/ci/blocked_external_reconcile.mjs`
 - `node scripts/ci/blocked_external_top10.mjs`
 - `node scripts/ci/blocked_external_packet_audit.mjs`
+- `node scripts/ci/simplicity_drift_audit.mjs --strict=1`
 - `node scripts/ci/srs_full_regression.mjs`
 - `node scripts/ci/srs_top200_regression.mjs`
+- `npm run -s test:ci:full`
 - `node scripts/ci/backlog_actionable_report.mjs`
 - `npm run -s ops:client-target:audit`
 - `./verify.sh`
