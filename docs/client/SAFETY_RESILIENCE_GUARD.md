@@ -28,6 +28,6 @@ Key controls:
 ## Commands
 
 ```bash
-node client/runtime/systems/security/safety_resilience_guard.js evaluate --sentinel-json='{"tier":"confirmed_malice"}' --signals-json='{"strand_mismatch":true}'
-node client/runtime/systems/security/safety_resilience_guard.js status
+node client/runtime/systems/security/safety_resilience_guard.ts evaluate --sentinel-json='{"tier":"confirmed_malice"}' --signals-json='{"strand_mismatch":true}'
+node client/runtime/systems/security/safety_resilience_guard.ts status
 ```

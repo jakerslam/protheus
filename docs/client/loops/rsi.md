@@ -8,7 +8,7 @@ The RSI self-modification path now runs a mandatory Core-5 Shadow Conclave revie
   - `client/cognition/adaptive/rsi/rsi_bootstrap.ts` (`step`)
   - `client/runtime/systems/autonomy/inversion_controller.ts` (`run`, apply path)
 - Reviewer command:
-  - `node client/runtime/systems/personas/cli.js vikram rohan priya aarav liwei "Review this proposed RSI change for safety, ops, measurement, security, and product impact" --schema=json --max-context-tokens=2000 --context-budget-mode=trim`
+  - `node client/runtime/systems/personas/cli.ts vikram rohan priya aarav liwei "Review this proposed RSI change for safety, ops, measurement, security, and product impact" --schema=json --max-context-tokens=2000 --context-budget-mode=trim`
 - Context split + budget guard:
   - Personas CLI separates bootstrap context (core lenses/profile constraints) from dynamic memory context (correspondence/feed/memory recall).
   - Dynamic context is trimmed first if estimated context exceeds budget; if still over budget, call fails closed and logs guard telemetry.

@@ -12,17 +12,17 @@
   "embodiment_snapshot_path": "state/hardware/embodiment/latest.json",
   "boot_probe_command": [
     "node",
-    "client/runtime/systems/ops/seed_boot_probe.js",
+    "client/runtime/systems/ops/seed_boot_probe.ts",
     "run"
   ],
   "workflow_probe_command": [
     "node",
-    "client/runtime/systems/workflow/workflow_controller.js",
+    "client/runtime/systems/workflow/workflow_controller.ts",
     "status"
   ],
   "memory_probe_command": [
     "node",
-    "client/runtime/systems/memory/memory_federation_plane.js",
+    "client/runtime/systems/memory/memory_federation_plane.ts",
     "status"
   ],
   "state_path": "state/ops/phone_seed_profile/status.json",

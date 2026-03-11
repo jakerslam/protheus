@@ -25,7 +25,7 @@
     "required_phrases": ["under 10 minutes", "first custom lane", "rollback"]
   },
   "onboarding_check": {
-    "script": "client/runtime/systems/ops/first_run_onboarding_wizard.js",
+    "script": "client/runtime/systems/ops/first_run_onboarding_wizard.ts",
     "args": ["status"]
   },
   "paths": {

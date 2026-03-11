@@ -28,7 +28,7 @@
   },
   "failure_rollback": {
     "enabled": true,
-    "default_command": "node client/runtime/systems/autonomy/strategy_execute_guard.js rollback <date>",
+    "default_command": "node client/runtime/systems/autonomy/strategy_execute_guard.ts rollback <date>",
     "timeout_ms": 120000,
     "retries": 0
   },
@@ -113,7 +113,7 @@
   "external_orchestration": {
     "enabled": true,
     "detect_actuation_commands": true,
-    "command_pattern": "client/runtime/systems/actuation/actuation_executor.js",
+    "command_pattern": "client/runtime/systems/actuation/actuation_executor.ts",
     "require_policy_root_for_live": true,
     "allow_dry_run_without_policy_root": true,
     "policy_root_scope": "workflow_external_orchestration",

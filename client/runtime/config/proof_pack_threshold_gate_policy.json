@@ -12,7 +12,7 @@
     "mech_benchmark": {
       "bin": "node",
       "args": [
-        "client/runtime/systems/ops/mech_suit_benchmark.js",
+        "client/runtime/systems/ops/mech_suit_benchmark.ts",
         "run"
       ],
       "timeout_ms": 360000
@@ -20,7 +20,7 @@
     "harness_6m": {
       "bin": "node",
       "args": [
-        "client/runtime/systems/autonomy/autonomy_simulation_harness.js",
+        "client/runtime/systems/autonomy/autonomy_simulation_harness.ts",
         "run",
         "--days=180",
         "--strict=0",
@@ -31,7 +31,7 @@
     "protheus_vs_openclaw": {
       "bin": "node",
       "args": [
-        "client/runtime/systems/ops/narrow_agent_parity_harness.js",
+        "client/runtime/systems/ops/narrow_agent_parity_harness.ts",
         "run",
         "--days=180",
         "--strict=0"

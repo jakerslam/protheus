@@ -8,6 +8,6 @@
   "enabled": true,
   "payload": {
     "kind": "systemEvent",
-    "text": "HEARTBEAT: Run `node client/runtime/systems/ops/reminder_data_bridge.js slack-status` before posting status. If ready=false, suppress noisy status ping and retry at reduced cadence."
+    "text": "HEARTBEAT: Run `node client/runtime/systems/ops/reminder_data_bridge.ts slack-status` before posting status. If ready=false, suppress noisy status ping and retry at reduced cadence."
   }
 }

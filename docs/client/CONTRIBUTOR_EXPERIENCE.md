@@ -9,7 +9,7 @@ Make contribution predictable, testable, and safe for a fast-moving autonomy cod
 ```bash
 npm install
 npm run typecheck:systems
-node client/runtime/systems/spine/contract_check.js
+node client/runtime/systems/spine/contract_check.ts
 ```
 
 ## Workflow layer contribution rules
@@ -25,9 +25,9 @@ node tests/client-memory-tools/strategy_principles.test.js
 node tests/client-memory-tools/workflow_controller.test.js
 node tests/client-memory-tools/collective_shadow.test.js
 node tests/client-memory-tools/observer_mirror.test.js
-node client/runtime/systems/ops/public_benchmark_pack.js run
-node client/runtime/systems/ops/deployment_packaging.js run --profile=prod --strict=1
-node client/runtime/systems/ops/compliance_posture.js run --days=30 --profile=prod --strict=0
+node client/runtime/systems/ops/public_benchmark_pack.ts run
+node client/runtime/systems/ops/deployment_packaging.ts run --profile=prod --strict=1
+node client/runtime/systems/ops/compliance_posture.ts run --days=30 --profile=prod --strict=0
 ```
 
 ## Evidence expectations

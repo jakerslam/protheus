@@ -23,10 +23,10 @@ This document is the PLM control playbook for `PLM-001..PLM-010`.
 ## Operational Commands
 
 ```bash
-node client/runtime/systems/ops/post_launch_migration_readiness.js run
-node client/runtime/systems/ops/post_launch_migration_readiness.js run --strict=1
-node client/runtime/systems/ops/post_launch_migration_readiness.js final-review --decision=no-go --signed-by=jay --approval-note="pending full pass"
-node client/runtime/systems/ops/post_launch_migration_readiness.js status
+node client/runtime/systems/ops/post_launch_migration_readiness.ts run
+node client/runtime/systems/ops/post_launch_migration_readiness.ts run --strict=1
+node client/runtime/systems/ops/post_launch_migration_readiness.ts final-review --decision=no-go --signed-by=jay --approval-note="pending full pass"
+node client/runtime/systems/ops/post_launch_migration_readiness.ts status
 ```
 
 ## Cutover Plan

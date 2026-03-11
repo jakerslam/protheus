@@ -9,11 +9,11 @@
 
 1. Added Rust `memory-ambient` domain (`core/layer0/ops/src/memory_ambient.rs`).
 2. Added conduit message type `memory_ambient_command` and bridge execution in `core/layer2/conduit/src/lib.rs`.
-3. Added JS conduit bridge helper `runMemoryAmbientCommand` (`client/runtime/lib/spine_conduit_bridge.js`).
-4. Added thin memory ambient surface (`client/runtime/systems/memory/ambient.js`).
-5. Converted `client/runtime/systems/memory/index.js` to conduit-first routing with explicit compat mode fallback (`PROTHEUS_MEMORY_COMPAT_MODE`).
+3. Added JS conduit bridge helper `runMemoryAmbientCommand` (`client/runtime/lib/spine_conduit_bridge.ts`).
+4. Added thin memory ambient surface (`client/runtime/systems/memory/ambient.ts`).
+5. Converted `client/runtime/systems/memory/index.ts` to conduit-first routing with explicit compat mode fallback (`PROTHEUS_MEMORY_COMPAT_MODE`).
 6. Routed cockpit harness snapshots to include memory status (`client/runtime/systems/ops/cockpit_harness.ts`).
-7. Added memory case to mech suit benchmark (`client/runtime/systems/ops/mech_suit_benchmark.js`).
+7. Added memory case to mech suit benchmark (`client/runtime/systems/ops/mech_suit_benchmark.ts`).
 8. Added requirements doc (`docs/client/requirements/memory_ambient_requirements.md`).
 
 ## Remaining Split Points
@@ -29,7 +29,7 @@
 
 ## Low-effort split-point cleanup completed
 
-1. `client/runtime/systems/security/psycheforge/temporal_profile_store.ts` now writes hot state through `client/runtime/systems/memory/index.js` (ambient conduit lane) by default; legacy CLI fallback is opt-in (`allow_legacy_cli_fallback`).
+1. `client/runtime/systems/security/psycheforge/temporal_profile_store.ts` now writes hot state through `client/runtime/systems/memory/index.ts` (ambient conduit lane) by default; legacy CLI fallback is opt-in (`allow_legacy_cli_fallback`).
 2. `client/runtime/systems/security/psycheforge/_shared.ts` now declares `rust_memory.transport=memory_surface_ambient` and compatibility fallback policy.
 3. `client/runtime/systems/memory/observational_compression_layer.ts` policy metadata now reflects conduit-first transport, with legacy `memory-cli` fields marked compatibility-only.
 4. `client/runtime/config/napi_build_surface_compat_policy.json` probe command now targets `protheus-ops memory-ambient status` (Rust ambient authority); direct `memory-cli` remains only in `cli_compat`.

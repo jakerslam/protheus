@@ -22,9 +22,9 @@
 ## CLI
 
 ```bash
-node client/runtime/systems/autonomy/gated_self_improvement_loop.js propose --objective-id=hardening --target-path=client/runtime/systems/autonomy/gated_self_improvement_loop.ts
-node client/runtime/systems/autonomy/gated_self_improvement_loop.js run --proposal-id=<id> --apply=0
-node client/runtime/systems/autonomy/gated_self_improvement_loop.js status
-node client/runtime/systems/autonomy/gated_self_improvement_loop.js rollback --proposal-id=<id> --reason=manual_revert
+node client/runtime/systems/autonomy/gated_self_improvement_loop.ts propose --objective-id=hardening --target-path=client/runtime/systems/autonomy/gated_self_improvement_loop.ts
+node client/runtime/systems/autonomy/gated_self_improvement_loop.ts run --proposal-id=<id> --apply=0
+node client/runtime/systems/autonomy/gated_self_improvement_loop.ts status
+node client/runtime/systems/autonomy/gated_self_improvement_loop.ts rollback --proposal-id=<id> --reason=manual_revert
 ```
 

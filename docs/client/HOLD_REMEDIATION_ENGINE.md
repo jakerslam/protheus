@@ -5,10 +5,10 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/autonomy/hold_remediation_engine.js admit --proposal-json='{"id":"p1","title":"A","kind":"generic","confidence":0.67}' --apply=1 --strict=1
-node client/runtime/systems/autonomy/hold_remediation_engine.js rehydrate --apply=1 --strict=1
-node client/runtime/systems/autonomy/hold_remediation_engine.js simulate --days=30 --apply=1 --strict=1
-node client/runtime/systems/autonomy/hold_remediation_engine.js status
+node client/runtime/systems/autonomy/hold_remediation_engine.ts admit --proposal-json='{"id":"p1","title":"A","kind":"generic","confidence":0.67}' --apply=1 --strict=1
+node client/runtime/systems/autonomy/hold_remediation_engine.ts rehydrate --apply=1 --strict=1
+node client/runtime/systems/autonomy/hold_remediation_engine.ts simulate --days=30 --apply=1 --strict=1
+node client/runtime/systems/autonomy/hold_remediation_engine.ts status
 ```
 
 ## Coverage

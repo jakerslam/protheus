@@ -10,7 +10,7 @@ Adaptive counter-profile defense lane with:
 ## Commands
 
 ```bash
-node client/runtime/systems/security/psycheforge/psycheforge_organ.js evaluate --actor=probe_a --telemetry_json='{"probe_density":0.92,"escalation_attempts":14}' --apply=1
-node client/runtime/systems/security/psycheforge/psycheforge_organ.js promote --decision_id=<id> --two_gate_approved=1 --apply=1
-node client/runtime/systems/security/psycheforge/psycheforge_organ.js status
+node client/runtime/systems/security/psycheforge/psycheforge_organ.ts evaluate --actor=probe_a --telemetry_json='{"probe_density":0.92,"escalation_attempts":14}' --apply=1
+node client/runtime/systems/security/psycheforge/psycheforge_organ.ts promote --decision_id=<id> --two_gate_approved=1 --apply=1
+node client/runtime/systems/security/psycheforge/psycheforge_organ.ts status
 ```

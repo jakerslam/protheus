@@ -9,10 +9,10 @@ Provide a governed image/container distribution verification lane for NGC/NVIDIA
 ## Commands
 
 ```bash
-node client/runtime/systems/ops/ngc_nvidia_enterprise_distribution_adapter.js run --channel=stable --strict=1
-node client/runtime/systems/ops/ngc_nvidia_enterprise_distribution_adapter.js freeze-channel --channel=stable --reason=signature_mismatch
-node client/runtime/systems/ops/ngc_nvidia_enterprise_distribution_adapter.js restore-channel --channel=stable
-node client/runtime/systems/ops/ngc_nvidia_enterprise_distribution_adapter.js status
+node client/runtime/systems/ops/ngc_nvidia_enterprise_distribution_adapter.ts run --channel=stable --strict=1
+node client/runtime/systems/ops/ngc_nvidia_enterprise_distribution_adapter.ts freeze-channel --channel=stable --reason=signature_mismatch
+node client/runtime/systems/ops/ngc_nvidia_enterprise_distribution_adapter.ts restore-channel --channel=stable
+node client/runtime/systems/ops/ngc_nvidia_enterprise_distribution_adapter.ts status
 ```
 
 ## Verified Contracts

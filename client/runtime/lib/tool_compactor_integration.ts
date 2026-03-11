@@ -5,7 +5,7 @@
  * before they enter working context.
  */
 
-const { compactToolResponse } = require('./tool_response_compactor');
+const { compactToolResponse } = require('./tool_response_compactor.ts');
 declare function execAsync(cmd: string): Promise<string>;
 
 /**

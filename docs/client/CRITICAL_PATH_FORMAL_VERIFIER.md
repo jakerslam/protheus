@@ -13,8 +13,8 @@ This verifier complements `formal_invariant_engine` and is intended to run in me
 ## Commands
 
 ```bash
-node client/runtime/systems/security/critical_path_formal_verifier.js run --strict=1
-node client/runtime/systems/security/critical_path_formal_verifier.js status
+node client/runtime/systems/security/critical_path_formal_verifier.ts run --strict=1
+node client/runtime/systems/security/critical_path_formal_verifier.ts status
 ```
 
 ## Policy

@@ -14,9 +14,9 @@ This guide covers the additive backend uplift for `client/runtime/lib/secret_bro
 2. Configure `keychain` (`service`, `account`) and/or `age_file` (`paths`, `identity_paths`) under the target secret.
 3. Enable exactly one new backend in staging.
 4. Run:
-   - `node client/runtime/systems/security/secret_broker.js rotation-check --strict=1`
-   - `node client/runtime/systems/security/secret_broker.js issue --secret-id=<id> --scope=<scope>`
-   - `node client/runtime/systems/security/secret_broker.js resolve --handle=<token> --reveal=1`
+   - `node client/runtime/systems/security/secret_broker.ts rotation-check --strict=1`
+   - `node client/runtime/systems/security/secret_broker.ts issue --secret-id=<id> --scope=<scope>`
+   - `node client/runtime/systems/security/secret_broker.ts resolve --handle=<token> --reveal=1`
 5. Confirm provider type in audit/health output and verify no consumer changes are required.
 6. Promote to production by enabling the backend in policy.
 

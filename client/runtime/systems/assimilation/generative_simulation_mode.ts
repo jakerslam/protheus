@@ -4,6 +4,6 @@
 
 // Layer ownership: core/layer2/runtime + core/layer0/ops::legacy-retired-lane (authoritative)
 // TypeScript compatibility shim only.
-const mod = require('./generative_simulation_mode.js');
+const mod = require('./generative_simulation_mode.ts');
 if (require.main === module) mod.run(process.argv.slice(2));
 module.exports = mod;

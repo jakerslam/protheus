@@ -11,12 +11,12 @@
   "min_dopamine_score": 1,
   "patch_required": false,
   "scripts": {
-    "rsi_bootstrap": "client/cognition/adaptive/rsi/rsi_bootstrap.js",
+    "rsi_bootstrap": "client/cognition/adaptive/rsi/rsi_bootstrap.ts",
     "rsi_policy": "client/runtime/config/rsi_bootstrap_policy.json",
-    "chaos": "client/runtime/systems/autonomy/red_team_harness.js",
+    "chaos": "client/runtime/systems/autonomy/red_team_harness.ts",
     "constitution": "client/runtime/systems/security/constitution_guardian.ts",
-    "habit_lifecycle": "client/cognition/habits/scripts/reflex_habit_bridge.js",
-    "dopamine": "client/cognition/habits/scripts/dopamine_engine.js"
+    "habit_lifecycle": "client/cognition/habits/scripts/reflex_habit_bridge.ts",
+    "dopamine": "client/cognition/habits/scripts/dopamine_engine.ts"
   },
   "paths": {
     "memory_dir": "client/memory/security/rsi_git_patch_self_mod_gate",

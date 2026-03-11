@@ -71,5 +71,5 @@ Recommended enablement:
 gh auth login
 SPINE_BACKLOG_GITHUB_SYNC_ENABLED=1 \
 SPINE_BACKLOG_GITHUB_SYNC_APPLY=1 \
-node client/runtime/systems/spine/spine.js daily
+node client/runtime/systems/spine/spine.ts daily
 ```

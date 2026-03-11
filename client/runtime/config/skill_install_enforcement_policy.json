@@ -17,12 +17,12 @@
     ".json"
   ],
   "exclude_paths": [
-    "client/runtime/systems/security/skill_install_enforcer.js",
+    "client/runtime/systems/security/skill_install_enforcer.ts",
     "tests/client-memory-tools/**"
   ],
   "allow_paths": [
-    "client/cognition/habits/scripts/install_skill_safe.js",
-    "client/runtime/systems/security/skill_quarantine.js",
+    "client/cognition/habits/scripts/install_skill_safe.ts",
+    "client/runtime/systems/security/skill_quarantine.ts",
     "client/runtime/config/skill_install_policy.json"
   ],
   "blocked_regexes": [
@@ -32,11 +32,11 @@
     "\\bspawnSync\\s*\\(\\s*['\\\"]molthub['\\\"][\\s\\S]{0,220}['\\\"]install['\\\"]",
     "\\bexec(?:File)?Sync\\s*\\([\\s\\S]{0,260}molthub[\\s\\S]{0,160}install"
   ],
-  "required_wrapper_path": "client/cognition/habits/scripts/install_skill_safe.js",
+  "required_wrapper_path": "client/cognition/habits/scripts/install_skill_safe.ts",
   "required_wrapper_markers": [
     "inspectSpec(",
     "verifyPath(",
     "trustFiles("
   ],
-  "required_quarantine_path": "client/runtime/systems/security/skill_quarantine.js"
+  "required_quarantine_path": "client/runtime/systems/security/skill_quarantine.ts"
 }

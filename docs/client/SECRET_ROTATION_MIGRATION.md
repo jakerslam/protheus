@@ -5,8 +5,8 @@ This runbook governs secret rotation posture, migration off repo-local secret fi
 ## 1) Validate broker + migration posture
 
 ```bash
-node client/runtime/systems/security/secret_broker.js status
-node client/runtime/systems/security/secret_broker.js rotation-check --strict=1
+node client/runtime/systems/security/secret_broker.ts status
+node client/runtime/systems/security/secret_broker.ts rotation-check --strict=1
 node client/runtime/systems/security/secret_rotation_migration_auditor.ts scan
 node client/runtime/systems/security/secret_rotation_migration_auditor.ts status --strict=1
 ```

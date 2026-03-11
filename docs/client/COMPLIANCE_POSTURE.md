@@ -2,35 +2,35 @@
 
 ## Purpose
 
-`client/runtime/systems/ops/compliance_posture.js` provides a single operational score for deployment + controls readiness by aggregating:
-- SOC2 evidence/readiness (`client/runtime/systems/ops/compliance_reports.js`)
-- Integrity kernel state (`client/runtime/systems/security/integrity_kernel.js`)
+`client/runtime/systems/ops/compliance_posture.ts` provides a single operational score for deployment + controls readiness by aggregating:
+- SOC2 evidence/readiness (`client/runtime/systems/ops/compliance_reports.ts`)
+- Integrity kernel state (`client/runtime/systems/security/integrity_kernel.ts`)
 - Startup attestation freshness (`client/runtime/systems/security/startup_attestation.ts`)
-- Deployment hardening gate (`client/runtime/systems/ops/deployment_packaging.js`)
-- Contract surface stability (`client/runtime/systems/spine/contract_check.js`)
+- Deployment hardening gate (`client/runtime/systems/ops/deployment_packaging.ts`)
+- Contract surface stability (`client/runtime/systems/spine/contract_check.ts`)
 
 For framework-depth reporting (SOC2/ISO/NIST) and control inventory completeness, use:
-`node client/runtime/systems/ops/compliance_reports.js framework-readiness --framework=all`
-`node client/runtime/systems/ops/compliance_reports.js control-inventory`
+`node client/runtime/systems/ops/compliance_reports.ts framework-readiness --framework=all`
+`node client/runtime/systems/ops/compliance_reports.ts control-inventory`
 
 ## Commands
 
 Run (non-blocking posture snapshot):
 
 ```bash
-node client/runtime/systems/ops/compliance_posture.js run --days=30 --profile=prod --strict=0
+node client/runtime/systems/ops/compliance_posture.ts run --days=30 --profile=prod --strict=0
 ```
 
 Run strict gate (non-zero unless verdict is `pass`):
 
 ```bash
-node client/runtime/systems/ops/compliance_posture.js run --days=30 --profile=prod --strict=1
+node client/runtime/systems/ops/compliance_posture.ts run --days=30 --profile=prod --strict=1
 ```
 
 Status:
 
 ```bash
-node client/runtime/systems/ops/compliance_posture.js status latest
+node client/runtime/systems/ops/compliance_posture.ts status latest
 ```
 
 ## Output

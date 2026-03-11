@@ -38,15 +38,15 @@
   },
   "js_wrapper_contract": {
     "required_wrapper_paths": [
-      "client/runtime/systems/spine/spine_safe_launcher.js",
-      "client/runtime/systems/security/directive_compiler.js",
-      "client/runtime/systems/ops/protheusd.js"
+      "client/runtime/systems/spine/spine_safe_launcher.ts",
+      "client/runtime/systems/security/directive_compiler.ts",
+      "client/runtime/systems/ops/protheusd.ts"
     ]
   },
   "rust_shim_contract": {
     "entries": [
       {
-        "path": "client/runtime/systems/ops/state_kernel.js",
+        "path": "client/runtime/systems/ops/state_kernel.ts",
         "required_tokens": [
           "createOpsLaneBridge",
           "rust_lane_bridge",

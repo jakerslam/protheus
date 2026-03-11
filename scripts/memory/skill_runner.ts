@@ -13,13 +13,13 @@ const path = require('path');
 const fs = require('fs');
 
 // Import compactor for global chokepoint integration
-const { processToolOutput } = require('../../lib/tool_compactor_integration.js');
-const { redactSecretsOnly } = require('../../lib/tool_response_compactor.js');
+const { processToolOutput } = require('../../client/runtime/lib/tool_compactor_integration.ts');
+const { redactSecretsOnly } = require('../../client/runtime/lib/tool_response_compactor.ts');
 
 // NEW: Tiered Directives enforcement
-const { autoClassifyAndCreate } = require('../../lib/action_envelope.js');
-const { validateAction } = require('../../lib/directive_resolver.js');
-const { queueForApproval, formatBlockedResponse, formatApprovalRequiredResponse, wasApproved } = require('../../lib/approval_gate.js');
+const { autoClassifyAndCreate } = require('../../client/runtime/lib/action_envelope.ts');
+const { validateAction } = require('../../client/runtime/lib/directive_resolver.ts');
+const { queueForApproval, formatBlockedResponse, formatApprovalRequiredResponse, wasApproved } = require('../../client/runtime/lib/approval_gate.ts');
 
 /**
  * Helper: Convert anything to text representation
@@ -184,7 +184,7 @@ async function main() {
       console.warn(`  • Line ${w.line}: ${w.code.substring(0, 50)}${w.code.length > 50 ? '...' : ''}`);
     }
     console.warn('');
-    console.warn('Recommended fix: Use execCompacted() from client/runtime/lib/exec_compacted.js');
+    console.warn('Recommended fix: Use execCompacted() from client/runtime/lib/exec_compacted.ts');
     console.warn('');
   }
   

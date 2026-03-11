@@ -67,7 +67,7 @@
       "schedule": { "expr": "0 12 * * 5", "tz": "America/Denver" },
       "sessionTarget": "isolated",
       "wakeMode": "now",
-      "payload": { "kind": "agentTurn", "message": "Write and publish a post to The Protheus Codex on MoltStack. Topic: analyze a current trend in AI agents, software engineering, or income strategies. Use client/cognition/skills/moltstack/scripts/publish.js after quality check. Log to memory." },
+      "payload": { "kind": "agentTurn", "message": "Write and publish a post to The Protheus Codex on MoltStack. Topic: analyze a current trend in AI agents, software engineering, or income strategies. Use client/cognition/skills/moltstack/scripts/publish.ts after quality check. Log to memory." },
       "delivery": { "mode": "announce", "channel": "main" },
       "enabled": true,
       "id": "0fe0abd9-0672-4c44-b946-4581da3eb68f"

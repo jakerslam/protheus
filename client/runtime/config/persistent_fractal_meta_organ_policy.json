@@ -32,7 +32,7 @@
     }
   ],
   "scripts": {
-    "loop_script": "client/runtime/systems/autonomy/gated_self_improvement_loop.js"
+    "loop_script": "client/runtime/systems/autonomy/gated_self_improvement_loop.ts"
   },
   "paths": {
     "state_path": "state/autonomy/persistent_fractal_meta_organ/state.json",

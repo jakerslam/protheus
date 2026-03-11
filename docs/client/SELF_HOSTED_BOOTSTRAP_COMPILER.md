@@ -18,9 +18,9 @@ It adds a governed self-hosted runtime build lane:
 
 ## Commands
 
-- `node client/runtime/systems/ops/self_hosted_bootstrap_compiler.js compile`
-- `node client/runtime/systems/ops/self_hosted_bootstrap_compiler.js verify --build-id=<id>`
-- `node client/runtime/systems/ops/self_hosted_bootstrap_compiler.js promote --build-id=<id> --approved-by=<id> --approval-note="..."`
-- `node client/runtime/systems/ops/self_hosted_bootstrap_compiler.js rollback`
-- `node client/runtime/systems/ops/self_hosted_bootstrap_compiler.js status`
+- `node client/runtime/systems/ops/self_hosted_bootstrap_compiler.ts compile`
+- `node client/runtime/systems/ops/self_hosted_bootstrap_compiler.ts verify --build-id=<id>`
+- `node client/runtime/systems/ops/self_hosted_bootstrap_compiler.ts promote --build-id=<id> --approved-by=<id> --approval-note="..."`
+- `node client/runtime/systems/ops/self_hosted_bootstrap_compiler.ts rollback`
+- `node client/runtime/systems/ops/self_hosted_bootstrap_compiler.ts status`
 

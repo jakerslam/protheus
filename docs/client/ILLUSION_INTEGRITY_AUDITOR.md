@@ -5,7 +5,7 @@
 ## Entrypoints
 
 - Manual:
-  - `node client/runtime/systems/self_audit/illusion_integrity_lane.js run --trigger=manual`
+  - `node client/runtime/systems/self_audit/illusion_integrity_lane.ts run --trigger=manual`
   - `protheusctl audit illusion`
 - Startup hook:
   - Triggered by `protheus start` / `protheus restart` in `protheus_control_plane`

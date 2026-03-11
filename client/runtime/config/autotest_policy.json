@@ -35,9 +35,9 @@
     }
   },
   "critical_commands": [
-    "node client/runtime/systems/ops/typecheck_systems.js",
-    "node client/runtime/systems/ops/ts_clone_drift_guard.js --baseline=client/runtime/config/ts_clone_drift_baseline.json",
-    "node client/runtime/systems/spine/contract_check.js"
+    "node client/runtime/systems/ops/typecheck_systems.ts",
+    "node client/runtime/systems/ops/ts_clone_drift_guard.ts --baseline=client/runtime/config/ts_clone_drift_baseline.json",
+    "node client/runtime/systems/spine/contract_check.ts"
   ],
   "alerts": {
     "emit_untested": true,

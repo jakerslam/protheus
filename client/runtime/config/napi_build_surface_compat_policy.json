@@ -13,13 +13,13 @@
         "id": "daemon_first",
         "role": "production_default",
         "description": "Daemon-first transport with deterministic fallback (napi -> daemon -> cli -> js emergency).",
-        "run_command": "node client/runtime/systems/memory/memory_recall.js query --q=\"probe\" --top=1"
+        "run_command": "node client/runtime/systems/memory/memory_recall.ts query --q=\"probe\" --top=1"
       },
       {
         "id": "napi_optional",
         "role": "performance_optional",
         "description": "In-process N-API lane when native module exists; fallback remains daemon/cli.",
-        "run_command": "MEMORY_RECALL_RUST_NAPI_ENABLED=1 node client/runtime/systems/memory/memory_recall.js query --q=\"probe\" --top=1"
+        "run_command": "MEMORY_RECALL_RUST_NAPI_ENABLED=1 node client/runtime/systems/memory/memory_recall.ts query --q=\"probe\" --top=1"
       },
       {
         "id": "cli_compat",

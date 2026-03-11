@@ -13,10 +13,10 @@ It stays local-first, requires explicit consent to route, and pushes all actuati
 ## Commands
 
 ```bash
-node client/runtime/systems/symbiosis/pre_neuralink_interface.js ingest --channel=voice --signal="plan next sprint" --consent-state=granted
-node client/runtime/systems/symbiosis/pre_neuralink_interface.js route --apply=0
-node client/runtime/systems/symbiosis/pre_neuralink_interface.js handoff-contract --write=1
-node client/runtime/systems/symbiosis/pre_neuralink_interface.js status
+node client/runtime/systems/symbiosis/pre_neuralink_interface.ts ingest --channel=voice --signal="plan next sprint" --consent-state=granted
+node client/runtime/systems/symbiosis/pre_neuralink_interface.ts route --apply=0
+node client/runtime/systems/symbiosis/pre_neuralink_interface.ts handoff-contract --write=1
+node client/runtime/systems/symbiosis/pre_neuralink_interface.ts status
 ```
 
 ## Guardrails
@@ -24,7 +24,7 @@ node client/runtime/systems/symbiosis/pre_neuralink_interface.js status
 - `local_first=true` by default.
 - `require_explicit_consent=true` and routing only when consent state is in `route_allowed_states`.
 - `shadow_only=true` by default to keep routing advisory unless explicitly promoted.
-- Route requests are evaluated via `client/runtime/systems/eye/eye_kernel.js`.
+- Route requests are evaluated via `client/runtime/systems/eye/eye_kernel.ts`.
 
 ## Handoff Contract
 

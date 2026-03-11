@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { CANONICAL_PATHS } = require('./runtime_path_registry');
+const { CANONICAL_PATHS } = require('./runtime_path_registry.ts');
 
 const DEFAULT_POLICY_REL = path.join('config', 'mech_suit_mode_policy.json');
 

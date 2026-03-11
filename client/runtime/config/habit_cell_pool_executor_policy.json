@@ -16,7 +16,7 @@
     "require_explicit_allow": false
   },
   "execution": {
-    "runner_path": "client/cognition/habits/scripts/run_habit.js",
+    "runner_path": "client/cognition/habits/scripts/run_habit.ts",
     "apply_default": false,
     "payload_json_default": "{}"
   },

@@ -815,7 +815,7 @@ Generated: 2026-03-06T19:03:30.018Z
 | V3-RACE-360 | hardening | V3 | done | Socket Admission Proof Gate (Formal + Redteam + HostProfile Chaos Validation) | V3-RACE-214, V3-RACE-187, V3-RACE-356, V3-RACE-357 |
 | V3-RACE-361 | extension | V3 | done | Offline R Analytics Runner + Research Organ Best-Fit Integration | V3-RACE-102, V3-RACE-096, V3-RACE-098 |
 | V3-RACE-CONF-001 | extension | V3 | done | Open Platform Path-Contract Compatibility Pack (`platform/` artifacts) | V3-RACE-016, V3-DOC-001 |
-| V3-RACE-CONF-002 | hardening | V3 | done | Legacy Path Alias Adapters (`client/runtime/systems/state/event_stream.js`, `client/runtime/systems/autogenesis/*`) | V3-RACE-017, V3-RACE-018 |
+| V3-RACE-CONF-002 | hardening | V3 | done | Legacy Path Alias Adapters (`client/runtime/systems/state/event_stream.ts`, `client/runtime/systems/autogenesis/*`) | V3-RACE-017, V3-RACE-018 |
 | V3-RACE-CONF-003 | hardening | V3 | done | Requirement Conformance Matrix + Gate (`external prompt -> canonical lane`) | V3-AEX-002, V3-DOC-004 |
 | V3-RACE-CONF-004 | hardening | V3 | done | Rust Memory Path-Contract Compatibility (`core/memory` alias docs/client/wrappers) | V3-RACE-023, V3-DOC-001 |
 | V3-RACE-CONF-005 | hardening | V3 | done | N-API Build Surface Compatibility Contract (`build:memory`/postinstall expectations) | V3-RACE-028, V3-DOC-004 |

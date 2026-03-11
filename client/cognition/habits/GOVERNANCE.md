@@ -90,7 +90,7 @@ Must define:
 
 ### Gate 4 — Doctor Clean
 ```bash
-node client/cognition/habits/scripts/doctor.js
+node client/cognition/habits/scripts/doctor.ts
 ```
 Must pass with **0 errors** after promotion.
 
@@ -238,7 +238,7 @@ Output to `client/memory/{date}.md`:
 
 ### Doctor Checks
 ```bash
-node client/cognition/habits/scripts/doctor.js
+node client/cognition/habits/scripts/doctor.ts
 ```
 Validates:
 - ✅ All habits have complete spec (schema, permissions, rollback)

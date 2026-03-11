@@ -50,5 +50,5 @@ Each blocked row includes:
 ```bash
 node tests/client-memory-tools/orchestron_nursery_scorecard_contract.test.js
 node tests/client-memory-tools/orchestron_adaptive_controller.test.js
-node client/runtime/systems/spine/contract_check.js
+node client/runtime/systems/spine/contract_check.ts
 ```

@@ -1,6 +1,6 @@
 # Deterministic Distributed Control Plane (`V3-046`)
 
-`client/runtime/systems/distributed/deterministic_control_plane.js` provides a deterministic control-plane baseline for sovereign multi-node operation.
+`client/runtime/systems/distributed/deterministic_control_plane.ts` provides a deterministic control-plane baseline for sovereign multi-node operation.
 
 ## Policy
 
@@ -25,8 +25,8 @@ Key controls:
 ## Commands
 
 ```bash
-node client/runtime/systems/distributed/deterministic_control_plane.js run --nodes-json='[...]' --apply=1
-node client/runtime/systems/distributed/deterministic_control_plane.js status
+node client/runtime/systems/distributed/deterministic_control_plane.ts run --nodes-json='[...]' --apply=1
+node client/runtime/systems/distributed/deterministic_control_plane.ts status
 ```
 
 ## Outputs

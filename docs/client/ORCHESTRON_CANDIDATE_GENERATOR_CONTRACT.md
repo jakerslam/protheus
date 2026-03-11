@@ -45,5 +45,5 @@ Every generated candidate (and nested child candidate) must include:
 ```bash
 node tests/client-memory-tools/orchestron_candidate_generator_contract.test.js
 node tests/client-memory-tools/orchestron_candidate_generator_emergence.test.js
-node client/runtime/systems/spine/contract_check.js
+node client/runtime/systems/spine/contract_check.ts
 ```

@@ -5,8 +5,8 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/ops/wasi2_execution_completeness_gate.js run --strict=1 --apply=1
-node client/runtime/systems/ops/wasi2_execution_completeness_gate.js status
+node client/runtime/systems/ops/wasi2_execution_completeness_gate.ts run --strict=1 --apply=1
+node client/runtime/systems/ops/wasi2_execution_completeness_gate.ts status
 ```
 
 ## What It Checks
@@ -15,7 +15,7 @@ node client/runtime/systems/ops/wasi2_execution_completeness_gate.js status
 - Safety pass rate for WASI2 probe execution.
 - p95 latency delta (`js_duration_ms` vs `wasi2_duration_ms`) below policy threshold.
 
-The gate uses `client/runtime/systems/ops/wasi2_lane_adapter.js` to normalize probe envelopes and routes WASI2 probes through `client/runtime/systems/wasm/component_runtime.js`.
+The gate uses `client/runtime/systems/ops/wasi2_lane_adapter.ts` to normalize probe envelopes and routes WASI2 probes through `client/runtime/systems/wasm/component_runtime.ts`.
 
 Receipts:
 

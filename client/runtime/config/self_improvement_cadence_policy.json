@@ -23,9 +23,9 @@
     "max_applies_per_day": 12
   },
   "scripts": {
-    "observer": "client/runtime/systems/autonomy/observer_mirror.js",
-    "loop": "client/runtime/systems/autonomy/gated_self_improvement_loop.js",
-    "distiller": "client/runtime/systems/assimilation/trajectory_skill_distiller.js"
+    "observer": "client/runtime/systems/autonomy/observer_mirror.ts",
+    "loop": "client/runtime/systems/autonomy/gated_self_improvement_loop.ts",
+    "distiller": "client/runtime/systems/assimilation/trajectory_skill_distiller.ts"
   },
   "event_trigger": {
     "enabled": true,

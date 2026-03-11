@@ -17,7 +17,7 @@
 
 ## Commands
 ```bash
-node client/runtime/systems/ops/rust50_sprint_contract.js run \
+node client/runtime/systems/ops/rust50_sprint_contract.ts run \
   --sprint-id=V6-RUST50-CONF-002 \
   --batch-id=batch-001 \
   --plan-file=tmp/sprint_plan.json \
@@ -25,7 +25,7 @@ node client/runtime/systems/ops/rust50_sprint_contract.js run \
   --enforcer-active=1 \
   --preamble-text="ENFORCER RULES ACTIVE — READ docs/workspace/codex_enforcer.md FIRST."
 
-node client/runtime/systems/ops/rust50_sprint_contract.js status
+node client/runtime/systems/ops/rust50_sprint_contract.ts status
 ```
 
 ## Artifacts

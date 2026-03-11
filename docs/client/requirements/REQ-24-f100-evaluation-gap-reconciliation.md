@@ -25,7 +25,7 @@ Out of scope:
 1. `REQ-24-001` The repo must include a strict baseline gate that verifies core enterprise posture claims.
 - Acceptance:
   - `client/runtime/config/f100_enterprise_baseline_contract.json` defines baseline checks.
-  - `client/runtime/systems/ops/f100_enterprise_baseline_gate.js` emits deterministic receipts.
+  - `client/runtime/systems/ops/f100_enterprise_baseline_gate.ts` emits deterministic receipts.
   - strict mode fails when any check is missing.
 
 2. `REQ-24-002` Enterprise packaging artifacts must include Helm and Terraform deployment surfaces.

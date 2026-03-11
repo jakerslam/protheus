@@ -7,7 +7,7 @@
     "publish": true,
     "stream": "ops.rsi_control_plane_cli_surface"
   },
-  "protheusctl_script": "client/runtime/systems/ops/protheusctl.js",
+  "protheusctl_script": "client/runtime/systems/ops/protheusctl.ts",
   "rsi_policy_path": "client/runtime/config/rsi_bootstrap_policy.json",
   "rsi_history_path": "state/client/cognition/adaptive/rsi/receipts.jsonl",
   "paths": {

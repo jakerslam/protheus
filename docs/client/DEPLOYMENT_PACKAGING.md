@@ -10,7 +10,7 @@ This repository now ships a first-class packaging layer for containerized operat
 The packaging gate is machine-checked by:
 
 ```bash
-node client/runtime/systems/ops/deployment_packaging.js run --profile=prod --strict=1
+node client/runtime/systems/ops/deployment_packaging.ts run --profile=prod --strict=1
 ```
 
 ## Docker

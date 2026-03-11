@@ -4,6 +4,6 @@
 
 // Layer ownership: core/layer3/cognition + core/layer0/ops::legacy-retired-lane (authoritative)
 // TypeScript compatibility shim only.
-const mod = require('./system3_meta_curriculum_bridge.js');
+const mod = require('./system3_meta_curriculum_bridge.ts');
 if (require.main === module) mod.run(process.argv.slice(2));
 module.exports = mod;

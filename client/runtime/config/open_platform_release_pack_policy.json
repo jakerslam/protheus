@@ -21,8 +21,8 @@
     "reproducibility_evidence_attached"
   ],
   "scripts": {
-    "compatibility_script": "client/runtime/systems/ops/compatibility_conformance_program.js",
-    "receipt_summary_script": "client/runtime/systems/autonomy/receipt_summary.js",
+    "compatibility_script": "client/runtime/systems/ops/compatibility_conformance_program.ts",
+    "receipt_summary_script": "client/runtime/systems/autonomy/receipt_summary.ts",
     "receipt_summary_days": 7
   },
   "paths": {

@@ -14,4 +14,4 @@ Version: 1.0
 
 ## Conformance Result
 - Integrations may generate signed conformance badge artifacts via:
-  - `node client/runtime/systems/ops/compatibility_conformance_program.js run --integration=<id>`
+  - `node client/runtime/systems/ops/compatibility_conformance_program.ts run --integration=<id>`

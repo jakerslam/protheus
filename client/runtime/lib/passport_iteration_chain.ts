@@ -7,13 +7,24 @@ const path = require('path');
 const {
   sha256Hex,
   stableStringify
-} = require('./integrity_hash_utility');
+} = require('./integrity_hash_utility.ts');
 
 let passportModule = null;
-try {
-  passportModule = require('../systems/security/agent_passport.js');
-} catch {
-  passportModule = null;
+{
+  const passportCandidates = [
+    '../systems/security/agent_passport.ts',
+    '../systems/security/passport_action_ledger.ts'
+  ];
+  for (const candidate of passportCandidates) {
+    const resolved = path.resolve(__dirname, candidate);
+    if (!fs.existsSync(resolved)) continue;
+    try {
+      passportModule = require(resolved);
+      break;
+    } catch {
+      passportModule = null;
+    }
+  }
 }
 
 type AnyObj = Record<string, any>;

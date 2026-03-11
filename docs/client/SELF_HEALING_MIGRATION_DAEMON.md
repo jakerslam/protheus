@@ -13,10 +13,10 @@
 
 ```bash
 # Detect only
-node client/runtime/systems/migration/self_healing_migration_daemon.js scan --workspace=. --strict=0
+node client/runtime/systems/migration/self_healing_migration_daemon.ts scan --workspace=. --strict=0
 
 # Consent-gated upgrade (invokes core migration bridge)
-node client/runtime/systems/migration/self_healing_migration_daemon.js upgrade \
+node client/runtime/systems/migration/self_healing_migration_daemon.ts upgrade \
   --workspace=. \
   --to=acme/protheus-core \
   --workspace-target=../protheus-core \

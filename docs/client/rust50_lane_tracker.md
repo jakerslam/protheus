@@ -99,15 +99,15 @@ Persistent lane-by-lane migration log so progress is preserved outside chat cont
 - `client/runtime/systems/memory/rust/src/client/cli/bin/rust_memory_transition_lane.rs` (legacy bridge fallback removed)
 
 ### JS Wrappers Cut Over To Native Rust Exports
-- `client/runtime/systems/autonomy/health_status.js`
-- `client/runtime/systems/workflow/workflow_executor.js`
-- `client/runtime/systems/autonomy/autonomy_controller.js`
-- `client/runtime/systems/autonomy/inversion_controller.js`
-- `client/runtime/systems/autonomy/proposal_enricher.js`
-- `client/runtime/systems/personas/cli.js`
-- `client/runtime/systems/ops/state_kernel.js`
-- `client/runtime/systems/routing/model_router.js`
-- `client/runtime/systems/autonomy/strategy_mode_governor.js`
+- `client/runtime/systems/autonomy/health_status.ts`
+- `client/runtime/systems/workflow/workflow_executor.ts`
+- `client/runtime/systems/autonomy/autonomy_controller.ts`
+- `client/runtime/systems/autonomy/inversion_controller.ts`
+- `client/runtime/systems/autonomy/proposal_enricher.ts`
+- `client/runtime/systems/personas/cli.ts`
+- `client/runtime/systems/ops/state_kernel.ts`
+- `client/runtime/systems/routing/model_router.ts`
+- `client/runtime/systems/autonomy/strategy_mode_governor.ts`
 
 ## Completed In This Continuation (Top-100 Wrapper Source Cutover)
 - Timestamp: 2026-03-05 14:05 

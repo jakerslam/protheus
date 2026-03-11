@@ -6,7 +6,7 @@ The primitive catalog is the mandatory execution grammar contract.
 
 - `client/runtime/config/primitive_catalog.json`
 - `client/runtime/config/primitive_migration_contract.json`
-- `client/runtime/systems/ops/foundation_contract_gate.js` (strict enforcement)
+- `client/runtime/systems/ops/foundation_contract_gate.ts` (strict enforcement)
 
 ## Enforced Invariants
 

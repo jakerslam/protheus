@@ -6,10 +6,10 @@
     "client/runtime/config/agent_routing_rules.json",
     "client/runtime/config/strategies/default.json",
     "client/runtime/systems/security/guard.ts",
-    "client/runtime/systems/security/integrity_kernel.js",
-    "client/runtime/systems/security/policy_rootd.js",
+    "client/runtime/systems/security/integrity_kernel.ts",
+    "client/runtime/systems/security/policy_rootd.ts",
     "client/runtime/systems/security/capability_lease.ts",
-    "client/runtime/systems/spine/spine.js",
-    "client/runtime/systems/autonomy/autonomy_controller.js"
+    "client/runtime/systems/spine/spine.ts",
+    "client/runtime/systems/autonomy/autonomy_controller.ts"
   ]
 }

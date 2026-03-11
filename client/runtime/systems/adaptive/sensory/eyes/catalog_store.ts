@@ -1,14 +1,14 @@
 'use strict';
 
 const path = require('path');
-const { stableUid, randomUid, isAlnum } = require('../../../lib/uid');
+const { stableUid, randomUid, isAlnum } = require('../../../../lib/uid.ts');
 const {
   ADAPTIVE_ROOT,
   readJson,
   ensureJson,
   setJson,
   mutateJson
-} = require('../../core/layer_store');
+} = require('../../core/layer_store.ts');
 
 const DEFAULT_REL_PATH = 'sensory/eyes/catalog.json';
 const DEFAULT_ABS_PATH = path.join(ADAPTIVE_ROOT, DEFAULT_REL_PATH);

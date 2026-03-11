@@ -12,11 +12,11 @@ Applied workflows are stored in:
 - `state/client/cognition/adaptive/workflows/registry.json`
 
 Controllers:
-- `node client/runtime/systems/workflow/workflow_generator.js run [YYYY-MM-DD]`
+- `node client/runtime/systems/workflow/workflow_generator.ts run [YYYY-MM-DD]`
 - `node client/runtime/systems/workflow/orchestron_controller.ts run [YYYY-MM-DD] --apply=1` (preferred entrypoint)
-- `node client/runtime/systems/workflow/workflow_controller.js run [YYYY-MM-DD] --apply=1` (legacy-compatible)
-- `node client/runtime/systems/workflow/orchestron/adaptive_controller.js run [YYYY-MM-DD] --intent="..."` (intent -> candidates -> nursery scorecards)
-- `node client/runtime/systems/workflow/orchestron/adaptive_controller.js run [YYYY-MM-DD] --value-currency=delivery --objective-id=<id>` (override adaptive value-currency context)
+- `node client/runtime/systems/workflow/workflow_controller.ts run [YYYY-MM-DD] --apply=1` (legacy-compatible)
+- `node client/runtime/systems/workflow/orchestron/adaptive_controller.ts run [YYYY-MM-DD] --intent="..."` (intent -> candidates -> nursery scorecards)
+- `node client/runtime/systems/workflow/orchestron/adaptive_controller.ts run [YYYY-MM-DD] --value-currency=delivery --objective-id=<id>` (override adaptive value-currency context)
 
 Orchestron integration defaults to shadow mode in `client/runtime/config/orchestron_policy.json`:
 - `--orchestron=1` keeps candidate generation active

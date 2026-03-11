@@ -9,10 +9,10 @@
 ## Commands
 
 ```bash
-node client/runtime/systems/workflow/client_relationship_manager.js case-open --client-id=client_a --channel=email --tier=standard
-node client/runtime/systems/workflow/client_relationship_manager.js event --case-id=client_a_case --type=negotiation --handled-by=auto --workflow-id=wf_123
-node client/runtime/systems/workflow/client_relationship_manager.js evaluate --days=30 --strict=1
-node client/runtime/systems/workflow/client_relationship_manager.js status --days=30
+node client/runtime/systems/workflow/client_relationship_manager.ts case-open --client-id=client_a --channel=email --tier=standard
+node client/runtime/systems/workflow/client_relationship_manager.ts event --case-id=client_a_case --type=negotiation --handled-by=auto --workflow-id=wf_123
+node client/runtime/systems/workflow/client_relationship_manager.ts evaluate --days=30 --strict=1
+node client/runtime/systems/workflow/client_relationship_manager.ts status --days=30
 ```
 
 ## Governance

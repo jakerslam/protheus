@@ -12,9 +12,9 @@
     "stream": "executive.system3_curriculum"
   },
   "scripts": {
-    "system3": "client/cognition/adaptive/executive/system3_executive_layer.js",
-    "strategy_learner": "client/runtime/systems/strategy/strategy_learner.js",
-    "model_catalog": "client/runtime/systems/autonomy/model_catalog_loop.js"
+    "system3": "client/cognition/adaptive/executive/system3_executive_layer.ts",
+    "strategy_learner": "client/runtime/systems/strategy/strategy_learner.ts",
+    "model_catalog": "client/runtime/systems/autonomy/model_catalog_loop.ts"
   },
   "paths": {
     "memory_dir": "client/memory/executive/system3_meta_curriculum_bridge",

@@ -3,8 +3,8 @@
 ## One-command install
 
 ```bash
-node client/runtime/systems/security/operator_terms_ack.js accept --operator-id=<id> --approval-note="initial_acceptance"
-node client/runtime/systems/ops/personal_protheus_installer.js install
+node client/runtime/systems/security/operator_terms_ack.ts accept --operator-id=<id> --approval-note="initial_acceptance"
+node client/runtime/systems/ops/personal_protheus_installer.ts install
 ```
 
 This writes:
@@ -14,13 +14,13 @@ This writes:
 ## Verify
 
 ```bash
-node client/runtime/systems/ops/personal_protheus_installer.js status
+node client/runtime/systems/ops/personal_protheus_installer.ts status
 ```
 
 ## Recommended startup
 
 ```bash
-node client/runtime/systems/spine/spine.js daily
+node client/runtime/systems/spine/spine.ts daily
 ```
 
 Start in `score_only` execution mode until readiness/guard checks are healthy.

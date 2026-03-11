@@ -2,7 +2,7 @@
 'use strict';
 
 const path = require('path');
-const { createOpsLaneBridge } = require('./rust_lane_bridge');
+const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
 
 function mapArgs(args = [], laneId) {
   const cmd = String((Array.isArray(args) && args[0]) || '').trim().toLowerCase();

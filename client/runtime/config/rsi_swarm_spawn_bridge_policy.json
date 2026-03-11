@@ -8,10 +8,10 @@
     "stream": "spawn.rsi_swarm_bridge"
   },
   "requested_cells": 1,
-  "seed_lineage_script": "client/runtime/systems/spawn/seed_spawn_lineage.js",
-  "nursery_script": "client/runtime/systems/nursery/nursery_bootstrap.js",
-  "spawn_broker_script": "client/runtime/systems/spawn/spawn_broker.js",
-  "provenance_gate_script": "client/runtime/systems/security/supply_chain_provenance_gate.js",
+  "seed_lineage_script": "client/runtime/systems/spawn/seed_spawn_lineage.ts",
+  "nursery_script": "client/runtime/systems/nursery/nursery_bootstrap.ts",
+  "spawn_broker_script": "client/runtime/systems/spawn/spawn_broker.ts",
+  "provenance_gate_script": "client/runtime/systems/security/supply_chain_provenance_gate.ts",
   "paths": {
     "memory_dir": "client/memory/spawn/rsi_swarm_spawn_bridge",
     "adaptive_index_path": "client/cognition/adaptive/spawn/rsi_swarm_spawn_bridge/index.json",
