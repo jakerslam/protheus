@@ -42,7 +42,7 @@
     "sleep_reflection": "client/runtime/systems/memory/sleep_reflection_scheduler.ts",
     "hierarchical_memory": "client/runtime/systems/memory/hierarchical_memory_view_plane.ts",
     "agentic_memory": "client/runtime/systems/memory/agentic_memory_operation_controller.ts",
-    "mcp_gateway": "client/cognition/skills/mcp/mcp_gateway.ts",
+    "mcp_gateway": "adapters/cognition/skills/mcp/mcp_gateway.ts",
     "a2a_delegation": "client/runtime/systems/a2a/a2a_delegation_plane.ts",
     "gated_self_improvement": "client/runtime/systems/autonomy/gated_self_improvement_loop.ts",
     "red_team_harness": "client/runtime/systems/autonomy/red_team_harness.ts",
