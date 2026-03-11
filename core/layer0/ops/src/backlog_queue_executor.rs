@@ -248,6 +248,49 @@ fn run_npm_script(root: &Path, script: &str) -> Value {
     }
 }
 
+fn run_dynamic_legacy_lane(root: &Path, id: &str) -> Value {
+    let adapter = root
+        .join("client")
+        .join("runtime")
+        .join("systems")
+        .join("compat")
+        .join("legacy_alias_adapter.ts");
+    if !adapter.exists() {
+        return json!({
+            "ok": false,
+            "status": -1,
+            "stdout": "",
+            "stderr": "dynamic_legacy_adapter_missing"
+        });
+    }
+    let output = Command::new("node")
+        .arg(adapter)
+        .arg("run")
+        .arg(format!("--lane-id={id}"))
+        .current_dir(root)
+        .output();
+    match output {
+        Ok(out) => {
+            let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+            json!({
+                "ok": out.status.success(),
+                "status": out.status.code().unwrap_or(-1),
+                "stdout": clean(&stdout, 4000),
+                "stderr": clean(&stderr, 4000),
+                "route": "dynamic_legacy_adapter"
+            })
+        }
+        Err(err) => json!({
+            "ok": false,
+            "status": -1,
+            "stdout": "",
+            "stderr": clean(&format!("spawn_failed:{err}"), 4000),
+            "route": "dynamic_legacy_adapter"
+        }),
+    }
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
     let command = parsed
@@ -331,7 +374,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         let test_cmd = scripts.get(&test_script).and_then(|v| v.as_str()).unwrap_or("");
         let mut test_exists = !test_cmd.is_empty();
 
-        if !lane_exists {
+        let use_dynamic_lane = !lane_exists;
+        if use_dynamic_lane && !root
+            .join("client")
+            .join("runtime")
+            .join("systems")
+            .join("compat")
+            .join("legacy_alias_adapter.ts")
+            .exists()
+        {
             skipped += 1;
             rows.push(json!({
                 "id": id,
@@ -342,22 +393,24 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             continue;
         }
 
-        let mut lane_seen = std::collections::HashSet::new();
-        if let Some(missing_entry) =
-            detect_missing_entrypoint_for_script(root, &scripts, &lane_script, 0, &mut lane_seen)
-        {
-            skipped += 1;
-            rows.push(json!({
-                "id": id,
-                "lane_script": lane_script,
-                "status": "skipped",
-                "reason": "lane_entrypoint_missing",
-                "missing_entrypoint": missing_entry
-            }));
-            continue;
+        if !use_dynamic_lane {
+            let mut lane_seen = std::collections::HashSet::new();
+            if let Some(missing_entry) =
+                detect_missing_entrypoint_for_script(root, &scripts, &lane_script, 0, &mut lane_seen)
+            {
+                skipped += 1;
+                rows.push(json!({
+                    "id": id,
+                    "lane_script": lane_script,
+                    "status": "skipped",
+                    "reason": "lane_entrypoint_missing",
+                    "missing_entrypoint": missing_entry
+                }));
+                continue;
+            }
         }
         let mut test_skip_reason = Value::Null;
-        if test_exists {
+        if test_exists && !use_dynamic_lane {
             let mut test_seen = std::collections::HashSet::new();
             if let Some(missing_test_entry) =
                 detect_missing_entrypoint_for_script(root, &scripts, &test_script, 0, &mut test_seen)
@@ -374,22 +427,27 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             skipped += 1;
             rows.push(json!({
                 "id": id,
-                "lane_script": lane_script,
-                "test_script": if test_exists { Value::String(test_script.clone()) } else { Value::Null },
+                "lane_script": if use_dynamic_lane { Value::String(format!("dynamic:legacy_alias_adapter:{id}")) } else { Value::String(lane_script.clone()) },
+                "test_script": if test_exists && !use_dynamic_lane { Value::String(test_script.clone()) } else { Value::Null },
                 "status": "planned",
+                "lane_route": if use_dynamic_lane { "dynamic_legacy_adapter" } else { "npm_script" },
                 "test_skip_reason": test_skip_reason
             }));
             continue;
         }
 
-        let lane_result = run_npm_script(root, &lane_script);
+        let lane_result = if use_dynamic_lane {
+            run_dynamic_legacy_lane(root, id)
+        } else {
+            run_npm_script(root, &lane_script)
+        };
         let mut test_result = Value::Null;
         let lane_ok = lane_result
             .get("ok")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
         let mut test_ok = true;
-        if with_tests && test_exists && lane_ok {
+        if with_tests && test_exists && lane_ok && !use_dynamic_lane {
             test_result = run_npm_script(root, &test_script);
             test_ok = test_result
                 .get("ok")
@@ -401,9 +459,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             executed += 1;
             rows.push(json!({
                 "id": id,
-                "lane_script": lane_script,
-                "test_script": if test_exists { Value::String(test_script.clone()) } else { Value::Null },
+                "lane_script": if use_dynamic_lane { Value::String(format!("dynamic:legacy_alias_adapter:{id}")) } else { Value::String(lane_script.clone()) },
+                "test_script": if test_exists && !use_dynamic_lane { Value::String(test_script.clone()) } else { Value::Null },
                 "status": "executed",
+                "lane_route": if use_dynamic_lane { "dynamic_legacy_adapter" } else { "npm_script" },
                 "test_skip_reason": test_skip_reason,
                 "lane_result": lane_result,
                 "test_result": test_result
@@ -412,9 +471,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             failed += 1;
             rows.push(json!({
                 "id": id,
-                "lane_script": lane_script,
-                "test_script": if test_exists { Value::String(test_script.clone()) } else { Value::Null },
+                "lane_script": if use_dynamic_lane { Value::String(format!("dynamic:legacy_alias_adapter:{id}")) } else { Value::String(lane_script.clone()) },
+                "test_script": if test_exists && !use_dynamic_lane { Value::String(test_script.clone()) } else { Value::Null },
                 "status": "failed",
+                "lane_route": if use_dynamic_lane { "dynamic_legacy_adapter" } else { "npm_script" },
                 "test_skip_reason": test_skip_reason,
                 "lane_result": lane_result,
                 "test_result": test_result

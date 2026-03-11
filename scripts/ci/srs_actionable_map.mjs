@@ -97,6 +97,10 @@ function laneNameForId(id) {
   return `lane:${id.toLowerCase().replace(/_/g, '-')}:run`;
 }
 
+function hasDynamicLegacyFallback() {
+  return existsSync('client/runtime/systems/compat/legacy_alias_adapter.ts');
+}
+
 function classify(row, scripts) {
   if (row.status === 'blocked') {
     return {
@@ -123,6 +127,16 @@ function classify(row, scripts) {
   const laneScript = laneNameForId(row.id);
   const hasLaneScript = Object.prototype.hasOwnProperty.call(scripts, laneScript);
   if (!hasLaneScript) {
+    if (hasDynamicLegacyFallback()) {
+      return {
+        todoBucket: 'execute_now',
+        hasLaneScript: false,
+        laneRunnable: true,
+        laneScript: `dynamic:legacy_alias_adapter:${row.id}`,
+        missingEntrypoint: null,
+        unblock: '',
+      };
+    }
     return {
       todoBucket: 'design_required',
       hasLaneScript,
