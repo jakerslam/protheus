@@ -28,7 +28,7 @@ Standardize repo policy boundaries first, then shrink client surface to true DX/
 ## Backlog snapshot
 - Source: `docs/workspace/SRS.md` + `client/runtime/config/backlog_registry.json`
 - Artifact: `artifacts/backlog_actionable_report_current.json`
-- Counts: `actionable=692`, `queued=690`, `in_progress=2`, `blocked=42`, `done=2229`
+- Counts: `actionable=773`, `queued=690`, `in_progress=83`, `blocked=42`, `done=2148`
 
 ## Executed first (policy enforcement)
 
@@ -148,6 +148,8 @@ Standardize repo policy boundaries first, then shrink client surface to true DX/
 - Dependency: `P2-SRS-001`
 - Target outcome:
 - No SRS execution merges without deterministic regression evidence.
+- Current evidence:
+- Full sweep artifact `artifacts/srs_full_regression_current.json` + `docs/workspace/SRS_FULL_REGRESSION_CURRENT.md` generated from all SRS rows (`1998`) with fail-class regressions closed (`fail=0`, `warn=27`, `pass=1971` in the latest sweep).
 
 16. `P3-BLOCKED-001` External/human-gated items. `STATUS: BLOCKED`
 - Examples:
