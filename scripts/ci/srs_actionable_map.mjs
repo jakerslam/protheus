@@ -22,7 +22,9 @@ function parseSrsRows(markdown) {
       continue;
     }
     if (!line.startsWith('|')) continue;
-    const statusMatch = line.match(/^\|\s*(V[^|]+?)\s*\|\s*(queued|in_progress|blocked|done)\s*\|/i);
+    const statusMatch = line.match(
+      /^\|\s*(V[^|]+?)\s*\|\s*(queued|in_progress|blocked|done|existing-coverage-validated)\s*\|/i,
+    );
     if (!statusMatch) continue;
     const id = statusMatch[1].trim();
     const status = statusMatch[2].toLowerCase();
@@ -173,6 +175,7 @@ function toMarkdown(summary, rows) {
   lines.push(`- queued: ${summary.queued}`);
   lines.push(`- in_progress: ${summary.in_progress}`);
   lines.push(`- blocked: ${summary.blocked}`);
+  lines.push(`- existing_coverage_validated: ${summary.existing_coverage_validated}`);
   lines.push(`- execute_now: ${summary.execute_now}`);
   lines.push(`- repair_lane: ${summary.repair_lane}`);
   lines.push(`- design_required: ${summary.design_required}`);
@@ -203,6 +206,7 @@ function main() {
     queued: rows.filter((r) => r.status === 'queued').length,
     in_progress: rows.filter((r) => r.status === 'in_progress').length,
     blocked: rows.filter((r) => r.status === 'blocked').length,
+    existing_coverage_validated: srs.filter((r) => r.status === 'existing-coverage-validated').length,
     execute_now: rows.filter((r) => r.todoBucket === 'execute_now').length,
     repair_lane: rows.filter((r) => r.todoBucket === 'repair_lane').length,
     design_required: rows.filter((r) => r.todoBucket === 'design_required').length,
