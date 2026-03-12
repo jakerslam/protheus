@@ -1,39 +1,11 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-
-const REQUIRED_IDS = [
-  'V7-META-016',
-  'V7-META-017',
-  'V7-META-018',
-  'V7-TOP1-009',
-  'V7-TOP1-010',
-  'V6-SUBSTRATE-002.4',
-  'V6-F100-022',
-  'V6-F100-023',
-  'V6-F100-024',
-  'V6-F100-025',
-  'V6-F100-034',
-  'V6-F100-043',
-  'V6-F100-044',
-  'V6-F100-045',
-  'V6-F100-A-008',
-  'V6-F100-A-009',
-  'V6-F100-A-010',
-  'V6-F100-A-011',
-  'V6-EDGE-005',
-  'V6-COMP-005',
-  'V6-SBOX-006',
-  'V6-FLUX-007',
-  'V6-TOOLS-005',
-  'V6-PAY-007',
-  'V2-012',
-  'V6-RUST50-CONF-004',
-  'V6-GAP-006',
-];
+import { readdirSync } from 'node:fs';
+import { resolve, dirname, join } from 'node:path';
 
 const SRS_PATH = resolve('docs/workspace/SRS.md');
+const PLAN_PATH = resolve('artifacts/blocked_external_unblock_plan_current.json');
 const EVIDENCE_PATH = resolve('artifacts/blocked_external_evidence_status_current.json');
 const OUT_JSON = resolve('artifacts/blocked_external_packet_gate_current.json');
 const OUT_MD = resolve('docs/workspace/BLOCKED_EXTERNAL_PACKET_GATE_CURRENT.md');
@@ -47,32 +19,53 @@ function parseSrsStatuses(markdown) {
     const id = m[1].trim();
     const status = m[2].trim();
     if (!id.startsWith('V')) continue;
-    if (!map.has(id)) map.set(id, status);
+    if (!map.has(id)) map.set(id, new Set());
+    map.get(id).add(status);
   }
   return map;
 }
 
+function latestPacketPathFor(id) {
+  const dir = resolve(`evidence/external/${id}`);
+  if (!existsSync(dir)) return null;
+  const packets = readdirSync(dir)
+    .filter((name) => /^external_execution_packet_.*\.md$/i.test(name))
+    .sort();
+  if (packets.length === 0) return null;
+  return resolve(join(dir, packets[packets.length - 1]));
+}
+
 function main() {
+  const plan = JSON.parse(readFileSync(PLAN_PATH, 'utf8'));
+  const requiredIds = [...new Set((plan.rows ?? []).map((r) => r.id).filter(Boolean))].sort();
   const srs = readFileSync(SRS_PATH, 'utf8');
   const statuses = parseSrsStatuses(srs);
   const evidence = JSON.parse(readFileSync(EVIDENCE_PATH, 'utf8'));
   const evidenceById = new Map((evidence.rows ?? []).map((r) => [r.id, r]));
 
-  const rows = REQUIRED_IDS.map((id) => {
+  const rows = requiredIds.map((id) => {
     const evidenceRow = evidenceById.get(id);
-    const packet = resolve(`evidence/external/${id}/external_execution_packet_2026-03-12.md`);
+    const packet = latestPacketPathFor(id);
     const manifest = resolve(`evidence/external/${id}/packet_manifest.json`);
-    const status = statuses.get(id) ?? 'missing';
+    const statusSet = statuses.get(id) ?? new Set();
+    const statusList = [...statusSet];
+    const status = statusList.join(',');
+    const hasPreparedStatus = statusSet.has('blocked_external_prepared');
+    const hasConflictingStatuses = statusSet.size > 1;
     const evidenceStatus = evidenceRow?.evidenceStatus ?? 'missing';
     const ok =
-      status === 'existing-coverage-validated' &&
-      evidenceStatus === 'ready_for_reconcile' &&
-      existsSync(packet) &&
+      hasPreparedStatus &&
+      !hasConflictingStatuses &&
+      ['partial_missing_external_proof', 'ready_for_reconcile'].includes(evidenceStatus) &&
+      Boolean(packet) &&
       existsSync(manifest);
     const issues = [];
-    if (status !== 'existing-coverage-validated') issues.push(`status=${status}`);
-    if (evidenceStatus !== 'ready_for_reconcile') issues.push(`evidence=${evidenceStatus}`);
-    if (!existsSync(packet)) issues.push('packet_missing');
+    if (!hasPreparedStatus) issues.push(`status=${status || 'missing'}`);
+    if (hasConflictingStatuses) issues.push(`status_conflict=${status}`);
+    if (!['partial_missing_external_proof', 'ready_for_reconcile'].includes(evidenceStatus)) {
+      issues.push(`evidence=${evidenceStatus}`);
+    }
+    if (!packet) issues.push('packet_missing');
     if (!existsSync(manifest)) issues.push('manifest_missing');
     return { id, status, evidenceStatus, packet, manifest, ok, issues };
   });

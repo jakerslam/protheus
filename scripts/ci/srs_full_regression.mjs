@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -183,9 +183,23 @@ function commandResolution(commandsById, packageScripts) {
   return out;
 }
 
+function hasExternalPreparedPacket(id) {
+  const dir = resolve('evidence/external', id);
+  if (!existsSync(dir)) return false;
+  const files = readdirSync(dir);
+  const hasReadme = files.includes('README.md');
+  const hasManifest = files.includes('packet_manifest.json');
+  const hasPacket = files.some((name) => /^external_execution_packet_.*\.md$/i.test(name));
+  return hasReadme && hasManifest && hasPacket;
+}
+
 function regressionSummary(item, cmdAudit, todoUnchecked) {
   const findings = [];
-  if (!['queued', 'in_progress', 'blocked', 'done', 'existing-coverage-validated'].includes(item.status)) {
+  if (
+    !['queued', 'in_progress', 'blocked', 'blocked_external_prepared', 'done', 'existing-coverage-validated'].includes(
+      item.status,
+    )
+  ) {
     findings.push('invalid_status_value');
   }
   if (!/^\d+$/.test(item.impact || '')) {
@@ -209,6 +223,9 @@ function regressionSummary(item, cmdAudit, todoUnchecked) {
   if (item.status === 'in_progress' && item.nonBacklogEvidenceCount === 0 && item.evidenceCount === 0) {
     findings.push('in_progress_without_evidence');
   }
+  if (item.status === 'blocked_external_prepared' && !item.externalPreparedPacket) {
+    findings.push('blocked_external_prepared_without_packet');
+  }
   if (item.status === 'done' && todoUnchecked) {
     findings.push('todo_conflicts_done_status');
   }
@@ -230,7 +247,8 @@ function regressionSummary(item, cmdAudit, todoUnchecked) {
     findings.includes('done_without_non_backlog_evidence') ||
     findings.includes('done_without_code_or_test_evidence') ||
     findings.includes('coverage_without_non_backlog_evidence') ||
-    findings.includes('coverage_without_code_or_test_evidence')
+    findings.includes('coverage_without_code_or_test_evidence') ||
+    findings.includes('blocked_external_prepared_without_packet')
   ) {
     severity = 'fail';
   }
@@ -292,6 +310,7 @@ function main() {
       todoUnchecked: todoUnchecked.has(row.id),
       validationCommandsResolved: cmdAudit.resolved.length,
       validationCommandsUnresolved: cmdAudit.unresolved,
+      externalPreparedPacket: hasExternalPreparedPacket(row.id),
     };
     item.regression = regressionSummary(item, cmdAudit, todoUnchecked.has(row.id));
     return item;
