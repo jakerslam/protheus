@@ -7,6 +7,9 @@ Client-side namespace marker only. Red Legion command authority is core-owned.
 - `protheus session register --session-id=<id> [--lineage-id=<id>] [--task=<text>]`
 - `protheus session resume <id>`
 - `protheus session send <id> --message=<text>`
+- `protheus session kill <id>`
+- `protheus session tail <id> [--lines=<n>]`
+- `protheus session inspect <id>`
 - `protheus-ops command-center-session status [--session-id=<id>]`
 
 Do not add authoritative roster, mission, or session-control logic under `client/runtime/systems/red_legion/`.

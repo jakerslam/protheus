@@ -1,13 +1,13 @@
 # SRS Actionable Map (Current)
 
-Generated: 2026-03-12T04:43:10.941Z
+Generated: 2026-03-12T04:51:01.367Z
 
 ## Summary
-- actionable_total: 175
+- actionable_total: 170
 - queued: 0
-- in_progress: 148
+- in_progress: 143
 - blocked: 27
-- execute_now: 148
+- execute_now: 143
 - repair_lane: 0
 - design_required: 0
 - blocked_external: 27
@@ -113,12 +113,7 @@ Generated: 2026-03-12T04:43:10.941Z
 | V6-OBSERVABILITY-004.8 | in_progress | execute_now | 8 | 0/1/2/client | lane:v6-observability-004.8:run | yes |  | Local Policy Enforcement & Hash-Chained Audit Trail Source Coverage Addendum (Doc `1jXTbAvxCT7NgxuGi4620HJT0zrfqW8mfYJE4jjDzP5s`, 2026-03-11) |
 | V6-OBSERVABILITY-004.9 | in_progress | execute_now | 7 | 1/2/client/app | lane:v6-observability-004.9:run | yes |  | Local Policy Enforcement & Hash-Chained Audit Trail Source Coverage Addendum (Doc `1jXTbAvxCT7NgxuGi4620HJT0zrfqW8mfYJE4jjDzP5s`, 2026-03-11) |
 | V6-OBSERVABILITY-004.10 | in_progress | execute_now | 10 | 0/1/2/client/app | lane:v6-observability-004.10:run | yes |  | Local Policy Enforcement & Hash-Chained Audit Trail Source Coverage Addendum (Doc `1jXTbAvxCT7NgxuGi4620HJT0zrfqW8mfYJE4jjDzP5s`, 2026-03-11) |
-| V6-COCKPIT-025.1 | in_progress | execute_now | 8 | 0/1/2/client | lane:v6-cockpit-025.1:run | yes |  | Agent Command Center CLI with Resumable Sessions & Live Steering Source Coverage Intake (Doc `1NmUDaVaWU3DEJV2cUpqoT33k1fQptNSWJf96u0GwoFU`, 2026-03-11) |
-| V6-COCKPIT-025.2 | in_progress | execute_now | 10 | 0/1/2/client | lane:v6-cockpit-025.2:run | yes |  | Agent Command Center CLI with Resumable Sessions & Live Steering Source Coverage Intake (Doc `1NmUDaVaWU3DEJV2cUpqoT33k1fQptNSWJf96u0GwoFU`, 2026-03-11) |
-| V6-COCKPIT-025.3 | in_progress | execute_now | 9 | 0/1/2/client | lane:v6-cockpit-025.3:run | yes |  | Agent Command Center CLI with Resumable Sessions & Live Steering Source Coverage Intake (Doc `1NmUDaVaWU3DEJV2cUpqoT33k1fQptNSWJf96u0GwoFU`, 2026-03-11) |
-| V6-COCKPIT-025.4 | in_progress | execute_now | 8 | 0/1/2 | lane:v6-cockpit-025.4:run | yes |  | Agent Command Center CLI with Resumable Sessions & Live Steering Source Coverage Intake (Doc `1NmUDaVaWU3DEJV2cUpqoT33k1fQptNSWJf96u0GwoFU`, 2026-03-11) |
 | V6-COCKPIT-025.5 | in_progress | execute_now | 8 | 1/2/client/app | lane:v6-cockpit-025.5:run | yes |  | Agent Command Center CLI with Resumable Sessions & Live Steering Source Coverage Intake (Doc `1NmUDaVaWU3DEJV2cUpqoT33k1fQptNSWJf96u0GwoFU`, 2026-03-11) |
-| V6-COCKPIT-025.6 | in_progress | execute_now | 10 | 0/1/2/client/app | lane:v6-cockpit-025.6:run | yes |  | Agent Command Center CLI with Resumable Sessions & Live Steering Source Coverage Intake (Doc `1NmUDaVaWU3DEJV2cUpqoT33k1fQptNSWJf96u0GwoFU`, 2026-03-11) |
 | V6-WORKFLOW-003.1 | in_progress | execute_now | 8 | 0/1/2/client/app | lane:v6-workflow-003.1:run | yes |  | PRD-to-Roadmap Autonomous Software Team Planner Source Coverage Intake (Doc `1z7TGqd7-fsYwiZY66xpxbnZTRQ-s1ZpSzEKuD-64VHc`, 2026-03-11) |
 | V6-WORKFLOW-003.2 | in_progress | execute_now | 9 | 0/1/2 | lane:v6-workflow-003.2:run | yes |  | PRD-to-Roadmap Autonomous Software Team Planner Source Coverage Intake (Doc `1z7TGqd7-fsYwiZY66xpxbnZTRQ-s1ZpSzEKuD-64VHc`, 2026-03-11) |
 | V6-WORKFLOW-003.3 | in_progress | execute_now | 8 | 1/2/client/app | lane:v6-workflow-003.3:run | yes |  | PRD-to-Roadmap Autonomous Software Team Planner Source Coverage Intake (Doc `1z7TGqd7-fsYwiZY66xpxbnZTRQ-s1ZpSzEKuD-64VHc`, 2026-03-11) |
