@@ -764,6 +764,56 @@ fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route> {
                 forward_stdin: false,
             })
         }
+        "skills"
+            if rest
+                .first()
+                .map(|v| v.trim().eq_ignore_ascii_case("enable"))
+                .unwrap_or(false) =>
+        {
+            let mode = rest
+                .get(1)
+                .cloned()
+                .unwrap_or_else(|| "perplexity-mode".to_string());
+            let mut args = vec!["skills-enable".to_string(), mode];
+            args.extend(rest.iter().skip(2).cloned());
+            Some(Route {
+                script_rel: "core://assimilation-controller".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
+        "skill"
+            if rest
+                .first()
+                .map(|v| v.trim().eq_ignore_ascii_case("create"))
+                .unwrap_or(false) =>
+        {
+            let mut args = vec!["skill-create".to_string()];
+            let mut forwarded = false;
+            for row in rest.iter().skip(1) {
+                if row.starts_with("--task=") {
+                    args.push(row.clone());
+                    forwarded = true;
+                }
+            }
+            if !forwarded {
+                let task = rest
+                    .iter()
+                    .skip(1)
+                    .filter(|row| !row.starts_with("--"))
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                if !task.trim().is_empty() {
+                    args.push(format!("--task={task}"));
+                }
+            }
+            Some(Route {
+                script_rel: "core://assimilation-controller".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
         _ => None,
     }
 }
@@ -1714,6 +1764,40 @@ mod tests {
         .expect("route");
         assert_eq!(route.script_rel, "core://llm-economy-organ");
         assert_eq!(route.args, vec!["enable", "all", "--apply=1"]);
+    }
+
+    #[test]
+    fn core_shortcut_routes_skills_enable_to_assimilation_controller() {
+        let route = resolve_core_shortcuts(
+            "skills",
+            &[
+                "enable".to_string(),
+                "perplexity-mode".to_string(),
+                "--apply=1".to_string(),
+            ],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://assimilation-controller");
+        assert_eq!(
+            route.args,
+            vec!["skills-enable", "perplexity-mode", "--apply=1"]
+        );
+    }
+
+    #[test]
+    fn core_shortcut_routes_skill_create_to_assimilation_controller() {
+        let route = resolve_core_shortcuts(
+            "skill",
+            &[
+                "create".to_string(),
+                "weekly".to_string(),
+                "growth".to_string(),
+                "report".to_string(),
+            ],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://assimilation-controller");
+        assert_eq!(route.args, vec!["skill-create", "--task=weekly growth report"]);
     }
 
     #[test]
