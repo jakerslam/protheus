@@ -13,3 +13,4 @@ Rules:
 Default apps:
 - `ad_factory/` — AI-powered video ad generation app scaffold.
 - `creator_outreach/` — autonomous creator discovery + outreach app scaffold.
+- `local-rag/` — one-command local RAG + stable memory library app scaffold.
