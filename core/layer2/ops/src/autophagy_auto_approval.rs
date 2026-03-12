@@ -138,9 +138,8 @@ fn write_json(path: &Path, value: &Value) -> Result<(), String> {
 fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
     ensure_parent(path)?;
     let mut existing = fs::read_to_string(path).unwrap_or_default();
-    existing.push_str(
-        &serde_json::to_string(value).map_err(|e| format!("encode_jsonl_failed:{e}"))?,
-    );
+    existing
+        .push_str(&serde_json::to_string(value).map_err(|e| format!("encode_jsonl_failed:{e}"))?);
     existing.push('\n');
     fs::write(path, existing).map_err(|e| format!("write_jsonl_failed:{e}"))
 }
@@ -215,26 +214,42 @@ fn load_policy(root: &Path, argv: &[String]) -> Policy {
 
     let state_path = resolve_path(
         root,
-        parse_flag(argv, "state-path")
-            .or_else(|| paths.get("state_path").and_then(Value::as_str).map(str::to_string)),
+        parse_flag(argv, "state-path").or_else(|| {
+            paths
+                .get("state_path")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        }),
         Path::new(DEFAULT_STATE_PATH),
     );
     let latest_path = resolve_path(
         root,
-        parse_flag(argv, "latest-path")
-            .or_else(|| paths.get("latest_path").and_then(Value::as_str).map(str::to_string)),
+        parse_flag(argv, "latest-path").or_else(|| {
+            paths
+                .get("latest_path")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        }),
         Path::new(DEFAULT_LATEST_PATH),
     );
     let receipts_path = resolve_path(
         root,
-        parse_flag(argv, "receipts-path")
-            .or_else(|| paths.get("receipts_path").and_then(Value::as_str).map(str::to_string)),
+        parse_flag(argv, "receipts-path").or_else(|| {
+            paths
+                .get("receipts_path")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        }),
         Path::new(DEFAULT_RECEIPTS_PATH),
     );
     let regrets_path = resolve_path(
         root,
-        parse_flag(argv, "regrets-path")
-            .or_else(|| paths.get("regrets_path").and_then(Value::as_str).map(str::to_string)),
+        parse_flag(argv, "regrets-path").or_else(|| {
+            paths
+                .get("regrets_path")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        }),
         Path::new(DEFAULT_REGRETS_PATH),
     );
 
@@ -519,7 +534,8 @@ fn evaluate_command(root: &Path, argv: &[String], policy: &Policy) -> Result<Val
     receipt["decision"] = Value::String(decision.to_string());
     receipt["eligible"] = Value::Bool(eligible);
     receipt["apply"] = Value::Bool(apply);
-    receipt["decision_reasons"] = Value::Array(reasons.iter().map(|v| Value::String(v.clone())).collect());
+    receipt["decision_reasons"] =
+        Value::Array(reasons.iter().map(|v| Value::String(v.clone())).collect());
     receipt["claim_evidence"] = json!([
         {
             "id": "confidence_gated_auto_approval",
@@ -569,7 +585,9 @@ fn rollback_from_state(
     drift: Option<f64>,
     yield_drop: Option<f64>,
 ) -> Result<Value, String> {
-    let object = state.as_object_mut().ok_or_else(|| "invalid_state_object".to_string())?;
+    let object = state
+        .as_object_mut()
+        .ok_or_else(|| "invalid_state_object".to_string())?;
     let pending_rows = array_from(object, "pending_commit");
     let pending = remove_entry(pending_rows, proposal_id)
         .ok_or_else(|| format!("proposal_not_pending:{proposal_id}"))?;

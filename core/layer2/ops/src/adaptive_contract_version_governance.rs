@@ -6,9 +6,12 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const DEFAULT_POLICY_REL: &str = "client/runtime/config/adaptive_contract_version_governance_policy.json";
-const DEFAULT_LATEST_REL: &str = "state/contracts/adaptive_contract_version_governance_closure/latest.json";
-const DEFAULT_HISTORY_REL: &str = "state/contracts/adaptive_contract_version_governance_closure/history.jsonl";
+const DEFAULT_POLICY_REL: &str =
+    "client/runtime/config/adaptive_contract_version_governance_policy.json";
+const DEFAULT_LATEST_REL: &str =
+    "state/contracts/adaptive_contract_version_governance_closure/latest.json";
+const DEFAULT_HISTORY_REL: &str =
+    "state/contracts/adaptive_contract_version_governance_closure/history.jsonl";
 
 fn print_json(value: &Value) {
     println!(
@@ -106,7 +109,8 @@ fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
         .append(true)
         .open(path)
         .map_err(|err| err.to_string())?;
-    file.write_all(line.as_bytes()).map_err(|err| err.to_string())
+    file.write_all(line.as_bytes())
+        .map_err(|err| err.to_string())
 }
 
 fn rel(root: &Path, path: &Path) -> String {
@@ -159,7 +163,11 @@ fn load_policy(root: &Path, argv: &[String]) -> Value {
 
 fn cmd_run(root: &Path, argv: &[String]) -> Result<Value, String> {
     let policy = load_policy(root, argv);
-    if !policy.get("enabled").and_then(Value::as_bool).unwrap_or(true) {
+    if !policy
+        .get("enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+    {
         let mut out = json!({
             "ok": true,
             "result": "disabled_by_policy",
@@ -181,7 +189,10 @@ fn cmd_run(root: &Path, argv: &[String]) -> Result<Value, String> {
             }
             let payload = read_json(&abs).unwrap_or_else(|| json!({}));
             let schema_id = clean_text(
-                payload.get("schema_id").and_then(Value::as_str).unwrap_or_default(),
+                payload
+                    .get("schema_id")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default(),
                 120,
             );
             let schema_version = clean_text(
@@ -217,22 +228,40 @@ fn cmd_run(root: &Path, argv: &[String]) -> Result<Value, String> {
         "policy_path": rel(root, Path::new(policy.get("policy_path").and_then(Value::as_str).unwrap_or_default())),
     });
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    let latest_path = PathBuf::from(policy.pointer("/outputs/latest_path").and_then(Value::as_str).unwrap_or(DEFAULT_LATEST_REL));
-    let history_path = PathBuf::from(policy.pointer("/outputs/history_path").and_then(Value::as_str).unwrap_or(DEFAULT_HISTORY_REL));
+    let latest_path = PathBuf::from(
+        policy
+            .pointer("/outputs/latest_path")
+            .and_then(Value::as_str)
+            .unwrap_or(DEFAULT_LATEST_REL),
+    );
+    let history_path = PathBuf::from(
+        policy
+            .pointer("/outputs/history_path")
+            .and_then(Value::as_str)
+            .unwrap_or(DEFAULT_HISTORY_REL),
+    );
     write_json_atomic(&latest_path, &out)?;
-    append_jsonl(&history_path, &json!({
-        "ts": out["ts"],
-        "type": out["type"],
-        "checked_count": out["checked_count"],
-        "blocker_count": out["blockers"].as_array().map(|rows| rows.len()).unwrap_or(0),
-        "ok": out["ok"],
-    }))?;
+    append_jsonl(
+        &history_path,
+        &json!({
+            "ts": out["ts"],
+            "type": out["type"],
+            "checked_count": out["checked_count"],
+            "blocker_count": out["blockers"].as_array().map(|rows| rows.len()).unwrap_or(0),
+            "ok": out["ok"],
+        }),
+    )?;
     Ok(out)
 }
 
 fn cmd_status(root: &Path, argv: &[String]) -> Value {
     let policy = load_policy(root, argv);
-    let latest_path = PathBuf::from(policy.pointer("/outputs/latest_path").and_then(Value::as_str).unwrap_or(DEFAULT_LATEST_REL));
+    let latest_path = PathBuf::from(
+        policy
+            .pointer("/outputs/latest_path")
+            .and_then(Value::as_str)
+            .unwrap_or(DEFAULT_LATEST_REL),
+    );
     let mut out = json!({
         "ok": true,
         "ts": now_iso(),
@@ -263,7 +292,11 @@ pub fn run(cli_root: &Path, argv: &[String]) -> i32 {
     };
     match result {
         Ok(payload) => {
-            let exit = if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) { 0 } else { 1 };
+            let exit = if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                0
+            } else {
+                1
+            };
             print_json(&payload);
             exit
         }

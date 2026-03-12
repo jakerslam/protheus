@@ -127,23 +127,16 @@ function classify(row, scripts) {
   const laneScript = laneNameForId(row.id);
   const hasLaneScript = Object.prototype.hasOwnProperty.call(scripts, laneScript);
   if (!hasLaneScript) {
-    if (hasDynamicLegacyFallback()) {
-      return {
-        todoBucket: 'execute_now',
-        hasLaneScript: false,
-        laneRunnable: true,
-        laneScript: `dynamic:legacy_alias_adapter:${row.id}`,
-        missingEntrypoint: null,
-        unblock: '',
-      };
-    }
+    const hasLegacyDynamic = hasDynamicLegacyFallback();
     return {
-      todoBucket: 'design_required',
+      todoBucket: hasLegacyDynamic ? 'repair_lane' : 'design_required',
       hasLaneScript,
       laneRunnable: false,
-      laneScript,
+      laneScript: hasLegacyDynamic ? `dynamic:legacy_alias_adapter:${row.id}` : laneScript,
       missingEntrypoint: null,
-      unblock: 'no executable lane script; requires implementation lane definition',
+      unblock: hasLegacyDynamic
+        ? 'legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests'
+        : 'no executable lane script; requires implementation lane definition',
     };
   }
 

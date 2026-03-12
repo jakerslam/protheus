@@ -390,7 +390,11 @@ fn enforce_command_center_boundary(cmd: &str, route: &Route) -> Result<(), Strin
     {
         return Err("red_legion_client_authority_forbidden".to_string());
     }
-    if cmd == "session" && !route.script_rel.starts_with("core://command-center-session") {
+    if cmd == "session"
+        && !route
+            .script_rel
+            .starts_with("core://command-center-session")
+    {
         return Err("session_route_must_be_core_authoritative".to_string());
     }
     Ok(())
