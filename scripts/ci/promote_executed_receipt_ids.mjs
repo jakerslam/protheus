@@ -5,6 +5,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const RECEIPT_PATH = process.argv[2] || 'client/local/state/ops/backlog_queue_executor/latest.json';
+const ALLOW_EXISTING_EVIDENCE = process.argv.includes('--allow-existing-evidence=1');
+const FULL_REGRESSION_PATH = 'artifacts/srs_full_regression_current.json';
 const TARGETS = ['docs/workspace/SRS.md', 'docs/workspace/UPGRADE_BACKLOG.md'];
 
 function parseJsonCandidate(text) {
@@ -74,6 +76,36 @@ function parseGitStatusPaths() {
     .filter(Boolean);
 }
 
+function loadFullRegressionRows() {
+  try {
+    const raw = JSON.parse(readFileSync(resolve(FULL_REGRESSION_PATH), 'utf8'));
+    return Array.isArray(raw.rows) ? raw.rows : [];
+  } catch {
+    return [];
+  }
+}
+
+function idsBackedByExistingEvidence(ids) {
+  const rows = loadFullRegressionRows();
+  const byId = new Map();
+  for (const row of rows) {
+    const id = String(row?.id || '').trim();
+    if (!id) continue;
+    byId.set(id, row);
+  }
+  const missing = [];
+  for (const id of ids) {
+    const row = byId.get(id);
+    const codeLike = Number(row?.codeLikeEvidenceCount || 0);
+    const nonBacklog = Number(row?.nonBacklogEvidenceCount || 0);
+    const severity = String(row?.severity || '').toLowerCase();
+    if (codeLike <= 0 || nonBacklog <= 0 || severity === 'fail') {
+      missing.push(id);
+    }
+  }
+  return { ok: missing.length === 0, missing };
+}
+
 function isCodeOrTestPath(p) {
   if (p === 'package.json') return true;
   if (p.startsWith('core/')) return true;
@@ -128,7 +160,7 @@ function main() {
   }
 
   const codeLikePaths = parseGitStatusPaths().filter(isCodeOrTestPath);
-  if (codeLikePaths.length === 0) {
+  if (codeLikePaths.length === 0 && !ALLOW_EXISTING_EVIDENCE) {
     console.log(
       JSON.stringify(
         {
@@ -138,6 +170,7 @@ function main() {
           receipt: RECEIPT_PATH,
           promotable_ids: promoted.size,
           rejected,
+          hint: 'rerun with --allow-existing-evidence=1 to use srs_full_regression evidence',
         },
         null,
         2,
@@ -145,6 +178,29 @@ function main() {
     );
     process.exitCode = 1;
     return;
+  }
+
+  if (codeLikePaths.length === 0 && ALLOW_EXISTING_EVIDENCE) {
+    const evidence = idsBackedByExistingEvidence(promoted);
+    if (!evidence.ok) {
+      console.log(
+        JSON.stringify(
+          {
+            ok: false,
+            type: 'promote_executed_receipt_ids',
+            reason: 'allow_existing_evidence_failed_for_some_ids',
+            receipt: RECEIPT_PATH,
+            promotable_ids: promoted.size,
+            missing_evidence_ids: evidence.missing,
+            rejected,
+          },
+          null,
+          2,
+        ),
+      );
+      process.exitCode = 1;
+      return;
+    }
   }
 
   const changes = [];
@@ -167,6 +223,7 @@ function main() {
           executed_ids: promoted.size,
           rejected,
           code_like_paths: codeLikePaths,
+          existing_evidence_mode: ALLOW_EXISTING_EVIDENCE && codeLikePaths.length === 0,
           changes,
         },
         null,
