@@ -129,10 +129,7 @@ fn validate(input: &Value) -> Value {
         out["proof_ref"].as_str().unwrap_or_default(),
         validated_gpu_hours
     );
-    out["validation_id"] = Value::String(format!(
-        "val_{}",
-        stable_hash(&validation_seed, 16)
-    ));
+    out["validation_id"] = Value::String(format!("val_{}", stable_hash(&validation_seed, 16)));
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
 }
