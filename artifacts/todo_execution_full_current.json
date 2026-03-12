@@ -3,16 +3,16 @@
   "type": "todo_full_queue",
   "source": "artifacts/srs_actionable_map_current.json",
   "summary": {
-    "generatedAt": "2026-03-12T04:26:49.766Z",
-    "total": 178,
+    "generatedAt": "2026-03-12T04:43:16.977Z",
+    "total": 175,
     "byBucket": {
-      "execute_now": 0,
-      "repair_lane": 151,
+      "execute_now": 148,
+      "repair_lane": 0,
       "design_required": 0,
       "blocked_external": 27
     },
     "byStatus": {
-      "in_progress": 151,
+      "in_progress": 148,
       "queued": 0,
       "blocked": 27
     }
@@ -25,12 +25,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client",
       "section": "Agent Command Center CLI with Resumable Sessions & Live Steering Source Coverage Intake (Doc `1NmUDaVaWU3DEJV2cUpqoT33k1fQptNSWJf96u0GwoFU`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-COCKPIT-025.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-cockpit-025.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-COCKPIT-025.6",
@@ -39,12 +39,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client/app",
       "section": "Agent Command Center CLI with Resumable Sessions & Live Steering Source Coverage Intake (Doc `1NmUDaVaWU3DEJV2cUpqoT33k1fQptNSWJf96u0GwoFU`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-COCKPIT-025.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-cockpit-025.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-006.6",
@@ -53,12 +53,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client/app",
       "section": "Always-On Structured Memory Agent Source Coverage Intake (Doc `1wnZiGMfWVFaAp-al7UgbwyM1JV_BhW6A3hox3GoGllw`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-006.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-006.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-005.4",
@@ -67,12 +67,12 @@
       "impact": "10",
       "layerMap": "-1/0/1/2/adapter",
       "section": "Auto-Molting Substrate Adapter Engine Source Coverage Intake (Doc `1uGkRTsq9DE_6uA7twocPTDv03LmvywnYzpr2okR6IlM`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-005.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-005.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-005.6",
@@ -81,12 +81,12 @@
       "impact": "10",
       "layerMap": "-1/0/1/2/adapter/client/app",
       "section": "Auto-Molting Substrate Adapter Engine Source Coverage Intake (Doc `1uGkRTsq9DE_6uA7twocPTDv03LmvywnYzpr2okR6IlM`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-005.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-005.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-007.2",
@@ -95,12 +95,12 @@
       "impact": "10",
       "layerMap": "0/1/2",
       "section": "Automatic Context-Tree Curation for Coding Agents Source Coverage Intake (Doc `1J_1zmz-_-DIF6Ok9AyVkbmO3PRPPVZb8vPT2LVZn_3Q`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-007.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-007.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-007.6",
@@ -109,12 +109,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client/app",
       "section": "Automatic Context-Tree Curation for Coding Agents Source Coverage Intake (Doc `1J_1zmz-_-DIF6Ok9AyVkbmO3PRPPVZb8vPT2LVZn_3Q`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-007.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-007.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-APP-023.2",
@@ -123,12 +123,12 @@
       "impact": "10",
       "layerMap": "0/1/2/app",
       "section": "Autonomous Snowball Orchestration Engine Source Coverage Intake (Doc `1OA9Hu3dx9iheyIW-7JGrR4hd8bVJt0TE21Bv_fRNeFg`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-APP-023.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-app-023.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-APP-023.6",
@@ -137,12 +137,12 @@
       "impact": "10",
       "layerMap": "0/1/2/app/client",
       "section": "Autonomous Snowball Orchestration Engine Source Coverage Intake (Doc `1OA9Hu3dx9iheyIW-7JGrR4hd8bVJt0TE21Bv_fRNeFg`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-APP-023.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-app-023.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-006.3",
@@ -151,12 +151,12 @@
       "impact": "10",
       "layerMap": "-1/0/1/2/client/adapter",
       "section": "Bare-Metal Independent OS Mode Source Coverage Intake (Doc `1uGkRTsq9DE_6uA7twocPTDv03LmvywnYzpr2okR6IlM`, corrected-placement addendum `19It97DQDHCgYRM4eFj4r8qZ64IixOmGRBErapYsSXjE`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-006.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-006.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-006.4",
@@ -165,12 +165,12 @@
       "impact": "10",
       "layerMap": "-1/0/1/2/adapter",
       "section": "Bare-Metal Independent OS Mode Source Coverage Intake (Doc `1uGkRTsq9DE_6uA7twocPTDv03LmvywnYzpr2okR6IlM`, corrected-placement addendum `19It97DQDHCgYRM4eFj4r8qZ64IixOmGRBErapYsSXjE`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-006.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-006.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-006.6",
@@ -179,12 +179,12 @@
       "impact": "10",
       "layerMap": "-1/0/1/2/3/adapter/client/app",
       "section": "Bare-Metal Independent OS Mode Source Coverage Intake (Doc `1uGkRTsq9DE_6uA7twocPTDv03LmvywnYzpr2okR6IlM`, corrected-placement addendum `19It97DQDHCgYRM4eFj4r8qZ64IixOmGRBErapYsSXjE`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-006.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-006.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-010.6",
@@ -193,12 +193,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client/app/adapter",
       "section": "ByteRover Production-Grade Context Tree + Hybrid Sync Intake (Doc/Source `V6-MEMORY-010`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-010.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-010.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-NETWORK-003.4",
@@ -207,12 +207,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client",
       "section": "Decentralized Fork Convergence & Structured Feedback Pipeline Source Coverage Intake (Doc `1b2fSTI35W4dbOzJ5ZWAWw15dWGf-P_X9TuvgqL0qhhk`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-NETWORK-003.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-network-003.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-NETWORK-003.6",
@@ -221,12 +221,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client/app/adapter",
       "section": "Decentralized Fork Convergence & Structured Feedback Pipeline Source Coverage Intake (Doc `1b2fSTI35W4dbOzJ5ZWAWw15dWGf-P_X9TuvgqL0qhhk`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-NETWORK-003.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-network-003.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-TOOLS-006.6",
@@ -235,12 +235,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client/app",
       "section": "Graph Algorithms Toolkit Extension Source Coverage Intake (Doc `1xpMQoBvElxv4LPWu7vu8X94AnCq600h2JBFzYStB4BM`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-TOOLS-006.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-tools-006.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-005.6",
@@ -249,12 +249,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client/app",
       "section": "Local Document RAG Engine Source Coverage Intake (Doc `1P1_-BSqoRU0Qt2ais5aUTHycK1wOdmZEhTkcBr1jDhI`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-005.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-005.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-OBSERVABILITY-004.10",
@@ -263,12 +263,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client/app",
       "section": "Local Policy Enforcement & Hash-Chained Audit Trail Source Coverage Addendum (Doc `1jXTbAvxCT7NgxuGi4620HJT0zrfqW8mfYJE4jjDzP5s`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-OBSERVABILITY-004.10",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-observability-004.10:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SWARM-008",
@@ -277,12 +277,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client",
       "section": "Low-Overhead Swarm Coordination + Built-in Benchmarking Source Coverage Intake (Doc `1hQk69PCmqWKc8wRfrclek11mOTupAFlNtE1oWAgC0sI`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SWARM-008",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-swarm-008:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SWARM-011",
@@ -291,12 +291,12 @@
       "impact": "10",
       "layerMap": "0/1/2",
       "section": "Low-Overhead Swarm Coordination + Built-in Benchmarking Source Coverage Intake (Doc `1hQk69PCmqWKc8wRfrclek11mOTupAFlNtE1oWAgC0sI`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SWARM-011",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-swarm-011:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SWARM-012",
@@ -305,12 +305,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client/app",
       "section": "Low-Overhead Swarm Coordination + Built-in Benchmarking Source Coverage Intake (Doc `1hQk69PCmqWKc8wRfrclek11mOTupAFlNtE1oWAgC0sI`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SWARM-012",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-swarm-012:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-COGNITION-011.3",
@@ -319,12 +319,12 @@
       "impact": "10",
       "layerMap": "0/1/2",
       "section": "MiniMax M2.5 Open-Source MoE Model Integration Source Coverage Intake (Doc `1Ak5zUhBBYoCmKbKTlOFoP49AIycdALZref8Ygimj0_0`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-COGNITION-011.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-cognition-011.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-COGNITION-011.6",
@@ -333,12 +333,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client/app",
       "section": "MiniMax M2.5 Open-Source MoE Model Integration Source Coverage Intake (Doc `1Ak5zUhBBYoCmKbKTlOFoP49AIycdALZref8Ygimj0_0`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-COGNITION-011.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-cognition-011.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-TOOLS-007.6",
@@ -347,12 +347,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client/app/adapter",
       "section": "Native Tool-Use Gym with 503-Task Enterprise Benchmark Harness Intake (Doc/Source `V6-TOOLS-006` normalized to `V6-TOOLS-007`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-TOOLS-007.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-tools-007.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-APP-022.6",
@@ -361,12 +361,12 @@
       "impact": "10",
       "layerMap": "0/1/2/app/client",
       "section": "One-Command Local AI CRM Extension Source Coverage Intake (Doc `1QNRrk3J6c0jDy0zJYgNl-ELzaaS2DhQpsx13hjdIO9I`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-APP-022.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-app-022.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-008.6",
@@ -375,54 +375,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client/app",
       "section": "One-Command Local RAG Platform with Visual Workflows Intake (Doc/Source `V6-MEMORY-008`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-008.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-008.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
-    },
-    {
-      "id": "V6-SOVEREIGN-002.1",
-      "status": "in_progress",
-      "upgrade": "Truth-Seeking Rule Object Ingestion + Identity Binding Contract",
-      "impact": "10",
-      "layerMap": "0/1/2/3",
-      "section": "Permanent Anti-Sycophancy & Truth-Seeking Identity Rule Source Coverage Intake (Doc `16UHULBODCtgIf8hFDo_KevvOvv6Ljr7umPlcC3-gfQw`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SOVEREIGN-002.1",
-      "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
-    },
-    {
-      "id": "V6-SOVEREIGN-002.2",
-      "status": "in_progress",
-      "upgrade": "R0 Truth Gate Policy Contract (Agreement-Without-Verification Deny)",
-      "impact": "10",
-      "layerMap": "0/1/2",
-      "section": "Permanent Anti-Sycophancy & Truth-Seeking Identity Rule Source Coverage Intake (Doc `16UHULBODCtgIf8hFDo_KevvOvv6Ljr7umPlcC3-gfQw`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SOVEREIGN-002.2",
-      "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
-    },
-    {
-      "id": "V6-SOVEREIGN-002.6",
-      "status": "in_progress",
-      "upgrade": "Conduit-Only Truth-Gate Boundary + Thin Surface Enforcement",
-      "impact": "10",
-      "layerMap": "0/1/2/client/app",
-      "section": "Permanent Anti-Sycophancy & Truth-Seeking Identity Rule Source Coverage Intake (Doc `16UHULBODCtgIf8hFDo_KevvOvv6Ljr7umPlcC3-gfQw`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SOVEREIGN-002.6",
-      "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-AUTORESEARCH-002.5",
@@ -431,12 +389,12 @@
       "impact": "10",
       "layerMap": "0/1/2",
       "section": "Persistent Unsupervised ML Research Harness with Wake-Up Loops Intake (Doc/Source `V6-AUTORESEARCH-002`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-AUTORESEARCH-002.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-autoresearch-002.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-AUTORESEARCH-002.6",
@@ -445,12 +403,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client/app/adapter",
       "section": "Persistent Unsupervised ML Research Harness with Wake-Up Loops Intake (Doc/Source `V6-AUTORESEARCH-002`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-AUTORESEARCH-002.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-autoresearch-002.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-WORKFLOW-003.4",
@@ -459,12 +417,12 @@
       "impact": "10",
       "layerMap": "0/1/2",
       "section": "PRD-to-Roadmap Autonomous Software Team Planner Source Coverage Intake (Doc `1z7TGqd7-fsYwiZY66xpxbnZTRQ-s1ZpSzEKuD-64VHc`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-WORKFLOW-003.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-workflow-003.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-WORKFLOW-003.6",
@@ -473,12 +431,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client/app",
       "section": "PRD-to-Roadmap Autonomous Software Team Planner Source Coverage Intake (Doc `1z7TGqd7-fsYwiZY66xpxbnZTRQ-s1ZpSzEKuD-64VHc`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-WORKFLOW-003.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-workflow-003.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SOVEREIGN-003.1",
@@ -487,12 +445,12 @@
       "impact": "10",
       "layerMap": "0/1/2/adapter",
       "section": "Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SOVEREIGN-003.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-sovereign-003.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SOVEREIGN-003.3",
@@ -501,12 +459,12 @@
       "impact": "10",
       "layerMap": "0/1/2/3/adapter",
       "section": "Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SOVEREIGN-003.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-sovereign-003.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SOVEREIGN-003.4",
@@ -515,12 +473,12 @@
       "impact": "10",
       "layerMap": "0/1/2",
       "section": "Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SOVEREIGN-003.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-sovereign-003.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SOVEREIGN-003.6",
@@ -529,12 +487,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client/app/adapter",
       "section": "Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SOVEREIGN-003.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-sovereign-003.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SKILLS-001.20",
@@ -543,12 +501,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client/app",
       "section": "Semantic Agent Skills Marketplace Source Coverage Addendum (Doc `1J8BwVaRmGlu8SK3fg5YOUoOknvQ4gtBQk4YX5GaIbTw`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SKILLS-001.20",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-skills-001.20:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SOVEREIGN-001.1",
@@ -557,12 +515,12 @@
       "impact": "10",
       "layerMap": "0/1/2/3",
       "section": "Sovereign Agent Cortex & Identity Extension Source Coverage Intake (Doc `1Vq5Ofotuc3s1YKqXMp76VKwrqW4v4MVKDADP8PRUEl8`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SOVEREIGN-001.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-sovereign-001.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SOVEREIGN-001.6",
@@ -571,12 +529,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client/app/adapter",
       "section": "Sovereign Agent Cortex & Identity Extension Source Coverage Intake (Doc `1Vq5Ofotuc3s1YKqXMp76VKwrqW4v4MVKDADP8PRUEl8`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SOVEREIGN-001.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-sovereign-001.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-009.6",
@@ -585,12 +543,12 @@
       "impact": "10",
       "layerMap": "0/1/2/client/app/adapter",
       "section": "Stable Memory Search Library with Versioned Core Intake (Doc/Source `V6-MEMORY-009`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-009.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-009.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-007.4",
@@ -599,12 +557,12 @@
       "impact": "10",
       "layerMap": "0/1/2/adapter",
       "section": "Universal App Compatibility Adapter Engine Source Coverage Intake (Doc `17smtxqjd33u66Dsnvq0Bti8hx1jxTirVLrGG23qzw28`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-007.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-007.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-007.6",
@@ -613,12 +571,12 @@
       "impact": "10",
       "layerMap": "0/1/2/adapter/client/app",
       "section": "Universal App Compatibility Adapter Engine Source Coverage Intake (Doc `17smtxqjd33u66Dsnvq0Bti8hx1jxTirVLrGG23qzw28`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-007.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-007.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-COCKPIT-025.3",
@@ -627,12 +585,12 @@
       "impact": "9",
       "layerMap": "0/1/2/client",
       "section": "Agent Command Center CLI with Resumable Sessions & Live Steering Source Coverage Intake (Doc `1NmUDaVaWU3DEJV2cUpqoT33k1fQptNSWJf96u0GwoFU`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-COCKPIT-025.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-cockpit-025.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-005.1",
@@ -641,12 +599,12 @@
       "impact": "9",
       "layerMap": "-1/0/1/2/adapter",
       "section": "Auto-Molting Substrate Adapter Engine Source Coverage Intake (Doc `1uGkRTsq9DE_6uA7twocPTDv03LmvywnYzpr2okR6IlM`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-005.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-005.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-005.2",
@@ -655,12 +613,12 @@
       "impact": "9",
       "layerMap": "-1/0/1/2/adapter",
       "section": "Auto-Molting Substrate Adapter Engine Source Coverage Intake (Doc `1uGkRTsq9DE_6uA7twocPTDv03LmvywnYzpr2okR6IlM`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-005.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-005.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-007.1",
@@ -669,12 +627,12 @@
       "impact": "9",
       "layerMap": "0/1/2",
       "section": "Automatic Context-Tree Curation for Coding Agents Source Coverage Intake (Doc `1J_1zmz-_-DIF6Ok9AyVkbmO3PRPPVZb8vPT2LVZn_3Q`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-007.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-007.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-007.5",
@@ -683,12 +641,12 @@
       "impact": "9",
       "layerMap": "0/1/2",
       "section": "Automatic Context-Tree Curation for Coding Agents Source Coverage Intake (Doc `1J_1zmz-_-DIF6Ok9AyVkbmO3PRPPVZb8vPT2LVZn_3Q`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-007.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-007.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-APP-023.4",
@@ -697,12 +655,12 @@
       "impact": "9",
       "layerMap": "1/2/app",
       "section": "Autonomous Snowball Orchestration Engine Source Coverage Intake (Doc `1OA9Hu3dx9iheyIW-7JGrR4hd8bVJt0TE21Bv_fRNeFg`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-APP-023.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-app-023.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-006.1",
@@ -711,12 +669,12 @@
       "impact": "9",
       "layerMap": "3/1/2/adapter",
       "section": "Bare-Metal Independent OS Mode Source Coverage Intake (Doc `1uGkRTsq9DE_6uA7twocPTDv03LmvywnYzpr2okR6IlM`, corrected-placement addendum `19It97DQDHCgYRM4eFj4r8qZ64IixOmGRBErapYsSXjE`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-006.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-006.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-006.2",
@@ -725,12 +683,12 @@
       "impact": "9",
       "layerMap": "-1/0/1/2/3/adapter",
       "section": "Bare-Metal Independent OS Mode Source Coverage Intake (Doc `1uGkRTsq9DE_6uA7twocPTDv03LmvywnYzpr2okR6IlM`, corrected-placement addendum `19It97DQDHCgYRM4eFj4r8qZ64IixOmGRBErapYsSXjE`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-006.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-006.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-010.2",
@@ -739,12 +697,12 @@
       "impact": "9",
       "layerMap": "0/1/2/adapter/client",
       "section": "ByteRover Production-Grade Context Tree + Hybrid Sync Intake (Doc/Source `V6-MEMORY-010`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-010.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-010.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-010.5",
@@ -753,12 +711,12 @@
       "impact": "9",
       "layerMap": "0/1/2/adapter/client",
       "section": "ByteRover Production-Grade Context Tree + Hybrid Sync Intake (Doc/Source `V6-MEMORY-010`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-010.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-010.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-NETWORK-003.1",
@@ -767,12 +725,12 @@
       "impact": "9",
       "layerMap": "0/1/2/client/app",
       "section": "Decentralized Fork Convergence & Structured Feedback Pipeline Source Coverage Intake (Doc `1b2fSTI35W4dbOzJ5ZWAWw15dWGf-P_X9TuvgqL0qhhk`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-NETWORK-003.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-network-003.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-NETWORK-003.3",
@@ -781,12 +739,12 @@
       "impact": "9",
       "layerMap": "0/1/2/3",
       "section": "Decentralized Fork Convergence & Structured Feedback Pipeline Source Coverage Intake (Doc `1b2fSTI35W4dbOzJ5ZWAWw15dWGf-P_X9TuvgqL0qhhk`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-NETWORK-003.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-network-003.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-TOOLS-006.1",
@@ -795,12 +753,12 @@
       "impact": "9",
       "layerMap": "0/1/2/client",
       "section": "Graph Algorithms Toolkit Extension Source Coverage Intake (Doc `1xpMQoBvElxv4LPWu7vu8X94AnCq600h2JBFzYStB4BM`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-TOOLS-006.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-tools-006.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SWARM-007",
@@ -809,12 +767,12 @@
       "impact": "9",
       "layerMap": "0/1/2",
       "section": "Low-Overhead Swarm Coordination + Built-in Benchmarking Source Coverage Intake (Doc `1hQk69PCmqWKc8wRfrclek11mOTupAFlNtE1oWAgC0sI`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SWARM-007",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-swarm-007:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-COGNITION-011.2",
@@ -823,12 +781,12 @@
       "impact": "9",
       "layerMap": "0/1/2",
       "section": "MiniMax M2.5 Open-Source MoE Model Integration Source Coverage Intake (Doc `1Ak5zUhBBYoCmKbKTlOFoP49AIycdALZref8Ygimj0_0`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-COGNITION-011.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-cognition-011.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-TOOLS-007.1",
@@ -837,12 +795,12 @@
       "impact": "9",
       "layerMap": "0/1/2/client/app/adapter",
       "section": "Native Tool-Use Gym with 503-Task Enterprise Benchmark Harness Intake (Doc/Source `V6-TOOLS-006` normalized to `V6-TOOLS-007`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-TOOLS-007.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-tools-007.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-TOOLS-007.2",
@@ -851,12 +809,12 @@
       "impact": "9",
       "layerMap": "0/1/2",
       "section": "Native Tool-Use Gym with 503-Task Enterprise Benchmark Harness Intake (Doc/Source `V6-TOOLS-006` normalized to `V6-TOOLS-007`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-TOOLS-007.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-tools-007.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-TOOLS-007.4",
@@ -865,12 +823,12 @@
       "impact": "9",
       "layerMap": "0/1/2",
       "section": "Native Tool-Use Gym with 503-Task Enterprise Benchmark Harness Intake (Doc/Source `V6-TOOLS-006` normalized to `V6-TOOLS-007`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-TOOLS-007.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-tools-007.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-APP-022.2",
@@ -879,12 +837,12 @@
       "impact": "9",
       "layerMap": "0/1/2/app",
       "section": "One-Command Local AI CRM Extension Source Coverage Intake (Doc `1QNRrk3J6c0jDy0zJYgNl-ELzaaS2DhQpsx13hjdIO9I`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-APP-022.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-app-022.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-APP-022.3",
@@ -893,12 +851,12 @@
       "impact": "9",
       "layerMap": "0/1/2/app",
       "section": "One-Command Local AI CRM Extension Source Coverage Intake (Doc `1QNRrk3J6c0jDy0zJYgNl-ELzaaS2DhQpsx13hjdIO9I`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-APP-022.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-app-022.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SOVEREIGN-002.3",
@@ -907,12 +865,12 @@
       "impact": "9",
       "layerMap": "0/1/2/client",
       "section": "Permanent Anti-Sycophancy & Truth-Seeking Identity Rule Source Coverage Intake (Doc `16UHULBODCtgIf8hFDo_KevvOvv6Ljr7umPlcC3-gfQw`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SOVEREIGN-002.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-sovereign-002.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-AUTORESEARCH-002.1",
@@ -921,12 +879,12 @@
       "impact": "9",
       "layerMap": "0/1/2/client/app",
       "section": "Persistent Unsupervised ML Research Harness with Wake-Up Loops Intake (Doc/Source `V6-AUTORESEARCH-002`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-AUTORESEARCH-002.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-autoresearch-002.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-WORKFLOW-003.2",
@@ -935,12 +893,12 @@
       "impact": "9",
       "layerMap": "0/1/2",
       "section": "PRD-to-Roadmap Autonomous Software Team Planner Source Coverage Intake (Doc `1z7TGqd7-fsYwiZY66xpxbnZTRQ-s1ZpSzEKuD-64VHc`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-WORKFLOW-003.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-workflow-003.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SOVEREIGN-003.2",
@@ -949,12 +907,12 @@
       "impact": "9",
       "layerMap": "0/1/2",
       "section": "Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SOVEREIGN-003.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-sovereign-003.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SKILLS-001.17",
@@ -963,12 +921,12 @@
       "impact": "9",
       "layerMap": "0/1/2/client/app",
       "section": "Semantic Agent Skills Marketplace Source Coverage Addendum (Doc `1J8BwVaRmGlu8SK3fg5YOUoOknvQ4gtBQk4YX5GaIbTw`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SKILLS-001.17",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-skills-001.17:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SOVEREIGN-001.2",
@@ -977,12 +935,12 @@
       "impact": "9",
       "layerMap": "0/1/2/3",
       "section": "Sovereign Agent Cortex & Identity Extension Source Coverage Intake (Doc `1Vq5Ofotuc3s1YKqXMp76VKwrqW4v4MVKDADP8PRUEl8`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SOVEREIGN-001.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-sovereign-001.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SOVEREIGN-001.5",
@@ -991,12 +949,12 @@
       "impact": "9",
       "layerMap": "0/1/2",
       "section": "Sovereign Agent Cortex & Identity Extension Source Coverage Intake (Doc `1Vq5Ofotuc3s1YKqXMp76VKwrqW4v4MVKDADP8PRUEl8`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SOVEREIGN-001.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-sovereign-001.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-009.1",
@@ -1005,12 +963,12 @@
       "impact": "9",
       "layerMap": "0/1/2",
       "section": "Stable Memory Search Library with Versioned Core Intake (Doc/Source `V6-MEMORY-009`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-009.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-009.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-009.2",
@@ -1019,12 +977,12 @@
       "impact": "9",
       "layerMap": "0/1/2/client/adapter",
       "section": "Stable Memory Search Library with Versioned Core Intake (Doc/Source `V6-MEMORY-009`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-009.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-009.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-009.5",
@@ -1033,12 +991,12 @@
       "impact": "9",
       "layerMap": "0/1/2/adapter/client",
       "section": "Stable Memory Search Library with Versioned Core Intake (Doc/Source `V6-MEMORY-009`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-009.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-009.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-007.1",
@@ -1047,12 +1005,12 @@
       "impact": "9",
       "layerMap": "0/1/2/adapter",
       "section": "Universal App Compatibility Adapter Engine Source Coverage Intake (Doc `17smtxqjd33u66Dsnvq0Bti8hx1jxTirVLrGG23qzw28`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-007.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-007.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-COCKPIT-025.1",
@@ -1061,12 +1019,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client",
       "section": "Agent Command Center CLI with Resumable Sessions & Live Steering Source Coverage Intake (Doc `1NmUDaVaWU3DEJV2cUpqoT33k1fQptNSWJf96u0GwoFU`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-COCKPIT-025.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-cockpit-025.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-COCKPIT-025.4",
@@ -1075,12 +1033,12 @@
       "impact": "8",
       "layerMap": "0/1/2",
       "section": "Agent Command Center CLI with Resumable Sessions & Live Steering Source Coverage Intake (Doc `1NmUDaVaWU3DEJV2cUpqoT33k1fQptNSWJf96u0GwoFU`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-COCKPIT-025.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-cockpit-025.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-COCKPIT-025.5",
@@ -1089,12 +1047,12 @@
       "impact": "8",
       "layerMap": "1/2/client/app",
       "section": "Agent Command Center CLI with Resumable Sessions & Live Steering Source Coverage Intake (Doc `1NmUDaVaWU3DEJV2cUpqoT33k1fQptNSWJf96u0GwoFU`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-COCKPIT-025.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-cockpit-025.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-006.1",
@@ -1103,12 +1061,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client/app",
       "section": "Always-On Structured Memory Agent Source Coverage Intake (Doc `1wnZiGMfWVFaAp-al7UgbwyM1JV_BhW6A3hox3GoGllw`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-006.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-006.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-006.2",
@@ -1117,12 +1075,12 @@
       "impact": "8",
       "layerMap": "0/1/2",
       "section": "Always-On Structured Memory Agent Source Coverage Intake (Doc `1wnZiGMfWVFaAp-al7UgbwyM1JV_BhW6A3hox3GoGllw`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-006.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-006.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-006.3",
@@ -1131,12 +1089,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client",
       "section": "Always-On Structured Memory Agent Source Coverage Intake (Doc `1wnZiGMfWVFaAp-al7UgbwyM1JV_BhW6A3hox3GoGllw`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-006.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-006.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SKILLS-001.21",
@@ -1145,12 +1103,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client/app",
       "section": "Anthropic Agent Skills Library Source Coverage Addendum (Doc `1hCPkhlg80Wdtv-qqFnsUqaeFz-RAQddOS5p7kxuschg`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SKILLS-001.21",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-skills-001.21:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-005.3",
@@ -1159,12 +1117,12 @@
       "impact": "8",
       "layerMap": "-1/1/2/adapter",
       "section": "Auto-Molting Substrate Adapter Engine Source Coverage Intake (Doc `1uGkRTsq9DE_6uA7twocPTDv03LmvywnYzpr2okR6IlM`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-005.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-005.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-007.3",
@@ -1173,12 +1131,12 @@
       "impact": "8",
       "layerMap": "0/1/2",
       "section": "Automatic Context-Tree Curation for Coding Agents Source Coverage Intake (Doc `1J_1zmz-_-DIF6Ok9AyVkbmO3PRPPVZb8vPT2LVZn_3Q`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-007.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-007.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-APP-023.1",
@@ -1187,12 +1145,12 @@
       "impact": "8",
       "layerMap": "0/1/2/app/client",
       "section": "Autonomous Snowball Orchestration Engine Source Coverage Intake (Doc `1OA9Hu3dx9iheyIW-7JGrR4hd8bVJt0TE21Bv_fRNeFg`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-APP-023.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-app-023.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-APP-023.3",
@@ -1201,12 +1159,12 @@
       "impact": "8",
       "layerMap": "1/2/app",
       "section": "Autonomous Snowball Orchestration Engine Source Coverage Intake (Doc `1OA9Hu3dx9iheyIW-7JGrR4hd8bVJt0TE21Bv_fRNeFg`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-APP-023.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-app-023.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-COCKPIT-017.9",
@@ -1215,12 +1173,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client",
       "section": "Autoresearch Self-Improving Loop Intake (Source: Karpathy `autoresearch` pattern + Alex Finn thread, 2026-03-09)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-COCKPIT-017.9",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-cockpit-017.9:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-006.5",
@@ -1229,12 +1187,12 @@
       "impact": "8",
       "layerMap": "0/1/2/3/adapter",
       "section": "Bare-Metal Independent OS Mode Source Coverage Intake (Doc `1uGkRTsq9DE_6uA7twocPTDv03LmvywnYzpr2okR6IlM`, corrected-placement addendum `19It97DQDHCgYRM4eFj4r8qZ64IixOmGRBErapYsSXjE`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-006.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-006.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-010.1",
@@ -1243,12 +1201,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client/app",
       "section": "ByteRover Production-Grade Context Tree + Hybrid Sync Intake (Doc/Source `V6-MEMORY-010`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-010.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-010.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-010.3",
@@ -1257,12 +1215,12 @@
       "impact": "8",
       "layerMap": "0/1/2",
       "section": "ByteRover Production-Grade Context Tree + Hybrid Sync Intake (Doc/Source `V6-MEMORY-010`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-010.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-010.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-NETWORK-003.2",
@@ -1271,12 +1229,12 @@
       "impact": "8",
       "layerMap": "0/1/2",
       "section": "Decentralized Fork Convergence & Structured Feedback Pipeline Source Coverage Intake (Doc `1b2fSTI35W4dbOzJ5ZWAWw15dWGf-P_X9TuvgqL0qhhk`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-NETWORK-003.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-network-003.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-NETWORK-003.5",
@@ -1285,12 +1243,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client/app",
       "section": "Decentralized Fork Convergence & Structured Feedback Pipeline Source Coverage Intake (Doc `1b2fSTI35W4dbOzJ5ZWAWw15dWGf-P_X9TuvgqL0qhhk`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-NETWORK-003.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-network-003.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-TOOLS-006.2",
@@ -1299,12 +1257,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client",
       "section": "Graph Algorithms Toolkit Extension Source Coverage Intake (Doc `1xpMQoBvElxv4LPWu7vu8X94AnCq600h2JBFzYStB4BM`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-TOOLS-006.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-tools-006.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-TOOLS-006.3",
@@ -1313,12 +1271,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client",
       "section": "Graph Algorithms Toolkit Extension Source Coverage Intake (Doc `1xpMQoBvElxv4LPWu7vu8X94AnCq600h2JBFzYStB4BM`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-TOOLS-006.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-tools-006.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-TOOLS-006.4",
@@ -1327,12 +1285,12 @@
       "impact": "8",
       "layerMap": "1/2",
       "section": "Graph Algorithms Toolkit Extension Source Coverage Intake (Doc `1xpMQoBvElxv4LPWu7vu8X94AnCq600h2JBFzYStB4BM`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-TOOLS-006.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-tools-006.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-005.1",
@@ -1341,12 +1299,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client/app/adapter",
       "section": "Local Document RAG Engine Source Coverage Intake (Doc `1P1_-BSqoRU0Qt2ais5aUTHycK1wOdmZEhTkcBr1jDhI`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-005.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-005.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-005.2",
@@ -1355,12 +1313,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client",
       "section": "Local Document RAG Engine Source Coverage Intake (Doc `1P1_-BSqoRU0Qt2ais5aUTHycK1wOdmZEhTkcBr1jDhI`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-005.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-005.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-005.3",
@@ -1369,12 +1327,12 @@
       "impact": "8",
       "layerMap": "0/1/2",
       "section": "Local Document RAG Engine Source Coverage Intake (Doc `1P1_-BSqoRU0Qt2ais5aUTHycK1wOdmZEhTkcBr1jDhI`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-005.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-005.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-OBSERVABILITY-004.7",
@@ -1383,12 +1341,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client/app",
       "section": "Local Policy Enforcement & Hash-Chained Audit Trail Source Coverage Addendum (Doc `1jXTbAvxCT7NgxuGi4620HJT0zrfqW8mfYJE4jjDzP5s`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-OBSERVABILITY-004.7",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-observability-004.7:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-OBSERVABILITY-004.8",
@@ -1397,12 +1355,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client",
       "section": "Local Policy Enforcement & Hash-Chained Audit Trail Source Coverage Addendum (Doc `1jXTbAvxCT7NgxuGi4620HJT0zrfqW8mfYJE4jjDzP5s`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-OBSERVABILITY-004.8",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-observability-004.8:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SWARM-009",
@@ -1411,12 +1369,12 @@
       "impact": "8",
       "layerMap": "0/1/2",
       "section": "Low-Overhead Swarm Coordination + Built-in Benchmarking Source Coverage Intake (Doc `1hQk69PCmqWKc8wRfrclek11mOTupAFlNtE1oWAgC0sI`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SWARM-009",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-swarm-009:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SWARM-010",
@@ -1425,12 +1383,12 @@
       "impact": "8",
       "layerMap": "1/2/client/app",
       "section": "Low-Overhead Swarm Coordination + Built-in Benchmarking Source Coverage Intake (Doc `1hQk69PCmqWKc8wRfrclek11mOTupAFlNtE1oWAgC0sI`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SWARM-010",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-swarm-010:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-COGNITION-011.1",
@@ -1439,12 +1397,12 @@
       "impact": "8",
       "layerMap": "0/1/2",
       "section": "MiniMax M2.5 Open-Source MoE Model Integration Source Coverage Intake (Doc `1Ak5zUhBBYoCmKbKTlOFoP49AIycdALZref8Ygimj0_0`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-COGNITION-011.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-cognition-011.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-COGNITION-011.4",
@@ -1453,12 +1411,12 @@
       "impact": "8",
       "layerMap": "1/2",
       "section": "MiniMax M2.5 Open-Source MoE Model Integration Source Coverage Intake (Doc `1Ak5zUhBBYoCmKbKTlOFoP49AIycdALZref8Ygimj0_0`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-COGNITION-011.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-cognition-011.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-TOOLS-007.3",
@@ -1467,12 +1425,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client/app",
       "section": "Native Tool-Use Gym with 503-Task Enterprise Benchmark Harness Intake (Doc/Source `V6-TOOLS-006` normalized to `V6-TOOLS-007`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-TOOLS-007.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-tools-007.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-TOOLS-007.5",
@@ -1481,12 +1439,12 @@
       "impact": "8",
       "layerMap": "1/2/client",
       "section": "Native Tool-Use Gym with 503-Task Enterprise Benchmark Harness Intake (Doc/Source `V6-TOOLS-006` normalized to `V6-TOOLS-007`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-TOOLS-007.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-tools-007.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-APP-022.1",
@@ -1495,12 +1453,12 @@
       "impact": "8",
       "layerMap": "app/0/1/2/client",
       "section": "One-Command Local AI CRM Extension Source Coverage Intake (Doc `1QNRrk3J6c0jDy0zJYgNl-ELzaaS2DhQpsx13hjdIO9I`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-APP-022.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-app-022.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-APP-022.5",
@@ -1509,12 +1467,12 @@
       "impact": "8",
       "layerMap": "0/1/2/app/adapter",
       "section": "One-Command Local AI CRM Extension Source Coverage Intake (Doc `1QNRrk3J6c0jDy0zJYgNl-ELzaaS2DhQpsx13hjdIO9I`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-APP-022.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-app-022.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-008.1",
@@ -1523,12 +1481,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client/app",
       "section": "One-Command Local RAG Platform with Visual Workflows Intake (Doc/Source `V6-MEMORY-008`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-008.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-008.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-008.2",
@@ -1537,12 +1495,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client/app",
       "section": "One-Command Local RAG Platform with Visual Workflows Intake (Doc/Source `V6-MEMORY-008`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-008.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-008.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-008.3",
@@ -1551,12 +1509,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client/app",
       "section": "One-Command Local RAG Platform with Visual Workflows Intake (Doc/Source `V6-MEMORY-008`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-008.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-008.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SOVEREIGN-002.4",
@@ -1565,12 +1523,12 @@
       "impact": "8",
       "layerMap": "1/2/client",
       "section": "Permanent Anti-Sycophancy & Truth-Seeking Identity Rule Source Coverage Intake (Doc `16UHULBODCtgIf8hFDo_KevvOvv6Ljr7umPlcC3-gfQw`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SOVEREIGN-002.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-sovereign-002.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SOVEREIGN-002.5",
@@ -1579,12 +1537,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client",
       "section": "Permanent Anti-Sycophancy & Truth-Seeking Identity Rule Source Coverage Intake (Doc `16UHULBODCtgIf8hFDo_KevvOvv6Ljr7umPlcC3-gfQw`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SOVEREIGN-002.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-sovereign-002.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-AUTORESEARCH-002.2",
@@ -1593,12 +1551,12 @@
       "impact": "8",
       "layerMap": "0/1/2/adapter/client",
       "section": "Persistent Unsupervised ML Research Harness with Wake-Up Loops Intake (Doc/Source `V6-AUTORESEARCH-002`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-AUTORESEARCH-002.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-autoresearch-002.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-AUTORESEARCH-002.3",
@@ -1607,12 +1565,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client/app",
       "section": "Persistent Unsupervised ML Research Harness with Wake-Up Loops Intake (Doc/Source `V6-AUTORESEARCH-002`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-AUTORESEARCH-002.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-autoresearch-002.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-AUTORESEARCH-002.4",
@@ -1621,12 +1579,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client/app",
       "section": "Persistent Unsupervised ML Research Harness with Wake-Up Loops Intake (Doc/Source `V6-AUTORESEARCH-002`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-AUTORESEARCH-002.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-autoresearch-002.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-WORKFLOW-003.1",
@@ -1635,12 +1593,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client/app",
       "section": "PRD-to-Roadmap Autonomous Software Team Planner Source Coverage Intake (Doc `1z7TGqd7-fsYwiZY66xpxbnZTRQ-s1ZpSzEKuD-64VHc`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-WORKFLOW-003.1",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-workflow-003.1:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-WORKFLOW-003.3",
@@ -1649,12 +1607,12 @@
       "impact": "8",
       "layerMap": "1/2/client/app",
       "section": "PRD-to-Roadmap Autonomous Software Team Planner Source Coverage Intake (Doc `1z7TGqd7-fsYwiZY66xpxbnZTRQ-s1ZpSzEKuD-64VHc`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-WORKFLOW-003.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-workflow-003.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SOVEREIGN-003.5",
@@ -1663,12 +1621,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client/app",
       "section": "Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SOVEREIGN-003.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-sovereign-003.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SKILLS-001.15",
@@ -1677,12 +1635,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client/app",
       "section": "Semantic Agent Skills Marketplace Source Coverage Addendum (Doc `1J8BwVaRmGlu8SK3fg5YOUoOknvQ4gtBQk4YX5GaIbTw`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SKILLS-001.15",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-skills-001.15:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SKILLS-001.16",
@@ -1691,12 +1649,12 @@
       "impact": "8",
       "layerMap": "1/2/client/app",
       "section": "Semantic Agent Skills Marketplace Source Coverage Addendum (Doc `1J8BwVaRmGlu8SK3fg5YOUoOknvQ4gtBQk4YX5GaIbTw`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SKILLS-001.16",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-skills-001.16:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SKILLS-001.18",
@@ -1705,12 +1663,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client/app",
       "section": "Semantic Agent Skills Marketplace Source Coverage Addendum (Doc `1J8BwVaRmGlu8SK3fg5YOUoOknvQ4gtBQk4YX5GaIbTw`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SKILLS-001.18",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-skills-001.18:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SOVEREIGN-001.3",
@@ -1719,12 +1677,12 @@
       "impact": "8",
       "layerMap": "1/2/3/client/app",
       "section": "Sovereign Agent Cortex & Identity Extension Source Coverage Intake (Doc `1Vq5Ofotuc3s1YKqXMp76VKwrqW4v4MVKDADP8PRUEl8`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SOVEREIGN-001.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-sovereign-001.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SOVEREIGN-001.4",
@@ -1733,12 +1691,12 @@
       "impact": "8",
       "layerMap": "0/1/2/adapter/client",
       "section": "Sovereign Agent Cortex & Identity Extension Source Coverage Intake (Doc `1Vq5Ofotuc3s1YKqXMp76VKwrqW4v4MVKDADP8PRUEl8`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SOVEREIGN-001.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-sovereign-001.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-009.3",
@@ -1747,12 +1705,12 @@
       "impact": "8",
       "layerMap": "0/1/2/adapter",
       "section": "Stable Memory Search Library with Versioned Core Intake (Doc/Source `V6-MEMORY-009`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-009.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-009.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-009.4",
@@ -1761,12 +1719,12 @@
       "impact": "8",
       "layerMap": "0/1/2/client",
       "section": "Stable Memory Search Library with Versioned Core Intake (Doc/Source `V6-MEMORY-009`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-009.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-009.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-007.2",
@@ -1775,12 +1733,12 @@
       "impact": "8",
       "layerMap": "0/1/2/adapter",
       "section": "Universal App Compatibility Adapter Engine Source Coverage Intake (Doc `17smtxqjd33u66Dsnvq0Bti8hx1jxTirVLrGG23qzw28`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-007.2",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-007.2:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-007.3",
@@ -1789,12 +1747,12 @@
       "impact": "8",
       "layerMap": "1/2/adapter",
       "section": "Universal App Compatibility Adapter Engine Source Coverage Intake (Doc `17smtxqjd33u66Dsnvq0Bti8hx1jxTirVLrGG23qzw28`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-007.3",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-007.3:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-001.6",
@@ -1803,12 +1761,12 @@
       "impact": "8",
       "layerMap": "-1/0/1/2/client",
       "section": "WiFi CSI Sensing & Environmental Perception Source Coverage Addendum (Doc `1pDSdNzn3YA0vaa7IhtENOPENc50Yl47pjo0v7SfTa_0`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-001.6",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-001.6:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-001.7",
@@ -1817,12 +1775,12 @@
       "impact": "8",
       "layerMap": "-1/0/1/2/adapter/client",
       "section": "WiFi CSI Sensing & Environmental Perception Source Coverage Addendum (Doc `1pDSdNzn3YA0vaa7IhtENOPENc50Yl47pjo0v7SfTa_0`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-001.7",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-001.7:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-006.4",
@@ -1831,12 +1789,12 @@
       "impact": "7",
       "layerMap": "1/2/client",
       "section": "Always-On Structured Memory Agent Source Coverage Intake (Doc `1wnZiGMfWVFaAp-al7UgbwyM1JV_BhW6A3hox3GoGllw`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-006.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-006.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SKILLS-001.22",
@@ -1845,12 +1803,12 @@
       "impact": "7",
       "layerMap": "0/1/2/client/app",
       "section": "Anthropic Agent Skills Library Source Coverage Addendum (Doc `1hCPkhlg80Wdtv-qqFnsUqaeFz-RAQddOS5p7kxuschg`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SKILLS-001.22",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-skills-001.22:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-005.5",
@@ -1859,12 +1817,12 @@
       "impact": "7",
       "layerMap": "1/2/client/app/adapter",
       "section": "Auto-Molting Substrate Adapter Engine Source Coverage Intake (Doc `1uGkRTsq9DE_6uA7twocPTDv03LmvywnYzpr2okR6IlM`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-005.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-005.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-007.4",
@@ -1873,12 +1831,12 @@
       "impact": "7",
       "layerMap": "1/2/client/app",
       "section": "Automatic Context-Tree Curation for Coding Agents Source Coverage Intake (Doc `1J_1zmz-_-DIF6Ok9AyVkbmO3PRPPVZb8vPT2LVZn_3Q`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-007.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-007.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-APP-023.5",
@@ -1887,12 +1845,12 @@
       "impact": "7",
       "layerMap": "app/client",
       "section": "Autonomous Snowball Orchestration Engine Source Coverage Intake (Doc `1OA9Hu3dx9iheyIW-7JGrR4hd8bVJt0TE21Bv_fRNeFg`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-APP-023.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-app-023.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-COCKPIT-017.10",
@@ -1901,12 +1859,12 @@
       "impact": "7",
       "layerMap": "0/1/2/client",
       "section": "Autoresearch Self-Improving Loop Intake (Source: Karpathy `autoresearch` pattern + Alex Finn thread, 2026-03-09)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-COCKPIT-017.10",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-cockpit-017.10:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-010.4",
@@ -1915,12 +1873,12 @@
       "impact": "7",
       "layerMap": "1/2/client/app",
       "section": "ByteRover Production-Grade Context Tree + Hybrid Sync Intake (Doc/Source `V6-MEMORY-010`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-010.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-010.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-TOOLS-006.5",
@@ -1929,12 +1887,12 @@
       "impact": "7",
       "layerMap": "1/2/client/app",
       "section": "Graph Algorithms Toolkit Extension Source Coverage Intake (Doc `1xpMQoBvElxv4LPWu7vu8X94AnCq600h2JBFzYStB4BM`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-TOOLS-006.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-tools-006.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-005.4",
@@ -1943,12 +1901,12 @@
       "impact": "7",
       "layerMap": "1/2/client",
       "section": "Local Document RAG Engine Source Coverage Intake (Doc `1P1_-BSqoRU0Qt2ais5aUTHycK1wOdmZEhTkcBr1jDhI`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-005.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-005.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-OBSERVABILITY-004.9",
@@ -1957,12 +1915,12 @@
       "impact": "7",
       "layerMap": "1/2/client/app",
       "section": "Local Policy Enforcement & Hash-Chained Audit Trail Source Coverage Addendum (Doc `1jXTbAvxCT7NgxuGi4620HJT0zrfqW8mfYJE4jjDzP5s`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-OBSERVABILITY-004.9",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-observability-004.9:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-COGNITION-011.5",
@@ -1971,12 +1929,12 @@
       "impact": "7",
       "layerMap": "1/2/client/app",
       "section": "MiniMax M2.5 Open-Source MoE Model Integration Source Coverage Intake (Doc `1Ak5zUhBBYoCmKbKTlOFoP49AIycdALZref8Ygimj0_0`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-COGNITION-011.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-cognition-011.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-APP-018.9",
@@ -1985,12 +1943,12 @@
       "impact": "7",
       "layerMap": "0/1/2/app",
       "section": "Octree AI LaTeX Forge Reinforcement Intake (Doc `1zV2NzGP0HtzAMLh28IhjhGtDwq__UwJDgKErMnFbeuA`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-APP-018.9",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-app-018.9:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-APP-022.4",
@@ -1999,12 +1957,12 @@
       "impact": "7",
       "layerMap": "app/client",
       "section": "One-Command Local AI CRM Extension Source Coverage Intake (Doc `1QNRrk3J6c0jDy0zJYgNl-ELzaaS2DhQpsx13hjdIO9I`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-APP-022.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-app-022.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-008.4",
@@ -2013,12 +1971,12 @@
       "impact": "7",
       "layerMap": "1/2/client/app",
       "section": "One-Command Local RAG Platform with Visual Workflows Intake (Doc/Source `V6-MEMORY-008`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-008.4",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-008.4:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-008.5",
@@ -2027,12 +1985,12 @@
       "impact": "7",
       "layerMap": "0/1/2/client/app/adapter",
       "section": "One-Command Local RAG Platform with Visual Workflows Intake (Doc/Source `V6-MEMORY-008`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-008.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-008.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-WORKFLOW-003.5",
@@ -2041,12 +1999,12 @@
       "impact": "7",
       "layerMap": "1/2/client/app",
       "section": "PRD-to-Roadmap Autonomous Software Team Planner Source Coverage Intake (Doc `1z7TGqd7-fsYwiZY66xpxbnZTRQ-s1ZpSzEKuD-64VHc`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-WORKFLOW-003.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-workflow-003.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SKILLS-001.19",
@@ -2055,12 +2013,12 @@
       "impact": "7",
       "layerMap": "1/2/3/client/app",
       "section": "Semantic Agent Skills Marketplace Source Coverage Addendum (Doc `1J8BwVaRmGlu8SK3fg5YOUoOknvQ4gtBQk4YX5GaIbTw`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SKILLS-001.19",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-skills-001.19:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-SUBSTRATE-007.5",
@@ -2069,12 +2027,12 @@
       "impact": "7",
       "layerMap": "client/app/adapter",
       "section": "Universal App Compatibility Adapter Engine Source Coverage Intake (Doc `17smtxqjd33u66Dsnvq0Bti8hx1jxTirVLrGG23qzw28`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-SUBSTRATE-007.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-substrate-007.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-006.5",
@@ -2083,12 +2041,12 @@
       "impact": "6",
       "layerMap": "1/2/client/app",
       "section": "Always-On Structured Memory Agent Source Coverage Intake (Doc `1wnZiGMfWVFaAp-al7UgbwyM1JV_BhW6A3hox3GoGllw`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-006.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-006.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-MEMORY-005.5",
@@ -2097,12 +2055,12 @@
       "impact": "6",
       "layerMap": "1/2/client/app",
       "section": "Local Document RAG Engine Source Coverage Intake (Doc `1P1_-BSqoRU0Qt2ais5aUTHycK1wOdmZEhTkcBr1jDhI`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-MEMORY-005.5",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-memory-005.5:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-APP-018.8",
@@ -2111,12 +2069,12 @@
       "impact": "6",
       "layerMap": "app/client",
       "section": "Octree AI LaTeX Forge Reinforcement Intake (Doc `1zV2NzGP0HtzAMLh28IhjhGtDwq__UwJDgKErMnFbeuA`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-APP-018.8",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-app-018.8:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V6-APP-018.7",
@@ -2125,12 +2083,12 @@
       "impact": "5",
       "layerMap": "app",
       "section": "Octree AI LaTeX Forge Reinforcement Intake (Doc `1zV2NzGP0HtzAMLh28IhjhGtDwq__UwJDgKErMnFbeuA`, 2026-03-11)",
-      "todoBucket": "repair_lane",
-      "hasLaneScript": false,
-      "laneRunnable": false,
-      "laneScript": "dynamic:legacy_alias_adapter:V6-APP-018.7",
+      "todoBucket": "execute_now",
+      "hasLaneScript": true,
+      "laneRunnable": true,
+      "laneScript": "lane:v6-app-018.7:run",
       "missingEntrypoint": null,
-      "unblock": "legacy dynamic fallback is disallowed for completion; add a concrete lane script + tests"
+      "unblock": ""
     },
     {
       "id": "V7-META-016",
