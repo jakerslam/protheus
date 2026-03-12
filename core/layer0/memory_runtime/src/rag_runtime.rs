@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -35,6 +35,51 @@ struct RagIndex {
     sources: Vec<RagSource>,
     chunks: Vec<RagChunk>,
     tombstones: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct TaxonomyRow {
+    chunk_id: String,
+    source: String,
+    when_value: String,
+    what_value: String,
+    how_value: String,
+    which_value: String,
+    confidence: f64,
+    keywords: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct TaxonomySnapshot {
+    schema_version: String,
+    generated_at: String,
+    row_count: usize,
+    rows: Vec<TaxonomyRow>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct CausalNode {
+    id: String,
+    ts: String,
+    event_type: String,
+    summary: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct CausalEdge {
+    from: String,
+    to: String,
+    relation: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct CausalityGraph {
+    schema_version: String,
+    generated_at: String,
+    node_count: usize,
+    edge_count: usize,
+    nodes: Vec<CausalNode>,
+    edges: Vec<CausalEdge>,
 }
 
 fn now_iso() -> String {
@@ -114,6 +159,26 @@ fn index_path(root: &Path, args: &HashMap<String, String>) -> PathBuf {
 
 fn history_path(root: &Path, args: &HashMap<String, String>) -> PathBuf {
     state_root(root, args).join("history.jsonl")
+}
+
+fn taxonomy_path(root: &Path, args: &HashMap<String, String>) -> PathBuf {
+    state_root(root, args).join("taxonomy_4w.json")
+}
+
+fn metacognitive_config_path(root: &Path, args: &HashMap<String, String>) -> PathBuf {
+    state_root(root, args).join("metacognitive_config.json")
+}
+
+fn metacognitive_journal_path(root: &Path, args: &HashMap<String, String>) -> PathBuf {
+    state_root(root, args).join("metacognitive_journal.jsonl")
+}
+
+fn causality_path(root: &Path, args: &HashMap<String, String>) -> PathBuf {
+    state_root(root, args).join("causality_graph.json")
+}
+
+fn ama_benchmark_path(root: &Path, args: &HashMap<String, String>) -> PathBuf {
+    state_root(root, args).join("ama_benchmark_latest.json")
 }
 
 fn byterover_root(root: &Path, args: &HashMap<String, String>) -> PathBuf {
@@ -278,6 +343,104 @@ fn tokenize(text: &str) -> Vec<String> {
         }
     }
     out.into_iter().collect::<Vec<String>>()
+}
+
+fn parse_yyyy_mm_dd(value: &str) -> String {
+    let bytes = value.as_bytes();
+    if bytes.len() < 10 {
+        return String::new();
+    }
+    for i in 0..=(bytes.len() - 10) {
+        let mut ok = true;
+        for off in 0..10 {
+            let b = bytes[i + off];
+            if off == 4 || off == 7 {
+                if b != b'-' {
+                    ok = false;
+                    break;
+                }
+            } else if !b.is_ascii_digit() {
+                ok = false;
+                break;
+            }
+        }
+        if ok {
+            return value[i..i + 10].to_string();
+        }
+    }
+    String::new()
+}
+
+fn classify_what(source: &str, mime: &str, text: &str) -> String {
+    let lower_source = source.to_ascii_lowercase();
+    let lower = text.to_ascii_lowercase();
+    if mime == "text/source"
+        || lower_source.ends_with(".rs")
+        || lower_source.ends_with(".ts")
+        || lower_source.ends_with(".js")
+        || lower_source.ends_with(".py")
+    {
+        return "code".to_string();
+    }
+    if lower_source.contains("receipt") || lower.contains("receipt_hash") {
+        return "receipt".to_string();
+    }
+    if lower_source.contains("policy") || lower.contains("policy") || lower.contains("rule") {
+        return "policy".to_string();
+    }
+    if lower_source.contains("memory") || lower.contains("epistemic") {
+        return "memory".to_string();
+    }
+    if lower_source.contains("log") || lower.contains("error") || lower.contains("warn") {
+        return "log".to_string();
+    }
+    "document".to_string()
+}
+
+fn classify_how(source: &str, mime: &str) -> String {
+    let lower = source.to_ascii_lowercase();
+    if lower.contains(".brv/") || lower.contains("context-tree") {
+        return "context_tree".to_string();
+    }
+    if lower.contains("memory/") {
+        return "memory_ingest".to_string();
+    }
+    if mime == "text/source" {
+        return "code_index".to_string();
+    }
+    "document_ingest".to_string()
+}
+
+fn effective_which(args: &HashMap<String, String>) -> String {
+    clean_text(
+        args.get("which")
+            .or_else(|| args.get("persona"))
+            .map_or("default", String::as_str),
+        100,
+    )
+}
+
+fn metacognitive_enabled(root: &Path, args: &HashMap<String, String>) -> bool {
+    let path = metacognitive_config_path(root, args);
+    let Some(raw) = fs::read_to_string(path).ok() else {
+        return false;
+    };
+    let Ok(v) = serde_json::from_str::<Value>(&raw) else {
+        return false;
+    };
+    v.get("enabled").and_then(Value::as_bool).unwrap_or(false)
+}
+
+fn append_metacognitive_note(root: &Path, args: &HashMap<String, String>, note: Value) {
+    let path = metacognitive_journal_path(root, args);
+    append_history(&path, &note);
+}
+
+fn load_history_rows(path: &Path) -> Vec<Value> {
+    let raw = fs::read_to_string(path).unwrap_or_default();
+    raw.lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .collect::<Vec<Value>>()
 }
 
 fn load_index(path: &Path) -> Option<RagIndex> {
@@ -771,6 +934,361 @@ pub fn byterover_upgrade_payload(args: &HashMap<String, String>) -> Value {
     out
 }
 
+pub fn memory_metacognitive_enable_payload(args: &HashMap<String, String>) -> Value {
+    let root = root_from_args(args);
+    let enabled = parse_bool(args.get("enabled"), true);
+    let note = clean_text(args.get("note").map_or("", String::as_str), 300);
+    let cfg_path = metacognitive_config_path(&root, args);
+    let payload = json!({
+        "schema_version": "1.0",
+        "enabled": enabled,
+        "updated_at": now_iso(),
+        "note": note
+    });
+    if let Some(parent) = cfg_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let _ = fs::write(
+        &cfg_path,
+        format!(
+            "{}\n",
+            serde_json::to_string_pretty(&payload).unwrap_or_else(|_| "{}".to_string())
+        ),
+    );
+    let out = receipt(json!({
+        "ok": true,
+        "type": "memory_metacognitive_enable",
+        "backend": "protheus_memory_core",
+        "enabled": enabled,
+        "config_path": normalize_rel_path(&root, &cfg_path)
+    }));
+    append_history(&history_path(&root, args), &out);
+    append_metacognitive_note(
+        &root,
+        args,
+        json!({
+            "type": "metacognitive_toggle",
+            "ts": now_iso(),
+            "enabled": enabled,
+            "note": note
+        }),
+    );
+    out
+}
+
+pub fn memory_taxonomy_payload(args: &HashMap<String, String>) -> Value {
+    let root = root_from_args(args);
+    let idx_path = index_path(&root, args);
+    let Some(index) = load_index(&idx_path) else {
+        return receipt(json!({
+            "ok": false,
+            "type": "memory_taxonomy_4w",
+            "error": "index_missing",
+            "index_path": normalize_rel_path(&root, &idx_path)
+        }));
+    };
+    let which = effective_which(args);
+    let mut rows = Vec::new();
+    let mut what_counts: BTreeMap<String, usize> = BTreeMap::new();
+    let mut how_counts: BTreeMap<String, usize> = BTreeMap::new();
+    let mut when_missing = 0usize;
+    for chunk in index.chunks {
+        let when_value = parse_yyyy_mm_dd(&chunk.source_path);
+        if when_value.is_empty() {
+            when_missing += 1;
+        }
+        let what_value = classify_what(&chunk.source_path, &chunk.mime, &chunk.text);
+        let how_value = classify_how(&chunk.source_path, &chunk.mime);
+        *what_counts.entry(what_value.clone()).or_insert(0) += 1;
+        *how_counts.entry(how_value.clone()).or_insert(0) += 1;
+        let tokenized = tokenize(&chunk.text);
+        let keywords = tokenized.into_iter().take(8).collect::<Vec<String>>();
+        let mut confidence = 0.6_f64;
+        if !when_value.is_empty() {
+            confidence += 0.2;
+        }
+        if !keywords.is_empty() {
+            confidence += 0.2;
+        }
+        rows.push(TaxonomyRow {
+            chunk_id: chunk.chunk_id,
+            source: chunk.source_path,
+            when_value,
+            what_value,
+            how_value,
+            which_value: which.clone(),
+            confidence: (confidence * 1000.0).round() / 1000.0,
+            keywords,
+        });
+    }
+    rows.sort_by(|a, b| a.chunk_id.cmp(&b.chunk_id));
+    let snapshot = TaxonomySnapshot {
+        schema_version: "1.0".to_string(),
+        generated_at: now_iso(),
+        row_count: rows.len(),
+        rows,
+    };
+    let out_path = taxonomy_path(&root, args);
+    if let Some(parent) = out_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let _ = fs::write(
+        &out_path,
+        format!(
+            "{}\n",
+            serde_json::to_string_pretty(&snapshot).unwrap_or_else(|_| "{}".to_string())
+        ),
+    );
+    let out = receipt(json!({
+        "ok": true,
+        "type": "memory_taxonomy_4w",
+        "backend": "protheus_memory_core",
+        "index_path": normalize_rel_path(&root, &idx_path),
+        "taxonomy_path": normalize_rel_path(&root, &out_path),
+        "row_count": snapshot.row_count,
+        "which": which,
+        "when_missing": when_missing,
+        "what_counts": what_counts,
+        "how_counts": how_counts
+    }));
+    append_history(&history_path(&root, args), &out);
+    if metacognitive_enabled(&root, args) {
+        append_metacognitive_note(
+            &root,
+            args,
+            json!({
+                "type": "taxonomy_reflection",
+                "ts": now_iso(),
+                "row_count": snapshot.row_count,
+                "when_missing": when_missing,
+                "dominant_what": out.get("what_counts").and_then(Value::as_object).and_then(|m| m.iter().max_by_key(|(_,v)| v.as_u64().unwrap_or(0)).map(|(k,_)| k.clone())).unwrap_or_else(|| "unknown".to_string())
+            }),
+        );
+    }
+    out
+}
+
+pub fn memory_causality_enable_payload(args: &HashMap<String, String>) -> Value {
+    let root = root_from_args(args);
+    let hist = history_path(&root, args);
+    let rows = load_history_rows(&hist);
+    if rows.is_empty() {
+        return receipt(json!({
+            "ok": false,
+            "type": "memory_causality_enable",
+            "error": "history_missing",
+            "history_path": normalize_rel_path(&root, &hist)
+        }));
+    }
+    let mut nodes = Vec::new();
+    let mut edges = Vec::new();
+    for (idx, row) in rows.iter().enumerate() {
+        let seed = format!(
+            "{}|{}|{}",
+            row.get("receipt_hash").and_then(Value::as_str).unwrap_or(""),
+            row.get("type").and_then(Value::as_str).unwrap_or(""),
+            idx
+        );
+        let id = format!("evt.{}", &sha256_hex(seed.as_bytes())[..16]);
+        let event_type = clean_text(row.get("type").and_then(Value::as_str).unwrap_or("event"), 120);
+        let ts = clean_text(
+            row.get("ts")
+                .or_else(|| row.get("generated_at"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            80,
+        );
+        let summary = clean_text(
+            &format!(
+                "{} {}",
+                event_type,
+                row.get("query")
+                    .or_else(|| row.get("answer"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+            ),
+            220,
+        );
+        nodes.push(CausalNode {
+            id: id.clone(),
+            ts,
+            event_type,
+            summary,
+        });
+        if idx > 0 {
+            let prev = nodes[idx - 1].id.clone();
+            edges.push(CausalEdge {
+                from: prev,
+                to: id,
+                relation: "temporal_precedes".to_string(),
+            });
+        }
+    }
+    let graph = CausalityGraph {
+        schema_version: "1.0".to_string(),
+        generated_at: now_iso(),
+        node_count: nodes.len(),
+        edge_count: edges.len(),
+        nodes,
+        edges,
+    };
+    let out_path = causality_path(&root, args);
+    if let Some(parent) = out_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let _ = fs::write(
+        &out_path,
+        format!(
+            "{}\n",
+            serde_json::to_string_pretty(&graph).unwrap_or_else(|_| "{}".to_string())
+        ),
+    );
+    let out = receipt(json!({
+        "ok": true,
+        "type": "memory_causality_enable",
+        "backend": "protheus_memory_core",
+        "graph_path": normalize_rel_path(&root, &out_path),
+        "history_path": normalize_rel_path(&root, &hist),
+        "node_count": graph.node_count,
+        "edge_count": graph.edge_count
+    }));
+    append_history(&history_path(&root, args), &out);
+    if metacognitive_enabled(&root, args) {
+        append_metacognitive_note(
+            &root,
+            args,
+            json!({
+                "type": "causality_reflection",
+                "ts": now_iso(),
+                "node_count": graph.node_count,
+                "edge_count": graph.edge_count
+            }),
+        );
+    }
+    out
+}
+
+pub fn memory_benchmark_ama_payload(args: &HashMap<String, String>) -> Value {
+    let root = root_from_args(args);
+    let graph_path = causality_path(&root, args);
+    let Some(raw) = fs::read_to_string(&graph_path).ok() else {
+        return receipt(json!({
+            "ok": false,
+            "type": "memory_benchmark_ama",
+            "error": "causality_graph_missing",
+            "graph_path": normalize_rel_path(&root, &graph_path)
+        }));
+    };
+    let Ok(graph) = serde_json::from_str::<CausalityGraph>(&raw) else {
+        return receipt(json!({
+            "ok": false,
+            "type": "memory_benchmark_ama",
+            "error": "causality_graph_invalid",
+            "graph_path": normalize_rel_path(&root, &graph_path)
+        }));
+    };
+    let threshold = args
+        .get("threshold")
+        .and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or(0.72)
+        .clamp(0.1, 1.0);
+    let node_ids = graph
+        .nodes
+        .iter()
+        .map(|n| n.id.clone())
+        .collect::<HashSet<String>>();
+    let valid_edges = graph
+        .edges
+        .iter()
+        .filter(|e| node_ids.contains(&e.from) && node_ids.contains(&e.to))
+        .count();
+    let edge_validity = if graph.edge_count == 0 {
+        0.0
+    } else {
+        valid_edges as f64 / graph.edge_count as f64
+    };
+    let covered_nodes = graph
+        .nodes
+        .iter()
+        .filter(|n| !n.summary.trim().is_empty())
+        .count();
+    let node_coverage = if graph.node_count == 0 {
+        0.0
+    } else {
+        covered_nodes as f64 / graph.node_count as f64
+    };
+    let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
+    for e in &graph.edges {
+        adjacency
+            .entry(e.from.clone())
+            .or_default()
+            .push(e.to.clone());
+    }
+    let mut two_hop = 0usize;
+    for node in &graph.nodes {
+        let mut seen: HashSet<String> = HashSet::new();
+        let mut q: VecDeque<(String, usize)> = VecDeque::new();
+        q.push_back((node.id.clone(), 0));
+        while let Some((cur, depth)) = q.pop_front() {
+            if depth >= 2 {
+                continue;
+            }
+            for nxt in adjacency.get(&cur).cloned().unwrap_or_default() {
+                if seen.insert(nxt.clone()) {
+                    q.push_back((nxt, depth + 1));
+                }
+            }
+        }
+        if seen.len() >= 2 {
+            two_hop += 1;
+        }
+    }
+    let multi_hop_ratio = if graph.node_count == 0 {
+        0.0
+    } else {
+        two_hop as f64 / graph.node_count as f64
+    };
+    let ama_score = (edge_validity * 0.5 + node_coverage * 0.3 + multi_hop_ratio * 0.2)
+        .clamp(0.0, 1.0);
+    let pass = ama_score >= threshold;
+    let benchmark = json!({
+        "schema_version": "1.0",
+        "generated_at": now_iso(),
+        "graph_path": normalize_rel_path(&root, &graph_path),
+        "metrics": {
+            "edge_validity": ((edge_validity * 1000.0).round() / 1000.0),
+            "node_coverage": ((node_coverage * 1000.0).round() / 1000.0),
+            "multi_hop_ratio": ((multi_hop_ratio * 1000.0).round() / 1000.0),
+            "ama_score": ((ama_score * 1000.0).round() / 1000.0),
+            "threshold": ((threshold * 1000.0).round() / 1000.0),
+            "pass": pass
+        }
+    });
+    let out_path = ama_benchmark_path(&root, args);
+    if let Some(parent) = out_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let _ = fs::write(
+        &out_path,
+        format!(
+            "{}\n",
+            serde_json::to_string_pretty(&benchmark).unwrap_or_else(|_| "{}".to_string())
+        ),
+    );
+    let out = receipt(json!({
+        "ok": true,
+        "type": "memory_benchmark_ama",
+        "backend": "protheus_memory_core",
+        "benchmark_path": normalize_rel_path(&root, &out_path),
+        "graph_path": normalize_rel_path(&root, &graph_path),
+        "ama_score": benchmark.get("metrics").and_then(|m| m.get("ama_score")).cloned().unwrap_or(Value::Null),
+        "threshold": benchmark.get("metrics").and_then(|m| m.get("threshold")).cloned().unwrap_or(Value::Null),
+        "pass": pass
+    }));
+    append_history(&history_path(&root, args), &out);
+    out
+}
+
 pub fn stable_status_payload() -> Value {
     receipt(json!({
         "ok": true,
@@ -787,7 +1305,11 @@ pub fn stable_status_payload() -> Value {
             "stable-memory-upgrade-byterover",
             "stable-rag-ingest",
             "stable-rag-search",
-            "stable-rag-chat"
+            "stable-rag-chat",
+            "stable-memory-taxonomy",
+            "stable-memory-enable-metacognitive",
+            "stable-memory-enable-causality",
+            "stable-memory-benchmark-ama"
         ]
     }))
 }
@@ -817,7 +1339,9 @@ pub fn ensure_supported_version(args: &HashMap<String, String>) -> Result<String
 mod tests {
     use super::{
         byterover_upgrade_payload, chat_payload, ensure_supported_version, ingest_payload,
-        merge_vault_payload, search_payload, stable_status_payload, status_payload,
+        memory_benchmark_ama_payload, memory_causality_enable_payload,
+        memory_metacognitive_enable_payload, memory_taxonomy_payload, merge_vault_payload,
+        search_payload, stable_status_payload, status_payload,
     };
     use std::collections::HashMap;
     use std::fs;
@@ -957,5 +1481,55 @@ mod tests {
         assert!(out.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
         assert!(dir.path().join(".brv/context-tree/timeline.md").exists());
         assert!(dir.path().join(".brv/context-tree/manifest.json").exists());
+    }
+
+    #[test]
+    fn taxonomy_causality_and_ama_benchmark_workflow() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let docs = dir.path().join("docs");
+        fs::create_dir_all(&docs).expect("mkdir docs");
+        fs::write(
+            docs.join("2026-03-12-ops.md"),
+            "Policy rule updates with deterministic receipts and causal links.",
+        )
+        .expect("write doc");
+
+        let mut args = base_args(&dir.path().to_string_lossy());
+        let ingest = ingest_payload(&args);
+        assert!(ingest.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
+
+        args.insert("q".to_string(), "policy causal receipts".to_string());
+        let search = search_payload(&args);
+        assert!(search.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
+        let chat = chat_payload(&args);
+        assert!(chat.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
+
+        let meta = memory_metacognitive_enable_payload(&base_args(&dir.path().to_string_lossy()));
+        assert!(meta.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
+        assert_eq!(meta.get("enabled").and_then(|v| v.as_bool()), Some(true));
+
+        let taxonomy = memory_taxonomy_payload(&base_args(&dir.path().to_string_lossy()));
+        assert!(taxonomy.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
+        assert!(
+            taxonomy
+                .get("row_count")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0)
+                >= 1
+        );
+
+        let causal = memory_causality_enable_payload(&base_args(&dir.path().to_string_lossy()));
+        assert!(causal.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
+        assert!(
+            causal
+                .get("node_count")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0)
+                >= 3
+        );
+
+        let ama = memory_benchmark_ama_payload(&base_args(&dir.path().to_string_lossy()));
+        assert!(ama.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
+        assert!(ama.get("ama_score").is_some());
     }
 }
