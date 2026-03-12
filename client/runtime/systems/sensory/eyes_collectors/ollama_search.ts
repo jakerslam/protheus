@@ -4,5 +4,3 @@
 // Layer ownership: adapters/cognition/collectors (authoritative)
 
 module.exports = require('../../../../../adapters/cognition/collectors/ollama_search.ts');
-
-export {};
