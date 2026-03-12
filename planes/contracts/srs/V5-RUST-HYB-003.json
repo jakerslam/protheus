@@ -1,0 +1,38 @@
+{
+  "id": "V5-RUST-HYB-003",
+  "upgrade": "[primitive-upgrade / V5] Execution Runtime Rust Cutover (Deterministic Receipts + Replay Core)",
+  "section": "Targeted Hybrid Rust Migration Program (Google Doc Intake 2026-03-03)",
+  "impact": 6,
+  "layer_map": "0/1/2/client",
+  "conduit_only_boundary": false,
+  "todo_bucket": "execute_now",
+  "execution_contract": {
+    "runtime": "core/layer2/ops:srs_contract_runtime",
+    "deterministic_receipt_required": true,
+    "mutable_state_path": "state/ops/srs_contract_runtime/V5-RUST-HYB-003/latest.json",
+    "history_path": "state/ops/srs_contract_runtime/history.jsonl"
+  },
+  "deliverables": [
+    {
+      "type": "contract",
+      "path": "planes/contracts/srs/V5-RUST-HYB-003.json"
+    },
+    {
+      "type": "state_receipt",
+      "path": "state/ops/srs_contract_runtime/V5-RUST-HYB-003/latest.json"
+    },
+    {
+      "type": "execution_history",
+      "path": "state/ops/srs_contract_runtime/history.jsonl"
+    }
+  ],
+  "validation": {
+    "lane_command": "protheus-ops srs-contract-runtime run --id=V5-RUST-HYB-003",
+    "status_command": "protheus-ops srs-contract-runtime status --id=V5-RUST-HYB-003",
+    "fail_closed_on_missing_contract": true
+  },
+  "generated_from": {
+    "source": "todo",
+    "generated_at": "2026-03-12T08:01:00.017Z"
+  }
+}

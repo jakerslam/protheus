@@ -6,6 +6,7 @@ import { dirname, resolve } from 'node:path';
 const DEFAULT_QUEUE_PATH = 'artifacts/todo_execution_full_current.json';
 const DEFAULT_REGRESSION_PATH = 'artifacts/srs_full_regression_current.json';
 const DEFAULT_IDS_OUT = 'artifacts/srs_contract_batch_ids_current.txt';
+const TODO_BUCKETS = new Set(['execute_now', 'repair_lane', 'design_required', 'blocked_external']);
 const CONTRACT_DIR = 'planes/contracts/srs';
 const MANIFEST_PATH = `${CONTRACT_DIR}/manifest.json`;
 
@@ -82,11 +83,22 @@ function contractForRow(row, generatedAt, sourceTag) {
   };
 }
 
-function rowsFromTodo(queuePath) {
+function parseTodoBuckets(raw) {
+  const normalized = String(raw || 'execute_now')
+    .split(',')
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean);
+  if (normalized.includes('all')) return [...TODO_BUCKETS];
+  const buckets = normalized.filter((bucket) => TODO_BUCKETS.has(bucket));
+  return buckets.length > 0 ? buckets : ['execute_now'];
+}
+
+function rowsFromTodo(queuePath, bucketFilter) {
   const queue = readJson(queuePath);
   const rows = Array.isArray(queue.rows) ? queue.rows : [];
+  const bucketSet = new Set(bucketFilter.map((v) => String(v || '').trim().toLowerCase()));
   return rows
-    .filter((row) => row && row.todoBucket === 'execute_now')
+    .filter((row) => row && bucketSet.has(String(row.todoBucket || '').trim().toLowerCase()))
     .map((row) => ({ ...row, id: normalizeId(row.id) }))
     .filter((row) => row.id);
 }
@@ -132,6 +144,7 @@ function main() {
   const queuePath = String(args.get('queue-path') || DEFAULT_QUEUE_PATH);
   const regressionPath = String(args.get('regression-path') || DEFAULT_REGRESSION_PATH);
   const idsOutPath = String(args.get('ids-out') || DEFAULT_IDS_OUT);
+  const todoBuckets = parseTodoBuckets(args.get('todo-buckets'));
 
   let sourceRows;
   let sourceRef;
@@ -139,7 +152,7 @@ function main() {
     sourceRows = rowsFromRegression(regressionPath);
     sourceRef = regressionPath;
   } else if (source === 'todo') {
-    sourceRows = rowsFromTodo(queuePath);
+    sourceRows = rowsFromTodo(queuePath, todoBuckets);
     sourceRef = queuePath;
   } else {
     throw new Error(`unsupported --source value: ${source}`);
@@ -182,6 +195,7 @@ function main() {
         type: 'srs_contract_scaffold',
         source,
         source_ref: sourceRef,
+        todo_buckets: source === 'todo' ? todoBuckets : null,
         target_rows: rows.length,
         written: written.length,
         existing: existing.length,
