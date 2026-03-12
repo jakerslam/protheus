@@ -185,7 +185,7 @@ function commandResolution(commandsById, packageScripts) {
 
 function regressionSummary(item, cmdAudit, todoUnchecked) {
   const findings = [];
-  if (!['queued', 'in_progress', 'blocked', 'done'].includes(item.status)) {
+  if (!['queued', 'in_progress', 'blocked', 'done', 'existing-coverage-validated'].includes(item.status)) {
     findings.push('invalid_status_value');
   }
   if (!/^\d+$/.test(item.impact || '')) {
@@ -200,11 +200,20 @@ function regressionSummary(item, cmdAudit, todoUnchecked) {
   if (item.status === 'done' && item.codeLikeEvidenceCount === 0) {
     findings.push('done_without_code_or_test_evidence');
   }
+  if (item.status === 'existing-coverage-validated' && item.nonBacklogEvidenceCount === 0) {
+    findings.push('coverage_without_non_backlog_evidence');
+  }
+  if (item.status === 'existing-coverage-validated' && item.codeLikeEvidenceCount === 0) {
+    findings.push('coverage_without_code_or_test_evidence');
+  }
   if (item.status === 'in_progress' && item.nonBacklogEvidenceCount === 0 && item.evidenceCount === 0) {
     findings.push('in_progress_without_evidence');
   }
   if (item.status === 'done' && todoUnchecked) {
     findings.push('todo_conflicts_done_status');
+  }
+  if (item.status === 'existing-coverage-validated' && todoUnchecked) {
+    findings.push('todo_conflicts_coverage_status');
   }
   if (cmdAudit && cmdAudit.unresolved.length > 0) {
     findings.push('unresolved_validation_commands');
@@ -219,7 +228,9 @@ function regressionSummary(item, cmdAudit, todoUnchecked) {
     findings.includes('unresolved_validation_commands') ||
     findings.includes('invalid_status_value') ||
     findings.includes('done_without_non_backlog_evidence') ||
-    findings.includes('done_without_code_or_test_evidence')
+    findings.includes('done_without_code_or_test_evidence') ||
+    findings.includes('coverage_without_non_backlog_evidence') ||
+    findings.includes('coverage_without_code_or_test_evidence')
   ) {
     severity = 'fail';
   }
@@ -296,6 +307,7 @@ function main() {
       pass: rows.filter((r) => r.regression.severity === 'pass').length,
     },
     doneRows: rows.filter((r) => r.status === 'done').length,
+    existingCoverageRows: rows.filter((r) => r.status === 'existing-coverage-validated').length,
     doneWithoutNonBacklogEvidence: rows.filter(
       (r) => r.status === 'done' && r.nonBacklogEvidenceCount === 0,
     ).length,
@@ -316,6 +328,7 @@ function main() {
     `- Regression severities: **fail=${summary.regression.fail}**, **warn=${summary.regression.warn}**, **pass=${summary.regression.pass}**`,
   );
   lines.push(`- Done rows: **${summary.doneRows}**`);
+  lines.push(`- Existing coverage validated rows: **${summary.existingCoverageRows}**`);
   lines.push(
     `- Done rows without non-backlog evidence: **${summary.doneWithoutNonBacklogEvidence}**`,
   );
