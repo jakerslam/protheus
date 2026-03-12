@@ -47,11 +47,22 @@ function isTsBootstrapShim(source) {
 }
 
 function isLegacyAliasShim(source) {
-  return (
-    source.includes('runLegacyAlias({') &&
-    source.includes('alias_rel:') &&
-    source.includes('target_rel:')
-  );
+  if (!source.includes('runLegacyAlias({')) return false;
+  if (!source.includes('alias_rel:')) return false;
+  if (!source.includes('legacy_alias_adapter.ts')) return false;
+  const withoutShebang = source.replace(/^#![^\n]*\n/, '');
+  const stripped = withoutShebang
+    .replace(/['"]use strict['"];?/g, '')
+    .replace(
+      /const\s*\{\s*runLegacyAlias\s*\}\s*=\s*require\(['"][^'"]*legacy_alias_adapter\.ts['"]\);?/g,
+      ''
+    )
+    .replace(
+      /runLegacyAlias\(\{\s*alias_rel:\s*['"][^'"]+['"]\s*(,\s*target_rel:\s*['"][^'"]+['"])?\s*\}\s*(,\s*process\.argv\.slice\(2\)\s*)?\);?/g,
+      ''
+    )
+    .replace(/\s+/g, '');
+  return stripped.length === 0;
 }
 
 function classify(file, source, policy) {

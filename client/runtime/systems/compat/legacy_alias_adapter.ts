@@ -60,6 +60,26 @@ function resolveLane(inputLaneId, scriptPath) {
   return DEFAULT_LANE;
 }
 
+function laneFromAliasRel(aliasRel) {
+  const rel = String(aliasRel || '')
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/\.[^.]+$/, '');
+  if (!rel || rel.startsWith('..')) return '';
+  return normalizeLaneId(`RUNTIME-${rel}`, DEFAULT_LANE);
+}
+
+function runLegacyAlias(spec = {}, argv = process.argv.slice(2)) {
+  const explicitLane = normalizeLaneId(spec.lane_id || spec.laneId || '', '');
+  const laneFromScriptPath = laneFromScript(spec.script || spec.scriptPath || '');
+  const laneFromAlias = laneFromAliasRel(spec.alias_rel || spec.aliasRel || '');
+  const laneId = normalizeLaneId(explicitLane || laneFromScriptPath || laneFromAlias || DEFAULT_LANE, DEFAULT_LANE);
+  const mod = createLegacyRetiredModule(__dirname, 'legacy_alias_adapter', laneId);
+  const passthrough = Array.isArray(argv) ? argv.map((v) => String(v)) : [];
+  return mod.run(passthrough);
+}
+
 function run(argv = []) {
   const parsed = parseArgs(argv);
   const laneId = resolveLane(parsed.laneId, parsed.scriptPath);
@@ -71,6 +91,7 @@ module.exports = {
   parseArgs,
   laneFromScript,
   resolveLane,
+  runLegacyAlias,
   run
 };
 

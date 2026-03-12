@@ -1,12 +1,12 @@
 {
   "type": "client_scope_inventory",
-  "generated_at": "2026-03-12T14:36:28.640Z",
-  "revision": "16a0165371ba0a541dded9440f03351357a50ce4",
+  "generated_at": "2026-03-12T21:12:00.260Z",
+  "revision": "94fd7b6c544289f890985a4e79f7e4ec73262d8a",
   "summary": {
-    "total_ts_files": 231,
+    "total_ts_files": 232,
     "by_category": {
       "runtime_system_surface": 116,
-      "sdk_surface": 58,
+      "sdk_surface": 59,
       "runtime_sdk_surface": 40,
       "cli_surface": 11,
       "runtime_patch_surface": 3,
@@ -111,6 +111,10 @@
         "count": 1
       },
       {
+        "dir": "client/lib/legacy_alias_adapter.ts",
+        "count": 1
+      },
+      {
         "dir": "client/lib/legacy_conduit_proxy.ts",
         "count": 1
       },
@@ -168,10 +172,6 @@
       },
       {
         "dir": "client/lib/request_envelope.ts",
-        "count": 1
-      },
-      {
-        "dir": "client/lib/runtime_path_registry.ts",
         "count": 1
       }
     ]
@@ -295,6 +295,10 @@
     },
     {
       "file": "client/lib/integrity_hash_utility.ts",
+      "category": "sdk_surface"
+    },
+    {
+      "file": "client/lib/legacy_alias_adapter.ts",
       "category": "sdk_surface"
     },
     {

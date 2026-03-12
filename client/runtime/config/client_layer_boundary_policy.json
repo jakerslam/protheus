@@ -26,6 +26,7 @@
     "createLaneModule("
   ],
   "wrapper_forbidden_markers": [
+    "ts_bootstrap.ts').bootstrap(__filename, module)",
     "fs.readFileSync(",
     "fs.writeFileSync(",
     "fs.appendFileSync(",
