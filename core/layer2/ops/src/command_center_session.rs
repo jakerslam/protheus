@@ -16,6 +16,9 @@ const USAGE: &[&str] = &[
     "  protheus-ops command-center-session register --session-id=<id> [--lineage-id=<id>] [--status=<running|paused|terminated>] [--task=<text>] [--state-path=<path>]",
     "  protheus-ops command-center-session resume <id> [--state-path=<path>]",
     "  protheus-ops command-center-session send <id> --message=<text> [--state-path=<path>]",
+    "  protheus-ops command-center-session kill <id> [--state-path=<path>]",
+    "  protheus-ops command-center-session tail <id> [--lines=<n>] [--state-path=<path>]",
+    "  protheus-ops command-center-session inspect <id> [--state-path=<path>]",
 ];
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -35,13 +38,23 @@ struct SessionState {
     #[serde(default)]
     last_attach_epoch_ms: Option<u64>,
     #[serde(default)]
+    terminated_epoch_ms: Option<u64>,
+    #[serde(default)]
     attach_count: u64,
     #[serde(default)]
     steering_count: u64,
     #[serde(default)]
+    token_count: u64,
+    #[serde(default)]
+    cost_usd: f64,
+    #[serde(default)]
+    health: String,
+    #[serde(default)]
     last_steering_hash: Option<String>,
     #[serde(default)]
     recent_steering: Vec<SteeringEvent>,
+    #[serde(default)]
+    events: Vec<SessionEvent>,
     #[serde(default)]
     metadata: Value,
 }
@@ -51,6 +64,13 @@ struct SteeringEvent {
     ts_epoch_ms: u64,
     message: String,
     message_hash: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SessionEvent {
+    ts_epoch_ms: u64,
+    kind: String,
+    detail: Value,
 }
 
 fn print_json_line(value: &Value) {
@@ -131,6 +151,47 @@ fn sha256_hex(input: &str) -> String {
 fn lineage_seed(session_id: &str, now_ms: u64) -> String {
     let digest = sha256_hex(&format!("{session_id}:{now_ms}"));
     format!("lineage-{}", &digest[..12])
+}
+
+fn normalized_health(status: &str) -> String {
+    match status.trim().to_ascii_lowercase().as_str() {
+        "running" => "healthy".to_string(),
+        "paused" => "paused".to_string(),
+        "terminated" => "terminated".to_string(),
+        _ => "degraded".to_string(),
+    }
+}
+
+fn push_event(session: &mut SessionState, now_ms: u64, kind: &str, detail: Value) {
+    session.events.push(SessionEvent {
+        ts_epoch_ms: now_ms,
+        kind: kind.to_string(),
+        detail,
+    });
+    if session.events.len() > 100 {
+        let excess = session.events.len() - 100;
+        session.events.drain(0..excess);
+    }
+}
+
+fn session_view(session: &SessionState, now_ms: u64) -> Value {
+    json!({
+      "session_id": session.session_id,
+      "lineage_id": session.lineage_id,
+      "status": session.status,
+      "health": if session.health.is_empty() { normalized_health(&session.status) } else { session.health.clone() },
+      "started_epoch_ms": session.started_epoch_ms,
+      "terminated_epoch_ms": session.terminated_epoch_ms,
+      "uptime_seconds": if now_ms >= session.started_epoch_ms { (now_ms - session.started_epoch_ms) / 1000 } else { 0 },
+      "last_attach_epoch_ms": session.last_attach_epoch_ms,
+      "attach_count": session.attach_count,
+      "steering_count": session.steering_count,
+      "token_count": session.token_count,
+      "cost_usd": session.cost_usd,
+      "last_steering_hash": session.last_steering_hash,
+      "task": session.metadata.get("task").cloned().unwrap_or(Value::Null),
+      "event_count": session.events.len()
+    })
 }
 
 fn with_hash(mut payload: Value) -> Value {
@@ -226,7 +287,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             let payload = if let Some(session_id) = target {
                 if let Some(session) = registry.sessions.get(&session_id) {
                     json!({
-                        "session": session,
+                        "session": session_view(session, now_ms),
                         "session_count": registry.sessions.len()
                     })
                 } else {
@@ -241,8 +302,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     return 3;
                 }
             } else {
+                let sessions = registry
+                    .sessions
+                    .values()
+                    .map(|session| session_view(session, now_ms))
+                    .collect::<Vec<_>>();
                 json!({
-                    "sessions": registry.sessions,
+                    "sessions": sessions,
                     "session_count": registry.sessions.len()
                 })
             };
@@ -286,21 +352,37 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 metadata["task"] = Value::String(task_name);
             }
 
-            registry.sessions.insert(
-                session_id.clone(),
-                SessionState {
-                    session_id: session_id.clone(),
-                    lineage_id: lineage_id.clone(),
-                    status: status.clone(),
-                    started_epoch_ms: existing_started,
-                    last_attach_epoch_ms: None,
-                    attach_count: 0,
-                    steering_count: 0,
-                    last_steering_hash: None,
-                    recent_steering: Vec::new(),
-                    metadata,
+            let mut session = SessionState {
+                session_id: session_id.clone(),
+                lineage_id: lineage_id.clone(),
+                status: status.clone(),
+                started_epoch_ms: existing_started,
+                last_attach_epoch_ms: None,
+                terminated_epoch_ms: if status == "terminated" {
+                    Some(now_ms)
+                } else {
+                    None
                 },
+                attach_count: 0,
+                steering_count: 0,
+                token_count: 0,
+                cost_usd: 0.0,
+                health: normalized_health(&status),
+                last_steering_hash: None,
+                recent_steering: Vec::new(),
+                events: Vec::new(),
+                metadata,
+            };
+            push_event(
+                &mut session,
+                now_ms,
+                "register",
+                json!({
+                  "status": status,
+                  "lineage_id": lineage_id
+                }),
             );
+            registry.sessions.insert(session_id.clone(), session);
             registry.updated_epoch_ms = now_ms;
             if let Err(err) = save_registry(&state_file, &registry) {
                 print_json_line(&error_receipt(
@@ -364,8 +446,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     return 4;
                 }
                 session.status = "running".to_string();
+                session.health = normalized_health(&session.status);
                 session.attach_count = session.attach_count.saturating_add(1);
                 session.last_attach_epoch_ms = Some(now_ms);
+                session.terminated_epoch_ms = None;
+                push_event(&mut *session, now_ms, "resume", json!({}));
                 registry.updated_epoch_ms = now_ms;
 
                 json!({
@@ -426,6 +511,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 ));
                 return 2;
             }
+            let token_delta = parse_flag(argv, "token-delta")
+                .and_then(|v| v.parse::<u64>().ok())
+                .unwrap_or(0);
+            let cost_delta = parse_flag(argv, "cost-delta")
+                .and_then(|v| v.parse::<f64>().ok())
+                .unwrap_or(0.0)
+                .max(0.0);
             let payload = {
                 let Some(session) = registry.sessions.get_mut(&session_id) else {
                     print_json_line(&error_receipt(
@@ -457,12 +549,24 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     message_hash: message_hash.clone(),
                 };
                 session.steering_count = session.steering_count.saturating_add(1);
+                session.token_count = session.token_count.saturating_add(token_delta);
+                session.cost_usd += cost_delta;
                 session.last_steering_hash = Some(message_hash.clone());
                 session.recent_steering.push(event);
                 if session.recent_steering.len() > 20 {
                     let excess = session.recent_steering.len() - 20;
                     session.recent_steering.drain(0..excess);
                 }
+                push_event(
+                    &mut *session,
+                    now_ms,
+                    "steer",
+                    json!({
+                        "message_hash": format!("sha256:{message_hash}"),
+                        "token_delta": token_delta,
+                        "cost_delta": cost_delta
+                    }),
+                );
                 registry.updated_epoch_ms = now_ms;
 
                 json!({
@@ -488,6 +592,158 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             }
             print_json_line(&success_receipt(
                 "command_center_session_steer",
+                &cmd,
+                argv,
+                &state_file,
+                payload,
+            ));
+            0
+        }
+        "kill" | "terminate" => {
+            let Some(session_id) = session_id_from_args(&cmd, argv) else {
+                print_json_line(&error_receipt(
+                    "missing_session_id",
+                    "expected session id for kill/terminate",
+                    &cmd,
+                    argv,
+                    &state_file,
+                    2,
+                ));
+                return 2;
+            };
+            let payload = {
+                let Some(session) = registry.sessions.get_mut(&session_id) else {
+                    print_json_line(&error_receipt(
+                        "unknown_session",
+                        "session_id not found",
+                        &cmd,
+                        argv,
+                        &state_file,
+                        3,
+                    ));
+                    return 3;
+                };
+                session.status = "terminated".to_string();
+                session.health = normalized_health(&session.status);
+                session.terminated_epoch_ms = Some(now_ms);
+                push_event(&mut *session, now_ms, "kill", json!({}));
+                registry.updated_epoch_ms = now_ms;
+                json!({
+                  "session_id": session.session_id,
+                  "lineage_id": session.lineage_id,
+                  "status": session.status,
+                  "terminated_epoch_ms": session.terminated_epoch_ms
+                })
+            };
+            if let Err(err) = save_registry(&state_file, &registry) {
+                print_json_line(&error_receipt(
+                    "state_write_failed",
+                    &err,
+                    &cmd,
+                    argv,
+                    &state_file,
+                    2,
+                ));
+                return 2;
+            }
+            print_json_line(&success_receipt(
+                "command_center_session_kill",
+                &cmd,
+                argv,
+                &state_file,
+                payload,
+            ));
+            0
+        }
+        "tail" => {
+            let Some(session_id) = session_id_from_args(&cmd, argv) else {
+                print_json_line(&error_receipt(
+                    "missing_session_id",
+                    "expected session id for tail",
+                    &cmd,
+                    argv,
+                    &state_file,
+                    2,
+                ));
+                return 2;
+            };
+            let lines = parse_flag(argv, "lines")
+                .and_then(|v| v.parse::<usize>().ok())
+                .unwrap_or(10)
+                .clamp(1, 100);
+            let payload = {
+                let Some(session) = registry.sessions.get(&session_id) else {
+                    print_json_line(&error_receipt(
+                        "unknown_session",
+                        "session_id not found",
+                        &cmd,
+                        argv,
+                        &state_file,
+                        3,
+                    ));
+                    return 3;
+                };
+                let events = session
+                    .events
+                    .iter()
+                    .rev()
+                    .take(lines)
+                    .cloned()
+                    .collect::<Vec<_>>();
+                let steering = session
+                    .recent_steering
+                    .iter()
+                    .rev()
+                    .take(lines)
+                    .cloned()
+                    .collect::<Vec<_>>();
+                json!({
+                    "session": session_view(session, now_ms),
+                    "events": events,
+                    "steering": steering,
+                    "lines": lines
+                })
+            };
+            print_json_line(&success_receipt(
+                "command_center_session_tail",
+                &cmd,
+                argv,
+                &state_file,
+                payload,
+            ));
+            0
+        }
+        "inspect" => {
+            let Some(session_id) = session_id_from_args(&cmd, argv) else {
+                print_json_line(&error_receipt(
+                    "missing_session_id",
+                    "expected session id for inspect",
+                    &cmd,
+                    argv,
+                    &state_file,
+                    2,
+                ));
+                return 2;
+            };
+            let payload = {
+                let Some(session) = registry.sessions.get(&session_id) else {
+                    print_json_line(&error_receipt(
+                        "unknown_session",
+                        "session_id not found",
+                        &cmd,
+                        argv,
+                        &state_file,
+                        3,
+                    ));
+                    return 3;
+                };
+                json!({
+                    "session": session,
+                    "summary": session_view(session, now_ms)
+                })
+            };
+            print_json_line(&success_receipt(
+                "command_center_session_inspect",
                 &cmd,
                 argv,
                 &state_file,
@@ -556,8 +812,11 @@ mod tests {
         assert_eq!(session.lineage_id, "lineage-alpha");
         assert_eq!(session.attach_count, 1);
         assert_eq!(session.steering_count, 1);
+        assert_eq!(session.token_count, 0);
+        assert!(session.cost_usd >= 0.0);
         assert!(session.last_attach_epoch_ms.is_some());
         assert!(session.last_steering_hash.is_some());
+        assert!(!session.events.is_empty());
     }
 
     #[test]
@@ -577,5 +836,55 @@ mod tests {
             0
         );
         assert_eq!(run(root, &argv(&["resume", "session-z"])), 4);
+    }
+
+    #[test]
+    fn lifecycle_kill_tail_and_inspect_work() {
+        let tmp = tempdir().expect("tmp");
+        let root = tmp.path();
+        assert_eq!(
+            run(
+                root,
+                &argv(&[
+                    "register",
+                    "--session-id=session-b",
+                    "--lineage-id=lineage-b",
+                    "--task=triage"
+                ])
+            ),
+            0
+        );
+        assert_eq!(
+            run(
+                root,
+                &argv(&[
+                    "send",
+                    "session-b",
+                    "--message=collect evidence",
+                    "--token-delta=42",
+                    "--cost-delta=0.12"
+                ])
+            ),
+            0
+        );
+        assert_eq!(run(root, &argv(&["tail", "session-b", "--lines=5"])), 0);
+        assert_eq!(run(root, &argv(&["inspect", "session-b"])), 0);
+        assert_eq!(run(root, &argv(&["kill", "session-b"])), 0);
+        assert_eq!(
+            run(
+                root,
+                &argv(&["send", "session-b", "--message=should fail after kill"])
+            ),
+            4
+        );
+
+        let state_file = root.join(DEFAULT_STATE_PATH);
+        let registry = load_registry(&state_file).expect("state load");
+        let session = registry.sessions.get("session-b").expect("session");
+        assert_eq!(session.status, "terminated");
+        assert_eq!(session.token_count, 42);
+        assert!(session.cost_usd >= 0.12);
+        assert!(session.terminated_epoch_ms.is_some());
+        assert!(session.events.iter().any(|e| e.kind == "kill"));
     }
 }
