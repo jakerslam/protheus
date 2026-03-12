@@ -1,7 +1,7 @@
 {
   "type": "client_target_contract_audit",
-  "generated_at": "2026-03-12T04:29:23.943Z",
-  "revision": "3b665c963218aea046f7307f73315244a6d8a4cb",
+  "generated_at": "2026-03-12T04:43:25.008Z",
+  "revision": "34cca775e7ded50fa174bfec61eccfdae67695f5",
   "policy_path": "client/runtime/config/client_target_contract_policy.json",
   "summary": {
     "hard_violation_count": 0,
@@ -16,7 +16,7 @@
     "ts": 231,
     "template": 2,
     "md": 806,
-    "json": 801,
+    "json": 802,
     "ndjson": 2,
     "jsonl": 4,
     "mjs": 2,

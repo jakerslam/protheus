@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "identity_binding": {
+    "required": true
+  },
+  "deny_without_evidence": true,
+  "min_evidence_items": 1,
+  "agreement_tokens": [
+    "agree",
+    "agreed",
+    "approved",
+    "sounds good",
+    "yes"
+  ],
+  "rules": [
+    {
+      "id": "default_unverified_agreement",
+      "trigger_tokens": [
+        "agree",
+        "approved"
+      ],
+      "require_evidence": true,
+      "min_evidence_items": 1,
+      "deny_reason": "agreement_without_verification_denied"
+    }
+  ]
+}
