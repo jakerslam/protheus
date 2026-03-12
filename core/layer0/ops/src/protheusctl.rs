@@ -779,7 +779,18 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .map(|v| v.trim().to_ascii_lowercase())
                 .unwrap_or_else(|| "status".to_string());
             let normalized = if [
-                "register", "start", "resume", "attach", "send", "steer", "status", "list",
+                "register",
+                "start",
+                "resume",
+                "attach",
+                "send",
+                "steer",
+                "kill",
+                "terminate",
+                "tail",
+                "inspect",
+                "status",
+                "list",
             ]
             .contains(&sub.as_str())
             {
@@ -1427,5 +1438,15 @@ mod tests {
         };
         let err = enforce_command_center_boundary("session", &route).expect_err("must reject");
         assert!(err.contains("session_route_must_be_core_authoritative"));
+    }
+
+    #[test]
+    fn session_route_supports_extended_lifecycle_commands() {
+        let route = Route {
+            script_rel: "core://command-center-session".to_string(),
+            args: vec!["kill".to_string(), "session-9".to_string()],
+            forward_stdin: false,
+        };
+        assert!(enforce_command_center_boundary("session", &route).is_ok());
     }
 }
