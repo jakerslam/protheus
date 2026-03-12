@@ -119,6 +119,8 @@ function statusWeight(status) {
       return 300;
     case 'blocked':
       return 240;
+    case 'blocked_external_prepared':
+      return 220;
     case 'queued':
       return 180;
     case 'done':

@@ -23,14 +23,20 @@ function parseArgs(argv) {
   };
 }
 
-function updateStatuses(markdown, ids, fromStatus, toStatus) {
+function updateStatuses(markdown, ids, fromStatuses, toStatus) {
   let updated = markdown;
   let changes = 0;
+  const from = Array.isArray(fromStatuses) ? fromStatuses : [fromStatuses];
   for (const id of ids) {
-    const pattern = new RegExp(`(\\|\\s*${id.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\s*\\|\\s*)${fromStatus}(\\s*\\|)`, 'g');
-    const before = updated;
-    updated = updated.replace(pattern, `$1${toStatus}$2`);
-    if (updated !== before) changes += 1;
+    for (const fromStatus of from) {
+      const pattern = new RegExp(
+        `(\\|\\s*${id.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\s*\\|\\s*)${fromStatus}(\\s*\\|)`,
+        'g',
+      );
+      const before = updated;
+      updated = updated.replace(pattern, `$1${toStatus}$2`);
+      if (updated !== before) changes += 1;
+    }
   }
   return { updated, changes };
 }
@@ -76,8 +82,9 @@ function main() {
   if (args.apply && candidateIds.length > 0) {
     const srs = read(SRS_PATH);
     const backlog = read(BACKLOG_PATH);
-    const srsRes = updateStatuses(srs, candidateIds, 'blocked', 'in_progress');
-    const backlogRes = updateStatuses(backlog, candidateIds, 'blocked', 'in_progress');
+    const fromStatuses = ['blocked', 'blocked_external_prepared'];
+    const srsRes = updateStatuses(srs, candidateIds, fromStatuses, 'existing-coverage-validated');
+    const backlogRes = updateStatuses(backlog, candidateIds, fromStatuses, 'existing-coverage-validated');
     srsRowsUpdated = srsRes.changes;
     backlogRowsUpdated = backlogRes.changes;
     if (srsRowsUpdated > 0) write(SRS_PATH, srsRes.updated);

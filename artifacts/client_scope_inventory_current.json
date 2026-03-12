@@ -1,7 +1,7 @@
 {
   "type": "client_scope_inventory",
-  "generated_at": "2026-03-12T14:15:14.414Z",
-  "revision": "f589cd411b79630c2017e9abbb74913b19d3d3d7",
+  "generated_at": "2026-03-12T14:36:28.640Z",
+  "revision": "16a0165371ba0a541dded9440f03351357a50ce4",
   "summary": {
     "total_ts_files": 231,
     "by_category": {

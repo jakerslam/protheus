@@ -56,8 +56,14 @@ function parseSrsRows(markdown) {
 function main() {
   const srsRows = parseSrsRows(read(SRS_PATH));
   const actionable = JSON.parse(read(ACTIONABLE_PATH));
-  const blockedRows = (actionable.rows ?? []).filter((r) => r.todoBucket === 'blocked_external');
-  const rows = blockedRows.map((row) => {
+  const blockedRows = (actionable.rows ?? []).filter((r) =>
+    ['blocked_external', 'blocked_external_prepared'].includes(r.todoBucket),
+  );
+  const uniqueById = new Map();
+  for (const row of blockedRows) {
+    if (!uniqueById.has(row.id)) uniqueById.set(row.id, row);
+  }
+  const rows = [...uniqueById.values()].map((row) => {
     const srs = srsRows.get(row.id) ?? {};
     return {
       id: row.id,

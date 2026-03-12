@@ -23,7 +23,7 @@ function parseSrsRows(markdown) {
     }
     if (!line.startsWith('|')) continue;
     const statusMatch = line.match(
-      /^\|\s*(V[^|]+?)\s*\|\s*(queued|in_progress|blocked|done|existing-coverage-validated)\s*\|/i,
+      /^\|\s*(V[^|]+?)\s*\|\s*(queued|in_progress|blocked|blocked_external_prepared|done|existing-coverage-validated)\s*\|/i,
     );
     if (!statusMatch) continue;
     const id = statusMatch[1].trim();
@@ -114,6 +114,16 @@ function classify(row, scripts) {
       unblock: 'requires external/human dependency resolution',
     };
   }
+  if (row.status === 'blocked_external_prepared') {
+    return {
+      todoBucket: 'blocked_external_prepared',
+      hasLaneScript: false,
+      laneRunnable: false,
+      laneScript: null,
+      missingEntrypoint: null,
+      unblock: 'external dependency packet prepared; awaiting human/third-party authority artifacts',
+    };
+  }
   const actionable = row.status === 'queued' || row.status === 'in_progress';
   if (!actionable) {
     return {
@@ -175,6 +185,7 @@ function toMarkdown(summary, rows) {
   lines.push(`- queued: ${summary.queued}`);
   lines.push(`- in_progress: ${summary.in_progress}`);
   lines.push(`- blocked: ${summary.blocked}`);
+  lines.push(`- blocked_external_prepared: ${summary.blocked_external_prepared}`);
   lines.push(`- existing_coverage_validated: ${summary.existing_coverage_validated}`);
   lines.push(`- execute_now: ${summary.execute_now}`);
   lines.push(`- repair_lane: ${summary.repair_lane}`);
@@ -196,16 +207,39 @@ function main() {
   const srs = parseSrsRows(read(SRS_PATH));
   const scripts = loadScripts();
 
-  const rows = srs
-    .filter((r) => ['queued', 'in_progress', 'blocked'].includes(r.status))
-    .map((r) => ({ ...r, ...classify(r, scripts) }));
+  const statusPriority = {
+    blocked: 4,
+    in_progress: 3,
+    queued: 2,
+    blocked_external_prepared: 1,
+  };
 
+  const dedup = new Map();
+  for (const row of srs
+    .filter((r) => ['queued', 'in_progress', 'blocked', 'blocked_external_prepared'].includes(r.status))
+    .map((r) => ({ ...r, ...classify(r, scripts) }))) {
+    const existing = dedup.get(row.id);
+    if (!existing) {
+      dedup.set(row.id, row);
+      continue;
+    }
+    const currentScore = statusPriority[row.status] ?? 0;
+    const existingScore = statusPriority[existing.status] ?? 0;
+    if (currentScore > existingScore) dedup.set(row.id, row);
+  }
+  const rows = [...dedup.values()].sort((a, b) => a.id.localeCompare(b.id));
+
+  const queued = rows.filter((r) => r.status === 'queued').length;
+  const inProgress = rows.filter((r) => r.status === 'in_progress').length;
+  const blocked = rows.filter((r) => r.status === 'blocked').length;
+  const blockedPrepared = rows.filter((r) => r.status === 'blocked_external_prepared').length;
   const summary = {
     generatedAt: new Date().toISOString(),
-    actionable_total: rows.length,
-    queued: rows.filter((r) => r.status === 'queued').length,
-    in_progress: rows.filter((r) => r.status === 'in_progress').length,
-    blocked: rows.filter((r) => r.status === 'blocked').length,
+    actionable_total: queued + inProgress + blocked,
+    queued,
+    in_progress: inProgress,
+    blocked,
+    blocked_external_prepared: blockedPrepared,
     existing_coverage_validated: srs.filter((r) => r.status === 'existing-coverage-validated').length,
     execute_now: rows.filter((r) => r.todoBucket === 'execute_now').length,
     repair_lane: rows.filter((r) => r.todoBucket === 'repair_lane').length,
