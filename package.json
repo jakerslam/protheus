@@ -1598,7 +1598,8 @@
     "lane:v6-skills-001.21:run": "node scripts/ci/srs_repair_lane_runner.mjs --id=V6-SKILLS-001.21 --strict=1",
     "lane:v6-skills-001.22:run": "node scripts/ci/srs_repair_lane_runner.mjs --id=V6-SKILLS-001.22 --strict=1",
     "test:security:truth-gate": "node tests/client-memory-tools/truth_gate_security_plane_boundary.test.js",
-    "ops:blocked-external:packet-gate": "node scripts/ci/blocked_external_packet_gate.mjs"
+    "ops:blocked-external:packet-gate": "node scripts/ci/blocked_external_packet_gate.mjs",
+    "test:ops:blocked-external:packet-gate": "node tests/client-memory-tools/blocked_external_packet_gate.test.js"
   },
   "bin": {
     "protheus": "./client/cli/bin/protheus.ts",

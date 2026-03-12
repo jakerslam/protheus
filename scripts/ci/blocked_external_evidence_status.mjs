@@ -36,21 +36,37 @@ function classifyRow(row) {
   const dirExists = existsSync(evidenceDir);
   const files = dirExists ? listFilesRecursive(evidenceDir) : [];
   const hasReadme = files.some((f) => f.toLowerCase() === `${row.id.toLowerCase()}/readme.md`);
-  const hasArtifact = files.some(
-    (f) => !f.toLowerCase().endsWith('/readme.md') && !f.toLowerCase().endsWith('/.ds_store'),
+  const hasPacketManifest = files.some((f) => f.toLowerCase().endsWith('/packet_manifest.json'));
+  const hasPacketMarkdown = files.some((f) =>
+    /\/external_execution_packet_.*\.md$/i.test(f.replaceAll('\\', '/')),
+  );
+  const hasExternalProof = files.some(
+    (f) =>
+      /(\/external_proof|\/signed_|\/third_party|\/attestation|\/certificate|\/audit_report|\/publication_link)/i.test(
+        f.replaceAll('\\', '/'),
+      ) && !f.toLowerCase().endsWith('/readme.md'),
   );
 
   let evidenceStatus = 'missing';
   if (dirExists && !hasReadme) evidenceStatus = 'partial_missing_readme';
-  if (dirExists && hasReadme && !hasArtifact) evidenceStatus = 'partial_missing_artifact';
-  if (dirExists && hasReadme && hasArtifact) evidenceStatus = 'ready_for_reconcile';
+  if (dirExists && hasReadme && (!hasPacketManifest || !hasPacketMarkdown)) {
+    evidenceStatus = 'partial_missing_packet';
+  }
+  if (dirExists && hasReadme && hasPacketManifest && hasPacketMarkdown && !hasExternalProof) {
+    evidenceStatus = 'partial_missing_external_proof';
+  }
+  if (dirExists && hasReadme && hasPacketManifest && hasPacketMarkdown && hasExternalProof) {
+    evidenceStatus = 'ready_for_reconcile';
+  }
 
   return {
     ...row,
     evidenceDir: `${EVIDENCE_ROOT}/${row.id}`,
     evidenceStatus,
     hasReadme,
-    hasArtifact,
+    hasPacketManifest,
+    hasPacketMarkdown,
+    hasExternalProof,
     files,
   };
 }
@@ -65,13 +81,19 @@ function toMarkdown(payload) {
   lines.push(`- blocked_external_total: ${payload.summary.total}`);
   lines.push(`- ready_for_reconcile: ${payload.summary.ready_for_reconcile}`);
   lines.push(`- partial_missing_readme: ${payload.summary.partial_missing_readme}`);
+  lines.push(`- partial_missing_packet: ${payload.summary.partial_missing_packet}`);
+  lines.push(`- partial_missing_external_proof: ${payload.summary.partial_missing_external_proof}`);
   lines.push(`- partial_missing_artifact: ${payload.summary.partial_missing_artifact}`);
   lines.push(`- missing: ${payload.summary.missing}`);
   lines.push('');
   lines.push('## Evidence Contract');
   lines.push('- One directory per blocked ID: `evidence/external/<ID>/`');
   lines.push('- Required file 1: `README.md` describing the external decision/evidence and date');
-  lines.push('- Required file 2+: at least one concrete evidence artifact (report/cert/screenshot/log/export)');
+  lines.push('- Required file 2: `packet_manifest.json`');
+  lines.push('- Required file 3: `external_execution_packet_YYYY-MM-DD.md`');
+  lines.push(
+    '- Required file 4+: at least one true external proof artifact (e.g., `external_proof_*.md/.json`, `signed_*`, `third_party_*`, `attestation_*`, `certificate_*`, `audit_report_*`, `publication_link_*`).',
+  );
   lines.push('');
   lines.push('| ID | Impact | Layer | Evidence Status | Evidence Path | Upgrade Theme |');
   lines.push('| --- | ---: | --- | --- | --- | --- |');
@@ -91,9 +113,15 @@ function main() {
     total: rows.length,
     ready_for_reconcile: rows.filter((r) => r.evidenceStatus === 'ready_for_reconcile').length,
     partial_missing_readme: rows.filter((r) => r.evidenceStatus === 'partial_missing_readme').length,
-    partial_missing_artifact: rows.filter((r) => r.evidenceStatus === 'partial_missing_artifact').length,
+    partial_missing_packet: rows.filter((r) => r.evidenceStatus === 'partial_missing_packet').length,
+    partial_missing_external_proof: rows.filter(
+      (r) => r.evidenceStatus === 'partial_missing_external_proof',
+    ).length,
+    partial_missing_artifact: 0,
     missing: rows.filter((r) => r.evidenceStatus === 'missing').length,
   };
+  summary.partial_missing_artifact =
+    summary.partial_missing_packet + summary.partial_missing_external_proof;
   const payload = {
     ok: true,
     type: 'blocked_external_evidence_status',
