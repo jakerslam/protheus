@@ -3,7 +3,21 @@
 // Layer ownership: core/layer1/storage via core/layer2/ops (authoritative)
 // Thin TypeScript wrapper only.
 
-const { createOpsLaneBridge } = require('../../../../../runtime/lib/rust_lane_bridge.ts');
+const fs = require('fs');
+const path = require('path');
+
+function resolveRustLaneBridgePath() {
+  const candidates = [
+    path.resolve(process.cwd(), 'client/lib/rust_lane_bridge.ts'),
+    path.resolve(__dirname, '../../../../../../../../client/lib/rust_lane_bridge.ts'),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return candidates[0];
+}
+
+const { createOpsLaneBridge } = require(resolveRustLaneBridgePath());
 
 const bridge = createOpsLaneBridge(__dirname, 'collector_cache', 'collector-cache');
 const DEFAULT_MAX_AGE_HOURS = Number(process.env.EYES_COLLECTOR_CACHE_MAX_AGE_HOURS || 12);

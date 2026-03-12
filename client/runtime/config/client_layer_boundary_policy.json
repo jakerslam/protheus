@@ -25,6 +25,13 @@
     "spawnSync(process.execPath",
     "createLaneModule("
   ],
+  "wrapper_forbidden_markers": [
+    "fs.readFileSync(",
+    "fs.writeFileSync(",
+    "fs.appendFileSync(",
+    "JSON.parse(fs.readFileSync(",
+    "while (stack.length)"
+  ],
   "allowed_non_wrapper_paths": [
     "client/runtime/systems/conduit/conduit-client.ts"
   ],

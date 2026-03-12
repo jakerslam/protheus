@@ -1,141 +1,30 @@
 #!/usr/bin/env node
-'use strict';
 
+// TypeScript compatibility shim only.
 // Layer ownership: core/layer1/policy + core/layer2/ops (authoritative)
-// Client role: thin formal-surface verification shim.
 
-const fs = require('fs');
-const path = require('path');
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
-const STATE_DIR = path.join(ROOT, 'client/runtime/local/state/ops/formal_spec_guard');
+const THIS_FILE = fileURLToPath(import.meta.url);
+const THIS_DIR = path.dirname(THIS_FILE);
+const WORKSPACE_ROOT = path.resolve(THIS_DIR, '..', '..', '..', '..');
+const GUARD_SCRIPT = path.resolve(WORKSPACE_ROOT, 'scripts/ci/formal_spec_guard.mjs');
 
-function nowIso() {
-  return new Date().toISOString();
-}
-
-function parseArgs(argv) {
-  const out = { _: [] };
-  for (let i = 0; i < argv.length; i += 1) {
-    const tok = String(argv[i] || '');
-    if (!tok.startsWith('--')) {
-      out._.push(tok);
-      continue;
-    }
-    const eq = tok.indexOf('=');
-    if (eq >= 0) {
-      out[tok.slice(2, eq)] = tok.slice(eq + 1);
-      continue;
-    }
-    const key = tok.slice(2);
-    const next = argv[i + 1];
-    if (next != null && !String(next).startsWith('--')) {
-      out[key] = String(next);
-      i += 1;
-      continue;
-    }
-    out[key] = true;
+export function run(argv = []) {
+  const args = Array.isArray(argv) ? argv.map((v) => String(v)) : [];
+  const res = spawnSync(process.execPath, [GUARD_SCRIPT, ...args], {
+    cwd: WORKSPACE_ROOT,
+    stdio: 'inherit',
+  });
+  if (typeof res.status === 'number' && res.status !== 0) {
+    process.exit(res.status);
   }
-  return out;
+  if (res.error) throw res.error;
+  return { ok: true, delegated_to: 'scripts/ci/formal_spec_guard.mjs' };
 }
 
-function readText(filePath) {
-  try {
-    return fs.readFileSync(filePath, 'utf8');
-  } catch {
-    return '';
-  }
+if (process.argv[1] && path.resolve(process.argv[1]) === THIS_FILE) {
+  run(process.argv.slice(2));
 }
-
-function readJson(filePath) {
-  try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  } catch {
-    return null;
-  }
-}
-
-function ensureDir(filePath) {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-}
-
-function writeJson(filePath, value) {
-  ensureDir(filePath);
-  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
-}
-
-function appendJsonl(filePath, value) {
-  ensureDir(filePath);
-  fs.appendFileSync(filePath, `${JSON.stringify(value)}\n`, 'utf8');
-}
-
-function run(rawArgs = {}) {
-  const strict = String(rawArgs.strict || '0') === '1';
-  const requiredFiles = [
-    'planes/spec/README.md',
-    'planes/spec/tla/three_plane_boundary.tla',
-    'planes/spec/tla/three_plane_boundary.cfg',
-    'planes/contracts/README.md',
-    'planes/contracts/conduit_envelope.schema.json'
-  ];
-  const missingFiles = requiredFiles.filter((relPath) => !fs.existsSync(path.join(ROOT, relPath)));
-
-  const tlaPath = path.join(ROOT, 'planes/spec/tla/three_plane_boundary.tla');
-  const tlaSource = readText(tlaPath);
-  const requiredTlaTokens = [
-    '---- MODULE three_plane_boundary ----',
-    'VARIABLES',
-    'Init',
-    'Next'
-  ];
-  const tlaMissingTokens = requiredTlaTokens.filter((token) => !tlaSource.includes(token));
-
-  const schemaPath = path.join(ROOT, 'planes/contracts/conduit_envelope.schema.json');
-  const schema = readJson(schemaPath);
-  const requiredSchemaFields = ['$schema', 'type', 'properties', 'required'];
-  const schemaMissingFields = requiredSchemaFields.filter((key) => !(schema && Object.prototype.hasOwnProperty.call(schema, key)));
-
-  const architecturePath = path.join(ROOT, 'ARCHITECTURE.md');
-  const architectureSource = readText(architecturePath);
-  const requiredArchitectureRefs = ['planes/spec', 'planes/contracts'];
-  const architectureMissingRefs = requiredArchitectureRefs.filter((token) => !architectureSource.includes(token));
-
-  const failures =
-    missingFiles.length +
-    tlaMissingTokens.length +
-    schemaMissingFields.length +
-    architectureMissingRefs.length;
-
-  const out = {
-    ok: strict ? failures === 0 : true,
-    type: 'formal_spec_guard',
-    ts: nowIso(),
-    strict,
-    required_files: requiredFiles,
-    missing_files: missingFiles,
-    tla_missing_tokens: tlaMissingTokens,
-    schema_missing_fields: schemaMissingFields,
-    architecture_missing_refs: architectureMissingRefs
-  };
-
-  const latestPath = path.join(STATE_DIR, 'latest.json');
-  const receiptsPath = path.join(STATE_DIR, 'receipts.jsonl');
-  writeJson(latestPath, out);
-  appendJsonl(receiptsPath, out);
-
-  process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
-  if (strict && failures > 0) process.exit(1);
-  return out;
-}
-
-if (require.main === module) {
-  const args = parseArgs(process.argv.slice(2));
-  const cmd = String(args._[0] || 'run');
-  if (cmd !== 'run' && cmd !== 'check') {
-    process.stderr.write(`formal_spec_guard: unsupported command '${cmd}'\n`);
-    process.exit(2);
-  }
-  run(args);
-}
-
-module.exports = { run };
