@@ -51,6 +51,17 @@ function runStep(name, cmd, args, opts = {}) {
 }
 
 function writeArtifacts(payload) {
+  const summary = payload.summary || {
+    execute_now_before: null,
+    queue_scanned: null,
+    queue_executed: null,
+    queue_failed: null,
+    queue_skipped: null,
+    queue_receipt_hash: null,
+    full_regression_fail: null,
+    top200_regression_fail: null,
+    execute_now_after: null,
+  };
   writeFileSync(OUT_JSON, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
   const lines = [];
   lines.push('# SRS Strict Execution');
@@ -59,15 +70,15 @@ function writeArtifacts(payload) {
   lines.push('');
   lines.push('## Summary');
   lines.push(`- ok: ${payload.ok}`);
-  lines.push(`- execute_now_before: ${payload.summary.execute_now_before}`);
-  lines.push(`- queue_scanned: ${payload.summary.queue_scanned}`);
-  lines.push(`- queue_executed: ${payload.summary.queue_executed}`);
-  lines.push(`- queue_failed: ${payload.summary.queue_failed}`);
-  lines.push(`- queue_skipped: ${payload.summary.queue_skipped}`);
-  lines.push(`- queue_receipt_hash: ${payload.summary.queue_receipt_hash}`);
-  lines.push(`- full_regression_fail: ${payload.summary.full_regression_fail}`);
-  lines.push(`- top200_regression_fail: ${payload.summary.top200_regression_fail}`);
-  lines.push(`- execute_now_after: ${payload.summary.execute_now_after}`);
+  lines.push(`- execute_now_before: ${summary.execute_now_before}`);
+  lines.push(`- queue_scanned: ${summary.queue_scanned}`);
+  lines.push(`- queue_executed: ${summary.queue_executed}`);
+  lines.push(`- queue_failed: ${summary.queue_failed}`);
+  lines.push(`- queue_skipped: ${summary.queue_skipped}`);
+  lines.push(`- queue_receipt_hash: ${summary.queue_receipt_hash}`);
+  lines.push(`- full_regression_fail: ${summary.full_regression_fail}`);
+  lines.push(`- top200_regression_fail: ${summary.top200_regression_fail}`);
+  lines.push(`- execute_now_after: ${summary.execute_now_after}`);
   lines.push('');
   lines.push('## Steps');
   lines.push('| Step | OK | Status | Command |');
