@@ -56,6 +56,9 @@ function main() {
     ? policy.wrapper_required_roots
     : [];
   const wrapperMarkers = Array.isArray(policy.wrapper_markers) ? policy.wrapper_markers : [];
+  const wrapperForbiddenMarkers = Array.isArray(policy.wrapper_forbidden_markers)
+    ? policy.wrapper_forbidden_markers
+    : [];
   const allowedNonWrapper = new Set(
     (Array.isArray(policy.allowed_non_wrapper_paths) ? policy.allowed_non_wrapper_paths : []).map((v) =>
       String(v).replace(/\\/g, '/'),
@@ -78,7 +81,11 @@ function main() {
     const rp = rel(abs);
     if (!startsWithAny(rp, wrapperRequiredRoots)) continue;
     const source = fs.readFileSync(abs, 'utf8');
-    const isWrapper = wrapperMarkers.some((m) => source.includes(String(m)));
+    const hasWrapperMarker = wrapperMarkers.some((m) => source.includes(String(m)));
+    const forbiddenWrapperMarkers = wrapperForbiddenMarkers
+      .filter((m) => source.includes(String(m)))
+      .map((m) => String(m));
+    const isWrapper = hasWrapperMarker && forbiddenWrapperMarkers.length === 0;
     if (isWrapper) {
       wrapperCount += 1;
       continue;
@@ -89,7 +96,11 @@ function main() {
     }
     violations.push({
       file: rp,
-      reason: 'non_wrapper_in_wrapper_required_root',
+      reason:
+        forbiddenWrapperMarkers.length > 0
+          ? 'wrapper_contains_forbidden_logic_marker'
+          : 'non_wrapper_in_wrapper_required_root',
+      forbidden_wrapper_markers: forbiddenWrapperMarkers,
     });
   }
 
