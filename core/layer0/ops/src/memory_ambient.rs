@@ -524,6 +524,10 @@ fn is_allowed_memory_command(command: &str) -> bool {
             | "rag-status"
             | "rag-merge-vault"
             | "memory-upgrade-byterover"
+            | "memory-taxonomy"
+            | "memory-enable-metacognitive"
+            | "memory-enable-causality"
+            | "memory-benchmark-ama"
             | "stable-status"
             | "stable-search"
             | "stable-get-node"
@@ -532,6 +536,10 @@ fn is_allowed_memory_command(command: &str) -> bool {
             | "stable-rag-search"
             | "stable-rag-chat"
             | "stable-memory-upgrade-byterover"
+            | "stable-memory-taxonomy"
+            | "stable-memory-enable-metacognitive"
+            | "stable-memory-enable-causality"
+            | "stable-memory-benchmark-ama"
             | "help"
     )
 }

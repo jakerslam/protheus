@@ -26,6 +26,10 @@ fn usage() {
     eprintln!("  protheus-ops rag memory get-node --node-id=<id> | --uid=<uid>");
     eprintln!("  protheus-ops rag memory build-index");
     eprintln!("  protheus-ops rag memory upgrade byterover");
+    eprintln!("  protheus-ops rag memory taxonomy");
+    eprintln!("  protheus-ops rag memory enable metacognitive");
+    eprintln!("  protheus-ops rag memory enable causality");
+    eprintln!("  protheus-ops rag memory benchmark ama");
     eprintln!("  protheus-ops rag memory library enable stable");
 }
 
@@ -121,6 +125,41 @@ fn build_memory_library_invocation(argv: &[String]) -> Result<Invocation, String
             memory_command: "stable-build-index".to_string(),
             memory_args: argv.iter().skip(1).cloned().collect(),
         }),
+        "taxonomy" => Ok(Invocation::MemoryRun {
+            memory_command: "stable-memory-taxonomy".to_string(),
+            memory_args: argv.iter().skip(1).cloned().collect(),
+        }),
+        "enable" => {
+            let target = argv
+                .get(1)
+                .map(|v| v.trim().to_ascii_lowercase())
+                .unwrap_or_default();
+            match target.as_str() {
+                "metacognitive" => Ok(Invocation::MemoryRun {
+                    memory_command: "stable-memory-enable-metacognitive".to_string(),
+                    memory_args: argv.iter().skip(2).cloned().collect(),
+                }),
+                "causality" => Ok(Invocation::MemoryRun {
+                    memory_command: "stable-memory-enable-causality".to_string(),
+                    memory_args: argv.iter().skip(2).cloned().collect(),
+                }),
+                _ => Err("memory_enable_unknown_target".to_string()),
+            }
+        }
+        "benchmark" => {
+            let target = argv
+                .get(1)
+                .map(|v| v.trim().to_ascii_lowercase())
+                .unwrap_or_default();
+            if target == "ama" {
+                Ok(Invocation::MemoryRun {
+                    memory_command: "stable-memory-benchmark-ama".to_string(),
+                    memory_args: argv.iter().skip(2).cloned().collect(),
+                })
+            } else {
+                Err("memory_benchmark_unknown_target".to_string())
+            }
+        }
         "upgrade" => {
             let target = argv
                 .get(1)
@@ -339,5 +378,54 @@ mod tests {
     fn unknown_command_is_rejected() {
         let err = build_invocation(&["explode".to_string()]).expect_err("must fail");
         assert_eq!(err, "unknown_command");
+    }
+
+    #[test]
+    fn memory_taxonomy_routes_to_stable_taxonomy() {
+        let inv = build_invocation(&["memory".to_string(), "taxonomy".to_string()])
+            .expect("invocation");
+        match inv {
+            Invocation::MemoryRun { memory_command, .. } => {
+                assert_eq!(memory_command, "stable-memory-taxonomy");
+            }
+            _ => panic!("expected memory run"),
+        }
+    }
+
+    #[test]
+    fn memory_enable_causality_routes_to_stable_enable_command() {
+        let inv = build_invocation(&[
+            "memory".to_string(),
+            "enable".to_string(),
+            "causality".to_string(),
+        ])
+        .expect("invocation");
+        match inv {
+            Invocation::MemoryRun { memory_command, .. } => {
+                assert_eq!(memory_command, "stable-memory-enable-causality");
+            }
+            _ => panic!("expected memory run"),
+        }
+    }
+
+    #[test]
+    fn memory_benchmark_ama_routes_to_stable_benchmark_command() {
+        let inv = build_invocation(&[
+            "memory".to_string(),
+            "benchmark".to_string(),
+            "ama".to_string(),
+            "--threshold=0.8".to_string(),
+        ])
+        .expect("invocation");
+        match inv {
+            Invocation::MemoryRun {
+                memory_command,
+                memory_args,
+            } => {
+                assert_eq!(memory_command, "stable-memory-benchmark-ama");
+                assert!(memory_args.iter().any(|v| v == "--threshold=0.8"));
+            }
+            _ => panic!("expected memory run"),
+        }
     }
 }
