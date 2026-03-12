@@ -6,8 +6,14 @@ import { resolve } from 'node:path';
 
 const RECEIPT_PATH = process.argv[2] || 'client/local/state/ops/backlog_queue_executor/latest.json';
 const ALLOW_EXISTING_EVIDENCE = process.argv.includes('--allow-existing-evidence=1');
+const TARGET_STATUS = (() => {
+  const token = process.argv.find((arg) => arg.startsWith('--target-status='));
+  if (!token) return 'done';
+  return token.split('=').slice(1).join('=').trim() || 'done';
+})();
 const FULL_REGRESSION_PATH = 'artifacts/srs_full_regression_current.json';
 const TARGETS = ['docs/workspace/SRS.md', 'docs/workspace/UPGRADE_BACKLOG.md'];
+const ALLOWED_TARGET_STATUS = new Set(['done', 'existing-coverage-validated']);
 
 function parseJsonCandidate(text) {
   const src = String(text || '').trim();
@@ -118,7 +124,7 @@ function isCodeOrTestPath(p) {
   return false;
 }
 
-function promoteTableRows(markdown, ids) {
+function promoteTableRows(markdown, ids, targetStatus) {
   const lines = markdown.split('\n');
   let changed = 0;
   const out = lines.map((line) => {
@@ -132,7 +138,7 @@ function promoteTableRows(markdown, ids) {
     const status = (cells[1] || '').toLowerCase();
     if (!ids.has(id)) return line;
     if (!['queued', 'in_progress'].includes(status)) return line;
-    cells[1] = 'done';
+    cells[1] = targetStatus;
     changed += 1;
     return `| ${cells.join(' | ')} |`;
   });
@@ -140,6 +146,24 @@ function promoteTableRows(markdown, ids) {
 }
 
 function main() {
+  if (!ALLOWED_TARGET_STATUS.has(TARGET_STATUS)) {
+    console.log(
+      JSON.stringify(
+        {
+          ok: false,
+          type: 'promote_executed_receipt_ids',
+          reason: 'invalid_target_status',
+          target_status: TARGET_STATUS,
+          allowed_target_status: [...ALLOWED_TARGET_STATUS],
+        },
+        null,
+        2,
+      ),
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const { promoted, rejected } = loadPromotableIds(RECEIPT_PATH);
   if (promoted.size === 0) {
     console.log(
@@ -207,7 +231,7 @@ function main() {
   for (const target of TARGETS) {
     const abs = resolve(target);
     const before = readFileSync(abs, 'utf8');
-    const result = promoteTableRows(before, promoted);
+    const result = promoteTableRows(before, promoted, TARGET_STATUS);
     if (result.changed > 0) {
       writeFileSync(abs, result.markdown, 'utf8');
     }
@@ -224,6 +248,7 @@ function main() {
           rejected,
           code_like_paths: codeLikePaths,
           existing_evidence_mode: ALLOW_EXISTING_EVIDENCE && codeLikePaths.length === 0,
+          target_status: TARGET_STATUS,
           changes,
         },
         null,
