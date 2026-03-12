@@ -1,0 +1,38 @@
+{
+  "id": "V6-COCKPIT-026.2",
+  "upgrade": "One-Command Nano Training Harness Contract",
+  "section": "NanoChat Educational Mode Intake (Doc/Source normalized from `V6-COCKPIT-021` to `V6-COCKPIT-026`, 2026-03-12)",
+  "impact": 8,
+  "layer_map": "0/1/2/client/app",
+  "conduit_only_boundary": false,
+  "todo_bucket": "repair_lane",
+  "execution_contract": {
+    "runtime": "core/layer2/ops:srs_contract_runtime",
+    "deterministic_receipt_required": true,
+    "mutable_state_path": "state/ops/srs_contract_runtime/V6-COCKPIT-026.2/latest.json",
+    "history_path": "state/ops/srs_contract_runtime/history.jsonl"
+  },
+  "deliverables": [
+    {
+      "type": "contract",
+      "path": "planes/contracts/srs/V6-COCKPIT-026.2.json"
+    },
+    {
+      "type": "state_receipt",
+      "path": "state/ops/srs_contract_runtime/V6-COCKPIT-026.2/latest.json"
+    },
+    {
+      "type": "execution_history",
+      "path": "state/ops/srs_contract_runtime/history.jsonl"
+    }
+  ],
+  "validation": {
+    "lane_command": "protheus-ops srs-contract-runtime run --id=V6-COCKPIT-026.2",
+    "status_command": "protheus-ops srs-contract-runtime status --id=V6-COCKPIT-026.2",
+    "fail_closed_on_missing_contract": true
+  },
+  "generated_from": {
+    "source": "todo",
+    "generated_at": "2026-03-12T08:15:59.491Z"
+  }
+}
