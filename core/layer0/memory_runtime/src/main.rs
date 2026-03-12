@@ -2117,6 +2117,16 @@ fn run_daemon(args: &HashMap<String, String>) {
             "memory-upgrade-byterover" => {
                 (rag_runtime::byterover_upgrade_payload(&req_args), false)
             }
+            "memory-taxonomy" => (rag_runtime::memory_taxonomy_payload(&req_args), false),
+            "memory-enable-metacognitive" => {
+                (rag_runtime::memory_metacognitive_enable_payload(&req_args), false)
+            }
+            "memory-enable-causality" => {
+                (rag_runtime::memory_causality_enable_payload(&req_args), false)
+            }
+            "memory-benchmark-ama" => {
+                (rag_runtime::memory_benchmark_ama_payload(&req_args), false)
+            }
             "stable-status" => (rag_runtime::stable_status_payload(), false),
             "stable-search" => match rag_runtime::ensure_supported_version(&req_args) {
                 Ok(version) => {
@@ -2182,6 +2192,44 @@ fn run_daemon(args: &HashMap<String, String>) {
                     Err(err) => (err, false),
                 }
             }
+            "stable-memory-taxonomy" => match rag_runtime::ensure_supported_version(&req_args) {
+                Ok(version) => {
+                    let mut payload = rag_runtime::memory_taxonomy_payload(&req_args);
+                    payload["api_version"] = json!(version);
+                    (payload, false)
+                }
+                Err(err) => (err, false),
+            },
+            "stable-memory-enable-metacognitive" => {
+                match rag_runtime::ensure_supported_version(&req_args) {
+                    Ok(version) => {
+                        let mut payload = rag_runtime::memory_metacognitive_enable_payload(&req_args);
+                        payload["api_version"] = json!(version);
+                        (payload, false)
+                    }
+                    Err(err) => (err, false),
+                }
+            }
+            "stable-memory-enable-causality" => {
+                match rag_runtime::ensure_supported_version(&req_args) {
+                    Ok(version) => {
+                        let mut payload = rag_runtime::memory_causality_enable_payload(&req_args);
+                        payload["api_version"] = json!(version);
+                        (payload, false)
+                    }
+                    Err(err) => (err, false),
+                }
+            }
+            "stable-memory-benchmark-ama" => {
+                match rag_runtime::ensure_supported_version(&req_args) {
+                    Ok(version) => {
+                        let mut payload = rag_runtime::memory_benchmark_ama_payload(&req_args);
+                        payload["api_version"] = json!(version);
+                        (payload, false)
+                    }
+                    Err(err) => (err, false),
+                }
+            }
             "shutdown" => (
                 json!({
                     "ok": true,
@@ -2239,6 +2287,14 @@ fn main() {
         "memory-upgrade-byterover" => {
             run_value_payload(rag_runtime::byterover_upgrade_payload(&kv))
         }
+        "memory-taxonomy" => run_value_payload(rag_runtime::memory_taxonomy_payload(&kv)),
+        "memory-enable-metacognitive" => {
+            run_value_payload(rag_runtime::memory_metacognitive_enable_payload(&kv))
+        }
+        "memory-enable-causality" => {
+            run_value_payload(rag_runtime::memory_causality_enable_payload(&kv))
+        }
+        "memory-benchmark-ama" => run_value_payload(rag_runtime::memory_benchmark_ama_payload(&kv)),
         "stable-status" => run_value_payload(rag_runtime::stable_status_payload()),
         "stable-search" => match rag_runtime::ensure_supported_version(&kv) {
             Ok(version) => {
@@ -2293,6 +2349,38 @@ fn main() {
         "stable-memory-upgrade-byterover" => match rag_runtime::ensure_supported_version(&kv) {
             Ok(version) => {
                 let mut out = rag_runtime::byterover_upgrade_payload(&kv);
+                out["api_version"] = json!(version);
+                run_value_payload(out);
+            }
+            Err(err) => run_value_payload(err),
+        },
+        "stable-memory-taxonomy" => match rag_runtime::ensure_supported_version(&kv) {
+            Ok(version) => {
+                let mut out = rag_runtime::memory_taxonomy_payload(&kv);
+                out["api_version"] = json!(version);
+                run_value_payload(out);
+            }
+            Err(err) => run_value_payload(err),
+        },
+        "stable-memory-enable-metacognitive" => match rag_runtime::ensure_supported_version(&kv) {
+            Ok(version) => {
+                let mut out = rag_runtime::memory_metacognitive_enable_payload(&kv);
+                out["api_version"] = json!(version);
+                run_value_payload(out);
+            }
+            Err(err) => run_value_payload(err),
+        },
+        "stable-memory-enable-causality" => match rag_runtime::ensure_supported_version(&kv) {
+            Ok(version) => {
+                let mut out = rag_runtime::memory_causality_enable_payload(&kv);
+                out["api_version"] = json!(version);
+                run_value_payload(out);
+            }
+            Err(err) => run_value_payload(err),
+        },
+        "stable-memory-benchmark-ama" => match rag_runtime::ensure_supported_version(&kv) {
+            Ok(version) => {
+                let mut out = rag_runtime::memory_benchmark_ama_payload(&kv);
                 out["api_version"] = json!(version);
                 run_value_payload(out);
             }
