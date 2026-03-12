@@ -1,6 +1,6 @@
 # SRS Actionable Map (Current)
 
-Generated: 2026-03-11T21:07:22.539Z
+Generated: 2026-03-12T00:57:02.362Z
 
 ## Summary
 - actionable_total: 27
@@ -33,11 +33,11 @@ Generated: 2026-03-11T21:07:22.539Z
 | V6-F100-A-010 | blocked | blocked_external | 9 | 0/1/2/client |  | no |  | OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) |
 | V6-F100-A-011 | blocked | blocked_external | 9 | 0/1/2/client |  | no |  | OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) |
 | V6-EDGE-005 | blocked | blocked_external | 10 | 0/1/2/client |  | no |  | OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) |
-| V6-COMP-005 | blocked | blocked_external | 9 | 0/1/2 |  | no |  | OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) |
-| V6-SBOX-006 | blocked | blocked_external | 10 | -1/0/1/2/3/adapter |  | no |  | OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) |
-| V6-FLUX-007 | blocked | blocked_external | 7 | -1/0/1/2/3/adapter |  | no |  | OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) |
-| V6-TOOLS-005 | blocked | blocked_external | 8 | 0/1/2 |  | no |  | OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) |
-| V6-PAY-007 | blocked | blocked_external | 9 | 0/1/2/adapter/client |  | no |  | OpenDev Dual-Agent Coding Patterns Intake (2026-03-09) |
+| V6-COMP-005 | blocked | blocked_external | 9 | 0/1/2 |  | no |  | Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) |
+| V6-SBOX-006 | blocked | blocked_external | 10 | -1/0/1/2/3/adapter |  | no |  | Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) |
+| V6-FLUX-007 | blocked | blocked_external | 7 | -1/0/1/2/3/adapter |  | no |  | Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) |
+| V6-TOOLS-005 | blocked | blocked_external | 8 | 0/1/2 |  | no |  | Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) |
+| V6-PAY-007 | blocked | blocked_external | 9 | 0/1/2/adapter/client |  | no |  | Production Reliability Fortress for Agentic DeFi Systems Source Coverage Intake (Doc `17nmf3l_DnDSoATBUl9SdrgQTLaqpM9G8EWEmlmKnuLY`, 2026-03-11) |
 | V2-012 | blocked | blocked_external | 8 | 1/2/client/adapter |  | no |  | V2 |
 | V6-RUST50-CONF-004 | blocked | blocked_external | 9 | 0/1/2/client |  | no |  | External Requirements Intake (Mega Sprint 1: Public 50 Percent Visible Rust, 2026-03-03) |
 | V6-GAP-006 | blocked | blocked_external | 10 | 0/1/2/client |  | no |  | Testing + Documentation + Installer Gap Closer (2026-03-06) |

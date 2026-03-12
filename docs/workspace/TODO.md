@@ -1,6 +1,6 @@
 # TODO (Maintenance + Policy + SRS Execution Order)
 
-Updated: 2026-03-11 20:39 America/Denver
+Updated: 2026-03-11 18:48 America/Denver
 
 ## Ordering policy
 - Priority first (`P0` > `P1` > `P2` > `P3`)
@@ -28,17 +28,17 @@ Updated: 2026-03-11 20:39 America/Denver
 - Full execution queue (all actionable items, sorted): [docs/workspace/TODO_EXECUTION_FULL.md](/Users/jay/.openclaw/workspace/docs/workspace/TODO_EXECUTION_FULL.md)
 - Machine-readable execution queue: [artifacts/todo_execution_full_current.json](/Users/jay/.openclaw/workspace/artifacts/todo_execution_full_current.json)
 - Map summary snapshot:
-- `actionable_total=27`
-- `queued=0`
+- `actionable_total=228`
+- `queued=201`
 - `in_progress=0`
 - `blocked=27`
-- `execute_now=0`
+- `execute_now=201`
 - `repair_lane=0`
 - `design_required=0`
 - `blocked_external=27`
 
 ## Full TODO queue contract
-- The TODO list now includes **all** actionable SRS work as the canonical generated queue in `TODO_EXECUTION_FULL.md` (`27` rows).
+- The TODO list now includes **all** actionable SRS work as the canonical generated queue in `TODO_EXECUTION_FULL.md` (`228` rows).
 - Sorting policy used in that queue:
 - `todoBucket` order: `execute_now -> repair_lane -> design_required -> blocked_external`
 - then `status`: `in_progress -> queued -> blocked`
