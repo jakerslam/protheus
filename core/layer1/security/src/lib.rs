@@ -26,7 +26,7 @@ pub use security_planes::{
 };
 pub use security_wave1::{
     run_black_box_ledger, run_capability_switchboard, run_directive_hierarchy_controller,
-    run_dream_warden_guard, run_goal_preservation_kernel,
+    run_dream_warden_guard, run_goal_preservation_kernel, run_truth_seeking_gate,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -78,7 +78,11 @@ fn now_iso() -> String {
 }
 
 fn clean(v: impl ToString, max_len: usize) -> String {
-    v.to_string().trim().chars().take(max_len).collect::<String>()
+    v.to_string()
+        .trim()
+        .chars()
+        .take(max_len)
+        .collect::<String>()
 }
 
 fn normalize_rel(raw: impl AsRef<str>) -> String {
@@ -154,7 +158,8 @@ fn sha256_hex_bytes(input: &[u8]) -> String {
 }
 
 fn sha256_hex_file(path: &Path) -> Result<String, String> {
-    let bytes = fs::read(path).map_err(|err| format!("read_file_failed:{}:{err}", path.display()))?;
+    let bytes =
+        fs::read(path).map_err(|err| format!("read_file_failed:{}:{err}", path.display()))?;
     Ok(sha256_hex_bytes(&bytes))
 }
 
@@ -196,8 +201,8 @@ fn stable_json_string(value: &Value) -> String {
 }
 
 fn hmac_sha256_hex(secret: &str, payload: &str) -> Result<String, String> {
-    let mut mac =
-        HmacSha256::new_from_slice(secret.as_bytes()).map_err(|err| format!("hmac_key_invalid:{err}"))?;
+    let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+        .map_err(|err| format!("hmac_key_invalid:{err}"))?;
     mac.update(payload.as_bytes());
     Ok(hex::encode(mac.finalize().into_bytes()))
 }
@@ -230,7 +235,10 @@ impl Default for IntegrityPolicy {
     fn default() -> Self {
         Self {
             version: "1.0".to_string(),
-            target_roots: vec!["systems/security".to_string(), "config/directives".to_string()],
+            target_roots: vec![
+                "systems/security".to_string(),
+                "config/directives".to_string(),
+            ],
             target_extensions: vec![".js".to_string(), ".yaml".to_string(), ".yml".to_string()],
             protected_files: vec!["lib/directive_resolver.js".to_string()],
             exclude_paths: Vec::new(),
@@ -454,7 +462,11 @@ fn verify_integrity_policy(repo_root: &Path, policy_path: &Path) -> Value {
 
 fn git_changed_paths(repo_root: &Path, staged: bool) -> Vec<String> {
     let args = if staged {
-        vec!["diff".to_string(), "--name-only".to_string(), "--cached".to_string()]
+        vec![
+            "diff".to_string(),
+            "--name-only".to_string(),
+            "--cached".to_string(),
+        ]
     } else {
         vec!["diff".to_string(), "--name-only".to_string()]
     };
@@ -535,7 +547,11 @@ pub fn run_integrity_reseal(repo_root: &Path, argv: &[String]) -> (Value, i32) {
         .unwrap_or_else(|| "help".to_string());
     let policy_path = flag(&parsed, "policy")
         .map(PathBuf::from)
-        .unwrap_or_else(|| runtime_root(repo_root).join("config").join("security_integrity_policy.json"));
+        .unwrap_or_else(|| {
+            runtime_root(repo_root)
+                .join("config")
+                .join("security_integrity_policy.json")
+        });
 
     match cmd.as_str() {
         "check" | "status" | "run" => {
@@ -610,10 +626,18 @@ pub fn run_integrity_reseal(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                     2,
                 );
             }
-            match seal_integrity_policy(repo_root, &policy_path, Some(&note), std::env::var("USER").ok().as_deref()) {
+            match seal_integrity_policy(
+                repo_root,
+                &policy_path,
+                Some(&note),
+                std::env::var("USER").ok().as_deref(),
+            ) {
                 Ok(seal) => {
                     let verify_after = verify_integrity_policy(repo_root, &policy_path);
-                    let ok = verify_after.get("ok").and_then(Value::as_bool).unwrap_or(false);
+                    let ok = verify_after
+                        .get("ok")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false);
                     (
                         json!({
                             "ok": ok,
@@ -674,7 +698,10 @@ pub fn run_integrity_reseal_assistant(repo_root: &Path, argv: &[String]) -> (Val
                 check_args.push(format!("--policy={policy}"));
             }
             let (check_out, _) = run_integrity_reseal(repo_root, &check_args);
-            let reseal_required = !check_out.get("ok").and_then(Value::as_bool).unwrap_or(false)
+            let reseal_required = !check_out
+                .get("ok")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
                 || check_out
                     .get("reseal_required")
                     .and_then(Value::as_bool)
@@ -703,7 +730,10 @@ pub fn run_integrity_reseal_assistant(repo_root: &Path, argv: &[String]) -> (Val
                     } else {
                         format!("files={}", files.join(","))
                     };
-                    format!("Automated integrity reseal assistant run ({focus}) at {}", now_iso())
+                    format!(
+                        "Automated integrity reseal assistant run ({focus}) at {}",
+                        now_iso()
+                    )
                 };
                 let note = flag(&parsed, "note")
                     .map(ToString::to_string)
@@ -729,7 +759,13 @@ pub fn run_integrity_reseal_assistant(repo_root: &Path, argv: &[String]) -> (Val
                 "applied": applied,
                 "apply_result": if applied { apply_result } else { Value::Null }
             });
-            let code = if strict && !ok { 1 } else if ok { 0 } else { 1 };
+            let code = if strict && !ok {
+                1
+            } else if ok {
+                0
+            } else {
+                1
+            };
             (out, code)
         }
         "status" => {
@@ -1069,7 +1105,11 @@ fn lease_state_path(repo_root: &Path) -> PathBuf {
         .ok()
         .filter(|v| !v.trim().is_empty())
         .map(PathBuf::from)
-        .unwrap_or_else(|| state_root(repo_root).join("security").join("capability_leases.json"))
+        .unwrap_or_else(|| {
+            state_root(repo_root)
+                .join("security")
+                .join("capability_leases.json")
+        })
 }
 
 fn lease_audit_path(repo_root: &Path) -> PathBuf {
@@ -1077,7 +1117,11 @@ fn lease_audit_path(repo_root: &Path) -> PathBuf {
         .ok()
         .filter(|v| !v.trim().is_empty())
         .map(PathBuf::from)
-        .unwrap_or_else(|| state_root(repo_root).join("security").join("capability_leases.jsonl"))
+        .unwrap_or_else(|| {
+            state_root(repo_root)
+                .join("security")
+                .join("capability_leases.jsonl")
+        })
 }
 
 fn lease_key() -> Option<String> {
@@ -1099,7 +1143,8 @@ fn load_lease_state(path: &Path) -> LeaseState {
 }
 
 fn save_lease_state(path: &Path, state: &LeaseState) -> Result<(), String> {
-    let payload = serde_json::to_value(state).map_err(|err| format!("encode_lease_state_failed:{err}"))?;
+    let payload =
+        serde_json::to_value(state).map_err(|err| format!("encode_lease_state_failed:{err}"))?;
     write_json_atomic(path, &payload)
 }
 
@@ -1137,8 +1182,8 @@ fn lease_unpack_token(token: &str) -> Result<(String, String, Value), String> {
     let bytes = URL_SAFE_NO_PAD
         .decode(body.as_bytes())
         .map_err(|_| "token_payload_invalid".to_string())?;
-    let payload = serde_json::from_slice::<Value>(&bytes)
-        .map_err(|_| "token_payload_invalid".to_string())?;
+    let payload =
+        serde_json::from_slice::<Value>(&bytes).map_err(|_| "token_payload_invalid".to_string())?;
     if !payload.is_object() {
         return Err("token_payload_invalid".to_string());
     }
@@ -1182,14 +1227,18 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
             if scope.is_empty() {
                 return (json!({"ok":false,"error":"scope_required"}), 1);
             }
-            let target = flag(&parsed, "target").map(|v| clean(v, 240)).filter(|v| !v.is_empty());
+            let target = flag(&parsed, "target")
+                .map(|v| clean(v, 240))
+                .filter(|v| !v.is_empty());
             let issued_by = clean(
                 flag(&parsed, "issued-by")
                     .or_else(|| flag(&parsed, "issued_by"))
                     .unwrap_or("unknown"),
                 120,
             );
-            let reason = flag(&parsed, "reason").map(|v| clean(v, 240)).filter(|v| !v.is_empty());
+            let reason = flag(&parsed, "reason")
+                .map(|v| clean(v, 240))
+                .filter(|v| !v.is_empty());
             let ttl_raw = flag(&parsed, "ttl-sec")
                 .or_else(|| flag(&parsed, "ttl_sec"))
                 .and_then(|v| v.parse::<i64>().ok())
@@ -1285,7 +1334,10 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
             if lease_id.is_empty() {
                 return (json!({"ok":false,"error":"token_missing_id"}), 1);
             }
-            let lease_scope = clean(payload.get("scope").and_then(Value::as_str).unwrap_or(""), 180);
+            let lease_scope = clean(
+                payload.get("scope").and_then(Value::as_str).unwrap_or(""),
+                180,
+            );
             let lease_target = payload
                 .get("target")
                 .and_then(Value::as_str)
@@ -1352,15 +1404,19 @@ pub fn run_capability_lease(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                 );
             }
             if !state.issued.contains_key(&lease_id) {
-                return (json!({"ok":false,"error":"lease_unknown","lease_id":lease_id}), 1);
+                return (
+                    json!({"ok":false,"error":"lease_unknown","lease_id":lease_id}),
+                    1,
+                );
             }
 
             let consume = cmd == "consume";
             if consume {
                 let reason = clean(flag(&parsed, "reason").unwrap_or("consumed"), 180);
-                state
-                    .consumed
-                    .insert(lease_id.clone(), json!({"ts": now_iso(), "reason": reason.clone()}));
+                state.consumed.insert(
+                    lease_id.clone(),
+                    json!({"ts": now_iso(), "reason": reason.clone()}),
+                );
                 if let Err(err) = save_lease_state(&state_path, &state) {
                     return (json!({"ok":false,"error":clean(err,220)}), 1);
                 }
@@ -1409,7 +1465,11 @@ fn startup_policy_path(repo_root: &Path) -> PathBuf {
         .ok()
         .filter(|v| !v.trim().is_empty())
         .map(PathBuf::from)
-        .unwrap_or_else(|| runtime_root(repo_root).join("config").join("startup_attestation_policy.json"))
+        .unwrap_or_else(|| {
+            runtime_root(repo_root)
+                .join("config")
+                .join("startup_attestation_policy.json")
+        })
 }
 
 fn startup_state_path(repo_root: &Path) -> PathBuf {
@@ -1417,7 +1477,11 @@ fn startup_state_path(repo_root: &Path) -> PathBuf {
         .ok()
         .filter(|v| !v.trim().is_empty())
         .map(PathBuf::from)
-        .unwrap_or_else(|| state_root(repo_root).join("security").join("startup_attestation.json"))
+        .unwrap_or_else(|| {
+            state_root(repo_root)
+                .join("security")
+                .join("startup_attestation.json")
+        })
 }
 
 fn startup_audit_path(repo_root: &Path) -> PathBuf {
@@ -1425,7 +1489,11 @@ fn startup_audit_path(repo_root: &Path) -> PathBuf {
         .ok()
         .filter(|v| !v.trim().is_empty())
         .map(PathBuf::from)
-        .unwrap_or_else(|| state_root(repo_root).join("security").join("startup_attestation_audit.jsonl"))
+        .unwrap_or_else(|| {
+            state_root(repo_root)
+                .join("security")
+                .join("startup_attestation_audit.jsonl")
+        })
 }
 
 fn startup_secret_candidates(repo_root: &Path) -> Vec<PathBuf> {
@@ -1443,12 +1511,24 @@ fn startup_secret_candidates(repo_root: &Path) -> Vec<PathBuf> {
         }
     }
     if let Ok(home) = std::env::var("HOME") {
-        let base = PathBuf::from(home).join(".config").join("protheus").join("secrets");
+        let base = PathBuf::from(home)
+            .join(".config")
+            .join("protheus")
+            .join("secrets");
         out.push(base.join("startup_attestation_key.txt"));
         out.push(base.join("secret_broker_key.txt"));
     }
-    out.push(state_root(repo_root).join("security").join("secret_broker_key.txt"));
-    out.push(runtime_root(repo_root).join("state").join("security").join("secret_broker_key.txt"));
+    out.push(
+        state_root(repo_root)
+            .join("security")
+            .join("secret_broker_key.txt"),
+    );
+    out.push(
+        runtime_root(repo_root)
+            .join("state")
+            .join("security")
+            .join("secret_broker_key.txt"),
+    );
     out
 }
 
@@ -1522,7 +1602,10 @@ fn load_startup_policy(path: &Path) -> StartupPolicy {
     policy
 }
 
-fn startup_hash_critical_paths(repo_root: &Path, policy: &StartupPolicy) -> (Vec<Value>, Vec<String>) {
+fn startup_hash_critical_paths(
+    repo_root: &Path,
+    policy: &StartupPolicy,
+) -> (Vec<Value>, Vec<String>) {
     let runtime = runtime_root(repo_root);
     let mut rows = Vec::<Value>::new();
     let mut missing = Vec::<String>::new();
@@ -1579,7 +1662,10 @@ pub fn run_startup_attestation(repo_root: &Path, argv: &[String]) -> (Value, i32
             let expires_at_ms = now_ms + ttl_hours * 3600 * 1000;
             let (critical_hashes, missing_paths) = startup_hash_critical_paths(repo_root, &policy);
             let mut payload = Map::<String, Value>::new();
-            payload.insert("type".to_string(), Value::String("startup_attestation".to_string()));
+            payload.insert(
+                "type".to_string(),
+                Value::String("startup_attestation".to_string()),
+            );
             payload.insert("version".to_string(), Value::String(policy.version.clone()));
             payload.insert("ts".to_string(), Value::String(ts.clone()));
             payload.insert(
@@ -1597,8 +1683,19 @@ pub fn run_startup_attestation(repo_root: &Path, argv: &[String]) -> (Value, i32
                 .to_string_lossy()
                 .replace('\\', "/");
             payload.insert("policy_path".to_string(), Value::String(policy_rel));
-            payload.insert("critical_hashes".to_string(), Value::Array(critical_hashes.clone()));
-            payload.insert("missing_paths".to_string(), Value::Array(missing_paths.iter().map(|v| Value::String(v.clone())).collect()));
+            payload.insert(
+                "critical_hashes".to_string(),
+                Value::Array(critical_hashes.clone()),
+            );
+            payload.insert(
+                "missing_paths".to_string(),
+                Value::Array(
+                    missing_paths
+                        .iter()
+                        .map(|v| Value::String(v.clone()))
+                        .collect(),
+                ),
+            );
             let payload_value = Value::Object(payload.clone());
             let signature = match hmac_sha256_hex(&secret, &stable_json_string(&payload_value)) {
                 Ok(v) => v,
@@ -1638,10 +1735,7 @@ pub fn run_startup_attestation(repo_root: &Path, argv: &[String]) -> (Value, i32
             let mut ok = true;
             let mut reason = "verified".to_string();
             let mut drift = Value::Null;
-            let mut expires_at = state
-                .get("expires_at")
-                .cloned()
-                .unwrap_or(Value::Null);
+            let mut expires_at = state.get("expires_at").cloned().unwrap_or(Value::Null);
 
             if !state.is_object()
                 || state.get("type").and_then(Value::as_str) != Some("startup_attestation")
@@ -1704,10 +1798,14 @@ pub fn run_startup_attestation(repo_root: &Path, argv: &[String]) -> (Value, i32
                                 let h = row.get("sha256").and_then(Value::as_str).unwrap_or("");
                                 let prior = expected_map.get(p).cloned();
                                 match prior {
-                                    None => drift_rows.push(json!({"path": p, "reason": "new_path"})),
+                                    None => {
+                                        drift_rows.push(json!({"path": p, "reason": "new_path"}))
+                                    }
                                     Some(v) => {
                                         if v != h {
-                                            drift_rows.push(json!({"path": p, "reason": "hash_mismatch"}));
+                                            drift_rows.push(
+                                                json!({"path": p, "reason": "hash_mismatch"}),
+                                            );
                                         }
                                     }
                                 }
@@ -1744,7 +1842,13 @@ pub fn run_startup_attestation(repo_root: &Path, argv: &[String]) -> (Value, i32
                 "expires_at": expires_at,
                 "drift": drift
             });
-            let code = if strict && !ok { 1 } else if ok { 0 } else { 1 };
+            let code = if strict && !ok {
+                1
+            } else if ok {
+                0
+            } else {
+                1
+            };
             (out, code)
         }
         "status" => (
