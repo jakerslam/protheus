@@ -555,6 +555,52 @@ fn route_edge(rest: &[String]) -> Route {
     }
 }
 
+fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route> {
+    match cmd {
+        "rag" => Some(Route {
+            script_rel: "core://rag".to_string(),
+            args: if rest.is_empty() {
+                vec!["status".to_string()]
+            } else {
+                rest.to_vec()
+            },
+            forward_stdin: false,
+        }),
+        "memory" => {
+            let mut args = vec!["memory".to_string()];
+            if rest.is_empty() {
+                args.push("status".to_string());
+            } else {
+                args.extend(rest.iter().cloned());
+            }
+            Some(Route {
+                script_rel: "core://rag".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
+        "chat"
+            if rest
+                .first()
+                .map(|v| v.trim().eq_ignore_ascii_case("with"))
+                .unwrap_or(false)
+                && rest
+                    .get(1)
+                    .map(|v| v.trim().eq_ignore_ascii_case("files"))
+                    .unwrap_or(false) =>
+        {
+            let mut args = vec!["chat".to_string()];
+            args.extend(rest.iter().skip(2).cloned());
+            Some(Route {
+                script_rel: "core://rag".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
+        _ => None,
+    }
+}
+
 pub fn usage() {
     println!("Usage: protheus <command> [flags]");
     println!("Try:");
@@ -668,7 +714,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     maybe_run_update_checker(root, &cmd);
     maybe_run_cli_suggestion_engine(root, &cmd, &rest);
 
-    let mut route = match cmd.as_str() {
+    let mut route = resolve_core_shortcuts(&cmd, &rest).unwrap_or_else(|| match cmd.as_str() {
         "list" => Route {
             script_rel: "client/runtime/systems/ops/protheus_command_list.js".to_string(),
             args: std::iter::once("--mode=list".to_string())
@@ -1260,7 +1306,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             args: std::iter::once(cmd.clone()).chain(rest).collect(),
             forward_stdin: false,
         },
-    };
+    });
 
     let supports_json_flag = matches!(
         route.script_rel.as_str(),
@@ -1357,6 +1403,40 @@ mod tests {
             "client/runtime/systems/spawn/mobile_edge_swarm_bridge.ts"
         );
         assert_eq!(route.args.first().map(String::as_str), Some("enroll"));
+    }
+
+    #[test]
+    fn core_shortcut_routes_rag_command() {
+        let route = resolve_core_shortcuts("rag", &["search".to_string(), "--q=proof".to_string()])
+            .expect("route");
+        assert_eq!(route.script_rel, "core://rag");
+        assert_eq!(route.args.first().map(String::as_str), Some("search"));
+    }
+
+    #[test]
+    fn core_shortcut_routes_memory_command() {
+        let route =
+            resolve_core_shortcuts("memory", &["search".to_string(), "--q=ledger".to_string()])
+                .expect("route");
+        assert_eq!(route.script_rel, "core://rag");
+        assert_eq!(route.args.first().map(String::as_str), Some("memory"));
+        assert_eq!(route.args.get(1).map(String::as_str), Some("search"));
+    }
+
+    #[test]
+    fn core_shortcut_routes_chat_with_files() {
+        let route = resolve_core_shortcuts(
+            "chat",
+            &[
+                "with".to_string(),
+                "files".to_string(),
+                "receipts".to_string(),
+            ],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://rag");
+        assert_eq!(route.args.first().map(String::as_str), Some("chat"));
+        assert_eq!(route.args.get(1).map(String::as_str), Some("receipts"));
     }
 
     #[test]

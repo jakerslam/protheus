@@ -1,9 +1,10 @@
 mod db;
+mod rag_runtime;
 mod wave1;
 
 use db::{DbIndexEntry, HotStateEnvelopeStats, MemoryDb};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::cmp::Ordering;
 use std::collections::hash_map::DefaultHasher;
@@ -1889,6 +1890,17 @@ fn run_verify_envelope(args: &HashMap<String, String>) {
     );
 }
 
+fn run_value_payload(payload: Value) {
+    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false);
+    println!(
+        "{}",
+        serde_json::to_string(&payload).expect("serialize value payload")
+    );
+    if !ok {
+        std::process::exit(1);
+    }
+}
+
 fn set_hot_state_payload(args: &HashMap<String, String>) -> serde_json::Value {
     let root = PathBuf::from(arg_or_default(args, "root", "."));
     let db_path_raw = arg_or_default(args, "db-path", "");
@@ -2097,6 +2109,79 @@ fn run_daemon(args: &HashMap<String, String>) {
             "memory-matrix" => (wave1::memory_matrix_payload(&req_args), false),
             "memory-auto-recall" => (wave1::memory_auto_recall_payload(&req_args), false),
             "dream-sequencer" => (wave1::dream_sequencer_payload(&req_args), false),
+            "rag-ingest" => (rag_runtime::ingest_payload(&req_args), false),
+            "rag-search" => (rag_runtime::search_payload(&req_args), false),
+            "rag-chat" => (rag_runtime::chat_payload(&req_args), false),
+            "rag-status" => (rag_runtime::status_payload(&req_args), false),
+            "rag-merge-vault" => (rag_runtime::merge_vault_payload(&req_args), false),
+            "memory-upgrade-byterover" => {
+                (rag_runtime::byterover_upgrade_payload(&req_args), false)
+            }
+            "stable-status" => (rag_runtime::stable_status_payload(), false),
+            "stable-search" => match rag_runtime::ensure_supported_version(&req_args) {
+                Ok(version) => {
+                    let mut payload = serde_json::to_value(query_index_payload(&req_args))
+                        .unwrap_or_else(
+                            |_| json!({"ok": false, "error": "query_serialize_failed"}),
+                        );
+                    payload["api_version"] = json!(version);
+                    (payload, false)
+                }
+                Err(err) => (err, false),
+            },
+            "stable-get-node" => match rag_runtime::ensure_supported_version(&req_args) {
+                Ok(version) => {
+                    let (mut payload, _code) = get_node_payload(&req_args);
+                    payload["api_version"] = json!(version);
+                    (payload, false)
+                }
+                Err(err) => (err, false),
+            },
+            "stable-build-index" => match rag_runtime::ensure_supported_version(&req_args) {
+                Ok(version) => {
+                    let mut payload = serde_json::to_value(build_index_payload(&req_args))
+                        .unwrap_or_else(
+                            |_| json!({"ok": false, "error": "build_serialize_failed"}),
+                        );
+                    payload["api_version"] = json!(version);
+                    (payload, false)
+                }
+                Err(err) => (err, false),
+            },
+            "stable-rag-ingest" => match rag_runtime::ensure_supported_version(&req_args) {
+                Ok(version) => {
+                    let mut payload = rag_runtime::ingest_payload(&req_args);
+                    payload["api_version"] = json!(version);
+                    (payload, false)
+                }
+                Err(err) => (err, false),
+            },
+            "stable-rag-search" => match rag_runtime::ensure_supported_version(&req_args) {
+                Ok(version) => {
+                    let mut payload = rag_runtime::search_payload(&req_args);
+                    payload["api_version"] = json!(version);
+                    (payload, false)
+                }
+                Err(err) => (err, false),
+            },
+            "stable-rag-chat" => match rag_runtime::ensure_supported_version(&req_args) {
+                Ok(version) => {
+                    let mut payload = rag_runtime::chat_payload(&req_args);
+                    payload["api_version"] = json!(version);
+                    (payload, false)
+                }
+                Err(err) => (err, false),
+            },
+            "stable-memory-upgrade-byterover" => {
+                match rag_runtime::ensure_supported_version(&req_args) {
+                    Ok(version) => {
+                        let mut payload = rag_runtime::byterover_upgrade_payload(&req_args);
+                        payload["api_version"] = json!(version);
+                        (payload, false)
+                    }
+                    Err(err) => (err, false),
+                }
+            }
             "shutdown" => (
                 json!({
                     "ok": true,
@@ -2146,6 +2231,73 @@ fn main() {
         "dream-sequencer" => std::process::exit(wave1::print_payload_and_exit_code(
             wave1::dream_sequencer_payload(&kv),
         )),
+        "rag-ingest" => run_value_payload(rag_runtime::ingest_payload(&kv)),
+        "rag-search" => run_value_payload(rag_runtime::search_payload(&kv)),
+        "rag-chat" => run_value_payload(rag_runtime::chat_payload(&kv)),
+        "rag-status" => run_value_payload(rag_runtime::status_payload(&kv)),
+        "rag-merge-vault" => run_value_payload(rag_runtime::merge_vault_payload(&kv)),
+        "memory-upgrade-byterover" => {
+            run_value_payload(rag_runtime::byterover_upgrade_payload(&kv))
+        }
+        "stable-status" => run_value_payload(rag_runtime::stable_status_payload()),
+        "stable-search" => match rag_runtime::ensure_supported_version(&kv) {
+            Ok(version) => {
+                let mut out = serde_json::to_value(query_index_payload(&kv))
+                    .unwrap_or_else(|_| json!({"ok": false, "error": "query_serialize_failed"}));
+                out["api_version"] = json!(version);
+                run_value_payload(out);
+            }
+            Err(err) => run_value_payload(err),
+        },
+        "stable-get-node" => match rag_runtime::ensure_supported_version(&kv) {
+            Ok(version) => {
+                let (mut out, _code) = get_node_payload(&kv);
+                out["api_version"] = json!(version);
+                run_value_payload(out);
+            }
+            Err(err) => run_value_payload(err),
+        },
+        "stable-build-index" => match rag_runtime::ensure_supported_version(&kv) {
+            Ok(version) => {
+                let mut out = serde_json::to_value(build_index_payload(&kv))
+                    .unwrap_or_else(|_| json!({"ok": false, "error": "build_serialize_failed"}));
+                out["api_version"] = json!(version);
+                run_value_payload(out);
+            }
+            Err(err) => run_value_payload(err),
+        },
+        "stable-rag-ingest" => match rag_runtime::ensure_supported_version(&kv) {
+            Ok(version) => {
+                let mut out = rag_runtime::ingest_payload(&kv);
+                out["api_version"] = json!(version);
+                run_value_payload(out);
+            }
+            Err(err) => run_value_payload(err),
+        },
+        "stable-rag-search" => match rag_runtime::ensure_supported_version(&kv) {
+            Ok(version) => {
+                let mut out = rag_runtime::search_payload(&kv);
+                out["api_version"] = json!(version);
+                run_value_payload(out);
+            }
+            Err(err) => run_value_payload(err),
+        },
+        "stable-rag-chat" => match rag_runtime::ensure_supported_version(&kv) {
+            Ok(version) => {
+                let mut out = rag_runtime::chat_payload(&kv);
+                out["api_version"] = json!(version);
+                run_value_payload(out);
+            }
+            Err(err) => run_value_payload(err),
+        },
+        "stable-memory-upgrade-byterover" => match rag_runtime::ensure_supported_version(&kv) {
+            Ok(version) => {
+                let mut out = rag_runtime::byterover_upgrade_payload(&kv);
+                out["api_version"] = json!(version);
+                run_value_payload(out);
+            }
+            Err(err) => run_value_payload(err),
+        },
         "daemon" => run_daemon(&kv),
         _ => {
             eprintln!("unsupported command: {}", cmd);

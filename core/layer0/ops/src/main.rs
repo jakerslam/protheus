@@ -66,6 +66,7 @@ fn usage() {
     println!("  protheus-ops dopamine-ambient <closeout|status|evaluate> [flags]");
     println!("  protheus-ops persona-schema-contract <validate|status> [--strict=1|0] [--schema-mode=<id>] [--payload=<json>|--input=<path>]");
     println!("  protheus-ops protheusctl <command> [flags]");
+    println!("  protheus-ops rag <status|start|ingest|search|chat|merge-vault|memory> [flags]");
     println!("  protheus-ops personas-cli <command> [flags]");
     println!(
         "  protheus-ops autophagy-auto-approval <evaluate|monitor|commit|rollback|status> [flags]"
@@ -487,6 +488,11 @@ fn main() {
         "protheusctl" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::protheusctl::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "rag" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::rag_cli::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "personas-cli" => {

@@ -61,6 +61,7 @@ pub mod personas_cli;
 pub mod proposal_enricher;
 pub mod protheus_control_plane;
 pub mod protheusctl;
+pub mod rag_cli;
 pub mod rollout_rings;
 pub mod rust50_migration_program;
 pub mod rust_enterprise_productivity_program;
