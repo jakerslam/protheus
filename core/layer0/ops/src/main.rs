@@ -36,7 +36,7 @@ fn usage() {
     println!("  protheus-ops narrow-agent-parity-harness <run|status> [flags]");
     println!("  protheus-ops offsite-backup <sync|restore-drill|status|diagnose|list> [flags]");
     println!("  protheus-ops settlement-program <list|run|run-all|settle|revert|edit-core|edit-module|status> [flags]");
-    println!("  protheus-ops llm-economy-organ <run|status> [flags]");
+    println!("  protheus-ops llm-economy-organ <run|enable|dashboard|status> [flags]");
     println!("  protheus-ops metakernel <status|registry|manifest|invariants> [flags]");
     println!("  protheus-ops backlog-queue-executor <run|status> [flags]");
     println!("  protheus-ops backlog-runtime-anchor <build|verify> --lane-id=<V3-RACE-XXX>");

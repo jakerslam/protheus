@@ -752,6 +752,18 @@ fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route> {
                 forward_stdin: false,
             })
         }
+        "economy" => {
+            let args = if rest.is_empty() {
+                vec!["dashboard".to_string()]
+            } else {
+                rest.to_vec()
+            };
+            Some(Route {
+                script_rel: "core://llm-economy-organ".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
         _ => None,
     }
 }
@@ -1691,6 +1703,17 @@ mod tests {
         .expect("route");
         assert_eq!(route.script_rel, "core://model-router");
         assert_eq!(route.args, vec!["reset-agent", "--scope=routing"]);
+    }
+
+    #[test]
+    fn core_shortcut_routes_economy_to_core_domain() {
+        let route = resolve_core_shortcuts(
+            "economy",
+            &["enable".to_string(), "all".to_string(), "--apply=1".to_string()],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://llm-economy-organ");
+        assert_eq!(route.args, vec!["enable", "all", "--apply=1"]);
     }
 
     #[test]
