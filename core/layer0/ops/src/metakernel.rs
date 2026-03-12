@@ -343,11 +343,7 @@ fn validate_manifest_payload(
         errors.push("provenance_source_and_digest_required");
     }
 
-    let ok = if strict {
-        errors.is_empty()
-    } else {
-        true
-    };
+    let ok = if strict { errors.is_empty() } else { true };
     (
         ok,
         json!({
@@ -591,10 +587,8 @@ fn run_worlds(root: &Path, strict: bool, manifest_rel: &str) -> Value {
         .map(|v| v.trim().to_ascii_lowercase())
         .filter(|v| !v.is_empty())
         .collect();
-    let unsupported_caps: Vec<String> = manifest_caps
-        .difference(&supported_caps)
-        .cloned()
-        .collect();
+    let unsupported_caps: Vec<String> =
+        manifest_caps.difference(&supported_caps).cloned().collect();
     let compatibility_ok = if supported_caps.is_empty() {
         true
     } else {
@@ -659,11 +653,7 @@ fn run_capability_taxonomy(root: &Path, strict: bool, manifest_rel: &str) -> Val
         .unwrap_or_default();
     let mut derived_effects = BTreeSet::new();
     for cap in manifest_caps {
-        let id = cap
-            .as_str()
-            .unwrap_or_default()
-            .trim()
-            .to_ascii_lowercase();
+        let id = cap.as_str().unwrap_or_default().trim().to_ascii_lowercase();
         if id.is_empty() {
             continue;
         }
@@ -1053,7 +1043,9 @@ fn run_quantum_broker(root: &Path, strict: bool) -> Value {
         .map(|s| s.to_ascii_lowercase())
         .collect();
     let mut missing = Vec::new();
-    for op in ["compile", "estimate", "submit", "session", "batch", "measure"] {
+    for op in [
+        "compile", "estimate", "submit", "session", "batch", "measure",
+    ] {
         if !set.contains(op) {
             missing.push(op.to_string());
         }
@@ -1360,22 +1352,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         println!("Usage:");
         println!("  protheus-ops metakernel status");
         println!("  protheus-ops metakernel registry [--strict=1|0]");
-        println!(
-            "  protheus-ops metakernel manifest [--manifest=<path>] [--strict=1|0]"
-        );
+        println!("  protheus-ops metakernel manifest [--manifest=<path>] [--strict=1|0]");
         println!("  protheus-ops metakernel worlds [--manifest=<path>] [--strict=1|0]");
         println!(
             "  protheus-ops metakernel capability-taxonomy [--manifest=<path>] [--strict=1|0]"
         );
-        println!(
-            "  protheus-ops metakernel budget-admission [--manifest=<path>] [--strict=1|0]"
-        );
-        println!(
-            "  protheus-ops metakernel epistemic-object [--manifest=<path>] [--strict=1|0]"
-        );
-        println!(
-            "  protheus-ops metakernel effect-journal [--manifest=<path>] [--strict=1|0]"
-        );
+        println!("  protheus-ops metakernel budget-admission [--manifest=<path>] [--strict=1|0]");
+        println!("  protheus-ops metakernel epistemic-object [--manifest=<path>] [--strict=1|0]");
+        println!("  protheus-ops metakernel effect-journal [--manifest=<path>] [--strict=1|0]");
         println!("  protheus-ops metakernel substrate-registry [--strict=1|0]");
         println!("  protheus-ops metakernel radix-guard [--strict=1|0]");
         println!("  protheus-ops metakernel quantum-broker [--strict=1|0]");
@@ -1446,7 +1430,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     write_json(&latest, &out);
     append_jsonl(&history, &out);
     print_receipt(&out);
-    if ok { 0 } else { 1 }
+    if ok {
+        0
+    } else {
+        1
+    }
 }
 
 #[cfg(test)]

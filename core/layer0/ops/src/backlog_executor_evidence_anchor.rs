@@ -1,7 +1,8 @@
 // Layer ownership: core/layer0/ops (authoritative)
 // SPDX-License-Identifier: Apache-2.0
 // Auto-generated from client/local/state/ops/backlog_queue_executor/latest.json
-pub const BACKLOG_EXECUTOR_EVIDENCE_RECEIPT: &str = "d924944f1843a6e77892654a04142e3e1cb270132fcbc0c01fb72ef78fd27777";
+pub const BACKLOG_EXECUTOR_EVIDENCE_RECEIPT: &str =
+    "d924944f1843a6e77892654a04142e3e1cb270132fcbc0c01fb72ef78fd27777";
 pub const BACKLOG_EXECUTOR_EXECUTED_IDS: &[&str] = &[
     "V2-018B",
     "V3-004a",
