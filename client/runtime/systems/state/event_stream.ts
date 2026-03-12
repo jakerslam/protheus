@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-export {};
-
-const { runLegacyAlias } = require('../compat/legacy_alias_adapter.ts');
+const { runLegacyAlias } = require('../../../lib/legacy_alias_adapter.ts');
 
 runLegacyAlias({
   alias_rel: 'systems/state/event_stream.js',

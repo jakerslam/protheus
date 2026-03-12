@@ -1,4 +1,7 @@
 #!/usr/bin/env node
 'use strict';
+const { runLegacyAlias } = require('../../../lib/legacy_alias_adapter.ts');
 
-require('../../../lib/ts_bootstrap.ts').bootstrap(__filename, module);
+runLegacyAlias({
+  alias_rel: 'systems/fractal/symbiotic_fusion_chamber.js'
+}, process.argv.slice(2));
