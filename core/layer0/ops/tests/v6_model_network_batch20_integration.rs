@@ -66,6 +66,11 @@ fn v6_batch20_model_and_network_lanes_are_receipted() {
         Some("model_router_agent_reset")
     );
     assert!(has_claim(&reset, "V6-MODEL-003.4"));
+    assert!(reset
+        .get("reset_state_path")
+        .and_then(Value::as_str)
+        .map(|v| !v.is_empty())
+        .unwrap_or(false));
 
     assert_eq!(
         model_router::run(
@@ -84,6 +89,11 @@ fn v6_batch20_model_and_network_lanes_are_receipted() {
         Some("model_router_optimize_cheap")
     );
     assert!(has_claim(&optimize, "V6-MODEL-003.5"));
+    assert!(optimize
+        .pointer("/plan/profile_digest")
+        .and_then(Value::as_str)
+        .map(|v| !v.is_empty())
+        .unwrap_or(false));
 
     assert_eq!(
         model_router::run(
@@ -103,6 +113,16 @@ fn v6_batch20_model_and_network_lanes_are_receipted() {
         Some("model_router_night_schedule")
     );
     assert!(has_claim(&night, "V6-MODEL-003.6"));
+    assert!(night
+        .pointer("/schedule/window_hours")
+        .and_then(Value::as_i64)
+        .map(|v| v > 0)
+        .unwrap_or(false));
+    assert!(night
+        .get("night_schedule_path")
+        .and_then(Value::as_str)
+        .map(|v| !v.is_empty())
+        .unwrap_or(false));
 
     assert_eq!(
         p2p_gossip_seed::run(
@@ -146,6 +166,11 @@ fn v6_batch20_model_and_network_lanes_are_receipted() {
     assert!(has_claim(&compute, "V6-NETWORK-004.1"));
     assert!(has_claim(&compute, "V6-NETWORK-004.2"));
     assert!(has_claim(&compute, "V6-NETWORK-004.6"));
+    assert!(compute
+        .pointer("/proof/challenge_id")
+        .and_then(Value::as_str)
+        .map(|v| !v.is_empty())
+        .unwrap_or(false));
 
     assert_eq!(
         p2p_gossip_seed::run(
@@ -164,6 +189,11 @@ fn v6_batch20_model_and_network_lanes_are_receipted() {
         Some("p2p_gossip_seed_breakthrough")
     );
     assert!(has_claim(&gossip, "V6-NETWORK-004.3"));
+    assert!(gossip
+        .get("gossip_id")
+        .and_then(Value::as_str)
+        .map(|v| !v.is_empty())
+        .unwrap_or(false));
 
     assert_eq!(
         p2p_gossip_seed::run(
@@ -182,6 +212,11 @@ fn v6_batch20_model_and_network_lanes_are_receipted() {
         Some("p2p_gossip_seed_idle_rss")
     );
     assert!(has_claim(&rss, "V6-NETWORK-004.4"));
+    assert!(rss
+        .get("comment_id")
+        .and_then(Value::as_str)
+        .map(|v| !v.is_empty())
+        .unwrap_or(false));
 
     assert_eq!(
         p2p_gossip_seed::run(
@@ -200,6 +235,11 @@ fn v6_batch20_model_and_network_lanes_are_receipted() {
         Some("p2p_gossip_seed_ranking_evolve")
     );
     assert!(has_claim(&ranking, "V6-NETWORK-004.5"));
+    assert!(ranking
+        .get("ranking_state_path")
+        .and_then(Value::as_str)
+        .map(|v| !v.is_empty())
+        .unwrap_or(false));
 
     assert_eq!(
         p2p_gossip_seed::run(root.path(), &["dashboard".to_string()]),
@@ -212,6 +252,10 @@ fn v6_batch20_model_and_network_lanes_are_receipted() {
     );
     assert!(has_claim(&dashboard, "V6-NETWORK-004.2"));
     assert!(has_claim(&dashboard, "V6-NETWORK-004.6"));
+    assert!(dashboard
+        .get("contribution_ledger")
+        .and_then(Value::as_object)
+        .is_some());
 }
 
 #[test]
