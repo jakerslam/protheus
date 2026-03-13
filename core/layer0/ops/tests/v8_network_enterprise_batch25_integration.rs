@@ -334,8 +334,43 @@ fn v8_batch25_organism_network_and_enterprise_contracts_are_behavior_proven() {
             root,
             &[
                 "certify-scale".to_string(),
+                "--target-nodes=2048".to_string(),
+                "--samples=40".to_string(),
+                "--strict=1".to_string(),
+                "--scale-policy=client/runtime/config/scale_readiness_program_policy.json"
+                    .to_string(),
+            ],
+        ),
+        1
+    );
+    let strict_fail_latest = latest("enterprise_hardening", root);
+    assert_eq!(
+        strict_fail_latest.get("ok").and_then(Value::as_bool),
+        Some(false)
+    );
+    let strict_errors = strict_fail_latest
+        .get("errors")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .filter_map(Value::as_str)
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+    assert!(
+        strict_errors
+            .iter()
+            .any(|row| row == "strict_target_nodes_below_10000"),
+        "strict certify-scale should enforce 10k target minimum"
+    );
+
+    assert_eq!(
+        enterprise_hardening::run(
+            root,
+            &[
+                "certify-scale".to_string(),
                 "--target-nodes=10000".to_string(),
-                "--samples=60".to_string(),
+                "--samples=80".to_string(),
                 "--strict=1".to_string(),
                 "--scale-policy=client/runtime/config/scale_readiness_program_policy.json"
                     .to_string(),
@@ -350,6 +385,11 @@ fn v8_batch25_organism_network_and_enterprise_contracts_are_behavior_proven() {
         .and_then(Value::as_str)
         .expect("cert path");
     assert!(root.join(cert_path).exists());
+    let whitepaper_path = latest
+        .get("whitepaper_path")
+        .and_then(Value::as_str)
+        .expect("whitepaper path");
+    assert!(root.join(whitepaper_path).exists());
 
     std::env::remove_var("DIRECTIVE_KERNEL_SIGNING_KEY");
     std::env::remove_var("ORGANISM_CRYSTAL_SIGNING_KEY");
