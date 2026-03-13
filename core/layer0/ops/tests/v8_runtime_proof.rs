@@ -240,7 +240,8 @@ fn intelligence_nexus_buy_credits_debits_nexus_balance() {
         .join("network_protocol")
         .join("ledger.json");
     let net_ledger: Value =
-        serde_json::from_str(&fs::read_to_string(net_ledger_path).expect("net ledger")).expect("json");
+        serde_json::from_str(&fs::read_to_string(net_ledger_path).expect("net ledger"))
+            .expect("json");
     let balance = net_ledger
         .get("balances")
         .and_then(Value::as_object)
@@ -362,11 +363,13 @@ fn rsi_and_organism_mutation_paths_execute_with_runtime_state_changes() {
         .join("ops")
         .join("organism_layer")
         .join("organism_state.json");
-    let organism_state: Value = serde_json::from_str(
-        &fs::read_to_string(organism_state_path).expect("organism state"),
-    )
-    .expect("json");
-    assert_eq!(organism_state.get("active").and_then(Value::as_bool), Some(true));
+    let organism_state: Value =
+        serde_json::from_str(&fs::read_to_string(organism_state_path).expect("organism state"))
+            .expect("json");
+    assert_eq!(
+        organism_state.get("active").and_then(Value::as_bool),
+        Some(true)
+    );
     let dream_rows = fs::read_to_string(
         core_state_root(&root)
             .join("ops")

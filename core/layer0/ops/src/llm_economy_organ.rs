@@ -107,7 +107,9 @@ fn normalize_target(raw: &str) -> String {
         "heurist" | "heurist_marketplace" => "heurist_marketplace".to_string(),
         "daydreams" | "daydreams_marketplace" => "daydreams_marketplace".to_string(),
         "fairscale" | "fairscale_credit" => "fairscale_credit".to_string(),
-        "trade_router" | "trade-router" | "trade_router_solana" => "trade_router_solana".to_string(),
+        "trade_router" | "trade-router" | "trade_router_solana" => {
+            "trade_router_solana".to_string()
+        }
         "all" | "" => "all".to_string(),
         other => other.to_string(),
     }
@@ -136,8 +138,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         println!("  protheus-ops llm-economy-organ upgrade-trading-hand [--mode=analysis|paper|live] [--symbol=<pair>] [--apply=1|0]");
         println!("  protheus-ops llm-economy-organ debate-bullbear [--symbol=<pair>] [--bull-score=<0..1>] [--bear-score=<0..1>] [--apply=1|0]");
         println!("  protheus-ops llm-economy-organ alpaca-execute [--mode=analysis|paper|live] [--symbol=<pair>] [--side=buy|sell] [--qty=<n>] [--apply=1|0]");
-        println!("  protheus-ops llm-economy-organ virtuals-acp [--action=build|earn] [--apply=1|0]");
-        println!("  protheus-ops llm-economy-organ bankrbot-defi [--strategy=<name>] [--apply=1|0]");
+        println!(
+            "  protheus-ops llm-economy-organ virtuals-acp [--action=build|earn] [--apply=1|0]"
+        );
+        println!(
+            "  protheus-ops llm-economy-organ bankrbot-defi [--strategy=<name>] [--apply=1|0]"
+        );
         println!("  protheus-ops llm-economy-organ jobs-marketplace [--source=nookplot|owocki] [--apply=1|0]");
         println!("  protheus-ops llm-economy-organ skills-marketplace [--source=heurist|daydreams] [--apply=1|0]");
         println!("  protheus-ops llm-economy-organ fairscale-credit [--delta=<n>] [--apply=1|0]");
@@ -261,7 +267,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         return 0;
     }
 
-    if matches!(command.as_str(), "debate-bullbear" | "agent-debate-bullbear") {
+    if matches!(
+        command.as_str(),
+        "debate-bullbear" | "agent-debate-bullbear"
+    ) {
         let apply = parse_bool(parsed.flags.get("apply"), true);
         let symbol = clean(
             parsed
