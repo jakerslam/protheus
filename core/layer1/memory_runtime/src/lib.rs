@@ -3,6 +3,7 @@
 
 pub const CHECK_ID: &str = "layer1_memory_runtime_contract";
 pub mod lensmap_annotations;
+pub mod recall_policy;
 pub mod token_telemetry;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,18 +29,30 @@ pub fn map_memory_recall_command(cmd: &str) -> RecallCommand {
 mod tests {
     use super::*;
     use crate::lensmap_annotations::parse_lensmap_annotation;
+    use crate::recall_policy::{
+        enforce_index_first, enforce_recall_budget, FailClosedMode, RecallBudgetInput,
+    };
     use crate::token_telemetry::{evaluate_burn_slo, RetrievalMode, TokenTelemetryEvent};
 
     #[test]
     fn default_maps_to_query_index() {
-        assert_eq!(map_memory_recall_command("query"), RecallCommand::QueryIndex);
-        assert_eq!(map_memory_recall_command("status"), RecallCommand::QueryIndex);
+        assert_eq!(
+            map_memory_recall_command("query"),
+            RecallCommand::QueryIndex
+        );
+        assert_eq!(
+            map_memory_recall_command("status"),
+            RecallCommand::QueryIndex
+        );
     }
 
     #[test]
     fn explicit_get_maps_correctly() {
         assert_eq!(map_memory_recall_command("get"), RecallCommand::GetNode);
-        assert_eq!(map_memory_recall_command("get-node"), RecallCommand::GetNode);
+        assert_eq!(
+            map_memory_recall_command("get-node"),
+            RecallCommand::GetNode
+        );
     }
 
     #[test]
@@ -58,5 +71,20 @@ mod tests {
             mode: RetrievalMode::NodeRead,
         };
         assert!(evaluate_burn_slo(&event, 200).ok);
+    }
+
+    #[test]
+    fn recall_budget_policy_available() {
+        let out = enforce_recall_budget(&RecallBudgetInput {
+            requested_top: 7,
+            requested_max_files: 1,
+            requested_expand_lines: 0,
+            mode: FailClosedMode::Reject,
+            max_top: 50,
+            max_files: 20,
+            max_expand_lines: 300,
+        });
+        assert!(out.ok);
+        assert!(enforce_index_first(&["sqlite:index".to_string()], 1).ok);
     }
 }

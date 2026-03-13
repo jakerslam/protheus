@@ -15,6 +15,14 @@ pub struct LensMapAnnotationValidation {
     pub annotation: Option<LensMapAnnotation>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LensMapDocumentValidation {
+    pub ok: bool,
+    pub errors: Vec<String>,
+    pub annotation_count: usize,
+    pub annotations: Vec<LensMapAnnotation>,
+}
+
 const FIELD_MAX_COUNT: usize = 32;
 const TOKEN_MAX_LEN: usize = 64;
 
@@ -147,6 +155,47 @@ pub fn parse_lensmap_annotation(raw: &str) -> LensMapAnnotationValidation {
     }
 }
 
+pub fn validate_lensmap_document(raw: &str) -> LensMapDocumentValidation {
+    let mut errors = Vec::new();
+    let mut annotations = Vec::new();
+    let mut seen_nodes = std::collections::BTreeSet::new();
+
+    for (idx, line) in raw.lines().enumerate() {
+        if !line.contains("@lensmap") {
+            continue;
+        }
+        let annotation_slice = line
+            .find("@lensmap")
+            .map(|offset| &line[offset..])
+            .unwrap_or(line);
+        let parsed = parse_lensmap_annotation(annotation_slice);
+        if !parsed.ok {
+            for err in parsed.errors {
+                errors.push(format!("line_{}:{err}", idx + 1));
+            }
+            continue;
+        }
+        let ann = parsed.annotation.expect("annotation");
+        for node in &ann.nodes {
+            if !seen_nodes.insert(node.clone()) {
+                errors.push(format!("line_{}:duplicate_node:{node}", idx + 1));
+            }
+        }
+        annotations.push(ann);
+    }
+
+    if annotations.is_empty() {
+        errors.push("document_annotations_missing".to_string());
+    }
+
+    LensMapDocumentValidation {
+        ok: errors.is_empty(),
+        annotation_count: annotations.len(),
+        errors,
+        annotations,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -192,5 +241,35 @@ mod tests {
         let out = parse_lensmap_annotation("   ");
         assert!(!out.ok);
         assert_eq!(out.errors, vec!["annotation_empty".to_string()]);
+    }
+
+    #[test]
+    fn validates_document_annotations() {
+        let out = validate_lensmap_document(
+            r#"
+// @lensmap tags=memory,recall nodes=node.1 jot=jot.1
+// random comment
+// @lensmap tags=budget nodes=node.2 jot=jot.2
+"#,
+        );
+        assert!(out.ok);
+        assert_eq!(out.annotation_count, 2);
+        assert_eq!(out.annotations[0].nodes, vec!["node.1"]);
+        assert_eq!(out.annotations[1].tags, vec!["budget"]);
+    }
+
+    #[test]
+    fn rejects_duplicate_nodes_across_document() {
+        let out = validate_lensmap_document(
+            r#"
+// @lensmap tags=memory nodes=node.1 jot=jot.1
+// @lensmap tags=memory nodes=node.1 jot=jot.2
+"#,
+        );
+        assert!(!out.ok);
+        assert!(out
+            .errors
+            .iter()
+            .any(|row| row.contains("duplicate_node:node.1")));
     }
 }
