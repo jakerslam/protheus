@@ -107,6 +107,23 @@ fn model_router_state_paths(root: &Path) -> (PathBuf, PathBuf) {
     (dir.join("latest.json"), dir.join("history.jsonl"))
 }
 
+fn provider_profile_path(root: &Path) -> PathBuf {
+    root.join("state/ops/model_router/provider_profile.json")
+}
+
+fn reset_state_path(root: &Path) -> PathBuf {
+    root.join("state/ops/model_router/reset_state.json")
+}
+
+fn night_schedule_path(root: &Path) -> PathBuf {
+    root.join("state/ops/model_router/night_schedule.json")
+}
+
+fn read_json(path: &Path) -> Option<Value> {
+    let raw = fs::read_to_string(path).ok()?;
+    serde_json::from_str::<Value>(&raw).ok()
+}
+
 fn ensure_parent(path: &Path) {
     if let Some(parent) = path.parent() {
         let _ = fs::create_dir_all(parent);
@@ -156,6 +173,7 @@ fn non_flag_positional(args: &[String], skip: usize) -> Option<String> {
 }
 
 fn optimize_cheapest_receipt(root: &Path, args: &[String]) -> Value {
+    let apply = parse_bool_flag(flag_value(args, "apply"), true);
     let profile = flag_value(args, "profile")
         .or_else(|| non_flag_positional(args, 1))
         .unwrap_or_else(|| "minimax".to_string());
@@ -169,12 +187,35 @@ fn optimize_cheapest_receipt(root: &Path, args: &[String]) -> Value {
     let key_env = flag_value(args, "key-env").unwrap_or_else(|| "MINIMAX_API_KEY".to_string());
     let savings_pct =
         ((baseline_cost_per_million - target_cost_per_million) / baseline_cost_per_million) * 100.0;
+    let profile_path = provider_profile_path(root);
+    let profile_digest = receipt_hash(&json!({
+        "profile": profile,
+        "preferred_model": preferred_model,
+        "provider_url": provider_url,
+        "target_cost_per_million": target_cost_per_million,
+        "quality_target_pct": quality_target_pct
+    }));
+    let profile_state = json!({
+        "version": "v1",
+        "updated_at": now_iso(),
+        "profile": profile,
+        "preferred_model": preferred_model,
+        "provider_url": provider_url,
+        "target_cost_per_million": target_cost_per_million,
+        "baseline_cost_per_million": baseline_cost_per_million,
+        "quality_target_pct": quality_target_pct,
+        "profile_digest": profile_digest
+    });
+    if apply {
+        write_json(&profile_path, &profile_state);
+    }
 
     let mut out = json!({
         "ok": true,
         "type": "model_router_optimize_cheap",
         "ts": now_iso(),
         "profile": profile,
+        "apply": apply,
         "plan": {
             "memory_compaction_lines": compact_lines,
             "hierarchical_subtasks": true,
@@ -185,8 +226,11 @@ fn optimize_cheapest_receipt(root: &Path, args: &[String]) -> Value {
             "target_cost_per_million": target_cost_per_million,
             "baseline_cost_per_million": baseline_cost_per_million,
             "quality_target_pct": quality_target_pct,
-            "estimated_savings_pct": savings_pct
+            "estimated_savings_pct": savings_pct,
+            "fallback_chain": ["minimax/m2.5", "kimi-k2.5:cloud", "llama-4-maverick:cloud"],
+            "profile_digest": profile_digest
         },
+        "profile_state_path": profile_path.display().to_string(),
         "claim_evidence": [
             {
                 "id": "V6-MODEL-003.5",
@@ -196,7 +240,8 @@ fn optimize_cheapest_receipt(root: &Path, args: &[String]) -> Value {
                     "preferred_model": preferred_model,
                     "provider_url": provider_url,
                     "memory_compaction_lines": compact_lines,
-                    "estimated_savings_pct": savings_pct
+                    "estimated_savings_pct": savings_pct,
+                    "profile_digest": profile_digest
                 }
             }
         ]
@@ -212,6 +257,33 @@ fn reset_agent_receipt(root: &Path, args: &[String]) -> Value {
     let preserve_identity = parse_bool_flag(flag_value(args, "preserve-identity"), true);
     let scope = flag_value(args, "scope").unwrap_or_else(|| "routing+session-cache".to_string());
     let dry_run = parse_bool_flag(flag_value(args, "dry-run"), false);
+    let (latest_path, history_path) = model_router_state_paths(root);
+    let latest = read_json(&latest_path);
+    let preserved_keys = if preserve_identity {
+        vec![
+            "identity".to_string(),
+            "profile".to_string(),
+            "night_schedule".to_string(),
+        ]
+    } else {
+        vec!["profile".to_string(), "night_schedule".to_string()]
+    };
+    let checkpoint = json!({
+        "version": "v1",
+        "ts": now_iso(),
+        "scope": scope,
+        "preserve_identity": preserve_identity,
+        "dry_run": dry_run,
+        "previous_receipt_hash": latest
+            .as_ref()
+            .and_then(|v| v.get("receipt_hash"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        "preserved_keys": preserved_keys
+    });
+    if !dry_run {
+        write_json(&reset_state_path(root), &checkpoint);
+    }
     let mut out = json!({
         "ok": true,
         "type": "model_router_agent_reset",
@@ -219,6 +291,8 @@ fn reset_agent_receipt(root: &Path, args: &[String]) -> Value {
         "scope": scope,
         "preserve_identity": preserve_identity,
         "dry_run": dry_run,
+        "state_preservation": checkpoint,
+        "reset_state_path": reset_state_path(root).display().to_string(),
         "claim_evidence": [
             {
                 "id": "V6-MODEL-003.4",
@@ -231,7 +305,6 @@ fn reset_agent_receipt(root: &Path, args: &[String]) -> Value {
         ]
     });
     out["receipt_hash"] = Value::String(receipt_hash(&out));
-    let (latest_path, history_path) = model_router_state_paths(root);
     write_json(&latest_path, &out);
     append_jsonl(&history_path, &out);
     out
@@ -244,6 +317,36 @@ fn night_scheduler_receipt(root: &Path, args: &[String]) -> Value {
     let cheap_model = flag_value(args, "cheap-model").unwrap_or_else(|| "minimax/m2.5".to_string());
     let heavy_threshold = flag_value(args, "heavy-threshold")
         .unwrap_or_else(|| "complexity:high_or_risk:high".to_string());
+    let max_hourly_budget_usd = f64_flag(args, "max-hourly-budget-usd", 0.25, 0.01, 500.0);
+    let daytime_preferred_model =
+        flag_value(args, "daytime-model").unwrap_or_else(|| "ollama/llama3.2:latest".to_string());
+    let window_hours = if end_hour >= start_hour {
+        end_hour - start_hour
+    } else {
+        (24 - start_hour) + end_hour
+    };
+    let schedule_digest = receipt_hash(&json!({
+        "start_hour": start_hour,
+        "end_hour": end_hour,
+        "timezone": timezone,
+        "cheap_model": cheap_model,
+        "daytime_model": daytime_preferred_model,
+        "max_hourly_budget_usd": max_hourly_budget_usd
+    }));
+    let schedule_state = json!({
+        "version": "v1",
+        "updated_at": now_iso(),
+        "start_hour": start_hour,
+        "end_hour": end_hour,
+        "window_hours": window_hours,
+        "timezone": timezone,
+        "cheap_model": cheap_model,
+        "daytime_model": daytime_preferred_model,
+        "heavy_threshold": heavy_threshold,
+        "max_hourly_budget_usd": max_hourly_budget_usd,
+        "schedule_digest": schedule_digest
+    });
+    write_json(&night_schedule_path(root), &schedule_state);
     let mut out = json!({
         "ok": true,
         "type": "model_router_night_schedule",
@@ -251,10 +354,25 @@ fn night_scheduler_receipt(root: &Path, args: &[String]) -> Value {
         "schedule": {
             "start_hour": start_hour,
             "end_hour": end_hour,
+            "window_hours": window_hours,
             "timezone": timezone,
             "cheap_model": cheap_model,
-            "heavy_threshold": heavy_threshold
+            "daytime_model": daytime_preferred_model,
+            "heavy_threshold": heavy_threshold,
+            "max_hourly_budget_usd": max_hourly_budget_usd,
+            "schedule_digest": schedule_digest
         },
+        "night_schedule_path": night_schedule_path(root).display().to_string(),
+        "cost_triggers": [
+            {
+                "condition": "within_night_window",
+                "action": "route_to_cheap_model"
+            },
+            {
+                "condition": "estimated_cost_exceeds_hourly_budget",
+                "action": "decompose_and_defer_non_urgent_tasks"
+            }
+        ],
         "claim_evidence": [
             {
                 "id": "V6-MODEL-003.6",
@@ -262,7 +380,8 @@ fn night_scheduler_receipt(root: &Path, args: &[String]) -> Value {
                 "evidence": {
                     "start_hour": start_hour,
                     "end_hour": end_hour,
-                    "cheap_model": cheap_model
+                    "cheap_model": cheap_model,
+                    "max_hourly_budget_usd": max_hourly_budget_usd
                 }
             }
         ]

@@ -108,6 +108,22 @@ fn reputation_path(root: &Path) -> PathBuf {
     state_dir(root).join("reputation_ledger.json")
 }
 
+fn contribution_path(root: &Path) -> PathBuf {
+    state_dir(root).join("contribution_ledger.json")
+}
+
+fn gossip_log_path(root: &Path) -> PathBuf {
+    state_dir(root).join("gossip_log.jsonl")
+}
+
+fn idle_feed_log_path(root: &Path) -> PathBuf {
+    state_dir(root).join("idle_feed_log.jsonl")
+}
+
+fn ranking_state_path(root: &Path) -> PathBuf {
+    state_dir(root).join("ranking_metrics.json")
+}
+
 fn print_json_line(value: &Value) {
     println!(
         "{}",
@@ -161,6 +177,23 @@ fn write_reputations(root: &Path, map: &serde_json::Map<String, Value>) {
     write_json(&reputation_path(root), &Value::Object(map.clone()));
 }
 
+fn contributions(root: &Path) -> serde_json::Map<String, Value> {
+    read_json(&contribution_path(root))
+        .and_then(|v| v.as_object().cloned())
+        .unwrap_or_default()
+}
+
+fn write_contributions(root: &Path, map: &serde_json::Map<String, Value>) {
+    write_json(&contribution_path(root), &Value::Object(map.clone()));
+}
+
+fn count_jsonl_rows(path: &Path) -> u64 {
+    fs::read_to_string(path)
+        .ok()
+        .map(|raw| raw.lines().filter(|row| !row.trim().is_empty()).count() as u64)
+        .unwrap_or(0)
+}
+
 fn usage() {
     for line in USAGE {
         println!("{line}");
@@ -170,6 +203,17 @@ fn usage() {
 fn dashboard_receipt(root: &Path) -> Value {
     let latest = read_json(&latest_path(root));
     let rep = reputations(root);
+    let contribution_ledger = contributions(root);
+    let contribution_nodes = contribution_ledger.len();
+    let ranking_state = read_json(&ranking_state_path(root)).unwrap_or_else(|| {
+        json!({
+            "version": "v1",
+            "latest": Value::Null,
+            "history": []
+        })
+    });
+    let gossip_events = count_jsonl_rows(&gossip_log_path(root));
+    let idle_events = count_jsonl_rows(&idle_feed_log_path(root));
     let nodes = rep.len() as u64;
     let total_rep: f64 = rep.values().filter_map(Value::as_f64).sum();
     let mut out = json!({
@@ -180,6 +224,12 @@ fn dashboard_receipt(root: &Path) -> Value {
         "node_count": nodes,
         "reputation_total": total_rep,
         "reputation_ledger": rep,
+        "contribution_ledger": contribution_ledger,
+        "ranking_state": ranking_state,
+        "event_totals": {
+            "gossip_events": gossip_events,
+            "idle_feed_events": idle_events
+        },
         "latest_event": latest,
         "claim_evidence": [
             {
@@ -187,7 +237,8 @@ fn dashboard_receipt(root: &Path) -> Value {
                 "claim": "reputation_ledger_updates_are_persisted_and_visible_in_dashboard_receipts",
                 "evidence": {
                     "node_count": nodes,
-                    "reputation_total": total_rep
+                    "reputation_total": total_rep,
+                    "contribution_nodes": contribution_nodes
                 }
             },
             {
@@ -195,7 +246,8 @@ fn dashboard_receipt(root: &Path) -> Value {
                 "claim": "network_join_compute_share_and_dashboard_are_exposed_as_core_receipted_surfaces",
                 "evidence": {
                     "surface": "network dashboard",
-                    "node_count": nodes
+                    "node_count": nodes,
+                    "gossip_events": gossip_events
                 }
             }
         ]
@@ -301,11 +353,57 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         let node = parse_flag(argv, "node").unwrap_or_else(|| "local-node".to_string());
         let matmul_size = parse_u64(parse_flag(argv, "matmul-size"), 512);
         let credits = parse_f64(parse_flag(argv, "credits"), 1.0).max(0.0);
+        if strict && (matmul_size < 64 || !matmul_size.is_power_of_two()) {
+            let mut out = json!({
+                "ok": false,
+                "type": "p2p_gossip_seed_compute_proof_error",
+                "lane": "core/layer2/ops",
+                "ts_epoch_ms": now_epoch_ms(),
+                "error": "invalid_matmul_size",
+                "matmul_size": matmul_size,
+                "required": "power_of_two_and_gte_64"
+            });
+            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            persist_receipt(root, &out);
+            print_json_line(&out);
+            return 2;
+        }
         let mut rep = reputations(root);
         let prior = rep.get(&node).and_then(Value::as_f64).unwrap_or(1.0);
         let next = if share { prior + credits } else { prior };
         rep.insert(node.clone(), Value::from(next));
         write_reputations(root, &rep);
+        let challenge = json!({
+            "algo": "matmul",
+            "matmul_size": matmul_size,
+            "node": node,
+            "share": share
+        });
+        let challenge_id = deterministic_receipt_hash(&challenge);
+        let mut contribution = contributions(root);
+        let existing = contribution.get(&node).cloned().unwrap_or_else(|| json!({
+            "proof_count": 0,
+            "total_credits": 0.0
+        }));
+        let prior_count = existing
+            .get("proof_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        let prior_credits = existing
+            .get("total_credits")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0);
+        contribution.insert(
+            node.clone(),
+            json!({
+                "proof_count": prior_count + 1,
+                "total_credits": prior_credits + if share { credits } else { 0.0 },
+                "last_challenge_id": challenge_id,
+                "last_matmul_size": matmul_size,
+                "updated_at_epoch_ms": now_epoch_ms()
+            }),
+        );
+        write_contributions(root, &contribution);
         let mut out = json!({
             "ok": true,
             "type": "p2p_gossip_seed_compute_proof",
@@ -314,7 +412,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "share": share,
             "node": node.clone(),
             "proof": {
-                "challenge": "matmul",
+                "challenge": challenge,
+                "challenge_id": challenge_id,
                 "matmul_size": matmul_size
             },
             "credits": {
@@ -322,13 +421,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "prior": prior,
                 "next": next
             },
+            "contribution_ledger_path": contribution_path(root).display().to_string(),
             "claim_evidence": [
                 {
                     "id": "V6-NETWORK-004.1",
                     "claim": "compute_proof_emits_matmul_challenge_receipts_and_credit_updates",
                     "evidence": {
                         "matmul_size": matmul_size,
-                        "delta": credits
+                        "delta": credits,
+                        "challenge_id": challenge_id
                     }
                 },
                 {
@@ -337,7 +438,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "evidence": {
                         "node": node.clone(),
                         "prior": prior,
-                        "next": next
+                        "next": next,
+                        "proof_count": prior_count + 1
                     }
                 },
                 {
@@ -360,6 +462,17 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         let topic = parse_flag(argv, "topic").unwrap_or_else(|| "ranking".to_string());
         let breakthrough = parse_flag(argv, "breakthrough")
             .unwrap_or_else(|| "listnet_rediscovery_candidate".to_string());
+        let rep = reputations(root);
+        let peers = rep.keys().cloned().collect::<Vec<_>>();
+        let gossip_record = json!({
+            "version": "v1",
+            "ts_epoch_ms": now_epoch_ms(),
+            "topic": topic,
+            "breakthrough": breakthrough,
+            "peers": peers
+        });
+        let gossip_id = deterministic_receipt_hash(&gossip_record);
+        append_jsonl(&gossip_log_path(root), &gossip_record);
         let mut out = json!({
             "ok": true,
             "type": "p2p_gossip_seed_breakthrough",
@@ -367,12 +480,20 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ts_epoch_ms": now_epoch_ms(),
             "topic": topic,
             "breakthrough": breakthrough,
+            "gossip_id": gossip_id,
+            "gossip_log_path": gossip_log_path(root).display().to_string(),
+            "propagation": {
+                "peer_count": peers.len(),
+                "peers": peers
+            },
             "claim_evidence": [
                 {
                     "id": "V6-NETWORK-004.3",
                     "claim": "breakthrough_gossip_emits_deterministic_propagation_receipts",
                     "evidence": {
-                        "topic": topic
+                        "topic": topic,
+                        "peer_count": rep.len(),
+                        "gossip_id": gossip_id
                     }
                 }
             ]
@@ -386,6 +507,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     if command == "idle-rss" {
         let feed = parse_flag(argv, "feed").unwrap_or_else(|| "ai-news".to_string());
         let note = parse_flag(argv, "note").unwrap_or_else(|| "interesting_update".to_string());
+        let feed_record = json!({
+            "version": "v1",
+            "ts_epoch_ms": now_epoch_ms(),
+            "feed": feed,
+            "agent_comment": note
+        });
+        let comment_id = deterministic_receipt_hash(&feed_record);
+        append_jsonl(&idle_feed_log_path(root), &feed_record);
         let mut out = json!({
             "ok": true,
             "type": "p2p_gossip_seed_idle_rss",
@@ -393,12 +522,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ts_epoch_ms": now_epoch_ms(),
             "feed": feed,
             "agent_comment": note,
+            "comment_id": comment_id,
+            "idle_feed_log_path": idle_feed_log_path(root).display().to_string(),
             "claim_evidence": [
                 {
                     "id": "V6-NETWORK-004.4",
                     "claim": "idle_rss_ingestion_emits_feed_and_inter_agent_comment_receipts",
                     "evidence": {
-                        "feed": feed
+                        "feed": feed,
+                        "comment_id": comment_id
                     }
                 }
             ]
@@ -411,7 +543,38 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if command == "ranking-evolve" {
         let metric = parse_flag(argv, "metric").unwrap_or_else(|| "ndcg@10".to_string());
-        let delta = parse_f64(parse_flag(argv, "delta"), 0.02).max(-1.0);
+        let delta = parse_f64(parse_flag(argv, "delta"), 0.02).clamp(-1.0, 1.0);
+        let mut ranking = read_json(&ranking_state_path(root)).unwrap_or_else(|| {
+            json!({
+                "version":"v1",
+                "history":[]
+            })
+        });
+        if !ranking.get("history").map(Value::is_array).unwrap_or(false) {
+            ranking["history"] = Value::Array(Vec::new());
+        }
+        let prior_score = ranking
+            .get("latest")
+            .and_then(|v| v.get("score"))
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0);
+        let next_score = (prior_score + delta).clamp(-1.0, 1.0);
+        let entry = json!({
+            "ts_epoch_ms": now_epoch_ms(),
+            "metric": metric,
+            "delta": delta,
+            "prior_score": prior_score,
+            "next_score": next_score
+        });
+        let mut history = ranking
+            .get("history")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        history.push(entry.clone());
+        ranking["history"] = Value::Array(history);
+        ranking["latest"] = entry.clone();
+        write_json(&ranking_state_path(root), &ranking);
         let mut out = json!({
             "ok": true,
             "type": "p2p_gossip_seed_ranking_evolve",
@@ -419,13 +582,17 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ts_epoch_ms": now_epoch_ms(),
             "metric": metric,
             "delta": delta,
+            "prior_score": prior_score,
+            "next_score": next_score,
+            "ranking_state_path": ranking_state_path(root).display().to_string(),
             "claim_evidence": [
                 {
                     "id": "V6-NETWORK-004.5",
                     "claim": "ranking_evolution_loop_emits_metric_delta_receipts",
                     "evidence": {
                         "metric": metric,
-                        "delta": delta
+                        "delta": delta,
+                        "next_score": next_score
                     }
                 }
             ]
@@ -491,11 +658,24 @@ mod tests {
         let rep = reputations(dir.path());
         let score = rep.get("n1").and_then(Value::as_f64).unwrap_or(0.0);
         assert!(score >= 3.5);
+        let contributions = contributions(dir.path());
+        assert_eq!(
+            contributions
+                .get("n1")
+                .and_then(|v| v.get("proof_count"))
+                .and_then(Value::as_u64),
+            Some(1)
+        );
 
         let latest = read_json(&latest_path(dir.path())).expect("latest receipt");
         assert!(has_claim(&latest, "V6-NETWORK-004.1"));
         assert!(has_claim(&latest, "V6-NETWORK-004.2"));
         assert!(has_claim(&latest, "V6-NETWORK-004.6"));
+        assert!(latest
+            .pointer("/proof/challenge_id")
+            .and_then(Value::as_str)
+            .map(|v| !v.is_empty())
+            .unwrap_or(false));
     }
 
     #[test]
@@ -517,6 +697,10 @@ mod tests {
         assert_eq!(receipt.get("node_count").and_then(Value::as_u64), Some(1));
         assert!(has_claim(&receipt, "V6-NETWORK-004.2"));
         assert!(has_claim(&receipt, "V6-NETWORK-004.6"));
+        assert!(receipt
+            .get("event_totals")
+            .and_then(Value::as_object)
+            .is_some());
     }
 
     #[test]
@@ -531,5 +715,24 @@ mod tests {
             ],
         );
         assert_eq!(exit, 1);
+    }
+
+    #[test]
+    fn strict_mode_rejects_invalid_matmul_size() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let exit = run(
+            dir.path(),
+            &[
+                "compute-proof".to_string(),
+                "--strict=1".to_string(),
+                "--matmul-size=100".to_string(),
+            ],
+        );
+        assert_eq!(exit, 2);
+        let latest = read_json(&latest_path(dir.path())).expect("latest");
+        assert_eq!(
+            latest.get("type").and_then(Value::as_str),
+            Some("p2p_gossip_seed_compute_proof_error")
+        );
     }
 }
