@@ -229,6 +229,9 @@ function regressionSummary(item, cmdAudit, todoUnchecked) {
   if (item.status === 'done' && todoUnchecked) {
     findings.push('todo_conflicts_done_status');
   }
+  if (item.status === 'done' && item.id.startsWith('V8-') && !item.v8RuntimeProofCovered) {
+    findings.push('v8_done_missing_runtime_proof_coverage');
+  }
   if (item.status === 'existing-coverage-validated' && todoUnchecked) {
     findings.push('todo_conflicts_coverage_status');
   }
@@ -246,6 +249,7 @@ function regressionSummary(item, cmdAudit, todoUnchecked) {
     findings.includes('invalid_status_value') ||
     findings.includes('done_without_non_backlog_evidence') ||
     findings.includes('done_without_code_or_test_evidence') ||
+    findings.includes('v8_done_missing_runtime_proof_coverage') ||
     findings.includes('coverage_without_non_backlog_evidence') ||
     findings.includes('coverage_without_code_or_test_evidence') ||
     findings.includes('blocked_external_prepared_without_packet')
@@ -264,6 +268,8 @@ function main() {
   const commandsById = parseTodoValidationCommands(todo);
   const packageScripts = loadPackageScripts();
   const cmdResolution = commandResolution(commandsById, packageScripts);
+  const v8RuntimeProofPath = resolve('core/layer0/ops/tests/v8_runtime_proof.rs');
+  const v8RuntimeProofSource = existsSync(v8RuntimeProofPath) ? readFileSync(v8RuntimeProofPath, 'utf8') : '';
 
   const evidenceCounts = countHitsById(uniqueIds, [
     'docs/workspace/SRS.md',
@@ -311,6 +317,7 @@ function main() {
       validationCommandsResolved: cmdAudit.resolved.length,
       validationCommandsUnresolved: cmdAudit.unresolved,
       externalPreparedPacket: hasExternalPreparedPacket(row.id),
+      v8RuntimeProofCovered: !row.id.startsWith('V8-') || v8RuntimeProofSource.includes(`"${row.id}"`),
     };
     item.regression = regressionSummary(item, cmdAudit, todoUnchecked.has(row.id));
     return item;

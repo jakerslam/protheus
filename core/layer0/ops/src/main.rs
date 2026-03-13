@@ -20,6 +20,12 @@ fn usage() {
     println!("  protheus-ops identity-federation <authorize|scim-lifecycle|status> [flags]");
     println!("  protheus-ops audit-log-export <export|status> [flags]");
     println!("  protheus-ops model-router <args>");
+    println!("  protheus-ops intelligence-nexus <status|open|add-key|credits-status|buy-credits|autobuy-evaluate> [flags]");
+    println!("  protheus-ops network-protocol <status|ignite-bitcoin|stake|merkle-root|emission|zk-claim> [flags]");
+    println!("  protheus-ops binary-blob-runtime <status|migrate|settle|mutate|substrate-probe|debug-access> [flags]");
+    println!("  protheus-ops directive-kernel <status|prime-sign|derive|compliance-check|bridge-rsi|migrate> [flags]");
+    println!("  protheus-ops rsi-ignition <status|ignite|reflect|swarm|evolve> [flags]");
+    println!("  protheus-ops organism-layer <status|ignite|dream|homeostasis|crystallize|symbiosis|mutate|sensory|narrative> [flags]");
     println!("  protheus-ops ab-lane-eval <status|run> [flags]");
     println!("  protheus-ops contract-check <args>");
     println!("  protheus-ops security-plane <guard|anti-sabotage-shield|constitution-guardian|remote-emergency-halt|soul-token-guard|integrity-reseal|integrity-reseal-assistant|capability-lease|startup-attestation|status> [flags]");
@@ -251,6 +257,36 @@ fn main() {
         "model-router" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::model_router::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "intelligence-nexus" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::intelligence_nexus::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "network-protocol" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::network_protocol::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "binary-blob-runtime" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::binary_blob_runtime::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "directive-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::directive_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "rsi-ignition" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::rsi_ignition::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "organism-layer" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::organism_layer::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "ab-lane-eval" => {

@@ -30,6 +30,8 @@
     "ops:blocked-external:packet-audit": "node scripts/ci/blocked_external_packet_audit.mjs",
     "ops:blocked-external:reconcile": "node scripts/ci/blocked_external_reconcile.mjs",
     "ops:dod:gate": "node scripts/ci/dod_policy_gate.mjs --strict=1",
+    "ops:v8:runtime-proof:gate": "node scripts/ci/v8_runtime_proof_gate.mjs",
+    "test:ops:v8-runtime-proof": "cargo test --manifest-path core/layer0/ops/Cargo.toml --test v8_runtime_proof",
     "metrics:heartbeat-kpi": "node scripts/metrics/heartbeat_kpi_report.js",
     "test:metrics:heartbeat-kpi": "node tests/client-memory-tools/heartbeat_kpi_report.test.js",
     "test:memory:idle-dream-core-wrapper": "node tests/client-memory-tools/idle_dream_cycle_core_wrapper.test.js",
