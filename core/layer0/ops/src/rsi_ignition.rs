@@ -102,6 +102,30 @@ fn simulate_regression(proposal: &str, module: &str) -> f64 {
     ((n % 100) as f64) / 1000.0
 }
 
+fn maybe_token_reward(root: &Path, agent: &str, amount: f64, reason: &str) -> Value {
+    if !directive_kernel::action_allowed(root, "tokenomics") {
+        return json!({
+            "attempted": false,
+            "ok": false,
+            "reason": "directive_gate_denied"
+        });
+    }
+    let exit = network_protocol::run(
+        root,
+        &[
+            "reward".to_string(),
+            format!("--agent={}", clean(agent, 120)),
+            format!("--amount={:.8}", amount.max(0.0)),
+            format!("--reason={}", clean(reason, 120)),
+        ],
+    );
+    json!({
+        "attempted": true,
+        "ok": exit == 0,
+        "exit_code": exit
+    })
+}
+
 fn emit(root: &Path, payload: Value) -> i32 {
     match write_receipt(root, STATE_ENV, STATE_SCOPE, payload) {
         Ok(out) => {
@@ -172,6 +196,7 @@ fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     let gate_ok = directive_kernel::action_allowed(root, &gate_action);
     let mut allowed = gate_ok && canary_pass && sim_regression <= threshold;
     let mut mutation_exit = 0i32;
+    let mut reward = Value::Null;
 
     let mut state = load_loop_state(root);
     let state_obj = loop_obj_mut(&mut state);
@@ -210,15 +235,7 @@ fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
                 "sim_regression": sim_regression
             }),
         );
-        let _ = network_protocol::run(
-            root,
-            &[
-                "reward".to_string(),
-                "--agent=organism:global".to_string(),
-                "--amount=1".to_string(),
-                "--reason=tokenomics".to_string(),
-            ],
-        );
+        reward = maybe_token_reward(root, "organism:global", 1.0, "tokenomics");
     } else if apply {
         let next = state_obj
             .get("rollback_count")
@@ -266,6 +283,7 @@ fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
             "sim_regression": sim_regression,
             "max_regression": threshold,
             "mutation_exit": mutation_exit,
+            "token_reward": reward,
             "pipeline": ["propose", "simulate", "canary", "merge_or_rollback"]
         }),
     )
@@ -345,6 +363,7 @@ fn command_swarm(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     let gate_ok = directive_kernel::action_allowed(root, "rsi:swarm");
     let convergence = ((share_rate * 0.75) + ((nodes as f64).ln() / 10.0)).clamp(0.0, 1.0);
     let allowed = gate_ok && convergence > 0.1;
+    let mut reward = Value::Null;
 
     let mut state = load_loop_state(root);
     if apply && allowed {
@@ -358,14 +377,11 @@ fn command_swarm(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
                 "updated_at": now_iso()
             }),
         );
-        let _ = network_protocol::run(
+        reward = maybe_token_reward(
             root,
-            &[
-                "reward".to_string(),
-                "--agent=organism:swarm".to_string(),
-                format!("--amount={:.4}", (nodes as f64) * share_rate * 0.1),
-                "--reason=tokenomics".to_string(),
-            ],
+            "organism:swarm",
+            (nodes as f64) * share_rate * 0.1,
+            "tokenomics",
         );
     }
     if let Err(err) = store_loop_state(root, &state) {
@@ -390,7 +406,8 @@ fn command_swarm(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
             "share_rate": share_rate,
             "convergence_score": convergence,
             "apply": apply,
-            "gate_ok": gate_ok
+            "gate_ok": gate_ok,
+            "swarm_reward": reward
         }),
     )
 }
@@ -398,11 +415,9 @@ fn command_swarm(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
 fn command_evolve(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     let mut state = load_loop_state(root);
     let insight = clean(
-        parsed
-            .flags
-            .get("insight")
-            .cloned()
-            .unwrap_or_else(|| "I found a lower-cost planning strategy with stable quality.".to_string()),
+        parsed.flags.get("insight").cloned().unwrap_or_else(|| {
+            "I found a lower-cost planning strategy with stable quality.".to_string()
+        }),
         360,
     );
     let module = clean(
@@ -492,7 +507,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         println!("  protheus-ops rsi-ignition status");
         println!("  protheus-ops rsi-ignition ignite [--proposal=<text>] [--module=<id>] [--apply=1|0] [--canary-pass=1|0] [--sim-regression=<0..1>]");
         println!("  protheus-ops rsi-ignition reflect [--drift=<0..1>] [--exploration=<0..1>]");
-        println!("  protheus-ops rsi-ignition swarm [--nodes=<n>] [--share-rate=<0..1>] [--apply=1|0]");
+        println!(
+            "  protheus-ops rsi-ignition swarm [--nodes=<n>] [--share-rate=<0..1>] [--apply=1|0]"
+        );
         println!("  protheus-ops rsi-ignition evolve [--insight=<text>] [--module=<id>] [--apply=1|0] [--ignite-apply=1|0]");
         return 0;
     }
@@ -587,6 +604,40 @@ mod tests {
                 .unwrap_or(0)
                 >= 1
         );
+        let latest = read_json(&latest_path(&root)).expect("latest");
+        assert_eq!(
+            latest
+                .get("token_reward")
+                .and_then(|v| v.get("attempted"))
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        std::env::remove_var("DIRECTIVE_KERNEL_SIGNING_KEY");
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn swarm_skips_reward_when_tokenomics_gate_missing() {
+        let root = temp_root("swarm_no_tokenomics");
+        allow(&root, "allow:rsi:swarm");
+        let exit = run(
+            &root,
+            &[
+                "swarm".to_string(),
+                "--nodes=5".to_string(),
+                "--share-rate=0.5".to_string(),
+                "--apply=1".to_string(),
+            ],
+        );
+        assert_eq!(exit, 0);
+        let latest = read_json(&latest_path(&root)).expect("latest");
+        assert_eq!(
+            latest
+                .get("swarm_reward")
+                .and_then(|v| v.get("attempted"))
+                .and_then(Value::as_bool),
+            Some(false)
+        );
         std::env::remove_var("DIRECTIVE_KERNEL_SIGNING_KEY");
         let _ = fs::remove_dir_all(root);
     }
@@ -618,4 +669,3 @@ mod tests {
         let _ = fs::remove_dir_all(root);
     }
 }
-
