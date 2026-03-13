@@ -48,6 +48,48 @@ fn parse_bool_flag(raw: Option<String>, fallback: bool) -> bool {
     }
 }
 
+fn command_claim_ids(command: &str) -> &'static [&'static str] {
+    match command {
+        "optimize" | "optimize-cheap" | "optimize-minimax" => &["V6-MODEL-003.5"],
+        "reset-agent" | "agent-reset" => &["V6-MODEL-003.4"],
+        "night-schedule" | "schedule-night" => &["V6-MODEL-003.6"],
+        "adapt-repo" | "repo-adapt" => &["V6-MODEL-003.3"],
+        "compact-context" | "compact" => &["V6-MODEL-003.1"],
+        "decompose-task" | "decompose" => &["V6-MODEL-003.2"],
+        _ => &[],
+    }
+}
+
+fn model_router_conduit_enforcement(args: &[String], command: &str, strict: bool) -> Value {
+    let bypass_requested = parse_bool_flag(flag_value(args, "bypass"), false)
+        || parse_bool_flag(flag_value(args, "client-bypass"), false);
+    let ok = !bypass_requested;
+    let claim_rows = command_claim_ids(command)
+        .iter()
+        .map(|id| {
+            json!({
+                "id": id,
+                "claim": "model_router_commands_route_through_core_authority_with_fail_closed_bypass_denial",
+                "evidence": {
+                    "command": command,
+                    "bypass_requested": bypass_requested
+                }
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut out = json!({
+        "ok": if strict { ok } else { true },
+        "type": "model_router_conduit_enforcement",
+        "command": command,
+        "strict": strict,
+        "bypass_requested": bypass_requested,
+        "errors": if ok { Value::Array(Vec::new()) } else { json!(["conduit_bypass_rejected"]) },
+        "claim_evidence": claim_rows
+    });
+    out["receipt_hash"] = Value::String(receipt_hash(&out));
+    out
+}
+
 fn select_route_model(
     provider_online: bool,
     preferred_model: &str,
@@ -147,10 +189,12 @@ fn optimize_cheapest_receipt(root: &Path, args: &[String]) -> Value {
         },
         "claim_evidence": [
             {
-                "id": "cheap_model_booster_contract",
-                "claim": "cheap_model_optimizer_applies_compaction_decomposition_and_provider_swap",
+                "id": "V6-MODEL-003.5",
+                "claim": "dynamic_provider_abstraction_routes_cheap_model_profiles_with_deterministic_receipts",
                 "evidence": {
                     "profile": profile,
+                    "preferred_model": preferred_model,
+                    "provider_url": provider_url,
                     "memory_compaction_lines": compact_lines,
                     "estimated_savings_pct": savings_pct
                 }
@@ -177,8 +221,8 @@ fn reset_agent_receipt(root: &Path, args: &[String]) -> Value {
         "dry_run": dry_run,
         "claim_evidence": [
             {
-                "id": "agent_reset_contract",
-                "claim": "agent_reset_preserves_identity_while_flushing_router_state",
+                "id": "V6-MODEL-003.4",
+                "claim": "agent_reset_routes_to_core_lane_with_deterministic_identity_preserving_receipts",
                 "evidence": {
                     "preserve_identity": preserve_identity,
                     "scope": scope
@@ -213,8 +257,8 @@ fn night_scheduler_receipt(root: &Path, args: &[String]) -> Value {
         },
         "claim_evidence": [
             {
-                "id": "night_scheduler_contract",
-                "claim": "cost_aware_scheduler_routes_heavy_batches_to_cheap_model_window",
+                "id": "V6-MODEL-003.6",
+                "claim": "cost_aware_night_scheduler_emits_deterministic_windowed_routing_receipts",
                 "evidence": {
                     "start_hour": start_hour,
                     "end_hour": end_hour,
@@ -315,8 +359,8 @@ fn adapt_repo_receipt(root: &Path, args: &[String]) -> Value {
         ],
         "claim_evidence": [
             {
-                "id": "repo_adaptation_contract",
-                "claim": "cheap_model_mode_prefers_repo_adaptation_over_from_scratch_generation",
+                "id": "V6-MODEL-003.3",
+                "claim": "adapt_repo_emits_deterministic_reuse_first_repo_adaptation_plan_receipts",
                 "evidence": {
                     "repo": repo,
                     "strategy": strategy
@@ -350,6 +394,26 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
         println!("  protheus-ops model-router reset-agent [--preserve-identity=1|0] [--scope=routing+session-cache]");
         println!("  protheus-ops model-router night-schedule [--start-hour=0] [--end-hour=6] [--timezone=America/Denver] [--cheap-model=minimax/m2.5]");
         return 0;
+    }
+
+    let strict = parse_bool_flag(flag_value(args, "strict"), false);
+    if !matches!(cmd.as_str(), "status" | "infer" | "run") {
+        let conduit = model_router_conduit_enforcement(args, &cmd, strict);
+        if strict && !conduit.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+            let mut out = json!({
+                "ok": false,
+                "type": "model_router_conduit_gate",
+                "ts": now_iso(),
+                "command": cmd,
+                "strict": strict,
+                "error": "conduit_bypass_rejected",
+                "errors": ["conduit_bypass_rejected"],
+                "conduit_enforcement": conduit
+            });
+            out["receipt_hash"] = Value::String(receipt_hash(&out));
+            print_json_line(&out);
+            return 1;
+        }
     }
 
     if matches!(
@@ -4226,6 +4290,13 @@ mod tests {
                 .unwrap_or_default()
                 > 90.0
         );
+        assert!(out
+            .get("claim_evidence")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .any(|row| row.get("id").and_then(Value::as_str) == Some("V6-MODEL-003.5")));
     }
 
     #[test]
@@ -4240,6 +4311,13 @@ mod tests {
             out.get("preserve_identity").and_then(Value::as_bool),
             Some(true)
         );
+        assert!(out
+            .get("claim_evidence")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .any(|row| row.get("id").and_then(Value::as_str) == Some("V6-MODEL-003.4")));
     }
 
     #[test]
@@ -4266,6 +4344,13 @@ mod tests {
             out.pointer("/schedule/cheap_model").and_then(Value::as_str),
             Some("minimax/m2.5")
         );
+        assert!(out
+            .get("claim_evidence")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .any(|row| row.get("id").and_then(Value::as_str) == Some("V6-MODEL-003.6")));
     }
 
     #[test]
@@ -4339,6 +4424,41 @@ mod tests {
             out.get("strategy").and_then(Value::as_str),
             Some("reuse-first")
         );
+        assert!(out
+            .get("claim_evidence")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .any(|row| row.get("id").and_then(Value::as_str) == Some("V6-MODEL-003.3")));
+    }
+
+    #[test]
+    fn conduit_enforcement_rejects_bypass_for_strict_model_commands() {
+        let out = model_router_conduit_enforcement(
+            &[
+                "optimize".to_string(),
+                "--strict=1".to_string(),
+                "--bypass=1".to_string(),
+            ],
+            "optimize",
+            true,
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("errors")
+                .and_then(Value::as_array)
+                .and_then(|rows| rows.first())
+                .and_then(Value::as_str),
+            Some("conduit_bypass_rejected")
+        );
+        assert!(out
+            .get("claim_evidence")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .any(|row| row.get("id").and_then(Value::as_str) == Some("V6-MODEL-003.5")));
     }
 
     #[test]

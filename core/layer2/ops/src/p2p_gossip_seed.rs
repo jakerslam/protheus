@@ -50,6 +50,48 @@ fn parse_u64(raw: Option<String>, fallback: u64) -> u64 {
         .unwrap_or(fallback)
 }
 
+fn command_claim_ids(command: &str) -> &'static [&'static str] {
+    match command {
+        "discover" | "join" => &["V6-NETWORK-004.6", "V6-NETWORK-004.2"],
+        "compute-proof" => &["V6-NETWORK-004.1", "V6-NETWORK-004.2", "V6-NETWORK-004.6"],
+        "gossip" => &["V6-NETWORK-004.3"],
+        "idle-rss" => &["V6-NETWORK-004.4"],
+        "ranking-evolve" => &["V6-NETWORK-004.5"],
+        "status" | "dashboard" => &["V6-NETWORK-004.2", "V6-NETWORK-004.6"],
+        _ => &[],
+    }
+}
+
+fn conduit_enforcement(argv: &[String], command: &str, strict: bool) -> Value {
+    let bypass_requested = parse_bool(parse_flag(argv, "bypass"), false)
+        || parse_bool(parse_flag(argv, "client-bypass"), false);
+    let ok = !bypass_requested;
+    let claim_rows = command_claim_ids(command)
+        .iter()
+        .map(|id| {
+            json!({
+                "id": id,
+                "claim": "network_commands_route_through_core_runtime_with_fail_closed_bypass_denial",
+                "evidence": {
+                    "command": command,
+                    "bypass_requested": bypass_requested
+                }
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut out = json!({
+        "ok": if strict { ok } else { true },
+        "type": "p2p_gossip_seed_conduit_enforcement",
+        "command": command,
+        "strict": strict,
+        "bypass_requested": bypass_requested,
+        "errors": if ok { Value::Array(Vec::new()) } else { json!(["conduit_bypass_rejected"]) },
+        "claim_evidence": claim_rows
+    });
+    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out
+}
+
 fn state_dir(root: &Path) -> PathBuf {
     root.join("state").join("ops").join("p2p_gossip_seed")
 }
@@ -141,11 +183,19 @@ fn dashboard_receipt(root: &Path) -> Value {
         "latest_event": latest,
         "claim_evidence": [
             {
-                "id": "network_dashboard_contract",
-                "claim": "hyperspace_dashboard_exposes_compute_reputation_and_breakthrough_state",
+                "id": "V6-NETWORK-004.2",
+                "claim": "reputation_ledger_updates_are_persisted_and_visible_in_dashboard_receipts",
                 "evidence": {
                     "node_count": nodes,
                     "reputation_total": total_rep
+                }
+            },
+            {
+                "id": "V6-NETWORK-004.6",
+                "claim": "network_join_compute_share_and_dashboard_are_exposed_as_core_receipted_surfaces",
+                "evidence": {
+                    "surface": "network dashboard",
+                    "node_count": nodes
                 }
             }
         ]
@@ -159,6 +209,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         .first()
         .map(|v| v.trim().to_ascii_lowercase())
         .unwrap_or_else(|| "status".to_string());
+    let strict = parse_bool(parse_flag(argv, "strict"), false);
 
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         usage();
@@ -166,9 +217,41 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
 
     if matches!(command.as_str(), "status" | "dashboard") {
+        let conduit = conduit_enforcement(argv, &command, strict);
+        if strict && !conduit.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+            let mut out = json!({
+                "ok": false,
+                "type": "p2p_gossip_seed_conduit_gate",
+                "lane": "core/layer2/ops",
+                "command": command,
+                "strict": strict,
+                "errors": ["conduit_bypass_rejected"],
+                "conduit_enforcement": conduit
+            });
+            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            print_json_line(&out);
+            return 1;
+        }
         let out = dashboard_receipt(root);
+        persist_receipt(root, &out);
         print_json_line(&out);
         return 0;
+    }
+
+    let conduit = conduit_enforcement(argv, &command, strict);
+    if strict && !conduit.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        let mut out = json!({
+            "ok": false,
+            "type": "p2p_gossip_seed_conduit_gate",
+            "lane": "core/layer2/ops",
+            "command": command,
+            "strict": strict,
+            "errors": ["conduit_bypass_rejected"],
+            "conduit_enforcement": conduit
+        });
+        out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        print_json_line(&out);
+        return 1;
     }
 
     if matches!(command.as_str(), "discover" | "join") {
@@ -177,6 +260,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         let apply = parse_bool(parse_flag(argv, "apply"), true);
         let mut rep = reputations(root);
         rep.entry(node.clone()).or_insert(Value::from(1.0));
+        let bootstrap_reputation = rep.get(&node).and_then(Value::as_f64).unwrap_or(0.0);
         write_reputations(root, &rep);
         let mut out = json!({
             "ok": true,
@@ -184,16 +268,24 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "lane": "core/layer2/ops",
             "ts_epoch_ms": now_epoch_ms(),
             "command": command,
-            "profile": profile,
-            "node": node,
+            "profile": profile.clone(),
+            "node": node.clone(),
             "apply": apply,
             "claim_evidence": [
                 {
-                    "id": "network_join_hyperspace_contract",
-                    "claim": "node_can_join_hyperspace_profile_with_reputation_bootstrap",
+                    "id": "V6-NETWORK-004.6",
+                    "claim": "network_join_hyperspace_routes_to_core_runtime_with_deterministic_receipts",
                     "evidence": {
                         "profile": profile,
-                        "node": node
+                        "node": node.clone()
+                    }
+                },
+                {
+                    "id": "V6-NETWORK-004.2",
+                    "claim": "reputation_ledger_bootstraps_identity_state_on_join",
+                    "evidence": {
+                        "node": node,
+                        "bootstrap_reputation": bootstrap_reputation
                     }
                 }
             ]
@@ -220,7 +312,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "lane": "core/layer2/ops",
             "ts_epoch_ms": now_epoch_ms(),
             "share": share,
-            "node": node,
+            "node": node.clone(),
             "proof": {
                 "challenge": "matmul",
                 "matmul_size": matmul_size
@@ -232,11 +324,28 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             },
             "claim_evidence": [
                 {
-                    "id": "proof_of_compute_contract",
-                    "claim": "compute_contribution_requires_cryptographic_style_challenge_before_credit",
+                    "id": "V6-NETWORK-004.1",
+                    "claim": "compute_proof_emits_matmul_challenge_receipts_and_credit_updates",
                     "evidence": {
                         "matmul_size": matmul_size,
                         "delta": credits
+                    }
+                },
+                {
+                    "id": "V6-NETWORK-004.2",
+                    "claim": "reputation_ledger_is_updated_deterministically_for_compute_contributions",
+                    "evidence": {
+                        "node": node.clone(),
+                        "prior": prior,
+                        "next": next
+                    }
+                },
+                {
+                    "id": "V6-NETWORK-004.6",
+                    "claim": "compute_share_surface_routes_into_core_network_runtime_with_receipts",
+                    "evidence": {
+                        "surface": "compute share",
+                        "share": share
                     }
                 }
             ]
@@ -260,8 +369,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "breakthrough": breakthrough,
             "claim_evidence": [
                 {
-                    "id": "gossip_breakthrough_contract",
-                    "claim": "breakthroughs_propagate_via_swarm_gossip",
+                    "id": "V6-NETWORK-004.3",
+                    "claim": "breakthrough_gossip_emits_deterministic_propagation_receipts",
                     "evidence": {
                         "topic": topic
                     }
@@ -286,8 +395,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "agent_comment": note,
             "claim_evidence": [
                 {
-                    "id": "idle_rss_contract",
-                    "claim": "idle_time_can_ingest_rss_and_emit_inter_agent_comments",
+                    "id": "V6-NETWORK-004.4",
+                    "claim": "idle_rss_ingestion_emits_feed_and_inter_agent_comment_receipts",
                     "evidence": {
                         "feed": feed
                     }
@@ -312,8 +421,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "delta": delta,
             "claim_evidence": [
                 {
-                    "id": "ranking_evolution_contract",
-                    "claim": "autoresearch_ranking_loop_can_publish_metric_deltas",
+                    "id": "V6-NETWORK-004.5",
+                    "claim": "ranking_evolution_loop_emits_metric_delta_receipts",
                     "evidence": {
                         "metric": metric,
                         "delta": delta
@@ -344,6 +453,16 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 mod tests {
     use super::*;
 
+    fn has_claim(value: &Value, claim_id: &str) -> bool {
+        value
+            .get("claim_evidence")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .any(|row| row.get("id").and_then(Value::as_str) == Some(claim_id))
+    }
+
     #[test]
     fn join_then_compute_proof_updates_reputation() {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -372,6 +491,11 @@ mod tests {
         let rep = reputations(dir.path());
         let score = rep.get("n1").and_then(Value::as_f64).unwrap_or(0.0);
         assert!(score >= 3.5);
+
+        let latest = read_json(&latest_path(dir.path())).expect("latest receipt");
+        assert!(has_claim(&latest, "V6-NETWORK-004.1"));
+        assert!(has_claim(&latest, "V6-NETWORK-004.2"));
+        assert!(has_claim(&latest, "V6-NETWORK-004.6"));
     }
 
     #[test]
@@ -391,5 +515,21 @@ mod tests {
             Some("p2p_gossip_seed_dashboard")
         );
         assert_eq!(receipt.get("node_count").and_then(Value::as_u64), Some(1));
+        assert!(has_claim(&receipt, "V6-NETWORK-004.2"));
+        assert!(has_claim(&receipt, "V6-NETWORK-004.6"));
+    }
+
+    #[test]
+    fn strict_conduit_mode_rejects_bypass() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let exit = run(
+            dir.path(),
+            &[
+                "compute-proof".to_string(),
+                "--strict=1".to_string(),
+                "--bypass=1".to_string(),
+            ],
+        );
+        assert_eq!(exit, 1);
     }
 }
