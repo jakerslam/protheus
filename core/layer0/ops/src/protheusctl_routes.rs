@@ -1558,7 +1558,9 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
             let first_is_flag = rest.first().map(|v| v.starts_with("--")).unwrap_or(false);
             let mut args = match sub.as_str() {
                 "start" => vec!["start".to_string()],
-                "melt" | "refine" | "melt-refine" => vec!["melt-refine".to_string()],
+                "melt" | "refine" | "melt-refine" | "regress" => {
+                    vec!["melt-refine".to_string()]
+                }
                 "compact" => vec!["compact".to_string()],
                 "backlog" | "backlog-pack" => vec!["backlog-pack".to_string()],
                 "control" => vec!["control".to_string()],

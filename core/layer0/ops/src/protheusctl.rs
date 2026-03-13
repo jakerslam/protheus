@@ -2889,6 +2889,24 @@ mod tests {
     }
 
     #[test]
+    fn core_shortcut_routes_snowball_regress_alias_to_melt_refine() {
+        let route = resolve_core_shortcuts(
+            "snowball",
+            &[
+                "regress".to_string(),
+                "--cycle-id=s35".to_string(),
+                "--regression-pass=0".to_string(),
+            ],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://snowball-plane");
+        assert_eq!(
+            route.args,
+            vec!["melt-refine", "--cycle-id=s35", "--regression-pass=0"]
+        );
+    }
+
+    #[test]
     fn core_shortcut_routes_orchestrate_agency_to_company_plane() {
         let route = resolve_core_shortcuts(
             "orchestrate",
