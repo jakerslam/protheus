@@ -32,8 +32,12 @@ fn vault_path(root: &Path) -> PathBuf {
 
 fn legacy_source_paths(root: &Path) -> Vec<PathBuf> {
     vec![
-        root.join("docs").join("workspace").join("AGENT-CONSTITUTION.md"),
-        root.join("docs").join("client").join("PROTHEUS_PRIME_SEED.md"),
+        root.join("docs")
+            .join("workspace")
+            .join("AGENT-CONSTITUTION.md"),
+        root.join("docs")
+            .join("client")
+            .join("PROTHEUS_PRIME_SEED.md"),
         root.join("docs")
             .join("client")
             .join("internal")
@@ -114,9 +118,19 @@ fn signature_for_entry(entry: &Value) -> String {
     let key = std::env::var(SIGNING_ENV).unwrap_or_default();
     if key.trim().is_empty() {
         // still deterministic, but marked as unsigned in policy metadata.
-        return format!("unsigned:{}", sha256_hex_str(&serde_json::to_string(entry).unwrap_or_default()));
+        return format!(
+            "unsigned:{}",
+            sha256_hex_str(&serde_json::to_string(entry).unwrap_or_default())
+        );
     }
     format!("sig:{}", keyed_digest_hex(&key, entry))
+}
+
+fn signing_key_present() -> bool {
+    std::env::var(SIGNING_ENV)
+        .ok()
+        .map(|v| !v.trim().is_empty())
+        .unwrap_or(false)
 }
 
 fn append_directive_entry(
@@ -304,7 +318,10 @@ fn migrate_legacy_markdown(root: &Path, apply: bool) -> Result<Value, String> {
                 continue;
             }
             if trimmed.starts_with("-") || trimmed.starts_with('*') {
-                let cleaned = trimmed.trim_start_matches('-').trim_start_matches('*').trim();
+                let cleaned = trimmed
+                    .trim_start_matches('-')
+                    .trim_start_matches('*')
+                    .trim();
                 if !cleaned.is_empty() {
                     harvested.push(clean(cleaned, 512));
                 }
@@ -318,7 +335,14 @@ fn migrate_legacy_markdown(root: &Path, apply: bool) -> Result<Value, String> {
     let mut imported = Vec::new();
     if apply {
         for directive in &harvested {
-            let entry = append_directive_entry(root, "prime", directive, "migration", None, "legacy_markdown")?;
+            let entry = append_directive_entry(
+                root,
+                "prime",
+                directive,
+                "migration",
+                None,
+                "legacy_markdown",
+            )?;
             imported.push(entry);
         }
 
@@ -379,11 +403,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
         println!("  protheus-ops directive-kernel status");
-        println!("  protheus-ops directive-kernel prime-sign [--directive=<text>] [--signer=<id>]");
-        println!("  protheus-ops directive-kernel derive [--parent=<id|text>] [--directive=<text>] [--signer=<id>]");
+        println!("  protheus-ops directive-kernel prime-sign [--directive=<text>] [--signer=<id>] [--allow-unsigned=1|0]");
+        println!("  protheus-ops directive-kernel derive [--parent=<id|text>] [--directive=<text>] [--signer=<id>] [--allow-unsigned=1|0]");
         println!("  protheus-ops directive-kernel compliance-check [--action=<text>]");
         println!("  protheus-ops directive-kernel bridge-rsi [--proposal=<text>] [--apply=1|0]");
-        println!("  protheus-ops directive-kernel migrate [--apply=1|0]");
+        println!("  protheus-ops directive-kernel migrate [--apply=1|0] [--allow-unsigned=1|0]");
         return 0;
     }
 
@@ -420,8 +444,35 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             .get("signer")
             .cloned()
             .unwrap_or_else(|| "operator".to_string());
+        let allow_unsigned = parse_bool(parsed.flags.get("allow-unsigned"), false);
+        if !allow_unsigned && !signing_key_present() {
+            return emit_receipt(
+                root,
+                json!({
+                    "ok": false,
+                    "type": "directive_kernel_prime_sign",
+                    "lane": "core/layer0/ops",
+                    "error": "missing_signing_key",
+                    "signing_env": SIGNING_ENV,
+                    "claim_evidence": [
+                        {
+                            "id": "v8_directives_001_1",
+                            "claim": "prime_directives_are_append_only_signed_objects_not_inline_mutations",
+                            "evidence": {"accepted": false, "reason": "missing_signing_key"}
+                        }
+                    ]
+                }),
+            );
+        }
 
-        let entry = match append_directive_entry(root, "prime", &directive, &signer, None, "operator_sign") {
+        let entry = match append_directive_entry(
+            root,
+            "prime",
+            &directive,
+            &signer,
+            None,
+            "operator_sign",
+        ) {
             Ok(v) => v,
             Err(err) => {
                 return emit_receipt(
@@ -466,11 +517,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
 
     if command == "derive" {
-        let parent_hint = parsed
-            .flags
-            .get("parent")
-            .cloned()
-            .unwrap_or_default();
+        let parent_hint = parsed.flags.get("parent").cloned().unwrap_or_default();
         let directive = parsed
             .flags
             .get("directive")
@@ -481,6 +528,27 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             .get("signer")
             .cloned()
             .unwrap_or_else(|| "system".to_string());
+        let allow_unsigned = parse_bool(parsed.flags.get("allow-unsigned"), false);
+        if !allow_unsigned && !signing_key_present() {
+            return emit_receipt(
+                root,
+                json!({
+                    "ok": false,
+                    "type": "directive_kernel_derive",
+                    "lane": "core/layer0/ops",
+                    "error": "missing_signing_key",
+                    "signing_env": SIGNING_ENV,
+                    "layer_map": ["0","1","2"],
+                    "claim_evidence": [
+                        {
+                            "id": "v8_directives_001_2",
+                            "claim": "derived_directives_require_parent_linkage_and_fail_on_inheritance_conflict",
+                            "evidence": {"accepted": false, "reason": "missing_signing_key"}
+                        }
+                    ]
+                }),
+            );
+        }
 
         let vault = load_vault(root);
         let Some(parent) = resolve_parent(&vault, &parent_hint) else {
@@ -636,7 +704,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         let apply = parse_bool(parsed.flags.get("apply"), true);
         let action = format!("rsi:{}", clean(&proposal, 220).to_ascii_lowercase());
         let eval = evaluate_action(root, &action);
-        let allowed = eval.get("allowed").and_then(Value::as_bool).unwrap_or(false);
+        let allowed = eval
+            .get("allowed")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         let rollback_pointer = format!(
             "rollback://directive_bridge/{}",
             &sha256_hex_str(&format!("{}:{}", now_iso(), proposal))[..18]
@@ -681,6 +752,27 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if command == "migrate" {
         let apply = parse_bool(parsed.flags.get("apply"), true);
+        let allow_unsigned = parse_bool(parsed.flags.get("allow-unsigned"), false);
+        if apply && !allow_unsigned && !signing_key_present() {
+            return emit_receipt(
+                root,
+                json!({
+                    "ok": false,
+                    "type": "directive_kernel_migrate",
+                    "lane": "core/layer0/ops",
+                    "error": "missing_signing_key",
+                    "signing_env": SIGNING_ENV,
+                    "layer_map": ["0","1","2","client","app"],
+                    "claim_evidence": [
+                        {
+                            "id": "v8_directives_001_5",
+                            "claim": "directive_migration_and_status_are_available_as_one_command_core_paths",
+                            "evidence": {"apply": apply, "ok": false, "reason": "missing_signing_key"}
+                        }
+                    ]
+                }),
+            );
+        }
         let migrated = migrate_legacy_markdown(root, apply).unwrap_or_else(|err| {
             json!({
                 "error": clean(err, 220),
