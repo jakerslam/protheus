@@ -387,6 +387,46 @@ fn v6_research_batch6_strict_commands_emit_receipts_and_contract_behavior() {
         "template governance must validate both curated templates"
     );
     assert_claim(&template_latest, "V6-RESEARCH-002.6");
+    assert_eq!(
+        template_latest
+            .get("conduit_enforcement")
+            .and_then(|v| v.get("ok"))
+            .and_then(Value::as_bool),
+        Some(true),
+        "template governance should report conduit enforcement success"
+    );
+
+    let template_bypass_exit = research_plane::run(
+        root,
+        &[
+            "template-governance".to_string(),
+            "--strict=1".to_string(),
+            "--bypass=1".to_string(),
+        ],
+    );
+    assert_eq!(
+        template_bypass_exit, 1,
+        "strict template governance must fail-closed on conduit bypass"
+    );
+    let template_bypass_latest = read_json(&latest_path(root));
+    assert_eq!(
+        template_bypass_latest.get("type").and_then(Value::as_str),
+        Some("research_plane_template_governance")
+    );
+    assert_eq!(
+        template_bypass_latest.get("ok").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert!(
+        template_bypass_latest
+            .get("errors")
+            .and_then(Value::as_array)
+            .map(|rows| rows
+                .iter()
+                .any(|row| row.as_str() == Some("conduit_bypass_rejected")))
+            .unwrap_or(false),
+        "bypass rejection reason should be explicit"
+    );
 
     std::env::remove_var("RESEARCH_CONSOLE_TOKEN");
     std::env::remove_var("RESEARCH_TEMPLATE_SIGNING_KEY");
