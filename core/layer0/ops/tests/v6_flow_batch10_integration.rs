@@ -112,6 +112,15 @@ fn v6_flow_batch10_core_lanes_execute_with_receipts() {
         compile_latest.get("ok").and_then(Value::as_bool),
         Some(true)
     );
+    assert!(
+        compile_latest
+            .get("compiled_graph")
+            .and_then(|v| v.get("stage_receipts"))
+            .and_then(Value::as_array)
+            .map(|rows| rows.len() >= 2)
+            .unwrap_or(false),
+        "compile should emit deterministic stage receipts for live schema+graph validation"
+    );
     assert_claim(&compile_latest, "V6-FLOW-001.1");
     assert_claim(&compile_latest, "V6-FLOW-001.6");
 
@@ -252,6 +261,13 @@ fn v6_flow_batch10_core_lanes_execute_with_receipts() {
         Some("flow_plane_export")
     );
     assert_eq!(export_latest.get("ok").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        export_latest
+            .get("package")
+            .and_then(|v| v.get("format"))
+            .and_then(Value::as_str),
+        Some("mcp")
+    );
     assert_claim(&export_latest, "V6-FLOW-001.4");
     assert_claim(&export_latest, "V6-FLOW-001.6");
 
@@ -339,6 +355,38 @@ fn v6_flow_batch10_core_lanes_execute_with_receipts() {
 }
 
 #[test]
+fn v6_flow_batch10_compile_fails_unknown_node_type_in_strict_mode() {
+    let fixture = stage_fixture_root();
+    let root = fixture.path();
+    let exit = flow_plane::run(
+        root,
+        &[
+            "compile".to_string(),
+            "--strict=1".to_string(),
+            "--canvas-json={\"version\":\"v1\",\"kind\":\"flow_canvas_graph\",\"nodes\":[{\"id\":\"x\",\"type\":\"mystery\"}],\"edges\":[]}"
+                .to_string(),
+        ],
+    );
+    assert_eq!(exit, 1);
+    let latest = read_json(&latest_path(root));
+    assert_eq!(
+        latest.get("type").and_then(Value::as_str),
+        Some("flow_plane_compile")
+    );
+    assert_eq!(latest.get("ok").and_then(Value::as_bool), Some(false));
+    assert!(
+        latest
+            .get("errors")
+            .and_then(Value::as_array)
+            .map(|rows| rows
+                .iter()
+                .any(|row| row.as_str().unwrap_or_default().contains("node_type_not_allowed")))
+            .unwrap_or(false),
+        "strict compile should fail on unknown canvas node type"
+    );
+}
+
+#[test]
 fn v6_flow_batch10_rejects_bypass_when_strict() {
     let fixture = stage_fixture_root();
     let root = fixture.path();
@@ -366,4 +414,55 @@ fn v6_flow_batch10_rejects_bypass_when_strict() {
             .iter()
             .any(|row| row.get("id").and_then(Value::as_str) == Some("V6-FLOW-001.6")))
         .unwrap_or(false));
+}
+
+#[test]
+fn v6_flow_batch10_default_component_manifest_passes_in_strict_mode() {
+    let fixture = stage_fixture_root();
+    let root = fixture.path();
+    std::env::set_var(
+        "FLOW_COMPONENT_SIGNING_KEY",
+        "flow-component-default-signing-key",
+    );
+    let exit = flow_plane::run(root, &["components".to_string(), "--strict=1".to_string()]);
+    assert_eq!(exit, 0);
+    let latest = read_json(&latest_path(root));
+    assert_eq!(
+        latest.get("type").and_then(Value::as_str),
+        Some("flow_plane_component_marketplace")
+    );
+    assert_eq!(latest.get("ok").and_then(Value::as_bool), Some(true));
+    assert!(
+        latest
+            .get("result")
+            .and_then(|v| v.get("validated_components"))
+            .and_then(Value::as_array)
+            .map(|rows| rows.len() >= 1)
+            .unwrap_or(false),
+        "default flow component marketplace manifest should validate at least one signed component in strict mode"
+    );
+}
+
+#[test]
+fn v6_flow_batch10_default_template_manifest_passes_in_strict_mode() {
+    let fixture = stage_fixture_root();
+    let root = fixture.path();
+    std::env::set_var("FLOW_TEMPLATE_SIGNING_KEY", "flow-template-default-signing-key");
+    let exit = flow_plane::run(root, &["templates".to_string(), "--strict=1".to_string()]);
+    assert_eq!(exit, 0);
+    let latest = read_json(&latest_path(root));
+    assert_eq!(
+        latest.get("type").and_then(Value::as_str),
+        Some("flow_plane_template_governance")
+    );
+    assert_eq!(latest.get("ok").and_then(Value::as_bool), Some(true));
+    assert!(
+        latest
+            .get("result")
+            .and_then(|v| v.get("validated_templates"))
+            .and_then(Value::as_array)
+            .map(|rows| rows.len() >= 1)
+            .unwrap_or(false),
+        "default flow template governance manifest should validate at least one signed template in strict mode"
+    );
 }

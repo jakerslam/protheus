@@ -2,6 +2,13 @@
   "version": "v1",
   "kind": "flow_component_marketplace_manifest",
   "updated_at": "2026-03-13T00:00:00Z",
-  "components": [],
-  "signature": ""
+  "components": [
+    {
+      "id": "default-transform-component",
+      "path": "default_transform_component.py",
+      "language": "python",
+      "sha256": "c39f040858c07b4795a63e9b2d002824fee8f56a0e83de5be7676bdac6cf4944"
+    }
+  ],
+  "signature": "sig:7e021088ccd087f1964988d4e3059fcfa07ce3b048a03389cd6c0e443c53e45d"
 }

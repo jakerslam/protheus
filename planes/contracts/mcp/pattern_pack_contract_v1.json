@@ -4,8 +4,11 @@
   "allowed_patterns": [
     "router",
     "map-reduce",
+    "orchestrator",
+    "evaluator",
+    "swarm",
     "fanout",
     "sequential"
   ],
-  "notes": "V6-MCP-001.4 declarative MCP workflow pattern pack contract."
+  "notes": "V6-MCP-001.4 declarative MCP workflow pattern pack contract (router/map-reduce/orchestrator/evaluator/swarm/fanout/sequential)."
 }

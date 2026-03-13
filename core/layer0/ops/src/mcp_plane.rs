@@ -227,8 +227,32 @@ fn run_capability_matrix(root: &Path, parsed: &crate::ParsedArgs, strict: bool) 
         json!({
             "version": "v1",
             "kind": "mcp_capability_matrix_contract",
-            "required_capabilities": ["tools.call", "resources.read"],
-            "optional_capabilities": ["workflow.pause_resume_retry", "server.expose", "pattern.pack"]
+            "required_capabilities": [
+                "tools.call",
+                "resources.read",
+                "prompts.get",
+                "notifications.emit",
+                "auth.session",
+                "sampling.request",
+                "elicitation.request",
+                "roots.enumerate"
+            ],
+            "required_domains": [
+                "tools",
+                "resources",
+                "prompts",
+                "notifications",
+                "auth",
+                "sampling",
+                "elicitation",
+                "roots"
+            ],
+            "optional_capabilities": [
+                "workflow.pause_resume_retry",
+                "server.expose",
+                "pattern.pack",
+                "template.governance"
+            ]
         }),
     );
     let mut errors = Vec::<String>::new();
@@ -286,10 +310,32 @@ fn run_capability_matrix(root: &Path, parsed: &crate::ParsedArgs, strict: bool) 
         .filter_map(Value::as_str)
         .map(|v| clean(v, 120))
         .collect::<Vec<_>>();
+    let required_domains = contract
+        .get("required_domains")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .filter_map(Value::as_str)
+        .map(|v| clean(v, 40).to_ascii_lowercase())
+        .collect::<Vec<_>>();
 
     let missing_required = required
         .iter()
         .filter(|cap| !server_caps.iter().any(|row| row == *cap))
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut domain_map = Map::<String, Value>::new();
+    for cap in &server_caps {
+        let domain = cap.split('.').next().unwrap_or_default().to_ascii_lowercase();
+        if domain.is_empty() {
+            continue;
+        }
+        domain_map.insert(domain, Value::Bool(true));
+    }
+    let missing_domains = required_domains
+        .iter()
+        .filter(|domain| !domain_map.contains_key(domain.as_str()))
         .cloned()
         .collect::<Vec<_>>();
     let coverage = required
@@ -303,14 +349,16 @@ fn run_capability_matrix(root: &Path, parsed: &crate::ParsedArgs, strict: bool) 
             })
         })
         .collect::<Vec<_>>();
-    let pass = missing_required.is_empty();
+    let pass = missing_required.is_empty() && missing_domains.is_empty();
     let ok = if strict { pass } else { true };
 
     let result = json!({
         "required_capabilities": required,
+        "required_domains": required_domains,
         "optional_capabilities": optional,
         "server_capabilities": server_caps,
         "missing_required": missing_required,
+        "missing_domains": missing_domains,
         "coverage": coverage,
         "pass": pass
     });
@@ -329,13 +377,17 @@ fn run_capability_matrix(root: &Path, parsed: &crate::ParsedArgs, strict: bool) 
             "sha256": sha256_hex_str(&result.to_string())
         },
         "result": result,
-        "errors": if pass { Value::Array(Vec::new()) } else { json!(["required_capabilities_missing"]) },
+        "errors": if pass { Value::Array(Vec::new()) } else {
+            json!(["required_capabilities_or_domains_missing"])
+        },
         "claim_evidence": [
             {
                 "id": "V6-MCP-001.1",
                 "claim": "versioned_mcp_capability_matrix_conformance_harness_produces_deterministic_pass_fail_receipts",
                 "evidence": {
                     "missing_required_count": missing_required.len(),
+                    "missing_domain_count": missing_domains.len(),
+                    "required_dimension_count": 8,
                     "pass": pass
                 }
             }
@@ -811,6 +863,22 @@ fn run_pattern_pack(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Va
                 "map_discovery".to_string(),
                 "map_execution".to_string(),
                 "reduce_merge".to_string(),
+            ],
+            "orchestrator" => vec![
+                "orchestrator_plan".to_string(),
+                "orchestrator_dispatch".to_string(),
+                "orchestrator_collect".to_string(),
+                "orchestrator_finalize".to_string(),
+            ],
+            "evaluator" => vec![
+                "candidate_generate".to_string(),
+                "candidate_score".to_string(),
+                "candidate_select".to_string(),
+            ],
+            "swarm" => vec![
+                "swarm_spawn".to_string(),
+                "swarm_consensus".to_string(),
+                "swarm_merge".to_string(),
             ],
             "fanout" => vec![
                 "fanout_split".to_string(),
