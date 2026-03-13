@@ -210,6 +210,15 @@ pub fn clean(v: impl ToString, max_len: usize) -> String {
     out
 }
 
+#[cfg(test)]
+pub(crate) fn test_env_guard() -> std::sync::MutexGuard<'static, ()> {
+    use std::sync::{Mutex, OnceLock};
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner())
+}
+
 pub fn client_state_root(root: &Path) -> PathBuf {
     if let Ok(v) = std::env::var("PROTHEUS_SECURITY_STATE_ROOT") {
         let s = v.trim();
