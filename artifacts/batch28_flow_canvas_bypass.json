@@ -1,0 +1,8 @@
+{
+  "version": "v1",
+  "kind": "flow_canvas_graph",
+  "nodes": [
+    {"id": "a", "type": "source"}
+  ],
+  "edges": []
+}
