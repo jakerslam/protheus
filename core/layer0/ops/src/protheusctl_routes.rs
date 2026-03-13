@@ -237,6 +237,68 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
             })
         }
         "research" => {
+            let mut firmware_mode = false;
+            let mut firmware_input: Option<String> = None;
+            let mut passthrough = Vec::<String>::new();
+            let mut idx = 0usize;
+            while idx < rest.len() {
+                let token = rest[idx].trim();
+                let lower = token.to_ascii_lowercase();
+                if lower == "--firmware" {
+                    firmware_mode = true;
+                    if let Some(next) = rest.get(idx + 1) {
+                        if !next.starts_with("--") {
+                            firmware_input = Some(next.clone());
+                            idx += 1;
+                        }
+                    }
+                } else if lower.starts_with("--firmware=") {
+                    firmware_mode = true;
+                    let value = token.split_once('=').map(|(_, v)| v.trim()).unwrap_or("");
+                    if !value.is_empty() {
+                        firmware_input = Some(value.to_string());
+                    }
+                } else {
+                    passthrough.push(rest[idx].clone());
+                }
+                idx += 1;
+            }
+            if firmware_mode {
+                let mut args = vec!["scan".to_string(), "--dx-source=research-firmware".to_string()];
+                let input = firmware_input
+                    .or_else(|| {
+                        passthrough
+                            .iter()
+                            .find(|arg| arg.starts_with("--input="))
+                            .map(|arg| arg.trim_start_matches("--input=").to_string())
+                    })
+                    .or_else(|| {
+                        passthrough
+                            .iter()
+                            .find(|arg| !arg.starts_with("--"))
+                            .cloned()
+                    });
+                if let Some(path) = input {
+                    args.push(format!("--input={path}"));
+                }
+                args.extend(
+                    passthrough
+                        .into_iter()
+                        .filter(|arg| {
+                            arg.starts_with("--")
+                                && (arg.starts_with("--strict=")
+                                    || arg.starts_with("--format=")
+                                    || arg.starts_with("--rulepack=")
+                                    || arg.starts_with("--allow-raw-path=")
+                                    || arg.starts_with("--transport="))
+                        }),
+                );
+                return Some(Route {
+                    script_rel: "core://binary-vuln-plane".to_string(),
+                    args,
+                    forward_stdin: false,
+                });
+            }
             let mut args = if rest.is_empty() {
                 vec!["status".to_string()]
             } else if rest
@@ -1035,7 +1097,7 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 })
                 .unwrap_or(false) =>
         {
-            let mut args = vec!["scan".to_string()];
+            let mut args = vec!["scan".to_string(), "--dx-source=scan-binary".to_string()];
             if let Some(input) = rest.get(1) {
                 if !input.starts_with("--") {
                     args.push(format!("--input={input}"));
