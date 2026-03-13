@@ -88,6 +88,7 @@ pub mod state_kernel;
 pub mod strategy_mode_governor;
 pub mod strategy_resolver;
 pub mod supply_chain_provenance_v2;
+pub mod seed_protocol;
 pub mod v8_kernel;
 pub mod venom_containment_layer;
 pub mod workflow_controller;
