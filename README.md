@@ -344,3 +344,21 @@ The project is operated with explicit documentation and governance contracts:
 - License: [LICENSE](LICENSE)
 - License details: Apache-2.0
 - Archived historical legal docs: [docs/client/legal/archive](docs/client/legal/archive)
+
+## Platform Compatibility Notes
+
+### Path Conventions
+
+> **Note:** Log and configuration paths shown in documentation use standard Unix
+> conventions (`/var/log/...`, `/etc/...`). Windows deployments automatically
+> translate these to `%PROGRAMDATA%` equivalents via the adapter layer. No
+> manual path translation is required by operators.
+
+### Tested Environments
+
+| Platform | Version | Status |
+|----------|---------|--------|
+| macOS | 14.x | ✅ Tested |
+| Ubuntu | 22.04, 24.04 | ✅ Tested |
+| Windows | Server 2022 | ⚠️ Known path quirks |
+| Windows | 11 (WSL2) | ✅ Tested |
