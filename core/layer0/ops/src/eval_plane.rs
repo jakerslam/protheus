@@ -19,6 +19,7 @@ fn usage() {
     println!("  protheus-ops eval-plane enable-neuralavb [--enabled=1|0] [--strict=1|0]");
     println!("  protheus-ops eval-plane experiment-loop [--iterations=<n>] [--baseline-cost-usd=<n>] [--run-cost-usd=<n>] [--baseline-accuracy=<0..1>] [--run-accuracy=<0..1>] [--fixture-json=<json>] [--strict=1|0]");
     println!("  protheus-ops eval-plane benchmark [--strict=1|0]");
+    println!("  protheus-ops eval-plane dashboard [--strict=1|0]");
     println!("  protheus-ops eval-plane run [--iterations=<n>] [--baseline-cost-usd=<n>] [--run-cost-usd=<n>] [--baseline-accuracy=<0..1>] [--run-accuracy=<0..1>] [--strict=1|0]");
 }
 
@@ -99,6 +100,7 @@ fn claim_ids_for_action(action: &str) -> Vec<&'static str> {
             "V6-EVAL-001.4",
         ],
         "benchmark" => vec!["V6-EVAL-001.3", "V6-EVAL-001.4"],
+        "dashboard" => vec!["V6-EVAL-001.3", "V6-EVAL-001.4", "V6-EVAL-001.5"],
         "run" => vec![
             "V6-EVAL-001.1",
             "V6-EVAL-001.2",
@@ -499,6 +501,73 @@ fn run_benchmark(root: &Path, _parsed: &crate::ParsedArgs, strict: bool) -> Valu
     out
 }
 
+fn run_dashboard(root: &Path, strict: bool) -> Value {
+    let benchmark = read_json(&benchmark_latest_path(root));
+    if strict && benchmark.is_none() {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "eval_plane_dashboard",
+            "action": "dashboard",
+            "errors": ["eval_benchmark_missing"]
+        });
+    }
+    let benchmark = benchmark.unwrap_or_else(|| {
+        json!({
+            "cost_accuracy_deltas": {
+                "baseline_cost_usd": 0.0,
+                "run_cost_usd": 0.0,
+                "cost_delta_pct": 0.0,
+                "baseline_accuracy": 0.0,
+                "run_accuracy": 0.0,
+                "accuracy_delta_pct": 0.0
+            },
+            "tradeoff_score": 0.0
+        })
+    });
+    let cost_delta_pct = benchmark
+        .pointer("/cost_accuracy_deltas/cost_delta_pct")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let accuracy_delta_pct = benchmark
+        .pointer("/cost_accuracy_deltas/accuracy_delta_pct")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let tradeoff_score = benchmark
+        .get("tradeoff_score")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let mut out = json!({
+        "ok": true,
+        "strict": strict,
+        "type": "eval_plane_dashboard",
+        "lane": "core/layer0/ops",
+        "action": "dashboard",
+        "dashboard": {
+            "cost_accuracy_deltas": benchmark.get("cost_accuracy_deltas").cloned().unwrap_or(Value::Null),
+            "tradeoff_score": tradeoff_score,
+            "latest_paths": {
+                "benchmark": benchmark_latest_path(root).display().to_string(),
+                "loop": loop_latest_path(root).display().to_string(),
+                "fixture": fixture_path(root).display().to_string()
+            }
+        },
+        "claim_evidence": [
+            {
+                "id": "V6-EVAL-001.5",
+                "claim": "public_eval_dashboard_surfaces_cost_accuracy_tradeoff_metrics_from_receipted_benchmarks",
+                "evidence": {
+                    "cost_delta_pct": cost_delta_pct,
+                    "accuracy_delta_pct": accuracy_delta_pct,
+                    "tradeoff_score": tradeoff_score
+                }
+            }
+        ]
+    });
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
+    out
+}
+
 fn run_eval(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let enable = run_enable(root, parsed, strict);
     if strict && !enable.get("ok").and_then(Value::as_bool).unwrap_or(false) {
@@ -552,6 +621,7 @@ fn dispatch(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
         "enable-neuralavb" | "enable-neural-avb" => run_enable(root, parsed, strict),
         "experiment-loop" | "loop" => run_experiment(root, parsed, strict),
         "benchmark" | "benchmark-neuralavb" => run_benchmark(root, parsed, strict),
+        "dashboard" => run_dashboard(root, strict),
         "run" | "evaluate" => run_eval(root, parsed, strict),
         _ => json!({
             "ok": false,
@@ -656,6 +726,36 @@ mod tests {
         );
         assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
         assert!(benchmark_latest_path(root.path()).exists());
+    }
+
+    #[test]
+    fn dashboard_surfaces_benchmark_tradeoff_metrics() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = run_enable(
+            root.path(),
+            &crate::parse_args(&["enable-neuralavb".to_string(), "--enabled=1".to_string()]),
+            true,
+        );
+        let _ = run_experiment(
+            root.path(),
+            &crate::parse_args(&["experiment-loop".to_string(), "--iterations=2".to_string()]),
+            true,
+        );
+        let _ = run_benchmark(
+            root.path(),
+            &crate::parse_args(&["benchmark".to_string()]),
+            true,
+        );
+        let out = run_dashboard(root.path(), true);
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        let has_claim = out
+            .get("claim_evidence")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .any(|row| row.get("id").and_then(Value::as_str) == Some("V6-EVAL-001.5"));
+        assert!(has_claim);
     }
 
     #[test]

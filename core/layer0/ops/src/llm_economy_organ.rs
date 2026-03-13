@@ -26,6 +26,10 @@ fn history_path(root: &Path) -> PathBuf {
     state_root(root).join("history.jsonl")
 }
 
+fn trust_ledger_path(root: &Path) -> PathBuf {
+    state_root(root).join("trust_ledger.json")
+}
+
 fn read_json(path: &Path) -> Option<Value> {
     let raw = fs::read_to_string(path).ok()?;
     serde_json::from_str::<Value>(&raw).ok()
@@ -721,13 +725,31 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             96,
         );
         let delta = parse_f64_opt(parsed.flags.get("delta"), 1.0);
-        let latest_payload = read_json(&latest);
-        let prior = latest_payload
-            .as_ref()
-            .and_then(|v| v.get("credit_score"))
+        let ledger_path = trust_ledger_path(root);
+        let mut ledger = read_json(&ledger_path).unwrap_or_else(|| {
+            json!({
+                "version": "v1",
+                "scores": {},
+                "updated_at": now_iso()
+            })
+        });
+        if !ledger.get("scores").map(Value::is_object).unwrap_or(false) {
+            ledger["scores"] = json!({});
+        }
+        let mut scores = ledger
+            .get("scores")
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        let prior = scores
+            .get(identity.as_str())
             .and_then(Value::as_f64)
             .unwrap_or(0.0);
         let next = prior + delta;
+        scores.insert(identity.clone(), Value::from(next));
+        ledger["scores"] = Value::Object(scores.clone());
+        ledger["updated_at"] = Value::String(now_iso());
+        write_json(&ledger_path, &ledger);
         let mut out = json!({
             "ok": true,
             "type": "llm_economy_fairscale_credit",
@@ -738,9 +760,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "credit_score": next,
             "credit_delta": delta,
             "trust_ledger": {
+                "path": ledger_path.display().to_string(),
                 "identity": identity,
                 "previous_score": prior,
-                "next_score": next
+                "next_score": next,
+                "identity_count": scores.len()
             },
             "claim_evidence": [
                 {
@@ -1085,5 +1109,52 @@ mod tests {
             assert!(latest.get("receipt_hash").is_some());
             assert!(has_claim(&latest, claim_id));
         }
+    }
+
+    #[test]
+    fn fairscale_credit_updates_identity_bound_trust_scores() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let run_cmd = |args: Vec<String>| -> i32 { run(dir.path(), args.as_slice()) };
+
+        assert_eq!(
+            run_cmd(vec![
+                "fairscale-credit".to_string(),
+                "--identity=alice".to_string(),
+                "--delta=2".to_string(),
+            ]),
+            0
+        );
+        assert_eq!(
+            run_cmd(vec![
+                "fairscale-credit".to_string(),
+                "--identity=bob".to_string(),
+                "--delta=1".to_string(),
+            ]),
+            0
+        );
+        assert_eq!(
+            run_cmd(vec![
+                "fairscale-credit".to_string(),
+                "--identity=alice".to_string(),
+                "--delta=3".to_string(),
+            ]),
+            0
+        );
+
+        let ledger = read_json(&trust_ledger_path(dir.path())).expect("trust ledger");
+        assert_eq!(
+            ledger
+                .pointer("/scores/alice")
+                .and_then(Value::as_f64)
+                .unwrap_or(-1.0),
+            5.0
+        );
+        assert_eq!(
+            ledger
+                .pointer("/scores/bob")
+                .and_then(Value::as_f64)
+                .unwrap_or(-1.0),
+            1.0
+        );
     }
 }

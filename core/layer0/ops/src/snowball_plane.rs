@@ -21,7 +21,7 @@ fn usage() {
         "  protheus-ops snowball-plane start [--cycle-id=<id>] [--drops=<csv>] [--parallel=<n>] [--deps-json=<json>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops snowball-plane melt-refine [--cycle-id=<id>] [--regression-suite=<id>] [--regression-pass=1|0] [--strict=1|0]"
+        "  protheus-ops snowball-plane melt-refine|regress [--cycle-id=<id>] [--regression-suite=<id>] [--regression-pass=1|0] [--strict=1|0]"
     );
     println!("  protheus-ops snowball-plane compact [--cycle-id=<id>] [--strict=1|0]");
     println!(
@@ -138,7 +138,7 @@ fn parse_csv_unique(raw: Option<&String>, fallback: &[&str]) -> Vec<String> {
 fn claim_ids_for_action(action: &str) -> Vec<&'static str> {
     match action {
         "start" => vec!["V6-APP-023.1", "V6-APP-023.5", "V6-APP-023.6"],
-        "melt-refine" => vec!["V6-APP-023.2", "V6-APP-023.5", "V6-APP-023.6"],
+        "melt-refine" | "regress" => vec!["V6-APP-023.2", "V6-APP-023.5", "V6-APP-023.6"],
         "compact" => vec!["V6-APP-023.3", "V6-APP-023.5", "V6-APP-023.6"],
         "backlog-pack" => vec!["V6-APP-023.4", "V6-APP-023.5", "V6-APP-023.6"],
         "control" | "status" => vec!["V6-APP-023.5", "V6-APP-023.6"],
@@ -274,6 +274,124 @@ fn dependencies_from_json(
             out.insert(k, deps);
         }
     }
+    out
+}
+
+#[derive(Clone)]
+struct BacklogItem {
+    id: String,
+    priority: i64,
+    depends_on: Vec<String>,
+    payload: Value,
+    original_index: usize,
+}
+
+fn dependency_ordered_backlog(rows: Vec<Value>) -> Vec<Value> {
+    let mut normalized = Vec::<BacklogItem>::new();
+    for (idx, row) in rows.into_iter().enumerate() {
+        let fallback_id = format!("item-{}", idx + 1);
+        let id = clean_id(
+            row.get("id")
+                .and_then(Value::as_str)
+                .or(Some(fallback_id.as_str())),
+            fallback_id.as_str(),
+        );
+        let priority = row.get("priority").and_then(Value::as_i64).unwrap_or(99);
+        normalized.push(BacklogItem {
+            id,
+            priority,
+            depends_on: Vec::new(),
+            payload: row,
+            original_index: idx,
+        });
+    }
+
+    let known_ids = normalized
+        .iter()
+        .map(|item| item.id.clone())
+        .collect::<HashSet<_>>();
+
+    for item in &mut normalized {
+        let mut deps = Vec::<String>::new();
+        if let Some(row_deps) = item.payload.get("depends_on") {
+            if let Some(arr) = row_deps.as_array() {
+                for dep in arr {
+                    if let Some(dep_id) = dep.as_str() {
+                        let clean_dep = clean_id(Some(dep_id), "dep");
+                        if clean_dep != item.id
+                            && known_ids.contains(clean_dep.as_str())
+                            && !deps.iter().any(|v| v == &clean_dep)
+                        {
+                            deps.push(clean_dep);
+                        }
+                    }
+                }
+            } else if let Some(csv) = row_deps.as_str() {
+                for dep_id in csv.split(',') {
+                    let clean_dep = clean_id(Some(dep_id), "dep");
+                    if clean_dep != item.id
+                        && known_ids.contains(clean_dep.as_str())
+                        && !deps.iter().any(|v| v == &clean_dep)
+                    {
+                        deps.push(clean_dep);
+                    }
+                }
+            }
+        }
+        item.depends_on = deps;
+    }
+
+    let mut pending = normalized
+        .into_iter()
+        .map(|item| (item.id.clone(), item))
+        .collect::<BTreeMap<_, _>>();
+    let mut resolved = HashSet::<String>::new();
+    let mut out = Vec::<Value>::new();
+
+    while !pending.is_empty() {
+        let mut ready = pending
+            .values()
+            .filter(|item| item.depends_on.iter().all(|dep| resolved.contains(dep)))
+            .map(|item| item.id.clone())
+            .collect::<Vec<_>>();
+        let cycle_break = ready.is_empty();
+        if cycle_break {
+            ready = pending.keys().cloned().collect::<Vec<_>>();
+        }
+        ready.sort_by(|a, b| {
+            let ia = pending.get(a).expect("pending item a");
+            let ib = pending.get(b).expect("pending item b");
+            ia.priority
+                .cmp(&ib.priority)
+                .then_with(|| ia.original_index.cmp(&ib.original_index))
+                .then_with(|| ia.id.cmp(&ib.id))
+        });
+        let next_id = ready
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "item-unknown".to_string());
+        let item = match pending.remove(next_id.as_str()) {
+            Some(v) => v,
+            None => break,
+        };
+        resolved.insert(item.id.clone());
+        let mut payload = item.payload;
+        if !payload.is_object() {
+            payload = json!({});
+        }
+        payload["id"] = Value::String(item.id.clone());
+        payload["priority"] = Value::from(item.priority);
+        payload["depends_on"] = Value::Array(
+            item.depends_on
+                .iter()
+                .map(|dep| Value::String(dep.clone()))
+                .collect::<Vec<_>>(),
+        );
+        payload["order"] = Value::from((out.len() + 1) as u64);
+        payload["dependency_cycle_break"] = Value::Bool(cycle_break);
+        out.push(payload);
+    }
+
     out
 }
 
@@ -675,8 +793,7 @@ fn run_backlog_pack(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Va
             }
             defaults
         });
-    let mut ordered = unresolved;
-    ordered.sort_by_key(|row| row.get("priority").and_then(Value::as_i64).unwrap_or(99));
+    let ordered = dependency_ordered_backlog(unresolved);
     let backlog = json!({
         "version":"v1",
         "cycle_id": cycle_id,
@@ -869,7 +986,7 @@ fn dispatch(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     match action.as_str() {
         "status" => run_status(root, parsed),
         "start" => run_start(root, parsed, strict),
-        "melt-refine" | "melt" | "refine" => run_melt_refine(root, parsed, strict),
+        "melt-refine" | "melt" | "refine" | "regress" => run_melt_refine(root, parsed, strict),
         "compact" => run_compact(root, parsed, strict),
         "backlog-pack" | "backlog" => run_backlog_pack(root, parsed, strict),
         "control" => run_control(root, parsed, strict),
@@ -895,8 +1012,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         return 0;
     }
     let strict = parse_bool(parsed.flags.get("strict"), true);
+    let conduit_action = if action == "regress" {
+        "melt-refine"
+    } else {
+        action.as_str()
+    };
     let conduit = if action != "status" {
-        Some(conduit_enforcement(root, &parsed, strict, action.as_str()))
+        Some(conduit_enforcement(root, &parsed, strict, conduit_action))
     } else {
         None
     };
@@ -993,5 +1115,63 @@ mod tests {
             .and_then(Value::as_str)
             .unwrap_or("");
         assert!(!snap_path.is_empty());
+    }
+
+    #[test]
+    fn backlog_pack_orders_items_by_dependencies_then_priority() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = run_start(
+            root.path(),
+            &crate::parse_args(&[
+                "start".to_string(),
+                "--strict=1".to_string(),
+                "--cycle-id=c35".to_string(),
+            ]),
+            true,
+        );
+        let unresolved = json!([
+            {"id":"deploy","priority":0,"depends_on":["verify"]},
+            {"id":"verify","priority":2,"depends_on":[]},
+            {"id":"package","priority":1,"depends_on":["verify"]}
+        ]);
+        let out = run_backlog_pack(
+            root.path(),
+            &crate::parse_args(&[
+                "backlog-pack".to_string(),
+                "--strict=1".to_string(),
+                "--cycle-id=c35".to_string(),
+                format!("--unresolved-json={}", unresolved),
+            ]),
+            true,
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        let items = out
+            .pointer("/backlog/items")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let order = items
+            .iter()
+            .filter_map(|row| row.get("id").and_then(Value::as_str))
+            .collect::<Vec<_>>();
+        assert_eq!(order.first().copied(), Some("verify"));
+        let verify_idx = order.iter().position(|id| *id == "verify").expect("verify");
+        let package_idx = order
+            .iter()
+            .position(|id| *id == "package")
+            .expect("package");
+        let deploy_idx = order
+            .iter()
+            .position(|id| *id == "deploy")
+            .expect("deploy");
+        assert!(verify_idx < package_idx);
+        assert!(verify_idx < deploy_idx);
+        assert_eq!(
+            items
+                .first()
+                .and_then(|row| row.get("dependency_cycle_break"))
+                .and_then(Value::as_bool),
+            Some(false)
+        );
     }
 }
