@@ -554,7 +554,7 @@ fn run_export_compliance(
         "controls_failed": controls_failed,
         "claim_evidence": [
             {
-                "id": "v7_enterprise_001_1",
+                "id": "V7-ENTERPRISE-001.1",
                 "claim": "one_command_compliance_export_produces_traceable_audit_bundle_artifacts",
                 "evidence": {
                     "bundle_path": bundle_rel,
@@ -696,7 +696,7 @@ fn run_identity_surface(
         },
         "claim_evidence": [
             {
-                "id": "v7_enterprise_001_2",
+                "id": "V7-ENTERPRISE-001.2",
                 "claim": "identity_and_integration_surface_enforces_sso_scim_rbac_abac_with_receipted_authz_checks",
                 "evidence": {
                     "provider": requested_provider,
@@ -843,7 +843,7 @@ fn run_scale_certification(
         "certificate_path": cert_rel,
         "claim_evidence": [
             {
-                "id": "v7_enterprise_001_3",
+                "id": "V7-ENTERPRISE-001.3",
                 "claim": "scale_and_performance_certification_emits_reproducible_10k_node_evidence",
                 "evidence": {
                     "target_nodes": target_nodes,

@@ -217,7 +217,7 @@ fn v8_batch24_organism_dream_homeostasis_personality_symbiosis_and_mutation_emit
         ),
         0
     );
-    assert_claim(&latest("organism_layer", root), "v8_organism_001_1");
+    assert_claim(&latest("organism_layer", root), "V8-ORGANISM-001.1");
 
     assert_eq!(
         organism_layer::run(
@@ -231,7 +231,7 @@ fn v8_batch24_organism_dream_homeostasis_personality_symbiosis_and_mutation_emit
         ),
         0
     );
-    assert_claim(&latest("organism_layer", root), "v8_organism_001_2");
+    assert_claim(&latest("organism_layer", root), "V8-ORGANISM-001.2");
 
     assert_eq!(
         organism_layer::run(
@@ -245,7 +245,7 @@ fn v8_batch24_organism_dream_homeostasis_personality_symbiosis_and_mutation_emit
         ),
         0
     );
-    assert_claim(&latest("organism_layer", root), "v8_organism_001_3");
+    assert_claim(&latest("organism_layer", root), "V8-ORGANISM-001.3");
 
     assert_eq!(
         organism_layer::run(
@@ -259,7 +259,7 @@ fn v8_batch24_organism_dream_homeostasis_personality_symbiosis_and_mutation_emit
         ),
         0
     );
-    assert_claim(&latest("organism_layer", root), "v8_organism_001_4");
+    assert_claim(&latest("organism_layer", root), "V8-ORGANISM-001.4");
 
     assert_eq!(
         organism_layer::run(
@@ -274,7 +274,7 @@ fn v8_batch24_organism_dream_homeostasis_personality_symbiosis_and_mutation_emit
         0
     );
     let latest = latest("organism_layer", root);
-    assert_claim(&latest, "v8_organism_001_5");
+    assert_claim(&latest, "V8-ORGANISM-001.5");
     assert_eq!(
         latest
             .get("directive_gate_evaluation")
