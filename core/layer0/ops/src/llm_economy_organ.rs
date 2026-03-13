@@ -136,10 +136,18 @@ fn current_enabled_map(latest: Option<&Value>) -> serde_json::Map<String, Value>
 
 fn claim_ids_for_command(command: &str) -> Vec<&'static str> {
     match command {
+        "enable" => vec!["V6-ECONOMY-001.8"],
         "virtuals-acp" => vec!["V6-ECONOMY-001.1"],
         "bankrbot-defi" => vec!["V6-ECONOMY-001.2"],
         "jobs-marketplace" => vec!["V6-ECONOMY-001.3"],
         "skills-marketplace" => vec!["V6-ECONOMY-001.4"],
+        "fairscale-credit" => vec!["V6-ECONOMY-001.5"],
+        "mining-hand" => vec!["V6-ECONOMY-001.6"],
+        "trade-router" => vec!["V6-ECONOMY-001.7"],
+        "upgrade-trading-hand" => vec!["V6-ECONOMY-002.1", "V6-ECONOMY-002.4"],
+        "debate-bullbear" | "agent-debate-bullbear" => vec!["V6-ECONOMY-002.2"],
+        "alpaca-execute" | "trading-execute" => vec!["V6-ECONOMY-002.3"],
+        "model-support-refresh" => vec!["V6-ECONOMY-002.5"],
         _ => vec!["economy_core_authority"],
     }
 }
@@ -271,8 +279,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             },
             "claim_evidence": [
                 {
-                    "id": "economy_dashboard_contract",
-                    "claim": "economy_dashboard_reports_enabled_default_eyes_hands",
+                    "id": "V6-ECONOMY-001.8",
+                    "claim": "economy_activation_and_dashboard_surface_enabled_hands_with_deterministic_receipts",
                     "evidence": {
                         "enabled_count": enabled_count,
                         "total_hands": ECONOMY_HANDS.len()
@@ -281,6 +289,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             ]
         });
         out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+        write_json(&latest, &out);
+        append_jsonl(&history, &out);
         print_receipt(&out);
         return 0;
     }
@@ -303,8 +313,37 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .unwrap_or_else(|| "SPY".to_string()),
             24,
         );
-        let settings_count = parse_u64(parsed.flags.get("settings"), 12);
-        let metrics_count = parse_u64(parsed.flags.get("metrics"), 10);
+        let settings_inventory = vec![
+            "max_loss_pct",
+            "max_position_pct",
+            "risk_per_trade_pct",
+            "max_open_positions",
+            "slippage_bps",
+            "spread_bps_limit",
+            "drawdown_circuit_breaker_pct",
+            "rebalance_interval_sec",
+            "market_open_guard",
+            "market_close_guard",
+            "news_blackout_window_min",
+            "execution_mode",
+        ];
+        let metrics_inventory = vec![
+            "win_rate",
+            "sharpe_estimate",
+            "max_drawdown_pct",
+            "avg_slippage_bps",
+            "fill_latency_ms",
+            "exposure_pct",
+            "beta_vs_benchmark",
+            "turnover_rate",
+            "pnl_usd",
+            "risk_budget_used_pct",
+        ];
+        let settings_count = parse_u64(
+            parsed.flags.get("settings"),
+            settings_inventory.len() as u64,
+        );
+        let metrics_count = parse_u64(parsed.flags.get("metrics"), metrics_inventory.len() as u64);
         let phases = vec![
             "state_recovery",
             "portfolio_setup",
@@ -331,14 +370,24 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "max_loss_pct": parse_f64(parsed.flags.get("max-loss-pct"), 2.5),
                 "max_position_pct": parse_f64(parsed.flags.get("max-position-pct"), 15.0)
             },
+            "settings_inventory": settings_inventory,
+            "metrics_inventory": metrics_inventory,
             "claim_evidence": [
                 {
-                    "id": "trading_hand_8_phase_contract",
-                    "claim": "openfang_style_8_phase_trading_hand_pipeline_is_enabled_with_deterministic_receipts",
+                    "id": "V6-ECONOMY-002.1",
+                    "claim": "core_trading_hand_upgrade_runs_receipted_8_phase_pipeline_with_risk_controls",
                     "evidence": {
                         "phases": 8,
                         "settings_count": settings_count,
                         "metrics_count": metrics_count
+                    }
+                },
+                {
+                    "id": "V6-ECONOMY-002.4",
+                    "claim": "trading_upgrade_receipts_surface_config_and_metrics_inventory_for_dashboard_consumption",
+                    "evidence": {
+                        "settings_inventory_count": settings_count,
+                        "metrics_inventory_count": metrics_count
                     }
                 }
             ]
@@ -388,8 +437,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             },
             "claim_evidence": [
                 {
-                    "id": "bullbear_debate_contract",
-                    "claim": "every_trade_candidate_runs_adversarial_bull_bear_debate_before_execution",
+                    "id": "V6-ECONOMY-002.2",
+                    "claim": "bull_bear_adversarial_debate_emits_structured_decision_receipts_before_execution",
                     "evidence": {
                         "symbol": symbol,
                         "decision": decision
@@ -451,8 +500,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             },
             "claim_evidence": [
                 {
-                    "id": "alpaca_execution_contract",
-                    "claim": "alpaca_analysis_paper_live_execution_is_conduit_gated_with_risk_checks",
+                    "id": "V6-ECONOMY-002.3",
+                    "claim": "alpaca_execution_lane_emits_mode_risk_and_order_receipts_with_fail_closed_gates",
                     "evidence": {
                         "mode": mode,
                         "risk_ok": risk_ok
@@ -513,8 +562,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "enabled_hands": enabled,
             "claim_evidence": [
                 {
-                    "id": "economy_enable_contract",
-                    "claim": "agent_economy_default_eyes_hands_can_be_enabled_with_receipts",
+                    "id": "V6-ECONOMY-001.8",
+                    "claim": "economy_enable_all_activates_default_hands_in_core_with_deterministic_receipts",
                     "evidence": {
                         "target": target,
                         "enabled_count": enabled_count
@@ -663,6 +712,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if command == "fairscale-credit" {
         let apply = parse_bool(parsed.flags.get("apply"), true);
+        let identity = clean(
+            parsed
+                .flags
+                .get("identity")
+                .cloned()
+                .unwrap_or_else(|| "sovereign-default".to_string()),
+            96,
+        );
         let delta = parse_f64_opt(parsed.flags.get("delta"), 1.0);
         let latest_payload = read_json(&latest);
         let prior = latest_payload
@@ -677,14 +734,21 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "lane": "core/layer0/ops",
             "ts": now_iso(),
             "apply": apply,
+            "identity": identity,
             "credit_score": next,
             "credit_delta": delta,
+            "trust_ledger": {
+                "identity": identity,
+                "previous_score": prior,
+                "next_score": next
+            },
             "claim_evidence": [
                 {
-                    "id": "fairscale_credit_contract",
-                    "claim": "fairscale_credit_hand_updates_identity_bound_trust_score_with_receipts",
+                    "id": "V6-ECONOMY-001.5",
+                    "claim": "fairscale_credit_hand_updates_identity_bound_trust_score_with_deterministic_receipts",
                     "evidence": {
                         "delta": delta,
+                        "identity": identity,
                         "next": next
                     }
                 }
@@ -708,6 +772,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             24,
         );
         let hours = parse_u64(parsed.flags.get("hours"), 6);
+        let schedule = clean(
+            parsed
+                .flags
+                .get("schedule")
+                .cloned()
+                .unwrap_or_else(|| "*/30 * * * *".to_string()),
+            48,
+        );
         let mut out = json!({
             "ok": true,
             "type": "llm_economy_mining_hand",
@@ -716,13 +788,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "apply": apply,
             "network": network,
             "hours": hours,
+            "schedule": schedule,
             "claim_evidence": [
                 {
-                    "id": "mining_hand_contract",
-                    "claim": "litcoin_minebot_hands_run_under_receipted_background_schedule",
+                    "id": "V6-ECONOMY-001.6",
+                    "claim": "mining_hand_emits_deterministic_schedule_and_runtime_receipts",
                     "evidence": {
                         "network": network,
-                        "hours": hours
+                        "hours": hours,
+                        "schedule": schedule
                     }
                 }
             ]
@@ -775,8 +849,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             },
             "claim_evidence": [
                 {
-                    "id": "trade_router_contract",
-                    "claim": "trade_router_solana_hand_routes_non_custodial_order_intents_with_receipts",
+                    "id": "V6-ECONOMY-001.7",
+                    "claim": "trade_router_solana_hand_emits_non_custodial_order_intent_receipts",
                     "evidence": {
                         "chain": chain,
                         "symbol": symbol
@@ -811,8 +885,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "providers": providers,
             "claim_evidence": [
                 {
-                    "id": "trading_model_support_contract",
-                    "claim": "trading_hand_provider_matrix_can_be_refreshed_with_deterministic_receipts",
+                    "id": "V6-ECONOMY-002.5",
+                    "claim": "model_support_refresh_emits_provider_matrix_receipts_for_trading_lanes",
                     "evidence": {
                         "provider_count": providers.len()
                     }
@@ -854,6 +928,16 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 mod tests {
     use super::*;
 
+    fn has_claim(payload: &Value, claim_id: &str) -> bool {
+        payload
+            .get("claim_evidence")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .any(|row| row.get("id").and_then(Value::as_str) == Some(claim_id))
+    }
+
     #[test]
     fn normalize_target_maps_known_aliases() {
         assert_eq!(normalize_target("virtuals"), "virtuals_acp");
@@ -882,6 +966,7 @@ mod tests {
             latest.get("enabled_count").and_then(Value::as_u64),
             Some(ECONOMY_HANDS.len() as u64)
         );
+        assert!(has_claim(&latest, "V6-ECONOMY-001.8"));
     }
 
     #[test]
@@ -903,6 +988,8 @@ mod tests {
             Some("llm_economy_organ_trading_hand_upgrade")
         );
         assert_eq!(latest.get("mode").and_then(Value::as_str), Some("paper"));
+        assert!(has_claim(&latest, "V6-ECONOMY-002.1"));
+        assert!(has_claim(&latest, "V6-ECONOMY-002.4"));
     }
 
     #[test]
@@ -923,6 +1010,7 @@ mod tests {
             latest.get("type").and_then(Value::as_str),
             Some("llm_economy_organ_bullbear_debate")
         );
+        assert!(has_claim(&latest, "V6-ECONOMY-002.2"));
 
         let exec_exit = run(
             dir.path(),
@@ -948,29 +1036,54 @@ mod tests {
                 .and_then(Value::as_bool),
             Some(true)
         );
+        assert!(has_claim(&latest, "V6-ECONOMY-002.3"));
     }
 
     #[test]
     fn economy_connector_commands_emit_deterministic_receipts() {
         let dir = tempfile::tempdir().expect("tempdir");
-        let cmds: Vec<Vec<String>> = vec![
-            vec!["virtuals-acp", "--action=earn"],
-            vec!["bankrbot-defi", "--strategy=stable"],
-            vec!["jobs-marketplace", "--source=nookplot"],
-            vec!["skills-marketplace", "--source=heurist"],
-            vec!["fairscale-credit", "--delta=2.5"],
-            vec!["mining-hand", "--network=litcoin", "--hours=4"],
-            vec!["trade-router", "--chain=solana", "--symbol=SOL/USDC"],
-            vec!["model-support-refresh", "--apply=1"],
+        let cmds: Vec<(Vec<String>, &str)> = vec![
+            (vec!["virtuals-acp", "--action=earn"], "V6-ECONOMY-001.1"),
+            (
+                vec!["bankrbot-defi", "--strategy=stable"],
+                "V6-ECONOMY-001.2",
+            ),
+            (
+                vec!["jobs-marketplace", "--source=nookplot"],
+                "V6-ECONOMY-001.3",
+            ),
+            (
+                vec!["skills-marketplace", "--source=heurist"],
+                "V6-ECONOMY-001.4",
+            ),
+            (vec!["fairscale-credit", "--delta=2.5"], "V6-ECONOMY-001.5"),
+            (
+                vec!["mining-hand", "--network=litcoin", "--hours=4"],
+                "V6-ECONOMY-001.6",
+            ),
+            (
+                vec!["trade-router", "--chain=solana", "--symbol=SOL/USDC"],
+                "V6-ECONOMY-001.7",
+            ),
+            (
+                vec!["model-support-refresh", "--apply=1"],
+                "V6-ECONOMY-002.5",
+            ),
         ]
         .into_iter()
-        .map(|row| row.into_iter().map(|v| v.to_string()).collect::<Vec<_>>())
+        .map(|(row, claim_id)| {
+            (
+                row.into_iter().map(|v| v.to_string()).collect::<Vec<_>>(),
+                claim_id,
+            )
+        })
         .collect();
-        for cmd in cmds {
+        for (cmd, claim_id) in cmds {
             let exit = run(dir.path(), &cmd);
             assert_eq!(exit, 0, "failed command {:?}", cmd);
             let latest = read_json(&latest_path(dir.path())).expect("latest");
             assert!(latest.get("receipt_hash").is_some());
+            assert!(has_claim(&latest, claim_id));
         }
     }
 }
