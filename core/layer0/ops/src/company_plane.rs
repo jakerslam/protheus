@@ -368,6 +368,38 @@ fn read_json_lines(path: &Path) -> Vec<Value> {
         .collect()
 }
 
+fn ticket_event_hash(row: &Value) -> Option<String> {
+    let mut canonical = row.clone();
+    let obj = canonical.as_object_mut()?;
+    obj.remove("event_hash");
+    Some(sha256_hex_str(&canonical.to_string()))
+}
+
+fn validate_ticket_history_rows(history_rows: &[Value]) -> (bool, Vec<String>) {
+    let mut issues = Vec::<String>::new();
+    let mut previous_event_hash = "genesis".to_string();
+    for (idx, row) in history_rows.iter().enumerate() {
+        let stored_hash = row.get("event_hash").and_then(Value::as_str).unwrap_or("");
+        if stored_hash.is_empty() {
+            issues.push(format!("missing_event_hash_row_{idx}"));
+            continue;
+        }
+        let recomputed = ticket_event_hash(row).unwrap_or_default();
+        if recomputed != stored_hash {
+            issues.push(format!("event_hash_mismatch_row_{idx}"));
+        }
+        let claimed_prev = row
+            .get("prev_event_hash")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        if claimed_prev != previous_event_hash {
+            issues.push(format!("prev_hash_mismatch_row_{idx}"));
+        }
+        previous_event_hash = stored_hash.to_string();
+    }
+    (issues.is_empty(), issues)
+}
+
 fn run_budget_enforce(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     let contract = load_json_or(
         root,
@@ -914,23 +946,14 @@ fn run_ticket(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
         .into_iter()
         .filter(|row| row.get("ticket_id").and_then(Value::as_str) == Some(&resolved_ticket_id))
         .collect::<Vec<_>>();
-    let chain_valid = history_rows.windows(2).all(|pair| {
-        let prev = pair[0]
-            .get("event_hash")
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        let claimed_prev = pair[1]
-            .get("prev_event_hash")
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        !prev.is_empty() && claimed_prev == prev
-    });
+    let (chain_valid, chain_issues) = validate_ticket_history_rows(&history_rows);
     if strict && !chain_valid {
         return json!({
             "ok": false,
             "strict": true,
             "type": "company_plane_ticket",
-            "errors": ["company_ticket_chain_validation_failed"]
+            "errors": ["company_ticket_chain_validation_failed"],
+            "chain_issues": chain_issues
         });
     }
 
@@ -963,7 +986,8 @@ fn run_ticket(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
             "history_path": event_path.display().to_string(),
             "ledger_sha256": sha256_hex_str(&ledger.to_string()),
             "event_sha256": event_hash,
-            "chain_valid": chain_valid
+            "chain_valid": chain_valid,
+            "chain_issues": chain_issues
         },
         "claim_evidence": [
             {

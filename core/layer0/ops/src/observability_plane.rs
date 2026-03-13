@@ -206,6 +206,36 @@ fn parse_json_flag(raw: Option<&String>, fallback: Value) -> Value {
     fallback
 }
 
+fn looks_like_cron(expr: &str) -> bool {
+    expr.split_whitespace().count() == 5
+}
+
+fn compile_steps_graph(step_names: &[String]) -> Value {
+    let nodes = step_names
+        .iter()
+        .enumerate()
+        .map(|(idx, name)| {
+            json!({
+                "id": format!("step-{idx}"),
+                "name": clean(name, 120),
+                "kind": "workflow_step"
+            })
+        })
+        .collect::<Vec<_>>();
+    let edges = (1..step_names.len())
+        .map(|idx| {
+            json!({
+                "from": format!("step-{}", idx - 1),
+                "to": format!("step-{idx}")
+            })
+        })
+        .collect::<Vec<_>>();
+    json!({
+        "nodes": nodes,
+        "edges": edges
+    })
+}
+
 fn intelligent_context(root: &Path) -> Value {
     let company_feed = read_json(
         &root
@@ -521,15 +551,52 @@ fn run_workflow(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
                 .unwrap_or_else(|| "*/5 * * * *".to_string()),
             160,
         );
+        if strict && trigger == "cron" && !looks_like_cron(&schedule) {
+            return json!({
+                "ok": false,
+                "strict": strict,
+                "type": "observability_plane_workflow",
+                "errors": ["observability_workflow_schedule_invalid_for_cron"]
+            });
+        }
+        if strict && trigger == "event" && !schedule.starts_with("event:") {
+            return json!({
+                "ok": false,
+                "strict": strict,
+                "type": "observability_plane_workflow",
+                "errors": ["observability_workflow_schedule_invalid_for_event"]
+            });
+        }
         let steps = parse_json_flag(
             parsed.flags.get("steps-json"),
             json!(["collect-metrics", "attach-context", "notify"]),
         );
+        let step_names = steps
+            .as_array()
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|row| {
+                row.as_str()
+                    .map(|raw| clean(raw.to_string(), 120))
+                    .filter(|cleaned| !cleaned.is_empty())
+            })
+            .collect::<Vec<_>>();
+        if strict && step_names.is_empty() {
+            return json!({
+                "ok": false,
+                "strict": strict,
+                "type": "observability_plane_workflow",
+                "errors": ["observability_workflow_steps_required"]
+            });
+        }
+        let compiled_graph = compile_steps_graph(&step_names);
         let workflow = json!({
             "workflow_id": workflow_id,
             "trigger": trigger,
             "schedule": schedule,
-            "steps": steps,
+            "steps": Value::Array(step_names.iter().map(|step| Value::String(step.clone())).collect()),
+            "compiled_graph": compiled_graph,
             "updated_at": crate::now_iso()
         });
         state["workflows"][&workflow_id] = workflow.clone();
@@ -576,10 +643,27 @@ fn run_workflow(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
         "run_{}",
         &sha256_hex_str(&format!("{workflow_id}:{}", crate::now_iso()))[..10]
     );
+    let step_trace = state["workflows"]
+        .get(&workflow_id)
+        .and_then(|row| row.get("steps"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .enumerate()
+        .map(|(idx, step)| {
+            json!({
+                "step_index": idx,
+                "step": step,
+                "status": "queued"
+            })
+        })
+        .collect::<Vec<_>>();
     let run = json!({
         "run_id": run_id,
         "workflow_id": workflow_id,
         "status": "started",
+        "step_trace": step_trace,
         "ts": crate::now_iso()
     });
     let mut runs = state
