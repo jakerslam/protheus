@@ -5,6 +5,7 @@
     "esp32": {
       "max_power_mw": 450.0,
       "max_latency_ms": 250.0,
+      "max_bounded_memory_kb": 512,
       "offline_required": true
     }
   }
