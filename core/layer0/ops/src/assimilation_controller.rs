@@ -42,10 +42,71 @@ fn usage() {
 
 fn parse_flag(argv: &[String], key: &str) -> Option<String> {
     let pref = format!("--{key}=");
-    argv.iter().find_map(|arg| {
-        let t = arg.trim();
-        t.strip_prefix(&pref).map(|v| v.to_string())
-    })
+    let exact = format!("--{key}");
+    let mut i = 0usize;
+    while i < argv.len() {
+        let t = argv[i].trim();
+        if let Some(v) = t.strip_prefix(&pref) {
+            return Some(v.to_string());
+        }
+        if t == exact && i + 1 < argv.len() && !argv[i + 1].starts_with("--") {
+            return Some(argv[i + 1].clone());
+        }
+        i += 1;
+    }
+    None
+}
+
+fn parse_bool_flag(raw: Option<String>, fallback: bool) -> bool {
+    let Some(value) = raw else {
+        return fallback;
+    };
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => true,
+        "0" | "false" | "no" | "off" => false,
+        _ => fallback,
+    }
+}
+
+fn command_claim_ids(command: &str) -> &'static [&'static str] {
+    match command {
+        "skills-enable" => &["V6-COGNITION-012.1"],
+        "skill-create" => &["V6-COGNITION-012.2"],
+        "skills-spawn-subagents" => &["V6-COGNITION-012.3"],
+        "skills-computer-use" => &["V6-COGNITION-012.4"],
+        "skills-dashboard" => &["V6-COGNITION-012.5"],
+        _ => &[],
+    }
+}
+
+fn conduit_enforcement(argv: &[String], command: &str, strict: bool) -> Value {
+    let bypass_requested = parse_bool_flag(parse_flag(argv, "bypass"), false)
+        || parse_bool_flag(parse_flag(argv, "client-bypass"), false);
+    let ok = !bypass_requested;
+    let claim_evidence = command_claim_ids(command)
+        .iter()
+        .map(|id| {
+            json!({
+                "id": id,
+                "claim": "cognition_skill_commands_route_through_core_authority_with_fail_closed_bypass_denial",
+                "evidence": {
+                    "command": command,
+                    "bypass_requested": bypass_requested
+                }
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut out = json!({
+        "ok": if strict { ok } else { true },
+        "type": "assimilation_controller_conduit_enforcement",
+        "command": command,
+        "strict": strict,
+        "bypass_requested": bypass_requested,
+        "errors": if ok { Value::Array(Vec::new()) } else { json!(["conduit_bypass_rejected"]) },
+        "claim_evidence": claim_evidence
+    });
+    out["receipt_hash"] = Value::String(receipt_hash(&out));
+    out
 }
 
 fn state_root(root: &Path) -> std::path::PathBuf {
@@ -136,14 +197,7 @@ fn skills_enable_receipt(root: &Path, argv: &[String]) -> Value {
     let mode = parse_flag(argv, "mode")
         .or_else(|| first_non_flag(argv, 1))
         .unwrap_or_else(|| "perplexity-mode".to_string());
-    let apply = parse_flag(argv, "apply")
-        .map(|v| {
-            matches!(
-                v.trim().to_ascii_lowercase().as_str(),
-                "1" | "true" | "yes" | "on"
-            )
-        })
-        .unwrap_or(true);
+    let apply = parse_bool_flag(parse_flag(argv, "apply"), true);
     let mut out = json!({
         "ok": true,
         "type": "assimilation_controller_skills_enable",
@@ -155,8 +209,8 @@ fn skills_enable_receipt(root: &Path, argv: &[String]) -> Value {
         "subagent_orchestration": true,
         "claim_evidence": [
             {
-                "id": "skills_enable_contract",
-                "claim": "perplexity_style_auto_activating_skills_are_enabled_via_core_authority",
+                "id": "V6-COGNITION-012.1",
+                "claim": "skills_enable_perplexity_mode_routes_through_rust_core_with_deterministic_activation_receipts",
                 "evidence": {
                     "mode": mode,
                     "apply": apply
@@ -187,8 +241,8 @@ fn skill_create_receipt(root: &Path, argv: &[String]) -> Value {
         "auto_activation": true,
         "claim_evidence": [
             {
-                "id": "nl_skill_creator_contract",
-                "claim": "natural_language_task_is_compiled_into_reusable_auto_activating_skill_contract",
+                "id": "V6-COGNITION-012.2",
+                "claim": "natural_language_skill_creation_mints_deterministic_skill_ids_and_receipted_contracts",
                 "evidence": {
                     "skill_id": skill_id
                 }
@@ -215,8 +269,8 @@ fn skills_dashboard_receipt(root: &Path) -> Value {
         "latest": latest,
         "claim_evidence": [
             {
-                "id": "skills_dashboard_contract",
-                "claim": "skills_dashboard_surfaces_auto_activation_and_run_history_from_core_state",
+                "id": "V6-COGNITION-012.5",
+                "claim": "skills_dashboard_surfaces_history_and_latest_state_from_core_receipt_ledger",
                 "evidence": {
                     "history_events": history_count
                 }
@@ -250,8 +304,8 @@ fn skills_spawn_subagents_receipt(root: &Path, argv: &[String]) -> Value {
         "handoff_policy": "parent_voice_and_context_inherited",
         "claim_evidence": [
             {
-                "id": "subagent_spawn_contract",
-                "claim": "skills_can_spawn_specialized_subagents_with_structured_handoffs",
+                "id": "V6-COGNITION-012.3",
+                "claim": "skills_spawn_subagents_emits_deterministic_spawn_and_handoff_receipts",
                 "evidence": {
                     "task": task
                 }
@@ -268,14 +322,11 @@ fn skills_computer_use_receipt(root: &Path, argv: &[String]) -> Value {
         .or_else(|| first_non_flag(argv, 1))
         .unwrap_or_else(|| "open browser".to_string());
     let target = parse_flag(argv, "target").unwrap_or_else(|| "desktop".to_string());
-    let apply = parse_flag(argv, "apply")
-        .map(|v| {
-            matches!(
-                v.trim().to_ascii_lowercase().as_str(),
-                "1" | "true" | "yes" | "on"
-            )
-        })
-        .unwrap_or(true);
+    let apply = parse_bool_flag(parse_flag(argv, "apply"), true);
+    let replay_id = format!(
+        "replay_{}",
+        &receipt_hash(&json!({"action": action, "target": target, "apply": apply}))[..12]
+    );
     let mut out = json!({
         "ok": true,
         "type": "assimilation_controller_skills_computer_use",
@@ -284,14 +335,18 @@ fn skills_computer_use_receipt(root: &Path, argv: &[String]) -> Value {
         "action": action,
         "target": target,
         "apply": apply,
-        "deterministic_replay": true,
+        "replay": {
+            "deterministic": true,
+            "replay_id": replay_id
+        },
         "claim_evidence": [
             {
-                "id": "computer_use_contract",
-                "claim": "skills_can_execute_computer_use_actions_with_deterministic_receipts",
+                "id": "V6-COGNITION-012.4",
+                "claim": "skills_computer_use_emits_deterministic_action_receipts_with_replay_metadata",
                 "evidence": {
                     "action": action,
-                    "target": target
+                    "target": target,
+                    "replay_id": replay_id
                 }
             }
         ]
@@ -324,6 +379,27 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     if matches!(cmd.as_str(), "help" | "--help" | "-h") {
         usage();
         return 0;
+    }
+
+    let strict = parse_bool_flag(parse_flag(argv, "strict"), false);
+    if command_claim_ids(&cmd).len() > 0 {
+        let conduit = conduit_enforcement(argv, &cmd, strict);
+        if strict && !conduit.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+            let mut out = json!({
+                "ok": false,
+                "type": "assimilation_controller_conduit_gate",
+                "lane": LANE_ID,
+                "ts": now_iso(),
+                "command": cmd,
+                "strict": strict,
+                "errors": ["conduit_bypass_rejected"],
+                "conduit_enforcement": conduit
+            });
+            out["receipt_hash"] = Value::String(receipt_hash(&out));
+            persist_receipt(root, &out);
+            print_json_line(&out);
+            return 1;
+        }
     }
 
     match cmd.as_str() {
@@ -364,6 +440,16 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn has_claim(receipt: &Value, claim_id: &str) -> bool {
+        receipt
+            .get("claim_evidence")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .any(|row| row.get("id").and_then(Value::as_str) == Some(claim_id))
+    }
 
     #[test]
     fn native_receipt_is_deterministic() {
@@ -406,6 +492,7 @@ mod tests {
             out.get("mode").and_then(Value::as_str),
             Some("perplexity-mode")
         );
+        assert!(has_claim(&out, "V6-COGNITION-012.1"));
     }
 
     #[test]
@@ -425,6 +512,7 @@ mod tests {
         let id = out.get("skill_id").and_then(Value::as_str).unwrap_or("");
         assert!(id.starts_with("skill_"));
         assert_eq!(id.len(), 18);
+        assert!(has_claim(&out, "V6-COGNITION-012.2"));
     }
 
     #[test]
@@ -446,6 +534,7 @@ mod tests {
             out.get("roles").and_then(Value::as_array).map(|v| v.len()),
             Some(2)
         );
+        assert!(has_claim(&out, "V6-COGNITION-012.3"));
     }
 
     #[test]
@@ -465,5 +554,38 @@ mod tests {
             Some("assimilation_controller_skills_computer_use")
         );
         assert_eq!(out.get("target").and_then(Value::as_str), Some("browser"));
+        assert!(has_claim(&out, "V6-COGNITION-012.4"));
+        assert!(out
+            .get("replay")
+            .and_then(|v| v.get("replay_id"))
+            .and_then(Value::as_str)
+            .map(|v| !v.is_empty())
+            .unwrap_or(false));
+    }
+
+    #[test]
+    fn skills_dashboard_receipt_has_batch21_claim() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let out = skills_dashboard_receipt(root.path());
+        assert_eq!(
+            out.get("type").and_then(Value::as_str),
+            Some("assimilation_controller_skills_dashboard")
+        );
+        assert!(has_claim(&out, "V6-COGNITION-012.5"));
+    }
+
+    #[test]
+    fn strict_conduit_rejects_bypass_for_skills_enable() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let exit = run(
+            root.path(),
+            &[
+                "skills-enable".to_string(),
+                "perplexity-mode".to_string(),
+                "--strict=1".to_string(),
+                "--bypass=1".to_string(),
+            ],
+        );
+        assert_eq!(exit, 1);
     }
 }

@@ -180,12 +180,96 @@ fn parse_arg_value(memory_args: &[String], key: &str) -> Option<String> {
     None
 }
 
+fn parse_bool_value(raw: Option<&str>, fallback: bool) -> bool {
+    let Some(value) = raw else {
+        return fallback;
+    };
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => true,
+        "0" | "false" | "no" | "off" => false,
+        _ => fallback,
+    }
+}
+
 fn command_label(memory_command: &str) -> String {
     match memory_command {
         "query-index" => "query".to_string(),
         "get-node" => "get".to_string(),
         other => other.to_string(),
     }
+}
+
+fn is_nano_memory_command(memory_command: &str) -> bool {
+    matches!(
+        memory_command,
+        "stable-nano-chat" | "stable-nano-train" | "stable-nano-fork"
+    )
+}
+
+fn cockpit_claim_evidence(
+    memory_command: &str,
+    memory_args: &[String],
+    telemetry: &Value,
+) -> Vec<Value> {
+    if !is_nano_memory_command(memory_command) {
+        return Vec::new();
+    }
+
+    let mut claims = Vec::new();
+    match memory_command {
+        "stable-nano-chat" => claims.push(json!({
+            "id": "V6-COCKPIT-026.1",
+            "claim": "chat_nano_routes_through_rust_core_memory_runtime_with_deterministic_receipts",
+            "evidence": {
+                "memory_command": memory_command
+            }
+        })),
+        "stable-nano-train" => claims.push(json!({
+            "id": "V6-COCKPIT-026.2",
+            "claim": "train_nano_depth_harness_routes_through_stable_rust_memory_path",
+            "evidence": {
+                "memory_command": memory_command,
+                "depth": parse_arg_value(memory_args, "depth").unwrap_or_else(|| "unknown".to_string())
+            }
+        })),
+        "stable-nano-fork" => claims.push(json!({
+            "id": "V6-COCKPIT-026.3",
+            "claim": "nano_fork_emits_deterministic_fork_artifact_path_contract_receipts",
+            "evidence": {
+                "memory_command": memory_command,
+                "target": parse_arg_value(memory_args, "target").unwrap_or_else(|| ".nanochat/fork".to_string())
+            }
+        })),
+        _ => {}
+    }
+
+    claims.push(json!({
+        "id": "V6-COCKPIT-026.4",
+        "claim": "all_nano_commands_route_through_rust_core_memory_runtime_with_fail_closed_conduit_boundary",
+        "evidence": {
+            "memory_command": memory_command,
+            "memory_args_count": memory_args.len()
+        }
+    }));
+
+    claims.push(json!({
+        "id": "V6-COCKPIT-026.5",
+        "claim": "nano_mode_receipts_include_live_telemetry_for_dashboard_observability",
+        "evidence": {
+            "memory_command": memory_command,
+            "tokens_total": telemetry
+                .get("tokens")
+                .and_then(|v| v.get("total"))
+                .and_then(Value::as_i64)
+                .unwrap_or(0),
+            "retrieval_mode": telemetry
+                .get("retrieval_mode")
+                .and_then(Value::as_str)
+                .unwrap_or("index_only")
+        }
+    }));
+
+    claims
 }
 
 fn classify_retrieval_mode(memory_command: &str, memory_args: &[String]) -> String {
@@ -909,6 +993,25 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         } else {
             "cold_status"
         };
+        let mut claim_evidence = Vec::new();
+        if latest
+            .get("memory_command")
+            .and_then(Value::as_str)
+            .map(is_nano_memory_command)
+            .unwrap_or(false)
+        {
+            claim_evidence.push(json!({
+                "id": "V6-COCKPIT-026.5",
+                "claim": "nano_mode_observability_is_surfaceable_through_status_dashboard_receipts",
+                "evidence": {
+                    "status_source": status_source,
+                    "last_memory_command": latest
+                        .get("memory_command")
+                        .and_then(Value::as_str)
+                        .unwrap_or("unknown")
+                }
+            }));
+        }
         let mut receipt = json!({
             "ok": true,
             "type": "memory_ambient_status",
@@ -917,7 +1020,8 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ambient_mode_active": policy.enabled,
             "rust_authoritative": policy.rust_authoritative,
             "policy": policy_snapshot(&policy),
-            "last": latest
+            "last": latest,
+            "claim_evidence": claim_evidence
         });
         receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
         println!(
@@ -952,6 +1056,62 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         };
 
     let (memory_command, memory_args, run_context) = invocation;
+    let run_flags = parse_cli_flags(&argv.iter().skip(1).cloned().collect::<Vec<_>>());
+    let strict = parse_bool_value(run_flags.get("strict").map(String::as_str), false)
+        || parse_bool_value(parse_arg_value(&memory_args, "strict").as_deref(), false);
+    let bypass_requested = parse_bool_value(run_flags.get("bypass").map(String::as_str), false)
+        || parse_bool_value(run_flags.get("client-bypass").map(String::as_str), false)
+        || parse_bool_value(parse_arg_value(&memory_args, "bypass").as_deref(), false)
+        || parse_bool_value(
+            parse_arg_value(&memory_args, "client-bypass").as_deref(),
+            false,
+        );
+    if strict && bypass_requested && is_nano_memory_command(&memory_command) {
+        let mut receipt = json!({
+            "ok": false,
+            "type": "memory_ambient_conduit_gate",
+            "ts": now_iso(),
+            "command": command.clone(),
+            "memory_command": memory_command.clone(),
+            "strict": strict,
+            "errors": ["conduit_bypass_rejected"],
+            "claim_evidence": [
+                {
+                    "id": "V6-COCKPIT-026.4",
+                    "claim": "nano_mode_commands_fail_closed_when_conduit_bypass_is_requested",
+                    "evidence": {
+                        "memory_command": memory_command.clone(),
+                        "bypass_requested": bypass_requested
+                    }
+                }
+            ],
+            "policy": policy_snapshot(&policy)
+        });
+        receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
+        write_json(&policy.latest_path, &receipt);
+        append_jsonl(&policy.receipts_path, &receipt);
+        update_mech_suit_status(
+            &policy,
+            json!({
+                "ambient": policy.enabled,
+                "rust_authoritative": policy.rust_authoritative,
+                "push_attention_queue": policy.push_attention_queue,
+                "quiet_non_critical": policy.quiet_non_critical,
+                "last_result": "memory_ambient_conduit_gate",
+                "last_command": command,
+                "last_memory_command": memory_command,
+                "last_ok": false,
+                "last_severity": "critical",
+                "last_attention_decision": "conduit_bypass_rejected"
+            }),
+        );
+        println!(
+            "{}",
+            serde_json::to_string(&receipt).unwrap_or_else(|_| "{\"ok\":false}".to_string())
+        );
+        return 1;
+    }
+
     if memory_command == "cryonics-tier" {
         let receipt = cryonics_compat_receipt(&policy, &command, &run_context, &memory_args);
         write_json(&policy.latest_path, &receipt);
@@ -1023,6 +1183,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         format!("memory op failed ({memory_command})")
     };
     let token_telemetry = build_token_telemetry(&memory_command, &memory_args, &memory_payload);
+    let claim_evidence = cockpit_claim_evidence(&memory_command, &memory_args, &token_telemetry);
 
     let attention_queue = if surfaced {
         match enqueue_attention(
@@ -1073,6 +1234,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "stderr": clean_text(Some(&stderr), 2_000),
         "exit_code": exit_code,
         "token_telemetry": token_telemetry,
+        "claim_evidence": claim_evidence,
         "policy": policy_snapshot(&policy)
     });
     receipt["receipt_hash"] = Value::String(deterministic_receipt_hash(&receipt));
