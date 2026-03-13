@@ -3,5 +3,10 @@
   "kind": "substrate_csi_module_registry_contract",
   "allowed_ops": ["register", "activate", "list"],
   "allowed_privacy_classes": ["local", "sensitive", "restricted"],
-  "required_fields": ["input_contract", "budget_units", "privacy_class"]
+  "required_fields": [
+    "input_contract",
+    "budget_units",
+    "privacy_class",
+    "degrade_behavior"
+  ]
 }

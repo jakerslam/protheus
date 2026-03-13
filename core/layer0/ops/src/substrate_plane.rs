@@ -38,13 +38,13 @@ fn usage() {
         "  protheus-ops substrate-plane csi-capture [--adapter=<id>] [--signal-ref=<ref>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops substrate-plane csi-module --op=<register|activate|list> [--module=<id>] [--input-contract=<id>] [--budget-units=<n>] [--privacy-class=<local|sensitive|restricted>] [--strict=1|0]"
+        "  protheus-ops substrate-plane csi-module --op=<register|activate|list> [--module=<id>] [--input-contract=<id>] [--budget-units=<n>] [--privacy-class=<local|sensitive|restricted>] [--degrade-behavior=<id>] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops substrate-plane csi-embedded-profile [--target=<esp32>] [--power-mw=<n>] [--latency-ms=<n>] [--offline=1|0] [--strict=1|0]"
+        "  protheus-ops substrate-plane csi-embedded-profile [--target=<esp32>] [--power-mw=<n>] [--latency-ms=<n>] [--bounded-memory-kb=<n>] [--offline=1|0] [--strict=1|0]"
     );
     println!(
-        "  protheus-ops substrate-plane csi-policy [--consent=1|0] [--locality=<local-only|restricted-edge>] [--retention-minutes=<n>] [--biometric-risk=<low|medium|high>] [--strict=1|0]"
+        "  protheus-ops substrate-plane csi-policy [--consent=1|0] [--locality=<local-only|restricted-edge>] [--retention-minutes=<n>] [--biometric-risk=<low|medium|high>] [--allow-export=1|0] [--strict=1|0]"
     );
     println!(
         "  protheus-ops substrate-plane eye-bind --op=<enable|status> [--source=<wifi>] [--persona=<id>] [--shadow=<id>] [--strict=1|0]"
@@ -288,7 +288,7 @@ fn run_csi_capture(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
         json!({
             "version": "v1",
             "kind": "substrate_csi_capture_contract",
-            "normalized_events": ["presence", "respiration", "motion"],
+            "normalized_events": ["presence", "respiration", "heartbeat_proxy", "pose_proxy", "motion"],
             "require_layer_minus_one_descriptor": true
         }),
     );
@@ -345,6 +345,12 @@ fn run_csi_capture(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
     let digest = wrapped.deterministic_digest.clone();
     let presence_score = (decode_signal_u64(&digest, 0) % 100) as f64 / 100.0;
     let respiration_bpm = 10 + (decode_signal_u64(&digest, 8) % 24);
+    let heartbeat_proxy_bpm = 52 + (decode_signal_u64(&digest, 12) % 58);
+    let pose_proxy = match decode_signal_u64(&digest, 14) % 3 {
+        0 => "upright",
+        1 => "supine",
+        _ => "moving",
+    };
     let motion_flag = (decode_signal_u64(&digest, 16) % 2) == 1;
     let normalized = vec![
         json!({
@@ -357,6 +363,17 @@ fn run_csi_capture(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
             "value": respiration_bpm,
             "unit": "breaths_per_minute",
             "confidence": 0.76
+        }),
+        json!({
+            "event": "heartbeat_proxy",
+            "value": heartbeat_proxy_bpm,
+            "unit": "beats_per_minute",
+            "confidence": 0.61
+        }),
+        json!({
+            "event": "pose_proxy",
+            "value": pose_proxy,
+            "confidence": 0.57
         }),
         json!({
             "event": "motion",
@@ -378,7 +395,12 @@ fn run_csi_capture(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
             "wrapped_envelope": wrapped
         },
         "layer_two_decode": {
-            "normalized_events": normalized
+            "normalized_events": normalized,
+            "sampling_metadata": {
+                "sampling_hz": 20,
+                "window_ms": 1200,
+                "provenance": "layer2_decode_from_layer_minus_one_csi_envelope"
+            }
         },
         "captured_at": crate::now_iso()
     });
@@ -407,7 +429,12 @@ fn run_csi_capture(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
                 "claim": "csi_primitive_captures_layer_minus_one_signal_and_layer_two_normalized_events_with_receipts",
                 "evidence": {
                     "capture_id": capture_id,
-                    "event_count": 3
+                    "event_count": artifact
+                        .get("layer_two_decode")
+                        .and_then(|v| v.get("normalized_events"))
+                        .and_then(Value::as_array)
+                        .map(|rows| rows.len())
+                        .unwrap_or(0)
                 }
             }
         ]
@@ -424,7 +451,8 @@ fn run_csi_module(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
             "version": "v1",
             "kind": "substrate_csi_module_registry_contract",
             "allowed_ops": ["register", "activate", "list"],
-            "allowed_privacy_classes": ["local", "sensitive", "restricted"]
+            "allowed_privacy_classes": ["local", "sensitive", "restricted"],
+            "required_fields": ["input_contract", "budget_units", "privacy_class", "degrade_behavior"]
         }),
     );
     let mut errors = Vec::<String>::new();
@@ -544,6 +572,15 @@ fn run_csi_module(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
 
     let out = match op.as_str() {
         "register" => {
+            let input_contract = clean(
+                parsed
+                    .flags
+                    .get("input-contract")
+                    .cloned()
+                    .unwrap_or_else(|| "csi.normalized_events.v1".to_string()),
+                120,
+            );
+            let budget_units = parse_u64(parsed.flags.get("budget-units"), 1000);
             let privacy_class = clean(
                 parsed
                     .flags
@@ -553,6 +590,14 @@ fn run_csi_module(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
                 30,
             )
             .to_ascii_lowercase();
+            let degrade_behavior = clean(
+                parsed
+                    .flags
+                    .get("degrade-behavior")
+                    .cloned()
+                    .unwrap_or_else(|| "drop-to-presence-only".to_string()),
+                120,
+            );
             let privacy_allowed = contract
                 .get("allowed_privacy_classes")
                 .and_then(Value::as_array)
@@ -569,11 +614,27 @@ fn run_csi_module(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
                     "errors": ["substrate_csi_module_privacy_class_invalid"]
                 });
             }
+            if strict
+                && contract
+                    .get("required_fields")
+                    .and_then(Value::as_array)
+                    .map(|required| required.iter().filter_map(Value::as_str).any(|row| row == "degrade_behavior"))
+                    .unwrap_or(false)
+                && degrade_behavior.is_empty()
+            {
+                return json!({
+                    "ok": false,
+                    "strict": strict,
+                    "type": "substrate_plane_csi_module",
+                    "errors": ["substrate_csi_module_degrade_behavior_required"]
+                });
+            }
             let module_doc = json!({
                 "module": module,
-                "input_contract": clean(parsed.flags.get("input-contract").cloned().unwrap_or_else(|| "csi.normalized_events.v1".to_string()), 120),
-                "budget_units": parse_u64(parsed.flags.get("budget-units"), 1000),
+                "input_contract": input_contract,
+                "budget_units": budget_units,
                 "privacy_class": privacy_class,
+                "degrade_behavior": degrade_behavior,
                 "registered_at": crate::now_iso(),
                 "active": false
             });
@@ -682,6 +743,7 @@ fn run_csi_embedded_profile(root: &Path, parsed: &crate::ParsedArgs, strict: boo
                 "esp32": {
                     "max_power_mw": 450.0,
                     "max_latency_ms": 250.0,
+                    "max_bounded_memory_kb": 512,
                     "offline_required": true
                 }
             }
@@ -711,6 +773,7 @@ fn run_csi_embedded_profile(root: &Path, parsed: &crate::ParsedArgs, strict: boo
     }
     let power_mw = parse_f64(parsed.flags.get("power-mw"), 380.0);
     let latency_ms = parse_f64(parsed.flags.get("latency-ms"), 120.0);
+    let bounded_memory_kb = parse_u64(parsed.flags.get("bounded-memory-kb"), 256);
     let offline = parse_bool(parsed.flags.get("offline"), true);
     let max_power = profile
         .get("max_power_mw")
@@ -720,6 +783,10 @@ fn run_csi_embedded_profile(root: &Path, parsed: &crate::ParsedArgs, strict: boo
         .get("max_latency_ms")
         .and_then(Value::as_f64)
         .unwrap_or(250.0);
+    let max_memory_kb = profile
+        .get("max_bounded_memory_kb")
+        .and_then(Value::as_u64)
+        .unwrap_or(512);
     let offline_required = profile
         .get("offline_required")
         .and_then(Value::as_bool)
@@ -731,6 +798,9 @@ fn run_csi_embedded_profile(root: &Path, parsed: &crate::ParsedArgs, strict: boo
     if latency_ms > max_latency {
         reason_codes.push("latency_budget_exceeded".to_string());
     }
+    if bounded_memory_kb > max_memory_kb {
+        reason_codes.push("bounded_memory_budget_exceeded".to_string());
+    }
     if offline_required && !offline {
         reason_codes.push("offline_first_required".to_string());
     }
@@ -740,9 +810,15 @@ fn run_csi_embedded_profile(root: &Path, parsed: &crate::ParsedArgs, strict: boo
         "target": target,
         "power_mw": power_mw,
         "latency_ms": latency_ms,
+        "bounded_memory_kb": bounded_memory_kb,
         "offline": offline,
         "degraded_mode": degraded_mode,
         "reason_codes": reason_codes,
+        "telemetry": {
+            "power_mw": power_mw,
+            "latency_ms": latency_ms,
+            "bounded_memory_kb": bounded_memory_kb
+        },
         "ts": crate::now_iso()
     });
     let path = csi_embedded_profile_path(root, &target);
@@ -789,6 +865,7 @@ fn run_csi_policy(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
             "kind": "substrate_csi_policy_contract",
             "locality_default": "local-only",
             "consent_required": true,
+            "export_default_denied": true,
             "max_retention_minutes": 1440,
             "risk_classes": ["low", "medium", "high"]
         }),
@@ -813,6 +890,7 @@ fn run_csi_policy(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
         20,
     )
     .to_ascii_lowercase();
+    let allow_export = parse_bool(parsed.flags.get("allow-export"), false);
     let mut violations = Vec::<String>::new();
     if contract
         .get("consent_required")
@@ -850,6 +928,14 @@ fn run_csi_policy(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
     {
         violations.push("high_risk_requires_approval".to_string());
     }
+    if contract
+        .get("export_default_denied")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+        && allow_export
+    {
+        violations.push("export_denied_by_default".to_string());
+    }
     let ok = if strict { violations.is_empty() } else { true };
     let policy = json!({
         "version": "v1",
@@ -857,6 +943,7 @@ fn run_csi_policy(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
         "locality": locality,
         "retention_minutes": retention_minutes,
         "biometric_risk": biometric_risk,
+        "allow_export": allow_export,
         "violations": violations,
         "ok": ok,
         "ts": crate::now_iso()
@@ -934,6 +1021,22 @@ fn run_eye_bind(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
         .iter()
         .filter_map(Value::as_str)
         .any(|row| row == source);
+    let op_allowed = contract
+        .get("allowed_ops")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .filter_map(Value::as_str)
+        .any(|row| row == op);
+    if strict && !op_allowed {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "substrate_plane_eye_bind",
+            "errors": ["substrate_eye_bind_op_invalid"]
+        });
+    }
     if strict && !allowed_source {
         return json!({
             "ok": false,
