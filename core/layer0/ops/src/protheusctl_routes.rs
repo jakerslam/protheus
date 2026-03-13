@@ -451,6 +451,50 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 forward_stdin: false,
             })
         }
+        "seed" => {
+            let sub = rest
+                .first()
+                .map(|v| v.trim().to_ascii_lowercase())
+                .unwrap_or_else(|| "status".to_string());
+            let args = match sub.as_str() {
+                "deploy" | "ignite" => {
+                    let mut out = vec!["deploy".to_string()];
+                    let mut skip = 1usize;
+                    if let Some(profile) = rest.get(1).map(|v| v.trim().to_ascii_lowercase()) {
+                        if profile == "viral" || profile == "immortal" {
+                            out.push(format!("--profile={profile}"));
+                            skip = 2;
+                        }
+                    }
+                    out.extend(rest.iter().skip(skip).cloned());
+                    out
+                }
+                "monitor" => {
+                    let mut out = vec!["monitor".to_string()];
+                    out.extend(rest.iter().skip(1).cloned());
+                    out
+                }
+                "status" | "migrate" | "enforce" | "select" | "archive" | "defend" => {
+                    if rest.is_empty() {
+                        vec!["status".to_string()]
+                    } else {
+                        rest.to_vec()
+                    }
+                }
+                _ => {
+                    if rest.is_empty() {
+                        vec!["status".to_string()]
+                    } else {
+                        rest.to_vec()
+                    }
+                }
+            };
+            Some(Route {
+                script_rel: "core://seed-protocol".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
         "compute"
             if rest
                 .first()

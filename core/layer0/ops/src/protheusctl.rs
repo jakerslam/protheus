@@ -1660,6 +1660,55 @@ mod tests {
     }
 
     #[test]
+    fn core_shortcut_routes_seed_deploy_viral_to_seed_protocol() {
+        let route = resolve_core_shortcuts(
+            "seed",
+            &[
+                "deploy".to_string(),
+                "viral".to_string(),
+                "--targets=node-a,node-b".to_string(),
+                "--apply=1".to_string(),
+            ],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://seed-protocol");
+        assert_eq!(
+            route.args,
+            vec![
+                "deploy",
+                "--profile=viral",
+                "--targets=node-a,node-b",
+                "--apply=1"
+            ]
+        );
+    }
+
+    #[test]
+    fn core_shortcut_routes_seed_ignite_viral_to_seed_protocol() {
+        let route = resolve_core_shortcuts(
+            "seed",
+            &[
+                "ignite".to_string(),
+                "viral".to_string(),
+                "--replication-cap=16".to_string(),
+            ],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://seed-protocol");
+        assert_eq!(
+            route.args,
+            vec!["deploy", "--profile=viral", "--replication-cap=16"]
+        );
+    }
+
+    #[test]
+    fn core_shortcut_routes_seed_defaults_to_status() {
+        let route = resolve_core_shortcuts("seed", &[]).expect("route");
+        assert_eq!(route.script_rel, "core://seed-protocol");
+        assert_eq!(route.args, vec!["status"]);
+    }
+
+    #[test]
     fn core_shortcut_routes_keys_open_to_intelligence_nexus() {
         let route = resolve_core_shortcuts("keys", &["open".to_string()]).expect("route");
         assert_eq!(route.script_rel, "core://intelligence-nexus");

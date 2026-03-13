@@ -1,34 +1,88 @@
 #!/usr/bin/env node
 'use strict';
+const crypto = require('node:crypto');
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 
 const bridge = createOpsLaneBridge(__dirname, 'causal_temporal_graph', 'memory-plane', {
   inheritStdio: true
 });
 
-function mapArgs(args = []) {
-  const rows = Array.isArray(args) ? args.map((v) => String(v)) : [];
-  const cmd = String(rows[0] || '').trim().toLowerCase();
-  if (!cmd || cmd === 'status' || cmd === 'verify') {
-    return ['status'].concat(rows.slice(cmd ? 1 : 0));
+const MUTATION_COMMANDS = new Set(['record']);
+
+function stableStringify(value) {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value);
   }
-  if (cmd === 'build') {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(',')}]`;
+  }
+  const keys = Object.keys(value).sort();
+  return `{${keys
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`)
+    .join(',')}}`;
+}
+
+function normalizeReceiptHash(payload) {
+  const clone = Object.assign({}, payload);
+  delete clone.receipt_hash;
+  return crypto.createHash('sha256').update(stableStringify(clone)).digest('hex');
+}
+
+function ensureMutationReceipt(result, command) {
+  if (!result || !result.payload || typeof result.payload !== 'object') {
+    return result;
+  }
+  if (!MUTATION_COMMANDS.has(command)) {
+    return result;
+  }
+  if (typeof result.payload.receipt_hash === 'string') {
+    return result;
+  }
+  return Object.assign({}, result, {
+    payload: Object.assign({}, result.payload, {
+      receipt_hash: normalizeReceiptHash(result.payload)
+    })
+  });
+}
+
+function mapArgs(args = []) {
+  const rows = Array.isArray(args) ? args.map((v) => String(v).trim()) : [];
+  if (!rows.length) {
+    return ['status'];
+  }
+
+  let head = rows[0].toLowerCase();
+  const tail = rows.slice(1);
+
+  if (head === 'causal-temporal-graph' || head === 'causal_temporal_graph') {
+    head = (tail[0] || '').toLowerCase();
+    return mapArgs(tail);
+  }
+  if (!head || head === 'status' || head === 'verify') {
+    return ['status'].concat(tail);
+  }
+  if (head === 'build' || head === 'record-legacy') {
     return [
       'record',
       '--event-id=build-latest',
       '--summary=legacy_build_alias',
       '--actor=system',
       '--apply=0'
-    ].concat(rows.slice(1));
+    ].concat(tail);
   }
-  if (cmd === 'query') {
-    return ['blame', '--event-id=build-latest'].concat(rows.slice(1));
+  if (head === 'query' || head === 'lookup') {
+    return ['blame', '--event-id=build-latest'].concat(tail);
   }
-  return rows;
+  return [head].concat(tail);
 }
 
 function run(args = process.argv.slice(2)) {
-  const out = bridge.run(['causal-temporal-graph'].concat(mapArgs(args)));
+  const mapped = mapArgs(args);
+  const command = mapped[0] || 'status';
+  const out = ensureMutationReceipt(
+    bridge.run(['causal-temporal-graph'].concat(mapped)),
+    command
+  );
   if (out && out.stdout) process.stdout.write(out.stdout);
   if (out && out.stderr) process.stderr.write(out.stderr);
   if (out && out.payload && !out.stdout) {
@@ -44,5 +98,8 @@ if (require.main === module) {
 
 module.exports = {
   lane: bridge.lane,
-  run
+  run,
+  mapArgs,
+  normalizeReceiptHash,
+  ensureMutationReceipt
 };
