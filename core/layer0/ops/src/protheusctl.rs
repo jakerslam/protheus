@@ -764,6 +764,18 @@ fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route> {
                 forward_stdin: false,
             })
         }
+        "graph" => {
+            let args = if rest.is_empty() {
+                vec!["status".to_string()]
+            } else {
+                rest.to_vec()
+            };
+            Some(Route {
+                script_rel: "core://graph-toolkit".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
         "blobs" | "blob" => {
             let args = if rest.is_empty() {
                 vec!["status".to_string()]
@@ -2088,12 +2100,35 @@ mod tests {
     }
 
     #[test]
-    fn core_shortcut_routes_blobs_to_binary_blob_runtime() {
+    fn core_shortcut_routes_graph_pagerank_to_graph_toolkit() {
         let route = resolve_core_shortcuts(
-            "blobs",
-            &["migrate".to_string(), "--apply=1".to_string()],
+            "graph",
+            &[
+                "pagerank".to_string(),
+                "--dataset=memory-vault".to_string(),
+                "--iterations=32".to_string(),
+            ],
         )
         .expect("route");
+        assert_eq!(route.script_rel, "core://graph-toolkit");
+        assert_eq!(
+            route.args,
+            vec!["pagerank", "--dataset=memory-vault", "--iterations=32"]
+        );
+    }
+
+    #[test]
+    fn core_shortcut_routes_graph_defaults_to_status() {
+        let route = resolve_core_shortcuts("graph", &[]).expect("route");
+        assert_eq!(route.script_rel, "core://graph-toolkit");
+        assert_eq!(route.args, vec!["status"]);
+    }
+
+    #[test]
+    fn core_shortcut_routes_blobs_to_binary_blob_runtime() {
+        let route =
+            resolve_core_shortcuts("blobs", &["migrate".to_string(), "--apply=1".to_string()])
+                .expect("route");
         assert_eq!(route.script_rel, "core://binary-blob-runtime");
         assert_eq!(route.args, vec!["migrate", "--apply=1"]);
     }
@@ -2122,30 +2157,25 @@ mod tests {
 
     #[test]
     fn core_shortcut_routes_organism_ignite_to_organism_layer() {
-        let route = resolve_core_shortcuts(
-            "organism",
-            &["ignite".to_string(), "--apply=1".to_string()],
-        )
-        .expect("route");
+        let route =
+            resolve_core_shortcuts("organism", &["ignite".to_string(), "--apply=1".to_string()])
+                .expect("route");
         assert_eq!(route.script_rel, "core://organism-layer");
         assert_eq!(route.args, vec!["ignite", "--apply=1"]);
     }
 
     #[test]
     fn core_shortcut_routes_rsi_ignite_to_rsi_ignition() {
-        let route = resolve_core_shortcuts(
-            "rsi",
-            &["ignite".to_string(), "--apply=1".to_string()],
-        )
-        .expect("route");
+        let route = resolve_core_shortcuts("rsi", &["ignite".to_string(), "--apply=1".to_string()])
+            .expect("route");
         assert_eq!(route.script_rel, "core://rsi-ignition");
         assert_eq!(route.args, vec!["ignite", "--apply=1"]);
     }
 
     #[test]
     fn core_shortcut_routes_veto_to_directive_kernel() {
-        let route = resolve_core_shortcuts("veto", &["--action=rsi_proposal".to_string()])
-            .expect("route");
+        let route =
+            resolve_core_shortcuts("veto", &["--action=rsi_proposal".to_string()]).expect("route");
         assert_eq!(route.script_rel, "core://directive-kernel");
         assert_eq!(
             route.args,
