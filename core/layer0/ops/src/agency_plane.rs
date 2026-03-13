@@ -491,7 +491,7 @@ fn run_orchestrate(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
         });
     }
 
-    let allowed_roles = contract
+    let mut allowed_roles = contract
         .get("allowed_roles")
         .and_then(Value::as_array)
         .cloned()
@@ -508,10 +508,22 @@ fn run_orchestrate(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
         .filter_map(Value::as_str)
         .map(|v| clean(v, 80))
         .collect::<Vec<_>>();
+    if allowed_roles.is_empty() {
+        if strict {
+            return json!({
+                "ok": false,
+                "strict": strict,
+                "type": "agency_plane_orchestrate",
+                "errors": ["agency_orchestrator_allowed_roles_required"]
+            });
+        }
+        allowed_roles = vec!["researcher".to_string()];
+    }
 
     let mut previous_hash = sha256_hex_str(&format!("{team}:{run_id}:root"));
     let mut agents = Vec::<Value>::new();
     for idx in 0..concurrency {
+        let parent_hash = previous_hash.clone();
         let role = allowed_roles
             .get((idx as usize) % allowed_roles.len())
             .cloned()
@@ -530,7 +542,7 @@ fn run_orchestrate(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
         };
         let decision_hash = sha256_hex_str(&format!(
             "{}:{}:{}:{}:{}",
-            previous_hash, run_id, idx, role, decision
+            parent_hash, run_id, idx, role, decision
         ));
         previous_hash = decision_hash.clone();
         agents.push(json!({
@@ -539,7 +551,7 @@ fn run_orchestrate(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Val
             "role": role,
             "task": format!("{}:{}:{}", team, run_id, idx + 1),
             "coordinator_decision": decision,
-            "previous_hash": previous_hash,
+            "previous_hash": parent_hash,
             "decision_hash": decision_hash
         }));
     }

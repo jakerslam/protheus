@@ -108,6 +108,25 @@ fn v6_agency_batch13_orchestrator_and_workflow_bind_are_receipted() {
             .map(|rows| rows.len()),
         Some(6)
     );
+    let chain_ok = orchestrate_latest
+        .get("run")
+        .and_then(|v| v.get("agents"))
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.windows(2).all(|pair| {
+                let prior = pair[0]
+                    .get("decision_hash")
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                let next_prev = pair[1]
+                    .get("previous_hash")
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                !prior.is_empty() && prior == next_prev
+            })
+        })
+        .unwrap_or(false);
+    assert!(chain_ok, "agency orchestrator decision chain should be linked");
     assert_claim(&orchestrate_latest, "V6-AGENCY-001.3");
     assert_claim(&orchestrate_latest, "V6-AGENCY-001.5");
 
