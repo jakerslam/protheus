@@ -3,6 +3,16 @@ mod rag_runtime;
 mod wave1;
 
 use db::{DbIndexEntry, HotStateEnvelopeStats, MemoryDb};
+use protheus_layer1_memory_runtime::recall_policy::{
+    enforce_hydration_guard, enforce_index_first, enforce_index_freshness, enforce_node_only,
+    enforce_recall_budget, FailClosedMode, HydrationGuardInput, RecallBudgetInput,
+    DEFAULT_BOOTSTRAP_HYDRATION_TOKEN_CAP, DEFAULT_BURN_THRESHOLD_TOKENS, DEFAULT_EXPAND_LINES,
+    DEFAULT_INDEX_MAX_AGE_MS, DEFAULT_MAX_FILES, DEFAULT_RECALL_TOP, MAX_EXPAND_LINES,
+    MAX_MAX_FILES, MAX_RECALL_TOP,
+};
+use protheus_layer1_memory_runtime::token_telemetry::{
+    evaluate_burn_slo, RetrievalMode, TokenTelemetryEvent,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -66,6 +76,16 @@ struct QueryResult {
     index_sources: Vec<String>,
     tag_sources: Vec<String>,
     hits: Vec<QueryHit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    policy: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    burn_slo: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    freshness: Option<Value>,
 }
 
 #[derive(Serialize)]
@@ -670,11 +690,6 @@ fn score_entry(
     (score, reasons.into_iter().collect::<Vec<String>>())
 }
 
-fn parse_top(raw: &str) -> usize {
-    let parsed = raw.parse::<usize>().unwrap_or(5);
-    parsed.clamp(1, 50)
-}
-
 fn parse_clamped_usize(raw: &str, min: usize, max: usize, fallback: usize) -> usize {
     let parsed = raw.parse::<usize>().unwrap_or(fallback);
     parsed.clamp(min, max)
@@ -890,55 +905,64 @@ fn sync_sqlite_runtime_index(
 fn load_runtime_index(root: &Path, args: &HashMap<String, String>) -> RuntimeIndexBundle {
     let mut out = RuntimeIndexBundle::default();
     let db_path = arg_any(args, &["db-path", "db_path"]);
-    if let Ok(mut db) = MemoryDb::open(root, &db_path) {
-        out.sqlite_path = Some(db.rel_db_path(root));
-        match sync_sqlite_runtime_index(root, &mut db) {
-            Ok((idx_sources, tag_sources, row_count, wrote, signature)) => {
-                out.sqlite_sync_rows = row_count;
-                out.sqlite_sync_applied = wrote;
-                if wrote {
+    let disable_sqlite = parse_bool_arg(
+        &arg_any(
+            args,
+            &["disable-sqlite", "disable_sqlite", "index-sqlite-disabled"],
+        ),
+        false,
+    );
+    if !disable_sqlite {
+        if let Ok(mut db) = MemoryDb::open(root, &db_path) {
+            out.sqlite_path = Some(db.rel_db_path(root));
+            match sync_sqlite_runtime_index(root, &mut db) {
+                Ok((idx_sources, tag_sources, row_count, wrote, signature)) => {
+                    out.sqlite_sync_rows = row_count;
+                    out.sqlite_sync_applied = wrote;
+                    if wrote {
+                        publish_memory_event(
+                            root,
+                            "rust_memory_index_sync",
+                            json!({
+                                "ok": true,
+                                "row_count": row_count,
+                                "signature": signature,
+                                "sqlite_path": out.sqlite_path.clone().unwrap_or_default(),
+                                "index_sources": idx_sources,
+                                "tag_sources": tag_sources
+                            }),
+                        );
+                    }
+                }
+                Err(sync_error) => {
                     publish_memory_event(
                         root,
-                        "rust_memory_index_sync",
+                        "rust_memory_index_sync_error",
                         json!({
-                            "ok": true,
-                            "row_count": row_count,
-                            "signature": signature,
-                            "sqlite_path": out.sqlite_path.clone().unwrap_or_default(),
-                            "index_sources": idx_sources,
-                            "tag_sources": tag_sources
+                            "ok": false,
+                            "error": sync_error
                         }),
                     );
                 }
             }
-            Err(sync_error) => {
-                publish_memory_event(
-                    root,
-                    "rust_memory_index_sync_error",
-                    json!({
-                        "ok": false,
-                        "error": sync_error
-                    }),
-                );
-            }
-        }
-        if let Ok(db_rows) = db.load_index_entries() {
-            if !db_rows.is_empty() {
-                out.entries = db_rows
-                    .iter()
-                    .map(from_db_index_entry)
-                    .collect::<Vec<IndexEntry>>();
-                let sqlite_path = out
-                    .sqlite_path
-                    .clone()
-                    .unwrap_or_else(|| "sqlite".to_string());
-                out.index_sources = vec![format!("sqlite:{sqlite_path}")];
-                out.tag_map = build_tag_map_from_entries(&out.entries);
-                out.tag_sources = vec![format!("sqlite:{sqlite_path}")];
-                out.embeddings = db
-                    .load_embedding_map()
-                    .unwrap_or_else(|_| build_embedding_map_from_entries(&out.entries, 64));
-                return out;
+            if let Ok(db_rows) = db.load_index_entries() {
+                if !db_rows.is_empty() {
+                    out.entries = db_rows
+                        .iter()
+                        .map(from_db_index_entry)
+                        .collect::<Vec<IndexEntry>>();
+                    let sqlite_path = out
+                        .sqlite_path
+                        .clone()
+                        .unwrap_or_else(|| "sqlite".to_string());
+                    out.index_sources = vec![format!("sqlite:{sqlite_path}")];
+                    out.tag_map = build_tag_map_from_entries(&out.entries);
+                    out.tag_sources = vec![format!("sqlite:{sqlite_path}")];
+                    out.embeddings = db
+                        .load_embedding_map()
+                        .unwrap_or_else(|_| build_embedding_map_from_entries(&out.entries, 64));
+                    return out;
+                }
             }
         }
     }
@@ -968,6 +992,103 @@ fn file_mtime_ms(file_path: &Path) -> Option<u64> {
     let modified = metadata.modified().ok()?;
     let dur = modified.duration_since(UNIX_EPOCH).ok()?;
     Some(dur.as_millis() as u64)
+}
+
+fn now_epoch_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|dur| dur.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+fn parse_bool_arg(raw: &str, fallback: bool) -> bool {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return fallback;
+    }
+    match trimmed.to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => true,
+        "0" | "false" | "no" | "off" => false,
+        _ => fallback,
+    }
+}
+
+fn parse_u32_clamped(raw: &str, min: u32, max: u32, fallback: u32) -> u32 {
+    raw.trim()
+        .parse::<u32>()
+        .ok()
+        .unwrap_or(fallback)
+        .clamp(min, max)
+}
+
+fn parse_u64_clamped(raw: &str, min: u64, max: u64, fallback: u64) -> u64 {
+    raw.trim()
+        .parse::<u64>()
+        .ok()
+        .unwrap_or(fallback)
+        .clamp(min, max)
+}
+
+fn newest_runtime_index_mtime_ms(root: &Path, bundle: &RuntimeIndexBundle) -> Option<u64> {
+    let mut newest = 0u64;
+    let mut seen = false;
+    let candidates = vec![
+        root.join("client/memory/MEMORY_INDEX.md"),
+        root.join("client/memory/TAGS_INDEX.md"),
+        root.join("memory"),
+    ];
+    for candidate in candidates {
+        if let Some(ts) = file_mtime_ms(&candidate) {
+            newest = newest.max(ts);
+            seen = true;
+        }
+    }
+    if let Some(sqlite_rel) = bundle.sqlite_path.as_ref() {
+        let sqlite_abs = root.join(sqlite_rel);
+        if let Some(ts) = file_mtime_ms(&sqlite_abs) {
+            newest = newest.max(ts);
+            seen = true;
+        }
+    }
+    if seen {
+        Some(newest)
+    } else {
+        None
+    }
+}
+
+fn estimate_hydration_tokens(bundle: &RuntimeIndexBundle) -> u32 {
+    if !bundle.sqlite_sync_applied {
+        return 0;
+    }
+    let base = (bundle.sqlite_sync_rows as u32).saturating_mul(2);
+    base.clamp(0, 2_000)
+}
+
+fn query_error(
+    reason: &str,
+    index_sources: Vec<String>,
+    tag_sources: Vec<String>,
+    policy: Value,
+    freshness: Option<Value>,
+    burn_slo: Option<Value>,
+) -> QueryResult {
+    QueryResult {
+        ok: false,
+        backend: "protheus_memory_core".to_string(),
+        score_mode: "hybrid".to_string(),
+        vector_enabled: true,
+        entries_total: 0,
+        candidates_total: 0,
+        index_sources,
+        tag_sources,
+        hits: vec![],
+        error: Some(reason.to_string()),
+        reason_code: Some(reason.to_string()),
+        policy: Some(policy),
+        burn_slo,
+        freshness,
+    }
 }
 
 fn parse_cache_max_bytes(raw: &str) -> usize {
@@ -1409,7 +1530,12 @@ fn run_probe(args: &HashMap<String, String>) {
 fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
     let root = PathBuf::from(arg_or_default(args, "root", "."));
     let q = arg_or_default(args, "q", "");
-    let top = parse_top(arg_or_default(args, "top", "5").as_str());
+    let requested_top = parse_clamped_usize(
+        arg_or_default(args, "top", DEFAULT_RECALL_TOP.to_string().as_str()).as_str(),
+        1,
+        1_000,
+        DEFAULT_RECALL_TOP,
+    );
     let tag_filters = parse_tag_filters(&arg_or_default(args, "tags", ""));
     let cache_path = arg_or_default(args, "cache-path", "");
     let cache_max_bytes = parse_cache_max_bytes(&arg_or_default(args, "cache-max-bytes", ""));
@@ -1418,15 +1544,62 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
     } else {
         Some(load_working_set_cache(&cache_path))
     };
-    let expand_lines = parse_clamped_usize(
+    let requested_expand_lines = parse_clamped_usize(
         &arg_any(args, &["expand-lines", "excerpt-lines"]),
         0,
-        300,
-        0,
+        1_000,
+        DEFAULT_EXPAND_LINES,
     );
-    let max_files = parse_clamped_usize(&arg_any(args, &["max-files", "max_files"]), 1, 20, 1);
+    let requested_max_files = parse_clamped_usize(
+        &arg_any(args, &["max-files", "max_files"]),
+        1,
+        100,
+        DEFAULT_MAX_FILES,
+    );
+    let budget_mode = FailClosedMode::from_raw(&arg_any(
+        args,
+        &["budget-mode", "budget_mode", "cap-mode", "cap_mode"],
+    ));
+    let budget_decision = enforce_recall_budget(&RecallBudgetInput {
+        requested_top,
+        requested_max_files,
+        requested_expand_lines,
+        mode: budget_mode,
+        max_top: MAX_RECALL_TOP,
+        max_files: MAX_MAX_FILES,
+        max_expand_lines: MAX_EXPAND_LINES,
+    });
+    if !budget_decision.ok {
+        return query_error(
+            budget_decision.reason_code,
+            vec![],
+            vec![],
+            json!({
+                "budget": {
+                    "mode": match budget_mode { FailClosedMode::Reject => "reject", FailClosedMode::Trim => "trim" },
+                    "requested": {
+                        "top": requested_top,
+                        "max_files": requested_max_files,
+                        "expand_lines": requested_expand_lines
+                    },
+                    "caps": {
+                        "top": MAX_RECALL_TOP,
+                        "max_files": MAX_MAX_FILES,
+                        "expand_lines": MAX_EXPAND_LINES
+                    }
+                }
+            }),
+            None,
+            None,
+        );
+    }
+    let top = budget_decision.effective_top;
+    let expand_lines = budget_decision.effective_expand_lines;
+    let max_files = budget_decision.effective_max_files;
 
     let runtime_index = load_runtime_index(&root, args);
+    let newest_index_mtime = newest_runtime_index_mtime_ms(&root, &runtime_index);
+    let estimated_hydration_tokens = estimate_hydration_tokens(&runtime_index);
     let index_sources = runtime_index.index_sources;
     let tag_sources = runtime_index.tag_sources;
     let entries = runtime_index.entries;
@@ -1437,6 +1610,150 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
         .chars()
         .filter(|ch| ch.is_ascii_alphanumeric() || *ch == '_' || *ch == '-')
         .collect::<String>();
+    let index_first = enforce_index_first(&index_sources, entries.len());
+    if !index_first.ok {
+        return query_error(
+            index_first.reason_code,
+            index_sources,
+            tag_sources,
+            json!({
+                "budget": {
+                    "requested": {
+                        "top": requested_top,
+                        "max_files": requested_max_files,
+                        "expand_lines": requested_expand_lines
+                    },
+                    "effective": {
+                        "top": top,
+                        "max_files": max_files,
+                        "expand_lines": expand_lines
+                    },
+                    "mode": match budget_mode { FailClosedMode::Reject => "reject", FailClosedMode::Trim => "trim" },
+                    "trimmed": budget_decision.trimmed
+                },
+                "index_first": index_first.reason_code
+            }),
+            None,
+            None,
+        );
+    }
+
+    let allow_stale = parse_bool_arg(&arg_any(args, &["allow-stale", "allow_stale"]), false);
+    let max_index_age_ms = parse_u64_clamped(
+        &arg_any(args, &["max-index-age-ms", "max_index_age_ms"]),
+        1_000,
+        7 * 24 * 60 * 60 * 1000,
+        DEFAULT_INDEX_MAX_AGE_MS,
+    );
+    let freshness_decision = enforce_index_freshness(
+        now_epoch_ms(),
+        newest_index_mtime,
+        max_index_age_ms,
+        allow_stale,
+    );
+    let freshness_payload = json!({
+        "ok": freshness_decision.ok,
+        "stale": freshness_decision.stale,
+        "reason_code": freshness_decision.reason_code,
+        "age_ms": freshness_decision.age_ms,
+        "threshold_ms": freshness_decision.threshold_ms
+    });
+    if !freshness_decision.ok {
+        return query_error(
+            freshness_decision.reason_code,
+            index_sources,
+            tag_sources,
+            json!({
+                "budget": {
+                    "requested": {
+                        "top": requested_top,
+                        "max_files": requested_max_files,
+                        "expand_lines": requested_expand_lines
+                    },
+                    "effective": {
+                        "top": top,
+                        "max_files": max_files,
+                        "expand_lines": expand_lines
+                    },
+                    "mode": match budget_mode { FailClosedMode::Reject => "reject", FailClosedMode::Trim => "trim" },
+                    "trimmed": budget_decision.trimmed
+                },
+                "index_first": index_first.reason_code
+            }),
+            Some(freshness_payload),
+            None,
+        );
+    }
+
+    let bootstrap = parse_bool_arg(&arg_any(args, &["bootstrap"]), false);
+    let hydrate_mode = arg_any(args, &["hydrate-mode", "hydrate_mode", "hydrate"]);
+    let lazy_hydration = if hydrate_mode.trim().is_empty() {
+        true
+    } else {
+        matches!(hydrate_mode.trim().to_ascii_lowercase().as_str(), "lazy")
+    };
+    let hydration_tokens = parse_u32_clamped(
+        &arg_any(args, &["hydration-token-estimate", "hydration_tokens"]),
+        0,
+        4_000,
+        estimated_hydration_tokens,
+    );
+    let hydration_cap = parse_u32_clamped(
+        &arg_any(
+            args,
+            &[
+                "bootstrap-hydration-token-cap",
+                "bootstrap_hydration_token_cap",
+            ],
+        ),
+        1,
+        4_000,
+        DEFAULT_BOOTSTRAP_HYDRATION_TOKEN_CAP,
+    );
+    let hydration_guard = enforce_hydration_guard(&HydrationGuardInput {
+        bootstrap,
+        lazy_hydration,
+        estimated_hydration_tokens: hydration_tokens,
+        max_bootstrap_tokens: hydration_cap,
+        force: parse_bool_arg(
+            &arg_any(args, &["force-hydration", "force_hydration"]),
+            false,
+        ),
+    });
+    if !hydration_guard.ok {
+        return query_error(
+            hydration_guard.reason_code,
+            index_sources,
+            tag_sources,
+            json!({
+                "budget": {
+                    "requested": {
+                        "top": requested_top,
+                        "max_files": requested_max_files,
+                        "expand_lines": requested_expand_lines
+                    },
+                    "effective": {
+                        "top": top,
+                        "max_files": max_files,
+                        "expand_lines": expand_lines
+                    },
+                    "mode": match budget_mode { FailClosedMode::Reject => "reject", FailClosedMode::Trim => "trim" },
+                    "trimmed": budget_decision.trimmed
+                },
+                "index_first": index_first.reason_code,
+                "hydration": {
+                    "bootstrap": bootstrap,
+                    "lazy_hydration": lazy_hydration,
+                    "estimated_tokens": hydration_tokens,
+                    "token_cap": hydration_cap,
+                    "reason_code": hydration_guard.reason_code
+                }
+            }),
+            Some(freshness_payload),
+            None,
+        );
+    }
+
     let vector_enabled = score_mode != "lexical";
     let query_vector = if vector_enabled {
         vectorize_text(&format!("{} {}", q, tag_filters.join(" ")), 64)
@@ -1583,6 +1900,98 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
         save_working_set_cache(&cache_path, cache_ref, cache_max_bytes);
     }
 
+    let startup_tokens = parse_u32_clamped(
+        &arg_any(args, &["startup-token-estimate", "startup_tokens"]),
+        0,
+        4_000,
+        24,
+    );
+    let expanded_hits = hits
+        .iter()
+        .filter(|hit| hit.section_excerpt.is_some())
+        .count() as u32;
+    let retrieval_estimate = (query_tokens.len() as u32)
+        .saturating_mul(6)
+        .saturating_add((hits.len() as u32).saturating_mul(12))
+        .saturating_add(expanded_hits.saturating_mul(24));
+    let response_tokens = parse_u32_clamped(
+        &arg_any(args, &["response-token-estimate", "response_tokens"]),
+        0,
+        4_000,
+        (hits.len() as u32).saturating_mul(8),
+    );
+    let burn_threshold = parse_u32_clamped(
+        &arg_any(
+            args,
+            &["burn-threshold", "burn_threshold", "burn-threshold-tokens"],
+        ),
+        1,
+        10_000,
+        DEFAULT_BURN_THRESHOLD_TOKENS,
+    );
+    let burn_mode = FailClosedMode::from_raw(&arg_any(
+        args,
+        &["burn-mode", "burn_mode", "burn-cap-mode", "burn_cap_mode"],
+    ));
+    let telemetry = TokenTelemetryEvent {
+        startup_tokens,
+        hydration_tokens,
+        retrieval_tokens: retrieval_estimate,
+        response_tokens,
+        mode: if expand_lines > 0 {
+            RetrievalMode::NodeRead
+        } else {
+            RetrievalMode::IndexOnly
+        },
+    };
+    let burn_decision = evaluate_burn_slo(&telemetry, burn_threshold);
+    let burn_payload = json!({
+        "ok": burn_decision.ok,
+        "reason_code": burn_decision.reason,
+        "threshold_tokens": burn_decision.threshold_tokens,
+        "total_tokens": burn_decision.total_tokens,
+        "mode": telemetry.mode.as_str(),
+        "components": {
+            "startup_tokens": telemetry.startup_tokens,
+            "hydration_tokens": telemetry.hydration_tokens,
+            "retrieval_tokens": telemetry.retrieval_tokens,
+            "response_tokens": telemetry.response_tokens
+        }
+    });
+    if !burn_decision.ok && matches!(burn_mode, FailClosedMode::Reject) {
+        return query_error(
+            burn_decision.reason,
+            index_sources,
+            tag_sources,
+            json!({
+                "budget": {
+                    "requested": {
+                        "top": requested_top,
+                        "max_files": requested_max_files,
+                        "expand_lines": requested_expand_lines
+                    },
+                    "effective": {
+                        "top": top,
+                        "max_files": max_files,
+                        "expand_lines": expand_lines
+                    },
+                    "mode": match budget_mode { FailClosedMode::Reject => "reject", FailClosedMode::Trim => "trim" },
+                    "trimmed": budget_decision.trimmed
+                },
+                "index_first": index_first.reason_code,
+                "hydration": {
+                    "bootstrap": bootstrap,
+                    "lazy_hydration": lazy_hydration,
+                    "estimated_tokens": hydration_tokens,
+                    "token_cap": hydration_cap,
+                    "reason_code": hydration_guard.reason_code
+                }
+            }),
+            Some(freshness_payload),
+            Some(burn_payload),
+        );
+    }
+
     QueryResult {
         ok: true,
         backend: "protheus_memory_core".to_string(),
@@ -1597,6 +2006,34 @@ fn query_index_payload(args: &HashMap<String, String>) -> QueryResult {
         index_sources,
         tag_sources,
         hits,
+        error: None,
+        reason_code: None,
+        policy: Some(json!({
+            "budget": {
+                "requested": {
+                    "top": requested_top,
+                    "max_files": requested_max_files,
+                    "expand_lines": requested_expand_lines
+                },
+                "effective": {
+                    "top": top,
+                    "max_files": max_files,
+                    "expand_lines": expand_lines
+                },
+                "mode": match budget_mode { FailClosedMode::Reject => "reject", FailClosedMode::Trim => "trim" },
+                "trimmed": budget_decision.trimmed
+            },
+            "index_first": index_first.reason_code,
+            "hydration": {
+                "bootstrap": bootstrap,
+                "lazy_hydration": lazy_hydration,
+                "estimated_tokens": hydration_tokens,
+                "token_cap": hydration_cap,
+                "reason_code": hydration_guard.reason_code
+            }
+        })),
+        burn_slo: Some(burn_payload),
+        freshness: Some(freshness_payload),
     }
 }
 
@@ -1621,17 +2058,55 @@ fn get_node_payload(args: &HashMap<String, String>) -> (serde_json::Value, i32) 
         Some(load_working_set_cache(&cache_path))
     };
 
-    if node_id.is_empty() && uid.is_empty() {
+    let node_guard = enforce_node_only(&node_id, &uid);
+    if !node_guard.ok {
         return (
             json!({
                 "ok": false,
-                "error": "missing --node-id=<id> or --uid=<alnum_uid>"
+                "error": node_guard.reason_code
             }),
             2,
         );
     }
 
     let runtime_index = load_runtime_index(&root, args);
+    let index_guard =
+        enforce_index_first(&runtime_index.index_sources, runtime_index.entries.len());
+    if !index_guard.ok {
+        return (
+            json!({
+                "ok": false,
+                "error": index_guard.reason_code
+            }),
+            2,
+        );
+    }
+    let freshness = enforce_index_freshness(
+        now_epoch_ms(),
+        newest_runtime_index_mtime_ms(&root, &runtime_index),
+        parse_u64_clamped(
+            &arg_any(args, &["max-index-age-ms", "max_index_age_ms"]),
+            1_000,
+            7 * 24 * 60 * 60 * 1000,
+            DEFAULT_INDEX_MAX_AGE_MS,
+        ),
+        parse_bool_arg(&arg_any(args, &["allow-stale", "allow_stale"]), false),
+    );
+    if !freshness.ok {
+        return (
+            json!({
+                "ok": false,
+                "error": freshness.reason_code,
+                "freshness": {
+                    "stale": freshness.stale,
+                    "age_ms": freshness.age_ms,
+                    "threshold_ms": freshness.threshold_ms
+                }
+            }),
+            2,
+        );
+    }
+
     let mut matches = runtime_index
         .entries
         .into_iter()
@@ -2121,20 +2596,21 @@ fn run_daemon(args: &HashMap<String, String>) {
                 (rag_runtime::byterover_upgrade_payload(&req_args), false)
             }
             "memory-taxonomy" => (rag_runtime::memory_taxonomy_payload(&req_args), false),
-            "memory-enable-metacognitive" => {
-                (rag_runtime::memory_metacognitive_enable_payload(&req_args), false)
-            }
-            "memory-enable-causality" => {
-                (rag_runtime::memory_causality_enable_payload(&req_args), false)
-            }
-            "memory-benchmark-ama" => {
-                (rag_runtime::memory_benchmark_ama_payload(&req_args), false)
-            }
+            "memory-enable-metacognitive" => (
+                rag_runtime::memory_metacognitive_enable_payload(&req_args),
+                false,
+            ),
+            "memory-enable-causality" => (
+                rag_runtime::memory_causality_enable_payload(&req_args),
+                false,
+            ),
+            "memory-benchmark-ama" => (rag_runtime::memory_benchmark_ama_payload(&req_args), false),
             "memory-share" => (rag_runtime::memory_share_payload(&req_args), false),
             "memory-evolve" => (rag_runtime::memory_evolve_payload(&req_args), false),
-            "memory-causal-retrieve" => {
-                (rag_runtime::memory_causal_retrieve_payload(&req_args), false)
-            }
+            "memory-causal-retrieve" => (
+                rag_runtime::memory_causal_retrieve_payload(&req_args),
+                false,
+            ),
             "memory-fuse" => (rag_runtime::memory_fuse_payload(&req_args), false),
             "stable-status" => (rag_runtime::stable_status_payload(), false),
             "stable-search" => match rag_runtime::ensure_supported_version(&req_args) {
@@ -2236,7 +2712,8 @@ fn run_daemon(args: &HashMap<String, String>) {
             "stable-memory-enable-metacognitive" => {
                 match rag_runtime::ensure_supported_version(&req_args) {
                     Ok(version) => {
-                        let mut payload = rag_runtime::memory_metacognitive_enable_payload(&req_args);
+                        let mut payload =
+                            rag_runtime::memory_metacognitive_enable_payload(&req_args);
                         payload["api_version"] = json!(version);
                         (payload, false)
                     }
@@ -2523,5 +3000,150 @@ fn main() {
             eprintln!("unsupported command: {}", cmd);
             std::process::exit(1);
         }
+    }
+}
+
+#[cfg(test)]
+mod memory_policy_tests {
+    use super::*;
+    use std::thread;
+    use std::time::Duration;
+
+    fn write_daily_node(root: &Path, day: &str, node_id: &str, tags: &str) {
+        let memory_dir = root.join("memory");
+        fs::create_dir_all(&memory_dir).expect("create memory dir");
+        let body = format!(
+            r#"<!-- NODE -->
+node_id: {node_id}
+uid: UID{node_id}
+tags: [{tags}]
+# {node_id} summary
+body
+"#
+        );
+        fs::write(memory_dir.join(format!("{day}.md")), body).expect("write daily node");
+    }
+
+    fn as_map(pairs: &[(&str, &str)]) -> HashMap<String, String> {
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect::<HashMap<String, String>>()
+    }
+
+    #[test]
+    fn query_rejects_when_budget_exceeds_in_reject_mode() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_daily_node(tmp.path(), "2026-03-01", "node.alpha", "memory,policy");
+        let root = tmp.path().to_string_lossy().to_string();
+        let args = as_map(&[
+            ("root", root.as_str()),
+            ("q", "memory"),
+            ("top", "999"),
+            ("budget-mode", "reject"),
+        ]);
+        let out = query_index_payload(&args);
+        assert!(!out.ok);
+        assert_eq!(out.reason_code.as_deref(), Some("recall_budget_exceeded"));
+    }
+
+    #[test]
+    fn query_trims_budget_when_trim_mode_enabled() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_daily_node(tmp.path(), "2026-03-01", "node.alpha", "memory,policy");
+        let root = tmp.path().to_string_lossy().to_string();
+        let args = as_map(&[
+            ("root", root.as_str()),
+            ("q", "memory"),
+            ("top", "999"),
+            ("max-files", "99"),
+            ("expand-lines", "999"),
+            ("budget-mode", "trim"),
+        ]);
+        let out = query_index_payload(&args);
+        assert!(out.ok);
+        let policy = out.policy.expect("policy");
+        assert_eq!(policy["budget"]["trimmed"], true);
+        assert_eq!(policy["budget"]["effective"]["top"], 50);
+        assert_eq!(policy["budget"]["effective"]["max_files"], 20);
+        assert_eq!(policy["budget"]["effective"]["expand_lines"], 300);
+    }
+
+    #[test]
+    fn query_fail_closed_when_index_is_stale() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let index_dir = tmp.path().join("client/memory");
+        fs::create_dir_all(&index_dir).expect("index dir");
+        fs::write(
+            index_dir.join("MEMORY_INDEX.md"),
+            r#"# MEMORY_INDEX.md
+| node_id | uid | tags | file | summary |
+|---|---|---|---|---|
+| `node.alpha` | `UIDALPHA` | #memory | `client/memory/2026-03-01.md` | alpha |
+"#,
+        )
+        .expect("write memory index");
+        thread::sleep(Duration::from_millis(1200));
+        let root = tmp.path().to_string_lossy().to_string();
+        let args = as_map(&[
+            ("root", root.as_str()),
+            ("q", "memory"),
+            ("max-index-age-ms", "1000"),
+            ("budget-mode", "trim"),
+            ("disable-sqlite", "1"),
+        ]);
+        let out = query_index_payload(&args);
+        assert!(!out.ok);
+        assert_eq!(out.reason_code.as_deref(), Some("index_stale_blocked"));
+    }
+
+    #[test]
+    fn query_fail_closed_when_burn_slo_exceeded() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_daily_node(tmp.path(), "2026-03-01", "node.alpha", "memory,policy");
+        let root = tmp.path().to_string_lossy().to_string();
+        let args = as_map(&[
+            ("root", root.as_str()),
+            ("q", "memory"),
+            ("burn-threshold", "200"),
+            ("burn-mode", "reject"),
+            ("startup-token-estimate", "80"),
+            ("hydration-token-estimate", "80"),
+            ("response-token-estimate", "120"),
+            ("budget-mode", "trim"),
+        ]);
+        let out = query_index_payload(&args);
+        assert!(!out.ok);
+        assert_eq!(out.reason_code.as_deref(), Some("burn_threshold_exceeded"));
+        assert_eq!(out.burn_slo.expect("burn")["ok"], false);
+    }
+
+    #[test]
+    fn bootstrap_guard_blocks_eager_hydration() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_daily_node(tmp.path(), "2026-03-01", "node.alpha", "memory,policy");
+        let root = tmp.path().to_string_lossy().to_string();
+        let args = as_map(&[
+            ("root", root.as_str()),
+            ("q", "memory"),
+            ("bootstrap", "1"),
+            ("hydrate-mode", "eager"),
+            ("budget-mode", "trim"),
+        ]);
+        let out = query_index_payload(&args);
+        assert!(!out.ok);
+        assert_eq!(
+            out.reason_code.as_deref(),
+            Some("bootstrap_requires_lazy_hydration")
+        );
+    }
+
+    #[test]
+    fn get_node_is_fail_closed_without_node_or_uid() {
+        let args = HashMap::new();
+        let (out, code) = get_node_payload(&args);
+        assert_eq!(code, 2);
+        assert_eq!(out["ok"], false);
+        assert_eq!(out["error"], "missing_node_or_uid");
     }
 }
