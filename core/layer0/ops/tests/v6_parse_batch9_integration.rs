@@ -139,6 +139,33 @@ fn v6_parse_batch9_table_flatten_and_template_governance_lanes_work() {
     assert_claim(&flat_latest, "V6-PARSE-001.4");
     assert_claim(&flat_latest, "V6-PARSE-001.6");
 
+    let export_out = root.join("artifacts").join("parse").join("batch9_export.json");
+    let export_exit = parse_plane::run(
+        root,
+        &[
+            "export".to_string(),
+            "--strict=1".to_string(),
+            format!("--from-path={}", latest_path(root).display()),
+            format!("--output-path={}", export_out.display()),
+            "--format=json".to_string(),
+        ],
+    );
+    assert_eq!(export_exit, 0);
+    let export_latest = read_json(&latest_path(root));
+    assert_eq!(
+        export_latest.get("type").and_then(Value::as_str),
+        Some("parse_plane_export")
+    );
+    assert_eq!(
+        export_latest.get("ok").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert!(
+        export_out.exists(),
+        "parse export must write the requested output artifact"
+    );
+    assert_claim(&export_latest, "V6-PARSE-001.6");
+
     let templates_root = root
         .join("planes")
         .join("contracts")
