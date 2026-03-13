@@ -301,7 +301,19 @@ pub(super) fn command_sensory(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
             "lane": "core/layer0/ops",
             "pain": pain,
             "pleasure": pleasure,
-            "adjustment": adjustment
+            "adjustment": adjustment,
+            "claim_evidence": [
+                {
+                    "id": "v8_organism_001_6",
+                    "claim": "internal_sensory_feedback_is_integrated_into_runtime_regulation_loops",
+                    "evidence": {
+                        "pain": pain,
+                        "pleasure": pleasure,
+                        "adjustment": adjustment,
+                        "reflect_invoked": apply && allowed
+                    }
+                }
+            ]
         }),
     )
 }
@@ -358,7 +370,18 @@ pub(super) fn command_narrative(root: &Path, parsed: &crate::ParsedArgs) -> i32 
             "type": "organism_layer_narrative",
             "lane": "core/layer0/ops",
             "apply": apply,
-            "entry": entry
+            "entry": entry,
+            "claim_evidence": [
+                {
+                    "id": "v8_organism_001_7",
+                    "claim": "generative_internal_narrative_is_persisted_with_coherence_state",
+                    "evidence": {
+                        "summary": summary,
+                        "coherence": coherence,
+                        "narrative_count": count_jsonl_rows(&narrative_log_path(root))
+                    }
+                }
+            ]
         }),
     )
 }

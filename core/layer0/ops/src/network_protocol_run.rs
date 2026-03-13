@@ -11,6 +11,7 @@ pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
     if matches!(command.as_str(), "help" | "--help" | "-h") {
         println!("Usage:");
         println!("  protheus-ops network-protocol status");
+        println!("  protheus-ops network-protocol dashboard");
         println!("  protheus-ops network-protocol ignite-bitcoin [--seed=<text>] [--apply=1|0]");
         println!("  protheus-ops network-protocol stake [--action=stake|reward|slash] [--agent=<id>] [--amount=<n>] [--reason=<text>]");
         println!("  protheus-ops network-protocol merkle-root [--account=<id>] [--proof=1|0]");
@@ -31,6 +32,88 @@ pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
         out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
         print_json(&out);
         return 0;
+    }
+
+    if command == "dashboard" {
+        let ledger = load_ledger(root);
+        let policy_hash = directive_kernel::directive_vault_hash(root);
+        let leaves = leaves_for_root(&ledger, &policy_hash);
+        let global_merkle_root = deterministic_merkle_root(&leaves);
+        let balances = ledger
+            .get("balances")
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        let staked = ledger
+            .get("staked")
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        let zk_claims = ledger
+            .get("zk_claims")
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        let verified_claims = zk_claims
+            .values()
+            .filter(|row| {
+                row.get("verified")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+            })
+            .count();
+        let total_balance = balances
+            .values()
+            .filter_map(Value::as_f64)
+            .fold(0.0f64, |acc, amount| acc + amount);
+        let total_staked = staked
+            .values()
+            .filter_map(Value::as_f64)
+            .fold(0.0f64, |acc, amount| acc + amount);
+        let emission = ledger.get("emission").cloned().unwrap_or(Value::Null);
+
+        return emit(
+            root,
+            json!({
+                "ok": true,
+                "type": "network_protocol_dashboard",
+                "lane": "core/layer0/ops",
+                "activation_command": "protheus network ignite bitcoin",
+                "token_flow": {
+                    "accounts": balances.len(),
+                    "total_balance": total_balance,
+                    "total_staked": total_staked
+                },
+                "ledger_health": {
+                    "global_merkle_root": global_merkle_root,
+                    "root_head": ledger.get("root_head").cloned().unwrap_or(Value::Null),
+                    "leaf_count": leaves.len(),
+                    "height": ledger.get("height").cloned().unwrap_or(Value::from(0))
+                },
+                "emission_curve": emission,
+                "zk_claims": {
+                    "total": zk_claims.len(),
+                    "verified": verified_claims
+                },
+                "network_organism_view": {
+                    "tokenomics": true,
+                    "merkle_state": true,
+                    "emission": true,
+                    "zk_claims": true
+                },
+                "claim_evidence": [
+                    {
+                        "id": "v8_network_002_5_activation_contract",
+                        "claim": "network_organism_dashboard_surfaces_token_ledger_emission_and_claim_health",
+                        "evidence": {
+                            "global_merkle_root": global_merkle_root,
+                            "verified_claims": verified_claims,
+                            "total_accounts": balances.len()
+                        }
+                    }
+                ]
+            }),
+        );
     }
 
     if command == "ignite-bitcoin"
