@@ -192,6 +192,10 @@ mod tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    fn env_guard() -> std::sync::MutexGuard<'static, ()> {
+        crate::test_env_guard()
+    }
+
     fn temp_root(name: &str) -> PathBuf {
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -219,6 +223,7 @@ mod tests {
 
     #[test]
     fn dream_writes_log_when_allowed() {
+        let _guard = env_guard();
         let root = temp_root("dream");
         allow(&root, "allow:organism:dream");
         let exit = run(
@@ -238,6 +243,7 @@ mod tests {
 
     #[test]
     fn ignite_materializes_full_view_when_allowed() {
+        let _guard = env_guard();
         let root = temp_root("ignite_full");
         allow(&root, "allow:organism:ignite");
         let exit = run(
@@ -268,6 +274,7 @@ mod tests {
 
     #[test]
     fn mutate_routes_into_rsi_pipeline_when_allowed() {
+        let _guard = env_guard();
         let root = temp_root("mutate");
         allow(&root, "allow:organism:mutate");
         allow(&root, "allow:rsi:ignite");
@@ -291,6 +298,7 @@ mod tests {
 
     #[test]
     fn narrative_fails_closed_without_gate() {
+        let _guard = env_guard();
         let root = temp_root("narrative_gate");
         let exit = run(
             &root,

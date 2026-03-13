@@ -273,6 +273,10 @@ mod tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    fn env_guard() -> std::sync::MutexGuard<'static, ()> {
+        crate::test_env_guard()
+    }
+
     fn temp_root(name: &str) -> PathBuf {
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -300,6 +304,7 @@ mod tests {
 
     #[test]
     fn stake_updates_balance_and_writes_root() {
+        let _guard = env_guard();
         let root = temp_root("stake");
         allow_tokenomics(&root);
         assert_eq!(
@@ -329,6 +334,7 @@ mod tests {
 
     #[test]
     fn ignite_bitcoin_requires_directive_gate_when_apply_is_true() {
+        let _guard = env_guard();
         let root = temp_root("ignite_gate");
         let denied = run(
             &root,
@@ -361,6 +367,7 @@ mod tests {
 
     #[test]
     fn emission_requires_directive_gate() {
+        let _guard = env_guard();
         let root = temp_root("emission_gate");
         let denied = run(
             &root,
@@ -395,6 +402,7 @@ mod tests {
 
     #[test]
     fn zk_claim_strict_mode_fails_without_valid_proof() {
+        let _guard = env_guard();
         let root = temp_root("zk");
         let denied = run(
             &root,

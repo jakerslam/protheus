@@ -18,6 +18,10 @@ fn temp_root(name: &str) -> PathBuf {
     root
 }
 
+fn env_guard() -> std::sync::MutexGuard<'static, ()> {
+    crate::test_env_guard()
+}
+
 fn allow_graph(root: &Path, pattern: &str) {
     std::env::set_var("DIRECTIVE_KERNEL_SIGNING_KEY", "graph-test-signing");
     let exit = directive_kernel::run(
@@ -55,6 +59,7 @@ fn latest(root: &Path) -> Value {
 
 #[test]
 fn pagerank_materializes_and_caches() {
+    let _guard = env_guard();
     let root = temp_root("pagerank");
     allow_graph(&root, "graph:pagerank");
     let encoded = graph_b64();
@@ -80,6 +85,7 @@ fn pagerank_materializes_and_caches() {
 
 #[test]
 fn louvain_and_label_propagation_build_communities() {
+    let _guard = env_guard();
     let root = temp_root("communities");
     allow_graph(&root, "graph:louvain");
     allow_graph(&root, "graph:label-propagation");
@@ -130,6 +136,7 @@ fn louvain_and_label_propagation_build_communities() {
 
 #[test]
 fn jaccard_betweenness_and_link_prediction_emit_expected_shapes() {
+    let _guard = env_guard();
     let root = temp_root("similarity");
     allow_graph(&root, "graph:jaccard");
     allow_graph(&root, "graph:betweenness");
@@ -198,6 +205,7 @@ fn jaccard_betweenness_and_link_prediction_emit_expected_shapes() {
 
 #[test]
 fn command_fails_closed_without_directive() {
+    let _guard = env_guard();
     let root = temp_root("fail_closed");
     let encoded = graph_b64();
     let exit = run(

@@ -12,6 +12,10 @@ fn temp_root(name: &str) -> PathBuf {
     root
 }
 
+fn env_guard() -> std::sync::MutexGuard<'static, ()> {
+    crate::test_env_guard()
+}
+
 fn allow(root: &Path, directive: &str) {
     std::env::set_var("DIRECTIVE_KERNEL_SIGNING_KEY", "test-sign-key");
     let exit = crate::directive_kernel::run(
@@ -27,6 +31,7 @@ fn allow(root: &Path, directive: &str) {
 
 #[test]
 fn add_key_does_not_persist_raw_secret() {
+    let _guard = env_guard();
     let root = temp_root("add_key");
     allow(&root, "allow:keys:add");
     std::env::set_var(VAULT_KEY_ENV, "vault-secret");
@@ -51,6 +56,7 @@ fn add_key_does_not_persist_raw_secret() {
 
 #[test]
 fn rotate_and_revoke_key_lifecycle_is_receipted() {
+    let _guard = env_guard();
     let root = temp_root("rotate_revoke");
     allow(&root, "allow:keys:add");
     allow(&root, "allow:keys:rotate");
@@ -153,6 +159,7 @@ fn rotate_and_revoke_key_lifecycle_is_receipted() {
 
 #[test]
 fn buy_credits_nexus_debits_network_balance() {
+    let _guard = env_guard();
     let root = temp_root("buy_nexus");
     allow(&root, "allow:tokenomics");
     allow(&root, "allow:credits:buy");
@@ -201,6 +208,7 @@ fn buy_credits_nexus_debits_network_balance() {
 
 #[test]
 fn autobuy_apply_executes_purchase_when_below_threshold() {
+    let _guard = env_guard();
     let root = temp_root("autobuy");
     allow(&root, "allow:tokenomics");
     allow(&root, "allow:credits:buy");
@@ -249,6 +257,7 @@ fn autobuy_apply_executes_purchase_when_below_threshold() {
 
 #[test]
 fn workspace_view_emits_credit_health_cards_with_remaining_bars() {
+    let _guard = env_guard();
     let root = temp_root("workspace_view");
     allow(&root, "allow:credits:*");
     assert_eq!(

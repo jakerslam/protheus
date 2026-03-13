@@ -1066,6 +1066,10 @@ mod tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    fn env_guard() -> std::sync::MutexGuard<'static, ()> {
+        crate::test_env_guard()
+    }
+
     fn temp_root(name: &str) -> PathBuf {
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -1093,6 +1097,7 @@ mod tests {
 
     #[test]
     fn deploy_viral_writes_packet_and_replications() {
+        let _guard = env_guard();
         let root = temp_root("deploy_viral");
         allow(&root, "allow:seed:*");
         let exit = run(
@@ -1118,6 +1123,7 @@ mod tests {
 
     #[test]
     fn migrate_immortal_selects_low_power_target() {
+        let _guard = env_guard();
         let root = temp_root("migrate_immortal");
         allow(&root, "allow:seed:*");
         let exit = run(
@@ -1146,6 +1152,7 @@ mod tests {
 
     #[test]
     fn enforce_denied_quarantines_node() {
+        let _guard = env_guard();
         let root = temp_root("enforce_denied");
         let exit = run(
             &root,
@@ -1172,6 +1179,7 @@ mod tests {
 
     #[test]
     fn select_uses_network_balances() {
+        let _guard = env_guard();
         let root = temp_root("select");
         allow(&root, "allow:seed:*");
         allow(&root, "allow:tokenomics");
@@ -1226,6 +1234,7 @@ mod tests {
 
     #[test]
     fn archive_updates_merkle_root() {
+        let _guard = env_guard();
         let root = temp_root("archive");
         allow(&root, "allow:seed:*");
         assert_eq!(

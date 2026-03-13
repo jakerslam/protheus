@@ -11,6 +11,10 @@ fn temp_root(name: &str) -> PathBuf {
     root
 }
 
+fn env_guard() -> std::sync::MutexGuard<'static, ()> {
+    crate::test_env_guard()
+}
+
 fn allow(root: &Path, directive: &str) {
     std::env::set_var("DIRECTIVE_KERNEL_SIGNING_KEY", "test-sign-key");
     assert_eq!(
@@ -28,6 +32,7 @@ fn allow(root: &Path, directive: &str) {
 
 #[test]
 fn ignite_requires_directive_gate() {
+    let _guard = env_guard();
     let root = temp_root("gate");
     let exit = run(
         &root,
@@ -43,6 +48,7 @@ fn ignite_requires_directive_gate() {
 
 #[test]
 fn ignite_mutates_when_allowed() {
+    let _guard = env_guard();
     let root = temp_root("allowed");
     allow(&root, "allow:rsi:ignite");
     allow(&root, "allow:blob:mutate");
@@ -81,6 +87,7 @@ fn ignite_mutates_when_allowed() {
 
 #[test]
 fn swarm_skips_reward_when_tokenomics_gate_missing() {
+    let _guard = env_guard();
     let root = temp_root("swarm_no_tokenomics");
     allow(&root, "allow:rsi:swarm");
     let exit = run(
@@ -107,6 +114,7 @@ fn swarm_skips_reward_when_tokenomics_gate_missing() {
 
 #[test]
 fn evolve_apply_writes_proactive_state() {
+    let _guard = env_guard();
     let root = temp_root("evolve");
     allow(&root, "allow:rsi:evolve");
     let exit = run(
