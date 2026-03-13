@@ -1,7 +1,29 @@
 #!/usr/bin/env node
 'use strict';
-const { runLegacyAlias } = require('../../../lib/legacy_alias_adapter.ts');
+const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 
-runLegacyAlias({
-  alias_rel: 'systems/sensory/dynamic_source_reliability_graph.js'
-}, process.argv.slice(2));
+const SYSTEM_ID = 'SYSTEMS-SENSORY-DYNAMIC_SOURCE_RELIABILITY_GRAPH';
+const bridge = createOpsLaneBridge(__dirname, 'dynamic_source_reliability_graph', 'runtime-systems', {
+  inheritStdio: true
+});
+
+function run(args = process.argv.slice(2)) {
+  const out = bridge.run([`--system-id=${SYSTEM_ID}`].concat(Array.isArray(args) ? args : []));
+  if (out && out.stdout) process.stdout.write(out.stdout);
+  if (out && out.stderr) process.stderr.write(out.stderr);
+  if (out && out.payload && !out.stdout) {
+    process.stdout.write(`${JSON.stringify(out.payload)}\n`);
+  }
+  return out;
+}
+
+if (require.main === module) {
+  const out = run(process.argv.slice(2));
+  process.exit(Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1);
+}
+
+module.exports = {
+  lane: bridge.lane,
+  systemId: SYSTEM_ID,
+  run
+};

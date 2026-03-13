@@ -1,7 +1,27 @@
 #!/usr/bin/env node
 'use strict';
-const { runLegacyAlias } = require('../../../lib/legacy_alias_adapter.ts');
+const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
 
-runLegacyAlias({
-  alias_rel: 'systems/fractal/child_organ_runtime.js'
-}, process.argv.slice(2));
+const bridge = createOpsLaneBridge(__dirname, 'child_organ_runtime', 'child-organ-runtime', {
+  inheritStdio: true
+});
+
+function run(args = process.argv.slice(2)) {
+  const out = bridge.run(Array.isArray(args) ? args : []);
+  if (out && out.stdout) process.stdout.write(out.stdout);
+  if (out && out.stderr) process.stderr.write(out.stderr);
+  if (out && out.payload && !out.stdout) {
+    process.stdout.write(`${JSON.stringify(out.payload)}\n`);
+  }
+  return out;
+}
+
+if (require.main === module) {
+  const out = run(process.argv.slice(2));
+  process.exit(Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1);
+}
+
+module.exports = {
+  lane: bridge.lane,
+  run
+};

@@ -7,118 +7,11 @@ use protheus_ops_core::{
 use serde_json::{json, Value};
 use std::env;
 use std::path::PathBuf;
+#[path = "ops_main_usage.rs"]
+mod ops_main_usage;
 
 fn usage() {
-    println!("Usage:");
-    println!("  protheus-ops runtime-efficiency-floor run [--strict=1|0] [--policy=<path>]");
-    println!("  protheus-ops runtime-efficiency-floor status [--policy=<path>]");
-    println!("  protheus-ops benchmark-matrix <run|status> [--snapshot=<path>] [--refresh-runtime=1|0] [--bar-width=44]");
-    println!("  protheus-ops f100-reliability-certification <run|status> [--strict=1|0] [--policy=<path>]");
-    println!("  protheus-ops sdlc-change-control <run|status> [--strict=1|0] [--policy=<path>] [--pr-body-path=<path>] [--changed-paths-path=<path>]");
-    println!("  protheus-ops supply-chain-provenance-v2 <run|status> [--strict=1|0] [--policy=<path>] [--bundle-path=<path>] [--vuln-summary-path=<path>]");
-    println!("  protheus-ops f100-readiness-program <run|run-all|status> [--lane=<V6-F100-XXX>] [--strict=1|0] [--apply=1|0] [--policy=<path>]");
-    println!("  protheus-ops identity-federation <authorize|scim-lifecycle|status> [flags]");
-    println!("  protheus-ops audit-log-export <export|status> [flags]");
-    println!("  protheus-ops model-router <args>");
-    println!("  protheus-ops intelligence-nexus <status|open|add-key|credits-status|buy-credits|autobuy-evaluate> [flags]");
-    println!("  protheus-ops network-protocol <status|ignite-bitcoin|stake|merkle-root|emission|zk-claim> [flags]");
-    println!("  protheus-ops binary-blob-runtime <status|migrate|settle|mutate|substrate-probe|debug-access> [flags]");
-    println!("  protheus-ops directive-kernel <status|prime-sign|derive|compliance-check|bridge-rsi|migrate> [flags]");
-    println!("  protheus-ops rsi-ignition <status|ignite|reflect|swarm|evolve> [flags]");
-    println!("  protheus-ops organism-layer <status|ignite|dream|homeostasis|crystallize|symbiosis|mutate|sensory|narrative> [flags]");
-    println!("  protheus-ops graph-toolkit <status|pagerank|louvain|jaccard|label-propagation|betweenness|predict-links|centrality|communities> [flags]");
-    println!("  protheus-ops ab-lane-eval <status|run> [flags]");
-    println!("  protheus-ops contract-check <args>");
-    println!("  protheus-ops security-plane <guard|anti-sabotage-shield|constitution-guardian|remote-emergency-halt|soul-token-guard|integrity-reseal|integrity-reseal-assistant|capability-lease|startup-attestation|status> [flags]");
-    println!("  protheus-ops enterprise-hardening <run|status> [--strict=1|0] [--policy=<path>]");
-    println!("  protheus-ops rollout-rings <status|evaluate> [flags]");
-    println!("  protheus-ops strategy-mode-governor <args>");
-    println!(
-        "  protheus-ops strategy-resolver <status|invoke> [--payload=<json>|--payload-file=<path>]"
-    );
-    println!("  protheus-ops status [--dashboard]");
-    println!("  protheus-ops daemon-control <start|stop|restart|status|attach|subscribe|tick|diagnostics> [flags]");
-    println!("  protheus-ops command-center-session <register|resume|send|status|list> [flags]");
-    println!("  protheus-ops organ-atrophy-controller <scan|status|revive> [flags]");
-    println!("  protheus-ops narrow-agent-parity-harness <run|status> [flags]");
-    println!("  protheus-ops offsite-backup <sync|restore-drill|status|diagnose|list> [flags]");
-    println!("  protheus-ops settlement-program <list|run|run-all|settle|revert|edit-core|edit-module|status> [flags]");
-    println!("  protheus-ops llm-economy-organ <run|enable|dashboard|status> [flags]");
-    println!("  protheus-ops metakernel <status|registry|manifest|invariants> [flags]");
-    println!("  protheus-ops backlog-queue-executor <run|status> [flags]");
-    println!("  protheus-ops backlog-runtime-anchor <build|verify> --lane-id=<V3-RACE-XXX>");
-    println!("  protheus-ops legacy-retired-lane <build|verify> --lane-id=<SYSTEMS-OPS-...>");
-    println!("  protheus-ops inversion-controller <command> [flags]");
-    println!("  protheus-ops health-status <command> [flags]");
-    println!("  protheus-ops foundation-contract-gate <run|status> [flags]");
-    println!(
-        "  protheus-ops origin-integrity <run|status|certificate|seed-bootstrap-verify> [flags]"
-    );
-    println!("  protheus-ops state-kernel <command> [flags]");
-    println!("  protheus-ops shadow-budget-governance <evaluate|status> [flags]");
-    println!("  protheus-ops adaptive-runtime <tick|status> [flags]");
-    println!("  protheus-ops offline-runtime-guard <evaluate|status> [flags]");
-    println!("  protheus-ops hardware-route-hardening <evaluate|status> [flags]");
-    println!("  protheus-ops autonomy-controller <command> [flags]");
-    println!("  protheus-ops autotest-controller <command> [flags]");
-    println!("  protheus-ops autotest-doctor <command> [flags]");
-    println!("  protheus-ops autonomy-proposal-enricher <command> [flags]");
-    println!("  protheus-ops spine <mode> [date] [flags]");
-    println!("  protheus-ops attention-queue <enqueue|status> [flags]");
-    println!("  protheus-ops memory-ambient <run|status> [flags]");
-    println!(
-        "  protheus-ops duality-seed <status|invoke> [--payload=<json>|--payload-file=<path>]"
-    );
-    println!("  protheus-ops persona-ambient <apply|status> [flags]");
-    println!("  protheus-ops dopamine-ambient <closeout|status|evaluate> [flags]");
-    println!("  protheus-ops persona-schema-contract <validate|status> [--strict=1|0] [--schema-mode=<id>] [--payload=<json>|--input=<path>]");
-    println!("  protheus-ops protheusctl <command> [flags]");
-    println!("  protheus-ops rag <status|start|ingest|search|chat|merge-vault|memory> [flags]");
-    println!("  protheus-ops personas-cli <command> [flags]");
-    println!(
-        "  protheus-ops autophagy-auto-approval <evaluate|monitor|commit|rollback|status> [flags]"
-    );
-    println!("  protheus-ops adaptive-contract-version-governance <run|status> [flags]");
-    println!("  protheus-ops assimilation-controller <command> [flags]");
-    println!("  protheus-ops collector-cache <load|save|status> [flags]");
-    println!("  protheus-ops contribution-oracle <validate|status> [flags]");
-    println!("  protheus-ops sensory-eyes-intake <command> [flags]");
-    println!("  protheus-ops spawn-broker <status|request|release> [flags]");
-    println!("  protheus-ops execution-yield-recovery <command> [flags]");
-    println!("  protheus-ops protheus-control-plane <command> [flags]");
-    println!("  protheus-ops rust50-migration-program <command> [flags]");
-    println!("  protheus-ops venom-containment-layer <command> [flags]");
-    println!("  protheus-ops dynamic-burn-budget-oracle <command> [flags]");
-    println!("  protheus-ops backlog-registry <command> [flags]");
-    println!("  protheus-ops rust-enterprise-productivity-program <command> [flags]");
-    println!("  protheus-ops backlog-github-sync <command> [flags]");
-    println!("  protheus-ops workflow-controller <command> [flags]");
-    println!("  protheus-ops workflow-executor <command> [flags]");
-    println!("  protheus-ops fluxlattice-program <list|run|run-all|status> [flags]");
-    println!("  protheus-ops perception-polish-program <list|run|run-all|status> [flags]");
-    println!("  protheus-ops scale-readiness-program <list|run|run-all|status> [flags]");
-    println!("  protheus-ops opendev-dual-agent <run|status> [flags]");
-    println!("  protheus-ops company-layer-orchestration <run|status> [flags]");
-    println!("  protheus-ops wifi-csi-engine <run|status> [flags]");
-    println!("  protheus-ops biological-computing-adapter <run|status> [flags]");
-    println!("  protheus-ops observability-automation-engine <run|status> [flags]");
-    println!("  protheus-ops observability-slo-runbook-closure <run|status> [flags]");
-    println!("  protheus-ops persistent-background-runtime <run|status> [flags]");
-    println!("  protheus-ops workspace-gateway-runtime <run|status> [flags]");
-    println!("  protheus-ops p2p-gossip-seed <run|status> [flags]");
-    println!("  protheus-ops startup-agency-builder <run|status> [flags]");
-    println!("  protheus-ops timeseries-receipt-engine <run|status> [flags]");
-    println!("  protheus-ops webgpu-inference-adapter <run|status> [flags]");
-    println!("  protheus-ops context-doctor <run|status> [flags]");
-    println!("  protheus-ops discord-swarm-orchestration <run|status> [flags]");
-    println!("  protheus-ops bookmark-knowledge-pipeline <run|status> [flags]");
-    println!("  protheus-ops public-api-catalog <run|status> [flags]");
-    println!("  protheus-ops decentralized-data-marketplace <run|status> [flags]");
-    println!("  protheus-ops autoresearch-loop <run|status> [flags]");
-    println!("  protheus-ops intel-sweep-router <run|status> [flags]");
-    println!("  protheus-ops gui-drift-manager <run|status> [flags]");
-    println!("  protheus-ops release-gate-canary-rollback-enforcer <gate|status> [flags]");
-    println!("  protheus-ops srs-contract-runtime <run|run-many|status> [--id=<V6-...>|--ids=<csv>|--ids-file=<path>] [flags]");
+    ops_main_usage::print_usage();
 }
 
 fn print_json(value: &serde_json::Value) {
@@ -283,6 +176,26 @@ fn main() {
         "rsi-ignition" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::rsi_ignition::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "continuity-runtime" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::continuity_runtime::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "memory-plane" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::memory_plane::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "runtime-systems" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::runtime_systems::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "child-organ-runtime" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::child_organ_runtime::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "organism-layer" => {

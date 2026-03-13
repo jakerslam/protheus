@@ -1,35 +1,40 @@
 #!/usr/bin/env node
 'use strict';
 
-const path = require('path');
 const { createOpsLaneBridge } = require('./rust_lane_bridge.ts');
 
-function mapArgs(args = [], laneId) {
+function normalizeLaneId(raw, fallback = 'RUNTIME-LEGACY-RETIRED') {
+  const v = String(raw || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9_.-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return v || fallback;
+}
+
+function laneIdFromRuntimePath(filePath) {
+  const path = require('path');
+  const runtimeRoot = path.resolve(__dirname, '..');
+  const rel = path
+    .relative(runtimeRoot, filePath)
+    .replace(/\\/g, '/')
+    .replace(/\.[^.]+$/, '');
+  return normalizeLaneId(`RUNTIME-${rel}`);
+}
+
+function mapArgs(args = []) {
   const cmd = String((Array.isArray(args) && args[0]) || '').trim().toLowerCase();
-  if (cmd === 'status' || cmd === 'verify') {
-    return ['verify', `--lane-id=${laneId}`];
-  }
-  return ['build', `--lane-id=${laneId}`];
+  if (!cmd || cmd === 'run') return ['run'];
+  if (cmd === 'status' || cmd === 'verify') return ['status'];
+  return args.map((v) => String(v));
 }
 
 function createLegacyRetiredModule(scriptDir, scriptName, laneId) {
-  process.env.PROTHEUS_CONDUIT_STARTUP_PROBE = '0';
-  process.env.PROTHEUS_CONDUIT_COMPAT_FALLBACK = '0';
-  process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS =
-    process.env.PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS || '15000';
-  process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS =
-    process.env.PROTHEUS_OPS_LOCAL_TIMEOUT_MS || '20000';
-  // Retired lanes should use the existing core binary in this host profile
-  // instead of triggering fresh cargo builds during wrapper execution.
-  process.env.PROTHEUS_OPS_USE_PREBUILT =
-    process.env.PROTHEUS_OPS_USE_PREBUILT || '1';
-  process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL =
-    process.env.PROTHEUS_OPS_DEFER_ON_HOST_STALL || '0';
-
-  const bridge = createOpsLaneBridge(scriptDir, scriptName, 'legacy-retired-lane');
+  const bridge = createOpsLaneBridge(scriptDir, scriptName, 'runtime-systems');
+  const normalized = normalizeLaneId(laneId);
 
   function run(args = []) {
-    const out = bridge.run(mapArgs(args, laneId));
+    const pass = mapArgs(Array.isArray(args) ? args : []);
+    const out = bridge.run([`--lane-id=${normalized}`].concat(pass));
     if (out && out.stdout) process.stdout.write(out.stdout);
     if (out && out.stderr) process.stderr.write(out.stderr);
     if (out && out.payload && !out.stdout) {
@@ -46,24 +51,7 @@ function createLegacyRetiredModule(scriptDir, scriptName, laneId) {
 
 function runAsMain(mod, argv = []) {
   const out = mod.run(argv);
-  process.exit(Number.isFinite(out && out.status) ? Number(out.status) : 1);
-}
-
-function normalizeLaneId(raw, fallback = 'RUNTIME-LEGACY-RETIRED') {
-  const v = String(raw || '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9_.-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  return v || fallback;
-}
-
-function laneIdFromRuntimePath(filePath) {
-  const runtimeRoot = path.resolve(__dirname, '..');
-  const rel = path
-    .relative(runtimeRoot, filePath)
-    .replace(/\\/g, '/')
-    .replace(/\.[^.]+$/, '');
-  return normalizeLaneId(`RUNTIME-${rel}`);
+  process.exit(Number.isFinite(Number(out && out.status)) ? Number(out.status) : 1);
 }
 
 module.exports = {

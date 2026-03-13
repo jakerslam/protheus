@@ -254,15 +254,17 @@ fn build_invocation(argv: &[String]) -> Result<Invocation, String> {
             memory_args: normalize_search_args(
                 &argv
                     .iter()
-                    .skip(if argv
-                        .get(1)
-                        .map(|v| v.trim().eq_ignore_ascii_case("nano"))
-                        .unwrap_or(false)
-                    {
-                        2
-                    } else {
-                        1
-                    })
+                    .skip(
+                        if argv
+                            .get(1)
+                            .map(|v| v.trim().eq_ignore_ascii_case("nano"))
+                            .unwrap_or(false)
+                        {
+                            2
+                        } else {
+                            1
+                        },
+                    )
                     .cloned()
                     .collect::<Vec<_>>(),
             ),
@@ -293,7 +295,9 @@ fn build_invocation(argv: &[String]) -> Result<Invocation, String> {
                 }),
                 "chat" => Ok(Invocation::MemoryRun {
                     memory_command: "stable-nano-chat".to_string(),
-                    memory_args: normalize_search_args(&argv.iter().skip(2).cloned().collect::<Vec<_>>()),
+                    memory_args: normalize_search_args(
+                        &argv.iter().skip(2).cloned().collect::<Vec<_>>(),
+                    ),
                 }),
                 _ => Err("nano_unknown_action".to_string()),
             }
@@ -458,8 +462,8 @@ mod tests {
 
     #[test]
     fn memory_taxonomy_routes_to_stable_taxonomy() {
-        let inv = build_invocation(&["memory".to_string(), "taxonomy".to_string()])
-            .expect("invocation");
+        let inv =
+            build_invocation(&["memory".to_string(), "taxonomy".to_string()]).expect("invocation");
         match inv {
             Invocation::MemoryRun { memory_command, .. } => {
                 assert_eq!(memory_command, "stable-memory-taxonomy");
