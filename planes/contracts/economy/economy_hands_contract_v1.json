@@ -5,10 +5,18 @@
   "allowed_actions": [
     "status",
     "dashboard",
+    "enable",
+    "upgrade-trading-hand",
+    "debate-bullbear",
+    "alpaca-execute",
     "virtuals-acp",
     "bankrbot-defi",
     "jobs-marketplace",
-    "skills-marketplace"
+    "skills-marketplace",
+    "fairscale-credit",
+    "mining-hand",
+    "trade-router",
+    "model-support-refresh"
   ],
   "safety": {
     "conduit_only": true,
@@ -27,6 +35,36 @@
     },
     "skills-marketplace": {
       "receipt_claim_id": "V6-ECONOMY-001.4"
+    },
+    "fairscale-credit": {
+      "receipt_claim_id": "V6-ECONOMY-001.5"
+    },
+    "mining-hand": {
+      "receipt_claim_id": "V6-ECONOMY-001.6"
+    },
+    "trade-router": {
+      "receipt_claim_id": "V6-ECONOMY-001.7"
+    },
+    "enable": {
+      "receipt_claim_id": "V6-ECONOMY-001.8"
+    },
+    "dashboard": {
+      "receipt_claim_id": "V6-ECONOMY-001.8"
+    },
+    "upgrade-trading-hand": {
+      "receipt_claim_id": "V6-ECONOMY-002.1"
+    },
+    "debate-bullbear": {
+      "receipt_claim_id": "V6-ECONOMY-002.2"
+    },
+    "alpaca-execute": {
+      "receipt_claim_id": "V6-ECONOMY-002.3"
+    },
+    "config-metrics-inventory": {
+      "receipt_claim_id": "V6-ECONOMY-002.4"
+    },
+    "model-support-refresh": {
+      "receipt_claim_id": "V6-ECONOMY-002.5"
     }
   }
 }
