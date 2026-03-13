@@ -700,6 +700,21 @@ fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route> {
                 .first()
                 .map(|v| v.trim().to_ascii_lowercase())
                 .unwrap_or_else(|| "status".to_string());
+            if sub == "buy"
+                && rest
+                    .get(1)
+                    .map(|v| v.trim().eq_ignore_ascii_case("credits"))
+                    .unwrap_or(false)
+            {
+                let args = std::iter::once("buy-credits".to_string())
+                    .chain(rest.iter().skip(2).cloned())
+                    .collect::<Vec<_>>();
+                return Some(Route {
+                    script_rel: "core://intelligence-nexus".to_string(),
+                    args,
+                    forward_stdin: false,
+                });
+            }
             let args = match sub.as_str() {
                 "optimize"
                     if rest
@@ -733,6 +748,94 @@ fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route> {
             };
             Some(Route {
                 script_rel: "core://model-router".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
+        "keys" => {
+            let args = if rest.is_empty() {
+                vec!["open".to_string()]
+            } else {
+                rest.to_vec()
+            };
+            Some(Route {
+                script_rel: "core://intelligence-nexus".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
+        "blobs" | "blob" => {
+            let args = if rest.is_empty() {
+                vec!["status".to_string()]
+            } else {
+                rest.to_vec()
+            };
+            Some(Route {
+                script_rel: "core://binary-blob-runtime".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
+        "directives" => {
+            let args = if rest.is_empty() {
+                vec!["status".to_string()]
+            } else {
+                rest.to_vec()
+            };
+            Some(Route {
+                script_rel: "core://directive-kernel".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
+        "prime"
+            if rest
+                .first()
+                .map(|v| v.trim().eq_ignore_ascii_case("sign"))
+                .unwrap_or(false) =>
+        {
+            let args = std::iter::once("prime-sign".to_string())
+                .chain(rest.iter().skip(1).cloned())
+                .collect::<Vec<_>>();
+            Some(Route {
+                script_rel: "core://directive-kernel".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
+        "organism" => {
+            let args = if rest.is_empty() {
+                vec!["status".to_string()]
+            } else {
+                rest.to_vec()
+            };
+            Some(Route {
+                script_rel: "core://organism-layer".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
+        "rsi" => {
+            let args = if rest.is_empty() {
+                vec!["status".to_string()]
+            } else {
+                rest.to_vec()
+            };
+            Some(Route {
+                script_rel: "core://rsi-ignition".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
+        "veto" => {
+            let mut args = vec![
+                "compliance-check".to_string(),
+                "--action=veto".to_string(),
+                "--allow=0".to_string(),
+            ];
+            args.extend(rest.iter().cloned());
+            Some(Route {
+                script_rel: "core://directive-kernel".to_string(),
                 args,
                 forward_stdin: false,
             })
@@ -795,6 +898,24 @@ fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route> {
             })
         }
         "network" => {
+            if rest
+                .first()
+                .map(|v| v.trim().eq_ignore_ascii_case("ignite"))
+                .unwrap_or(false)
+                && rest
+                    .get(1)
+                    .map(|v| v.trim().eq_ignore_ascii_case("bitcoin"))
+                    .unwrap_or(false)
+            {
+                let args = std::iter::once("ignite-bitcoin".to_string())
+                    .chain(rest.iter().skip(2).cloned())
+                    .collect::<Vec<_>>();
+                return Some(Route {
+                    script_rel: "core://network-protocol".to_string(),
+                    args,
+                    forward_stdin: false,
+                });
+            }
             let args = if rest
                 .first()
                 .map(|v| v.trim().eq_ignore_ascii_case("join"))
@@ -1784,22 +1905,17 @@ mod tests {
 
     #[test]
     fn core_shortcut_routes_chat_nano_to_rag_domain() {
-        let route = resolve_core_shortcuts(
-            "chat",
-            &["nano".to_string(), "--q=hello".to_string()],
-        )
-        .expect("route");
+        let route = resolve_core_shortcuts("chat", &["nano".to_string(), "--q=hello".to_string()])
+            .expect("route");
         assert_eq!(route.script_rel, "core://rag");
         assert_eq!(route.args, vec!["chat", "nano", "--q=hello"]);
     }
 
     #[test]
     fn core_shortcut_routes_train_nano_to_rag_domain() {
-        let route = resolve_core_shortcuts(
-            "train",
-            &["nano".to_string(), "--depth=12".to_string()],
-        )
-        .expect("route");
+        let route =
+            resolve_core_shortcuts("train", &["nano".to_string(), "--depth=12".to_string()])
+                .expect("route");
         assert_eq!(route.script_rel, "core://rag");
         assert_eq!(route.args, vec!["train", "nano", "--depth=12"]);
     }
@@ -1885,7 +2001,11 @@ mod tests {
     fn core_shortcut_routes_economy_to_core_domain() {
         let route = resolve_core_shortcuts(
             "economy",
-            &["enable".to_string(), "all".to_string(), "--apply=1".to_string()],
+            &[
+                "enable".to_string(),
+                "all".to_string(),
+                "--apply=1".to_string(),
+            ],
         )
         .expect("route");
         assert_eq!(route.script_rel, "core://llm-economy-organ");
@@ -1904,10 +2024,7 @@ mod tests {
         )
         .expect("route");
         assert_eq!(route.script_rel, "core://llm-economy-organ");
-        assert_eq!(
-            route.args,
-            vec!["upgrade-trading-hand", "--mode=paper"]
-        );
+        assert_eq!(route.args, vec!["upgrade-trading-hand", "--mode=paper"]);
     }
 
     #[test]
@@ -1949,12 +2066,122 @@ mod tests {
     }
 
     #[test]
-    fn core_shortcut_routes_compute_share_to_network_compute_proof() {
+    fn core_shortcut_routes_network_ignite_bitcoin() {
         let route = resolve_core_shortcuts(
-            "compute",
-            &["share".to_string(), "--gpu=1".to_string()],
+            "network",
+            &[
+                "ignite".to_string(),
+                "bitcoin".to_string(),
+                "--apply=1".to_string(),
+            ],
         )
         .expect("route");
+        assert_eq!(route.script_rel, "core://network-protocol");
+        assert_eq!(route.args, vec!["ignite-bitcoin", "--apply=1"]);
+    }
+
+    #[test]
+    fn core_shortcut_routes_keys_open_to_intelligence_nexus() {
+        let route = resolve_core_shortcuts("keys", &["open".to_string()]).expect("route");
+        assert_eq!(route.script_rel, "core://intelligence-nexus");
+        assert_eq!(route.args, vec!["open"]);
+    }
+
+    #[test]
+    fn core_shortcut_routes_blobs_to_binary_blob_runtime() {
+        let route = resolve_core_shortcuts(
+            "blobs",
+            &["migrate".to_string(), "--apply=1".to_string()],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://binary-blob-runtime");
+        assert_eq!(route.args, vec!["migrate", "--apply=1"]);
+    }
+
+    #[test]
+    fn core_shortcut_routes_directives_migrate_to_directive_kernel() {
+        let route = resolve_core_shortcuts(
+            "directives",
+            &["migrate".to_string(), "--apply=1".to_string()],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://directive-kernel");
+        assert_eq!(route.args, vec!["migrate", "--apply=1"]);
+    }
+
+    #[test]
+    fn core_shortcut_routes_prime_sign_to_directive_kernel() {
+        let route = resolve_core_shortcuts(
+            "prime",
+            &["sign".to_string(), "--directive=Always safe".to_string()],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://directive-kernel");
+        assert_eq!(route.args, vec!["prime-sign", "--directive=Always safe"]);
+    }
+
+    #[test]
+    fn core_shortcut_routes_organism_ignite_to_organism_layer() {
+        let route = resolve_core_shortcuts(
+            "organism",
+            &["ignite".to_string(), "--apply=1".to_string()],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://organism-layer");
+        assert_eq!(route.args, vec!["ignite", "--apply=1"]);
+    }
+
+    #[test]
+    fn core_shortcut_routes_rsi_ignite_to_rsi_ignition() {
+        let route = resolve_core_shortcuts(
+            "rsi",
+            &["ignite".to_string(), "--apply=1".to_string()],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://rsi-ignition");
+        assert_eq!(route.args, vec!["ignite", "--apply=1"]);
+    }
+
+    #[test]
+    fn core_shortcut_routes_veto_to_directive_kernel() {
+        let route = resolve_core_shortcuts("veto", &["--action=rsi_proposal".to_string()])
+            .expect("route");
+        assert_eq!(route.script_rel, "core://directive-kernel");
+        assert_eq!(
+            route.args,
+            vec![
+                "compliance-check",
+                "--action=veto",
+                "--allow=0",
+                "--action=rsi_proposal"
+            ]
+        );
+    }
+
+    #[test]
+    fn core_shortcut_routes_model_buy_credits_to_intelligence_nexus() {
+        let route = resolve_core_shortcuts(
+            "model",
+            &[
+                "buy".to_string(),
+                "credits".to_string(),
+                "--provider=openai".to_string(),
+                "--amount=250".to_string(),
+            ],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://intelligence-nexus");
+        assert_eq!(
+            route.args,
+            vec!["buy-credits", "--provider=openai", "--amount=250"]
+        );
+    }
+
+    #[test]
+    fn core_shortcut_routes_compute_share_to_network_compute_proof() {
+        let route =
+            resolve_core_shortcuts("compute", &["share".to_string(), "--gpu=1".to_string()])
+                .expect("route");
         assert_eq!(route.script_rel, "core://p2p-gossip-seed");
         assert_eq!(route.args, vec!["compute-proof", "--share=1", "--gpu=1"]);
     }
@@ -1979,8 +2206,7 @@ mod tests {
 
     #[test]
     fn core_shortcut_routes_skills_dashboard_to_assimilation_controller() {
-        let route =
-            resolve_core_shortcuts("skills", &["dashboard".to_string()]).expect("route");
+        let route = resolve_core_shortcuts("skills", &["dashboard".to_string()]).expect("route");
         assert_eq!(route.script_rel, "core://assimilation-controller");
         assert_eq!(route.args, vec!["skills-dashboard"]);
     }
@@ -2042,7 +2268,10 @@ mod tests {
         )
         .expect("route");
         assert_eq!(route.script_rel, "core://assimilation-controller");
-        assert_eq!(route.args, vec!["skill-create", "--task=weekly growth report"]);
+        assert_eq!(
+            route.args,
+            vec!["skill-create", "--task=weekly growth report"]
+        );
     }
 
     #[test]

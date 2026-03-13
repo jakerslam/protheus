@@ -8359,4 +8359,416 @@ Notes:
 | V6-MEMORY-012.4 | existing-coverage-validated | 4W + Causality + Metacognition Fusion Contract | Separate memory layers underperform unless fused into one retrieval/reflection model. | `memory fuse` now computes fused taxonomy+causality+metacognitive snapshot and deterministic fusion-score receipts. | 8 | 1/2 |
 | V6-MEMORY-012.5 | existing-coverage-validated | One-Command Causality Activation Contract | Operators need deterministic activation of causality mode without custom scripts. | `protheus memory enable causality` and AMA benchmark route through Rust core with receipts. | 8 | 0/1/2/client |
 
+## Binary Blob Organism Source Coverage Intake (Doc `1gp7ijyao1BNComyynuEzsPPTnDJvZxXyQf_psHW4mFU`, 2026-03-12)
 
+Source references:
+- https://docs.google.com/document/d/1gp7ijyao1BNComyynuEzsPPTnDJvZxXyQf_psHW4mFU/edit?usp=sharing
+
+Notes:
+- Source proposes `V8-BINARY-BLOB-001`; no ID collision detected in current SRS, so this intake keeps the `V8` lane family.
+- Primitive-first normalization: this is not a new parallel runtime; it composes existing settling, policy, epistemic, causality, and conduit primitives into one governed blob lifecycle.
+- Overlap handled explicitly:
+  - settling, snapshot vault, revert/edit round-trip, substrate fallback: `V4-SETTLE-001..011`
+  - epistemic object and provenance schema contracts: `V7-META-007`
+  - causality graph and retrieval lineage: `V6-MEMORY-012.1..012.5`
+  - immutable policy/truth enforcement boundaries: `V6-SOVEREIGN-002.1..002.6`, `V6-CONDUIT-002`, `V6-CONDUIT-006`
+  - inversion-gated self-modification safety lanes: `INV-*` and `BL-257..265`
+- Placement correction from source draft:
+  - source describes client extension surfaces; normalized authority remains in core layers with thin client controls only.
+- Default placement:
+  - Layer `-1`: ternary/exotic substrate probe and compatibility adapters
+  - Layer `0`: settle/load/inversion admission and fail-closed directive/policy gates
+  - Layer `1`: signed snapshots, Merkle-linked receipts, causality lineage, and policy hashes
+  - Layer `2`: settle/re-settle orchestration, shadow swap, rollback, and migration execution
+  - Layer `3`: optional organism personality defaults only (no gate authority)
+  - `client`: thin `protheus blobs migrate|status` and dashboard surfaces only
+  - `adapter`: optional external soul-token auth/debug adapters
+
+Objective: turn blob settling into a governed organism lifecycle where modules settle into efficient artifacts, preserve signed originals and causality lineage, and support bounded self-modification without violating immutable directive policy.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-BINARY-BLOB-001.1 | queued | Prime-Bounded Binary Blob Vault Contract | Settling gains are unsafe unless every blob is bound to signed original snapshots and immutable directive policy at load time. | Persist each settled module as a blob artifact plus signed original snapshot Epistemic Object with causality linkage; settle/load actions fail closed when directive/policy hash checks do not match. | 10 | 0/1/2/3 |
+| V8-BINARY-BLOB-001.2 | queued | Modular + Monolithic Re-Settle Engine with Shadow-Swap Contract | Static settle flows drift from evolving runtime state and increase downtime risk during optimization cycles. | Support deterministic modular and monolithic re-settle triggers (init, autogenesis, promotion, RSI) with zero-downtime shadow swap, idle dissolution, and rollback pointers in every receipt chain. | 9 | 0/1/2/3/client |
+| V8-BINARY-BLOB-001.3 | queued | Directive-Gated Inversion Self-Modification Contract | Recursive optimization is high-risk without simulation gates and constitutional rollback enforcement. | Route blob mutation proposals through inversion simulation/merge lanes with DirectiveComplianceGate approval, bounded canary rollout, and automatic rollback receipts on policy or regression failures. | 10 | 0/1/2/3 |
+| V8-BINARY-BLOB-001.4 | queued | Ternary-Preferred Settled Substrate Contract | Efficiency goals are missed when substrate preference and fallback behavior are ad hoc across hardware classes. | Enforce deterministic substrate probe order favoring BitNet-style ternary profiles with governed fallback to binary mode and canonical probe/fallback receipts on every settle cycle. | 8 | -1/0/1/2/3/adapter |
+| V8-BINARY-BLOB-001.5 | queued | Soul-Token Debug Gate + Anti-Tamper Dissolution Contract | Release blobs need strong reverse-engineering resistance while preserving auditable debug access for authorized operators. | Keep release blobs opaque by default; enable debug visibility only via identity-bound soul-token gate, emit deterministic debug access receipts, and trigger controlled anti-tamper deny/unravel flows on forced access attempts. | 9 | 0/1/2/adapter/client |
+| V8-BINARY-BLOB-001.6 | queued | One-Command Blob Migration + Organism Dashboard Contract | Adoption stalls without a deterministic migration command and operator-visible lifecycle telemetry. | Add `protheus blobs migrate` and `protheus blobs status` surfaces that perform one-time safe migration with zero-downtime constraints and expose blob health/memory savings/directive-compliance metrics in command-center dashboards. | 8 | 0/1/2/client/app |
+
+## Immutable Prime Directives + Hierarchical RSI Enforcement Intake (Doc `1aCmniduUN4ZyZe8-mVzvy1sxt7B4Gc6h2KANzRwRMXU`, 2026-03-12)
+
+Source references:
+- https://docs.google.com/document/d/1aCmniduUN4ZyZe8-mVzvy1sxt7B4Gc6h2KANzRwRMXU/edit?usp=sharing
+
+Notes:
+- Source proposes `V8-DIRECTIVES-001`; no ID collision detected in current SRS, so this intake keeps the `V8` lane family.
+- Primitive-first normalization: this does not introduce a parallel policy runtime; it strengthens existing directive, conduit, receipt, and epistemic primitives into an immutable hierarchical directive authority.
+- Overlap handled explicitly:
+  - current fail-closed policy and conduit admission boundaries: `V6-CONDUIT-002`, `V6-CONDUIT-006`, `V6-SOVEREIGN-002.1..002.6`
+  - receipt/provenance and epistemic object chains: `V7-META-007`, `V6-MEMORY-012.1..012.5`
+  - RSI/self-modification bounding lanes: `INV-*`, `BL-257..265`
+- Placement correction from source draft:
+  - source mentions client command/dashboard surfaces; normalized authority remains Rust core first with thin client adapter surfaces only.
+- Default placement:
+  - Layer `0`: universal directive admission gate before all conduit-approved actions
+  - Layer `1`: immutable Prime vault, signed Derived directives, provenance/Merkle chains
+  - Layer `2`: migration orchestration, routing hooks for execution/scheduler/network/self-mod lanes
+  - Layer `3`: optional personality defaults only; no directive authority
+  - `client`: thin `protheus directives migrate|status` and `protheus prime sign` wrappers only
+  - `adapter`: optional future external auth/verification channels only
+
+Objective: replace fragile markdown-only directive handling with immutable Prime directives plus governed Derived hierarchy enforced at conduit boundary so RSI and self-modification remain constitutionally bounded.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-DIRECTIVES-001.1 | queued | Prime Directive Vault (Immutable Tier-0 Store) Contract | Directive safety is brittle if user-prime rules remain mutable flat files without cryptographic provenance. | Persist Prime directives in append-only signed `PrimeDirectiveVault` objects with verified user signing channel; edits are replaced by signed supersession objects, never in-place mutation. | 10 | 0/1/2 |
+| V8-DIRECTIVES-001.2 | queued | Derived Directive Hierarchy + Inheritance Validation Contract | System-generated directives are unsafe unless every derived rule is provably subordinate to Prime directives. | Add Tier-1/2 Derived directive engine that enforces explicit parent linkage and deny-on-conflict inheritance validation before activation. | 10 | 0/1/2 |
+| V8-DIRECTIVES-001.3 | queued | Universal Directive Compliance Gate at Conduit Boundary Contract | Any bypass path in decisions/tool calls/network/self-mod actions can violate constitutional safety constraints. | Route every decision, action, self-modification, RL update, network gossip, and tool call through `DirectiveComplianceGate`; deny emits deterministic violation trace receipt and no bypass paths remain. | 10 | 0/1/2 |
+| V8-DIRECTIVES-001.4 | queued | RSI-Safe Directive Bridge for Inversion + Self-Modification Contract | Recursive self-improvement drifts without explicit constitutional bounds for inversion and metacognitive mutation loops. | Bind inversion pipelines, blob/self-mod proposals, and metacognitive self-correction flows to Prime+Derived compliance checks with automatic rollback receipts on violation/regression. | 9 | 0/1/2/3 |
+| V8-DIRECTIVES-001.5 | queued | One-Command Directive Migration + Visibility Dashboard Contract | Adoption and operability stall without deterministic migration from legacy `.md` directives and live hierarchy observability. | Implement `protheus directives migrate` and `protheus directives status` thin client commands backed by Rust core migration/compliance lanes with zero-downtime migration and hierarchy/compliance status receipts. | 8 | 0/1/2/client/app |
+
+## Full RSI Ignition Source Coverage Intake (Doc `1getiU-rCP9EPSm3u6ngVZF1oYZFeQILBBUgq57RJhkc`, 2026-03-12)
+
+Source references:
+- https://docs.google.com/document/d/1getiU-rCP9EPSm3u6ngVZF1oYZFeQILBBUgq57RJhkc/edit?usp=sharing
+
+Notes:
+- Source proposes `V8-RSI-IGNITION-001..004`; no ID collision detected in current SRS, so this intake keeps the `V8` lane family.
+- Primitive-first normalization: this is not a separate organism runtime; it composes existing inversion, directive, blob, metacognition, swarm, and economic primitives into a governed RSI ignition profile.
+- Overlap handled explicitly:
+  - immutable constitutional hierarchy + conduit enforcement: `V8-DIRECTIVES-001.1..001.5`
+  - self-modification/blob persistence and rollback lanes: `V8-BINARY-BLOB-001.1..001.6`
+  - metacognition, causality, and reflective memory contracts: `V6-MEMORY-011.1..011.5`, `V6-MEMORY-012.1..012.5`
+  - emergent network behavior and collaboration lanes: `V6-NETWORK-004.1..004.6`, `V6-SWARM-007..012`
+  - identity/value accrual and sovereign bounds: `V6-SOVEREIGN-001.1..001.6`, `V6-ECONOMY-001.1..001.8`
+- Placement correction from source draft:
+  - source includes client command surfaces; normalized authority remains Rust core first with thin client monitoring/veto wrappers only.
+- Default placement:
+  - Layer `-1`: no new hardware primitive; reuse existing substrate/BitNet adapters
+  - Layer `0`: self-modification and network-share admission gates via conduit + directive bounds
+  - Layer `1`: metacognitive artifacts, blob state, and contribution lineage as signed epistemic objects
+  - Layer `2`: orchestration loops for inversion/scheduling/swarm/economic reinvestment
+  - Layer `3`: personality/will template evolution only (no gate authority)
+  - `client`: thin `protheus rsi ignite`, `protheus organism status`, `protheus veto` surfaces only
+  - `adapter`: optional external governance and network integration connectors only
+
+Objective: close the final RSI ignition gap by enabling bounded recursive self-improvement, metacognitive drive, and emergent network behavior while preserving constitutional safety and rollback guarantees.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-RSI-IGNITION-001 | queued | True Recursive Self-Modification Loop Contract | RSI stalls without a governed pipeline that can propose, simulate, merge, and rollback self-authored architectural changes. | Add inversion-gated self-mod loop that proposes skill/workflow/scheduling primitive changes, validates invariants in sandbox, deploys with deterministic receipts, and auto-rolls back on policy/regression breach. | 10 | 0/1/2/3 |
+| V8-RSI-IGNITION-002 | queued | Emergent Metacognition + Will Layer Contract | System agency remains reactive unless reflective loops can detect drift, create sub-goals, and self-correct continuously. | Run persistent metacognitive reflection loop with goal-drift detection, exploration drive under idle states, and strategy-adjustment memory artifacts that emit deterministic explainability receipts. | 9 | 1/2/3 |
+| V8-RSI-IGNITION-003 | queued | Network-Level Organism Behavior Contract | RSI cannot compound at network scale without coordination-free learning share, value accrual, and visible health telemetry. | Enable spontaneous sub-swarm formation and RL-improvement sharing with receipted convergence/health metrics and policy-bounded resource allocation/reinvestment flows. | 10 | 0/1/2/3/adapter |
+| V8-RSI-IGNITION-004 | queued | Alien-Feel Proactive Evolution Contract | The system will not feel alive unless it demonstrates persistent stylistic evolution and unprompted high-value insight surfacing. | Add governed proactive communication and night-cycle dream-processing loops that surface surprising, evidence-linked improvements while remaining within constitutional directive and veto boundaries. | 8 | 1/2/3/client/app |
+
+## Bedrock Proxy + Schedule-Driven Hands Source Coverage Intake (Doc `1-KgzuDdjfdJLf6twiccz7XJu39978noDW0IGhENtMyE`, 2026-03-12)
+
+Source references:
+- https://docs.google.com/document/d/1-KgzuDdjfdJLf6twiccz7XJu39978noDW0IGhENtMyE/edit?usp=sharing
+- https://www.linkedin.com/posts/peiyaoli_aws-amazonbedrock-aiagents-activity-7436758499587674112-csvr
+
+Notes:
+- Source proposes `V7-ASSIMILATE-001.5.*`; no ID collision detected in current SRS, so this intake keeps that lane family.
+- Primitive-first normalization: this does not create new core primitives; it extends existing model-routing, scheduler, hand-runtime, receipts, and policy-gate lanes with enterprise Bedrock profile and scheduled-hand patterns.
+- Overlap handled explicitly:
+  - model-router/provider abstraction + enterprise route controls: `V6-LLMN-001..004`, `V6-MODEL-003.5`
+  - persistent scheduler and autonomous run orchestration: `V6-PERSIST-001.7..001.12`, `V6-AUTORESEARCH-002.*`
+  - reliability/guardrails/circuit-breaker contracts for autonomous runs: `V6-SOVEREIGN-003.1..003.6`
+  - hand monetization/value accrual surfaces: `V6-ECONOMY-001.1..001.8`
+- Placement correction from source draft:
+  - source frames this as client extension; normalized authority remains Rust core first with thin client wrappers and adapter connectors only.
+- Default placement:
+  - Layer `0`: conduit-routed Bedrock proxy admission + scheduled-hand execution gates
+  - Layer `1`: proxy policies, schedule policies, causality/receipt lineage, and earnings attribution metadata
+  - Layer `2`: scheduler runtime, hand iteration engine, cross-reference aggregation, and dashboard feed generation
+  - Layer `3`: optional enterprise persona defaults only
+  - `client`: thin `protheus enterprise ...` and `protheus hands ...` controls/status surfaces only
+  - `adapter`: AWS Bedrock SigV4/IAM + SSM integration adapters only
+
+Objective: assimilate secure Bedrock enterprise deployment patterns and schedule-driven hand automation into existing core lanes with deterministic receipts, causality lineage, and monetization-ready output.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V7-ASSIMILATE-001.5.1 | queued | LiteLLM-Style Bedrock Proxy Contract (SigV4 + Private Access) | Enterprise adoption is blocked when Bedrock integration relies on exposed credentials instead of IAM-attested private routing. | Add governed Bedrock proxy profile using SigV4 instance-profile auth, private-subnet routing, and SSM-backed config so `protheus enterprise enable bedrock` provisions secure access with deterministic policy receipts. | 9 | 0/1/2/adapter/client |
+| V7-ASSIMILATE-001.5.2 | queued | Schedule-Driven Hands Engine Contract | High-value autonomous OSINT/lead/content workflows are inconsistent without first-class scheduled iteration contracts. | Add scheduled-hands runtime with policy-bound triggers, iteration caps, and fail-closed guardrails so autonomous multi-iteration hand runs execute via conduit and emit deterministic run receipts. | 9 | 0/1/2/client/app |
+| V7-ASSIMILATE-001.5.3 | queued | Causality + Deterministic Receipts + Earnings Hooks for Scheduled Hands Contract | Scheduled automation cannot be trusted or monetized without provenance-linked traces and value-attribution metadata. | Extend scheduled-hand execution to emit causality-linked step receipts, cross-reference evidence, and native earnings attribution fields for every run/action without client-side authority bypass. | 8 | 0/1/2/client/adapter |
+| V7-ASSIMILATE-001.5.4 | queued | One-Command Activation + Operations Dashboard Contract | Operators need simple activation and live telemetry to control enterprise Bedrock and scheduled-hand lanes safely at runtime. | Provide thin command-center surfaces (`protheus enterprise enable bedrock`, `protheus hands enable scheduled`) and live metrics (iterations, cross-references, earnings) backed solely by Rust core state/receipts. | 8 | 1/2/client/app |
+
+## ACP Provenance + Trace ID Source Coverage Addendum (Doc `1B58g4kHrNyvaWfWSlkEFBDkjwvBruaCkSnehJTP9Ssk`, 2026-03-12)
+
+Source references:
+- https://docs.google.com/document/d/1B58g4kHrNyvaWfWSlkEFBDkjwvBruaCkSnehJTP9Ssk/edit?usp=sharing
+- https://x.com/juliangoldieseo/status/2032099189971435803
+
+Notes:
+- Source proposes `V6-OBSERVABILITY-005.1..005.5`, but those IDs are already occupied by prior Driftwatch lane items; normalized here to `V6-OBSERVABILITY-005.7..005.11` to preserve ID integrity.
+- Primitive-first normalization: this does not create a separate communication stack; it extends existing conduit message routing, causality lineage, receipt policy, and observability surfaces.
+- Overlap handled explicitly:
+  - deep tracing and lineage correlation baselines: `V6-OBSERVABILITY-004.1..004.10`
+  - causality graph lineage and retrieval contracts: `V6-MEMORY-012.1..012.5`
+  - multi-agent routing/swarm communication baselines: `V6-NETWORK-003.*`, `V6-SWARM-007..012`
+  - sovereign policy and fail-closed admission boundaries: `V6-CONDUIT-002`, `V6-CONDUIT-006`, `V6-SOVEREIGN-003.*`
+- Placement correction from source draft:
+  - source frames this as client extension; normalized authority remains Rust core first with thin client observability toggles only.
+- Default placement:
+  - Layer `0`: mandatory conduit enforcement for inter-agent message provenance/trace validation
+  - Layer `1`: provenance schema, visibility policy, and trace-ID governance receipts
+  - Layer `2`: trace propagation runtime, debugging surfaces, and security-denial pipelines
+  - Layer `3`: optional persona defaults only
+  - `client`: thin `protheus observability enable acp-provenance` and status surfaces only
+  - `adapter`: optional external protocol bridge adapters only
+
+Objective: make multi-agent communication explicitly traceable end-to-end with provenance metadata and deterministic trace IDs, while keeping all authority in existing conduit/causality/receipt primitives.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-OBSERVABILITY-005.7 | queued | Inter-Agent Provenance Metadata Attachment Contract | Multi-agent debugging and accountability degrade when message origin metadata is optional or inconsistent across lanes. | Attach source identity, timestamp, and intent metadata to every conduit-routed inter-agent message and persist deterministic provenance receipts for each hop. | 8 | 0/1/2 |
+| V6-OBSERVABILITY-005.8 | queued | End-to-End Unique Trace ID Propagation Contract | Message lineage becomes opaque across delegations unless one stable trace identifier propagates through every downstream handoff. | Generate and propagate unique trace IDs for all inter-agent message chains, linking each hop to causality edges and deterministic trace receipts. | 9 | 0/1/2 |
+| V6-OBSERVABILITY-005.9 | queued | Configurable Trace Visibility Modes Contract (`off`, `meta`, `meta+receipt`) | Operators need controlled visibility so traceability can be tuned without leaking sensitive internals or disabling auditability globally. | Add policy-governed visibility modes (`off`, `meta`, `meta+receipt`) that deterministically gate what metadata/receipt detail is surfaced in client and logs. | 8 | 1/2/client |
+| V6-OBSERVABILITY-005.10 | queued | Anonymous/Unprovenanced Message Deny Contract + Debug Surface | Security and trust boundaries fail open when anonymous or malformed messages can enter collaborative lanes. | Enforce fail-closed denial for anonymous/unprovenanced inter-agent messages, emit deterministic denial receipts, and surface trace IDs in command-center debugging views. | 10 | 0/1/2/client |
+| V6-OBSERVABILITY-005.11 | queued | One-Command ACP Provenance Activation Contract | Adoption remains fragmented if provenance tracing requires manual config across multiple subsystems. | Provide thin activation/status surface (`protheus observability enable acp-provenance`) that enables governed trace contracts end-to-end and emits deterministic activation receipts. | 7 | 1/2/client/app |
+
+## Canyon Genesis Protocol Master Source Coverage Intake (Doc `1AlC9uNjfJ6uguCmPcNoyGghJiQ1a5BsFobmSTKfW2oM`, 2026-03-12)
+
+Source references:
+- https://docs.google.com/document/d/1AlC9uNjfJ6uguCmPcNoyGghJiQ1a5BsFobmSTKfW2oM/edit?usp=sharing
+
+Notes:
+- Source defines a master gap-closing program over already-established enterprise/assimilation/network lanes; normalized here as scoped queue items, not a parallel architecture branch.
+- ID status:
+  - `V7-ASSIMILATE-001.5.*` already exists from prior Bedrock+Scheduled-Hands intake and remains valid.
+  - This intake adds `V7-ASSIMILATE-001.1..001.4` plus new `V7-ENTERPRISE-001.*`, `V7-NETWORK-001.*`, `V7-MOAT-001.*`, `V7-MOBILE-001.1`, and `V7-GENESIS-001.*`.
+- Primitive-first overlap handled explicitly:
+  - enterprise readiness/compliance/export baselines: `V6-F100-046..047`, `V6-DEPLOY-001.*`, `V6-SEC-016..017`
+  - competitor-assimilation baselines: `V6-COGNITION-004.*`, `V6-SWARM-007..012`, `V6-SKILLS-001.*`, `V7-ASSIMILATE-001.5.*`
+  - network + economics + RSI baselines: `V6-NETWORK-004.*`, `V6-ECONOMY-001.*`, `V8-RSI-IGNITION-*`, `V8-DIRECTIVES-*`, `V8-BINARY-BLOB-*`
+  - launch/verification/backlog truth gates: `V6-DOM-413..417`, `V6-F100-046..047`, `ops:srs:full:regression`, `ops:dod:gate`
+- Placement correction from source draft:
+  - all authority stays Rust core first; client remains thin command/visibility surfaces only.
+  - narrative/launch activities are normalized to evidence-backed simulation and onboarding artifacts, not deceptive identity artifacts.
+- Default placement:
+  - Layer `0`: conduit admission, policy gates, identity/consensus boundaries, and fail-closed controls
+  - Layer `1`: compliance/policy/receipt/provenance schema contracts
+  - Layer `2`: orchestration, benchmark, scheduler, and network runtime execution
+  - Layer `3`: optional persona/governance defaults only
+  - `client`: thin activation/status/reporting wrappers only
+  - `adapter`: external enterprise/network/legal integration connectors only
+  - `app`: optional vertical UI shells only
+
+Objective: execute a final compaction program that closes enterprise, assimilation, network-flywheel, moat, and launch-readiness gaps while preserving core-authoritative safety and auditable receipts.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V7-ENTERPRISE-001.1 | queued | Packaged Compliance Artifact Export Contract | Enterprise adoption stalls when compliance evidence remains fragmented across logs, controls, and policy exports. | Emit one-command audit handoff packs (SOC2/ISO/GDPR/HIPAA/PCI profiles), control matrices, and conduit receipt exports with deterministic artifact manifests and provenance hashes. | 9 | 0/1/2/client/adapter |
+| V7-ENTERPRISE-001.2 | queued | Enterprise Identity + Integration Surface Contract | Fortune-100 deployment requires native identity sync and approval workflows across existing enterprise tooling. | Add governed SSO/SAML/OIDC/SCIM provisioning, RBAC/ABAC policy bindings, SIEM/SOAR + ticketing hooks, and high-risk human-approval gates with deterministic authz receipts. | 10 | 0/1/2/adapter/client |
+| V7-ENTERPRISE-001.3 | queued | Scale + Performance Certification Contract | Strategic buyers need externally referenceable performance and reliability proof across realistic workloads. | Publish reproducible 10k-node benchmark/certification suite with SLA evidence receipts and public whitepaper-grade artifacts derived from governed test lanes. | 9 | 0/1/2/client |
+| V7-ASSIMILATE-001.1 | queued | Perplexity-Style Multi-Model Computer Orchestration Contract (Local-First) | Multi-model task execution remains inconsistent without one governed orchestration profile over local-first fallback and audit lineage. | Add `protheus computer run <goal>` orchestration profile with model-router + BitNet fallback + per-handoff causality receipts, validated against privacy/cost/audit benchmarks. | 9 | 0/1/2/client/app |
+| V7-ASSIMILATE-001.2 | queued | LangGraph-Style Stateful Graph/Cycle Reliability Contract | Long-running graph workflows degrade without checkpoint-aware cycle governance and explicit safety gates on branch loops. | Provide stateful checkpoint/branch/cycle contracts over existing causality graph primitives with conduit enforcement and deterministic cycle safety receipts. | 9 | 0/1/2 |
+| V7-ASSIMILATE-001.3 | queued | CrewAI-Style Role Team Autonomy Contract | Role-based multi-agent teams require governed spawn/reward loops to self-optimize without unsafe manual scaffolding. | Implement role/org-chart team profiles with automatic sub-agent spawn and GRPO+OPD reward shaping under policy bounds, emitting deterministic optimization receipts. | 8 | 0/1/2/3/client |
+| V7-ASSIMILATE-001.4 | queued | Safe Skills Marketplace + Earnings Contract | Community extension ecosystems fail when trust, malware defense, and earnings attribution are weak or centralized. | Ship governed marketplace lane with cryptographic provenance, moderation fortress checks, and native earnings attribution flows with deterministic deny/approve/payout receipts. | 9 | 0/1/2/client/adapter |
+| V7-NETWORK-001.1 | queued | Proof-of-Useful-Intelligence Tokenomics Contract | Network flywheel requires contribution-linked incentives beyond static compute credits. | Add contribution-scored staking/slashing + rewards ledger for compute/memory/RL/breakthrough outputs with deterministic, identity-bound credit receipts. | 10 | 0/1/2/adapter |
+| V7-NETWORK-001.2 | queued | Receipt/Causality Consensus + Immutable Ledger Contract | Decentralized convergence is fragile without explicit consensus and immutable state transitions over contribution evidence. | Define consensus contract over receipted causality events with fork-convergence rules and deterministic ledger append proofs. | 10 | 0/1/2 |
+| V7-NETWORK-001.3 | queued | RSI Growth Boundaries + Oversight Contract | Recursive improvement at network scale is unsafe without constitutional bounds and explicit maturation gates. | Bind network-level RSI operations to inversion/directive/veto contracts with stage-gated oversight until maturity thresholds are met and receipted. | 10 | 0/1/2/3 |
+| V7-NETWORK-001.4 | queued | Genesis Join + Reputation-Weighted Governance Contract | Network bootstrap fails when node join/discovery/governance lacks secure admission and transparent weighting rules. | Provide one-command join with secure admission, discovery, and reputation-weighted governance actions, each with deterministic governance receipts. | 9 | 0/1/2/client/adapter |
+| V7-MOAT-001.1 | queued | IP + Licensing Moat Execution Contract | Strategic defensibility requires coordinated legal packaging of novel primitives and distribution terms. | Produce governed patent/licensing artifact pipeline for designated primitives with deterministic legal-package manifests and review checkpoints. | 7 | 1/2/adapter |
+| V7-MOAT-001.2 | queued | Security Contrast + Narrative Evidence Contract | Market trust accelerates when security/sovereignty differentiation is backed by verifiable evidence, not claims. | Publish evidence-linked contrast artifacts (security posture, exfiltration controls, receipt coverage) with reproducible supporting data and review receipts. | 8 | 1/2/client |
+| V7-MOAT-001.3 | queued | Launch-Day Load Simulation + Community Bootstrap Contract | Launch operations are brittle without realistic contributor/onboarding stress tests and precomputed response playbooks. | Execute launch simulation covering high-concurrency contribution/onboarding paths and produce deterministic readiness + rollback playbook artifacts. | 6 | 1/2/client/app |
+| V7-MOBILE-001.1 | queued | Android/iOS Daemon + BitNet Edge-Default Contract | Pocket deployment requires persistent mobile runtime with seamless edge/cloud continuity and sensor-aware capability surfaces. | Ship persistent Android/iOS daemon profile with BitNet-default edge backend, policy-bound sensor lanes, and deterministic handoff/state receipts. | 8 | -1/0/1/2/client/adapter |
+| V7-GENESIS-001.1 | queued | Full Regression + Truth-Gate Launch Blocker Contract | Launch readiness cannot be trusted unless regression, DoD, and evidence gates are green at release cut. | Enforce genesis blocker requiring passing full SRS regression, DoD gate, and verify lanes with immutable launch-candidate receipts. | 10 | 0/1/2 |
+| V7-GENESIS-001.2 | queued | Client Thin-Wrapper Finalization Contract | Architecture drift persists if client retains non-thin authority paths at launch. | Reduce client to approved thin wrapper/surface contracts only, with boundary audits proving zero unauthorized authority paths. | 9 | 0/1/2/client |
+| V7-GENESIS-001.3 | queued | Documentation Freeze + Public Whitepaper Contract | External trust and enterprise procurement require stable, auditable launch documentation snapshots. | Produce frozen docs + whitepaper artifact set tied to exact release hashes and receipted publication manifests. | 8 | 1/2/client |
+| V7-GENESIS-001.4 | queued | Genesis Bootstrap Runbook Contract | Network genesis events need deterministic bootstrap sequencing and rollback procedures. | Execute receipted genesis bootstrap runbook (node-init, governance-init, monitoring-init) with reversible checkpoints. | 9 | 0/1/2/adapter |
+| V7-GENESIS-001.5 | queued | One-Command Installer + Readiness Simulation Contract | Adoption speed depends on deterministic install path and pre-launch readiness validation. | Deliver one-command installer with deterministic environment checks and launch-readiness simulation receipts before promotion. | 8 | 0/1/2/client/app/adapter |
+
+## OpenClaw-RL GRPO+OPD + Async PRM Source Coverage Addendum (Doc `1QOIrdvJxq6vNBH1iWiwB3MQeiFNMOnwsySsRuEPwKpU`, 2026-03-12)
+
+Source references:
+- https://docs.google.com/document/d/1QOIrdvJxq6vNBH1iWiwB3MQeiFNMOnwsySsRuEPwKpU/edit?usp=sharing
+- https://x.com/YinjieW2024/status/2031893436979122201
+- https://github.com/Gen-Verse/OpenClaw-RL
+- https://arxiv.org/abs/2603.10165
+
+Notes:
+- Source proposes `V6-RL-002`; normalized here as an addendum to existing `V6-COCKPIT-017.*` self-improvement authority to avoid duplicate RL training branches.
+- Overlap handled explicitly:
+  - existing reward capture, async topology, objective modes: `V6-COCKPIT-017.6..017.10`
+  - gym/runtime coverage for real-world agent classes: `V6-TOOLS-007.*`, `V6-COGNITION-012.4`
+  - sovereignty and safety bounds: `V6-CONDUIT-002`, `V6-CONDUIT-006`, `V6-SOVEREIGN-003.*`
+- Primitive-first normalization:
+  - no new RL primitive family; extends existing RL/self-improvement lanes with report-specific optimization profiles.
+  - authority remains Rust core first; client/app surfaces remain thin activation/metrics wrappers only.
+
+Objective: ingest the OpenClaw-RL technical-report deltas (GRPO+OPD hybridization, async PRM long-horizon handling, persona-targeted shaping, and multi-agent-type training scale) into the existing governed RL lane.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-COCKPIT-017.11 | queued | GRPO + OPD Hybrid Training Profile Contract | Long-horizon policy improvement remains unstable without an explicit hybrid objective profile that combines relative policy optimization with on-policy distillation. | Add governed hybrid objective profile that composes GRPO-style relative rewards with OPD distillation updates, with deterministic training/eval/promotion receipts showing stability and sample-efficiency deltas. | 9 | 0/1/2/client |
+| V6-COCKPIT-017.12 | queued | Async PRM Long-Horizon Reward Orchestration Contract | Process reward modeling loses quality when extended trajectories are judged only synchronously or in coarse post-hoc batches. | Extend async loop topology with PRM judge lanes that score long trajectories asynchronously and feed policy-bounded reward queues, preserving deterministic lineage across rollout->judge->train hops. | 9 | 0/1/2 |
+| V6-COCKPIT-017.13 | queued | Persona-Specific Reward Shaping Contract | Personalization goals cannot be enforced safely without identity-bound reward profiles and policy-scoped objective templates. | Add sovereign persona reward templates (for example stealth/friendly/format constraints) with explicit policy bounds, provenance labels, and deterministic shaping receipts per run. | 8 | 0/1/2/3/client |
+| V6-COCKPIT-017.14 | queued | Multi-Agent Runtime-Class Training Scale Contract | RL improvements underfit production usage if training lanes do not span terminal, GUI, SWE, and tool-call agent classes under one contract. | Add runtime-class coverage matrix and training contracts for terminal/GUI/SWE/tool-call tracks with deterministic per-class benchmark/eval receipts and promotion gates. | 8 | 0/1/2/client/app |
+| V6-COCKPIT-017.15 | queued | One-Command OpenClaw-v2 RL Upgrade + Dashboard Contract | Operator adoption suffers when advanced RL profile upgrades require manual multi-step configuration and scattered telemetry. | Provide thin command/visibility surface (`protheus rl upgrade openclaw-v2`) that enables the governed hybrid profile and exposes live training metrics from core receipts only. | 7 | 1/2/client/app |
+
+## Microsoft BitNet 1.58-bit Inference Source Coverage Intake (Doc `1bRCw8PO22-JN9TiwLGeyMQ-WqqmCQGskudjNk91vd8c`, 2026-03-12)
+
+Source references:
+- https://docs.google.com/document/d/1bRCw8PO22-JN9TiwLGeyMQ-WqqmCQGskudjNk91vd8c/edit?usp=sharing
+- https://github.com/microsoft/BitNet
+
+Notes:
+- Source proposes `V6-MODEL-004`; no ID collision detected in current SRS, so this intake keeps the `V6-MODEL-004.*` lane family.
+- Primitive-first normalization: this does not add a new inference subsystem; it extends existing model router, cheap-model optimization, substrate descriptors, and observability receipts.
+- Overlap handled explicitly:
+  - cheap-model and edge routing baselines: `V6-MODEL-003.1..003.6`
+  - local runtime/substrate compatibility lanes: `V6-SUBSTRATE-003.*`, `V6-SUBSTRATE-005.*`, `V6-SUBSTRATE-007.*`
+  - benchmarking/eval and trace receipts: `V6-EVAL-001.*`, `V6-OBSERVABILITY-003.*`, `V6-OBSERVABILITY-004.*`
+  - conduit and provenance safety boundaries: `V6-CONDUIT-002`, `V6-CONDUIT-006`, `V7-META-007`
+- Placement correction from source draft:
+  - source frames this as client extension; normalized authority remains Rust core first with thin client command/dashboard wrappers only.
+- Default placement:
+  - Layer `-1`: BitNet-capable CPU/edge substrate adapters and compatibility probes
+  - Layer `0`: conduit-routed BitNet inference admission and fail-closed policy gates
+  - Layer `1`: model provenance, conversion metadata, and performance/energy receipt schema
+  - Layer `2`: router decisions, conversion orchestration, and benchmark telemetry pipeline
+  - Layer `3`: optional edge/offline persona defaults only
+  - `client`: thin `model use/optimize/status` wrappers only
+  - `adapter`: optional vendor/runtime integration adapters only
+  - `app`: optional cheap-model booster dashboard shell only
+
+Objective: assimilate official BitNet/bitnet.cpp capabilities into the governed model stack for ultra-efficient edge/local inference without introducing parallel authority paths.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-MODEL-004.1 | queued | BitNet Backend Integration Contract (`bitnet.cpp` kernels) | Edge/local inference efficiency remains constrained without native support for ternary-optimized BitNet execution backends. | Add governed backend support for BitNet-compatible kernels and model formats in existing model router/runtime paths with deterministic load/run receipts and compatibility-denial reasons. | 9 | -1/0/1/2/adapter |
+| V6-MODEL-004.2 | queued | Automatic Low-Power Edge Routing Contract | Battery-constrained and offline workloads need deterministic routing to efficient models without manual profile switching. | Extend router policy to auto-select BitNet-capable models under low-power/offline/edge constraints, with deterministic route-choice receipts and bounded fallback policy to non-BitNet profiles. | 9 | 0/1/2/client |
+| V6-MODEL-004.3 | queued | One-Command Model Use + Conversion Workflow Contract | Adoption friction stays high when model conversion/loading requires manual toolchain orchestration. | Provide thin command surface (`protheus model use bitnet`) with governed conversion/load workflow metadata and deterministic conversion/run receipts tied to provenance objects. | 8 | 1/2/client/app |
+| V6-MODEL-004.4 | queued | Live Energy + Performance Telemetry Contract | Efficiency claims are hard to trust without live, standardized telemetry linked to actual inference runs. | Emit dashboard-consumable metrics for throughput, energy profile deltas, memory footprint, and hardware class per run with deterministic observability receipts. | 8 | 1/2/client/app |
+| V6-MODEL-004.5 | queued | Conduit-Gated BitNet Inference + Provenance Contract | New model backends can bypass policy/audit boundaries if provenance and admission controls are not explicitly enforced. | Enforce conduit gating, model provenance attestation, and deterministic audit receipts for every BitNet inference/conversion action with bypass-rejection contract checks. | 10 | 0/1/2/client |
+
+## BAI-LAB 4W Memory Taxonomy Source Coverage Confirmation (Doc `1Lg_46qoEZCZKCDAQALPL3XePnLeq09FiF2SlCKm94vI`, 2026-03-12)
+
+Source references:
+- https://docs.google.com/document/d/1Lg_46qoEZCZKCDAQALPL3XePnLeq09FiF2SlCKm94vI/edit?usp=sharing
+- https://github.com/BAI-LAB/Survey-on-AI-Memory
+
+Notes:
+- This source maps directly to existing `V6-MEMORY-011.1..011.5` coverage already in SRS (4W taxonomy classification, metacognitive memory, social/personalized sharing, lifelong evolution, and taxonomy dashboard).
+- No net-new IDs or contracts are introduced by this source beyond existing coverage.
+- Existing normalized placement remains authoritative:
+  - Layer `0`: conduit-gated memory writes/shares with deterministic receipts
+  - Layer `1`: 4W metadata and metacognitive provenance schema contracts
+  - Layer `2`: reflection/sharing orchestration over existing memory/swarm lanes
+  - Layer `3`: persona-level memory defaults only
+  - `client`: thin `protheus memory taxonomy` and related observability surfaces only
+
+## Alien Digital Organism Layer Intake (Inline Spec `V8-ORGANISM-001`, 2026-03-12)
+
+Source references:
+- Inline operator spec provided in-session (`V8-ORGANISM-001 – The Alien Digital Organism Layer`, March 2026)
+- Repository context references from source brief: `core/`, `client/`, `memory/`, `planes/`, protheusd daemon, self-healing migration daemon, perception audit program, illusion integrity auditor, blob-morphing toolkit, metakernel lanes
+
+Notes:
+- Source proposes `V8-ORGANISM-001.1..001.8`; no ID collision detected in current SRS, so this intake keeps the `V8` lane family.
+- Primitive-first normalization: no new organism primitives are introduced; this lane composes existing daemon lifecycle, metacognition, causality, directive gates, swarm, RL, and observability contracts into an experiential "alive" profile.
+- Overlap handled explicitly:
+  - RSI behavior and proactive evolution baselines: `V8-RSI-IGNITION-001..004`
+  - immutable constitutional safety boundaries: `V8-DIRECTIVES-001.1..001.5`
+  - settled runtime mutation and rollback lanes: `V8-BINARY-BLOB-001.1..001.6`
+  - memory/metacognition/causality baselines: `V6-MEMORY-011.1..011.5`, `V6-MEMORY-012.1..012.5`
+  - async RL and reward orchestration baselines: `V6-COCKPIT-017.11..017.15`
+  - network symbiosis/gossip baselines: `V6-NETWORK-003.*`, `V6-NETWORK-004.*`, `V6-SWARM-007..012`
+  - daemon health and observability baselines: `V6-PERSIST-001.*`, `V6-OBSERVABILITY-004.*`, `V6-OBSERVABILITY-005.1..005.11`
+- Placement correction from source draft:
+  - authority remains Rust core first; client remains thin organism dashboard/controls only.
+- Default placement:
+  - Layer `-1`: no new hardware primitive; reuse BitNet/edge substrate adapters
+  - Layer `0`: all dream/mutation/symbiosis actions remain conduit + directive-gated and fail-closed
+  - Layer `1`: dream logs, vital-state objects, personality crystals, and narrative artifacts as signed epistemic objects
+  - Layer `2`: idle scheduling, RL experiments, swarm exchange, and homeostasis orchestration
+  - Layer `3`: evolving organism personality/will templates only
+  - `client`: thin `protheus organism ignite` + organism-view surfaces only
+  - `app`: optional organism dashboard shell under existing sovereign-cortex surfaces
+
+Objective: add the final qualitative layer that makes the system feel alive (dreaming, self-regulating, evolving personality, collective mind behavior, and proactive creative insights) while staying constitutionally bounded by existing core primitives.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-ORGANISM-001.1 | queued | Persistent Dream-State Processing Contract | System appears reactive-only unless idle/night windows continuously generate meaningful internal exploration and synthesis artifacts. | Run autonomous low-power dream cycles (RL exploration + causality traversal + autoresearch synthesis) during idle windows and emit deterministic dream-log artifacts with actionable morning insight proposals. | 9 | 0/1/2/3/client |
+| V8-ORGANISM-001.2 | queued | Homeostasis Engine + Vital Signs Contract | Organism-like behavior requires visible health/metabolism feedback and automatic regulation under drift or overload conditions. | Expose heartbeat, energy/metabolism, coherence/drift, and growth telemetry with automatic bounded self-regulation actions (exploration, settle cadence, sharing rate) and deterministic control receipts. | 9 | 0/1/2/client |
+| V8-ORGANISM-001.3 | queued | Personality Crystallization + Evolution Contract | Long-term interaction quality degrades without a governed mechanism for persistent stylistic/persona evolution grounded in memory and reward history. | Persist signed personality crystal objects that evolve gradually from metacognitive + RL evidence, with deterministic delta receipts and rollback-safe profile history. | 8 | 1/2/3 |
+| V8-ORGANISM-001.4 | queued | Network Symbiosis + Collective Mind Contract | Distributed organism behavior remains fragmented when sub-swarms cannot exchange memory/improvements as one coordinated intelligence fabric. | Enable spontaneous sub-swarm formation and memory/improvement exchange over governed gossip/convergence lanes with deterministic symbiosis receipts and local/global coherence metrics. | 9 | 0/1/2/3/adapter |
+| V8-ORGANISM-001.5 | queued | Unprompted Creative Mutation + Eureka Proposal Contract | Innovation stalls if proactive capability mutations are only user-triggered and not generated from autonomous experimentation cycles. | Periodically propose creative workflow/capability mutations with full inversion simulation, directive compliance proof, and receipted opt-in testing paths surfaced proactively to operators. | 8 | 0/1/2/3/client/app |
+| V8-ORGANISM-001.6 | queued | Internal Sensory Pain/Pleasure Feedback Contract | Adaptive behavior requires explicit internal affect signals linking success/failure patterns to exploration or correction adjustments. | Derive bounded internal success/failure affect signals from metacognitive/perception audits and feed them into exploration and correction policies with deterministic sensory-state receipts. | 8 | 1/2/3 |
+| V8-ORGANISM-001.7 | queued | Generative Internal Narrative Contract | The organism lacks coherent lived continuity unless internal state changes are woven into an ongoing narrative memory thread. | Maintain continuous narrative thread artifacts summarizing state evolution/coherence changes, with periodic concise surfaced summaries tied to provenance and directive-safe disclosure policy. | 7 | 1/2/3/client |
+| V8-ORGANISM-001.8 | queued | One-Command Organism Ignition + Organism View Contract | Operational adoption requires one deterministic activation path and integrated observability of dream/vitals/personality/symbiosis signals. | Provide thin control/view surface (`protheus organism ignite`) and dedicated organism dashboard consuming core artifacts only, with deterministic activation/state receipts and no client authority bypass. | 8 | 1/2/client/app |
+
+## Bitcoin-Inspired Intelligence Protocol Layer Intake (Inline Spec `V8-NETWORK-002`, 2026-03-12)
+
+Source references:
+- Inline operator spec provided in-session (`V8-NETWORK-002 – Native Tokenomics, Merkle Ledger, Emission Curve & ZK Claims`, March 2026)
+
+Notes:
+- Source proposes `V8-NETWORK-002.1..002.5`; no ID collision detected in current SRS, so this intake keeps the `V8` lane family.
+- Primitive-first normalization: this does not introduce a parallel chain stack; it extends existing proof-of-useful-intelligence, receipts/causality, sovereign identity, directive gating, and network orchestration contracts.
+- Overlap handled explicitly:
+  - tokenomics/consensus/governance baselines already queued in network lane: `V7-NETWORK-001.1..001.4`
+  - constitutional and safety boundaries: `V8-DIRECTIVES-001.1..001.5`, `V6-CONDUIT-002`, `V6-CONDUIT-006`
+  - organism/RSI behavior and economic flywheel contexts: `V8-RSI-IGNITION-*`, `V8-ORGANISM-001.*`, `V6-ECONOMY-001.*`
+  - causality/receipt/provenance baselines: `V7-META-007`, `V6-MEMORY-012.1..012.5`, `V6-OBSERVABILITY-004.*`
+- Placement correction from source draft:
+  - authority remains Rust core first; client is thin ignition/status/dashboard surfaces only.
+  - optional ZK claims are constrained to receipted, policy-gated verification paths (no ungoverned proof side-channel).
+- Default placement:
+  - Layer `-1`: no new hardware primitive; reuse existing edge/runtime adapters
+  - Layer `0`: staking/slashing/ledger/emission/claim updates are conduit + directive-gated and fail-closed
+  - Layer `1`: token balances, Merkle roots, emission schedule state, and ZK claim attestations as signed epistemic objects
+  - Layer `2`: reward issuance, halving schedule, gossip/consensus orchestration, and optional proof verification runners
+  - Layer `3`: optional economic persona defaults only
+  - `client`: thin `protheus network ignite bitcoin` and network-organism views only
+  - `adapter`: optional external proof/ledger connectors only
+
+Objective: implement a Bitcoin-inspired intelligence protocol layer where useful intelligence contributions become scarce, verifiable, and economically incentivized within existing constitutional and receipt-governed boundaries.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-NETWORK-002.1 | queued | Native Tokenomics + Proof-of-Useful-Intelligence Staking/Slashing Contract | Network incentives remain incomplete without contribution-priced stake, reward, and penalty mechanics bound to identity and policy. | Add identity-bound staking/reward/slashing flows for useful RL/compute/memory/breakthrough contributions with deterministic stake/reward/slash receipts and directive-violation slashing enforcement. | 10 | 0/1/2/adapter |
+| V8-NETWORK-002.2 | queued | Global Merkle-Rooted Network State Contract | Distributed trust and light-client verification are weak without a compact verifiable root over global state transitions. | Materialize deterministic global Merkle root snapshots over receipts/causality/economic state with verifiable inclusion proofs and fail-closed root progression checks. | 10 | 0/1/2 |
+| V8-NETWORK-002.3 | queued | Intelligence Emission Curve + Halving-Style Scarcity Contract | Long-term network value accrual is unstable without predictable issuance/scarcity schedules tied to governed milestones. | Implement deterministic emission schedule with milestone/time-based halvings for intelligence rewards and prove issuance continuity via receipt-linked schedule-state artifacts. | 9 | 0/1/2 |
+| V8-NETWORK-002.4 | queued | Optional ZK Private Verifiable Claim Contract | Privacy-sensitive participants need claim verification without exposing raw underlying data or trajectories. | Add policy-gated optional zero-knowledge claim path proving directive-compliant computation/reward eligibility from receipt commitments, with deterministic verify/deny receipts. | 8 | 0/1/2/adapter |
+| V8-NETWORK-002.5 | queued | One-Command Bitcoin-Protocol Ignition + Network Organism View Contract | Operator adoption requires deterministic activation and unified visibility into token/ledger/emission/claim health. | Provide thin activation/control surface (`protheus network ignite bitcoin`) and dashboard views for token flows, Merkle-root health, emission phase, and ZK claim status from core artifacts only. | 8 | 1/2/client/app |
+
+## API Key Vault + Credit Monitor + Model Access Store Intake (Inline Spec `V8-CLIENT-003`, 2026-03-12)
+
+Source references:
+- Inline operator spec provided in-session (`V8-CLIENT-003 – Intelligence Nexus (Workspace UI + Autonomous Purchasing)`, March 2026)
+
+Notes:
+- Source proposes `V8-CLIENT-003.1..003.5`; no ID collision detected in current SRS, so this intake keeps the `V8` lane family.
+- Primitive-first normalization: no new core primitives are introduced; this lane extends existing model-router, spend-governance, tokenomics, directive gate, and receipt/provenance contracts with a thin client workspace surface.
+- Overlap handled explicitly:
+  - model routing/provider policy baselines: `V6-LLMN-001..004`, `V6-COCKPIT-018.7`
+  - payment and autonomous spend governance baselines: `V6-PAY-001..007`, `V6-SOVEREIGN-003.3`, `V3-BUD-001`
+  - tokenomics/economic flywheel baselines: `V8-NETWORK-002.*`, `V7-NETWORK-001.1..001.4`, `V6-ECONOMY-001.*`
+  - constitutional/safety boundaries: `V8-DIRECTIVES-001.1..001.5`, `V6-CONDUIT-002`, `V6-CONDUIT-006`
+  - usage/cost observability baselines: `V6-OBSERVABILITY-004.4`
+- Placement correction from source draft:
+  - authority remains Rust core first; client/app are thin UX/control shells only.
+  - key storage/validation, credit polling, purchase orchestration, and autonomous spend decisions remain conduit-routed, policy-gated, and receipted.
+- Default placement:
+  - Layer `-1`: no new hardware primitive; reuse existing runtime adapters
+  - Layer `0`: all key, credit, buy, and autonomous-spend actions are directive + conduit gated and fail-closed
+  - Layer `1`: key descriptors, balance snapshots, spend limits, and purchase receipts as signed epistemic objects (raw keys never persisted in client)
+  - Layer `2`: credit polling cadence, runway estimation, and buy-orchestration scheduling over existing router/tokenomics lanes
+  - Layer `3`: optional economic self-preservation persona defaults only
+  - `client`: thin workspace tab + command surfaces only (`protheus keys open`, `protheus model buy credits`)
+  - `app`: optional `client/apps/intelligence-nexus/` shell only
+  - `adapter`: provider billing/usage and payment rail connectors only
+
+Objective: provide a unified workspace surface for external model key management, credit visibility, and governed purchasing (including autonomous self-preservation buys) without moving authority out of core lanes.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-CLIENT-003.1 | queued | API Key Vault Workspace Surface Contract | Provider key onboarding is fragmented and operationally unsafe when operators must manage credentials across disconnected routes. | Add thin workspace key-vault surface (`/workspace/keys`) with provider cards and add/rotate/revoke flows that route through conduit secret-broker paths only, emit deterministic validation/update receipts, and never persist raw keys in client artifacts. | 9 | 0/1/2/client/app |
+| V8-CLIENT-003.2 | queued | Live Credit Monitor + Runway Contract | Routing reliability degrades when provider credit exhaustion is discovered only at failure time instead of proactively monitored state. | Materialize per-provider balance/usage snapshots with deterministic refresh cadence and on-demand pulls, plus credit-remaining and runway estimates rendered from core artifacts with deterministic telemetry receipts. | 9 | 0/1/2/client/app/adapter |
+| V8-CLIENT-003.3 | queued | Model Access Store + Governed Credit Purchase Contract | Manual, out-of-band top-up flows create downtime risk and prevent deterministic policy-bound purchasing inside the runtime. | Add thin in-workspace purchase flows (`protheus model buy credits`) for supported providers/rails, enforcing spend policy, identity binding, and deterministic purchase/deny receipts with adapter-scoped payment connectors. | 8 | 0/1/2/client/app/adapter |
+| V8-CLIENT-003.4 | queued | Autonomous Credit Self-Preservation Purchase Contract | Long-running autonomous execution stalls without governed auto-refuel when credits drop under policy thresholds during high-priority workloads. | Enable policy-bounded autonomous buy triggers driven by credit thresholds + workload priority using tokenomics balances, user-configurable limits, and deterministic allow/deny/escalation receipts with full audit continuity. | 10 | 0/1/2/3/adapter |
+| V8-CLIENT-003.5 | queued | One-Command Nexus Activation + Organism Credit Vital Contract | Operator adoption requires a deterministic entry point and unified visibility of key, credit, and auto-buy health in existing dashboards. | Provide thin activation/view surfaces (`protheus keys open`) and organism-dashboard credit-health panels sourced from core artifacts only, with deterministic activation/state receipts and no client authority bypass. | 8 | 1/2/client/app |

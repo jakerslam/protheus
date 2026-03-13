@@ -7,6 +7,7 @@ VERIFY_TIMEOUT_SEC="${PROTHEUS_VERIFY_TIMEOUT_SEC:-45}"
 VERIFY_DEFER_HOST_STALL="${PROTHEUS_VERIFY_DEFER_HOST_STALL:-1}"
 PROTHEUS_OPS_BIN="${PROTHEUS_OPS_BIN:-$ROOT/target/debug/protheus-ops}"
 VERIFY_NPM_TIMEOUT_SEC="${PROTHEUS_VERIFY_NPM_TIMEOUT_SEC:-60}"
+VERIFY_RUST_TIMEOUT_SEC="${PROTHEUS_VERIFY_RUST_TIMEOUT_SEC:-180}"
 VERIFY_ARTIFACT_MODE="${PROTHEUS_VERIFY_ARTIFACT_MODE:-ephemeral}"
 
 if [[ "$VERIFY_ARTIFACT_MODE" == "ephemeral" ]]; then
@@ -104,6 +105,7 @@ run_origin_integrity() {
 
 (
   cd "$ROOT"
+  run_with_timeout_strict "$VERIFY_RUST_TIMEOUT_SEC" cargo test --manifest-path "$MANIFEST_PATH" --test v8_runtime_proof
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:dependency-boundary:check
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:formal-spec:check
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node scripts/ci/client_layer_boundary_audit.mjs --strict=1 --out="$CLIENT_LAYER_AUDIT_OUT"
@@ -114,6 +116,7 @@ run_origin_integrity() {
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node scripts/ci/client_scope_inventory.mjs --out="$CLIENT_SCOPE_OUT"
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node scripts/ci/client_surface_disposition.mjs --out="$CLIENT_SURFACE_OUT"
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node scripts/ci/client_target_contract_audit.mjs --strict=1 --scope="$CLIENT_SCOPE_OUT" --boundary="$CLIENT_LAYER_AUDIT_OUT" --disposition="$CLIENT_SURFACE_OUT" --out="$CLIENT_TARGET_OUT"
+  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:v8:runtime-proof:gate
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:dod:gate
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s test:ops:srs-contract-runtime-evidence
 )

@@ -36,6 +36,7 @@ The following gates enforce this policy:
 
 - `ops:srs:full:regression` (done/evidence/status consistency across SRS rows).
 - `ops:dod:gate` (ROI execution ledger truthfulness and evidence existence).
+- `ops:v8:runtime-proof:gate` (for any `done` `V8-*` row, requires Rust runtime proof execution via `core/layer0/ops/tests/v8_runtime_proof.rs`).
 - `verify.sh` runs `ops:dod:gate` as a required step.
 
 ## Operational Rule
