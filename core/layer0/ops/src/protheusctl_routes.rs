@@ -638,9 +638,7 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                     | "zk-claim"
                     | "dashboard"
             ) {
-                let args = if sub == "dashboard" {
-                    vec!["status".to_string()]
-                } else if rest.is_empty() {
+                let args = if rest.is_empty() {
                     vec!["status".to_string()]
                 } else {
                     rest.to_vec()
@@ -682,6 +680,58 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
             };
             Some(Route {
                 script_rel: "core://p2p-gossip-seed".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
+        "enterprise" => {
+            let args = if rest.is_empty() {
+                vec!["dashboard".to_string()]
+            } else if rest
+                .first()
+                .map(|v| v.trim().eq_ignore_ascii_case("compliance"))
+                .unwrap_or(false)
+                && rest
+                    .get(1)
+                    .map(|v| v.trim().eq_ignore_ascii_case("export"))
+                    .unwrap_or(false)
+            {
+                std::iter::once("export-compliance".to_string())
+                    .chain(rest.iter().skip(2).cloned())
+                    .collect::<Vec<_>>()
+            } else if rest
+                .first()
+                .map(|v| v.trim().eq_ignore_ascii_case("identity"))
+                .unwrap_or(false)
+            {
+                std::iter::once("identity-surface".to_string())
+                    .chain(rest.iter().skip(1).cloned())
+                    .collect::<Vec<_>>()
+            } else if rest
+                .first()
+                .map(|v| {
+                    v.trim().eq_ignore_ascii_case("scale")
+                        || v.trim().eq_ignore_ascii_case("certify-scale")
+                })
+                .unwrap_or(false)
+            {
+                let skip = if rest
+                    .first()
+                    .map(|v| v.trim().eq_ignore_ascii_case("scale"))
+                    .unwrap_or(false)
+                {
+                    1
+                } else {
+                    0
+                };
+                std::iter::once("certify-scale".to_string())
+                    .chain(rest.iter().skip(skip).cloned())
+                    .collect::<Vec<_>>()
+            } else {
+                rest.to_vec()
+            };
+            Some(Route {
+                script_rel: "core://enterprise-hardening".to_string(),
                 args,
                 forward_stdin: false,
             })

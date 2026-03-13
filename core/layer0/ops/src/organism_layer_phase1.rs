@@ -294,6 +294,40 @@ pub(super) fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
                         "active": apply && allowed,
                         "preview_command": "protheus organism mutate --apply=1"
                     }
+                },
+                {
+                    "id": "v8_organism_001_6",
+                    "claim": "internal_sensory_feedback_is_integrated_into_runtime_regulation_loops",
+                    "evidence": {
+                        "pain": pain,
+                        "pleasure": pleasure,
+                        "adjustment": sensory_adjustment
+                    }
+                },
+                {
+                    "id": "v8_organism_001_7",
+                    "claim": "generative_internal_narrative_is_persisted_with_coherence_state",
+                    "evidence": {
+                        "summary": narrative.get("summary").cloned().unwrap_or(Value::Null),
+                        "coherence": coherence,
+                        "narrative_count": count_jsonl_rows(&narrative_log_path(root))
+                    }
+                },
+                {
+                    "id": "v8_organism_001_8",
+                    "claim": "one_command_ignite_surfaces_a_full_organism_view_without_client_authority_bypass",
+                    "evidence": {
+                        "activation_command": "protheus organism ignite",
+                        "status_command": "protheus organism status",
+                        "activated_components": {
+                            "dream": apply && allowed,
+                            "homeostasis": apply && allowed,
+                            "crystallize": apply && allowed,
+                            "symbiosis": apply && allowed,
+                            "sensory": apply && allowed,
+                            "narrative": apply && allowed
+                        }
+                    }
                 }
             ]
         }),
