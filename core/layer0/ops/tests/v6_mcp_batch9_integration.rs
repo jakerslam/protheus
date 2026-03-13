@@ -98,7 +98,8 @@ fn v6_mcp_batch9_core_lanes_execute_with_receipts() {
         &[
             "capability-matrix".to_string(),
             "--strict=1".to_string(),
-            "--server-capabilities=tools.call,resources.read,server.expose".to_string(),
+            "--server-capabilities=tools.call,resources.read,prompts.get,notifications.emit,auth.session,sampling.request,elicitation.request,roots.enumerate,server.expose"
+                .to_string(),
         ],
     );
     assert_eq!(matrix_exit, 0);
@@ -108,6 +109,15 @@ fn v6_mcp_batch9_core_lanes_execute_with_receipts() {
         Some("mcp_plane_capability_matrix")
     );
     assert_eq!(matrix_latest.get("ok").and_then(Value::as_bool), Some(true));
+    assert!(
+        matrix_latest
+            .get("result")
+            .and_then(|v| v.get("missing_domains"))
+            .and_then(Value::as_array)
+            .map(|rows| rows.is_empty())
+            .unwrap_or(false),
+        "strict conformance should include all required MCP capability domains"
+    );
     assert_claim(&matrix_latest, "V6-MCP-001.1");
     assert_claim(&matrix_latest, "V6-MCP-001.6");
 
@@ -194,7 +204,7 @@ fn v6_mcp_batch9_core_lanes_execute_with_receipts() {
         &[
             "pattern-pack".to_string(),
             "--strict=1".to_string(),
-            "--pattern=map-reduce".to_string(),
+            "--pattern=orchestrator".to_string(),
             "--tasks=collect,aggregate".to_string(),
         ],
     );
@@ -207,6 +217,15 @@ fn v6_mcp_batch9_core_lanes_execute_with_receipts() {
     assert_eq!(
         pattern_latest.get("ok").and_then(Value::as_bool),
         Some(true)
+    );
+    assert!(
+        pattern_latest
+            .get("result")
+            .and_then(|v| v.get("steps"))
+            .and_then(Value::as_array)
+            .map(|rows| rows.len() >= 4)
+            .unwrap_or(false),
+        "orchestrator pattern should compile to deterministic multi-step workflow"
     );
     assert_claim(&pattern_latest, "V6-MCP-001.4");
     assert_claim(&pattern_latest, "V6-MCP-001.6");
@@ -294,6 +313,37 @@ fn v6_mcp_batch9_core_lanes_execute_with_receipts() {
 }
 
 #[test]
+fn v6_mcp_batch9_capability_matrix_fails_when_required_domain_missing() {
+    let fixture = stage_fixture_root();
+    let root = fixture.path();
+
+    let exit = mcp_plane::run(
+        root,
+        &[
+            "capability-matrix".to_string(),
+            "--strict=1".to_string(),
+            "--server-capabilities=tools.call,resources.read,prompts.get,notifications.emit,auth.session,sampling.request,server.expose".to_string(),
+        ],
+    );
+    assert_eq!(exit, 1);
+    let latest = read_json(&latest_path(root));
+    assert_eq!(
+        latest.get("type").and_then(Value::as_str),
+        Some("mcp_plane_capability_matrix")
+    );
+    assert_eq!(latest.get("ok").and_then(Value::as_bool), Some(false));
+    assert!(
+        latest
+            .get("result")
+            .and_then(|v| v.get("missing_domains"))
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().any(|row| row.as_str() == Some("elicitation")))
+            .unwrap_or(false),
+        "strict mode should fail when required MCP domains are missing"
+    );
+}
+
+#[test]
 fn v6_mcp_batch9_rejects_bypass_when_strict() {
     let fixture = stage_fixture_root();
     let root = fixture.path();
@@ -320,4 +370,28 @@ fn v6_mcp_batch9_rejects_bypass_when_strict() {
             .iter()
             .any(|row| row.get("id").and_then(Value::as_str) == Some("V6-MCP-001.6")))
         .unwrap_or(false));
+}
+
+#[test]
+fn v6_mcp_batch9_default_manifest_governance_passes_in_strict_mode() {
+    let fixture = stage_fixture_root();
+    let root = fixture.path();
+    std::env::set_var("MCP_TEMPLATE_SIGNING_KEY", "mcp-template-default-signing-key");
+    let exit = mcp_plane::run(root, &["template-governance".to_string(), "--strict=1".to_string()]);
+    assert_eq!(exit, 0);
+    let latest = read_json(&latest_path(root));
+    assert_eq!(
+        latest.get("type").and_then(Value::as_str),
+        Some("mcp_plane_template_governance")
+    );
+    assert_eq!(latest.get("ok").and_then(Value::as_bool), Some(true));
+    assert!(
+        latest
+            .get("result")
+            .and_then(|v| v.get("validated_templates"))
+            .and_then(Value::as_array)
+            .map(|rows| rows.len() >= 1)
+            .unwrap_or(false),
+        "default MCP template governance manifest should validate at least one signed template in strict mode"
+    );
 }

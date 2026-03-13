@@ -1,8 +1,20 @@
 {
   "version": "v1",
   "kind": "flow_template_pack_manifest",
-  "pack": "default",
+  "pack": "default-flow-templates",
   "updated_at": "2026-03-13T00:00:00Z",
-  "templates": [],
-  "signature": ""
+  "templates": [
+    {
+      "name": "default_analytics_template",
+      "path": "default_analytics_template.json",
+      "sha256": "6d108f7ec26ed57d308c469ff85f1f7f769e9f449f4ac379335b68675b766ca2",
+      "human_reviewed": true,
+      "reviewed_by": "operator",
+      "review_cadence_days": 90,
+      "compatibility": {
+        "canvas_version": "v1"
+      }
+    }
+  ],
+  "signature": "sig:63059cd100a7740ec997bc6dd285815159a8082acac12c32b260cb568facae6c"
 }
