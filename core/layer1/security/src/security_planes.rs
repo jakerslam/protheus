@@ -24,7 +24,11 @@ fn now_iso() -> String {
 }
 
 fn clean(v: impl ToString, max_len: usize) -> String {
-    v.to_string().trim().chars().take(max_len).collect::<String>()
+    v.to_string()
+        .trim()
+        .chars()
+        .take(max_len)
+        .collect::<String>()
 }
 
 fn normalize_rel(raw: impl AsRef<str>) -> String {
@@ -144,7 +148,8 @@ fn sha256_hex_bytes(input: &[u8]) -> String {
 }
 
 fn sha256_hex_file(path: &Path) -> Result<String, String> {
-    let bytes = fs::read(path).map_err(|err| format!("read_file_failed:{}:{err}", path.display()))?;
+    let bytes =
+        fs::read(path).map_err(|err| format!("read_file_failed:{}:{err}", path.display()))?;
     Ok(sha256_hex_bytes(&bytes))
 }
 
@@ -186,8 +191,8 @@ fn stable_json_string(value: &Value) -> String {
 }
 
 fn hmac_sha256_hex(secret: &str, payload: &Value) -> Result<String, String> {
-    let mut mac =
-        HmacSha256::new_from_slice(secret.as_bytes()).map_err(|err| format!("hmac_key_invalid:{err}"))?;
+    let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+        .map_err(|err| format!("hmac_key_invalid:{err}"))?;
     mac.update(stable_json_string(payload).as_bytes());
     Ok(hex::encode(mac.finalize().into_bytes()))
 }
@@ -336,7 +341,12 @@ pub fn run_guard(repo_root: &Path, argv: &[String]) -> (Value, i32) {
         .clamp(1, 4);
     let break_glass = std::env::var("BREAK_GLASS")
         .ok()
-        .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+        .map(|v| {
+            matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
         .unwrap_or(false);
     let approval_note = clean(
         std::env::var("APPROVAL_NOTE")
@@ -364,7 +374,8 @@ pub fn run_guard(repo_root: &Path, argv: &[String]) -> (Value, i32) {
     );
 
     // Integrity gate remains authoritative before clearance checks.
-    let (integrity, _) = crate::run_integrity_reseal(repo_root, &["check".to_string(), "--staged=0".to_string()]);
+    let (integrity, _) =
+        crate::run_integrity_reseal(repo_root, &["check".to_string(), "--staged=0".to_string()]);
     let integrity_ok = integrity
         .get("ok")
         .and_then(Value::as_bool)
@@ -402,7 +413,8 @@ pub fn run_guard(repo_root: &Path, argv: &[String]) -> (Value, i32) {
             || proposal_action
             || (std::env::var("REMOTE_DIRECT_OVERRIDE").ok().as_deref() == Some("1")
                 && !clean(std::env::var("APPROVER_ID").unwrap_or_default(), 120).is_empty()
-                && !clean(std::env::var("SECOND_APPROVER_ID").unwrap_or_default(), 120).is_empty()));
+                && !clean(std::env::var("SECOND_APPROVER_ID").unwrap_or_default(), 120)
+                    .is_empty()));
 
     let blocked = !clearance_ok && !break_glass_allowed;
     let ok = !blocked;
@@ -458,7 +470,12 @@ pub fn run_guard(repo_root: &Path, argv: &[String]) -> (Value, i32) {
         std::env::var(k)
             .ok()
             .map(|v| (k.to_string(), v))
-            .filter(|(_, v)| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+            .filter(|(_, v)| {
+                matches!(
+                    v.trim().to_ascii_lowercase().as_str(),
+                    "1" | "true" | "yes" | "on"
+                )
+            })
     })
     .collect::<Vec<_>>();
     if !risky_toggles.is_empty() {
@@ -609,7 +626,10 @@ fn anti_sabotage_walk_files(
     out
 }
 
-fn anti_sabotage_paths(repo_root: &Path, policy: &AntiSabotagePolicy) -> (PathBuf, PathBuf, PathBuf, PathBuf) {
+fn anti_sabotage_paths(
+    repo_root: &Path,
+    policy: &AntiSabotagePolicy,
+) -> (PathBuf, PathBuf, PathBuf, PathBuf) {
     (
         resolve_runtime_or_state(repo_root, &policy.state_file),
         resolve_runtime_or_state(repo_root, &policy.incident_log),
@@ -636,8 +656,12 @@ fn anti_sabotage_snapshot(
 ) -> Result<Value, String> {
     let (_state_path, _incident_path, snapshots_dir, _watcher_state_path) =
         anti_sabotage_paths(repo_root, policy);
-    fs::create_dir_all(&snapshots_dir)
-        .map_err(|err| format!("create_snapshots_dir_failed:{}:{err}", snapshots_dir.display()))?;
+    fs::create_dir_all(&snapshots_dir).map_err(|err| {
+        format!(
+            "create_snapshots_dir_failed:{}:{err}",
+            snapshots_dir.display()
+        )
+    })?;
     let ts = Utc::now().format("%Y%m%d%H%M%S").to_string();
     let suffix = label
         .map(|v| clean(v, 40).replace(' ', "_"))
@@ -654,8 +678,9 @@ fn anti_sabotage_snapshot(
         let digest = sha256_hex_file(&abs)?;
         let storage = files_dir.join(&rel);
         if let Some(parent) = storage.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|err| format!("create_snapshot_parent_failed:{}:{err}", parent.display()))?;
+            fs::create_dir_all(parent).map_err(|err| {
+                format!("create_snapshot_parent_failed:{}:{err}", parent.display())
+            })?;
         }
         fs::copy(&abs, &storage)
             .map_err(|err| format!("copy_snapshot_file_failed:{}:{err}", abs.display()))?;
@@ -690,7 +715,8 @@ fn anti_sabotage_verify(
     strict: bool,
     auto_reset: bool,
 ) -> Result<(Value, i32), String> {
-    let (_state_path, incident_path, snapshots_dir, _watcher_state_path) = anti_sabotage_paths(repo_root, policy);
+    let (_state_path, incident_path, snapshots_dir, _watcher_state_path) =
+        anti_sabotage_paths(repo_root, policy);
     let snapshot_id = if snapshot_ref == "latest" || snapshot_ref.is_empty() {
         anti_sabotage_latest_snapshot_id(&snapshots_dir).unwrap_or_default()
     } else {
@@ -824,7 +850,8 @@ fn anti_sabotage_verify(
 }
 
 fn anti_sabotage_status(repo_root: &Path, policy: &AntiSabotagePolicy) -> Value {
-    let (state_path, incident_path, snapshots_dir, watcher_state_path) = anti_sabotage_paths(repo_root, policy);
+    let (state_path, incident_path, snapshots_dir, watcher_state_path) =
+        anti_sabotage_paths(repo_root, policy);
     let latest_snapshot_id = anti_sabotage_latest_snapshot_id(&snapshots_dir);
     let latest_snapshot_manifest = latest_snapshot_id
         .as_ref()
@@ -1032,12 +1059,22 @@ fn load_proposal(paths: &ConstitutionPaths, proposal_id: &str) -> Option<Value> 
     Some(read_json_or(&path, Value::Null))
 }
 
-fn save_proposal(paths: &ConstitutionPaths, proposal_id: &str, value: &Value) -> Result<(), String> {
+fn save_proposal(
+    paths: &ConstitutionPaths,
+    proposal_id: &str,
+    value: &Value,
+) -> Result<(), String> {
     write_json_atomic(&proposal_path(paths, proposal_id), value)
 }
 
 fn proposal_status(value: &Value) -> String {
-    clean(value.get("status").and_then(Value::as_str).unwrap_or("unknown"), 64)
+    clean(
+        value
+            .get("status")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown"),
+        64,
+    )
 }
 
 pub fn run_constitution_guardian(repo_root: &Path, argv: &[String]) -> (Value, i32) {
@@ -1099,8 +1136,14 @@ pub fn run_constitution_guardian(repo_root: &Path, argv: &[String]) -> (Value, i
                     1,
                 );
             }
-            let _ = append_jsonl(&paths.events, &json!({"ts": now_iso(), "type": "constitution_genesis_initialized"}));
-            (json!({"ok": true, "type": "constitution_genesis", "genesis": genesis}), 0)
+            let _ = append_jsonl(
+                &paths.events,
+                &json!({"ts": now_iso(), "type": "constitution_genesis_initialized"}),
+            );
+            (
+                json!({"ok": true, "type": "constitution_genesis", "genesis": genesis}),
+                0,
+            )
         }
         "propose-change" => {
             let candidate_file = clean(
@@ -1132,7 +1175,10 @@ pub fn run_constitution_guardian(repo_root: &Path, argv: &[String]) -> (Value, i
             let proposal_id = clean(
                 flag(&parsed, "proposal-id")
                     .or_else(|| flag(&parsed, "proposal_id"))
-                    .unwrap_or(&format!("ccp_{}", &sha256_hex_bytes(now_iso().as_bytes())[0..10])),
+                    .unwrap_or(&format!(
+                        "ccp_{}",
+                        &sha256_hex_bytes(now_iso().as_bytes())[0..10]
+                    )),
                 120,
             );
             let proposal_dir = paths.proposals_dir.join(&proposal_id);
@@ -1166,8 +1212,14 @@ pub fn run_constitution_guardian(repo_root: &Path, argv: &[String]) -> (Value, i
                     1,
                 );
             }
-            let _ = append_jsonl(&paths.events, &json!({"ts": now_iso(), "type": "constitution_proposal_created", "proposal_id": proposal_id}));
-            (json!({"ok": true, "type": "constitution_propose_change", "proposal": proposal}), 0)
+            let _ = append_jsonl(
+                &paths.events,
+                &json!({"ts": now_iso(), "type": "constitution_proposal_created", "proposal_id": proposal_id}),
+            );
+            (
+                json!({"ok": true, "type": "constitution_propose_change", "proposal": proposal}),
+                0,
+            )
         }
         "approve-change" => {
             let proposal_id = clean(
@@ -1188,7 +1240,10 @@ pub fn run_constitution_guardian(repo_root: &Path, argv: &[String]) -> (Value, i
                     .unwrap_or(""),
                 500,
             );
-            if proposal_id.is_empty() || approver_id.is_empty() || approval_note.len() < policy.min_approval_note_chars {
+            if proposal_id.is_empty()
+                || approver_id.is_empty()
+                || approval_note.len() < policy.min_approval_note_chars
+            {
                 return (
                     json!({"ok": false, "type": "constitution_approve_change", "error": "proposal_id_approver_id_and_approval_note_required"}),
                     1,
@@ -1234,7 +1289,10 @@ pub fn run_constitution_guardian(repo_root: &Path, argv: &[String]) -> (Value, i
                 &paths.events,
                 &json!({"ts": now_iso(), "type": "constitution_proposal_approved", "proposal_id": proposal_id, "status": status}),
             );
-            (json!({"ok": true, "type": "constitution_approve_change", "proposal": proposal}), 0)
+            (
+                json!({"ok": true, "type": "constitution_approve_change", "proposal": proposal}),
+                0,
+            )
         }
         "veto-change" => {
             let proposal_id = clean(
@@ -1278,8 +1336,14 @@ pub fn run_constitution_guardian(repo_root: &Path, argv: &[String]) -> (Value, i
                     1,
                 );
             }
-            let _ = append_jsonl(&paths.events, &json!({"ts": now_iso(), "type": "constitution_proposal_vetoed", "proposal_id": proposal_id}));
-            (json!({"ok": true, "type": "constitution_veto_change", "proposal": proposal}), 0)
+            let _ = append_jsonl(
+                &paths.events,
+                &json!({"ts": now_iso(), "type": "constitution_proposal_vetoed", "proposal_id": proposal_id}),
+            );
+            (
+                json!({"ok": true, "type": "constitution_veto_change", "proposal": proposal}),
+                0,
+            )
         }
         "run-gauntlet" => {
             let proposal_id = clean(
@@ -1318,7 +1382,14 @@ pub fn run_constitution_guardian(repo_root: &Path, argv: &[String]) -> (Value, i
                 obj.insert("gauntlet".to_string(), gauntlet.clone());
                 obj.insert(
                     "status".to_string(),
-                    Value::String(if critical_failures == 0 { "gauntlet_passed" } else { "gauntlet_failed" }.to_string()),
+                    Value::String(
+                        if critical_failures == 0 {
+                            "gauntlet_passed"
+                        } else {
+                            "gauntlet_failed"
+                        }
+                        .to_string(),
+                    ),
                 );
             }
             if let Err(err) = save_proposal(&paths, &proposal_id, &proposal) {
@@ -1327,7 +1398,10 @@ pub fn run_constitution_guardian(repo_root: &Path, argv: &[String]) -> (Value, i
                     1,
                 );
             }
-            let _ = append_jsonl(&paths.events, &json!({"ts": now_iso(), "type": "constitution_gauntlet", "proposal_id": proposal_id, "passed": critical_failures == 0}));
+            let _ = append_jsonl(
+                &paths.events,
+                &json!({"ts": now_iso(), "type": "constitution_gauntlet", "proposal_id": proposal_id, "passed": critical_failures == 0}),
+            );
             (
                 json!({"ok": critical_failures == 0, "type": "constitution_run_gauntlet", "proposal": proposal}),
                 if critical_failures == 0 { 0 } else { 1 },
@@ -1352,7 +1426,10 @@ pub fn run_constitution_guardian(repo_root: &Path, argv: &[String]) -> (Value, i
                     .unwrap_or(""),
                 500,
             );
-            if proposal_id.is_empty() || approver_id.is_empty() || approval_note.len() < policy.min_approval_note_chars {
+            if proposal_id.is_empty()
+                || approver_id.is_empty()
+                || approval_note.len() < policy.min_approval_note_chars
+            {
                 return (
                     json!({"ok": false, "type": "constitution_activate_change", "error": "proposal_id_approver_id_and_approval_note_required"}),
                     1,
@@ -1397,10 +1474,7 @@ pub fn run_constitution_guardian(repo_root: &Path, argv: &[String]) -> (Value, i
                 );
             }
             if paths.constitution.exists() {
-                let backup_name = format!(
-                    "{}_constitution.md",
-                    Utc::now().format("%Y%m%d%H%M%S")
-                );
+                let backup_name = format!("{}_constitution.md", Utc::now().format("%Y%m%d%H%M%S"));
                 let backup_path = paths.history_dir.join(backup_name);
                 if let Some(parent) = backup_path.parent() {
                     let _ = fs::create_dir_all(parent);
@@ -1443,8 +1517,14 @@ pub fn run_constitution_guardian(repo_root: &Path, argv: &[String]) -> (Value, i
                     1,
                 );
             }
-            let _ = append_jsonl(&paths.events, &json!({"ts": now_iso(), "type": "constitution_activated", "proposal_id": proposal_id}));
-            (json!({"ok": true, "type": "constitution_activate_change", "proposal": proposal}), 0)
+            let _ = append_jsonl(
+                &paths.events,
+                &json!({"ts": now_iso(), "type": "constitution_activated", "proposal_id": proposal_id}),
+            );
+            (
+                json!({"ok": true, "type": "constitution_activate_change", "proposal": proposal}),
+                0,
+            )
         }
         "enforce-inheritance" => {
             let actor = clean(flag(&parsed, "actor").unwrap_or("unknown"), 120);
@@ -1463,7 +1543,9 @@ pub fn run_constitution_guardian(repo_root: &Path, argv: &[String]) -> (Value, i
         }
         "emergency-rollback" => {
             let note = clean(flag(&parsed, "note").unwrap_or(""), 400);
-            if policy.emergency_rollback_requires_approval && note.len() < policy.min_approval_note_chars {
+            if policy.emergency_rollback_requires_approval
+                && note.len() < policy.min_approval_note_chars
+            {
                 return (
                     json!({"ok": false, "type": "constitution_emergency_rollback", "error": "approval_note_too_short"}),
                     1,
@@ -1625,7 +1707,10 @@ impl Default for RemoteEmergencyHaltPolicy {
     }
 }
 
-fn load_remote_emergency_policy(repo_root: &Path, parsed: &ParsedArgs) -> RemoteEmergencyHaltPolicy {
+fn load_remote_emergency_policy(
+    repo_root: &Path,
+    parsed: &ParsedArgs,
+) -> RemoteEmergencyHaltPolicy {
     let policy_path = flag(parsed, "policy")
         .map(|v| resolve_runtime_or_state(repo_root, v))
         .unwrap_or_else(|| runtime_config_path(repo_root, "remote_emergency_halt_policy.json"));
@@ -1671,7 +1756,10 @@ pub fn run_remote_emergency_halt(repo_root: &Path, argv: &[String]) -> (Value, i
     let state_path = resolve_runtime_or_state(repo_root, &policy.paths.state);
     let nonce_store_path = resolve_runtime_or_state(repo_root, &policy.paths.nonce_store);
     let audit_path = resolve_runtime_or_state(repo_root, &policy.paths.audit);
-    let key = std::env::var(&policy.key_env).ok().map(|v| clean(v, 4096)).unwrap_or_default();
+    let key = std::env::var(&policy.key_env)
+        .ok()
+        .map(|v| clean(v, 4096))
+        .unwrap_or_default();
 
     match cmd.as_str() {
         "status" => (
@@ -1782,7 +1870,11 @@ pub fn run_remote_emergency_halt(repo_root: &Path, argv: &[String]) -> (Value, i
                     )
                 }
             };
-            let Some(signature) = payload.get("signature").and_then(Value::as_str).map(|v| clean(v, 240)) else {
+            let Some(signature) = payload
+                .get("signature")
+                .and_then(Value::as_str)
+                .map(|v| clean(v, 240))
+            else {
                 return (
                     json!({"ok": false, "type":"remote_emergency_halt_receive", "error":"signature_missing"}),
                     1,
@@ -1802,21 +1894,28 @@ pub fn run_remote_emergency_halt(repo_root: &Path, argv: &[String]) -> (Value, i
                 );
             }
             let now_ms = Utc::now().timestamp_millis();
-            let expires_at_ms = payload.get("expires_at_ms").and_then(Value::as_i64).unwrap_or(0);
+            let expires_at_ms = payload
+                .get("expires_at_ms")
+                .and_then(Value::as_i64)
+                .unwrap_or(0);
             if expires_at_ms <= now_ms - (policy.max_clock_skew_seconds * 1000) {
                 return (
                     json!({"ok": false, "type":"remote_emergency_halt_receive", "error":"command_expired"}),
                     1,
                 );
             }
-            let nonce = clean(payload.get("nonce").and_then(Value::as_str).unwrap_or(""), 180);
+            let nonce = clean(
+                payload.get("nonce").and_then(Value::as_str).unwrap_or(""),
+                180,
+            );
             if nonce.is_empty() {
                 return (
                     json!({"ok": false, "type":"remote_emergency_halt_receive", "error":"nonce_missing"}),
                     1,
                 );
             }
-            let mut nonce_doc = read_json_or(&nonce_store_path, json!({"version":1, "entries": {}}));
+            let mut nonce_doc =
+                read_json_or(&nonce_store_path, json!({"version":1, "entries": {}}));
             let entries = nonce_doc
                 .get_mut("entries")
                 .and_then(Value::as_object_mut)
@@ -1840,8 +1939,15 @@ pub fn run_remote_emergency_halt(repo_root: &Path, argv: &[String]) -> (Value, i
             }
             let _ = write_json_atomic(&nonce_store_path, &nonce_doc);
 
-            let action = clean(payload.get("action").and_then(Value::as_str).unwrap_or(""), 40).to_ascii_lowercase();
-            let mut state = read_json_or(&state_path, json!({"halted": false, "updated_at": null, "last_command_id": null}));
+            let action = clean(
+                payload.get("action").and_then(Value::as_str).unwrap_or(""),
+                40,
+            )
+            .to_ascii_lowercase();
+            let mut state = read_json_or(
+                &state_path,
+                json!({"halted": false, "updated_at": null, "last_command_id": null}),
+            );
             let mut applied = false;
             let mut purge = json!({"executed": false, "deleted": []});
             if action == "halt" {
@@ -1991,7 +2097,10 @@ pub fn run_soul_token_guard(repo_root: &Path, argv: &[String]) -> (Value, i32) {
     let token_state_path = resolve_runtime_or_state(repo_root, &policy.token_state_path);
     let audit_path = resolve_runtime_or_state(repo_root, &policy.audit_path);
     let attestation_path = resolve_runtime_or_state(repo_root, &policy.attestation_path);
-    let key = std::env::var(&policy.key_env).ok().map(|v| clean(v, 4096)).unwrap_or_default();
+    let key = std::env::var(&policy.key_env)
+        .ok()
+        .map(|v| clean(v, 4096))
+        .unwrap_or_default();
 
     match cmd.as_str() {
         "issue" => {
@@ -2001,9 +2110,22 @@ pub fn run_soul_token_guard(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                     1,
                 );
             }
-            let instance_id = clean(flag(&parsed, "instance-id").or_else(|| flag(&parsed, "instance_id")).unwrap_or("default"), 160);
-            let approval_note = clean(flag(&parsed, "approval-note").or_else(|| flag(&parsed, "approval_note")).unwrap_or(""), 400);
-            let token_id = format!("stg_{}", &sha256_hex_bytes(format!("{}|{}", now_iso(), instance_id).as_bytes())[0..12]);
+            let instance_id = clean(
+                flag(&parsed, "instance-id")
+                    .or_else(|| flag(&parsed, "instance_id"))
+                    .unwrap_or("default"),
+                160,
+            );
+            let approval_note = clean(
+                flag(&parsed, "approval-note")
+                    .or_else(|| flag(&parsed, "approval_note"))
+                    .unwrap_or(""),
+                400,
+            );
+            let token_id = format!(
+                "stg_{}",
+                &sha256_hex_bytes(format!("{}|{}", now_iso(), instance_id).as_bytes())[0..12]
+            );
             let fingerprint = soul_fingerprint(repo_root);
             let payload = json!({
                 "token_id": token_id,
@@ -2049,7 +2171,12 @@ pub fn run_soul_token_guard(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                     1,
                 );
             }
-            let build_id = clean(flag(&parsed, "build-id").or_else(|| flag(&parsed, "build_id")).unwrap_or(""), 180);
+            let build_id = clean(
+                flag(&parsed, "build-id")
+                    .or_else(|| flag(&parsed, "build_id"))
+                    .unwrap_or(""),
+                180,
+            );
             if build_id.is_empty() {
                 return (
                     json!({"ok": false, "type":"soul_token_stamp_build", "error":"build_id_required"}),
@@ -2099,7 +2226,10 @@ pub fn run_soul_token_guard(repo_root: &Path, argv: &[String]) -> (Value, i32) {
             }
             let state = read_json_or(&token_state_path, Value::Null);
             let token = state.get("token").cloned().unwrap_or(Value::Null);
-            let signature = clean(state.get("signature").and_then(Value::as_str).unwrap_or(""), 240);
+            let signature = clean(
+                state.get("signature").and_then(Value::as_str).unwrap_or(""),
+                240,
+            );
             let mut ok = state.is_object() && token.is_object() && !signature.is_empty();
             let mut reason = "verified".to_string();
             if !ok {
@@ -2111,7 +2241,13 @@ pub fn run_soul_token_guard(repo_root: &Path, argv: &[String]) -> (Value, i32) {
                     reason = "signature_mismatch".to_string();
                 } else if policy.bind_to_fingerprint {
                     let expected_fp = soul_fingerprint(repo_root);
-                    let token_fp = clean(token.get("fingerprint").and_then(Value::as_str).unwrap_or(""), 200);
+                    let token_fp = clean(
+                        token
+                            .get("fingerprint")
+                            .and_then(Value::as_str)
+                            .unwrap_or(""),
+                        200,
+                    );
                     if expected_fp != token_fp {
                         ok = false;
                         reason = "fingerprint_mismatch".to_string();

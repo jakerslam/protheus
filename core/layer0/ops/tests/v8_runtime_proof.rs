@@ -15,7 +15,9 @@ fn env_lock() -> &'static Mutex<()> {
 }
 
 fn env_guard() -> std::sync::MutexGuard<'static, ()> {
-    env_lock().lock().unwrap_or_else(|poison| poison.into_inner())
+    env_lock()
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner())
 }
 
 fn temp_root(name: &str) -> PathBuf {

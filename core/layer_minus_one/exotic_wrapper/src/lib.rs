@@ -41,12 +41,7 @@ pub fn wrap_exotic_signal(env: &ExoticEnvelope, capability_class: &str) -> Layer
     let mut hasher = Sha256::new();
     hasher.update(format!(
         "{:?}|{}|{}|{}|{}|{}",
-        env.domain,
-        env.adapter_id,
-        env.signal_type,
-        env.payload_ref,
-        env.ts_ms,
-        capability_class
+        env.domain, env.adapter_id, env.signal_type, env.payload_ref, env.ts_ms, capability_class
     ));
     let digest = format!("{:x}", hasher.finalize());
     Layer0Envelope {

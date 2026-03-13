@@ -1,7 +1,7 @@
 use protheus_swarm_router::{
     apply_rollback, apply_upgrade, auto_id, build_metrics, build_receipt, plan_scaling,
-    recovery_decision, status_payload, InFlightTracker, QueueArtifact, RecoveryPolicy, ScalingPolicy,
-    SwarmEnvelope, UpgradePolicy,
+    recovery_decision, status_payload, InFlightTracker, QueueArtifact, RecoveryPolicy,
+    ScalingPolicy, SwarmEnvelope, UpgradePolicy,
 };
 use serde_json::{json, Value};
 use std::env;
@@ -38,12 +38,19 @@ fn parse_bool(args: &[String], name: &str, default: bool) -> bool {
 }
 
 fn queue_path(args: &[String]) -> PathBuf {
-    let raw = parse_flag(args, "queue", Some("client/runtime/local/state/swarm/queue.json"));
+    let raw = parse_flag(
+        args,
+        "queue",
+        Some("client/runtime/local/state/swarm/queue.json"),
+    );
     PathBuf::from(raw)
 }
 
 fn emit(payload: Value, ok: bool) {
-    println!("{}", serde_json::to_string_pretty(&payload).unwrap_or_else(|_| "{}".to_string()));
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&payload).unwrap_or_else(|_| "{}".to_string())
+    );
     if !ok {
         std::process::exit(1);
     }
@@ -66,7 +73,8 @@ fn main() {
             let role = parse_flag(&args, "role", Some("coordinator"));
             let priority = parse_u8(&args, "priority", 5);
             let payload_raw = parse_flag(&args, "payload-json", Some("{}"));
-            let payload: Value = serde_json::from_str(&payload_raw).unwrap_or_else(|_| json!({ "raw": payload_raw }));
+            let payload: Value = serde_json::from_str(&payload_raw)
+                .unwrap_or_else(|_| json!({ "raw": payload_raw }));
             let env = SwarmEnvelope::new_auto(&role, &route, payload, priority);
             match queue.push(env.clone()) {
                 Ok(()) => {
@@ -83,7 +91,10 @@ fn main() {
                             queue.items.len(),
                         )),
                     );
-                    emit(json!({"ok": true, "type": "swarm_router_enqueue", "receipt": receipt}), true);
+                    emit(
+                        json!({"ok": true, "type": "swarm_router_enqueue", "receipt": receipt}),
+                        true,
+                    );
                 }
                 Err(err) => emit(json!({"ok": false, "error": err}), false),
             }
@@ -97,7 +108,10 @@ fn main() {
                 fixer_route: parse_flag(&args, "fixer-route", Some("swarm/fixer")),
             };
             let decision = recovery_decision(&env, attempts, &policy);
-            emit(json!({"ok": true, "type": "swarm_router_recover", "decision": decision}), true);
+            emit(
+                json!({"ok": true, "type": "swarm_router_recover", "decision": decision}),
+                true,
+            );
         }
         "scale" => {
             let policy = ScalingPolicy {
@@ -111,7 +125,10 @@ fn main() {
                 parse_usize(&args, "workers", 1),
                 &policy,
             );
-            emit(json!({"ok": true, "type": "swarm_router_scale", "decision": decision}), true);
+            emit(
+                json!({"ok": true, "type": "swarm_router_scale", "decision": decision}),
+                true,
+            );
         }
         "upgrade" => {
             let policy = UpgradePolicy {
@@ -123,7 +140,10 @@ fn main() {
                 &parse_flag(&args, "to", Some("1.1.0")),
                 &policy,
             );
-            emit(json!({"ok": receipt.ok, "type": "swarm_router_upgrade", "receipt": receipt}), receipt.ok);
+            emit(
+                json!({"ok": receipt.ok, "type": "swarm_router_upgrade", "receipt": receipt}),
+                receipt.ok,
+            );
         }
         "rollback" => {
             let policy = UpgradePolicy {
@@ -135,7 +155,10 @@ fn main() {
                 &parse_flag(&args, "to", Some("1.0.0")),
                 &policy,
             );
-            emit(json!({"ok": receipt.ok, "type": "swarm_router_rollback", "receipt": receipt}), receipt.ok);
+            emit(
+                json!({"ok": receipt.ok, "type": "swarm_router_rollback", "receipt": receipt}),
+                receipt.ok,
+            );
         }
         "id" => {
             let prefix = parse_flag(&args, "role", Some("swarm"));

@@ -94,8 +94,8 @@ pub fn select_inference_backend(
 #[cfg(test)]
 mod tests {
     use super::{
-        select_inference_backend, BackendOverride, HardwareProfile, InferenceBackend, ResourceBudget,
-        ResourceUsage,
+        select_inference_backend, BackendOverride, HardwareProfile, InferenceBackend,
+        ResourceBudget, ResourceUsage,
     };
 
     #[test]

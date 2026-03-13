@@ -824,21 +824,17 @@ fn run_incident(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value 
             120,
         );
         let action = clean(
-            parsed
-                .flags
-                .get("action")
-                .cloned()
-                .unwrap_or_else(|| {
-                    contract
-                        .get("default_response_actions")
-                        .and_then(Value::as_array)
-                        .cloned()
-                        .unwrap_or_default()
-                        .iter()
-                        .filter_map(Value::as_str)
-                        .collect::<Vec<_>>()
-                        .join("+")
-                }),
+            parsed.flags.get("action").cloned().unwrap_or_else(|| {
+                contract
+                    .get("default_response_actions")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default()
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .collect::<Vec<_>>()
+                    .join("+")
+            }),
             160,
         );
         let requested_actions = {

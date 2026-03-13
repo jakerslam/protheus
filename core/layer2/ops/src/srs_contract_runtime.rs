@@ -303,7 +303,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "results": results
             }));
             print_json_line(&out);
-            if failed == 0 { 0 } else { 1 }
+            if failed == 0 {
+                0
+            } else {
+                1
+            }
         }
         "run" => {
             let Some(id) = parse_id(argv) else {
@@ -316,19 +320,19 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 return 2;
             };
             match execute_contract(root, &id) {
-            Ok(out) => {
-                print_json_line(&out);
-                0
-            }
-            Err(err) => {
-                print_json_line(&with_hash(json!({
-                    "ok": false,
-                    "type": "srs_contract_runtime_error",
-                    "id": id,
-                    "code": err
-                })));
-                1
-            }
+                Ok(out) => {
+                    print_json_line(&out);
+                    0
+                }
+                Err(err) => {
+                    print_json_line(&with_hash(json!({
+                        "ok": false,
+                        "type": "srs_contract_runtime_error",
+                        "id": id,
+                        "code": err
+                    })));
+                    1
+                }
             }
         }
         "status" => {

@@ -92,7 +92,13 @@ pub fn evaluate_burn_slo(event: &TokenTelemetryEvent, threshold_tokens: u32) -> 
 mod tests {
     use super::*;
 
-    fn sample(mode: RetrievalMode, startup: u32, hydration: u32, retrieval: u32, response: u32) -> TokenTelemetryEvent {
+    fn sample(
+        mode: RetrievalMode,
+        startup: u32,
+        hydration: u32,
+        retrieval: u32,
+        response: u32,
+    ) -> TokenTelemetryEvent {
         TokenTelemetryEvent {
             startup_tokens: startup,
             hydration_tokens: hydration,

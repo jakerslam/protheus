@@ -13,8 +13,8 @@ use std::io::{self, BufRead, Read, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::Duration;
-use wait_timeout::ChildExt;
 use std::time::{SystemTime, UNIX_EPOCH};
+use wait_timeout::ChildExt;
 
 mod runtime_paths;
 
@@ -1193,12 +1193,14 @@ fn execute_ops_bridge_command(domain: &str, args: &[String], run_context: Option
     let timeout_ms = bridge_command_timeout_ms();
 
     let mut cmd = Command::new(&command);
-    cmd.args(&command_args).current_dir(&root).env(
-        "PROTHEUS_NODE_BINARY",
-        std::env::var("PROTHEUS_NODE_BINARY").unwrap_or_else(|_| "node".to_string()),
-    )
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped());
+    cmd.args(&command_args)
+        .current_dir(&root)
+        .env(
+            "PROTHEUS_NODE_BINARY",
+            std::env::var("PROTHEUS_NODE_BINARY").unwrap_or_else(|_| "node".to_string()),
+        )
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
     if let Some(context) = run_context {
         let trimmed = context.trim();
         if !trimmed.is_empty() {
@@ -1239,7 +1241,9 @@ fn execute_ops_bridge_command(domain: &str, args: &[String], run_context: Option
                     }
                     if let Some(reason) = receipt.get("reason").and_then(Value::as_str) {
                         detail["reason"] = Value::String(reason.to_string());
-                    } else if let Some(reason) = receipt.get("failure_reason").and_then(Value::as_str) {
+                    } else if let Some(reason) =
+                        receipt.get("failure_reason").and_then(Value::as_str)
+                    {
                         detail["reason"] = Value::String(reason.to_string());
                     }
                 }

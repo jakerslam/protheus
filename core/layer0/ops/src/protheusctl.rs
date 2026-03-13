@@ -1958,7 +1958,10 @@ mod tests {
     fn core_shortcut_routes_assimilate_doc2dict_core_to_parse_plane() {
         let route = resolve_core_shortcuts(
             "assimilate",
-            &["parse://doc2dict-core".to_string(), "--strict=1".to_string()],
+            &[
+                "parse://doc2dict-core".to_string(),
+                "--strict=1".to_string(),
+            ],
         )
         .expect("route");
         assert_eq!(route.script_rel, "core://parse-plane");
@@ -2094,7 +2097,12 @@ mod tests {
         assert_eq!(route.script_rel, "core://flow-plane");
         assert_eq!(
             route.args,
-            vec!["playground", "--op=play", "--run-id=batch29-flow", "--strict=1"]
+            vec![
+                "playground",
+                "--op=play",
+                "--run-id=batch29-flow",
+                "--strict=1"
+            ]
         );
     }
 
@@ -2799,24 +2807,27 @@ mod tests {
         )
         .expect("route");
         assert_eq!(route.script_rel, "core://app-plane");
-        assert_eq!(route.args, vec!["history", "--app=chat-starter", "--session-id=s1"]);
+        assert_eq!(
+            route.args,
+            vec!["history", "--app=chat-starter", "--session-id=s1"]
+        );
     }
 
     #[test]
     fn core_shortcut_routes_top_level_chat_starter_plain_message_to_run() {
         let route = resolve_core_shortcuts(
             "chat-starter",
-            &["hello".to_string(), "from".to_string(), "shortcut".to_string()],
+            &[
+                "hello".to_string(),
+                "from".to_string(),
+                "shortcut".to_string(),
+            ],
         )
         .expect("route");
         assert_eq!(route.script_rel, "core://app-plane");
         assert_eq!(
             route.args,
-            vec![
-                "run",
-                "--app=chat-starter",
-                "--message=hello from shortcut"
-            ]
+            vec!["run", "--app=chat-starter", "--message=hello from shortcut"]
         );
     }
 

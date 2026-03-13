@@ -250,7 +250,10 @@ fn v6_binvuln_batch30_rulepack_install_enable_and_cockpit_observability() {
         ]
     });
     let payload_digest = sha256_hex(&canonical_json_string(&unsigned));
-    let signature = format!("sig:{}", sha256_hex(&format!("{provenance}:{payload_digest}")));
+    let signature = format!(
+        "sig:{}",
+        sha256_hex(&format!("{provenance}:{payload_digest}"))
+    );
     let mut signed = unsigned.clone();
     signed["metadata"]["signature"] = Value::String(signature);
 
@@ -278,7 +281,10 @@ fn v6_binvuln_batch30_rulepack_install_enable_and_cockpit_observability() {
         install_latest.get("type").and_then(Value::as_str),
         Some("binary_vuln_plane_rulepack_install")
     );
-    assert_eq!(install_latest.get("ok").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        install_latest.get("ok").and_then(Value::as_bool),
+        Some(true)
+    );
     assert!(
         install_latest
             .get("rulepack")
@@ -308,8 +314,9 @@ fn v6_binvuln_batch30_rulepack_install_enable_and_cockpit_observability() {
             .get("findings")
             .and_then(Value::as_array)
             .map(|rows| {
-                rows.iter()
-                    .any(|row| row.get("id").and_then(Value::as_str) == Some("batch30_custom_pattern"))
+                rows.iter().any(|row| {
+                    row.get("id").and_then(Value::as_str) == Some("batch30_custom_pattern")
+                })
             })
             .unwrap_or(false),
         "active custom rulepack should drive scan findings"
@@ -317,7 +324,11 @@ fn v6_binvuln_batch30_rulepack_install_enable_and_cockpit_observability() {
 
     let cockpit_exit = hermes_plane::run(
         root,
-        &["cockpit".to_string(), "--strict=1".to_string(), "--max-blocks=16".to_string()],
+        &[
+            "cockpit".to_string(),
+            "--strict=1".to_string(),
+            "--max-blocks=16".to_string(),
+        ],
     );
     assert_eq!(cockpit_exit, 0);
     let cockpit_latest = read_json(&hermes_latest_path(root));
