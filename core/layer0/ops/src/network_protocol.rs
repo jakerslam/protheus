@@ -127,7 +127,12 @@ fn append_event(root: &Path, event: &Value) -> Result<(), String> {
         .map_err(|err| format!("event_append_failed:{}:{err}", events_path(root).display()))
 }
 
-fn commit_ledger(root: &Path, mut ledger: Value, event_kind: &str, event_payload: Value) -> Result<Value, String> {
+fn commit_ledger(
+    root: &Path,
+    mut ledger: Value,
+    event_kind: &str,
+    event_payload: Value,
+) -> Result<Value, String> {
     let policy_hash = directive_kernel::directive_vault_hash(root);
     if !ledger.is_object() {
         ledger = default_ledger();
@@ -155,7 +160,10 @@ fn commit_ledger(root: &Path, mut ledger: Value, event_kind: &str, event_payload
         "event": event_base
     });
     append_event(root, &event)?;
-    obj.insert("event_head".to_string(), event.get("event_hash").cloned().unwrap_or(Value::Null));
+    obj.insert(
+        "event_head".to_string(),
+        event.get("event_hash").cloned().unwrap_or(Value::Null),
+    );
 
     let prev_root = obj
         .get("root_head")
@@ -199,7 +207,12 @@ fn put_stake(ledger: &mut Value, account: &str, value: f64) {
     staked.insert(account.to_string(), Value::from(value.max(0.0)));
 }
 
-pub fn deduct_nexus_balance(root: &Path, account: &str, amount: f64, reason: &str) -> Result<Value, String> {
+pub fn deduct_nexus_balance(
+    root: &Path,
+    account: &str,
+    amount: f64,
+    reason: &str,
+) -> Result<Value, String> {
     let mut ledger = load_ledger(root);
     let balances = ledger
         .get("balances")
@@ -243,6 +256,10 @@ fn emit(root: &Path, payload: Value) -> i32 {
             2
         }
     }
+}
+
+fn gate_action(root: &Path, action: &str) -> bool {
+    directive_kernel::action_allowed(root, action)
 }
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {
@@ -295,6 +312,30 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .unwrap_or_else(|| "genesis".to_string()),
             96,
         );
+        let gate_ok = gate_action(root, "tokenomics:ignite-bitcoin");
+        if apply && !gate_ok {
+            return emit(
+                root,
+                json!({
+                    "ok": false,
+                    "type": "network_protocol_ignite_bitcoin",
+                    "lane": "core/layer0/ops",
+                    "apply": apply,
+                    "profile": "bitcoin",
+                    "seed": seed,
+                    "error": "directive_gate_denied",
+                    "gate_action": "tokenomics:ignite-bitcoin",
+                    "layer_map": ["0","1","2","client","app"],
+                    "claim_evidence": [
+                        {
+                            "id": "v8_network_002_5_activation_contract",
+                            "claim": "bitcoin_profile_ignition_is_core_authoritative_and_receipted",
+                            "evidence": {"allowed": false, "reason": "directive_gate_denied"}
+                        }
+                    ]
+                }),
+            );
+        }
 
         if apply && !ledger_path(root).exists() {
             let mut ledger = default_ledger();
@@ -324,6 +365,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     "sovereign_identity_required": true,
                     "fail_closed": true
                 },
+                "gate_action": "tokenomics:ignite-bitcoin",
                 "layer_map": ["0","1","2","client","app"],
                 "claim_evidence": [
                     {
@@ -460,7 +502,23 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             ),
         }
     } else if command == "merkle-root" {
-        let account = clean(parsed.flags.get("account").cloned().unwrap_or_default(), 120);
+        let gate_ok = gate_action(root, "tokenomics:merkle-root");
+        if !gate_ok {
+            return emit(
+                root,
+                json!({
+                    "ok": false,
+                    "type": "network_protocol_global_merkle_root",
+                    "lane": "core/layer0/ops",
+                    "error": "directive_gate_denied",
+                    "gate_action": "tokenomics:merkle-root"
+                }),
+            );
+        }
+        let account = clean(
+            parsed.flags.get("account").cloned().unwrap_or_default(),
+            120,
+        );
         let proof_requested = parse_bool(parsed.flags.get("proof"), true);
         let ledger = load_ledger(root);
         let policy_hash = directive_kernel::directive_vault_hash(root);
@@ -478,7 +536,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     .unwrap_or(0.0)
             );
             let idx = leaves.iter().position(|v| v == &entry).unwrap_or(0);
-            (Value::Array(merkle_proof(&leaves, idx)), Value::String(entry))
+            (
+                Value::Array(merkle_proof(&leaves, idx)),
+                Value::String(entry),
+            )
         } else {
             (Value::Array(Vec::new()), Value::Null)
         };
@@ -506,6 +567,27 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             }),
         )
     } else if command == "emission" {
+        let gate_ok = gate_action(root, "tokenomics:emission");
+        if !gate_ok {
+            return emit(
+                root,
+                json!({
+                    "ok": false,
+                    "type": "network_protocol_emission_curve",
+                    "lane": "core/layer0/ops",
+                    "error": "directive_gate_denied",
+                    "gate_action": "tokenomics:emission",
+                    "layer_map": ["0","1","2"],
+                    "claim_evidence": [
+                        {
+                            "id": "v8_network_002_3_emission_contract",
+                            "claim": "halving_style_emission_schedule_is_deterministic_and_receipted",
+                            "evidence": {"allowed": false, "reason": "directive_gate_denied"}
+                        }
+                    ]
+                }),
+            );
+        }
         let height = parse_u64(parsed.flags.get("height"), 0);
         let interval = parse_u64(parsed.flags.get("halving-interval"), 210_000).max(1);
         let initial = parse_f64(parsed.flags.get("initial-issuance"), 50.0).max(0.0);
@@ -566,6 +648,27 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             ),
         }
     } else if command == "zk-claim" {
+        let gate_ok = gate_action(root, "tokenomics:zk-claim");
+        if !gate_ok {
+            return emit(
+                root,
+                json!({
+                    "ok": false,
+                    "type": "network_protocol_zk_claim",
+                    "lane": "core/layer0/ops",
+                    "error": "directive_gate_denied",
+                    "gate_action": "tokenomics:zk-claim",
+                    "layer_map": ["0","1","2","adapter"],
+                    "claim_evidence": [
+                        {
+                            "id": "v8_network_002_4_zk_claim_contract",
+                            "claim": "private_claim_verification_is_policy_gated_and_receipted",
+                            "evidence": {"allowed": false, "reason": "directive_gate_denied"}
+                        }
+                    ]
+                }),
+            );
+        }
         let claim_id = clean(
             parsed
                 .flags
@@ -574,8 +677,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .unwrap_or_else(|| "claim:unknown".to_string()),
             140,
         );
-        let commitment = clean(parsed.flags.get("commitment").cloned().unwrap_or_default(), 256);
-        let challenge = clean(parsed.flags.get("challenge").cloned().unwrap_or_default(), 256);
+        let commitment = clean(
+            parsed.flags.get("commitment").cloned().unwrap_or_default(),
+            256,
+        );
+        let challenge = clean(
+            parsed.flags.get("challenge").cloned().unwrap_or_default(),
+            256,
+        );
         let public_input = clean(
             parsed
                 .flags
@@ -677,13 +786,11 @@ mod tests {
         root
     }
 
-    #[test]
-    fn stake_updates_balance_and_writes_root() {
+    fn allow_tokenomics(root: &Path) {
         std::env::set_var("DIRECTIVE_KERNEL_SIGNING_KEY", "test-sign-key");
-        let root = temp_root("stake");
         assert_eq!(
             crate::directive_kernel::run(
-                &root,
+                root,
                 &[
                     "prime-sign".to_string(),
                     "--directive=allow:tokenomics".to_string(),
@@ -692,6 +799,12 @@ mod tests {
             ),
             0
         );
+    }
+
+    #[test]
+    fn stake_updates_balance_and_writes_root() {
+        let root = temp_root("stake");
+        allow_tokenomics(&root);
         assert_eq!(
             run(
                 &root,
@@ -718,8 +831,93 @@ mod tests {
     }
 
     #[test]
+    fn ignite_bitcoin_requires_directive_gate_when_apply_is_true() {
+        let root = temp_root("ignite_gate");
+        let denied = run(
+            &root,
+            &[
+                "ignite-bitcoin".to_string(),
+                "--seed=test".to_string(),
+                "--apply=1".to_string(),
+            ],
+        );
+        assert_eq!(denied, 2);
+        let latest = read_json(&latest_path(&root)).expect("latest");
+        assert_eq!(
+            latest.get("error").and_then(Value::as_str),
+            Some("directive_gate_denied")
+        );
+
+        allow_tokenomics(&root);
+        let allowed = run(
+            &root,
+            &[
+                "ignite-bitcoin".to_string(),
+                "--seed=test".to_string(),
+                "--apply=1".to_string(),
+            ],
+        );
+        assert_eq!(allowed, 0);
+        std::env::remove_var("DIRECTIVE_KERNEL_SIGNING_KEY");
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn emission_requires_directive_gate() {
+        let root = temp_root("emission_gate");
+        let denied = run(
+            &root,
+            &[
+                "emission".to_string(),
+                "--height=210000".to_string(),
+                "--halving-interval=210000".to_string(),
+                "--initial-issuance=50".to_string(),
+            ],
+        );
+        assert_eq!(denied, 2);
+        let latest = read_json(&latest_path(&root)).expect("latest");
+        assert_eq!(
+            latest.get("error").and_then(Value::as_str),
+            Some("directive_gate_denied")
+        );
+
+        allow_tokenomics(&root);
+        let allowed = run(
+            &root,
+            &[
+                "emission".to_string(),
+                "--height=210000".to_string(),
+                "--halving-interval=210000".to_string(),
+                "--initial-issuance=50".to_string(),
+            ],
+        );
+        assert_eq!(allowed, 0);
+        std::env::remove_var("DIRECTIVE_KERNEL_SIGNING_KEY");
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn zk_claim_strict_mode_fails_without_valid_proof() {
         let root = temp_root("zk");
+        let denied = run(
+            &root,
+            &[
+                "zk-claim".to_string(),
+                "--claim-id=claim:test".to_string(),
+                "--commitment=abc".to_string(),
+                "--challenge=deadbeef".to_string(),
+                "--public-input=p".to_string(),
+                "--strict=1".to_string(),
+            ],
+        );
+        assert_eq!(denied, 2);
+        let latest = read_json(&latest_path(&root)).expect("latest");
+        assert_eq!(
+            latest.get("error").and_then(Value::as_str),
+            Some("directive_gate_denied")
+        );
+
+        allow_tokenomics(&root);
         let exit = run(
             &root,
             &[
@@ -734,6 +932,7 @@ mod tests {
         assert_eq!(exit, 2);
         let latest = read_json(&latest_path(&root)).expect("latest");
         assert_eq!(latest.get("ok").and_then(Value::as_bool), Some(false));
+        std::env::remove_var("DIRECTIVE_KERNEL_SIGNING_KEY");
         let _ = fs::remove_dir_all(root);
     }
 }
