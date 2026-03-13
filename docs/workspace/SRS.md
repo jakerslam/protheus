@@ -7873,6 +7873,26 @@ Objective: add first-class, governed graph analytics (centrality, community dete
 | V6-TOOLS-006.5 | existing-coverage-validated | Thin Command + Visualization Surface Contract | Operator adoption remains low without unified CLI/dashboard entrypoints for graph analytics workflows. | Provide thin command surfaces (`protheus graph centrality`, `protheus graph communities`, `protheus graph predict-links`) and optional dashboard views that consume core analytics artifacts only, with no client-side algorithm authority. | 7 | 1/2/client/app |
 | V6-TOOLS-006.6 | existing-coverage-validated | Conduit-Only Graph Analytics Boundary + Thin Surface Enforcement | Graph analytics can bypass governance if algorithm execution is implemented in client/app layers. | Enforce conduit-only routing for graph analytics execution/materialization/query flows with bypass-rejection tests; keep client/app non-authoritative command/render surfaces only. | 10 | 0/1/2/client/app |
 
+## O'Reilly Graph Algorithms Assimilation Intake (Doc `V6-TOOLS-007` normalized to `V6-TOOLS-008`, 2026-03-13)
+
+Source references:
+- Graph Algorithms: Practical Examples in Apache Spark & Neo4j (Needham/Hodler, O'Reilly)
+
+Notes:
+- Incoming draft labeled this as `V6-TOOLS-007`; that ID is already allocated to the tool-use gym lane, so this intake is normalized to `V6-TOOLS-008.*`.
+- Placement is Rust-core authoritative with thin client/app surfaces only.
+- No new storage or safety primitives were added; execution reuses directive gates, receipts, and materialization contracts.
+
+Objective: assimilate practical production graph algorithms (PageRank, Louvain, Jaccard, Label Propagation, Betweenness, link prediction) as governed, receipted runtime capabilities.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V6-TOOLS-008.1 | done | PageRank Centrality Engine Contract | Influence scoring was not exposed as a first-class governed runtime command despite existing graph substrate coverage. | `protheus graph pagerank` executes in Rust core with deterministic receipts, cache/materialization artifacts, and policy-gated command path. | 8 | 0/1/2/client |
+| V6-TOOLS-008.2 | done | Louvain Community Detection Contract | Community discovery needed a deterministic runtime path instead of ad hoc analysis scripts. | `protheus graph louvain` emits deterministic community artifacts (including modularity metadata) with receipt lineage and policy gating. | 8 | 0/1/2/client |
+| V6-TOOLS-008.3 | done | Jaccard + Label Propagation Similarity/Clustering Contract | Similarity and propagation signals were not available as one governed command surface for graph workflows. | `protheus graph jaccard` and `protheus graph label-propagation` emit deterministic similarity/cluster outputs with provenance-bound receipts. | 8 | 0/1/2/client |
+| V6-TOOLS-008.4 | done | Betweenness + Link Prediction Contract | Bottleneck detection and missing-link scoring were not wired into a governed command lane for reusable agent workflows. | `protheus graph betweenness` and `protheus graph predict-links` run with deterministic score artifacts (common-neighbors, preferential-attachment, PageRank-derived features) and receipts. | 9 | 0/1/2/client |
+| V6-TOOLS-008.5 | done | Conduit-Routed Safe Execution + Receipts Contract | Graph execution must remain policy-gated and auditable with no client authority drift. | Graph toolkit commands enforce directive gate checks, emit deterministic receipts, and route through conduit-aware thin client wrapper (`client/cli/bin/protheus-graph.ts`). | 10 | 0/1/2/client/app |
+
 ## Native Tool-Use Gym with 503-Task Enterprise Benchmark Harness Intake (Doc/Source `V6-TOOLS-006` normalized to `V6-TOOLS-007`, 2026-03-11)
 
 Source references:
