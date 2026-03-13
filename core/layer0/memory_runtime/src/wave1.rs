@@ -7,11 +7,15 @@ use std::env;
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::time::UNIX_EPOCH;
+
+use protheus_layer1_memory_runtime::recall_policy::{
+    enforce_descending_ranking, enforce_index_freshness, DEFAULT_INDEX_MAX_AGE_MS,
+};
 
 #[derive(Clone, Debug)]
 struct IndexEntry {
     node_id: String,
-    uid: String,
     file_rel: String,
     summary: String,
     tags: Vec<String>,
@@ -35,6 +39,31 @@ fn now_iso() -> String {
     let now = time::OffsetDateTime::now_utc();
     now.format(&time::format_description::well_known::Rfc3339)
         .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
+}
+
+fn now_epoch_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|dur| dur.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+fn iso_to_epoch_ms(raw: &str) -> Option<u64> {
+    let parsed =
+        time::OffsetDateTime::parse(raw, &time::format_description::well_known::Rfc3339).ok()?;
+    let nanos = parsed.unix_timestamp_nanos();
+    if nanos < 0 {
+        None
+    } else {
+        Some((nanos as u64) / 1_000_000)
+    }
+}
+
+fn file_mtime_ms(path: &Path) -> Option<u64> {
+    let metadata = fs::metadata(path).ok()?;
+    let modified = metadata.modified().ok()?;
+    let dur = modified.duration_since(UNIX_EPOCH).ok()?;
+    Some(dur.as_millis() as u64)
 }
 
 fn clean_text(raw: &str, max_len: usize) -> String {
@@ -73,20 +102,17 @@ fn normalize_tag(raw: &str) -> String {
         .collect::<String>()
 }
 
-fn normalize_uid(raw: &str) -> String {
-    let out = clean_text(raw.replace('`', "").as_str(), 80);
-    if out.chars().all(|ch| ch.is_ascii_alphanumeric()) {
-        out
-    } else {
-        String::new()
-    }
-}
-
 fn normalize_header_cell(raw: &str) -> String {
     let s = clean_text(raw, 80)
         .to_ascii_lowercase()
         .chars()
-        .map(|ch| if ch.is_ascii_alphanumeric() || ch == '_' { ch } else { '_' })
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch == '_' {
+                ch
+            } else {
+                '_'
+            }
+        })
         .collect::<String>();
     if s.contains("node_id") {
         return "node_id".to_string();
@@ -206,8 +232,7 @@ fn parse_index_file(path: &Path) -> Vec<IndexEntry> {
             .iter()
             .map(|cell| normalize_header_cell(cell))
             .collect::<Vec<String>>();
-        if normalized.contains(&"node_id".to_string()) && normalized.contains(&"file".to_string())
-        {
+        if normalized.contains(&"node_id".to_string()) && normalized.contains(&"file".to_string()) {
             headers = Some(normalized);
             continue;
         }
@@ -228,7 +253,6 @@ fn parse_index_file(path: &Path) -> Vec<IndexEntry> {
 
         rows.push(IndexEntry {
             node_id,
-            uid: normalize_uid(row.get("uid").map_or("", String::as_str)),
             summary: clean_text(row.get("summary").map_or("", String::as_str), 280),
             tags: parse_tag_cell(row.get("tags").map_or("", String::as_str)),
             date: parse_date_from_file(&file_rel),
@@ -249,7 +273,9 @@ fn default_workspace_root(args: &HashMap<String, String>) -> PathBuf {
     if root.is_absolute() {
         root
     } else {
-        env::current_dir().unwrap_or_else(|_| PathBuf::from(".")).join(root)
+        env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join(root)
     }
 }
 
@@ -318,7 +344,13 @@ fn recency_score(date: &str) -> f64 {
 fn matrix_markdown(payload: &Value) -> String {
     let mut lines = vec![
         "# TAG_MEMORY_MATRIX.md".to_string(),
-        format!("Generated: {}", payload.get("generated_at").and_then(Value::as_str).unwrap_or("")),
+        format!(
+            "Generated: {}",
+            payload
+                .get("generated_at")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+        ),
         String::new(),
         "| tag | tag_priority | node_count | top_nodes |".to_string(),
         "|-----|--------------|------------|-----------|".to_string(),
@@ -331,10 +363,7 @@ fn matrix_markdown(payload: &Value) -> String {
                 .get("tag_priority")
                 .and_then(Value::as_f64)
                 .unwrap_or(0.0);
-            let node_count = row
-                .get("node_count")
-                .and_then(Value::as_u64)
-                .unwrap_or(0);
+            let node_count = row.get("node_count").and_then(Value::as_u64).unwrap_or(0);
             let top_nodes = row
                 .get("node_ids")
                 .and_then(Value::as_array)
@@ -373,7 +402,9 @@ fn matrix_paths(root: &Path, args: &HashMap<String, String>) -> (PathBuf, PathBu
         .get("matrix-json-path")
         .cloned()
         .or_else(|| env::var("MEMORY_MATRIX_JSON_PATH").ok())
-        .unwrap_or_else(|| "client/runtime/local/state/memory/matrix/tag_memory_matrix.json".to_string());
+        .unwrap_or_else(|| {
+            "client/runtime/local/state/memory/matrix/tag_memory_matrix.json".to_string()
+        });
 
     let md_path = args
         .get("matrix-md-path")
@@ -445,14 +476,33 @@ fn build_matrix_payload(args: &HashMap<String, String>) -> Value {
                 .then_with(|| a.node_id.cmp(&b.node_id))
         });
 
+        let ranking_scores = nodes
+            .iter()
+            .map(|row| row.priority_score)
+            .collect::<Vec<f64>>();
+        let ranking_ids = nodes
+            .iter()
+            .map(|row| row.node_id.clone())
+            .collect::<Vec<String>>();
+        let ranking = enforce_descending_ranking(&ranking_scores, &ranking_ids);
+        if !ranking.ok {
+            return json!({
+                "ok": false,
+                "type": "tag_memory_matrix",
+                "reason": ranking.reason_code,
+                "tag": tag,
+                "index_path": index_path.to_string_lossy().to_string(),
+                "matrix_path": json_path.to_string_lossy().to_string(),
+                "markdown_path": md_path.to_string_lossy().to_string(),
+                "generated_at": now_iso()
+            });
+        }
+
         let node_ids = nodes
             .iter()
             .map(|row| row.node_id.clone())
             .collect::<Vec<String>>();
-        let tag_priority = nodes
-            .first()
-            .map(|row| row.priority_score)
-            .unwrap_or(0.0);
+        let tag_priority = nodes.first().map(|row| row.priority_score).unwrap_or(0.0);
         let nodes_json = nodes
             .iter()
             .map(|row| {
@@ -557,6 +607,18 @@ fn parse_tags_arg(raw: &str) -> Vec<String> {
     out.into_iter().collect::<Vec<String>>()
 }
 
+fn parse_bool_value(raw: &str, fallback: bool) -> bool {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return fallback;
+    }
+    match trimmed.to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => true,
+        "0" | "false" | "no" | "off" => false,
+        _ => fallback,
+    }
+}
+
 fn load_auto_recall_policy(path: &Path) -> Value {
     let defaults = json!({
         "enabled": true,
@@ -588,12 +650,17 @@ fn intersect_count(a: &[String], b: &[String]) -> usize {
     a.iter().filter(|tag| bset.contains(*tag)).count()
 }
 
-fn memory_auto_recall_paths(root: &Path, args: &HashMap<String, String>) -> (PathBuf, PathBuf, PathBuf, PathBuf) {
+fn memory_auto_recall_paths(
+    root: &Path,
+    args: &HashMap<String, String>,
+) -> (PathBuf, PathBuf, PathBuf, PathBuf) {
     let matrix_path = args
         .get("matrix-path")
         .cloned()
         .or_else(|| env::var("MEMORY_MATRIX_JSON_PATH").ok())
-        .unwrap_or_else(|| "client/runtime/local/state/memory/matrix/tag_memory_matrix.json".to_string());
+        .unwrap_or_else(|| {
+            "client/runtime/local/state/memory/matrix/tag_memory_matrix.json".to_string()
+        });
     let policy_path = args
         .get("policy-path")
         .cloned()
@@ -603,7 +670,9 @@ fn memory_auto_recall_paths(root: &Path, args: &HashMap<String, String>) -> (Pat
         .get("events-path")
         .cloned()
         .or_else(|| env::var("MEMORY_AUTO_RECALL_EVENTS_PATH").ok())
-        .unwrap_or_else(|| "client/runtime/local/state/memory/auto_recall/events.jsonl".to_string());
+        .unwrap_or_else(|| {
+            "client/runtime/local/state/memory/auto_recall/events.jsonl".to_string()
+        });
     let latest_path = args
         .get("latest-path")
         .cloned()
@@ -620,7 +689,8 @@ fn memory_auto_recall_paths(root: &Path, args: &HashMap<String, String>) -> (Pat
 
 fn auto_recall_filed_payload(args: &HashMap<String, String>) -> Value {
     let root = default_workspace_root(args);
-    let (matrix_path, policy_path, events_path, latest_path) = memory_auto_recall_paths(&root, args);
+    let (matrix_path, policy_path, events_path, latest_path) =
+        memory_auto_recall_paths(&root, args);
     let policy = load_auto_recall_policy(&policy_path);
 
     let node_id = normalize_node_id(
@@ -636,7 +706,12 @@ fn auto_recall_filed_payload(args: &HashMap<String, String>) -> Value {
             let lower = raw.trim().to_ascii_lowercase();
             lower == "1" || lower == "true" || lower == "yes" || lower == "on"
         })
-        .unwrap_or_else(|| policy.get("dry_run").and_then(Value::as_bool).unwrap_or(false));
+        .unwrap_or_else(|| {
+            policy
+                .get("dry_run")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        });
 
     if node_id.is_empty() || tags.is_empty() {
         let out = json!({
@@ -652,7 +727,11 @@ fn auto_recall_filed_payload(args: &HashMap<String, String>) -> Value {
         return out;
     }
 
-    if !policy.get("enabled").and_then(Value::as_bool).unwrap_or(true) {
+    if !policy
+        .get("enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+    {
         let out = json!({
             "ok": true,
             "type": "memory_auto_recall",
@@ -680,6 +759,46 @@ fn auto_recall_filed_payload(args: &HashMap<String, String>) -> Value {
         write_json(&latest_path, &out);
         return out;
     };
+
+    let max_matrix_age_ms = policy
+        .get("max_matrix_age_ms")
+        .and_then(Value::as_u64)
+        .unwrap_or(DEFAULT_INDEX_MAX_AGE_MS);
+    let allow_stale_matrix = parse_bool_value(
+        args.get("allow-stale-matrix")
+            .or_else(|| args.get("allow_stale_matrix"))
+            .map(String::as_str)
+            .unwrap_or(""),
+        false,
+    );
+    let matrix_generated_ms = matrix
+        .get("generated_at")
+        .and_then(Value::as_str)
+        .and_then(iso_to_epoch_ms)
+        .or_else(|| file_mtime_ms(&matrix_path));
+    let freshness = enforce_index_freshness(
+        now_epoch_ms(),
+        matrix_generated_ms,
+        max_matrix_age_ms,
+        allow_stale_matrix,
+    );
+    if !freshness.ok {
+        let out = json!({
+            "ok": false,
+            "type": "memory_auto_recall",
+            "reason": freshness.reason_code,
+            "stale": freshness.stale,
+            "age_ms": freshness.age_ms,
+            "threshold_ms": freshness.threshold_ms,
+            "node_id": node_id,
+            "tags": tags,
+            "matrix_path": matrix_path.to_string_lossy().to_string(),
+            "ts": now_iso()
+        });
+        append_jsonl(&events_path, &out);
+        write_json(&latest_path, &out);
+        return out;
+    }
 
     let min_shared = policy
         .get("min_shared_tags")
@@ -710,7 +829,8 @@ fn auto_recall_filed_payload(args: &HashMap<String, String>) -> Value {
                 .unwrap_or_default();
 
             for node in nodes {
-                let candidate_id = normalize_node_id(node.get("node_id").and_then(Value::as_str).unwrap_or(""));
+                let candidate_id =
+                    normalize_node_id(node.get("node_id").and_then(Value::as_str).unwrap_or(""));
                 if candidate_id.is_empty() || candidate_id == node_id {
                     continue;
                 }
@@ -744,7 +864,8 @@ fn auto_recall_filed_payload(args: &HashMap<String, String>) -> Value {
                     .get("dream_score")
                     .and_then(Value::as_f64)
                     .unwrap_or(0.0);
-                let score = (shared as f64 * 50.0) + (priority * 0.85) + (dream * 12.0) + (recency * 8.0);
+                let score =
+                    (shared as f64 * 50.0) + (priority * 0.85) + (dream * 12.0) + (recency * 8.0);
                 let shared_tags = tags
                     .iter()
                     .filter(|tag| candidate_tags.contains(tag))
@@ -785,6 +906,29 @@ fn auto_recall_filed_payload(args: &HashMap<String, String>) -> Value {
         })
     });
     matches.truncate(max_matches.max(1));
+
+    let ranking_scores = matches
+        .iter()
+        .map(|row| row.get("score").and_then(Value::as_f64).unwrap_or(0.0))
+        .collect::<Vec<f64>>();
+    let ranking_ids = matches
+        .iter()
+        .map(|row| normalize_node_id(row.get("node_id").and_then(Value::as_str).unwrap_or("")))
+        .collect::<Vec<String>>();
+    let ranking = enforce_descending_ranking(&ranking_scores, &ranking_ids);
+    if !ranking.ok {
+        let out = json!({
+            "ok": false,
+            "type": "memory_auto_recall",
+            "reason": ranking.reason_code,
+            "node_id": node_id,
+            "tags": tags,
+            "ts": now_iso()
+        });
+        append_jsonl(&events_path, &out);
+        write_json(&latest_path, &out);
+        return out;
+    }
 
     if matches.is_empty() {
         let out = json!({
@@ -829,6 +973,17 @@ fn auto_recall_filed_payload(args: &HashMap<String, String>) -> Value {
         "match_count": matches.len(),
         "dry_run": dry_run,
         "matrix_path": matrix_path.to_string_lossy().to_string(),
+        "freshness": {
+            "ok": freshness.ok,
+            "stale": freshness.stale,
+            "reason_code": freshness.reason_code,
+            "age_ms": freshness.age_ms,
+            "threshold_ms": freshness.threshold_ms
+        },
+        "ranking_invariants": {
+            "ok": ranking.ok,
+            "reason_code": ranking.reason_code
+        },
         "attention": attention
     });
     append_jsonl(&events_path, &out);
@@ -838,7 +993,8 @@ fn auto_recall_filed_payload(args: &HashMap<String, String>) -> Value {
 
 fn auto_recall_status_payload(args: &HashMap<String, String>) -> Value {
     let root = default_workspace_root(args);
-    let (matrix_path, policy_path, events_path, latest_path) = memory_auto_recall_paths(&root, args);
+    let (matrix_path, policy_path, events_path, latest_path) =
+        memory_auto_recall_paths(&root, args);
     let latest = read_json(&latest_path).unwrap_or(Value::Null);
     json!({
         "ok": true,
@@ -858,17 +1014,23 @@ fn dream_paths(root: &Path, args: &HashMap<String, String>) -> (PathBuf, PathBuf
         .get("matrix-path")
         .cloned()
         .or_else(|| env::var("MEMORY_MATRIX_JSON_PATH").ok())
-        .unwrap_or_else(|| "client/runtime/local/state/memory/matrix/tag_memory_matrix.json".to_string());
+        .unwrap_or_else(|| {
+            "client/runtime/local/state/memory/matrix/tag_memory_matrix.json".to_string()
+        });
     let state_path = args
         .get("state-path")
         .cloned()
         .or_else(|| env::var("DREAM_SEQUENCER_STATE_PATH").ok())
-        .unwrap_or_else(|| "client/runtime/local/state/memory/dream_sequencer/latest.json".to_string());
+        .unwrap_or_else(|| {
+            "client/runtime/local/state/memory/dream_sequencer/latest.json".to_string()
+        });
     let ledger_path = args
         .get("ledger-path")
         .cloned()
         .or_else(|| env::var("DREAM_SEQUENCER_LEDGER_PATH").ok())
-        .unwrap_or_else(|| "client/runtime/local/state/memory/dream_sequencer/runs.jsonl".to_string());
+        .unwrap_or_else(|| {
+            "client/runtime/local/state/memory/dream_sequencer/runs.jsonl".to_string()
+        });
 
     (
         resolve_path(root, &matrix_path),
@@ -880,7 +1042,10 @@ fn dream_paths(root: &Path, args: &HashMap<String, String>) -> (PathBuf, PathBuf
 fn dream_run_payload(args: &HashMap<String, String>) -> Value {
     let root = default_workspace_root(args);
     let (matrix_path, state_path, ledger_path) = dream_paths(&root, args);
-    let reason = clean_text(args.get("reason").map(String::as_str).unwrap_or("manual"), 120);
+    let reason = clean_text(
+        args.get("reason").map(String::as_str).unwrap_or("manual"),
+        120,
+    );
     let top_tags = args
         .get("top-tags")
         .or_else(|| args.get("top_tags"))
@@ -1022,5 +1187,117 @@ pub fn print_payload_and_exit_code(payload: Value) -> i32 {
         "{}",
         serde_json::to_string(&payload).unwrap_or_else(|_| "{\"ok\":false}".to_string())
     );
-    if ok { 0 } else { 1 }
+    if ok {
+        0
+    } else {
+        1
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn map(pairs: &[(&str, &str)]) -> HashMap<String, String> {
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect::<HashMap<String, String>>()
+    }
+
+    #[test]
+    fn auto_recall_blocks_stale_matrix() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let matrix_path = tmp.path().join("state/matrix.json");
+        let policy_path = tmp.path().join("state/policy.json");
+        fs::create_dir_all(matrix_path.parent().expect("parent")).expect("mkdir");
+        fs::write(
+            &matrix_path,
+            serde_json::to_string_pretty(&json!({
+                "generated_at": "2000-01-01T00:00:00Z",
+                "tags": [{
+                    "tag": "memory",
+                    "nodes": [{
+                        "node_id": "node.alpha",
+                        "tags": ["memory"],
+                        "priority_score": 10.0,
+                        "recency_score": 1.0,
+                        "dream_score": 0.0
+                    }]
+                }]
+            }))
+            .expect("encode"),
+        )
+        .expect("write matrix");
+        fs::write(
+            &policy_path,
+            serde_json::to_string_pretty(&json!({
+                "max_matrix_age_ms": 10
+            }))
+            .expect("encode"),
+        )
+        .expect("write policy");
+
+        let root = tmp.path().to_string_lossy().to_string();
+        let matrix = matrix_path.to_string_lossy().to_string();
+        let policy = policy_path.to_string_lossy().to_string();
+        let out = memory_auto_recall_payload(&map(&[
+            ("root", root.as_str()),
+            ("action", "filed"),
+            ("node-id", "node.seed"),
+            ("tags", "memory"),
+            ("matrix-path", matrix.as_str()),
+            ("policy-path", policy.as_str()),
+        ]));
+        assert_eq!(out["ok"], false);
+        assert_eq!(out["reason"], "index_stale_blocked");
+    }
+
+    #[test]
+    fn auto_recall_produces_sorted_matches_with_invariant_receipt() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let matrix_path = tmp.path().join("state/matrix.json");
+        fs::create_dir_all(matrix_path.parent().expect("parent")).expect("mkdir");
+        fs::write(
+            &matrix_path,
+            serde_json::to_string_pretty(&json!({
+                "generated_at": now_iso(),
+                "tags": [{
+                    "tag": "memory",
+                    "nodes": [
+                        {
+                            "node_id": "node.low",
+                            "tags": ["memory"],
+                            "priority_score": 9.0,
+                            "recency_score": 1.0,
+                            "dream_score": 0.0
+                        },
+                        {
+                            "node_id": "node.high",
+                            "tags": ["memory"],
+                            "priority_score": 20.0,
+                            "recency_score": 1.0,
+                            "dream_score": 0.0
+                        }
+                    ]
+                }]
+            }))
+            .expect("encode"),
+        )
+        .expect("write matrix");
+
+        let root = tmp.path().to_string_lossy().to_string();
+        let matrix = matrix_path.to_string_lossy().to_string();
+        let out = memory_auto_recall_payload(&map(&[
+            ("root", root.as_str()),
+            ("action", "filed"),
+            ("node-id", "node.seed"),
+            ("tags", "memory"),
+            ("matrix-path", matrix.as_str()),
+            ("allow-stale-matrix", "1"),
+        ]));
+        assert_eq!(out["ok"], true);
+        assert_eq!(out["ranking_invariants"]["ok"], true);
+        assert_eq!(out["matches"][0]["node_id"], "node.high");
+    }
 }

@@ -842,6 +842,7 @@ dependencies = [
  "hex",
  "napi",
  "napi-derive",
+ "protheus-layer1-memory-runtime",
  "rand",
  "rusqlite",
  "serde",
