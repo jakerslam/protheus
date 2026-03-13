@@ -276,28 +276,42 @@ fn night_scheduler_receipt(root: &Path, args: &[String]) -> Value {
 
 fn compact_context_receipt(root: &Path, args: &[String]) -> Value {
     let max_lines = i64_flag(args, "max-lines", 24, 8, 128) as usize;
-    let source = flag_value(args, "source")
+    let source_spec = flag_value(args, "source")
         .or_else(|| flag_value(args, "text"))
         .unwrap_or_else(|| "soul,memory,task".to_string());
-    let mut selected = source
-        .split([',', ';'])
+    let context_text = flag_value(args, "context")
+        .or_else(|| non_flag_positional(args, 1))
+        .unwrap_or_else(|| source_spec.clone());
+    let mut selected = context_text
+        .split('\n')
+        .flat_map(|row| row.split([',', ';']))
         .map(|v| v.trim())
         .filter(|v| !v.is_empty())
         .map(|v| v.to_string())
         .collect::<Vec<_>>();
-    selected.truncate(max_lines.min(32));
+    let source_lines = selected.len().max(1);
+    selected.sort();
+    selected.dedup();
+    selected.truncate(max_lines.min(64));
+    let compaction_ratio = (selected.len() as f64 / source_lines as f64).min(1.0);
+    let compacted_text = selected.join("\n");
     let mut out = json!({
         "ok": true,
         "type": "model_router_compact_context",
         "ts": now_iso(),
         "max_lines": max_lines,
+        "source_spec": source_spec,
+        "source_line_count": source_lines,
         "selected_lines": selected,
+        "compacted_text": compacted_text,
+        "compaction_ratio": compaction_ratio,
         "claim_evidence": [
             {
                 "id": "V6-MODEL-003.1",
                 "claim": "model_router_compact_context_emits_deterministic_soul_memory_compaction_receipts",
                 "evidence": {
-                    "max_lines": max_lines
+                    "max_lines": max_lines,
+                    "compaction_ratio": compaction_ratio
                 }
             }
         ]
@@ -313,6 +327,26 @@ fn decompose_task_receipt(root: &Path, args: &[String]) -> Value {
     let task = flag_value(args, "task")
         .or_else(|| non_flag_positional(args, 1))
         .unwrap_or_else(|| "general task".to_string());
+    let mut fragments = task
+        .split(['.', ';', ','])
+        .map(|v| v.trim())
+        .filter(|v| !v.is_empty())
+        .map(|v| v.to_string())
+        .collect::<Vec<_>>();
+    if fragments.is_empty() {
+        fragments.push(task.clone());
+    }
+    let subtasks = fragments
+        .iter()
+        .enumerate()
+        .map(|(idx, row)| {
+            json!({
+                "id": format!("subtask-{}", idx + 1),
+                "title": row,
+                "depends_on": if idx == 0 { Value::Array(Vec::new()) } else { json!([format!("subtask-{}", idx)]) }
+            })
+        })
+        .collect::<Vec<_>>();
     let mut out = json!({
         "ok": true,
         "type": "model_router_decompose_task",
@@ -323,12 +357,14 @@ fn decompose_task_receipt(root: &Path, args: &[String]) -> Value {
             {"phase":"planning", "objective":"produce deterministic plan"},
             {"phase":"execution", "objective":"implement and validate"},
         ],
+        "subtasks": subtasks,
         "claim_evidence": [
             {
                 "id": "V6-MODEL-003.2",
                 "claim": "model_router_decompose_task_emits_deterministic_hierarchical_subtask_receipts",
                 "evidence": {
-                    "task": task
+                    "task": task,
+                    "subtask_count": fragments.len()
                 }
             }
         ]
@@ -345,11 +381,36 @@ fn adapt_repo_receipt(root: &Path, args: &[String]) -> Value {
         .or_else(|| non_flag_positional(args, 1))
         .unwrap_or_else(|| "unknown".to_string());
     let strategy = flag_value(args, "strategy").unwrap_or_else(|| "reuse-first".to_string());
+    let repo_parts = repo
+        .split('/')
+        .filter(|v| !v.trim().is_empty())
+        .map(|v| v.trim().to_string())
+        .collect::<Vec<_>>();
+    let repo_name = repo_parts
+        .last()
+        .cloned()
+        .unwrap_or_else(|| "unknown".to_string());
+    let adapter_targets = vec![
+        "client/apps".to_string(),
+        "client/runtime/systems/adapters".to_string(),
+    ];
+    let core_targets = vec![
+        "core/layer0/ops".to_string(),
+        "core/layer1".to_string(),
+        "core/layer2".to_string(),
+    ];
+    let plan_digest = receipt_hash(&json!({
+        "repo": repo,
+        "strategy": strategy,
+        "adapter_targets": adapter_targets,
+        "core_targets": core_targets
+    }));
     let mut out = json!({
         "ok": true,
         "type": "model_router_adapt_repo",
         "ts": now_iso(),
         "repo": repo,
+        "repo_name": repo_name,
         "strategy": strategy,
         "steps": [
             "ingest_repository_metadata",
@@ -357,13 +418,19 @@ fn adapt_repo_receipt(root: &Path, args: &[String]) -> Value {
             "select_reuse_targets",
             "emit_adaptation_plan"
         ],
+        "adaptation_plan": {
+            "core_targets": core_targets,
+            "adapter_targets": adapter_targets,
+            "plan_digest": plan_digest
+        },
         "claim_evidence": [
             {
                 "id": "V6-MODEL-003.3",
                 "claim": "adapt_repo_emits_deterministic_reuse_first_repo_adaptation_plan_receipts",
                 "evidence": {
                     "repo": repo,
-                    "strategy": strategy
+                    "strategy": strategy,
+                    "plan_digest": plan_digest
                 }
             }
         ]
@@ -4361,7 +4428,7 @@ mod tests {
             &[
                 "compact-context".to_string(),
                 "--max-lines=12".to_string(),
-                "--source=soul,memory,task,signals".to_string(),
+                "--context=soul,memory,task,signals,signals".to_string(),
             ],
         );
         assert_eq!(
@@ -4369,6 +4436,16 @@ mod tests {
             Some("model_router_compact_context")
         );
         assert_eq!(out.get("max_lines").and_then(Value::as_i64), Some(12));
+        assert!(out
+            .get("compaction_ratio")
+            .and_then(Value::as_f64)
+            .map(|v| v > 0.0 && v <= 1.0)
+            .unwrap_or(false));
+        assert!(out
+            .get("compacted_text")
+            .and_then(Value::as_str)
+            .map(|v| !v.is_empty())
+            .unwrap_or(false));
         assert!(out
             .get("claim_evidence")
             .and_then(Value::as_array)
@@ -4385,7 +4462,7 @@ mod tests {
             root.path(),
             &[
                 "decompose-task".to_string(),
-                "--task=launch cheap mode".to_string(),
+                "--task=launch cheap mode, validate receipts, publish summary".to_string(),
             ],
         );
         assert_eq!(
@@ -4396,6 +4473,11 @@ mod tests {
             out.get("phases").and_then(Value::as_array).map(|v| v.len()),
             Some(3)
         );
+        assert!(out
+            .get("subtasks")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len() >= 2)
+            .unwrap_or(false));
         assert!(out
             .get("claim_evidence")
             .and_then(Value::as_array)
@@ -4424,6 +4506,11 @@ mod tests {
             out.get("strategy").and_then(Value::as_str),
             Some("reuse-first")
         );
+        assert!(out
+            .pointer("/adaptation_plan/plan_digest")
+            .and_then(Value::as_str)
+            .map(|v| !v.is_empty())
+            .unwrap_or(false));
         assert!(out
             .get("claim_evidence")
             .and_then(Value::as_array)

@@ -138,6 +138,18 @@ fn v6_batch19_economy_and_model_lanes_are_receipted() {
         Some("llm_economy_mining_hand")
     );
     assert_claim(&mining_latest, "V6-ECONOMY-001.6");
+    assert!(
+        mining_latest
+            .pointer("/schedule_runtime/interval_minutes")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            > 0
+    );
+    assert!(mining_latest
+        .get("mining_runtime_path")
+        .and_then(Value::as_str)
+        .map(|v| !v.is_empty())
+        .unwrap_or(false));
 
     let trade_exit = llm_economy_organ::run(
         root,
@@ -157,6 +169,17 @@ fn v6_batch19_economy_and_model_lanes_are_receipted() {
         Some("llm_economy_trade_router")
     );
     assert_claim(&trade_latest, "V6-ECONOMY-001.7");
+    assert_eq!(
+        trade_latest
+            .get("non_custodial_intent")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert!(trade_latest
+        .get("order_intent_id")
+        .and_then(Value::as_str)
+        .map(|v| !v.is_empty())
+        .unwrap_or(false));
 
     let upgrade_exit = llm_economy_organ::run(
         root,
@@ -239,6 +262,17 @@ fn v6_batch19_economy_and_model_lanes_are_receipted() {
         Some("llm_economy_model_support_refresh")
     );
     assert_claim(&refresh_latest, "V6-ECONOMY-002.5");
+    let provider_count = refresh_latest
+        .get("provider_count")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let provider_rows = refresh_latest
+        .get("provider_matrix")
+        .and_then(Value::as_array)
+        .map(|rows| rows.len() as u64)
+        .unwrap_or(0);
+    assert!(provider_count >= 1);
+    assert_eq!(provider_count, provider_rows);
 
     let compact_exit = model_router::run(
         root,
@@ -255,6 +289,16 @@ fn v6_batch19_economy_and_model_lanes_are_receipted() {
         Some("model_router_compact_context")
     );
     assert_claim(&compact_latest, "V6-MODEL-003.1");
+    assert!(compact_latest
+        .get("compacted_text")
+        .and_then(Value::as_str)
+        .map(|v| !v.is_empty())
+        .unwrap_or(false));
+    assert!(compact_latest
+        .get("compaction_ratio")
+        .and_then(Value::as_f64)
+        .map(|v| v > 0.0 && v <= 1.0)
+        .unwrap_or(false));
 
     let decompose_exit = model_router::run(
         root,
@@ -270,6 +314,11 @@ fn v6_batch19_economy_and_model_lanes_are_receipted() {
         Some("model_router_decompose_task")
     );
     assert_claim(&decompose_latest, "V6-MODEL-003.2");
+    assert!(decompose_latest
+        .get("subtasks")
+        .and_then(Value::as_array)
+        .map(|rows| !rows.is_empty())
+        .unwrap_or(false));
 }
 
 #[test]
