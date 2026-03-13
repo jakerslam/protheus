@@ -73,9 +73,8 @@ pub mod layer1 {
 #[cfg(feature = "layer2")]
 pub mod layer2 {
     pub use conduit::{
-        conduit_message_contract_count, process_command, CrossingDirection, KernelLaneCommandHandler,
-        TsCommand,
-        MAX_CONDUIT_MESSAGE_TYPES,
+        conduit_message_contract_count, process_command, CrossingDirection,
+        KernelLaneCommandHandler, TsCommand, MAX_CONDUIT_MESSAGE_TYPES,
     };
 }
 
@@ -185,8 +184,8 @@ mod tests {
             operation: "smoke".to_string(),
             severity: "low".to_string(),
             tags: vec!["layer3".to_string()],
-            payload_digest:
-                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string(),
+            payload_digest: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                .to_string(),
             signed: true,
         };
         let descriptor = crate::layer3::OsExtensionDescriptor {

@@ -20,7 +20,11 @@ pub struct OsExtensionEnvelope {
     pub ts_ms: i64,
 }
 
-pub fn wrap_os_extension(descriptor: &OsExtensionDescriptor, action: &str, ts_ms: i64) -> OsExtensionEnvelope {
+pub fn wrap_os_extension(
+    descriptor: &OsExtensionDescriptor,
+    action: &str,
+    ts_ms: i64,
+) -> OsExtensionEnvelope {
     OsExtensionEnvelope {
         source_layer: "layer3".to_string(),
         extension_id: descriptor.extension_id.clone(),

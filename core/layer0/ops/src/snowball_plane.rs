@@ -1160,10 +1160,7 @@ mod tests {
             .iter()
             .position(|id| *id == "package")
             .expect("package");
-        let deploy_idx = order
-            .iter()
-            .position(|id| *id == "deploy")
-            .expect("deploy");
+        let deploy_idx = order.iter().position(|id| *id == "deploy").expect("deploy");
         assert!(verify_idx < package_idx);
         assert!(verify_idx < deploy_idx);
         assert_eq!(

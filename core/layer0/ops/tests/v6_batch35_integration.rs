@@ -141,7 +141,10 @@ fn v6_batch35_snowball_backlog_pack_is_dependency_ordered_and_receipted() {
         .filter_map(|row| row.get("id").and_then(Value::as_str))
         .map(str::to_string)
         .collect::<Vec<_>>();
-    assert_eq!(ordered.first().map(String::as_str), Some("verify-regression"));
+    assert_eq!(
+        ordered.first().map(String::as_str),
+        Some("verify-regression")
+    );
     let verify_idx = ordered
         .iter()
         .position(|id| id == "verify-regression")

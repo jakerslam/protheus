@@ -2,7 +2,7 @@
 // Layer ownership: core/layer2/autonomy (authoritative).
 
 use crate::{
-    append_jsonl, clean_text, clamp_num, normalize_token, now_iso, read_json, resolve_runtime_path,
+    append_jsonl, clamp_num, clean_text, normalize_token, now_iso, read_json, resolve_runtime_path,
     round_to, write_json_atomic,
 };
 use serde_json::{json, Map, Value};
@@ -102,10 +102,7 @@ fn load_policy(root: &Path, explicit: Option<&Path>) -> EthicalPolicy {
             policy.version = v;
         }
     }
-    if let Some(v) = obj
-        .and_then(|m| m.get("enabled"))
-        .and_then(Value::as_bool)
-    {
+    if let Some(v) = obj.and_then(|m| m.get("enabled")).and_then(Value::as_bool) {
         policy.enabled = v;
     }
     if let Some(v) = obj
@@ -185,12 +182,16 @@ fn load_policy(root: &Path, explicit: Option<&Path>) -> EthicalPolicy {
     {
         policy.weaver_latest_path = resolve_runtime_path(
             root,
-            integration.get("weaver_latest_path").and_then(Value::as_str),
+            integration
+                .get("weaver_latest_path")
+                .and_then(Value::as_str),
             "state/autonomy/weaver/latest.json",
         );
         policy.mirror_latest_path = resolve_runtime_path(
             root,
-            integration.get("mirror_latest_path").and_then(Value::as_str),
+            integration
+                .get("mirror_latest_path")
+                .and_then(Value::as_str),
             "state/autonomy/mirror_organ/latest.json",
         );
     }

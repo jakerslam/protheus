@@ -1119,7 +1119,10 @@ fn run_rulepack_install(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -
             if !signature.is_empty() {
                 meta_obj.insert("signature".to_string(), Value::String(signature.clone()));
             }
-            meta_obj.insert("payload_digest".to_string(), Value::String(payload_digest.clone()));
+            meta_obj.insert(
+                "payload_digest".to_string(),
+                Value::String(payload_digest.clone()),
+            );
         }
     }
 

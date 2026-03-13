@@ -197,7 +197,9 @@ pub fn plan_scaling(
     active_workers: usize,
     policy: &ScalingPolicy,
 ) -> ScalingDecision {
-    let safe_workers = active_workers.max(policy.min_workers).min(policy.max_workers);
+    let safe_workers = active_workers
+        .max(policy.min_workers)
+        .min(policy.max_workers);
     let desired = ((queue_depth + policy.target_queue_per_worker.saturating_sub(1))
         / policy.target_queue_per_worker)
         .max(policy.min_workers)
@@ -384,7 +386,11 @@ pub struct UpgradeReceipt {
     pub ts_unix_ms: u64,
 }
 
-pub fn apply_upgrade(from_version: &str, to_version: &str, policy: &UpgradePolicy) -> UpgradeReceipt {
+pub fn apply_upgrade(
+    from_version: &str,
+    to_version: &str,
+    policy: &UpgradePolicy,
+) -> UpgradeReceipt {
     UpgradeReceipt {
         ok: policy.allow_upgrade,
         action: if policy.allow_upgrade {
@@ -418,7 +424,11 @@ pub fn apply_rollback(
     }
 }
 
-pub fn status_payload(queue: &QueueArtifact, tracker: &InFlightTracker, metrics: Option<SwarmMetrics>) -> Value {
+pub fn status_payload(
+    queue: &QueueArtifact,
+    tracker: &InFlightTracker,
+    metrics: Option<SwarmMetrics>,
+) -> Value {
     json!({
         "ok": true,
         "type": "swarm_router_status",
@@ -457,7 +467,9 @@ mod tests {
         let mut tracker = InFlightTracker::default();
         let env = SwarmEnvelope::new_auto("coord", "lane/a", json!({}), 3);
         tracker.dispatch(&env, "worker-1").expect("first dispatch");
-        let err = tracker.dispatch(&env, "worker-2").expect_err("conflict expected");
+        let err = tracker
+            .dispatch(&env, "worker-2")
+            .expect_err("conflict expected");
         assert_eq!(err, "in_flight_conflict");
         tracker
             .transition(&env.id, TaskStatus::Complete)

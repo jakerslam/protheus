@@ -2,7 +2,7 @@
 // Layer ownership: core/layer2/autonomy (authoritative).
 
 use crate::{
-    append_jsonl, clean_text, clamp_int, clamp_num, now_iso, normalize_token, parse_date_or_today,
+    append_jsonl, clamp_int, clamp_num, clean_text, normalize_token, now_iso, parse_date_or_today,
     read_json, read_jsonl, resolve_runtime_path, round_to, write_json_atomic,
 };
 use serde_json::{json, Value};
@@ -87,9 +87,21 @@ fn default_policy(root: &Path) -> DebatePolicy {
         runoff_consensus_threshold: 0.57,
         require_distinct_roles_for_quorum: true,
         roles,
-        latest_path: resolve_runtime_path(root, Some("state/autonomy/multi_agent_debate/latest.json"), "state/autonomy/multi_agent_debate/latest.json"),
-        history_path: resolve_runtime_path(root, Some("state/autonomy/multi_agent_debate/history.jsonl"), "state/autonomy/multi_agent_debate/history.jsonl"),
-        receipts_path: resolve_runtime_path(root, Some("state/autonomy/multi_agent_debate/receipts.jsonl"), "state/autonomy/multi_agent_debate/receipts.jsonl"),
+        latest_path: resolve_runtime_path(
+            root,
+            Some("state/autonomy/multi_agent_debate/latest.json"),
+            "state/autonomy/multi_agent_debate/latest.json",
+        ),
+        history_path: resolve_runtime_path(
+            root,
+            Some("state/autonomy/multi_agent_debate/history.jsonl"),
+            "state/autonomy/multi_agent_debate/history.jsonl",
+        ),
+        receipts_path: resolve_runtime_path(
+            root,
+            Some("state/autonomy/multi_agent_debate/receipts.jsonl"),
+            "state/autonomy/multi_agent_debate/receipts.jsonl",
+        ),
     }
 }
 
@@ -125,10 +137,7 @@ fn load_policy(root: &Path, explicit: Option<&Path>) -> DebatePolicy {
             policy.version = v;
         }
     }
-    if let Some(v) = obj
-        .and_then(|m| m.get("enabled"))
-        .and_then(Value::as_bool)
-    {
+    if let Some(v) = obj.and_then(|m| m.get("enabled")).and_then(Value::as_bool) {
         policy.enabled = v;
     }
     if let Some(v) = obj
@@ -257,7 +266,10 @@ fn load_policy(root: &Path, explicit: Option<&Path>) -> DebatePolicy {
         }
     }
 
-    if let Some(outputs) = obj.and_then(|m| m.get("outputs")).and_then(Value::as_object) {
+    if let Some(outputs) = obj
+        .and_then(|m| m.get("outputs"))
+        .and_then(Value::as_object)
+    {
         policy.latest_path = resolve_runtime_path(
             root,
             outputs.get("latest_path").and_then(Value::as_str),
@@ -396,7 +408,10 @@ fn score_candidate_for_role(role_cfg: &RoleCfg, candidate: &Candidate) -> f64 {
         },
         _ => 0.0,
     };
-    round_to(clamp_num((base + bias_boost) * role_cfg.weight, 0.0, 1.0, 0.0), 6)
+    round_to(
+        clamp_num((base + bias_boost) * role_cfg.weight, 0.0, 1.0, 0.0),
+        6,
+    )
 }
 
 pub fn run_multi_agent_debate(
@@ -461,7 +476,12 @@ pub fn run_multi_agent_debate(
 
             let mut scored: Vec<(String, f64)> = candidates
                 .iter()
-                .map(|candidate| (candidate.id.clone(), score_candidate_for_role(&role_cfg, candidate)))
+                .map(|candidate| {
+                    (
+                        candidate.id.clone(),
+                        score_candidate_for_role(&role_cfg, candidate),
+                    )
+                })
                 .collect();
             scored.sort_by(|a, b| {
                 b.1.partial_cmp(&a.1)
@@ -473,9 +493,7 @@ pub fn run_multi_agent_debate(
                 continue;
             };
             let runner_up = scored.get(1);
-            let gap = runner_up
-                .map(|r| round_to(top.1 - r.1, 6))
-                .unwrap_or(1.0);
+            let gap = runner_up.map(|r| round_to(top.1 - r.1, 6)).unwrap_or(1.0);
             let contested = gap <= policy.disagreement_gap_threshold;
             let certainty = round_to(clamp_num((gap + 0.45).max(0.05), 0.0, 1.0, 0.5), 6);
 
@@ -527,7 +545,12 @@ pub fn run_multi_agent_debate(
         && (!policy.require_distinct_roles_for_quorum
             || distinct_roles.len() >= std::cmp::min(3usize, min_agents));
     let confidence_score = round_to(
-        clamp_num(consensus_share * (1.0 - disagreement_index * 0.5), 0.0, 1.0, 0.0),
+        clamp_num(
+            consensus_share * (1.0 - disagreement_index * 0.5),
+            0.0,
+            1.0,
+            0.0,
+        ),
         6,
     );
 
@@ -543,11 +566,7 @@ pub fn run_multi_agent_debate(
     let mut runoff_consensus = false;
     let mut runoff_recommended_candidate_id: Option<String> = None;
 
-    if !consensus
-        && policy.runoff_enabled
-        && policy.max_runoff_rounds > 0
-        && ranked.len() >= 2
-    {
+    if !consensus && policy.runoff_enabled && policy.max_runoff_rounds > 0 && ranked.len() >= 2 {
         runoff_executed = true;
         let runoff_candidates = vec![ranked[0].0.clone(), ranked[1].0.clone()];
         let mut runoff_totals: HashMap<String, f64> = HashMap::new();
@@ -819,6 +838,9 @@ mod tests {
 
         let status = debate_status(root, Some(&policy_path), None);
         assert_eq!(status.get("ok").and_then(Value::as_bool), Some(true));
-        assert_eq!(status.get("objective_id").and_then(Value::as_str), Some("mac_test"));
+        assert_eq!(
+            status.get("objective_id").and_then(Value::as_str),
+            Some("mac_test")
+        );
     }
 }

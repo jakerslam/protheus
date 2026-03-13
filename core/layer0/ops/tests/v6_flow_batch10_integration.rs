@@ -378,9 +378,10 @@ fn v6_flow_batch10_compile_fails_unknown_node_type_in_strict_mode() {
         latest
             .get("errors")
             .and_then(Value::as_array)
-            .map(|rows| rows
-                .iter()
-                .any(|row| row.as_str().unwrap_or_default().contains("node_type_not_allowed")))
+            .map(|rows| rows.iter().any(|row| row
+                .as_str()
+                .unwrap_or_default()
+                .contains("node_type_not_allowed")))
             .unwrap_or(false),
         "strict compile should fail on unknown canvas node type"
     );
@@ -447,7 +448,10 @@ fn v6_flow_batch10_default_component_manifest_passes_in_strict_mode() {
 fn v6_flow_batch10_default_template_manifest_passes_in_strict_mode() {
     let fixture = stage_fixture_root();
     let root = fixture.path();
-    std::env::set_var("FLOW_TEMPLATE_SIGNING_KEY", "flow-template-default-signing-key");
+    std::env::set_var(
+        "FLOW_TEMPLATE_SIGNING_KEY",
+        "flow-template-default-signing-key",
+    );
     let exit = flow_plane::run(root, &["templates".to_string(), "--strict=1".to_string()]);
     assert_eq!(exit, 0);
     let latest = read_json(&latest_path(root));
@@ -485,10 +489,7 @@ fn v6_flow_batch10_run_alias_executes_through_playground() {
         latest.get("type").and_then(Value::as_str),
         Some("flow_plane_playground")
     );
-    assert_eq!(
-        latest.get("op").and_then(Value::as_str),
-        Some("play")
-    );
+    assert_eq!(latest.get("op").and_then(Value::as_str), Some("play"));
     assert_claim(&latest, "V6-FLOW-001.6");
 }
 
@@ -496,7 +497,10 @@ fn v6_flow_batch10_run_alias_executes_through_playground() {
 fn v6_flow_batch10_install_alias_executes_template_governance() {
     let fixture = stage_fixture_root();
     let root = fixture.path();
-    std::env::set_var("FLOW_TEMPLATE_SIGNING_KEY", "flow-template-default-signing-key");
+    std::env::set_var(
+        "FLOW_TEMPLATE_SIGNING_KEY",
+        "flow-template-default-signing-key",
+    );
     let exit = flow_plane::run(root, &["install".to_string(), "--strict=1".to_string()]);
     assert_eq!(exit, 0);
     let latest = read_json(&latest_path(root));

@@ -193,10 +193,9 @@ pub fn run_background_hands_scheduler(root: &Path, args: &[String]) -> (i32, Val
         .map(|v| v.to_ascii_lowercase())
         .unwrap_or_else(|| "status".to_string());
 
-    let policy_path = flags
-        .get("policy")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| root.join("client/runtime/config/background_hands_scheduler_policy.json"));
+    let policy_path = flags.get("policy").map(PathBuf::from).unwrap_or_else(|| {
+        root.join("client/runtime/config/background_hands_scheduler_policy.json")
+    });
     let policy = read_json(&policy_path).unwrap_or_else(|| json!({}));
     let paths = policy.get("paths").cloned().unwrap_or_else(|| json!({}));
     let events_path = resolve_path(
@@ -392,11 +391,8 @@ pub fn run_rsi_idle_hands_scheduler(root: &Path, args: &[String]) -> (i32, Value
 
     let now = now_iso();
     if apply {
-        let runs = state
-            .get("runs")
-            .and_then(Value::as_i64)
-            .unwrap_or(0)
-            + if suppressed { 0 } else { 1 };
+        let runs =
+            state.get("runs").and_then(Value::as_i64).unwrap_or(0) + if suppressed { 0 } else { 1 };
         let suppressed_quiet_hours = state
             .get("suppressed_quiet_hours")
             .and_then(Value::as_i64)

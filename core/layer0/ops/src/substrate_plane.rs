@@ -618,7 +618,12 @@ fn run_csi_module(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Valu
                 && contract
                     .get("required_fields")
                     .and_then(Value::as_array)
-                    .map(|required| required.iter().filter_map(Value::as_str).any(|row| row == "degrade_behavior"))
+                    .map(|required| {
+                        required
+                            .iter()
+                            .filter_map(Value::as_str)
+                            .any(|row| row == "degrade_behavior")
+                    })
                     .unwrap_or(false)
                 && degrade_behavior.is_empty()
             {

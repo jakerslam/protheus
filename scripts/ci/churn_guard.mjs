@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
+// TODO(rkapoor): Add threshold validation for weekly churn % - Q2 2026
 import { execSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
