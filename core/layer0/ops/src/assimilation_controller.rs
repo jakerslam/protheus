@@ -31,7 +31,9 @@ fn usage() {
     println!(
         "  protheus-ops assimilation-controller rollback --capability-id=<id> [--reason=<text>]"
     );
-    println!("  protheus-ops assimilation-controller skills-enable [perplexity-mode] [--apply=1|0]");
+    println!(
+        "  protheus-ops assimilation-controller skills-enable [perplexity-mode] [--apply=1|0]"
+    );
     println!("  protheus-ops assimilation-controller skill-create --task=<text>");
     println!("  protheus-ops assimilation-controller skills-dashboard");
     println!("  protheus-ops assimilation-controller skills-spawn-subagents --task=<text> [--roles=researcher,executor,reviewer]");

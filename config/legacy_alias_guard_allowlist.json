@@ -1,0 +1,6 @@
+{
+  "allow_run_legacy_alias": [
+    "client/runtime/systems/compat/legacy_alias_adapter.ts"
+  ],
+  "allow_legacy_retired_lane": []
+}

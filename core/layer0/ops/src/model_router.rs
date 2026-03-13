@@ -344,13 +344,18 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
         println!("  protheus-ops model-router optimize [minimax] [--compact-lines=24] [--target-cost=0.30] [--baseline-cost=5.0] [--quality-target-pct=95]");
         println!("  protheus-ops model-router compact-context [--max-lines=24] [--source=soul,memory,task]");
         println!("  protheus-ops model-router decompose-task [--task=<text>]");
-        println!("  protheus-ops model-router adapt-repo [--repo=<url|path>] [--strategy=reuse-first]");
+        println!(
+            "  protheus-ops model-router adapt-repo [--repo=<url|path>] [--strategy=reuse-first]"
+        );
         println!("  protheus-ops model-router reset-agent [--preserve-identity=1|0] [--scope=routing+session-cache]");
         println!("  protheus-ops model-router night-schedule [--start-hour=0] [--end-hour=6] [--timezone=America/Denver] [--cheap-model=minimax/m2.5]");
         return 0;
     }
 
-    if matches!(cmd.as_str(), "optimize" | "optimize-cheap" | "optimize-minimax") {
+    if matches!(
+        cmd.as_str(),
+        "optimize" | "optimize-cheap" | "optimize-minimax"
+    ) {
         let out = optimize_cheapest_receipt(root, args);
         print_json_line(&out);
         return 0;

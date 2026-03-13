@@ -10,6 +10,7 @@
     "ops:client-layer:boundary": "node scripts/ci/client_layer_boundary_audit.mjs --strict=1",
     "ops:module-cohesion:audit": "node scripts/ci/module_cohesion_policy_audit.mjs --strict=1",
     "ops:simplicity:audit": "node scripts/ci/simplicity_drift_audit.mjs --strict=1",
+    "ops:legacy-alias:guard": "node scripts/ci/legacy_alias_guard.mjs --strict=1",
     "ops:churn:guard": "node scripts/ci/churn_guard.mjs --strict=1",
     "ops:repo-surface:audit": "node scripts/ci/repo_surface_policy_audit.mjs --strict=1",
     "ops:public-platform:contract": "node scripts/ci/public_platform_contract_audit.mjs --strict=1",

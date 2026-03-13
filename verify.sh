@@ -110,6 +110,7 @@ run_origin_integrity() {
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:formal-spec:check
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node scripts/ci/client_layer_boundary_audit.mjs --strict=1 --out="$CLIENT_LAYER_AUDIT_OUT"
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node scripts/ci/module_cohesion_policy_audit.mjs --strict=1 --out-json="$MODULE_COHESION_OUT_JSON" --out-markdown="$MODULE_COHESION_OUT_MD"
+  run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:legacy-alias:guard
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:repo-surface:audit
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" npm run -s ops:public-platform:contract
   run_with_timeout_strict "$VERIFY_NPM_TIMEOUT_SEC" node scripts/ci/client_import_integrity_audit.mjs --strict=1 --out="$CLIENT_IMPORT_INTEGRITY_OUT"

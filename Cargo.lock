@@ -901,6 +901,7 @@ dependencies = [
 name = "protheus-ops-core"
 version = "0.1.0"
 dependencies = [
+ "aes-gcm",
  "base64",
  "burn_oracle_budget_gate",
  "chrono",
@@ -914,6 +915,7 @@ dependencies = [
  "protheus-autonomy-core-v1",
  "protheus-ops-core-v1",
  "protheus-spine-core-v1",
+ "rand",
  "serde",
  "serde_json",
  "sha2",

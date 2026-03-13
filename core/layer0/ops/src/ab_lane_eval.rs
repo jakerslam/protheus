@@ -101,7 +101,12 @@ fn to_f64_clamped(raw: Option<String>, fallback: f64, lo: f64, hi: f64) -> f64 {
 
 fn enable_neuralavb_receipt(root: &Path, args: &[String]) -> Value {
     let enabled = flag_value(args, "enabled")
-        .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+        .map(|v| {
+            matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
         .unwrap_or(true);
     let (profile_path, _, history_path) = neuralavb_paths(root);
     let mut out = json!({
@@ -133,7 +138,12 @@ fn experiment_loop_receipt(root: &Path, args: &[String]) -> Value {
     let experiment_score = to_f64_clamped(flag_value(args, "experiment-score"), 0.84, 0.0, 1.0);
     let evaluate_score = to_f64_clamped(flag_value(args, "evaluate-score"), 0.85, 0.0, 1.0);
     let iterations = to_f64_clamped(flag_value(args, "iterations"), 1.0, 1.0, 500.0);
-    let baseline_cost_usd = to_f64_clamped(flag_value(args, "baseline-cost-usd"), 25.0, 0.01, 1_000_000.0);
+    let baseline_cost_usd = to_f64_clamped(
+        flag_value(args, "baseline-cost-usd"),
+        25.0,
+        0.01,
+        1_000_000.0,
+    );
     let run_cost_usd = to_f64_clamped(flag_value(args, "run-cost-usd"), 8.0, 0.01, 1_000_000.0);
     let baseline_accuracy = to_f64_clamped(flag_value(args, "baseline-accuracy"), 0.915, 0.0, 1.0);
     let run_accuracy = to_f64_clamped(flag_value(args, "run-accuracy"), 0.91, 0.0, 1.0);
@@ -454,10 +464,7 @@ mod tests {
     #[test]
     fn enable_neuralavb_profile_writes_enabled_state() {
         let root = tempfile::tempdir().expect("tempdir");
-        let args = vec![
-            "enable-neuralavb".to_string(),
-            "--enabled=1".to_string(),
-        ];
+        let args = vec!["enable-neuralavb".to_string(), "--enabled=1".to_string()];
         let out = enable_neuralavb_receipt(root.path(), &args);
         assert_eq!(out.get("enabled").and_then(Value::as_bool), Some(true));
         assert_eq!(

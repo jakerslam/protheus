@@ -45,8 +45,13 @@ pub fn write_json(path: &Path, value: &Value) -> Result<(), String> {
     ));
     fs::write(&tmp, format!("{payload}\n"))
         .map_err(|err| format!("write_tmp_failed:{}:{err}", tmp.display()))?;
-    fs::rename(&tmp, path)
-        .map_err(|err| format!("rename_tmp_failed:{}:{}:{err}", tmp.display(), path.display()))
+    fs::rename(&tmp, path).map_err(|err| {
+        format!(
+            "rename_tmp_failed:{}:{}:{err}",
+            tmp.display(),
+            path.display()
+        )
+    })
 }
 
 pub fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
@@ -61,8 +66,7 @@ pub fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
         .append(true)
         .open(path)
         .map_err(|err| format!("open_jsonl_failed:{}:{err}", path.display()))?;
-    writeln!(file, "{line}")
-        .map_err(|err| format!("append_jsonl_failed:{}:{err}", path.display()))
+    writeln!(file, "{line}").map_err(|err| format!("append_jsonl_failed:{}:{err}", path.display()))
 }
 
 pub fn print_json(value: &Value) {
@@ -107,7 +111,8 @@ pub fn sha256_hex_str(value: &str) -> String {
 }
 
 pub fn sha256_file(path: &Path) -> Result<String, String> {
-    let bytes = fs::read(path).map_err(|err| format!("read_file_failed:{}:{err}", path.display()))?;
+    let bytes =
+        fs::read(path).map_err(|err| format!("read_file_failed:{}:{err}", path.display()))?;
     Ok(sha256_hex_bytes(&bytes))
 }
 
@@ -135,7 +140,11 @@ pub fn deterministic_merkle_root(leaves: &[String]) -> String {
         let mut i = 0usize;
         while i < level.len() {
             let left = &level[i];
-            let right = if i + 1 < level.len() { &level[i + 1] } else { &level[i] };
+            let right = if i + 1 < level.len() {
+                &level[i + 1]
+            } else {
+                &level[i]
+            };
             next.push(sha256_hex_str(&format!("node:{left}:{right}")));
             i += 2;
         }
@@ -156,7 +165,11 @@ pub fn merkle_proof(leaves: &[String], index: usize) -> Vec<Value> {
         .collect::<Vec<_>>();
 
     while level.len() > 1 {
-        let sibling_idx = if idx % 2 == 0 { idx + 1 } else { idx.saturating_sub(1) };
+        let sibling_idx = if idx % 2 == 0 {
+            idx + 1
+        } else {
+            idx.saturating_sub(1)
+        };
         let sibling = if sibling_idx < level.len() {
             level[sibling_idx].clone()
         } else {
@@ -173,7 +186,11 @@ pub fn merkle_proof(leaves: &[String], index: usize) -> Vec<Value> {
         let mut i = 0usize;
         while i < level.len() {
             let left = &level[i];
-            let right = if i + 1 < level.len() { &level[i + 1] } else { &level[i] };
+            let right = if i + 1 < level.len() {
+                &level[i + 1]
+            } else {
+                &level[i]
+            };
             next.push(sha256_hex_str(&format!("node:{left}:{right}")));
             i += 2;
         }
@@ -184,7 +201,12 @@ pub fn merkle_proof(leaves: &[String], index: usize) -> Vec<Value> {
     out
 }
 
-pub fn write_receipt(root: &Path, env_key: &str, scope: &str, mut payload: Value) -> Result<Value, String> {
+pub fn write_receipt(
+    root: &Path,
+    env_key: &str,
+    scope: &str,
+    mut payload: Value,
+) -> Result<Value, String> {
     let latest = latest_path(root, env_key, scope);
     let history = history_path(root, env_key, scope);
     payload["ts"] = Value::String(now_iso());
