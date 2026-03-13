@@ -172,6 +172,30 @@ fn verify_entry_signature(entry: &Value) -> bool {
     false
 }
 
+fn is_structured_directive_entry(entry: &Value) -> bool {
+    let Some(obj) = entry.as_object() else {
+        return false;
+    };
+    let required = [
+        "id",
+        "directive",
+        "rule_kind",
+        "rule_pattern",
+        "signer",
+        "source",
+        "prev_hash",
+        "signature",
+        "entry_hash",
+        "ts",
+    ];
+    required.iter().all(|key| {
+        obj.get(*key)
+            .and_then(Value::as_str)
+            .map(|v| !v.trim().is_empty())
+            .unwrap_or(false)
+    })
+}
+
 fn signature_counts(vault: &Value) -> (u64, u64) {
     let rows = collect_rules(vault);
     let total = rows.len() as u64;
@@ -259,12 +283,12 @@ fn is_entry_active(entry: &Value) -> bool {
 fn collect_rules(vault: &Value) -> Vec<Value> {
     let mut out = Vec::new();
     for row in prime_rows(vault) {
-        if is_entry_active(&row) {
+        if is_entry_active(&row) && is_structured_directive_entry(&row) {
             out.push(row);
         }
     }
     for row in derived_rows(vault) {
-        if is_entry_active(&row) {
+        if is_entry_active(&row) && is_structured_directive_entry(&row) {
             out.push(row);
         }
     }
@@ -290,8 +314,18 @@ fn recompute_entry_hash(entry: &Value) -> String {
 
 pub fn directive_vault_integrity(root: &Path) -> Value {
     let vault = load_vault(root);
-    let mut rows = prime_rows(&vault);
-    rows.extend(derived_rows(&vault));
+    let mut raw_rows = prime_rows(&vault);
+    raw_rows.extend(derived_rows(&vault));
+    let raw_entry_count = raw_rows.len() as u64;
+    let mut rows = Vec::new();
+    let mut ignored_legacy_entry_count = 0u64;
+    for row in raw_rows {
+        if is_structured_directive_entry(&row) {
+            rows.push(row);
+        } else {
+            ignored_legacy_entry_count += 1;
+        }
+    }
     let entry_count = rows.len() as u64;
     let chain_head = vault
         .get("chain_head")
@@ -370,7 +404,9 @@ pub fn directive_vault_integrity(root: &Path) -> Value {
 
     json!({
         "ok": entry_count == signature_valid_count && entry_count == hash_valid_count && chain_valid,
+        "raw_entry_count": raw_entry_count,
         "entry_count": entry_count,
+        "ignored_legacy_entry_count": ignored_legacy_entry_count,
         "signature_valid_count": signature_valid_count,
         "hash_valid_count": hash_valid_count,
         "chain_valid": chain_valid,
@@ -588,6 +624,135 @@ fn migrate_legacy_markdown(root: &Path, apply: bool) -> Result<Value, String> {
     }))
 }
 
+fn collect_structured_chain_entries(vault: &Value) -> Result<Vec<Value>, String> {
+    let mut rows = prime_rows(vault);
+    rows.extend(derived_rows(vault));
+    let chain_head = vault
+        .get("chain_head")
+        .and_then(Value::as_str)
+        .unwrap_or("genesis")
+        .to_string();
+    let mut by_hash: HashMap<String, Value> = HashMap::new();
+    for row in rows {
+        if !is_structured_directive_entry(&row) {
+            continue;
+        }
+        let actual = row
+            .get("entry_hash")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .trim()
+            .to_string();
+        let expected = recompute_entry_hash(&row);
+        if actual.is_empty() || !actual.eq_ignore_ascii_case(&expected) {
+            return Err("repair_entry_hash_invalid".to_string());
+        }
+        by_hash.insert(actual, row);
+    }
+
+    if by_hash.is_empty() {
+        return Ok(Vec::new());
+    }
+    if chain_head == "genesis" {
+        return Err("repair_missing_chain_head".to_string());
+    }
+
+    let mut cursor = chain_head;
+    let mut visited = HashSet::new();
+    let mut ordered = Vec::new();
+    loop {
+        if cursor == "genesis" {
+            break;
+        }
+        if !visited.insert(cursor.clone()) {
+            return Err("repair_chain_cycle_detected".to_string());
+        }
+        let Some(row) = by_hash.get(&cursor) else {
+            return Err("repair_chain_head_missing_entry".to_string());
+        };
+        ordered.push(row.clone());
+        cursor = row
+            .get("prev_hash")
+            .and_then(Value::as_str)
+            .unwrap_or("genesis")
+            .to_string();
+    }
+
+    if ordered.len() != by_hash.len() {
+        return Err("repair_chain_length_mismatch".to_string());
+    }
+    ordered.reverse();
+    Ok(ordered)
+}
+
+fn repair_vault_signatures(root: &Path, apply: bool, allow_unsigned: bool) -> Result<Value, String> {
+    let key_present = signing_key_present();
+    if !key_present && !allow_unsigned {
+        return Err("missing_signing_key".to_string());
+    }
+
+    let mut vault = load_vault(root);
+    let ordered = collect_structured_chain_entries(&vault)?;
+    let mode = if key_present {
+        "keyed"
+    } else {
+        "unsigned"
+    };
+
+    if !apply {
+        return Ok(json!({
+            "apply": false,
+            "mode": mode,
+            "key_present": key_present,
+            "eligible_entries": ordered.len()
+        }));
+    }
+
+    let mut replacement_by_id: HashMap<String, Value> = HashMap::new();
+    let mut prev_hash = "genesis".to_string();
+    for row in ordered {
+        let mut updated = row.clone();
+        updated["prev_hash"] = Value::String(prev_hash.clone());
+        updated["signature"] = Value::String(signature_for_entry(&updated));
+        let entry_hash = recompute_entry_hash(&updated);
+        updated["entry_hash"] = Value::String(entry_hash.clone());
+        prev_hash = entry_hash;
+
+        let id = updated
+            .get("id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| "repair_entry_id_missing".to_string())?
+            .to_string();
+        replacement_by_id.insert(id, updated);
+    }
+
+    let obj = vault_obj_mut(&mut vault);
+    for bucket in ["prime", "derived"] {
+        let rows = ensure_array(obj, bucket);
+        for row in rows.iter_mut() {
+            if !is_structured_directive_entry(row) {
+                continue;
+            }
+            let Some(id) = row.get("id").and_then(Value::as_str) else {
+                continue;
+            };
+            if let Some(replacement) = replacement_by_id.get(id) {
+                *row = replacement.clone();
+            }
+        }
+    }
+    obj.insert("chain_head".to_string(), Value::String(prev_hash.clone()));
+    write_vault(root, &vault)?;
+
+    Ok(json!({
+        "apply": true,
+        "mode": mode,
+        "key_present": key_present,
+        "repaired_entries": replacement_by_id.len(),
+        "new_chain_head": prev_hash
+    }))
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     directive_kernel_run::run(root, argv)
 }
@@ -704,6 +869,54 @@ mod tests {
     }
 
     #[test]
+    fn legacy_placeholder_entries_are_ignored_by_integrity_gate() {
+        let _guard = env_guard();
+        std::env::set_var(SIGNING_ENV, "test-signing-key");
+        let root = temp_root("legacy_placeholder_integrity");
+        assert_eq!(
+            run(
+                &root,
+                &[
+                    "prime-sign".to_string(),
+                    "--directive=allow:blob:status".to_string(),
+                    "--signer=tester".to_string(),
+                    "--allow-unsigned=1".to_string(),
+                ],
+            ),
+            0
+        );
+
+        let mut vault = load_vault(&root);
+        if let Some(rows) = vault.get_mut("prime").and_then(Value::as_array_mut) {
+            rows.insert(
+                0,
+                json!({
+                    "directive": "Protect operator intent",
+                    "signer": "tester",
+                    "supersedes_previous": true,
+                    "ts": now_iso()
+                }),
+            );
+        }
+        write_vault(&root, &vault).expect("write vault");
+
+        let integrity = directive_vault_integrity(&root);
+        assert_eq!(integrity.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            integrity
+                .get("ignored_legacy_entry_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+
+        let eval = evaluate_action(&root, "blob:status");
+        assert_eq!(eval.get("allowed").and_then(Value::as_bool), Some(true));
+
+        std::env::remove_var(SIGNING_ENV);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn derive_rejects_wildcard_inheritance_conflicts() {
         let _guard = env_guard();
         std::env::set_var(SIGNING_ENV, "test-signing-key");
@@ -736,6 +949,63 @@ mod tests {
         let eval = evaluate_action(&root, "rsi:ignite:conduit");
         assert_eq!(eval.get("allowed").and_then(Value::as_bool), Some(false));
         std::env::remove_var(SIGNING_ENV);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn signature_repair_rebuilds_chain_when_key_is_missing() {
+        let _guard = env_guard();
+        std::env::set_var(SIGNING_ENV, "orig-key");
+        let root = temp_root("signature_repair_missing_key");
+        assert_eq!(
+            run(
+                &root,
+                &[
+                    "prime-sign".to_string(),
+                    "--directive=allow:blob:status".to_string(),
+                    "--signer=tester".to_string(),
+                    "--allow-unsigned=1".to_string(),
+                ],
+            ),
+            0
+        );
+        assert_eq!(
+            run(
+                &root,
+                &[
+                    "prime-sign".to_string(),
+                    "--directive=allow:credits:workspace-view".to_string(),
+                    "--signer=tester".to_string(),
+                    "--allow-unsigned=1".to_string(),
+                ],
+            ),
+            0
+        );
+
+        std::env::remove_var(SIGNING_ENV);
+        let before = directive_vault_integrity(&root);
+        assert_eq!(before.get("ok").and_then(Value::as_bool), Some(false));
+
+        let repair = repair_vault_signatures(&root, true, true).expect("repair signatures");
+        assert_eq!(repair.get("apply").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            repair.get("repaired_entries").and_then(Value::as_u64),
+            Some(2)
+        );
+
+        let after = directive_vault_integrity(&root);
+        assert_eq!(after.get("ok").and_then(Value::as_bool), Some(true));
+
+        let vault = load_vault(&root);
+        let first_sig = vault
+            .get("prime")
+            .and_then(Value::as_array)
+            .and_then(|rows| rows.first())
+            .and_then(|row| row.get("signature"))
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(first_sig.starts_with("unsigned:"));
+
         let _ = fs::remove_dir_all(root);
     }
 

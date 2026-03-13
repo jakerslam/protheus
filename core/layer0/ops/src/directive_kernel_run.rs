@@ -42,7 +42,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         println!("  protheus-ops directive-kernel supersede [--target=<id|text>] [--directive=<text>] [--signer=<id>] [--allow-unsigned=1|0]");
         println!("  protheus-ops directive-kernel compliance-check [--action=<text>]");
         println!("  protheus-ops directive-kernel bridge-rsi [--proposal=<text>] [--apply=1|0]");
-        println!("  protheus-ops directive-kernel migrate [--apply=1|0] [--allow-unsigned=1|0]");
+        println!(
+            "  protheus-ops directive-kernel migrate [--apply=1|0] [--allow-unsigned=1|0] [--repair-signatures=1|0]"
+        );
         return 0;
     }
 
@@ -597,6 +599,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     if command == "migrate" {
         let apply = parse_bool(parsed.flags.get("apply"), true);
         let allow_unsigned = parse_bool(parsed.flags.get("allow-unsigned"), false);
+        let repair_signatures = parse_bool(parsed.flags.get("repair-signatures"), false);
         if apply && !allow_unsigned && !signing_key_present() {
             return emit_receipt(
                 root,
@@ -624,7 +627,24 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "imported_count": 0
             })
         });
-        let ok = !migrated.get("error").is_some();
+        let signature_repair = if repair_signatures {
+            Some(repair_vault_signatures(root, apply, allow_unsigned).unwrap_or_else(
+                |err| {
+                    json!({
+                        "error": clean(err, 220),
+                        "apply": apply
+                    })
+                },
+            ))
+        } else {
+            None
+        };
+        let migration_ok = !migrated.get("error").is_some();
+        let repair_ok = signature_repair
+            .as_ref()
+            .map(|v| !v.get("error").is_some())
+            .unwrap_or(true);
+        let ok = migration_ok && repair_ok;
         return emit_receipt(
             root,
             json!({
@@ -633,6 +653,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "lane": "core/layer0/ops",
                 "apply": apply,
                 "migration": migrated,
+                "signature_repair": signature_repair,
                 "commands": ["protheus directives migrate", "protheus directives status", "protheus prime sign", "protheus directives supersede"],
                 "policy_hash": directive_vault_hash(root),
                 "layer_map": ["0","1","2","client","app"],
@@ -640,7 +661,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                     {
                         "id": "V8-DIRECTIVES-001.5",
                         "claim": "directive_migration_and_status_are_available_as_one_command_core_paths",
-                        "evidence": {"apply": apply, "ok": ok}
+                        "evidence": {
+                            "apply": apply,
+                            "ok": ok,
+                            "repair_signatures": repair_signatures
+                        }
                     }
                 ]
             }),
