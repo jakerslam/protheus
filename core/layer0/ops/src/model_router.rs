@@ -250,8 +250,8 @@ fn compact_context_receipt(root: &Path, args: &[String]) -> Value {
         "selected_lines": selected,
         "claim_evidence": [
             {
-                "id": "context_compaction_contract",
-                "claim": "cheap_model_mode_compacts_context_before_major_tasks",
+                "id": "V6-MODEL-003.1",
+                "claim": "model_router_compact_context_emits_deterministic_soul_memory_compaction_receipts",
                 "evidence": {
                     "max_lines": max_lines
                 }
@@ -281,8 +281,8 @@ fn decompose_task_receipt(root: &Path, args: &[String]) -> Value {
         ],
         "claim_evidence": [
             {
-                "id": "hierarchical_decomposition_contract",
-                "claim": "cheap_model_mode_decomposes_complex_work_into_research_planning_execution",
+                "id": "V6-MODEL-003.2",
+                "claim": "model_router_decompose_task_emits_deterministic_hierarchical_subtask_receipts",
                 "evidence": {
                     "task": task
                 }
@@ -4284,6 +4284,13 @@ mod tests {
             Some("model_router_compact_context")
         );
         assert_eq!(out.get("max_lines").and_then(Value::as_i64), Some(12));
+        assert!(out
+            .get("claim_evidence")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .any(|row| row.get("id").and_then(Value::as_str) == Some("V6-MODEL-003.1")));
     }
 
     #[test]
@@ -4304,6 +4311,13 @@ mod tests {
             out.get("phases").and_then(Value::as_array).map(|v| v.len()),
             Some(3)
         );
+        assert!(out
+            .get("claim_evidence")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .any(|row| row.get("id").and_then(Value::as_str) == Some("V6-MODEL-003.2")));
     }
 
     #[test]
