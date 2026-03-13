@@ -1903,6 +1903,45 @@ mod tests {
     }
 
     #[test]
+    fn core_shortcut_routes_assimilate_scrapy_core_to_research_plane() {
+        let route = resolve_core_shortcuts(
+            "assimilate",
+            &["scrape://scrapy-core".to_string(), "--strict=1".to_string()],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://research-plane");
+        assert_eq!(route.args, vec!["template-governance", "--strict=1"]);
+    }
+
+    #[test]
+    fn core_shortcut_routes_assimilate_firecrawl_core_to_research_plane() {
+        let route = resolve_core_shortcuts(
+            "assimilate",
+            &[
+                "scrape://firecrawl-core".to_string(),
+                "--strict=1".to_string(),
+            ],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://research-plane");
+        assert_eq!(
+            route.args,
+            vec!["firecrawl-template-governance", "--strict=1"]
+        );
+    }
+
+    #[test]
+    fn core_shortcut_routes_assimilate_doc2dict_core_to_parse_plane() {
+        let route = resolve_core_shortcuts(
+            "assimilate",
+            &["parse://doc2dict-core".to_string(), "--strict=1".to_string()],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://parse-plane");
+        assert_eq!(route.args, vec!["template-governance", "--strict=1"]);
+    }
+
+    #[test]
     fn core_shortcut_routes_parse_doc_to_parse_plane() {
         let route = resolve_core_shortcuts(
             "parse",
@@ -1920,6 +1959,30 @@ mod tests {
                 "parse-doc",
                 "--file=fixtures/report.html",
                 "--mapping=default"
+            ]
+        );
+    }
+
+    #[test]
+    fn core_shortcut_routes_parse_export_to_parse_plane() {
+        let route = resolve_core_shortcuts(
+            "parse",
+            &[
+                "export".to_string(),
+                "core/local/state/ops/parse_plane/flatten/latest.json".to_string(),
+                "artifacts/parse/export.json".to_string(),
+                "--format=json".to_string(),
+            ],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://parse-plane");
+        assert_eq!(
+            route.args,
+            vec![
+                "export",
+                "--from-path=core/local/state/ops/parse_plane/flatten/latest.json",
+                "--output-path=artifacts/parse/export.json",
+                "--format=json"
             ]
         );
     }

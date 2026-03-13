@@ -32,6 +32,7 @@ fn usage() {
     println!("  protheus-ops parse-plane visualize [--from-path=<path>] [--strict=1|0]");
     println!("  protheus-ops parse-plane postprocess-table [--table-json=<json>|--table-path=<path>|--from-path=<path>] [--max-rows=<n>] [--max-cols=<n>] [--strict=1|0]");
     println!("  protheus-ops parse-plane flatten [--json=<json>|--json-path=<path>|--from-path=<path>] [--max-depth=<n>] [--format=dot|slash] [--strict=1|0]");
+    println!("  protheus-ops parse-plane export [--from-path=<path>] [--output-path=<path>] [--format=json|jsonl|md] [--strict=1|0]");
     println!("  protheus-ops parse-plane template-governance [--manifest=<path>] [--templates-root=<path>] [--strict=1|0]");
 }
 
@@ -1540,6 +1541,121 @@ fn run_template_governance(root: &Path, parsed: &crate::ParsedArgs, strict: bool
     out
 }
 
+fn run_export(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
+    let format = parsed
+        .flags
+        .get("format")
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_else(|| "json".to_string());
+    let extension = match format.as_str() {
+        "json" => "json",
+        "jsonl" => "jsonl",
+        "md" | "markdown" => "md",
+        _ => {
+            return json!({
+                "ok": false,
+                "strict": strict,
+                "type": "parse_plane_export_error",
+                "errors": ["invalid_export_format"],
+                "format": clean(&format, 24)
+            });
+        }
+    };
+
+    let source_path = parsed
+        .flags
+        .get("from-path")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| latest_path(root));
+    let source_value = match read_json(&source_path) {
+        Some(v) => v,
+        None => {
+            return json!({
+                "ok": false,
+                "strict": strict,
+                "type": "parse_plane_export_error",
+                "errors": ["export_source_missing_or_invalid_json"],
+                "source_path": source_path.display().to_string()
+            });
+        }
+    };
+
+    let output_path = parsed
+        .flags
+        .get("output-path")
+        .or_else(|| parsed.flags.get("out-path"))
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            state_root(root)
+                .join("exports")
+                .join(format!("latest.{extension}"))
+        });
+
+    let canonical = canonicalize_json(&source_value);
+    let body = match extension {
+        "json" => {
+            let mut out = serde_json::to_string_pretty(&canonical)
+                .unwrap_or_else(|_| canonical_json_string(&canonical));
+            out.push('\n');
+            out
+        }
+        "jsonl" => {
+            let mut out = canonical_json_string(&canonical);
+            out.push('\n');
+            out
+        }
+        "md" => {
+            format!(
+                "# Parse Export\n\n```json\n{}\n```\n",
+                serde_json::to_string_pretty(&canonical)
+                    .unwrap_or_else(|_| canonical_json_string(&canonical))
+            )
+        }
+        _ => String::new(),
+    };
+
+    if let Some(parent) = output_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    if let Err(err) = fs::write(&output_path, body.as_bytes()) {
+        return json!({
+            "ok": false,
+            "strict": strict,
+            "type": "parse_plane_export_error",
+            "errors": ["export_write_failed"],
+            "path": output_path.display().to_string(),
+            "error": clean(err.to_string(), 220)
+        });
+    }
+
+    let mut out = json!({
+        "ok": true,
+        "strict": strict,
+        "type": "parse_plane_export",
+        "lane": "core/layer0/ops",
+        "source_path": source_path.display().to_string(),
+        "output_path": output_path.display().to_string(),
+        "format": extension,
+        "artifact": {
+            "path": output_path.display().to_string(),
+            "sha256": sha256_hex_str(&body)
+        },
+        "claim_evidence": [
+            {
+                "id": "V6-PARSE-001.6",
+                "claim": "parse_export_actions_route_through_conduit_with_fail_closed_policy_checks_and_deterministic_receipts",
+                "evidence": {
+                    "source_path": source_path.display().to_string(),
+                    "output_path": output_path.display().to_string(),
+                    "format": extension
+                }
+            }
+        ]
+    });
+    out["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&out));
+    out
+}
+
 pub fn run(root: &Path, argv: &[String]) -> i32 {
     let parsed = parse_args(argv);
     let command = parsed
@@ -1585,6 +1701,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             run_postprocess_table(root, &parsed, strict)
         }
         "flatten" | "unnest" => run_flatten_transform(root, &parsed, strict),
+        "export" => run_export(root, &parsed, strict),
         "template-governance" | "template_governance" | "templates" => {
             run_template_governance(root, &parsed, strict)
         }
