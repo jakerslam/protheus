@@ -26,6 +26,7 @@ fn usage() {
     println!("  protheus-ops directive-kernel <status|prime-sign|derive|compliance-check|bridge-rsi|migrate> [flags]");
     println!("  protheus-ops rsi-ignition <status|ignite|reflect|swarm|evolve> [flags]");
     println!("  protheus-ops organism-layer <status|ignite|dream|homeostasis|crystallize|symbiosis|mutate|sensory|narrative> [flags]");
+    println!("  protheus-ops graph-toolkit <status|pagerank|louvain|jaccard|label-propagation|betweenness|predict-links|centrality|communities> [flags]");
     println!("  protheus-ops ab-lane-eval <status|run> [flags]");
     println!("  protheus-ops contract-check <args>");
     println!("  protheus-ops security-plane <guard|anti-sabotage-shield|constitution-guardian|remote-emergency-halt|soul-token-guard|integrity-reseal|integrity-reseal-assistant|capability-lease|startup-attestation|status> [flags]");
@@ -287,6 +288,11 @@ fn main() {
         "organism-layer" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::organism_layer::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "graph-toolkit" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::graph_toolkit::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "ab-lane-eval" => {
