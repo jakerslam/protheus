@@ -1641,7 +1641,7 @@ mod tests {
     fn core_shortcut_routes_network_dashboard_to_hyperspace_core_lane() {
         let route = resolve_core_shortcuts("network", &["dashboard".to_string()]).expect("route");
         assert_eq!(route.script_rel, "core://network-protocol");
-        assert_eq!(route.args, vec!["status"]);
+        assert_eq!(route.args, vec!["dashboard"]);
     }
 
     #[test]
@@ -1682,6 +1682,32 @@ mod tests {
             route.args,
             vec!["merkle-root", "--account=shadow:alpha", "--proof=1"]
         );
+    }
+
+    #[test]
+    fn core_shortcut_routes_enterprise_compliance_export_to_core_lane() {
+        let route = resolve_core_shortcuts(
+            "enterprise",
+            &[
+                "compliance".to_string(),
+                "export".to_string(),
+                "--profile=auditor".to_string(),
+            ],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://enterprise-hardening");
+        assert_eq!(route.args, vec!["export-compliance", "--profile=auditor"]);
+    }
+
+    #[test]
+    fn core_shortcut_routes_enterprise_scale_to_core_lane() {
+        let route = resolve_core_shortcuts(
+            "enterprise",
+            &["scale".to_string(), "--target-nodes=10000".to_string()],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://enterprise-hardening");
+        assert_eq!(route.args, vec!["certify-scale", "--target-nodes=10000"]);
     }
 
     #[test]
