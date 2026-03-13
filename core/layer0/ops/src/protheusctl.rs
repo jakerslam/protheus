@@ -1856,6 +1856,30 @@ mod tests {
     }
 
     #[test]
+    fn core_shortcut_routes_research_firmware_to_binary_vuln_lane() {
+        let route = resolve_core_shortcuts(
+            "research",
+            &[
+                "--firmware=fw.bin".to_string(),
+                "--format=jsonl".to_string(),
+                "--strict=1".to_string(),
+            ],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://binary-vuln-plane");
+        assert_eq!(
+            route.args,
+            vec![
+                "scan",
+                "--dx-source=research-firmware",
+                "--input=fw.bin",
+                "--format=jsonl",
+                "--strict=1"
+            ]
+        );
+    }
+
+    #[test]
     fn core_shortcut_routes_top_level_crawl_goal_to_research_plane() {
         let route = resolve_core_shortcuts(
             "crawl",
@@ -2330,7 +2354,10 @@ mod tests {
             resolve_core_shortcuts("scan", &["binary".to_string(), "firmware.bin".to_string()])
                 .expect("route");
         assert_eq!(route.script_rel, "core://binary-vuln-plane");
-        assert_eq!(route.args, vec!["scan", "--input=firmware.bin"]);
+        assert_eq!(
+            route.args,
+            vec!["scan", "--dx-source=scan-binary", "--input=firmware.bin"]
+        );
     }
 
     #[test]
