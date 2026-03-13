@@ -133,9 +133,14 @@ fn claim_ids_for_action(action: &str, app_id: &str) -> Vec<&'static str> {
         "chat-ui" => vec!["V6-APP-007.1"],
         "code-engineer" => match action {
             "run" => vec!["V6-APP-006.1", "V6-APP-006.2", "V6-APP-006.3"],
-            "build" => vec!["V6-APP-006.4", "V6-APP-006.5", "V6-APP-006.7"],
-            "ingress" => vec!["V6-APP-006.6"],
-            "template-governance" => vec!["V6-APP-006.8"],
+            "build" => vec![
+                "V6-APP-006.3",
+                "V6-APP-006.4",
+                "V6-APP-006.5",
+                "V6-APP-006.7",
+            ],
+            "ingress" => vec!["V6-APP-006.3", "V6-APP-006.6"],
+            "template-governance" => vec!["V6-APP-006.3", "V6-APP-006.8"],
             _ => vec!["V6-APP-006.3"],
         },
         _ => vec!["V6-APP-006.3"],
@@ -1234,6 +1239,15 @@ fn run_code_engineer_build_internal(
             "sha256": sha256_hex_str(&runs.to_string())
         },
         "claim_evidence": [
+            {
+                "id": "V6-APP-006.3",
+                "claim": "code_engineer_actions_remain_conduit_enforced_with_apps_placement_contract",
+                "evidence": {
+                    "run_id": run_id.clone(),
+                    "placement_ok": placement_ok,
+                    "output_root": output_root.display().to_string()
+                }
+            },
             {
                 "id": "V6-APP-006.4",
                 "claim": "protheus_build_executes_end_to_end_research_plan_code_test_package_with_stage_receipts",

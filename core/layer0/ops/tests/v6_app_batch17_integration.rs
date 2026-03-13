@@ -80,6 +80,25 @@ fn v6_app_batch17_builder_and_snowball_lanes_are_receipted() {
     let fixture = stage_fixture_root();
     let root = fixture.path();
 
+    let run_exit = app_plane::run(
+        root,
+        &[
+            "run".to_string(),
+            "--strict=1".to_string(),
+            "--app=code-engineer".to_string(),
+            "--prompt=create bounded verify fix loop".to_string(),
+            "--max-iterations=3".to_string(),
+        ],
+    );
+    assert_eq!(run_exit, 0);
+    let run_latest = read_json(&app_latest_path(root));
+    assert_eq!(
+        run_latest.get("type").and_then(Value::as_str),
+        Some("app_plane_code_engineer")
+    );
+    assert_claim(&run_latest, "V6-APP-006.2");
+    assert_claim(&run_latest, "V6-APP-006.3");
+
     let build_exit = app_plane::run(
         root,
         &[
@@ -98,6 +117,7 @@ fn v6_app_batch17_builder_and_snowball_lanes_are_receipted() {
     assert_claim(&build_latest, "V6-APP-006.4");
     assert_claim(&build_latest, "V6-APP-006.5");
     assert_claim(&build_latest, "V6-APP-006.7");
+    assert_claim(&build_latest, "V6-APP-006.3");
 
     let ingress_exit = app_plane::run(
         root,
@@ -116,6 +136,7 @@ fn v6_app_batch17_builder_and_snowball_lanes_are_receipted() {
         Some("app_plane_code_engineer_ingress")
     );
     assert_claim(&ingress_latest, "V6-APP-006.6");
+    assert_claim(&ingress_latest, "V6-APP-006.3");
 
     let template_exit = app_plane::run(
         root,
@@ -135,6 +156,7 @@ fn v6_app_batch17_builder_and_snowball_lanes_are_receipted() {
         Some("app_plane_code_engineer_templates")
     );
     assert_claim(&template_latest, "V6-APP-006.8");
+    assert_claim(&template_latest, "V6-APP-006.3");
 
     let start_exit = snowball_plane::run(
         root,
