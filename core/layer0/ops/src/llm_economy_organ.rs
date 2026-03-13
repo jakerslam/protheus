@@ -30,6 +30,18 @@ fn trust_ledger_path(root: &Path) -> PathBuf {
     state_root(root).join("trust_ledger.json")
 }
 
+fn mining_runtime_path(root: &Path) -> PathBuf {
+    state_root(root).join("mining_runtime.json")
+}
+
+fn trade_intents_path(root: &Path) -> PathBuf {
+    state_root(root).join("trade_intents.jsonl")
+}
+
+fn trading_profile_path(root: &Path) -> PathBuf {
+    state_root(root).join("trading_profile.json")
+}
+
 fn read_json(path: &Path) -> Option<Value> {
     let raw = fs::read_to_string(path).ok()?;
     serde_json::from_str::<Value>(&raw).ok()
@@ -81,6 +93,20 @@ fn parse_u64(raw: Option<&String>, fallback: u64) -> u64 {
 fn parse_f64_opt(raw: Option<&String>, fallback: f64) -> f64 {
     raw.and_then(|v| v.trim().parse::<f64>().ok())
         .unwrap_or(fallback)
+}
+
+fn parse_cron_interval_minutes(schedule: &str) -> Option<u64> {
+    let first = schedule.split_whitespace().next()?.trim();
+    let interval = first.strip_prefix("*/")?;
+    interval.parse::<u64>().ok().filter(|v| *v > 0)
+}
+
+fn canonical_chain(raw: &str) -> String {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "sol" => "solana".to_string(),
+        "solana" => "solana".to_string(),
+        other => other.to_string(),
+    }
 }
 
 fn print_receipt(value: &Value) {
@@ -358,6 +384,34 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "alpaca_execution",
             "analytics_reporting",
         ];
+        let phase_status = phases
+            .iter()
+            .enumerate()
+            .map(|(idx, name)| {
+                json!({
+                    "phase": idx + 1,
+                    "name": name,
+                    "status": if idx < 2 { "ready" } else { "pending" }
+                })
+            })
+            .collect::<Vec<_>>();
+        let profile_path = trading_profile_path(root);
+        let profile = json!({
+            "version": "v1",
+            "updated_at": now_iso(),
+            "mode": mode,
+            "symbol": symbol,
+            "settings_inventory": settings_inventory,
+            "metrics_inventory": metrics_inventory,
+            "risk_gate": {
+                "circuit_breakers": true,
+                "max_loss_pct": parse_f64(parsed.flags.get("max-loss-pct"), 2.5),
+                "max_position_pct": parse_f64(parsed.flags.get("max-position-pct"), 15.0)
+            }
+        });
+        if apply {
+            write_json(&profile_path, &profile);
+        }
         let mut out = json!({
             "ok": true,
             "type": "llm_economy_organ_trading_hand_upgrade",
@@ -369,11 +423,13 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "settings_count": settings_count,
             "metrics_count": metrics_count,
             "phases": phases,
+            "phase_status": phase_status,
             "risk_gate": {
                 "circuit_breakers": true,
                 "max_loss_pct": parse_f64(parsed.flags.get("max-loss-pct"), 2.5),
                 "max_position_pct": parse_f64(parsed.flags.get("max-position-pct"), 15.0)
             },
+            "trading_profile_path": profile_path.display().to_string(),
             "settings_inventory": settings_inventory,
             "metrics_inventory": metrics_inventory,
             "claim_evidence": [
@@ -484,7 +540,27 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             8,
         );
         let qty = parse_f64(parsed.flags.get("qty"), 1.0).max(0.0);
-        let risk_ok = qty <= parse_f64(parsed.flags.get("max-qty"), 100.0).max(0.0);
+        let max_qty = parse_f64(parsed.flags.get("max-qty"), 100.0).max(0.0);
+        let side_ok = matches!(side.as_str(), "buy" | "sell");
+        let risk_ok = qty <= max_qty && side_ok;
+        let order = json!({
+            "broker": "alpaca",
+            "symbol": symbol,
+            "side": side,
+            "qty": qty
+        });
+        let order_intent_id = deterministic_receipt_hash(&order);
+        let order_record = json!({
+            "version": "v1",
+            "ts": now_iso(),
+            "mode": mode,
+            "apply": apply,
+            "order_intent_id": order_intent_id,
+            "order": order
+        });
+        if apply {
+            append_jsonl(&trade_intents_path(root), &order_record);
+        }
         let mut out = json!({
             "ok": true,
             "type": "llm_economy_organ_alpaca_execute",
@@ -492,16 +568,15 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ts": now_iso(),
             "apply": apply,
             "mode": mode,
-            "execution": {
-                "broker": "alpaca",
-                "symbol": symbol,
-                "side": side,
-                "qty": qty
-            },
+            "execution": order,
             "risk_gate": {
                 "passed": risk_ok,
-                "circuit_breaker": !risk_ok
+                "circuit_breaker": !risk_ok,
+                "side_ok": side_ok,
+                "max_qty": max_qty
             },
+            "order_intent_id": order_intent_id,
+            "trade_intents_path": trade_intents_path(root).display().to_string(),
             "claim_evidence": [
                 {
                     "id": "V6-ECONOMY-002.3",
@@ -804,6 +879,63 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .unwrap_or_else(|| "*/30 * * * *".to_string()),
             48,
         );
+        if strict && !matches!(network.as_str(), "litcoin" | "minbot") {
+            let mut out = json!({
+                "ok": false,
+                "type": "llm_economy_mining_hand_error",
+                "lane": "core/layer0/ops",
+                "ts": now_iso(),
+                "error": "invalid_mining_network",
+                "network": network,
+                "allowed": ["litcoin", "minbot"]
+            });
+            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            write_json(&latest, &out);
+            append_jsonl(&history, &out);
+            print_receipt(&out);
+            return 2;
+        }
+        let interval_minutes = parse_cron_interval_minutes(schedule.as_str()).unwrap_or(30);
+        let runtime_path = mining_runtime_path(root);
+        let mut runtime = read_json(&runtime_path).unwrap_or_else(|| {
+            json!({
+                "version": "v1",
+                "networks": {},
+                "updated_at": now_iso()
+            })
+        });
+        if !runtime
+            .get("networks")
+            .map(Value::is_object)
+            .unwrap_or(false)
+        {
+            runtime["networks"] = json!({});
+        }
+        let mut networks = runtime
+            .get("networks")
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        let previous_hours = networks
+            .get(network.as_str())
+            .and_then(|row| row.get("total_hours"))
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        let total_hours = previous_hours.saturating_add(hours);
+        networks.insert(
+            network.clone(),
+            json!({
+                "schedule": schedule,
+                "interval_minutes": interval_minutes,
+                "total_hours": total_hours,
+                "last_update": now_iso()
+            }),
+        );
+        runtime["networks"] = Value::Object(networks.clone());
+        runtime["updated_at"] = Value::String(now_iso());
+        if apply {
+            write_json(&runtime_path, &runtime);
+        }
         let mut out = json!({
             "ok": true,
             "type": "llm_economy_mining_hand",
@@ -813,6 +945,12 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "network": network,
             "hours": hours,
             "schedule": schedule,
+            "mining_runtime_path": runtime_path.display().to_string(),
+            "schedule_runtime": {
+                "interval_minutes": interval_minutes,
+                "previous_hours": previous_hours,
+                "total_hours": total_hours
+            },
             "claim_evidence": [
                 {
                     "id": "V6-ECONOMY-001.6",
@@ -834,14 +972,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if command == "trade-router" {
         let apply = parse_bool(parsed.flags.get("apply"), true);
-        let chain = clean(
+        let chain = canonical_chain(&clean(
             parsed
                 .flags
                 .get("chain")
                 .cloned()
                 .unwrap_or_else(|| "solana".to_string()),
             24,
-        );
+        ));
         let symbol = clean(
             parsed
                 .flags
@@ -858,7 +996,47 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 .unwrap_or_else(|| "buy".to_string()),
             8,
         );
-        let qty = parse_f64_opt(parsed.flags.get("qty"), 1.0);
+        let qty = parse_f64_opt(parsed.flags.get("qty"), 1.0).max(0.0);
+        let side_ok = matches!(side.as_str(), "buy" | "sell");
+        let chain_ok = chain == "solana";
+        if strict && (!chain_ok || !side_ok || qty <= 0.0) {
+            let mut out = json!({
+                "ok": false,
+                "type": "llm_economy_trade_router_error",
+                "lane": "core/layer0/ops",
+                "ts": now_iso(),
+                "error": "invalid_trade_router_request",
+                "details": {
+                    "chain_ok": chain_ok,
+                    "side_ok": side_ok,
+                    "qty_positive": qty > 0.0
+                }
+            });
+            out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+            write_json(&latest, &out);
+            append_jsonl(&history, &out);
+            print_receipt(&out);
+            return 2;
+        }
+        let order_intent = json!({
+            "chain": chain,
+            "symbol": symbol,
+            "side": side,
+            "qty": qty,
+            "custody": "non-custodial-intent"
+        });
+        let intent_id = deterministic_receipt_hash(&order_intent);
+        if apply {
+            append_jsonl(
+                &trade_intents_path(root),
+                &json!({
+                    "version":"v1",
+                    "ts": now_iso(),
+                    "intent_id": intent_id,
+                    "order_intent": order_intent
+                }),
+            );
+        }
         let mut out = json!({
             "ok": true,
             "type": "llm_economy_trade_router",
@@ -866,11 +1044,10 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ts": now_iso(),
             "apply": apply,
             "chain": chain,
-            "order": {
-                "symbol": symbol,
-                "side": side,
-                "qty": qty
-            },
+            "order": order_intent,
+            "non_custodial_intent": true,
+            "order_intent_id": intent_id,
+            "trade_intents_path": trade_intents_path(root).display().to_string(),
             "claim_evidence": [
                 {
                     "id": "V6-ECONOMY-001.7",
@@ -891,28 +1068,30 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
     if command == "model-support-refresh" {
         let apply = parse_bool(parsed.flags.get("apply"), true);
-        let providers = vec![
-            "deepseek-v3-r1",
-            "llama-4-maverick",
-            "qwen3-235b",
-            "glm-5",
-            "kimi-k2.5",
-            "minimax-m2.5-highspeed",
-            "abab7-chat",
+        let provider_matrix = vec![
+            json!({"provider":"deepseek","model":"deepseek-v3-r1","tier":"analysis","latency_class":"medium"}),
+            json!({"provider":"meta","model":"llama-4-maverick","tier":"general","latency_class":"medium"}),
+            json!({"provider":"qwen","model":"qwen3-235b","tier":"reasoning","latency_class":"high"}),
+            json!({"provider":"zhipu","model":"glm-5","tier":"multimodal","latency_class":"medium"}),
+            json!({"provider":"moonshot","model":"kimi-k2.5","tier":"analysis","latency_class":"high"}),
+            json!({"provider":"minimax","model":"minimax-m2.5-highspeed","tier":"cheap","latency_class":"low"}),
+            json!({"provider":"abab","model":"abab7-chat","tier":"chat","latency_class":"low"}),
         ];
+        let provider_count = provider_matrix.len();
         let mut out = json!({
             "ok": true,
             "type": "llm_economy_model_support_refresh",
             "lane": "core/layer0/ops",
             "ts": now_iso(),
             "apply": apply,
-            "providers": providers,
+            "provider_matrix": provider_matrix,
+            "provider_count": provider_count,
             "claim_evidence": [
                 {
                     "id": "V6-ECONOMY-002.5",
                     "claim": "model_support_refresh_emits_provider_matrix_receipts_for_trading_lanes",
                     "evidence": {
-                        "provider_count": providers.len()
+                        "provider_count": provider_count
                     }
                 }
             ]
@@ -1155,6 +1334,44 @@ mod tests {
                 .and_then(Value::as_f64)
                 .unwrap_or(-1.0),
             1.0
+        );
+    }
+
+    #[test]
+    fn trade_router_and_mining_reject_invalid_inputs_in_strict_mode() {
+        let dir = tempfile::tempdir().expect("tempdir");
+
+        let bad_trade = run(
+            dir.path(),
+            &[
+                "trade-router".to_string(),
+                "--strict=1".to_string(),
+                "--chain=ethereum".to_string(),
+                "--symbol=SOL/USDC".to_string(),
+                "--side=buy".to_string(),
+                "--qty=1".to_string(),
+            ],
+        );
+        assert_eq!(bad_trade, 2);
+        let latest_trade = read_json(&latest_path(dir.path())).expect("latest");
+        assert_eq!(
+            latest_trade.get("type").and_then(Value::as_str),
+            Some("llm_economy_trade_router_error")
+        );
+
+        let bad_mining = run(
+            dir.path(),
+            &[
+                "mining-hand".to_string(),
+                "--strict=1".to_string(),
+                "--network=unknown".to_string(),
+            ],
+        );
+        assert_eq!(bad_mining, 2);
+        let latest_mining = read_json(&latest_path(dir.path())).expect("latest");
+        assert_eq!(
+            latest_mining.get("type").and_then(Value::as_str),
+            Some("llm_economy_mining_hand_error")
         );
     }
 }

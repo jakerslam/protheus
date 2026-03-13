@@ -43,6 +43,11 @@ fn v6_batch20_model_and_network_lanes_are_receipted() {
         Some("model_router_adapt_repo")
     );
     assert!(has_claim(&adapt, "V6-MODEL-003.3"));
+    assert!(adapt
+        .pointer("/adaptation_plan/plan_digest")
+        .and_then(Value::as_str)
+        .map(|v| !v.is_empty())
+        .unwrap_or(false));
 
     assert_eq!(
         model_router::run(
