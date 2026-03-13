@@ -332,6 +332,46 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 forward_stdin: false,
             })
         }
+        "assimilate" => {
+            if rest.is_empty() {
+                return None;
+            }
+            let target = rest
+                .first()
+                .map(|v| v.trim().to_ascii_lowercase())
+                .unwrap_or_default();
+            let passthrough = rest.iter().skip(1).cloned().collect::<Vec<_>>();
+            match target.as_str() {
+                "scrape://scrapy-core" => {
+                    let mut args = vec!["template-governance".to_string()];
+                    args.extend(passthrough);
+                    Some(Route {
+                        script_rel: "core://research-plane".to_string(),
+                        args,
+                        forward_stdin: false,
+                    })
+                }
+                "scrape://firecrawl-core" => {
+                    let mut args = vec!["firecrawl-template-governance".to_string()];
+                    args.extend(passthrough);
+                    Some(Route {
+                        script_rel: "core://research-plane".to_string(),
+                        args,
+                        forward_stdin: false,
+                    })
+                }
+                "parse://doc2dict-core" => {
+                    let mut args = vec!["template-governance".to_string()];
+                    args.extend(passthrough);
+                    Some(Route {
+                        script_rel: "core://parse-plane".to_string(),
+                        args,
+                        forward_stdin: false,
+                    })
+                }
+                _ => None,
+            }
+        }
         "parse" => {
             let args = if rest.is_empty() {
                 vec!["status".to_string()]
@@ -361,6 +401,29 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                             if !path.starts_with("--") {
                                 args.push(format!("--from-path={}", path.trim()));
                                 args.extend(rest.iter().skip(2).cloned());
+                            } else {
+                                args.extend(rest.iter().skip(1).cloned());
+                            }
+                        } else {
+                            args.extend(rest.iter().skip(1).cloned());
+                        }
+                        args
+                    }
+                    "export" => {
+                        let mut args = vec!["export".to_string()];
+                        if let Some(path) = rest.get(1) {
+                            if !path.starts_with("--") {
+                                args.push(format!("--from-path={}", path.trim()));
+                                if let Some(out_path) = rest.get(2) {
+                                    if !out_path.starts_with("--") {
+                                        args.push(format!("--output-path={}", out_path.trim()));
+                                        args.extend(rest.iter().skip(3).cloned());
+                                    } else {
+                                        args.extend(rest.iter().skip(2).cloned());
+                                    }
+                                } else {
+                                    args.extend(rest.iter().skip(2).cloned());
+                                }
                             } else {
                                 args.extend(rest.iter().skip(1).cloned());
                             }
