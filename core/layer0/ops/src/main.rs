@@ -163,6 +163,11 @@ fn main() {
             let exit = protheus_ops_core::network_protocol::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "seed-protocol" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::seed_protocol::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "binary-blob-runtime" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::binary_blob_runtime::run(&cwd, &rest);
