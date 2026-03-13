@@ -376,8 +376,14 @@ fn v6_mcp_batch9_rejects_bypass_when_strict() {
 fn v6_mcp_batch9_default_manifest_governance_passes_in_strict_mode() {
     let fixture = stage_fixture_root();
     let root = fixture.path();
-    std::env::set_var("MCP_TEMPLATE_SIGNING_KEY", "mcp-template-default-signing-key");
-    let exit = mcp_plane::run(root, &["template-governance".to_string(), "--strict=1".to_string()]);
+    std::env::set_var(
+        "MCP_TEMPLATE_SIGNING_KEY",
+        "mcp-template-default-signing-key",
+    );
+    let exit = mcp_plane::run(
+        root,
+        &["template-governance".to_string(), "--strict=1".to_string()],
+    );
     assert_eq!(exit, 0);
     let latest = read_json(&latest_path(root));
     assert_eq!(

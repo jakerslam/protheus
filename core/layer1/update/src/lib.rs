@@ -65,8 +65,8 @@ mod tests {
     fn update_policy_approves_valid_release_package() {
         let package = UpdatePackage {
             version: "1.2.3".to_string(),
-            artifact_sha256:
-                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string(),
+            artifact_sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                .to_string(),
             size_bytes: 8 * 1024 * 1024,
             capabilities: vec!["update.apply".to_string(), "status.read".to_string()],
         };
@@ -88,8 +88,8 @@ mod tests {
 
         let missing_capability = UpdatePackage {
             version: "1.2.3".to_string(),
-            artifact_sha256:
-                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string(),
+            artifact_sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                .to_string(),
             size_bytes: 8 * 1024 * 1024,
             capabilities: vec!["status.read".to_string()],
         };
@@ -103,8 +103,8 @@ mod tests {
     fn update_policy_rejects_prerelease_when_blocked() {
         let package = UpdatePackage {
             version: "2.0.0-rc1".to_string(),
-            artifact_sha256:
-                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string(),
+            artifact_sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                .to_string(),
             size_bytes: 8 * 1024 * 1024,
             capabilities: vec!["update.apply".to_string()],
         };

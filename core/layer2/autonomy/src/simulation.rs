@@ -119,8 +119,14 @@ fn is_no_progress(row: &Value) -> bool {
 }
 
 fn build_checks(counters: &Map<String, Value>, autopause_active: bool) -> Value {
-    let attempts = counters.get("attempts").and_then(Value::as_i64).unwrap_or(0);
-    let executed = counters.get("executed").and_then(Value::as_i64).unwrap_or(0);
+    let attempts = counters
+        .get("attempts")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let executed = counters
+        .get("executed")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
     let shipped = counters.get("shipped").and_then(Value::as_i64).unwrap_or(0);
     let no_progress = counters
         .get("no_progress")
@@ -282,10 +288,16 @@ fn build_checks(counters: &Map<String, Value>, autopause_active: bool) -> Value 
 
 fn verdict_from_checks(checks: &Value) -> &'static str {
     let rows = checks.as_object().cloned().unwrap_or_default();
-    if rows.values().any(|row| row.get("status").and_then(Value::as_str) == Some("fail")) {
+    if rows
+        .values()
+        .any(|row| row.get("status").and_then(Value::as_str) == Some("fail"))
+    {
         return "fail";
     }
-    if rows.values().any(|row| row.get("status").and_then(Value::as_str) == Some("warn")) {
+    if rows
+        .values()
+        .any(|row| row.get("status").and_then(Value::as_str) == Some("warn"))
+    {
         return "warn";
     }
     "pass"
@@ -318,12 +330,16 @@ fn read_budget_snapshot(path: &Path, end_date: &str, run_rows: &[Value]) -> Valu
         .get("active")
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    let until_ms = snapshot.get("until_ms").and_then(Value::as_i64).unwrap_or(0);
+    let until_ms = snapshot
+        .get("until_ms")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
     let currently_active = active && (until_ms <= 0 || until_ms > now_ms);
 
-    let end_of_day_ms = chrono::DateTime::parse_from_rfc3339(
-        &format!("{}T23:59:59.999Z", parse_date_or_today(Some(end_date))),
-    )
+    let end_of_day_ms = chrono::DateTime::parse_from_rfc3339(&format!(
+        "{}T23:59:59.999Z",
+        parse_date_or_today(Some(end_date))
+    ))
     .ok()
     .map(|v| v.timestamp_millis())
     .unwrap_or(now_ms);
@@ -463,10 +479,11 @@ fn queue_snapshot(dates: &[String], proposals_dir: &Path) -> Value {
                 .to_ascii_lowercase();
             if status == "pending" || status == "open" {
                 pending += 1;
-                let created_ms = chrono::DateTime::parse_from_rfc3339(&format!("{day}T00:00:00.000Z"))
-                    .ok()
-                    .map(|dt| dt.timestamp_millis())
-                    .unwrap_or(now_ms);
+                let created_ms =
+                    chrono::DateTime::parse_from_rfc3339(&format!("{day}T00:00:00.000Z"))
+                        .ok()
+                        .map(|dt| dt.timestamp_millis())
+                        .unwrap_or(now_ms);
                 if now_ms - created_ms >= 72 * 3600 * 1000 {
                     stale += 1;
                 }
@@ -488,7 +505,15 @@ pub fn run_autonomy_simulation(
     write_output: bool,
 ) -> Value {
     let end_date = parse_date_or_today(end_date);
-    let days = days.clamp(1, to_int(std::env::var("AUTONOMY_SIM_MAX_DAYS").ok().as_deref(), 180, 1, 365));
+    let days = days.clamp(
+        1,
+        to_int(
+            std::env::var("AUTONOMY_SIM_MAX_DAYS").ok().as_deref(),
+            180,
+            1,
+            365,
+        ),
+    );
 
     let runs_dir = std::env::var("AUTONOMY_SIM_RUNS_DIR")
         .ok()
@@ -581,7 +606,9 @@ pub fn run_autonomy_simulation(
             .ok()
             .as_deref(),
         parse_bool_str(
-            std::env::var("SPINE_IDENTITY_ANCHOR_ENABLED").ok().as_deref(),
+            std::env::var("SPINE_IDENTITY_ANCHOR_ENABLED")
+                .ok()
+                .as_deref(),
             false,
         ),
     );
@@ -757,7 +784,9 @@ pub fn run_autonomy_simulation(
     let queue = queue_snapshot(&dates, &proposals_dir);
 
     let compiler_projection_enabled = parse_bool_str(
-        std::env::var("AUTONOMY_SIM_LINEAGE_REQUIRED").ok().as_deref(),
+        std::env::var("AUTONOMY_SIM_LINEAGE_REQUIRED")
+            .ok()
+            .as_deref(),
         true,
     );
 
@@ -777,7 +806,14 @@ pub fn run_autonomy_simulation(
     if run_rows.is_empty() {
         insufficient_reasons.push(json!("no_run_rows_in_window"));
     }
-    if baseline_attempts_raw.len() < to_int(std::env::var("AUTONOMY_SIM_MIN_ATTEMPTS").ok().as_deref(), 5, 1, 100000) as usize {
+    if baseline_attempts_raw.len()
+        < to_int(
+            std::env::var("AUTONOMY_SIM_MIN_ATTEMPTS").ok().as_deref(),
+            5,
+            1,
+            100000,
+        ) as usize
+    {
         insufficient_reasons.push(json!("attempt_volume_below_min"));
     }
     if baseline_executed.is_empty() {
@@ -943,7 +979,8 @@ mod tests {
             }),
         )
         .expect("append row2");
-        write_json_atomic(&proposals_dir.join(format!("{day}.json")), &json!([])).expect("proposal");
+        write_json_atomic(&proposals_dir.join(format!("{day}.json")), &json!([]))
+            .expect("proposal");
 
         std::env::set_var("AUTONOMY_SIM_RUNS_DIR", &runs_dir);
         std::env::set_var("AUTONOMY_SIM_PROPOSALS_DIR", &proposals_dir);

@@ -155,8 +155,8 @@ pub fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
     ));
     let payload =
         serde_json::to_string_pretty(value).map_err(|e| format!("encode_json_failed:{e}"))?;
-    let mut file = fs::File::create(&tmp)
-        .map_err(|e| format!("create_tmp_failed:{}:{e}", tmp.display()))?;
+    let mut file =
+        fs::File::create(&tmp).map_err(|e| format!("create_tmp_failed:{}:{e}", tmp.display()))?;
     file.write_all(payload.as_bytes())
         .and_then(|_| file.write_all(b"\n"))
         .map_err(|e| format!("write_tmp_failed:{}:{e}", tmp.display()))?;
@@ -173,7 +173,9 @@ pub fn read_jsonl(path: &Path) -> Vec<Value> {
             if text.is_empty() {
                 return None;
             }
-            serde_json::from_str::<Value>(text).ok().filter(|v| v.is_object())
+            serde_json::from_str::<Value>(text)
+                .ok()
+                .filter(|v| v.is_object())
         })
         .collect()
 }
@@ -247,7 +249,10 @@ mod tests {
     #[test]
     fn autonomy_receipt_has_hash() {
         let payload = autonomy_receipt("status", Some("default"));
-        assert!(payload.get("receipt_hash").and_then(Value::as_str).is_some());
+        assert!(payload
+            .get("receipt_hash")
+            .and_then(Value::as_str)
+            .is_some());
     }
 
     #[test]

@@ -231,7 +231,8 @@ fn default_policy(root: &Path) -> TransitionPolicy {
             receipts_path: root.join("state/client/memory/rust_transition/receipts.jsonl"),
             selector_path: root.join("state/client/memory/rust_transition/backend_selector.json"),
             benchmark_path: root.join("state/client/memory/rust_transition/benchmark_history.json"),
-            benchmark_latest_path: root.join("state/client/memory/rust_transition/benchmark_latest.json"),
+            benchmark_latest_path: root
+                .join("state/client/memory/rust_transition/benchmark_latest.json"),
             benchmark_report_path: root.join("benchmarks/memory-stage1.md"),
             memory_index_path: root.join("client/memory/MEMORY_INDEX.md"),
             rust_crate_path: root.join("core/layer0/memory"),
@@ -316,7 +317,11 @@ fn load_policy(root: &Path, policy_path: &Path) -> TransitionPolicy {
                 paths_raw.get("memory_index_path"),
                 "client/memory/MEMORY_INDEX.md",
             ),
-            rust_crate_path: resolve_path(root, paths_raw.get("rust_crate_path"), "core/layer0/memory"),
+            rust_crate_path: resolve_path(
+                root,
+                paths_raw.get("rust_crate_path"),
+                "core/layer0/memory",
+            ),
         },
         thresholds: TransitionThresholds {
             min_speedup_for_cutover: parse_f64(
@@ -803,11 +808,13 @@ mod tests {
         });
 
         write_transition_receipt(&policy, &payload_a, &claims);
-        let first = fs::read_to_string(root.join("state/client/memory/rust_transition/latest.json"))
-            .expect("read first");
+        let first =
+            fs::read_to_string(root.join("state/client/memory/rust_transition/latest.json"))
+                .expect("read first");
         write_transition_receipt(&policy, &payload_b, &claims);
-        let second = fs::read_to_string(root.join("state/client/memory/rust_transition/latest.json"))
-            .expect("read second");
+        let second =
+            fs::read_to_string(root.join("state/client/memory/rust_transition/latest.json"))
+                .expect("read second");
 
         let first_hash = serde_json::from_str::<serde_json::Value>(&first)
             .expect("decode first")

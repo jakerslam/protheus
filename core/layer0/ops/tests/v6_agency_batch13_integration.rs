@@ -126,7 +126,10 @@ fn v6_agency_batch13_orchestrator_and_workflow_bind_are_receipted() {
             })
         })
         .unwrap_or(false);
-    assert!(chain_ok, "agency orchestrator decision chain should be linked");
+    assert!(
+        chain_ok,
+        "agency orchestrator decision chain should be linked"
+    );
     assert_claim(&orchestrate_latest, "V6-AGENCY-001.3");
     assert_claim(&orchestrate_latest, "V6-AGENCY-001.5");
 

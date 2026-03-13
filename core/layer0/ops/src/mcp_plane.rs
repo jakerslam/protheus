@@ -327,7 +327,11 @@ fn run_capability_matrix(root: &Path, parsed: &crate::ParsedArgs, strict: bool) 
         .collect::<Vec<_>>();
     let mut domain_map = Map::<String, Value>::new();
     for cap in &server_caps {
-        let domain = cap.split('.').next().unwrap_or_default().to_ascii_lowercase();
+        let domain = cap
+            .split('.')
+            .next()
+            .unwrap_or_default()
+            .to_ascii_lowercase();
         if domain.is_empty() {
             continue;
         }

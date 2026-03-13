@@ -264,7 +264,10 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 idx += 1;
             }
             if firmware_mode {
-                let mut args = vec!["scan".to_string(), "--dx-source=research-firmware".to_string()];
+                let mut args = vec![
+                    "scan".to_string(),
+                    "--dx-source=research-firmware".to_string(),
+                ];
                 let input = firmware_input
                     .or_else(|| {
                         passthrough
@@ -281,18 +284,14 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 if let Some(path) = input {
                     args.push(format!("--input={path}"));
                 }
-                args.extend(
-                    passthrough
-                        .into_iter()
-                        .filter(|arg| {
-                            arg.starts_with("--")
-                                && (arg.starts_with("--strict=")
-                                    || arg.starts_with("--format=")
-                                    || arg.starts_with("--rulepack=")
-                                    || arg.starts_with("--allow-raw-path=")
-                                    || arg.starts_with("--transport="))
-                        }),
-                );
+                args.extend(passthrough.into_iter().filter(|arg| {
+                    arg.starts_with("--")
+                        && (arg.starts_with("--strict=")
+                            || arg.starts_with("--format=")
+                            || arg.starts_with("--rulepack=")
+                            || arg.starts_with("--allow-raw-path=")
+                            || arg.starts_with("--transport="))
+                }));
                 return Some(Route {
                     script_rel: "core://binary-vuln-plane".to_string(),
                     args,

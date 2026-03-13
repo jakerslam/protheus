@@ -446,7 +446,9 @@ fn analytics_policy(root: &Path) -> Value {
     let policy_path = env::var("MEMORY_ABSTRACTION_ANALYTICS_POLICY_PATH")
         .ok()
         .map(PathBuf::from)
-        .unwrap_or_else(|| root.join("client/runtime/config/memory_abstraction_analytics_policy.json"));
+        .unwrap_or_else(|| {
+            root.join("client/runtime/config/memory_abstraction_analytics_policy.json")
+        });
     let raw = read_json(&policy_path);
     let paths = raw.get("paths").cloned().unwrap_or(Value::Null);
     json!({
@@ -710,7 +712,9 @@ fn harness_policy(root: &Path) -> Value {
     let policy_path = env::var("MEMORY_ABSTRACTION_TEST_POLICY_PATH")
         .ok()
         .map(PathBuf::from)
-        .unwrap_or_else(|| root.join("client/runtime/config/memory_abstraction_test_harness_policy.json"));
+        .unwrap_or_else(|| {
+            root.join("client/runtime/config/memory_abstraction_test_harness_policy.json")
+        });
     let raw = read_json(&policy_path);
     let paths = raw.get("paths").cloned().unwrap_or(Value::Null);
     json!({
