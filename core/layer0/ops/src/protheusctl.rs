@@ -1541,6 +1541,24 @@ mod tests {
     }
 
     #[test]
+    fn core_shortcut_routes_model_use_cheap_to_model_router() {
+        let route = resolve_core_shortcuts(
+            "model",
+            &[
+                "use".to_string(),
+                "cheap".to_string(),
+                "--compact-lines=24".to_string(),
+            ],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://model-router");
+        assert_eq!(
+            route.args,
+            vec!["optimize", "--profile=minimax", "--compact-lines=24"]
+        );
+    }
+
+    #[test]
     fn core_shortcut_routes_agent_reset_to_model_router() {
         let route = resolve_core_shortcuts(
             "agent",
@@ -1617,6 +1635,13 @@ mod tests {
                 "--node=alpha"
             ]
         );
+    }
+
+    #[test]
+    fn core_shortcut_routes_network_dashboard_to_hyperspace_core_lane() {
+        let route = resolve_core_shortcuts("network", &["dashboard".to_string()]).expect("route");
+        assert_eq!(route.script_rel, "core://network-protocol");
+        assert_eq!(route.args, vec!["status"]);
     }
 
     #[test]
