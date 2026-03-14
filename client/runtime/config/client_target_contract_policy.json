@@ -1,6 +1,6 @@
 {
   "version": "2026-03-11",
-  "hard_zero_exts": ["js", "sh", "py", "ps1"],
+  "hard_zero_exts": ["sh", "py", "ps1"],
   "target_caps": {
     "total_ts_files": {
       "target": 250,

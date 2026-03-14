@@ -22,7 +22,7 @@ if (!require.extensions['.ts']) {
   };
 }
 
-const mod = require('../causal_temporal_graph.ts');
+const mod = require('../../causal_temporal_graph.ts');
 
 assert.deepStrictEqual(
   mod.mapArgs(['causal-temporal-graph', 'build', '--actor=ci']),
