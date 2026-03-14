@@ -198,3 +198,51 @@ fn settle_is_fail_closed_when_directive_gate_denies() {
     std::env::remove_var("BINARY_BLOB_VAULT_SIGNING_KEY");
     let _ = fs::remove_dir_all(root);
 }
+
+#[test]
+fn vault_repair_recovers_integrity_without_signing_key_via_allow_unsigned_mode() {
+    let _guard = env_guard();
+    std::env::set_var("DIRECTIVE_KERNEL_SIGNING_KEY", "test-sign-key");
+    std::env::set_var("BINARY_BLOB_VAULT_SIGNING_KEY", "blob-test-sign-key");
+    let root = temp_root("vault_repair_unsigned");
+    allow(&root, "allow:blob:*");
+
+    let module_path = root.join("module.rs");
+    fs::write(&module_path, "fn recover() -> u64 { 99 }\n").expect("write");
+    assert_eq!(
+        run(
+            &root,
+            &[
+                "settle".to_string(),
+                "--module=demo".to_string(),
+                format!("--module-path={}", module_path.display()),
+                "--apply=1".to_string()
+            ]
+        ),
+        0
+    );
+
+    std::env::remove_var("BINARY_BLOB_VAULT_SIGNING_KEY");
+
+    assert_eq!(run(&root, &["vault-status".to_string()]), 2);
+    assert_eq!(
+        run(
+            &root,
+            &[
+                "vault-repair".to_string(),
+                "--apply=1".to_string(),
+                "--allow-unsigned=1".to_string()
+            ]
+        ),
+        0
+    );
+    assert_eq!(run(&root, &["vault-status".to_string()]), 0);
+    assert_eq!(
+        run(&root, &["load".to_string(), "--module=demo".to_string()]),
+        0
+    );
+
+    std::env::remove_var("DIRECTIVE_KERNEL_SIGNING_KEY");
+    std::env::remove_var("BINARY_BLOB_VAULT_SIGNING_KEY");
+    let _ = fs::remove_dir_all(root);
+}
