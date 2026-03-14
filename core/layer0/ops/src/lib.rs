@@ -112,9 +112,15 @@ pub mod supply_chain_provenance_v2;
 pub mod top1_assurance;
 pub mod v8_kernel;
 pub mod vbrowser_plane;
+pub mod vertical_plane;
 pub mod venom_containment_layer;
 pub mod workflow_controller;
 pub mod workflow_executor;
+pub mod business_plane;
+pub mod finance_plane;
+pub mod government_plane;
+pub mod healthcare_plane;
+pub mod nexus_plane;
 
 #[derive(Debug, Clone)]
 pub struct ParsedArgs {
