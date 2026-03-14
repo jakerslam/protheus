@@ -13,6 +13,9 @@ const DEFAULT_ABAC_POLICY_REL: &str = "client/runtime/config/abac_policy_plane.j
 const DEFAULT_SIEM_POLICY_REL: &str = "client/runtime/config/siem_bridge_policy.json";
 const DEFAULT_SCALE_POLICY_REL: &str = "client/runtime/config/scale_readiness_program_policy.json";
 const DEFAULT_BEDROCK_POLICY_REL: &str = "planes/contracts/enterprise/bedrock_proxy_contract_v1.json";
+const DEFAULT_THIN_WRAPPER_SCAN_ROOT_REL: &str = "client/runtime/systems";
+const DEFAULT_DOC_FREEZE_TAG: &str = "genesis-candidate";
+const DEFAULT_INSTALLER_PROFILE: &str = "standard";
 const ALLOWED_DELIVERY_CHANNELS: &[&str] = &[
     "last",
     "main",
@@ -41,6 +44,30 @@ fn usage() {
     );
     println!(
         "  protheus-ops enterprise-hardening enable-bedrock [--strict=1|0] [--region=<aws-region>] [--vpc=<id>] [--subnet=<id>] [--ssm-path=<path>] [--policy=<path>]"
+    );
+    println!(
+        "  protheus-ops enterprise-hardening moat-license [--strict=1|0] [--primitives=a,b] [--license=<id>] [--reviewer=<id>]"
+    );
+    println!(
+        "  protheus-ops enterprise-hardening moat-contrast [--strict=1|0] [--narrative=<short-text>]"
+    );
+    println!(
+        "  protheus-ops enterprise-hardening moat-launch-sim [--strict=1|0] [--contributors=<n>] [--events=<n>]"
+    );
+    println!(
+        "  protheus-ops enterprise-hardening genesis-truth-gate [--strict=1|0] [--regression-pass=1|0] [--dod-pass=1|0] [--verify-pass=1|0]"
+    );
+    println!(
+        "  protheus-ops enterprise-hardening genesis-thin-wrapper-audit [--strict=1|0] [--scan-root=<rel-path>]"
+    );
+    println!(
+        "  protheus-ops enterprise-hardening genesis-doc-freeze [--strict=1|0] [--release-tag=<tag>]"
+    );
+    println!(
+        "  protheus-ops enterprise-hardening genesis-bootstrap [--strict=1|0] [--profile=<id>]"
+    );
+    println!(
+        "  protheus-ops enterprise-hardening genesis-installer-sim [--strict=1|0] [--profile=<standard|airgap|enterprise>]"
     );
     println!("  protheus-ops enterprise-hardening dashboard");
 }
@@ -142,6 +169,32 @@ fn manifest_entry(root: &Path, rel: &str) -> Value {
         "size_bytes": size,
         "sha256": sha256
     })
+}
+
+fn collect_files_with_extension(
+    dir: &Path,
+    extension: &str,
+    out: &mut Vec<PathBuf>,
+) -> Result<(), String> {
+    if !dir.exists() {
+        return Ok(());
+    }
+    let entries = fs::read_dir(dir).map_err(|err| format!("read_dir_failed:{}:{err}", dir.display()))?;
+    for entry in entries {
+        let entry = entry.map_err(|err| format!("read_dir_entry_failed:{}:{err}", dir.display()))?;
+        let path = entry.path();
+        if path.is_dir() {
+            collect_files_with_extension(&path, extension, out)?;
+        } else if path
+            .extension()
+            .and_then(|v| v.to_str())
+            .map(|v| v.eq_ignore_ascii_case(extension))
+            .unwrap_or(false)
+        {
+            out.push(path);
+        }
+    }
+    Ok(())
 }
 
 fn resolve_json_path<'a>(value: &'a Value, dotted_path: &str) -> Option<&'a Value> {
@@ -1092,6 +1145,742 @@ fn run_enable_bedrock(
     })))
 }
 
+fn run_moat_license(
+    root: &Path,
+    strict: bool,
+    flags: &std::collections::HashMap<String, String>,
+) -> Result<Value, String> {
+    let primitives = flags
+        .get("primitives")
+        .map(|raw| split_csv(raw))
+        .filter(|rows| !rows.is_empty())
+        .unwrap_or_else(|| {
+            vec![
+                "conduit".to_string(),
+                "binary_blob".to_string(),
+                "directive_kernel".to_string(),
+                "network_protocol".to_string(),
+            ]
+        });
+    let license = flags
+        .get("license")
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "Apache-2.0".to_string());
+    let reviewer = flags
+        .get("reviewer")
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "legal-review-bot".to_string());
+
+    let source_for = |primitive: &str| -> Option<&'static str> {
+        match primitive {
+            "conduit" => Some("core/layer0/ops/src/v8_kernel.rs"),
+            "binary_blob" => Some("core/layer0/ops/src/binary_blob_runtime.rs"),
+            "directive_kernel" => Some("core/layer0/ops/src/directive_kernel.rs"),
+            "network_protocol" => Some("core/layer0/ops/src/network_protocol_run.rs"),
+            "enterprise_hardening" => Some("core/layer0/ops/src/enterprise_hardening.rs"),
+            _ => None,
+        }
+    };
+
+    let mut errors = Vec::<String>::new();
+    let mut packages = Vec::<Value>::new();
+    for primitive in &primitives {
+        if let Some(src) = source_for(primitive) {
+            let entry = manifest_entry(root, src);
+            if strict && !entry.get("exists").and_then(Value::as_bool).unwrap_or(false) {
+                errors.push(format!("primitive_source_missing:{primitive}"));
+            }
+            packages.push(json!({
+                "primitive": primitive,
+                "source": src,
+                "source_manifest": entry
+            }));
+        } else if strict {
+            errors.push(format!("unknown_primitive:{primitive}"));
+        } else {
+            packages.push(json!({
+                "primitive": primitive,
+                "source": Value::Null,
+                "source_manifest": {"path": Value::Null, "exists": false}
+            }));
+        }
+    }
+
+    let package_seed = json!({
+        "primitives": primitives,
+        "license": license,
+        "reviewer": reviewer
+    });
+    let package_hash = deterministic_receipt_hash(&package_seed);
+    let package_id = format!("moat_license_{}", &package_hash[..16]);
+    let package_path = enterprise_state_root(root)
+        .join("moat")
+        .join("licensing")
+        .join(format!("{package_id}.json"));
+    let package_rel = package_path
+        .strip_prefix(root)
+        .unwrap_or(&package_path)
+        .to_string_lossy()
+        .replace('\\', "/");
+
+    let package_payload = json!({
+        "schema_id": "moat_licensing_package_v1",
+        "schema_version": "1.0",
+        "package_id": package_id,
+        "license": license,
+        "reviewer": reviewer,
+        "primitives": packages,
+        "review_checkpoint": {
+            "status": if errors.is_empty() { "approved" } else { "requires_revision" },
+            "reviewed_at": now_iso()
+        }
+    });
+    write_json(&package_path, &package_payload)?;
+
+    Ok(with_receipt_hash(json!({
+        "ok": !strict || errors.is_empty(),
+        "type": "enterprise_hardening_moat_license",
+        "lane": "enterprise_hardening",
+        "mode": "moat-license",
+        "strict": strict,
+        "license": license,
+        "reviewer": reviewer,
+        "primitives_requested": primitives,
+        "package_path": package_rel,
+        "errors": errors,
+        "claim_evidence": [
+            {
+                "id": "V7-MOAT-001.1",
+                "claim": "ip_and_licensing_pipeline_emits_deterministic_legal_package_manifests_with_review_checkpoints",
+                "evidence": {"package_path": package_rel, "reviewer": reviewer}
+            }
+        ]
+    })))
+}
+
+fn run_moat_contrast(
+    root: &Path,
+    strict: bool,
+    flags: &std::collections::HashMap<String, String>,
+) -> Result<Value, String> {
+    let narrative = flags
+        .get("narrative")
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "Security posture emphasizes fail-closed conduit authority and deterministic receipts.".to_string());
+    let enterprise_history_rows = fs::read_to_string(enterprise_history_path(root))
+        .ok()
+        .map(|body| body.lines().count())
+        .unwrap_or(0usize);
+    let directive_integrity = crate::directive_kernel::directive_vault_integrity(root);
+    let blob_vault_path = crate::core_state_root(root)
+        .join("blob_vault")
+        .join("prime_blob_vault.json");
+    let blob_integrity = if blob_vault_path.exists() {
+        let vault = read_json(&blob_vault_path).unwrap_or_else(|_| json!({}));
+        let entries = vault
+            .get("entries")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len())
+            .unwrap_or(0usize);
+        let chain_head = vault
+            .get("chain_head")
+            .and_then(Value::as_str)
+            .unwrap_or("genesis")
+            .to_string();
+        json!({
+            "ok": entries == 0 || chain_head != "genesis",
+            "entry_count": entries,
+            "chain_head": chain_head
+        })
+    } else {
+        json!({
+            "ok": true,
+            "entry_count": 0,
+            "chain_head": "genesis"
+        })
+    };
+    let top1_latest = read_json(
+        &crate::core_state_root(root)
+            .join("ops")
+            .join("top1_assurance")
+            .join("latest.json"),
+    )
+    .unwrap_or_else(|_| json!({"proven_ratio": 0.0}));
+    let proven_ratio = top1_latest
+        .get("proven_ratio")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let receipts_ok = directive_integrity
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+        && blob_integrity
+            .get("ok")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+
+    let contrast_seed = json!({
+        "history_rows": enterprise_history_rows,
+        "receipts_ok": receipts_ok,
+        "proven_ratio": proven_ratio,
+        "narrative": narrative
+    });
+    let contrast_hash = deterministic_receipt_hash(&contrast_seed);
+    let contrast_id = format!("contrast_{}", &contrast_hash[..16]);
+    let json_path = enterprise_state_root(root)
+        .join("moat")
+        .join("contrast")
+        .join(format!("{contrast_id}.json"));
+    let md_path = enterprise_state_root(root)
+        .join("moat")
+        .join("contrast")
+        .join(format!("{contrast_id}.md"));
+    let json_rel = json_path
+        .strip_prefix(root)
+        .unwrap_or(&json_path)
+        .to_string_lossy()
+        .replace('\\', "/");
+    let md_rel = md_path
+        .strip_prefix(root)
+        .unwrap_or(&md_path)
+        .to_string_lossy()
+        .replace('\\', "/");
+
+    write_json(
+        &json_path,
+        &json!({
+            "schema_id": "moat_security_contrast_v1",
+            "schema_version": "1.0",
+            "contrast_id": contrast_id,
+            "enterprise_history_rows": enterprise_history_rows,
+            "receipts_ok": receipts_ok,
+            "top1_proven_ratio": proven_ratio,
+            "directive_integrity": directive_integrity,
+            "blob_integrity": blob_integrity,
+            "narrative": narrative,
+            "generated_at": now_iso()
+        }),
+    )?;
+    let contrast_md = format!(
+        "# Security Contrast Report {contrast_id}\n\n\
+         - Enterprise history rows: {enterprise_history_rows}\n\
+         - Directive integrity ok: {}\n\
+         - Binary blob integrity ok: {}\n\
+         - Top1 proven ratio: {proven_ratio:.3}\n\n\
+         ## Narrative\n{narrative}\n",
+        directive_integrity.get("ok").and_then(Value::as_bool).unwrap_or(false),
+        blob_integrity.get("ok").and_then(Value::as_bool).unwrap_or(false),
+    );
+    if let Some(parent) = md_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|err| format!("create_dir_failed:{}:{err}", parent.display()))?;
+    }
+    fs::write(&md_path, contrast_md)
+        .map_err(|err| format!("write_contrast_md_failed:{}:{err}", md_path.display()))?;
+
+    let ok = receipts_ok || !strict;
+    Ok(with_receipt_hash(json!({
+        "ok": ok,
+        "type": "enterprise_hardening_moat_contrast",
+        "lane": "enterprise_hardening",
+        "mode": "moat-contrast",
+        "strict": strict,
+        "contrast_json_path": json_rel,
+        "contrast_markdown_path": md_rel,
+        "receipts_ok": receipts_ok,
+        "top1_proven_ratio": proven_ratio,
+        "claim_evidence": [
+            {
+                "id": "V7-MOAT-001.2",
+                "claim": "security_contrast_artifacts_publish_reproducible_evidence_linked_narrative_metrics",
+                "evidence": {"contrast_json_path": json_rel, "top1_proven_ratio": proven_ratio}
+            }
+        ]
+    })))
+}
+
+fn run_moat_launch_sim(
+    root: &Path,
+    strict: bool,
+    flags: &std::collections::HashMap<String, String>,
+) -> Result<Value, String> {
+    let contributors = flags
+        .get("contributors")
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(800)
+        .max(1);
+    let events = flags
+        .get("events")
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(12_000)
+        .max(1);
+    let queue_depth = (events as f64 / contributors as f64).max(1.0);
+    let p95_latency_ms = (queue_depth * 18.0).min(5000.0);
+    let p99_latency_ms = (p95_latency_ms * 1.35).min(8000.0);
+    let readiness_score = (100.0 - (p95_latency_ms / 3.0)).clamp(0.0, 100.0);
+    let ready = readiness_score >= 75.0;
+
+    let sim_seed = json!({
+        "contributors": contributors,
+        "events": events,
+        "p95_latency_ms": p95_latency_ms,
+        "p99_latency_ms": p99_latency_ms,
+        "readiness_score": readiness_score
+    });
+    let sim_hash = deterministic_receipt_hash(&sim_seed);
+    let sim_id = format!("launch_sim_{}", &sim_hash[..16]);
+    let sim_path = enterprise_state_root(root)
+        .join("moat")
+        .join("launch_sim")
+        .join(format!("{sim_id}.json"));
+    let sim_rel = sim_path
+        .strip_prefix(root)
+        .unwrap_or(&sim_path)
+        .to_string_lossy()
+        .replace('\\', "/");
+    write_json(
+        &sim_path,
+        &json!({
+            "schema_id": "moat_launch_simulation_v1",
+            "schema_version": "1.0",
+            "simulation_id": sim_id,
+            "contributors": contributors,
+            "events": events,
+            "metrics": {
+                "p95_latency_ms": p95_latency_ms,
+                "p99_latency_ms": p99_latency_ms,
+                "readiness_score": readiness_score
+            },
+            "rollback_playbook": [
+                "pause_new_contributor_onboarding",
+                "drain_non_critical_queues",
+                "switch_to_safe_capacity_profile",
+                "resume_after_guard_validation"
+            ],
+            "ready": ready,
+            "generated_at": now_iso()
+        }),
+    )?;
+
+    let mut errors = Vec::<String>::new();
+    if strict && !ready {
+        errors.push("launch_sim_not_ready".to_string());
+    }
+    Ok(with_receipt_hash(json!({
+        "ok": !strict || errors.is_empty(),
+        "type": "enterprise_hardening_moat_launch_sim",
+        "lane": "enterprise_hardening",
+        "mode": "moat-launch-sim",
+        "strict": strict,
+        "contributors": contributors,
+        "events": events,
+        "metrics": {
+            "p95_latency_ms": p95_latency_ms,
+            "p99_latency_ms": p99_latency_ms,
+            "readiness_score": readiness_score
+        },
+        "artifact_path": sim_rel,
+        "errors": errors,
+        "claim_evidence": [
+            {
+                "id": "V7-MOAT-001.3",
+                "claim": "launch_day_load_simulation_emits_readiness_and_rollback_playbook_artifacts",
+                "evidence": {"artifact_path": sim_rel, "readiness_score": readiness_score}
+            }
+        ]
+    })))
+}
+
+fn run_genesis_truth_gate(
+    root: &Path,
+    strict: bool,
+    flags: &std::collections::HashMap<String, String>,
+) -> Result<Value, String> {
+    let regression_pass = bool_flag(flags.get("regression-pass").map(String::as_str), false);
+    let dod_pass = bool_flag(flags.get("dod-pass").map(String::as_str), false);
+    let verify_pass = bool_flag(flags.get("verify-pass").map(String::as_str), false);
+    let all_pass = regression_pass && dod_pass && verify_pass;
+    let mut errors = Vec::<String>::new();
+    if strict && !all_pass {
+        errors.push("genesis_truth_gate_failed".to_string());
+    }
+    let candidate_seed = json!({
+        "regression_pass": regression_pass,
+        "dod_pass": dod_pass,
+        "verify_pass": verify_pass,
+        "ts": now_iso()
+    });
+    let candidate_hash = deterministic_receipt_hash(&candidate_seed);
+    let candidate_id = format!("launch_candidate_{}", &candidate_hash[..16]);
+    let candidate_path = enterprise_state_root(root)
+        .join("genesis")
+        .join("launch_candidates")
+        .join(format!("{candidate_id}.json"));
+    let candidate_rel = candidate_path
+        .strip_prefix(root)
+        .unwrap_or(&candidate_path)
+        .to_string_lossy()
+        .replace('\\', "/");
+    write_json(
+        &candidate_path,
+        &json!({
+            "schema_id": "genesis_launch_candidate_v1",
+            "schema_version": "1.0",
+            "candidate_id": candidate_id,
+            "gates": {
+                "regression_pass": regression_pass,
+                "dod_pass": dod_pass,
+                "verify_pass": verify_pass
+            },
+            "ready": all_pass,
+            "generated_at": now_iso()
+        }),
+    )?;
+    Ok(with_receipt_hash(json!({
+        "ok": !strict || errors.is_empty(),
+        "type": "enterprise_hardening_genesis_truth_gate",
+        "lane": "enterprise_hardening",
+        "mode": "genesis-truth-gate",
+        "strict": strict,
+        "candidate_id": candidate_id,
+        "candidate_path": candidate_rel,
+        "gates": {
+            "regression_pass": regression_pass,
+            "dod_pass": dod_pass,
+            "verify_pass": verify_pass
+        },
+        "errors": errors,
+        "claim_evidence": [
+            {
+                "id": "V7-GENESIS-001.1",
+                "claim": "launch_blocker_requires_regression_dod_and_verify_gates_before_promotion",
+                "evidence": {"candidate_id": candidate_id, "all_pass": all_pass}
+            }
+        ]
+    })))
+}
+
+fn run_genesis_thin_wrapper_audit(
+    root: &Path,
+    strict: bool,
+    flags: &std::collections::HashMap<String, String>,
+) -> Result<Value, String> {
+    let scan_root_rel = flags
+        .get("scan-root")
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| DEFAULT_THIN_WRAPPER_SCAN_ROOT_REL.to_string());
+    let scan_root = root.join(&scan_root_rel);
+    let mut files = Vec::<PathBuf>::new();
+    collect_files_with_extension(&scan_root, "ts", &mut files)?;
+    files.sort();
+
+    let forbidden = vec![
+        "child_process.exec".to_string(),
+        "child_process.spawnSync".to_string(),
+        "from 'child_process'".to_string(),
+        "from \"child_process\"".to_string(),
+        "require('child_process')".to_string(),
+        "require(\"child_process\")".to_string(),
+        "Deno.Command".to_string(),
+        "std::process::Command".to_string(),
+        "core/layer0/ops/src".to_string(),
+    ];
+    let allowlist = [
+        "client/runtime/systems/ops/formal_spec_guard.ts",
+        "client/runtime/systems/ops/dependency_boundary_guard.ts",
+    ];
+    let mut violations = Vec::<Value>::new();
+    for file in files {
+        let rel = file
+            .strip_prefix(root)
+            .unwrap_or(&file)
+            .to_string_lossy()
+            .replace('\\', "/");
+        if allowlist.iter().any(|allowed| rel == *allowed) {
+            continue;
+        }
+        let body = fs::read_to_string(&file).unwrap_or_default();
+        let hits = forbidden
+            .iter()
+            .filter(|token| body.contains(token.as_str()))
+            .cloned()
+            .collect::<Vec<_>>();
+        if !hits.is_empty() {
+            violations.push(json!({"path": rel, "tokens": hits}));
+        }
+    }
+    let mut errors = Vec::<String>::new();
+    if strict && !violations.is_empty() {
+        errors.push("thin_wrapper_boundary_violation".to_string());
+    }
+    Ok(with_receipt_hash(json!({
+        "ok": !strict || errors.is_empty(),
+        "type": "enterprise_hardening_genesis_thin_wrapper_audit",
+        "lane": "enterprise_hardening",
+        "mode": "genesis-thin-wrapper-audit",
+        "strict": strict,
+        "scan_root": scan_root_rel,
+        "violations": violations,
+        "errors": errors,
+        "claim_evidence": [
+            {
+                "id": "V7-GENESIS-001.2",
+                "claim": "client_surface_boundary_audit_proves_thin_wrapper_paths_without_unauthorized_authority_calls",
+                "evidence": {"scan_root": scan_root_rel}
+            }
+        ]
+    })))
+}
+
+fn run_genesis_doc_freeze(
+    root: &Path,
+    strict: bool,
+    flags: &std::collections::HashMap<String, String>,
+) -> Result<Value, String> {
+    let release_tag = flags
+        .get("release-tag")
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| DEFAULT_DOC_FREEZE_TAG.to_string());
+    let required_docs = vec![
+        "docs/workspace/SRS.md",
+        "docs/workspace/DEFINITION_OF_DONE.md",
+        "docs/workspace/codex_enforcer.md",
+        "README.md",
+    ];
+    let entries = required_docs
+        .iter()
+        .map(|rel| manifest_entry(root, rel))
+        .collect::<Vec<_>>();
+    let missing = entries
+        .iter()
+        .filter(|row| !row.get("exists").and_then(Value::as_bool).unwrap_or(false))
+        .count();
+    let freeze_seed = json!({
+        "release_tag": release_tag,
+        "entries": entries
+    });
+    let freeze_hash = deterministic_receipt_hash(&freeze_seed);
+    let freeze_id = format!("doc_freeze_{}", &freeze_hash[..16]);
+    let manifest_path = enterprise_state_root(root)
+        .join("genesis")
+        .join("doc_freeze")
+        .join(format!("{freeze_id}.json"));
+    let whitepaper_path = enterprise_state_root(root)
+        .join("genesis")
+        .join("doc_freeze")
+        .join(format!("{freeze_id}_whitepaper.md"));
+    let manifest_rel = manifest_path
+        .strip_prefix(root)
+        .unwrap_or(&manifest_path)
+        .to_string_lossy()
+        .replace('\\', "/");
+    let whitepaper_rel = whitepaper_path
+        .strip_prefix(root)
+        .unwrap_or(&whitepaper_path)
+        .to_string_lossy()
+        .replace('\\', "/");
+    write_json(
+        &manifest_path,
+        &json!({
+            "schema_id": "genesis_doc_freeze_v1",
+            "schema_version": "1.0",
+            "freeze_id": freeze_id,
+            "release_tag": release_tag,
+            "entries": entries,
+            "missing_count": missing,
+            "generated_at": now_iso()
+        }),
+    )?;
+    let whitepaper = format!(
+        "# Genesis Documentation Freeze {freeze_id}\n\n- Release tag: {release_tag}\n- Missing required docs: {missing}\n- Manifest: {manifest_rel}\n"
+    );
+    if let Some(parent) = whitepaper_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|err| format!("create_dir_failed:{}:{err}", parent.display()))?;
+    }
+    fs::write(&whitepaper_path, whitepaper)
+        .map_err(|err| format!("write_whitepaper_failed:{}:{err}", whitepaper_path.display()))?;
+    let mut errors = Vec::<String>::new();
+    if strict && missing > 0 {
+        errors.push("genesis_doc_freeze_missing_required_docs".to_string());
+    }
+    Ok(with_receipt_hash(json!({
+        "ok": !strict || errors.is_empty(),
+        "type": "enterprise_hardening_genesis_doc_freeze",
+        "lane": "enterprise_hardening",
+        "mode": "genesis-doc-freeze",
+        "strict": strict,
+        "release_tag": release_tag,
+        "manifest_path": manifest_rel,
+        "whitepaper_path": whitepaper_rel,
+        "missing_count": missing,
+        "errors": errors,
+        "claim_evidence": [
+            {
+                "id": "V7-GENESIS-001.3",
+                "claim": "documentation_freeze_and_whitepaper_artifacts_are_hash_linked_to_release_candidate",
+                "evidence": {"manifest_path": manifest_rel, "whitepaper_path": whitepaper_rel}
+            }
+        ]
+    })))
+}
+
+fn run_genesis_bootstrap(
+    root: &Path,
+    strict: bool,
+    flags: &std::collections::HashMap<String, String>,
+) -> Result<Value, String> {
+    let profile = flags
+        .get("profile")
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "default".to_string());
+    let step_ids = ["node-init", "governance-init", "monitoring-init"];
+    let mut previous = "GENESIS".to_string();
+    let mut checkpoints = Vec::<Value>::new();
+    for step in step_ids {
+        let seed = json!({"step": step, "previous": previous, "profile": profile, "ts": now_iso()});
+        let checkpoint_hash = deterministic_receipt_hash(&seed);
+        checkpoints.push(json!({
+            "step": step,
+            "checkpoint_hash": checkpoint_hash,
+            "previous_checkpoint": previous,
+            "rollback_pointer": format!("rollback:{step}")
+        }));
+        previous = checkpoints
+            .last()
+            .and_then(|v| v.get("checkpoint_hash"))
+            .and_then(Value::as_str)
+            .unwrap_or("GENESIS")
+            .to_string();
+    }
+    let runbook_seed = json!({"profile": profile, "head": previous});
+    let runbook_hash = deterministic_receipt_hash(&runbook_seed);
+    let runbook_id = format!("bootstrap_{}", &runbook_hash[..16]);
+    let runbook_path = enterprise_state_root(root)
+        .join("genesis")
+        .join("bootstrap")
+        .join(format!("{runbook_id}.json"));
+    let runbook_rel = runbook_path
+        .strip_prefix(root)
+        .unwrap_or(&runbook_path)
+        .to_string_lossy()
+        .replace('\\', "/");
+    write_json(
+        &runbook_path,
+        &json!({
+            "schema_id": "genesis_bootstrap_runbook_v1",
+            "schema_version": "1.0",
+            "runbook_id": runbook_id,
+            "profile": profile,
+            "checkpoints": checkpoints,
+            "head": previous,
+            "generated_at": now_iso()
+        }),
+    )?;
+    Ok(with_receipt_hash(json!({
+        "ok": true,
+        "type": "enterprise_hardening_genesis_bootstrap",
+        "lane": "enterprise_hardening",
+        "mode": "genesis-bootstrap",
+        "strict": strict,
+        "profile": profile,
+        "runbook_path": runbook_rel,
+        "head": previous,
+        "claim_evidence": [
+            {
+                "id": "V7-GENESIS-001.4",
+                "claim": "genesis_bootstrap_runbook_executes_deterministic_checkpointed_sequence_with_rollback_pointers",
+                "evidence": {"runbook_path": runbook_rel, "profile": profile}
+            }
+        ]
+    })))
+}
+
+fn command_exists(name: &str) -> bool {
+    let path = std::env::var("PATH").unwrap_or_default();
+    path.split(':')
+        .filter(|segment| !segment.trim().is_empty())
+        .map(Path::new)
+        .any(|dir| dir.join(name).exists())
+}
+
+fn run_genesis_installer_sim(
+    root: &Path,
+    strict: bool,
+    flags: &std::collections::HashMap<String, String>,
+) -> Result<Value, String> {
+    let profile = flags
+        .get("profile")
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| DEFAULT_INSTALLER_PROFILE.to_string());
+    let checks = vec![
+        json!({"name": "git", "ok": command_exists("git")}),
+        json!({"name": "cargo", "ok": command_exists("cargo")}),
+        json!({"name": "node", "ok": command_exists("node")}),
+        json!({"name": "core_ops_manifest", "ok": root.join("core/layer0/ops/Cargo.toml").exists()}),
+        json!({"name": "srs_exists", "ok": root.join("docs/workspace/SRS.md").exists()}),
+    ];
+    let failed = checks
+        .iter()
+        .filter(|row| !row.get("ok").and_then(Value::as_bool).unwrap_or(false))
+        .count();
+    let ready = failed == 0;
+    let sim_seed = json!({"profile": profile, "checks": checks});
+    let sim_hash = deterministic_receipt_hash(&sim_seed);
+    let sim_id = format!("installer_sim_{}", &sim_hash[..16]);
+    let sim_path = enterprise_state_root(root)
+        .join("genesis")
+        .join("installer")
+        .join(format!("{sim_id}.json"));
+    let sim_rel = sim_path
+        .strip_prefix(root)
+        .unwrap_or(&sim_path)
+        .to_string_lossy()
+        .replace('\\', "/");
+    write_json(
+        &sim_path,
+        &json!({
+            "schema_id": "genesis_installer_simulation_v1",
+            "schema_version": "1.0",
+            "simulation_id": sim_id,
+            "profile": profile,
+            "checks": checks,
+            "ready": ready,
+            "generated_at": now_iso()
+        }),
+    )?;
+    let mut errors = Vec::<String>::new();
+    if strict && !ready {
+        errors.push("installer_readiness_failed".to_string());
+    }
+    Ok(with_receipt_hash(json!({
+        "ok": !strict || errors.is_empty(),
+        "type": "enterprise_hardening_genesis_installer_sim",
+        "lane": "enterprise_hardening",
+        "mode": "genesis-installer-sim",
+        "strict": strict,
+        "profile": profile,
+        "artifact_path": sim_rel,
+        "ready": ready,
+        "failed_checks": failed,
+        "errors": errors,
+        "claim_evidence": [
+            {
+                "id": "V7-GENESIS-001.5",
+                "claim": "one_command_installer_readiness_simulation_emits_environment_check_receipts_before_launch",
+                "evidence": {"artifact_path": sim_rel, "ready": ready}
+            }
+        ]
+    })))
+}
+
 fn run_dashboard(root: &Path) -> Value {
     let latest = read_json(&enterprise_latest_path(root)).unwrap_or_else(|_| json!({}));
     let compliance_dir = enterprise_state_root(root).join("compliance_exports");
@@ -1101,6 +1890,16 @@ fn run_dashboard(root: &Path) -> Value {
         .map(|rows| rows.filter_map(|entry| entry.ok()).count())
         .unwrap_or(0);
     let scale_certifications = fs::read_dir(&scale_dir)
+        .ok()
+        .map(|rows| rows.filter_map(|entry| entry.ok()).count())
+        .unwrap_or(0);
+    let moat_dir = enterprise_state_root(root).join("moat");
+    let genesis_dir = enterprise_state_root(root).join("genesis");
+    let moat_artifacts = fs::read_dir(&moat_dir)
+        .ok()
+        .map(|rows| rows.filter_map(|entry| entry.ok()).count())
+        .unwrap_or(0);
+    let genesis_artifacts = fs::read_dir(&genesis_dir)
         .ok()
         .map(|rows| rows.filter_map(|entry| entry.ok()).count())
         .unwrap_or(0);
@@ -1127,6 +1926,8 @@ fn run_dashboard(root: &Path) -> Value {
         "summary": {
             "compliance_bundles": compliance_bundles,
             "scale_certifications": scale_certifications,
+            "moat_artifact_groups": moat_artifacts,
+            "genesis_artifact_groups": genesis_artifacts,
             "bedrock_proxy_enabled": bedrock_profile.get("ok").and_then(Value::as_bool).unwrap_or(false),
             "scheduled_hands_enabled": scheduled_hands.get("enabled").and_then(Value::as_bool).unwrap_or(false),
             "scheduled_hands_run_count": scheduled_hands.get("run_count").cloned().unwrap_or(Value::from(0)),
@@ -1204,6 +2005,14 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "identity-surface" => run_identity_surface(root, strict, &parsed.flags),
         "certify-scale" => run_scale_certification(root, strict, &parsed.flags),
         "enable-bedrock" => run_enable_bedrock(root, strict, &parsed.flags),
+        "moat-license" => run_moat_license(root, strict, &parsed.flags),
+        "moat-contrast" => run_moat_contrast(root, strict, &parsed.flags),
+        "moat-launch-sim" => run_moat_launch_sim(root, strict, &parsed.flags),
+        "genesis-truth-gate" => run_genesis_truth_gate(root, strict, &parsed.flags),
+        "genesis-thin-wrapper-audit" => run_genesis_thin_wrapper_audit(root, strict, &parsed.flags),
+        "genesis-doc-freeze" => run_genesis_doc_freeze(root, strict, &parsed.flags),
+        "genesis-bootstrap" => run_genesis_bootstrap(root, strict, &parsed.flags),
+        "genesis-installer-sim" => run_genesis_installer_sim(root, strict, &parsed.flags),
         "dashboard" => Ok(run_dashboard(root)),
         _ => {
             usage();

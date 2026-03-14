@@ -1751,6 +1751,59 @@ mod tests {
     }
 
     #[test]
+    fn core_shortcut_routes_enterprise_moat_license_to_core_lane() {
+        let route = resolve_core_shortcuts(
+            "enterprise",
+            &[
+                "moat".to_string(),
+                "license".to_string(),
+                "--primitives=conduit,binary_blob".to_string(),
+            ],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://enterprise-hardening");
+        assert_eq!(
+            route.args,
+            vec!["moat-license", "--primitives=conduit,binary_blob"]
+        );
+    }
+
+    #[test]
+    fn core_shortcut_routes_genesis_truth_gate_to_core_lane() {
+        let route = resolve_core_shortcuts(
+            "genesis",
+            &[
+                "truth-gate".to_string(),
+                "--regression-pass=1".to_string(),
+                "--dod-pass=1".to_string(),
+                "--verify-pass=1".to_string(),
+            ],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://enterprise-hardening");
+        assert_eq!(
+            route.args,
+            vec![
+                "genesis-truth-gate",
+                "--regression-pass=1",
+                "--dod-pass=1",
+                "--verify-pass=1"
+            ]
+        );
+    }
+
+    #[test]
+    fn core_shortcut_routes_moat_launch_to_core_lane() {
+        let route = resolve_core_shortcuts(
+            "moat",
+            &["launch-sim".to_string(), "--events=12000".to_string()],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://enterprise-hardening");
+        assert_eq!(route.args, vec!["moat-launch-sim", "--events=12000"]);
+    }
+
+    #[test]
     fn core_shortcut_routes_seed_deploy_viral_to_seed_protocol() {
         let route = resolve_core_shortcuts(
             "seed",
