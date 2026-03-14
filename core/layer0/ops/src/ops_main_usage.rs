@@ -37,6 +37,7 @@ pub(super) fn print_usage() {
     );
     println!("  protheus-ops company-plane <status|orchestrate-agency|budget-enforce|ticket|heartbeat> [flags]");
     println!("  protheus-ops business-plane <taxonomy|persona|continuity|alerts|switchboard|external-sync|continuity-audit|archive|status> [flags]");
+    println!("  protheus-ops canyon-plane <efficiency|hands-army|evolution|sandbox|ecosystem|workflow|scheduler|control-plane|adoption|benchmark-gate|status> [flags]");
     println!("  protheus-ops government-plane <attestation|classification|nonrepudiation|diode|soc|coop|proofs|interoperability|ato-pack|status> [flags]");
     println!("  protheus-ops finance-plane <transaction|model-governance|aml|kyc|finance-eye|risk-warehouse|custody|zero-trust|availability|regulatory-report|status> [flags]");
     println!("  protheus-ops healthcare-plane <patient|phi-audit|cds|devices|documentation|alerts|coordination|trials|imaging|emergency|status> [flags]");

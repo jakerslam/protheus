@@ -117,6 +117,7 @@ pub mod venom_containment_layer;
 pub mod workflow_controller;
 pub mod workflow_executor;
 pub mod business_plane;
+pub mod canyon_plane;
 pub mod finance_plane;
 pub mod government_plane;
 pub mod healthcare_plane;

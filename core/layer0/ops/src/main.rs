@@ -278,6 +278,11 @@ fn main() {
             let exit = protheus_ops_core::business_plane::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "canyon-plane" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::canyon_plane::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "government-plane" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::government_plane::run(&cwd, &rest);
