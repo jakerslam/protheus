@@ -176,6 +176,19 @@ function main() {
   const hardViolations = [];
   const targetGaps = [];
 
+  const globallyForbiddenFiles = trackedSources
+    .filter((file) => !startsWithAny(file, ignorePathPrefixes))
+    .filter((file) => !ignoreExactPaths.has(file))
+    .filter((file) => startsWithAny(file, forbiddenPathPrefixes));
+  for (const file of globallyForbiddenFiles) {
+    hardViolations.push({
+      root: '<global>',
+      file,
+      reason: 'file_under_forbidden_path_prefix',
+      ext: extOf(file),
+    });
+  }
+
   for (const root of codeRoots) {
     const files = trackedSources
       .filter((file) => file === root || file.startsWith(`${root}/`))
@@ -190,18 +203,6 @@ function main() {
           root,
           file,
           reason: 'extension_not_allowed_for_root',
-          ext: extOf(file),
-        });
-      }
-    }
-
-    const forbiddenFiles = files.filter((file) => startsWithAny(file, forbiddenPathPrefixes));
-    if (forbiddenFiles.length > 0) {
-      for (const file of forbiddenFiles) {
-        hardViolations.push({
-          root,
-          file,
-          reason: 'file_under_forbidden_path_prefix',
           ext: extOf(file),
         });
       }

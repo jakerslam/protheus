@@ -94,6 +94,7 @@ Tests are a separate verification surface, with one exception:
 - No TS/JS/Python/Shell in `/core/`.
 - No JS/TS duplicate feature pairs. If both exist, TS is canonical and JS must be removed unless installer/deploy legacy is explicitly documented.
 - No runnable app code under `client/cli/apps/`; runnable apps and demos must live under top-level `/apps`.
+- No tracked runnable app code under `examples/apps/`; that path is legacy scratch only and must be migrated into `/apps`.
 
 ### 3.1 Public Platform Contract
 The extension boundary for apps and adapters is:
