@@ -179,3 +179,64 @@ fn v6_persist_batch16_rejects_connector_bypass_when_strict() {
         Some("persist_plane_conduit_gate")
     );
 }
+
+#[test]
+fn v6_persist_batch16_mobile_daemon_is_policy_bound_and_receipted() {
+    let fixture = stage_fixture_root();
+    let root = fixture.path();
+
+    let enable_exit = persist_plane::run(
+        root,
+        &[
+            "mobile-daemon".to_string(),
+            "--strict=1".to_string(),
+            "--op=enable".to_string(),
+            "--platform=android".to_string(),
+            "--edge-backend=bitnet".to_string(),
+            "--sensor-lanes=camera,mic,gps".to_string(),
+        ],
+    );
+    assert_eq!(enable_exit, 0);
+    let enabled_latest = read_json(&latest_path(root));
+    assert_eq!(
+        enabled_latest.get("type").and_then(Value::as_str),
+        Some("persist_plane_mobile_daemon")
+    );
+    assert_claim(&enabled_latest, "V7-MOBILE-001.1");
+    assert_eq!(
+        enabled_latest
+            .pointer("/state/edge_backend")
+            .and_then(Value::as_str),
+        Some("bitnet")
+    );
+
+    let handoff_exit = persist_plane::run(
+        root,
+        &[
+            "mobile-daemon".to_string(),
+            "--strict=1".to_string(),
+            "--op=handoff".to_string(),
+            "--handoff=cloud".to_string(),
+        ],
+    );
+    assert_eq!(handoff_exit, 0);
+    let handoff_latest = read_json(&latest_path(root));
+    assert_eq!(
+        handoff_latest
+            .pointer("/state/handoff_mode")
+            .and_then(Value::as_str),
+        Some("cloud")
+    );
+
+    let invalid_profile_exit = persist_plane::run(
+        root,
+        &[
+            "mobile-daemon".to_string(),
+            "--strict=1".to_string(),
+            "--op=enable".to_string(),
+            "--platform=desktop".to_string(),
+            "--edge-backend=bitnet".to_string(),
+        ],
+    );
+    assert_eq!(invalid_profile_exit, 1);
+}

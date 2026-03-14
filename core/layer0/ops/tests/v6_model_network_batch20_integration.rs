@@ -376,3 +376,122 @@ fn v6_batch20_model_and_network_reject_strict_bypass() {
         1
     );
 }
+
+#[test]
+fn v6_batch20_bitnet_backend_routing_and_telemetry_are_receipted() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let model_latest = root.path().join("state/ops/model_router/latest.json");
+
+    assert_eq!(
+        model_router::run(
+            root.path(),
+            &[
+                "bitnet-backend".to_string(),
+                "--strict=1".to_string(),
+                "--kernel=bitnet.cpp".to_string(),
+                "--model-format=bitnet-q3".to_string(),
+            ],
+        ),
+        0
+    );
+    let backend = read_json(&model_latest);
+    assert_eq!(
+        backend.get("type").and_then(Value::as_str),
+        Some("model_router_bitnet_backend")
+    );
+    assert!(has_infring_receipt(&backend));
+    assert!(has_claim(&backend, "V6-MODEL-004.1"));
+    assert!(has_claim(&backend, "V6-MODEL-004.5"));
+
+    assert_eq!(
+        model_router::run(
+            root.path(),
+            &[
+                "bitnet-auto-route".to_string(),
+                "--battery-pct=18".to_string(),
+                "--offline=1".to_string(),
+                "--edge=1".to_string(),
+            ],
+        ),
+        0
+    );
+    let route = read_json(&model_latest);
+    assert_eq!(
+        route.get("type").and_then(Value::as_str),
+        Some("model_router_bitnet_auto_route")
+    );
+    assert!(has_infring_receipt(&route));
+    assert!(has_claim(&route, "V6-MODEL-004.2"));
+    assert!(has_claim(&route, "V6-MODEL-004.5"));
+    assert_eq!(
+        route.pointer("/route_policy/reason").and_then(Value::as_str),
+        Some("offline_mode")
+    );
+
+    assert_eq!(
+        model_router::run(
+            root.path(),
+            &[
+                "bitnet-use".to_string(),
+                "--source-model=hf://protheus/edge".to_string(),
+                "--target-model=bitnet/local-edge".to_string(),
+            ],
+        ),
+        0
+    );
+    let convert = read_json(&model_latest);
+    assert_eq!(
+        convert.get("type").and_then(Value::as_str),
+        Some("model_router_bitnet_use")
+    );
+    assert!(has_infring_receipt(&convert));
+    assert!(has_claim(&convert, "V6-MODEL-004.3"));
+    assert!(has_claim(&convert, "V6-MODEL-004.5"));
+
+    assert_eq!(
+        model_router::run(
+            root.path(),
+            &[
+                "bitnet-telemetry".to_string(),
+                "--throughput=220".to_string(),
+                "--energy-j=4.8".to_string(),
+                "--baseline-energy-j=11.0".to_string(),
+                "--memory-mb=384".to_string(),
+                "--hardware-class=mobile-arm64".to_string(),
+            ],
+        ),
+        0
+    );
+    let telemetry = read_json(&model_latest);
+    assert_eq!(
+        telemetry.get("type").and_then(Value::as_str),
+        Some("model_router_bitnet_telemetry")
+    );
+    assert!(has_infring_receipt(&telemetry));
+    assert!(has_claim(&telemetry, "V6-MODEL-004.4"));
+    assert!(has_claim(&telemetry, "V6-MODEL-004.5"));
+    assert!(
+        telemetry
+            .pointer("/telemetry/energy_delta_pct")
+            .and_then(Value::as_f64)
+            .map(|v| v > 0.0)
+            .unwrap_or(false)
+    );
+}
+
+#[test]
+fn v6_batch20_bitnet_attestation_fails_closed_without_provenance() {
+    let root = tempfile::tempdir().expect("tempdir");
+
+    assert_eq!(
+        model_router::run(
+            root.path(),
+            &[
+                "bitnet-attest".to_string(),
+                "--strict=1".to_string(),
+                "--provenance=https://invalid.example/model".to_string(),
+            ],
+        ),
+        1
+    );
+}

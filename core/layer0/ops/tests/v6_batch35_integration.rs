@@ -250,6 +250,74 @@ fn v6_batch35_eval_dashboard_and_conduit_gate_are_receipted() {
 }
 
 #[test]
+fn v6_batch35_openclaw_v2_rl_upgrade_is_receipted_and_queryable() {
+    let fixture = stage_fixture_root();
+    let root = fixture.path();
+
+    assert_eq!(
+        eval_plane::run(
+            root,
+            &[
+                "rl-upgrade".to_string(),
+                "--strict=1".to_string(),
+                "--profile=openclaw-v2".to_string(),
+                "--iterations=5".to_string(),
+                "--runtime-classes=terminal,gui,swe,tool-call".to_string(),
+                "--persona=research-shadow".to_string(),
+            ],
+        ),
+        0
+    );
+    let rl_latest = read_json(&eval_latest_path(root));
+    assert_eq!(
+        rl_latest.get("type").and_then(Value::as_str),
+        Some("eval_plane_rl_upgrade")
+    );
+    assert_claim(&rl_latest, "V6-COCKPIT-017.11");
+    assert_claim(&rl_latest, "V6-COCKPIT-017.12");
+    assert_claim(&rl_latest, "V6-COCKPIT-017.13");
+    assert_claim(&rl_latest, "V6-COCKPIT-017.14");
+    assert_claim(&rl_latest, "V6-COCKPIT-017.15");
+    assert!(
+        rl_latest
+            .pointer("/rl_profile/runtime_class_matrix")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len() >= 4)
+            .unwrap_or(false)
+    );
+
+    assert_eq!(
+        eval_plane::run(root, &["rl-status".to_string(), "--strict=1".to_string()]),
+        0
+    );
+    let status_latest = read_json(&eval_latest_path(root));
+    assert_eq!(
+        status_latest.get("type").and_then(Value::as_str),
+        Some("eval_plane_rl_status")
+    );
+    assert_claim(&status_latest, "V6-COCKPIT-017.15");
+    assert!(
+        status_latest
+            .get("history_rows")
+            .and_then(Value::as_u64)
+            .map(|rows| rows > 0)
+            .unwrap_or(false)
+    );
+
+    assert_eq!(
+        eval_plane::run(
+            root,
+            &[
+                "rl-upgrade".to_string(),
+                "--strict=1".to_string(),
+                "--profile=invalid".to_string(),
+            ],
+        ),
+        1
+    );
+}
+
+#[test]
 fn v6_batch35_fairscale_credit_updates_identity_bound_scores() {
     let fixture = stage_fixture_root();
     let root = fixture.path();
