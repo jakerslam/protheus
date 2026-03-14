@@ -2457,6 +2457,31 @@ mod tests {
     }
 
     #[test]
+    fn core_shortcut_routes_canyon_to_canyon_plane() {
+        let route = resolve_core_shortcuts("canyon", &[]).expect("route");
+        assert_eq!(route.script_rel, "core://canyon-plane");
+        assert_eq!(route.args, vec!["status"]);
+    }
+
+    #[test]
+    fn core_shortcut_routes_canyon_benchmark_gate_to_canyon_plane() {
+        let route = resolve_core_shortcuts(
+            "canyon",
+            &[
+                "benchmark-gate".to_string(),
+                "--op=run".to_string(),
+                "--milestone=day90".to_string(),
+            ],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://canyon-plane");
+        assert_eq!(
+            route.args,
+            vec!["benchmark-gate", "--op=run", "--milestone=day90"]
+        );
+    }
+
+    #[test]
     fn core_shortcut_routes_gov_alias_to_government_plane() {
         let route = resolve_core_shortcuts("gov", &["classification".to_string()]).expect("route");
         assert_eq!(route.script_rel, "core://government-plane");
