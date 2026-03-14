@@ -123,6 +123,9 @@ pub mod government_plane;
 pub mod healthcare_plane;
 pub mod nexus_plane;
 
+#[cfg(kani)]
+mod top1_kani_proofs;
+
 #[derive(Debug, Clone)]
 pub struct ParsedArgs {
     pub positional: Vec<String>,

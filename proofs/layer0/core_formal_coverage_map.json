@@ -22,6 +22,31 @@
       ]
     },
     {
+      "id": "core/layer0/ops::top1_kani_proofs",
+      "status": "proven",
+      "engines": ["kani"],
+      "artifact": "core/layer0/ops/src/top1_kani_proofs.rs",
+      "proof_commands": [
+        {
+          "id": "kani_top1_proofs",
+          "required": false,
+          "argv": [
+            "cargo",
+            "kani",
+            "--manifest-path",
+            "core/layer0/ops/Cargo.toml",
+            "--lib",
+            "--harness",
+            "prove_receipt_hash_is_deterministic_for_same_payload",
+            "--harness",
+            "prove_receipt_hash_is_invariant_to_object_key_order",
+            "--harness",
+            "prove_clean_respects_max_len_bound"
+          ]
+        }
+      ]
+    },
+    {
       "id": "core/layer0/ops::metakernel",
       "status": "partial",
       "engines": ["kani"],

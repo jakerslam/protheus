@@ -65,7 +65,8 @@ fn compute_dashboard_metrics(
             .and_then(Value::as_str)
             .map(PathBuf::from)
             .or_else(|| {
-                entry.get("blob_path")
+                entry
+                    .get("blob_path")
                     .and_then(Value::as_str)
                     .map(PathBuf::from)
             });
@@ -201,6 +202,9 @@ pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
         println!("  protheus-ops binary-blob-runtime load [--module=<id>]");
         println!("  protheus-ops binary-blob-runtime mutate [--module=<id>] [--proposal=<text>] [--apply=1|0] [--canary-pass=1|0]");
         println!("  protheus-ops binary-blob-runtime vault-status");
+        println!(
+            "  protheus-ops binary-blob-runtime vault-repair [--apply=1|0] [--allow-unsigned=1|0]"
+        );
         println!("  protheus-ops binary-blob-runtime substrate-probe [--prefer=ternary|binary]");
         println!("  protheus-ops binary-blob-runtime debug-access [--module=<id>] [--tamper=1|0] [--apply=1|0]");
         return 0;
@@ -239,39 +243,43 @@ pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
             .get("ok")
             .and_then(Value::as_bool)
             .unwrap_or(false);
-        let dashboard = compute_dashboard_metrics(root, &active, &checks, &policy_hash, &vault_integrity);
+        let dashboard =
+            compute_dashboard_metrics(root, &active, &checks, &policy_hash, &vault_integrity);
 
-        return emit(root, json!({
-            "ok": verified_ok && vault_ok,
-            "type": "binary_blob_runtime_status",
-            "lane": "core/layer0/ops",
-            "active": active,
-            "policy_hash": policy_hash,
-            "prime_blob_vault": {
-                "entries": blob_vault.get("entries").and_then(Value::as_array).map(|v| v.len()).unwrap_or(0),
-                "chain_head": blob_vault.get("chain_head").cloned().unwrap_or(Value::String("genesis".to_string())),
-                "integrity": vault_integrity
-            },
-            "verification": checks,
-            "dashboard": dashboard,
-            "commands": ["protheus blobs migrate", "protheus blobs status", "protheus blobs dashboard"],
-            "claim_evidence": [
-                {
-                    "id": "V8-BINARY-BLOB-001.1",
-                    "claim": "settled_blob_artifacts_are_bound_to_signed_source_snapshots_and_policy_hashes",
-                    "evidence": {"active_modules": modules.len(), "vault_integrity_ok": vault_ok}
+        return emit(
+            root,
+            json!({
+                "ok": verified_ok && vault_ok,
+                "type": "binary_blob_runtime_status",
+                "lane": "core/layer0/ops",
+                "active": active,
+                "policy_hash": policy_hash,
+                "prime_blob_vault": {
+                    "entries": blob_vault.get("entries").and_then(Value::as_array).map(|v| v.len()).unwrap_or(0),
+                    "chain_head": blob_vault.get("chain_head").cloned().unwrap_or(Value::String("genesis".to_string())),
+                    "integrity": vault_integrity
                 },
-                {
-                    "id": "V8-BINARY-BLOB-001.6",
-                    "claim": "blob_status_surfaces_health_memory_savings_and_directive_compliance_metrics",
-                    "evidence": {
-                        "active_modules": modules.len(),
-                        "healthy_modules": dashboard.get("blob_health").and_then(|v| v.get("healthy_modules")).cloned().unwrap_or(Value::from(0)),
-                        "savings_percent": dashboard.get("memory_savings").and_then(|v| v.get("savings_percent")).cloned().unwrap_or(Value::from(0.0))
+                "verification": checks,
+                "dashboard": dashboard,
+                "commands": ["protheus blobs migrate", "protheus blobs status", "protheus blobs dashboard"],
+                "claim_evidence": [
+                    {
+                        "id": "V8-BINARY-BLOB-001.1",
+                        "claim": "settled_blob_artifacts_are_bound_to_signed_source_snapshots_and_policy_hashes",
+                        "evidence": {"active_modules": modules.len(), "vault_integrity_ok": vault_ok}
+                    },
+                    {
+                        "id": "V8-BINARY-BLOB-001.6",
+                        "claim": "blob_status_surfaces_health_memory_savings_and_directive_compliance_metrics",
+                        "evidence": {
+                            "active_modules": modules.len(),
+                            "healthy_modules": dashboard.get("blob_health").and_then(|v| v.get("healthy_modules")).cloned().unwrap_or(Value::from(0)),
+                            "savings_percent": dashboard.get("memory_savings").and_then(|v| v.get("savings_percent")).cloned().unwrap_or(Value::from(0.0))
+                        }
                     }
-                }
-            ]
-        }));
+                ]
+            }),
+        );
     }
 
     if command == "vault-status" {
@@ -305,6 +313,69 @@ pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
                 "integrity": integrity
             }),
         );
+    }
+
+    if command == "vault-repair" {
+        let gate_action = "blob:vault-repair";
+        if !directive_kernel::action_allowed(root, gate_action) {
+            let gate_evaluation = directive_kernel::evaluate_action(root, gate_action);
+            return emit(
+                root,
+                json!({
+                    "ok": false,
+                    "type": "binary_blob_runtime_vault_repair",
+                    "lane": "core/layer0/ops",
+                    "error": "directive_gate_denied",
+                    "gate_action": gate_action,
+                    "gate_evaluation": gate_evaluation
+                }),
+            );
+        }
+        let apply = parse_bool(parsed.flags.get("apply"), false);
+        let allow_unsigned = parse_bool(parsed.flags.get("allow-unsigned"), false);
+        return match repair_prime_blob_vault(root, apply, allow_unsigned) {
+            Ok(repair) => {
+                let vault = load_prime_blob_vault(root);
+                let integrity = validate_prime_blob_vault(&vault);
+                let ok = integrity
+                    .get("ok")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+                emit(
+                    root,
+                    json!({
+                        "ok": ok || !apply,
+                        "type": "binary_blob_runtime_vault_repair",
+                        "lane": "core/layer0/ops",
+                        "apply": apply,
+                        "allow_unsigned": allow_unsigned,
+                        "repair": repair,
+                        "integrity": integrity,
+                        "claim_evidence": [
+                            {
+                                "id": "V8-BINARY-BLOB-001.1",
+                                "claim": "prime_blob_vault_integrity_is_repairable_without_bypass_and_revalidated_before_runtime_execution",
+                                "evidence": {
+                                    "apply": apply,
+                                    "allow_unsigned": allow_unsigned
+                                }
+                            }
+                        ]
+                    }),
+                )
+            }
+            Err(err) => emit(
+                root,
+                json!({
+                    "ok": false,
+                    "type": "binary_blob_runtime_vault_repair",
+                    "lane": "core/layer0/ops",
+                    "apply": apply,
+                    "allow_unsigned": allow_unsigned,
+                    "error": clean(err, 220)
+                }),
+            ),
+        };
     }
 
     let requires_integrity_gate = matches!(
@@ -366,7 +437,8 @@ pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
             let check = load_and_verify(root, module);
             checks.push(json!({"module": module, "ok": check.is_ok(), "detail": check.unwrap_or_else(|err| json!({"error": err}))}));
         }
-        let dashboard = compute_dashboard_metrics(root, &active, &checks, &policy_hash, &vault_integrity);
+        let dashboard =
+            compute_dashboard_metrics(root, &active, &checks, &policy_hash, &vault_integrity);
 
         return emit(
             root,

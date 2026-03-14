@@ -856,7 +856,10 @@ fn run_size_gate(
     let static_detected = file_probe
         .get("stdout")
         .and_then(Value::as_str)
-        .map(|v| v.to_ascii_lowercase().contains("statically linked"))
+        .map(|v| {
+            let lower = v.to_ascii_lowercase();
+            lower.contains("statically linked") || lower.contains("static-pie")
+        })
         .unwrap_or(false);
 
     let mut errors = Vec::<String>::new();
