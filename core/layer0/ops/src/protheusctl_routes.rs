@@ -1042,8 +1042,120 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 std::iter::once("certify-scale".to_string())
                     .chain(rest.iter().skip(skip).cloned())
                     .collect::<Vec<_>>()
+            } else if rest
+                .first()
+                .map(|v| v.trim().eq_ignore_ascii_case("moat"))
+                .unwrap_or(false)
+            {
+                match rest
+                    .get(1)
+                    .map(|v| v.trim().to_ascii_lowercase())
+                    .unwrap_or_else(|| "contrast".to_string())
+                    .as_str()
+                {
+                    "license" => std::iter::once("moat-license".to_string())
+                        .chain(rest.iter().skip(2).cloned())
+                        .collect::<Vec<_>>(),
+                    "launch-sim" | "launch" => std::iter::once("moat-launch-sim".to_string())
+                        .chain(rest.iter().skip(2).cloned())
+                        .collect::<Vec<_>>(),
+                    _ => std::iter::once("moat-contrast".to_string())
+                        .chain(rest.iter().skip(2).cloned())
+                        .collect::<Vec<_>>(),
+                }
+            } else if rest
+                .first()
+                .map(|v| v.trim().eq_ignore_ascii_case("genesis"))
+                .unwrap_or(false)
+            {
+                match rest
+                    .get(1)
+                    .map(|v| v.trim().to_ascii_lowercase())
+                    .unwrap_or_else(|| "truth-gate".to_string())
+                    .as_str()
+                {
+                    "truth-gate" | "gate" => std::iter::once("genesis-truth-gate".to_string())
+                        .chain(rest.iter().skip(2).cloned())
+                        .collect::<Vec<_>>(),
+                    "thin-wrapper-audit" | "thin-wrapper" | "audit" => {
+                        std::iter::once("genesis-thin-wrapper-audit".to_string())
+                            .chain(rest.iter().skip(2).cloned())
+                            .collect::<Vec<_>>()
+                    }
+                    "doc-freeze" | "freeze" => std::iter::once("genesis-doc-freeze".to_string())
+                        .chain(rest.iter().skip(2).cloned())
+                        .collect::<Vec<_>>(),
+                    "bootstrap" => std::iter::once("genesis-bootstrap".to_string())
+                        .chain(rest.iter().skip(2).cloned())
+                        .collect::<Vec<_>>(),
+                    "installer-sim" | "installer" => {
+                        std::iter::once("genesis-installer-sim".to_string())
+                            .chain(rest.iter().skip(2).cloned())
+                            .collect::<Vec<_>>()
+                    }
+                    _ => std::iter::once("genesis-truth-gate".to_string())
+                        .chain(rest.iter().skip(2).cloned())
+                        .collect::<Vec<_>>(),
+                }
             } else {
                 rest.to_vec()
+            };
+            Some(Route {
+                script_rel: "core://enterprise-hardening".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
+        "moat" => {
+            let args = match rest
+                .first()
+                .map(|v| v.trim().to_ascii_lowercase())
+                .unwrap_or_else(|| "contrast".to_string())
+                .as_str()
+            {
+                "license" => std::iter::once("moat-license".to_string())
+                    .chain(rest.iter().skip(1).cloned())
+                    .collect::<Vec<_>>(),
+                "launch-sim" | "launch" => std::iter::once("moat-launch-sim".to_string())
+                    .chain(rest.iter().skip(1).cloned())
+                    .collect::<Vec<_>>(),
+                _ => std::iter::once("moat-contrast".to_string())
+                    .chain(rest.iter().skip(1).cloned())
+                    .collect::<Vec<_>>(),
+            };
+            Some(Route {
+                script_rel: "core://enterprise-hardening".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
+        "genesis" => {
+            let args = match rest
+                .first()
+                .map(|v| v.trim().to_ascii_lowercase())
+                .unwrap_or_else(|| "truth-gate".to_string())
+                .as_str()
+            {
+                "truth-gate" | "gate" => std::iter::once("genesis-truth-gate".to_string())
+                    .chain(rest.iter().skip(1).cloned())
+                    .collect::<Vec<_>>(),
+                "thin-wrapper-audit" | "thin-wrapper" | "audit" => {
+                    std::iter::once("genesis-thin-wrapper-audit".to_string())
+                        .chain(rest.iter().skip(1).cloned())
+                        .collect::<Vec<_>>()
+                }
+                "doc-freeze" | "freeze" => std::iter::once("genesis-doc-freeze".to_string())
+                    .chain(rest.iter().skip(1).cloned())
+                    .collect::<Vec<_>>(),
+                "bootstrap" => std::iter::once("genesis-bootstrap".to_string())
+                    .chain(rest.iter().skip(1).cloned())
+                    .collect::<Vec<_>>(),
+                "installer-sim" | "installer" => std::iter::once("genesis-installer-sim".to_string())
+                    .chain(rest.iter().skip(1).cloned())
+                    .collect::<Vec<_>>(),
+                _ => std::iter::once("genesis-truth-gate".to_string())
+                    .chain(rest.iter().skip(1).cloned())
+                    .collect::<Vec<_>>(),
             };
             Some(Route {
                 script_rel: "core://enterprise-hardening".to_string(),
