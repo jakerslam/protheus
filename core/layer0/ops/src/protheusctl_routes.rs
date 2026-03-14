@@ -180,6 +180,39 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 forward_stdin: false,
             })
         }
+        "rl" => {
+            let sub = rest
+                .first()
+                .map(|v| v.trim().to_ascii_lowercase())
+                .unwrap_or_else(|| "status".to_string());
+            let args = match sub.as_str() {
+                "upgrade"
+                    if rest
+                        .get(1)
+                        .map(|v| v.trim().eq_ignore_ascii_case("openclaw-v2"))
+                        .unwrap_or(false) =>
+                {
+                    std::iter::once("rl-upgrade".to_string())
+                        .chain(rest.iter().skip(2).cloned())
+                        .collect::<Vec<_>>()
+                }
+                "status" => std::iter::once("rl-status".to_string())
+                    .chain(rest.iter().skip(1).cloned())
+                    .collect::<Vec<_>>(),
+                _ => {
+                    if rest.is_empty() {
+                        vec!["rl-status".to_string()]
+                    } else {
+                        rest.to_vec()
+                    }
+                }
+            };
+            Some(Route {
+                script_rel: "core://eval-plane".to_string(),
+                args,
+                forward_stdin: false,
+            })
+        }
         "experiment"
             if rest
                 .first()
@@ -223,6 +256,16 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 {
                     std::iter::once("optimize".to_string())
                         .chain(std::iter::once("--profile=minimax".to_string()))
+                        .chain(rest.iter().skip(2).cloned())
+                        .collect::<Vec<_>>()
+                }
+                "use"
+                    if rest
+                        .get(1)
+                        .map(|v| v.trim().eq_ignore_ascii_case("bitnet"))
+                        .unwrap_or(false) =>
+                {
+                    std::iter::once("bitnet-use".to_string())
                         .chain(rest.iter().skip(2).cloned())
                         .collect::<Vec<_>>()
                 }
@@ -1479,17 +1522,32 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
                 .first()
                 .map(|v| v.trim().to_ascii_lowercase())
                 .unwrap_or_else(|| "status".to_string());
+            let enable_acp_provenance = sub == "enable"
+                && rest
+                    .get(1)
+                    .map(|v| v.trim().eq_ignore_ascii_case("acp-provenance"))
+                    .unwrap_or(false);
             let mut args = match sub.as_str() {
                 "monitor" => vec!["monitor".to_string()],
                 "workflow" => vec!["workflow".to_string()],
                 "incident" => vec!["incident".to_string()],
                 "selfhost" => vec!["selfhost".to_string()],
                 "deploy" => vec!["selfhost".to_string(), "--op=deploy".to_string()],
+                "acp-provenance" => vec!["acp-provenance".to_string()],
+                "trace" => vec!["acp-provenance".to_string(), "--op=trace".to_string()],
+                "debug" => vec!["acp-provenance".to_string(), "--op=debug".to_string()],
+                "enable" if enable_acp_provenance => {
+                    vec!["acp-provenance".to_string(), "--op=enable".to_string()]
+                }
                 "status" => vec!["status".to_string()],
                 _ => vec![sub],
             };
             if !rest.is_empty() {
-                args.extend(rest.iter().skip(1).cloned());
+                if enable_acp_provenance {
+                    args.extend(rest.iter().skip(2).cloned());
+                } else {
+                    args.extend(rest.iter().skip(1).cloned());
+                }
             }
             Some(Route {
                 script_rel: "core://observability-plane".to_string(),
@@ -1505,6 +1563,7 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
             let mut args = match sub.as_str() {
                 "schedule" => vec!["schedule".to_string()],
                 "mobile" | "mobile-cockpit" => vec!["mobile-cockpit".to_string()],
+                "mobile-daemon" => vec!["mobile-daemon".to_string()],
                 "continuity" => vec!["continuity".to_string()],
                 "connector" => vec!["connector".to_string()],
                 "cowork" | "co-work" => vec!["cowork".to_string()],
@@ -1800,8 +1859,33 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
             })
         }
         "mobile" => {
-            let mut args = vec!["mobile-cockpit".to_string()];
-            args.extend(rest.iter().cloned());
+            let first = rest
+                .first()
+                .map(|v| v.trim().to_ascii_lowercase())
+                .unwrap_or_else(|| "status".to_string());
+            let mut args = if first == "daemon" || first == "mobile-daemon" {
+                let op = rest
+                    .get(1)
+                    .map(|v| v.trim().to_ascii_lowercase())
+                    .filter(|v| !v.starts_with("--"))
+                    .unwrap_or_else(|| "status".to_string());
+                let mut routed = vec!["mobile-daemon".to_string(), format!("--op={op}")];
+                let start = if rest
+                    .get(1)
+                    .map(|v| !v.trim().starts_with("--"))
+                    .unwrap_or(false)
+                {
+                    2usize
+                } else {
+                    1usize
+                };
+                routed.extend(rest.iter().skip(start).cloned());
+                routed
+            } else {
+                let mut routed = vec!["mobile-cockpit".to_string()];
+                routed.extend(rest.iter().cloned());
+                routed
+            };
             Some(Route {
                 script_rel: "core://persist-plane".to_string(),
                 args,
