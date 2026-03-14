@@ -180,7 +180,9 @@ fn canonical_blob_entry_for_hash(entry: &Value) -> Value {
 }
 
 fn recompute_blob_entry_hash(entry: &Value) -> String {
-    sha256_hex_str(&canonical_json_string(&canonical_blob_entry_for_hash(entry)))
+    sha256_hex_str(&canonical_json_string(&canonical_blob_entry_for_hash(
+        entry,
+    )))
 }
 
 fn normalize_prime_blob_vault(vault: &Value) -> Value {
@@ -189,13 +191,21 @@ fn normalize_prime_blob_vault(vault: &Value) -> Value {
     } else {
         default_prime_blob_vault()
     };
-    if !normalized.get("entries").map(Value::is_array).unwrap_or(false) {
+    if !normalized
+        .get("entries")
+        .map(Value::is_array)
+        .unwrap_or(false)
+    {
         normalized["entries"] = Value::Array(Vec::new());
     }
     if normalized.get("version").and_then(Value::as_str).is_none() {
         normalized["version"] = Value::String("1.0".to_string());
     }
-    if normalized.get("created_at").and_then(Value::as_str).is_none() {
+    if normalized
+        .get("created_at")
+        .and_then(Value::as_str)
+        .is_none()
+    {
         normalized["created_at"] = Value::String(now_iso());
     }
     let chain_head_missing = normalized
@@ -341,7 +351,7 @@ fn append_prime_blob_vault_entry(root: &Path, snapshot: &Value) -> Result<Value,
     });
     let signature = sign_blob_entry(&entry);
     entry["signature"] = Value::String(signature);
-    let entry_hash = sha256_hex_str(&serde_json::to_string(&entry).unwrap_or_default());
+    let entry_hash = recompute_blob_entry_hash(&entry);
     entry["entry_hash"] = Value::String(entry_hash.clone());
 
     if !obj.get("entries").map(Value::is_array).unwrap_or(false) {
@@ -354,6 +364,103 @@ fn append_prime_blob_vault_entry(root: &Path, snapshot: &Value) -> Result<Value,
     obj.insert("chain_head".to_string(), Value::String(entry_hash));
     store_prime_blob_vault(root, &vault)?;
     Ok(entry)
+}
+
+fn repair_prime_blob_vault(
+    root: &Path,
+    apply: bool,
+    allow_unsigned: bool,
+) -> Result<Value, String> {
+    let key_present = !blob_vault_signing_keys().is_empty();
+    if !key_present && !allow_unsigned {
+        return Err("missing_blob_vault_signing_key".to_string());
+    }
+
+    let mut vault = load_prime_blob_vault(root);
+    let entries = vault
+        .get("entries")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mode = if key_present { "keyed" } else { "unsigned" };
+
+    if !apply {
+        return Ok(json!({
+            "apply": false,
+            "mode": mode,
+            "key_present": key_present,
+            "eligible_entries": entries.len()
+        }));
+    }
+
+    let mut repaired_entries = Vec::<Value>::with_capacity(entries.len());
+    let mut prev_hash = "genesis".to_string();
+    for (idx, row) in entries.iter().enumerate() {
+        let mut updated = if row.is_object() {
+            row.clone()
+        } else {
+            json!({
+                "entry_id": format!("blobv_repair_{idx}"),
+                "module": Value::Null,
+                "blob_id": Value::Null,
+                "source_hash": Value::Null,
+                "blob_hash": Value::Null,
+                "policy_hash": Value::Null,
+                "mode": Value::Null,
+                "shadow_pointer": Value::Null,
+                "rollback_pointer": Value::Null,
+                "ts": now_iso()
+            })
+        };
+        if updated
+            .get("entry_id")
+            .and_then(Value::as_str)
+            .map(|v| v.trim().is_empty())
+            .unwrap_or(true)
+        {
+            updated["entry_id"] = Value::String(format!(
+                "blobv_repair_{}",
+                &sha256_hex_str(&format!("{}:{idx}", now_iso()))[..16]
+            ));
+        }
+        if updated.get("ts").and_then(Value::as_str).is_none() {
+            updated["ts"] = Value::String(now_iso());
+        }
+        updated["prev_hash"] = Value::String(prev_hash.clone());
+        updated["signature"] = Value::String(sign_blob_entry(&updated));
+        let entry_hash = recompute_blob_entry_hash(&updated);
+        updated["entry_hash"] = Value::String(entry_hash.clone());
+        prev_hash = entry_hash;
+        repaired_entries.push(updated);
+    }
+
+    if !vault.is_object() {
+        vault = default_prime_blob_vault();
+    }
+    let obj = vault
+        .as_object_mut()
+        .ok_or_else(|| "blob_vault_not_object".to_string())?;
+    obj.insert(
+        "entries".to_string(),
+        Value::Array(repaired_entries.clone()),
+    );
+    obj.insert("chain_head".to_string(), Value::String(prev_hash.clone()));
+    if obj.get("version").and_then(Value::as_str).is_none() {
+        obj.insert("version".to_string(), Value::String("1.0".to_string()));
+    }
+    if obj.get("created_at").and_then(Value::as_str).is_none() {
+        obj.insert("created_at".to_string(), Value::String(now_iso()));
+    }
+    store_prime_blob_vault(root, &vault)?;
+    let integrity = validate_prime_blob_vault(&vault);
+    Ok(json!({
+        "apply": true,
+        "mode": mode,
+        "key_present": key_present,
+        "repaired_entries": repaired_entries.len(),
+        "new_chain_head": prev_hash,
+        "integrity": integrity
+    }))
 }
 
 fn find_prime_blob_entry(root: &Path, module: &str, blob_id: &str) -> Option<Value> {

@@ -46,3 +46,6 @@ exotic_wrapper = { path = "../../layer_minus_one/exotic_wrapper" }
 
 [dev-dependencies]
 tempfile = "3.13"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
