@@ -126,6 +126,7 @@
     "vitest.config.ts"
   ],
   "forbidden_path_prefixes": [
-    "client/cli/apps/"
+    "client/cli/apps/",
+    "examples/apps/"
   ]
 }

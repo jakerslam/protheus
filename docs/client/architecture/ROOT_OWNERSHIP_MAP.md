@@ -7,7 +7,7 @@ Defines ownership intent for repository-root entries after the core/client split
 - `core/`: core authority implementation (`layer_minus_one`, `layer0`, `layer1`, `layer2`, `layer3`).
 - `client/`: surface implementation (TS/JS/Python/Shell/PowerShell + tests).
 - `planes/`: architecture contracts (safety/cognition/substrate) and schemas.
-- `examples/apps/`: optional top-of-client application/tool workspaces (default local-first, explicitly allowlisted tools may be tracked).
+- `examples/`: optional non-product example/reference material; runnable app/tool workspaces must live under `/apps`.
 
 ## Infrastructure/Metadata Directories
 
@@ -36,8 +36,9 @@ Defines ownership intent for repository-root entries after the core/client split
 
 ## Guarding Rules
 
-1. New source code must land under `core/` or `client/` only.
-2. Legacy root runtime folders (`adaptive`, `config`, `memory`, `habits`, `logs`, `ops-toolkit`, `patches`, `reports`, `research`, `secrets`, `state`, `.clawhub`, `.private-lenses`) are disallowed.
-3. Root sidecar/scratch dirs (`agent-holo-viz`, `pqts`, `projects`, `rohan-*`, `tmp`) are disallowed and must live under `client/runtime/local/workspaces/`.
-4. Runtime mutable data belongs in `client/runtime/local/*` and `core/local/*`.
-5. Root allowances are enforced by `ops:root-surface:check` and `ops:source-runtime:check`.
+1. New source code must land under `core/`, `client/`, `packages/`, `apps/`, `adapters/`, or `tests/` only.
+2. Tracked runnable app/tool workspaces must not live under `examples/apps/`; that legacy path is reserved for local scratch and must migrate into `/apps`.
+3. Legacy root runtime folders (`adaptive`, `config`, `memory`, `habits`, `logs`, `ops-toolkit`, `patches`, `reports`, `research`, `secrets`, `state`, `.clawhub`, `.private-lenses`) are disallowed.
+4. Root sidecar/scratch dirs (`agent-holo-viz`, `pqts`, `projects`, `rohan-*`, `tmp`) are disallowed and must live under `client/runtime/local/workspaces/`.
+5. Runtime mutable data belongs in `client/runtime/local/*` and `core/local/*`.
+6. Root allowances are enforced by `ops:root-surface:check` and `ops:source-runtime:check`.
