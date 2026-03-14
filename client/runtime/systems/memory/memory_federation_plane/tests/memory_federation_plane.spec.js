@@ -22,7 +22,7 @@ if (!require.extensions['.ts']) {
   };
 }
 
-const mod = require('../memory_federation_plane.ts');
+const mod = require('../../memory_federation_plane.ts');
 
 assert.deepStrictEqual(
   mod.mapArgs(['memory_federation_plane', 'push', '--device-id=a', '--entries-json=[]']),

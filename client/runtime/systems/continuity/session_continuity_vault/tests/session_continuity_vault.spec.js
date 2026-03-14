@@ -22,7 +22,7 @@ if (!require.extensions['.ts']) {
   };
 }
 
-const mod = require('../session_continuity_vault.ts');
+const mod = require('../../session_continuity_vault.ts');
 
 const withAliases = mod.normalizeArgs([
   'session_continuity_vault',

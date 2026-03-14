@@ -22,7 +22,7 @@ if (!require.extensions['.ts']) {
   };
 }
 
-const mod = require('../resurrection_protocol.ts');
+const mod = require('../../resurrection_protocol.ts');
 
 assert.deepStrictEqual(
   mod.normalizeArgs(['resurrection-protocol', 'run', '--session-id=a']),

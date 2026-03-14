@@ -48,6 +48,20 @@ function walk(dir, out = []) {
   return out;
 }
 
+function trackedSourceFiles() {
+  let out = '';
+  try {
+    out = execSync('git ls-files', { cwd: ROOT, encoding: 'utf8' });
+  } catch {
+    return [];
+  }
+  return out
+    .split('\n')
+    .map((line) => line.trim().replace(/\\/g, '/'))
+    .filter(Boolean)
+    .filter((file) => SOURCE_RE.test(file));
+}
+
 function startsWithAny(value, prefixes) {
   return prefixes.some((prefix) => value.startsWith(prefix));
 }
@@ -81,15 +95,15 @@ function main() {
     ? policy.forbidden_path_prefixes
     : [];
   const rootRules = policy.root_rules || {};
+  const trackedSources = trackedSourceFiles();
 
   const rootSummaries = {};
   const hardViolations = [];
   const targetGaps = [];
 
   for (const root of codeRoots) {
-    const absRoot = path.resolve(ROOT, root);
-    const files = walk(absRoot)
-      .map(rel)
+    const files = trackedSources
+      .filter((file) => file === root || file.startsWith(`${root}/`))
       .filter((file) => !startsWithAny(file, ignorePathPrefixes))
       .filter((file) => !ignoreExactPaths.has(file));
     const rule = rootRules[root] || {};
@@ -130,15 +144,14 @@ function main() {
     }
 
     rootSummaries[root] = {
-      exists: fs.existsSync(absRoot),
+      exists: fs.existsSync(path.resolve(ROOT, root)),
       file_count: files.length,
       by_ext: countByExt(files),
     };
   }
 
   // Source files outside declared roots are allowed only in explicitly-declared infra exceptions.
-  const allSource = walk(ROOT).map(rel);
-  const outside = allSource.filter((file) => {
+  const outside = trackedSources.filter((file) => {
     if (startsWithAny(file, ignorePathPrefixes)) return false;
     if (ignoreExactPaths.has(file)) return false;
     if (startsWithAny(file, codeRoots.map((r) => `${r}/`))) return false;
