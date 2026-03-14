@@ -60,9 +60,12 @@ Local source workflow:
 
 ```bash
 npm ci
+npm run local:init
 npm run build
 npm run start
 ```
+
+`npm run local:init` creates any missing instance-local continuity files under `local/workspace/assistant/` from the tracked templates in `docs/workspace/templates/assistant/` and archives deprecated root copies if they still exist.
 
 ## npm Installation (Primary Distribution)
 
