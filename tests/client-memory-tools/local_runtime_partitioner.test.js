@@ -73,9 +73,50 @@ function testResetArchivesExistingAssistantAndRestoresTemplates() {
   );
 }
 
+function testInitPromotesRootContinuityWhenAssistantStillTemplate() {
+  const workspace = makeWorkspace();
+  templateSeed(workspace);
+  writeFile(path.join(workspace, 'local', 'workspace', 'assistant', 'SOUL.md'), 'template:SOUL.md\n');
+  writeFile(path.join(workspace, 'SOUL.md'), 'legacy-root-soul\n');
+
+  const out = mod.run(['init'], { workspaceRoot: workspace });
+
+  assert.equal(out.ok, true);
+  assert.deepEqual(out.promoted_root_files, ['SOUL.md']);
+  assert.deepEqual(out.archived_assistant_template_files, ['SOUL.md']);
+  assert.equal(
+    fs.readFileSync(path.join(workspace, 'local', 'workspace', 'assistant', 'SOUL.md'), 'utf8'),
+    'legacy-root-soul\n'
+  );
+}
+
+function testInitMigratesRootMemoryAndArchivesConflicts() {
+  const workspace = makeWorkspace();
+  templateSeed(workspace);
+  writeFile(path.join(workspace, 'memory', '2026-03-13.md'), 'legacy memory day\n');
+  writeFile(path.join(workspace, 'memory', 'heartbeat-state.json'), '{"lastChecks":{"email":1}}\n');
+  writeFile(path.join(workspace, 'MEMORY_INDEX.md'), 'legacy index\n');
+  writeFile(path.join(workspace, 'local', 'workspace', 'memory', 'heartbeat-state.json'), '{"lastChecks":{"email":2}}\n');
+
+  const out = mod.run(['init'], { workspaceRoot: workspace });
+
+  assert.equal(out.ok, true);
+  assert.ok(out.migrated_memory_files.includes('memory/2026-03-13.md'));
+  assert.ok(out.migrated_memory_files.includes('MEMORY_INDEX.md'));
+  assert.ok(out.archived_memory_files.includes('memory/heartbeat-state.json'));
+  assert.ok(out.conflicted_memory_files.includes('memory/heartbeat-state.json'));
+  assert.equal(
+    fs.readFileSync(path.join(workspace, 'local', 'workspace', 'memory', '2026-03-13.md'), 'utf8'),
+    'legacy memory day\n'
+  );
+  assert.equal(fs.existsSync(path.join(workspace, 'memory')), false);
+}
+
 function main() {
   testInitMigratesRootAndGeneratesMissing();
   testResetArchivesExistingAssistantAndRestoresTemplates();
+  testInitPromotesRootContinuityWhenAssistantStillTemplate();
+  testInitMigratesRootMemoryAndArchivesConflicts();
   console.log(JSON.stringify({ ok: true, type: 'local_runtime_partitioner_test' }));
 }
 

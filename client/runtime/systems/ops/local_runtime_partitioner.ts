@@ -14,6 +14,8 @@ const CONTINUITY_FILES = [
   'MEMORY.md',
 ];
 const ROOT_DEPRECATED_FILES = [...CONTINUITY_FILES];
+const LEGACY_MEMORY_ROOT_FILES = ['MEMORY_INDEX.md', 'TAGS_INDEX.md'];
+const LEGACY_ROOT_MEMORY_DIR = 'memory';
 const RESET_CONFIRM = 'RESET_LOCAL';
 
 function isoStamp() {
@@ -32,6 +34,20 @@ function copyFile(src, dst) {
 function moveFile(src, dst) {
   ensureDir(path.dirname(dst));
   fs.renameSync(src, dst);
+}
+
+function filesEqual(left, right) {
+  try {
+    const leftStats = fs.statSync(left);
+    const rightStats = fs.statSync(right);
+    if (!leftStats.isFile() || !rightStats.isFile()) return false;
+    if (leftStats.size !== rightStats.size) return false;
+    const leftContent = fs.readFileSync(left);
+    const rightContent = fs.readFileSync(right);
+    return leftContent.equals(rightContent);
+  } catch {
+    return false;
+  }
 }
 
 function parseArgValue(args, key) {
@@ -58,6 +74,54 @@ function workspacePaths(workspaceRoot) {
   };
 }
 
+function listFilesRecursive(rootDir) {
+  const files = [];
+  if (!fs.existsSync(rootDir)) return files;
+  const stats = fs.statSync(rootDir);
+  if (!stats.isDirectory()) return files;
+  const stack = [rootDir];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    const entries = fs.readdirSync(current, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(fullPath);
+        continue;
+      }
+      if (entry.isFile()) files.push(fullPath);
+    }
+  }
+  files.sort((a, b) => a.localeCompare(b));
+  return files;
+}
+
+function pruneEmptyDirs(rootDir) {
+  if (!fs.existsSync(rootDir)) return false;
+  const rootStats = fs.statSync(rootDir);
+  if (!rootStats.isDirectory()) return false;
+  const dirs = [rootDir];
+  const stack = [rootDir];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    const entries = fs.readdirSync(current, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const child = path.join(current, entry.name);
+      dirs.push(child);
+      stack.push(child);
+    }
+  }
+  dirs
+    .sort((a, b) => b.length - a.length)
+    .forEach((dir) => {
+      try {
+        fs.rmdirSync(dir);
+      } catch {}
+    });
+  return !fs.existsSync(rootDir);
+}
+
 function continuityStatus(workspaceRoot = WORKSPACE_ROOT) {
   const paths = workspacePaths(workspaceRoot);
   const assistant_files = CONTINUITY_FILES.map((name) => ({
@@ -76,6 +140,12 @@ function continuityStatus(workspaceRoot = WORKSPACE_ROOT) {
     deprecated_root_files: ROOT_DEPRECATED_FILES.filter((name) =>
       fs.existsSync(path.join(workspaceRoot, name))
     ),
+    deprecated_root_memory_files: LEGACY_MEMORY_ROOT_FILES.filter((name) =>
+      fs.existsSync(path.join(workspaceRoot, name))
+    ),
+    deprecated_root_memory_dir_exists: fs.existsSync(
+      path.join(workspaceRoot, LEGACY_ROOT_MEMORY_DIR)
+    ),
   };
 }
 
@@ -89,7 +159,9 @@ function ensureLocalWorkspaceStructure(paths) {
 
 function archiveDeprecatedRootContinuity(paths, migrateMissing = true) {
   const migrated = [];
+  const promoted = [];
   const archived = [];
+  const archived_assistant_template_files = [];
   let archiveDir = '';
   for (const name of ROOT_DEPRECATED_FILES) {
     const rootPath = path.join(paths.workspaceRoot, name);
@@ -100,14 +172,84 @@ function archiveDeprecatedRootContinuity(paths, migrateMissing = true) {
       migrated.push(name);
       continue;
     }
+    const templatePath = path.join(paths.templateDir, name);
+    const assistantIsTemplate =
+      migrateMissing &&
+      fs.existsSync(assistantPath) &&
+      fs.existsSync(templatePath) &&
+      filesEqual(assistantPath, templatePath);
+    if (assistantIsTemplate) {
+      if (!archiveDir) {
+        archiveDir = path.join(paths.archiveRoot, `root-continuity-${isoStamp()}`);
+        ensureDir(archiveDir);
+      }
+      moveFile(assistantPath, path.join(archiveDir, 'assistant-template', name));
+      archived_assistant_template_files.push(name);
+      moveFile(rootPath, assistantPath);
+      promoted.push(name);
+      continue;
+    }
     if (!archiveDir) {
       archiveDir = path.join(paths.archiveRoot, `root-continuity-${isoStamp()}`);
       ensureDir(archiveDir);
     }
-    moveFile(rootPath, path.join(archiveDir, name));
+    moveFile(rootPath, path.join(archiveDir, 'root-conflict', name));
     archived.push(name);
   }
-  return { migrated, archived, archive_dir: archiveDir || null };
+  return {
+    migrated,
+    promoted,
+    archived,
+    archived_assistant_template_files,
+    archive_dir: archiveDir || null,
+  };
+}
+
+function migrateLegacyMemoryPath(paths, sourcePath, sourceLabel, destinationRelPath, state) {
+  if (!fs.existsSync(sourcePath)) return;
+  const destinationPath = path.join(paths.memoryDir, destinationRelPath);
+  if (!fs.existsSync(destinationPath)) {
+    moveFile(sourcePath, destinationPath);
+    state.migrated.push(sourceLabel);
+    return;
+  }
+  if (!state.archive_dir) {
+    state.archive_dir = path.join(paths.archiveRoot, `root-memory-${isoStamp()}`);
+    ensureDir(state.archive_dir);
+  }
+  if (filesEqual(sourcePath, destinationPath)) {
+    moveFile(sourcePath, path.join(state.archive_dir, 'duplicate', sourceLabel));
+    state.archived.push(sourceLabel);
+    state.duplicates.push(sourceLabel);
+    return;
+  }
+  moveFile(sourcePath, path.join(state.archive_dir, 'conflict', sourceLabel));
+  state.archived.push(sourceLabel);
+  state.conflicts.push(sourceLabel);
+}
+
+function migrateLegacyMemory(paths) {
+  const state = {
+    migrated: [],
+    archived: [],
+    conflicts: [],
+    duplicates: [],
+    archive_dir: null,
+    removed_root_memory_dir: false,
+  };
+  for (const name of LEGACY_MEMORY_ROOT_FILES) {
+    const sourcePath = path.join(paths.workspaceRoot, name);
+    if (!fs.existsSync(sourcePath)) continue;
+    migrateLegacyMemoryPath(paths, sourcePath, name, name, state);
+  }
+  const rootMemoryDir = path.join(paths.workspaceRoot, LEGACY_ROOT_MEMORY_DIR);
+  const sourceFiles = listFilesRecursive(rootMemoryDir);
+  for (const sourceFile of sourceFiles) {
+    const rel = path.relative(rootMemoryDir, sourceFile).replace(/\\/g, '/');
+    migrateLegacyMemoryPath(paths, sourceFile, `memory/${rel}`, rel, state);
+  }
+  state.removed_root_memory_dir = pruneEmptyDirs(rootMemoryDir);
+  return state;
 }
 
 function generateMissingContinuity(paths) {
@@ -131,6 +273,7 @@ function initLocalRuntime(workspaceRoot = WORKSPACE_ROOT) {
   const paths = workspacePaths(workspaceRoot);
   ensureLocalWorkspaceStructure(paths);
   const migrated = archiveDeprecatedRootContinuity(paths, true);
+  const memoryMigration = migrateLegacyMemory(paths);
   const generated = generateMissingContinuity(paths);
   return {
     ok: generated.missing_templates.length === 0,
@@ -140,8 +283,16 @@ function initLocalRuntime(workspaceRoot = WORKSPACE_ROOT) {
     assistant_dir: paths.assistantDir,
     generated_files: generated.generated,
     migrated_root_files: migrated.migrated,
+    promoted_root_files: migrated.promoted,
     archived_root_files: migrated.archived,
+    archived_assistant_template_files: migrated.archived_assistant_template_files,
     archive_dir: migrated.archive_dir,
+    migrated_memory_files: memoryMigration.migrated,
+    archived_memory_files: memoryMigration.archived,
+    conflicted_memory_files: memoryMigration.conflicts,
+    duplicate_memory_files: memoryMigration.duplicates,
+    memory_archive_dir: memoryMigration.archive_dir,
+    removed_root_memory_dir: memoryMigration.removed_root_memory_dir,
     missing_templates: generated.missing_templates,
   };
 }
@@ -170,6 +321,7 @@ function resetLocalRuntime(args, workspaceRoot = WORKSPACE_ROOT) {
     archived_assistant_files.push(name);
   }
   const migrated = archiveDeprecatedRootContinuity(paths, false);
+  const memoryMigration = migrateLegacyMemory(paths);
   const generated = generateMissingContinuity(paths);
   return {
     ok: generated.missing_templates.length === 0,
@@ -181,8 +333,16 @@ function resetLocalRuntime(args, workspaceRoot = WORKSPACE_ROOT) {
     archived_assistant_files,
     generated_files: generated.generated,
     migrated_root_files: migrated.migrated,
+    promoted_root_files: migrated.promoted,
     archived_root_files: migrated.archived,
+    archived_assistant_template_files: migrated.archived_assistant_template_files,
     archive_dir: migrated.archive_dir,
+    migrated_memory_files: memoryMigration.migrated,
+    archived_memory_files: memoryMigration.archived,
+    conflicted_memory_files: memoryMigration.conflicts,
+    duplicate_memory_files: memoryMigration.duplicates,
+    memory_archive_dir: memoryMigration.archive_dir,
+    removed_root_memory_dir: memoryMigration.removed_root_memory_dir,
     missing_templates: generated.missing_templates,
   };
 }

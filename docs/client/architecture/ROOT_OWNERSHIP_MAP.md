@@ -39,6 +39,7 @@ Defines ownership intent for repository-root entries after the core/client split
 1. New source code must land under `core/`, `client/`, `packages/`, `apps/`, `adapters/`, or `tests/` only.
 2. Tracked runnable app/tool workspaces must not live under `examples/apps/`; that legacy path is reserved for local scratch and must migrate into `/apps`.
 3. Legacy root runtime folders (`adaptive`, `config`, `memory`, `habits`, `logs`, `ops-toolkit`, `patches`, `reports`, `research`, `secrets`, `state`, `.clawhub`, `.private-lenses`) are disallowed.
-4. Root sidecar/scratch dirs (`agent-holo-viz`, `pqts`, `projects`, `rohan-*`, `tmp`) are disallowed and must live under `client/runtime/local/workspaces/`.
-5. Runtime mutable data belongs in `client/runtime/local/*` and `core/local/*`.
-6. Root allowances are enforced by `ops:root-surface:check` and `ops:source-runtime:check`.
+4. Legacy root memory index files (`MEMORY_INDEX.md`, `TAGS_INDEX.md`) are disallowed and must live under `local/workspace/memory/`.
+5. Root sidecar/scratch dirs (`agent-holo-viz`, `pqts`, `projects`, `rohan-*`, `tmp`) are disallowed and must live under `client/runtime/local/workspaces/`.
+6. Runtime mutable data belongs in `client/runtime/local/*` and `core/local/*`.
+7. Root allowances are enforced by `ops:root-surface:check` and `ops:source-runtime:check`.

@@ -1355,6 +1355,7 @@
     "lane:v6-edge-004:run": "node tests/client-memory-tools/v6_edge_004_lifecycle_validation.test.js",
     "test:lane:v6-edge-004": "npm run -s lane:v6-edge-004:run",
     "local:init": "node client/runtime/systems/ops/local_runtime_partitioner.ts init",
+    "local:migrate:openclaw": "node client/runtime/systems/ops/local_runtime_partitioner.ts init",
     "local:status": "node client/runtime/systems/ops/local_runtime_partitioner.ts status",
     "local:reset": "node client/runtime/systems/ops/local_runtime_partitioner.ts reset --confirm=RESET_LOCAL",
     "ops:migrate:to-planes": "node client/runtime/systems/ops/migrate_to_planes.ts run --apply=1 --move-untracked=1 --compat-symlinks=0",
