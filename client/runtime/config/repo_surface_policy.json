@@ -106,6 +106,8 @@
     "docs/",
     "artifacts/",
     "state/",
+    "planes/",
+    "proofs/",
     "core/layer1/memory_runtime/adaptive/",
     "dist/",
     "target/",

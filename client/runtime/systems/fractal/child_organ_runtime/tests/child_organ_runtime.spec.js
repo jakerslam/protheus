@@ -22,7 +22,7 @@ if (!require.extensions['.ts']) {
   };
 }
 
-const mod = require('../child_organ_runtime.ts');
+const mod = require('../../child_organ_runtime.ts');
 
 assert.deepStrictEqual(
   mod.mapArgs(['child_organ_runtime', 'run', '--organ-id=a', '--command=true']),

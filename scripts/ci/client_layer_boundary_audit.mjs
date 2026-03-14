@@ -79,6 +79,7 @@ function main() {
 
   for (const abs of files) {
     const rp = rel(abs);
+    if (rp.includes('/tests/') || rp.includes('/__tests__/')) continue;
     if (!startsWithAny(rp, wrapperRequiredRoots)) continue;
     const source = fs.readFileSync(abs, 'utf8');
     const hasWrapperMarker = wrapperMarkers.some((m) => source.includes(String(m)));
