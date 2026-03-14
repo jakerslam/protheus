@@ -1523,6 +1523,21 @@ mod tests {
     }
 
     #[test]
+    fn core_shortcut_routes_rl_upgrade_openclaw_v2() {
+        let route = resolve_core_shortcuts(
+            "rl",
+            &[
+                "upgrade".to_string(),
+                "openclaw-v2".to_string(),
+                "--iterations=6".to_string(),
+            ],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://eval-plane");
+        assert_eq!(route.args, vec!["rl-upgrade", "--iterations=6"]);
+    }
+
+    #[test]
     fn core_shortcut_routes_model_optimize_minimax() {
         let route = resolve_core_shortcuts(
             "model",
@@ -1555,6 +1570,24 @@ mod tests {
         assert_eq!(
             route.args,
             vec!["optimize", "--profile=minimax", "--compact-lines=24"]
+        );
+    }
+
+    #[test]
+    fn core_shortcut_routes_model_use_bitnet_to_model_router() {
+        let route = resolve_core_shortcuts(
+            "model",
+            &[
+                "use".to_string(),
+                "bitnet".to_string(),
+                "--source-model=hf://openclaw/bitnet-base".to_string(),
+            ],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://model-router");
+        assert_eq!(
+            route.args,
+            vec!["bitnet-use", "--source-model=hf://openclaw/bitnet-base"]
         );
     }
 
@@ -2732,6 +2765,28 @@ mod tests {
     }
 
     #[test]
+    fn core_shortcut_routes_observability_enable_acp_provenance() {
+        let route = resolve_core_shortcuts(
+            "observability",
+            &[
+                "enable".to_string(),
+                "acp-provenance".to_string(),
+                "--visibility-mode=meta".to_string(),
+            ],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://observability-plane");
+        assert_eq!(
+            route.args,
+            vec![
+                "acp-provenance",
+                "--op=enable",
+                "--visibility-mode=meta"
+            ]
+        );
+    }
+
+    #[test]
     fn core_shortcut_routes_schedule_to_persist_plane() {
         let route = resolve_core_shortcuts(
             "schedule",
@@ -2765,6 +2820,30 @@ mod tests {
         assert_eq!(
             route.args,
             vec!["mobile-cockpit", "--op=publish", "--session-id=phone"]
+        );
+    }
+
+    #[test]
+    fn core_shortcut_routes_mobile_daemon_enable_to_persist_plane() {
+        let route = resolve_core_shortcuts(
+            "mobile",
+            &[
+                "daemon".to_string(),
+                "enable".to_string(),
+                "--platform=android".to_string(),
+                "--edge-backend=bitnet".to_string(),
+            ],
+        )
+        .expect("route");
+        assert_eq!(route.script_rel, "core://persist-plane");
+        assert_eq!(
+            route.args,
+            vec![
+                "mobile-daemon",
+                "--op=enable",
+                "--platform=android",
+                "--edge-backend=bitnet"
+            ]
         );
     }
 

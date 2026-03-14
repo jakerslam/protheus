@@ -199,3 +199,88 @@ fn v6_observability_batch15_rejects_bypass_when_strict() {
         Some("observability_plane_conduit_gate")
     );
 }
+
+#[test]
+fn v6_observability_batch15_acp_provenance_is_traceable_and_fail_closed() {
+    let fixture = stage_fixture_root();
+    let root = fixture.path();
+
+    let enable_exit = observability_plane::run(
+        root,
+        &[
+            "acp-provenance".to_string(),
+            "--strict=1".to_string(),
+            "--op=enable".to_string(),
+            "--visibility-mode=meta+receipt".to_string(),
+        ],
+    );
+    assert_eq!(enable_exit, 0);
+    let enable_latest = read_json(&latest_path(root));
+    assert_eq!(
+        enable_latest.get("type").and_then(Value::as_str),
+        Some("observability_plane_acp_provenance")
+    );
+    assert_claim(&enable_latest, "V6-OBSERVABILITY-005.11");
+
+    let trace_exit = observability_plane::run(
+        root,
+        &[
+            "acp-provenance".to_string(),
+            "--strict=1".to_string(),
+            "--op=trace".to_string(),
+            "--source-agent=agent-alpha".to_string(),
+            "--target-agent=agent-beta".to_string(),
+            "--intent=handoff:triage".to_string(),
+            "--message=run incident playbook".to_string(),
+            "--trace-id=trace-batch15".to_string(),
+        ],
+    );
+    assert_eq!(trace_exit, 0);
+    let trace_latest = read_json(&latest_path(root));
+    assert_claim(&trace_latest, "V6-OBSERVABILITY-005.7");
+    assert_claim(&trace_latest, "V6-OBSERVABILITY-005.8");
+    assert_claim(&trace_latest, "V6-OBSERVABILITY-005.9");
+    assert_eq!(
+        trace_latest
+            .get("trace_id")
+            .and_then(Value::as_str)
+            .map(|v| !v.is_empty()),
+        Some(true)
+    );
+
+    let debug_exit = observability_plane::run(
+        root,
+        &[
+            "acp-provenance".to_string(),
+            "--strict=1".to_string(),
+            "--op=debug".to_string(),
+            "--trace-id=trace-batch15".to_string(),
+        ],
+    );
+    assert_eq!(debug_exit, 0);
+    let debug_latest = read_json(&latest_path(root));
+    assert_claim(&debug_latest, "V6-OBSERVABILITY-005.10");
+    assert!(
+        debug_latest
+            .get("rows")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false),
+        "debug should return trace rows"
+    );
+
+    let deny_exit = observability_plane::run(
+        root,
+        &[
+            "acp-provenance".to_string(),
+            "--strict=1".to_string(),
+            "--op=trace".to_string(),
+            "--target-agent=agent-beta".to_string(),
+            "--message=missing provenance metadata".to_string(),
+        ],
+    );
+    assert_eq!(deny_exit, 1);
+    let denied = read_json(&latest_path(root));
+    assert_eq!(denied.get("ok").and_then(Value::as_bool), Some(false));
+    assert_claim(&denied, "V6-OBSERVABILITY-005.10");
+}
