@@ -66,6 +66,8 @@ npm run start
 ```
 
 `npm run local:init` creates any missing instance-local continuity files under `local/workspace/assistant/` from the tracked templates in `docs/workspace/templates/assistant/` and archives deprecated root copies if they still exist.
+It also imports legacy root continuity/memory state (`SOUL.md`, `USER.md`, `HEARTBEAT.md`, `IDENTITY.md`, `TOOLS.md`, `MEMORY.md`, `memory/**`, `MEMORY_INDEX.md`, `TAGS_INDEX.md`) into `local/workspace/**` with conflict-safe archiving under `local/workspace/archive/`.
+For OpenClaw transitions you can run `npm run local:migrate:openclaw` (alias to the same deterministic migration).
 
 ## npm Installation (Primary Distribution)
 
