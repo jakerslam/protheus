@@ -92,6 +92,15 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
             },
             forward_stdin: false,
         }),
+        "canyon" => Some(Route {
+            script_rel: "core://canyon-plane".to_string(),
+            args: if rest.is_empty() {
+                vec!["status".to_string()]
+            } else {
+                rest.to_vec()
+            },
+            forward_stdin: false,
+        }),
         "government" | "gov" => Some(Route {
             script_rel: "core://government-plane".to_string(),
             args: if rest.is_empty() {
