@@ -36,6 +36,12 @@ pub(super) fn print_usage() {
         "  protheus-ops collab-plane <status|dashboard|launch-role|schedule|continuity> [flags]"
     );
     println!("  protheus-ops company-plane <status|orchestrate-agency|budget-enforce|ticket|heartbeat> [flags]");
+    println!("  protheus-ops business-plane <taxonomy|persona|continuity|alerts|switchboard|external-sync|continuity-audit|archive|status> [flags]");
+    println!("  protheus-ops government-plane <attestation|classification|nonrepudiation|diode|soc|coop|proofs|interoperability|ato-pack|status> [flags]");
+    println!("  protheus-ops finance-plane <transaction|model-governance|aml|kyc|finance-eye|risk-warehouse|custody|zero-trust|availability|regulatory-report|status> [flags]");
+    println!("  protheus-ops healthcare-plane <patient|phi-audit|cds|devices|documentation|alerts|coordination|trials|imaging|emergency|status> [flags]");
+    println!("  protheus-ops vertical-plane <activate|compile-profile|status> [flags]");
+    println!("  protheus-ops nexus-plane <package-domain|bridge|insurance|human-boundary|receipt-v2|merkle-forest|compliance-ledger|status> [flags]");
     println!("  protheus-ops substrate-plane <status|csi-capture|csi-module|csi-embedded-profile|csi-policy|eye-bind|bio-interface|bio-feedback|bio-adapter-template|bioethics-policy|bio-enable> [flags]");
     println!(
         "  protheus-ops observability-plane <status|monitor|workflow|incident|selfhost> [flags]"

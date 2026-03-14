@@ -2357,6 +2357,48 @@ mod tests {
     }
 
     #[test]
+    fn core_shortcut_routes_business_to_business_plane() {
+        let route = resolve_core_shortcuts("business", &[]).expect("route");
+        assert_eq!(route.script_rel, "core://business-plane");
+        assert_eq!(route.args, vec!["status"]);
+    }
+
+    #[test]
+    fn core_shortcut_routes_gov_alias_to_government_plane() {
+        let route = resolve_core_shortcuts("gov", &["classification".to_string()]).expect("route");
+        assert_eq!(route.script_rel, "core://government-plane");
+        assert_eq!(route.args, vec!["classification"]);
+    }
+
+    #[test]
+    fn core_shortcut_routes_bank_alias_to_finance_plane() {
+        let route = resolve_core_shortcuts("bank", &["transaction".to_string()]).expect("route");
+        assert_eq!(route.script_rel, "core://finance-plane");
+        assert_eq!(route.args, vec!["transaction"]);
+    }
+
+    #[test]
+    fn core_shortcut_routes_hospital_alias_to_healthcare_plane() {
+        let route = resolve_core_shortcuts("hospital", &["cds".to_string()]).expect("route");
+        assert_eq!(route.script_rel, "core://healthcare-plane");
+        assert_eq!(route.args, vec!["cds"]);
+    }
+
+    #[test]
+    fn core_shortcut_routes_vertical_to_vertical_plane() {
+        let route = resolve_core_shortcuts("vertical", &[]).expect("route");
+        assert_eq!(route.script_rel, "core://vertical-plane");
+        assert_eq!(route.args, vec!["status"]);
+    }
+
+    #[test]
+    fn core_shortcut_routes_nexus_to_nexus_plane() {
+        let route = resolve_core_shortcuts("nexus", &[]).expect("route");
+        assert_eq!(route.script_rel, "core://nexus-plane");
+        assert_eq!(route.args, vec!["status"]);
+    }
+
+    #[test]
     fn core_shortcut_routes_scan_binary_to_binary_vuln_lane() {
         let route =
             resolve_core_shortcuts("scan", &["binary".to_string(), "firmware.bin".to_string()])

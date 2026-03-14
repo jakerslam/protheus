@@ -273,6 +273,36 @@ fn main() {
             let exit = protheus_ops_core::company_plane::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "business-plane" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::business_plane::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "government-plane" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::government_plane::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "finance-plane" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::finance_plane::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "healthcare-plane" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::healthcare_plane::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "vertical-plane" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::vertical_plane::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "nexus-plane" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::nexus_plane::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "substrate-plane" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::substrate_plane::run(&cwd, &rest);
