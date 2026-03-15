@@ -2,4 +2,4 @@
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
-node scripts/ci/layer_rulebook_check.ts
+node tests/tooling/scripts/ci/layer_rulebook_check.ts

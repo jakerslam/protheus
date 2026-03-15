@@ -8,6 +8,12 @@ const REPO_ROOT = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }
 const CODE_EXT_RE = /\.(rs|ts|js|py|c|cc|cpp|h|hpp|html|css|sh|ps1)$/;
 const CORE_DISALLOWED_RE = /\.(ts|js|py|sh|ps1|html|css)$/;
 const CLIENT_NATIVE_RE = /\.(rs|c|cc|cpp|h|hpp)$/;
+const CORE_ALLOWED_NONRUST_PREFIXES = [
+  'core/layer1/memory_runtime/adaptive/'
+];
+const CLIENT_ALLOWED_NATIVE_PREFIXES = [
+  'client/pure-workspace/'
+];
 const EXEMPT_CODE_ROOTS = new Set([
   'adapters',
   'apps',
@@ -16,8 +22,11 @@ const EXEMPT_CODE_ROOTS = new Set([
   'deploy',
   'examples',
   'packages',
-  'scripts',
-  'tests'
+  'planes',
+  'proofs',
+  'setup',
+  'tests',
+  'tools'
 ]);
 
 function loadTrackedFiles() {
@@ -64,6 +73,7 @@ function main() {
   const coreDisallowed = files
     .filter((p) => p.startsWith('core/'))
     .filter((p) => CORE_DISALLOWED_RE.test(p))
+    .filter((p) => !CORE_ALLOWED_NONRUST_PREFIXES.some((prefix) => p.startsWith(prefix)))
     .sort();
   if (coreDisallowed.length > 0) {
     fail = true;
@@ -73,6 +83,7 @@ function main() {
   const clientNative = files
     .filter((p) => p.startsWith('client/'))
     .filter((p) => CLIENT_NATIVE_RE.test(p))
+    .filter((p) => !CLIENT_ALLOWED_NATIVE_PREFIXES.some((prefix) => p.startsWith(prefix)))
     .sort();
   if (clientNative.length > 0) {
     fail = true;

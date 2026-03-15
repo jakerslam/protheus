@@ -13,4 +13,4 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run layer rulebook gate
-        run: client/tools/layer_rulebook_check.sh
+        run: tests/tooling/scripts/ci/layer_rulebook_check.sh

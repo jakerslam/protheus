@@ -27,7 +27,7 @@ jobs:
       - name: Generate visual metrics
         run: |
           TAG="${{ github.event.inputs.release_tag || github.ref_name }}"
-          node scripts/empty_fort_visuals.js --release-tag="$TAG" --out-dir=artifacts/empty-fort
+          node tests/tooling/scripts/empty_fort_visuals.js --release-tag="$TAG" --out-dir=artifacts/empty-fort
 
       - name: Upload metrics artifact
         uses: actions/upload-artifact@v4
