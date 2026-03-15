@@ -144,7 +144,7 @@ fn enforce_vault_integrity_gate(
             .get("allowed")
             .and_then(Value::as_bool)
             .unwrap_or(false);
-    let vault_integrity = validate_circulatory_vault_core(&load_circulatory_vault_core(root));
+    let vault_integrity = validate_prime_blob_vault(&load_prime_blob_vault(root));
     let vault_ok = vault_integrity
         .get("ok")
         .and_then(Value::as_bool)
@@ -229,8 +229,8 @@ pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
         let active = load_active_map(root);
         let modules = active.keys().cloned().collect::<Vec<_>>();
         let policy_hash = directive_kernel::directive_vault_hash(root);
-        let blob_vault = load_circulatory_vault_core(root);
-        let vault_integrity = validate_circulatory_vault_core(&blob_vault);
+        let blob_vault = load_prime_blob_vault(root);
+        let vault_integrity = validate_prime_blob_vault(&blob_vault);
         let mut checks = Vec::new();
         for module in &modules {
             let check = load_and_verify(root, module);
@@ -298,8 +298,8 @@ pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
                 }),
             );
         }
-        let vault = load_circulatory_vault_core(root);
-        let integrity = validate_circulatory_vault_core(&vault);
+        let vault = load_prime_blob_vault(root);
+        let integrity = validate_prime_blob_vault(&vault);
         return emit(
             root,
             json!({
@@ -333,10 +333,10 @@ pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
         }
         let apply = parse_bool(parsed.flags.get("apply"), false);
         let allow_unsigned = parse_bool(parsed.flags.get("allow-unsigned"), false);
-        return match repair_circulatory_vault_core(root, apply, allow_unsigned) {
+        return match repair_prime_blob_vault(root, apply, allow_unsigned) {
             Ok(repair) => {
-                let vault = load_circulatory_vault_core(root);
-                let integrity = validate_circulatory_vault_core(&vault);
+                let vault = load_prime_blob_vault(root);
+                let integrity = validate_prime_blob_vault(&vault);
                 let ok = integrity
                     .get("ok")
                     .and_then(Value::as_bool)
@@ -430,8 +430,8 @@ pub(super) fn run(root: &Path, argv: &[String]) -> i32 {
         }
         let active = load_active_map(root);
         let policy_hash = directive_kernel::directive_vault_hash(root);
-        let blob_vault = load_circulatory_vault_core(root);
-        let vault_integrity = validate_circulatory_vault_core(&blob_vault);
+        let blob_vault = load_prime_blob_vault(root);
+        let vault_integrity = validate_prime_blob_vault(&blob_vault);
         let mut checks = Vec::new();
         for module in active.keys() {
             let check = load_and_verify(root, module);
