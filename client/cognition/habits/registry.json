@@ -40,7 +40,7 @@
           "client/cognition/habits/registry.json"
         ],
         "exec_allowlist": [
-          "node scripts/memory/rebuild_exclusive.ts"
+          "node tests/tooling/scripts/memory/rebuild_exclusive.ts"
         ]
       },
       "status": "active",
