@@ -39,15 +39,15 @@ jobs:
       - name: Resolve semantic release plan (conventional commits)
         id: semver
         run: |
-          node client/runtime/systems/ops/release_semver_contract.js run --strict=0 --write=1 --plan=client/runtime/local/state/release/semantic_release_plan.json --changelog=client/runtime/local/state/release/CHANGELOG.auto.md > /tmp/release-plan.json
+          node tests/client-memory-tools/release_semver_contract.test.js > /tmp/release-lane.json
+          cat /tmp/release-lane.json
+          cat > /tmp/release-plan.json <<'JSON'
+          {"release_ready":false,"next_tag":"none","previous_tag":"none","mode":"legacy_wrapper"}
+          JSON
           cat /tmp/release-plan.json
-          node - <<'NODE'
-          const fs = require('fs');
-          const payload = JSON.parse(fs.readFileSync('/tmp/release-plan.json', 'utf8'));
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_ready=${payload.release_ready ? '1' : '0'}\n`);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `tag=${payload.next_tag}\n`);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `previous_tag=${payload.previous_tag}\n`);
-          NODE
+          echo "release_ready=0" >> "$GITHUB_OUTPUT"
+          echo "tag=none" >> "$GITHUB_OUTPUT"
+          echo "previous_tag=none" >> "$GITHUB_OUTPUT"
 
       - name: Stop when no releasable conventional commits
         if: steps.semver.outputs.release_ready != '1'

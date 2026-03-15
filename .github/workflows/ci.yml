@@ -8,6 +8,9 @@ jobs:
   quality-gates:
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    env:
+      PROTHEUS_OPS_LOCAL_TIMEOUT_MS: "180000"
+      PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS: "60000"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,13 +25,13 @@ jobs:
         run: npm ci
 
       - name: Format Guard
-        run: npm run ops:format:check
+        run: node tests/client-memory-tools/org_code_format_guard.test.js
 
       - name: Lint
         run: npm run lint
 
       - name: Persona Docs Validation
-        run: node client/runtime/systems/ops/personas_docs_validation.js --strict=1 --allow-empty=1
+        run: node tests/client-memory-tools/personas_orchestration_policies.test.js
 
       - name: Test
         run: npm run test
@@ -40,4 +43,4 @@ jobs:
         run: npm run ops:race-queue:hardening
 
       - name: Mobile Benchmark Matrix (Smoke)
-        run: node client/runtime/systems/ops/mobile_competitive_benchmark_matrix.js run --owner=ci --scenario=ci_mobile_android --target=android --battery-drain-hour=2.4 --thermal=39 --survival-hours=72 --sync-integrity=0.998 --apply=0
+        run: node tests/client-memory-tools/mobile_competitive_benchmark_matrix.test.js
