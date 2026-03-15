@@ -2,16 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use protheus_ops_core::{
-    daemon_control, deterministic_receipt_hash, now_iso, parse_os_args,
+    configure_low_memory_allocator_env, daemon_control, deterministic_receipt_hash, now_iso, parse_os_args,
     status_runtime_efficiency_floor,
 };
 use serde_json::{json, Value};
 use std::env;
 use std::path::{Path, PathBuf};
-
-#[cfg(feature = "mimalloc")]
-#[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 #[cfg(feature = "embedded-minimal-core")]
 type PlaneRunner = fn(&Path, &[String]) -> i32;
@@ -37,6 +33,8 @@ fn usage() {
     println!("  protheusd efficiency-status");
     #[cfg(feature = "embedded-minimal-core")]
     println!("  protheusd embedded-core-status");
+    #[cfg(feature = "tiny")]
+    println!("  protheusd tiny-status");
 }
 
 fn cli_error(error: &str, command: &str) -> Value {
@@ -108,7 +106,31 @@ fn embedded_minimal_core_status() -> Value {
     out
 }
 
+#[cfg(feature = "tiny")]
+fn tiny_status() -> Value {
+    let profile = protheus_tiny_runtime::tiny_profile();
+    let capacity = protheus_tiny_runtime::normalized_capacity_score(
+        profile.max_heap_kib,
+        profile.max_concurrent_hands,
+    );
+    let mut out = json!({
+        "ok": true,
+        "type": "protheusd_tiny_status",
+        "ts": now_iso(),
+        "profile": profile.profile,
+        "no_std": profile.no_std,
+        "max_heap_kib": profile.max_heap_kib,
+        "max_concurrent_hands": profile.max_concurrent_hands,
+        "supports_hibernation": profile.supports_hibernation,
+        "supports_receipt_batching": profile.supports_receipt_batching,
+        "capacity_score": capacity
+    });
+    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out
+}
+
 fn main() {
+    configure_low_memory_allocator_env();
     let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let args = parse_os_args(env::args_os().skip(1));
     let command = args
@@ -138,10 +160,39 @@ fn main() {
             print_json(&embedded_minimal_core_status());
             std::process::exit(0);
         }
+        #[cfg(feature = "tiny")]
+        "tiny-status" => {
+            print_json(&tiny_status());
+            std::process::exit(0);
+        }
         _ => {
             usage();
             print_json(&cli_error("unknown_command", command.as_str()));
             std::process::exit(1);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::Value;
+
+    #[cfg(feature = "tiny")]
+    #[test]
+    fn tiny_status_emits_receipt_and_profile() {
+        let payload = tiny_status();
+        assert_eq!(
+            payload.get("type").and_then(Value::as_str),
+            Some("protheusd_tiny_status")
+        );
+        assert_eq!(payload.get("no_std").and_then(Value::as_bool), Some(true));
+        assert!(
+            payload
+                .get("receipt_hash")
+                .and_then(Value::as_str)
+                .map(|value| !value.is_empty())
+                .unwrap_or(false)
+        );
     }
 }

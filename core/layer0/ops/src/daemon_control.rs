@@ -30,13 +30,26 @@ fn usage() {
     println!("  protheus-ops daemon-control <start|stop|restart|status|attach|subscribe|tick|diagnostics> [--mode=<value>]");
 }
 
-fn success_receipt(command: &str, mode: Option<&str>, argv: &[String], root: &Path) -> Value {
+pub(crate) fn success_receipt(
+    command: &str,
+    mode: Option<&str>,
+    argv: &[String],
+    root: &Path,
+) -> Value {
     let mut out = protheus_ops_core_v1::daemon_control_receipt(command, mode);
     if let Some(obj) = out.as_object_mut() {
         obj.insert("argv".to_string(), json!(argv));
         obj.insert(
             "root".to_string(),
             Value::String(root.to_string_lossy().to_string()),
+        );
+        obj.insert(
+            "lazy_init".to_string(),
+            json!({
+                "enabled": true,
+                "boot_scope": ["conduit", "safety_kernel"],
+                "deferred": ["layer0_noncritical", "layer1_policy_extensions", "client_surfaces"]
+            }),
         );
         obj.insert(
             "claim_evidence".to_string(),
@@ -54,6 +67,19 @@ fn success_receipt(command: &str, mode: Option<&str>, argv: &[String], root: &Pa
     }
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
     out
+}
+
+pub fn inprocess_lazy_probe_receipt(root: &Path) -> Value {
+    success_receipt(
+        "start",
+        Some("lazy-minimal"),
+        &[
+            "start".to_string(),
+            "--mode=lazy-minimal".to_string(),
+            "--lazy-init=1".to_string(),
+        ],
+        root,
+    )
 }
 
 fn error_receipt(error: &str, argv: &[String]) -> Value {

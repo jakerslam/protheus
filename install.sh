@@ -179,19 +179,49 @@ install_client_bundle() {
 
   tmpdir="$(mktemp -d)"
   mkdir -p "$output_dir"
-  archive="$tmpdir/client-runtime.tar.gz"
+  archive="$tmpdir/client-runtime.bundle"
+
+  extract_bundle() {
+    archive_path="$1"
+    case "$archive_path" in
+      *.tar.zst)
+        if command -v unzstd >/dev/null 2>&1; then
+          unzstd -c "$archive_path" | tar -xf - -C "$output_dir"
+          return $?
+        fi
+        if command -v zstd >/dev/null 2>&1; then
+          zstd -dc "$archive_path" | tar -xf - -C "$output_dir"
+          return $?
+        fi
+        echo "[protheus install] skipping .tar.zst bundle (zstd not installed); falling back to .tar.gz assets"
+        return 1
+        ;;
+      *.tar.gz)
+        tar -xzf "$archive_path" -C "$output_dir"
+        return $?
+        ;;
+      *)
+        return 1
+        ;;
+    esac
+  }
 
   for asset in \
+    "protheus-client-runtime-${triple_id}.tar.zst" \
+    "protheus-client-runtime.tar.zst" \
+    "protheus-client-${triple_id}.tar.zst" \
+    "protheus-client.tar.zst" \
     "protheus-client-runtime-${triple_id}.tar.gz" \
     "protheus-client-runtime.tar.gz" \
     "protheus-client-${triple_id}.tar.gz" \
     "protheus-client.tar.gz"
   do
     if download_asset "$version_tag" "$asset" "$archive"; then
-      tar -xzf "$archive" -C "$output_dir"
-      rm -rf "$tmpdir"
-      echo "[protheus install] installed optional client runtime bundle"
-      return 0
+      if extract_bundle "$archive"; then
+        rm -rf "$tmpdir"
+        echo "[protheus install] installed optional client runtime bundle"
+        return 0
+      fi
     fi
   done
 
