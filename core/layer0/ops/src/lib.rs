@@ -17,6 +17,10 @@ use walkdir::WalkDir;
 #[path = "../../alloc.rs"]
 mod layer0_alloc;
 
+#[cfg(all(feature = "mimalloc", not(feature = "minimal")))]
+#[global_allocator]
+static LAYER0_MIMALLOC_ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 pub mod ab_lane_eval;
 pub mod adaptive_intelligence;
 pub mod adaptive_runtime;
@@ -136,6 +140,19 @@ mod top1_kani_proofs;
 static LAYER0_MINIMAL_ALLOCATOR: layer0_alloc::Layer0CountingAllocator =
     layer0_alloc::Layer0CountingAllocator;
 
+#[cfg(feature = "mimalloc")]
+pub fn configure_low_memory_allocator_env() {
+    // Keep allocator tuning deterministic and low-footprint for edge profiles.
+    std::env::set_var("MIMALLOC_RESERVE", "0");
+    std::env::set_var("MIMALLOC_EAGER_COMMIT", "0");
+    std::env::set_var("MIMALLOC_ARENA_EAGER_COMMIT", "0");
+    std::env::set_var("MIMALLOC_PURGE_DELAY", "0");
+    std::env::set_var("MIMALLOC_ALLOW_LARGE_OS_PAGES", "0");
+}
+
+#[cfg(not(feature = "mimalloc"))]
+pub fn configure_low_memory_allocator_env() {}
+
 #[derive(Debug, Clone)]
 pub struct ParsedArgs {
     pub positional: Vec<String>,
@@ -171,6 +188,7 @@ pub struct ColdStartProbe {
     pub samples: usize,
     pub max_ms: f64,
     pub warmup_runs: usize,
+    pub engine: String,
     pub runtime_mode: String,
     pub require_full_dist: bool,
 }
@@ -179,6 +197,7 @@ pub struct ColdStartProbe {
 pub struct IdleRssProbe {
     pub samples: usize,
     pub max_mb: f64,
+    pub measurement_mode: String,
     pub require_modules: Vec<String>,
 }
 
@@ -480,12 +499,14 @@ pub fn default_policy(root: &Path) -> Policy {
             samples: 5,
             max_ms: 500.0,
             warmup_runs: 1,
+            engine: "core-lazy".to_string(),
             runtime_mode: "dist".to_string(),
             require_full_dist: false,
         },
         idle_rss_probe: IdleRssProbe {
             samples: 3,
             max_mb: 120.0,
+            measurement_mode: "process".to_string(),
             require_modules: Vec::new(),
         },
         install_artifact_probe: InstallArtifactProbe {
@@ -566,6 +587,13 @@ pub fn load_policy(root: &Path, policy_path: &Path) -> Policy {
             10,
             base.cold_start_probe.warmup_runs as i64,
         ) as usize,
+        engine: clean(
+            cold_raw
+                .get("engine")
+                .and_then(Value::as_str)
+                .unwrap_or(&base.cold_start_probe.engine),
+            40,
+        ),
         runtime_mode: clean(
             cold_raw
                 .get("runtime_mode")
@@ -591,6 +619,13 @@ pub fn load_policy(root: &Path, policy_path: &Path) -> Policy {
             10.0,
             1024.0,
             base.idle_rss_probe.max_mb,
+        ),
+        measurement_mode: clean(
+            idle_raw
+                .get("measurement_mode")
+                .and_then(Value::as_str)
+                .unwrap_or(&base.idle_rss_probe.measurement_mode),
+            40,
         ),
         require_modules: idle_raw
             .get("require_modules")
@@ -716,6 +751,46 @@ fn run_cmd(root: &Path, cmd: &[String]) -> Result<f64, String> {
     Ok(start.elapsed().as_secs_f64() * 1000.0)
 }
 
+fn run_core_lazy_process_cold_start(root: &Path) -> Result<f64, String> {
+    let current = std::env::current_exe()
+        .map_err(|err| format!("current_exe_resolve_failed:{err}"))?
+        .to_path_buf();
+    let exe_name = current
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    let executable_supports_domains =
+        exe_name.starts_with("protheus-ops") || exe_name.starts_with("protheusd");
+
+    if !executable_supports_domains {
+        let started = Instant::now();
+        let receipt = daemon_control::inprocess_lazy_probe_receipt(root);
+        std::hint::black_box(receipt);
+        return Ok(started.elapsed().as_secs_f64() * 1000.0);
+    }
+
+    let cmd = vec![
+        current.to_string_lossy().to_string(),
+        "daemon-control".to_string(),
+        "start".to_string(),
+        "--mode=lazy-minimal".to_string(),
+        "--lazy-init=1".to_string(),
+    ];
+    run_cmd(root, &cmd)
+}
+
+fn cold_start_sample_ms(
+    root: &Path,
+    probe: &ColdStartProbe,
+    rewrite: &DistRewrite,
+) -> Result<f64, String> {
+    match probe.engine.trim().to_ascii_lowercase().as_str() {
+        "core-lazy" | "core_lazy" | "rust-lazy" | "rust_lazy" => run_core_lazy_process_cold_start(root),
+        _ => run_cmd(root, &rewrite.command),
+    }
+}
+
 fn maybe_build_dist(root: &Path, rewrite: &mut DistRewrite, require_full_dist: bool) {
     let Some(target_rel) = rewrite.dist_target.clone() else {
         return;
@@ -783,11 +858,26 @@ fn find_runtime_binary_rel(root: &Path, name: &str) -> Option<String> {
 }
 
 fn full_install_probe_paths(root: &Path) -> Vec<String> {
-    let mut paths = vec![
-        "client/runtime".to_string(),
-        "node_modules".to_string(),
-        "core/layer0/ops".to_string(),
-    ];
+    let mut paths = vec!["client/runtime".to_string(), "core/layer0/ops".to_string()];
+
+    #[cfg(not(feature = "no-client-bloat"))]
+    {
+        paths.push("node_modules".to_string());
+    }
+
+    #[cfg(feature = "no-client-bloat")]
+    {
+        for rel in [
+            "core/local/artifacts/install/client-runtime-minimal.tar.zst",
+            "core/local/artifacts/install/client-runtime-minimal.tar.gz",
+            "core/local/artifacts/install/client-runtime-minimal.zip",
+        ] {
+            if root.join(rel).exists() {
+                paths.push(rel.to_string());
+                break;
+            }
+        }
+    }
 
     #[cfg(not(feature = "no-client-bloat"))]
     {
@@ -814,26 +904,7 @@ fn full_install_probe_paths(root: &Path) -> Vec<String> {
     paths
 }
 
-fn system_idle_rss_mb() -> f64 {
-    let node_probe = Command::new("sh")
-        .args([
-            "-lc",
-            "node -e 'process.stdout.write(String(process.memoryUsage().rss));'",
-        ])
-        .output();
-    if let Ok(output) = node_probe {
-        if output.status.success() {
-            let text = String::from_utf8_lossy(&output.stdout);
-            if let Some(bytes) = text
-                .split_whitespace()
-                .next()
-                .and_then(|v| v.parse::<f64>().ok())
-            {
-                return bytes / (1024.0 * 1024.0);
-            }
-        }
-    }
-
+fn process_idle_rss_mb() -> f64 {
     let pid = std::process::id().to_string();
     let out = Command::new("ps").args(["-o", "rss=", "-p", &pid]).output();
     if let Ok(output) = out {
@@ -849,6 +920,32 @@ fn system_idle_rss_mb() -> f64 {
         }
     }
     0.0
+}
+
+fn node_idle_rss_mb() -> Option<f64> {
+    let node_probe = Command::new("sh")
+        .args([
+            "-lc",
+            "node -e 'process.stdout.write(String(process.memoryUsage().rss));'",
+        ])
+        .output()
+        .ok()?;
+    if !node_probe.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&node_probe.stdout);
+    let bytes = text
+        .split_whitespace()
+        .next()
+        .and_then(|v| v.parse::<f64>().ok())?;
+    Some(bytes / (1024.0 * 1024.0))
+}
+
+fn system_idle_rss_mb(mode: &str) -> f64 {
+    match mode.trim().to_ascii_lowercase().as_str() {
+        "node" => node_idle_rss_mb().unwrap_or_else(process_idle_rss_mb),
+        _ => process_idle_rss_mb(),
+    }
 }
 
 pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<RunOutput, String> {
@@ -895,19 +992,19 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
     }
 
     for _ in 0..policy.cold_start_probe.warmup_runs {
-        let _ = run_cmd(root, &rewrite.command);
+        let _ = cold_start_sample_ms(root, &policy.cold_start_probe, &rewrite);
     }
 
     let mut samples = Vec::new();
     for _ in 0..policy.cold_start_probe.samples {
-        samples.push(run_cmd(root, &rewrite.command)?);
+        samples.push(cold_start_sample_ms(root, &policy.cold_start_probe, &rewrite)?);
     }
 
     let p95_ms = percentile(&samples, 0.95).unwrap_or(0.0);
 
     let mut rss_samples = Vec::new();
     for _ in 0..policy.idle_rss_probe.samples {
-        rss_samples.push(system_idle_rss_mb());
+        rss_samples.push(system_idle_rss_mb(&policy.idle_rss_probe.measurement_mode));
     }
     let idle_rss_mb = percentile(&rss_samples, 0.95).unwrap_or(0.0);
 
@@ -948,6 +1045,7 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
             "samples": policy.cold_start_probe.samples,
             "max_ms": policy.cold_start_probe.max_ms,
             "p95_ms": (p95_ms * 1000.0).round() / 1000.0,
+            "engine": policy.cold_start_probe.engine.clone(),
             "runtime_mode": policy.cold_start_probe.runtime_mode,
             "command": rewrite.command,
             "build_attempted": rewrite.build_attempted,
@@ -959,6 +1057,7 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
             "samples": policy.idle_rss_probe.samples,
             "max_mb": policy.idle_rss_probe.max_mb,
             "p95_mb": (idle_rss_mb * 1000.0).round() / 1000.0,
+            "measurement_mode": policy.idle_rss_probe.measurement_mode.clone(),
             "required_modules": policy.idle_rss_probe.require_modules,
         },
         "install_artifact": {
@@ -1119,6 +1218,83 @@ mod tests {
         assert_eq!(
             out1.exit_code, 1,
             "strict hold streak should fail closed before target"
+        );
+    }
+
+    #[test]
+    fn runtime_efficiency_core_lazy_records_engine_and_process_mode() {
+        let _guard = test_env_guard();
+        let root = tempfile::tempdir().unwrap();
+        let policy_path = root
+            .path()
+            .join("client/runtime/config/runtime_efficiency_floor.json");
+        fs::create_dir_all(policy_path.parent().unwrap()).unwrap();
+        fs::write(
+            &policy_path,
+            serde_json::to_string_pretty(&json!({
+                "strict_default": false,
+                "target_hold_days": 1,
+                "enforce_hold_streak_strict": false,
+                "cold_start_probe": {
+                    "engine": "core-lazy",
+                    "command": ["node", "client/lib/conduit_full_lifecycle_probe.ts"],
+                    "samples": 1,
+                    "max_ms": 5000,
+                    "warmup_runs": 0,
+                    "runtime_mode": "source",
+                    "require_full_dist": false
+                },
+                "idle_rss_probe": {
+                    "measurement_mode": "process",
+                    "samples": 1,
+                    "max_mb": 9999,
+                    "require_modules": []
+                },
+                "install_artifact_probe": {"max_mb": 9999, "paths": ["dist"]},
+                "state_path": "local/state/ops/runtime_efficiency_floor.json",
+                "history_path": "local/state/ops/runtime_efficiency_floor_history.jsonl"
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        let parsed = ParsedArgs {
+            positional: vec!["run".to_string()],
+            flags: HashMap::from([(
+                "policy".to_string(),
+                policy_path.to_string_lossy().to_string(),
+            )]),
+        };
+
+        let out = run_runtime_efficiency_floor(root.path(), &parsed).unwrap();
+        assert_eq!(out.exit_code, 0);
+        assert_eq!(
+            out.json
+                .pointer("/cold_start/engine")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            "core-lazy"
+        );
+        assert_eq!(
+            out.json
+                .pointer("/idle_rss/measurement_mode")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            "process"
+        );
+    }
+
+    #[cfg(feature = "no-client-bloat")]
+    #[test]
+    fn no_client_bloat_full_install_omits_node_modules() {
+        let root = tempfile::tempdir().unwrap();
+        fs::create_dir_all(root.path().join("node_modules")).unwrap();
+        fs::create_dir_all(root.path().join("client/runtime")).unwrap();
+        fs::create_dir_all(root.path().join("core/layer0/ops")).unwrap();
+        let paths = full_install_probe_paths(root.path());
+        assert!(
+            !paths.iter().any(|p| p == "node_modules"),
+            "no-client-bloat profile should omit node_modules from full install floor"
         );
     }
 }
