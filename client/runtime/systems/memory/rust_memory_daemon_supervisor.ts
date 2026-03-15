@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
+const { commandNameFromArgs, validateMemoryPolicy, guardFailureResult } = require('./policy_validator.ts');
+const { validateSessionIsolation, sessionFailureResult } = require('./session_isolation.ts');
 
 const SYSTEM_ID = 'SYSTEMS-MEMORY-RUST_MEMORY_DAEMON_SUPERVISOR';
 const bridge = createOpsLaneBridge(__dirname, 'rust_memory_daemon_supervisor', 'runtime-systems', {
@@ -8,7 +10,21 @@ const bridge = createOpsLaneBridge(__dirname, 'rust_memory_daemon_supervisor', '
 });
 
 function run(args = process.argv.slice(2)) {
-  const out = bridge.run([`--system-id=${SYSTEM_ID}`].concat(Array.isArray(args) ? args : []));
+  const normalizedArgs = Array.isArray(args) ? args.map((row) => String(row)) : [];
+  const command = commandNameFromArgs(normalizedArgs, 'status');
+  const policy = validateMemoryPolicy(normalizedArgs, { command, lane: SYSTEM_ID });
+  let out;
+  if (!policy.ok) {
+    out = guardFailureResult(policy, { system_id: SYSTEM_ID, command });
+  } else {
+    const isolation = validateSessionIsolation(normalizedArgs, { command, lane: SYSTEM_ID });
+    if (!isolation.ok) {
+      out = sessionFailureResult(isolation, { system_id: SYSTEM_ID, command });
+    } else {
+      out = bridge.run([`--system-id=${SYSTEM_ID}`].concat(normalizedArgs));
+    }
+  }
+
   if (out && out.stdout) process.stdout.write(out.stdout);
   if (out && out.stderr) process.stderr.write(out.stderr);
   if (out && out.payload && !out.stdout) {

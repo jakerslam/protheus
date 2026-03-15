@@ -3044,32 +3044,32 @@
       "wave": "done"
     },
     {
-      "acceptance": "Coordinator implementation partitions work, deduplicates findings (same item_id), merges severity ratings, and emits unified report; validated by `tests/client/cognition/coordinator.*.test.js`.",
+      "acceptance": "Coordinator implementation partitions work, deduplicates findings (same item_id), merges severity ratings, and emits unified report; implemented in `client/cognition/orchestration/coordinator.ts` and validated by `tests/client/cognition/coordinator.test.js`.",
       "class": "backlog",
       "dependencies": [],
       "id": "REQ-38-001",
       "problem": "Parallel agents produce overlapping findings without a coordinator to partition work and deduplicate results.",
-      "status": "queued",
+      "status": "done",
       "title": "Coordinator Agent Pattern",
       "wave": "REQ"
     },
     {
-      "acceptance": "Shared scratchpad at `local/workspace/scratchpad/{task_id}.json` supports read/write of progress, findings, checkpoints; schema versioned; cleaned up on completion; validated by `tests/client/cognition/scratchpad.*.test.js`.",
+      "acceptance": "Shared scratchpad at `local/workspace/scratchpad/{task_id}.json` supports read/write of progress, findings, checkpoints; schema versioned; cleaned up on completion; implemented in `client/cognition/orchestration/scratchpad.ts` and validated by `tests/client/cognition/scratchpad.test.js`.",
       "class": "backlog",
       "dependencies": [],
       "id": "REQ-38-002",
       "problem": "Agents work in isolation and cannot build on each other's discoveries without a shared workspace.",
-      "status": "queued",
+      "status": "done",
       "title": "Shared State / Scratchpad",
       "wave": "REQ"
     },
     {
-      "acceptance": "Agents write checkpoint every 10 items or 2 minutes; on timeout, return partial results + checkpoint location; one automatic retry; validated by `tests/client/cognition/checkpoint.*.test.js`.",
+      "acceptance": "Agents write checkpoint every 10 items or 2 minutes; on timeout, return partial results + checkpoint location; one automatic retry; implemented in `client/cognition/orchestration/checkpoint.ts` and validated by `tests/client/cognition/checkpoint.test.js`.",
       "class": "backlog",
       "dependencies": [],
       "id": "REQ-38-003",
       "problem": "Long-running agents can timeout without returning partial results, losing all progress.",
-      "status": "queued",
+      "status": "done",
       "title": "Checkpointing and Timeout Recovery",
       "wave": "REQ"
     },
@@ -3084,12 +3084,12 @@
       "wave": "REQ"
     },
     {
-      "acceptance": "Schema defined in `client/cognition/orchestration/schemas/finding-v1.json` with required fields (audit_id, item_id, severity, status, location, evidence, timestamp); severity/status enums enforced; validated by `tests/client/cognition/schema.*.test.js`.",
+      "acceptance": "Schema defined in `client/cognition/orchestration/schemas/finding-v1.json` with required fields (audit_id, item_id, severity, status, location, evidence, timestamp); severity/status enums enforced via `client/cognition/orchestration/schema_runtime.ts`; validated by `tests/client/cognition/schema.test.js`.",
       "class": "backlog",
       "dependencies": [],
       "id": "REQ-38-005",
       "problem": "Agents return findings in inconsistent formats, making aggregation difficult.",
-      "status": "queued",
+      "status": "done",
       "title": "Standardized Output Schema",
       "wave": "REQ"
     },
