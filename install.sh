@@ -12,6 +12,7 @@ API_URL="${PROTHEUS_RELEASE_API_URL:-$DEFAULT_API}"
 BASE_URL="${PROTHEUS_RELEASE_BASE_URL:-$DEFAULT_BASE}"
 INSTALL_FULL="${PROTHEUS_INSTALL_FULL:-0}"
 INSTALL_PURE="${PROTHEUS_INSTALL_PURE:-0}"
+INSTALL_TINY_MAX="${PROTHEUS_INSTALL_TINY_MAX:-0}"
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -47,11 +48,17 @@ parse_install_args() {
         INSTALL_PURE=1
         INSTALL_FULL=0
         ;;
+      --tiny-max)
+        INSTALL_TINY_MAX=1
+        INSTALL_PURE=1
+        INSTALL_FULL=0
+        ;;
       --help|-h)
-        echo "Usage: install.sh [--full|--minimal|--pure]"
+        echo "Usage: install.sh [--full|--minimal|--pure|--tiny-max]"
         echo "  --full     install optional client runtime bundle when available"
         echo "  --minimal  install daemon + CLI only (default)"
         echo "  --pure     install pure Rust client + daemon only (no Node/TS surfaces)"
+        echo "  --tiny-max install tiny-max pure profile for old/embedded hardware targets"
         exit 0
         ;;
       *)
@@ -268,11 +275,22 @@ main() {
   fi
 
   if is_truthy "$INSTALL_PURE"; then
-    if ! install_binary "$version" "$triple" "protheus-pure-workspace" "$pure_bin"; then
+    if is_truthy "$INSTALL_TINY_MAX"; then
+      if ! install_binary "$version" "$triple" "protheus-pure-workspace-tiny-max" "$pure_bin"; then
+        if ! install_binary "$version" "$triple" "protheus-pure-workspace" "$pure_bin"; then
+          echo "[protheus install] failed to fetch protheus-pure-workspace for $triple ($version)" >&2
+          exit 1
+        fi
+      fi
+    elif ! install_binary "$version" "$triple" "protheus-pure-workspace" "$pure_bin"; then
       echo "[protheus install] failed to fetch protheus-pure-workspace for $triple ($version)" >&2
       exit 1
     fi
-    echo "[protheus install] pure mode selected: Rust-only client installed"
+    if is_truthy "$INSTALL_TINY_MAX"; then
+      echo "[protheus install] tiny-max pure mode selected: Rust-only tiny profile installed"
+    else
+      echo "[protheus install] pure mode selected: Rust-only client installed"
+    fi
   else
     if ! install_binary "$version" "$triple" "protheus-ops" "$ops_bin"; then
       echo "[protheus install] failed to fetch protheus-ops for $triple ($version)" >&2
@@ -281,9 +299,22 @@ main() {
   fi
 
   if [ "$prefer_musl_protheusd" = "1" ]; then
-    if install_binary "$version" "x86_64-unknown-linux-musl" "protheusd" "$protheusd_bin"; then
+    if is_truthy "$INSTALL_TINY_MAX"; then
+      if install_binary "$version" "x86_64-unknown-linux-musl" "protheusd-tiny-max" "$protheusd_bin"; then
+        daemon_wrapper_body="exec \"$protheusd_bin\" \"\$@\""
+        echo "[protheus install] using static musl tiny-max protheusd"
+      fi
+    fi
+    if [ -z "$daemon_wrapper_body" ] && install_binary "$version" "x86_64-unknown-linux-musl" "protheusd" "$protheusd_bin"; then
       daemon_wrapper_body="exec \"$protheusd_bin\" \"\$@\""
       echo "[protheus install] using static musl protheusd (embedded-minimal-core)"
+    fi
+  fi
+
+  if [ -z "$daemon_wrapper_body" ] && is_truthy "$INSTALL_TINY_MAX"; then
+    if install_binary "$version" "$triple" "protheusd-tiny-max" "$protheusd_bin"; then
+      daemon_wrapper_body="exec \"$protheusd_bin\" \"\$@\""
+      echo "[protheus install] using native tiny-max protheusd"
     fi
   fi
 
@@ -302,7 +333,11 @@ main() {
   fi
 
   if is_truthy "$INSTALL_PURE"; then
-    write_wrapper "protheus" "exec \"$pure_bin\" \"\$@\""
+    if is_truthy "$INSTALL_TINY_MAX"; then
+      write_wrapper "protheus" "exec \"$pure_bin\" --tiny-max=1 \"\$@\""
+    else
+      write_wrapper "protheus" "exec \"$pure_bin\" \"\$@\""
+    fi
     write_wrapper "protheusctl" "exec \"$pure_bin\" conduit \"\$@\""
   else
     write_wrapper "protheus" "exec \"$ops_bin\" protheusctl \"\$@\""
