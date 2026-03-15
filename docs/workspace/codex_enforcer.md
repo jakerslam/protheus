@@ -60,6 +60,30 @@ Completion requires all of the following:
 - Do not change file types or migrate logic across file types (`.ts`, `.js`, `.rs`, etc.) without explicit operator permission in the task instructions.
 - If explicit permission is missing for any file-type change or language migration, mark the task `BLOCKED — missing explicit file-type migration permission` and stop.
 
+## Repository Placement Rules (Mandatory)
+- Canonical code locations are limited to: `core/`, `client/`, `tests/`, and `adapters/`.
+- `apps/` is app-only. It may contain only standalone apps that run on top of the client/runtime boundary.
+- Any path under `apps/` must be deletable without changing core/client/adapters/tests behavior.
+- System code must not import from `apps/**`. If system code needs shared logic, move that logic into `core/`, `client/`, `tests/`, or `adapters/` first.
+- `apps/` is never a script/tool dump. Shared helpers, wrappers, and runtime bridges are prohibited in `apps/`.
+- Top-level `scripts/` is prohibited. Do not create or reintroduce it.
+- CI/dev/test tooling scripts must live under `tests/tooling/scripts/`.
+- Runtime/operator utilities must live under `client/runtime/systems/**` (or `core/**` when authoritative).
+- If initialization/bootstrap installers need a dedicated surface, use `setup/` as the only root-level exception.
+- Placement decision rule:
+  - system authority/runtime path => `core/` (or `client/runtime/systems/**` only as thin runtime/client surface)
+  - developer/user operational scripts => `client/`
+  - test/CI tooling => `tests/`
+  - integration bridges for external software => `adapters/`
+  - standalone deletable products only => `apps/`
+  - initialization/bootstrap only => `setup/`
+
+## Git Hygiene Rules (Mandatory)
+- Do not leave path migrations as unstaged delete+untracked churn.
+- For any directory/file relocation, stage as one atomic move set immediately (`git add -A <old> <new>` or `git mv`).
+- Before reporting completion, run `npm run -s ops:churn:guard`; unresolved move-pair churn is a hard fail.
+- If churn guard reports likely unstaged moves, stop and resolve staging before any further feature work.
+
 ## Sprint Gate
 Each sprint/batch must include:
 - At least one regression test.
