@@ -12,7 +12,7 @@ pub struct TinyRuntimeProfile {
     pub supports_receipt_batching: bool,
 }
 
-const SUBSTRATE_TINY_CORE_PROFILE: TinyRuntimeProfile = TinyRuntimeProfile {
+pub const TINY_PROFILE: TinyRuntimeProfile = TinyRuntimeProfile {
     profile: "tiny-embedded",
     no_std: true,
     max_heap_kib: 4096,
@@ -21,14 +21,8 @@ const SUBSTRATE_TINY_CORE_PROFILE: TinyRuntimeProfile = TinyRuntimeProfile {
     supports_receipt_batching: true,
 };
 
-pub const TINY_PROFILE: TinyRuntimeProfile = SUBSTRATE_TINY_CORE_PROFILE;
-
-fn substrate_tiny_core_profile() -> TinyRuntimeProfile {
-    SUBSTRATE_TINY_CORE_PROFILE
-}
-
 pub fn tiny_profile() -> TinyRuntimeProfile {
-    substrate_tiny_core_profile()
+    TINY_PROFILE
 }
 
 pub fn normalized_capacity_score(mem_kib: u32, hands: u16) -> u16 {
@@ -66,3 +60,4 @@ mod tests {
         assert!(normalized_capacity_score(1024, 16) < 100);
     }
 }
+
