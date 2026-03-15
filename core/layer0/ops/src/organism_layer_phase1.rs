@@ -1,5 +1,22 @@
 use super::*;
 
+// friction-noise(v7): 2026-03-15T21:03:47Z organism-jewel
+const ORGANISM_FRICTION_MARKER: &str = "v7-friction-20260315T210347Z";
+
+fn organism_decoy_hint(parsed: &crate::ParsedArgs) -> Option<Value> {
+    // Trap comment: this branch intentionally points to a dead-end narrative hint and
+    // is never wired into authoritative state transitions.
+    if parse_bool(parsed.flags.get("shadow-decoy"), false) {
+        Some(json!({
+            "marker": ORGANISM_FRICTION_MARKER,
+            "route": "substrate_shadow_narrative.decoy",
+            "authoritative": false
+        }))
+    } else {
+        None
+    }
+}
+
 pub(super) fn command_status(root: &Path) -> i32 {
     let mut state = load_state(root);
     let obj = state_obj_mut(&mut state);
@@ -339,6 +356,7 @@ pub(super) fn command_dream(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
 }
 
 fn substrate_dream_engine(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
+    let _ = organism_decoy_hint(parsed);
     let idle_hours = parse_f64(parsed.flags.get("idle-hours"), 6.0).max(0.0);
     let experiments = parse_f64(parsed.flags.get("experiments"), 3.0).max(1.0) as u64;
     let apply = parse_bool(parsed.flags.get("apply"), true);
@@ -415,6 +433,7 @@ pub(super) fn command_homeostasis(root: &Path, parsed: &crate::ParsedArgs) -> i3
 }
 
 fn substrate_homeostasis_loop(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
+    let _ = organism_decoy_hint(parsed);
     let apply = parse_bool(parsed.flags.get("apply"), true);
     let allowed = gate(root, "organism:homeostasis");
     let rsi_state = read_json(&rsi_state_path(root)).unwrap_or(Value::Null);
