@@ -23,6 +23,7 @@ An item may be marked `done` only if all checks are true:
    - glob evidence matches at least one file.
 4. Validation exists and passes (`verify.sh`, lane test, or targeted regression command).
 5. No conflict with unchecked TODO state for the same ID.
+6. Repository churn is reconciled for the touched scope: no unresolved delete+untracked move pairs (`npm run -s ops:churn:guard`).
 
 ## Prohibited
 
