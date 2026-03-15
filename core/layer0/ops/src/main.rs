@@ -1,7 +1,7 @@
 // Layer ownership: core/layer0/ops (authoritative)
 // SPDX-License-Identifier: Apache-2.0
 use protheus_ops_core::{
-    deterministic_receipt_hash, parse_args, parse_os_args, run_runtime_efficiency_floor,
+    configure_low_memory_allocator_env, deterministic_receipt_hash, parse_args, parse_os_args, run_runtime_efficiency_floor,
     status_runtime_efficiency_floor,
 };
 use serde_json::{json, Value};
@@ -72,6 +72,7 @@ fn cli_error_receipt(
 }
 
 fn main() {
+    configure_low_memory_allocator_env();
     if std::env::var("PROTHEUS_OPS_TRACE_BOOT")
         .ok()
         .map(|v| {

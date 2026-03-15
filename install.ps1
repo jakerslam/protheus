@@ -93,8 +93,34 @@ function Install-ClientBundle($Version, $Triple, $OutDir) {
   $tmp = New-TemporaryFile
   Remove-Item $tmp.FullName -Force
   New-Item -ItemType Directory -Path $tmp.FullName | Out-Null
-  $archive = Join-Path $tmp.FullName "client-runtime.tar.gz"
+  $archive = Join-Path $tmp.FullName "client-runtime.bundle"
+  function Expand-ClientArchive($ArchivePath, $Destination) {
+    if ($ArchivePath.EndsWith(".tar.zst")) {
+      try {
+        tar -xf $ArchivePath -C $Destination
+        return $true
+      } catch {
+        if (Get-Command zstd -ErrorAction SilentlyContinue) {
+          $tarPath = [System.IO.Path]::ChangeExtension($ArchivePath, ".tar")
+          zstd -d --stdout $ArchivePath > $tarPath
+          tar -xf $tarPath -C $Destination
+          return $true
+        }
+        Write-Host "[protheus install] skipping .tar.zst bundle (zstd unavailable); falling back to .tar.gz assets"
+        return $false
+      }
+    }
+    if ($ArchivePath.EndsWith(".tar.gz")) {
+      tar -xzf $ArchivePath -C $Destination
+      return $true
+    }
+    return $false
+  }
   $assets = @(
+    "protheus-client-runtime-$Triple.tar.zst",
+    "protheus-client-runtime.tar.zst",
+    "protheus-client-$Triple.tar.zst",
+    "protheus-client.tar.zst",
     "protheus-client-runtime-$Triple.tar.gz",
     "protheus-client-runtime.tar.gz",
     "protheus-client-$Triple.tar.gz",
@@ -102,9 +128,10 @@ function Install-ClientBundle($Version, $Triple, $OutDir) {
   )
   foreach ($asset in $assets) {
     if (Download-Asset $Version $asset $archive) {
-      tar -xzf $archive -C $OutDir
-      Write-Host "[protheus install] installed optional client runtime bundle"
-      return $true
+      if (Expand-ClientArchive $archive $OutDir) {
+        Write-Host "[protheus install] installed optional client runtime bundle"
+        return $true
+      }
     }
   }
   return $false

@@ -4,6 +4,7 @@
   "target_hold_days": 7,
   "enforce_hold_streak_strict": false,
   "cold_start_probe": {
+    "engine": "core-lazy",
     "command": [
       "node",
       "client/lib/conduit_full_lifecycle_probe.ts"
@@ -15,6 +16,7 @@
     "require_full_dist": false
   },
   "idle_rss_probe": {
+    "measurement_mode": "process",
     "samples": 3,
     "max_mb": 120,
     "require_modules": []
