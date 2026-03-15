@@ -9,12 +9,25 @@ const OUT_JSON = 'core/local/artifacts/churn_guard_current.json';
 const OUT_MD = 'local/workspace/reports/CHURN_GUARD_CURRENT.md';
 
 function parseArgs(argv) {
+  const allowGovernanceDocChurn =
+    argv.includes('--allow-governance-doc-churn=1') ||
+    argv.includes('--allow-governance-doc-churn') ||
+    process.env.ALLOW_GOVERNANCE_DOC_CHURN === '1';
   return {
     strict: argv.includes('--strict=1') || argv.includes('--strict'),
+    allowGovernanceDocChurn,
   };
 }
 
 function classifyPath(path) {
+  if (
+    path === 'docs/workspace/TODO.md' ||
+    path === 'docs/workspace/SRS.md' ||
+    path === 'docs/workspace/UPGRADE_BACKLOG.md' ||
+    /^docs\/client\/requirements\/REQ-[^/]+\.md$/i.test(path)
+  ) {
+    return 'governance_doc_churn';
+  }
   if (
     path.startsWith('local/') ||
     path.startsWith('simulated-commits/')
@@ -123,6 +136,8 @@ function toMarkdown(payload) {
   lines.push(`- local_simulation_churn: ${payload.summary.local_simulation_churn}`);
   lines.push(`- lensmap_churn: ${payload.summary.lensmap_churn}`);
   lines.push(`- generated_report_churn: ${payload.summary.generated_report_churn}`);
+  lines.push(`- governance_doc_churn: ${payload.summary.governance_doc_churn}`);
+  lines.push(`- allow_governance_doc_churn: ${payload.summary.allow_governance_doc_churn}`);
   lines.push(`- likely_unstaged_moves: ${payload.summary.likely_unstaged_moves}`);
   lines.push(`- other: ${payload.summary.other}`);
   lines.push(`- pass: ${payload.summary.pass}`);
@@ -159,12 +174,15 @@ function main() {
     local_simulation_churn: rows.filter((r) => r.category === 'local_simulation_churn').length,
     lensmap_churn: rows.filter((r) => r.category === 'lensmap_churn').length,
     generated_report_churn: rows.filter((r) => r.category === 'generated_report_churn').length,
+    governance_doc_churn: rows.filter((r) => r.category === 'governance_doc_churn').length,
+    allow_governance_doc_churn: args.allowGovernanceDocChurn,
     likely_unstaged_moves: likelyUnstagedMoves.length,
     other: rows.filter((r) => r.category === 'other').length,
   };
   summary.pass =
     summary.local_simulation_churn === 0 &&
     summary.lensmap_churn === 0 &&
+    (summary.governance_doc_churn === 0 || args.allowGovernanceDocChurn) &&
     summary.likely_unstaged_moves === 0 &&
     summary.other === 0;
 
