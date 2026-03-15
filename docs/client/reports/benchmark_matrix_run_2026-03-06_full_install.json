@@ -2,7 +2,8 @@
   "ascii_report": [
     "Benchmarks: Measured, Not Marketed",
     "Cold Start Time (lower is better)",
-    "OpenClaw   ############################################  4 ms",
+    "Protheus Pure ############################################  4 ms",
+    "OpenClaw   ############################################  5 ms",
     "OpenFang   ##########################################--  180 ms",
     "OpenHands  ##############################--------------  1.30 sec",
     "LangGraph  #################---------------------------  2.50 sec",
@@ -10,23 +11,26 @@
     "AutoGen    #-------------------------------------------  4.00 sec",
     "",
     "Idle Memory Usage (lower is better)",
-    "OpenClaw   ############################################  9.8 MB",
-    "OpenFang   ######################################------  40.0 MB",
+    "Protheus Pure ############################################  1.4 MB",
+    "OpenClaw   ###########################################-  9.8 MB",
+    "OpenFang   #####################################-------  40.0 MB",
     "OpenHands  ##################--------------------------  150.0 MB",
-    "LangGraph  #############-------------------------------  180.0 MB",
+    "LangGraph  ############--------------------------------  180.0 MB",
     "CrewAI     #########-----------------------------------  200.0 MB",
     "AutoGen    #-------------------------------------------  250.0 MB",
     "",
     "Install Size (lower is better)",
-    "OpenClaw   ############################################  10.0 MB",
-    "OpenFang   #######################################-----  32.0 MB",
-    "OpenHands  ########################--------------------  95.5 MB",
-    "CrewAI     #######################---------------------  100.0 MB",
-    "LangGraph  ############--------------------------------  150.0 MB",
+    "Protheus Pure ############################################  1.1 MB",
+    "OpenClaw   ##########################################--  10.1 MB",
+    "OpenFang   #####################################-------  32.0 MB",
+    "OpenHands  #######################---------------------  95.5 MB",
+    "CrewAI     ######################----------------------  100.0 MB",
+    "LangGraph  ###########---------------------------------  150.0 MB",
     "AutoGen    #-------------------------------------------  200.0 MB",
     "",
     "Security Systems (higher is better)",
     "OpenClaw   ############################################  83",
+    "Protheus Pure ############################################  83",
     "OpenFang   ########------------------------------------  16",
     "OpenHands  ###-----------------------------------------  7",
     "AutoGen    #-------------------------------------------  2",
@@ -35,19 +39,21 @@
     "",
     "Channel Adapters (higher is better)",
     "OpenFang   ############################################  40",
-    "OpenHands  ##############------------------------------  15",
-    "OpenClaw   ####----------------------------------------  6",
-    "AutoGen    #-------------------------------------------  4",
-    "LangGraph  #-------------------------------------------  4",
-    "CrewAI     #-------------------------------------------  3",
+    "OpenHands  #################---------------------------  15",
+    "OpenClaw   #######-------------------------------------  6",
+    "AutoGen    ####----------------------------------------  4",
+    "LangGraph  ####----------------------------------------  4",
+    "CrewAI     ###-----------------------------------------  3",
+    "Protheus Pure #-------------------------------------------  0",
     "",
     "LLM Providers (higher is better)",
     "OpenFang   ############################################  27",
-    "LangGraph  ######################----------------------  15",
-    "CrewAI     #############-------------------------------  10",
-    "AutoGen    #########-----------------------------------  8",
-    "OpenHands  ####----------------------------------------  5",
-    "OpenClaw   #-------------------------------------------  3",
+    "LangGraph  ########################--------------------  15",
+    "CrewAI     ################----------------------------  10",
+    "AutoGen    #############-------------------------------  8",
+    "OpenHands  ########------------------------------------  5",
+    "OpenClaw   #####---------------------------------------  3",
+    "Protheus Pure #-------------------------------------------  0",
     ""
   ],
   "bar_width": 44,
@@ -55,7 +61,8 @@
     {
       "ascii_lines": [
         "Cold Start Time (lower is better)",
-        "OpenClaw   ############################################  4 ms",
+        "Protheus Pure ############################################  4 ms",
+        "OpenClaw   ############################################  5 ms",
         "OpenFang   ##########################################--  180 ms",
         "OpenHands  ##############################--------------  1.30 sec",
         "LangGraph  #################---------------------------  2.50 sec",
@@ -70,16 +77,24 @@
         {
           "bar": "############################################",
           "highlight": false,
-          "project": "OpenClaw",
+          "project": "Protheus Pure",
           "rank": 1,
           "score": "4 ms",
-          "value": 3.686
+          "value": 4.436125
+        },
+        {
+          "bar": "############################################",
+          "highlight": false,
+          "project": "OpenClaw",
+          "rank": 2,
+          "score": "5 ms",
+          "value": 5.045
         },
         {
           "bar": "##########################################--",
           "highlight": false,
           "project": "OpenFang",
-          "rank": 2,
+          "rank": 3,
           "score": "180 ms",
           "value": 180.0
         },
@@ -87,7 +102,7 @@
           "bar": "##############################--------------",
           "highlight": false,
           "project": "OpenHands",
-          "rank": 3,
+          "rank": 4,
           "score": "1.30 sec",
           "value": 1300.0
         },
@@ -95,7 +110,7 @@
           "bar": "#################---------------------------",
           "highlight": false,
           "project": "LangGraph",
-          "rank": 4,
+          "rank": 5,
           "score": "2.50 sec",
           "value": 2500.0
         },
@@ -103,7 +118,7 @@
           "bar": "###########---------------------------------",
           "highlight": false,
           "project": "CrewAI",
-          "rank": 5,
+          "rank": 6,
           "score": "3.00 sec",
           "value": 3000.0
         },
@@ -111,7 +126,7 @@
           "bar": "#-------------------------------------------",
           "highlight": false,
           "project": "AutoGen",
-          "rank": 6,
+          "rank": 7,
           "score": "4.00 sec",
           "value": 4000.0
         }
@@ -121,10 +136,11 @@
     {
       "ascii_lines": [
         "Idle Memory Usage (lower is better)",
-        "OpenClaw   ############################################  9.8 MB",
-        "OpenFang   ######################################------  40.0 MB",
+        "Protheus Pure ############################################  1.4 MB",
+        "OpenClaw   ###########################################-  9.8 MB",
+        "OpenFang   #####################################-------  40.0 MB",
         "OpenHands  ##################--------------------------  150.0 MB",
-        "LangGraph  #############-------------------------------  180.0 MB",
+        "LangGraph  ############--------------------------------  180.0 MB",
         "CrewAI     #########-----------------------------------  200.0 MB",
         "AutoGen    #-------------------------------------------  250.0 MB"
       ],
@@ -136,16 +152,24 @@
         {
           "bar": "############################################",
           "highlight": false,
-          "project": "OpenClaw",
+          "project": "Protheus Pure",
           "rank": 1,
-          "score": "9.8 MB",
-          "value": 9.781
+          "score": "1.4 MB",
+          "value": 1.375
         },
         {
-          "bar": "######################################------",
+          "bar": "###########################################-",
+          "highlight": false,
+          "project": "OpenClaw",
+          "rank": 2,
+          "score": "9.8 MB",
+          "value": 9.813
+        },
+        {
+          "bar": "#####################################-------",
           "highlight": false,
           "project": "OpenFang",
-          "rank": 2,
+          "rank": 3,
           "score": "40.0 MB",
           "value": 40.0
         },
@@ -153,15 +177,15 @@
           "bar": "##################--------------------------",
           "highlight": false,
           "project": "OpenHands",
-          "rank": 3,
+          "rank": 4,
           "score": "150.0 MB",
           "value": 150.0
         },
         {
-          "bar": "#############-------------------------------",
+          "bar": "############--------------------------------",
           "highlight": false,
           "project": "LangGraph",
-          "rank": 4,
+          "rank": 5,
           "score": "180.0 MB",
           "value": 180.0
         },
@@ -169,7 +193,7 @@
           "bar": "#########-----------------------------------",
           "highlight": false,
           "project": "CrewAI",
-          "rank": 5,
+          "rank": 6,
           "score": "200.0 MB",
           "value": 200.0
         },
@@ -177,7 +201,7 @@
           "bar": "#-------------------------------------------",
           "highlight": false,
           "project": "AutoGen",
-          "rank": 6,
+          "rank": 7,
           "score": "250.0 MB",
           "value": 250.0
         }
@@ -187,11 +211,12 @@
     {
       "ascii_lines": [
         "Install Size (lower is better)",
-        "OpenClaw   ############################################  10.0 MB",
-        "OpenFang   #######################################-----  32.0 MB",
-        "OpenHands  ########################--------------------  95.5 MB",
-        "CrewAI     #######################---------------------  100.0 MB",
-        "LangGraph  ############--------------------------------  150.0 MB",
+        "Protheus Pure ############################################  1.1 MB",
+        "OpenClaw   ##########################################--  10.1 MB",
+        "OpenFang   #####################################-------  32.0 MB",
+        "OpenHands  #######################---------------------  95.5 MB",
+        "CrewAI     ######################----------------------  100.0 MB",
+        "LangGraph  ###########---------------------------------  150.0 MB",
         "AutoGen    #-------------------------------------------  200.0 MB"
       ],
       "bar_width": 44,
@@ -202,40 +227,48 @@
         {
           "bar": "############################################",
           "highlight": false,
-          "project": "OpenClaw",
+          "project": "Protheus Pure",
           "rank": 1,
-          "score": "10.0 MB",
-          "value": 10.02
+          "score": "1.1 MB",
+          "value": 1.091
         },
         {
-          "bar": "#######################################-----",
+          "bar": "##########################################--",
+          "highlight": false,
+          "project": "OpenClaw",
+          "rank": 2,
+          "score": "10.1 MB",
+          "value": 10.09
+        },
+        {
+          "bar": "#####################################-------",
           "highlight": false,
           "project": "OpenFang",
-          "rank": 2,
+          "rank": 3,
           "score": "32.0 MB",
           "value": 32.0
         },
         {
-          "bar": "########################--------------------",
+          "bar": "#######################---------------------",
           "highlight": false,
           "project": "OpenHands",
-          "rank": 3,
+          "rank": 4,
           "score": "95.5 MB",
           "value": 95.5
         },
         {
-          "bar": "#######################---------------------",
+          "bar": "######################----------------------",
           "highlight": false,
           "project": "CrewAI",
-          "rank": 4,
+          "rank": 5,
           "score": "100.0 MB",
           "value": 100.0
         },
         {
-          "bar": "############--------------------------------",
+          "bar": "###########---------------------------------",
           "highlight": false,
           "project": "LangGraph",
-          "rank": 5,
+          "rank": 6,
           "score": "150.0 MB",
           "value": 150.0
         },
@@ -243,7 +276,7 @@
           "bar": "#-------------------------------------------",
           "highlight": false,
           "project": "AutoGen",
-          "rank": 6,
+          "rank": 7,
           "score": "200.0 MB",
           "value": 200.0
         }
@@ -254,6 +287,7 @@
       "ascii_lines": [
         "Security Systems (higher is better)",
         "OpenClaw   ############################################  83",
+        "Protheus Pure ############################################  83",
         "OpenFang   ########------------------------------------  16",
         "OpenHands  ###-----------------------------------------  7",
         "AutoGen    #-------------------------------------------  2",
@@ -274,10 +308,18 @@
           "value": 83.0
         },
         {
+          "bar": "############################################",
+          "highlight": false,
+          "project": "Protheus Pure",
+          "rank": 2,
+          "score": "83",
+          "value": 83.0
+        },
+        {
           "bar": "########------------------------------------",
           "highlight": false,
           "project": "OpenFang",
-          "rank": 2,
+          "rank": 3,
           "score": "16",
           "value": 16.0
         },
@@ -285,7 +327,7 @@
           "bar": "###-----------------------------------------",
           "highlight": false,
           "project": "OpenHands",
-          "rank": 3,
+          "rank": 4,
           "score": "7",
           "value": 7.0
         },
@@ -293,14 +335,6 @@
           "bar": "#-------------------------------------------",
           "highlight": false,
           "project": "AutoGen",
-          "rank": 4,
-          "score": "2",
-          "value": 2.0
-        },
-        {
-          "bar": "#-------------------------------------------",
-          "highlight": false,
-          "project": "LangGraph",
           "rank": 5,
           "score": "2",
           "value": 2.0
@@ -308,8 +342,16 @@
         {
           "bar": "#-------------------------------------------",
           "highlight": false,
-          "project": "CrewAI",
+          "project": "LangGraph",
           "rank": 6,
+          "score": "2",
+          "value": 2.0
+        },
+        {
+          "bar": "#-------------------------------------------",
+          "highlight": false,
+          "project": "CrewAI",
+          "rank": 7,
           "score": "1",
           "value": 1.0
         }
@@ -320,11 +362,12 @@
       "ascii_lines": [
         "Channel Adapters (higher is better)",
         "OpenFang   ############################################  40",
-        "OpenHands  ##############------------------------------  15",
-        "OpenClaw   ####----------------------------------------  6",
-        "AutoGen    #-------------------------------------------  4",
-        "LangGraph  #-------------------------------------------  4",
-        "CrewAI     #-------------------------------------------  3"
+        "OpenHands  #################---------------------------  15",
+        "OpenClaw   #######-------------------------------------  6",
+        "AutoGen    ####----------------------------------------  4",
+        "LangGraph  ####----------------------------------------  4",
+        "CrewAI     ###-----------------------------------------  3",
+        "Protheus Pure #-------------------------------------------  0"
       ],
       "bar_width": 44,
       "key": "channel_adapters",
@@ -340,7 +383,7 @@
           "value": 40.0
         },
         {
-          "bar": "##############------------------------------",
+          "bar": "#################---------------------------",
           "highlight": false,
           "project": "OpenHands",
           "rank": 2,
@@ -348,7 +391,7 @@
           "value": 15.0
         },
         {
-          "bar": "####----------------------------------------",
+          "bar": "#######-------------------------------------",
           "highlight": false,
           "project": "OpenClaw",
           "rank": 3,
@@ -356,7 +399,7 @@
           "value": 6.0
         },
         {
-          "bar": "#-------------------------------------------",
+          "bar": "####----------------------------------------",
           "highlight": false,
           "project": "AutoGen",
           "rank": 4,
@@ -364,7 +407,7 @@
           "value": 4.0
         },
         {
-          "bar": "#-------------------------------------------",
+          "bar": "####----------------------------------------",
           "highlight": false,
           "project": "LangGraph",
           "rank": 5,
@@ -372,12 +415,20 @@
           "value": 4.0
         },
         {
-          "bar": "#-------------------------------------------",
+          "bar": "###-----------------------------------------",
           "highlight": false,
           "project": "CrewAI",
           "rank": 6,
           "score": "3",
           "value": 3.0
+        },
+        {
+          "bar": "#-------------------------------------------",
+          "highlight": false,
+          "project": "Protheus Pure",
+          "rank": 7,
+          "score": "0",
+          "value": 0.0
         }
       ],
       "unit": "count"
@@ -386,11 +437,12 @@
       "ascii_lines": [
         "LLM Providers (higher is better)",
         "OpenFang   ############################################  27",
-        "LangGraph  ######################----------------------  15",
-        "CrewAI     #############-------------------------------  10",
-        "AutoGen    #########-----------------------------------  8",
-        "OpenHands  ####----------------------------------------  5",
-        "OpenClaw   #-------------------------------------------  3"
+        "LangGraph  ########################--------------------  15",
+        "CrewAI     ################----------------------------  10",
+        "AutoGen    #############-------------------------------  8",
+        "OpenHands  ########------------------------------------  5",
+        "OpenClaw   #####---------------------------------------  3",
+        "Protheus Pure #-------------------------------------------  0"
       ],
       "bar_width": 44,
       "key": "llm_providers",
@@ -406,7 +458,7 @@
           "value": 27.0
         },
         {
-          "bar": "######################----------------------",
+          "bar": "########################--------------------",
           "highlight": false,
           "project": "LangGraph",
           "rank": 2,
@@ -414,7 +466,7 @@
           "value": 15.0
         },
         {
-          "bar": "#############-------------------------------",
+          "bar": "################----------------------------",
           "highlight": false,
           "project": "CrewAI",
           "rank": 3,
@@ -422,7 +474,7 @@
           "value": 10.0
         },
         {
-          "bar": "#########-----------------------------------",
+          "bar": "#############-------------------------------",
           "highlight": false,
           "project": "AutoGen",
           "rank": 4,
@@ -430,7 +482,7 @@
           "value": 8.0
         },
         {
-          "bar": "####----------------------------------------",
+          "bar": "########------------------------------------",
           "highlight": false,
           "project": "OpenHands",
           "rank": 5,
@@ -438,12 +490,20 @@
           "value": 5.0
         },
         {
-          "bar": "#-------------------------------------------",
+          "bar": "#####---------------------------------------",
           "highlight": false,
           "project": "OpenClaw",
           "rank": 6,
           "score": "3",
           "value": 3.0
+        },
+        {
+          "bar": "#-------------------------------------------",
+          "highlight": false,
+          "project": "Protheus Pure",
+          "rank": 7,
+          "score": "0",
+          "value": 0.0
         }
       ],
       "unit": "count"
@@ -470,6 +530,13 @@
         "snapshot_path": "client/runtime/config/competitive_benchmark_snapshot_2026_02.json"
       },
       "id": "competitive_benchmark_matrix_snapshot_reference"
+    },
+    {
+      "claim": "pure_workspace_metrics_are_measured_from_rust_only_client_binary_probes_when_artifacts_exist",
+      "evidence": {
+        "binary_probe_present": true
+      },
+      "id": "competitive_benchmark_matrix_pure_workspace_probe"
     }
   ],
   "lane": "benchmark_matrix",
@@ -477,10 +544,10 @@
   "ok": true,
   "openclaw_measured": {
     "channel_adapters": 6.0,
-    "cold_start_ms": 3.686,
+    "cold_start_ms": 5.045,
     "data_source": "runtime_efficiency_floor + policy counters",
-    "idle_memory_mb": 9.781,
-    "install_size_mb": 10.02,
+    "idle_memory_mb": 9.813,
+    "install_size_mb": 10.09,
     "llm_providers": 3.0,
     "measured": true,
     "runtime_metric_source": {
@@ -492,7 +559,7 @@
       "tasks_work_factor": 16
     },
     "security_systems": 83.0,
-    "tasks_per_sec": 12923.51,
+    "tasks_per_sec": 12661.8,
     "throughput_source": "live_hash_workload_v1"
   },
   "projects": {
@@ -522,10 +589,10 @@
     },
     "OpenClaw": {
       "channel_adapters": 6.0,
-      "cold_start_ms": 3.686,
+      "cold_start_ms": 5.045,
       "data_source": "runtime_efficiency_floor + policy counters",
-      "idle_memory_mb": 9.781,
-      "install_size_mb": 10.02,
+      "idle_memory_mb": 9.813,
+      "install_size_mb": 10.09,
       "llm_providers": 3.0,
       "measured": true,
       "runtime_metric_source": {
@@ -537,7 +604,7 @@
         "tasks_work_factor": 16
       },
       "security_systems": 83.0,
-      "tasks_per_sec": 12923.51,
+      "tasks_per_sec": 12661.8,
       "throughput_source": "live_hash_workload_v1"
     },
     "OpenFang": {
@@ -555,9 +622,39 @@
       "install_size_mb": 95.5,
       "llm_providers": 5,
       "security_systems": 7
+    },
+    "Protheus Pure": {
+      "channel_adapters": 0.0,
+      "cold_start_ms": 4.436125,
+      "daemon_binary_path": "/Users/jay/.openclaw/workspace/target/x86_64-unknown-linux-musl/release/protheusd",
+      "data_source": "pure_workspace_binary_probe",
+      "idle_memory_mb": 1.375,
+      "install_size_mb": 1.091,
+      "llm_providers": 0.0,
+      "measured": true,
+      "probe_binary_path": "/Users/jay/.openclaw/workspace/target/release/protheus-pure-workspace",
+      "security_systems": 83.0,
+      "size_binary_path": "/Users/jay/.openclaw/workspace/target/x86_64-unknown-linux-musl/release/protheus-pure-workspace",
+      "tasks_per_sec": 12546.23,
+      "throughput_source": "live_hash_workload_v1"
     }
   },
-  "receipt_hash": "bb0ad454cdc3cdf55a8497b3d5e6771cae57ece51306e3a78eef8c263102f993",
+  "pure_workspace_measured": {
+    "channel_adapters": 0.0,
+    "cold_start_ms": 4.436125,
+    "daemon_binary_path": "/Users/jay/.openclaw/workspace/target/x86_64-unknown-linux-musl/release/protheusd",
+    "data_source": "pure_workspace_binary_probe",
+    "idle_memory_mb": 1.375,
+    "install_size_mb": 1.091,
+    "llm_providers": 0.0,
+    "measured": true,
+    "probe_binary_path": "/Users/jay/.openclaw/workspace/target/release/protheus-pure-workspace",
+    "security_systems": 83.0,
+    "size_binary_path": "/Users/jay/.openclaw/workspace/target/x86_64-unknown-linux-musl/release/protheus-pure-workspace",
+    "tasks_per_sec": 12546.23,
+    "throughput_source": "live_hash_workload_v1"
+  },
+  "receipt_hash": "281fe3374de1b406827df218990b9b57cd078786ab083de199da1e3c60a12aba",
   "reference_month": "2026-02",
   "runtime_receipt": {
     "cold_start": {
@@ -571,7 +668,7 @@
       "dist_target": null,
       "engine": "core-lazy",
       "max_ms": 500.0,
-      "p95_ms": 3.686,
+      "p95_ms": 5.045,
       "runtime_mode": "source",
       "samples": 5
     },
@@ -579,17 +676,17 @@
     "full_install": {
       "paths": {
         "client/runtime": 5.123,
-        "core/layer0/ops": 4.339,
-        "target/x86_64-unknown-linux-musl/release/protheusd": 0.558
+        "core/layer0/ops": 4.353,
+        "target/x86_64-unknown-linux-musl/release/protheusd": 0.614
       },
-      "sum_mb": 10.02
+      "sum_mb": 10.09
     },
     "history_path": "local/state/ops/runtime_efficiency_floor_history.jsonl",
     "hold_streak_days": 1,
     "idle_rss": {
       "max_mb": 120.0,
       "measurement_mode": "process",
-      "p95_mb": 9.781,
+      "p95_mb": 9.813,
       "required_modules": [],
       "samples": 3
     },
@@ -601,11 +698,11 @@
       "sum_mb": 0.0
     },
     "metrics": {
-      "cold_start_p95_ms": 3.686,
-      "full_install_total_mb": 10.02,
-      "idle_rss_p95_mb": 9.781,
+      "cold_start_p95_ms": 5.045,
+      "full_install_total_mb": 10.09,
+      "idle_rss_p95_mb": 9.813,
       "install_artifact_total_mb": 0.0,
-      "tasks_per_sec": 12923.51
+      "tasks_per_sec": 12661.8
     },
     "ok": true,
     "pass": true,
@@ -615,12 +712,12 @@
     "strict": false,
     "strict_hold_ok": true,
     "target_hold_days": 7,
-    "ts": "2026-03-15T06:14:30.545Z",
+    "ts": "2026-03-15T13:26:23.504Z",
     "type": "runtime_efficiency_floor"
   },
   "snapshot_generated_from": null,
   "snapshot_path": "client/runtime/config/competitive_benchmark_snapshot_2026_02.json",
   "snapshot_version": null,
-  "ts": "2026-03-15T06:14:31.351Z",
+  "ts": "2026-03-15T13:26:25.215Z",
   "type": "competitive_benchmark_matrix"
 }

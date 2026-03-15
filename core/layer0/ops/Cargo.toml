@@ -26,6 +26,7 @@ layer-1-substrate-detector = []
 mimalloc = ["dep:mimalloc"]
 no-client-bloat = []
 tiny = ["dep:protheus-tiny-runtime"]
+pure-workspace = ["dep:protheus-pure-workspace"]
 minimal = []
 full-substrate = []
 
@@ -65,6 +66,7 @@ protheus-spine-core-v1 = { path = "../../layer2/spine" }
 exotic_wrapper = { path = "../../layer_minus_one/exotic_wrapper" }
 mimalloc = { version = "0.1", default-features = false, optional = true }
 protheus-tiny-runtime = { path = "../tiny_runtime", optional = true }
+protheus-pure-workspace = { path = "../../../client/pure-workspace", optional = true }
 crossbeam-channel = "0.5"
 parking_lot = "0.12"
 

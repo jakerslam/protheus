@@ -1123,6 +1123,38 @@ fn core_shortcut_routes_init_to_canyon_ecosystem_init() {
 }
 
 #[test]
+fn core_shortcut_routes_init_pure_to_canyon_ecosystem_init() {
+    let route = resolve_core_shortcuts(
+        "init",
+        &[
+            "--pure".to_string(),
+            "--target-dir=/tmp/pure-demo".to_string(),
+            "--dry-run=1".to_string(),
+        ],
+    )
+    .expect("route");
+    assert_eq!(route.script_rel, "core://canyon-plane");
+    assert_eq!(
+        route.args,
+        vec![
+            "ecosystem",
+            "--op=init",
+            "--workspace-mode=pure",
+            "--pure",
+            "--target-dir=/tmp/pure-demo",
+            "--dry-run=1"
+        ]
+    );
+}
+
+#[test]
+fn core_shortcut_routes_init_help_to_canyon_help() {
+    let route = resolve_core_shortcuts("init", &["--help".to_string()]).expect("route");
+    assert_eq!(route.script_rel, "core://canyon-plane");
+    assert_eq!(route.args, vec!["help"]);
+}
+
+#[test]
 fn core_shortcut_routes_marketplace_publish_to_canyon_ecosystem() {
     let route = resolve_core_shortcuts(
         "marketplace",

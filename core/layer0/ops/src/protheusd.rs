@@ -7,7 +7,9 @@ use protheus_ops_core::{
 };
 use serde_json::{json, Value};
 use std::env;
-use std::path::{Path, PathBuf};
+#[cfg(feature = "embedded-minimal-core")]
+use std::path::Path;
+use std::path::PathBuf;
 
 #[cfg(feature = "embedded-minimal-core")]
 type PlaneRunner = fn(&Path, &[String]) -> i32;
@@ -175,7 +177,9 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "tiny")]
     use super::*;
+    #[cfg(feature = "tiny")]
     use serde_json::Value;
 
     #[cfg(feature = "tiny")]

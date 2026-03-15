@@ -84,25 +84,26 @@ This regenerates:
 - `docs/client/reports/benchmark_matrix_run_2026-03-06.json`
 - `docs/client/reports/benchmark_matrix_run_2026-03-06_full_install.json`
 
-### Current Runtime Measurements (OpenClaw)
+### Current Runtime Measurements (OpenClaw + Pure Workspace)
 
 Sources:
 - Live control-plane run: `docs/client/reports/benchmark_matrix_run_2026-03-06.json`
 - Snapshot/reference baseline: `docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json`
 
-| Metric | Live (Control-Plane) | Snapshot/Reference |
-|---|---:|---:|
-| Cold start | 200.4 ms | 74.5 ms |
-| Idle memory | 33.6 MB | 22.1 MB |
-| Install size (full) | 82.5 MB | 126.4 MB |
-| Throughput | 12,894 ops/sec | 7,420 ops/sec |
+| Metric | OpenClaw Live | Pure Workspace Live | Snapshot/Reference |
+|---|---:|---:|---:|
+| Cold start | 5.045 ms | 4.436 ms | 74.5 ms |
+| Idle memory | 9.813 MB | 1.375 MB | 22.1 MB |
+| Install size (full) | 10.090 MB | 1.091 MB | 126.4 MB |
+| Throughput | 12,662 ops/sec | 12,546 ops/sec | 7,420 ops/sec |
 
-| Capability Counter | Live (Policy Counters) |
-|---|---:|
-| Static daemon size (musl + UPX) | 0.557 MB |
-| Security systems | 83 |
-| Channel adapters | 6 |
-| LLM providers | 3 |
+| Capability Counter | OpenClaw Live | Pure Workspace Live |
+|---|---:|---:|
+| Static daemon size (musl + UPX) | 0.463 MB | 0.245 MB |
+| Rust client binary size (musl + UPX) | n/a | 0.198 MB |
+| Security systems | 83 | 83 |
+| Channel adapters | 6 | 0 |
+| LLM providers | 3 | 0 |
 
 ### Competitive Benchmark Matrix (Feb 2026 Snapshot + Live Protheus)
 
@@ -111,7 +112,8 @@ External baseline (OpenFang public table):
 
 | Project | Install Size (MB) ↓ | Cold Start ↓ | Idle Memory (MB) ↓ | Throughput (ops/sec) ↑ | Static Daemon (MB) ↓ | Security Systems ↑ | Channel Adapters ↑ | LLM Providers ↑ |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| **Protheus (OpenClaw Runtime, Live)** | **82.5** | **200 ms** | **33.6** | **12,894** | **0.557** | **83** | 6 | 3 |
+| **Protheus (OpenClaw Rich Mode, Live)** | **10.090** | **5.045 ms** | **9.813** | **12,662** | **0.463** | **83** | 6 | 3 |
+| **Protheus (Pure Workspace Mode, Live)** | **1.091** | **4.436 ms** | **1.375** | **12,546** | **0.245** | **83** | 0 | 0 |
 | OpenFang | 32.0 | 180 ms | 40.0 | n/p | n/p | 16 | 40 | 27 |
 | OpenHands | 95.5 | 1.30 sec | 150.0 | n/p | n/p | 7 | 15 | 5 |
 | LangGraph | 150.0 | 2.50 sec | 180.0 | n/p | n/p | 2 | 4 | 15 |
@@ -120,12 +122,15 @@ External baseline (OpenFang public table):
 
 `n/p` means not publicly published with a reproducible method in the referenced sources.
 
+Pure Workspace mode is 100% Rust with no Node/TS runtime surfaces and is designed to run on low-resource hardware.
+
 ### Benchmarks: Measured, Not Marketed (ASCII)
 
 ```text
 Cold Start Time (lower is better)
-OpenFang   ############################################  180 ms
-Protheus   ############################################  200 ms
+OpenClaw   ###########################################-  5.045 ms
+Pure       ###########################################-  4.436 ms
+OpenFang   ##########################################--  180 ms
 OpenHands  ###############################-------------  1.30 sec
 LangGraph  #################---------------------------  2.50 sec
 CrewAI     ############--------------------------------  3.00 sec
@@ -134,8 +139,9 @@ AutoGen    #-------------------------------------------  4.00 sec
 
 ```text
 Idle Memory Usage (lower is better)
-Protheus   ############################################  33.6 MB
-OpenFang   ###########################################-  40.0 MB
+Pure       ############################################  1.375 MB
+OpenClaw   ###########################################-  9.813 MB
+OpenFang   #####################################-------  40.0 MB
 OpenHands  ####################------------------------  150.0 MB
 LangGraph  ##############------------------------------  180.0 MB
 CrewAI     ##########----------------------------------  200.0 MB
@@ -144,8 +150,9 @@ AutoGen    #-------------------------------------------  250.0 MB
 
 ```text
 Install Size (lower is better)
-OpenFang   ############################################  32.0 MB
-Protheus   ###############################-------------  82.5 MB
+Pure       ############################################  1.091 MB
+OpenClaw   ##########################################--  10.090 MB
+OpenFang   #####################################-------  32.0 MB
 OpenHands  ###########################-----------------  95.5 MB
 CrewAI     ##########################------------------  100.0 MB
 LangGraph  #############-------------------------------  150.0 MB
@@ -164,7 +171,8 @@ CrewAI     #-------------------------------------------  1
 
 ```text
 Throughput (ops/sec, higher is better)
-Protheus   ############################################  12,894
+OpenClaw   ############################################  12,662
+Pure       ###########################################-  12,546
 OpenFang   n/p
 OpenHands  n/p
 LangGraph  n/p

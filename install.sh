@@ -11,6 +11,7 @@ REQUESTED_VERSION="${PROTHEUS_VERSION:-latest}"
 API_URL="${PROTHEUS_RELEASE_API_URL:-$DEFAULT_API}"
 BASE_URL="${PROTHEUS_RELEASE_BASE_URL:-$DEFAULT_BASE}"
 INSTALL_FULL="${PROTHEUS_INSTALL_FULL:-0}"
+INSTALL_PURE="${PROTHEUS_INSTALL_PURE:-0}"
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -37,14 +38,20 @@ parse_install_args() {
     case "$arg" in
       --full)
         INSTALL_FULL=1
+        INSTALL_PURE=0
         ;;
       --minimal)
         INSTALL_FULL=0
         ;;
+      --pure)
+        INSTALL_PURE=1
+        INSTALL_FULL=0
+        ;;
       --help|-h)
-        echo "Usage: install.sh [--full|--minimal]"
+        echo "Usage: install.sh [--full|--minimal|--pure]"
         echo "  --full     install optional client runtime bundle when available"
         echo "  --minimal  install daemon + CLI only (default)"
+        echo "  --pure     install pure Rust client + daemon only (no Node/TS surfaces)"
         exit 0
         ;;
       *)
@@ -250,6 +257,7 @@ main() {
   echo "[protheus install] install dir: $INSTALL_DIR"
 
   ops_bin="$INSTALL_DIR/protheus-ops"
+  pure_bin="$INSTALL_DIR/protheus-pure-workspace"
   protheusd_bin="$INSTALL_DIR/protheusd-bin"
   daemon_bin="$INSTALL_DIR/conduit_daemon"
   daemon_wrapper_body=""
@@ -259,9 +267,17 @@ main() {
     prefer_musl_protheusd=1
   fi
 
-  if ! install_binary "$version" "$triple" "protheus-ops" "$ops_bin"; then
-    echo "[protheus install] failed to fetch protheus-ops for $triple ($version)" >&2
-    exit 1
+  if is_truthy "$INSTALL_PURE"; then
+    if ! install_binary "$version" "$triple" "protheus-pure-workspace" "$pure_bin"; then
+      echo "[protheus install] failed to fetch protheus-pure-workspace for $triple ($version)" >&2
+      exit 1
+    fi
+    echo "[protheus install] pure mode selected: Rust-only client installed"
+  else
+    if ! install_binary "$version" "$triple" "protheus-ops" "$ops_bin"; then
+      echo "[protheus install] failed to fetch protheus-ops for $triple ($version)" >&2
+      exit 1
+    fi
   fi
 
   if [ "$prefer_musl_protheusd" = "1" ]; then
@@ -285,16 +301,27 @@ main() {
     fi
   fi
 
-  write_wrapper "protheus" "exec \"$ops_bin\" protheusctl \"\$@\""
-  write_wrapper "protheusctl" "exec \"$ops_bin\" protheusctl \"\$@\""
+  if is_truthy "$INSTALL_PURE"; then
+    write_wrapper "protheus" "exec \"$pure_bin\" \"\$@\""
+    write_wrapper "protheusctl" "exec \"$pure_bin\" conduit \"\$@\""
+  else
+    write_wrapper "protheus" "exec \"$ops_bin\" protheusctl \"\$@\""
+    write_wrapper "protheusctl" "exec \"$ops_bin\" protheusctl \"\$@\""
+  fi
 
   if [ -n "$daemon_wrapper_body" ]; then
     write_wrapper "protheusd" "$daemon_wrapper_body"
   else
+    if is_truthy "$INSTALL_PURE"; then
+      echo "[protheus install] no daemon binary available for pure mode" >&2
+      exit 1
+    fi
     write_wrapper "protheusd" "exec \"$ops_bin\" spine \"\$@\""
   fi
 
-  if is_truthy "$INSTALL_FULL"; then
+  if is_truthy "$INSTALL_PURE"; then
+    echo "[protheus install] pure mode: skipping OpenClaw client bundle"
+  elif is_truthy "$INSTALL_FULL"; then
     client_dir="$INSTALL_DIR/protheus-client"
     if install_client_bundle "$version" "$triple" "$client_dir"; then
       echo "[protheus install] full mode enabled: client runtime installed at $client_dir"
