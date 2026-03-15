@@ -25,7 +25,7 @@ fn usage() {
     println!("  protheus-ops canyon-plane hands-army [--op=bootstrap|schedule|run|status] [--hand-id=<id>] [--cron=<expr>] [--trigger=cron|event|importance] [--strict=1|0]");
     println!("  protheus-ops canyon-plane evolution [--op=propose|shadow-simulate|review|apply|rollback|status] [--proposal-id=<id>] [--kind=<id>] [--description=<text>] [--approved=1|0] [--strict=1|0]");
     println!("  protheus-ops canyon-plane sandbox [--op=run|status|snapshot|resume] [--session-id=<id>] [--snapshot-id=<id>] [--tier=native|wasm|firecracker] [--language=python|ts|go|rust] [--fuel=<n>] [--epoch=<n>] [--logical-only=1|0] [--escape-attempt=1|0] [--strict=1|0]");
-    println!("  protheus-ops canyon-plane ecosystem [--op=bootstrap|status|init|marketplace-status|marketplace-publish|marketplace-install] [--target-dir=<path>] [--sdk=python|typescript|go|rust] [--template=<id>] [--hand-id=<id>] [--receipt-file=<path>] [--version=<semver>] [--chaos-score=<n>] [--reputation=<n>] [--strict=1|0]");
+    println!("  protheus-ops canyon-plane ecosystem [--op=bootstrap|status|init|marketplace-status|marketplace-publish|marketplace-install] [--target-dir=<path>] [--sdk=python|typescript|go|rust] [--template=<id>] [--workspace-mode=openclaw|pure] [--pure=1|0] [--dry-run=1|0] [--hand-id=<id>] [--receipt-file=<path>] [--version=<semver>] [--chaos-score=<n>] [--reputation=<n>] [--strict=1|0]");
     println!("  protheus-ops canyon-plane workflow [--op=run|status] [--goal=<text>] [--workspace=<path>] [--strict=1|0]");
     println!("  protheus-ops canyon-plane scheduler [--op=simulate|status] [--agents=<n>] [--nodes=<n>] [--modes=kubernetes,edge,distributed] [--strict=1|0]");
     println!("  protheus-ops canyon-plane control-plane [--op=snapshot|status] [--rbac=1|0] [--sso=1|0] [--hitl=1|0] [--strict=1|0]");
@@ -297,9 +297,10 @@ fn read_array(path: &Path) -> Vec<Value> {
 }
 
 fn upsert_marketplace_entry(entries: &mut Vec<Value>, hand_id: &str, row: Value) {
-    if let Some(existing) = entries.iter_mut().find(|existing| {
-        existing.get("hand_id").and_then(Value::as_str) == Some(hand_id)
-    }) {
+    if let Some(existing) = entries
+        .iter_mut()
+        .find(|existing| existing.get("hand_id").and_then(Value::as_str) == Some(hand_id))
+    {
         *existing = row;
     } else {
         entries.push(row);
@@ -1018,7 +1019,8 @@ fn sandbox_command(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Res
             return Err("sandbox_snapshot_id_required".to_string());
         }
         let snapshot_path = sandbox_snapshots_dir(root).join(format!("{snapshot_id}.json"));
-        let snapshot = read_json(&snapshot_path).ok_or_else(|| "sandbox_snapshot_missing".to_string())?;
+        let snapshot =
+            read_json(&snapshot_path).ok_or_else(|| "sandbox_snapshot_missing".to_string())?;
         let state = snapshot
             .get("state")
             .cloned()
@@ -1035,7 +1037,10 @@ fn sandbox_command(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Res
         }
         if errors.is_empty() {
             sessions.insert(session_id.clone(), state.clone());
-            write_json(&sandbox_sessions_path(root), &Value::Object(sessions.clone()))?;
+            write_json(
+                &sandbox_sessions_path(root),
+                &Value::Object(sessions.clone()),
+            )?;
         }
         let event = json!({
             "ts": now_iso(),
@@ -1212,6 +1217,7 @@ fn ecosystem_command(
     .to_ascii_lowercase();
     let path = ecosystem_inventory_path(root);
     let mut inventory = read_object(&path);
+    let mut init_summary = Value::Null;
 
     if op == "bootstrap" {
         let providers = (1..=40)
@@ -1241,6 +1247,29 @@ fn ecosystem_command(
         inventory.insert("updated_at".to_string(), Value::String(now_iso()));
         write_json(&path, &Value::Object(inventory.clone()))?;
     } else if op == "init" {
+        let init_help = parse_bool(parsed.flags.get("help"), false)
+            || parse_bool(parsed.flags.get("help-init"), false);
+        if init_help {
+            return Ok(json!({
+                "ok": true,
+                "type": "canyon_plane_ecosystem_init_help",
+                "lane": LANE_ID,
+                "ts": now_iso(),
+                "usage": "protheus init <template> [--pure] [--workspace-mode=openclaw|pure] [--target-dir=<path>] [--dry-run=1|0]",
+                "flags": [
+                    "--pure",
+                    "--workspace-mode=openclaw|pure",
+                    "--target-dir=<path>",
+                    "--template=<id>",
+                    "--dry-run=1|0"
+                ],
+                "defaults": {
+                    "workspace_mode": "openclaw",
+                    "template": "starter",
+                    "dry_run": false
+                }
+            }));
+        }
         let target = parsed
             .flags
             .get("target-dir")
@@ -1265,23 +1294,96 @@ fn ecosystem_command(
             24,
         )
         .to_ascii_lowercase();
-        fs::create_dir_all(&target).map_err(|err| format!("ecosystem_init_dir_failed:{err}"))?;
-        fs::write(
-            target.join("README.md"),
-            format!("# Protheus Init Project\n\nTemplate: {template}\n\nSDK: {sdk}\n"),
+        let dry_run = parse_bool(parsed.flags.get("dry-run"), false)
+            || parse_bool(parsed.flags.get("dry_run"), false);
+        let pure_requested = parse_bool(parsed.flags.get("pure"), false);
+        let workspace_mode = clean(
+            parsed
+                .flags
+                .get("workspace-mode")
+                .or_else(|| parsed.flags.get("workspace_mode"))
+                .map(String::as_str)
+                .unwrap_or(if pure_requested { "pure" } else { "openclaw" }),
+            24,
         )
-        .map_err(|err| format!("ecosystem_init_write_failed:{err}"))?;
-        fs::write(
-            target.join("protheus.init.json"),
-            serde_json::to_string_pretty(&json!({
-                "template": template,
-                "sdk": sdk,
-                "created_at": now_iso(),
-                "scaffold": "canyon"
-            }))
-            .unwrap_or_else(|_| "{}".to_string()),
-        )
-        .map_err(|err| format!("ecosystem_init_manifest_failed:{err}"))?;
+        .to_ascii_lowercase();
+
+        let mut files = Vec::<String>::new();
+        if workspace_mode == "pure" {
+            files.push(target.join("README.md").to_string_lossy().to_string());
+            files.push(target.join("Cargo.toml").to_string_lossy().to_string());
+            files.push(target.join("src/main.rs").to_string_lossy().to_string());
+            files.push(target.join("protheus.init.json").to_string_lossy().to_string());
+            if !dry_run {
+                fs::create_dir_all(target.join("src"))
+                    .map_err(|err| format!("ecosystem_init_dir_failed:{err}"))?;
+                fs::write(
+                    target.join("README.md"),
+                    format!(
+                        "# Protheus Pure Workspace\n\nTemplate: {template}\n\nMode: pure (Rust-only client + daemon)\n"
+                    ),
+                )
+                .map_err(|err| format!("ecosystem_init_write_failed:{err}"))?;
+                fs::write(
+                    target.join("Cargo.toml"),
+                    "[package]\nname = \"protheus_pure_workspace_app\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\n",
+                )
+                .map_err(|err| format!("ecosystem_init_manifest_failed:{err}"))?;
+                fs::write(
+                    target.join("src/main.rs"),
+                    "fn main() {\n    println!(\"protheus pure workspace ready\");\n}\n",
+                )
+                .map_err(|err| format!("ecosystem_init_write_failed:{err}"))?;
+                fs::write(
+                    target.join("protheus.init.json"),
+                    serde_json::to_string_pretty(&json!({
+                        "template": template,
+                        "sdk": "rust",
+                        "workspace_mode": workspace_mode,
+                        "created_at": now_iso(),
+                        "scaffold": "canyon_pure"
+                    }))
+                    .unwrap_or_else(|_| "{}".to_string()),
+                )
+                .map_err(|err| format!("ecosystem_init_manifest_failed:{err}"))?;
+            }
+        } else {
+            files.push(target.join("README.md").to_string_lossy().to_string());
+            files.push(target.join("protheus.init.json").to_string_lossy().to_string());
+            if !dry_run {
+                fs::create_dir_all(&target)
+                    .map_err(|err| format!("ecosystem_init_dir_failed:{err}"))?;
+                fs::write(
+                    target.join("README.md"),
+                    format!("# Protheus Init Project\n\nTemplate: {template}\n\nSDK: {sdk}\n"),
+                )
+                .map_err(|err| format!("ecosystem_init_write_failed:{err}"))?;
+                fs::write(
+                    target.join("protheus.init.json"),
+                    serde_json::to_string_pretty(&json!({
+                        "template": template,
+                        "sdk": sdk,
+                        "workspace_mode": workspace_mode,
+                        "created_at": now_iso(),
+                        "scaffold": "canyon"
+                    }))
+                    .unwrap_or_else(|_| "{}".to_string()),
+                )
+                .map_err(|err| format!("ecosystem_init_manifest_failed:{err}"))?;
+            }
+        }
+        init_summary = json!({
+            "workspace_mode": workspace_mode,
+            "pure": workspace_mode == "pure",
+            "dry_run": dry_run,
+            "target_dir": target.to_string_lossy().to_string(),
+            "files": files,
+            "components": if workspace_mode == "pure" {
+                json!(["pure_client", "daemon"])
+            } else {
+                json!(["openclaw_client", "daemon"])
+            }
+        });
     } else if op == "marketplace-status" {
     } else if op == "marketplace-publish" {
         let hand_id = clean(
@@ -1317,7 +1419,10 @@ fn ecosystem_command(
             .get("marketplace_signed")
             .and_then(Value::as_bool)
             .unwrap_or(false)
-            && receipt.get("receipt_hash").and_then(Value::as_str).is_some()
+            && receipt
+                .get("receipt_hash")
+                .and_then(Value::as_str)
+                .is_some()
             && receipt.get("ok").and_then(Value::as_bool).unwrap_or(false)
             && chaos_score >= 80;
         let mut entries = read_array(&ecosystem_marketplace_path(root));
@@ -1374,8 +1479,14 @@ fn ecosystem_command(
             .flags
             .get("target-dir")
             .map(PathBuf::from)
-            .unwrap_or_else(|| root.join("local").join("state").join("marketplace_install").join(&hand_id));
-        fs::create_dir_all(&target).map_err(|err| format!("marketplace_install_dir_failed:{err}"))?;
+            .unwrap_or_else(|| {
+                root.join("local")
+                    .join("state")
+                    .join("marketplace_install")
+                    .join(&hand_id)
+            });
+        fs::create_dir_all(&target)
+            .map_err(|err| format!("marketplace_install_dir_failed:{err}"))?;
         fs::write(
             target.join("PROTHEUS_HAND.json"),
             serde_json::to_string_pretty(&entry).unwrap_or_else(|_| "{}".to_string()),
@@ -1450,6 +1561,7 @@ fn ecosystem_command(
             "marketplace_entries": marketplace_entries.len(),
             "verified_marketplace_entries": verified_marketplace
         },
+        "init": init_summary,
         "errors": errors,
         "claim_evidence": [{
             "id": "V7-CANYON-001.5",
@@ -1889,15 +2001,14 @@ fn benchmark_gate_command(
             .map(|(_, _, _, source)| source.clone())
             .unwrap_or_else(|| "missing".to_string())
     };
-    let (binary_size_mb, binary_size_source) = if let Some(size) =
-        eff.get("binary_size_mb").and_then(Value::as_f64)
-    {
-        (size, efficiency_path(root).to_string_lossy().to_string())
-    } else if let Some((size, source)) = top1_binary_size_fallback(root) {
-        (size, source)
-    } else {
-        (9999.0, "missing".to_string())
-    };
+    let (binary_size_mb, binary_size_source) =
+        if let Some(size) = eff.get("binary_size_mb").and_then(Value::as_f64) {
+            (size, efficiency_path(root).to_string_lossy().to_string())
+        } else if let Some((size, source)) = top1_binary_size_fallback(root) {
+            (size, source)
+        } else {
+            (9999.0, "missing".to_string())
+        };
     let (agents, orchestration_source) =
         if let Some(agent_count) = scheduler.get("agents").and_then(Value::as_u64) {
             (

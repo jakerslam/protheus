@@ -3,6 +3,32 @@ use super::Route;
 #[path = "protheusctl_plane_shortcuts.rs"]
 mod protheusctl_plane_shortcuts;
 
+fn contains_help_flag(args: &[String]) -> bool {
+    args.iter()
+        .any(|arg| matches!(arg.trim(), "--help" | "-h"))
+}
+
+fn parse_true_flag(args: &[String], key: &str) -> bool {
+    let exact = format!("--{key}");
+    let prefix = format!("--{key}=");
+    for arg in args {
+        let token = arg.trim();
+        if token == exact {
+            return true;
+        }
+        if let Some(value) = token.strip_prefix(&prefix) {
+            let norm = value.trim().to_ascii_lowercase();
+            return matches!(norm.as_str(), "1" | "true" | "yes" | "on");
+        }
+    }
+    false
+}
+
+fn has_prefix_flag(args: &[String], key: &str) -> bool {
+    let prefix = format!("--{key}=");
+    args.iter().any(|arg| arg.trim().starts_with(&prefix))
+}
+
 pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route> {
     match cmd {
         "rag" => Some(Route {
@@ -105,7 +131,18 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
             forward_stdin: false,
         }),
         "init" => {
+            if contains_help_flag(rest) {
+                return Some(Route {
+                    script_rel: "core://canyon-plane".to_string(),
+                    args: vec!["help".to_string()],
+                    forward_stdin: false,
+                });
+            }
             let mut args = vec!["ecosystem".to_string(), "--op=init".to_string()];
+            let pure_requested = parse_true_flag(rest, "pure");
+            if pure_requested && !has_prefix_flag(rest, "workspace-mode") {
+                args.push("--workspace-mode=pure".to_string());
+            }
             if let Some(template) = rest.first() {
                 if !template.starts_with("--") {
                     args.push(format!("--template={}", template.trim()));

@@ -9568,6 +9568,25 @@ Objective: extend the memory system with a governed managed-memory-bank backend 
 | V8-MEMORY-BANK-001.5 | queued | Agent Tools + Consolidation Pipeline Contract | Managed memory becomes usable inside agents only if search, forget, correction, and stats operations are exposed as governed tools and writes pass through one consolidation path. | Register managed tools such as `memorybank_search`, `memorybank_forget`, `memorybank_correct`, and `memorybank_stats`, route all writes through one deduplication/merge/consolidation path, and emit deterministic receipts plus policy denials for every tool action. | 9 | 0/1/2/client/app |
 | V8-MEMORY-BANK-001.6 | queued | Conduit-Only Memory Bank Boundary + Thin Client Contract | A managed backend cannot be allowed to bypass local governance, provenance, or Rust-core authority just because it is cloud-backed. | Route all Memory Bank recall/capture/sync/tool operations exclusively through Layer-0 Conduit with fail-closed policy checks, explicit bypass-rejection tests, zero client write authority, and full audit trails tied to the existing memory and safety planes. | 10 | 0/1/2/client/app |
 
+## Pure Workspace Intake (Inline Operator Plan, 2026-03-15)
+
+Source references:
+- inline operator plan: `V7-PURE-WORKSPACE-001`
+
+Notes:
+- Primitive-first normalization: this intake adds a Rust-only client mode without changing Layer-0 authority primitives.
+- Overlap handled explicitly:
+  - existing rich OpenClaw default path remains unchanged.
+  - daemon authority remains in Rust core (`protheusd` / `protheus-ops`).
+
+Objective: provide first-class `--pure` workspace initialization and installation flow for Rust-only environments while preserving rich mode as default.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V7-PURE-WORKSPACE-001.1 | done | Rust-Only Pure Workspace Client Crate Contract | A true pure mode needs its own thin Rust client surface, not a hidden Node/TS fallback. | Added `client/pure-workspace` crate with `protheus-pure-workspace` CLI (`init`, `status`, `conduit`, `probe`) and profile contract in `client/pure-workspace/src/lib.rs`; validated by `cargo test --manifest-path client/pure-workspace/Cargo.toml`. | 9 | 1/client |
+| V7-PURE-WORKSPACE-001.2 | done | `protheus init --pure` Routing + Dry-Run Contract | Users need a first-class CLI path for pure mode with auditable behavior before filesystem mutation. | Updated `core/layer0/ops/src/protheusctl_routes.rs` + `core/layer0/ops/src/canyon_plane.rs` so `protheus init --pure` routes to pure workspace scaffolding and `--dry-run`; verified by route tests (`core_shortcut_routes_init_pure_to_canyon_ecosystem_init`, `core_shortcut_routes_init_help_to_canyon_help`), integration test `core/layer0/ops/tests/v7_pure_workspace_integration.rs`, and runnable CLI (`cargo run --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- protheusctl init --pure --dry-run=1`). | 10 | 0/1/2/client |
+| V7-PURE-WORKSPACE-001.3 | done | Installer + Benchmark Dual-Mode Contract (OpenClaw Rich + Pure) | Pure mode must be installable and benchmark-visible alongside rich mode to remain operator-credible. | Updated `install.sh` / `install.ps1` with `--pure` install path and refreshed benchmark matrix with measured `pure_workspace_measured` in `core/layer0/ops/src/benchmark_matrix.rs`; verified by `cargo build --release --target x86_64-unknown-linux-musl --manifest-path core/layer0/ops/Cargo.toml --bin protheusd --features pure-workspace`, `cargo build --release --target x86_64-unknown-linux-musl --manifest-path client/pure-workspace/Cargo.toml --bin protheus-pure-workspace`, `npm run ops:benchmark:refresh`, and README updates showing both modes. | 10 | 0/1/2/client |
+
 ## Live Benchmark Recovery & Tiny Runtime Intake (Inline Operator Plan, 2026-03-14)
 
 Source references:
