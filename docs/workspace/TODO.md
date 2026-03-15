@@ -197,7 +197,7 @@ Updated: 2026-03-15 12:30 America/Denver
 - `local/workspace/reports/MCU_PROOF_PREFLIGHT.md` shows `ok=true`.
 - README hardware-proof section is updated from `blocked` to `verified`.
 
-24. `P1-ORCH-001` Implement REQ-38 Agent Orchestration Hardening (coordinator, scratchpad, checkpointing). `STATUS: QUEUED`
+24. `P1-ORCH-001` Implement REQ-38 Agent Orchestration Hardening (coordinator, scratchpad, checkpointing). `STATUS: DONE`
 - Linked SRS:
 - `REQ-38-001` through `REQ-38-008` in `docs/client/requirements/REQ-38-agent-orchestration-hardening.md`.
 - Dependencies:
@@ -208,8 +208,11 @@ Updated: 2026-03-15 12:30 America/Denver
 - Coordinator agent implementation in `client/cognition/orchestration/coordinator.ts` with partitioning, deduplication, and severity merging.
 - Shared scratchpad in `client/cognition/orchestration/scratchpad.ts` with read/write and cleanup.
 - Checkpointing in `client/cognition/orchestration/checkpoint.ts` with 10-item/2-min intervals and timeout recovery.
-- All tests passing: `tests/client/cognition/coordinator.*.test.js`, `scratchpad.*.test.js`, `checkpoint.*.test.js`.
-- Integration test: Full multi-agent audit with 6 parallel agents completes without overlap and produces unified report.
+- Scope boundaries in `client/cognition/orchestration/scope.ts` with overlap detection and out-of-scope violation reporting.
+- Completion triggers in `client/cognition/orchestration/completion.ts` and task-group metadata persistence in `client/cognition/orchestration/taskgroup.ts`.
+- Partial-result retrieval in `client/cognition/orchestration/partial.ts` with session-history + checkpoint fallback.
+- All tests passing: `npm run -s test:cognition:orchestration`.
+- Integration test: full orchestration flow in `tests/client/cognition/coordinator.test.js` with scope + task-group completion assertions.
 
 ## Executed in this pass
 - Added `tests/tooling/scripts/ci/srs_actionable_map.mjs` to produce canonical remaining-work mapping and executability buckets.

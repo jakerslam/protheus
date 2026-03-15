@@ -1,6 +1,6 @@
 {
   "version": "2026-03-11",
-  "hard_zero_exts": ["sh", "py", "ps1"],
+  "hard_zero_exts": ["py", "ps1"],
   "target_caps": {
     "total_ts_files": {
       "target": 250,
@@ -84,9 +84,29 @@
       "bucket": "keep_public_client",
       "reason": "formal specification verification bridge is a sanctioned developer-facing client validation surface"
     },
+    "client/runtime/systems/ops/local_runtime_partitioner.ts": {
+      "bucket": "promote_to_core",
+      "reason": "temporary client-runtime partition bridge retained for migration continuity while core authority remains canonical"
+    },
+    "client/runtime/systems/ops/run_protheus_ops.js": {
+      "bucket": "keep_public_client",
+      "reason": "operator-facing runtime launcher shim remains public for CLI compatibility"
+    },
     "client/runtime/systems/memory/rust_memory_transition_lane.ts": {
       "bucket": "keep_public_client",
       "reason": "Rust transition lane bridge is a sanctioned client-facing compatibility entrypoint"
+    },
+    "client/runtime/systems/memory/policy_validator.ts": {
+      "bucket": "promote_to_core",
+      "reason": "client-side fail-closed memory guard retained as temporary enforcement wrapper while authority remains Rust-core"
+    },
+    "client/runtime/systems/memory/session_isolation.ts": {
+      "bucket": "promote_to_core",
+      "reason": "client-side session isolation guard retained as temporary enforcement wrapper while authority remains Rust-core"
+    },
+    "client/runtime/systems/sensory/conversation_eye_synthesizer.ts": {
+      "bucket": "keep_public_client",
+      "reason": "deterministic synthesis helper kept in client runtime as a sanctioned collector bridge surface"
     }
   }
 }

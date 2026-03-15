@@ -8,8 +8,8 @@
  */
 
 const crypto = require('crypto');
-const { moltbook_getHotPosts } = require('../../../../skills/moltbook/moltbook_api.ts');
-const { issueSecretHandle, loadSecretById } = require('../../../../../lib/secret_broker.ts');
+const { moltbook_getHotPosts } = require('../../../../../../runtime/lib/moltbook_api.ts');
+const { issueSecretHandle, loadSecretById } = require('../../../../../../runtime/lib/secret_broker.ts');
 const { classifyCollectorError, makeCollectorError } = require('./collector_errors.ts');
 const { loadCollectorCache, saveCollectorCache } = require('./cache_store.ts');
 

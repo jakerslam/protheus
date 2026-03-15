@@ -15,7 +15,7 @@ function laneNameForId(id) {
 }
 
 function laneCommand(id) {
-  return `node scripts/ci/srs_repair_lane_runner.mjs --id=${id} --strict=1`;
+  return `node tests/tooling/scripts/ci/srs_repair_lane_runner.mjs --id=${id} --strict=1`;
 }
 
 function parseArgs(argv) {

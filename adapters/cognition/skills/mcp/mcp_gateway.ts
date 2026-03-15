@@ -117,13 +117,13 @@ function normalizePolicy(rawPolicy, policyPath) {
       require_explicit_approval_tier: Number(rawPolicy && rawPolicy.risk && rawPolicy.risk.require_explicit_approval_tier) || 3
     },
     paths: {
-      registry_path: path.resolve(ROOT, String(paths.registry_path || 'client/cognition/skills/mcp/registry.json')),
-      installs_path: path.resolve(ROOT, String(paths.installs_path || 'local/state/client/cognition/skills/mcp_gateway/installs.json')),
-      latest_path: path.resolve(ROOT, String(paths.latest_path || 'local/state/client/cognition/skills/mcp_gateway/latest.json')),
-      events_path: path.resolve(ROOT, String(paths.events_path || 'local/state/client/cognition/skills/mcp_gateway/events.jsonl')),
-      receipts_path: path.resolve(ROOT, String(paths.receipts_path || 'local/state/client/cognition/skills/mcp_gateway/receipts.jsonl')),
-      memory_dir: path.resolve(ROOT, String(paths.memory_dir || 'client/memory/client/cognition/skills/mcp')),
-      adaptive_index_path: path.resolve(ROOT, String(paths.adaptive_index_path || 'client/cognition/adaptive/client/cognition/skills/mcp/index.json'))
+      registry_path: path.resolve(ROOT, String(paths.registry_path || 'adapters/cognition/skills/mcp/registry.json')),
+      installs_path: path.resolve(ROOT, String(paths.installs_path || 'local/state/adapters/cognition/skills/mcp_gateway/installs.json')),
+      latest_path: path.resolve(ROOT, String(paths.latest_path || 'local/state/adapters/cognition/skills/mcp_gateway/latest.json')),
+      events_path: path.resolve(ROOT, String(paths.events_path || 'local/state/adapters/cognition/skills/mcp_gateway/events.jsonl')),
+      receipts_path: path.resolve(ROOT, String(paths.receipts_path || 'local/state/adapters/cognition/skills/mcp_gateway/receipts.jsonl')),
+      memory_dir: path.resolve(ROOT, String(paths.memory_dir || 'local/state/adapters/cognition/skills/mcp')),
+      adaptive_index_path: path.resolve(ROOT, String(paths.adaptive_index_path || 'local/state/adapters/cognition/skills/mcp/index.json'))
     },
     policy_path: path.resolve(policyPath)
   };
