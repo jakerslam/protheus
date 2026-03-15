@@ -24,21 +24,21 @@ fn print_json(value: &Value) {
 
 fn usage() {
     println!("Usage:");
-    println!("  protheusd status");
-    println!("  protheusd start [--strict=1|0]");
-    println!("  protheusd stop [--strict=1|0]");
-    println!("  protheusd restart [--strict=1|0]");
-    println!("  protheusd attach [--strict=1|0]");
-    println!("  protheusd subscribe [--strict=1|0]");
-    println!("  protheusd tick [--strict=1|0]");
-    println!("  protheusd diagnostics [--strict=1|0]");
-    println!("  protheusd efficiency-status");
+    println!("  infringd status");
+    println!("  infringd start [--strict=1|0]");
+    println!("  infringd stop [--strict=1|0]");
+    println!("  infringd restart [--strict=1|0]");
+    println!("  infringd attach [--strict=1|0]");
+    println!("  infringd subscribe [--strict=1|0]");
+    println!("  infringd tick [--strict=1|0]");
+    println!("  infringd diagnostics [--strict=1|0]");
+    println!("  infringd efficiency-status");
     #[cfg(feature = "embedded-minimal-core")]
-    println!("  protheusd embedded-core-status");
+    println!("  infringd embedded-core-status");
     #[cfg(feature = "tiny")]
-    println!("  protheusd tiny-status");
+    println!("  infringd tiny-status");
     #[cfg(feature = "embedded-max")]
-    println!("  protheusd tiny-max-status");
+    println!("  infringd tiny-max-status");
 }
 
 fn cli_error(error: &str, command: &str) -> Value {

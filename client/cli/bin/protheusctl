@@ -2,6 +2,11 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+LAUNCHER_NAME="$(basename "${0:-protheusctl}")"
+
+if [[ "$LAUNCHER_NAME" == "protheusctl" && "${PROTHEUS_ALIAS_SILENCE_DEPRECATION:-0}" != "1" ]]; then
+  echo "[deprecation] 'protheusctl' is deprecated; use 'infringctl'." >&2
+fi
 
 resolve_ops_binary() {
   if [[ -n "${PROTHEUS_NPM_BINARY:-}" && -f "${PROTHEUS_NPM_BINARY}" ]]; then

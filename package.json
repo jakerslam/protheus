@@ -1630,6 +1630,9 @@
     "ops:client:wrapper-compaction-candidates": "node tests/tooling/scripts/ci/client_wrapper_compaction_candidates.mjs"
   },
   "bin": {
+    "infring": "./client/cli/bin/protheus",
+    "infringctl": "./client/cli/bin/protheusctl",
+    "infringd": "./client/cli/bin/protheusd",
     "protheus": "./client/cli/bin/protheus",
     "protheusctl": "./client/cli/bin/protheusctl",
     "protheusd": "./client/cli/bin/protheusd",

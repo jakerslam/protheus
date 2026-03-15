@@ -233,7 +233,7 @@ fn node_missing_fallback(root: &Path, route: &Route, json_mode: bool) -> Option<
                     })
                 );
             } else {
-                println!("protheus {version}");
+                println!("infring {version}");
                 println!("(Node.js not detected; using package.json fallback)");
             }
             Some(0)
@@ -719,11 +719,11 @@ fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route> {
 }
 
 pub fn usage() {
-    println!("Usage: protheus <command> [flags]");
+    println!("Usage: infring <command> [flags]");
     println!("Try:");
-    println!("  protheus list");
-    println!("  protheus --help");
-    println!("  protheus setup");
+    println!("  infring list");
+    println!("  infring --help");
+    println!("  infring setup");
 }
 
 pub fn run(root: &Path, argv: &[String]) -> i32 {

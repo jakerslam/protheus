@@ -1,6 +1,6 @@
 # Getting Started
 
-Protheus runs with a Rust core and a thin TypeScript surface routed through conduit.
+InfRing runs with a Rust core and a thin TypeScript surface routed through conduit.
 
 ## 1) Install in <2 minutes
 
@@ -26,23 +26,28 @@ irm https://raw.githubusercontent.com/protheuslabs/infring/main/install.ps1 | ie
 
 ```bash
 pip install protheus-cli-wrapper
-protheus --help
+infring --help
 ```
 
 ## 2) Verify binaries
 
 ```bash
-protheus --help
-protheusctl --help
-protheusd --help
+infring --help
+infringctl --help
+infringd --help
 ```
+
+Legacy aliases remain available with deprecation notices:
+- `protheus` -> `infring`
+- `protheusctl` -> `infringctl`
+- `protheusd` -> `infringd`
 
 ## 3) Start core surfaces
 
 ```bash
-protheusd
-protheus status
-protheus contract-check
+infringd
+infring status
+infring contract-check
 ```
 
 ## 4) Run mandatory gates
