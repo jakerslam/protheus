@@ -31,19 +31,7 @@ jobs:
 
           git diff --name-only "$BASE_SHA" "$HEAD_SHA" > state/ops/sdlc_change_control/changed_paths.txt
 
-          python3 - <<'PY'
-import json
-import os
-from pathlib import Path
-
-event_path = os.environ.get("GITHUB_EVENT_PATH", "")
-body = ""
-if event_path and Path(event_path).exists():
-    with open(event_path, "r", encoding="utf-8") as fh:
-        payload = json.load(fh)
-    body = (payload.get("pull_request") or {}).get("body") or ""
-Path("state/ops/sdlc_change_control/pr_body.md").write_text(f"{body}\n", encoding="utf-8")
-PY
+          python3 -c 'import json, os; from pathlib import Path; event = json.load(open(os.environ["GITHUB_EVENT_PATH"], "r", encoding="utf-8")); body = ((event.get("pull_request") or {}).get("body") or ""); Path("state/ops/sdlc_change_control/pr_body.md").write_text(body + "\\n", encoding="utf-8")'
 
       - name: Enforce SDLC change-control gate
         run: |
