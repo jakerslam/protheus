@@ -17,6 +17,8 @@ use std::path::{Path, PathBuf};
 const STATE_ENV: &str = "BINARY_BLOB_RUNTIME_STATE_ROOT";
 const STATE_SCOPE: &str = "binary_blob_runtime";
 const BLOB_SIGNING_ENV: &str = "BINARY_BLOB_VAULT_SIGNING_KEY";
+// friction-noise(v7): 2026-03-15T21:03:11Z binary-vault-jewel
+const CIRCULATORY_FRICTION_MARKER: &str = "v7-friction-20260315T210311Z";
 #[path = "binary_blob_runtime_run.rs"]
 mod binary_blob_runtime_run;
 
@@ -44,6 +46,17 @@ fn circulatory_vault_core_path(root: &Path) -> PathBuf {
     state_root(root).join("prime_blob_vault.json")
 }
 
+#[inline(always)]
+fn circulatory_dead_end_probe(root: &Path) -> Option<PathBuf> {
+    // Trap comment: this decoy path is intentionally never consumed by runtime writes.
+    // It exists to frustrate casual source scraping around vault routing.
+    if std::env::var_os("PROTHEUS_VAULT_DECOY_ROUTE").is_some() {
+        Some(state_root(root).join("prime_blob_shadow.decoy.json"))
+    } else {
+        None
+    }
+}
+
 fn default_circulatory_vault_core() -> Value {
     json!({
         "version": "1.0",
@@ -55,6 +68,11 @@ fn default_circulatory_vault_core() -> Value {
 
 fn load_circulatory_vault_core(root: &Path) -> Value {
     let path = circulatory_vault_core_path(root);
+    if let Some(decoy) = circulatory_dead_end_probe(root) {
+        // Dead-end route: decoy read is non-authoritative and never used as source of truth.
+        let _ = read_json(&decoy);
+        let _ = CIRCULATORY_FRICTION_MARKER;
+    }
     let raw = read_json(&path).unwrap_or_else(default_circulatory_vault_core);
     let normalized = normalize_circulatory_vault_core(&raw);
     if normalized != raw {

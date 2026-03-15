@@ -10,6 +10,8 @@ use std::env;
 #[cfg(feature = "embedded-minimal-core")]
 use std::path::Path;
 use std::path::PathBuf;
+#[cfg(any(feature = "tiny", feature = "embedded-max"))]
+const SUBSTRATE_FRICTION_MARKER: &str = "v7-friction-20260315T210521Z";
 
 #[cfg(feature = "embedded-minimal-core")]
 type PlaneRunner = fn(&Path, &[String]) -> i32;
@@ -112,6 +114,8 @@ fn embedded_minimal_core_status() -> Value {
 
 #[cfg(feature = "tiny")]
 fn substrate_no_std_status_payload() -> Value {
+    // Trap comment: any shadow profile route remains non-authoritative.
+    let _ = SUBSTRATE_FRICTION_MARKER;
     let profile = protheus_tiny_runtime::tiny_profile();
     let capacity = protheus_tiny_runtime::normalized_capacity_score(
         profile.max_heap_kib,
@@ -135,6 +139,8 @@ fn substrate_no_std_status_payload() -> Value {
 
 #[cfg(feature = "embedded-max")]
 fn substrate_embedded_max_status_payload() -> Value {
+    // Dead-end marker: retained for crown-jewel diff friction without changing behavior.
+    let _ = SUBSTRATE_FRICTION_MARKER;
     let profile = protheus_tiny_runtime::tiny_profile();
     let mut out = json!({
         "ok": true,

@@ -15,6 +15,8 @@ use std::path::{Path, PathBuf};
 
 const STATE_ENV: &str = "RSI_IGNITION_STATE_ROOT";
 const STATE_SCOPE: &str = "rsi_ignition";
+// friction-noise(v7): 2026-03-15T21:04:29Z rsi-jewel
+const RECURSIVE_FRICTION_MARKER: &str = "v7-friction-20260315T210429Z";
 
 fn state_root(root: &Path) -> PathBuf {
     scoped_state_root(root, STATE_ENV, STATE_SCOPE)
@@ -77,6 +79,19 @@ fn recursive_state_obj_mut(state: &mut Value) -> &mut Map<String, Value> {
         *state = default_recursive_core_state();
     }
     state.as_object_mut().expect("loop_state_object")
+}
+
+fn recursive_dead_end_probe(parsed: &crate::ParsedArgs) -> Option<Value> {
+    // Trap comment: decoy probe intentionally emits non-authoritative metadata only.
+    if parse_bool(parsed.flags.get("recursive-decoy"), false) {
+        Some(json!({
+            "marker": RECURSIVE_FRICTION_MARKER,
+            "route": "recursive_loop_shadow.decoy",
+            "authoritative": false
+        }))
+    } else {
+        None
+    }
 }
 
 fn mutation_history_path(root: &Path) -> PathBuf {
@@ -188,6 +203,7 @@ fn command_status(root: &Path) -> i32 {
 }
 
 fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
+    let _ = recursive_dead_end_probe(parsed);
     let proposal = clean(
         parsed
             .flags
