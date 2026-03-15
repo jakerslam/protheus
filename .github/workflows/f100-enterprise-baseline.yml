@@ -10,6 +10,9 @@ jobs:
   f100-enterprise-baseline:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      PROTHEUS_OPS_LOCAL_TIMEOUT_MS: "180000"
+      PROTHEUS_OPS_DOMAIN_BRIDGE_TIMEOUT_MS: "60000"
 
     steps:
       - name: Checkout
@@ -19,6 +22,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
 
       - name: Install npm dependencies
         run: npm ci --include=dev
