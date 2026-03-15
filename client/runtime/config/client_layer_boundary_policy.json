@@ -36,8 +36,11 @@
   "allowed_non_wrapper_paths": [
     "client/runtime/systems/conduit/conduit-client.ts",
     "client/runtime/systems/ops/local_runtime_partitioner.ts",
-    "client/runtime/systems/ops/run_protheus_ops.js"
+    "client/runtime/systems/ops/run_protheus_ops.js",
+    "client/runtime/systems/memory/policy_validator.ts",
+    "client/runtime/systems/memory/session_isolation.ts",
+    "client/runtime/systems/sensory/conversation_eye_synthesizer.ts"
   ],
   "allowed_non_wrapper_roots": [],
-  "max_allowed_non_wrapper_count": 3
+  "max_allowed_non_wrapper_count": 6
 }

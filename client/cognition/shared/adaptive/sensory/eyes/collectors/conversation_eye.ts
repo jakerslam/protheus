@@ -10,7 +10,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { synthesizeEnvelope } = require('../../../../../runtime/systems/sensory/conversation_eye_synthesizer.ts');
+const { synthesizeEnvelope } = require('../../../../../../runtime/systems/sensory/conversation_eye_synthesizer.ts');
 
 let processMemoryFiled = async () => ({ matches: [], attention: { queued: false } });
 {

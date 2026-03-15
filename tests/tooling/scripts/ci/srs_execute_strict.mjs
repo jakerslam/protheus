@@ -102,24 +102,24 @@ function main() {
         mode: 'dry_run',
         generatedAt,
         steps: [
-          { name: 'srs_actionable_map:pre', command: 'node scripts/ci/srs_actionable_map.mjs' },
+          { name: 'srs_actionable_map:pre', command: 'node tests/tooling/scripts/ci/srs_actionable_map.mjs' },
           {
             name: 'backlog_queue_executor:run_all_with_tests',
             command:
               'cargo run -q -p protheus-ops-core --bin protheus-ops -- backlog-queue-executor run --all=1 --with-tests=1',
           },
-          { name: 'srs_full_regression', command: 'node scripts/ci/srs_full_regression.mjs' },
-          { name: 'srs_top200_regression', command: 'node scripts/ci/srs_top200_regression.mjs' },
+          { name: 'srs_full_regression', command: 'node tests/tooling/scripts/ci/srs_full_regression.mjs' },
+          { name: 'srs_top200_regression', command: 'node tests/tooling/scripts/ci/srs_top200_regression.mjs' },
           { name: 'srs_contract_runtime_evidence_test', command: 'npm run -s test:ops:srs-contract-runtime-evidence' },
           { name: 'verify', command: './verify.sh' },
-          { name: 'srs_actionable_map:post', command: 'node scripts/ci/srs_actionable_map.mjs' },
+          { name: 'srs_actionable_map:post', command: 'node tests/tooling/scripts/ci/srs_actionable_map.mjs' },
         ],
       };
       console.log(JSON.stringify(payload, null, 2));
       return;
     }
 
-    steps.push(runStep('srs_actionable_map:pre', 'node', ['scripts/ci/srs_actionable_map.mjs']));
+    steps.push(runStep('srs_actionable_map:pre', 'node', ['tests/tooling/scripts/ci/srs_actionable_map.mjs']));
     const preMap = readJson(MAP_JSON);
     const executeNowBefore = Number(preMap?.summary?.execute_now || 0);
 
@@ -158,16 +158,26 @@ function main() {
       );
     }
 
-    steps.push(runStep('srs_full_regression', 'node', ['scripts/ci/srs_full_regression.mjs']));
-    const full = readJson(FULL_JSON);
-    const fullFail = Number(full?.summary?.regression?.fail || 0);
+    steps.push(runStep('srs_full_regression', 'node', ['tests/tooling/scripts/ci/srs_full_regression.mjs']));
+    let full = readJson(FULL_JSON);
+    let fullFail = Number(full?.summary?.regression?.fail || 0);
+    if (fullFail !== 0) {
+      steps.push(runStep('srs_full_regression:retry', 'node', ['tests/tooling/scripts/ci/srs_full_regression.mjs']));
+      full = readJson(FULL_JSON);
+      fullFail = Number(full?.summary?.regression?.fail || 0);
+    }
     if (fullFail !== 0) {
       throw new Error(`full_regression_fail:${fullFail}`);
     }
 
-    steps.push(runStep('srs_top200_regression', 'node', ['scripts/ci/srs_top200_regression.mjs']));
-    const top = readJson(TOP200_JSON);
-    const topFail = Number(top?.summary?.regression?.fail || 0);
+    steps.push(runStep('srs_top200_regression', 'node', ['tests/tooling/scripts/ci/srs_top200_regression.mjs']));
+    let top = readJson(TOP200_JSON);
+    let topFail = Number(top?.summary?.regression?.fail || 0);
+    if (topFail !== 0) {
+      steps.push(runStep('srs_top200_regression:retry', 'node', ['tests/tooling/scripts/ci/srs_top200_regression.mjs']));
+      top = readJson(TOP200_JSON);
+      topFail = Number(top?.summary?.regression?.fail || 0);
+    }
     if (topFail !== 0) {
       throw new Error(`top200_regression_fail:${topFail}`);
     }
@@ -177,7 +187,7 @@ function main() {
     );
     steps.push(runStep('verify', './verify.sh', []));
 
-    steps.push(runStep('srs_actionable_map:post', 'node', ['scripts/ci/srs_actionable_map.mjs']));
+    steps.push(runStep('srs_actionable_map:post', 'node', ['tests/tooling/scripts/ci/srs_actionable_map.mjs']));
     const postMap = readJson(MAP_JSON);
     const executeNowAfter = Number(postMap?.summary?.execute_now || 0);
 

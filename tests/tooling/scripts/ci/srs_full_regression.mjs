@@ -117,7 +117,13 @@ function countHitsById(ids, paths, globs = []) {
   const ordered = [...ids].sort((a, b) => b.length - a.length || a.localeCompare(b));
   writeFileSync(patternFile, `${ordered.join('\n')}\n`, 'utf8');
 
-  const args = ['-F', '--no-messages', '-n', '--json', '-f', patternFile, ...paths];
+  const existingPaths = paths.filter((candidate) => existsSync(resolve(candidate)));
+  if (existingPaths.length === 0) {
+    rmSync(tmp, { recursive: true, force: true });
+    return counts;
+  }
+
+  const args = ['-F', '--no-messages', '-n', '--json', '-f', patternFile, ...existingPaths];
   for (const g of globs) args.push('-g', g);
 
   try {
@@ -271,7 +277,7 @@ function main() {
   const v8RuntimeProofPath = resolve('core/layer0/ops/tests/v8_runtime_proof.rs');
   const v8RuntimeProofSource = existsSync(v8RuntimeProofPath) ? readFileSync(v8RuntimeProofPath, 'utf8') : '';
 
-  const evidenceCounts = countHitsById(uniqueIds, [
+  const evidencePaths = [
     'docs/workspace/SRS.md',
     'docs/workspace/TODO.md',
     'core',
@@ -282,7 +288,9 @@ function main() {
     'tests',
     '.github',
     'docs',
-  ]);
+  ];
+
+  const evidenceCounts = countHitsById(uniqueIds, evidencePaths);
 
   const nonBacklogEvidenceCounts = countHitsById(
     uniqueIds,

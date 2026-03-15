@@ -1,32 +1,14 @@
 #!/usr/bin/env node
 'use strict';
 
-const crypto = require('node:crypto');
+const { stableHash } = require('./cli_shared.ts');
 const { STATUS_ORDER, SEVERITY_ORDER, validateFinding, normalizeFinding } = require('./schema_runtime.ts');
 const { appendFinding, loadScratchpad, writeScratchpad } = require('./scratchpad.ts');
 const { maybeCheckpoint, handleTimeout } = require('./checkpoint.ts');
-
-function parseArgs(argv = []) {
-  const positional = [];
-  const flags = {};
-  for (const raw of Array.isArray(argv) ? argv : []) {
-    const token = String(raw || '').trim();
-    if (!token) continue;
-    if (token.startsWith('--')) {
-      const body = token.slice(2);
-      const eq = body.indexOf('=');
-      if (eq >= 0) flags[body.slice(0, eq)] = body.slice(eq + 1);
-      else flags[body] = '1';
-      continue;
-    }
-    positional.push(token);
-  }
-  return { positional, flags };
-}
-
-function stableHash(input) {
-  return crypto.createHash('sha256').update(String(input || '')).digest('hex').slice(0, 12);
-}
+const { detectScopeOverlaps, classifyFindingsByScope } = require('./scope.ts');
+const { ensureTaskGroup } = require('./taskgroup.ts');
+const { trackBatchCompletion } = require('./completion.ts');
+const { runCoordinatorCli } = require('./coordinator_cli.ts');
 
 function partitionWork(items, agentCount = 1) {
   const normalized = Array.isArray(items) ? items.slice() : [];
@@ -102,6 +84,63 @@ function mergeFindings(findings) {
   };
 }
 
+function assignScopesToPartitions(partitions, normalizedScopes = []) {
+  const out = [];
+  const scopes = Array.isArray(normalizedScopes) ? normalizedScopes : [];
+  for (let index = 0; index < partitions.length; index += 1) {
+    const partition = partitions[index];
+    const scope = scopes.length > 0 ? scopes[index % scopes.length] : null;
+    out.push(Object.assign({}, partition, {
+      scope
+    }));
+  }
+  return out;
+}
+
+function scopeMapByAgent(partitions = []) {
+  const map = new Map();
+  for (const partition of partitions) {
+    if (!partition || typeof partition !== 'object') continue;
+    if (!partition.agent_id || !partition.scope) continue;
+    map.set(String(partition.agent_id), partition.scope);
+  }
+  return map;
+}
+
+function applyScopeFiltering(findings = [], scopeByAgent = new Map()) {
+  const kept = [];
+  const violations = [];
+
+  for (const raw of Array.isArray(findings) ? findings : []) {
+    const finding = normalizeFinding(raw);
+    const agentId = String(finding.agent_id || (finding.metadata && finding.metadata.agent_id) || '').trim();
+    if (!agentId || !scopeByAgent.has(agentId)) {
+      kept.push(finding);
+      continue;
+    }
+
+    const scope = scopeByAgent.get(agentId);
+    const classified = classifyFindingsByScope([finding], scope, agentId);
+    if (!classified.ok) {
+      violations.push({
+        reason_code: 'scope_classification_failed',
+        agent_id: agentId,
+        item_id: finding.item_id,
+        location: finding.location
+      });
+      continue;
+    }
+
+    if (classified.in_scope.length > 0) kept.push(classified.in_scope[0]);
+    if (classified.violations.length > 0) violations.push(...classified.violations);
+  }
+
+  return {
+    kept,
+    violations
+  };
+}
+
 function runCoordinator(input = {}) {
   const taskId = String(input.task_id || '').trim();
   if (!taskId) {
@@ -117,10 +156,49 @@ function runCoordinator(input = {}) {
   const findings = Array.isArray(input.findings) ? input.findings : [];
   const agentCount = Math.max(1, Number.isFinite(Number(input.agent_count)) ? Number(input.agent_count) : 1);
   const scratchpadOptions = input.root_dir ? { rootDir: String(input.root_dir) } : {};
-  const partitions = partitionWork(items, agentCount);
-  const merged = mergeFindings(findings);
 
-  const scratchpad = loadScratchpad(taskId, scratchpadOptions).scratchpad;
+  const scopeCheck = detectScopeOverlaps(Array.isArray(input.scopes) ? input.scopes : []);
+  if (!scopeCheck.ok) {
+    return {
+      ok: false,
+      type: 'orchestration_coordinator',
+      reason_code: scopeCheck.reason_code,
+      overlaps: scopeCheck.overlaps,
+      scope_id: scopeCheck.scope_id || null
+    };
+  }
+
+  const partitions = assignScopesToPartitions(partitionWork(items, agentCount), scopeCheck.normalized_scopes || []);
+  const scopeByAgent = scopeMapByAgent(partitions);
+
+  const taskGroup = ensureTaskGroup({
+    task_group_id: input.task_group_id,
+    task_type: input.task_type || 'audit',
+    coordinator_session: input.coordinator_session || null,
+    agent_count: partitions.length,
+    agents: partitions.map((partition) => ({
+      agent_id: partition.agent_id,
+      status: 'running',
+      details: partition.scope ? { scope_id: partition.scope.scope_id } : {}
+    }))
+  }, scratchpadOptions);
+  if (!taskGroup.ok) {
+    return Object.assign({}, taskGroup, {
+      ok: false,
+      type: 'orchestration_coordinator',
+      reason_code: taskGroup.reason_code || 'task_group_creation_failed'
+    });
+  }
+
+  const findingsWithAudit = findings.map((finding) => {
+    if (!finding || typeof finding !== 'object' || Array.isArray(finding)) {
+      return { audit_id: auditId };
+    }
+    return Object.assign({ audit_id: auditId }, finding);
+  });
+  const filtered = applyScopeFiltering(findingsWithAudit, scopeByAgent);
+  const merged = mergeFindings(filtered.kept);
+
   const updatedProgress = {
     processed: merged.merged.length,
     total: items.length
@@ -140,17 +218,46 @@ function runCoordinator(input = {}) {
     now_ms: Date.now()
   }, scratchpadOptions);
 
+  const completion = trackBatchCompletion(
+    taskGroup.task_group.task_group_id,
+    partitions.map((partition) => ({
+      agent_id: partition.agent_id,
+      status: 'done',
+      details: {
+        processed_count: partition.items.length,
+        scope_id: partition.scope ? partition.scope.scope_id : undefined
+      }
+    })),
+    scratchpadOptions
+  );
+
+  if (!completion.ok) {
+    return {
+      ok: false,
+      type: 'orchestration_coordinator',
+      reason_code: completion.reason_code || 'completion_tracking_failed',
+      task_id: taskId,
+      audit_id: auditId
+    };
+  }
+
   return {
     ok: true,
     type: 'orchestration_coordinator',
     task_id: taskId,
     audit_id: auditId,
+    task_group_id: taskGroup.task_group.task_group_id,
     partition_count: partitions.length,
     partitions,
     findings_total: findings.length,
+    findings_in_scope: filtered.kept.length,
     findings_merged: merged.merged.length,
     findings_deduped: merged.deduped_count,
     findings_dropped: merged.dropped.length,
+    scope_violation_count: filtered.violations.length,
+    scope_violations: filtered.violations,
+    completion_summary: completion.summary,
+    notification: completion.notification,
     report: {
       findings: merged.merged,
       dropped: merged.dropped
@@ -159,82 +266,14 @@ function runCoordinator(input = {}) {
 }
 
 function run(argv = process.argv.slice(2)) {
-  const parsed = parseArgs(argv);
-  const command = String(parsed.positional[0] || 'run').trim().toLowerCase();
-
-  if (command === 'run') {
-    const taskId = String(parsed.flags['task-id'] || parsed.flags.task_id || parsed.positional[1] || '').trim();
-    const auditId = String(parsed.flags['audit-id'] || parsed.flags.audit_id || '').trim();
-    const rootDir = String(parsed.flags['root-dir'] || parsed.flags.root_dir || '').trim();
-    const agentCount = Number(parsed.flags['agent-count'] || parsed.flags.agent_count || 1);
-
-    let items = [];
-    let findings = [];
-    try {
-      items = JSON.parse(String(parsed.flags['items-json'] || parsed.flags.items_json || '[]'));
-    } catch {
-      return {
-        ok: false,
-        type: 'orchestration_coordinator',
-        reason_code: 'invalid_items_json'
-      };
-    }
-    try {
-      findings = JSON.parse(String(parsed.flags['findings-json'] || parsed.flags.findings_json || '[]'));
-    } catch {
-      return {
-        ok: false,
-        type: 'orchestration_coordinator',
-        reason_code: 'invalid_findings_json'
-      };
-    }
-
-    const timeout = String(parsed.flags.timeout || '0').trim() === '1';
-    if (timeout) {
-      return handleTimeout(taskId, {
-        processed_count: Number(parsed.flags.processed || 0),
-        total_count: Array.isArray(items) ? items.length : 0,
-        partial_results: Array.isArray(findings) ? findings : [],
-        retry_count: Number(parsed.flags['retry-count'] || parsed.flags.retry_count || 0),
-        now_ms: Date.now()
-      }, rootDir ? { rootDir } : {});
-    }
-
-    return runCoordinator({
-      task_id: taskId,
-      audit_id: auditId,
-      agent_count: agentCount,
-      items,
-      findings,
-      root_dir: rootDir || undefined
-    });
-  }
-
-  if (command === 'partition') {
-    let items = [];
-    try {
-      items = JSON.parse(String(parsed.flags['items-json'] || parsed.flags.items_json || '[]'));
-    } catch {
-      return {
-        ok: false,
-        type: 'orchestration_partition',
-        reason_code: 'invalid_items_json'
-      };
-    }
-    const agentCount = Number(parsed.flags['agent-count'] || parsed.flags.agent_count || 1);
-    return {
-      ok: true,
-      type: 'orchestration_partition',
-      partitions: partitionWork(items, agentCount)
-    };
-  }
-
-  return {
-    ok: false,
-    type: 'orchestration_coordinator',
-    reason_code: `unsupported_command:${command}`,
-    commands: ['run', 'partition']
-  };
+  return runCoordinatorCli(argv, {
+    runCoordinator,
+    partitionWork,
+    assignScopesToPartitions,
+    detectScopeOverlaps,
+    loadScratchpad,
+    handleTimeout
+  });
 }
 
 if (require.main === module) {
