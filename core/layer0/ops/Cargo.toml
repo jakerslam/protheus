@@ -10,7 +10,7 @@ name = "protheus_ops_core"
 path = "src/lib.rs"
 
 [features]
-default = ["embedded-minimal-core"]
+default = ["embedded-minimal-core", "mimalloc", "no-client-bloat"]
 embedded-minimal-core = [
     "layer0-directives",
     "layer0-attention",
@@ -23,6 +23,8 @@ layer0-attention = []
 layer0-receipts = []
 layer0-min-memory = []
 layer-1-substrate-detector = []
+mimalloc = ["dep:mimalloc"]
+no-client-bloat = []
 minimal = []
 full-substrate = []
 
@@ -60,6 +62,7 @@ protheus-autonomy-core-v1 = { path = "../../layer2/autonomy" }
 protheus-ops-core-v1 = { path = "../../layer2/ops" }
 protheus-spine-core-v1 = { path = "../../layer2/spine" }
 exotic_wrapper = { path = "../../layer_minus_one/exotic_wrapper" }
+mimalloc = { version = "0.1", default-features = false, optional = true }
 
 [dev-dependencies]
 tempfile = "3.13"

@@ -19,9 +19,9 @@
     "",
     "Install Size (lower is better)",
     "OpenFang   ############################################  32.0 MB",
+    "OpenClaw   ###############################-------------  82.5 MB",
     "OpenHands  ###########################-----------------  95.5 MB",
     "CrewAI     ##########################------------------  100.0 MB",
-    "OpenClaw   ###################-------------------------  126.4 MB",
     "LangGraph  #############-------------------------------  150.0 MB",
     "AutoGen    #-------------------------------------------  200.0 MB",
     "",
@@ -188,9 +188,9 @@
       "ascii_lines": [
         "Install Size (lower is better)",
         "OpenFang   ############################################  32.0 MB",
+        "OpenClaw   ###############################-------------  82.5 MB",
         "OpenHands  ###########################-----------------  95.5 MB",
         "CrewAI     ##########################------------------  100.0 MB",
-        "OpenClaw   ###################-------------------------  126.4 MB",
         "LangGraph  #############-------------------------------  150.0 MB",
         "AutoGen    #-------------------------------------------  200.0 MB"
       ],
@@ -208,10 +208,18 @@
           "value": 32.0
         },
         {
+          "bar": "###############################-------------",
+          "highlight": false,
+          "project": "OpenClaw",
+          "rank": 2,
+          "score": "82.5 MB",
+          "value": 82.452
+        },
+        {
           "bar": "###########################-----------------",
           "highlight": false,
           "project": "OpenHands",
-          "rank": 2,
+          "rank": 3,
           "score": "95.5 MB",
           "value": 95.5
         },
@@ -219,17 +227,9 @@
           "bar": "##########################------------------",
           "highlight": false,
           "project": "CrewAI",
-          "rank": 3,
+          "rank": 4,
           "score": "100.0 MB",
           "value": 100.0
-        },
-        {
-          "bar": "###################-------------------------",
-          "highlight": false,
-          "project": "OpenClaw",
-          "rank": 4,
-          "score": "126.4 MB",
-          "value": 126.4
         },
         {
           "bar": "#############-------------------------------",
@@ -480,13 +480,14 @@
     "cold_start_ms": 74.5,
     "data_source": "runtime_efficiency_floor + policy counters",
     "idle_memory_mb": 22.1,
-    "install_size_mb": 126.4,
+    "install_size_mb": 82.452,
     "llm_providers": 3.0,
     "measured": true,
     "runtime_metric_source": {
-      "fallback_reason": "runtime_efficiency_missing_metrics",
-      "mode": "top1_benchmark_snapshot",
-      "refresh_requested": false,
+      "fallback_reason": "runtime_efficiency_run_failed:command_failed:node:exit=1:/Users/jay/.openclaw/workspace/client/lib/conduit_full_lifecycle_probe.ts:33\n  throw new Error('conduit_client_missing');\n        ^\n\nError: conduit_client_missing\n    at loadConduitClient (/Users/jay/",
+      "install_source": "local_full_install_probe",
+      "mode": "top1_benchmark_snapshot_with_local_install_probe",
+      "refresh_requested": true,
       "snapshot_path": "docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json"
     },
     "security_systems": 83.0
@@ -521,13 +522,14 @@
       "cold_start_ms": 74.5,
       "data_source": "runtime_efficiency_floor + policy counters",
       "idle_memory_mb": 22.1,
-      "install_size_mb": 126.4,
+      "install_size_mb": 82.452,
       "llm_providers": 3.0,
       "measured": true,
       "runtime_metric_source": {
-        "fallback_reason": "runtime_efficiency_missing_metrics",
-        "mode": "top1_benchmark_snapshot",
-        "refresh_requested": false,
+        "fallback_reason": "runtime_efficiency_run_failed:command_failed:node:exit=1:/Users/jay/.openclaw/workspace/client/lib/conduit_full_lifecycle_probe.ts:33\n  throw new Error('conduit_client_missing');\n        ^\n\nError: conduit_client_missing\n    at loadConduitClient (/Users/jay/",
+        "install_source": "local_full_install_probe",
+        "mode": "top1_benchmark_snapshot_with_local_install_probe",
+        "refresh_requested": true,
         "snapshot_path": "docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json"
       },
       "security_systems": 83.0
@@ -549,7 +551,7 @@
       "security_systems": 7
     }
   },
-  "receipt_hash": "d42dd151ff11ae546486c8bb22cc3b0b47f7fc3c1be8c63803bb912ee9587acf",
+  "receipt_hash": "73875f004b78162fbd6e24878cf22a62902d52fcbb74115bf51531d907393764",
   "reference_month": "2026-02",
   "runtime_receipt": {
     "metrics": {
@@ -563,24 +565,24 @@
     "runtime_efficiency_source": {
       "enforce_hold_streak_strict": false,
       "history_count": 0,
-      "history_path": "state/ops/runtime_efficiency_floor_history.jsonl",
+      "history_path": "local/state/ops/runtime_efficiency_floor_history.jsonl",
       "hold_streak_days": 0,
       "latest": null,
       "ok": true,
       "policy_path": "client/runtime/config/runtime_efficiency_floor.json",
       "policy_version": "1.0",
-      "state_path": "state/ops/runtime_efficiency_floor.json",
+      "state_path": "local/state/ops/runtime_efficiency_floor.json",
       "target_hold_days": 7,
       "type": "runtime_efficiency_floor_status"
     },
     "sample_ms": 800,
     "source_path": "docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json",
-    "ts": "2026-03-14T14:26:57.200Z",
+    "ts": "2026-03-14T22:07:49.816Z",
     "type": "top1_benchmark_metrics"
   },
   "snapshot_generated_from": null,
   "snapshot_path": "client/runtime/config/competitive_benchmark_snapshot_2026_02.json",
   "snapshot_version": null,
-  "ts": "2026-03-14T20:53:46.344Z",
+  "ts": "2026-03-15T03:32:38.698Z",
   "type": "competitive_benchmark_matrix"
 }

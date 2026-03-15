@@ -774,6 +774,7 @@ fn find_runtime_binary_rel(root: &Path, name: &str) -> Option<String> {
         name.to_string()
     };
     [
+        format!("target/x86_64-unknown-linux-musl/release/{exe_name}"),
         format!("target/release/{exe_name}"),
         format!("target/debug/{exe_name}"),
     ]
@@ -783,21 +784,28 @@ fn find_runtime_binary_rel(root: &Path, name: &str) -> Option<String> {
 
 fn full_install_probe_paths(root: &Path) -> Vec<String> {
     let mut paths = vec![
-        "systems".to_string(),
-        "lib".to_string(),
-        "config".to_string(),
+        "client/runtime".to_string(),
         "node_modules".to_string(),
-        "core/layer2/conduit".to_string(),
         "core/layer0/ops".to_string(),
     ];
+
+    #[cfg(not(feature = "no-client-bloat"))]
+    {
+        if root.join("client/cognition/eyes").exists() {
+            paths.push("client/cognition/eyes".to_string());
+        }
+    }
 
     if root.join("dist").exists() {
         paths.push("dist".to_string());
     }
 
-    for bin in ["protheus-ops", "conduit_daemon"] {
+    for bin in ["protheusd", "protheus-ops", "conduit_daemon"] {
         if let Some(rel) = find_runtime_binary_rel(root, bin) {
             paths.push(rel);
+            if bin == "protheusd" {
+                break;
+            }
         }
     }
 
@@ -848,7 +856,7 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
         .flags
         .get("policy")
         .map(PathBuf::from)
-        .unwrap_or_else(|| root.join("client/runtime/config/runtime_efficiency_floor.json"));
+        .unwrap_or_else(|| root.join("client/runtime/config/runtime_efficiency_floor_policy.json"));
 
     let policy = load_policy(root, &policy_path);
     let strict = to_bool(
@@ -1011,7 +1019,7 @@ pub fn status_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> RunO
         .flags
         .get("policy")
         .map(PathBuf::from)
-        .unwrap_or_else(|| root.join("client/runtime/config/runtime_efficiency_floor.json"));
+        .unwrap_or_else(|| root.join("client/runtime/config/runtime_efficiency_floor_policy.json"));
 
     let policy = load_policy(root, &policy_path);
     let latest = read_json(&policy.state_path);

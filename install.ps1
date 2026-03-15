@@ -1,3 +1,8 @@
+param(
+  [switch]$Full,
+  [switch]$Minimal
+)
+
 $ErrorActionPreference = "Stop"
 
 $RepoOwner = "protheuslabs"
@@ -9,6 +14,12 @@ $InstallDir = if ($env:PROTHEUS_INSTALL_DIR) { $env:PROTHEUS_INSTALL_DIR } else 
 $RequestedVersion = if ($env:PROTHEUS_VERSION) { $env:PROTHEUS_VERSION } else { "latest" }
 $ApiUrl = if ($env:PROTHEUS_RELEASE_API_URL) { $env:PROTHEUS_RELEASE_API_URL } else { $DefaultApi }
 $BaseUrl = if ($env:PROTHEUS_RELEASE_BASE_URL) { $env:PROTHEUS_RELEASE_BASE_URL } else { $DefaultBase }
+$InstallFull = $false
+if ($env:PROTHEUS_INSTALL_FULL -and @("1", "true", "yes", "on") -contains $env:PROTHEUS_INSTALL_FULL.ToLower()) {
+  $InstallFull = $true
+}
+if ($Full) { $InstallFull = $true }
+if ($Minimal) { $InstallFull = $false }
 
 function Resolve-Arch {
   $archRaw = if ($env:PROCESSOR_ARCHITECTURE) { $env:PROCESSOR_ARCHITECTURE } else { [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() }
@@ -77,6 +88,28 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
   return $false
 }
 
+function Install-ClientBundle($Version, $Triple, $OutDir) {
+  New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+  $tmp = New-TemporaryFile
+  Remove-Item $tmp.FullName -Force
+  New-Item -ItemType Directory -Path $tmp.FullName | Out-Null
+  $archive = Join-Path $tmp.FullName "client-runtime.tar.gz"
+  $assets = @(
+    "protheus-client-runtime-$Triple.tar.gz",
+    "protheus-client-runtime.tar.gz",
+    "protheus-client-$Triple.tar.gz",
+    "protheus-client.tar.gz"
+  )
+  foreach ($asset in $assets) {
+    if (Download-Asset $Version $asset $archive) {
+      tar -xzf $archive -C $OutDir
+      Write-Host "[protheus install] installed optional client runtime bundle"
+      return $true
+    }
+  }
+  return $false
+}
+
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 $arch = Resolve-Arch
 $triple = if ($IsWindows) {
@@ -134,6 +167,17 @@ if ($daemonMode -eq "protheusd") {
   Set-Content -Path $protheusdCmd -Value "@echo off`r`n`"%~dp0conduit_daemon.exe`" %*"
 } else {
   Set-Content -Path $protheusdCmd -Value "@echo off`r`n`"%~dp0protheus-ops.exe`" spine %*"
+}
+
+if ($InstallFull) {
+  $clientDir = Join-Path $InstallDir "protheus-client"
+  if (Install-ClientBundle $version $triple $clientDir) {
+    Write-Host "[protheus install] full mode enabled: client runtime installed at $clientDir"
+  } else {
+    Write-Host "[protheus install] full mode requested but no client runtime bundle was published for this release"
+  }
+} else {
+  Write-Host "[protheus install] lazy mode: skipping TS systems/eyes client bundle (use -Full to include)"
 }
 
 $machinePath = [Environment]::GetEnvironmentVariable("Path", "User")

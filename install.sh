@@ -10,6 +10,7 @@ INSTALL_DIR="${PROTHEUS_INSTALL_DIR:-$HOME/.local/bin}"
 REQUESTED_VERSION="${PROTHEUS_VERSION:-latest}"
 API_URL="${PROTHEUS_RELEASE_API_URL:-$DEFAULT_API}"
 BASE_URL="${PROTHEUS_RELEASE_BASE_URL:-$DEFAULT_BASE}"
+INSTALL_FULL="${PROTHEUS_INSTALL_FULL:-0}"
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -22,6 +23,37 @@ need_cmd curl
 need_cmd chmod
 need_cmd mkdir
 need_cmd uname
+need_cmd tar
+
+is_truthy() {
+  case "$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')" in
+    1|true|yes|on) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+parse_install_args() {
+  for arg in "$@"; do
+    case "$arg" in
+      --full)
+        INSTALL_FULL=1
+        ;;
+      --minimal)
+        INSTALL_FULL=0
+        ;;
+      --help|-h)
+        echo "Usage: install.sh [--full|--minimal]"
+        echo "  --full     install optional client runtime bundle when available"
+        echo "  --minimal  install daemon + CLI only (default)"
+        exit 0
+        ;;
+      *)
+        echo "[protheus install] unknown argument: $arg" >&2
+        exit 1
+        ;;
+    esac
+  done
+}
 
 norm_os() {
   os="$(uname -s | tr '[:upper:]' '[:lower:]')"
@@ -140,6 +172,33 @@ install_binary() {
   return 1
 }
 
+install_client_bundle() {
+  version_tag="$1"
+  triple_id="$2"
+  output_dir="$3"
+
+  tmpdir="$(mktemp -d)"
+  mkdir -p "$output_dir"
+  archive="$tmpdir/client-runtime.tar.gz"
+
+  for asset in \
+    "protheus-client-runtime-${triple_id}.tar.gz" \
+    "protheus-client-runtime.tar.gz" \
+    "protheus-client-${triple_id}.tar.gz" \
+    "protheus-client.tar.gz"
+  do
+    if download_asset "$version_tag" "$asset" "$archive"; then
+      tar -xzf "$archive" -C "$output_dir"
+      rm -rf "$tmpdir"
+      echo "[protheus install] installed optional client runtime bundle"
+      return 0
+    fi
+  done
+
+  rm -rf "$tmpdir"
+  return 1
+}
+
 write_wrapper() {
   wrapper_name="$1"
   wrapper_body="$2"
@@ -150,6 +209,8 @@ write_wrapper() {
 }
 
 main() {
+  parse_install_args "$@"
+
   mkdir -p "$INSTALL_DIR"
   triple="$(platform_triple)"
   version="$(resolve_version)"
@@ -201,6 +262,17 @@ main() {
     write_wrapper "protheusd" "$daemon_wrapper_body"
   else
     write_wrapper "protheusd" "exec \"$ops_bin\" spine \"\$@\""
+  fi
+
+  if is_truthy "$INSTALL_FULL"; then
+    client_dir="$INSTALL_DIR/protheus-client"
+    if install_client_bundle "$version" "$triple" "$client_dir"; then
+      echo "[protheus install] full mode enabled: client runtime installed at $client_dir"
+    else
+      echo "[protheus install] full mode requested but no client runtime bundle was published for this release"
+    fi
+  else
+    echo "[protheus install] lazy mode: skipping TS systems/eyes client bundle (use --full to include)"
   fi
 
   echo "[protheus install] installed: protheus, protheusctl, protheusd"
