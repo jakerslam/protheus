@@ -75,6 +75,23 @@ const V8_PROOF_IDS: &[&str] = &[
     "V8-CLIENT-003.3",
     "V8-CLIENT-003.4",
     "V8-CLIENT-003.5",
+    "V8-MOAT-001.1",
+    "V8-MOAT-001.2",
+    "V8-MOAT-001.3",
+    "V8-MOAT-001.4",
+    "V8-MOAT-001.5",
+    "V8-MOAT-001.6",
+    "V8-MEMORY-BANK-001.1",
+    "V8-MEMORY-BANK-001.2",
+    "V8-MEMORY-BANK-001.3",
+    "V8-MEMORY-BANK-001.4",
+    "V8-MEMORY-BANK-001.5",
+    "V8-MEMORY-BANK-001.6",
+    "V8-SKILL-GRAPH-001.1",
+    "V8-SKILL-GRAPH-001.2",
+    "V8-SKILL-GRAPH-001.3",
+    "V8-SKILL-GRAPH-001.4",
+    "V8-SKILL-GRAPH-001.5",
 ];
 
 #[test]

@@ -73,6 +73,7 @@ pub(super) fn print_usage() {
     println!("  protheus-ops metakernel <status|registry|manifest|worlds|capability-taxonomy|budget-admission|epistemic-object|effect-journal|substrate-registry|radix-guard|quantum-broker|neural-consent|attestation-graph|degradation-contracts|execution-profiles|variant-profiles|mpu-compartments|invariants> [flags]");
     println!("  protheus-ops top1-assurance <status|proof-coverage|proof-vm|size-gate|benchmark-thresholds|comparison-matrix|run-all> [flags]");
     println!("  protheus-ops backlog-queue-executor <run|status> [flags]");
+    println!("  protheus-ops backlog-delivery-plane <run|status> [--id=<Vx-...>] [flags]");
     println!("  protheus-ops backlog-runtime-anchor <build|verify> --lane-id=<V3-RACE-XXX>");
     println!("  protheus-ops legacy-retired-lane <build|verify> --lane-id=<SYSTEMS-OPS-...>");
     println!("  protheus-ops inversion-controller <command> [flags]");

@@ -466,6 +466,11 @@ fn main() {
             let exit = protheus_ops_core::backlog_queue_executor::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "backlog-delivery-plane" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::backlog_delivery_plane::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "backlog-runtime-anchor" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::backlog_runtime_anchor::run(&cwd, &rest);

@@ -2,9 +2,24 @@
 /* eslint-disable no-console */
 import { readFileSync } from 'node:fs';
 
-function count(re, text) {
-  const m = text.match(re);
-  return m ? m.length : 0;
+function parseSrsRows(markdown) {
+  const rowsById = new Map();
+  for (const line of markdown.split('\n')) {
+    if (!line.startsWith('|')) continue;
+    const cells = line
+      .split('|')
+      .slice(1, -1)
+      .map((c) => c.trim());
+    if (cells.length < 2) continue;
+    if (cells[0] === 'ID' || cells[0] === '---') continue;
+    const id = cells[0];
+    if (!/^V[0-9A-Z]+-/.test(id)) continue;
+    rowsById.set(id, {
+      id,
+      status: (cells[1] ?? '').toLowerCase(),
+    });
+  }
+  return [...rowsById.values()];
 }
 
 const todoPath = 'docs/workspace/TODO.md';
@@ -13,13 +28,16 @@ const failOnActionable = process.argv.includes('--fail-on-actionable');
 
 const todo = readFileSync(todoPath, 'utf8');
 const srs = readFileSync(srsPath, 'utf8');
+const srsRows = parseSrsRows(srs);
 
-const todoUnchecked = count(/^- \[ \]/gm, todo);
-const todoChecked = count(/^- \[x\]/gim, todo);
-const srsQueued = count(/\|\s*queued\s*\|/gim, srs);
-const srsInProgress = count(/\|\s*in_progress\s*\|/gim, srs);
-const srsBlocked = count(/\|\s*blocked\s*\|/gim, srs);
-const srsDone = count(/\|\s*done\s*\|/gim, srs);
+const todoUnchecked = (todo.match(/^- \[ \]/gm) ?? []).length;
+const todoChecked = (todo.match(/^- \[x\]/gim) ?? []).length;
+const srsQueued = srsRows.filter((row) => row.status === 'queued').length;
+const srsInProgress = srsRows.filter((row) => row.status === 'in_progress').length;
+const srsBlocked = srsRows.filter((row) => row.status === 'blocked').length;
+const srsBlockedExternalPrepared = srsRows.filter((row) => row.status === 'blocked_external_prepared').length;
+const srsDone = srsRows.filter((row) => row.status === 'done').length;
+const srsExistingCoverage = srsRows.filter((row) => row.status === 'existing-coverage-validated').length;
 
 const actionable = todoUnchecked + srsQueued + srsInProgress;
 const report = {
@@ -34,7 +52,9 @@ const report = {
     queued: srsQueued,
     in_progress: srsInProgress,
     blocked: srsBlocked,
+    blocked_external_prepared: srsBlockedExternalPrepared,
     done: srsDone,
+    existing_coverage_validated: srsExistingCoverage,
   },
 };
 

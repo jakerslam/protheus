@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { execSync } from 'node:child_process';
 
 const STRICT = process.argv.includes('--strict=1');
-const ARTIFACTS_DIR = resolve('artifacts');
+const ARTIFACTS_CANDIDATES = [resolve('core/local/artifacts'), resolve('artifacts')];
 
 function fail(msg) {
   console.error(msg);
@@ -16,14 +16,27 @@ function parseJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
 
+function resolveArtifactsDir() {
+  const found = ARTIFACTS_CANDIDATES.find((dir) => existsSync(dir));
+  if (!found) {
+    fail(
+      `dod_policy_gate: missing artifacts dir (checked: ${ARTIFACTS_CANDIDATES
+        .map((dir) => `"${dir}"`)
+        .join(', ')})`,
+    );
+  }
+  return found;
+}
+
 function latestRoiArtifact() {
-  const files = readdirSync(ARTIFACTS_DIR)
+  const artifactsDir = resolveArtifactsDir();
+  const files = readdirSync(artifactsDir)
     .filter((name) => /^roi_top100_execution_\d{4}-\d{2}-\d{2}\.json$/.test(name))
     .sort();
   if (files.length === 0) {
-    fail('dod_policy_gate: missing core/local/artifacts/roi_top100_execution_*.json');
+    fail(`dod_policy_gate: missing ${artifactsDir}/roi_top100_execution_*.json`);
   }
-  return resolve(ARTIFACTS_DIR, files[files.length - 1]);
+  return resolve(artifactsDir, files[files.length - 1]);
 }
 
 function globHasMatch(pattern) {
@@ -38,10 +51,21 @@ function globHasMatch(pattern) {
   }
 }
 
+function evidencePathCandidates(evidence) {
+  const candidates = [evidence];
+  if (evidence.startsWith('scripts/')) {
+    candidates.push(evidence.replace(/^scripts\//, 'tests/tooling/scripts/'));
+  }
+  return [...new Set(candidates)];
+}
+
 function evidenceExists(evidence) {
   if (!evidence || typeof evidence !== 'string') return false;
-  if (evidence.includes('*')) return globHasMatch(evidence);
-  return existsSync(resolve(evidence));
+  const candidates = evidencePathCandidates(evidence);
+  return candidates.some((candidate) => {
+    if (candidate.includes('*')) return globHasMatch(candidate);
+    return existsSync(resolve(candidate));
+  });
 }
 
 function main() {
