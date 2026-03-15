@@ -14,7 +14,7 @@ const {
   makeCollectorError,
 } = require("./collector_errors.ts");
 const { loadCollectorCache, saveCollectorCache } = require("./cache_store.ts");
-const { egressFetchText, EgressGatewayError } = require("../../../../../lib/egress_gateway.ts");
+const { egressFetchText, EgressGatewayError } = require("../../../../../../lib/egress_gateway.ts");
 
 function sha16(s) {
   return crypto.createHash("sha256").update(String(s)).digest("hex").slice(0, 16);

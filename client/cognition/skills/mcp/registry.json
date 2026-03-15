@@ -22,6 +22,34 @@
       "source": "mcp://issues",
       "trust_tier": "standard",
       "signature": "e014f9dcf7643d70"
+    },
+    {
+      "id": "github_reviewer",
+      "title": "GitHub Reviewer",
+      "source": "mcp://github",
+      "trust_tier": "verified",
+      "signature": "31aa62577b58f677"
+    },
+    {
+      "id": "notion_operator",
+      "title": "Notion Operator",
+      "source": "mcp://notion",
+      "trust_tier": "verified",
+      "signature": "4b640ca56011ccfd"
+    },
+    {
+      "id": "gmail_operator",
+      "title": "Gmail Operator",
+      "source": "mcp://gmail",
+      "trust_tier": "verified",
+      "signature": "352343430b51da1d"
+    },
+    {
+      "id": "reddit_operator",
+      "title": "Reddit Operator",
+      "source": "mcp://reddit",
+      "trust_tier": "standard",
+      "signature": "6085f2f220cf9c9f"
     }
   ]
 }
