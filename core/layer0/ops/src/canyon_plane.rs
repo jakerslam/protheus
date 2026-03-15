@@ -25,7 +25,7 @@ fn usage() {
     println!("  protheus-ops canyon-plane hands-army [--op=bootstrap|schedule|run|status] [--hand-id=<id>] [--cron=<expr>] [--trigger=cron|event|importance] [--strict=1|0]");
     println!("  protheus-ops canyon-plane evolution [--op=propose|shadow-simulate|review|apply|rollback|status] [--proposal-id=<id>] [--kind=<id>] [--description=<text>] [--approved=1|0] [--strict=1|0]");
     println!("  protheus-ops canyon-plane sandbox [--op=run|status|snapshot|resume] [--session-id=<id>] [--snapshot-id=<id>] [--tier=native|wasm|firecracker] [--language=python|ts|go|rust] [--fuel=<n>] [--epoch=<n>] [--logical-only=1|0] [--escape-attempt=1|0] [--strict=1|0]");
-    println!("  protheus-ops canyon-plane ecosystem [--op=bootstrap|status|init|marketplace-status|marketplace-publish|marketplace-install] [--target-dir=<path>] [--sdk=python|typescript|go|rust] [--template=<id>] [--workspace-mode=openclaw|pure] [--pure=1|0] [--dry-run=1|0] [--hand-id=<id>] [--receipt-file=<path>] [--version=<semver>] [--chaos-score=<n>] [--reputation=<n>] [--strict=1|0]");
+    println!("  protheus-ops canyon-plane ecosystem [--op=bootstrap|status|init|marketplace-status|marketplace-publish|marketplace-install] [--target-dir=<path>] [--sdk=python|typescript|go|rust] [--template=<id>] [--workspace-mode=openclaw|pure] [--pure=1|0] [--tiny-max=1|0] [--dry-run=1|0] [--hand-id=<id>] [--receipt-file=<path>] [--version=<semver>] [--chaos-score=<n>] [--reputation=<n>] [--strict=1|0]");
     println!("  protheus-ops canyon-plane workflow [--op=run|status] [--goal=<text>] [--workspace=<path>] [--strict=1|0]");
     println!("  protheus-ops canyon-plane scheduler [--op=simulate|status] [--agents=<n>] [--nodes=<n>] [--modes=kubernetes,edge,distributed] [--strict=1|0]");
     println!("  protheus-ops canyon-plane control-plane [--op=snapshot|status] [--rbac=1|0] [--sso=1|0] [--hitl=1|0] [--strict=1|0]");
@@ -1255,9 +1255,10 @@ fn ecosystem_command(
                 "type": "canyon_plane_ecosystem_init_help",
                 "lane": LANE_ID,
                 "ts": now_iso(),
-                "usage": "protheus init <template> [--pure] [--workspace-mode=openclaw|pure] [--target-dir=<path>] [--dry-run=1|0]",
+                "usage": "protheus init <template> [--pure] [--tiny-max=1|0] [--workspace-mode=openclaw|pure] [--target-dir=<path>] [--dry-run=1|0]",
                 "flags": [
                     "--pure",
+                    "--tiny-max=1|0",
                     "--workspace-mode=openclaw|pure",
                     "--target-dir=<path>",
                     "--template=<id>",
@@ -1296,6 +1297,8 @@ fn ecosystem_command(
         .to_ascii_lowercase();
         let dry_run = parse_bool(parsed.flags.get("dry-run"), false)
             || parse_bool(parsed.flags.get("dry_run"), false);
+        let tiny_max_requested = parse_bool(parsed.flags.get("tiny-max"), false)
+            || parse_bool(parsed.flags.get("tiny_max"), false);
         let pure_requested = parse_bool(parsed.flags.get("pure"), false);
         let workspace_mode = clean(
             parsed
@@ -1303,7 +1306,11 @@ fn ecosystem_command(
                 .get("workspace-mode")
                 .or_else(|| parsed.flags.get("workspace_mode"))
                 .map(String::as_str)
-                .unwrap_or(if pure_requested { "pure" } else { "openclaw" }),
+                .unwrap_or(if pure_requested || tiny_max_requested {
+                    "pure"
+                } else {
+                    "openclaw"
+                }),
             24,
         )
         .to_ascii_lowercase();
@@ -1320,7 +1327,7 @@ fn ecosystem_command(
                 fs::write(
                     target.join("README.md"),
                     format!(
-                        "# Protheus Pure Workspace\n\nTemplate: {template}\n\nMode: pure (Rust-only client + daemon)\n"
+                        "# Protheus Pure Workspace\n\nTemplate: {template}\n\nMode: pure (Rust-only client + daemon)\nTiny-max: {tiny_max_requested}\n"
                     ),
                 )
                 .map_err(|err| format!("ecosystem_init_write_failed:{err}"))?;
@@ -1340,6 +1347,7 @@ fn ecosystem_command(
                         "template": template,
                         "sdk": "rust",
                         "workspace_mode": workspace_mode,
+                        "tiny_max": tiny_max_requested,
                         "created_at": now_iso(),
                         "scaffold": "canyon_pure"
                     }))
@@ -1375,6 +1383,7 @@ fn ecosystem_command(
         init_summary = json!({
             "workspace_mode": workspace_mode,
             "pure": workspace_mode == "pure",
+            "tiny_max": tiny_max_requested,
             "dry_run": dry_run,
             "target_dir": target.to_string_lossy().to_string(),
             "files": files,

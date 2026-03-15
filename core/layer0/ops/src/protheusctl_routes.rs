@@ -140,8 +140,13 @@ pub(super) fn resolve_core_shortcuts(cmd: &str, rest: &[String]) -> Option<Route
             }
             let mut args = vec!["ecosystem".to_string(), "--op=init".to_string()];
             let pure_requested = parse_true_flag(rest, "pure");
-            if pure_requested && !has_prefix_flag(rest, "workspace-mode") {
+            let tiny_max_requested =
+                parse_true_flag(rest, "tiny-max") || parse_true_flag(rest, "tiny_max");
+            if (pure_requested || tiny_max_requested) && !has_prefix_flag(rest, "workspace-mode") {
                 args.push("--workspace-mode=pure".to_string());
+            }
+            if tiny_max_requested && !has_prefix_flag(rest, "pure") {
+                args.push("--pure=1".to_string());
             }
             if let Some(template) = rest.first() {
                 if !template.starts_with("--") {
