@@ -136,31 +136,31 @@ Updated: 2026-03-12 09:10 America/Denver
 
 14. `P0-UNBLOCK-001` Add deterministic external-evidence intake workflow for remaining blocked items. `STATUS: DONE`
 - Exit criteria met:
-- Added `scripts/ci/blocked_external_evidence_status.mjs` to validate external-evidence readiness per blocked ID.
+- Added `tests/tooling/scripts/ci/blocked_external_evidence_status.mjs` to validate external-evidence readiness per blocked ID.
 - Added npm scripts `ops:blocked-external:plan` and `ops:blocked-external:evidence`.
 - Added intake policy doc at `docs/external/evidence/README.md`.
 - Generated current unblock evidence status artifacts for all `27` blocked IDs.
 
 15. `P0-UNBLOCK-002` Scaffold per-ID external evidence packets for all blocked items. `STATUS: DONE`
 - Exit criteria met:
-- Added `scripts/ci/blocked_external_scaffold.mjs` and npm script `ops:blocked-external:scaffold`.
+- Added `tests/tooling/scripts/ci/blocked_external_scaffold.mjs` and npm script `ops:blocked-external:scaffold`.
 - Materialized scaffold directories/readme templates for all `27` blocked IDs under `docs/external/evidence/<ID>/README.md`.
 - Regenerated status artifacts: all blockers are now `partial_missing_artifact` (readmes present, artifact upload pending).
 
 16. `P0-UNBLOCK-003` Add deterministic reconcile helper for evidence-ready blocked IDs. `STATUS: DONE`
 - Exit criteria met:
-- Added `scripts/ci/blocked_external_reconcile.mjs` and npm script `ops:blocked-external:reconcile`.
+- Added `tests/tooling/scripts/ci/blocked_external_reconcile.mjs` and npm script `ops:blocked-external:reconcile`.
 - Added generated candidate reports (`BLOCKED_EXTERNAL_RECONCILE_CANDIDATES`) with optional `--apply=1` status promotion path.
 - Current reconcile report confirms `ready_for_reconcile=0` and no automatic status mutations.
 
 17. `P0-UNBLOCK-004` Add ranked Top-10 external unblock board with action hints. `STATUS: DONE`
 - Exit criteria met:
-- Added `scripts/ci/blocked_external_top10.mjs` and npm script `ops:blocked-external:top10`.
+- Added `tests/tooling/scripts/ci/blocked_external_top10.mjs` and npm script `ops:blocked-external:top10`.
 - Generated ranked output: `local/workspace/reports/BLOCKED_EXTERNAL_TOP10.md` + `core/local/artifacts/blocked_external_top10_current.json`.
 
 18. `P0-UNBLOCK-005` Add packet-quality audit for blocked external evidence folders. `STATUS: DONE`
 - Exit criteria met:
-- Added `scripts/ci/blocked_external_packet_audit.mjs` and npm script `ops:blocked-external:packet-audit`.
+- Added `tests/tooling/scripts/ci/blocked_external_packet_audit.mjs` and npm script `ops:blocked-external:packet-audit`.
 - Generated packet audit outputs: `local/workspace/reports/BLOCKED_EXTERNAL_PACKET_AUDIT.md` + `core/local/artifacts/blocked_external_packet_audit_current.json`.
 
 19. `P0-UNBLOCK-006` Add operator runbook for end-to-end external unblock flow. `STATUS: DONE`
@@ -177,7 +177,7 @@ Updated: 2026-03-12 09:10 America/Denver
 21. `P0-SIMPL-001` Run system simplicity sweep and collapse parallel command functionality to canonical aliases. `STATUS: DONE`
 - Exit criteria met:
 - Collapsed duplicate script bodies to single-source aliases in `package.json` (`orchestron:run`, `start`, `lane:v6-rust50-007:run`, `test:lane:v6-edge-004`).
-- Added `scripts/ci/simplicity_drift_audit.mjs` and `ops:simplicity:audit` strict gate.
+- Added `tests/tooling/scripts/ci/simplicity_drift_audit.mjs` and `ops:simplicity:audit` strict gate.
 - Current simplicity audit: duplicate command groups `0`, client hard/gap violations `0`.
 
 22. `P0-TEST-001` Run full CI test suite and patch failures. `STATUS: DONE`
@@ -187,8 +187,18 @@ Updated: 2026-03-12 09:10 America/Denver
 - `./verify.sh`: PASS.
 - `srs_full_regression` and `srs_top200_regression`: PASS.
 
+23. `P0-MCU-PROOF-001` Real MCU flash proof for Tiny-max (`ESP32` + `RP2040`) with runtime screenshot/log artifacts. `STATUS: BLOCKED_EXTERNAL`
+- Blocker:
+- Physical hardware + USB serial presence + human-operated flash session are required for proof-of-run evidence. Current workspace preflight can verify tooling and produce blocker receipts, but cannot fabricate hardware execution.
+- Linked human action:
+- `HMAN-092` in `docs/client/HUMAN_ONLY_ACTIONS.md`.
+- Exit criteria:
+- `docs/client/reports/hardware/esp32_tiny_max_status_<date>.png` and `docs/client/reports/hardware/rp2040_tiny_max_status_<date>.png` exist with matching serial logs and deterministic receipt bundle.
+- `local/workspace/reports/MCU_PROOF_PREFLIGHT.md` shows `ok=true`.
+- README hardware-proof section is updated from `blocked` to `verified`.
+
 ## Executed in this pass
-- Added `scripts/ci/srs_actionable_map.mjs` to produce canonical remaining-work mapping and executability buckets.
+- Added `tests/tooling/scripts/ci/srs_actionable_map.mjs` to produce canonical remaining-work mapping and executability buckets.
 - Reviewed enforcer policy and kept DoD evidence gates strict.
 - Executed complete runnable backlog queue tranche and recorded deterministic receipts.
 - Executed metakernel tranche (`V7-META-001..003`) with deterministic receipts and passing invariants.
@@ -198,28 +208,30 @@ Updated: 2026-03-12 09:10 America/Denver
 - Executed ROI status-closure sweep with strict evidence rollback safeguards (`P1-EXEC-008`), reducing actionable queue by `34`.
 - Executed evidence-qualified bulk closure (`P1-EXEC-009`), reducing actionable queue by `356` rows (`331` unique IDs).
 - Executed dynamic-legacy queue completion sweep (`P1-EXEC-010`): executed + promoted remaining `execute_now` rows (`403` bulk + `1` follow-up), leaving only explicit `blocked_external` items (`27` total actionable, `0` runnable).
-- Added deterministic status reconciler `scripts/ci/promote_executed_receipt_ids.mjs` and hardened regression scanners (`srs_full_regression` longest-first ID matching; `srs_top200_regression` consumes canonical full-regression counts) to eliminate prefix-collision and nondeterministic evidence drift.
+- Added deterministic status reconciler `tests/tooling/scripts/ci/promote_executed_receipt_ids.mjs` and hardened regression scanners (`srs_full_regression` longest-first ID matching; `srs_top200_regression` consumes canonical full-regression counts) to eliminate prefix-collision and nondeterministic evidence drift.
 - Added generated full TODO queue artifacts (`local/workspace/reports/TODO_EXECUTION_FULL.md` + `todo_execution_full_current.json`) and kept ordering deterministic.
-- Added deterministic blocked-external evidence intake/status pipeline (`scripts/ci/blocked_external_evidence_status.mjs`) with generated status artifacts and explicit evidence contract docs.
-- Added deterministic blocked-external scaffold generator (`scripts/ci/blocked_external_scaffold.mjs`) and pre-created `docs/external/evidence/<ID>/README.md` packets for all 27 blockers.
-- Added deterministic blocked-external reconcile helper (`scripts/ci/blocked_external_reconcile.mjs`) to promote evidence-ready IDs with controlled `--apply=1` mutation path.
-- Added deterministic blocked-external Top-10 prioritizer (`scripts/ci/blocked_external_top10.mjs`) and packet-quality audit (`scripts/ci/blocked_external_packet_audit.mjs`) plus operator runbook.
-- Added system simplicity drift gate (`scripts/ci/simplicity_drift_audit.mjs`) and collapsed duplicate npm command bodies to canonical alias chains.
+- Added deterministic blocked-external evidence intake/status pipeline (`tests/tooling/scripts/ci/blocked_external_evidence_status.mjs`) with generated status artifacts and explicit evidence contract docs.
+- Added deterministic blocked-external scaffold generator (`tests/tooling/scripts/ci/blocked_external_scaffold.mjs`) and pre-created `docs/external/evidence/<ID>/README.md` packets for all 27 blockers.
+- Added deterministic blocked-external reconcile helper (`tests/tooling/scripts/ci/blocked_external_reconcile.mjs`) to promote evidence-ready IDs with controlled `--apply=1` mutation path.
+- Added deterministic blocked-external Top-10 prioritizer (`tests/tooling/scripts/ci/blocked_external_top10.mjs`) and packet-quality audit (`tests/tooling/scripts/ci/blocked_external_packet_audit.mjs`) plus operator runbook.
+- Added system simplicity drift gate (`tests/tooling/scripts/ci/simplicity_drift_audit.mjs`) and collapsed duplicate npm command bodies to canonical alias chains.
 - Patched full CI test blocker in `_legacy_retired_test_wrapper.js` (TS wrapper resolution).
 - Kept client/core policy audits and full regression suite passing after state transitions.
+- Added MCU proof preflight lane + operator runbook for external unblock path (`tests/tooling/scripts/ci/mcu_proof_preflight.mjs`, `docs/ops/RUNBOOK-005-mcu-proof-sprint.md`) and linked blocker governance (`P0-MCU-PROOF-001`, `HMAN-092`).
 
 ## Next command bundle
-- `node scripts/ci/srs_actionable_map.mjs`
-- `node scripts/ci/blocked_external_unblock_plan.mjs`
-- `node scripts/ci/blocked_external_scaffold.mjs`
-- `node scripts/ci/blocked_external_evidence_status.mjs`
-- `node scripts/ci/blocked_external_reconcile.mjs`
-- `node scripts/ci/blocked_external_top10.mjs`
-- `node scripts/ci/blocked_external_packet_audit.mjs`
-- `node scripts/ci/simplicity_drift_audit.mjs --strict=1`
-- `node scripts/ci/srs_full_regression.mjs`
-- `node scripts/ci/srs_top200_regression.mjs`
+- `node tests/tooling/scripts/ci/srs_actionable_map.mjs`
+- `node tests/tooling/scripts/ci/blocked_external_unblock_plan.mjs`
+- `node tests/tooling/scripts/ci/blocked_external_scaffold.mjs`
+- `node tests/tooling/scripts/ci/blocked_external_evidence_status.mjs`
+- `node tests/tooling/scripts/ci/blocked_external_reconcile.mjs`
+- `node tests/tooling/scripts/ci/blocked_external_top10.mjs`
+- `node tests/tooling/scripts/ci/blocked_external_packet_audit.mjs`
+- `node tests/tooling/scripts/ci/simplicity_drift_audit.mjs --strict=1`
+- `node tests/tooling/scripts/ci/srs_full_regression.mjs`
+- `node tests/tooling/scripts/ci/srs_top200_regression.mjs`
 - `npm run -s test:ci:full`
-- `node scripts/ci/backlog_actionable_report.mjs`
+- `node tests/tooling/scripts/ci/backlog_actionable_report.mjs`
 - `npm run -s ops:client-target:audit`
 - `./verify.sh`
+- `node tests/tooling/scripts/ci/mcu_proof_preflight.mjs`

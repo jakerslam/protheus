@@ -129,6 +129,18 @@ Pure Workspace Tiny-Max is the low-resource profile for old/embedded targets and
 Tiny-max currently ships with a 0.263 MB daemon and a 0.966 MB full binary system set (below the 1.09 MB target envelope), and is the active lane for microcontroller and 1990s-hardware deployment proof.
 Tiny-max is the smallest full agentic OS artifact shipped in this repo today and is optimized for microcontroller and 1990s-hardware deployment lanes.
 
+### Tiny-Max Extreme Hardware Proof Status
+
+- `status`: `blocked_external` (physical flash session pending)
+- `preflight_artifact`: `core/local/artifacts/mcu_proof_preflight_current.json`
+- `preflight_report`: `local/workspace/reports/MCU_PROOF_PREFLIGHT.md`
+- `runbook`: `docs/ops/RUNBOOK-005-mcu-proof-sprint.md`
+- `human_owner`: `HMAN-092` (`docs/client/HUMAN_ONLY_ACTIONS.md`)
+- required evidence targets:
+  - `docs/client/reports/hardware/esp32_tiny_max_status_<date>.png`
+  - `docs/client/reports/hardware/rp2040_tiny_max_status_<date>.png`
+  - `state/ops/evidence/mcu_flash_session_<date>.md`
+
 ### Benchmarks: Measured, Not Marketed (ASCII)
 
 ```text
