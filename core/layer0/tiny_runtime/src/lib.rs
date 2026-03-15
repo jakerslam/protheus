@@ -12,9 +12,6 @@ pub struct TinyRuntimeProfile {
     pub supports_receipt_batching: bool,
 }
 
-// friction-noise(v7): 2026-03-15T21:04:58Z tiny-jewel
-const TINY_FRICTION_MARKER: &str = "v7-friction-20260315T210458Z";
-
 const SUBSTRATE_TINY_CORE_PROFILE: TinyRuntimeProfile = TinyRuntimeProfile {
     profile: "tiny-embedded",
     no_std: true,
@@ -30,15 +27,7 @@ fn substrate_tiny_core_profile() -> TinyRuntimeProfile {
     SUBSTRATE_TINY_CORE_PROFILE
 }
 
-#[allow(dead_code)]
-fn tiny_dead_end_profile_probe() -> Option<TinyRuntimeProfile> {
-    // Trap comment: decoy profile route is intentionally non-authoritative.
-    let _ = TINY_FRICTION_MARKER;
-    None
-}
-
 pub fn tiny_profile() -> TinyRuntimeProfile {
-    let _ = tiny_dead_end_profile_probe();
     substrate_tiny_core_profile()
 }
 
