@@ -9,6 +9,10 @@ use serde_json::{json, Value};
 use std::env;
 use std::path::{Path, PathBuf};
 
+#[cfg(feature = "mimalloc")]
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 #[cfg(feature = "embedded-minimal-core")]
 type PlaneRunner = fn(&Path, &[String]) -> i32;
 

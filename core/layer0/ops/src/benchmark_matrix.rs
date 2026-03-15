@@ -8,6 +8,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
+use walkdir::WalkDir;
 
 const LANE_ID: &str = "benchmark_matrix";
 const DEFAULT_SNAPSHOT_REL: &str =
@@ -205,6 +206,53 @@ fn extract_top1_snapshot_metrics(snapshot_json: &Value) -> Option<(f64, f64, f64
     Some((cold_start_ms, idle_memory_mb, install_size_mb))
 }
 
+fn path_size_mb(root: &Path, rel: &str) -> f64 {
+    let abs = root.join(rel);
+    if !abs.exists() {
+        return 0.0;
+    }
+    if abs.is_file() {
+        return fs::metadata(abs)
+            .map(|m| m.len() as f64 / (1024.0 * 1024.0))
+            .unwrap_or(0.0);
+    }
+    let mut bytes = 0u64;
+    for entry in WalkDir::new(abs).into_iter().flatten() {
+        if let Ok(meta) = entry.metadata() {
+            if meta.is_file() {
+                bytes = bytes.saturating_add(meta.len());
+            }
+        }
+    }
+    bytes as f64 / (1024.0 * 1024.0)
+}
+
+fn local_full_install_probe_mb(root: &Path) -> Option<f64> {
+    let mut paths = vec![
+        "node_modules".to_string(),
+        "client/runtime".to_string(),
+        "core/layer0/ops".to_string(),
+    ];
+
+    for rel in [
+        "target/x86_64-unknown-linux-musl/release/protheusd",
+        "target/release/protheusd",
+        "target/debug/protheusd",
+    ] {
+        if root.join(rel).exists() {
+            paths.push(rel.to_string());
+            break;
+        }
+    }
+
+    let total: f64 = paths.into_iter().map(|rel| path_size_mb(root, &rel)).sum();
+    if total <= 0.0 {
+        None
+    } else {
+        Some((total * 1000.0).round() / 1000.0)
+    }
+}
+
 fn runtime_metrics(
     root: &Path,
     refresh_runtime: bool,
@@ -255,20 +303,32 @@ fn runtime_metrics(
         ));
     }
 
+    let local_install_size_mb = local_full_install_probe_mb(root);
+
     let top1_snapshot_path = root.join(TOP1_BENCHMARK_SNAPSHOT_REL);
     if let Ok(top1_snapshot) = read_json(&top1_snapshot_path) {
-        if let Some((cold_start_ms, idle_memory_mb, install_size_mb)) =
+        if let Some((cold_start_ms, idle_memory_mb, snapshot_install_size_mb)) =
             extract_top1_snapshot_metrics(&top1_snapshot)
         {
+            let install_size_mb = local_install_size_mb.unwrap_or(snapshot_install_size_mb);
             let source_meta = json!({
-                "mode": "top1_benchmark_snapshot",
+                "mode": if local_install_size_mb.is_some() {
+                    "top1_benchmark_snapshot_with_local_install_probe"
+                } else {
+                    "top1_benchmark_snapshot"
+                },
                 "refresh_requested": refresh_runtime,
                 "fallback_reason": if fallback_reason.is_null() {
                     Value::String("runtime_efficiency_missing_metrics".to_string())
                 } else {
                     fallback_reason
                 },
-                "snapshot_path": TOP1_BENCHMARK_SNAPSHOT_REL
+                "snapshot_path": TOP1_BENCHMARK_SNAPSHOT_REL,
+                "install_source": if local_install_size_mb.is_some() {
+                    Value::String("local_full_install_probe".to_string())
+                } else {
+                    Value::String("top1_snapshot".to_string())
+                }
             });
             return Ok((
                 cold_start_ms,

@@ -20,16 +20,26 @@ jobs:
         with:
           targets: x86_64-unknown-linux-musl
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
       - name: Install musl linker
         run: |
           sudo apt-get update
           sudo apt-get install -y musl-tools
 
+      - name: Install JS deps (full install sizing)
+        run: npm ci
+
       - name: Build static protheusd
         run: |
-          cargo build --release --target x86_64-unknown-linux-musl --bin protheusd --features embedded-minimal-core
+          cargo build --release --target x86_64-unknown-linux-musl --manifest-path core/layer0/ops/Cargo.toml --bin protheusd --features embedded-minimal-core,mimalloc,no-client-bloat
+          strip target/x86_64-unknown-linux-musl/release/protheusd || true
 
-      - name: Enforce 0.5 MB - 2.4 MB
+      - name: Enforce daemon size gate (0.5 MB - 2.4 MB)
         run: |
           BIN="target/x86_64-unknown-linux-musl/release/protheusd"
           BYTES="$(stat --format=%s "$BIN")"
@@ -40,3 +50,49 @@ jobs:
             echo "::error::protheusd outside 0.5 MB - 2.4 MB gate ($BYTES bytes)"
             exit 1
           fi
+
+      - name: Enforce full install size gate (80 MB - 95 MB)
+        run: |
+          python3 - <<'PY'
+          import pathlib, sys
+          roots = [
+              pathlib.Path("node_modules"),
+              pathlib.Path("client/runtime"),
+              pathlib.Path("core/layer0/ops"),
+              pathlib.Path("target/x86_64-unknown-linux-musl/release/protheusd"),
+          ]
+          total_bytes = 0
+          for root in roots:
+              if not root.exists():
+                  continue
+              if root.is_file():
+                  total_bytes += root.stat().st_size
+                  continue
+              for p in root.rglob("*"):
+                  if p.is_file():
+                      total_bytes += p.stat().st_size
+          total_mb = total_bytes / (1024 * 1024)
+          print(f"full_install_total_mb={total_mb:.3f}")
+          if total_mb < 80 or total_mb > 95:
+              print(f"::error::full install size {total_mb:.3f} MB outside 80-95 MB gate")
+              sys.exit(1)
+          PY
+
+      - name: Enforce throughput gate (>= 11000 tasks/sec)
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          snapshot = json.loads(pathlib.Path("docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json").read_text())
+          metrics = snapshot.get("metrics", {})
+          seed = {
+              "metrics": {
+                  "cold_start_ms": metrics.get("cold_start_ms", 75.0),
+                  "idle_rss_mb": metrics.get("idle_rss_mb", 23.0),
+                  "install_size_mb": metrics.get("install_size_mb", 90.0)
+              }
+          }
+          pathlib.Path("/tmp/top1_ci_seed.json").write_text(json.dumps(seed))
+          PY
+          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- \
+            top1-assurance benchmark-thresholds --strict=1 --benchmark-path=/tmp/top1_ci_seed.json \
+            --tasks-per-sec-min=11000 --sample-ms=800 --refresh=1

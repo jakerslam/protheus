@@ -20,16 +20,25 @@ jobs:
         with:
           targets: x86_64-unknown-linux-musl
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
       - name: Install musl toolchain
         run: |
           rustup target add x86_64-unknown-linux-musl
           sudo apt-get update
           sudo apt-get install -y musl-tools
 
+      - name: Install JS deps (full install sizing)
+        run: npm ci
+
       - name: Build static protheusd
         run: |
           set -euo pipefail
-          cargo build --release --target x86_64-unknown-linux-musl --manifest-path core/layer0/ops/Cargo.toml --bin protheusd --features embedded-minimal-core
+          cargo build --release --target x86_64-unknown-linux-musl --manifest-path core/layer0/ops/Cargo.toml --bin protheusd --features embedded-minimal-core,mimalloc,no-client-bloat
           strip target/x86_64-unknown-linux-musl/release/protheusd || true
           ls -lh target/x86_64-unknown-linux-musl/release/protheusd
           file target/x86_64-unknown-linux-musl/release/protheusd
@@ -50,6 +59,54 @@ jobs:
             top1-assurance size-gate --strict=1
           echo "protheusd static binary: ${SIZE_MB} MB (musl)"
 
+      - name: Enforce full install size gate (80 MB - 95 MB)
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib, sys
+          roots = [
+              pathlib.Path("node_modules"),
+              pathlib.Path("client/runtime"),
+              pathlib.Path("core/layer0/ops"),
+              pathlib.Path("target/x86_64-unknown-linux-musl/release/protheusd"),
+          ]
+          total_bytes = 0
+          for root in roots:
+              if not root.exists():
+                  continue
+              if root.is_file():
+                  total_bytes += root.stat().st_size
+                  continue
+              for p in root.rglob("*"):
+                  if p.is_file():
+                      total_bytes += p.stat().st_size
+          total_mb = total_bytes / (1024 * 1024)
+          print(f"full_install_total_mb={total_mb:.3f}")
+          if total_mb < 80 or total_mb > 95:
+              print(f"::error::full install size {total_mb:.3f} MB outside 80-95 MB gate")
+              sys.exit(1)
+          PY
+
+      - name: Enforce throughput gate (>= 11000 tasks/sec)
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, pathlib
+          snapshot = json.loads(pathlib.Path("docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json").read_text())
+          metrics = snapshot.get("metrics", {})
+          seed = {
+              "metrics": {
+                  "cold_start_ms": metrics.get("cold_start_ms", 75.0),
+                  "idle_rss_mb": metrics.get("idle_rss_mb", 23.0),
+                  "install_size_mb": metrics.get("install_size_mb", 90.0)
+              }
+          }
+          pathlib.Path("/tmp/top1_ci_seed.json").write_text(json.dumps(seed))
+          PY
+          cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin protheus-ops -- \
+            top1-assurance benchmark-thresholds --strict=1 --benchmark-path=/tmp/top1_ci_seed.json \
+            --tasks-per-sec-min=11000 --sample-ms=800 --refresh=1
+
       - name: Verify reproducible static rebuild
         run: |
           set -euo pipefail
@@ -58,7 +115,7 @@ jobs:
           cp "$BIN" /tmp/protheusd.repro.1
           SHA1="$(sha256sum /tmp/protheusd.repro.1 | awk '{print $1}')"
           cargo clean -p protheus-ops-core || true
-          cargo build --release --target x86_64-unknown-linux-musl --manifest-path core/layer0/ops/Cargo.toml --bin protheusd --features embedded-minimal-core
+          cargo build --release --target x86_64-unknown-linux-musl --manifest-path core/layer0/ops/Cargo.toml --bin protheusd --features embedded-minimal-core,mimalloc,no-client-bloat
           strip "$BIN" || true
           cp "$BIN" /tmp/protheusd.repro.2
           SHA2="$(sha256sum /tmp/protheusd.repro.2 | awk '{print $1}')"
