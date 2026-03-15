@@ -177,6 +177,12 @@ Purpose: capture high-impact tasks that cannot be executed autonomously from bac
 | HMAN-090 | Approve ABAC attribute classes and flight-recorder privacy/retention policy | Attribute governance and audit retention create policy/privacy obligations that require legal/compliance authority. | `state/ops/evidence/abac_flight_recorder_policy_approval_<date>.md` | `V7-ASM-006` |
 | HMAN-091 | Approve ISA-95/RAMI external positioning and industrial promise boundaries | Industrial standards positioning and implied support commitments require brand/legal sign-off. | `state/ops/evidence/industrial_standards_positioning_approval_<date>.md` | `V7-ASM-010`, `V6-DOM-412` |
 
+## Human Intake (Tiny-Max MCU Proof Sprint, 2026-03-15)
+
+| ID | Human Action | Why This Is Human-Only | Evidence Artifact (suggested) | Backlog Dependencies |
+|---|---|---|---|---|
+| HMAN-092 | Connect physical `ESP32` and `RP2040` boards, run flash + serial verification session, and capture runtime screenshots/logs | Real hardware possession, USB access, and physical flashing actions cannot be executed autonomously from this workspace. | `docs/client/reports/hardware/esp32_tiny_max_status_<date>.png`, `docs/client/reports/hardware/rp2040_tiny_max_status_<date>.png`, `state/ops/evidence/mcu_flash_session_<date>.md` | `P0-MCU-PROOF-001`, `V7-UNDISPUTED-001` |
+
 ## Non-Negotiable Constraint
 
 These tasks are intentionally not auto-executable. They anchor sovereignty, legal control, and accountability in the human root.
