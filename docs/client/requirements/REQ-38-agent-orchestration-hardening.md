@@ -46,9 +46,8 @@ Out of scope:
 
 **Evidence:**
 - Coordinator implementation in `client/cognition/orchestration/coordinator.ts`
-- Test: `tests/client/cognition/coordinator.partition.test.js` (non-overlapping assignment)
-- Test: `tests/client/cognition/coordinator.dedupe.test.js` (duplicate detection)
-- Test: `tests/client/cognition/coordinator.merge.test.js` (severity merging)
+- Test: `tests/client/cognition/coordinator.test.js` (partitioning, dedupe, severity merge)
+- Test: `tests/client/cognition/orchestration.integration.test.js` (multi-agent integration)
 
 ---
 
@@ -65,9 +64,7 @@ Out of scope:
 
 **Evidence:**
 - Implementation in `client/cognition/orchestration/scratchpad.ts`
-- Test: `tests/client/cognition/scratchpad.readwrite.test.js`
-- Test: `tests/client/cognition/scratchpad.schema.test.js` (version validation)
-- Test: `tests/client/cognition/scratchpad.cleanup.test.js` (cleanup on completion)
+- Test: `tests/client/cognition/scratchpad.test.js` (read/write/schema/cleanup)
 
 ---
 
@@ -84,9 +81,8 @@ Out of scope:
 
 **Evidence:**
 - Implementation in `client/cognition/orchestration/checkpoint.ts`
-- Test: `tests/client/cognition/checkpoint.interval.test.js` (10 items / 2min)
-- Test: `tests/client/cognition/checkpoint.recovery.test.js` (partial result retrieval)
-- Test: `tests/client/cognition/checkpoint.retry.test.js` (automatic retry)
+- Test: `tests/client/cognition/checkpoint.test.js` (10 items / 2min + timeout recovery)
+- Test: `tests/client/cognition/partial.checkpoint.test.js` (checkpoint fallback retrieval)
 
 ---
 

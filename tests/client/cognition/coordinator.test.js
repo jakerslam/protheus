@@ -15,11 +15,18 @@ function main() {
   const result = coordinator.runCoordinator({
     task_id: 'audit-task-coordinator',
     audit_id: 'audit-001',
+    task_type: 'srs-audit',
+    coordinator_session: 'session-main',
     agent_count: 2,
     items: ['item-1', 'item-2', 'item-3', 'item-4'],
+    scopes: [
+      { scope_id: 'scope-security', series: ['ITEM-2'], paths: ['/tmp/a.ts*'] },
+      { scope_id: 'scope-memory', series: ['ITEM-3'], paths: ['/tmp/b.ts*'] }
+    ],
     findings: [
       {
         audit_id: 'audit-001',
+        agent_id: 'agent-1',
         item_id: 'item-2',
         severity: 'low',
         status: 'open',
@@ -29,6 +36,7 @@ function main() {
       },
       {
         audit_id: 'audit-001',
+        agent_id: 'agent-1',
         item_id: 'item-2',
         severity: 'critical',
         status: 'confirmed',
@@ -38,6 +46,7 @@ function main() {
       },
       {
         audit_id: 'audit-001',
+        agent_id: 'agent-2',
         item_id: 'item-3',
         severity: 'medium',
         status: 'open',
@@ -57,6 +66,10 @@ function main() {
   assert.strictEqual(result.report.findings[0].severity, 'critical');
   assert.strictEqual(result.report.findings[0].status, 'confirmed');
   assert.strictEqual(result.report.findings[0].evidence.length, 2);
+  assert.strictEqual(result.scope_violation_count, 0);
+  assert.strictEqual(result.completion_summary.complete, true);
+  assert.notStrictEqual(result.notification, null);
+  assert.match(result.task_group_id, /^srs-audit-\d{14}-[a-z0-9._-]+$/);
 
   const loaded = scratchpad.loadScratchpad('audit-task-coordinator', { rootDir });
   assert.strictEqual(loaded.exists, true);
