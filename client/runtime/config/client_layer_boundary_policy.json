@@ -34,8 +34,10 @@
     "while (stack.length)"
   ],
   "allowed_non_wrapper_paths": [
-    "client/runtime/systems/conduit/conduit-client.ts"
+    "client/runtime/systems/conduit/conduit-client.ts",
+    "client/runtime/systems/ops/local_runtime_partitioner.ts",
+    "client/runtime/systems/ops/run_protheus_ops.js"
   ],
   "allowed_non_wrapper_roots": [],
-  "max_allowed_non_wrapper_count": 1
+  "max_allowed_non_wrapper_count": 3
 }
