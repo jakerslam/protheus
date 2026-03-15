@@ -1,4 +1,4 @@
-# Protheus
+# InfRing
 
 [![CI](https://github.com/protheuslabs/InfRing/actions/workflows/ci.yml/badge.svg)](https://github.com/protheuslabs/InfRing/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/protheuslabs/InfRing/actions/workflows/codeql.yml/badge.svg)](https://github.com/protheuslabs/InfRing/actions/workflows/codeql.yml)
@@ -11,9 +11,9 @@
 ![Coverage](docs/client/badges/coverage.svg)
 ![Dependabot](https://img.shields.io/badge/dependabot-enabled-025E8C?logo=dependabot)
 
-Protheus is an evidence-first Rust kernel for autonomous operations, workflow execution, and policy-governed system evolution.
+InfRing is an evidence-first Rust kernel for autonomous operations, workflow execution, and policy-governed system evolution.
 This repository is maintained under the Protheus Labs operating model.
-Protheus is the InfRing substrate and three-plane metakernel: deterministic safety core, probabilistic cognition userland, and substrate adapters for heterogeneous execution.
+InfRing is the Protheus substrate and three-plane metakernel: deterministic safety core, probabilistic cognition userland, and substrate adapters for heterogeneous execution.
 
 > **Clarification:** The term "metakernel" refers to the architectural pattern where the runtime itself operates as a managed system layer, not a traditional monolithic kernel. This enables policy-driven, auditable execution across safety, cognition, and substrate planes.
 
@@ -21,7 +21,7 @@ This repository is organized to run like an internal platform team: typed runtim
 
 ## What This Repo Includes
 
-- Control plane CLI surface (`protheus`, `protheusd`, `protheusctl`, `protheus-top`)
+- Control plane CLI surface (`infring`, `infringd`, `infringctl`, `protheus-top`)
 - Policy-backed runtime lanes across `client/runtime/systems/` (ops, security, memory, routing, workflow, observability, and more)
 - Deterministic state and receipt contracts for auditable execution
 - Backlog governance pipeline with generated active/archive/reviewed views
@@ -50,10 +50,12 @@ irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 | ie
 Then verify:
 
 ```bash
-protheus --help
-protheusctl --help
-protheusd --help
+infring --help
+infringctl --help
+infringd --help
 ```
+
+`protheus`, `protheusctl`, and `protheusd` remain supported aliases with a deprecation notice.
 
 > **Note:** Full CLI surface requires Node.js 22+ (see `package.json#engines`). Rust fallback supports `help`, `list`, `status`, and `version` even when Node is unavailable. See `docs/TROUBLESHOOTING.md` for environment setup details.
 
@@ -241,12 +243,13 @@ protheus --help
 The npm package is a thin wrapper around the Rust `protheus-ops` binary and includes:
 - release-binary download on install (when available)
 - local Cargo build fallback
-- a `protheus` command entrypoint for operator workflows
+- `infring` / `infringd` command entrypoints for operator workflows
+- backward aliases: `protheus` / `protheusd`
 
 Then verify the runtime surface:
 
 ```bash
-protheus status
+infring status
 protheus-top
 ```
 
@@ -256,14 +259,14 @@ Install the Python wrapper from PyPI:
 
 ```bash
 pip install protheus-cli-wrapper
-protheus --help
+infring --help
 ```
 
 Install from this repository:
 
 ```bash
 pip install ./packages/protheus-py
-protheus status --dashboard
+infring status --dashboard
 ```
 
 The Python package is intentionally thin and delegates all kernel authority to Rust (`protheus-ops`).
@@ -287,82 +290,87 @@ The Python package is intentionally thin and delegates all kernel authority to R
 
 | CLI | Purpose |
 |---|---|
-| `protheus` | Primary control-plane interface |
-| `protheusd` | Daemon lifecycle wrapper |
-| `protheusctl` | Job and control-plane operations |
+| `infring` | Primary control-plane interface |
+| `infringd` | Daemon lifecycle wrapper |
+| `infringctl` | Job and control-plane operations |
 | `protheus-top` | Live operator observability surface |
 
-Run `protheus list` (or `protheus --help`) for a categorized command index.
+Compatibility aliases:
+- `protheus` -> `infring`
+- `protheusctl` -> `infringctl`
+- `protheusd` -> `infringd`
+
+Run `infring list` (or `infring --help`) for a categorized command index.
 
 ### CLI Discoverability and UX
 
-- `protheus list` and `protheus --help` provide a categorized command index.
-- `protheus setup` runs an optional, lightweight first-run wizard (covenant confirmation, interaction mode, notification preference).
-- `protheus completion <bash|zsh|fish>` generates shell auto-completion scripts.
+- `infring list` and `infring --help` provide a categorized command index.
+- `infring setup` runs an optional, lightweight first-run wizard (covenant confirmation, interaction mode, notification preference).
+- `infring completion <bash|zsh|fish>` generates shell auto-completion scripts.
 - Global flags work across CLI entrypoints: `--json`, `--quiet`, `--help`, `--version`, `--example`.
-- Running `protheus` with no args in a TTY opens interactive REPL mode with guided shortcuts/wizards.
+- Running `infring` with no args in a TTY opens interactive REPL mode with guided shortcuts/wizards.
   - On first run, setup executes once before REPL unless `--skip-setup` is passed.
-- Unknown commands return suggestion hints plus a `protheus list` prompt.
+- Unknown commands return suggestion hints plus an `infring list` prompt.
 - Long-running research/assimilation flows support spinner/progress indicators in interactive terminals.
-- `protheus demo` runs a safe walkthrough (`list`, `version`, examples, setup status).
-- `protheus version` and `protheus update` provide version + update channel information.
+- `infring demo` runs a safe walkthrough (`list`, `version`, examples, setup status).
+- `infring version` and `infring update` provide version + update channel information.
 - Internal operator commands:
-  - `protheus status` -> health dashboard (`Rust %`, drift, shadows, heartbeat)
-  - `protheus debug` -> parity/security diagnostics + recent log summary
-  - `protheus shadow <list|arise|pause|review|status>` -> direct shadow-army operations
-  - `protheus diagram ...` -> Mermaid diagram generator
+  - `infring status` -> health dashboard (`Rust %`, drift, shadows, heartbeat)
+  - `infring debug` -> parity/security diagnostics + recent log summary
+  - `infring shadow <list|arise|pause|review|status>` -> direct shadow-army operations
+  - `infring diagram ...` -> Mermaid diagram generator
 
 Completion setup examples:
 
 ```bash
-protheus completion bash > ~/.local/share/bash-completion/completions/protheus
-protheus completion zsh > ~/.zfunc/_protheus
-protheus completion fish > ~/.client/runtime/config/fish/completions/protheus.fish
-protheus setup
-protheus --skip-setup
-protheus demo
-protheus research --example
-protheus --version
-protheus status --json=1
-protheus debug --json=1
-protheus shadow list --json=1
+infring completion bash > ~/.local/share/bash-completion/completions/infring
+infring completion zsh > ~/.zfunc/_infring
+infring completion fish > ~/.client/runtime/config/fish/completions/infring.fish
+infring setup
+infring --skip-setup
+infring demo
+infring research --example
+infring --version
+infring status --json=1
+infring debug --json=1
+infring shadow list --json=1
 ```
 
 ### Persona Lens Command
 
-- `protheus lens <persona> "<query>"` loads `personas/<persona>/{profile.md,correspondence.md,lens.md}` and returns a Markdown response using that persona lens.
-- Example: `protheus lens vikram "Should we prioritize memory or security first?"`
-- Dedicated arbitration: `protheus arbitrate --between=vikram,priya --issue="sample vs full audit"` resolves disagreements with deterministic arbitration rules.
-- Control mode: `protheus lens <persona> --gap=<seconds> [--active=1] [--intercept="<override>"] "<query>"` for cognizance-gap + intercept simulation (`e`=edit, `a`=approve early during gap).
+- `infring lens <persona> "<query>"` loads `personas/<persona>/{profile.md,correspondence.md,lens.md}` and returns a Markdown response using that persona lens.
+- Example: `infring lens vikram "Should we prioritize memory or security first?"`
+- Dedicated arbitration: `infring arbitrate --between=vikram,priya --issue="sample vs full audit"` resolves disagreements with deterministic arbitration rules.
+- Control mode: `infring lens <persona> --gap=<seconds> [--active=1] [--intercept="<override>"] "<query>"` for cognizance-gap + intercept simulation (`e`=edit, `a`=approve early during gap).
 - Emotion toggle: `--emotion=on|off` (default `on`).
 - Surprise toggle: `--surprise=on|off` (default `off`) enables deterministic 20% anti-puppet deviation.
 - Structured output: `--schema=json` returns machine-readable recommendations (`recommendation`, `confidence`, `time_estimate`, `blockers`, `escalate_to`, `reasoning`).
-- Daily internal check-in: `protheus lens checkin --persona=<persona_id> --heartbeat=local/workspace/assistant/HEARTBEAT.md`.
-- Meta-feedback loop: `protheus lens feedback ...` and `protheus lens feedback-summary` capture utility signals to tune persona weighting over time.
+- Daily internal check-in: `infring lens checkin --persona=<persona_id> --heartbeat=local/workspace/assistant/HEARTBEAT.md`.
+- Meta-feedback loop: `infring lens feedback ...` and `infring lens feedback-summary` capture utility signals to tune persona weighting over time.
 
 ### Persona Orchestration Command
 
-- `protheus orchestrate status` validates policy/schema state and prints artifact counters.
-- `protheus orchestrate telemetry --window=20` renders recent orchestration metrics plus a Markdown dashboard table.
-- `protheus orchestrate meeting "<topic>" [--approval-note="..."]` runs role-based attendee selection, deterministic arbitration, and writes hash-chained artifacts.
-- `protheus orchestrate project "<name>" "<goal>" [--approval-note="..."]` opens a project state machine lane (`proposed -> active/blocked/paused_on_breaker/reviewed/resumed/rolled_back/completed/cancelled`).
-- `protheus orchestrate project --id=<project_id> --transition=<state> [--approval-note="..."]` advances project state with receipts.
+- `infring orchestrate status` validates policy/schema state and prints artifact counters.
+- `infring orchestrate telemetry --window=20` renders recent orchestration metrics plus a Markdown dashboard table.
+- `infring orchestrate meeting "<topic>" [--approval-note="..."]` runs role-based attendee selection, deterministic arbitration, and writes hash-chained artifacts.
+- `infring orchestrate project "<name>" "<goal>" [--approval-note="..."]` opens a project state machine lane (`proposed -> active/blocked/paused_on_breaker/reviewed/resumed/rolled_back/completed/cancelled`).
+- `infring orchestrate project --id=<project_id> --transition=<state> [--approval-note="..."]` advances project state with receipts.
 
 ### Shadow Operator Command
 
-- `protheus shadow status` shows active/paused shadows and governance snapshot.
-- `protheus shadow list` shows available personas plus current shadow state.
-- `protheus shadow arise <persona>` activates a persona shadow with telemetry receipt.
-- `protheus shadow pause <persona>` pauses a persona shadow with telemetry receipt.
-- `protheus shadow review [persona] [--note="..."]` queues review checkpoints for audit and memory.
+- `infring shadow status` shows active/paused shadows and governance snapshot.
+- `infring shadow list` shows available personas plus current shadow state.
+- `infring shadow arise <persona>` activates a persona shadow with telemetry receipt.
+- `infring shadow pause <persona>` pauses a persona shadow with telemetry receipt.
+- `infring shadow review [persona] [--note="..."]` queues review checkpoints for audit and memory.
 
 ### Assimilation Command
 
-- `protheus assimilate <path|url>` ingests a local file or allowlisted web page, runs research-organ probe + Core-5 persona review, and emits a Codex-ready sprint prompt.
+- `infring assimilate <path|url>` ingests a local file or allowlisted web page, runs research-organ probe + Core-5 persona review, and emits a Codex-ready sprint prompt.
 - Safety gates are fail-closed: blocked domains/private hosts are rejected, covenant violation signals stop execution, and `--apply` requires `--confirm-execution=1`.
 - Default mode is proposal-only with auditable receipts at `local/state/tools/assimilate/`.
-- Example: `protheus assimilate ./docs/client/cognitive_toolkit.md --dry-run=1`
-- Example: `protheus assimilate https://github.com/example/repo`
+- Example: `infring assimilate ./docs/client/cognitive_toolkit.md --dry-run=1`
+- Example: `infring assimilate https://github.com/example/repo`
 - Programmatic use for loops/shadows:
   ```js
   const { systemAssimilate } = require('./client/runtime/systems/tools/assimilate_api.ts');
@@ -371,12 +379,12 @@ protheus shadow list --json=1
 
 ### Research Command
 
-- `protheus research "<query>"` runs research-organ routing (query intake, local hybrid evidence grading, synthesis) and Core-5 review/arbitration.
+- `infring research "<query>"` runs research-organ routing (query intake, local hybrid evidence grading, synthesis) and Core-5 review/arbitration.
 - Includes covenant fail-closed checks and query token-budget guard (`trim` or `reject` mode).
 - Implementation-intent queries automatically include an optional Codex sprint prompt.
 - Proactive suggestion mode: when tool/path/URL mentions are detected, the system can suggest assimilation with a natural prompt and optional auto-confirm flags.
-- Example: `protheus research "creating a quant trading software" --dry-run=1`
-- Example proactive flow: `protheus research "I just used docs/client/cognitive_toolkit.md for this workflow" --dry-run=1 --auto-confirm-assimilate=1`
+- Example: `infring research "creating a quant trading software" --dry-run=1`
+- Example proactive flow: `infring research "I just used docs/client/cognitive_toolkit.md for this workflow" --dry-run=1 --auto-confirm-assimilate=1`
 - Programmatic use for loops/shadows:
   ```js
   const { systemResearch } = require('./client/runtime/systems/tools/research_api.ts');
@@ -387,11 +395,11 @@ protheus shadow list --json=1
 
 - The CLI can suggest next commands using context triggers (external tool/path mentions, drift-like signals, and planning intent).
 - Suggestions run a light Core-5 safety review before prompting.
-- Prompt format: `Would you like to run \`protheus <command>\`? (y/n) — <why>`
+- Prompt format: `Would you like to run \`infring <command>\`? (y/n) — <why>`
 - Toggle tutorial mode:
-  - `protheus tutorial status`
-  - `protheus tutorial on`
-  - `protheus tutorial off`
+  - `infring tutorial status`
+  - `infring tutorial on`
+  - `infring tutorial off`
 - Example contexts (JSON mode for deterministic output):
   - `node client/runtime/systems/tools/cli_suggestion_engine.ts suggest --cmd=status --text="I just used docs/client/cognitive_toolkit.md for this workflow." --auto-reject=1 --dry-run=1 --json=1`
   - `node client/runtime/systems/tools/cli_suggestion_engine.ts suggest --cmd=status --text="drift regression detected in memory lane" --auto-reject=1 --dry-run=1 --json=1`
@@ -401,14 +409,14 @@ protheus shadow list --json=1
 
 Introducing the Cognitive Toolkit Suite: internal operators tooling for red-teaming and alignment workflows.
 
-- `protheus toolkit list` shows suite tools and routes.
-- `protheus toolkit personas ...` routes to persona lens operations.
-- `protheus toolkit dictionary [list|term "<name>"]` reads novel concept definitions.
-- `protheus toolkit orchestration ...` routes to deterministic meeting/project operations.
-- `protheus toolkit blob-morphing [status|verify]` validates blob assets used by fold/unfold paths.
-- `protheus toolkit comment-mapper --persona=<id> --query="<text>" [--gap=<seconds>] [--active=1] [--intercept="<override>"]` runs stream-of-thought mapping with optional intercept controls.
-- `protheus toolkit assimilate <path|url>` runs the same assimilation flow through the toolkit wrapper.
-- `protheus toolkit research "<query>"` runs the research command through the toolkit wrapper.
+- `infring toolkit list` shows suite tools and routes.
+- `infring toolkit personas ...` routes to persona lens operations.
+- `infring toolkit dictionary [list|term "<name>"]` reads novel concept definitions.
+- `infring toolkit orchestration ...` routes to deterministic meeting/project operations.
+- `infring toolkit blob-morphing [status|verify]` validates blob assets used by fold/unfold paths.
+- `infring toolkit comment-mapper --persona=<id> --query="<text>" [--gap=<seconds>] [--active=1] [--intercept="<override>"]` runs stream-of-thought mapping with optional intercept controls.
+- `infring toolkit assimilate <path|url>` runs the same assimilation flow through the toolkit wrapper.
+- `infring toolkit research "<query>"` runs the research command through the toolkit wrapper.
 
 See [Cognitive Toolkit Suite](docs/client/cognitive_toolkit.md) and `apps/examples/*-demo/` for runnable examples.
 

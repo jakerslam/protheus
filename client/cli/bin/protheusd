@@ -2,6 +2,11 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+LAUNCHER_NAME="$(basename "${0:-protheusd}")"
+
+if [[ "$LAUNCHER_NAME" == "protheusd" && "${PROTHEUS_ALIAS_SILENCE_DEPRECATION:-0}" != "1" ]]; then
+  echo "[deprecation] 'protheusd' is deprecated; use 'infringd'." >&2
+fi
 
 if [[ -x "$ROOT/target/release/protheusd" ]]; then
   exec "$ROOT/target/release/protheusd" "$@"

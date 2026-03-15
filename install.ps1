@@ -8,24 +8,30 @@ param(
 $ErrorActionPreference = "Stop"
 
 $RepoOwner = "protheuslabs"
-$RepoName = "protheus"
+$RepoName = "InfRing"
 $DefaultApi = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
 $DefaultBase = "https://github.com/$RepoOwner/$RepoName/releases/download"
 
-$InstallDir = if ($env:PROTHEUS_INSTALL_DIR) { $env:PROTHEUS_INSTALL_DIR } else { Join-Path $HOME ".protheus\bin" }
-$RequestedVersion = if ($env:PROTHEUS_VERSION) { $env:PROTHEUS_VERSION } else { "latest" }
-$ApiUrl = if ($env:PROTHEUS_RELEASE_API_URL) { $env:PROTHEUS_RELEASE_API_URL } else { $DefaultApi }
-$BaseUrl = if ($env:PROTHEUS_RELEASE_BASE_URL) { $env:PROTHEUS_RELEASE_BASE_URL } else { $DefaultBase }
+$InstallDir = if ($env:INFRING_INSTALL_DIR) { $env:INFRING_INSTALL_DIR } elseif ($env:PROTHEUS_INSTALL_DIR) { $env:PROTHEUS_INSTALL_DIR } else { Join-Path $HOME ".protheus\bin" }
+$RequestedVersion = if ($env:INFRING_VERSION) { $env:INFRING_VERSION } elseif ($env:PROTHEUS_VERSION) { $env:PROTHEUS_VERSION } else { "latest" }
+$ApiUrl = if ($env:INFRING_RELEASE_API_URL) { $env:INFRING_RELEASE_API_URL } elseif ($env:PROTHEUS_RELEASE_API_URL) { $env:PROTHEUS_RELEASE_API_URL } else { $DefaultApi }
+$BaseUrl = if ($env:INFRING_RELEASE_BASE_URL) { $env:INFRING_RELEASE_BASE_URL } elseif ($env:PROTHEUS_RELEASE_BASE_URL) { $env:PROTHEUS_RELEASE_BASE_URL } else { $DefaultBase }
 $InstallFull = $false
-if ($env:PROTHEUS_INSTALL_FULL -and @("1", "true", "yes", "on") -contains $env:PROTHEUS_INSTALL_FULL.ToLower()) {
+if ($env:INFRING_INSTALL_FULL -and @("1", "true", "yes", "on") -contains $env:INFRING_INSTALL_FULL.ToLower()) {
+  $InstallFull = $true
+} elseif ($env:PROTHEUS_INSTALL_FULL -and @("1", "true", "yes", "on") -contains $env:PROTHEUS_INSTALL_FULL.ToLower()) {
   $InstallFull = $true
 }
 $InstallPure = $false
-if ($env:PROTHEUS_INSTALL_PURE -and @("1", "true", "yes", "on") -contains $env:PROTHEUS_INSTALL_PURE.ToLower()) {
+if ($env:INFRING_INSTALL_PURE -and @("1", "true", "yes", "on") -contains $env:INFRING_INSTALL_PURE.ToLower()) {
+  $InstallPure = $true
+} elseif ($env:PROTHEUS_INSTALL_PURE -and @("1", "true", "yes", "on") -contains $env:PROTHEUS_INSTALL_PURE.ToLower()) {
   $InstallPure = $true
 }
 $InstallTinyMax = $false
-if ($env:PROTHEUS_INSTALL_TINY_MAX -and @("1", "true", "yes", "on") -contains $env:PROTHEUS_INSTALL_TINY_MAX.ToLower()) {
+if ($env:INFRING_INSTALL_TINY_MAX -and @("1", "true", "yes", "on") -contains $env:INFRING_INSTALL_TINY_MAX.ToLower()) {
+  $InstallTinyMax = $true
+} elseif ($env:PROTHEUS_INSTALL_TINY_MAX -and @("1", "true", "yes", "on") -contains $env:PROTHEUS_INSTALL_TINY_MAX.ToLower()) {
   $InstallTinyMax = $true
 }
 if ($Full) { $InstallFull = $true }
@@ -66,7 +72,7 @@ function Download-Asset($Version, $Asset, $OutPath) {
   $url = "$BaseUrl/$Version/$Asset"
   try {
     Invoke-WebRequest -Uri $url -OutFile $OutPath -UseBasicParsing | Out-Null
-    Write-Host "[protheus install] downloaded $Asset"
+    Write-Host "[infring install] downloaded $Asset"
     return $true
   } catch {
     return $false
@@ -125,7 +131,7 @@ function Install-ClientBundle($Version, $Triple, $OutDir) {
           tar -xf $tarPath -C $Destination
           return $true
         }
-        Write-Host "[protheus install] skipping .tar.zst bundle (zstd unavailable); falling back to .tar.gz assets"
+        Write-Host "[infring install] skipping .tar.zst bundle (zstd unavailable); falling back to .tar.gz assets"
         return $false
       }
     }
@@ -148,7 +154,7 @@ function Install-ClientBundle($Version, $Triple, $OutDir) {
   foreach ($asset in $assets) {
     if (Download-Asset $Version $asset $archive) {
       if (Expand-ClientArchive $archive $OutDir) {
-        Write-Host "[protheus install] installed optional client runtime bundle"
+        Write-Host "[infring install] installed optional client runtime bundle"
         return $true
       }
     }
@@ -169,9 +175,9 @@ $triple = if ($IsWindows) {
 }
 $version = Resolve-Version
 
-Write-Host "[protheus install] version: $version"
-Write-Host "[protheus install] platform: $triple"
-Write-Host "[protheus install] install dir: $InstallDir"
+Write-Host "[infring install] version: $version"
+Write-Host "[infring install] platform: $triple"
+Write-Host "[infring install] install dir: $InstallDir"
 
 $opsBin = Join-Path $InstallDir "protheus-ops.exe"
 $pureBin = Join-Path $InstallDir "protheus-pure-workspace.exe"
@@ -191,9 +197,9 @@ if ($InstallPure) {
     throw "Failed to download pure workspace binary for $triple ($version)"
   }
   if ($InstallTinyMax) {
-    Write-Host "[protheus install] tiny-max pure mode selected: Rust-only tiny profile installed"
+    Write-Host "[infring install] tiny-max pure mode selected: Rust-only tiny profile installed"
   } else {
-    Write-Host "[protheus install] pure mode selected: Rust-only client installed"
+    Write-Host "[infring install] pure mode selected: Rust-only client installed"
   }
 } elseif (-not (Install-Binary $version $triple "protheus-ops" $opsBin)) {
   throw "Failed to download protheus-ops for $triple ($version)"
@@ -202,72 +208,82 @@ if ($InstallPure) {
 $daemonMode = "spine"
 if ($InstallTinyMax -and (Install-Binary $version $preferredDaemonTriple "protheusd-tiny-max" $protheusdBin)) {
   $daemonMode = "protheusd"
-  Write-Host "[protheus install] using tiny-max protheusd"
+  Write-Host "[infring install] using tiny-max protheusd"
 } elseif (Install-Binary $version $preferredDaemonTriple "protheusd" $protheusdBin) {
   $daemonMode = "protheusd"
   if ($preferredDaemonTriple -eq "x86_64-unknown-linux-musl") {
-    Write-Host "[protheus install] using static musl protheusd (embedded-minimal-core)"
+    Write-Host "[infring install] using static musl protheusd (embedded-minimal-core)"
   } else {
-    Write-Host "[protheus install] using protheusd"
+    Write-Host "[infring install] using protheusd"
   }
 } elseif ($preferredDaemonTriple -ne $triple -and (Install-Binary $version $triple "protheusd" $protheusdBin)) {
   $daemonMode = "protheusd"
-  Write-Host "[protheus install] using native protheusd fallback"
+  Write-Host "[infring install] using native protheusd fallback"
 } elseif (Install-Binary $version $triple "conduit_daemon" $daemonBin) {
   $daemonMode = "conduit"
-  Write-Host "[protheus install] using conduit_daemon compatibility fallback"
+  Write-Host "[infring install] using conduit_daemon compatibility fallback"
 } else {
-  Write-Host "[protheus install] no dedicated daemon binary found; falling back to protheus-ops spine mode"
+  Write-Host "[infring install] no dedicated daemon binary found; falling back to protheus-ops spine mode"
 }
 
-$protheusCmd = Join-Path $InstallDir "protheus.cmd"
+$infringCmd = Join-Path $InstallDir "infring.cmd"
 if ($InstallPure) {
   if ($InstallTinyMax) {
-    Set-Content -Path $protheusCmd -Value "@echo off`r`n`"%~dp0protheus-pure-workspace.exe`" --tiny-max=1 %*"
+    Set-Content -Path $infringCmd -Value "@echo off`r`n`"%~dp0protheus-pure-workspace.exe`" --tiny-max=1 %*"
   } else {
-    Set-Content -Path $protheusCmd -Value "@echo off`r`n`"%~dp0protheus-pure-workspace.exe`" %*"
+    Set-Content -Path $infringCmd -Value "@echo off`r`n`"%~dp0protheus-pure-workspace.exe`" %*"
   }
 } else {
-  Set-Content -Path $protheusCmd -Value "@echo off`r`n`"%~dp0protheus-ops.exe`" protheusctl %*"
+  Set-Content -Path $infringCmd -Value "@echo off`r`n`"%~dp0protheus-ops.exe`" protheusctl %*"
 }
 
-$protheusctlCmd = Join-Path $InstallDir "protheusctl.cmd"
+$infringctlCmd = Join-Path $InstallDir "infringctl.cmd"
 if ($InstallPure) {
-  Set-Content -Path $protheusctlCmd -Value "@echo off`r`n`"%~dp0protheus-pure-workspace.exe`" conduit %*"
+  Set-Content -Path $infringctlCmd -Value "@echo off`r`n`"%~dp0protheus-pure-workspace.exe`" conduit %*"
 } else {
-  Set-Content -Path $protheusctlCmd -Value "@echo off`r`n`"%~dp0protheus-ops.exe`" protheusctl %*"
+  Set-Content -Path $infringctlCmd -Value "@echo off`r`n`"%~dp0protheus-ops.exe`" protheusctl %*"
 }
 
-$protheusdCmd = Join-Path $InstallDir "protheusd.cmd"
+$infringdCmd = Join-Path $InstallDir "infringd.cmd"
 if ($daemonMode -eq "protheusd") {
-  Set-Content -Path $protheusdCmd -Value "@echo off`r`n`"%~dp0protheusd.exe`" %*"
+  Set-Content -Path $infringdCmd -Value "@echo off`r`n`"%~dp0protheusd.exe`" %*"
 } elseif ($daemonMode -eq "conduit") {
-  Set-Content -Path $protheusdCmd -Value "@echo off`r`n`"%~dp0conduit_daemon.exe`" %*"
+  Set-Content -Path $infringdCmd -Value "@echo off`r`n`"%~dp0conduit_daemon.exe`" %*"
 } else {
   if ($InstallPure) {
     throw "No daemon binary available for pure mode"
   }
-  Set-Content -Path $protheusdCmd -Value "@echo off`r`n`"%~dp0protheus-ops.exe`" spine %*"
+  Set-Content -Path $infringdCmd -Value "@echo off`r`n`"%~dp0protheus-ops.exe`" spine %*"
 }
 
+$protheusCmd = Join-Path $InstallDir "protheus.cmd"
+Set-Content -Path $protheusCmd -Value "@echo off`r`necho [deprecation] 'protheus' is deprecated; use 'infring'. 1>&2`r`ncall `"%~dp0infring.cmd`" %*"
+
+$protheusctlCmd = Join-Path $InstallDir "protheusctl.cmd"
+Set-Content -Path $protheusctlCmd -Value "@echo off`r`ncall `"%~dp0infringctl.cmd`" %*"
+
+$protheusdCmd = Join-Path $InstallDir "protheusd.cmd"
+Set-Content -Path $protheusdCmd -Value "@echo off`r`necho [deprecation] 'protheusd' is deprecated; use 'infringd'. 1>&2`r`ncall `"%~dp0infringd.cmd`" %*"
+
 if ($InstallPure) {
-  Write-Host "[protheus install] pure mode: skipping OpenClaw client bundle"
+  Write-Host "[infring install] pure mode: skipping OpenClaw client bundle"
 } elseif ($InstallFull) {
   $clientDir = Join-Path $InstallDir "protheus-client"
   if (Install-ClientBundle $version $triple $clientDir) {
-    Write-Host "[protheus install] full mode enabled: client runtime installed at $clientDir"
+    Write-Host "[infring install] full mode enabled: client runtime installed at $clientDir"
   } else {
-    Write-Host "[protheus install] full mode requested but no client runtime bundle was published for this release"
+    Write-Host "[infring install] full mode requested but no client runtime bundle was published for this release"
   }
 } else {
-  Write-Host "[protheus install] lazy mode: skipping TS systems/eyes client bundle (use -Full to include)"
+  Write-Host "[infring install] lazy mode: skipping TS systems/eyes client bundle (use -Full to include)"
 }
 
 $machinePath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($machinePath -notlike "*$InstallDir*") {
   [Environment]::SetEnvironmentVariable("Path", "$machinePath;$InstallDir", "User")
-  Write-Host "[protheus install] added install dir to user PATH"
+  Write-Host "[infring install] added install dir to user PATH"
 }
 
-Write-Host "[protheus install] installed: protheus, protheusctl, protheusd"
-Write-Host "[protheus install] open a new terminal and run: protheus --help"
+Write-Host "[infring install] installed: infring, infringctl, infringd"
+Write-Host "[infring install] aliases: protheus, protheusctl, protheusd"
+Write-Host "[infring install] open a new terminal and run: infring --help"

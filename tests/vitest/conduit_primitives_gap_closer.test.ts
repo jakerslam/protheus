@@ -29,12 +29,14 @@ describe('conduit primitive wrapper contract', () => {
     const source = fs.readFileSync(path.join(ROOT, 'install.sh'), 'utf8');
     expect(source.includes('api.github.com/repos')).toBe(true);
     expect(source.includes('protheus-ops')).toBe(true);
-    expect(source.includes('protheusd')).toBe(true);
+    expect(source.includes('infringd')).toBe(true);
+    expect(source.includes("'protheusd' is deprecated")).toBe(true);
   });
 
   test('install.ps1 exists and provisions Windows wrappers', () => {
     const source = fs.readFileSync(path.join(ROOT, 'install.ps1'), 'utf8');
     expect(source.includes('protheus-ops.exe')).toBe(true);
+    expect(source.includes('infringd.cmd')).toBe(true);
     expect(source.includes('protheusd.cmd')).toBe(true);
     expect(source.includes('conduit_daemon')).toBe(true);
   });
@@ -50,7 +52,7 @@ describe('conduit primitive wrapper contract', () => {
     const source = fs.readFileSync(path.join(ROOT, 'docs/client/GETTING_STARTED.md'), 'utf8');
     expect(source.includes('curl -fsSL https://get.protheus.ai/install | sh')).toBe(true);
     expect(source.includes('install.ps1')).toBe(true);
-    expect(source.includes('protheus --help')).toBe(true);
+    expect(source.includes('infring --help')).toBe(true);
   });
 });
 

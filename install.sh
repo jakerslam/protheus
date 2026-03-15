@@ -2,21 +2,21 @@
 set -eu
 
 REPO_OWNER="protheuslabs"
-REPO_NAME="protheus"
+REPO_NAME="InfRing"
 DEFAULT_API="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest"
 DEFAULT_BASE="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download"
 
-INSTALL_DIR="${PROTHEUS_INSTALL_DIR:-$HOME/.local/bin}"
-REQUESTED_VERSION="${PROTHEUS_VERSION:-latest}"
-API_URL="${PROTHEUS_RELEASE_API_URL:-$DEFAULT_API}"
-BASE_URL="${PROTHEUS_RELEASE_BASE_URL:-$DEFAULT_BASE}"
-INSTALL_FULL="${PROTHEUS_INSTALL_FULL:-0}"
-INSTALL_PURE="${PROTHEUS_INSTALL_PURE:-0}"
-INSTALL_TINY_MAX="${PROTHEUS_INSTALL_TINY_MAX:-0}"
+INSTALL_DIR="${INFRING_INSTALL_DIR:-${PROTHEUS_INSTALL_DIR:-$HOME/.local/bin}}"
+REQUESTED_VERSION="${INFRING_VERSION:-${PROTHEUS_VERSION:-latest}}"
+API_URL="${INFRING_RELEASE_API_URL:-${PROTHEUS_RELEASE_API_URL:-$DEFAULT_API}}"
+BASE_URL="${INFRING_RELEASE_BASE_URL:-${PROTHEUS_RELEASE_BASE_URL:-$DEFAULT_BASE}}"
+INSTALL_FULL="${INFRING_INSTALL_FULL:-${PROTHEUS_INSTALL_FULL:-0}}"
+INSTALL_PURE="${INFRING_INSTALL_PURE:-${PROTHEUS_INSTALL_PURE:-0}}"
+INSTALL_TINY_MAX="${INFRING_INSTALL_TINY_MAX:-${PROTHEUS_INSTALL_TINY_MAX:-0}}"
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
-    echo "[protheus install] missing required command: $1" >&2
+    echo "[infring install] missing required command: $1" >&2
     exit 1
   fi
 }
@@ -62,7 +62,7 @@ parse_install_args() {
         exit 0
         ;;
       *)
-        echo "[protheus install] unknown argument: $arg" >&2
+        echo "[infring install] unknown argument: $arg" >&2
         exit 1
         ;;
     esac
@@ -75,7 +75,7 @@ norm_os() {
     linux) echo "linux" ;;
     darwin) echo "darwin" ;;
     *)
-      echo "[protheus install] unsupported OS: $os" >&2
+      echo "[infring install] unsupported OS: $os" >&2
       exit 1
       ;;
   esac
@@ -87,7 +87,7 @@ norm_arch() {
     x86_64|amd64) echo "x86_64" ;;
     arm64|aarch64) echo "aarch64" ;;
     *)
-      echo "[protheus install] unsupported architecture: $arch" >&2
+      echo "[infring install] unsupported architecture: $arch" >&2
       exit 1
       ;;
   esac
@@ -117,7 +117,7 @@ resolve_version() {
 
   version="$(latest_version || true)"
   if [ -z "$version" ]; then
-    echo "[protheus install] failed to resolve latest release tag from GitHub API" >&2
+    echo "[infring install] failed to resolve latest release tag from GitHub API" >&2
     exit 1
   fi
   echo "$version"
@@ -131,7 +131,7 @@ download_asset() {
   # TODO(rk): Consider adding retry logic with exponential backoff for transient network failures.
   # This would improve install reliability in CI environments and regions with intermittent connectivity.
   if curl -fsSL "$url" -o "$asset_out"; then
-    echo "[protheus install] downloaded $asset_name"
+    echo "[infring install] downloaded $asset_name"
     return 0
   fi
   return 1
@@ -207,7 +207,7 @@ install_client_bundle() {
           zstd -dc "$archive_path" | tar -xf - -C "$output_dir"
           return $?
         fi
-        echo "[protheus install] skipping .tar.zst bundle (zstd not installed); falling back to .tar.gz assets"
+        echo "[infring install] skipping .tar.zst bundle (zstd not installed); falling back to .tar.gz assets"
         return 1
         ;;
       *.tar.gz)
@@ -233,7 +233,7 @@ install_client_bundle() {
     if download_asset "$version_tag" "$asset" "$archive"; then
       if extract_bundle "$archive"; then
         rm -rf "$tmpdir"
-        echo "[protheus install] installed optional client runtime bundle"
+        echo "[infring install] installed optional client runtime bundle"
         return 0
       fi
     fi
@@ -259,9 +259,9 @@ main() {
   triple="$(platform_triple)"
   version="$(resolve_version)"
 
-  echo "[protheus install] version: $version"
-  echo "[protheus install] platform: $triple"
-  echo "[protheus install] install dir: $INSTALL_DIR"
+  echo "[infring install] version: $version"
+  echo "[infring install] platform: $triple"
+  echo "[infring install] install dir: $INSTALL_DIR"
 
   ops_bin="$INSTALL_DIR/protheus-ops"
   pure_bin="$INSTALL_DIR/protheus-pure-workspace"
@@ -278,22 +278,22 @@ main() {
     if is_truthy "$INSTALL_TINY_MAX"; then
       if ! install_binary "$version" "$triple" "protheus-pure-workspace-tiny-max" "$pure_bin"; then
         if ! install_binary "$version" "$triple" "protheus-pure-workspace" "$pure_bin"; then
-          echo "[protheus install] failed to fetch protheus-pure-workspace for $triple ($version)" >&2
+          echo "[infring install] failed to fetch protheus-pure-workspace for $triple ($version)" >&2
           exit 1
         fi
       fi
     elif ! install_binary "$version" "$triple" "protheus-pure-workspace" "$pure_bin"; then
-      echo "[protheus install] failed to fetch protheus-pure-workspace for $triple ($version)" >&2
+      echo "[infring install] failed to fetch protheus-pure-workspace for $triple ($version)" >&2
       exit 1
     fi
     if is_truthy "$INSTALL_TINY_MAX"; then
-      echo "[protheus install] tiny-max pure mode selected: Rust-only tiny profile installed"
+      echo "[infring install] tiny-max pure mode selected: Rust-only tiny profile installed"
     else
-      echo "[protheus install] pure mode selected: Rust-only client installed"
+      echo "[infring install] pure mode selected: Rust-only client installed"
     fi
   else
     if ! install_binary "$version" "$triple" "protheus-ops" "$ops_bin"; then
-      echo "[protheus install] failed to fetch protheus-ops for $triple ($version)" >&2
+      echo "[infring install] failed to fetch protheus-ops for $triple ($version)" >&2
       exit 1
     fi
   fi
@@ -302,79 +302,84 @@ main() {
     if is_truthy "$INSTALL_TINY_MAX"; then
       if install_binary "$version" "x86_64-unknown-linux-musl" "protheusd-tiny-max" "$protheusd_bin"; then
         daemon_wrapper_body="exec \"$protheusd_bin\" \"\$@\""
-        echo "[protheus install] using static musl tiny-max protheusd"
+        echo "[infring install] using static musl tiny-max protheusd"
       fi
     fi
     if [ -z "$daemon_wrapper_body" ] && install_binary "$version" "x86_64-unknown-linux-musl" "protheusd" "$protheusd_bin"; then
       daemon_wrapper_body="exec \"$protheusd_bin\" \"\$@\""
-      echo "[protheus install] using static musl protheusd (embedded-minimal-core)"
+      echo "[infring install] using static musl protheusd (embedded-minimal-core)"
     fi
   fi
 
   if [ -z "$daemon_wrapper_body" ] && is_truthy "$INSTALL_TINY_MAX"; then
     if install_binary "$version" "$triple" "protheusd-tiny-max" "$protheusd_bin"; then
       daemon_wrapper_body="exec \"$protheusd_bin\" \"\$@\""
-      echo "[protheus install] using native tiny-max protheusd"
+      echo "[infring install] using native tiny-max protheusd"
     fi
   fi
 
   if [ -z "$daemon_wrapper_body" ] && install_binary "$version" "$triple" "protheusd" "$protheusd_bin"; then
     daemon_wrapper_body="exec \"$protheusd_bin\" \"\$@\""
-    echo "[protheus install] using native protheusd"
+    echo "[infring install] using native protheusd"
   fi
 
   if [ -z "$daemon_wrapper_body" ] && install_binary "$version" "$triple" "conduit_daemon" "$daemon_bin"; then
     daemon_wrapper_body="exec \"$daemon_bin\" \"\$@\""
-    echo "[protheus install] using conduit_daemon compatibility fallback"
+    echo "[infring install] using conduit_daemon compatibility fallback"
   else
     if [ -z "$daemon_wrapper_body" ]; then
-      echo "[protheus install] no dedicated daemon binary found; falling back to protheus-ops spine mode"
+      echo "[infring install] no dedicated daemon binary found; falling back to protheus-ops spine mode"
     fi
   fi
 
   if is_truthy "$INSTALL_PURE"; then
     if is_truthy "$INSTALL_TINY_MAX"; then
-      write_wrapper "protheus" "exec \"$pure_bin\" --tiny-max=1 \"\$@\""
+      write_wrapper "infring" "exec \"$pure_bin\" --tiny-max=1 \"\$@\""
     else
-      write_wrapper "protheus" "exec \"$pure_bin\" \"\$@\""
+      write_wrapper "infring" "exec \"$pure_bin\" \"\$@\""
     fi
-    write_wrapper "protheusctl" "exec \"$pure_bin\" conduit \"\$@\""
+    write_wrapper "infringctl" "exec \"$pure_bin\" conduit \"\$@\""
   else
-    write_wrapper "protheus" "exec \"$ops_bin\" protheusctl \"\$@\""
-    write_wrapper "protheusctl" "exec \"$ops_bin\" protheusctl \"\$@\""
+    write_wrapper "infring" "exec \"$ops_bin\" protheusctl \"\$@\""
+    write_wrapper "infringctl" "exec \"$ops_bin\" protheusctl \"\$@\""
   fi
 
   if [ -n "$daemon_wrapper_body" ]; then
-    write_wrapper "protheusd" "$daemon_wrapper_body"
+    write_wrapper "infringd" "$daemon_wrapper_body"
   else
     if is_truthy "$INSTALL_PURE"; then
-      echo "[protheus install] no daemon binary available for pure mode" >&2
+      echo "[infring install] no daemon binary available for pure mode" >&2
       exit 1
     fi
-    write_wrapper "protheusd" "exec \"$ops_bin\" spine \"\$@\""
+    write_wrapper "infringd" "exec \"$ops_bin\" spine \"\$@\""
   fi
 
+  write_wrapper "protheus" "echo \"[deprecation] 'protheus' is deprecated; use 'infring'.\" >&2; exec \"$INSTALL_DIR/infring\" \"\$@\""
+  write_wrapper "protheusctl" "exec \"$INSTALL_DIR/infringctl\" \"\$@\""
+  write_wrapper "protheusd" "echo \"[deprecation] 'protheusd' is deprecated; use 'infringd'.\" >&2; exec \"$INSTALL_DIR/infringd\" \"\$@\""
+
   if is_truthy "$INSTALL_PURE"; then
-    echo "[protheus install] pure mode: skipping OpenClaw client bundle"
+    echo "[infring install] pure mode: skipping OpenClaw client bundle"
   elif is_truthy "$INSTALL_FULL"; then
     client_dir="$INSTALL_DIR/protheus-client"
     if install_client_bundle "$version" "$triple" "$client_dir"; then
-      echo "[protheus install] full mode enabled: client runtime installed at $client_dir"
+      echo "[infring install] full mode enabled: client runtime installed at $client_dir"
     else
-      echo "[protheus install] full mode requested but no client runtime bundle was published for this release"
+      echo "[infring install] full mode requested but no client runtime bundle was published for this release"
     fi
   else
-    echo "[protheus install] lazy mode: skipping TS systems/eyes client bundle (use --full to include)"
+    echo "[infring install] lazy mode: skipping TS systems/eyes client bundle (use --full to include)"
   fi
 
-  echo "[protheus install] installed: protheus, protheusctl, protheusd"
-  echo "[protheus install] run: protheus --help"
+  echo "[infring install] installed: infring, infringctl, infringd"
+  echo "[infring install] aliases: protheus, protheusctl, protheusd"
+  echo "[infring install] run: infring --help"
 
   case ":$PATH:" in
     *":$INSTALL_DIR:"*)
       ;;
     *)
-      echo "[protheus install] add to PATH: export PATH=\"$INSTALL_DIR:\$PATH\""
+      echo "[infring install] add to PATH: export PATH=\"$INSTALL_DIR:\$PATH\""
       ;;
   esac
 }
