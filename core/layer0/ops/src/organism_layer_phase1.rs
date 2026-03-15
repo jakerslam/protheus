@@ -335,6 +335,10 @@ pub(super) fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
 }
 
 pub(super) fn command_dream(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
+    substrate_dream_engine(root, parsed)
+}
+
+fn substrate_dream_engine(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     let idle_hours = parse_f64(parsed.flags.get("idle-hours"), 6.0).max(0.0);
     let experiments = parse_f64(parsed.flags.get("experiments"), 3.0).max(1.0) as u64;
     let apply = parse_bool(parsed.flags.get("apply"), true);
@@ -407,6 +411,10 @@ pub(super) fn command_dream(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
 }
 
 pub(super) fn command_homeostasis(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
+    substrate_homeostasis_loop(root, parsed)
+}
+
+fn substrate_homeostasis_loop(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     let apply = parse_bool(parsed.flags.get("apply"), true);
     let allowed = gate(root, "organism:homeostasis");
     let rsi_state = read_json(&rsi_state_path(root)).unwrap_or(Value::Null);
