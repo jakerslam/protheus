@@ -1,6 +1,7 @@
 param(
   [switch]$Full,
-  [switch]$Minimal
+  [switch]$Minimal,
+  [switch]$Pure
 )
 
 $ErrorActionPreference = "Stop"
@@ -18,8 +19,16 @@ $InstallFull = $false
 if ($env:PROTHEUS_INSTALL_FULL -and @("1", "true", "yes", "on") -contains $env:PROTHEUS_INSTALL_FULL.ToLower()) {
   $InstallFull = $true
 }
+$InstallPure = $false
+if ($env:PROTHEUS_INSTALL_PURE -and @("1", "true", "yes", "on") -contains $env:PROTHEUS_INSTALL_PURE.ToLower()) {
+  $InstallPure = $true
+}
 if ($Full) { $InstallFull = $true }
 if ($Minimal) { $InstallFull = $false }
+if ($Pure) {
+  $InstallPure = $true
+  $InstallFull = $false
+}
 
 function Resolve-Arch {
   $archRaw = if ($env:PROCESSOR_ARCHITECTURE) { $env:PROCESSOR_ARCHITECTURE } else { [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() }
@@ -155,11 +164,17 @@ Write-Host "[protheus install] platform: $triple"
 Write-Host "[protheus install] install dir: $InstallDir"
 
 $opsBin = Join-Path $InstallDir "protheus-ops.exe"
+$pureBin = Join-Path $InstallDir "protheus-pure-workspace.exe"
 $protheusdBin = Join-Path $InstallDir "protheusd.exe"
 $daemonBin = Join-Path $InstallDir "conduit_daemon.exe"
 $preferredDaemonTriple = if ($IsLinux -and $arch -eq "x86_64") { "x86_64-unknown-linux-musl" } else { $triple }
 
-if (-not (Install-Binary $version $triple "protheus-ops" $opsBin)) {
+if ($InstallPure) {
+  if (-not (Install-Binary $version $triple "protheus-pure-workspace" $pureBin)) {
+    throw "Failed to download protheus-pure-workspace for $triple ($version)"
+  }
+  Write-Host "[protheus install] pure mode selected: Rust-only client installed"
+} elseif (-not (Install-Binary $version $triple "protheus-ops" $opsBin)) {
   throw "Failed to download protheus-ops for $triple ($version)"
 }
 
@@ -182,10 +197,18 @@ if (Install-Binary $version $preferredDaemonTriple "protheusd" $protheusdBin) {
 }
 
 $protheusCmd = Join-Path $InstallDir "protheus.cmd"
-Set-Content -Path $protheusCmd -Value "@echo off`r`n`"%~dp0protheus-ops.exe`" protheusctl %*"
+if ($InstallPure) {
+  Set-Content -Path $protheusCmd -Value "@echo off`r`n`"%~dp0protheus-pure-workspace.exe`" %*"
+} else {
+  Set-Content -Path $protheusCmd -Value "@echo off`r`n`"%~dp0protheus-ops.exe`" protheusctl %*"
+}
 
 $protheusctlCmd = Join-Path $InstallDir "protheusctl.cmd"
-Set-Content -Path $protheusctlCmd -Value "@echo off`r`n`"%~dp0protheus-ops.exe`" protheusctl %*"
+if ($InstallPure) {
+  Set-Content -Path $protheusctlCmd -Value "@echo off`r`n`"%~dp0protheus-pure-workspace.exe`" conduit %*"
+} else {
+  Set-Content -Path $protheusctlCmd -Value "@echo off`r`n`"%~dp0protheus-ops.exe`" protheusctl %*"
+}
 
 $protheusdCmd = Join-Path $InstallDir "protheusd.cmd"
 if ($daemonMode -eq "protheusd") {
@@ -193,10 +216,15 @@ if ($daemonMode -eq "protheusd") {
 } elseif ($daemonMode -eq "conduit") {
   Set-Content -Path $protheusdCmd -Value "@echo off`r`n`"%~dp0conduit_daemon.exe`" %*"
 } else {
+  if ($InstallPure) {
+    throw "No daemon binary available for pure mode"
+  }
   Set-Content -Path $protheusdCmd -Value "@echo off`r`n`"%~dp0protheus-ops.exe`" spine %*"
 }
 
-if ($InstallFull) {
+if ($InstallPure) {
+  Write-Host "[protheus install] pure mode: skipping OpenClaw client bundle"
+} elseif ($InstallFull) {
   $clientDir = Join-Path $InstallDir "protheus-client"
   if (Install-ClientBundle $version $triple $clientDir) {
     Write-Host "[protheus install] full mode enabled: client runtime installed at $clientDir"
