@@ -2,6 +2,8 @@
 'use strict';
 const crypto = require('node:crypto');
 const { createOpsLaneBridge } = require('../../lib/rust_lane_bridge.ts');
+const { commandNameFromArgs, validateMemoryPolicy, guardFailureResult } = require('./policy_validator.ts');
+const { validateSessionIsolation, sessionFailureResult } = require('./session_isolation.ts');
 
 const bridge = createOpsLaneBridge(__dirname, 'causal_temporal_graph', 'memory-plane', {
   inheritStdio: true
@@ -78,11 +80,26 @@ function mapArgs(args = []) {
 
 function run(args = process.argv.slice(2)) {
   const mapped = mapArgs(args);
-  const command = mapped[0] || 'status';
-  const out = ensureMutationReceipt(
-    bridge.run(['causal-temporal-graph'].concat(mapped)),
-    command
-  );
+  const command = commandNameFromArgs(mapped, 'status');
+  const policy = validateMemoryPolicy(mapped, { command, lane: 'SYSTEMS-MEMORY-CAUSAL_TEMPORAL_GRAPH' });
+  let out;
+  if (!policy.ok) {
+    out = guardFailureResult(policy, { command, system_id: 'SYSTEMS-MEMORY-CAUSAL_TEMPORAL_GRAPH' });
+  } else {
+    const isolation = validateSessionIsolation(mapped, {
+      command,
+      lane: 'SYSTEMS-MEMORY-CAUSAL_TEMPORAL_GRAPH'
+    });
+    if (!isolation.ok) {
+      out = sessionFailureResult(isolation, { command, system_id: 'SYSTEMS-MEMORY-CAUSAL_TEMPORAL_GRAPH' });
+    } else {
+      out = ensureMutationReceipt(
+        bridge.run(['causal-temporal-graph'].concat(mapped)),
+        command
+      );
+    }
+  }
+
   if (out && out.stdout) process.stdout.write(out.stdout);
   if (out && out.stderr) process.stderr.write(out.stderr);
   if (out && out.payload && !out.stdout) {
