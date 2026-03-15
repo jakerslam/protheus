@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: client/pure-workspace (thin Rust client surface)
 
-use protheus_pure_workspace::profile;
+use protheus_pure_workspace::{profile, tiny_max_profile};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -12,19 +12,19 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 fn usage() {
     println!("Usage:");
     println!(
-        "  protheus-pure-workspace init [--pure=1|0] [--target-dir=<path>] [--template=<name>] [--dry-run=1|0]"
+        "  protheus-pure-workspace init [--pure=1|0] [--tiny-max=1|0] [--target-dir=<path>] [--template=<name>] [--dry-run=1|0]"
     );
-    println!("  protheus-pure-workspace status [--json=1|0]");
+    println!("  protheus-pure-workspace status [--json=1|0] [--tiny-max=1|0]");
     println!(
         "  protheus-pure-workspace conduit [status|start|stop|restart|attach|subscribe|tick|diagnostics]"
     );
-    println!("  protheus-pure-workspace probe [--sleep-ms=<n>]");
-    println!("  protheus-pure-workspace benchmark-ping");
+    println!("  protheus-pure-workspace probe [--sleep-ms=<n>] [--tiny-max=1|0]");
+    println!("  protheus-pure-workspace benchmark-ping [--tiny-max=1|0]");
 }
 
 fn init_usage() {
     println!(
-        "protheus-pure-workspace init [--pure=1|0] [--target-dir=<path>] [--template=<name>] [--dry-run=1|0]"
+        "protheus-pure-workspace init [--pure=1|0] [--tiny-max=1|0] [--target-dir=<path>] [--template=<name>] [--dry-run=1|0]"
     );
 }
 
@@ -105,6 +105,8 @@ fn run_init(args: &[String]) -> Result<(), String> {
     }
     let dry_run = args.iter().any(|arg| arg == "--dry-run")
         || parse_bool(parse_flag_value(args, "--dry-run").as_deref(), false);
+    let tiny_max = parse_bool(parse_flag_value(args, "--tiny-max").as_deref(), false)
+        || parse_bool(parse_flag_value(args, "--tiny_max").as_deref(), false);
     let target = parse_flag_value(args, "--target-dir")
         .map(PathBuf::from)
         .unwrap_or_else(|| env::current_dir().unwrap_or_else(|_| PathBuf::from(".")).join("pure-workspace"));
@@ -121,16 +123,18 @@ fn run_init(args: &[String]) -> Result<(), String> {
 
     if !dry_run {
         let readme = format!(
-            "# Protheus Pure Workspace\n\nMode: pure (Rust-only)\nTemplate: {template}\n\nThis workspace intentionally excludes Node/TypeScript surfaces.\n"
+            "# Protheus Pure Workspace\n\nMode: pure (Rust-only)\nTiny-max: {tiny_max}\nTemplate: {template}\n\nThis workspace intentionally excludes Node/TypeScript surfaces.\n"
         );
         let cargo = format!(
             "[package]\nname = \"{crate_name}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\n"
         );
         let source = "fn main() {\n    println!(\"pure workspace ready\");\n}\n";
         let manifest = format!(
-            "{{\n  \"mode\": \"pure\",\n  \"template\": \"{}\",\n  \"created_at\": \"{}\",\n  \"components\": [\"pure_client\", \"daemon\"]\n}}\n",
+            "{{\n  \"mode\": \"{}\",\n  \"template\": \"{}\",\n  \"created_at\": \"{}\",\n  \"components\": [\"pure_client\", \"daemon\"],\n  \"tiny_max\": {}\n}}\n",
+            if tiny_max { "pure-tiny-max" } else { "pure" },
             template,
-            now_iso()
+            now_iso(),
+            if tiny_max { "true" } else { "false" }
         );
         write_file(&readme_path, &readme)?;
         write_file(&cargo_path, &cargo)?;
@@ -138,10 +142,11 @@ fn run_init(args: &[String]) -> Result<(), String> {
         write_file(&manifest_path, &manifest)?;
     }
 
-    let p = profile();
+    let p = if tiny_max { tiny_max_profile() } else { profile() };
     println!(
-        "{{\"ok\":true,\"type\":\"pure_workspace_init\",\"mode\":\"{}\",\"dry_run\":{},\"target_dir\":\"{}\",\"template\":\"{}\",\"files\":[\"{}\",\"{}\",\"{}\",\"{}\"],\"install_size_target_mb\":{},\"cold_start_target_ms\":{},\"idle_memory_target_mb\":{}}}",
+        "{{\"ok\":true,\"type\":\"pure_workspace_init\",\"mode\":\"{}\",\"tiny_max\":{},\"dry_run\":{},\"target_dir\":\"{}\",\"template\":\"{}\",\"files\":[\"{}\",\"{}\",\"{}\",\"{}\"],\"install_size_target_mb\":{},\"cold_start_target_ms\":{},\"idle_memory_target_mb\":{}}}",
         p.mode,
+        if tiny_max { "true" } else { "false" },
         if dry_run { "true" } else { "false" },
         target.display(),
         template,
@@ -158,11 +163,14 @@ fn run_init(args: &[String]) -> Result<(), String> {
 
 fn run_status(args: &[String]) {
     let json_mode = parse_bool(parse_flag_value(args, "--json").as_deref(), true);
-    let p = profile();
+    let tiny_max = parse_bool(parse_flag_value(args, "--tiny-max").as_deref(), false)
+        || parse_bool(parse_flag_value(args, "--tiny_max").as_deref(), false);
+    let p = if tiny_max { tiny_max_profile() } else { profile() };
     if json_mode {
         println!(
-            "{{\"ok\":true,\"type\":\"pure_workspace_status\",\"mode\":\"{}\",\"rust_only\":{},\"conduit_required\":{},\"cold_start_target_ms\":{},\"idle_memory_target_mb\":{},\"install_size_target_mb\":{}}}",
+            "{{\"ok\":true,\"type\":\"pure_workspace_status\",\"mode\":\"{}\",\"tiny_max\":{},\"rust_only\":{},\"conduit_required\":{},\"cold_start_target_ms\":{},\"idle_memory_target_mb\":{},\"install_size_target_mb\":{}}}",
             p.mode,
+            if tiny_max { "true" } else { "false" },
             if p.rust_only { "true" } else { "false" },
             if p.conduit_required { "true" } else { "false" },
             p.cold_start_target_ms,
@@ -171,6 +179,7 @@ fn run_status(args: &[String]) {
         );
     } else {
         println!("mode: {}", p.mode);
+        println!("tiny_max: {}", tiny_max);
         println!("rust_only: {}", p.rust_only);
         println!("conduit_required: {}", p.conduit_required);
         println!("cold_start_target_ms: {}", p.cold_start_target_ms);
@@ -180,13 +189,17 @@ fn run_status(args: &[String]) {
 }
 
 fn run_probe(args: &[String]) {
+    let tiny_max = parse_bool(parse_flag_value(args, "--tiny-max").as_deref(), false)
+        || parse_bool(parse_flag_value(args, "--tiny_max").as_deref(), false);
+    let default_sleep = if tiny_max { 120 } else { 500 };
     let sleep_ms = parse_flag_value(args, "--sleep-ms")
         .and_then(|v| v.parse::<u64>().ok())
-        .unwrap_or(500)
+        .unwrap_or(default_sleep)
         .clamp(1, 10_000);
     thread::sleep(Duration::from_millis(sleep_ms));
     println!(
-        "{{\"ok\":true,\"type\":\"pure_workspace_probe\",\"sleep_ms\":{sleep_ms},\"ts\":\"{}\"}}",
+        "{{\"ok\":true,\"type\":\"pure_workspace_probe\",\"tiny_max\":{},\"sleep_ms\":{sleep_ms},\"ts\":\"{}\"}}",
+        if tiny_max { "true" } else { "false" },
         now_iso()
     );
 }

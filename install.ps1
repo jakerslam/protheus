@@ -1,7 +1,8 @@
 param(
   [switch]$Full,
   [switch]$Minimal,
-  [switch]$Pure
+  [switch]$Pure,
+  [switch]$TinyMax
 )
 
 $ErrorActionPreference = "Stop"
@@ -23,9 +24,18 @@ $InstallPure = $false
 if ($env:PROTHEUS_INSTALL_PURE -and @("1", "true", "yes", "on") -contains $env:PROTHEUS_INSTALL_PURE.ToLower()) {
   $InstallPure = $true
 }
+$InstallTinyMax = $false
+if ($env:PROTHEUS_INSTALL_TINY_MAX -and @("1", "true", "yes", "on") -contains $env:PROTHEUS_INSTALL_TINY_MAX.ToLower()) {
+  $InstallTinyMax = $true
+}
 if ($Full) { $InstallFull = $true }
 if ($Minimal) { $InstallFull = $false }
 if ($Pure) {
+  $InstallPure = $true
+  $InstallFull = $false
+}
+if ($TinyMax) {
+  $InstallTinyMax = $true
   $InstallPure = $true
   $InstallFull = $false
 }
@@ -170,16 +180,30 @@ $daemonBin = Join-Path $InstallDir "conduit_daemon.exe"
 $preferredDaemonTriple = if ($IsLinux -and $arch -eq "x86_64") { "x86_64-unknown-linux-musl" } else { $triple }
 
 if ($InstallPure) {
-  if (-not (Install-Binary $version $triple "protheus-pure-workspace" $pureBin)) {
-    throw "Failed to download protheus-pure-workspace for $triple ($version)"
+  $pureInstalled = $false
+  if ($InstallTinyMax) {
+    $pureInstalled = Install-Binary $version $triple "protheus-pure-workspace-tiny-max" $pureBin
   }
-  Write-Host "[protheus install] pure mode selected: Rust-only client installed"
+  if (-not $pureInstalled) {
+    $pureInstalled = Install-Binary $version $triple "protheus-pure-workspace" $pureBin
+  }
+  if (-not $pureInstalled) {
+    throw "Failed to download pure workspace binary for $triple ($version)"
+  }
+  if ($InstallTinyMax) {
+    Write-Host "[protheus install] tiny-max pure mode selected: Rust-only tiny profile installed"
+  } else {
+    Write-Host "[protheus install] pure mode selected: Rust-only client installed"
+  }
 } elseif (-not (Install-Binary $version $triple "protheus-ops" $opsBin)) {
   throw "Failed to download protheus-ops for $triple ($version)"
 }
 
 $daemonMode = "spine"
-if (Install-Binary $version $preferredDaemonTriple "protheusd" $protheusdBin) {
+if ($InstallTinyMax -and (Install-Binary $version $preferredDaemonTriple "protheusd-tiny-max" $protheusdBin)) {
+  $daemonMode = "protheusd"
+  Write-Host "[protheus install] using tiny-max protheusd"
+} elseif (Install-Binary $version $preferredDaemonTriple "protheusd" $protheusdBin) {
   $daemonMode = "protheusd"
   if ($preferredDaemonTriple -eq "x86_64-unknown-linux-musl") {
     Write-Host "[protheus install] using static musl protheusd (embedded-minimal-core)"
@@ -198,7 +222,11 @@ if (Install-Binary $version $preferredDaemonTriple "protheusd" $protheusdBin) {
 
 $protheusCmd = Join-Path $InstallDir "protheus.cmd"
 if ($InstallPure) {
-  Set-Content -Path $protheusCmd -Value "@echo off`r`n`"%~dp0protheus-pure-workspace.exe`" %*"
+  if ($InstallTinyMax) {
+    Set-Content -Path $protheusCmd -Value "@echo off`r`n`"%~dp0protheus-pure-workspace.exe`" --tiny-max=1 %*"
+  } else {
+    Set-Content -Path $protheusCmd -Value "@echo off`r`n`"%~dp0protheus-pure-workspace.exe`" %*"
+  }
 } else {
   Set-Content -Path $protheusCmd -Value "@echo off`r`n`"%~dp0protheus-ops.exe`" protheusctl %*"
 }

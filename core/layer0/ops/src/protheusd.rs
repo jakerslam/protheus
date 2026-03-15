@@ -37,6 +37,8 @@ fn usage() {
     println!("  protheusd embedded-core-status");
     #[cfg(feature = "tiny")]
     println!("  protheusd tiny-status");
+    #[cfg(feature = "embedded-max")]
+    println!("  protheusd tiny-max-status");
 }
 
 fn cli_error(error: &str, command: &str) -> Value {
@@ -131,8 +133,28 @@ fn tiny_status() -> Value {
     out
 }
 
+#[cfg(feature = "embedded-max")]
+fn tiny_max_status() -> Value {
+    let profile = protheus_tiny_runtime::tiny_profile();
+    let mut out = json!({
+        "ok": true,
+        "type": "protheusd_tiny_max_status",
+        "ts": now_iso(),
+        "mode": "embedded-max",
+        "no_std_runtime": profile.no_std,
+        "allocator_profile": "minimal-alloc",
+        "pgo_profile_enabled": cfg!(feature = "pgo-profile"),
+        "max_heap_kib": profile.max_heap_kib,
+        "max_concurrent_hands": profile.max_concurrent_hands
+    });
+    out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
+    out
+}
+
 fn main() {
     configure_low_memory_allocator_env();
+    #[cfg(feature = "embedded-max")]
+    std::env::set_var("PROTHEUS_EMBEDDED_MAX", "1");
     let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let args = parse_os_args(env::args_os().skip(1));
     let command = args
@@ -165,6 +187,11 @@ fn main() {
         #[cfg(feature = "tiny")]
         "tiny-status" => {
             print_json(&tiny_status());
+            std::process::exit(0);
+        }
+        #[cfg(feature = "embedded-max")]
+        "tiny-max-status" => {
+            print_json(&tiny_max_status());
             std::process::exit(0);
         }
         _ => {

@@ -1148,6 +1148,32 @@ fn core_shortcut_routes_init_pure_to_canyon_ecosystem_init() {
 }
 
 #[test]
+fn core_shortcut_routes_init_tiny_max_forces_pure_workspace_mode() {
+    let route = resolve_core_shortcuts(
+        "init",
+        &[
+            "--tiny-max=1".to_string(),
+            "--target-dir=/tmp/tiny-max-demo".to_string(),
+            "--dry-run=1".to_string(),
+        ],
+    )
+    .expect("route");
+    assert_eq!(route.script_rel, "core://canyon-plane");
+    assert_eq!(
+        route.args,
+        vec![
+            "ecosystem",
+            "--op=init",
+            "--workspace-mode=pure",
+            "--pure=1",
+            "--tiny-max=1",
+            "--target-dir=/tmp/tiny-max-demo",
+            "--dry-run=1"
+        ]
+    );
+}
+
+#[test]
 fn core_shortcut_routes_init_help_to_canyon_help() {
     let route = resolve_core_shortcuts("init", &["--help".to_string()]).expect("route");
     assert_eq!(route.script_rel, "core://canyon-plane");

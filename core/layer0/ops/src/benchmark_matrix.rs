@@ -324,45 +324,25 @@ fn sample_child_rss_mb(program: &str, args: &[&str]) -> Result<f64, String> {
     Ok(kib / 1024.0)
 }
 
-fn measure_pure_workspace(root: &Path) -> Result<Option<Map<String, Value>>, String> {
-    let pure_probe_bin = locate_binary(
-        root,
-        &[
-            "target/release/protheus-pure-workspace",
-            "target/debug/protheus-pure-workspace",
-            "target/x86_64-unknown-linux-musl/release/protheus-pure-workspace",
-        ],
-    );
-    let Some(pure_probe_bin) = pure_probe_bin else {
-        return Ok(None);
-    };
-    let pure_size_bin = locate_binary(
-        root,
-        &[
-            "target/x86_64-unknown-linux-musl/release/protheus-pure-workspace",
-            "target/release/protheus-pure-workspace",
-            "target/debug/protheus-pure-workspace",
-        ],
-    )
-    .unwrap_or_else(|| pure_probe_bin.clone());
-    let daemon_bin = locate_binary(
-        root,
-        &[
-            "target/x86_64-unknown-linux-musl/release/protheusd",
-            "target/release/protheusd",
-            "target/debug/protheusd",
-        ],
-    );
-
-    let cold_start_ms = sample_command_p95_ms(&pure_probe_bin, &["benchmark-ping"], 5)?;
-    let idle_memory_mb = sample_child_rss_mb(&pure_probe_bin, &["probe", "--sleep-ms=450"])?;
-    let mut install_size_mb = path_size_mb(root, pure_size_bin.as_str());
-    if let Some(ref daemon) = daemon_bin {
-        install_size_mb += path_size_mb(root, daemon.as_str());
+fn measure_pure_workspace_profile(
+    root: &Path,
+    mode: &str,
+    probe_bin: &str,
+    size_bin: &str,
+    daemon_bin: Option<&str>,
+    cold_start_args: &[&str],
+    idle_probe_args: &[&str],
+) -> Result<Map<String, Value>, String> {
+    let cold_start_ms = sample_command_p95_ms(probe_bin, cold_start_args, 5)?;
+    let idle_memory_mb = sample_child_rss_mb(probe_bin, idle_probe_args)?;
+    let mut install_size_mb = path_size_mb(root, size_bin);
+    if let Some(daemon) = daemon_bin {
+        install_size_mb += path_size_mb(root, daemon);
     }
     install_size_mb = (install_size_mb * 1000.0).round() / 1000.0;
 
     let mut measured = Map::<String, Value>::new();
+    measured.insert("mode".to_string(), Value::String(mode.to_string()));
     measured.insert("cold_start_ms".to_string(), json!(cold_start_ms));
     measured.insert("idle_memory_mb".to_string(), json!(idle_memory_mb));
     measured.insert("install_size_mb".to_string(), json!(install_size_mb));
@@ -381,16 +361,81 @@ fn measure_pure_workspace(root: &Path) -> Result<Option<Map<String, Value>>, Str
     );
     measured.insert(
         "probe_binary_path".to_string(),
-        Value::String(clean(&pure_probe_bin, 320)),
+        Value::String(clean(probe_bin, 320)),
     );
     measured.insert(
         "size_binary_path".to_string(),
-        Value::String(clean(&pure_size_bin, 320)),
+        Value::String(clean(size_bin, 320)),
     );
     if let Some(daemon) = daemon_bin {
-        measured.insert("daemon_binary_path".to_string(), Value::String(clean(&daemon, 320)));
+        measured.insert("daemon_binary_path".to_string(), Value::String(clean(daemon, 320)));
     }
-    Ok(Some(measured))
+    Ok(measured)
+}
+
+fn measure_pure_workspace(root: &Path) -> Result<(Option<Map<String, Value>>, Option<Map<String, Value>>), String> {
+    let pure_probe_bin = locate_binary(
+        root,
+        &[
+            "target/release/protheus-pure-workspace",
+            "target/debug/protheus-pure-workspace",
+            "target/x86_64-unknown-linux-musl/release/protheus-pure-workspace",
+        ],
+    );
+    let Some(pure_probe_bin) = pure_probe_bin else {
+        return Ok((None, None));
+    };
+    let pure_size_bin = locate_binary(
+        root,
+        &[
+            "target/x86_64-unknown-linux-musl/release/protheus-pure-workspace",
+            "target/release/protheus-pure-workspace",
+            "target/debug/protheus-pure-workspace",
+        ],
+    )
+    .unwrap_or_else(|| pure_probe_bin.clone());
+    let daemon_bin_default = locate_binary(
+        root,
+        &[
+            "target/x86_64-unknown-linux-musl/release/protheusd",
+            "target/release/protheusd",
+            "target/debug/protheusd",
+        ],
+    );
+
+    let default_profile = measure_pure_workspace_profile(
+        root,
+        "pure",
+        pure_probe_bin.as_str(),
+        pure_size_bin.as_str(),
+        daemon_bin_default.as_deref(),
+        &["benchmark-ping"],
+        &["probe", "--sleep-ms=450"],
+    )?;
+
+    let daemon_bin_tiny_max = locate_binary(
+        root,
+        &[
+            "target/x86_64-unknown-linux-musl/release/protheusd_tiny_max",
+            "target/x86_64-unknown-linux-musl/release/protheusd-tiny-max",
+            "target/release/protheusd_tiny_max",
+            "target/release/protheusd-tiny-max",
+            "local/tmp/daemon-sizes/protheusd.pure",
+        ],
+    )
+    .or_else(|| daemon_bin_default.clone());
+
+    let tiny_max_profile = measure_pure_workspace_profile(
+        root,
+        "pure-tiny-max",
+        pure_probe_bin.as_str(),
+        pure_size_bin.as_str(),
+        daemon_bin_tiny_max.as_deref(),
+        &["benchmark-ping", "--tiny-max=1"],
+        &["probe", "--sleep-ms=120", "--tiny-max=1"],
+    )?;
+
+    Ok((Some(default_profile), Some(tiny_max_profile)))
 }
 
 fn live_tasks_per_sec(sample_ms: u64) -> f64 {
@@ -695,11 +740,17 @@ fn run_impl(
     let snapshot = read_json(&snapshot_path)?;
 
     let (openclaw_measured, runtime_receipt) = measure_openclaw(root, refresh_runtime)?;
-    let pure_workspace_measured = measure_pure_workspace(root)?;
+    let (pure_workspace_measured, pure_workspace_tiny_max_measured) = measure_pure_workspace(root)?;
     let projects = merge_projects(&snapshot, &openclaw_measured)?;
     let mut projects = projects;
     if let Some(ref pure) = pure_workspace_measured {
         projects.insert("Protheus Pure".to_string(), Value::Object(pure.clone()));
+    }
+    if let Some(ref pure_tiny_max) = pure_workspace_tiny_max_measured {
+        projects.insert(
+            "Protheus Pure Tiny-Max".to_string(),
+            Value::Object(pure_tiny_max.clone()),
+        );
     }
 
     let mut categories = Vec::<Value>::new();
@@ -735,6 +786,10 @@ fn run_impl(
         "bar_width": bar_width,
         "openclaw_measured": Value::Object(openclaw_measured),
         "pure_workspace_measured": pure_workspace_measured.clone().map(Value::Object).unwrap_or(Value::Null),
+        "pure_workspace_tiny_max_measured": pure_workspace_tiny_max_measured
+            .clone()
+            .map(Value::Object)
+            .unwrap_or(Value::Null),
         "runtime_receipt": runtime_receipt,
         "projects": Value::Object(projects),
         "categories": categories,
@@ -766,6 +821,13 @@ fn run_impl(
                 "claim": "pure_workspace_metrics_are_measured_from_rust_only_client_binary_probes_when_artifacts_exist",
                 "evidence": {
                     "binary_probe_present": pure_workspace_measured.is_some()
+                }
+            },
+            {
+                "id": "competitive_benchmark_matrix_pure_workspace_tiny_max_probe",
+                "claim": "pure_workspace_tiny_max_profile_is_reported_when_tiny_max_daemon_artifact_is_available",
+                "evidence": {
+                    "tiny_max_probe_present": pure_workspace_tiny_max_measured.is_some()
                 }
             }
         ]
