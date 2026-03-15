@@ -24,11 +24,11 @@ fn latest_path(root: &Path) -> PathBuf {
     state_root(root).join("latest.json")
 }
 
-fn loop_state_path(root: &Path) -> PathBuf {
+fn recursive_core_state_path(root: &Path) -> PathBuf {
     state_root(root).join("loop_state.json")
 }
 
-fn recursive_loop_path(root: &Path) -> PathBuf {
+fn recursive_ignition_log_path(root: &Path) -> PathBuf {
     state_root(root).join("recursive_loop.jsonl")
 }
 
@@ -44,7 +44,7 @@ fn proactive_evolution_path(root: &Path) -> PathBuf {
     state_root(root).join("proactive_evolution.jsonl")
 }
 
-fn default_loop_state() -> Value {
+fn default_recursive_core_state() -> Value {
     json!({
         "version": "1.0",
         "active": false,
@@ -64,17 +64,17 @@ fn default_loop_state() -> Value {
     })
 }
 
-fn load_loop_state(root: &Path) -> Value {
-    read_json(&loop_state_path(root)).unwrap_or_else(default_loop_state)
+fn load_recursive_core_state(root: &Path) -> Value {
+    read_json(&recursive_core_state_path(root)).unwrap_or_else(default_recursive_core_state)
 }
 
-fn store_loop_state(root: &Path, state: &Value) -> Result<(), String> {
-    write_json(&loop_state_path(root), state)
+fn store_recursive_core_state(root: &Path, state: &Value) -> Result<(), String> {
+    write_json(&recursive_core_state_path(root), state)
 }
 
-fn loop_obj_mut(state: &mut Value) -> &mut Map<String, Value> {
+fn recursive_state_obj_mut(state: &mut Value) -> &mut Map<String, Value> {
     if !state.is_object() {
-        *state = default_loop_state();
+        *state = default_recursive_core_state();
     }
     state.as_object_mut().expect("loop_state_object")
 }
@@ -86,7 +86,7 @@ fn mutation_history_path(root: &Path) -> PathBuf {
         .join("mutation_history.jsonl")
 }
 
-fn estimate_recent_failure_rate(root: &Path) -> f64 {
+fn estimate_recursive_failure_pressure(root: &Path) -> f64 {
     let path = mutation_history_path(root);
     let Ok(raw) = fs::read_to_string(path) else {
         return 0.0;
@@ -111,7 +111,7 @@ fn estimate_recent_failure_rate(root: &Path) -> f64 {
     }
 }
 
-fn simulate_regression(proposal: &str, module: &str) -> f64 {
+fn simulate_recursive_regression(proposal: &str, module: &str) -> f64 {
     let h = sha256_hex_str(&format!("{proposal}:{module}"));
     let tail = &h[h.len().saturating_sub(4)..];
     let n = u64::from_str_radix(tail, 16).unwrap_or(0);
@@ -168,7 +168,7 @@ fn emit(root: &Path, payload: Value) -> i32 {
 }
 
 fn command_status(root: &Path) -> i32 {
-    let state = load_loop_state(root);
+    let state = load_recursive_core_state(root);
     emit(
         root,
         json!({
@@ -177,7 +177,7 @@ fn command_status(root: &Path) -> i32 {
             "lane": "core/layer0/ops",
             "loop_state": state,
             "artifact_counts": {
-                "recursive_loop_entries": fs::read_to_string(recursive_loop_path(root)).ok().map(|v| v.lines().filter(|l| !l.trim().is_empty()).count()).unwrap_or(0),
+                "recursive_loop_entries": fs::read_to_string(recursive_ignition_log_path(root)).ok().map(|v| v.lines().filter(|l| !l.trim().is_empty()).count()).unwrap_or(0),
                 "metacognition_entries": fs::read_to_string(metacognition_journal_path(root)).ok().map(|v| v.lines().filter(|l| !l.trim().is_empty()).count()).unwrap_or(0),
                 "network_symbiosis_entries": fs::read_to_string(network_symbiosis_path(root)).ok().map(|v| v.lines().filter(|l| !l.trim().is_empty()).count()).unwrap_or(0),
                 "proactive_evolution_entries": fs::read_to_string(proactive_evolution_path(root)).ok().map(|v| v.lines().filter(|l| !l.trim().is_empty()).count()).unwrap_or(0)
@@ -211,7 +211,7 @@ fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
         .flags
         .get("sim-regression")
         .and_then(|v| v.parse::<f64>().ok())
-        .unwrap_or_else(|| simulate_regression(&proposal, &module))
+        .unwrap_or_else(|| simulate_recursive_regression(&proposal, &module))
         .max(0.0);
     let threshold = parse_f64(parsed.flags.get("max-regression"), 0.05).max(0.0);
     let gate_action = format!("rsi:ignite:{module}");
@@ -224,8 +224,8 @@ fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     let mut mutation_exit = 0i32;
     let mut reward = Value::Null;
 
-    let mut state = load_loop_state(root);
-    let state_obj = loop_obj_mut(&mut state);
+    let mut state = load_recursive_core_state(root);
+    let state_obj = recursive_state_obj_mut(&mut state);
     state_obj.insert("active".to_string(), Value::Bool(apply && allowed));
 
     if apply && allowed {
@@ -247,7 +247,7 @@ fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
 
     if apply {
         let _ = append_jsonl(
-            &recursive_loop_path(root),
+            &recursive_ignition_log_path(root),
             &json!({
                 "ts": now_iso(),
                 "proposal": proposal,
@@ -301,7 +301,7 @@ fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
         );
     }
 
-    if let Err(err) = store_loop_state(root, &state) {
+    if let Err(err) = store_recursive_core_state(root, &state) {
         return emit(
             root,
             json!({
@@ -348,8 +348,8 @@ fn command_ignite(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
 }
 
 fn command_reflect(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
-    let mut state = load_loop_state(root);
-    let observed_failure_rate = estimate_recent_failure_rate(root);
+    let mut state = load_recursive_core_state(root);
+    let observed_failure_rate = estimate_recursive_failure_pressure(root);
     let drift = parsed
         .flags
         .get("drift")
@@ -374,7 +374,7 @@ fn command_reflect(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
         .clamp(0.0, 1.0);
 
     {
-        let obj = loop_obj_mut(&mut state);
+        let obj = recursive_state_obj_mut(&mut state);
         obj.insert("drift_score".to_string(), Value::from(drift));
         obj.insert("exploration_drive".to_string(), Value::from(exploration));
         obj.insert(
@@ -388,7 +388,7 @@ fn command_reflect(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
             }),
         );
     }
-    if let Err(err) = store_loop_state(root, &state) {
+    if let Err(err) = store_recursive_core_state(root, &state) {
         return emit(
             root,
             json!({
@@ -445,9 +445,9 @@ fn command_swarm(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     let allowed = gate_ok && convergence > 0.1;
     let mut reward = Value::Null;
 
-    let mut state = load_loop_state(root);
+    let mut state = load_recursive_core_state(root);
     if apply && allowed {
-        let obj = loop_obj_mut(&mut state);
+        let obj = recursive_state_obj_mut(&mut state);
         obj.insert(
             "swarm".to_string(),
             json!({
@@ -477,7 +477,7 @@ fn command_swarm(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
             }),
         );
     }
-    if let Err(err) = store_loop_state(root, &state) {
+    if let Err(err) = store_recursive_core_state(root, &state) {
         return emit(
             root,
             json!({
@@ -517,7 +517,7 @@ fn command_swarm(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
 }
 
 fn command_evolve(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
-    let mut state = load_loop_state(root);
+    let mut state = load_recursive_core_state(root);
     let insight = clean(
         parsed.flags.get("insight").cloned().unwrap_or_else(|| {
             "I found a lower-cost planning strategy with stable quality.".to_string()
@@ -569,7 +569,7 @@ fn command_evolve(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
     }
 
     {
-        let obj = loop_obj_mut(&mut state);
+        let obj = recursive_state_obj_mut(&mut state);
         let next = obj
             .get("proactive_evolution_count")
             .and_then(Value::as_u64)
@@ -588,7 +588,7 @@ fn command_evolve(root: &Path, parsed: &crate::ParsedArgs) -> i32 {
             }),
         );
     }
-    if let Err(err) = store_loop_state(root, &state) {
+    if let Err(err) = store_recursive_core_state(root, &state) {
         return emit(
             root,
             json!({

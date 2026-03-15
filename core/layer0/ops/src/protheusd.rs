@@ -111,7 +111,7 @@ fn embedded_minimal_core_status() -> Value {
 }
 
 #[cfg(feature = "tiny")]
-fn tiny_status() -> Value {
+fn substrate_no_std_status_payload() -> Value {
     let profile = protheus_tiny_runtime::tiny_profile();
     let capacity = protheus_tiny_runtime::normalized_capacity_score(
         profile.max_heap_kib,
@@ -134,7 +134,7 @@ fn tiny_status() -> Value {
 }
 
 #[cfg(feature = "embedded-max")]
-fn tiny_max_status() -> Value {
+fn substrate_embedded_max_status_payload() -> Value {
     let profile = protheus_tiny_runtime::tiny_profile();
     let mut out = json!({
         "ok": true,
@@ -186,12 +186,12 @@ fn main() {
         }
         #[cfg(feature = "tiny")]
         "tiny-status" => {
-            print_json(&tiny_status());
+            print_json(&substrate_no_std_status_payload());
             std::process::exit(0);
         }
         #[cfg(feature = "embedded-max")]
         "tiny-max-status" => {
-            print_json(&tiny_max_status());
+            print_json(&substrate_embedded_max_status_payload());
             std::process::exit(0);
         }
         _ => {
@@ -212,7 +212,7 @@ mod tests {
     #[cfg(feature = "tiny")]
     #[test]
     fn tiny_status_emits_receipt_and_profile() {
-        let payload = tiny_status();
+        let payload = substrate_no_std_status_payload();
         assert_eq!(
             payload.get("type").and_then(Value::as_str),
             Some("protheusd_tiny_status")

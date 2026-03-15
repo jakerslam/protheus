@@ -40,11 +40,11 @@ fn mutation_history_path(root: &Path) -> PathBuf {
     state_root(root).join("mutation_history.jsonl")
 }
 
-fn prime_blob_vault_path(root: &Path) -> PathBuf {
+fn circulatory_vault_core_path(root: &Path) -> PathBuf {
     state_root(root).join("prime_blob_vault.json")
 }
 
-fn default_prime_blob_vault() -> Value {
+fn default_circulatory_vault_core() -> Value {
     json!({
         "version": "1.0",
         "entries": [],
@@ -53,25 +53,25 @@ fn default_prime_blob_vault() -> Value {
     })
 }
 
-fn load_prime_blob_vault(root: &Path) -> Value {
-    let path = prime_blob_vault_path(root);
-    let raw = read_json(&path).unwrap_or_else(default_prime_blob_vault);
-    let normalized = normalize_prime_blob_vault(&raw);
+fn load_circulatory_vault_core(root: &Path) -> Value {
+    let path = circulatory_vault_core_path(root);
+    let raw = read_json(&path).unwrap_or_else(default_circulatory_vault_core);
+    let normalized = normalize_circulatory_vault_core(&raw);
     if normalized != raw {
         let _ = write_json(&path, &normalized);
     }
     normalized
 }
 
-fn store_prime_blob_vault(root: &Path, vault: &Value) -> Result<(), String> {
-    write_json(&prime_blob_vault_path(root), vault)
+fn store_circulatory_vault_core(root: &Path, vault: &Value) -> Result<(), String> {
+    write_json(&circulatory_vault_core_path(root), vault)
 }
 
-fn blob_vault_secret() -> Option<String> {
-    blob_vault_signing_keys().into_iter().next()
+fn circulatory_signing_secret() -> Option<String> {
+    circulatory_signing_keys().into_iter().next()
 }
 
-fn blob_vault_signing_keys() -> Vec<String> {
+fn circulatory_signing_keys() -> Vec<String> {
     let mut keys = Vec::new();
     for key in [BLOB_SIGNING_ENV, "DIRECTIVE_KERNEL_SIGNING_KEY"] {
         if let Ok(value) = std::env::var(key) {
@@ -133,7 +133,7 @@ fn blob_signature_payload_variants(entry: &Value) -> Vec<Value> {
 fn sign_blob_entry(entry: &Value) -> String {
     let payload = blob_signature_payload(entry);
     let payload_canonical = canonical_json_string(&payload);
-    let key = blob_vault_secret().unwrap_or_default();
+    let key = circulatory_signing_secret().unwrap_or_default();
     if key.is_empty() {
         format!("unsigned:{}", sha256_hex_str(&payload_canonical))
     } else {
@@ -158,7 +158,7 @@ fn verify_blob_entry_signature(entry: &Value) -> bool {
         });
     }
     if let Some(raw) = sig.strip_prefix("sig:") {
-        let keys = blob_vault_signing_keys();
+        let keys = circulatory_signing_keys();
         if keys.is_empty() {
             return false;
         }
@@ -185,11 +185,11 @@ fn recompute_blob_entry_hash(entry: &Value) -> String {
     )))
 }
 
-fn normalize_prime_blob_vault(vault: &Value) -> Value {
+fn normalize_circulatory_vault_core(vault: &Value) -> Value {
     let mut normalized = if vault.is_object() {
         vault.clone()
     } else {
-        default_prime_blob_vault()
+        default_circulatory_vault_core()
     };
     if !normalized
         .get("entries")
@@ -228,7 +228,7 @@ fn normalize_prime_blob_vault(vault: &Value) -> Value {
     normalized
 }
 
-fn validate_prime_blob_vault(vault: &Value) -> Value {
+fn validate_circulatory_vault_core(vault: &Value) -> Value {
     let entries = vault
         .get("entries")
         .and_then(Value::as_array)
@@ -322,10 +322,10 @@ fn validate_prime_blob_vault(vault: &Value) -> Value {
     })
 }
 
-fn append_prime_blob_vault_entry(root: &Path, snapshot: &Value) -> Result<Value, String> {
-    let mut vault = load_prime_blob_vault(root);
+fn append_circulatory_vault_entry(root: &Path, snapshot: &Value) -> Result<Value, String> {
+    let mut vault = load_circulatory_vault_core(root);
     if !vault.is_object() {
-        vault = default_prime_blob_vault();
+        vault = default_circulatory_vault_core();
     }
     let obj = vault
         .as_object_mut()
@@ -362,21 +362,21 @@ fn append_prime_blob_vault_entry(root: &Path, snapshot: &Value) -> Result<Value,
         .expect("entries_array")
         .push(entry.clone());
     obj.insert("chain_head".to_string(), Value::String(entry_hash));
-    store_prime_blob_vault(root, &vault)?;
+    store_circulatory_vault_core(root, &vault)?;
     Ok(entry)
 }
 
-fn repair_prime_blob_vault(
+fn repair_circulatory_vault_core(
     root: &Path,
     apply: bool,
     allow_unsigned: bool,
 ) -> Result<Value, String> {
-    let key_present = !blob_vault_signing_keys().is_empty();
+    let key_present = !circulatory_signing_keys().is_empty();
     if !key_present && !allow_unsigned {
         return Err("missing_blob_vault_signing_key".to_string());
     }
 
-    let mut vault = load_prime_blob_vault(root);
+    let mut vault = load_circulatory_vault_core(root);
     let entries = vault
         .get("entries")
         .and_then(Value::as_array)
@@ -435,7 +435,7 @@ fn repair_prime_blob_vault(
     }
 
     if !vault.is_object() {
-        vault = default_prime_blob_vault();
+        vault = default_circulatory_vault_core();
     }
     let obj = vault
         .as_object_mut()
@@ -451,8 +451,8 @@ fn repair_prime_blob_vault(
     if obj.get("created_at").and_then(Value::as_str).is_none() {
         obj.insert("created_at".to_string(), Value::String(now_iso()));
     }
-    store_prime_blob_vault(root, &vault)?;
-    let integrity = validate_prime_blob_vault(&vault);
+    store_circulatory_vault_core(root, &vault)?;
+    let integrity = validate_circulatory_vault_core(&vault);
     Ok(json!({
         "apply": true,
         "mode": mode,
@@ -464,7 +464,7 @@ fn repair_prime_blob_vault(
 }
 
 fn find_prime_blob_entry(root: &Path, module: &str, blob_id: &str) -> Option<Value> {
-    let vault = load_prime_blob_vault(root);
+    let vault = load_circulatory_vault_core(root);
     let entries = vault.get("entries").and_then(Value::as_array)?;
     entries
         .iter()
@@ -632,7 +632,7 @@ fn settle_one(root: &Path, parsed: &crate::ParsedArgs, module: &str) -> Result<V
     });
 
     if apply {
-        let vault_entry = append_prime_blob_vault_entry(root, &snapshot)?;
+        let vault_entry = append_circulatory_vault_entry(root, &snapshot)?;
         snapshot["prime_blob_vault_entry"] = vault_entry.clone();
         write_json(&snapshot_path, &snapshot)?;
         active.insert(
@@ -664,7 +664,7 @@ fn settle_one(root: &Path, parsed: &crate::ParsedArgs, module: &str) -> Result<V
 }
 
 fn load_and_verify(root: &Path, module: &str) -> Result<Value, String> {
-    let vault_integrity = validate_prime_blob_vault(&load_prime_blob_vault(root));
+    let vault_integrity = validate_circulatory_vault_core(&load_circulatory_vault_core(root));
     if !vault_integrity
         .get("ok")
         .and_then(Value::as_bool)
