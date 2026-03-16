@@ -80,7 +80,12 @@ enum FirstByteRule {
     LowerOrDigit,
 }
 
-fn validate_identifier(value: &str, min_len: usize, max_len: usize, first_rule: FirstByteRule) -> bool {
+fn validate_identifier(
+    value: &str,
+    min_len: usize,
+    max_len: usize,
+    first_rule: FirstByteRule,
+) -> bool {
     let bytes = value.as_bytes();
     if bytes.len() < min_len || bytes.len() > max_len {
         return false;
@@ -96,9 +101,13 @@ fn validate_identifier(value: &str, min_len: usize, max_len: usize, first_rule: 
     bytes.iter().all(|b| {
         let ch = *b as char;
         match first_rule {
-            FirstByteRule::AlphaNum => ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | ':' | '-'),
+            FirstByteRule::AlphaNum => {
+                ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | ':' | '-')
+            }
             FirstByteRule::LowerOrDigit => {
-                ch.is_ascii_lowercase() || ch.is_ascii_digit() || matches!(ch, '.' | '_' | ':' | '-')
+                ch.is_ascii_lowercase()
+                    || ch.is_ascii_digit()
+                    || matches!(ch, '.' | '_' | ':' | '-')
             }
         }
     })
@@ -126,7 +135,14 @@ fn default_taskgroup_dir(root: &Path) -> PathBuf {
 
 fn scratchpad_path(root: &Path, task_id: &str, root_dir: Option<&str>) -> Result<PathBuf, String> {
     if !is_valid_task_id(task_id) {
-        return Err(format!("invalid_task_id:{}", if task_id.is_empty() { "<empty>" } else { task_id }));
+        return Err(format!(
+            "invalid_task_id:{}",
+            if task_id.is_empty() {
+                "<empty>"
+            } else {
+                task_id
+            }
+        ));
     }
     let base = root_dir
         .filter(|v| !v.trim().is_empty())
@@ -135,12 +151,20 @@ fn scratchpad_path(root: &Path, task_id: &str, root_dir: Option<&str>) -> Result
     Ok(base.join(format!("{task_id}.json")))
 }
 
-fn taskgroup_path(root: &Path, task_group_id: &str, root_dir: Option<&str>) -> Result<PathBuf, String> {
+fn taskgroup_path(
+    root: &Path,
+    task_group_id: &str,
+    root_dir: Option<&str>,
+) -> Result<PathBuf, String> {
     let normalized = task_group_id.trim().to_ascii_lowercase();
     if !validate_group_id(&normalized) {
         return Err(format!(
             "invalid_task_group_id:{}",
-            if task_group_id.trim().is_empty() { "<empty>" } else { task_group_id }
+            if task_group_id.trim().is_empty() {
+                "<empty>"
+            } else {
+                task_group_id
+            }
         ));
     }
     let base = root_dir
@@ -173,7 +197,11 @@ struct LoadedScratchpad {
     exists: bool,
 }
 
-fn load_scratchpad(root: &Path, task_id: &str, root_dir: Option<&str>) -> Result<LoadedScratchpad, String> {
+fn load_scratchpad(
+    root: &Path,
+    task_id: &str,
+    root_dir: Option<&str>,
+) -> Result<LoadedScratchpad, String> {
     let file_path = scratchpad_path(root, task_id, root_dir)?;
     match fs::read_to_string(&file_path) {
         Ok(raw) => match serde_json::from_str::<Value>(&raw) {
@@ -221,7 +249,12 @@ fn normalize_progress(progress: Option<&Value>) -> Value {
     })
 }
 
-fn write_scratchpad(root: &Path, task_id: &str, patch: &Value, root_dir: Option<&str>) -> Result<Value, String> {
+fn write_scratchpad(
+    root: &Path,
+    task_id: &str,
+    patch: &Value,
+    root_dir: Option<&str>,
+) -> Result<Value, String> {
     let loaded = load_scratchpad(root, task_id, root_dir)?;
     let mut next = merge_objects(&loaded.scratchpad, patch);
     let now = now_iso();
@@ -261,8 +294,12 @@ fn write_scratchpad(root: &Path, task_id: &str, patch: &Value, root_dir: Option<
     let payload = serde_json::to_string_pretty(&next)
         .map_err(|err| format!("scratchpad_encode_failed:{err}"))?
         + "\n";
-    fs::write(&loaded.file_path, payload)
-        .map_err(|err| format!("scratchpad_write_failed:{}:{err}", loaded.file_path.display()))?;
+    fs::write(&loaded.file_path, payload).map_err(|err| {
+        format!(
+            "scratchpad_write_failed:{}:{err}",
+            loaded.file_path.display()
+        )
+    })?;
 
     Ok(json!({
         "ok": true,
@@ -329,15 +366,25 @@ fn normalize_finding(input: &Value) -> Value {
     let timestamp = to_clean_string(input.get("timestamp"));
     out.insert(
         "timestamp".to_string(),
-        Value::String(if timestamp.is_empty() { now_iso() } else { timestamp }),
+        Value::String(if timestamp.is_empty() {
+            now_iso()
+        } else {
+            timestamp
+        }),
     );
 
     let mut evidence = Vec::new();
     if let Some(rows) = input.get("evidence").and_then(Value::as_array) {
         for row in rows {
             let mut ev = Map::new();
-            ev.insert("type".to_string(), Value::String(to_clean_string(row.get("type"))));
-            ev.insert("value".to_string(), Value::String(to_clean_string(row.get("value"))));
+            ev.insert(
+                "type".to_string(),
+                Value::String(to_clean_string(row.get("type"))),
+            );
+            ev.insert(
+                "value".to_string(),
+                Value::String(to_clean_string(row.get("value"))),
+            );
             let source = to_clean_string(row.get("source"));
             if !source.is_empty() {
                 ev.insert("source".to_string(), Value::String(source));
@@ -351,7 +398,11 @@ fn normalize_finding(input: &Value) -> Value {
 }
 
 fn validate_finding(input: &Value) -> (bool, String) {
-    let finding = if input.is_object() { input } else { return (false, "finding_invalid_type".to_string()) };
+    let finding = if input.is_object() {
+        input
+    } else {
+        return (false, "finding_invalid_type".to_string());
+    };
 
     for key in [
         "audit_id",
@@ -442,12 +493,7 @@ fn append_finding(root: &Path, task_id: &str, finding: &Value, root_dir: Option<
         .cloned()
         .unwrap_or_default();
     findings.push(normalized);
-    let out = match write_scratchpad(
-        root,
-        task_id,
-        &json!({ "findings": findings }),
-        root_dir,
-    ) {
+    let out = match write_scratchpad(root, task_id, &json!({ "findings": findings }), root_dir) {
         Ok(value) => value,
         Err(err) => {
             return json!({
@@ -476,7 +522,12 @@ fn append_finding(root: &Path, task_id: &str, finding: &Value, root_dir: Option<
     })
 }
 
-fn append_checkpoint(root: &Path, task_id: &str, checkpoint: &Value, root_dir: Option<&str>) -> Value {
+fn append_checkpoint(
+    root: &Path,
+    task_id: &str,
+    checkpoint: &Value,
+    root_dir: Option<&str>,
+) -> Value {
     let loaded = match load_scratchpad(root, task_id, root_dir) {
         Ok(value) => value,
         Err(err) => {
@@ -723,7 +774,11 @@ fn detect_scope_overlaps(scopes: &[Value]) -> Value {
                 "overlaps": []
             });
         }
-        normalized.push(out.get("scope").cloned().unwrap_or(Value::Object(Map::new())));
+        normalized.push(
+            out.get("scope")
+                .cloned()
+                .unwrap_or(Value::Object(Map::new())),
+        );
     }
 
     let mut overlaps = Vec::new();
@@ -815,7 +870,10 @@ fn finding_in_scope(finding: &Value, scope: &Value) -> Value {
         });
     }
 
-    let scope_data = normalized_scope.get("scope").cloned().unwrap_or(Value::Object(Map::new()));
+    let scope_data = normalized_scope
+        .get("scope")
+        .cloned()
+        .unwrap_or(Value::Object(Map::new()));
     let series = scope_data
         .get("series")
         .and_then(Value::as_array)
@@ -902,11 +960,12 @@ fn slug(raw: &str, fallback: &str, max_len: usize) -> String {
     let mut out = String::with_capacity(raw.len());
     let mut prev_dash = false;
     for ch in raw.trim().to_ascii_lowercase().chars() {
-        let mapped = if ch.is_ascii_lowercase() || ch.is_ascii_digit() || matches!(ch, '_' | '.' | '-') {
-            ch
-        } else {
-            '-'
-        };
+        let mapped =
+            if ch.is_ascii_lowercase() || ch.is_ascii_digit() || matches!(ch, '_' | '.' | '-') {
+                ch
+            } else {
+                '-'
+            };
         if mapped == '-' {
             if !prev_dash {
                 out.push('-');
@@ -945,7 +1004,10 @@ fn nonce_token(length: usize) -> String {
     let width = length.max(4);
     let mut bytes = vec![0u8; width];
     rand::thread_rng().fill_bytes(&mut bytes);
-    let hex = bytes.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+    let hex = bytes
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<String>();
     hex.chars().take(width).collect()
 }
 
@@ -965,7 +1027,10 @@ fn generate_task_group_id(task_type: &str, now_ms: i64, nonce: &str) -> String {
 }
 
 fn allowed_agent_status(status: &str) -> bool {
-    matches!(status, "pending" | "running" | "done" | "failed" | "timeout")
+    matches!(
+        status,
+        "pending" | "running" | "done" | "failed" | "timeout"
+    )
 }
 
 fn terminal_agent_status(status: &str) -> bool {
@@ -1139,7 +1204,11 @@ struct LoadedTaskGroup {
     task_group: Value,
 }
 
-fn load_task_group(root: &Path, task_group_id: &str, root_dir: Option<&str>) -> Result<LoadedTaskGroup, String> {
+fn load_task_group(
+    root: &Path,
+    task_group_id: &str,
+    root_dir: Option<&str>,
+) -> Result<LoadedTaskGroup, String> {
     let file_path = taskgroup_path(root, task_group_id, root_dir)?;
     if !file_path.exists() {
         return Ok(LoadedTaskGroup {
@@ -1174,7 +1243,11 @@ fn load_task_group(root: &Path, task_group_id: &str, root_dir: Option<&str>) -> 
         let agent_count = map
             .get("agent_count")
             .and_then(Value::as_i64)
-            .or_else(|| map.get("agent_count").and_then(Value::as_u64).map(|v| v as i64))
+            .or_else(|| {
+                map.get("agent_count")
+                    .and_then(Value::as_u64)
+                    .map(|v| v as i64)
+            })
             .unwrap_or(1)
             .max(1);
         let agents = normalize_agents(&agents_source, agent_count)?;
@@ -1238,7 +1311,11 @@ fn save_task_group(root: &Path, task_group: &Value, root_dir: Option<&str>) -> V
         let desired = map
             .get("agent_count")
             .and_then(Value::as_i64)
-            .or_else(|| map.get("agent_count").and_then(Value::as_u64).map(|v| v as i64))
+            .or_else(|| {
+                map.get("agent_count")
+                    .and_then(Value::as_u64)
+                    .map(|v| v as i64)
+            })
             .unwrap_or(1)
             .max(1);
         let agents = match normalize_agents(&agents_source, desired) {
@@ -1317,7 +1394,11 @@ fn ensure_task_group(root: &Path, input: &Value, root_dir: Option<&str>) -> Valu
         let now_ms = get_i64_any(input, &["now_ms"], Utc::now().timestamp_millis());
         let nonce = get_string_any(input, &["nonce"]);
         generate_task_group_id(
-            if task_type.is_empty() { "task" } else { &task_type },
+            if task_type.is_empty() {
+                "task"
+            } else {
+                &task_type
+            },
             now_ms,
             &nonce,
         )
@@ -1349,7 +1430,10 @@ fn ensure_task_group(root: &Path, input: &Value, root_dir: Option<&str>) -> Valu
 
     let mut seed = input.clone();
     if let Value::Object(map) = &mut seed {
-        map.insert("task_group_id".to_string(), Value::String(task_group_id.clone()));
+        map.insert(
+            "task_group_id".to_string(),
+            Value::String(task_group_id.clone()),
+        );
     }
     let created = match default_task_group(&task_group_id, &seed) {
         Ok(value) => value,
@@ -1409,7 +1493,10 @@ fn update_agent_status(
         });
     }
 
-    let mut group = ensure.get("task_group").cloned().unwrap_or(Value::Object(Map::new()));
+    let mut group = ensure
+        .get("task_group")
+        .cloned()
+        .unwrap_or(Value::Object(Map::new()));
     let now = now_iso();
 
     let mut previous_status = "pending".to_string();
@@ -1426,7 +1513,10 @@ fn update_agent_status(
             if let Some(agent) = agents.get_mut(index) {
                 previous_status = to_clean_string(agent.get("status")).to_ascii_lowercase();
                 if let Value::Object(agent_map) = agent {
-                    agent_map.insert("status".to_string(), Value::String(normalized_status.clone()));
+                    agent_map.insert(
+                        "status".to_string(),
+                        Value::String(normalized_status.clone()),
+                    );
                     agent_map.insert("updated_at".to_string(), Value::String(now.clone()));
 
                     let mut next_details = agent_map
@@ -1542,9 +1632,14 @@ fn build_checkpoint(task_id: &str, metrics: &Value, reason: &str) -> Value {
 }
 
 fn should_checkpoint(state: &Value, metrics: &Value, options: &Value) -> bool {
-    let item_interval = get_i64_any(options, &["itemInterval", "item_interval"], ITEM_INTERVAL).max(1);
-    let time_interval_ms =
-        get_i64_any(options, &["timeIntervalMs", "time_interval_ms"], TIME_INTERVAL_MS).max(1);
+    let item_interval =
+        get_i64_any(options, &["itemInterval", "item_interval"], ITEM_INTERVAL).max(1);
+    let time_interval_ms = get_i64_any(
+        options,
+        &["timeIntervalMs", "time_interval_ms"],
+        TIME_INTERVAL_MS,
+    )
+    .max(1);
     let now_ms = get_i64_any(metrics, &["now_ms"], Utc::now().timestamp_millis());
     let processed = get_i64_any(metrics, &["processed_count", "processed"], 0).max(0);
 
@@ -1728,7 +1823,10 @@ fn ensure_and_summarize(root: &Path, task_group_id: &str, root_dir: Option<&str>
     if ensured.get("ok").and_then(Value::as_bool) != Some(true) {
         return ensured;
     }
-    let task_group = ensured.get("task_group").cloned().unwrap_or(Value::Object(Map::new()));
+    let task_group = ensured
+        .get("task_group")
+        .cloned()
+        .unwrap_or(Value::Object(Map::new()));
     let summary = completion_summary(&task_group);
     json!({
         "ok": true,
@@ -1743,7 +1841,12 @@ fn ensure_and_summarize(root: &Path, task_group_id: &str, root_dir: Option<&str>
     })
 }
 
-fn track_agent_completion(root: &Path, task_group_id: &str, update: &Value, root_dir: Option<&str>) -> Value {
+fn track_agent_completion(
+    root: &Path,
+    task_group_id: &str,
+    update: &Value,
+    root_dir: Option<&str>,
+) -> Value {
     let agent_id = get_string_any(update, &["agent_id", "agentId"]);
     let status = get_string_any(update, &["status"]).to_ascii_lowercase();
     if agent_id.is_empty() {
@@ -1761,13 +1864,19 @@ fn track_agent_completion(root: &Path, task_group_id: &str, update: &Value, root
         });
     }
 
-    let details = update.get("details").cloned().unwrap_or(Value::Object(Map::new()));
+    let details = update
+        .get("details")
+        .cloned()
+        .unwrap_or(Value::Object(Map::new()));
     let updated = update_agent_status(root, task_group_id, &agent_id, &status, &details, root_dir);
     if updated.get("ok").and_then(Value::as_bool) != Some(true) {
         return updated;
     }
 
-    let task_group = updated.get("task_group").cloned().unwrap_or(Value::Object(Map::new()));
+    let task_group = updated
+        .get("task_group")
+        .cloned()
+        .unwrap_or(Value::Object(Map::new()));
     let summary = completion_summary(&task_group);
     json!({
         "ok": true,
@@ -1782,7 +1891,12 @@ fn track_agent_completion(root: &Path, task_group_id: &str, update: &Value, root
     })
 }
 
-fn track_batch_completion(root: &Path, task_group_id: &str, updates: &[Value], root_dir: Option<&str>) -> Value {
+fn track_batch_completion(
+    root: &Path,
+    task_group_id: &str,
+    updates: &[Value],
+    root_dir: Option<&str>,
+) -> Value {
     let mut results = Vec::new();
     for update in updates {
         let tracked = track_agent_completion(root, task_group_id, update, root_dir);
@@ -1806,7 +1920,10 @@ fn track_batch_completion(root: &Path, task_group_id: &str, updates: &[Value], r
         return query;
     }
 
-    let task_group = query.get("task_group").cloned().unwrap_or(Value::Object(Map::new()));
+    let task_group = query
+        .get("task_group")
+        .cloned()
+        .unwrap_or(Value::Object(Map::new()));
     let summary = completion_summary(&task_group);
 
     json!({
@@ -2110,20 +2227,24 @@ fn merge_findings(findings: &[Value]) -> Value {
             let existing_ts = to_clean_string(existing.get("timestamp"));
             let existing_summary = to_clean_string(existing.get("summary"));
             if let Value::Object(map) = existing {
-                map.insert("evidence".to_string(), Value::Array(merge_evidence(&evidence)));
+                map.insert(
+                    "evidence".to_string(),
+                    Value::Array(merge_evidence(&evidence)),
+                );
 
                 let next_ts = to_clean_string(normalized.get("timestamp"));
-                let max_ts = if existing_ts > next_ts { existing_ts } else { next_ts };
+                let max_ts = if existing_ts > next_ts {
+                    existing_ts
+                } else {
+                    next_ts
+                };
                 map.insert("timestamp".to_string(), Value::String(max_ts));
 
-                let summary = [
-                    existing_summary,
-                    to_clean_string(normalized.get("summary")),
-                ]
-                .into_iter()
-                .filter(|row| !row.is_empty())
-                .collect::<Vec<_>>()
-                .join(" | ");
+                let summary = [existing_summary, to_clean_string(normalized.get("summary"))]
+                    .into_iter()
+                    .filter(|row| !row.is_empty())
+                    .collect::<Vec<_>>()
+                    .join(" | ");
                 if !summary.is_empty() {
                     map.insert("summary".to_string(), Value::String(summary));
                 }
@@ -2205,7 +2326,10 @@ fn apply_scope_filtering(findings: &[Value], scope_by_agent: &HashMap<String, Va
             continue;
         }
 
-        let scope = scope_by_agent.get(&agent_id).cloned().unwrap_or(Value::Null);
+        let scope = scope_by_agent
+            .get(&agent_id)
+            .cloned()
+            .unwrap_or(Value::Null);
         let classified = classify_findings_by_scope(&[finding.clone()], &scope, &agent_id);
         if classified.get("ok").and_then(Value::as_bool) != Some(true) {
             violations.push(json!({
@@ -2305,7 +2429,8 @@ fn run_coordinator(root: &Path, input: &Value) -> Value {
         .cloned()
         .unwrap_or_default();
 
-    let partitions = assign_scopes_to_partitions(&partition_work(&items, agent_count), &normalized_scopes);
+    let partitions =
+        assign_scopes_to_partitions(&partition_work(&items, agent_count), &normalized_scopes);
     let scope_by_agent = scope_map_by_agent(&partitions);
 
     let task_type = {
@@ -2388,7 +2513,12 @@ fn run_coordinator(root: &Path, input: &Value) -> Value {
         "total": items.len()
     });
 
-    let write_progress = write_scratchpad(root, &task_id, &json!({ "progress": updated_progress }), root_dir);
+    let write_progress = write_scratchpad(
+        root,
+        &task_id,
+        &json!({ "progress": updated_progress }),
+        root_dir,
+    );
     if write_progress.is_err() {
         return json!({
             "ok": false,
@@ -2403,18 +2533,23 @@ fn run_coordinator(root: &Path, input: &Value) -> Value {
         .cloned()
         .unwrap_or_default();
     for finding in &merged_findings {
-        let out = append_finding(root, &task_id, &json!({
-            "audit_id": audit_id,
-            "item_id": finding.get("item_id").cloned().unwrap_or(Value::Null),
-            "severity": finding.get("severity").cloned().unwrap_or(Value::Null),
-            "status": finding.get("status").cloned().unwrap_or(Value::Null),
-            "location": finding.get("location").cloned().unwrap_or(Value::Null),
-            "evidence": finding.get("evidence").cloned().unwrap_or(Value::Array(Vec::new())),
-            "timestamp": finding.get("timestamp").cloned().unwrap_or(Value::String(now_iso())),
-            "summary": finding.get("summary").cloned().unwrap_or(Value::Null),
-            "agent_id": finding.get("agent_id").cloned().unwrap_or(Value::Null),
-            "metadata": finding.get("metadata").cloned().unwrap_or(Value::Null)
-        }), root_dir);
+        let out = append_finding(
+            root,
+            &task_id,
+            &json!({
+                "audit_id": audit_id,
+                "item_id": finding.get("item_id").cloned().unwrap_or(Value::Null),
+                "severity": finding.get("severity").cloned().unwrap_or(Value::Null),
+                "status": finding.get("status").cloned().unwrap_or(Value::Null),
+                "location": finding.get("location").cloned().unwrap_or(Value::Null),
+                "evidence": finding.get("evidence").cloned().unwrap_or(Value::Array(Vec::new())),
+                "timestamp": finding.get("timestamp").cloned().unwrap_or(Value::String(now_iso())),
+                "summary": finding.get("summary").cloned().unwrap_or(Value::Null),
+                "agent_id": finding.get("agent_id").cloned().unwrap_or(Value::Null),
+                "metadata": finding.get("metadata").cloned().unwrap_or(Value::Null)
+            }),
+            root_dir,
+        );
         if out.get("ok").and_then(Value::as_bool) != Some(true) {
             return json!({
                 "ok": false,
@@ -2439,7 +2574,11 @@ fn run_coordinator(root: &Path, input: &Value) -> Value {
 
     let completion = track_batch_completion(
         root,
-        &to_clean_string(task_group.get("task_group").and_then(|v| v.get("task_group_id"))),
+        &to_clean_string(
+            task_group
+                .get("task_group")
+                .and_then(|v| v.get("task_group_id")),
+        ),
         &partitions
             .iter()
             .map(|partition| {
@@ -2501,7 +2640,10 @@ fn run_coordinator(root: &Path, input: &Value) -> Value {
 fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
     match op {
         "schema.validate_finding" => {
-            let finding = payload.get("finding").cloned().unwrap_or_else(|| payload.clone());
+            let finding = payload
+                .get("finding")
+                .cloned()
+                .unwrap_or_else(|| payload.clone());
             let normalized = normalize_finding(&finding);
             let (ok, reason_code) = validate_finding(&normalized);
             json!({
@@ -2512,7 +2654,10 @@ fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
             })
         }
         "schema.normalize_finding" => {
-            let finding = payload.get("finding").cloned().unwrap_or_else(|| payload.clone());
+            let finding = payload
+                .get("finding")
+                .cloned()
+                .unwrap_or_else(|| payload.clone());
             json!({
                 "ok": true,
                 "type": "orchestration_schema_normalize_finding",
@@ -2540,18 +2685,17 @@ fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
                 .and_then(Value::as_array)
                 .cloned()
                 .unwrap_or_default();
-            let scope = payload.get("scope").cloned().unwrap_or(Value::Object(Map::new()));
+            let scope = payload
+                .get("scope")
+                .cloned()
+                .unwrap_or(Value::Object(Map::new()));
             let agent_id = get_string_any(payload, &["agent_id", "agentId"]);
             classify_findings_by_scope(&findings, &scope, &agent_id)
         }
         "scratchpad.path" => {
             let task_id = get_string_any(payload, &["task_id", "taskId"]);
             let root_dir = payload_root_dir(payload);
-            let out = scratchpad_path(
-                root,
-                &task_id,
-                root_dir.as_deref(),
-            );
+            let out = scratchpad_path(root, &task_id, root_dir.as_deref());
             match out {
                 Ok(file_path) => json!({
                     "ok": true,
@@ -2570,11 +2714,7 @@ fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
         "scratchpad.status" => {
             let task_id = get_string_any(payload, &["task_id", "taskId"]);
             let root_dir = payload_root_dir(payload);
-            match load_scratchpad(
-                root,
-                &task_id,
-                root_dir.as_deref(),
-            ) {
+            match load_scratchpad(root, &task_id, root_dir.as_deref()) {
                 Ok(loaded) => json!({
                     "ok": true,
                     "type": "orchestration_scratchpad_status",
@@ -2593,14 +2733,12 @@ fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
         }
         "scratchpad.write" => {
             let task_id = get_string_any(payload, &["task_id", "taskId"]);
-            let patch = payload.get("patch").cloned().unwrap_or_else(|| payload.clone());
+            let patch = payload
+                .get("patch")
+                .cloned()
+                .unwrap_or_else(|| payload.clone());
             let root_dir = payload_root_dir(payload);
-            match write_scratchpad(
-                root,
-                &task_id,
-                &patch,
-                root_dir.as_deref(),
-            ) {
+            match write_scratchpad(root, &task_id, &patch, root_dir.as_deref()) {
                 Ok(value) => value,
                 Err(err) => json!({
                     "ok": false,
@@ -2612,14 +2750,12 @@ fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
         }
         "scratchpad.append_finding" => {
             let task_id = get_string_any(payload, &["task_id", "taskId"]);
-            let finding = payload.get("finding").cloned().unwrap_or(Value::Object(Map::new()));
+            let finding = payload
+                .get("finding")
+                .cloned()
+                .unwrap_or(Value::Object(Map::new()));
             let root_dir = payload_root_dir(payload);
-            append_finding(
-                root,
-                &task_id,
-                &finding,
-                root_dir.as_deref(),
-            )
+            append_finding(root, &task_id, &finding, root_dir.as_deref())
         }
         "scratchpad.append_checkpoint" => {
             let task_id = get_string_any(payload, &["task_id", "taskId"]);
@@ -2628,24 +2764,18 @@ fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
                 .cloned()
                 .unwrap_or(Value::Object(Map::new()));
             let root_dir = payload_root_dir(payload);
-            append_checkpoint(
-                root,
-                &task_id,
-                &checkpoint,
-                root_dir.as_deref(),
-            )
+            append_checkpoint(root, &task_id, &checkpoint, root_dir.as_deref())
         }
         "scratchpad.cleanup" => {
             let task_id = get_string_any(payload, &["task_id", "taskId"]);
             let root_dir = payload_root_dir(payload);
-            cleanup_scratchpad(
-                root,
-                &task_id,
-                root_dir.as_deref(),
-            )
+            cleanup_scratchpad(root, &task_id, root_dir.as_deref())
         }
         "checkpoint.should" => {
-            let state = payload.get("state").cloned().unwrap_or(Value::Object(Map::new()));
+            let state = payload
+                .get("state")
+                .cloned()
+                .unwrap_or(Value::Object(Map::new()));
             let metrics = payload
                 .get("metrics")
                 .cloned()
@@ -2667,12 +2797,7 @@ fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
                 .cloned()
                 .unwrap_or_else(|| payload.clone());
             let root_dir = payload_root_dir(payload);
-            maybe_checkpoint(
-                root,
-                &task_id,
-                &metrics,
-                root_dir.as_deref(),
-            )
+            maybe_checkpoint(root, &task_id, &metrics, root_dir.as_deref())
         }
         "checkpoint.timeout" => {
             let task_id = get_string_any(payload, &["task_id", "taskId"]);
@@ -2681,21 +2806,12 @@ fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
                 .cloned()
                 .unwrap_or_else(|| payload.clone());
             let root_dir = payload_root_dir(payload);
-            handle_timeout(
-                root,
-                &task_id,
-                &metrics,
-                root_dir.as_deref(),
-            )
+            handle_timeout(root, &task_id, &metrics, root_dir.as_deref())
         }
         "taskgroup.path" => {
             let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
             let root_dir = payload_root_dir(payload);
-            match taskgroup_path(
-                root,
-                &task_group_id,
-                root_dir.as_deref(),
-            ) {
+            match taskgroup_path(root, &task_group_id, root_dir.as_deref()) {
                 Ok(file_path) => json!({
                     "ok": true,
                     "type": "orchestration_taskgroup_path",
@@ -2712,26 +2828,21 @@ fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
         }
         "taskgroup.ensure" => {
             let root_dir = payload_root_dir(payload);
-            ensure_task_group(
-                root,
-                payload,
-                root_dir.as_deref(),
-            )
+            ensure_task_group(root, payload, root_dir.as_deref())
         }
         "taskgroup.query" => {
             let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
             let root_dir = payload_root_dir(payload);
-            query_task_group(
-                root,
-                &task_group_id,
-                root_dir.as_deref(),
-            )
+            query_task_group(root, &task_group_id, root_dir.as_deref())
         }
         "taskgroup.update_status" => {
             let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
             let agent_id = get_string_any(payload, &["agent_id", "agentId"]);
             let status = get_string_any(payload, &["status"]);
-            let details = payload.get("details").cloned().unwrap_or(Value::Object(Map::new()));
+            let details = payload
+                .get("details")
+                .cloned()
+                .unwrap_or(Value::Object(Map::new()));
             let root_dir = payload_root_dir(payload);
             update_agent_status(
                 root,
@@ -2745,22 +2856,16 @@ fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
         "completion.status" => {
             let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
             let root_dir = payload_root_dir(payload);
-            ensure_and_summarize(
-                root,
-                &task_group_id,
-                root_dir.as_deref(),
-            )
+            ensure_and_summarize(root, &task_group_id, root_dir.as_deref())
         }
         "completion.track" => {
             let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
-            let update = payload.get("update").cloned().unwrap_or_else(|| payload.clone());
+            let update = payload
+                .get("update")
+                .cloned()
+                .unwrap_or_else(|| payload.clone());
             let root_dir = payload_root_dir(payload);
-            track_agent_completion(
-                root,
-                &task_group_id,
-                &update,
-                root_dir.as_deref(),
-            )
+            track_agent_completion(root, &task_group_id, &update, root_dir.as_deref())
         }
         "completion.batch" => {
             let task_group_id = get_string_any(payload, &["task_group_id", "taskGroupId", "id"]);
@@ -2771,12 +2876,7 @@ fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
                 .cloned()
                 .unwrap_or_default();
             let root_dir = payload_root_dir(payload);
-            track_batch_completion(
-                root,
-                &task_group_id,
-                &updates,
-                root_dir.as_deref(),
-            )
+            track_batch_completion(root, &task_group_id, &updates, root_dir.as_deref())
         }
         "partial.normalize_decision" => {
             let decision = get_string_any(payload, &["decision"]);
@@ -2818,7 +2918,10 @@ fn invoke(root: &Path, op: &str, payload: &Value) -> Value {
                 .and_then(Value::as_array)
                 .cloned()
                 .unwrap_or_default();
-            let partitions = assign_scopes_to_partitions(&partition_work(&items, agent_count), &normalized_scopes);
+            let partitions = assign_scopes_to_partitions(
+                &partition_work(&items, agent_count),
+                &normalized_scopes,
+            );
             json!({
                 "ok": true,
                 "type": "orchestration_partition",

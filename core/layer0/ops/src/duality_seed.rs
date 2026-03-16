@@ -7,6 +7,7 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use crate::contract_lane_utils as lane_utils;
 use crate::{clean, deterministic_receipt_hash, now_iso};
 
 const DEFAULT_POLICY_REL: &str = "client/runtime/config/duality_seed_policy.json";
@@ -27,20 +28,7 @@ fn print_json_line(value: &Value) {
 }
 
 fn parse_flag(argv: &[String], key: &str) -> Option<String> {
-    let pref = format!("--{key}=");
-    let long = format!("--{key}");
-    let mut idx = 0usize;
-    while idx < argv.len() {
-        let token = argv[idx].trim();
-        if let Some(v) = token.strip_prefix(&pref) {
-            return Some(v.to_string());
-        }
-        if token == long && idx + 1 < argv.len() {
-            return Some(argv[idx + 1].clone());
-        }
-        idx += 1;
-    }
-    None
+    lane_utils::parse_flag(argv, key, false)
 }
 
 fn load_payload(argv: &[String]) -> Result<Value, String> {
@@ -209,17 +197,8 @@ fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String> {
 }
 
 fn append_jsonl(path: &Path, row: &Value) -> Result<(), String> {
-    ensure_parent(path)?;
-    let mut file = fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)
-        .map_err(|err| format!("duality_seed_open_jsonl_failed:{}:{err}", path.display()))?;
-    let line = serde_json::to_string(row)
-        .map_err(|err| format!("duality_seed_encode_jsonl_failed:{err}"))?;
-    file.write_all(line.as_bytes())
-        .and_then(|_| file.write_all(b"\n"))
-        .map_err(|err| format!("duality_seed_append_jsonl_failed:{}:{err}", path.display()))
+    lane_utils::append_jsonl(path, row)
+        .map_err(|err| format!("duality_seed_append_jsonl_failed:{err}"))
 }
 
 fn read_json(path: &Path) -> Value {

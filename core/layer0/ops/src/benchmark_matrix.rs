@@ -284,16 +284,32 @@ fn command_elapsed_ms(program: &str, args: &[&str]) -> Result<f64, String> {
     Ok(started.elapsed().as_secs_f64() * 1000.0)
 }
 
-fn sample_command_p95_ms(program: &str, args: &[&str], samples: usize) -> Result<f64, String> {
+fn percentile(sorted: &[f64], q: f64) -> f64 {
+    if sorted.is_empty() {
+        return 0.0;
+    }
+    let quantile = q.clamp(0.0, 1.0);
+    let idx = ((sorted.len() as f64 * quantile).ceil() as usize)
+        .saturating_sub(1)
+        .min(sorted.len().saturating_sub(1));
+    sorted[idx]
+}
+
+fn sample_command_quantiles_ms(
+    program: &str,
+    args: &[&str],
+    samples: usize,
+) -> Result<(f64, f64, f64), String> {
     let mut rows = Vec::new();
     for _ in 0..samples.max(1) {
         rows.push(command_elapsed_ms(program, args)?);
     }
     rows.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    let idx = ((rows.len() as f64 * 0.95).ceil() as usize)
-        .saturating_sub(1)
-        .min(rows.len().saturating_sub(1));
-    Ok(rows[idx])
+    Ok((
+        percentile(&rows, 0.50),
+        percentile(&rows, 0.95),
+        percentile(&rows, 0.99),
+    ))
 }
 
 fn sample_child_rss_mb(program: &str, args: &[&str]) -> Result<f64, String> {
@@ -314,7 +330,10 @@ fn sample_child_rss_mb(program: &str, args: &[&str]) -> Result<f64, String> {
     let _ = child.kill();
     let _ = child.wait();
     if !out.status.success() {
-        return Err(format!("rss_ps_exit_failed:{}", out.status.code().unwrap_or(1)));
+        return Err(format!(
+            "rss_ps_exit_failed:{}",
+            out.status.code().unwrap_or(1)
+        ));
     }
     let kib = String::from_utf8_lossy(&out.stdout)
         .split_whitespace()
@@ -322,6 +341,57 @@ fn sample_child_rss_mb(program: &str, args: &[&str]) -> Result<f64, String> {
         .and_then(|v| v.parse::<f64>().ok())
         .ok_or_else(|| "rss_parse_failed".to_string())?;
     Ok(kib / 1024.0)
+}
+
+fn sample_child_rss_quantiles_mb(
+    program: &str,
+    args: &[&str],
+    samples: usize,
+) -> Result<(f64, f64, f64), String> {
+    let mut rows = Vec::new();
+    for _ in 0..samples.max(1) {
+        rows.push(sample_child_rss_mb(program, args)?);
+    }
+    rows.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    Ok((
+        percentile(&rows, 0.50),
+        percentile(&rows, 0.95),
+        percentile(&rows, 0.99),
+    ))
+}
+
+fn command_stdout(program: &str, args: &[&str], cwd: Option<&Path>) -> Option<String> {
+    let mut cmd = Command::new(program);
+    cmd.args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    if let Some(dir) = cwd {
+        cmd.current_dir(dir);
+    }
+    let out = cmd.output().ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if text.is_empty() {
+        None
+    } else {
+        Some(clean(text, 120))
+    }
+}
+
+fn benchmark_environment_fingerprint(root: &Path) -> Value {
+    json!({
+        "os": std::env::consts::OS,
+        "arch": std::env::consts::ARCH,
+        "cpu_parallelism": std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(0),
+        "rustc_version": command_stdout("rustc", &["--version"], None),
+        "git_revision": command_stdout("git", &["rev-parse", "HEAD"], Some(root)),
+        "workload_id": "live_hash_workload_v1"
+    })
 }
 
 fn measure_pure_workspace_profile(
@@ -333,8 +403,10 @@ fn measure_pure_workspace_profile(
     cold_start_args: &[&str],
     idle_probe_args: &[&str],
 ) -> Result<Map<String, Value>, String> {
-    let cold_start_ms = sample_command_p95_ms(probe_bin, cold_start_args, 5)?;
-    let idle_memory_mb = sample_child_rss_mb(probe_bin, idle_probe_args)?;
+    let (cold_start_p50_ms, cold_start_ms, cold_start_p99_ms) =
+        sample_command_quantiles_ms(probe_bin, cold_start_args, 5)?;
+    let (idle_rss_p50_mb, idle_memory_mb, idle_rss_p99_mb) =
+        sample_child_rss_quantiles_mb(probe_bin, idle_probe_args, 3)?;
     let mut install_size_mb = path_size_mb(root, size_bin);
     if let Some(daemon) = daemon_bin {
         install_size_mb += path_size_mb(root, daemon);
@@ -344,7 +416,13 @@ fn measure_pure_workspace_profile(
     let mut measured = Map::<String, Value>::new();
     measured.insert("mode".to_string(), Value::String(mode.to_string()));
     measured.insert("cold_start_ms".to_string(), json!(cold_start_ms));
+    measured.insert("cold_start_p50_ms".to_string(), json!(cold_start_p50_ms));
+    measured.insert("cold_start_p95_ms".to_string(), json!(cold_start_ms));
+    measured.insert("cold_start_p99_ms".to_string(), json!(cold_start_p99_ms));
     measured.insert("idle_memory_mb".to_string(), json!(idle_memory_mb));
+    measured.insert("idle_rss_p50_mb".to_string(), json!(idle_rss_p50_mb));
+    measured.insert("idle_rss_p95_mb".to_string(), json!(idle_memory_mb));
+    measured.insert("idle_rss_p99_mb".to_string(), json!(idle_rss_p99_mb));
     measured.insert("install_size_mb".to_string(), json!(install_size_mb));
     measured.insert("tasks_per_sec".to_string(), json!(live_tasks_per_sec(800)));
     measured.insert("security_systems".to_string(), json!(83.0));
@@ -368,12 +446,17 @@ fn measure_pure_workspace_profile(
         Value::String(clean(size_bin, 320)),
     );
     if let Some(daemon) = daemon_bin {
-        measured.insert("daemon_binary_path".to_string(), Value::String(clean(daemon, 320)));
+        measured.insert(
+            "daemon_binary_path".to_string(),
+            Value::String(clean(daemon, 320)),
+        );
     }
     Ok(measured)
 }
 
-fn measure_pure_workspace(root: &Path) -> Result<(Option<Map<String, Value>>, Option<Map<String, Value>>), String> {
+fn measure_pure_workspace(
+    root: &Path,
+) -> Result<(Option<Map<String, Value>>, Option<Map<String, Value>>), String> {
     let pure_probe_bin = locate_binary(
         root,
         &[
@@ -779,6 +862,7 @@ fn run_impl(
         "lane": LANE_ID,
         "mode": cmd,
         "ts": now_iso(),
+        "environment_fingerprint": benchmark_environment_fingerprint(root),
         "snapshot_path": snapshot_rel,
         "snapshot_version": snapshot.get("schema_version").cloned().unwrap_or(Value::Null),
         "snapshot_generated_from": snapshot.get("generated_from").cloned().unwrap_or(Value::Null),
@@ -828,6 +912,13 @@ fn run_impl(
                 "claim": "pure_workspace_tiny_max_profile_is_reported_when_tiny_max_daemon_artifact_is_available",
                 "evidence": {
                     "tiny_max_probe_present": pure_workspace_tiny_max_measured.is_some()
+                }
+            },
+            {
+                "id": "competitive_benchmark_matrix_environment_fingerprint",
+                "claim": "benchmark_reports_include_runtime_environment_fingerprint_for_reproducibility",
+                "evidence": {
+                    "environment_fingerprint_present": true
                 }
             }
         ]

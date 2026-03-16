@@ -137,8 +137,5 @@ fn prove_super_gate_release_allows_when_all_assurance_signals_pass() {
 
 #[kani::proof]
 fn prove_v7_top1_kani_coverage_contract_id_binding_is_stable() {
-    assert_eq!(
-        V7_TOP1_002_KANI_COVERAGE_ID,
-        "V7-TOP1-002-KANI-COVERAGE"
-    );
+    assert_eq!(V7_TOP1_002_KANI_COVERAGE_ID, "V7-TOP1-002-KANI-COVERAGE");
 }

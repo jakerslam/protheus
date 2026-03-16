@@ -2,12 +2,13 @@
 // Layer ownership: core/layer0/ops::research_batch8 (authoritative)
 
 use crate::v8_kernel::{
-    append_jsonl, parse_u64, read_json, scoped_state_root, sha256_hex_str, write_json,
+    append_jsonl, canonical_json_string, conduit_bypass_requested, parse_bool, parse_csv_flag,
+    parse_csv_or_file_unique, parse_u64, read_json, scoped_state_root, sha256_hex_str, write_json,
 };
 use crate::{clean, deterministic_receipt_hash, now_iso, ParsedArgs};
 use base64::engine::general_purpose::{STANDARD, URL_SAFE, URL_SAFE_NO_PAD};
 use base64::Engine;
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -40,102 +41,8 @@ fn read_json_or(root: &Path, rel_or_abs: &str, fallback: Value) -> Value {
     read_json(&path).unwrap_or(fallback)
 }
 
-fn parse_list_flag(parsed: &ParsedArgs, key: &str, max_item_len: usize) -> Vec<String> {
-    parsed
-        .flags
-        .get(key)
-        .map(|v| {
-            v.split(',')
-                .map(|part| clean(part, max_item_len))
-                .filter(|part| !part.is_empty())
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default()
-}
-
-fn guess_bool(raw: Option<&str>, fallback: bool) -> bool {
-    raw.map(|v| {
-        matches!(
-            v.trim().to_ascii_lowercase().as_str(),
-            "1" | "true" | "yes" | "on"
-        )
-    })
-    .unwrap_or(fallback)
-}
-
-fn parse_csv_or_file(
-    root: &Path,
-    parsed: &ParsedArgs,
-    list_key: &str,
-    file_key: &str,
-    max_item_len: usize,
-) -> Vec<String> {
-    let mut out = parse_list_flag(parsed, list_key, max_item_len);
-    if let Some(rel_or_abs) = parsed.flags.get(file_key) {
-        let path = if Path::new(rel_or_abs).is_absolute() {
-            PathBuf::from(rel_or_abs)
-        } else {
-            root.join(rel_or_abs)
-        };
-        if let Ok(raw) = fs::read_to_string(path) {
-            if raw.trim_start().starts_with('[') {
-                if let Ok(parsed_json) = serde_json::from_str::<Value>(&raw) {
-                    if let Some(rows) = parsed_json.as_array() {
-                        for row in rows {
-                            if let Some(value) = row.as_str() {
-                                let cleaned = clean(value, max_item_len);
-                                if !cleaned.is_empty() {
-                                    out.push(cleaned);
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                for row in raw.lines() {
-                    let cleaned = clean(row, max_item_len);
-                    if !cleaned.is_empty() {
-                        out.push(cleaned);
-                    }
-                }
-            }
-        }
-    }
-    out.sort();
-    out.dedup();
-    out
-}
-
-fn canonicalize_json(value: &Value) -> Value {
-    match value {
-        Value::Object(map) => {
-            let mut keys = map.keys().cloned().collect::<Vec<_>>();
-            keys.sort();
-            let mut out = Map::new();
-            for key in keys {
-                if let Some(v) = map.get(&key) {
-                    out.insert(key, canonicalize_json(v));
-                }
-            }
-            Value::Object(out)
-        }
-        Value::Array(rows) => Value::Array(rows.iter().map(canonicalize_json).collect()),
-        _ => value.clone(),
-    }
-}
-
-fn canonical_json_string(value: &Value) -> String {
-    serde_json::to_string(&canonicalize_json(value)).unwrap_or_else(|_| "null".to_string())
-}
-
 fn conduit_enforcement(root: &Path, parsed: &ParsedArgs, strict: bool, action: &str) -> Value {
-    let bypass_requested = guess_bool(parsed.flags.get("bypass").map(String::as_str), false)
-        || guess_bool(parsed.flags.get("direct").map(String::as_str), false)
-        || guess_bool(
-            parsed.flags.get("unsafe-client-route").map(String::as_str),
-            false,
-        )
-        || guess_bool(parsed.flags.get("client-bypass").map(String::as_str), false);
+    let bypass_requested = conduit_bypass_requested(&parsed.flags);
     let ok = !bypass_requested;
     let mut out = json!({
         "ok": if strict { ok } else { true },
@@ -371,7 +278,7 @@ fn load_decode_policy(root: &Path, parsed: &ParsedArgs) -> (DecodePolicy, Vec<St
         errors.push("proxy_mode_not_allowed".to_string());
     }
 
-    let mut proxies = parse_list_flag(parsed, "proxies", 240);
+    let mut proxies = parse_csv_flag(&parsed.flags, "proxies", 240);
     if proxies.is_empty() {
         if let Some(single) = parsed.flags.get("proxy").map(|v| clean(v, 240)) {
             if !single.is_empty() {
@@ -569,8 +476,8 @@ pub fn run_parallel_scrape_workers(root: &Path, parsed: &ParsedArgs, strict: boo
         errors.push("parallel_worker_contract_kind_invalid".to_string());
     }
 
-    let targets = parse_csv_or_file(root, parsed, "targets", "targets-file", 2000);
-    let mut session_ids = parse_list_flag(parsed, "session-ids", 120);
+    let targets = parse_csv_or_file_unique(root, &parsed.flags, "targets", "targets-file", 2000);
+    let mut session_ids = parse_csv_flag(&parsed.flags, "session-ids", 120);
     if session_ids.is_empty() {
         session_ids.push("session-default".to_string());
     }
@@ -979,7 +886,7 @@ fn run_decode_common(
     }
 
     let urls = if batch {
-        let mut rows = parse_csv_or_file(root, parsed, "urls", "urls-file", 2400);
+        let mut rows = parse_csv_or_file_unique(root, &parsed.flags, "urls", "urls-file", 2400);
         if rows.is_empty() {
             rows.extend(
                 parsed
@@ -1013,10 +920,7 @@ fn run_decode_common(
     }
 
     if batch {
-        let continue_on_error = guess_bool(
-            parsed.flags.get("continue-on-error").map(String::as_str),
-            true,
-        );
+        let continue_on_error = parse_bool(parsed.flags.get("continue-on-error"), true);
         let mut per_item = Vec::<Value>::new();
         let mut succeeded = 0usize;
         let mut failed = 0usize;

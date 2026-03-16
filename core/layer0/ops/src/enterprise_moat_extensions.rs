@@ -586,7 +586,10 @@ pub(super) fn run_super_gate(root: &Path, strict: bool) -> Result<Value, String>
                 .and_then(Value::as_u64)
                 .unwrap_or(0)
         });
-    let fuzz_ok = fuzz_report.get("ok").and_then(Value::as_bool).unwrap_or(false)
+    let fuzz_ok = fuzz_report
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
         || (fuzz_failures == 0 && chaos_failures == 0);
 
     let proven_ratio = top1

@@ -2,6 +2,7 @@
 // Layer ownership: core/layer1/security (authoritative)
 
 use crate::clean;
+use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -82,31 +83,24 @@ fn secrets_events_path(root: &Path) -> PathBuf {
     state_dir(root).join("secrets_events.jsonl")
 }
 
+fn contracts_state_dir(root: &Path) -> PathBuf {
+    state_dir(root).join("contracts")
+}
+
+fn contract_state_path(root: &Path, id: &str) -> PathBuf {
+    contracts_state_dir(root).join(format!("{id}.json"))
+}
+
+fn contract_history_path(root: &Path) -> PathBuf {
+    contracts_state_dir(root).join("history.jsonl")
+}
+
 fn parse_flag(argv: &[String], key: &str) -> Option<String> {
-    let pref = format!("--{key}=");
-    let key_long = format!("--{key}");
-    let mut i = 0usize;
-    while i < argv.len() {
-        let token = argv[i].trim();
-        if let Some(value) = token.strip_prefix(&pref) {
-            return Some(value.to_string());
-        }
-        if token == key_long && i + 1 < argv.len() && !argv[i + 1].starts_with("--") {
-            return Some(argv[i + 1].clone());
-        }
-        i += 1;
-    }
-    None
+    lane_utils::parse_flag(argv, key, false)
 }
 
 fn parse_bool(raw: Option<String>, fallback: bool) -> bool {
-    raw.map(|v| {
-        matches!(
-            v.trim().to_ascii_lowercase().as_str(),
-            "1" | "true" | "yes" | "on"
-        )
-    })
-    .unwrap_or(fallback)
+    lane_utils::parse_bool(raw.as_deref(), fallback)
 }
 
 fn parse_u64(raw: Option<String>, fallback: u64) -> u64 {
@@ -122,30 +116,15 @@ fn parse_subcommand(argv: &[String], fallback: &str) -> String {
 }
 
 fn append_jsonl(path: &Path, row: &Value) {
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    if let Ok(line) = serde_json::to_string(row) {
-        let _ = fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-            .and_then(|mut file| file.write_all(format!("{line}\n").as_bytes()));
-    }
+    let _ = lane_utils::append_jsonl(path, row);
 }
 
 fn write_json(path: &Path, payload: &Value) {
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    if let Ok(encoded) = serde_json::to_string_pretty(payload) {
-        let _ = fs::write(path, format!("{encoded}\n"));
-    }
+    let _ = lane_utils::write_json(path, payload);
 }
 
 fn read_json(path: &Path) -> Option<Value> {
-    let raw = fs::read_to_string(path).ok()?;
-    serde_json::from_str::<Value>(&raw).ok()
+    lane_utils::read_json(path)
 }
 
 fn hash_text(text: &str) -> String {
@@ -155,8 +134,87 @@ fn hash_text(text: &str) -> String {
 }
 
 fn persist_security_receipt(root: &Path, payload: &Value) {
-    write_json(&security_latest_path(root), payload);
-    append_jsonl(&security_history_path(root), payload);
+    let _ = lane_utils::write_json(&security_latest_path(root), payload);
+    let _ = lane_utils::append_jsonl(&security_history_path(root), payload);
+}
+
+fn run_security_contract_command(
+    root: &Path,
+    argv: &[String],
+    strict: bool,
+    command: &str,
+    contract_id: &str,
+    checks: &[(&str, Option<&str>)],
+) -> (Value, i32) {
+    let mut missing = Vec::<String>::new();
+    let mut mismatch = Vec::<String>::new();
+    let mut provided = serde_json::Map::<String, Value>::new();
+    for (key, expected) in checks {
+        let got = lane_utils::parse_flag(argv, key, false);
+        if let Some(value) = got.as_deref() {
+            provided.insert((*key).to_string(), Value::String(clean(value, 200)));
+        } else {
+            missing.push((*key).to_string());
+            continue;
+        }
+        if let Some(expected_value) = expected {
+            if got
+                .as_deref()
+                .map(|v| v.trim().eq_ignore_ascii_case(expected_value))
+                .unwrap_or(false)
+            {
+                continue;
+            }
+            mismatch.push(format!("{key}:{expected_value}"));
+        }
+    }
+
+    let ok = missing.is_empty() && mismatch.is_empty();
+    let contract_state = json!({
+        "id": contract_id,
+        "command": command,
+        "strict": strict,
+        "updated_at": now_iso(),
+        "missing_flags": missing,
+        "mismatch_flags": mismatch,
+        "provided_flags": provided
+    });
+    let path = contract_state_path(root, contract_id);
+    let _ = lane_utils::write_json(&path, &contract_state);
+    let _ = lane_utils::append_jsonl(
+        &contract_history_path(root),
+        &json!({
+            "ts": now_iso(),
+            "id": contract_id,
+            "command": command,
+            "ok": ok,
+            "strict": strict
+        }),
+    );
+
+    let out = json!({
+        "ok": ok,
+        "type": "security_plane_contract_lane",
+        "lane": "core/layer1/security",
+        "mode": command,
+        "strict": strict,
+        "contract_id": contract_id,
+        "state_path": path.display().to_string(),
+        "missing_flags": contract_state.get("missing_flags").cloned().unwrap_or(Value::Null),
+        "mismatch_flags": contract_state.get("mismatch_flags").cloned().unwrap_or(Value::Null),
+        "claim_evidence": [{
+            "id": contract_id,
+            "claim": "security_contract_lane_executes_with_fail_closed_validation_and_receipted_state_artifacts",
+            "evidence": {
+                "command": command,
+                "state_path": path.display().to_string(),
+                "missing_flags": contract_state.get("missing_flags").cloned().unwrap_or(Value::Null),
+                "mismatch_flags": contract_state.get("mismatch_flags").cloned().unwrap_or(Value::Null)
+            }
+        }]
+    });
+    let exit = if strict && !ok { 2 } else { 0 };
+    (out, exit)
 }
 
 const INJECTION_PATTERNS: [&str; 8] = [
@@ -415,7 +473,10 @@ fn run_remediation_command(root: &Path, _argv: &[String], strict: bool) -> (Valu
         },
         "next_action": if promotion_blocked { "rescan_required" } else { "promotion_allowed" }
     });
-    let patch_path = remediation_state_dir(root).join(format!("prompt_policy_patch_{}.json", &scan_id[..16.min(scan_id.len())]));
+    let patch_path = remediation_state_dir(root).join(format!(
+        "prompt_policy_patch_{}.json",
+        &scan_id[..16.min(scan_id.len())]
+    ));
     write_json(&patch_path, &patch);
     write_json(
         &remediation_gate_path(root),
@@ -885,36 +946,45 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             infring_layer1_security::run_abac_policy_plane(root, rest)
         }
         "scan" => run_scan_command(root, rest, parse_bool(parse_flag(rest, "strict"), true)),
-        "remediate" | "auto-remediate" | "auto_remediate" => run_remediation_command(
-            root,
-            rest,
-            parse_bool(parse_flag(rest, "strict"), true),
-        ),
-        "blast-radius-sentinel" | "blast_radius_sentinel" => run_blast_radius_command(
-            root,
-            rest,
-            parse_bool(parse_flag(rest, "strict"), true),
-        ),
-        "secrets-federation" | "secrets_federation" => run_secrets_federation_command(
-            root,
-            rest,
-            parse_bool(parse_flag(rest, "strict"), true),
-        ),
-        "copy-hardening-pack" | "copy_hardening_pack" => {
-            compatibility_security_command("copy-hardening-pack", rest)
+        "remediate" | "auto-remediate" | "auto_remediate" => {
+            run_remediation_command(root, rest, parse_bool(parse_flag(rest, "strict"), true))
         }
+        "blast-radius-sentinel" | "blast_radius_sentinel" => {
+            run_blast_radius_command(root, rest, parse_bool(parse_flag(rest, "strict"), true))
+        }
+        "secrets-federation" | "secrets_federation" => {
+            run_secrets_federation_command(root, rest, parse_bool(parse_flag(rest, "strict"), true))
+        }
+        "copy-hardening-pack" | "copy_hardening_pack" => run_security_contract_command(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+            "copy-hardening-pack",
+            "V6-SEC-014",
+            &[("pack-uri", None), ("version", None)],
+        ),
         "governance-hardening-pack" | "governance_hardening_pack" => {
             compatibility_security_command("governance-hardening-pack", rest)
         }
-        "repository-access-auditor" | "repository_access_auditor" => {
-            compatibility_security_command("repository-access-auditor", rest)
-        }
+        "repository-access-auditor" | "repository_access_auditor" => run_security_contract_command(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+            "repository-access-auditor",
+            "V6-SEC-004",
+            &[("report-path", None)],
+        ),
         "operator-terms-ack" | "operator_terms_ack" => {
             compatibility_security_command("operator-terms-ack", rest)
         }
-        "governance-hardening-lane" | "governance_hardening_lane" => {
-            compatibility_security_command("governance-hardening-lane", rest)
-        }
+        "governance-hardening-lane" | "governance_hardening_lane" => run_security_contract_command(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+            "governance-hardening-lane",
+            "V6-SEC-013",
+            &[("scoreboard-path", None), ("window-days", None)],
+        ),
         "skill-install-path-enforcer" | "skill_install_path_enforcer" => {
             compatibility_security_command("skill-install-path-enforcer", rest)
         }
@@ -924,27 +994,47 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "autonomous-skill-necessity-audit" | "autonomous_skill_necessity_audit" => {
             compatibility_security_command("autonomous-skill-necessity-audit", rest)
         }
-        "formal-invariant-engine" | "formal_invariant_engine" => {
-            compatibility_security_command("formal-invariant-engine", rest)
-        }
+        "formal-invariant-engine" | "formal_invariant_engine" => run_security_contract_command(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+            "formal-invariant-engine",
+            "V6-SEC-005",
+            &[("proof-pack", None)],
+        ),
         "repo-hygiene-guard" | "repo_hygiene_guard" => {
             compatibility_security_command("repo-hygiene-guard", rest)
         }
         "capability-envelope-guard" | "capability_envelope_guard" => {
             compatibility_security_command("capability-envelope-guard", rest)
         }
-        "ip-posture-review" | "ip_posture_review" => {
-            compatibility_security_command("ip-posture-review", rest)
-        }
+        "ip-posture-review" | "ip_posture_review" => run_security_contract_command(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+            "ip-posture-review",
+            "V6-SEC-002",
+            &[("public-url", None)],
+        ),
         "habit-hygiene-guard" | "habit_hygiene_guard" => {
             compatibility_security_command("habit-hygiene-guard", rest)
         }
-        "enterprise-access-gate" | "enterprise_access_gate" => {
-            compatibility_security_command("enterprise-access-gate", rest)
-        }
-        "model-vaccine-sandbox" | "model_vaccine_sandbox" => {
-            compatibility_security_command("model-vaccine-sandbox", rest)
-        }
+        "enterprise-access-gate" | "enterprise_access_gate" => run_security_contract_command(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+            "enterprise-access-gate",
+            "V6-SEC-009",
+            &[("profile", None)],
+        ),
+        "model-vaccine-sandbox" | "model_vaccine_sandbox" => run_security_contract_command(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+            "model-vaccine-sandbox",
+            "V6-SEC-008",
+            &[("suite", None)],
+        ),
         "skill-install-enforcer" | "skill_install_enforcer" => {
             compatibility_security_command("skill-install-enforcer", rest)
         }
@@ -954,18 +1044,28 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "workspace-dump-guard" | "workspace_dump_guard" => {
             compatibility_security_command("workspace-dump-guard", rest)
         }
-        "external-security-cycle" | "external_security_cycle" => {
-            compatibility_security_command("external-security-cycle", rest)
-        }
+        "external-security-cycle" | "external_security_cycle" => run_security_contract_command(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+            "external-security-cycle",
+            "V6-SEC-007",
+            &[("deployment-id", None)],
+        ),
         "log-redaction-guard" | "log_redaction_guard" => {
             compatibility_security_command("log-redaction-guard", rest)
         }
         "rsi-git-patch-self-mod-gate" | "rsi_git_patch_self_mod_gate" => {
             compatibility_security_command("rsi-git-patch-self-mod-gate", rest)
         }
-        "request-ingress" | "request_ingress" => {
-            compatibility_security_command("request-ingress", rest)
-        }
+        "request-ingress" | "request_ingress" => run_security_contract_command(
+            root,
+            rest,
+            parse_bool(parse_flag(rest, "strict"), true),
+            "request-ingress",
+            "V6-SEC-006",
+            &[("policy-version", None), ("contact", None)],
+        ),
         "startup-attestation-boot-gate" | "startup_attestation_boot_gate" => {
             compatibility_security_command("startup-attestation-boot-gate", rest)
         }
@@ -976,10 +1076,27 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             compatibility_security_command("llm-gateway-guard", rest)
         }
         "required-checks-policy-guard" | "required_checks_policy_guard" => {
-            compatibility_security_command("required-checks-policy-guard", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "required-checks-policy-guard",
+                "V6-SEC-003",
+                &[
+                    ("codeql", Some("required")),
+                    ("dependabot", Some("required")),
+                ],
+            )
         }
         "mcp-a2a-venom-contract-gate" | "mcp_a2a_venom_contract_gate" => {
-            compatibility_security_command("mcp-a2a-venom-contract-gate", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "mcp-a2a-venom-contract-gate",
+                "V6-SEC-015",
+                &[("boundary", Some("conduit_only"))],
+            )
         }
         "critical-runtime-formal-depth-pack" | "critical_runtime_formal_depth_pack" => {
             compatibility_security_command("critical-runtime-formal-depth-pack", rest)
@@ -988,10 +1105,24 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             compatibility_security_command("dire-case-emergency-autonomy-protocol", rest)
         }
         "supply-chain-reproducible-build-plane" | "supply_chain_reproducible_build_plane" => {
-            compatibility_security_command("supply-chain-reproducible-build-plane", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "supply-chain-reproducible-build-plane",
+                "V6-SEC-001",
+                &[("sbom-path", None), ("release-tag", None)],
+            )
         }
         "signed-plugin-trust-marketplace" | "signed_plugin_trust_marketplace" => {
-            compatibility_security_command("signed-plugin-trust-marketplace", rest)
+            run_security_contract_command(
+                root,
+                rest,
+                parse_bool(parse_flag(rest, "strict"), true),
+                "signed-plugin-trust-marketplace",
+                "V6-SEC-017",
+                &[("advisory-id", None), ("sbom-digest", None)],
+            )
         }
         "phoenix-protocol-respawn-continuity" | "phoenix_protocol_respawn_continuity" => {
             compatibility_security_command("phoenix-protocol-respawn-continuity", rest)

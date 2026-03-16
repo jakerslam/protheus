@@ -99,16 +99,16 @@ Sources:
 
 | Metric | InfRing (rich) | InfRing (pure) | InfRing (tiny-max) | Snapshot/Reference |
 |---|---:|---:|---:|---:|
-| Cold start | 5.8 ms | 4.0 ms | 2.3 ms | 74.5 ms |
-| Idle memory | 9.6 MB | 1.4 MB | 1.4 MB | 22.1 MB |
-| Install size (full) | 11.4 MB | 0.7 MB | 0.5 MB | 126.4 MB |
-| Throughput | 12,835 ops/sec | 12,414 ops/sec | 12,632 ops/sec | 7,420 ops/sec |
+| Cold start | 4.8 ms | 4.0 ms | 2.1 ms | 74.5 ms |
+| Idle memory | 9.7 MB | 1.4 MB | 1.4 MB | 22.1 MB |
+| Install size (full) | 11.5 MB | 0.7 MB | 0.5 MB | 126.4 MB |
+| Throughput | 12,763.5 ops/sec | 12,168.2 ops/sec | 12,540.3 ops/sec | 7,420.0 ops/sec |
 
 | Capability Counter | InfRing (rich) | InfRing (pure) | InfRing (tiny-max) |
 |---|---:|---:|---:|
-| Static daemon size (musl + UPX) | 0.5 MB | 0.5 MB | 0.3 MB |
+| Static daemon size (musl + UPX) | 0.4 MB | 0.4 MB | 0.3 MB |
 | Rust client binary size (musl + UPX) | n/a | 0.2 MB | 0.2 MB |
-| Full binary system set (daemon + pure client + tiny daemon) | 1.0 MB | 1.0 MB | 1.0 MB |
+| Full binary system set (daemon + pure client + tiny daemon) | 0.9 MB | 0.9 MB | 0.9 MB |
 | Security systems | 83 | 83 | 83 |
 | Channel adapters | 6 | 0 | 0 |
 | LLM providers | 3 | 0 | 0 |
@@ -120,9 +120,9 @@ External baseline (OpenFang public table):
 
 | Project | Install Size (MB) ↓ | Cold Start ↓ | Idle Memory (MB) ↓ | Throughput (ops/sec) ↑ | Static Daemon (MB) ↓ | Security Systems ↑ | Channel Adapters ↑ | LLM Providers ↑ |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| **InfRing (rich)** | **11.4** | **5.8 ms** | **9.6** | **12,835** | **0.5** | **83** | 6 | 3 |
-| **InfRing (pure)** | **0.7** | **4.0 ms** | **1.4** | **12,414** | **0.5** | **83** | 0 | 0 |
-| **InfRing (tiny-max)** | **0.5** | **2.3 ms** | **1.4** | **12,632** | **0.3** | **83** | 0 | 0 |
+| **InfRing (rich)** | **11.5** | **4.8 ms** | **9.7** | **12,763.5** | **0.4** | **83** | 6 | 3 |
+| **InfRing (pure)** | **0.7** | **4.0 ms** | **1.4** | **12,168.2** | **0.4** | **83** | 0 | 0 |
+| **InfRing (tiny-max)** | **0.5** | **2.1 ms** | **1.4** | **12,540.3** | **0.3** | **83** | 0 | 0 |
 | OpenFang | 32.0 | 180.0 ms | 40.0 | n/p | n/p | 16 | 40 | 27 |
 | OpenHands | 95.5 | 1.3 sec | 150.0 | n/p | n/p | 7 | 15 | 5 |
 | LangGraph | 150.0 | 2.5 sec | 180.0 | n/p | n/p | 2 | 4 | 15 |
@@ -133,7 +133,7 @@ External baseline (OpenFang public table):
 
 Pure Workspace mode is 100% Rust with no Node/TS runtime surfaces and is designed to run on low-resource hardware.
 Pure Workspace Tiny-Max is the low-resource profile for old/embedded targets and keeps the same Rust-only control boundary.
-Tiny-max currently ships with a 0.3 MB daemon and a 1.0 MB full binary system set (below the 1.1 MB target envelope), and is the active lane for microcontroller and 1990s-hardware deployment proof.
+Tiny-max currently ships with a 0.3 MB daemon and a 0.9 MB full binary system set (below the 1.1 MB target envelope), and is the active lane for microcontroller and 1990s-hardware deployment proof.
 Tiny-max is the smallest full agentic OS artifact shipped in this repo today and is optimized for microcontroller and 1990s-hardware deployment lanes.
 
 ### Tiny-Max Extreme Hardware Proof Status
@@ -152,9 +152,9 @@ Tiny-max is the smallest full agentic OS artifact shipped in this repo today and
 
 ```text
 Cold Start Time (lower is better)
-OpenClaw   ###########################################-  5.8 ms
+OpenClaw   ###########################################-  4.8 ms
 Pure       ###########################################-  4.0 ms
-Tiny-Max   ###########################################-  2.3 ms
+Tiny-Max   ###########################################-  2.1 ms
 OpenFang   ##########################################--  180.0 ms
 OpenHands  ###############################-------------  1.3 sec
 LangGraph  #################---------------------------  2.5 sec
@@ -166,7 +166,7 @@ AutoGen    #-------------------------------------------  4.0 sec
 Idle Memory Usage (lower is better)
 Pure       ############################################  1.4 MB
 Tiny-Max   ############################################  1.4 MB
-OpenClaw   ###########################################-  9.6 MB
+OpenClaw   ###########################################-  9.7 MB
 OpenFang   #####################################-------  40.0 MB
 OpenHands  ####################------------------------  150.0 MB
 LangGraph  ##############------------------------------  180.0 MB
@@ -178,7 +178,7 @@ AutoGen    #-------------------------------------------  250.0 MB
 Install Size (lower is better)
 Tiny-Max   ############################################  0.5 MB
 Pure       ###########################################-  0.7 MB
-OpenClaw   ##########################################--  11.4 MB
+OpenClaw   ##########################################--  11.5 MB
 OpenFang   #####################################-------  32.0 MB
 OpenHands  ###########################-----------------  95.5 MB
 CrewAI     ##########################------------------  100.0 MB
@@ -198,9 +198,9 @@ CrewAI     #-------------------------------------------  1
 
 ```text
 Throughput (ops/sec, higher is better)
-OpenClaw   ############################################  12,835
-Pure       ###########################################-  12,414
-Tiny-Max   ###########################################-  12,632
+OpenClaw   ############################################  12,763.5
+Pure       ###########################################-  12,168.2
+Tiny-Max   ###########################################-  12,540.3
 OpenFang   n/p
 OpenHands  n/p
 LangGraph  n/p

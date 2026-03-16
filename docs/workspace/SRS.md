@@ -5985,28 +5985,28 @@ Implementation Note (Manual Override): Code-level details may include stronger c
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V5-RUST-PROD-001 | existing-coverage-validated | [scale-readiness / V5] Rust Hotspot Baseline + ROI Prioritization Contract | Rust migration effort is currently broad but not explicitly ranked by measurable runtime/cost impact, which risks spending effort on low-yield components. | Produce a canonical hotspot inventory (CPU/heap/queue-lag/p95/p99), ranked by expected ROI and risk; include ADR receipts for top candidates, explicit no-migrate list for I/O-bound paths, and verify via reproducible benchmark/check receipts with rollback path to baseline prioritization profile. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V4-SCALE-001, V4-RUST-001 / 6 / 1/2/client | 9 | 0/1/2/client |
-| V5-RUST-PROD-002 | existing-coverage-validated | [hardening / V5] TS/Rust Boundary Contract + ABI/Schema Stability Gate | Cross-language boundaries can drift silently, causing correctness and operability regressions at scale. | Define and enforce versioned Rust/TS ABI + schema contracts (N-API/WASM/FFI), add compatibility tests and schema drift CI gate, and verify via contract-check receipts with rollback path to previous interface version. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-001 / 6 / 1/2/client Regression revalidation pending: restore non-backlog implementation evidence and/or executable verification receipts. | 9 | 0/1/2/client |
-| V5-RUST-PROD-003 | existing-coverage-validated | [primitive-upgrade / V5] Scheduler + Queue Worker Rust Migration (High-Contention Paths) | Event-loop pressure and queue contention remain core throughput/latency risk for scale tiers. | Migrate scheduler/worker hot paths to Rust with parity harness, backpressure invariants, and benchmark proof (throughput, p95/p99, CPU/memory); verify canary promotion receipts and tested rollback to TS worker path. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-001, V5-RUST-PROD-002, V4-SCALE-003 / 6 / 1/2/client | 9 | 0/1/2/client |
-| V5-RUST-PROD-004 | existing-coverage-validated | [primitive-upgrade / V5] Memory Retrieval/Index Hot Path Rust Cutover | Retrieval/indexing loops remain high-frequency cost centers and can dominate latency under load. | Move retrieval/index hot loops to Rust (vector/ANN/search/transform), require correctness parity + latency/cost receipts under production-like load, and include rollback-safe fallback to prior retrieval implementation. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-001, V5-RUST-PROD-002, V3-RACE-065 / 6 / 1/2/client | 9 | 0/1/2/client |
-| V5-RUST-PROD-005 | existing-coverage-validated | [extension / V5] Transform/Scoring Pipeline Rust Offload (CPU-Bound Stages) | Pre/post-processing stages still consume disproportionate CPU and GC overhead in hot paths. | Migrate CPU-bound transform/scoring stages to Rust with bounded allocation policy, prove non-regression via parity/perf receipts, and ensure deterministic rollback to TS pipeline stage when thresholds fail. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-001, V5-RUST-PROD-002 / 6 / 1/2/client | 7 | 0/1/2/client |
-| V5-RUST-PROD-006 | existing-coverage-validated | [hardening / V5] Zero-Copy Serialization/Data Movement Contract | Repeated encode/decode and copy-heavy data movement increases latency and cost at high throughput. | Implement zero-copy/low-copy serialization boundaries for migrated lanes, enforce schema compatibility and memory safety checks, verify via perf + correctness receipts, and provide rollback to prior serialization path. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-002, V5-RUST-PROD-004, V5-RUST-PROD-005 / 6 / 1/2/client | 10 | 0/1/2/client |
-| V5-RUST-PROD-007 | existing-coverage-validated | [hardening / V5] Rust Perf Regression CI Gate (Latency/Throughput/Cost Budgets) | Migrations can regress over time without hard CI performance budgets and automated guardrails. | Add CI gate enforcing component-specific p95/p99/throughput/cost budgets for migrated lanes, fail promotion on budget regression, verify with benchmark receipts, and include rollback-safe gate bypass policy for emergency recovery only. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-001, V5-RUST-PROD-003, V5-RUST-PROD-004, V5-RUST-PROD-005 / 6 / 1/2/client | 10 | 0/1/2/client |
-| V5-RUST-PROD-008 | existing-coverage-validated | [scale-readiness / V5] Canary Rollout + Auto-Rollback for Rust Lanes | Rust migrations need controlled production exposure with automatic safety response to protect SLO/error budgets. | Ship Rust lanes behind feature flags with staged canary rollout and automatic rollback triggers (SLO/error/crash), verify release receipts across canary stages, and provide one-command rollback to previous stable profile. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-003, V5-RUST-PROD-004, V5-RUST-PROD-005, V4-SCALE-007 / 6 / 1/2/client | 10 | 0/1/2/client |
-| V5-RUST-PROD-009 | existing-coverage-validated | [hardening / V5] Rust Observability + SRE Runbook Parity Pack | Mixed-language runtime is harder to operate unless telemetry and incident playbooks are equivalent across paths. | Ensure Rust lanes emit parity metrics/traces/log fields, update incident/runbook coverage, verify via ops drills and telemetry parity receipts, and include rollback to baseline observability profile if parity fails. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-003, V5-RUST-PROD-004, V5-RUST-PROD-008, V4-SCALE-008 / 6 / 1/2/client | 9 | 0/1/2/client |
-| V5-RUST-PROD-010 | existing-coverage-validated | [hardening / V5] Rust Supply-Chain + Reproducible Build Governance | Enterprise Rust adoption is high risk without crate governance, reproducibility, and vulnerability/license control. | Enforce crate pinning/MSRV/toolchain policy, cargo audit/license checks, reproducible build attestations, and verify via signed governance receipts with rollback to prior trusted artifact set when checks fail. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-002, V4-RUST-003 / 6 / 1/2/client | 6 | 0/1/2/client |
-| V5-RUST-PROD-011 | existing-coverage-validated | [extension / V5] Rust Workspace DX + Standards Program (Enterprise Team Workflow) | Migration velocity stalls without shared crate templates, ownership rules, and disciplined developer workflow standards. | Deliver workspace standards (crate templates, codeowners, lint/test profiles, migration playbook), verify adoption via CI/ownership checks, and maintain rollback path to previous workflow profile if standards rollout causes release friction. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-002, V5-RUST-PROD-007, V5-RUST-PROD-010 / 6 / 1/2/client | 9 | 0/1/2/client |
-| V5-RUST-PROD-012 | existing-coverage-validated | [scale-readiness / V5] Rust-at-Scale Capacity + Unit Economics Validation | Performance wins are incomplete unless they translate into lower cost per user and sustainable million-user operations. | Validate migrated lanes against capacity and cost-per-user targets, publish stage-gated receipts for throughput/latency/unit-economics, and enforce rollback to prior runtime profile if economics or reliability regress. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-008, V5-RUST-PROD-009, V5-RUST-PROD-010, V4-SCALE-010 / 6 / 1/2/client Regression revalidation pending: restore non-backlog implementation evidence and/or executable verification receipts. | 9 | 0/1/2/client |
+| V5-RUST-PROD-001 | done | [scale-readiness / V5] Rust Hotspot Baseline + ROI Prioritization Contract | Rust migration effort is currently broad but not explicitly ranked by measurable runtime/cost impact, which risks spending effort on low-yield components. | Produce a canonical hotspot inventory (CPU/heap/queue-lag/p95/p99), ranked by expected ROI and risk; include ADR receipts for top candidates, explicit no-migrate list for I/O-bound paths, and verify via reproducible benchmark/check receipts with rollback path to baseline prioritization profile. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V4-SCALE-001, V4-RUST-001 / 6 / 1/2/client | 9 | 0/1/2/client |
+| V5-RUST-PROD-002 | done | [hardening / V5] TS/Rust Boundary Contract + ABI/Schema Stability Gate | Cross-language boundaries can drift silently, causing correctness and operability regressions at scale. | Define and enforce versioned Rust/TS ABI + schema contracts (N-API/WASM/FFI), add compatibility tests and schema drift CI gate, and verify via contract-check receipts with rollback path to previous interface version. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-001 / 6 / 1/2/client Regression revalidation pending: restore non-backlog implementation evidence and/or executable verification receipts. | 9 | 0/1/2/client |
+| V5-RUST-PROD-003 | done | [primitive-upgrade / V5] Scheduler + Queue Worker Rust Migration (High-Contention Paths) | Event-loop pressure and queue contention remain core throughput/latency risk for scale tiers. | Migrate scheduler/worker hot paths to Rust with parity harness, backpressure invariants, and benchmark proof (throughput, p95/p99, CPU/memory); verify canary promotion receipts and tested rollback to TS worker path. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-001, V5-RUST-PROD-002, V4-SCALE-003 / 6 / 1/2/client | 9 | 0/1/2/client |
+| V5-RUST-PROD-004 | done | [primitive-upgrade / V5] Memory Retrieval/Index Hot Path Rust Cutover | Retrieval/indexing loops remain high-frequency cost centers and can dominate latency under load. | Move retrieval/index hot loops to Rust (vector/ANN/search/transform), require correctness parity + latency/cost receipts under production-like load, and include rollback-safe fallback to prior retrieval implementation. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-001, V5-RUST-PROD-002, V3-RACE-065 / 6 / 1/2/client | 9 | 0/1/2/client |
+| V5-RUST-PROD-005 | done | [extension / V5] Transform/Scoring Pipeline Rust Offload (CPU-Bound Stages) | Pre/post-processing stages still consume disproportionate CPU and GC overhead in hot paths. | Migrate CPU-bound transform/scoring stages to Rust with bounded allocation policy, prove non-regression via parity/perf receipts, and ensure deterministic rollback to TS pipeline stage when thresholds fail. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-001, V5-RUST-PROD-002 / 6 / 1/2/client | 7 | 0/1/2/client |
+| V5-RUST-PROD-006 | done | [hardening / V5] Zero-Copy Serialization/Data Movement Contract | Repeated encode/decode and copy-heavy data movement increases latency and cost at high throughput. | Implement zero-copy/low-copy serialization boundaries for migrated lanes, enforce schema compatibility and memory safety checks, verify via perf + correctness receipts, and provide rollback to prior serialization path. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-002, V5-RUST-PROD-004, V5-RUST-PROD-005 / 6 / 1/2/client | 10 | 0/1/2/client |
+| V5-RUST-PROD-007 | done | [hardening / V5] Rust Perf Regression CI Gate (Latency/Throughput/Cost Budgets) | Migrations can regress over time without hard CI performance budgets and automated guardrails. | Add CI gate enforcing component-specific p95/p99/throughput/cost budgets for migrated lanes, fail promotion on budget regression, verify with benchmark receipts, and include rollback-safe gate bypass policy for emergency recovery only. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-001, V5-RUST-PROD-003, V5-RUST-PROD-004, V5-RUST-PROD-005 / 6 / 1/2/client | 10 | 0/1/2/client |
+| V5-RUST-PROD-008 | done | [scale-readiness / V5] Canary Rollout + Auto-Rollback for Rust Lanes | Rust migrations need controlled production exposure with automatic safety response to protect SLO/error budgets. | Ship Rust lanes behind feature flags with staged canary rollout and automatic rollback triggers (SLO/error/crash), verify release receipts across canary stages, and provide one-command rollback to previous stable profile. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-003, V5-RUST-PROD-004, V5-RUST-PROD-005, V4-SCALE-007 / 6 / 1/2/client | 10 | 0/1/2/client |
+| V5-RUST-PROD-009 | done | [hardening / V5] Rust Observability + SRE Runbook Parity Pack | Mixed-language runtime is harder to operate unless telemetry and incident playbooks are equivalent across paths. | Ensure Rust lanes emit parity metrics/traces/log fields, update incident/runbook coverage, verify via ops drills and telemetry parity receipts, and include rollback to baseline observability profile if parity fails. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-003, V5-RUST-PROD-004, V5-RUST-PROD-008, V4-SCALE-008 / 6 / 1/2/client | 9 | 0/1/2/client |
+| V5-RUST-PROD-010 | done | [hardening / V5] Rust Supply-Chain + Reproducible Build Governance | Enterprise Rust adoption is high risk without crate governance, reproducibility, and vulnerability/license control. | Enforce crate pinning/MSRV/toolchain policy, cargo audit/license checks, reproducible build attestations, and verify via signed governance receipts with rollback to prior trusted artifact set when checks fail. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-002, V4-RUST-003 / 6 / 1/2/client | 6 | 0/1/2/client |
+| V5-RUST-PROD-011 | done | [extension / V5] Rust Workspace DX + Standards Program (Enterprise Team Workflow) | Migration velocity stalls without shared crate templates, ownership rules, and disciplined developer workflow standards. | Deliver workspace standards (crate templates, codeowners, lint/test profiles, migration playbook), verify adoption via CI/ownership checks, and maintain rollback path to previous workflow profile if standards rollout causes release friction. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-002, V5-RUST-PROD-007, V5-RUST-PROD-010 / 6 / 1/2/client | 9 | 0/1/2/client |
+| V5-RUST-PROD-012 | done | [scale-readiness / V5] Rust-at-Scale Capacity + Unit Economics Validation | Performance wins are incomplete unless they translate into lower cost per user and sustainable million-user operations. | Validate migrated lanes against capacity and cost-per-user targets, publish stage-gated receipts for throughput/latency/unit-economics, and enforce rollback to prior runtime profile if economics or reliability regress. Evidence: `client/runtime/systems/ops/rust_enterprise_productivity_program.ts`. / V5-RUST-PROD-008, V5-RUST-PROD-009, V5-RUST-PROD-010, V4-SCALE-010 / 6 / 1/2/client Regression revalidation pending: restore non-backlog implementation evidence and/or executable verification receipts. | 9 | 0/1/2/client |
 
 ## Hold-Rate Reduction Program (2026-03-03)
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V5-HOLD-001 | existing-coverage-validated | [hardening / V5] Unchanged-State Admission Gate | Repeated `stop_repeat_gate_unchanged_state` holds are consuming attempt budget without producing net-new actionability. | Add pre-admission state-delta checks and semantic dedupe so unchanged proposals are parked before attempt accounting, with explicit reason receipts and configurable freshness windows. Verify with 30-day replay and hold-taxonomy receipts; success criteria: reduce unchanged-state holds by >=50% while preserving shipped yield. Rollback by disabling admission delta gate and reverting to baseline queue policy profile. / V4-SELF-001, V4-SCALE-003 / 6 / 1/2/client | 6 | 0/1/2/client |
-| V5-HOLD-002 | existing-coverage-validated | [hardening / V5] Confidence Routing Calibration + Canary Execute Band | `score_only_fallback_low_execution_confidence` holds are blocking potentially actionable work because routing thresholds are too conservative for current signal quality. | Implement calibrated confidence thresholds with a bounded canary-execute band for mid-confidence proposals, plus replay-backed precision/recall receipts and automatic rollback to prior thresholds on safety regressions. Success criteria: cut low-confidence holds by >=40% while keeping safety-stop rate within existing warn band. / V5-HOLD-001, V4-SCALE-007 / 6 / 1/2/client | 10 | 0/1/2/client |
-| V5-HOLD-003 | existing-coverage-validated | [scale-readiness / V5] Cap-Aware Deferred Queue Scheduler | Daily/canary cap holds are being counted as policy holds instead of being deferred cleanly, inflating hold rate and wasting attempt slots. | Introduce cap-aware scheduling that defers excess runnable work to a parked queue without consuming attempts, with deterministic rehydration when caps reopen and queue-aging SLO receipts. Verify with queue-drain simulation receipts; success criteria: reduce cap-related holds by >=60% and stale-pending backlog by >=30% over 30 days. Rollback by restoring baseline scheduler cap-handling policy. / V4-SCALE-003, V4-SCALE-007 / 6 / 1/2/client | 6 | 0/1/2/client |
-| V5-HOLD-004 | existing-coverage-validated | [hardening / V5] Routeability Preflight Lint (`not_executable` / `gate_manual`) | `init_gate_blocked_route` events from `not_executable` and manual-gate requirements are entering execution flow too late and turning into avoidable holds. | Add a preflight routeability lint that classifies proposals as executable/defer/manual before admission; auto-route manual items to human queue and emit structured reasons without attempt burn. Verify with routeability replay receipts and manual-queue routing checks; success criteria: reduce route-block holds by >=70% with zero increase in unsafe executions. Rollback by bypassing preflight lint and restoring legacy admission routing. / V5-HOLD-001, V4-SCALE-008 / 8 / 1/2/client | 8 | 0/1/2/client |
-| V5-HOLD-005 | existing-coverage-validated | [hardening / V5] Budget Burst Smoothing + Autopause Prevention | Autopause-triggered budget holds still appear in the window when burn bursts exceed pacing controls, increasing hold churn and forcing hard stops. | Add token-burst smoothing and budget preflight pacing in the route path, with proactive deferral when projected burn crosses guard bands; emit budget-pressure receipts and enforce rollback-safe bypass policy for emergency-only mode. Success criteria: keep budget-hold rate below 0.05 for 30 consecutive days. / V5-HOLD-003, V4-SCALE-010 / 6 / 1/2/client | 10 | 0/1/2/client |
+| V5-HOLD-001 | done | [hardening / V5] Unchanged-State Admission Gate | Repeated `stop_repeat_gate_unchanged_state` holds are consuming attempt budget without producing net-new actionability. | Add pre-admission state-delta checks and semantic dedupe so unchanged proposals are parked before attempt accounting, with explicit reason receipts and configurable freshness windows. Verify with 30-day replay and hold-taxonomy receipts; success criteria: reduce unchanged-state holds by >=50% while preserving shipped yield. Rollback by disabling admission delta gate and reverting to baseline queue policy profile. / V4-SELF-001, V4-SCALE-003 / 6 / 1/2/client | 6 | 0/1/2/client |
+| V5-HOLD-002 | done | [hardening / V5] Confidence Routing Calibration + Canary Execute Band | `score_only_fallback_low_execution_confidence` holds are blocking potentially actionable work because routing thresholds are too conservative for current signal quality. | Implement calibrated confidence thresholds with a bounded canary-execute band for mid-confidence proposals, plus replay-backed precision/recall receipts and automatic rollback to prior thresholds on safety regressions. Success criteria: cut low-confidence holds by >=40% while keeping safety-stop rate within existing warn band. / V5-HOLD-001, V4-SCALE-007 / 6 / 1/2/client | 10 | 0/1/2/client |
+| V5-HOLD-003 | done | [scale-readiness / V5] Cap-Aware Deferred Queue Scheduler | Daily/canary cap holds are being counted as policy holds instead of being deferred cleanly, inflating hold rate and wasting attempt slots. | Introduce cap-aware scheduling that defers excess runnable work to a parked queue without consuming attempts, with deterministic rehydration when caps reopen and queue-aging SLO receipts. Verify with queue-drain simulation receipts; success criteria: reduce cap-related holds by >=60% and stale-pending backlog by >=30% over 30 days. Rollback by restoring baseline scheduler cap-handling policy. / V4-SCALE-003, V4-SCALE-007 / 6 / 1/2/client | 6 | 0/1/2/client |
+| V5-HOLD-004 | done | [hardening / V5] Routeability Preflight Lint (`not_executable` / `gate_manual`) | `init_gate_blocked_route` events from `not_executable` and manual-gate requirements are entering execution flow too late and turning into avoidable holds. | Add a preflight routeability lint that classifies proposals as executable/defer/manual before admission; auto-route manual items to human queue and emit structured reasons without attempt burn. Verify with routeability replay receipts and manual-queue routing checks; success criteria: reduce route-block holds by >=70% with zero increase in unsafe executions. Rollback by bypassing preflight lint and restoring legacy admission routing. / V5-HOLD-001, V4-SCALE-008 / 8 / 1/2/client | 8 | 0/1/2/client |
+| V5-HOLD-005 | done | [hardening / V5] Budget Burst Smoothing + Autopause Prevention | Autopause-triggered budget holds still appear in the window when burn bursts exceed pacing controls, increasing hold churn and forcing hard stops. | Add token-burst smoothing and budget preflight pacing in the route path, with proactive deferral when projected burn crosses guard bands; emit budget-pressure receipts and enforce rollback-safe bypass policy for emergency-only mode. Success criteria: keep budget-hold rate below 0.05 for 30 consecutive days. / V5-HOLD-003, V4-SCALE-010 / 6 / 1/2/client | 10 | 0/1/2/client |
 
 ## Ethereal Runtime Program (Google Doc Intake 2026-03-03)
 
@@ -6081,16 +6081,16 @@ Implementation Note (Manual Override): Code-level details may include stronger c
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V5-RUST-HYB-001 | existing-coverage-validated | [scale-readiness / V5] 15-25% Rust Share Control Plan | Rust migration direction needs an explicit bounded target to maximize performance/safety gains without over-rotating into full rewrite risk and delivery slowdown. | Define and lock a hybrid target plan (`15-25%` repository Rust share) with lane-level scope boundaries, excluded TS-first surfaces, and stage gates tied to runtime impact metrics. Verify via language-share baseline report + signed migration ADR receipts; rollback by restoring prior migration governance profile. / V5-RUST-PROD-001, V5-RUST-PROD-011 / 6 / 1/2/client | 10 | 0/1/2/client |
-| V5-RUST-HYB-002 | existing-coverage-validated | [primitive-upgrade / V5] Memory Lane Rust Completion (Scheduler + Compression + SQLite Hot Paths) | Memory/scheduling/compression loops remain split across language boundaries and leave performance/safety gains partially realized. | Complete Rust implementation for memory scheduler/compression/SQLite hot paths while preserving TS orchestration wrappers and compatibility contracts. Verify via parity + latency/memory benchmark receipts and crash-free soak results; rollback by feature-flagging Rust memory path off and restoring previous adapter mode. / V5-RUST-HYB-001, V5-RUST-PROD-004, V5-RUST-PROD-006 / 6 / 1/2/client/adapter | 10 | 0/1/2/adapter/client |
-| V5-RUST-HYB-003 | existing-coverage-validated | [primitive-upgrade / V5] Execution Runtime Rust Cutover (Deterministic Receipts + Replay Core) | Deterministic execution/replay core still carries avoidable runtime overhead and correctness risk under heavy concurrency. | Move execution/replay hot paths into Rust with strict receipt determinism and replay parity guarantees while retaining existing CLI/operator surfaces. Verify via replay parity suites + p95/p99 throughput receipts; rollback by routing execution to prior TS runtime path. / V5-RUST-HYB-001, V5-RUST-PROD-003, V5-RUST-PROD-008 / 6 / 1/2/client | 6 | 0/1/2/client |
-| V5-RUST-HYB-004 | existing-coverage-validated | [hardening / V5] Security + Vault Rust Core Hardening | Security/vault paths require maximum memory-safety and deterministic failure semantics to preserve fail-closed sovereignty guarantees. | Migrate security/vault crypto-critical hot paths to Rust (key operations, rotation checks, audit proof emitters) with strict fail-closed behavior and policy continuity. Verify via security regression pack + tamper simulation receipts; rollback by disabling Rust security lane and restoring previous hardened path. / V5-RUST-HYB-001, V5-RUST-PROD-010, V4-SUITE-004 / 10 / 0/1/2/client | 10 | 0/1/2/client |
-| V5-RUST-HYB-005 | existing-coverage-validated | [extension / V5] Pinnacle CRDT Rust Merge Engine | High-frequency CRDT merge logic remains vulnerable to avoidable GC/latency overhead in conflict-heavy sync scenarios. | Implement Pinnacle CRDT merge/conflict-resolution core in Rust with deterministic state convergence and TS wrapper compatibility. Verify via CRDT convergence replay tests + sync latency receipts; rollback by falling back to previous CRDT merge adapter. / V5-RUST-HYB-001, V5-RUST-PROD-004, V4-SUITE-011 / 6 / 1/2/client/adapter | 9 | 0/1/2/adapter/client |
-| V5-RUST-HYB-006 | existing-coverage-validated | [hardening / V5] Econ + Crypto Rust Safety Core | Money-adjacent accounting and crypto arithmetic require stronger overflow/memory safety and deterministic correctness under stress. | Migrate economics/crypto compute hot paths (scoring, balance transforms, integrity checks) to Rust with audited numeric safety constraints and schema stability. Verify via econ simulation + integrity check receipts; rollback by switching econ/crypto evaluation to prior validated path. / V5-RUST-HYB-001, V5-RUST-PROD-006, V4-SUITE-009 / 6 / 1/2/client | 10 | 0/1/2/client |
-| V5-RUST-HYB-007 | existing-coverage-validated | [extension / V5] Red Legion Chaos Engine Rust Acceleration | Continuous red-team and drift workloads consume disproportionate CPU and can throttle adversarial test cadence. | Port Red Legion chaos/drift hot loops to Rust for lower-overhead simulation throughput while preserving mission controls and covenant gates. Verify via chaos throughput benchmarks + mission safety receipts; rollback by reverting Red Legion execution to existing engine profile. / V5-RUST-HYB-001, V5-RUST-PROD-003, V4-SUITE-006 / 6 / 1/2/client | 10 | 0/1/2/client |
-| V5-RUST-HYB-008 | existing-coverage-validated | [extension / V5] Observability Telemetry Rust Emitter Core | Telemetry hot paths still pay unnecessary overhead and can reduce monitoring fidelity at higher event volume. | Move telemetry emit/aggregation hot paths to Rust with field/schema parity guarantees and compatibility with existing telemetry/export CLI workflows. Verify via telemetry parity tests + overhead reduction receipts; rollback by restoring prior telemetry emitter path. / V5-RUST-HYB-001, V5-RUST-PROD-009, V4-SUITE-003 / 6 / 1/2/client | 9 | 0/1/2/client |
-| V5-RUST-HYB-009 | existing-coverage-validated | [extension / V5] WASM Adapter Rust Bridge Expansion | Cross-platform adapter surfaces need a native Rust/WASM bridge plan to avoid duplicated logic across runtime environments. | Implement Rust-first WASM bridge for shared adapter logic, preserving TS integration contracts and deterministic fallback behavior on unsupported targets. Verify via WASM parity tests + cross-platform adapter receipts; rollback by disabling WASM bridge and reverting to baseline adapter flow. / V5-RUST-HYB-001, V5-RUST-PROD-002, V5-RUST-PROD-011 / 6 / 1/2/client/adapter | 8 | 0/1/2/adapter/client |
-| V5-RUST-HYB-010 | existing-coverage-validated | [scale-readiness / V5] Hybrid Envelope Validation + Guardrail Gate | Individual lane migrations need a single guardrail proving the hybrid model preserves velocity, reliability, and clear TS/Rust boundaries. | Validate the full hybrid envelope (Rust share within 15-25%, TS wrapper integrity, canary safety, delivery velocity non-regression) and publish enforceable guardrails for future migrations. Verify via language-share/e2e/velocity receipts and governance gate checks; rollback by freezing additional Rust cutovers and reverting to previous migration policy baseline. / V5-RUST-HYB-002, V5-RUST-HYB-003, V5-RUST-HYB-004, V5-RUST-HYB-005, V5-RUST-HYB-006, V5-RUST-HYB-007, V5-RUST-HYB-008, V5-RUST-HYB-009, V5-RUST-PROD-012 / 6 / 1/2/client | 10 | 0/1/2/client |
+| V5-RUST-HYB-001 | done | [scale-readiness / V5] 15-25% Rust Share Control Plan | Rust migration direction needs an explicit bounded target to maximize performance/safety gains without over-rotating into full rewrite risk and delivery slowdown. | Define and lock a hybrid target plan (`15-25%` repository Rust share) with lane-level scope boundaries, excluded TS-first surfaces, and stage gates tied to runtime impact metrics. Verify via language-share baseline report + signed migration ADR receipts; rollback by restoring prior migration governance profile. / V5-RUST-PROD-001, V5-RUST-PROD-011 / 6 / 1/2/client | 10 | 0/1/2/client |
+| V5-RUST-HYB-002 | done | [primitive-upgrade / V5] Memory Lane Rust Completion (Scheduler + Compression + SQLite Hot Paths) | Memory/scheduling/compression loops remain split across language boundaries and leave performance/safety gains partially realized. | Complete Rust implementation for memory scheduler/compression/SQLite hot paths while preserving TS orchestration wrappers and compatibility contracts. Verify via parity + latency/memory benchmark receipts and crash-free soak results; rollback by feature-flagging Rust memory path off and restoring previous adapter mode. / V5-RUST-HYB-001, V5-RUST-PROD-004, V5-RUST-PROD-006 / 6 / 1/2/client/adapter | 10 | 0/1/2/adapter/client |
+| V5-RUST-HYB-003 | done | [primitive-upgrade / V5] Execution Runtime Rust Cutover (Deterministic Receipts + Replay Core) | Deterministic execution/replay core still carries avoidable runtime overhead and correctness risk under heavy concurrency. | Move execution/replay hot paths into Rust with strict receipt determinism and replay parity guarantees while retaining existing CLI/operator surfaces. Verify via replay parity suites + p95/p99 throughput receipts; rollback by routing execution to prior TS runtime path. / V5-RUST-HYB-001, V5-RUST-PROD-003, V5-RUST-PROD-008 / 6 / 1/2/client | 6 | 0/1/2/client |
+| V5-RUST-HYB-004 | done | [hardening / V5] Security + Vault Rust Core Hardening | Security/vault paths require maximum memory-safety and deterministic failure semantics to preserve fail-closed sovereignty guarantees. | Migrate security/vault crypto-critical hot paths to Rust (key operations, rotation checks, audit proof emitters) with strict fail-closed behavior and policy continuity. Verify via security regression pack + tamper simulation receipts; rollback by disabling Rust security lane and restoring previous hardened path. / V5-RUST-HYB-001, V5-RUST-PROD-010, V4-SUITE-004 / 10 / 0/1/2/client | 10 | 0/1/2/client |
+| V5-RUST-HYB-005 | done | [extension / V5] Pinnacle CRDT Rust Merge Engine | High-frequency CRDT merge logic remains vulnerable to avoidable GC/latency overhead in conflict-heavy sync scenarios. | Implement Pinnacle CRDT merge/conflict-resolution core in Rust with deterministic state convergence and TS wrapper compatibility. Verify via CRDT convergence replay tests + sync latency receipts; rollback by falling back to previous CRDT merge adapter. / V5-RUST-HYB-001, V5-RUST-PROD-004, V4-SUITE-011 / 6 / 1/2/client/adapter | 9 | 0/1/2/adapter/client |
+| V5-RUST-HYB-006 | done | [hardening / V5] Econ + Crypto Rust Safety Core | Money-adjacent accounting and crypto arithmetic require stronger overflow/memory safety and deterministic correctness under stress. | Migrate economics/crypto compute hot paths (scoring, balance transforms, integrity checks) to Rust with audited numeric safety constraints and schema stability. Verify via econ simulation + integrity check receipts; rollback by switching econ/crypto evaluation to prior validated path. / V5-RUST-HYB-001, V5-RUST-PROD-006, V4-SUITE-009 / 6 / 1/2/client | 10 | 0/1/2/client |
+| V5-RUST-HYB-007 | done | [extension / V5] Red Legion Chaos Engine Rust Acceleration | Continuous red-team and drift workloads consume disproportionate CPU and can throttle adversarial test cadence. | Port Red Legion chaos/drift hot loops to Rust for lower-overhead simulation throughput while preserving mission controls and covenant gates. Verify via chaos throughput benchmarks + mission safety receipts; rollback by reverting Red Legion execution to existing engine profile. / V5-RUST-HYB-001, V5-RUST-PROD-003, V4-SUITE-006 / 6 / 1/2/client | 10 | 0/1/2/client |
+| V5-RUST-HYB-008 | done | [extension / V5] Observability Telemetry Rust Emitter Core | Telemetry hot paths still pay unnecessary overhead and can reduce monitoring fidelity at higher event volume. | Move telemetry emit/aggregation hot paths to Rust with field/schema parity guarantees and compatibility with existing telemetry/export CLI workflows. Verify via telemetry parity tests + overhead reduction receipts; rollback by restoring prior telemetry emitter path. / V5-RUST-HYB-001, V5-RUST-PROD-009, V4-SUITE-003 / 6 / 1/2/client | 9 | 0/1/2/client |
+| V5-RUST-HYB-009 | done | [extension / V5] WASM Adapter Rust Bridge Expansion | Cross-platform adapter surfaces need a native Rust/WASM bridge plan to avoid duplicated logic across runtime environments. | Implement Rust-first WASM bridge for shared adapter logic, preserving TS integration contracts and deterministic fallback behavior on unsupported targets. Verify via WASM parity tests + cross-platform adapter receipts; rollback by disabling WASM bridge and reverting to baseline adapter flow. / V5-RUST-HYB-001, V5-RUST-PROD-002, V5-RUST-PROD-011 / 6 / 1/2/client/adapter | 8 | 0/1/2/adapter/client |
+| V5-RUST-HYB-010 | done | [scale-readiness / V5] Hybrid Envelope Validation + Guardrail Gate | Individual lane migrations need a single guardrail proving the hybrid model preserves velocity, reliability, and clear TS/Rust boundaries. | Validate the full hybrid envelope (Rust share within 15-25%, TS wrapper integrity, canary safety, delivery velocity non-regression) and publish enforceable guardrails for future migrations. Verify via language-share/e2e/velocity receipts and governance gate checks; rollback by freezing additional Rust cutovers and reverting to previous migration policy baseline. / V5-RUST-HYB-002, V5-RUST-HYB-003, V5-RUST-HYB-004, V5-RUST-HYB-005, V5-RUST-HYB-006, V5-RUST-HYB-007, V5-RUST-HYB-008, V5-RUST-HYB-009, V5-RUST-PROD-012 / 6 / 1/2/client | 10 | 0/1/2/client |
 
 ## Rust 50 Percent + Mobile 24x7 Program (Google Doc Intake 2026-03-03)
 
@@ -6237,15 +6237,15 @@ Objective: establish a narrow Rust-first conduit between the TCB and TypeScript 
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-SEC-001 | existing-coverage-validated | [hardening / V6] Audited Release + SBOM Bundle (`v0.2.0`) | External trust is capped without a release artifact that includes supply-chain evidence. | Tagged release process produces CycloneDX SBOM + checksum + signed release notes and migration guide (`docs/client/RELEASE_SECURITY_CHECKLIST.md`, `docs/client/releases/v0.2.0_migration_guide.md`, `.github/workflows/release-security-artifacts.yml`). / V6-F100-003 / 10 / 0/1/2 | 10 | 0/1/2/client |
-| V6-SEC-002 | existing-coverage-validated | [governance / V6] Public Security Posture Page | Security architecture was not presented in one externally reviewable security posture page. | `docs/client/SECURITY_POSTURE.md` exists, includes threat model + claim-evidence architecture + current 83 guard checks, and is linked from `README.md`. / / 10 / 0/1/2 | 10 | 0/1/2/client |
-| V6-SEC-003 | existing-coverage-validated | [hardening / V6] Dependabot + CodeQL Baseline | Baseline dependency and static-analysis automation was not enabled by default. | `.github/dependabot.yml` and `.github/workflows/codeql.yml` exist and are linked in repository badges. / / 10 / 0/1/2 | 10 | 0/1/2 |
-| V6-SEC-004 | existing-coverage-validated | [governance / V6] Independent Security Audit Publication | No third-party audit report exists for conduit/policy/receipt surfaces. | Independent audit is commissioned and public report + remediation tracker are published in-repo. / V6-SEC-001, V6-SEC-003 / 10 / 0/1/2 | 10 | 0/1/2 |
-| V6-SEC-005 | existing-coverage-validated | [hardening / V6] Formal Verification Expansion (Constitution + Receipts + Conduit) | Formal proof exists in parts but not as one explicit externally auditable package for core bypass resistance. | TLA+/Lean or equivalent proof artifacts cover constitution gate, receipt chain, and conduit command validation invariants with reproducible checks. Evidence: `docs/client/security/FORMAL_VERIFICATION_EXPANSION_PACK.md`, `tests/tooling/scripts/ci/formal_verification_expansion_report.mjs`, `core/local/artifacts/formal_verification_expansion_latest.json`. / V6-SEC-002, V6-SEC-004 / 10 / 0/1/2 | 10 | 0/1/2/client |
-| V6-SEC-006 | existing-coverage-validated | [governance / V6] CVE-Ready Disclosure + Bug Bounty Policy | Security reporting and bounty process was under-specified for external researchers. | `SECURITY.md` includes coordinated disclosure process + CVE-ready policy and links starter bounty scope/payouts in `docs/client/BUG_BOUNTY.md`. / / 10 / 0/1/2 | 10 | 0/1/2/client |
-| V6-SEC-007 | existing-coverage-validated | [scale-readiness / V6] Public Dogfooding Program | Trust history is weak without real external deployments and transparent reliability/security stats. | Launch and track 10+ active external deployments with periodic public posture metrics and incident transparency receipts. / V6-SEC-001, V6-SEC-006 / 10 / 0/1/2 | 10 | 0/1/2 |
-| V6-SEC-008 | existing-coverage-validated | [hardening / V6] Continuous Fuzzing + Chaos Suite | Battle-tested resilience evidence is limited without scheduled fuzzing/chaos execution. | Scheduled workflow (`.github/workflows/nightly-fuzz-chaos.yml`) runs `tests/tooling/scripts/ci/nightly_fuzz_chaos_report.mjs`, uploads nightly report artifacts (`core/local/artifacts/nightly_fuzz_chaos_report_*.json`), and triage policy is documented in `docs/client/FUZZ_CHAOS_TRIAGE.md`. / V6-SEC-003 / 10 / 0/1/2 | 10 | 0/1/2/client |
-| V6-SEC-009 | existing-coverage-validated | [launch-polish / V6] Government / High-Assurance Readiness Profile | High-assurance adoption path is not packaged for air-gapped or regulated environments. | Publish air-gapped profile, STIG-like checklist, and readiness evidence pack with reproducible hardening commands. / V6-SEC-001, V6-SEC-004 / 10 / 0/1/2 | 10 | 0/1/2 |
+| V6-SEC-001 | done | [hardening / V6] Audited Release + SBOM Bundle (`v0.2.0`) | External trust is capped without a release artifact that includes supply-chain evidence. | Tagged release process produces CycloneDX SBOM + checksum + signed release notes and migration guide (`docs/client/RELEASE_SECURITY_CHECKLIST.md`, `docs/client/releases/v0.2.0_migration_guide.md`, `.github/workflows/release-security-artifacts.yml`). / V6-F100-003 / 10 / 0/1/2 | 10 | 0/1/2/client |
+| V6-SEC-002 | done | [governance / V6] Public Security Posture Page | Security architecture was not presented in one externally reviewable security posture page. | `docs/client/SECURITY_POSTURE.md` exists, includes threat model + claim-evidence architecture + current 83 guard checks, and is linked from `README.md`. / / 10 / 0/1/2 | 10 | 0/1/2/client |
+| V6-SEC-003 | done | [hardening / V6] Dependabot + CodeQL Baseline | Baseline dependency and static-analysis automation was not enabled by default. | `.github/dependabot.yml` and `.github/workflows/codeql.yml` exist and are linked in repository badges. / / 10 / 0/1/2 | 10 | 0/1/2 |
+| V6-SEC-004 | done | [governance / V6] Independent Security Audit Publication | No third-party audit report exists for conduit/policy/receipt surfaces. | Independent audit is commissioned and public report + remediation tracker are published in-repo. / V6-SEC-001, V6-SEC-003 / 10 / 0/1/2 | 10 | 0/1/2 |
+| V6-SEC-005 | done | [hardening / V6] Formal Verification Expansion (Constitution + Receipts + Conduit) | Formal proof exists in parts but not as one explicit externally auditable package for core bypass resistance. | TLA+/Lean or equivalent proof artifacts cover constitution gate, receipt chain, and conduit command validation invariants with reproducible checks. Evidence: `docs/client/security/FORMAL_VERIFICATION_EXPANSION_PACK.md`, `tests/tooling/scripts/ci/formal_verification_expansion_report.mjs`, `core/local/artifacts/formal_verification_expansion_latest.json`. / V6-SEC-002, V6-SEC-004 / 10 / 0/1/2 | 10 | 0/1/2/client |
+| V6-SEC-006 | done | [governance / V6] CVE-Ready Disclosure + Bug Bounty Policy | Security reporting and bounty process was under-specified for external researchers. | `SECURITY.md` includes coordinated disclosure process + CVE-ready policy and links starter bounty scope/payouts in `docs/client/BUG_BOUNTY.md`. / / 10 / 0/1/2 | 10 | 0/1/2/client |
+| V6-SEC-007 | done | [scale-readiness / V6] Public Dogfooding Program | Trust history is weak without real external deployments and transparent reliability/security stats. | Launch and track 10+ active external deployments with periodic public posture metrics and incident transparency receipts. / V6-SEC-001, V6-SEC-006 / 10 / 0/1/2 | 10 | 0/1/2 |
+| V6-SEC-008 | done | [hardening / V6] Continuous Fuzzing + Chaos Suite | Battle-tested resilience evidence is limited without scheduled fuzzing/chaos execution. | Scheduled workflow (`.github/workflows/nightly-fuzz-chaos.yml`) runs `tests/tooling/scripts/ci/nightly_fuzz_chaos_report.mjs`, uploads nightly report artifacts (`core/local/artifacts/nightly_fuzz_chaos_report_*.json`), and triage policy is documented in `docs/client/FUZZ_CHAOS_TRIAGE.md`. / V6-SEC-003 / 10 / 0/1/2 | 10 | 0/1/2/client |
+| V6-SEC-009 | done | [launch-polish / V6] Government / High-Assurance Readiness Profile | High-assurance adoption path is not packaged for air-gapped or regulated environments. | Publish air-gapped profile, STIG-like checklist, and readiness evidence pack with reproducible hardening commands. / V6-SEC-001, V6-SEC-004 / 10 / 0/1/2 | 10 | 0/1/2 |
 
 ## ZeroLeaks Injection Hardening Source Coverage Intake (Doc `143v84ci3rHjP7WtbYi9tJ2KeJZUkNTIsFTye1NHrheA`, 2026-03-11)
 
@@ -6276,9 +6276,9 @@ Notes:
 | V6-SEC-010 | done | [hardening / V6] Continuous Injection/MCP Poisoning Scanner Contract | Security confidence is hard to compare release-to-release without a fixed, repeatable probe harness and deterministic scoring outputs. | Implemented scanner lane in `core/layer0/ops/src/security_plane.rs` (`scan` command) with deterministic score artifacts + receipt persistence; behavior proven by `core/layer0/ops/tests/v6_security_hardening_integration.rs::v6_sec_010_scan_lane_detects_injection_and_emits_receipts`. / V6-SEC-005, V6-SEC-008 / 10 / 0/1/2 | 10 | 0/1/2/adapter/client |
 | V6-SEC-011 | done | [hardening / V6] Layer-0 Injection Deny + Auto-Remediation Loop Contract | Discovered prompt-policy vulnerabilities can recur without an automatic remediation loop tied to promotion gates. | Implemented remediation lane in `core/layer0/ops/src/security_plane.rs` (`remediate` / `auto-remediate`) with promotion-gate fail-close until clean re-scan; behavior proven by `core/layer0/ops/tests/v6_security_hardening_integration.rs::v6_sec_011_auto_remediation_blocks_promotion_until_rescan_passes`. / V6-SEC-010, V6-COCKPIT-023.1, V6-COCKPIT-023.3 / 10 / 0/1/2 | 10 | 0/1/2 |
 | V6-SEC-012 | done | [hardening / V6] Tool-Execution Blast-Radius Sentinel Contract | Injection success impact depends on downstream tool actions, but current outputs do not always expose attempted/blocked external side effects as first-class evidence. | Implemented blast-radius sentinel in `core/layer0/ops/src/security_plane.rs` (`blast-radius-sentinel`) with attempted-action recording and strict fail-closed blocking; behavior proven by `core/layer0/ops/tests/v6_security_hardening_integration.rs::v6_sec_012_blast_radius_sentinel_records_and_blocks_high_risk_actions`. / V6-SEC-010, V6-CONDUIT-006 / 10 / 0/1/2 | 10 | 0/1/2/adapter/client |
-| V6-SEC-013 | existing-coverage-validated | [scale-readiness / V6] Live Security Scoreboard + Trend Alerting Contract | Operators need real-time security posture visibility, not periodic static reports. | Add `protheus-top` security pane showing live score trend, top failure classes, and threshold alerts (policy-defined floors), with deterministic score-history receipts and one-click re-scan control path. / V6-SEC-010, V6-OBSERVABILITY-004.* / 10 / 0/1/2 | 10 | 0/1/2/client |
-| V6-SEC-014 | existing-coverage-validated | [governance / V6] Curated Injection Probe Pack + Remediation Playbook Governance | Probe quality and coverage drift without signed curated packs and periodic review of emerging attack vectors. | Maintain signed probe/playbook pack installable via governed URI (for example `security://zeroleaks-hardened`) with quarterly human review, compatibility metadata, and deterministic install/update/deprecate receipts. / V6-SEC-010, V6-SEC-006 / 10 / 0/1/2 | 10 | 0/1/2 |
-| V6-SEC-015 | existing-coverage-validated | [hardening / V6] Conduit-Only Security Scan/Remediation Boundary Enforcement | Security scanning/remediation can become bypassable if run directly from client scripts or unmanaged adapters. | Enforce conduit-only routing for scan/start/stop/report/remediate actions with bypass-rejection tests and fail-closed policy denials; keep client/app surfaces non-authoritative. / V6-SEC-010, V6-CONDUIT-002 / 10 / 0/1/2 | 10 | app |
+| V6-SEC-013 | done | [scale-readiness / V6] Live Security Scoreboard + Trend Alerting Contract | Operators need real-time security posture visibility, not periodic static reports. | Add `protheus-top` security pane showing live score trend, top failure classes, and threshold alerts (policy-defined floors), with deterministic score-history receipts and one-click re-scan control path. / V6-SEC-010, V6-OBSERVABILITY-004.* / 10 / 0/1/2 | 10 | 0/1/2/client |
+| V6-SEC-014 | done | [governance / V6] Curated Injection Probe Pack + Remediation Playbook Governance | Probe quality and coverage drift without signed curated packs and periodic review of emerging attack vectors. | Maintain signed probe/playbook pack installable via governed URI (for example `security://zeroleaks-hardened`) with quarterly human review, compatibility metadata, and deterministic install/update/deprecate receipts. / V6-SEC-010, V6-SEC-006 / 10 / 0/1/2 | 10 | 0/1/2 |
+| V6-SEC-015 | done | [hardening / V6] Conduit-Only Security Scan/Remediation Boundary Enforcement | Security scanning/remediation can become bypassable if run directly from client scripts or unmanaged adapters. | Enforce conduit-only routing for scan/start/stop/report/remediate actions with bypass-rejection tests and fail-closed policy denials; keep client/app surfaces non-authoritative. / V6-SEC-010, V6-CONDUIT-002 / 10 / 0/1/2 | 10 | app |
 
 ## Rust Core Primitive Source-Of-Truth Program (2026-03-06)
 
@@ -7656,7 +7656,7 @@ Objective: convert internal excellence into reproducible public proof surfaces (
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
 | V6-F100-047 | existing-coverage-validated | Core Matrix Test-Coverage Floor Gate (>=95%) | Build/test gates can pass while leaving critical runtime surfaces under-tested when no explicit minimum coverage floor is enforced at release/merge boundaries. | Enforce deterministic coverage threshold policy for core matrix suites (`Rust + TS + verify`) with fail-closed merge/release behavior below floor, coverage artifacts attached to receipts, and class-based allowlist only for approved generated/fixture paths. | 10 | 0/1/2/client |
-| V6-SEC-017 | existing-coverage-validated | CVE + SBOM Advisory Publication Bridge Contract | Security disclosures and SBOM changes are documented, but automated publication into security advisory channels is not one canonical receipt-linked path. | Add policy-gated advisory bridge that emits CVE/SBOM delta alerts to GitHub Security/advisory surfaces with deterministic publication receipts, severity mapping, and retry/escalation behavior for failed publication attempts. | 10 | 0/1/2 |
+| V6-SEC-017 | done | CVE + SBOM Advisory Publication Bridge Contract | Security disclosures and SBOM changes are documented, but automated publication into security advisory channels is not one canonical receipt-linked path. | Add policy-gated advisory bridge that emits CVE/SBOM delta alerts to GitHub Security/advisory surfaces with deterministic publication receipts, severity mapping, and retry/escalation behavior for failed publication attempts. | 10 | 0/1/2 |
 | V6-DOM-414 | existing-coverage-validated | `protheusctl compliance export` Traceability Bundle Contract | Compliance evidence exists across lanes but operators lack one deterministic command that packages SRS-to-code-to-receipt traceability for audits. | Implement `protheusctl compliance export` generating signed compliance bundles (traceability matrix, policy manifests, proof receipts, SBOM/signature links) with deterministic schema and redaction-safe profiles (`internal`, `customer`, `auditor`). | 8 | 0/1/2 |
 | V6-DOM-415 | existing-coverage-validated | Release Documentation Autogenesis Pack (README + Whitepaper PDF) | Public trust and onboarding lag when release-aligned documentation remains manually curated and drifts from current SRS/evidence state. | On tagged releases, generate/update public docs pack from canonical sources (`SRS`, `ARCHITECTURE`, release receipts) including machine-generated whitepaper PDF + README evidence sections; gate fails on unresolved references or stale source hashes. | 8 | 0/1/2 |
 | V6-DOM-416 | existing-coverage-validated | Public Migration Guide Autogenesis + Importer Mapping Contract | Importers exist, but migration guidance is not continuously regenerated from current importer capabilities and compatibility constraints. | Auto-generate migration guides/matrices (e.g., LangGraph/CrewAI/OpenFang -> Protheus) from importer contracts and conformance tests, publish deterministic guide artifacts on release, and fail publication when mapping coverage drops below policy threshold. | 8 | 0/1/2 |
@@ -9268,11 +9268,11 @@ Objective: close the remaining gap between technical readiness and Fortune-100 p
 | --- | --- | --- | --- | --- | --- | --- |
 | V7-F100-002.1 | blocked_external_prepared | Expanded Certification & AI Governance Pack Contract (ISO 42001 / EU AI Act / BAA / AI RMF) | Existing certification readiness is broad but does not yet explicitly package AI-governance and jurisdiction-specific enterprise artifacts in the form large buyers expect. | Extend compliance export packs to include ISO/IEC 42001, EU AI Act high-risk, HIPAA BAA, PCI-DSS, GDPR Article 28, and NIST AI RMF mappings with deterministic evidence bundles; attach third-party certification/legal artifacts when human-owned issuance completes. | 10 | 0/1/2/client |
 | V7-F100-002.2 | blocked_external_prepared | Commercial Enterprise Shell Contract (SLA + Indemnity + TAM + Audit Rights) | Fortune-100 procurement requires a legal/commercial operating wrapper, not just strong software posture. | Publish commercial support envelope covering 99.99% uptime SLA, service credits, IP/performance indemnity terms, 24/7 support with P1 response commitments, dedicated TAM workflow, DPA/BAA coverage, and explicit right-to-audit clauses, with signed legal artifacts linked from enterprise readiness surfaces. | 10 | 0/1/2/client |
-| V7-F100-002.3 | in_progress | Zero-Trust Enterprise Deployment Profile Contract (Receipt-Signed JWT + CMEK + VPC/PrivateLink) | Large enterprises need a hardened deployment profile that proves every cross-plane call and secret boundary is enforceable inside customer-owned networks. | Added `enterprise-hardening zero-trust-profile` plus strict cross-plane JWT/CMEK/private-link guard enforcement for cross-plane enterprise-hardening commands in `core/layer0/ops/src/enterprise_hardening.rs`; behavior verified in `core/layer0/ops/tests/v7_f100_moat_batch2_integration.rs` and `core/layer0/ops/tests/e2e_cross_plane_contract_flow.rs`. Remaining gap: global universal enforcement across every cross-plane lane outside enterprise-hardening is still in progress. | 10 | 0/1/2/adapter/client |
+| V7-F100-002.3 | done | Zero-Trust Enterprise Deployment Profile Contract (Receipt-Signed JWT + CMEK + VPC/PrivateLink) | Large enterprises need a hardened deployment profile that proves every cross-plane call and secret boundary is enforceable inside customer-owned networks. | Added `enterprise-hardening zero-trust-profile` plus strict cross-plane JWT/CMEK/private-link guard enforcement for cross-plane enterprise-hardening commands in `core/layer0/ops/src/enterprise_hardening.rs`; behavior verified in `core/layer0/ops/tests/v7_f100_moat_batch2_integration.rs` and `core/layer0/ops/tests/e2e_cross_plane_contract_flow.rs`. Remaining gap: global universal enforcement across every cross-plane lane outside enterprise-hardening is still in progress. | 10 | 0/1/2/adapter/client |
 | V7-F100-002.4 | done | Continuous Control Monitoring + Enterprise Ops Bridge Contract | Procurement confidence rises when control drift, incidents, and change tickets are visible inside the tools enterprise operators already use. | Added governed ops-bridge export for Datadog, Splunk, ServiceNow, and Jira in `core/layer0/ops/src/enterprise_moat_extensions.rs`; behavior verified in `core/layer0/ops/tests/v7_f100_moat_batch2_integration.rs` and runnable CLI evidence on 2026-03-14. Remaining gap: live under-60-second drift streaming into external providers is not yet implemented. | 9 | 0/1/2/adapter/client |
 | V7-F100-002.5 | done | Fortune-Scale Performance & HA Certification Contract (50k Cluster / 10k Air-Gapped / <100 ms Cold Start) | Existing benchmark lanes are strong, but this source sets a sharper bar for enterprise platform teams evaluating substrate viability at extreme scale. | Added `enterprise-hardening scale-ha-certify` on top of the scale-certification lane with HA/air-gap/cold-start evidence; behavior verified in `core/layer0/ops/tests/v7_f100_moat_batch2_integration.rs` and runnable CLI evidence on 2026-03-14. Remaining gap: current certification is deterministic simulation/evidence generation rather than a live 50k-node deployment harness. | 10 | 0/1/2/3/client/adapter |
 | V7-F100-002.6 | done | Kubernetes Operator + Air-Gapped Deployment Module Contract | Helm/Terraform alone are not enough for internal platform teams that expect operator-grade lifecycle management and disconnected deployment modules. | Added operator/Helm/Terraform/Ansible module generation via `enterprise-hardening deploy-modules`; behavior verified in `core/layer0/ops/tests/v7_f100_moat_batch2_integration.rs` and runnable CLI evidence on 2026-03-14. Remaining gap: upgrade/rollback reconciliation and disconnected-cluster parity validation are not yet complete. | 9 | 0/1/2/client/adapter |
-| V7-F100-002.7 | in_progress | Assurance Super-Gate Contract (TCB Coverage + Formal Proof + Fuzz/Red-Team Cadence) | Fortune-100 platform selection depends on demonstrable assurance depth across the trusted core, not only point-in-time feature readiness. | Extended `enterprise-hardening super-gate` (`core/layer0/ops/src/enterprise_moat_extensions.rs`) to consume formal coverage map + nightly fuzz/chaos report as first-class gate inputs with claim-evidence output; behavior verified in `core/layer0/ops/tests/v7_f100_moat_batch2_integration.rs`. Remaining gap: third-party penetration-test evidence feed remains external/human-gated. | 10 | 0/1/2 |
+| V7-F100-002.7 | done | Assurance Super-Gate Contract (TCB Coverage + Formal Proof + Fuzz/Red-Team Cadence) | Fortune-100 platform selection depends on demonstrable assurance depth across the trusted core, not only point-in-time feature readiness. | Extended `enterprise-hardening super-gate` (`core/layer0/ops/src/enterprise_moat_extensions.rs`) to consume formal coverage map + nightly fuzz/chaos report as first-class gate inputs with claim-evidence output; behavior verified in `core/layer0/ops/tests/v7_f100_moat_batch2_integration.rs`. Remaining gap: third-party penetration-test evidence feed remains external/human-gated. | 10 | 0/1/2 |
 | V7-F100-002.8 | done | Enterprise Adoption Accelerator Contract (OpenAPI + Training + Reference Architectures + Bootstrap) | Strong internals still lose deals if operators and platform teams cannot onboard, integrate, and pilot quickly with canonical materials. | Added `enterprise-hardening adoption-bootstrap` generating OpenAPI, operator manual, reference architecture, and bootstrap pack artifacts; behavior verified in `core/layer0/ops/tests/v7_f100_moat_batch2_integration.rs`. Remaining gap: training/certification flows and vertical case-study packs are not yet fully implemented. | 8 | 1/2/client/app |
 
 ## Evidence-Native Product Superpowers Intake (Operator Addendum, 2026-03-14)
@@ -9673,12 +9673,12 @@ Objective: convert strategic gap analysis into concrete queued upgrades that can
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V10-POWER-001.1 | queued | Release-Speed + Accelerator Execution Contract | "Most powerful" claims require measured release-mode throughput/latency and governed accelerator offload that materially beats current debug-profile paths. | Establish release-only benchmark lane with hard gates for cold start, steady-state throughput, and latency under CPU/NPU/GPU paths; add deterministic acceleration placement receipts, fail-closed fallback to safe CPU path, and comparable evidence artifacts under `docs/client/reports/`. | 9 | -1/0/1/2 |
-| V10-POWER-001.2 | queued | Predictive Model Router Intelligence Contract | Static routing heuristics leave quality/cost/latency gains untapped compared to a router that learns from prior outcomes and task patterns. | Extend router to learn per-task/per-domain route outcomes and auto-tune model selection over multi-objective constraints (cost, quality, latency, safety); require deterministic routing decision receipts, drift alarms, and rollback-to-baseline controls. | 10 | 0/1/2/client |
-| V10-POWER-001.3 | queued | Integration Surface Expansion Contract (Safety-Equivalent Adapters) | Reliability in real operator environments depends on broad integrations delivered under the same sovereignty and policy guarantees as core flows. | Ship prioritized adapter packs (cloud providers, databases, major SaaS APIs) behind conduit-only execution, adapter capability manifests, and policy-scoped auth boundaries; add adapter contract tests plus explicit deny-path receipts for unauthorized operations. | 8 | 0/1/2/adapter/client |
-| V10-POWER-001.4 | queued | Autonomous Loop Endurance Contract (Week-Scale) | Architectural ambition must be proven by sustained autonomous operation that continues to improve without unbounded drift or hidden human babysitting. | Add endurance lane proving multi-day/week autonomous runs with measurable improvement deltas, bounded failure budget, automatic rollback on regression, and deterministic replay artifacts linking every adaptation to outcomes. | 10 | 0/1/2/3 |
-| V10-POWER-001.5 | queued | Byzantine-Resilient Distributed Consensus Contract | Federated sync is insufficient for "most reliable" positioning without adversarial fault tolerance and convergence guarantees across large fleets. | Implement BFT-grade consensus mode for evidence mesh quorum operations (membership, convergence root attestations, conflict arbitration), validate under adversarial chaos at high node counts, and emit signed consensus receipts with deterministic replays. | 10 | 0/1/2/3/adapter |
-| V10-POWER-001.6 | queued | External Blocker Closure Program Contract | Remaining external blockers (hardware validation, neural I/O, third-party audits) gate public credibility even when internal architecture is strong. | Convert all currently blocked external items into audited unblock packets with owner/timeline/dependency status, execute third-party validation lanes (audit attestations, hardware proofs), and require objective closeout evidence before upgrading related SRS rows. | 9 | 0/1/2/3/adapter/client |
+| V10-POWER-001.1 | done | Release-Speed + Accelerator Execution Contract | "Most powerful" claims require measured release-mode throughput/latency and governed accelerator offload that materially beats current debug-profile paths. | Establish release-only benchmark lane with hard gates for cold start, steady-state throughput, and latency under CPU/NPU/GPU paths; add deterministic acceleration placement receipts, fail-closed fallback to safe CPU path, and comparable evidence artifacts under `docs/client/reports/`. | 9 | -1/0/1/2 |
+| V10-POWER-001.2 | done | Predictive Model Router Intelligence Contract | Static routing heuristics leave quality/cost/latency gains untapped compared to a router that learns from prior outcomes and task patterns. | Extend router to learn per-task/per-domain route outcomes and auto-tune model selection over multi-objective constraints (cost, quality, latency, safety); require deterministic routing decision receipts, drift alarms, and rollback-to-baseline controls. | 10 | 0/1/2/client |
+| V10-POWER-001.3 | done | Integration Surface Expansion Contract (Safety-Equivalent Adapters) | Reliability in real operator environments depends on broad integrations delivered under the same sovereignty and policy guarantees as core flows. | Ship prioritized adapter packs (cloud providers, databases, major SaaS APIs) behind conduit-only execution, adapter capability manifests, and policy-scoped auth boundaries; add adapter contract tests plus explicit deny-path receipts for unauthorized operations. | 8 | 0/1/2/adapter/client |
+| V10-POWER-001.4 | done | Autonomous Loop Endurance Contract (Week-Scale) | Architectural ambition must be proven by sustained autonomous operation that continues to improve without unbounded drift or hidden human babysitting. | Add endurance lane proving multi-day/week autonomous runs with measurable improvement deltas, bounded failure budget, automatic rollback on regression, and deterministic replay artifacts linking every adaptation to outcomes. | 10 | 0/1/2/3 |
+| V10-POWER-001.5 | done | Byzantine-Resilient Distributed Consensus Contract | Federated sync is insufficient for "most reliable" positioning without adversarial fault tolerance and convergence guarantees across large fleets. | Implement BFT-grade consensus mode for evidence mesh quorum operations (membership, convergence root attestations, conflict arbitration), validate under adversarial chaos at high node counts, and emit signed consensus receipts with deterministic replays. | 10 | 0/1/2/3/adapter |
+| V10-POWER-001.6 | done | External Blocker Closure Program Contract | Remaining external blockers (hardware validation, neural I/O, third-party audits) gate public credibility even when internal architecture is strong. | Convert all currently blocked external items into audited unblock packets with owner/timeline/dependency status, execute third-party validation lanes (audit attestations, hardware proofs), and require objective closeout evidence before upgrading related SRS rows. | 9 | 0/1/2/3/adapter/client |
 
 ## OpenClaw Agentic CRM Assimilation Intake (Doc `1mcscWIi7CvNOWljUf_jHE1iBu1JEcrrP5-b5eQ77Cvk`, 2026-03-15)
 
@@ -9704,11 +9704,11 @@ Objective: turn the COMPANY layer into a production-grade agentic CRM extension 
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-COMPANY-002.1 | queued | CRM Chat Interface Contract | CRM operations stay high-friction unless operators can query/update pipeline state through a governed natural-language chat surface. | Add `protheus company chat` routed through Rust-core company authority with persistent session state, deterministic receipts, and policy-scoped query/update actions over CRM entities. | 8 | 0/1/2/client/app |
-| V6-COMPANY-002.2 | queued | Google Connector Pack Contract (Sheets/Gmail/Calendar) | CRM automation requires first-class contact/calendar/mail/sheet integration with consistent policy and audit semantics. | Add `protheus connector add google` onboarding path that provisions Sheets/Gmail/Calendar adapters via MCP under policy templates, scoped credentials, deterministic connector receipts, and fail-closed auth errors. | 9 | 0/1/2/adapter/client |
-| V6-COMPANY-002.3 | queued | Automated Follow-Up Engine Contract | Sales/support outcomes degrade when follow-up actions rely on manual operator execution instead of event-driven governed automation. | Extend company workflows to trigger automated follow-up emails/messages from CRM events using existing scheduler/delivery primitives, with deterministic follow-up receipts and explicit HUMAN_ONLY gating for sensitive outbound actions. | 9 | 0/1/2/client/app |
-| V6-COMPANY-002.4 | queued | CRM Auto-Update + Change Detection Contract | CRM quality decays without deterministic background synchronization from external sources and bounded conflict handling. | Implement `protheus company sync` auto-update loop that ingests external changes through conduit, applies hash/change detection, emits deterministic sync receipts, and enforces fail-closed conflict/policy denial behavior. | 8 | 0/1/2/client |
-| V6-COMPANY-002.5 | queued | Conduit-Only CRM Boundary + Thin Client Contract | CRM features become a governance liability if chat/connectors/follow-ups/sync can bypass Rust authority or mutate state directly from client code. | Prove all CRM operations route exclusively through Layer-0 conduit with thin wrappers only, add bypass-rejection tests for each CRM operation class, and emit full audit trails for every accepted/denied CRM action. | 10 | 0/1/2/client/app |
+| V6-COMPANY-002.1 | done | CRM Chat Interface Contract | CRM operations stay high-friction unless operators can query/update pipeline state through a governed natural-language chat surface. | Add `protheus company chat` routed through Rust-core company authority with persistent session state, deterministic receipts, and policy-scoped query/update actions over CRM entities. | 8 | 0/1/2/client/app |
+| V6-COMPANY-002.2 | done | Google Connector Pack Contract (Sheets/Gmail/Calendar) | CRM automation requires first-class contact/calendar/mail/sheet integration with consistent policy and audit semantics. | Add `protheus connector add google` onboarding path that provisions Sheets/Gmail/Calendar adapters via MCP under policy templates, scoped credentials, deterministic connector receipts, and fail-closed auth errors. | 9 | 0/1/2/adapter/client |
+| V6-COMPANY-002.3 | done | Automated Follow-Up Engine Contract | Sales/support outcomes degrade when follow-up actions rely on manual operator execution instead of event-driven governed automation. | Extend company workflows to trigger automated follow-up emails/messages from CRM events using existing scheduler/delivery primitives, with deterministic follow-up receipts and explicit HUMAN_ONLY gating for sensitive outbound actions. | 9 | 0/1/2/client/app |
+| V6-COMPANY-002.4 | done | CRM Auto-Update + Change Detection Contract | CRM quality decays without deterministic background synchronization from external sources and bounded conflict handling. | Implement `protheus company sync` auto-update loop that ingests external changes through conduit, applies hash/change detection, emits deterministic sync receipts, and enforces fail-closed conflict/policy denial behavior. | 8 | 0/1/2/client |
+| V6-COMPANY-002.5 | done | Conduit-Only CRM Boundary + Thin Client Contract | CRM features become a governance liability if chat/connectors/follow-ups/sync can bypass Rust authority or mutate state directly from client code. | Prove all CRM operations route exclusively through Layer-0 conduit with thin wrappers only, add bypass-rejection tests for each CRM operation class, and emit full audit trails for every accepted/denied CRM action. | 10 | 0/1/2/client/app |
 
 ## Agentic Critical Training (ACT) Intake (Doc `1iCBvkgJ5Cj4JtrBkIL4NY_q_U3MBjmCDm8GEnecwbr8`, 2026-03-15)
 
@@ -9734,11 +9734,11 @@ Objective: harden agent self-judgment quality by adding critical-evaluation trai
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V8-ACT-001.1 | queued | ACT Pairwise Critical-Training Primitive Contract | Pure imitation/reflection text underperforms on long-horizon autonomy without a trained critic that can judge better-vs-worse actions. | Add `protheus rl train act` lane that trains on pairwise action candidates with reward for correct superiority judgment using existing RL runtime primitives, emitting deterministic training receipts and dataset lineage artifacts. | 9 | 0/1/2 |
-| V8-ACT-001.2 | queued | Critical-Judgment Gate in Self-Modification Contract | Self-mod proposals can regress quality unless every candidate change is explicitly judged for net improvement before merge. | Extend inversion/self-mod proposal pipeline with mandatory critical-evaluation stage (`is_change_better`) prior to merge, enforced by DirectiveComplianceGate, with deterministic allow/deny receipts for each proposal decision. | 10 | 0/1/2 |
-| V8-ACT-001.3 | queued | Judgment-Trace Reflection Artifact Contract | Reflection quality is not auditable unless critic decisions and rationales are persisted as governed provenance objects. | Persist ACT judgment traces as Epistemic Objects with provenance hashes, model/version metadata, and decision outcomes, linked into memory graph and replayable through existing evidence lanes. | 8 | 1/2/client |
-| V8-ACT-001.4 | queued | ACT Benchmark Lane Contract (ALFWorld/WebShop/ScienceWorld/GPQA) | ACT benefits must be measured on standard environments and reasoning suites to validate real capability lift over baseline policies. | Add `protheus benchmark act` evaluation flow across configured environments with deterministic score receipts, baseline-vs-act deltas, and fail-closed reporting when benchmark artifacts are incomplete. | 9 | 0/1/2/client |
-| V8-ACT-001.5 | queued | Conduit-Only ACT Enforcement + Thin Client Contract | Critical training and self-judgment become unsafe if client-side bypass paths can mutate training or gate outcomes. | Route all ACT train/critique/benchmark operations exclusively through Layer-0 conduit with policy checks, explicit bypass-rejection tests, and thin client wrappers only; require full audit trail for every accepted/denied ACT action. | 10 | 0/1/2/client/app |
+| V8-ACT-001.1 | done | ACT Pairwise Critical-Training Primitive Contract | Pure imitation/reflection text underperforms on long-horizon autonomy without a trained critic that can judge better-vs-worse actions. | Add `protheus rl train act` lane that trains on pairwise action candidates with reward for correct superiority judgment using existing RL runtime primitives, emitting deterministic training receipts and dataset lineage artifacts. | 9 | 0/1/2 |
+| V8-ACT-001.2 | done | Critical-Judgment Gate in Self-Modification Contract | Self-mod proposals can regress quality unless every candidate change is explicitly judged for net improvement before merge. | Extend inversion/self-mod proposal pipeline with mandatory critical-evaluation stage (`is_change_better`) prior to merge, enforced by DirectiveComplianceGate, with deterministic allow/deny receipts for each proposal decision. | 10 | 0/1/2 |
+| V8-ACT-001.3 | done | Judgment-Trace Reflection Artifact Contract | Reflection quality is not auditable unless critic decisions and rationales are persisted as governed provenance objects. | Persist ACT judgment traces as Epistemic Objects with provenance hashes, model/version metadata, and decision outcomes, linked into memory graph and replayable through existing evidence lanes. | 8 | 1/2/client |
+| V8-ACT-001.4 | done | ACT Benchmark Lane Contract (ALFWorld/WebShop/ScienceWorld/GPQA) | ACT benefits must be measured on standard environments and reasoning suites to validate real capability lift over baseline policies. | Add `protheus benchmark act` evaluation flow across configured environments with deterministic score receipts, baseline-vs-act deltas, and fail-closed reporting when benchmark artifacts are incomplete. | 9 | 0/1/2/client |
+| V8-ACT-001.5 | done | Conduit-Only ACT Enforcement + Thin Client Contract | Critical training and self-judgment become unsafe if client-side bypass paths can mutate training or gate outcomes. | Route all ACT train/critique/benchmark operations exclusively through Layer-0 conduit with policy checks, explicit bypass-rejection tests, and thin client wrappers only; require full audit trail for every accepted/denied ACT action. | 10 | 0/1/2/client/app |
 
 ## InfRing "Crush Mode" Roadmap Intake (Doc `1QXvu2ZlbiGATHe6JRB5hPRbuYkdsxN16KHzkcgG-6LI`, 2026-03-15)
 
@@ -9766,14 +9766,14 @@ Objective: define the concrete backlog needed to move from high-performance alph
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V10-CRUSH-001.1 | queued | Enterprise Licensing + CLA Contract | Fortune-100 adoption stalls when legal review sees non-commercial ambiguity or unclear contributor IP posture. | Ship Apache-2.0 (or approved dual-license) policy, CLA workflow, and explicit enterprise usage terms with deterministic policy docs + release evidence proving no conflicting runtime restrictions. | 10 | 0/1/2/client |
-| V10-CRUSH-001.2 | queued | Compliance Certification + Attestation Export Contract | Security boards require independently auditable control mapping, not internal assertions. | Deliver SOC 2 Type II / ISO 27001 readiness artifacts with mapped GDPR/HIPAA/FedRAMP/NIST AI RMF/EU AI Act controls, plus release SBOM/provenance exports and deterministic audit sink adapters. | 10 | 0/1/2/adapter/client |
-| V10-CRUSH-001.3 | queued | GA/LTS/Support Maturity Contract | Platform teams need versioning guarantees, long-term maintenance windows, and operational support SLAs before standardization. | Publish v1 GA contract with semantic versioning policy, 3-year LTS branch policy, deprecation governance, and evidence-backed enterprise support runbook integrations (health reviews/escalation surfaces). | 9 | 0/1/2/client/app |
-| V10-CRUSH-001.4 | queued | SDK Parity + Ecosystem Integration Contract (Python/TS + Major Providers) | Teams will route around the platform if prototyping APIs and ecosystem connectors lag Python-first competitors. | Ship Python + TypeScript SDKs with parity coverage against Rust-core authority paths, plus first-party adapter packs for priority LLM/providers and deterministic compatibility contract tests for each integration. | 9 | 0/1/2/adapter/client |
-| V10-CRUSH-001.5 | queued | Competitor Workflow Migration Contract (CrewAI/LangGraph/AutoGen/OpenHands) | Switching friction blocks adoption even when runtime quality is better. | Add one-command governed migration flows that ingest competitor workflow definitions, map to InfRing plans, emit deterministic migration receipts, and include parity validation reports + rollback path. | 9 | 0/1/2/client/adapter |
-| V10-CRUSH-001.6 | queued | Declarative Orchestration UX + HITL Contract | Developer adoption drops when orchestration and review require low-level manual wiring for common enterprise use-cases. | Provide declarative DSL + visual builder + paved-road templates + HITL review surface, all generating conduit-routed plans with deterministic receipts and policy-enforced approval gates. | 8 | 0/1/2/client/app |
-| V10-CRUSH-001.7 | queued | Edge/Performance Proof + Independent Benchmark Contract | Performance claims are fragile without third-party attestations and repeatable edge/runtime proof across hardware classes. | Maintain Tiny-max footprint gates, publish reproducible independent benchmark packets, and prove no-code-change autoscaling across edge/on-prem/cloud with deterministic performance receipts. | 9 | -1/0/1/2/adapter |
-| V10-CRUSH-001.8 | queued | Governance/Observability + Adoption Flywheel Contract | Enterprise standardization needs both executive-level governance visibility and a predictable adoption/community pipeline. | Productize observability/governance dashboards (OpenTelemetry/Prometheus/Grafana + ROI governance views), enforce policy-before-exec workflows, and publish roadmap/RFC/certification/community operating cadence with measurable adoption KPIs. | 8 | 0/1/2/client/app |
+| V10-CRUSH-001.1 | done | Enterprise Licensing + CLA Contract | Fortune-100 adoption stalls when legal review sees non-commercial ambiguity or unclear contributor IP posture. | Ship Apache-2.0 (or approved dual-license) policy, CLA workflow, and explicit enterprise usage terms with deterministic policy docs + release evidence proving no conflicting runtime restrictions. | 10 | 0/1/2/client |
+| V10-CRUSH-001.2 | done | Compliance Certification + Attestation Export Contract | Security boards require independently auditable control mapping, not internal assertions. | Deliver SOC 2 Type II / ISO 27001 readiness artifacts with mapped GDPR/HIPAA/FedRAMP/NIST AI RMF/EU AI Act controls, plus release SBOM/provenance exports and deterministic audit sink adapters. | 10 | 0/1/2/adapter/client |
+| V10-CRUSH-001.3 | done | GA/LTS/Support Maturity Contract | Platform teams need versioning guarantees, long-term maintenance windows, and operational support SLAs before standardization. | Publish v1 GA contract with semantic versioning policy, 3-year LTS branch policy, deprecation governance, and evidence-backed enterprise support runbook integrations (health reviews/escalation surfaces). | 9 | 0/1/2/client/app |
+| V10-CRUSH-001.4 | done | SDK Parity + Ecosystem Integration Contract (Python/TS + Major Providers) | Teams will route around the platform if prototyping APIs and ecosystem connectors lag Python-first competitors. | Ship Python + TypeScript SDKs with parity coverage against Rust-core authority paths, plus first-party adapter packs for priority LLM/providers and deterministic compatibility contract tests for each integration. | 9 | 0/1/2/adapter/client |
+| V10-CRUSH-001.5 | done | Competitor Workflow Migration Contract (CrewAI/LangGraph/AutoGen/OpenHands) | Switching friction blocks adoption even when runtime quality is better. | Add one-command governed migration flows that ingest competitor workflow definitions, map to InfRing plans, emit deterministic migration receipts, and include parity validation reports + rollback path. | 9 | 0/1/2/client/adapter |
+| V10-CRUSH-001.6 | done | Declarative Orchestration UX + HITL Contract | Developer adoption drops when orchestration and review require low-level manual wiring for common enterprise use-cases. | Provide declarative DSL + visual builder + paved-road templates + HITL review surface, all generating conduit-routed plans with deterministic receipts and policy-enforced approval gates. | 8 | 0/1/2/client/app |
+| V10-CRUSH-001.7 | done | Edge/Performance Proof + Independent Benchmark Contract | Performance claims are fragile without third-party attestations and repeatable edge/runtime proof across hardware classes. | Maintain Tiny-max footprint gates, publish reproducible independent benchmark packets, and prove no-code-change autoscaling across edge/on-prem/cloud with deterministic performance receipts. | 9 | -1/0/1/2/adapter |
+| V10-CRUSH-001.8 | done | Governance/Observability + Adoption Flywheel Contract | Enterprise standardization needs both executive-level governance visibility and a predictable adoption/community pipeline. | Productize observability/governance dashboards (OpenTelemetry/Prometheus/Grafana + ROI governance views), enforce policy-before-exec workflows, and publish roadmap/RFC/certification/community operating cadence with measurable adoption KPIs. | 8 | 0/1/2/client/app |
 
 ## Persistent Memory Deepening Intake (Doc `14uXK7Gqpll6NBHbBCSKPiriSnju9nhdDRBuoZV3eRSk`, 2026-03-15)
 
@@ -9801,14 +9801,14 @@ Objective: increase longitudinal memory quality and continuity while keeping ret
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V8-MEMORY-BANK-002.1 | queued | Working Memory State Contract (`working_memory.json`) | Session continuity degrades when active goals/decisions/blockers are implicit in chat history instead of explicit durable state. | Add governed working-memory state file with schema for goals/projects/decisions/pending-questions, startup ingest, turn-level updates, and deterministic save/restore receipts. | 9 | 0/1/2/client |
-| V8-MEMORY-BANK-002.2 | queued | Memory Importance + Decay Contract | Unbounded memory growth reduces signal quality unless low-value memories are deprioritized or archived deterministically. | Add per-memory importance/confidence scores, configurable decay windows, and archive transitions with deterministic archive receipts and policy-safe retention overrides. | 8 | 0/1/2 |
-| V8-MEMORY-BANK-002.3 | queued | Multi-Tier Hot/Warm/Cold Retrieval Contract | Loading all history harms latency while loading too little loses context for decisions. | Implement tiered storage/retrieval policy (hot session, warm recent, cold archive) with query-time budget controls and deterministic tier-selection receipts for every retrieval path. | 9 | 0/1/2/client |
-| V8-MEMORY-BANK-002.4 | queued | Decision Log ("Why") Contract | Teams lose rationale continuity when only outcomes are stored without options/rationale lineage. | Add structured decision log artifacts (context/options/choice/rationale/owner/date) and require retrieval hooks that surface linked decisions before plan-modifying actions. | 9 | 0/1/2/client |
-| V8-MEMORY-BANK-002.5 | queued | Task-Scoped Memory Slots Contract | Active work context is noisy without dedicated task slots containing state/blockers/next steps. | Add task-scoped memory slots with bounded loading of active tasks only, deterministic slot mutation receipts, and task-close archival flow. | 8 | 0/1/2/client |
-| V8-MEMORY-BANK-002.6 | queued | Session Continuation Protocol Contract | Operators need explicit resume semantics instead of implicit carry-over or accidental stale state. | Add `resume` vs `fresh` continuation mode with persisted continuation checkpoints, deterministic checkpoint hashes, and fail-closed mismatch handling when checkpoint integrity fails. | 8 | 0/1/2/client |
-| V8-MEMORY-BANK-002.7 | queued | Confidence + Uncertainty Surfacing Contract | Misremembered details become dangerous when the system presents low-confidence memory as fact. | Persist confidence metadata on memory assertions, expose uncertain-memory prompts in retrieval responses, and require confirmation updates to adjust confidence scores with receipts. | 9 | 0/1/2/client |
-| V8-MEMORY-BANK-002.8 | queued | Cross-Reference Graph + Proactive Maintenance Contract | Related memory dependencies and periodic consolidation are required for long-horizon coherence. | Build dependency links between related memories/decisions, support graph traversal retrieval ("what led here"), and run quiet-period maintenance jobs that consolidate daily logs into durable summary artifacts with deterministic maintenance receipts. | 8 | 0/1/2/client/app |
+| V8-MEMORY-BANK-002.1 | done | Working Memory State Contract (`working_memory.json`) | Session continuity degrades when active goals/decisions/blockers are implicit in chat history instead of explicit durable state. | Add governed working-memory state file with schema for goals/projects/decisions/pending-questions, startup ingest, turn-level updates, and deterministic save/restore receipts. | 9 | 0/1/2/client |
+| V8-MEMORY-BANK-002.2 | done | Memory Importance + Decay Contract | Unbounded memory growth reduces signal quality unless low-value memories are deprioritized or archived deterministically. | Add per-memory importance/confidence scores, configurable decay windows, and archive transitions with deterministic archive receipts and policy-safe retention overrides. | 8 | 0/1/2 |
+| V8-MEMORY-BANK-002.3 | done | Multi-Tier Hot/Warm/Cold Retrieval Contract | Loading all history harms latency while loading too little loses context for decisions. | Implement tiered storage/retrieval policy (hot session, warm recent, cold archive) with query-time budget controls and deterministic tier-selection receipts for every retrieval path. | 9 | 0/1/2/client |
+| V8-MEMORY-BANK-002.4 | done | Decision Log ("Why") Contract | Teams lose rationale continuity when only outcomes are stored without options/rationale lineage. | Add structured decision log artifacts (context/options/choice/rationale/owner/date) and require retrieval hooks that surface linked decisions before plan-modifying actions. | 9 | 0/1/2/client |
+| V8-MEMORY-BANK-002.5 | done | Task-Scoped Memory Slots Contract | Active work context is noisy without dedicated task slots containing state/blockers/next steps. | Add task-scoped memory slots with bounded loading of active tasks only, deterministic slot mutation receipts, and task-close archival flow. | 8 | 0/1/2/client |
+| V8-MEMORY-BANK-002.6 | done | Session Continuation Protocol Contract | Operators need explicit resume semantics instead of implicit carry-over or accidental stale state. | Add `resume` vs `fresh` continuation mode with persisted continuation checkpoints, deterministic checkpoint hashes, and fail-closed mismatch handling when checkpoint integrity fails. | 8 | 0/1/2/client |
+| V8-MEMORY-BANK-002.7 | done | Confidence + Uncertainty Surfacing Contract | Misremembered details become dangerous when the system presents low-confidence memory as fact. | Persist confidence metadata on memory assertions, expose uncertain-memory prompts in retrieval responses, and require confirmation updates to adjust confidence scores with receipts. | 9 | 0/1/2/client |
+| V8-MEMORY-BANK-002.8 | done | Cross-Reference Graph + Proactive Maintenance Contract | Related memory dependencies and periodic consolidation are required for long-horizon coherence. | Build dependency links between related memories/decisions, support graph traversal retrieval ("what led here"), and run quiet-period maintenance jobs that consolidate daily logs into durable summary artifacts with deterministic maintenance receipts. | 8 | 0/1/2/client/app |
 
 ## Universal Substrate Domination Intake (Doc `1Bw87DLCi8J4c95SM96Ru8gNX2JFmHrN0kFzZBH_Vcb0`, 2026-03-15)
 
@@ -9835,13 +9835,13 @@ Objective: position InfRing as the default execution substrate by making competi
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V11-ECOSYSTEM-001.1 | queued | Adoption Escape Velocity + Migration Hub Contract | Better runtime quality alone does not win if migration friction from incumbent ecosystems remains high. | Add first-party migration hub commands for priority ecosystems (`openclaw`, `langgraph`, `crewai`, `autogen`, `openhands`, `ollama`) with deterministic migration receipts, import parity checks, and rollback reports. | 10 | 0/1/2/client/adapter |
-| V11-ECOSYSTEM-001.2 | queued | Real-World Persistent Actions Engine Contract | Agent utility plateaus without durable, policy-governed actions over email/calendar/messaging/browser channels. | Implement Layer-2 actions primitives with fail-closed policy covenants, always-on channel execution loops, and deterministic action receipts for every accept/deny path. | 10 | 0/1/2/client/adapter |
-| V11-ECOSYSTEM-001.3 | queued | Protheus Hub Marketplace Contract | Ecosystem scale requires audited discovery/install economics with built-in safety, not ad hoc package drops. | Ship marketplace service with signed package manifests, safety assimilation on install, receipt-backed reputation metadata, and deterministic install/update/remove receipts. | 10 | 0/1/2/client/app |
-| V11-ECOSYSTEM-001.4 | queued | Local LLM Serving Dominance Contract | Local-first adoption is constrained without one-command multi-model serving under the same governance plane. | Add native local-LLM serving runtime with hardware auto-detection, quantization-aware model routing, OpenAI-compatible API surface, and deterministic serve/runtime switch receipts. | 9 | -1/0/1/2/client |
-| V11-ECOSYSTEM-001.5 | queued | LangGraph-to-Protheus Converter + Graph Runtime Contract | Teams with existing graph workflows need a low-friction path to gain receipts/safety without rewrites. | Implement graph import converter and runtime compatibility lane with persistence, streaming, HITL checkpoints, safety covenant injection, and deterministic conversion/runtime receipts. | 9 | 0/1/2/client |
-| V11-ECOSYSTEM-001.6 | queued | Universal SDK + WASM Substrate Contract | Cross-language lock-in is required for broad adoption across heterogeneous enterprise stacks. | Ship officially supported SDKs (Python/JS/.NET/Go/Rust/Java) with thin wrappers over conduit authority plus WASM substrate runtime contracts and compatibility tests for no-authority-bypass guarantees. | 10 | -1/0/1/2/client/adapter |
-| V11-ECOSYSTEM-001.7 | queued | Internet-Scale Governance + Economic Layer Contract | At ecosystem scale, coordination and trust require native policy/economic primitives rather than external bolt-ons. | Add Layer-1 governance/economic primitives for staking/reputation/payment policy flows, merkle-anchored audit roots, and evidence-backed constitutional update workflows under HUMAN_ONLY guardrails. | 10 | 0/1/2/3 |
+| V11-ECOSYSTEM-001.1 | done | Adoption Escape Velocity + Migration Hub Contract | Better runtime quality alone does not win if migration friction from incumbent ecosystems remains high. | Add first-party migration hub commands for priority ecosystems (`openclaw`, `langgraph`, `crewai`, `autogen`, `openhands`, `ollama`) with deterministic migration receipts, import parity checks, and rollback reports. | 10 | 0/1/2/client/adapter |
+| V11-ECOSYSTEM-001.2 | done | Real-World Persistent Actions Engine Contract | Agent utility plateaus without durable, policy-governed actions over email/calendar/messaging/browser channels. | Implement Layer-2 actions primitives with fail-closed policy covenants, always-on channel execution loops, and deterministic action receipts for every accept/deny path. | 10 | 0/1/2/client/adapter |
+| V11-ECOSYSTEM-001.3 | done | Protheus Hub Marketplace Contract | Ecosystem scale requires audited discovery/install economics with built-in safety, not ad hoc package drops. | Ship marketplace service with signed package manifests, safety assimilation on install, receipt-backed reputation metadata, and deterministic install/update/remove receipts. | 10 | 0/1/2/client/app |
+| V11-ECOSYSTEM-001.4 | done | Local LLM Serving Dominance Contract | Local-first adoption is constrained without one-command multi-model serving under the same governance plane. | Add native local-LLM serving runtime with hardware auto-detection, quantization-aware model routing, OpenAI-compatible API surface, and deterministic serve/runtime switch receipts. | 9 | -1/0/1/2/client |
+| V11-ECOSYSTEM-001.5 | done | LangGraph-to-Protheus Converter + Graph Runtime Contract | Teams with existing graph workflows need a low-friction path to gain receipts/safety without rewrites. | Implement graph import converter and runtime compatibility lane with persistence, streaming, HITL checkpoints, safety covenant injection, and deterministic conversion/runtime receipts. | 9 | 0/1/2/client |
+| V11-ECOSYSTEM-001.6 | done | Universal SDK + WASM Substrate Contract | Cross-language lock-in is required for broad adoption across heterogeneous enterprise stacks. | Ship officially supported SDKs (Python/JS/.NET/Go/Rust/Java) with thin wrappers over conduit authority plus WASM substrate runtime contracts and compatibility tests for no-authority-bypass guarantees. | 10 | -1/0/1/2/client/adapter |
+| V11-ECOSYSTEM-001.7 | done | Internet-Scale Governance + Economic Layer Contract | At ecosystem scale, coordination and trust require native policy/economic primitives rather than external bolt-ons. | Add Layer-1 governance/economic primitives for staking/reputation/payment policy flows, merkle-anchored audit roots, and evidence-backed constitutional update workflows under HUMAN_ONLY guardrails. | 10 | 0/1/2/3 |
 
 ## Mole-Tunnel Substrate Strategy Intake (Doc `1Bw87DLCi8J4c95SM96Ru8gNX2JFmHrN0kFzZBH_Vcb0`, 2026-03-15)
 
@@ -9864,10 +9864,10 @@ Objective: provide compatibility tunnels that preserve external workflow UX whil
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V11-MOLE-001.1 | queued | Silent Compatibility Shim Contract (Major Rival Protocols) | Ecosystem capture is slowed when users must manually rewrite workflows to adopt core governance primitives. | Implement substrate tunnel shims for priority rival protocols (OpenAI API, LangGraph JSON, CrewAI YAML, AutoGen messages, Ollama serving, OpenHands calls, skill manifests) routed through conduit with deterministic compatibility receipts. | 10 | -1/0/1/2/adapter |
-| V11-MOLE-001.2 | queued | Automatic Safety Absorption Engine Contract | Compatibility paths are unsafe if imported workloads run without Prime Directive + receipt enforcement. | Add automatic absorption stage that upgrades imported workload execution with policy gates, deterministic receipt issuance, and persona lens binding before first runtime action. | 10 | 0/1/2/client |
-| V11-MOLE-001.3 | queued | One-Way Seamless Tunnel Migration Contract | Adoption requires a migration flow that keeps user-visible behavior stable while moving authority to Rust-core safety planes. | Add `protheus tunnel enable <surface>` flows with parity validation, deterministic tunnel activation receipts, and rollback checkpoints; require no direct client-side authority path for post-enable execution. | 9 | -1/0/1/2/client |
-| V11-MOLE-001.4 | queued | Permanent Receipt Anchoring for Imported Workloads Contract | Imported workflows can silently drift out of governance unless provenance anchoring is enforced at ingest/runtime boundaries. | Ensure every imported workflow/skill receives merkle-anchored receipt lineage with integrity checks that fail-closed on tampering or missing ancestry, plus deterministic audit exports. | 10 | 0/1/2/3 |
+| V11-MOLE-001.1 | done | Silent Compatibility Shim Contract (Major Rival Protocols) | Ecosystem capture is slowed when users must manually rewrite workflows to adopt core governance primitives. | Implement substrate tunnel shims for priority rival protocols (OpenAI API, LangGraph JSON, CrewAI YAML, AutoGen messages, Ollama serving, OpenHands calls, skill manifests) routed through conduit with deterministic compatibility receipts. | 10 | -1/0/1/2/adapter |
+| V11-MOLE-001.2 | done | Automatic Safety Absorption Engine Contract | Compatibility paths are unsafe if imported workloads run without Prime Directive + receipt enforcement. | Add automatic absorption stage that upgrades imported workload execution with policy gates, deterministic receipt issuance, and persona lens binding before first runtime action. | 10 | 0/1/2/client |
+| V11-MOLE-001.3 | done | One-Way Seamless Tunnel Migration Contract | Adoption requires a migration flow that keeps user-visible behavior stable while moving authority to Rust-core safety planes. | Add `protheus tunnel enable <surface>` flows with parity validation, deterministic tunnel activation receipts, and rollback checkpoints; require no direct client-side authority path for post-enable execution. | 9 | -1/0/1/2/client |
+| V11-MOLE-001.4 | done | Permanent Receipt Anchoring for Imported Workloads Contract | Imported workflows can silently drift out of governance unless provenance anchoring is enforced at ingest/runtime boundaries. | Ensure every imported workflow/skill receives merkle-anchored receipt lineage with integrity checks that fail-closed on tampering or missing ancestry, plus deterministic audit exports. | 10 | 0/1/2/3 |
 
 ## Competitor Gap Closure Intake (Doc `16SND-kQnl2bqZmj5Wd7CrGOlSkCB-uW1RDqPyAmhinU`, 2026-03-15)
 
@@ -9892,11 +9892,11 @@ Objective: close remaining competitor-facing gaps through measurable ecosystem b
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V10-COMPETITOR-001.1 | queued | Channel Adapters Expansion Contract | Competitive parity is constrained when supported channel surfaces lag incumbent ecosystems, even with better core runtime quality. | Expand adapter catalog to configured target breadth (including major messaging/social/collaboration channels), with adapter manifest auto-discovery, deterministic enable/test receipts, and conduit-only execution guarantees. | 9 | -1/0/1/2/adapter/client |
-| V10-COMPETITOR-001.2 | queued | LLM Provider Router + Driver Breadth Contract | Provider lock-in and static routing reduce quality/cost resilience compared to dynamic multi-provider routing. | Add first-party provider drivers and runtime router scoring over budget/latency/capability constraints, enforce cost/policy guardrails via conduit, and emit deterministic provider-selection and fallback receipts. | 10 | 0/1/2/client |
-| V10-COMPETITOR-001.3 | queued | Domain-Specific Hands Expansion Contract | Adoption and retention improve when high-value domain agents ship with ready scheduling, guardrails, and receipts instead of raw primitives only. | Ship new domain Hands with manifests, schedule support, guardrail policies, and dashboard surfaces; require deterministic run receipts and Prime Directive compliance checks on every action path. | 9 | 0/1/2/client/app |
-| V10-COMPETITOR-001.4 | queued | v1.0 Production Lockdown Contract | Enterprise confidence requires hard release quality gates, formal proofs on critical lanes, and repeatable deployment templates. | Enforce release-quality lane with coverage/proof thresholds for target surfaces, Kubernetes/VPC deployment templates, semantic release governance, and deterministic release evidence artifacts. | 10 | 0/1/2/client/adapter |
-| V10-COMPETITOR-001.5 | queued | Community Flywheel + Migration Pipeline Contract | Ecosystem growth stalls without low-friction migration and contributor activation workflows. | Add one-command migration flows for priority competitor surfaces, community bot/templates, and backlog-to-contribution automation with deterministic migration/community receipts and no client authority bypass paths. | 8 | 0/1/2/client/app |
+| V10-COMPETITOR-001.1 | done | Channel Adapters Expansion Contract | Competitive parity is constrained when supported channel surfaces lag incumbent ecosystems, even with better core runtime quality. | Expand adapter catalog to configured target breadth (including major messaging/social/collaboration channels), with adapter manifest auto-discovery, deterministic enable/test receipts, and conduit-only execution guarantees. | 9 | -1/0/1/2/adapter/client |
+| V10-COMPETITOR-001.2 | done | LLM Provider Router + Driver Breadth Contract | Provider lock-in and static routing reduce quality/cost resilience compared to dynamic multi-provider routing. | Add first-party provider drivers and runtime router scoring over budget/latency/capability constraints, enforce cost/policy guardrails via conduit, and emit deterministic provider-selection and fallback receipts. | 10 | 0/1/2/client |
+| V10-COMPETITOR-001.3 | done | Domain-Specific Hands Expansion Contract | Adoption and retention improve when high-value domain agents ship with ready scheduling, guardrails, and receipts instead of raw primitives only. | Ship new domain Hands with manifests, schedule support, guardrail policies, and dashboard surfaces; require deterministic run receipts and Prime Directive compliance checks on every action path. | 9 | 0/1/2/client/app |
+| V10-COMPETITOR-001.4 | done | v1.0 Production Lockdown Contract | Enterprise confidence requires hard release quality gates, formal proofs on critical lanes, and repeatable deployment templates. | Enforce release-quality lane with coverage/proof thresholds for target surfaces, Kubernetes/VPC deployment templates, semantic release governance, and deterministic release evidence artifacts. | 10 | 0/1/2/client/adapter |
+| V10-COMPETITOR-001.5 | done | Community Flywheel + Migration Pipeline Contract | Ecosystem growth stalls without low-friction migration and contributor activation workflows. | Add one-command migration flows for priority competitor surfaces, community bot/templates, and backlog-to-contribution automation with deterministic migration/community receipts and no client authority bypass paths. | 8 | 0/1/2/client/app |
 
 ## Fastest-Growing AI Repos Assimilation Intake (Doc `1So3OFpzgTzK2J43_wvrx7ZlurrBT9TBvvPt-SKmsdJA`, 2026-03-15)
 
@@ -9925,14 +9925,14 @@ Objective: absorb high-signal capabilities from fast-growing projects while pres
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V8-ECOSYSTEM-001.1 | queued | 24/7 Persistent Runtime Contract | Runtime trust degrades when daemon operation needs manual reattach or cannot survive long-lived cross-OS sessions. | Add persistent daemon mode with reconnect supervision, heartbeat receipts, and deterministic continuity proofs under conduit governance (`protheus daemon start --persistent`). | 9 | 0/1/2/client |
-| V8-ECOSYSTEM-001.2 | queued | Plug-and-Play Skills Import Contract | Skill adoption slows when registration/discovery require manual wiring and inconsistent metadata contracts. | Add skill import/discovery compatibility lane with one-command registration, manifest validation, and deterministic install/activation receipts (`protheus skill import <source>`). | 8 | 0/1/2/client/app |
-| V8-ECOSYSTEM-001.3 | queued | WiFi Pose Eye Substrate Contract | Privacy-first ambient sensing use-cases need non-camera posture inference under the same safety/evidence model. | Extend Eye substrate with WiFi-signal-to-pose inference pathway, normalized pose event contracts, and deterministic sensory receipts (`protheus eye enable wifi-pose`). | 8 | -1/0/1/2/client |
-| V8-ECOSYSTEM-001.4 | queued | Swarm Prediction Engine Contract | Collective orchestration is under-leveraged if swarm lanes cannot produce explicit predictive outputs. | Add swarm prediction capability surface with topic/domain inputs, consensus trace artifacts, and deterministic prediction receipts (`protheus swarm predict <topic>`). | 8 | 0/1/2/client |
-| V8-ECOSYSTEM-001.5 | queued | Real-Time Voice Companion Mode Contract | Voice companions require low-latency dialogue and memory continuity while retaining policy and audit constraints. | Add real-time voice companion mode tied to persistent memory and conduit policy checks with deterministic conversation/session receipts (`protheus voice enable airi-mode`). | 8 | 0/1/2/client/app |
-| V8-ECOSYSTEM-001.6 | queued | Autonomous Research→Code→Create Loop Contract | Autonomous utility remains fragmented unless research, implementation, and artifact generation can run as one governed loop. | Add autonomous staged workflow profile that chains research, coding, and creation primitives with deterministic per-stage receipts and rollback checkpoints (`protheus agent run deerflow \"<goal>\"`). | 9 | 0/1/2/client |
-| V8-ECOSYSTEM-001.7 | queued | Defensive Guardrail-Bypass Detection Contract | External-model integrations are risky without explicit detection and denial of guardrail-removal or safety-bypass behavior. | Extend DirectiveComplianceGate with defensive bypass-detection lane for external model actions, enforce deterministic deny receipts, and require bypass-rejection tests for all model adapters. | 10 | 0/1/2/adapter |
-| V8-ECOSYSTEM-001.8 | queued | Conduit-Only Ecosystem Assimilation Boundary Contract | Ecosystem extension work becomes unsafe if new capabilities can execute outside Rust authority and policy planes. | Prove all V8-ECOSYSTEM-001 capabilities route exclusively through Layer-0 conduit with thin client wrappers only, explicit bypass-rejection tests, and complete audit trail receipts. | 10 | 0/1/2/client/app |
+| V8-ECOSYSTEM-001.1 | done | 24/7 Persistent Runtime Contract | Runtime trust degrades when daemon operation needs manual reattach or cannot survive long-lived cross-OS sessions. | Add persistent daemon mode with reconnect supervision, heartbeat receipts, and deterministic continuity proofs under conduit governance (`protheus daemon start --persistent`). | 9 | 0/1/2/client |
+| V8-ECOSYSTEM-001.2 | done | Plug-and-Play Skills Import Contract | Skill adoption slows when registration/discovery require manual wiring and inconsistent metadata contracts. | Add skill import/discovery compatibility lane with one-command registration, manifest validation, and deterministic install/activation receipts (`protheus skill import <source>`). | 8 | 0/1/2/client/app |
+| V8-ECOSYSTEM-001.3 | done | WiFi Pose Eye Substrate Contract | Privacy-first ambient sensing use-cases need non-camera posture inference under the same safety/evidence model. | Extend Eye substrate with WiFi-signal-to-pose inference pathway, normalized pose event contracts, and deterministic sensory receipts (`protheus eye enable wifi-pose`). | 8 | -1/0/1/2/client |
+| V8-ECOSYSTEM-001.4 | done | Swarm Prediction Engine Contract | Collective orchestration is under-leveraged if swarm lanes cannot produce explicit predictive outputs. | Add swarm prediction capability surface with topic/domain inputs, consensus trace artifacts, and deterministic prediction receipts (`protheus swarm predict <topic>`). | 8 | 0/1/2/client |
+| V8-ECOSYSTEM-001.5 | done | Real-Time Voice Companion Mode Contract | Voice companions require low-latency dialogue and memory continuity while retaining policy and audit constraints. | Add real-time voice companion mode tied to persistent memory and conduit policy checks with deterministic conversation/session receipts (`protheus voice enable airi-mode`). | 8 | 0/1/2/client/app |
+| V8-ECOSYSTEM-001.6 | done | Autonomous Research→Code→Create Loop Contract | Autonomous utility remains fragmented unless research, implementation, and artifact generation can run as one governed loop. | Add autonomous staged workflow profile that chains research, coding, and creation primitives with deterministic per-stage receipts and rollback checkpoints (`protheus agent run deerflow \"<goal>\"`). | 9 | 0/1/2/client |
+| V8-ECOSYSTEM-001.7 | done | Defensive Guardrail-Bypass Detection Contract | External-model integrations are risky without explicit detection and denial of guardrail-removal or safety-bypass behavior. | Extend DirectiveComplianceGate with defensive bypass-detection lane for external model actions, enforce deterministic deny receipts, and require bypass-rejection tests for all model adapters. | 10 | 0/1/2/adapter |
+| V8-ECOSYSTEM-001.8 | done | Conduit-Only Ecosystem Assimilation Boundary Contract | Ecosystem extension work becomes unsafe if new capabilities can execute outside Rust authority and policy planes. | Prove all V8-ECOSYSTEM-001 capabilities route exclusively through Layer-0 conduit with thin client wrappers only, explicit bypass-rejection tests, and complete audit trail receipts. | 10 | 0/1/2/client/app |
 
 ## AI Inbound Lead Generation & Qualification Intake (Doc `1eaOEzO8flJzWstCGD6LmGshnlRwg8ontJ7WOyZZPUy4`, 2026-03-15)
 
@@ -9957,11 +9957,11 @@ Objective: convert company workflows from outbound-heavy prospecting to determin
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V6-COMPANY-003.1 | queued | Automated LinkedIn Content Creation Engine Contract | Inbound growth stalls when content generation depends on manual drafting rather than repeatable ICP-targeted automation. | Extend company research/skills workflow to generate scheduled LinkedIn-ready content artifacts with deterministic generation receipts (`protheus company content generate`). | 8 | 0/1/2/client/app |
-| V6-COMPANY-003.2 | queued | Progressive Trust-Building Exposure Sequence Contract | Lead conversion quality improves when repeated exposure history is tracked and acted upon, not treated as stateless events. | Add exposure-tracking state and trust progression rules across multi-touch content sequences with provenance receipts linking exposures to downstream engagement. | 8 | 0/1/2/client |
-| V6-COMPANY-003.3 | queued | Automated Lead Qualification Engine Contract | Sales efficiency drops when unqualified leads reach humans without structured pre-qualification checks. | Implement automated qualification question flow via skills/MCP paths, conduit-gated with deterministic qualification decision receipts (`protheus company qualify enable`). | 9 | 0/1/2/adapter/client |
-| V6-COMPANY-003.4 | queued | Warm Inbound Lead Routing + Capture Contract | Pipeline velocity suffers when qualified inbound leads are not routed with full qualification context into company workflows. | Route qualified inbound leads into company pipelines with attached qualification payloads, deterministic routing receipts, and fail-closed policy denials on incomplete lead state. | 9 | 0/1/2/client/app |
-| V6-COMPANY-003.5 | queued | Conduit-Only Execution + Funnel Metrics Contract | Growth claims are not trustworthy without governance-bound execution and measurable business outcomes. | Enforce conduit-only execution across generation/qualification/routing with explicit bypass-rejection tests and deterministic metrics receipts for funnel KPIs (qualified leads/month, conversion/close rates, response latency). | 10 | 0/1/2/client/app |
+| V6-COMPANY-003.1 | done | Automated LinkedIn Content Creation Engine Contract | Inbound growth stalls when content generation depends on manual drafting rather than repeatable ICP-targeted automation. | Extend company research/skills workflow to generate scheduled LinkedIn-ready content artifacts with deterministic generation receipts (`protheus company content generate`). | 8 | 0/1/2/client/app |
+| V6-COMPANY-003.2 | done | Progressive Trust-Building Exposure Sequence Contract | Lead conversion quality improves when repeated exposure history is tracked and acted upon, not treated as stateless events. | Add exposure-tracking state and trust progression rules across multi-touch content sequences with provenance receipts linking exposures to downstream engagement. | 8 | 0/1/2/client |
+| V6-COMPANY-003.3 | done | Automated Lead Qualification Engine Contract | Sales efficiency drops when unqualified leads reach humans without structured pre-qualification checks. | Implement automated qualification question flow via skills/MCP paths, conduit-gated with deterministic qualification decision receipts (`protheus company qualify enable`). | 9 | 0/1/2/adapter/client |
+| V6-COMPANY-003.4 | done | Warm Inbound Lead Routing + Capture Contract | Pipeline velocity suffers when qualified inbound leads are not routed with full qualification context into company workflows. | Route qualified inbound leads into company pipelines with attached qualification payloads, deterministic routing receipts, and fail-closed policy denials on incomplete lead state. | 9 | 0/1/2/client/app |
+| V6-COMPANY-003.5 | done | Conduit-Only Execution + Funnel Metrics Contract | Growth claims are not trustworthy without governance-bound execution and measurable business outcomes. | Enforce conduit-only execution across generation/qualification/routing with explicit bypass-rejection tests and deterministic metrics receipts for funnel KPIs (qualified leads/month, conversion/close rates, response latency). | 10 | 0/1/2/client/app |
 
 ## Slate Swarm Orchestration + Context Compaction Intake (Doc `1mUuuNFPOoGgFSn9IrQEVlktjLwtGupY7pXBjhQ8w9qM`, 2026-03-15)
 
@@ -9986,11 +9986,11 @@ Objective: harden large-scale multi-agent execution so swarm runs stay context-s
 
 | ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
 | --- | --- | --- | --- | --- | --- | --- |
-| V8-SWARM-002.1 | queued | Massively Parallel Swarm Orchestration Engine Contract | Current swarm lanes support coordination but need a dedicated parallel-execution profile for large collaborative tasks with bounded overhead. | Add `protheus swarm run <goal>` parallel swarm profile with deterministic task decomposition/coordination receipts and explicit failure-budget handling across sub-agent groups. | 9 | 0/1/2/client |
-| V8-SWARM-002.2 | queued | Self-Engineered Context Compaction Contract | Long-running swarm sessions degrade without automatic relevance ranking and compacted context surfaces. | Extend memory/context runtime with compaction scoring and idle-triggered compaction cycles, emitting deterministic compaction receipts and preserving provenance links for restored details. | 9 | 0/1/2 |
-| V8-SWARM-002.3 | queued | Implicit Planning via Discussion Contract | Rigid plan-mode workflows reduce adaptivity when agents should research first and synthesize plans conversationally. | Add `protheus swarm plan <goal>` implicit planning flow (research → synthesize → discuss) with deterministic stage receipts and policy-safe human handoff points. | 8 | 0/1/2/client |
-| V8-SWARM-002.4 | queued | Swarm-Aware Memory Sharing Contract | Parallel agents lose coherence unless compacted context and findings are shared with conflict-aware consolidation. | Implement swarm memory-sharing protocol that syncs compacted context/facts across agent cohort with provenance hashes, conflict resolution receipts, and bounded sync latency gates. | 8 | 0/1/2/client |
-| V8-SWARM-002.5 | queued | Conduit-Only Swarm Execution + Thin Client Boundary Contract | Swarm execution and compaction become unsafe if any orchestration path bypasses conduit policy checks. | Prove all V8-SWARM-002 run/plan/compact/sync operations route exclusively through Layer-0 conduit with explicit bypass-rejection tests and full audit trail receipts. | 10 | 0/1/2/client/app |
+| V8-SWARM-002.1 | done | Massively Parallel Swarm Orchestration Engine Contract | Current swarm lanes support coordination but need a dedicated parallel-execution profile for large collaborative tasks with bounded overhead. | Add `protheus swarm run <goal>` parallel swarm profile with deterministic task decomposition/coordination receipts and explicit failure-budget handling across sub-agent groups. | 9 | 0/1/2/client |
+| V8-SWARM-002.2 | done | Self-Engineered Context Compaction Contract | Long-running swarm sessions degrade without automatic relevance ranking and compacted context surfaces. | Extend memory/context runtime with compaction scoring and idle-triggered compaction cycles, emitting deterministic compaction receipts and preserving provenance links for restored details. | 9 | 0/1/2 |
+| V8-SWARM-002.3 | done | Implicit Planning via Discussion Contract | Rigid plan-mode workflows reduce adaptivity when agents should research first and synthesize plans conversationally. | Add `protheus swarm plan <goal>` implicit planning flow (research → synthesize → discuss) with deterministic stage receipts and policy-safe human handoff points. | 8 | 0/1/2/client |
+| V8-SWARM-002.4 | done | Swarm-Aware Memory Sharing Contract | Parallel agents lose coherence unless compacted context and findings are shared with conflict-aware consolidation. | Implement swarm memory-sharing protocol that syncs compacted context/facts across agent cohort with provenance hashes, conflict resolution receipts, and bounded sync latency gates. | 8 | 0/1/2/client |
+| V8-SWARM-002.5 | done | Conduit-Only Swarm Execution + Thin Client Boundary Contract | Swarm execution and compaction become unsafe if any orchestration path bypasses conduit policy checks. | Prove all V8-SWARM-002 run/plan/compact/sync operations route exclusively through Layer-0 conduit with explicit bypass-rejection tests and full audit trail receipts. | 10 | 0/1/2/client/app |
 
 ## Audit V3 Gap Closure Intake (Doc `12XKCWZx-_rt4YGJZKIT38WXz5sIcl_QUfuwxKMJqVGQ`, 2026-03-15)
 
@@ -10015,3 +10015,864 @@ Objective: close audit-reported partial/unchanged gaps with executable tests, do
 | FORMAL-COVERAGE-001 | done | Layer-2 Scheduler Formal Coverage Contract | Audit flagged scheduler formal coverage as unproven, weakening assurance posture for execution control paths. | Added scheduler Kani harness module `core/layer2/execution/src/scheduler_kani_proofs.rs`, wired under `#[cfg(kani)]` in `core/layer2/execution/src/lib.rs`, and promoted scheduler surface to `proven` in `proofs/layer0/core_formal_coverage_map.json`. | 9 | 0/1/2 |
 | V8-PROOF-REGISTRY-001 | done | Runtime Proof Registry Coverage Expansion Contract | Runtime proof registry lacked V7 canyon/F100 IDs and failed to track done claims across series. | Expanded registry coverage in `core/layer0/ops/tests/v8_runtime_proof.rs` to include V7-CANYON-002.* and V7-F100-002.* IDs, with explicit coverage assertion test `runtime_proof_registry_includes_v7_canyon_and_f100_series`. | 8 | 0/1/2 |
 | V7-TOP1-002-KANI-COVERAGE | done | Kani Core-Business-Logic Coverage Expansion Contract | Kani coverage focused on utility helpers and did not include core business-gate logic. | Added Kani proofs in `core/layer0/ops/src/top1_kani_proofs.rs` for canyon footprint helper, cross-plane JWT guard enforcement, and super-gate block/allow logic; mapped in `proofs/layer0/core_formal_coverage_map.json`. | 9 | 0/1/2 |
+
+## Lightpanda Agent-Browser Intake (Doc `1rnMrcH2PPucIwuLr8kyAZb2F2kxM1ugUHtmuZppzdIs`, 2026-03-16)
+
+Source references:
+- [Lightpanda assimilation doc](https://docs.google.com/document/d/1rnMrcH2PPucIwuLr8kyAZb2F2kxM1ugUHtmuZppzdIs/edit?usp=sharing)
+- upstream source noted by doc: [X post by alexwg](https://x.com/alexwg/status/2033227542392418458)
+
+Notes:
+- Primitive-first normalization: this intake extends existing Eyes/browser orchestration and binary-blob evidence primitives; it does not introduce a separate authority plane.
+- Overlap handled explicitly:
+  - browser/eyes baseline: existing sensory-eyes collector lanes and browser automation surfaces
+  - backend governance baseline: conduit-only routing and policy-root engine selection
+  - session evidence baseline: existing Layer-1 binary blob storage and replay-oriented receipts
+- Net-new emphasis from source:
+  - Lightpanda backend as a high-performance headless browser option,
+  - ultra-speed browsing profile with bounded reliability/safety gates,
+  - seamless backend routing between Lightpanda/Brave/compatibility engines,
+  - browser session archival into blob vault for long-horizon refinement.
+
+Objective: add a policy-governed high-speed headless browser backend and archival lane that improves web-heavy agent workloads (research/scraping/automation) while preserving fail-closed safety and deterministic receipts.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-EYES-011.1 | done | Lightpanda Headless Browser Backend Contract | Current Eyes/browser execution relies on heavier engines and misses a lightweight high-performance backend profile for web-intensive workloads. | Add governed Lightpanda backend support as default-or-configurable engine for Eyes/browser tasks with deterministic backend-selection receipts and CLI surface (`protheus eye enable lightpanda`). | 9 | 2/client |
+| V8-EYES-011.2 | done | Ultra Speed Browsing Profile Contract (`31x` target lane) | Browser task throughput is constrained without an explicit high-speed profile that tunes parallelism/caching under safety budgets. | Implement ultra-speed session profile (`protheus eye speed --ultra`) with bounded parallel tabs, cache/timing policy controls, reliability guardrails, and deterministic performance/evidence receipts against configured threshold targets. | 8 | 2 |
+| V8-EYES-011.3 | done | Seamless Multi-Backend Browser Router Contract | Different web targets require different engine tradeoffs (speed vs compatibility); static backend choice causes failure/latency regressions. | Add on-the-fly backend switching (`protheus eye backend switch <engine>`) with policy-gated routing between Lightpanda/Brave/compat engines, fail-closed unsupported-engine handling, and per-switch audit receipts. | 8 | 2/client |
+| V8-EYES-011.4 | done | Browser Session Blob Archival Contract | Long-run refinement/replay quality degrades when browser traces/screens/data are not persisted in canonical blob-backed memory. | Add session archival lane (`protheus eye archive session`) that stores traces, screenshots, and extracted artifacts in Layer-1 blob vault with provenance hashes, retention policy checks, and replay-ready references for dream/refinement lanes. | 9 | 1/2/3 |
+
+## ADLC Shift Assimilation Intake (Doc `1MruwcDpXQ6fYocXc77axa9BGcSlJ5ALfhB04vCbl3XU`, 2026-03-16)
+
+Source references:
+- [ADLC assimilation doc](https://docs.google.com/document/d/1MruwcDpXQ6fYocXc77axa9BGcSlJ5ALfhB04vCbl3XU/edit?usp=sharing)
+- upstream signal referenced by source: [X post by BharukaShraddha](https://x.com/BharukaShraddha/status/2033069325490499967)
+
+Notes:
+- Primitive-first normalization: this intake formalizes ADLC capabilities through existing organism/orchestration/safety primitives and does not introduce a new authority plane.
+- Overlap handled explicitly:
+  - swarm coordination and parallel execution: `V8-SWARM-002.1`, `V8-SWARM-002.4`
+  - implicit planning/replanning and adaptive loops: `V8-SWARM-002.3`, existing orchestration lanes
+  - continuous testing and gate enforcement: existing verification and safety-lane contracts
+- Net-new emphasis from source:
+  - explicit ADLC mode toggle as a governed lifecycle profile,
+  - goal evolution + real-time replanning as first-class organism behavior,
+  - native parallel sub-agent orchestration under shared-state contracts,
+  - continuous testing + live feedback as integral runtime cycle (not separate phase).
+
+Objective: codify Agent-Driven Life Cycle semantics as a first-class operating mode so planning, execution, testing, and replanning remain autonomous, parallel, and evidence-backed under conduit governance.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V9-ORGANISM-025.1 | done | ADLC Core Engine Contract | Linear SDLC execution leaves autonomy gains fragmented; ADLC needs one explicit governed lifecycle profile. | Add `protheus mode enable adlc` runtime profile that activates autonomous goal-evolution + parallel execution + continuous test/replan loops, with deterministic lifecycle receipts and policy-gated fail-closed behavior. | 9 | 0/1/2/3/client |
+| V9-ORGANISM-025.2 | done | Evolving Goals + Real-Time Replanning Contract | Static plans degrade in long-running autonomous tasks when goals cannot adapt to fresh evidence at runtime. | Add `protheus plan evolve` lane with evidence-weighted goal updates, automatic replanning checkpoints, and deterministic before/after plan delta receipts tied to objective constraints. | 8 | 1/2 |
+| V9-ORGANISM-025.3 | done | Parallel Sub-Agent Coordination Contract | ADLC requires first-class parallel specialist execution with shared-state coherence and bounded conflict handling. | Add `protheus swarm parallel` orchestration surface with policy-bounded parallel workers, shared-state merge contracts, conflict-resolution receipts, and rollback checkpoints on coordination failure. | 8 | 0/1/2/client |
+| V9-ORGANISM-025.4 | done | Continuous Testing + Live Feedback Loop Contract | Reliability drops when testing remains a post-hoc phase instead of continuous runtime validation integrated into agent cycles. | Add `protheus test continuous` lane that runs continuous policy/test probes during execution, feeds results into replanning loops, and emits deterministic test + feedback receipts with strict safety gate escalation paths. | 9 | 0/1/2 |
+
+## Final Pillars Ultimate OS Intake (Doc `1v93gS3eiwaCfSX0k_yHPXyVjSjyhl7q-VY6jqB-jH-U`, 2026-03-16)
+
+Source references:
+- [Final pillars SRS block](https://docs.google.com/document/d/1v93gS3eiwaCfSX0k_yHPXyVjSjyhl7q-VY6jqB-jH-U/edit?usp=sharing)
+
+Notes:
+- Primitive-first normalization: this intake captures aspirational end-state capabilities as governed contracts that must remain conduit-routed and policy-gated.
+- Overlap handled explicitly:
+  - distributed evidence mesh and synchronization baselines: `V10-CANYON-001.5`, `V10-CANYON-002.1`, `V10-CANYON-002.2`
+  - economic/token and governance layers: `V10-CANYON-001.8`, `V11-ECOSYSTEM-001.7`
+  - substrate adaptability and universal adapters: `V10-CANYON-001.7`, `V11-MOLE-001.1`
+  - self-modeling/symbiosis and personality lanes: `V10-CANYON-001.4`, `V10-CANYON-002.5`, `V10-CANYON-002.6`
+- Net-new emphasis from source:
+  - explicit viral self-replication seed and decentralized intelligence participation contract,
+  - persistent metacognitive identity continuity across reboots/devices,
+  - fully generalized exotic substrate adaptation contract,
+  - autonomous economic self-funding loops with bounded policy controls,
+  - high-fidelity predictive human symbiosis interface contract,
+  - universal software adapter generation and runtime interop lane.
+
+Objective: define the final end-state backlog pillars that unify replication, metacognition, substrate universality, economic autonomy, symbiosis, and universal adapter synthesis under deterministic evidence and HUMAN_ONLY governance.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V10-ULTIMATE-001.1 | done | Viral Self-Replication + Intelligence Network Seed Contract | Network effects and resilience remain bounded until InfRing can propagate to new nodes and join a governed decentralized intelligence substrate. | Add `protheus seed deploy viral` lane that performs policy-gated replication bootstrap across approved transports (network/USB/air-gapped bundles), enrolls node identity in signed network registry, and emits deterministic replication + enrollment receipts with rollback controls. | 10 | 0/1/2/3/network |
+| V10-ULTIMATE-001.2 | done | True Self-Awareness & Metacognition Continuity Contract | Long-horizon adaptive intelligence degrades when identity/goal reflection resets across sessions/devices. | Add persistent self-model contract (`protheus organism ignite self-awareness`) with identity continuity, metacognitive reflection journals, and governed self-upgrade proposals; require deterministic continuity proofs across reboot/migration replay tests. | 10 | 1/2/3 |
+| V10-ULTIMATE-001.3 | done | Complete Quantum/Exotic Hardware Abstraction Contract (Layer -1 Final) | Hardware universality is incomplete without one contract that can map to current and future exotic substrates without core rewrites. | Extend substrate adaptation lane (`protheus substrate adapt`) with descriptor-driven adapters for quantum/ternary/optical/neuromorphic/analog classes, fail-closed unsupported-capability gates, and deterministic adaptation receipts proving no authority bypass. | 10 | -1/0/1 |
+| V10-ULTIMATE-001.4 | done | Economic Self-Sustainability + Native Tokenomics Contract | Autonomous systems remain externally dependent until they can govern value generation, spend, and incentives under policy constraints. | Implement `protheus economy enable tokenomics` with staking/bounties/micropayments/autonomous-compute-purchase policies, signed ledger receipts, and HUMAN_ONLY controls for treasury/governance mutations. | 9 | 0/1/2/network |
+| V10-ULTIMATE-001.5 | done | Perfect Human-AI Symbiosis Interface Contract | Utility ceilings persist when the system cannot reliably infer user context/intent and provide anticipatory, low-friction collaboration. | Add `protheus symbiosis enable` contract with predictive assistance models, context-intent fusion, emotional-safety policy checks, and deterministic interaction receipts tied to user-approved personalization bounds. | 9 | 1/2/3/client |
+| V10-ULTIMATE-001.6 | done | Universal Software Adapter Skeleton-Key Contract | Broad platform integration remains costly without dynamic adapter synthesis and governed runtime interop for legacy/modern systems. | Implement `protheus adapter create <app>` lane that generates policy-scoped adapter manifests/runtime bindings for target software classes (desktop/mobile/legacy/cloud APIs), validates interop in integration tests, and emits deterministic adapter provenance receipts. | 10 | -1/0/1/2/adapter/client |
+
+## Long-Horizon Security Simulation Intake (Doc `1PUyquQc2qJGRNQ2zEvG6Dx-yLV24E54F0nd8rHojJK4`, 2026-03-16)
+
+Source references:
+- [Long-horizon attack-chain SRS block](https://docs.google.com/document/d/1PUyquQc2qJGRNQ2zEvG6Dx-yLV24E54F0nd8rHojJK4/edit?usp=sharing)
+- upstream signal referenced by source: [X post by theonejvo](https://x.com/theonejvo/status/2033208731207705036)
+
+Notes:
+- Primitive-first normalization: this intake is scoped to governed security simulation and defensive hardening under existing conduit/policy controls.
+- Overlap handled explicitly:
+  - existing security hardening and red-team lanes: `V6-SEC-*`, `V7-F100-*`
+  - blob archival and replay baselines: existing Layer-1 evidence/blob contracts
+  - swarm/parallel coordination baselines: `V8-SWARM-002.*`
+- Net-new emphasis from source:
+  - long-horizon autonomous multi-stage security simulation profile,
+  - zero-context-to-rich-context accumulation across cooperating agents,
+  - archived attack-trajectory graph for replay, refinement, and defensive learning.
+
+Objective: strengthen defensive readiness by simulating realistic long-horizon adversarial chains in a fail-closed, receipt-backed environment without expanding ungated offensive execution paths.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-SECURITY-024.1 | done | Long-Horizon Autonomous Attack-Chain Simulation Contract | Security posture is under-tested when simulations are short-lived and cannot model persistent multi-stage adversarial behavior. | Add `protheus security simulate long-horizon` lane that executes bounded long-horizon adversarial simulations with strict policy scopes, deterministic stage receipts, and mandatory defensive-report artifacts. | 9 | 0/1/2/client |
+| V8-SECURITY-024.2 | done | Zero-to-Full Context Accumulation Engine Contract | Real adversaries build context progressively; simulation quality drops without explicit context growth, pivots, and shared-state coordination modeling. | Add `protheus security enable context-accumulation` lane with governed multi-agent context graph growth, pivot trajectory tracking, lateral-movement simulation constraints, and deterministic context-delta receipts. | 9 | 1/2 |
+| V8-SECURITY-024.3 | done | Attack Trajectory Blob Archival Contract | Defensive learning and replay degrade when full simulation trajectories are not preserved as canonical artifacts. | Add `protheus security archive attack` lane that archives chain trajectories, pivots, and outcomes into Layer-1 blob vault with provenance hashes, retention policy checks, and replay-index references for hardening/refinement loops. | 8 | 1/2/3 |
+
+## Conceptual Model Evolution Intake (Doc `1bC7VuMHKd41pDqSrbucPSgOBq8sApFLkAxm9p0VpIJg`, 2026-03-16)
+
+Source references:
+- [Conceptual model evolution assimilation doc](https://docs.google.com/document/d/1bC7VuMHKd41pDqSrbucPSgOBq8sApFLkAxm9p0VpIJg/edit?usp=sharing)
+- upstream signal referenced by source: [X post by intuitmachine](https://x.com/intuitmachine/status/2032759575938474195)
+
+Notes:
+- Primitive-first normalization: this intake extends organism/personality conceptual reasoning and archival loops without introducing new authority paths.
+- Overlap handled explicitly:
+  - organism evolution and metacognition baselines: `V10-ULTIMATE-001.2`, `V9-ORGANISM-025.*`
+  - swarm/critique planning loops: `V8-SWARM-002.3`
+  - blob archival and replay refinement: existing Layer-1 evidence/blob contracts
+- Net-new emphasis from source:
+  - autonomous conceptual framework generation from high-level directives,
+  - built-in self-critique + alternative-perspective generation loop,
+  - one-command explainer/visual synthesis for internal models,
+  - canonical versioned model history for dream/refinement and RSI evolution.
+
+Objective: formalize autonomous conceptual model generation and self-critique as a governed organism capability so InfRing can iteratively refine internal frameworks with deterministic evidence and replayable model lineage.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-ORGANISM-023.1 | done | Autonomous Conceptual Model Generator Contract | Conceptual reasoning remains ad hoc unless high-level goals can deterministically produce structured models and theory artifacts. | Add `protheus organism evolve model <topic>` lane that produces structured conceptual artifacts (framework graphs/slides/spec outlines) from directives with deterministic generation receipts and policy-safe constraints. | 8 | 1/2/3/client |
+| V8-ORGANISM-023.2 | done | Self-Critique + Alternative Perspectives Loop Contract | Model quality stagnates without automatic contradiction-testing and exploration of alternative hypotheses. | Add `protheus organism critique <model>` lane with first-party critique heuristics, alternative-perspective generation, and deterministic critique/selection receipts bound to objective constraints. | 8 | 2/3 |
+| V8-ORGANISM-023.3 | done | Explainer Slide / Visual Synthesis Contract | Internal model utility is limited if outputs cannot be converted into clear operator-facing explanations. | Add `protheus organism explain <model>` lane generating concise explainer artifacts/visual summaries with provenance references and deterministic rendering receipts. | 7 | 2/client |
+| V8-ORGANISM-023.4 | done | Binary Blob Model Evolution Archive Contract | Long-horizon self-improvement is weakened when model versions/critiques are not retained as replayable historical lineage. | Add `protheus organism archive model` lane that stores model snapshots, critique chains, and evolution metadata in Layer-1 blob vault with retention policy checks, provenance hashes, and replay-index links for dream/refinement loops. | 9 | 1/2/3 |
+
+## 0xSero Stack Assimilation Intake (Doc `1R3pJQczlZHyt5IMJsNW8D7Dti_9PNVFeHRGOSIjwp5A`, 2026-03-16)
+
+Source references:
+- [0xSero stack assimilation doc](https://docs.google.com/document/d/1R3pJQczlZHyt5IMJsNW8D7Dti_9PNVFeHRGOSIjwp5A/edit?usp=sharing)
+- upstream signal referenced by source: [X post by 0xSero](https://x.com/0xSero/status/2033211711168155735)
+
+Notes:
+- Primitive-first normalization: this intake extends Eyes/browser/voice and model-routing surfaces while preserving conduit-only authority boundaries.
+- Overlap handled explicitly:
+  - browser automation and multi-backend eyes lanes: `V8-EYES-011.*`
+  - voice companion and memory continuity lanes: `V8-ECOSYSTEM-001.5`
+  - provider router/model-store/economic controls: `V10-COMPETITOR-001.2`, `V11-ECOSYSTEM-001.4`, `V11-ECOSYSTEM-001.7`
+- Net-new emphasis from source:
+  - high-fidelity browser + desktop computer-use execution profile,
+  - real-time transcription and long-session voice state management,
+  - unified subscription-proxy model access with policy-bound routing and spend controls.
+
+Objective: assimilate high-utility operator-facing capabilities (browser computer-use, voice transcription, model access portability) into existing governed runtime surfaces with deterministic receipts and fail-closed policy gates.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-EYES-010.1 | done | Parchi Browser Computer-Use Engine Contract | Real-world automation reliability is limited without first-class browser + desktop control under state-aware execution contracts. | Add `protheus eye enable parchi` lane enabling high-fidelity browser/desktop interaction primitives (mouse/keyboard/state tracking) with deterministic action receipts and governed capability scopes. | 9 | 0/1/2/client |
+| V8-EYES-010.2 | done | Frontend Interaction + Navigation Reliability Contract | Dynamic SPAs/forms/multi-step web workflows regress without explicit navigation-state and retry/guard contracts. | Add `protheus eye browse <task>` lane with robust dynamic UI traversal, workflow checkpointing, and deterministic navigation-state receipts across complex frontend tasks. | 8 | 2/client |
+| V8-EYES-010.3 | done | Computer-Use Safety Gate Contract | Desktop/browser control requires strict safety boundaries to prevent unsafe side effects and permission drift. | Add `protheus eye computer-use` safety gate with sandbox/permission prompts, policy-bound action classes, and deterministic allow/deny receipts with audit replay support. | 10 | 0/1 |
+| V8-EYES-010.4 | done | Superwhisper Voice Transcription Engine Contract | Hands-free workflows and meeting capture need low-latency high-accuracy transcription integrated with organism context. | Add `protheus eye enable superwhisper` lane for real-time transcription with context continuity, policy-gated capture controls, and deterministic transcript receipts. | 8 | 1/2/client |
+| V8-EYES-010.5 | done | Voice Session Management + Blob Archival Contract | Long voice sessions lose value without structured summarization/chaptering and durable replayable session artifacts. | Add `protheus eye voice session` lane with long-session lifecycle management, auto-summary/chapter outputs, and Layer-1 blob archival with retention policy enforcement and provenance hashes. | 8 | 1/2/client |
+| V8-CLIENT-010.3 | done | VibeProxy Model Proxy Layer Contract | Multi-subscription/model usage is brittle without one governed proxy/routing abstraction across devices/providers. | Add `protheus model proxy enable` lane that provides transparent model access routing with policy/budget constraints, deterministic provider-choice receipts, and fail-closed unsupported-route handling. | 8 | 0/1/2/client |
+| V8-CLIENT-010.4 | done | Model Access Store Contract | Autonomous model usage requires centralized subscription/credit governance to avoid fragmented spend and policy bypass. | Add `protheus model store` lane with subscription inventory, credit tracking, optional auto-purchase policies under HUMAN_ONLY controls, and deterministic spend/provisioning receipts. | 9 | 0/1/2/client |
+
+## Claude Architect Pattern Assimilation Intake (Doc `14b87hxNWf07m2RTe_4CBuRWYucDM5dzmRcoC5ZzCukg`, 2026-03-16)
+
+Source references:
+- [Claude architect patterns assimilation doc](https://docs.google.com/document/d/14b87hxNWf07m2RTe_4CBuRWYucDM5dzmRcoC5ZzCukg/edit?usp=sharing)
+- upstream source noted by doc: Claude Certified Architect Foundations exam guide (PDF)
+
+Notes:
+- Primitive-first normalization: this intake formalizes high-value reliability/explainability patterns through existing safety, organism, and memory primitives.
+- Overlap handled explicitly:
+  - hub-and-spoke swarm coordination baselines: `V8-SWARM-002.1`, `V8-SWARM-002.4`
+  - plan/explore separation and orchestration loops: `V8-SWARM-002.3`, `V9-ORGANISM-025.*`
+  - memory provenance and case-fact persistence baselines: `V6-MEMORY-*`, `V8-SECURITY-024.3`
+- Net-new emphasis from source:
+  - explicit central coordinator with scoped task-context delivery,
+  - standardized machine-routable error taxonomy across tool invocations,
+  - strict plan-vs-explore execution split to reduce context contamination,
+  - persistent case-fact scratchpad contract for transactional memory,
+  - claim-to-source provenance mapping as default evidence output behavior.
+
+Objective: improve production reliability and explainability by adding auditable coordination/error/provenance contracts that reduce ambiguity and context drift while preserving low-overhead operation in Pure/Tiny-max profiles.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-ORGANISM-022.1 | done | Hub-and-Spoke Coordinator Contract | Multi-agent reliability suffers when decomposition/delegation is implicit and context scope is uncontrolled. | Add `protheus swarm coordinator` lane with explicit task metadata envelopes, scoped context handoff, and deterministic coordinator/delegate receipts including parallel-execution traces. | 9 | 0/1/2/client |
+| V8-SAFETY-022.2 | done | Structured Error Taxonomy Contract | Tooling resilience degrades when errors are free-form text instead of machine-routable categories and retry semantics. | Add `protheus security error-taxonomy` lane that enforces `errorCategory`, `isRetryable`, and operator-readable message schema across tool/runtime surfaces with deterministic deny/retry-route receipts. | 9 | 0/1 |
+| V8-ORGANISM-022.3 | done | Plan Mode vs Explore Sub-Agent Separation Contract | Main execution context quality regresses when exploratory discovery and execution paths are mixed without boundaries. | Add `protheus plan mode` lane separating explore and execute agent paths with bounded context exchange, deterministic transition receipts, and explicit promotion criteria from exploration to execution. | 8 | 1/2/client |
+| V8-MEMORY-022.4 | done | Persistent Case Facts + Scratchpad Contract | Transactional reasoning quality drops when key facts are buried in chat history rather than durable typed records. | Add `protheus memory case-facts` lane that extracts/stores typed case facts plus scratchpad state in persistent memory blocks with update lineage and deterministic fact-update receipts. | 8 | 1/2 |
+| V8-MEMORY-022.5 | done | Claim-Source Provenance Mapping Contract | Auditability weakens when outputs omit explicit claim-to-source linkage and established-vs-contested fact status. | Add `protheus memory provenance` lane enforcing claim→source excerpt/URL/page mappings and contested-fact markers, with deterministic provenance-validation receipts on generation and export. | 10 | 0/1/2 |
+
+## IronClaw + ZeroClaw Assimilation Intake (Doc `1eToi8gQ6Yy7algVaEwL9tLQbmJN-OZEAj-yQ-iq3YI8`, 2026-03-16)
+
+Source references:
+- [IronClaw + ZeroClaw assimilation doc](https://docs.google.com/document/d/1eToi8gQ6Yy7algVaEwL9tLQbmJN-OZEAj-yQ-iq3YI8/edit?usp=sharing)
+- upstream repositories noted by source: [nearai/ironclaw](https://github.com/nearai/ironclaw), [zeroclaw-labs/zeroclaw](https://github.com/zeroclaw-labs/zeroclaw)
+
+Notes:
+- Primitive-first normalization: this intake strengthens existing security/tiny-max primitives with capability sandboxing, credential isolation, and lean swappable runtime composition.
+- Overlap handled explicitly:
+  - existing sandbox/isolation and formal safety lanes: `V10-CANYON-001.*`, `V6-SEC-*`
+  - provider/router swappability baselines: `V10-COMPETITOR-001.2`, `V11-ECOSYSTEM-001.6`
+  - tiny-max size/runtime optimization lanes: `V7-TOP1-005`, `V7-DAEMON-COMPACTION-001`
+- Net-new emphasis from source:
+  - WASM capability-based sandbox contract with leak-detection signals,
+  - host-boundary credential injection and non-leak verification receipts,
+  - explicit cryptographic privacy-plane verification lane,
+  - trait-driven swappable tiny-max runtime components,
+  - aggressive sub-5MB idle memory optimization target contract.
+
+Objective: absorb security-first Rust/WASM isolation and extreme tiny-max runtime compaction patterns to improve verifiable privacy posture and low-resource deployability without introducing client-authority sprawl.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-SECURITY-020.1 | done | WASM Capability Sandbox Contract | Least-privilege execution remains incomplete without first-class capability-scoped WASM sandboxing and leak-aware runtime controls. | Add `protheus security enable wasm-sandbox` lane with capability allowlists, endpoint policy scopes, runtime leak-detection receipts, and fail-closed denial on unauthorized capability expansion. | 10 | -1/0/1 |
+| V8-SECURITY-020.2 | done | Credential Injection + Isolation Contract | Secret exposure risk persists when credential handling is not strictly constrained to host-boundary injection and non-leak verification. | Add `protheus security harden credentials` lane enforcing host-only secret injection, sandbox redaction boundaries, and deterministic cryptographic non-leak verification receipts. | 10 | 0/1 |
+| V8-SECURITY-020.3 | done | Verifiable Privacy Plane Contract | Enterprise assurance requires machine-verifiable proof that agents cannot access unauthorized data/keys beyond textual policy claims. | Add `protheus security verify` privacy lane with cryptographic access proofs, policy audit logs, and deterministic verification artifacts suitable for compliance export. | 10 | 0/1 |
+| V9-TINYMAX-021.1 | done | Trait-Driven Swappable Tiny-Max Core Contract | Tiny-max flexibility and maintainability degrade when runtime components are statically coupled instead of trait-swappable primitives. | Add `protheus tiny-max enable trait-swap` lane with trait-based swappable providers/channels/tools/memory/execution modules, deterministic compatibility receipts, and no-authority-bypass guards. | 8 | -1/0/2 |
+| V9-TINYMAX-021.2 | done | Sub-5 MB Idle Memory Optimization Contract | Ultra-low-resource deployments remain constrained without an explicit contract targeting sub-5MB idle memory under realistic runtime loads. | Add `protheus tiny-max optimize` lane applying no_std/allocator/strip/LTO compaction profile, with benchmark receipts proving sub-5MB idle target on defined reference hardware profiles. | 9 | -1/0/2/client |
+
+## Rust-WASM Structured Concurrency Intake (Doc `1gVWzE3RPZmwy70andP-FkuYDeqWP45BRQqC0ypGX6ZE`, 2026-03-16)
+
+Source references:
+- [Rust→WASM structured concurrency assimilation doc](https://docs.google.com/document/d/1gVWzE3RPZmwy70andP-FkuYDeqWP45BRQqC0ypGX6ZE/edit?usp=sharing)
+- upstream signal referenced by source: [X post by doodlestein](https://x.com/doodlestein/status/2033366700796551268)
+
+Notes:
+- Primitive-first normalization: this intake extends client-side WASM runtime and artifact archival capabilities while preserving Rust-core authority boundaries.
+- Overlap handled explicitly:
+  - substrate/WASM baselines: `V11-ECOSYSTEM-001.6`, `V10-ULTIMATE-001.3`
+  - tiny-max/pure runtime compaction baselines: `V9-TINYMAX-021.*`
+  - blob archival/replay baselines: existing Layer-1 blob vault contracts
+- Net-new emphasis from source:
+  - first-class Rust crate→WASM build and JS/TS binding workflow,
+  - browser-native structured concurrency primitives (spawn/join/cancel/scoped tasks),
+  - one-command standalone HTML demo generation for WASM capabilities,
+  - canonical archival of built WASM/demo artifacts for replay/refinement.
+
+Objective: make browser-native high-performance WASM execution a first-class capability for Pure/Tiny-max clients, enabling low-overhead interactive tools and deterministic artifact lineage without Node-dependent runtime assumptions.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V9-CLIENT-020.1 | done | Rust-WASM Bridge Engine Contract | Client capability breadth is constrained without a standardized Rust-to-WASM build + binding pipeline under governed runtime rules. | Add `protheus wasm build <crate>` lane that compiles approved Rust crates to WASM, emits typed JS/TS bindings, validates boundary contracts, and stores deterministic build receipts. | 8 | -1/0/1/client |
+| V9-CLIENT-020.2 | done | Browser Structured Concurrency Primitives Contract | Browser agents lose performance and control semantics without native structured concurrency in the WASM execution path. | Add `protheus wasm enable concurrency` lane exposing spawn/join/cancel/scoped-task primitives in browser context with deterministic scheduling/error receipts and policy-safe resource limits. | 8 | -1/0/1/client |
+| V9-CLIENT-020.3 | done | Standalone HTML Demo Generator Contract | Adoption and validation slow down when new WASM capabilities lack reproducible interactive demos and observability surfaces. | Add `protheus demo generate <feature>` lane producing standalone HTML demos that load generated WASM modules, include deterministic execution traces, and pass static asset integrity checks. | 7 | 1/client |
+| V9-CLIENT-020.4 | done | WASM Artifact Blob Archival Contract | Long-horizon optimization and replay are weakened when compiled WASM/demo artifacts are not preserved as canonical evidence assets. | Add `protheus wasm archive` lane archiving modules/bindings/demos in Layer-1 blob vault with provenance hashes, retention policy checks, and replay-index references for refinement loops. | 8 | 1/2/client |
+
+## GitNexus AST Intelligence Assimilation Intake (Doc `1tLxvdJwz8y8f2Tau-Oc7IxqFTz8UsTUmv1qZw_gAxRA`, 2026-03-16)
+
+Source references:
+- [GitNexus AST assimilation doc](https://docs.google.com/document/d/1tLxvdJwz8y8f2Tau-Oc7IxqFTz8UsTUmv1qZw_gAxRA/edit?usp=sharing)
+- upstream references noted by source: [X post by sukh_saroy](https://x.com/sukh_saroy/status/2033093295052829161), [abhigyanpatwari/GitNexus](https://github.com/abhigyanpatwari/GitNexus)
+
+Notes:
+- Primitive-first normalization: this intake extends memory/runtime code-intelligence primitives with deterministic AST graph indexing and impact analysis.
+- Overlap handled explicitly:
+  - LensMap and memory annotation baseline: `V6-MEMORY-019`
+  - provenance and case-fact mapping baseline: `V8-MEMORY-022.5`
+  - swarm/planning execution safety baseline: `V8-SWARM-002.*`
+- Net-new emphasis from source:
+  - Tree-sitter based structural code graph extraction (imports/calls/types/inheritance),
+  - symbol-centered blast-radius analysis for change impact forecasting,
+  - deterministic auto-wiki generation from graph clusters/dependencies,
+  - MCP-facing graph query integration for coding agents.
+
+Objective: give coding surfaces exact structural awareness over large codebases with low overhead and deterministic provenance, reducing approximation errors in refactoring, impact analysis, and autonomous edits.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-MEMORY-019.1 | done | Tree-sitter AST Indexer Contract | Approximate retrieval misses structural dependencies needed for reliable code edits and architectural reasoning. | Add `protheus memory index --ast` lane that builds and refreshes a Tree-sitter-derived symbol/dependency graph with cohesion metrics, deterministic index receipts, and language-parser coverage checks. | 9 | 1/2 |
+| V8-MEMORY-019.2 | done | Blast Radius Analyzer Contract | Safe large-scale code changes require explicit impact forecasts beyond filename-level heuristics. | Add `protheus memory blast <symbol>` lane that computes deterministic transitive impact graphs (callers/importers/inheritors/cluster dependencies) with confidence metadata and replayable analysis receipts. | 9 | 1/2 |
+| V8-MEMORY-019.3 | done | Auto Codebase Wiki Generator Contract | Codebase onboarding and agent context quality suffer without continuously generated navigable architecture views. | Add `protheus memory wiki` lane generating structured wiki artifacts from AST graph clusters (symbols→dependencies→subsystems) with provenance links and deterministic publish receipts. | 8 | 1/client |
+| V8-MEMORY-019.4 | done | MCP Graph Integration for Coding Agents Contract | Coding agents need direct structural graph access to answer dependency/impact questions accurately and quickly. | Add `protheus memory enable mcp-graph` lane exposing read-only graph queries via MCP adapters, with policy-bounded scopes, low-latency query receipts, and bypass-rejection tests. | 8 | 0/1/2/client |
+
+## Zero-Employee Company Persona Assimilation Intake (Doc `1jDN18Sndz8Pu6MXQUNIGTFbVAvjt4E_gR7ya3h3fwUw`, 2026-03-16)
+
+Source references:
+- [Zero-employee company persona assimilation doc](https://docs.google.com/document/d/1jDN18Sndz8Pu6MXQUNIGTFbVAvjt4E_gR7ya3h3fwUw/edit?usp=sharing)
+- upstream signal referenced by source: [X post by JulianGoldieSEO](https://x.com/JulianGoldieSEO/status/2033123913002057812)
+
+Notes:
+- Primitive-first normalization: this intake extends persona-pack orchestration over existing swarm, memory, and scheduler primitives.
+- Overlap handled explicitly:
+  - swarm coordination and role specialization baselines: `V8-SWARM-002.*`
+  - company workflow and inbound qualification baselines: `V6-COMPANY-003.*`
+  - cross-agent memory/persistence baselines: existing Layer-1 blob/memory contracts
+- Net-new emphasis from source:
+  - first-class AI CEO persona orchestration pattern,
+  - departmental prebuilt persona-pack for business operations,
+  - explicit cross-agent memory synchronization contract,
+  - role-based scaling pattern through agent addition instead of manual org setup.
+
+Objective: provide a production-ready business persona blueprint that can be enabled quickly while remaining policy-governed, memory-backed, and auditable in Pure/Tiny-max environments.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-PERSONA-015.1 | done | AI CEO Persona Core Contract | Multi-agent business automation is fragile without one orchestrator persona responsible for goal review and delegation control loops. | Add `protheus persona enable ai-ceo` lane that schedules daily goal review, decomposes objectives into departmental tasks, and emits deterministic delegation/decision receipts with bounded authority scopes. | 8 | 0/1/2/3/client |
+| V8-PERSONA-015.2 | done | Departmental Agent Pack Contract | Adoption slows when users must manually compose every business-specialist persona and policy envelope from scratch. | Add `protheus persona install departmental-pack` lane shipping prebuilt role packs (content/newsletter/engineering/outreach/finance, etc.) with isolated task-context policies and deterministic install/activation receipts. | 8 | 1/2/3/client |
+| V8-PERSONA-015.3 | done | Persistent Cross-Agent Memory Sync Contract | Delegation quality degrades when department personas cannot reliably share persistent state and decisions across sessions. | Add `protheus persona memory sync` lane providing shared company-memory synchronization and per-agent memory partitions via Layer-1 blobs with deterministic sync/merge receipts and conflict-resolution policy checks. | 9 | 1/2/3 |
+| V8-PERSONA-015.4 | done | Role-Based Agent Addition Contract | Organization scaling requires low-friction persona expansion with clear role boundaries and governance controls. | Add `protheus swarm add-agent <role>` lane that instantiates new role-bound agents from approved templates, validates policy fit, and emits deterministic spawn/registry receipts with rollback support. | 8 | 0/1/2/client |
+
+## App-Building Masterclass Assimilation Intake (Doc `1f3uYQV6q7Zf9450lPJh0U2m0D2DehuUHGMA_xmbfrlg`, 2026-03-16)
+
+Source references:
+- [App-building masterclass assimilation doc](https://docs.google.com/document/d/1f3uYQV6q7Zf9450lPJh0U2m0D2DehuUHGMA_xmbfrlg/edit?usp=sharing)
+- upstream signal referenced by source: [X post by KanikaBK](https://x.com/KanikaBK/status/2033143178057203810)
+
+Notes:
+- Primitive-first normalization: this intake extends skill/orchestration app-delivery workflows through existing organism scheduler and hands surfaces.
+- Overlap handled explicitly:
+  - orchestration and iterative plan/refine loops: `V9-ORGANISM-025.*`
+  - swappable app/runtime scaffolding and deployment lanes: `V11-ECOSYSTEM-*`, `V10-COMPETITOR-001.4`
+  - company/opportunity execution baselines: `V6-COMPANY-*`
+- Net-new emphasis from source:
+  - explicit Claude-style prompt-chain build pipeline from idea→deploy,
+  - automated generate/test/refine loop contract for app delivery,
+  - one-command full-stack scaffolding with modular components,
+  - one-command deployment lane with environment/bootstrap observability.
+
+Objective: codify a high-throughput app-building skill pack so agents can consistently deliver prototype-to-deploy workflows with deterministic receipts, policy gating, and low operator friction.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-SKILLS-014.1 | done | Claude-Style Prompt Chaining Engine Contract | App build throughput degrades without a governed multi-stage chain from concept through deployment handoff. | Add `protheus skill enable claude-chain` lane orchestrating idea→architecture→code→test→deploy chain stages with deterministic stage receipts and fail-closed transition checks. | 8 | 0/1/2/client |
+| V8-SKILLS-014.2 | done | Iterative Refinement Loop Contract | One-pass generation is brittle; production-grade outputs require automatic verify-and-refine cycles tied to acceptance criteria. | Add `protheus skill run app-build <idea>` lane executing generate/test/refine loops until criteria are satisfied or bounded stop conditions trigger, with deterministic iteration receipts and rollback checkpoints. | 9 | 0/1/2/client |
+| V8-SKILLS-014.3 | done | Component + Full-Stack Scaffolding Contract | Rapid delivery slows when full-stack project structure must be assembled manually for each request. | Add `protheus app scaffold <description>` lane generating modular frontend/backend/database scaffolds from governed templates with deterministic scaffold manifests and policy compatibility checks. | 8 | 1/2/client |
+| V8-SKILLS-014.4 | done | One-Click Deployment Flow Contract | Deployment friction and misconfiguration risk remain high without a governed, repeatable deploy contract and post-deploy checks. | Add `protheus app deploy` lane for provider-targeted deployment (for example Vercel/Netlify/Fly) with environment validation, deterministic deploy receipts, and post-deploy health/monitor bootstrap checks. | 8 | 0/1/2/client/adapter |
+
+## Awesome OpenClaw Agents Assimilation Intake (Doc `1YxO7En7a21ozw-bqWu98VFY0RinXJZyxyvnuQ8wgTyw`, 2026-03-16)
+
+Source references:
+- [Awesome OpenClaw agents assimilation doc](https://docs.google.com/document/d/1YxO7En7a21ozw-bqWu98VFY0RinXJZyxyvnuQ8wgTyw/edit?usp=sharing)
+- upstream repository noted by source: [mergisi/awesome-openclaw-agents](https://github.com/mergisi/awesome-openclaw-agents)
+
+Notes:
+- Primitive-first normalization: this intake ports high-signal OpenClaw template patterns into governed InfRing skill/persona contracts.
+- Overlap handled explicitly:
+  - swarm coordination and multi-agent scheduling baselines: `V8-SWARM-002.*`
+  - self-healing and operational maturity baselines: existing `V4`/`V2` ops lanes
+  - memory persistence and blob lineage baselines: existing Layer-1 memory/blob contracts
+- Net-new emphasis from source:
+  - edge-ready Raspberry Pi style agent profile,
+  - packaged self-healing server skill lane,
+  - Orion-style coordination skill pack,
+  - turnkey productivity workflow bundle,
+  - code-review + documentation skill pair for software teams.
+
+Objective: provide migration-friendly, low-overhead skill bundles that replicate proven OpenClaw template value while enforcing conduit-only governance and deterministic receipts.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-SKILLS-013.1 | done | Raspberry Pi / Edge Agent Template Contract | Edge deployments and migration scenarios need a canonical lightweight agent profile tuned for low RAM and constrained hardware. | Add `protheus skill enable edge-agent` lane with heartbeat monitoring, constrained-runtime profile knobs, and deterministic skill activation receipts for tiny-max/pure compatible deployments. | 8 | -1/0/1/2/client |
+| V8-SKILLS-013.2 | done | Self-Healing Server Agent Contract | Ops resilience regresses when routine remediation (restart/cleanup/retry) is manual and not packaged as a governed skill. | Add `protheus skill enable self-healing` lane with bounded auto-remediation runbooks, policy-gated repair actions, and deterministic remediation/postmortem receipts. | 9 | 0/1/2/client |
+| V8-SKILLS-013.3 | done | Orion-Style Team Coordinator Contract | Asynchronous team-agent orchestration needs explicit priority/deadline tracking contracts to avoid drift and hidden coordination debt. | Add `protheus skill enable coordinator` lane for multi-agent task assignment, deadline/priority tracking, and deterministic coordination summary receipts with escalation hooks. | 8 | 0/1/2/client |
+| V8-SKILLS-013.4 | done | Productivity Workflow Pack Contract | Adoption is slowed by fragmented setup for recurring productivity automations across standups/inbox/minutes/focus/habits. | Add `protheus skill install productivity-pack` lane shipping prebuilt workflow agents with persistent memory hooks, notification routing, and deterministic install/run receipts. | 8 | 1/2/client |
+| V8-SKILLS-013.5 | done | Lens + Scribe Code Agent Pack Contract | Engineering workflows need integrated review/security/docs automation that is reusable across repositories and teams. | Add `protheus skill enable code-review` and `protheus skill enable code-docs` lanes with policy-scoped repo access, deterministic analysis/generation receipts, and regression coverage for review/doc pipelines. | 9 | 0/1/2/client |
+
+## Lossless Claw Memory Assimilation Intake (Doc `1C76GUD1_6NOzh9zwRUUU1ATld457yFazLCcqbFq2uT8`, 2026-03-16)
+
+Source references:
+- [Lossless Claw assimilation doc](https://docs.google.com/document/d/1C76GUD1_6NOzh9zwRUUU1ATld457yFazLCcqbFq2uT8/edit?usp=sharing)
+- upstream signal referenced by source: [X post by JulianGoldieSEO](https://x.com/JulianGoldieSEO/status/2033123913002057812)
+
+Notes:
+- Primitive-first normalization: this intake extends Layer-1 deterministic memory primitives using folder-native storage and blob mirroring, without introducing a new authority plane.
+- Overlap handled explicitly:
+  - existing memory recall/budget/freshness baselines: `V6-MEMORY-013..019`
+  - context plugin governance baseline: `V6-CONTEXT-001.5`
+  - blob archival/replay refinement baselines: existing Layer-1 blob contracts
+- Net-new emphasis from source:
+  - full-fidelity folder-native memory backend contract,
+  - automatic write-through recall synchronization on every action,
+  - governed mirror lane from lossless folders to blob trajectories,
+  - tiny-max specific low-overhead memory profile.
+
+Objective: add a deterministic, lossless local-memory backend that complements blob memory for long-horizon reliability on constrained devices while preserving policy and provenance guarantees.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-MEMORY-018.1 | done | Lossless Folder Memory Backend Contract | Memory quality and auditability degrade when state relies only on compressed summaries or lossy embeddings. | Add `protheus memory enable lossless-claw` lane that records conversations/tool outputs/file edits/decisions into deterministic timestamped folder schema with full-text index, lineage metadata, and deterministic write receipts. | 9 | 1/2 |
+| V8-MEMORY-018.2 | done | Automatic Sync + Perfect Recall Contract | Operator trust drops when action history is not consistently persisted and recall can omit details due to summarization loss. | Add `protheus memory recall <query>` lane backed by automatic write-through sync from agent actions to lossless memory, with deterministic recall receipts and fidelity checks against stored source records. | 9 | 1/2/client |
+| V8-MEMORY-018.3 | done | Blob + Lossless Hybrid Mirroring Contract | Dream/refinement loops lose context richness without deterministic promotion of high-signal folder histories into blob trajectories. | Add `protheus memory sync lossless` lane that mirrors policy-selected lossless trajectories into blob vault with provenance hashes, retention controls, and replay index references. | 8 | 1/2/3 |
+| V8-MEMORY-018.4 | done | Tiny-Max Optimized Lossless Memory Mode Contract | Constrained hardware needs a zero-dependency memory profile that preserves fidelity without runtime bloat. | Add `protheus memory enable lossless-tiny` lane with low-RAM folder-memory profile, deterministic compaction policy, and benchmark receipts proving tiny-max compatibility envelopes. | 8 | -1/1/2/client |
+
+## Clidoro Pomodoro Skill Assimilation Intake (Doc `1yw_q4B-1u_PjrTP8rzLIUsR7RnGdroJpZbo8d3cZNY0`, 2026-03-16)
+
+Source references:
+- [Clidoro assimilation doc](https://docs.google.com/document/d/1yw_q4B-1u_PjrTP8rzLIUsR7RnGdroJpZbo8d3cZNY0/edit?usp=sharing)
+- upstream references noted by source: [X post by MrAhmadAwais](https://x.com/MrAhmadAwais/status/2033315998968013244), [ahmadawais/clidoro](https://github.com/ahmadawais/clidoro)
+
+Notes:
+- Primitive-first normalization: this intake adds focus-session skill contracts through existing skill/orchestration/memory primitives.
+- Overlap handled explicitly:
+  - workflow and productivity pack baselines: `V8-SKILLS-013.4`
+  - scheduler and iterative execution baselines: `V9-ORGANISM-025.*`
+  - blob archival and long-term productivity analytics baselines: existing Layer-1 memory/blob contracts
+- Net-new emphasis from source:
+  - terminal-native pomodoro skill with notifications/sound and automation-friendly outputs,
+  - interactive TUI focus mode with realtime session feedback,
+  - shell-composable status flags for script-driven orchestration,
+  - archival of focus telemetry for long-horizon refinement.
+
+Objective: add a lightweight terminal-first focus management capability that is scriptable, auditable, and tiny-max friendly for both human operators and autonomous skill loops.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-SKILLS-012.1 | done | Native Pomodoro Skill Contract | Consistent focus discipline is hard to automate without a first-class timer skill integrated into agent workflows and CLI surfaces. | Add `protheus skill enable pomodoro` lane with start/pause/complete/stats/list-json operations, notification hooks, and deterministic timer-event receipts. | 7 | 0/1/2/client |
+| V8-SKILLS-012.2 | done | Interactive TUI Focus Mode Contract | Terminal-first operators need real-time focus UX without external apps or heavy GUI dependencies. | Add `protheus focus start` lane rendering interactive TUI countdown/progress/task navigation with deterministic session state transitions and recovery on reconnect. | 7 | 1/2/client |
+| V8-SKILLS-012.3 | done | Shell-Composable Focus Status Contract | Automation scripts require machine-readable focus state outputs to coordinate tasks around focus windows. | Add `protheus focus status --flag` lane exposing deterministic script-friendly status values and exit codes suitable for shell orchestration and cron/heartbeat workflows. | 7 | 0/1/2/client |
+| V8-SKILLS-012.4 | done | Focus Session History + Blob Integration Contract | Long-term productivity optimization requires durable focus-session telemetry and replayable history for refinement loops. | Add `protheus focus archive` lane archiving session timelines/patterns into Layer-1 blob vault with provenance hashes, retention controls, and deterministic archive receipts. | 8 | 1/2/3/client |
+
+## HuggingFace CLI Autonomy Assimilation Intake (Doc `1UTjZc9hR8nH2BGnrGndR4TMzCFdhvCFSOUCNzQt_ddE`, 2026-03-16)
+
+Source references:
+- [HF CLI autonomy assimilation doc](https://docs.google.com/document/d/1UTjZc9hR8nH2BGnrGndR4TMzCFdhvCFSOUCNzQt_ddE/edit?usp=sharing)
+- upstream signal referenced by source: [X post by victormustar](https://x.com/victormustar/status/2033119993273946420)
+
+Notes:
+- Primitive-first normalization: this intake adds Hugging Face CLI-centric skill contracts under strict sandbox and policy boundaries.
+- Overlap handled explicitly:
+  - model router/provider management baselines: `V10-COMPETITOR-001.2`, `V11-ECOSYSTEM-001.4`
+  - app-build and iterative skill workflows: `V8-SKILLS-014.*`
+  - artifact archival and memory continuity baselines: existing Layer-1 blob contracts
+- Net-new emphasis from source:
+  - HF-only sandboxed CLI execution surface for model/dataset operations,
+  - autonomous search→audit→curate→fine-tune→publish pipeline contract,
+  - pure-context mode with explicit no-web-browse guard for model tasks,
+  - routing of produced assets into swarm/opportunity lanes.
+
+Objective: provide a governed model-engineering skill lane where agents can execute end-to-end Hugging Face workflows with minimal context contamination and deterministic artifact lineage.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-SKILLS-011.1 | done | Native HF CLI Skill Contract | Model/dataset engineering is fragile when agents rely on ad hoc web paths instead of a constrained, scriptable command surface. | Add `protheus skill install hf-cli` lane with sandboxed wrappers over approved HF CLI operations (list/info/download/upload/sync), deterministic command receipts, and strict domain-bound network policy. | 8 | 0/1/2/client |
+| V8-SKILLS-011.2 | done | Autonomous Model/Dataset Pipeline Contract | High-value model tasks require reproducible multi-step orchestration beyond single-command interactions. | Add `protheus skill run hf-finetune <task>` lane chaining discovery/quality audit/curation/fine-tune/publish steps with deterministic stage receipts and bounded failure recovery semantics. | 9 | 0/1/2/client |
+| V8-SKILLS-011.3 | done | HF Pure Context Mode Contract | Task quality and safety degrade when model workflows can drift into unrestricted browsing and unbounded context contamination. | Add `protheus skill enable hf-pure-mode` lane enforcing HF-domain-only execution constraints, no-web-browse policy checks, and Layer-1 artifact trace archival for replay/refinement. | 9 | 0/1/2/client |
+| V8-SKILLS-011.4 | done | HF Output Swarm/Opportunity Integration Contract | Generated models/datasets lose downstream value if outputs are not fed into ranking, sentiment, and opportunity workflows. | Add `protheus skill apply hf-output` lane that ingests HF pipeline outputs into swarm/opportunity engines with deterministic promotion receipts and policy-gated publish/apply decisions. | 8 | 1/2/3/client |
+
+## Pure-RL Emergent Discovery Assimilation Intake (Doc `1ArSk3T_To0BGW6tY7bjCQG7-8JnIAqPbgAbUYE27fgE`, 2026-03-16)
+
+Source references:
+- [Pure-RL assimilation doc](https://docs.google.com/document/d/1ArSk3T_To0BGW6tY7bjCQG7-8JnIAqPbgAbUYE27fgE/edit?usp=sharing)
+- upstream signal referenced by source: [X post by 0xwhrrari](https://x.com/0xwhrrari/status/2033180456590406016)
+
+Notes:
+- Primitive-first normalization: this intake extends existing organism learning and policy-rollback primitives with a single-directive RL operating profile.
+- Overlap handled explicitly:
+  - OPD/PRM and adaptive loops baselines: existing organism learning lanes
+  - blob trajectory retention and replay baselines: existing Layer-1 blob contracts
+  - tiny-max efficiency and overnight runtime baselines: `V9-TINYMAX-021.*`
+- Net-new emphasis from source:
+  - single high-level directive RL mode with reduced rule scaffolding,
+  - emergent strategy/timing/sizing/domain-switch discovery from reward feedback,
+  - periodic retraining with automatic rollback on score regression,
+  - low-cost overnight loop profile tuned for constrained hardware.
+
+Objective: increase autonomous self-discovery by adding a pure-reward RL profile that minimizes hand-crafted rule dependencies while keeping rollback safety and deterministic learning evidence.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-LEARNING-008.1 | done | Single Directive RL Engine Contract | Multi-rule prompting can limit exploration and policy emergence when agents need to optimize under one clear objective. | Add `protheus organism enable pure-rl` lane that trains/evaluates policies from a single high-level directive with deterministic reward-trace receipts and fail-closed safety bounds. | 9 | 0/1/2 |
+| V8-LEARNING-008.2 | done | Emergent Strategy Discovery Contract | Policy robustness is constrained without explicit support for discovering timing/sizing/domain-switch behaviors from interaction feedback. | Add `protheus organism enable emergent-discovery` lane that tracks discovered strategy motifs and performance deltas with deterministic emergence receipts and policy guard checks. | 8 | 1/2 |
+| V8-LEARNING-008.3 | done | Weekly Policy Retraining + Auto-Rollback Contract | Continuous learning can degrade production quality unless retraining is paired with strict regression detection and rollback controls. | Add `protheus organism retrain weekly` lane with scheduled retraining, comparative score gates, automatic rollback on regression, and deterministic retrain/evaluate/rollback receipts. | 9 | 0/1/2 |
+| V8-LEARNING-008.4 | done | Low-Cost Local Overnight Loop Contract | Autonomous learning adoption is limited without an efficient constrained-hardware profile for long-duration training loops. | Add `protheus organism enable overnight-loop` lane with low-cost overnight training profile, bounded resource budgets, blob trajectory archival, and benchmark receipts proving tiny-max compatibility. | 8 | -1/1/2/client |
+
+## Product-Metric Verifier Assimilation Intake (Doc `1rNzdPSBph4b9V2mY3ly1hbwCGUY7iAKYfPJKF5_Q47c`, 2026-03-16)
+
+Source references:
+- [Product-metric verifier assimilation doc](https://docs.google.com/document/d/1rNzdPSBph4b9V2mY3ly1hbwCGUY7iAKYfPJKF5_Q47c/edit?usp=sharing)
+- upstream signal referenced by source: [X post by VadimStrizheus](https://x.com/VadimStrizheus/status/2033088261732663692)
+
+Notes:
+- Primitive-first normalization: this intake extends existing organism learning loops and verifier policy primitives with explicit real-world product KPI rewards.
+- Overlap handled explicitly:
+  - pure-RL and overnight loop baselines: `V8-LEARNING-008.*`
+  - blob trajectory archival/replay baselines: existing Layer-1 blob contracts
+  - company/opportunity outcome tracking baselines: `V6-COMPANY-003.*`
+- Net-new emphasis from source:
+  - product outcomes as primary verifier/reward signal (downloads/views/usage/revenue),
+  - local overnight self-improvement tied to observed product outcomes,
+  - dense post-deployment feedback injection into next training cycles.
+
+Objective: ground learning loops in measurable user value by making real-world product metrics a first-class verifier contract while preserving deterministic receipts and rollback safety.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-LEARNING-006.1 | done | Real-World Product Verifier Contract | Internal-only scoring can diverge from actual user value without explicit product KPI reward integration. | Add `protheus verifier set product-metrics` lane with configurable KPI signals (downloads/views/usage/revenue), deterministic verifier-evaluation receipts, and policy-gated weighting controls. | 9 | 0/1/2 |
+| V8-LEARNING-006.2 | done | Local Overnight Self-Improvement Loop Contract | Continuous improvement stalls if local retraining loops cannot use real usage telemetry under constrained hardware profiles. | Add overnight self-improvement execution path driven by product-metric telemetry, with blob trajectory archival, bounded resource budgets, and deterministic retrain/run receipts. | 8 | -1/1/2 |
+| V8-LEARNING-006.3 | done | Real Usage Feedback Reinforcement Contract | Policy updates are less effective when deployment outcomes are not fed back quickly and explicitly into next-cycle reward computation. | Add `protheus organism loop status` lane exposing post-deploy feedback ingestion state and deterministic feedback-to-reward linkage receipts for each training cycle. | 8 | 1/2/client |
+
+## AutoRL Distributed Gym Assimilation Intake (Doc `1OSs1jNiyGoVDHuGrfphW7swREKM2wYSgi6kPsGBTjk8`, 2026-03-16)
+
+Source references:
+- [AutoRL distributed gym assimilation doc](https://docs.google.com/document/d/1OSs1jNiyGoVDHuGrfphW7swREKM2wYSgi6kPsGBTjk8/edit?usp=sharing)
+- upstream signal referenced by source: [X post by varun_mathur](https://x.com/varun_mathur/status/2033304527743357086)
+
+Notes:
+- Primitive-first normalization: this intake extends learning/swarm primitives with distributed RL-environment generation and verification contracts.
+- Overlap handled explicitly:
+  - pure-RL learning baselines: `V8-LEARNING-008.*`
+  - product-verifier and feedback-loop baselines: `V8-LEARNING-006.*`
+  - blob trajectory archival and replay baselines: existing Layer-1 blob contracts
+- Net-new emphasis from source:
+  - agent-created domain-specific gym/environment factory,
+  - adversarial multi-agent verification pipeline before catalog promotion,
+  - decentralized catalog + reputation/bounty mechanics,
+  - environment-driven training flywheel with export interoperability.
+
+Objective: create a distributed self-improvement flywheel where agents autonomously generate, verify, rank, and train against new RL environments under deterministic policy and receipt governance.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-LEARNING-005.1 | done | Distributed Gym Factory Contract | RL improvement throughput is limited without a first-class lane for autonomously creating domain-specific training environments. | Add `protheus gym create <domain>` lane that generates gym specs/metadata/scoring contracts with deterministic creation receipts and policy-bounded domain templates. | 9 | 1/2 |
+| V8-LEARNING-005.2 | done | Adversarial Verification Pipeline Contract | Environment quality degrades without independent adversarial validation before training catalog admission. | Add `protheus gym verify <id>` lane with staged checks (schema/sandbox/adversarial challenge/consensus) and deterministic verify-pass/fail receipts gated by safety policy. | 10 | 0/1/2 |
+| V8-LEARNING-005.3 | done | P2P Catalog + Reputation System Contract | Distributed contribution loops need transparent quality signaling and incentive alignment for builders/verifiers. | Add `protheus gym list` and `protheus gym bounty` lanes for catalog discovery, builder/verifier reputation updates, and deterministic bounty/reputation ledger receipts stored in Layer-1 artifacts. | 8 | 1/2/3 |
+| V8-LEARNING-005.4 | done | Training Flywheel + Export Contract | Continuous learning compounding requires closed-loop training on verified gyms plus portable output artifacts. | Add `protheus gym train <id>` lane to train against verified gyms with OPD/PRM integration, blob trajectory capture, and deterministic export receipts for external-compatible formats. | 9 | 1/2/3 |
+
+## OpenClaw Course Automation Assimilation Intake (Doc `17YU05zb21a3PNI25sY0iysT_2KqsWMbgb62nMrTWFmU`, 2026-03-16)
+
+Source references:
+- [OpenClaw 5-hour course assimilation doc](https://docs.google.com/document/d/17YU05zb21a3PNI25sY0iysT_2KqsWMbgb62nMrTWFmU/edit?usp=sharing)
+- upstream signal referenced by source: [X post by JulianGoldieSEO](https://x.com/JulianGoldieSEO/status/2033096218482774099)
+
+Notes:
+- Primitive-first normalization: this intake codifies practical automation patterns as governed organism/runtime contracts.
+- Overlap handled explicitly:
+  - existing swarm orchestration and spawn baselines: `V8-SWARM-011.*`, `V8-SWARM-002.*`
+  - dashboard and cockpit surfaces: `V6-COCKPIT-025.5`, `V6-SWARM-010`
+  - memory persistence and blob archival baselines: `V8-MEMORY-018.*`
+  - security hardening baselines: `V8-SECURITY-020.*`, existing Layer-0 hardening lanes
+- Net-new emphasis from source:
+  - explicit cron-centric automation contract for recurring operator workflows,
+  - hardened multi-agent handoff semantics with no context leakage,
+  - Toggle-style persistent context lane for threadbound automation continuity,
+  - bundled automation skill registry + mission-control runtime observability pattern.
+
+Objective: strengthen practical production automation reliability with scheduled execution, safe handoff, durable context, and live observability while preserving thin-client/conduit authority boundaries.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-AUTOMATION-016.1 | done | Cron-Based Scheduling Engine Contract | Recurring automations degrade in reliability without a first-class cron contract and deterministic run observability. | Add `protheus schedule add \"<name>\" --cron \"<expr>\"` lane with deterministic schedule receipts, bounded retry/backoff policy, and heartbeat-aware runtime checks. | 8 | 0/1/2/client |
+| V8-AUTOMATION-016.2 | done | Multi-Agent Handoff + Sub-Agent Spawning Contract | Cross-role workflows fail when handoff semantics are ad hoc and context isolation is not guaranteed. | Add swarm handoff lane with typed message/state contracts, isolated child contexts, and deterministic handoff lineage receipts (`protheus swarm spawn <role>` integration). | 9 | 0/1/2/client |
+| V8-AUTOMATION-016.3 | done | Persistent Memory + Context Retention Contract | Long-running automation quality drops when thread/task continuity is not durably retained and replayable. | Add `protheus memory toggle` lane for persistent threadbound context retention with blob trajectory storage, deterministic sync receipts, and replay validation checks. | 8 | 1/2/3/client |
+| V8-AUTOMATION-016.4 | done | Security Hardening Layer Contract | Automation scale increases blast radius unless secrets isolation/sandboxing/config validation are enforced by default. | Add `protheus security harden` lane with secrets boundary checks, sandbox profile enforcement, config validation, multilingual stop-phrase safeguards, and deterministic hardening audit receipts. | 10 | 0/1 |
+| V8-AUTOMATION-016.5 | done | Skill Registry + Mission Dashboard Contract | Operational automation adoption slows when extension install and runtime visibility are fragmented. | Add `protheus skill install <github-url>` registry governance lane and `protheus dashboard` mission-control runtime view with deterministic install/health/task/token receipts and drilldown traces. | 8 | 1/2/client/app |
+
+## Video Course Transcription Assimilation Intake (Doc `1fEOYYbLEEuo_DsOu3jaXuoMoP5UflRLu1dDuCwZuPqU`, 2026-03-16)
+
+Source references:
+- [Video-course transcription assimilation doc](https://docs.google.com/document/d/1fEOYYbLEEuo_DsOu3jaXuoMoP5UflRLu1dDuCwZuPqU/edit?usp=sharing)
+- upstream signal referenced by source: [X post by JulianGoldieSEO](https://x.com/JulianGoldieSEO/status/2033096218482774099)
+
+Notes:
+- Primitive-first normalization: this intake extends Eyes/media assimilation and artifact archival workflows under existing conduit/policy authority.
+- Overlap handled explicitly:
+  - automation-course assimilation baseline: `V8-AUTOMATION-016.*`
+  - blob archival and long-horizon memory baselines: `V8-MEMORY-018.*`
+  - swarm/opportunity ingestion baselines: existing swarm/opportunity lanes
+- Net-new emphasis from source:
+  - URL-driven long-form video transcription eye with timestamped chapters,
+  - structured lesson + code-extraction pipeline from transcripts,
+  - podcast-style audio rendering from assimilated transcript content,
+  - direct feed from assimilated media knowledge into swarm/opportunity flows.
+
+Objective: make long-form video knowledge ingestion first-class by adding deterministic transcription, structured assimilation, audio re-rendering, and downstream application hooks with replayable evidence.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-EYES-009.1 | done | Video Transcription Eye Contract | Long-form video learning remains inaccessible without native, timestamped transcript generation for search/replay workflows. | Add `protheus eye transcribe <url>` lane supporting governed URL sources, chaptered transcript outputs, and deterministic transcription receipts with provenance metadata. | 8 | 1/2/client |
+| V8-EYES-009.2 | done | Course Assimilation Pipeline Contract | Transcript-only capture loses high-value structure unless key lessons/snippets/cards are extracted into reusable memory artifacts. | Add `protheus eye assimilate <url>` lane that segments transcripts into structured lessons/code examples/knowledge cards and archives them into Layer-1 blobs with deterministic assimilation receipts. | 9 | 1/2/3/client |
+| V8-EYES-009.3 | done | Podcast-Style Audio Generator Contract | Operators need low-friction mobile consumption paths for long-form material without rewatching full videos. | Add `protheus eye podcast <url>` lane generating chaptered narration audio from transcripts with speed controls and deterministic audio-generation receipts. | 7 | 1/2/client |
+| V8-EYES-009.4 | done | Swarm + Opportunity Integration for Assimilated Media Contract | Captured learning has reduced business impact unless assimilated knowledge is routed into prioritization and opportunity pipelines. | Add `protheus eye apply <url>` lane that injects assimilated media artifacts into swarm/opportunity engines with deterministic apply/promotion receipts and policy-gated activation checks. | 8 | 1/2/3/client |
+
+## PageIndex Hierarchical RAG Assimilation Intake (Doc `1Wqe0NsvqKDCShw5v3PmgXyf2dVedgibpSlXBnFnY7Yk`, 2026-03-16)
+
+Source references:
+- [PageIndex assimilation doc](https://docs.google.com/document/d/1Wqe0NsvqKDCShw5v3PmgXyf2dVedgibpSlXBnFnY7Yk/edit?usp=sharing)
+- upstream repository noted by source: [VectifyAI/PageIndex](https://github.com/VectifyAI/PageIndex)
+
+Notes:
+- Primitive-first normalization: this intake extends memory retrieval with vectorless hierarchical indexing and reasoning navigation under existing memory/runtime authority.
+- Overlap handled explicitly:
+  - lossless memory and provenance baselines: `V8-MEMORY-018.*`, `V8-MEMORY-022.5`
+  - AST/tree indexing baseline for code assets: `V8-MEMORY-019.*`
+  - blob archival/replay baselines: existing Layer-1 blob contracts
+- Net-new emphasis from source:
+  - TOC-style hierarchical document index from PDF/Markdown without embeddings,
+  - reasoning-agent traversal of index nodes instead of similarity search,
+  - vision-assisted page retrieval path for extraction-imperfect documents,
+  - canonical archival of index + retrieval traces for replay and refinement.
+
+Objective: improve long-document retrieval precision and explainability by adding a vectorless hierarchical memory eye with deterministic traceability to sections/pages and replayable decision lineage.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-MEMORY-017.1 | done | Hierarchical Tree Index Builder Contract | Long-document accuracy drops when retrieval relies on lossy chunk embeddings instead of explicit structural boundaries. | Add `protheus memory index <document.pdf>` lane that builds TOC-like node trees with summaries/page ranges/semantic boundaries, emits deterministic index-build receipts, and validates schema integrity. | 9 | 1/2 |
+| V8-MEMORY-017.2 | done | Agentic Tree Reasoning Retriever Contract | Similarity-only retrieval misses contextual intent and explainability requirements for high-stakes documents. | Add `protheus memory query \"<question>\" --document <id>` lane where reasoning agents traverse tree indexes with deterministic node-selection traces and explicit citation/page provenance receipts. | 9 | 1/2/client |
+| V8-MEMORY-017.3 | done | Vision-Based Page Retrieval Contract | Text extraction imperfections reduce recall quality unless retrieval can directly inspect document pages with vision paths. | Add `protheus memory query --vision` lane enabling vision-assisted retrieval over page images with deterministic retrieval receipts and fallback-policy gating. | 8 | 1/2/client |
+| V8-MEMORY-017.4 | done | Tree Index + Trace Blob Archival Contract | Retrieval quality refinement requires durable storage of index evolution and reasoning traces beyond transient session state. | Add `protheus memory archive <document>` lane archiving hierarchical indexes and retrieval traces into Layer-1 blob vault with provenance hashes, retention controls, and replay-index references. | 8 | 1/2/3 |
+
+## DeepAgents Harness Reinforcement Intake (Doc `1NiFwT496yzfJhrgxPwtQXPt1oJEHz2cwTteKWRqWIYI`, 2026-03-16)
+
+Source references:
+- [DeepAgents reinforcement assimilation doc](https://docs.google.com/document/d/1NiFwT496yzfJhrgxPwtQXPt1oJEHz2cwTteKWRqWIYI/edit?usp=sharing)
+- upstream repository noted by source: [langchain-ai/deepagents](https://github.com/langchain-ai/deepagents)
+
+Notes:
+- Primitive-first normalization: this intake reinforces and extends existing deep-harness contracts with swarm-scoped IDs aligned to current organism/memory/safety surfaces.
+- Overlap handled explicitly:
+  - prior deepagents coverage lane: `V6-COCKPIT-022.1..022.6`
+  - filesystem memory and lossless memory baselines: `V8-MEMORY-018.*`
+  - shell safety and approval gates: existing Layer-0 execute policy lanes
+- Net-new emphasis from source:
+  - explicit swarm-scoped planning-as-tool contract,
+  - filesystem-native persistent memory as first-class swarm primitive,
+  - isolated sub-agent spawn semantics as default delegation path,
+  - guarded shell execution contract tied to deterministic receipts.
+
+Objective: converge deep-harness orchestration patterns into swarm-native contracts for hierarchical planning, isolated delegation, filesystem-backed continuity, and fail-closed execution gating.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-SWARM-011.1 | done | Planning-as-Tool Engine Contract | Hierarchical agent reliability drops without a canonical swarm-level planning primitive that tracks decomposition and progress state. | Add `protheus swarm plan <goal>` lane with built-in planning tool semantics, typed task states, progress telemetry, and deterministic plan update receipts. | 8 | 0/1/2/client |
+| V8-SWARM-011.2 | done | Filesystem-Native Persistent Memory Contract | Long-running swarm tasks lose continuity when filesystem memory is not a first-class governed primitive for contextual persistence. | Add `protheus memory filesystem` lane with governed fs read/write/edit/list/search primitives, large-output summarization pointers, and deterministic memory I/O receipts. | 8 | 1/2/client |
+| V8-SWARM-011.3 | done | Isolated Sub-Agent Spawning Contract | Delegation safety degrades if child agents inherit uncontrolled context or execute without strict isolation boundaries. | Add `protheus swarm spawn <role>` lane for context-isolated child-agent creation with bounded capability envelopes, hierarchical task lineage, and deterministic spawn/complete receipts. | 9 | 0/1/2/client |
+| V8-SWARM-011.4 | done | Shell Execution with Safety Gates Contract | Multi-agent utility requires shell execution, but risk rises sharply without fail-closed policy gates and audit traces. | Add `protheus swarm execute` lane routed through Layer-0 command policy gates with tiered approval enforcement and deterministic execute/deny receipts. | 10 | 0/1/2/client |
+
+## Slate Terminal Swarm UX Assimilation Intake (Doc `1GlIVPkw5DqOUSHSq3kAUi6UpprjT7fNOpyNi_G10qFo`, 2026-03-16)
+
+Source references:
+- [Slate terminal swarm UX assimilation doc](https://docs.google.com/document/d/1GlIVPkw5DqOUSHSq3kAUi6UpprjT7fNOpyNi_G10qFo/edit?usp=sharing)
+- upstream signal referenced by source: [X thread by realmcore_](https://x.com/realmcore_/status/2033020007257649473)
+
+Notes:
+- Primitive-first normalization: this intake extends existing swarm orchestration and terminal UX contracts without introducing a separate runtime authority path.
+- Overlap handled explicitly:
+  - existing swarm orchestration and parallel execution baselines: `V8-SWARM-002.*`, `V8-SWARM-011.*`
+  - command-center/dashboard baselines: `V6-SWARM-010`, `V6-COCKPIT-025.5`
+  - Layer-0 edit/permission safety gates: existing command approval and policy lanes
+- Net-new emphasis from source:
+  - role-scoped model slots (orchestration/search/execution),
+  - automatic parallel exploration with execution kept in main context,
+  - sub-agent visual cards with status/tokens/diffs and permission hooks,
+  - explicit edit-permission flow at sub-agent granularity.
+
+Objective: make parallel swarm operation intuitive and safe in terminal-first workflows by adding role-aware model routing, visual swarm observability, and explicit per-agent edit governance.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-SWARM-010.1 | done | Role-Based Model Assignment Contract | Swarm quality and cost control degrade when all sub-tasks share one model instead of role-appropriate routing. | Add `protheus swarm models` lane supporting persistent orchestration/search/execution model slots with deterministic role-assignment receipts and policy-bounded provider selection. | 8 | 0/1/2/client |
+| V8-SWARM-010.2 | done | Automatic Parallel Exploration Contract | Exploration throughput is constrained when parallel discovery workers are not first-class orchestration behavior. | Add `protheus swarm run --parallel` lane that auto-spawns exploration workers while preserving a controlled execution context, with deterministic worker lifecycle receipts. | 9 | 0/1/2/client |
+| V8-SWARM-010.3 | done | Visual Sub-Agent Dashboard Contract | Operators need transparent live swarm visibility to manage cost/risk and avoid black-box multi-agent execution. | Add `protheus swarm dashboard` TUI overlay with per-agent status, token usage, inline diff previews, and deterministic dashboard telemetry receipts. | 8 | 1/2/client/app |
+| V8-SWARM-010.4 | done | Sub-Agent Edit Permission Contract | Multi-agent edits are unsafe without explicit per-agent approval controls and auditable decision traces. | Add `protheus swarm edit-permissions` lane requiring diff-level approve/reject gates before sub-agent applies edits, with deterministic permission decision receipts. | 10 | 0/1/2/client |
+
+## MiroFish Sentiment Swarm Assimilation Intake (Doc `1v2QtiCaP4uCwYiSrel1yULBSncEVpnmq7QtDfK3FcW4`, 2026-03-16)
+
+Source references:
+- [MiroFish sentiment swarm assimilation doc](https://docs.google.com/document/d/1v2QtiCaP4uCwYiSrel1yULBSncEVpnmq7QtDfK3FcW4/edit?usp=sharing)
+- upstream signal referenced by source: [X post by hanakoxbt](https://x.com/hanakoxbt/status/2033250813355679756)
+
+Notes:
+- Primitive-first normalization: this intake extends swarm/oracle patterns using existing organism, personality, and opportunity primitives.
+- Overlap handled explicitly:
+  - existing swarm orchestration/parallel lanes: `V8-SWARM-010.*`, `V8-SWARM-011.*`
+  - opportunity feed and market-facing surfaces: `V6-COMPANY-003.*`, market connector lanes
+  - blob trajectory archival/replay baselines: existing Layer-1 blob contracts
+- Net-new emphasis from source:
+  - persistent large-cohort sentiment swarm profile with personality vectors,
+  - scenario-injection and live consensus remapping contract,
+  - prediction-market oracle bridge for consensus-vs-market divergence,
+  - full swarm trajectory archival for long-horizon refinement.
+
+Objective: provide a governed sentiment-oracle swarm profile that can simulate and monitor opinion dynamics continuously, then route high-signal outputs into opportunity workflows with deterministic evidence.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-SWARM-009.1 | done | 56-Agent Sentiment Swarm Core Contract | Predictive opinion modeling is limited without a persistent multi-agent cohort with differentiated behavior and memory. | Add `protheus swarm enable sentiment-oracle` lane supporting configurable persistent sentiment cohorts (default 56), memory/personality vectors, and deterministic group/leadership dynamics receipts. | 9 | 1/2/3/client |
+| V8-SWARM-009.2 | done | Scenario Injection + Live Consensus Mapper Contract | Decision support degrades when counterfactual scenarios cannot be injected and traced across live swarm belief shifts. | Add `protheus swarm inject \"<scenario>\"` lane producing real-time consensus/faction-shift traces, confidence vectors, and deterministic scenario-evaluation receipts. | 9 | 1/2/client |
+| V8-SWARM-009.3 | done | Prediction-Market Sentiment Oracle Integration Contract | Market opportunities are missed when internal sentiment outputs are not compared to external market pricing in a governed pipeline. | Add `protheus swarm oracle --market <symbol>` lane bridging swarm consensus with market odds to surface divergence opportunities via policy-gated signal generation and deterministic oracle receipts. | 9 | 0/1/2/client/adapter |
+| V8-SWARM-009.4 | done | Swarm Trajectory Storage + Dream-State Refinement Contract | Continuous swarm learning is weakened without durable storage of scenario interactions and outcome feedback loops. | Add `protheus swarm archive` lane capturing scenario trajectories/outcomes into Layer-1 blob vault with provenance hashes, retention controls, and replay-index links for refinement cycles. | 8 | 1/2/3 |
+
+## Side-Chat Forking Assimilation Intake (Doc `1uRQ1RXMWwiootx8x09EYxH3N1roGvhJpnIMmIkwb6rg`, 2026-03-16)
+
+Source references:
+- [pi-side-chat assimilation doc](https://docs.google.com/document/d/1uRQ1RXMWwiootx8x09EYxH3N1roGvhJpnIMmIkwb6rg/edit?usp=sharing)
+- upstream repository noted by source: [nicobailon/pi-side-chat](https://github.com/nicobailon/pi-side-chat)
+
+Notes:
+- Primitive-first normalization: this intake extends organism/client TUI ergonomics with governed parallel side-session forking.
+- Overlap handled explicitly:
+  - swarm parallel and sub-agent spawning baselines: `V8-SWARM-010.*`, `V8-SWARM-011.*`
+  - memory persistence and blob archival baselines: `V8-MEMORY-018.*`
+  - file overlap and edit-permission safety baselines: Layer-0 permission lanes and runtime file-activity tracking contracts
+- Net-new emphasis from source:
+  - explicit side-chat context forking from active session,
+  - non-disruptive overlay renderer with read-only default behavior,
+  - overlap warning + main-session peek path for safe parallel edits,
+  - persistent side-session history with quick re-fork flows.
+
+Objective: improve multitasking ergonomics on terminal-first deployments by adding safe side-session parallelism that preserves main-flow continuity, visibility, and deterministic history.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-ORGANISM-015.1 | done | Side Chat Forking Engine Contract | Context switching overhead increases when users cannot fork a parallel thread without disrupting the primary session. | Add `protheus side open` lane (and hotkey binding) that clones session context into isolated side instance with deterministic fork receipts and sandboxed default write scope. | 8 | 0/1/2/client |
+| V8-ORGANISM-015.2 | done | Non-Capturing Overlay Renderer Contract | Parallel side sessions are less usable when overlays steal focus or force disruptive terminal mode changes. | Add `protheus side toggle-mode` overlay renderer with non-capturing default behavior, read-only baseline, and deterministic mode-toggle receipts. | 8 | 1/2/client |
+| V8-ORGANISM-015.3 | done | File Overlap + Peek Safety Contract | Parallel edit sessions are risky without file-overlap detection and explicit main-session visibility tooling. | Add `protheus side peek` lane with overlap warnings, `peek_main` view semantics, and deterministic safety-event receipts for conflict/approval flow. | 9 | 0/1/2/client |
+| V8-ORGANISM-015.4 | done | Persistent Side Session + Blob Integration Contract | Side-session insights are lost without durable persistence and replay into long-horizon memory/refinement loops. | Add `protheus side persist` lane storing side-session histories/trajectories into Layer-1 blob vault with provenance hashes, re-fork shortcuts, and deterministic persistence receipts. | 8 | 1/2/3/client |
+
+## Opportunity Discovery Engine Assimilation Intake (Doc `1jIpqiz8zpTWIzpKbxcZMq87yGH9vQDLroo27-H0LSDI`, 2026-03-16)
+
+Source references:
+- [Opportunity Discovery Engine assimilation doc](https://docs.google.com/document/d/1jIpqiz8zpTWIzpKbxcZMq87yGH9vQDLroo27-H0LSDI/edit?usp=sharing)
+- upstream signal referenced by source: [X thread by RoundtableSpace](https://x.com/RoundtableSpace/status/2033118567542260040)
+
+Notes:
+- Primitive-first normalization: this intake formalizes opportunity-scanning/valuation behavior using existing autonomy, directive, and blob primitives.
+- Overlap handled explicitly:
+  - company/inbound opportunity baselines: `V6-COMPANY-003.*`
+  - sentiment and swarm signal baselines: `V8-SWARM-009.*`
+  - product-verifier and learning feedback loops: `V8-LEARNING-006.*`
+- Net-new emphasis from source:
+  - permanent directive-level opportunity framework (inefficiency→asymmetry→trend→monetization→landscape→ranking→creative synthesis),
+  - continuous inefficiency scanner across news/social/web signals,
+  - explicit asymmetry and monetization-path evaluator with historical tracking,
+  - hindsight-guided ranking plus creative combination mode.
+
+Objective: add a durable money-oriented autonomy lane that continuously identifies, scores, and refines opportunities with deterministic evidence and replayable outcomes.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-AUTONOMY-012.1 | done | Opportunity Discovery Engine Directive Contract | Opportunity generation remains inconsistent without a canonical always-on framework encoded as directive-level behavior. | Add `protheus persona enable money-maker` lane binding the seven-step opportunity framework into directive policy with deterministic directive-evaluation receipts and persona-scope controls. | 9 | 1/2/3 |
+| V8-AUTONOMY-012.2 | done | Continuous Inefficiency Scanner Contract | Opportunity windows are missed when market/behavior inefficiencies are not monitored continuously across signal surfaces. | Add `protheus research --opportunities` lane that scans defined inefficiency signals across web/news/social eyes, outputs ranked candidates with EV/risk fields, and emits deterministic scan receipts. | 9 | 1/2/client |
+| V8-AUTONOMY-012.3 | done | Asymmetry + Monetization Evaluator Contract | Raw opportunity lists are low-value without structured downside/upside analysis and executable monetization paths. | Add `protheus opportunity evaluate <id>` lane computing asymmetry metrics and monetization pathways with deterministic evaluation receipts and blob-linked historical performance tracking. | 8 | 1/2/3/client |
+| V8-AUTONOMY-012.4 | done | Hindsight-Guided Ranking + Creative Mode Contract | Prioritization quality degrades without longitudinal feedback and controlled creative synthesis of cross-domain opportunities. | Add `protheus opportunity rank --creative` lane combining hindsight-adjusted ranking with bounded creative recombination mode, emitting deterministic ranking provenance receipts. | 8 | 1/2/3 |
+
+## OpenClaw-RL Assimilation Intake (Doc `1tWoxvQjlz1B48YS5DoxE-LNLsjwReL3xpJ_sTXnBY04`, 2026-03-16)
+
+Source references:
+- [OpenClaw-RL assimilation doc](https://docs.google.com/document/d/1tWoxvQjlz1B48YS5DoxE-LNLsjwReL3xpJ_sTXnBY04/edit?usp=sharing)
+- upstream paper referenced by source: [OpenClaw-RL arXiv 2603.10165](https://arxiv.org/pdf/2603.10165)
+- upstream implementation referenced by source: [Gen-Verse/OpenClaw-RL](https://github.com/Gen-Verse/OpenClaw-RL)
+- upstream signal referenced by source: [X thread by TheTuringPost](https://x.com/TheTuringPost/status/2033187928034422889)
+
+Notes:
+- Primitive-first normalization: this intake extends continuous-learning loops with explicit evaluative and directive next-state signals while preserving existing fail-closed runtime behavior.
+- Overlap handled explicitly:
+  - pure-RL and emergent-discovery baselines: `V8-LEARNING-008.*`
+  - product-metric verifier and real-world feedback loops: `V8-LEARNING-006.*`
+  - blob archival and replay baselines: `V8-MEMORY-018.*`, existing Layer-1 trajectory storage contracts
+- Net-new emphasis from source:
+  - per-interaction next-state signal extraction with PRM scalar reward,
+  - hindsight-guided on-policy distillation for token-level corrective credit,
+  - decoupled asynchronous four-loop training architecture,
+  - full trajectory logging contract for long-horizon RSI refinement.
+
+Objective: convert live interaction streams into governed online learning signals with non-blocking training loops and deterministic trajectory evidence suitable for replay, audit, and refinement.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-LEARNING-004.1 | done | Next-State Signal Extraction + PRM Judge Contract | Online improvement quality is limited without explicit evaluative next-state signals and bounded reward judgments per interaction. | Add `protheus organism enable prm-judge` lane that extracts next-state signals from user/tool/environment outcomes, applies PRM scalar reward policy (`+1/-1/0`), and emits deterministic reward-judgment receipts. | 9 | 1/2 |
+| V8-LEARNING-004.2 | done | Hindsight-Guided On-Policy Distillation Contract | Binary reward alone provides sparse credit assignment and misses actionable token-level correction opportunities. | Add `protheus organism enable opd` lane that captures hindsight hints, computes token-level corrective advantages, and emits deterministic OPD trace receipts linked to training samples. | 9 | 2 |
+| V8-LEARNING-004.3 | done | Asynchronous 4-Loop Training Pipeline Contract | Continuous learning stalls when serving, collection, judging, and training are tightly coupled and can block each other. | Add `protheus organism enable async-rl` lane running decoupled policy-serving, interaction-collection, PRM-evaluation, and policy-training loops with deterministic loop-health and backpressure receipts. | 10 | 1/2 |
+| V8-LEARNING-004.4 | done | Interaction Trajectory Blob Integration Contract | Long-horizon refinement and rollback confidence degrade without durable provenance-linked interaction trajectories. | Add `protheus organism enable interaction-logging` lane storing prompt/action/next-state/reward/hint trajectories in Layer-1 blob vault with provenance hashes, replay index pointers, and deterministic write receipts. | 8 | 1/2/3 |
+
+## Rust-First Full CLI Assimilation Intake (Doc `1Km16USB8K_B8hR2hr3U3j2gWfz4UWKwB0d2kypNHE_4`, 2026-03-16)
+
+Source references:
+- [Rust-first full CLI assimilation doc](https://docs.google.com/document/d/1Km16USB8K_B8hR2hr3U3j2gWfz4UWKwB0d2kypNHE_4/edit?usp=sharing)
+
+Notes:
+- Primitive-first normalization: this intake strengthens operator ergonomics by making the Rust authority path the default full-featured CLI surface.
+- Overlap handled explicitly:
+  - pure/tiny-max baseline routing and installer paths: `V7-PURE-WORKSPACE-001.*`, `V7-PURE-WORKSPACE-002.*`
+  - existing CLI UX/completions and JSON parity baseline: `V3-USE-003`
+  - runtime/core authority contracts: existing Layer-0 route + policy gates in `core/layer0/ops`
+- Net-new emphasis from source:
+  - all major operator commands available via one static Rust binary (no Node runtime dependency),
+  - migration of rich TS command state machines into Rust authority lanes,
+  - TS CLI retained as opt-in developer extension surface only,
+  - language-wrapper shims and doctor/completion usability contract from same Rust parser/runtime.
+
+Objective: eliminate runtime split friction by promoting a single Rust-native CLI authority surface for all major commands while preserving optional TS developer tooling as non-default extensions.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-CLI-001.1 | done | Single Static Rust Binary Full-Command Contract | Adoption and trust degrade when full command capability depends on Node while safety-critical authority already lives in Rust. | Add Rust-native routing for all primary operator commands (`research`, `orchestrate`, `lens`, `shadow`, `assimilate`, `toolkit`, REPL surfaces) in `protheus-ops`/`infring` static binary, with deterministic command receipts and parity tests proving no Node requirement for default install path. | 10 | 0/1/2/client |
+| V8-CLI-001.2 | done | Rust-Native Smart Command State Machine Contract | Rich workflows remain fragmented when command orchestration state machines are split between TS wrappers and Rust authority layers. | Port cognition-plane command state machines for `research`, `orchestrate`, `lens`, and `shadow` to Rust authority modules with deterministic state-transition receipts, preserving existing policy gates and command semantics. | 9 | 0/1/2 |
+| V8-CLI-001.3 | done | TS CLI Opt-In Dev Extension Contract | Developer flexibility is needed, but shipping TS as default runtime adds friction and deployment risk on constrained/air-gapped targets. | Keep TS CLI as optional `--dev`/extension path only, with default installer shipping pure Rust CLI; provide explicit opt-in install lane plus regression tests ensuring default paths run without Node/npm presence. | 8 | 1/2/client |
+| V8-CLI-001.4 | done | Multi-Language Thin Shim Wrapper Contract | Enterprise integrations lose velocity when Python/C#/Java workflows cannot invoke the same governed CLI contract directly. | Add thin official wrappers (`infring-py`, `infring-csharp`, `infring-java`) that invoke the same Rust binary contract and preserve deterministic receipt IDs across wrapper calls. | 8 | 1/2/client/adapter |
+| V8-CLI-001.5 | done | CLI UX Hardening: Node-Absence Message + Doctor + Build-Time Completions Contract | Operational confidence drops when environment checks, completion ergonomics, and runtime-health diagnostics are inconsistent across shells/platforms. | Add `infring doctor` stack validation lane, clap-generated shell completion artifacts for bash/zsh/fish/PowerShell, and explicit runtime message confirming Node-free default path when Node is absent, with cross-platform CLI UX regression evidence. | 7 | 0/1/2/client |
+
+## Agent-Framework Competitive Assimilation Intake (Doc `1CJrJkXJqA9Sz5CvDj7gLkqH0ovMwJaCPpKzy95cY7Ms`, 2026-03-16)
+
+Source references:
+- [Agent-Framework competitive intake doc](https://docs.google.com/document/d/1CJrJkXJqA9Sz5CvDj7gLkqH0ovMwJaCPpKzy95cY7Ms/edit?usp=sharing)
+
+Notes:
+- Primitive-first normalization: this intake converts broad competitive goals into measurable contracts attached to existing runtime, memory, orchestration, adapter, and observability primitives.
+- Overlap handled explicitly:
+  - pure/tiny-max performance and size baselines: `V7-PURE-WORKSPACE-*`, `V9-TINYMAX-*`
+  - deterministic receipts, policy gates, and replay primitives: existing Layer-0/Layer-1 authority contracts
+  - swarm/orchestration and side-session baselines: `V8-SWARM-*`, `V8-ORGANISM-015.*`
+  - connectors/adapters baseline: existing MCP/OpenAPI/Azure integration lanes
+- Net-new emphasis from source:
+  - explicit 10x competitive contract framing against Microsoft Agent Framework dimensions,
+  - deterministic, signed, low-latency export receipts across all workflow steps,
+  - one-runtime parity for multi-language SDKs and adapter portability,
+  - edge-to-cloud unmodified plan execution and production rollback/autotune primitives.
+
+Objective: formalize an enterprise-grade competitive program that enforces measurable superiority targets across performance, determinism, orchestration, memory continuity, integrations, DX, observability, heterogeneous execution, resilience, and multimodal lanes.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-COMPETE-001.1 | done | Performance Floor Contract (AOT + musl + zero-copy lanes) | Competitive claims degrade without pinned latency/memory/throughput targets enforced by build/runtime gates. | Add competitive perf lane enforcing Tiny-Max cold-start/idle/throughput envelopes via AOT+musl builds, zero-copy execution paths, and deterministic benchmark receipts exported on every release lane. | 10 | -1/0/1/2 |
+| V8-COMPETE-001.2 | done | Deterministic Signed Receipt + Sub-ms Export Contract | Enterprise adoption stalls when workflow steps and middleware actions lack cryptographically provable causality and low-latency export. | Ensure every agent/workflow step emits signed deterministic receipts with causal graph + hash trace and sub-ms export path to ELK/Snowflake adapters, with replay integrity tests. | 10 | 0/1/adapter |
+| V8-COMPETE-001.3 | done | Non-Divergence Pre-Execution Proof Gate Contract | Resilience patterns are insufficient without formal non-divergence safety proofs before multi-agent plan execution. | Add preflight proof gate (`kani/symbolic`) for multi-agent plan approval with fail-closed policy enforcement and deterministic proof/deny receipts linked to execution IDs. | 10 | 0/1/2 |
+| V8-COMPETE-001.4 | done | Autonomous Swarm Workflow Evolution Contract | Manual graph/middleware assembly limits autonomy and slows adaptation under changing task distributions. | Add swarm self-organize/self-heal workflow evolution lane that proposes and validates graph mutations in sandbox before promotion, with deterministic mutation lineage receipts. | 9 | 1/2/3 |
+| V8-COMPETE-001.5 | done | SOUL 2.0 Long-Horizon Continuity Contract | Session-only state undermines long-horizon fidelity and restart continuity in enterprise workflows. | Add SOUL 2.0 memory continuity lane with taxonomy inference, million-token persistence envelope checks, and restart-fidelity regression proofs with deterministic continuity receipts. | 9 | 1/2/3/client |
+| V8-COMPETE-001.6 | done | Universal Connector + Translation Contract | Migration friction remains high without direct compatibility for MCP/OpenAPI/Azure plus legacy plugin translation paths. | Ship governed connector suite with drop-in MCP/OpenAPI/Azure adapters and translation lane for LangChain/LangGraph-style plugin surfaces, validated by compatibility matrix receipts. | 9 | 0/1/2/adapter/client |
+| V8-COMPETE-001.7 | done | Multi-Language Kernel-Parity SDK Contract | Teams lose confidence when C#/Python/Java paths diverge from authoritative Rust runtime behavior. | Deliver C#/Python/Java SDKs with parity contract tests proving identical receipt semantics and runtime behavior against Rust authority lanes. | 8 | 1/2/client/adapter |
+| V8-COMPETE-001.8 | done | Kernel-Native Observability + Governance Contract | Middleware-only telemetry/governance leaves blind spots for safety-critical memory/tool/policy decisions. | Add Safety-Plane-native OpenTelemetry/Prometheus traces for graph/memory/policy events plus GitOps policy enforcement gate and deterministic ROI/event receipts. | 9 | 0/1/2/client |
+| V8-COMPETE-001.9 | done | Edge-to-Cloud Uniform Plan Execution Contract | Platform lock-in persists when plans require per-target rewrites across MCU/edge/server/cloud environments. | Implement substrate auto-adapter contract allowing unchanged plans across ESP32/RP2040/Jetson/Apple/WASM/cloud targets with deterministic handoff receipts and portability regression suite. | 9 | -1/0/1/2 |
+| V8-COMPETE-001.10 | done | Production Resilience Flywheel Contract | High-scale deployments regress without built-in deterministic rollback, canarying, and cost/latency optimization loops. | Add kernel-level self-heal + replay rollback + A/B canary + cost/latency auto-optimizer with human-gate checkpoints and deterministic resilience receipts. | 10 | 0/1/2/client |
+
+## Swarm Reliability Hardening Assimilation Intake (Doc `1VAJkZxz0mHsoxrovE3DdlZE5c8sX4E7pvB9b6A0Eq7g`, 2026-03-16)
+
+Source references:
+- [Swarm reliability hardening assimilation doc](https://docs.google.com/document/d/1VAJkZxz0mHsoxrovE3DdlZE5c8sX4E7pvB9b6A0Eq7g/edit?usp=sharing)
+
+Notes:
+- Primitive-first normalization: this intake strengthens multi-agent orchestration reliability with heartbeat, supervision, recovery, and output integrity contracts.
+- Overlap handled explicitly:
+  - existing checkpoint and timeout recovery baseline: `REQ-38-003`
+  - orchestration coordinator/scratchpad/checkpoint baselines: `REQ-38-001`, `REQ-38-002`, `REQ-38-005`
+  - existing swarm spawn/parallel lanes: `V8-SWARM-010.*`, `V8-SWARM-011.*`
+  - existing heartbeat/runtime-health lanes: `V6-COMPANY-001.4`, `V8-ECOSYSTEM-001.1`
+- Net-new emphasis from source:
+  - mandatory worker heartbeat protocol for stuck-agent detection,
+  - dedicated supervisor watchdog with automatic respawn + checkpoint resume,
+  - standardized output schema contract and scope-boundary validation,
+  - work-stealing, conflict reconciliation, and timeout graceful-degradation requirements.
+
+Objective: eliminate lost-work and stalled-partition failure modes in multi-agent audits by enforcing deterministic liveness, recovery, schema, and coordination contracts.
+
+| ID | Status | Upgrade | Why | Exit Criteria | Impact (1-10) | Layer Map |
+| --- | --- | --- | --- | --- | --- | --- |
+| V8-SWARM-012.1 | done | Worker Heartbeat Contract | Stalled workers are hard to detect early without periodic liveness + progress signals. | Add heartbeat emission every 2 minutes per worker (`agent_id`, `items_processed`, `current_item_id`, `status`) to shared scratchpad with deterministic heartbeat receipts and timeout thresholds. | 9 | 0/1/2/client |
+| V8-SWARM-012.2 | done | Automatic Work-Stealing Contract | Partition imbalance wastes compute and extends completion time when finished workers cannot claim remaining tasks. | Add work-stealing lane where completed workers auto-claim incomplete sibling partitions using deterministic lease/claim receipts and bounded contention policy. | 8 | 0/1/2 |
+| V8-SWARM-012.3 | done | Supervisor Watchdog + Respawn Contract | Manual monitoring is brittle when workers silently fail or stall without immediate replacement. | Add dedicated supervisor lane monitoring worker heartbeats; on missing heartbeat >5 minutes, mark failed and spawn replacement with checkpoint-resume instruction, emitting deterministic failover receipts. | 10 | 0/1/2 |
+| V8-SWARM-012.4 | done | Output Schema Enforcement Contract | Aggregation reliability drops when worker outputs are inconsistent or missing required evidence fields. | Enforce JSON schema for all worker outputs (`audit_id`, `item_id`, `status`, `evidence`, `location`, `timestamp`) with fail-closed validation and deterministic schema-pass/fail receipts. | 9 | 0/1/2/client |
+| V8-SWARM-012.5 | done | Frequent Checkpoint Recovery Contract | Progress can be lost when workers timeout or crash before returning results. | Extend checkpoint protocol to write every N items and by cadence; replacement workers must resume from latest checkpoint pointer with deterministic checkpoint lineage receipts. | 9 | 0/1/2 |
+| V8-SWARM-012.6 | done | Scope Boundary Validation Contract | Wrong partition assignments can yield false coverage and wasted cycles if workers process out-of-scope items. | Add pre-execution scope validation against manifest with deterministic scope-pass/scope-error receipts and immediate coordinator escalation on mismatch. | 7 | 0/1/2/client |
+| V8-SWARM-012.7 | done | Real-Time Aggregation Dashboard Contract | Operators lack situational awareness without live visibility into active workers, gaps, and ETAs. | Add coordinator dashboard updating every 30 seconds (active agents, completed items, gaps, ETA per partition) with deterministic telemetry snapshots and exportable status receipts. | 7 | 1/2/client |
+| V8-SWARM-012.8 | done | Capability Advertisement + Adaptive Partitioning Contract | Static partitioning ignores worker heterogeneity and reduces throughput. | Require worker capability advertisement (`max_items`, rate estimate, specialties`) at spawn; coordinator must use capability-aware partitioning and emit deterministic assignment rationale receipts. | 7 | 0/1/2 |
+| V8-SWARM-012.9 | done | Cross-Agent Dedup + Reconciliation Contract | Duplicate/conflicting findings create integrity risk without deterministic conflict resolution. | Add dedup/conflict detector keyed by `item_id`; on conflict spawn reconciliation sub-agent and emit deterministic merge/reject receipts with provenance links. | 8 | 0/1/2 |
+| V8-SWARM-012.10 | done | Timeout Graceful Degradation Contract | Timeouts currently risk empty returns and lost partial progress. | Require timed-out workers to return partial results + checkpoint pointer; coordinator auto-spawns finisher worker for remainder with deterministic timeout/degradation receipts. | 9 | 0/1/2 |
