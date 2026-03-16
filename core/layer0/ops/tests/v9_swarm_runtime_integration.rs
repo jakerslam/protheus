@@ -356,6 +356,116 @@ fn heterogeneous_results_registry_supports_query_wait_consensus_and_outliers() {
 }
 
 #[test]
+fn results_wait_times_out_when_min_count_not_met() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let state_path = root.path().join("state/swarm/latest.json");
+
+    let wait_args = vec![
+        "results".to_string(),
+        "wait".to_string(),
+        "--label-pattern=non-existent-*".to_string(),
+        "--min-count=1".to_string(),
+        "--timeout-sec=0.1".to_string(),
+        format!("--state-path={}", state_path.display()),
+    ];
+    assert_eq!(run_swarm(root.path(), &wait_args), 2);
+
+    let state = read_state(&state_path);
+    let result_count = state
+        .get("result_registry")
+        .and_then(Value::as_object)
+        .map(|rows| rows.len())
+        .unwrap_or(0);
+    assert_eq!(result_count, 0, "timeout path must not fabricate results");
+}
+
+#[test]
+fn results_consensus_emits_disagreement_event_for_conflicting_values() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let state_path = root.path().join("state/swarm/latest.json");
+
+    for (label, value) in [
+        ("swarm-test-7-het-agent-fast", "5050"),
+        ("swarm-test-7-het-agent-thorough", "4090"),
+    ] {
+        let args = vec![
+            "spawn".to_string(),
+            "--task=conflict-calc".to_string(),
+            "--role=calculator".to_string(),
+            "--auto-publish-results=1".to_string(),
+            format!("--agent-label={label}"),
+            format!("--result-value={value}"),
+            format!("--state-path={}", state_path.display()),
+        ];
+        assert_eq!(run_swarm(root.path(), &args), 0);
+    }
+
+    let consensus_args = vec![
+        "results".to_string(),
+        "consensus".to_string(),
+        "--label-pattern=swarm-test-7-het-agent-*".to_string(),
+        "--field=value".to_string(),
+        "--threshold=1.0".to_string(),
+        format!("--state-path={}", state_path.display()),
+    ];
+    assert_eq!(run_swarm(root.path(), &consensus_args), 0);
+
+    let state = read_state(&state_path);
+    let disagreement_event = state
+        .get("events")
+        .and_then(Value::as_array)
+        .and_then(|rows| {
+            rows.iter().rev().find(|row| {
+                row.get("type").and_then(Value::as_str) == Some("swarm_results_consensus")
+                    && row.get("status").and_then(Value::as_str) == Some("disagreement")
+            })
+        });
+    assert!(
+        disagreement_event.is_some(),
+        "consensus command should persist a disagreement event for mismatched values"
+    );
+}
+
+#[test]
+fn results_publish_rejects_invalid_payload_json() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let state_path = root.path().join("state/swarm/latest.json");
+
+    let spawn_args = vec![
+        "spawn".to_string(),
+        "--task=invalid-payload-source".to_string(),
+        "--role=calculator".to_string(),
+        format!("--state-path={}", state_path.display()),
+    ];
+    assert_eq!(run_swarm(root.path(), &spawn_args), 0);
+
+    let state = read_state(&state_path);
+    let session_id = state
+        .get("sessions")
+        .and_then(Value::as_object)
+        .and_then(|rows| rows.keys().next())
+        .cloned()
+        .expect("session id");
+
+    let publish_args = vec![
+        "results".to_string(),
+        "publish".to_string(),
+        format!("--session-id={session_id}"),
+        "--data-json={bad json}".to_string(),
+        format!("--state-path={}", state_path.display()),
+    ];
+    assert_eq!(run_swarm(root.path(), &publish_args), 2);
+
+    let state_after = read_state(&state_path);
+    let result_count = state_after
+        .get("result_registry")
+        .and_then(Value::as_object)
+        .map(|rows| rows.len())
+        .unwrap_or(0);
+    assert_eq!(result_count, 0, "invalid publish payload must fail closed");
+}
+
+#[test]
 fn heterogeneous_test_suite_completes_with_consensus() {
     let root = tempfile::tempdir().expect("tempdir");
     let state_path = root.path().join("state/swarm/latest.json");
