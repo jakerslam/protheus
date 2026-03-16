@@ -247,6 +247,70 @@ fn trunk_events_path(root: &Path) -> PathBuf {
     state_root(root).join("trunk").join("events.jsonl")
 }
 
+fn autonomy_runs_dir(root: &Path) -> PathBuf {
+    root.join("client")
+        .join("runtime")
+        .join("local")
+        .join("state")
+        .join("autonomy")
+        .join("runs")
+}
+
+fn autonomy_runs_path(root: &Path, day: &str) -> PathBuf {
+    autonomy_runs_dir(root).join(format!("{day}.jsonl"))
+}
+
+fn today_ymd(ts: &str) -> String {
+    let day = ts.split('T').next().unwrap_or("").trim();
+    if day.len() == 10 && day.chars().nth(4) == Some('-') && day.chars().nth(7) == Some('-') {
+        day.to_string()
+    } else {
+        now_iso().chars().take(10).collect()
+    }
+}
+
+fn persist_autonomy_run_row(root: &Path, argv: &[String], receipt: &Value) -> Result<Value, String> {
+    let ts = receipt
+        .get("ts")
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .unwrap_or_else(now_iso);
+    let day = today_ymd(&ts);
+    let max_actions = parse_flag(argv, "max-actions")
+        .and_then(|v| v.parse::<i64>().ok())
+        .map(|v| v.clamp(1, 100))
+        .unwrap_or(1);
+    let objective_id = parse_flag(argv, "objective").unwrap_or_else(|| "default".to_string());
+    let result = parse_flag(argv, "result").unwrap_or_else(|| "executed".to_string());
+    let outcome = parse_flag(argv, "outcome").unwrap_or_else(|| {
+        if result.eq_ignore_ascii_case("executed") {
+            "no_change".to_string()
+        } else {
+            "blocked".to_string()
+        }
+    });
+    let policy_hold_reason = parse_flag(argv, "policy-hold-reason");
+    let route_block_reason = parse_flag(argv, "route-block-reason");
+    let policy_hold = parse_bool(parse_flag(argv, "policy-hold").as_deref(), false)
+        || result.to_ascii_lowercase().starts_with("no_candidates_policy_");
+    let row = json!({
+        "ts": ts,
+        "type": "autonomy_run",
+        "lane": LANE_ID,
+        "command": "run",
+        "objective_id": objective_id,
+        "max_actions": max_actions,
+        "result": result,
+        "outcome": outcome,
+        "policy_hold": policy_hold,
+        "policy_hold_reason": policy_hold_reason,
+        "route_block_reason": route_block_reason,
+        "receipt_hash": receipt.get("receipt_hash").cloned().unwrap_or(Value::Null)
+    });
+    append_jsonl(&autonomy_runs_path(root, &day), &row)?;
+    Ok(row)
+}
+
 fn load_domain_constraints(root: &Path) -> Value {
     read_json(
         &root
@@ -1137,9 +1201,39 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     }
 
     match cmd.as_str() {
-        "status" | "run" | "runtime-stability-soak" | "self-documentation-closeout" => {
+        "status" | "runtime-stability-soak" | "self-documentation-closeout" => {
             print_json_line(&native_receipt(root, &cmd, argv));
             0
+        }
+        "run" => {
+            let strict = parse_bool(parse_flag(argv, "strict").as_deref(), false);
+            let mut receipt = native_receipt(root, &cmd, argv);
+            match persist_autonomy_run_row(root, argv, &receipt) {
+                Ok(row) => {
+                    receipt["run_telemetry"] = json!({
+                        "ok": true,
+                        "path": lane_utils::rel_path(root, &autonomy_runs_path(root, &today_ymd(
+                            receipt.get("ts").and_then(Value::as_str).unwrap_or_default()
+                        ))),
+                        "row": row
+                    });
+                    print_json_line(&receipt);
+                    0
+                }
+                Err(err) => {
+                    if strict {
+                        print_json_line(&cli_error_receipt(argv, &format!("autonomy_run_persist_failed:{err}"), 2));
+                        2
+                    } else {
+                        receipt["run_telemetry"] = json!({
+                            "ok": false,
+                            "error": err
+                        });
+                        print_json_line(&receipt);
+                        0
+                    }
+                }
+            }
         }
         "hand-new" => run_hand_new(root, argv),
         "hand-cycle" => run_hand_cycle(root, argv),
@@ -1226,6 +1320,39 @@ mod tests {
             .expect("obj")
             .remove("receipt_hash");
         assert_eq!(receipt_hash(&unhashed), hash);
+    }
+
+    #[test]
+    fn run_persists_autonomy_run_row_for_harness() {
+        let root = tempdir().expect("tmp");
+        let code = run(
+            root.path(),
+            &[
+                "run".to_string(),
+                "--objective=t1_harness_seed".to_string(),
+                "--max-actions=2".to_string(),
+            ],
+        );
+        assert_eq!(code, 0);
+
+        let today: String = now_iso().chars().take(10).collect();
+        let path = root
+            .path()
+            .join("client")
+            .join("runtime")
+            .join("local")
+            .join("state")
+            .join("autonomy")
+            .join("runs")
+            .join(format!("{today}.jsonl"));
+        let rows = read_jsonl(&path);
+        assert!(!rows.is_empty());
+        let last = rows.last().expect("row");
+        assert_eq!(last.get("type").and_then(Value::as_str), Some("autonomy_run"));
+        assert_eq!(
+            last.get("objective_id").and_then(Value::as_str),
+            Some("t1_harness_seed")
+        );
     }
 
     #[test]

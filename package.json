@@ -398,7 +398,7 @@
     "resonance:evaluate": "node client/runtime/systems/fractal/resonance_field_gates.ts evaluate",
     "install:personal": "node client/runtime/systems/ops/personal_protheus_installer.ts install",
     "benchmark:public": "node client/runtime/systems/ops/public_benchmark_pack.ts run",
-    "ops:harness:6m": "node client/runtime/systems/autonomy/autonomy_simulation_harness.ts run --days=180 --write=1 --strict",
+    "ops:harness:6m": "cargo run -q -p protheus-ops-core --bin protheus-ops -- autonomy-controller autonomy-simulation-harness run --days=180 --write=1 --strict=1",
     "ops:protheus-vs-openclaw": "node client/runtime/systems/ops/narrow_agent_parity_harness.ts run --days=180 --strict=1",
     "ops:mech-suit:benchmark": "node client/runtime/systems/ops/mech_suit_benchmark.ts",
     "ops:mech-suit:status": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/mech_suit_mode_control.ts status",
