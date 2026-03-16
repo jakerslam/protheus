@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer0/ops::child_organ_runtime (authoritative)
+use crate::contract_lane_utils as lane_utils;
 use crate::{client_state_root, deterministic_receipt_hash, now_iso};
 use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
@@ -51,25 +52,7 @@ fn receipt_hash(v: &Value) -> String {
 }
 
 fn parse_flag(argv: &[String], key: &str) -> Option<String> {
-    let with_eq = format!("--{key}=");
-    let plain = format!("--{key}");
-    let mut i = 0usize;
-    while i < argv.len() {
-        let token = argv[i].trim();
-        if let Some(v) = token.strip_prefix(&with_eq) {
-            return Some(v.trim().to_string());
-        }
-        if token == plain {
-            if let Some(next) = argv.get(i + 1) {
-                if !next.trim_start().starts_with("--") {
-                    return Some(next.trim().to_string());
-                }
-            }
-            return Some("true".to_string());
-        }
-        i += 1;
-    }
-    None
+    lane_utils::parse_flag(argv, key, true)
 }
 
 fn collect_flags(argv: &[String], key: &str) -> Vec<String> {
@@ -100,49 +83,15 @@ fn collect_flags(argv: &[String], key: &str) -> Vec<String> {
 }
 
 fn parse_bool(raw: Option<&str>, fallback: bool) -> bool {
-    let Some(v) = raw else {
-        return fallback;
-    };
-    match v.trim().to_ascii_lowercase().as_str() {
-        "1" | "true" | "yes" | "on" => true,
-        "0" | "false" | "no" | "off" => false,
-        _ => fallback,
-    }
+    lane_utils::parse_bool(raw, fallback)
 }
 
 fn clean_id(raw: Option<&str>, fallback: &str) -> String {
-    let mut out = String::new();
-    if let Some(v) = raw {
-        for ch in v.trim().chars() {
-            if out.len() >= 120 {
-                break;
-            }
-            if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.') {
-                out.push(ch);
-            } else {
-                out.push('-');
-            }
-        }
-    }
-    let cleaned = out.trim_matches('-');
-    if cleaned.is_empty() {
-        fallback.to_string()
-    } else {
-        cleaned.to_string()
-    }
+    lane_utils::clean_token(raw, fallback)
 }
 
 fn clean_text(raw: Option<&str>, max_len: usize) -> String {
-    let mut out = String::new();
-    if let Some(v) = raw {
-        for ch in v.split_whitespace().collect::<Vec<_>>().join(" ").chars() {
-            if out.len() >= max_len {
-                break;
-            }
-            out.push(ch);
-        }
-    }
-    out.trim().to_string()
+    lane_utils::clean_text(raw, max_len)
 }
 
 fn parse_json(raw: Option<&str>) -> Result<Value, String> {
@@ -150,44 +99,20 @@ fn parse_json(raw: Option<&str>) -> Result<Value, String> {
     serde_json::from_str::<Value>(text).map_err(|err| format!("invalid_json_payload:{err}"))
 }
 
-fn ensure_parent(path: &Path) -> Result<(), String> {
-    let Some(parent) = path.parent() else {
-        return Ok(());
-    };
-    fs::create_dir_all(parent).map_err(|err| format!("mkdir_failed:{}:{err}", parent.display()))
-}
-
 fn write_json(path: &Path, payload: &Value) -> Result<(), String> {
-    ensure_parent(path)?;
-    let mut encoded =
-        serde_json::to_string_pretty(payload).map_err(|err| format!("encode_failed:{err}"))?;
-    encoded.push('\n');
-    fs::write(path, encoded).map_err(|err| format!("write_failed:{}:{err}", path.display()))
+    lane_utils::write_json(path, payload)
 }
 
 fn append_jsonl(path: &Path, row: &Value) -> Result<(), String> {
-    ensure_parent(path)?;
-    use std::io::Write;
-    let line = serde_json::to_string(row).map_err(|err| format!("encode_failed:{err}"))? + "\n";
-    let mut opts = fs::OpenOptions::new();
-    opts.create(true).append(true);
-    let mut file = opts
-        .open(path)
-        .map_err(|err| format!("open_failed:{}:{err}", path.display()))?;
-    file.write_all(line.as_bytes())
-        .map_err(|err| format!("append_failed:{}:{err}", path.display()))
+    lane_utils::append_jsonl(path, row)
 }
 
 fn read_json(path: &Path) -> Option<Value> {
-    let text = fs::read_to_string(path).ok()?;
-    serde_json::from_str::<Value>(&text).ok()
+    lane_utils::read_json(path)
 }
 
 fn rel_path(root: &Path, path: &Path) -> String {
-    path.strip_prefix(root)
-        .ok()
-        .map(|p| p.to_string_lossy().replace('\\', "/"))
-        .unwrap_or_else(|| path.to_string_lossy().replace('\\', "/"))
+    lane_utils::rel_path(root, path)
 }
 
 fn runtime_dir(root: &Path) -> PathBuf {

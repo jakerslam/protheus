@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso};
 use base64::Engine;
 use serde_json::{json, Map, Value};
@@ -33,33 +34,15 @@ fn usage() {
 }
 
 fn read_json(path: &Path) -> Option<Value> {
-    let raw = fs::read_to_string(path).ok()?;
-    serde_json::from_str::<Value>(&raw).ok()
+    lane_utils::read_json(path)
 }
 
 fn write_json(path: &Path, value: &Value) {
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    if let Ok(mut raw) = serde_json::to_string_pretty(value) {
-        raw.push('\n');
-        let _ = fs::write(path, raw);
-    }
+    let _ = lane_utils::write_json(path, value);
 }
 
 fn append_jsonl(path: &Path, row: &Value) {
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    if let Ok(line) = serde_json::to_string(row) {
-        let _ = fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-            .and_then(|mut file| {
-                std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes())
-            });
-    }
+    let _ = lane_utils::append_jsonl(path, row);
 }
 
 fn parse_cli_flags(argv: &[String]) -> BTreeMap<String, String> {
@@ -91,36 +74,16 @@ fn parse_cli_flags(argv: &[String]) -> BTreeMap<String, String> {
 }
 
 fn bool_from_env(name: &str) -> Option<bool> {
-    let raw = std::env::var(name).ok()?;
-    match raw.trim().to_ascii_lowercase().as_str() {
-        "1" | "true" | "yes" | "on" => Some(true),
-        "0" | "false" | "no" | "off" => Some(false),
-        _ => None,
-    }
+    let raw = std::env::var(name).ok();
+    lane_utils::parse_opt_bool(raw.as_deref())
 }
 
 fn parse_bool(raw: Option<&str>, fallback: bool) -> bool {
-    let Some(value) = raw else {
-        return fallback;
-    };
-    match value.trim().to_ascii_lowercase().as_str() {
-        "1" | "true" | "yes" | "on" => true,
-        "0" | "false" | "no" | "off" => false,
-        _ => fallback,
-    }
+    lane_utils::parse_bool(raw, fallback)
 }
 
 fn clean_text(value: Option<&str>, max_len: usize) -> String {
-    let mut out = String::new();
-    if let Some(raw) = value {
-        for ch in raw.split_whitespace().collect::<Vec<_>>().join(" ").chars() {
-            if out.len() >= max_len {
-                break;
-            }
-            out.push(ch);
-        }
-    }
-    out.trim().to_string()
+    lane_utils::clean_text(value, max_len)
 }
 
 fn sanitize_persona_id(raw: Option<&str>) -> String {

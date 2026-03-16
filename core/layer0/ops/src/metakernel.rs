@@ -1,5 +1,6 @@
 // Layer ownership: core/layer0/ops (authoritative)
 // SPDX-License-Identifier: Apache-2.0
+use crate::contract_lane_utils as lane_utils;
 use crate::{clean, deterministic_receipt_hash, now_iso, parse_args};
 use serde_json::{json, Value};
 use std::collections::{BTreeSet, HashSet};
@@ -68,41 +69,19 @@ fn history_path(root: &Path) -> PathBuf {
 }
 
 fn read_json(path: &Path) -> Option<Value> {
-    let raw = fs::read_to_string(path).ok()?;
-    serde_json::from_str::<Value>(&raw).ok()
+    lane_utils::read_json(path)
 }
 
 fn write_json(path: &Path, value: &Value) {
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    if let Ok(mut body) = serde_json::to_string_pretty(value) {
-        body.push('\n');
-        let _ = fs::write(path, body);
-    }
+    let _ = lane_utils::write_json(path, value);
 }
 
 fn append_jsonl(path: &Path, value: &Value) {
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    if let Ok(line) = serde_json::to_string(value) {
-        let _ = fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-            .and_then(|mut file| {
-                std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes())
-            });
-    }
+    let _ = lane_utils::append_jsonl(path, value);
 }
 
 fn parse_bool(raw: Option<&String>, fallback: bool) -> bool {
-    match raw.map(|v| v.trim().to_ascii_lowercase()) {
-        Some(v) if matches!(v.as_str(), "1" | "true" | "yes" | "on") => true,
-        Some(v) if matches!(v.as_str(), "0" | "false" | "no" | "off") => false,
-        _ => fallback,
-    }
+    lane_utils::parse_bool(raw.map(String::as_str), fallback)
 }
 
 fn is_semver_triplet(raw: &str) -> bool {
