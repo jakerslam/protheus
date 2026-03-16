@@ -3,8 +3,8 @@
     {
       "claim": "agent_constitution_integrity_verified",
       "evidence": {
-        "constitution_hash": null,
-        "integrity_ok": false
+        "constitution_hash": "e594454eef28857512e20bf2fb23136af1d3c9559b5edf3c9a837121cfe4b463",
+        "integrity_ok": true
       },
       "id": "constitution_integrity"
     },
@@ -23,7 +23,8 @@
       "id": "evidence_loop"
     }
   ],
-  "date": "2026-03-05",
+  "date": "2026-03-16",
+  "elapsed_ms": 108,
   "evidence_ok": 0,
   "evidence_plan": {
     "budget_pressure": "none",
@@ -32,22 +33,27 @@
     "pressure_throttle": false,
     "projected_pressure": "none"
   },
-  "failure_reason": "constitution_integrity_failed",
-  "ledger_seq": 2,
+  "failure_reason": "guard_failed",
+  "ledger_seq": 4,
   "mode": "daily",
   "ok": false,
   "persona_lenses": {
     "guardian": {
       "clearance": "3",
-      "constitution_integrity_ok": false
+      "constitution_integrity_ok": true
     },
     "strategist": {
       "evidence_runs": 0,
       "mode": "daily"
     }
   },
-  "receipt_hash": "1f4bfc9e70ccbbf9d579c834cbdd9c5bf14c8476dc5662602b4fe0aa134d83fd",
-  "run_id": "spine_mme3k5aq_8605",
-  "ts": "2026-03-05T23:28:46.805Z",
+  "receipt_hash": "d190db38477c8c75a75ea79ca1383682c5a50c0de33f95dfc487c596ddc323ab",
+  "resource_snapshot": {
+    "pid": 89734,
+    "uptime_sec": 0.108
+  },
+  "run_id": "spine_mmta6yir_89734",
+  "terminal_step": "spine_step",
+  "ts": "2026-03-16T14:31:01.551Z",
   "type": "spine_run_failed"
 }
