@@ -963,6 +963,8 @@ fn emit_terminal_receipt(
             context.constitution_ok,
             context.evidence_plan
         ),
+        "constitution_hash": context.constitution_hash.clone(),
+        "constitution_integrity_ok": context.constitution_ok,
         "evidence_plan": context.evidence_plan,
         "evidence_ok": context.evidence_ok
     });
