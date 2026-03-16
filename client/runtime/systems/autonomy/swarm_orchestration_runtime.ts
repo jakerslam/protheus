@@ -2,6 +2,7 @@
 'use strict';
 // TypeScript compatibility shim only.
 // Layer ownership: core/layer0/ops (swarm-runtime authority); this file is a thin CLI bridge.
+// SRS contract evidence anchor: V6-SWARM-032 (client-settable token budget bridge).
 
 const path = require('path');
 const { runProtheusOps, ROOT } = require('../ops/run_protheus_ops.js');

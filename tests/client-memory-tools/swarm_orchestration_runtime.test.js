@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+// SRS regression evidence anchor: V6-SWARM-032.
 
 const assert = require('assert');
 const fs = require('fs');
