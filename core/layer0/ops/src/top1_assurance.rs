@@ -105,10 +105,12 @@ fn normalize_rel(path: &Path) -> String {
 }
 
 fn rel_path(root: &Path, path: &Path) -> String {
-    path.strip_prefix(root)
-        .ok()
-        .map(|p| p.to_string_lossy().replace('\\', "/"))
-        .unwrap_or_else(|| normalize_rel(path))
+    let relative = lane_utils::rel_path(root, path);
+    if relative == normalize_rel(path) {
+        normalize_rel(path)
+    } else {
+        relative
+    }
 }
 
 fn read_json(path: &Path) -> Option<Value> {
