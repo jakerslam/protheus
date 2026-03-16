@@ -4,3 +4,8 @@ set -euo pipefail
 node tests/client-memory-tools/org_code_format_guard.test.js
 npm run -s ops:legacy-alias:guard
 npm run -s ops:churn:commit-gate
+
+# Run SRS regression when staged changes touch SRS governance or runtime-proof surfaces.
+if git diff --cached --name-only | grep -Eq '^(docs/workspace/(SRS\.md|TODO\.md|UPGRADE_BACKLOG\.md)|core/layer0/ops/tests/v8_runtime_proof\.rs)$'; then
+  npm run -s ops:srs:full:regression
+fi

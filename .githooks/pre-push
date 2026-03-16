@@ -2,3 +2,4 @@
 set -euo pipefail
 
 npm run -s ops:churn:guard
+npm run -s ops:srs:full:regression
