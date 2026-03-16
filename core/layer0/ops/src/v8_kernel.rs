@@ -594,3 +594,16 @@ pub fn parse_csv_or_file(
     values.extend(split_csv_clean(&raw.replace('\n', ","), max_len));
     values
 }
+
+pub fn parse_csv_or_file_unique(
+    root: &Path,
+    flags: &HashMap<String, String>,
+    csv_key: &str,
+    file_key: &str,
+    max_len: usize,
+) -> Vec<String> {
+    let mut values = parse_csv_or_file(root, flags, csv_key, file_key, max_len);
+    values.sort();
+    values.dedup();
+    values
+}

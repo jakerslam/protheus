@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "report_path": "docs/client/reports/benchmark_matrix_run_2026-03-06.json",
+  "state_path": "core/local/state/ops/benchmark_sanity/latest.json",
+  "required_projects": [
+    "OpenClaw",
+    "Protheus Pure",
+    "Protheus Pure Tiny-Max"
+  ],
+  "required_metrics": [
+    "cold_start_ms",
+    "idle_memory_mb",
+    "install_size_mb",
+    "tasks_per_sec"
+  ],
+  "bounds": {
+    "cold_start_ms": {
+      "min": 0.1,
+      "max": 5000
+    },
+    "idle_memory_mb": {
+      "min": 0.1,
+      "max": 500
+    },
+    "install_size_mb": {
+      "min": 0.1,
+      "max": 500
+    },
+    "tasks_per_sec": {
+      "min": 100,
+      "max": 100000
+    }
+  },
+  "max_step_multiplier": {
+    "cold_start_ms": 5.0,
+    "idle_memory_mb": 5.0,
+    "install_size_mb": 5.0,
+    "tasks_per_sec": 3.0
+  },
+  "step_change_exemptions": [
+    {
+      "project": "Protheus Pure Tiny-Max",
+      "metric": "cold_start_ms"
+    }
+  ],
+  "openclaw_required_runtime_source_keys": [
+    "mode",
+    "tasks_source",
+    "tasks_sample_ms"
+  ]
+}

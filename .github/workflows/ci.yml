@@ -39,6 +39,21 @@ jobs:
       - name: Source Runtime Classifier
         run: npm run ops:source-runtime:check
 
+      - name: Simplicity Drift Audit
+        run: npm run -s ops:simplicity:audit
+
+      - name: Benchmark Sanity Gate
+        run: npm run -s ops:benchmark:sanity
+
+      - name: Flaky Quarantine Audit
+        run: npm run -s ops:flaky:quarantine:audit
+
+      - name: Test Priority Manifest Audit
+        run: npm run -s ops:test-priority:audit
+
+      - name: Strategic Contract Registry Audit
+        run: npm run -s ops:strategic-contracts:audit
+
       - name: Queue Hardening Contracts
         run: npm run ops:race-queue:hardening
 

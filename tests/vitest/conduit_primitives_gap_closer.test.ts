@@ -18,11 +18,12 @@ describe('conduit primitive wrapper contract', () => {
   test.each(wrapperFiles)('wrapper contract enforced for %s', async (relativePath) => {
     const full = path.join(ROOT, relativePath);
     const source = fs.readFileSync(full, 'utf8');
-    expect(source.includes('ts_bootstrap.ts')).toBe(true);
+    // Wrapper contract allows either ts_bootstrap entrypoints or direct Rust lane bridges.
+    const hasBootstrapEntrypoint =
+      source.includes('ts_bootstrap.ts') && source.includes('bootstrap(__filename, module)');
+    const hasRustLaneBridge = source.includes('createOpsLaneBridge');
+    expect(hasBootstrapEntrypoint || hasRustLaneBridge).toBe(true);
     expect(source.includes('legacy_retired_lane_bridge')).toBe(false);
-
-    // ts_bootstrap wrappers are CJS lane entrypoints; static contract check is sufficient here.
-    expect(source.includes('bootstrap(__filename, module)')).toBe(true);
   });
 
   test('install.sh exists and references hosted installer endpoint', () => {

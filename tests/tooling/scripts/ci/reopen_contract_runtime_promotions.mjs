@@ -19,7 +19,12 @@ function collectIds(receipt) {
     if (!id) continue;
     const laneRoute = String(row.lane_route || row.laneRoute || '').trim();
     const laneScript = String(row.lane_script || row.laneScript || '').trim();
-    if (laneRoute === 'core_srs_contract_runtime' || laneScript.startsWith('core:srs_contract_runtime:')) {
+    if (
+      laneRoute === 'core_srs_contract_runtime' ||
+      laneRoute === 'core_runtime_systems' ||
+      laneScript.startsWith('core:srs_contract_runtime:') ||
+      laneScript.startsWith('core:runtime-systems:')
+    ) {
       ids.add(id);
     }
   }

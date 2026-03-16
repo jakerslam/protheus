@@ -34,8 +34,8 @@ pub mod audit_log_export;
 pub mod autonomy_controller;
 pub mod autotest_controller;
 pub mod autotest_doctor;
-pub mod backlog_executor_evidence_anchor;
 pub mod backlog_delivery_plane;
+pub mod backlog_executor_evidence_anchor;
 pub mod backlog_github_sync;
 pub mod backlog_queue_executor;
 pub mod backlog_registry;
@@ -50,6 +50,7 @@ pub mod collab_plane;
 pub mod company_plane;
 pub mod continuity_runtime;
 pub mod contract_check;
+pub mod contract_lane_utils;
 pub mod daemon_control;
 pub mod directive_kernel;
 pub mod dopamine_ambient;
@@ -87,8 +88,8 @@ pub mod nexus_plane;
 pub mod observability_plane;
 pub mod offline_runtime_guard;
 pub mod offsite_backup;
-pub mod orchestration;
 pub mod ops_lane_runtime;
+pub mod orchestration;
 pub mod organ_atrophy_controller;
 pub mod organism_layer;
 pub mod origin_integrity;
@@ -108,6 +109,7 @@ pub mod research_batch8;
 pub mod research_plane;
 pub mod rollout_rings;
 pub mod rsi_ignition;
+pub mod runtime_system_contracts;
 pub mod runtime_systems;
 pub mod rust50_migration_program;
 pub mod rust_enterprise_productivity_program;
@@ -789,7 +791,9 @@ fn cold_start_sample_ms(
     rewrite: &DistRewrite,
 ) -> Result<f64, String> {
     match probe.engine.trim().to_ascii_lowercase().as_str() {
-        "core-lazy" | "core_lazy" | "rust-lazy" | "rust_lazy" => run_core_lazy_process_cold_start(root),
+        "core-lazy" | "core_lazy" | "rust-lazy" | "rust_lazy" => {
+            run_core_lazy_process_cold_start(root)
+        }
         _ => run_cmd(root, &rewrite.command),
     }
 }
@@ -1000,7 +1004,11 @@ pub fn run_runtime_efficiency_floor(root: &Path, parsed: &ParsedArgs) -> Result<
 
     let mut samples = Vec::new();
     for _ in 0..policy.cold_start_probe.samples {
-        samples.push(cold_start_sample_ms(root, &policy.cold_start_probe, &rewrite)?);
+        samples.push(cold_start_sample_ms(
+            root,
+            &policy.cold_start_probe,
+            &rewrite,
+        )?);
     }
 
     let p95_ms = percentile(&samples, 0.95).unwrap_or(0.0);

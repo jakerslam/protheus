@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "scan_root": "tests/vitest",
+  "allowed_skip_files": [
+    {
+      "path": "tests/vitest/conduit_primitives_gap_closer.test.ts",
+      "reason": "Unix domain socket probe is intentionally skipped in non-deterministic CI environments."
+    }
+  ]
+}

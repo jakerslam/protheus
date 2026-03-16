@@ -6,6 +6,7 @@ use aes_gcm::{Aes256Gcm, Key, Nonce};
 use base64::engine::general_purpose::STANDARD as BASE64_STD;
 use base64::Engine;
 use rand::RngCore;
+use std::fs;
 
 fn vault_dir(root: &Path) -> PathBuf {
     core_state_root(root).join("continuity").join("vault")

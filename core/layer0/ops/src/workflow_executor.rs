@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso};
 use serde_json::{json, Value};
 use std::path::Path;
@@ -24,29 +25,10 @@ fn usage() {
     println!("  protheus-ops workflow-executor run [--scope=<value>] [--max=<n>]");
 }
 
-fn parse_flag(argv: &[String], key: &str) -> Option<String> {
-    let long = format!("--{key}=");
-    let mut i = 0usize;
-    while i < argv.len() {
-        let tok = argv[i].trim();
-        if let Some(v) = tok.strip_prefix(&long) {
-            return Some(v.to_string());
-        }
-        if tok == format!("--{key}") {
-            if let Some(next) = argv.get(i + 1) {
-                if !next.starts_with("--") {
-                    return Some(next.clone());
-                }
-            }
-        }
-        i += 1;
-    }
-    None
-}
-
 fn status_receipt(root: &Path, cmd: &str, args: &[String]) -> Value {
-    let scope = parse_flag(args, "scope").unwrap_or_else(|| "changed".to_string());
-    let max = parse_flag(args, "max")
+    let scope =
+        lane_utils::parse_flag(args, "scope", false).unwrap_or_else(|| "changed".to_string());
+    let max = lane_utils::parse_flag(args, "max", false)
         .and_then(|v| v.parse::<i64>().ok())
         .map(|v| v.clamp(1, 500))
         .unwrap_or(25);
@@ -125,11 +107,12 @@ mod tests {
     #[test]
     fn parse_flag_supports_equals_and_split_forms() {
         assert_eq!(
-            parse_flag(&["--scope=all".to_string()], "scope").as_deref(),
+            lane_utils::parse_flag(&["--scope=all".to_string()], "scope", false).as_deref(),
             Some("all")
         );
         assert_eq!(
-            parse_flag(&["--max".to_string(), "9".to_string()], "max").as_deref(),
+            lane_utils::parse_flag(&["--max".to_string(), "9".to_string()], "max", false)
+                .as_deref(),
             Some("9")
         );
     }

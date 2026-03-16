@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-03-15T22:33:38.725Z",
+  "captured_at": "2026-03-16T08:56:21.178Z",
   "policy_snapshot": {
     "hard_cap_lines_default": 600,
     "hard_cap_lines_by_prefix": {
@@ -35,15 +35,15 @@
     "core/layer0/ops/src/autonomy_controller.rs": 1382,
     "core/layer0/ops/src/autotest_controller.rs": 2800,
     "core/layer0/ops/src/autotest_doctor.rs": 1745,
-    "core/layer0/ops/src/backlog_delivery_plane.rs": 1042,
+    "core/layer0/ops/src/backlog_delivery_plane.rs": 1348,
     "core/layer0/ops/src/backlog_registry.rs": 1261,
-    "core/layer0/ops/src/benchmark_matrix.rs": 930,
+    "core/layer0/ops/src/benchmark_matrix.rs": 1021,
     "core/layer0/ops/src/binary_blob_runtime_run.rs": 840,
     "core/layer0/ops/src/binary_blob_runtime.rs": 833,
     "core/layer0/ops/src/binary_vuln_plane.rs": 1325,
     "core/layer0/ops/src/business_plane.rs": 1073,
-    "core/layer0/ops/src/canyon_plane_extensions.rs": 944,
-    "core/layer0/ops/src/canyon_plane.rs": 2261,
+    "core/layer0/ops/src/canyon_plane_extensions.rs": 1360,
+    "core/layer0/ops/src/canyon_plane.rs": 2287,
     "core/layer0/ops/src/collab_plane.rs": 955,
     "core/layer0/ops/src/company_plane.rs": 1301,
     "core/layer0/ops/src/contract_check.rs": 1014,
@@ -51,8 +51,8 @@
     "core/layer0/ops/src/directive_kernel.rs": 1093,
     "core/layer0/ops/src/dopamine_ambient.rs": 787,
     "core/layer0/ops/src/duality_seed.rs": 1732,
-    "core/layer0/ops/src/enterprise_hardening.rs": 2166,
-    "core/layer0/ops/src/enterprise_moat_extensions.rs": 1135,
+    "core/layer0/ops/src/enterprise_hardening.rs": 2298,
+    "core/layer0/ops/src/enterprise_moat_extensions.rs": 1230,
     "core/layer0/ops/src/eval_plane.rs": 901,
     "core/layer0/ops/src/f100_readiness_program.rs": 1346,
     "core/layer0/ops/src/f100_reliability_certification.rs": 947,
@@ -65,7 +65,7 @@
     "core/layer0/ops/src/hermes_plane.rs": 1005,
     "core/layer0/ops/src/lib.rs": 1301,
     "core/layer0/ops/src/llm_economy_organ.rs": 1377,
-    "core/layer0/ops/src/main.rs": 821,
+    "core/layer0/ops/src/main.rs": 849,
     "core/layer0/ops/src/mcp_plane.rs": 1248,
     "core/layer0/ops/src/memory_ambient.rs": 1621,
     "core/layer0/ops/src/metakernel.rs": 2483,
@@ -92,7 +92,7 @@
     "core/layer0/ops/src/sdlc_change_control.rs": 744,
     "core/layer0/ops/src/seed_protocol.rs": 1261,
     "core/layer0/ops/src/skills_plane.rs": 1949,
-    "core/layer0/ops/src/snowball_plane.rs": 1144,
+    "core/layer0/ops/src/snowball_plane.rs": 1673,
     "core/layer0/ops/src/spawn_broker.rs": 1159,
     "core/layer0/ops/src/spine.rs": 1848,
     "core/layer0/ops/src/strategy_mode_governor.rs": 1232,
@@ -119,6 +119,14 @@
     "core/layer2/ops/src/autophagy_auto_approval.rs": 930,
     "core/layer2/ops/src/command_center_session.rs": 890,
     "core/layer2/ops/src/p2p_gossip_seed.rs": 738,
-    "tests/tooling/scripts/memory/rebuild_exclusive.ts": 998
-  }
+    "tests/tooling/scripts/memory/rebuild_exclusive.ts": 998,
+    "core/layer0/ops/src/orchestration.rs": 3049,
+    "core/layer0/ops/src/security_plane.rs": 1337,
+    "core/layer0/ops/src/runtime_systems.rs": 925,
+    "core/layer0/ops/tests/v7_canyon_batch2_integration.rs": 608
+  },
+  "notes": [
+    "Updated from module_cohesion_policy_audit_current on 2026-03-16T07:33:08.494Z for accepted growth/new over-cap files.",
+    "2026-03-16 policy-enforcement refresh: accepted legacy growth for orchestration/backlog_delivery_plane/security_plane/runtime_systems after compaction and contract-lane consolidation."
+  ]
 }

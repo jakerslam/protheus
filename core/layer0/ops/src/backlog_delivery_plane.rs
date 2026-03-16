@@ -3,12 +3,12 @@
 
 use crate::v8_kernel::{
     attach_conduit, build_plane_conduit_enforcement, conduit_bypass_requested,
-    emit_attached_plane_receipt, parse_bool, parse_u64, plane_status, read_json,
-    scoped_state_root, sha256_hex_str, write_json,
+    emit_attached_plane_receipt, parse_bool, parse_u64, plane_status, read_json, scoped_state_root,
+    sha256_hex_str, write_json,
 };
 use crate::{
-    canyon_plane, clean, enterprise_hardening, f100_reliability_certification, now_iso,
-    parse_args, top1_assurance,
+    canyon_plane, clean, enterprise_hardening, f100_reliability_certification, now_iso, parse_args,
+    top1_assurance,
 };
 use serde_json::{json, Map, Value};
 use std::collections::HashSet;
@@ -136,10 +136,8 @@ fn ensure_v7_super_gate_prereqs(root: &Path) -> Result<(), String> {
         }
     }
 
-    let reliability_exit = f100_reliability_certification::run(
-        root,
-        &["run".to_string(), "--strict=0".to_string()],
-    );
+    let reliability_exit =
+        f100_reliability_certification::run(root, &["run".to_string(), "--strict=0".to_string()]);
     if reliability_exit != 0 {
         return Err(format!(
             "f100_reliability_certification_failed:{reliability_exit}"
@@ -208,7 +206,11 @@ fn run_v7_lane(root: &Path, id: &str, strict: bool) -> Value {
         ),
         "V7-CANYON-002.1" => (
             "canyon-plane",
-            vec!["footprint".to_string(), "--op=run".to_string(), strict_arg.clone()],
+            vec![
+                "footprint".to_string(),
+                "--op=run".to_string(),
+                strict_arg.clone(),
+            ],
         ),
         "V7-CANYON-002.2" => (
             "canyon-plane",
@@ -238,9 +240,16 @@ fn run_v7_lane(root: &Path, id: &str, strict: bool) -> Value {
         ),
         "V7-CANYON-002.5" => (
             "canyon-plane",
-            vec!["package-release".to_string(), "--op=build".to_string(), strict_arg.clone()],
+            vec![
+                "package-release".to_string(),
+                "--op=build".to_string(),
+                strict_arg.clone(),
+            ],
         ),
-        "V7-CANYON-002.6" => ("canyon-plane", vec!["size-trust".to_string(), strict_arg.clone()]),
+        "V7-CANYON-002.6" => (
+            "canyon-plane",
+            vec!["size-trust".to_string(), strict_arg.clone()],
+        ),
         "V7-F100-002.3" => (
             "enterprise-hardening",
             vec![
@@ -314,7 +323,11 @@ fn run_v7_lane(root: &Path, id: &str, strict: bool) -> Value {
         ),
         "V7-MOAT-002.1" => (
             "enterprise-hardening",
-            vec!["replay".to_string(), "--at=2026-03-14T12:32:00Z".to_string(), strict_arg.clone()],
+            vec![
+                "replay".to_string(),
+                "--at=2026-03-14T12:32:00Z".to_string(),
+                strict_arg.clone(),
+            ],
         ),
         "V7-MOAT-002.2" => (
             "enterprise-hardening",
@@ -377,7 +390,14 @@ fn run_v8_moat(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Value {
 
     let payload = match step {
         "1" => {
-            let claim_id = clean(parsed.flags.get("claim-id").cloned().unwrap_or_else(|| "policy_compliance".to_string()), 120);
+            let claim_id = clean(
+                parsed
+                    .flags
+                    .get("claim-id")
+                    .cloned()
+                    .unwrap_or_else(|| "policy_compliance".to_string()),
+                120,
+            );
             let commitment = sha256_hex_str(&format!("{}:{}", claim_id, now_iso()));
             let proof = json!({
                 "claim_id": claim_id,
@@ -392,10 +412,31 @@ fn run_v8_moat(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Value {
             json!({"proof": proof})
         }
         "2" => {
-            let node = clean(parsed.flags.get("node").cloned().unwrap_or_else(|| "node-local".to_string()), 120);
-            let trust_group = clean(parsed.flags.get("trust-group").cloned().unwrap_or_else(|| "default".to_string()), 120);
-            let mut mesh = state.get("mesh").cloned().unwrap_or_else(|| json!({"nodes":[], "roots":[]}));
-            let mut nodes = mesh.get("nodes").and_then(Value::as_array).cloned().unwrap_or_default();
+            let node = clean(
+                parsed
+                    .flags
+                    .get("node")
+                    .cloned()
+                    .unwrap_or_else(|| "node-local".to_string()),
+                120,
+            );
+            let trust_group = clean(
+                parsed
+                    .flags
+                    .get("trust-group")
+                    .cloned()
+                    .unwrap_or_else(|| "default".to_string()),
+                120,
+            );
+            let mut mesh = state
+                .get("mesh")
+                .cloned()
+                .unwrap_or_else(|| json!({"nodes":[], "roots":[]}));
+            let mut nodes = mesh
+                .get("nodes")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
             if !nodes.iter().any(|v| v.as_str() == Some(node.as_str())) {
                 nodes.push(Value::String(node.clone()));
             }
@@ -409,24 +450,69 @@ fn run_v8_moat(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Value {
             json!({"mesh": mesh, "root_hash": root_hash})
         }
         "3" => {
-            let concept = clean(parsed.flags.get("concept").cloned().unwrap_or_else(|| "adaptive_memory".to_string()), 160);
-            let parent = clean(parsed.flags.get("parent").cloned().unwrap_or_else(|| "genesis".to_string()), 160);
-            let node_id = format!("kg_{}", &sha256_hex_str(&format!("{}:{}", concept, now_iso()))[..12]);
-            let entry = json!({"node_id": node_id, "concept": concept, "parent": parent, "ts": now_iso()});
-            let mut graph = state.get("knowledge_graph").cloned().unwrap_or_else(|| json!({"nodes": []}));
-            let mut nodes = graph.get("nodes").and_then(Value::as_array).cloned().unwrap_or_default();
+            let concept = clean(
+                parsed
+                    .flags
+                    .get("concept")
+                    .cloned()
+                    .unwrap_or_else(|| "adaptive_memory".to_string()),
+                160,
+            );
+            let parent = clean(
+                parsed
+                    .flags
+                    .get("parent")
+                    .cloned()
+                    .unwrap_or_else(|| "genesis".to_string()),
+                160,
+            );
+            let node_id = format!(
+                "kg_{}",
+                &sha256_hex_str(&format!("{}:{}", concept, now_iso()))[..12]
+            );
+            let entry =
+                json!({"node_id": node_id, "concept": concept, "parent": parent, "ts": now_iso()});
+            let mut graph = state
+                .get("knowledge_graph")
+                .cloned()
+                .unwrap_or_else(|| json!({"nodes": []}));
+            let mut nodes = graph
+                .get("nodes")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
             nodes.push(entry.clone());
             graph["nodes"] = Value::Array(nodes);
-            graph["version"] = Value::from(graph.get("version").and_then(Value::as_u64).unwrap_or(0) + 1);
+            graph["version"] =
+                Value::from(graph.get("version").and_then(Value::as_u64).unwrap_or(0) + 1);
             if apply {
                 obj_mut(&mut state).insert("knowledge_graph".to_string(), graph.clone());
             }
             json!({"knowledge_graph": graph, "entry": entry})
         }
         "4" => {
-            let workload = clean(parsed.flags.get("workload").cloned().unwrap_or_else(|| "dual-llm".to_string()), 120);
-            let preferred = clean(parsed.flags.get("accelerator").cloned().unwrap_or_else(|| "auto".to_string()), 64).to_ascii_lowercase();
-            let selection = if preferred == "auto" { "gpu" } else { preferred.as_str() };
+            let workload = clean(
+                parsed
+                    .flags
+                    .get("workload")
+                    .cloned()
+                    .unwrap_or_else(|| "dual-llm".to_string()),
+                120,
+            );
+            let preferred = clean(
+                parsed
+                    .flags
+                    .get("accelerator")
+                    .cloned()
+                    .unwrap_or_else(|| "auto".to_string()),
+                64,
+            )
+            .to_ascii_lowercase();
+            let selection = if preferred == "auto" {
+                "gpu"
+            } else {
+                preferred.as_str()
+            };
             let route = json!({"workload": workload, "selection": selection, "thermal_budget": 0.72, "power_budget": 0.68, "ts": now_iso()});
             if apply {
                 obj_mut(&mut state).insert("accelerator_route".to_string(), route.clone());
@@ -434,19 +520,53 @@ fn run_v8_moat(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Value {
             json!({"accelerator_route": route})
         }
         "5" => {
-            let operator = clean(parsed.flags.get("operator").cloned().unwrap_or_else(|| "operator-main".to_string()), 120);
-            let role = clean(parsed.flags.get("role").cloned().unwrap_or_else(|| "owner".to_string()), 120);
-            let approval = json!({"operator": operator, "role": role, "scope": "human_only", "ts": now_iso()});
+            let operator = clean(
+                parsed
+                    .flags
+                    .get("operator")
+                    .cloned()
+                    .unwrap_or_else(|| "operator-main".to_string()),
+                120,
+            );
+            let role = clean(
+                parsed
+                    .flags
+                    .get("role")
+                    .cloned()
+                    .unwrap_or_else(|| "owner".to_string()),
+                120,
+            );
+            let approval =
+                json!({"operator": operator, "role": role, "scope": "human_only", "ts": now_iso()});
             if apply {
                 obj_mut(&mut state).insert("operator_approval".to_string(), approval.clone());
             }
             json!({"operator_approval": approval})
         }
         "6" => {
-            let agent = clean(parsed.flags.get("agent").cloned().unwrap_or_else(|| "hand-alpha".to_string()), 120);
-            let amount = parsed.flags.get("amount").and_then(|v| v.parse::<f64>().ok()).unwrap_or(1.0).max(0.0);
-            let mut economy = state.get("economy").cloned().unwrap_or_else(|| json!({"balances": {}}));
-            let mut balances = economy.get("balances").and_then(Value::as_object).cloned().unwrap_or_default();
+            let agent = clean(
+                parsed
+                    .flags
+                    .get("agent")
+                    .cloned()
+                    .unwrap_or_else(|| "hand-alpha".to_string()),
+                120,
+            );
+            let amount = parsed
+                .flags
+                .get("amount")
+                .and_then(|v| v.parse::<f64>().ok())
+                .unwrap_or(1.0)
+                .max(0.0);
+            let mut economy = state
+                .get("economy")
+                .cloned()
+                .unwrap_or_else(|| json!({"balances": {}}));
+            let mut balances = economy
+                .get("balances")
+                .and_then(Value::as_object)
+                .cloned()
+                .unwrap_or_default();
             let next = balances.get(&agent).and_then(Value::as_f64).unwrap_or(0.0) + amount;
             balances.insert(agent.clone(), Value::from((next * 1000.0).round() / 1000.0));
             economy["balances"] = Value::Object(balances);
@@ -504,8 +624,22 @@ fn run_v8_memory_bank(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Valu
     let path = state_path(root, "v8_memory_bank/state.json");
     let mut state = load_json_or(&path, default_family_state("v8_memory_bank"));
     let apply = parse_bool(parsed.flags.get("apply"), true);
-    let user = clean(parsed.flags.get("user").cloned().unwrap_or_else(|| "default-user".to_string()), 120);
-    let project = clean(parsed.flags.get("project").cloned().unwrap_or_else(|| "default-project".to_string()), 120);
+    let user = clean(
+        parsed
+            .flags
+            .get("user")
+            .cloned()
+            .unwrap_or_else(|| "default-user".to_string()),
+        120,
+    );
+    let project = clean(
+        parsed
+            .flags
+            .get("project")
+            .cloned()
+            .unwrap_or_else(|| "default-project".to_string()),
+        120,
+    );
     let scope_key = format!("{}::{}", user, project);
     let step = id.split('.').nth(1).unwrap_or("0");
 
@@ -526,12 +660,29 @@ fn run_v8_memory_bank(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Valu
             json!({"enabled": true, "backend": "vertex", "scope": scope_key})
         }
         "2" => {
-            let query = clean(parsed.flags.get("query").cloned().unwrap_or_else(|| "memory".to_string()), 160);
+            let query = clean(
+                parsed
+                    .flags
+                    .get("query")
+                    .cloned()
+                    .unwrap_or_else(|| "memory".to_string()),
+                160,
+            );
             let top_k = parse_u64(parsed.flags.get("top-k"), 3).clamp(1, 20) as usize;
-            let facts = scope.get("facts").and_then(Value::as_array).cloned().unwrap_or_default();
+            let facts = scope
+                .get("facts")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
             let mut matches = facts
                 .into_iter()
-                .filter(|row| row.get("text").and_then(Value::as_str).unwrap_or("").to_ascii_lowercase().contains(&query.to_ascii_lowercase()))
+                .filter(|row| {
+                    row.get("text")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_ascii_lowercase()
+                        .contains(&query.to_ascii_lowercase())
+                })
                 .take(top_k)
                 .collect::<Vec<_>>();
             if matches.is_empty() {
@@ -540,11 +691,22 @@ fn run_v8_memory_bank(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Valu
             json!({"query": query, "top_k": top_k, "matches": matches})
         }
         "3" => {
-            let text = clean(parsed.flags.get("text").cloned().unwrap_or_else(|| "memory bank capture event".to_string()), 280);
+            let text = clean(
+                parsed
+                    .flags
+                    .get("text")
+                    .cloned()
+                    .unwrap_or_else(|| "memory bank capture event".to_string()),
+                280,
+            );
             if text.len() < 12 {
                 json!({"error": "capture_below_noise_threshold"})
             } else {
-                let mut facts = scope.get("facts").and_then(Value::as_array).cloned().unwrap_or_default();
+                let mut facts = scope
+                    .get("facts")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
                 facts.push(json!({"text": text, "ts": now_iso(), "hash": sha256_hex_str(&format!("{}:{}", scope_key, now_iso()))}));
                 scope["facts"] = Value::Array(facts);
                 let next = scope.get("captures").and_then(Value::as_u64).unwrap_or(0) + 1;
@@ -558,12 +720,31 @@ fn run_v8_memory_bank(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Valu
             json!({"sync": sync})
         }
         "5" => {
-            let op = clean(parsed.flags.get("op").cloned().unwrap_or_else(|| "stats".to_string()), 80).to_ascii_lowercase();
+            let op = clean(
+                parsed
+                    .flags
+                    .get("op")
+                    .cloned()
+                    .unwrap_or_else(|| "stats".to_string()),
+                80,
+            )
+            .to_ascii_lowercase();
             if op == "forget" {
                 scope["facts"] = Value::Array(Vec::new());
             } else if op == "correct" {
-                let correction = clean(parsed.flags.get("correction").cloned().unwrap_or_else(|| "corrected".to_string()), 160);
-                let mut facts = scope.get("facts").and_then(Value::as_array).cloned().unwrap_or_default();
+                let correction = clean(
+                    parsed
+                        .flags
+                        .get("correction")
+                        .cloned()
+                        .unwrap_or_else(|| "corrected".to_string()),
+                    160,
+                );
+                let mut facts = scope
+                    .get("facts")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
                 facts.push(json!({"text": correction, "corrective": true, "ts": now_iso()}));
                 scope["facts"] = Value::Array(facts);
             }
@@ -669,7 +850,14 @@ fn run_v8_skill_graph(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Valu
             json!({"folder": rel(root, &folder_path), "nodes": nodes, "graph_hash": sha256_hex_str(&format!("{}:{}", folder, now_iso()))})
         }
         "2" => {
-            let topic = clean(parsed.flags.get("topic").cloned().unwrap_or_else(|| "default-topic".to_string()), 180);
+            let topic = clean(
+                parsed
+                    .flags
+                    .get("topic")
+                    .cloned()
+                    .unwrap_or_else(|| "default-topic".to_string()),
+                180,
+            );
             let outputs = json!({
                 "thread": format!("Contrarian thread for {}", topic),
                 "script": format!("Short-form script for {}", topic),
@@ -683,7 +871,14 @@ fn run_v8_skill_graph(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Valu
             json!({"index_present": valid, "index_path": rel(root, &index), "entrypoint": "index.md"})
         }
         "4" => {
-            let topic = clean(parsed.flags.get("topic").cloned().unwrap_or_else(|| "repurpose-topic".to_string()), 180);
+            let topic = clean(
+                parsed
+                    .flags
+                    .get("topic")
+                    .cloned()
+                    .unwrap_or_else(|| "repurpose-topic".to_string()),
+                180,
+            );
             let out_dir = state_path(root, "v8_skill_graph/artifacts");
             let _ = fs::create_dir_all(&out_dir);
             let artifact = out_dir.join(format!("{}.json", clean(&topic, 80).replace(' ', "_")));
@@ -733,28 +928,59 @@ fn run_v9_xeno(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Value {
 
     let details = match step {
         "1" => {
-            let hunger = parsed.flags.get("hunger").and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.42).clamp(0.0, 1.0);
+            let hunger = parsed
+                .flags
+                .get("hunger")
+                .and_then(|v| v.parse::<f64>().ok())
+                .unwrap_or(0.42)
+                .clamp(0.0, 1.0);
             let satiety = (1.0 - hunger).clamp(0.0, 1.0);
             json!({"metabolism": {"hunger": hunger, "satiety": satiety, "dream_cycle": "deep_dream"}})
         }
         "2" => {
-            let parent = clean(parsed.flags.get("parent").cloned().unwrap_or_else(|| "hand-alpha".to_string()), 120);
+            let parent = clean(
+                parsed
+                    .flags
+                    .get("parent")
+                    .cloned()
+                    .unwrap_or_else(|| "hand-alpha".to_string()),
+                120,
+            );
             let dna = sha256_hex_str(&format!("{}:{}", parent, now_iso()));
             json!({"offspring": {"parent": parent, "dna": dna, "mutation": "shadow_only", "approval_required": true}})
         }
         "3" => {
-            let valence = parsed.flags.get("valence").and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.62).clamp(0.0, 1.0);
+            let valence = parsed
+                .flags
+                .get("valence")
+                .and_then(|v| v.parse::<f64>().ok())
+                .unwrap_or(0.62)
+                .clamp(0.0, 1.0);
             json!({"observer": {"self_model": "entity", "valence": valence, "curiosity": 0.71}})
         }
         "4" => {
-            let operator = clean(parsed.flags.get("operator").cloned().unwrap_or_else(|| "primary".to_string()), 120);
+            let operator = clean(
+                parsed
+                    .flags
+                    .get("operator")
+                    .cloned()
+                    .unwrap_or_else(|| "primary".to_string()),
+                120,
+            );
             json!({"bond": {"operator": operator, "bond_strength": 0.83, "imprint_hash": sha256_hex_str(&format!("{}:{}", operator, now_iso()))}})
         }
         "5" => {
             json!({"resonance_mode": {"enabled": true, "protocol": "alien_echo_v1", "translator": "logical_lane"}})
         }
         "6" => {
-            let node = clean(parsed.flags.get("node").cloned().unwrap_or_else(|| "edge-node-a".to_string()), 120);
+            let node = clean(
+                parsed
+                    .flags
+                    .get("node")
+                    .cloned()
+                    .unwrap_or_else(|| "edge-node-a".to_string()),
+                120,
+            );
             json!({"body_map": {"node": node, "sensation": "healthy", "mesh_awareness": true}})
         }
         "7" => {
@@ -793,7 +1019,12 @@ fn run_v9_merge(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Value {
 
     let details = match step {
         "1" => {
-            let resonance = parsed.flags.get("resonance").and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.78).clamp(0.0, 1.0);
+            let resonance = parsed
+                .flags
+                .get("resonance")
+                .and_then(|v| v.parse::<f64>().ok())
+                .unwrap_or(0.78)
+                .clamp(0.0, 1.0);
             json!({"observer_bridge": {"resonance": resonance, "semantic_overlap": 0.81, "dream_sync": 0.74}})
         }
         "2" => {
@@ -805,11 +1036,22 @@ fn run_v9_merge(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Value {
         }
         "4" => {
             let level = parse_u64(parsed.flags.get("level"), 30).clamp(10, 100);
-            let ladder = if [10u64, 30, 70, 100].contains(&level) { level } else { 30 };
+            let ladder = if [10u64, 30, 70, 100].contains(&level) {
+                level
+            } else {
+                30
+            };
             json!({"merge_ladder": {"level": ladder, "human_multisig": true, "fail_closed": true}})
         }
         "5" => {
-            let topic = clean(parsed.flags.get("topic").cloned().unwrap_or_else(|| "merge-intent".to_string()), 180);
+            let topic = clean(
+                parsed
+                    .flags
+                    .get("topic")
+                    .cloned()
+                    .unwrap_or_else(|| "merge-intent".to_string()),
+                180,
+            );
             json!({"interface": {"input": topic, "echo": "mirrored", "future_ingress": ["openbci", "muse", "neuralink_stub"]}})
         }
         "6" => {
@@ -848,16 +1090,51 @@ fn run_v9_escalate(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Value {
 
     let details = match step {
         "1" => {
-            let risk = parsed.flags.get("risk").and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.44).clamp(0.0, 1.0);
-            let irreversibility = parsed.flags.get("irreversibility").and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.34).clamp(0.0, 1.0);
-            let novelty = parsed.flags.get("novelty").and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.28).clamp(0.0, 1.0);
-            let score = ((risk * 0.45) + (irreversibility * 0.35) + (novelty * 0.20)).clamp(0.0, 1.0);
+            let risk = parsed
+                .flags
+                .get("risk")
+                .and_then(|v| v.parse::<f64>().ok())
+                .unwrap_or(0.44)
+                .clamp(0.0, 1.0);
+            let irreversibility = parsed
+                .flags
+                .get("irreversibility")
+                .and_then(|v| v.parse::<f64>().ok())
+                .unwrap_or(0.34)
+                .clamp(0.0, 1.0);
+            let novelty = parsed
+                .flags
+                .get("novelty")
+                .and_then(|v| v.parse::<f64>().ok())
+                .unwrap_or(0.28)
+                .clamp(0.0, 1.0);
+            let score =
+                ((risk * 0.45) + (irreversibility * 0.35) + (novelty * 0.20)).clamp(0.0, 1.0);
             json!({"decision": {"score": score, "risk": risk, "irreversibility": irreversibility, "novelty": novelty}})
         }
         "2" => {
-            let mode = clean(parsed.flags.get("mode").cloned().unwrap_or_else(|| "background_notification".to_string()), 80).to_ascii_lowercase();
-            let allowed: HashSet<&str> = ["silent_delegation", "background_notification", "interactive_pause", "full_human_takeover"].into_iter().collect();
-            let normalized = if allowed.contains(mode.as_str()) { mode } else { "background_notification".to_string() };
+            let mode = clean(
+                parsed
+                    .flags
+                    .get("mode")
+                    .cloned()
+                    .unwrap_or_else(|| "background_notification".to_string()),
+                80,
+            )
+            .to_ascii_lowercase();
+            let allowed: HashSet<&str> = [
+                "silent_delegation",
+                "background_notification",
+                "interactive_pause",
+                "full_human_takeover",
+            ]
+            .into_iter()
+            .collect();
+            let normalized = if allowed.contains(mode.as_str()) {
+                mode
+            } else {
+                "background_notification".to_string()
+            };
             json!({"mode": normalized, "fail_closed": true})
         }
         "3" => {
@@ -867,14 +1144,28 @@ fn run_v9_escalate(root: &Path, id: &str, parsed: &crate::ParsedArgs) -> Value {
             json!({"preference_profile": {"approvals": approvals, "denials": denials, "bias": (bias * 1000.0).round() / 1000.0}})
         }
         "4" => {
-            let replay_id = clean(parsed.flags.get("replay-id").cloned().unwrap_or_else(|| "latest".to_string()), 120);
+            let replay_id = clean(
+                parsed
+                    .flags
+                    .get("replay-id")
+                    .cloned()
+                    .unwrap_or_else(|| "latest".to_string()),
+                120,
+            );
             json!({"history": {"replay_id": replay_id, "deterministic": true, "linked_receipts": true}})
         }
         "5" => {
             json!({"safety_supremacy": {"human_only_bypass": false, "layer0_veto": true, "deny_path": "fail_closed"}})
         }
         "6" => {
-            let override_mode = clean(parsed.flags.get("override").cloned().unwrap_or_else(|| "none".to_string()), 80);
+            let override_mode = clean(
+                parsed
+                    .flags
+                    .get("override")
+                    .cloned()
+                    .unwrap_or_else(|| "none".to_string()),
+                80,
+            );
             json!({"thin_surface": {"status": "ready", "override": override_mode, "conduit_only": true}})
         }
         _ => json!({"error": "unknown_v9_escalate_step"}),
@@ -983,14 +1274,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             STATE_SCOPE,
             "backlog_delivery_plane_status",
         );
-        return emit_attached_plane_receipt(
-            root,
-            STATE_ENV,
-            STATE_SCOPE,
-            false,
-            payload,
-            None,
-        );
+        return emit_attached_plane_receipt(root, STATE_ENV, STATE_SCOPE, false, payload, None);
     }
 
     if command != "run" {
