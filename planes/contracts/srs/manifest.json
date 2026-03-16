@@ -1,10 +1,10 @@
 {
   "ok": true,
   "type": "srs_contract_manifest",
-  "generated_at": "2026-03-12T08:15:59.491Z",
-  "source": "todo",
-  "source_ref": "core/local/artifacts/todo_execution_full_current.json",
-  "row_count": 1821,
+  "generated_at": "2026-03-16T17:52:46.620Z",
+  "source": "contract_dir_scan",
+  "source_ref": "planes/contracts/srs/*.json",
+  "row_count": 1841,
   "entries": [
     {
       "id": "V1H-001",
@@ -4095,10 +4095,6 @@
       "contract": "planes/contracts/srs/V6-COCKPIT-008.json"
     },
     {
-      "id": "V6-COCKPIT-009",
-      "contract": "planes/contracts/srs/V6-COCKPIT-009.json"
-    },
-    {
       "id": "V6-COCKPIT-009.1",
       "contract": "planes/contracts/srs/V6-COCKPIT-009.1.json"
     },
@@ -4121,6 +4117,10 @@
     {
       "id": "V6-COCKPIT-009.6",
       "contract": "planes/contracts/srs/V6-COCKPIT-009.6.json"
+    },
+    {
+      "id": "V6-COCKPIT-009",
+      "contract": "planes/contracts/srs/V6-COCKPIT-009.json"
     },
     {
       "id": "V6-COCKPIT-010",
@@ -5591,10 +5591,6 @@
       "contract": "planes/contracts/srs/V6-MEMORY-010.6.json"
     },
     {
-      "id": "V6-MEMORY-011",
-      "contract": "planes/contracts/srs/V6-MEMORY-011.json"
-    },
-    {
       "id": "V6-MEMORY-011.1",
       "contract": "planes/contracts/srs/V6-MEMORY-011.1.json"
     },
@@ -5615,8 +5611,8 @@
       "contract": "planes/contracts/srs/V6-MEMORY-011.5.json"
     },
     {
-      "id": "V6-MEMORY-012",
-      "contract": "planes/contracts/srs/V6-MEMORY-012.json"
+      "id": "V6-MEMORY-011",
+      "contract": "planes/contracts/srs/V6-MEMORY-011.json"
     },
     {
       "id": "V6-MEMORY-012.1",
@@ -5637,6 +5633,10 @@
     {
       "id": "V6-MEMORY-012.5",
       "contract": "planes/contracts/srs/V6-MEMORY-012.5.json"
+    },
+    {
+      "id": "V6-MEMORY-012",
+      "contract": "planes/contracts/srs/V6-MEMORY-012.json"
     },
     {
       "id": "V6-MEMORY-013",
@@ -6971,6 +6971,22 @@
       "contract": "planes/contracts/srs/V6-SWARM-012.json"
     },
     {
+      "id": "V6-SWARM-028",
+      "contract": "planes/contracts/srs/V6-SWARM-028.json"
+    },
+    {
+      "id": "V6-SWARM-029",
+      "contract": "planes/contracts/srs/V6-SWARM-029.json"
+    },
+    {
+      "id": "V6-SWARM-030",
+      "contract": "planes/contracts/srs/V6-SWARM-030.json"
+    },
+    {
+      "id": "V6-SWARM-031",
+      "contract": "planes/contracts/srs/V6-SWARM-031.json"
+    },
+    {
       "id": "V6-TECH-301",
       "contract": "planes/contracts/srs/V6-TECH-301.json"
     },
@@ -7003,10 +7019,6 @@
       "contract": "planes/contracts/srs/V6-TOOLS-003.json"
     },
     {
-      "id": "V6-TOOLS-004",
-      "contract": "planes/contracts/srs/V6-TOOLS-004.json"
-    },
-    {
       "id": "V6-TOOLS-004.1",
       "contract": "planes/contracts/srs/V6-TOOLS-004.1.json"
     },
@@ -7025,6 +7037,10 @@
     {
       "id": "V6-TOOLS-004.5",
       "contract": "planes/contracts/srs/V6-TOOLS-004.5.json"
+    },
+    {
+      "id": "V6-TOOLS-004",
+      "contract": "planes/contracts/srs/V6-TOOLS-004.json"
     },
     {
       "id": "V6-TOOLS-006.1",
@@ -7289,6 +7305,70 @@
     {
       "id": "V7-TOP1-012",
       "contract": "planes/contracts/srs/V7-TOP1-012.json"
+    },
+    {
+      "id": "V9-AUDIT-026.1",
+      "contract": "planes/contracts/srs/V9-AUDIT-026.1.json"
+    },
+    {
+      "id": "V9-AUDIT-026.2",
+      "contract": "planes/contracts/srs/V9-AUDIT-026.2.json"
+    },
+    {
+      "id": "V9-AUDIT-026.3",
+      "contract": "planes/contracts/srs/V9-AUDIT-026.3.json"
+    },
+    {
+      "id": "V9-AUDIT-026.4",
+      "contract": "planes/contracts/srs/V9-AUDIT-026.4.json"
+    },
+    {
+      "id": "V9-IMMORTAL-001.1",
+      "contract": "planes/contracts/srs/V9-IMMORTAL-001.1.json"
+    },
+    {
+      "id": "V9-IMMORTAL-001.2",
+      "contract": "planes/contracts/srs/V9-IMMORTAL-001.2.json"
+    },
+    {
+      "id": "V9-IMMORTAL-001.3",
+      "contract": "planes/contracts/srs/V9-IMMORTAL-001.3.json"
+    },
+    {
+      "id": "V9-IMMORTAL-001.4",
+      "contract": "planes/contracts/srs/V9-IMMORTAL-001.4.json"
+    },
+    {
+      "id": "V9-IMMORTAL-001.5",
+      "contract": "planes/contracts/srs/V9-IMMORTAL-001.5.json"
+    },
+    {
+      "id": "V9-IMMORTAL-001.6",
+      "contract": "planes/contracts/srs/V9-IMMORTAL-001.6.json"
+    },
+    {
+      "id": "V9-VIRAL-001.1",
+      "contract": "planes/contracts/srs/V9-VIRAL-001.1.json"
+    },
+    {
+      "id": "V9-VIRAL-001.2",
+      "contract": "planes/contracts/srs/V9-VIRAL-001.2.json"
+    },
+    {
+      "id": "V9-VIRAL-001.3",
+      "contract": "planes/contracts/srs/V9-VIRAL-001.3.json"
+    },
+    {
+      "id": "V9-VIRAL-001.4",
+      "contract": "planes/contracts/srs/V9-VIRAL-001.4.json"
+    },
+    {
+      "id": "V9-VIRAL-001.5",
+      "contract": "planes/contracts/srs/V9-VIRAL-001.5.json"
+    },
+    {
+      "id": "V9-VIRAL-001.6",
+      "contract": "planes/contracts/srs/V9-VIRAL-001.6.json"
     }
   ]
 }

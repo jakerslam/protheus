@@ -4062,12 +4062,28 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                         .unwrap_or_else(|| "value".to_string());
                     let threshold = parse_f64_flag(argv, "threshold", 1.0).clamp(0.0, 1.0);
                     let results = query_results(&state, &filters);
+                    let consensus = analyze_result_consensus(&results, &field, threshold);
+                    append_event(
+                        &mut state,
+                        json!({
+                            "type": "swarm_results_consensus",
+                            "field": field,
+                            "threshold": threshold,
+                            "result_count": results.len(),
+                            "status": consensus.get("status").cloned().unwrap_or(Value::Null),
+                            "consensus_reached": consensus
+                                .get("consensus_reached")
+                                .cloned()
+                                .unwrap_or(Value::Bool(false)),
+                            "timestamp": now_iso(),
+                        }),
+                    );
                     Ok(json!({
                         "ok": true,
                         "type": "swarm_runtime_results_consensus",
                         "field": field,
                         "result_count": results.len(),
-                        "consensus": analyze_result_consensus(&results, &field, threshold),
+                        "consensus": consensus,
                     }))
                 }
                 "outliers" => {
@@ -4076,12 +4092,24 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                         .filter(|value| !value.trim().is_empty())
                         .unwrap_or_else(|| "value".to_string());
                     let results = query_results(&state, &filters);
+                    let analysis = analyze_result_outliers(&results, &field);
+                    append_event(
+                        &mut state,
+                        json!({
+                            "type": "swarm_results_outliers",
+                            "field": field,
+                            "result_count": results.len(),
+                            "status": analysis.get("status").cloned().unwrap_or(Value::Null),
+                            "outlier_count": analysis.get("outlier_count").cloned().unwrap_or(json!(0)),
+                            "timestamp": now_iso(),
+                        }),
+                    );
                     Ok(json!({
                         "ok": true,
                         "type": "swarm_runtime_results_outliers",
                         "field": field,
                         "result_count": results.len(),
-                        "analysis": analyze_result_outliers(&results, &field),
+                        "analysis": analysis,
                     }))
                 }
                 _ => Err(format!("unknown_results_subcommand:{sub}")),
