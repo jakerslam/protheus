@@ -25,7 +25,11 @@
 3. Pre-commit churn gate:
 - `npm run -s ops:churn:commit-gate`
 - fails commits when untracked noise, local/generated churn, or unstaged move-pairs are present.
-4. Simplicity drift gate:
+4. Targeted pre-commit SRS regression:
+- `.githooks/pre-commit` runs `npm run -s ops:srs:full:regression` when staged changes touch `docs/workspace/SRS.md`, `docs/workspace/TODO.md`, `docs/workspace/UPGRADE_BACKLOG.md`, or `core/layer0/ops/tests/v8_runtime_proof.rs`.
+5. Pre-push SRS + churn gate:
+- `.githooks/pre-push` runs both `npm run -s ops:churn:guard` and `npm run -s ops:srs:full:regression`.
+6. Simplicity drift gate:
 - `npm run -s ops:simplicity:audit`
 - ensures no duplicated command bodies and no client boundary drift.
 
@@ -37,6 +41,7 @@
 npm run -s ops:churn:commit-gate
 npm run -s ops:churn:guard
 npm run -s ops:simplicity:audit
+npm run -s ops:srs:full:regression
 ```
 
 2. Before push:
