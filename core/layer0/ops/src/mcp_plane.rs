@@ -3,8 +3,9 @@
 
 use crate::v8_kernel::{
     append_jsonl, attach_conduit, build_plane_conduit_enforcement, canonical_json_string,
-    conduit_bypass_requested, emit_plane_receipt, load_json_or, parse_bool, parse_u64,
-    plane_status, print_json, read_json, scoped_state_root, sha256_hex_str, write_json,
+    conduit_bypass_requested, emit_plane_receipt, load_json_or, parse_bool, parse_csv_flag,
+    parse_csv_or_file_unique, parse_u64, plane_status, print_json, read_json, scoped_state_root,
+    sha256_hex_str, write_json,
 };
 use crate::{clean, now_iso, parse_args};
 use serde_json::{json, Map, Value};
@@ -42,62 +43,6 @@ fn state_root(root: &Path) -> PathBuf {
 
 fn emit(root: &Path, payload: Value) -> i32 {
     emit_plane_receipt(root, STATE_ENV, STATE_SCOPE, "mcp_plane_error", payload)
-}
-
-fn parse_csv_flag(parsed: &crate::ParsedArgs, key: &str, max_len: usize) -> Vec<String> {
-    parsed
-        .flags
-        .get(key)
-        .map(|v| {
-            v.split(',')
-                .map(|row| clean(row, max_len))
-                .filter(|row| !row.is_empty())
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default()
-}
-
-fn parse_csv_or_file(
-    root: &Path,
-    parsed: &crate::ParsedArgs,
-    csv_key: &str,
-    file_key: &str,
-    max_len: usize,
-) -> Vec<String> {
-    let mut values = parse_csv_flag(parsed, csv_key, max_len);
-    if let Some(rel_or_abs) = parsed.flags.get(file_key) {
-        let path = if Path::new(rel_or_abs).is_absolute() {
-            PathBuf::from(rel_or_abs)
-        } else {
-            root.join(rel_or_abs)
-        };
-        if let Ok(raw) = fs::read_to_string(path) {
-            if raw.trim_start().starts_with('[') {
-                if let Ok(parsed_json) = serde_json::from_str::<Value>(&raw) {
-                    if let Some(rows) = parsed_json.as_array() {
-                        for row in rows {
-                            if let Some(s) = row.as_str() {
-                                let cleaned = clean(s, max_len);
-                                if !cleaned.is_empty() {
-                                    values.push(cleaned);
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                for row in raw.lines() {
-                    let cleaned = clean(row, max_len);
-                    if !cleaned.is_empty() {
-                        values.push(cleaned);
-                    }
-                }
-            }
-        }
-    }
-    values.sort();
-    values.dedup();
-    values
 }
 
 fn conduit_enforcement(
@@ -178,9 +123,9 @@ fn run_capability_matrix(root: &Path, parsed: &crate::ParsedArgs, strict: bool) 
         errors.push("mcp_capability_matrix_contract_kind_invalid".to_string());
     }
 
-    let server_caps = parse_csv_or_file(
+    let server_caps = parse_csv_or_file_unique(
         root,
-        parsed,
+        &parsed.flags,
         "server-capabilities",
         "server-capabilities-file",
         120,
@@ -623,7 +568,7 @@ fn run_expose(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Value {
     if agent.is_empty() {
         errors.push("agent_required".to_string());
     }
-    let tools = parse_csv_flag(parsed, "tools", 120);
+    let tools = parse_csv_flag(&parsed.flags, "tools", 120);
     let max_tools = contract
         .get("max_tools")
         .and_then(Value::as_u64)
@@ -755,7 +700,7 @@ fn run_pattern_pack(root: &Path, parsed: &crate::ParsedArgs, strict: bool) -> Va
     if strict && !allowed.iter().any(|row| row == &pattern) {
         errors.push("pattern_not_allowed".to_string());
     }
-    let tasks = parse_csv_flag(parsed, "tasks", 200);
+    let tasks = parse_csv_flag(&parsed.flags, "tasks", 200);
     let steps = if let Some(raw) = parsed.flags.get("steps-json") {
         serde_json::from_str::<Value>(raw)
             .ok()

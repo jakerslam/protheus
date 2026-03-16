@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso};
 use serde_json::{json, Value};
 use std::path::Path;
@@ -24,20 +25,10 @@ fn usage() {
     println!("  protheus-ops state-kernel status");
 }
 
-fn parse_flag(argv: &[String], key: &str) -> Option<String> {
-    let pref = format!("--{key}=");
-    for arg in argv {
-        let tok = arg.trim();
-        if let Some(v) = tok.strip_prefix(&pref) {
-            return Some(v.to_string());
-        }
-    }
-    None
-}
-
 fn native_receipt(root: &Path, cmd: &str, argv: &[String]) -> Value {
-    let queue_name = parse_flag(argv, "queue-name").unwrap_or_else(|| "autonomy".to_string());
-    let payload_json = parse_flag(argv, "payload-json");
+    let queue_name =
+        lane_utils::parse_flag(argv, "queue-name", false).unwrap_or_else(|| "autonomy".to_string());
+    let payload_json = lane_utils::parse_flag(argv, "payload-json", false);
 
     let mut out = json!({
         "ok": true,

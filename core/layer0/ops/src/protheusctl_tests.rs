@@ -73,8 +73,7 @@ fn core_shortcut_routes_alpha_check_to_alpha_readiness_domain() {
 
 #[test]
 fn core_shortcut_routes_alpha_check_flags_default_to_run_subcommand() {
-    let route = resolve_core_shortcuts("alpha-check", &["--strict=1".to_string()])
-        .expect("route");
+    let route = resolve_core_shortcuts("alpha-check", &["--strict=1".to_string()]).expect("route");
     assert_eq!(route.script_rel, "core://alpha-readiness");
     assert_eq!(route.args, vec!["run", "--strict=1"]);
 }

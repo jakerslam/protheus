@@ -272,3 +272,54 @@ fn v6_sec_016_secrets_federation_issues_scoped_handles_and_revokes_them() {
 
     std::env::remove_var("PROTHEUS_SECRET_VAULT_APP_DB_PASSWORD");
 }
+
+#[test]
+fn v6_sec_stub_contracts_are_now_authoritative_security_lanes() {
+    let _guard = env_guard();
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let root = tmp.path();
+
+    let cases: [(&str, &[&str], &str); 13] = [
+        (
+            "supply-chain-reproducible-build-plane",
+            &["--sbom-path=docs/client/reports/benchmark_matrix_run_2026-03-06.json", "--release-tag=v0.3.0-alpha", "--strict=1"],
+            "V6-SEC-001",
+        ),
+        ("ip-posture-review", &["--public-url=https://example.com/security", "--strict=1"], "V6-SEC-002"),
+        ("required-checks-policy-guard", &["--codeql=required", "--dependabot=required", "--strict=1"], "V6-SEC-003"),
+        ("repository-access-auditor", &["--report-path=docs/workspace/SRS.md", "--strict=1"], "V6-SEC-004"),
+        ("formal-invariant-engine", &["--proof-pack=proofs/layer0", "--strict=1"], "V6-SEC-005"),
+        ("request-ingress", &["--policy-version=2026-03", "--contact=security@protheus.ai", "--strict=1"], "V6-SEC-006"),
+        ("external-security-cycle", &["--deployment-id=fleet-alpha", "--strict=1"], "V6-SEC-007"),
+        ("model-vaccine-sandbox", &["--suite=nightly-fuzz-chaos", "--strict=1"], "V6-SEC-008"),
+        ("enterprise-access-gate", &["--profile=gov-high-assurance", "--strict=1"], "V6-SEC-009"),
+        ("governance-hardening-lane", &["--scoreboard-path=core/local/state/ops/security_plane/contracts/V6-SEC-013.json", "--window-days=30", "--strict=1"], "V6-SEC-013"),
+        ("copy-hardening-pack", &["--pack-uri=security://zeroleaks-hardened", "--version=2026.03", "--strict=1"], "V6-SEC-014"),
+        ("mcp-a2a-venom-contract-gate", &["--boundary=conduit_only", "--strict=1"], "V6-SEC-015"),
+        ("signed-plugin-trust-marketplace", &["--advisory-id=CVE-2026-0001", "--sbom-digest=sha256:abc123", "--strict=1"], "V6-SEC-017"),
+    ];
+
+    for (command, args, claim_id) in cases {
+        let mut argv = vec![command.to_string()];
+        argv.extend(args.iter().map(|v| v.to_string()));
+        let exit = security_plane::run(root, &argv);
+        assert_eq!(exit, 0, "expected command to pass: {command}");
+        let latest = read_json(&latest_path(root));
+        assert_eq!(
+            latest.get("contract_id").and_then(Value::as_str),
+            Some(claim_id),
+            "expected contract id match for command {command}"
+        );
+        assert_claim(&latest, claim_id);
+    }
+
+    let fail = security_plane::run(
+        root,
+        &[
+            "mcp-a2a-venom-contract-gate".to_string(),
+            "--boundary=any".to_string(),
+            "--strict=1".to_string(),
+        ],
+    );
+    assert_eq!(fail, 2, "strict conduit boundary mismatch must fail closed");
+}

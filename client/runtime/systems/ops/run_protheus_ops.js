@@ -21,16 +21,6 @@ function resolveBinary() {
   const explicit = String(process.env.PROTHEUS_NPM_BINARY || '').trim();
   if (explicit && isFile(explicit)) return explicit;
 
-  const vendor = path.join(
-    ROOT,
-    'client',
-    'cli',
-    'npm',
-    'vendor',
-    process.platform === 'win32' ? 'protheus-ops.exe' : 'protheus-ops'
-  );
-  if (isFile(vendor)) return vendor;
-
   const release = path.join(
     ROOT,
     'target',
@@ -47,18 +37,53 @@ function resolveBinary() {
   );
   if (isFile(target)) return target;
 
-  throw new Error('protheus-ops binary not found; set PROTHEUS_NPM_BINARY or build target/debug/protheus-ops');
+  const vendor = path.join(
+    ROOT,
+    'client',
+    'cli',
+    'npm',
+    'vendor',
+    process.platform === 'win32' ? 'protheus-ops.exe' : 'protheus-ops'
+  );
+  if (isFile(vendor)) return vendor;
+
+  return null;
 }
 
 function runProtheusOps(args, options = {}) {
   const bin = resolveBinary();
-  const proc = spawnSync(bin, args, {
-    cwd: ROOT,
-    encoding: 'utf8',
-    stdio: 'inherit',
-    env: { ...process.env, PROTHEUS_ROOT: ROOT, ...(options.env || {}) },
-  });
+  const env = { ...process.env, PROTHEUS_ROOT: ROOT, ...(options.env || {}) };
+  const proc = bin
+    ? spawnSync(bin, args, {
+        cwd: ROOT,
+        encoding: 'utf8',
+        stdio: 'inherit',
+        env,
+      })
+    : spawnSync(
+        'cargo',
+        [
+          'run',
+          '--quiet',
+          '--manifest-path',
+          'core/layer0/ops/Cargo.toml',
+          '--bin',
+          'protheus-ops',
+          '--',
+        ].concat(args),
+        {
+          cwd: ROOT,
+          encoding: 'utf8',
+          stdio: 'inherit',
+          env,
+        }
+      );
   return Number.isFinite(proc.status) ? proc.status : 1;
 }
 
 module.exports = { ROOT, resolveBinary, runProtheusOps };
+
+if (require.main === module) {
+  const exitCode = runProtheusOps(process.argv.slice(2));
+  process.exit(exitCode);
+}

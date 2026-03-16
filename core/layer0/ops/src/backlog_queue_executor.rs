@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
+use crate::contract_lane_utils as lane_utils;
+use crate::runtime_system_contracts::profile_for as runtime_contract_profile_for;
+use crate::runtime_systems;
 use crate::{clean, deterministic_receipt_hash, now_iso, parse_args};
 use serde_json::{json, Value};
 use std::fs;
@@ -27,56 +30,50 @@ fn history_path(root: &Path) -> PathBuf {
     state_root(root).join("history.jsonl")
 }
 
-fn read_json(path: &Path) -> Option<Value> {
-    let raw = fs::read_to_string(path).ok()?;
-    serde_json::from_str::<Value>(&raw).ok()
-}
-
-fn write_json(path: &Path, value: &Value) {
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    if let Ok(mut body) = serde_json::to_string_pretty(value) {
-        body.push('\n');
-        let _ = fs::write(path, body);
-    }
-}
-
-fn append_jsonl(path: &Path, value: &Value) {
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    if let Ok(line) = serde_json::to_string(value) {
-        let _ = fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-            .and_then(|mut file| {
-                std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes())
-            });
-    }
-}
-
-fn parse_bool(raw: Option<&String>, fallback: bool) -> bool {
-    match raw.map(|v| v.trim().to_ascii_lowercase()) {
-        Some(v) if matches!(v.as_str(), "1" | "true" | "yes" | "on") => true,
-        Some(v) if matches!(v.as_str(), "0" | "false" | "no" | "off") => false,
-        _ => fallback,
-    }
-}
-
-fn parse_i64(raw: Option<&String>, fallback: i64, lo: i64, hi: i64) -> i64 {
-    raw.and_then(|v| v.trim().parse::<i64>().ok())
-        .unwrap_or(fallback)
-        .clamp(lo, hi)
-}
-
 fn print_receipt(value: &Value) {
     println!(
         "{}",
         serde_json::to_string_pretty(value)
             .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
     );
+}
+
+fn lane_route(use_core_contract_lane: bool, use_dynamic_lane: bool) -> &'static str {
+    if use_core_contract_lane {
+        "core_runtime_systems"
+    } else if use_dynamic_lane {
+        "dynamic_legacy_adapter"
+    } else {
+        "npm_script"
+    }
+}
+
+fn lane_script_value(
+    id: &str,
+    lane_script: &str,
+    use_core_contract_lane: bool,
+    use_dynamic_lane: bool,
+) -> Value {
+    if use_core_contract_lane {
+        Value::String(format!("core:runtime-systems:{id}"))
+    } else if use_dynamic_lane {
+        Value::String(format!("dynamic:legacy_alias_adapter:{id}"))
+    } else {
+        Value::String(lane_script.to_string())
+    }
+}
+
+fn test_script_value(
+    test_exists: bool,
+    use_dynamic_lane: bool,
+    use_core_contract_lane: bool,
+    test_script: &str,
+) -> Value {
+    if test_exists && !use_dynamic_lane && !use_core_contract_lane {
+        Value::String(test_script.to_string())
+    } else {
+        Value::Null
+    }
 }
 
 fn parse_srs_rows(path: &Path) -> Vec<(String, String)> {
@@ -267,6 +264,7 @@ fn run_dynamic_legacy_lane(root: &Path, id: &str) -> Value {
         .arg(adapter)
         .arg("run")
         .arg(format!("--lane-id={id}"))
+        .arg("--strict=1")
         .current_dir(root)
         .output();
     match output {
@@ -291,21 +289,21 @@ fn run_dynamic_legacy_lane(root: &Path, id: &str) -> Value {
     }
 }
 
-fn run_core_srs_contract_lane(root: &Path, id: &str) -> Value {
-    match protheus_ops_core_v1::srs_contract_runtime::execute_contract(root, id) {
+fn run_core_runtime_system_lane(root: &Path, id: &str) -> Value {
+    match runtime_systems::execute_contract_lane(root, id, true, true) {
         Ok(receipt) => json!({
             "ok": true,
             "status": 0,
             "stdout": clean(&serde_json::to_string(&receipt).unwrap_or_else(|_| "{}".to_string()), 4000),
             "stderr": "",
-            "route": "core_srs_contract_runtime"
+            "route": "core_runtime_systems"
         }),
         Err(err) => json!({
             "ok": false,
             "status": 1,
             "stdout": "",
-            "stderr": clean(&format!("srs_contract_runtime_failed:{err}"), 4000),
-            "route": "core_srs_contract_runtime"
+            "stderr": clean(&format!("runtime_system_contract_failed:{err}"), 4000),
+            "route": "core_runtime_systems"
         }),
     }
 }
@@ -334,30 +332,41 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "type": "backlog_queue_executor_status",
             "lane": "core/layer0/ops",
             "ts": now_iso(),
-            "latest": read_json(&latest)
+            "latest": lane_utils::read_json(&latest)
         });
         out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
         print_receipt(&out);
         return 0;
     }
 
-    let dry_run = parse_bool(
+    let dry_run = lane_utils::parse_bool(
         parsed
             .flags
             .get("dry-run")
-            .or_else(|| parsed.flags.get("dry_run")),
+            .or_else(|| parsed.flags.get("dry_run"))
+            .map(String::as_str),
         false,
     );
-    let with_tests = parse_bool(
+    let with_tests = lane_utils::parse_bool(
         parsed
             .flags
             .get("with-tests")
-            .or_else(|| parsed.flags.get("with_tests")),
+            .or_else(|| parsed.flags.get("with_tests"))
+            .map(String::as_str),
         false,
     );
-    let max = parse_i64(parsed.flags.get("max"), 50, 1, 2000);
+    let max =
+        lane_utils::parse_i64_clamped(parsed.flags.get("max").map(String::as_str), 50, 1, 2000);
     let ids = clean(parsed.flags.get("ids").cloned().unwrap_or_default(), 4000);
-    let all = parse_bool(parsed.flags.get("all"), false);
+    let all = lane_utils::parse_bool(parsed.flags.get("all").map(String::as_str), false);
+    let allow_dynamic_legacy = lane_utils::parse_opt_bool(
+        parsed
+            .flags
+            .get("allow-dynamic-legacy")
+            .or_else(|| parsed.flags.get("allow_dynamic_legacy"))
+            .map(String::as_str),
+    )
+    .unwrap_or(false);
 
     let srs_rows = parse_srs_rows(&root.join("docs/workspace/SRS.md"));
     let actionable_status = ["queued", "in_progress"];
@@ -383,6 +392,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let mut executed = 0usize;
     let mut skipped = 0usize;
     let mut failed = 0usize;
+    let mut blocked_dynamic_stub = 0usize;
     let mut rows = Vec::new();
 
     for id in candidates.iter() {
@@ -399,8 +409,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             .unwrap_or("");
         let mut test_exists = !test_cmd.is_empty();
 
-        let use_core_contract_lane =
-            protheus_ops_core_v1::srs_contract_runtime::contract_exists(root, id);
+        let use_core_contract_lane = runtime_contract_profile_for(id).is_some();
         let use_dynamic_lane = !lane_exists && !use_core_contract_lane;
         if use_dynamic_lane
             && !root
@@ -417,6 +426,19 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                 "lane_script": lane_script,
                 "status": "skipped",
                 "reason": "lane_script_missing"
+            }));
+            continue;
+        }
+        if use_dynamic_lane && !allow_dynamic_legacy {
+            failed += 1;
+            blocked_dynamic_stub += 1;
+            rows.push(json!({
+                "id": id,
+                "lane_script": format!("dynamic:legacy_alias_adapter:{id}"),
+                "status": "failed",
+                "reason": "dynamic_stub_route_disallowed",
+                "lane_route": "dynamic_legacy_adapter",
+                "unblock": "add concrete lane script + tests or core contract runtime with non-scaffold behavior"
             }));
             continue;
         }
@@ -461,25 +483,20 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
         if dry_run {
             skipped += 1;
+            let route = lane_route(use_core_contract_lane, use_dynamic_lane);
             rows.push(json!({
                 "id": id,
-                "lane_script": if use_core_contract_lane {
-                    Value::String(format!("core:srs_contract_runtime:{id}"))
-                } else if use_dynamic_lane {
-                    Value::String(format!("dynamic:legacy_alias_adapter:{id}"))
-                } else {
-                    Value::String(lane_script.clone())
-                },
-                "test_script": if test_exists && !use_dynamic_lane && !use_core_contract_lane { Value::String(test_script.clone()) } else { Value::Null },
+                "lane_script": lane_script_value(id, &lane_script, use_core_contract_lane, use_dynamic_lane),
+                "test_script": test_script_value(test_exists, use_dynamic_lane, use_core_contract_lane, &test_script),
                 "status": "planned",
-                "lane_route": if use_core_contract_lane { "core_srs_contract_runtime" } else if use_dynamic_lane { "dynamic_legacy_adapter" } else { "npm_script" },
+                "lane_route": route,
                 "test_skip_reason": test_skip_reason
             }));
             continue;
         }
 
         let lane_result = if use_core_contract_lane {
-            run_core_srs_contract_lane(root, id)
+            run_core_runtime_system_lane(root, id)
         } else if use_dynamic_lane {
             run_dynamic_legacy_lane(root, id)
         } else {
@@ -501,36 +518,26 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 
         if lane_ok && test_ok {
             executed += 1;
+            let route = lane_route(use_core_contract_lane, use_dynamic_lane);
             rows.push(json!({
                 "id": id,
-                "lane_script": if use_core_contract_lane {
-                    Value::String(format!("core:srs_contract_runtime:{id}"))
-                } else if use_dynamic_lane {
-                    Value::String(format!("dynamic:legacy_alias_adapter:{id}"))
-                } else {
-                    Value::String(lane_script.clone())
-                },
-                "test_script": if test_exists && !use_dynamic_lane && !use_core_contract_lane { Value::String(test_script.clone()) } else { Value::Null },
+                "lane_script": lane_script_value(id, &lane_script, use_core_contract_lane, use_dynamic_lane),
+                "test_script": test_script_value(test_exists, use_dynamic_lane, use_core_contract_lane, &test_script),
                 "status": "executed",
-                "lane_route": if use_core_contract_lane { "core_srs_contract_runtime" } else if use_dynamic_lane { "dynamic_legacy_adapter" } else { "npm_script" },
+                "lane_route": route,
                 "test_skip_reason": test_skip_reason,
                 "lane_result": lane_result,
                 "test_result": test_result
             }));
         } else {
             failed += 1;
+            let route = lane_route(use_core_contract_lane, use_dynamic_lane);
             rows.push(json!({
                 "id": id,
-                "lane_script": if use_core_contract_lane {
-                    Value::String(format!("core:srs_contract_runtime:{id}"))
-                } else if use_dynamic_lane {
-                    Value::String(format!("dynamic:legacy_alias_adapter:{id}"))
-                } else {
-                    Value::String(lane_script.clone())
-                },
-                "test_script": if test_exists && !use_dynamic_lane && !use_core_contract_lane { Value::String(test_script.clone()) } else { Value::Null },
+                "lane_script": lane_script_value(id, &lane_script, use_core_contract_lane, use_dynamic_lane),
+                "test_script": test_script_value(test_exists, use_dynamic_lane, use_core_contract_lane, &test_script),
                 "status": "failed",
-                "lane_route": if use_core_contract_lane { "core_srs_contract_runtime" } else if use_dynamic_lane { "dynamic_legacy_adapter" } else { "npm_script" },
+                "lane_route": route,
                 "test_skip_reason": test_skip_reason,
                 "lane_result": lane_result,
                 "test_result": test_result
@@ -548,18 +555,24 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
         "all": all,
         "max": max,
         "with_tests": with_tests,
+        "allow_dynamic_legacy": allow_dynamic_legacy,
         "ids": ids,
         "counts": {
             "scanned": candidates.len(),
             "executed": executed,
             "skipped": skipped,
-            "failed": failed
+            "failed": failed,
+            "blocked_dynamic_stub": blocked_dynamic_stub
         },
         "rows": rows
     });
     out["receipt_hash"] = Value::String(deterministic_receipt_hash(&out));
-    write_json(&latest, &out);
-    append_jsonl(&history, &out);
+    let _ = lane_utils::write_json(&latest, &out);
+    let _ = lane_utils::append_jsonl(&history, &out);
     print_receipt(&out);
-    0
+    if failed == 0 {
+        0
+    } else {
+        1
+    }
 }

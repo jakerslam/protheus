@@ -6,6 +6,7 @@ import { dirname, resolve } from 'node:path';
 const SRS_PATH = 'docs/workspace/SRS.md';
 const OUT_JSON = 'core/local/artifacts/srs_actionable_map_current.json';
 const OUT_MD = 'local/workspace/reports/SRS_ACTIONABLE_MAP_CURRENT.md';
+const RUNTIME_CONTRACT_REGISTRY_PATH = 'core/layer0/ops/src/runtime_system_contracts.rs';
 
 function read(path) {
   return readFileSync(resolve(path), 'utf8');
@@ -49,6 +50,19 @@ function parseSrsRows(markdown) {
 function loadScripts() {
   const pkg = JSON.parse(read('package.json'));
   return pkg.scripts ?? {};
+}
+
+function loadRuntimeContractIds() {
+  if (!existsSync(resolve(RUNTIME_CONTRACT_REGISTRY_PATH))) return new Set();
+  const source = read(RUNTIME_CONTRACT_REGISTRY_PATH);
+  const out = new Set();
+  for (const match of source.matchAll(/"([A-Z0-9._-]+)"/g)) {
+    const id = String(match[1] || '').trim().toUpperCase();
+    if (/^V[0-9A-Z._-]+$/.test(id) && id.includes('-')) {
+      out.add(id);
+    }
+  }
+  return out;
 }
 
 function firstCmdSegment(cmd) {
@@ -103,7 +117,7 @@ function hasDynamicLegacyFallback() {
   return existsSync('client/runtime/systems/compat/legacy_alias_adapter.ts');
 }
 
-function classify(row, scripts) {
+function classify(row, scripts, coreContractIds) {
   if (row.status === 'blocked') {
     return {
       todoBucket: 'blocked_external',
@@ -131,6 +145,18 @@ function classify(row, scripts) {
       hasLaneScript: false,
       laneRunnable: false,
       laneScript: null,
+      missingEntrypoint: null,
+      unblock: '',
+    };
+  }
+
+  const normalizedId = String(row.id || '').trim().toUpperCase();
+  if (coreContractIds.has(normalizedId)) {
+    return {
+      todoBucket: 'execute_now',
+      hasLaneScript: false,
+      laneRunnable: true,
+      laneScript: `core:runtime-systems:${normalizedId}`,
       missingEntrypoint: null,
       unblock: '',
     };
@@ -206,6 +232,7 @@ function toMarkdown(summary, rows) {
 function main() {
   const srs = parseSrsRows(read(SRS_PATH));
   const scripts = loadScripts();
+  const coreContractIds = loadRuntimeContractIds();
 
   const statusPriority = {
     blocked: 4,
@@ -217,7 +244,7 @@ function main() {
   const dedup = new Map();
   for (const row of srs
     .filter((r) => ['queued', 'in_progress', 'blocked', 'blocked_external_prepared'].includes(r.status))
-    .map((r) => ({ ...r, ...classify(r, scripts) }))) {
+    .map((r) => ({ ...r, ...classify(r, scripts, coreContractIds) }))) {
     const existing = dedup.get(row.id);
     if (!existing) {
       dedup.set(row.id, row);

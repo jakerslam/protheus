@@ -8,6 +8,7 @@ use std::collections::{BTreeSet, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::contract_lane_utils as lane_utils;
 use crate::{clean, deterministic_receipt_hash, now_iso};
 
 const DEFAULT_STRATEGY_DIR_REL: &str = "client/runtime/config/strategies";
@@ -22,29 +23,12 @@ fn print_json_line(value: &Value) {
     );
 }
 
-fn parse_flag(argv: &[String], key: &str) -> Option<String> {
-    let pref = format!("--{key}=");
-    let long = format!("--{key}");
-    let mut idx = 0usize;
-    while idx < argv.len() {
-        let token = argv[idx].trim();
-        if let Some(v) = token.strip_prefix(&pref) {
-            return Some(v.to_string());
-        }
-        if token == long && idx + 1 < argv.len() {
-            return Some(argv[idx + 1].clone());
-        }
-        idx += 1;
-    }
-    None
-}
-
 fn load_payload(argv: &[String]) -> Result<Value, String> {
-    if let Some(payload) = parse_flag(argv, "payload") {
+    if let Some(payload) = lane_utils::parse_flag(argv, "payload", false) {
         return serde_json::from_str::<Value>(&payload)
             .map_err(|err| format!("strategy_resolver_payload_decode_failed:{err}"));
     }
-    if let Some(payload_b64) = parse_flag(argv, "payload-base64") {
+    if let Some(payload_b64) = lane_utils::parse_flag(argv, "payload-base64", false) {
         let bytes = BASE64_STANDARD
             .decode(payload_b64.as_bytes())
             .map_err(|err| format!("strategy_resolver_payload_base64_decode_failed:{err}"))?;
@@ -53,7 +37,7 @@ fn load_payload(argv: &[String]) -> Result<Value, String> {
         return serde_json::from_str::<Value>(&text)
             .map_err(|err| format!("strategy_resolver_payload_decode_failed:{err}"));
     }
-    if let Some(path) = parse_flag(argv, "payload-file") {
+    if let Some(path) = lane_utils::parse_flag(argv, "payload-file", false) {
         let text = fs::read_to_string(path.trim())
             .map_err(|err| format!("strategy_resolver_payload_file_read_failed:{err}"))?;
         return serde_json::from_str::<Value>(&text)

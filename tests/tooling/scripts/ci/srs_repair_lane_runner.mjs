@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 function parseArgs(argv) {
@@ -47,12 +46,7 @@ function main() {
   const strict = String(args.get('strict') || '1') === '0' ? '0' : '1';
   const dryRun = String(args.get('dry-run') || '0') === '1';
 
-  const contractPath = resolve(`planes/contracts/srs/${id}.json`);
-  if (!existsSync(contractPath)) {
-    fail('missing_contract', { id, contractPath });
-  }
-
-  const receiptPath = resolve(`local/state/ops/srs_contract_runtime/${id}/latest.json`);
+  const receiptPath = resolve(`client/local/state/runtime_systems/${id}/latest.json`);
   if (dryRun) {
     console.log(
       JSON.stringify(
@@ -62,7 +56,6 @@ function main() {
           mode: 'dry_run',
           id,
           strict: strict === '1',
-          contractPath,
           receiptPath,
         },
         null,
@@ -80,9 +73,10 @@ function main() {
     '--bin',
     'protheus-ops',
     '--',
-    'srs-contract-runtime',
+    'runtime-systems',
     'run',
-    `--id=${id}`,
+    `--system-id=${id}`,
+    '--apply=1',
     `--strict=${strict}`,
   ];
   const child = spawnSync('cargo', cmd, {
@@ -106,7 +100,6 @@ function main() {
         mode: 'run',
         id,
         strict: strict === '1',
-        contractPath,
         receiptPath,
       },
       null,

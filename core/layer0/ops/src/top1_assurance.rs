@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer0/ops::top1_assurance (authoritative)
 
+use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso, parse_args, status_runtime_efficiency_floor};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::ffi::OsStr;
 use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, Instant};
@@ -81,11 +81,7 @@ fn usage() {
 }
 
 fn parse_bool(raw: Option<&String>, fallback: bool) -> bool {
-    match raw.map(|v| v.trim().to_ascii_lowercase()) {
-        Some(v) if matches!(v.as_str(), "1" | "true" | "yes" | "on") => true,
-        Some(v) if matches!(v.as_str(), "0" | "false" | "no" | "off") => false,
-        _ => fallback,
-    }
+    lane_utils::parse_bool(raw.map(String::as_str), fallback)
 }
 
 fn parse_f64(raw: Option<&String>, fallback: f64, lo: f64, hi: f64) -> f64 {
@@ -115,35 +111,16 @@ fn rel_path(root: &Path, path: &Path) -> String {
         .unwrap_or_else(|| normalize_rel(path))
 }
 
-fn ensure_parent(path: &Path) -> Result<(), String> {
-    let Some(parent) = path.parent() else {
-        return Ok(());
-    };
-    fs::create_dir_all(parent).map_err(|err| format!("mkdir_failed:{}:{err}", parent.display()))
-}
-
 fn read_json(path: &Path) -> Option<Value> {
-    let raw = fs::read_to_string(path).ok()?;
-    serde_json::from_str::<Value>(&raw).ok()
+    lane_utils::read_json(path)
 }
 
 fn write_json(path: &Path, value: &Value) -> Result<(), String> {
-    ensure_parent(path)?;
-    let mut payload =
-        serde_json::to_string_pretty(value).map_err(|err| format!("encode_failed:{err}"))?;
-    payload.push('\n');
-    fs::write(path, payload).map_err(|err| format!("write_failed:{}:{err}", path.display()))
+    lane_utils::write_json(path, value)
 }
 
 fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
-    ensure_parent(path)?;
-    let line = serde_json::to_string(value).map_err(|err| format!("encode_failed:{err}"))?;
-    let mut f = fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)
-        .map_err(|err| format!("open_failed:{}:{err}", path.display()))?;
-    writeln!(f, "{line}").map_err(|err| format!("append_failed:{}:{err}", path.display()))
+    lane_utils::append_jsonl(path, value)
 }
 
 fn sha256_file(path: &Path) -> Result<String, String> {

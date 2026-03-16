@@ -3,9 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = process.cwd();
-const INPUT = path.join(ROOT, "artifacts", "srs_full_regression_current.json");
-const OUT_JSON = path.join(ROOT, "artifacts", "srs_duplicate_id_audit_current.json");
-const OUT_MD = path.join(ROOT, "docs", "workspace", "SRS_DUPLICATE_ID_AUDIT_CURRENT.md");
+const INPUT_CANDIDATES = [
+  path.join(ROOT, "core", "local", "artifacts", "srs_full_regression_current.json"),
+  path.join(ROOT, "artifacts", "srs_full_regression_current.json")
+];
+const OUT_JSON = path.join(ROOT, "core", "local", "artifacts", "srs_duplicate_id_audit_current.json");
+const OUT_MD = path.join(ROOT, "local", "workspace", "reports", "SRS_DUPLICATE_ID_AUDIT_CURRENT.md");
 
 function ensureDir(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -15,6 +18,18 @@ function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
+function resolveExisting(paths) {
+  for (const candidate of paths) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  throw new Error(
+    `missing_input_artifact:none_found:${paths
+      .map((candidate) => path.relative(ROOT, candidate))
+      .join(",")}`
+  );
+}
+
+const INPUT = resolveExisting(INPUT_CANDIDATES);
 const payload = readJson(INPUT);
 const rows = Array.isArray(payload.rows) ? payload.rows : [];
 
@@ -54,7 +69,7 @@ const summary = {
 const out = {
   ok: true,
   type: "srs_duplicate_id_audit",
-  source: "core/local/artifacts/srs_full_regression_current.json",
+  source: path.relative(ROOT, INPUT).replace(/\\/g, "/"),
   summary,
   duplicates
 };

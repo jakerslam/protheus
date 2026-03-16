@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer2/ops::spawn_broker (authoritative)
+use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso};
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
@@ -142,36 +143,11 @@ fn clamp_f64(v: f64, lo: f64, hi: f64) -> f64 {
 }
 
 fn parse_flag(argv: &[String], key: &str) -> Option<String> {
-    let with_eq = format!("--{key}=");
-    let plain = format!("--{key}");
-    let mut i = 0usize;
-    while i < argv.len() {
-        let token = argv[i].trim();
-        if let Some(v) = token.strip_prefix(with_eq.as_str()) {
-            return Some(v.trim().to_string());
-        }
-        if token == plain {
-            if let Some(next) = argv.get(i + 1) {
-                if !next.trim_start().starts_with("--") {
-                    return Some(next.trim().to_string());
-                }
-            }
-            return Some("true".to_string());
-        }
-        i += 1;
-    }
-    None
+    lane_utils::parse_flag(argv, key, true)
 }
 
 fn parse_bool(raw: Option<&str>, fallback: bool) -> bool {
-    let Some(v) = raw else {
-        return fallback;
-    };
-    match v.trim().to_ascii_lowercase().as_str() {
-        "1" | "true" | "yes" | "on" => true,
-        "0" | "false" | "no" | "off" => false,
-        _ => fallback,
-    }
+    lane_utils::parse_bool(raw, fallback)
 }
 
 fn parse_i64(raw: Option<&str>, fallback: i64) -> i64 {
@@ -206,16 +182,7 @@ fn write_json_atomic(path: &Path, payload: &Value) -> Result<(), String> {
 }
 
 fn append_jsonl(path: &Path, payload: &Value) -> Result<(), String> {
-    ensure_parent(path)?;
-    let line = serde_json::to_string(payload).unwrap_or_else(|_| "{}".to_string()) + "\n";
-    let mut opts = fs::OpenOptions::new();
-    opts.create(true).append(true);
-    let mut file = opts
-        .open(path)
-        .map_err(|e| format!("open_append_failed:{}:{e}", path.display()))?;
-    use std::io::Write;
-    file.write_all(line.as_bytes())
-        .map_err(|e| format!("append_failed:{}:{e}", path.display()))
+    lane_utils::append_jsonl(path, payload)
 }
 
 fn root_client_runtime(root: &Path) -> PathBuf {

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso};
 use serde_json::{json, Value};
 use std::path::Path;
@@ -26,20 +27,14 @@ fn usage() {
     println!("  protheus-ops sensory-eyes-intake run [--eye=<id>]");
 }
 
-fn parse_flag(argv: &[String], key: &str) -> Option<String> {
-    let pref = format!("--{key}=");
-    argv.iter().find_map(|arg| {
-        let t = arg.trim();
-        t.strip_prefix(&pref).map(|v| v.to_string())
-    })
-}
-
 fn native_receipt(root: &Path, cmd: &str, argv: &[String]) -> Value {
-    let eye_id = parse_flag(argv, "eye")
-        .or_else(|| parse_flag(argv, "name"))
+    let eye_id = lane_utils::parse_flag(argv, "eye", false)
+        .or_else(|| lane_utils::parse_flag(argv, "name", false))
         .unwrap_or_else(|| "all".to_string());
-    let parser = parse_flag(argv, "parser").unwrap_or_else(|| "json".to_string());
-    let directive = parse_flag(argv, "directive").unwrap_or_else(|| "none".to_string());
+    let parser =
+        lane_utils::parse_flag(argv, "parser", false).unwrap_or_else(|| "json".to_string());
+    let directive =
+        lane_utils::parse_flag(argv, "directive", false).unwrap_or_else(|| "none".to_string());
 
     let mut out = json!({
         "ok": true,

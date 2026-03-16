@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso};
 use serde_json::{json, Map, Value};
 use std::path::Path;
@@ -19,27 +20,10 @@ fn print_json_line(value: &Value) {
     );
 }
 
-fn parse_flag(argv: &[String], key: &str) -> Option<String> {
-    let pref = format!("--{key}=");
-    let key_long = format!("--{key}");
-    let mut i = 0usize;
-    while i < argv.len() {
-        let token = argv[i].trim();
-        if let Some(v) = token.strip_prefix(&pref) {
-            return Some(v.to_string());
-        }
-        if token == key_long && i + 1 < argv.len() {
-            return Some(argv[i + 1].clone());
-        }
-        i += 1;
-    }
-    None
-}
-
 fn passthrough_flag_map(argv: &[String], keys: &[&str]) -> Value {
     let mut out = Map::new();
     for key in keys {
-        if let Some(v) = parse_flag(argv, key) {
+        if let Some(v) = lane_utils::parse_flag(argv, key, false) {
             out.insert((*key).to_string(), Value::String(v));
         }
     }

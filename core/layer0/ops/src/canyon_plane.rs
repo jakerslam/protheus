@@ -233,6 +233,14 @@ fn run_enterprise_lane(root: &Path, argv: &[&str]) -> bool {
     enterprise_hardening::run(root, &owned) == 0
 }
 
+fn ensure_enterprise_zero_trust_profile(root: &Path) -> bool {
+    let profile_path = enterprise_state_root(root).join("f100/zero_trust_profile.json");
+    if profile_path.exists() {
+        return true;
+    }
+    run_enterprise_lane(root, &["zero-trust-profile", "--strict=1"])
+}
+
 fn ensure_benchmark_audit_evidence(root: &Path) -> Option<String> {
     let candidates = [
         enterprise_state_root(root).join("f100/ops_bridge.json"),
@@ -244,6 +252,7 @@ fn ensure_benchmark_audit_evidence(root: &Path) -> Option<String> {
     if let Some(found) = evidence_exists(&candidates) {
         return Some(found);
     }
+    let _ = ensure_enterprise_zero_trust_profile(root);
     if run_enterprise_lane(root, &["explore", "--strict=1"]) {
         return evidence_exists(&[
             enterprise_state_root(root).join("moat/explorer/index.json"),
@@ -262,6 +271,7 @@ fn ensure_benchmark_adoption_evidence(root: &Path) -> Option<String> {
     if let Some(found) = evidence_exists(&candidates) {
         return Some(found);
     }
+    let _ = ensure_enterprise_zero_trust_profile(root);
     if run_enterprise_lane(root, &["adoption-bootstrap", "--strict=1"]) {
         return evidence_exists(&candidates);
     }

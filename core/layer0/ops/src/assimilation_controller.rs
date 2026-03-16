@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
+use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::fs;
-use std::io::Write;
 use std::path::Path;
 
 const LANE_ID: &str = "assimilation_controller";
@@ -54,31 +54,11 @@ fn usage() {
 }
 
 fn parse_flag(argv: &[String], key: &str) -> Option<String> {
-    let pref = format!("--{key}=");
-    let exact = format!("--{key}");
-    let mut i = 0usize;
-    while i < argv.len() {
-        let t = argv[i].trim();
-        if let Some(v) = t.strip_prefix(&pref) {
-            return Some(v.to_string());
-        }
-        if t == exact && i + 1 < argv.len() && !argv[i + 1].starts_with("--") {
-            return Some(argv[i + 1].clone());
-        }
-        i += 1;
-    }
-    None
+    lane_utils::parse_flag(argv, key, false)
 }
 
 fn parse_bool_flag(raw: Option<String>, fallback: bool) -> bool {
-    let Some(value) = raw else {
-        return fallback;
-    };
-    match value.trim().to_ascii_lowercase().as_str() {
-        "1" | "true" | "yes" | "on" => true,
-        "0" | "false" | "no" | "off" => false,
-        _ => fallback,
-    }
+    lane_utils::parse_bool(raw.as_deref(), fallback)
 }
 
 fn parse_u64_flag(raw: Option<String>, fallback: u64) -> u64 {
@@ -95,19 +75,7 @@ fn is_token_id(id: &str) -> bool {
 }
 
 fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|err| format!("create_dir_failed:{}:{err}", parent.display()))?;
-    }
-    let line =
-        serde_json::to_string(value).map_err(|err| format!("encode_jsonl_failed:{err}"))? + "\n";
-    let mut file = fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)
-        .map_err(|err| format!("open_jsonl_failed:{}:{err}", path.display()))?;
-    file.write_all(line.as_bytes())
-        .map_err(|err| format!("write_jsonl_failed:{}:{err}", path.display()))
+    lane_utils::append_jsonl(path, value)
 }
 
 fn parse_hand_manifest(path: &Path) -> Result<Value, String> {
@@ -221,26 +189,12 @@ fn history_path(root: &Path) -> std::path::PathBuf {
 fn persist_receipt(root: &Path, payload: &Value) {
     let latest = latest_path(root);
     let history = history_path(root);
-    if let Some(parent) = latest.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    if let Ok(mut body) = serde_json::to_string_pretty(payload) {
-        body.push('\n');
-        let _ = fs::write(&latest, body);
-    }
-    if let Ok(line) = serde_json::to_string(payload) {
-        use std::io::Write;
-        let _ = fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&history)
-            .and_then(|mut file| file.write_all(format!("{line}\n").as_bytes()));
-    }
+    let _ = lane_utils::write_json(&latest, payload);
+    let _ = lane_utils::append_jsonl(&history, payload);
 }
 
 fn read_json(path: &Path) -> Option<Value> {
-    let raw = fs::read_to_string(path).ok()?;
-    serde_json::from_str::<Value>(&raw).ok()
+    lane_utils::read_json(path)
 }
 
 fn first_non_flag(argv: &[String], skip: usize) -> Option<String> {

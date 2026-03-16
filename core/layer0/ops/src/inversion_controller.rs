@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+use crate::contract_lane_utils as lane_utils;
 use crate::{deterministic_receipt_hash, now_iso};
 use serde_json::{json, Value};
 use std::path::Path;
@@ -24,18 +25,13 @@ fn usage() {
     println!("  protheus-ops inversion-controller run [--objective=<id>] [--impact=<low|medium|high>] [--target=<lane>]");
 }
 
-fn parse_flag(argv: &[String], key: &str) -> Option<String> {
-    let pref = format!("--{key}=");
-    argv.iter().find_map(|arg| {
-        let t = arg.trim();
-        t.strip_prefix(&pref).map(|v| v.to_string())
-    })
-}
-
 fn native_receipt(root: &Path, cmd: &str, argv: &[String]) -> Value {
-    let objective = parse_flag(argv, "objective").unwrap_or_else(|| "default".to_string());
-    let impact = parse_flag(argv, "impact").unwrap_or_else(|| "medium".to_string());
-    let target = parse_flag(argv, "target").unwrap_or_else(|| "tactical".to_string());
+    let objective =
+        lane_utils::parse_flag(argv, "objective", false).unwrap_or_else(|| "default".to_string());
+    let impact =
+        lane_utils::parse_flag(argv, "impact", false).unwrap_or_else(|| "medium".to_string());
+    let target =
+        lane_utils::parse_flag(argv, "target", false).unwrap_or_else(|| "tactical".to_string());
 
     let mut out = json!({
         "ok": true,

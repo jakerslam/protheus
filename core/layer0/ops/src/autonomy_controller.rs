@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+use crate::contract_lane_utils as lane_utils;
 use crate::v8_kernel::{deterministic_merkle_root, write_receipt};
 use crate::{deterministic_receipt_hash, now_iso};
 use base64::Engine as _;
@@ -56,11 +57,7 @@ fn usage() {
 }
 
 fn parse_flag(argv: &[String], key: &str) -> Option<String> {
-    let pref = format!("--{key}=");
-    argv.iter().find_map(|arg| {
-        let t = arg.trim();
-        t.strip_prefix(&pref).map(|v| v.to_string())
-    })
+    lane_utils::parse_flag(argv, key, false)
 }
 
 fn parse_positional(argv: &[String], idx: usize) -> Option<String> {
@@ -71,20 +68,11 @@ fn parse_positional(argv: &[String], idx: usize) -> Option<String> {
 }
 
 fn parse_bool(raw: Option<&str>, fallback: bool) -> bool {
-    let Some(v) = raw else {
-        return fallback;
-    };
-    match v.trim().to_ascii_lowercase().as_str() {
-        "1" | "true" | "yes" | "on" => true,
-        "0" | "false" | "no" | "off" => false,
-        _ => fallback,
-    }
+    lane_utils::parse_bool(raw, fallback)
 }
 
 fn parse_i64(raw: Option<&str>, fallback: i64, lo: i64, hi: i64) -> i64 {
-    raw.and_then(|v| v.trim().parse::<i64>().ok())
-        .unwrap_or(fallback)
-        .clamp(lo, hi)
+    lane_utils::parse_i64_clamped(raw, fallback, lo, hi)
 }
 
 fn parse_u64(raw: Option<&str>, fallback: u64, lo: u64, hi: u64) -> u64 {
@@ -199,32 +187,15 @@ fn state_root(root: &Path) -> PathBuf {
 }
 
 fn read_json(path: &Path) -> Option<Value> {
-    let raw = fs::read_to_string(path).ok()?;
-    serde_json::from_str(&raw).ok()
+    lane_utils::read_json(path)
 }
 
 fn write_json(path: &Path, value: &Value) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("mkdir_failed:{}:{e}", parent.display()))?;
-    }
-    let body =
-        serde_json::to_string_pretty(value).map_err(|e| format!("encode_json_failed:{e}"))? + "\n";
-    fs::write(path, body).map_err(|e| format!("write_json_failed:{}:{e}", path.display()))
+    lane_utils::write_json(path, value)
 }
 
 fn append_jsonl(path: &Path, row: &Value) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("mkdir_failed:{}:{e}", parent.display()))?;
-    }
-    let line = serde_json::to_string(row).map_err(|e| format!("encode_jsonl_failed:{e}"))?;
-    let mut file = fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)
-        .map_err(|e| format!("open_jsonl_failed:{}:{e}", path.display()))?;
-    use std::io::Write as _;
-    file.write_all(format!("{line}\n").as_bytes())
-        .map_err(|e| format!("append_jsonl_failed:{}:{e}", path.display()))
+    lane_utils::append_jsonl(path, row)
 }
 
 fn read_jsonl(path: &Path) -> Vec<Value> {
