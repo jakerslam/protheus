@@ -138,6 +138,7 @@ pub mod supply_chain_provenance_v2;
 pub mod symbiosis_coherence_kernel;
 pub mod swarm_runtime;
 pub mod ternary_belief_kernel;
+pub mod trit_shadow_kernel;
 pub mod top1_assurance;
 pub mod v8_kernel;
 pub mod vbrowser_plane;
