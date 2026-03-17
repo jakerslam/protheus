@@ -145,6 +145,21 @@ function isThinBridge(record) {
   );
 }
 
+function hasAuthorityMarker(record) {
+  const normalized = String((record && record.text) || '');
+  return /Layer ownership:\s*core\/.+\(authoritative\)/.test(normalized);
+}
+
+function isExtensionSurface(record) {
+  const relPath = String((record && record.path) || '');
+  return (
+    relPath.startsWith('apps/') ||
+    relPath.includes('/skills/') ||
+    relPath.startsWith('client/runtime/systems/extensions/') ||
+    relPath.startsWith('client/runtime/systems/marketplace/')
+  );
+}
+
 function buildInventory(argv = []) {
   const policyPath = path.resolve(ROOT, parseFlag(argv, 'policy', DEFAULT_POLICY));
   const policy = readJson(policyPath);
@@ -211,6 +226,8 @@ if (require.main === module) {
 
 module.exports = {
   buildInventory,
+  hasAuthorityMarker,
+  isExtensionSurface,
   isThinBridge,
   run,
 };

@@ -4,7 +4,12 @@
 const fs = require('fs');
 const path = require('path');
 const { ROOT } = require('./run_protheus_ops.js');
-const { buildInventory, isThinBridge } = require('./rust_hotpath_inventory.ts');
+const {
+  buildInventory,
+  hasAuthorityMarker,
+  isExtensionSurface,
+  isThinBridge
+} = require('./rust_hotpath_inventory.ts');
 
 const HOTPATH_CSV = path.join(ROOT, 'docs', 'client', 'generated', 'RUST60_TS_HOTPATHS_RANKED_FULL.csv');
 const HOTPATH_MD = path.join(ROOT, 'docs', 'client', 'generated', 'RUST60_TS_HOTPATHS_RANKED_FULL.md');
@@ -58,8 +63,7 @@ function shouldExclude(record) {
   if (!relPath.endsWith('.ts')) return true;
   if (relPath.startsWith('tests/')) return true;
   if (relPath.startsWith('client/runtime/systems/ui/')) return true;
-  if (relPath.startsWith('client/runtime/systems/marketplace/')) return true;
-  if (relPath.startsWith('client/runtime/systems/extensions/')) return true;
+  if (isExtensionSurface(record) && !hasAuthorityMarker(record)) return true;
   if (relPath === 'client/runtime/systems/conduit/conduit-client.ts') return true;
   if (relPath === 'client/runtime/lib/rust_lane_bridge.ts') return true;
   if (relPath === 'client/runtime/lib/spine_conduit_bridge.ts') return true;
@@ -144,6 +148,12 @@ function buildQueue(argv = []) {
     }))
     .sort((a, b) => b.impact_score - a.impact_score || b.loc - a.loc || a.path.localeCompare(b.path));
 
+  const extensionSurfaceExcluded = records.filter((record) =>
+    record.path.endsWith('.ts') &&
+    isExtensionSurface(record) &&
+    !hasAuthorityMarker(record)
+  ).length;
+
   let cumulative = 0;
   const lanes = candidates.map((candidate, index) => {
     cumulative += candidate.loc;
@@ -170,6 +180,7 @@ function buildQueue(argv = []) {
     target_already_met: payload.rust_percent >= 60,
     queue_size: lanes.length,
     bridge_wrappers_excluded: payload.runtime_scope.bridge_wrappers_excluded_from_queue,
+    extension_surfaces_excluded: extensionSurfaceExcluded,
     stale_reference_repair: true,
     lanes,
     top: lanes.slice(0, max),
@@ -200,6 +211,7 @@ function run(argv = process.argv.slice(2)) {
     target_already_met: queue.target_already_met,
     queue_size: queue.queue_size,
     bridge_wrappers_excluded: queue.bridge_wrappers_excluded,
+    extension_surfaces_excluded: queue.extension_surfaces_excluded,
     top_count: queue.top.length,
     output_files: {
       hotpath_csv: path.relative(ROOT, HOTPATH_CSV),

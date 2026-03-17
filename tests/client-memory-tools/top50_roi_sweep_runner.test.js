@@ -34,10 +34,23 @@ assert(fs.existsSync(QUEUE_JSON), 'expected refreshed queue json');
 const queue = JSON.parse(fs.readFileSync(QUEUE_JSON, 'utf8'));
 assert(queue.current_rust_percent >= 60, 'expected current rust percent to reflect live repo state');
 assert(queue.bridge_wrappers_excluded > 0, 'expected bridge wrappers to be excluded');
+assert(queue.extension_surfaces_excluded > 0, 'expected skill/app extension surfaces to be excluded');
 assert(queue.top.every((lane) => fs.existsSync(path.join(ROOT, lane.path))), 'expected queue paths to exist');
 assert(queue.top.every((lane) => !lane.path.endsWith('gated_self_improvement_loop.ts')), 'expected thin bridge wrappers excluded');
 assert(
   queue.top.every((lane) => lane.path !== 'client/runtime/systems/autonomy/swarm_orchestration_runtime.ts'),
   'expected thin swarm bridge wrapper to be excluded from live queue'
+);
+assert(
+  queue.top.every((lane) => lane.path !== 'adapters/cognition/skills/moltbook/moltbook_api.ts'),
+  'expected flexible skill surface to be excluded from live queue'
+);
+assert(
+  queue.top.every((lane) => lane.path !== 'adapters/cognition/skills/mcp/mcp_gateway.ts'),
+  'expected skill gateway surface to be excluded from live queue'
+);
+assert(
+  queue.top.every((lane) => !lane.path.startsWith('apps/')),
+  'expected app shells to be excluded from live queue unless explicitly authoritative'
 );
 console.log('top50_roi_sweep_runner.test.js: OK');
