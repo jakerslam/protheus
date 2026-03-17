@@ -234,6 +234,11 @@ fn main() {
             let exit = protheus_ops_core::action_envelope_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "action-receipts-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::action_receipts_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "success-criteria-kernel" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::success_criteria_kernel::run(&cwd, &rest);
@@ -274,6 +279,16 @@ fn main() {
             let exit = protheus_ops_core::autonomy_receipt_schema_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
+        "quorum-validator-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::quorum_validator_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "mutation-provenance-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::mutation_provenance_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
         "ops-domain-conduit-runner-kernel" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::ops_domain_conduit_runner_kernel::run(&cwd, &rest);
@@ -287,6 +302,16 @@ fn main() {
         "strategy-store-kernel" => {
             let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
             let exit = protheus_ops_core::strategy_store_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "habit-store-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::habit_store_kernel::run(&cwd, &rest);
+            std::process::exit(exit);
+        }
+        "reflex-store-kernel" => {
+            let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
+            let exit = protheus_ops_core::reflex_store_kernel::run(&cwd, &rest);
             std::process::exit(exit);
         }
         "strategy-campaign-scheduler-kernel" => {

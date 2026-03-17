@@ -450,7 +450,7 @@ fn normalize_input_rows(rows: Option<&Value>, source: &str) -> Vec<(String, Stri
     out
 }
 
-fn compile_success_criteria_rows(rows: Option<&Value>, source: &str) -> Vec<Value> {
+pub(crate) fn compile_success_criteria_rows(rows: Option<&Value>, source: &str) -> Vec<Value> {
     let raw_rows = normalize_input_rows(rows, source);
     let mut out = Vec::new();
     let mut seen = std::collections::BTreeSet::new();
@@ -477,7 +477,7 @@ fn compile_success_criteria_rows(rows: Option<&Value>, source: &str) -> Vec<Valu
     out
 }
 
-fn compile_proposal_success_criteria(payload: &Map<String, Value>) -> Vec<Value> {
+pub(crate) fn compile_proposal_success_criteria(payload: &Map<String, Value>) -> Vec<Value> {
     let proposal = as_object(payload.get("proposal")).cloned().unwrap_or_default();
     let action_spec = as_object(proposal.get("action_spec")).cloned().unwrap_or_default();
     let opts = as_object(payload.get("opts")).cloned().unwrap_or_default();
